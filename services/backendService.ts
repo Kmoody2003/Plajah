@@ -2473,7 +2473,7 @@ export const uploadFile = async (path: string, blobOrFile: Blob | File, onProgre
       'ts': 'video/mp2t', 'm2ts': 'video/mp2t', 'mts': 'video/mp2t',
       // Image
       'png': 'image/png', 'jpg': 'image/jpeg', 'jpeg': 'image/jpeg',
-      'gif': 'image/gif', 'webp': 'image/webp', 'avif': 'image/avif',
+      'gif': 'image/gif', 'webp': 'image/webp', 'avif': 'image/avif', 'jxl': 'image/jxl',
       'heic': 'image/heic', 'heif': 'image/heif', 'svg': 'image/svg+xml',
     };
     if (ext && mimeMap[ext]) {
@@ -3240,13 +3240,15 @@ export const publishToCloud = async (album: Album, onProgress?: (status: string,
   // 2. Upload Artist Image
   let finalArtistImg = album.artistImage;
   if (album.artistFile) {
-    finalArtistImg = await uploadFile(`albums/${album.id}/artist_${Date.now().toString(36)}.png`, album.artistFile);
+    const img = await uploadImageWithDerivatives(`albums/${album.id}/artist_${Date.now().toString(36)}`, album.artistFile);
+    finalArtistImg = img.display;
   } else if (album.artistImage && album.artistImage.startsWith('blob:')) {
     const blob = await dataUrlToBlob(album.artistImage);
-    finalArtistImg = await uploadFile(`albums/${album.id}/artist_${Date.now().toString(36)}.png`, blob);
+    const img = await uploadImageWithDerivatives(`albums/${album.id}/artist_${Date.now().toString(36)}`, blob);
+    finalArtistImg = img.display;
   }
 
-  // 3. Upload Slideshow
+  // 3. Upload Slideshow (optimised via uploadImageWithDerivatives so slideshows stream compact JXL/WebP derivatives)
   const finalSlideshow: string[] = [];
   // Keep any previously-saved URLs (not blob: URLs which are local-only previews)
   if (album.slideshow) {
@@ -3254,12 +3256,12 @@ export const publishToCloud = async (album: Album, onProgress?: (status: string,
       if (url && !url.startsWith('blob:')) finalSlideshow.push(url);
     }
   }
-  // Upload new files and append them
+  // Upload new files with derivatives and append the optimised display URL
   if (album.slideshowFiles && album.slideshowFiles.length > 0) {
     for (let i = 0; i < album.slideshowFiles.length; i++) {
       const file = album.slideshowFiles[i];
-      const url = await uploadFile(`albums/${album.id}/slideshow/img_${Date.now()}_${i}.png`, file);
-      finalSlideshow.push(url);
+      const img = await uploadImageWithDerivatives(`albums/${album.id}/slideshow/img_${Date.now()}_${i}`, file);
+      finalSlideshow.push(img.display);
     }
   }
 
@@ -3363,12 +3365,14 @@ export const publishToCloud = async (album: Album, onProgress?: (status: string,
       }
       
       if (video.thumbnailFile) {
-        thumbUrl = await uploadFile(`albums/${album.id}/videos/thumb_${video.id}_${Date.now().toString(36)}.png`, video.thumbnailFile);
+        const img = await uploadImageWithDerivatives(`albums/${album.id}/videos/thumb_${video.id}_${Date.now().toString(36)}`, video.thumbnailFile);
+        thumbUrl = img.display;
       }
       
       let coverUrl = video.coverImageUrl;
       if (video.coverImageFile) {
-        coverUrl = await uploadFile(`albums/${album.id}/videos/cover_${video.id}_${Date.now().toString(36)}.png`, video.coverImageFile);
+        const img = await uploadImageWithDerivatives(`albums/${album.id}/videos/cover_${video.id}_${Date.now().toString(36)}`, video.coverImageFile);
+        coverUrl = img.display;
       }
       
       finalVideos.push({
@@ -7825,12 +7829,14 @@ export const uploadVideo = async (video: Partial<Video>, onProgress?: (p: number
   
   let thumbUrl = video.thumbnailUrl || '';
   if (video.thumbnailFile) {
-    thumbUrl = await uploadFile(`videos/${id}/thumb_${Date.now().toString(36)}.png`, video.thumbnailFile);
+    const img = await uploadImageWithDerivatives(`videos/${id}/thumb_${Date.now().toString(36)}`, video.thumbnailFile);
+    thumbUrl = img.display;
   }
 
   let coverUrl = video.coverImageUrl || '';
   if (video.coverImageFile) {
-    coverUrl = await uploadFile(`videos/${id}/cover_${Date.now().toString(36)}.png`, video.coverImageFile);
+    const img = await uploadImageWithDerivatives(`videos/${id}/cover_${Date.now().toString(36)}`, video.coverImageFile);
+    coverUrl = img.display;
   }
   
   // Resolves well before a real upload finishes. A duration with no fps is still recorded — losing
@@ -11915,26 +11921,70 @@ export interface WatchlistItem {
   addedAt: number;
 }
 
+const LOCAL_WATCHLIST_KEY = 'plajah:taleo:watchlist';
+
+const readLocalWatchlist = (): WatchlistItem[] => {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(LOCAL_WATCHLIST_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+const writeLocalWatchlist = (items: WatchlistItem[]): void => {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(LOCAL_WATCHLIST_KEY, JSON.stringify(items.slice(0, 200)));
+    window.dispatchEvent(new CustomEvent('plajah:watchlist-changed'));
+  } catch {}
+};
+
 export const addToWatchlist = async (item: Omit<WatchlistItem, 'addedAt'>): Promise<void> => {
+  const entry: WatchlistItem = { ...item, addedAt: Date.now() };
+  const current = readLocalWatchlist().filter(x => x.id !== item.id);
+  writeLocalWatchlist([entry, ...current]);
   if (!auth.currentUser) return;
-  const ref = doc(db, 'users', auth.currentUser.uid, 'watchlist', item.id);
-  await setDoc(ref, { ...item, addedAt: Date.now() });
+  try {
+    const ref = doc(db, 'users', auth.currentUser.uid, 'watchlist', item.id);
+    await setDoc(ref, entry);
+  } catch {}
 };
 
 export const removeFromWatchlist = async (itemId: string): Promise<void> => {
+  const current = readLocalWatchlist().filter(x => x.id !== itemId);
+  writeLocalWatchlist(current);
   if (!auth.currentUser) return;
-  await deleteDoc(doc(db, 'users', auth.currentUser.uid, 'watchlist', itemId));
+  try {
+    await deleteDoc(doc(db, 'users', auth.currentUser.uid, 'watchlist', itemId));
+  } catch {}
 };
 
 export const fetchWatchlist = async (): Promise<WatchlistItem[]> => {
-  if (!auth.currentUser) return [];
+  const local = readLocalWatchlist();
+  if (!auth.currentUser) return local.sort((a, b) => b.addedAt - a.addedAt);
   try {
     const snap = await getDocs(collection(db, 'users', auth.currentUser.uid, 'watchlist'));
-    return snap.docs.map(d => d.data() as WatchlistItem).sort((a, b) => b.addedAt - a.addedAt);
-  } catch { return []; }
+    const remote = snap.docs.map(d => d.data() as WatchlistItem);
+    const mergedMap = new Map<string, WatchlistItem>();
+    for (const item of [...remote, ...local]) {
+      if (item && item.id && !mergedMap.has(item.id)) {
+        mergedMap.set(item.id, item);
+      }
+    }
+    const merged = Array.from(mergedMap.values()).sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));
+    writeLocalWatchlist(merged);
+    return merged;
+  } catch {
+    return local.sort((a, b) => b.addedAt - a.addedAt);
+  }
 };
 
 export const isInWatchlist = async (itemId: string): Promise<boolean> => {
+  if (readLocalWatchlist().some(x => x.id === itemId)) return true;
   if (!auth.currentUser) return false;
   try {
     const d = await getDoc(doc(db, 'users', auth.currentUser.uid, 'watchlist', itemId));

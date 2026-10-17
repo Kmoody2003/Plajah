@@ -86,6 +86,21 @@ describe('songFollowCore detector', () => {
     d.feed('good morning everyone please take your seats');
     assert.equal(d.detect(), null);
   });
+
+  test('detects rapidly from just 3 sung words even with minor ASR drift', () => {
+    const d = createSongDetector(songs);
+    d.feed('blessed assurance jesus');
+    const hit = d.detect();
+    assert.ok(hit, 'detected from 3 words');
+    assert.equal(hit!.songId, 'blessed');
+    assert.equal(hit!.line, 0);
+  });
+
+  test('normalizes worship spelling variants (alleluia/hallelujah, saviour/savior)', () => {
+    assert.equal(normWord('Alleluia!'), 'hallelujah');
+    assert.equal(normWord('Saviour'), 'savior');
+    assert.equal(normWord('Spirt'), 'spirit');
+  });
 });
 
 describe('songLibrary parsing', () => {

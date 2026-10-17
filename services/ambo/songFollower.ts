@@ -21,7 +21,7 @@ import { lineSpan, timeWords, type LyricLine } from './lyricStyles';
 import { createSongAligner, createSongDetector, type SongAligner, type SongDetector, type AlignEvent } from './songFollowCore';
 import { listSongs, getSong, subscribeSongs, songsVersion, findSongByTitle, type Song } from './songLibrary';
 import {
-  startLiveTranscription, subscribeTranscript, activeTranscriptions, subscribeTranscriptionSessions,
+  startMusicTranscription, subscribeTranscript, activeTranscriptions, subscribeTranscriptionSessions,
   type TranscriberHandle, type TranscribeSource,
 } from './liveTranscriber';
 
@@ -213,13 +213,25 @@ function ensureDetector(): SongDetector {
 function maybeDetect() {
   if (!prefs.autoDetect || state.playback?.synced) return;
   const hit = ensureDetector().detect();
-  if (!hit || hit.songId === state.songId) return;
+  if (!hit) return;
   const now = Date.now();
-  if (now - lastSwitchAt < 8000) return;
+  if (hit.songId === state.songId) {
+    if (state.entry < 0 && aligner) {
+      aligner.seek(hit.token);
+      const p = aligner.position();
+      if (p.line >= 0) {
+        lastAdvanceAt = now;
+        set({ entry: entryOfLine(p.line), word: p.word });
+      }
+    }
+    return;
+  }
+  if (state.songId && now - lastSwitchAt < 4500) return;
   // Don't yank a song that is tracking fine unless the evidence is strong.
   const tracking = state.songId && !state.offScript && now - lastAdvanceAt < 6000;
-  if (tracking && hit.score < 3) return;
+  if (tracking && hit.score < 2.6) return;
   lastSwitchAt = now;
+  lastAdvanceAt = now;
   selectSong(hit.songId, undefined, 'audio', hit.score);
   aligner?.seek(hit.token);
   const p = aligner?.position();
@@ -234,8 +246,55 @@ let unSessions: (() => void) | null = null;
 let heardWords: string[] = [];
 let session = 0;
 
+// Rolling live stream buffer so live audio transcription displays on screen even before a library song matches.
+let liveStreamLines: string[] = [];
+let liveStreamPartial = '';
+let liveStreamLastAt = 0;
+let liveStreamVersion = 0;
+
+function feedLiveStream(text: string, final: boolean) {
+  const now = Date.now();
+  if (liveStreamPartial && now - liveStreamLastAt > 1500) {
+    const clean = liveStreamPartial.trim();
+    if (clean) liveStreamLines = [...liveStreamLines.slice(-11), clean[0].toUpperCase() + clean.slice(1)];
+    liveStreamPartial = '';
+    liveStreamVersion++;
+  }
+  liveStreamLastAt = now;
+  let partial = `${liveStreamPartial} ${text}`.replace(/\s+/g, ' ').trim();
+  let words = partial.split(' ').filter(Boolean);
+  while (words.length > 9) {
+    const chunk = words.slice(0, 9).join(' ');
+    liveStreamLines = [...liveStreamLines.slice(-11), chunk[0].toUpperCase() + chunk.slice(1)];
+    words = words.slice(9);
+    partial = words.join(' ');
+    liveStreamVersion++;
+  }
+  liveStreamPartial = partial;
+  if (final && liveStreamPartial.trim()) {
+    const clean = liveStreamPartial.trim();
+    liveStreamLines = [...liveStreamLines.slice(-11), clean[0].toUpperCase() + clean.slice(1)];
+    liveStreamPartial = '';
+    liveStreamVersion++;
+  }
+}
+
+function getLiveStreamLines(): string[] {
+  if (capture.on) {
+    const lines = capture.lines.slice(-12).map(l => l.text);
+    const p = capture.partial.trim();
+    if (p) lines.push(p[0].toUpperCase() + p.slice(1));
+    return lines;
+  }
+  const out = [...liveStreamLines];
+  const p = liveStreamPartial.trim();
+  if (p) out.push(p[0].toUpperCase() + p.slice(1));
+  return out;
+}
+
 function onHeard(text: string, final = false) {
   heardWords = heardWords.concat(text.split(/\s+/).filter(Boolean)).slice(-14);
+  feedLiveStream(text, final);
   if (capture.on) {
     captureWords(text, final);
     set({ heard: heardWords.join(' ') });
@@ -374,14 +433,14 @@ async function resolveSource(): Promise<TranscribeSource> {
   return { kind: 'mic' };
 }
 
-async function ensureOwnSession() {
+async function ensureOwnSession(customSource?: TranscribeSource) {
   if (own || !state.listening) return;
-  const others = activeTranscriptions().filter(l => l !== 'Song follow');
-  if (others.length) { set({ sharedWith: others, status: `Listening via ${others.join(', ')}` }); return; }
+  const others = activeTranscriptions('music').filter(l => l !== 'Song follow');
+  if (others.length && !customSource) { set({ sharedWith: others, status: `Listening via ${others.join(', ')}` }); return; }
   const my = session;
   try {
     set({ status: 'Starting…' });
-    const h = await startLiveTranscription(await resolveSource(), {
+    const h = await startMusicTranscription(customSource ?? await resolveSource(), {
       onWords: () => { /* words arrive through the tap */ },
       onStatus: s => set({ status: s }),
       onError: m => set({ error: m }),
@@ -394,18 +453,20 @@ async function ensureOwnSession() {
   }
 }
 
-export async function startSongFollow(): Promise<void> {
+export async function startSongFollow(customSource?: TranscribeSource): Promise<void> {
   if (state.listening || state.starting) return;
   session++;
   set({ listening: true, starting: true, error: '' });
-  unTap = subscribeTranscript((t, final) => onHeard(t, final));
-  // When another feature stops its session, take over the mic; when one starts, share it.
-  unSessions = subscribeTranscriptionSessions(() => {
-    const others = activeTranscriptions().filter(l => l !== 'Song follow');
-    set({ sharedWith: others });
-    if (!others.length && !own) void ensureOwnSession();
+  unTap = subscribeTranscript((t, final, _source, mode) => {
+    if (!mode || mode === 'music') onHeard(t, final);
   });
-  await ensureOwnSession();
+  // When another music feature stops its session, take over the mic; when one starts, share it.
+  unSessions = subscribeTranscriptionSessions(() => {
+    const others = activeTranscriptions('music').filter(l => l !== 'Song follow');
+    set({ sharedWith: others });
+    if (!others.length && !own) void ensureOwnSession(customSource);
+  });
+  await ensureOwnSession(customSource);
   set({ starting: false });
 }
 
@@ -416,6 +477,9 @@ export function stopSongFollow(): void {
   unTap?.(); unTap = null;
   unSessions?.(); unSessions = null;
   heardWords = [];
+  liveStreamLines = [];
+  liveStreamPartial = '';
+  liveStreamVersion++;
   detector?.reset();
   set({ listening: false, starting: false, status: 'Off', sharedWith: [], heard: '' });
 }
@@ -425,6 +489,14 @@ export function setSongFollowSource(source: FollowListenSource) {
   const was = state.listening;
   setSongFollowPrefs({ source });
   if (was) { stopSongFollow(); void startSongFollow(); }
+}
+
+/** Feed transcribed music words directly into the Song Follower Music Signal Chain. */
+export function feedSongFollowMusicWords(text: string, final = false): void {
+  if (!state.listening) {
+    set({ listening: true, status: 'Listening · Music Signal Chain' });
+  }
+  onHeard(text, final);
 }
 
 // ── playback follow (a file is playing) ─────────────────────────────────────
@@ -468,18 +540,31 @@ function virtualLines(): LyricLine[] {
   return state.entries.map((e, i) => (e.kind === 'adlib' ? { time: i * SLOT, text: e.text, adlib: true } : { time: i * SLOT, text: e.text }));
 }
 
+function isUsingLiveStream(): boolean {
+  if (capture.on) return getLiveStreamLines().length > 0;
+  if (song && state.entries.length && (state.entry >= 0 || !state.listening)) return false;
+  return state.listening && getLiveStreamLines().length > 0;
+}
+
 /** Virtual song position for the entry/word on screen. */
-export function followPosition(lines: LyricLine[] = virtualLines()): number {
+export function followPosition(lines?: LyricLine[]): number {
+  if (isUsingLiveStream()) {
+    const live = getLiveStreamLines();
+    if (!live.length) return -1;
+    const e = live.length - 1;
+    return e * SLOT + SLOT * 0.86;
+  }
+  const activeLines = lines ?? virtualLines();
   const e = state.entry;
-  if (e < 0 || !lines[e]) return -1;
-  const span = lineSpan(lines, e);
-  const base = lines[e].time;
+  if (e < 0 || !activeLines[e]) return -1;
+  const span = lineSpan(activeLines, e);
+  const base = activeLines[e].time;
   const fullyLit = base + span * 0.86;
   // Adlibs and line mode: the whole line, lit.
-  if (lines[e].adlib || prefs.mode === 'line') return fullyLit;
+  if (activeLines[e].adlib || prefs.mode === 'line') return fullyLit;
   // Word mode, line put up ahead of the singing (operator jump / new song): unlit.
   if (state.word < 0) return base + 0.001;
-  const words = timeWords(lines[e], span, 0);
+  const words = timeWords(activeLines[e], span, 0);
   const w = words[Math.min(state.word, words.length - 1)];
   if (!w) return fullyLit;
   return Math.min(fullyLit, base + w.start + Math.min(0.18, (w.end - w.start) * 0.6) + 0.01);
@@ -489,6 +574,16 @@ function followTrack(): LyricTrackMeta | null {
   if (state.playback?.synced && playbackClock) {
     const c = getLyricClock(playbackClock.id);
     return c?.track() ?? null;
+  }
+  if (isUsingLiveStream()) {
+    const live = getLiveStreamLines();
+    if (!live.length) return null;
+    return {
+      id: `follow-live-${liveStreamVersion}-${live.length}`,
+      title: '',
+      artist: '',
+      timeCodedLyrics: live.map((text, i) => ({ time: i * SLOT, text, adlib: true })),
+    };
   }
   if (!song || !state.entries.length) return null;
   return { id: `follow-${song.id}-${structVersion}`, title: song.title, artist: song.artist, timeCodedLyrics: virtualLines() };
@@ -506,8 +601,12 @@ export function installSongFollower(): () => void {
       if (state.playback?.synced && playbackClock) return getLyricClock(playbackClock.id)?.getTime() ?? 0;
       return followPosition();
     },
-    isPlaying: () => (state.playback?.synced && playbackClock ? !!getLyricClock(playbackClock.id)?.isPlaying() : false),
-    rate: () => (state.playback?.synced && playbackClock ? getLyricClock(playbackClock.id)?.rate() ?? 1 : 1),
+    isPlaying: () => (
+      state.playback?.synced && playbackClock
+        ? !!getLyricClock(playbackClock.id)?.isPlaying()
+        : (!!song && state.entry >= 0) || isUsingLiveStream()
+    ),
+    rate: () => (state.playback?.synced && playbackClock ? getLyricClock(playbackClock.id)?.rate() ?? 1 : 0),
     track: followTrack,
     grid: () => (state.playback?.synced && playbackClock ? getLyricClock(playbackClock.id)?.grid?.() ?? null : null),
   });
@@ -534,5 +633,10 @@ export function followerCurrentLine(): { text: string; adlib: boolean; title: st
     return idx >= 0 ? { text: lines[idx].text, adlib: false, title: t?.title || '' } : null;
   }
   const e = state.entries[state.entry];
-  return e ? { text: e.text, adlib: e.kind === 'adlib', title: state.title } : null;
+  if (e) return { text: e.text, adlib: e.kind === 'adlib', title: state.title };
+  if (isUsingLiveStream()) {
+    const live = getLiveStreamLines();
+    if (live.length) return { text: live[live.length - 1], adlib: true, title: '' };
+  }
+  return null;
 }

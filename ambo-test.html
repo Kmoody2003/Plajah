@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Plajah Ambo — Live Speech vs. Music Signal Chain Workbench</title>
+  <style>
+    :root {
+      --bg: #070b14;
+      --card: #0f172a;
+      --border: #1e293b;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --speech: #38bdf8;
+      --speech-bg: rgba(56, 189, 248, 0.12);
+      --music: #c084fc;
+      --music-bg: rgba(192, 132, 252, 0.12);
+      --gold: #facc15;
+      --green: #4ade80;
+      --danger: #f87171;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 20px 24px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.45;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      padding-bottom: 16px;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    h1 {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    .sub {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 2px;
+    }
+    .chains-bar {
+      display: flex;
+      gap: 12px;
+      font-size: 12px;
+    }
+    .chain-box {
+      padding: 6px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--card);
+    }
+    .chain-box strong {
+      margin-right: 4px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1.25fr 1fr;
+      gap: 18px;
+    }
+    @media (max-width: 1024px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px;
+      margin-bottom: 18px;
+    }
+    .panel-speech {
+      border-top: 3px solid var(--speech);
+    }
+    .panel-music {
+      border-top: 3px solid var(--music);
+    }
+    .panel-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .panel-title h2 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 600;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 9px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .badge-muted { background: #1e293b; color: var(--muted); }
+    .badge-active { background: rgba(74, 222, 128, 0.16); color: var(--green); border: 1px solid rgba(74, 222, 128, 0.35); }
+    .badge-ready { background: var(--speech-bg); color: var(--speech); border: 1px solid rgba(56, 189, 248, 0.35); }
+    .controls-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+    .btn {
+      cursor: pointer;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      padding: 9px 15px;
+      font-size: 13px;
+      font-weight: 600;
+      transition: all 0.15s ease;
+    }
+    .btn-primary {
+      background: var(--speech);
+      color: #031525;
+    }
+    .btn-primary:hover { filter: brightness(1.1); }
+    .btn-music {
+      background: var(--music);
+      color: #1e0538;
+    }
+    .btn-music:hover { filter: brightness(1.1); }
+    .btn-danger {
+      background: var(--danger);
+      color: #250404;
+    }
+    .btn-preset {
+      background: #1e293b;
+      color: #e2e8f0;
+      border: 1px solid #334155;
+      padding: 7px 11px;
+      font-size: 12px;
+      text-align: left;
+    }
+    .btn-preset:hover {
+      border-color: var(--speech);
+      background: #172554;
+    }
+    .program-screen {
+      background: radial-gradient(circle at top, #172554 0%, #090d16 100%);
+      border: 2px solid #334155;
+      border-radius: 12px;
+      padding: 22px;
+      min-height: 170px;
+      margin-bottom: 14px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+    }
+    #program-ref {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--gold);
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+    #program-body {
+      font-size: 21px;
+      line-height: 1.55;
+      font-weight: 500;
+      color: #f8fafc;
+    }
+    .verse-num {
+      color: var(--gold);
+      font-size: 14px;
+      font-weight: 700;
+      margin-right: 4px;
+    }
+    .verse-word {
+      padding: 2px 4px;
+      border-radius: 5px;
+      transition: all 0.12s ease;
+    }
+    .word-read {
+      color: #cbd5e1;
+      background: rgba(56, 189, 248, 0.16);
+    }
+    .word-current {
+      color: #070b14;
+      background: var(--gold);
+      font-weight: 700;
+      box-shadow: 0 0 12px rgba(250, 204, 21, 0.65);
+    }
+    .status-strip {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 12px;
+      font-size: 12px;
+    }
+    .stat-card {
+      background: #090e1a;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 10px;
+    }
+    .stat-label { color: var(--muted); font-size: 11px; margin-bottom: 2px; }
+    .stat-val { font-weight: 600; color: var(--text); }
+    #live-word-stream {
+      background: #090e1a;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      min-height: 46px;
+      margin-bottom: 12px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      align-items: center;
+    }
+    .word-chip {
+      padding: 2px 7px;
+      border-radius: 5px;
+      background: #1e293b;
+      font-size: 13px;
+    }
+    .tag-book { background: rgba(56, 189, 248, 0.25); color: #7dd3fc; font-weight: 700; border: 1px solid rgba(56, 189, 248, 0.5); }
+    .tag-ref { background: rgba(250, 204, 21, 0.22); color: #fde047; font-weight: 700; border: 1px solid rgba(250, 204, 21, 0.45); }
+    .tag-cue { background: rgba(74, 222, 128, 0.2); color: #86efac; }
+    .tag-giving { background: rgba(192, 132, 252, 0.25); color: #d8b4fe; font-weight: 700; }
+    .custom-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .custom-row input {
+      flex: 1;
+      background: #090e1a;
+      border: 1px solid #334155;
+      color: var(--text);
+      padding: 8px 11px;
+      border-radius: 7px;
+      font-size: 13px;
+    }
+    .log-item {
+      background: #090e1a;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 9px 12px;
+      margin-bottom: 8px;
+      font-size: 12px;
+    }
+    .log-item-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+    .log-badge {
+      background: var(--speech-bg);
+      color: var(--speech);
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-weight: 700;
+      font-size: 10px;
+    }
+    .log-time { color: var(--muted); margin-left: auto; font-size: 11px; }
+    .log-item-text { color: #cbd5e1; }
+    .tap-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 8px;
+      border-bottom: 1px solid #1e293b;
+      font-size: 12px;
+    }
+    .chain-pill {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 4px;
+    }
+    .chain-speech { background: var(--speech-bg); color: var(--speech); }
+    .chain-music { background: var(--music-bg); color: var(--music); }
+    .tap-src { color: var(--muted); font-size: 11px; min-width: 90px; }
+    .tap-txt { flex: 1; }
+    .tap-final { color: #f8fafc; font-weight: 600; }
+    .tap-interim { color: #94a3b8; font-style: italic; }
+    .tap-flag { font-size: 10px; color: var(--muted); }
+    #wav-test-status {
+      display: none;
+      background: rgba(56, 189, 248, 0.14);
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      color: #bae6fd;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      margin-bottom: 12px;
+    }
+    #speech-error {
+      display: none;
+      background: rgba(248, 113, 113, 0.15);
+      border: 1px solid rgba(248, 113, 113, 0.4);
+      color: #fecaca;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      margin-bottom: 12px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Plajah Ambo — Live Speech vs. Music Signal Chain Workbench</h1>
+      <div class="sub">Zero-Build Iteration Environment · Dedicated Speech Signal Chain (Scripture) &amp; Music Signal Chain (Lyrics)</div>
+    </div>
+    <div class="chains-bar">
+      <div class="chain-box">
+        <strong style="color:var(--speech)">Speech Chain Sessions:</strong>
+        <span id="active-speech-sessions">None</span>
+      </div>
+      <div class="chain-box">
+        <strong style="color:var(--music)">Music Chain Sessions:</strong>
+        <span id="active-music-sessions">None</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="grid">
+    <!-- LEFT COLUMN: SPEECH SIGNAL CHAIN (AUTO SCRIPTURE + PER-WORD READING TRACKER) -->
+    <div>
+      <div class="panel panel-speech">
+        <div class="panel-title">
+          <h2>1. Speech Signal Chain (<code>mode: 'speech'</code>) — Ambo Auto-Scripture</h2>
+          <span id="speech-engine" class="badge badge-ready">Engine: Idle</span>
+        </div>
+
+        <div id="speech-error"></div>
+        <div id="wav-test-status"></div>
+
+        <div class="controls-row">
+          <button id="btn-speech-mic" class="btn btn-primary">🎙 Start Live Mic (Speech Chain)</button>
+          <canvas id="speech-scope" width="220" height="36" style="border-radius:6px;border:1px solid #1e293b;"></canvas>
+          <span id="speech-pending" class="badge badge-muted">No pending reference</span>
+        </div>
+
+        <!-- LIVE PROGRAM OUTPUT WITH PER-WORD READING HIGHLIGHT & AUTO-ADVANCE -->
+        <div class="program-screen">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <div id="program-ref">Waiting for spoken scripture reference…</div>
+            <span id="reading-tracker-badge" class="badge badge-muted">Reading Tracker: Idle</span>
+          </div>
+          <div id="program-body">
+            <span style="color:#64748b;font-style:italic;">Speak into your microphone or click a Real Audio Test Preset below (e.g. "Romans chapter 8 verse 28").</span>
+          </div>
+        </div>
+
+        <div class="status-strip">
+          <div class="stat-card">
+            <div class="stat-label">Speech Chain Status</div>
+            <div id="speech-status" class="stat-val">Off</div>
+          </div>
+          <div class="stat-card" style="grid-column: span 2;">
+            <div class="stat-label">Normalized Spoken Buffer (Last 14 Words)</div>
+            <div id="speech-heard" class="stat-val">—</div>
+          </div>
+        </div>
+
+        <div class="stat-label" style="margin-bottom:4px;">Live Word Feed (Tagged Tokens: <span style="color:#7dd3fc">Book</span> · <span style="color:#fde047">Chapter/Verse</span> · <span style="color:#86efac">Cue</span>)</div>
+        <div id="live-word-stream">
+          <span style="color:#64748b;">Waiting for spoken words…</span>
+        </div>
+
+        <!-- REAL SPOKEN WAV AUDIO STREAM PRESETS -->
+        <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);">
+          <div style="font-size:12px;font-weight:600;margin-bottom:8px;color:#cbd5e1;">
+            🔊 Instant Real-Audio Stream Tests (Synthesizes 16kHz WAV speech &amp; pipes through WebAudio MediaStream → Speech Signal Chain):
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            <button class="btn btn-preset" data-speech-preset="Turn with me to Romans chapter 8 verse 28. And we know that all things work together for good to them that love God, to them who are the called according to his purpose. For whom he did foreknow, he also did predestinate to be conformed to the image of his Son.">
+              ▶ <strong>Preset 1 (Detection + Per-Word Highlight + Auto-Advance to v29):</strong> "Turn with me to Romans chapter 8 verse 28. And we know that all things work together for good... For whom he did foreknow..."
+            </button>
+            <button class="btn btn-preset" data-speech-preset="Let us open our Bibles to First Corinthians chapter 13 verse 4. Charity suffereth long, and is kind; charity envieth not; charity vaunteth not itself, is not puffed up, Doth not behave itself unseemly.">
+              ▶ <strong>Preset 2 (Numbered Book + Per-Word Highlight + Auto-Advance to v5):</strong> "Let us open our Bibles to First Corinthians chapter 13 verse 4. Charity suffereth long, and is kind..."
+            </button>
+            <button class="btn btn-preset" data-speech-preset="Look at John chapter 3 verse 16. For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life. For God sent not his Son into the world to condemn the world.">
+              ▶ <strong>Preset 3 (John 3:16 → Auto-Advance to John 3:17):</strong> "Look at John chapter 3 verse 16. For God so loved the world... For God sent not his Son into the world..."
+            </button>
+            <button class="btn btn-preset" data-speech-preset="Psalm 23 verse 1. The Lord is my shepherd; I shall not want. He maketh me to lie down in green pastures: he leadeth me beside the still waters.">
+              ▶ <strong>Preset 4 (Bare Reference Psalm 23:1 → Auto-Advance to v2):</strong> "Psalm 23 verse 1. The Lord is my shepherd; I shall not want. He maketh me to lie down..."
+            </button>
+          </div>
+
+          <div class="custom-row">
+            <input id="custom-speech-input" type="text" value="Turn with me to Philippians chapter 4 verse 13. I can do all things through Christ which strengtheneth me." />
+            <button id="btn-custom-speech" class="btn btn-primary">▶ Synthesize &amp; Test Audio</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT COLUMN: MUSIC SIGNAL CHAIN + DELIVERY LOG + RAW SIGNAL CHAIN TAP -->
+    <div>
+      <div class="panel panel-music">
+        <div class="panel-title">
+          <h2>2. Music Signal Chain (<code>mode: 'music'</code>) — Live Lyrics &amp; Song Follow</h2>
+          <span class="badge" style="background:var(--music-bg);color:var(--music);">Center-Vocal DSP + Music ASR</span>
+        </div>
+
+        <div class="controls-row">
+          <button id="btn-music-mic" class="btn btn-music">🎵 Start Music Signal Chain (Mic)</button>
+          <button class="btn btn-preset" data-music-preset="Way maker miracle worker promise keeper Light in the darkness my God that is who You are">
+            ▶ Test Audio: "Way Maker" Lyrics
+          </button>
+          <button class="btn btn-preset" data-music-preset="Amazing grace how sweet the sound That saved a wretch like me">
+            ▶ Test Audio: "Amazing Grace" Lyrics
+          </button>
+        </div>
+
+        <div class="status-strip">
+          <div class="stat-card">
+            <div class="stat-label">Music Chain Status</div>
+            <div id="music-status" class="stat-val">Off</div>
+          </div>
+          <div class="stat-card" style="grid-column: span 2;">
+            <div class="stat-label">Detected Song (Fast 3-Word Match)</div>
+            <div id="music-song" class="stat-val" style="color:var(--music);">Waiting for song match…</div>
+          </div>
+        </div>
+
+        <div class="stat-card" style="margin-bottom:8px;">
+          <div class="stat-label">Active Lyric Line on Screen</div>
+          <div id="music-line" class="stat-val" style="font-size:15px;">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Music Chain Heard Words</div>
+          <div id="music-heard" class="stat-val">—</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">
+          <h2>Scripture Program / Preview Trigger History</h2>
+        </div>
+        <div id="delivery-log">
+          <div class="empty-note" style="color:var(--muted);font-size:12px;">No scripture cues fired yet.</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">
+          <h2>Live Signal-Chain Transcript Tap (Speech vs. Music Isolation)</h2>
+        </div>
+        <div id="signal-chain-tap" style="max-height:220px;overflow-y:auto;">
+          <div style="color:var(--muted);font-size:12px;">No words emitted yet.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/amboTestClient.js"></script>
+</body>
+</html>

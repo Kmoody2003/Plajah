@@ -25,7 +25,13 @@ export interface OptimizedSocialImage {
   savingsRatio: number;
 }
 
+import { supportsJxlEncode } from './jxlCodec';
+
 let webpSupported: boolean | null = null;
+
+export function checkJxlEncodeSupport(): boolean {
+  return supportsJxlEncode();
+}
 
 export function checkWebpEncodeSupport(): boolean {
   if (webpSupported !== null) return webpSupported;
@@ -43,7 +49,7 @@ export function checkWebpEncodeSupport(): boolean {
 export function isCompressibleImage(file: Blob): boolean {
   const type = file.type || '';
   // Only compress raster images. Bypass GIFs (to preserve animations) and SVGs (vector).
-  return /^image\/(jpeg|jpg|png|webp|bmp|heic|heif)/i.test(type);
+  return /^image\/(jpeg|jpg|png|webp|jxl|avif|bmp|heic|heif)/i.test(type);
 }
 
 function scaleDimensions(width: number, height: number, maxEdge: number): { w: number; h: number } {
@@ -102,7 +108,7 @@ async function loadBitmap(file: Blob): Promise<ImageBitmap | HTMLImageElement> {
 /**
  * Compresses an image file for social posts:
  * - Downscales to max 1440px longest edge.
- * - Encodes to WebP (or JPEG if WebP encoding unsupported).
+ * - Encodes to JPEG XL (`image/jxl`) by default when supported, falling back to WebP or JPEG.
  * - Creates a 320px companion thumbnail for rapid feed display.
  * - If compression fails or the original is already smaller, gracefully preserves the original.
  */
@@ -129,9 +135,10 @@ export async function compressSocialImage(file: File): Promise<OptimizedSocialIm
     const srcHeight = source.height;
     const aspectRatio = srcWidth / (srcHeight || 1);
 
-    const useWebp = checkWebpEncodeSupport();
-    const mimeType = useWebp ? 'image/webp' : 'image/jpeg';
-    const ext = useWebp ? 'webp' : 'jpg';
+    const useJxl = checkJxlEncodeSupport();
+    const useWebp = !useJxl && checkWebpEncodeSupport();
+    const mimeType = useJxl ? 'image/jxl' : useWebp ? 'image/webp' : 'image/jpeg';
+    const ext = useJxl ? 'jxl' : useWebp ? 'webp' : 'jpg';
 
     // 1. Build Main Display Image
     const displayDims = scaleDimensions(srcWidth, srcHeight, MAX_DISPLAY_EDGE);

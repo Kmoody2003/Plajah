@@ -18,6 +18,9 @@ export type MelosMidiAction =
   | { kind: 'note'; note: number; velocity: number }
   | { kind: 'noteOff'; note: number }
   | { kind: 'macro'; index: number; value: number }    // 0..1
+  | { kind: 'modWheel'; value: number }                // 0..1 (CC #1 / Channel Pressure)
+  | { kind: 'pitchBend'; value: number }               // -1..1 (0xE0 14-bit Pitch Wheel)
+  | { kind: 'sustain'; on: boolean }                   // CC #64 Hold Pedal
   | { kind: 'transport'; action: 'play' | 'stop' | 'record' }
   | null;
 
@@ -25,6 +28,12 @@ export type MelosMidiAction =
  *  Melos macro range, matching the instrument's eight front-panel knobs one-to-one. */
 const MACRO_CC_LO = 14;
 const MACRO_CC_HI = 21;
+
+/** Standard performance CCs on every hardware MIDI keyboard. */
+const CC_MOD_WHEEL = 1;
+const CC_SUSTAIN = 64;
+const CC_RESONANCE = 71;
+const CC_CUTOFF = 74;
 
 /** Transport CCs the NI templates emit (Play/Stop/Rec on the standard MIDI-mode map). */
 const CC_PLAY = 118;
@@ -39,9 +48,21 @@ const CC_REC = 119;
 export function mapMidiEvent(e: BeatsMidiEvent, instrumentArmed: boolean): MelosMidiAction {
   const dev = e.deviceType;
 
-  // ── CC: macros and transport, the same on every device ──
+  // ── 14-bit Pitch Bend wheel & Channel Aftertouch ──
+  if (e.kind === 'pitchbend') {
+    return { kind: 'pitchBend', value: Math.max(-1, Math.min(1, e.bend ?? 0)) };
+  }
+  if (e.kind === 'aftertouch') {
+    return { kind: 'modWheel', value: Math.max(0, Math.min(1, (e.value ?? 0) / 127)) };
+  }
+
+  // ── CC: Mod Wheel, Sustain, Filter CCs, macros and transport ──
   if (e.kind === 'cc' && e.cc !== undefined) {
     const v = (e.value ?? 0) / 127;
+    if (e.cc === CC_MOD_WHEEL) return { kind: 'modWheel', value: v };
+    if (e.cc === CC_SUSTAIN) return { kind: 'sustain', on: (e.value ?? 0) >= 64 };
+    if (e.cc === CC_CUTOFF) return { kind: 'macro', index: 1, value: v };
+    if (e.cc === CC_RESONANCE) return { kind: 'macro', index: 2, value: v };
     if (e.cc >= MACRO_CC_LO && e.cc <= MACRO_CC_HI) return { kind: 'macro', index: e.cc - MACRO_CC_LO, value: v };
     if (e.cc === CC_PLAY && (e.value ?? 0) > 0) return { kind: 'transport', action: 'play' };
     if (e.cc === CC_STOP && (e.value ?? 0) > 0) return { kind: 'transport', action: 'stop' };

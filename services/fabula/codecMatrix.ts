@@ -291,6 +291,7 @@ export const AUDIO: CodecEntry[] = [
 // IMAGE / STILLS
 // ─────────────────────────────────────────────────────────────────────────────
 export const IMAGE: CodecEntry[] = [
+  { id: 'jxl', label: 'JPEG XL', kind: I, license: 'free', importTiers: ['native', 'webcodecs', 'wasm', 'crossover'], exportTiers: ['webcodecs', 'wasm', 'crossover'], ext: ['jxl'], note: 'Royalty-free ISO/IEC 18181 next-gen image codec (progressive, HDR/wide-gamut, lossless JPEG transcode).' },
   { id: 'png', label: 'PNG', kind: I, license: 'free', importTiers: ['native', 'webcodecs'], exportTiers: ['webcodecs', 'wasm'], ext: ['png'] },
   { id: 'jpg', label: 'JPEG', kind: I, license: 'free', importTiers: ['native', 'webcodecs'], exportTiers: ['webcodecs', 'wasm'], ext: ['jpg', 'jpeg'] },
   { id: 'webp', label: 'WebP', kind: I, license: 'free', importTiers: ['native', 'webcodecs'], exportTiers: ['webcodecs', 'wasm'], ext: ['webp'] },

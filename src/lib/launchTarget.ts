@@ -50,7 +50,7 @@ function detectShareLaunch(): boolean {
   if (typeof window === 'undefined') return false;
   try {
     const sp = new URLSearchParams(window.location.search);
-    const keys = ['id', 'type', 'reello', 'video', 'v', 'org', 'elevate', 'debate', 'club', 'livestream', 'stream',
+    const keys = ['id', 'type', 'collection', 'reello', 'video', 'v', 'org', 'elevate', 'debate', 'club', 'livestream', 'stream',
       'room', 'callin', 'listen', 'invite', 'g', 'party', 'follow', 'recap', 'play', 'atlas'];
     if (keys.some(k => sp.get(k))) return true;
     if (/^#g\//.test(window.location.hash)) return true;

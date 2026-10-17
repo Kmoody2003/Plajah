@@ -4333,7 +4333,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             )}
 
             {/* ── Main Application Workspace (billboard + navigation rail + platform application viewport) ── */}
-            <div className="flex-1 flex flex-col lg:flex-row w-full overflow-hidden min-h-0 relative">
+            <div className="pj-app-workspace flex-1 flex flex-col lg:flex-row w-full overflow-hidden min-h-0 relative">
 
             {/* Ad Billboard — full-height canvas. Sits on the LEFT normally; Split (B) AND the
                 horizontal Bar (C) move it to the FAR RIGHT (order + left border); Bar makes it

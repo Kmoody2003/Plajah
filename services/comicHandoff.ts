@@ -4,6 +4,7 @@
 // here — the script text plus the world's characters and digital assets — and the
 // comic composer's Script panel picks it up. In-memory (same document/session), so no
 // serialization of images; consumed once.
+import type { StudioPage } from '../types';
 import type { ScriptCharacter } from './comicScript';
 
 export interface ComicHandoff {
@@ -12,6 +13,8 @@ export interface ComicHandoff {
   script?: string;
   characters?: ScriptCharacter[];       // names + reference images (world cast)
   assets?: { name: string; url: string }[]; // digital assets that follow from the world
+  pages?: StudioPage[];                 // full multi-page graphic novel conversion from Fabula / Story Intel
+  activePageIndex?: number;             // which page index to focus first in ComicPanelBuilder
 }
 
 let pending: ComicHandoff | null = null;
@@ -19,3 +22,4 @@ let pending: ComicHandoff | null = null;
 export const setComicHandoff = (h: ComicHandoff) => { pending = h; };
 export const peekComicHandoff = (): ComicHandoff | null => pending;
 export const takeComicHandoff = (): ComicHandoff | null => { const h = pending; pending = null; return h; };
+

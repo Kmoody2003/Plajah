@@ -186,62 +186,6 @@ export const AmboAudioBus: React.FC<{ controlsSlot?: React.ReactNode; deckOpen?:
                 </button>
               )}
               {s.deck && !deckOpen && <span className="px-1.5 py-0.5 rounded text-[8.5px] font-bold text-[#FF8C00] bg-[#FF8C00]/15">ON DECK</span>}
-              <button
-                onClick={toggleFeedLyrics}
-                className={`ml-1 px-2.5 py-1 rounded text-[9.5px] font-bold border relative overflow-hidden flex items-center gap-1.5 transition-all select-none ${
-                  isFeedingLyrics
-                    ? 'text-black bg-[#2BE0A8] border-[#2BE0A8] shadow-[0_0_8px_rgba(43,224,168,0.4)]'
-                    : isPreparingLyrics
-                    ? 'text-[#2BE0A8] bg-[#2BE0A8]/10 border-[#2BE0A8]/50 shadow-[0_0_12px_rgba(43,224,168,0.25)]'
-                    : 'text-white/70 bg-white/5 border-white/10 hover:bg-white/15'
-                }`}
-                title={
-                  isFeedingLyrics
-                    ? 'Currently feeding audio playlist to live lyric engine — click to stop'
-                    : isPreparingLyrics
-                    ? `Getting ready (${Math.round((liveLyricsState.progress ?? 0.2) * 100)}%) — click to cancel`
-                    : 'Feed playlist audio to live lyric transcription engine'
-                }
-              >
-                {/* Progress bar inside the button while getting ready */}
-                {isPreparingLyrics && (
-                  <>
-                    <div
-                      className="absolute inset-y-0 left-0 bg-gradient-to-r from-[#2BE0A8]/15 via-[#2BE0A8]/30 to-[#2BE0A8]/20 transition-all duration-200 ease-out pointer-events-none"
-                      style={{ width: `${Math.max(12, Math.min(100, Math.round((liveLyricsState.progress ?? 0.2) * 100)))}%` }}
-                    >
-                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse" />
-                    </div>
-                    <div className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-black/40 pointer-events-none">
-                      <div
-                        className="h-full bg-[#2BE0A8] transition-all duration-200 ease-out shadow-[0_0_8px_#2BE0A8]"
-                        style={{ width: `${Math.max(12, Math.min(100, Math.round((liveLyricsState.progress ?? 0.2) * 100)))}%` }}
-                      />
-                    </div>
-                  </>
-                )}
-
-                {isPreparingLyrics ? (
-                  <Loader2 size={11} className="animate-spin text-[#2BE0A8] relative z-10 flex-none" />
-                ) : (
-                  <Captions size={11} className={`relative z-10 flex-none ${isFeedingLyrics ? 'animate-pulse' : ''}`} />
-                )}
-
-                <span className="relative z-10 flex items-center gap-1 font-semibold tracking-wide">
-                  {isFeedingLyrics ? (
-                    'Feeding Lyrics'
-                  ) : isPreparingLyrics ? (
-                    <>
-                      <span>Readying…</span>
-                      <span className="font-mono text-[8.5px] font-bold text-[#2BE0A8]">
-                        {Math.round((liveLyricsState.progress ?? 0.2) * 100)}%
-                      </span>
-                    </>
-                  ) : (
-                    'Feed Lyrics'
-                  )}
-                </span>
-              </button>
               {controlsSlot && <span className="ml-1 flex items-center gap-1">{controlsSlot}</span>}
               <button onClick={() => bus.fadeOut(3)} disabled={!s.playing} className="ml-1 px-2 py-1 rounded text-[9.5px] font-bold text-white/70 bg-white/5 hover:bg-white/15 border border-white/10 disabled:opacity-30" title="Fade the music out over 3 seconds">Fade out</button>
               <button

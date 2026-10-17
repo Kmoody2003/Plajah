@@ -300,7 +300,7 @@ export const AuraEditor: React.FC<Props> = ({ track, onMutate, onClose }) => {
             </button>
 
             <div className="flex items-center gap-1 ml-2">
-              {(['up', 'down', 'upDown', 'octave', 'seq'] as const).map((m) => (
+              {(['up', 'down', 'upDown', 'octave', 'random', 'seq'] as const).map((m) => (
                 <button
                   key={m}
                   onClick={() => setArp((a) => { a.mode = m; a.enabled = true; })}
@@ -309,7 +309,7 @@ export const AuraEditor: React.FC<Props> = ({ track, onMutate, onClose }) => {
                     ? { borderColor: AURA_ACCENT, color: AURA_ACCENT, background: 'rgba(229,154,56,0.12)' }
                     : { borderColor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.4)' }}
                 >
-                  {m === 'seq' ? '960 Seq' : m}
+                  {m === 'seq' ? '960 Seq' : m === 'random' ? 'Random' : m}
                 </button>
               ))}
             </div>

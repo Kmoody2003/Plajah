@@ -115,25 +115,68 @@ async function renderOnDeviceAestheticFrame(task: PlajahNativeTask): Promise<str
       if (img.width && img.height) {
         ctx.drawImage(img, 0, 0, w, h);
 
-        // 3D Relight directional key lighting overlay
+        // 3D Relight per-pixel 2.5D normal-mapped directional key + shadow + rim lighting
         if (task.taskType === '3d_relight' && task.relighting) {
-          const { azimuth = 45, elevation = 30, colorHex = '#fff5ea', intensity = 1.0 } = task.relighting;
-          const rad = (azimuth * Math.PI) / 180;
-          const elevRad = (elevation * Math.PI) / 180;
-          const lx = w / 2 + Math.sin(rad) * (w * 0.45);
-          const ly = h / 2 - Math.sin(elevRad) * (h * 0.45);
+          const rel = task.relighting;
+          const lx = rel.lightX !== undefined ? rel.lightX : Math.sin(((rel.azimuth ?? 45) * Math.PI) / 180);
+          const ly = rel.lightY !== undefined ? rel.lightY : -Math.sin(((rel.elevation ?? 30) * Math.PI) / 180);
+          const lz = rel.lightZ !== undefined ? rel.lightZ : 0.65;
+          const lLen = Math.hypot(lx, ly, lz) || 1;
+          const Lx = lx / lLen, Ly = ly / lLen, Lz = lz / lLen;
 
-          const lightGrad = ctx.createRadialGradient(lx, ly, 10, lx, ly, Math.max(w, h) * 0.7);
-          lightGrad.addColorStop(0, colorHex + 'dd');
-          lightGrad.addColorStop(0.35, colorHex + '55');
-          lightGrad.addColorStop(1, 'transparent');
+          const parseHex = (hStr = '#ffaa55') => {
+            const clean = hStr.replace('#', '');
+            const n = parseInt(clean.length === 3 ? clean.split('').map(c => c + c).join('') : clean, 16) || 0xffaa55;
+            return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+          };
+          const [kr, kg, kb] = parseHex(rel.colorHex || '#ffaa55');
+          const [ar, ag, ab] = parseHex(rel.ambientColorHex || '#182238');
+          const [rr, rg, rb] = parseHex(rel.rimColorHex || '#55ccff');
+          const intensity = rel.intensity ?? 1.25;
+          const softness = rel.softness ?? 0.55;
+          const shadowDensity = rel.shadowDensity ?? 0.68;
+          const rimStrength = rel.rimStrength ?? 0.48;
 
-          ctx.save();
-          ctx.globalCompositeOperation = 'screen';
-          ctx.globalAlpha = Math.min(1.0, Math.max(0.2, intensity * 0.8));
-          ctx.fillStyle = lightGrad;
-          ctx.fillRect(0, 0, w, h);
-          ctx.restore();
+          const imgData = ctx.getImageData(0, 0, w, h);
+          const d = imgData.data;
+          const luma = new Float32Array(w * h);
+          for (let i = 0, p = 0; i < d.length; i += 4, p++) {
+            luma[p] = (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) / 255;
+          }
+
+          const step = Math.max(2, Math.round(Math.min(w, h) / 120));
+          const wrap = 0.15 + 0.45 * softness;
+          for (let y = 0; y < h; y++) {
+            const nyCoord = (y / h) * 2 - 1;
+            const y0 = Math.max(0, y - step), y1 = Math.min(h - 1, y + step);
+            for (let x = 0; x < w; x++) {
+              const nxCoord = (x / w) * 2 - 1;
+              const x0 = Math.max(0, x - step), x1 = Math.min(w - 1, x + step);
+              const dx = (luma[y * w + x1] - luma[y * w + x0]) * 3.5;
+              const dy = (luma[y1 * w + x] - luma[y0 * w + x]) * 3.5;
+              const nx = 0.55 * nxCoord - dx;
+              const ny = 0.50 * nyCoord - dy;
+              const nz = Math.sqrt(Math.max(0.1, 1 - Math.min(0.9, nx * nx + ny * ny)));
+
+              const nDotL = nx * Lx + ny * Ly + nz * Lz;
+              const diff = Math.pow(Math.max(0, Math.min(1, (nDotL + wrap) / (1 + wrap))), 1.4 - 0.4 * softness);
+              const rimDot = Math.max(0, -nx * Lx - ny * Ly + nz * 0.15);
+              const rim = Math.pow(1 - nz, 1.4) * rimDot * rimStrength;
+              const shadowKeep = 1 - shadowDensity * 0.82;
+              const ambWeight = (1 - diff) * (0.35 + 0.65 * shadowDensity);
+
+              const idx = (y * w + x) * 4;
+              const sr = d[idx] / 255, sg = d[idx + 1] / 255, sb = d[idx + 2] / 255;
+              const outR = sr * (shadowKeep * (1 - diff) * 0.45 + (ar / 255) * ambWeight + (kr / 255) * diff * intensity * 1.25) + (rr / 255) * rim * 0.7;
+              const outG = sg * (shadowKeep * (1 - diff) * 0.45 + (ag / 255) * ambWeight + (kg / 255) * diff * intensity * 1.25) + (rg / 255) * rim * 0.7;
+              const outB = sb * (shadowKeep * (1 - diff) * 0.45 + (ab / 255) * ambWeight + (kb / 255) * diff * intensity * 1.25) + (rb / 255) * rim * 0.7;
+
+              d[idx] = Math.max(0, Math.min(255, Math.round(outR * 255)));
+              d[idx + 1] = Math.max(0, Math.min(255, Math.round(outG * 255)));
+              d[idx + 2] = Math.max(0, Math.min(255, Math.round(outB * 255)));
+            }
+          }
+          ctx.putImageData(imgData, 0, 0);
         }
 
         // Detail enhancer micro-texture overlay
@@ -346,14 +389,14 @@ export async function executePlajahNativeTask(
   });
 
   // ── PRIORITY 1: Plajah Native GPU Sidecar on port 51122 or local server proxy ──
-  const sidecarEndpoints = ['http://127.0.0.1:51122/generate', 'http://localhost:51122/generate'];
+  const sidecarEndpoints = ['http://127.0.0.1:51122/generate'];
   if (typeof window !== 'undefined' && window.location?.origin && !window.location.origin.includes('51122')) {
     sidecarEndpoints.push(`${window.location.origin}/api/local-ai/generate`);
   }
 
   for (const ep of sidecarEndpoints) {
     const ctrl = new AbortController();
-    const timeoutId = setTimeout(() => ctrl.abort(), 45000);
+    const timeoutId = setTimeout(() => ctrl.abort(), 90000);
     let curPct = 30;
     const progressTimer = setInterval(() => {
       curPct = Math.min(92, curPct + 6);
@@ -416,8 +459,10 @@ export async function executePlajahNativeTask(
           };
         }
       }
+      // Sidecar was reachable and returned a response; do not duplicate-queue on the proxy endpoint
+      break;
     } catch {
-      // Continue to next path
+      // Connection refused or network error on 127.0.0.1:51122 -> try proxy endpoint to auto-spawn sidecar
     } finally {
       clearInterval(progressTimer);
       clearTimeout(timeoutId);

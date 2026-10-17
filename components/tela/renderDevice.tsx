@@ -40,6 +40,16 @@ export interface RenderDeviceCtx {
   /** Authoring-only selection bridge used by the Assignment Builder. */
   onWriterSelection?: (selection: TelaWriterSelection | null) => void;
   onWriterInteraction?: (selection: TelaWriterSelection, kind: 'QUESTION' | 'INSTRUCTION') => void;
+  /** When false, suppresses on-page floating Layer/Tool windows (hosted by Tela Studio UI instead). */
+  chrome?: boolean;
+  vectorTool?: import('./TelaVector').VectorTool;
+  onVectorToolChange?: (t: import('./TelaVector').VectorTool) => void;
+  selectedVectorId?: string | null;
+  selectedVectorIds?: string[];
+  onSelectVector?: (id: string | null) => void;
+  onSelectVectorIds?: (ids: string[]) => void;
+  selectedImageLayerId?: string | null;
+  onSelectImageLayer?: (id: string | null) => void;
 }
 
 /**
@@ -48,6 +58,7 @@ export interface RenderDeviceCtx {
  */
 export function renderDevice(device: TelaDevice, ctx: RenderDeviceCtx, readOnly = false, overlay = false): React.ReactNode {
   const { devices, dispatchOp, writerTexts, writers, bases, formulaContext, uid, onWriterSelection, onWriterInteraction } = ctx;
+  const showChrome = ctx.chrome !== undefined ? ctx.chrome : !readOnly;
 
   if (device.type === 'WRITER') {
     return (
@@ -97,8 +108,14 @@ export function renderDevice(device: TelaDevice, ctx: RenderDeviceCtx, readOnly 
         key={device.id}
         device={device}
         readOnly={readOnly}
-        chrome={!readOnly}
+        chrome={showChrome}
         overlay={overlay}
+        tool={ctx.vectorTool}
+        onToolChange={ctx.onVectorToolChange}
+        selectedId={ctx.selectedVectorId}
+        selectedIds={ctx.selectedVectorIds}
+        onSelect={ctx.onSelectVector}
+        onSelectionChange={ctx.onSelectVectorIds}
         writerTexts={writerTexts}
         writers={writers}
         onAddObject={object => dispatchOp({ type: 'ADD_VECTOR_OBJECT', deviceId: device.id, object })}
@@ -114,7 +131,9 @@ export function renderDevice(device: TelaDevice, ctx: RenderDeviceCtx, readOnly 
         key={device.id}
         device={device}
         readOnly={readOnly}
-        chrome={!readOnly}
+        chrome={showChrome}
+        selectedId={ctx.selectedImageLayerId}
+        onSelect={ctx.onSelectImageLayer}
         onAddLayer={layer => dispatchOp({ type: 'ADD_IMAGE_LAYER', deviceId: device.id, layer })}
         onUpdateLayer={(layerId, patch) => dispatchOp({ type: 'UPDATE_IMAGE_LAYER', deviceId: device.id, layerId, patch })}
         onDeleteLayer={layerId => dispatchOp({ type: 'DELETE_IMAGE_LAYER', deviceId: device.id, layerId })}

@@ -561,6 +561,9 @@ export const LYRIC_STYLES: LyricStyle[] = [
   },
 ];
 
+import { WORSHIP_LYRIC_STYLES } from './worshipVisualizers';
+LYRIC_STYLES.push(...WORSHIP_LYRIC_STYLES);
+
 export const DEFAULT_LYRIC_STYLE = 'karaoke';
 
 export function lyricStyleById(id?: string): LyricStyle {

@@ -433,9 +433,9 @@ impl Engine {
             }
         }
 
-        // AURA's vintage rack (Phaser → BBD String Ensemble → 15 IPS Tape & Mains Floor).
+        // AURA's vintage rack (VCA/LPG Gate → Phaser → BBD String Ensemble → 15 IPS Tape & Mains Floor).
         if AuraRack::active(params) {
-            aura.process(scratch, frames, nch, params, active_cnt);
+            aura.process(scratch, frames, nch, params, active_cnt, beats, bps);
         }
 
         // BAJO's rack, before the Veil — the Ghost Gate's spill has to exist before the reverb

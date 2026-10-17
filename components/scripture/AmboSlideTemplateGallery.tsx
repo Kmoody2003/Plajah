@@ -120,9 +120,20 @@ export interface AmboSlideTemplateGalleryProps {
   onClose: () => void;
   onInsert?: (slide: Slide) => void;
   activeShowTitle?: string;
+  initialCategory?: string;
+  initialTemplateId?: string;
+  onSelectLyricStyle?: (styleId: string) => void;
 }
 
-export const AmboSlideTemplateGallery: React.FC<AmboSlideTemplateGalleryProps> = ({ open, onClose, onInsert, activeShowTitle }) => {
+export const AmboSlideTemplateGallery: React.FC<AmboSlideTemplateGalleryProps> = ({
+  open,
+  onClose,
+  onInsert,
+  activeShowTitle,
+  initialCategory,
+  initialTemplateId,
+  onSelectLyricStyle,
+}) => {
   const [aspectId, setAspectId] = useState('16:9');
   const [themeId, setThemeId] = useState(DEFAULT_THEME_ID);
   const [themeSet, setThemeSet] = useState<ThemeSet>(() => themeSetOf(DEFAULT_THEME_ID));
@@ -130,8 +141,8 @@ export const AmboSlideTemplateGallery: React.FC<AmboSlideTemplateGalleryProps> =
   const setThemes = useMemo(() => SLIDE_THEMES.filter(t => themeSetOf(t.id) === themeSet), [themeSet]);
   const directors = useMemo(() => ['All', ...Array.from(new Set(setThemes.map(t => t.director)))], [setThemes]);
   const shownThemes = director === 'All' ? setThemes : setThemes.filter(t => t.director === director);
-  const [category, setCategory] = useState<string>('All');
-  const [templateId, setTemplateId] = useState(SLIDE_TEMPLATES[0].id);
+  const [category, setCategory] = useState<string>(() => initialCategory || 'All');
+  const [templateId, setTemplateId] = useState(() => initialTemplateId || SLIDE_TEMPLATES[0].id);
   const [fieldsById, setFieldsById] = useState<Record<string, Record<string, string>>>({});
   const [slot, setSlot] = useState<'slide' | 'background'>('slide');
   const [translucent, setTranslucent] = useState(false);
@@ -155,6 +166,12 @@ export const AmboSlideTemplateGallery: React.FC<AmboSlideTemplateGalleryProps> =
   const epoch = baseEpoch * 1000 + faceEpoch;
   const previewWrap = useRef<HTMLDivElement>(null);
   const [previewW, setPreviewW] = useState(520);
+
+  useEffect(() => {
+    if (!open) return;
+    if (initialCategory) setCategory(initialCategory);
+    if (initialTemplateId && templateById(initialTemplateId)) setTemplateId(initialTemplateId);
+  }, [open, initialCategory, initialTemplateId]);
 
   useEffect(() => {
     if (!open) return;
@@ -355,7 +372,14 @@ export const AmboSlideTemplateGallery: React.FC<AmboSlideTemplateGalleryProps> =
                 const media = mediaOf(t);
                 const MIcon = media ? MEDIA_ICON[media] : null;
                 return (
-                  <button key={t.id} onClick={() => { setTemplateId(t.id); setEditing(null); setReplayKey(k => k + 1); }} className="rounded-xl p-2 text-left transition-all"
+                  <button key={t.id} onClick={() => {
+                    setTemplateId(t.id);
+                    setEditing(null);
+                    setReplayKey(k => k + 1);
+                    if (t.id.startsWith('lyrics-') && onSelectLyricStyle) {
+                      onSelectLyricStyle(t.id.replace(/^lyrics-/, ''));
+                    }
+                  }} className="rounded-xl p-2 text-left transition-all"
                     style={{ border: `1px solid ${active ? CYAN : 'rgba(255,255,255,.08)'}`, background: active ? 'rgba(0,218,243,.08)' : 'rgba(255,255,255,.03)', boxShadow: active ? '0 0 18px rgba(0,218,243,.15)' : 'none' }}>
                     <div className="relative grid place-items-center" style={{ height: thumbBox.h }}>
                       {MIcon && <span title={`${media} template`} className="absolute top-1 right-1 z-[1] w-5 h-5 rounded-md grid place-items-center" style={{ background: 'rgba(8,6,16,.78)', border: '1px solid rgba(0,218,243,.35)' }}><MIcon size={11} style={{ color: CYAN }} /></span>}
@@ -449,12 +473,24 @@ export const AmboSlideTemplateGallery: React.FC<AmboSlideTemplateGalleryProps> =
 
             <div className="p-3 border-t flex items-center gap-2" style={{ borderColor: 'rgba(255,255,255,.08)' }}>
               <div className="text-[10px] min-w-0 truncate" style={{ color: flash ? CYAN : 'rgba(255,255,255,.4)' }}>
-                {flash ? <span className="inline-flex items-center gap-1"><Check size={12} />{flash}</span> : onInsert ? `Inserts after the selected slide in ${activeShowTitle || 'the active show'}` : 'Open a show to insert slides'}
+                {flash ? <span className="inline-flex items-center gap-1"><Check size={12} />{flash}</span> : onInsert ? `Inserts after the selected slide in ${activeShowTitle || 'the active show'}` : 'Choose a template or insert into show'}
               </div>
               <button onClick={() => setSaveOpen(true)} data-open-save className="ml-auto h-9 px-3 rounded-lg text-[11.5px] font-bold flex items-center gap-1.5 bg-white/5 hover:bg-white/10 flex-none"
                 style={{ color: LILAC, border: '1px solid rgba(208,188,255,.25)' }} title={editingMine ? 'Save changes to your template, or save as a new one' : 'Save this customised slide to My templates'}>
                 <Save size={13} />{editingMine ? 'Save…' : 'Save as my template'}
               </button>
+              {tpl.id.startsWith('lyrics-') && onSelectLyricStyle && (
+                <button
+                  onClick={() => {
+                    onSelectLyricStyle(tpl.id.replace(/^lyrics-/, ''));
+                    onClose();
+                  }}
+                  className="h-9 px-3.5 flex-none rounded-lg text-[11.5px] font-extrabold flex items-center gap-1.5"
+                  style={{ background: '#FF8C00', color: '#0b0a12' }}
+                >
+                  <Check size={14} />Use for Live Lyrics
+                </button>
+              )}
               <button onClick={insert} disabled={!onInsert} className="h-9 px-4 flex-none rounded-lg text-[12px] font-extrabold flex items-center gap-1.5 disabled:opacity-40"
                 style={{ background: `linear-gradient(135deg, ${LILAC}, ${CYAN})`, color: '#0b0a12' }}><Plus size={14} />Insert slide</button>
             </div>

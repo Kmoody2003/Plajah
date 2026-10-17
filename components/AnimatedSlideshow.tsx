@@ -4,7 +4,7 @@ import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import ThreeDImage from './ThreeDImage';
 import { Sparkles, Zap } from 'lucide-react';
 import { getPlatformInfo } from '../hooks/usePlatform';
-import { heroImage } from '../src/lib/imageThumb';
+import { slideshowImage, onThumbError } from '../src/lib/imageThumb';
 
 interface AnimatedSlideshowProps {
   images: string[];
@@ -56,13 +56,13 @@ const AnimatedSlideshow: React.FC<AnimatedSlideshowProps> = ({ images, isPlaying
     return () => clearInterval(interval);
   }, [artistNotes.length]);
 
-  // Preload the NEXT couple of (resized) images so a slide never arrives half-drawn or after a
+  // Preload the NEXT couple of (resized JPEG XL) images so a slide never arrives half-drawn or after a
   // black gap — the browser has them decoded and cached before the crossfade begins.
   useEffect(() => {
     if (images.length < 2) return;
     for (let k = 1; k <= 3; k++) {
       const nextUrl = images[(index + k) % images.length];
-      if (nextUrl) { const im = new Image(); im.decoding = 'async'; im.src = heroImage(nextUrl); }
+      if (nextUrl) { const im = new Image(); im.decoding = 'async'; im.src = slideshowImage(nextUrl); }
     }
   }, [index, images]);
 
@@ -116,7 +116,8 @@ const AnimatedSlideshow: React.FC<AnimatedSlideshowProps> = ({ images, isPlaying
             className="absolute inset-0 z-0"
           >
             <img
-              src={heroImage(images[nextIndex]) || undefined}
+              src={slideshowImage(images[nextIndex]) || undefined}
+              onError={onThumbError(images[nextIndex])}
               alt=""
               className="w-full h-full object-cover scale-125 blur-[32px] opacity-40"
               loading="eager"
@@ -135,9 +136,10 @@ const AnimatedSlideshow: React.FC<AnimatedSlideshowProps> = ({ images, isPlaying
             // Full-bleed (object-COVER) so a non-16:9 photo fills the screen — but anchored to the
             // TOP (object-top), so an over-tall image spills off the BOTTOM only and never clips a
             // subject's head. Ken Burns kept; tv-kenburns is pinned to its own GPU layer so the
-            // scaling edges don't shimmer. heroImage() keeps it off the raw-original decode path.
+            // scaling edges don't shimmer. slideshowImage() serves progressive JPEG XL.
             <img
-              src={heroImage(images[index]) || undefined}
+              src={slideshowImage(images[index]) || undefined}
+              onError={onThumbError(images[index])}
               alt={`Slide ${index}`}
               className={`w-full h-full object-cover object-top ${tv && presentation !== 'panel' ? 'tv-kenburns' : ''}`}
               loading="eager"
@@ -145,7 +147,8 @@ const AnimatedSlideshow: React.FC<AnimatedSlideshowProps> = ({ images, isPlaying
             />
           ) : (
             <ThreeDImage
-              src={images[index] || undefined}
+              src={slideshowImage(images[index]) || undefined}
+              onError={onThumbError(images[index])}
               alt={`Slide ${index}`}
               className="w-full h-full object-cover"
               animate={{ scale: isPlaying ? [1 * pulse, 1.05 * pulse] : [1, 1.05] }}

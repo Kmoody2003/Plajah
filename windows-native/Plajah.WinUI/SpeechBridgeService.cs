@@ -91,6 +91,183 @@ public sealed class SpeechBridgeService : IDisposable
         return true;
     }
 
+    private System.Diagnostics.Process? _sapiProc;
+
+    private void StartLocalSapiWorker()
+    {
+        StopLocalSapiWorker();
+        try
+        {
+            string psCode = @"
+Add-Type -AssemblyName System.Speech
+$code = @'
+using System;
+using System.Globalization;
+using System.Speech.Recognition;
+using System.Threading;
+
+public class WinUiSapiBridge {
+    private static string Esc(string s) {
+        if (s == null) return """";
+        return s.Replace(""\\"", ""\\\\"").Replace(""\"""", ""\\\"""").Replace(""\r"", "" "").Replace(""\n"", "" "");
+    }
+    private static void Emit(string json) {
+        Console.Out.WriteLine(json);
+        Console.Out.Flush();
+    }
+    public static void Run(string lang) {
+        CultureInfo ci;
+        try { ci = new CultureInfo(lang); } catch { ci = new CultureInfo(""en-US""); }
+        using (SpeechRecognitionEngine rec = new SpeechRecognitionEngine(ci)) {
+            DictationGrammar dict = new DictationGrammar();
+            dict.Weight = 0.85f;
+            rec.LoadGrammar(dict);
+
+            string[] books = new string[] {
+                ""Genesis"", ""Exodus"", ""Leviticus"", ""Numbers"", ""Deuteronomy"", ""Joshua"", ""Judges"", ""Ruth"",
+                ""First Samuel"", ""Second Samuel"", ""1 Samuel"", ""2 Samuel"",
+                ""First Kings"", ""Second Kings"", ""1 Kings"", ""2 Kings"",
+                ""First Chronicles"", ""Second Chronicles"", ""Ezra"", ""Nehemiah"", ""Esther"", ""Job"",
+                ""Psalms"", ""Psalm"", ""Proverbs"", ""Ecclesiastes"", ""Song of Solomon"", ""Isaiah"", ""Jeremiah"",
+                ""Lamentations"", ""Ezekiel"", ""Daniel"", ""Hosea"", ""Joel"", ""Amos"", ""Obadiah"", ""Jonah"", ""Micah"",
+                ""Nahum"", ""Habakkuk"", ""Zephaniah"", ""Haggai"", ""Zechariah"", ""Malachi"",
+                ""Matthew"", ""Mark"", ""Luke"", ""John"", ""Acts"", ""Romans"",
+                ""First Corinthians"", ""Second Corinthians"", ""1 Corinthians"", ""2 Corinthians"",
+                ""Galatians"", ""Ephesians"", ""Philippians"", ""Colossians"",
+                ""First Thessalonians"", ""Second Thessalonians"",
+                ""First Timothy"", ""Second Timothy"", ""Titus"", ""Philemon"", ""Hebrews"", ""James"",
+                ""First Peter"", ""Second Peter"", ""First John"", ""Second John"", ""Third John"", ""Jude"", ""Revelation""
+            };
+            Choices bookChoices = new Choices(books);
+            Choices numChoices = new Choices();
+            for (int i = 1; i <= 150; i++) numChoices.Add(i.ToString());
+            Choices prefixChoices = new Choices(new string[] {
+                ""turn with me to"", ""open your bibles to"", ""let us read"", ""look at"", ""in the book of"", ""reading from""
+            });
+
+            GrammarBuilder gb1 = new GrammarBuilder();
+            gb1.Append(prefixChoices, 0, 1);
+            gb1.Append(bookChoices);
+            gb1.Append(""chapter"", 0, 1);
+            gb1.Append(numChoices);
+            gb1.Append(""verse"", 0, 1);
+            gb1.Append(numChoices);
+            Grammar g1 = new Grammar(gb1);
+            g1.Weight = 1.0f;
+            rec.LoadGrammar(g1);
+
+            GrammarBuilder gb2 = new GrammarBuilder();
+            gb2.Append(prefixChoices, 0, 1);
+            gb2.Append(bookChoices);
+            gb2.Append(""chapter"", 0, 1);
+            gb2.Append(numChoices);
+            Grammar g2 = new Grammar(gb2);
+            g2.Weight = 0.95f;
+            rec.LoadGrammar(g2);
+
+            GrammarBuilder gb3 = new GrammarBuilder();
+            gb3.Append(""verse"");
+            gb3.Append(numChoices);
+            Grammar g3 = new Grammar(gb3);
+            g3.Weight = 0.92f;
+            rec.LoadGrammar(g3);
+
+            rec.InitialSilenceTimeout = TimeSpan.FromSeconds(0);
+            rec.BabbleTimeout = TimeSpan.FromSeconds(0);
+            rec.EndSilenceTimeout = TimeSpan.FromSeconds(0.32);
+            rec.EndSilenceTimeoutAmbiguous = TimeSpan.FromSeconds(0.45);
+            rec.SetInputToDefaultAudioDevice();
+
+            string lastPartial = """";
+            rec.SpeechHypothesized += (s, e) => {
+                if (e.Result != null && !string.IsNullOrWhiteSpace(e.Result.Text)) {
+                    lastPartial = e.Result.Text;
+                    Emit(""{\""type\"":\""SPEECH_PARTIAL\"",\""text\"":\"""" + Esc(e.Result.Text) + ""\""}"");
+                }
+            };
+            rec.SpeechRecognized += (s, e) => {
+                if (e.Result != null && !string.IsNullOrWhiteSpace(e.Result.Text)) {
+                    lastPartial = """";
+                    Emit(""{\""type\"":\""SPEECH_FINAL\"",\""text\"":\"""" + Esc(e.Result.Text) + ""\""}"");
+                }
+            };
+            rec.SpeechRecognitionRejected += (s, e) => {
+                string fb = (e.Result != null && !string.IsNullOrWhiteSpace(e.Result.Text)) ? e.Result.Text : lastPartial;
+                lastPartial = """";
+                if (!string.IsNullOrWhiteSpace(fb)) {
+                    Emit(""{\""type\"":\""SPEECH_FINAL\"",\""text\"":\"""" + Esc(fb) + ""\""}"");
+                }
+            };
+            rec.RecognizeCompleted += (s, e) => {
+                try { rec.RecognizeAsync(RecognizeMode.Multiple); } catch {}
+            };
+
+            Emit(""{\""type\"":\""SPEECH_STATE\"",\""state\"":\""listening\"",\""mode\"":\""sapi-local\""}"");
+            rec.RecognizeAsync(RecognizeMode.Multiple);
+            string line;
+            while ((line = Console.In.ReadLine()) != null) {
+                if (line.Trim() == ""STOP"") break;
+            }
+            try { rec.RecognizeAsyncCancel(); } catch {}
+        }
+    }
+}
+'@
+Add-Type -ReferencedAssemblies System.Speech -TypeDefinition $code
+[WinUiSapiBridge]::Run('" + _lang.Replace("'", "") + @"')
+";
+            var psi = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "powershell.exe",
+                Arguments = "-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command -",
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardInput = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+            };
+            var proc = System.Diagnostics.Process.Start(psi);
+            if (proc != null)
+            {
+                _sapiProc = proc;
+                proc.StandardInput.WriteLine(psCode);
+                proc.StandardInput.Flush();
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        while (!proc.HasExited)
+                        {
+                            var line = await proc.StandardOutput.ReadLineAsync();
+                            if (line == null) break;
+                            var t = line.Trim();
+                            if (t.StartsWith("{") && t.EndsWith("}"))
+                            {
+                                Log($"sapi: {t}");
+                                _post(t);
+                            }
+                        }
+                    }
+                    catch { }
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            Log($"sapi start failed: {ex.Message}");
+        }
+    }
+
+    private void StopLocalSapiWorker()
+    {
+        var p = _sapiProc;
+        _sapiProc = null;
+        if (p == null) return;
+        try { p.StandardInput.WriteLine("STOP"); p.StandardInput.Flush(); } catch { }
+        try { if (!p.HasExited) p.Kill(true); } catch { }
+        try { p.Dispose(); } catch { }
+    }
+
     public async Task StartAsync(string? lang, IEnumerable<string>? words, bool strict = false)
     {
         _lang = string.IsNullOrWhiteSpace(lang) ? "en-US" : lang!;
@@ -101,12 +278,17 @@ public sealed class SpeechBridgeService : IDisposable
         _active = true; _suspended = false; _mode = "dictation";
         Log($"start lang={_lang} words={_words.Count} strict={strict}");
         if (!await EnsureMicAsync()) { _active = false; return; }
+        if (_strict)
+        {
+            // Start low-latency local SAPI 5.4 desktop engine with 66-book Bible grammar immediately
+            StartLocalSapiWorker();
+        }
         await SpawnAsync();
     }
 
-    public async Task StopAsync() { _active = false; _suspended = false; await TearDownAsync(); State("idle"); }
-    public async Task SuspendAsync() { if (!_active) return; _suspended = true; await TearDownAsync(); State("suspended"); }
-    public async Task ResumeAsync() { if (!_active || !_suspended) return; _suspended = false; await SpawnAsync(); }
+    public async Task StopAsync() { _active = false; _suspended = false; StopLocalSapiWorker(); await TearDownAsync(); State("idle"); }
+    public async Task SuspendAsync() { if (!_active) return; _suspended = true; StopLocalSapiWorker(); await TearDownAsync(); State("suspended"); }
+    public async Task ResumeAsync() { if (!_active || !_suspended) return; _suspended = false; if (_strict) StartLocalSapiWorker(); await SpawnAsync(); }
 
     private async Task TearDownAsync()
     {
@@ -121,12 +303,13 @@ public sealed class SpeechBridgeService : IDisposable
     {
         if (!_active || _suspended) return;
         await TearDownAsync();
-        State("starting");
+        if (_sapiProc == null) State("starting");
         try
         {
             var rec = new SpeechRecognizer(new Language(_lang));
-            // Ultra-low latency timeouts: finalize phrases within 350ms of silence
-            rec.Timeouts.EndSilenceTimeout = TimeSpan.FromSeconds(0.35);
+            // Balanced silence timeout: fast finalization without splitting "John chapter 3 ... verse 16"
+            rec.Timeouts.InitialSilenceTimeout = TimeSpan.FromSeconds(30.0);
+            rec.Timeouts.EndSilenceTimeout = TimeSpan.FromSeconds(0.55);
             rec.Timeouts.BabbleTimeout = TimeSpan.FromSeconds(0);
             rec.ContinuousRecognitionSession.AutoStopSilenceTimeout = TimeSpan.FromMinutes(10);
             if (_mode == "passage" && _words.Count > 0)
@@ -140,11 +323,17 @@ public sealed class SpeechBridgeService : IDisposable
                 rec.Constraints.Add(new SpeechRecognitionTopicConstraint(SpeechRecognitionScenario.Dictation, "dictation"));
             }
             var compiled = await rec.CompileConstraintsAsync();
+            if (!_active || _suspended)
+            {
+                rec.Dispose();
+                return;
+            }
             Log($"compile ({_mode}): {compiled.Status}");
             if (compiled.Status != SpeechRecognitionResultStatus.Success)
             {
                 rec.Dispose();
                 if (!_strict && _mode == "dictation" && _words.Count > 0) { _mode = "passage"; await SpawnAsync(); return; }
+                if (_sapiProc != null && !_sapiProc.HasExited) return;
                 _active = false;
                 Error("unsupported", $"Windows speech recognition is not available ({compiled.Status}). Add an English speech pack / turn on Online speech recognition in Windows Settings.");
                 return;
@@ -155,20 +344,27 @@ public sealed class SpeechBridgeService : IDisposable
             _rec = rec;
             _lastStart = DateTime.UtcNow;
             await rec.ContinuousRecognitionSession.StartAsync();
+            if (!_active || _suspended)
+            {
+                await TearDownAsync();
+                return;
+            }
             State("listening");
         }
         catch (Exception ex) when (ex.HResult == HResultPrivacyDeclined)
         {
             Log($"privacy declined: {ex.Message}");
-            // online speech is off in Windows privacy settings: switch quietly to offline passage mode (read-aloud only)
             if (!_strict && _mode == "dictation" && _words.Count > 0) { _mode = "passage"; await SpawnAsync(); }
-            else { _active = false; Error("privacy", "Turn on Online speech recognition in Windows Settings → Privacy → Speech."); }
+            else if (_sapiProc == null || _sapiProc.HasExited) { _active = false; Error("privacy", "Turn on Online speech recognition in Windows Settings → Privacy → Speech."); }
         }
         catch (UnauthorizedAccessException ex)
         {
             Log($"unauthorized: {ex.Message}");
-            _active = false;
-            Error("not-allowed", "Microphone access is off. Allow Plajah to use the microphone in Windows Settings → Privacy → Microphone.");
+            if (_sapiProc == null || _sapiProc.HasExited)
+            {
+                _active = false;
+                Error("not-allowed", "Microphone access is off. Allow Plajah to use the microphone in Windows Settings → Privacy → Microphone.");
+            }
         }
         catch (Exception ex)
         {
@@ -179,6 +375,7 @@ public sealed class SpeechBridgeService : IDisposable
             }
             if (_strict && ++_consecutiveFailures >= 3)
             {
+                if (_sapiProc != null && !_sapiProc.HasExited) return;
                 _active = false;
                 Error("failed", $"Windows speech recognition could not start (0x{ex.HResult:X8}): {ex.Message}");
                 return;
@@ -210,7 +407,6 @@ public sealed class SpeechBridgeService : IDisposable
     {
         Log($"completed: {args.Status}");
         if (args.Status == SpeechRecognitionResultStatus.UserCanceled) return;
-        // A session that dies right after starting (mic busy, language unsupported, privacy) is a real failure.
         var quick = (DateTime.UtcNow - _lastStart).TotalSeconds < 3;
         var fatal = args.Status is SpeechRecognitionResultStatus.MicrophoneUnavailable
             or SpeechRecognitionResultStatus.TopicLanguageNotSupported
@@ -218,6 +414,7 @@ public sealed class SpeechBridgeService : IDisposable
             or SpeechRecognitionResultStatus.GrammarCompilationFailure;
         if (_strict && (fatal || (quick && ++_consecutiveFailures >= 3)))
         {
+            if (_sapiProc != null && !_sapiProc.HasExited) return;
             _active = false;
             Error("failed", $"Windows speech recognition stopped: {args.Status}");
             return;
@@ -235,5 +432,5 @@ public sealed class SpeechBridgeService : IDisposable
         _ = Task.Delay(delay).ContinueWith(async _ => await SpawnAsync());
     }
 
-    public void Dispose() { _active = false; _ = TearDownAsync(); }
+    public void Dispose() { _active = false; StopLocalSapiWorker(); _ = TearDownAsync(); }
 }

@@ -11,7 +11,7 @@
 // pulled with no lyric file at all.
 
 import { claimTypoTextOwner, getTypoTextState, publishTypoChannel, subscribeTypoText, dataBodyToText } from './typoText';
-import { subscribeTranscript, startLiveTranscription, type TranscriberHandle } from './liveTranscriber';
+import { subscribeTranscript, startMusicTranscription, type TranscriberHandle } from './liveTranscriber';
 import { getLyricClock, lyricsFor } from './lyricFeed';
 import { followerCurrentLine, getSongFollowState, installSongFollower } from './songFollower';
 
@@ -61,6 +61,12 @@ export function startTypoTextDriver(): () => void {
   claimTypoTextOwner();
   const unFollower = installSongFollower();
 
+  // Pre-warm the bundled local Whisper model and bundled Bible text on studio startup so live listening is instant.
+  setTimeout(() => {
+    void import('./asrEngine').then(m => m.ensureAsr()).catch(() => {});
+    void import('../scriptureText').then(m => m.getChapter(m.DEFAULT_TRANSLATION, 43, 1)).catch(() => {});
+  }, 600);
+
   // transcript channel — words from ANY live transcription session (mic, dj, playlist, program, system)
   let words: string[] = [];
   let lastPub = 0;
@@ -105,7 +111,7 @@ export function startTypoTextDriver(): () => void {
             if (s) src = { kind: 'stream', stream: s };
           }
           if (src) {
-            pbHandle = await startLiveTranscription(src, { onWords: () => { /* via the tap */ } }, 'en-US', 'Playback lyrics');
+            pbHandle = await startMusicTranscription(src, { onWords: () => { /* via the tap */ } }, 'en-US', 'Playback lyrics');
           }
         } catch { /* the transcriber reports its own errors */ }
         pbStarting = false;

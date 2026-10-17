@@ -67,6 +67,8 @@ const P = {
   A_ENS_ON: 1710, A_ENS_MODE: 1711, A_ENS_DEPTH: 1712, A_ENS_MIX: 1713,
   A_PH_ON: 1720, A_PH_RATE: 1721, A_PH_DEPTH: 1722, A_PH_FEEDBACK: 1723, A_PH_MIX: 1724,
   A_TAPE_SAT: 1730, A_HUM: 1731, A_CRACKLE: 1732,
+  A_GATE_ON: 1740, A_GATE_RATE: 1741, A_GATE_DEPTH: 1742, A_GATE_SHAPE: 1743,
+  A_FLUX_ON: 1750, A_FLUX_AMT: 1751, A_FLUX_RATE: 1752, A_FLUX_MODE: 1753,
 };
 
 const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
@@ -1209,4 +1211,57 @@ test('AURA: BBD String Ensemble, 6-Stage Phaser, and 15 IPS Tape stay bounded an
   }
   assert.ok(diffEnergy / dry.length > 0.02, 'AURA rack must audibly transform the dry waveform');
 });
+
+test('AURA: MIDI Pitch Bend (pa_set_pitch_bend) shifts oscillator fundamental by bend_range semitones', async () => {
+  const ctx = await boot();
+  const { x, eng } = ctx;
+  plainVoice(ctx);
+  x.pa_set_param(eng, P.oscShape(0), 3); // Sine
+  x.pa_set_param(eng, P.fltEnable(0), 0);
+  x.pa_note_on(eng, 69, 1.0, 1, 0); // A4 = 440 Hz
+  renderMono(ctx, 2048);
+  const unbent = renderMono(ctx, 8192);
+
+  // Full +1.0 pitch bend with default bend_range = 2 semitones -> B4 (~493.88 Hz)
+  x.pa_set_pitch_bend(eng, 1.0);
+  renderMono(ctx, 2048);
+  const bent = renderMono(ctx, 8192);
+
+  const fA4 = mtof(69);
+  const fB4 = mtof(71);
+  assert.ok(magAt(unbent, fA4, SR) > magAt(unbent, fB4, SR) * 5, 'unbent note should peak at A4 (440 Hz)');
+  assert.ok(magAt(bent, fB4, SR) > magAt(bent, fA4, SR) * 5, 'bent note (+1.0) should shift fundamental to B4 (+2 st)');
+});
+
+test('AURA: Pulse Gate Chopper (A_GATE_ON) and Analog Flux Randomness (A_FLUX_ON) modulate sustain cleanly', async () => {
+  const runSustained = async (withGateAndFlux) => {
+    const ctx = await boot();
+    const { x, eng } = ctx;
+    plainVoice(ctx);
+    x.pa_set_param(eng, P.fltEnable(0), 1);
+    x.pa_set_param(eng, P.fltCutoff(0), 0.45);
+    x.pa_set_param(eng, P.fltRes(0), 0.4);
+    if (withGateAndFlux) {
+      x.pa_set_param(eng, P.A_GATE_ON, 1.0);
+      x.pa_set_param(eng, P.A_GATE_RATE, 0.65);
+      x.pa_set_param(eng, P.A_GATE_DEPTH, 0.85);
+      x.pa_set_param(eng, P.A_GATE_SHAPE, 0.0);
+      x.pa_set_param(eng, P.A_FLUX_ON, 1.0);
+      x.pa_set_param(eng, P.A_FLUX_AMT, 0.75);
+      x.pa_set_param(eng, P.A_FLUX_RATE, 0.6);
+      x.pa_set_param(eng, P.A_FLUX_MODE, 0.0);
+      x.pa_set_mod_wheel(eng, 0.6);
+    }
+    x.pa_note_on(eng, 60, 0.95, 1, 0);
+    return renderMono(ctx, 24000);
+  };
+
+  const steady = await runSustained(false);
+  const modulated = await runSustained(true);
+  assert.ok(modulated.every(Number.isFinite), 'Pulse Gate + Analog Flux + Mod Wheel must produce zero NaNs');
+  let diff = 0;
+  for (let i = 0; i < steady.length; i++) diff += Math.abs(steady[i] - modulated[i]);
+  assert.ok(diff / steady.length > 0.04, 'Pulse Gate & Analog Flux must significantly modulate sustained notes');
+});
+
 

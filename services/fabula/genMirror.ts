@@ -23,6 +23,7 @@ export const FIREBASE_STORAGE_HOST = 'https://firebasestorage.googleapis.com/v0/
 export const MIRROR_MAX_BYTES = 50 * 1024 * 1024;
 
 const MIME_EXT: Record<string, string> = {
+  'image/jxl': 'jxl',
   'image/png': 'png',
   'image/jpeg': 'jpg',
   'image/jpg': 'jpg',

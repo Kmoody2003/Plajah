@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Pixels — Generator Lab</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#080b10;color:#eee8dc;font:14px system-ui,sans-serif}button,input,label{font:inherit}button{color:inherit;cursor:pointer}
+header{padding:18px 4vw;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #262a2d}.brand{font-size:22px;letter-spacing:6px;font-weight:300}
+.stage{position:relative;margin:20px 4vw 0;background:#04060a;aspect-ratio:16/9;max-height:68vh;overflow:hidden;border:1px solid #282d31}canvas{width:100%;height:100%;display:block}
+.caption{position:absolute;left:24px;bottom:20px;pointer-events:none;text-shadow:0 2px 14px #000}.caption h1{font:300 clamp(20px,2.6vw,36px) Georgia,serif;margin:0}
+.status{position:absolute;top:14px;right:14px;color:#b2b9bd;background:#0b101abb;padding:7px 11px;font-size:10px;letter-spacing:1px;border-radius:3px}
+#error{position:absolute;left:14px;top:14px;right:200px;color:#f6be9a;font:12px ui-monospace,monospace;white-space:pre-wrap;pointer-events:none}
+.controls{margin:16px 4vw;display:flex;align-items:center;gap:14px;flex-wrap:wrap}.controls button,.upload{border:1px solid #353b42;background:#10151d;padding:9px 12px;border-radius:4px;cursor:pointer}
+.controls label.p{display:flex;align-items:center;gap:6px;font-size:11px;color:#aeb5b8}.controls input[type=range]{width:110px;accent-color:#c7a879}input[type=file]{display:none}
+.meters{display:flex;gap:12px}.meters label{font-size:9px;letter-spacing:1px;color:#aeb5b8}.meters span{display:block;width:60px;height:5px;background:#263039;margin-top:6px}.meters i{display:block;width:100%;height:100%;background:#d4b177;transform-origin:left;transform:scaleX(0)}
+nav{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px;margin:18px 4vw 32px}.tile{background:#10151b;border:1px solid #262e36;padding:12px;text-align:left;font:12px ui-monospace,monospace}.tile[aria-selected=true]{background:#20221f;border-color:#a68d65}
+</style></head><body>
+<header><div class="brand">GENERATOR LAB</div><div style="font-size:10px;color:#9c9d9c;letter-spacing:2px">EVERY GEN_GLSL MODE · AMBO UNIFORMS</div></header>
+<main><div class="stage"><canvas id="screen"></canvas><div class="caption"><h1 id="title"></h1></div><div class="status" id="status">INITIALIZING</div><div id="error"></div></div>
+<div class="controls"><button id="pause">Pause</button><button id="demo">Play test groove</button><label class="upload" tabindex="0">Upload audio<input id="audio" type="file" accept="audio/*"></label>
+<label class="p">Shape<input id="p0" type="range" min="0" max="1" step="0.01" value="0.5"></label><label class="p">Detail<input id="p1" type="range" min="0" max="1" step="0.01" value="0.5"></label><label class="p">Energy<input id="p2" type="range" min="0" max="1" step="0.01" value="0.5"></label><label class="p">Variation<input id="p3" type="range" min="0" max="1" step="0.01" value="0.5"></label>
+<label class="p"><input id="c0" type="color"><input id="c1" type="color"><input id="c2" type="color"></label>
+<div class="meters"><label>BASS<span><i id="meter-bass"></i></span></label><label>MIDS<span><i id="meter-mid"></i></span></label><label>HIGHS<span><i id="meter-treble"></i></span></label></div></div>
+<nav aria-label="Choose a generator" role="tablist"></nav></main>
+<script type="module" src="/components/plajahPixels/dev/generatorGallery.ts"></script></body></html>

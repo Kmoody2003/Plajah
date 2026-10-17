@@ -38,7 +38,7 @@ const extCt = (name: string): string => {
   const ext = (name.split('.').pop() || '').toLowerCase();
   return ({ mov: 'video/quicktime', mp4: 'video/mp4', m4v: 'video/mp4', webm: 'video/webm', mkv: 'video/x-matroska',
     mp3: 'audio/mpeg', wav: 'audio/wav', m4a: 'audio/mp4', flac: 'audio/flac',
-    jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp',
+    jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp', jxl: 'image/jxl', avif: 'image/avif',
     pdf: 'application/pdf', epub: 'application/epub+zip' } as Record<string, string>)[ext] || '';
 };
 

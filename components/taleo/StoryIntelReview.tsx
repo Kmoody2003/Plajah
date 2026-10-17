@@ -14,18 +14,25 @@
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Clapperboard, MapPin, KeyRound, Users, Film, Clock } from 'lucide-react';
+import { X, Clapperboard, MapPin, KeyRound, Users, Film, Clock, Globe, FileText, CheckCircle2 } from 'lucide-react';
 import { Button, Surface, Eyebrow, Chip } from '../ui';
 import AriaMark from '../aria/AriaMark';
 import {
   watchAnalysisJob,
   fetchStoryReport,
   stillUrl,
+  buildFountainFromStoryReport,
   type TaleoAnalysisJob,
   type StoryReport,
   type StoryReportCharacter,
   type StoryReportScene,
 } from '../../services/storyIntelService';
+import {
+  canAccessStoryIntelTools,
+  seedFabulaProjectFromStoryReport,
+  syncStoryReportToWorldAndUniverse,
+  type UniverseSyncResult,
+} from '../../services/storyIntelBridge';
 
 const ARIA = '#8b5cf6';
 
@@ -53,22 +60,38 @@ const STAGE_LABEL: Record<string, string> = {
   SKIPPED: 'Analysis was skipped for this title.',
 };
 
-/** Lazy still image — resolves its download URL on mount, placeholder until then. */
+/** Lazy still image — resolves its download URL on mount (or uses direct URL), placeholder until then. */
 const Still: React.FC<{
   ownerId: string;
   albumId: string;
   path?: string;
+  directUrl?: string;
   alt?: string;
   className?: string;
-}> = ({ ownerId, albumId, path, alt = '', className = '' }) => {
-  const [url, setUrl] = useState<string | null>(null);
+}> = ({ ownerId, albumId, path, directUrl, alt = '', className = '' }) => {
+  const isDirectHttp = Boolean(path && /^https?:\/\//i.test(path));
+  const [url, setUrl] = useState<string | null>(directUrl || (isDirectHttp ? path! : null));
   useEffect(() => {
     let live = true;
-    if (path) stillUrl(ownerId, albumId, path).then(u => { if (live) setUrl(u); });
-    return () => { live = false; };
-  }, [ownerId, albumId, path]);
+    if (directUrl) {
+      setUrl(directUrl);
+      return;
+    }
+    if (path && /^https?:\/\//i.test(path)) {
+      setUrl(path);
+      return;
+    }
+    if (path) {
+      stillUrl(ownerId, albumId, path).then(u => {
+        if (live) setUrl(u);
+      });
+    }
+    return () => {
+      live = false;
+    };
+  }, [ownerId, albumId, path, directUrl]);
 
-  if (!path || !url) {
+  if (!url) {
     return (
       <div className={`bg-white/[0.05] flex items-center justify-center ${className}`}>
         <Film size={16} className="text-white/15" />
@@ -91,7 +114,21 @@ const CharacterCard: React.FC<{
   albumId: string;
 }> = ({ c, portraitPath, ownerId, albumId }) => (
   <div className="rounded-2xl overflow-hidden bg-white/[0.04] border border-white/[0.08] flex flex-col">
-    <Still ownerId={ownerId} albumId={albumId} path={portraitPath} alt={c.name} className="w-full aspect-video" />
+    <div className="relative">
+      <Still
+        ownerId={ownerId}
+        albumId={albumId}
+        path={portraitPath || c.portraitPath}
+        directUrl={c.imageUrl}
+        alt={c.name}
+        className="w-full aspect-video"
+      />
+      {typeof c.bestFrameSec === 'number' && (
+        <span className="absolute bottom-1.5 right-1.5 text-[8.5px] font-mono font-bold text-white/85 bg-black/70 px-1.5 py-0.5 rounded border border-white/10">
+          ⏱ {fmt(c.bestFrameSec)}
+        </span>
+      )}
+    </div>
     <div className="p-3 space-y-1.5 flex-1">
       <div className="flex items-center gap-2 flex-wrap">
         <p className="text-sm font-black text-white leading-tight">{c.name}</p>
@@ -115,36 +152,134 @@ const CharacterCard: React.FC<{
 );
 
 const StoryIntelReview: React.FC<StoryIntelReviewProps> = ({ albumId, ownerId, title, onClose }) => {
+  const authorized = canAccessStoryIntelTools(ownerId);
   const [job, setJob] = useState<TaleoAnalysisJob | null>(null);
   const [report, setReport] = useState<StoryReport | null>(null);
   const [reportFailed, setReportFailed] = useState(false);
+  const [fabulaBusy, setFabulaBusy] = useState(false);
+  const [fabulaSeeded, setFabulaSeeded] = useState(false);
+  const [worldBusy, setWorldBusy] = useState(false);
+  const [worldSyncResult, setWorldSyncResult] = useState<UniverseSyncResult | null>(null);
+  const [actionNote, setActionNote] = useState<string>('');
 
-  useEffect(() => watchAnalysisJob(albumId, setJob), [albumId]);
+  useEffect(() => {
+    if (!authorized) return;
+    return watchAnalysisJob(albumId, setJob);
+  }, [albumId, authorized]);
 
   const done = job?.status === 'READY' || job?.status === 'PARTIAL';
   useEffect(() => {
-    if (!job || !done || report) return;
+    if (!authorized || !job || !done || report) return;
     let live = true;
     fetchStoryReport(job).then(r => {
       if (!live) return;
-      if (r) setReport(r); else setReportFailed(true);
+      if (r) {
+        setReport(r);
+        // Automatically build/update the linked Fabula project in the background
+        seedFabulaProjectFromStoryReport({
+          albumId,
+          ownerId,
+          title,
+          report: r,
+          openInFabula: false,
+          targetWorkspace: 'script',
+        })
+          .then(() => { if (live) setFabulaSeeded(true); })
+          .catch(() => {});
+      } else {
+        setReportFailed(true);
+      }
     });
     return () => { live = false; };
-  }, [job, done, report]);
+  }, [authorized, job, done, report, albumId, ownerId, title]);
 
-  // Best-guess portrait per character: the still whose tSec is nearest the
-  // character's first appearance.
+  const handleOpenInFabula = async () => {
+    if (!report || fabulaBusy) return;
+    setFabulaBusy(true);
+    try {
+      const res = await seedFabulaProjectFromStoryReport({
+        albumId,
+        ownerId,
+        title,
+        report,
+        openInFabula: true,
+        targetWorkspace: 'script',
+      });
+      setFabulaSeeded(true);
+      setActionNote(`Fabula project ready (${res.sceneCount} scenes, ${res.shotCount} shots, ${res.dialogueCount} lines) — opening Timecode Script view…`);
+      setTimeout(() => onClose(), 350);
+    } catch (err: any) {
+      setActionNote(`Could not open Fabula: ${err?.message || err}`);
+    } finally {
+      setFabulaBusy(false);
+    }
+  };
+
+  const handleSyncToWorld = async () => {
+    if (!report || worldBusy) return;
+    setWorldBusy(true);
+    try {
+      const res = await syncStoryReportToWorldAndUniverse({
+        albumId,
+        ownerId,
+        title,
+        report,
+        publishImmediately: true,
+      });
+      setWorldSyncResult(res);
+      setActionNote(
+        res.isExistingUniverse
+          ? `Connected "${title}" to existing universe "${res.worldName}" (${res.charactersSynced} characters, ${res.loreSynced} lore entries${res.sharedCharacters.length ? ` · crossover: ${res.sharedCharacters.join(', ')}` : ''})`
+          : `Created & populated Plajah World "${res.worldName}" (${res.charactersSynced} characters, ${res.loreSynced} lore entries)`
+      );
+    } catch (err: any) {
+      setActionNote(`World sync error: ${err?.message || err}`);
+    } finally {
+      setWorldBusy(false);
+    }
+  };
+
+  // Portrait per character: prioritize explicit imageUrl, portraitPath, portraitStillId,
+  // stillIds[0], or dedicated character still in report.stills before falling back to nearest appearance.
   const portraits = useMemo(() => {
     const map = new Map<string, string>();
-    if (!report?.stills?.length) return map;
-    for (const c of report.characters || []) {
-      const first = (c.appearances || []).reduce(
-        (min, a) => (a.tSec < min ? a.tSec : min),
-        c.appearances?.length ? c.appearances[0].tSec : 0
-      );
-      let best = report.stills[0];
-      for (const s of report.stills) {
-        if (Math.abs(s.tSec - first) < Math.abs(best.tSec - first)) best = s;
+    const stills = report?.stills || [];
+    const stillById = new Map(stills.map(s => [s.id, s.path]));
+    for (const c of report?.characters || []) {
+      if (c.imageUrl) {
+        map.set(c.refId, c.imageUrl);
+        continue;
+      }
+      if (c.portraitPath) {
+        map.set(c.refId, c.portraitPath);
+        continue;
+      }
+      if (c.portraitStillId && stillById.has(c.portraitStillId)) {
+        map.set(c.refId, stillById.get(c.portraitStillId)!);
+        continue;
+      }
+      if (c.stillIds?.length && stillById.has(c.stillIds[0])) {
+        map.set(c.refId, stillById.get(c.stillIds[0])!);
+        continue;
+      }
+      const dedicated =
+        stillById.get(`${c.refId}_portrait`) ||
+        stillById.get(c.refId);
+      if (dedicated) {
+        map.set(c.refId, dedicated);
+        continue;
+      }
+      if (!stills.length) continue;
+      const targetSec =
+        typeof c.bestFrameSec === 'number'
+          ? c.bestFrameSec
+          : (c.appearances || []).reduce(
+              (min, a) => (a.tSec < min ? a.tSec : min),
+              c.appearances?.length ? c.appearances[0].tSec : 0
+            );
+      let best = stills[0];
+      for (const s of stills) {
+        if (Math.abs(s.tSec - targetSec) < Math.abs(best.tSec - targetSec)) best = s;
       }
       if (best) map.set(c.refId, best.path);
     }
@@ -154,9 +289,10 @@ const StoryIntelReview: React.FC<StoryIntelReviewProps> = ({ albumId, ownerId, t
   const scenesByAct = useMemo(() => {
     const acts = new Map<number, StoryReportScene[]>();
     for (const s of report?.scenes || []) {
-      const arr = acts.get(s.actNumber) || [];
+      const actNum = s.actNumber ?? (s as any).act ?? 1;
+      const arr = acts.get(actNum) || [];
       arr.push(s);
-      acts.set(s.actNumber, arr);
+      acts.set(actNum, arr);
     }
     for (const arr of acts.values()) arr.sort((a, b) => a.index - b.index);
     return [...acts.entries()].sort((a, b) => a[0] - b[0]);
@@ -168,7 +304,11 @@ const StoryIntelReview: React.FC<StoryIntelReviewProps> = ({ albumId, ownerId, t
     return report?.stills?.find(s => s.sceneId === scene.id)?.path;
   };
 
-  const acts = report?.structure?.acts || [];
+  const acts = (report?.structure?.acts || []).map((a: any, i) => ({
+    ...a,
+    number: a.number ?? a.act ?? i + 1,
+    title: a.title || a.label || `Act ${a.number ?? a.act ?? i + 1}`,
+  }));
   const actsTotal = acts.reduce((t, a) => t + Math.max(0, a.endSec - a.startSec), 0) || 1;
 
   const confident = (report?.characters || []).filter(c => (c.confidence ?? 1) >= 0.5);
@@ -332,45 +472,92 @@ const StoryIntelReview: React.FC<StoryIntelReviewProps> = ({ albumId, ownerId, t
                 )}
               </section>
 
-              {/* (d) Scenes by act */}
+              {/* (d) Scenes by act (with Shot-by-Shot & Line-by-Line breakdown) */}
               <section className="space-y-4">
                 <div className="flex items-center gap-2">
                   <Clapperboard size={14} style={{ color: ARIA }} />
-                  <h3 className="text-sm font-black uppercase tracking-[0.2em] text-white/80">Scenes</h3>
+                  <h3 className="text-sm font-black uppercase tracking-[0.2em] text-white/80">Scenes · Shots · Dialogue</h3>
                 </div>
                 {scenesByAct.map(([actNumber, scenes]) => (
-                  <div key={actNumber} className="space-y-2">
+                  <div key={actNumber} className="space-y-2.5">
                     <Eyebrow className="!text-white/35">Act {actNumber}</Eyebrow>
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       {scenes.map(s => {
                         const names = (s.characterRefIds || [])
                           .map(id => report.characters?.find(c => c.refId === id)?.name)
                           .filter(Boolean) as string[];
                         return (
-                          <div key={s.id} className="flex gap-3 p-2.5 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-                            <Still
-                              ownerId={ownerId}
-                              albumId={albumId}
-                              path={firstStillPathForScene(s)}
-                              alt={s.title}
-                              className="w-24 sm:w-28 aspect-video rounded-lg shrink-0"
-                            />
-                            <div className="min-w-0 flex-1">
-                              <p className="text-[9px] font-black uppercase tracking-widest text-white/30 truncate">
-                                {s.slugline} · {fmt(s.startSec)}–{fmt(s.endSec)}
-                              </p>
-                              <p className="text-sm font-bold text-white leading-tight truncate">{s.title}</p>
-                              <p className="text-[11px] text-white/45 leading-snug line-clamp-2">{s.summary}</p>
-                              {names.length > 0 && (
-                                <p className="text-[10px] text-white/30 truncate mt-0.5">{names.join(' · ')}</p>
-                              )}
+                          <div key={s.id} className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.06] space-y-2.5">
+                            <div className="flex gap-3">
+                              <Still
+                                ownerId={ownerId}
+                                albumId={albumId}
+                                path={firstStillPathForScene(s)}
+                                alt={s.title}
+                                className="w-24 sm:w-28 aspect-video rounded-lg shrink-0"
+                              />
+                              <div className="min-w-0 flex-1">
+                                <p className="text-[9px] font-black uppercase tracking-widest text-white/30 truncate">
+                                  {s.slugline} · {fmt(s.startSec)}–{fmt(s.endSec)}
+                                </p>
+                                <p className="text-sm font-bold text-white leading-tight truncate">{s.title}</p>
+                                <p className="text-[11px] text-white/55 leading-snug">{s.summary}</p>
+                                {names.length > 0 && (
+                                  <p className="text-[10px] text-white/30 truncate mt-0.5">{names.join(' · ')}</p>
+                                )}
+                              </div>
                             </div>
+                            {Array.isArray(s.shots) && s.shots.length > 0 && (
+                              <div className="pl-2 border-l-2 border-purple-500/30 space-y-1.5 pt-1">
+                                {s.shots.map((sh, shIdx) => (
+                                  <div key={shIdx} className="text-[11px] bg-black/30 rounded-lg p-2 border border-white/[0.04] space-y-1">
+                                    <div className="flex items-center justify-between text-[9.5px] font-mono text-purple-300/80">
+                                      <span className="font-bold">{sh.slug || `S${shIdx + 1}`} · {sh.type || 'MED'}</span>
+                                      <span>{fmt(sh.startSec)}–{fmt(sh.endSec)}</span>
+                                    </div>
+                                    <p className="text-white/70 leading-snug">{sh.action || sh.camera}</p>
+                                    {Array.isArray(sh.dialogue) && sh.dialogue.map((dl, dlIdx) => (
+                                      <div key={dlIdx} className="pl-2.5 border-l border-amber-400/40 text-[10.5px] text-white/85">
+                                        <span className="font-black text-amber-300">{dl.speaker}: </span>
+                                        {dl.parenthetical && <span className="italic text-white/45">({dl.parenthetical}) </span>}
+                                        <span>&ldquo;{dl.text}&rdquo;</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         );
                       })}
                     </div>
                   </div>
                 ))}
+              </section>
+
+              {/* (d2) Full Reverse-Engineered Screenplay (Fountain Format) */}
+              <section className="space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Clapperboard size={14} style={{ color: ARIA }} />
+                    <h3 className="text-sm font-black uppercase tracking-[0.2em] text-white/80">
+                      Reverse Screenplay (Fountain)
+                    </h3>
+                  </div>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      const ftn = buildFountainFromStoryReport(report, title);
+                      navigator.clipboard?.writeText(ftn).catch(() => {});
+                    }}
+                  >
+                    Copy Screenplay (.fountain)
+                  </Button>
+                </div>
+                <pre className="p-4 rounded-2xl bg-black/60 border border-white/10 text-[11px] text-white/80 font-mono whitespace-pre-wrap max-h-96 overflow-y-auto leading-relaxed">
+                  {buildFountainFromStoryReport(report, title)}
+                </pre>
               </section>
 
               {/* (e) Locations + MacGuffins */}
@@ -382,11 +569,32 @@ const StoryIntelReview: React.FC<StoryIntelReviewProps> = ({ albumId, ownerId, t
                         <MapPin size={13} style={{ color: ARIA }} />
                         <h3 className="text-xs font-black uppercase tracking-[0.2em] text-white/70">Locations</h3>
                       </div>
-                      <div className="flex flex-wrap gap-1.5">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {report.locations.map(l => (
-                          <Chip key={l.refId} title={l.description}>
-                            {l.name} <span className="opacity-50">· {l.sceneIds?.length || 0}</span>
-                          </Chip>
+                          <div
+                            key={l.refId}
+                            className="flex items-center gap-2.5 p-2 rounded-xl bg-white/[0.03] border border-white/[0.07]"
+                          >
+                            {(l.imageUrl || l.portraitPath) && (
+                              <Still
+                                ownerId={ownerId}
+                                albumId={albumId}
+                                path={l.portraitPath}
+                                directUrl={l.imageUrl}
+                                alt={l.name}
+                                className="w-14 h-10 rounded-lg shrink-0"
+                              />
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-bold text-white truncate">
+                                {l.name}{' '}
+                                <span className="text-[9px] text-white/40 font-normal">
+                                  · {l.sceneIds?.length || 0} sc
+                                </span>
+                              </p>
+                              <p className="text-[10px] text-white/45 line-clamp-2 leading-tight">{l.description}</p>
+                            </div>
+                          </div>
                         ))}
                       </div>
                     </Surface>
@@ -399,11 +607,24 @@ const StoryIntelReview: React.FC<StoryIntelReviewProps> = ({ albumId, ownerId, t
                       </div>
                       <div className="space-y-2">
                         {report.macguffins.map(m => (
-                          <div key={m.refId} className="flex items-start gap-2">
-                            <Chip className="shrink-0">{m.narrativeRole.replace('_', ' ')}</Chip>
-                            <p className="text-[11px] text-white/50 leading-snug">
-                              <span className="font-bold text-white/80">{m.name}</span> — {m.description}
-                            </p>
+                          <div key={m.refId} className="flex items-start gap-2.5 p-2 rounded-xl bg-white/[0.03] border border-white/[0.07]">
+                            {(m.imageUrl || m.portraitPath) && (
+                              <Still
+                                ownerId={ownerId}
+                                albumId={albumId}
+                                path={m.portraitPath}
+                                directUrl={m.imageUrl}
+                                alt={m.name}
+                                className="w-14 h-10 rounded-lg shrink-0"
+                              />
+                            )}
+                            <div className="min-w-0 flex-1 space-y-1">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-bold text-xs text-white/90">{m.name}</span>
+                                <Chip className="shrink-0">{m.narrativeRole.replace('_', ' ')}</Chip>
+                              </div>
+                              <p className="text-[10.5px] text-white/50 leading-snug">{m.description}</p>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -438,13 +659,56 @@ const StoryIntelReview: React.FC<StoryIntelReviewProps> = ({ albumId, ownerId, t
 
         {/* ── Footer ──────────────────────────────────────────────────────── */}
         <div
-          className="flex items-center justify-between gap-3 px-5 sm:px-7 py-3.5 border-t shrink-0"
+          className="flex flex-wrap items-center justify-between gap-3 px-5 sm:px-7 py-3.5 border-t shrink-0"
           style={{ borderColor: 'rgba(255,255,255,0.07)' }}
         >
-          <p className="text-[10px] text-white/30 font-medium leading-snug">
-            Apply to World, Fabula project, and library come in Phase 2.
-          </p>
-          <Button variant="secondary" size="sm" onClick={onClose}>Close</Button>
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            {actionNote ? (
+              <p className="text-[11px] text-emerald-300 font-semibold leading-snug flex items-center gap-1.5 truncate">
+                <CheckCircle2 size={13} className="shrink-0" />
+                <span className="truncate">{actionNote}</span>
+              </p>
+            ) : (
+              <p className="text-[10px] text-white/45 font-medium leading-snug">
+                {fabulaSeeded
+                  ? '✓ Fabula project & clip-linked Timecode Script ready. Sync to Plajah World to connect characters & lore across your universe.'
+                  : 'Generate a clip-linked Fabula project or populate your Plajah World & Universe directly from this reverse screenplay.'}
+              </p>
+            )}
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            {report && (
+              <>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleSyncToWorld}
+                  disabled={worldBusy}
+                >
+                  <span className="flex items-center gap-1.5">
+                    <Globe size={13} />
+                    {worldBusy
+                      ? 'Syncing Universe…'
+                      : worldSyncResult
+                      ? `Synced: ${worldSyncResult.worldName}`
+                      : 'Sync to Plajah World & Universe'}
+                  </span>
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={handleOpenInFabula}
+                  disabled={fabulaBusy}
+                >
+                  <span className="flex items-center gap-1.5">
+                    <FileText size={13} />
+                    {fabulaBusy ? 'Opening Fabula…' : 'Open in Fabula (Timecode Script)'}
+                  </span>
+                </Button>
+              </>
+            )}
+            <Button variant="secondary" size="sm" onClick={onClose}>Close</Button>
+          </div>
         </div>
       </Surface>
     </div>

@@ -386,6 +386,23 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           }
           break;
         }
+        case 'modWheel': {
+          const target = armed ?? autoArm();
+          if (target) engine.setInstrumentModWheel(target, action.value);
+          break;
+        }
+        case 'pitchBend': {
+          const target = armed ?? autoArm();
+          if (target) engine.setInstrumentPitchBend(target, action.value);
+          break;
+        }
+        case 'sustain': {
+          const target = armed ?? engine.armedTrack();
+          if (target && !action.on) {
+            engine.getInstrument(target.id)?.allNotesOff(false);
+          }
+          break;
+        }
         case 'macro':
           // The eight knobs drive the armed instrument's macros, else the selected pad's first
           // eight parameters (so a Maschine is useful whether you're on drums or a synth).
@@ -393,8 +410,19 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
             engine.getInstrument(armed.id)?.setMacro(action.index, action.value);
             mutate((d) => {
               const t = d.arrangement.find((x) => x.id === armed.id);
-              const macros = (t?.instrument?.patch as { macros?: { value: number }[] } | undefined)?.macros;
-              if (macros?.[action.index]) macros[action.index].value = action.value;
+              const rawPatch = t?.instrument?.patch as Record<string, unknown> | undefined;
+              if (!rawPatch) return;
+              if (t?.instrument?.type === 'aura' && rawPatch.macros && !Array.isArray(rawPatch.macros)) {
+                const auraMacroKeys = ['warmth', 'cutoff', 'resonance', 'aura', 'ensemble', 'space'] as const;
+                const key = auraMacroKeys[action.index];
+                if (key) {
+                  (rawPatch.macros as Record<string, number>)[key] = action.value;
+                  void engine.reloadPatch(t);
+                }
+              } else if (Array.isArray(rawPatch.macros)) {
+                const macros = rawPatch.macros as { value: number }[];
+                if (macros[action.index]) macros[action.index].value = action.value;
+              }
             });
           } else {
             mutate((d) => {

@@ -1,27 +1,77 @@
 import sys
+import time
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 sys.path.insert(0, r"c:\Users\Kenne\plajah\scripts\localAi")
-from story_intelligence_engine import story_intel_engine
+from story_intelligence_engine import story_intel_engine as story_intel
 
-print("[TEST] Gemma 2 2B path:", story_intel_engine.find_model_path("gemma-2-2b"))
-print("[TEST] Nemotron 4B path:", story_intel_engine.find_model_path("nemotron-4b"))
+prose_sample = """Rain hammered the neon-lit alley of New Meridian as Silas Vane crouched beside the shattered skylight.
+SILAS VANE: "They breached the lower vault—Echo, lock the perimeter!"
+BOOM! A crimson plasma charge obliterated the steel bulkhead below.
+ECHO-9: "Too late, Silas! The Chrome Apostle is already inside the cathedral!" """
 
-test_prose = """Rain lashed against the rusted steel fire escapes of Lower Sector 4.
-Kael tightened the seal on his kinetic rebreather. "Command, do you copy? The seal is broken."
-From the shadows beneath the monorail arches, a glowing crimson optic ignited with a sharp electronic hiss.
-BOOM! An explosive concussive bolt shattered the stone pavement between them."""
+character_bible = [
+    {
+        "name": "Silas Vane",
+        "role": "Cyber-Noir Detective",
+        "look": "scarred jawline, glowing amber cybernetic left eye, drenched charcoal trenchcoat, brass neural collar"
+    },
+    {
+        "name": "Echo-9",
+        "role": "Tactical Synth Companion",
+        "look": "sleek porcelain-white chassis, holographic cobalt visor, twin shoulder pulse emitters"
+    }
+]
 
-print("\n--- Testing Gemma 2 2B Beat Decomposition on GPU ---")
-res = story_intel_engine.decompose_prose(test_prose, title="Sector 4 Infiltration", style="manga", model_preference="gemma-2-2b")
-print("Model:", res.get("inferenceModel"))
-print("Latency:", res.get("latencyMs"), "ms")
-if "tokensPerSec" in res:
-    print("Inference speed:", res["tokensPerSec"], "tokens/sec")
-print("Beats generated:", len(res.get("beats", [])))
-for b in res.get("beats", []):
-    print(f"  [Panel {b.get('panelIndex')}] Shot: {b.get('cameraShot')} | SFX: {b.get('suggestedSfx')} | Action: {b.get('actionSummary')[:60]}... | Dialogues: {len(b.get('dialogueLines', []))}")
+print("=== [TEST 1] Warm-Pool Preload & Dual-Engine Cascade Deconstruction ===")
+res1 = story_intel.decompose_prose(
+    prose_sample,
+    title="The Chrome Apostle: Breach",
+    style="comic_western",
+    model_preference="cascade",
+    character_bible=character_bible,
+)
+print(f"Model: {res1.get('inferenceModel')} | Cold Load + Inference Latency: {res1.get('latencyMs')}ms | Speed: {res1.get('tokensPerSec')} t/s")
+print(f"Resident VRAM Pool: {res1.get('vramResidentModels')}")
+print(f"Recommended Layout: {res1.get('recommendedLayoutId')} | Discovered Cast: {res1.get('discoveredCharacters')}")
+for b in res1.get("beats", []):
+    print(f"  [Panel {b.get('panelIndex')}] ({b.get('cameraShot')}) {b.get('actionSummary')}")
+    print(f"     [Continuity]: {b.get('continuityNote')}")
+    print(f"     [Diffusion]:  {b.get('diffusionPrompt')[:135]}...")
 
-print("\n--- Testing Editorial Writers Council on GPU ---")
-critique = story_intel_engine.critique_council(test_prose, model_preference="nemotron-4b")
-print("Council Overall Score:", critique.get("overallScore"))
-print("Council Members:", [m.get("role") for m in critique.get("councilMembers", [])])
-print("Executive Summary:", critique.get("executiveSummary"))
+print("\n=== [TEST 2] Warm-Pool Hot Repeat (0ms Model Reload) ===")
+res1_warm = story_intel.decompose_prose(
+    prose_sample,
+    title="The Chrome Apostle: Breach",
+    style="comic_western",
+    model_preference="gemma-2-2b",
+    character_bible=character_bible,
+)
+print(f"Warm Gemma 2 2B Latency (No Disk Reload!): {res1_warm.get('latencyMs')}ms | Speed: {res1_warm.get('tokensPerSec')} t/s")
+
+print("\n=== [TEST 3] Nemotron 4B Editorial Writers Council (Warm in VRAM) ===")
+res2 = story_intel.critique_council(prose_sample, model_preference="nemotron-4b")
+print(f"Model: {res2.get('inferenceModel')} | Latency: {res2.get('latencyMs')}ms | Speed: {res2.get('tokensPerSec')} t/s | Score: {res2.get('overallScore')}/100")
+print(f"Summary: {res2.get('executiveSummary')}")
+
+print("\n=== [TEST 4] Warm Switch Back to Gemma 2 2B (Dual-Resident VRAM Pool Proof) ===")
+res_switch = story_intel.decompose_prose(
+    prose_sample,
+    title="Instant Switch Test",
+    style="manga",
+    model_preference="gemma-2-2b",
+    character_bible=character_bible,
+)
+print(f"Warm Switch Latency (Both Gemma 2 2B + Nemotron 4B Resident in VRAM): {res_switch.get('latencyMs')}ms | Resident: {res_switch.get('vramResidentModels')}")
+
+print("\n=== [TEST 5] On-Device Full-Book Continuity Audit (Nemotron 4B) ===")
+contradiction_manuscript = """
+=== Chapter 1: The Ash Vault ===
+Silas Vane adjusted his glowing amber cybernetic left eye, staring through the rain with his organic brown right eye. His left arm had been replaced with a matte-black titanium prosthetic after the Siege of Orion.
+
+=== Chapter 14: Cathedral of Rust ===
+Silas Vane blinked both of his natural green eyes as he rolled up his sleeve, flexing his flesh-and-blood left hand where no scar had ever touched him.
+"""
+res_cont = story_intel.check_continuity(contradiction_manuscript, model_preference="nemotron-4b")
+print(f"Continuity Audit Latency: {res_cont.get('latencyMs')}ms | Cost: ${res_cont.get('costUsd')} | Summary: {res_cont.get('summary')}")
+for f in res_cont.get("findings", []):
+    print(f"  [!] [{f.get('severity').upper()}] ({f.get('kind')}) {f.get('title')}: {f.get('detail')}")

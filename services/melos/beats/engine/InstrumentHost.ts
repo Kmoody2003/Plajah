@@ -73,15 +73,37 @@ export interface InstrumentOptions {
  */
 export class Instrument {
   readonly node: AudioWorkletNode;
+  readonly analyser: AnalyserNode | null = null;
+  private readonly outGain: GainNode | null = null;
   private disposed = false;
   private nextVoiceId = 1;
   private heldVoices = new Map<number, number>(); // note → voiceId
   activeVoices = 0;
+  lastNote = 60;
+  lastVelocity = 0;
+  lastNoteOnPerf = 0;
+  modWheelValue = 0;
+  pitchBendValue = 0;
 
   private readyPromise: Promise<void>;
 
-  private constructor(node: AudioWorkletNode, opts: InstrumentOptions) {
+  private constructor(ctx: BaseAudioContext, node: AudioWorkletNode, opts: InstrumentOptions) {
     this.node = node;
+    try {
+      if (typeof ctx.createGain === 'function' && typeof ctx.createAnalyser === 'function') {
+        const g = ctx.createGain();
+        g.gain.value = 1;
+        const an = ctx.createAnalyser();
+        an.fftSize = 1024;
+        an.smoothingTimeConstant = 0.15;
+        node.connect(g);
+        node.connect(an);
+        this.outGain = g;
+        this.analyser = an;
+      }
+    } catch {
+      // Fallback to direct node connection in headless/offline environments
+    }
     let resolveReady: () => void = () => {};
     this.readyPromise = new Promise<void>((res) => { resolveReady = res; });
     node.port.onmessage = (e) => {
@@ -123,11 +145,31 @@ export class Instrument {
       outputChannelCount: [opts.channels ?? 2],
       processorOptions: { module, abi: DSP_ABI_VERSION },
     });
-    return new Instrument(node, opts);
+    return new Instrument(ctx, node, opts);
   }
 
   get output(): AudioNode {
-    return this.node;
+    return this.outGain ?? this.node;
+  }
+
+  /**
+   * Read the live time-domain audio waveform from the instrument's AnalyserNode tap.
+   * Returns the peak absolute amplitude (0..1+) in the buffer.
+   */
+  readWaveform(dest: Float32Array): number {
+    if (!this.analyser) return 0;
+    this.analyser.getFloatTimeDomainData(dest as Float32Array<ArrayBuffer>);
+    let peak = 0;
+    for (let i = 0; i < dest.length; i++) {
+      const a = Math.abs(dest[i]);
+      if (a > peak) peak = a;
+    }
+    return peak;
+  }
+
+  /** Returns currently held MIDI note numbers on this instrument. */
+  heldNoteNumbers(): number[] {
+    return Array.from(this.heldVoices.keys());
   }
 
   /**
@@ -137,6 +179,9 @@ export class Instrument {
   noteOn(note: number, velocity01: number, ctxTime: number, currentTime: number, sampleRate: number): number {
     const voiceId = this.nextVoiceId++;
     const frameOffset = Math.max(0, Math.round((ctxTime - currentTime) * sampleRate));
+    this.lastNote = note;
+    this.lastVelocity = velocity01;
+    this.lastNoteOnPerf = typeof performance !== 'undefined' ? performance.now() : Date.now();
     this.post({ type: 'noteOn', note, velocity: velocity01, voiceId, frameOffset });
     this.heldVoices.set(note, voiceId);
     return voiceId;
@@ -145,7 +190,16 @@ export class Instrument {
   noteOff(noteOrVoiceId: number, byVoiceId = false): void {
     const voiceId = byVoiceId ? noteOrVoiceId : this.heldVoices.get(noteOrVoiceId);
     if (voiceId === undefined) return;
-    if (!byVoiceId) this.heldVoices.delete(noteOrVoiceId);
+    if (!byVoiceId) {
+      this.heldVoices.delete(noteOrVoiceId);
+    } else {
+      for (const [k, v] of this.heldVoices.entries()) {
+        if (v === voiceId) {
+          this.heldVoices.delete(k);
+          break;
+        }
+      }
+    }
     this.post({ type: 'noteOff', voiceId });
   }
 
@@ -282,10 +336,12 @@ export class Instrument {
   }
 
   setModWheel(v: number): void {
-    this.post({ type: 'modWheel', value: v });
+    this.modWheelValue = Math.max(0, Math.min(1, v));
+    this.post({ type: 'modWheel', value: this.modWheelValue });
   }
   setPitchBend(v: number): void {
-    this.post({ type: 'pitchBend', value: v });
+    this.pitchBendValue = Math.max(-1, Math.min(1, v));
+    this.post({ type: 'pitchBend', value: this.pitchBendValue });
   }
   setTempo(beatsPerSec: number): void {
     this.post({ type: 'tempo', beatsPerSec });
@@ -310,6 +366,8 @@ export class Instrument {
     this.disposed = true;
     this.post({ type: 'dispose' });
     try { this.node.disconnect(); } catch { /* already detached */ }
+    try { this.outGain?.disconnect(); } catch { /* already detached */ }
+    try { this.analyser?.disconnect(); } catch { /* already detached */ }
     this.node.port.onmessage = null;
   }
 

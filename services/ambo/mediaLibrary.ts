@@ -10,6 +10,7 @@
 //   · MEDIA      — the church's own images, videos and audio.
 
 import type { LayerContent, LayerSlot } from './showModel';
+import { STAGE_RIGS, STAGE_TIER_ENERGY } from '../../components/plajahPixels/engine/core/stageRigs';
 
 export interface LibraryItem {
   id: string;
@@ -55,6 +56,94 @@ const GENERATORS: GenDef[] = [
 
   { mode: 'WAVEFORM',       name: 'Waveform',      category: 'Reactive',   tags: ['audio', 'music'] },
   { mode: 'SPECTRUM',       name: 'Spectrum',      category: 'Reactive',   tags: ['audio', 'music'] },
+  { mode: 'POLAR_DRIFT',    name: 'Polar Drift',   category: 'Reactive',   tags: ['audio', 'music', 'dark', 'space', 'energy:medium'] },
+
+  // Cosmos: photographic nebulae and aurorae, calm, breathing with the music.
+  { mode: 'COSMIC_PILLARS',     name: 'Pillars of Creation', category: 'Cosmos', tags: ['space', 'nebula', 'calm', 'worship', 'audio', 'energy:low'] },
+  { mode: 'COSMIC_PILLARS_DIRECTOR', name: 'Pillars of Creation · Director', category: 'Cosmos', tags: ['space', 'nebula', 'calm', 'worship', 'audio', 'energy:medium', 'director', 'camera'] },
+  { mode: 'COSMIC_AURORA_VEIL', name: 'Aurora Veil',         category: 'Cosmos', tags: ['aurora', 'night', 'calm', 'worship', 'audio', 'energy:low'] },
+  { mode: 'COSMIC_AURORA_VEIL_DIRECTOR', name: 'Aurora Veil · Director', category: 'Cosmos', tags: ['aurora', 'night', 'calm', 'worship', 'audio', 'energy:medium', 'director', 'camera'] },
+  { mode: 'COSMIC_ORION',       name: 'Orion Bloom',         category: 'Cosmos', tags: ['space', 'nebula', 'bright', 'audio', 'energy:medium'] },
+  { mode: 'COSMIC_ORION_DIRECTOR', name: 'Orion Bloom · Director', category: 'Cosmos', tags: ['space', 'nebula', 'bright', 'audio', 'energy:medium', 'director', 'camera'] },
+  { mode: 'COSMIC_REMNANT',     name: 'Veil Remnant',        category: 'Cosmos', tags: ['space', 'nebula', 'dark', 'audio', 'energy:medium'] },
+  { mode: 'COSMIC_REMNANT_DIRECTOR', name: 'Veil Remnant · Director', category: 'Cosmos', tags: ['space', 'nebula', 'dark', 'audio', 'energy:medium', 'director', 'camera'] },
+  { mode: 'COSMIC_GALAXY',      name: 'Galactic Spiral',     category: 'Cosmos', tags: ['space', 'galaxy', 'calm', 'audio', 'energy:low'] },
+  { mode: 'COSMIC_GALAXY_DIRECTOR', name: 'Galactic Spiral · Director', category: 'Cosmos', tags: ['space', 'galaxy', 'calm', 'audio', 'energy:medium', 'director', 'camera'] },
+  { mode: 'COSMIC_CORONA',      name: 'Aurora Corona',       category: 'Cosmos', tags: ['aurora', 'night', 'worship', 'audio', 'energy:medium'] },
+  { mode: 'COSMIC_CORONA_DIRECTOR', name: 'Aurora Corona · Director', category: 'Cosmos', tags: ['aurora', 'night', 'worship', 'audio', 'energy:medium', 'director', 'camera'] },
+  { mode: 'COSMIC_MILKYWAY',    name: 'Milky River',         category: 'Cosmos', tags: ['space', 'night', 'calm', 'worship', 'audio', 'energy:low'] },
+  { mode: 'COSMIC_MILKYWAY_DIRECTOR', name: 'Milky River · Director', category: 'Cosmos', tags: ['space', 'night', 'calm', 'worship', 'audio', 'energy:medium', 'director', 'camera'] },
+  { mode: 'COSMIC_PLANETARY',   name: 'Planetary Eye',       category: 'Cosmos', tags: ['space', 'nebula', 'calm', 'audio', 'energy:low'] },
+  { mode: 'COSMIC_PLANETARY_DIRECTOR', name: 'Planetary Eye · Director', category: 'Cosmos', tags: ['space', 'nebula', 'calm', 'audio', 'energy:medium', 'director', 'camera'] },
+  { mode: 'COSMIC_NURSERY',     name: 'Stellar Nursery',     category: 'Cosmos', tags: ['space', 'nebula', 'motion', 'audio', 'energy:medium'] },
+  { mode: 'COSMIC_NURSERY_DIRECTOR', name: 'Stellar Nursery · Director', category: 'Cosmos', tags: ['space', 'nebula', 'motion', 'audio', 'energy:medium', 'director', 'camera'] },
+  { mode: 'COSMIC_AURORA_LAKE', name: 'Aurora Lake',         category: 'Cosmos', tags: ['aurora', 'water', 'calm', 'worship', 'audio', 'energy:low'] },
+  { mode: 'COSMIC_AURORA_LAKE_DIRECTOR', name: 'Aurora Lake · Director', category: 'Cosmos', tags: ['aurora', 'water', 'calm', 'worship', 'audio', 'energy:medium', 'director', 'camera'] },
+
+  // Fluid: vibrant colours mixing like liquids in a vessel.
+  { mode: 'FLUID_INK',        name: 'Ink Bloom',        category: 'Fluid', tags: ['flow', 'ink', 'calm', 'audio', 'energy:low'] },
+  { mode: 'FLUID_INK_DIRECTOR', name: 'Ink Bloom · Director', category: 'Fluid', tags: ['flow', 'ink', 'calm', 'audio', 'energy:medium', 'director', 'camera'] },
+  { mode: 'FLUID_MARBLE',     name: 'Marbled Pour',     category: 'Fluid', tags: ['flow', 'paint', 'bright', 'audio', 'energy:low'] },
+  { mode: 'FLUID_MARBLE_DIRECTOR', name: 'Marbled Pour · Director', category: 'Fluid', tags: ['flow', 'paint', 'bright', 'audio', 'energy:medium', 'director', 'camera'] },
+  { mode: 'FLUID_LAMP',       name: 'Lumen Lamp',       category: 'Fluid', tags: ['flow', 'retro', 'calm', 'audio', 'energy:low'] },
+  { mode: 'FLUID_LAMP_DIRECTOR', name: 'Lumen Lamp · Director', category: 'Fluid', tags: ['flow', 'retro', 'calm', 'audio', 'energy:medium', 'director', 'camera'] },
+  { mode: 'FLUID_OILFILM',    name: 'Iridescent Oil',   category: 'Fluid', tags: ['flow', 'iridescent', 'audio', 'energy:medium'] },
+  { mode: 'FLUID_OILFILM_DIRECTOR', name: 'Iridescent Oil · Director', category: 'Fluid', tags: ['flow', 'iridescent', 'audio', 'energy:medium', 'director', 'camera'] },
+  { mode: 'FLUID_VORTEX',     name: 'Stirred Dye',      category: 'Fluid', tags: ['flow', 'swirl', 'audio', 'energy:medium'] },
+  { mode: 'FLUID_VORTEX_DIRECTOR', name: 'Stirred Dye · Director', category: 'Fluid', tags: ['flow', 'swirl', 'audio', 'energy:medium', 'director', 'camera'] },
+  { mode: 'FLUID_DENSITY',    name: 'Density Column',   category: 'Fluid', tags: ['flow', 'layers', 'calm', 'audio', 'energy:low'] },
+  { mode: 'FLUID_DENSITY_DIRECTOR', name: 'Density Column · Director', category: 'Fluid', tags: ['flow', 'layers', 'calm', 'audio', 'energy:medium', 'director', 'camera'] },
+  { mode: 'FLUID_SILK',       name: 'Liquid Silk',      category: 'Fluid', tags: ['flow', 'satin', 'calm', 'worship', 'audio', 'energy:low'] },
+  { mode: 'FLUID_SILK_DIRECTOR', name: 'Liquid Silk · Director', category: 'Fluid', tags: ['flow', 'satin', 'calm', 'worship', 'audio', 'energy:medium', 'director', 'camera'] },
+  { mode: 'FLUID_SHEAR',      name: 'Shear Billows',    category: 'Fluid', tags: ['flow', 'waves', 'audio', 'energy:medium'] },
+  { mode: 'FLUID_SHEAR_DIRECTOR', name: 'Shear Billows · Director', category: 'Fluid', tags: ['flow', 'waves', 'audio', 'energy:medium', 'director', 'camera'] },
+  { mode: 'FLUID_CONVECTION', name: 'Convection Cells', category: 'Fluid', tags: ['flow', 'warm', 'audio', 'energy:medium'] },
+  { mode: 'FLUID_CONVECTION_DIRECTOR', name: 'Convection Cells · Director', category: 'Fluid', tags: ['flow', 'warm', 'audio', 'energy:medium', 'director', 'camera'] },
+  { mode: 'FLUID_CAUSTIC',    name: 'Caustic Bowl',     category: 'Fluid', tags: ['flow', 'water', 'calm', 'audio', 'energy:low'] },
+  { mode: 'FLUID_CAUSTIC_DIRECTOR', name: 'Caustic Bowl · Director', category: 'Fluid', tags: ['flow', 'water', 'calm', 'audio', 'energy:medium', 'director', 'camera'] },
+
+  // Planes: colourful, textured sheets that fold and interleave with the music (calm to mid tempo),
+  // and Optics: abstract studies of light — halo, refraction, lens ghosts, leaks, caustics, glass.
+  ...([
+    ['Planes', 'PLANES_PLEATS',   'Origami Pleats',      ['paper', 'fold', 'calm', 'worship']],
+    ['Planes', 'PLANES_WEAVE',    'Silk Loom',           ['satin', 'weave', 'calm', 'worship']],
+    ['Planes', 'PLANES_STAINED',  'Stained Sashes',      ['glass', 'fold', 'bright']],
+    ['Planes', 'PLANES_TIDE',     'Paper Tide',          ['paper', 'water', 'calm', 'worship']],
+    ['Planes', 'PLANES_FAN',      'Fan Vault',           ['paper', 'fold', 'calm', 'worship']],
+    ['Planes', 'PLANES_CHEVRON',  'Chevron Cascade',     ['foil', 'fold', 'metal']],
+    ['Planes', 'PLANES_LATTICE',  'Kinetic Lattice',     ['tiles', 'motion', 'clean']],
+    ['Planes', 'PLANES_LAYERS',   'Paper Lightbox',      ['paper', 'layers', 'calm', 'worship']],
+    ['Planes', 'PLANES_BRAID',    'Satin Braid',         ['satin', 'braid', 'calm', 'worship']],
+    ['Planes', 'PLANES_TAPESTRY', 'Crossed Tapestry',    ['fold', 'night', 'glitter']],
+    ['Optics', 'OPTIC_HALO',      'Ice Halo',            ['halo', 'sky', 'calm', 'worship']],
+    ['Optics', 'OPTIC_PRISM',     'Prism Dispersion',    ['refraction', 'spectrum', 'calm']],
+    ['Optics', 'OPTIC_FLARE',     'Lens Reticulation',   ['flare', 'lens', 'calm']],
+    ['Optics', 'OPTIC_LEAKS',     'Film Light Leaks',    ['leaks', 'film', 'warm', 'calm']],
+    ['Optics', 'OPTIC_STREAKS',   'Anamorphic Bokeh',    ['bokeh', 'flare', 'night', 'calm', 'worship']],
+    ['Optics', 'OPTIC_CAUSTIC',   'Water-Glass Caustic', ['caustic', 'glass', 'warm', 'calm']],
+    ['Optics', 'OPTIC_FILM',      'Soap Film',           ['iridescent', 'interference', 'calm']],
+    ['Optics', 'OPTIC_FLUTED',    'Fluted Glass',        ['glass', 'refraction', 'calm', 'worship']],
+    ['Optics', 'OPTIC_RAYS',      'Dust Shafts',         ['rays', 'dust', 'calm', 'worship']],
+    ['Optics', 'OPTIC_SPHERE',    'Crystal Sphere',      ['glass', 'refraction', 'calm']],
+  ] as Array<[string, string, string, string[]]>).flatMap(([category, mode, name, tags]): GenDef[] => [
+    { mode, name, category, tags: [...tags, 'audio', 'energy:low'] },
+    { mode: `${mode}_DIRECTOR`, name: `${name} · Director`, category, tags: [...tags, 'audio', 'energy:medium', 'director', 'camera'] },
+  ]),
+
+  // Concert stages: photoreal arenas, festival main stages, warehouses and theatres with
+  // virtual lighting rigs (lasers, beams, strobes, blinders, pyro) cued by the music.
+  // Each rig comes four ways: the show from front of house, a Director version (a 3D camera cutting
+  // between crowd, crane, long-lens, wing, high and reverse shots on the bar lines), an Empty stage
+  // (no performers, locked off) to composite real talent onto, and the Empty stage shot by the Director.
+  ...STAGE_RIGS.flatMap((r): GenDef[] => {
+    const tags = ['stage', 'concert', 'lights', 'audio', r.venue, r.tier, `energy:${STAGE_TIER_ENERGY[r.tier]}`, ...(r.tier === 'mellow' ? ['calm'] : [])];
+    return [
+      { mode: r.mode, name: r.name, category: 'Concert Stage', tags },
+      { mode: r.mode + '_DIRECTOR', name: `${r.name} · Director`, category: 'Concert Stage', tags: [...tags, 'director', 'camera'] },
+      { mode: r.mode + '_EMPTY', name: `${r.name} · Empty stage`, category: 'Concert Stage', tags: [...tags, 'empty stage', 'set extension', 'backdrop'] },
+      { mode: r.mode + '_EMPTY_DIRECTOR', name: `${r.name} · Empty stage · Director`, category: 'Concert Stage', tags: [...tags, 'empty stage', 'backdrop', 'director', 'camera'] },
+    ];
+  }),
 ];
 
 export const GENERATOR_ITEMS: LibraryItem[] = GENERATORS.map(g => ({

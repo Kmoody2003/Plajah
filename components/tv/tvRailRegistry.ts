@@ -41,7 +41,7 @@ import {
   fetchAudiusUnderground, fetchAudiusTrendingPlaylists, fetchAudiusPlaylistTracks, fetchAudiusArtistById,
   audiusAlbumToNativeAlbum,
 } from '../../services/audiusService';
-import { CURATED_KOFA_FILMS, CURATED_EUROPEANA_FILMS, type ArchiveTrack } from '../../services/archiveContentService';
+import { CURATED_KOFA_FILMS, CURATED_EUROPEANA_FILMS, CURATED_HALLOWEEN_FILMS, PUMPKIN_PATCH_HERO_ALBUM, type ArchiveTrack } from '../../services/archiveContentService';
 import { getClipsByUser, clipSourceUrl, clipThumbnailUrl } from '../../services/liveClipService';
 import { getTvArtists } from '../../services/tv/tvCatalogCache';
 import { albumItem, audiusItem, playlistItem, type BaseData, type TvItem, type TvRail } from './choraTvSections';
@@ -289,6 +289,11 @@ export const REELLO_TV_RAILS: TvRailDef<ReelloBase, TvVideoItem>[] = [
 // ═══ TALEO ═══════════════════════════════════════════════════════════════════════
 
 export const TALEO_TV_RAILS: TvRailDef<void, TaleoItem>[] = [
+  {
+    id: 'halloween-cinema', title: '🎃 Taleo Halloween Selection', section: 'HOME', position: 'start',
+    webSource: 'MoviesTVView HomeView → PUMPKIN_PATCH_HERO_ALBUM + CURATED_HALLOWEEN_FILMS',
+    load: () => [vItem(PUMPKIN_PATCH_HERO_ALBUM), ...CURATED_HALLOWEEN_FILMS.map(archItem)],
+  },
   {
     id: 'my-locker', title: 'Your Video Locker', section: 'HOME', position: 'start',
     webSource: 'PersonalVideoLocker → backendService.fetchPersonalVideos',

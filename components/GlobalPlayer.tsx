@@ -10,7 +10,7 @@ import TrackReactions from './TrackReactions';
 import { Play, Pause, Activity, SkipBack, SkipForward, Volume2, Music, Radio, X, ChevronUp, ChevronDown, Library, Globe, Cast, Home, Search, MessageSquare, Bell, User as UserIcon, Moon, Sun, Palette, Sparkles, Tv, Repeat, Repeat1, Shuffle, Smartphone, Plus, Settings, LogOut, Upload, Shield, Maximize2, Minimize2, Share2, Users, Heart, Trophy, Layers, RotateCcw, List, Box, Video as VideoIcon, Headphones, ZapOff } from 'lucide-react';
 import Logo from './Logo';
 import AriaMark from './aria/AriaMark';
-import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
+import { thumb, heroImage, slideshowImage, onThumbError, THUMB } from '../src/lib/imageThumb';
 import { motion, AnimatePresence, useAnimation } from 'motion/react';
 import MuxPlayer from '@mux/mux-player-react';
 import { auth, listenToChatRooms } from '../services/backendService';
@@ -2207,18 +2207,36 @@ const Slideshow: React.FC<{ images: string[] }> = ({ images }) => {
   const [index, setIndex] = useState(0);
 
   useEffect(() => {
+    if (!images.length) return;
     const interval = setInterval(() => {
       setIndex(prev => (prev + 1) % images.length);
     }, 5000);
     return () => clearInterval(interval);
   }, [images.length]);
 
+  useEffect(() => {
+    if (images.length < 2) return;
+    for (let k = 1; k <= 2; k++) {
+      const nextUrl = images[(index + k) % images.length];
+      if (nextUrl) {
+        const im = new Image();
+        im.decoding = 'async';
+        im.src = heroImage(nextUrl);
+      }
+    }
+  }, [index, images]);
+
+  const rawSrc = images[index] || '';
+  const optimizedSrc = heroImage(rawSrc) || rawSrc || undefined;
+
   return (
     <div className="w-full h-full relative">
       <AnimatePresence mode="wait">
           <motion.img 
             key={index}
-            src={images[index] || null}
+            src={optimizedSrc}
+            onError={onThumbError(rawSrc)}
+            decoding="async"
             initial={{ opacity: 0, scale: 1.15, filter: 'blur(20px)' }}
             animate={{ opacity: 1, scale: 1.05, filter: 'blur(0px)' }}
             exit={{ opacity: 0, scale: 0.95, filter: 'blur(20px)' }}

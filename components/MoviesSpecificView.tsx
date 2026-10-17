@@ -61,22 +61,40 @@ const HorizontalRow: React.FC<{
   accent?: string;
   items: any[];
   onSelect: (i: any) => void;
-}> = ({ title, subtitle, accent = '#D0BCFF', items, onSelect }) => (
-  <section>
-    <div className="mb-5 flex items-end justify-between">
-      <div>
-        <p className="text-[9px] font-black uppercase tracking-[0.3em] mb-1.5" style={{ color: accent }}>{subtitle}</p>
-        <h3 className="text-2xl font-black uppercase tracking-tight text-white">{title}</h3>
+}> = ({ title, subtitle, accent = '#D0BCFF', items, onSelect }) => {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <section>
+      <div className="mb-5 flex items-end justify-between">
+        <div>
+          <p className="text-[9px] font-black uppercase tracking-[0.3em] mb-1.5" style={{ color: accent }}>{subtitle}</p>
+          <h3 className="text-2xl font-black uppercase tracking-tight text-white">{title}</h3>
+        </div>
+        {items.length > 6 && (
+          <button
+            onClick={() => setExpanded(prev => !prev)}
+            className="text-white/25 hover:text-white/65 text-[9px] font-black uppercase tracking-widest transition-colors cursor-pointer"
+          >
+            {expanded ? 'Show Less' : 'See All'}
+          </button>
+        )}
       </div>
-      <button className="text-white/25 hover:text-white/55 text-[9px] font-black uppercase tracking-widest transition-colors">See All</button>
-    </div>
-    <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
-      {items.slice(0, 16).map((item, i) => (
-        <MovieCard key={item.identifier || item.id || i} item={item} onSelect={onSelect} />
-      ))}
-    </div>
-  </section>
-);
+      {expanded ? (
+        <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-7 gap-4 pb-2">
+          {items.map((item, i) => (
+            <MovieCard key={item.identifier || item.id || i} item={item} onSelect={onSelect} width="" />
+          ))}
+        </div>
+      ) : (
+        <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
+          {items.slice(0, 16).map((item, i) => (
+            <MovieCard key={item.identifier || item.id || i} item={item} onSelect={onSelect} />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+};
 
 export const MoviesSpecificView: React.FC<MoviesSpecificViewProps> = ({ movies, localContent, onSelect, onBack }) => {
   const [selectedGenre, setSelectedGenre] = useState('All');
@@ -164,7 +182,12 @@ export const MoviesSpecificView: React.FC<MoviesSpecificViewProps> = ({ movies, 
                   <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/30 mb-1">Category</p>
                   <h3 className="text-2xl font-black uppercase tracking-tight text-white">{genre}</h3>
                 </div>
-                <button className="text-white/25 hover:text-white/55 text-[9px] font-black uppercase tracking-widest transition-colors">See All</button>
+                <button
+                  onClick={() => setSelectedGenre(genre)}
+                  className="text-white/25 hover:text-white/65 text-[9px] font-black uppercase tracking-widest transition-colors cursor-pointer"
+                >
+                  See All
+                </button>
               </div>
               <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
                 {items.map((item, i) => (

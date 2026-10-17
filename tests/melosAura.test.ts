@@ -127,3 +127,22 @@ test('all 6 AURA editor groups and macros have complete metadata and formatters'
     }
   }
 });
+
+test('every AURA preset builds a dramatic multi-parameter X/Y Vector Pad and preserves explicit FX toggles', () => {
+  for (const preset of AURA_PRESETS) {
+    const patch = newAuraPatch(preset);
+    assert.ok(patch.padX.length >= 3, `${preset.id} padX should sweep >= 3 parameters, got ${patch.padX.length}`);
+    assert.ok(patch.padY.length >= 2, `${preset.id} padY should sweep >= 2 parameters, got ${patch.padY.length}`);
+  }
+
+  // Manual toggle of Phaser or BBD Ensemble should not be zeroed out when ensemble macro is 0
+  const baseParams = { [A.PH_ON]: 1, [A.PH_MIX]: 0.55, [A.GATE_ON]: 1, [A.FLUX_ON]: 1 };
+  const expanded = expandAuraMacros(baseParams, {
+    warmth: 0.35, cutoff: 0.5, resonance: 0.3, aura: 0.35, ensemble: 0, space: 0,
+  });
+  assert.equal(expanded[A.PH_ON], 1);
+  assert.equal(expanded[A.PH_MIX], 0.55);
+  assert.equal(expanded[A.GATE_ON], 1);
+  assert.equal(expanded[A.FLUX_ON], 1);
+});
+

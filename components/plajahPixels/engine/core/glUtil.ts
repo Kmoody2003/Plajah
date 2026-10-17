@@ -65,6 +65,38 @@ export function createProgram(gl: GL, vsSrc: string, fsSrc: string): WebGLProgra
   return prog;
 }
 
+/** A program whose compile/link was started but not waited on (KHR_parallel_shader_compile). */
+export interface PendingProgram { prog: WebGLProgram; vs: WebGLShader; fs: WebGLShader; fsSrc: string }
+
+/** Start compiling and linking without blocking on the result. Check it later with programDone / finishProgram. */
+export function startProgram(gl: GL, vsSrc: string, fsSrc: string): PendingProgram {
+  const vs = gl.createShader(gl.VERTEX_SHADER)!, fs = gl.createShader(gl.FRAGMENT_SHADER)!;
+  gl.shaderSource(vs, vsSrc); gl.compileShader(vs);
+  gl.shaderSource(fs, fsSrc); gl.compileShader(fs);
+  const prog = gl.createProgram()!;
+  gl.attachShader(prog, vs); gl.attachShader(prog, fs);
+  gl.linkProgram(prog);
+  return { prog, vs, fs, fsSrc };
+}
+
+/** True once the driver has finished a started program (always true without the extension: the query then blocks). */
+export function programDone(gl: GL, pp: PendingProgram, ext: { COMPLETION_STATUS_KHR: number } | null): boolean {
+  return !ext || !!gl.getProgramParameter(pp.prog, ext.COMPLETION_STATUS_KHR);
+}
+
+/** Collect a started program: throws with the log on failure, like createProgram. */
+export function finishProgram(gl: GL, pp: PendingProgram): WebGLProgram {
+  const ok = gl.getProgramParameter(pp.prog, gl.LINK_STATUS);
+  if (!ok) {
+    const log = (gl.getShaderParameter(pp.fs, gl.COMPILE_STATUS) ? '' : gl.getShaderInfoLog(pp.fs) + '\n' + numberLines(pp.fsSrc))
+      || gl.getShaderInfoLog(pp.vs) || gl.getProgramInfoLog(pp.prog);
+    gl.deleteShader(pp.vs); gl.deleteShader(pp.fs); gl.deleteProgram(pp.prog);
+    throw new Error(`[PixelsCore] program build failed: ${log}`);
+  }
+  gl.deleteShader(pp.vs); gl.deleteShader(pp.fs);
+  return pp.prog;
+}
+
 /** A single fullscreen triangle (covers clip space with one tri — no quad seam). */
 export function createFullscreenQuad(gl: GL): WebGLVertexArrayObject {
   const vao = gl.createVertexArray()!;

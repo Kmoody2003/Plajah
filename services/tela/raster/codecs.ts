@@ -162,8 +162,11 @@ export function injectWebpIcc(webp: Uint8Array, profile: Uint8Array, width: numb
   return Uint8Array.from([...'RIFF'].map(c => c.charCodeAt(0)).concat(le32(body.length + 4), [...'WEBP'].map(c => c.charCodeAt(0)), body));
 }
 
+export { injectJxlIcc, extractJxlIcc, isJxlBytes, parseJxlHeader } from '../../jxlCodec';
+import { injectJxlIcc, isJxlBytes } from '../../jxlCodec';
+
 // ── Browser export entry points ─────────────────────────────────────────────
-export interface ExportOptions { format: 'png' | 'jpeg' | 'webp'; quality?: number; colorSpace?: ProfileName; dpi?: number; background?: [number, number, number] }
+export interface ExportOptions { format: 'png' | 'jpeg' | 'webp' | 'jxl'; quality?: number; colorSpace?: ProfileName; dpi?: number; background?: [number, number, number] }
 /** Encode a flattened bitmap to a tagged Blob (browser / worker with OffscreenCanvas). */
 export async function encodeBitmap(bm: Bitmap8, o: ExportOptions): Promise<Blob> {
   const cs = o.colorSpace ?? 'srgb';
@@ -175,8 +178,19 @@ export async function encodeBitmap(bm: Bitmap8, o: ExportOptions): Promise<Blob>
   }
   const canvas = new OffscreenCanvas(bm.width, bm.height), ctx = canvas.getContext('2d', { colorSpace: cs === 'display-p3' ? 'display-p3' : 'srgb' } as any) as OffscreenCanvasRenderingContext2D;
   ctx.putImageData(new ImageData(src.data as any, bm.width, bm.height, { colorSpace: cs === 'display-p3' ? 'display-p3' : 'srgb' } as any), 0, 0);
-  const blob = await canvas.convertToBlob({ type: `image/${o.format}`, quality: o.quality ?? 0.92 });
+  const requestedMime = `image/${o.format}`;
+  let blob = await canvas.convertToBlob({ type: requestedMime, quality: o.quality ?? (o.format === 'jxl' ? 0.85 : 0.92) });
+  // If the browser's OffscreenCanvas didn't natively encode image/jxl (browsers fall back to image/png),
+  // fall back to image/webp so previews/exports stay compact instead of ballooning to lossless PNG.
+  if (o.format === 'jxl' && blob.type !== 'image/jxl') {
+    blob = await canvas.convertToBlob({ type: 'image/webp', quality: o.quality ?? 0.92 });
+  }
   const bytes = new Uint8Array(await blob.arrayBuffer()), prof = iccProfile(cs);
+  if (isJxlBytes(bytes)) {
+    const tagged = injectJxlIcc(bytes, prof);
+    return new Blob([tagged as BlobPart], { type: 'image/jxl' });
+  }
   const tagged = o.format === 'jpeg' ? injectJpegIcc(bytes, prof) : injectWebpIcc(bytes, prof, bm.width, bm.height, true);
-  return new Blob([tagged as BlobPart], { type: `image/${o.format}` });
+  return new Blob([tagged as BlobPart], { type: blob.type || requestedMime });
 }
+

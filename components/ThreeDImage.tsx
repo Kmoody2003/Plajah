@@ -112,6 +112,7 @@ const ThreeDImage: React.FC<ThreeDImageProps> = ({
           <img 
             src={src} 
             alt="" 
+            onError={props.onError}
             className="w-full h-full object-cover" 
             referrerPolicy="no-referrer"
           />

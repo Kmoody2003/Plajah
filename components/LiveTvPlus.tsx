@@ -400,15 +400,50 @@ const LiveTvPlus: React.FC<{
   // instantly after a save, before the next listing refresh.
   const [extraBranding, setExtraBranding] = useState<Record<string, OwnerBranding>>({});
   const [localLogos, setLocalLogos] = useState<Record<string, string>>({});   // subKey → url ('' = cleared)
+
+  // Extra FAST channels resolved on-the-fly when deep-linked or QR-focused
+  const [extraFastChannels, setExtraFastChannels] = useState<FastChannelListing[]>([]);
+  const allFastChannels = useMemo(() => {
+    const map = new Map<string, FastChannelListing>();
+    (fastChannels || []).forEach(fc => map.set(fc.ownerId, fc));
+    extraFastChannels.forEach(fc => { if (!map.has(fc.ownerId)) map.set(fc.ownerId, fc); });
+    return [...map.values()];
+  }, [fastChannels, extraFastChannels]);
+
+  // Dynamically resolve missing FAST channel if focused by QR code / deep-link
+  useEffect(() => {
+    const targetOwner = focusOwnerId || (focusNumber && registry?.byOwner ? Object.entries(registry.byOwner).find(([_, n]) => String(n) === focusNumber.split('.')[0])?.[0] : undefined);
+    if (!targetOwner) return;
+    const have = (fastChannels || []).some(fc => fc.ownerId === targetOwner) || extraFastChannels.some(fc => fc.ownerId === targetOwner);
+    if (have) return;
+    void fetchFastChannelMeta(targetOwner).then(m => {
+      if (!m) return;
+      setExtraFastChannels(prev => {
+        if (prev.some(x => x.ownerId === targetOwner)) return prev;
+        return [...prev, {
+          ownerId: targetOwner,
+          name: m.name || 'Channel',
+          number: m.number,
+          accountLogo: m.logoUrl || undefined,
+          subLogos: m.subLogos,
+          subNames: m.subNames,
+          photoURL: (m as any).photoURL || undefined,
+          logoUrl: m.logoUrl || (m as any).photoURL,
+          createdAt: m.createdAt,
+        }];
+      });
+    }).catch(() => {});
+  }, [focusOwnerId, focusNumber, registry, fastChannels, extraFastChannels]);
+
   const ownerBranding = useMemo(() => {
     const m = new Map<string, OwnerBranding>();
     Object.entries(extraBranding).forEach(([k, v]) => m.set(k, v));
-    (fastChannels || []).forEach(fc => m.set(fc.ownerId, { logoUrl: fc.accountLogo, subLogos: fc.subLogos, subNames: fc.subNames, photoURL: fc.photoURL }));
+    allFastChannels.forEach(fc => m.set(fc.ownerId, { logoUrl: fc.accountLogo, subLogos: fc.subLogos, subNames: fc.subNames, photoURL: fc.photoURL }));
     return m;
-  }, [fastChannels, extraBranding]);
+  }, [allFastChannels, extraBranding]);
   const fetchedBrandingRef = useRef<Set<string>>(new Set());
   useEffect(() => {
-    const have = new Set((fastChannels || []).map(fc => fc.ownerId));
+    const have = new Set(allFastChannels.map(fc => fc.ownerId));
     (feeds || []).filter(isChannelFeed).forEach(f => {
       const ownerId = (f as any).ownerId as string | undefined;
       if (!ownerId || have.has(ownerId) || fetchedBrandingRef.current.has(ownerId)) return;
@@ -418,7 +453,7 @@ const LiveTvPlus: React.FC<{
         setExtraBranding(prev => ({ ...prev, [ownerId]: { logoUrl: m.logoUrl || undefined, subLogos: m.subLogos, subNames: m.subNames } }));
       }).catch(() => {});
     });
-  }, [feeds, fastChannels]);
+  }, [feeds, allFastChannels]);
 
   // Build the lineup by USER ACCOUNT: each account is a channel (a bound "major" number) and its
   // individual live feeds + FAST channel are SUB-CHANNELS (42.1, 42.2, …) like an over-the-air
@@ -452,7 +487,7 @@ const LiveTvPlus: React.FC<{
       });
 
     // FAST channels → a sub-channel for the account (carries the custom channel name + bound number).
-    (fastChannels || []).forEach(fc => {
+    allFastChannels.forEach(fc => {
       const o = ensure(fc.ownerId, fc.name || 'Channel');
       if (fc.name) o.name = fc.name;            // account-level channel name
       if (typeof fc.number === 'number') o.bound = fc.number;
@@ -528,7 +563,7 @@ const LiveTvPlus: React.FC<{
     // unnumbered entries collect at the bottom instead of pushing everyone else around.
     out.sort((a, b) => guideSortKey(a.number) - guideSortKey(b.number));
     return out;
-  }, [feeds, fastChannels, registry, renamedSubs, ownerBranding, localLogos]);
+  }, [feeds, allFastChannels, registry, renamedSubs, ownerBranding, localLogos]);
 
   // Pre-generate and cache persistent QR codes for all channels in lineup
   useEffect(() => {
@@ -1061,6 +1096,7 @@ const LiveTvPlus: React.FC<{
 
   const upNextFrom = (slots: FastChannelSlot[], idx: number): UpNextItem[] => {
     const out: UpNextItem[] = [];
+    if (!slots || !slots.length) return out;
     for (let k = 1; k <= slots.length && out.length < 3; k++) {
       const ns = slots[(idx + k) % slots.length];
       if (!ns || !(ns.type === 'VIDEO' || ns.type === 'PUBLIC_DOMAIN' || ns.type === 'LIVE_INTERRUPT')) continue;
@@ -1089,64 +1125,78 @@ const LiveTvPlus: React.FC<{
 
   /** Re-derive what is on air from the CLOCK and arm the next boundary. Idempotent and loop-proof. */
   const syncFast = useCallback(() => {
-    clearFastTimer();
-    const slots = fastSlotsRef.current;
-    if (!slots.length) { setFastMedia(null); setFastAd(null); setFastFiller(null); return; }
-    const pos = clockPos(slots, clockNow());
-    if (pos.offAir) {
+    try {
+      clearFastTimer();
+      const slots = fastSlotsRef.current;
+      if (!slots || !slots.length) { setFastMedia(null); setFastAd(null); setFastFiller(null); return; }
+      const pos = clockPos(slots, clockNow());
+      if (pos.offAir) {
+        setFastMedia(null); setFastAd(null); setFastFiller(null);
+        fastTimerRef.current = setTimeout(() => syncRef.current(), Math.max(1, Math.min(pos.resumesInSec, 300)) * 1000);
+        return;
+      }
+      const idx = Math.max(0, Math.min(slots.length - 1, pos.index || 0));
+      const s = slots[idx];
+      if (!s) { setFastMedia(null); setFastAd(null); setFastFiller(null); return; }
+      const remaining = Math.max(1, slotDurationSec(s) - Math.max(0, pos.offsetSec || 0));
+      // THE boundary: this is what ends an ad break and returns the channel to programming, exactly on time.
+      fastTimerRef.current = setTimeout(() => syncRef.current(), Math.max(100, remaining * 1000));
+      const key = `${fastOwnerRef.current || 'fast'}_${idx}`;
+      const m = resolveSlotMedia(s);
+      // Ad break, a scheduled Plajah FM programming block, or any non-video hold — all play the FM
+      // surface (FM audio + cover art + platform bumpers) for the window.
+      if (m.isAd || m.kind === 'FM') {
+        setFastMedia(null); setFastFiller(null);
+        setFastAd({ key, durationSec: Math.max(3, Math.round(remaining)), upcoming: upNextFrom(slots, idx) });
+        return;
+      }
+      setFastAd(null);
+      const url = m.muxPlaybackId ? `https://stream.mux.com/${m.muxPlaybackId}.m3u8` : (m.url || '');
+      const isHls = !!(m.isHls || m.muxPlaybackId);
+      // FAST plays platform/stream media only. An unplayable slot never sits on a static card for long:
+      // holds ≤30s show the up-next card, anything longer becomes a Plajah FM insertion until the next
+      // programme is due.
+      if (!url || (!isHls && isEmbeddableUrl(url))) {
+        setFastMedia(null);
+        if (remaining > FM_FILL_THRESHOLD_SEC) { setFastFiller(null); setFastAd({ key: `${key}_fm`, durationSec: Math.round(remaining), upcoming: upNextFrom(slots, idx) }); }
+        else setFastFiller({ key, upcoming: upNextFrom(slots, idx) });
+        return;
+      }
+      setFastFiller(null);
+      setFastMedia({ url, offset: Math.max(0, pos.offsetSec || 0), key });
+    } catch (err) {
+      console.warn('[LiveTvPlus] syncFast error caught:', err);
       setFastMedia(null); setFastAd(null); setFastFiller(null);
-      fastTimerRef.current = setTimeout(() => syncRef.current(), Math.min(pos.resumesInSec, 300) * 1000);
-      return;
     }
-    const idx = pos.index;
-    const s = slots[idx];
-    const remaining = Math.max(1, slotDurationSec(s) - Math.max(0, pos.offsetSec));
-    // THE boundary: this is what ends an ad break and returns the channel to programming, exactly on time.
-    fastTimerRef.current = setTimeout(() => syncRef.current(), Math.max(100, remaining * 1000));
-    const key = `${fastOwnerRef.current}_${idx}`;
-    const m = resolveSlotMedia(s);
-    // Ad break, a scheduled Plajah FM programming block, or any non-video hold — all play the FM
-    // surface (FM audio + cover art + platform bumpers) for the window.
-    if (m.isAd || m.kind === 'FM') {
-      setFastMedia(null); setFastFiller(null);
-      setFastAd({ key, durationSec: Math.max(3, Math.round(remaining)), upcoming: upNextFrom(slots, idx) });
-      return;
-    }
-    setFastAd(null);
-    const url = m.muxPlaybackId ? `https://stream.mux.com/${m.muxPlaybackId}.m3u8` : (m.url || '');
-    const isHls = !!(m.isHls || m.muxPlaybackId);
-    // FAST plays platform/stream media only. An unplayable slot never sits on a static card for long:
-    // holds ≤30s show the up-next card, anything longer becomes a Plajah FM insertion until the next
-    // programme is due.
-    if (!url || (!isHls && isEmbeddableUrl(url))) {
-      setFastMedia(null);
-      if (remaining > FM_FILL_THRESHOLD_SEC) { setFastFiller(null); setFastAd({ key: `${key}_fm`, durationSec: Math.round(remaining), upcoming: upNextFrom(slots, idx) }); }
-      else setFastFiller({ key, upcoming: upNextFrom(slots, idx) });
-      return;
-    }
-    setFastFiller(null);
-    setFastMedia({ url, offset: Math.max(0, pos.offsetSec), key });
   }, []);
   useEffect(() => { syncRef.current = syncFast; }, [syncFast]);
 
   /** Media finished (or failed) before its scheduled window ends: show the up-next card for the rest of
    *  the window — no black, and the clock boundary still moves us on exactly on schedule. */
   const onFastMediaEnded = useCallback(() => {
-    const slots = fastSlotsRef.current;
-    if (!slots.length) return;
-    const pos = clockPos(slots, clockNow());
-    if (pos.offAir || !hasPlayableProgramme(slots)) { syncRef.current(); return; }
-    const remaining = slotDurationSec(slots[pos.index]) - Math.max(0, pos.offsetSec);
-    const up = upNextFrom(slots, pos.index);
-    if (remaining > FM_FILL_THRESHOLD_SEC) {
-      // A long gap after the programme ended → Plajah FM plays until the next programme is due,
-      // rather than parking on a static graphic.
-      setFastMedia(null); setFastFiller(null);
-      setFastAd({ key: `${fastOwnerRef.current}_${pos.index}_fm`, durationSec: Math.round(remaining), upcoming: up });
-    } else if (remaining > 5) {
-      setFastMedia(null);
-      setFastFiller({ key: `${fastOwnerRef.current}_${pos.index}_f`, upcoming: up });
-    } else {
+    try {
+      const slots = fastSlotsRef.current;
+      if (!slots || !slots.length) return;
+      const pos = clockPos(slots, clockNow());
+      if (pos.offAir || !hasPlayableProgramme(slots)) { syncRef.current(); return; }
+      const idx = Math.max(0, Math.min(slots.length - 1, pos.index || 0));
+      const s = slots[idx];
+      if (!s) { syncRef.current(); return; }
+      const remaining = Math.max(0, slotDurationSec(s) - Math.max(0, pos.offsetSec || 0));
+      const up = upNextFrom(slots, idx);
+      if (remaining > FM_FILL_THRESHOLD_SEC) {
+        // A long gap after the programme ended → Plajah FM plays until the next programme is due,
+        // rather than parking on a static graphic.
+        setFastMedia(null); setFastFiller(null);
+        setFastAd({ key: `${fastOwnerRef.current || 'fast'}_${idx}_fm`, durationSec: Math.round(remaining), upcoming: up });
+      } else if (remaining > 5) {
+        setFastMedia(null);
+        setFastFiller({ key: `${fastOwnerRef.current || 'fast'}_${idx}_f`, upcoming: up });
+      } else {
+        syncRef.current();
+      }
+    } catch (err) {
+      console.warn('[LiveTvPlus] onFastMediaEnded error caught:', err);
       syncRef.current();
     }
   }, []);

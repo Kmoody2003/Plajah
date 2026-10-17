@@ -870,6 +870,20 @@ export class BeatsEngine {
     if (inst && id !== undefined) inst.setExpression(id, bend, pressure, timbre);
   }
 
+  /** Channel-wide Mod Wheel (CC #1 / Channel Pressure, 0..1) on an instrument track. */
+  setInstrumentModWheel(track: ATrack, value: number): void {
+    const inst = this.instruments.get(track.id);
+    if (inst) { inst.setModWheel(value); return; }
+    void this.ensureInstrument(track).then((i) => i?.setModWheel(value));
+  }
+
+  /** Channel-wide 14-bit Pitch Bend (-1..1) on an instrument track. */
+  setInstrumentPitchBend(track: ATrack, value: number): void {
+    const inst = this.instruments.get(track.id);
+    if (inst) { inst.setPitchBend(value); return; }
+    void this.ensureInstrument(track).then((i) => i?.setPitchBend(value));
+  }
+
   private startInstrumentNote(track: ATrack, note: NoteEvent, when: number, durSec: number): void {
     const inst = this.instruments.get(track.id);
     if (!inst || !this.ctx) return;

@@ -27,20 +27,32 @@ export interface LocalCreativeStudioOptions {
   loraId?: string;
   loraWeight?: number;
   // Detail Hallucination dials:
-  hallucinationLevel?: number; // 0..100
-  resemblance?: number;        // 0..100
-  engine?: 'cinematic' | 'photoreal' | 'comic_ink' | 'storybook' | '3d_render';
+  hallucinationLevel?: number; // 0..100 or 0..1
+  resemblance?: number;        // 0..100 or 0..1
+  engine?: 'none' | 'skin_pores' | 'fabric_weave' | 'architectural_sharp' | 'film_grain_organic' | 'cinematic' | 'photoreal' | 'comic_ink' | 'storybook' | '3d_render' | string;
   scaleFactor?: 2 | 4;
   // Relight dials:
   lightAzimuth?: number;       // -180..180
   lightElevation?: number;     // -90..90
+  lightX?: number;             // -1.0..1.0
+  lightY?: number;             // -1.0..1.0
+  lightZ?: number;             // 0.05..1.0
   lightColorHex?: string;
+  ambientColorHex?: string;
+  rimColorHex?: string;
   lightIntensity?: number;
+  softness?: number;
+  shadowDensity?: number;
+  rimStrength?: number;
+  specularSheen?: number;
+  subsurfaceScatter?: number;
+  neuralLightWrap?: number;
+  envPreset?: string;
   lens?: any;
   lighting?: any;
   cameraAngle?: string;
   // Motion dials:
-  cameraMovement?: 'push_in' | 'pull_out' | 'pan_left' | 'pan_right' | 'tilt_up' | 'orbit' | 'static';
+  cameraMovement?: 'none' | 'push_in' | 'pull_out' | 'pan_left' | 'pan_right' | 'tilt_up' | 'orbit' | 'static';
   motionStrength?: number;
   durationSec?: 3 | 5;
 }
@@ -67,7 +79,7 @@ export async function executeCreativeStudioTask(
   options: LocalCreativeStudioOptions,
   onProgress?: ProgressCallback
 ): Promise<CreativeStudioExecutionResult> {
-  const engineStatus = await getLocalEngineStatus();
+  await getLocalEngineStatus();
 
   // 1. Compile directorial intent into Plajah Native Task
   let task;
@@ -86,18 +98,30 @@ export async function executeCreativeStudioTask(
     task = compileDetailEnhanceTask({
       sourceImageUrl: options.sourceImageUrl,
       prompt: options.prompt,
-      hallucinationLevel: options.hallucinationLevel ?? 50,
-      resemblance: options.resemblance ?? 70,
-      engine: options.engine ?? 'cinematic',
+      hallucinationLevel: options.hallucinationLevel ?? 35,
+      resemblance: options.resemblance ?? 85,
+      engine: options.engine ?? 'none',
       scaleFactor: options.scaleFactor ?? 2,
     });
   } else if (options.op === 'relight_scene' && options.sourceImageUrl) {
     task = compileRelightTask({
       sourceImageUrl: options.sourceImageUrl,
-      lightAzimuth: options.lightAzimuth ?? 45,
-      lightElevation: options.lightElevation ?? 30,
-      lightColorHex: options.lightColorHex ?? '#fff5ea',
-      intensity: options.lightIntensity ?? 1.0,
+      lightAzimuth: options.lightAzimuth,
+      lightElevation: options.lightElevation,
+      lightX: options.lightX,
+      lightY: options.lightY,
+      lightZ: options.lightZ,
+      lightColorHex: options.lightColorHex ?? '#ffaa55',
+      ambientColorHex: options.ambientColorHex ?? '#182238',
+      rimColorHex: options.rimColorHex ?? '#55ccff',
+      intensity: options.lightIntensity ?? 1.25,
+      softness: options.softness ?? 0.55,
+      shadowDensity: options.shadowDensity ?? 0.68,
+      rimStrength: options.rimStrength ?? 0.48,
+      specularSheen: options.specularSheen ?? 0.42,
+      subsurfaceScatter: options.subsurfaceScatter ?? 0.40,
+      neuralLightWrap: options.neuralLightWrap ?? 0.20,
+      envPreset: options.envPreset ?? 'none',
       ambientPrompt: options.prompt,
     });
   } else if (options.op === 'cinema_motion' && options.sourceImageUrl) {

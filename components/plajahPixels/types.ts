@@ -13,6 +13,8 @@ export enum VisualizerMode {
   Kaleidoscope = 'KALEIDOSCOPE',
   Cosmic = 'COSMIC',
   RetroGrid = 'RETROGRID',
+  /** Log-polar raymarch cavern, expanded from a twigl golf — fully audio-driven. */
+  PolarDrift = 'POLAR_DRIFT',
 
   // ─── Studio engine scenes (Canvas2D + WebGL) ───
   AuroraDrift = 'STUDIO_AURORA',

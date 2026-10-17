@@ -171,11 +171,18 @@ pub struct AuraRack {
     phaser: VintagePhaser,
     head_bump: [Svf; FX_CH],
     tape_lp: [f32; FX_CH],
+    gate_lp: [f32; FX_CH],
+    gate_env: f32,
+    last_gate_step: i64,
+    gate_rand_amp: f32,
+    gate_rand_pan: f32,
     hum_phase: f32,
     crackle_lp: [f32; FX_CH],
     rng: Rng,
     sr: f32,
 }
+
+const AURA_GATE_BEATS: [f32; 5] = [1.0, 0.5, 0.333_333_34, 0.25, 0.166_666_67];
 
 impl AuraRack {
     pub fn new(sr: f32) -> Self {
@@ -184,6 +191,11 @@ impl AuraRack {
             phaser: VintagePhaser::default(),
             head_bump: [Svf::default(); FX_CH],
             tape_lp: [0.0; FX_CH],
+            gate_lp: [0.0; FX_CH],
+            gate_env: 1.0,
+            last_gate_step: -1,
+            gate_rand_amp: 0.85,
+            gate_rand_pan: 0.0,
             hum_phase: 0.0,
             crackle_lp: [0.0; FX_CH],
             rng: Rng(0x7060_1974),
@@ -194,13 +206,15 @@ impl AuraRack {
     /// True only when at least one AURA rack stage is engaged.
     #[inline]
     pub fn active(p: &Params) -> bool {
-        (p.get(AURA_BASE + A_ENS_ON) > 0.5 && p.get(AURA_BASE + A_ENS_MIX) > 0.0005)
+        (p.get(AURA_BASE + A_GATE_ON) > 0.5 && p.get(AURA_BASE + A_GATE_DEPTH) > 0.0005)
+            || (p.get(AURA_BASE + A_ENS_ON) > 0.5 && p.get(AURA_BASE + A_ENS_MIX) > 0.0005)
             || (p.get(AURA_BASE + A_PH_ON) > 0.5 && p.get(AURA_BASE + A_PH_MIX) > 0.0005)
             || p.get(AURA_BASE + A_TAPE_SAT) > 0.0005
             || p.get(AURA_BASE + A_HUM) > 0.0005
             || p.get(AURA_BASE + A_CRACKLE) > 0.0005
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn process(
         &mut self,
         scratch: &mut [[f32; MAX_BLOCK]; MAX_CHANNELS],
@@ -208,12 +222,22 @@ impl AuraRack {
         nch: usize,
         p: &Params,
         active_voices: u32,
+        beats: f64,
+        bps: f32,
     ) {
         let sr = self.sr;
         let fx_ch = nch.min(FX_CH);
         if fx_ch == 0 {
             return;
         }
+
+        let gate_on = p.get(AURA_BASE + A_GATE_ON) > 0.5;
+        let gate_rate_idx = (p.get(AURA_BASE + A_GATE_RATE).round().max(0.0) as usize).min(4);
+        let gate_beats = AURA_GATE_BEATS[gate_rate_idx].max(0.05) as f64;
+        let gate_depth = p.get(AURA_BASE + A_GATE_DEPTH).clamp(0.0, 1.0);
+        let gate_shape = p.get(AURA_BASE + A_GATE_SHAPE).round().max(0.0) as u32;
+        let k_gate_atk = (1.0 - (-1.0 / (0.0022 * sr)).exp()).clamp(0.005, 0.95);
+        let k_gate_rel = (1.0 - (-1.0 / (0.0085 * sr)).exp()).clamp(0.002, 0.95);
 
         let ens_on = p.get(AURA_BASE + A_ENS_ON) > 0.5;
         let ens_mode = p.get(AURA_BASE + A_ENS_MODE).round().max(0.0) as u32;
@@ -241,6 +265,60 @@ impl AuraRack {
         for s in 0..frames {
             let mut l = scratch[0][s];
             let mut r = if fx_ch > 1 { scratch[1][s] } else { l };
+
+            // 0. Rhythmic Analog VCA / Lowpass Gate Chopper
+            if gate_on && gate_depth > 0.0005 {
+                let pos_beats = beats + (s as f64) * (bps.max(0.2) as f64) / (sr as f64);
+                let cell_f = pos_beats / gate_beats;
+                let cell_idx = cell_f.floor() as i64;
+                let phase_in_step = (cell_f - cell_f.floor()) as f32;
+                if cell_idx != self.last_gate_step {
+                    self.last_gate_step = cell_idx;
+                    self.gate_rand_amp = self.rng.next_f32();
+                    self.gate_rand_pan = self.rng.bipolar();
+                }
+
+                let floor = 1.0 - gate_depth;
+                let target = match gate_shape {
+                    0 => {
+                        // Pulse Chopper: crisp 55% duty cycle with musical 4-step accent
+                        let accent = if cell_idx.rem_euclid(4) == 0 { 1.0 } else { 0.88 };
+                        if phase_in_step < 0.55 {
+                            floor + (accent - floor) * gate_depth + (1.0 - gate_depth) * (1.0 - accent)
+                        } else {
+                            floor
+                        }
+                    }
+                    1 => {
+                        // Sawtooth Ramp: exponential vactrol decay per subdivision
+                        let env = (1.0 - phase_in_step).powi(2);
+                        floor + env * gate_depth
+                    }
+                    _ => {
+                        // Probabilistic / Random Gate: varies step duty, accent, and occasional skips
+                        let duty = 0.22 + self.gate_rand_amp * 0.56;
+                        if self.gate_rand_amp < 0.18 || phase_in_step >= duty {
+                            floor
+                        } else {
+                            let step_lvl = 0.55 + 0.45 * self.gate_rand_amp;
+                            floor + step_lvl * gate_depth
+                        }
+                    }
+                };
+
+                let k_slew = if target > self.gate_env { k_gate_atk } else { k_gate_rel };
+                self.gate_env += (target - self.gate_env) * k_slew;
+
+                // Vactrol Lowpass Gate (LPG) coupling: closed gate darkens HF, open gate lets harmonics ring
+                let lpg_fc = 420.0 + self.gate_env * self.gate_env * 16500.0;
+                let k_lpg = (1.0 - (-TAU * lpg_fc.min(sr * 0.45) / sr).exp()).clamp(0.03, 0.99);
+                self.gate_lp[0] += (l - self.gate_lp[0]) * k_lpg;
+                self.gate_lp[1] += (r - self.gate_lp[1]) * k_lpg;
+
+                let pan_mod = if gate_shape >= 2 { self.gate_rand_pan * 0.28 * gate_depth } else { 0.0 };
+                l = self.gate_lp[0] * self.gate_env * (1.0 - pan_mod).clamp(0.2, 1.4);
+                r = self.gate_lp[1] * self.gate_env * (1.0 + pan_mod).clamp(0.2, 1.4);
+            }
 
             // 1. 6-Stage Vintage Analog Phaser
             if ph_on && ph_mix > 0.0005 {

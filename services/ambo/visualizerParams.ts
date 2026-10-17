@@ -7,6 +7,7 @@
 // visualizer comes back the way the operator left it.
 
 import type { TypoTextSource } from './typoText';
+import { GEN_PALETTES, GEN_PARAM_LABELS } from '../../components/plajahPixels/engine/core/generatorPalettes';
 
 // Same values as MILKDROP_PREFIX / TYPO_PREFIX in layerSources (not imported: that module is heavy).
 const MILKDROP_PREFIX = 'MILKDROP:';
@@ -107,11 +108,33 @@ const SHADER_HINTS: Record<string, string> = {
 };
 
 export function vizParamDefs(family: VizFamily, mode?: string | null): VizParamDef[] {
+  if (family === 'gen' && mode && (GEN_PALETTES[mode] || GEN_PARAM_LABELS[mode])) return genDefsFor(mode);
   if (family !== 'shader') return SCHEMA[family];
   const named = mode ? shaderParamNames.get(mode) : undefined;
   return (named ?? []).slice(0, 4).map((p, i) => ({
     key: `p${i}`, label: p.name, kind: 'range' as const, min: 0, max: 1, step: 0.01, default: p.def, group: 'Look', hint: SHADER_HINTS[p.name],
   }));
+}
+
+// Art-directed generators start on their own palette and name their sliders.
+const genDefsCache = new Map<string, VizParamDef[]>();
+function genDefsFor(mode: string): VizParamDef[] {
+  const hit = genDefsCache.get(mode);
+  if (hit) return hit;
+  const pal = GEN_PALETTES[mode];
+  const names = GEN_PARAM_LABELS[mode];
+  const defs = SCHEMA.gen.map((d): VizParamDef => {
+    const ci = ['color0', 'color1', 'color2'].indexOf(d.key);
+    if (pal && ci >= 0) return { ...d, default: pal[ci] as string };
+    const pi = /^p([0-3])$/.exec(d.key);
+    if (names && pi) {
+      const i = Number(pi[1]);
+      return { ...d, label: names[i], hint: i === 2 ? 'How strongly it breathes with the music; 50% is the designed calm response' : undefined };
+    }
+    return d;
+  });
+  genDefsCache.set(mode, defs);
+  return defs;
 }
 
 /** A param's value with its default filled in. */

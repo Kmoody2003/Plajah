@@ -133,3 +133,20 @@ html.zfold-cover #root .min-h-dvh    { min-height: calc(100dvh / var(--cover-zoo
   #pj-boot-bar i, #pj-load-bar i { animation: none; width: 100% }
   #pj-boot.pj-boot-done { transition: none }
 }
+
+/* ── App shell lock ─────────────────────────────────────────────────────────
+   The global top toolbar sits in a flex column above the workspace. `overflow:
+   hidden` still lets focus(), scrollIntoView() and anchor jumps scroll the shell
+   programmatically, which slid every page's top UI under the toolbar. `clip`
+   forbids all scrolling of the shell, so nothing can ever get stuck beneath it. */
+html, body, #root { overflow: clip; }
+.h-real-screen { overflow: clip !important; }
+.pj-app-workspace { overflow: clip !important; }
+
+/* Toolbar-aware sizing: while the desktop toolbar is mounted (html.pj-has-toolbar,
+   set by DesktopGlobalToolbar) full-height page roots and full-screen studio
+   overlays start BELOW it instead of extending 2.5rem beneath it. */
+html.pj-has-toolbar { --pj-toolbar-h: 2.5rem; }
+html.pj-has-toolbar .pj-app-workspace .h-screen { height: calc(100dvh - var(--pj-toolbar-h)); }
+html.pj-has-toolbar .pj-app-workspace .min-h-screen { min-height: calc(100dvh - var(--pj-toolbar-h)); }
+html.pj-has-toolbar .fixed.inset-0 { top: var(--pj-toolbar-h); }

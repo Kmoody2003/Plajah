@@ -7,12 +7,13 @@
 import { detectDeviceType } from '../../components/plajahPixels/services/midiService';
 
 export interface BeatsMidiEvent {
-  kind: 'noteon' | 'noteoff' | 'cc';
+  kind: 'noteon' | 'noteoff' | 'cc' | 'pitchbend' | 'aftertouch';
   channel: number;
   note?: number;
   velocity?: number;   // 1–127 for noteon
   cc?: number;
   value?: number;      // 0–127
+  bend?: number;       // -1..1 for 14-bit pitch bend (0xE0)
   deviceName: string;
   deviceType: ReturnType<typeof detectDeviceType>;
 }
@@ -51,6 +52,13 @@ function bindInput(input: MIDIInput): void {
     if (status === 0x90 && data[2] > 0) ev = { kind: 'noteon', channel, note: data[1], velocity: data[2], deviceName, deviceType };
     else if (status === 0x80 || (status === 0x90 && data[2] === 0)) ev = { kind: 'noteoff', channel, note: data[1], deviceName, deviceType };
     else if (status === 0xb0) ev = { kind: 'cc', channel, cc: data[1], value: data[2], deviceName, deviceType };
+    else if (status === 0xe0 && data.length >= 3) {
+      const raw14 = (data[1] & 0x7f) | ((data[2] & 0x7f) << 7);
+      const bend = Math.max(-1, Math.min(1, (raw14 - 8192) / 8192));
+      ev = { kind: 'pitchbend', channel, bend, value: data[2], deviceName, deviceType };
+    } else if (status === 0xd0) {
+      ev = { kind: 'aftertouch', channel, value: data[1], deviceName, deviceType };
+    }
     if (!ev) return;
     // Something arrived. Reported before routing, so the meter can distinguish "MIDI is reaching
     // Melos" from "Melos did something with it" — which is the whole diagnosis when a device is

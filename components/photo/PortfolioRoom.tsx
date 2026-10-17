@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { Photo } from '../../types';
 import { fetchExif, type ExifData } from '../../services/exifService';
+import { slideshowImage, onThumbError } from '../../src/lib/imageThumb';
 
 const IDLE_MS = 2600;
 const SLIDESHOW_MS = 6000;
@@ -117,6 +118,19 @@ const PortfolioRoom: React.FC<PortfolioRoomProps> = ({
     return () => window.clearInterval(id);
   }, [playing, count]);
 
+  // Preload next 2 JPEG XL frames for seamless transitions
+  useEffect(() => {
+    if (count < 2) return;
+    for (let k = 1; k <= 2; k++) {
+      const nextWork = works[(index + k) % count];
+      if (nextWork?.url) {
+        const im = new window.Image();
+        im.decoding = 'async';
+        im.src = slideshowImage(nextWork.url, 1920, 82);
+      }
+    }
+  }, [index, count, works]);
+
   // ── Fullscreen (best-effort; silently ignored where unsupported) ────────────
   const toggleFullscreen = useCallback(() => {
     const el = rootRef.current;
@@ -177,9 +191,10 @@ const PortfolioRoom: React.FC<PortfolioRoomProps> = ({
           <AnimatePresence mode="wait">
             <motion.img
               key={current.id || current.url}
-              src={current.url}
+              src={slideshowImage(current.url, 1920, 82)}
               alt={current.title || ''}
               onLoad={() => setLoaded(true)}
+              onError={onThumbError(current.url)}
               initial={{ opacity: 0, scale: 1.012 }}
               animate={{ opacity: loaded ? 1 : 0, scale: 1 }}
               exit={{ opacity: 0 }}

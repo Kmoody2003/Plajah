@@ -17,9 +17,12 @@
 // Everything here is best-effort. Any failure returns null and the caller uploads the original —
 // a slow image is a bug, a failed upload is a disaster.
 
-/** Longest-edge targets. Display covers card + player + most retina cases; thumb covers grids. */
+import { supportsJxlEncode } from './jxlCodec';
+
+/** Longest-edge targets. Display covers card + player + most retina cases; thumb covers grids; slideshow covers 1080p/TV full-bleed slides. */
 export const DISPLAY_EDGE = 1024;
 export const THUMB_EDGE = 320;
+export const SLIDESHOW_EDGE = 1600;
 
 const DISPLAY_QUALITY = 0.82;
 const THUMB_QUALITY = 0.75;
@@ -29,7 +32,7 @@ export interface Derivative {
   width: number;
   height: number;
   /** File extension to store it under, matching the encoded type. */
-  ext: 'webp' | 'jpg';
+  ext: 'jxl' | 'webp' | 'jpg';
 }
 
 export interface DerivativeSet {
@@ -38,6 +41,11 @@ export interface DerivativeSet {
   /** Source pixel dimensions, worth storing so galleries can reserve layout space. */
   srcWidth: number;
   srcHeight: number;
+}
+
+/** Does this browser natively ENCODE JPEG XL (`image/jxl`)? */
+export function supportsJxl(): boolean {
+  return supportsJxlEncode();
 }
 
 let webpOk: boolean | null = null;
@@ -61,18 +69,25 @@ export function isOptimizable(file: Blob): boolean {
   return /^image\//.test(t) && !/svg|gif/.test(t);
 }
 
-function encode(canvas: HTMLCanvasElement, quality: number): Promise<Derivative | null> {
-  const webp = supportsWebp();
-  const type = webp ? 'image/webp' : 'image/jpeg';
+function toBlobPromise(canvas: HTMLCanvasElement, type: string, quality: number): Promise<Blob | null> {
   return new Promise(resolve => {
     try {
-      canvas.toBlob(
-        b => resolve(b ? { blob: b, width: canvas.width, height: canvas.height, ext: webp ? 'webp' : 'jpg' } : null),
-        type,
-        quality,
-      );
+      canvas.toBlob(b => resolve(b), type, quality);
     } catch { resolve(null); }
   });
+}
+
+async function encode(canvas: HTMLCanvasElement, quality: number): Promise<Derivative | null> {
+  if (supportsJxl()) {
+    const jxlBlob = await toBlobPromise(canvas, 'image/jxl', quality);
+    if (jxlBlob && jxlBlob.type === 'image/jxl') {
+      return { blob: jxlBlob, width: canvas.width, height: canvas.height, ext: 'jxl' };
+    }
+  }
+  const webp = supportsWebp();
+  const type = webp ? 'image/webp' : 'image/jpeg';
+  const blob = await toBlobPromise(canvas, type, quality);
+  return blob ? { blob, width: canvas.width, height: canvas.height, ext: webp ? 'webp' : 'jpg' } : null;
 }
 
 /** Draw `bmp` scaled so its longest edge is `edge`. Returns null rather than UPSCALING — blowing a

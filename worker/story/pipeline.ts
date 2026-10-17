@@ -62,10 +62,10 @@ const GEMINI_OUT_MICROS_PER_TOKEN = 2.5;
 const POKEE_IN_MICROS_PER_TOKEN = 0.15;
 const POKEE_OUT_MICROS_PER_TOKEN = 1.0;
 
-const GEMINI_MODEL = 'gemini-3.6-flash';
+const GEMINI_MODEL = 'gemini-3.5-flash-lite';
 // Perception ladder. A 503 'experiencing high demand' is a capacity signal for ONE model, so a
 // spike on the primary should move to a sibling rather than kill a part-finished (paid) job.
-const PERCEIVE_MODELS = [GEMINI_MODEL, 'gemini-flash-lite-latest', 'gemini-flash-latest'];
+const PERCEIVE_MODELS = [GEMINI_MODEL, 'gemini-3.1-flash-lite', 'gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.5-flash', 'gemma-4-31b-it'];
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com';
 
 const geminiKey = () => process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY || '';
@@ -131,16 +131,58 @@ async function detectShots(proxyPath: string, threshold: number, timeoutMs: numb
   return parseShowinfoTimes(r.err);
 }
 
+/**
+ * Resolve the ~360p–480p variant playlist URL and true #EXTINF duration from the Mux HLS master.
+ * Passing the master .m3u8 directly to ffmpeg causes it to pull the highest-bitrate (e.g. 2.5K/4K
+ * 12 Mbps) rendition and silently exit early with code 0 if any single CDN segment connection resets.
+ */
+async function resolveMuxLowResVariant(muxPlaybackId: string): Promise<{ url: string; expectedDurationSec: number }> {
+  const masterUrl = `https://stream.mux.com/${muxPlaybackId}.m3u8`;
+  try {
+    const res = await fetch(masterUrl);
+    if (!res.ok) return { url: masterUrl, expectedDurationSec: 0 };
+    const text = await res.text();
+    const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    let chosenUrl = '';
+    for (let i = 0; i < lines.length - 1; i++) {
+      if (lines[i].startsWith('#EXT-X-STREAM-INF') && /RESOLUTION=(854x|640x|480x)/i.test(lines[i])) {
+        chosenUrl = lines[i + 1];
+        if (/854x/i.test(lines[i])) break;
+      }
+    }
+    if (!chosenUrl) {
+      chosenUrl = lines.find(l => l.startsWith('http')) || masterUrl;
+    }
+    const varRes = await fetch(chosenUrl);
+    if (!varRes.ok) return { url: chosenUrl, expectedDurationSec: 0 };
+    const varText = await varRes.text();
+    let totalSec = 0;
+    for (const l of varText.split(/\r?\n/)) {
+      if (l.startsWith('#EXTINF:')) {
+        const v = parseFloat(l.slice(8).split(',')[0]);
+        if (Number.isFinite(v)) totalSec += v;
+      }
+    }
+    return { url: chosenUrl, expectedDurationSec: totalSec };
+  } catch {
+    return { url: masterUrl, expectedDurationSec: 0 };
+  }
+}
+
 async function stageSampling(job: StoryJob, tmp: string): Promise<Sampled> {
   const { albumId, ownerId, muxPlaybackId } = job;
   await setProgress(albumId, 'SAMPLING', 'proxy', 2, 'pulling proxy from Mux');
 
-  // 360p mono proxy from the Mux HLS master. Everything downstream reads this file, so the
-  // origin is touched exactly once.
+  // 360p mono proxy from the low-res Mux HLS rendition with HTTP reconnect flags so CDN resets
+  // never truncate long films mid-stream (e.g. at 36m of a 58m movie).
+  const { url: hlsInputUrl, expectedDurationSec } = await resolveMuxLowResVariant(muxPlaybackId);
   const proxyPath = path.join(tmp, 'proxy.mp4');
   const pull = await runFfmpeg([
     '-y', '-hide_banner', '-loglevel', 'error',
-    '-i', `https://stream.mux.com/${muxPlaybackId}.m3u8`,
+    '-reconnect', '1',
+    '-reconnect_streamed', '1',
+    '-reconnect_delay_max', '5',
+    '-i', hlsInputUrl,
     '-vf', 'scale=-2:360',
     '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '28',
     '-c:a', 'aac', '-b:a', '64k', '-ac', '1',
@@ -149,7 +191,10 @@ async function stageSampling(job: StoryJob, tmp: string): Promise<Sampled> {
   if (!pull.ok) throw new Error(`proxy transcode failed: ${pull.err.slice(-500)}`);
 
   const probe = await runFfprobe(proxyPath);
-  const durationSec = parseFloat(probe.json?.format?.duration || '0') || job.durationSec || 0;
+  const durationSec = Math.max(
+    parseFloat(probe.json?.format?.duration || '0') || 0,
+    expectedDurationSec > 0 ? Math.min(expectedDurationSec, parseFloat(probe.json?.format?.duration || '0') || expectedDurationSec) : 0,
+  ) || job.durationSec || 0;
   if (!durationSec) throw new Error('proxy has no readable duration');
 
   // Shot detection. A hyperactive cut rate (>2000 boundaries) re-runs once at a higher
@@ -680,28 +725,28 @@ const REPORT_SCHEMA_TEXT = `{
   "themes": string[],
   "structure": { "acts": [{ "number": number, "title": string, "startSec": number, "endSec": number, "summary": string, "turningPoint": string }] },
   "characters": [{ "refId": string, "name": string, "aka": string[], "tier": "MAIN"|"SUPPORTING"|"MINOR", "description": string, "arc": string, "appearances": [{ "sceneId": string, "tSec": number }], "screenTimeSec": number, "dialogueLines": number, "confidence": number, "evidence": string[] }],
-  "scenes": [{ "id": string, "index": number, "slugline": string, "title": string, "summary": string, "startSec": number, "endSec": number, "actNumber": number, "sequenceId": string, "locationRefId": string, "timeOfDay": string, "mood": string, "characterRefIds": string[], "stillIndexes": number[] }],
+  "scenes": [{ "id": string, "index": number, "slugline": string, "title": string, "summary": string, "startSec": number, "endSec": number, "actNumber": number, "sequenceId": string, "locationRefId": string, "timeOfDay": string, "mood": string, "characterRefIds": string[], "stillIndexes": number[], "script": string, "shots": [{ "slug": string, "type": "WIDE"|"MED"|"CU"|"ECU"|"INSERT"|"POV"|"OTS"|"ESTABLISHING", "startSec": number, "endSec": number, "camera": string, "action": string, "character": string, "dialogue": [{ "tSec": number, "speaker": string, "parenthetical": string, "text": string }] }] }],
   "sequences": [{ "id": string, "title": string, "sceneIds": string[], "purpose": string }],
   "locations": [{ "refId": string, "name": string, "description": string, "kind": string, "sceneIds": string[], "confidence": number }],
   "macguffins": [{ "refId": string, "name": string, "description": string, "narrativeRole": "MACGUFFIN"|"KEY_PROP"|"MOTIF", "sceneIds": string[], "evidence": string[], "confidence": number }]
 }`;
 
 function reasoningInstructions(job: StoryJob): string {
-  return `You are a senior story analyst. Below is a chunk-by-chunk perception log of the film "${job.title}" (beats, dialogue, people), produced by a script supervisor watching consecutive segments. All timestamps are ABSOLUTE seconds from the start of the film. Person labels are namespaced per chunk as "CH<n>:PERSON-X" — the SAME real person appears under DIFFERENT labels in different chunks.
+  return `You are a senior story analyst and Hollywood script supervisor reverse-engineering a complete screenplay from the film "${job.title}". Below is a chunk-by-chunk perception log of the film (beats, dialogue, people, and shot boundaries). All timestamps are ABSOLUTE seconds from the start of the film. Person labels are namespaced per chunk as "CH<n>:PERSON-X" — the SAME real person appears under DIFFERENT labels in different chunks.
 
 Your tasks:
 1. Resolve person identities ACROSS chunks using the descriptors and dialogue (e.g. CH1:PERSON-A and CH7:PERSON-C are the same character). Merge them into one character each.
-2. Name characters ONLY from evidence: a name spoken in dialogue, shown in credits/captions, or in the creator-provided cast list below. When no name is evidenced, use a memorable descriptor name in caps (e.g. "THE KEEPER", "RED COAT WOMAN") — never invent a plausible-sounding proper name.
+2. Name characters ONLY from evidence: a name spoken in dialogue, shown in credits/captions, or in the creator-provided cast list below. When no name is evidenced, use a memorable descriptor name in caps (e.g. "THE KEEPER", "NARRATOR", "RED COAT WOMAN") — never invent a plausible-sounding proper name.
 3. Tier each character MAIN / SUPPORTING / MINOR by narrative weight and screen presence.
-4. Segment the film into scenes at location or time shifts. Each scene gets a slugline ("INT. KITCHEN - NIGHT" style), startSec, endSec, characters present, and a summary.
-5. Group scenes into sequences, and sequences into exactly 3 acts.
+4. Segment the film into scenes at location or time shifts. Each scene gets a slugline ("INT. KITCHEN - NIGHT" style), startSec, endSec, characters present, summary, "shots" (shot-by-shot camera/action/dialogue breakdown in cut order), and "script" (properly formatted Fountain screenplay for that scene).
+5. Group scenes into sequences, and sequences into 3 acts.
 6. Write a logline, a synopsis, and the major themes.
 7. List distinct locations, and any macguffins / key props / recurring motifs (narrativeRole one of MACGUFFIN, KEY_PROP, MOTIF).
 8. Every character, location, and macguffin carries "confidence" 0..1 and "evidence" — short strings quoting or citing the perception log (with timestamps).
 
 NEVER invent events, characters, or dialogue not present in the log. Where the log is ambiguous, lower the confidence rather than guessing.
 
-JSON RULES: no markdown code fences, no comments, no trailing commas. Every string value is a SINGLE LINE — never a literal newline inside a string (write \\n if you must break a line, never a raw line break). Keep the ENTIRE response short enough that it never truncates; favor shorter evidence/summary strings over completeness.
+JSON RULES: no markdown code fences, no comments, no trailing commas. Every string value is a SINGLE LINE — never a literal newline inside a string (write \\n if you must break a line, never a raw line break). Keep the ENTIRE response short enough that it never truncates.
 
 Return STRICT JSON only, exactly matching this schema:
 ${REPORT_SCHEMA_TEXT}`;
@@ -872,6 +917,12 @@ async function stageAssembling(
   const basePath = `taleoAnalysis/${ownerId}/${albumId}`;
   const transcriptPath = `${basePath}/transcript.json`;
 
+  const assembledScreenplay = String(
+    story?.screenplay ||
+    scenes.map((s: any) => s?.script || '').filter(Boolean).join('\n\n') ||
+    ''
+  );
+
   const report = {
     version: 1,
     logline: String(story?.logline || ''),
@@ -885,6 +936,7 @@ async function stageAssembling(
     macguffins: Array.isArray(story?.macguffins) ? story.macguffins : [],
     stills,
     transcriptPath,
+    screenplay: assembledScreenplay,
   };
   const reportPath = `${basePath}/report.json`;
 

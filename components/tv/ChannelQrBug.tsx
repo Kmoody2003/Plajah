@@ -152,13 +152,12 @@ export const ChannelQrBug: React.FC<ChannelQrBugProps> = ({
         className="group relative flex items-center gap-3.5 px-3.5 py-2.5 sm:px-4 sm:py-3 rounded-2xl bg-black/85 hover:bg-black/95 backdrop-blur-md border border-white/20 hover:border-white/35 shadow-[0_12px_40px_rgba(0,0,0,0.8)] cursor-pointer transition-colors max-w-[380px]"
       >
         {/* Crisp QR Code Tile */}
-        <div className="relative w-[84px] h-[84px] sm:w-[94px] sm:h-[94px] rounded-xl bg-white p-1.5 shrink-0 flex items-center justify-center shadow-lg border border-white/40">
+        <div className="relative w-[92px] h-[92px] sm:w-[104px] sm:h-[104px] rounded-xl bg-white p-2 shrink-0 flex items-center justify-center shadow-lg border border-white/40">
           {qrDataUrl ? (
             <img
               src={qrDataUrl}
               alt="Channel QR code"
-              className="w-full h-full object-contain block"
-              style={{ imageRendering: 'pixelated' }}
+              className="w-full h-full object-contain block select-none"
               draggable={false}
             />
           ) : (

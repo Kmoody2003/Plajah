@@ -186,7 +186,7 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
   try { comp = new Compositor(canvas as any); }
   catch (e) { console.warn('[Pixels render] WebGL2 unavailable:', e); return null; }
   comp.resize(width, height);
-  const gen = new GeneratorRenderer(comp.gl);
+  const gen = new GeneratorRenderer(comp.gl, { waitForShaders: true });
   const shaderRend = new ShaderRenderer(comp.gl);
   const graphRend = new NodeGraphRenderer(comp.gl);
   const audioTex = new AudioTexture(comp.gl);
@@ -332,7 +332,7 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
         }));
         const opacity = Math.max(0, Math.min(1, (layer.opacity ?? 1) * (clip.opacity ?? 1)));
         if (clip.type === 'generator' && clip.sceneMode && hasGenerator(clip.sceneMode)) {
-          const tex = gen.render(layer.id, clip.sceneMode, width, height, { time: lt, audio: audioTex, colors: palette, params: clip.params || [] });
+          const tex = gen.render(layer.id, clip.sceneMode, width, height, { time: lt, audio: audioTex, colors: palette, params: clip.params || [], clock: t });   // beat tracking on media time
           inputs.push({ texture: tex, opacity, blendMode: layer.blendMode, transform: layer.transform, homography: (layer as any).homography });
         } else if (clip.type === 'model3d' && (clip.model3dUrl || (clip as any).model3d?.url)) {
           // A loaded mesh rendered by three.js to a canvas the compositor uploads like an image —

@@ -1,5 +1,5 @@
 import { thumb, heroImage, THUMB, onThumbError } from '../../src/lib/imageThumb';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Heart, Plus, HeartHandshake, Radio, Check } from 'lucide-react';
 import { Track, AdConfig } from '../../types';
 import { fetchRadioTracks, likeTrack, addToLibrary, fetchAdConfigs, auth } from '../../services/backendService';
@@ -54,8 +54,9 @@ const AdBreakBumper: React.FC<Props> = ({ channelName, durationSec, upcoming = [
   const duckStartRef = useRef(0);
   const completedRef = useRef(false);
 
-  // Dynamic timing calculated from the exact duration of the break
-  const totalSec = Math.max(3, Math.round(durationSec));
+  // Dynamic timing calculated from the exact duration of the break (guarded against NaN/0)
+  const rawDur = Number(durationSec);
+  const totalSec = Number.isFinite(rawDur) && rawDur > 0 ? Math.max(3, Math.round(rawDur)) : 30;
   const upNextSec = upcoming.length > 0
     ? (totalSec <= 15 ? Math.min(5, Math.max(3, Math.floor(totalSec * 0.35))) : Math.min(8, Math.max(5, Math.floor(totalSec * 0.18))))
     : 0;
@@ -133,7 +134,13 @@ const AdBreakBumper: React.FC<Props> = ({ channelName, durationSec, upcoming = [
     a.src = track.url;
     a.volume = 0;
     a.play().catch(() => {});
-    const onMeta = () => { const o = seekRef.current; if (o > 1 && o < (a.duration || 1e9) - 2) { try { a.currentTime = o; } catch { /* */ } } };
+    const onMeta = () => {
+      const o = seekRef.current;
+      const dur = a.duration;
+      if (Number.isFinite(o) && o > 1 && (!Number.isFinite(dur) || o < dur - 2)) {
+        try { a.currentTime = o; } catch { /* */ }
+      }
+    };
     a.addEventListener('loadedmetadata', onMeta, { once: true });
 
     let raf = 0;
@@ -145,7 +152,8 @@ const AdBreakBumper: React.FC<Props> = ({ channelName, durationSec, upcoming = [
       else if (remaining < fadeSec) v = Math.max(0, remaining / Math.max(0.1, fadeSec));
       // Platform bumper videos on screen → fade FM to silence over ~1s, then pause it.
       if (duckRef.current) v = Math.min(v, Math.max(0, 1 - (Date.now() - duckStartRef.current) / 1000));
-      a.volume = muted ? 0 : Math.max(0, Math.min(1, v));
+      const safeV = Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0;
+      a.volume = muted ? 0 : safeV;
       if (duckRef.current && a.volume <= 0.01 && !a.paused) { try { a.pause(); } catch { /* */ } }
       raf = requestAnimationFrame(tick);
     };

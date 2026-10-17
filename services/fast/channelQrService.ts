@@ -75,8 +75,8 @@ export async function generateChannelQrDataUrl(shareUrl: string): Promise<string
 
   try {
     const dataUrl = await QRCode.toDataURL(shareUrl, {
-      margin: 2, // Standard quiet zone so finder patterns are never crowded
-      width: 280, // High resolution canvas output
+      margin: 3, // Quiet zone so finder patterns are never crowded or bled into
+      width: 320, // Crisp high resolution output for sharp phone camera recognition
       color: {
         dark: '#000000',
         light: '#ffffff',

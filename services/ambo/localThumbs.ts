@@ -29,8 +29,12 @@ function makeQueue(limit: number) {
 const videoQueue = makeQueue(2);
 const imageQueue = makeQueue(4);
 
+import { supportsJxlEncode } from '../jxlCodec';
+import { supportsWebp } from '../imageDerivatives';
+
 function canvasToUrl(c: HTMLCanvasElement): Promise<string | null> {
-  return new Promise(res => c.toBlob(b => res(b ? URL.createObjectURL(b) : null), 'image/jpeg', 0.82));
+  const mime = supportsJxlEncode() ? 'image/jxl' : supportsWebp() ? 'image/webp' : 'image/jpeg';
+  return new Promise(res => c.toBlob(b => res(b ? URL.createObjectURL(b) : null), mime, 0.80));
 }
 
 async function imageThumb(src: string): Promise<string | null> {

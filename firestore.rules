@@ -1732,9 +1732,9 @@ service cloud.firestore {
     }
     match /taleoAnalysis/{albumId} {
       // Taleo Story Intelligence job docs (status + progress for the background
-      // film-analysis worker). Owner-only read; only the server (service
-      // account, rules-exempt) writes them.
-      allow read: if request.auth != null && request.auth.uid == resource.data.ownerId;
+      // film-analysis worker). Strictly creator-only read (plus platform architect/admin
+      // for technical testing); only the server writes them.
+      allow read: if request.auth != null && (request.auth.uid == resource.data.ownerId || isAdmin());
       allow write: if false;
     }
     match /photoCritiques/{photoId}/entries/{critiqueId} {

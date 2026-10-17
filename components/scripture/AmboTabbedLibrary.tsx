@@ -210,7 +210,9 @@ const VIZ_SECTIONS: Array<{ title: string; color: string; blurb: string; cats: V
       { id: 'viz:atmosphere', label: 'Studio · Atmosphere', match: i => isStudioGen(i) && i.sub === 'Atmosphere' },
       { id: 'viz:energy', label: 'Studio · Energy', match: i => isStudioGen(i) && i.sub === 'Energy' },
       { id: 'viz:graphic', label: 'Studio · Graphic', match: i => isStudioGen(i) && i.sub === 'Graphic' },
-      { id: 'viz:studio-other', label: 'Studio · Other', hideWhenEmpty: true, match: i => isStudioGen(i) && !['Atmosphere', 'Energy', 'Graphic'].includes(i.sub || '') },
+      { id: 'viz:cosmos', label: 'Cosmos · Nebulae & Aurorae', hint: 'Each with a Director version beside it: beat-cut camera', hideWhenEmpty: true, match: i => isStudioGen(i) && i.sub === 'Cosmos' },
+      { id: 'viz:fluid', label: 'Fluid · Liquids in Motion', hint: 'Each with a Director version beside it: beat-cut camera', hideWhenEmpty: true, match: i => isStudioGen(i) && i.sub === 'Fluid' },
+      { id: 'viz:studio-other', label: 'Studio · Other', hideWhenEmpty: true, match: i => isStudioGen(i) && !['Atmosphere', 'Energy', 'Graphic', 'Cosmos', 'Fluid'].includes(i.sub || '') },
     ],
   },
   {
@@ -1463,6 +1465,10 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
           ? 'linear-gradient(135deg, #701a75, #db2777)'
           : g.category === 'Graphic'
           ? 'linear-gradient(135deg, #0f172a, #334155)'
+          : g.category === 'Cosmos'
+          ? 'linear-gradient(135deg, #05030f, #3b1f6e 55%, #0e7490)'
+          : g.category === 'Fluid'
+          ? 'linear-gradient(135deg, #db2777, #f59e0b 50%, #06b6d4)'
           : 'linear-gradient(135deg, #042f2e, #0d9488)',
     }));
 

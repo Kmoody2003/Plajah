@@ -58,6 +58,8 @@ export interface ScriptureState {
    */
   decoP?: number;
   noText?: boolean;
+  /** 0-based global word index currently being spoken aloud (-1 or undefined = no active reading highlight). */
+  highlightWord?: number;
 }
 
 
@@ -210,6 +212,8 @@ export function drawVerse(ctx: CanvasRenderingContext2D, s: ScriptureState, box:
   const exiting = s.exitP > 0;
   const p = exiting ? 1 - s.exitP : s.enterP;
   if (s.noText) return { top, bottom: top + blockH, size, lines };
+  const hasReadHighlight = s.highlightWord !== undefined && s.highlightWord >= 0;
+  const accentColor = s.accent || GOLD;
   lines.forEach((line, li) => {
     const words = line.split(' ');
     const widths = words.map(w => ctx.measureText(w).width);
@@ -219,6 +223,9 @@ export function drawVerse(ctx: CanvasRenderingContext2D, s: ScriptureState, box:
     let x = x0;
     words.forEach((word, k) => {
       const fx = wordFx(s, wi, allWords, li, lines.length, size, s.w, lineW ? (x - x0 + widths[k] / 2) / lineW : 0);
+      const isSpoken = hasReadHighlight && wi <= (s.highlightWord as number);
+      const isCurrentWord = hasReadHighlight && wi === (s.highlightWord as number);
+      const readAlphaMul = hasReadHighlight ? (isSpoken ? 1 : 0.64) : 1;
       if (s.transition === 'cascade') {
         // Letter cascade: each letter drops in on its own stagger.
         let lx = x;
@@ -228,20 +235,43 @@ export function drawVerse(ctx: CanvasRenderingContext2D, s: ScriptureState, box:
           const idx = (wi * 6 + (lx - x0) / Math.max(1, size)) / Math.max(1, total * 0.9);
           const q = exiting ? clamp01((p - (1 - idx) * 0.5) / 0.5) : clamp01((p - idx * 0.65) / 0.35);
           const e = exiting ? easeOut(q) : easeBack(q);
-          ctx.globalAlpha = clamp01(q * 1.6) * (exiting ? q : 1);
+          ctx.globalAlpha = clamp01(q * 1.6) * (exiting ? q : 1) * readAlphaMul;
           if (st.shadow) { ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = st.shadow; ctx.shadowOffsetY = st.shadow * 0.25; }
-          ctx.fillStyle = st.color;
+          ctx.fillStyle = isCurrentWord ? accentColor : st.color;
           ctx.fillText(ch, lx, baseY - (1 - e) * size * (exiting ? -0.9 : 0.9));
           lx += cw;
         }
       } else if (fx.a > 0.003) {
         ctx.save();
-        ctx.globalAlpha = fx.a;
+        ctx.globalAlpha = fx.a * readAlphaMul;
         if (fx.blur > 0.4) ctx.filter = `blur(${fx.blur.toFixed(1)}px)`;
-        if (st.shadow) { ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = st.shadow; ctx.shadowOffsetY = st.shadow * 0.25; }
-        ctx.fillStyle = st.color;
         const spread = fx.track * (k - (words.length - 1) / 2);
-        ctx.fillText(word, x + fx.dx + spread, baseY + fx.dy);
+        const wx = x + fx.dx + spread;
+        const wy = baseY + fx.dy;
+        if (isCurrentWord) {
+          const padX = Math.max(3, size * 0.14);
+          const padY = Math.max(2, size * 0.1);
+          ctx.save();
+          ctx.fillStyle = rgba(accentColor, 0.24);
+          ctx.beginPath();
+          if (typeof ctx.roundRect === 'function') {
+            ctx.roundRect(wx - padX, wy - size * 0.84 - padY, widths[k] + padX * 2, size * 1.04 + padY * 2, Math.max(4, size * 0.16));
+          } else {
+            ctx.rect(wx - padX, wy - size * 0.84 - padY, widths[k] + padX * 2, size * 1.04 + padY * 2);
+          }
+          ctx.fill();
+          ctx.restore();
+        }
+        if (st.shadow) {
+          ctx.shadowColor = isCurrentWord ? rgba(accentColor, 0.75) : 'rgba(0,0,0,0.6)';
+          ctx.shadowBlur = isCurrentWord ? Math.max(st.shadow, size * 0.35) : st.shadow;
+          ctx.shadowOffsetY = st.shadow * 0.25;
+        } else if (isCurrentWord) {
+          ctx.shadowColor = rgba(accentColor, 0.65);
+          ctx.shadowBlur = size * 0.3;
+        }
+        ctx.fillStyle = isCurrentWord ? accentColor : st.color;
+        ctx.fillText(word, wx, wy);
         ctx.restore();
       }
       x += widths[k] + space;

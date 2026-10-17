@@ -104,40 +104,51 @@ export function expandAuraMacros(
 
   // 5. Ensemble / Phase: BBD String Ensemble + 6-Stage Krautrock Phaser
   const eVal = m.ensemble;
+  const phExplicit = (base[A.PH_ON] ?? 0) > 0.5;
+  const ensExplicit = (base[A.ENS_ON] ?? 0) > 0.5;
   if (eVal > 0.04) {
-    const phPresetOn = (base[A.PH_ON] ?? 0) > 0.5;
-    const ensPresetOn = (base[A.ENS_ON] ?? 0) > 0.5;
-    if (phPresetOn && !ensPresetOn) {
+    if (phExplicit && !ensExplicit) {
       p[A.PH_ON] = 1;
-      p[A.PH_MIX] = clamp((base[A.PH_MIX] ?? 0.45) * (0.4 + eVal * 1.1));
+      p[A.PH_MIX] = clamp(Math.max(base[A.PH_MIX] ?? 0.4, (base[A.PH_MIX] ?? 0.45) * (0.4 + eVal * 1.1)));
       p[A.PH_DEPTH] = clamp((base[A.PH_DEPTH] ?? 0.7) * (0.6 + eVal * 0.6));
     } else {
       p[A.ENS_ON] = 1;
       p[A.ENS_MIX] = clamp(Math.max(base[A.ENS_MIX] ?? 0, eVal * 0.85));
       p[A.ENS_DEPTH] = clamp((base[A.ENS_DEPTH] ?? 0.6) * (0.55 + eVal * 0.65));
-      if (phPresetOn) {
+      if (phExplicit) {
         p[A.PH_ON] = 1;
-        p[A.PH_MIX] = clamp((base[A.PH_MIX] ?? 0.4) * (0.4 + eVal * 0.9));
+        p[A.PH_MIX] = clamp(Math.max(base[A.PH_MIX] ?? 0.38, (base[A.PH_MIX] ?? 0.4) * (0.4 + eVal * 0.9)));
       }
     }
   } else {
-    p[A.ENS_MIX] = 0;
-    p[A.PH_MIX] = 0;
+    if (!ensExplicit) p[A.ENS_MIX] = 0;
+    else p[A.ENS_MIX] = clamp(base[A.ENS_MIX] ?? 0.45);
+    if (!phExplicit) p[A.PH_MIX] = 0;
+    else p[A.PH_MIX] = clamp(base[A.PH_MIX] ?? 0.42);
   }
 
-  // 6. Tape Space: Magnetic Tape Echo + Chamber/Spring Reverb
+  // 6. Tape Space: Magnetic Tape Echo + Stereo Delay + Chamber/Spring Reverb
   const sVal = m.space;
+  const ecExplicit = (base[SP.EC_ON] ?? 0) > 0.5;
+  const dlExplicit = (base[SP.DL_ON] ?? 0) > 0.5;
   if (sVal > 0.03) {
     const baseRv = base[RV.MIX] ?? 0.15;
     p[RV.MIX] = clamp(Math.max(baseRv * (sVal / 0.35), sVal * 0.65), 0, 0.85);
     p[RV.DECAY] = clamp((base[RV.DECAY] ?? 0.45) + (sVal - 0.3) * 0.4, 0.15, 0.92);
-    if ((base[SP.EC_ON] ?? 0) > 0.5 || sVal > 0.42) {
+    if (ecExplicit || sVal > 0.42) {
       p[SP.EC_ON] = 1;
-      p[SP.EC_MIX] = clamp(Math.max(base[SP.EC_MIX] ?? 0.18, (sVal - 0.2) * 0.55), 0, 0.7);
+      p[SP.EC_MIX] = clamp(Math.max(base[SP.EC_MIX] ?? 0.18, (sVal - 0.2) * 0.55), 0, 0.75);
+    }
+    if (dlExplicit) {
+      p[SP.DL_ON] = 1;
+      p[SP.DL_MIX] = clamp(Math.max(base[SP.DL_MIX] ?? 0.25, sVal * 0.55), 0, 0.75);
     }
   } else {
     p[RV.MIX] = 0;
-    p[SP.EC_MIX] = 0;
+    if (!ecExplicit) p[SP.EC_MIX] = 0;
+    else p[SP.EC_MIX] = clamp(base[SP.EC_MIX] ?? 0.25);
+    if (!dlExplicit) p[SP.DL_MIX] = 0;
+    else p[SP.DL_MIX] = clamp(base[SP.DL_MIX] ?? 0.28);
   }
 
   return p;

@@ -11,8 +11,15 @@
 // hiccup transparently falls back to the original.
 
 import { getPlatformInfo } from '../../hooks/usePlatform';
+import { installNativeJxlImageSupport, supportsJxlDecode, recordJxlDecodeSupport } from '../../services/jxlCodec';
 
 const CDN = 'https://wsrv.nl/';
+
+// Install the global capture-phase <img> error handler in browser environments so even <img>
+// tags without an explicit onError={onThumbError(...)} transparently step down from output=jxl.
+if (typeof window !== 'undefined') {
+  installNativeJxlImageSupport();
+}
 
 /**
  * Television image budget.
@@ -37,7 +44,13 @@ export const THUMB = {
   small: 128,   // small grid thumbs
   card: 320,    // album grid cards
   large: 640,   // hero / now-playing
+  slideshow: 1600, // full-bleed slideshow stills
 } as const;
+
+/** Preferred CDN output codec: JPEG XL ('jxl') by default when supported, else 'webp'. */
+export function preferredCdnFormat(): 'jxl' | 'webp' {
+  return supportsJxlDecode() ? 'jxl' : 'webp';
+}
 
 /**
  * Extract YouTube thumbnail directly if the URL contains a YouTube ID.
@@ -62,24 +75,25 @@ function shouldBypassCdn(url: string): boolean {
 }
 
 /**
- * Resize a public image URL to `width` px wide (WebP, no upscaling).
+ * Resize a public image URL to `width` px wide (JPEG XL by default, no upscaling).
  * Pass-through for empty, data:, blob:, relative, or already-transformed URLs.
  */
 export function thumb(url?: string | null, width: number = THUMB.card, quality = 78): string {
   if (!url) return '';
   if (!/^https?:\/\//i.test(url)) return url;     // data: / blob: / relative
   if (shouldBypassCdn(url)) return url;
-  // Our own upload-time derivative (…_thumb.webp, ~320px) is already the right size: skip the
-  // third-party CDN hop entirely — one less DNS lookup, TLS handshake and cold-cache resize.
-  if (width <= 340 && /\/o\/[^?]*_thumb\.(webp|jpg)/.test(url)) return url;
+  // Our own upload-time derivative (…_thumb.jxl / _thumb.webp, ~320px) is already the right size:
+  // skip the third-party CDN hop entirely — one less DNS lookup, TLS handshake and cold-cache resize.
+  if (width <= 340 && /\/o\/[^?]*_thumb\.(jxl|webp|jpg)/.test(url)) return url;
 
   let isTV = false;
   try { isTV = getPlatformInfo().isTV; } catch { /* pre-boot / SSR — assume not a TV */ }
   const w = isTV ? Math.min(width, TV_MAX_WIDTH) : width;
   const q0 = isTV ? Math.min(quality, TV_QUALITY) : quality;
+  const fmt = preferredCdnFormat();
   // dpr 2 for crisp art on retina without ballooning bytes (CDN caps source); dpr 1 on a TV,
   // where the extra pixels are invisible and the memory is not affordable.
-  const q = new URLSearchParams({ url, w: String(w), q: String(q0), output: 'webp', we: '', dpr: isTV ? '1' : '2', fit: 'cover' });
+  const q = new URLSearchParams({ url, w: String(w), q: String(q0), output: fmt, we: '', dpr: isTV ? '1' : '2', fit: 'cover' });
   return `${CDN}?${q.toString()}`;
 }
 
@@ -89,30 +103,49 @@ export function thumb(url?: string | null, width: number = THUMB.card, quality =
  * one is width×height×4 bytes of MAIN-THREAD work (a 4096² image ≈ 67 MB decoded). On a TV that
  * stalls the very audio thread the slideshow plays over — which is exactly why music went choppy
  * and images arrived half-drawn with long black gaps. Resize to the panel's real size instead: a
- * 1080p TV never shows more than ~1600px across, and 1600px WebP is a fraction of the bytes and
- * decode time while staying crisp at ten feet (5.7 MB decoded vs 67 MB).
+ * 1080p TV never shows more than ~1600px across, and 1600px JPEG XL is 20–35% smaller than WebP
+ * (and a tiny fraction of the 67 MB master) while decoding progressively with zero blocking.
  */
-export function heroImage(url?: string | null, width = 1600, quality = 72): string {
+export function heroImage(url?: string | null, width = 1600, quality = 75): string {
   if (!url) return '';
   if (!/^https?:\/\//i.test(url)) return url;
   if (shouldBypassCdn(url)) return url;
   let isTV = false;
   try { isTV = getPlatformInfo().isTV; } catch { /* pre-boot / SSR */ }
-  const q = new URLSearchParams({ url, w: String(width), q: String(quality), output: 'webp', we: '', dpr: isTV ? '1' : '2', fit: 'cover' });
+  const fmt = preferredCdnFormat();
+  const q = new URLSearchParams({ url, w: String(width), q: String(quality), output: fmt, we: '', dpr: isTV ? '1' : '2', fit: 'cover' });
   return `${CDN}?${q.toString()}`;
 }
 
 /**
- * onError handler for an <img> whose src is a thumb(): swap to the original
- * URL once, so a CDN failure degrades to the (slower) full image instead of a
- * broken cover. Usage: onError={onThumbError(originalUrl)}
+ * Dedicated slideshow variant — uses JPEG XL (`output=jxl`) at 1600px (TV / mobile) or 1920px
+ * (desktop full-bleed) so every slideshow across the platform (AnimatedSlideshow, GlobalPlayer,
+ * TvSlideshowSurface, PhotoGallery, PortfolioRoom) streams compact progressive JPEG XL frames.
+ */
+export function slideshowImage(url?: string | null, width = 1600, quality = 76): string {
+  return heroImage(url, width, quality);
+}
+
+/**
+ * onError handler for an <img> whose src is a thumb() or heroImage():
+ *  1. If the failed URL was a JPEG XL CDN variant (`output=jxl`), first step down to `output=webp`
+ *     so the user still gets a resized, fast thumbnail rather than a multi-MB raw master.
+ *  2. If that also fails (CDN hiccup), swap to the original URL once.
  */
 export function onThumbError(originalUrl?: string | null) {
   return (e: React.SyntheticEvent<HTMLImageElement>) => {
     const img = e.currentTarget;
+    const current = img.currentSrc || img.src || '';
+    if (current.includes('output=jxl') && !img.dataset.jxlSteppedDown) {
+      img.dataset.jxlSteppedDown = '1';
+      recordJxlDecodeSupport(false);
+      img.src = current.replace(/([?&])output=jxl\b/, '$1output=webp');
+      return;
+    }
     if (originalUrl && img.src !== originalUrl && !img.dataset.thumbFellBack) {
       img.dataset.thumbFellBack = '1';
       img.src = originalUrl;
     }
   };
 }
+

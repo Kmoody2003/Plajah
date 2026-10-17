@@ -95,11 +95,16 @@ pub struct Voice {
     wob_smooth: f32,
 
     /// AURA per-voice vintage circuit state: separate RNG so existing instruments stay
-    /// bit-identical, permanent voice-card trimpot tolerances, thermal wander, and Osc 2 feedback.
+    /// bit-identical, permanent voice-card trimpot tolerances, thermal wander, Osc 2 feedback,
+    /// and Sample & Hold / Source of Uncertainty random modulation on note-on & sustain.
     aura_rng: Rng,
     card_tol: [f32; 3],
     thermal_walk: f32,
     last_osc2: [f32; MAX_UNISON],
+    note_rand: [f32; 3],
+    sh_phase: f32,
+    sh_target: [f32; 3],
+    sh_slew: [f32; 3],
 }
 
 impl Voice {
@@ -118,6 +123,10 @@ impl Voice {
             card_tol,
             thermal_walk: 0.0,
             last_osc2: [0.0; MAX_UNISON],
+            note_rand: [0.0; 3],
+            sh_phase: 0.0,
+            sh_target: [0.0; 3],
+            sh_slew: [0.0; 3],
             active: false,
             note: 60.0,
             velocity: 0.8,
@@ -208,6 +217,14 @@ impl Voice {
             }
         }
         self.last_osc2 = [0.0; MAX_UNISON];
+        self.note_rand = [
+            self.aura_rng.bipolar(),
+            self.aura_rng.bipolar(),
+            self.aura_rng.bipolar(),
+        ];
+        self.sh_phase = 0.0;
+        self.sh_target = self.note_rand;
+        self.sh_slew = self.note_rand;
 
         let aura_env = p.get(AURA_BASE + A_AURA).clamp(0.0, 1.0);
         let env_scale = if aura_env > 0.0005 { 1.0 + self.card_tol[2] * 0.14 * aura_env } else { 1.0 };
@@ -395,7 +412,8 @@ impl Voice {
             mv.key_track = (self.note - 60.0) / 48.0;
             mv.pressure = self.expr.pressure;
             mv.timbre = self.expr.timbre;
-            mv.pitch_bend = self.expr.pitch_bend;
+            let total_bend = (globals.pitch_bend + self.expr.pitch_bend).clamp(-1.0, 1.0);
+            mv.pitch_bend = total_bend;
             mv.random = self.drift[0];
 
             // Glide toward the target note.
@@ -422,13 +440,83 @@ impl Voice {
             let wob_morph = wob * wf.depth_for(WOB_DEST_MORPH);
             let wob_reso = wob * wf.depth_for(WOB_DEST_RESO);
 
-            // ── AURA per-voice vintage circuitry ─────────────────────────────────
+            // ── AURA per-voice vintage circuitry & Generative Analog Flux ────────
             let sync_amt = (p.get(AURA_BASE + A_OSC_SYNC) + matrix.amount_for(AURA_BASE + A_OSC_SYNC, &mv)).clamp(0.0, 1.0);
-            let xmod_pitch = (p.get(AURA_BASE + A_XMOD_PITCH) + matrix.amount_for(AURA_BASE + A_XMOD_PITCH, &mv)).clamp(0.0, 1.0);
-            let xmod_flt = (p.get(AURA_BASE + A_XMOD_FILTER) + matrix.amount_for(AURA_BASE + A_XMOD_FILTER, &mv)).clamp(0.0, 1.0);
-            let ring_amt = (p.get(AURA_BASE + A_RING_MOD) + matrix.amount_for(AURA_BASE + A_RING_MOD, &mv)).clamp(0.0, 1.0);
+            let mut xmod_pitch = (p.get(AURA_BASE + A_XMOD_PITCH) + matrix.amount_for(AURA_BASE + A_XMOD_PITCH, &mv)).clamp(0.0, 1.0);
+            let mut xmod_flt = (p.get(AURA_BASE + A_XMOD_FILTER) + matrix.amount_for(AURA_BASE + A_XMOD_FILTER, &mv)).clamp(0.0, 1.0);
+            let mut ring_amt = (p.get(AURA_BASE + A_RING_MOD) + matrix.amount_for(AURA_BASE + A_RING_MOD, &mv)).clamp(0.0, 1.0);
             let aura_amt = (p.get(AURA_BASE + A_AURA) + matrix.amount_for(AURA_BASE + A_AURA, &mv)).clamp(0.0, 1.0);
             let warmth_amt = (p.get(AURA_BASE + A_WARMTH) + matrix.amount_for(AURA_BASE + A_WARMTH, &mv)).clamp(0.0, 1.0);
+
+            let flux_on = p.get(AURA_BASE + A_FLUX_ON) > 0.5;
+            let flux_amt = if flux_on {
+                (p.get(AURA_BASE + A_FLUX_AMT) + matrix.amount_for(AURA_BASE + A_FLUX_AMT, &mv)).clamp(0.0, 1.0)
+            } else {
+                0.0
+            };
+            let flux_rate = p.get(AURA_BASE + A_FLUX_RATE).clamp(0.0, 1.0);
+            let flux_mode = p.get(AURA_BASE + A_FLUX_MODE).round().max(0.0) as u32;
+
+            // Sample & Hold / Source of Uncertainty generator (triggers per note & evolves while notes sustain)
+            let (flux_cut_mod, flux_res_mod, flux_pan_mod, flux_pitch_semi, flux_morph_mod, flux_osc2_semi) =
+                if flux_amt > 0.0005 {
+                    let sh_hz = 0.75 * (22.0f32).powf(flux_rate);
+                    self.sh_phase += sh_hz * (dt * CONTROL_BLOCK as f32);
+                    if self.sh_phase >= 1.0 {
+                        self.sh_phase -= 1.0;
+                        self.sh_target = [
+                            self.aura_rng.bipolar(),
+                            self.aura_rng.bipolar(),
+                            self.aura_rng.bipolar(),
+                        ];
+                    }
+                    let slew_k = match flux_mode {
+                        0 => 0.48,  // Mode 0: Snappy Sample & Hold steps (ARP 2600 / EMS VCS3)
+                        1 => 0.028, // Mode 1: Buchla 266 Smooth Fluctuating Random Voltages
+                        _ => 0.35,  // Mode 2: Cosmic Glitch harmonic stepper
+                    };
+                    for i in 0..3 {
+                        self.sh_slew[i] += (self.sh_target[i] - self.sh_slew[i]) * slew_k;
+                    }
+                    let c_note = self.note_rand[0] * 0.16 * flux_amt;
+                    let p_note = self.note_rand[1] * 0.35 * flux_amt;
+                    match flux_mode {
+                        0 => (
+                            c_note + self.sh_slew[0] * 0.36 * flux_amt,
+                            self.sh_slew[0].abs() * 0.28 * flux_amt,
+                            p_note + self.sh_slew[1] * 0.55 * flux_amt,
+                            self.note_rand[2] * 0.08 * flux_amt,
+                            self.sh_slew[2] * 0.25 * flux_amt,
+                            0.0,
+                        ),
+                        1 => (
+                            c_note + self.sh_slew[0] * 0.30 * flux_amt,
+                            self.sh_slew[0].max(0.0) * 0.18 * flux_amt,
+                            p_note + self.sh_slew[1] * 0.48 * flux_amt,
+                            self.sh_slew[2] * 0.38 * flux_amt,
+                            self.sh_slew[1] * 0.38 * flux_amt,
+                            0.0,
+                        ),
+                        _ => {
+                            // Cosmic Glitch: quantize Osc 2 harmonic intervals & pulse Ring/X-Mod
+                            const HARM_STEPS: [f32; 6] = [-12.0, 0.0, 7.0, 12.0, 19.0, 24.0];
+                            let idx = (((self.sh_target[2] * 0.5 + 0.5) * 5.99) as usize).min(5);
+                            ring_amt = (ring_amt + self.sh_slew[0].max(0.0) * 0.45 * flux_amt).clamp(0.0, 1.0);
+                            xmod_flt = (xmod_flt + self.sh_slew[1].abs() * 0.35 * flux_amt).clamp(0.0, 1.0);
+                            (
+                                c_note + self.sh_slew[0] * 0.28 * flux_amt,
+                                0.22 * flux_amt,
+                                p_note + self.sh_slew[1] * 0.6 * flux_amt,
+                                0.0,
+                                self.sh_slew[0] * 0.35 * flux_amt,
+                                HARM_STEPS[idx],
+                            )
+                        }
+                    }
+                } else {
+                    (0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+                };
+
             let xmod_active = sync_amt > 0.0005 || xmod_pitch > 0.0005 || xmod_flt > 0.0005 || ring_amt > 0.0005;
 
             let (aura_pitch_semi, aura_cut_scale) = if aura_amt > 0.0005 {
@@ -440,7 +528,21 @@ impl Voice {
                 (0.0, 1.0)
             };
 
-            let bent = self.glide_note + self.expr.pitch_bend * bend_range + wob_pitch * 12.0 + aura_pitch_semi;
+            // Built-in Vintage Mod Wheel Expression: LFO 0 vibrato + filter shimmer + PWM
+            let mw = mv.mod_wheel.clamp(0.0, 1.0);
+            let mw_vibrato_semi = if mw > 0.001 { mv.lfo[0] * mw * 0.55 } else { 0.0 };
+            let mw_cut_mod = if mw > 0.001 { mw * 0.18 + mv.lfo[0] * mw * 0.14 } else { 0.0 };
+            let mw_timbre_mod = if mw > 0.001 { mv.lfo[0] * mw * 0.22 } else { 0.0 };
+            if mw > 0.05 && xmod_active {
+                xmod_pitch = (xmod_pitch + mw * 0.18).clamp(0.0, 1.0);
+            }
+
+            let bent = self.glide_note
+                + total_bend * bend_range
+                + wob_pitch * 12.0
+                + aura_pitch_semi
+                + mw_vibrato_semi
+                + flux_pitch_semi;
 
             // Filters
             let mut cut = [0.0f32; 2];
@@ -455,14 +557,14 @@ impl Voice {
                 let m = matrix.amount_for(flt_param(f, F_CUTOFF), &mv);
                 let kt = p.get(flt_param(f, F_KEYTRACK)) * (self.note - 60.0) / 60.0;
                 let envamt = (p.get(flt_param(f, F_ENV_AMT)) - 0.5) * 2.0 * mv.env[1];
-                let target = cutoff_hz((base + m + kt + envamt).clamp(0.0, 1.0)) * aura_cut_scale;
+                let target = cutoff_hz((base + m + kt + envamt + mw_cut_mod + flux_cut_mod).clamp(0.0, 1.0)) * aura_cut_scale;
                 // One-pole smoothing: a stepped cutoff is the classic digital-synth zipper.
                 self.cutoff_smooth[f] += (target - self.cutoff_smooth[f]) * 0.35;
                 // Four octaves of wobble, applied after the smoother and in the log domain so
                 // the sweep is musical rather than linear in hertz.
                 cut[f] = (self.cutoff_smooth[f] * (2.0f32).powf(wob_cut * 4.0)).clamp(20.0, 20000.0);
                 res[f] = (p.get(flt_param(f, F_RES)) + matrix.amount_for(flt_param(f, F_RES), &mv)
-                    + wob_reso * 0.5).clamp(0.0, 1.0);
+                    + wob_reso * 0.5 + flux_res_mod).clamp(0.0, 1.0);
                 drv[f] = p.get(flt_param(f, F_DRIVE));
                 is_ladder[f] = p.get(flt_param(f, F_TYPE)) < 0.5;
                 svf_mode[f] = SvfMode::from_index(p.get(flt_param(f, F_MODE)) as u32);
@@ -486,22 +588,44 @@ impl Voice {
                     continue;
                 }
                 let raw_en = p.get(osc_param(o, O_ENABLE)) > 0.5;
-                o_lvl[o] = if raw_en {
+                let base_lvl = if raw_en {
                     (p.get(osc_param(o, O_LEVEL)) + matrix.amount_for(osc_param(o, O_LEVEL), &mv)).clamp(0.0, 1.5)
                 } else {
                     0.0
                 };
-                let coarse = (p.get(osc_param(o, O_COARSE)) - 0.5) * 48.0;
+                // When Hard Sync is engaged, ensure VCO 2 (the sync slave) is audible even on 1-VCO presets.
+                o_lvl[o] = if o == 1 && sync_amt > 0.0005 {
+                    base_lvl.max(sync_amt * 0.78)
+                } else {
+                    base_lvl
+                };
+                let mut coarse = (p.get(osc_param(o, O_COARSE)) - 0.5) * 48.0;
                 let fine = (p.get(osc_param(o, O_FINE)) - 0.5) * 2.0; // ±1 semitone
+                if o == 1 {
+                    // Make Hard Sync, X-Mod, and Ring Mod immediately distinct even if VCO 2 is at unison (0st):
+                    if sync_amt > 0.0005 {
+                        if coarse.abs() < 0.5 {
+                            coarse += 7.0 + sync_amt * 10.0;
+                        }
+                        coarse += mv.env[1] * sync_amt * 14.0;
+                    } else if (xmod_pitch > 0.0005 || xmod_flt > 0.0005 || ring_amt > 0.0005)
+                        && coarse.abs() < 0.1
+                        && fine.abs() < 0.05
+                    {
+                        coarse += 7.02;
+                    }
+                    coarse += flux_osc2_semi;
+                }
                 let drift = self.drift[o] * drift_amt * 0.06;
                 let semis = bent + coarse + fine + drift
                     + matrix.amount_for(osc_param(o, O_COARSE), &mv) * 24.0;
                 o_inc[o] = midi_to_hz(semis) / sr;
                 o_morph[o] = (p.get(osc_param(o, O_MORPH)) + matrix.amount_for(osc_param(o, O_MORPH), &mv)
-                    + wob_morph * 0.5).clamp(0.0, 1.0);
+                    + wob_morph * 0.5 + mw_timbre_mod + flux_morph_mod).clamp(0.0, 1.0);
                 o_wavetable[o] = p.get(osc_param(o, O_MODE)) < 0.5;
                 o_shape[o] = AnalogShape::from_index(p.get(osc_param(o, O_ANALOG_SHAPE)) as u32);
-                o_pw[o] = (p.get(osc_param(o, O_PULSE_WIDTH)) + matrix.amount_for(osc_param(o, O_PULSE_WIDTH), &mv)).clamp(0.02, 0.98);
+                o_pw[o] = (p.get(osc_param(o, O_PULSE_WIDTH)) + matrix.amount_for(osc_param(o, O_PULSE_WIDTH), &mv)
+                    + mw_timbre_mod + flux_morph_mod * 0.5).clamp(0.05, 0.95);
                 o_table[o] = (p.get(osc_param(o, O_TABLE)) as usize).min(tables.len().saturating_sub(1));
                 o_drive[o] = p.get(osc_param(o, O_DRIVE));
                 o_drive_mode[o] = ShapeMode::from_index(p.get(osc_param(o, O_DRIVE_MODE)) as u32);
@@ -533,7 +657,7 @@ impl Voice {
             let spread_mod = matrix.amount_for(P_UNISON_WIDTH, &mv);
             let width = (uni_width + spread_mod).clamp(0.0, 1.0);
             let mut uni_gains = [[0.0f32; MAX_CHANNELS]; MAX_UNISON];
-            let base_az = base_pos.azimuth();
+            let base_az = base_pos.azimuth() + flux_pan_mod;
             let base_el = base_pos.elevation();
             let base_dist = base_pos.distance();
             for u in 0..uni_count {

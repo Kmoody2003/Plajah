@@ -27,6 +27,11 @@ export class AudioTexture {
   midL = 0; midR = 0;
   trebleL = 0; trebleR = 0;
   balance = 0;
+  /** Vocal ranges, 0..1, centre-weighted when stereo (lead vocals sit in the middle of a mix):
+   *  [0] chest voice 150–500 Hz · [1] vowel formants 0.5–2 kHz · [2] presence / sibilance 2–6 kHz. */
+  vocal: [number, number, number] = [0, 0, 0];
+  /** Drum bands for onset detection (stage rigs), 0..1: kick 40–130 Hz · snare crack 1.8–5 kHz · hats 7–14 kHz. */
+  drums: [number, number, number] = [0, 0, 0];
 
   constructor(private gl: GL) {
     this.tex = gl.createTexture()!;
@@ -129,6 +134,24 @@ export class AudioTexture {
     this.bassR = bassR / Math.max(1, bassEnd) / 255;
     const totalLevel = (sumL + sumR);
     this.balance = totalLevel > 0 ? (sumR - sumL) / totalLevel : 0;
+
+    // Vocal ranges. With stereo, min(L, R) keeps what both channels share — the centre image,
+    // where the lead vocal lives — and drops hard-panned instruments.
+    const hzPerBin = (sampleRate / 2) / bins;
+    const ranges: Array<[number, number]> = [[150, 500], [500, 2000], [2000, 6000]];
+    for (let b = 0; b < 3; b++) {
+      const i0 = Math.max(0, Math.ceil(ranges[b][0] / hzPerBin)), i1 = Math.min(bins - 1, Math.floor(ranges[b][1] / hzPerBin));
+      let acc = 0;
+      for (let i = i0; i <= i1; i++) acc += hasStereo ? Math.min(freqL[i], freqR![i]) : freqL[i];
+      this.vocal[b] = i1 >= i0 ? acc / (i1 - i0 + 1) / 255 : 0;
+    }
+    const drumRanges: Array<[number, number]> = [[40, 130], [1800, 5000], [7000, 14000]];
+    for (let b = 0; b < 3; b++) {
+      const i0 = Math.max(0, Math.floor(drumRanges[b][0] / hzPerBin)), i1 = Math.min(bins - 1, Math.max(i0, Math.ceil(drumRanges[b][1] / hzPerBin)));
+      let acc = 0;
+      for (let i = i0; i <= i1; i++) acc += hasStereo ? (freqL[i] + freqR![i]) * 0.5 : freqL[i];
+      this.drums[b] = acc / (i1 - i0 + 1) / 255;
+    }
 
     smoothChroma(this.chroma, extractChroma(freqL, sampleRate));
     writeChromaAlpha(this.pixels, this.chroma);

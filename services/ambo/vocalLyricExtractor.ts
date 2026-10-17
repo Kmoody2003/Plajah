@@ -160,7 +160,7 @@ export async function extractLyricsForTrack(track: ExtractTrack, buffer: AudioBu
       }
     } catch (e) { console.warn('[vocalLyricExtractor] online lyrics lookup failed', e); }
 
-    // ── 2. cloud captions (server Gemini) when nothing published was found ──
+    // ── 2. cloud captions (server Gemini — what Chora's album page uses) ──
     if (!reference) {
       setState({ message: 'Fetching captions…' });
       const cloud = await fetchCloudCaptions(track);
@@ -172,12 +172,8 @@ export async function extractLyricsForTrack(track: ExtractTrack, buffer: AudioBu
         return;
       }
     }
-    // ── 3. on-device: isolate vocals → transcribe (as the lyrics, or only to TIME the published lyrics) ──
-    const { alignLyrics } = await import('./onlineLyrics');
-    setState({ status: 'isolating', message: reference ? 'Timing published lyrics to the vocals…' : 'Preparing vocal isolation…' });
-    const asrP = loadAsr(m => alive() && setState({ message: m }));
-    asrP.catch(() => { /* surfaced below */ });
 
+    const { alignLyrics } = await import('./onlineLyrics');
     const WIN = 24, HOP = 20;                               // seconds; 4 s overlap, dupes dropped below
     const totalSec = buffer.duration;
     const lines: TimedLine[] = [];
@@ -189,6 +185,80 @@ export async function extractLyricsForTrack(track: ExtractTrack, buffer: AudioBu
       setState({ lines: out.length });
       return out;
     };
+
+    // ── 2b. Chora windowed Gemini 3.6-Flash audio transcription for local files (blob: URLs) ──
+    try {
+      const { transcribeWindowWithChoraGemini } = await import('./liveTranscriber');
+      const mono44 = new Float32Array(buffer.length);
+      const ch0 = buffer.getChannelData(0);
+      const ch1 = buffer.numberOfChannels > 1 ? buffer.getChannelData(1) : ch0;
+      for (let i = 0; i < buffer.length; i++) mono44[i] = (ch0[i] + ch1[i]) * 0.5;
+      const pcm16 = await resample16k(mono44, buffer.sampleRate);
+      if (!alive()) return;
+
+      // Quick 12s opening window so lyrics appear on the Ambo bus/follow clock in ~1.5s
+      const firstEnd = Math.min(totalSec, 12);
+      const firstSlice = pcm16.subarray(0, Math.floor(firstEnd * 16000));
+      setState({ status: 'transcribing', progress: 0.12, message: 'Chora Gemini 3.6-Flash transcribing vocals…' });
+      const firstCaps = await transcribeWindowWithChoraGemini(firstSlice, {
+        title: track.title,
+        artist: track.artist,
+        kind: 'music',
+      });
+      if (!alive()) return;
+      if (firstCaps !== null) {
+        for (const c of firstCaps) {
+          const text = cleanLine(c.text);
+          if (!text) continue;
+          const t = Math.max(0, c.time);
+          lines.push({ time: t, text });
+          lastEnd = t;
+        }
+        publish(firstEnd, false);
+
+        for (let start = 0; start < totalSec && alive(); start += HOP) {
+          const end = Math.min(totalSec, start + WIN);
+          const slice = pcm16.subarray(Math.floor(start * 16000), Math.floor(end * 16000));
+          if (rms(slice, 0, slice.length) > 0.001) {
+            const p = Math.min(0.98, 0.15 + 0.83 * (end / Math.max(1, totalSec)));
+            setState({ status: 'transcribing', progress: p, message: `Chora Gemini transcribing (${lines.length} lines · ${Math.round(p * 100)}%)…` });
+            const caps = await transcribeWindowWithChoraGemini(slice, {
+              title: track.title,
+              artist: track.artist,
+              kind: 'music',
+            });
+            if (!alive()) return;
+            if (caps) {
+              for (const c of caps) {
+                const text = cleanLine(c.text);
+                if (!text) continue;
+                const t = start + (Number.isFinite(c.time) ? c.time : 0);
+                if (t <= lastEnd - 0.5) continue;
+                if (lines.length && lines[lines.length - 1].text.toLowerCase() === text.toLowerCase() && Math.abs(t - lines[lines.length - 1].time) < 3.5) continue;
+                lines.push({ time: Math.max(0, t), text });
+                lastEnd = Math.max(lastEnd, t);
+              }
+              lines.sort((a, b) => a.time - b.time);
+              publish(end, end >= totalSec);
+            }
+          }
+          await yieldUi();
+        }
+        if (alive() && lines.length > 0) {
+          const finalLines = publish(totalSec, true);
+          writeCache(key, finalLines);
+          setState({ status: 'done', progress: 1, lines: finalLines.length, message: `Lyrics ready (Chora Gemini · ${finalLines.length} lines)` });
+          return;
+        }
+      }
+    } catch (choraErr) {
+      console.warn('[vocalLyricExtractor] Chora windowed Gemini unavailable, falling back to UVR ONNX + Whisper:', choraErr);
+    }
+
+    // ── 3. on-device: isolate vocals → transcribe (as the lyrics, or only to TIME the published lyrics) ──
+    setState({ status: 'isolating', message: reference ? 'Timing published lyrics to the vocals…' : 'Preparing vocal isolation…' });
+    const asrP = loadAsr(m => alive() && setState({ message: m }));
+    asrP.catch(() => { /* surfaced below */ });
 
     const transcribe = async (startSec: number, pcm16: Float32Array) => {
       if (rms(pcm16, 0, pcm16.length) <= 0.003) return;       // instrumental section

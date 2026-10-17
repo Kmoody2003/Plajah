@@ -42,6 +42,18 @@ export const A = {
   TAPE_SAT: 1730,
   HUM: 1731,
   CRACKLE: 1732,
+
+  /** Rhythmic Analog VCA / Lowpass Gate Chopper (Tempo-Synced & Probabilistic). */
+  GATE_ON: 1740,
+  GATE_RATE: 1741,
+  GATE_DEPTH: 1742,
+  GATE_SHAPE: 1743, // 0 = Pulse, 1 = Saw Ramp, 2 = Probabilistic Random Gate
+
+  /** Per-Note & Sustain Analog Flux / Source of Uncertainty (Buchla 266 / S&H). */
+  FLUX_ON: 1750,
+  FLUX_AMT: 1751,
+  FLUX_RATE: 1752,
+  FLUX_MODE: 1753, // 0 = S&H Filter, 1 = Buchla Drift, 2 = Cosmic Glitch
 } as const;
 
 /** Tape Echo & Delay (shared engine block 1600). */
@@ -87,6 +99,9 @@ export const SVF_MODES = ['Lowpass', 'Bandpass', 'Highpass', 'Notch', 'Peak'] as
 export const FILTER_ROUTINGS = ['Series', 'Parallel'] as const;
 export const ENS_MODES = ['Solina 3-Phase', 'Juno I', 'Juno II'] as const;
 export const LFO_SHAPES = ['Sine', 'Triangle', 'Saw', 'Square', 'S&H', 'Drift'] as const;
+export const GATE_SHAPES = ['Pulse', 'Saw Ramp', 'Random Step'] as const;
+export const FLUX_MODES = ['S&H Filter', 'Buchla Drift', 'Cosmic Glitch'] as const;
+export const DELAY_DIVS = ['1/16', '1/8', '1/8D', '1/4', '1/4D', '1/2'] as const;
 
 const pct = (v: number) => `${Math.round(v * 100)}%`;
 const bipolar = (v: number) => `${v > 0.5 ? '+' : ''}${Math.round((v - 0.5) * 200)}%`;
@@ -225,7 +240,7 @@ export const AURA_PARAM_META: Record<number, AuraParamMeta> = {
   [A.PH_FEEDBACK]: meta(A.PH_FEEDBACK, 'Phaser Color', 'Resonant feedback across the 6 all-pass stages.', pct),
   [A.PH_MIX]: meta(A.PH_MIX, 'Phaser Mix', 'Dry / Phaser balance.', pct),
 
-  // Tape Echo, Spring/Hall Reverb & Master Tape / Mains Floor
+  // Tape Echo, Tempo Delay, Spring/Hall Reverb & Master Tape / Mains Floor
   [SP.EC_ON]: meta(SP.EC_ON, 'Tape Echo', 'Free-running magnetic tape echo (RE-201 / Echoplex style).', undefined, undefined, true),
   [SP.EC_TIME]: meta(SP.EC_TIME, 'Tape Speed', 'Delay time between record and playback heads.', (v) => ms(v, 40, 900)),
   [SP.EC_FB]: meta(SP.EC_FB, 'Intensity', 'Tape echo regeneration / repeats (self-oscillates near 100%).', pct),
@@ -233,6 +248,13 @@ export const AURA_PARAM_META: Record<number, AuraParamMeta> = {
   [SP.EC_DRIVE]: meta(SP.EC_DRIVE, 'Tape Drive', 'Magnetic saturation inside the echo feedback loop.', pct),
   [SP.EC_DEGRADE]: meta(SP.EC_DEGRADE, 'Tape Wear', 'Bandwidth narrowing per echo repeat.', pct),
   [SP.EC_MIX]: meta(SP.EC_MIX, 'Echo Mix', 'Tape echo wet level.', pct),
+
+  [SP.DL_ON]: meta(SP.DL_ON, 'Stereo Delay', 'Tempo-synced stereo bucket-brigade / digital delay.', undefined, undefined, true),
+  [SP.DL_DIV]: meta(SP.DL_DIV, 'Delay Division', 'Tempo division of the stereo delay.', (v) => DELAY_DIVS[Math.min(DELAY_DIVS.length - 1, Math.floor(v * DELAY_DIVS.length))] ?? '1/8D'),
+  [SP.DL_FB]: meta(SP.DL_FB, 'Delay Feedback', 'Stereo delay regeneration.', pct),
+  [SP.DL_TONE]: meta(SP.DL_TONE, 'Delay Tone', 'Damping filter inside the delay feedback loop.', pct),
+  [SP.DL_PING]: meta(SP.DL_PING, 'Ping-Pong', 'Cross-coupled stereo ping-pong bounce.', undefined, undefined, true),
+  [SP.DL_MIX]: meta(SP.DL_MIX, 'Delay Mix', 'Stereo delay wet level.', pct),
 
   [RV.SIZE]: meta(RV.SIZE, 'Chamber Size', 'Spring tank through to concert hall.', pct),
   [RV.DECAY]: meta(RV.DECAY, 'Reverb Decay', 'Reverb tail length.', pct),
@@ -242,6 +264,18 @@ export const AURA_PARAM_META: Record<number, AuraParamMeta> = {
   [A.TAPE_SAT]: meta(A.TAPE_SAT, '15 IPS Tape', 'Master magnetic tape compression, 72 Hz head bump, and HF smoothing.', pct),
   [A.HUM]: meta(A.HUM, '60Hz Mains Hum', 'Authentic transformer mains hum and discrete transistor floor.', pct),
   [A.CRACKLE]: meta(A.CRACKLE, 'Oxide Dust', 'Subtle magnetic oxide / vinyl surface crackle.', pct),
+
+  // Rhythmic VCA / Lowpass Gate Chopper & Per-Note/Sustain Analog Flux
+  [A.GATE_ON]: meta(A.GATE_ON, 'Pulse Gate', 'Engage tempo-synced VCA / Lowpass Gate chopper.', undefined, undefined, true),
+  [A.GATE_RATE]: meta(A.GATE_RATE, 'Gate Rate', 'Chopper rate from slow quarter notes up to 16th-note pulse trains.', (v) => `${(1.25 * Math.pow(12, Math.max(0, Math.min(1, v)))).toFixed(1)} Hz`),
+  [A.GATE_DEPTH]: meta(A.GATE_DEPTH, 'Gate Depth', 'Depth of VCA & Lowpass Gate rhythmic chopping.', pct),
+  [A.GATE_SHAPE]: meta(A.GATE_SHAPE, 'Gate Shape', 'Square Pulse, Sawtooth Ramp, or Probabilistic Random Step gate.', pick(GATE_SHAPES), GATE_SHAPES),
+
+  [A.FLUX_ON]: meta(A.FLUX_ON, 'Analog Flux', 'Engage per-note & sustain randomness (Buchla 266 Source of Uncertainty / S&H).', undefined, undefined, true),
+  [A.FLUX_AMT]: meta(A.FLUX_AMT, 'Flux Depth', 'Intensity of random per-note & sustain timbral/pitch modulation.', pct),
+  [A.FLUX_RATE]: meta(A.FLUX_RATE, 'Flux Clock', 'Clock speed of the sustain Sample & Hold / fluctuating random voltage.', (v) => `${(0.6 * Math.pow(24, Math.max(0, Math.min(1, v)))).toFixed(1)} Hz`),
+  [A.FLUX_MODE]: meta(A.FLUX_MODE, 'Flux Mode', 'S&H Filter steps, smooth Buchla Drift, or Cosmic Glitch.', pick(FLUX_MODES), FLUX_MODES),
+  [P.BEND_RANGE]: meta(P.BEND_RANGE, 'Pitch Bend', 'Pitch bend wheel range in semitones.', (v) => `±${Math.max(1, Math.round(v * 24))} st`),
 };
 
 export const AURA_DEFAULTS: Readonly<Record<number, number>> = Object.freeze({
@@ -363,6 +397,23 @@ export const AURA_DEFAULTS: Readonly<Record<number, number>> = Object.freeze({
   [A.TAPE_SAT]: 0.2,
   [A.HUM]: 0.05,
   [A.CRACKLE]: 0.0,
+
+  [A.GATE_ON]: 0,
+  [A.GATE_RATE]: 0.5,
+  [A.GATE_DEPTH]: 0.72,
+  [A.GATE_SHAPE]: 0,
+
+  [A.FLUX_ON]: 0,
+  [A.FLUX_AMT]: 0.45,
+  [A.FLUX_RATE]: 0.42,
+  [A.FLUX_MODE]: 0,
+
+  [SP.DL_ON]: 0,
+  [SP.DL_DIV]: 0.45,
+  [SP.DL_FB]: 0.42,
+  [SP.DL_TONE]: 0.52,
+  [SP.DL_PING]: 1,
+  [SP.DL_MIX]: 0.28,
 
   [SP.EC_ON]: 0,
   [SP.EC_TIME]: 0.28,

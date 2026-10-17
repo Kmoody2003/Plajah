@@ -102,6 +102,36 @@ export interface StoryReportCharacter {
   dialogueLines: number;
   confidence: number;
   evidence: string[];
+  /** Direct URL to the character's verified close-up portrait frame from the movie */
+  imageUrl?: string;
+  /** Storage relative path (e.g. "stills/char_1_portrait.jpg") */
+  portraitPath?: string;
+  /** ID of the still in report.stills representing this character's best frame */
+  portraitStillId?: string;
+  /** Additional gallery still IDs for this character */
+  stillIds?: string[];
+  /** Timestamp in seconds of the character's primary close-up frame in the movie */
+  bestFrameSec?: number;
+}
+
+export interface StoryReportDialogueLine {
+  tSec: number;
+  speaker: string;
+  parenthetical?: string;
+  text: string;
+}
+
+export interface StoryReportShot {
+  slug: string;
+  type: 'WIDE' | 'MED' | 'CU' | 'ECU' | 'INSERT' | 'POV' | 'OTS' | 'ESTABLISHING';
+  startSec: number;
+  endSec: number;
+  camera: string;
+  action: string;
+  purpose?: string;
+  character?: string;
+  dialogue?: StoryReportDialogueLine[];
+  stillIndex?: number;
 }
 
 export interface StoryReportScene {
@@ -119,6 +149,10 @@ export interface StoryReportScene {
   mood?: string;
   characterRefIds: string[];
   stillIndexes: number[];
+  /** Shot-by-shot camera, action, and line-by-line dialogue breakdown within this scene. */
+  shots?: StoryReportShot[];
+  /** Formatted screenplay text for this scene in cut order. */
+  script?: string;
 }
 
 export interface StoryReportSequence {
@@ -135,6 +169,10 @@ export interface StoryReportLocation {
   kind: string;
   sceneIds: string[];
   confidence: number;
+  imageUrl?: string;
+  portraitPath?: string;
+  stillIds?: string[];
+  bestFrameSec?: number;
 }
 
 export interface StoryReportMacguffin {
@@ -144,6 +182,10 @@ export interface StoryReportMacguffin {
   narrativeRole: 'MACGUFFIN' | 'KEY_PROP' | 'MOTIF';
   sceneIds: string[];
   evidence: string[];
+  imageUrl?: string;
+  portraitPath?: string;
+  stillIds?: string[];
+  bestFrameSec?: number;
   confidence: number;
 }
 
@@ -156,7 +198,7 @@ export interface StoryReportStill {
 }
 
 export interface StoryReport {
-  version: 1;
+  version: 1 | 2;
   logline: string;
   synopsis: string;
   themes: string[];
@@ -167,6 +209,72 @@ export interface StoryReport {
   locations: StoryReportLocation[];
   macguffins: StoryReportMacguffin[];
   stills: StoryReportStill[];
+  /** Full reverse-engineered Fountain screenplay across all acts, scenes, shots, and dialogue lines. */
+  screenplay?: string;
+  transcriptPath?: string;
+}
+
+/**
+ * Formats a StoryReport into an industry-standard Fountain screenplay (scene-by-scene,
+ * shot-by-shot, line-by-line) if `report.screenplay` is not already pre-rendered.
+ */
+export function buildFountainFromStoryReport(report: StoryReport, title = 'Untitled Film'): string {
+  if (report.screenplay && report.screenplay.trim().length > 40) {
+    return report.screenplay;
+  }
+  const lines: string[] = [
+    `Title: ${title}`,
+    `Credit: Reverse-Engineered by Plajah Taleo Story Intelligence`,
+    `Notes: ${report.logline || ''}`,
+    '',
+    'FADE IN:',
+    '',
+  ];
+
+  const sortedScenes = [...(report.scenes || [])].sort((a, b) => a.index - b.index);
+  let currentAct = 0;
+
+  for (const scene of sortedScenes) {
+    if (scene.actNumber && scene.actNumber !== currentAct) {
+      currentAct = scene.actNumber;
+      const actMeta = report.structure?.acts?.find(a => a.number === currentAct);
+      lines.push(`# ACT ${currentAct}${actMeta?.title ? ` — ${actMeta.title.toUpperCase()}` : ''}`);
+      lines.push('');
+    }
+    const fmtTime = (sec: number) => {
+      const s = Math.max(0, Math.floor(sec || 0));
+      return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+    };
+    lines.push(`${(scene.slugline || `INT. ${scene.title} - CONTINUOUS`).toUpperCase()} /* [${fmtTime(scene.startSec)} - ${fmtTime(scene.endSec)}] */`);
+    lines.push('');
+
+    if (scene.script && scene.script.trim()) {
+      lines.push(scene.script.trim());
+      lines.push('');
+      continue;
+    }
+
+    if (Array.isArray(scene.shots) && scene.shots.length > 0) {
+      for (const sh of scene.shots) {
+        lines.push(`[${sh.slug} · ${sh.type} · ${fmtTime(sh.startSec)}–${fmtTime(sh.endSec)}] ${sh.action || sh.camera}`);
+        lines.push('');
+        if (Array.isArray(sh.dialogue)) {
+          for (const d of sh.dialogue) {
+            lines.push((d.speaker || 'VOICE').toUpperCase());
+            if (d.parenthetical) lines.push(`(${d.parenthetical.replace(/^\(|\)$/g, '')})`);
+            lines.push(d.text);
+            lines.push('');
+          }
+        }
+      }
+    } else if (scene.summary) {
+      lines.push(scene.summary);
+      lines.push('');
+    }
+  }
+
+  lines.push('FADE OUT.');
+  return lines.join('\n');
 }
 
 // ─── Job doc (Firestore) ─────────────────────────────────────────────────────

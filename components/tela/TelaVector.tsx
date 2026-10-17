@@ -16,7 +16,7 @@
  * binding-graph "text" edge; the object's own text is a never-destroyed
  * fallback.
  */
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   MousePointer2, MousePointerClick, Scan, Square, Circle, Minus, PenTool, Type, Brush, Pen, Pencil, Highlighter, Eraser, Lasso,
   ChevronUp, ChevronDown, Trash2, Link2, Unlink, Copy, Plus, AlignLeft, AlignCenter, AlignRight, AlignJustify,
@@ -134,6 +134,122 @@ function geomSvg(o: TelaVectorObject, writerTexts?: Record<string, string>): str
   const svg = objectToSvg(o, writerTexts); if (cacheable) geomSvgCache.set(o, svg); return svg;
 }
 
+const EditableRichBlock: React.FC<{
+  block: TelaBlock;
+  index: number;
+  autoFocus?: boolean;
+  style?: React.CSSProperties;
+  placeholder?: string;
+  onFocusBlock?: (idx: number) => void;
+  onChangeText: (idx: number, newText: string) => void;
+  onInsertBlockAfter: (idx: number) => void;
+  onDeleteEmptyBlock: (idx: number) => void;
+  onToggleStyle?: (kind: 'bold' | 'italic' | 'underline') => void;
+  onExitEdit?: () => void;
+}> = ({
+  block,
+  index,
+  autoFocus,
+  style,
+  placeholder,
+  onFocusBlock,
+  onChangeText,
+  onInsertBlockAfter,
+  onDeleteEmptyBlock,
+  onToggleStyle,
+  onExitEdit,
+}) => {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (document.activeElement !== el && el.innerText !== (block.text ?? '')) {
+      el.innerText = block.text ?? '';
+    }
+  }, [block.id, block.text]);
+
+  useEffect(() => {
+    if (autoFocus && ref.current) {
+      const el = ref.current;
+      el.focus();
+      try {
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        range.collapse(false);
+        const sel = window.getSelection();
+        sel?.removeAllRanges();
+        sel?.addRange(range);
+      } catch {
+        // ignore selection errors
+      }
+    }
+  }, [autoFocus]);
+
+  return (
+    <div
+      ref={ref}
+      contentEditable
+      suppressContentEditableWarning
+      data-placeholder={placeholder}
+      onPointerDown={e => e.stopPropagation()}
+      onClick={e => e.stopPropagation()}
+      onDoubleClick={e => e.stopPropagation()}
+      onFocus={() => onFocusBlock?.(index)}
+      onInput={e => {
+        const txt = (e.currentTarget as HTMLDivElement).innerText;
+        onChangeText(index, txt);
+      }}
+      onKeyDown={e => {
+        e.stopPropagation();
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          onExitEdit?.();
+          return;
+        }
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'b') {
+          e.preventDefault();
+          onToggleStyle?.('bold');
+          return;
+        }
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'i') {
+          e.preventDefault();
+          onToggleStyle?.('italic');
+          return;
+        }
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'u') {
+          e.preventDefault();
+          onToggleStyle?.('underline');
+          return;
+        }
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          onInsertBlockAfter(index);
+          return;
+        }
+        if (e.key === 'Backspace') {
+          const currentText = (e.currentTarget as HTMLDivElement).innerText || '';
+          if (currentText.trim().length === 0) {
+            e.preventDefault();
+            onDeleteEmptyBlock(index);
+          }
+        }
+      }}
+      style={{
+        outline: 'none',
+        cursor: 'text',
+        userSelect: 'text',
+        WebkitUserSelect: 'text',
+        minHeight: '1.25em',
+        minWidth: '20px',
+        whiteSpace: 'pre-wrap',
+        wordBreak: 'break-word',
+        ...style,
+      }}
+    />
+  );
+};
+
 export const ObjectEl: React.FC<{
   o: TelaVectorObject;
   writerTexts?: Record<string, string>;
@@ -141,15 +257,39 @@ export const ObjectEl: React.FC<{
   /** Thumbnails/galleries: LOTTIE shows its poster frame instead of a live player. */
   staticRender?: boolean;
   isSelected?: boolean;
+  isEditing?: boolean;
+  activeBlockIdx?: number;
+  onFocusBlock?: (idx: number) => void;
+  onDoubleClick?: (e: React.MouseEvent) => void;
+  onUpdateObject?: (patch: Partial<TelaVectorObject>) => void;
+  onExitEdit?: () => void;
   onPointerDown?: (e: React.PointerEvent) => void;
   onPointerMove?: (e: React.PointerEvent) => void;
   onPointerUp?: (e: React.PointerEvent) => void;
   onPointerCancel?: (e: React.PointerEvent) => void;
   onContextMenu?: (e: React.MouseEvent) => void;
-}> = ({ o, writerTexts, interactive, staticRender, isSelected, onPointerDown, onPointerMove, onPointerUp, onPointerCancel, onContextMenu }) => {
-  if (usesSerializer(o)) {
-    return <g data-tela-geom="1" onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerCancel} onContextMenu={onContextMenu}
-      style={{ cursor: interactive ? 'move' : 'default' }} dangerouslySetInnerHTML={{ __html: geomSvg(o, writerTexts) }} />;
+}> = ({
+  o,
+  writerTexts,
+  interactive,
+  staticRender,
+  isSelected,
+  isEditing,
+  activeBlockIdx = 0,
+  onFocusBlock,
+  onDoubleClick,
+  onUpdateObject,
+  onExitEdit,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
+  onPointerCancel,
+  onContextMenu,
+}) => {
+  if (o.hidden) return null;
+  if (usesSerializer(o) && !isEditing) {
+    return <g data-tela-geom="1" onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerCancel} onContextMenu={onContextMenu} onDoubleClick={onDoubleClick}
+      style={{ cursor: interactive ? 'move' : 'default', pointerEvents: 'auto' }} dangerouslySetInnerHTML={{ __html: geomSvg(o, writerTexts) }} />;
   }
   const b = objBounds(o);
   const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
@@ -174,7 +314,8 @@ export const ObjectEl: React.FC<{
   const common: React.SVGProps<any> = {
     fill: o.gradient ? `url(#${gradientId})` : o.fill, stroke: o.stroke, strokeWidth: o.strokeWidth, opacity: o.opacity,
     transform: o.rotation ? `rotate(${o.rotation} ${cx} ${cy})` : undefined,
-    onPointerDown, onPointerMove, onPointerUp, onPointerCancel, onContextMenu, style: { cursor: interactive ? 'move' : 'default', ...blendStyle },
+    onPointerDown, onPointerMove, onPointerUp, onPointerCancel, onContextMenu, onDoubleClick,
+    style: { cursor: interactive ? 'move' : 'default', pointerEvents: 'auto', ...blendStyle },
     strokeLinecap: 'round', strokeLinejoin: 'round', ...finish,
   };
   if (o.kind === 'RECT') return decorate(<rect x={o.x} y={o.y} width={Math.max(0, o.w)} height={Math.max(0, o.h)} rx={o.rx ?? 2} {...common} />);
@@ -182,7 +323,7 @@ export const ObjectEl: React.FC<{
   if (o.kind === 'LINE' && o.points) return <line x1={o.points[0]} y1={o.points[1]} x2={o.points[2]} y2={o.points[3]} {...common} />;
   if (o.kind === 'IMAGE' && o.sourceImageSrc && o.sourceCrop) {
     const c = o.sourceCrop;
-    return decorate(<g transform={o.rotation ? `rotate(${o.rotation} ${cx} ${cy})` : undefined} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerCancel} onContextMenu={onContextMenu} style={{ cursor: interactive ? 'move' : 'default', ...blendStyle }} opacity={o.opacity} {...finish}><svg x={o.x} y={o.y} width={o.w} height={o.h} viewBox={`${c.x} ${c.y} ${c.width} ${c.height}`} preserveAspectRatio="none" style={{ overflow: 'hidden' }}><image href={o.sourceImageSrc} x={0} y={0} width={c.sourceWidth} height={c.sourceHeight} preserveAspectRatio="none" /></svg></g>);
+    return decorate(<g transform={o.rotation ? `rotate(${o.rotation} ${cx} ${cy})` : undefined} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerCancel} onContextMenu={onContextMenu} style={{ cursor: interactive ? 'move' : 'default', pointerEvents: 'auto', ...blendStyle }} opacity={o.opacity} {...finish}><svg x={o.x} y={o.y} width={o.w} height={o.h} viewBox={`${c.x} ${c.y} ${c.width} ${c.height}`} preserveAspectRatio="none" style={{ overflow: 'hidden' }}><image href={o.sourceImageSrc} x={0} y={0} width={c.sourceWidth} height={c.sourceHeight} preserveAspectRatio="none" /></svg></g>);
   }
   if (o.kind === 'LOTTIE') {
     const L = o.lottie;
@@ -193,7 +334,7 @@ export const ObjectEl: React.FC<{
       : L?.posterSrc
         ? <svg x={o.x} y={o.y} width={w} height={h} style={{ overflow: 'hidden' }}><image href={L.posterSrc} x={0} y={0} width={w} height={h} preserveAspectRatio={par} /></svg>
         : <g><rect x={o.x} y={o.y} width={w} height={h} rx={6} fill="rgba(0,218,243,.08)" stroke="rgba(0,163,184,.6)" strokeWidth={1.5} strokeDasharray="6 4" /><text x={o.x + w / 2} y={o.y + h / 2} textAnchor="middle" dominantBaseline="middle" fontSize={Math.max(10, Math.min(28, Math.min(w, h) / 6))} fontWeight={800} fontFamily="system-ui, sans-serif" fill="rgba(0,120,140,.85)">Lottie{o.objectLabel ? ` · ${o.objectLabel}` : ''}</text></g>;
-    return decorate(<g transform={o.rotation ? `rotate(${o.rotation} ${cx} ${cy})` : undefined} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerCancel} onContextMenu={onContextMenu} style={{ cursor: interactive ? 'move' : 'default', ...blendStyle }} opacity={o.opacity} {...finish} data-tela-kind="LOTTIE">
+    return decorate(<g transform={o.rotation ? `rotate(${o.rotation} ${cx} ${cy})` : undefined} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerCancel} onContextMenu={onContextMenu} style={{ cursor: interactive ? 'move' : 'default', pointerEvents: 'auto', ...blendStyle }} opacity={o.opacity} {...finish} data-tela-kind="LOTTIE">
       {body}
       <rect x={o.x} y={o.y} width={w} height={h} fill="transparent" />
     </g>);
@@ -206,7 +347,7 @@ export const ObjectEl: React.FC<{
       : M?.posterSrc
         ? <svg x={o.x} y={o.y} width={w} height={h} style={{ overflow: 'hidden' }}><image href={M.posterSrc} x={0} y={0} width={w} height={h} preserveAspectRatio="none" /></svg>
         : <g><rect x={o.x} y={o.y} width={w} height={h} rx={6} fill="rgba(255,140,0,.08)" stroke="rgba(200,110,0,.6)" strokeWidth={1.5} strokeDasharray="6 4" /><text x={o.x + w / 2} y={o.y + h / 2} textAnchor="middle" dominantBaseline="middle" fontSize={Math.max(10, Math.min(28, Math.min(w, h) / 6))} fontWeight={800} fontFamily="system-ui, sans-serif" fill="rgba(160,90,0,.85)">Motion{o.objectLabel ? ` · ${o.objectLabel}` : ''}</text></g>;
-    return decorate(<g transform={o.rotation ? `rotate(${o.rotation} ${cx} ${cy})` : undefined} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerCancel} onContextMenu={onContextMenu} style={{ cursor: interactive ? 'move' : 'default', ...blendStyle }} opacity={o.opacity} {...finish} data-tela-kind="MOTION_TEMPLATE">
+    return decorate(<g transform={o.rotation ? `rotate(${o.rotation} ${cx} ${cy})` : undefined} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerCancel} onContextMenu={onContextMenu} style={{ cursor: interactive ? 'move' : 'default', pointerEvents: 'auto', ...blendStyle }} opacity={o.opacity} {...finish} data-tela-kind="MOTION_TEMPLATE">
       {body}
       <rect x={o.x} y={o.y} width={w} height={h} fill="transparent" />
     </g>);
@@ -215,7 +356,7 @@ export const ObjectEl: React.FC<{
     const ox = o.pathOriginX ?? o.x, oy = o.pathOriginY ?? o.y;
     const sx = o.w / Math.max(1, o.pathOriginW ?? o.w), sy = o.h / Math.max(1, o.pathOriginH ?? o.h);
     const strokeScale = Math.max(.0001, Math.sqrt(Math.abs(sx * sy)));
-    return decorate(<g transform={o.rotation ? `rotate(${o.rotation} ${cx} ${cy})` : undefined} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerCancel} onContextMenu={onContextMenu} style={{ cursor: interactive ? 'move' : 'default', ...blendStyle }} opacity={o.opacity} {...finish}><path d={o.svgPathData} fill={o.gradient ? `url(#${gradientId})` : o.fill} stroke={o.stroke} strokeWidth={o.strokeWidth / strokeScale} strokeLinecap="round" strokeLinejoin="round" fillRule="evenodd" transform={`translate(${o.x} ${o.y}) scale(${sx} ${sy}) translate(${-ox} ${-oy})`} /></g>);
+    return decorate(<g transform={o.rotation ? `rotate(${o.rotation} ${cx} ${cy})` : undefined} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerCancel} onContextMenu={onContextMenu} style={{ cursor: interactive ? 'move' : 'default', pointerEvents: 'auto', ...blendStyle }} opacity={o.opacity} {...finish}><path d={o.svgPathData} fill={o.gradient ? `url(#${gradientId})` : o.fill} stroke={o.stroke} strokeWidth={o.strokeWidth / strokeScale} strokeLinecap="round" strokeLinejoin="round" fillRule="evenodd" transform={`translate(${o.x} ${o.y}) scale(${sx} ${sy}) translate(${-ox} ${-oy})`} /></g>);
   }
   if (o.kind === 'PATH' && o.points) {
     const pts = [];
@@ -226,7 +367,7 @@ export const ObjectEl: React.FC<{
   if (o.kind === 'TEXT') {
     const size = o.fontSize || 18;
     const align = o.textAlign || 'left';
-    const isRichTextBox = !!o.blocks?.length || !!o.wrap || !!o.backgroundColor || !!o.padding || (o.w >= 60 && o.h >= 24);
+    const isRichTextBox = !!isEditing || !!o.blocks?.length || !!o.wrap || !!o.backgroundColor || !!o.padding || (o.w >= 60 && o.h >= 24);
 
     if (isRichTextBox) {
       const boxW = Math.max(80, o.w || 320);
@@ -244,9 +385,55 @@ export const ObjectEl: React.FC<{
 
       const renderedBlocks: TelaBlock[] = o.blocks && o.blocks.length > 0 ? o.blocks : (
         (o.text || '').split('\n').filter(Boolean).length > 0
-          ? (o.text || '').split('\n').map((line, i) => ({ id: `p${i}`, kind: (i === 0 && (o.text || '').split('\n').length > 1 ? 'h2' : 'p') as const, text: line }))
-          : [{ id: 'p0', kind: 'p' as const, text: o.text || 'Type rich text here...' }]
+          ? (o.text || '').split('\n').map((line, i) => ({ id: `p${i}`, kind: (i === 0 && (o.text || '').split('\n').length > 1 ? 'h2' as const : 'p' as const), text: line }))
+          : [{ id: 'p0', kind: 'p' as const, text: o.text ?? '' }]
       );
+
+      const handleBlockTextChange = (idx: number, newText: string) => {
+        if (!onUpdateObject) return;
+        if (!o.blocks?.length && renderedBlocks.length === 1) {
+          onUpdateObject({ text: newText });
+          return;
+        }
+        const nextBlocks = renderedBlocks.map((bItem, i) => (i === idx ? { ...bItem, text: newText } : bItem));
+        onUpdateObject({
+          blocks: nextBlocks,
+          text: nextBlocks.map(bItem => bItem.text).join('\n'),
+        });
+      };
+
+      const handleInsertBlockAfter = (idx: number) => {
+        if (!onUpdateObject) return;
+        const nextBlocks = [...renderedBlocks];
+        nextBlocks.splice(idx + 1, 0, {
+          id: `blk_${Date.now()}_${idx + 1}`,
+          kind: 'p',
+          text: '',
+        });
+        onUpdateObject({
+          blocks: nextBlocks,
+          text: nextBlocks.map(bItem => bItem.text).join('\n'),
+          wrap: true,
+        });
+        onFocusBlock?.(idx + 1);
+      };
+
+      const handleDeleteEmptyBlock = (idx: number) => {
+        if (!onUpdateObject || renderedBlocks.length <= 1) return;
+        const nextBlocks = renderedBlocks.filter((_, i) => i !== idx);
+        onUpdateObject({
+          blocks: nextBlocks,
+          text: nextBlocks.map(bItem => bItem.text).join('\n'),
+        });
+        onFocusBlock?.(Math.max(0, idx - 1));
+      };
+
+      const handleToggleStyle = (kind: 'bold' | 'italic' | 'underline') => {
+        if (!onUpdateObject) return;
+        if (kind === 'bold') onUpdateObject({ fontWeight: (o.fontWeight || 400) >= 700 ? 400 : 700 });
+        if (kind === 'italic') onUpdateObject({ fontStyle: o.fontStyle === 'italic' ? 'normal' : 'italic' });
+        if (kind === 'underline') onUpdateObject({ underline: !o.underline });
+      };
 
       const text3DShadow = compute3DTextShadow(o.extrusion3D, o.material3D);
       const perspectiveTransform = (o.tiltX || o.tiltY)
@@ -292,12 +479,13 @@ export const ObjectEl: React.FC<{
       return decorate(
         <g
           transform={o.rotation ? `rotate(${o.rotation} ${cx} ${cy})` : undefined}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerCancel={onPointerCancel}
+          onPointerDown={isEditing ? e => e.stopPropagation() : onPointerDown}
+          onPointerMove={isEditing ? undefined : onPointerMove}
+          onPointerUp={isEditing ? undefined : onPointerUp}
+          onPointerCancel={isEditing ? undefined : onPointerCancel}
           onContextMenu={onContextMenu}
-          style={{ cursor: interactive ? 'move' : 'default', pointerEvents: 'auto', ...blendStyle }}
+          onDoubleClick={onDoubleClick}
+          style={{ cursor: isEditing ? 'text' : (interactive ? 'move' : 'default'), pointerEvents: 'auto', ...blendStyle }}
           opacity={o.opacity}
           {...finish}
           data-tela-kind="TEXT_BOX"
@@ -307,25 +495,27 @@ export const ObjectEl: React.FC<{
             y={o.y}
             width={boxW}
             height={boxH}
-            style={{ overflow: 'visible' }}
+            style={{ overflow: 'visible', pointerEvents: 'auto' }}
           >
             <div
+              onDoubleClick={onDoubleClick}
               style={{
                 width: '100%',
-                height: '100%',
+                minHeight: '100%',
                 boxSizing: 'border-box',
                 background: textBg ? undefined : bg,
                 backgroundImage: textBg,
                 WebkitBackgroundClip: bgClip as any,
-                WebkitTextFillColor: textFillColor,
+                WebkitTextFillColor: isEditing && textFillColor === 'transparent' ? textColor : textFillColor,
                 clipPath: shapeClip,
                 transform: perspectiveTransform,
                 transformStyle: perspectiveTransform ? 'preserve-3d' : undefined,
                 textShadow: text3DShadow,
                 borderRadius: o.rx ? `${o.rx}px` : undefined,
-                border,
+                border: isEditing ? '2px solid var(--pj-cyan, #00DAF3)' : border,
+                boxShadow: isEditing ? '0 0 0 3px rgba(0, 218, 243, 0.22)' : undefined,
                 padding: `${pad}px`,
-                color: textFillColor === 'transparent' ? undefined : textColor,
+                color: textFillColor === 'transparent' && !isEditing ? undefined : textColor,
                 fontFamily,
                 fontSize: `${size}px`,
                 lineHeight: leading,
@@ -338,13 +528,70 @@ export const ObjectEl: React.FC<{
                 columnCount: o.columns && o.columns > 1 ? o.columns : undefined,
                 columnGap: o.columns && o.columns > 1 ? '18px' : undefined,
                 wordBreak: 'break-word',
-                userSelect: isSelected ? 'text' : 'none',
-                cursor: interactive ? 'move' : 'default',
+                userSelect: isEditing || isSelected ? 'text' : 'none',
+                cursor: isEditing ? 'text' : (interactive ? 'move' : 'default'),
                 mixBlendMode: o.textMask === 'KNOCKOUT' ? 'difference' : (o.blendMode || undefined) as any,
               }}
             >
               {renderedBlocks.map((blk, idx) => {
                 const bText = blk.text ?? '';
+                const isQuote = blk.semanticLabel?.toLowerCase().includes('quote') || (blk as any).textRole === 'QUOTE';
+
+                if (isEditing) {
+                  const blockStyle: React.CSSProperties = blk.kind === 'h1'
+                    ? { fontWeight: 800, fontSize: '1.45em', marginBottom: '0.35em', lineHeight: 1.25, letterSpacing: '-0.02em' }
+                    : blk.kind === 'h2'
+                    ? { fontWeight: 700, fontSize: '1.2em', marginBottom: '0.3em', lineHeight: 1.3, letterSpacing: '-0.01em' }
+                    : isQuote
+                    ? {
+                        borderLeft: '3px solid var(--pj-lilac, #8B5CFF)',
+                        paddingLeft: '10px',
+                        margin: '6px 0',
+                        fontStyle: 'italic',
+                        background: 'rgba(139, 92, 255, 0.08)',
+                        borderRadius: '0 6px 6px 0',
+                      }
+                    : { marginBottom: '0.4em', minHeight: '1.2em' };
+
+                  if (blk.kind === 'li') {
+                    return (
+                      <div key={blk.id || idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', marginBottom: '0.25em' }}>
+                        <span style={{ color: 'var(--pj-magenta, #D40055)', fontWeight: 800, userSelect: 'none' }}>•</span>
+                        <EditableRichBlock
+                          block={blk}
+                          index={idx}
+                          autoFocus={idx === activeBlockIdx}
+                          style={{ flex: 1 }}
+                          placeholder="List item…"
+                          onFocusBlock={onFocusBlock}
+                          onChangeText={handleBlockTextChange}
+                          onInsertBlockAfter={handleInsertBlockAfter}
+                          onDeleteEmptyBlock={handleDeleteEmptyBlock}
+                          onToggleStyle={handleToggleStyle}
+                          onExitEdit={onExitEdit}
+                        />
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <EditableRichBlock
+                      key={blk.id || idx}
+                      block={blk}
+                      index={idx}
+                      autoFocus={idx === activeBlockIdx}
+                      style={blockStyle}
+                      placeholder={blk.kind === 'h1' ? 'Heading 1…' : blk.kind === 'h2' ? 'Heading 2…' : isQuote ? 'Quote…' : 'Type text…'}
+                      onFocusBlock={onFocusBlock}
+                      onChangeText={handleBlockTextChange}
+                      onInsertBlockAfter={handleInsertBlockAfter}
+                      onDeleteEmptyBlock={handleDeleteEmptyBlock}
+                      onToggleStyle={handleToggleStyle}
+                      onExitEdit={onExitEdit}
+                    />
+                  );
+                }
+
                 if (blk.kind === 'h1') {
                   return (
                     <div key={blk.id || idx} style={{ fontWeight: 800, fontSize: '1.45em', marginBottom: '0.35em', lineHeight: 1.25, letterSpacing: '-0.02em' }}>
@@ -367,7 +614,6 @@ export const ObjectEl: React.FC<{
                     </div>
                   );
                 }
-                const isQuote = blk.semanticLabel?.toLowerCase().includes('quote') || (blk as any).textRole === 'QUOTE';
                 if (isQuote) {
                   return (
                     <div
@@ -393,7 +639,7 @@ export const ObjectEl: React.FC<{
               })}
             </div>
           </foreignObject>
-          <rect x={o.x} y={o.y} width={boxW} height={boxH} fill="transparent" />
+          {!isEditing && <rect x={o.x} y={o.y} width={boxW} height={boxH} fill="transparent" onDoubleClick={onDoubleClick} />}
         </g>
       );
     }
@@ -411,7 +657,8 @@ export const ObjectEl: React.FC<{
         textAnchor={align === 'center' ? 'middle' : align === 'right' ? 'end' : 'start'}
         stroke={outlined ? o.stroke : undefined} strokeWidth={outlined ? o.strokeWidth : undefined} paintOrder="stroke" strokeLinejoin="round"
         transform={o.rotation ? `rotate(${o.rotation} ${cx} ${cy})` : undefined}
-        onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerCancel} onContextMenu={onContextMenu} style={{ cursor: interactive ? 'move' : 'default', userSelect: 'none', pointerEvents: 'auto', ...blendStyle }}
+        onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerCancel} onContextMenu={onContextMenu} onDoubleClick={onDoubleClick}
+        style={{ cursor: interactive ? 'move' : 'default', userSelect: 'none', pointerEvents: 'auto', ...blendStyle }}
         {...finish}
       >
         {lines.map((ln, i) => (
@@ -429,18 +676,41 @@ export const TelaTypographyToolbar: React.FC<{
   onDelete: () => void;
   onDuplicate: () => void;
   bounds: { x: number; y: number; w: number; h: number };
-}> = ({ object: o, onUpdate, onDelete, onDuplicate, bounds }) => {
+  isEditing?: boolean;
+  activeBlockIdx?: number;
+  onToggleEdit?: () => void;
+}> = ({ object: o, onUpdate, onDelete, onDuplicate, bounds, isEditing, activeBlockIdx = 0, onToggleEdit }) => {
   const size = o.fontSize || 18;
 
-  const addBlock = (kind: 'h1' | 'h2' | 'p' | 'li' | 'quote') => {
-    const existing = o.blocks && o.blocks.length > 0 ? [...o.blocks] : [
-      { id: `blk_${Date.now()}_0`, kind: 'h2' as const, text: o.text || 'Heading' }
-    ];
-    const newId = `blk_${Date.now()}_${existing.length}`;
-    if (kind === 'quote') {
-      existing.push({ id: newId, kind: 'p', text: 'Callout or memorable quote', semanticLabel: 'quote' });
+  const ensureBlocks = (): TelaBlock[] => {
+    if (o.blocks && o.blocks.length > 0) return [...o.blocks];
+    const lines = (o.text || '').split('\n').filter(Boolean);
+    if (lines.length > 0) {
+      return lines.map((line, i) => ({
+        id: `blk_${Date.now()}_${i}`,
+        kind: (i === 0 && lines.length > 1 ? 'h2' as const : 'p' as const),
+        text: line,
+      }));
+    }
+    return [{ id: `blk_${Date.now()}_0`, kind: 'p' as const, text: o.text || '' }];
+  };
+
+  const formatOrAddBlock = (kind: 'h1' | 'h2' | 'p' | 'li' | 'quote', forceAdd = false) => {
+    const existing = ensureBlocks();
+    const targetIdx = Math.min(Math.max(0, activeBlockIdx), existing.length - 1);
+    if (!forceAdd && existing[targetIdx]) {
+      existing[targetIdx] = {
+        ...existing[targetIdx],
+        kind: kind === 'quote' ? 'p' : kind,
+        semanticLabel: kind === 'quote' ? 'quote' : undefined,
+      };
     } else {
-      existing.push({ id: newId, kind: kind === 'quote' ? 'p' : kind, text: kind === 'li' ? 'New list item' : kind === 'h1' ? 'Heading 1' : kind === 'h2' ? 'Heading 2' : 'New paragraph text' });
+      const newId = `blk_${Date.now()}_${existing.length}`;
+      if (kind === 'quote') {
+        existing.push({ id: newId, kind: 'p', text: 'Callout or memorable quote', semanticLabel: 'quote' });
+      } else {
+        existing.push({ id: newId, kind, text: kind === 'li' ? 'New list item' : kind === 'h1' ? 'Heading 1' : kind === 'h2' ? 'Heading 2' : 'New paragraph text' });
+      }
     }
     const fullText = existing.map(b => b.text).join('\n');
     onUpdate({ blocks: existing, text: fullText, wrap: true });
@@ -487,42 +757,64 @@ export const TelaTypographyToolbar: React.FC<{
         pointerEvents: 'auto',
       }}
     >
-      {/* Block quick adds */}
+      {/* Inline Edit Toggle */}
+      {onToggleEdit && (
+        <button
+          onClick={onToggleEdit}
+          title={isEditing ? 'Finish editing text (Esc)' : 'Double-click text box or click here to type & edit text'}
+          className={`px-2 py-0.5 mr-1 rounded-[6px] font-bold text-[10px] border transition ${
+            isEditing
+              ? 'bg-[#00DAF3]/20 border-[#00DAF3]/50 text-[#00DAF3]'
+              : 'bg-white/10 border-white/15 text-white/90 hover:bg-white/20'
+          }`}
+        >
+          {isEditing ? '✓ Editing' : '✎ Edit Text'}
+        </button>
+      )}
+
+      {/* Block formatting & quick adds */}
       <div className="flex items-center gap-1 pr-1.5 border-r border-white/15">
         <button
-          onClick={() => addBlock('h1')}
-          title="Add Heading 1"
+          onClick={e => formatOrAddBlock('h1', e.shiftKey)}
+          title="Format block as Heading 1 (Shift+click to append new H1)"
           className="px-1.5 py-0.5 rounded-[6px] hover:bg-white/10 font-black text-[11px] text-[#D0BCFF]"
         >
           H1
         </button>
         <button
-          onClick={() => addBlock('h2')}
-          title="Add Heading 2"
+          onClick={e => formatOrAddBlock('h2', e.shiftKey)}
+          title="Format block as Heading 2 (Shift+click to append new H2)"
           className="px-1.5 py-0.5 rounded-[6px] hover:bg-white/10 font-bold text-[11px] text-[#D0BCFF]"
         >
           H2
         </button>
         <button
-          onClick={() => addBlock('p')}
-          title="Add Body Paragraph"
+          onClick={e => formatOrAddBlock('p', e.shiftKey)}
+          title="Format block as Body Paragraph (Shift+click to append new paragraph)"
           className="px-1.5 py-0.5 rounded-[6px] hover:bg-white/10 font-medium text-[11px] text-white/80"
         >
           ¶
         </button>
         <button
-          onClick={() => addBlock('li')}
-          title="Add Bullet List Item"
+          onClick={e => formatOrAddBlock('li', e.shiftKey)}
+          title="Format block as Bullet List Item (Shift+click to append new item)"
           className="px-1.5 py-0.5 rounded-[6px] hover:bg-white/10 font-bold text-[11px] text-[#D40055]"
         >
           • List
         </button>
         <button
-          onClick={() => addBlock('quote')}
-          title="Add Quote / Callout Box"
+          onClick={e => formatOrAddBlock('quote', e.shiftKey)}
+          title="Format block as Quote / Callout (Shift+click to append new quote)"
           className="px-1.5 py-0.5 rounded-[6px] hover:bg-white/10 italic font-serif text-[11px] text-[#00DAF3]"
         >
           “ ”
+        </button>
+        <button
+          onClick={() => formatOrAddBlock('p', true)}
+          title="Add a new paragraph block below"
+          className="px-1.5 py-0.5 rounded-[6px] bg-white/10 hover:bg-white/20 font-bold text-[10px] text-white/90"
+        >
+          +¶
         </button>
       </div>
 
@@ -686,7 +978,7 @@ export const TelaVectorObjectProps: React.FC<{
     if (kind === 'quote') {
       existing.push({ id: newId, kind: 'p', text: 'Callout or quote', semanticLabel: 'quote' });
     } else {
-      existing.push({ id: newId, kind: kind === 'quote' ? 'p' : kind, text: kind === 'li' ? 'List item' : kind === 'h1' ? 'Heading 1' : kind === 'h2' ? 'Heading 2' : 'Paragraph text' });
+      existing.push({ id: newId, kind, text: kind === 'li' ? 'List item' : kind === 'h1' ? 'Heading 1' : kind === 'h2' ? 'Heading 2' : 'Paragraph text' });
     }
     const fullText = existing.map(b => b.text).join('\n');
     onUpdate({ blocks: existing, text: fullText, wrap: true });
@@ -1017,11 +1309,23 @@ const TelaVector: React.FC<TelaVectorProps> = (props) => {
   const setTool = (t: VectorTool) => { setToolI(t); props.onToolChange?.(t); };
   const [selI, setSelI] = useState<string | null>(null);
   const [selIdsI, setSelIdsI] = useState<string[]>([]);
+  const [editingTextId, setEditingTextId] = useState<string | null>(null);
+  const [activeBlockIdx, setActiveBlockIdx] = useState<number>(0);
   const selectedId = props.selectedId !== undefined ? props.selectedId : selI;
   const selectedIds = props.selectedIds !== undefined ? props.selectedIds : selIdsI;
+
+  useEffect(() => {
+    if (editingTextId && selectedId !== editingTextId) {
+      setEditingTextId(null);
+    }
+  }, [selectedId, editingTextId]);
+
   const selectMany = (ids: string[]) => {
     const next = [...new Set(ids)].filter(id => device.objects.some(object => object.id === id));
     const primary = next.at(-1) || null;
+    if (editingTextId && primary !== editingTextId) {
+      setEditingTextId(null);
+    }
     setSelIdsI(next); setSelI(primary); props.onSelectionChange?.(next); props.onSelect?.(primary);
   };
   const select = (id: string | null) => selectMany(id ? [id] : []);
@@ -1064,6 +1368,7 @@ const TelaVector: React.FC<TelaVectorProps> = (props) => {
   // ── Background pointer: create tools + deselect ──
   const onBgPointerDown = (e: React.PointerEvent) => {
     if (readOnly) return;
+    setEditingTextId(null);
     const p = svgPoint(e);
     if (tool === 'ink') return; // the ink layer owns pointer input
     if (tool === 'select' || tool === 'direct') { select(null); return; }
@@ -1079,7 +1384,7 @@ const TelaVector: React.FC<TelaVectorProps> = (props) => {
     }
     if (tool === 'text') {
       const o = makeObject('TEXT', p.x, p.y - 24);
-      onAddObject(o); select(o.id); setTool('select');
+      onAddObject(o); select(o.id); setEditingTextId(o.id); setActiveBlockIdx(0); setTool('select');
       return;
     }
     // rect / ellipse / line — start a drag-draft.
@@ -1091,6 +1396,7 @@ const TelaVector: React.FC<TelaVectorProps> = (props) => {
 
   const onObjectPointerDown = (e: React.PointerEvent, id: string) => {
     if (readOnly) return;
+    if (editingTextId === id) return;
     if (tool !== 'select' && tool !== 'direct') return; // let the bg handle creation tools
     e.stopPropagation();
     (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
@@ -1100,7 +1406,7 @@ const TelaVector: React.FC<TelaVectorProps> = (props) => {
     selectMany(nextIds);
     if (!nextIds.includes(id)) return;
     const o = device.objects.find(x => x.id === id);
-    if (!o) return;
+    if (!o || o.locked) return;
     const p = svgPoint(e);
     const members = nextIds.map(memberId => device.objects.find(object => object.id === memberId)).filter((object): object is TelaVectorObject => !!object).map(object => ({ id: object.id, ox: object.x, oy: object.y, opoints: object.points ? [...object.points] : undefined }));
     drag.current = { mode: 'move', id, startX: p.x, startY: p.y, members };
@@ -1211,7 +1517,14 @@ const TelaVector: React.FC<TelaVectorProps> = (props) => {
   };
 
   const onKeyDown = (e: React.KeyboardEvent<SVGSVGElement>) => {
-    if (readOnly || !selectedIds.length) return;
+    if (readOnly || !selectedIds.length || editingTextId) return;
+    if (e.key === 'Enter' && selected && selected.kind === 'TEXT') {
+      e.preventDefault();
+      e.stopPropagation();
+      setEditingTextId(selected.id);
+      setActiveBlockIdx(0);
+      return;
+    }
     if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); e.stopPropagation(); selectedIds.forEach(onDeleteObject); selectMany([]); return; }
     const delta = e.shiftKey ? 10 : 1;
     const dx = e.key === 'ArrowLeft' ? -delta : e.key === 'ArrowRight' ? delta : 0;
@@ -1326,7 +1639,7 @@ const TelaVector: React.FC<TelaVectorProps> = (props) => {
           width={device.width}
           height={device.height}
           fill={props.overlay ? 'transparent' : '#FFFFFF'}
-          pointerEvents={props.overlay && (tool === 'select' || tool === 'direct') ? 'none' : 'all'}
+          pointerEvents={props.overlay && (tool === 'select' || tool === 'direct') && !editingTextId ? 'none' : 'all'}
           onPointerDown={onBgPointerDown}
         />
 
@@ -1335,6 +1648,19 @@ const TelaVector: React.FC<TelaVectorProps> = (props) => {
             key={o.id} o={o} writerTexts={writerTexts}
             interactive={!readOnly && (tool === 'select' || tool === 'direct')}
             isSelected={o.id === selectedId}
+            isEditing={!readOnly && o.kind === 'TEXT' && editingTextId === o.id}
+            activeBlockIdx={activeBlockIdx}
+            onFocusBlock={idx => setActiveBlockIdx(idx)}
+            onDoubleClick={readOnly ? undefined : e => {
+              if (o.kind === 'TEXT') {
+                e.stopPropagation();
+                select(o.id);
+                setEditingTextId(o.id);
+                setActiveBlockIdx(0);
+              }
+            }}
+            onUpdateObject={readOnly ? undefined : patch => onUpdateObject(o.id, patch)}
+            onExitEdit={() => setEditingTextId(null)}
             onPointerDown={readOnly ? undefined : e => { menu?.onPointerDown(e); onObjectPointerDown(e, o.id); }}
             onPointerMove={menu?.onPointerMove} onPointerUp={menu?.onPointerUp} onPointerCancel={menu?.onPointerCancel}
             onContextMenu={readOnly ? undefined : e => { select(o.id); if (menu) menu.onContextMenu(e); else { e.preventDefault(); e.stopPropagation(); props.onObjectContextMenu?.(e, o); } }}
@@ -1359,27 +1685,27 @@ const TelaVector: React.FC<TelaVectorProps> = (props) => {
 
         {/* Selection outline + handles */}
         {selBounds && selectedIds.length === 1 && !readOnly && (tool === 'select' || tool === 'direct') && (
-          <g>
+          <g style={{ pointerEvents: 'auto' }}>
             <rect x={selBounds.x} y={selBounds.y} width={selBounds.w} height={selBounds.h}
               fill="none" stroke="var(--pj-magenta,#D40055)" strokeWidth={1.5} strokeDasharray="4 3" vectorEffect="non-scaling-stroke" pointerEvents="none" />
             {selected && (selected.kind === 'LINE') && selected.points
               ? [0, 1].map(i => (
                   <rect key={i} x={selected.points![i * 2] - 5} y={selected.points![i * 2 + 1] - 5} width={10} height={10}
                     fill="#fff" stroke="var(--pj-magenta,#D40055)" strokeWidth={1.5} vectorEffect="non-scaling-stroke"
-                    style={{ cursor: 'crosshair' }} onPointerDown={e => onLinePtPointerDown(e, i)} />
+                    style={{ cursor: 'crosshair', pointerEvents: 'auto' }} onPointerDown={e => onLinePtPointerDown(e, i)} />
                 ))
               : selected?.kind === 'PATH' && selected.pathNodes && tool === 'direct' ? selected.pathNodes.map((n, i) => {
                   const ox = selected.pathOriginX ?? selected.x, oy = selected.pathOriginY ?? selected.y;
                   const sx = selected.w / Math.max(1, selected.pathOriginW ?? selected.w), sy = selected.h / Math.max(1, selected.pathOriginH ?? selected.h);
-                  return <circle key={n.id} cx={selected.x + (n.x - ox) * sx} cy={selected.y + (n.y - oy) * sy} r={4.5} fill="#fff" stroke="var(--pj-magenta,#D40055)" strokeWidth={1.5} vectorEffect="non-scaling-stroke" style={{ cursor: 'crosshair' }} onPointerDown={e => onPathNodePointerDown(e, i)} />;
+                  return <circle key={n.id} cx={selected.x + (n.x - ox) * sx} cy={selected.y + (n.y - oy) * sy} r={4.5} fill="#fff" stroke="var(--pj-magenta,#D40055)" strokeWidth={1.5} vectorEffect="non-scaling-stroke" style={{ cursor: 'crosshair', pointerEvents: 'auto' }} onPointerDown={e => onPathNodePointerDown(e, i)} />;
                 })
               : selected && selected.kind !== 'LINE' && tool === 'select' && handles.map(h => (
                   <rect key={h.k} x={h.x - 5} y={h.y - 5} width={10} height={10}
                     fill="#fff" stroke="var(--pj-magenta,#D40055)" strokeWidth={1.5} vectorEffect="non-scaling-stroke"
-                    style={{ cursor: h.k === 'nw' || h.k === 'se' ? 'nwse-resize' : 'nesw-resize' }}
+                    style={{ cursor: h.k === 'nw' || h.k === 'se' ? 'nwse-resize' : 'nesw-resize', pointerEvents: 'auto' }}
                     onPointerDown={e => onHandlePointerDown(e, h.k)} />
                 ))}
-            {selected && tool === 'select' && <><line x1={selBounds.x + selBounds.w / 2} y1={selBounds.y} x2={selBounds.x + selBounds.w / 2} y2={selBounds.y - 28} stroke="var(--pj-magenta,#D40055)" strokeWidth={1.25} vectorEffect="non-scaling-stroke"/><circle cx={selBounds.x + selBounds.w / 2} cy={selBounds.y - 32} r={5} fill="#fff" stroke="var(--pj-magenta,#D40055)" strokeWidth={1.5} vectorEffect="non-scaling-stroke" style={{ cursor: 'grab' }} onPointerDown={onRotatePointerDown}/></>}
+            {selected && tool === 'select' && <><line x1={selBounds.x + selBounds.w / 2} y1={selBounds.y} x2={selBounds.x + selBounds.w / 2} y2={selBounds.y - 28} stroke="var(--pj-magenta,#D40055)" strokeWidth={1.25} vectorEffect="non-scaling-stroke" pointerEvents="none"/><circle cx={selBounds.x + selBounds.w / 2} cy={selBounds.y - 32} r={5} fill="#fff" stroke="var(--pj-magenta,#D40055)" strokeWidth={1.5} vectorEffect="non-scaling-stroke" style={{ cursor: 'grab', pointerEvents: 'auto' }} onPointerDown={onRotatePointerDown}/></>}
           </g>
         )}
       </svg>
@@ -1389,8 +1715,18 @@ const TelaVector: React.FC<TelaVectorProps> = (props) => {
         <TelaTypographyToolbar
           object={selected}
           bounds={selBounds}
+          isEditing={editingTextId === selected.id}
+          activeBlockIdx={activeBlockIdx}
+          onToggleEdit={() => {
+            if (editingTextId === selected.id) {
+              setEditingTextId(null);
+            } else {
+              setEditingTextId(selected.id);
+              setActiveBlockIdx(0);
+            }
+          }}
           onUpdate={patch => onUpdateObject(selected.id, patch)}
-          onDelete={() => { onDeleteObject(selected.id); select(null); }}
+          onDelete={() => { onDeleteObject(selected.id); setEditingTextId(null); select(null); }}
           onDuplicate={() => {
             const copy: TelaVectorObject = {
               ...structuredClone(selected),

@@ -12,7 +12,7 @@
 
 import { getLyricClock, registerLyricClock, type LyricTrackMeta } from './lyricFeed';
 import { publishCaption } from './liveCaptionStore';
-import { startLiveTranscription, type TranscribeSource, type TranscriberHandle } from './liveTranscriber';
+import { startMusicTranscription, type TranscribeSource, type TranscriberHandle } from './liveTranscriber';
 import { amboAudio } from './amboAudioEngine';
 
 export type LiveLyricSource =
@@ -211,7 +211,7 @@ export async function startLiveLyrics(): Promise<void> {
     currentProgress = Math.max(currentProgress, 0.35);
     set({ progress: currentProgress, status: 'Connecting audio…' });
 
-    const h = await startLiveTranscription(src, {
+    const h = await startMusicTranscription(src, {
       onWords: text => {
         builder.push(text, nowSec());
         set({ lines: builder.lines().slice(-4) });
@@ -224,7 +224,7 @@ export async function startLiveLyrics(): Promise<void> {
       },
       onLevel: l => { if (Math.abs(l - state.level) > 0.08) set({ level: l }); },
       onError: m => set({ error: m }),
-    });
+    }, 'en-US', 'Live lyrics');
 
     if (my !== session) { h.stop(); return; }
     if (progressTimer) { clearInterval(progressTimer); progressTimer = null; }

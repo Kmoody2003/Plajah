@@ -148,7 +148,8 @@ export function nextLyricsContent(
   const now = Date.now();
   const pos = c.getTime();
   const playing = c.isPlaying();
-  const rate = playing ? (c.rate() || 1) : 1;
+  const rawRate = c.rate();
+  const rate = playing ? (typeof rawRate === 'number' && !Number.isNaN(rawRate) ? rawRate : 1) : 0;
   const grid = c.grid?.() ?? null;
   const sameSong = prev && prev.trackId === (track.id ?? track.title);
   const sameLines = !!sameSong && prev!.lines.length === lines.length;
@@ -175,7 +176,7 @@ export function nextLyricsContent(
 // ── lyric cue broadcast ──────────────────────────────────────────────────────
 // Whatever track is playing publishes its current lyric line (with neighbours) to every window, so a slide's
 // live transcript region (empty template text) shows the song's words in step with the music.
-const CUE_SOURCES: LyricSourceId[] = ['dj', 'bus', 'follow', 'live'];
+const CUE_SOURCES: LyricSourceId[] = ['follow', 'dj', 'bus', 'live'];
 let cueTimer: ReturnType<typeof setInterval> | null = null;
 export function startLyricCueBroadcast(): void {
   if (cueTimer || typeof window === 'undefined') return;
@@ -190,9 +191,10 @@ export function startLyricCueBroadcast(): void {
       for (let i = 0; i < lines.length; i++) { if (lines[i].time <= pos) idx = i; else break; }
       const from = Math.max(0, idx - 1), to = Math.min(lines.length, Math.max(idx, 0) + 3);
       const win = lines.slice(from, to);
-      publishLyricCue(win.map(l => l.text), Math.max(0, idx) - from, win.map(l => l.time), c.getTime(), c.rate() || 1, true);
+      const rawRate = c.rate();
+      publishLyricCue(win.map(l => l.text), Math.max(0, idx) - from, win.map(l => l.time), c.getTime(), typeof rawRate === 'number' ? rawRate : 1, true);
       return;
     }
-  }, 250);
+  }, 180);
 }
 startLyricCueBroadcast();

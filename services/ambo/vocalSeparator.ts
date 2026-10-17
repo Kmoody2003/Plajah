@@ -187,7 +187,12 @@ export function loadSeparator(onStatus: (msg: string, p: number) => void, ortOve
     onStatus('Starting vocal model…', 1);
     let ort = ortOverride;
     if (!ort) { try { ort = await import('onnxruntime-web/webgpu'); } catch { ort = await import('onnxruntime-web'); } }
-    try { if (ort?.env?.webgpu) ort.env.webgpu.powerPreference = 'high-performance'; } catch { /* */ }
+    try {
+      if (ort?.env?.wasm && typeof window !== 'undefined') {
+        ort.env.wasm.wasmPaths = `${window.location.origin}/ort/`;
+      }
+      if (ort?.env?.webgpu) ort.env.webgpu.powerPreference = 'high-performance';
+    } catch { /* */ }
     const hasGpu = typeof navigator !== 'undefined' && !!(navigator as any).gpu;
     const tries: string[][] = hasGpu ? [['webgpu'], ['wasm']] : [['wasm']];
     let lastErr: unknown;

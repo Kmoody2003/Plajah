@@ -117,6 +117,7 @@ _dump_kc.cjs
 scratch_*.cjs
 patch_chora*.js
 .flux-math-preview/
+.generator-lab-preview/
 flux-math-preview.png
 /tmp/lectio-qa/
 /tmp/sacred-reader-build/
@@ -134,3 +135,7 @@ __pycache__/
 
 # On-device Whisper ONNX weights (hundreds of MB; fetched from the HF CDN when absent)
 public/models/onnx-community/
+# ONNX Runtime Web binaries — copied in by scripts/fetch-local-models.mjs
+public/ort/
+# Ambo ASR scratch test audio
+.tmp-asr-test/

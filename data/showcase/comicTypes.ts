@@ -96,26 +96,42 @@ export interface MotionSpec {
 
 export interface SequentialPanel {
   panelNumber: number;
+  globalPanelNumber?: number;
+  panelId?: string;
   geometry: PanelGeometry;
   flex: number;
   cameraAngle: CameraAngle;
+  framingCode?: string;
   eyeVector: string; // e.g. "Top-Left Caption -> Center Subject -> Action SFX -> Bottom-Right Dialogue"
   artBrief: string;
   generationPrompt: string;
+  editorialRationale?: string;
   captions: NarrativeCaption[];
   balloons: SpeechBalloon[];
   sfx?: KineticSfx[];
   samLayer?: SamLayerSpec;
   motion?: MotionSpec;
+  imageUrl?: string;
   imageFallback?: string;
+  timecodeSeconds?: number;
+  anchorTimecodeSeconds?: number;
+  endTimecodeSeconds?: number;
+  muxPlaybackId?: string;
+  sourceVideoUrl?: string;
 }
 
 export interface ComicPage {
   pageNumber: number;
   title: string;
+  slugline?: string;
   act: string;
+  actNumber?: number;
+  timeRangeLabel?: string;
+  summary?: string;
   sequenceBeat: string;
   layoutGrammar: string;
+  activeLensName?: string;
+  activeLensDesc?: string;
   panels: SequentialPanel[];
 }
 

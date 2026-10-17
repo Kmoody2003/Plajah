@@ -27,9 +27,24 @@ export interface AlignToken { n: string; line: number; word: number }
 const FILLERS = new Set(['uh', 'um', 'umm', 'hmm', 'mm', 'erm', 'ah']);
 const STOP = new Set(['the', 'a', 'an', 'and', 'of', 'to', 'in', 'on', 'is', 'it', 'i', 'you', 'my', 'me', 'we', 'be', 'for', 'oh', 'so', 'at', 'as', 'that', 'this', 'with', 'are', 'your', 'our', 'all']);
 
+const CANON_WORD: Record<string, string> = {
+  alleluia: 'hallelujah',
+  saviour: 'savior',
+  honour: 'honor',
+  favour: 'favor',
+  colour: 'color',
+  spirt: 'spirit',
+};
+
 /** Lowercase, strip punctuation and apostrophes ("You're" → "youre"). */
 export function normWord(w: string): string {
-  return w.toLowerCase().replace(/[’'`]/g, '').replace(/[^\p{L}\p{N}]+/gu, '');
+  const clean = w.toLowerCase().replace(/[’'`]/g, '').replace(/[^\p{L}\p{N}]+/gu, '');
+  return CANON_WORD[clean] || clean;
+}
+
+function stemWord(w: string): string {
+  if (w.length <= 4) return w;
+  return w.replace(/(?:ing|eth|est|ed|es|s)$/, '');
 }
 
 export function tokenizeWords(text: string): string[] {
@@ -136,11 +151,11 @@ export function createSongAligner(lines: string[], opts: AlignerOptions = {}): S
     for (let j = cursor + 1; j <= Math.min(tok.length - 1, cursor + 3); j++) {
       if (scoreAt(j) >= nearMin) return { j, jumped: false };
     }
-    // forward: two words lined up
+    // forward: two words lined up (including when ASR skipped one word in between: 1.8)
     let fj = -1, fs = 0;
     for (let j = cursor + 4; j <= Math.min(tok.length - 1, cursor + LOOK); j++) {
       const s = scoreAt(j);
-      if (s >= 2 && s > fs) { fs = s; fj = j; }
+      if (s >= 1.8 && s > fs) { fs = s; fj = j; }
     }
     if (fj >= 0) return { j: fj, jumped: true };
     // anywhere: three words lined up (repeat of a chorus, the band skipped back)
@@ -148,7 +163,7 @@ export function createSongAligner(lines: string[], opts: AlignerOptions = {}): S
     for (let j = 0; j < tok.length; j++) {
       if (j > cursor && j <= cursor + LOOK) continue;
       const s = scoreAt(j);
-      if (s < 2.6) continue;
+      if (s < 2.5) continue;
       // nearest forward from the cursor wins ties (the NEXT chorus, not the last one)
       const d = j > cursor ? j - cursor : tok.length + j - cursor;
       if (s > gs + 0.01 || (Math.abs(s - gs) <= 0.01 && d < gd)) { gs = s; gj = j; gd = d; }
@@ -229,20 +244,22 @@ export interface SongDetector {
 }
 
 export interface DetectorOptions {
-  /** Minimum score to call it (trigram = 1, bigram = 0.34). Default 2. */
+  /** Minimum score to call it (trigram = 1, bigram = 0.42). Default 1.25. */
   minScore?: number;
-  /** Winner must beat the runner-up by this factor. Default 1.6. */
+  /** Winner must beat the runner-up by this factor. Default 1.5. */
   margin?: number;
   /** Heard words kept. Default 24 (about two sung lines). */
   windowWords?: number;
 }
 
 export function createSongDetector(songs: DetectSong[], opts: DetectorOptions = {}): SongDetector {
-  const minScore = opts.minScore ?? 2;
-  const margin = opts.margin ?? 1.6;
+  const minScore = opts.minScore ?? 1.25;
+  const margin = opts.margin ?? 1.5;
   const win = opts.windowWords ?? 24;
   const tri = new Map<string, Array<{ s: number; t: number }>>();
   const bi = new Map<string, Array<{ s: number; t: number }>>();
+  const stemBi = new Map<string, Array<{ s: number; t: number }>>();
+  const skipBi = new Map<string, Array<{ s: number; t: number }>>();
   const toks = songs.map(s => flattenLyrics(s.lines));
   const add = (m: typeof tri, k: string, v: { s: number; t: number }) => {
     const a = m.get(k);
@@ -250,8 +267,16 @@ export function createSongDetector(songs: DetectSong[], opts: DetectorOptions = 
   };
   toks.forEach((tk, s) => {
     for (let i = 0; i < tk.length; i++) {
-      if (i + 2 < tk.length) add(tri, `${tk[i].n} ${tk[i + 1].n} ${tk[i + 2].n}`, { s, t: i + 2 });
-      if (i + 1 < tk.length && !(STOP.has(tk[i].n) && STOP.has(tk[i + 1].n))) add(bi, `${tk[i].n} ${tk[i + 1].n}`, { s, t: i + 1 });
+      if (i + 2 < tk.length) {
+        add(tri, `${tk[i].n} ${tk[i + 1].n} ${tk[i + 2].n}`, { s, t: i + 2 });
+        if (!STOP.has(tk[i].n) && !STOP.has(tk[i + 2].n)) {
+          add(skipBi, `${tk[i].n} ${tk[i + 2].n}`, { s, t: i + 2 });
+        }
+      }
+      if (i + 1 < tk.length && !(STOP.has(tk[i].n) && STOP.has(tk[i + 1].n))) {
+        add(bi, `${tk[i].n} ${tk[i + 1].n}`, { s, t: i + 1 });
+        add(stemBi, `${stemWord(tk[i].n)} ${stemWord(tk[i + 1].n)}`, { s, t: i + 1 });
+      }
     }
   });
   let heard: string[] = [];
@@ -262,14 +287,29 @@ export function createSongDetector(songs: DetectSong[], opts: DetectorOptions = 
       const cur = sc.get(s);
       if (cur) { cur.score += v; if (t > cur.t) cur.t = t; } else sc.set(s, { score: v, t });
     };
-    const seenTri = new Set<string>(), seenBi = new Set<string>();
+    const seenTri = new Set<string>(), seenBi = new Set<string>(), seenSkip = new Set<string>();
     for (let i = 0; i + 1 < heard.length; i++) {
       if (i + 2 < heard.length) {
         const k = `${heard[i]} ${heard[i + 1]} ${heard[i + 2]}`;
         if (!seenTri.has(k)) { seenTri.add(k); for (const h of tri.get(k) || []) bump(h.s, 1, h.t); }
       }
       const b = `${heard[i]} ${heard[i + 1]}`;
-      if (!seenBi.has(b)) { seenBi.add(b); for (const h of bi.get(b) || []) bump(h.s, 0.34, h.t); }
+      if (!seenBi.has(b)) {
+        seenBi.add(b);
+        const exactHits = bi.get(b);
+        if (exactHits && exactHits.length) {
+          for (const h of exactHits) bump(h.s, 0.42, h.t);
+        } else {
+          const sb = `${stemWord(heard[i])} ${stemWord(heard[i + 1])}`;
+          for (const h of stemBi.get(sb) || []) bump(h.s, 0.34, h.t);
+        }
+      }
+      if (!STOP.has(heard[i]) && !STOP.has(heard[i + 1])) {
+        if (!seenSkip.has(b)) {
+          seenSkip.add(b);
+          for (const h of skipBi.get(b) || []) bump(h.s, 0.30, h.t);
+        }
+      }
     }
     return [...sc.entries()].sort((a, b) => b[1].score - a[1].score);
   };

@@ -15,7 +15,7 @@ import {
   Palette, Box, Cpu, Lock, Unlock, Camera, Brush, Type, Captions, Keyboard,
   Scissors, MousePointer2, FlagTriangleRight, FlagTriangleLeft,
   SlidersHorizontal, Mic2, FolderOpen, Search, Tag, FileText, RefreshCw,
-  Image as ImageIcon, HardDrive, Eye,
+  Image as ImageIcon, HardDrive, Eye, BookOpen,
 } from "lucide-react";
 import SpatialStudio from "./SpatialStudio";
 const AnimaStudio = lazy(() => import("./anima/AnimaStudio"));
@@ -106,8 +106,10 @@ import { saveProjectCloud, listProjectsCloud, loadProjectCloud, deleteProjectClo
 import { fetchAlbumById, uploadFabulaAsset, uploadVideo } from "../../services/backendService";
 import ConnectToWorld from "../Worlds/ConnectToWorld";
 import { syncProductionToWorld, worldCharactersForProduction } from "../../services/fabulaWorldBridge";
+import { computeClipLinkedScript, formatTimecode as fmtScriptTc } from "../../services/storyIntelBridge";
 import SpatialMixer from "../spatialMixer/SpatialMixer";
 import { setComicHandoff } from "../../services/comicHandoff";
+import { convertFabulaComicPagesToStudioPages } from "../../services/comicScript";
 import MusicLicensingStore from "../MusicLicensingStore";
 import { CREATIVE_LOOKS, DEFAULT_PHOTO_ADJUSTMENTS, photoAdjustmentsToEffects } from "../../services/photoEditingService";
 import LowerThirdMonitor from "./LowerThirdMonitor";
@@ -732,7 +734,11 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
   const [renderQueue, setRenderQueue] = useState([]);      // {id,kind,label,t0,t1,status,pct}
   const [queueRunning, setQueueRunning] = useState(false);
   const queueAbortRef = useRef(false);
-  const [editWs, setEditWs] = useState("edit");     // resolve-style workspace: media|edit|vfx|color|audio|deliver
+  const [editWs, setEditWs] = useState("edit");     // resolve-style workspace: media|edit|script|vfx|color|audio|deliver
+  const [scriptAutoScroll, setScriptAutoScroll] = useState(true);
+  const [scriptShowTrimmed, setScriptShowTrimmed] = useState(true);
+  const [scriptFilter, setScriptFilter] = useState("all"); // all | dialogue | active
+  const scriptScrollRef = useRef(null);
   const [colorTab, setColorTab] = useState("wheels"); // color room control-bar tab: looks|wheels|curves|primaries
   const [audioTab, setAudioTab] = useState("mixer");  // audio room control-band tab: mixer|voice|clips
   const [vfxTab, setVfxTab] = useState("nodes");      // vfx room: nodes (primary, Mockup B) | comp | lottie | capture
@@ -926,7 +932,15 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
       if (cloud.length || localList.length) {
         const byId = new Map();
         for (const e of localList) byId.set(e.id, e);
-        for (const e of cloud) { const ex = byId.get(e.id); if (!ex || (e.updated || 0) > (ex.updated || 0)) byId.set(e.id, e); }
+        for (const e of cloud) {
+          const ex = byId.get(e.id);
+          if (!ex || (e.updated || 0) > (ex.updated || 0)) {
+            byId.set(e.id, e);
+            if (ex && (e.updated || 0) > (ex.updated || 0)) {
+              stDel("studio:prod:" + e.id).catch(() => {});
+            }
+          }
+        }
         const merged = [...byId.values()].sort((a, b) => (b.updated || 0) - (a.updated || 0));
         setIndex(merged);
         stSet("studio:index", { list: merged });
@@ -945,7 +959,9 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
       if (h?.prodId) {
         await stDel("studio:handoff");
         await openProduction(h.prodId);
-        if (h.editId) { setEditSel(h.editId); setSceneSel(null); setPage("edit"); }
+        const targetEdit = h.editId || h.artifactId;
+        if (targetEdit) { setEditSel(targetEdit); setSceneSel(null); setPage("edit"); }
+        if (h.editWs) { setPage("edit"); setEditWs(h.editWs); }
       } else if (h?.importClip) {
         // External clip handoff (e.g. "Send to Fabula" from a Reello live-stream replay): the clip
         // Blob was stashed under a plain idb key; pull it, then import it as a new edit silently.
@@ -961,6 +977,34 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
       }
     } catch { /* no handoff */ }
   })(); }, []);
+
+  useEffect(() => {
+    if (!auth?.onAuthStateChanged) return undefined;
+    const unsub = auth.onAuthStateChanged(async (u) => {
+      if (!u) return;
+      try {
+        const cloud = await listProjectsCloud();
+        if (!cloud.length) return;
+        const idx = await stGet("studio:index");
+        const localList = idx?.list || [];
+        const byId = new Map();
+        for (const e of localList) byId.set(e.id, e);
+        for (const e of cloud) {
+          const ex = byId.get(e.id);
+          if (!ex || (e.updated || 0) > (ex.updated || 0)) {
+            byId.set(e.id, e);
+            if (ex && (e.updated || 0) > (ex.updated || 0)) {
+              stDel("studio:prod:" + e.id).catch(() => {});
+            }
+          }
+        }
+        const merged = [...byId.values()].sort((a, b) => (b.updated || 0) - (a.updated || 0));
+        setIndex(merged);
+        stSet("studio:index", { list: merged }).catch(() => {});
+      } catch { /* ignore */ }
+    });
+    return () => unsub();
+  }, []);
 
   /* ----- recover orphaned projects: the index list can lose an entry, but each project's full
      data survives under studio:prod:<id>. Rescan IndexedDB and merge any missing ones back in. ----- */
@@ -1164,16 +1208,35 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
     setProd(p); setNewTitle(""); setSceneSel(null); setProdTab("structure");
   };
   const openProduction = async (id) => {
-    // Local-first (instant), cloud-fallback if IndexedDB lost it (the disappearing-project case).
+    // Local-first (instant), cloud-fallback if IndexedDB lost it or if a Story Intel project was upgraded in the cloud.
     let p = await stGet("studio:prod:" + id);
-    if (!p) {
-      p = await loadProjectCloud(id);
-      if (p) stSet("studio:prod:" + id, p).catch(() => {}); // re-seed the local cache
+    const needsStoryIntelUpgrade =
+      p &&
+      String(id).startsWith("prod_storyintel_") &&
+      (!p.edits?.[0]?.timeline?.clips?.some((c) => c.cutLevel === "shot" && c.trackId === "v1") ||
+        !p.streamUrl?.includes(".mp4"));
+    if (!p || needsStoryIntelUpgrade) {
+      const cloudP = await loadProjectCloud(id);
+      if (cloudP) {
+        p = cloudP;
+        stSet("studio:prod:" + id, p).catch(() => {}); // re-seed the local cache
+      }
     }
     if (!p) { setError("Couldn't load that production."); return; }
     const mp = migrate(p);
     await rehydrateBlobs(mp); // local-first: prefer stashed original bytes, else cloud copy
-    setProd(mp); setSceneSel(null); setProdTab("structure");
+    setProd(mp);
+    if (mp.edits?.length) {
+      setEditSel(mp.edits[0].id);
+      setSceneSel(null);
+      if (String(mp.id).startsWith("prod_storyintel_")) {
+        setEditWs("script");
+      }
+    } else {
+      setEditSel(null);
+      setSceneSel(null);
+    }
+    setProdTab("structure");
     scheduleAutoSync(null); // upload anything local that has no cloud copy yet (silent)
     if (syncToLocalRef.current && mp?.mediaPool?.length) {
       autoSyncProjectMedia(mp.mediaPool).catch(() => {});   // explicit Sync-to-Local only
@@ -1189,12 +1252,26 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
         if (!h?.prodId) return;
         await stDel("studio:handoff");
         await openProduction(h.prodId);
-        if (h.editId) { setEditSel(h.editId); setSceneSel(null); setPage("edit"); }
+        const targetEdit = h.editId || h.artifactId;
+        if (targetEdit) { setEditSel(targetEdit); setSceneSel(null); setPage("edit"); }
+        if (h.editWs) { setPage("edit"); setEditWs(h.editWs); }
       } catch { /* no handoff */ }
     };
     window.addEventListener("OPEN_FABULA", onOpen);
     return () => window.removeEventListener("OPEN_FABULA", onOpen);
   }, []);
+  // Auto-scroll the active dialogue line or shot into view during playback in the Timecode Script workspace
+  useEffect(() => {
+    if (editWs !== "script" || !scriptAutoScroll || !scriptScrollRef.current) return;
+    const containerEl = scriptScrollRef.current;
+    const targetEl =
+      containerEl.querySelector('[data-active-script-line="true"]') ||
+      containerEl.querySelector('[data-active-script-shot="true"]') ||
+      containerEl.querySelector('[data-active-script-scene="true"]');
+    if (targetEl && typeof targetEl.scrollIntoView === "function") {
+      targetEl.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [Math.floor((playhead || 0) * 2), editWs, scriptAutoScroll]);
   const deleteProduction = async (id) => {
     if (!window.confirm("Delete this production and everything inside it?")) return;
     await stDel("studio:prod:" + id);
@@ -2601,19 +2678,74 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
     if (!scene) { ping("Open a scene first."); return; }
     const parts = [];
     if (scene.slugline || scene.title) parts.push(scene.slugline || scene.title);
-    if ((scene.script || "").trim()) parts.push(scene.script.trim());
-    else if (scene.shots?.length) scene.shots.forEach((s, i) => { parts.push(`PANEL ${i + 1}`); if ((s.lines || "").trim()) parts.push(s.lines.trim()); });
+    if (scene.shots?.length) {
+      scene.shots.forEach((s, i) => {
+        const frameUrl = s.stillUrl || s.frameUrl || s.thumb || scene.stillUrl || scene.thumb;
+        if (frameUrl) parts.push(`IMAGE: ${frameUrl}`);
+        const actDesc = (s.action || s.description || "").trim();
+        parts.push(actDesc ? `PANEL ${i + 1}: ${actDesc}` : `PANEL ${i + 1}`);
+        if (Array.isArray(s.dialogue) && s.dialogue.length > 0) {
+          s.dialogue.forEach((d) => {
+            if ((d.text || "").trim()) {
+              parts.push(`${(d.speaker || "SPEAKER").toUpperCase()}: ${d.text.trim()}`);
+            }
+          });
+        } else if ((s.dialog || s.lines || "").trim() && (s.dialog || s.lines) !== actDesc) {
+          parts.push((s.dialog || s.lines).trim());
+        }
+      });
+    } else if ((scene.script || scene.screenplay || "").trim()) {
+      parts.push((scene.script || scene.screenplay).trim());
+    }
     const castImage = (c) => {
+      if (c.avatar) return c.avatar;
       const m = (c.media || []).find((x) => x?.url && (x.type === "image" || !x.type));
       if (m?.url) return m.url;
       const pool = (prod.mediaPool || []).find((p) => p.worldCat === "__cast" && (p.name || "").toLowerCase().includes((c.name || "").toLowerCase()));
       return pool?.url;
     };
-    const characters = (prod.cast || []).filter((c) => (c.name || "").trim()).map((c) => ({ name: c.name.trim(), imageUrl: castImage(c) }));
-    const assets = (prod.mediaPool || []).filter((m) => m.type === "image" && m.url).map((m) => ({ name: m.name, url: m.url }));
+    const characters = (prod.cast || []).filter((c) => (c.name || "").trim()).map((c) => ({ name: c.name.trim(), imageUrl: castImage(c), look: c.looks || c.bio || "", role: c.role || "" }));
+    const assets = (prod.mediaPool || []).filter((m) => (m.type === "image" || m.thumbnailUrl) && (m.url || m.thumbnailUrl)).map((m) => ({ name: m.name, url: m.thumbnailUrl || m.url }));
     setComicHandoff({ source: "FABULA", title: scene.slugline || scene.title || prod.title, script: parts.join("\n"), characters, assets });
     ping("Sent to the comic composer — opening Lorea…");
     window.dispatchEvent(new CustomEvent("NAVIGATE", { detail: { target: "BOOK_STUDIO" } }));
+  };
+
+  const openFullComicInBookStudio = (activePageIndex = 0) => {
+    if (!prod) return;
+    const comicBook = prod.artifacts?.comics?.[0];
+    const castImage = (c) => {
+      if (c.avatar) return c.avatar;
+      const m = (c.media || []).find((x) => x?.url && (x.type === "image" || !x.type));
+      if (m?.url) return m.url;
+      const pool = (prod.mediaPool || []).find((p) => p.worldCat === "__cast" && (p.name || "").toLowerCase().includes((c.name || "").toLowerCase()));
+      return pool?.url;
+    };
+    const characters = (prod.cast || []).filter((c) => (c.name || "").trim()).map((c) => ({ name: c.name.trim(), imageUrl: castImage(c), look: c.looks || c.bio || "", role: c.role || "" }));
+    const assets = (prod.mediaPool || []).filter((m) => (m.type === "image" || m.thumbnailUrl) && (m.url || m.thumbnailUrl)).map((m) => ({ name: m.name, url: m.thumbnailUrl || m.url }));
+
+    if (comicBook && Array.isArray(comicBook.pages) && comicBook.pages.length > 0) {
+      const studioPages = convertFabulaComicPagesToStudioPages(comicBook.pages, { enforceSafeZone: true });
+      setComicHandoff({
+        source: "FABULA",
+        title: comicBook.title || `${prod.title} — Graphic Novel`,
+        pages: studioPages,
+        activePageIndex,
+        characters,
+        assets,
+      });
+      ping(`Opening ${studioPages.length}-Page Graphic Novel in Comic Panel Builder (Page ${activePageIndex + 1})…`);
+      window.dispatchEvent(new CustomEvent("NAVIGATE", { detail: { target: "BOOK_STUDIO" } }));
+      return;
+    }
+
+    if (scene) {
+      sendSceneToComic();
+    } else {
+      setComicHandoff({ source: "FABULA", title: prod.title, script: "", characters, assets });
+      ping("Opening Comic Panel Builder…");
+      window.dispatchEvent(new CustomEvent("NAVIGATE", { detail: { target: "BOOK_STUDIO" } }));
+    }
   };
 
   // ── Spatialize audio — open a timeline audio clip in the Spatial Mixer, bake back ──
@@ -4795,7 +4927,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
   const monitorClip = useMemo(() => {
     for (let i = videoTracksAsc.length - 1; i >= 0; i--) { // top-most video track down
       const tid = videoTracksAsc[i].id;
-      const c = clips.find((c) => c.trackId === tid && playhead >= c.start && playhead < c.start + c.duration);
+      const c = clips.find((c) => c.trackId === tid && c.kind !== "script" && playhead >= c.start && playhead < c.start + c.duration);
       if (c) return c;
     }
     return null;
@@ -5257,7 +5389,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
                         // Double-buffer: mount the current clip + its neighbours, keyed by clip.id, so the
                         // next clip is already decoded/seeked and going live is just a visibility swap (no
                         // src reload → no dip to black between butted clips).
-                        const tclips = clips.filter((c) => c.trackId === tr.id).sort((a, b) => a.start - b.start);
+                        const tclips = clips.filter((c) => c.trackId === tr.id && c.kind !== "script").sort((a, b) => a.start - b.start);
                         if (!tclips.length) return null;
                         let curIdx = tclips.findIndex((c) => playhead >= c.start && playhead < c.start + c.duration);
                         if (curIdx < 0 && tclips.length > 0) {
@@ -6160,7 +6292,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
         D,
         { label: `Snapping: ${snapOn ? "On" : "Off"}`, fn: () => setSnapOn((s) => !s) },
         D,
-        ...[["media", "MEDIA"], ["edit", "EDIT"], ["anima", "ANIMA 2D/3D"], ["vfx", "VFX"], ["color", "COLOR"], ["audio", "AUDIO"], ["deliver", "DELIVER"]].map(([id, lab]) => ({ label: `Workspace: ${lab}`, fn: () => setEditWs(id), active: editWs === id })),
+        ...[["media", "MEDIA"], ["edit", "EDIT"], ["script", "TIMECODE SCRIPT"], ["anima", "ANIMA 2D/3D"], ["vfx", "VFX"], ["color", "COLOR"], ["audio", "AUDIO"], ["deliver", "DELIVER"]].map(([id, lab]) => ({ label: `Workspace: ${lab}`, fn: () => setEditWs(id), active: editWs === id })),
         D,
         { label: "Keyboard shortcuts…", fn: () => setShowShortcuts(true) },
       ],
@@ -6292,7 +6424,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
             ☁ {syncing ? "SYNCING…" : unsyncedCount ? `SYNC (${unsyncedCount})` : "SYNCED"}</button>
         </>
       );
-    } else if (editWs === "edit") {
+    } else if (editWs === "edit" || editWs === "script") {
       verbs = (
         <>
           <div className="tgrp">
@@ -6337,9 +6469,24 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
       );
       state = (
         <>
+          <button
+            className={`tbtn2 ${editWs === "script" ? "on" : ""}`}
+            style={editWs === "script" ? { borderColor: "#8b5cf6", background: "rgba(139,92,246,0.22)", color: "#e9d5ff" } : { borderColor: "rgba(139,92,246,0.45)", color: "#d8b4fe" }}
+            title="Toggle Clip-Linked Timecode Script View — screenplay & dialogue follow your timeline edits in real time"
+            onClick={() => setEditWs(editWs === "script" ? "edit" : "script")}
+          >
+            <FileText size={11} /> TIMECODE SCRIPT
+          </button>
+          <button
+            className="tbtn2 ghost"
+            title="Connect & sync this production's characters, locations, and lore to Plajah World"
+            onClick={() => setConnectWorldOpen(true)}
+          >
+            <Globe size={11} /> WORLD
+          </button>
           <button className={`tbtn2 ${snapOn ? "on" : "ghost"}`} title="Snapping (N)" onClick={() => setSnapOn((v) => !v)}>SNAP</button>
           <button className={`tbtn2 ${guides ? "on" : "ghost"}`} title="Action / title-safe guides — overlay only, never exported" onClick={toggleGuides}>SAFE</button>
-          <button className={`tbtn2 ${fxLibOpen ? "on" : "ghost"}`} title="Effects library" onClick={toggleFxLib}>⚡ FX</button>
+          {editWs === "edit" && <button className={`tbtn2 ${fxLibOpen ? "on" : "ghost"}`} title="Effects library" onClick={toggleFxLib}>⚡ FX</button>}
         </>
       );
     } else if (editWs === "vfx") {
@@ -6946,7 +7093,15 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
               </select>
             )}
             {(page === "slate" || page === "edit") && <button className="crumb" onClick={() => newEdit()} title="New standalone timeline">＋ EDIT</button>}
-            {scene && <button className="crumb" onClick={sendSceneToComic} title="Send this scene's script + world cast to the Lorea comic composer">→ COMIC</button>}
+            {scene && <button className="crumb" onClick={sendSceneToComic} title="Send this scene's script + world cast to the Lorea comic composer">→ SCENE TO COMIC</button>}
+            <button
+              className="crumb"
+              style={{ borderColor: "rgba(249, 115, 22, 0.55)", color: "#fb923c", background: "rgba(249, 115, 22, 0.12)" }}
+              onClick={() => openFullComicInBookStudio(0)}
+              title="Open the full converted Graphic Novel in Book & Comic Authoring Studio (ComicPanelBuilder)"
+            >
+              <BookOpen size={11} color="#fb923c" /> COMIC STUDIO
+            </button>
             <button
               className={`crumb ${localStudioOpen ? "on" : ""}`}
               style={localStudioOpen ? { borderColor: "#f59e0b", color: "#fbbf24", background: "rgba(245, 158, 11, 0.15)" } : { borderColor: "rgba(245, 158, 11, 0.45)", color: "#f59e0b" }}
@@ -7040,7 +7195,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
             <h1 className="mega">{prod.title}</h1>
             <input className="in desc" placeholder="One-line description of this production…" value={prod.description} onChange={(e) => updateProd((p) => { p.description = e.target.value; })} />
             <div className="ptabs">
-              {[["structure", "STRUCTURE", ListVideo], ["cast", "CAST", Users], ["world", "WORLD", Globe], ["design", "DESIGN", Brush], ["media", "MEDIA ASSETS", FolderOpen]].map(([id, lab, Ic]) => (
+              {[["structure", "STRUCTURE", ListVideo], ["cast", "CAST", Users], ["world", "WORLD", Globe], ["design", "DESIGN", Brush], ["media", "MEDIA ASSETS", FolderOpen], ["comics", "COMIC / GRAPHIC NOVEL", BookOpen]].map(([id, lab, Ic]) => (
                 <button key={id} className={`ptab ${prodTab === id ? "on" : ""}`} onClick={() => setProdTab(id)}><Ic size={13} /> {lab}</button>
               ))}
               {/* Import an edit / master timeline and reverse-build the production from it. */}
@@ -7329,6 +7484,93 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
                     </div>
                     )}
                   </div>
+                </div>
+              );
+            })()}
+
+            {prodTab === "comics" && (() => {
+              const comicBooks = prod.artifacts?.comics || [];
+              const primaryBook = comicBooks[0] || null;
+              const pages = primaryBook?.pages || [];
+              return (
+                <div className="glass-card" style={{ padding: 20, marginBottom: 18 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 16 }}>
+                    <div>
+                      <div className="lbl" style={{ color: "#fb923c", marginBottom: 4 }}>
+                        COMIC BOOK & GRAPHIC NOVEL CONVERSION WORKSPACE · FACE & ACTION SAFE-ZONE LOCKED
+                      </div>
+                      <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "#fff" }}>
+                        {primaryBook?.title || `${prod.title} — Graphic Novel Adaptation`}
+                      </h2>
+                      <div className="dim small" style={{ marginTop: 4 }}>
+                        {primaryBook
+                          ? `${pages.length} Pages · ${primaryBook.totalPanels || pages.reduce((acc, p) => acc + (p.panels?.length || 0), 0)} Panels · ${primaryBook.totalBalloons || 0} Speech Balloons · Credit: ${primaryBook.creatorCredit || prod.creatorName || "Creator"} · 🛡️ 0 Face Occlusions`
+                          : "Convert your film scenes or reverse-engineered edit into an editable multi-page Graphic Novel in Lorea / Book Authoring Studio."}
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                      <button
+                        className="cta"
+                        style={{ background: "linear-gradient(135deg, #f97316, #ea580c)", color: "#fff", fontWeight: 800, padding: "10px 16px" }}
+                        onClick={() => openFullComicInBookStudio(0)}
+                      >
+                        <BookOpen size={14} /> {pages.length > 0 ? `OPEN ALL ${pages.length} PAGES IN COMIC PANEL BUILDER` : "OPEN COMIC PANEL BUILDER"}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Hard Lettering Rules Banner */}
+                  <div style={{ background: "rgba(16, 185, 129, 0.08)", border: "1px solid rgba(16, 185, 129, 0.3)", borderRadius: 10, padding: "10px 14px", marginBottom: 16, fontSize: 12, color: "#a7f3d0" }}>
+                    <strong>🛡️ Active Editorial Safe-Zone Rule:</strong> Dialogue balloons, thought clouds, and narrative captions <strong>never cover a character&apos;s face or obstruct key action</strong>. All balloons dock to perimeter negative space or top/bottom gutter rails with directional pointer tails toward the speaker.
+                  </div>
+
+                  {pages.length > 0 ? (
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 14 }}>
+                      {pages.map((pg, idx) => {
+                        const pgPanels = pg.panels || [];
+                        const heroImg = pgPanels[0]?.imageUrl || "";
+                        const balloonCount = pgPanels.reduce((sum, pnl) => sum + ((pnl.bubbles || []).length), 0);
+                        return (
+                          <div
+                            key={pg.pageNumber || idx}
+                            className="glass-card"
+                            style={{ padding: 12, display: "flex", flexDirection: "column", gap: 8, border: "1px solid rgba(255,255,255,0.08)", cursor: "pointer" }}
+                            onClick={() => openFullComicInBookStudio(idx)}
+                          >
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                              <span className="chip amb" style={{ fontWeight: 800 }}>PAGE {pg.pageNumber || idx + 1}</span>
+                              <span className="chip dimchip">{pg.layoutType || "DYNAMIC"}</span>
+                            </div>
+                            {heroImg && (
+                              <div style={{ position: "relative", height: 140, borderRadius: 8, overflow: "hidden", background: "#090a0f", border: "1px solid rgba(255,255,255,0.1)" }}>
+                                <img src={heroImg} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                                <div style={{ position: "absolute", bottom: 6, right: 6, background: "rgba(0,0,0,0.78)", color: "#fbbf24", fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 4 }}>
+                                  {pgPanels.length} PANELS · {balloonCount} BALLOONS
+                                </div>
+                              </div>
+                            )}
+                            <div style={{ fontWeight: 700, fontSize: 13, color: "#f3f4f6" }}>
+                              {pg.sceneTitle || `Scene ${pg.sceneNumber || idx + 1}`}
+                            </div>
+                            <div className="dim small" style={{ fontSize: 11 }}>
+                              {pg.actTitle} · {pg.timecodeRange || ""} · {pg.editorialReason || "Editorial layout"}
+                            </div>
+                            <button
+                              className="minibtn"
+                              style={{ marginTop: "auto", width: "100%", justifyContent: "center", borderColor: "rgba(249,115,22,0.5)", color: "#fdba74" }}
+                              onClick={(e) => { e.stopPropagation(); openFullComicInBookStudio(idx); }}
+                            >
+                              <BookOpen size={11} /> EDIT PAGE {pg.pageNumber || idx + 1} IN COMIC BUILDER
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="dim center" style={{ padding: 28 }}>
+                      No pre-built comic pages attached yet. Click <strong>OPEN COMIC PANEL BUILDER</strong> above or open any Scene in SLATE and click <strong>→ SCENE TO COMIC</strong> to convert with Story Intelligence.
+                    </div>
+                  )}
                 </div>
               );
             })()}
@@ -7863,9 +8105,9 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
             )}
             {prod && container && (
               <>
-                {/* The EDIT toolset renders above the timeline (see renderTimeline call) since its
+                {/* The EDIT and TIMECODE SCRIPT toolsets render above the timeline (see renderTimeline call) since their
                     tools act on the timeline; other workspaces keep their tool band here at the top. */}
-                {editWs !== "edit" && renderRoomToolbar()}
+                {editWs !== "edit" && editWs !== "script" && renderRoomToolbar()}
                 {editWs === "media" && (
                   <div className="btnrow">
                     <button className="minibtn" onClick={() => setRepairTab(false)}>MEDIA POOL</button>
@@ -8121,6 +8363,313 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
                     {renderTimeline()}
                   </>
                 )}
+
+                {editWs === "script" && (() => {
+                  const scriptState = computeClipLinkedScript(clips, prod?.acts || [], playhead);
+                  const visibleSegments = scriptState.segments.filter((seg) => {
+                    if (scriptFilter === "active") return seg.isActive;
+                    if (scriptFilter === "dialogue") {
+                      return seg.shots.some((sh) =>
+                        sh.dialogue.some((d) => scriptShowTrimmed || !d.isTrimmedOut)
+                      );
+                    }
+                    return true;
+                  });
+                  return (
+                    <>
+                      <div className="edit-upper" style={{ display: "grid", gridTemplateColumns: "minmax(340px, 44fr) 1px minmax(420px, 56fr)", minHeight: 0, flex: 1 }}>
+                        <div style={{ display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden" }}>
+                          {renderMonitor()}
+                        </div>
+                        <div style={{ background: "rgba(255,255,255,0.08)" }} />
+                        <div style={{ display: "flex", flexDirection: "column", minHeight: 0, background: "rgba(10, 9, 16, 0.96)", color: "#ececf2" }}>
+                          {/* Top Header Bar */}
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "8px 14px", borderBottom: "1px solid rgba(255,255,255,0.08)", background: "rgba(18, 14, 28, 0.9)", flexWrap: "wrap" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                              <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 10, fontWeight: 900, letterSpacing: "0.12em", color: "#c4b5fd", background: "rgba(139,92,246,0.18)", border: "1px solid rgba(139,92,246,0.4)", padding: "3px 8px", borderRadius: 6 }}>
+                                <FileText size={11} /> TIMECODE SCRIPT
+                              </span>
+                              <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.55)", letterSpacing: "0.06em" }}>
+                                {scriptState.totalSceneCuts || scriptState.segments.length} SCENE CUTS · {scriptState.totalShotCuts || 0} SHOT CUTS · {scriptState.totalActiveLines} DIALOGUE LINES
+                              </span>
+                              <span style={{ fontSize: 9, fontWeight: 800, color: "#34d399", background: "rgba(16,185,129,0.14)", border: "1px solid rgba(16,185,129,0.35)", padding: "2px 7px", borderRadius: 999 }}>
+                                ● FOLLOWING EDIT
+                              </span>
+                              {scriptState.reorderedCount > 0 && (
+                                <span style={{ fontSize: 9, fontWeight: 800, color: "#fbbf24", background: "rgba(245,158,11,0.16)", border: "1px solid rgba(245,158,11,0.4)", padding: "2px 7px", borderRadius: 999 }} title="Scenes or shots on the timeline have been re-ordered from the original script order; script breakdown has re-flowed to match.">
+                                  ⇄ {scriptState.reorderedCount} REORDERED
+                                </span>
+                              )}
+                              {scriptState.trimmedClipsCount > 0 && (
+                                <span style={{ fontSize: 9, fontWeight: 800, color: "#f472b6", background: "rgba(236,72,153,0.16)", border: "1px solid rgba(236,72,153,0.4)", padding: "2px 7px", borderRadius: 999 }} title="Clips have been trimmed; timecodes and cut lines have updated automatically.">
+                                  ✂ {scriptState.trimmedClipsCount} TRIMMED ({scriptState.totalTrimmedLines} lines cut)
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              <span className="segx">
+                                {[["all", "ALL"], ["dialogue", "DIALOGUE"], ["active", "ACTIVE SCENE"]].map(([fid, flab]) => (
+                                  <button key={fid} className={scriptFilter === fid ? "on" : ""} onClick={() => setScriptFilter(fid)}>{flab}</button>
+                                ))}
+                              </span>
+                              <button
+                                className={`tbtn2 ${scriptAutoScroll ? "on" : "ghost"}`}
+                                onClick={() => setScriptAutoScroll((v) => !v)}
+                                title="Automatically scroll the screenplay to follow the timeline playhead"
+                              >
+                                AUTO-SCROLL
+                              </button>
+                              <button
+                                className={`tbtn2 ${scriptShowTrimmed ? "on" : "ghost"}`}
+                                onClick={() => setScriptShowTrimmed((v) => !v)}
+                                title="Show or hide lines that were trimmed out when editing clips"
+                              >
+                                {scriptShowTrimmed ? "SHOW CUTS" : "HIDE CUTS"}
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Live Now-Speaking Karaoke HUD Bar */}
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "8px 16px", background: scriptState.activeLine ? "linear-gradient(90deg, rgba(139,92,246,0.22), rgba(245,158,11,0.14))" : "rgba(255,255,255,0.03)", borderBottom: "1px solid rgba(255,255,255,0.07)", minHeight: 40 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, flex: 1 }}>
+                              <span className="mono" style={{ fontSize: 11, fontWeight: 800, color: "#fbbf24", background: "rgba(245,158,11,0.16)", border: "1px solid rgba(245,158,11,0.35)", padding: "2px 8px", borderRadius: 5, flexShrink: 0 }}>
+                                TC {fmtScriptTc(playhead, true)}
+                              </span>
+                              {scriptState.activeLine ? (
+                                <div style={{ display: "flex", alignItems: "baseline", gap: 8, minWidth: 0, overflow: "hidden" }}>
+                                  <span style={{ fontSize: 11, fontWeight: 900, letterSpacing: "0.08em", color: "#c4b5fd", textTransform: "uppercase", flexShrink: 0 }}>
+                                    🎙 {scriptState.activeLine.speaker}:
+                                  </span>
+                                  <span style={{ fontSize: 12, fontWeight: 600, color: "#ffffff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                    “{scriptState.activeLine.text}”
+                                  </span>
+                                </div>
+                              ) : scriptState.activeShot ? (
+                                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                  <strong style={{ color: "#38bdf8" }}>SHOT #{scriptState.activeShot.shotNumber} [{scriptState.activeShot.framing}]</strong> — {scriptState.activeShot.action || scriptState.activeShot.camera}
+                                </div>
+                              ) : (
+                                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
+                                  Scrub or press Space to play — spoken dialogue and shot coverage highlight in real time.
+                                </span>
+                              )}
+                            </div>
+                            {scriptState.activeSegment && (
+                              <span className="mono" style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", flexShrink: 0 }}>
+                                SC {scriptState.activeSegment.sceneIndex} · ACT {scriptState.activeSegment.act}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Scrollable Clip-Linked Screenplay & Shot Breakdown */}
+                          <div
+                            ref={scriptScrollRef}
+                            style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "18px 24px 48px", fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" }}
+                          >
+                            {visibleSegments.length === 0 ? (
+                              <div style={{ textAlign: "center", padding: "48px 20px", color: "rgba(255,255,255,0.4)", fontSize: 12 }}>
+                                No matching script segments on the timeline for this filter.
+                              </div>
+                            ) : (
+                              visibleSegments.map((seg, segIdx) => (
+                                <div
+                                  key={`${seg.clipId}_${segIdx}`}
+                                  data-active-script-scene={seg.isActive ? "true" : undefined}
+                                  style={{
+                                    marginBottom: 22,
+                                    borderRadius: 12,
+                                    border: seg.isActive
+                                      ? "1px solid rgba(139,92,246,0.6)"
+                                      : selClipId === seg.clipId
+                                      ? "1px solid rgba(245,158,11,0.55)"
+                                      : "1px solid rgba(255,255,255,0.08)",
+                                    background: seg.isActive
+                                      ? "rgba(139,92,246,0.07)"
+                                      : "rgba(255,255,255,0.02)",
+                                    boxShadow: seg.isActive ? "0 0 24px rgba(139,92,246,0.12)" : "none",
+                                    overflow: "hidden",
+                                    transition: "border-color 0.18s ease, background 0.18s ease",
+                                  }}
+                                >
+                                  {/* Scene / Clip Slugline Header */}
+                                  <div
+                                    onClick={() => {
+                                      setSelClipId(seg.clipId);
+                                      setPlayhead(seg.clipStartSec);
+                                    }}
+                                    style={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "space-between",
+                                      gap: 10,
+                                      padding: "10px 14px",
+                                      background: seg.isActive
+                                        ? "rgba(139,92,246,0.18)"
+                                        : "rgba(255,255,255,0.04)",
+                                      borderBottom: "1px solid rgba(255,255,255,0.07)",
+                                      cursor: "pointer",
+                                      flexWrap: "wrap",
+                                    }}
+                                    title="Click to select this scene cut on V2 and jump playhead to scene start"
+                                  >
+                                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                                      <span style={{ fontSize: 10, fontWeight: 900, padding: "2px 7px", borderRadius: 5, background: seg.act === 1 ? "rgba(245,158,11,0.2)" : seg.act === 2 ? "rgba(139,92,246,0.22)" : "rgba(6,182,212,0.22)", color: seg.act === 1 ? "#fbbf24" : seg.act === 2 ? "#c4b5fd" : "#67e8f9" }}>
+                                        SC {seg.sceneIndex}{seg.isSplitPart ? ` (PT ${seg.splitPartIndex})` : ""}
+                                      </span>
+                                      <span style={{ fontSize: 12, fontWeight: 900, letterSpacing: "0.05em", color: "#ffffff", textTransform: "uppercase" }}>
+                                        {seg.slugline}
+                                      </span>
+                                      {seg.isReordered && (
+                                        <span style={{ fontSize: 9, fontWeight: 800, color: "#fbbf24", background: "rgba(245,158,11,0.18)", border: "1px solid rgba(245,158,11,0.4)", padding: "1px 6px", borderRadius: 4 }}>
+                                          ⇄ REORDERED IN EDIT
+                                        </span>
+                                      )}
+                                      {seg.isTrimmed && (
+                                        <span style={{ fontSize: 9, fontWeight: 800, color: "#f472b6", background: "rgba(236,72,153,0.18)", border: "1px solid rgba(236,72,153,0.4)", padding: "1px 6px", borderRadius: 4 }}>
+                                          ✂ TRIMMED CLIP
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                      <span style={{ fontSize: 10, color: "rgba(255,255,255,0.45)" }} title="Source media in/out points">
+                                        SRC {fmtScriptTc(seg.srcInSec)}–{fmtScriptTc(seg.srcOutSec)}
+                                      </span>
+                                      <span style={{ fontSize: 11, fontWeight: 800, color: "#fbbf24", background: "rgba(0,0,0,0.45)", padding: "2px 8px", borderRadius: 5, border: "1px solid rgba(245,158,11,0.3)" }} title="Live timeline timecode (updates when clip is moved or trimmed)">
+                                        TL {fmtScriptTc(seg.clipStartSec)} – {fmtScriptTc(seg.clipEndSec)}
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  {/* Scene Summary */}
+                                  {seg.summary && scriptFilter !== "dialogue" && (
+                                    <div style={{ padding: "8px 16px", fontSize: 11, color: "rgba(255,255,255,0.58)", borderBottom: "1px solid rgba(255,255,255,0.04)", fontFamily: "system-ui, sans-serif", fontStyle: "italic" }}>
+                                      {seg.summary}
+                                    </div>
+                                  )}
+
+                                  {/* Shots & Spoken Dialogue Lines */}
+                                  <div style={{ padding: "10px 16px 14px", display: "flex", flexDirection: "column", gap: 10 }}>
+                                    {seg.shots.map((sh) => {
+                                      if (sh.isTrimmedOut && !scriptShowTrimmed) return null;
+                                      if (scriptFilter === "dialogue" && sh.dialogue.length === 0) return null;
+                                      const isShotClipSelected = Boolean(sh.clipId && selClipId === sh.clipId);
+                                      return (
+                                        <div
+                                          key={sh.id}
+                                          data-active-script-shot={sh.isActive ? "true" : undefined}
+                                          style={{
+                                            padding: "8px 12px",
+                                            borderRadius: 8,
+                                            borderLeft: sh.isActive
+                                              ? "3px solid #38bdf8"
+                                              : isShotClipSelected
+                                              ? "3px solid #fbbf24"
+                                              : sh.isTrimmedOut
+                                              ? "3px solid rgba(239,68,68,0.4)"
+                                              : "3px solid rgba(255,255,255,0.12)",
+                                            border: isShotClipSelected ? "1px solid rgba(251,191,36,0.45)" : undefined,
+                                            background: sh.isActive
+                                              ? "rgba(56,189,248,0.08)"
+                                              : isShotClipSelected
+                                              ? "rgba(245,158,11,0.08)"
+                                              : sh.isTrimmedOut
+                                              ? "rgba(239,68,68,0.04)"
+                                              : "rgba(255,255,255,0.015)",
+                                            opacity: sh.isTrimmedOut ? 0.5 : 1,
+                                          }}
+                                        >
+                                          {/* Shot Action Line */}
+                                          {scriptFilter !== "dialogue" && (
+                                            <div
+                                              onClick={() => {
+                                                setSelClipId(sh.clipId || seg.clipId);
+                                                if (!sh.isTrimmedOut) setPlayhead(sh.liveStartSec);
+                                              }}
+                                              style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8, cursor: "pointer", marginBottom: sh.dialogue.length > 0 ? 8 : 0 }}
+                                              title="Click to select this shot cut clip on V1 and jump playhead to shot start"
+                                            >
+                                              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.78)", lineHeight: 1.45 }}>
+                                                <span style={{ fontWeight: 800, color: sh.isActive ? "#38bdf8" : isShotClipSelected ? "#fbbf24" : "#94a3b8", marginRight: 8 }}>
+                                                  [SHOT #{sh.shotNumber} · {sh.framing}]
+                                                </span>
+                                                <span style={{ textDecoration: sh.isTrimmedOut ? "line-through" : "none" }}>
+                                                  {sh.camera ? `${sh.camera} — ` : ""}{sh.action}
+                                                </span>
+                                              </div>
+                                              <span style={{ fontSize: 10, color: sh.isActive ? "#38bdf8" : "rgba(255,255,255,0.4)", flexShrink: 0 }}>
+                                                {sh.isTrimmedOut ? "CUT FROM CLIP" : `${fmtScriptTc(sh.liveStartSec)}–${fmtScriptTc(sh.liveEndSec)}`}
+                                              </span>
+                                            </div>
+                                          )}
+
+                                          {/* Spoken Dialogue Blocks (Standard Screenplay Centering + Live Highlight) */}
+                                          {sh.dialogue.map((line) => {
+                                            if (line.isTrimmedOut && !scriptShowTrimmed) return null;
+                                            return (
+                                              <div
+                                                key={line.id}
+                                                data-active-script-line={line.isActive ? "true" : undefined}
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  setSelClipId(sh.clipId || seg.clipId);
+                                                  if (!line.isTrimmedOut) setPlayhead(line.liveStartSec);
+                                                }}
+                                                style={{
+                                                  margin: "6px auto",
+                                                  maxWidth: 460,
+                                                  padding: "9px 14px",
+                                                  borderRadius: 8,
+                                                  cursor: "pointer",
+                                                  border: line.isActive
+                                                    ? "1px solid rgba(251,191,36,0.75)"
+                                                    : line.isTrimmedOut
+                                                    ? "1px dashed rgba(239,68,68,0.35)"
+                                                    : "1px solid rgba(255,255,255,0.06)",
+                                                  background: line.isActive
+                                                    ? "linear-gradient(135deg, rgba(245,158,11,0.22), rgba(139,92,246,0.22))"
+                                                    : line.isTrimmedOut
+                                                    ? "rgba(239,68,68,0.05)"
+                                                    : "rgba(0,0,0,0.28)",
+                                                  boxShadow: line.isActive ? "0 0 18px rgba(245,158,11,0.22)" : "none",
+                                                  transform: line.isActive ? "scale(1.01)" : "none",
+                                                  transition: "all 0.15s ease",
+                                                }}
+                                                title={line.isTrimmedOut ? "This dialogue line falls outside the clip's current trim points" : `Click to select Shot #${sh.shotNumber} on V1 and jump playhead to ${fmtScriptTc(line.liveStartSec)}`}
+                                              >
+                                                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 3 }}>
+                                                  <span style={{ fontSize: 11, fontWeight: 900, letterSpacing: "0.1em", color: line.isActive ? "#fde68a" : "#e2e8f0", textTransform: "uppercase" }}>
+                                                    {line.isActive ? "▶ " : ""}{line.speaker}
+                                                  </span>
+                                                  <span style={{ fontSize: 9, fontWeight: 800, padding: "1px 6px", borderRadius: 4, background: line.isActive ? "rgba(245,158,11,0.3)" : "rgba(255,255,255,0.06)", color: line.isActive ? "#fef3c7" : line.isTrimmedOut ? "#f87171" : "rgba(255,255,255,0.45)" }}>
+                                                    {line.isTrimmedOut ? "✂ TRIMMED OUT" : fmtScriptTc(line.liveStartSec)}
+                                                  </span>
+                                                </div>
+                                                {line.parenthetical && (
+                                                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", fontStyle: "italic", marginBottom: 2 }}>
+                                                    ({line.parenthetical.replace(/^\(|\)$/g, "")})
+                                                  </div>
+                                                )}
+                                                <div style={{ fontSize: 12, lineHeight: 1.5, color: line.isActive ? "#ffffff" : "rgba(255,255,255,0.88)", fontWeight: line.isActive ? 700 : 400, textDecoration: line.isTrimmedOut ? "line-through" : "none" }}>
+                                                  {line.text}
+                                                </div>
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      {renderRoomToolbar()}
+                      {renderTimeline()}
+                    </>
+                  );
+                })()}
 
                 {editWs === "anima" && (
                   <div style={{ flex: 1, minHeight: 0, display: "flex", width: "100%", height: "100%" }}>
@@ -8921,7 +9470,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
           {page === "edit" && prod && container && (
             <>
               <span className="raildiv" />
-              {[["media", "MEDIA", MonitorPlay], ["edit", "EDIT", Film], ["anima", "ANIMA 2D/3D", Sparkles], ["vfx", "VFX", Box], ["color", "COLOR", Palette], ["audio", "AUDIO", Music], ["spatial", "SPATIAL 3D", Eye], ["deliver", "DELIVER", ListVideo]].map(([id, lab, Ic]) => (
+              {[["media", "MEDIA", MonitorPlay], ["edit", "EDIT", Film], ["script", "TIMECODE SCRIPT", FileText], ["anima", "ANIMA 2D/3D", Sparkles], ["vfx", "VFX", Box], ["color", "COLOR", Palette], ["audio", "AUDIO", Music], ["spatial", "SPATIAL 3D", Eye], ["deliver", "DELIVER", ListVideo]].map(([id, lab, Ic]) => (
                 <button key={id} className={`raildot ws ${editWs === id ? "on" : ""}`} onClick={() => setEditWs(id)} title={lab}>
                   <Ic size={13} />
                 </button>

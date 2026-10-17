@@ -2,6 +2,7 @@
 // Provides lossless access to the 6 genre flagship titles for the Comic & Manga Studio.
 
 import { ShowcaseComicBook } from '../comicTypes';
+import { pumpkinPatchV4 } from './pumpkinPatchV4';
 import { obsidianShroud } from './obsidianShroud';
 import { chromeApostle } from './chromeApostle';
 import { singularityGods } from './singularityGods';
@@ -10,6 +11,7 @@ import { gildedVanguard } from './gildedVanguard';
 import { paleHydrangeas } from './paleHydrangeas';
 
 export {
+  pumpkinPatchV4,
   obsidianShroud,
   chromeApostle,
   singularityGods,
@@ -19,6 +21,7 @@ export {
 };
 
 export const SHOWCASE_COMICS: ShowcaseComicBook[] = [
+  pumpkinPatchV4,
   obsidianShroud,
   chromeApostle,
   singularityGods,
@@ -28,6 +31,8 @@ export const SHOWCASE_COMICS: ShowcaseComicBook[] = [
 ];
 
 export const showcaseComicById: Record<string, ShowcaseComicBook> = {
+  'pumpkin-patch-v4': pumpkinPatchV4,
+  'pumpkin-patch': pumpkinPatchV4,
   'obsidian-shroud': obsidianShroud,
   'chrome-apostle': chromeApostle,
   'singularity-gods': singularityGods,

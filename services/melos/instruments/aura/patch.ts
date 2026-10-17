@@ -106,18 +106,42 @@ export function defaultArp(preset?: AuraPreset): AuraArpConfig {
 }
 
 function defaultPad(preset: AuraPreset): Pick<AuraPatch, 'padX' | 'padY' | 'padPos'> {
-  const cutoff = preset.params[flt(0, F.CUTOFF)] ?? 0.55;
-  const res = preset.params[flt(0, F.RES)] ?? 0.25;
+  const baseX: PadTarget[] = preset.padX
+    ? preset.padX.map((t) => ({
+        id: t.id,
+        lo: t.id === flt(0, F.CUTOFF) ? Math.min(t.lo, 0.10) : t.lo,
+        hi: t.id === flt(0, F.CUTOFF) ? Math.max(t.hi, 0.95) : t.hi,
+      }))
+    : [
+        { id: flt(0, F.CUTOFF), lo: 0.08, hi: 0.96 },
+      ];
+  // Guarantee multi-dimensional harmonic & filter morph on X
+  const xIds = new Set(baseX.map((t) => t.id));
+  if (!xIds.has(flt(0, F.CUTOFF))) baseX.unshift({ id: flt(0, F.CUTOFF), lo: 0.10, hi: 0.95 });
+  if (!xIds.has(flt(0, F.DRIVE))) baseX.push({ id: flt(0, F.DRIVE), lo: 0.08, hi: 0.82 });
+  if (!xIds.has(osc(0, O.MORPH))) baseX.push({ id: osc(0, O.MORPH), lo: 0.0, hi: 0.88 });
+  if (!xIds.has(A.WARMTH)) baseX.push({ id: A.WARMTH, lo: 0.18, hi: 0.85 });
+
+  const baseY: PadTarget[] = preset.padY
+    ? preset.padY.map((t) => ({
+        id: t.id,
+        lo: t.id === flt(0, F.RES) ? Math.min(t.lo, 0.08) : t.lo,
+        hi: t.id === flt(0, F.RES) ? Math.max(t.hi, 0.85) : t.hi,
+      }))
+    : [
+        { id: flt(0, F.RES), lo: 0.08, hi: 0.86 },
+      ];
+  // Guarantee dramatic resonance + vintage movement on Y
+  const yIds = new Set(baseY.map((t) => t.id));
+  if (!yIds.has(flt(0, F.RES))) baseY.unshift({ id: flt(0, F.RES), lo: 0.08, hi: 0.85 });
+  if (!yIds.has(A.AURA)) baseY.push({ id: A.AURA, lo: 0.14, hi: 0.88 });
+  if (!yIds.has(A.XMOD_FILTER) && (preset.params[osc(1, O.ENABLE)] ?? 0) > 0.5) {
+    baseY.push({ id: A.XMOD_FILTER, lo: 0.0, hi: 0.48 });
+  }
+
   return {
-    padX: preset.padX
-      ? preset.padX.map((t) => ({ ...t }))
-      : [{ id: flt(0, F.CUTOFF), lo: Math.max(0.08, cutoff - 0.3), hi: Math.min(0.96, cutoff + 0.32) }],
-    padY: preset.padY
-      ? preset.padY.map((t) => ({ ...t }))
-      : [
-          { id: flt(0, F.RES), lo: Math.max(0.05, res - 0.15), hi: Math.min(0.88, res + 0.45) },
-          { id: A.AURA, lo: 0.15, hi: 0.85 },
-        ],
+    padX: baseX,
+    padY: baseY,
     padPos: [0.5, 0.5],
   };
 }
@@ -259,7 +283,16 @@ function readTargets(raw: unknown, fallback: PadTarget[]): PadTarget[] {
       lo: Number.isFinite(Number(t.lo)) ? Number(t.lo) : 0,
       hi: Number.isFinite(Number(t.hi)) ? Number(t.hi) : 1,
     }));
-  return parsed.length > 0 ? parsed : fallback;
+  if (parsed.length === 0) return fallback;
+  // Ensure existing patches with 1 target get the full multi-dimensional vector targets
+  const seen = new Set(parsed.map((t) => t.id));
+  for (const fb of fallback) {
+    if (!seen.has(fb.id)) {
+      parsed.push({ ...fb });
+      seen.add(fb.id);
+    }
+  }
+  return parsed;
 }
 
 export function auraEngineParams(patch: AuraPatch): Array<[number, number]> {
@@ -345,16 +378,17 @@ export const AURA_EDITOR_GROUPS: Array<{
       osc(1, O.ENABLE), osc(1, O.LEVEL), osc(1, O.MODE), osc(1, O.ANALOG_SHAPE), osc(1, O.MORPH), osc(1, O.PULSE_WIDTH), osc(1, O.COARSE), osc(1, O.FINE),
       osc(2, O.ENABLE), osc(2, O.LEVEL), osc(2, O.ANALOG_SHAPE), osc(2, O.COARSE), osc(2, O.FINE),
       P.SUB_LEVEL, P.SUB_OCTAVE, P.SUB_SHAPE, P.NOISE_LEVEL, P.NOISE_COLOR,
-      P.VOICE_MODE, P.GLIDE, P.UNISON_COUNT, P.UNISON_DETUNE, P.UNISON_WIDTH,
+      P.VOICE_MODE, P.GLIDE, P.BEND_RANGE, P.UNISON_COUNT, P.UNISON_DETUNE, P.UNISON_WIDTH,
     ],
   },
   {
     key: 'xmod',
-    title: 'Cross-Mod & Vintage Aura',
-    blurb: 'Hard Sync, Poly-Mod FM, Ring Modulator, voice-card trimpots & discrete preamp warmth',
+    title: 'Cross-Mod, Analog Flux & Vintage Aura',
+    blurb: 'Hard Sync, Poly-Mod FM, Ring Mod, Buchla 266 Source of Uncertainty & discrete preamp warmth',
     color: '#D97724',
     ids: [
       A.OSC_SYNC, A.XMOD_PITCH, A.XMOD_FILTER, A.RING_MOD,
+      A.FLUX_ON, A.FLUX_MODE, A.FLUX_AMT, A.FLUX_RATE,
       A.AURA, P.ANALOG_DRIFT, A.WARMTH,
       A.TAPE_SAT, A.HUM, A.CRACKLE,
     ],
@@ -372,13 +406,14 @@ export const AURA_EDITOR_GROUPS: Array<{
   },
   {
     key: 'env',
-    title: 'Contour Generators & LFOs',
-    blurb: 'VCA & VCF ADSR contour generators + dual modulation oscillators',
+    title: 'Contour Generators, LFOs & Pulse Gate',
+    blurb: 'VCA & VCF ADSR contours, dual LFOs & tempo-synced VCA/Lowpass Gate chopper',
     color: '#9A93A6',
     ids: [
       env(0, E.ATTACK), env(0, E.DECAY), env(0, E.SUSTAIN), env(0, E.RELEASE),
       env(1, E.ATTACK), env(1, E.DECAY), env(1, E.SUSTAIN), env(1, E.RELEASE),
       lfo(0, L.SHAPE), lfo(0, L.RATE), lfo(1, L.SHAPE), lfo(1, L.RATE),
+      A.GATE_ON, A.GATE_SHAPE, A.GATE_RATE, A.GATE_DEPTH,
     ],
   },
   {
@@ -393,11 +428,12 @@ export const AURA_EDITOR_GROUPS: Array<{
   },
   {
     key: 'tape',
-    title: 'Tape Echo & Chamber Space',
-    blurb: 'Free-running magnetic tape echo with capstan wow & vintage reverb chamber',
+    title: 'Tape Echo, Stereo Delay & Chamber Space',
+    blurb: 'Free-running magnetic tape echo, tempo ping-pong delay & vintage reverb chamber',
     color: '#8EA885',
     ids: [
       SP.EC_ON, SP.EC_TIME, SP.EC_FB, SP.EC_WOW, SP.EC_DRIVE, SP.EC_DEGRADE, SP.EC_MIX,
+      SP.DL_ON, SP.DL_DIV, SP.DL_FB, SP.DL_TONE, SP.DL_PING, SP.DL_MIX,
       RV.SIZE, RV.DECAY, RV.SHIMMER, RV.MIX, P.MASTER_GAIN,
     ],
   },

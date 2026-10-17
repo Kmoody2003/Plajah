@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { gridSrc } from '../../services/imageDerivatives';
-import { heroImage, thumb, onThumbError } from '../../src/lib/imageThumb';
+import { heroImage, slideshowImage, thumb, onThumbError } from '../../src/lib/imageThumb';
 
 type Source = { url?: string; thumbUrl?: string; coverImage?: string; coverThumb?: string } | null | undefined;
 
@@ -8,8 +8,8 @@ export interface FastImageProps {
   /** A record carrying url/thumbUrl (photo) or coverImage/coverThumb (album); or pass raw `src`. */
   item?: Source;
   src?: string | null;
-  /** 'grid' = first-party 320px WebP (else CDN thumb); 'hero' = ~1600px for lightbox/TV/backgrounds. */
-  variant?: 'grid' | 'hero';
+  /** 'grid' = first-party 320px JXL/WebP (else CDN JXL thumb); 'hero' / 'slideshow' = ~1600px JXL for lightbox/TV/slideshows. */
+  variant?: 'grid' | 'hero' | 'slideshow';
   width?: number;
   alt?: string;
   className?: string;
@@ -18,14 +18,16 @@ export interface FastImageProps {
 }
 
 /**
- * The one way to show a user image fast. Prefers the first-party WebP derivative written at upload
- * (no third-party hop), otherwise a resized CDN variant; decodes off-thread and fades in whole, so
+ * The one way to show a user image fast. Prefers the first-party JPEG XL (.jxl) / WebP derivative written at upload
+ * (no third-party hop), otherwise a resized CDN JXL variant; decodes off-thread and fades in whole, so
  * grids never paint "garage door" strips. Parent must be `relative` with a defined size.
  */
 export const FastImage: React.FC<FastImageProps> = ({ item, src, variant = 'grid', width = 320, alt = '', className = '', priority }) => {
   const original = src ?? item?.url ?? item?.coverImage ?? '';
   const first = item ? (item.thumbUrl || item.coverThumb) : undefined;
-  const url = variant === 'hero'
+  const url = variant === 'slideshow'
+    ? slideshowImage(original)
+    : variant === 'hero'
     ? heroImage(original)
     : (first && width <= 320 ? first : thumb(gridSrc(item as any) || original, width));
   const [ready, setReady] = useState(false);

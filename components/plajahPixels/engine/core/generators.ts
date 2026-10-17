@@ -7,7 +7,7 @@
 // mode at a time. Uniform convention matches ShaderLayer (iChannel0 audio texture,
 // iBass/iMid/iTreble/iLevel, palette iC0..iC2, iParam0..3).
 
-import { GL, RenderTarget, createProgram, createFullscreenQuad, makeTarget } from './glUtil';
+import { GL, RenderTarget, createProgram, createFullscreenQuad, makeTarget, startProgram, programDone, finishProgram, PendingProgram } from './glUtil';
 import { AudioTexture } from './audioTexture';
 import {
   OCEAN_LEVIATHAN_GLSL,
@@ -31,6 +31,17 @@ import {
   IMAGE4_CHEVRON_TRANQUIL_GLSL,
   IMAGE4_CHEVRON_ENERGETIC_GLSL,
 } from '../presets/milkdropCouncilShaders';
+import { CEL_COMMON, COSMOS_GLSL, COSMOS_RENDER_SCALE } from './generatorsCosmos';
+import { FLUID_GLSL, FLUID_RENDER_SCALE } from './generatorsFluid';
+import { PLANES_GLSL, PLANES_RENDER_SCALE } from './generatorsPlanes';
+import { OPTICS_GLSL, OPTICS_RENDER_SCALE } from './generatorsOptics';
+import { CALM_AUDIO_MODES } from './generatorPalettes';
+import { FluidSim, SIM_MODE_ID, cosmicSimId, simSupported } from './fluidSim';
+import { FLUID_SIM_GLSL } from './generatorsFluidSim';
+import { STAGE_LIB, STAGE_MAIN, STAGE_BODIES, STAGE_RENDER_SCALE } from './generatorsStage';
+import { StageAudio } from './stageAudio';
+import { StageLens } from './stageLens';
+import { GeneratorDirector, DIRECTOR_SUFFIX, DIRECTOR_VS, directorBase, directorize, hasDirectorVersion } from './generatorDirector';
 
 function wrapCouncil(src: string): string {
   return `#version 300 es
@@ -373,7 +384,93 @@ void main(){
   fragColor = vec4(col, 1.0);
 }`;
 
+
+// ── Polar Drift — a log-polar raymarch through a cosine-noise cavern ────────
+//
+// Expanded from a twigl "geekest" golf (83 march steps over a 13-octave
+// cos·cos noise field, read in log-polar space so the camera forever zooms
+// into the same cavern). The golf is kept move-for-move — the .yx framing,
+// the i/2000 brightening, the ray folding to (-1,-1,-1) after step 60 — and
+// then the mix drives it: bass rocks the camera and deepens the glow, the
+// spectrum rides the azimuth as ridges on the cavern wall, mids sharpen the
+// fine grain, treble delays the fold, level lifts the exposure.
+//
+//   iParam0  Shape      zoom pace through the field
+//   iParam1  Detail     noise octaves (render cost scales with this)
+//   iParam2  Energy     how hard the audio pushes everything (0 = pure golf)
+//   iParam3  Variation  twist of the framing + where the palette turns
+const POLAR_DRIFT_FS = HEADER + `
+mat3 rotate3D(float angle, vec3 axis){
+  vec3 a = normalize(axis);
+  float s = sin(angle), c = cos(angle), r = 1.0 - c;
+  return mat3(
+    a.x*a.x*r + c,      a.y*a.x*r + a.z*s,  a.z*a.x*r - a.y*s,
+    a.x*a.y*r - a.z*s,  a.y*a.y*r + c,      a.z*a.y*r + a.x*s,
+    a.x*a.z*r + a.y*s,  a.y*a.z*r - a.x*s,  a.z*a.z*r + c);
+}
+void main(){
+  float react  = iParam2 * 2.0;                       // 0..2, 0.5 → 1× (the golf's own pace)
+  float bass   = iBass   * react;
+  float mid    = iMid    * react;
+  float treble = iTreble * react;
+  float level  = iLevel  * react;
+  float t = iTime;
+
+  // The golf's framing: d = vec3(FC.yx / r.y * 1.4 - 1, 1). The swizzle is part of the look.
+  vec2 fc = vUv * iResolution;
+  vec3 d = vec3(fc.yx / max(iResolution.y, 1.0) * 1.4 - 1.0, 1.0);
+  float tw = (iParam3 - 0.5) * 1.2;
+  d.xy = mat2(cos(tw), -sin(tw), sin(tw), cos(tw)) * d.xy;
+
+  float zoomPace = 0.2 + iParam0 * 0.7;               // golf: t * 0.5
+  float wobble   = 0.1 + bass * 0.22;                 // golf: cos(t) * 0.1
+  mat3 rot = rotate3D(cos(t) * wobble, vec3(1.0));
+  float octaves = mix(128.0, 2048.0, iParam1);        // golf: s < 5e3 (13 octaves); 8…12 here, the rest is sub-pixel
+  float foldAt  = 59.0 + treble * 10.0;               // golf: after step 60 the ray folds
+  float ridge   = 0.28 * react;                       // spectrum displacing the cavern wall
+
+  vec3 q = vec3(-1.0), p;
+  float e = 0.0, R = 0.0, s;
+  vec3 col = vec3(0.0);
+  float glow = 0.0;
+
+  for (float i = 1.0; i <= 83.0; i += 1.0) {
+    e += i / 2000.0;
+    float w = e * e / 24.0;                           // golf: o += e*e/24
+    glow += w;
+    // Depth-tinted accumulation — near steps take Colour 1, the far field Colour 2 → 3.
+    float depth = i / 83.0;
+    float turn = 0.35 + iParam3 * 0.3;
+    vec3 tint = depth < turn ? mix(iC0, iC1, depth / turn) : mix(iC1, iC2, (depth - turn) / (1.0 - turn));
+    col += w * tint;
+
+    q += d * e * R * 0.2 * rot;                       // golf: p = q += d*e*R*.2*rotate3D(...)
+    p = q;
+    R = length(p);
+    p = vec3(log2(R) - t * zoomPace, -p.z / R, atan(p.x, p.y));   // log-polar: zoom is a slide in x
+
+    // The spectrum rides the azimuth: loud bins push the wall out into ridges.
+    float az = fract(p.z / 6.2831853 + 0.5);
+    p.y -= fft(az) * ridge;
+
+    p.y -= 1.0;                                       // golf: e = --p.y
+    e = p.y;
+    for (s = 1.0; s < octaves; s += s) {
+      float gain = 1.0 + mid * 0.25 * step(16.0, s); // mids sharpen the fine grain only
+      e += cos(dot(cos(p.zyy * s), cos(p * s))) / s * gain;
+    }
+    if (i > foldAt) d = vec3(-1.0);                   // golf: d /= -d  (NaN-safe)
+  }
+
+  // Exposure: level lifts it, bass adds a warm core where the march ran hot.
+  float exposure = 1.1 + level * 0.9;
+  col = col * exposure + iC1 * glow * glow * 0.012 * bass;
+  col = 1.0 - exp(-col);                              // soft shoulder, never clips to white
+  fragColor = vec4(col, 1.0);
+}`;
+
 const GEN_GLSL: Record<string, string> = {
+  POLAR_DRIFT: POLAR_DRIFT_FS,
   WAVEFORM: WAVEFORM_FS,
   SPECTRUM: SPECTRUM_FS,
   TUNNEL: TUNNEL_FS,
@@ -415,9 +512,61 @@ const GEN_GLSL: Record<string, string> = {
   COUNCIL_CHEVRON_TRANQUIL: wrapCouncil(IMAGE4_CHEVRON_TRANQUIL_GLSL),
   COUNCIL_CHEVRON_ENERGETIC: wrapCouncil(IMAGE4_CHEVRON_ENERGETIC_GLSL),
 };
+// Cosmos (nebulae / aurorae), Fluid (liquids mixing), Planes (folding sheets) and Optics (light phenomena) share CEL_COMMON.
+for (const [mode, body] of Object.entries({ ...COSMOS_GLSL, ...FLUID_GLSL, ...PLANES_GLSL, ...OPTICS_GLSL })) GEN_GLSL[mode] = HEADER + CEL_COMMON + body;
+// Concert stages: a ray-traced venue + a virtual lighting rig cued by StageAudio (generatorsStage.ts).
+// Each rig also comes as a Director version (a 3D camera that cuts on the music), an Empty version
+// (no performers: a locked-off set-extension plate) and an Empty Director version (the empty stage,
+// shot by the director). All are their own shaders, not the 2D crop director.
+for (const [mode, body] of Object.entries(STAGE_BODIES)) {
+  GEN_GLSL[mode] = HEADER + CEL_COMMON + STAGE_LIB + body + STAGE_MAIN;
+  GEN_GLSL[mode + DIRECTOR_SUFFIX] = HEADER + '#define STAGE_DIRECTOR\n' + CEL_COMMON + STAGE_LIB + body + STAGE_MAIN;
+  GEN_GLSL[mode + '_EMPTY'] = HEADER + '#define STAGE_EMPTY\n' + CEL_COMMON + STAGE_LIB + body + STAGE_MAIN;
+  GEN_GLSL[mode + '_EMPTY' + DIRECTOR_SUFFIX] = HEADER + '#define STAGE_EMPTY\n#define STAGE_DIRECTOR\n' + CEL_COMMON + STAGE_LIB + body + STAGE_MAIN;
+}
+/** The 2D crop director applies to the Cosmos/Fluid sets; stage rigs carry their own 3D camera. */
+const cropDirectorBase = (mode: string) => (mode.startsWith('RIG_') ? null : directorBase(mode));
+// Director versions: the same scene seen through the beat-cut camera director (generatorDirector.ts).
+for (const mode of Object.keys(GEN_GLSL)) if (hasDirectorVersion(mode)) GEN_GLSL[mode + DIRECTOR_SUFFIX] = directorize(GEN_GLSL[mode]);
+
+// Modes whose cost is in the march, not the pixels, render into a smaller target. Every
+// consumer samples the returned texture by UV (compositor LayerInput, the present pass),
+// so the bilinear upscale is free and the framing (vUv * iResolution) is unchanged.
+const GEN_RENDER_SCALE: Record<string, number> = {
+  POLAR_DRIFT: 0.5,   // 83 steps × up to 12 octaves per pixel; the cavern is soft fog anyway
+  ...COSMOS_RENDER_SCALE,
+  ...FLUID_RENDER_SCALE,
+  ...STAGE_RENDER_SCALE,
+  ...PLANES_RENDER_SCALE,
+  ...OPTICS_RENDER_SCALE,
+};
+
+// Calm modes breathe with the music instead of flickering: each band follows an
+// envelope (fast-ish attack, slow release) per layer, so a kick swells the light
+// and lets it settle rather than strobing it.
+const CALM_ATTACK = 0.22, CALM_RELEASE = 0.9; // seconds
+interface Env { b: number; m: number; t: number; l: number; at: number }
+
+// Vocal ripple history: per layer, 48 samples at 30 Hz (1.6 s) of three vocal ranges, newest first.
+// Each sample is "how much voice is arriving now": a fast envelope of the range, boosted by how far
+// it rises above its own slow average — syllables and phrase onsets, not a sustained pad.
+const VOCAL_N = 48, VOCAL_HZ = 30;
+interface VocalHist { hist: Float32Array; fast: number[]; slow: number[]; acc: number; at: number }
 
 export function hasGenerator(mode: string | undefined): boolean {
   return !!mode && mode in GEN_GLSL;
+}
+
+/** Every GLSL generator mode, in registry order (for dev galleries and pickers). */
+export function generatorModes(): string[] {
+  // Each director version sits right after its standard one.
+  const out: string[] = [];
+  for (const m of Object.keys(GEN_GLSL)) {
+    if (directorBase(m)) continue;
+    out.push(m);
+    if (GEN_GLSL[m + DIRECTOR_SUFFIX]) out.push(m + DIRECTOR_SUFFIX);
+  }
+  return out;
 }
 
 export interface GenContext {
@@ -425,38 +574,97 @@ export interface GenContext {
   audio: AudioTexture;
   colors: number[][];   // up to 3 [r,g,b] 0..1
   params: number[];     // iParam0..3
+  /** Media clock in seconds for the audio followers (beat tracker, calm envelopes). Offline renders
+   *  run faster than real time, so they pass it; live playback leaves it out and wall time is used. */
+  clock?: number;
 }
 
 export class GeneratorRenderer {
   private quad: WebGLVertexArrayObject;
   private progs = new Map<string, { p: WebGLProgram; u: Record<string, WebGLUniformLocation | null> }>();
+  // Stage rigs are large shaders (seconds to build on some drivers): they compile in parallel and the
+  // layer stays black until ready, instead of freezing the show.
+  private pending = new Map<string, PendingProgram>();
+  private parallel: { COMPLETION_STATUS_KHR: number } | null | undefined;
   private pool = new Map<string, RenderTarget>();
+  private envs = new Map<string, Env>();
+  private vocals = new Map<string, VocalHist>();
+  private sims = new Map<string, FluidSim>();
+  private directors = new Map<string, { base: string; d: GeneratorDirector }>();
+  private simModes = new Map<string, string>();
+  private stageEars = new Map<string, StageAudio>();
+  private lens?: StageLens;
 
-  constructor(private gl: GL) {
+  /** waitForShaders: offline renders (exports) must never emit a frame before its shader is built. */
+  constructor(private gl: GL, private opts: { waitForShaders?: boolean } = {}) {
     this.quad = createFullscreenQuad(gl);
   }
 
-  private program(mode: string) {
-    let entry = this.progs.get(mode);
+  private program(mode: string, sim = false, wait = true) {
+    const key = sim ? mode + '#sim' : mode;
+    let entry = this.progs.get(key);
     if (!entry) {
-      const p = createProgram(this.gl, VS, GEN_GLSL[mode]);
+      const base = cropDirectorBase(mode);
+      const b = base ?? mode;
+      let src = sim && FLUID_SIM_GLSL[b] ? HEADER + CEL_COMMON + FLUID_SIM_GLSL[b] : GEN_GLSL[b];
+      if (base) src = directorize(src);
+      let p: WebGLProgram;
+      if (mode.startsWith('RIG_')) {
+        if (this.parallel === undefined) this.parallel = this.gl.getExtension('KHR_parallel_shader_compile') as { COMPLETION_STATUS_KHR: number } | null;
+        let pp = this.pending.get(key);
+        if (!pp) { pp = startProgram(this.gl, VS, src); this.pending.set(key, pp); }
+        if (!wait && !this.opts.waitForShaders && !programDone(this.gl, pp, this.parallel)) return null;
+        this.pending.delete(key);
+        p = finishProgram(this.gl, pp);
+      } else p = createProgram(this.gl, base ? DIRECTOR_VS : VS, src);
       const u: Record<string, WebGLUniformLocation | null> = {};
-      for (const name of ['iResolution', 'iTime', 'iChannel0', 'iBass', 'iMid', 'iTreble', 'iLevel', 'iC0', 'iC1', 'iC2', 'iParam0', 'iParam1', 'iParam2', 'iParam3'])
+      for (const name of ['iResolution', 'iTime', 'iChannel0', 'iBass', 'iMid', 'iTreble', 'iLevel', 'iC0', 'iC1', 'iC2', 'iParam0', 'iParam1', 'iParam2', 'iParam3', 'iVocal', 'iChannel1', 'iChannel2', 'iChannel3', 'iSimTexel', 'iFlowOn', 'iCam', 'iCamZoom', 'iStage', 'iStage2', 'iHDR'])
         u[name] = this.gl.getUniformLocation(p, name);
       entry = { p, u };
-      this.progs.set(mode, entry);
+      this.progs.set(key, entry);
     }
     return entry;
   }
 
+  /** Build a mode's shader now, waiting for it (dev tools and offline renders that need frame one). */
+  prepare(mode: string) { this.program(mode, false, true); }
+
+  /** True once a mode's shader is built (stage rigs compile in the background). */
+  isReady(mode: string): boolean { return !!this.program(mode, false, false); }
+
   /** Render a generator mode into a pooled texture (keyed by layer id) and return it. */
   render(id: string, mode: string, w: number, h: number, ctx: GenContext): WebGLTexture {
     const gl = this.gl;
+    // Stateful modes: advance the live fluid (or the nebula's flow map) before drawing.
+    const dBase = cropDirectorBase(mode);
+    const base = dBase ?? mode;
+    const simId = SIM_MODE_ID[base] ?? cosmicSimId(base);
+    let sim: FluidSim | undefined;
+    if (simId !== undefined && simSupported(gl)) {
+      sim = this.sims.get(id);
+      if (!sim || this.simModes.get(id) !== base) {
+        sim?.dispose();
+        sim = new FluidSim(gl, simId, this.quad);
+        this.sims.set(id, sim); this.simModes.set(id, base);
+      }
+    }
+    const scale = sim && simId !== undefined && simId < 20 ? 1 : (GEN_RENDER_SCALE[base] ?? 1);
+    if (scale !== 1) { w = Math.max(2, Math.round(w * scale)); h = Math.max(2, Math.round(h * scale)); }
+    sim?.step(ctx.time, ctx.audio, ctx.params, w, h);
     const target = makeTarget(gl, w, h, this.pool.get(id));
     this.pool.set(id, target);
-    const { p, u } = this.program(mode);
+    const built = this.program(mode, !!sim, false);
+    if (!built) {                                   // still compiling: hold black rather than stall the frame
+      gl.bindFramebuffer(gl.FRAMEBUFFER, target.fbo); gl.viewport(0, 0, w, h);
+      gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT);
+      return target.tex;
+    }
+    const { p, u } = built;
+    // Stage rigs render scene-referred HDR and are developed through the lens (bloom, halation, grain).
+    const lens = u.iHDR && simSupported(gl) ? (this.lens ??= new StageLens(gl, this.quad)) : null;
+    const drawTarget = lens ? lens.hdrTarget(id, w, h) : target;
 
-    gl.bindFramebuffer(gl.FRAMEBUFFER, target.fbo);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, drawTarget.fbo);
     gl.viewport(0, 0, w, h);
     gl.disable(gl.BLEND);
     gl.useProgram(p);
@@ -465,30 +673,102 @@ export class GeneratorRenderer {
     gl.activeTexture(gl.TEXTURE2);
     gl.bindTexture(gl.TEXTURE_2D, ctx.audio.tex);
     gl.uniform1i(u.iChannel0, 2);
+    gl.uniform1f(u.iFlowOn, sim ? 1 : 0);
+    if (dBase) {
+      let dir = this.directors.get(id);
+      if (!dir || dir.base !== base) { dir = { base, d: new GeneratorDirector(base.startsWith('COSMIC_')) }; this.directors.set(id, dir); }
+      const [cx, cy, zoom, roll] = dir.d.update(ctx.time, ctx.audio, w / Math.max(1, h));
+      gl.uniform4f(u.iCam, cx, cy, zoom, roll);
+      gl.uniform1f(u.iCamZoom, zoom);
+    } else gl.uniform1f(u.iCamZoom, 1);
+    if (sim) {
+      gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, sim.dyeTex); gl.uniform1i(u.iChannel1, 3);
+      gl.activeTexture(gl.TEXTURE4); gl.bindTexture(gl.TEXTURE_2D, sim.velTex); gl.uniform1i(u.iChannel2, 4);
+      gl.activeTexture(gl.TEXTURE5); gl.bindTexture(gl.TEXTURE_2D, sim.waveTex); gl.uniform1i(u.iChannel3, 5);
+      const [tx, ty] = sim.waveTexel; gl.uniform2f(u.iSimTexel, tx, ty);
+    }
     gl.uniform2f(u.iResolution, w, h);
     gl.uniform1f(u.iTime, ctx.time);
-    gl.uniform1f(u.iBass, ctx.audio.bass);
-    gl.uniform1f(u.iMid, ctx.audio.mid);
-    gl.uniform1f(u.iTreble, ctx.audio.treble);
-    gl.uniform1f(u.iLevel, ctx.audio.level);
+    const au = ctx.audio;
+    const e = CALM_AUDIO_MODES.has(base) ? this.envelope(id, au, ctx.clock) : null;
+    gl.uniform1f(u.iBass, e ? e.b : au.bass);
+    gl.uniform1f(u.iMid, e ? e.m : au.mid);
+    gl.uniform1f(u.iTreble, e ? e.t : au.treble);
+    gl.uniform1f(u.iLevel, e ? e.l : au.level);
     const c = (i: number) => ctx.colors[i] ?? [1, 1, 1];
     gl.uniform3f(u.iC0, c(0)[0], c(0)[1], c(0)[2]);
     gl.uniform3f(u.iC1, c(1)[0], c(1)[1], c(1)[2]);
     gl.uniform3f(u.iC2, c(2)[0], c(2)[1], c(2)[2]);
+    if (u.iVocal) gl.uniform3fv(u.iVocal, this.vocalHistory(id, au));
+    if (u.iStage) {
+      let ears = this.stageEars.get(id);
+      if (!ears) { ears = new StageAudio(); this.stageEars.set(id, ears); }
+      const cue = ears.update(au, ctx.clock);
+      gl.uniform4f(u.iStage, cue.stage[0], cue.stage[1], cue.stage[2], cue.stage[3]);
+      gl.uniform4f(u.iStage2, cue.stage2[0], cue.stage2[1], cue.stage2[2], cue.stage2[3]);
+    }
     gl.uniform1f(u.iParam0, ctx.params[0] ?? 0.5);
     gl.uniform1f(u.iParam1, ctx.params[1] ?? 0.5);
     gl.uniform1f(u.iParam2, ctx.params[2] ?? 0.5);
     gl.uniform1f(u.iParam3, ctx.params[3] ?? 0.5);
 
+    if (u.iHDR) gl.uniform1f(u.iHDR, lens ? 1 : 0);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
     gl.bindVertexArray(null);
+    if (lens) lens.develop(id, target, ctx.time);
     return target.tex;
+  }
+
+  private vocalHistory(id: string, audio: AudioTexture): Float32Array {
+    const now = performance.now() / 1000;
+    let v = this.vocals.get(id);
+    if (!v) { v = { hist: new Float32Array(VOCAL_N * 3), fast: [0, 0, 0], slow: [0, 0, 0], acc: 0, at: now }; this.vocals.set(id, v); }
+    const dt = Math.min(0.25, Math.max(0, now - v.at)); v.at = now;
+    const sample = [0, 0, 0];
+    for (let b = 0; b < 3; b++) {
+      const x = audio.vocal?.[b] ?? 0;
+      const tauF = x > v.fast[b] ? 0.03 : 0.16;
+      v.fast[b] += (x - v.fast[b]) * (1 - Math.exp(-dt / tauF));
+      v.slow[b] += (x - v.slow[b]) * (1 - Math.exp(-dt / 1.6));
+      sample[b] = Math.min(1, Math.max(0, (v.fast[b] - v.slow[b] * 0.9) * 4.5) + v.fast[b] * 0.35);
+    }
+    v.acc += dt;
+    while (v.acc >= 1 / VOCAL_HZ) {
+      v.acc -= 1 / VOCAL_HZ;
+      v.hist.copyWithin(3, 0, (VOCAL_N - 1) * 3);
+      v.hist[0] = sample[0]; v.hist[1] = sample[1]; v.hist[2] = sample[2];
+    }
+    return v.hist;
+  }
+
+  private envelope(id: string, audio: AudioTexture, clock?: number): Env {
+    const now = clock ?? performance.now() / 1000;
+    let e = this.envs.get(id);
+    if (!e) { e = { b: audio.bass, m: audio.mid, t: audio.treble, l: audio.level, at: now }; this.envs.set(id, e); return e; }
+    const dt = Math.min(0.25, Math.max(0, now - e.at));
+    e.at = now;
+    const follow = (cur: number, target: number) => {
+      const tau = target > cur ? CALM_ATTACK : CALM_RELEASE;
+      return cur + (target - cur) * (1 - Math.exp(-dt / tau));
+    };
+    e.b = follow(e.b, audio.bass); e.m = follow(e.m, audio.mid);
+    e.t = follow(e.t, audio.treble); e.l = follow(e.l, audio.level);
+    return e;
   }
 
   dispose() {
     const gl = this.gl;
+    this.envs.clear();
+    this.vocals.clear();
+    this.stageEars.clear();
+    this.lens?.dispose(); this.lens = undefined;
+    this.sims.forEach(s => s.dispose());
+    this.sims.clear(); this.simModes.clear();
+    this.directors.clear();
     this.pool.forEach(t => { gl.deleteTexture(t.tex); gl.deleteFramebuffer(t.fbo); });
     this.progs.forEach(e => gl.deleteProgram(e.p));
+    this.pending.forEach(pp => { gl.deleteShader(pp.vs); gl.deleteShader(pp.fs); gl.deleteProgram(pp.prog); });
+    this.pending.clear();
     this.pool.clear(); this.progs.clear();
   }
 }

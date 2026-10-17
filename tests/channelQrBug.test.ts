@@ -136,5 +136,80 @@ test('channelQrService: unnumbered channels still encode stable station ID and o
   assert.ok(!url.includes('channel=%E2%80%94'), 'Must not encode em-dash as channel number');
 });
 
+test('Channel 6 (K-Moody FAST channel): playout timeline, slot resolution, and ad-break math never crash', async () => {
+  const { resolveSlotMedia, slotDurationSec, dayAnchoredPosition, sanitizeScheduleForPlayout } = await import('../services/fastChannelTimeline');
+
+  // Test 1: Undefined / empty slot
+  assert.doesNotThrow(() => {
+    const s = resolveSlotMedia(undefined as any);
+    assert.equal(s.title, 'Program');
+    assert.equal(s.durationSec, 1800);
+  });
+
+  // Test 2: Channel 6 with corrupted / 0 / NaN duration slots
+  const corruptedSlots = [
+    { id: 'slot1', type: 'VIDEO' as const, videoDurationSeconds: 0, videoUrl: 'https://stream.mux.com/abc.m3u8' },
+    { id: 'slot2', type: 'AD_BREAK' as const, adDurationSeconds: NaN },
+    { id: 'slot3', type: 'BUMPER' as const, bumperDurationSeconds: 1 },
+    { id: 'slot4', type: 'FM_BLOCK' as const, videoDurationSeconds: undefined },
+  ];
+
+  for (const s of corruptedSlots) {
+    assert.doesNotThrow(() => {
+      const dur = slotDurationSec(s as any);
+      assert.ok(Number.isFinite(dur));
+      assert.ok(dur >= 3);
+      const m = resolveSlotMedia(s as any);
+      assert.ok(m.title);
+    });
+  }
+
+  // Test 3: Day-anchored position on empty or NaN slots
+  const posEmpty = dayAnchoredPosition([], Date.now());
+  assert.equal(posEmpty.index, 0);
+  assert.equal(posEmpty.offsetSec, 0);
+
+  // Test 4: Playout sanitization with unprobed videos
+  const sanitized = sanitizeScheduleForPlayout(corruptedSlots as any, []);
+  assert.ok(Array.isArray(sanitized));
+});
+
+test('Channel 6 (K-Moody FAST channel): QR code generation and direct tuning URL', async () => {
+  const { buildChannelQrUrl, generateChannelQrDataUrl } = await import('../services/fast/channelQrService');
+  const { findSharedChannel } = await import('../services/fast/channelSharing');
+
+  const kmoodyChannel = {
+    number: '6',
+    id: 'fast_kmoody_123',
+    ownerId: 'kmoody_123',
+    scheduleOwner: 'kmoody_123',
+    name: "K-Moody's Channel",
+  };
+
+  const qrUrl = buildChannelQrUrl(kmoodyChannel);
+  assert.equal(qrUrl, 'https://plajah.com/?channel=6&owner=kmoody_123&source=fast_kmoody_123');
+
+  // Verify QR code generates clean base64 image data with standard quiet zone
+  const dataUrl = await generateChannelQrDataUrl(qrUrl);
+  assert.ok(dataUrl.startsWith('data:image/png;base64,'));
+
+  // Test matching in lineup
+  const lineup = [
+    { id: 'live_church', number: '4.1', ownerId: 'church_1' },
+    { id: 'fast_kmoody_123', number: '6', ownerId: 'kmoody_123', scheduleOwner: 'kmoody_123' },
+    { id: 'plajah_endless-hour', number: '8.1', plajahId: 'endless-hour' },
+  ];
+
+  // Tuning by exact sourceId
+  assert.equal(findSharedChannel(lineup, { sourceId: 'fast_kmoody_123', number: '6', ownerId: 'kmoody_123' }), 1);
+
+  // Tuning by ownerId + number
+  assert.equal(findSharedChannel(lineup, { ownerId: 'kmoody_123', number: '6' }), 1);
+
+  // Tuning by channel number alone
+  assert.equal(findSharedChannel(lineup, { number: '6' }), 1);
+});
+
+
 
 

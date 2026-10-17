@@ -23,10 +23,12 @@ import { createTelaTemplateSource, isMediaTemplate } from './telaTemplateSource'
 import { renderScripture, scriptureLayoutById, transitionById } from './scriptureLayouts';
 import { decoAlpha, type ScriptureState } from './scriptureKit';
 import { getScriptureLook, subscribeScriptureLook } from './scriptureLook';
+import { getScriptureReading, subscribeScriptureReading, syncActiveScriptureReading } from './autoScripture';
 import { TypoScriptureBackground } from './typoScriptureBackground';
 import { chapterContextFor } from './scriptureContext';
 import { resolveTypoText, type TypoTextSource } from './typoText';
 import { numParam, hexToRgb01 } from './visualizerParams';
+import { genPalette } from '../../components/plajahPixels/engine/core/generatorPalettes';
 // (scripture is drawn by scriptureLayouts via ScriptureSource)
 import {
   createSlideBox, createScriptureBox, createScriptureWithReferenceBoxes,
@@ -152,6 +154,7 @@ export class ScriptureSource implements LayerSource {
   private gen: LayerSource | null = null;
   private genMode = '';
   private offLook: () => void;
+  private offReading: () => void;
   private static readonly VERSE_XFADE_MS = 350;
   /** The chapter's other verses from Lectio, for typographic backgrounds. */
   private context: string[] | null = null;
@@ -170,8 +173,14 @@ export class ScriptureSource implements LayerSource {
       if (this.layoutId() !== this.shownLayout) this.beginLookFade();
       this.dirty = true; this.syncTypo();
     });
+    this.offReading = subscribeScriptureReading(() => {
+      this.dirty = true;
+    });
     this.syncTypo();
     this.loadContext();
+    if (this.content.reference) {
+      void syncActiveScriptureReading({ reference: this.content.reference, refId: this.content.refId, translation: this.content.translation }, this.content.translation);
+    }
   }
 
   /** The layout last drawn — a change in what layoutId() resolves to starts a crossfade. */
@@ -238,7 +247,13 @@ export class ScriptureSource implements LayerSource {
     }
     this.content = content;
     this.dirty = true;
-    if (textChanged || lookChanged) { this.syncTypo(); this.loadContext(); }
+    if (textChanged || lookChanged) {
+      this.syncTypo();
+      this.loadContext();
+      if (content.reference) {
+        void syncActiveScriptureReading({ reference: content.reference, refId: content.refId, translation: content.translation }, content.translation);
+      }
+    }
   }
 
   private blend(): { mode: GlobalCompositeOperation; alpha: number } {
@@ -282,6 +297,12 @@ export class ScriptureSource implements LayerSource {
     const settled = enterP >= 1 && !exitP && !xfading && !layout.animated && !this.typo && !this.gen && !this.swapFrom;
     if (settled && !this.dirty) return this.canvas;
 
+    const rd = getScriptureReading();
+    const matchesReading = rd && (
+      (this.content.refId && rd.refId === this.content.refId) ||
+      (this.content.reference && rd.reference.toLowerCase() === this.content.reference.toLowerCase())
+    );
+
     const base: ScriptureState = {
       w: this.w, h: this.h, t,
       text: this.text(),
@@ -296,6 +317,7 @@ export class ScriptureSource implements LayerSource {
       context: this.context ?? undefined,
       mt: this.mt,
       genFrame: this.gen ? (this.gen.frame(t) as CanvasImageSource | null) : null,
+      highlightWord: matchesReading ? rd.globalWordIndex : undefined,
     };
     // Text-only verse swap in progress?
     const swapP = this.swapFrom ? Math.min(1, (now - this.swapAt) / Math.max(1, this.swapMs)) : 1;
@@ -306,7 +328,7 @@ export class ScriptureSource implements LayerSource {
     const drawText = (c: CanvasRenderingContext2D, deco: number | undefined) => {
       if (this.swapFrom) {
         renderScripture(c, layout.id, { ...base, decoP: deco ?? heldDeco, enterP: swapP, exitP: 0, transition: vt });
-        renderScripture(c, layout.id, { ...base, text: this.swapFrom.text, reference: this.swapFrom.reference, translation: this.swapFrom.translation, decoP: 0, enterP: 1, exitP: swapP, transition: vt });
+        renderScripture(c, layout.id, { ...base, text: this.swapFrom.text, reference: this.swapFrom.reference, translation: this.swapFrom.translation, decoP: 0, enterP: 1, exitP: swapP, transition: vt, highlightWord: undefined });
       } else {
         renderScripture(c, layout.id, deco === undefined ? base : { ...base, decoP: deco });
       }
@@ -344,7 +366,7 @@ export class ScriptureSource implements LayerSource {
   }
   size() { return { w: this.w, h: this.h }; }
   ready() { return !!(this.content.lines?.length); }
-  dispose() { this.offLook(); this.typo?.dispose(); this.typo = null; this.gen?.dispose(); this.gen = null; }
+  dispose() { this.offLook(); this.offReading(); this.typo?.dispose(); this.typo = null; this.gen?.dispose(); this.gen = null; }
 }
 
 // ── Image ────────────────────────────────────────────────────────────────────
@@ -889,9 +911,9 @@ export class GeneratorSource implements LayerSource {
           time: vt,
           audio: this.audio,
           colors: [
-            hexToRgb01(p.color0, [0.55, 0.36, 0.95]),
-            hexToRgb01(p.color1, [0.83, 0, 0.33]),
-            hexToRgb01(p.color2, [1, 0.55, 0]),
+            hexToRgb01(p.color0 ?? genPalette(this.mode)?.[0], [0.55, 0.36, 0.95]),
+            hexToRgb01(p.color1 ?? genPalette(this.mode)?.[1], [0.83, 0, 0.33]),
+            hexToRgb01(p.color2 ?? genPalette(this.mode)?.[2], [1, 0.55, 0]),
           ],
           params: [numParam(p, 'p0', 0.5), numParam(p, 'p1', 0.5), numParam(p, 'p2', 0.5), numParam(p, 'p3', 0.5)],
         });

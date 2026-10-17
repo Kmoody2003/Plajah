@@ -3,9 +3,10 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Sparkles, Play, BookOpen, Film, Globe, ArrowLeft,
   ChevronRight, Award, MessageSquare, Compass, History,
-  Info, ExternalLink, Clapperboard, Flame, Check
+  Info, ExternalLink, Clapperboard, Flame, Check, Share2
 } from 'lucide-react';
-import { ArchiveVideo, CURATED_EUROPEANA_FILMS, CURATED_KOFA_FILMS } from '../services/archiveContentService';
+import { ArchiveVideo, CURATED_EUROPEANA_FILMS, CURATED_KOFA_FILMS, CURATED_HALLOWEEN_FILMS } from '../services/archiveContentService';
+import { shareAsset, shareText } from '../services/deepLinkService';
 
 interface TaleoFilmCuratorProps {
   onSelectArchiveItem: (item: ArchiveVideo) => void;
@@ -22,6 +23,10 @@ interface DoubleFeature {
 }
 
 const HISTORIAN_FAQS = [
+  {
+    q: 'Why is "Night of the Living Dead" (1968) in the public domain, and how did it reinvent horror?',
+    a: 'Distributor Walter Reade Organization changed the film’s title from "Night of the Flesh Eaters" to "Night of the Living Dead" on the theatrical prints but accidentally omitted the mandatory copyright notice on the new title card. Under 1968 U.S. copyright law, the film immediately entered the public domain—allowing it to screen at midnight theaters worldwide and birth modern zombie cinema.',
+  },
   {
     q: 'Why is "The Housemaid" (1960) considered the ancestor of Bong Joon-ho’s "Parasite"?',
     a: 'Director Kim Ki-young pioneered the claustrophobic Korean domestic thriller. In "The Housemaid", an affluent modern two-story home becomes a microcosm of class warfare, sexual guilt, and social climbing. Bong Joon-ho has repeatedly stated that "The Housemaid" was the foundational creative blueprint for "Parasite", directly inspiring its vertical architecture of class division and escalating panic.',
@@ -49,9 +54,14 @@ export const TaleoFilmCurator: React.FC<TaleoFilmCuratorProps> = ({
   onSelectMovie,
   onBack,
 }) => {
-  const allCurated: ArchiveVideo[] = [...CURATED_KOFA_FILMS, ...CURATED_EUROPEANA_FILMS];
+  const seenIds = new Set<string>();
+  const allCurated: ArchiveVideo[] = [...CURATED_HALLOWEEN_FILMS, ...CURATED_KOFA_FILMS, ...CURATED_EUROPEANA_FILMS].filter(f => {
+    if (seenIds.has(f.identifier)) return false;
+    seenIds.add(f.identifier);
+    return true;
+  });
 
-  const [selectedFilm, setSelectedFilm] = useState<ArchiveVideo>(CURATED_KOFA_FILMS[0]);
+  const [selectedFilm, setSelectedFilm] = useState<ArchiveVideo>(CURATED_HALLOWEEN_FILMS[0] || CURATED_KOFA_FILMS[0]);
   const [activeTab, setActiveTab] = useState<'SPOTLIGHT' | 'MOVEMENTS' | 'DOUBLE_FEATURE' | 'INQUIRY'>('SPOTLIGHT');
   const [expandedFaq, setExpandedFaq] = useState<number | null>(0);
   const [userQuery, setUserQuery] = useState('');
@@ -210,12 +220,21 @@ export const TaleoFilmCurator: React.FC<TaleoFilmCuratorProps> = ({
                     {selectedFilm.curatorNote || selectedFilm.description}
                   </p>
 
-                  <div className="flex items-center gap-4 pt-2">
+                  <div className="flex items-center gap-4 pt-2 flex-wrap">
                     <button
                       onClick={() => onSelectArchiveItem(selectedFilm)}
                       className="h-12 px-8 bg-[#D0BCFF] hover:bg-[#E8DAFF] text-[#1C1B1F] font-black text-sm uppercase tracking-widest rounded-full flex items-center gap-3 transition-all hover:scale-105 shadow-xl cursor-pointer"
                     >
                       <Play fill="currentColor" size={18} /> Watch Masterpiece
+                    </button>
+                    <button
+                      onClick={() => shareAsset('archive', selectedFilm.identifier, {
+                        title: `${selectedFilm.title} (${selectedFilm.year}) — Plajah Taleo`,
+                        text: shareText(selectedFilm.title, selectedFilm.director || selectedFilm.dataProvider),
+                      })}
+                      className="h-12 px-5 bg-white/10 hover:bg-white/20 border border-white/15 text-white font-black text-xs uppercase tracking-widest rounded-full flex items-center gap-2 transition-all cursor-pointer"
+                    >
+                      <Share2 size={14} /> Share Film
                     </button>
                     {selectedFilm.sourceUrl && (
                       <a
@@ -297,7 +316,9 @@ export const TaleoFilmCurator: React.FC<TaleoFilmCuratorProps> = ({
                         )}
                       </div>
                       <h4 className="text-[11px] font-black uppercase text-white truncate">{film.title}</h4>
-                      <p className="text-[9px] font-black uppercase tracking-widest text-white/40">{film.year} · {film.source === 'KOFA' ? 'KOFA' : 'Europeana'}</p>
+                      <p className="text-[9px] font-black uppercase tracking-widest text-white/40">
+                        {film.year} · {film.source === 'KOFA' ? 'KOFA' : film.source === 'EUROPEANA' ? 'Europeana' : 'Halloween Archive'}
+                      </p>
                     </motion.div>
                   );
                 })}
@@ -313,6 +334,46 @@ export const TaleoFilmCurator: React.FC<TaleoFilmCuratorProps> = ({
               <p className="text-[9px] font-black uppercase tracking-[0.3em] text-[#FFB68D] mb-1">Cinema History</p>
               <h2 className="text-3xl font-black uppercase tracking-tight text-white">Landmark Movements on Platform</h2>
               <p className="text-sm text-white/50 max-w-2xl mt-1">Explore preserved motion pictures through the key historical movements that transformed cinema from a fairground novelty into humanity's most potent art form.</p>
+            </div>
+
+            {/* Movement 0: Gothic Horror & Midnight Cinema */}
+            <div className="p-8 rounded-3xl bg-gradient-to-br from-[#2B150E] via-[#1C1219] to-[#131314] border border-[#FF8C00]/25 space-y-6">
+              <div className="flex items-start justify-between gap-4 flex-wrap">
+                <div>
+                  <span className="px-3 py-1 rounded-lg bg-[#FF8C00]/20 text-[#FFB68D] text-[8px] font-black uppercase tracking-widest border border-[#FF8C00]/30">1910–1972 · Curated Halloween Selection</span>
+                  <h3 className="text-2xl font-black uppercase text-white mt-2">🎃 Gothic Macabre &amp; Independent Midnight Horror</h3>
+                  <p className="text-xs text-white/60 max-w-3xl mt-1 leading-relaxed">
+                    From Thomas Edison’s 1910 single-reel adaptation of Mary Shelley’s Frankenstein and Lon Chaney’s silent Phantom of the Opera to Herk Harvey’s eerie regional art-horror and George A. Romero’s revolutionary Night of the Living Dead, independent and public-domain horror repeatedly rewrote the rules of cinema.
+                  </p>
+                </div>
+                <button
+                  onClick={() => shareAsset('taleoCollection', 'halloween', {
+                    title: '🎃 Taleo Halloween Selection — Curated Horror & Macabre Cinema',
+                    text: 'Stream 12 restored Gothic & midnight horror classics free on Plajah Taleo',
+                  })}
+                  className="px-4 py-2 rounded-full bg-[#FF8C00]/20 hover:bg-[#FF8C00]/30 border border-[#FF8C00]/40 text-[#FFB68D] text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all cursor-pointer"
+                >
+                  <Share2 size={12} /> Share Halloween Collection
+                </button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
+                {CURATED_HALLOWEEN_FILMS.slice(0, 6).map(film => (
+                  <div key={film.identifier} className="p-4 rounded-2xl bg-black/40 border border-white/10 flex gap-4 items-center">
+                    <img src={film.thumbnailUrl} alt={film.title} referrerPolicy="no-referrer" className="w-16 h-20 object-cover rounded-xl shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-xs font-black uppercase text-white truncate">{film.title}</h4>
+                      <p className="text-[10px] text-[#FFB68D] font-bold mt-0.5">{film.director} · {film.year}</p>
+                      <p className="text-[9px] text-white/40 mt-1 line-clamp-2 leading-relaxed">{film.curatorNote}</p>
+                      <button
+                        onClick={() => onSelectArchiveItem(film)}
+                        className="mt-2 text-[9px] font-black uppercase text-[#D0BCFF] hover:underline flex items-center gap-1 cursor-pointer"
+                      >
+                        <Play size={10} fill="currentColor" /> Watch Now
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
 
             {/* Movement 1: Korean Golden Age */}

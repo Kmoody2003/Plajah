@@ -31,7 +31,7 @@ const LYRIC_FIELDS = (styleId: string): FieldDef[] => [
   F('lyrics', 'Lyrics (lines)', '', { multiline: true, hint: 'Leave empty: live lyrics follow the track / singer. Type lines here only to override.' }),
   F('nextLyrics', 'Next line preview', ''),
   F('info', 'Key / Licence', ''),
-  F('liveSource', 'Audio / Clock source', 'auto', { kind: 'select', options: ['auto', 'bus', 'dj', 'live', 'manual'], hint: 'auto = follow audio playlist, DJ deck, or live transcription if playing, else slide copy' }),
+  F('liveSource', 'Audio / Clock source', 'auto', { kind: 'select', options: ['auto', 'follow', 'bus', 'dj', 'live', 'manual'], hint: 'auto = follow Song Follow, live transcription, DJ deck, or audio playlist if active, else slide copy' }),
 ];
 
 /** Parse newline-delimited text into timed LyricLines. */
@@ -50,10 +50,10 @@ registerLiveDrawer('lyrics.display', (ctx, o, env) => {
   // Check if an active music/live lyric clock should be followed
   const sourceMode = String(p.liveSource || 'auto');
   let activeClock = null;
-  if (sourceMode === 'bus' || sourceMode === 'dj' || sourceMode === 'live') {
+  if (sourceMode === 'follow' || sourceMode === 'bus' || sourceMode === 'dj' || sourceMode === 'live') {
     activeClock = getLyricClock(sourceMode as any);
   } else if (sourceMode === 'auto') {
-    for (const id of ['live', 'dj', 'bus'] as const) {
+    for (const id of ['follow', 'live', 'dj', 'bus'] as const) {
       const c = getLyricClock(id);
       if (c && c.isPlaying()) { activeClock = c; break; }
     }

@@ -97,6 +97,13 @@ export const DesktopGlobalToolbar: React.FC<DesktopGlobalToolbarProps> = ({
   const switcherRef = useRef<HTMLDivElement>(null);
 
   // Sync native window state (maximized vs restored)
+  // Tell the stylesheet the toolbar is mounted so page roots/overlays start below it.
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.add('pj-has-toolbar');
+    return () => root.classList.remove('pj-has-toolbar');
+  }, []);
+
   useEffect(() => {
     if (!isWindowsNative && !isWindowsApp()) return;
     const handleWebviewMessage = (e: any) => {

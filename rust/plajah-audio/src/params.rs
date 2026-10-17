@@ -339,7 +339,19 @@ pub const A_TAPE_SAT: u32 = 30; // 15 IPS magnetic tape saturation + 72 Hz head 
 pub const A_HUM: u32 = 31;      // 60 Hz / 180 Hz tube & transformer hum + warm noise floor
 pub const A_CRACKLE: u32 = 32;  // Subtle oxide/capacitor crackle & dust
 
-/// 1800 rather than 1664: VELA runs to 1207, BAJO to 1650, and AURA to 1732.
+/// Rhythmic Analog VCA / Lowpass Gate Chopper.
+pub const A_GATE_ON: u32 = 40;
+pub const A_GATE_RATE: u32 = 41;  // 0 = 1/4, 1 = 1/8, 2 = 1/8T, 3 = 1/16, 4 = 1/16T
+pub const A_GATE_DEPTH: u32 = 42; // 0..1 chop depth
+pub const A_GATE_SHAPE: u32 = 43; // 0 = Pulse Gate, 1 = Saw Ramp, 2 = Random Probabilistic Gate
+
+/// Generative Analog Randomness ("Flux / Source of Uncertainty") on note trigger & sustain.
+pub const A_FLUX_ON: u32 = 50;
+pub const A_FLUX_AMT: u32 = 51;  // 0..1 random modulation depth
+pub const A_FLUX_RATE: u32 = 52; // 0..1 S&H / random clock rate during sustain
+pub const A_FLUX_MODE: u32 = 53; // 0 = S&H Filter, 1 = Buchla Drift, 2 = Cosmic Glitch
+
+/// 1800 rather than 1664: VELA runs to 1207, BAJO to 1650, and AURA to 1753.
 pub const MAX_PARAM_ID: usize = 1800;
 
 /// Flat store. A plain array keeps `set_param` and the mod matrix's destination lookup O(1)
@@ -565,6 +577,16 @@ impl Params {
         self.set(AURA_BASE + A_TAPE_SAT, 0.0);
         self.set(AURA_BASE + A_HUM, 0.0);
         self.set(AURA_BASE + A_CRACKLE, 0.0);
+
+        self.set(AURA_BASE + A_GATE_ON, 0.0);
+        self.set(AURA_BASE + A_GATE_RATE, 3.0);  // 1/16 default
+        self.set(AURA_BASE + A_GATE_DEPTH, 0.72);
+        self.set(AURA_BASE + A_GATE_SHAPE, 0.0); // Pulse
+
+        self.set(AURA_BASE + A_FLUX_ON, 0.0);
+        self.set(AURA_BASE + A_FLUX_AMT, 0.45);
+        self.set(AURA_BASE + A_FLUX_RATE, 0.42);
+        self.set(AURA_BASE + A_FLUX_MODE, 0.0);
     }
 }
 

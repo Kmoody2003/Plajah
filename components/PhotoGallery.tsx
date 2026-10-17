@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Photo, Track } from '../types';
 import { fetchUserPhotos, uploadPhoto, fetchRadioTracks, fetchUserWorldPhotos } from '../services/backendService';
 import { fetchExif, type ExifData } from '../services/exifService';
+import { slideshowImage, thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
 
 interface PhotoGalleryProps {
   uid: string;
@@ -112,6 +113,19 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({ uid, isOwner, onOpenArtGall
     }
     return () => clearInterval(interval);
   }, [isSlideshowActive, isPlaying, photos.length]);
+
+  // Preload next 2 JPEG XL slideshow frames so transitions are instantaneous
+  useEffect(() => {
+    if (!isSlideshowActive || activePhotoIndex === null || photos.length < 2) return;
+    for (let k = 1; k <= 2; k++) {
+      const nextPhoto = photos[(activePhotoIndex + k) % photos.length];
+      if (nextPhoto?.url) {
+        const im = new window.Image();
+        im.decoding = 'async';
+        im.src = slideshowImage(nextPhoto.url);
+      }
+    }
+  }, [isSlideshowActive, activePhotoIndex, photos]);
 
   // Lightbox keyboard navigation
   const lightboxPrev = useCallback(() => {
@@ -308,8 +322,10 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({ uid, isOwner, onOpenArtGall
             <AnimatePresence mode="wait">
               <motion.img
                 key={lightboxPhoto.id}
-                src={lightboxPhoto.url}
+                src={slideshowImage(lightboxPhoto.url, 1920, 82)}
                 alt={lightboxPhoto.title}
+                onError={onThumbError(lightboxPhoto.url)}
+                decoding="async"
                 initial={{ opacity: 0, scale: 0.96 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.96 }}
@@ -384,7 +400,7 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({ uid, isOwner, onOpenArtGall
                         className={`w-full p-3 rounded-xl text-left transition-all flex items-center gap-3 ${selectedMusic?.id === track.id ? 'bg-small-orange/20 text-small-orange' : 'hover:bg-white/5'}`}
                       >
                         <div className="w-8 h-8 rounded-lg overflow-hidden flex-shrink-0">
-                          <img src={track.images?.[0] || 'https://picsum.photos/seed/music/100/100'} className="w-full h-full object-cover" alt="Art" />
+                          <img src={thumb(track.images?.[0] || 'https://picsum.photos/seed/music/100/100', THUMB.avatar)} onError={onThumbError(track.images?.[0])} loading="lazy" decoding="async" className="w-full h-full object-cover" alt="Art" />
                         </div>
                         <div className="flex-1 truncate">
                           <p className="text-[10px] font-black uppercase tracking-widest truncate">{track.title}</p>
@@ -420,7 +436,7 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({ uid, isOwner, onOpenArtGall
                   exit={{ opacity: 0, x: -100 }}
                   className="w-full h-full max-w-5xl rounded-[4rem] overflow-hidden border-4 border-white/10 shadow-2xl relative"
                 >
-                  <FastImage item={photos[activePhotoIndex]} variant="hero" priority alt="Slideshow" />
+                  <FastImage item={photos[activePhotoIndex]} variant="slideshow" priority alt="Slideshow" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent p-12 flex flex-col justify-end">
                     <h4 className="text-4xl font-black uppercase tracking-tightest mb-2">{photos[activePhotoIndex].title}</h4>
                     <p className="text-white/40 max-w-xl">{photos[activePhotoIndex].description}</p>

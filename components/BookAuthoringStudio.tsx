@@ -26,12 +26,13 @@ import { v4 as uuidv4 } from 'uuid';
 import { useContextMenu } from './ui/ContextMenu';
 import { StudioBook, StudioPage, StudioPanel, StudioPageType, Album } from '../types';
 import { useAriaSurface } from '../services/aria/useAriaSurface';
-import { setComicHandoff, peekComicHandoff } from '../services/comicHandoff';
+import { setComicHandoff, peekComicHandoff, takeComicHandoff } from '../services/comicHandoff';
 import EditorialCouncilRoom from './editorial/council/EditorialCouncilRoom';
 import { studioPagesToManuscript } from '../services/editorial/council/editorialAdapters';
 import { extractDocument, type ImportedParagraph } from '../services/documentImport';
 import type { ContinuityReport } from '../services/manuscriptContinuity';
 import { auth, storage, db } from '../services/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 
@@ -44,6 +45,9 @@ import {
   comicToShowcaseStudioBook,
   openStudioBookInLorea,
   getAvailableShowcaseComics,
+  canAccessPumpkinPatchProject,
+  createEmptyBaseTemplateStudioPage,
+  createEmptyBaseTemplateStudioBook,
 } from '../services/comic/comicStudioBridge';
 
 // ─── Typography CSS (injected once) ──────────────────────────────────────────
@@ -201,6 +205,9 @@ function isDark(bg: string): boolean {
 }
 
 function makeBlankPage(type: StudioPageType, order: number): StudioPage {
+  if (type === 'COMIC' || type === 'MANGA') {
+    return createEmptyBaseTemplateStudioPage(order, type === 'MANGA');
+  }
   return {
     id: uuidv4(), type, order,
     richText: '',
@@ -812,6 +819,7 @@ interface Props { onBack: () => void; initialBook?: StudioBook; }
 export default function BookAuthoringStudio({ onBack, initialBook }: Props) {
   useEffect(() => { injectProseCSS(); }, []);
 
+  const [canSeePumpkinPatch, setCanSeePumpkinPatch] = useState<boolean>(() => canAccessPumpkinPatchProject());
   const [book, setBook] = useState<StudioBook>(() => initialBook ?? defaultBook());
   const [activePageId, setActivePageId] = useState(book.pages[0]?.id ?? '');
   const [showAddMenu, setShowAddMenu] = useState(false);
@@ -822,6 +830,25 @@ export default function BookAuthoringStudio({ onBack, initialBook }: Props) {
   const [showComicShowcase, setShowComicShowcase] = useState(false);
   const [importDragging, setImportDragging] = useState(false);
   const importRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!auth) return;
+    const unsub = onAuthStateChanged(auth, (u) => {
+      const allowed = canAccessPumpkinPatchProject(u);
+      setCanSeePumpkinPatch(allowed);
+      if (!allowed) {
+        setBook((prev) => {
+          if (prev.id === 'showcase_comic_pumpkin-patch-v4' || prev.title?.toLowerCase().includes('pumpkin patch')) {
+            const emptyBase = createEmptyBaseTemplateStudioBook(prev.format === 'MANGA');
+            setActivePageId(emptyBase.pages[0]?.id || '');
+            return emptyBase;
+          }
+          return prev;
+        });
+      }
+    });
+    return () => unsub();
+  }, []);
 
   // Publish & Protect: ship the book to the Lorea marketplace and anchor a
   // creation certificate (SHA-256 of the manuscript, inscribed via Ordinals)
@@ -1112,10 +1139,27 @@ export default function BookAuthoringStudio({ onBack, initialBook }: Props) {
     addPage(book.format === 'MANGA' ? 'MANGA' : 'COMIC'); // ComicPanelBuilder consumes the handoff on mount
   };
 
-  // A pending handoff (from Fabula "Send to Comic" or Lorea) → open a comic page so
+  // A pending handoff (from Fabula "Send to Comic", "Open Graphic Novel", or Lorea) → open a comic page so
   // ComicPanelBuilder mounts and picks it up.
   useEffect(() => {
-    if (!peekComicHandoff()) return;
+    const h = peekComicHandoff();
+    if (!h) return;
+    if (h.pages && h.pages.length > 0) {
+      const consumed = takeComicHandoff();
+      if (consumed?.pages?.length) {
+        const targetIdx = Math.max(0, Math.min(consumed.pages.length - 1, consumed.activePageIndex ?? 0));
+        setBook(b => ({
+          ...b,
+          title: consumed.title || b.title,
+          format: 'COMIC',
+          pages: consumed.pages!,
+          updatedAt: Date.now(),
+        }));
+        setActivePageId(consumed.pages[targetIdx].id);
+        setAiRev(v => v + 1);
+      }
+      return;
+    }
     const existing = book.pages.find(p => p.type === 'COMIC' || p.type === 'MANGA');
     if (existing) setActivePageId(existing.id);
     else addPage('COMIC');
@@ -1189,8 +1233,37 @@ export default function BookAuthoringStudio({ onBack, initialBook }: Props) {
         {/* Format chips */}
         <div className="flex gap-1 overflow-x-auto scrollbar-none">
           {FORMATS.map(f => (
-            <button key={f.id} onClick={() => { setBookField('format', f.id); if (f.rtl) setBookField('readingDir', 'rtl'); else setBookField('readingDir', 'ltr'); }}
-              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold shrink-0 border transition-colors whitespace-nowrap ${book.format === f.id ? 'bg-orange-500/10 border-orange-500/30 text-orange-400' : 'bg-white/[0.03] border-white/5 text-white/30 hover:text-white/70'}`}>
+            <button
+              key={f.id}
+              onClick={() => {
+                setBookField('format', f.id);
+                if (f.rtl) setBookField('readingDir', 'rtl');
+                else setBookField('readingDir', 'ltr');
+                if (['GRAPHIC_NOVEL', 'COMIC', 'MANGA', 'WEBTOON'].includes(f.id)) {
+                  const hasComicPage = book.pages.some(p => p.type === 'COMIC' || p.type === 'MANGA');
+                  if (!hasComicPage) {
+                    if (book.title === 'Untitled') {
+                      if (canSeePumpkinPatch && f.id !== 'MANGA') {
+                        const loaded = comicToShowcaseStudioBook('pumpkin-patch-v4');
+                        setBook(loaded);
+                        setActivePageId(loaded.pages[0]?.id || '');
+                      } else {
+                        const emptyBook = createEmptyBaseTemplateStudioBook(f.id === 'MANGA');
+                        emptyBook.format = f.id;
+                        setBook(emptyBook);
+                        setActivePageId(emptyBook.pages[0]?.id || '');
+                      }
+                    } else {
+                      addPage(f.id === 'MANGA' ? 'MANGA' : 'COMIC');
+                    }
+                  } else {
+                    const firstComic = book.pages.find(p => p.type === 'COMIC' || p.type === 'MANGA');
+                    if (firstComic) setActivePageId(firstComic.id);
+                  }
+                }
+              }}
+              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold shrink-0 border transition-colors whitespace-nowrap ${book.format === f.id ? 'bg-orange-500/10 border-orange-500/30 text-orange-400' : 'bg-white/[0.03] border-white/5 text-white/30 hover:text-white/70'}`}
+            >
               {f.label}
             </button>
           ))}
@@ -1202,11 +1275,27 @@ export default function BookAuthoringStudio({ onBack, initialBook }: Props) {
             {saved ? 'Saved' : 'Saving…'}
           </span>
 
+          {/* 1-Click Pumpkin Patch V4 Council Studio Loader (Only visible to Kenneth & Brian James Gage) */}
+          {canSeePumpkinPatch && (
+            <button
+              onClick={() => {
+                const loaded = comicToShowcaseStudioBook('pumpkin-patch-v4');
+                setBook(loaded);
+                setActivePageId(loaded.pages[0]?.id || '');
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/50 text-xs font-black text-amber-300 hover:from-amber-500/30 hover:to-orange-500/30 transition-all shadow-sm"
+              title="Load Pumpkin Patch (Oct 2025) — 26-Page, 294-Panel Council V4 Living Graphic Novel"
+            >
+              🎃 Pumpkin Patch V4 (26p)
+            </button>
+          )}
+
           {/* Graphic Novel & Manga Importer */}
           <button onClick={() => setShowComicShowcase(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-500/10 border border-orange-500/30 text-xs font-bold text-orange-400 hover:bg-orange-500/20 transition-all">
             <Sparkles size={11} className="text-orange-400"/> Graphic Novels & Manga
           </button>
+
 
           {/* Direct Lorea Reader Preview Button */}
           <button onClick={() => openStudioBookInLorea(book)}
@@ -1322,23 +1411,34 @@ export default function BookAuthoringStudio({ onBack, initialBook }: Props) {
             {activePage ? (
               <motion.div key={`${activePage.id}:${aiRev}`} initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} transition={{duration:.15}} className="h-full">
                 {activePage.type === 'TEXT' && <TextPageEditor page={activePage} onChange={updatePage}/>}
-                {(activePage.type === 'COMIC' || activePage.type === 'MANGA') && (
-                  <Suspense fallback={<div className="h-full flex items-center justify-center text-white/20 text-sm">Loading canvas…</div>}>
-                    <ComicPanelBuilder
-                      page={activePage}
-                      onChange={updatePage}
-                      isManga={activePage.type === 'MANGA' || book.readingDir === 'rtl'}
-                      currentPageIndex={sortedPages.findIndex(p => p.id === activePage.id)}
-                      totalPages={sortedPages.length}
-                      onNavigatePage={(delta) => {
-                        const curIdx = sortedPages.findIndex(p => p.id === activePage.id);
-                        const nextIdx = Math.max(0, Math.min(sortedPages.length - 1, curIdx + delta));
-                        setActivePageId(sortedPages[nextIdx].id);
-                      }}
-                      onOpenInLorea={() => openStudioBookInLorea(book)}
-                    />
-                  </Suspense>
-                )}
+                {(activePage.type === 'COMIC' || activePage.type === 'MANGA') && (() => {
+                  const comicPages = sortedPages.filter(p => p.type === 'COMIC' || p.type === 'MANGA');
+                  const comicPageIdx = Math.max(0, comicPages.findIndex(p => p.id === activePage.id));
+                  return (
+                    <Suspense fallback={<div className="h-full flex items-center justify-center text-white/20 text-sm">Loading canvas…</div>}>
+                      <ComicPanelBuilder
+                        page={activePage}
+                        onChange={updatePage}
+                        isManga={activePage.type === 'MANGA' || book.readingDir === 'rtl'}
+                        currentPageIndex={comicPageIdx}
+                        totalPages={comicPages.length}
+                        onNavigatePage={(delta) => {
+                          const nextIdx = Math.max(0, Math.min(comicPages.length - 1, comicPageIdx + delta));
+                          if (comicPages[nextIdx]) setActivePageId(comicPages[nextIdx].id);
+                        }}
+                        onOpenInLorea={() => openStudioBookInLorea(book)}
+                        allPages={comicPages}
+                        onUpdateAnyPage={(updated) => updatePage(updated)}
+                        onSelectPageIndex={(idx) => {
+                          if (comicPages[idx]) setActivePageId(comicPages[idx].id);
+                        }}
+                        bookTitle={book.title}
+                        bookAuthor={book.author}
+                      />
+                    </Suspense>
+                  );
+                })()}
+
                 {(activePage.type === 'COVER' || activePage.type === 'FULL_BLEED') && <BleedPageEditor page={activePage} onChange={updatePage}/>}
                 {activePage.type === 'MEDIA' && <MediaPageEditor page={activePage} onChange={updatePage}/>}
                 {activePage.type === 'CHAPTER_BREAK' && <ChapterBreakEditor page={activePage} onChange={updatePage}/>}
@@ -1728,9 +1828,79 @@ export default function BookAuthoringStudio({ onBack, initialBook }: Props) {
                 </button>
               </div>
 
+              {/* Featured #1: Pumpkin Patch (Oct 2025) for Kenneth & Brian, or Empty Base Template Layout for everyone else */}
+              {canSeePumpkinPatch ? (
+                <div className="mb-4 rounded-2xl bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-black border border-amber-500/50 p-4 flex flex-col md:flex-row gap-4 items-center justify-between shadow-xl">
+                  <div className="w-full md:w-56 aspect-[16/9] rounded-xl overflow-hidden bg-black relative border border-amber-500/40 shrink-0">
+                    <img src="/generated/comics/pumpkin_patch_v4/panel_001.jpg" alt="Pumpkin Patch (Oct 2025)" className="w-full h-full object-cover"/>
+                    <div className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-amber-500 text-black text-[9px] font-black uppercase tracking-wider">
+                      Creator & Owner Exclusive
+                    </div>
+                    <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded bg-black/85 text-[9px] font-bold text-amber-300 border border-amber-500/30">
+                      26 Pages · 294 Panels · 276 Balloons
+                    </div>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-black text-base text-white mb-0.5">🎃 PUMPKIN PATCH (OCT 2025) — LIVING GRAPHIC NOVEL</h4>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-amber-400 mb-1.5">
+                      Brian James Gage · Multi-Tier Dynamic Choreography · ±60s Frame Scrubber & Video Loops
+                    </p>
+                    <p className="text-xs text-white/65 leading-relaxed mb-3">
+                      Complete 26-page, 294-panel graphic novel with 5 Editorial Council Lenses, double-click Hand Reframe tool, non-destructive Alt Text Layer, and single-load live video loops.
+                    </p>
+                    <button
+                      onClick={() => {
+                        const loaded = comicToShowcaseStudioBook('pumpkin-patch-v4');
+                        setBook(loaded);
+                        setActivePageId(loaded.pages[0]?.id || '');
+                        setShowComicShowcase(false);
+                      }}
+                      className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-black font-black text-xs uppercase tracking-wider hover:from-amber-400 hover:to-orange-400 transition-all flex items-center gap-2 shadow-lg"
+                    >
+                      <Layers size={14}/> Open 26-Page Living Graphic Novel in Studio
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="mb-4 rounded-2xl bg-gradient-to-r from-cyan-500/10 via-amber-500/10 to-black border border-cyan-500/40 p-4 flex flex-col md:flex-row gap-4 items-center justify-between shadow-xl">
+                  <div className="w-full md:w-56 aspect-[16/9] rounded-xl overflow-hidden bg-[#0a0c12] relative border border-cyan-500/30 shrink-0 flex flex-col gap-1 p-2">
+                    <div className="flex-1 flex gap-1">
+                      <div className="flex-[1.6] rounded bg-white/5 border border-dashed border-cyan-400/40 flex items-center justify-center text-[8px] font-bold text-cyan-300/70">P1 · WIDE</div>
+                      <div className="flex-1 rounded bg-white/5 border border-dashed border-amber-400/40 flex items-center justify-center text-[8px] font-bold text-amber-300/70">P2 · SLASH</div>
+                    </div>
+                    <div className="flex-1 flex gap-1">
+                      <div className="flex-1 rounded bg-white/5 border border-dashed border-white/20 flex items-center justify-center text-[8px] font-bold text-white/50">P3 · MCU</div>
+                      <div className="flex-1 rounded bg-white/5 border border-dashed border-white/20 flex items-center justify-center text-[8px] font-bold text-white/50">P4 · CU</div>
+                    </div>
+                    <div className="h-5 rounded bg-white/5 border border-dashed border-cyan-400/40 flex items-center justify-center text-[8px] font-bold text-cyan-300/70">P5 · CLIMAX LETTERBOX</div>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-black text-base text-white mb-0.5">📐 BLANK COUNCIL V4 BASE TEMPLATE LAYOUT</h4>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-cyan-400 mb-1.5">
+                      5-Panel Multi-Tier Dynamic Choreography · Ready for Your Original Story
+                    </p>
+                    <p className="text-xs text-white/65 leading-relaxed mb-3">
+                      Start fresh with an empty 5-panel Council V4 layout (Wide Establishing + Diagonal Action Slash + Character Beats + Climax Letterbox) with Hand Reframe, Alt Text Layer, and Inker tools.
+                    </p>
+                    <button
+                      onClick={() => {
+                        const emptyBook = createEmptyBaseTemplateStudioBook(false);
+                        setBook(emptyBook);
+                        setActivePageId(emptyBook.pages[0]?.id || '');
+                        setShowComicShowcase(false);
+                      }}
+                      className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-400 to-sky-500 text-black font-black text-xs uppercase tracking-wider hover:from-cyan-300 hover:to-sky-400 transition-all flex items-center gap-2 shadow-lg"
+                    >
+                      <Layers size={14}/> Start Empty Base Template Layout
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Two Flagships Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                 {/* 1. The Obsidian Shroud */}
+
                 <div className="group relative rounded-2xl bg-white/[0.03] border border-white/10 hover:border-orange-500/50 p-4 transition-all duration-200 flex flex-col justify-between">
                   <div>
                     <div className="aspect-[16/9] rounded-xl overflow-hidden mb-3 bg-black relative border border-white/10">

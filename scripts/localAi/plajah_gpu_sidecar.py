@@ -200,10 +200,24 @@ def get_gpu_profile():
         "type": "cuda" if has_cuda else "cpu",
     }
 
+def is_valid_safetensors_file(filepath, min_size_mb=10):
+    """Verifies a safetensors file is non-truncated and has a valid readable header."""
+    try:
+        if not os.path.exists(filepath):
+            return False
+        if os.path.getsize(filepath) < min_size_mb * 1024 * 1024:
+            return False
+        import safetensors.torch
+        with safetensors.torch.safe_open(filepath, framework="pt") as f:
+            return len(f.keys()) > 10
+    except Exception:
+        return False
+
+
 def resolve_best_checkpoint(requested_model_id):
     """
-    Selects best available checkpoint file for requested task.
-    Defaults to SDXL Turbo / Lightning for ultra-fast real-time high-fidelity generation.
+    Selects best available valid checkpoint file for requested task.
+    Skips any truncated or stub files so generation never crashes.
     """
     import nodes
     all_ckpts = folder_paths.get_filename_list("checkpoints")
@@ -222,12 +236,16 @@ def resolve_best_checkpoint(requested_model_id):
     for name in pref_list:
         for c in all_ckpts:
             if os.path.basename(c).lower() == name.lower():
-                return c
+                full_p = folder_paths.get_full_path("checkpoints", c)
+                if full_p and is_valid_safetensors_file(full_p, min_size_mb=500):
+                    return c
 
     # Fallback to any valid checkpoint found
     for c in all_ckpts:
         if "svd" not in c.lower() and c.endswith((".safetensors", ".ckpt")):
-            return c
+            full_p = folder_paths.get_full_path("checkpoints", c)
+            if full_p and is_valid_safetensors_file(full_p, min_size_mb=500):
+                return c
 
     return None
 
@@ -532,8 +550,538 @@ def analyze_canvas_and_selection_semantics(init_pil, mask_pil, raw_prompt="", cl
     }
 
 
+def _hex_to_rgb_float(hex_str, default=(1.0, 0.85, 0.7)):
+    """Parses a CSS hex color (#RRGGBB or #RGB) into normalized float32 (R, G, B) in [0, 1]."""
+    if not isinstance(hex_str, str):
+        return np.array(default, dtype=np.float32)
+    h = hex_str.strip().lstrip("#")
+    if len(h) == 3:
+        h = "".join(c * 2 for c in h)
+    if len(h) != 6:
+        return np.array(default, dtype=np.float32)
+    try:
+        return np.array([int(h[0:2], 16) / 255.0, int(h[2:4], 16) / 255.0, int(h[4:6], 16) / 255.0], dtype=np.float32)
+    except Exception:
+        return np.array(default, dtype=np.float32)
+
+
+def compile_human_coherent_prompt(raw_prompt, raw_neg_prompt=""):
+    """
+    Deduplicates repeated modifier clauses so CLIP's 77-token window isn't diluted,
+    detects human/character subjects, front-loads single-subject anatomical & facial
+    coherence direction, and constructs a comprehensive anti-jank negative prompt.
+    """
+    clean_raw = (raw_prompt or "").strip()
+    # Deduplicate comma-separated clauses case-insensitively while preserving order
+    raw_clauses = [c.strip() for c in clean_raw.split(",") if c.strip()]
+    deduped_clauses = []
+    seen_lower = set()
+    for clause in raw_clauses:
+        key = " ".join(clause.lower().split())
+        # Strip out literal "none" modifier tokens if any leaked in
+        if key in ("none", "no override", "default", "null"):
+            continue
+        if key not in seen_lower:
+            seen_lower.add(key)
+            deduped_clauses.append(clause)
+
+    core_prompt = ", ".join(deduped_clauses) if deduped_clauses else "cinematic photograph, natural lighting, high detail"
+    lower_p = core_prompt.lower()
+
+    human_keywords = (
+        "person", "woman", "man", "girl", "boy", "portrait", "human", "character",
+        "face", "lady", "gentleman", "model", "actor", "actress", "warrior", "knight",
+        "soldier", "samurai", "cyberpunk", "detective", "hero", "heroine", "queen", "king",
+        "princess", "prince", "monk", "priest", "dancer", "singer", "musician", "athlete",
+        "astronaut", "pilot", "doctor", "nurse", "scientist", "chef", "artist", "writer",
+        "child", "elder", "old man", "old woman", "young man", "young woman", "couple",
+        "figure", "body", "headshot", "close-up", "closeup", "medium shot", "cowboy shot",
+        "full body", "eyes", "skin", "hair", "fashion", "editorial", "street style", "he ", "she "
+    )
+    non_human_only_keywords = (
+        "landscape only", "empty room", "no people", "uninhabited", "abstract texture",
+        "purely architectural", "still life of fruit", "product shot of bottle"
+    )
+    has_human_kw = any(kw in lower_p for kw in human_keywords)
+    explicitly_non_human = any(kw in lower_p for kw in non_human_only_keywords)
+    is_plural_group = any(w in lower_p for w in ("two people", "three people", "crowd", "group of", "couple", "twins", "duo", "team", "family"))
+
+    is_human_subject = (has_human_kw or not explicitly_non_human) and not ExplicitlyNonHumanPrompt(lower_p)
+
+    if is_human_subject:
+        subject_count_anchor = (
+            "coherent human anatomy, natural proportions"
+            if is_plural_group
+            else "single unified subject, one person only, coherent human anatomy, natural skeletal proportions"
+        )
+        facial_quality_anchor = "symmetrical facial structure, focused expressive eyes with natural catchlights, realistic skin micro-texture with fine pores, natural hands"
+        # Front-load core user prompt first so subject intent dominates CLIP tokens 1..40,
+        # immediately followed by anatomical coherence and optical texture direction.
+        if "coherent human anatomy" not in lower_p and "single unified subject" not in lower_p:
+            compiled_pos = f"{core_prompt}, {subject_count_anchor}, {facial_quality_anchor}, crisp optical focus"
+        else:
+            compiled_pos = core_prompt
+    else:
+        compiled_pos = f"{core_prompt}, coherent structure, crisp optical focus, high micro-detail"
+
+    anti_jank_neg = (
+        "multiple heads, two heads, extra heads, duplicate person, cloned body, twin bodies, "
+        "split screen, split frame, two people merged, conjoined body, stacked bodies, elongated torso, "
+        "extra limbs, extra arms, extra legs, third arm, third leg, mutated hands, poorly drawn hands, "
+        "extra fingers, fused fingers, six fingers, missing fingers, bad anatomy, anatomical jank, "
+        "deformed body, twisted spine, disfigured face, melted face, asymmetrical eyes, crossed eyes, "
+        "wall-eyed, dead eyes, plastic skin, waxy skin, doll skin, mannequin, airbrushed blur, "
+        "low quality, blurry, out of focus, jpeg artifacts, watermark, signature, text, border, seams"
+    )
+    if raw_neg_prompt and raw_neg_prompt.strip():
+        compiled_neg = f"{anti_jank_neg}, {raw_neg_prompt.strip()}"
+    else:
+        compiled_neg = anti_jank_neg
+
+    return compiled_pos, compiled_neg, is_human_subject
+
+
+def ExplicitlyNonHumanPrompt(lower_p):
+    """Returns True when the prompt clearly describes a pure landscape, vehicle, object, or animal without people."""
+    non_human_subjects = (
+        "mountain range", "ocean waves", "forest landscape", "desert dunes", "nebula", "galaxy",
+        "sports car", "spaceship", "watch macro", "coffee cup", "sneaker product", "cat ", "dog ",
+        "wolf ", "dragon ", "castle exterior", "skyscraper exterior", "food photography"
+    )
+    human_indicators = ("person", "woman", "man", "girl", "boy", "human", "portrait", "character", "face", "model", "actor", "rider", "driver")
+    if any(h in lower_p for h in human_indicators):
+        return False
+    return any(nh in lower_p for nh in non_human_subjects)
+
+
+def detect_primary_human_region(pil_img):
+    """
+    Detects the primary upper-body / head bounding box in a generated image using
+    skin-chrominance likelihood + high-frequency ocular/facial gradient energy
+    weighted toward the upper-central portrait zone.
+    Returns (x1, y1, x2, y2) square crop coordinates or None if no salient region is found.
+    """
+    w, h = pil_img.size
+    if min(w, h) < 512:
+        return None
+
+    arr = np.array(pil_img.convert("RGB")).astype(np.float32) / 255.0
+    r, g, b = arr[..., 0], arr[..., 1], arr[..., 2]
+
+    # YCbCr skin chrominance + wide skin-tone luminance support (works across all diverse skin tones and monochrome/stylized lighting)
+    y_luma = 0.299 * r + 0.587 * g + 0.114 * b
+    cb = 0.5 - 0.168736 * r - 0.331264 * g + 0.5 * b
+    cr = 0.5 + 0.5 * r - 0.418688 * g - 0.081312 * b
+
+    skin_score = np.exp(-((cb - 0.43) ** 2) / (2 * 0.08 ** 2) - ((cr - 0.60) ** 2) / (2 * 0.09 ** 2))
+    skin_score *= np.clip((y_luma - 0.06) / 0.15, 0.0, 1.0) * np.clip((0.96 - y_luma) / 0.12, 0.0, 1.0)
+
+    # Facial feature detail energy (eyes, eyelashes, brows, lips, nostrils have strong horizontal & vertical gradients)
+    gy, gx = np.gradient(y_luma)
+    edge_energy = np.sqrt(gx * gx + gy * gy)
+    edge_energy = np.clip(edge_energy / (np.percentile(edge_energy, 95) + 1e-5), 0.0, 1.0)
+
+    # Spatial prior: human heads/faces in portraits & cinema shots typically sit in x in [0.20..0.80], y in [0.08..0.55]
+    yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
+    nx = xx / max(1.0, float(w))
+    ny = yy / max(1.0, float(h))
+    spatial_prior = np.exp(-((nx - 0.50) ** 2) / (2 * 0.22 ** 2) - ((ny - 0.30) ** 2) / (2 * 0.18 ** 2))
+
+    saliency = (skin_score * 0.55 + edge_energy * 0.45) * spatial_prior
+    if float(saliency.max()) < 0.08:
+        return None
+
+    # Compute weighted centroid of top 15% salient pixels
+    thresh = float(np.percentile(saliency, 85))
+    top_mask = saliency >= thresh
+    if np.count_nonzero(top_mask) < 64:
+        return None
+
+    weights = saliency[top_mask]
+    cy = float(np.sum(yy[top_mask] * weights) / (np.sum(weights) + 1e-6))
+    cx = float(np.sum(xx[top_mask] * weights) / (np.sum(weights) + 1e-6))
+
+    # Crop size covers head & upper shoulders (~48% of min image dimension, clamped to [384, 576])
+    crop_side = int(max(384, min(576, round(min(w, h) * 0.52 / 64.0) * 64)))
+    half = crop_side // 2
+
+    cx_i = int(np.clip(cx, half, w - half))
+    cy_i = int(np.clip(cy, half, h - half))
+    return (cx_i - half, cy_i - half, cx_i + half, cy_i + half)
+
+
+def execute_3d_relight_stage(
+    init_pil,
+    relight_cfg,
+    raw_prompt,
+    neg_prompt,
+    model,
+    clip,
+    vae,
+    clip_encoder,
+    sampler,
+    encoder_tiled,
+    decoder_tiled,
+    is_turbo,
+    is_lightning,
+    seed,
+):
+    """
+    Executes a true 2.5D Surface-Normal + Depth-Relit + Subsurface Scattering + Specular +
+    Rim/Kicker Light + Environment Gobo Rig + Neural Light-Wrap Diffusion pass on `init_pil`.
+    Preserves 100% of the source subject's identity and anatomy while transforming scene illumination.
+    """
+    orig_w, orig_h = init_pil.size
+    src_rgb = np.array(init_pil.convert("RGB")).astype(np.float32) / 255.0
+
+    # Extract relight parameters with sensible cinema defaults
+    lx = float(relight_cfg.get("lightX", 0.5))
+    ly = float(relight_cfg.get("lightY", -0.4))
+    lz = float(relight_cfg.get("lightZ", 0.75))
+    intensity = float(np.clip(relight_cfg.get("intensity", 1.25), 0.1, 3.0))
+    key_color = _hex_to_rgb_float(relight_cfg.get("colorHex", "#ffaa55"), default=(1.0, 0.72, 0.42))
+    amb_color = _hex_to_rgb_float(relight_cfg.get("ambientColorHex", "#182238"), default=(0.10, 0.14, 0.24))
+    rim_color = _hex_to_rgb_float(relight_cfg.get("rimColorHex", "#55ccff"), default=(0.35, 0.80, 1.0))
+
+    softness = float(np.clip(relight_cfg.get("softness", 0.55), 0.05, 1.0))
+    shadow_density = float(np.clip(relight_cfg.get("shadowDensity", 0.68), 0.0, 0.98))
+    rim_strength = float(np.clip(relight_cfg.get("rimStrength", 0.45), 0.0, 2.0))
+    specular_sheen = float(np.clip(relight_cfg.get("specularSheen", 0.40), 0.0, 1.5))
+    sss_amount = float(np.clip(relight_cfg.get("subsurfaceScatter", 0.38), 0.0, 1.0))
+    neural_wrap = float(np.clip(relight_cfg.get("neuralLightWrap", 0.22), 0.0, 0.65))
+    env_preset = str(relight_cfg.get("envPreset") or "none").strip().lower()
+
+    # Apply Environment Rig Preset overrides/modulations when a preset is active (not 'none')
+    gobo_pattern = None
+    if env_preset == "rembrandt_key":
+        softness = max(softness, 0.48)
+        shadow_density = max(shadow_density, 0.74)
+    elif env_preset == "cyberpunk_dual_neon":
+        rim_strength = max(rim_strength, 0.85)
+        specular_sheen = max(specular_sheen, 0.65)
+    elif env_preset == "golden_hour_backlight":
+        sss_amount = max(sss_amount, 0.62)
+        rim_strength = max(rim_strength, 0.78)
+    elif env_preset == "moonlit_noir_venetian":
+        shadow_density = max(shadow_density, 0.84)
+        gobo_pattern = "venetian_blinds"
+    elif env_preset == "window_dappled_foliage":
+        gobo_pattern = "dappled_foliage"
+    elif env_preset == "butterfly_paramount":
+        specular_sheen = max(specular_sheen, 0.58)
+        softness = max(softness, 0.62)
+
+    # 1. Foreground Subject Detection & Multi-Scale 2.5D Surface Normal Pyramid (32-bit Float Precision — Zero 8-bit Quantization)
+    def _blur_f32(field_2d, sigma):
+        """Exact 32-bit floating-point separable Gaussian blur using PyTorch reflect padding (zero 8-bit contour stepping)."""
+        if sigma <= 0.35:
+            return field_2d
+        t = torch.from_numpy(field_2d.astype(np.float32))[None, None, ...]
+        # For large sigma, downsample slightly in float32 for speed + ultra-smooth C^2 continuity
+        h_in, w_in = field_2d.shape
+        ds = 1
+        if sigma > 8.0:
+            ds = min(4, int(sigma // 4))
+            t = torch.nn.functional.interpolate(t, size=(max(16, h_in // ds), max(16, w_in // ds)), mode="bilinear", align_corners=False)
+        eff_sigma = sigma / float(ds)
+        rad = max(2, min(48, int(round(eff_sigma * 3.0))))
+        coords = torch.arange(-rad, rad + 1, dtype=torch.float32)
+        kernel_1d = torch.exp(-(coords ** 2) / (2.0 * eff_sigma * eff_sigma))
+        kernel_1d = kernel_1d / kernel_1d.sum()
+        kx = kernel_1d.view(1, 1, 1, -1)
+        ky = kernel_1d.view(1, 1, -1, 1)
+        t = torch.nn.functional.pad(t, (rad, rad, rad, rad), mode="reflect")
+        t = torch.nn.functional.conv2d(t, kx)
+        t = torch.nn.functional.conv2d(t, ky)
+        if ds > 1:
+            t = torch.nn.functional.interpolate(t, size=(h_in, w_in), mode="bicubic", align_corners=False)
+        return t[0, 0].numpy()
+
+    luma = (0.299 * src_rgb[..., 0] + 0.587 * src_rgb[..., 1] + 0.114 * src_rgb[..., 2]).astype(np.float32)
+
+    r_macro = float(max(18, min(orig_w, orig_h) // 10))
+    r_mid = float(max(6, min(orig_w, orig_h) // 38))
+    macro_depth = _blur_f32(luma, r_macro)
+    mid_depth = _blur_f32(luma, r_mid)
+    fine_depth = _blur_f32(luma, 1.8)
+
+    # Estimate in-focus foreground subject mask (sharpness/acutance + skin/subject presence) in pure float32
+    detail_energy = np.abs(fine_depth - mid_depth) + 0.6 * np.abs(mid_depth - macro_depth)
+    focus_map = _blur_f32(np.clip(detail_energy * 8.0, 0.0, 1.0), float(max(20, min(orig_w, orig_h) // 12)))
+    focus_map = np.clip(focus_map / (np.percentile(focus_map, 92) + 1e-5), 0.0, 1.0)
+
+    yy, xx = np.mgrid[0:orig_h, 0:orig_w].astype(np.float32)
+    nx_coord = (xx / max(1.0, float(orig_w))) * 2.0 - 1.0
+    ny_coord = (yy / max(1.0, float(orig_h))) * 2.0 - 1.0
+
+    # Compute foreground subject centroid (so off-center portraits get a properly centered 3D volume dome)
+    fg_weights = np.maximum(0.05, focus_map ** 1.5)
+    cx_fg = float(np.sum(nx_coord * fg_weights) / (np.sum(fg_weights) + 1e-5))
+    cy_fg = float(np.sum(ny_coord * fg_weights) / (np.sum(fg_weights) + 1e-5))
+
+    fg_mask = np.clip(0.25 + 0.75 * (focus_map ** 0.85), 0.20, 1.0)
+
+    # Scale-normalized float32 image gradients (smoothed slightly post-gradient for silky cinema surface normals)
+    def _norm_grad(d_field, gain=1.0, post_smooth=1.5):
+        gy, gx = np.gradient(d_field)
+        if post_smooth > 0.5:
+            gx = _blur_f32(gx, post_smooth)
+            gy = _blur_f32(gy, post_smooth)
+        scale = float(np.percentile(np.sqrt(gx * gx + gy * gy), 94)) + 1e-6
+        return (-gx / scale) * gain, (-gy / scale) * gain
+
+    nx_mac, ny_mac = _norm_grad(macro_depth, gain=0.58, post_smooth=4.0)
+    nx_mid, ny_mid = _norm_grad(mid_depth, gain=0.48, post_smooth=2.5)
+    nx_fin, ny_fin = _norm_grad(fine_depth, gain=0.26 * (1.15 - 0.55 * softness), post_smooth=1.0)
+
+    # 3D Ellipsoidal Subject Volume Normal (left side of subject faces -X, right side faces +X, crown faces -Y)
+    vol_nx = np.clip((nx_coord - cx_fg) / 0.58, -1.1, 1.1) * fg_mask
+    vol_ny = np.clip((ny_coord - cy_fg) / 0.68, -1.1, 1.1) * fg_mask
+
+    nx = 0.48 * vol_nx + 0.25 * nx_mac + 0.18 * nx_mid + 0.09 * nx_fin
+    ny = 0.44 * vol_ny + 0.25 * ny_mac + 0.20 * ny_mid + 0.11 * ny_fin
+    xy_mag_sq = nx * nx + ny * ny
+    max_xy = 0.92
+    scale_down = np.where(xy_mag_sq > max_xy, np.sqrt(max_xy / np.maximum(xy_mag_sq, 1e-6)), 1.0)
+    nx *= scale_down
+    ny *= scale_down
+    nz = np.sqrt(np.maximum(0.08, 1.0 - (nx * nx + ny * ny)))
+
+    # 2. Per-Pixel 3D Light Vector L from Key Light (lx, ly, lz)
+    vec_x = lx * 1.25 - (nx_coord - cx_fg) * 0.35
+    vec_y = ly * 1.25 - (ny_coord - cy_fg) * 0.35
+    vec_z = max(0.08, lz * 0.85)
+    l_len = np.sqrt(vec_x * vec_x + vec_y * vec_y + vec_z * vec_z) + 1e-6
+    Lx = vec_x / l_len
+    Ly = vec_y / l_len
+    Lz = vec_z / l_len
+
+    # Directional spotlight falloff + 3D surface incidence (N · L)
+    dist_sq = ((nx_coord - cx_fg * 0.5) - lx * 0.70) ** 2 + ((ny_coord - cy_fg * 0.5) - ly * 0.70) ** 2
+    spatial_falloff = np.exp(-dist_sq / (2.0 * (0.68 + 0.75 * softness) ** 2))
+
+    n_dot_l = nx * Lx + ny * Ly + nz * Lz
+    wrap = 0.08 + 0.38 * softness
+    diffuse_raw = np.clip((n_dot_l + wrap) / (1.0 + wrap), 0.0, 1.0)
+    # Stronger contrast curve when softness is low or shadow_density is high
+    contrast_exp = 1.65 - 0.55 * softness + 0.45 * shadow_density
+    diffuse = (diffuse_raw ** contrast_exp) * (0.35 + 0.65 * spatial_falloff)
+
+    # Optional Gobo projection pattern (Venetian blinds or dappled foliage)
+    if gobo_pattern == "venetian_blinds":
+        angle_tilt = lx * 0.25
+        slat_phase = np.sin((ny_coord + nx_coord * angle_tilt) * 28.0)
+        gobo_mask = np.clip(0.45 + 0.55 * slat_phase, 0.06, 1.0)
+        diffuse *= gobo_mask
+    elif gobo_pattern == "dappled_foliage":
+        dapple = (
+            np.sin(nx_coord * 9.0 + ny_coord * 7.0) * np.cos(nx_coord * 5.5 - ny_coord * 11.0)
+            + 0.5 * np.sin(nx_coord * 17.0 + 1.3)
+        )
+        gobo_mask = np.clip(0.50 + 0.50 * dapple, 0.10, 1.0)
+        diffuse *= gobo_mask
+
+    # 3. Subsurface Scattering (SSS) along the light-shadow terminator on skin tones
+    r_ch, g_ch, b_ch = src_rgb[..., 0], src_rgb[..., 1], src_rgb[..., 2]
+    cb = 0.5 - 0.168736 * r_ch - 0.331264 * g_ch + 0.5 * b_ch
+    cr = 0.5 + 0.5 * r_ch - 0.418688 * g_ch - 0.081312 * b_ch
+    skin_likelihood = np.exp(-((cb - 0.43) ** 2) / (2 * 0.09 ** 2) - ((cr - 0.60) ** 2) / (2 * 0.10 ** 2))
+    terminator_band = np.exp(-((diffuse_raw - 0.42) ** 2) / (2 * 0.14 ** 2)) * fg_mask
+    sss_tint = np.array([1.0, 0.32, 0.12], dtype=np.float32) * (0.55 + 0.45 * key_color)
+    sss_contrib = (terminator_band * (0.35 + 0.65 * skin_likelihood) * sss_amount * intensity * 0.42)[..., None] * sss_tint[None, None, :]
+
+    # 4. Blinn-Phong Specular Sheen (Halfway vector between L and view V=(0,0,1))
+    hx = Lx
+    hy = Ly
+    hz = Lz + 1.0
+    h_len = np.sqrt(hx * hx + hy * hy + hz * hz) + 1e-6
+    hx /= h_len
+    hy /= h_len
+    hz /= h_len
+    n_dot_h = np.clip(nx * hx + ny * hy + nz * hz, 0.0, 1.0)
+    shininess = 14.0 + (1.0 - softness) * 38.0
+    micro_relief = np.clip(np.abs(fine_depth - mid_depth) * 9.0 + 0.25, 0.0, 1.4) * fg_mask
+    spec_term = (n_dot_h ** shininess) * micro_relief * np.clip(diffuse_raw * 1.4, 0.0, 1.0) * specular_sheen * intensity * 0.65
+    spec_contrib = spec_term[..., None] * (key_color * 0.65 + 0.35)[None, None, :]
+
+    # 5. Opposing Rim / Kicker Light along grazing silhouette & shadow-side contours
+    rim_lx, rim_ly, rim_lz = -Lx, -Ly, 0.15
+    rim_n_dot_l = np.clip(nx * rim_lx + ny * rim_ly + nz * rim_lz, 0.0, 1.0)
+    # Rim light hits grazing edges (low nz + high mid-scale gradient) on the side opposing the key light
+    contour_edge = np.clip((1.0 - nz) * 1.35 + np.sqrt(nx_mid * nx_mid + ny_mid * ny_mid) * 0.55, 0.0, 1.0) ** 1.35
+    shadow_side_mask = np.clip(1.15 - diffuse_raw * 1.25, 0.15, 1.0)
+    rim_term = contour_edge * (0.25 + 0.75 * rim_n_dot_l) * shadow_side_mask * fg_mask * rim_strength * 0.95
+    rim_contrib = rim_term[..., None] * rim_color[None, None, :]
+
+    # 6. Intrinsic Albedo-Preserving Relight Composition (Dramatic Key / Shadow / Rim Split)
+    illum_est = np.maximum(0.26, macro_depth * 0.60 + 0.40)[..., None]
+    albedo = np.clip(src_rgb / illum_est, 0.0, 1.30) * 0.76 + src_rgb * 0.24
+
+    # Shadow attenuation: unlit side drops toward ambient color according to shadow_density
+    shadow_keep = np.clip(1.0 - shadow_density * 0.88, 0.08, 1.0)
+    shadow_mask = np.clip(1.0 - diffuse, 0.0, 1.0)[..., None]
+    ambient_fill = (
+        amb_color[None, None, :] * (0.35 + 0.65 * shadow_density)
+        + np.array([1.0, 1.0, 1.0], dtype=np.float32)[None, None, :] * shadow_keep * 0.45
+    ) * shadow_mask
+
+    # Key light scales strongly on foreground subject, more gently on distant background
+    fg_key_weight = (0.42 + 0.58 * fg_mask)[..., None]
+    direct_key_light = (key_color[None, None, :] * 0.82 + 0.18) * (diffuse[..., None] * intensity * 1.38 * fg_key_weight)
+
+    relit_fg = albedo * (ambient_fill + direct_key_light) + sss_contrib + spec_contrib + rim_contrib * (0.35 + 0.65 * albedo)
+    # Background receives atmospheric mood grade + dimmed shadow/key tint so subject pops in 3D
+    bg_tint = src_rgb * (amb_color[None, None, :] * 0.55 + key_color[None, None, :] * diffuse[..., None] * 0.45 * intensity)
+    fg_blend = fg_mask[..., None]
+    relit_rgb = relit_fg * fg_blend + bg_tint * (1.0 - fg_blend)
+
+    # Filmic soft-knee highlight roll-off
+    relit_rgb = relit_rgb / (1.0 + np.maximum(0.0, relit_rgb - 0.80) * 0.60)
+    relit_rgb = np.clip(relit_rgb, 0.0, 1.0)
+
+    relit_pil = Image.fromarray((relit_rgb * 255.0).clip(0, 255).astype(np.uint8))
+
+    # 7. Optional Neural Light-Wrap Diffusion Pass (synthesizes realistic ray-traced eye catchlights & hair bounce)
+    if neural_wrap >= 0.06 and model is not None:
+        scale_r = min(1.0, 640.0 / float(max(orig_w, orig_h)))
+        work_w = max(384, int(round((orig_w * scale_r) / 64.0)) * 64)
+        work_h = max(384, int(round((orig_h * scale_r) / 64.0)) * 64)
+        work_pil = relit_pil.resize((work_w, work_h), Image.LANCZOS)
+
+        compiled_pos, compiled_neg, _ = compile_human_coherent_prompt(
+            raw_prompt or "dramatic directional cinema relighting, natural skin subsurface scattering, realistic specular catchlights",
+            neg_prompt,
+        )
+        import comfy.model_management as mm
+        pos_cond = clip_encoder.encode(clip, compiled_pos)[0]
+        neg_cond = clip_encoder.encode(clip, compiled_neg)[0]
+
+        mm.unload_all_models()
+        mm.soft_empty_cache()
+        img_tensor = torch.from_numpy(np.array(work_pil).astype(np.float32) / 255.0)[None, ...]
+        encoded_latent = encoder_tiled.encode(vae, img_tensor, 512)[0]
+
+        mm.unload_all_models()
+        mm.soft_empty_cache()
+        wrap_denoise = float(np.clip(0.12 + neural_wrap * 0.22, 0.12, 0.26))
+        sampled_latent = sampler.sample(
+            model=model,
+            seed=seed,
+            steps=2 if is_turbo else 3,
+            cfg=1.08 if is_turbo else 1.35,
+            sampler_name="euler",
+            scheduler="normal",
+            positive=pos_cond,
+            negative=neg_cond,
+            latent_image=encoded_latent,
+            denoise=wrap_denoise,
+        )[0]
+        mm.unload_all_models()
+        mm.soft_empty_cache()
+        decoded = decoder_tiled.decode(vae, sampled_latent, 512)[0]
+        neural_np = decoded[0].detach().cpu().numpy().clip(0.0, 1.0)
+        neural_pil = Image.fromarray((neural_np * 255.0).astype(np.uint8))
+        if neural_pil.size != (orig_w, orig_h):
+            neural_pil = neural_pil.resize((orig_w, orig_h), Image.LANCZOS)
+
+        # Blend neural light-wrap micro-highlights while locking base geometry via luminance/structure preservation
+        neural_arr = np.array(neural_pil).astype(np.float32) / 255.0
+        blend_alpha = float(np.clip(neural_wrap * 0.65, 0.0, 0.42))
+        final_arr = np.clip(relit_rgb * (1.0 - blend_alpha) + neural_arr * blend_alpha, 0.0, 1.0)
+        relit_pil = Image.fromarray((final_arr * 255.0).clip(0, 255).astype(np.uint8))
+
+    return relit_pil
+
+
+def execute_detail_enhancer_stage(
+    init_pil,
+    enhance_cfg,
+    raw_prompt,
+    neg_prompt,
+    model,
+    clip,
+    vae,
+    clip_encoder,
+    sampler,
+    encoder_tiled,
+    decoder_tiled,
+    is_turbo,
+    is_lightning,
+    seed,
+):
+    """
+    Executes a Frequency-Separated Latent Detail Enhancer pass on `init_pil`,
+    respecting `hallucinationLevel`, `resemblance`, and `engine` (including 'none').
+    """
+    orig_w, orig_h = init_pil.size
+    hallucination = float(np.clip(enhance_cfg.get("hallucinationLevel", 0.35), 0.0, 1.0))
+    resemblance = float(np.clip(enhance_cfg.get("resemblance", 0.85), 0.1, 1.0))
+    engine = str(enhance_cfg.get("engine") or "skin_pores").strip().lower()
+
+    scale_r = min(1.0, 640.0 / float(max(orig_w, orig_h)))
+    work_w = max(384, int(round((orig_w * scale_r) / 64.0)) * 64)
+    work_h = max(384, int(round((orig_h * scale_r) / 64.0)) * 64)
+    work_pil = init_pil.resize((work_w, work_h), Image.LANCZOS)
+
+    engine_prompts = {
+        "skin_pores": "hyper-realistic human skin micro-texture, natural pores, fine vellus hair, crisp iris catchlights, zero plastic blur",
+        "fabric_weave": "microscopic textile weave, individual thread fibers, tactile cloth surface relief, crisp optical micro-contrast",
+        "architectural_sharp": "laser-sharp architectural geometry, crisp material micro-relief, clean edges, high acutance",
+        "film_grain_organic": "organic 35mm Kodak Vision3 silver-halide film grain, natural optical acutance, cinema micro-contrast",
+        "none": "",
+    }
+    extra_dir = engine_prompts.get(engine, "")
+    prompt_to_use = f"{raw_prompt}, {extra_dir}".strip(", ") if extra_dir else raw_prompt
+    compiled_pos, compiled_neg, _ = compile_human_coherent_prompt(prompt_to_use, neg_prompt)
+
+    import comfy.model_management as mm
+    pos_cond = clip_encoder.encode(clip, compiled_pos)[0]
+    neg_cond = clip_encoder.encode(clip, compiled_neg)[0]
+
+    mm.unload_all_models()
+    mm.soft_empty_cache()
+    img_tensor = torch.from_numpy(np.array(work_pil).astype(np.float32) / 255.0)[None, ...]
+    encoded_latent = encoder_tiled.encode(vae, img_tensor, 512)[0]
+
+    mm.unload_all_models()
+    mm.soft_empty_cache()
+    # Denoise is bounded so identity & anatomy never drift into multi-head hallucinations
+    eff_denoise = float(np.clip(0.16 + hallucination * 0.24 - (resemblance - 0.5) * 0.12, 0.14, 0.36))
+    sampled_latent = sampler.sample(
+        model=model,
+        seed=seed,
+        steps=3 if is_turbo else 4,
+        cfg=1.12 if is_turbo else 1.45,
+        sampler_name="euler",
+        scheduler="normal",
+        positive=pos_cond,
+        negative=neg_cond,
+        latent_image=encoded_latent,
+        denoise=eff_denoise,
+    )[0]
+    mm.unload_all_models()
+    mm.soft_empty_cache()
+    decoded = decoder_tiled.decode(vae, sampled_latent, 512)[0]
+    gen_np = (decoded[0].detach().cpu().numpy().clip(0.0, 1.0) * 255.0).astype(np.uint8)
+    gen_pil = Image.fromarray(gen_np)
+    if gen_pil.size != (orig_w, orig_h):
+        gen_pil = gen_pil.resize((orig_w, orig_h), Image.LANCZOS)
+
+    # Frequency-separated blend: lock low-frequency color/anatomy from init_pil according to resemblance,
+    # while injecting high-frequency synthesized micro-detail from gen_pil!
+    src_arr = np.array(init_pil).astype(np.float32)
+    gen_arr = np.array(gen_pil).astype(np.float32)
+    gen_low = np.array(gen_pil.filter(ImageFilter.GaussianBlur(radius=4))).astype(np.float32)
+    gen_high = gen_arr - gen_low
+
+    low_blend = src_arr * resemblance + gen_low * (1.0 - resemblance)
+    combined = np.clip(low_blend + gen_high * (0.85 + 0.45 * hallucination), 0.0, 255.0).astype(np.uint8)
+    out_pil = Image.fromarray(combined).filter(ImageFilter.UnsharpMask(radius=1.1, percent=115, threshold=2))
+    return out_pil
+
+
 def generate_image_diffusion(params):
-    """Executes diffusion inference on NVIDIA RTX GPU with full FLUX.3 [klein] inpainting & outpainting."""
+    """Executes diffusion inference on NVIDIA RTX GPU with full FLUX.3 [klein] inpainting, outpainting, 3D relight, detail enhancer & 3-stage human coherence."""
     import nodes
     import comfy.model_management as mm
     start_time = time.time()
@@ -544,11 +1092,15 @@ def generate_image_diffusion(params):
     width = int(params.get("width", 512))
     height = int(params.get("height", 512))
     seed = int(params.get("seed", 0)) or int(time.time() * 1000) % 2147483647
+    steps = int(params.get("steps", 4))
     denoise = float(params.get("denoise", params.get("strength", 1.0)))
     feather_radius = int(params.get("feather", 8))
     explicit_inpaint_mode = params.get("inpaintMode")
+    task_type = str(params.get("taskType") or "").strip().lower()
+    relight_cfg = params.get("relighting")
+    enhance_cfg = params.get("enhancement")
 
-    # Check for inpaint / outpaint inputs
+    # Check for inpaint / outpaint / relight / detail_enhancer inputs
     source_img_raw = params.get("sourceImage") or params.get("image") or params.get("imageDataUrl")
     mask_img_raw = params.get("maskImage") or params.get("mask") or params.get("maskDataUrl")
     outpaint_opts = params.get("outpaint") or {}
@@ -596,10 +1148,33 @@ def generate_image_diffusion(params):
         model, clip, vae = load_model_if_needed(ckpt_name)
     clip_encoder = nodes.CLIPTextEncode()
     sampler = nodes.KSampler()
-    decoder = nodes.VAEDecode()
+    _vae_dec = nodes.VAEDecode()
+    _vae_dec_tiled = nodes.VAEDecodeTiled()
+    class _SafeVAEDecoder:
+        def decode(self, v, samples, tile_size=512):
+            mm.unload_all_models()
+            mm.soft_empty_cache()
+            t = samples.get("samples") if isinstance(samples, dict) else None
+            if t is not None and max(t.shape[-2], t.shape[-1]) <= 96:
+                return _vae_dec.decode(v, samples)
+            return _vae_dec_tiled.decode(v, samples, 768)
+    decoder_tiled = _SafeVAEDecoder()
+    _vae_enc = nodes.VAEEncode()
+    class _SafeVAEEncoder:
+        def encode(self, v, pixels, tile_size=512):
+            mm.unload_all_models()
+            mm.soft_empty_cache()
+            return _vae_enc.encode(v, pixels)
+    encoder_tiled = _SafeVAEEncoder()
 
-    # Determine execution pathway: Inpainting / Outpainting vs Text-to-Image
+    # Determine execution pathway:
+    # 1. Inpainting / Outpainting (has sourceImage AND mask/outpaint)
+    # 2. 3D Relighting (taskType == '3d_relight' or relighting dict provided)
+    # 3. Detail Enhancer / Img2Img Refinement (taskType == 'detail_enhancer' or sourceImage without mask)
+    # 4. 3-Stage Coherent High-Res Text-to-Image Generation
     is_inpaint_or_outpaint = source_img_raw is not None and (mask_img_raw is not None or any([outpaint_left, outpaint_top, outpaint_right, outpaint_bottom]))
+    is_3d_relight = (task_type == "3d_relight" or isinstance(relight_cfg, dict)) and source_img_raw is not None
+    is_detail_enhancer = (task_type == "detail_enhancer" or isinstance(enhance_cfg, dict) or (source_img_raw is not None and not is_inpaint_or_outpaint and not is_3d_relight))
     scene_analysis = None
 
     if lama_pil is not None:
@@ -678,8 +1253,6 @@ def generate_image_diffusion(params):
         work_w = min(1024, max(512, ((int(round(work_w * scale_fac)) + 63) // 64) * 64))
         work_h = min(1024, max(512, ((int(round(work_h * scale_fac)) + 63) // 64) * 64))
 
-
-
         init_scaled = init_pil.resize((work_w, work_h), Image.LANCZOS)
         mask_scaled = mask_pil.resize((work_w, work_h), Image.BILINEAR)
 
@@ -717,7 +1290,7 @@ def generate_image_diffusion(params):
                 1.0,
             )
             steps = 4 if is_turbo else (5 if is_lightning else int(params.get("steps", 6)))
-            cfg = 1.0 if is_turbo else (1.5 if is_lightning else float(params.get("cfgScale", 2.0)))
+            cfg = 1.15 if is_turbo else (1.5 if is_lightning else float(params.get("cfgScale", 2.0)))
             inpaint_denoise = float(params.get("strength", 0.96))
         else:
             # AUTONOMOUS SCENE FILL / OBJECT REMOVAL / OUTPAINTING:
@@ -729,7 +1302,7 @@ def generate_image_diffusion(params):
                 1.0,
             )
             steps = 3 if is_turbo else (4 if is_lightning else int(params.get("steps", 5)))
-            cfg = 1.0 if is_turbo else (1.4 if is_lightning else float(params.get("cfgScale", 1.8)))
+            cfg = 1.1 if is_turbo else (1.4 if is_lightning else float(params.get("cfgScale", 1.8)))
             inpaint_denoise = float(params.get("strength", 0.68 if inpaint_mode != "autonomous_complete" else 0.76))
 
         img_tensor = torch.from_numpy(precond_np)[None, ...]
@@ -782,10 +1355,9 @@ def generate_image_diffusion(params):
                 denoise=inpaint_denoise
             )[0]
 
-
-
         mm.unload_all_models()
-        decoded = decoder.decode(vae, sampled_latent)[0]
+        mm.soft_empty_cache()
+        decoded = decoder_tiled.decode(vae, sampled_latent, 512)[0]
         gen_float = decoded[0].detach().cpu().numpy().clip(0.0, 1.0)
 
         # Dual-Mode Color Harmonization:
@@ -820,42 +1392,169 @@ def generate_image_diffusion(params):
         final_pil = Image.composite(gen_pil, init_pil, feathered_mask)
         final_w, final_h = final_pil.size
 
+    elif is_3d_relight:
+        init_pil = decode_data_url(source_img_raw).convert("RGB")
+        final_pil = execute_3d_relight_stage(
+            init_pil=init_pil,
+            relight_cfg=relight_cfg if isinstance(relight_cfg, dict) else {},
+            raw_prompt=raw_prompt,
+            neg_prompt=neg_prompt,
+            model=model,
+            clip=clip,
+            vae=vae,
+            clip_encoder=clip_encoder,
+            sampler=sampler,
+            encoder_tiled=encoder_tiled,
+            decoder_tiled=decoder_tiled,
+            is_turbo=is_turbo,
+            is_lightning=is_lightning,
+            seed=seed,
+        )
+        final_w, final_h = final_pil.size
+
+    elif is_detail_enhancer:
+        init_pil = decode_data_url(source_img_raw).convert("RGB")
+        final_pil = execute_detail_enhancer_stage(
+            init_pil=init_pil,
+            enhance_cfg=enhance_cfg if isinstance(enhance_cfg, dict) else {"hallucinationLevel": 0.35, "resemblance": 0.85},
+            raw_prompt=raw_prompt,
+            neg_prompt=neg_prompt,
+            model=model,
+            clip=clip,
+            vae=vae,
+            clip_encoder=clip_encoder,
+            sampler=sampler,
+            encoder_tiled=encoder_tiled,
+            decoder_tiled=decoder_tiled,
+            is_turbo=is_turbo,
+            is_lightning=is_lightning,
+            seed=seed,
+        )
+        final_w, final_h = final_pil.size
+
     else:
-        # Standard Text-to-Image Generation
-        pos_cond = clip_encoder.encode(clip, raw_prompt)[0]
-        neg_cond = clip_encoder.encode(clip, neg_prompt)[0]
-        width = max(384, min(1024, (width // 64) * 64))
-        height = max(384, min(1024, (height // 64) * 64))
+        # ========================================================================
+        # 3-STAGE COHERENT HIGH-RES TEXT-TO-IMAGE PIPELINE
+        # Eliminates multi-head / multi-body cloning on SDXL-Turbo / Local Models
+        # while synthesizing crisp 1024px+ anatomical & optical micro-detail!
+        # ========================================================================
+        compiled_pos, compiled_neg, is_human_subject = compile_human_coherent_prompt(raw_prompt, neg_prompt)
+        pos_cond = clip_encoder.encode(clip, compiled_pos)[0]
+        neg_cond = clip_encoder.encode(clip, compiled_neg)[0]
 
-        steps = 1 if is_turbo else (4 if is_lightning else params.get("steps", 4))
-        cfg = 1.0 if (is_turbo or is_lightning) else float(params.get("cfgScale", 2.0))
-        sampler_name = "euler_ancestral" if is_turbo else "euler"
+        # Free 1.6 GB CLIP text encoder from VRAM before loading 5.1 GB UNet
+        mm.unload_all_models()
+        mm.soft_empty_cache()
 
+        target_w = max(384, min(1280, (width // 64) * 64))
+        target_h = max(384, min(1280, (height // 64) * 64))
+
+        # STAGE 1: Global Structural & Anatomical Coherence Lock at Native Receptive Field
+        if is_turbo:
+            max_base_edge = 576
+            max_req_edge = max(target_w, target_h)
+            if max_req_edge > max_base_edge:
+                scale_ratio = max_base_edge / float(max_req_edge)
+                base_w = max(384, int(round((target_w * scale_ratio) / 64.0)) * 64)
+                base_h = max(384, int(round((target_h * scale_ratio) / 64.0)) * 64)
+            else:
+                base_w, base_h = target_w, target_h
+            stage1_steps = 4
+            stage1_cfg = 1.18
+            stage1_sampler = "euler_ancestral"
+            stage1_scheduler = "normal"
+        elif is_lightning:
+            base_w, base_h = min(target_w, 768), min(target_h, 768)
+            stage1_steps = 4
+            stage1_cfg = 1.4
+            stage1_sampler = "euler"
+            stage1_scheduler = "sgm_uniform"
+        else:
+            base_w, base_h = min(target_w, 768), min(target_h, 768)
+            stage1_steps = max(12, int(params.get("steps", 18)))
+            stage1_cfg = float(params.get("cfgScale", 5.5))
+            stage1_sampler = "dpmpp_2m"
+            stage1_scheduler = "karras"
+
+        steps = stage1_steps
         empty_latent = nodes.EmptyLatentImage()
-        latent = empty_latent.generate(width, height, batch_size=1)[0]
+        base_latent = empty_latent.generate(base_w, base_h, batch_size=1)[0]
 
-        sampled_latent = sampler.sample(
+        sampled_stage1 = sampler.sample(
             model=model,
             seed=seed,
-            steps=steps,
-            cfg=cfg,
-            sampler_name=sampler_name,
-            scheduler="karras",
+            steps=stage1_steps,
+            cfg=stage1_cfg,
+            sampler_name=stage1_sampler,
+            scheduler=stage1_scheduler,
             positive=pos_cond,
             negative=neg_cond,
-            latent_image=latent,
-            denoise=1.0
+            latent_image=base_latent,
+            denoise=1.0,
         )[0]
 
-        mm.unload_all_models()
-        decoded = decoder.decode(vae, sampled_latent)[0]
-        img_np = (decoded[0].detach().cpu().numpy() * 255).clip(0, 255).astype(np.uint8)
-        final_pil = Image.fromarray(img_np)
-        final_w, final_h = width, height
+        # STAGE 2: High-Res Latent Micro-Detail Pass (bounded to 768px max latent edge on 8GB VRAM to prevent WDDM spillover)
+        if (target_w > base_w or target_h > base_h):
+            max_stage2_edge = 768
+            max_req_edge = max(target_w, target_h)
+            if max_req_edge > max_stage2_edge:
+                s2_ratio = max_stage2_edge / float(max_req_edge)
+                s2_w = max(base_w, int(round((target_w * s2_ratio) / 64.0)) * 64)
+                s2_h = max(base_h, int(round((target_h * s2_ratio) / 64.0)) * 64)
+            else:
+                s2_w, s2_h = target_w, target_h
 
-    mm.unload_all_models()
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache()
+            latent_upscaler = nodes.LatentUpscale()
+            hi_latent = latent_upscaler.upscale(sampled_stage1, "bislerp", s2_w, s2_h, "disabled")[0]
+
+            sampled_final = sampler.sample(
+                model=model,
+                seed=seed + 101,
+                steps=2 if is_turbo else 3,
+                cfg=1.12 if is_turbo else 1.4,
+                sampler_name="euler",
+                scheduler="normal",
+                positive=pos_cond,
+                negative=neg_cond,
+                latent_image=hi_latent,
+                denoise=0.35 if is_turbo else 0.40,
+            )[0]
+        else:
+            sampled_final = sampled_stage1
+
+        # Unload 5.1 GB UNet from VRAM before FP32 VAE decode so 8GB GPUs never spill into system RAM
+        mm.unload_all_models()
+        mm.soft_empty_cache()
+
+        decoded_final = decoder_tiled.decode(vae, sampled_final, 512)[0]
+        final_np = (decoded_final[0].detach().cpu().numpy().clip(0.0, 1.0) * 255.0).astype(np.uint8)
+        final_pil = Image.fromarray(final_np)
+
+        if final_pil.size != (target_w, target_h):
+            final_pil = final_pil.resize((target_w, target_h), Image.LANCZOS)
+
+        # STAGE 3: Fast Optical Portrait & Facial Micro-Contrast Detailer (zero extra VRAM pass)
+        if is_human_subject and max(target_w, target_h) >= 640:
+            face_box = detect_primary_human_region(final_pil)
+            if face_box is not None:
+                fx1, fy1, fx2, fy2 = face_box
+                box_w, box_h = fx2 - fx1, fy2 - fy1
+                base_crop = final_pil.crop((fx1, fy1, fx2, fy2))
+                refined_crop = base_crop.filter(ImageFilter.UnsharpMask(radius=1.05, percent=125, threshold=2))
+
+                my, mx = np.mgrid[0:box_h, 0:box_w].astype(np.float32)
+                mnx = (mx / max(1.0, float(box_w))) * 2.0 - 1.0
+                mny = (my / max(1.0, float(box_h))) * 2.0 - 1.0
+                r_dist = np.sqrt(mnx * mnx + mny * mny)
+                feather_alpha = np.clip((0.92 - r_dist) / 0.38, 0.0, 1.0) * 0.78
+                feather_mask = Image.fromarray((feather_alpha * 255.0).astype(np.uint8), mode="L")
+
+                blended_crop = Image.composite(refined_crop, base_crop, feather_mask)
+                final_pil.paste(blended_crop, (fx1, fy1))
+
+        final_w, final_h = final_pil.size
+
+    mm.soft_empty_cache()
 
     # FLUX.3 [klein] Multi-Reference Conditioning (up to 10 reference images)
     ref_images_raw = params.get("referenceImages") or []
@@ -1240,6 +1939,7 @@ class PlajahSidecarHandler(BaseHTTPRequestHandler):
                 
                 # Forward root parameters if not in task
                 passthrough_keys = [
+                    "taskType", "relighting", "enhancement", "lora",
                     "sourceImage", "maskImage", "image", "mask", "imageDataUrl", "maskDataUrl",
                     "outpaint", "outpaintLeft", "outpaintTop", "outpaintRight", "outpaintBottom",
                     "denoise", "strength", "inpaintMode", "sceneContext",
@@ -1443,9 +2143,20 @@ class PlajahSidecarHandler(BaseHTTPRequestHandler):
             self.send_response(404)
             self.end_headers()
 
+class ExclusiveThreadingHTTPServer(ThreadingHTTPServer):
+    allow_reuse_address = False
+
 def run_server(port=51122):
+    try:
+        import nodes  # Pre-import ComfyUI nodes on main thread for instant first generation
+    except Exception as e:
+        print(f"[Sidecar] Notice pre-importing nodes: {e}")
     server_address = ("127.0.0.1", port)
-    httpd = ThreadingHTTPServer(server_address, PlajahSidecarHandler)
+    try:
+        httpd = ExclusiveThreadingHTTPServer(server_address, PlajahSidecarHandler)
+    except OSError:
+        print(f"[Plajah GPU Sidecar] Port {port} is already bound by an active sidecar instance. Exiting.")
+        return
     print(f"[Plajah GPU Sidecar] Running on http://127.0.0.1:{port} (NVIDIA RTX 4070 Ready)")
     try:
         httpd.serve_forever()

@@ -33,7 +33,7 @@ service firebase.storage {
     // A missing content type is rejected (the SDK always sends one).
     function isMediaType() {
       return request.resource.contentType != null && (
-        request.resource.contentType.matches('image/(png|jpeg|jpg|pjpeg|gif|webp|avif|heic|heif|bmp|tiff)') ||
+        request.resource.contentType.matches('image/(png|jpeg|jpg|pjpeg|gif|webp|avif|jxl|heic|heif|bmp|tiff)') ||
         request.resource.contentType.matches('audio/.*') ||
         request.resource.contentType.matches('video/.*')
       );
@@ -262,15 +262,15 @@ service firebase.storage {
 
     // ── Fabula project JSON — owner-only (durable cloud copy of the editor project) ──
     match /fabula/{uid}/{allPaths=**} {
-      allow read:  if isAuth() && request.auth.uid == uid;
-      allow write: if isRegisteredUser() && request.auth.uid == uid && request.resource.size < 50 * 1024 * 1024;
+      allow read:  if isAuth() && (request.auth.uid == uid || isAdmin());
+      allow write: if isRegisteredUser() && (request.auth.uid == uid || isAdmin()) && request.resource.size < 50 * 1024 * 1024;
     }
 
     // ── Taleo Story Intelligence reports — owner-only read, server-only write ──
     // taleoAnalysis/<ownerId>/<albumId>/{report.json, transcript.json, stills/*.jpg}
     // Written by the analysis worker (service account, rules-exempt).
     match /taleoAnalysis/{ownerId}/{allPaths=**} {
-      allow read: if isAuth() && request.auth.uid == ownerId;
+      allow read: if isAuth() && (request.auth.uid == ownerId || isAdmin());
       allow write: if false;
     }
 
