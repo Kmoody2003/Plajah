@@ -98,7 +98,8 @@ import {
 } from '../services/backendService';
 import { getSocialLinks } from '../services/socialLinks';
 import { subscribeHostLiveRoom, type LiveRoom } from '../services/roomService';
-import { isPartneredStatus, statusLabel } from '../services/relationships';
+import { isPartneredStatus, statusLabel, canHaveRelationshipStatus } from '../services/relationships';
+import ProfileOrgBanner from './elevate/ProfileOrgBanner';
 import { motion, AnimatePresence } from 'motion/react';
 import FastChannelPlayer from './FastChannelPlayer';
 import FastChannelManager from './FastChannelManager';
@@ -912,6 +913,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
           onMessage={onMessage}
           onVisitUser={onVisitUser}
           onNavigate={onNavigate}
+          onOpenOrg={onOpenOrg}
           onShowStatCard={() => setShowStatCard(true)}
           onOpenDonation={() => setIsDonationModalOpen(true)}
           onOpenPlajahPlusLanding={() => setShowPlajahPlusLanding(true)}
@@ -1266,29 +1268,16 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
               </p>
             </div>
 
-            {/* Serves at — org roles this person chose to show (unlimited orgs) */}
-            {!!profile.orgAffiliations?.length && (
-              <div className="mt-3">
-                <p className="text-[9px] font-black uppercase tracking-widest text-white/35 mb-1.5">Serves at</p>
-                <div className="flex flex-wrap gap-2">
-                  {profile.orgAffiliations.map(a => (
-                    <button key={a.orgId} onClick={() => onOpenOrg?.(a.orgId)} disabled={!onOpenOrg} title={a.about || undefined}
-                      className="flex items-center gap-2 pl-1.5 pr-3 py-1.5 bg-white/5 border border-white/10 rounded-full text-left hover:bg-white/10 transition-all disabled:cursor-default">
-                      <span className="w-6 h-6 rounded-full overflow-hidden bg-white/10 shrink-0 grid place-items-center text-[10px] font-black text-white/60">
-                        {a.orgLogoUrl ? <img src={a.orgLogoUrl} alt="" className="w-full h-full object-cover" /> : a.orgName.charAt(0)}
-                      </span>
-                      <span className="min-w-0">
-                        <span className="block text-[11px] font-bold text-white leading-tight truncate">{a.title}{a.ministryName ? ` · ${a.ministryName}` : ''}</span>
-                        <span className="block text-[9px] text-white/45 leading-tight truncate">{a.orgName}</span>
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+            {/* Organization / Elevate link, Follow Org, and Claim / Request Org Membership */}
+            <ProfileOrgBanner
+              profile={profile}
+              isOwnProfile={isOwnProfile}
+              isMobile={isMobile}
+              onOpenOrg={onOpenOrg}
+            />
 
-            {/* Relationship status — private by default; the owner always sees their own. */}
-            {(profile.relationshipPublic || isOwnProfile) && isPartneredStatus(profile.relationshipStatus) && (
+            {/* Relationship status — personal accounts only; private by default; the owner always sees their own. */}
+            {canHaveRelationshipStatus(profile) && (profile.relationshipPublic || isOwnProfile) && isPartneredStatus(profile.relationshipStatus) && (
               <div className="mt-2 flex items-center gap-1.5 text-[11px] font-bold text-rose-300/80">
                 <Heart size={12} fill="currentColor" />
                 <span>

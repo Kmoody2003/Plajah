@@ -3346,6 +3346,22 @@ export interface OrgMembership {
   ministryIds?: string[];
   /** When a real person claimed the provisioned seat. */
   claimedAt?: number;
+  /** Member onboarding details submitted with a PENDING membership request (doubles as church/org member onboarding). */
+  onboarding?: OrgMembershipOnboarding;
+}
+
+/** Member onboarding payload submitted when requesting org/church membership (requires org approval). */
+export interface OrgMembershipOnboarding {
+  firstName: string;
+  lastName: string;
+  email?: string;
+  phone?: string;
+  memberNumber?: string;
+  ministryIds?: string[];
+  isExistingCongregant?: boolean;
+  householdNote?: string;
+  note?: string;
+  submittedAt: number;
 }
 
 /** Which roster a role appears on. Org pages render PASTORAL → LEADERSHIP → STAFF; the rest are operational only. */

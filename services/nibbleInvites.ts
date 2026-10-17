@@ -5,7 +5,7 @@
 import { collection, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { db, auth } from './firebase';
 import type { UserProfile } from '../types';
-import { setRelationship } from './relationships';
+import { setRelationship, relationshipIneligibleReason } from './relationships';
 
 export interface NibbleInvite {
   code: string;
@@ -25,6 +25,8 @@ const shareOrigin = () => (typeof window !== 'undefined' ? window.location.origi
 /** Create a fresh invite and return the code + a shareable URL. */
 export async function createNibbleInvite(me: UserProfile): Promise<{ code: string; url: string }> {
   if (!me?.uid) throw new Error('Sign in to invite your partner.');
+  const ineligible = relationshipIneligibleReason(me);
+  if (ineligible) throw new Error(ineligible);
   const code = genCode();
   const invite: NibbleInvite = {
     code,
@@ -54,6 +56,8 @@ export async function acceptNibbleInvite(code: string, me: UserProfile): Promise
   const invite = await getNibbleInvite(code);
   if (!invite) return { ok: false, reason: 'That invite link is invalid or expired.' };
   if (!me?.uid) return { ok: false, reason: 'Sign in to accept.' };
+  const ineligible = relationshipIneligibleReason(me);
+  if (ineligible) return { ok: false, reason: ineligible };
   if (invite.inviterUid === me.uid) return { ok: false, reason: 'This is your own invite link.' };
   if (invite.status === 'ACCEPTED' && invite.accepterUid && invite.accepterUid !== me.uid) {
     return { ok: false, reason: 'This invite has already been used.' };

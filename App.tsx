@@ -1766,7 +1766,19 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     const key = q.get('elevateJoin');
     return key ? { orgKey: key, mode: q.get('claim') ? 'claim' : 'join', memberNumber: q.get('member') || undefined } : null;
   });
-  useEffect(() => { const h = () => setElevateGateway(null); window.addEventListener('plajah:elevate-gateway-handled', h); return () => window.removeEventListener('plajah:elevate-gateway-handled', h); }, []);
+  useEffect(() => {
+    const hClose = () => setElevateGateway(null);
+    const hOpen = (e: Event) => {
+      const detail = (e as CustomEvent<{ orgKey?: string; mode?: 'home' | 'claim' | 'join' | 'create'; memberNumber?: string }>).detail;
+      if (detail) setElevateGateway(detail);
+    };
+    window.addEventListener('plajah:elevate-gateway-handled', hClose);
+    window.addEventListener('plajah:open-elevate-gateway', hOpen);
+    return () => {
+      window.removeEventListener('plajah:elevate-gateway-handled', hClose);
+      window.removeEventListener('plajah:open-elevate-gateway', hOpen);
+    };
+  }, []);
   const closeElevateGateway = () => { setElevateGateway(null); try { const u = new URL(window.location.href); ['elevateJoin', 'claim', 'member'].forEach(k => u.searchParams.delete(k)); window.history.replaceState({}, '', u.toString()); } catch {} };
   const [relloInitialVideoId, setRelloInitialVideoId] = useState<string | undefined>(undefined);
   const [videoPlaylistInitialId, setVideoPlaylistInitialId] = useState<string | undefined>(undefined);

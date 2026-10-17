@@ -14,13 +14,24 @@ import { onSnapshot } from './safeSnapshot';
 import { db, auth } from './firebase';
 import { permissionsForMember } from './orgPermissions';
 import type { ChurchPrayer, UserProfile } from '../types';
-import type { Organization, OrgMembership, OrgRole, OrgType, Ministry, ServiceTime, GivingFund } from '../types';
+import type { Organization, OrgMembership, OrgMembershipOnboarding, OrgRole, OrgType, Ministry, ServiceTime, GivingFund, RosterGroup } from '../types';
 
 /** Firestore rejects `undefined` field values — strip them before every write. */
 function stripUndefined<T extends Record<string, any>>(obj: T): T {
   const out: Record<string, any> = {};
   for (const [k, v] of Object.entries(obj)) if (v !== undefined) out[k] = v;
   return out as T;
+}
+
+/** Open the Elevate Gateway modal (claim existing membership or request membership with onboarding). */
+export function openElevateGatewayModal(opts: {
+  orgKey?: string;
+  mode?: 'home' | 'claim' | 'join' | 'create';
+  memberNumber?: string;
+}): void {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('plajah:open-elevate-gateway', { detail: opts }));
+  }
 }
 
 export async function createOrganization(data: Partial<Organization> & { orgType: OrgType }): Promise<Organization | null> {
@@ -41,7 +52,7 @@ export async function createOrganization(data: Partial<Organization> & { orgType
     admins: [auth.currentUser.uid],
     channels: data.channels,
     isPrivate: data.isPrivate ?? false,
-    joinProcess: data.joinProcess || 'AUTO',
+    joinProcess: data.joinProcess || 'APPROVAL',
     monthlyPrice: data.monthlyPrice,
     yearlyPrice: data.yearlyPrice,
     roster: data.roster,
@@ -166,25 +177,194 @@ async function orgIdOfMembership(membershipId: string): Promise<string | undefin
   catch { return undefined; }
 }
 
-/** Join (or request to join) an organization. */
-export async function joinOrganization(orgId: string, opts?: { role?: OrgRole; title?: string; status?: OrgMembership['status'] }): Promise<OrgMembership | null> {
+/**
+ * Request or join an organization as a member.
+ *
+ * NOTE: Following an org (`followOrg`) is for public updates and requires no approval.
+ * Org Membership is for real people who belong to the organization and ALWAYS defaults
+ * to `status: 'PENDING'` requiring approval from the org's leadership (unless redeemed
+ * via a pre-approved invite or provisioned seat claim).
+ *
+ * Also supports attaching `onboarding` (`OrgMembershipOnboarding`) so the membership
+ * request doubles as church/org member onboarding.
+ */
+export async function joinOrganization(
+  orgId: string,
+  opts?: {
+    role?: OrgRole;
+    title?: string;
+    status?: OrgMembership['status'];
+    roleKey?: string;
+    rosterGroup?: RosterGroup;
+    ministryIds?: string[];
+    onboarding?: OrgMembershipOnboarding;
+    aboutInOrg?: string;
+  },
+): Promise<OrgMembership | null> {
   if (!auth.currentUser) return null;
+  const uid = auth.currentUser.uid;
   const now = Date.now();
+
+  // Check if the user already has a membership record (ACTIVE or PENDING) for this org
+  try {
+    const existingSnap = await getDocs(
+      query(collection(db, 'orgMemberships'), where('orgId', '==', orgId), where('userId', '==', uid)),
+    );
+    const existing = existingSnap.docs.map(d => ({ id: d.id, ...d.data() } as OrgMembership)).find(m => m.status === 'ACTIVE' || m.status === 'PENDING');
+    if (existing) return existing;
+  } catch { /* fall through */ }
+
+  const fullName = opts?.onboarding
+    ? `${opts.onboarding.firstName} ${opts.onboarding.lastName}`.trim()
+    : '';
+  const displayName = fullName || auth.currentUser.displayName || 'Member';
   const ref = doc(collection(db, 'orgMemberships'));
   const membership: OrgMembership = {
     id: ref.id,
     orgId,
-    userId: auth.currentUser.uid,
+    userId: uid,
     role: opts?.role || 'MEMBER',
-    status: opts?.status || 'ACTIVE',
-    displayName: auth.currentUser.displayName || 'Member',
+    status: opts?.status || 'PENDING',
+    displayName,
     photoUrl: auth.currentUser.photoURL || '',
-    title: opts?.title,
+    title: opts?.title || 'Member',
     joinedAt: now,
+    roleKey: opts?.roleKey || 'MEMBER',
+    rosterGroup: opts?.rosterGroup || 'MEMBER',
+    source: 'SELF_APPLIED',
+    ministryIds: opts?.ministryIds?.length ? opts.ministryIds : opts?.onboarding?.ministryIds,
+    memberNumber: opts?.onboarding?.memberNumber ? opts.onboarding.memberNumber.trim().toUpperCase() : undefined,
+    claimEmailLower: (opts?.onboarding?.email || auth.currentUser.email || '').trim().toLowerCase() || undefined,
+    aboutInOrg: opts?.aboutInOrg || opts?.onboarding?.note,
+    onboarding: opts?.onboarding,
   };
   await setDoc(ref, stripUndefined(membership));
-  if (membership.status === 'ACTIVE') await syncMemberIndex(orgId, membership.userId);
+  if (membership.status === 'ACTIVE') {
+    await syncMemberIndex(orgId, membership.userId);
+  } else {
+    // Notify org leadership of the pending membership onboarding request (best-effort)
+    try {
+      const org = await fetchOrganization(orgId);
+      const recipients = Array.from(new Set([org?.creatorId, ...(org?.admins || [])].filter(Boolean) as string[]));
+      for (const adminUid of recipients.slice(0, 5)) {
+        if (adminUid === uid) continue;
+        const notifRef = doc(collection(db, 'notifications'));
+        await setDoc(notifRef, {
+          id: notifRef.id,
+          userId: adminUid,
+          senderId: uid,
+          senderName: displayName,
+          senderPhoto: auth.currentUser.photoURL || '',
+          type: 'SYSTEM',
+          title: `Membership request · ${org?.name || 'Organization'}`,
+          message: `${displayName} requested to join ${org?.name || 'your organization'} as a member and completed member onboarding. Review & approve in Roster → Pending.`,
+          isRead: false,
+          timestamp: now,
+          targetId: orgId,
+        });
+      }
+    } catch { /* non-blocking */ }
+  }
   return membership;
+}
+
+/** Explicit alias for submitting a membership request with onboarding details (always PENDING approval). */
+export async function requestOrgMembership(
+  orgId: string,
+  onboarding: Omit<OrgMembershipOnboarding, 'submittedAt'>,
+): Promise<OrgMembership | null> {
+  return joinOrganization(orgId, {
+    role: 'MEMBER',
+    status: 'PENDING',
+    roleKey: 'MEMBER',
+    rosterGroup: 'MEMBER',
+    ministryIds: onboarding.ministryIds,
+    onboarding: {
+      ...onboarding,
+      submittedAt: Date.now(),
+    },
+  });
+}
+
+export interface ProfileOrgSummary {
+  orgId: string;
+  orgName: string;
+  orgLogoUrl?: string;
+  orgType?: OrgType;
+  tagline?: string;
+  roleTitle?: string;
+  ministryName?: string;
+  isOfficialAccount?: boolean;
+}
+
+/**
+ * Resolve all organizations linked to or affiliated with a user profile so visitors on
+ * that account's page can open the Org/Elevate page, Follow the org, or Claim / Request
+ * their Org Membership.
+ */
+export async function fetchProfileOrganizations(profile: UserProfile): Promise<ProfileOrgSummary[]> {
+  if (!profile?.uid) return [];
+  const byId = new Map<string, ProfileOrgSummary>();
+
+  // 1. Direct linkedOrgId (official org/brand account) or employerOrgId (staff/provisioned seat)
+  const directIds = Array.from(new Set([profile.linkedOrgId, (profile as any).employerOrgId].filter(Boolean) as string[]));
+  for (const orgId of directIds) {
+    const o = await fetchOrganization(orgId).catch(() => null);
+    if (o) {
+      byId.set(o.id, {
+        orgId: o.id,
+        orgName: o.name,
+        orgLogoUrl: o.logoUrl,
+        orgType: o.orgType,
+        tagline: o.tagline,
+        roleTitle: profile.linkedOrgId === o.id ? 'Official Organization Page' : ((profile as any).title || 'Team Member'),
+        isOfficialAccount: profile.linkedOrgId === o.id,
+      });
+    }
+  }
+
+  // 2. Synced orgAffiliations on the profile
+  if (Array.isArray(profile.orgAffiliations)) {
+    for (const a of profile.orgAffiliations) {
+      if (!a?.orgId || byId.has(a.orgId)) continue;
+      byId.set(a.orgId, {
+        orgId: a.orgId,
+        orgName: a.orgName,
+        orgLogoUrl: a.orgLogoUrl,
+        roleTitle: a.title,
+        ministryName: a.ministryName,
+      });
+    }
+  }
+
+  // 3. Fallback: if this is an ORGANIZATION / BRAND / CLERGY account (or has no inline orgs yet),
+  // check organizations where accountUid == uid or creatorId == uid.
+  if (byId.size === 0) {
+    try {
+      const [acctSnap, creatorSnap] = await Promise.all([
+        getDocs(query(collection(db, 'organizations'), where('accountUid', '==', profile.uid), limit(4))).catch(() => null),
+        (profile.accountType === 'ORGANIZATION' || profile.accountType === 'BRAND' || profile.accountType === 'CLERGY')
+          ? getDocs(query(collection(db, 'organizations'), where('creatorId', '==', profile.uid), limit(4))).catch(() => null)
+          : Promise.resolve(null),
+      ]);
+      const docs = [...(acctSnap?.docs || []), ...(creatorSnap?.docs || [])];
+      for (const d of docs) {
+        const o = { id: d.id, ...d.data() } as Organization;
+        if (o.isPublic === false || byId.has(o.id)) continue;
+        byId.set(o.id, {
+          orgId: o.id,
+          orgName: o.name,
+          orgLogoUrl: o.logoUrl,
+          orgType: o.orgType,
+          tagline: o.tagline,
+          roleTitle: o.accountUid === profile.uid ? 'Official Organization Page' : 'Founder / Leader',
+          isOfficialAccount: o.accountUid === profile.uid,
+        });
+      }
+    } catch { /* non-fatal */ }
+  }
+
+  return Array.from(byId.values());
 }
 
 /** Add / promote a staff member (owner/admin action). */
@@ -309,14 +489,97 @@ export async function applyToOrg(
   return membership;
 }
 
-/** Owner/admin accepts a PENDING applicant → ACTIVE (optionally setting their final role). */
+/**
+ * Owner/admin/pastor accepts a PENDING applicant → ACTIVE (optionally setting their final role).
+ * Also completes church/org membership onboarding by creating or linking their `chmsPeople`
+ * congregation record (`linkedUid: member.userId`), syncing `orgMemberIndex`, and notifying them.
+ */
 export async function acceptOrgMember(membershipId: string, role?: OrgRole): Promise<void> {
-  await updateDoc(doc(db, 'orgMemberships', membershipId), stripUndefined({ status: 'ACTIVE', acceptedAt: Date.now(), role }));
-  const orgId = await orgIdOfMembership(membershipId);
+  const now = Date.now();
+  const memSnap = await getDoc(doc(db, 'orgMemberships', membershipId)).catch(() => null);
+  const memData = (memSnap?.exists() ? memSnap.data() : undefined) as OrgMembership | undefined;
+  const orgId = memData?.orgId;
+  const uid = memData?.userId;
+
+  await updateDoc(
+    doc(db, 'orgMemberships', membershipId),
+    stripUndefined({
+      status: 'ACTIVE',
+      acceptedAt: now,
+      role: role || memData?.role || 'MEMBER',
+      roleKey: memData?.roleKey || 'MEMBER',
+      rosterGroup: memData?.rosterGroup || 'MEMBER',
+    }),
+  );
+
   if (orgId) await recomputeOrgStaffUids(orgId);
-  if (orgId) {
-    const uid = (await getDoc(doc(db, 'orgMemberships', membershipId)).catch(() => null))?.data()?.userId as string | undefined;
-    if (uid) await syncMemberIndex(orgId, uid);
+  if (orgId && uid) await syncMemberIndex(orgId, uid);
+
+  // Link or create their congregation/member record in chmsPeople if onboarding details were provided
+  if (orgId && uid && memData) {
+    try {
+      const ob = memData.onboarding;
+      const nameParts = (memData.displayName || 'Member').trim().split(/\s+/);
+      const firstName = ob?.firstName?.trim() || nameParts[0] || 'Member';
+      const lastName = ob?.lastName?.trim() || nameParts.slice(1).join(' ') || '';
+
+      // Check if a chmsPeople record already exists for this linkedUid or email/memberNumber
+      const peopleSnap = await getDocs(query(collection(db, 'chmsPeople'), where('orgId', '==', orgId))).catch(() => null);
+      const existingPeople = (peopleSnap?.docs || []).map(d => ({ id: d.id, ...d.data() } as any));
+      const matched = existingPeople.find(p =>
+        p.linkedUid === uid ||
+        (ob?.memberNumber && p.memberNumber && String(p.memberNumber).toUpperCase() === ob.memberNumber.trim().toUpperCase()) ||
+        (ob?.email && p.email && String(p.email).toLowerCase() === ob.email.trim().toLowerCase()),
+      );
+
+      if (matched) {
+        await updateDoc(doc(db, 'chmsPeople', matched.id), stripUndefined({
+          linkedUid: uid,
+          status: 'MEMBER',
+          phone: ob?.phone || matched.phone,
+          email: ob?.email || matched.email,
+          ministryIds: memData.ministryIds || matched.ministryIds,
+          updatedAt: now,
+        }));
+      } else {
+        const pRef = doc(collection(db, 'chmsPeople'));
+        await setDoc(pRef, stripUndefined({
+          id: pRef.id,
+          orgId,
+          firstName,
+          lastName,
+          email: ob?.email || memData.claimEmailLower || undefined,
+          phone: ob?.phone || undefined,
+          memberNumber: ob?.memberNumber || memData.memberNumber || undefined,
+          status: 'MEMBER',
+          joinedAt: now,
+          linkedUid: uid,
+          ministryIds: memData.ministryIds || ob?.ministryIds || [],
+          notes: ob?.note || ob?.householdNote || undefined,
+          createdAt: now,
+          updatedAt: now,
+        }));
+      }
+    } catch { /* non-blocking if caller is not chmsPeopleStaff */ }
+
+    // Notify the approved member
+    try {
+      const org = await fetchOrganization(orgId);
+      const notifRef = doc(collection(db, 'notifications'));
+      await setDoc(notifRef, {
+        id: notifRef.id,
+        userId: uid,
+        senderId: auth.currentUser?.uid || orgId,
+        senderName: org?.name || 'Organization',
+        senderPhoto: org?.logoUrl || '',
+        type: 'SYSTEM',
+        title: `Membership approved · ${org?.name || 'Organization'} 🎉`,
+        message: `Your membership at ${org?.name || 'the organization'} has been approved! Your member hub, department feeds, and rooms are now unlocked.`,
+        isRead: false,
+        timestamp: now,
+        targetId: orgId,
+      });
+    } catch { /* non-blocking */ }
   }
 }
 

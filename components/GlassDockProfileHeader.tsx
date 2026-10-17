@@ -35,7 +35,7 @@ import {
 import { UserProfile, AppView, Album, MerchItem, FeaturedProjectRef } from '../types';
 import { getSocialLinks } from '../services/socialLinks';
 import { resolveAcademiaHubs, hubsAreSchoolAffiliated } from '../services/academiaHubs';
-import { isPartneredStatus, statusLabel } from '../services/relationships';
+import { isPartneredStatus, statusLabel, canHaveRelationshipStatus } from '../services/relationships';
 import PioneerGoldFrame from './PioneerGoldFrame';
 import SafeAvatarViewer from './SafeAvatarViewer';
 import ThreeDImage from './ThreeDImage';
@@ -46,6 +46,7 @@ import RssFeedViewer from './RssFeedViewer';
 import ProfileLiveTiles from './profile/ProfileLiveTiles';
 import ProfileFeaturedProject from './profile/ProfileFeaturedProject';
 import ProfileSupportRail from './profile/ProfileSupportRail';
+import ProfileOrgBanner from './elevate/ProfileOrgBanner';
 import {
   useRadioNowPlaying,
   useChannelNowPlaying,
@@ -68,6 +69,7 @@ interface GlassDockProfileHeaderProps {
   onMessage?: (uid: string) => void;
   onVisitUser: (uid: string) => void;
   onNavigate?: (view: AppView) => void;
+  onOpenOrg?: (orgId: string) => void;
   onShowStatCard: () => void;
   onOpenDonation: () => void;
   onOpenPlajahPlusLanding: () => void;
@@ -106,6 +108,7 @@ const GlassDockProfileHeader: React.FC<GlassDockProfileHeaderProps> = ({
   onMessage,
   onVisitUser,
   onNavigate,
+  onOpenOrg,
   onShowStatCard,
   onOpenDonation,
   onOpenPlajahPlusLanding,
@@ -528,8 +531,16 @@ const GlassDockProfileHeader: React.FC<GlassDockProfileHeaderProps> = ({
                 </p>
               </div>
 
-              {/* Relationship status */}
-              {(profile.relationshipPublic || isOwnProfile) && isPartneredStatus(profile.relationshipStatus) && (
+              {/* Organization / Elevate link, Follow Org, and Claim / Request Org Membership */}
+              <ProfileOrgBanner
+                profile={profile}
+                isOwnProfile={isOwnProfile}
+                isMobile={isMobile}
+                onOpenOrg={onOpenOrg}
+              />
+
+              {/* Relationship status — personal accounts only */}
+              {canHaveRelationshipStatus(profile) && (profile.relationshipPublic || isOwnProfile) && isPartneredStatus(profile.relationshipStatus) && (
                 <div className={`mt-2 flex items-center gap-1.5 text-[11px] font-bold text-rose-300/80 ${isMobile ? 'justify-center' : ''}`}>
                   <Heart size={12} fill="currentColor" />
                   <span>

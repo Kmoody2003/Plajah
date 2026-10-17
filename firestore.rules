@@ -304,9 +304,31 @@ service cloud.firestore {
              data.url is string && data.url.size() < 2000;
     }
 
+    // Only personal accounts (FAN, ARTIST, WRITER, ATHLETE, PARENT, CLERGY) may carry an active
+    // relationshipStatus or relationshipPartnerUid. Brands, orgs, businesses/partners, employees,
+    // students/children, and active TEACHER profiles cannot hold an active relationship status.
+    function isNonPersonalRelationshipProfile(d) {
+      return isChildAccount(d) ||
+             d.get('accountType', 'FAN') in ['BRAND', 'ORGANIZATION', 'PARTNER', 'STUDENT', 'TEACHER', 'CHILD', 'EMPLOYEE'] ||
+             d.get('isBrandAdmin', false) == true ||
+             d.get('isPartner', false) == true ||
+             d.get('isEmployee', false) == true ||
+             d.get('isProvisioned', false) == true ||
+             d.get('isStudent', false) == true ||
+             (d.get('isTeacher', false) == true && !(d.get('accountType', '') in ['FAN', 'ARTIST', 'WRITER', 'ATHLETE', 'PARENT', 'CLERGY']));
+    }
+
+    function relationshipStatusOk(d) {
+      return !isNonPersonalRelationshipProfile(d) || (
+        (!('relationshipStatus' in d) || d.relationshipStatus == null || d.relationshipStatus == 'SINGLE') &&
+        (!('relationshipPartnerUid' in d) || d.relationshipPartnerUid == null || d.relationshipPartnerUid == '')
+      );
+    }
+
     function isValidUserProfile(data) {
       return hasRequiredFields(['uid', 'displayName', 'photoURL', 'email']) &&
              data.uid is string && data.displayName is string && data.photoURL is string && data.email is string &&
+             relationshipStatusOk(data) &&
              (!('motionPref' in data) || data.motionPref in ['auto', 'on', 'off']) &&
              (!('acceptsTips' in data) || (data.acceptsTips is bool)) &&
              (!('tipGoal' in data) || (data.tipGoal is number)) &&

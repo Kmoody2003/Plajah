@@ -1,7 +1,7 @@
 import type { UserProfile, ChatRoom } from '../types';
 import { updateUserProfile, deleteChatRoom, updateRoomIntimate } from './backendService';
 import { deleteDiary } from './couplesDiary';
-import { isPartneredStatus } from './relationships';
+import { isPartneredStatus, canHaveRelationshipStatus, relationshipIneligibleReason } from './relationships';
 
 // ─────────────────────────────────────────────────────────────────────────
 // Intimate Mode — gating & enrollment (Phase 2)
@@ -24,30 +24,30 @@ export function ageFromDob(dobMs: number): number {
   return Math.floor((Date.now() - dobMs) / YEAR_MS);
 }
 
-/** Education / school-professional accounts NEVER get Nibbles — it must never appear in an
- *  educational context. Covers students, teachers, school-provisioned children, and any
- *  admin/verified-teacher account. (Personal PARENT accounts are unaffected — they're adults.) */
+/** Education / school-professional accounts NEVER get Nibbles while in education mode.
+ *  Covers students, school-provisioned children, and teachers while on their Teacher profile.
+ *  If a teacher switches to their Personal profile (e.g. FAN/PARENT/ARTIST), they are on a personal account. */
 export function isEducationAccount(p?: IntimateProfile | null): boolean {
   if (!p) return false;
   const t = (p as any).accountType;
   if (t === 'STUDENT' || t === 'TEACHER' || t === 'CHILD') return true;
+  if (p.isStudent || p.isTeacher || p.isChild) return true;
   if ((p as any).childState === 'SCHOOL_PROVISIONED' || (p as any).provisionedByTeacherUid) return true;
-  const tv = (p as any).teacherVerification;
-  if (tv && tv !== 'UNVERIFIED') return true;
-  if ((p as any).isAdmin || (p as any).role === 'ADMIN' || (p as any).isSchoolAdmin) return true;
+  if ((p as any).isSchoolAdmin) return true;
   return false;
 }
 
-/** A minor account can never use intimate mode, regardless of enrollment. */
+/** A minor or non-personal account can never use intimate mode, regardless of enrollment. */
 export function isBlockedMinor(p?: IntimateProfile | null): boolean {
   if (!p) return true;
   if (p.isChild || p.accountType === 'CHILD') return true;
   if (isEducationAccount(p)) return true; // Nibbles is strictly forbidden for education accounts
+  if (!canHaveRelationshipStatus(p)) return true; // Only personal accounts can have relationship status / Nibbles
   if (typeof p.dateOfBirth === 'number' && ageFromDob(p.dateOfBirth) < MIN_AGE) return true;
   return false;
 }
 
-/** Eligible = adult (verified DOB, 18+), not a child account, and enrolled (opt-in). */
+/** Eligible = adult personal account (verified DOB, 18+), not a child/non-personal account, and enrolled (opt-in). */
 export function isIntimateEligible(p?: IntimateProfile | null): boolean {
   if (!p) return false;
   if (isBlockedMinor(p)) return false;
@@ -59,8 +59,10 @@ export function isIntimateEligible(p?: IntimateProfile | null): boolean {
 /** A human-readable reason a user can't enable Nibbles (or null if they can). */
 export function ineligibilityReason(p?: IntimateProfile | null): string | null {
   if (!p) return 'Sign in to use Nibbles.';
-  if (p.isChild || p.accountType === 'CHILD') return 'Nibbles is for adult accounts only.';
-  if (isEducationAccount(p)) return 'Nibbles is not available on education accounts.';
+  if (p.isChild || p.accountType === 'CHILD') return 'Nibbles is for adult personal accounts only.';
+  if (isEducationAccount(p)) return 'Nibbles is not available on education accounts. Teachers must switch to their personal profile.';
+  const relIneligible = relationshipIneligibleReason(p);
+  if (relIneligible) return relIneligible;
   if (typeof p.dateOfBirth !== 'number') return 'Confirm your age to use Nibbles.';
   if (ageFromDob(p.dateOfBirth) < MIN_AGE) return 'Nibbles is 18+ only.';
   if (!p.intimateEnrolled) return 'Join Nibbles to turn it on.';
@@ -68,9 +70,8 @@ export function ineligibilityReason(p?: IntimateProfile | null): string | null {
 }
 
 /**
- * The relationship gate: I must have a partnered relationship status with THIS person
- * linked as my spouse/partner. If their profile is available and they're linked to
- * someone else, block it. Returns a reason or null if the link is good.
+ * The relationship gate: I must be on a personal account AND have a partnered relationship status
+ * with THIS person (also a personal account) linked as my spouse/partner.
  */
 export function relationshipReason(
   me?: IntimateProfile | null,
@@ -78,6 +79,11 @@ export function relationshipReason(
   otherUid?: string,
 ): string | null {
   if (!me) return 'Sign in to use Nibbles.';
+  const myIneligible = relationshipIneligibleReason(me);
+  if (myIneligible) return myIneligible;
+  if (partner && !canHaveRelationshipStatus(partner)) {
+    return 'Relationship status and Nibbles are only available between personal accounts.';
+  }
   if (!isPartneredStatus(me.relationshipStatus)) return 'Set your relationship status on your profile to use Nibbles.';
   if (!me.relationshipPartnerUid) return 'Link your spouse or partner on your profile to use Nibbles.';
   if (otherUid && me.relationshipPartnerUid !== otherUid) return 'Nibbles only works with the partner linked on your profile.';

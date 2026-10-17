@@ -1,15 +1,33 @@
 import React, { useEffect, useState } from 'react';
-import { Heart, Loader2, Check, Clock, UserPlus, X, Copy, Share2, UserMinus } from 'lucide-react';
+import { Heart, Loader2, Check, Clock, UserPlus, X, Copy, Share2, UserMinus, ShieldAlert, ArrowRightLeft } from 'lucide-react';
 import type { UserProfile, RelationshipStatus } from '../types';
-import { fetchUserProfile } from '../services/backendService';
-import { RELATIONSHIP_OPTIONS, isPartneredStatus, partnerConfirmed, setRelationship, clearRelationship, statusLabel } from '../services/relationships';
+import { fetchUserProfile, updateAccountType } from '../services/backendService';
+import { accountFlagUpdate } from '../services/accountCapabilities';
+import {
+  RELATIONSHIP_OPTIONS,
+  isPartneredStatus,
+  partnerConfirmed,
+  setRelationship,
+  clearRelationship,
+  canHaveRelationshipStatus,
+  relationshipIneligibleReason,
+  isTeacherProfileMode,
+} from '../services/relationships';
+import { getActivePersonaKey, setActivePersonaKey, type PersonaKey } from '../services/personaService';
 import { createNibbleInvite } from '../services/nibbleInvites';
 import PartnerPickerModal from './PartnerPickerModal';
 
 // Profile section: turn on a relationship status and link your spouse/partner. The
 // link (once confirmed by them) is what unlocks Nibbles in your DM together. Also
 // offers a shareable invite to bring a partner who isn't on Plajah yet.
-const RelationshipSettings: React.FC<{ me: UserProfile; accent?: string }> = ({ me, accent = '#ff6b6b' }) => {
+// GATED: Only personal accounts get relationship status (never brands, orgs, businesses,
+// students, children, or teachers — unless a teacher switches to their personal profile).
+const RelationshipSettings: React.FC<{
+  me: UserProfile;
+  accent?: string;
+  onSwitchedToPersonal?: (patch: Partial<UserProfile>) => void;
+}> = ({ me, accent = '#ff6b6b', onSwitchedToPersonal }) => {
+  const [activePersona, setActivePersona] = useState<PersonaKey>(() => getActivePersonaKey());
   const [status, setStatus] = useState<RelationshipStatus>(me.relationshipStatus || 'SINGLE');
   const [isPublic, setIsPublic] = useState<boolean>(me.relationshipPublic ?? false); // private by default
   const [partnerUid, setPartnerUid] = useState<string | null>(me.relationshipPartnerUid || null);
@@ -19,13 +37,34 @@ const RelationshipSettings: React.FC<{ me: UserProfile; accent?: string }> = ({ 
   const [showPicker, setShowPicker] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [switchingPersona, setSwitchingPersona] = useState(false);
   const [inviteUrl, setInviteUrl] = useState('');
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    const onPersonaChange = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      setActivePersona(detail?.personaKey || getActivePersonaKey());
+    };
+    window.addEventListener('PLAJAH_PERSONA_CHANGED', onPersonaChange);
+    return () => window.removeEventListener('PLAJAH_PERSONA_CHANGED', onPersonaChange);
+  }, []);
+
+  useEffect(() => {
+    setStatus(me.relationshipStatus || 'SINGLE');
+    setIsPublic(me.relationshipPublic ?? false);
+    setPartnerUid(me.relationshipPartnerUid || null);
+    setPartnerName(me.relationshipPartnerName || '');
+  }, [me.relationshipStatus, me.relationshipPublic, me.relationshipPartnerUid, me.relationshipPartnerName]);
+
+  const eligible = canHaveRelationshipStatus(me, activePersona);
+  const teacherCanSwitch = isTeacherProfileMode(me, activePersona);
+  const ineligibleReason = relationshipIneligibleReason(me, activePersona);
 
   // Resolve the linked partner's live profile to show name/photo + confirm state.
   useEffect(() => {
     let alive = true;
-    if (!partnerUid) { setMutual(false); setPartnerPhoto(''); return; }
+    if (!eligible || !partnerUid) { setMutual(false); setPartnerPhoto(''); return; }
     fetchUserProfile(partnerUid).then(p => {
       if (!alive || !p) return;
       setPartnerName(p.displayName || partnerName);
@@ -33,7 +72,65 @@ const RelationshipSettings: React.FC<{ me: UserProfile; accent?: string }> = ({ 
       setMutual(partnerConfirmed({ ...me, relationshipPartnerUid: partnerUid }, p));
     }).catch(() => {});
     return () => { alive = false; };
-  }, [partnerUid]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [partnerUid, eligible]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleSwitchTeacherToPersonal = async () => {
+    setSwitchingPersona(true);
+    try {
+      setActivePersonaKey('personal');
+      setActivePersona('personal');
+      if (me.accountType === 'TEACHER' || me.isTeacher) {
+        await updateAccountType('FAN');
+        const restored = me.personalRelationshipBackup;
+        const patch: Partial<UserProfile> = {
+          accountType: 'FAN',
+          ...accountFlagUpdate('FAN'),
+          ...(restored
+            ? {
+                relationshipStatus: restored.relationshipStatus || 'SINGLE',
+                relationshipPartnerUid: restored.relationshipPartnerUid ?? null,
+                relationshipPartnerName: restored.relationshipPartnerName || '',
+                relationshipPublic: restored.relationshipPublic ?? false,
+                relationshipSince: restored.relationshipSince,
+                personalRelationshipBackup: null,
+              }
+            : {}),
+        };
+        onSwitchedToPersonal?.(patch);
+      }
+    } catch (e: any) {
+      alert(e?.message || 'Could not switch to personal profile.');
+    } finally {
+      setSwitchingPersona(false);
+    }
+  };
+
+  if (!eligible) {
+    return (
+      <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 space-y-3">
+        <div className="flex items-center gap-2">
+          <ShieldAlert size={16} className="text-white/40" />
+          <h3 className="text-[11px] font-black uppercase tracking-widest text-white/70">Relationship Status (Personal Accounts Only)</h3>
+        </div>
+        <p className="text-[11px] text-white/45 leading-relaxed">
+          {ineligibleReason || 'Relationship status is only available on personal accounts (not Brand, Organization, Business, Student, or Teacher profiles).'}
+        </p>
+        {teacherCanSwitch && (
+          <div className="pt-1">
+            <button
+              type="button"
+              onClick={handleSwitchTeacherToPersonal}
+              disabled={switchingPersona}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-white text-black text-[10px] font-black uppercase tracking-widest hover:brightness-110 disabled:opacity-40 transition-all"
+            >
+              {switchingPersona ? <Loader2 size={13} className="animate-spin" /> : <ArrowRightLeft size={13} />}
+              Switch to Personal Profile
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   const partnered = isPartneredStatus(status);
 
@@ -69,7 +166,7 @@ const RelationshipSettings: React.FC<{ me: UserProfile; accent?: string }> = ({ 
       <div className="flex items-center gap-2">
         <Heart size={16} fill={accent} stroke="none" />
         <h3 className="text-[11px] font-black uppercase tracking-widest text-white">Relationship</h3>
-        <span className="ml-auto text-[9px] font-black uppercase tracking-widest text-white/30">Gate for Nibbles</span>
+        <span className="ml-auto text-[9px] font-black uppercase tracking-widest text-white/30">Personal Profile · Gate for Nibbles</span>
       </div>
       <p className="text-[11px] text-white/45 leading-relaxed">Set your status and link your spouse or partner. Once they confirm the link, Nibbles (private couples chat) unlocks in your direct messages together.</p>
 
@@ -103,10 +200,10 @@ const RelationshipSettings: React.FC<{ me: UserProfile; accent?: string }> = ({ 
                   ? <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-emerald-400"><Check size={10} /> Confirmed</span>
                   : <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-amber-400"><Clock size={10} /> Waiting for them to confirm</span>}
               </div>
-              <button onClick={() => { setPartnerUid(null); setPartnerName(''); setPartnerPhoto(''); }} className="p-1.5 rounded-lg text-white/30 hover:text-white hover:bg-white/10"><X size={14} /></button>
+              <button type="button" onClick={() => { setPartnerUid(null); setPartnerName(''); setPartnerPhoto(''); }} className="p-1.5 rounded-lg text-white/30 hover:text-white hover:bg-white/10"><X size={14} /></button>
             </div>
           ) : (
-            <button onClick={() => setShowPicker(true)} className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border border-dashed border-white/15 text-white/60 hover:text-white hover:border-white/30 text-[11px] font-black uppercase tracking-widest">
+            <button type="button" onClick={() => setShowPicker(true)} className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border border-dashed border-white/15 text-white/60 hover:text-white hover:border-white/30 text-[11px] font-black uppercase tracking-widest">
               <UserPlus size={14} /> Choose your partner
             </button>
           )}
@@ -115,11 +212,11 @@ const RelationshipSettings: React.FC<{ me: UserProfile; accent?: string }> = ({ 
 
       {/* Actions */}
       <div className="flex flex-wrap gap-2 pt-1">
-        <button onClick={save} disabled={saving || (partnered && !partnerUid)} className="flex items-center gap-2 px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest text-black disabled:opacity-40" style={{ background: accent }}>
+        <button type="button" onClick={save} disabled={saving || (partnered && !partnerUid)} className="flex items-center gap-2 px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest text-black disabled:opacity-40" style={{ background: accent }}>
           {saving ? <Loader2 size={13} className="animate-spin" /> : saved ? <Check size={13} /> : <Heart size={13} fill="currentColor" />} {saved ? 'Saved' : 'Save status'}
         </button>
         {me.relationshipPartnerUid && (
-          <button onClick={unlink} disabled={saving} className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-white/5 border border-white/10 text-white/60 hover:text-white text-[10px] font-black uppercase tracking-widest"><UserMinus size={13} /> Unlink</button>
+          <button type="button" onClick={unlink} disabled={saving} className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-white/5 border border-white/10 text-white/60 hover:text-white text-[10px] font-black uppercase tracking-widest"><UserMinus size={13} /> Unlink</button>
         )}
       </div>
 
@@ -127,12 +224,12 @@ const RelationshipSettings: React.FC<{ me: UserProfile; accent?: string }> = ({ 
       <div className="pt-3 border-t" style={{ borderColor: `${accent}22` }}>
         <p className="text-[9px] font-black uppercase tracking-widest text-white/40 mb-2">Partner not on Plajah?</p>
         {!inviteUrl ? (
-          <button onClick={makeInvite} className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-white/70 hover:text-white text-[10px] font-black uppercase tracking-widest"><Share2 size={13} /> Invite &amp; share a nibble</button>
+          <button type="button" onClick={makeInvite} className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-white/70 hover:text-white text-[10px] font-black uppercase tracking-widest"><Share2 size={13} /> Invite &amp; share a nibble</button>
         ) : (
           <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.05] border border-white/10">
             <span className="flex-1 min-w-0 truncate text-[11px] text-white/60">{inviteUrl}</span>
-            <button onClick={copyInvite} title="Copy" className="p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/10">{copied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}</button>
-            <button onClick={shareInvite} title="Share" className="p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/10"><Share2 size={14} /></button>
+            <button type="button" onClick={copyInvite} title="Copy" className="p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/10">{copied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}</button>
+            <button type="button" onClick={shareInvite} title="Share" className="p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/10"><Share2 size={14} /></button>
           </div>
         )}
         <p className="text-[9px] text-white/25 mt-1.5 leading-relaxed">They join through your link and get pre-linked to you as your partner (you confirm to make it official).</p>

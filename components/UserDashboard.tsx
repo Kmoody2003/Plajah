@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { UserProfile, Album, Video, Photo, Track, MerchItem, IPWorld, ThemeType } from '../types';
 import {
@@ -974,7 +974,10 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                   />
                 </div>
 
-                <RelationshipSettings me={{ ...profile, uid: user.uid } as UserProfile} />
+                <RelationshipSettings
+                  me={{ ...profile, uid: user.uid } as UserProfile}
+                  onSwitchedToPersonal={(patch) => setProfile(prev => prev ? { ...prev, ...patch } : null)}
+                />
 
                 <ProfileLinksSettings
                   value={profile.socialLinks}
@@ -1350,13 +1353,45 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                         onClick={async () => {
                           if (type === 'ORGANIZATION') { setShowOrgAccountModal(true); return; }
                           await updateAccountType(type as any);
-                          // Mirror the SAME derived flags the backend just persisted,
+                          const nonPersonal = ['BRAND', 'ORGANIZATION', 'PARTNER', 'STUDENT', 'TEACHER', 'CHILD', 'EMPLOYEE'].includes(type);
+                          // Mirror the SAME derived flags & relationship gating the backend just persisted,
                           // so local state matches Firestore (no more drift).
-                          setProfile(prev => prev ? {
-                            ...prev,
-                            accountType: type as any,
-                            ...accountFlagUpdate(type as any),
-                          } : null);
+                          setProfile(prev => {
+                            if (!prev) return null;
+                            const relPatch: Partial<UserProfile> = {};
+                            if (nonPersonal) {
+                              if (
+                                type === 'TEACHER' &&
+                                (prev.relationshipPartnerUid || (prev.relationshipStatus && prev.relationshipStatus !== 'SINGLE'))
+                              ) {
+                                relPatch.personalRelationshipBackup = {
+                                  relationshipStatus: prev.relationshipStatus,
+                                  relationshipPartnerUid: prev.relationshipPartnerUid ?? null,
+                                  relationshipPartnerName: prev.relationshipPartnerName || '',
+                                  relationshipPublic: prev.relationshipPublic ?? false,
+                                  relationshipSince: prev.relationshipSince,
+                                };
+                              }
+                              relPatch.relationshipStatus = 'SINGLE';
+                              relPatch.relationshipPartnerUid = null;
+                              relPatch.relationshipPartnerName = '';
+                              relPatch.relationshipPublic = false;
+                            } else if (prev.personalRelationshipBackup) {
+                              const b = prev.personalRelationshipBackup;
+                              relPatch.relationshipStatus = b.relationshipStatus || 'SINGLE';
+                              relPatch.relationshipPartnerUid = b.relationshipPartnerUid ?? null;
+                              relPatch.relationshipPartnerName = b.relationshipPartnerName || '';
+                              relPatch.relationshipPublic = b.relationshipPublic ?? false;
+                              relPatch.relationshipSince = b.relationshipSince;
+                              relPatch.personalRelationshipBackup = null;
+                            }
+                            return {
+                              ...prev,
+                              accountType: type as any,
+                              ...accountFlagUpdate(type as any),
+                              ...relPatch,
+                            };
+                          });
                         }}
                         className={`p-6 rounded-[2rem] border transition-all flex flex-col items-center gap-3 ${
                           profile.accountType === type 

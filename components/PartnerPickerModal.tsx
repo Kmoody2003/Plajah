@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { X, Search, Loader2, Check } from 'lucide-react';
 import { searchUsersSafe as searchUsers } from '../services/searchUsersSafe';
+import { canHaveRelationshipStatus } from '../services/relationships';
 import type { UserProfile } from '../types';
 
 // Reusable user picker — search Plajah members and select one (e.g. your partner).
@@ -23,7 +24,7 @@ const PartnerPickerModal: React.FC<{
     timer.current = setTimeout(async () => {
       try {
         const rs = await searchUsers(q.trim());
-        setResults((rs || []).filter(u => u.uid !== excludeUid).slice(0, 25));
+        setResults((rs || []).filter(u => u.uid !== excludeUid && canHaveRelationshipStatus(u)).slice(0, 25));
       } catch { setResults([]); }
       finally { setLoading(false); }
     }, 300);

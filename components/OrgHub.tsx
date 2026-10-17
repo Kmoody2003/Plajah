@@ -10,13 +10,14 @@ import { motion } from 'motion/react';
 import {
   Building2, Plus, ArrowLeft, Check, Globe, MapPin, Users, Star, Loader2, Camera, Pencil,
   Church, Clock, Gift, Trash2, Sparkles, MonitorPlay, Mail, HardDrive, Briefcase, Megaphone,
+  KeyRound, UserCheck,
 } from 'lucide-react';
 import type { Organization, OrgMembership, OrgType, OrgRole, UserProfile } from '../types';
 import { AdaptiveGrid, TYPE } from '../src/lib/designSystem';
 import {
   createOrganization, fetchUserOrganizations, fetchOrgMembers, updateOrganization,
   addOrgMember, removeOrgMember, setOrgMemberRole, fetchUnmigratedBrands, migrateLegacyBrands,
-  createDemoChurch, fetchChurchDonations, sumDonationsByFund,
+  createDemoChurch, fetchChurchDonations, sumDonationsByFund, openElevateGatewayModal,
 } from '../services/organizationService';
 import { uploadFile, searchUserProfiles, auth } from '../services/backendService';
 import { connectStripe } from '../services/stripeService';
@@ -410,8 +411,42 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
               )}
             </div>
           )}
-          {elevate && !isOwner && (
-            <button onClick={toggleFollow} className={`pb-2 shrink-0 px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest ${following ? 'bg-white/10 text-white border border-white/15' : 'bg-small-orange text-black'}`}>{following ? 'Following' : 'Follow'}</button>
+          {!isOwner && (
+            <div className="pb-2 flex flex-wrap items-center gap-2 shrink-0">
+              <button
+                onClick={toggleFollow}
+                title="Follow for public updates and streams (no approval required)"
+                className={`px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${following ? 'bg-white/10 text-white border border-white/15' : 'bg-small-orange text-black hover:brightness-110'}`}
+              >
+                {following ? 'Following Org ✓' : 'Follow Org'}
+              </button>
+              {myMembership?.status === 'ACTIVE' ? (
+                <span className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-emerald-500/15 border border-emerald-500/35 text-emerald-300 text-[9px] font-black uppercase tracking-widest">
+                  <UserCheck size={12} /> Org Member
+                </span>
+              ) : myMembership?.status === 'PENDING' ? (
+                <span className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-amber-500/15 border border-amber-500/35 text-amber-300 text-[9px] font-black uppercase tracking-widest">
+                  <Clock size={12} /> Membership Pending Approval
+                </span>
+              ) : (
+                <>
+                  <button
+                    onClick={() => openElevateGatewayModal({ orgKey: org.slug || org.id, mode: 'claim' })}
+                    title="Claim a pre-provisioned member seat or link your existing Member ID"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-gradient-to-r from-[#6B0099] to-[#D40055] text-white text-[9px] font-black uppercase tracking-widest shadow hover:brightness-110 transition-all"
+                  >
+                    <KeyRound size={11} /> Claim My Org Membership
+                  </button>
+                  <button
+                    onClick={() => openElevateGatewayModal({ orgKey: org.slug || org.id, mode: 'join' })}
+                    title="Real member onboarding — requires approval from organization leadership"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/15 text-white/85 text-[9px] font-black uppercase tracking-widest transition-all"
+                  >
+                    <UserCheck size={11} /> Request Membership
+                  </button>
+                </>
+              )}
+            </div>
           )}
           {isOwner && (
             <button onClick={() => setManaging(true)} className="pb-2 flex items-center gap-1.5 px-4 py-2 bg-white/5 border border-white/10 rounded-full text-[9px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/10 transition-all shrink-0"><Pencil size={11} /> Manage</button>

@@ -229,7 +229,32 @@ const RosterManager: React.FC<RosterManagerProps> = ({ org, myMembership, onClos
                     {busy === m.id && <Loader2 size={14} className="animate-spin text-white/40" />}
                   </div>
 
-                  {tab === 'PENDING' && (def || m.title) && <p className="text-[11px] text-white/40 mt-2">Requested role: {m.title || def?.label}</p>}
+                  {tab === 'PENDING' && (
+                    <div className="mt-2 pt-2 border-t border-white/5 space-y-1 text-[11px] text-white/55">
+                      {(def || m.title) && <p>Requested role: <span className="text-white/80 font-bold">{m.title || def?.label}</span></p>}
+                      {m.onboarding && (
+                        <>
+                          <p className="flex flex-wrap gap-x-3 gap-y-1">
+                            {m.onboarding.email && <span>Email: <span className="text-white/80">{m.onboarding.email}</span></span>}
+                            {m.onboarding.phone && <span>Phone: <span className="text-white/80">{m.onboarding.phone}</span></span>}
+                            {m.onboarding.memberNumber && <span>Member ID: <span className="text-sky-300 font-bold">{m.onboarding.memberNumber}</span></span>}
+                            {m.onboarding.isExistingCongregant && <span className="text-emerald-300 font-bold">· Existing Congregation Member</span>}
+                          </p>
+                          {!!m.onboarding.ministryIds?.length && (
+                            <p>
+                              Ministries:{' '}
+                              <span className="text-white/80">
+                                {m.onboarding.ministryIds
+                                  .map(id => ministries.find(min => min.id === id)?.name || id)
+                                  .join(', ')}
+                              </span>
+                            </p>
+                          )}
+                          {m.onboarding.note && <p className="italic text-white/60">"{m.onboarding.note}"</p>}
+                        </>
+                      )}
+                    </div>
+                  )}
 
                   {editing && (
                     <div className="mt-3 pt-3 border-t border-white/5 space-y-2.5">

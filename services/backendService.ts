@@ -3813,12 +3813,51 @@ export const updateAccountType = async (type: AccountType) => {
   if (!auth.currentUser) return;
   const path = `users/${auth.currentUser.uid}`;
   try {
-    // Single source of truth: persist the enum AND the derived legacy booleans in
-    // one write so accountType and isArtist/isBrandAdmin/… never drift (the old
-    // version wrote only the enum, so Firestore's flags went stale forever).
-    await updateDoc(doc(db, 'users', auth.currentUser.uid), {
+    const userRef = doc(db, 'users', auth.currentUser.uid);
+    const snap = await getDoc(userRef).catch(() => null);
+    const current = (snap?.exists() ? snap.data() : {}) as Partial<UserProfile>;
+
+    const nonPersonalTypes: AccountType[] = ['BRAND', 'ORGANIZATION', 'PARTNER', 'STUDENT', 'TEACHER', 'CHILD', 'EMPLOYEE'];
+    const isNextPersonal = !nonPersonalTypes.includes(type);
+    const relationshipPatch: Record<string, any> = {};
+
+    if (!isNextPersonal) {
+      // If a user is switching to TEACHER, stash their personal relationship status so it is
+      // restored when they switch back to their personal profile. All non-personal account types
+      // have relationshipStatus cleared on the active profile.
+      if (
+        type === 'TEACHER' &&
+        (current.relationshipPartnerUid || (current.relationshipStatus && current.relationshipStatus !== 'SINGLE'))
+      ) {
+        relationshipPatch.personalRelationshipBackup = {
+          relationshipStatus: current.relationshipStatus,
+          relationshipPartnerUid: current.relationshipPartnerUid ?? null,
+          relationshipPartnerName: current.relationshipPartnerName || '',
+          relationshipPublic: current.relationshipPublic ?? false,
+          relationshipSince: current.relationshipSince || Date.now(),
+        };
+      }
+      relationshipPatch.relationshipStatus = 'SINGLE';
+      relationshipPatch.relationshipPartnerUid = null;
+      relationshipPatch.relationshipPartnerName = '';
+      relationshipPatch.relationshipPublic = false;
+    } else if (current.personalRelationshipBackup) {
+      // Teacher switching back to their personal profile — restore their personal relationship state
+      const b = current.personalRelationshipBackup;
+      relationshipPatch.relationshipStatus = b.relationshipStatus || 'SINGLE';
+      relationshipPatch.relationshipPartnerUid = b.relationshipPartnerUid ?? null;
+      relationshipPatch.relationshipPartnerName = b.relationshipPartnerName || '';
+      relationshipPatch.relationshipPublic = b.relationshipPublic ?? false;
+      if (b.relationshipSince) relationshipPatch.relationshipSince = b.relationshipSince;
+      relationshipPatch.personalRelationshipBackup = null;
+    }
+
+    // Single source of truth: persist the enum, the derived legacy booleans, AND the
+    // personal-account relationship gating state in one write.
+    await updateDoc(userRef, {
       accountType: type,
       ...accountFlagUpdate(type),
+      ...relationshipPatch,
     });
   } catch (e) {
     handleFirestoreError(e, OperationType.UPDATE, path);
