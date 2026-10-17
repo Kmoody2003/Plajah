@@ -83,10 +83,16 @@ export function songToText(s: Pick<Song, 'lines' | 'sections'>): string {
 }
 
 function buildSacredBuiltinSong(item: SacredHymnOrPrayer, legacyId?: string): Song {
-  const labelPrefix = item.kind === 'PUBLIC_DOMAIN_HYMN' ? 'Verse' : 'Stanza';
-  const formattedText = item.stanzas
-    .map((stanza, idx) => `[${labelPrefix} ${idx + 1}]\n${stanza}`)
-    .join('\n\n');
+  const labelPrefix =
+    item.kind === 'PUBLIC_DOMAIN_HYMN' || item.kind === 'PUBLIC_DOMAIN_GOSPEL' ? 'Verse' : 'Stanza';
+  const parts: string[] = [];
+  item.stanzas.forEach((stanza, idx) => {
+    parts.push(`[${labelPrefix} ${idx + 1}]\n${stanza}`);
+    if (idx === 0 && item.refrain) {
+      parts.push(`[Refrain]\n${item.refrain}`);
+    }
+  });
+  const formattedText = parts.join('\n\n');
   return {
     id: legacyId ?? `builtin_${item.id.replace(/-/g, '_')}`,
     title: item.title,
@@ -157,6 +163,31 @@ export function saveUserSong(s: Omit<Song, 'source' | 'id'> & { id?: string }): 
   userSongs = i >= 0 ? userSongs.map((x, k) => (k === i ? song : x)) : [song, ...userSongs];
   persist(); emit();
   return song;
+}
+
+export async function saveChurchSong(
+  _orgId: string,
+  payload: {
+    id?: string;
+    title: string;
+    author?: string;
+    stanzas: string[];
+    key?: string;
+    bpm?: number;
+    ccli?: string;
+  }
+): Promise<Song> {
+  const formatted = payload.stanzas
+    .map((st, idx) => `[Verse ${idx + 1}]\n${st}`)
+    .join('\n\n');
+  const parsed = parseLyricsText(formatted);
+  return saveUserSong({
+    id: payload.id,
+    title: payload.title,
+    artist: payload.author,
+    ccli: payload.ccli,
+    ...parsed,
+  });
 }
 
 export function deleteUserSong(id: string): void {

@@ -1,22 +1,58 @@
 // elevateTemplates — default departments/ministries a new Elevate org is seeded with.
 // Every one is renamable ("Youth" → "Next Gen"); the templateKey keeps the behavior stable.
 
-import type { Ministry, OrgType } from '../types';
+import type { Ministry, Organization, OrgType } from '../types';
 
 type Seed = Omit<Ministry, 'id'> & { templateKey: string };
 
 const CHURCH_SEEDS: Seed[] = [
-  { templateKey: 'finance',    name: 'Finance',              kind: 'DEPARTMENT', iconEmoji: '💰', isInternal: true,  threadAudience: 'DEPARTMENT', description: 'Giving, budgets and stewardship.' },
-  { templateKey: 'media',      name: 'Media',                kind: 'DEPARTMENT', iconEmoji: '🎥', threadAudience: 'DEPARTMENT', description: 'Sermons, livestream, graphics and social.' },
-  { templateKey: 'usher',      name: 'Ushers & Hospitality', kind: 'DEPARTMENT', iconEmoji: '🤝', threadAudience: 'ORG',        description: 'Welcome teams, greeters and ushers.' },
-  { templateKey: 'youth',      name: 'Youth',                kind: 'MINISTRY',   iconEmoji: '🔥', allowFollowers: true, threadAudience: 'ORG', description: 'Middle & high school ministry.' },
-  { templateKey: 'women',      name: "Women's Ministry",     kind: 'MINISTRY',   iconEmoji: '🌸', allowFollowers: true, threadAudience: 'ORG', description: 'Fellowship, study and service for women.' },
-  { templateKey: 'men',        name: "Men's Ministry",       kind: 'MINISTRY',   iconEmoji: '🛡️', allowFollowers: true, threadAudience: 'ORG', description: 'Fellowship, study and service for men.' },
-  { templateKey: 'deacons',    name: 'Deacons',              kind: 'DEPARTMENT', iconEmoji: '🕊️', threadAudience: 'DEPARTMENT', description: 'Service and care leadership.' },
-  { templateKey: 'evangelism', name: 'Evangelism',           kind: 'MINISTRY',   iconEmoji: '📣', allowFollowers: true, threadAudience: 'ORG', description: 'Outreach and community engagement.' },
-  { templateKey: 'seniors',    name: 'Seniors',              kind: 'MINISTRY',   iconEmoji: '🌿', allowFollowers: true, threadAudience: 'ORG', description: 'Fellowship and care for seniors.' },
-  { templateKey: 'prayer',     name: 'Prayer Team',          kind: 'MINISTRY',   iconEmoji: '🙏', isInternal: true, threadAudience: 'DEPARTMENT', description: 'Intercessory prayer warriors.' },
+  { templateKey: 'finance',              name: 'Finance',                      kind: 'DEPARTMENT', iconEmoji: '💰', isInternal: true,  threadAudience: 'DEPARTMENT', description: 'Giving, budgets and stewardship.' },
+  { templateKey: 'media',                name: 'Media',                        kind: 'DEPARTMENT', iconEmoji: '🎥', threadAudience: 'DEPARTMENT', description: 'Sermons, livestream, graphics and social.' },
+  { templateKey: 'education',            name: 'Christian Education',          kind: 'MINISTRY',   iconEmoji: '🎓', allowFollowers: true, threadAudience: 'ORG', description: 'Templated classrooms, Sunday School, Catechism, Bible study & Academia Ed-Tech stack.' },
+  { templateKey: 'music',                name: 'Music Department',             kind: 'DEPARTMENT', iconEmoji: '🎵', allowFollowers: true, threadAudience: 'ORG', description: 'Sanctuary Music Department, Chora Song Scratchpad, Setlists & Global Hymnal/Scores.' },
+  { templateKey: 'music-worship-teams',  name: 'Worship Teams',                kind: 'MINISTRY',   iconEmoji: '🎤', allowFollowers: true, threadAudience: 'ORG', description: 'Music Sub-Department · Frontline praise vocalists, worship leaders & altar ministry.' },
+  { templateKey: 'music-band',           name: 'Band',                         kind: 'MINISTRY',   iconEmoji: '🎸', allowFollowers: true, threadAudience: 'ORG', description: 'Music Sub-Department · Keys, organ, guitars, bass, drums, horns & strings.' },
+  { templateKey: 'music-choir',          name: 'Choir',                        kind: 'MINISTRY',   iconEmoji: '🎶', allowFollowers: true, threadAudience: 'ORG', description: 'Music Sub-Department · Sanctuary SATB Choir, Gospel Mass Choir & section rehearsals.' },
+  { templateKey: 'music-collective',     name: 'Collective Music Department',  kind: 'DEPARTMENT', iconEmoji: '🎼', allowFollowers: true, threadAudience: 'ORG', description: 'Music Sub-Department · Songwriting collective, Melos studio production & original liturgy.' },
+  { templateKey: 'usher',                name: 'Ushers & Hospitality',         kind: 'DEPARTMENT', iconEmoji: '🤝', threadAudience: 'ORG',        description: 'Welcome teams, greeters and ushers.' },
+  { templateKey: 'youth',                name: 'Youth',                        kind: 'MINISTRY',   iconEmoji: '🔥', allowFollowers: true, threadAudience: 'ORG', description: 'Middle & high school ministry.' },
+  { templateKey: 'women',                name: "Women's Ministry",             kind: 'MINISTRY',   iconEmoji: '🌸', allowFollowers: true, threadAudience: 'ORG', description: 'Fellowship, study and service for women.' },
+  { templateKey: 'men',                  name: "Men's Ministry",               kind: 'MINISTRY',   iconEmoji: '🛡️', allowFollowers: true, threadAudience: 'ORG', description: 'Fellowship, study and service for men.' },
+  { templateKey: 'deacons',              name: 'Deacons',                      kind: 'DEPARTMENT', iconEmoji: '🕊️', threadAudience: 'DEPARTMENT', description: 'Service and care leadership.' },
+  { templateKey: 'evangelism',           name: 'Evangelism',                   kind: 'MINISTRY',   iconEmoji: '📣', allowFollowers: true, threadAudience: 'ORG', description: 'Outreach and community engagement.' },
+  { templateKey: 'seniors',              name: 'Seniors',                      kind: 'MINISTRY',   iconEmoji: '🌿', allowFollowers: true, threadAudience: 'ORG', description: 'Fellowship and care for seniors.' },
+  { templateKey: 'prayer',               name: 'Prayer Team',                  kind: 'MINISTRY',   iconEmoji: '🙏', isInternal: true, threadAudience: 'DEPARTMENT', description: 'Intercessory prayer warriors.' },
 ];
+
+export const MUSIC_SUB_DEPARTMENT_TEMPLATES = [
+  'music',
+  'music-worship-teams',
+  'music-band',
+  'music-choir',
+  'music-collective',
+] as const;
+
+export type MusicSubDepartmentKey = (typeof MUSIC_SUB_DEPARTMENT_TEMPLATES)[number];
+
+export const isMusicDepartmentMinistry = (m?: Pick<Ministry, 'templateKey' | 'name'> | null): boolean => {
+  if (!m) return false;
+  if (m.templateKey && (MUSIC_SUB_DEPARTMENT_TEMPLATES as readonly string[]).includes(m.templateKey)) return true;
+  const n = (m.name || '').toLowerCase();
+  return (
+    n.includes('music') ||
+    n.includes('worship team') ||
+    n === 'band' ||
+    n.includes('choir') ||
+    n.includes('collective music')
+  );
+};
+
+export const isEducationMinistry = (m?: Pick<Ministry, 'templateKey' | 'name'> | null): boolean => {
+  if (!m) return false;
+  if (m.templateKey === 'education') return true;
+  const n = (m.name || '').toLowerCase();
+  return n.includes('christian education') || n.includes('sunday school') || n.includes('education');
+};
 
 const CULTURAL_SEEDS: Seed[] = [
   { templateKey: 'finance',    name: 'Finance & Development', kind: 'DEPARTMENT', iconEmoji: '💰', isInternal: true, threadAudience: 'DEPARTMENT' },
@@ -63,6 +99,43 @@ export function defaultMinistries(orgType: OrgType): Ministry[] {
   return seeds.map((s, i) => ({ ...s, id: newId(), order: i, headUids: [], threadAudience: feedAudienceFor(s) }));
 }
 
+/**
+ * Ensures any Church/Religious organization includes Christian Education and the
+ * Music Department + its 4 Sub-Categories (Worship Teams, Band, Choir, Collective Music Department),
+ * even if the organization was created before these seeds were introduced.
+ */
+export function ensureChurchMusicAndEducationDepartments(org: Pick<Organization, 'id' | 'orgType' | 'ministries'>): Ministry[] {
+  const existing = [...(org.ministries || [])];
+  if (!isFaithOrg(org.orgType || 'CHURCH')) return existing;
+
+  const requiredKeys = [
+    'education',
+    'music',
+    'music-worship-teams',
+    'music-band',
+    'music-choir',
+    'music-collective',
+  ];
+
+  for (const key of requiredKeys) {
+    const seed = CHURCH_SEEDS.find(s => s.templateKey === key);
+    if (!seed) continue;
+    const found = existing.some(
+      m => m.templateKey === key || m.name.toLowerCase() === seed.name.toLowerCase()
+    );
+    if (!found) {
+      existing.push({
+        ...seed,
+        id: `dept_${key.replace(/[^a-z0-9]+/g, '_')}`,
+        order: existing.length,
+        headUids: [],
+        threadAudience: feedAudienceFor(seed),
+      });
+    }
+  }
+  return existing;
+}
+
 /** Default feed audience for a department: public-facing ministry → PUBLIC, internal → DEPARTMENT, else ORG. */
 export function feedAudienceFor(m: Pick<Ministry, 'allowFollowers' | 'isInternal' | 'kind' | 'threadAudience'>): NonNullable<Ministry['threadAudience']> {
   if (m.isInternal) return 'DEPARTMENT';
@@ -81,3 +154,4 @@ export function roleKeysForOrg(orgType: OrgType): string[] {
 export function leadTitleFor(orgType: OrgType): string {
   return isFaithOrg(orgType) ? 'Senior Pastor' : orgType === 'CULTURAL' ? 'Director' : 'Executive Director';
 }
+

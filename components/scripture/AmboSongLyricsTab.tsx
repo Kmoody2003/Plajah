@@ -23,9 +23,13 @@ import {
 } from '../../services/ambo/songLibrary';
 import {
   ALL_SACRED_HYMNS_AND_PRAYERS,
+  buildHymnSheetMusicNotation,
   openHymnOrPrayerInLorea,
   type SacredHymnOrPrayer,
 } from '../../data/sacredHymnsAndPrayers';
+import SheetMusic from '../SheetMusic';
+import { ChurchMusicDepartmentHub } from '../elevate/ChurchMusicDepartmentHub';
+import type { Organization } from '../../types';
 import {
   getSongFollowPrefs, getSongFollowState, subscribeSongFollow, setSongFollowPrefs, selectSong, jumpToLine, stepLine,
   clearAdlibs, startSongFollow, stopSongFollow, setSongFollowSource, type FollowListenSource,
@@ -44,12 +48,13 @@ const ORANGE = '#FF8C00';
 const GREEN = '#2BE0A8';
 const RED = '#FF4D5E';
 
-type Filter = 'all' | 'user' | 'chora' | 'builtin' | 'prayers';
+type Filter = 'all' | 'user' | 'chora' | 'builtin' | 'gospel' | 'prayers';
 const FILTERS: Array<{ id: Filter; label: string }> = [
   { id: 'all', label: 'All' },
   { id: 'user', label: 'My Songs' },
   { id: 'chora', label: 'Chora' },
   { id: 'builtin', label: 'Hymns' },
+  { id: 'gospel', label: 'Gospel' },
   { id: 'prayers', label: 'Prayers' },
 ];
 
@@ -68,6 +73,18 @@ interface AmboSongLyricsTabProps {
   onInsertSlide?: (slide: Slide) => void;
   activeShowTitle?: string;
 }
+
+const AMBO_SANCTUARY_CHURCH: Organization = {
+  id: 'ambo-sanctuary-music-org',
+  name: 'Sanctuary Worship & Music Department',
+  about: 'Sanctuary Worship & Music Department',
+  orgType: 'CHURCH',
+  creatorId: 'ambo-operator',
+  admins: [],
+  memberCount: 1,
+  createdAt: 0,
+  updatedAt: 0,
+};
 
 const AmboSongLyricsTab: React.FC<AmboSongLyricsTabProps> = ({ onInsertSlide, activeShowTitle }) => {
   useSyncExternalStore(subscribeSongs, songsVersion);
@@ -88,6 +105,8 @@ const AmboSongLyricsTab: React.FC<AmboSongLyricsTabProps> = ({ onInsertSlide, ac
   const [inputs, setInputs] = useState<Array<{ deviceId: string; label: string }>>([]);
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [showProvenance, setShowProvenance] = useState(true);
+  const [showInlineScore, setShowInlineScore] = useState(false);
+  const [openChoraHubModal, setOpenChoraHubModal] = useState(false);
   useEffect(() => { void listAudioInputs().then(setInputs).catch(() => {}); }, [fs.listening]);
 
   // Detection / file switch → show that song (the operator never has to go looking).
@@ -103,7 +122,8 @@ const AmboSongLyricsTab: React.FC<AmboSongLyricsTabProps> = ({ onInsertSlide, ac
     return searchSongs(q).filter(s => {
       if (filter === 'all') return true;
       if (filter === 'prayers') return s.sacredKind === 'CATHOLIC_PRAYER' || s.sacredKind === 'ORTHODOX_PRAYER';
-      if (filter === 'builtin') return s.source === 'builtin' && s.sacredKind !== 'CATHOLIC_PRAYER' && s.sacredKind !== 'ORTHODOX_PRAYER';
+      if (filter === 'gospel') return s.sacredKind === 'PUBLIC_DOMAIN_GOSPEL';
+      if (filter === 'builtin') return s.source === 'builtin' && s.sacredKind === 'PUBLIC_DOMAIN_HYMN';
       return s.source === filter;
     });
   }, [q, filter, songsVersion()]);
@@ -288,6 +308,14 @@ const AmboSongLyricsTab: React.FC<AmboSongLyricsTabProps> = ({ onInsertSlide, ac
           <span className="inline-flex items-center gap-1"><Sparkles size={10} />Send to visualizer</span>
         </Toggle>
         <div className="flex-1" />
+        <button
+          onClick={() => setOpenChoraHubModal(true)}
+          className="h-7 px-2.5 rounded-md bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-400/45 text-[10.5px] font-bold text-emerald-200 flex items-center gap-1.5 transition-all"
+          title="Open Chora Studio Song Scratchpad, Setlist Builder, Paper Song Scanner, and Global Public-Domain Scores"
+        >
+          <Music size={12} />
+          <span>Chora Scratchpad &amp; Global Scores</span>
+        </button>
         <button
           onClick={() => window.open('/worship-gallery.html', '_blank', 'noopener')}
           className="h-7 px-2.5 rounded-md bg-[#E5B84B]/15 hover:bg-[#E5B84B]/25 border border-[#E5B84B]/45 text-[10.5px] font-bold text-[#FFE399] flex items-center gap-1.5 transition-all"
@@ -570,16 +598,33 @@ const AmboSongLyricsTab: React.FC<AmboSongLyricsTabProps> = ({ onInsertSlide, ac
                     {sacredMeta.historyEssay}
                   </p>
                   {sacredMeta.score && (
-                    <div className="flex items-center gap-2 flex-wrap pt-0.5 text-[9.5px]">
-                      <span className="px-1.5 py-0.5 rounded bg-[#E8C170]/15 border border-[#E8C170]/35 text-[#FFE399] font-bold">
-                        Score · {sacredMeta.score.tuneName} ({sacredMeta.score.meter} · {sacredMeta.score.timeSignature})
-                      </span>
-                      <span className="text-white/60">
-                        Keys: <b className="text-white/85">{sacredMeta.score.availableKeys.join(' · ')}</b>
-                      </span>
-                      <span className="text-white/55 font-mono truncate">
-                        Cadence: {sacredMeta.score.chordProgression.join(' → ')}
-                      </span>
+                    <div className="space-y-1.5 pt-0.5">
+                      <div className="flex items-center gap-2 flex-wrap text-[9.5px]">
+                        <span className="px-1.5 py-0.5 rounded bg-[#E8C170]/15 border border-[#E8C170]/35 text-[#FFE399] font-bold">
+                          Score · {sacredMeta.score.tuneName} ({sacredMeta.score.meter} · {sacredMeta.score.timeSignature})
+                        </span>
+                        <span className="text-white/60">
+                          Keys: <b className="text-white/85">{sacredMeta.score.availableKeys.join(' · ')}</b>
+                        </span>
+                        <span className="text-white/55 font-mono truncate">
+                          Cadence: {sacredMeta.score.chordProgression.join(' → ')}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setShowInlineScore(v => !v)}
+                          className="ml-auto px-2 py-0.5 rounded bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 font-bold text-[9.5px]"
+                        >
+                          {showInlineScore ? 'Hide Engraved Notation' : 'View Engraved Notation'}
+                        </button>
+                      </div>
+                      {showInlineScore && (
+                        <div className="rounded-lg overflow-hidden border border-white/15 bg-white p-1.5">
+                          <SheetMusic
+                            notation={buildHymnSheetMusicNotation(sacredMeta)}
+                            measuresPerSystem={4}
+                          />
+                        </div>
+                      )}
                     </div>
                   )}
                   {sacredMeta.originalStanzas && sacredMeta.originalStanzas.length > 0 && (
@@ -646,6 +691,28 @@ const AmboSongLyricsTab: React.FC<AmboSongLyricsTabProps> = ({ onInsertSlide, ac
         onInsert={onInsertSlide}
         activeShowTitle={activeShowTitle}
       />
+      {openChoraHubModal && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+          <div className="w-full max-w-6xl max-h-[92vh] overflow-y-auto rounded-3xl border border-white/15 bg-[#090B12] p-5 space-y-4">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div className="flex items-center gap-2">
+                <Music size={16} className="text-amber-300" />
+                <span className="text-sm font-black text-white" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                  Ambo × Chora Studio Songwriting Scratchpad, Setlists &amp; Global Public-Domain Scores
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setOpenChoraHubModal(false)}
+                className="px-3 py-1 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold text-white"
+              >
+                Close
+              </button>
+            </div>
+            <ChurchMusicDepartmentHub church={AMBO_SANCTUARY_CHURCH} canEdit={true} />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

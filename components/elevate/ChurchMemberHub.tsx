@@ -52,9 +52,11 @@ import {
 } from '../../services/churchDevotionalService';
 import {
   PUBLIC_DOMAIN_HYMNS,
+  PUBLIC_DOMAIN_GOSPEL_SONGS,
   CATHOLIC_AND_ORTHODOX_PRAYERS,
   openHymnOrPrayerInLorea,
 } from '../../data/sacredHymnsAndPrayers';
+import { ChurchMusicDepartmentHub } from './ChurchMusicDepartmentHub';
 import {
   LECTIO_COUNCIL_PLATES,
   openCouncilPlateInLorea,
@@ -863,33 +865,35 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
             {/* Church Education / Recent Lessons */}
             <div className="rounded-3xl p-6 border border-white/10 bg-black/35">
               <div className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-[#E8C170] mb-3">
-                Recent Catechism, Classes & Bible Studies
+                Christian Education · 7 Default Templated Classrooms, Dedicated Class Chat &amp; Academia Ed-Tech Stack
               </div>
-              <ChurchEducation church={org} canEdit={false} />
+              <ChurchEducation church={org} canEdit={true} />
             </div>
           </div>
         )}
 
         {/* ═══════════════════════════════════════════════════════════════════════
-            TAB 4: PUBLIC-DOMAIN HYMNS (WITH SCORES & HISTORY) + CATHOLIC & ORTHODOX PRAYERS
+            TAB 4: MUSIC DEPARTMENT (CHORA SCRATCHPAD, SETLISTS, GLOBAL SCORES) + HYMNS, GOSPEL & PRAYERS
             ═══════════════════════════════════════════════════════════════════════ */}
         {section === 'HYMNS_PRAYERS_AND_SCORES' && (
           <div className="space-y-8">
+            <ChurchMusicDepartmentHub church={org} canEdit={true} />
+
             <div>
               <div className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-[#E8C170]">
-                Ambo & Lorea Sacred Music & Prayer Database
+                Ambo &amp; Lorea Sacred Music &amp; Prayer Database
               </div>
               <h3
                 className="text-2xl font-bold text-white"
                 style={{ fontFamily: 'var(--font-display, "Outfit", "Space Grotesk", "Inter", sans-serif)', letterSpacing: '-0.02em' }}
               >
-                Public-Domain Hymns (with Historical Provenance & SATB Scores) + Catholic & Orthodox Prayers
+                Public-Domain Hymns &amp; Gospel Songs (with Provenance &amp; SATB Scores) + Catholic &amp; Orthodox Prayers
               </h3>
             </div>
 
-            {/* Public Domain Hymns */}
+            {/* Public Domain Hymns & Gospel Songs */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {PUBLIC_DOMAIN_HYMNS.map(hymn => (
+              {[...PUBLIC_DOMAIN_HYMNS, ...PUBLIC_DOMAIN_GOSPEL_SONGS].map(hymn => (
                 <div
                   key={hymn.id}
                   className="rounded-3xl p-5 border border-[#E8C170]/30 bg-[#140926]/90 flex flex-col justify-between gap-4"
