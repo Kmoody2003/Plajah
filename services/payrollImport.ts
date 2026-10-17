@@ -4,8 +4,12 @@
 //   1. FILE: the employee / worker export every payroll product can produce (Paychex Flex, ADP Workforce Now / RUN,
 //      Gusto, QuickBooks Payroll, Paylocity, Paycor, Rippling, BambooHR …). Headers are auto-detected per vendor,
 //      pay columns are deliberately dropped at parse time so compensation never reaches Firestore.
-//   2. API: Paychex Flex (OAuth2 client-credentials → GET /companies/{id}/workers). Lives in routes/payroll.ts
-//      behind PAYCHEX_CLIENT_ID / PAYCHEX_CLIENT_SECRET; `fetchPaychexWorkers` calls it. See docs/elevate-payroll-integration.md.
+//   2. API: Paychex Flex (OAuth2 client-credentials → GET /companies/{id}/workers). Lives in routes/payrollConnect.ts
+//      behind PAYCHEX_CLIENT_ID / PAYCHEX_CLIENT_SECRET; `fetchPaychexWorkers` calls it.
+//   3. API, any provider: Finch (unified payroll/HRIS API). The org admin connects their payroll in a Finch Connect
+//      popup (`openFinchConnect` → `connectFinch`), then anyone who can manage the roster pulls the directory
+//      (`fetchFinchWorkers` → GET /employer/directory on the server). Same routes file, behind FINCH_CLIENT_ID /
+//      FINCH_CLIENT_SECRET. See docs/elevate-payroll-integration.md.
 //
 // Both produce PayrollWorker[] → stagePayrollWorkers() turns them into chmsPeople records tagged "staff" with
 // custom.Role / custom.Department / custom['Payroll ID'] and calls elevateAccounts.provisionAccountsBulk.
@@ -16,10 +20,23 @@ import { importRoleToKey, matchMinistry, provisionAccountsBulk } from './elevate
 import { normHeader, type ParsedTable } from './chmsFormats';
 import { logOrgAction } from './orgAudit';
 
-export type PayrollProvider = 'paychex' | 'adp' | 'gusto' | 'quickbooks' | 'paylocity' | 'paycor' | 'rippling' | 'bamboohr' | 'generic';
+export type PayrollProvider = 'paychex' | 'adp' | 'gusto' | 'quickbooks' | 'paylocity' | 'paycor' | 'rippling' | 'bamboohr' | 'finch' | 'generic';
 export const PROVIDER_LABEL: Record<PayrollProvider, string> = {
-  paychex: 'Paychex Flex', adp: 'ADP', gusto: 'Gusto', quickbooks: 'QuickBooks Payroll', paylocity: 'Paylocity', paycor: 'Paycor', rippling: 'Rippling', bamboohr: 'BambooHR', generic: 'Payroll export',
+  paychex: 'Paychex Flex', adp: 'ADP', gusto: 'Gusto', quickbooks: 'QuickBooks Payroll', paylocity: 'Paylocity', paycor: 'Paycor', rippling: 'Rippling', bamboohr: 'BambooHR', finch: 'Payroll (via Finch)', generic: 'Payroll export',
 };
+/** A Finch provider id ("paychex_flex", "adp_run", "bamboo_hr" …) → our label key, so a Finch pull is tagged by the real vendor. */
+export function finchProviderToPayrollProvider(id?: string): PayrollProvider {
+  const s = (id || '').toLowerCase();
+  if (/paychex/.test(s)) return 'paychex';
+  if (/^adp/.test(s)) return 'adp';
+  if (/gusto/.test(s)) return 'gusto';
+  if (/quickbooks|intuit/.test(s)) return 'quickbooks';
+  if (/paylocity/.test(s)) return 'paylocity';
+  if (/paycor/.test(s)) return 'paycor';
+  if (/rippling/.test(s)) return 'rippling';
+  if (/bamboo/.test(s)) return 'bamboohr';
+  return 'finch';
+}
 
 export interface PayrollWorker {
   externalId?: string;
@@ -175,6 +192,65 @@ export const paychexStatus = (orgId: string) => authedJson<PaychexStatus>(`/api/
 export const connectPaychex = (orgId: string, companyId: string) => authedJson<{ ok: true; companyId: string; companyName: string }>('/api/payroll/paychex/connect', { orgId, companyId });
 /** Pull workers (names, titles, departments, work emails) from Paychex Flex — no pay data is requested. */
 export const fetchPaychexWorkers = (orgId: string) => authedJson<{ workers: PayrollWorker[]; companyName?: string }>(`/api/payroll/paychex/workers`, { orgId });
+
+// ── Finch unified API (server-backed; any payroll provider) ──────────────────
+export interface FinchStatus {
+  configured: boolean;        // server has FINCH_CLIENT_ID / FINCH_CLIENT_SECRET (+ ENCRYPTION_KEY)
+  connected: boolean;         // this org has exchanged a Finch Connect code
+  canConnect?: boolean;       // caller is an org owner / admin
+  provider?: string;          // Finch provider id, e.g. "gusto", "paychex_flex"
+  providerName?: string;      // "Gusto", "Paychex Flex"
+  products?: string[];        // granted products ("directory", maybe "employment")
+  connectedAt?: number;
+  // Present only for owners/admins when configured — enough to build the Finch Connect URL (never the secret).
+  connectUrl?: string; clientId?: string; redirectUri?: string; requestedProducts?: string[]; sandbox?: string;
+  message?: string;
+}
+/** Is Finch configured on the server, and is this org's payroll connected through it? */
+export const finchStatus = (orgId: string) => authedJson<FinchStatus>(`/api/payroll/finch/status?orgId=${encodeURIComponent(orgId)}`).catch(() => ({ configured: false, connected: false } as FinchStatus));
+/** Build the Finch Connect authorize URL from the server-provided client id + redirect. `state` guards the popup round-trip. */
+export function finchConnectUrl(status: FinchStatus, state: string): string {
+  if (!status.clientId || !status.redirectUri) throw new Error('Finch is not configured on this server.');
+  const q = new URLSearchParams({ client_id: status.clientId, redirect_uri: status.redirectUri, products: (status.requestedProducts?.length ? status.requestedProducts : ['directory']).join(' '), state });
+  if (status.sandbox) q.set('sandbox', status.sandbox);
+  return `${status.connectUrl || 'https://connect.tryfinch.com/authorize'}?${q.toString()}`;
+}
+/** Exchange the Finch Connect authorization code for a token (server-side; stored encrypted, never returned). Owners/admins only. */
+export const connectFinch = (orgId: string, code: string) => authedJson<{ ok: true; provider?: string; providerName?: string; products?: string[] }>('/api/payroll/finch/connect', { orgId, code });
+/** Drop the stored Finch token (and ask Finch to revoke it). Owners/admins only. */
+export const disconnectFinch = (orgId: string) => authedJson<{ ok: true }>('/api/payroll/finch/disconnect', { orgId });
+/** Pull the employee directory through Finch — names, departments, active flag (titles if `employment` was granted). No pay data. */
+export const fetchFinchWorkers = (orgId: string) => authedJson<{ workers: PayrollWorker[]; provider?: string; providerName?: string }>('/api/payroll/finch/workers', { orgId });
+
+/**
+ * Open Finch Connect in a popup and resolve with the authorization code once the callback page posts it back.
+ * The callback (GET /api/payroll/finch/callback) is served from our own origin, so the message origin is checked
+ * against window.location.origin and the `state` we generated. Rejects if the user closes the popup or cancels.
+ */
+export function openFinchConnect(status: FinchStatus, opts: { timeoutMs?: number } = {}): Promise<{ code: string; state: string }> {
+  const state = `${Date.now().toString(36)}.${Math.random().toString(36).slice(2, 12)}`;
+  const url = finchConnectUrl(status, state);
+  const w = 520, h = 760;
+  const left = Math.max(0, Math.round(window.screenX + (window.outerWidth - w) / 2));
+  const top = Math.max(0, Math.round(window.screenY + (window.outerHeight - h) / 2));
+  const popup = window.open(url, 'plajah-finch-connect', `popup=yes,width=${w},height=${h},left=${left},top=${top}`);
+  if (!popup) return Promise.reject(new Error('The browser blocked the payroll window — allow popups for Plajah and try again.'));
+  return new Promise((resolve, reject) => {
+    let done = false;
+    const finish = (fn: () => void) => { if (done) return; done = true; window.removeEventListener('message', onMsg); clearInterval(closedPoll); clearTimeout(timer); fn(); };
+    const onMsg = (ev: MessageEvent) => {
+      if (ev.origin !== window.location.origin) return;
+      const d = ev.data as { type?: string; code?: string; state?: string; error?: string; errorDescription?: string } | null;
+      if (!d || d.type !== 'plajah-finch-connect') return;
+      if (d.state !== state) return;
+      if (d.error || !d.code) return finish(() => reject(new Error(d.errorDescription || d.error || 'Payroll connection was cancelled.')));
+      finish(() => resolve({ code: d.code!, state }));
+    };
+    window.addEventListener('message', onMsg);
+    const closedPoll = window.setInterval(() => { if (popup.closed) finish(() => reject(new Error('Payroll connection window was closed before finishing.'))); }, 600);
+    const timer = window.setTimeout(() => { try { popup.close(); } catch { /* cross-origin */ } finish(() => reject(new Error('Payroll connection timed out.'))); }, opts.timeoutMs ?? 10 * 60 * 1000);
+  });
+}
 
 /** Reload the directory after staging (helper for UIs). */
 export const reloadPeople = (orgId: string) => fetchPeople(orgId);

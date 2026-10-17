@@ -2791,8 +2791,20 @@ export interface Organization {
   memberNumberPrefix?: string;
   /** Provisioning defaults: pre-provision a Plajah account for every imported person (default true). */
   accountProvisioning?: { onImport?: boolean; defaultRoleKey?: string; lastRunAt?: number };
-  /** Payroll connection (routes/payrollConnect.ts): which provider + company this org's staff directory syncs from. Never pay data. */
-  payroll?: { provider?: 'paychex' | 'finch'; paychexCompanyId?: string; paychexCompanyName?: string; connectedBy?: string; connectedAt?: number };
+  /** Payroll connection (routes/payrollConnect.ts): which provider + company this org's staff directory syncs from.
+   *  Never pay data, and never a token — organizations/* is world-readable; the Finch access token lives encrypted in
+   *  the server-only collection payrollConnections/{orgId}. */
+  payroll?: {
+    provider?: 'paychex' | 'finch';
+    paychexCompanyId?: string; paychexCompanyName?: string;
+    /** Finch provider id ("gusto", "paychex_flex", "adp_run" …) and its display name. */
+    finchProvider?: string; finchProviderName?: string;
+    /** Finch's ids for the employer + this connection (useful for support; not secrets). */
+    finchCompanyId?: string; finchConnectionId?: string;
+    /** Finch products the employer granted — normally just ["directory"], plus "employment" when titles are wanted. */
+    finchProducts?: string[];
+    connectedBy?: string; connectedAt?: number;
+  };
 
   createdAt: number;
   updatedAt: number;
