@@ -186,6 +186,10 @@ jobs:
 
       - name: Deploy server.ts to Cloud Run
         run: |
+          # Source builds were running ~29 min against Cloud Build's 30-min default and started
+          # timing out (DEADLINE_EXCEEDED, 2026-10-17). The Dockerfile no longer duplicates the
+          # image with `chown -R`; this is headroom on top of that fix.
+          gcloud config set builds/timeout 3600
           gcloud run deploy plajah-api \
             --source . \
             --project gen-lang-client-0665118474 \
