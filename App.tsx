@@ -724,6 +724,7 @@ const App: React.FC = () => {
     pitchParam === 'crossover'    ? 'CROSSOVER'          :
     pitchParam === 'terra'        ? 'TERRA'              :
     pitchParam === 'business'     ? 'PLAJAH_BUSINESS'    :
+    pitchParam === 'elevate' || pitchParam === 'plajah-elevate' || new URLSearchParams(window.location.search).get('elevate') !== null ? 'PLAJAH_ELEVATE' :
     pitchParam === 'home'         ? 'PLAJAH_HOME'        :
     pitchParam === 'ora'          ? 'ORA'                :
     pitchParam === 'assignment'   ? 'STUDENT_ASSIGNMENT' :
@@ -1088,6 +1089,10 @@ const App: React.FC = () => {
     window.history.replaceState({ view: 'LANDING' }, '', window.location.pathname + window.location.search + window.location.hash);
 
     const handlePopState = (event: PopStateEvent) => {
+      // Ignore in-page anchor clicks (#browse, #shelf, etc.) which fire popstate with event.state === null
+      if (!event.state && window.location.hash && !/^#g\//.test(window.location.hash)) {
+        return;
+      }
       navDepthRef.current = Math.max(0, navDepthRef.current - 1);
       if (historyStackRef.current.length > 1) {
         historyStackRef.current.pop();
@@ -6272,7 +6277,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 />
               </Suspense>
             )}
-            {view === 'ORG_HUB' && user && (
+            {view === 'ORG_HUB' && (user || orgHubInitial?.orgId) && (
               <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
                 <OrgHub user={user} onBack={() => { const fromElevate = !!orgHubInitial?.fromElevate; setOrgHubInitial(null); setView(fromElevate ? 'PLAJAH_ELEVATE' : 'CREATOR'); }} initialCreate={orgHubInitial?.create} initialOrgId={orgHubInitial?.orgId} initialGive={orgHubInitial?.give} initialContentHq={orgHubInitial?.contentHq} onVisitUser={(uid) => { setViewedUserId(uid); setView('USER_PROFILE'); }} onOpenVideo={handleSelectItem} onOpenAlbum={handleSelectItem} onOpenLive={setActiveLiveFeed} onOpenChannel={(ownerId, sourceId) => { setLiveChannelFocus({ ownerId, sourceId }); setView('LIVE_HUB' as AppView); }} />
               </Suspense>
@@ -6283,8 +6288,16 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 <PlajahElevate
                   isSignedIn={!!user}
                   isAdmin={userProfile?.role === 'admin' || user?.email === 'kmoody2003@gmail.com'}
-                  onOpenOrg={(orgId) => { if (user) { setOrgHubInitial({ orgId, fromElevate: true }); setView('ORG_HUB'); } else { loginWithGoogle(); } }}
+                  onOpenOrg={(orgId) => {
+                    if (user || orgId === 'demo-grace-chapel') {
+                      setOrgHubInitial({ orgId, fromElevate: true });
+                      setView('ORG_HUB');
+                    } else {
+                      loginWithGoogle();
+                    }
+                  }}
                   onCreate={() => { if (user) { setOrgHubInitial({ create: true, fromElevate: true }); setView('ORG_HUB'); } else { loginWithGoogle(); } }}
+                  onNavigate={(target, params) => handleGlobalNavigate(target as any, params)}
                 />
               </Suspense>
             )}

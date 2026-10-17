@@ -102,7 +102,9 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
   const [googleBooks, setGoogleBooks] = useState<GoogleBook[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeGenre, setActiveGenre] = useState(GENRES[0]);
-  const [loreaMode, setLoreaMode] = useState<'LIBRARY' | 'WRITERS_DESK'>('LIBRARY');
+  const [loreaMode, setLoreaMode] = useState<'LIBRARY' | 'CATALOG' | 'WRITERS_DESK'>('LIBRARY');
+  const [catalogLayout, setCatalogLayout] = useState<'GRID' | 'LIST'>('GRID');
+  const [catalogSort, setCatalogSort] = useState<'POPULAR' | 'TITLE' | 'AUTHOR'>('POPULAR');
   // Never block on initial render — classics are bundled as static data
   const [isLoading, setIsLoading] = useState(false);
 
@@ -335,6 +337,17 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
   const car3Ref = useRef<HTMLDivElement>(null);
   const car4Ref = useRef<HTMLDivElement>(null);
   const comicFileInputRef = useRef<HTMLInputElement>(null);
+  const catalogSearchRef = useRef<HTMLInputElement>(null);
+  const loreaRootRef = useRef<HTMLDivElement>(null);
+
+  const openCatalogView = (targetTab?: 'CLASSICS' | 'MARKETPLACE' | 'GLOBAL', focusSearch = true) => {
+    if (targetTab) setActiveTab(targetTab);
+    setLoreaMode('CATALOG');
+    setTimeout(() => {
+      loreaRootRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (focusSearch) catalogSearchRef.current?.focus();
+    }, 60);
+  };
 
   const HERO_WORDS = ['Once', 'there', 'was', 'a', 'fox', 'who', 'collected', 'the', 'sounds', 'of', 'the', 'moon.'];
   const COMIC_LINES = ['Chapter one', 'Who goes there?', 'The city never sleeps.', 'Meanwhile...', 'It begins.', 'To be continued'];
@@ -454,8 +467,21 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
   const spreadStart = comicPage - (comicPage % 2);
   const currentMuseum = MUSEUM_LANES[museumLane];
 
+  const sortedArchive = [...filteredArchive].sort((a, b) => {
+    if (catalogSort === 'TITLE') return a.title.localeCompare(b.title);
+    if (catalogSort === 'AUTHOR') return (a.authors[0] || '').localeCompare(b.authors[0] || '');
+    return (b.download_count || 0) - (a.download_count || 0);
+  });
+
+  const sortedMarketplace = [...filteredMarketplace].sort((a, b) => {
+    if (catalogSort === 'TITLE') return a.title.localeCompare(b.title);
+    if (catalogSort === 'AUTHOR') return (a.artist || '').localeCompare(b.artist || '');
+    return 0;
+  });
+
   return (
     <div
+      ref={loreaRootRef}
       className="lorea-landing-root flex-1 w-full pb-32 lg:pb-40"
       data-lt={loreaTheme === 'plajah' ? undefined : loreaTheme}
     >
@@ -670,11 +696,40 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
       `}</style>
 
       <div className="wrap">
-        {/* Top Nav + Theme Switcher */}
+        {/* Top Nav + View Toggle + Theme Switcher */}
         <nav className="nav">
-          <div className="logo">
-            <i><BookOpen size={16} /></i>
-            LOREA
+          <div className="flex items-center gap-3 flex-wrap">
+            <button
+              type="button"
+              onClick={() => setLoreaMode('LIBRARY')}
+              className="logo cursor-pointer bg-transparent border-0 p-0 text-inherit"
+            >
+              <i><BookOpen size={16} /></i>
+              LOREA
+            </button>
+            <div className="rail" style={{ marginTop: 0 }}>
+              <button
+                type="button"
+                aria-selected={loreaMode === 'LIBRARY'}
+                onClick={() => setLoreaMode('LIBRARY')}
+              >
+                Home
+              </button>
+              <button
+                type="button"
+                aria-selected={loreaMode === 'CATALOG'}
+                onClick={() => openCatalogView()}
+              >
+                <Search size={13} /> Catalog &amp; Search
+              </button>
+              <button
+                type="button"
+                aria-selected={false}
+                onClick={() => setLoreaMode('WRITERS_DESK')}
+              >
+                Writer&apos;s Desk
+              </button>
+            </div>
           </div>
           <div className="themes" role="group" aria-label="Preview theme">
             <PlajahPlusBanner variant="PILL" />
@@ -692,6 +747,354 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
           </div>
         </nav>
 
+        {/* Dedicated Full Lorea Catalog & Search View when loreaMode === 'CATALOG' */}
+        {loreaMode === 'CATALOG' ? (
+          <section className="py-6 space-y-8 animate-in fade-in duration-300">
+            {/* Catalog Header + Big Search Command Bar */}
+            <div className="glass p-6 sm:p-8 space-y-6">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <div className="eyebrow">Plajah &middot; Lorea &middot; Full Library Catalog</div>
+                  <h1 className="disp text-3xl sm:text-5xl mt-2">
+                    {activeTab === 'CLASSICS'
+                      ? 'Lorea Public-Domain & Heritage Catalog'
+                      : activeTab === 'MARKETPLACE'
+                      ? 'Lorea Community Marketplace Catalog'
+                      : 'Lorea Global Books Search'}
+                  </h1>
+                </div>
+                <button
+                  type="button"
+                  className="turnbtn flex items-center gap-2"
+                  onClick={() => setLoreaMode('LIBRARY')}
+                >
+                  <ChevronLeft size={14} /> Back to Lorea Landing
+                </button>
+              </div>
+
+              {/* Large Search Bar + Source Tabs + Sort & Layout Controls */}
+              <div className="flex flex-col lg:flex-row gap-4 items-stretch lg:items-center">
+                <label
+                  className="search flex-1"
+                  style={{ width: '100%', height: 54, padding: '0 22px', fontSize: 16 }}
+                >
+                  <Search size={18} />
+                  <input
+                    ref={catalogSearchRef}
+                    type="text"
+                    placeholder={
+                      activeTab === 'CLASSICS'
+                        ? 'Search by book title, author, subject, or heritage archive...'
+                        : activeTab === 'GLOBAL'
+                        ? 'Search millions of books on Google Books by title, author, or ISBN...'
+                        : 'Search community uploaded books & originals...'
+                    }
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                  {searchTerm && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchTerm('')}
+                      className="text-xs font-mono uppercase tracking-wider opacity-60 hover:opacity-100 cursor-pointer bg-transparent border-0 text-inherit"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </label>
+
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="rail" style={{ marginTop: 0 }}>
+                    <button
+                      type="button"
+                      aria-selected={activeTab === 'CLASSICS'}
+                      onClick={() => setActiveTab('CLASSICS')}
+                    >
+                      Classics ({filteredArchive.length})
+                    </button>
+                    <button
+                      type="button"
+                      aria-selected={activeTab === 'MARKETPLACE'}
+                      onClick={() => setActiveTab('MARKETPLACE')}
+                    >
+                      <ShoppingCart size={13} /> Marketplace ({filteredMarketplace.length})
+                    </button>
+                    <button
+                      type="button"
+                      aria-selected={activeTab === 'GLOBAL'}
+                      onClick={() => setActiveTab('GLOBAL')}
+                    >
+                      <Globe size={13} /> Global ({googleBooks.length})
+                    </button>
+                  </div>
+
+                  <div className="rail" style={{ marginTop: 0 }}>
+                    {(['POPULAR', 'TITLE', 'AUTHOR'] as const).map(s => (
+                      <button
+                        key={s}
+                        type="button"
+                        aria-selected={catalogSort === s}
+                        onClick={() => setCatalogSort(s)}
+                      >
+                        {s === 'POPULAR' ? 'Popular' : s === 'TITLE' ? 'Title A–Z' : 'Author A–Z'}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="rail" style={{ marginTop: 0 }}>
+                    <button
+                      type="button"
+                      aria-selected={catalogLayout === 'GRID'}
+                      onClick={() => setCatalogLayout('GRID')}
+                    >
+                      Covers
+                    </button>
+                    <button
+                      type="button"
+                      aria-selected={catalogLayout === 'LIST'}
+                      onClick={() => setCatalogLayout('LIST')}
+                    >
+                      Catalog List
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Quick Library Wings Strip */}
+              <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-white/10">
+                <span className="text-[10px] font-mono uppercase tracking-widest opacity-60 mr-2">Library Wings:</span>
+                <button
+                  type="button"
+                  className="turnbtn"
+                  onClick={() => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'KIDS_LIBRARY' } }))}
+                >
+                  Kids&apos; Library
+                </button>
+                <button
+                  type="button"
+                  className="turnbtn"
+                  onClick={() => window.dispatchEvent(new CustomEvent('OPEN_SACRED_LIBRARY'))}
+                >
+                  Sacred Library
+                </button>
+                <button
+                  type="button"
+                  className="turnbtn"
+                  onClick={() => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'COMIC_MUSEUM' } }))}
+                >
+                  Comics &amp; Manga Museum
+                </button>
+                <button
+                  type="button"
+                  className="turnbtn"
+                  onClick={() => window.dispatchEvent(new CustomEvent('OPEN_AUDIOBOOK_PAVILION'))}
+                >
+                  Audiobooks
+                </button>
+                <button
+                  type="button"
+                  className="turnbtn"
+                  onClick={() => window.dispatchEvent(new CustomEvent('OPEN_LOREA_SCORES'))}
+                >
+                  Sheet Music &amp; Scores
+                </button>
+                <button
+                  type="button"
+                  className="turnbtn"
+                  onClick={() => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'MY_LIBRARY' } }))}
+                >
+                  My Library
+                </button>
+                <button
+                  type="button"
+                  className="turnbtn"
+                  onClick={() => comicFileInputRef.current?.click()}
+                >
+                  Import CBZ / PDF
+                </button>
+              </div>
+            </div>
+
+            {/* Collection & Genre Pills (Classics & Heritage Sources) */}
+            {activeTab === 'CLASSICS' && (
+              <div className="pills" style={{ marginTop: 0 }}>
+                {GENRES.map(g => (
+                  <button
+                    key={g.id}
+                    type="button"
+                    aria-pressed={activeGenre.id === g.id}
+                    onClick={() => setActiveGenre(g)}
+                  >
+                    {g.name}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Catalog Results */}
+            {isLoading ? (
+              <div className="empty flex items-center justify-center gap-3 py-24">
+                <Loader2 className="animate-spin" size={28} />
+                <span>Searching Lorea catalog…</span>
+              </div>
+            ) : activeTab === 'CLASSICS' ? (
+              sortedArchive.length === 0 ? (
+                <div className="empty text-center py-20">
+                  No books matched &ldquo;{searchTerm}&rdquo; in {activeGenre.name}. Try clearing the search or switching collections.
+                </div>
+              ) : catalogLayout === 'GRID' ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
+                  {sortedArchive.map((book, idx) => (
+                    <div
+                      key={book.id}
+                      onClick={() => handleBookSelect(book)}
+                      {...bookMenu.bind(book)}
+                      className="bookc"
+                      style={{ width: '100%' }}
+                    >
+                      <div className="cover" style={{ '--h': (idx * 37 + 150) % 360 } as React.CSSProperties}>
+                        {book.coverImage && (
+                          <LazyImage
+                            src={book.coverImage}
+                            alt={book.title}
+                            className="absolute inset-0 w-full h-full object-cover opacity-90"
+                            priority={idx < 10}
+                            referrerPolicy="no-referrer"
+                          />
+                        )}
+                        <em>Public Domain</em>
+                        <b>{book.title}</b>
+                        <i>{book.authors.join(', ')}</i>
+                      </div>
+                      <h4>{book.title}</h4>
+                      <p>{book.authors.join(', ')}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {sortedArchive.map((book, idx) => (
+                    <div
+                      key={book.id}
+                      onClick={() => handleBookSelect(book)}
+                      {...bookMenu.bind(book)}
+                      className="glass p-4 sm:p-5 flex items-center gap-5 cursor-pointer hover:border-pink-500/60 transition-all"
+                    >
+                      <div
+                        className="w-16 h-24 rounded-xl overflow-hidden shrink-0 relative"
+                        style={{
+                          background: `linear-gradient(160deg,hsl(${(idx * 37 + 150) % 360} 60% 38%),hsl(${((idx * 37 + 190) % 360)} 55% 14%))`,
+                        }}
+                      >
+                        {book.coverImage && (
+                          <LazyImage
+                            src={book.coverImage}
+                            alt={book.title}
+                            className="w-full h-full object-cover"
+                            priority={idx < 8}
+                            referrerPolicy="no-referrer"
+                          />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          <span className="text-[10px] font-mono uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-white/10">
+                            {activeGenre.name}
+                          </span>
+                          {book.download_count > 0 && (
+                            <span className="text-[10px] font-mono uppercase tracking-widest opacity-60">
+                              {Math.max(1, Math.floor(book.download_count / 100)).toLocaleString()}+ readers
+                            </span>
+                          )}
+                        </div>
+                        <h3 className="font-display font-black text-lg sm:text-xl truncate">{book.title}</h3>
+                        <p className="text-xs opacity-70 truncate">{book.authors.join(', ')}</p>
+                        {book.subjects && book.subjects.length > 0 && (
+                          <p className="text-[11px] opacity-50 truncate mt-1">
+                            {book.subjects.slice(0, 4).join(' · ')}
+                          </p>
+                        )}
+                      </div>
+                      <button type="button" className="btn p shrink-0" style={{ padding: '12px 20px' }}>
+                        Read Book
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )
+            ) : activeTab === 'MARKETPLACE' ? (
+              sortedMarketplace.length === 0 ? (
+                <div className="empty text-center py-20">
+                  No community marketplace books match &ldquo;{searchTerm}&rdquo;.
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
+                  {sortedMarketplace.map((book, idx) => (
+                    <div
+                      key={book.id}
+                      onClick={() => onSelectBook(book)}
+                      className="bookc"
+                      style={{ width: '100%' }}
+                    >
+                      <div className="cover" style={{ '--h': (idx * 47 + 200) % 360 } as React.CSSProperties}>
+                        {book.coverImage && (
+                          <LazyImage
+                            src={book.coverImage}
+                            alt={book.title}
+                            className="absolute inset-0 w-full h-full object-cover opacity-90"
+                            priority={idx < 10}
+                            referrerPolicy="no-referrer"
+                          />
+                        )}
+                        <em>{book.price ? `$${book.price.toFixed(2)}` : 'FREE'}</em>
+                        <b>{book.title}</b>
+                        <i>{book.artist}</i>
+                      </div>
+                      <h4>{book.title}</h4>
+                      <p>{book.artist}</p>
+                    </div>
+                  ))}
+                </div>
+              )
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
+                {(googleBooks.length > 0 ? googleBooks : sortedArchive).map((gBook: any, idx: number) => {
+                  const authors = Array.isArray(gBook.authors) ? gBook.authors.join(', ') : gBook.artist || 'Author';
+                  return (
+                    <div
+                      key={gBook.id}
+                      onClick={() => {
+                        const urlToOpen = gBook.buyLink || gBook.previewLink;
+                        if (urlToOpen) window.open(urlToOpen, '_blank');
+                        else handleBookSelect(gBook);
+                      }}
+                      className="bookc"
+                      style={{ width: '100%' }}
+                    >
+                      <div className="cover" style={{ '--h': (idx * 41 + 215) % 360 } as React.CSSProperties}>
+                        {gBook.coverImage && (
+                          <LazyImage
+                            src={gBook.coverImage}
+                            alt={gBook.title}
+                            className="absolute inset-0 w-full h-full object-cover opacity-90"
+                            priority={idx < 10}
+                            referrerPolicy="no-referrer"
+                          />
+                        )}
+                        <em>{gBook.price ? `$${gBook.price.toFixed(2)}` : 'Preview'}</em>
+                        <b>{gBook.title}</b>
+                        <i>{authors}</i>
+                      </div>
+                      <h4>{gBook.title}</h4>
+                      <p>{authors}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        ) : (
+        <>
         {/* Hero Section: 3D Turning Book + Living Picture Book + Read-Aloud Highlighter */}
         <header className="hero">
           <div>
@@ -703,7 +1106,13 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
               Picture books that move. Stories that read themselves aloud. Scores you can follow note by note. One reader for all of it, and what you buy is yours.
             </p>
             <div className="cta">
-              <a className="btn p" href="#browse">Open the library</a>
+              <button
+                type="button"
+                className="btn p"
+                onClick={() => openCatalogView()}
+              >
+                Open the library
+              </button>
               <button
                 type="button"
                 className="btn"
@@ -1537,10 +1946,7 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
                 type="button"
                 className="glass door"
                 style={{ '--dc': '#FF8C00' } as React.CSSProperties}
-                onClick={() => {
-                  setActiveTab('CLASSICS');
-                  document.getElementById('browse')?.scrollIntoView({ behavior: 'smooth' });
-                }}
+                onClick={() => openCatalogView('CLASSICS')}
               >
                 <i className="dot" />
                 <div>
@@ -1552,10 +1958,7 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
                 type="button"
                 className="glass door"
                 style={{ '--dc': '#D40055' } as React.CSSProperties}
-                onClick={() => {
-                  setActiveTab('MARKETPLACE');
-                  document.getElementById('browse')?.scrollIntoView({ behavior: 'smooth' });
-                }}
+                onClick={() => openCatalogView('MARKETPLACE')}
               >
                 <i className="dot" />
                 <div>
@@ -1567,10 +1970,7 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
                 type="button"
                 className="glass door"
                 style={{ '--dc': '#22d3ee' } as React.CSSProperties}
-                onClick={() => {
-                  setActiveTab('GLOBAL');
-                  document.getElementById('browse')?.scrollIntoView({ behavior: 'smooth' });
-                }}
+                onClick={() => openCatalogView('GLOBAL')}
               >
                 <i className="dot" />
                 <div>
@@ -1751,7 +2151,13 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
           <div className="eyebrow">Plajah Lorea</div>
           <h2 className="disp">Take a seat. Open a book.</h2>
           <div className="cta">
-            <a className="btn p" href="#browse">Start reading</a>
+            <button
+              type="button"
+              className="btn p"
+              onClick={() => openCatalogView()}
+            >
+              Start reading
+            </button>
             <button
               type="button"
               className="btn"
@@ -1762,6 +2168,8 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
           </div>
           <div className="fine">Early access &middot; Part of Plajah</div>
         </footer>
+        </>
+        )}
       </div>
     </div>
   );
