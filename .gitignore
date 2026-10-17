@@ -139,3 +139,5 @@ public/models/onnx-community/
 public/ort/
 # Ambo ASR scratch test audio
 .tmp-asr-test/
+# Built worship-gallery bundle — generated, and it inlines model/API config (GitHub push protection flagged a key)
+public/sanctuary-plates/worshipGallery.bundle.js
