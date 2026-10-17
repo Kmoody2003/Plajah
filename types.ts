@@ -423,11 +423,19 @@ export interface SpeechBubble {
   id: string;
   type: 'speech' | 'thought' | 'shout' | 'whisper' | 'narration' | 'sfx';
   text: string;
+  /** Canonical text from the original script / Story Intelligence (preserved when editing creates an Alt Layer) */
+  originalScriptText?: string;
+  /** Edited text on the creator's Alt Layer */
+  altText?: string;
+  /** When true, originalScriptText turns off and altText is displayed; set false to return to the script version */
+  useAltTextLayer?: boolean;
   x: number; y: number;   // percent of panel
   width: number;           // percent of panel
+  scale?: number;          // optional bubble scale factor (default 1)
   tailDir?: 'bl' | 'br' | 'tl' | 'tr';
   fontSize?: number;
   character?: string;      // speaker tag (from script auto-flow / character tags)
+  speakerName?: string;
 }
 
 export interface StudioPanel {
@@ -438,11 +446,63 @@ export interface StudioPanel {
   bgColor?: string;
   bubbles: SpeechBubble[];
   caption?: string;
+  /** Canonical caption from the original script */
+  originalScriptCaption?: string;
+  /** Edited caption on the creator's Alt Layer */
+  altCaption?: string;
+  /** When true, originalScriptCaption turns off and altCaption is displayed */
+  useAltCaptionLayer?: boolean;
   captionPos?: 'top' | 'bottom';
-  borderStyle?: 'solid' | 'thick' | 'double' | 'none';
-  shape?: 'rect' | 'diag-left' | 'diag-right';
+  /** Free-arranged caption X/Y/Width percentages inside the panel */
+  captionX?: number;
+  captionY?: number;
+  captionWidth?: number;
+  borderStyle?: 'solid' | 'thick' | 'double' | 'none' | 'gold' | 'neon';
+  shape?: 'rect' | 'diag-left' | 'diag-right' | 'rounded' | 'circle-inset';
   sfxText?: string;
+  originalScriptSfx?: string;
+  altSfx?: string;
+  useAltSfxLayer?: boolean;
+  sfxX?: number;
+  sfxY?: number;
   sfxStyle?: 'bold' | 'impact' | 'manga';
+  /** Panel-wide text layer mode: 'alt' shows edited Alt Layer text, 'script' returns all bubbles/captions to original script version */
+  textLayerMode?: 'alt' | 'script';
+  aiPrompt?: string;
+  // ── Interactive Frame Timecode Scrubber (±60s around panel frame) ──
+  /** Current frame timecode in seconds in the source video */
+  timecodeSeconds?: number;
+  /** Original anchor timecode in seconds (allows scrubbing ±60s in both directions) */
+  anchorTimecodeSeconds?: number;
+  /** Formatted timecode string (e.g. "04:12.5") */
+  timecode?: string;
+  /** Master video URL — loaded ONCE by the shared video engine */
+  sourceVideoUrl?: string;
+  /** Mux playback ID for instant frame extraction & HLS playback */
+  muxPlaybackId?: string;
+  // ── Interactive Pan & Zoom Image Framing Inside Panel ──
+  /** Horizontal pan offset percentage (-100 to 100, default 0) */
+  imageOffsetX?: number;
+  /** Vertical pan offset percentage (-100 to 100, default 0) */
+  imageOffsetY?: number;
+  /** Zoom scale factor inside panel (0.5 to 3.5, default 1.0) */
+  imageScale?: number;
+  // ── Live Cinemagraph / Video Loop (In/Out points on the single shared video, max 15s) ──
+  /** Whether this panel loops a live video segment between loopInSeconds and loopOutSeconds */
+  isVideoLoop?: boolean;
+  /** Loop In point in seconds (read by the shared video player) */
+  loopInSeconds?: number;
+  /** Loop Out point in seconds (max loopInSeconds + 15s) */
+  loopOutSeconds?: number;
+  /** Cinemagraph playback mode */
+  cinemagraphMode?: 'loop' | 'ping-pong' | 'subtle';
+  // ── Council V4 Living Graphic Novel Architecture ──
+  globalPanelNumber?: number;
+  geometry?: string;
+  framingCode?: string;
+  samLayerEnabled?: boolean;
+  editorialRationale?: string;
+  captionHeader?: string;
 }
 
 export interface InteractiveEmbed {
@@ -468,6 +528,14 @@ export interface StudioPage {
   readingDir?: 'ltr' | 'rtl';
   colorMode?: 'color' | 'bw' | 'sepia';
   panelGutter?: number;
+  // Council V4 Page Architecture Metadata
+  actNumber?: number;
+  slugline?: string;
+  layoutGrammar?: string;
+  activeLensName?: string;
+  activeLensDesc?: string;
+  timeRangeLabel?: string;
+  summary?: string;
   // FULL_BLEED / COVER / MEDIA
   imageUrl?: string;
   mediaUrl?: string;
@@ -1638,6 +1706,14 @@ export interface UserProfile {
   managedByUid?: string;
   /** When a real user claims/links this managed profile, their uid — links it into their switcher. */
   claimedByUid?: string;
+  /** Elevate: this managed profile is a PRE-PROVISIONED member/staff account (users/prov_…) that a real
+   *  person claims with their member ID or email. Shares the isEmployee/employerOrgId plumbing so rules,
+   *  rosters and chat treat it as a managed identity until it is claimed. */
+  isProvisioned?: boolean;
+  /** Member ID this provisioned profile answers to (mirrors the chmsPeople record). */
+  provisionedMemberNumber?: string;
+  /** Org role key the seat was provisioned with (services/elevateRoles). */
+  provisionedRoleKey?: string;
 
   // ─── Family / child-safety (accountType 'PARENT' | 'CHILD') ─────────────────
   /** True for a managed child account. Safe defaults are applied regardless of who edits. */
@@ -1751,12 +1827,21 @@ export interface UserProfile {
   dateOfBirth?: number;            // unix ms — captured at intimate enrollment (18+ gate)
   intimatePartnerUid?: string | null; // single active intimate partner at a time
   // Relationship status — public profile signal + the gate for Nibbles (couples chat).
-  // A user must set a partnered status AND link their spouse/partner before Nibbles unlocks.
+  // Only personal accounts get relationship status (never brands, orgs, businesses, students,
+  // children, or teachers — unless a teacher switches to their personal profile).
   relationshipStatus?: RelationshipStatus;
   relationshipPartnerUid?: string | null; // the linked spouse/partner
   relationshipPartnerName?: string;        // cached display name for the partner
   relationshipPublic?: boolean;            // show on the public profile (default: private — owner always sees their own)
   relationshipSince?: number;              // unix ms — when the link was confirmed
+  /** Stashed personal relationship state when a teacher switches to TEACHER mode, restored on switching back to personal. */
+  personalRelationshipBackup?: {
+    relationshipStatus?: RelationshipStatus;
+    relationshipPartnerUid?: string | null;
+    relationshipPartnerName?: string;
+    relationshipPublic?: boolean;
+    relationshipSince?: number;
+  } | null;
   nibblesTutorialSeen?: boolean;           // first-run Nibbles walkthrough shown
   // Smart Guide — contextual feature discovery assistant
   hasSeenSmartGuide?: boolean;
@@ -2373,6 +2458,18 @@ export interface Ministry {
   isInternal?: boolean;
   order?: number;
   coverUrl?: string;
+  /** Sub-chats ("rooms") inside this department's chat space — e.g. Media → Sunday production, Graphics.
+   *  Every department always has its main room; these are the extra ones (services/orgChatService). */
+  rooms?: MinistryRoom[];
+}
+
+/** A room = a sub-chat of a department. Seeded from the department template; leaders add their own. */
+export interface MinistryRoom {
+  id: string;
+  name: string;
+  description?: string;
+  /** DEPARTMENT = everyone in the department; LEADERS = heads + org leads only. */
+  audience?: 'DEPARTMENT' | 'LEADERS';
 }
 
 export interface ServiceTime {
@@ -2687,6 +2784,16 @@ export interface Organization {
   chatProvisionedAt?: number;
   chatChannelKeys?: string[];
 
+  // ── Accounts & access (services/elevateAccounts) ───────────────────────────
+  /** Short code baked into the org's public join link / QR (plajah.com/?elevateJoin=<code>). */
+  joinCode?: string;
+  /** Prefix for generated member IDs (e.g. "GC" → GC-48213). Defaults to the org's initials. */
+  memberNumberPrefix?: string;
+  /** Provisioning defaults: pre-provision a Plajah account for every imported person (default true). */
+  accountProvisioning?: { onImport?: boolean; defaultRoleKey?: string; lastRunAt?: number };
+  /** Payroll connection (routes/payrollConnect.ts): which provider + company this org's staff directory syncs from. Never pay data. */
+  payroll?: { provider?: 'paychex' | 'finch'; paychexCompanyId?: string; paychexCompanyName?: string; connectedBy?: string; connectedAt?: number };
+
   createdAt: number;
   updatedAt: number;
 }
@@ -2698,6 +2805,33 @@ export interface Organization {
 export type ChmsMemberStatus = 'VISITOR' | 'REGULAR' | 'MEMBER' | 'INACTIVE' | 'TRANSFERRED' | 'DECEASED';
 
 export interface ChmsSource { system: string; id: string; importId?: string }
+
+export type ChmsExtendedKinshipRole =
+  | 'BROTHER'
+  | 'SISTER'
+  | 'SIBLING'
+  | 'AUNT'
+  | 'UNCLE'
+  | 'GRANDPARENT'
+  | 'GRANDCHILD'
+  | 'COUSIN'
+  | 'NIECE_NEPHEW'
+  | 'GODPARENT'
+  | 'IN_LAW';
+
+export interface ChmsExtendedKinshipEdge {
+  targetPersonId: string;
+  targetName: string;
+  targetHouseholdId?: string;
+  relationship: ChmsExtendedKinshipRole;
+  notes?: string;
+}
+
+export type ChmsTaxStatementScope =
+  | 'JOINT_HOUSEHOLD'
+  | 'HEAD_AND_SPOUSE'
+  | 'INDIVIDUAL'
+  | 'FAMILY_PACKET';
 
 export interface ChmsPerson {
   id: string;
@@ -2722,6 +2856,12 @@ export interface ChmsPerson {
   custom?: Record<string, string>;   // any unmapped source columns — nothing is dropped on import
   /** Plajah account this record is linked to (person claims it via invite) — new vs Servant Keeper. */
   linkedUid?: string;
+  /** Pre-provisioned Plajah account (users/prov_… managed profile) waiting to be claimed. Cleared on claim
+   *  (the membership's userId is rewritten to the real uid and linkedUid is set). services/elevateAccounts. */
+  provisionedUid?: string;
+  /** Human-friendly member ID printed on cards / statements and used to claim the pre-provisioned account.
+   *  Imported from the source system's member number when present, else generated (e.g. "GC-48213"). */
+  memberNumber?: string;
   /** Source system id, enables idempotent re-import. */
   source?: ChmsSource;
   photoUrl?: string;
@@ -2735,6 +2875,16 @@ export interface ChmsPerson {
   mergedInto?: string;
   /** Opt-in: person allows their contact info to show in the member directory. */
   directoryVisible?: boolean;
+  /**
+   * Extended kinship privacy consent: when false, this member's extended family edges
+   * (brothers, sisters, aunts, uncles, grandparents, cousins) are hidden from church leadership
+   * and kinship graphs. Nuclear household roles (HEAD, SPOUSE, CHILD) remain intact.
+   */
+  allowExtendedRelationships?: boolean;
+  /** Extended family connections across households (brothers, sisters, aunts, uncles, grandparents). */
+  extendedRelationships?: ChmsExtendedKinshipEdge[];
+  /** Preferred tax/giving statement scope for Finance runs. */
+  statementScopePreference?: ChmsTaxStatementScope;
   /** Claim token used when a congregant links their Plajah account (rules verify it). */
   claimToken?: string;
   createdAt: number;
@@ -2742,7 +2892,7 @@ export interface ChmsPerson {
 }
 
 export interface ChmsHousehold {
-  id: string; orgId: string; name: string; headPersonId?: string;
+  id: string; orgId: string; name: string; headPersonId?: string; spousePersonId?: string;
   address?: ChmsPerson['address']; source?: ChmsSource; createdAt: number;
 }
 
@@ -3182,6 +3332,20 @@ export interface OrgMembership {
   ministryRoles?: { ministryId: string; roleKey: string; title?: string }[];
   /** Invite token this membership was redeemed from (rules verify it on create). */
   inviteToken?: string;
+
+  // ── Pre-provisioned accounts (services/elevateAccounts) ────────────────────
+  /** True while this seat belongs to a pre-provisioned (unclaimed) Plajah account. Cleared on claim. */
+  isProvisioned?: boolean;
+  /** The chmsPeople record this provisioned seat was created from (import / directory). */
+  provisionedPersonId?: string;
+  /** Member ID the person can claim with (mirrors ChmsPerson.memberNumber). */
+  memberNumber?: string;
+  /** Lower-cased email the person can claim with (never shown publicly). */
+  claimEmailLower?: string;
+  /** Department / ministry ids this person belongs to (from the import or roster). */
+  ministryIds?: string[];
+  /** When a real person claimed the provisioned seat. */
+  claimedAt?: number;
 }
 
 /** Which roster a role appears on. Org pages render PASTORAL → LEADERSHIP → STAFF; the rest are operational only. */
@@ -4319,6 +4483,12 @@ export interface ChatRoom {
   orgName?: string;
   orgChannelKey?: string;
   orgChannelKind?: 'ANNOUNCEMENTS' | 'GENERAL' | 'TEAM';
+  /** Department (org.ministries[].id) this TEAM channel belongs to. */
+  orgDepartmentId?: string;
+  /** For a department ROOM (sub-chat): the orgChannelKey of the department's main channel. */
+  orgParentChannelKey?: string;
+  /** Room audience: DEPARTMENT members or LEADERS only (mirrors MinistryRoom.audience). */
+  orgRoomAudience?: 'DEPARTMENT' | 'LEADERS';
 }
 
 /**

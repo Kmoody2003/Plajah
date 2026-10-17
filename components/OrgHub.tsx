@@ -44,9 +44,10 @@ import OrgStoreSection from './elevate/OrgStoreSection';
 import OrgThread from './elevate/OrgThread';
 import OrgLiveNow from './elevate/OrgLiveNow';
 import OrgMediaShelves from './elevate/OrgMediaShelves';
-// Operations side + public rosters (built alongside; lazy so the public page never blocks on them).
+// Operations side + public rosters + Church Member Hub (lazy so the public page never blocks on them).
 const ElevateOps = lazy(() => import('./elevate/ElevateOps'));
 const ElevateRosters = lazy(() => import('./elevate/ElevateRosters'));
+const ChurchMemberHub = lazy(() => import('./elevate/ChurchMemberHub'));
 
 const ORG_TYPES: { type: OrgType; label: string; blurb: string }[] = [
   { type: 'BRAND',        label: 'Brand',        blurb: 'A label, studio, or product brand with a roster + community.' },
@@ -311,8 +312,10 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
   const [applyFor, setApplyFor] = useState<JobPosting | null>(null);
   const [showCareers, setShowCareers] = useState(false);
   const [fundGiven, setFundGiven] = useState<Record<string, number>>({});
-  // Elevate: Public view | Operations split, follow state, ministry pages, community thread.
-  const [view, setView] = useState<'public' | 'ops'>(initialContentHq ? 'ops' : 'public');
+  // Elevate: Member Hub | Public view | Operations split, follow state, ministry pages, community thread.
+  const [view, setView] = useState<'member' | 'public' | 'ops'>(
+    initialContentHq ? 'ops' : isFaithOrg(initialOrg.orgType) ? 'member' : 'public'
+  );
   const [following, setFollowing] = useState(false);
   const [openMinistry, setOpenMinistry] = useState<string | null>(null);
   const [showThread, setShowThread] = useState(false);
@@ -355,7 +358,7 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
   if (view === 'ops' && hasOps) {
     return (
       <Suspense fallback={<div className="flex justify-center py-20"><Loader2 className="animate-spin text-white/30" size={24} /></div>}>
-        <ElevateOps org={org} isOwner={isOwner} onClose={() => setView('public')} onOrgChange={setOrg} onVisitUser={onVisitUser} initialTool={initialContentHq ? 'hq' : undefined} />
+        <ElevateOps org={org} isOwner={isOwner} onClose={() => setView(faith ? 'member' : 'public')} onOrgChange={setOrg} onVisitUser={onVisitUser} initialTool={initialContentHq ? 'hq' : undefined} />
       </Suspense>
     );
   }
@@ -373,9 +376,9 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
         <button onClick={onBack} className="absolute top-5 left-5 flex items-center gap-2 px-3 py-2 bg-black/50 backdrop-blur rounded-full text-white/70 hover:text-white text-[10px] font-black uppercase tracking-widest"><ArrowLeft size={13} /> Back</button>
       </div>
 
-      <div className="px-6 lg:px-12 max-w-5xl mx-auto">
+      <div className={`px-6 lg:px-12 ${faith && view === 'member' ? 'max-w-[1440px]' : 'max-w-5xl'} mx-auto`}>
         {/* Identity */}
-        <div className="flex items-end gap-5 -mt-14 relative">
+        <div className="flex flex-wrap items-end gap-5 -mt-14 relative">
           <div className="w-28 h-28 rounded-3xl overflow-hidden bg-[#111] border-4 border-[#050505] grid place-items-center shrink-0">
             {org.logoUrl ? <img src={org.logoUrl} alt="" className="w-full h-full object-cover" /> : <Building2 size={36} className="text-white/30" />}
           </div>
@@ -387,10 +390,24 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
             <p className="text-[10px] font-black uppercase tracking-widest text-small-orange/80 mt-1">{org.orgType}{org.category ? ` · ${org.category}` : ''}</p>
           </div>
           {hasOps && <div className="pb-2 shrink-0"><CreateEventButton compact host={{ kind: 'org', id: org.id, label: org.name }} /></div>}
-          {hasOps && (
+          {(faith || hasOps) && (
             <div className="pb-2 flex items-center rounded-full bg-white/5 border border-white/10 p-0.5 shrink-0">
-              <button onClick={() => setView('public')} className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${view === 'public' ? 'bg-white text-black' : 'text-white/50'}`}>Public view</button>
-              <button onClick={() => setView('ops')} className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${view === 'ops' ? 'bg-white text-black' : 'text-white/50'}`}>Operations</button>
+              {faith && (
+                <button
+                  onClick={() => setView('member')}
+                  className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${
+                    view === 'member'
+                      ? 'bg-gradient-to-r from-[#6B0099] to-[#D40055] text-white shadow'
+                      : 'text-white/50 hover:text-white'
+                  }`}
+                >
+                  Member Hub
+                </button>
+              )}
+              <button onClick={() => setView('public')} className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${view === 'public' ? 'bg-white text-black' : 'text-white/50 hover:text-white'}`}>Public view</button>
+              {hasOps && (
+                <button onClick={() => setView('ops')} className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${view === 'ops' ? 'bg-white text-black' : 'text-white/50 hover:text-white'}`}>Operations</button>
+              )}
             </div>
           )}
           {elevate && !isOwner && (
@@ -411,9 +428,23 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
           {org.location?.city && <span className="flex items-center gap-1.5"><MapPin size={13} /> {org.location.city}</span>}
         </div>
 
-        {/* On air now (live stream / TV channel) — top of the page; renders nothing when off air. */}
-        <OrgLiveNow org={org} viewerIsOrgMember={myMembership?.status === 'ACTIVE'} onOpenLive={onOpenLive} onOpenChannel={onOpenChannel} />
-        <OrgMediaShelves org={org} isOwner={isOwner} canManage={can('MANAGE_CONTENT')} onOrgChange={setOrg} onVisitUser={onVisitUser} onOpenVideo={onOpenVideo} onOpenAlbum={onOpenAlbum} />
+        {faith && view === 'member' ? (
+          <div className="mt-6 pb-16">
+            <Suspense fallback={<div className="flex justify-center py-20"><Loader2 className="animate-spin text-white/30" size={24} /></div>}>
+              <ChurchMemberHub
+                org={org}
+                membership={myMembership}
+                user={auth.currentUser}
+                onOpenGive={() => setGiving(true)}
+                onOpenMinistry={id => setOpenMinistry(id)}
+              />
+            </Suspense>
+          </div>
+        ) : (
+          <>
+            {/* On air now (live stream / TV channel) — top of the page; renders nothing when off air. */}
+            <OrgLiveNow org={org} viewerIsOrgMember={myMembership?.status === 'ACTIVE'} onOpenLive={onOpenLive} onOpenChannel={onOpenChannel} />
+            <OrgMediaShelves org={org} isOwner={isOwner} canManage={can('MANAGE_CONTENT')} onOrgChange={setOrg} onVisitUser={onVisitUser} onOpenVideo={onOpenVideo} onOpenAlbum={onOpenAlbum} />
 
         {/* Public "Careers / Get Involved" — anyone can see open roles and apply in one tap */}
         {openings.length > 0 && (
@@ -561,6 +592,8 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
               ))}
             </div>
           </section>
+        )}
+          </>
         )}
         <div className="h-16" />
       </div>

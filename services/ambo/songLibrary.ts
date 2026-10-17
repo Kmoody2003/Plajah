@@ -10,6 +10,8 @@
 // A song is lines + sections. Pasted text understands the usual chart
 // markers — "[Chorus]", "Verse 2:", "Bridge", "(Tag)" — as section headers.
 
+import { ALL_SACRED_HYMNS_AND_PRAYERS, type SacredHymnOrPrayer } from '../../data/sacredHymnsAndPrayers';
+
 export interface SongSection { name: string; start: number }
 export interface Song {
   id: string;
@@ -21,12 +23,15 @@ export interface Song {
   /** When the song has a synced recording (Chora), its line timings. */
   timeCodedLyrics?: Array<{ time: number; text: string }>;
   source: 'chora' | 'user' | 'builtin';
+  /** Optional link to rich Lorea provenance, original language stanzas, and SATB accompaniment score */
+  sacredMetaId?: string;
+  sacredKind?: SacredHymnOrPrayer['kind'];
   ccli?: string;
   updatedAt?: number;
 }
 
 const KEY = 'ambo_songs_v1';
-const SECTION_RE = /^\s*[[(]?\s*((?:verse|v|chorus|ch|pre[-\s]?chorus|bridge|tag|intro|outro|ending|refrain|interlude|vamp|hook|coda)\s*\d*[a-z]?)\s*[\])]?\s*:?\s*$/i;
+const SECTION_RE = /^\s*[[(]?\s*((?:verse|v|chorus|ch|pre[-\s]?chorus|bridge|tag|intro|outro|ending|refrain|interlude|vamp|hook|coda|stanza|antiphon)\s*\d*[a-z]?)\s*[\])]?\s*:?\s*$/i;
 
 /** "[Chorus]" / "Verse 2:" / "(Bridge)" → "Chorus" / "Verse 2" / "Bridge"; anything else → null. */
 export function sectionName(line: string): string | null {
@@ -77,80 +82,32 @@ export function songToText(s: Pick<Song, 'lines' | 'sections'>): string {
   return out.join('\n');
 }
 
-const BUILTIN: Song[] = [
-  {
-    id: 'builtin_amazing_grace', title: 'Amazing Grace', artist: 'John Newton', source: 'builtin',
-    ...parseLyricsText(`[Verse 1]
-Amazing grace how sweet the sound
-That saved a wretch like me
-I once was lost but now am found
-Was blind but now I see
+function buildSacredBuiltinSong(item: SacredHymnOrPrayer, legacyId?: string): Song {
+  const labelPrefix = item.kind === 'PUBLIC_DOMAIN_HYMN' ? 'Verse' : 'Stanza';
+  const formattedText = item.stanzas
+    .map((stanza, idx) => `[${labelPrefix} ${idx + 1}]\n${stanza}`)
+    .join('\n\n');
+  return {
+    id: legacyId ?? `builtin_${item.id.replace(/-/g, '_')}`,
+    title: item.title,
+    artist: item.author,
+    source: 'builtin',
+    sacredMetaId: item.id,
+    sacredKind: item.kind,
+    ...parseLyricsText(formattedText),
+  };
+}
 
-[Verse 2]
-'Twas grace that taught my heart to fear
-And grace my fears relieved
-How precious did that grace appear
-The hour I first believed
+const LEGACY_ID_MAP: Record<string, string> = {
+  'pd-hymn-amazing-grace': 'builtin_amazing_grace',
+  'pd-hymn-holy-holy-holy': 'builtin_holy_holy_holy',
+  'pd-hymn-it-is-well': 'builtin_it_is_well',
+  'pd-hymn-be-thou-my-vision': 'builtin_be_thou_my_vision',
+};
 
-[Verse 3]
-Through many dangers toils and snares
-I have already come
-'Tis grace hath brought me safe thus far
-And grace will lead me home
-
-[Verse 4]
-When we've been there ten thousand years
-Bright shining as the sun
-We've no less days to sing God's praise
-Than when we'd first begun`),
-  },
-  {
-    id: 'builtin_holy_holy_holy', title: 'Holy, Holy, Holy', artist: 'Reginald Heber', source: 'builtin',
-    ...parseLyricsText(`[Verse 1]
-Holy holy holy Lord God Almighty
-Early in the morning our song shall rise to Thee
-Holy holy holy merciful and mighty
-God in three persons blessed Trinity
-
-[Verse 2]
-Holy holy holy all the saints adore Thee
-Casting down their golden crowns around the glassy sea
-Cherubim and seraphim falling down before Thee
-Which wert and art and evermore shalt be`),
-  },
-  {
-    id: 'builtin_it_is_well', title: 'It Is Well With My Soul', artist: 'Horatio Spafford', source: 'builtin',
-    ...parseLyricsText(`[Verse 1]
-When peace like a river attendeth my way
-When sorrows like sea billows roll
-Whatever my lot Thou hast taught me to say
-It is well it is well with my soul
-
-[Chorus]
-It is well with my soul
-It is well it is well with my soul
-
-[Verse 2]
-Though Satan should buffet though trials should come
-Let this blest assurance control
-That Christ has regarded my helpless estate
-And hath shed His own blood for my soul`),
-  },
-  {
-    id: 'builtin_be_thou_my_vision', title: 'Be Thou My Vision', artist: 'Ancient Irish Hymn', source: 'builtin',
-    ...parseLyricsText(`[Verse 1]
-Be Thou my vision O Lord of my heart
-Naught be all else to me save that Thou art
-Thou my best thought by day or by night
-Waking or sleeping Thy presence my light
-
-[Verse 2]
-Be Thou my wisdom and Thou my true word
-I ever with Thee and Thou with me Lord
-Thou my great Father I Thy true son
-Thou in me dwelling and I with Thee one`),
-  },
-];
+const BUILTIN: Song[] = ALL_SACRED_HYMNS_AND_PRAYERS.map(item =>
+  buildSacredBuiltinSong(item, LEGACY_ID_MAP[item.id])
+);
 
 function readUser(): Song[] {
   try {

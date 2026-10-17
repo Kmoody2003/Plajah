@@ -9,13 +9,18 @@ import {
   fetchNotes, addNote, auditSensitive, createClaim, claimUrl, todayISO,
 } from '../../../services/chmsPeople';
 import { auth } from '../../../services/firebase';
+import {
+  resolveExtendedKinshipForLeadership,
+  EXTENDED_KINSHIP_LABELS,
+} from '../../../services/chmsKinshipAndStatements';
 import { usePeople, Modal, field, btn, btnPrimary, h2, label, StatusPill, STATUSES, fmtDate } from './PeopleUI';
+import PersonAccountCard from './PersonAccountCard';
 
 const Row: React.FC<{ l: string; children: React.ReactNode }> = ({ l, children }) => (<div><p className={`${label} mb-1`}>{l}</p>{children}</div>);
 const csvIn = (s: string) => s.split(',').map(x => x.trim()).filter(Boolean);
 
 const PeopleProfile: React.FC<{ personId: string | null; onClose: () => void; onSaved: () => void; draftKey?: string }> = ({ personId, onClose, onSaved }) => {
-  const { org, people, households, attendance, shifts, access, gaveFlags, myMembership, reload } = usePeople();
+  const { org, people, households, attendance, shifts, access, gaveFlags, myMembership, reload, members } = usePeople();
   const existing = people.find(p => p.id === personId) || null;
   const canEdit = access.staff;
   const [f, setF] = useState<Partial<ChmsPerson>>(existing || { firstName: '', lastName: '', status: 'VISITOR' });
@@ -120,8 +125,22 @@ const PeopleProfile: React.FC<{ personId: string | null; onClose: () => void; on
             <option value="">—</option><option>HEAD</option><option>SPOUSE</option><option>CHILD</option><option>OTHER</option>
           </select>
         </Row>
-        <Row l="Directory privacy">
-          <label className="flex items-center gap-2 text-xs text-white/70 py-3"><input type="checkbox" disabled={!canEdit} checked={!!f.directoryVisible} onChange={e => set('directoryVisible', e.target.checked)} /> Opted in to the member directory</label>
+        <Row l="Directory & Extended Kinship Privacy">
+          <div className="space-y-1.5 py-1">
+            <label className="flex items-center gap-2 text-xs text-white/70">
+              <input type="checkbox" disabled={!canEdit} checked={!!f.directoryVisible} onChange={e => set('directoryVisible', e.target.checked)} />
+              <span>Opted in to the member directory</span>
+            </label>
+            <label className="flex items-center gap-2 text-xs text-white/70">
+              <input
+                type="checkbox"
+                disabled={!canEdit}
+                checked={f.allowExtendedRelationships !== false}
+                onChange={e => set('allowExtendedRelationships', e.target.checked)}
+              />
+              <span>Allow extended family (brothers, sisters, aunts, uncles) to be visible to leadership</span>
+            </label>
+          </div>
         </Row>
       </div>
       {existing && !existing.householdId && canEdit && <button className={`${btn} mt-2`} onClick={makeHousehold}>Create household from this person</button>}
@@ -153,10 +172,44 @@ const PeopleProfile: React.FC<{ personId: string | null; onClose: () => void; on
             </div>
           )}
 
-          {family.length > 0 && (
-            <div><h4 className={`${h2} mb-2`}>Family</h4>
-              <div className="flex flex-wrap gap-2">{family.map(m => <span key={m.id} className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs text-white/70">{fullName(m)} <span className="text-white/30">{m.householdRole || ''}{ageOf(m) !== null ? ` · ${ageOf(m)}` : ''}</span></span>)}</div></div>
-          )}
+          {(family.length > 0 || (existing.extendedRelationships && existing.extendedRelationships.length > 0)) && (() => {
+            const byIdMap = new Map<string, ChmsPerson>(people.map(p => [p.id, p]));
+            const extResolved = resolveExtendedKinshipForLeadership(existing, byIdMap);
+            return (
+              <div className="space-y-2.5">
+                <h4 className={`${h2}`}>Nuclear Household & Extended Family Kinship</h4>
+                {family.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {family.map(m => (
+                      <span key={m.id} className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs text-white/80">
+                        {fullName(m)}{' '}
+                        <span className="text-white/40 font-semibold">
+                          {m.householdRole || 'MEMBER'}{ageOf(m) !== null ? ` · ${ageOf(m)}` : ''}
+                        </span>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {extResolved.visible.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {extResolved.visible.map((edge, idx) => (
+                      <span key={idx} className="px-3 py-1.5 rounded-full bg-[#6B0099]/20 border border-[#E0CEFF]/25 text-xs text-[#E0CEFF]">
+                        {edge.targetName} · <b className="text-[#E8C170]">{EXTENDED_KINSHIP_LABELS[edge.relationship] || edge.relationship}</b>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {(existing.allowExtendedRelationships === false || extResolved.redactedCount > 0) && (
+                  <p className="text-[10.5px] text-amber-300/80 flex items-center gap-1.5">
+                    <Lock size={11} />
+                    {existing.allowExtendedRelationships === false
+                      ? 'This member has opted out of sharing extended family relationships (brothers, sisters, aunts, uncles) with leadership.'
+                      : `${extResolved.redactedCount} extended family connection(s) hidden by member privacy preference.`}
+                  </p>
+                )}
+              </div>
+            );
+          })()}
 
           <div>
             <h4 className={`${h2} mb-2`}>Attendance history ({myAtt.length})</h4>
@@ -166,9 +219,12 @@ const PeopleProfile: React.FC<{ personId: string | null; onClose: () => void; on
           {canEdit && !minor && (
             <div>
               <h4 className={`${h2} mb-2`}>Plajah account</h4>
-              {existing.linkedUid ? <p className="text-xs text-emerald-300 font-bold">Linked — this person can update their own contact info and directory privacy.</p> : (
-                <>
-                  <button className={btn} disabled={busy} onClick={makeClaim}><Link2 size={13} /> Invite to claim this record</button>
+              <PersonAccountCard org={org} myMembership={myMembership} person={existing} members={members} onChanged={reload} />
+              {!existing.linkedUid && !existing.provisionedUid && (
+                <details className="mt-3 text-[11px]">
+                  <summary className="cursor-pointer text-white/35 hover:text-white">Or send a one-time record-only claim link (no seat, no role)</summary>
+                  <div className="mt-2">
+                  <button className={btn} disabled={busy} onClick={makeClaim}><Link2 size={13} /> Create one-time link</button>
                   {claim && (
                     <div className="mt-3 flex flex-wrap gap-4 items-center">
                       {claim.qr && <img src={claim.qr} alt="Claim QR" className="w-28 h-28 rounded-xl bg-white p-1" />}
@@ -180,7 +236,8 @@ const PeopleProfile: React.FC<{ personId: string | null; onClose: () => void; on
                       </div>
                     </div>
                   )}
-                </>
+                  </div>
+                </details>
               )}
             </div>
           )}

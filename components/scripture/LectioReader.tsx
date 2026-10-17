@@ -41,6 +41,7 @@ import LectioLexicon from './LectioLexicon';
 import LectioOriginals from './LectioOriginals';
 import LectioComparativeSearch from './LectioComparativeSearch';
 import ResearchNotebook from '../faith/ResearchNotebook';
+import LectioCouncilPlatesModal from './LectioCouncilPlatesModal';
 
 // ── Reading surfaces ─────────────────────────────────────────────────────────
 // Only these four touch the page. Everything else is Plajah-dark.
@@ -103,6 +104,7 @@ const LectioReader: React.FC<Props> = ({ openAt }) => {
   const [preload, setPreload] = useState<PreloadProgress | null>(null);
   const [coverage, setCoverage] = useState(0);
   const [copied, setCopied] = useState(false);
+  const [councilModalOpen, setCouncilModalOpen] = useState(false);
 
   const cancelRef = useRef<{ cancelled: boolean }>({ cancelled: false });
   const verseRefs = useRef<Record<number, HTMLDivElement | null>>({});
@@ -352,6 +354,15 @@ const LectioReader: React.FC<Props> = ({ openAt }) => {
           {active.length > 1 && <Columns2 size={11} className="text-white/25" />}
 
           <div className="ml-auto flex items-center gap-1.5">
+            <button
+              onClick={() => setCouncilModalOpen(true)}
+              className="px-2.5 py-1 rounded-md border border-[#E8C170]/45 bg-[#E8C170]/12 text-[8.5px] font-black uppercase tracking-widest text-[#E8C170] hover:bg-[#E8C170]/22 flex items-center gap-1 transition-all"
+              title="Open the 12 Art Council Sacred Text Plates, Public-Domain Hymns & Catholic/Orthodox Liturgical Prayers (Viewable in Lorea)"
+            >
+              <Sparkles size={10} />
+              <span>12 Sacred Plates & Hymnal</span>
+            </button>
+            <div className="w-px h-4 bg-white/10 mx-0.5" />
             {SKINS.map(s => (
               <button key={s.id} onClick={() => { setSkinId(s.id); localStorage.setItem(SKIN_KEY, s.id); }}
                 title={s.label} aria-label={`${s.label} reading surface`}
@@ -654,6 +665,10 @@ const LectioReader: React.FC<Props> = ({ openAt }) => {
           </div>
         </aside>
       )}
+      <LectioCouncilPlatesModal
+        open={councilModalOpen}
+        onClose={() => setCouncilModalOpen(false)}
+      />
     </motion.div>
   );
 };

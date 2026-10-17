@@ -16,11 +16,16 @@ export function classicAlbum(b: ClassicRef): Album | null {
   });
 }
 
+/** Open any constructed Album directly in the Lorea reader (full-screen, with notes, highlights and read-aloud). */
+export function openAlbumInLorea(album: Album): boolean {
+  try { window.dispatchEvent(new CustomEvent('OPEN_LOREA_BOOK', { detail: { album } })); return true; } catch { return false; }
+}
+
 /** Open a classic in the Lorea reader (full-screen, with notes, highlights and read-aloud). */
 export function openClassicInLorea(b: ClassicRef): boolean {
   const album = classicAlbum(b);
   if (!album) return false;
-  try { window.dispatchEvent(new CustomEvent('OPEN_LOREA_BOOK', { detail: { album } })); return true; } catch { return false; }
+  return openAlbumInLorea(album);
 }
 
 const PRESET_KEY = 'plajah:vaultPreset';

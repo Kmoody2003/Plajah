@@ -15,12 +15,17 @@
 
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import {
-  Mic, MicOff, Search, Plus, Pencil, Trash2, ChevronUp, ChevronDown, Radio, Sparkles, Eraser, Music, X, Check, Wand2, Loader2,
+  Mic, MicOff, Search, Plus, Pencil, Trash2, ChevronUp, ChevronDown, Radio, Sparkles, Eraser, Music, X, Check, Wand2, Loader2, LayoutTemplate, BookOpen, ScrollText,
 } from 'lucide-react';
 import {
   listSongs, getSong, subscribeSongs, songsVersion, searchSongs, sectionOf, parseLyricsText, songToText,
   saveUserSong, deleteUserSong, type Song,
 } from '../../services/ambo/songLibrary';
+import {
+  ALL_SACRED_HYMNS_AND_PRAYERS,
+  openHymnOrPrayerInLorea,
+  type SacredHymnOrPrayer,
+} from '../../data/sacredHymnsAndPrayers';
 import {
   getSongFollowPrefs, getSongFollowState, subscribeSongFollow, setSongFollowPrefs, selectSong, jumpToLine, stepLine,
   clearAdlibs, startSongFollow, stopSongFollow, setSongFollowSource, type FollowListenSource,
@@ -28,8 +33,10 @@ import {
 } from '../../services/ambo/songFollower';
 import { listAudioInputs } from '../../services/ambo/liveTranscriber';
 import { getLyricsProgram, setLyricsProgram, subscribeLyricsProgram } from '../../services/ambo/lyricsProgram';
-import { LYRIC_STYLES, ADLIB_COLOR } from '../../services/ambo/lyricStyles';
+import { lyricStyleById, ADLIB_COLOR } from '../../services/ambo/lyricStyles';
 import { getTypoTextState, setTypoTextPrefs, subscribeTypoText } from '../../services/ambo/typoText';
+import { AmboSlideTemplateGallery } from './AmboSlideTemplateGallery';
+import type { Slide } from '../../services/ambo/showModel';
 
 const line = 'rgba(255,255,255,0.09)';
 const LILAC = '#D0BCFF';
@@ -37,9 +44,13 @@ const ORANGE = '#FF8C00';
 const GREEN = '#2BE0A8';
 const RED = '#FF4D5E';
 
-type Filter = 'all' | 'user' | 'chora' | 'builtin';
+type Filter = 'all' | 'user' | 'chora' | 'builtin' | 'prayers';
 const FILTERS: Array<{ id: Filter; label: string }> = [
-  { id: 'all', label: 'All' }, { id: 'user', label: 'My Songs' }, { id: 'chora', label: 'Chora' }, { id: 'builtin', label: 'Hymns' },
+  { id: 'all', label: 'All' },
+  { id: 'user', label: 'My Songs' },
+  { id: 'chora', label: 'Chora' },
+  { id: 'builtin', label: 'Hymns' },
+  { id: 'prayers', label: 'Prayers' },
 ];
 
 const Toggle: React.FC<{ on: boolean; onClick: () => void; title?: string; children: React.ReactNode; color?: string }> = ({ on, onClick, title, children, color = LILAC }) => (
@@ -53,7 +64,12 @@ const Toggle: React.FC<{ on: boolean; onClick: () => void; title?: string; child
   </button>
 );
 
-const AmboSongLyricsTab: React.FC = () => {
+interface AmboSongLyricsTabProps {
+  onInsertSlide?: (slide: Slide) => void;
+  activeShowTitle?: string;
+}
+
+const AmboSongLyricsTab: React.FC<AmboSongLyricsTabProps> = ({ onInsertSlide, activeShowTitle }) => {
   useSyncExternalStore(subscribeSongs, songsVersion);
   const fs = useSyncExternalStore(subscribeSongFollow, getSongFollowState);
   const fp = useSyncExternalStore(subscribeSongFollow, getSongFollowPrefs);
@@ -70,6 +86,8 @@ const AmboSongLyricsTab: React.FC = () => {
   // `fromCapture`: this draft came from Transcribe IN→OUT; saving clears the marks and follows it.
   const [editing, setEditing] = useState<{ id?: string; title: string; artist: string; text: string; fromCapture?: boolean } | null>(null);
   const [inputs, setInputs] = useState<Array<{ deviceId: string; label: string }>>([]);
+  const [galleryOpen, setGalleryOpen] = useState(false);
+  const [showProvenance, setShowProvenance] = useState(true);
   useEffect(() => { void listAudioInputs().then(setInputs).catch(() => {}); }, [fs.listening]);
 
   // Detection / file switch → show that song (the operator never has to go looking).
@@ -81,8 +99,19 @@ const AmboSongLyricsTab: React.FC = () => {
     if (el.scrollHeight - el.scrollTop - el.clientHeight < 120) el.scrollTop = el.scrollHeight;
   }, [cap.on, cap.lines.length, cap.partial]);
 
-  const songs = useMemo(() => searchSongs(q).filter(s => filter === 'all' || s.source === filter), [q, filter, songsVersion()]);
+  const songs = useMemo(() => {
+    return searchSongs(q).filter(s => {
+      if (filter === 'all') return true;
+      if (filter === 'prayers') return s.sacredKind === 'CATHOLIC_PRAYER' || s.sacredKind === 'ORTHODOX_PRAYER';
+      if (filter === 'builtin') return s.source === 'builtin' && s.sacredKind !== 'CATHOLIC_PRAYER' && s.sacredKind !== 'ORTHODOX_PRAYER';
+      return s.source === filter;
+    });
+  }, [q, filter, songsVersion()]);
   const view: Song | null = getSong(viewId);
+  const sacredMeta: SacredHymnOrPrayer | null = useMemo(
+    () => (view?.sacredMetaId ? ALL_SACRED_HYMNS_AND_PRAYERS.find(x => x.id === view.sacredMetaId) ?? null : null),
+    [view?.sacredMetaId]
+  );
   const following = !!view && view.id === fs.songId;
   const onProgram = program.wantLive && program.source === 'follow';
 
@@ -171,13 +200,21 @@ const AmboSongLyricsTab: React.FC = () => {
   }, [view, following, fs.entries]);
 
   const wordsOf = (t: string) => t.split(/(\s+)/);
+  const currentStyle = lyricStyleById(program.styleId);
 
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
       {/* ── Follow bar ── */}
       <div className="flex items-center gap-2 px-3 py-1.5 border-b flex-none flex-wrap" style={{ borderColor: line, background: 'rgba(255,255,255,0.02)' }}>
         <button
-          onClick={() => (fs.listening ? stopSongFollow() : void startSongFollow())}
+          onClick={() => {
+            if (fs.listening) {
+              stopSongFollow();
+            } else {
+              void startSongFollow();
+              setLyricsProgram({ source: 'follow', wantLive: true });
+            }
+          }}
           disabled={fs.starting}
           className="px-2.5 h-7 rounded-md text-[10.5px] font-black relative overflow-hidden flex items-center gap-1.5 disabled:opacity-80 transition-all select-none"
           style={
@@ -187,7 +224,7 @@ const AmboSongLyricsTab: React.FC = () => {
               ? { color: GREEN, background: 'rgba(43,224,168,0.1)', border: '1px solid rgba(43,224,168,0.4)', boxShadow: '0 0 10px rgba(43,224,168,0.2)' }
               : { color: '#fff', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)' }
           }
-          title="Listen to the service: detect the song, follow the singing, catch adlibs"
+          title="Listen to the service: detect the song, follow the singing, transcribe live audio, and show on Program"
         >
           {fs.starting && (
             <>
@@ -251,18 +288,26 @@ const AmboSongLyricsTab: React.FC = () => {
           <span className="inline-flex items-center gap-1"><Sparkles size={10} />Send to visualizer</span>
         </Toggle>
         <div className="flex-1" />
-        <select
-          value={program.styleId}
-          onChange={e => setLyricsProgram({ styleId: e.target.value })}
-          className="h-7 max-w-[160px] rounded-md bg-white/5 border border-white/10 text-[10.5px] text-white px-1.5"
-          title="Lyric look on Program"
+        <button
+          onClick={() => window.open('/worship-gallery.html', '_blank', 'noopener')}
+          className="h-7 px-2.5 rounded-md bg-[#E5B84B]/15 hover:bg-[#E5B84B]/25 border border-[#E5B84B]/45 text-[10.5px] font-bold text-[#FFE399] flex items-center gap-1.5 transition-all"
+          title="Open the interactive 72 Sanctuary Worship, Uptempo Praise/Hymnal & Scripture Reading Visualizer Gallery"
         >
-          {LYRIC_STYLES.map(s => <option key={s.id} value={s.id} className="bg-[#14101e]">{s.name}</option>)}
-        </select>
+          <Sparkles size={12} />
+          <span>72 Worship Gallery</span>
+        </button>
+        <button
+          onClick={() => setGalleryOpen(true)}
+          className="h-7 px-2.5 rounded-md bg-white/5 hover:bg-white/10 border border-[#D0BCFF]/30 text-[10.5px] font-bold text-[#D0BCFF] flex items-center gap-1.5 transition-all"
+          title="Choose Lyric Slide Template in the unified Slide Template Gallery"
+        >
+          <LayoutTemplate size={12} />
+          <span className="truncate max-w-[160px]">Template · {currentStyle.name}</span>
+        </button>
         {onProgram ? (
           <button onClick={clear} className="px-3 h-7 rounded-md text-[10.5px] font-bold text-white bg-white/10 hover:bg-white/20 border border-white/15">Clear lyrics</button>
         ) : (
-          <button onClick={take} disabled={!view && !fs.songId && !fs.playback}
+          <button onClick={take} disabled={!view && !fs.songId && !fs.playback && !fs.listening}
             className="px-3 h-7 rounded-md text-[10.5px] font-black text-black hover:brightness-110 disabled:opacity-30" style={{ background: ORANGE }}
             title="Put the followed lyrics on Program">
             Take to Program
@@ -454,6 +499,32 @@ const AmboSongLyricsTab: React.FC = () => {
                   <div className="text-[12px] font-bold text-white truncate">{view.title}</div>
                   <div className="text-[9.5px] text-white/40 truncate">{view.artist || ''}{view.timeCodedLyrics?.length ? ' · synced recording available' : ''}</div>
                 </div>
+                {sacredMeta && (
+                  <>
+                    <button
+                      onClick={() => setShowProvenance(p => !p)}
+                      className="h-6 px-2 rounded-md text-[10px] font-bold border flex items-center gap-1 transition-all"
+                      style={
+                        showProvenance
+                          ? { color: '#E8C170', background: 'rgba(232,193,112,0.14)', borderColor: 'rgba(232,193,112,0.45)' }
+                          : { color: 'rgba(255,255,255,0.6)', borderColor: 'rgba(255,255,255,0.12)' }
+                      }
+                      title="Toggle Historical Provenance & SATB Accompaniment Score strip"
+                    >
+                      <ScrollText size={10} />
+                      <span>{sacredMeta.score ? 'History & Score' : 'History & Parallel'}</span>
+                    </button>
+                    <button
+                      onClick={() => openHymnOrPrayerInLorea(sacredMeta)}
+                      className="h-6 px-2.5 rounded-md text-[10px] font-black text-black flex items-center gap-1 hover:brightness-110 transition-all"
+                      style={{ background: '#E8C170' }}
+                      title="Open this Hymn or Prayer in Lorea Folio with full History Essay, Parallel Ancient Text, and Accompaniment Score"
+                    >
+                      <BookOpen size={10} />
+                      <span>Open in Lorea</span>
+                    </button>
+                  </>
+                )}
                 {!following && (
                   <button onClick={() => selectSong(view.id)} className="px-2.5 h-6 rounded-md text-[10px] font-black text-black" style={{ background: GREEN }}>Follow this song</button>
                 )}
@@ -479,6 +550,48 @@ const AmboSongLyricsTab: React.FC = () => {
                     className="h-6 px-2 rounded-md text-[10px] font-bold text-white/60 bg-white/5 border border-white/10 hover:text-white flex items-center gap-1"><Pencil size={10} />Copy & edit</button>
                 )}
               </div>
+              {sacredMeta && showProvenance && (
+                <div
+                  className="px-3 py-2 border-b flex-none space-y-1.5"
+                  style={{
+                    borderColor: line,
+                    background: 'linear-gradient(135deg, rgba(107,0,153,0.18), rgba(18,9,36,0.92))',
+                  }}
+                >
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#E8C170]">
+                      Lorea Provenance · {sacredMeta.historyTitle}
+                    </span>
+                    <span className="text-[9.5px] text-white/55 font-mono">
+                      {sacredMeta.year} · {sacredMeta.scriptureRefs.slice(0, 3).join(' · ')}
+                    </span>
+                  </div>
+                  <p className="text-[10.5px] leading-snug text-white/75 line-clamp-2">
+                    {sacredMeta.historyEssay}
+                  </p>
+                  {sacredMeta.score && (
+                    <div className="flex items-center gap-2 flex-wrap pt-0.5 text-[9.5px]">
+                      <span className="px-1.5 py-0.5 rounded bg-[#E8C170]/15 border border-[#E8C170]/35 text-[#FFE399] font-bold">
+                        Score · {sacredMeta.score.tuneName} ({sacredMeta.score.meter} · {sacredMeta.score.timeSignature})
+                      </span>
+                      <span className="text-white/60">
+                        Keys: <b className="text-white/85">{sacredMeta.score.availableKeys.join(' · ')}</b>
+                      </span>
+                      <span className="text-white/55 font-mono truncate">
+                        Cadence: {sacredMeta.score.chordProgression.join(' → ')}
+                      </span>
+                    </div>
+                  )}
+                  {sacredMeta.originalStanzas && sacredMeta.originalStanzas.length > 0 && (
+                    <div className="text-[10px] italic text-[#E0CEFF]/80 truncate">
+                      <span className="not-italic font-bold uppercase tracking-wider text-[8.5px] text-[#E8C170] mr-1.5">
+                        {sacredMeta.originalLanguage ?? 'Ancient'}:
+                      </span>
+                      {sacredMeta.originalStanzas[0]?.replace(/\n/g, ' / ')}
+                    </div>
+                  )}
+                </div>
+              )}
               <div ref={listRef} className="flex-1 overflow-y-auto p-3 space-y-1 custom-scrollbar">
                 {rows.map(r => {
                   if (r.header) {
@@ -524,6 +637,15 @@ const AmboSongLyricsTab: React.FC = () => {
           )}
         </div>
       </div>
+      <AmboSlideTemplateGallery
+        open={galleryOpen}
+        onClose={() => setGalleryOpen(false)}
+        initialCategory="Lyrics"
+        initialTemplateId={`lyrics-${program.styleId}`}
+        onSelectLyricStyle={styleId => setLyricsProgram({ styleId })}
+        onInsert={onInsertSlide}
+        activeShowTitle={activeShowTitle}
+      />
     </div>
   );
 };
