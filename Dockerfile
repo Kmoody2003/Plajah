@@ -1,4 +1,7 @@
-FROM node:20-alpine
+# Node 24 — matches local dev and the CI deploy job. @atproto/oauth-client-node pulls in undici 8,
+# which needs Node >= 22.19; on node:20 the server crashed at boot (markAsUncloneable is not a
+# function) and Cloud Run reported "failed to start and listen on PORT" (2026-10-15, 2026-10-17).
+FROM node:24-alpine
 
 # ffmpeg — generates cover+audio MP4s for social link previews so music plays inline on
 # Facebook/Instagram (which only autoplay direct video/mp4, not HTML/audio players).
