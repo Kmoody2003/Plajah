@@ -331,6 +331,7 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
   const [turnNote, setTurnNote] = useState('A soft curl, like paper in your hand.');
   const [turnAnimKey, setTurnAnimKey] = useState(0);
   const [showFullGrid, setShowFullGrid] = useState(true);
+  const [failedCovers, setFailedCovers] = useState<Record<string, boolean>>({});
 
   const car1Ref = useRef<HTMLDivElement>(null);
   const car2Ref = useRef<HTMLDivElement>(null);
@@ -463,6 +464,44 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
       <small>{n + 1}</small>
     </div>
   );
+
+  // Only render big title/author text inside the thumbnail when there is NO cover art loading in the thumbnail
+  const renderCoverBox = (
+    id: string,
+    title: string,
+    authorText: string,
+    coverImage: string | undefined | null,
+    badge: string,
+    hue: number,
+    priority = false
+  ) => {
+    const hasCover = Boolean(coverImage && !failedCovers[id]);
+    return (
+      <div className="cover" style={{ '--h': hue } as React.CSSProperties}>
+        {hasCover ? (
+          <LazyImage
+            src={coverImage!}
+            alt={title}
+            className="absolute inset-0 w-full h-full object-cover"
+            priority={priority}
+            referrerPolicy="no-referrer"
+            onLoad={(e) => {
+              if (e.currentTarget.naturalWidth <= 2 || e.currentTarget.naturalHeight <= 2) {
+                setFailedCovers(prev => (prev[id] ? prev : { ...prev, [id]: true }));
+              }
+            }}
+            onError={() => setFailedCovers(prev => (prev[id] ? prev : { ...prev, [id]: true }))}
+          />
+        ) : (
+          <>
+            <b>{title}</b>
+            <i>{authorText}</i>
+          </>
+        )}
+        <em>{badge}</em>
+      </div>
+    );
+  };
 
   const spreadStart = comicPage - (comicPage % 2);
   const currentMuseum = MUSEUM_LANES[museumLane];
@@ -952,20 +991,15 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
                       className="bookc"
                       style={{ width: '100%' }}
                     >
-                      <div className="cover" style={{ '--h': (idx * 37 + 150) % 360 } as React.CSSProperties}>
-                        {book.coverImage && (
-                          <LazyImage
-                            src={book.coverImage}
-                            alt={book.title}
-                            className="absolute inset-0 w-full h-full object-cover opacity-90"
-                            priority={idx < 10}
-                            referrerPolicy="no-referrer"
-                          />
-                        )}
-                        <em>Public Domain</em>
-                        <b>{book.title}</b>
-                        <i>{book.authors.join(', ')}</i>
-                      </div>
+                      {renderCoverBox(
+                        book.id,
+                        book.title,
+                        book.authors.join(', '),
+                        book.coverImage,
+                        'Public Domain',
+                        (idx * 37 + 150) % 360,
+                        idx < 10
+                      )}
                       <h4>{book.title}</h4>
                       <p>{book.authors.join(', ')}</p>
                     </div>
@@ -986,13 +1020,14 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
                           background: `linear-gradient(160deg,hsl(${(idx * 37 + 150) % 360} 60% 38%),hsl(${((idx * 37 + 190) % 360)} 55% 14%))`,
                         }}
                       >
-                        {book.coverImage && (
+                        {book.coverImage && !failedCovers[book.id] && (
                           <LazyImage
                             src={book.coverImage}
                             alt={book.title}
                             className="w-full h-full object-cover"
                             priority={idx < 8}
                             referrerPolicy="no-referrer"
+                            onError={() => setFailedCovers(prev => (prev[book.id] ? prev : { ...prev, [book.id]: true }))}
                           />
                         )}
                       </div>
@@ -1036,20 +1071,15 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
                       className="bookc"
                       style={{ width: '100%' }}
                     >
-                      <div className="cover" style={{ '--h': (idx * 47 + 200) % 360 } as React.CSSProperties}>
-                        {book.coverImage && (
-                          <LazyImage
-                            src={book.coverImage}
-                            alt={book.title}
-                            className="absolute inset-0 w-full h-full object-cover opacity-90"
-                            priority={idx < 10}
-                            referrerPolicy="no-referrer"
-                          />
-                        )}
-                        <em>{book.price ? `$${book.price.toFixed(2)}` : 'FREE'}</em>
-                        <b>{book.title}</b>
-                        <i>{book.artist}</i>
-                      </div>
+                      {renderCoverBox(
+                        book.id,
+                        book.title,
+                        book.artist || 'Author',
+                        book.coverImage,
+                        book.price ? `$${book.price.toFixed(2)}` : 'FREE',
+                        (idx * 47 + 200) % 360,
+                        idx < 10
+                      )}
                       <h4>{book.title}</h4>
                       <p>{book.artist}</p>
                     </div>
@@ -1071,20 +1101,15 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
                       className="bookc"
                       style={{ width: '100%' }}
                     >
-                      <div className="cover" style={{ '--h': (idx * 41 + 215) % 360 } as React.CSSProperties}>
-                        {gBook.coverImage && (
-                          <LazyImage
-                            src={gBook.coverImage}
-                            alt={gBook.title}
-                            className="absolute inset-0 w-full h-full object-cover opacity-90"
-                            priority={idx < 10}
-                            referrerPolicy="no-referrer"
-                          />
-                        )}
-                        <em>{gBook.price ? `$${gBook.price.toFixed(2)}` : 'Preview'}</em>
-                        <b>{gBook.title}</b>
-                        <i>{authors}</i>
-                      </div>
+                      {renderCoverBox(
+                        gBook.id,
+                        gBook.title,
+                        authors,
+                        gBook.coverImage,
+                        gBook.price ? `$${gBook.price.toFixed(2)}` : 'Preview',
+                        (idx * 41 + 215) % 360,
+                        idx < 10
+                      )}
                       <h4>{gBook.title}</h4>
                       <p>{authors}</p>
                     </div>
@@ -1309,20 +1334,15 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
                         onClick={() => handleBookSelect(book)}
                         {...bookMenu.bind(book)}
                       >
-                        <div className="cover" style={{ '--h': hue } as React.CSSProperties}>
-                          {book.coverImage && (
-                            <LazyImage
-                              src={book.coverImage}
-                              alt={book.title}
-                              className="absolute inset-0 w-full h-full object-cover opacity-85"
-                              priority={idx < 6}
-                              referrerPolicy="no-referrer"
-                            />
-                          )}
-                          <em>Public Domain</em>
-                          <b>{book.title}</b>
-                          <i>{book.authors.join(', ')}</i>
-                        </div>
+                        {renderCoverBox(
+                          book.id,
+                          book.title,
+                          book.authors.join(', '),
+                          book.coverImage,
+                          'Public Domain',
+                          hue,
+                          idx < 6
+                        )}
                         <h4>{book.title}</h4>
                         <p>{book.authors.join(', ')}</p>
                       </div>
@@ -1344,20 +1364,15 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
                         tabIndex={0}
                         onClick={() => onSelectBook(book)}
                       >
-                        <div className="cover" style={{ '--h': hue } as React.CSSProperties}>
-                          {book.coverImage && (
-                            <LazyImage
-                              src={book.coverImage}
-                              alt={book.title}
-                              className="absolute inset-0 w-full h-full object-cover opacity-85"
-                              priority={idx < 6}
-                              referrerPolicy="no-referrer"
-                            />
-                          )}
-                          <em>{book.price ? `$${book.price.toFixed(2)}` : 'Original'}</em>
-                          <b>{book.title}</b>
-                          <i>{book.artist}</i>
-                        </div>
+                        {renderCoverBox(
+                          book.id,
+                          book.title,
+                          book.artist || 'Author',
+                          book.coverImage,
+                          book.price ? `$${book.price.toFixed(2)}` : 'Original',
+                          hue,
+                          idx < 6
+                        )}
                         <h4>{book.title}</h4>
                         <p>{book.artist}</p>
                       </div>
@@ -1385,20 +1400,15 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
                         }
                       }}
                     >
-                      <div className="cover" style={{ '--h': hue } as React.CSSProperties}>
-                        {gBook.coverImage && (
-                          <LazyImage
-                            src={gBook.coverImage}
-                            alt={gBook.title}
-                            className="absolute inset-0 w-full h-full object-cover opacity-85"
-                            priority={idx < 6}
-                            referrerPolicy="no-referrer"
-                          />
-                        )}
-                        <em>{gBook.price ? `$${gBook.price.toFixed(2)}` : 'Preview'}</em>
-                        <b>{gBook.title}</b>
-                        <i>{authors}</i>
-                      </div>
+                      {renderCoverBox(
+                        gBook.id,
+                        gBook.title,
+                        authors,
+                        gBook.coverImage,
+                        gBook.price ? `$${gBook.price.toFixed(2)}` : 'Preview',
+                        hue,
+                        idx < 6
+                      )}
                       <h4>{gBook.title}</h4>
                       <p>{authors}</p>
                     </div>
@@ -1449,11 +1459,7 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
                   tabIndex={0}
                   onClick={() => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'KIDS_LIBRARY' } }))}
                 >
-                  <div className="cover" style={{ '--h': lb.hue } as React.CSSProperties}>
-                    <em>Living</em>
-                    <b>{lb.title}</b>
-                    <i>{lb.subtitle}</i>
-                  </div>
+                  {renderCoverBox(lb.title, lb.title, lb.subtitle, undefined, 'Living', lb.hue)}
                   <h4>{lb.title}</h4>
                   <p>{lb.subtitle}</p>
                 </div>
@@ -1481,20 +1487,15 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
                       className="bookc"
                       style={{ width: '100%' }}
                     >
-                      <div className="cover" style={{ '--h': (idx * 37 + 150) % 360 } as React.CSSProperties}>
-                        {book.coverImage && (
-                          <LazyImage
-                            src={book.coverImage}
-                            alt={book.title}
-                            className="absolute inset-0 w-full h-full object-cover opacity-90"
-                            priority={idx < 8}
-                            referrerPolicy="no-referrer"
-                          />
-                        )}
-                        <em>Public Domain</em>
-                        <b>{book.title}</b>
-                        <i>{book.authors.join(', ')}</i>
-                      </div>
+                      {renderCoverBox(
+                        book.id,
+                        book.title,
+                        book.authors.join(', '),
+                        book.coverImage,
+                        'Public Domain',
+                        (idx * 37 + 150) % 360,
+                        idx < 8
+                      )}
                       <h4>{book.title}</h4>
                       <p>{book.authors.join(', ')}</p>
                     </motion.div>
@@ -1515,20 +1516,15 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
                       className="bookc"
                       style={{ width: '100%' }}
                     >
-                      <div className="cover" style={{ '--h': (idx * 47 + 200) % 360 } as React.CSSProperties}>
-                        {book.coverImage && (
-                          <LazyImage
-                            src={book.coverImage}
-                            alt={book.title}
-                            className="absolute inset-0 w-full h-full object-cover opacity-90"
-                            priority={idx < 8}
-                            referrerPolicy="no-referrer"
-                          />
-                        )}
-                        <em>{book.price ? `$${book.price.toFixed(2)}` : 'FREE'}</em>
-                        <b>{book.title}</b>
-                        <i>{book.artist}</i>
-                      </div>
+                      {renderCoverBox(
+                        book.id,
+                        book.title,
+                        book.artist || 'Author',
+                        book.coverImage,
+                        book.price ? `$${book.price.toFixed(2)}` : 'FREE',
+                        (idx * 47 + 200) % 360,
+                        idx < 8
+                      )}
                       <h4>{book.title}</h4>
                       <p onClick={(e) => {
                         e.stopPropagation();
@@ -1557,20 +1553,15 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
                       className="bookc"
                       style={{ width: '100%' }}
                     >
-                      <div className="cover" style={{ '--h': (idx * 41 + 215) % 360 } as React.CSSProperties}>
-                        {googleBook.coverImage && (
-                          <LazyImage
-                            src={googleBook.coverImage}
-                            alt={googleBook.title}
-                            className="absolute inset-0 w-full h-full object-cover opacity-90"
-                            priority={idx < 8}
-                            referrerPolicy="no-referrer"
-                          />
-                        )}
-                        <em>{googleBook.price ? `$${googleBook.price.toFixed(2)}` : 'Preview'}</em>
-                        <b>{googleBook.title}</b>
-                        <i>{googleBook.authors.join(', ')}</i>
-                      </div>
+                      {renderCoverBox(
+                        googleBook.id,
+                        googleBook.title,
+                        googleBook.authors.join(', '),
+                        googleBook.coverImage,
+                        googleBook.price ? `$${googleBook.price.toFixed(2)}` : 'Preview',
+                        (idx * 41 + 215) % 360,
+                        idx < 8
+                      )}
                       <h4>{googleBook.title}</h4>
                       <p>{googleBook.authors.join(', ')}</p>
                     </motion.div>
