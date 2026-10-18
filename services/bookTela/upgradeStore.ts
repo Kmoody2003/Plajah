@@ -92,11 +92,20 @@ export async function disableBookTela(albumId: string): Promise<void> {
 
 // ── reader side ──────────────────────────────────────────────────────────────
 
+const _memBundles = new Map<string, BookTelaBundle>();
+
+/** Register a prebuilt bundle in memory so loadReaderBundle resolves immediately without waiting on network or IndexedDB. */
+export function registerMemoryBundle(albumId: string, versionId: string, bundle: BookTelaBundle): void {
+  _memBundles.set(`${albumId}:${versionId}`, bundle);
+}
+
 async function cacheBundle(albumId: string, versionId: string, json: string) { await kv('bundles', 'readwrite', s => s.put({ key: `${albumId}:${versionId}`, albumId, versionId, json, at: Date.now() })); }
 
-/** Load one immutable bundle (network, then IndexedDB). Returns null when unavailable: caller falls back to the classic reader. */
+/** Load one immutable bundle (memory, IndexedDB, then network). Returns null when unavailable: caller falls back to the classic reader. */
 export async function loadReaderBundle(albumId: string, versionId: string): Promise<BookTelaBundle | null> {
   const key = `${albumId}:${versionId}`;
+  const mem = _memBundles.get(key);
+  if (mem) return mem;
   const cached = await kv<{ json: string }>('bundles', 'readonly', s => s.get(key));
   if (cached?.json) { try { return JSON.parse(cached.json) as BookTelaBundle; } catch { /* refetch */ } }
   try {

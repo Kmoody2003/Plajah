@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Book, Album, BookChapter } from '../types';
 import PageHeader from './PageHeader';
 import {
@@ -20,7 +20,7 @@ import { CLASSIC_BOOKS } from '../data/classicBooks';
 import {
   BookOpen, Search, Filter, Star, Clock, ChevronLeft, ChevronRight, Bookmark, Download,
   Loader2, Library as LibraryIcon, ShoppingCart, User as UserIcon, Globe, Play, Pause,
-  Sparkles, AudioLines, Music2, Landmark, Baby, Users
+  Sparkles, AudioLines, Music2, Landmark, Baby, Users, ArrowUpRight
 } from 'lucide-react';
 import { useContextMenu } from './ui/ContextMenu';
 import PlajahPlusBanner from './PlajahPlusBanner';
@@ -29,6 +29,15 @@ import { warmImages } from '../src/lib/performanceCache';
 import ChipRail from './ui/ChipRail';
 import { WritersDesk } from './lorea/WritersDesk';
 import LazyImage from './LazyImage';
+import { goldenThread } from '../data/showcase/books/goldenThread';
+import goldenThreadLiving from '../data/showcase/living/golden-thread';
+import { SHOWCASE_BOOKS, showcaseById } from '../data/showcase';
+import { buildShowcaseTelaDoc, loadShowcaseTelaDoc, makeShowcaseBundle, showcaseAlbumId } from '../services/showcase/livingDoc';
+import { registerMemoryBundle } from '../services/bookTela/upgradeStore';
+import TelaLivePage, { type TelaLivePageHandle } from './living/TelaLivePage';
+import { frameObjects, frameSize, livingPageFor } from '../services/living/runtime/objects';
+import { loadBookAudio } from '../services/living/runtime/audioProvider';
+import type { BookAudioApi } from '../services/living/contracts';
 
 interface BookTabProps {
   onSelectBook: (book: any) => void;
@@ -318,11 +327,13 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
     { id: 'cite', label: 'Copy citation', onSelect: (b) => { try { navigator.clipboard.writeText(`${b.title} — ${b.authors.join(', ')}`); } catch { /* clipboard blocked */ } } },
   ]);
 
-  // Lorea Landing interactive state (ported from Claude Lorea Landing design)
+  // Lorea Landing interactive state — Hero right-hand book uses the real "The Golden Thread" living picture book
   const [loreaTheme, setLoreaTheme] = useState<'plajah' | 'dark' | 'pastel'>('plajah');
+  const [goldenSpreadIdx, setGoldenSpreadIdx] = useState<number>(2); // Start on Spread 3 ("One night, the thread gave a tug. Tug, tug, tug...")
   const [bookFlipped, setBookFlipped] = useState(false);
   const [isPlayingReadAloud, setIsPlayingReadAloud] = useState(false);
   const [hotWordIdx, setHotWordIdx] = useState<number>(5);
+  const [goldenAudio, setGoldenAudio] = useState<BookAudioApi | null>(null);
   const [comicMode, setComicMode] = useState<'page' | 'spread' | 'webtoon'>('page');
   const [comicRtl, setComicRtl] = useState(false);
   const [comicPage, setComicPage] = useState(0);
@@ -340,6 +351,156 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
   const comicFileInputRef = useRef<HTMLInputElement>(null);
   const catalogSearchRef = useRef<HTMLInputElement>(null);
   const loreaRootRef = useRef<HTMLDivElement>(null);
+  const heroLiveRef = useRef<TelaLivePageHandle>(null);
+
+  // Build the real Tela document for The Golden Thread once
+  const goldenThreadDoc = useMemo(() => buildShowcaseTelaDoc('golden-thread', goldenThreadLiving), []);
+
+  const ensureGoldenAudio = useCallback(async () => {
+    if (goldenAudio) {
+      void goldenAudio.unlock();
+      return goldenAudio;
+    }
+    const a = await loadBookAudio(goldenThreadLiving.scores);
+    if (a) {
+      a.setGains({ music: goldenThreadLiving.defaults?.musicGain ?? 0.55, sfx: goldenThreadLiving.defaults?.sfxGain ?? 0.8 });
+      void a.unlock();
+      setGoldenAudio(a);
+    }
+    return a;
+  }, [goldenAudio]);
+
+  useEffect(() => {
+    return () => {
+      goldenAudio?.stopAll();
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        try { window.speechSynthesis.cancel(); } catch { /* ignore */ }
+      }
+    };
+  }, [goldenAudio]);
+
+  const currentGoldenSpread = goldenThread.spreads[goldenSpreadIdx] || goldenThread.spreads[0];
+  const nextGoldenSpreadIdx = (goldenSpreadIdx + 1) % goldenThread.spreads.length;
+  const nextGoldenSpread = goldenThread.spreads[nextGoldenSpreadIdx] || goldenThread.spreads[0];
+
+  const goldenWords = useMemo(
+    () => currentGoldenSpread.text.replace(/\n+/g, ' ').split(/\s+/).filter(Boolean),
+    [currentGoldenSpread.text]
+  );
+
+  // Strip only the duplicate overlay text plaque on the right-hand Hero illustration page so the left page shows the large read-aloud words and the right page shows the unobstructed interactive art
+  const filterHeroArtObjects = useCallback((spreadIndex: number) => {
+    const frame = goldenThreadDoc.frames[spreadIndex];
+    if (!frame) return { objects: [], width: 1024, height: 768 };
+    const raw = frameObjects(goldenThreadDoc, frame);
+    const size = frameSize(goldenThreadDoc, frame);
+    // Keep cover (0) and activity (12) text intact; on story spreads hide the redundant scroll box since the story text is on the left page
+    if (spreadIndex === 0 || spreadIndex === 12) {
+      return { objects: raw, width: size.width, height: size.height };
+    }
+    const OVERLAY_LABELS = new Set([
+      'Text scroll', 'Text arch', 'Arch inner line', 'Ribbon', 'Ribbon tail', 'Ribbon mark', 'Stitch line', 'Quiet frame',
+    ]);
+    const filtered = raw.map(o => {
+      const lbl = o.objectLabel || '';
+      if (OVERLAY_LABELS.has(lbl)) return { ...o, hidden: true };
+      if (o.kind === 'TEXT' && lbl !== 'Story text on the thread' && o.templateRole !== 'LABEL') {
+        return { ...o, hidden: true };
+      }
+      return o;
+    });
+    return { objects: filtered, width: size.width, height: size.height };
+  }, [goldenThreadDoc]);
+
+  const currentHeroArt = useMemo(() => filterHeroArtObjects(goldenSpreadIdx), [filterHeroArtObjects, goldenSpreadIdx]);
+  const nextHeroArt = useMemo(() => filterHeroArtObjects(nextGoldenSpreadIdx), [filterHeroArtObjects, nextGoldenSpreadIdx]);
+  const currentLivingPage = useMemo(() => livingPageFor(goldenThreadDoc.living, goldenSpreadIdx + 1)!, [goldenThreadDoc, goldenSpreadIdx]);
+  const nextLivingPage = useMemo(() => livingPageFor(goldenThreadDoc.living, nextGoldenSpreadIdx + 1)!, [goldenThreadDoc, nextGoldenSpreadIdx]);
+
+  const currentLivingHint = useMemo(() => {
+    const firstHint = currentLivingPage?.behaviors?.find(b => b.hint)?.hint;
+    return firstHint || currentLivingPage?.a11y?.instructions || 'Words light up as they are spoken · Touch the page to interact.';
+  }, [currentLivingPage]);
+
+  const turnGoldenSpread = useCallback((dir: 1 | -1 = 1) => {
+    void ensureGoldenAudio();
+    setIsPlayingReadAloud(false);
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      try { window.speechSynthesis.cancel(); } catch { /* ignore */ }
+    }
+    setBookFlipped(true);
+    window.setTimeout(() => {
+      setGoldenSpreadIdx(prev => (prev + dir + goldenThread.spreads.length) % goldenThread.spreads.length);
+      setHotWordIdx(0);
+      setBookFlipped(false);
+    }, 520);
+  }, [ensureGoldenAudio]);
+
+  // Launch any Showcase Living Picture Book (defaults to The Golden Thread) in the full Lorea BookReader
+  const openShowcaseLivingBook = useCallback(async (bookId = 'golden-thread') => {
+    setIsPlayingReadAloud(false);
+    goldenAudio?.stopAll();
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      try { window.speechSynthesis.cancel(); } catch { /* ignore */ }
+    }
+    const bookMeta = showcaseById(bookId) || goldenThread;
+    const tdoc = bookMeta.id === 'golden-thread' ? goldenThreadDoc : await loadShowcaseTelaDoc(bookMeta.id);
+    const albumId = showcaseAlbumId(bookMeta.id);
+    const versionId = 'living-showcase-v1';
+    const bundle = makeShowcaseBundle(tdoc, versionId, Date.now(), 'Living Edition', { albumId });
+    registerMemoryBundle(albumId, versionId, bundle);
+
+    const existing = marketplaceBooks.find(b => b.id === albumId);
+    const livingAlbum: Album = {
+      ...(existing || {}),
+      id: albumId,
+      title: bookMeta.title,
+      artist: bookMeta.author,
+      coverImage: existing?.coverImage || '',
+      type: 'BOOK',
+      subType: 'GRAPHIC_NOVEL',
+      genre: "Children's Picture Books",
+      description: bookMeta.blurb,
+      ownerId: existing?.ownerId || 'system',
+      createdAt: existing?.createdAt || Date.now(),
+      themeColor: '#d40055',
+      tracks: [],
+      bookChapters: [
+        {
+          id: 'story',
+          title: bookMeta.title,
+          format: 'COMIC',
+          pages:
+            existing?.bookChapters?.[0]?.pages?.length === tdoc.frames.length
+              ? existing.bookChapters[0].pages
+              : bookMeta.spreads.map(s => ({ id: `page-${s.n}`, url: '', pageNumber: s.n })),
+        },
+      ],
+      bookTela: {
+        enabled: true,
+        docId: tdoc.id,
+        versionId,
+        upgradedAt: Date.now(),
+        versions: [{ versionId, createdAt: 1 }],
+        edition: 'living',
+        hasLiving: true,
+      },
+      showcase: {
+        bookId: bookMeta.id,
+        templateId: bookMeta.templateId,
+        ageMin: bookMeta.ageMin,
+        ageMax: bookMeta.ageMax,
+        band: bookMeta.band,
+        medium: bookMeta.medium,
+        theme: bookMeta.theme,
+        refrain: bookMeta.refrain ?? '',
+        author: bookMeta.author,
+      },
+      skipOpeningScene: true,
+    } as any;
+
+    onSelectBook(livingAlbum);
+  }, [goldenAudio, goldenThreadDoc, marketplaceBooks, onSelectBook]);
 
   const openCatalogView = (targetTab?: 'CLASSICS' | 'MARKETPLACE' | 'GLOBAL', focusSearch = true) => {
     if (targetTab) setActiveTab(targetTab);
@@ -350,16 +511,13 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
     }, 60);
   };
 
-  const HERO_WORDS = ['Once', 'there', 'was', 'a', 'fox', 'who', 'collected', 'the', 'sounds', 'of', 'the', 'moon.'];
   const COMIC_LINES = ['Chapter one', 'Who goes there?', 'The city never sleeps.', 'Meanwhile...', 'It begins.', 'To be continued'];
-  const LIVING_BOOKS: Array<{ title: string; subtitle: string; hue: number }> = [
-    { title: 'The Fox and the Moon', subtitle: 'Living picture book', hue: 25 },
-    { title: 'Little Cloud', subtitle: 'Living picture book', hue: 200 },
-    { title: 'Night Garden', subtitle: 'Living picture book', hue: 280 },
-    { title: 'The Sleepy Whale', subtitle: 'Living picture book', hue: 190 },
-    { title: 'Pip Learns to Fly', subtitle: 'Living picture book', hue: 150 },
-    { title: 'Bear and the Stars', subtitle: 'Living picture book', hue: 250 },
-  ];
+  const LIVING_BOOKS: Array<{ id: string; title: string; subtitle: string; hue: number }> = SHOWCASE_BOOKS.map((sb, i) => ({
+    id: sb.id,
+    title: sb.title,
+    subtitle: `${sb.medium} · Ages ${sb.ageMin}–${sb.ageMax}`,
+    hue: [38, 200, 280, 145, 195, 345][i % 6],
+  }));
   const MUSEUM_LANES: Record<'comics' | 'manga' | 'library', { k: string; t: string; items: Array<[string, string]> }> = {
     comics: {
       k: 'Internet Archive',
@@ -407,22 +565,64 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
     ['Go Nagai', '1967-'],
   ];
 
+  // Real Read-Aloud word highlighter + Web Speech synthesis for The Golden Thread
   useEffect(() => {
-    if (!isPlayingReadAloud) return;
+    if (!isPlayingReadAloud) {
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        try { window.speechSynthesis.cancel(); } catch { /* ignore */ }
+      }
+      return;
+    }
+    void ensureGoldenAudio();
     let idx = 0;
     setHotWordIdx(0);
+    const totalWords = Math.max(1, goldenWords.length);
+
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      try {
+        window.speechSynthesis.cancel();
+        const utter = new SpeechSynthesisUtterance(goldenWords.join(' '));
+        utter.rate = 0.92;
+        utter.pitch = 1.04;
+        utter.onboundary = (ev) => {
+          if (ev.name === 'word' && typeof ev.charIndex === 'number') {
+            let acc = 0;
+            for (let i = 0; i < goldenWords.length; i++) {
+              if (acc + goldenWords[i].length >= ev.charIndex) {
+                idx = i;
+                setHotWordIdx(i);
+                break;
+              }
+              acc += goldenWords[i].length + 1;
+            }
+          }
+        };
+        utter.onend = () => {
+          setIsPlayingReadAloud(false);
+        };
+        window.speechSynthesis.speak(utter);
+      } catch {
+        // Fallback to timer below
+      }
+    }
+
     const timer = window.setInterval(() => {
       idx += 1;
-      if (idx >= HERO_WORDS.length) {
+      if (idx >= totalWords) {
         window.clearInterval(timer);
         setIsPlayingReadAloud(false);
-        setHotWordIdx(5);
+        setHotWordIdx(0);
         return;
       }
       setHotWordIdx(idx);
-    }, 380);
-    return () => window.clearInterval(timer);
-  }, [isPlayingReadAloud]);
+    }, 360);
+    return () => {
+      window.clearInterval(timer);
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        try { window.speechSynthesis.cancel(); } catch { /* ignore */ }
+      }
+    };
+  }, [isPlayingReadAloud, goldenWords, ensureGoldenAudio]);
 
   const scrollCarousel = (ref: React.RefObject<HTMLDivElement | null>, dir: -1 | 1) => {
     const el = ref.current;
@@ -1120,7 +1320,7 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
           </section>
         ) : (
         <>
-        {/* Hero Section: 3D Turning Book + Living Picture Book + Read-Aloud Highlighter */}
+        {/* Hero Section: 3D Turning Book + Real "The Golden Thread" Living Picture Book + Read-Aloud Highlighter */}
         <header className="hero">
           <div>
             <div className="eyebrow">Plajah &middot; Lorea &middot; Books</div>
@@ -1145,7 +1345,13 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
               >
                 Publish a book
               </button>
-              <span className="hand">start with the fox &#8599;</span>
+              <button
+                type="button"
+                onClick={() => openShowcaseLivingBook('golden-thread')}
+                className="hand bg-transparent border-0 p-0 cursor-pointer hover:underline"
+              >
+                experience The Golden Thread &#8599;
+              </button>
             </div>
           </div>
 
@@ -1153,43 +1359,149 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
             <div className="bookbox">
               <div className={`bk ${bookFlipped ? 'flip' : ''}`}>
                 <div className="base">
-                  <div className="pg l">
-                    <div className="t">
-                      {HERO_WORDS.map((word, idx) => (
+                  {/* Left Page: Real Story Text from The Golden Thread with Word-by-Word Read-Aloud Highlighting */}
+                  <div className="pg l" style={{ padding: '6% 7%', gap: '8px' }}>
+                    <div className="flex items-center justify-between gap-2" style={{ font: '700 9px var(--f-mono)', letterSpacing: '.16em', textTransform: 'uppercase', color: '#7a203b' }}>
+                      <span>The Golden Thread</span>
+                      <span style={{ opacity: 0.7 }}>{currentGoldenSpread.beat.toUpperCase()}</span>
+                    </div>
+                    <div
+                      className="t"
+                      style={{
+                        font: '600 clamp(12px,1.35vw,16.5px)/1.48 var(--f-display)',
+                        overflowY: 'auto',
+                        maxHeight: '100%',
+                        paddingRight: '4px',
+                        scrollbarWidth: 'thin',
+                      }}
+                    >
+                      {goldenWords.map((word, idx) => (
                         <React.Fragment key={idx}>
-                          <span className={`w ${hotWordIdx === idx ? 'hot' : ''}`}>{word}</span>{' '}
+                          <span
+                            className={`w ${hotWordIdx === idx ? 'hot' : ''}`}
+                            onClick={() => setHotWordIdx(idx)}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            {word}
+                          </span>{' '}
                         </React.Fragment>
                       ))}
                     </div>
-                    <div className="n">PAGE 14</div>
+                    <div className="flex flex-col gap-1.5 pt-1 border-t border-black/10">
+                      <div
+                        style={{
+                          font: '600 10px/1.3 var(--f-body)',
+                          color: '#7a203b',
+                          display: '-webkit-box',
+                          WebkitLineClamp: 1,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden',
+                        }}
+                      >
+                        &#10024; {currentLivingHint}
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="n">
+                          PAGE {currentGoldenSpread.n} OF {goldenThread.spreads.length}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => openShowcaseLivingBook('golden-thread')}
+                          style={{
+                            font: '800 9px var(--f-display)',
+                            letterSpacing: '.14em',
+                            textTransform: 'uppercase',
+                            color: '#d40055',
+                            background: 'rgba(212,0,85,.1)',
+                            border: '1px solid rgba(212,0,85,.3)',
+                            borderRadius: '99px',
+                            padding: '3px 9px',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                          }}
+                        >
+                          Full Book <ArrowUpRight size={11} />
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                  <div className="pg r">
-                    <div className="scene night" aria-hidden="true">
-                      <div className="moon" />
-                      <i className="star" style={{ left: '12%', top: '14%' }} />
-                      <i className="star" style={{ left: '30%', top: '28%', animationDelay: '.8s' }} />
-                      <i className="star" style={{ left: '58%', top: '10%', animationDelay: '1.4s' }} />
-                      <i className="star" style={{ left: '78%', top: '34%', animationDelay: '.3s' }} />
-                      <div className="hill" />
-                      <div className="hill b" />
-                      <div className="fox" />
+
+                  {/* Right Page: Real Interactive TelaLivePage Artwork of The Golden Thread */}
+                  <div
+                    className="pg r"
+                    style={{ padding: 0, overflow: 'hidden', background: '#33091B' }}
+                    onPointerDown={() => void ensureGoldenAudio()}
+                  >
+                    <div className="scene" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#33091B' }}>
+                      <TelaLivePage
+                        key={`hero-gt-${goldenSpreadIdx}`}
+                        ref={heroLiveRef}
+                        objects={currentHeroArt.objects}
+                        width={currentHeroArt.width}
+                        height={currentHeroArt.height}
+                        living={currentLivingPage}
+                        audio={goldenAudio}
+                        reducedMotion={false}
+                        soundEnabled={true}
+                        active={!bookFlipped}
+                        hints={true}
+                        style={{ width: '100%', height: '100%' }}
+                        onGoto={(p) => {
+                          if (p === 'next') turnGoldenSpread(1);
+                          else if (p === 'prev') turnGoldenSpread(-1);
+                          else if (typeof p === 'number') setGoldenSpreadIdx(Math.max(0, Math.min(goldenThread.spreads.length - 1, p - 1)));
+                        }}
+                      />
                     </div>
                   </div>
                 </div>
-                <div className="leaf front">
-                  <div className="scene day" aria-hidden="true">
-                    <div className="sun" />
-                    <div className="hill" />
-                    <div className="hill b" />
-                    <div className="fox" />
+
+                {/* 3D Turning Page Leaf (animates across the spine when Turn Page is clicked) */}
+                <div
+                  className="leaf front"
+                  style={{
+                    pointerEvents: bookFlipped ? 'auto' : 'none',
+                    opacity: bookFlipped ? 1 : 0,
+                    background: '#33091B',
+                  }}
+                >
+                  <div className="scene" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#33091B' }}>
+                    {bookFlipped && (
+                      <TelaLivePage
+                        key={`leaf-gt-${nextGoldenSpreadIdx}`}
+                        objects={nextHeroArt.objects}
+                        width={nextHeroArt.width}
+                        height={nextHeroArt.height}
+                        living={nextLivingPage}
+                        audio={null}
+                        reducedMotion={true}
+                        soundEnabled={false}
+                        active={false}
+                        hints={false}
+                        style={{ width: '100%', height: '100%' }}
+                      />
+                    )}
                   </div>
                 </div>
-                <div className="leaf back">
-                  <div className="t" style={{ font: '600 clamp(13px,1.7vw,20px)/1.5 var(--f-display)' }}>
-                    Then every sound let go at once, and the whole sky hummed.
+                <div
+                  className="leaf back"
+                  style={{
+                    pointerEvents: bookFlipped ? 'auto' : 'none',
+                  }}
+                >
+                  <div
+                    className="t"
+                    style={{
+                      font: '600 clamp(12px,1.35vw,16.5px)/1.48 var(--f-display)',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {nextGoldenSpread.text}
                   </div>
                   <div className="n" style={{ font: '500 10px var(--f-mono)', opacity: 0.5, letterSpacing: '.14em' }}>
-                    PAGE 15
+                    PAGE {nextGoldenSpread.n} OF {goldenThread.spreads.length}
                   </div>
                 </div>
               </div>
@@ -1208,16 +1520,42 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
                 <b /><b /><b /><b /><b /><b />
               </div>
               <div className="cap">
-                <small>Read aloud &middot; Muse voice</small>
-                Words light up as they are spoken.
+                <small>The Golden Thread &middot; Page {currentGoldenSpread.n}/{goldenThread.spreads.length} &middot; Read Aloud</small>
+                {currentLivingHint}
               </div>
-              <button
-                type="button"
-                className="turnbtn"
-                onClick={() => setBookFlipped(f => !f)}
-              >
-                Turn page
-              </button>
+              <div className="flex items-center gap-1.5 flex-none">
+                <button
+                  type="button"
+                  className="turnbtn"
+                  style={{ padding: '10px 11px' }}
+                  aria-label="Previous page"
+                  onClick={() => turnGoldenSpread(-1)}
+                >
+                  &#8249;
+                </button>
+                <button
+                  type="button"
+                  className="turnbtn"
+                  onClick={() => turnGoldenSpread(1)}
+                >
+                  Turn page
+                </button>
+                <button
+                  type="button"
+                  className="turnbtn"
+                  style={{
+                    background: 'var(--acc)',
+                    borderColor: 'var(--acc)',
+                    color: 'var(--accfg)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                  }}
+                  onClick={() => openShowcaseLivingBook('golden-thread')}
+                >
+                  Experience Full Book <ArrowUpRight size={13} />
+                </button>
+              </div>
             </div>
           </div>
         </header>
@@ -1452,21 +1790,31 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
               </div>
             </div>
             <div className="car" ref={car2Ref}>
-              {LIVING_BOOKS.map((lb) => (
-                <div
-                  key={lb.title}
-                  className="bookc"
-                  tabIndex={0}
-                  onClick={() => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'KIDS_LIBRARY' } }))}
-                >
-                  {renderCoverBox(lb.title, lb.title, lb.subtitle, undefined, 'Living', lb.hue)}
-                  <h4>{lb.title}</h4>
-                  <p>{lb.subtitle}</p>
-                </div>
-              ))}
+              {LIVING_BOOKS.map((lb) => {
+                const matchCover = marketplaceBooks.find(b => b.id === `showcase_${lb.id}`)?.coverImage;
+                return (
+                  <div
+                    key={lb.id}
+                    className="bookc"
+                    tabIndex={0}
+                    onClick={() => openShowcaseLivingBook(lb.id)}
+                  >
+                    {renderCoverBox(lb.id, lb.title, lb.subtitle, matchCover, 'Living Book', lb.hue)}
+                    <h4>{lb.title}</h4>
+                    <p>{lb.subtitle}</p>
+                  </div>
+                );
+              })}
             </div>
             <div className="sample">
-              <span>Interactive living picture books &middot; opens Kids&apos; Library &amp; Muse narration</span>
+              <span>Interactive living picture books &middot; click any book to open its live interactive edition</span>
+              <button
+                type="button"
+                className="turnbtn"
+                onClick={() => openShowcaseLivingBook('golden-thread')}
+              >
+                Open The Golden Thread &#8599;
+              </button>
             </div>
           </div>
 
