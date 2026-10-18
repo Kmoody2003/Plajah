@@ -949,83 +949,30 @@ export const UniverseHero3DStage: React.FC<UniverseHero3DStageProps> = ({
         })}
       </div>
 
-      {/* Top HUD Bar: 3 Universe Paradigm Switcher + Blender 5.0.1 Status + Council Render Lens */}
+      {/* Clean Production Top HUD Bar */}
       <div className="relative z-30 flex flex-wrap items-center justify-between gap-3 px-6 pt-5">
-        <div className="flex flex-wrap items-center gap-2 bg-black/75 backdrop-blur-xl border border-white/15 rounded-2xl p-1.5">
+        <div>
           {isWorldDetailCover && onBackToAllWorlds && (
             <button
               type="button"
               onClick={onBackToAllWorlds}
-              className="px-3 py-2 rounded-xl text-xs font-bold bg-white/10 text-white hover:bg-white/20 transition-all flex items-center gap-1.5 mr-1"
+              className="px-4 py-2 rounded-xl text-xs font-bold bg-black/75 backdrop-blur-xl border border-white/15 text-white hover:bg-white/20 transition-all flex items-center gap-1.5"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
               All Worlds
             </button>
           )}
-          {(
-            ['STARGATE_ODYSSEY', 'KINGDOM_CHRONICLES', 'AETHER_ARCHIPELAGO'] as Universe3DCoverId[]
-          ).map((uId, idx) => {
-            const p = UNIVERSE_3D_COVER_PRESETS[uId];
-            const active = uId === activeUniverseId;
-            return (
-              <button
-                key={uId}
-                type="button"
-                onClick={() => onSelectUniverse(uId)}
-                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
-                  active
-                    ? 'bg-gradient-to-r from-cyan-500/35 to-amber-500/30 text-white border border-cyan-400/50 shadow-lg'
-                    : 'text-white/65 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                <span className="text-[10px] font-mono opacity-60">0{idx + 1}</span>
-                <span>{p.shortName}</span>
-              </button>
-            );
-          })}
         </div>
 
-        {/* Council Render Lens Switcher + Council Blueprint Toggle */}
         <div className="flex flex-wrap items-center gap-2">
-          <div className="hidden xl:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-400/30 text-emerald-300 text-[10px] font-mono uppercase tracking-wider">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-            {glbLoaded ? 'Blender 5.0.1 .GLB + Bloom Active' : 'Loading Blender 5.0.1 .GLB...'}
-          </div>
-
-          <div className="flex items-center gap-1 bg-black/75 backdrop-blur-xl border border-white/15 rounded-2xl p-1">
-            {LENS_MODES.map((lens) => (
-              <button
-                key={lens.id}
-                type="button"
-                onClick={() => setRenderLens(lens.id)}
-                className={`px-2.5 py-1.5 rounded-xl text-[11px] font-semibold transition-all ${
-                  renderLens === lens.id
-                    ? 'bg-cyan-500/25 text-cyan-200 border border-cyan-400/40'
-                    : 'text-white/60 hover:text-white'
-                }`}
-                title={`Lead Specialist: ${lens.specialist}`}
-              >
-                {lens.label}
-              </button>
-            ))}
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setShowCouncilDebate((v) => !v)}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/40 text-amber-200 text-xs font-bold backdrop-blur-xl transition-all"
-          >
-            <Gamepad2 className="w-4 h-4" />
-            <span>Council Debate ({GAME_COUNCIL_LIST.length})</span>
-          </button>
-
           <button
             type="button"
             onClick={resetCamera}
-            className="p-2 rounded-2xl bg-black/70 hover:bg-black/90 border border-white/15 text-white/80 hover:text-white backdrop-blur-xl transition-all"
+            className="px-3.5 py-2 rounded-2xl bg-black/70 hover:bg-black/90 border border-white/15 text-white/80 hover:text-white text-xs font-bold backdrop-blur-xl transition-all flex items-center gap-1.5"
             title="Reset 3D Camera Orbit"
           >
-            <RotateCcw className="w-4 h-4" />
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Reset Camera</span>
           </button>
         </div>
       </div>
@@ -1035,7 +982,7 @@ export const UniverseHero3DStage: React.FC<UniverseHero3DStageProps> = ({
         <div className="pointer-events-auto bg-black/75 backdrop-blur-2xl border border-white/15 rounded-2xl p-5 space-y-3 shadow-2xl">
           <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-cyan-300">
             <Sparkles className="w-3.5 h-3.5" />
-            <span>{preset.badge}</span>
+            <span>INTERACTIVE 3D WORLD OVERWORLD</span>
           </div>
           <h2 className="text-2xl lg:text-3xl font-black text-white tracking-tight leading-tight">
             {worldTitle || preset.name}

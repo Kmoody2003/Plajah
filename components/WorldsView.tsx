@@ -675,16 +675,16 @@ export const WorldsView: React.FC<WorldsViewProps> = ({
     }
   };
 
-  // Combine Flagship Showcase Worlds + User/Public Firebase Worlds
+  // Combine User/Public Firebase Worlds first + Flagship Showcase Worlds
   const allDisplayWorlds = useMemo<(ShowcaseWorld | IPWorld)[]>(() => {
     const existingIds = new Set(worlds.map((w) => w.id));
     const showcaseFiltered = SHOWCASE_WORLDS.filter((sw) => !existingIds.has(sw.id));
-    const combined = [...showcaseFiltered, ...worlds];
+    const combined = [...worlds, ...showcaseFiltered];
     if (!searchQuery.trim()) return combined;
     const q = searchQuery.toLowerCase();
     return combined.filter(
       (w) =>
-        w.name.toLowerCase().includes(q) ||
+        (w.name || '').toLowerCase().includes(q) ||
         (w.description || '').toLowerCase().includes(q)
     );
   }, [worlds, searchQuery]);
@@ -692,11 +692,11 @@ export const WorldsView: React.FC<WorldsViewProps> = ({
   const getPresetForWorld = (w: IPWorld | ShowcaseWorld): Universe3DCoverId => {
     if (worldPresetOverrides[w.id]) return worldPresetOverrides[w.id];
     if ('defaultCoverPreset' in w && w.defaultCoverPreset) return w.defaultCoverPreset;
-    const text = `${w.name} ${w.description || ''}`.toLowerCase();
-    if (text.includes('kingdom') || text.includes('crown') || text.includes('throne')) {
+    const text = `${w.name || ''} ${w.description || ''}`.toLowerCase();
+    if (text.includes('kingdom') || text.includes('crown') || text.includes('throne') || text.includes('valdris')) {
       return 'KINGDOM_CHRONICLES';
     }
-    if (text.includes('sky') || text.includes('island') || text.includes('aether')) {
+    if (text.includes('sky') || text.includes('island') || text.includes('aether') || text.includes('sora') || text.includes('celestia')) {
       return 'AETHER_ARCHIPELAGO';
     }
     return 'STARGATE_ODYSSEY';
@@ -738,9 +738,28 @@ export const WorldsView: React.FC<WorldsViewProps> = ({
     }
   }, [characters, focus]);
 
+  const getFallbackShowcaseForWorld = (world: IPWorld | ShowcaseWorld): ShowcaseWorld => {
+    if ('isShowcase' in world && world.isShowcase && Array.isArray(world.featuredCharacters)) {
+      return world;
+    }
+    const preset = getPresetForWorld(world);
+    const base =
+      SHOWCASE_WORLDS.find((sw) => sw.defaultCoverPreset === preset) || SHOWCASE_WORLDS[0];
+    return {
+      ...base,
+      id: world.id,
+      name: world.name || base.name,
+      description: world.description || base.description,
+      bannerUrl: world.bannerUrl || base.bannerUrl,
+      coverImage: (world as any).coverImage || world.bannerUrl || base.coverImage,
+      coverImageUrl: (world as any).coverImageUrl || world.bannerUrl || base.coverImageUrl,
+      themeColor: world.themeColor || base.themeColor,
+    };
+  };
+
   const loadWorldContent = async (world: IPWorld | ShowcaseWorld) => {
     if ('isShowcase' in world && world.isShowcase) {
-      const synth = getShowcaseEntities(world);
+      const synth = getShowcaseEntities(getFallbackShowcaseForWorld(world));
       setCharacters(synth.characters);
       setLore(synth.lore);
       setTimeline(synth.timeline);
@@ -759,14 +778,24 @@ export const WorldsView: React.FC<WorldsViewProps> = ({
         artistUid ? fetchUserVideos(artistUid) : Promise.resolve([]),
         detectDuplicates(world.id).catch(() => []),
       ]);
-      setCharacters(chars);
-      setLore(loreEntries);
-      setTimeline(events);
-      setUserAlbums(albums);
-      setUserVideos(videos);
+      const synth = getShowcaseEntities(getFallbackShowcaseForWorld(world));
+      setCharacters(chars.length > 0 ? chars : synth.characters);
+      setLore(loreEntries.length > 0 ? loreEntries : synth.lore);
+      setTimeline(events.length > 0 ? events : synth.timeline);
+      const matchedAlbums = albums.filter((a) => a.worldId === world.id);
+      const matchedVideos = videos.filter((v) => v.worldId === world.id);
+      setUserAlbums(matchedAlbums.length > 0 ? albums : [...albums, ...synth.albums]);
+      setUserVideos(matchedVideos.length > 0 ? videos : [...videos, ...synth.videos]);
       setDuplicates(dupes);
     } catch (e) {
-      console.error('loadWorldContent failed:', e);
+      console.error('loadWorldContent failed, using fallback entities:', e);
+      const synth = getShowcaseEntities(getFallbackShowcaseForWorld(world));
+      setCharacters(synth.characters);
+      setLore(synth.lore);
+      setTimeline(synth.timeline);
+      setUserAlbums(synth.albums);
+      setUserVideos(synth.videos);
+      setDuplicates([]);
     }
   };
 

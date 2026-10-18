@@ -23,10 +23,10 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import type { World } from '../../types';
+import { SHOWCASE_WORLDS, type ShowcaseWorld } from '../../data/worldsShowcaseData';
 import {
   NEBULA_GALAXY_PHOTOS,
   VEO_OMNI_VIDEO_LOOPS,
-  generateVeoOmniCosmicLoop,
   type NebulaGalaxyPhotoAsset,
   type VeoOmniVideoLoopAsset,
 } from '../../services/video/veoOmniNebulaLoopService';
@@ -748,13 +748,54 @@ const RotatingCosmicNebulaBackdrop: React.FC<{
   );
 };
 
+function buildSynthesizedShowcaseRef(card: ShowcaseWorldCardData, idx: number): ShowcaseWorld {
+  const baseShowcase =
+    SHOWCASE_WORLDS.find((sw) => sw.defaultCoverPreset === card.engineType) ||
+    SHOWCASE_WORLDS[idx % SHOWCASE_WORLDS.length] ||
+    SHOWCASE_WORLDS[0];
+
+  return {
+    ...baseShowcase,
+    id: card.id,
+    name: card.title,
+    tagline: card.tagline || card.subtitle,
+    description: card.synopsis,
+    genre: card.genre,
+    bannerUrl: card.coverImage,
+    coverImage: card.coverImage,
+    coverImageUrl: card.coverImage,
+    themeColor: card.accentColor,
+    defaultCoverPreset: card.engineType,
+    isShowcase: true,
+    entries: [
+      ...card.featuredLocations.map((locName, locIdx) => ({
+        id: `${card.id}-loc-${locIdx}`,
+        category: 'locations' as const,
+        name: locName,
+        description: `Canonical stronghold and primary story sector within ${card.title}. Linked across Fabula, Lorea, Chora, and Taleo.`,
+        tags: [card.genre, 'Canonical Sector', card.activeClubName],
+        imageUrl: card.coverImage,
+        relationships: [],
+        appearances: baseShowcase.entries[0]?.appearances || [],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      })),
+      ...baseShowcase.entries,
+    ],
+  };
+}
+
 export const WorldsLandingPortalView: React.FC<WorldsLandingPortalViewProps> = ({
   worlds,
   isDiscoverMode = true,
   onToggleDiscoverMode,
+  isOwner = false,
+  searchQuery = '',
+  onSearchChange,
   onEnterWorld,
   onCreateWorld,
   onNewWorld,
+  onSeedDemoWorlds,
 }) => {
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
   const [activeNebulaIndex, setActiveNebulaIndex] = useState<number>(1);
@@ -765,34 +806,64 @@ export const WorldsLandingPortalView: React.FC<WorldsLandingPortalViewProps> = (
   const handleCreateWorld = onCreateWorld || onNewWorld;
 
   const showcaseWorlds: ShowcaseWorldCardData[] = useMemo(() => {
-    if (!worlds || worlds.length === 0) return DEFAULT_SHOWCASE_WORLDS;
+    const defaultWithRefs = DEFAULT_SHOWCASE_WORLDS.map((d, idx) => ({
+      ...d,
+      worldRef: d.worldRef || buildSynthesizedShowcaseRef(d, idx),
+    }));
+
+    if (!worlds || worlds.length === 0) return defaultWithRefs;
+
     const mapped: ShowcaseWorldCardData[] = worlds.map((w, idx) => {
-      const template = DEFAULT_SHOWCASE_WORLDS[idx % DEFAULT_SHOWCASE_WORLDS.length];
-      return {
+      const template = defaultWithRefs[idx % defaultWithRefs.length];
+      const engineType: ShowcaseWorldCardData['engineType'] =
+        w.defaultCoverPreset ||
+        (String(w.name || '').toLowerCase().includes('kingdom') ||
+        String(w.name || '').toLowerCase().includes('crown')
+          ? 'KINGDOM_CHRONICLES'
+          : String(w.name || '').toLowerCase().includes('sky') ||
+            String(w.name || '').toLowerCase().includes('sora')
+          ? 'AETHER_ARCHIPELAGO'
+          : template.engineType);
+
+      const card: ShowcaseWorldCardData = {
         ...template,
         id: w.id || template.id,
         title: w.name || w.title || template.title,
         subtitle: w.tagline || w.subtitle || template.subtitle,
         genre: (w.genre || template.genre).toUpperCase(),
-        coverImage: w.coverImage || w.coverUrl || w.bannerUrl || template.coverImage,
-        backdropImage: w.backdropImage || w.bannerUrl || w.coverUrl || template.backdropImage,
+        engineType,
+        coverImage:
+          w.coverImageUrl || w.coverImage || w.coverUrl || w.bannerUrl || template.coverImage,
+        backdropImage:
+          w.backdropImage || w.bannerUrl || w.coverImageUrl || w.coverUrl || template.backdropImage,
         accentColor: w.themeColor || w.accentColor || template.accentColor,
         tagline: w.tagline || template.tagline,
         synopsis: w.description || w.synopsis || template.synopsis,
         canonNodes:
+          w.entries?.length ||
           (w.characters?.length || 0) +
             (w.locations?.length || 0) +
             (w.lore?.length || 0) +
-            (w.timeline?.length || 0) || template.canonNodes,
+            (w.timeline?.length || 0) ||
+          template.canonNodes,
         featuredLocations:
-          w.locations && w.locations.length > 0
+          w.entries && Array.isArray(w.entries)
+            ? w.entries
+                .filter((e: any) => e.category === 'locations')
+                .slice(0, 4)
+                .map((e: any) => e.name)
+            : w.locations && w.locations.length > 0
             ? w.locations.slice(0, 4).map((l: any) => l.name || l)
             : template.featuredLocations,
         worldRef: w,
       };
+      return card;
     });
-    for (let i = mapped.length; i < DEFAULT_SHOWCASE_WORLDS.length; i++) {
-      mapped.push(DEFAULT_SHOWCASE_WORLDS[i]);
+
+    for (let i = mapped.length; i < defaultWithRefs.length; i++) {
+      if (!mapped.some((m) => m.id === defaultWithRefs[i].id)) {
+        mapped.push(defaultWithRefs[i]);
+      }
     }
     return mapped;
   }, [worlds]);
@@ -813,9 +884,22 @@ export const WorldsLandingPortalView: React.FC<WorldsLandingPortalViewProps> = (
   const activePhoto = NEBULA_GALAXY_PHOTOS[activeNebulaIndex] || NEBULA_GALAXY_PHOTOS[0];
   const activeLoop = VEO_OMNI_VIDEO_LOOPS[activeNebulaIndex] || VEO_OMNI_VIDEO_LOOPS[0];
 
-  const enterWorldById = (worldId: string) => {
-    const found = showcaseWorlds.find((w) => w.id === worldId) || activeWorld;
-    onEnterWorld(found.worldRef || found);
+  const enterWorldById = (worldId: string, initialTab: any = 'Overview') => {
+    const idLower = (worldId || '').toLowerCase();
+    const found =
+      showcaseWorlds.find((w) => w.id === worldId) ||
+      showcaseWorlds.find((w) =>
+        idLower.includes('aethelgard') || idLower.includes('nocturne')
+          ? w.engineType === 'STARGATE_ODYSSEY'
+          : idLower.includes('crown') || idLower.includes('ashen')
+          ? w.engineType === 'KINGDOM_CHRONICLES'
+          : idLower.includes('sora') || idLower.includes('celestia')
+          ? w.engineType === 'AETHER_ARCHIPELAGO'
+          : false
+      ) ||
+      activeWorld;
+    const targetRef = found.worldRef || buildSynthesizedShowcaseRef(found, 0);
+    onEnterWorld(targetRef, initialTab);
   };
 
   return (
@@ -839,7 +923,16 @@ export const WorldsLandingPortalView: React.FC<WorldsLandingPortalViewProps> = (
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            {onSearchChange && (
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => onSearchChange(e.target.value)}
+                placeholder="Search worlds, lore, or creators..."
+                className="px-3.5 py-1.5 rounded-full text-xs bg-white/[0.06] border border-white/15 text-white placeholder:text-white/40 focus:outline-none focus:border-sky-400 w-48 sm:w-64"
+              />
+            )}
             {onToggleDiscoverMode && (
               <button
                 onClick={onToggleDiscoverMode}
@@ -847,6 +940,14 @@ export const WorldsLandingPortalView: React.FC<WorldsLandingPortalViewProps> = (
               >
                 <Compass className="w-3.5 h-3.5 text-sky-300" />
                 {isDiscoverMode ? 'Compass: Front Row Worlds' : 'Compass: My Created Worlds'}
+              </button>
+            )}
+            {isOwner && onSeedDemoWorlds && (
+              <button
+                onClick={onSeedDemoWorlds}
+                className="px-3.5 py-2 rounded-full text-[10px] font-black tracking-widest uppercase bg-white/[0.06] hover:bg-white/10 border border-white/15 text-amber-300 transition-all"
+              >
+                Seed Demo Worlds
               </button>
             )}
             {handleCreateWorld && (
