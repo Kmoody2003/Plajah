@@ -266,9 +266,14 @@ service firebase.storage {
       allow write: if isRegisteredUser() && (request.auth.uid == uid || isAdmin()) && request.resource.size < 50 * 1024 * 1024;
     }
 
-    // ── Taleo Story Intelligence reports — owner-only read, server-only write ──
+    // ── Taleo Story Intelligence reports — owner-only read, public still images ──
     // taleoAnalysis/<ownerId>/<albumId>/{report.json, transcript.json, stills/*.jpg}
     // Written by the analysis worker (service account, rules-exempt).
+    match /taleoAnalysis/{ownerId}/{albumId}/stills/{stillFile} {
+      allow get: if true;
+      allow list: if isAuth() && (request.auth.uid == ownerId || isAdmin());
+      allow write: if false;
+    }
     match /taleoAnalysis/{ownerId}/{allPaths=**} {
       allow read: if isAuth() && (request.auth.uid == ownerId || isAdmin());
       allow write: if false;

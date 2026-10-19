@@ -409,7 +409,7 @@ export async function loadAudiusCuration(genres: string[] = ['Electronic', 'Hip-
 // GET-ed /v1/oauth/token with no code — never worked; they are gone.
 
 export {
-  loginWithAudius, logoutAudius, getAudiusSession, getAudiusAccessToken,
+  loginWithAudius, startAudiusAuth, logoutAudius, getAudiusSession, getAudiusAccessToken,
   completeAudiusRedirect, AUDIUS_SESSION_EVENT,
 } from './audiusAuth';
 export type { AudiusSession, AudiusScope } from './audiusAuth';

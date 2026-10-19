@@ -353,6 +353,45 @@ export function fetchStoryReport(job: TaleoAnalysisJob): Promise<StoryReport | n
       if (!res.ok) throw new Error(`report fetch ${res.status}`);
       const report = (await res.json()) as StoryReport;
       if (!report || !Array.isArray(report.scenes)) throw new Error('malformed report');
+
+      // Enrich remote report characters and stills with curated precomputed portraits/actor metadata
+      if (precomputed) {
+        const preChars = Array.isArray(precomputed.characters) ? precomputed.characters : [];
+        if (Array.isArray(report.characters) && preChars.length > 0) {
+          const norm = (s?: string) =>
+            String(s || '')
+              .toLowerCase()
+              .replace(/^special\s+/i, '')
+              .replace(/[^a-z0-9]/g, '');
+          report.characters = report.characters.map((rc, idx) => {
+            const match =
+              preChars.find(pc => pc.id === rc.id) ||
+              preChars.find(pc => norm(pc.name) === norm(rc.name)) ||
+              preChars[idx];
+            if (!match) return rc;
+            return {
+              ...rc,
+              imageUrl: match.imageUrl || rc.imageUrl,
+              portraitPath: match.portraitPath || rc.portraitPath,
+              portraitStillId: match.portraitStillId || rc.portraitStillId,
+              actorName: (rc as any).actorName || (match as any).actorName,
+              actorPortraitUrl: (rc as any).actorPortraitUrl || (match as any).actorPortraitUrl,
+              actorBio: (rc as any).actorBio || (match as any).actorBio,
+            };
+          });
+        }
+        if (Array.isArray(precomputed.stills) && precomputed.stills.length > 0) {
+          const existingStillIds = new Set((report.stills || []).map(s => s.id));
+          const mergedStills = [...(report.stills || [])];
+          for (const ps of precomputed.stills) {
+            if (!existingStillIds.has(ps.id)) {
+              mergedStills.push(ps);
+            }
+          }
+          report.stills = mergedStills;
+        }
+      }
+
       return report;
     } catch (e) {
       if (precomputed) return precomputed;
@@ -372,6 +411,15 @@ export function fetchStoryReport(job: TaleoAnalysisJob): Promise<StoryReport | n
  * full Storage path. Cached; null on failure (render a placeholder).
  */
 export function stillUrl(ownerId: string, albumId: string, path: string): Promise<string | null> {
+  if (!path) return Promise.resolve(null);
+  const portraitMatch = path.match(/char_(\d+)_portrait\.jpg/i);
+  if (portraitMatch && (albumId === 'album_1787881859314_mlt23' || path.includes('album_1787881859314_mlt23'))) {
+    return Promise.resolve(`/generated/comics/pumpkin_patch_v4/char_${portraitMatch[1]}_portrait.jpg`);
+  }
+  if (/^https?:\/\//i.test(path) || path.startsWith('/generated/')) {
+    return Promise.resolve(path);
+  }
+
   const fullPath = path.startsWith('taleoAnalysis/')
     ? path
     : `taleoAnalysis/${ownerId}/${albumId}/${path.replace(/^\/+/, '')}`;

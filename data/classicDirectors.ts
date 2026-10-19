@@ -1179,7 +1179,7 @@ const RAW_CLASSIC_DIRECTORS: ClassicDirectorProfile[] = [
     filmography: [
       {
         title: 'Pumpkin Patch',
-        year: '2026',
+        year: '2025',
         genre: 'Action · Horror · Satire',
         role: 'Director · Writer · Producer · Voice Cast',
         archiveIdentifier: 'album_1787881859314_mlt23',

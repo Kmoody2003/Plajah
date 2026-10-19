@@ -290,6 +290,9 @@ export async function loginWithAudius(opts: { scope?: AudiusScope } = {}): Promi
   });
 }
 
+/** Alias for `loginWithAudius` used by feed cards and artist pages. */
+export const startAudiusAuth = loginWithAudius;
+
 /**
  * Completes a FULL-PAGE Audius redirect (popup-blocked / native path). Call once on app
  * mount. No-op unless the current URL carries an OAuth `code`+`state` for us.

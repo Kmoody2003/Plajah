@@ -69,27 +69,47 @@ const Still: React.FC<{
   alt?: string;
   className?: string;
 }> = ({ ownerId, albumId, path, directUrl, alt = '', className = '' }) => {
-  const isDirectHttp = Boolean(path && /^https?:\/\//i.test(path));
-  const [url, setUrl] = useState<string | null>(directUrl || (isDirectHttp ? path! : null));
+  const normalizeDirect = (raw?: string) => {
+    if (!raw) return '';
+    const m = raw.match(/char_(\d+)_portrait\.jpg/i);
+    if (
+      m &&
+      (albumId === 'album_1787881859314_mlt23' ||
+        raw.includes('album_1787881859314_mlt23') ||
+        raw.includes('taleoAnalysis'))
+    ) {
+      return `/generated/comics/pumpkin_patch_v4/char_${m[1]}_portrait.jpg`;
+    }
+    return raw;
+  };
+
+  const safeDirect = normalizeDirect(directUrl);
+  const safePath = normalizeDirect(path);
+  const isDirectPath = Boolean(
+    safePath && (/^https?:\/\//i.test(safePath) || safePath.startsWith('/'))
+  );
+  const [url, setUrl] = useState<string | null>(
+    safeDirect || (isDirectPath ? safePath : null)
+  );
   useEffect(() => {
     let live = true;
-    if (directUrl) {
-      setUrl(directUrl);
+    if (safeDirect) {
+      setUrl(safeDirect);
       return;
     }
-    if (path && /^https?:\/\//i.test(path)) {
-      setUrl(path);
+    if (safePath && (/^https?:\/\//i.test(safePath) || safePath.startsWith('/'))) {
+      setUrl(safePath);
       return;
     }
-    if (path) {
-      stillUrl(ownerId, albumId, path).then(u => {
+    if (safePath) {
+      stillUrl(ownerId, albumId, safePath).then(u => {
         if (live) setUrl(u);
       });
     }
     return () => {
       live = false;
     };
-  }, [ownerId, albumId, path, directUrl]);
+  }, [ownerId, albumId, safePath, safeDirect]);
 
   if (!url) {
     return (

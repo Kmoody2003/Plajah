@@ -1383,10 +1383,16 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({
   const ownerId = (item as Album).ownerId || (item as Video).ownerId;
   const isOwner = !!(currentUser?.uid && currentUser.uid === ownerId);
   const filmLookupId = String((item as any).identifier || item.id || '').replace(/^public_domain_/, '');
+  const isPumpkinPatch =
+    filmLookupId === 'album_1787881859314_mlt23' ||
+    item.id === 'album_1787881859314_mlt23' ||
+    /pumpkin\s*patch/i.test(title || '');
   const hasCuratedStoryIntel = !!getHalloweenStoryIntelBundle(filmLookupId) || !!getHalloweenStoryIntelBundle(item.id);
   const canAccessStoryIntel = canAccessStoryIntelTools(ownerId, currentUser as any) || hasCuratedStoryIntel;
   const castMembers = (item as Video).movieMetadata?.castMembers || [];
-  const releaseYear = (item as Video).movieMetadata?.releaseYear;
+  const releaseYear = isPumpkinPatch
+    ? 2025
+    : (item as Video).movieMetadata?.releaseYear || (item as any).year;
 
   // Drop a previous title's edit when the page swaps titles.
   useEffect(() => { setDescOverride(null); setEditingDesc(false); }, [item.id]);

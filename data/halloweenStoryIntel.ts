@@ -71,11 +71,11 @@ export interface FilmStoryIntelBundle {
 export type HalloweenFilmIntelBundle = FilmStoryIntelBundle;
 
 const RAW_HALLOWEEN_STORY_INTEL_BUNDLES: Record<string, FilmStoryIntelBundle> = {
-  // ── 0. PUMPKIN PATCH (2026 · Independent Feature by Brian James Gage) ────────
+  // ── 0. PUMPKIN PATCH (2025 · Independent Feature by Brian James Gage) ────────
   album_1787881859314_mlt23: {
     identifier: 'album_1787881859314_mlt23',
     title: 'Pumpkin Patch',
-    year: '2026',
+    year: '2025',
     director: 'Brian James Gage',
     runtimeSec: 3490,
     tone: ['High-Energy', 'Gothic Satire', 'Dystopian Siege', 'Gritty Action'],
@@ -83,19 +83,18 @@ const RAW_HALLOWEEN_STORY_INTEL_BUNDLES: Record<string, FilmStoryIntelBundle> = 
       {
         characterId: 'char_1',
         characterName: 'Melvin Lester ("Pumpkin Patch")',
-        aka: ['Pumpkin Patch', 'The Patch'],
+        aka: ['Pumpkin Patch', 'The Patch', 'MELVIN LESTER (PUMPKIN PATCH)'],
         tier: 'MAIN',
         roleArchetype: 'Anti-Hero Vigilante',
         characterBio:
-          'A pool-hall-roaming, bar-fighting vigilante on Planet Ween with a carved pumpkin for a head and nothing left to lose, drafted by the Monster Intelligence Agency to infiltrate prison colony District 13.',
+          'Rogue M.I.A. operative with a glowing carved jack-o’-lantern head, black leather trench duster, and dual orange plasma blades. Framed for the fall of the skyship and banished to District 13, he fights to stop the Dimensional Rift.',
         characterArc:
-          'Begins as a cynical loner brawling in back-alley taverns and evolves into the reluctant savior of Halloween after uncovering the truth inside President Tepes’ hexagonal case.',
+          'From disgraced fugitive brawling in back-alley taverns to the reluctant savior of New Hallows who uncovers Director Jack’s inside job.',
         screenTimeSec: 2140,
         dialogueLines: 142,
-        bestFrameSec: 45,
+        bestFrameSec: 719,
         accentColor: '#F97316',
-        characterImageUrl:
-          'https://firebasestorage.googleapis.com/v0/b/gen-lang-client-0665118474.firebasestorage.app/o/taleoAnalysis%2Fu4XNVf41QeQERFqO0CB8JEhegXz2%2Falbum_1787881859314_mlt23%2Fstills%2Fchar_1_portrait.jpg?alt=media',
+        characterImageUrl: '/generated/comics/pumpkin_patch_v4/char_1_portrait.jpg',
         actorName: 'Brian James Gage',
         actorWikiSlug: '',
         actorPortraitUrl:
@@ -111,19 +110,18 @@ const RAW_HALLOWEEN_STORY_INTEL_BUNDLES: Record<string, FilmStoryIntelBundle> = 
       {
         characterId: 'char_2',
         characterName: 'Special Agent Katrina Van Tassel',
-        aka: ['Agent Van Tassel', 'Katrina'],
+        aka: ['Agent Katrina Van Tassel', 'Agent Van Tassel', 'Katrina'],
         tier: 'MAIN',
         roleArchetype: 'MIA Field Operative',
         characterBio:
-          'Elite operative of the Monster Intelligence Agency (MIA) who recruits Melvin Lester and coordinates the tactical extraction inside District 13.',
+          'Senior Monster Intelligence Agency (M.I.A.) tactical investigator in a sharp black blazer. The only agent inside the Pentagram who questions the official narrative surrounding Melvin’s betrayal.',
         characterArc:
-          'Balances loyalty to Commander Ichabod Crane’s protocol with growing respect for Pumpkin Patch’s unorthodox survival instincts.',
+          'Uncovers the conspiracy inside the Pentagram and risks her career to clear Melvin’s name during the siege of District 13.',
         screenTimeSec: 1180,
         dialogueLines: 86,
-        bestFrameSec: 357,
+        bestFrameSec: 360,
         accentColor: '#D0BCFF',
-        characterImageUrl:
-          'https://firebasestorage.googleapis.com/v0/b/gen-lang-client-0665118474.firebasestorage.app/o/taleoAnalysis%2Fu4XNVf41QeQERFqO0CB8JEhegXz2%2Falbum_1787881859314_mlt23%2Fstills%2Fchar_2_portrait.jpg?alt=media',
+        characterImageUrl: '/generated/comics/pumpkin_patch_v4/char_2_portrait.jpg',
         actorName: 'Brian James Gage',
         actorWikiSlug: '',
         actorPortraitUrl:
@@ -134,7 +132,7 @@ const RAW_HALLOWEEN_STORY_INTEL_BUNDLES: Record<string, FilmStoryIntelBundle> = 
           'Reimagines Washington Irving’s Sleepy Hollow heroine as a sharp-witted Monster Intelligence Agency tactical commander.',
         performanceNote:
           'Anchors the exposition and high-stakes espionage briefings of the MIA.',
-        actorOtherWorks: ['Pumpkin Patch (2026)', 'Planet Ween Universe'],
+        actorOtherWorks: ['Pumpkin Patch (2025)', 'Planet Ween Universe'],
       },
       {
         characterId: 'char_3',
@@ -143,15 +141,14 @@ const RAW_HALLOWEEN_STORY_INTEL_BUNDLES: Record<string, FilmStoryIntelBundle> = 
         tier: 'MAIN',
         roleArchetype: 'District 13 Overlord & Sorceress',
         characterBio:
-          'Formidable sorceress and faction leader inside maximum-security prison colony District 13 who seeks the power inside President Tepes’ hexagonal case.',
+          'Emerald-skinned sorceress and warlord of the Green Castle, wearing a pointed black witch hat, tactical eyepatch, and accompanied by her cybernetic blue cat familiar.',
         characterArc:
-          'Commands her supernatural syndicate across District 13 until Pumpkin Patch disrupts her stronghold during the midnight siege.',
+          'Seeks the four elemental gems of the Hexagon to tear open the Dimensional Rift over New Hallows.',
         screenTimeSec: 1040,
         dialogueLines: 74,
-        bestFrameSec: 640,
+        bestFrameSec: 1037,
         accentColor: '#10B981',
-        characterImageUrl:
-          'https://firebasestorage.googleapis.com/v0/b/gen-lang-client-0665118474.firebasestorage.app/o/taleoAnalysis%2Fu4XNVf41QeQERFqO0CB8JEhegXz2%2Falbum_1787881859314_mlt23%2Fstills%2Fchar_3_portrait.jpg?alt=media',
+        characterImageUrl: '/generated/comics/pumpkin_patch_v4/char_3_portrait.jpg',
         actorName: 'Brian James Gage',
         actorWikiSlug: '',
         actorPortraitUrl:
@@ -162,7 +159,7 @@ const RAW_HALLOWEEN_STORY_INTEL_BUNDLES: Record<string, FilmStoryIntelBundle> = 
           'Creator, writer, director, and ensemble voice actor of Pumpkin Patch.',
         performanceNote:
           'Delivers a theatrical, razor-sharp vocal turn blending classic wicked-witch cackles with crime-boss menace.',
-        actorOtherWorks: ['Pumpkin Patch (2026)', 'Planet Ween Universe'],
+        actorOtherWorks: ['Pumpkin Patch (2025)', 'Planet Ween Universe'],
       },
       {
         characterId: 'char_4',
@@ -171,15 +168,14 @@ const RAW_HALLOWEEN_STORY_INTEL_BUNDLES: Record<string, FilmStoryIntelBundle> = 
         tier: 'MAIN',
         roleArchetype: 'Burlap Gang Enforcer',
         characterBio:
-          'Burlap-stitched scarecrow warlord prowling the neon-lit alleys and battlements of District 13.',
+          'Battle-scarred survivalist in a stitched burlap scarecrow mask who rules the rain-slicked rooftops and burn-barrel alleys of District 13.',
         characterArc:
-          'Clashes directly with Melvin Lester during the gauntlet through District 13’s inner perimeter.',
+          'Tests Melvin in brutal combat in District 13 before joining forces with him to defend the Rooftop Dimensional Control Console.',
         screenTimeSec: 980,
         dialogueLines: 68,
-        bestFrameSec: 890,
+        bestFrameSec: 983,
         accentColor: '#EAB308',
-        characterImageUrl:
-          'https://firebasestorage.googleapis.com/v0/b/gen-lang-client-0665118474.firebasestorage.app/o/taleoAnalysis%2Fu4XNVf41QeQERFqO0CB8JEhegXz2%2Falbum_1787881859314_mlt23%2Fstills%2Fchar_4_portrait.jpg?alt=media',
+        characterImageUrl: '/generated/comics/pumpkin_patch_v4/char_4_portrait.jpg',
         actorName: 'Brian James Gage',
         actorWikiSlug: '',
         actorPortraitUrl:
@@ -190,24 +186,23 @@ const RAW_HALLOWEEN_STORY_INTEL_BUNDLES: Record<string, FilmStoryIntelBundle> = 
           'Creator, writer, director, and ensemble voice actor of Pumpkin Patch.',
         performanceNote:
           'Voices Stitch with raspy, frayed-burlap ferocity and dark humor.',
-        actorOtherWorks: ['Pumpkin Patch (2026)', 'Planet Ween Universe'],
+        actorOtherWorks: ['Pumpkin Patch (2025)', 'Planet Ween Universe'],
       },
       {
         characterId: 'char_5',
         characterName: 'Commander Crane (Robo-Bones)',
-        aka: ['Robo-Bones', 'Cybernetic Enforcer'],
+        aka: ['Robo-Bones', 'Cybernetic Enforcer', 'Commander Crane'],
         tier: 'SUPPORTING',
         roleArchetype: 'MIA Cybernetic Tactical Officer',
         characterBio:
-          'Towering cybernetic skeleton security officer of the Monster Intelligence Agency who oversees the lockdown perimeter around District 13.',
+          'Cybernetic skeletal commander of the M.I.A. wearing an aristocratic top hat, monocle sensor, and glowing white optical sockets.',
         characterArc:
-          'Provides heavy-caliber tactical backup when the District 13 extraction spirals into all-out war.',
+          'Coordinates the Pentagram’s defense grid while torn between Orange House political pressure and loyalty to his field agents.',
         screenTimeSec: 920,
         dialogueLines: 64,
-        bestFrameSec: 1120,
+        bestFrameSec: 1112,
         accentColor: '#38BDF8',
-        characterImageUrl:
-          'https://firebasestorage.googleapis.com/v0/b/gen-lang-client-0665118474.firebasestorage.app/o/taleoAnalysis%2Fu4XNVf41QeQERFqO0CB8JEhegXz2%2Falbum_1787881859314_mlt23%2Fstills%2Fchar_5_portrait.jpg?alt=media',
+        characterImageUrl: '/generated/comics/pumpkin_patch_v4/char_5_portrait.jpg',
         actorName: 'Brian James Gage',
         actorWikiSlug: '',
         actorPortraitUrl:
@@ -218,7 +213,7 @@ const RAW_HALLOWEEN_STORY_INTEL_BUNDLES: Record<string, FilmStoryIntelBundle> = 
           'Solo voice performance bringing the MIA’s metallic skeletal enforcer to life.',
         performanceNote:
           'Combines hard-boiled military urgency with synth-modulated cybernetic comedy.',
-        actorOtherWorks: ['Pumpkin Patch (2026)'],
+        actorOtherWorks: ['Pumpkin Patch (2025)'],
       },
       {
         characterId: 'char_6',
@@ -227,15 +222,14 @@ const RAW_HALLOWEEN_STORY_INTEL_BUNDLES: Record<string, FilmStoryIntelBundle> = 
         tier: 'SUPPORTING',
         roleArchetype: 'Spectral Scene-Stealer',
         characterBio:
-          'Pint-sized phantom operative on Planet Ween whose deceptive cuteness masks streetwise survival instincts inside District 13.',
+          'Bioluminescent emerald-green mini-ghost with wide expressive eyes who rides in a containment jar and acts as Melvin’s loyal sidekick and ectoplasmic battery.',
         characterArc:
-          'Helps guide and complicate the extraction mission through the haunted corridors of the prison colony.',
+          'Breaks free from containment to overload enemy circuitry and escapes with Melvin in the final getaway truck.',
         screenTimeSec: 740,
         dialogueLines: 52,
-        bestFrameSec: 1460,
+        bestFrameSec: 766,
         accentColor: '#A855F7',
-        characterImageUrl:
-          'https://firebasestorage.googleapis.com/v0/b/gen-lang-client-0665118474.firebasestorage.app/o/taleoAnalysis%2Fu4XNVf41QeQERFqO0CB8JEhegXz2%2Falbum_1787881859314_mlt23%2Fstills%2Fchar_6_portrait.jpg?alt=media',
+        characterImageUrl: '/generated/comics/pumpkin_patch_v4/char_6_portrait.jpg',
         actorName: 'Brian James Gage',
         actorWikiSlug: '',
         actorPortraitUrl:
@@ -246,7 +240,7 @@ const RAW_HALLOWEEN_STORY_INTEL_BUNDLES: Record<string, FilmStoryIntelBundle> = 
           'Creator, writer, director, and ensemble voice actor of Pumpkin Patch.',
         performanceNote:
           'Pitches a high-energy spectral cadence that contrasts with Melvin Lester’s gruff baritone.',
-        actorOtherWorks: ['Pumpkin Patch (2026)'],
+        actorOtherWorks: ['Pumpkin Patch (2025)'],
       },
       {
         characterId: 'char_7',
@@ -255,15 +249,14 @@ const RAW_HALLOWEEN_STORY_INTEL_BUNDLES: Record<string, FilmStoryIntelBundle> = 
         tier: 'SUPPORTING',
         roleArchetype: 'Captive Head of State',
         characterBio:
-          'The ruthless vampire President of Planet Ween whose Scare Force One transport is shot down into District 13 while guarding a classified hexagonal case.',
+          'Ancient aristocratic vampire statesman with pointed ears, fangs, and crimson-trimmed formal attire who guards the ancient Hexagon vault aboard Scare Force One.',
         characterArc:
-          'Reveals he is far more ruthless than his captors, willing to sacrifice anyone to reclaim the hexagonal case.',
+          'Confronted during the mid-film Hexagon vault breach as the four elemental gems are seized.',
         screenTimeSec: 680,
         dialogueLines: 48,
-        bestFrameSec: 1840,
+        bestFrameSec: 276,
         accentColor: '#F43F5E',
-        characterImageUrl:
-          'https://firebasestorage.googleapis.com/v0/b/gen-lang-client-0665118474.firebasestorage.app/o/taleoAnalysis%2Fu4XNVf41QeQERFqO0CB8JEhegXz2%2Falbum_1787881859314_mlt23%2Fstills%2Fchar_7_portrait.jpg?alt=media',
+        characterImageUrl: '/generated/comics/pumpkin_patch_v4/char_7_portrait.jpg',
         actorName: 'Brian James Gage',
         actorWikiSlug: '',
         actorPortraitUrl:
@@ -274,7 +267,7 @@ const RAW_HALLOWEEN_STORY_INTEL_BUNDLES: Record<string, FilmStoryIntelBundle> = 
           'Named in homage to Vlad Tepes, portraying the iron-fisted leader of Planet Ween.',
         performanceNote:
           'Plays the captive president as a calculating political survivor.',
-        actorOtherWorks: ['Pumpkin Patch (2026)'],
+        actorOtherWorks: ['Pumpkin Patch (2025)'],
       },
       {
         characterId: 'char_8',
@@ -283,15 +276,14 @@ const RAW_HALLOWEEN_STORY_INTEL_BUNDLES: Record<string, FilmStoryIntelBundle> = 
         tier: 'SUPPORTING',
         roleArchetype: 'MIA Intelligence Director',
         characterBio:
-          'High-strung Director of the Monster Intelligence Agency who authorizes the desperate recruitment of Melvin Lester after Scare Force One goes down.',
+          'Suave executive director of the Pentagram in a tailored tuxedo and bow tie who secretly orchestrates the Hexagon conspiracy.',
         characterArc:
-          'Scrambles to contain the political fallout as the countdown to midnight threatens all of Planet Ween.',
+          'Poses as New Hallows’ composed intelligence chief while secretly weaponizing Dr. Zoraster’s dimensional research.',
         screenTimeSec: 610,
         dialogueLines: 44,
-        bestFrameSec: 2110,
+        bestFrameSec: 1921,
         accentColor: '#FB923C',
-        characterImageUrl:
-          'https://firebasestorage.googleapis.com/v0/b/gen-lang-client-0665118474.firebasestorage.app/o/taleoAnalysis%2Fu4XNVf41QeQERFqO0CB8JEhegXz2%2Falbum_1787881859314_mlt23%2Fstills%2Fchar_8_portrait.jpg?alt=media',
+        characterImageUrl: '/generated/comics/pumpkin_patch_v4/char_8_portrait.jpg',
         actorName: 'Brian James Gage',
         actorWikiSlug: '',
         actorPortraitUrl:
@@ -302,24 +294,23 @@ const RAW_HALLOWEEN_STORY_INTEL_BUNDLES: Record<string, FilmStoryIntelBundle> = 
           'Creator, writer, director, and ensemble voice actor of Pumpkin Patch.',
         performanceNote:
           'Channels classic bureaucratic paranoia and urgent war-room authority.',
-        actorOtherWorks: ['Pumpkin Patch (2026)'],
+        actorOtherWorks: ['Pumpkin Patch (2025)'],
       },
       {
         characterId: 'char_9',
         characterName: 'Dr. Zoraster',
-        aka: ['Professor Zoraster'],
+        aka: ['Professor Zoraster', 'Dr. Zoroster'],
         tier: 'SUPPORTING',
         roleArchetype: 'Chief Occult Scientist',
         characterBio:
-          'Eccentric arcane scientist whose research into the hexagonal case and Planet Ween’s portal mechanics underpins the MIA briefing.',
+          'Visionary white-bearded scientist in round dark spectacles who discovered the dimensional resonance of the four elemental gems before his disappearance.',
         characterArc:
-          'Deciphers the volatile energy readings emanating from District 13 before the final breach.',
+          'His recorded holographic warnings and memorial monument hold the key to stabilizing the Dimensional Control Console.',
         screenTimeSec: 460,
         dialogueLines: 34,
-        bestFrameSec: 2380,
+        bestFrameSec: 888,
         accentColor: '#2DD4BF',
-        characterImageUrl:
-          'https://firebasestorage.googleapis.com/v0/b/gen-lang-client-0665118474.firebasestorage.app/o/taleoAnalysis%2Fu4XNVf41QeQERFqO0CB8JEhegXz2%2Falbum_1787881859314_mlt23%2Fstills%2Fchar_9_portrait.jpg?alt=media',
+        characterImageUrl: '/generated/comics/pumpkin_patch_v4/char_9_portrait.jpg',
         actorName: 'Brian James Gage',
         actorWikiSlug: '',
         actorPortraitUrl:
@@ -330,7 +321,7 @@ const RAW_HALLOWEEN_STORY_INTEL_BUNDLES: Record<string, FilmStoryIntelBundle> = 
           'Creator, writer, director, and ensemble voice actor of Pumpkin Patch.',
         performanceNote:
           'Brings mad-scientist cadence to the Monster Intelligence Agency’s technical briefings.',
-        actorOtherWorks: ['Pumpkin Patch (2026)'],
+        actorOtherWorks: ['Pumpkin Patch (2025)'],
       },
       {
         characterId: 'char_10',
@@ -339,15 +330,14 @@ const RAW_HALLOWEEN_STORY_INTEL_BUNDLES: Record<string, FilmStoryIntelBundle> = 
         tier: 'MINOR',
         roleArchetype: 'Halloween News Network Anchor',
         characterBio:
-          'Lead broadcast journalist for the Halloween News Network (HNN), reporting live on the downing of Scare Force One and the crisis in District 13.',
+          'Sharp-dressed werewolf chief anchor of the Halloween News Network (HNN) in an orange blazer who broadcasts live breaking alerts across New Hallows.',
         characterArc:
-          'Frames the public panic across Planet Ween through breaking-news dispatches.',
+          'Chronicles the escalating crisis from the HNN studio desk as the sky portal opens over the city.',
         screenTimeSec: 310,
         dialogueLines: 24,
-        bestFrameSec: 2650,
+        bestFrameSec: 1852,
         accentColor: '#F472B6',
-        characterImageUrl:
-          'https://firebasestorage.googleapis.com/v0/b/gen-lang-client-0665118474.firebasestorage.app/o/taleoAnalysis%2Fu4XNVf41QeQERFqO0CB8JEhegXz2%2Falbum_1787881859314_mlt23%2Fstills%2Fchar_10_portrait.jpg?alt=media',
+        characterImageUrl: '/generated/comics/pumpkin_patch_v4/char_10_portrait.jpg',
         actorName: 'Brian James Gage',
         actorWikiSlug: '',
         actorPortraitUrl:
@@ -358,24 +348,23 @@ const RAW_HALLOWEEN_STORY_INTEL_BUNDLES: Record<string, FilmStoryIntelBundle> = 
           'Creator, writer, director, and ensemble voice actor of Pumpkin Patch.',
         performanceNote:
           'Satirizes breathless cable news crisis coverage on Planet Ween.',
-        actorOtherWorks: ['Pumpkin Patch (2026)'],
+        actorOtherWorks: ['Pumpkin Patch (2025)'],
       },
       {
         characterId: 'char_11',
         characterName: 'President Antionette',
         aka: ['Madame President Antionette'],
         tier: 'MINOR',
-        roleArchetype: 'Political Rival & Dignitary',
+        roleArchetype: 'Commander-in-Chief of the Orange House',
         characterBio:
-          'High-ranking political figure on Planet Ween caught in the power vacuum surrounding Scare Force One and the hexagonal case.',
+          'Aristocratic headless Commander-in-Chief of the Orange House who cradles her own powdered-wig head while addressing the nation from the presidential podium.',
         characterArc:
-          'Represents the aristocratic upper echelon of Planet Ween’s government.',
+          'Declares a state of emergency from the Orange House Situation Room and addresses New Hallows after the rift is sealed.',
         screenTimeSec: 260,
         dialogueLines: 19,
-        bestFrameSec: 2980,
+        bestFrameSec: 3215,
         accentColor: '#C084FC',
-        characterImageUrl:
-          'https://firebasestorage.googleapis.com/v0/b/gen-lang-client-0665118474.firebasestorage.app/o/taleoAnalysis%2Fu4XNVf41QeQERFqO0CB8JEhegXz2%2Falbum_1787881859314_mlt23%2Fstills%2Fchar_11_portrait.jpg?alt=media',
+        characterImageUrl: '/generated/comics/pumpkin_patch_v4/char_11_portrait.jpg',
         actorName: 'Brian James Gage',
         actorWikiSlug: '',
         actorPortraitUrl:
@@ -386,7 +375,7 @@ const RAW_HALLOWEEN_STORY_INTEL_BUNDLES: Record<string, FilmStoryIntelBundle> = 
           'Creator, writer, director, and ensemble voice actor of Pumpkin Patch.',
         performanceNote:
           'Rounds out the political satire of Planet Ween’s ruling class.',
-        actorOtherWorks: ['Pumpkin Patch (2026)'],
+        actorOtherWorks: ['Pumpkin Patch (2025)'],
       },
     ],
     report: {
@@ -3250,7 +3239,8 @@ function hydrateCharacter(
   const notable = c.actorNotableWorks || c.actorOtherWorks || [];
   const hasDedicatedCharImg = Boolean(
     c.characterImageUrl &&
-      (c.characterImageUrl.includes('firebasestorage.googleapis.com') ||
+      (c.characterImageUrl.startsWith('/generated/') ||
+        c.characterImageUrl.includes('firebasestorage.googleapis.com') ||
         c.characterImageUrl.includes('image.mux.com') ||
         c.characterImageUrl !== c.actorPortraitUrl)
   );
@@ -3306,8 +3296,21 @@ function buildHydratedBundle(bundle: FilmStoryIntelBundle): FilmStoryIntelBundle
     confidence: 0.98,
     evidence: [c.performanceNote],
     imageUrl: c.characterImageUrl || c.imageUrl || c.actorPortraitUrl,
+    portraitPath: c.characterImageUrl || c.imageUrl || c.actorPortraitUrl,
+    portraitStillId: `${c.characterId}_portrait`,
     bestFrameSec: c.bestFrameSec,
   }));
+
+  const synthesizedStills =
+    bundle.report.stills && bundle.report.stills.length > 0
+      ? bundle.report.stills
+      : hydratedChars.map((c, idx) => ({
+          id: `${c.characterId}_portrait`,
+          tSec: c.bestFrameSec,
+          sceneId: bundle.report.scenes[idx % Math.max(1, bundle.report.scenes.length)]?.id || 'sc_1',
+          path: c.characterImageUrl || c.imageUrl || c.actorPortraitUrl,
+          kind: 'CHARACTER_PORTRAIT',
+        }));
 
   return {
     ...bundle,
@@ -3320,6 +3323,7 @@ function buildHydratedBundle(bundle: FilmStoryIntelBundle): FilmStoryIntelBundle
     report: {
       ...bundle.report,
       characters: reportCharacters,
+      stills: synthesizedStills,
     },
   };
 }

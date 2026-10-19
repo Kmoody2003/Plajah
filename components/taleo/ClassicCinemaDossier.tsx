@@ -107,18 +107,37 @@ export async function fetchWikiPortraitAndBio(
   }
 }
 
+/**
+ * Rewrites legacy unauthenticated Firebase Storage character still URLs for Pumpkin Patch
+ * (which return HTTP 403 without a download token) to the verified local character portraits.
+ */
+export function resolveStoryIntelPortraitUrl(rawUrl?: string): string {
+  if (!rawUrl) return '';
+  const match = rawUrl.match(/char_(\d+)_portrait\.jpg/i);
+  if (
+    match &&
+    (rawUrl.includes('album_1787881859314_mlt23') ||
+      rawUrl.includes('taleoAnalysis') ||
+      rawUrl.startsWith('stills/'))
+  ) {
+    return `/generated/comics/pumpkin_patch_v4/char_${match[1]}_portrait.jpg`;
+  }
+  return rawUrl;
+}
+
 export function useWikiPortrait(
   wikiSlug?: string,
   fallbackUrl?: string,
   ownerUserId?: string
 ) {
-  const [resolvedUrl, setResolvedUrl] = useState<string>(fallbackUrl || '');
+  const safeFallback = resolveStoryIntelPortraitUrl(fallbackUrl);
+  const [resolvedUrl, setResolvedUrl] = useState<string>(safeFallback);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     let alive = true;
     setFailed(false);
-    setResolvedUrl(fallbackUrl || '');
+    setResolvedUrl(safeFallback);
 
     // If this person is a Plajah account holder, always prioritize their live account profile photo
     if (ownerUserId) {
@@ -144,13 +163,13 @@ export function useWikiPortrait(
     return () => {
       alive = false;
     };
-  }, [wikiSlug, fallbackUrl, ownerUserId]);
+  }, [wikiSlug, safeFallback, ownerUserId]);
 
   return {
     src: !failed ? resolvedUrl : '',
     onError: () => {
-      if (resolvedUrl && fallbackUrl && resolvedUrl !== fallbackUrl) {
-        setResolvedUrl(fallbackUrl);
+      if (resolvedUrl && safeFallback && resolvedUrl !== safeFallback) {
+        setResolvedUrl(safeFallback);
       } else {
         setFailed(true);
       }
@@ -1395,6 +1414,12 @@ export const CharactersAndActorsSection: React.FC<{
     useState<HalloweenCharacterWithActor | null>(null);
 
   const characters = useMemo(() => {
+    const normalizeCharName = (s?: string) =>
+      String(s || '')
+        .toLowerCase()
+        .replace(/^special\s+/i, '')
+        .replace(/[^a-z0-9]/g, '');
+
     const base =
       propCharacters && propCharacters.length > 0
         ? propCharacters
@@ -1403,7 +1428,16 @@ export const CharactersAndActorsSection: React.FC<{
     const byKey = new Map<string, HalloweenCharacterWithActor>();
     for (const c of base) {
       const k = (c.id || c.characterId || c.characterName || '').toLowerCase();
-      if (k) byKey.set(k, c);
+      if (k) {
+        const resolvedImg = resolveStoryIntelPortraitUrl(
+          c.characterImageUrl || c.imageUrl
+        );
+        byKey.set(k, {
+          ...c,
+          characterImageUrl: resolvedImg || c.characterImageUrl,
+          imageUrl: resolvedImg || c.imageUrl,
+        });
+      }
     }
 
     // Merge any additional castMembers from movieMetadata or worldCharacters
@@ -1412,18 +1446,38 @@ export const CharactersAndActorsSection: React.FC<{
       if (!raw) continue;
       const charName = raw.characterName || raw.name || raw.role || '';
       if (!charName) continue;
-      const key = String(raw.id || charName).toLowerCase();
-      const nameKey = String(charName).toLowerCase();
-      if (byKey.has(key) || Array.from(byKey.values()).some((x) => x.characterName.toLowerCase() === nameKey)) {
+      const rawId = String(raw.id || '').toLowerCase();
+      const canonicalCharId = rawId.replace(/^cast_(\d+)$/i, 'char_$1');
+      const key = (canonicalCharId || charName).toLowerCase();
+      const normIncoming = normalizeCharName(charName);
+
+      const alreadyExists =
+        byKey.has(key) ||
+        byKey.has(rawId) ||
+        Array.from(byKey.values()).some((x) => {
+          if (normalizeCharName(x.characterName) === normIncoming) return true;
+          if (
+            Array.isArray(x.aka) &&
+            x.aka.some((alias) => normalizeCharName(alias) === normIncoming)
+          ) {
+            return true;
+          }
+          return false;
+        });
+
+      if (alreadyExists) {
         continue;
       }
+
       const defaultActor =
         raw.actorName ||
         (directorName && directorName.toLowerCase().includes('brian james gage')
           ? 'Brian James Gage'
           : directorName || 'Ensemble Cast');
       const isBrian = defaultActor.toLowerCase().includes('brian james gage');
-      const charThumb = raw.imageUrl || raw.avatar || '';
+      const charThumb = resolveStoryIntelPortraitUrl(
+        raw.characterImageUrl || raw.imageUrl || raw.image || raw.avatar || ''
+      );
       byKey.set(key, {
         id: raw.id || key,
         characterId: raw.id || key,

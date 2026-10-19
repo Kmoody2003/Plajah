@@ -330,7 +330,17 @@ const HomeView: React.FC<{
 
   const pumpkinPatchHero = useMemo(() => {
     const found = localContent.find(a => a.id === PUMPKIN_PATCH_HERO_ALBUM.id || /pumpkin\s*patch/i.test(a.title || ''));
-    return found ? { ...PUMPKIN_PATCH_HERO_ALBUM, ...found } : PUMPKIN_PATCH_HERO_ALBUM;
+    if (!found) return PUMPKIN_PATCH_HERO_ALBUM;
+    return {
+      ...PUMPKIN_PATCH_HERO_ALBUM,
+      ...found,
+      year: '2025',
+      movieMetadata: {
+        ...PUMPKIN_PATCH_HERO_ALBUM.movieMetadata,
+        ...(found as any).movieMetadata,
+        releaseYear: 2025,
+      },
+    };
   }, [localContent]);
 
   const handlePlayFilmById = (filmId: string) => {
@@ -880,7 +890,7 @@ const HomeView: React.FC<{
                   Hero Feature
                 </div>
                 <div className="absolute bottom-2 left-2 right-2">
-                  <p className="text-[7px] font-black uppercase text-orange-300">2026 · 58 min</p>
+                  <p className="text-[7px] font-black uppercase text-orange-300">2025 · 58 min</p>
                   <p className="text-[9px] font-black text-white truncate">Pumpkin Patch</p>
                 </div>
               </div>
@@ -918,7 +928,7 @@ const HomeView: React.FC<{
               <div className="w-36 flex-shrink-0 group/hcard relative">
                 <PosterCard
                   title="Pumpkin Patch"
-                  subtitle="2026 · Brian James Gage"
+                  subtitle="2025 · Brian James Gage"
                   image={pumpkinPatchHero.coverImage}
                   genre="58 min · Action / Horror"
                   directorName="Brian James Gage"
@@ -948,7 +958,7 @@ const HomeView: React.FC<{
                         assetEmbed: {
                           type: 'MOVIE',
                           id: pumpkinPatchHero.id,
-                          title: 'Pumpkin Patch (2026)',
+                          title: 'Pumpkin Patch (2025)',
                           subtitle: 'Directed by Brian James Gage · Halloween Hero Feature',
                           imageUrl: pumpkinPatchHero.coverImage,
                         },
@@ -1721,7 +1731,17 @@ const HalloweenShowcaseView: React.FC<{
 
   const pumpkinPatchHero = useMemo(() => {
     const found = localContent.find(a => a.id === PUMPKIN_PATCH_HERO_ALBUM.id || /pumpkin\s*patch/i.test(a.title || ''));
-    return found ? { ...PUMPKIN_PATCH_HERO_ALBUM, ...found } : PUMPKIN_PATCH_HERO_ALBUM;
+    if (!found) return PUMPKIN_PATCH_HERO_ALBUM;
+    return {
+      ...PUMPKIN_PATCH_HERO_ALBUM,
+      ...found,
+      year: '2025',
+      movieMetadata: {
+        ...PUMPKIN_PATCH_HERO_ALBUM.movieMetadata,
+        ...(found as any).movieMetadata,
+        releaseYear: 2025,
+      },
+    };
   }, [localContent]);
 
   const handlePlayFilmById = (filmId: string) => {
@@ -1822,7 +1842,7 @@ const HalloweenShowcaseView: React.FC<{
                 Planet Ween Universe · District 13
               </span>
               <span className="text-[10px] font-black uppercase tracking-widest text-white/50">
-                2026 · 58 min · Action / Horror / Satire
+                2025 · 58 min · Action / Horror / Satire
               </span>
             </div>
 
@@ -1877,7 +1897,7 @@ const HalloweenShowcaseView: React.FC<{
                     assetEmbed: {
                       type: 'MOVIE',
                       id: pumpkinPatchHero.id,
-                      title: 'Pumpkin Patch (2026)',
+                      title: 'Pumpkin Patch (2025)',
                       subtitle: 'Directed by Brian James Gage · Halloween Hero Feature',
                       imageUrl: pumpkinPatchHero.coverImage,
                     },
@@ -2703,22 +2723,43 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
     }
   };
 
-  const adaptedPlatformVideos = useMemo(() => platformVideos.map(v => ({
-    identifier: v.id,
-    title: v.title,
-    genre: v.genre || '',
-    thumbnailUrl: (v as any).muxPlaybackId
-      ? `https://image.mux.com/${(v as any).muxPlaybackId}/thumbnail.png?width=400&height=600&time=5`
-      : (v as any).thumbnailUrl || (v as any).coverImageUrl || '',
-    coverImage: (v as any).coverImageUrl || (v as any).thumbnailUrl || '',
-    description: (v as any).description || '',
-    year: v.timestamp ? new Date(v.timestamp).getFullYear().toString() : '',
-    ownerName: (v as any).ownerName || '',
-    contentRating: (v as any).contentRating || (v as any).filmDistribution?.contentRating || '',
-    timestamp: (v as any).timestamp || 0,
-    _isPlatform: true as const,
-    _original: v,
-  })), [platformVideos]);
+  const adaptedPlatformVideos = useMemo(() => platformVideos.map(v => {
+    const isPumpkin =
+      v.id === 'album_1787881859314_mlt23' ||
+      (v as any).identifier === 'album_1787881859314_mlt23' ||
+      /pumpkin\s*patch/i.test(v.title || '');
+    const explicitYear = isPumpkin
+      ? '2025'
+      : (v as any).movieMetadata?.releaseYear
+      ? String((v as any).movieMetadata.releaseYear)
+      : (v as any).year
+      ? String((v as any).year)
+      : v.timestamp
+      ? new Date(v.timestamp).getFullYear().toString()
+      : '';
+    return {
+      identifier: v.id,
+      title: v.title,
+      genre: v.genre || '',
+      thumbnailUrl: (v as any).muxPlaybackId
+        ? `https://image.mux.com/${(v as any).muxPlaybackId}/thumbnail.png?width=400&height=600&time=5`
+        : (v as any).thumbnailUrl || (v as any).coverImageUrl || '',
+      coverImage: (v as any).coverImageUrl || (v as any).thumbnailUrl || '',
+      description: (v as any).description || '',
+      year: explicitYear,
+      ownerName: (v as any).ownerName || '',
+      contentRating: (v as any).contentRating || (v as any).filmDistribution?.contentRating || '',
+      timestamp: (v as any).timestamp || 0,
+      _isPlatform: true as const,
+      _original: isPumpkin
+        ? {
+            ...v,
+            year: '2025',
+            movieMetadata: { ...(v as any).movieMetadata, releaseYear: 2025 },
+          }
+        : v,
+    };
+  }), [platformVideos]);
 
   const searchResults = useMemo<any[]>(() => {
     if (searchQuery.trim().length < 2) return [];
@@ -2772,9 +2813,29 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
         fetchAllVideos().catch(() => [] as Video[]),
       ]);
 
-      const cinemaVideos = allPlatformVideos.filter(v => (v.genre && TALEO_GENRES.includes(v.genre)) || (v as any).subType === 'MOVIE' || (v as any).subType === 'TV_SERIES');
+      const normalizePumpkinYear = <T extends Record<string, any>>(item: T): T => {
+        if (
+          item?.id === 'album_1787881859314_mlt23' ||
+          item?.identifier === 'album_1787881859314_mlt23' ||
+          /pumpkin\s*patch/i.test(item?.title || '')
+        ) {
+          return {
+            ...item,
+            year: '2025',
+            movieMetadata: {
+              ...(item.movieMetadata || {}),
+              releaseYear: 2025,
+            },
+          };
+        }
+        return item;
+      };
+
+      const cinemaVideos = allPlatformVideos
+        .filter(v => (v.genre && TALEO_GENRES.includes(v.genre)) || (v as any).subType === 'MOVIE' || (v as any).subType === 'TV_SERIES')
+        .map(normalizePumpkinYear);
       nextPlatformVideos = cinemaVideos;
-      nextLocalContent = all.filter(a => a.type === 'VIDEO');
+      nextLocalContent = all.filter(a => a.type === 'VIDEO').map(normalizePumpkinYear);
       nextUniverses = unis;
 
       setPlatformVideos(cinemaVideos);

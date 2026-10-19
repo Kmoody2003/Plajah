@@ -476,7 +476,7 @@ export const PUMPKIN_PATCH_HERO_ALBUM: any = {
   title: 'Pumpkin Patch',
   artist: 'Brian James Gage',
   director: 'Brian James Gage',
-  year: '2026',
+  year: '2025',
   runtime: '58 min',
   type: 'VIDEO',
   subType: 'MOVIE',
@@ -532,7 +532,7 @@ export const PUMPKIN_PATCH_HERO_ALBUM: any = {
   },
   movieMetadata: {
     director: 'Brian James Gage',
-    releaseYear: 2026,
+    releaseYear: 2025,
     crew: ['Brian James Gage (Director)', 'Brian James Gage (Writer)', 'Brian James Gage (Animator & Composer)'],
     cast: getCharactersForFilm('album_1787881859314_mlt23').map(c => `${c.actorName} as ${c.characterName}`),
     castMembers: getCharactersForFilm('album_1787881859314_mlt23').map(c => ({
