@@ -583,3 +583,70 @@ textarea.pj-input { height: auto; min-height: 96px; padding-block: var(--pj-spac
 
 /* Signal variant — an armed / live parameter. */
 .pj-range--signal { --pj-range-fill: var(--pj-orange); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   GLOBAL BUTTON CONTAINMENT & ANTI-OVERLAP INVARIANTS
+   1. Text must NEVER flow outside a button boundary.
+   2. Icons inside buttons must NEVER crush or squish (flex-shrink: 0).
+   3. Toolbar/header/pill buttons must NEVER wrap text onto 2 lines or overlap
+      adjacent buttons; when space is tight, labels truncate or collapse cleanly
+      into their unique icon.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+button,
+.pj-btn,
+[role="button"] {
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
+button > svg,
+.pj-btn > svg,
+[role="button"] > svg {
+  flex-shrink: 0;
+}
+
+/* Compact pill & action buttons: keep text strictly inside the button frame */
+button[class*="rounded-full"],
+button[class*="rounded-xl"],
+button[class*="rounded-2xl"],
+.pj-btn {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Header, nav, and toolbar buttons never crush or wrap onto multiple lines */
+header button,
+nav button,
+footer button,
+[role="toolbar"] button,
+[role="tablist"] button,
+.pj-toolbar button {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* Direct text spans inside compact pill buttons truncate instead of overflowing */
+header button > span,
+nav button > span,
+footer button > span,
+[role="toolbar"] button > span,
+[role="tablist"] button > span,
+button[class*="rounded-full"] > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Adaptive icon-collapse utility: collapses button label to icon-only on tight viewports */
+@media (max-width: 639px) {
+  .pj-btn-collapse-sm > .pj-btn-label {
+    display: none !important;
+  }
+  .pj-btn-collapse-sm {
+    padding-inline: 0.625rem !important;
+    aspect-ratio: 1;
+    justify-content: center;
+  }
+}
+

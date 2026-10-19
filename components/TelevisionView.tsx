@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Album } from '../types';
-import { ArchiveVideo, getArchiveItemFiles, getBestVideoUrl } from '../services/archiveContentService';
+import { ArchiveVideo, CURATED_PUBLIC_DOMAIN_TV_SERIES, getArchiveItemFiles, getBestVideoUrl } from '../services/archiveContentService';
 import { Play, ChevronLeft, Loader2, Info, TrendingUp, Star, Zap, Eye, Film } from 'lucide-react';
 import ScrollableTabRow from './ScrollableTabRow';
 
@@ -15,11 +15,15 @@ const tvMatchesChip = (item: any, chip: string): boolean => {
   const tags: string[] = item.tags || [];
   const tagMatch = tags.some((t: string) => t.toLowerCase().includes(lc));
   if (chip === 'Trailers') return subType === 'trailer' || tagMatch || genre.includes('trailer');
+  if (chip === 'Classic' && item.seasons?.length) return true;
   return genre.includes(lc) || subType === lc || tagMatch;
 };
 
 const SeriesCard: React.FC<{ item: any; onClick: (i: any) => void; width?: string }> = ({ item, onClick, width = 'min-w-[140px] md:min-w-[160px]' }) => {
   const cover = item.thumbnailUrl || item.coverImage || null;
+  const episodeCount = Array.isArray(item.seasons)
+    ? item.seasons.reduce((acc: number, s: any) => acc + (s.episodes?.length || 0), 0)
+    : 0;
   return (
     <motion.div
       whileHover={{ y: -5 }}
@@ -28,10 +32,15 @@ const SeriesCard: React.FC<{ item: any; onClick: (i: any) => void; width?: strin
     >
       <div className="aspect-[2/3] rounded-xl overflow-hidden bg-white/5 relative border border-white/8 group-hover:border-white/20 transition-all duration-300">
         {cover ? (
-          <img src={cover} className="w-full h-full object-cover transition-transform duration-600 group-hover:scale-105" alt={item.title} />
+          <img src={cover} referrerPolicy="no-referrer" className="w-full h-full object-cover transition-transform duration-600 group-hover:scale-105" alt={item.title} />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <Film size={28} className="text-white/10" />
+          </div>
+        )}
+        {episodeCount > 0 && (
+          <div className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-black/75 backdrop-blur-sm border border-[#D0BCFF]/35 text-[7px] font-black uppercase tracking-widest text-[#D0BCFF]">
+            {episodeCount} {episodeCount === 1 ? 'Episode' : 'Episodes'}
           </div>
         )}
         <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
@@ -99,17 +108,25 @@ export const TelevisionView: React.FC<TelevisionViewProps> = ({ series, onSelect
   const [isLoadingEpisodes, setIsLoadingEpisodes] = useState(false);
   const [selectedGenre, setSelectedGenre] = useState('All');
 
-  const genreFiltered = useMemo(() =>
-    series.filter(s => tvMatchesChip(s, selectedGenre)),
-  [selectedGenre, series]);
+  const combinedSeries = useMemo(() => {
+    const merged = [...CURATED_PUBLIC_DOMAIN_TV_SERIES, ...series];
+    return merged.filter((item, idx, self) => {
+      const id = (item as any).identifier || (item as any).id;
+      return self.findIndex(x => ((x as any).identifier || (x as any).id) === id) === idx;
+    });
+  }, [series]);
 
-  const newShows    = useMemo(() => series.slice(0, 20), [series]);
-  const recommended = useMemo(() => series.filter((_, i) => i % 3 === 2).slice(0, 20), [series]);
-  const popular     = useMemo(() => [...series].reverse().slice(0, 20), [series]);
+  const genreFiltered = useMemo(() =>
+    combinedSeries.filter(s => tvMatchesChip(s, selectedGenre)),
+  [selectedGenre, combinedSeries]);
+
+  const newShows    = useMemo(() => combinedSeries.slice(0, 20), [combinedSeries]);
+  const recommended = useMemo(() => combinedSeries.filter((_, i) => i % 3 === 2).slice(0, 20), [combinedSeries]);
+  const popular     = useMemo(() => [...combinedSeries].reverse().slice(0, 20), [combinedSeries]);
 
   const genreCategories = useMemo(() => {
     const genres = Array.from(new Set<string>(
-      series.flatMap(s => {
+      combinedSeries.flatMap(s => {
         const g = 'genre' in s ? (s as any).genre : null;
         const tags: string[] = (s as any).tags || [];
         return [g || 'Classic TV', ...tags].filter(Boolean);
@@ -117,9 +134,9 @@ export const TelevisionView: React.FC<TelevisionViewProps> = ({ series, onSelect
     )).filter(g => !['trailer', 'Trailer'].includes(g));
     return genres.map(genre => ({
       genre,
-      items: series.filter(s => tvMatchesChip(s, genre)).slice(0, 16)
+      items: combinedSeries.filter(s => tvMatchesChip(s, genre)).slice(0, 16)
     })).filter(g => g.items.length >= 2).slice(0, 5);
-  }, [series]);
+  }, [combinedSeries]);
 
   useEffect(() => {
     if (initialSelectedSeries) handleItemClick(initialSelectedSeries);
@@ -136,7 +153,21 @@ export const TelevisionView: React.FC<TelevisionViewProps> = ({ series, onSelect
     setEpisodes([]);
 
     try {
-      if (item.videoUrl) {
+      if (item.seasons && item.seasons.length > 0) {
+        const firstSeasonNum = item.seasons[0]?.number ?? item.seasons[0]?.seasonNumber ?? 1;
+        setSelectedSeason(firstSeasonNum);
+        const allEpisodes = item.seasons.flatMap((s: any) => {
+          const sNum = s.number ?? s.seasonNumber ?? 1;
+          return (s.episodes || []).map((e: any, idx: number) => ({
+            ...e,
+            url: e.url || e.videoUrl,
+            season: sNum,
+            episode: e.episode ?? e.episodeNumber ?? e.number ?? (idx + 1),
+            thumbnailUrl: e.thumbnailUrl || item.thumbnailUrl || item.coverImage,
+          }));
+        });
+        setEpisodes(allEpisodes);
+      } else if (item.videoUrl) {
         setEpisodes([{
           id: item.identifier || item.id || 'ep-1',
           title: item.title,
@@ -191,12 +222,6 @@ export const TelevisionView: React.FC<TelevisionViewProps> = ({ series, onSelect
         setEpisodes(episodesList);
         const sortedSeasons = Array.from(foundSeasons).sort((a, b) => a - b);
         if (sortedSeasons.length > 0) setSelectedSeason(sortedSeasons[0]);
-      } else if (item.seasons) {
-        setSelectedSeason(item.seasons[0]?.number ?? 1);
-        const allEpisodes = item.seasons.flatMap((s: any) =>
-          (s.episodes || []).map((e: any) => ({ ...e, season: s.number }))
-        );
-        setEpisodes(allEpisodes);
       }
     } catch (err) {
       console.error('TelevisionView: failed to load episodes:', err);
@@ -398,6 +423,9 @@ export const TelevisionView: React.FC<TelevisionViewProps> = ({ series, onSelect
 
       {selectedGenre === 'All' ? (
         <>
+          {CURATED_PUBLIC_DOMAIN_TV_SERIES.length > 0 && (
+            <TVRow title="Public Domain Series & Serials" subtitle="Multi-Episode Classics · Verified Streams" accent="#3FBE85" items={CURATED_PUBLIC_DOMAIN_TV_SERIES} onSelect={handleItemClick} />
+          )}
           {newShows.length > 0 && (
             <TVRow title="New Releases" subtitle="Just Added" accent="#D0BCFF" items={newShows} onSelect={handleItemClick} />
           )}

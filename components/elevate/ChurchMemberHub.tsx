@@ -92,19 +92,41 @@ interface ChurchMemberHubProps {
   onOpenMinistry?: (ministryId: string) => void;
 }
 
-const STUDIO_NAV_ITEMS: Array<{
+function getStudioNavItems(orgType?: Organization['orgType']): Array<{
   id: HubStudioSection;
   label: string;
   badge?: string;
   icon: React.ComponentType<{ size?: number; className?: string }>;
-}> = [
-  { id: 'SANCTUARY_STUDIO', label: 'Sanctuary & Rello Live', badge: 'LIVE', icon: Sparkles },
-  { id: 'DEVOTIONAL_AND_BIBLE_365', label: 'Devotional & Bible 365', badge: 'DAY 289', icon: Flame },
-  { id: 'RECENT_LESSONS_AND_VESPERS', label: 'Lessons & Service Briefs', icon: GraduationCap },
-  { id: 'HYMNS_PRAYERS_AND_SCORES', label: 'Hymns, Scores & Prayers', badge: 'LOREA', icon: Music },
-  { id: 'COUNCIL_12_PLATES', label: '12 Sacred Text Plates', badge: 'COUNCIL', icon: ScrollText },
-  { id: 'FAMILY_CRM_AND_TAX_STATEMENTS', label: 'Family Kinship & Tax Statements', icon: Users },
-];
+}> {
+  if (orgType === 'CULTURAL') {
+    return [
+      { id: 'SANCTUARY_STUDIO', label: 'Institution Hub & Live TV', badge: 'LIVE', icon: Sparkles },
+      { id: 'DEVOTIONAL_AND_BIBLE_365', label: 'Daily Reflection & Reading 365', badge: 'DAY 289', icon: Flame },
+      { id: 'RECENT_LESSONS_AND_VESPERS', label: 'Lectures & Exhibition Briefs', icon: GraduationCap },
+      { id: 'HYMNS_PRAYERS_AND_SCORES', label: 'Repertoire, Scores & Archives', badge: 'LOREA', icon: Music },
+      { id: 'COUNCIL_12_PLATES', label: '12 Heritage Text Plates', badge: 'COUNCIL', icon: ScrollText },
+      { id: 'FAMILY_CRM_AND_TAX_STATEMENTS', label: 'Household & Tax Receipts', icon: Users },
+    ];
+  }
+  if (orgType === 'NONPROFIT') {
+    return [
+      { id: 'SANCTUARY_STUDIO', label: 'Mission Hub & Live TV', badge: 'LIVE', icon: Sparkles },
+      { id: 'DEVOTIONAL_AND_BIBLE_365', label: 'Daily Mission & Reading 365', badge: 'DAY 289', icon: Flame },
+      { id: 'RECENT_LESSONS_AND_VESPERS', label: 'Trainings & Field Briefs', icon: GraduationCap },
+      { id: 'HYMNS_PRAYERS_AND_SCORES', label: 'Anthems, Media & Stories', badge: 'LOREA', icon: Music },
+      { id: 'COUNCIL_12_PLATES', label: '12 Charter & Wisdom Plates', badge: 'COUNCIL', icon: ScrollText },
+      { id: 'FAMILY_CRM_AND_TAX_STATEMENTS', label: 'Household & Tax Receipts', icon: Users },
+    ];
+  }
+  return [
+    { id: 'SANCTUARY_STUDIO', label: 'Sanctuary & Rello Live', badge: 'LIVE', icon: Sparkles },
+    { id: 'DEVOTIONAL_AND_BIBLE_365', label: 'Devotional & Bible 365', badge: 'DAY 289', icon: Flame },
+    { id: 'RECENT_LESSONS_AND_VESPERS', label: 'Lessons & Service Briefs', icon: GraduationCap },
+    { id: 'HYMNS_PRAYERS_AND_SCORES', label: 'Hymns, Scores & Prayers', badge: 'LOREA', icon: Music },
+    { id: 'COUNCIL_12_PLATES', label: '12 Sacred Text Plates', badge: 'COUNCIL', icon: ScrollText },
+    { id: 'FAMILY_CRM_AND_TAX_STATEMENTS', label: 'Family Kinship & Tax Statements', icon: Users },
+  ];
+}
 
 export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
   org,
@@ -114,6 +136,7 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
   onOpenMinistry,
 }) => {
   const [section, setSection] = useState<HubStudioSection>('SANCTUARY_STUDIO');
+  const studioNavItems = useMemo(() => getStudioNavItems(org.orgType), [org.orgType]);
 
   // Schedule + GPS Sanctuary Auto-Engage State
   const [simulateInSanctuary, setSimulateInSanctuary] = useState<boolean>(true);
@@ -424,7 +447,7 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
 
       {/* ── STUDIO NAVIGATION RIBBON ── */}
       <div className="px-6 py-3 border-b border-white/10 bg-black/40 flex items-center gap-2 overflow-x-auto custom-scrollbar">
-        {STUDIO_NAV_ITEMS.map(item => {
+        {studioNavItems.map(item => {
           const Icon = item.icon;
           const active = section === item.id;
           return (
@@ -455,18 +478,19 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
 
       {/* ── MAIN STUDIO BODY ── */}
       <div className="p-6 space-y-8">
+        {/* PERSISTENT LIVE STREAM & MINISTRY TV CHANNEL CAROUSEL (Always mounted under the tabs so switching tabs never interrupts watching) */}
+        <RelloChurchViewer
+          org={org}
+          inSanctuaryAutoEngaged={autoEngageStatus.autoEngaged}
+          onOpenFullLectio={ref => setFullLectioRef(ref)}
+          defaultPlayerExpanded={true}
+        />
+
         {/* ═══════════════════════════════════════════════════════════════════════
-            TAB 1: SANCTUARY STUDIO OVERVIEW + TOP LIVE STREAM CAROUSEL + RELLO VIEWER
+            TAB 1: SANCTUARY STUDIO OVERVIEW
             ═══════════════════════════════════════════════════════════════════════ */}
         {section === 'SANCTUARY_STUDIO' && (
           <div className="space-y-8">
-            {/* Top Live Stream & Ministry TV Channel Carousel + Inline Rello Church Viewer Mode */}
-            <RelloChurchViewer
-              org={org}
-              inSanctuaryAutoEngaged={autoEngageStatus.autoEngaged}
-              onOpenFullLectio={ref => setFullLectioRef(ref)}
-            />
-
             {/* Assigned Departments, Ministry Activities & Quick Actions Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               {/* My Assigned Departments & Ministry Activities (7 cols) */}

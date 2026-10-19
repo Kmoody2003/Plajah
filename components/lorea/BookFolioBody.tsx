@@ -1,16 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Play } from 'lucide-react';
+import { cleanGutenbergMarkup } from '../../services/bookContentService';
+import {
+  type ClassicPageTheme,
+  renderChapterCrestSvg,
+  renderUnderTitleFlourishSvg,
+  renderIlluminatedDropCapSvg,
+} from '../../data/classicPageThemes';
 
 /**
  * The Lorea page body in "folio" style (the book page we built for Academia lessons, adapted for books).
- *
- * It does not bring its own theme. BookReader already owns the reading theme, font, size, columns and the
- * orange read-along highlight, so this component takes all of those as props and only adds the page craft on top:
- * a hand-drawn rule, a drop cap on the first paragraph of a chapter, scene-break ornaments, figures set as plates
- * between paragraphs, an optional original-scan pair view, and a quiet page number.
- *
- * The text and figures are separate inputs. Today's text path supplies `paras` only; the EPUB, PDF and scan
- * adapters will supply `figures` and `scanUrl` per page without changing this component.
  */
 export interface BookFigure { afterPara: number; src: string; alt: string; caption?: string }
 type ReadingTheme = 'DEFAULT' | 'SEPIA' | 'DARK' | 'PAPER' | 'VIOLET';
@@ -20,6 +19,7 @@ interface Props {
   chapterTitle: string;
   bookTitle: string;
   author?: string;
+  chapterNo?: number;
   pageNo: number;
   pageCount: number;
   /** First page of a chapter: shows the header, rule and drop cap. */
@@ -41,6 +41,8 @@ interface Props {
   easy: boolean;
   calm: boolean;
   seed: string;
+  /** Active cover-matched flourish theme (when Themes is ON for a classic book) */
+  classicTheme?: ClassicPageTheme | null;
 }
 
 // Palette per existing reading theme. `acc` mirrors the heading colour the classic view already uses.
@@ -58,7 +60,7 @@ function ensureFonts() {
   fontsAdded = true;
   const l = document.createElement('link');
   l.rel = 'stylesheet';
-  l.href = 'https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=Cormorant+Garamond:wght@500;600&family=Atkinson+Hyperlegible:wght@400;700&display=swap';
+  l.href = 'https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=Cormorant+Garamond:wght@500;600&family=Cinzel+Decorative:wght@700&family=Atkinson+Hyperlegible:wght@400;700&display=swap';
   document.head.appendChild(l);
 }
 
@@ -81,16 +83,19 @@ const CSS = `
 .lbp{font-size:var(--lbp-fs);line-height:var(--lbp-lh);color:var(--lbp-ink);position:relative}
 .lbp.easy{font-family:"Atkinson Hyperlegible",Verdana,sans-serif;letter-spacing:.02em;--lbp-lh:1.95}
 .lbp-head{margin-bottom:1.7em;max-width:34em}
+.lbp-head.themed{text-align:center;margin-inline:auto;max-width:38em}
 .lbp-kick{font:600 .6em/1.3 system-ui,sans-serif;letter-spacing:.2em;text-transform:uppercase;color:var(--lbp-mute)}
 .lbp-title{font:600 1.9em/1.1 "Cormorant Garamond",Georgia,serif;margin:.3em 0 .1em;color:var(--lbp-acc);text-wrap:balance}
 .lbp.easy .lbp-title{font-family:"Atkinson Hyperlegible",Verdana,sans-serif;font-weight:700;font-size:1.6em}
 .lbp-rule{display:block;width:100%;max-width:9em;height:6px;margin-top:.5em;color:var(--lbp-acc)}
-.lbp-cols{max-width:34em}
+.lbp-cols{max-width:36em;margin-inline:auto}
 .lbp-cols.two{max-width:none;columns:1;column-gap:3em;column-rule:1px solid var(--lbp-line)}
 @media(min-width:768px){.lbp-cols.two{columns:2}}
 .lbp-p{margin:0 0 1.05em;position:relative;text-wrap:pretty}
 .lbp-cols.two .lbp-p{break-inside:avoid-column}
-.lbp:not(.easy) .lbp-p.dc::first-letter{font-family:"Cormorant Garamond",Georgia,serif;font-weight:600;font-size:3.5em;line-height:.8;float:left;padding:.07em .1em 0 0;color:var(--lbp-acc)}
+.lbp:not(.easy) .lbp-p.dc::first-letter{font-family:"Cinzel Decorative","Cormorant Garamond",Georgia,serif;font-weight:700;font-size:3.5em;line-height:.84;float:left;padding:.08em .14em .06em .12em;margin:.04em .14em 0 0;color:var(--lbp-acc);border-radius:8px;background:var(--lbp-dc-bg,transparent);border:var(--lbp-dc-border,none)}
+.lbp-dc-medallion{float:left;position:relative;width:4.1em;height:4.1em;margin:.06em .55em .12em 0;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;background:var(--lbp-dc-bg,transparent);border:var(--lbp-dc-border,none);box-shadow:0 6px 18px rgba(0,0,0,.22);overflow:hidden;user-select:none}
+.lbp-dc-medallion-letter{position:relative;z-index:2;font-family:"Cinzel Decorative","Cormorant Garamond",Georgia,serif;font-weight:700;font-size:2.65em;line-height:1;color:var(--lbp-acc);text-shadow:0 2px 10px rgba(0,0,0,.55)}
 .lbp-p.cur{color:var(--lbp-ink)}
 .lbp-w{border-radius:4px;transition:opacity .15s,background .15s}
 .lbp-w.done{opacity:.55}
@@ -105,7 +110,7 @@ const CSS = `
 .lbp-fig img{display:block;max-width:100%;max-height:26em;margin:0 auto;border-radius:4px;object-fit:contain}
 .lbp-fig figcaption{font-style:italic;font-size:.88em;line-height:1.5;color:var(--lbp-mute);text-align:center}
 .lbp-fig figcaption b{display:block;font:600 .7em/1 system-ui,sans-serif;font-style:normal;letter-spacing:.18em;text-transform:uppercase;color:var(--lbp-acc);margin-bottom:.4em}
-.lbp-no{text-align:center;font:500 .62em/1 system-ui,sans-serif;letter-spacing:.2em;color:var(--lbp-mute);margin-top:2.2em}
+.lbp-no{text-align:center;font:600 .66em/1.3 system-ui,sans-serif;letter-spacing:.16em;text-transform:uppercase;color:var(--lbp-mute);margin-top:2.2em}
 .lbp-bar{display:flex;gap:8px;margin-bottom:1.4em;font:600 10px/1 system-ui,sans-serif;letter-spacing:.18em;text-transform:uppercase}
 .lbp-bar button{border:1px solid var(--lbp-line);background:transparent;color:var(--lbp-mute);border-radius:999px;padding:7px 12px;cursor:pointer}
 .lbp-bar button[aria-pressed="true"]{color:var(--lbp-acc);border-color:var(--lbp-acc)}
@@ -122,9 +127,9 @@ const CSS = `
 `;
 
 const BookFolioBody: React.FC<Props> = ({
-  paras, chapterTitle, bookTitle, author, pageNo, pageCount, chapterStart, titleShownElsewhere,
+  paras, chapterTitle, bookTitle, author, chapterNo, pageNo, pageCount, chapterStart, titleShownElsewhere,
   readingTheme, fontFamily, fontSizePct, doubleColumn, readAlong, wordRef, onReadFrom,
-  figures, scanUrl, loadScan, easy, calm, seed,
+  figures, scanUrl, loadScan, easy, calm, seed, classicTheme,
 }) => {
   const [showScan, setShowScan] = useState(false);
   const [lazyScan, setLazyScan] = useState<string | null>(null);
@@ -138,7 +143,20 @@ const BookFolioBody: React.FC<Props> = ({
     if (!scanSrc && loadScan) { setScanBusy(true); loadScan().then(setLazyScan).catch(() => setShowScan(false)).finally(() => setScanBusy(false)); }
   };
 
-  const pal = PALETTE[readingTheme] || PALETTE.DEFAULT;
+  const basePal = PALETTE[readingTheme] || PALETTE.DEFAULT;
+  const pal = classicTheme
+    ? {
+        ink: classicTheme.palette.ink,
+        mute: classicTheme.palette.muted,
+        acc: classicTheme.palette.accent,
+        line: classicTheme.palette.pageBorder,
+        hi: basePal.hi,
+      }
+    : basePal;
+
+  const cleanedParas = useMemo(() => paras.map(p => cleanGutenbergMarkup(p)), [paras]);
+  const cleanedChapterTitle = useMemo(() => cleanGutenbergMarkup(chapterTitle), [chapterTitle]);
+
   const rule = useMemo(() => wobblyRule(seedOf(seed || bookTitle)), [seed, bookTitle]);
   const figsAfter = useMemo(() => {
     const m = new Map<number, BookFigure[]>();
@@ -146,25 +164,46 @@ const BookFolioBody: React.FC<Props> = ({
     return m;
   }, [figures]);
 
-  // Serif is the book face; the reader's Mono choice is respected, and Easier to read swaps to Atkinson.
   const face = easy ? '"Atkinson Hyperlegible", Verdana, sans-serif'
     : fontFamily === 'mono' ? 'ui-monospace, Menlo, Consolas, monospace' : '"Source Serif 4", Georgia, serif';
-  const firstTextIdx = paras.findIndex(p => !SCENE_BREAK.test(p));
+  const firstTextIdx = cleanedParas.findIndex(p => !SCENE_BREAK.test(p));
 
   const style: React.CSSProperties = {
-    ['--lbp-ink' as any]: pal.ink, ['--lbp-mute' as any]: pal.mute, ['--lbp-acc' as any]: pal.acc,
-    ['--lbp-line' as any]: pal.line, ['--lbp-hi' as any]: pal.hi,
-    ['--lbp-fs' as any]: `${(18 * fontSizePct) / 100}px`, ['--lbp-lh' as any]: 1.75,
+    ['--lbp-ink' as any]: pal.ink,
+    ['--lbp-mute' as any]: pal.mute,
+    ['--lbp-acc' as any]: pal.acc,
+    ['--lbp-line' as any]: pal.line,
+    ['--lbp-hi' as any]: pal.hi,
+    ['--lbp-dc-bg' as any]: classicTheme ? classicTheme.palette.dropCapBg : 'transparent',
+    ['--lbp-dc-border' as any]: classicTheme ? `1px solid ${classicTheme.palette.pageBorder}` : 'none',
+    ['--lbp-fs' as any]: `${(18 * fontSizePct) / 100}px`,
+    ['--lbp-lh' as any]: 1.78,
     fontFamily: face,
   };
 
   const body = (
     <div>
       {chapterStart && (
-        <header className="lbp-head">
-          <div className="lbp-kick">{bookTitle}{author ? ` · ${author}` : ''}</div>
-          {!titleShownElsewhere && <h3 className="lbp-title">{chapterTitle}</h3>}
-          <svg className="lbp-rule" viewBox="0 0 600 4" preserveAspectRatio="none" aria-hidden="true"><path pathLength={1} d={rule} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
+        <header className={`lbp-head${classicTheme ? ' themed' : ''}`}>
+          {classicTheme && renderChapterCrestSvg(classicTheme.id, classicTheme.palette.accent, classicTheme.palette.secondary)}
+          <div className="lbp-kick">
+            {classicTheme ? `${classicTheme.era} · ${bookTitle}` : `${bookTitle}${author ? ` · ${author}` : ''}`}
+          </div>
+          {!titleShownElsewhere && (
+            <h3
+              className="lbp-title"
+              style={classicTheme ? { color: classicTheme.palette.heading } : undefined}
+            >
+              {cleanedChapterTitle}
+            </h3>
+          )}
+          {classicTheme ? (
+            renderUnderTitleFlourishSvg(classicTheme.palette.accent, classicTheme.palette.secondary, classicTheme.id)
+          ) : (
+            <svg className="lbp-rule" viewBox="0 0 600 4" preserveAspectRatio="none" aria-hidden="true">
+              <path pathLength={1} d={rule} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+            </svg>
+          )}
         </header>
       )}
       <div className={`lbp-cols${doubleColumn ? ' two' : ''}`}>
@@ -174,17 +213,26 @@ const BookFolioBody: React.FC<Props> = ({
             {f.caption && <figcaption><b>Plate</b>{f.caption}</figcaption>}
           </figure>
         ))}
-        {paras.map((para, i) => {
-          if (SCENE_BREAK.test(para)) return <div key={i} className="lbp-orn" aria-hidden="true">{'· · ·'}</div>;
+        {cleanedParas.map((para, i) => {
+          if (SCENE_BREAK.test(para)) {
+            return (
+              <div key={i} className="lbp-orn" aria-hidden="true">
+                {classicTheme
+                  ? renderUnderTitleFlourishSvg(classicTheme.palette.accent, classicTheme.palette.secondary, classicTheme.id)
+                  : '· · ·'}
+              </div>
+            );
+          }
           const active = readAlong?.para === i;
           const dc = chapterStart && i === firstTextIdx && para.length > 80;
+          const hasIlluminatedDc = Boolean(dc && classicTheme && !easy && !active);
+          const leadingMatch = hasIlluminatedDc ? para.match(/^([“"‘'([]*[A-Za-z])(.*)$/s) : null;
           return (
             <React.Fragment key={i}>
-              <p className={`lbp-p${dc ? ' dc' : ''}${active ? ' cur' : ''}`} style={{ ['--i' as any]: Math.min(i, 9) }} onDoubleClick={() => onReadFrom?.(i)}>
+              <p className={`lbp-p${dc && !leadingMatch ? ' dc' : ''}${active ? ' cur' : ''}`} style={{ ['--i' as any]: Math.min(i, 9) }} onDoubleClick={() => onReadFrom?.(i)}>
                 {onReadFrom && <button type="button" className="lbp-play" aria-label="Read aloud from here" onClick={() => onReadFrom(i)}><Play size={11} fill="currentColor" /></button>}
                 {active
                   ? (() => {
-                      // Word spans exist only on the paragraph being read, so long pages stay light.
                       let w = 0;
                       return para.split(/(\s+)/).map((tok, k) => {
                         if (!tok || /^\s+$/.test(tok)) return tok;
@@ -193,7 +241,17 @@ const BookFolioBody: React.FC<Props> = ({
                         return <span key={k} ref={cur ? wordRef : undefined} className={`lbp-w${cur ? ' on' : idx < readAlong!.word ? ' done' : ''}`}>{tok}</span>;
                       });
                     })()
-                  : para}
+                  : leadingMatch && classicTheme
+                    ? (
+                      <>
+                        <span className="lbp-dc-medallion" aria-hidden="true">
+                          {renderIlluminatedDropCapSvg(classicTheme.id, 68)}
+                          <span className="lbp-dc-medallion-letter">{leadingMatch[1].replace(/^[“"‘'([]+/, '')}</span>
+                        </span>
+                        {leadingMatch[2]}
+                      </>
+                    )
+                    : para}
               </p>
               {(figsAfter.get(i) || []).map((f, k) => (
                 <figure key={`f${i}-${k}`} className="lbp-fig" style={{ ['--i' as any]: Math.min(i + 1, 9) }}>
@@ -205,7 +263,25 @@ const BookFolioBody: React.FC<Props> = ({
           );
         })}
       </div>
-      <div className="lbp-no">{pageNo} / {pageCount}</div>
+
+      {/* Signature Pull-Quote Callout on Chapter Start when Classic Flourish Theme is active */}
+      {classicTheme && chapterStart && pageNo === 1 && classicTheme.quote && (
+        <div
+          className="mt-7 mb-2 mx-auto max-w-xl px-5 py-3.5 rounded-xl text-center italic text-sm"
+          style={{
+            color: classicTheme.palette.accent,
+            background: 'rgba(255,255,255,0.025)',
+            borderTop: `1px solid ${classicTheme.palette.pageBorder}`,
+            borderBottom: `1px solid ${classicTheme.palette.pageBorder}`,
+          }}
+        >
+          “{classicTheme.quote}”
+        </div>
+      )}
+
+      <div className="lbp-no">
+        {chapterNo ? `Chapter ${chapterNo} · Page ${pageNo} of ${pageCount}` : `Page ${pageNo} of ${pageCount}`}
+      </div>
     </div>
   );
 
@@ -228,3 +304,4 @@ const BookFolioBody: React.FC<Props> = ({
 };
 
 export default BookFolioBody;
+

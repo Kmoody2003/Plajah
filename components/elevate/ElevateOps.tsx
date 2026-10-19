@@ -7,7 +7,7 @@
 import React, { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft, LayoutDashboard, Users, Church, Link2, Gift, HandHeart, MonitorPlay, MessagesSquare, ShoppingBag,
-  Briefcase, Megaphone, Check, Circle, Loader2, Trash2, Sparkles, Mail, HardDrive, UserCog, Mic2, Wallet, KeyRound, GraduationCap, Music,
+  Briefcase, Megaphone, Check, Circle, Loader2, Trash2, Sparkles, Mail, HardDrive, UserCog, Mic2, Wallet, KeyRound, GraduationCap, Music, ShieldCheck,
 } from 'lucide-react';
 import { spendingPerms } from '../../services/acctSpending';
 import { CountBadge, useMoneyInbox } from './chms/finance/SpendingUi';
@@ -22,6 +22,7 @@ import { connectStripe } from '../../services/stripeService';
 import ChurchPrayerWall from '../ChurchPrayerWall';
 import OrgThread from './OrgThread';
 import OrgStoreSection from './OrgStoreSection';
+import OrgSecurityShield, { OrgSecurityPanel } from './OrgSecurityShield';
 
 // Sibling modules built in parallel — lazy so a missing/late file never breaks the page shell.
 const RosterManager = lazy(() => import('./RosterManager'));
@@ -45,7 +46,7 @@ const ChurchMusicDepartmentHub = lazy(() => import('./ChurchMusicDepartmentHub')
 const card = 'bg-white/[0.03] border border-white/10 rounded-[2rem]';
 const field = 'w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white outline-none focus:border-small-orange/50 transition-all placeholder:text-white/25';
 
-type SectionKey = 'overview' | 'people' | 'ministries' | 'education' | 'music' | 'invites' | 'accounts' | 'giving' | 'money' | 'prayer' | 'media' | 'social' | 'store' | 'team' | 'marketing';
+type SectionKey = 'overview' | 'people' | 'ministries' | 'education' | 'music' | 'invites' | 'accounts' | 'security' | 'giving' | 'money' | 'prayer' | 'media' | 'social' | 'store' | 'team' | 'marketing';
 type Tool = null | 'sermons' | 'master' | 'console' | 'hq' | 'employees' | 'hiring' | 'marketing';
 
 interface Props {
@@ -104,6 +105,7 @@ const ElevateOps: React.FC<Props> = ({ org: initialOrg, isOwner, onClose, onOrgC
     { key: 'music' as const, label: 'Music Department', icon: Music, show: faith && !!myMembership },
     { key: 'invites' as const, label: 'Invites', icon: Link2, show: can('MANAGE_INVITES') },
     { key: 'accounts' as const, label: 'Accounts & Access', icon: KeyRound, show: can('MANAGE_ROSTER') },
+    { key: 'security' as const, label: 'Security & Privacy', icon: ShieldCheck, show: can('MANAGE_ROSTER') || can('MANAGE_GIVING') || can('MANAGE_ACCOUNTING') || isOwner },
     { key: 'giving' as const, label: 'Giving', icon: Gift, show: can('MANAGE_GIVING') || can('VIEW_GIVING') || can('MANAGE_ACCOUNTING') || can('VIEW_ACCOUNTING') },
     { key: 'money' as const, label: 'Money', icon: Wallet, show: showMoney, badge: moneyInbox.count },
     { key: 'prayer' as const, label: 'Prayer', icon: HandHeart, show: faith && can('VIEW_PRAYER') },
@@ -112,7 +114,7 @@ const ElevateOps: React.FC<Props> = ({ org: initialOrg, isOwner, onClose, onOrgC
     { key: 'store' as const, label: 'Store', icon: ShoppingBag, show: can('MANAGE_STORE') },
     { key: 'team' as const, label: faith ? 'Volunteers & Staff' : 'Hiring & Staff', icon: Briefcase, show: can('MANAGE_EMPLOYEES') },
     { key: 'marketing' as const, label: 'Marketing', icon: Megaphone, show: can('MANAGE_CONTENT') || can('VIEW_ANALYTICS') },
-  ] as { key: SectionKey; label: string; icon: any; show: boolean; badge?: number }[]).filter(n => n.show), [can, faith, myMembership, showMoney, moneyInbox.count]);
+  ] as { key: SectionKey; label: string; icon: any; show: boolean; badge?: number }[]).filter(n => n.show), [can, faith, isOwner, myMembership, showMoney, moneyInbox.count, org.ministries, uid]);
 
   // If the active section was hidden by a permission change, fall back.
   useEffect(() => { if (nav.length && !nav.some(n => n.key === section)) setSection(nav[0].key); }, [nav, section]);
@@ -216,50 +218,61 @@ const ElevateOps: React.FC<Props> = ({ org: initialOrg, isOwner, onClose, onOrgC
               )}
 
               {section === 'people' && (
-                <div className="space-y-5">
-                  <div className="flex gap-1.5">
-                    {([['congregation', 'Congregation (ChMS)'], ['roster', 'Platform roster & roles']] as const).map(([k, l]) => (
-                      <button key={k} onClick={() => setPeopleView(k)} className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest ${peopleView === k ? 'bg-small-orange text-black' : 'bg-white/5 text-white/50 hover:text-white'}`}>{l}</button>
-                    ))}
+                <OrgSecurityShield org={org} surface="People & Congregation Directory" mode="pii">
+                  <div className="space-y-5">
+                    <div className="flex gap-1.5">
+                      {([['congregation', 'Congregation (ChMS)'], ['roster', 'Platform roster & roles']] as const).map(([k, l]) => (
+                        <button key={k} onClick={() => setPeopleView(k)} className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest ${peopleView === k ? 'bg-small-orange text-black' : 'bg-white/5 text-white/50 hover:text-white'}`}>{l}</button>
+                      ))}
+                    </div>
+                    {peopleView === 'congregation'
+                      ? <PeopleHub org={org} myMembership={myMembership} onClose={() => setSection('overview')} />
+                      : <RosterManager org={org} myMembership={myMembership} onClose={() => setSection('overview')} onChanged={() => { reload(); }} />}
                   </div>
-                  {peopleView === 'congregation'
-                    ? <PeopleHub org={org} myMembership={myMembership} onClose={() => setSection('overview')} />
-                    : <RosterManager org={org} myMembership={myMembership} onClose={() => setSection('overview')} onChanged={() => { reload(); }} />}
-                </div>
+                </OrgSecurityShield>
               )}
               {section === 'ministries' && <MinistryManager org={org} myMembership={myMembership} onClose={() => setSection('overview')} onChanged={() => { fetchOrganization(org.id).then(o => { if (o) setOrg(o); }).catch(() => {}); reload(); }} />}
               {section === 'education' && <ChurchEducation church={org} canEdit={can('MANAGE_MINISTRIES') || can('MANAGE_CONTENT') || isOwner} />}
               {section === 'music' && <ChurchMusicDepartmentHub church={org} canEdit={can('MANAGE_MINISTRIES') || can('MANAGE_CONTENT') || isOwner} />}
               {section === 'invites' && <InvitesPanel org={org} myMembership={myMembership} />}
               {section === 'accounts' && <AccountsPanel org={org} myMembership={myMembership} onOrgChange={setOrg} />}
+              {section === 'security' && <OrgSecurityPanel org={org} myMembership={myMembership} onOrgChange={setOrg} />}
 
               {section === 'giving' && billingOpen && (can('MANAGE_GIVING') || can('MANAGE_ACCOUNTING') || can('VIEW_ACCOUNTING')) && (
-                <div className="space-y-4">
-                  <button onClick={() => setBillingOpen(false)} className="text-[10px] font-black uppercase tracking-widest text-white/50 hover:text-white">← Back</button>
-                  <Suspense fallback={null}><BillingHubMount entity={{ kind: 'ORG', id: org.id }} entityName={org.legalName || org.name} canManage={can('MANAGE_GIVING') || can('MANAGE_ACCOUNTING')} accounting /></Suspense>
-                </div>
+                <OrgSecurityShield org={org} surface="Billing & Invoices" mode="financial">
+                  <div className="space-y-4">
+                    <button onClick={() => setBillingOpen(false)} className="text-[10px] font-black uppercase tracking-widest text-white/50 hover:text-white">← Back</button>
+                    <Suspense fallback={null}><BillingHubMount entity={{ kind: 'ORG', id: org.id }} entityName={org.legalName || org.name} canManage={can('MANAGE_GIVING') || can('MANAGE_ACCOUNTING')} accounting /></Suspense>
+                  </div>
+                </OrgSecurityShield>
               )}
               {section === 'giving' && !billingOpen && (financeOpen && (can('MANAGE_GIVING') || can('VIEW_GIVING')) ? (
                 <FinanceHub org={org} myMembership={myMembership} onClose={() => setFinanceOpen(false)} onOrgChange={setOrg} />
               ) : (
-                <div className="space-y-6">
-                  {(can('MANAGE_GIVING') || can('VIEW_GIVING')) && (
-                    <button onClick={() => setFinanceOpen(true)} className="w-full text-left px-5 py-4 rounded-[2rem] bg-small-orange/10 border border-small-orange/30 hover:bg-small-orange/20 transition-all">
-                      <p className="text-sm font-black text-white">Finance Hub</p>
-                      <p className="text-[10px] text-white/50 mt-0.5">Gift entry, batches, funds, pledges, statements, reports, QuickBooks export, reconciliation, audit</p>
-                    </button>
-                  )}
-                  {(can('MANAGE_GIVING') || can('MANAGE_ACCOUNTING') || can('VIEW_ACCOUNTING')) && (
-                    <button onClick={() => setBillingOpen(true)} className="w-full text-left px-5 py-4 rounded-[2rem] bg-white/5 border border-white/10 hover:bg-white/10 transition-all">
-                      <p className="text-sm font-black text-white">Billing &amp; Invoices{billingNav.state === 'soon' && <SoonPill />}</p>
-                      <p className="text-[10px] text-white/50 mt-0.5">Invoice facility rentals, sponsors and vendors — paid to your organization&apos;s own Stripe account{!(can('MANAGE_GIVING') || can('MANAGE_ACCOUNTING')) ? ' · read-only' : ''}</p>
-                    </button>
-                  )}
-                  <GivingPanel org={org} canManage={can('MANAGE_GIVING')} totals={donationTotals} onSaved={setOrg} />
-                </div>
+                <OrgSecurityShield org={org} surface="Giving & Funds" mode="financial">
+                  <div className="space-y-6">
+                    {(can('MANAGE_GIVING') || can('VIEW_GIVING')) && (
+                      <button onClick={() => setFinanceOpen(true)} className="w-full text-left px-5 py-4 rounded-[2rem] bg-small-orange/10 border border-small-orange/30 hover:bg-small-orange/20 transition-all">
+                        <p className="text-sm font-black text-white">Finance Hub</p>
+                        <p className="text-[10px] text-white/50 mt-0.5">Gift entry, batches, funds, pledges, statements, reports, QuickBooks export, reconciliation, audit</p>
+                      </button>
+                    )}
+                    {(can('MANAGE_GIVING') || can('MANAGE_ACCOUNTING') || can('VIEW_ACCOUNTING')) && (
+                      <button onClick={() => setBillingOpen(true)} className="w-full text-left px-5 py-4 rounded-[2rem] bg-white/5 border border-white/10 hover:bg-white/10 transition-all">
+                        <p className="text-sm font-black text-white">Billing &amp; Invoices{billingNav.state === 'soon' && <SoonPill />}</p>
+                        <p className="text-[10px] text-white/50 mt-0.5">Invoice facility rentals, sponsors and vendors — paid to your organization&apos;s own Stripe account{!(can('MANAGE_GIVING') || can('MANAGE_ACCOUNTING')) ? ' · read-only' : ''}</p>
+                      </button>
+                    )}
+                    <GivingPanel org={org} canManage={can('MANAGE_GIVING')} totals={donationTotals} onSaved={setOrg} />
+                  </div>
+                </OrgSecurityShield>
               ))}
 
-              {section === 'money' && showMoney && <SpendingDesk org={org} member={myMembership} onOpenFinanceHub={() => { setSection('giving'); setFinanceOpen(true); }} />}
+              {section === 'money' && showMoney && (
+                <OrgSecurityShield org={org} surface="Money & Spending Desk" mode="financial">
+                  <SpendingDesk org={org} member={myMembership} onOpenFinanceHub={() => { setSection('giving'); setFinanceOpen(true); }} />
+                </OrgSecurityShield>
+              )}
 
               {section === 'prayer' && (
                 <ChurchPrayerWall orgId={org.id} canSeePrivate={can('VIEW_PRAYER')} canManage={can('MANAGE_PRAYER')} />

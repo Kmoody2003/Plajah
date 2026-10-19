@@ -1,5 +1,6 @@
 // Shared metadata; authorization decisions are made again on the server.
 export const MUSIC_ENGINES = [
+  { id: 'ace-step-2.5', name: 'ACE-Step 2.5 Symphonic', purpose: 'Full-length orchestral stems, hybrid synth-acoustics & film scoring', license: 'MIT', permissionRequired: false },
   { id: 'ace-step', name: 'ACE-Step 1.5', purpose: 'Song and instrumental generation', license: 'MIT', permissionRequired: false },
   { id: 'heartmula', name: 'HeartMuLa 3B', purpose: 'Song generation from lyrics and style', license: 'Apache 2.0', permissionRequired: false },
   { id: 'basic-pitch', name: 'Basic Pitch', purpose: 'Audio to editable notes', license: 'Apache 2.0', permissionRequired: false },

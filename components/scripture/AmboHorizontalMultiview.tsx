@@ -15,6 +15,7 @@ import {
   Laptop, Tablet, Smartphone, Music, Film, Zap, ExternalLink, Power, RefreshCw } from 'lucide-react';
 import { type LiveStack, type Slide } from '../../services/ambo/showModel';
 import { LayerRenderer } from '../../services/ambo/layerRenderer';
+import { getProgramBusCanvas, subscribeProgramBusFollower } from '../../services/ambo/programBus';
 import { useContextMenu } from '../ui/ContextMenu';
 import { type AmboOutput, type ProgramTake } from '../../services/ambo/outputRouter';
 import {
@@ -71,19 +72,26 @@ const MiniCanvasMonitor: React.FC<{ stack: LiveStack; audio?: boolean; label: st
   const ref = useRef<HTMLCanvasElement>(null);
   const shownTakeRef = useRef<number | null>(take?.seq ?? null);
   const rendererRef = useRef<LayerRenderer | null>(null);
+  const followProgramBus = label === 'Program' || audio !== undefined;
 
   useEffect(() => {
     const c = ref.current;
     if (!c) return;
+    if (followProgramBus && getProgramBusCanvas()) {
+      c.width = 640;
+      c.height = 360;
+      return subscribeProgramBusFollower(c);
+    }
     const r = new LayerRenderer(c, { w: 640, h: 360 });
-    r.setOptions({ audioEnabled: !!audio });
+    // Audio is played by the single Master Program Bus; fallbacks stay silent unless no bus exists.
+    r.setOptions({ audioEnabled: !!audio && !getProgramBusCanvas() });
     r.start();
     rendererRef.current = r;
     return () => {
       r.dispose();
       rendererRef.current = null;
     };
-  }, [audio]);
+  }, [audio, followProgramBus]);
 
   useEffect(() => {
     const r = rendererRef.current;

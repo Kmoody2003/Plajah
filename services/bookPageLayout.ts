@@ -120,18 +120,50 @@ export type FlowBlock =
 
 const wordCount = (t: string) => (t.match(/\S+/g) || []).length;
 
+function splitOversizedPara(p: string, maxWords = 200): string[] {
+  const words = p.trim().split(/\s+/);
+  if (words.length <= maxWords) return [p];
+  const sentences = p.match(/[^.!?]+[.!?]+["'”’)]*\s*|[^.!?]+$/g);
+  if (!sentences || sentences.length <= 1) {
+    const out: string[] = [];
+    for (let i = 0; i < words.length; i += maxWords) {
+      out.push(words.slice(i, i + maxWords).join(' '));
+    }
+    return out;
+  }
+  const chunks: string[] = [];
+  let cur = '';
+  let curW = 0;
+  for (const s of sentences) {
+    const sw = wordCount(s);
+    if (curW > 0 && curW + sw > maxWords) {
+      chunks.push(cur.trim());
+      cur = s;
+      curW = sw;
+    } else {
+      cur += s;
+      curW += sw;
+    }
+  }
+  if (cur.trim()) chunks.push(cur.trim());
+  return chunks;
+}
+
 /** Group a chapter's paragraphs and figures into reading pages. A figure always stays with the paragraph before it. */
 export function paginateFlow(blocks: FlowBlock[], opts: { words?: number; maxParas?: number } = {}): PageData[] {
-  const budget = opts.words ?? 330; const maxParas = opts.maxParas ?? 14;
+  const budget = opts.words ?? 220; const maxParas = opts.maxParas ?? 5;
   const pages: PageData[] = [];
   let cur: PageData = { paras: [], figures: [] }; let w = 0;
   const flush = () => { if (cur.paras.length || cur.figures.length) pages.push(cur); cur = { paras: [], figures: [] }; w = 0; };
   for (const b of blocks) {
     if (b.kind === 'p') {
-      const n = wordCount(b.text);
-      if (cur.paras.length && (w + n > budget || cur.paras.length >= maxParas)) flush();
-      cur.paras.push(b.text); w += n;
-      if (n > budget) flush(); // one very long paragraph gets a page of its own
+      const pieces = splitOversizedPara(b.text, budget);
+      for (const piece of pieces) {
+        const n = wordCount(piece);
+        if (cur.paras.length && (w + n > budget || cur.paras.length >= maxParas)) flush();
+        cur.paras.push(piece); w += n;
+        if (n >= budget) flush();
+      }
     } else {
       cur.figures.push({ afterPara: Math.max(-1, cur.paras.length - 1), src: b.src, alt: b.alt, caption: b.caption });
       w += 60; // a figure takes room

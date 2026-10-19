@@ -1,4 +1,4 @@
-import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
+import { thumb, onThumbError, THUMB, coverGridSrc } from '../src/lib/imageThumb';
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Album, Track, Video, UserProfile } from '../types';
 import { fetchArtistAlbums, fetchUserVideos, fetchUserProfile, followUser, unfollowUser, isFollowing, auth, uploadImageWithDerivatives, updateUserProfile } from '../services/backendService';

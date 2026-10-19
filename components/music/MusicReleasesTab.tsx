@@ -6,7 +6,7 @@
  * album's own artwork + description/liner notes captured at upload time.
  */
 
-import { thumb, onThumbError, THUMB } from '../../src/lib/imageThumb';
+import { thumb, onThumbError, THUMB, coverGridSrc } from '../../src/lib/imageThumb';
 import React, { useEffect, useMemo, useState } from 'react';
 import { cleanDescription } from '../../utils/description';
 import { motion } from 'motion/react';

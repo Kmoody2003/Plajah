@@ -38,15 +38,15 @@ export const MenuBar: React.FC<{ menus: MenuGroup[] }> = ({ menus }) => {
   }, [open]);
 
   return (
-    <div ref={rootRef} className="flex items-center gap-0.5">
+    <div ref={rootRef} className="flex items-center gap-0.5 shrink-0">
       {menus.map((menu, i) => (
-        <div key={menu.label} className="relative">
+        <div key={menu.label} className="relative shrink-0">
           <button
             ref={(el) => { if (el) triggers.current.set(i, el); else triggers.current.delete(i); }}
             aria-expanded={open === i}
             onClick={() => setOpen((v) => (v === i ? null : i))}
             onPointerEnter={() => { if (open !== null && open !== i) setOpen(i); }}
-            className={`h-7 px-2.5 rounded-lg text-[11.5px] transition-colors ${open === i ? 'bg-white/12 text-white' : 'text-white/55 hover:text-white hover:bg-white/[0.06]'}`}
+            className={`h-7 px-2.5 rounded-lg text-[11.5px] transition-colors shrink-0 whitespace-nowrap ${open === i ? 'bg-white/12 text-white' : 'text-white/55 hover:text-white hover:bg-white/[0.06]'}`}
           >{menu.label}</button>
           {open === i && triggers.current.get(i) && (
             <AnchoredPopover anchor={triggers.current.get(i)!} onClose={() => setOpen(null)} className="w-[230px] rounded-xl border border-white/15 bg-[#0B0B0F]/98 backdrop-blur-xl shadow-2xl p-1">

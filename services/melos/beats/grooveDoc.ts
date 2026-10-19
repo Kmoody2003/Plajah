@@ -110,14 +110,229 @@ export interface Pattern {
  * ONE note list, three editors: the piano roll edits it freely, the step grid renders it
  * quantized to 16ths, and the timeline draws it as a clip. Same data — no conversion, no drift.
  */
+export type OrchestralArticulation =
+  | 'legato'
+  | 'spiccato'
+  | 'staccato'
+  | 'marcato'
+  | 'tremolo'
+  | 'pizzicato'
+  | 'sul-ponticello'
+  | 'sul-tasto'
+  | 'con-sordino'
+  | 'portamento'
+  | 'flutter-tongue'
+  | 'sfz-hairpin';
+
+export type MpeSwellShape =
+  | 'sustained'
+  | 'hairpin'
+  | 'crescendo'
+  | 'decrescendo'
+  | 'sfz-swell'
+  | 'arch';
+
+export interface MpeCurvePoint {
+  /** Normalized position within the note duration (0..1) */
+  t: number;
+  /** MPE Pitch Bend offset in semitones (-24..+24) or normalized (-1..+1) */
+  bend?: number;
+  /** MPE Pressure / CC11 Expression swell (0..1) */
+  pressure?: number;
+  /** MPE Timbre / CC74 Harmonic Brightness (0..1) */
+  timbre?: number;
+}
+
+export interface NoteMpeExpression {
+  /** Static or initial MPE pitch bend (-1..1 or semitone offset) */
+  bend?: number;
+  /** Peak or target MPE pressure / CC11 expression (0..1) */
+  pressure?: number;
+  /** MPE timbre / CC74 brightness (0..1) */
+  timbre?: number;
+  /** Continuous dynamic swell envelope shape across the note's duration */
+  swellShape?: MpeSwellShape;
+  /** Progressive vibrato depth in semitones (0..0.65, typical orchestral string/wind is 0.14..0.32) */
+  vibratoDepth?: number;
+  /** Vibrato LFO rate in Hz (default ~5.4 Hz for strings/soloists) */
+  vibratoRateHz?: number;
+  /** Normalized delay (0..0.7) before vibrato blooms on a sustained note */
+  vibratoDelay01?: number;
+  /** Initial portamento / legato pitch-glide offset in semitones (e.g. -2 glides up 2 semitones into the note) */
+  glideFromSemis?: number;
+  /** Duration of the portamento glide as a fraction of the note (0.05..0.5) */
+  glidePortion01?: number;
+  /** Bow rosin / breath airiness transient intensity (0..1) */
+  bowBreath01?: number;
+  /** Multi-point MPE curve nodes for custom drawn expression automation */
+  curvePoints?: MpeCurvePoint[];
+}
+
 export interface NoteEvent {
   id: string;
   startBeats: number;   // relative to the clip start
   lengthBeats: number;
   key: number;          // MIDI note number
   vel: number;          // 1–127
-  /** MPE per-note expression, recorded when the controller sends it. */
-  expr?: { bend?: number; pressure?: number; timbre?: number };
+  /** Orchestral performance articulation (legato, spiccato, tremolo, pizzicato, marcato, etc.) */
+  articulation?: OrchestralArticulation;
+  /** MPE per-note continuous expression, swell curves, vibrato, and portamento glide. */
+  expr?: NoteMpeExpression;
+}
+
+export type TrackAutomationTarget =
+  | 'cc1-modwheel'
+  | 'cc11-expression'
+  | 'cc74-timbre'
+  | 'cc64-sustain'
+  | 'tempo-rubato';
+
+export interface AutomationPoint {
+  beat: number;
+  value: number; // 0..1 (or BPM multiplier 0.75..1.35 for tempo-rubato)
+  curve?: 'linear' | 'smooth' | 'exp';
+}
+
+export interface TrackAutomationLane {
+  id: string;
+  target: TrackAutomationTarget;
+  label: string;
+  points: AutomationPoint[];
+}
+
+export interface FilmScoreSectionMarker {
+  id: string;
+  romanNumeral: string;
+  title: string;
+  dramaticCue: string;
+  startBeats: number;
+  lengthBeats: number;
+  dynamicMarking: 'ppp' | 'pp' | 'p' | 'mp' | 'mf' | 'f' | 'ff' | 'fff' | 'sfz';
+  tempoBpm?: number;
+  keySignature?: string;
+  generativeModel?: string;
+  color: string;
+}
+
+/**
+ * Evaluates a note's continuous MPE expression (`bend`, `pressure`, `timbre`, `gainMultiplier`, `vibratoSemis`)
+ * at normalized progress `progress01` (0..1) and elapsed time `elapsedSec` within the note.
+ */
+export function evaluateNoteMpeAtProgress(
+  note: NoteEvent,
+  progress01: number,
+  elapsedSec: number,
+): {
+  bend: number;
+  pressure: number;
+  timbre: number;
+  gainMultiplier: number;
+  pitchOffsetSemis: number;
+} {
+  const p = Math.max(0, Math.min(1, progress01));
+  const expr = note.expr;
+  const art = note.articulation ?? 'legato';
+
+  const basePressure = expr?.pressure ?? Math.min(1, Math.max(0.25, note.vel / 127));
+  const baseTimbre = expr?.timbre ?? (art === 'sul-ponticello' ? 0.88 : art === 'con-sordino' || art === 'sul-tasto' ? 0.34 : 0.62);
+  const baseBend = expr?.bend ?? 0;
+
+  // 1. Evaluate dynamic swell envelope
+  const shape: MpeSwellShape =
+    expr?.swellShape ??
+    (art === 'sfz-hairpin'
+      ? 'sfz-swell'
+      : art === 'spiccato' || art === 'staccato' || art === 'pizzicato'
+        ? 'decrescendo'
+        : note.lengthBeats >= 2.5
+          ? 'hairpin'
+          : 'arch');
+
+  let swellEnv = 1.0;
+  if (shape === 'hairpin') {
+    // Expressive orchestral hairpin (< >): starts at 45%, swells to 118% at 58% of the note, tapers to 55%
+    const peakPos = 0.58;
+    const arch = p <= peakPos ? p / peakPos : 1 - (p - peakPos) / (1 - peakPos);
+    swellEnv = 0.45 + 0.73 * Math.sin(arch * Math.PI * 0.5);
+  } else if (shape === 'crescendo') {
+    swellEnv = 0.38 + 0.78 * Math.pow(p, 1.25);
+  } else if (shape === 'decrescendo') {
+    swellEnv = (1 - Math.exp(-elapsedSec * 90)) * Math.pow(Math.max(0.05, 1 - p), 1.4);
+  } else if (shape === 'sfz-swell') {
+    // Immediate sforzando bite followed by dramatic drop and secondary crescendo
+    const bite = Math.exp(-p * 9) * 0.65;
+    const build = Math.pow(p, 1.6) * 0.85;
+    swellEnv = Math.min(1.25, 0.35 + bite + build);
+  } else if (shape === 'arch') {
+    swellEnv = 0.68 + 0.38 * Math.sin(p * Math.PI);
+  }
+
+  // 2. Apply custom multi-point MPE curve if drawn in Piano Roll
+  let customPressure = basePressure * swellEnv;
+  let customTimbre = Math.min(1, Math.max(0.08, baseTimbre * (0.75 + 0.35 * swellEnv)));
+  let customBend = baseBend;
+
+  if (expr?.curvePoints && expr.curvePoints.length >= 2) {
+    const pts = expr.curvePoints;
+    let i = 0;
+    while (i < pts.length - 2 && pts[i + 1].t < p) i++;
+    const a = pts[i];
+    const b = pts[i + 1];
+    const span = Math.max(0.0001, b.t - a.t);
+    const frac = Math.max(0, Math.min(1, (p - a.t) / span));
+    if (a.pressure !== undefined && b.pressure !== undefined) {
+      customPressure = a.pressure + (b.pressure - a.pressure) * frac;
+      swellEnv = 0.35 + customPressure * 0.85;
+    }
+    if (a.timbre !== undefined && b.timbre !== undefined) {
+      customTimbre = a.timbre + (b.timbre - a.timbre) * frac;
+    }
+    if (a.bend !== undefined && b.bend !== undefined) {
+      customBend = a.bend + (b.bend - a.bend) * frac;
+    }
+  }
+
+  // 3. Articulation modulation (bow tremolo, flutter-tongue, marcato punch)
+  if (art === 'tremolo') {
+    // 11.5 Hz bow tremolo modulation
+    swellEnv *= 0.76 + 0.28 * Math.sin(2 * Math.PI * 11.5 * elapsedSec);
+  } else if (art === 'flutter-tongue') {
+    swellEnv *= 0.82 + 0.22 * Math.sin(2 * Math.PI * 16.0 * elapsedSec);
+  } else if (art === 'marcato') {
+    swellEnv *= 1.0 + 0.28 * Math.exp(-elapsedSec * 12);
+  }
+
+  // 4. Progressive vibrato + legato portamento glide
+  const vibDelay = expr?.vibratoDelay01 ?? 0.22;
+  const vibRate = expr?.vibratoRateHz ?? 5.4;
+  const vibDepth =
+    expr?.vibratoDepth ??
+    (art === 'pizzicato' || art === 'spiccato' || art === 'staccato'
+      ? 0
+      : note.lengthBeats >= 1.5
+        ? 0.18
+        : 0.06);
+  const vibRamp = p > vibDelay ? Math.min(1, (p - vibDelay) / Math.max(0.1, 0.55 - vibDelay)) : 0;
+  const vibratoSemis = vibDepth * vibRamp * Math.sin(2 * Math.PI * vibRate * elapsedSec);
+
+  let glideSemis = 0;
+  if (expr?.glideFromSemis && Math.abs(expr.glideFromSemis) > 0.01) {
+    const glidePortion = Math.max(0.05, Math.min(0.65, expr.glidePortion01 ?? 0.24));
+    if (p < glidePortion) {
+      const gFrac = 1 - p / glidePortion;
+      glideSemis = expr.glideFromSemis * gFrac * gFrac;
+    }
+  }
+
+  const pitchOffsetSemis = customBend + glideSemis + vibratoSemis;
+
+  return {
+    bend: Math.max(-1, Math.min(1, pitchOffsetSemis / 2)),
+    pressure: Math.max(0.05, Math.min(1, customPressure)),
+    timbre: Math.max(0.05, Math.min(1, customTimbre)),
+    gainMultiplier: Math.max(0.1, Math.min(1.45, swellEnv)),
+    pitchOffsetSemis,
+  };
 }
 
 export interface TimelineClip {
@@ -126,20 +341,30 @@ export interface TimelineClip {
   lengthBeats: number;
   /** Optional clip-local color. Unset clips inherit their track color. */
   color?: string;
+  /** Optional clip title / film cue section label */
+  name?: string;
   patternId?: string;                              // kind 'pattern'
   /** kind 'pattern' — per-pad loop-length override IN 16th STEPS inside this clip. MEKA's
    *  pattern length is the default; a pad listed here loops its own shorter cycle instead
    *  (independent per-track clip lengths, Bitwig-style polymeter). */
   padLens?: Record<number, number>;
-  /** kind 'instrument' — a MIDI clip. */
+  /** kind 'instrument' — a MIDI clip with MPE per-note expression and articulations. */
   notes?: NoteEvent[];
+  /** Optional CC & MPE automation lanes attached to this clip */
+  automationLanes?: TrackAutomationLane[];
+  /** Optional generative model badge that created or hybrid-layered this clip (e.g. 'ace-step-2.5', 'yue2') */
+  generativeEngine?: string;
   audio?: { sampleKey: string; name: string; offsetSec: number; gainDb: number;
             durationSec: number; stretch?: number /* simple linear rate only */;
             /** Durable private-locker fallback for reopening on another device. */
             lockerUrl?: string;
             /** Downsampled channel peak envelope used by every timeline renderer. */
-            peaks?: number[]; detectedBpm?: number };
+            peaks?: number[]; detectedBpm?: number;
+            /** Optional generative model provenance for ACE-Step 2.5 / YuE2 / HeartMuLa stems */
+            generativeEngine?: string;
+            stemPrompt?: string };
 }
+
 
 /** The meditation suite (vela/cantus/ison/pneuma) shares one engine and one editor; they are
  *  separate types because they are separate instruments — different purpose, different preset
@@ -189,6 +414,10 @@ export interface ArrangeTrack {
   collapsed?: boolean;
   /** Per-track lane height in the arrangement timeline (px). Undefined = default LANE_H. */
   laneH?: number;
+  /** Optional track-level CC & MPE automation lanes */
+  automationLanes?: TrackAutomationLane[];
+  /** Optional generative model badge for hybrid AI + synth tracks (e.g. 'ace-step-2.5', 'yue2', 'qwen-score') */
+  generativeEngine?: string;
 }
 
 import type { FxInstance } from './fx/devices';
@@ -239,6 +468,25 @@ export interface GrooveDoc {
   patterns: Pattern[];
   arrangement: ArrangeTrack[];
   mixer: MixerState;
+  /** Film cue section markers across the arrangement timeline (Overture, Theme A, Theme B, Development, Climax, Coda) */
+  sectionMarkers?: FilmScoreSectionMarker[];
+  /** Optional Chora DAW Showcase & Template project metadata */
+  showcaseMetadata?: {
+    isShowcaseTemplate: boolean;
+    bookThemeId: string;
+    bookId?: string;
+    bookTitle: string;
+    trackIndex: number;
+    activeMovementIdx?: number;
+    trackTitle: string;
+    activeMovementTitle?: string;
+    keySignature?: string;
+    characterOrTheme: string;
+    scoreMode: 'full-film-score' | 'light-background';
+    durationFormatted: string;
+    generativeModelsUsed: string[];
+    composerLineage: string[];
+  };
   // Unmodeled .dawproject XML preserved verbatim so importing a Bitwig project and re-exporting
   // destroys nothing (plugin Devices, complex Warps, automation Points…).
   foreignXml?: string;

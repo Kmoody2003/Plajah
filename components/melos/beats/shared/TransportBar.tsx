@@ -75,20 +75,20 @@ export const TransportBar: React.FC<TransportBarProps> = (p) => {
   }, [p]);
 
   return (
-    <div className="flex items-center gap-3 px-4 h-14 border-b border-white/10 bg-white/[0.04] backdrop-blur-xl flex-none">
+    <div className="flex items-center gap-2 xl:gap-3 px-3 xl:px-4 h-14 border-b border-white/10 bg-white/[0.04] backdrop-blur-xl flex-none overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
       {!p.hideClose && (
-        <button onClick={p.onClose} aria-label="Close Beats" className="w-8 h-8 grid place-items-center rounded-lg border border-white/10 text-white/50 hover:text-white hover:bg-white/10 transition-colors">
+        <button onClick={p.onClose} aria-label="Close Chora Studio" className="w-8 h-8 shrink-0 grid place-items-center rounded-lg border border-white/10 text-white/50 hover:text-white hover:bg-white/10 transition-colors">
           <X size={15} />
         </button>
       )}
-      <span className="font-black text-[13px] tracking-[0.06em] select-none">
-        <span className="bg-gradient-to-br from-[#B84DFF] to-[#D40055] bg-clip-text text-transparent">MELOS</span>
+      <span className="font-black text-[13px] tracking-[0.06em] select-none shrink-0 whitespace-nowrap">
+        <span className="bg-gradient-to-br from-[#B84DFF] to-[#D40055] bg-clip-text text-transparent">CHORA</span>
         <span className="text-white/80">&nbsp;· STUDIO</span>
       </span>
 
       {p.menuSlot}
 
-      <div className="flex gap-0.5 bg-white/[0.06] border border-white/10 rounded-[10px] p-0.5">
+      <div className="flex gap-0.5 bg-white/[0.06] border border-white/10 rounded-[10px] p-0.5 shrink-0">
         {VIEWS.map((v) => {
           const enabled = p.availableViews.includes(v.id);
           const active = p.view === v.id;
@@ -98,23 +98,23 @@ export const TransportBar: React.FC<TransportBarProps> = (p) => {
               disabled={!enabled}
               onClick={() => p.onSetView(v.id)}
               title={enabled ? v.label : `${v.label} — coming in this build`}
-              className={`h-7 px-3 rounded-lg text-[11px] transition-colors ${active ? 'bg-[#D0BCFF]/20 text-[#D0BCFF] font-semibold' : enabled ? 'text-white/50 hover:text-white' : 'text-white/20 cursor-not-allowed'}`}
+              className={`h-7 px-3 rounded-lg text-[11px] transition-colors shrink-0 whitespace-nowrap ${active ? 'bg-[#D0BCFF]/20 text-[#D0BCFF] font-semibold' : enabled ? 'text-white/50 hover:text-white' : 'text-white/20 cursor-not-allowed'}`}
             >{v.label}</button>
           );
         })}
       </div>
 
-      <div className="flex-1" />
+      <div className="flex-1 min-w-2" />
 
       {p.suspended && (
-        <button onClick={() => { void BeatsEngine.get().init(); }} className="h-8 px-3 rounded-lg text-[11px] font-semibold bg-[#FF8C00]/15 text-[#FF8C00] border border-[#FF8C00]/40 animate-pulse">
+        <button onClick={() => { void BeatsEngine.get().init(); }} className="h-8 px-3 rounded-lg text-[11px] font-semibold bg-[#FF8C00]/15 text-[#FF8C00] border border-[#FF8C00]/40 animate-pulse shrink-0 whitespace-nowrap">
           Tap to enable audio
         </button>
       )}
 
-      <div className="flex gap-0.5 bg-white/[0.06] border border-white/10 rounded-[10px] p-0.5" title="Play the selected pattern, or the whole arrangement">
-        <button onClick={() => p.onSetPlayMode('pattern')} className={`h-7 px-2.5 rounded-lg text-[10px] uppercase tracking-wide ${p.playMode === 'pattern' ? 'bg-white/15 text-white font-semibold' : 'text-white/40 hover:text-white'}`}>Pattern</button>
-        <button onClick={() => p.onSetPlayMode('song')} className={`h-7 px-2.5 rounded-lg text-[10px] uppercase tracking-wide ${p.playMode === 'song' ? 'bg-white/15 text-white font-semibold' : 'text-white/40 hover:text-white'}`}>Song</button>
+      <div className="flex gap-0.5 bg-white/[0.06] border border-white/10 rounded-[10px] p-0.5 shrink-0" title="Play the selected pattern, or the whole arrangement">
+        <button onClick={() => p.onSetPlayMode('pattern')} className={`h-7 px-2.5 rounded-lg text-[10px] uppercase tracking-wide shrink-0 whitespace-nowrap ${p.playMode === 'pattern' ? 'bg-white/15 text-white font-semibold' : 'text-white/40 hover:text-white'}`}>Pattern</button>
+        <button onClick={() => p.onSetPlayMode('song')} className={`h-7 px-2.5 rounded-lg text-[10px] uppercase tracking-wide shrink-0 whitespace-nowrap ${p.playMode === 'song' ? 'bg-white/15 text-white font-semibold' : 'text-white/40 hover:text-white'}`}>Song</button>
       </div>
 
       {editingBpm ? (
@@ -124,7 +124,7 @@ export const TransportBar: React.FC<TransportBarProps> = (p) => {
           onChange={(e) => setBpmText(e.target.value)}
           onBlur={() => { const v = parseFloat(bpmText); if (Number.isFinite(v)) p.onSetBpm(Math.max(20, Math.min(300, v))); setEditingBpm(false); }}
           onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); if (e.key === 'Escape') setEditingBpm(false); }}
-          className="w-16 h-8 bg-black/40 border border-white/20 rounded-lg text-center font-mono text-[14px] text-white outline-none"
+          className="w-16 h-8 shrink-0 bg-black/40 border border-white/20 rounded-lg text-center font-mono text-[14px] text-white outline-none"
         />
       ) : (
         <button
@@ -132,15 +132,15 @@ export const TransportBar: React.FC<TransportBarProps> = (p) => {
           onPointerMove={(e) => { if (bpmDrag.current) p.onSetBpm(Math.max(20, Math.min(300, Math.round((bpmDrag.current.bpm + (bpmDrag.current.y - e.clientY) * 0.25) * 10) / 10))); }}
           onPointerUp={() => { bpmDrag.current = null; }}
           onDoubleClick={() => { setBpmText(String(p.doc.bpm)); setEditingBpm(true); }}
-          className="font-mono text-[15px] font-semibold text-white cursor-ns-resize select-none"
+          className="font-mono text-[15px] font-semibold text-white cursor-ns-resize select-none shrink-0 whitespace-nowrap"
           title="Drag to change · double-click to type"
         >
           {p.doc.bpm.toFixed(1)}<span className="text-[9px] text-white/40 ml-1 tracking-widest">BPM</span>
         </button>
       )}
-      <button onClick={tapTempo} className="h-8 px-2.5 rounded-lg text-[11px] border border-white/10 text-white/50 hover:text-white hover:bg-white/10">TAP</button>
+      <button onClick={tapTempo} className="h-8 px-2.5 rounded-lg text-[11px] border border-white/10 text-white/50 hover:text-white hover:bg-white/10 shrink-0 whitespace-nowrap">TAP</button>
 
-      <label className="flex items-center gap-1.5 text-[10px] text-white/40 uppercase tracking-wide" title="Swing on offbeat 16ths">
+      <label className="flex items-center gap-1.5 text-[10px] text-white/40 uppercase tracking-wide shrink-0 whitespace-nowrap" title="Swing on offbeat 16ths">
         Swing
         <input
           type="range" min={0} max={100} value={Math.round(p.doc.swing * 100)}
@@ -157,7 +157,7 @@ export const TransportBar: React.FC<TransportBarProps> = (p) => {
         const beat = Math.floor(b % 4) + 1;
         const six = Math.floor((b % 1) * 4) + 1;
         return (
-          <span className="font-mono text-[13px] text-white/80 tabular-nums select-none w-[70px] text-center" title="Bar . beat . 16th">
+          <span className="font-mono text-[13px] text-white/80 tabular-nums select-none w-[64px] text-center shrink-0 whitespace-nowrap" title="Bar . beat . 16th">
             {bar}.{beat}.{six}
           </span>
         );
@@ -170,25 +170,25 @@ export const TransportBar: React.FC<TransportBarProps> = (p) => {
         const outBar = Math.floor(loop.endBeats / 4) + 1;
         const set = (patch: Partial<typeof loop>) => p.onSetLoop({ ...loop, ...patch });
         return (
-          <div className="flex items-center gap-1 rounded-[10px] border border-white/10 bg-white/[0.06] p-0.5" title="Cycle: loop the arrangement between the in and out bars (Song mode)">
+          <div className="flex items-center gap-1 rounded-[10px] border border-white/10 bg-white/[0.06] p-0.5 shrink-0" title="Cycle: loop the arrangement between the in and out bars (Song mode)">
             <button
               onClick={() => set({ on: !loop.on })}
               aria-label="Toggle loop"
-              className={`h-7 px-2 rounded-lg flex items-center gap-1 text-[11px] ${loop.on ? 'text-[#00DAF3] bg-[#00DAF3]/12' : 'text-white/45 hover:text-white'}`}
+              className={`h-7 px-2 rounded-lg flex items-center gap-1 text-[11px] shrink-0 ${loop.on ? 'text-[#00DAF3] bg-[#00DAF3]/12' : 'text-white/45 hover:text-white'}`}
             ><Repeat size={13} /></button>
-            <button onClick={() => set({ startBeats: Math.max(0, loop.startBeats - 4) })} className="w-5 h-6 text-white/40 hover:text-white text-[12px] leading-none" aria-label="Loop in earlier">‹</button>
-            <span className="font-mono text-[11px] text-white/70 tabular-nums w-12 text-center">{inBar}–{outBar}</span>
-            <button onClick={() => set({ endBeats: loop.endBeats + 4 })} className="w-5 h-6 text-white/40 hover:text-white text-[12px] leading-none" aria-label="Loop out later">›</button>
+            <button onClick={() => set({ startBeats: Math.max(0, loop.startBeats - 4) })} className="w-5 h-6 text-white/40 hover:text-white text-[12px] leading-none shrink-0" aria-label="Loop in earlier">‹</button>
+            <span className="font-mono text-[11px] text-white/70 tabular-nums min-w-[44px] px-1 text-center whitespace-nowrap">{inBar}–{outBar}</span>
+            <button onClick={() => set({ endBeats: loop.endBeats + 4 })} className="w-5 h-6 text-white/40 hover:text-white text-[12px] leading-none shrink-0" aria-label="Loop out later">›</button>
           </div>
         );
       })()}
 
       {p.running ? (
-        <button onClick={p.onStop} aria-label="Stop" className="w-9 h-8 grid place-items-center rounded-lg bg-white/10 border border-white/15 text-white hover:bg-white/20">
+        <button onClick={p.onStop} aria-label="Stop" className="w-9 h-8 shrink-0 grid place-items-center rounded-lg bg-white/10 border border-white/15 text-white hover:bg-white/20">
           <Square size={13} fill="currentColor" />
         </button>
       ) : (
-        <button onClick={p.onPlay} aria-label="Play" className="w-9 h-8 grid place-items-center rounded-lg font-bold" style={{ background: PLAYHEAD, color: '#061014' }}>
+        <button onClick={p.onPlay} aria-label="Play" className="w-9 h-8 shrink-0 grid place-items-center rounded-lg font-bold" style={{ background: PLAYHEAD, color: '#061014' }}>
           <Play size={14} fill="currentColor" />
         </button>
       )}
@@ -199,7 +199,7 @@ export const TransportBar: React.FC<TransportBarProps> = (p) => {
           onClick={p.onToggleRecord}
           aria-label={p.recording ? 'Recording armed' : 'Arm recording'}
           title={p.recording ? 'Recording armed — notes you play are captured to the armed track' : 'Arm recording (plays with the pre-roll count-in)'}
-          className={`w-9 h-8 grid place-items-center rounded-lg border transition-colors ${p.recording ? 'animate-pulse' : ''}`}
+          className={`w-9 h-8 shrink-0 grid place-items-center rounded-lg border transition-colors ${p.recording ? 'animate-pulse' : ''}`}
           style={p.recording
             ? { background: 'rgba(212,0,85,0.25)', borderColor: '#D40055', color: '#FF4D8C' }
             : { borderColor: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.45)' }}
@@ -210,21 +210,21 @@ export const TransportBar: React.FC<TransportBarProps> = (p) => {
 
       {/* Metronome + pre-roll: click toggles the click, the chip cycles the count-in bars. */}
       {p.onToggleMetronome && (
-        <div className="flex items-center rounded-lg border border-white/10 overflow-hidden">
+        <div className="flex items-center rounded-lg border border-white/10 overflow-hidden shrink-0">
           <button
             onClick={p.onToggleMetronome}
             aria-label="Metronome"
             title={p.metronomeOn ? 'Metronome on' : 'Metronome off'}
-            className="w-8 h-8 grid place-items-center transition-colors"
+            className="w-8 h-8 shrink-0 grid place-items-center transition-colors"
             style={p.metronomeOn ? { color: PLAYHEAD, background: 'rgba(0,218,243,0.12)' } : { color: 'rgba(255,255,255,0.4)' }}
           ><Timer size={14} /></button>
           {p.onCyclePreRoll && (
             <button
               onClick={p.onCyclePreRoll}
               title="Pre-roll — count-in bars before a recording starts"
-              className="h-8 px-1.5 text-[9px] font-mono border-l border-white/10 transition-colors"
+              className="h-8 px-2 text-[9px] font-mono border-l border-white/10 transition-colors shrink-0 whitespace-nowrap"
               style={(p.preRollBars ?? 0) > 0 ? { color: PLAYHEAD } : { color: 'rgba(255,255,255,0.35)' }}
-            >{(p.preRollBars ?? 0) > 0 ? `${p.preRollBars}bar` : 'pre 0'}</button>
+            >{(p.preRollBars ?? 0) > 0 ? `${p.preRollBars} bar` : 'pre 0'}</button>
           )}
         </div>
       )}
@@ -234,7 +234,7 @@ export const TransportBar: React.FC<TransportBarProps> = (p) => {
         onClick={p.onPanic}
         aria-label="Panic — stop all sound"
         title="Panic: silence every sounding note"
-        className="w-9 h-8 grid place-items-center rounded-lg border border-[#EF4444]/45 text-[#EF4444] hover:bg-[#EF4444]/12"
+        className="w-9 h-8 shrink-0 grid place-items-center rounded-lg border border-[#EF4444]/45 text-[#EF4444] hover:bg-[#EF4444]/12"
       >
         <OctagonX size={15} />
       </button>
@@ -246,7 +246,7 @@ export const TransportBar: React.FC<TransportBarProps> = (p) => {
         onClick={p.onPublish}
         disabled={!p.onPublish || !!p.busy}
         title="Render the song and publish it to Chora via the Album Creator"
-        className="h-8 px-3.5 rounded-lg text-[11px] font-semibold text-white flex items-center gap-1.5 disabled:opacity-40"
+        className="h-8 px-3.5 rounded-lg text-[11px] font-semibold text-white flex items-center gap-1.5 disabled:opacity-40 shrink-0 whitespace-nowrap"
         style={{ background: 'linear-gradient(135deg, #6B0099, #D40055)', boxShadow: '0 6px 22px rgba(212,0,85,0.34)' }}
       >
         <UploadCloud size={12} /> {p.busy === 'publish' ? 'Rendering…' : p.busy === 'bounce' ? 'Rendering…' : 'Publish'}
@@ -254,7 +254,7 @@ export const TransportBar: React.FC<TransportBarProps> = (p) => {
 
       {p.onOpenMidi && (
         <button onClick={p.onOpenMidi} aria-label="MIDI controllers" title="MIDI controllers — devices and Learn mapping"
-          className="w-8 h-8 grid place-items-center rounded-lg border transition-colors relative border-white/10 text-white/40 hover:text-white">
+          className="w-8 h-8 shrink-0 grid place-items-center rounded-lg border transition-colors relative border-white/10 text-white/40 hover:text-white">
           <SlidersHorizontal size={14} />
           {/* The static dot said "a device exists". This one says what it is DOING — and goes
               amber when notes are arriving that nothing is listening to. */}
@@ -263,7 +263,7 @@ export const TransportBar: React.FC<TransportBarProps> = (p) => {
           </span>
         </button>
       )}
-      <button onClick={p.onToggleDiagnostics} aria-label="Engine diagnostics" className={`w-8 h-8 grid place-items-center rounded-lg border transition-colors ${p.showDiagnostics ? 'border-[#00DAF3]/50 text-[#00DAF3] bg-[#00DAF3]/10' : 'border-white/10 text-white/40 hover:text-white'}`}>
+      <button onClick={p.onToggleDiagnostics} aria-label="Engine diagnostics" className={`w-8 h-8 shrink-0 grid place-items-center rounded-lg border transition-colors ${p.showDiagnostics ? 'border-[#00DAF3]/50 text-[#00DAF3] bg-[#00DAF3]/10' : 'border-white/10 text-white/40 hover:text-white'}`}>
         <Activity size={14} />
       </button>
     </div>

@@ -26,13 +26,19 @@ import { recomputeOrgRoleIndex } from './elevateService';
 import { logOrgAction } from './orgAudit';
 import { syncOrgChatForUser } from './orgChatService';
 
-const strip = <T extends Record<string, any>>(o: T): T => {
+const strip = <T>(val: T): T => {
+  if (val === null || val === undefined || typeof val !== 'object') return val;
+  if (Array.isArray(val)) return val.filter(x => x !== undefined).map(x => strip(x)) as unknown as T;
+  const proto = Object.getPrototypeOf(val);
+  if (proto !== null && proto !== Object.prototype) return val;
   const out: Record<string, any> = {};
-  for (const [k, v] of Object.entries(o)) if (v !== undefined) out[k] = v;
+  for (const [k, v] of Object.entries(val as Record<string, any>)) {
+    if (v !== undefined) out[k] = strip(v);
+  }
   return out as T;
 };
 
-// ── Member IDs ───────────────────────────────────────────────────────────────
+// ── Member & Employment IDs ──────────────────────────────────────────────────
 
 /** "Grace Community Church" → "GCC"; falls back to the org id's first letters. */
 export function memberNumberPrefix(org: Pick<Organization, 'name' | 'memberNumberPrefix' | 'id'>): string {
@@ -41,10 +47,10 @@ export function memberNumberPrefix(org: Pick<Organization, 'name' | 'memberNumbe
   return initials || org.id.slice(0, 3).toUpperCase();
 }
 /** Stable 5-digit code from a person id (same person → same number across re-imports). */
-function digitsFor(seed: string): string {
+function digitsFor(seed: string, min = 10000, span = 90000): string {
   let h = 2166136261;
   for (let i = 0; i < seed.length; i++) { h ^= seed.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
-  return String(10000 + (h % 90000));
+  return String(min + (h % span));
 }
 /** Member ID for a person: the source system's member number when it looks like one, else PREFIX-NNNNN. */
 export function memberNumberFor(org: Pick<Organization, 'name' | 'memberNumberPrefix' | 'id'>, person: Pick<ChmsPerson, 'id' | 'memberNumber' | 'source'>, taken?: Set<string>): string {
@@ -55,6 +61,16 @@ export function memberNumberFor(org: Pick<Organization, 'name' | 'memberNumberPr
   let n = `${prefix}-${digitsFor(person.id)}`;
   let bump = 1;
   while (taken?.has(n)) n = `${prefix}-${digitsFor(person.id + ':' + bump++)}`;
+  taken?.add(n);
+  return n;
+}
+/** Employment / Staff ID for a person: PREFIX-EMP-NNNN (auto-populated on backend approval or provisioning). */
+export function employeeNumberFor(org: Pick<Organization, 'name' | 'memberNumberPrefix' | 'id'>, person: Pick<ChmsPerson, 'id' | 'employeeNumber'>, taken?: Set<string>): string {
+  if (person.employeeNumber) return person.employeeNumber;
+  const prefix = memberNumberPrefix(org);
+  let n = `${prefix}-EMP-${digitsFor('emp:' + person.id, 1000, 9000)}`;
+  let bump = 1;
+  while (taken?.has(n)) n = `${prefix}-EMP-${digitsFor('emp:' + person.id + ':' + bump++, 1000, 9000)}`;
   taken?.add(n);
   return n;
 }
@@ -123,15 +139,17 @@ export function buildProvisionDocs(org: Organization, person: ChmsPerson, opts: 
   const roleKey = opts.roleKey || org.accountProvisioning?.defaultRoleKey || 'MEMBER';
   const def = getElevateRole(roleKey) || getElevateRole('MEMBER')!;
   const memberNumber = memberNumberFor(org, person, taken);
+  const employeeNumber = employeeNumberFor(org, person, taken);
   const displayName = `${person.preferredName || person.firstName} ${person.lastName}`.trim();
   const rosterGroup: RosterGroup = def.rosterGroup;
   const isEmployee = opts.isEmployee ?? (rosterGroup === 'STAFF' || rosterGroup === 'PASTORAL' || rosterGroup === 'LEADERSHIP');
   const ministryIds = Array.from(new Set([...(opts.ministryIds || []), ...(person.ministryIds || [])]));
+  // Strict privacy: never write personal email onto public `users/*` docs
   const profile: Record<string, any> = strip({
-    uid, displayName, photoURL: person.photoUrl || '', email: person.email || '',
+    uid, displayName, photoURL: person.photoUrl || '', email: '',
     accountType: 'EMPLOYEE', isEmployee: true, isProvisioned: true,
     employerOrgId: org.id, managedByUid: u.uid,
-    provisionedMemberNumber: memberNumber, provisionedRoleKey: roleKey,
+    provisionedMemberNumber: memberNumber, provisionedEmployeeNumber: employeeNumber, provisionedRoleKey: roleKey,
     followerCount: 0, followingCount: 0, createdAt: now,
   });
   const membership: OrgMembership = strip({
@@ -141,11 +159,11 @@ export function buildProvisionDocs(org: Organization, person: ChmsPerson, opts: 
     roleKey, rosterGroup, isEmployee: isEmployee || undefined, employeeProfileUid: uid,
     source: 'OWNER_CREATED', invitedBy: u.uid, acceptedAt: now,
     ministryRoles: ministryIds.length ? ministryIds.map(ministryId => ({ ministryId, roleKey: roleKey === 'DEPARTMENT_HEAD' ? 'DEPARTMENT_HEAD' : 'VOLUNTEER' })) : undefined,
-    isProvisioned: true, provisionedPersonId: person.id, memberNumber,
+    isProvisioned: true, provisionedPersonId: person.id, memberNumber, employeeNumber,
     claimEmailLower: person.email ? person.email.trim().toLowerCase() : undefined,
     ministryIds: ministryIds.length ? ministryIds : undefined,
   }) as OrgMembership;
-  const updatedPerson: ChmsPerson = { ...person, provisionedUid: uid, memberNumber, ministryIds: ministryIds.length ? ministryIds : person.ministryIds, updatedAt: now };
+  const updatedPerson: ChmsPerson = { ...person, provisionedUid: uid, memberNumber, employeeNumber, ministryIds: ministryIds.length ? ministryIds : person.ministryIds, updatedAt: now };
   return { person: updatedPerson, membership, profileUid: uid, profile };
 }
 
@@ -156,7 +174,7 @@ export async function provisionAccount(org: Organization, person: ChmsPerson, op
   const b = writeBatch(db);
   b.set(doc(db, 'users', built.profileUid), built.profile);
   b.set(doc(db, 'orgMemberships', built.membership.id), built.membership);
-  b.set(doc(db, 'chmsPeople', person.id), { provisionedUid: built.profileUid, memberNumber: built.person.memberNumber, ministryIds: built.person.ministryIds || [], updatedAt: built.person.updatedAt }, { merge: true });
+  b.set(doc(db, 'chmsPeople', person.id), { provisionedUid: built.profileUid, memberNumber: built.person.memberNumber, employeeNumber: built.person.employeeNumber, ministryIds: built.person.ministryIds || [], updatedAt: built.person.updatedAt }, { merge: true });
   await b.commit();
   afterProvision(org, [built.membership]).catch(() => {});
   logOrgAction(org.id, 'ELEVATE_ACCOUNT_PROVISIONED', { targetId: person.id, targetName: built.membership.displayName, meta: { roleKey: built.membership.roleKey } });
@@ -171,7 +189,7 @@ export async function provisionAccountsBulk(
 ): Promise<{ provisioned: ProvisionResult[]; skipped: number }> {
   const todo = people.filter(p => !p.linkedUid && !p.provisionedUid && !p.archived && !p.mergedInto);
   const skipped = people.length - todo.length;
-  const taken = new Set(people.map(p => p.memberNumber).filter(Boolean) as string[]);
+  const taken = new Set(people.flatMap(p => [p.memberNumber, p.employeeNumber]).filter(Boolean) as string[]);
   const out: ProvisionResult[] = [];
   for (let i = 0; i < todo.length; i += 150) {
     const slice = todo.slice(i, i + 150);
@@ -180,7 +198,7 @@ export async function provisionAccountsBulk(
       const built = buildProvisionDocs(org, person, typeof opts === 'function' ? opts(person) : opts, taken);
       b.set(doc(db, 'users', built.profileUid), built.profile);
       b.set(doc(db, 'orgMemberships', built.membership.id), built.membership);
-      b.set(doc(db, 'chmsPeople', person.id), { provisionedUid: built.profileUid, memberNumber: built.person.memberNumber, ministryIds: built.person.ministryIds || [], updatedAt: built.person.updatedAt }, { merge: true });
+      b.set(doc(db, 'chmsPeople', person.id), { provisionedUid: built.profileUid, memberNumber: built.person.memberNumber, employeeNumber: built.person.employeeNumber, ministryIds: built.person.ministryIds || [], updatedAt: built.person.updatedAt }, { merge: true });
       out.push(built);
     }
     await b.commit();
@@ -218,7 +236,9 @@ export async function updateProvisionedSeat(org: Organization, membership: OrgMe
 /** Tie a congregation record to an EXISTING Plajah user (staff picked them from search). Creates the membership if missing. */
 export async function linkPersonToUser(org: Organization, person: ChmsPerson, user: Pick<UserProfile, 'uid' | 'displayName' | 'photoURL'>, opts: ProvisionOptions = {}): Promise<OrgMembership | null> {
   const now = Date.now();
-  await setDoc(doc(db, 'chmsPeople', person.id), { linkedUid: user.uid, memberNumber: person.memberNumber || memberNumberFor(org, person), updatedAt: now }, { merge: true });
+  const memberNumber = person.memberNumber || memberNumberFor(org, person);
+  const employeeNumber = person.employeeNumber || employeeNumberFor(org, person);
+  await setDoc(doc(db, 'chmsPeople', person.id), { linkedUid: user.uid, memberNumber, employeeNumber, updatedAt: now }, { merge: true });
   const existing = (await fetchOrgMembers(org.id)).find(m => m.userId === user.uid);
   let membership: OrgMembership | null = existing || null;
   if (!existing) {
@@ -226,7 +246,7 @@ export async function linkPersonToUser(org: Organization, person: ChmsPerson, us
     const def = getElevateRole(roleKey);
     membership = await addOrgMember(org.id, { userId: user.uid, displayName: user.displayName, photoUrl: user.photoURL, role: def?.baseRole === 'OWNER' || def?.baseRole === 'ADMIN' ? 'STAFF' : (def?.baseRole || 'MEMBER'), title: opts.title || def?.label });
     if (membership) {
-      await updateDoc(doc(db, 'orgMemberships', membership.id), strip({ roleKey, rosterGroup: def?.rosterGroup, provisionedPersonId: person.id, memberNumber: person.memberNumber, ministryIds: opts.ministryIds?.length ? opts.ministryIds : undefined,
+      await updateDoc(doc(db, 'orgMemberships', membership.id), strip({ roleKey, rosterGroup: def?.rosterGroup, provisionedPersonId: person.id, memberNumber, employeeNumber, ministryIds: opts.ministryIds?.length ? opts.ministryIds : undefined,
         ministryRoles: opts.ministryIds?.length ? opts.ministryIds.map(ministryId => ({ ministryId, roleKey: 'VOLUNTEER' })) : undefined }));
     }
   }
@@ -257,7 +277,7 @@ export function accountStats(people: ChmsPerson[], members: OrgMembership[]): Ac
   return { people: live.length, provisioned, claimed, unlinked: live.filter(p => !p.linkedUid && !p.provisionedUid).length };
 }
 
-// ── The member's side (server-backed; routes/elevateAccounts.ts) ─────────────
+// ── The member's side (server-backed; routes/elevateAccounts.ts + client fallback) ──
 
 export interface SeatLookup {
   found: boolean;
@@ -266,11 +286,20 @@ export interface SeatLookup {
   maskedName?: string;
   roleLabel?: string;
   departments?: string[];
-  /** Why a claim can't proceed (e.g. email mismatch) — shown verbatim. */
+  memberNumber?: string;
+  employeeNumber?: string;
+  /** Why a claim can't proceed (e.g. no pre-provisioned seat yet) — shown verbatim. */
   reason?: string;
   alreadyClaimed?: boolean;
 }
-export interface ClaimInput { org: string; memberNumber?: string; lastName?: string; email?: string }
+export interface ClaimInput {
+  org: string;
+  firstName?: string;
+  lastName?: string;
+  memberNumber?: string;
+  employeeNumber?: string;
+  email?: string;
+}
 
 async function authed(path: string, body: unknown): Promise<Response> {
   const u = auth.currentUser;
@@ -278,20 +307,83 @@ async function authed(path: string, body: unknown): Promise<Response> {
   const token = await u.getIdToken();
   return fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(body) });
 }
-/** Find the seat behind a member ID + last name, or the signed-in account's email. */
-export async function lookupProvisionedSeat(input: ClaimInput): Promise<SeatLookup> {
-  const r = await authed('/api/elevate/claim/lookup', input);
-  const j = await r.json().catch(() => ({})) as SeatLookup & { error?: string };
-  if (!r.ok) throw new Error(j.error || 'Could not look up that account.');
-  return j;
+
+const maskWord = (s: string) => {
+  const t = (s || '').trim();
+  return t ? t[0] + '•'.repeat(Math.max(2, Math.min(6, t.length - 1))) : '';
+};
+
+/** Find a pre-provisioned seat in Firestore directly when the server claim endpoint is unconfigured (local dev). */
+async function clientSideLookupSeat(input: ClaimInput): Promise<SeatLookup> {
+  const org = await resolveJoinTarget(input.org);
+  if (!org) return { found: false, reason: 'We could not find that organization.' };
+  const members = await fetchOrgMembers(org.id).catch(() => [] as OrgMembership[]);
+  const idCode = normalizeMemberNumber(input.memberNumber || input.employeeNumber || '');
+  const fName = (input.firstName || '').trim().toLowerCase();
+  const lName = (input.lastName || '').trim().toLowerCase();
+  const em = (input.email || auth.currentUser?.email || '').trim().toLowerCase();
+
+  const match = members.find(m => {
+    if (!m.isProvisioned) return false;
+    if (idCode && (normalizeMemberNumber(m.memberNumber || '') === idCode || normalizeMemberNumber(m.employeeNumber || '') === idCode)) {
+      return !lName || m.displayName.toLowerCase().includes(lName);
+    }
+    if (em && m.claimEmailLower && m.claimEmailLower === em) return true;
+    if (fName && lName && m.displayName.trim().toLowerCase() === `${fName} ${lName}`.trim()) return true;
+    if (!fName && lName && m.displayName.trim().toLowerCase().endsWith(` ${lName}`)) return true;
+    return false;
+  });
+
+  if (!match) {
+    return {
+      found: false,
+      orgId: org.id,
+      orgName: org.name,
+      orgLogoUrl: org.logoUrl,
+      reason: 'No pre-provisioned seat found yet — you can submit your claim below without knowing any ID number, and your Member ID & Employment Number will auto-populate upon approval.',
+    };
+  }
+  const [first = '', ...rest] = (match.displayName || 'Member').split(' ');
+  const depts = (match.ministryIds || []).map(id => (org.ministries || []).find(min => min.id === id)?.name).filter(Boolean) as string[];
+  return {
+    found: true,
+    orgId: org.id,
+    orgName: org.name,
+    orgLogoUrl: org.logoUrl,
+    maskedName: `${maskWord(first)} ${maskWord(rest.join(' '))}`.trim(),
+    roleLabel: match.title || getElevateRole(match.roleKey)?.label || 'Member',
+    departments: depts,
+    memberNumber: match.memberNumber,
+    employeeNumber: match.employeeNumber,
+  };
 }
-/** Claim it: the seat becomes the signed-in user's membership. Returns the org id to open. */
-export async function claimProvisionedSeat(input: ClaimInput): Promise<{ orgId: string; orgName: string; roleLabel: string }> {
-  const r = await authed('/api/elevate/claim/redeem', input);
-  const j = await r.json().catch(() => ({})) as { orgId: string; orgName: string; roleLabel: string; error?: string };
-  if (!r.ok) throw new Error(j.error || 'Could not claim that account.');
-  try { window.dispatchEvent(new CustomEvent('plajah:elevate-claimed', { detail: j })); } catch { /* */ }
-  return j;
+
+/** Find the seat behind a name, email, or optional member/employee ID. */
+export async function lookupProvisionedSeat(input: ClaimInput): Promise<SeatLookup> {
+  try {
+    const r = await authed('/api/elevate/claim/lookup', input);
+    if (r.status === 503 || r.status === 404) {
+      return await clientSideLookupSeat(input);
+    }
+    const j = await r.json().catch(() => ({})) as SeatLookup & { error?: string };
+    if (!r.ok) return await clientSideLookupSeat(input);
+    return j;
+  } catch {
+    return await clientSideLookupSeat(input);
+  }
+}
+
+/** Claim it: the seat becomes the signed-in user's membership. Returns the org id + auto-populated IDs. */
+export async function claimProvisionedSeat(input: ClaimInput): Promise<{ orgId: string; orgName: string; roleLabel: string; memberNumber?: string; employeeNumber?: string }> {
+  try {
+    const r = await authed('/api/elevate/claim/redeem', input);
+    const j = await r.json().catch(() => ({})) as { orgId: string; orgName: string; roleLabel: string; memberNumber?: string; employeeNumber?: string; error?: string };
+    if (r.ok && j.orgId) {
+      try { window.dispatchEvent(new CustomEvent('plajah:elevate-claimed', { detail: j })); } catch { /* */ }
+      return j;
+    }
+  } catch { /* fall through to client-side claim/onboarding */ }
+  throw new Error('Could not directly redeem seat — submitting for approval instead.');
 }
 
 /** Resolve the org behind a join link (id or @handle). */

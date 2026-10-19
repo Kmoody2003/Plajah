@@ -58,7 +58,12 @@ vec3 finish(vec3 col, vec2 fc, float exposure, float sat){
   col += (h21(fc + fract(iTime * 7.13) * 91.0) - 0.5) / 255.0;     // dither: no banding in the dark gradients
   return clamp(col, 0.0, 1.0);
 }
-vec2 aspectUv(){ vec2 fc = vUv * iResolution; return (fc - 0.5 * iResolution) / iResolution.y; }
+vec2 aspectUv(){
+  vec2 fc = vUv * iResolution;
+  float aspect = iResolution.x / max(iResolution.y, 1.0);
+  float fitScale = 1.28 * max(1.0, 1.7777778 / max(aspect, 0.1));
+  return ((fc - 0.5 * iResolution) / max(iResolution.y, 1.0)) * fitScale;
+}
 float vignette(vec2 p, float k){ return clamp(1.0 - k * dot(p, p), 0.0, 1.0); }
 int detailOct(float lo, float hi){ return int(floor(mix(lo, hi, iParam1) + 0.5)); }
 

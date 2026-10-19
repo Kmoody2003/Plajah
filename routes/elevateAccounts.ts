@@ -44,29 +44,57 @@ async function resolveOrg(key: string): Promise<{ id: string; data: Record<strin
   return byHandle[0] || null;
 }
 
+function hashCodeDigits(seed: string, min = 10000, span = 90000): string {
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i++) {
+    h ^= seed.charCodeAt(i);
+    h = Math.imul(h, 16777619) >>> 0;
+  }
+  return String(min + (h % span));
+}
+
+function orgPrefix(orgId: string, orgData: Record<string, any>): string {
+  if (orgData?.memberNumberPrefix) return String(orgData.memberNumberPrefix).trim().toUpperCase().slice(0, 4);
+  const initials = String(orgData?.name || '').split(/\s+/).map(w => w[0]).filter(c => /[A-Za-z]/.test(c || '')).join('').toUpperCase().slice(0, 3);
+  return initials || orgId.slice(0, 3).toUpperCase();
+}
+
 interface Seat { id: string; data: Record<string, any> }
-/** Find the unclaimed seat behind the identifiers. Returns a reason when the match is refused. */
+/** Find the unclaimed seat behind the identifiers (Member/Employee ID + Last Name, Email, or First + Last Name). */
 async function findSeat(orgId: string, body: any, callerEmail?: string): Promise<{ seat?: Seat; reason?: string; alreadyClaimed?: boolean }> {
-  const memberNumber = normMember(body.memberNumber || '');
+  const memberNumber = normMember(body.memberNumber || body.employeeNumber || '');
+  const firstName = normName(body.firstName || '');
   const lastName = normName(body.lastName || '');
-  const email = normEmail(body.email || '');
+  const email = normEmail(body.email || callerEmail || '');
+
   if (memberNumber) {
-    if (!lastName) return { reason: 'Enter the last name on file with your member ID.' };
-    const seats = await fsQuery('orgMemberships', [{ field: 'orgId', value: orgId }, { field: 'memberNumber', value: memberNumber }], 5);
+    if (!lastName) return { reason: 'Enter the last name on file with your ID.' };
+    const byMem = await fsQuery('orgMemberships', [{ field: 'orgId', value: orgId }, { field: 'memberNumber', value: memberNumber }], 5);
+    const byEmp = byMem.length ? [] : await fsQuery('orgMemberships', [{ field: 'orgId', value: orgId }, { field: 'employeeNumber', value: memberNumber }], 5);
+    const seats = [...byMem, ...byEmp];
     const seat = seats.find(s => normName(String(s.data.displayName || '')).endsWith(lastName) || normName(String(s.data.displayName || '')).includes(` ${lastName}`));
-    if (!seat) return seats.length ? { reason: 'That member ID and last name do not match our records.' } : { reason: 'No account is waiting for that member ID. Ask the office, or join as a new member.' };
+    if (!seat) return seats.length ? { reason: 'That ID and last name do not match our records.' } : { reason: 'No pre-set seat matched that ID — you can still submit your claim below without an ID and your numbers will auto-populate upon approval.' };
     if (!seat.data.isProvisioned) return { alreadyClaimed: true, reason: 'This account has already been claimed. Sign in with the account you used, or ask the office to reset it.' };
     return { seat };
   }
+
   if (email) {
-    if (!callerEmail || callerEmail !== email) return { reason: `To claim by email, sign in to Plajah with ${email} (the address your organization has on file).` };
     const seats = await fsQuery('orgMemberships', [{ field: 'orgId', value: orgId }, { field: 'claimEmailLower', value: email }], 5);
     const seat = seats.find(s => s.data.isProvisioned) || seats[0];
-    if (!seat) return { reason: 'No account is waiting for that email. Try your member ID, or join as a new member.' };
-    if (!seat.data.isProvisioned) return { alreadyClaimed: true, reason: 'This account has already been claimed.' };
-    return { seat };
+    if (seat) {
+      if (!seat.data.isProvisioned) return { alreadyClaimed: true, reason: 'This account has already been claimed.' };
+      return { seat };
+    }
   }
-  return { reason: 'Enter your member ID and last name, or the email your organization has on file.' };
+
+  if (firstName && lastName) {
+    const fullTarget = `${firstName} ${lastName}`.trim();
+    const allOrgSeats = await fsQuery('orgMemberships', [{ field: 'orgId', value: orgId }, { field: 'isProvisioned', value: true }], 200);
+    const matchedByName = allOrgSeats.find(s => normName(String(s.data.displayName || '')) === fullTarget);
+    if (matchedByName) return { seat: matchedByName };
+  }
+
+  return { reason: 'No pre-provisioned seat found yet — click below to submit your membership claim without an ID, and your Member ID & Employment Number will auto-populate upon approval.' };
 }
 
 const deptNames = (org: Record<string, any>, ids: string[] = []) =>
@@ -104,6 +132,11 @@ elevateAccountsRouter.post('/redeem', async (req: Request, res: Response) => {
   const provUid = String(d.userId || '');
   if (!provUid.startsWith('prov_')) return res.status(409).json({ error: 'This seat is not claimable.' });
 
+  const prefix = orgPrefix(org.id, org.data);
+  const seed = String(d.provisionedPersonId || uid || seat.id);
+  const assignedMemberNumber = String(d.memberNumber || `${prefix}-${hashCodeDigits(seed, 10000, 90000)}`).toUpperCase();
+  const assignedEmployeeNumber = String(d.employeeNumber || `${prefix}-EMP-${hashCodeDigits(`emp:${seed}`, 1000, 9000)}`).toUpperCase();
+
   // The caller may already be in the org (self-joined, or claimed another seat): fold the seat into their row.
   const mine = await fsQuery('orgMemberships', [{ field: 'orgId', value: org.id }, { field: 'userId', value: uid }], 3);
   const profile = await fsGet(`users/${uid}`);
@@ -112,6 +145,8 @@ elevateAccountsRouter.post('/redeem', async (req: Request, res: Response) => {
   const claimedFields = {
     isProvisioned: false, claimedAt: now, userId: uid, displayName, photoUrl, status: 'ACTIVE', acceptedAt: now,
     employeeProfileUid: null, claimEmailLower: null,
+    memberNumber: assignedMemberNumber,
+    employeeNumber: assignedEmployeeNumber,
   };
   let membershipId = seat.id;
   if (mine[0] && mine[0].id !== seat.id) {
@@ -119,7 +154,7 @@ elevateAccountsRouter.post('/redeem', async (req: Request, res: Response) => {
     membershipId = mine[0].id;
     await fsPatch(`orgMemberships/${membershipId}`, {
       ...claimedFields, role: d.role, roleKey: d.roleKey, title: d.title, rosterGroup: d.rosterGroup, isEmployee: !!d.isEmployee,
-      ministryIds: d.ministryIds || [], ministryRoles: d.ministryRoles || [], memberNumber: d.memberNumber, provisionedPersonId: d.provisionedPersonId,
+      ministryIds: d.ministryIds || [], ministryRoles: d.ministryRoles || [], memberNumber: assignedMemberNumber, employeeNumber: assignedEmployeeNumber, provisionedPersonId: d.provisionedPersonId,
       joinedAt: Math.min(Number(mine[0].data.joinedAt || now), Number(d.joinedAt || now)),
     });
     await fsDelete(`orgMemberships/${seat.id}`);
@@ -128,10 +163,18 @@ elevateAccountsRouter.post('/redeem', async (req: Request, res: Response) => {
   }
   // Retire the managed profile (kept for audit; claimedByUid links it, like business employee profiles).
   await fsPatch(`users/${provUid}`, { claimedByUid: uid, claimedAt: now });
-  // Link the congregation record.
+  // Link the congregation record and auto-populate memberNumber + employeeNumber.
   if (d.provisionedPersonId) {
     const person = await fsGet(`chmsPeople/${d.provisionedPersonId}`);
-    if (person && (!person.linkedUid || person.linkedUid === uid)) await fsPatch(`chmsPeople/${d.provisionedPersonId}`, { linkedUid: uid, provisionedUid: null, updatedAt: now });
+    if (person && (!person.linkedUid || person.linkedUid === uid)) {
+      await fsPatch(`chmsPeople/${d.provisionedPersonId}`, {
+        linkedUid: uid,
+        provisionedUid: null,
+        memberNumber: assignedMemberNumber,
+        employeeNumber: assignedEmployeeNumber,
+        updatedAt: now,
+      });
+    }
   }
   // Member index (rules use it for department feeds / comments).
   const ministryIds: string[] = Array.from(new Set([...(d.ministryIds || []), ...((d.ministryRoles || []) as any[]).map(x => x.ministryId)].filter(Boolean)));
@@ -144,10 +187,19 @@ elevateAccountsRouter.post('/redeem', async (req: Request, res: Response) => {
     const next = Array.from(new Set(parts.filter(p => p !== provUid).concat(uid)));
     if (next.length !== parts.length || !parts.includes(uid)) await fsPatch(`chat_rooms/${room.id}`, { participants: next, updatedAt: now });
   }
-  // Mirror the role on their profile (same shape as elevateService.syncMembershipToProfile).
-  const aff = { orgId: org.id, orgName: org.data.name, orgLogoUrl: org.data.logoUrl || null, roleKey: d.roleKey || 'MEMBER', title: d.title || ROLE_LABELS[d.roleKey] || 'Member', since: now };
+  // Mirror the role + auto-populated IDs on their profile.
+  const aff = {
+    orgId: org.id,
+    orgName: org.data.name,
+    orgLogoUrl: org.data.logoUrl || null,
+    roleKey: d.roleKey || 'MEMBER',
+    title: d.title || ROLE_LABELS[d.roleKey] || 'Member',
+    memberNumber: assignedMemberNumber,
+    employeeNumber: assignedEmployeeNumber,
+    since: now,
+  };
   const cur: any[] = Array.isArray(profile?.orgAffiliations) ? profile!.orgAffiliations : [];
   await fsPatch(`users/${uid}`, { orgAffiliations: [...cur.filter(a => a?.orgId !== org.id), aff] });
-  await fsCreate(`organizations/${org.id}/audit`, { orgId: org.id, action: 'ELEVATE_ACCOUNT_CLAIMED', actorUid: uid, actorName: displayName, targetId: d.provisionedPersonId || seat.id, targetName: d.displayName, timestamp: now, meta: { memberNumber: d.memberNumber || null, via: req.body?.memberNumber ? 'memberNumber' : 'email' } });
-  return res.json({ orgId: org.id, orgName: org.data.name, roleLabel: d.title || ROLE_LABELS[d.roleKey] || 'Member', membershipId });
+  await fsCreate(`organizations/${org.id}/audit`, { orgId: org.id, action: 'ELEVATE_ACCOUNT_CLAIMED', actorUid: uid, actorName: displayName, targetId: d.provisionedPersonId || seat.id, targetName: d.displayName, timestamp: now, meta: { memberNumber: assignedMemberNumber, employeeNumber: assignedEmployeeNumber, via: req.body?.memberNumber ? 'memberNumber' : (req.body?.email ? 'email' : 'name') } });
+  return res.json({ orgId: org.id, orgName: org.data.name, roleLabel: d.title || ROLE_LABELS[d.roleKey] || 'Member', membershipId, memberNumber: assignedMemberNumber, employeeNumber: assignedEmployeeNumber });
 });

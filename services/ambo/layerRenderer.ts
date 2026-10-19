@@ -15,6 +15,7 @@ import { compositeOrder, type LayerSlot, type LiveStack, type MaskSpec, type Tra
 import { canUpdateInPlace, createSource, type LayerSource } from './layerSources';
 import { isMediaTemplate } from './telaTemplateSource';
 import { computePlacement, drawBackdrop, normalizeFit, BACKDROP_SLOTS, type FitSpec, type BackdropScratch } from './outputFit';
+import { getProgramEpochMs } from './programBus';
 import type { LayerContent } from './showModel';
 
 export interface RenderFrame { w: number; h: number; }
@@ -41,6 +42,8 @@ export interface RendererOptions {
    * the room hears a phased mess. Exactly one renderer should have it on.
    */
   audioEnabled?: boolean;
+  /** Optional hook invoked after each composite frame is drawn to this.canvas. */
+  onFrame?: (canvas: HTMLCanvasElement) => void;
 }
 
 /** A program take's transition. `cut` (or 0 s) switches instantly; every other named transition dissolves. */
@@ -73,6 +76,22 @@ export class LayerRenderer {
   }
 
   setOptions(o: RendererOptions) { this.opts = { ...this.opts, ...o }; }
+
+  /**
+   * Resize the output canvas and any active procedural sources in-place
+   * without tearing down or restarting running generators, shaders, or videos.
+   */
+  resize(w: number, h: number) {
+    const nw = Math.max(2, Math.round(w));
+    const nh = Math.max(2, Math.round(h));
+    if (nw === this.frame.w && nh === this.frame.h && this.canvas.width === nw && this.canvas.height === nh) return;
+    this.frame = { w: nw, h: nh };
+    this.canvas.width = nw;
+    this.canvas.height = nh;
+    for (const entry of this.entries.values()) {
+      entry.source.resize?.(nw, nh);
+    }
+  }
 
   /**
    * Arm a transition for the NEXT setStack: the current frame is frozen and dissolved away over
@@ -175,7 +194,9 @@ export class LayerRenderer {
     this.startedAt = performance.now();
     const loop = () => {
       if (!this.running) return;
-      this.drawFrame((performance.now() - this.startedAt) / 1000);
+      const epochMs = getProgramEpochMs();
+      const timeSec = epochMs > 0 ? (Date.now() - epochMs) / 1000 : (performance.now() - this.startedAt) / 1000;
+      this.drawFrame(timeSec);
       this.raf = requestAnimationFrame(loop);
     };
     this.raf = requestAnimationFrame(loop);
@@ -269,6 +290,8 @@ export class LayerRenderer {
       applyMask(ctx, this.opts.outputMask, w, h);
       ctx.restore();
     }
+
+    this.opts.onFrame?.(this.canvas);
   }
 
   /**
@@ -285,7 +308,14 @@ export class LayerRenderer {
     const explicit = layer.transform?.fit;
     const kind = content.kind as string;
     const intrinsic = kind === 'IMAGE' || kind === 'VIDEO' || kind === 'LIVE' || kind === 'LOTTIE' || kind === 'WEB';
-    if (!explicit && !intrinsic) { drawCover(ctx, img, natural, w, h); return; }
+    const fitOpts = this.opts.fit;
+    const hasOutputZoomOrPan = !!fitOpts && (
+      (fitOpts.zoom !== undefined && fitOpts.zoom !== 1) ||
+      (fitOpts.ox !== undefined && fitOpts.ox !== 0) ||
+      (fitOpts.oy !== undefined && fitOpts.oy !== 0) ||
+      (fitOpts.mode !== undefined && fitOpts.mode !== 'auto')
+    );
+    if (!explicit && !intrinsic && !hasOutputZoomOrPan) { drawCover(ctx, img, natural, w, h); return; }
 
     // An IMAGE's own fit setting is honoured when nothing more specific is set.
     const legacy = kind === 'IMAGE' ? (content as any).fit : undefined;

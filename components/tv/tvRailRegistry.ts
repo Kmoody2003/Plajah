@@ -38,10 +38,21 @@ import {
   type ListenEntry,
 } from '../../services/listenHistoryService';
 import {
-  fetchAudiusUnderground, fetchAudiusTrendingPlaylists, fetchAudiusPlaylistTracks, fetchAudiusArtistById,
-  audiusAlbumToNativeAlbum,
+  fetchAudiusTrending, fetchAudiusUnderground, fetchAudiusTrendingPlaylists, fetchAudiusPlaylistTracks, fetchAudiusArtistById,
+  audiusAlbumToNativeAlbum, audiusTrackToNativeAlbum, audiusStreamUrlSync, resolveNativeAudiusAlbum, isAudiusOwner,
 } from '../../services/audiusService';
-import { CURATED_KOFA_FILMS, CURATED_EUROPEANA_FILMS, CURATED_HALLOWEEN_FILMS, PUMPKIN_PATCH_HERO_ALBUM, type ArchiveTrack } from '../../services/archiveContentService';
+import {
+  CURATED_KOFA_FILMS,
+  CURATED_EUROPEANA_FILMS,
+  CURATED_HALLOWEEN_FILMS,
+  CURATED_INTERNATIONAL_FILMS,
+  CURATED_US_CLASSIC_FILMS,
+  CURATED_DIRECTOR_VAULT_FILMS,
+  CURATED_ANIME_AND_ANIMATION_FILMS,
+  CURATED_PUBLIC_DOMAIN_TV_SERIES,
+  PUMPKIN_PATCH_HERO_ALBUM,
+  type ArchiveTrack,
+} from '../../services/archiveContentService';
 import { getClipsByUser, clipSourceUrl, clipThumbnailUrl } from '../../services/liveClipService';
 import { getTvArtists } from '../../services/tv/tvCatalogCache';
 import { albumItem, audiusItem, playlistItem, type BaseData, type TvItem, type TvRail } from './choraTvSections';
@@ -86,18 +97,49 @@ const staffPickItem = (pl: Playlist): TvItem => ({
   },
 });
 
-/** Listen-history entry → card, resolved against the loaded catalogue (RecentRail's rules). */
+/** Listen-history entry → card, resolved against the loaded catalogue + Audius stream resolver (RecentRail's rules). */
 function historyItem(e: ListenEntry, byId: Map<string, Album>, asAlbum: boolean): TvItem | null {
   const album = byId.get(e.albumId);
-  if (!album) return null;
-  if (asAlbum) return { ...albumItem(album), id: `h-${e.albumId}` };
-  const track = (album.tracks || []).find(t => t.id === e.trackId);
-  if (!track) return null;
-  return {
-    id: `h-${e.trackId}`, title: e.title || track.title, subtitle: e.artist || track.artist,
-    image: e.cover || (track as any).albumCover || album.coverImage,
-    action: { kind: 'TRACK', track, album, source: 'LIBRARY' },
-  };
+  if (album) {
+    if (asAlbum) return { ...albumItem(album), id: `h-${e.albumId}` };
+    const track = (album.tracks || []).find(t => t.id === e.trackId);
+    if (!track) return null;
+    return {
+      id: `h-${e.trackId}`, title: e.title || track.title, subtitle: e.artist || track.artist,
+      image: e.cover || (track as any).albumCover || album.coverImage,
+      action: { kind: 'TRACK', track, album, source: 'LIBRARY' },
+    };
+  }
+  const isAudTrack = (e.trackId || '').startsWith('audius_');
+  const isAudAlbum = (e.albumId || '').startsWith('audius:album:');
+  if (isAudTrack || isAudAlbum) {
+    if (asAlbum && isAudAlbum && !e.albumId.startsWith('audius:album:single_')) {
+      return {
+        id: `h-${e.albumId}`,
+        title: e.albumTitle || e.title || 'Audius Release',
+        subtitle: e.artist || 'Audius',
+        image: e.cover,
+        action: { kind: 'LOAD_ALBUM', load: () => resolveNativeAudiusAlbum(e.albumId) },
+      };
+    }
+    const synAlbum = audiusTrackToNativeAlbum({
+      id: isAudTrack ? e.trackId : `audius_${e.trackId}`,
+      title: e.title || e.albumTitle || 'Audius Track',
+      artist: e.artist || 'Audius Artist',
+      artistId: e.artistId ? e.artistId.replace(/^audius:/, '') : undefined,
+      url: audiusStreamUrlSync(e.trackId),
+      thumbnailUrl: e.cover || '',
+      source: 'AUDIUS',
+    });
+    return {
+      id: `h-${e.trackId || e.albumId}`,
+      title: e.title || e.albumTitle || 'Audius Track',
+      subtitle: e.artist || 'Audius',
+      image: e.cover,
+      action: asAlbum ? { kind: 'ALBUM', album: synAlbum } : { kind: 'TRACK', track: synAlbum.tracks[0], album: synAlbum, source: 'LIBRARY' },
+    };
+  }
+  return null;
 }
 
 function history(ctx: BaseData): { list: ListenEntry[]; byId: Map<string, Album> } {
@@ -125,6 +167,40 @@ export const CHORA_TV_RAILS: TvRailDef<BaseData, TvItem>[] = [
         subtitle: `${mix.trackCount} tracks${mix.topGenres?.length ? ' · ' + mix.topGenres.slice(0, 2).join(', ') : ''}`,
         image: mix.album.coverImage, action: { kind: 'ALBUM', album: mix.album },
       }];
+    },
+  },
+  {
+    id: 'recommended-for-you', title: 'Recommended For You', section: 'FOR_YOU', position: 'start',
+    webSource: 'MusicView FOR_YOU forYouRecommendations (Native Chora first + Audius discovery)',
+    load: async ctx => {
+      const following = new Set(ctx.followingIds ?? []);
+      const nativeItems = [...ctx.albums]
+        .filter(a => !isAudiusOwner(a.ownerId) && (!a.type || a.type === 'MUSIC') && (a.tracks?.length || 0) > 0)
+        .sort((a, b) => {
+          const af = following.has(a.ownerId || '') ? 1000 : 0;
+          const bf = following.has(b.ownerId || '') ? 1000 : 0;
+          return (bf + (b.playCount || 0) * 5) - (af + (a.playCount || 0) * 5);
+        })
+        .map(albumItem);
+      const [trending, underground] = await Promise.all([
+        fetchAudiusTrending(undefined, 10).catch(() => [] as ArchiveTrack[]),
+        fetchAudiusUnderground(10).catch(() => [] as ArchiveTrack[]),
+      ]);
+      const seenArtists = new Set<string>();
+      const audiusItems: TvItem[] = [];
+      for (const t of [...trending, ...underground]) {
+        const key = (t.artistId || t.artist || '').toLowerCase();
+        if (!t.id || !t.url || (key && seenArtists.has(key))) continue;
+        if (key) seenArtists.add(key);
+        audiusItems.push(audiusItem(t));
+      }
+      const out: TvItem[] = [];
+      let n = 0, a = 0;
+      while (out.length < 15 && (n < nativeItems.length || a < audiusItems.length)) {
+        for (let k = 0; k < 2 && out.length < 15 && n < nativeItems.length; k++) out.push(nativeItems[n++]);
+        if (out.length < 15 && a < audiusItems.length) out.push(audiusItems[a++]);
+      }
+      return out;
     },
   },
   {
@@ -308,6 +384,31 @@ export const TALEO_TV_RAILS: TvRailDef<void, TaleoItem>[] = [
     id: 'europeana-avant', title: 'European Expressionism & Avant-Garde', section: 'HOME',
     webSource: 'MoviesTVView HomeView → CURATED_EUROPEANA_FILMS',
     load: () => CURATED_EUROPEANA_FILMS.map(archItem),
+  },
+  {
+    id: 'world-cinema', title: '🌍 World Cinema Masterworks', section: 'HOME',
+    webSource: 'MoviesTVView HomeView → CURATED_INTERNATIONAL_FILMS',
+    load: () => CURATED_INTERNATIONAL_FILMS.map(archItem),
+  },
+  {
+    id: 'us-classics-noir', title: '🕵️ Film Noir, Hitchcock & US Classics', section: 'HOME',
+    webSource: 'MoviesTVView HomeView → CURATED_US_CLASSIC_FILMS',
+    load: () => CURATED_US_CLASSIC_FILMS.map(archItem),
+  },
+  {
+    id: 'director-vault', title: '🎬 Director Dossier Vault', section: 'HOME',
+    webSource: 'MoviesTVView HomeView → CURATED_DIRECTOR_VAULT_FILMS',
+    load: () => CURATED_DIRECTOR_VAULT_FILMS.map(archItem),
+  },
+  {
+    id: 'classic-anime-animation', title: '🏯 Classic Japanese Anime & Global Animation', section: 'HOME',
+    webSource: 'MoviesTVView HomeView → CURATED_ANIME_AND_ANIMATION_FILMS',
+    load: () => CURATED_ANIME_AND_ANIMATION_FILMS.map(archItem),
+  },
+  {
+    id: 'public-domain-tv', title: '📺 Public Domain TV Series & Serials', section: 'HOME',
+    webSource: 'MoviesTVView HomeView → CURATED_PUBLIC_DOMAIN_TV_SERIES',
+    load: () => CURATED_PUBLIC_DOMAIN_TV_SERIES.map(archItem),
   },
 ];
 

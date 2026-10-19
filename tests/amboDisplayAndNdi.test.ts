@@ -135,3 +135,72 @@ describe('NDI Stream Discovery & MediaEngine Integration', () => {
     engine.dispose();
   });
 });
+
+describe('Intelligent Visualizer Scaling & Master Program Bus Mirroring', () => {
+  test('scaleVisualizerSize preserves exact output aspect ratio across 16:9, 16:10, 21:9, 4:3, and portrait viewports', async () => {
+    const { scaleVisualizerSize } = await import('../services/ambo/layerSources');
+
+    const s16x9 = scaleVisualizerSize(1920, 1080, 1280);
+    assert.equal(s16x9.w, 1280);
+    assert.equal(s16x9.h, 720);
+    assert.ok(Math.abs(s16x9.w / s16x9.h - 16 / 9) < 0.005);
+
+    const s16x10 = scaleVisualizerSize(1920, 1200, 1280);
+    assert.equal(s16x10.w, 1280);
+    assert.equal(s16x10.h, 800);
+    assert.ok(Math.abs(s16x10.w / s16x10.h - 16 / 10) < 0.005);
+
+    const s21x9 = scaleVisualizerSize(2560, 1080, 1280);
+    assert.equal(s21x9.w, 1280);
+    assert.equal(s21x9.h, 540);
+    assert.ok(Math.abs(s21x9.w / s21x9.h - 2560 / 1080) < 0.005);
+
+    const s4x3 = scaleVisualizerSize(1440, 1080, 1280);
+    assert.equal(s4x3.w, 1280);
+    assert.equal(s4x3.h, 960);
+    assert.ok(Math.abs(s4x3.w / s4x3.h - 4 / 3) < 0.005);
+
+    const sPortrait = scaleVisualizerSize(1080, 1920, 1280);
+    assert.equal(sPortrait.w, 720);
+    assert.equal(sPortrait.h, 1280);
+  });
+
+  test('Master Program Bus registry notifies follower canvases without creating duplicate renderers', async () => {
+    const {
+      registerProgramBusCanvas,
+      getProgramBusCanvas,
+      notifyProgramBusFrame,
+      subscribeProgramBusFollower,
+    } = await import('../services/ambo/programBus');
+
+    let blits = 0;
+    const masterCanvas: any = { width: 1280, height: 720 };
+    const followerCanvas: any = {
+      width: 640,
+      height: 360,
+      getContext: () => ({
+        setTransform() {},
+        globalAlpha: 1,
+        globalCompositeOperation: 'source-over',
+        fillStyle: '#000',
+        fillRect() {},
+        drawImage(src: any) {
+          if (src === masterCanvas) blits++;
+        },
+      }),
+    };
+
+    const unreg = registerProgramBusCanvas(masterCanvas);
+    assert.equal(getProgramBusCanvas(), masterCanvas);
+
+    const unsub = subscribeProgramBusFollower(followerCanvas);
+    // Initial blit on subscribe + 1 notified frame
+    notifyProgramBusFrame();
+    assert.ok(blits >= 2);
+
+    unsub();
+    unreg();
+    assert.equal(getProgramBusCanvas(), null);
+  });
+});
+

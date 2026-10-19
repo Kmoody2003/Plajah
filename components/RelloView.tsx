@@ -716,6 +716,27 @@ const RelloView: React.FC<RelloViewProps> = ({ onBack, currentUser, initialVideo
                             artist={(current as any).channelName || (current as any).creatorName || (current as any).uploaderName || current.artist}
                             contentType="video"
                             ctaText="▶ WATCH FULL CLIP ON PLAJAH"
+                            plajahLabel="Post to Plajah feed"
+                            onPostToPlajah={currentUser ? async () => {
+                              let pid = (current as any).muxPlaybackId;
+                              if (!pid && current.id) {
+                                try {
+                                  const latest: any = await fetchVideoById(current.id);
+                                  if (latest?.muxPlaybackId) pid = latest.muxPlaybackId;
+                                } catch {}
+                              }
+                              await createPost({
+                                text: `🎬 ${current.title}`,
+                                media: [{
+                                  type: 'VIDEO',
+                                  url: pid ? `https://stream.mux.com/${pid}.m3u8` : (current.url || ''),
+                                  id: current.id,
+                                  title: current.title,
+                                  thumbnail: current.thumbnailUrl || current.coverImageUrl,
+                                  muxPlaybackId: pid,
+                                }],
+                              } as any);
+                            } : undefined}
                             className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 hover:text-white text-xs font-bold transition-all active:scale-95"
                           >
                             <Share2 size={16} />
@@ -926,6 +947,27 @@ const RelloView: React.FC<RelloViewProps> = ({ onBack, currentUser, initialVideo
                           artist={(current as any).channelName || (current as any).creatorName || (current as any).uploaderName || current.artist}
                           contentType="video"
                           ctaText="▶ WATCH FULL CLIP ON PLAJAH"
+                          plajahLabel="Post to Plajah feed"
+                          onPostToPlajah={currentUser ? async () => {
+                            let pid = (current as any).muxPlaybackId;
+                            if (!pid && current.id) {
+                              try {
+                                const latest: any = await fetchVideoById(current.id);
+                                if (latest?.muxPlaybackId) pid = latest.muxPlaybackId;
+                              } catch {}
+                            }
+                            await createPost({
+                              text: `🎬 ${current.title}`,
+                              media: [{
+                                type: 'VIDEO',
+                                url: pid ? `https://stream.mux.com/${pid}.m3u8` : (current.url || ''),
+                                id: current.id,
+                                title: current.title,
+                                thumbnail: current.thumbnailUrl || current.coverImageUrl,
+                                muxPlaybackId: pid,
+                              }],
+                            } as any);
+                          } : undefined}
                           className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 hover:text-white text-xs font-bold transition-all active:scale-95"
                         >
                           <Share2 size={15} />

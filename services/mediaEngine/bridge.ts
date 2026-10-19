@@ -184,6 +184,10 @@ const virtualStreamBus: Map<string, MediaStream> = new Map();
 const virtualStreamListeners: Map<string, Set<(stream: MediaStream) => void>> = new Map();
 const outputRemovalListeners = new Map<string, Set<() => void>>();
 
+if (typeof window !== 'undefined') {
+  try { (window as any).__plajahVirtualStreamBus = virtualStreamBus; } catch { /* */ }
+}
+
 /** Revoke an output without stopping the originating camera or call. */
 export function unpublishAppOutput(channelId: string): void {
   virtualStreamBus.delete(channelId);
@@ -204,6 +208,9 @@ export function publishAppOutput(
   ownerApp = channelId.split(':')[0] || 'app',
 ): void {
   virtualStreamBus.set(channelId, stream);
+  if (typeof window !== 'undefined') {
+    try { (window as any).__plajahVirtualStreamBus = virtualStreamBus; } catch { /* */ }
+  }
   const listeners = virtualStreamListeners.get(channelId);
   if (listeners) {
     listeners.forEach((cb) => cb(stream));
@@ -215,9 +222,18 @@ export function publishAppOutput(
   }
 }
 
-/** Retrieve an active application output stream from the bus. */
+/** Retrieve an active application output stream from the bus (or the studio opener window). */
 export function getAppOutputStream(channelId: string): MediaStream | null {
-  return virtualStreamBus.get(channelId) ?? null;
+  const local = virtualStreamBus.get(channelId);
+  if (local) return local;
+  if (typeof window !== 'undefined') {
+    try {
+      const openerBus = (window.opener as any)?.__plajahVirtualStreamBus as Map<string, MediaStream> | undefined;
+      const fromOpener = openerBus?.get?.(channelId);
+      if (fromOpener) return fromOpener;
+    } catch { /* */ }
+  }
+  return null;
 }
 
 /** Listen for an application output stream being published or updated. */
@@ -231,8 +247,8 @@ export function onAppOutputStream(
   const set = virtualStreamListeners.get(channelId)!;
   set.add(cb);
 
-  // If already published, invoke immediately
-  const existing = virtualStreamBus.get(channelId);
+  // If already published locally or in opener, invoke immediately
+  const existing = getAppOutputStream(channelId);
   if (existing) cb(existing);
 
   return () => {

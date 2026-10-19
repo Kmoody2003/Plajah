@@ -2,9 +2,12 @@ import React, { useState, useMemo } from 'react';
 import { motion } from 'motion/react';
 import { ArchiveVideo } from '../services/archiveContentService';
 import { Album } from '../types';
-import { Play, TrendingUp, Sparkles, Eye, Star, Zap, Film, ArrowLeft } from 'lucide-react';
+import { Play, TrendingUp, Sparkles, Eye, Star, Zap, Film, ArrowLeft, Users } from 'lucide-react';
 import ScrollableTabRow from './ScrollableTabRow';
 import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
+import { getDirectorProfile } from '../data/classicDirectors';
+import { getHalloweenStoryIntelBundle } from '../data/halloweenStoryIntel';
+import { ClassicDirectorsShowcaseSection, EnrichedPortrait } from './taleo/ClassicCinemaDossier';
 
 interface MoviesSpecificViewProps {
   movies: ArchiveVideo[];
@@ -13,7 +16,7 @@ interface MoviesSpecificViewProps {
   onBack?: () => void;
 }
 
-const GENRE_CHIPS = ['All', 'Trailers', 'Action', 'Comedy', 'Drama', 'Horror', 'Sci-Fi', 'Romance', 'Documentary', 'Thriller', 'Animation', 'Classic'];
+const GENRE_CHIPS = ['All', 'Anime', 'Animation', 'Film Noir', 'World Cinema', 'Horror', 'Sci-Fi', 'Thriller', 'Drama', 'Comedy', 'Action', 'Documentary', 'Classic', 'Trailers'];
 
 const matchesChip = (item: any, chip: string): boolean => {
   if (chip === 'All') return true;
@@ -23,12 +26,18 @@ const matchesChip = (item: any, chip: string): boolean => {
   const tags: string[] = item.tags || [];
   const tagMatch = tags.some(t => t.toLowerCase().includes(lc));
   if (chip === 'Trailers') return subType === 'trailer' || tagMatch || genre.includes('trailer');
-  return genre.includes(lc) || subType === lc || tagMatch;
+  if (chip === 'Anime') return genre.includes('anime') || String(item.movement || '').toLowerCase().includes('anime') || (String(item.country || '').toLowerCase().includes('japan') && genre.includes('animation')) || tagMatch;
+  if (chip === 'World Cinema') return Boolean(item.country && !String(item.country).toLowerCase().includes('united states') && !String(item.country).toLowerCase().includes('usa')) || genre.includes('world');
+  return genre.includes(lc) || subType === lc || String(item.movement || '').toLowerCase().includes(lc) || tagMatch;
 };
 
 const MovieCard: React.FC<{ item: any; onSelect: (i: any) => void; width?: string }> = ({ item, onSelect, width = 'w-36 flex-shrink-0' }) => {
   const isArchive = 'identifier' in item;
   const cover = isArchive ? item.thumbnailUrl : (item.coverImage || item.coverImageUrl || item.thumbnailUrl);
+  const itemId = item.identifier || item.archiveIdentifier || item.id || '';
+  const directorProfile = item.directorProfile || getDirectorProfile(item.creator || item.artist || item.director, itemId);
+  const storyBundle = getHalloweenStoryIntelBundle(itemId);
+
   return (
     <motion.div
       whileHover={{ y: -5 }}
@@ -43,6 +52,24 @@ const MovieCard: React.FC<{ item: any; onSelect: (i: any) => void; width?: strin
             <Film size={28} className="text-white/10" />
           </div>
         )}
+        {storyBundle && (
+          <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded-md bg-black/75 backdrop-blur-md border border-[#D0BCFF]/35 flex items-center gap-1">
+            <Sparkles size={9} className="text-[#D0BCFF]" />
+            <span className="text-[7px] font-black uppercase tracking-wider text-[#D0BCFF]">Intel</span>
+          </div>
+        )}
+        {directorProfile && (
+          <div className="absolute bottom-2 left-2 right-2 px-2 py-1 rounded-lg bg-black/80 backdrop-blur-md border border-white/15 flex items-center gap-1.5">
+            <EnrichedPortrait
+              name={directorProfile.name}
+              fallbackUrl={directorProfile.portraitUrl}
+              wikiPageTitle={directorProfile.wikiPageTitle}
+              alt={directorProfile.name}
+              className="w-4 h-4 rounded-full object-cover border border-[#FFB68D]/40 shrink-0"
+            />
+            <span className="text-[8px] font-bold text-white/85 truncate">{directorProfile.name}</span>
+          </div>
+        )}
         <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
           <div className="w-11 h-11 rounded-full bg-white/15 border border-white/30 flex items-center justify-center backdrop-blur-sm">
             <Play className="text-white ml-0.5" size={18} fill="white" />
@@ -50,7 +77,14 @@ const MovieCard: React.FC<{ item: any; onSelect: (i: any) => void; width?: strin
         </div>
       </div>
       <h4 className="font-black text-[10px] uppercase tracking-tight truncate mt-2 text-white/70 group-hover:text-white transition-colors">{item.title}</h4>
-      {item.year && <p className="text-[8px] text-white/30 font-black uppercase tracking-widest mt-0.5">{item.year}</p>}
+      <div className="flex items-center justify-between gap-1 mt-0.5">
+        {item.year && <p className="text-[8px] text-white/30 font-black uppercase tracking-widest">{item.year}</p>}
+        {storyBundle && (
+          <span className="text-[8px] text-[#FFB68D]/70 font-bold flex items-center gap-0.5">
+            <Users size={8} /> {storyBundle.characters.length} Cast
+          </span>
+        )}
+      </div>
     </motion.div>
   );
 };
@@ -230,6 +264,22 @@ export const MoviesSpecificView: React.FC<MoviesSpecificViewProps> = ({ movies, 
           )}
         </section>
       )}
+
+      {/* Classic Cinema Auteurs — Director Portraits, Biographies & Filmographies */}
+      <ClassicDirectorsShowcaseSection
+        title="The Auteurs of Classic Cinema"
+        subtitle="Director Portraits · Biographies · Complete Career Filmographies"
+        onSelectFilmByIdentifier={(id) => {
+          const found = allMovies.find(
+            (m: any) =>
+              m.identifier === id ||
+              m.archiveIdentifier === id ||
+              m.id === id ||
+              m.id === `public_domain_${id}`
+          );
+          if (found) onSelect(found);
+        }}
+      />
     </main>
   );
 };

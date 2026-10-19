@@ -3687,6 +3687,40 @@ service cloud.firestore {
       );
     }
 
+    // Private Onboarding PII Vault: stores member phone, email, home address, birthDate, family/household details
+    // submitted during membership onboarding so they NEVER sit on public-readable documents.
+    // Strictly readable ONLY by the member themselves or authorized org pastors/staff/admins.
+    match /orgOnboardingVault/{membershipId} {
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        chmsPeopleStaff(resource.data.orgId) ||
+        orgPastorOrAdmin(resource.data.orgId) ||
+        isAdmin()
+      );
+      allow create, update: if isAuthenticated() && (
+        request.resource.data.userId == request.auth.uid ||
+        chmsPeopleStaff(request.resource.data.orgId) ||
+        orgPastorOrAdmin(request.resource.data.orgId) ||
+        isAdmin()
+      );
+      allow delete: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        orgPastorOrAdmin(resource.data.orgId) ||
+        isAdmin()
+      );
+    }
+
+    // Immutable Organization Security Events (screenshot attempts on financials, unauthorized export blocks, etc.).
+    match /orgSecurityEvents/{eventId} {
+      allow read: if isAuthenticated() && (
+        orgPastorOrAdmin(resource.data.orgId) ||
+        chmsFinance(resource.data.orgId) ||
+        isAdmin()
+      );
+      allow create: if isAuthenticated() && request.resource.data.actorUid == request.auth.uid;
+      allow update, delete: if false;
+    }
+
     // ── Elevate ChMS (people / finance / attendance) ─────────────────────────────
     function chmsFinance(orgId) {
       return isAuthenticated() && (orgAdminOf(orgId) ||

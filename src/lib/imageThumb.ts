@@ -69,8 +69,11 @@ function shouldBypassCdn(url: string): boolean {
     url.includes('wsrv.nl') ||
     url.includes('img.youtube.com') ||
     url.includes('i.ytimg.com') ||
-    url.includes('upload.wikimedia.org') ||
-    url.includes('wikipedia.org')
+    url.includes('wikimedia.org') ||
+    url.includes('wikipedia.org') ||
+    url.includes('anilist.co') ||
+    url.includes('gutenberg.org') ||
+    url.includes('standardebooks.org')
   );
 }
 
@@ -148,4 +151,17 @@ export function onThumbError(originalUrl?: string | null) {
     }
   };
 }
+
+/**
+ * Pick the best source URL for grid/card thumbnails from an Album or media object.
+ */
+export function coverGridSrc(item?: {
+  coverThumb?: string | null;
+  coverImage?: string | null;
+  coverImageUrl?: string | null;
+  thumbnailUrl?: string | null;
+} | null): string {
+  return item?.coverThumb || item?.coverImage || item?.coverImageUrl || item?.thumbnailUrl || '';
+}
+
 

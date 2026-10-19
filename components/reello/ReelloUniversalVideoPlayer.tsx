@@ -10,7 +10,13 @@ import {
 import { Video, Album } from '../../types';
 import { WindowsPickedFile } from '../../services/windowsBridgeService';
 import { listHqComments, addHqComment, type OrgAsset } from '../../services/hqCollaboration';
-import { listenToVideoComments, postVideoComment, createPost } from '../../services/backendService';
+import { db, listenToVideoComments, postVideoComment, createPost } from '../../services/backendService';
+import { doc } from 'firebase/firestore';
+import { onSnapshot } from '../../services/safeSnapshot';
+import { getArchiveItemFiles, getBestVideoUrl } from '../../services/archiveContentService';
+import { getSelfHostedFilm, hydrateSelfHostedFilmsFromServer, registerSelfHostedFilm } from '../../services/selfHostedFilms';
+import { ARCHIVE_FILM_ITEMS } from '../../services/filmIngestSources';
+import { hlsTuning, capLevelsToPanel } from '../../services/hlsTuning';
 import ShareButton from '../ShareButton';
 import CommentSection from '../CommentSection';
 import { buildShareUrl } from '../../services/deepLinkService';
@@ -161,6 +167,20 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
   const [currentFile, setCurrentFile] = useState<WindowsPickedFile | undefined>(initialFile);
   const [currentVideo, setCurrentVideo] = useState<Video | undefined>(initialVideo);
 
+  useEffect(() => {
+    if (initialVideo) setCurrentVideo(initialVideo);
+  }, [initialVideo]);
+
+  useEffect(() => {
+    if (initialFile) setCurrentFile(initialFile);
+  }, [initialFile]);
+
+  const [resolvedServerMuxId, setResolvedServerMuxId] = useState<string>('');
+  const [resolvedServerUrl, setResolvedServerUrl] = useState<string>('');
+  const [resolvedProxyUrl, setResolvedProxyUrl] = useState<string>('');
+  const [useProxyFallback, setUseProxyFallback] = useState(false);
+  const [useEmbedFallback, setUseEmbedFallback] = useState(false);
+
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -192,9 +212,15 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
 
   const [hudVisible, setHudVisible] = useState(true);
   const hudTimeoutRef = useRef<any>(null);
+  const lastHudResetRef = useRef<number>(0);
+  const lastTimeUpdateRef = useRef<number>(0);
 
   const resetHudTimeout = useCallback(() => {
-    setHudVisible(true);
+    const now = Date.now();
+    setHudVisible(prev => (prev ? prev : true));
+    // Throttle timer churn on continuous mousemove events while HUD is already visible
+    if (now - lastHudResetRef.current < 250 && hudTimeoutRef.current) return;
+    lastHudResetRef.current = now;
     if (hudTimeoutRef.current) clearTimeout(hudTimeoutRef.current);
     if (isPlaying) {
       hudTimeoutRef.current = setTimeout(() => {
@@ -224,6 +250,132 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
   const [commentInput, setCommentInput] = useState('');
   const [isPostingComment, setIsPostingComment] = useState(false);
   const [includeTimestamp, setIncludeTimestamp] = useState(context === 'ASSET_HQ');
+
+  // Identify public-domain / archival films so we can resolve verified streams & ensure background platform/Mux ingestion
+  const cleanArchiveId = useMemo(() => {
+    const rawId =
+      (album as any)?.identifier ||
+      (currentVideo as any)?.identifier ||
+      (currentVideo?.ownerId === 'internet-archive' ||
+      currentVideo?.ownerId === 'korean-film-archive' ||
+      currentVideo?.ownerId === 'europeana' ||
+      currentVideo?.ownerId === 'library-of-congress' ||
+      currentVideo?.ownerId === 'plajah-public-domain' ||
+      album?.ownerId === 'internet-archive' ||
+      album?.ownerId === 'plajah-public-domain' ||
+      String(currentVideo?.id || '').startsWith('public_domain_') ||
+      String(album?.id || '').startsWith('public_domain_') ||
+      ARCHIVE_FILM_ITEMS[String(currentVideo?.id || album?.id || '')]
+        ? (currentVideo?.id || album?.id || '')
+        : '');
+    const cleaned = String(rawId || '').replace(/^public_domain_/, '').trim();
+    if (/^(album_|vid_|video_)/i.test(cleaned)) return '';
+    return cleaned;
+  }, [album, currentVideo]);
+
+  useEffect(() => {
+    setResolvedServerMuxId('');
+    setResolvedServerUrl('');
+    setResolvedProxyUrl('');
+    setUseProxyFallback(false);
+    setUseEmbedFallback(false);
+
+    if (!cleanArchiveId) return;
+    let alive = true;
+
+    const sh = getSelfHostedFilm(cleanArchiveId);
+    if (sh?.muxPlaybackId) {
+      setResolvedServerMuxId(sh.muxPlaybackId);
+    } else if (sh?.isAvailable && sh.videoUrl) {
+      setResolvedServerUrl(sh.videoUrl);
+    }
+
+    hydrateSelfHostedFilmsFromServer().then(() => {
+      if (!alive) return;
+      const latest = getSelfHostedFilm(cleanArchiveId);
+      if (latest?.muxPlaybackId) setResolvedServerMuxId(latest.muxPlaybackId);
+      else if (latest?.isAvailable && latest.videoUrl) setResolvedServerUrl(prev => prev || latest.videoUrl);
+    });
+
+    // Resolve from server and trigger background platform hosting + Mux ingestion
+    fetch('/api/admin/film-ingest/ensure-on-platform', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        identifier: cleanArchiveId,
+        title: currentVideo?.title || album?.title || initialTitle || cleanArchiveId,
+        description: currentVideo?.description || album?.description || '',
+        director: (album as any)?.director || album?.artist || currentVideo?.artist || '',
+        year: (album as any)?.year || currentVideo?.movieMetadata?.releaseYear || '',
+        runtime: (album as any)?.runtime || currentVideo?.movieMetadata?.duration || '',
+        genre: currentVideo?.genre || album?.genre || 'Classic Cinema',
+        thumbnailUrl: currentVideo?.thumbnailUrl || album?.coverImage || '',
+        source: (album as any)?.source || (currentVideo as any)?.source || 'INTERNET_ARCHIVE',
+        videoUrl: currentVideo?.url || (album as any)?.videoUrl || album?.customVideoUrl || album?.tracks?.[0]?.url || album?.tracks?.[0]?.videoUrl || '',
+        sourceUrl: (album as any)?.sourceUrl || (currentVideo as any)?.sourceUrl || '',
+        rights: (album as any)?.rights || 'Public Domain',
+      }),
+    })
+      .then(async (res) => {
+        if (!alive || !res.ok) return;
+        const data = await res.json();
+        if (data?.muxPlaybackId) {
+          setResolvedServerMuxId(data.muxPlaybackId);
+          registerSelfHostedFilm({
+            identifier: cleanArchiveId,
+            videoUrl: `https://stream.mux.com/${data.muxPlaybackId}.m3u8`,
+            muxPlaybackId: data.muxPlaybackId,
+            muxAssetId: data.muxAssetId,
+            sourceType: 'MUX',
+            isAvailable: true,
+          });
+        }
+        if (data?.streamUrl) {
+          setResolvedServerUrl(data.streamUrl);
+        }
+        if (data?.proxyUrl) {
+          setResolvedProxyUrl(data.proxyUrl);
+        }
+      })
+      .catch(() => {});
+
+    // Also resolve directly from Archive.org metadata when applicable
+    const hasArchiveItem =
+      !!ARCHIVE_FILM_ITEMS[cleanArchiveId] ||
+      ((album as any)?.source !== 'KOFA' &&
+        (album as any)?.source !== 'EUROPEANA' &&
+        currentVideo?.ownerId !== 'korean-film-archive' &&
+        currentVideo?.ownerId !== 'europeana');
+
+    if (hasArchiveItem) {
+      getArchiveItemFiles(cleanArchiveId)
+        .then((files) => {
+          if (!alive) return;
+          const url = getBestVideoUrl(cleanArchiveId, files);
+          if (url) {
+            setResolvedServerUrl((prev) => prev || url);
+          }
+        })
+        .catch(() => {});
+    }
+
+    // Subscribe to Firestore public_domain video doc so when background Mux transcode finishes, we upgrade seamlessly
+    let unsub: (() => void) | undefined;
+    try {
+      unsub = onSnapshot(doc(db, 'videos', `public_domain_${cleanArchiveId}`), (snap) => {
+        if (!alive || !snap.exists()) return;
+        const d = snap.data() as any;
+        if (d?.muxPlaybackId) {
+          setResolvedServerMuxId(d.muxPlaybackId);
+        }
+      });
+    } catch {}
+
+    return () => {
+      alive = false;
+      try { unsub?.(); } catch {}
+    };
+  }, [cleanArchiveId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (folderFiles && folderFiles.length > 0) {
@@ -268,15 +420,95 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
     }
   }, [folderFiles, currentFile, currentVideo]);
 
+  const isEmbedOnlyUrl = useCallback((u?: string) => {
+    if (!u) return false;
+    return /youtube\.com|youtu\.be|youtube-nocookie\.com|archive\.org\/embed\//i.test(u);
+  }, []);
+
+  const effectiveMuxPlaybackId = useMemo(() => {
+    return (
+      resolvedServerMuxId ||
+      initialMuxId ||
+      currentVideo?.muxPlaybackId ||
+      (album as any)?.muxPlaybackId ||
+      album?.tracks?.[0]?.muxPlaybackId ||
+      ''
+    );
+  }, [resolvedServerMuxId, initialMuxId, currentVideo?.muxPlaybackId, album]);
+
   const resolvedUrl = useMemo(() => {
-    if (playlist[playlistIndex]?.url) return playlist[playlistIndex].url;
+    if (useProxyFallback && (resolvedProxyUrl || cleanArchiveId)) {
+      return resolvedProxyUrl || `/api/admin/film-ingest/proxy-stream/${encodeURIComponent(cleanArchiveId)}`;
+    }
+    if (effectiveMuxPlaybackId) {
+      return `https://stream.mux.com/${effectiveMuxPlaybackId}.m3u8`;
+    }
+    if (resolvedServerUrl && !isEmbedOnlyUrl(resolvedServerUrl)) {
+      return resolvedServerUrl;
+    }
+    const plUrl = playlist[playlistIndex]?.url;
+    if (plUrl && !isEmbedOnlyUrl(plUrl)) return plUrl;
     if (currentFile?.url) return currentFile.url;
-    if (initialSrc) return initialSrc;
-    if (initialMuxId) return `https://stream.mux.com/${initialMuxId}.m3u8`;
-    if (currentVideo?.muxPlaybackId) return `https://stream.mux.com/${currentVideo.muxPlaybackId}.m3u8`;
-    if (currentVideo?.url) return currentVideo.url;
+    if (initialSrc && !isEmbedOnlyUrl(initialSrc)) return initialSrc;
+    if (currentVideo?.url && !isEmbedOnlyUrl(currentVideo.url)) return currentVideo.url;
+    const albumUrl =
+      (album as any)?.videoUrl ||
+      album?.customVideoUrl ||
+      album?.tracks?.[0]?.url ||
+      album?.tracks?.[0]?.videoUrl ||
+      '';
+    if (albumUrl && !isEmbedOnlyUrl(albumUrl)) return albumUrl;
     return '';
-  }, [playlist, playlistIndex, currentFile, initialSrc, initialMuxId, currentVideo]);
+  }, [
+    useProxyFallback,
+    resolvedProxyUrl,
+    cleanArchiveId,
+    effectiveMuxPlaybackId,
+    resolvedServerUrl,
+    playlist,
+    playlistIndex,
+    currentFile,
+    initialSrc,
+    currentVideo,
+    album,
+    isEmbedOnlyUrl,
+  ]);
+
+  const activeEmbedUrl = useMemo(() => {
+    const raw =
+      currentVideo?.embedUrl ||
+      (album as any)?.embedUrl ||
+      (isEmbedOnlyUrl(currentVideo?.url) ? currentVideo?.url : '') ||
+      (isEmbedOnlyUrl((album as any)?.videoUrl) ? (album as any)?.videoUrl : '') ||
+      (cleanArchiveId
+        ? `https://archive.org/embed/${ARCHIVE_FILM_ITEMS[cleanArchiveId] || cleanArchiveId}?autoplay=1`
+        : '');
+    if (!raw) return '';
+    if (raw.includes('youtube.com') || raw.includes('youtu.be') || raw.includes('youtube-nocookie.com')) {
+      const match = raw.match(/(?:youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*)/);
+      const ytId = match && match[1].length === 11 ? match[1] : '';
+      const originParam = typeof window !== 'undefined' ? `&origin=${encodeURIComponent(window.location.origin)}` : '';
+      if (ytId) return `https://www.youtube-nocookie.com/embed/${ytId}?autoplay=1&rel=0&enablejsapi=1${originParam}`;
+    }
+    return raw;
+  }, [currentVideo, album, cleanArchiveId, isEmbedOnlyUrl]);
+
+  // Only force crossOrigin="anonymous" when streaming from Mux, same-origin (/api/...), or local blob/file.
+  // Archive.org redirects across storage cluster nodes that do not always emit CORS headers on redirect hops,
+  // which caused <video crossOrigin="anonymous"> to fail loading public-domain MP4s.
+  const needsAnonymousCors = useMemo(() => {
+    if (!resolvedUrl) return false;
+    if (resolvedUrl.startsWith('/') || resolvedUrl.startsWith('blob:') || resolvedUrl.startsWith('data:') || resolvedUrl.startsWith('file:')) {
+      return true;
+    }
+    if (resolvedUrl.includes('stream.mux.com') || resolvedUrl.includes('firebasestorage.googleapis.com')) {
+      return true;
+    }
+    if (typeof window !== 'undefined' && resolvedUrl.startsWith(window.location.origin)) {
+      return true;
+    }
+    return false;
+  }, [resolvedUrl]);
 
   const activeTitle = useMemo(() => {
     if (playlist[playlistIndex]?.title) return playlist[playlistIndex].title;
@@ -303,10 +535,9 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
           if (Hls.isSupported()) {
             if (hlsRef.current) hlsRef.current.destroy();
 
-            const hls = new Hls({
-              enableWorker: true,
-              lowLatencyMode: true,
-            });
+            // Use platform-wide VOD HLS tuning (lowLatencyMode: false, bounded buffers,
+            // conservative ABR startup, and automatic level step-down on dropped frames).
+            const hls = new Hls(hlsTuning());
             hlsRef.current = hls;
 
             hls.loadSource(resolvedUrl);
@@ -314,6 +545,7 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
 
             hls.on(Hls.Events.MANIFEST_PARSED, () => {
               if (isCancelled) return;
+              capLevelsToPanel(hls as any);
               if (hls.audioTracks && hls.audioTracks.length > 0) {
                 setAvailableAudioTracks(
                   hls.audioTracks.map((t: any, i: number) => ({
@@ -335,6 +567,11 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
                 if (data.type === Hls.ErrorTypes.NETWORK_ERROR) hls.startLoad();
                 else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError();
                 else hls.destroy();
+              } else if (data.details === Hls.ErrorDetails.BUFFER_STALLED_ERROR) {
+                // Step down one ABR level if the decoder or connection stalls mid-playback
+                if (hls.currentLevel > 0) {
+                  hls.nextLevel = hls.currentLevel - 1;
+                }
               }
             });
           } else if (el.canPlayType('application/vnd.apple.mpegurl')) {
@@ -353,7 +590,10 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
         hlsRef.current = null;
       }
       el.src = resolvedUrl;
-      el.play().catch(() => {});
+      el.play().catch(() => {
+        el.muted = true;
+        el.play().catch(() => {});
+      });
     }
 
     return () => {
@@ -367,7 +607,9 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
 
   const initAudioDsp = useCallback(() => {
     const el = videoRef.current;
-    if (!el || audioCtxRef.current) return;
+    // Never attach createMediaElementSource to a cross-origin <video> without CORS enabled,
+    // or Web Audio API will silence all audio output for the element.
+    if (!el || audioCtxRef.current || !needsAnonymousCors) return;
 
     try {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
@@ -410,7 +652,7 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
     } catch (err) {
       console.warn('[UniversalVideoPlayer] Web Audio DSP initialization failed:', err);
     }
-  }, []);
+  }, [needsAnonymousCors]);
 
   useEffect(() => {
     if (!audioCtxRef.current) return;
@@ -563,7 +805,8 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
 
   // The video actually on screen (the playlist can advance past the one we were opened with).
   const activeVideo = playlist[playlistIndex]?.video ?? currentVideo;
-  const canLens = !!activeVideo?.muxPlaybackId;
+  const canLens = !!(effectiveMuxPlaybackId || activeVideo?.muxPlaybackId || needsAnonymousCors);
+  const showEmbedIframe = (useEmbedFallback || (!resolvedUrl && !!activeEmbedUrl)) && !!activeEmbedUrl;
 
   // Watch party (synchronized viewing): the host broadcasts, followers are slaved to the host.
   const [activePartyId, setActivePartyId] = useState<string | null>(initialPartyId ?? null);
@@ -789,54 +1032,82 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
       )}
 
       <div className={`relative flex items-center justify-center bg-black overflow-hidden ${activePartyId && !isFullscreen ? 'w-full aspect-video max-h-[65vh] shrink-0' : 'flex-1'}`}>
-        <video
-          ref={videoRef}
-          crossOrigin="anonymous"
-          playsInline
-          style={{ filter: LOOK_FILTERS[activeLook].filter }}
-          onPlay={() => { setIsPlaying(true); setShowUpNext(false); }}
-          onPause={() => setIsPlaying(false)}
-          onTimeUpdate={() => {
-            if (videoRef.current) setCurrentTime(videoRef.current.currentTime);
-          }}
-          onLoadedMetadata={() => {
-            if (videoRef.current) setDuration(videoRef.current.duration);
-          }}
-          onWaiting={() => setIsBuffering(true)}
-          onPlaying={() => setIsBuffering(false)}
-          onEnded={() => {
-            if (repeatMode === 'one') {
-              if (videoRef.current) {
-                videoRef.current.currentTime = 0;
-                videoRef.current.play().catch(() => {});
+        {showEmbedIframe ? (
+          <iframe
+            src={activeEmbedUrl}
+            title={activeTitle}
+            allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+            allowFullScreen
+            style={{ filter: LOOK_FILTERS[activeLook].filter }}
+            className={`w-full h-full border-0 ${activeContext === 'TALEO' ? 'max-h-[92vh]' : 'max-h-full'}`}
+          />
+        ) : (
+          <video
+            ref={videoRef}
+            crossOrigin={needsAnonymousCors ? 'anonymous' : undefined}
+            playsInline
+            style={activeLook !== 'none' ? { filter: LOOK_FILTERS[activeLook].filter } : undefined}
+            onPlay={() => { setIsPlaying(true); setIsBuffering(false); setShowUpNext(false); }}
+            onPause={() => setIsPlaying(false)}
+            onTimeUpdate={() => {
+              const el = videoRef.current;
+              if (!el) return;
+              const t = el.currentTime;
+              if (Math.abs(t - lastTimeUpdateRef.current) >= 0.25) {
+                lastTimeUpdateRef.current = t;
+                setCurrentTime(t);
               }
-            } else if (upNext?.items.length && playlist.length <= 1) {
-              setShowUpNext(true);
-            } else {
-              handleNextTrack();
-            }
-          }}
-          onClick={togglePlay}
-          className={`w-full h-full object-contain cursor-pointer transition-all duration-300 ${
-            activeContext === 'TALEO' ? 'max-h-[92vh]' : 'max-h-full'
-          }`}
-        />
-        {canLens && lensId !== 'none' && (
+            }}
+            onLoadedMetadata={() => {
+              setIsBuffering(false);
+              if (videoRef.current) setDuration(videoRef.current.duration);
+            }}
+            onWaiting={() => setIsBuffering(true)}
+            onPlaying={() => setIsBuffering(false)}
+            onError={() => {
+              setIsBuffering(false);
+              if (cleanArchiveId && !useProxyFallback) {
+                console.warn(`[UniversalVideoPlayer] Direct stream failed for ${cleanArchiveId}, switching to platform proxy stream...`);
+                setUseProxyFallback(true);
+              } else if (activeEmbedUrl && !useEmbedFallback) {
+                console.warn(`[UniversalVideoPlayer] Fallback to archival embed player for ${activeTitle}`);
+                setUseEmbedFallback(true);
+              }
+            }}
+            onEnded={() => {
+              if (repeatMode === 'one') {
+                if (videoRef.current) {
+                  videoRef.current.currentTime = 0;
+                  videoRef.current.play().catch(() => {});
+                }
+              } else if (upNext?.items.length && playlist.length <= 1) {
+                setShowUpNext(true);
+              } else {
+                handleNextTrack();
+              }
+            }}
+            onClick={togglePlay}
+            className={`w-full h-full object-contain cursor-pointer transition-all duration-300 ${
+              activeContext === 'TALEO' ? 'max-h-[92vh]' : 'max-h-full'
+            }`}
+          />
+        )}
+        {!showEmbedIframe && canLens && lensId !== 'none' && (
           <LensVideoOverlay videoRef={videoRef} lens={lensId} fit="contain" onStatus={setLensStatus} />
         )}
-        {canLens && lensOpen && (
+        {!showEmbedIframe && canLens && lensOpen && (
           <div className="absolute right-3 bottom-24 z-40 w-72 max-w-[90%] rounded-xl bg-[#0F131C]/95 border border-white/15 p-2 shadow-2xl backdrop-blur-xl">
             <LensPicker value={lensId} onChange={id => { setLensId(id); if (id === 'none') setLensStatus(''); }} status={lensStatus} />
           </div>
         )}
 
-        {isBuffering && (
+        {!showEmbedIframe && isBuffering && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-30">
             <div className="w-12 h-12 border-4 border-[color-mix(in_srgb,var(--ua)_20%,transparent)] border-t-amber-500 rounded-full animate-spin" />
           </div>
         )}
 
-        {!isPlaying && !isBuffering && (
+        {!showEmbedIframe && !isPlaying && !isBuffering && (
           <motion.button
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
@@ -895,15 +1166,16 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
                 ctaText={(activeVideo as any).isCinema || /cinema|film|movie/i.test((activeVideo as any).genre || '') ? '▶ STREAM FILM ON TALEO' : '▶ WATCH FULL CLIP ON PLAJAH'}
                 plajahLabel="Post to Plajah feed"
                 onPostToPlajah={currentUser ? async () => {
+                  const pid = effectiveMuxPlaybackId || (activeVideo as any).muxPlaybackId || undefined;
                   await createPost({
                     text: `🎬 ${activeVideo.title}`,
                     media: [{
                       type: 'VIDEO',
-                      url: activeVideo.url || '',
+                      url: pid ? `https://stream.mux.com/${pid}.m3u8` : (activeVideo.url || ''),
                       id: activeVideo.id,
                       title: activeVideo.title,
                       thumbnail: activeVideo.thumbnailUrl || (activeVideo as any).coverImageUrl,
-                      muxPlaybackId: (activeVideo as any).muxPlaybackId,
+                      muxPlaybackId: pid,
                     }],
                   } as any);
                 } : undefined}

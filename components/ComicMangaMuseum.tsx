@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { motion } from 'motion/react';
-import { ChevronLeft, Search, BookOpen, Landmark, Library as LibraryIcon, ExternalLink, Loader2, Sparkles, Clock } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { ChevronLeft, Search, BookOpen, Landmark, Library as LibraryIcon, ExternalLink, Loader2, Sparkles, Clock, X } from 'lucide-react';
 import type { Album } from '../types';
 import { fetchArchiveComics, fetchAnilistManga, resolveArchiveReadableUrl, COMIC_COLLECTIONS, MANGA_ERAS, COMIC_LEGENDS, MANGA_LEGENDS, COMICS_HISTORY, MANGA_HISTORY, type MangaEntry, type Legend, type HistoryEra } from '../services/comicsMangaService';
 import { searchOpenLibrary, openLibrarySubject, OPEN_LIBRARY_SHELVES } from '../services/openLibraryService';
@@ -26,48 +26,170 @@ const toReadable = (b: ArchiveBook): Album => ({
 // ── Museum: legendary creators + history ──────────────────────────────────────
 const initials = (name: string) => name.split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
 
-const LegendCard: React.FC<{ l: Legend }> = ({ l }) => (
-  <div className="shrink-0 w-64 p-5 rounded-2xl bg-white/[0.03] border border-white/8 hover:border-white/20 hover:bg-white/[0.05] transition-all">
-    <div className="flex items-center gap-3 mb-3">
-      <div className="w-12 h-12 rounded-2xl flex items-center justify-center font-black text-white text-sm shrink-0 shadow-lg" style={{ background: `linear-gradient(135deg, ${l.color}, ${l.color}77)` }}>{initials(l.name)}</div>
-      <div className="min-w-0">
-        <h4 className="text-sm font-black uppercase tracking-tight text-white truncate">{l.name}</h4>
-        <p className="text-[8.5px] font-black uppercase tracking-widest" style={{ color: l.color }}>{l.role} · {l.era}</p>
-      </div>
-    </div>
-    <p className="text-[9px] font-black uppercase tracking-widest text-white/40 mb-2 leading-snug">{l.knownFor}</p>
-    <p className="text-[11px] text-white/55 leading-relaxed">{l.legacy}</p>
-  </div>
-);
+const _wikiBioCache = new Map<string, Promise<{ thumb: string; extract: string }>>();
+const fetchLegendWiki = (slug: string): Promise<{ thumb: string; extract: string }> => {
+  if (!slug) return Promise.resolve({ thumb: '', extract: '' });
+  if (!_wikiBioCache.has(slug)) {
+    _wikiBioCache.set(
+      slug,
+      fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${slug}`)
+        .then(r => (r.ok ? r.json() : null))
+        .then(d => ({
+          thumb: d?.originalimage?.source || d?.thumbnail?.source || '',
+          extract: d?.extract || '',
+        }))
+        .catch(() => ({ thumb: '', extract: '' }))
+    );
+  }
+  return _wikiBioCache.get(slug)!;
+};
 
-const LegendsSection: React.FC<{ title: string; note: string; legends: Legend[] }> = ({ title, note, legends }) => (
-  <section className="mb-10 mt-2">
-    <div className="flex items-center gap-3 mb-4">
-      <Sparkles size={14} style={{ color: GOLD }} />
-      <h3 className="text-sm font-black uppercase tracking-[0.2em] text-white">{title}</h3>
-      <span className="text-[10px] text-white/30 hidden sm:inline">{note}</span>
+const LegendCard: React.FC<{ l: Legend; onSelect: (l: Legend) => void }> = ({ l, onSelect }) => {
+  const [imgFailed, setImgFailed] = useState(false);
+  const [wikiThumb, setWikiThumb] = useState<string>('');
+
+  useEffect(() => {
+    let active = true;
+    if (l.wikiSlug) {
+      fetchLegendWiki(l.wikiSlug).then(res => {
+        if (active && res.thumb) setWikiThumb(res.thumb);
+      });
+    }
+    return () => { active = false; };
+  }, [l.wikiSlug]);
+
+  const portraitSrc = !imgFailed ? (l.portraitUrl || wikiThumb) : wikiThumb;
+
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(l)}
+      className="shrink-0 w-72 text-left rounded-3xl bg-white/[0.03] border border-white/10 hover:border-amber-400/50 hover:bg-white/[0.06] transition-all overflow-hidden group flex flex-col shadow-xl cursor-pointer"
+    >
+      {/* Portrait Header */}
+      <div className="relative h-48 w-full overflow-hidden bg-gradient-to-b from-white/10 to-black/70">
+        {portraitSrc ? (
+          <img
+            src={portraitSrc}
+            alt={l.name}
+            loading="lazy"
+            referrerPolicy="no-referrer"
+            onError={() => setImgFailed(true)}
+            className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500"
+          />
+        ) : (
+          <div
+            className="w-full h-full flex items-center justify-center font-black text-white text-3xl"
+            style={{ background: `linear-gradient(135deg, ${l.color}, ${l.color}55)` }}
+          >
+            {initials(l.name)}
+          </div>
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0e0b16] via-[#0e0b16]/35 to-transparent" />
+        <span
+          className="absolute top-3 right-3 text-[8.5px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full backdrop-blur-md border border-white/15 text-white"
+          style={{ background: `${l.color}cc` }}
+        >
+          {l.role}
+        </span>
+        {l.years && (
+          <span className="absolute top-3 left-3 text-[8.5px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-full bg-black/65 border border-white/10 text-white/80 backdrop-blur-md">
+            {l.years}
+          </span>
+        )}
+        <div className="absolute bottom-3 left-4 right-4">
+          <h4 className="text-base font-black uppercase tracking-tight text-white drop-shadow">{l.name}</h4>
+          <p className="text-[9px] font-black uppercase tracking-widest mt-0.5" style={{ color: l.color }}>
+            {[l.nationality, l.era].filter(Boolean).join(' · ')}
+          </p>
+        </div>
+      </div>
+
+      {/* Bio & Works Body */}
+      <div className="p-4 flex-1 flex flex-col justify-between">
+        <div>
+          <p className="text-[9.5px] font-black uppercase tracking-widest text-amber-300/90 mb-2 leading-snug">
+            {l.knownFor}
+          </p>
+          <p className="text-[11.5px] text-white/65 leading-relaxed line-clamp-3">
+            {l.legacy}
+          </p>
+        </div>
+        <div className="mt-3 pt-2.5 border-t border-white/10 flex items-center justify-between text-[9px] font-black uppercase tracking-widest text-white/50 group-hover:text-amber-300 transition-colors">
+          <span>Read Full Biography</span>
+          <span>→</span>
+        </div>
+      </div>
+    </button>
+  );
+};
+
+const LegendsSection: React.FC<{ title: string; note: string; legends: Legend[]; onSelect: (l: Legend) => void }> = ({ title, note, legends, onSelect }) => (
+  <section className="mb-12 mt-2">
+    <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
+      <div className="flex items-center gap-3">
+        <Sparkles size={15} style={{ color: GOLD }} />
+        <h3 className="text-sm font-black uppercase tracking-[0.2em] text-white">{title}</h3>
+        <span className="text-[10px] text-white/40 hidden sm:inline">{note}</span>
+      </div>
+      <span className="text-[9.5px] font-mono uppercase tracking-widest text-amber-300/75">
+        Click any legend for full biography &amp; archival portrait
+      </span>
     </div>
-    <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2 -mx-1 px-1">
-      {legends.map(l => <LegendCard key={l.name} l={l} />)}
+    <div className="flex gap-4 overflow-x-auto scrollbar-hide pb-3 -mx-1 px-1">
+      {legends.map(l => <LegendCard key={l.name} l={l} onSelect={onSelect} />)}
     </div>
   </section>
 );
 
-const HistorySection: React.FC<{ title: string; eras: HistoryEra[] }> = ({ title, eras }) => (
+const HistorySection: React.FC<{ title: string; eras: HistoryEra[]; allLegends: Legend[]; onSelectLegend: (l: Legend) => void }> = ({ title, eras, allLegends, onSelectLegend }) => (
   <section className="mb-12">
     <div className="flex items-center gap-3 mb-6">
-      <Landmark size={14} style={{ color: GOLD }} />
+      <Landmark size={15} style={{ color: GOLD }} />
       <h3 className="text-sm font-black uppercase tracking-[0.2em] text-white">{title}</h3>
     </div>
-    <div className="relative pl-6 space-y-7 border-l border-white/10 ml-1">
-      {eras.map((e, i) => (
-        <div key={i} className="relative">
-          <div className="absolute -left-[1.72rem] top-1.5 w-3 h-3 rounded-full" style={{ background: GOLD, boxShadow: '0 0 0 4px rgba(231,178,75,0.14)' }} />
-          <p className="text-[10px] font-black uppercase tracking-[0.3em]" style={{ color: GOLD }}>{e.period}</p>
-          <h4 className="text-base font-black uppercase tracking-tight text-white mt-0.5 mb-1.5">{e.title}</h4>
-          <p className="text-[12.5px] text-white/55 leading-relaxed max-w-2xl">{e.blurb}</p>
-        </div>
-      ))}
+    <div className="relative pl-6 space-y-8 border-l border-white/15 ml-1">
+      {eras.map((e, i) => {
+        const eraLegends = (e.keyFigures || [])
+          .map(name => allLegends.find(l => l.name.toLowerCase() === name.toLowerCase()))
+          .filter((l): l is Legend => !!l);
+        return (
+          <div key={i} className="relative p-5 rounded-2xl bg-white/[0.025] border border-white/8 hover:border-white/15 transition-all">
+            <div className="absolute -left-[2.05rem] top-6 w-3.5 h-3.5 rounded-full" style={{ background: GOLD, boxShadow: '0 0 0 4px rgba(231,178,75,0.18)' }} />
+            <div className="flex flex-wrap items-center gap-2.5">
+              <p className="text-[10px] font-black uppercase tracking-[0.3em]" style={{ color: GOLD }}>{e.period}</p>
+              {e.milestoneWorks && e.milestoneWorks.map(w => (
+                <span key={w} className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-white/60">
+                  {w}
+                </span>
+              ))}
+            </div>
+            <h4 className="text-base font-black uppercase tracking-tight text-white mt-1 mb-1.5">{e.title}</h4>
+            <p className="text-[12.5px] text-white/65 leading-relaxed max-w-3xl">{e.blurb}</p>
+            {eraLegends.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2 mt-3.5 pt-3 border-t border-white/8">
+                <span className="text-[9px] font-mono uppercase tracking-widest text-white/40 mr-1">Era Pioneers:</span>
+                {eraLegends.map(leg => (
+                  <button
+                    key={leg.name}
+                    type="button"
+                    onClick={() => onSelectLegend(leg)}
+                    className="flex items-center gap-2 pl-1 pr-3 py-1 rounded-full bg-white/5 hover:bg-white/12 border border-white/10 hover:border-amber-400/50 transition-all cursor-pointer"
+                  >
+                    <img
+                      src={leg.portraitUrl}
+                      alt={leg.name}
+                      referrerPolicy="no-referrer"
+                      className="w-6 h-6 rounded-full object-cover object-top border border-white/20"
+                    />
+                    <span className="text-[10px] font-bold text-white">{leg.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   </section>
 );
@@ -128,6 +250,25 @@ const ComicMangaMuseum: React.FC<{ onBack: () => void; onSelectBook: (a: Album) 
   const [results, setResults] = useState<ArchiveBook[] | null>(null);
   const [searching, setSearching] = useState(false);
   const [opening, setOpening] = useState(false);
+  const [selectedLegend, setSelectedLegend] = useState<Legend | null>(null);
+  const [legendWikiExtract, setLegendWikiExtract] = useState<string>('');
+  const [legendWikiThumb, setLegendWikiThumb] = useState<string>('');
+
+  useEffect(() => {
+    let active = true;
+    setLegendWikiExtract('');
+    setLegendWikiThumb('');
+    if (selectedLegend?.wikiSlug) {
+      fetchLegendWiki(selectedLegend.wikiSlug).then(res => {
+        if (active) {
+          setLegendWikiExtract(res.extract);
+          setLegendWikiThumb(res.thumb);
+        }
+      });
+    }
+    return () => { active = false; };
+  }, [selectedLegend]);
+
   // Resolve the item's REAL readable file (the guessed <id>.pdf usually 404s) before
   // handing the reader a live URL. Falls back to the guess if metadata has no PDF.
   const openComic = async (b: ArchiveBook) => {
@@ -172,13 +313,120 @@ const ComicMangaMuseum: React.FC<{ onBack: () => void; onSelectBook: (a: Album) 
   };
 
   return (
-    <div className="h-full overflow-y-auto scrollbar-hide" style={{ background: 'linear-gradient(180deg,#120e1c,#0a0a0f)' }}>
+    <div className="h-full overflow-y-auto scrollbar-hide plajah-ambient-surface" style={{ background: 'linear-gradient(180deg,#120e1c,#0a0a0f)' }}>
       {opening && (
         <div className="fixed inset-0 z-[400] flex flex-col items-center justify-center gap-4 bg-black/70 backdrop-blur-sm">
           <Loader2 className="animate-spin text-small-orange" size={40} />
           <p className="text-[10px] font-black uppercase tracking-[0.4em] text-white/50">Opening comic…</p>
         </div>
       )}
+
+      {/* Legend Portrait & Biography Dossier Modal */}
+      <AnimatePresence>
+        {selectedLegend && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[420] bg-black/80 backdrop-blur-md flex items-center justify-center p-4"
+            onClick={() => setSelectedLegend(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.94, y: 16 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.96, opacity: 0 }}
+              onClick={e => e.stopPropagation()}
+              className="relative w-full max-w-2xl rounded-3xl overflow-hidden border border-white/15 bg-[#120d1d] shadow-2xl max-h-[88vh] overflow-y-auto scrollbar-hide"
+            >
+              <button
+                type="button"
+                onClick={() => setSelectedLegend(null)}
+                className="absolute top-4 right-4 z-20 w-9 h-9 rounded-full bg-black/60 border border-white/15 flex items-center justify-center text-white/80 hover:text-white hover:bg-black/80 cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+
+              <div className="grid grid-cols-1 sm:grid-cols-12">
+                <div className="sm:col-span-5 relative min-h-[260px] bg-gradient-to-b from-white/10 to-black/70">
+                  <img
+                    src={selectedLegend.portraitUrl || legendWikiThumb}
+                    alt={selectedLegend.name}
+                    referrerPolicy="no-referrer"
+                    className="w-full h-full object-cover object-top"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#120d1d] via-transparent to-transparent sm:bg-gradient-to-r sm:from-transparent sm:to-[#120d1d]" />
+                </div>
+
+                <div className="sm:col-span-7 p-6 sm:p-7 flex flex-col justify-between space-y-4">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                      <span
+                        className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full text-white"
+                        style={{ background: selectedLegend.color }}
+                      >
+                        {selectedLegend.field} {selectedLegend.role}
+                      </span>
+                      {selectedLegend.years && (
+                        <span className="text-[9px] font-mono uppercase tracking-wider px-2.5 py-1 rounded-full bg-white/8 border border-white/10 text-white/75">
+                          {selectedLegend.years}
+                        </span>
+                      )}
+                      {selectedLegend.nationality && (
+                        <span className="text-[9px] font-mono uppercase tracking-wider px-2.5 py-1 rounded-full bg-white/8 border border-white/10 text-white/75">
+                          {selectedLegend.nationality}
+                        </span>
+                      )}
+                    </div>
+
+                    <h2 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-white">
+                      {selectedLegend.name}
+                    </h2>
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] mt-1" style={{ color: GOLD }}>
+                      Active Era: {selectedLegend.era}
+                    </p>
+
+                    <div className="mt-4 p-3.5 rounded-2xl bg-white/[0.04] border border-white/10">
+                      <p className="text-[9px] font-mono uppercase tracking-widest text-amber-300/80 mb-1">
+                        Signature Masterworks
+                      </p>
+                      <p className="text-xs font-bold text-white/90 leading-snug">
+                        {selectedLegend.knownFor}
+                      </p>
+                    </div>
+
+                    <div className="mt-4 space-y-2.5 text-xs text-white/75 leading-relaxed">
+                      <p className="font-semibold text-white/90">{selectedLegend.legacy}</p>
+                      <p>{selectedLegend.bio}</p>
+                      {legendWikiExtract && legendWikiExtract !== selectedLegend.bio && (
+                        <p className="text-[11px] text-white/55 pt-2 border-t border-white/10">
+                          {legendWikiExtract}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {selectedLegend.wikiSlug && (
+                    <div className="pt-3 border-t border-white/10 flex items-center justify-between">
+                      <span className="text-[9px] font-mono uppercase tracking-widest text-white/35">
+                        Lorea Archival Creator Dossier
+                      </span>
+                      <a
+                        href={`https://en.wikipedia.org/wiki/${selectedLegend.wikiSlug}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-amber-300 hover:underline"
+                      >
+                        Wikipedia Archive <ExternalLink size={11} />
+                      </a>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Hero */}
       <div className="relative px-6 lg:px-12 pt-6 pb-4 border-b border-white/8">
         <button onClick={onBack} className="flex items-center gap-1.5 text-white/50 hover:text-white text-[11px] font-bold uppercase tracking-widest mb-4"><ChevronLeft size={16} /> Lorea</button>
@@ -269,25 +517,27 @@ const ComicMangaMuseum: React.FC<{ onBack: () => void; onSelectBook: (a: Album) 
               </div>
             </div>
 
+            {/* Legends & History Featured Prominently at the Top & Bottom */}
+            <LegendsSection title="Legends of Comics" note="The artists & writers who built the medium" legends={COMIC_LEGENDS} onSelect={setSelectedLegend} />
+            <HistorySection title="A History of Comics" eras={COMICS_HISTORY} allLegends={COMIC_LEGENDS} onSelectLegend={setSelectedLegend} />
+
+            <div className="h-px w-full bg-white/5 my-8" />
             {COMIC_COLLECTIONS.map(c => (
               <Row key={c.label} label={c.label} load={() => fetchArchiveComics(c.query, 18)} onOpen={openComic} />
             ))}
-            <div className="h-px w-full bg-white/5 my-8" />
-            <LegendsSection title="Legends of Comics" note="The artists & writers who built the medium" legends={COMIC_LEGENDS} />
-            <HistorySection title="A History of Comics" eras={COMICS_HISTORY} />
           </>
         )}
 
         {tab === 'manga' && (
           <>
-            <div className="flex items-center gap-2 mb-5 text-[11px] text-white/40"><Clock size={13} style={{ color: GOLD }} /> A century of manga, manhwa & manhua — covers, creators and context from AniList. Tap a title to read more.</div>
+            <div className="flex items-center gap-2 mb-5 text-[11px] text-white/40"><Clock size={13} style={{ color: GOLD }} /> A century of manga, manhwa & manhua — covers, creators and context from AniList. Tap a title or legend to explore.</div>
+            <LegendsSection title="Masters of Manga" note="The mangaka who shaped a century" legends={MANGA_LEGENDS} onSelect={setSelectedLegend} />
+            <HistorySection title="A History of Manga" eras={MANGA_HISTORY} allLegends={MANGA_LEGENDS} onSelectLegend={setSelectedLegend} />
+            <div className="h-px w-full bg-white/5 my-8" />
             <MangaRow label="Most Celebrated" note="all-time" load={() => fetchAnilistManga({ sort: 'SCORE_DESC', limit: 24 })} />
             {MANGA_ERAS.map(e => (
               <MangaRow key={e.label} label={e.label} note={`${e.since}+ · ${e.note}`} load={() => fetchAnilistManga({ sort: 'START_DATE', sinceYear: e.since, limit: 24 })} />
             ))}
-            <div className="h-px w-full bg-white/5 my-8" />
-            <LegendsSection title="Masters of Manga" note="The mangaka who shaped a century" legends={MANGA_LEGENDS} />
-            <HistorySection title="A History of Manga" eras={MANGA_HISTORY} />
           </>
         )}
 

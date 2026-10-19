@@ -8,12 +8,23 @@ import { createParty, partyShareUrl } from '../services/partyService';
 import { useParty } from '../hooks/useParty';
 import PartyBar from './party/PartyBar';
 import { partyToast } from './party/partyToast';
-import { ChevronLeft, ChevronRight, X, Maximize2, Minimize2, ZoomIn, ZoomOut, Grid, Bookmark, Settings, MessageSquare, Edit3, Mic, Link as LinkIcon, Play, Pause, Users, Video as VideoIcon, Highlighter, RefreshCw, List, Book as BookIcon, Type, Smartphone, Monitor, Moon, Sun, Coffee, Columns, Square, Download, Loader2, BookOpen as BookOpenIcon, Share2, Trash2, Headphones, ChevronDown, Volume2, Sparkles, AlertCircle, ExternalLink } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, Maximize2, Minimize2, ZoomIn, ZoomOut, Grid, Bookmark, BookMarked, Library, Settings, MessageSquare, Edit3, Mic, Link as LinkIcon, Play, Pause, Users, Video as VideoIcon, Highlighter, RefreshCw, List, Book as BookIcon, Type, Smartphone, Monitor, Moon, Sun, Coffee, Columns, Square, Download, Loader2, BookOpen as BookOpenIcon, Share2, Trash2, Headphones, ChevronDown, Volume2, Sparkles, AlertCircle, ExternalLink, Palette, Megaphone } from 'lucide-react';
+import ChoraPromoModal from './music/ChoraPromoModal';
 import { MAI_VOICES, synthesizeParagraphs, estimateNarrationDurationMs } from '../services/microsoftAIService';
 import { motion, AnimatePresence } from 'motion/react';
-import { subscribeToComments, postComment, createPost, loginWithGoogle } from '../services/backendService';
+import { subscribeToComments, postComment, createPost, loginWithGoogle, auth } from '../services/backendService';
 import { cacheExternalBookAssets } from '../services/bookStorageService';
-import { fetchBookBinary, fetchBookText, formatReadableText, parseChaptersFromText, ParsedChapter, stripHtmlToText } from '../services/bookContentService';
+import { fetchBookBinary, fetchBookText, fetchAndParseBookChapters, getCachedParsedChapters, getCachedFormattedText, cleanGutenbergMarkup, formatReadableText, parseChaptersFromText, ParsedChapter, stripHtmlToText } from '../services/bookContentService';
+import { getClassicBookTextUrl, getInstantClassicOpeningChapters } from '../data/classicBooks';
+import {
+  CLASSIC_PAGE_THEMES,
+  resolveClassicPageTheme,
+  ClassicPageFlourishFrame,
+  ClassicThemeViewerDrawer,
+  renderChapterCrestSvg,
+  renderUnderTitleFlourishSvg,
+} from '../data/classicPageThemes';
+import { launchClassicBookInChoraDaw } from '../services/melos/classicBookChoraProjects';
 import BookFolioBody from './lorea/BookFolioBody';
 import PageTurn from './lorea/PageTurn';
 import PageTurnSettings from './lorea/PageTurnSettings';
@@ -142,7 +153,14 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
   // the author or holds a contentLicense. Books default to DOWNLOAD_OPEN + watermark
   // (the license service fills those defaults). The gate is the final return below.
   const isPaidBook = !!book.price && book.price > 0;
-  const isBookOwner = !!(currentUser?.uid && currentUser.uid === book.ownerId);
+  const activeUid = currentUser?.uid || auth.currentUser?.uid;
+  const isBookOwner = Boolean(
+    activeUid && (
+      book.ownerId === activeUid ||
+      (book as any).creatorId === activeUid ||
+      (book as any).artistId === activeUid
+    )
+  );
   const bookOwnership = useOwnership('book', book.id, currentUser?.uid);
   const hasBookAccess = isBookOwner || !isPaidBook || bookOwnership.owned;
   const telaEdition = useTelaEdition(book, { isOwner: isBookOwner, isPaid: isPaidBook, ownershipLoading: bookOwnership.loading, license: bookOwnership.license });
@@ -260,8 +278,15 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
   const [zoom, setZoom] = useState(1);
   const [showControls, setShowControls] = useState(true);
   const [viewMode, setViewMode] = useState<'SINGLE' | 'DOUBLE'>('SINGLE');
-  // Parsed chapters/pages for TXT books — populated after loadFullText completes
-  const [parsedChapters, setParsedChapters] = useState<ParsedChapter[]>([]);
+  // Parsed chapters/pages for TXT books — synchronously hydrated from memory cache or instant classic opening pages for 0ms first paint
+  const [parsedChapters, setParsedChapters] = useState<ParsedChapter[]>(() => {
+    const ch0 = book.bookChapters?.[0];
+    if (ch0?.pages?.length) return [];
+    const cached = getCachedParsedChapters(ch0?.url) || getCachedParsedChapters(ch0?.fallbackUrl) || getCachedParsedChapters(book.id);
+    if (cached && cached.length > 0) return cached;
+    const instant = getInstantClassicOpeningChapters(book.title, book.id);
+    return instant || [];
+  });
   const [activeParsedChapter, setActiveParsedChapter] = useState(0);
   const [activeParsedPage, setActiveParsedPage] = useState(0);
   // When EPUB fails, user can request plain-text fallback
@@ -270,6 +295,7 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
   const [showNotes, setShowNotes] = useState(false);
   const [showTOC, setShowTOC] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showThemeViewer, setShowThemeViewer] = useState(false);
   // Default: reader is CONTAINED in the content column (between the pillars and the right
   // edge). Full-bleed immersive mode is an opt-in toggle in the header.
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -288,9 +314,6 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
     try { return localStorage.getItem(EPUB_POS_KEY(book.id)); } catch { return null; }
   });
   const [epubProgress, setEpubProgress] = useState(0);
-  // EPUB bytes are fetched by us (cached, deduped, retried) and handed to the
-  // reader as a binary — epub.js fetching its own URL has no retry and a
-  // single failed request leaves a permanently blank reader.
   const [epubData, setEpubData] = useState<ArrayBuffer | null>(null);
   const [downloadPct, setDownloadPct] = useState<number | null>(null);
 
@@ -304,6 +327,49 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
   const [pageStyle, setPageStyleState] = useState<'FOLIO' | 'CLASSIC'>(() => (lsGet('lorea_page_style') === 'CLASSIC' ? 'CLASSIC' : 'FOLIO'));
   const [easyRead, setEasyReadState] = useState(() => lsGet('lorea_easy_read') === '1');
   const [calmRead, setCalmReadState] = useState(() => lsGet('lorea_calm_read') === '1');
+
+  // Classic Cover-Matched Page & Text Flourish Themes (defaults ON for classics, toggleable via "Themes" button)
+  const [classicThemesEnabled, setClassicThemesEnabledState] = useState<boolean>(() => lsGet('lorea_classic_themes_enabled') !== '0');
+  const setClassicThemesEnabled = (v: boolean) => {
+    setClassicThemesEnabledState(v);
+    lsSet('lorea_classic_themes_enabled', v ? '1' : '0');
+  };
+  const [selectedThemeOverride, setSelectedThemeOverride] = useState<string | null>(null);
+  const [flourishMotionMode, setFlourishMotionModeState] = useState<'settle' | 'static'>(() =>
+    lsGet('lorea_flourish_motion_mode') === 'static' ? 'static' : 'settle'
+  );
+  const setFlourishMotionMode = (m: 'settle' | 'static') => {
+    setFlourishMotionModeState(m);
+    lsSet('lorea_flourish_motion_mode', m);
+  };
+  const [flourishMotionState, setFlourishMotionState] = useState<'awakening' | 'settled' | 'static'>('awakening');
+  const matchedBookTheme = useMemo(() => resolveClassicPageTheme(book.title, book.id), [book.title, book.id]);
+  const activeClassicTheme = useMemo(
+    () => (classicThemesEnabled ? resolveClassicPageTheme(book.title, book.id, selectedThemeOverride) : null),
+    [classicThemesEnabled, book.title, book.id, selectedThemeOverride]
+  );
+
+  // Trigger 6-second settling flourish motion when opening a book, turning pages, or switching themes
+  const triggerFlourishAwakening = useCallback(() => {
+    if (flourishMotionMode === 'static' || calmRead) {
+      setFlourishMotionState('static');
+      return;
+    }
+    setFlourishMotionState('awakening');
+  }, [flourishMotionMode, calmRead]);
+
+  useEffect(() => {
+    if (flourishMotionMode === 'static' || calmRead) {
+      setFlourishMotionState('static');
+      return;
+    }
+    setFlourishMotionState('awakening');
+    const timer = setTimeout(() => {
+      setFlourishMotionState('settled');
+    }, 6000);
+    return () => clearTimeout(timer);
+  }, [activeClassicTheme?.id, activeParsedChapter, activeParsedPage, currentChapterIndex, currentPageIndex, flourishMotionMode, calmRead]);
+
   // EPUB/PDF adapted into folio pages (text and pictures separated). null = not built, failed, or a scan with no text layer.
   const [folioDoc, setFolioDoc] = useState<FolioDoc | null>(null);
   const [folioExtras, setFolioExtras] = useState<PageExtras>({ figures: [] });
@@ -403,6 +469,7 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
   });
   const [showBookmarks, setShowBookmarks] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showPromoModal, setShowPromoModal] = useState(false);
   const [shareCaption, setShareCaption] = useState('');
   const [isSharing, setIsSharing] = useState(false);
 
@@ -437,27 +504,43 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
   };
   const pages = currentChapter?.pages || [];
   const isGraphicNovel = book.subType === 'GRAPHIC_NOVEL';
-  const currentUrl = currentChapter?.url || '';
+  const classicFallbackTxtUrl = useMemo(
+    () => currentChapter?.fallbackUrl || getClassicBookTextUrl(book.id) || getClassicBookTextUrl(book.title),
+    [currentChapter?.fallbackUrl, book.id, book.title]
+  );
+
+  const currentUrl = currentChapter?.url || classicFallbackTxtUrl || '';
   const lowerCurrentUrl = currentUrl.toLowerCase();
-  const isEpub = !forceTxtFallback && (currentChapter?.format === 'EPUB' || lowerCurrentUrl.endsWith('.epub') || lowerCurrentUrl.includes('epub'));
-  const isPdf = currentChapter?.format === 'PDF' || lowerCurrentUrl.endsWith('.pdf') || lowerCurrentUrl.includes('pdf');
+  const isExplicitTxt =
+    currentChapter?.format === 'TXT' ||
+    lowerCurrentUrl.endsWith('.txt') ||
+    lowerCurrentUrl.includes('.txt?') ||
+    lowerCurrentUrl.includes('text/plain') ||
+    lowerCurrentUrl.includes('text%2fplain');
+  const isEpub = !forceTxtFallback && !isExplicitTxt && (
+    currentChapter?.format === 'EPUB' ||
+    lowerCurrentUrl.endsWith('.epub') ||
+    lowerCurrentUrl.includes('.epub?') ||
+    (lowerCurrentUrl.includes('epub') && !lowerCurrentUrl.includes('/cache/epub/'))
+  );
+  const isPdf = !isExplicitTxt && (currentChapter?.format === 'PDF' || lowerCurrentUrl.endsWith('.pdf') || lowerCurrentUrl.includes('.pdf'));
   const isTxt = !isEpub && !isPdf && !isGraphicNovel && (
     // Forced text fallback: the chapter itself is EPUB but we read its TXT
     // fallbackUrl — without this clause the reader showed "no visual data".
-    (forceTxtFallback && !!currentChapter?.fallbackUrl) ||
-    currentChapter?.format === 'TXT' ||
-    currentChapter?.url?.toLowerCase().endsWith('.txt') ||
-    currentChapter?.url?.toLowerCase().includes('.txt.') ||
-    currentChapter?.url?.includes('/txt') ||
-    currentChapter?.url?.includes('text%2Fplain') ||
-    currentChapter?.url?.includes('text/plain') ||
-    (currentChapter?.url?.includes('archive.org') && !currentChapter?.url?.includes('.epub') && !currentChapter?.url?.includes('.pdf'))
+    (forceTxtFallback && !!classicFallbackTxtUrl) ||
+    !!classicFallbackTxtUrl ||
+    isExplicitTxt ||
+    lowerCurrentUrl.includes('.txt.') ||
+    lowerCurrentUrl.includes('/txt') ||
+    (lowerCurrentUrl.includes('archive.org') && !lowerCurrentUrl.includes('.epub') && !lowerCurrentUrl.includes('.pdf'))
   );
 
+  const [showPageJumper, setShowPageJumper] = useState(false);
   const folioActive = pageStyle === 'FOLIO' && !!folioDoc && !folioDoc.textless;
-  // The native EPUB/PDF viewers step aside when the folio page is showing the same book.
-  const isEpubReader = isEpub && !folioActive;
-  const isPdfReader = isPdf && !folioActive;
+  const folioPending = pageStyle === 'FOLIO' && !folioFailed && !folioDoc && (isEpub || isPdf);
+  // The native EPUB/PDF viewers step aside when the folio page is showing (or building) the same book.
+  const isEpubReader = isEpub && !folioActive && !folioPending;
+  const isPdfReader = isPdf && !folioActive && !folioPending;
 
   // Reset per-chapter state when the chapter changes
   useEffect(() => {
@@ -468,13 +551,21 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
     setReaderError(null);
     setNumPdfPages(undefined);
     setPdfPageNumber(1);
-    setParsedChapters([]);
+    const cached = getCachedParsedChapters(currentChapter?.url) || getCachedParsedChapters(currentChapter?.fallbackUrl) || getCachedParsedChapters(book.id);
+    if (cached && cached.length > 0) {
+      setParsedChapters(cached);
+    } else if (!currentChapter?.pages?.length) {
+      const instant = getInstantClassicOpeningChapters(book.title, book.id);
+      setParsedChapters(instant || []);
+    } else {
+      setParsedChapters([]);
+    }
     setActiveParsedChapter(0);
     setActiveParsedPage(0);
     setForceTxtFallback(false);
     setEpubData(null);
     setDownloadPct(null);
-  }, [currentChapter?.id, currentChapter?.url]);
+  }, [currentChapter?.id, currentChapter?.url, book.id, book.title]);
 
   // Download the EPUB binary ourselves (cached + deduped + retried), then hand
   // the bytes to the reader. On failure, fall back to the TXT version
@@ -498,7 +589,7 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
       .catch(err => {
         if (cancelled || !mountedRef.current) return;
         console.warn('[BookReader] EPUB download failed:', err?.message);
-        if (currentChapter.fallbackUrl) {
+        if (classicFallbackTxtUrl) {
           setForceTxtFallback(true); // automatic TXT fallback
         } else {
           setReaderError('This book could not be downloaded. Check your connection or try the original source.');
@@ -511,7 +602,7 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
         }
       });
     return () => { cancelled = true; };
-  }, [isEpub, currentChapter?.url]);
+  }, [isEpub, currentChapter?.url, classicFallbackTxtUrl]);
 
   // Build the folio pages from the EPUB / PDF bytes (same cached bytes the native viewers use).
   useEffect(() => {
@@ -557,52 +648,61 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
 
   // Load content whenever the resolved format changes (including TXT fallback override)
   useEffect(() => {
+    const inlineContent = currentChapter?.content?.trim() || '';
+    const isPoisonedInline =
+      inlineContent.includes('Plajah v1.') ||
+      inlineContent.includes('id="pj-boot"') ||
+      inlineContent.includes('<div id="root"') ||
+      (!!classicFallbackTxtUrl && inlineContent.length < 300);
+
     if (currentChapter?.pages?.length) {
-      // Picture / comic chapter: the images ARE the book. Text stored alongside (for search and read-aloud) must never switch the reader
-      // into text mode, or the buttons, tap zones and table of contents would drive hidden text pages instead of the pictures.
       setChapterContent('');
       setParsedChapters([]);
-    } else if (currentChapter?.content) {
-      const formatted = formatReadableText(currentChapter.content);
+    } else if (inlineContent && !isPoisonedInline) {
+      const formatted = formatReadableText(inlineContent);
       setChapterContent(formatted);
-      setParsedChapters(parseChaptersFromText(formatted));
-    } else if (isTxt && currentChapter?.url) {
-      if (forceTxtFallback && currentChapter.fallbackUrl) {
-        loadFullText(currentChapter.fallbackUrl);
+      setParsedChapters(parseChaptersFromText(formatted, book.id));
+    } else if (isTxt && (currentChapter?.url || classicFallbackTxtUrl)) {
+      if (forceTxtFallback && classicFallbackTxtUrl) {
+        loadFullText(classicFallbackTxtUrl);
       } else {
-        loadFullText(currentChapter.url, currentChapter.fallbackUrl);
+        loadFullText(currentChapter?.url || classicFallbackTxtUrl!, classicFallbackTxtUrl);
       }
     } else if (!isEpub) {
       setChapterContent('');
     }
-  }, [currentChapter?.id, currentChapter?.url, currentChapter?.content, currentChapter?.pages?.length, isTxt, isEpub, forceTxtFallback]);
+  }, [currentChapter?.id, currentChapter?.url, currentChapter?.content, currentChapter?.pages?.length, isTxt, isEpub, forceTxtFallback, classicFallbackTxtUrl, book.id]);
 
   const loadFullText = async (url: string, fallback?: string) => {
     if (!mountedRef.current) return;
-    setIsLoadingContent(true);
+    const preCached = getCachedParsedChapters(url) || (fallback ? getCachedParsedChapters(fallback) : null);
+    const preFormatted = getCachedFormattedText(url) || (fallback ? getCachedFormattedText(fallback) : null);
+    if (preCached && preCached.length > 0) {
+      if (preFormatted) setChapterContent(preFormatted);
+      setParsedChapters(preCached);
+      setIsLoadingContent(false);
+      return;
+    }
+
+    // Only show a full-page loading indicator if we don't already have instant opening pages on screen
+    const hasInstantPreview = parsedChapters.length > 0;
+    if (!hasInstantPreview) {
+      setIsLoadingContent(true);
+    }
     try {
-      let text: string;
-      try {
-        text = await fetchBookText(url);
-      } catch (primaryErr: any) {
-        if (!mountedRef.current) return;
-        // Primary failed (Storage 404, network issue, etc.) — try Gutenberg fallback
-        if (fallback) {
-          console.warn('[BookReader] Primary URL failed, trying fallback:', primaryErr.message);
-          text = await fetchBookText(fallback);
-        } else {
-          throw primaryErr;
-        }
-      }
+      const { formatted, chapters } = await fetchAndParseBookChapters(url, fallback);
       if (!mountedRef.current) return;
-      const formatted = formatReadableText(text);
       setChapterContent(formatted);
-      setParsedChapters(parseChaptersFromText(formatted));
+      setParsedChapters(chapters);
+      setReaderError(null);
     } catch (error: any) {
       if (!mountedRef.current) return;
       console.error('Error loading full text:', error);
-      setReaderError('This book could not be loaded. Check your connection or try the original source.');
-      setChapterContent('');
+      // If we already have instant opening chapters, keep them readable instead of replacing with an error screen
+      if (parsedChapters.length === 0) {
+        setReaderError('This book could not be loaded. Check your connection or try the original source.');
+        setChapterContent('');
+      }
     } finally {
       if (mountedRef.current) setIsLoadingContent(false);
     }
@@ -719,60 +819,88 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
 
   const nextPage = useCallback(() => {
     if (pageLocked) { lockedNudge(); return; }
-    if (isEpub && epubRendition) {
+    if (isEpubReader && epubRendition) {
       try {
         if ((epubRendition as any).manager) turnEpub(1, () => { try { epubRendition.next(); } catch (e) { console.warn('EPUB next page error', e); } });
       } catch (e) { console.warn('EPUB next page error', e); }
+    } else if (isPdfReader && numPdfPages) {
+      if (pdfPageNumber < numPdfPages) {
+        setPdfPageNumber(p => Math.min(numPdfPages, p + 1));
+      } else if (currentChapterIndex < (book.bookChapters?.length || 0) - 1) {
+        setCurrentChapterIndex(c => c + 1);
+        setPdfPageNumber(1);
+      }
     } else if (parsedChapters.length > 0 && pages.length === 0) {
       const ch = parsedChapters[activeParsedChapter];
-      if (activeParsedPage < ch.pages.length - 1) {
+      if (ch && activeParsedPage < ch.pages.length - 1) {
         setActiveParsedPage(p => p + 1);
       } else if (activeParsedChapter < parsedChapters.length - 1) {
         setActiveParsedChapter(c => c + 1);
         setActiveParsedPage(0);
+      } else if (currentChapterIndex < (book.bookChapters?.length || 0) - 1) {
+        setCurrentChapterIndex(c => c + 1);
+        setCurrentPageIndex(0);
       }
     } else if (currentPageIndex < pages.length - 1) {
-      setCurrentPageIndex(currentPageIndex + 1);
+      setCurrentPageIndex(p => p + 1);
     } else if (currentChapterIndex < (book.bookChapters?.length || 0) - 1) {
-      setCurrentChapterIndex(currentChapterIndex + 1);
+      setCurrentChapterIndex(c => c + 1);
       setCurrentPageIndex(0);
     }
-  }, [pageLocked, lockedNudge, isEpub, epubRendition, turnEpub, parsedChapters, activeParsedChapter, activeParsedPage, currentPageIndex, pages.length, currentChapterIndex, book.bookChapters]);
+  }, [pageLocked, lockedNudge, isEpubReader, epubRendition, turnEpub, isPdfReader, numPdfPages, pdfPageNumber, parsedChapters, activeParsedChapter, activeParsedPage, currentPageIndex, pages.length, currentChapterIndex, book.bookChapters]);
 
   const prevPage = useCallback(() => {
     if (pageLocked) { lockedNudge(); return; }
-    if (isEpub && epubRendition) {
+    if (isEpubReader && epubRendition) {
       try {
         if ((epubRendition as any).manager) turnEpub(-1, () => { try { epubRendition.prev(); } catch (e) { console.warn('EPUB prev page error', e); } });
       } catch (e) { console.warn('EPUB prev page error', e); }
+    } else if (isPdfReader && numPdfPages) {
+      if (pdfPageNumber > 1) {
+        setPdfPageNumber(p => Math.max(1, p - 1));
+      } else if (currentChapterIndex > 0) {
+        setCurrentChapterIndex(c => c - 1);
+        setPdfPageNumber(1);
+      }
     } else if (parsedChapters.length > 0 && pages.length === 0) {
       if (activeParsedPage > 0) {
         setActiveParsedPage(p => p - 1);
       } else if (activeParsedChapter > 0) {
         const prevCh = parsedChapters[activeParsedChapter - 1];
         setActiveParsedChapter(c => c - 1);
-        setActiveParsedPage(Math.max(0, prevCh.pages.length - 1));
+        setActiveParsedPage(Math.max(0, (prevCh?.pages.length || 1) - 1));
+      } else if (currentChapterIndex > 0) {
+        setCurrentChapterIndex(c => c - 1);
+        setCurrentPageIndex(0);
       }
     } else if (currentPageIndex > 0) {
-      setCurrentPageIndex(currentPageIndex - 1);
+      setCurrentPageIndex(p => p - 1);
     } else if (currentChapterIndex > 0) {
-      setCurrentChapterIndex(currentChapterIndex - 1);
-      const prevChapterPages = book.bookChapters?.[currentChapterIndex - 1].pages || [];
+      setCurrentChapterIndex(c => c - 1);
+      const prevChapterPages = book.bookChapters?.[currentChapterIndex - 1]?.pages || [];
       setCurrentPageIndex(Math.max(0, prevChapterPages.length - 1));
     }
-  }, [pageLocked, lockedNudge, isEpub, epubRendition, turnEpub, parsedChapters, activeParsedChapter, activeParsedPage, currentPageIndex, currentChapterIndex, book.bookChapters, pages.length]);
+  }, [pageLocked, lockedNudge, isEpubReader, epubRendition, turnEpub, isPdfReader, numPdfPages, pdfPageNumber, parsedChapters, activeParsedChapter, activeParsedPage, currentPageIndex, currentChapterIndex, book.bookChapters, pages.length]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if (e.key === 'Escape') {
+        if (showPageJumper) { setShowPageJumper(false); return; }
+        onBack();
+        return;
+      }
+      // ComicReader handles its own keyboard navigation when image pages are active
+      if (pages.length > 0) return;
       // RTL books (manga, Arabic): the left arrow advances. LTR is unchanged.
       const d = dirForArrowKey(e.key, (book as any).readingDir === 'rtl');
       if (d === 1) nextPage();
       if (d === -1) prevPage();
-      if (e.key === 'Escape') onBack();
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [nextPage, prevPage, onBack, book]);
+  }, [nextPage, prevPage, onBack, book, pages.length, showPageJumper]);
 
   // ── Read-along narration ─────────────────────────────────────────────────
   const stopReadAlong = useCallback(() => {
@@ -1138,29 +1266,34 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
   const renderParsedCard = (chIdx: number, pgIdx: number, live: boolean) => {
     const activeCh = parsedChapters[chIdx] || parsedChapters[0];
     const activePg = activeCh.pages[pgIdx] || activeCh.pages[0] || [];
-    const chTitle = parsedChapters.length > 1 ? activeCh.title : (currentChapter?.title || activeCh.title);
-    return (
-      <div className={`${txtCardBg} shadow-2xl rounded-3xl overflow-y-auto w-full h-full ${s.scrollbar}`}>
-        {book.coverImage && chIdx === 0 && pgIdx === 0 && (
-          <div className="relative h-40 overflow-hidden rounded-t-3xl">
+    const rawChTitle = parsedChapters.length > 1 ? activeCh.title : (currentChapter?.title || activeCh.title);
+    const chTitle = !rawChTitle || /^complete\s+work$/i.test(rawChTitle.trim())
+      ? `Chapter ${chIdx + 1}`
+      : cleanGutenbergMarkup(rawChTitle);
+
+    const innerContent = (
+      <>
+        {book.coverImage && chIdx === 0 && pgIdx === 0 && !activeClassicTheme && (
+          <div className="relative h-32 sm:h-40 overflow-hidden rounded-t-2xl sm:rounded-t-3xl">
             <img src={book.coverImage} alt="" className="w-full h-full object-cover scale-110" style={{ filter: 'blur(24px) brightness(0.5) saturate(1.3)' }} />
             <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/60" />
-            <div className="absolute inset-0 flex items-end p-8">
-              <h3 className="text-2xl font-black uppercase tracking-widest text-white drop-shadow-2xl">{chTitle}</h3>
+            <div className="absolute inset-0 flex items-end p-5 sm:p-8">
+              <h3 className="text-lg sm:text-2xl font-black uppercase tracking-widest text-white drop-shadow-2xl line-clamp-2">{chTitle}</h3>
             </div>
           </div>
         )}
-        <div className="p-6 sm:p-10 lg:p-12 xl:p-16">
+        <div className="p-4 sm:p-10 lg:p-12 xl:p-16">
           {pageStyle === 'FOLIO' ? (
             <BookFolioBody
               paras={activePg}
               chapterTitle={chTitle}
               bookTitle={book.title}
               author={book.artist || undefined}
+              chapterNo={chIdx + 1}
               pageNo={pgIdx + 1}
               pageCount={activeCh.pages.length || 1}
               chapterStart={pgIdx === 0}
-              titleShownElsewhere={!!book.coverImage && chIdx === 0 && pgIdx === 0}
+              titleShownElsewhere={!!book.coverImage && chIdx === 0 && pgIdx === 0 && !activeClassicTheme}
               readingTheme={readingTheme}
               fontFamily={fontFamily}
               fontSizePct={Math.round(fontSize * modeScale)}
@@ -1173,51 +1306,83 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
               easy={easyRead}
               calm={calmRead}
               seed={book.id}
+              classicTheme={activeClassicTheme}
             />
           ) : (<>
-          {!(book.coverImage && chIdx === 0 && pgIdx === 0) && (
-            <h3 className={`text-2xl font-black uppercase tracking-tight mb-8 text-center ${txtHdColor}`}>{chTitle}</h3>
+          {!(book.coverImage && chIdx === 0 && pgIdx === 0 && !activeClassicTheme) && (
+            <h3
+              className={`text-xl sm:text-2xl font-black uppercase tracking-tight mb-6 sm:mb-8 text-center ${txtHdColor}`}
+              style={activeClassicTheme ? { color: activeClassicTheme.palette.heading } : undefined}
+            >
+              {chTitle}
+            </h3>
           )}
-          <div className={`${txtFontFamily} text-lg ${modeLeading} ${txtColor} space-y-0 ${viewMode === 'DOUBLE' ? 'columns-1 md:columns-2 gap-10 lg:gap-14 [column-rule:1px_solid_rgba(255,255,255,0.06)]' : ''}`} style={{ fontSize: `${Math.round(fontSize * modeScale)}%` }}>
-            {activePg.map((para, i) => (
-              <p key={i} className="mb-5">
-                {live && readAlongPos?.para === i
-                  ? (() => {
-                      // Wrap words so the one being narrated can glow
-                      let w = 0;
-                      return para.split(/(\s+)/).map((tok, k) => {
-                        if (!tok || /^\s+$/.test(tok)) return tok;
-                        const idx = w++;
-                        const isCurrent = idx === readAlongPos!.word;
-                        return (
-                          <span
-                            key={k}
-                            ref={isCurrent && live ? readAlongWordRef : undefined}
-                            className={isCurrent
-                              ? 'bg-orange-500/50 text-white rounded-md px-1 -mx-1 shadow-[0_0_12px_rgba(249,115,22,0.45)] transition-all duration-100'
-                              : 'transition-colors duration-100'}
-                          >
-                            {tok}
-                          </span>
-                        );
-                      });
-                    })()
-                  : para}
-              </p>
-            ))}
+          <div
+            className={`${txtFontFamily} text-base sm:text-lg ${modeLeading} ${txtColor} space-y-0 ${viewMode === 'DOUBLE' ? 'columns-1 md:columns-2 gap-10 lg:gap-14 [column-rule:1px_solid_rgba(255,255,255,0.06)]' : ''}`}
+            style={{
+              fontSize: `${Math.round(fontSize * modeScale)}%`,
+              ...(activeClassicTheme ? { color: activeClassicTheme.palette.ink } : {}),
+            }}
+          >
+            {activePg.map((rawPara, i) => {
+              const para = cleanGutenbergMarkup(rawPara);
+              return (
+                <p key={i} className="mb-5">
+                  {live && readAlongPos?.para === i
+                    ? (() => {
+                        let w = 0;
+                        return para.split(/(\s+)/).map((tok, k) => {
+                          if (!tok || /^\s+$/.test(tok)) return tok;
+                          const idx = w++;
+                          const isCurrent = idx === readAlongPos!.word;
+                          return (
+                            <span
+                              key={k}
+                              ref={isCurrent && live ? readAlongWordRef : undefined}
+                              className={isCurrent
+                                ? 'bg-orange-500/50 text-white rounded-md px-1 -mx-1 shadow-[0_0_12px_rgba(249,115,22,0.45)] transition-all duration-100'
+                                : 'transition-colors duration-100'}
+                            >
+                              {tok}
+                            </span>
+                          );
+                        });
+                      })()
+                    : para}
+                </p>
+              );
+            })}
           </div>
           </>)}
           {/* Page turn hint at bottom */}
           {(pgIdx < activeCh.pages.length - 1 || chIdx < parsedChapters.length - 1) && (
-            <div className="mt-12 pt-8 border-t border-white/5 text-center">
-              <button onClick={nextPage} className={`text-[9px] font-black uppercase tracking-[0.3em] ${s.subtext} hover:text-small-orange transition-colors`}>
+            <div className="mt-10 sm:mt-12 pt-6 sm:pt-8 border-t border-white/5 text-center">
+              <button onClick={nextPage} className={`text-[9px] font-black uppercase tracking-[0.25em] ${s.subtext} hover:text-small-orange transition-colors`}>
                 {pgIdx < activeCh.pages.length - 1
-                  ? `Continue — Page ${pgIdx + 2} →`
-                  : `Next: ${parsedChapters[chIdx + 1]?.title} →`}
+                  ? `Continue · Chapter ${chIdx + 1} · Page ${pgIdx + 2} →`
+                  : `Next · Chapter ${chIdx + 2} · Page 1 →`}
               </button>
             </div>
           )}
         </div>
+      </>
+    );
+
+    if (activeClassicTheme) {
+      return (
+        <ClassicPageFlourishFrame
+          theme={activeClassicTheme}
+          motionState={flourishMotionState}
+          pageKey={`${chIdx}:${pgIdx}`}
+        >
+          {innerContent}
+        </ClassicPageFlourishFrame>
+      );
+    }
+
+    return (
+      <div className={`${txtCardBg} shadow-2xl rounded-2xl sm:rounded-3xl overflow-y-auto w-full h-full ${s.scrollbar}`}>
+        {innerContent}
       </div>
     );
   };
@@ -1248,34 +1413,38 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: -100, opacity: 0 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className={`absolute top-2.5 inset-x-2.5 sm:top-4 sm:inset-x-6 z-50 ${s.header} rounded-2xl border shadow-2xl px-3 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between backdrop-blur-2xl transition-colors duration-500`}
+            className={`absolute top-2 inset-x-2 sm:top-3.5 sm:inset-x-5 z-50 ${s.header} rounded-2xl border shadow-2xl px-2.5 sm:px-4 lg:px-5 py-1.5 sm:py-2 flex items-center justify-between gap-2 sm:gap-3 backdrop-blur-2xl transition-colors duration-500 overflow-hidden`}
           >
-            <div className="flex items-center gap-4 lg:gap-6">
+            {/* Left cluster: Navigation + Title + Spelled-Out Chapter & Page */}
+            <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0 flex-1 overflow-hidden">
               <button
                 onClick={() => { setShowTOC(!showTOC); setShowComments(false); setShowNotes(false); setShowSettings(false); setShowBookmarks(false); }}
-                className={`p-3 rounded-full transition-all ${showTOC ? s.activeBtn : s.btnHover}`}
+                className={`shrink-0 w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full transition-all ${showTOC ? s.activeBtn : s.btnHover}`}
                 title="Table of Contents"
+                aria-label="Table of Contents"
               >
-                <List size={22} />
+                <List size={19} className="shrink-0" />
               </button>
-              <button onClick={onBack} className={`p-3 rounded-full transition-all ${s.btnHover}`}>
-                <ChevronLeft size={24} />
+              <button
+                onClick={onBack}
+                className={`shrink-0 w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full transition-all ${s.btnHover}`}
+                title="Back to Library"
+                aria-label="Back to Library"
+              >
+                <ChevronLeft size={21} className="shrink-0" />
               </button>
-              <div className="min-w-0">
-                <h2 className="text-xs sm:text-sm font-black uppercase tracking-widest truncate max-w-[120px] sm:max-w-[220px]">{book.title}</h2>
-                <p className={`text-[8px] sm:text-[10px] font-black uppercase tracking-[0.2em] sm:tracking-[0.3em] truncate max-w-[140px] sm:max-w-none ${theme === 'LIGHT' ? 'text-[#FF8C00]' : 'text-small-orange'}`}>
+              <div className="min-w-0 flex-1 overflow-hidden">
+                <h2 className="text-[11px] sm:text-xs lg:text-sm font-black uppercase tracking-wider truncate">{book.title}</h2>
+                <p className={`text-[9px] sm:text-[10px] font-black tracking-[0.12em] sm:tracking-[0.18em] truncate ${theme === 'LIGHT' ? 'text-[#FF8C00]' : 'text-small-orange'}`}>
                   {isEpubReader
-                    ? `Reading: ${epubProgress}%`
+                    ? `Reading · ${epubProgress}%`
                     : parsedChapters.length > 0
-                      ? parsedChapters[activeParsedChapter]?.title || `Chapter ${activeParsedChapter + 1}`
-                      : (currentChapter?.title || `Chapter ${currentChapterIndex + 1}`)}
-                  {!isEpubReader && parsedChapters.length > 0
-                    ? ` • Page ${activeParsedPage + 1} of ${parsedChapters[activeParsedChapter]?.pages.length || 1}`
-                    : !isEpubReader && ` • Page ${currentPageIndex + 1} of ${pages.length || 1}`}
+                      ? `Chapter ${activeParsedChapter + 1} · Page ${activeParsedPage + 1} of ${parsedChapters[activeParsedChapter]?.pages.length || 1}`
+                      : `Chapter ${currentChapterIndex + 1} · Page ${currentPageIndex + 1} of ${pages.length || 1}`}
                 </p>
               </div>
               {book.ownerId && (
-                <div className="hidden sm:block">
+                <div className="hidden 2xl:block shrink-0">
                   <PlajahPlusButton
                     creatorId={book.ownerId}
                     creatorName={book.artist || book.title}
@@ -1285,58 +1454,117 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
               )}
             </div>
 
-            <div className="flex items-center gap-2 lg:gap-4">
+            {/* Right cluster: Unique icon actions & adaptive pills — never wraps or overlaps */}
+            <div className="flex items-center gap-1 sm:gap-1.5 shrink-0 overflow-x-auto no-scrollbar max-w-[62%] sm:max-w-[68%] lg:max-w-none">
               <button
                 onClick={handleSaveBook}
-                className={`hidden md:flex p-2.5 sm:p-3 rounded-full transition-all ${isSaved ? 'text-green-500' : s.btnHover} ${isSaving ? 'opacity-50 pointer-events-none' : ''}`}
-                title={isSaved ? "Saved to Library" : "Save to Library"}
+                className={`shrink-0 w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full transition-all ${isSaved ? 'text-green-500' : s.btnHover} ${isSaving ? 'opacity-50 pointer-events-none' : ''}`}
+                title={isSaved ? "Saved to Library" : "Save Book to Library"}
+                aria-label={isSaved ? "Saved to Library" : "Save Book to Library"}
               >
-                {isSaving ? <Loader2 size={20} className="animate-spin" /> : <Bookmark size={20} className={isSaved ? "fill-green-500" : ""} />}
+                {isSaving ? <Loader2 size={18} className="animate-spin shrink-0" /> : <Library size={18} className="shrink-0" />}
               </button>
 
               <button
                 onClick={toggleBookmark}
-                className={`p-3 rounded-full transition-all ${isCurrentPageBookmarked ? 'text-[#D0BCFF]' : s.btnHover}`}
-                title={isCurrentPageBookmarked ? "Remove Bookmark" : "Bookmark This Page"}
+                className={`shrink-0 w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full transition-all ${isCurrentPageBookmarked ? 'text-[#D0BCFF]' : s.btnHover}`}
+                title={isCurrentPageBookmarked ? "Remove Page Bookmark" : "Bookmark This Page"}
+                aria-label={isCurrentPageBookmarked ? "Remove Page Bookmark" : "Bookmark This Page"}
               >
-                <Bookmark size={20} className={isCurrentPageBookmarked ? 'fill-[#D0BCFF]' : ''} />
+                <Bookmark size={18} className={`shrink-0 ${isCurrentPageBookmarked ? 'fill-[#D0BCFF]' : ''}`} />
               </button>
 
               <button
                 onClick={() => { setShowBookmarks(!showBookmarks); setShowComments(false); setShowNotes(false); setShowTOC(false); setShowSettings(false); }}
-                className={`p-3 rounded-full transition-all ${showBookmarks ? s.activeBtn : s.btnHover}`}
-                title="My Bookmarks"
+                className={`shrink-0 w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full transition-all ${showBookmarks ? s.activeBtn : s.btnHover}`}
+                title="Saved Bookmarks List"
+                aria-label="Saved Bookmarks List"
               >
-                <BookIcon size={20} />
+                <BookMarked size={18} className="shrink-0" />
               </button>
 
-              {/* Single/two-page view is for text books; picture and comic books have their own page modes in the toolbar below. */}
-              {pages.length === 0 && <div className="hidden lg:flex items-center bg-white/5 rounded-full p-1 border border-white/10 group overflow-hidden">
-                <button 
-                  onClick={() => setViewMode('SINGLE')}
-                  className={`p-2 rounded-full transition-all ${viewMode === 'SINGLE' ? 'bg-white text-black' : 'text-white/40 hover:text-white'}`}
-                >
-                  <Square size={16} />
-                </button>
-                <button 
-                  onClick={() => setViewMode('DOUBLE')}
-                  className={`p-2 rounded-full transition-all ${viewMode === 'DOUBLE' ? 'bg-white text-black' : 'text-white/40 hover:text-white'}`}
-                >
-                  <Columns size={16} />
-                </button>
-              </div>}
+              {/* Single/two-page view is for text books — shrink-0 flex-nowrap prevents vertical deformation */}
+              {pages.length === 0 && (
+                <div className="hidden lg:inline-flex shrink-0 flex-nowrap items-center bg-white/5 rounded-full p-0.5 border border-white/10">
+                  <button 
+                    onClick={() => setViewMode('SINGLE')}
+                    className={`shrink-0 w-8 h-8 flex items-center justify-center rounded-full transition-all ${viewMode === 'SINGLE' ? 'bg-white text-black' : 'text-white/40 hover:text-white'}`}
+                    title="Single Page View"
+                    aria-label="Single Page View"
+                  >
+                    <Square size={14} className="shrink-0" />
+                  </button>
+                  <button 
+                    onClick={() => setViewMode('DOUBLE')}
+                    className={`shrink-0 w-8 h-8 flex items-center justify-center rounded-full transition-all ${viewMode === 'DOUBLE' ? 'bg-white text-black' : 'text-white/40 hover:text-white'}`}
+                    title="Two-Column Spread View"
+                    aria-label="Two-Column Spread View"
+                  >
+                    <Columns size={14} className="shrink-0" />
+                  </button>
+                </div>
+              )}
 
-              {/* MAI Voice 2 Narration button: it reads chapter TEXT, so picture/comic books (image pages) have none; a living book's own read-to-me is the one audio control there. */}
-              {pages.length === 0 && <button
-                onClick={() => setShowNarrationPanel(n => !n)}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-full transition-all text-[9px] font-black uppercase tracking-widest ${showNarrationPanel ? s.activeBtn : s.btnHover}`}
-                title="AI Narration — MAI Voice 2"
-              >
-                <Headphones size={16} />
-                <span className="hidden sm:inline">AI Voice</span>
-              </button>}
+              {/* Classic Cover-Matched Page Flourish Themes & 6-Track Literary Score Viewer button */}
+              {pages.length === 0 && (
+                <>
+                  <button
+                    onClick={() => {
+                      setShowThemeViewer(v => !v);
+                      setShowSettings(false);
+                      setShowTOC(false);
+                      setShowNotes(false);
+                      setShowComments(false);
+                      setShowBookmarks(false);
+                    }}
+                    className={`shrink-0 inline-flex items-center justify-center gap-1.5 h-9 sm:h-10 px-2.5 xl:px-3.5 rounded-full transition-all text-[9px] font-black uppercase tracking-widest whitespace-nowrap overflow-hidden border ${
+                      showThemeViewer
+                        ? 'bg-amber-400 text-black border-amber-300 shadow-[0_0_18px_rgba(251,191,36,0.45)]'
+                        : classicThemesEnabled && activeClassicTheme
+                          ? 'bg-amber-400/15 text-amber-200 border-amber-400/40 hover:bg-amber-400/25'
+                          : `${s.btnHover} border-white/10`
+                    }`}
+                    title="Page Flourish Themes & 6-Movement Full Orchestral Film Score (ACE-Step 2.5 + MPE)"
+                    aria-label="Themes & Film Score"
+                  >
+                    <Palette size={15} className="shrink-0 text-amber-300" />
+                    <span className="whitespace-nowrap">Themes &amp; Film Score</span>
+                    <span
+                      className={`px-1.5 py-0.5 rounded-full text-[8px] font-black ${
+                        classicThemesEnabled && activeClassicTheme
+                          ? 'bg-emerald-500/30 text-emerald-200'
+                          : 'bg-white/10 text-white/50'
+                      }`}
+                    >
+                      {classicThemesEnabled && activeClassicTheme ? 'ON' : 'OFF'}
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => launchClassicBookInChoraDaw(activeClassicTheme?.id || 'pride-and-prejudice', 0)}
+                    className="shrink-0 inline-flex items-center justify-center gap-1.5 h-9 sm:h-10 px-2.5 xl:px-3 rounded-full transition-all text-[9px] font-black uppercase tracking-widest whitespace-nowrap overflow-hidden border bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-200 border-cyan-400/45 shadow-[0_0_14px_rgba(0,218,243,0.2)]"
+                    title="Open this book's 6-Song Hybrid Orchestral + MPE Film Score Showcase Project directly in Chora Studio DAW"
+                    aria-label="Open in Chora DAW"
+                  >
+                    <Sparkles size={14} className="shrink-0 text-cyan-300" />
+                    <span className="whitespace-nowrap">★ Chora DAW</span>
+                  </button>
+                </>
+              )}
 
-              {/* Audiobook Exhibition Pavilion button */}
+              {/* MAI Voice 2 Narration button: collapses cleanly into unique Headphones icon on tight viewports */}
+              {pages.length === 0 && (
+                <button
+                  onClick={() => setShowNarrationPanel(n => !n)}
+                  className={`shrink-0 inline-flex items-center justify-center gap-1.5 h-9 sm:h-10 px-2.5 xl:px-3.5 rounded-full transition-all text-[9px] font-black uppercase tracking-widest whitespace-nowrap overflow-hidden ${showNarrationPanel ? s.activeBtn : s.btnHover}`}
+                  title="AI Narration — MAI Voice 2"
+                  aria-label="AI Narration — MAI Voice 2"
+                >
+                  <Headphones size={16} className="shrink-0" />
+                  <span className="hidden xl:inline whitespace-nowrap">AI Voice</span>
+                </button>
+              )}
+
+              {/* Audiobook Exhibition Pavilion button: collapses cleanly into unique Sparkles icon on tight viewports */}
               <button
                 onClick={() => {
                   const enrichedBook: Album = {
@@ -1350,22 +1578,24 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
                     detail: { book: enrichedBook, chapterIndex: currentChapterIndex }
                   }));
                 }}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-full transition-all text-[9px] font-black uppercase tracking-widest bg-gradient-to-r from-[#6B0099] via-[#D40055] to-[#FF8C00] text-white hover:scale-105 shadow-[0_0_15px_rgba(212,0,85,0.4)]"
+                className="shrink-0 inline-flex items-center justify-center gap-1.5 h-9 sm:h-10 px-2.5 xl:px-3.5 rounded-full transition-all text-[9px] font-black uppercase tracking-widest whitespace-nowrap overflow-hidden bg-gradient-to-r from-[#6B0099] via-[#D40055] to-[#FF8C00] text-white hover:scale-105 shadow-[0_0_15px_rgba(212,0,85,0.4)]"
                 title="Listen in the Audiobook Exhibition Pavilion"
+                aria-label="Listen in the Audiobook Exhibition Pavilion"
               >
-                <Sparkles size={13} className="text-amber-300 animate-pulse" />
-                <span className="hidden sm:inline">Audiobook Pavilion</span>
+                <Sparkles size={14} className="text-amber-300 animate-pulse shrink-0" />
+                <span className="hidden xl:inline whitespace-nowrap">Pavilion</span>
               </button>
 
               {/* Author: Record Audiobook */}
               {onOpenAudioStudio && book.ownerId === currentUser?.uid && (
                 <button
                   onClick={onOpenAudioStudio}
-                  className={`flex items-center gap-1.5 px-3 py-2 rounded-full transition-all text-[9px] font-black uppercase tracking-widest ${s.btnHover}`}
+                  className={`shrink-0 inline-flex items-center justify-center gap-1.5 h-9 sm:h-10 px-2.5 xl:px-3.5 rounded-full transition-all text-[9px] font-black uppercase tracking-widest whitespace-nowrap overflow-hidden ${s.btnHover}`}
                   title="Record Audiobook — MAI Transcribe 1.5"
+                  aria-label="Record Audiobook"
                 >
-                  <Mic size={16} />
-                  <span className="hidden sm:inline">Record</span>
+                  <Mic size={16} className="shrink-0" />
+                  <span className="hidden xl:inline whitespace-nowrap">Record</span>
                 </button>
               )}
 
@@ -1373,31 +1603,34 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
               {currentChapter?.audioUrl && (
                 <button
                   onClick={toggleNarration}
-                  className={`p-3 rounded-full transition-all ${isNarrating ? s.activeBtn : s.btnHover}`}
+                  className={`shrink-0 w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full transition-all ${isNarrating ? s.activeBtn : s.btnHover}`}
                   title="Author's Narration"
+                  aria-label="Author's Narration"
                 >
-                  {isNarrating ? <Pause size={20} /> : <Volume2 size={20} />}
+                  {isNarrating ? <Pause size={18} className="shrink-0" /> : <Volume2 size={18} className="shrink-0" />}
                 </button>
               )}
               <button 
                 onClick={toggleReadAlong}
-                className={`p-3 rounded-full transition-all ${isReadAlongActive ? 'bg-blue-500 text-white shadow-lg' : s.btnHover}`}
+                className={`shrink-0 w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full transition-all ${isReadAlongActive ? 'bg-blue-500 text-white shadow-lg' : s.btnHover}`}
                 title="Read Along (Book Club)"
+                aria-label="Read Along (Book Club)"
               >
-                <Users size={20} />
+                <Users size={18} className="shrink-0" />
               </button>
               
               {currentChapter?.url && (
                 <button
                   onClick={() => window.open(currentChapter.url, '_blank')}
-                  className={`p-3 rounded-full transition-all ${s.btnHover}`}
+                  className={`hidden sm:flex shrink-0 w-9 h-9 sm:w-10 sm:h-10 items-center justify-center rounded-full transition-all ${s.btnHover}`}
                   title="Download Book"
+                  aria-label="Download Book"
                 >
-                  <Download size={20} />
+                  <Download size={18} className="shrink-0" />
                 </button>
               )}
 
-              {book.allowPageSharing && (
+              {(book.allowPageSharing !== false || isBookOwner) && (
                 <ShareButton
                   title={book.title}
                   artist={book.artist || (book as any).author || 'Lorea Author'}
@@ -1406,49 +1639,64 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
                   imageUrl={book.coverImage}
                   contentType="book"
                   ctaText="📖 READ CHAPTER ON LOREA"
-                  className={`p-3 rounded-full transition-all ${s.btnHover}`}
+                  className={`shrink-0 w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full transition-all ${s.btnHover}`}
                   plajahLabel="Post page to feed"
                   onPostToPlajah={handleSharePage}
                 >
-                  <Share2 size={20} />
+                  <Share2 size={18} className="shrink-0" />
                 </ShareButton>
+              )}
+
+              {isBookOwner && (
+                <button
+                  onClick={() => setShowPromoModal(true)}
+                  className="shrink-0 flex items-center gap-1.5 px-2.5 sm:px-3.5 h-9 sm:h-10 rounded-full bg-[#A855F7]/20 hover:bg-[#A855F7]/30 border border-[#A855F7]/40 text-purple-200 hover:text-white text-[9px] font-black uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(168,85,247,0.25)]"
+                  title="Promote Project — Auto-Promo Cards, Built Promotions & Assets"
+                  aria-label="Promote Project"
+                >
+                  <Megaphone size={14} className="shrink-0" />
+                  <span>Promote</span>
+                </button>
               )}
 
               <button
                 onClick={() => { setShowSettings(!showSettings); setShowComments(false); setShowNotes(false); setShowTOC(false); setShowBookmarks(false); }}
-                className={`p-3 rounded-full transition-all ${showSettings ? s.activeBtn : s.btnHover}`}
+                className={`shrink-0 w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full transition-all ${showSettings ? s.activeBtn : s.btnHover}`}
                 title="Reading Settings"
+                aria-label="Reading Settings"
               >
-                <Settings size={20} />
+                <Settings size={18} className="shrink-0" />
               </button>
 
               <button 
                 onClick={() => { setShowNotes(!showNotes); setShowComments(false); setShowTOC(false); setShowSettings(false); setShowBookmarks(false); }}
-                className={`p-3 rounded-full transition-all ${showNotes ? s.activeBtn : s.btnHover}`}
+                className={`shrink-0 w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full transition-all ${showNotes ? s.activeBtn : s.btnHover}`}
                 title="Notes"
+                aria-label="Notes"
               >
-                <Edit3 size={20} />
+                <Edit3 size={18} className="shrink-0" />
               </button>
               <button 
                 onClick={() => { setShowComments(!showComments); setShowNotes(false); setShowTOC(false); setShowSettings(false); setShowBookmarks(false); }}
-                className={`p-3 rounded-full transition-all ${showComments ? s.activeBtn : s.btnHover}`}
+                className={`shrink-0 w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full transition-all ${showComments ? s.activeBtn : s.btnHover}`}
                 title="Reader Discussion"
+                aria-label="Reader Discussion"
               >
-                <MessageSquare size={20} />
+                <MessageSquare size={18} className="shrink-0" />
               </button>
               
-              <div className={`hidden md:flex items-center ${theme === 'LIGHT' ? 'bg-black/5' : 'bg-white/5'} rounded-full p-1 border ${theme === 'LIGHT' ? 'border-black/10' : 'border-white/10'}`}>
-                <button onClick={() => setZoom(Math.max(0.5, zoom - 0.1))} className={`p-2.5 transition-all ${s.btnHover}`}><ZoomOut size={18} /></button>
-                <span className={`text-[10px] font-black w-12 text-center ${s.subtext}`}>{Math.round(zoom * 100)}%</span>
-                <button onClick={() => setZoom(Math.min(3, zoom + 0.1))} className={`p-2.5 transition-all ${s.btnHover}`}><ZoomIn size={18} /></button>
+              <div className={`hidden xl:inline-flex shrink-0 flex-nowrap items-center ${theme === 'LIGHT' ? 'bg-black/5' : 'bg-white/5'} rounded-full p-0.5 border ${theme === 'LIGHT' ? 'border-black/10' : 'border-white/10'}`}>
+                <button onClick={() => setZoom(Math.max(0.5, zoom - 0.1))} className={`shrink-0 w-8 h-8 flex items-center justify-center rounded-full transition-all ${s.btnHover}`} title="Zoom Out"><ZoomOut size={15} className="shrink-0" /></button>
+                <span className={`text-[10px] font-black w-11 text-center shrink-0 whitespace-nowrap ${s.subtext}`}>{Math.round(zoom * 100)}%</span>
+                <button onClick={() => setZoom(Math.min(3, zoom + 0.1))} className={`shrink-0 w-8 h-8 flex items-center justify-center rounded-full transition-all ${s.btnHover}`} title="Zoom In"><ZoomIn size={15} className="shrink-0" /></button>
               </div>
 
               {/* Layout: contained (default, between the pillars) ⇄ immersive full-bleed */}
-              <button onClick={() => setIsFullscreen(f => !f)} className={`p-3 rounded-full transition-all ${isFullscreen ? s.activeBtn : s.btnHover}`} title={isFullscreen ? 'Fit reader to page' : 'Immersive full-screen'}>
-                {isFullscreen ? <Columns size={20} /> : <Monitor size={20} />}
+              <button onClick={() => setIsFullscreen(f => !f)} className={`hidden sm:flex shrink-0 w-9 h-9 sm:w-10 sm:h-10 items-center justify-center rounded-full transition-all ${isFullscreen ? s.activeBtn : s.btnHover}`} title={isFullscreen ? 'Fit reader to page' : 'Immersive full-screen'}>
+                <Monitor size={18} className="shrink-0" />
               </button>
-              <button onClick={toggleFullScreen} className={`p-3 rounded-full transition-all ${s.btnHover}`} title="Browser full-screen">
-                {isFullScreen ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
+              <button onClick={toggleFullScreen} className={`hidden sm:flex shrink-0 w-9 h-9 sm:w-10 sm:h-10 items-center justify-center rounded-full transition-all ${s.btnHover}`} title="Browser full-screen">
+                {isFullScreen ? <Minimize2 size={18} className="shrink-0" /> : <Maximize2 size={18} className="shrink-0" />}
               </button>
             </div>
           </motion.header>
@@ -1518,7 +1766,7 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
                   </div>
                 </div>
               </div>
-            ) : isLoadingContent ? (
+            ) : isLoadingContent && parsedChapters.length === 0 ? (
               <div className={`max-w-2xl w-full ${s.card} rounded-3xl flex items-center justify-center`}>
                 <div className="text-center p-12 w-full max-w-sm">
                   <div className={`w-14 h-14 mx-auto mb-8 rounded-full border-2 border-t-transparent animate-spin ${theme === 'LIGHT' ? 'border-black/20' : 'border-white/20'}`} style={{ borderTopColor: 'transparent' }} />
@@ -1786,25 +2034,55 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
                       ))}
                     </div>
                   </div>
-                ) : parsedChapters.length > 1 ? (
-                  <div className="space-y-2">
-                    {parsedChapters.map((chap, i) => (
-                      <button
-                        key={i}
-                        onClick={() => { setActiveParsedChapter(i); setActiveParsedPage(0); setShowTOC(false); }}
-                        className={`w-full flex items-center gap-4 p-4 rounded-2xl group transition-all ${activeParsedChapter === i ? 'bg-small-orange shadow-xl' : 'hover:bg-white/5'}`}
-                      >
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-[10px] font-black ${activeParsedChapter === i ? 'bg-white text-small-orange' : 'bg-white/10'}`}>
-                          {i + 1}
+                ) : parsedChapters.length > 0 ? (
+                  <div className="space-y-2.5">
+                    {parsedChapters.map((chap, i) => {
+                      const isActiveChap = activeParsedChapter === i;
+                      return (
+                        <div key={i} className={`rounded-2xl border transition-all ${isActiveChap ? 'border-small-orange/50 bg-white/[0.04]' : 'border-white/5 hover:border-white/15'}`}>
+                          <button
+                            onClick={() => { setActiveParsedChapter(i); setActiveParsedPage(0); if (chap.pages.length <= 1) setShowTOC(false); }}
+                            className={`w-full flex items-center gap-4 p-3.5 rounded-2xl group transition-all ${isActiveChap ? 'bg-small-orange shadow-xl' : 'hover:bg-white/5'}`}
+                          >
+                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-[10px] font-black ${isActiveChap ? 'bg-white text-small-orange' : 'bg-white/10'}`}>
+                              {i + 1}
+                            </div>
+                            <div className="text-left overflow-hidden flex-1">
+                              <p className={`text-xs font-bold truncate ${isActiveChap ? 'text-white' : 'text-white/80'}`}>{chap.title}</p>
+                              <p className={`text-[8px] font-black uppercase tracking-widest opacity-60 ${isActiveChap ? 'text-white/80' : ''}`}>
+                                {chap.pages.length} {chap.pages.length === 1 ? 'page' : 'pages'}
+                              </p>
+                            </div>
+                          </button>
+                          {chap.pages.length > 1 && (
+                            <div className="px-3.5 pb-3 pt-2 flex flex-wrap gap-1.5">
+                              {chap.pages.map((_, pIdx) => {
+                                const isCurrentPage = isActiveChap && activeParsedPage === pIdx;
+                                return (
+                                  <button
+                                    key={pIdx}
+                                    type="button"
+                                    onClick={() => {
+                                      setActiveParsedChapter(i);
+                                      setActiveParsedPage(pIdx);
+                                      setShowTOC(false);
+                                    }}
+                                    className={`min-w-[28px] h-7 px-2 rounded-lg text-[10px] font-black transition-all ${
+                                      isCurrentPage
+                                        ? 'bg-small-orange text-white shadow-md scale-105'
+                                        : 'bg-white/10 hover:bg-white/20 text-white/75'
+                                    }`}
+                                    title={`Jump to ${chap.title} — Page ${pIdx + 1}`}
+                                  >
+                                    {pIdx + 1}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
-                        <div className="text-left overflow-hidden">
-                          <p className={`text-xs font-bold truncate ${activeParsedChapter === i ? 'text-white' : 'text-white/80'}`}>{chap.title}</p>
-                          <p className={`text-[8px] font-black uppercase tracking-widest opacity-40 ${activeParsedChapter === i ? 'text-white/60' : ''}`}>
-                            {chap.pages.length} {chap.pages.length === 1 ? 'page' : 'pages'}
-                          </p>
-                        </div>
-                      </button>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="space-y-4">
@@ -2410,32 +2688,209 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             className={`absolute bottom-3 sm:bottom-4 left-1/2 -translate-x-1/2 z-50 w-[95%] sm:w-[90%] max-w-2xl ${s.footer} rounded-full border shadow-2xl px-3 sm:px-6 py-2 sm:py-2.5 flex items-center backdrop-blur-2xl transition-colors duration-500`}
           >
+            {/* Interactive Page & Chapter Jumper Popover */}
+            {showPageJumper && (parsedChapters.length > 0 || pages.length > 0 || (isPdfReader && (numPdfPages || 0) > 1)) && (
+              <div className="absolute bottom-[calc(100%+10px)] right-2 sm:right-6 w-[min(92vw,360px)] rounded-3xl bg-[#110a1f]/95 border border-white/15 shadow-[0_24px_60px_rgba(0,0,0,0.8)] backdrop-blur-2xl p-4 text-white z-50">
+                <div className="flex items-center justify-between gap-2 pb-2.5 mb-3 border-b border-white/10">
+                  <div>
+                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-small-orange">Page Navigator</p>
+                    <p className="text-xs font-bold text-white/90 truncate max-w-[230px]">
+                      {parsedChapters.length > 0
+                        ? parsedChapters[activeParsedChapter]?.title || `Chapter ${activeParsedChapter + 1}`
+                        : currentChapter?.title || book.title}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowPageJumper(false)}
+                    className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/70 hover:text-white text-xs font-black"
+                    aria-label="Close page jumper"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {parsedChapters.length > 0 ? (
+                  <>
+                    <div className="mb-3">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-[9px] font-black uppercase tracking-widest text-white/50">
+                          Jump to Page in Chapter {activeParsedChapter + 1} ({parsedChapters[activeParsedChapter]?.pages.length || 1} pages)
+                        </span>
+                      </div>
+                      <div className="max-h-36 overflow-y-auto pr-1 flex flex-wrap gap-1.5">
+                        {(parsedChapters[activeParsedChapter]?.pages || []).map((_, pIdx) => {
+                          const active = activeParsedPage === pIdx;
+                          return (
+                            <button
+                              key={pIdx}
+                              type="button"
+                              onClick={() => {
+                                setActiveParsedPage(pIdx);
+                                setShowPageJumper(false);
+                              }}
+                              className={`min-w-[32px] h-8 px-2.5 rounded-xl text-[11px] font-black transition-all ${
+                                active
+                                  ? 'bg-gradient-to-r from-[#6B0099] via-[#D40055] to-[#FF8C00] text-white shadow-lg scale-105'
+                                  : 'bg-white/10 hover:bg-white/20 text-white/80'
+                              }`}
+                            >
+                              {pIdx + 1}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {parsedChapters.length > 1 && (
+                      <div className="pt-2.5 border-t border-white/10">
+                        <span className="block text-[9px] font-black uppercase tracking-widest text-white/50 mb-1.5">
+                          Switch Chapter ({parsedChapters.length})
+                        </span>
+                        <div className="max-h-28 overflow-y-auto pr-1 flex flex-wrap gap-1.5">
+                          {parsedChapters.map((ch, cIdx) => {
+                            const active = activeParsedChapter === cIdx;
+                            return (
+                              <button
+                                key={cIdx}
+                                type="button"
+                                onClick={() => {
+                                  setActiveParsedChapter(cIdx);
+                                  setActiveParsedPage(0);
+                                }}
+                                className={`px-2.5 py-1 rounded-lg text-[10px] font-bold truncate max-w-[155px] transition-all ${
+                                  active
+                                    ? 'bg-small-orange text-white'
+                                    : 'bg-white/5 hover:bg-white/15 text-white/70'
+                                }`}
+                                title={`${ch.title} (${ch.pages.length} pages)`}
+                              >
+                                {cIdx + 1}. {ch.title}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : isPdfReader && (numPdfPages || 0) > 1 ? (
+                  <div className="max-h-40 overflow-y-auto pr-1 flex flex-wrap gap-1.5">
+                    {Array.from({ length: numPdfPages || 1 }, (_, pIdx) => {
+                      const pageNum = pIdx + 1;
+                      const active = pdfPageNumber === pageNum;
+                      return (
+                        <button
+                          key={pageNum}
+                          type="button"
+                          onClick={() => {
+                            setPdfPageNumber(pageNum);
+                            setShowPageJumper(false);
+                          }}
+                          className={`min-w-[32px] h-8 px-2.5 rounded-xl text-[11px] font-black transition-all ${
+                            active
+                              ? 'bg-small-orange text-white shadow-lg'
+                              : 'bg-white/10 hover:bg-white/20 text-white/80'
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="max-h-40 overflow-y-auto pr-1 flex flex-wrap gap-1.5">
+                    {pages.map((_, pIdx) => {
+                      const active = currentPageIndex === pIdx;
+                      return (
+                        <button
+                          key={pIdx}
+                          type="button"
+                          onClick={() => {
+                            setCurrentPageIndex(pIdx);
+                            setShowPageJumper(false);
+                          }}
+                          className={`min-w-[32px] h-8 px-2.5 rounded-xl text-[11px] font-black transition-all ${
+                            active
+                              ? 'bg-small-orange text-white shadow-lg'
+                              : 'bg-white/10 hover:bg-white/20 text-white/80'
+                          }`}
+                        >
+                          {pIdx + 1}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="flex-1 flex items-center gap-3 sm:gap-6">
-              <div className={`flex-1 h-1.5 ${s.progressBg} rounded-full overflow-hidden relative group/progress cursor-pointer`}>
+              <div
+                onClick={(e) => {
+                  if (pageLocked) { lockedNudge(); return; }
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / Math.max(1, rect.width)));
+                  if (parsedChapters.length > 0 && pages.length === 0) {
+                    const total = parsedChapters.reduce((sum, c) => sum + c.pages.length, 0);
+                    const targetGlobal = Math.min(total - 1, Math.floor(ratio * total));
+                    let acc = 0;
+                    for (let ci = 0; ci < parsedChapters.length; ci++) {
+                      const len = parsedChapters[ci].pages.length;
+                      if (targetGlobal < acc + len) {
+                        setActiveParsedChapter(ci);
+                        setActiveParsedPage(targetGlobal - acc);
+                        break;
+                      }
+                      acc += len;
+                    }
+                  } else if (isPdfReader && numPdfPages) {
+                    setPdfPageNumber(Math.max(1, Math.min(numPdfPages, Math.floor(ratio * numPdfPages) + 1)));
+                  } else if (pages.length > 0) {
+                    setCurrentPageIndex(Math.min(pages.length - 1, Math.floor(ratio * pages.length)));
+                  }
+                }}
+                title="Click anywhere on the bar to jump to that page"
+                className={`flex-1 h-2 ${s.progressBg} rounded-full overflow-hidden relative group/progress cursor-pointer`}
+              >
                 <div
-                  className="h-full"
+                  className="h-full transition-all duration-200"
                   style={{ background: 'linear-gradient(90deg, var(--pj-purple), var(--pj-magenta) 55%, var(--pj-orange))', width: isEpubReader
                     ? `${epubProgress}%`
-                    : parsedChapters.length > 0
-                      ? `${((activeParsedChapter * parsedChapters[0].pages.length + activeParsedPage + 1) / parsedChapters.reduce((s, c) => s + c.pages.length, 0) * 100).toFixed(1)}%`
-                      : `${(((currentChapterIndex * 100) + ((currentPageIndex + 1) / (pages.length || 1) * 100)) / (book.bookChapters?.length || 1))}%`
+                    : isPdfReader && numPdfPages
+                      ? `${((pdfPageNumber / Math.max(1, numPdfPages)) * 100).toFixed(1)}%`
+                      : parsedChapters.length > 0
+                        ? `${(((parsedOrder(activeParsedChapter, activeParsedPage) + 1) / Math.max(1, parsedChapters.reduce((s, c) => s + c.pages.length, 0))) * 100).toFixed(1)}%`
+                        : `${(((currentChapterIndex * 100) + ((currentPageIndex + 1) / (pages.length || 1) * 100)) / (book.bookChapters?.length || 1))}%`
                   }}
                 />
               </div>
-              <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
-                <button onClick={prevPage} className={`p-1.5 sm:p-2.5 transition-all ${s.btnHover}`} aria-label="Previous page"><ChevronLeft size={18} className="sm:w-5 sm:h-5" /></button>
-                <div className={`px-2.5 sm:px-4 py-1 sm:py-1.5 ${theme === 'LIGHT' ? 'bg-black/5' : 'bg-white/5'} border border-black/10 rounded-full`}>
-                  <span className={`text-[8px] sm:text-[10px] font-black uppercase tracking-wider ${s.text} whitespace-nowrap`}>
+              <div className="flex items-center gap-1 sm:gap-2.5 shrink-0">
+                <button type="button" onClick={prevPage} className={`shrink-0 w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-full transition-all ${s.btnHover}`} aria-label="Previous page" title="Previous Page (Left Arrow)"><ChevronLeft size={18} className="shrink-0 sm:w-5 sm:h-5" /></button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isEpubReader) {
+                      setShowTOC(v => !v);
+                    } else {
+                      setShowPageJumper(v => !v);
+                    }
+                  }}
+                  title="Click to jump to any page or chapter"
+                  className={`px-3 sm:px-4 py-1 sm:py-1.5 ${theme === 'LIGHT' ? 'bg-black/5 hover:bg-black/10' : 'bg-white/5 hover:bg-white/15'} border border-black/10 rounded-full shrink-0 transition-all cursor-pointer`}
+                >
+                  <span className={`text-[9px] sm:text-[10px] font-black tracking-wider ${s.text} whitespace-nowrap`}>
                     {isEpubReader
-                      ? `${epubProgress}%`
-                      : parsedChapters.length > 0
-                        ? `CH.${activeParsedChapter + 1} • P.${activeParsedPage + 1}`
-                        : isGraphicNovel
-                          ? `ISSUE ${currentChapterIndex + 1} • P.${currentPageIndex + 1}`
-                          : `CH.${currentChapterIndex + 1} • P.${currentPageIndex + 1}`}
+                      ? `Reading · ${epubProgress}%`
+                      : isPdfReader && numPdfPages
+                        ? `Page ${pdfPageNumber} of ${numPdfPages}`
+                        : parsedChapters.length > 0
+                          ? `Chapter ${activeParsedChapter + 1} · Page ${activeParsedPage + 1} of ${parsedChapters[activeParsedChapter]?.pages.length || 1}`
+                          : isGraphicNovel
+                            ? `Issue ${currentChapterIndex + 1} · Page ${currentPageIndex + 1} of ${pages.length || 1}`
+                            : `Chapter ${currentChapterIndex + 1} · Page ${currentPageIndex + 1}${pages.length > 1 ? ` of ${pages.length}` : ''}`}
                   </span>
-                </div>
-                <button onClick={nextPage} className={`p-1.5 sm:p-2.5 transition-all ${s.btnHover}`} aria-label="Next page"><ChevronRight size={18} className="sm:w-5 sm:h-5" /></button>
+                </button>
+                <button type="button" onClick={nextPage} className={`shrink-0 w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-full transition-all ${s.btnHover}`} aria-label="Next page" title="Next Page (Right Arrow)"><ChevronRight size={18} className="shrink-0 sm:w-5 sm:h-5" /></button>
               </div>
             </div>
           </motion.footer>
@@ -2451,12 +2906,28 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
               width: isEpubReader
                 ? `${epubProgress}%`
                 : parsedChapters.length > 0
-                  ? `${((activeParsedChapter * parsedChapters[0].pages.length + activeParsedPage + 1) / parsedChapters.reduce((s, c) => s + c.pages.length, 0) * 100).toFixed(1)}%`
+                  ? `${(((parsedOrder(activeParsedChapter, activeParsedPage) + 1) / Math.max(1, parsedChapters.reduce((s, c) => s + c.pages.length, 0))) * 100).toFixed(1)}%`
                   : `${(((currentChapterIndex * 100) + ((currentPageIndex + 1) / (pages.length || 1) * 100)) / (book.bookChapters?.length || 1))}%`
             }}
           />
         </div>
       )}
+
+      {/* Classic Cover-Matched Page Flourish Themes & 6-Track Literary Score Viewer Drawer */}
+      <ClassicThemeViewerDrawer
+        open={showThemeViewer}
+        onClose={() => setShowThemeViewer(false)}
+        themesEnabled={classicThemesEnabled}
+        onToggleThemesEnabled={setClassicThemesEnabled}
+        motionMode={flourishMotionMode}
+        onChangeMotionMode={setFlourishMotionMode}
+        motionState={flourishMotionState}
+        onReplayMotion={triggerFlourishAwakening}
+        activeTheme={activeClassicTheme || matchedBookTheme || CLASSIC_PAGE_THEMES[0]}
+        selectedThemeOverride={selectedThemeOverride}
+        onSelectThemeOverride={setSelectedThemeOverride}
+        matchedBookTheme={matchedBookTheme}
+      />
     </div>
 
     {/* Opening scene — overlays reader; unmounts after animation completes */}
@@ -2469,6 +2940,18 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
         chapterTitle={book.bookChapters?.[currentChapterIndex]?.title ?? undefined}
         pageIndex={currentPageIndex}
         resuming={savedPos.chapter > 0 || savedPos.page > 0}
+        isReady={parsedChapters.length > 0 || !!epubData || pages.length > 0}
+      />
+    )}
+
+    {/* Unified Project Promote Studio & Asset Hub */}
+    {showPromoModal && (
+      <ChoraPromoModal
+        album={{
+          ...book,
+          type: book.type || 'BOOK',
+        }}
+        onClose={() => setShowPromoModal(false)}
       />
     )}
     </>

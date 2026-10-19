@@ -58,7 +58,10 @@ uniform float iParam0, iParam1, iParam2, iParam3;
 ${src}
 
 void main() {
-  mainImage(fragColor, vUv * iResolution);
+  float aspect = iResolution.x / max(iResolution.y, 1.0);
+  float fitScale = 1.32 * max(1.0, 1.7777778 / max(aspect, 0.1));
+  vec2 fc = 0.5 * iResolution + (vUv - 0.5) * iResolution * fitScale;
+  mainImage(fragColor, fc);
 }
 `;
 }
@@ -80,6 +83,13 @@ uniform vec3 iC0, iC1, iC2;
 uniform float iParam0, iParam1, iParam2, iParam3;
 float fft(float x){ return texture(iChannel0, vec2(clamp(x,0.0,1.0), 0.25)).r; }
 float wave(float x){ return texture(iChannel0, vec2(clamp(x,0.0,1.0), 0.75)).r; }
+vec2 fitP(vec2 uv, vec2 res){
+  float aspect = res.x / max(res.y, 1.0);
+  float fitScale = 1.35 * max(1.0, 1.7777778 / max(aspect, 0.1));
+  vec2 p = (uv - 0.5) * fitScale;
+  p.x *= aspect;
+  return p;
+}
 `;
 
 // ── Mode shaders (faithful-in-spirit GPU versions). Output opaque; the layer's
@@ -101,8 +111,7 @@ void main(){
 
 const SPECTRUM_FS = HEADER + `
 void main(){
-  vec2 p = vUv - 0.5;
-  p.x *= iResolution.x / max(iResolution.y, 1.0);
+  vec2 p = fitP(vUv, iResolution);
   float ang = atan(p.y, p.x);
   float a01 = (ang + 3.14159265) / 6.2831853;        // 0..1 around the ring
   float rad = length(p);
@@ -121,8 +130,7 @@ void main(){
 
 const TUNNEL_FS = HEADER + `
 void main(){
-  float aspect = iResolution.x / max(iResolution.y, 1.0);
-  vec2 p = vUv - 0.5; p.x *= aspect;
+  vec2 p = fitP(vUv, iResolution);
   float r = length(p);
   float f = fft(clamp(r * 1.2, 0.0, 1.0));
   // receding rings, treble sharpens them
@@ -135,8 +143,7 @@ void main(){
 
 const VORTEX_FS = HEADER + `
 void main(){
-  float aspect = iResolution.x / max(iResolution.y, 1.0);
-  vec2 p = vUv - 0.5; p.x *= aspect;
+  vec2 p = fitP(vUv, iResolution);
   float r = length(p);
   float a = atan(p.y, p.x);
   float spiral = sin(a * 3.0 + r * 18.0 - iTime * 2.0);
@@ -165,8 +172,7 @@ void main(){
 const COSMIC_FS = HEADER + `
 float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 void main(){
-  float aspect = iResolution.x / max(iResolution.y, 1.0);
-  vec2 p = (vUv - 0.5); p.x *= aspect;
+  vec2 p = fitP(vUv, iResolution);
   vec3 col = vec3(0.0);
   for (int i = 0; i < 3; i++) {
     float fi = float(i);
@@ -203,8 +209,7 @@ void main(){
 
 const KALEIDO_FS = HEADER + `
 void main(){
-  float aspect = iResolution.x / max(iResolution.y, 1.0);
-  vec2 p = (vUv - 0.5); p.x *= aspect;
+  vec2 p = fitP(vUv, iResolution);
   float seg = 8.0 + floor(iMid * 8.0);
   float a = atan(p.y, p.x);
   float r = length(p);
@@ -235,8 +240,7 @@ void main(){
 
 const LIQUID_FS = HEADER + `
 void main(){
-  float aspect = iResolution.x / max(iResolution.y, 1.0);
-  vec2 p = (vUv - 0.5); p.x *= aspect;
+  vec2 p = fitP(vUv, iResolution);
   float v = 0.0;
   for (int i = 0; i < 5; i++) {
     float fi = float(i);
@@ -252,8 +256,7 @@ void main(){
 const PARTICLES_FS = HEADER + `
 float h2(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5); }
 void main(){
-  float aspect = iResolution.x / max(iResolution.y, 1.0);
-  vec2 p = (vUv - 0.5); p.x *= aspect;
+  vec2 p = fitP(vUv, iResolution);
   vec3 col = vec3(0.0);
   for (int i = 0; i < 40; i++) {
     float fi = float(i);
@@ -280,8 +283,7 @@ void main(){
 
 const STUDIO_CHROME_FS = HEADER + `
 void main(){
-  float aspect = iResolution.x / max(iResolution.y, 1.0);
-  vec2 p = (vUv - 0.5); p.x *= aspect;
+  vec2 p = fitP(vUv, iResolution);
   vec3 col = vec3(0.0);
   for (int i = 0; i < 7; i++) {
     float fi = float(i);
@@ -333,8 +335,7 @@ void main(){
 const STUDIO_NEBULA_FS = HEADER + `
 float hn(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5); }
 void main(){
-  float aspect = iResolution.x / max(iResolution.y, 1.0);
-  vec2 p = (vUv - 0.5); p.x *= aspect;
+  vec2 p = fitP(vUv, iResolution);
   vec3 col = vec3(0.0);
   for (int i = 0; i < 60; i++) {
     float fi = float(i);
@@ -348,8 +349,7 @@ void main(){
 
 const STUDIO_GRAVITY_FS = HEADER + `
 void main(){
-  float aspect = iResolution.x / max(iResolution.y, 1.0);
-  vec2 p = (vUv - 0.5); p.x *= aspect;
+  vec2 p = fitP(vUv, iResolution);
   vec3 col = vec3(0.0);
   for (int i = 0; i < 4; i++) {
     float fi = float(i);
@@ -362,8 +362,7 @@ void main(){
 
 const STUDIO_KINETIC_FS = HEADER + `
 void main(){
-  float aspect = iResolution.x / max(iResolution.y, 1.0);
-  vec2 p = (vUv - 0.5); p.x *= aspect;
+  vec2 p = fitP(vUv, iResolution);
   float seg = 6.0;
   float a = atan(p.y, p.x); float r = length(p);
   a = mod(a, 6.2831853 / seg); a = abs(a - 3.14159265 / seg);
@@ -375,8 +374,7 @@ void main(){
 
 const STUDIO_RIPPLE_FS = HEADER + `
 void main(){
-  float aspect = iResolution.x / max(iResolution.y, 1.0);
-  vec2 p = (vUv - 0.5); p.x *= aspect;
+  vec2 p = fitP(vUv, iResolution);
   float r = length(p);
   float v = 0.5 + 0.5 * sin(r * 40.0 - iTime * 4.0 - iBass * 10.0);
   v *= smoothstep(0.7, 0.0, r);

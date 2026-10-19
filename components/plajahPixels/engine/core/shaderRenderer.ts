@@ -28,7 +28,15 @@ uniform float iBass, iMid, iTreble, iLevel;
 uniform float iParam0, iParam1, iParam2, iParam3;
 `;
 const MAIN = `
-void main(){ vec4 c = vec4(0.0,0.0,0.0,1.0); mainImage(c, gl_FragCoord.xy); _frag = c; }
+void main(){
+  vec2 R = iResolution.xy;
+  float aspect = R.x / max(R.y, 1.0);
+  float fitScale = 1.32 * max(1.0, 1.7777778 / max(aspect, 0.1));
+  vec2 fc = 0.5 * R + (gl_FragCoord.xy - 0.5 * R) * fitScale;
+  vec4 c = vec4(0.0,0.0,0.0,1.0);
+  mainImage(c, fc);
+  _frag = c;
+}
 `;
 
 const U_NAMES = ['iResolution', 'iTime', 'iTimeDelta', 'iFrame', 'iMouse', 'iChannel0', 'iBass', 'iMid', 'iTreble', 'iLevel', 'iParam0', 'iParam1', 'iParam2', 'iParam3'];

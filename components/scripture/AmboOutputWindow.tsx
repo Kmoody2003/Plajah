@@ -17,10 +17,28 @@ import {
 import { LayerRenderer } from '../../services/ambo/layerRenderer';
 import { installRemoteAmboAnalyser } from '../../services/ambo/amboAudioEngine';
 import { setVideoSyncRole } from '../../services/ambo/videoSync';
+import {
+  blitProgramSurface, connectProgramBusRtcClient,
+  readOpenerProgramCanvas, reportOutputWindowMetrics,
+} from '../../services/ambo/programBus';
 import type { LiveStack } from '../../services/ambo/showModel';
 import type { ProgramTake } from '../../services/ambo/outputRouter';
 
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+
+function computeAspectLabel(w: number, h: number): string {
+  if (!w || !h) return '16:9';
+  const r = w / h;
+  if (Math.abs(r - 16 / 9) < 0.04) return '16:9';
+  if (Math.abs(r - 16 / 10) < 0.04) return '16:10';
+  if (Math.abs(r - 4 / 3) < 0.04) return '4:3';
+  if (Math.abs(r - 21 / 9) < 0.06) return '21:9';
+  if (Math.abs(r - 32 / 9) < 0.08) return '32:9';
+  if (Math.abs(r - 9 / 16) < 0.04) return '9:16';
+  const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b));
+  const g = gcd(Math.round(w), Math.round(h)) || 1;
+  return `${Math.round(w / g)}:${Math.round(h / g)}`;
+}
 
 const AmboOutputWindow: React.FC<{ outputId?: string | null }> = ({ outputId }) => {
   // Video in this window is a FOLLOWER of the studio's Program clip (one clock,
@@ -29,6 +47,7 @@ const AmboOutputWindow: React.FC<{ outputId?: string | null }> = ({ outputId }) 
   const id = outputId ?? outputIdFromUrl();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rendererRef = useRef<LayerRenderer | null>(null);
+  const rtcVideoRef = useRef<HTMLVideoElement | null>(null);
 
   const [output, setOutput] = useState<AmboOutput | null>(null);
   const [stack, setStack] = useState<LiveStack>({});
@@ -75,13 +94,16 @@ const AmboOutputWindow: React.FC<{ outputId?: string | null }> = ({ outputId }) 
   const [detectedResolution, setDetectedResolution] = useState<{ w: number; h: number } | null>(null);
   const [showHud, setShowHud] = useState(true);
 
-  // Auto-detect the physical size and resolution of the output display this window is placed on
+  // Auto-detect the live physical viewport size and resolution of the output window
   useEffect(() => {
     const updateSize = () => {
       const dpr = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1;
-      const w = Math.round((window.screen?.width || window.innerWidth || 1920) * dpr);
-      const h = Math.round((window.screen?.height || window.innerHeight || 1080) * dpr);
-      setDetectedResolution({ w, h });
+      const vw = window.innerWidth || document.documentElement?.clientWidth || window.screen?.width || 1920;
+      const vh = window.innerHeight || document.documentElement?.clientHeight || window.screen?.height || 1080;
+      const w = Math.max(2, Math.round(vw * dpr));
+      const h = Math.max(2, Math.round(vh * dpr));
+      setDetectedResolution(prev => (prev && prev.w === w && prev.h === h ? prev : { w, h }));
+      reportOutputWindowMetrics(id, w, h, computeAspectLabel(w, h));
     };
     updateSize();
     window.addEventListener('resize', updateSize);
@@ -90,7 +112,7 @@ const AmboOutputWindow: React.FC<{ outputId?: string | null }> = ({ outputId }) 
       window.removeEventListener('resize', updateSize);
       clearTimeout(timer);
     };
-  }, []);
+  }, [id]);
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -117,7 +139,7 @@ const AmboOutputWindow: React.FC<{ outputId?: string | null }> = ({ outputId }) 
     };
   }, []);
 
-  // Prioritize detected physical resolution when auto-detect is active
+  // Prioritize detected physical viewport resolution when auto-detect is active
   const renderWidth = (output?.autoDetectDisplay !== false && detectedResolution?.w)
     ? detectedResolution.w
     : (output?.width || detectedResolution?.w || 1920);
@@ -131,19 +153,108 @@ const AmboOutputWindow: React.FC<{ outputId?: string | null }> = ({ outputId }) 
     return () => clearInterval(t);
   }, []);
 
-  // One renderer for the life of the window, rendering at physical detected resolution.
+  // True when this output window should display the exact Program Bus feed from the Studio
+  // (rather than running a separate stripped stack for Stage Display or Switcher Key).
+  const isProgramMirror = !output || (
+    output.kind !== 'STAGE' &&
+    output.kind !== 'KEY' &&
+    !output.alpha &&
+    !(output.clearedSlots && output.clearedSlots.length > 0)
+  );
+
+  // Connect local loopback WebRTC client when window.opener is unavailable (e.g. Native WinUI 3 output window).
+  useEffect(() => {
+    if (!id || !isProgramMirror) return;
+    if (readOpenerProgramCanvas()) return;
+    if (typeof document === 'undefined' || typeof RTCPeerConnection === 'undefined') return;
+    const vid = document.createElement('video');
+    vid.muted = true;
+    vid.playsInline = true;
+    vid.autoplay = true;
+    rtcVideoRef.current = vid;
+    const disconnect = connectProgramBusRtcClient(id, (stream) => {
+      if (!stream) {
+        vid.srcObject = null;
+        return;
+      }
+      vid.srcObject = stream;
+      vid.play().catch(() => {});
+    });
+    return () => {
+      disconnect();
+      vid.pause();
+      vid.srcObject = null;
+      rtcVideoRef.current = null;
+    };
+  }, [id, isProgramMirror]);
+
+  // One renderer for the life of the window — resized in-place when viewport dimensions change.
   useEffect(() => {
     const c = canvasRef.current;
     if (!c || !output) return;
     const r = new LayerRenderer(c, { w: renderWidth, h: renderHeight });
     r.setOptions({ alpha: output.alpha, outputMask: output.mask, outputTransform: output.transform, fit: output.fit, timers });
-    r.start();
+    if (!isProgramMirror || !readOpenerProgramCanvas()) {
+      r.start();
+    }
     rendererRef.current = r;
     return () => { r.dispose(); rendererRef.current = null; };
-  }, [output?.id, renderWidth, renderHeight, output?.alpha]);
+  }, [output?.id, output?.alpha]);
+
+  // Resize renderer and active procedural sources in-place without restarting generators.
+  useEffect(() => {
+    rendererRef.current?.resize(renderWidth, renderHeight);
+    const c = canvasRef.current;
+    if (c && (c.width !== renderWidth || c.height !== renderHeight)) {
+      c.width = renderWidth;
+      c.height = renderHeight;
+    }
+  }, [renderWidth, renderHeight]);
+
+  // Mirror the Studio Master Program Bus directly onto our full-window canvas when available,
+  // pausing the local fallback LayerRenderer so no duplicate generator instance runs.
+  useEffect(() => {
+    if (!isProgramMirror) {
+      rendererRef.current?.start();
+      return;
+    }
+    let raf = 0;
+    let active = true;
+    const tick = () => {
+      if (!active) return;
+      const c = canvasRef.current;
+      const openerCanvas = readOpenerProgramCanvas();
+      const rtcVid = rtcVideoRef.current;
+      if (c && openerCanvas && openerCanvas.width > 0 && openerCanvas.height > 0) {
+        rendererRef.current?.stop();
+        if (c.width !== renderWidth || c.height !== renderHeight) {
+          c.width = renderWidth;
+          c.height = renderHeight;
+        }
+        blitProgramSurface(openerCanvas, c, output?.fit);
+        setConnected(true);
+      } else if (c && rtcVid && rtcVid.readyState >= 2 && rtcVid.videoWidth > 0 && rtcVid.videoHeight > 0) {
+        rendererRef.current?.stop();
+        if (c.width !== renderWidth || c.height !== renderHeight) {
+          c.width = renderWidth;
+          c.height = renderHeight;
+        }
+        blitProgramSurface(rtcVid, c, output?.fit);
+        setConnected(true);
+      } else {
+        rendererRef.current?.start();
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => {
+      active = false;
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [isProgramMirror, renderWidth, renderHeight, output?.fit]);
 
   // Push each new stack through the reconciler — this is where a background
-  // survives a slide change.
+  // survives a slide change (used for Stage / Key outputs or fallback mode).
   useEffect(() => {
     const r = rendererRef.current;
     if (!r || !output) return;
@@ -154,7 +265,7 @@ const AmboOutputWindow: React.FC<{ outputId?: string | null }> = ({ outputId }) 
       shownTakeRef.current = take.seq;
     }
     r.setStack(stackForOutput(stack, output));
-  }, [stack, output, timers, take, renderWidth, renderHeight]);
+  }, [stack, output, timers, take]);
 
   if (!id) {
     return (
@@ -174,7 +285,7 @@ const AmboOutputWindow: React.FC<{ outputId?: string | null }> = ({ outputId }) 
     >
       <canvas
         ref={canvasRef}
-        style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
+        style={{ width: '100vw', height: '100dvh', objectFit: 'fill', display: 'block' }}
       />
 
       {/* Auto-detected display HUD badge */}

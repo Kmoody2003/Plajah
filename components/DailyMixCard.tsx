@@ -29,10 +29,11 @@ const CuratorMark: React.FC<{ size?: number }> = ({ size = 56 }) => (
 
 interface DailyMixCardProps {
   onSelectAlbum: (album: Album) => void;
+  onVisitUser?: (uid: string) => void;
   className?: string;
 }
 
-const DailyMixCard: React.FC<DailyMixCardProps> = ({ onSelectAlbum, className = '' }) => {
+const DailyMixCard: React.FC<DailyMixCardProps> = ({ onSelectAlbum, onVisitUser, className = '' }) => {
   const [mix, setMix] = useState<DailyMix | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -71,12 +72,26 @@ const DailyMixCard: React.FC<DailyMixCardProps> = ({ onSelectAlbum, className = 
         <div className="flex items-start gap-4">
           <CuratorMark />
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.22em] text-[#D0BCFF]">
-              Made by Chora · for {mix.greetingName}
+            <div className="flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-[0.22em] text-[#D0BCFF]">
+              <span>Made by Chora · for {mix.greetingName}</span>
+              {mix.audiusCount > 0 && (
+                <span className="px-2 py-0.5 rounded-full bg-white/10 border border-white/15 text-[8px] font-black tracking-[0.18em] text-[#C56BFF]">
+                  Chora First + Audius Discovery
+                </span>
+              )}
             </div>
             <h2 className="font-black tracking-tight text-2xl sm:text-3xl mt-1 text-white">Your Daily Mix</h2>
             <div className="flex flex-wrap items-center gap-2 mt-1.5 text-[11px] font-semibold text-white/50">
-              <span>{mix.trackCount} tracks</span><span>·</span><span>{fmtMin(mix.durationSec)}</span>
+              <span>{mix.trackCount} tracks</span>
+              {mix.nativeCount > 0 && mix.audiusCount > 0 && (
+                <>
+                  <span>·</span>
+                  <span className="text-[#FF8C00]">{mix.nativeCount} Chora</span>
+                  <span>+</span>
+                  <span className="text-[#C56BFF]">{mix.audiusCount} Audius</span>
+                </>
+              )}
+              <span>·</span><span>{fmtMin(mix.durationSec)}</span>
               {mix.topGenres.length > 0 && <><span>·</span><span className="truncate">{mix.topGenres.join(' / ')}</span></>}
             </div>
           </div>
@@ -90,6 +105,30 @@ const DailyMixCard: React.FC<DailyMixCardProps> = ({ onSelectAlbum, className = 
         <p className="text-white/80 text-[14.5px] leading-relaxed mt-4 max-w-[62ch]">{mix.overview}</p>
         {mix.insight && (
           <p className="text-white/55 text-[12.5px] italic mt-2 max-w-[62ch]">“{mix.insight}”</p>
+        )}
+
+        {/* featured artists in the mix (Native Chora first, then Audius discovery) */}
+        {mix.featuredArtists && mix.featuredArtists.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5 mt-3.5">
+            <span className="text-[9px] font-black uppercase tracking-[0.18em] text-white/35 mr-1">In the mix:</span>
+            {mix.featuredArtists.map((a, idx) => (
+              <button
+                key={`${a.name}_${idx}`}
+                type="button"
+                onClick={() => a.artistId && onVisitUser ? onVisitUser(a.artistId) : onSelectAlbum(mix.album)}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border transition-colors ${
+                  a.native
+                    ? 'bg-[#FF8C00]/10 border-[#FF8C00]/30 text-white/90 hover:bg-[#FF8C00]/20'
+                    : 'bg-[#6B0099]/20 border-[#C56BFF]/30 text-white/85 hover:bg-[#6B0099]/35'
+                }`}
+              >
+                <span className="truncate max-w-[140px]">{a.name}</span>
+                {!a.native && (
+                  <span className="text-[7px] font-black uppercase tracking-widest text-[#C56BFF]">Audius</span>
+                )}
+              </button>
+            ))}
+          </div>
         )}
 
         {/* play */}

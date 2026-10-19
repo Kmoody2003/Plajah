@@ -13,10 +13,10 @@
 import type { Album, Track } from '../types';
 import { fetchAllPublicAlbums, fetchUserProfile, fetchFollowingIds, auth } from './backendService';
 import {
-  fetchAudiusChartsByGenre, fetchAudiusTrending, fetchAudiusArtistTracks,
+  fetchAudiusChartsByGenre, fetchAudiusTrending, fetchAudiusUnderground, fetchAudiusArtistTracks,
   archiveTrackToNativeTrack, audiusTrackToNativeAlbum, isAudiusOwner,
 } from './audiusService';
-import { followedAudiusOwnerIds } from './audiusLibrary';
+import { fetchAudiusLibrary, followedAudiusOwnerIds } from './audiusLibrary';
 import { getTasteVector, type TasteVector } from './tasteService';
 
 export interface UpNextItem { track: Track; album: Album; native: boolean; reason: string; }
@@ -42,8 +42,8 @@ async function userSignals(): Promise<Signals> {
   const uid = auth.currentUser?.uid || '';
   const now = Date.now();
   if (_signalsCache && _signalsCache.uid === uid && now - _signalsCache.at < ALBUMS_TTL) return _signalsCache.signals;
-  // Artists you follow ON AUDIUS count as follows here too — a connected Audius account
-  // should steer the radio the same way a native follow does.
+  // Hydrate Audius library follows if a session is connected so followed Audius artists steer recommendations.
+  await fetchAudiusLibrary().catch(() => null);
   const audiusFollows = followedAudiusOwnerIds();
   const empty: Signals = { followingIds: new Set(audiusFollows), libraryIds: new Set(), taste: EMPTY_TASTE };
   if (!uid) return empty;
@@ -94,30 +94,112 @@ function relevance(
 }
 
 /**
+ * Round-robin diversify a scored list by a grouping key (e.g. albumId or artistId) so one
+ * multi-track album or prolific artist doesn't monopolize consecutive slots.
+ */
+export function diversifyByKey(items: UpNextItem[], keyOf: (item: UpNextItem) => string): UpNextItem[] {
+  const buckets = new Map<string, UpNextItem[]>();
+  for (const item of items) {
+    const key = keyOf(item) || item.track.id;
+    const list = buckets.get(key);
+    if (list) list.push(item);
+    else buckets.set(key, [item]);
+  }
+  const groups = Array.from(buckets.values());
+  const out: UpNextItem[] = [];
+  let round = 0;
+  let added = true;
+  while (added) {
+    added = false;
+    for (const group of groups) {
+      if (round < group.length) {
+        out.push(group[round]);
+        added = true;
+      }
+    }
+    round++;
+  }
+  return out;
+}
+
+/**
+ * Interleave Native Plajah Chora items with Audius items while strictly leading with
+ * `nativePerAudius` native items first in every cycle so native Chora releases are prioritized
+ * first and Audius artists/tracks are guaranteed in the mix.
+ */
+export function interleaveNativeFirst(
+  native: UpNextItem[],
+  audius: UpNextItem[],
+  limit = 20,
+  nativePerAudius = 2,
+): UpNextItem[] {
+  const step = Math.max(1, nativePerAudius);
+  const out: UpNextItem[] = [];
+  const used = new Set<string>();
+  let nIdx = 0;
+  let aIdx = 0;
+
+  const takeNext = (pool: UpNextItem[], startIdx: number): { item: UpNextItem | null; nextIdx: number } => {
+    let i = startIdx;
+    while (i < pool.length) {
+      const candidate = pool[i++];
+      if (!used.has(candidate.track.id)) {
+        used.add(candidate.track.id);
+        return { item: candidate, nextIdx: i };
+      }
+    }
+    return { item: null, nextIdx: i };
+  };
+
+  while (out.length < limit && (nIdx < native.length || aIdx < audius.length)) {
+    // 1. Prioritize Native Plajah Chora tracks first in each cycle
+    for (let k = 0; k < step && out.length < limit; k++) {
+      const res = takeNext(native, nIdx);
+      nIdx = res.nextIdx;
+      if (res.item) out.push(res.item);
+      else break;
+    }
+    if (out.length >= limit) break;
+    // 2. Weave in an Audius artist track for discovery
+    const aRes = takeNext(audius, aIdx);
+    aIdx = aRes.nextIdx;
+    if (aRes.item) {
+      out.push(aRes.item);
+    } else if (nIdx >= native.length) {
+      break;
+    }
+  }
+  return out;
+}
+
+/**
  * Build a native-first "up next" radio queue seeded from the current track/album.
- * Native candidates (relevant to the seed) always come before Audius candidates.
+ * Native Plajah Chora albums/tracks are ALWAYS prioritized first, while Audius tracks and
+ * artists are woven into the mix (2 Native : 1 Audius) so listeners discover new music.
  * Resilient: returns [] on any failure so the player simply stops as it did before.
  */
 export async function buildRadioQueue(
   seedTrack: Track,
   seedAlbum: Album | null,
   exclude: Set<string>,
-  opts: { limit?: number } = {},
+  opts: { limit?: number; nativePerAudius?: number } = {},
 ): Promise<UpNextItem[]> {
   const limit = opts.limit ?? 20;
+  const nativePerAudius = Math.max(1, opts.nativePerAudius ?? 2);
   const seed = {
     genre: seedTrack.genre || seedAlbum?.genre,
     artist: seedTrack.artist || seedAlbum?.artist,
     artistId: (seedTrack as any).artistId || seedAlbum?.ownerId,
   };
   const skip = new Set(exclude);
-  skip.add(seedTrack.id);
+  if (seedTrack.id) skip.add(seedTrack.id);
   seedAlbum?.tracks?.forEach(t => skip.add(t.id)); // don't recommend the album we just finished
 
   const [albums, sig] = await Promise.all([nativeAlbums(), userSignals()]);
 
   // ── Native candidates (Chora artists only) ──
-  const native: UpNextItem[] = [];
+  const nativePrimary: UpNextItem[] = [];
+  const nativeFallback: UpNextItem[] = [];
   for (const album of albums) {
     if (isAudiusOwner(album.ownerId)) continue;               // Audius mirror, not a native artist
     if (album.type && album.type !== 'MUSIC') continue;
@@ -125,52 +207,65 @@ export async function buildRadioQueue(
     for (const t of album.tracks) {
       if (!t?.id || skip.has(t.id) || !t.url) continue;
       const { score, reason } = relevance(t, album, seed, sig);
-      // Keep native tracks that have SOME signal (genre/artist/follow/library/popularity);
-      // a floor avoids dumping the whole unrelated native catalog.
-      if (score < 8) continue;
-      native.push({ track: t, album, native: true, reason });
-      (native[native.length - 1] as any)._score = score;
+      if (score < 0) continue; // explicitly disliked
+      const item: UpNextItem = { track: t, album, native: true, reason };
+      (item as any)._score = score;
+      if (score >= 8) {
+        nativePrimary.push(item);
+      } else {
+        nativeFallback.push(item);
+      }
     }
   }
-  native.sort((a, b) => (b as any)._score - (a as any)._score);
+  nativePrimary.sort((a, b) => (b as any)._score - (a as any)._score);
+  nativeFallback.sort((a, b) => (b as any)._score - (a as any)._score);
+  // Diversify across native albums so a single multi-track album doesn't crowd out other native releases or Audius discovery.
+  const native = [
+    ...diversifyByKey(nativePrimary, it => it.album.id || it.album.ownerId || ''),
+    ...diversifyByKey(nativeFallback, it => it.album.id || it.album.ownerId || ''),
+  ];
 
-  // ── Audius fill — genre-matched first, then trending. ──
+  // ── Audius discovery pool — followed artists first, then genre-matched, trending, and underground. ──
   let audius: UpNextItem[] = [];
   try {
-    // Artists the listener follows on Audius come FIRST in the Audius tail — a connected
-    // library should be felt in the radio, not just genre charts and global trending.
-    const followed = followedAudiusOwnerIds().slice(0, 3).map(id => id.replace(/^audius:/, ''));
-    const [fromFollows, byGenre, trending] = await Promise.all([
+    // Artists the listener follows on Audius come FIRST in the Audius pool — a connected
+    // library should be felt in the radio, alongside genre charts, trending, and underground discovery.
+    const followed = followedAudiusOwnerIds().slice(0, 4).map(id => id.replace(/^audius:/, ''));
+    const [fromFollows, byGenre, trending, underground] = await Promise.all([
       followed.length
         ? Promise.all(followed.map(id => fetchAudiusArtistTracks(id, 5).catch(() => [])))
             .then(rs => rs.flat())
         : Promise.resolve([]),
       seed.genre ? fetchAudiusChartsByGenre(seed.genre, 15).catch(() => []) : Promise.resolve([]),
       fetchAudiusTrending(undefined, 15).catch(() => []),
+      fetchAudiusUnderground(10).catch(() => []),
     ]);
+    const undergroundIds = new Set(underground.map(u => `audius_${u.id}`));
     const seen = new Set<string>();
-    for (const at of [...fromFollows, ...byGenre, ...trending]) {
+    const rawAudius: UpNextItem[] = [];
+    for (const at of [...fromFollows, ...byGenre, ...trending, ...underground]) {
       const nt = archiveTrackToNativeTrack(at);
       if (!nt.id || skip.has(nt.id) || seen.has(nt.id) || !nt.url) continue;
       seen.add(nt.id);
       const album = audiusTrackToNativeAlbum(at);
       const { score, reason } = relevance(nt, album, seed, sig);
-      audius.push({ track: nt, album, native: false, reason });
-      (audius[audius.length - 1] as any)._score = score;
+      if (score < 0) continue; // explicitly disliked
+      const displayReason =
+        reason === 'popular now' && undergroundIds.has(nt.id)
+          ? 'discover on Audius'
+          : reason === 'popular now'
+            ? 'trending on Audius'
+            : reason;
+      const item: UpNextItem = { track: nt, album, native: false, reason: displayReason };
+      (item as any)._score = score;
+      rawAudius.push(item);
     }
-    audius.sort((a, b) => (b as any)._score - (a as any)._score);
+    rawAudius.sort((a, b) => (b as any)._score - (a as any)._score);
+    // Diversify across Audius artists so the listener discovers multiple Audius creators in the mix.
+    audius = diversifyByKey(rawAudius, it => it.album.ownerId || norm(it.track.artist || it.album.artist));
   } catch { audius = []; }
 
-  // Native-first: every relevant native track ranks ahead of any Audius track.
-  const out: UpNextItem[] = [];
-  const used = new Set<string>();
-  for (const item of [...native, ...audius]) {
-    if (used.has(item.track.id)) continue;
-    used.add(item.track.id);
-    out.push(item);
-    if (out.length >= limit) break;
-  }
-  return out;
+  return interleaveNativeFirst(native, audius, limit, nativePerAudius);
 }
 
 /** Drop the cached native catalog / signals (e.g. after a new upload or follow). */

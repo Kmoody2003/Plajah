@@ -2291,18 +2291,18 @@ export default function ComicPanelBuilder({
           <div className="flex items-center bg-black/60 border border-amber-500/30 rounded-lg p-0.5 shrink-0">
             <button
               onClick={() => setStudioCanvasMode('COUNCIL_V4')}
-              className={`px-2.5 py-1 rounded-md text-[11px] font-black transition-all flex items-center gap-1 ${
+              className={`px-2.5 py-1 rounded-md text-[11px] font-black transition-all flex items-center gap-1 whitespace-nowrap ${
                 studioCanvasMode === 'COUNCIL_V4'
                   ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-black shadow'
                   : 'text-amber-300/70 hover:text-amber-200'
               }`}
               title="Council V4 Living Graphic Novel Studio View (Multi-tier choreography, double-click Hand Reframe, non-destructive Alt Text Layer, ±60s frame scrubber & video loops)"
             >
-              🎃 Council V4 Studio
+              ✨ Council V4 Studio
             </button>
             <button
               onClick={() => setStudioCanvasMode('KONVA_VECTOR')}
-              className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all flex items-center gap-1 ${
+              className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all flex items-center gap-1 whitespace-nowrap ${
                 studioCanvasMode === 'KONVA_VECTOR'
                   ? 'bg-white/20 text-white'
                   : 'text-white/50 hover:text-white'
@@ -2549,7 +2549,7 @@ export default function ComicPanelBuilder({
                 }
                 setSelectedPanelId(panelId);
               }}
-              bookTitle={bookTitle || page.chapterTitle || 'PUMPKIN PATCH (OCT 2025)'}
+              bookTitle={bookTitle || page.chapterTitle || 'GRAPHIC NOVEL STUDIO'}
               bookAuthor={bookAuthor || 'Council V4 Living Graphic Novel Studio'}
             />
           ) : (

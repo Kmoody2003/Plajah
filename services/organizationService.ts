@@ -16,11 +16,67 @@ import { permissionsForMember } from './orgPermissions';
 import type { ChurchPrayer, UserProfile } from '../types';
 import type { Organization, OrgMembership, OrgMembershipOnboarding, OrgRole, OrgType, Ministry, ServiceTime, GivingFund, RosterGroup } from '../types';
 
-/** Firestore rejects `undefined` field values — strip them before every write. */
-function stripUndefined<T extends Record<string, any>>(obj: T): T {
+/** Firestore rejects `undefined` field values at any depth — strip them recursively before every write. */
+function stripUndefined<T>(val: T): T {
+  if (val === null || val === undefined || typeof val !== 'object') return val;
+  if (Array.isArray(val)) {
+    return val.filter(item => item !== undefined).map(item => stripUndefined(item)) as unknown as T;
+  }
+  const proto = Object.getPrototypeOf(val);
+  if (proto !== null && proto !== Object.prototype) return val; // preserve Firestore FieldValue/Timestamp etc.
   const out: Record<string, any> = {};
-  for (const [k, v] of Object.entries(obj)) if (v !== undefined) out[k] = v;
+  for (const [k, v] of Object.entries(val as Record<string, any>)) {
+    if (v !== undefined) out[k] = stripUndefined(v);
+  }
   return out as T;
+}
+
+/** Prefix for Member IDs & Employment Numbers (e.g. "Grace Community Church" → "GCC"). */
+function orgIdPrefix(org?: Pick<Organization, 'name' | 'memberNumberPrefix' | 'id'> | null, fallbackId?: string): string {
+  if (org?.memberNumberPrefix?.trim()) return org.memberNumberPrefix.trim().toUpperCase().slice(0, 4);
+  const initials = (org?.name || '').split(/\s+/).map(w => w[0]).filter(c => /[A-Za-z]/.test(c || '')).join('').toUpperCase().slice(0, 3);
+  return initials || (org?.id || fallbackId || 'ORG').slice(0, 3).toUpperCase();
+}
+
+function hashDigits(seed: string, min = 10000, span = 90000): string {
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i++) {
+    h ^= seed.charCodeAt(i);
+    h = Math.imul(h, 16777619) >>> 0;
+  }
+  return String(min + (h % span));
+}
+
+/** Auto-generate a unique Member ID (e.g. "GCC-48213") when approved on the backend/service. */
+export function generateOrgMemberNumber(
+  org: Pick<Organization, 'name' | 'memberNumberPrefix' | 'id'> | null | undefined,
+  seed: string,
+  taken?: Set<string>,
+): string {
+  const prefix = orgIdPrefix(org, seed);
+  let code = `${prefix}-${hashDigits(seed, 10000, 90000)}`;
+  let bump = 1;
+  while (taken?.has(code)) {
+    code = `${prefix}-${hashDigits(`${seed}:${bump++}`, 10000, 90000)}`;
+  }
+  taken?.add(code);
+  return code;
+}
+
+/** Auto-generate a unique Employment / Staff Number (e.g. "GCC-EMP-4821") when approved on the backend/service. */
+export function generateOrgEmployeeNumber(
+  org: Pick<Organization, 'name' | 'memberNumberPrefix' | 'id'> | null | undefined,
+  seed: string,
+  taken?: Set<string>,
+): string {
+  const prefix = orgIdPrefix(org, seed);
+  let code = `${prefix}-EMP-${hashDigits(`emp:${seed}`, 1000, 9000)}`;
+  let bump = 1;
+  while (taken?.has(code)) {
+    code = `${prefix}-EMP-${hashDigits(`emp:${seed}:${bump++}`, 1000, 9000)}`;
+  }
+  taken?.add(code);
+  return code;
 }
 
 /** Open the Elevate Gateway modal (claim existing membership or request membership with onboarding). */
@@ -219,7 +275,27 @@ export async function joinOrganization(
     : '';
   const displayName = fullName || auth.currentUser.displayName || 'Member';
   const ref = doc(collection(db, 'orgMemberships'));
-  const membership: OrgMembership = {
+
+  // Strict Sanctuary Privacy: never store raw phone, email, street address, or birthDate on public-readable orgMemberships docs.
+  // Those live exclusively in `orgOnboardingVault/{membershipId}` and `chmsPeople/{id}` (readable only by the member & authorized church staff).
+  const safePublicOnboarding: OrgMembershipOnboarding | undefined = opts?.onboarding
+    ? stripUndefined({
+        firstName: opts.onboarding.firstName,
+        lastName: opts.onboarding.lastName,
+        preferredName: opts.onboarding.preferredName,
+        memberNumber: opts.onboarding.memberNumber ? opts.onboarding.memberNumber.trim().toUpperCase() : undefined,
+        employeeNumber: opts.onboarding.employeeNumber ? opts.onboarding.employeeNumber.trim().toUpperCase() : undefined,
+        requestedRoleKey: opts.onboarding.requestedRoleKey,
+        ministryIds: opts.onboarding.ministryIds,
+        skills: opts.onboarding.skills,
+        isExistingCongregant: opts.onboarding.isExistingCongregant,
+        directoryVisible: opts.onboarding.directoryVisible ?? false,
+        hasPrivateVault: true,
+        submittedAt: opts.onboarding.submittedAt || now,
+      })
+    : undefined;
+
+  const membership: OrgMembership = stripUndefined({
     id: ref.id,
     orgId,
     userId: uid,
@@ -229,23 +305,43 @@ export async function joinOrganization(
     photoUrl: auth.currentUser.photoURL || '',
     title: opts?.title || 'Member',
     joinedAt: now,
-    roleKey: opts?.roleKey || 'MEMBER',
+    roleKey: opts?.roleKey || opts?.onboarding?.requestedRoleKey || 'MEMBER',
     rosterGroup: opts?.rosterGroup || 'MEMBER',
     source: 'SELF_APPLIED',
     ministryIds: opts?.ministryIds?.length ? opts.ministryIds : opts?.onboarding?.ministryIds,
     memberNumber: opts?.onboarding?.memberNumber ? opts.onboarding.memberNumber.trim().toUpperCase() : undefined,
-    claimEmailLower: (opts?.onboarding?.email || auth.currentUser.email || '').trim().toLowerCase() || undefined,
-    aboutInOrg: opts?.aboutInOrg || opts?.onboarding?.note,
-    onboarding: opts?.onboarding,
-  };
-  await setDoc(ref, stripUndefined(membership));
+    employeeNumber: opts?.onboarding?.employeeNumber ? opts.onboarding.employeeNumber.trim().toUpperCase() : undefined,
+    onboarding: safePublicOnboarding,
+  });
+  await setDoc(ref, membership);
+
+  // Persist private contact, address, household, and pastoral care notes into the restricted `orgOnboardingVault/{membershipId}` collection
+  if (opts?.onboarding) {
+    try {
+      await setDoc(
+        doc(db, 'orgOnboardingVault', ref.id),
+        stripUndefined({
+          id: ref.id,
+          membershipId: ref.id,
+          orgId,
+          userId: uid,
+          ...opts.onboarding,
+          email: (opts.onboarding.email || auth.currentUser.email || '').trim().toLowerCase() || undefined,
+          directoryVisible: opts.onboarding.directoryVisible ?? false,
+          submittedAt: opts.onboarding.submittedAt || now,
+          updatedAt: now,
+        }),
+      );
+    } catch { /* non-blocking if rules not yet deployed */ }
+  }
+
   if (membership.status === 'ACTIVE') {
     await syncMemberIndex(orgId, membership.userId);
   } else {
     // Notify org leadership of the pending membership onboarding request (best-effort)
     try {
       const org = await fetchOrganization(orgId);
-      const recipients = Array.from(new Set([org?.creatorId, ...(org?.admins || [])].filter(Boolean) as string[]));
+      const recipients = Array.from(new Set([org?.creatorId, ...(org?.admins || []), ...((org as any)?.pastorUids || [])].filter(Boolean) as string[]));
       for (const adminUid of recipients.slice(0, 5)) {
         if (adminUid === uid) continue;
         const notifRef = doc(collection(db, 'notifications'));
@@ -256,8 +352,8 @@ export async function joinOrganization(
           senderName: displayName,
           senderPhoto: auth.currentUser.photoURL || '',
           type: 'SYSTEM',
-          title: `Membership request · ${org?.name || 'Organization'}`,
-          message: `${displayName} requested to join ${org?.name || 'your organization'} as a member and completed member onboarding. Review & approve in Roster → Pending.`,
+          title: `Membership claim & onboarding · ${org?.name || 'Organization'}`,
+          message: `${displayName} submitted their membership onboarding for ${org?.name || 'your organization'}. Approving will auto-populate their Member ID, Employment #, and Church Directory record.`,
           isRead: false,
           timestamp: now,
           targetId: orgId,
@@ -268,6 +364,16 @@ export async function joinOrganization(
   return membership;
 }
 
+/** Fetch the restricted private onboarding vault record (accessible only to the member themselves or authorized org staff). */
+export async function fetchOnboardingVault(membershipId: string): Promise<OrgMembershipOnboarding | null> {
+  try {
+    const snap = await getDoc(doc(db, 'orgOnboardingVault', membershipId));
+    return snap.exists() ? (snap.data() as OrgMembershipOnboarding) : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Explicit alias for submitting a membership request with onboarding details (always PENDING approval). */
 export async function requestOrgMembership(
   orgId: string,
@@ -276,13 +382,13 @@ export async function requestOrgMembership(
   return joinOrganization(orgId, {
     role: 'MEMBER',
     status: 'PENDING',
-    roleKey: 'MEMBER',
+    roleKey: onboarding.requestedRoleKey || 'MEMBER',
     rosterGroup: 'MEMBER',
     ministryIds: onboarding.ministryIds,
-    onboarding: {
+    onboarding: stripUndefined({
       ...onboarding,
       submittedAt: Date.now(),
-    },
+    }),
   });
 }
 
@@ -490,55 +596,132 @@ export async function applyToOrg(
 }
 
 /**
- * Owner/admin/pastor accepts a PENDING applicant → ACTIVE (optionally setting their final role).
- * Also completes church/org membership onboarding by creating or linking their `chmsPeople`
- * congregation record (`linkedUid: member.userId`), syncing `orgMemberIndex`, and notifying them.
+ * Owner/admin/pastor accepts a PENDING applicant → ACTIVE (optionally setting their final role/roleKey).
+ * Automatically generates and populates the member's `memberNumber` (e.g. GCC-48213) and `employeeNumber`
+ * (e.g. GCC-EMP-4821) on the backend upon approval so users can claim/onboard without knowing their IDs upfront.
+ * Also populates the church's private `chmsPeople` & `chmsHouseholds` records from `orgOnboardingVault`.
  */
-export async function acceptOrgMember(membershipId: string, role?: OrgRole): Promise<void> {
+export async function acceptOrgMember(membershipId: string, role?: OrgRole, roleKeyOverride?: string): Promise<void> {
   const now = Date.now();
   const memSnap = await getDoc(doc(db, 'orgMemberships', membershipId)).catch(() => null);
   const memData = (memSnap?.exists() ? memSnap.data() : undefined) as OrgMembership | undefined;
   const orgId = memData?.orgId;
   const uid = memData?.userId;
 
+  const [org, vault] = await Promise.all([
+    orgId ? fetchOrganization(orgId).catch(() => null) : Promise.resolve(null),
+    fetchOnboardingVault(membershipId),
+  ]);
+
+  const ob: Partial<OrgMembershipOnboarding> = {
+    ...(memData?.onboarding || {}),
+    ...(vault || {}),
+  };
+
+  const finalRoleKey = roleKeyOverride || ob.requestedRoleKey || memData?.roleKey || 'MEMBER';
+  const finalRole: OrgRole = role || memData?.role || (finalRoleKey === 'STAFF' || finalRoleKey === 'PASTOR' || finalRoleKey === 'SENIOR_PASTOR' || finalRoleKey === 'DEPARTMENT_HEAD' ? 'STAFF' : 'MEMBER');
+  const isStaffOrLeader = finalRole !== 'MEMBER' || ['SENIOR_PASTOR', 'PASTOR', 'MINISTER', 'ELDER', 'DEACON', 'DEPARTMENT_HEAD', 'FINANCE_DIRECTOR', 'TREASURER', 'BOOKKEEPER', 'ACCOUNTANT', 'TRUSTEE', 'STAFF', 'MEDIA_TEAM'].includes(finalRoleKey);
+
+  let assignedMemberNumber = (ob.memberNumber || memData?.memberNumber || '').trim().toUpperCase();
+  let assignedEmployeeNumber = (ob.employeeNumber || memData?.employeeNumber || '').trim().toUpperCase();
+
+  // Look up existing chmsPeople records to match by uid, memberNumber, email, or full name and ensure ID uniqueness
+  let existingPeople: any[] = [];
+  let matched: any = null;
+  if (orgId && uid) {
+    try {
+      const peopleSnap = await getDocs(query(collection(db, 'chmsPeople'), where('orgId', '==', orgId))).catch(() => null);
+      existingPeople = (peopleSnap?.docs || []).map(d => ({ id: d.id, ...d.data() } as any));
+      const fullTarget = `${ob.firstName || ''} ${ob.lastName || ''}`.trim().toLowerCase() || (memData?.displayName || '').trim().toLowerCase();
+      matched = existingPeople.find(p =>
+        p.linkedUid === uid ||
+        (assignedMemberNumber && p.memberNumber && String(p.memberNumber).toUpperCase() === assignedMemberNumber) ||
+        (assignedEmployeeNumber && p.employeeNumber && String(p.employeeNumber).toUpperCase() === assignedEmployeeNumber) ||
+        (ob.email && p.email && String(p.email).toLowerCase() === ob.email.trim().toLowerCase()) ||
+        (fullTarget && `${p.firstName || ''} ${p.lastName || ''}`.trim().toLowerCase() === fullTarget),
+      );
+    } catch { /* non-blocking */ }
+  }
+
+  const takenMemberIds = new Set(existingPeople.map(p => String(p.memberNumber || '').toUpperCase()).filter(Boolean));
+  const takenEmpIds = new Set(existingPeople.map(p => String(p.employeeNumber || '').toUpperCase()).filter(Boolean));
+
+  if (!assignedMemberNumber) {
+    assignedMemberNumber = matched?.memberNumber
+      ? String(matched.memberNumber).toUpperCase()
+      : generateOrgMemberNumber(org, matched?.id || uid || membershipId, takenMemberIds);
+  }
+  if (!assignedEmployeeNumber) {
+    assignedEmployeeNumber = matched?.employeeNumber
+      ? String(matched.employeeNumber).toUpperCase()
+      : generateOrgEmployeeNumber(org, matched?.id || uid || membershipId, takenEmpIds);
+  }
+
   await updateDoc(
     doc(db, 'orgMemberships', membershipId),
     stripUndefined({
       status: 'ACTIVE',
       acceptedAt: now,
-      role: role || memData?.role || 'MEMBER',
-      roleKey: memData?.roleKey || 'MEMBER',
-      rosterGroup: memData?.rosterGroup || 'MEMBER',
+      role: finalRole,
+      roleKey: finalRoleKey,
+      rosterGroup: memData?.rosterGroup || (isStaffOrLeader ? 'STAFF' : 'MEMBER'),
+      isEmployee: memData?.isEmployee ?? isStaffOrLeader,
+      memberNumber: assignedMemberNumber,
+      employeeNumber: assignedEmployeeNumber,
+      onboarding: memData?.onboarding
+        ? stripUndefined({
+            ...memData.onboarding,
+            memberNumber: assignedMemberNumber,
+            employeeNumber: assignedEmployeeNumber,
+          })
+        : undefined,
     }),
   );
 
   if (orgId) await recomputeOrgStaffUids(orgId);
   if (orgId && uid) await syncMemberIndex(orgId, uid);
 
-  // Link or create their congregation/member record in chmsPeople if onboarding details were provided
+  // Populate or update the church's private congregation record (`chmsPeople`) and household (`chmsHouseholds`)
   if (orgId && uid && memData) {
     try {
-      const ob = memData.onboarding;
       const nameParts = (memData.displayName || 'Member').trim().split(/\s+/);
-      const firstName = ob?.firstName?.trim() || nameParts[0] || 'Member';
-      const lastName = ob?.lastName?.trim() || nameParts.slice(1).join(' ') || '';
+      const firstName = ob.firstName?.trim() || nameParts[0] || 'Member';
+      const lastName = ob.lastName?.trim() || nameParts.slice(1).join(' ') || '';
+      const hasAddress = !!(ob.address?.line1 || ob.address?.city || ob.address?.region || ob.address?.postal);
 
-      // Check if a chmsPeople record already exists for this linkedUid or email/memberNumber
-      const peopleSnap = await getDocs(query(collection(db, 'chmsPeople'), where('orgId', '==', orgId))).catch(() => null);
-      const existingPeople = (peopleSnap?.docs || []).map(d => ({ id: d.id, ...d.data() } as any));
-      const matched = existingPeople.find(p =>
-        p.linkedUid === uid ||
-        (ob?.memberNumber && p.memberNumber && String(p.memberNumber).toUpperCase() === ob.memberNumber.trim().toUpperCase()) ||
-        (ob?.email && p.email && String(p.email).toLowerCase() === ob.email.trim().toLowerCase()),
-      );
+      let householdId = matched?.householdId as string | undefined;
+      if (!householdId && (hasAddress || ob.familyMembers?.trim() || ob.householdNote?.trim())) {
+        try {
+          const hRef = doc(collection(db, 'chmsHouseholds'));
+          householdId = hRef.id;
+          await setDoc(hRef, stripUndefined({
+            id: hRef.id,
+            orgId,
+            name: `${lastName || firstName} Household`,
+            address: hasAddress ? ob.address : undefined,
+            notes: [ob.familyMembers ? `Family members: ${ob.familyMembers}` : '', ob.householdNote || ''].filter(Boolean).join(' · ') || undefined,
+            createdAt: now,
+            updatedAt: now,
+          }));
+        } catch { /* non-blocking */ }
+      }
 
       if (matched) {
         await updateDoc(doc(db, 'chmsPeople', matched.id), stripUndefined({
           linkedUid: uid,
           status: 'MEMBER',
-          phone: ob?.phone || matched.phone,
-          email: ob?.email || matched.email,
-          ministryIds: memData.ministryIds || matched.ministryIds,
+          preferredName: ob.preferredName || matched.preferredName,
+          phone: ob.phone || matched.phone,
+          email: ob.email || matched.email,
+          address: hasAddress ? ob.address : matched.address,
+          birthDate: ob.birthDate || matched.birthDate,
+          maritalStatus: ob.maritalStatus || matched.maritalStatus,
+          skills: ob.skills?.length ? ob.skills : matched.skills,
+          householdId: householdId || matched.householdId,
+          memberNumber: assignedMemberNumber,
+          employeeNumber: assignedEmployeeNumber,
+          directoryVisible: ob.directoryVisible ?? matched.directoryVisible ?? false,
+          ministryIds: memData.ministryIds || ob.ministryIds || matched.ministryIds,
           updatedAt: now,
         }));
       } else {
@@ -546,25 +729,34 @@ export async function acceptOrgMember(membershipId: string, role?: OrgRole): Pro
         await setDoc(pRef, stripUndefined({
           id: pRef.id,
           orgId,
+          householdId,
+          householdRole: householdId ? 'HEAD' : undefined,
           firstName,
           lastName,
-          email: ob?.email || memData.claimEmailLower || undefined,
-          phone: ob?.phone || undefined,
-          memberNumber: ob?.memberNumber || memData.memberNumber || undefined,
+          preferredName: ob.preferredName || undefined,
+          email: ob.email || undefined,
+          phone: ob.phone || undefined,
+          address: hasAddress ? ob.address : undefined,
+          birthDate: ob.birthDate || undefined,
+          maritalStatus: ob.maritalStatus || undefined,
+          skills: ob.skills?.length ? ob.skills : undefined,
+          memberNumber: assignedMemberNumber,
+          employeeNumber: assignedEmployeeNumber,
+          directoryVisible: ob.directoryVisible ?? false,
           status: 'MEMBER',
+          memberSince: new Date(now).toISOString().slice(0, 10),
           joinedAt: now,
           linkedUid: uid,
-          ministryIds: memData.ministryIds || ob?.ministryIds || [],
-          notes: ob?.note || ob?.householdNote || undefined,
+          ministryIds: memData.ministryIds || ob.ministryIds || [],
+          notes: [ob.note, ob.householdNote, ob.familyMembers ? `Family: ${ob.familyMembers}` : ''].filter(Boolean).join(' | ') || undefined,
           createdAt: now,
           updatedAt: now,
         }));
       }
     } catch { /* non-blocking if caller is not chmsPeopleStaff */ }
 
-    // Notify the approved member
+    // Notify the approved member with their auto-populated Member ID & Employment Number
     try {
-      const org = await fetchOrganization(orgId);
       const notifRef = doc(collection(db, 'notifications'));
       await setDoc(notifRef, {
         id: notifRef.id,
@@ -574,7 +766,7 @@ export async function acceptOrgMember(membershipId: string, role?: OrgRole): Pro
         senderPhoto: org?.logoUrl || '',
         type: 'SYSTEM',
         title: `Membership approved · ${org?.name || 'Organization'} 🎉`,
-        message: `Your membership at ${org?.name || 'the organization'} has been approved! Your member hub, department feeds, and rooms are now unlocked.`,
+        message: `Your membership at ${org?.name || 'the organization'} is approved! Your Member ID (${assignedMemberNumber}) and Staff/Employment ID (${assignedEmployeeNumber}) have been automatically populated on your account.`,
         isRead: false,
         timestamp: now,
         targetId: orgId,
@@ -583,9 +775,10 @@ export async function acceptOrgMember(membershipId: string, role?: OrgRole): Pro
   }
 }
 
-/** Owner/admin declines a PENDING applicant (removes the request). */
+/** Owner/admin declines a PENDING applicant (removes the request and any private onboarding vault entry). */
 export async function declineOrgMember(membershipId: string): Promise<void> {
   await deleteDoc(doc(db, 'orgMemberships', membershipId));
+  await deleteDoc(doc(db, 'orgOnboardingVault', membershipId)).catch(() => {});
 }
 
 /**

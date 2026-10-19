@@ -36,6 +36,46 @@ export default defineConfig(({ mode }) => {
       },
       plugins: [
         { name: 'pj-boot-version', transformIndexHtml: (html: string) => html.replace('__PJ_VERSION__', pjBootVersion()) },
+        {
+          name: 'pj-dev-proxy',
+          configureServer(server) {
+            server.middlewares.use('/api/proxy', async (req, res, next) => {
+              try {
+                const reqUrl = new URL(req.url || '', 'http://localhost');
+                const target = reqUrl.searchParams.get('url');
+                if (!target || !/^https?:\/\//i.test(target)) {
+                  res.statusCode = 400;
+                  res.setHeader('Content-Type', 'application/json');
+                  res.end(JSON.stringify({ error: 'Valid http/https url parameter required' }));
+                  return;
+                }
+                const upstream = await fetch(target, {
+                  headers: {
+                    'User-Agent': 'Mozilla/5.0 (compatible; Plajah/1.0)',
+                    'Accept': '*/*',
+                  },
+                  redirect: 'follow',
+                });
+                res.statusCode = upstream.status;
+                const ct = upstream.headers.get('content-type');
+                const cl = upstream.headers.get('content-length');
+                if (ct) res.setHeader('Content-Type', ct);
+                if (cl) res.setHeader('Content-Length', cl);
+                res.setHeader('Access-Control-Allow-Origin', '*');
+                const buf = Buffer.from(await upstream.arrayBuffer());
+                res.end(buf);
+              } catch (err: any) {
+                if (!res.headersSent) {
+                  res.statusCode = 502;
+                  res.setHeader('Content-Type', 'application/json');
+                  res.end(JSON.stringify({ error: err?.message || 'Proxy fetch failed' }));
+                } else {
+                  next();
+                }
+              }
+            });
+          },
+        },
         react(), 
         tailwindcss(),
         VitePWA({

@@ -166,7 +166,33 @@ export const RichText: React.FC<RichTextProps> = (props) => {
             href={seg.href}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              try {
+                const parsed = new URL(seg.href, typeof window !== 'undefined' ? window.location.origin : 'https://plajah.com');
+                const isPlajahOrigin =
+                  (typeof window !== 'undefined' && parsed.origin === window.location.origin) ||
+                  parsed.hostname.endsWith('plajah.com') ||
+                  parsed.hostname.endsWith('plajah.app');
+                if (isPlajahOrigin) {
+                  const qType = (parsed.searchParams.get('type') || '').toLowerCase();
+                  const qId = parsed.searchParams.get('id') || '';
+                  const qTrack = parsed.searchParams.get('track') || undefined;
+                  const pathParts = parsed.pathname.split('/').filter(Boolean);
+                  const albumId = (qType === 'album' || qType === 'track') && qId
+                    ? qId
+                    : pathParts[0] === 'album' && pathParts[1]
+                      ? pathParts[1]
+                      : '';
+                  if (albumId) {
+                    e.preventDefault();
+                    window.dispatchEvent(new CustomEvent('NAVIGATE', {
+                      detail: { target: 'PLAYER', albumId, trackId: qTrack },
+                    }));
+                  }
+                }
+              } catch {}
+            }}
             className="text-violet-400 underline hover:text-violet-300 transition-colors break-all"
           >
             {seg.href}

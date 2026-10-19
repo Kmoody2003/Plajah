@@ -4,6 +4,7 @@ import type { Organization, OrgMembership, Ministry } from '../../types';
 import { fetchOrgMembers } from '../../services/organizationService';
 import { getElevateRole, ELEVATE_ROLES } from '../../services/elevateRoles';
 import { rosterFor } from '../../services/elevateService';
+import { sanitizePublicMemberRecord } from '../../services/orgSecurityService';
 
 export interface ElevateRostersProps {
   org: Organization;
@@ -56,7 +57,7 @@ const ElevateRosters: React.FC<ElevateRostersProps> = ({ org, onVisitUser }) => 
   const [members, setMembers] = useState<OrgMembership[] | null>(null);
   useEffect(() => {
     let alive = true;
-    fetchOrgMembers(org.id).then(m => { if (alive) setMembers(m); }).catch(() => { if (alive) setMembers([]); });
+    fetchOrgMembers(org.id).then(m => { if (alive) setMembers(m.map(rec => sanitizePublicMemberRecord(rec) as OrgMembership)); }).catch(() => { if (alive) setMembers([]); });
     return () => { alive = false; };
   }, [org.id]);
   if (!members) return null;

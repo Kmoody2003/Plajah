@@ -34,7 +34,7 @@ export const LyricItem = React.memo(React.forwardRef<HTMLDivElement, LyricItemPr
         {line.text}
       </p>
       {translation && (
-        <p className="mt-1 text-lg lg:text-xl font-medium italic tracking-tight leading-snug select-none"
+        <p className="mt-1 text-lg lg:text-xl font-display font-bold uppercase tracking-tight leading-snug select-none"
           style={{ color: isActive ? 'rgba(255,140,0,0.72)' : 'rgba(255,255,255,0.5)' }}>
           {translation}
         </p>
@@ -173,7 +173,7 @@ export const TimeCodedLyrics: React.FC<{
                 {line.text}
               </p>
               {translation && (
-                <p className="mt-1.5 text-xl lg:text-2xl font-medium italic tracking-tight leading-snug select-none"
+                <p className="mt-1.5 text-xl lg:text-2xl font-display font-bold uppercase tracking-tight leading-snug select-none"
                   style={{ color: idx === activeIndex ? 'rgba(255,140,0,0.72)' : 'rgba(255,255,255,0.55)' }}>
                   {translation}
                 </p>

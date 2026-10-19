@@ -25,7 +25,8 @@ import {
   PUMPKIN_PATCH_HERO_ALBUM,
   archiveVideoToAlbum,
 } from '../services/archiveContentService';
-import { shareAsset } from '../services/deepLinkService';
+import { buildShareUrl } from '../services/deepLinkService';
+import ShareButton from './ShareButton';
 import { onThumbError } from '../src/lib/imageThumb';
 import { searchArtifacts, type Artifact } from '../services/artifactsService';
 import { EDU_FACTOIDS, factoidAt, type EduFactoid } from '../data/eduFactoids';
@@ -34,7 +35,7 @@ import { fetchNewsFromRSS } from '../services/rssService';
 import { getFollowedPodcasts } from '../services/podcastLibraryService';
 import { fetchPodcastFeed } from '../services/podcastRssReader';
 import { fetchStockQuotes } from '../services/stockQuoteService';
-import { auth, fetchUserProfile } from '../services/backendService';
+import { auth, fetchUserProfile, createPost, loginWithGoogle } from '../services/backendService';
 
 /* Shared hover-audio singleton lives in services/hoverPreview (one sample
    audible at a time, platform-wide — Chora Next uses the same instance). */
@@ -770,7 +771,6 @@ export const ArchiveRails: React.FC<{
   onOpenHalloween?: () => void;
 }> = ({ albums, onSelectItem, onOpenBooks, onOpenHalloween }) => {
   const halloweenCarouselRef = useRef<HTMLDivElement>(null);
-  const [halloweenCopied, setHalloweenCopied] = useState(false);
 
   // Same cached Gutendex source as the hero + Books page.
   const [classics, setClassics] = useState<ArchiveBook[]>([]);
@@ -796,17 +796,35 @@ export const ArchiveRails: React.FC<{
     el.scrollBy({ left: dir === 'left' ? -step : step, behavior: 'smooth' });
   };
 
-  const handleShareHalloweenRow = async () => {
-    const res = await shareAsset({
-      kind: 'taleoCollection',
-      id: 'halloween',
-      title: 'Taleo Halloween Cinema Showcase — Pumpkin Patch & 13 Restored Classics',
-      subtitle: 'Stream Brian James Gage’s Pumpkin Patch alongside 13 restored horror, Korean gothic & silent classics on Plajah Taleo.',
-    });
-    if (res !== 'dismissed') {
-      setHalloweenCopied(true);
-      window.setTimeout(() => setHalloweenCopied(false), 2600);
+  const halloweenShareUrl = useMemo(() => buildShareUrl('taleoCollection', 'halloween'), []);
+  const halloweenShareImage = pumpkinPatchHero.headerImage || pumpkinPatchHero.coverImage;
+
+  const handlePostHalloweenCurationToPlajah = async () => {
+    if (!auth.currentUser) {
+      await loginWithGoogle();
+      if (!auth.currentUser) throw new Error('Sign in required');
     }
+    await createPost({
+      text: `🎃 Exploring the Halloween Curation — headlined by Brian James Gage’s "Pumpkin Patch" alongside ${CURATED_HALLOWEEN_FILMS.length} restored horror, Korean gothic & silent classics on Taleo Cinema!`,
+      isPublic: true,
+      tags: ['HalloweenCuration', 'Taleo', 'PumpkinPatch', 'HorrorCinema'],
+      assetEmbed: {
+        type: 'TALEO_COLLECTION',
+        id: 'halloween',
+        title: `🎃 Halloween Curation — Pumpkin Patch & ${CURATED_HALLOWEEN_FILMS.length} Classics`,
+        subtitle: 'Headlined by Brian James Gage’s Pumpkin Patch · Korean Gothic · Midnight Horror',
+        imageUrl: halloweenShareImage,
+      },
+      media: halloweenShareImage
+        ? [
+            {
+              type: 'PHOTO' as any,
+              url: halloweenShareImage,
+              title: `🎃 Halloween Curation — Pumpkin Patch & ${CURATED_HALLOWEEN_FILMS.length} Classics`,
+            },
+          ]
+        : undefined,
+    } as any);
   };
 
   const handleExploreHalloween = () => {
@@ -856,15 +874,21 @@ export const ArchiveRails: React.FC<{
           </div>
 
           <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
-            <button
-              type="button"
-              onClick={handleShareHalloweenRow}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-white/8 hover:bg-white/15 border border-white/15 text-[9px] font-black uppercase tracking-[0.18em] text-white transition-all"
-              title="Share the Taleo Halloween Curation"
+            <ShareButton
+              title={`Halloween Curation · Pumpkin Patch & ${CURATED_HALLOWEEN_FILMS.length} Classics`}
+              artist="Headlined by Brian James Gage"
+              text={`Stream Brian James Gage’s "Pumpkin Patch" alongside ${CURATED_HALLOWEEN_FILMS.length} restored horror, Korean gothic & silent classics in the Halloween Curation`}
+              url={halloweenShareUrl}
+              imageUrl={halloweenShareImage}
+              contentType="movie"
+              ctaText="🎃 EXPLORE HALLOWEEN CURATION"
+              plajahLabel="Share Halloween Curation"
+              onPostToPlajah={handlePostHalloweenCurationToPlajah}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-white/8 hover:bg-white/15 border border-white/15 text-[9px] font-black uppercase tracking-[0.18em] text-white transition-all cursor-pointer"
             >
-              {halloweenCopied ? <Check size={12} className="text-emerald-400" /> : <Share2 size={12} className="text-orange-300" />}
-              {halloweenCopied ? 'Link Copied' : 'Share Selection'}
-            </button>
+              <Share2 size={12} className="text-orange-300" />
+              <span>Share Curation</span>
+            </ShareButton>
             {onOpenHalloween && (
               <button
                 type="button"
@@ -934,7 +958,7 @@ export const ArchiveRails: React.FC<{
               </div>
               <div className="absolute bottom-3 left-3 right-3">
                 <p className="text-[8px] font-black uppercase tracking-[0.22em] text-orange-300 mb-0.5">
-                  Plajah Original · Dir. {pumpkinPatchHero.artist}
+                  Featured Film · Dir. {pumpkinPatchHero.artist}
                 </p>
                 <h4 className="text-lg font-black italic uppercase tracking-tight text-white leading-none">
                   {pumpkinPatchHero.title}

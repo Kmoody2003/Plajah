@@ -1,10 +1,10 @@
 // RosterManager — operational roster: Pastoral / Leadership / Staff / Volunteers / Members + Pending approvals.
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Search, ChevronUp, ChevronDown, Pencil, Check, X, Loader2, Camera, UserPlus, Star } from 'lucide-react';
-import type { Organization, OrgMembership, RosterGroup, UserProfile } from '../../types';
+import type { Organization, OrgMembership, OrgMembershipOnboarding, RosterGroup, UserProfile } from '../../types';
 import { ELEVATE_ROLES, canAssignRole, elevateCan, getElevateRole } from '../../services/elevateRoles';
 import { assignRole, updateRosterEntry, rosterFor, recomputeOrgRoleIndex } from '../../services/elevateService';
-import { fetchOrgMembers, acceptOrgMember, declineOrgMember, addOrgMember, removeOrgMember } from '../../services/organizationService';
+import { fetchOrgMembers, acceptOrgMember, declineOrgMember, addOrgMember, removeOrgMember, fetchOnboardingVault } from '../../services/organizationService';
 import { searchUserProfiles, uploadFile } from '../../services/backendService';
 import { provisionAccount } from '../../services/elevateAccounts';
 import { savePerson } from '../../services/chmsPeople';
@@ -26,6 +26,8 @@ const pill = 'px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking
 
 const RosterManager: React.FC<RosterManagerProps> = ({ org, myMembership, onClose, onChanged }) => {
   const [members, setMembers] = useState<OrgMembership[]>([]);
+  const [pendingVaults, setPendingVaults] = useState<Record<string, OrgMembershipOnboarding>>({});
+  const [pendingRoles, setPendingRoles] = useState<Record<string, string>>({});
   const [tab, setTab] = useState<Tab>('PASTORAL');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
@@ -47,7 +49,21 @@ const RosterManager: React.FC<RosterManagerProps> = ({ org, myMembership, onClos
 
   const load = useCallback(async () => {
     setLoading(true);
-    try { setMembers(await fetchOrgMembers(org.id)); } catch (e: any) { setErr(e?.message || 'Could not load roster.'); }
+    try {
+      const ms = await fetchOrgMembers(org.id);
+      setMembers(ms);
+      const pend = ms.filter(m => m.status === 'PENDING');
+      if (pend.length) {
+        const entries = await Promise.all(
+          pend.map(async p => [p.id, await fetchOnboardingVault(p.id)] as const),
+        );
+        const vMap: Record<string, OrgMembershipOnboarding> = {};
+        for (const [id, v] of entries) {
+          if (v) vMap[id] = v;
+        }
+        setPendingVaults(vMap);
+      }
+    } catch (e: any) { setErr(e?.message || 'Could not load roster.'); }
     setLoading(false);
   }, [org.id]);
 
@@ -97,7 +113,11 @@ const RosterManager: React.FC<RosterManagerProps> = ({ org, myMembership, onClos
     setBusy(null);
   };
 
-  const approve = (m: OrgMembership) => run(m.id, async () => { await acceptOrgMember(m.id); await recomputeOrgRoleIndex(org.id); });
+  const approve = (m: OrgMembership) => run(m.id, async () => {
+    const chosenRoleKey = pendingRoles[m.id] || m.onboarding?.requestedRoleKey || m.roleKey || 'MEMBER';
+    await acceptOrgMember(m.id, undefined, chosenRoleKey);
+    await recomputeOrgRoleIndex(org.id);
+  });
   const decline = (m: OrgMembership) => run(m.id, async () => { await declineOrgMember(m.id); });
 
   const addPerson = (u: UserProfile) => run('add', async () => {
@@ -202,21 +222,49 @@ const RosterManager: React.FC<RosterManagerProps> = ({ org, myMembership, onClos
               const editing = editId === m.id;
               const def = getElevateRole(m.roleKey);
               const photo = m.orgPhotoUrl || m.photoUrl;
+              const vault = pendingVaults[m.id];
+              const chosenPendingRole = pendingRoleOverride[m.id] || m.onboarding?.requestedRoleKey || m.roleKey || 'congregation_member';
               return (
                 <div key={m.id} className="bg-white/[0.03] border border-white/10 rounded-2xl p-3">
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 flex-wrap sm:flex-nowrap">
                     <span className="w-10 h-10 rounded-full overflow-hidden bg-white/10 shrink-0 grid place-items-center text-sm font-black text-white/50">
                       {photo ? <img src={photo} alt="" className="w-full h-full object-cover" /> : m.displayName.charAt(0)}
                     </span>
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-bold text-white truncate flex items-center gap-1.5">{m.displayName}{m.isSenior && <Star size={12} className="text-amber-300" fill="currentColor" />}
-                        {m.isProvisioned && <span title={`Pre-provisioned — claim with member ID ${m.memberNumber || ''}`} className="px-1.5 py-0.5 rounded-full bg-sky-400/15 border border-sky-300/30 text-sky-200 text-[8px] font-black uppercase tracking-widest">Ready to claim{m.memberNumber ? ` · ${m.memberNumber}` : ''}</span>}
+                      <p className="text-sm font-bold text-white truncate flex items-center gap-1.5 flex-wrap">
+                        {m.displayName}
+                        {m.isSenior && <Star size={12} className="text-amber-300" fill="currentColor" />}
+                        {m.memberNumber && (
+                          <span className="px-1.5 py-0.5 rounded-md bg-white/[0.06] border border-white/10 text-white/70 text-[9px] font-mono">
+                            ID: {m.memberNumber}
+                          </span>
+                        )}
+                        {m.employeeNumber && (
+                          <span className="px-1.5 py-0.5 rounded-md bg-purple-500/15 border border-purple-400/30 text-purple-200 text-[9px] font-mono">
+                            EMP: {m.employeeNumber}
+                          </span>
+                        )}
+                        {m.isProvisioned && (
+                          <span title={`Pre-provisioned — claim with name/email or ID ${m.memberNumber || ''}`} className="px-1.5 py-0.5 rounded-full bg-sky-400/15 border border-sky-300/30 text-sky-200 text-[8px] font-black uppercase tracking-widest">
+                            Ready to claim{m.memberNumber ? ` · ${m.memberNumber}` : ''}
+                          </span>
+                        )}
                       </p>
                       <p className="text-[11px] text-white/45 truncate">{m.title || def?.label || 'Member'}</p>
                     </div>
                     {tab === 'PENDING' ? (
-                      <div className="flex gap-1.5">
-                        <button onClick={() => approve(m)} disabled={busy === m.id} className={`${pill} bg-emerald-500/20 border-emerald-400/30 text-emerald-200 flex items-center gap-1`}><Check size={12} /> Approve</button>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <select
+                          value={chosenPendingRole}
+                          onChange={e => setPendingRoleOverride(prev => ({ ...prev, [m.id]: e.target.value }))}
+                          className="bg-black/40 border border-white/15 rounded-full px-2.5 py-1 text-[10px] font-bold text-white"
+                          title="Assign role upon approval"
+                        >
+                          {ELEVATE_ROLES.map(r => (
+                            <option key={r.key} value={r.key} className="bg-[#0e0e11]">{r.label}</option>
+                          ))}
+                        </select>
+                        <button onClick={() => approve(m)} disabled={busy === m.id} className={`${pill} bg-emerald-500/20 border-emerald-400/30 text-emerald-200 flex items-center gap-1`}><Check size={12} /> Approve &amp; Auto-Assign IDs</button>
                         <button onClick={() => decline(m)} disabled={busy === m.id} className={`${pill} bg-red-500/10 border-red-400/20 text-red-300 flex items-center gap-1`}><X size={12} /> Decline</button>
                       </div>
                     ) : (
@@ -230,27 +278,78 @@ const RosterManager: React.FC<RosterManagerProps> = ({ org, myMembership, onClos
                   </div>
 
                   {tab === 'PENDING' && (
-                    <div className="mt-2 pt-2 border-t border-white/5 space-y-1 text-[11px] text-white/55">
-                      {(def || m.title) && <p>Requested role: <span className="text-white/80 font-bold">{m.title || def?.label}</span></p>}
-                      {m.onboarding && (
+                    <div className="mt-2.5 pt-2.5 border-t border-white/5 space-y-1.5 text-[11px] text-white/60">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-emerald-300 bg-emerald-500/10 border border-emerald-400/25 px-2 py-0.5 rounded-full">
+                          🔒 Private Sanctuary Onboarding Vault · Populates ChMS on Approval
+                        </span>
+                        <span className="text-[10px] text-purple-300 font-bold">
+                          Member ID &amp; Employment # auto-generate on approval
+                        </span>
+                      </div>
+                      {(m.onboarding || vault) && (
                         <>
-                          <p className="flex flex-wrap gap-x-3 gap-y-1">
-                            {m.onboarding.email && <span>Email: <span className="text-white/80">{m.onboarding.email}</span></span>}
-                            {m.onboarding.phone && <span>Phone: <span className="text-white/80">{m.onboarding.phone}</span></span>}
-                            {m.onboarding.memberNumber && <span>Member ID: <span className="text-sky-300 font-bold">{m.onboarding.memberNumber}</span></span>}
-                            {m.onboarding.isExistingCongregant && <span className="text-emerald-300 font-bold">· Existing Congregation Member</span>}
+                          <p className="flex flex-wrap gap-x-4 gap-y-1">
+                            {(vault?.email || m.onboarding?.email) && (
+                              <span>Private Email: <span className="text-white/85 font-semibold">{vault?.email || m.onboarding?.email}</span></span>
+                            )}
+                            {(vault?.phone || m.onboarding?.phone) && (
+                              <span>Private Phone: <span className="text-white/85 font-semibold">{vault?.phone || m.onboarding?.phone}</span></span>
+                            )}
+                            {(vault?.memberNumber || m.onboarding?.memberNumber) && (
+                              <span>Provided Member ID: <span className="text-sky-300 font-bold">{vault?.memberNumber || m.onboarding?.memberNumber}</span></span>
+                            )}
+                            {(vault?.employeeNumber || m.onboarding?.employeeNumber) && (
+                              <span>Provided Emp #: <span className="text-purple-300 font-bold">{vault?.employeeNumber || m.onboarding?.employeeNumber}</span></span>
+                            )}
+                            {(vault?.isExistingCongregant ?? m.onboarding?.isExistingCongregant) && (
+                              <span className="text-emerald-300 font-bold">· Existing Congregation / Staff Member</span>
+                            )}
                           </p>
-                          {!!m.onboarding.ministryIds?.length && (
+                          {(vault?.address || m.onboarding?.address) && (
+                            <p>
+                              Private Address:{' '}
+                              <span className="text-white/80">
+                                {[
+                                  (vault?.address || m.onboarding?.address)?.line1,
+                                  (vault?.address || m.onboarding?.address)?.city,
+                                  (vault?.address || m.onboarding?.address)?.region,
+                                  (vault?.address || m.onboarding?.address)?.postal,
+                                ].filter(Boolean).join(', ')}
+                              </span>
+                            </p>
+                          )}
+                          {!!(vault?.familyMembers || m.onboarding?.familyMembers)?.length && (
+                            <p>
+                              Household / Family:{' '}
+                              <span className="text-white/85">
+                                {(vault?.familyMembers || m.onboarding?.familyMembers || [])
+                                  .map(fm => `${fm.name} (${fm.relation})`)
+                                  .join(' · ')}
+                              </span>
+                            </p>
+                          )}
+                          {!!(vault?.skills || m.onboarding?.skills)?.length && (
+                            <p>
+                              Gifts &amp; Skills:{' '}
+                              <span className="text-white/80">
+                                {(vault?.skills || m.onboarding?.skills || []).join(', ')}
+                              </span>
+                            </p>
+                          )}
+                          {!!(vault?.ministryIds || m.onboarding?.ministryIds)?.length && (
                             <p>
                               Ministries:{' '}
                               <span className="text-white/80">
-                                {m.onboarding.ministryIds
+                                {(vault?.ministryIds || m.onboarding?.ministryIds || [])
                                   .map(id => ministries.find(min => min.id === id)?.name || id)
                                   .join(', ')}
                               </span>
                             </p>
                           )}
-                          {m.onboarding.note && <p className="italic text-white/60">"{m.onboarding.note}"</p>}
+                          {(vault?.note || m.onboarding?.note) && (
+                            <p className="italic text-white/60">"{vault?.note || m.onboarding?.note}"</p>
+                          )}
                         </>
                       )}
                     </div>

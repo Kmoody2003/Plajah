@@ -128,6 +128,9 @@ const TVStudio = retryLazy(() => import('./components/TVStudio'));
 const LiveAudioFxAuditionLab = retryLazy(() => import('./components/labs/LiveAudioFxAuditionLab'));
 // Universal Video Player (Reello, Taleo, Local Files, Asset HQ)
 const ReelloUniversalVideoPlayer = retryLazy(() => import('./components/reello/ReelloUniversalVideoPlayer'));
+// Platform-wide Admin Visual WYSIWYG Site Editor & Live Telemetry HUD
+const AdminVisualSiteEditor = retryLazy(() => import('./components/admin/AdminVisualSiteEditor'));
+import { startPresenceHeartbeat } from './services/liveTelemetryService';
 
 import ExperiencePicker from './components/ExperiencePicker';
 // Lazy: desktop/mobile floating player (never mounted on TV) — carries mux-player/media-chrome.
@@ -705,15 +708,29 @@ const App: React.FC = () => {
   }
 
   // Check for ?view=pitch-music|pitch-film|pitch-writer|research and ?room=<id> on load
-  const pitchParam = new URLSearchParams(window.location.search).get('view');
-  const roomParam = new URLSearchParams(window.location.search).get('room');
-  const callinParam = new URLSearchParams(window.location.search).get('callin');
-  const listenParam = new URLSearchParams(window.location.search).get('listen');
+  const searchParamsOnLoad = new URLSearchParams(window.location.search);
+  const pitchParam = searchParamsOnLoad.get('view');
+  const roomParam = searchParamsOnLoad.get('room');
+  const callinParam = searchParamsOnLoad.get('callin');
+  const listenParam = searchParamsOnLoad.get('listen');
+  const taleoCollectionParam = searchParamsOnLoad.get('collection') || (searchParamsOnLoad.get('type') === 'taleo' ? (searchParamsOnLoad.get('id') || 'halloween') : null);
+  if (taleoCollectionParam) {
+    try {
+      if (taleoCollectionParam.toLowerCase().includes('halloween')) {
+        sessionStorage.setItem('plajah:taleo:initialSubView', 'HALLOWEEN');
+      }
+      const shelfOnLoad = searchParamsOnLoad.get('shelf');
+      if (shelfOnLoad) {
+        sessionStorage.setItem('plajah:taleo:initialShelf', shelfOnLoad);
+      }
+    } catch {}
+  }
   const pitchInitialView: AppView =
     callinParam                   ? 'PODCAST_CALLIN'     :
     listenParam                   ? 'PODCAST_LISTEN'     :
     roomParam                     ? 'ROOM'               :
-    (new URLSearchParams(window.location.search).get('atlas') !== null || pitchParam === 'atlas' || pitchParam === 'machine-atlas') ? 'MACHINE_ATLAS' :
+    (taleoCollectionParam && !searchParamsOnLoad.get('film')) ? 'MOVIES_TV' :
+    (searchParamsOnLoad.get('atlas') !== null || pitchParam === 'atlas' || pitchParam === 'machine-atlas') ? 'MACHINE_ATLAS' :
     pitchParam === 'pitch-music'  ? 'PITCH_MUSIC'        :
     pitchParam === 'pitch-film'   ? 'PITCH_FILM'         :
     pitchParam === 'pitch-writer' ? 'PITCH_WRITER'       :
@@ -724,7 +741,7 @@ const App: React.FC = () => {
     pitchParam === 'crossover'    ? 'CROSSOVER'          :
     pitchParam === 'terra'        ? 'TERRA'              :
     pitchParam === 'business'     ? 'PLAJAH_BUSINESS'    :
-    pitchParam === 'elevate' || pitchParam === 'plajah-elevate' || new URLSearchParams(window.location.search).get('elevate') !== null ? 'PLAJAH_ELEVATE' :
+    pitchParam === 'elevate' || pitchParam === 'plajah-elevate' || searchParamsOnLoad.get('elevate') !== null ? 'PLAJAH_ELEVATE' :
     pitchParam === 'home'         ? 'PLAJAH_HOME'        :
     pitchParam === 'ora'          ? 'ORA'                :
     pitchParam === 'assignment'   ? 'STUDENT_ASSIGNMENT' :
@@ -923,6 +940,26 @@ const App: React.FC = () => {
     window.addEventListener('plajah:openGalleryEditor', h as EventListener);
     return () => window.removeEventListener('plajah:openGalleryEditor', h as EventListener);
   }, [openGalleryEditor]);
+
+  // Open a Taleo curated collection (e.g. Special Halloween Curation) from anywhere in the app (such as a shared PostCard in the Plajah feed).
+  useEffect(() => {
+    const h = (e: Event) => {
+      const d = (e as CustomEvent)?.detail || {};
+      const colId = String(d.id || 'halloween').toLowerCase();
+      try {
+        if (colId.includes('halloween')) {
+          sessionStorage.setItem('plajah:taleo:initialSubView', 'HALLOWEEN');
+        }
+        if (d.shelf) {
+          sessionStorage.setItem('plajah:taleo:initialShelf', String(d.shelf));
+        }
+      } catch {}
+      setIsPublicView(true);
+      setView('MOVIES_TV');
+    };
+    window.addEventListener('OPEN_TALEO_COLLECTION', h as EventListener);
+    return () => window.removeEventListener('OPEN_TALEO_COLLECTION', h as EventListener);
+  }, [setView]);
 
   // Deep link: ?g=<id> or #g/<id> → fetch the gallery and open it on load.
   useEffect(() => {
@@ -1438,6 +1475,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       return () => cleanup();
     }
   }, [user?.uid]);
+
+  // Real-time platform presence & view telemetry heartbeat
+  useEffect(() => {
+    startPresenceHeartbeat(view, user, userProfile);
+  }, [view, user, userProfile]);
   const [theme, setTheme] = useState<ThemeType>('PLAJAH');
   // Remember the user's desktop theme so we can restore it when the window is resized
   // back up from a mobile/PHONE width (checkDevice forces PHONE going down).
@@ -2774,14 +2816,41 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         return;
       }
       setIsMediaPlajahMode(false);
-      if (params?.album) {
-        setSelectedAlbum(params.album);
+      const openAlbumAndPlaySong = (alb: Album) => {
+        setSelectedAlbum(alb);
         setSelectedVideo(null);
+        setView('PLAYER');
+        const requestedTrack =
+          params?.track ||
+          (params?.trackId ? (alb.tracks || []).find(t => t.id === params.trackId) : undefined) ||
+          (alb.tracks || [])[0];
+        if (requestedTrack) {
+          playTrack(requestedTrack, alb, 'LIBRARY');
+        }
+      };
+      if (params?.album) {
+        openAlbumAndPlaySong(params.album);
+      } else if (params?.albumId) {
+        const localMatch = albums.find(a => a.id === params.albumId);
+        if (localMatch && (localMatch.tracks || []).length > 0) {
+          openAlbumAndPlaySong(localMatch);
+        } else {
+          fetchProjectFromCloud(params.albumId)
+            .then(remote => {
+              if (remote) openAlbumAndPlaySong(remote);
+              else if (localMatch) openAlbumAndPlaySong(localMatch);
+            })
+            .catch(() => {
+              if (localMatch) openAlbumAndPlaySong(localMatch);
+            });
+        }
       } else if (params?.video) {
         setSelectedVideo(params.video);
         setSelectedAlbum(null);
+        setView('PLAYER');
+      } else {
+        setView('PLAYER');
       }
-      setView('PLAYER');
     } else if (target === 'RELLO' || target === 'VIDEOS') {
       // Reello playback. With a videoId, land ON that short in the reel feed (same path as a
       // shared /share?type=video link); without one, open the Reello feed. Fabula uses this to
@@ -8504,6 +8573,18 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           }}
         />
       )}
+
+      {/* Global Admin Visual WYSIWYG Site Editor, Pre-Wired Creative Tools, Councils & Live Telemetry HUD */}
+      <AdminVisualSiteEditor
+        currentView={view}
+        onNavigate={(nextView) => setView(nextView)}
+        isAdmin={
+          userProfile?.role === 'admin' ||
+          userProfile?.role === 'staff' ||
+          user?.email === 'kmoody2003@gmail.com'
+        }
+        userEmail={user?.email}
+      />
 
       </Suspense>
             </SpatialProvider>

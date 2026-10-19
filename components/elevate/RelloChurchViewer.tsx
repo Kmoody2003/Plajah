@@ -119,12 +119,14 @@ interface RelloChurchViewerProps {
   org: Organization;
   onOpenFullLectio?: (ref: ScriptureRef) => void;
   inSanctuaryAutoEngaged?: boolean;
+  defaultPlayerExpanded?: boolean;
 }
 
 export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
   org,
   onOpenFullLectio,
   inSanctuaryAutoEngaged = true,
+  defaultPlayerExpanded = true,
 }) => {
   const liveFeeds = useOrgLive(org, true);
   const orgChannels = useOrgChannels(org, true);
@@ -312,6 +314,7 @@ export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
     [streamCatalog, selectedStreamId]
   );
 
+  const [playerExpanded, setPlayerExpanded] = useState<boolean>(defaultPlayerExpanded);
   const [playing, setPlaying] = useState<boolean>(true);
   const [muted, setMuted] = useState<boolean>(true);
   const [playheadSec, setPlayheadSec] = useState<number>(activeStream.initialPlayheadSec);
@@ -512,19 +515,46 @@ export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
           <div className="flex items-center gap-2.5">
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-[#D40055] text-white shadow-[0_0_16px_rgba(212,0,85,0.5)]">
               <span className="w-2 h-2 rounded-full bg-white animate-ping" />
-              Live Sanctuary & Ministry TV Channels
+              {org.orgType === 'CULTURAL'
+                ? 'Live Institution & Exhibition TV Channels'
+                : org.orgType === 'NONPROFIT'
+                ? 'Live Impact & Program TV Channels'
+                : 'Live Sanctuary & Ministry TV Channels'}
             </span>
             <span className="text-xs text-[#E0CEFF]/75 hidden sm:inline">
-              Drop directly into a live broadcast or 24/7 ministry TV channel — Rello Church Viewer & Lectio Mini-Bible auto-engage below
+              Persistent across all tabs — hop into any live broadcast or 24/7 TV channel without leaving your current tab
             </span>
           </div>
 
-          {inSanctuaryAutoEngaged && (
-            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-400/40 text-emerald-300 text-[10.5px] font-bold">
-              <Navigation size={11} />
-              <span>Schedule + GPS Sanctuary Lock Active · Ambo Dictation Synced</span>
-            </div>
-          )}
+          <div className="flex items-center gap-2 flex-wrap">
+            {inSanctuaryAutoEngaged && (
+              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-400/40 text-emerald-300 text-[10.5px] font-bold">
+                <Navigation size={11} />
+                <span>Schedule + GPS Lock Active · Ambo Synced</span>
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => setPlayerExpanded(v => !v)}
+              className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all flex items-center gap-1.5"
+              style={
+                playerExpanded
+                  ? {
+                      background: 'rgba(255,255,255,0.08)',
+                      borderColor: 'rgba(255,255,255,0.2)',
+                      color: '#fff',
+                    }
+                  : {
+                      background: '#E8C170',
+                      borderColor: '#E8C170',
+                      color: '#000',
+                    }
+              }
+            >
+              {playerExpanded ? <Pause size={10} /> : <Play size={10} />}
+              <span>{playerExpanded ? 'Minimize Stream Stage' : 'Expand Stream Stage'}</span>
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
@@ -533,15 +563,19 @@ export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
             return (
               <button
                 key={item.id}
-                onClick={() => setSelectedStreamId(item.id)}
+                onClick={() => {
+                  setSelectedStreamId(item.id);
+                  setPlayerExpanded(true);
+                  setPlaying(true);
+                }}
                 className={`text-left rounded-2xl p-3.5 border transition-all flex flex-col justify-between relative overflow-hidden group ${
-                  isSelected
+                  isSelected && playerExpanded
                     ? 'ring-2 ring-[#E8C170] scale-[1.01]'
                     : 'hover:border-[#E0CEFF]/40'
                 }`}
                 style={{
                   background: item.thumbnailGradient,
-                  borderColor: isSelected ? '#E8C170' : 'rgba(224,206,255,0.18)',
+                  borderColor: isSelected && playerExpanded ? '#E8C170' : 'rgba(224,206,255,0.18)',
                 }}
               >
                 <div className="flex items-center justify-between gap-2 mb-3">
@@ -578,7 +612,7 @@ export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
                   <div className="text-[11px] text-white/70 mt-1 flex items-center justify-between">
                     <span className="truncate">{item.speaker}</span>
                     <span className="inline-flex items-center gap-0.5 text-[#E8C170] font-bold text-[10px] group-hover:translate-x-0.5 transition-transform">
-                      {isSelected ? 'Watching' : 'Drop In'} <ChevronRight size={12} />
+                      {isSelected && playerExpanded ? 'Watching' : 'Hop In'} <ChevronRight size={12} />
                     </span>
                   </div>
                 </div>
@@ -589,6 +623,7 @@ export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
       </div>
 
       {/* ── 2. RELLO CHURCH VIEWER MODE + AUTO-MOUNTING LECTIO MINI-BIBLE ── */}
+      {playerExpanded && (
       <div
         className="rounded-3xl border overflow-hidden shadow-2xl"
         style={{
@@ -600,7 +635,7 @@ export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
         <div className="px-5 py-3 border-b border-white/10 flex items-center justify-between gap-3 flex-wrap bg-black/40">
           <div className="flex items-center gap-2.5">
             <span className="px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest bg-[#6B0099] text-white border border-[#E0CEFF]/30">
-              Rello Church Viewer Mode
+              Rello Live Stream Stage
             </span>
             <span className="text-sm font-bold text-white truncate max-w-md">
               {activeStream.title}
@@ -953,6 +988,7 @@ export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
           )}
         </div>
       </div>
+      )}
     </div>
   );
 };

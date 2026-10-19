@@ -253,7 +253,6 @@ const MixPlayerView: React.FC<MixPlayerViewProps> = ({ album, onBack, user, onOp
                   onPostToPlajah={async () => {
                     await createPost({
                       text: `🎧 ${album.title} — ${album.artist} (mix)`,
-                      media: [{ type: 'AUDIO', url: track.url || '', id: track.id, title: album.title, thumbnail: cover || album.coverImage } as any],
                       albumEmbed: album,
                     } as any);
                   }}

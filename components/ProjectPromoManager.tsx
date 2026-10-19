@@ -11,9 +11,12 @@
  * `promoKit` (merge write; removals store '' so re-publish overwrites survive).
  */
 import React, { useEffect, useMemo, useState } from 'react';
-import { ChevronLeft, Upload, Trash2, Check, Loader2, Megaphone } from 'lucide-react';
+import { ChevronLeft, Upload, Trash2, Check, Loader2, Megaphone, Music2, Sparkles } from 'lucide-react';
 import type { Album, PromoKit } from '../types';
 import { auth, fetchUserAlbums, updateAlbum, uploadFile } from '../services/backendService';
+import { resolveChoraTrackStreamUrl } from '../services/chora/promoExportService';
+import { selectFirst15Seconds } from '../services/chora/audioSnippetService';
+import { ChoraPromoModal } from './music/ChoraPromoModal';
 
 type SlotKey = keyof Omit<PromoKit, 'updatedAt'>;
 
@@ -31,7 +34,7 @@ interface SlotDef {
 const SLOTS: SlotDef[] = [
   { key: 'teaserLoopUrl', label: 'Teaser Loop', where: 'Landing panorama columns · story tease', spec: '1080 × 1920 · 9:16 · MP4/WebM · ≤ 30 s', accept: 'video/*,.mp4,.m4v,.mov,.webm', kind: 'video', ratio: '9 / 16', maxBytes: 40 * 1024 * 1024 },
   { key: 'trailerUrl', label: 'Trailer', where: 'Marquee hero · Taleo page · TV apps', spec: '1920 × 1080 · 16:9 · MP4 H.264 · ≤ 90 s', accept: 'video/*,.mp4,.m4v,.mov,.webm', kind: 'video', ratio: '16 / 9', maxBytes: 120 * 1024 * 1024 },
-  { key: 'audioSampleUrl', label: 'Audio Sample', where: 'Chora hover · rails · listening parties', spec: '48 kHz stereo · AAC/MP3 · ~30 s loop', accept: 'audio/*,.mp3,.m4a,.aac,.wav,.flac,.ogg', kind: 'audio', ratio: '5 / 2', maxBytes: 12 * 1024 * 1024 },
+  { key: 'audioSampleUrl', label: 'Audio Sample', where: 'Chora hover · rails · listening parties', spec: 'Chora 15s stream · 48 kHz AAC/MP3', accept: 'audio/*,.mp3,.m4a,.aac,.wav,.flac,.ogg', kind: 'audio', ratio: '5 / 2', maxBytes: 50 * 1024 * 1024 },
   { key: 'keyArtUrl', label: 'Key Art', where: 'Archive tiles · rails · search', spec: '1500 × 1500 · 1:1 · PNG/JPG', accept: 'image/*', kind: 'image', ratio: '1 / 1', maxBytes: 8 * 1024 * 1024 },
   { key: 'posterUrl', label: 'Poster', where: 'Taleo & Lorea poster surfaces', spec: '1000 × 1500 · 2:3 · PNG/JPG', accept: 'image/*', kind: 'image', ratio: '2 / 3', maxBytes: 8 * 1024 * 1024 },
   { key: 'wideBannerUrl', label: 'Wide Banner', where: 'Rail headers · profile & org headers', spec: '2560 × 720 · 32:9 · PNG/JPG', accept: 'image/*', kind: 'image', ratio: '32 / 9', maxBytes: 10 * 1024 * 1024 },
@@ -47,6 +50,7 @@ const ProjectPromoManager: React.FC<{ onBack: () => void; preselectedAlbum?: Alb
   const [uploading, setUploading] = useState<Partial<Record<SlotKey, number>>>({});
   const [errors, setErrors] = useState<Partial<Record<SlotKey, string>>>({});
   const [savedFlash, setSavedFlash] = useState(false);
+  const [showStudioModal, setShowStudioModal] = useState(false);
 
   useEffect(() => {
     const uid = auth.currentUser?.uid;
@@ -138,7 +142,7 @@ const ProjectPromoManager: React.FC<{ onBack: () => void; preselectedAlbum?: Alb
   /* ── kit folder ── */
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
-      <div className="flex items-start gap-4">
+      <div className="flex items-start gap-4 flex-wrap">
         <button type="button" onClick={() => (preselectedAlbum ? onBack() : setSelected(null))} className="p-2 rounded-full bg-white/5 hover:bg-white/10 text-white/60 transition-colors shrink-0" aria-label="Back">
           <ChevronLeft size={18} />
         </button>
@@ -149,6 +153,13 @@ const ProjectPromoManager: React.FC<{ onBack: () => void; preselectedAlbum?: Alb
             {savedFlash && <span className="ml-3 text-[#06D6A0] tracking-widest inline-flex items-center gap-1"><Check size={11} /> Saved</span>}
           </p>
         </div>
+        <button
+          type="button"
+          onClick={() => setShowStudioModal(true)}
+          className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#d40055] to-[#ff8c00] text-white text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 shadow-md shrink-0"
+        >
+          <Sparkles size={13} /> Open Auto-Promo Studio
+        </button>
         <div className="w-12 h-12 rounded-xl bg-cover bg-center border border-white/10 shrink-0" style={{ backgroundImage: `url(${selected.coverThumb || selected.coverImage})` }} />
       </div>
 
@@ -158,7 +169,7 @@ const ProjectPromoManager: React.FC<{ onBack: () => void; preselectedAlbum?: Alb
           const progress = uploading[slot.key];
           const err = errors[slot.key];
           return (
-            <div key={slot.key} className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+            <div key={slot.key} className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 space-y-2.5">
               <div className="flex items-center gap-4">
                 {/* shape swatch drawn at true aspect ratio */}
                 <div className="h-9 rounded-md shrink-0" style={{ aspectRatio: slot.ratio, background: url ? 'linear-gradient(135deg,#06D6A0,#00DAF3)' : 'linear-gradient(135deg,#6B0099,#D40055)', opacity: url ? 0.9 : 0.5 }} />
@@ -192,6 +203,42 @@ const ProjectPromoManager: React.FC<{ onBack: () => void; preselectedAlbum?: Alb
                   )}
                 </div>
               </div>
+
+              {/* Select song directly from Chora stream (first 15s) */}
+              {slot.key === 'audioSampleUrl' && (selected.tracks || []).length > 0 && (
+                <div className="p-2.5 rounded-xl bg-black/40 border border-[#ff8c00]/25 space-y-1.5">
+                  <div className="text-[9px] font-mono uppercase tracking-widest text-[#ff8c00] font-bold flex items-center gap-1">
+                    <Music2 size={11} /> Pull Streaming Song Directly from Chora (First 15s)
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {(selected.tracks || []).map((trk, idx) => (
+                      <button
+                        key={trk.id}
+                        type="button"
+                        onClick={async () => {
+                          setErrors(e => ({ ...e, audioSampleUrl: undefined }));
+                          const streamUrl = await resolveChoraTrackStreamUrl(trk);
+                          if (!streamUrl) {
+                            setErrors(e => ({ ...e, audioSampleUrl: 'Could not resolve Chora stream for this song.' }));
+                            return;
+                          }
+                          const first15 = selectFirst15Seconds(trk);
+                          await persist({ ...kit, audioSampleUrl: streamUrl });
+                          if ((selected as any).autoPromo) {
+                            await updateAlbum(selected.id, {
+                              autoPromo: { ...(selected as any).autoPromo, snippets: [first15] },
+                            } as any);
+                          }
+                        }}
+                        className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white/5 hover:bg-[#ff8c00] hover:text-black text-white/85 border border-white/10 transition-all"
+                      >
+                        {idx + 1}. {trk.title} (0s–15s Chora Stream)
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {err && <p className="mt-2 text-[10px] font-bold text-red-400">{err}</p>}
               {url && (
                 <div className="mt-3">
@@ -212,6 +259,17 @@ const ProjectPromoManager: React.FC<{ onBack: () => void; preselectedAlbum?: Alb
           A project with nothing extra still looks good — a project with a full kit owns the front page. Fill what fits your work; every slot is optional.
         </p>
       </div>
+
+      {showStudioModal && selected && (
+        <ChoraPromoModal
+          album={selected}
+          onClose={() => setShowStudioModal(false)}
+          onUpdateAlbum={(updated) => {
+            setSelected(updated);
+            if (updated.promoKit) setKit(updated.promoKit);
+          }}
+        />
+      )}
     </div>
   );
 };

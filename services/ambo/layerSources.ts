@@ -45,7 +45,23 @@ export interface LayerSource {
   size(): { w: number; h: number } | null;
   /** True once there is something worth showing. */
   ready(): boolean;
+  /** Update internal render target dimensions in-place without rebuilding state. */
+  resize?(w: number, h: number): void;
   dispose(): void;
+}
+
+/**
+ * Scales an output frame size proportionally so the longest edge is at most `maxEdge`
+ * while preserving the exact output aspect ratio (preventing drawCover crop on non-16:9 displays).
+ */
+export function scaleVisualizerSize(fw: number, fh: number, maxEdge = 1280): { w: number; h: number } {
+  const safeW = Math.max(2, fw || 1280);
+  const safeH = Math.max(2, fh || 720);
+  const s = Math.min(1, maxEdge / Math.max(safeW, safeH, 1));
+  return {
+    w: Math.max(2, Math.round(safeW * s)),
+    h: Math.max(2, Math.round(safeH * s)),
+  };
 }
 
 const off = (w: number, h: number): HTMLCanvasElement => {
@@ -896,7 +912,7 @@ export class GeneratorSource implements LayerSource {
     const p = this.content.params ?? {};
     // Speed-scaled clock: integrate so moving the slider changes pace, never position.
     const speed = Math.max(0, numParam(p, 'speed', 1));
-    if (this.lastT < 0) this.vt = timeSec;
+    if (this.lastT < 0) this.vt = timeSec * speed;
     else this.vt += Math.max(0, Math.min(0.25, timeSec - this.lastT)) * speed;
     this.lastT = timeSec;
     const vt = this.vt;
@@ -1002,6 +1018,18 @@ export class GeneratorSource implements LayerSource {
 
   size() { return { w: this.w, h: this.h }; }
   ready() { return this.path !== 'pending'; }
+  resize(fw: number, fh: number) {
+    const { w, h } = scaleVisualizerSize(fw, fh);
+    if (w === this.w && h === this.h) return;
+    this.w = w;
+    this.h = h;
+    if (this.canvas) {
+      this.canvas.width = w;
+      this.canvas.height = h;
+    }
+    try { this.milk?.setSize?.(w, h); } catch { /* */ }
+    try { (this.typo as any)?.resize?.(w, h); } catch { /* */ }
+  }
   dispose() {
     this.disposed = true;
     this.releaseLiveIn();
@@ -1166,6 +1194,16 @@ export class ShaderSource implements LayerSource {
 
   size() { return { w: this.w, h: this.h }; }
   ready() { return this.path !== 'pending'; }
+  resize(fw: number, fh: number) {
+    const { w, h } = scaleVisualizerSize(fw, fh);
+    if (w === this.w && h === this.h) return;
+    this.w = w;
+    this.h = h;
+    if (this.canvas) {
+      this.canvas.width = w;
+      this.canvas.height = h;
+    }
+  }
   dispose() {
     this.disposed = true;
     try { this.renderer?.dispose?.(); this.audio?.dispose?.(); } catch { /* */ }
@@ -1448,8 +1486,14 @@ export function createSource(
     case 'VIDEO': return new VideoSource(content, audioEnabled);
     case 'LIVE': return new LiveSource(content);
     case 'LOTTIE': return new LottieSource(content, frame.w, frame.h);
-    case 'GENERATOR': return new GeneratorSource(content, Math.min(frame.w, 1280), Math.min(frame.h, 720));
-    case 'SHADER': return new ShaderSource(content, Math.min(frame.w, 1280), Math.min(frame.h, 720));
+    case 'GENERATOR': {
+      const viz = scaleVisualizerSize(frame.w, frame.h);
+      return new GeneratorSource(content, viz.w, viz.h);
+    }
+    case 'SHADER': {
+      const viz = scaleVisualizerSize(frame.w, frame.h);
+      return new ShaderSource(content, viz.w, viz.h);
+    }
     case 'CLOCK': return new ClockSource(() => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
     case 'TIMER': return new ClockSource(() => {
       const s = Math.max(0, Math.floor(timers?.[content.timerId] ?? 0));

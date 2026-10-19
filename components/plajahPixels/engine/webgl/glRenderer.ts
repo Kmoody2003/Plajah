@@ -20,7 +20,9 @@ float fbm(vec2 p){float v=0.,a=.5;for(int i=0;i<6;i++){v+=a*noise(p);p*=2.;a*=.5
 
 const FRAG_PLASMA = FRAG_HEAD + `
 void main(){
-  vec2 uv=(gl_FragCoord.xy*2.-uRes)/uRes.y;
+  float aspect=uRes.x/max(uRes.y,1.);
+  float fitScale=1.28*max(1.,1.7777778/max(aspect,.1));
+  vec2 uv=((gl_FragCoord.xy*2.-uRes)/max(uRes.y,1.))*fitScale;
   float t=uT*.12*uSpeed;
   vec2 q=vec2(fbm(uv*1.5+t),fbm(uv*1.5-t+5.2));
   vec2 r=vec2(fbm(uv*2.+q*(1.5+uBass*2.)+t*.7),fbm(uv*2.+q*1.5-t*.6+2.8));
@@ -41,7 +43,9 @@ float sphField(vec3 p){p.z+=uT*.6*uSpeed;vec3 q=fract(p)-.5;return length(q)-(.1
 float map(vec3 p){p.xy*=rot(uT*.1*uSpeed+uMid*.5);return sphField(p);}
 vec3 norm(vec3 p){vec2 e=vec2(.001,0);return normalize(vec3(map(p+e.xyy)-map(p-e.xyy),map(p+e.yxy)-map(p-e.yxy),map(p+e.yyx)-map(p-e.yyx)));}
 void main(){
-  vec2 uv=(gl_FragCoord.xy*2.-uRes)/uRes.y;
+  float aspect=uRes.x/max(uRes.y,1.);
+  float fitScale=1.28*max(1.,1.7777778/max(aspect,.1));
+  vec2 uv=((gl_FragCoord.xy*2.-uRes)/max(uRes.y,1.))*fitScale;
   vec3 ro=vec3(0,0,-3.),rd=normalize(vec3(uv,1.5));rd.xy*=rot(sin(uT*.1)*.2);
   float t=0.;float glow=0.;
   for(int i=0;i<60;i++){vec3 p=ro+rd*t;float d=map(p);glow+=.012/(.01+abs(d));if(d<.001||t>12.)break;t+=d*.7;}

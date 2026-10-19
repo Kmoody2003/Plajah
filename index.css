@@ -415,24 +415,90 @@ body.theme-pastel::before {
   --on-surface-variant: var(--text-secondary);
 }
 
-body.theme-plajah {
-  background:
-    radial-gradient(ellipse 90% 70% at 15% 10%,  rgba(107, 0, 153, 0.85) 0%, transparent 55%),
-    radial-gradient(ellipse 70% 60% at 85% 85%,  rgba(212, 0, 85,  0.70) 0%, transparent 55%),
-    radial-gradient(ellipse 55% 45% at 55% 45%,  rgba(255, 140, 0, 0.22) 0%, transparent 60%),
-    #0d0015;
+@keyframes plajah-bg-drift {
+  0% {
+    background-position: 0% 0%, 100% 100%, 50% 40%, 20% 80%, 0% 0%;
+  }
+  33% {
+    background-position: 25% 18%, 72% 82%, 68% 28%, 42% 62%, 50% 50%;
+  }
+  66% {
+    background-position: 12% 35%, 88% 58%, 32% 64%, 76% 34%, 100% 50%;
+  }
+  100% {
+    background-position: 34% 12%, 64% 90%, 48% 52%, 18% 44%, 50% 100%;
+  }
 }
 
-/* Plajah gradient overlay — renders on top of custom background when active */
+@keyframes plajah-spot-float-a {
+  0% {
+    transform: translate3d(-4%, -3%, 0) scale(1);
+    opacity: 0.82;
+  }
+  50% {
+    transform: translate3d(6%, 5%, 0) scale(1.08);
+    opacity: 0.96;
+  }
+  100% {
+    transform: translate3d(-3%, 7%, 0) scale(0.95);
+    opacity: 0.78;
+  }
+}
+
+@keyframes plajah-spot-float-b {
+  0% {
+    transform: translate3d(5%, 4%, 0) scale(1);
+    opacity: 0.75;
+  }
+  50% {
+    transform: translate3d(-6%, -5%, 0) scale(1.1);
+    opacity: 0.92;
+  }
+  100% {
+    transform: translate3d(4%, -4%, 0) scale(0.96);
+    opacity: 0.8;
+  }
+}
+
+body.theme-plajah {
+  background-color: #0d0015;
+  background-image:
+    radial-gradient(ellipse 90% 70% at 15% 10%,  rgba(107, 0, 153, 0.85) 0%, transparent 55%),
+    radial-gradient(ellipse 70% 60% at 85% 85%,  rgba(212, 0, 85,  0.70) 0%, transparent 55%),
+    radial-gradient(ellipse 55% 45% at 55% 45%,  rgba(255, 140, 0, 0.25) 0%, transparent 60%),
+    radial-gradient(ellipse 65% 50% at 25% 75%,  rgba(212, 0, 85,  0.28) 0%, transparent 60%),
+    linear-gradient(160deg, #160024 0%, #0d0015 50%, #1c0026 100%);
+  background-size: 145% 145%, 145% 145%, 155% 155%, 150% 150%, 100% 100%;
+  animation: plajah-bg-drift 28s ease-in-out infinite alternate;
+}
+
+/* Plajah animated gradient spots — render on top of universal background when active */
+.theme-plajah #universal-background::before {
+  content: "";
+  position: absolute;
+  inset: -12%;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    radial-gradient(circle 520px at 22% 18%, rgba(107, 0, 153, 0.44) 0%, transparent 70%),
+    radial-gradient(circle 440px at 78% 32%, rgba(255, 140, 0, 0.22) 0%, transparent 70%),
+    radial-gradient(circle 480px at 30% 78%, rgba(212, 0, 85, 0.28) 0%, transparent 70%);
+  will-change: transform, opacity;
+  animation: plajah-spot-float-a 26s ease-in-out infinite alternate;
+}
+
 .theme-plajah #universal-background::after {
   content: "";
   position: absolute;
-  inset: 0;
+  inset: -12%;
   z-index: 2;
   pointer-events: none;
   background:
-    radial-gradient(ellipse 80% 60% at 20% 10%,  rgba(107, 0, 153, 0.40) 0%, transparent 65%),
-    radial-gradient(ellipse 60% 50% at 80% 80%,  rgba(212, 0, 85,  0.25) 0%, transparent 65%);
+    radial-gradient(ellipse 75% 55% at 18% 12%,  rgba(107, 0, 153, 0.38) 0%, transparent 65%),
+    radial-gradient(ellipse 65% 50% at 82% 82%,  rgba(212, 0, 85,  0.30) 0%, transparent 65%),
+    radial-gradient(circle 420px at 64% 58%,     rgba(255, 140, 0, 0.18) 0%, transparent 68%);
+  will-change: transform, opacity;
+  animation: plajah-spot-float-b 32s ease-in-out infinite alternate;
 }
 
 /* Overrides for faint text and icons in Plajah theme */

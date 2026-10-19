@@ -1215,23 +1215,23 @@ export default function BookAuthoringStudio({ onBack, initialBook }: Props) {
     <div className="flex flex-col h-screen bg-[#0c0c0c] text-white overflow-hidden select-none">
 
       {/* ── Top bar ── */}
-      <div className="flex items-center gap-2 px-4 h-12 border-b border-white/[0.06] bg-[#0f0f0f] shrink-0 z-20">
-        <button onClick={onBack} className="p-1.5 rounded-lg hover:bg-white/5 text-white/40 hover:text-white transition-colors shrink-0">
-          <ArrowLeft size={16}/>
+      <div className="flex items-center gap-2 px-3 sm:px-4 h-11 border-b border-white/[0.06] bg-[#0f0f0f] shrink-0 z-20 overflow-x-auto scrollbar-none">
+        <button onClick={onBack} className="p-1.5 rounded-lg hover:bg-white/5 text-white/40 hover:text-white transition-colors shrink-0" title="Back">
+          <ArrowLeft size={15}/>
         </button>
 
-        <div className="flex items-center gap-2 min-w-0 mr-2">
+        <div className="flex items-center gap-1.5 min-w-0 mr-1 shrink-0">
           <BookOpen size={13} className="text-orange-400 shrink-0"/>
           <input
             type="text"
             value={book.title}
             onChange={e => setBookField('title', e.target.value)}
-            className="bg-transparent text-sm font-bold text-white focus:outline-none min-w-0 max-w-[180px] border-b border-transparent focus:border-orange-400/30 pb-px transition-colors"
+            className="bg-transparent text-xs sm:text-sm font-bold text-white focus:outline-none min-w-0 w-[110px] sm:w-[150px] border-b border-transparent focus:border-orange-400/30 pb-px transition-colors truncate"
           />
         </div>
 
         {/* Format chips */}
-        <div className="flex gap-1 overflow-x-auto scrollbar-none">
+        <div className="flex items-center gap-1 overflow-x-auto scrollbar-none shrink-0">
           {FORMATS.map(f => (
             <button
               key={f.id}
@@ -1243,16 +1243,10 @@ export default function BookAuthoringStudio({ onBack, initialBook }: Props) {
                   const hasComicPage = book.pages.some(p => p.type === 'COMIC' || p.type === 'MANGA');
                   if (!hasComicPage) {
                     if (book.title === 'Untitled') {
-                      if (canSeePumpkinPatch && f.id !== 'MANGA') {
-                        const loaded = comicToShowcaseStudioBook('pumpkin-patch-v4');
-                        setBook(loaded);
-                        setActivePageId(loaded.pages[0]?.id || '');
-                      } else {
-                        const emptyBook = createEmptyBaseTemplateStudioBook(f.id === 'MANGA');
-                        emptyBook.format = f.id;
-                        setBook(emptyBook);
-                        setActivePageId(emptyBook.pages[0]?.id || '');
-                      }
+                      const emptyBook = createEmptyBaseTemplateStudioBook(f.id === 'MANGA');
+                      emptyBook.format = f.id;
+                      setBook(emptyBook);
+                      setActivePageId(emptyBook.pages[0]?.id || '');
                     } else {
                       addPage(f.id === 'MANGA' ? 'MANGA' : 'COMIC');
                     }
@@ -1262,74 +1256,84 @@ export default function BookAuthoringStudio({ onBack, initialBook }: Props) {
                   }
                 }
               }}
-              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold shrink-0 border transition-colors whitespace-nowrap ${book.format === f.id ? 'bg-orange-500/10 border-orange-500/30 text-orange-400' : 'bg-white/[0.03] border-white/5 text-white/30 hover:text-white/70'}`}
+              className={`h-6 px-2 rounded-md text-[10px] font-bold shrink-0 border transition-colors whitespace-nowrap flex items-center ${book.format === f.id ? 'bg-orange-500/15 border-orange-500/35 text-orange-400' : 'bg-white/[0.03] border-white/5 text-white/35 hover:text-white/75'}`}
             >
               {f.label}
             </button>
           ))}
         </div>
 
-        <div className="ml-auto flex items-center gap-1.5">
+        <div className="ml-auto flex items-center gap-1 shrink-0">
           {/* Save indicator */}
-          <span className={`text-[10px] transition-colors mr-1 ${saved ? 'text-white/20' : 'text-orange-400/50'}`}>
+          <span className={`hidden md:inline text-[10px] whitespace-nowrap transition-colors mr-1 ${saved ? 'text-white/20' : 'text-orange-400/50'}`}>
             {saved ? 'Saved' : 'Saving…'}
           </span>
 
-          {/* 1-Click Pumpkin Patch V4 Council Studio Loader (Only visible to Kenneth & Brian James Gage) */}
-          {canSeePumpkinPatch && (
-            <button
-              onClick={() => {
-                const loaded = comicToShowcaseStudioBook('pumpkin-patch-v4');
-                setBook(loaded);
-                setActivePageId(loaded.pages[0]?.id || '');
-              }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/50 text-xs font-black text-amber-300 hover:from-amber-500/30 hover:to-orange-500/30 transition-all shadow-sm"
-              title="Load Pumpkin Patch (Oct 2025) — 26-Page, 294-Panel Council V4 Living Graphic Novel"
-            >
-              🎃 Pumpkin Patch V4 (26p)
-            </button>
-          )}
-
-          {/* Graphic Novel & Manga Importer */}
-          <button onClick={() => setShowComicShowcase(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-500/10 border border-orange-500/30 text-xs font-bold text-orange-400 hover:bg-orange-500/20 transition-all">
-            <Sparkles size={11} className="text-orange-400"/> Graphic Novels & Manga
+          {/* Graphic Novel & Manga Templates Library (Pumpkin Patch is exclusively inside this modal for Brian James Cage/Gage & Kenneth) */}
+          <button
+            onClick={() => setShowComicShowcase(true)}
+            title="Graphic Novels & Manga Templates"
+            className="h-7 px-2.5 rounded-lg bg-orange-500/10 border border-orange-500/25 text-[11px] font-semibold text-orange-400 hover:bg-orange-500/20 transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0"
+          >
+            <Sparkles size={11} className="text-orange-400 shrink-0"/>
+            <span className="hidden lg:inline">Templates</span>
           </button>
-
 
           {/* Direct Lorea Reader Preview Button */}
-          <button onClick={() => openStudioBookInLorea(book)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-500/20 border border-orange-500/40 text-xs font-bold text-orange-400 hover:bg-orange-500/30 transition-all shadow-sm"
-            title="Preview in Lorea Reader with interactive page turns and audio">
-            <BookOpen size={12}/> Read in Lorea
+          <button
+            onClick={() => openStudioBookInLorea(book)}
+            className="h-7 px-2.5 rounded-lg bg-orange-500/20 border border-orange-500/35 text-[11px] font-semibold text-orange-300 hover:bg-orange-500/30 transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0"
+            title="Preview in Lorea Reader with interactive page turns and audio"
+          >
+            <BookOpen size={11} className="shrink-0"/>
+            <span className="hidden sm:inline">Preview</span>
           </button>
 
-          <button onClick={() => setShowImport(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.06] text-xs text-white/50 hover:bg-white/8 hover:text-white transition-colors">
-            <Upload size={11}/> Import
+          <button
+            onClick={() => setShowImport(true)}
+            title="Import document (.docx, .pdf, .md, .txt)"
+            className="h-7 px-2.5 rounded-lg bg-white/[0.04] border border-white/[0.06] text-[11px] font-medium text-white/55 hover:bg-white/10 hover:text-white transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0"
+          >
+            <Upload size={11} className="shrink-0"/>
+            <span className="hidden xl:inline">Import</span>
           </button>
 
-          <button onClick={() => { setShowContinuity(true); if (!continuityReport && !continuityRunning) runContinuity(); }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.06] text-xs text-white/50 hover:bg-white/8 hover:text-white transition-colors">
-            <ScanSearch size={11}/> Continuity
+          <button
+            onClick={() => { setShowContinuity(true); if (!continuityReport && !continuityRunning) runContinuity(); }}
+            title="Run manuscript continuity check"
+            className="h-7 px-2.5 rounded-lg bg-white/[0.04] border border-white/[0.06] text-[11px] font-medium text-white/55 hover:bg-white/10 hover:text-white transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0"
+          >
+            <ScanSearch size={11} className="shrink-0"/>
+            <span className="hidden xl:inline">Continuity</span>
           </button>
 
-          <button onClick={() => setShowEditors(true)} title="Ask the editorial and copyright council about this book"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.06] text-xs text-white/50 hover:bg-white/8 hover:text-white transition-colors">
-            <BookMarked size={11}/> Editors
+          <button
+            onClick={() => setShowEditors(true)}
+            title="Ask the editorial and copyright council about this book"
+            className="h-7 px-2.5 rounded-lg bg-white/[0.04] border border-white/[0.06] text-[11px] font-medium text-white/55 hover:bg-white/10 hover:text-white transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0"
+          >
+            <BookMarked size={11} className="shrink-0"/>
+            <span className="hidden xl:inline">Editors</span>
           </button>
 
-          <button onClick={() => setShowRights(true)}
+          <button
+            onClick={() => setShowRights(true)}
             title="ARK, content fingerprint, ISBN, credits & splits"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.06] text-xs text-white/50 hover:bg-white/8 hover:text-white transition-colors">
-            <ShieldCheck size={11}/> Rights
+            className="h-7 px-2.5 rounded-lg bg-white/[0.04] border border-white/[0.06] text-[11px] font-medium text-white/55 hover:bg-white/10 hover:text-white transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0"
+          >
+            <ShieldCheck size={11} className="shrink-0"/>
+            <span className="hidden xl:inline">Rights</span>
           </button>
 
           {/* Export */}
-          <div className="relative">
-            <button onClick={() => setShowExport(v => !v)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.06] text-xs text-white/50 hover:bg-white/8 hover:text-white transition-colors">
-              <FileDown size={11}/> Export
+          <div className="relative shrink-0">
+            <button
+              onClick={() => setShowExport(v => !v)}
+              title="Publish or Export"
+              className="h-7 px-2.5 rounded-lg bg-white/[0.04] border border-white/[0.06] text-[11px] font-medium text-white/65 hover:bg-white/10 hover:text-white transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0"
+            >
+              <FileDown size={11} className="shrink-0"/>
+              <span>Export</span>
             </button>
             <AnimatePresence>
               {showExport && (
@@ -1343,7 +1347,7 @@ export default function BookAuthoringStudio({ onBack, initialBook }: Props) {
                     { label:'HTML file', icon:<Download size={12}/>, action:()=>{ const h=buildHTML(book); const b=new Blob([h],{type:'text/html'}); const u=URL.createObjectURL(b); const a=document.createElement('a'); a.href=u; a.download=`${book.title}.html`; a.click(); URL.revokeObjectURL(u); } },
                   ].map(({label,icon,action}) => (
                     <button key={label} onClick={()=>{setShowExport(false);action();}}
-                      className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-white/60 hover:bg-white/5 hover:text-white transition-colors">
+                      className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-white/60 hover:bg-white/5 hover:text-white transition-colors whitespace-nowrap">
                       <span className="text-white/30">{icon}</span>{label}
                     </button>
                   ))}
@@ -1352,8 +1356,11 @@ export default function BookAuthoringStudio({ onBack, initialBook }: Props) {
             </AnimatePresence>
           </div>
 
-          <button onClick={() => setShowSettings(v => !v)}
-            className={`p-1.5 rounded-lg border transition-colors ${showSettings ? 'bg-white/8 border-white/15 text-white' : 'bg-white/[0.03] border-white/[0.06] text-white/30 hover:text-white'}`}>
+          <button
+            onClick={() => setShowSettings(v => !v)}
+            title="Book Settings"
+            className={`h-7 w-7 flex items-center justify-center rounded-lg border transition-colors shrink-0 ${showSettings ? 'bg-white/10 border-white/20 text-white' : 'bg-white/[0.03] border-white/[0.06] text-white/40 hover:text-white'}`}
+          >
             <Settings2 size={13}/>
           </button>
         </div>

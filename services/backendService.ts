@@ -978,22 +978,47 @@ export const fetchGlobalArchiveItems = async (type?: 'MUSIC' | 'VIDEO' | 'BOOK' 
 
 export const syncPublicDomainAsset = async (item: any, mediaUrl: string, type: 'VIDEO' | 'AUDIO' | 'BOOK') => {
   try {
-    const path = `albums/public_domain_${item.identifier || item.id}`;
-    
+    const rawId = String(item.identifier || item.id || '').replace(/^public_domain_/, '');
+    if (!rawId) return;
+
+    // For public-domain VIDEO assets, always notify the server-side background ingestion worker
+    // so the film is downloaded to the platform vault, passed through Mux (muxPlaybackId / muxAssetId),
+    // and synced into both Firestore `albums` and `videos` just like a natively uploaded movie.
+    if (type === 'VIDEO' && typeof window !== 'undefined') {
+      fetch('/api/admin/film-ingest/ensure-on-platform', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          identifier: rawId,
+          title: item.title,
+          description: item.description || '',
+          director: item.director || item.artist || 'Public Domain Archive',
+          year: item.year || '',
+          runtime: item.runtime || '',
+          genre: item.genre || 'Classic Cinema',
+          thumbnailUrl: item.thumbnailUrl || item.coverImage || '',
+          source: item.source || 'INTERNET_ARCHIVE',
+          videoUrl: mediaUrl || item.videoUrl || '',
+          sourceUrl: item.sourceUrl || '',
+          rights: item.rights || 'Public Domain',
+        }),
+      }).catch(() => {});
+    }
+
     // Check if it already exists
-    const existingDoc = await getDoc(doc(db, 'albums', `public_domain_${item.identifier || item.id}`));
+    const existingDoc = await getDoc(doc(db, 'albums', `public_domain_${rawId}`));
     if (existingDoc.exists()) {
-      return; // Already hosted
+      return; // Already hosted (server worker will patch muxPlaybackId onto it once ready)
     }
 
     // Creating the platform-hosted version
     const newAlbum: Partial<Album> = {
-      id: `public_domain_${item.identifier || item.id}`,
+      id: `public_domain_${rawId}`,
       title: item.title,
-      artist: item.artist || item.genre || 'Public Domain Archive',
+      artist: item.director || item.artist || item.genre || 'Public Domain Archive',
       description: item.description || '',
-      coverImage: item.thumbnailUrl || '',
-      headerImage: item.thumbnailUrl || '',
+      coverImage: item.thumbnailUrl || item.coverImage || '',
+      headerImage: item.thumbnailUrl || item.coverImage || '',
       type: type === 'AUDIO' ? 'MUSIC' : type,
       ownerId: 'system_admin',
       isGlobalArchive: true,
@@ -1006,17 +1031,20 @@ export const syncPublicDomainAsset = async (item: any, mediaUrl: string, type: '
     if (type === 'VIDEO') {
       newAlbum.subType = 'MOVIE'; // Movement or movie
       newAlbum.tracks = [{
-        id: `track_${item.identifier}`,
+        id: `track_${rawId}`,
         title: item.title,
-        artist: item.artist || item.genre || 'Public Domain Archive',
+        artist: item.director || item.artist || item.genre || 'Public Domain Archive',
         url: mediaUrl,
-        albumCover: item.thumbnailUrl || '',
+        videoUrl: mediaUrl,
+        audioUrl: mediaUrl,
+        albumCover: item.thumbnailUrl || item.coverImage || '',
+        mediaKind: 'VIDEO',
         isGlobalArchive: true,
-      }];
+      } as any];
     } else if (type === 'AUDIO') {
       newAlbum.type = 'MUSIC';
       newAlbum.tracks = [{
-        id: `track_${item.id}`,
+        id: `track_${rawId}`,
         title: item.title,
         artist: item.artist,
         url: mediaUrl,
@@ -1025,7 +1053,7 @@ export const syncPublicDomainAsset = async (item: any, mediaUrl: string, type: '
       }];
     } else if (type === 'BOOK') {
       newAlbum.bookChapters = [{
-        id: `chapter_${item.identifier}`,
+        id: `chapter_${rawId}`,
         title: 'Full Book',
         url: mediaUrl
       }];
@@ -1645,10 +1673,26 @@ export const postFieldsForAssetEmbed = async (
 ): Promise<Record<string, any>> => {
   if (!assetEmbed?.id) return {};
   const fields: Record<string, any> = { assetEmbed };
-  if (assetEmbed.type === 'ALBUM') {
+  if (assetEmbed.type === 'ALBUM' || assetEmbed.type === 'TRACK') {
     try {
       const snap = await getDoc(doc(db, 'albums', assetEmbed.id));
       if (snap.exists()) { fields.albumEmbed = { id: snap.id, ...snap.data() }; fields.autoPlayEmbed = false; }
+    } catch { /* keep the light reference card */ }
+  } else if (assetEmbed.type === 'VIDEO') {
+    try {
+      const snap = await getDoc(doc(db, 'videos', assetEmbed.id));
+      if (snap.exists()) {
+        const d: any = snap.data();
+        const pid = d.muxPlaybackId;
+        fields.media = [{
+          type: 'VIDEO',
+          id: snap.id,
+          title: d.title || assetEmbed.title || 'Reello Video',
+          thumbnail: d.thumbnailUrl || d.coverImageUrl || assetEmbed.imageUrl,
+          muxPlaybackId: pid,
+          url: pid ? `https://stream.mux.com/${pid}.m3u8` : (d.url || ''),
+        }];
+      }
     } catch { /* keep the light reference card */ }
   }
   return fields;
@@ -3038,7 +3082,7 @@ const sanitizeMediaForWrite = (media: any): any[] | undefined => {
   if (!Array.isArray(media) || media.length === 0) return undefined;
   return media.map((m: any) => {
     const out: any = {};
-    for (const k of ['type', 'url', 'id', 'title', 'thumbnail'] as const) {
+    for (const k of ['type', 'url', 'id', 'title', 'thumbnail', 'muxPlaybackId'] as const) {
       if (m?.[k] !== undefined && m?.[k] !== null) out[k] = m[k];
     }
     if (m?.linkPreview) out.linkPreview = m.linkPreview;

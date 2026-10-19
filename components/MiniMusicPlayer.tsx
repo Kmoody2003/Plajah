@@ -202,6 +202,8 @@ const MiniMusicPlayer: React.FC<MiniMusicPlayerProps> = ({ album, autoPlay = fal
           ref={audioRef}
           src={currentTrack.url}
           autoPlay={isPlaying}
+          controlsList="nodownload noplaybackrate"
+          onContextMenu={(e) => e.preventDefault()}
         />
       )}
     </div>

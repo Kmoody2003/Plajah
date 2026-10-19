@@ -6,7 +6,15 @@ import {
   Info, ExternalLink, Clapperboard, Flame, Check, Share2
 } from 'lucide-react';
 import { ArchiveVideo, CURATED_EUROPEANA_FILMS, CURATED_KOFA_FILMS, CURATED_HALLOWEEN_FILMS } from '../services/archiveContentService';
-import { shareAsset, shareText } from '../services/deepLinkService';
+import { buildShareUrl, shareAsset, shareText } from '../services/deepLinkService';
+import ShareButton from './ShareButton';
+import { auth, loginWithGoogle, createPost } from '../services/backendService';
+import {
+  DirectorSpotlightCard,
+  CharactersAndActorsSection,
+  ClassicDirectorsShowcaseSection,
+  findPlayableFilmById,
+} from './taleo/ClassicCinemaDossier';
 
 interface TaleoFilmCuratorProps {
   onSelectArchiveItem: (item: ArchiveVideo) => void;
@@ -284,11 +292,34 @@ export const TaleoFilmCurator: React.FC<TaleoFilmCuratorProps> = ({
               </div>
             </div>
 
+            {/* Director Portrait, Biography & Filmography of Other Works */}
+            <DirectorSpotlightCard
+              directorName={selectedFilm.director}
+              filmId={selectedFilm.identifier}
+              onPlayFilm={(fid) => {
+                const found = findPlayableFilmById(fid);
+                if (found) {
+                  if ((found as ArchiveVideo).identifier) {
+                    setSelectedFilm(found as ArchiveVideo);
+                    onSelectArchiveItem(found as ArchiveVideo);
+                  } else if (onSelectMovie) {
+                    onSelectMovie(found);
+                  }
+                }
+              }}
+            />
+
+            {/* Characters & The Actors Behind Them */}
+            <CharactersAndActorsSection
+              filmId={selectedFilm.identifier}
+              filmTitle={selectedFilm.title}
+            />
+
             {/* Quick Title Selector Strip */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-black uppercase tracking-tight text-white flex items-center gap-2">
-                  <Clapperboard size={18} className="text-[#D0BCFF]" /> Select a Film for Historical Notes
+                  <Clapperboard size={18} className="text-[#D0BCFF]" /> Select a Film for Historical Notes, Director Bio &amp; Cast
                 </h3>
                 <span className="text-[10px] text-white/40 font-black uppercase tracking-widest">{allCurated.length} Preserved Classics</span>
               </div>
@@ -317,13 +348,28 @@ export const TaleoFilmCurator: React.FC<TaleoFilmCuratorProps> = ({
                       </div>
                       <h4 className="text-[11px] font-black uppercase text-white truncate">{film.title}</h4>
                       <p className="text-[9px] font-black uppercase tracking-widest text-white/40">
-                        {film.year} · {film.source === 'KOFA' ? 'KOFA' : film.source === 'EUROPEANA' ? 'Europeana' : 'Halloween Archive'}
+                        {film.year} · {film.director || (film.source === 'KOFA' ? 'KOFA' : film.source === 'EUROPEANA' ? 'Europeana' : 'Halloween Archive')}
                       </p>
                     </motion.div>
                   );
                 })}
               </div>
             </div>
+
+            {/* All Classic Directors, Biographies & Filmographies */}
+            <ClassicDirectorsShowcaseSection
+              onPlayFilm={(fid) => {
+                const found = findPlayableFilmById(fid);
+                if (found) {
+                  if ((found as ArchiveVideo).identifier) {
+                    setSelectedFilm(found as ArchiveVideo);
+                    onSelectArchiveItem(found as ArchiveVideo);
+                  } else if (onSelectMovie) {
+                    onSelectMovie(found);
+                  }
+                }
+              }}
+            />
           </div>
         )}
 
@@ -346,15 +392,46 @@ export const TaleoFilmCurator: React.FC<TaleoFilmCuratorProps> = ({
                     From Thomas Edison’s 1910 single-reel adaptation of Mary Shelley’s Frankenstein and Lon Chaney’s silent Phantom of the Opera to Herk Harvey’s eerie regional art-horror and George A. Romero’s revolutionary Night of the Living Dead, independent and public-domain horror repeatedly rewrote the rules of cinema.
                   </p>
                 </div>
-                <button
-                  onClick={() => shareAsset('taleoCollection', 'halloween', {
-                    title: '🎃 Taleo Halloween Selection — Curated Horror & Macabre Cinema',
-                    text: 'Stream 12 restored Gothic & midnight horror classics free on Plajah Taleo',
-                  })}
+                <ShareButton
+                  title="🎃 Taleo Halloween Selection — Curated Horror & Macabre Cinema"
+                  text="Stream 12 restored Gothic & midnight horror classics — Nosferatu, Night of the Living Dead, Carnival of Souls, House on Haunted Hill, The Phantom of the Opera & more — free on Plajah Taleo."
+                  url={buildShareUrl('taleoCollection', 'halloween')}
+                  imageUrl={CURATED_HALLOWEEN_FILMS[0]?.thumbnailUrl}
+                  contentType="movie"
+                  ctaText="🎃 EXPLORE HALLOWEEN CURATION ON PLAJAH"
+                  plajahLabel="Share Halloween Curation to Plajah feed"
+                  onPostToPlajah={async () => {
+                    let user = auth.currentUser;
+                    if (!user) {
+                      try { user = await loginWithGoogle(); } catch { return; }
+                    }
+                    if (!user) return;
+                    const shareUrl = buildShareUrl('taleoCollection', 'halloween');
+                    await createPost({
+                      authorId: user.uid,
+                      authorName: user.displayName || 'Cinema Curator',
+                      authorAvatar: user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.uid}`,
+                      authorRole: 'Filmmaker',
+                      content: `🎃 Explore the Special Halloween Curation on Plajah Taleo — 12 restored public-domain horror & Gothic cinema classics streaming free!\n\n${shareUrl}`,
+                      mediaType: 'IMAGE',
+                      mediaUrl: CURATED_HALLOWEEN_FILMS[0]?.thumbnailUrl,
+                      assetEmbed: {
+                        type: 'TALEO_COLLECTION',
+                        id: 'halloween',
+                        title: '🎃 Special Halloween Curation — 31 Nights of Cinema Terror',
+                        subtitle: `${CURATED_HALLOWEEN_FILMS.length} Restored Horror Classics · Free on Plajah Taleo`,
+                        imageUrl: CURATED_HALLOWEEN_FILMS[0]?.thumbnailUrl,
+                      },
+                      likes: 0,
+                      commentsCount: 0,
+                      shares: 0,
+                    } as any);
+                  }}
                   className="px-4 py-2 rounded-full bg-[#FF8C00]/20 hover:bg-[#FF8C00]/30 border border-[#FF8C00]/40 text-[#FFB68D] text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all cursor-pointer"
                 >
-                  <Share2 size={12} /> Share Halloween Collection
-                </button>
+                  <Share2 size={12} />
+                  <span>Share Halloween Curation</span>
+                </ShareButton>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
                 {CURATED_HALLOWEEN_FILMS.slice(0, 6).map(film => (

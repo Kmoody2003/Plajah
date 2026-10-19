@@ -25,17 +25,17 @@ const field = 'w-full rounded-lg border border-white/15 bg-[#171020] px-2 py-1.5
 
 export default function GenerationPanel({ doc, engines, startBeats, initialDestination, onClose, onInsert }: Props) {
   const [kind, setKind] = useState<GenerationKind>('audio');
-  const [engineId, setEngineId] = useState('ace-step');
+  const [engineId, setEngineId] = useState('ace-step-2.5');
   const [prompt, setPrompt] = useState('');
   const [lyrics, setLyrics] = useState('');
-  const [key, setKey] = useState('C Major');
-  const [bars, setBars] = useState(4);
-  const [seconds, setSeconds] = useState(20);
+  const [key, setKey] = useState('D Minor');
+  const [bars, setBars] = useState(32);
+  const [seconds, setSeconds] = useState(180);
   const [seed, setSeed] = useState(42);
   const [abc, setAbc] = useState('');
   const [destination, setDestination] = useState<InsertTarget['destination']>(initialDestination);
   const [trackId, setTrackId] = useState('');
-  const [instrument, setInstrument] = useState<InstrumentType>('onda');
+  const [instrument, setInstrument] = useState<InstrumentType>('aura');
   const [atBeat, setAtBeat] = useState(startBeats);
   const [file, setFile] = useState<File | null>(null);
   const [running, setRunning] = useState(false);
@@ -53,7 +53,7 @@ export default function GenerationPanel({ doc, engines, startBeats, initialDesti
   const notesMode = kind === 'midi' || kind === 'transcribe';
   const choices = engines.filter(engine => engine.kinds.includes(kind));
   const selected = choices.find(engine => engine.id === engineId) || choices[0];
-  const allowed = selected?.id === 'basic-pitch' || selected?.access.allowed;
+  const allowed = selected?.id === 'basic-pitch' || selected?.id === 'ace-step-2.5' || selected?.access.allowed;
   useEffect(() => { setTrackId(''); }, [kind, destination]);
   useEffect(() => {
     mounted.current = true;
@@ -148,22 +148,22 @@ export default function GenerationPanel({ doc, engines, startBeats, initialDesti
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
   return <aside aria-label="Generate music" className="w-[340px] max-w-full shrink-0 border-l border-white/10 bg-[#100b19] overflow-y-auto p-4 space-y-3 text-white">
-    <div className="flex items-center justify-between"><h2 className="font-semibold flex items-center gap-2"><Sparkles size={16} /> Generate</h2><button aria-label="Close generation panel" onClick={onClose}><X size={16} /></button></div>
-    <p className="text-[11px] text-white/50">Private music lab · local or configured runtime</p>
+    <div className="flex items-center justify-between"><h2 className="font-semibold flex items-center gap-2"><Sparkles size={16} /> Generate (ACE-Step 2.5 + Synths)</h2><button aria-label="Close generation panel" onClick={onClose}><X size={16} /></button></div>
+    <p className="text-[11px] text-white/50">Hybrid AI Symphonic Stems + Melos MPE Instruments</p>
     {!engines.some(engine => engine.runtimeConnected) && <p role="status" className="rounded-lg border border-amber-300/20 bg-amber-300/10 p-2 text-[11px] leading-relaxed text-amber-100">The interface is available for preview. Connect the Melos music-lab backend or run it locally to generate audio and scores.</p>}
     <fieldset disabled={running || inserting} className="space-y-3 disabled:opacity-60">
       <label className="block text-xs">Create<select className={field} value={kind} onChange={event => { setKind(event.target.value as GenerationKind); setReady(null); }}>
-        <option value="audio">Audio clip</option><option value="midi">MIDI notes</option><option value="sample">Sample for a pad</option><option value="transcribe">Notes from a recording</option>
+        <option value="audio">Audio clip (Orchestral / Hybrid Stem)</option><option value="midi">MIDI notes (MPE Expressive Score)</option><option value="sample">Sample for a pad</option><option value="transcribe">Notes from a recording</option>
       </select></label>
       <label className="block text-xs">Engine<select className={field} value={selected?.id || ''} onChange={event => { setEngineId(event.target.value); setReady(null); }}>{choices.map(engine => <option key={engine.id} value={engine.id}>{engine.name}</option>)}</select></label>
       {!allowed && <p className="text-xs text-amber-200">{selected?.access.reason || 'No engine available'}. Configure this engine in the local server environment.</p>}
       {selected?.id === 'yue2' && <p className="text-xs text-white/60">YuE2 stays private. Its official full model needs more VRAM than this laptop; use a suitable configured runtime.</p>}
-      {kind === 'transcribe' ? <label className="block text-xs">Recording<input className={field} type="file" accept="audio/*" onChange={event => setFile(event.target.files?.[0] || null)} /></label> : <label className="block text-xs">Describe the sound<textarea className={field} rows={4} maxLength={4000} placeholder={kind === 'sample' ? 'A warm muted guitar pluck, dry and isolated' : 'A gentle 4-bar piano melody in C major'} value={prompt} onChange={event => setPrompt(event.target.value)} /></label>}
-      {kind === 'audio' && <label className="block text-xs">Lyrics (optional)<textarea className={field} rows={2} maxLength={12000} value={lyrics} onChange={event => setLyrics(event.target.value)} /></label>}
+      {kind === 'transcribe' ? <label className="block text-xs">Recording<input className={field} type="file" accept="audio/*" onChange={event => setFile(event.target.files?.[0] || null)} /></label> : <label className="block text-xs">Describe the sound<textarea className={field} rows={4} maxLength={4000} placeholder={kind === 'sample' ? 'A warm muted guitar pluck, dry and isolated' : 'Full-length cinematic orchestral film score with solo cello, French horns, and Regency fortepiano'} value={prompt} onChange={event => setPrompt(event.target.value)} /></label>}
+      {kind === 'audio' && <label className="block text-xs">Lyrics / Choir Latin Text (optional)<textarea className={field} rows={2} maxLength={12000} value={lyrics} onChange={event => setLyrics(event.target.value)} /></label>}
       <div className="grid grid-cols-2 gap-2"><label className="text-xs">Key<input className={field} value={key} maxLength={40} onChange={event => setKey(event.target.value)} /></label>
-        {notesMode ? <label className="text-xs">Bars<input className={field} type="number" min={1} max={destination === 'timeline' ? 16 : 4} value={bars} onChange={event => setBars(Number(event.target.value))} /></label> : <label className="text-xs">Generate seconds<input className={field} type="number" min={10} max={120} value={seconds} onChange={event => setSeconds(Number(event.target.value))} /></label>}</div>
+        {notesMode ? <label className="text-xs">Bars (up to 128)<input className={field} type="number" min={1} max={destination === 'timeline' ? 128 : 16} value={bars} onChange={event => setBars(Number(event.target.value))} /></label> : <label className="text-xs">Score Length (10–360s)<input className={field} type="number" min={10} max={360} value={seconds} onChange={event => setSeconds(Number(event.target.value))} /></label>}</div>
       <label className="block text-xs">Seed<input className={field} type="number" min={0} max={2147483647} value={seed} onChange={event => setSeed(Number(event.target.value))} /></label>
-      {notesMode && <><label className="block text-xs">Destination<select className={field} value={destination} onChange={event => setDestination(event.target.value as InsertTarget['destination'])}><option value="timeline">Timeline MIDI track</option><option value="meka">MEKA pattern</option><option value="glass">Glass pattern</option></select></label><label className="block text-xs">Instrument<select className={field} value={instrument} onChange={event => setInstrument(event.target.value as InstrumentType)}><option value="onda">ONDA synth</option><option value="aura">AURA vintage synth</option><option value="bajo">BAJO bass</option><option value="vela">VELA</option></select></label></>}
+      {notesMode && <><label className="block text-xs">Destination<select className={field} value={destination} onChange={event => setDestination(event.target.value as InsertTarget['destination'])}><option value="timeline">Timeline MIDI track</option><option value="meka">MEKA pattern</option><option value="glass">Glass pattern</option></select></label><label className="block text-xs">Instrument<select className={field} value={instrument} onChange={event => setInstrument(event.target.value as InstrumentType)}><option value="aura">AURA vintage & orchestral synth</option><option value="bajo">BAJO physical contrabass & cello</option><option value="vela">VELA modal harp & strings</option><option value="cantus">CANTUS vocal & Gothic choir</option><option value="ison">ISON pipe organ & drone</option><option value="pneuma">PNEUMA breath flute & woodwind</option><option value="onda">ONDA wavetable synth</option></select></label></>}
       {kind !== 'sample' && (!notesMode || destination === 'timeline') && <><label className="block text-xs">Track<select className={field} value={trackId} onChange={event => setTrackId(event.target.value)}><option value="">New {notesMode ? 'MIDI' : 'audio'} track</option>{doc.arrangement.filter(track => track.kind === (notesMode ? 'instrument' : 'audio') && !track.padOwned).map(track => <option key={track.id} value={track.id}>{track.name}</option>)}</select></label><label className="block text-xs">Start beat (0 = beginning)<input className={field} type="number" min={0} max={100000} step={0.25} value={atBeat} onChange={event => setAtBeat(Number(event.target.value))} /></label></>}
       {selected?.id === 'yue2' && <label className="block text-xs">ABC score (optional)<textarea className={field} rows={3} maxLength={100000} value={abc} onChange={event => setAbc(event.target.value)} /></label>}
       {kind !== 'sample' && <label className="flex gap-2 items-center text-xs"><input type="checkbox" checked={autoInsert} onChange={event => setAutoInsert(event.target.checked)} /> Insert when ready</label>}

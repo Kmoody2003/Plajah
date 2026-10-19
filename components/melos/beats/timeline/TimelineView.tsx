@@ -27,6 +27,11 @@ import { ClipLauncher } from './ClipLauncher';
 import { useUniversalMarquee, useUniversalMultiSelect } from '../../../../hooks/useUniversalMultiSelect';
 
 import { PLAYHEAD, SELECT, glassPanel } from '../theme';
+import {
+  playRealtimeSympMovement,
+  stopRealtimeSympPlayback,
+  seekRealtimeSympPlayback,
+} from '../../../../services/melos/melosRealtimeSympPlayer';
 
 const BEATS_PER_BAR = 4;
 const LANE_H = 44;
@@ -247,6 +252,25 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
   const toggleLauncher = () => setShowLauncher((v) => { try { localStorage.setItem('plajah_beats_launcher', v ? '0' : '1'); } catch { /* */ } return !v; });
   const [editorH, setEditorH] = useState(240);
   const [openClip, setOpenClip] = useState<{ trackId: string; clipId: string } | null>(null);
+  const [sympStreaming, setSympStreaming] = useState<{ playing: boolean; currentTime: number; duration: number; sectionLabel: string }>({
+    playing: false,
+    currentTime: 0,
+    duration: 0,
+    sectionLabel: '',
+  });
+  // Auto-select the Lead MPE clip when a Chora DAW Showcase Template loads so the docked MPE clip editor is immediately visible.
+  useEffect(() => {
+    if (!p.doc.showcaseMetadata?.isShowcaseTemplate) return;
+    const mvtIdx = p.doc.showcaseMetadata.trackIndex ?? p.doc.showcaseMetadata.activeMovementIdx ?? 0;
+    const leadTrack = p.doc.arrangement.find((t) => t.kind === 'instrument' && !t.padOwned && t.clips.length > 0)
+      || p.doc.arrangement.find((t) => t.kind === 'instrument' && t.clips.length > 0);
+    if (leadTrack) {
+      const targetClip = leadTrack.clips[mvtIdx] || leadTrack.clips[0];
+      if (targetClip) {
+        clipSelection.selectOnly(targetClip.id);
+      }
+    }
+  }, [p.doc.name, p.doc.showcaseMetadata?.bookThemeId, p.doc.showcaseMetadata?.bookId, p.doc.showcaseMetadata?.trackIndex, p.doc.showcaseMetadata?.activeMovementIdx]); // eslint-disable-line react-hooks/exhaustive-deps
   const [renamingPad, setRenamingPad] = useState<number | null>(null);
   const [renamingTrack, setRenamingTrack] = useState<string | null>(null);
   const [nameText, setNameText] = useState('');
@@ -739,6 +763,120 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
       <input ref={colorInputRef} type="color" className="sr-only" aria-label="Choose a custom clip color" onChange={(e) => { const target = colorTargetRef.current; if (!target) return; const color = e.target.value; p.onMutate((d) => { const c = d.arrangement.find((t) => t.id === target.trackId)?.clips.find((x) => x.id === target.clipId); if (c) c.color = color; }); colorTargetRef.current = null; }} />
       {padHeaderMenu.node}
       {trackMenu.node}
+      {p.doc.showcaseMetadata?.isShowcaseTemplate && (
+        <div className="mb-2.5 rounded-xl border border-amber-400/35 bg-gradient-to-r from-[#1E140B]/95 via-[#140E22]/95 to-[#0D1922]/95 px-3.5 py-2.5 shadow-lg">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+              <span className="px-2 py-0.5 rounded bg-amber-400/20 border border-amber-400/50 text-amber-300 text-[9.5px] font-bold uppercase tracking-wider shrink-0 whitespace-nowrap">
+                ★ Chora DAW Showcase Template
+              </span>
+              <span className="text-[12px] font-bold text-white truncate min-w-[140px]">
+                {p.doc.showcaseMetadata.bookTitle} — Mvt {(p.doc.showcaseMetadata.trackIndex ?? p.doc.showcaseMetadata.activeMovementIdx ?? 0) + 1}: {p.doc.showcaseMetadata.trackTitle || p.doc.showcaseMetadata.activeMovementTitle}
+              </span>
+              <span className="text-[10px] font-mono text-cyan-300/90 px-1.5 py-0.5 rounded bg-cyan-500/10 border border-cyan-400/25 shrink-0 whitespace-nowrap">
+                {p.doc.showcaseMetadata.keySignature ? `${p.doc.showcaseMetadata.keySignature} · ` : ''}{p.doc.bpm} BPM · 8 Hybrid Tracks (ACE-Step 2.5 + YuE2 + 7 MPE Synths)
+              </span>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={async () => {
+                  const meta = p.doc.showcaseMetadata;
+                  if (!meta) return;
+                  if (sympStreaming.playing) {
+                    stopRealtimeSympPlayback();
+                    setSympStreaming((prev) => ({ ...prev, playing: false }));
+                  } else {
+                    if (p.running) BeatsEngine.get().stop();
+                    await playRealtimeSympMovement(
+                      meta.bookThemeId || meta.bookId || 'pride-and-prejudice',
+                      meta.trackIndex ?? meta.activeMovementIdx ?? 0,
+                      meta.scoreMode || 'full-film-score',
+                      (cur, dur, _beat16, sectionLabel) => {
+                        setSympStreaming({
+                          playing: true,
+                          currentTime: cur,
+                          duration: dur,
+                          sectionLabel: sectionLabel || '',
+                        });
+                      },
+                      () => setSympStreaming((prev) => ({ ...prev, playing: false })),
+                    );
+                  }
+                }}
+                className={`h-7 px-3 rounded-lg border text-[10.5px] font-bold tracking-wider uppercase flex items-center gap-1.5 transition-all shrink-0 whitespace-nowrap ${
+                  sympStreaming.playing
+                    ? 'bg-rose-500/25 border-rose-400 text-rose-200 shadow-[0_0_15px_rgba(244,63,94,0.35)]'
+                    : 'bg-emerald-500/25 border-emerald-400/80 text-emerald-200 hover:bg-emerald-500/35 shadow-[0_0_14px_rgba(16,185,129,0.28)]'
+                }`}
+                title="Stream the full 2:15–5:30m hybrid orchestral + MPE score (ACE-Step 2.5 Strings, Solo Violin/Cello, Brass, YuE2 Choir + 7 Melos MPE Synths)"
+              >
+                <span>{sympStreaming.playing ? '■ Stop Full Film Score Stream' : '▶ Audition Full ACE-Step 2.5 + MPE Film Score'}</span>
+                {sympStreaming.playing && sympStreaming.duration > 0 && (
+                  <span className="font-mono text-[10px] text-white/90 ml-1">
+                    {Math.floor(sympStreaming.currentTime / 60)}:{String(Math.floor(sympStreaming.currentTime % 60)).padStart(2, '0')} / {Math.floor(sympStreaming.duration / 60)}:{String(Math.floor(sympStreaming.duration % 60)).padStart(2, '0')}
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={() => {
+                  const mvtIdx = p.doc.showcaseMetadata?.trackIndex ?? p.doc.showcaseMetadata?.activeMovementIdx ?? 0;
+                  const leadTrack = p.doc.arrangement.find((t) => t.kind === 'instrument' && !t.padOwned && t.clips.length > 0)
+                    || p.doc.arrangement.find((t) => t.kind === 'instrument' && t.clips.length > 0);
+                  if (leadTrack) {
+                    const clip = leadTrack.clips[mvtIdx] || leadTrack.clips[0];
+                    if (clip) {
+                      clipSelection.selectOnly(clip.id);
+                      setOpenClip({ trackId: leadTrack.id, clipId: clip.id });
+                    }
+                  }
+                }}
+                className="h-7 px-3 rounded-lg bg-[#00DAF3]/20 hover:bg-[#00DAF3]/30 border border-[#00DAF3]/60 text-[#00DAF3] text-[10.5px] font-bold tracking-wider uppercase flex items-center gap-1.5 transition-all shrink-0 whitespace-nowrap"
+                title="Open the Full-Screen MPE Piano Roll to inspect and edit per-note Pressure, Timbre, Pitch-Bend curves, and Articulations"
+              >
+                <Piano size={12} /> Open MPE Piano Roll & Curves
+              </button>
+            </div>
+          </div>
+          {p.doc.sectionMarkers && p.doc.sectionMarkers.length > 0 && (
+            <div className="mt-2 pt-2 border-t border-white/10 flex items-center gap-1.5 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+              <span className="text-[9px] uppercase tracking-wider text-amber-300/80 font-bold mr-1 shrink-0 whitespace-nowrap">
+                7-Section Film Cue Sheet:
+              </span>
+              {p.doc.sectionMarkers.map((sec, idx) => {
+                const secStart = sec.startBeats ?? (sec as unknown as { startBeat?: number }).startBeat ?? 0;
+                const secLabel = sec.title || (sec as unknown as { label?: string }).label || `Section ${idx + 1}`;
+                return (
+                  <button
+                    key={`${sec.id}-${idx}`}
+                    onClick={() => {
+                      p.onPlayFrom(secStart);
+                      if (sympStreaming.playing && sympStreaming.duration > 0) {
+                        const firstStart = p.doc.sectionMarkers![0]?.startBeats ?? 0;
+                        const totalBeats = Math.max(
+                          1,
+                          ...p.doc.sectionMarkers!.map((s) => ((s.startBeats ?? 0) - firstStart) + s.lengthBeats),
+                        );
+                        seekRealtimeSympPlayback((Math.max(0, secStart - firstStart) / totalBeats) * sympStreaming.duration);
+                      }
+                    }}
+                    className="px-2 py-0.5 rounded bg-white/[0.06] hover:bg-amber-400/20 border border-white/15 hover:border-amber-400/50 text-[9.5px] text-white/85 hover:text-amber-200 font-medium transition-all shrink-0 whitespace-nowrap flex items-center gap-1"
+                    title={`${secLabel} (${sec.dynamicMarking}) — ${sec.dramaticCue || ''} · Click to jump DAW playhead & score stream to beat ${secStart}`}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: sec.color || '#F59E0B' }} />
+                    <span>{secLabel}</span>
+                    <span className="text-[8.5px] font-mono text-amber-300/80">({sec.dynamicMarking})</span>
+                  </button>
+                );
+              })}
+              {sympStreaming.playing && sympStreaming.sectionLabel && (
+                <span className="ml-auto text-[10px] font-mono text-emerald-300 shrink-0 whitespace-nowrap">
+                  Now Playing: {sympStreaming.sectionLabel}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+      )}
       <div className={`${glassPanel} flex-1 min-h-0 overflow-hidden flex flex-col`}>
         <div className="flex-1 min-h-0 flex">
         {showLauncher && (
@@ -784,6 +922,19 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
                     {b % 4 === 0 ? b + 1 : ''}
                   </span>
                 ))}
+                {p.doc.sectionMarkers?.map((sec, idx) => {
+                  const secStart = sec.startBeats ?? (sec as unknown as { startBeat?: number }).startBeat ?? 0;
+                  const secLabel = sec.title || (sec as unknown as { label?: string }).label || '';
+                  return (
+                    <span
+                      key={`marker-${sec.id}-${idx}`}
+                      className="absolute top-0 bottom-0 border-l border-amber-400/60 pl-1 text-[8.5px] font-semibold text-amber-300/90 select-none pointer-events-none truncate"
+                      style={{ left: secStart * pxPerBeat, maxWidth: Math.max(40, sec.lengthBeats * pxPerBeat - 4) }}
+                    >
+                      {secLabel}
+                    </span>
+                  );
+                })}
                 {/* loop/cycle region */}
                 <div
                   className="absolute top-0 h-full cursor-grab"

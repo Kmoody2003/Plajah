@@ -1,7 +1,7 @@
 import QRCode from 'qrcode';
 import type { TelaDoc, TelaGradientPaint, TelaVectorDevice, TelaVectorObject } from '../../types';
 import { measureText } from '../tela/telaText';
-import { objectsToSvg } from '../tela/telaSvg';
+import { objectToSvg, objectsToSvg } from '../tela/telaSvg';
 import { promoDestination, safePromoUrl } from './promoGeneratorService';
 import { PROMO_FORMATS, ALL_PROMO_SUITES, REVIEW_PROMO_SUITES, type PromoFormat, type PromoRecipe, type PromoRelease, type PromoTemplateId } from './promoTypes';
 
@@ -66,7 +66,7 @@ export function createPromoScene(release: PromoRelease, recipe: PromoRecipe, tem
   const box = (label: string, x: number, y: number, width: number, height: number, fill: string, patch: Partial<TelaVectorObject> = {}) => add('RECT', label, x, y, width, height, fill, { rx: 0, ...patch });
   const ellipse = (label: string, cx: number, cy: number, rx: number, ry: number, fill: string, patch: Partial<TelaVectorObject> = {}) => add('ELLIPSE', label, cx-rx, cy-ry, rx*2, ry*2, fill, patch);
   const path = (label: string, d: string, fill: string, patch: Partial<TelaVectorObject> = {}) => add('PATH', label, 0, 0, w, h, fill, { svgPathData: d, pathOriginX: 0, pathOriginY: 0, pathOriginW: w, pathOriginH: h, ...patch });
-  const rule = (label: string, x: number, y: number, width: number, color = C.lilac) => box(label, x, y, width, .6, color, { opacity: .3 });
+  const rule = (label: string, x: number, y: number, width: number, color: string = C.lilac) => box(label, x, y, width, .6, color, { opacity: .3 });
   const text = (label: string, x: number, baseline: number, width: number, value: string, size: number, color: string = C.white, patch: Partial<TelaVectorObject> = {}) => {
     const obj = add('TEXT', label, x, baseline-size, width, size*1.2, color, {
       text: value.replace(/[\r\n]+/g, ' ').trim(), fontFamily: 'Outfit, sans-serif', fontWeight: 600, fontSize: size, lineHeight: 1, wrap: false, ...patch,
@@ -220,13 +220,26 @@ export function createPromoScene(release: PromoRelease, recipe: PromoRecipe, tem
   // One legible conversion area shared by every suite, with a real scannable QR.
   const fy = h - (wide ? 73 : 81);
   const destination = promoDestination(directUrl,template,format);
+  const featuredTrack = release.tracks.find(t => t.id === recipe.snippets[0]?.trackId) || release.tracks[0];
+  const choraConversionLabel = future
+    ? 'COMING TO PLAJAH CHORA'
+    : featuredTrack?.title
+      ? `STREAM "${featuredTrack.title.toUpperCase()}" ON PLAJAH CHORA`
+      : 'AVAILABLE ON PLAJAH CHORA';
   rule('Conversion divider',25,fy-23,w-50);
-  note(26,fy-3,w-130,future?'COMING TO PLAJAH CHORA':'AVAILABLE ON PLAJAH CHORA',C.white);
-  box('Chora lockup',24,fy+10,wide?190:230,36,C.ink,{rx:18,stroke:C.magenta,strokeWidth:.8});
+  note(26,fy-3,w-130,choraConversionLabel,C.white);
+  box('Chora lockup',24,fy+10,wide?212:248,36,C.ink,{rx:18,stroke:C.magenta,strokeWidth:.8});
   // Exact chevron geometry from components/Logo.tsx; kept as an editable path.
   add('PATH','Plajah chevron',32,fy+16,21,24,'none',{svgPathData:'M30 20 L70 50 L30 80',pathOriginX:20,pathOriginY:10,pathOriginW:60,pathOriginH:80,stroke:C.orange,strokeWidth:5});
   text('Plajah wordmark',60,fy+34,58,'PLAJAH',11,C.white,{fontWeight:700,letterSpacing:.08,templateRole:'LOGO'});
   text('Chora wordmark',124,fy+35,wide?81:106,'CHORA',20,C.white,{fontWeight:900,fontStyle:'italic',templateRole:'LOGO'});
+  // Live equalizer bars inside the Chora conversion pill
+  const eqBaseX = wide ? 208 : 242;
+  const eqHeights = [10, 18, 13, 16];
+  for (let i = 0; i < 4; i++) {
+    const bh = eqHeights[i];
+    box('Chora eq bar ' + i, eqBaseX + i * 4.5, fy + 28 - bh / 2, 2.6, bh, i % 2 === 0 ? C.orange : C.cyan, { rx: 1.3 });
+  }
   const qr=qrPath(destination), qsize=wide?51:58, qx=w-25-qsize, qy=fy-7;
   box('QR quiet zone',qx,qy,qsize,qsize,'#ffffff');
   add('PATH','Scannable release QR',qx,qy,qsize,qsize,'#100B17',{svgPathData:qr.path,pathOriginX:0,pathOriginY:0,pathOriginW:qr.size,pathOriginH:qr.size,templateRole:'LOGO'});
@@ -241,6 +254,113 @@ export function createPromoScene(release: PromoRelease, recipe: PromoRecipe, tem
   return {template,format,width:target.width,height:target.height,objects:scaled,destination};
 }
 export function promoSceneSvg(scene: PromoScene): string { return objectsToSvg(scene.objects,scene.width,scene.height); }
+
+/**
+ * Living animated SVG version of the PromoScene with staggered animate-on typography,
+ * breathing cover artwork, suite-specific ambient motion, pulsing Chora equalizer bars,
+ * and a rock-steady scannable QR code.
+ */
+export function promoAnimatedSceneSvg(scene: PromoScene): string {
+  const { width, height, objects } = scene;
+  const styleBlock = `<style>
+    @keyframes promoEnterUp {
+      0% { opacity: 0; transform: translateY(28px) scale(0.97); }
+      100% { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @keyframes promoEnterPop {
+      0% { opacity: 0; transform: scale(0.88) translateY(22px); }
+      70% { opacity: 1; transform: scale(1.02) translateY(-3px); }
+      100% { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    @keyframes promoArtBreathe {
+      0%, 100% { transform: translateY(0px) scale(1); }
+      50% { transform: translateY(-8px) scale(1.022); }
+    }
+    @keyframes promoEqBounce {
+      0%, 100% { transform: scaleY(0.38); }
+      45% { transform: scaleY(1.25); }
+      75% { transform: scaleY(0.65); }
+    }
+    @keyframes promoOrbitPulse {
+      0%, 100% { opacity: 0.25; transform: scale(0.985); }
+      50% { opacity: 0.78; transform: scale(1.025); }
+    }
+    @keyframes promoLeafSway {
+      0%, 100% { transform: rotate(-3.5deg) translateY(0px); }
+      50% { transform: rotate(3.5deg) translateY(-5px); }
+    }
+    @keyframes promoSignalBar {
+      0%, 100% { opacity: 0.14; transform: scaleY(0.86); }
+      50% { opacity: 0.42; transform: scaleY(1.04); }
+    }
+    @keyframes promoStarTwinkle {
+      0%, 100% { opacity: 0.28; transform: scale(0.85); }
+      50% { opacity: 0.95; transform: scale(1.3); }
+    }
+    @keyframes promoCurrentDrift {
+      0%, 100% { transform: translateX(-10px); }
+      50% { transform: translateX(10px); }
+    }
+    @keyframes promoSealPulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.06); }
+    }
+    .p-head-1 { animation: promoEnterUp 0.65s cubic-bezier(0.16, 1, 0.3, 1) 0.06s both; transform-box: fill-box; transform-origin: left center; }
+    .p-head-2 { animation: promoEnterUp 0.68s cubic-bezier(0.16, 1, 0.3, 1) 0.16s both; transform-box: fill-box; transform-origin: left center; }
+    .p-artist { animation: promoEnterUp 0.65s cubic-bezier(0.16, 1, 0.3, 1) 0.26s both; transform-box: fill-box; transform-origin: left center; }
+    .p-tagline { animation: promoEnterUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.36s both; transform-box: fill-box; transform-origin: left center; }
+    .p-art-wrap { animation: promoEnterPop 0.78s cubic-bezier(0.16, 1, 0.3, 1) 0.18s both; transform-box: fill-box; transform-origin: center; }
+    .p-art-breathe { animation: promoArtBreathe 4.2s ease-in-out 0.95s infinite; transform-box: fill-box; transform-origin: center; }
+    .p-eq-0 { animation: promoEqBounce 0.72s ease-in-out 0s infinite; transform-box: fill-box; transform-origin: center bottom; }
+    .p-eq-1 { animation: promoEqBounce 0.58s ease-in-out 0.14s infinite; transform-box: fill-box; transform-origin: center bottom; }
+    .p-eq-2 { animation: promoEqBounce 0.81s ease-in-out 0.27s infinite; transform-box: fill-box; transform-origin: center bottom; }
+    .p-eq-3 { animation: promoEqBounce 0.64s ease-in-out 0.09s infinite; transform-box: fill-box; transform-origin: center bottom; }
+    .p-orbit { animation: promoOrbitPulse 3.2s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+    .p-leaf { animation: promoLeafSway 4.4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+    .p-signal { animation: promoSignalBar 1.4s ease-in-out infinite; transform-box: fill-box; transform-origin: center bottom; }
+    .p-star { animation: promoStarTwinkle 2.6s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+    .p-current { animation: promoCurrentDrift 3.6s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+    .p-seal { animation: promoSealPulse 2.2s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+  </style>`;
+
+  const renderedObjects = objects.map((o, idx) => {
+    const raw = objectToSvg(o);
+    const label = o.objectLabel || '';
+    if (label === 'Release title 1') return `<g class="p-head-1">${raw}</g>`;
+    if (label === 'Release title 2') return `<g class="p-head-2">${raw}</g>`;
+    if (label === 'Artist name') return `<g class="p-artist">${raw}</g>`;
+    if (label === 'Campaign line' || label === 'Listening room line') return `<g class="p-tagline">${raw}</g>`;
+    if (label === 'Release artwork' || label === 'Artwork mat' || label === 'Artwork placeholder' || label === 'Monolith edge' || label === 'Artwork depth plane') {
+      return `<g class="p-art-wrap"><g class="p-art-breathe">${raw}</g></g>`;
+    }
+    if (label.startsWith('Chora eq bar ')) {
+      const barIdx = Number(label.slice(-1)) % 4;
+      return `<g class="p-eq-${barIdx}">${raw}</g>`;
+    }
+    if (label.startsWith('Spatial orbit ') || label.startsWith('Velvet fold ') || label.startsWith('Atlas meridian ')) {
+      return `<g class="p-orbit" style="animation-delay:${(idx % 6) * 0.22}s">${raw}</g>`;
+    }
+    if (label.startsWith('Pressed botanical leaf ') || label.startsWith('Paper arch')) {
+      return `<g class="p-leaf" style="animation-delay:${(idx % 5) * 0.25}s">${raw}</g>`;
+    }
+    if (label.startsWith('Signal bars ') || label.startsWith('Signal registration ') || label === 'Magenta speed line' || label === 'Purple speed line') {
+      return `<g class="p-signal" style="animation-delay:${(idx % 6) * 0.15}s">${raw}</g>`;
+    }
+    if (label.startsWith('Star chart ')) {
+      return `<g class="p-star" style="animation-delay:${(idx % 7) * 0.28}s">${raw}</g>`;
+    }
+    if (label.startsWith('Reflective current ')) {
+      return `<g class="p-current" style="animation-delay:${(idx % 4) * 0.3}s">${raw}</g>`;
+    }
+    if (label === 'Press play seal' || label === 'Seal line 1' || label === 'Seal line 2') {
+      return `<g class="p-seal">${raw}</g>`;
+    }
+    return raw;
+  }).join('');
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}">${styleBlock}${renderedObjects}</svg>`;
+}
+
 export function promoTelaDocument(release: PromoRelease, scenes: PromoScene[], id: string, now=Date.now()): TelaDoc {
   const devices: Record<string,TelaVectorDevice>={};
   let x=0;

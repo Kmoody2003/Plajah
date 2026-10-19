@@ -297,6 +297,8 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [upNext, setUpNext] = useState<{ title: string; artist: string; cover?: string; native: boolean } | null>(null);
   const radioQueueRef = useRef<UpNextItem[]>([]);
   const radioFillingRef = useRef(false);
+  const radioActivePlayRef = useRef(false);
+  const switchingToRadioTrackRef = useRef(false);
   const sessionPlayedRef = useRef<Set<string>>(new Set()); // track ids heard this session (avoid repeats)
   const nextRef = useRef<() => void>(() => {}); // set to next() so early-defined callbacks can advance
   // Every automatic/external "go to the next track" signal passes through this guard (see
@@ -925,6 +927,9 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     if (!album || !cur || !album.tracks?.length) return null;
     const tracks = album.tracks;
     if (st.repeatMode === 'ONE') return cur.id;
+    // While actively advancing through the cross-catalog radio queue, each track plays once
+    // before stepping to the next recommended item (native Chora or Audius) in radioQueueRef.
+    if (radioActivePlayRef.current) return null;
     if (st.isShuffle) {
       let order = shuffleOrderRef.current;
       if (order.indexOf(cur.id) === -1) {
@@ -953,30 +958,64 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     setNextTrackId(pickNextId());
   }, [currentTrack?.id, currentAlbum?.id, repeatMode, isShuffle, pickNextId]);
 
-  // ── Radio: prefetch a native-first "up next" queue as an album nears its end, so the
-  //    hand-off is seamless. Also record what's been heard (to avoid repeats). ──
-  const fillRadio = React.useCallback(async () => {
-    if (radioFillingRef.current || !autoRadioRef.current) return;
-    const st = stateRef.current;
-    if (st.audioSource === 'VIDEO' || !st.currentTrack) return;
-    if (radioQueueRef.current.length > 0) return;
-    radioFillingRef.current = true;
-    try {
-      const q = await buildRadioQueue(st.currentTrack, st.currentAlbum, sessionPlayedRef.current, { limit: 20 });
-      radioQueueRef.current = q;
-      const f = q[0];
-      setUpNext(f ? { title: f.track.title, artist: f.track.artist || f.album.artist || '', cover: f.track.albumCover || f.album.coverImage, native: f.native } : null);
-    } catch { /* radio is best-effort — playback just stops as before */ }
-    finally { radioFillingRef.current = false; }
+  const syncUpNextFromQueue = React.useCallback(() => {
+    const f = radioQueueRef.current[0];
+    setUpNext(f ? {
+      title: f.track.title,
+      artist: f.track.artist || f.album.artist || '',
+      cover: f.track.albumCover || f.album.coverImage,
+      native: f.native,
+    } : null);
   }, []);
 
-  // Record plays + prefetch radio when the current track is the album's last.
+  // ── Radio: prefetch a native-first "up next" queue as an album nears its end, so the
+  //    hand-off is seamless. Also record what's been heard (to avoid repeats). ──
+  const fillRadio = React.useCallback(async (opts?: { append?: boolean }): Promise<UpNextItem[]> => {
+    if (radioFillingRef.current || !autoRadioRef.current) return radioQueueRef.current;
+    const st = stateRef.current;
+    if (st.audioSource === 'VIDEO' || !st.currentTrack) return radioQueueRef.current;
+    if (!opts?.append && radioQueueRef.current.length > 0) {
+      syncUpNextFromQueue();
+      return radioQueueRef.current;
+    }
+    radioFillingRef.current = true;
+    try {
+      const exclude = new Set<string>(sessionPlayedRef.current);
+      for (const existing of radioQueueRef.current) exclude.add(existing.track.id);
+      const q = await buildRadioQueue(st.currentTrack, st.currentAlbum, exclude, { limit: 20 });
+      if (opts?.append && radioQueueRef.current.length > 0) {
+        const seen = new Set(radioQueueRef.current.map(x => x.track.id));
+        for (const item of q) {
+          if (!seen.has(item.track.id)) {
+            seen.add(item.track.id);
+            radioQueueRef.current.push(item);
+          }
+        }
+      } else {
+        radioQueueRef.current = q;
+      }
+      syncUpNextFromQueue();
+      return radioQueueRef.current;
+    } catch {
+      /* radio is best-effort — playback just stops as before */
+      return radioQueueRef.current;
+    } finally {
+      radioFillingRef.current = false;
+    }
+  }, [syncUpNextFromQueue]);
+
+  // Record plays + prefetch/maintain radio when the current track is the album's last (or during radio playback).
   useEffect(() => {
     if (currentTrack?.id) sessionPlayedRef.current.add(currentTrack.id);
     if (autoRadio && currentTrack && audioSource !== 'VIDEO' && !isAudiobookMedia(currentAlbum, currentTrack) && pickNextId() === null) {
-      // Current track is the end of the album (no repeat) → warm the cross-catalog queue.
-      radioQueueRef.current = [];
-      fillRadio();
+      if (radioQueueRef.current.length > 0) {
+        syncUpNextFromQueue();
+        if (radioQueueRef.current.length < 4) {
+          fillRadio({ append: true });
+        }
+      } else {
+        fillRadio();
+      }
     } else {
       setUpNext(null);
     }
@@ -1072,8 +1111,13 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     const tracks = st.currentAlbum.tracks;
     const idx = tracks.findIndex(t => t.id === st.currentTrack!.id);
     let nextTrack: Track | null = null;
-    if (idx !== -1 && idx < tracks.length - 1) nextTrack = tracks[idx + 1];
-    else if (st.repeatMode === 'ALL' && tracks.length) nextTrack = tracks[0];
+    if (!radioActivePlayRef.current) {
+      if (idx !== -1 && idx < tracks.length - 1) nextTrack = tracks[idx + 1];
+      else if (st.repeatMode === 'ALL' && tracks.length) nextTrack = tracks[0];
+    }
+    if (!nextTrack && autoRadioRef.current && radioQueueRef.current[0]?.track) {
+      nextTrack = radioQueueRef.current[0].track;
+    }
     if (!nextTrack?.url) return;
     // If the next track has a ready transcoded stream, hls.js/native HLS buffers it ahead on its own —
     // no need to prewarm the (unused) original file.
@@ -1131,6 +1175,17 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     bailHlsRef.current = null;
     let audio = audioRef.current;
     const isNewTrack = forceReload || stateRef.current.currentTrack?.id !== track.id || stateRef.current.audioSource === 'VIDEO';
+
+    if (switchingToRadioTrackRef.current) {
+      switchingToRadioTrackRef.current = false;
+      radioActivePlayRef.current = true;
+    } else {
+      const changedAlbum = stateRef.current.currentAlbum?.id !== album?.id;
+      if (radioActivePlayRef.current || changedAlbum) {
+        radioQueueRef.current = [];
+      }
+      radioActivePlayRef.current = false;
+    }
 
     initAudioContext();
     intendedPlayingRef.current = true;
@@ -1704,15 +1759,28 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
       if (autoRadioRef.current && !isAudiobookMedia(album, stateRef.current.currentTrack)) {
         const item = radioQueueRef.current.shift();
         if (item) {
-          setUpNext(null);
-          playTrack(item.track, item.album, 'LIBRARY');   // its album's tracks then play through
+          syncUpNextFromQueue();
+          switchingToRadioTrackRef.current = true;
+          playTrack(item.track, item.album, 'LIBRARY');
+          if (radioQueueRef.current.length < 4) void fillRadio({ append: true });
           return;
         }
-        fillRadio(); // nothing prefetched in time — warm it so the next end continues
+        // Nothing prefetched in time — fetch immediately and continue seamlessly into radio
+        void fillRadio().then(q => {
+          const first = q.shift();
+          if (first && autoRadioRef.current) {
+            syncUpNextFromQueue();
+            switchingToRadioTrackRef.current = true;
+            playTrack(first.track, first.album, 'LIBRARY');
+          } else {
+            pause();
+          }
+        });
+        return;
       }
       pause();
     }
-  }, [playTrack, pause, pickNextId, fillRadio]);
+  }, [playTrack, pause, pickNextId, fillRadio, syncUpNextFromQueue]);
   useEffect(() => { nextRef.current = next; }, [next]);
 
   const prev = React.useCallback(() => {

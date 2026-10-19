@@ -8,9 +8,10 @@
 /* ── masthead ─────────────────────────────────────────────────────────── */
 .chora-next .cn-mast h1 {
   margin: 0;
+  font-family: var(--font-display);
   font-size: clamp(2.2rem, 6vw, 4.2rem);
   font-weight: 900;
-  font-style: italic;
+  font-style: normal;
   letter-spacing: -0.02em;
   line-height: 0.9;
   text-transform: uppercase;
@@ -31,6 +32,7 @@
 
 .chora-next .cn-issue {
   margin-top: 8px;
+  font-family: var(--font-display);
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.26em;
@@ -54,6 +56,7 @@
   border: 1px solid var(--pj-border);
   background: var(--pj-glass-2);
   color: var(--text-primary, #fff);
+  font-family: var(--font-display);
   font-size: 9px;
   font-weight: 900;
   letter-spacing: 0.18em;
@@ -70,23 +73,17 @@
 .chora-next .cn-pill--brand:hover { box-shadow: var(--pj-glow-brand); }
 
 /* ── shelf headers ────────────────────────────────────────────────────────
-   The classic UI's tiny uppercase section labels become named shelves:
-   editorial italic titles in sentence case. One selector covers every
-   section header inside Chora — they all share the tracking-[0.4em]
-   signature — so Coming Soon, Recent Releases, the Audius groups, Vault
-   shelves, charts etc. restyle together. Headers with their own inline
-   color (Audius purple, Vault accents) keep it — provenance survives. */
+   Plajah design language: bold uppercase display typography with wide tracking. */
 .chora-next h2[class*="tracking-[0.4em]"],
 .chora-next h3[class*="tracking-[0.4em]"] {
-  /* px + !important: the global text-[10px]→11px readability bump is
-     !important, so the shelf title must outrank it (we're more specific). */
-  font-size: 17px !important;
+  font-family: var(--font-display);
+  font-size: 13px !important;
   font-weight: 900;
-  font-style: italic;
-  letter-spacing: -0.01em;
-  text-transform: none;
+  font-style: normal;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
   color: var(--text-primary, #fff);
-  line-height: 1.15;
+  line-height: 1.2;
 }
 /* ── day hero · "Today's selections" panes ────────────────────────────── */
 .chora-next .cn-panes {
@@ -125,6 +122,7 @@
   position: absolute;
   top: 8px;
   left: 8px;
+  font-family: var(--font-display);
   font-size: 8px;
   font-weight: 800;
   letter-spacing: 0.2em;
@@ -147,15 +145,22 @@
 }
 .chora-next .cn-meta h5 {
   margin: 0;
+  font-family: var(--font-display);
   font-size: 0.9rem;
   font-weight: 900;
-  font-style: italic;
+  font-style: normal;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
   line-height: 1.05;
   color: #fff;
 }
 .chora-next .cn-meta p {
   margin: 2px 0 0;
+  font-family: var(--font-display);
   font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
   color: rgba(255, 255, 255, 0.65);
   white-space: nowrap;
   overflow: hidden;
@@ -348,8 +353,11 @@
   top: 105%;
   transform: translateX(-50%);
   white-space: nowrap;
+  font-family: var(--font-display, "Space Grotesk", sans-serif);
   font-size: 9.5px;
-  font-weight: 700;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
   color: #fff;
   background: rgba(0, 0, 0, 0.55);
   border: 1px solid var(--pj-border);
@@ -363,8 +371,10 @@
 .chora-next .cn-disc .cn-lbl i {
   font-style: normal;
   color: var(--pj-cyan);
-  font-family: var(--font-mono, ui-monospace, monospace);
+  font-family: var(--font-display, "Space Grotesk", sans-serif);
   font-size: 8.5px;
+  font-weight: 900;
+  text-transform: uppercase;
   letter-spacing: 0.1em;
   margin-left: 5px;
 }
@@ -377,7 +387,9 @@
   align-items: center;
   gap: 4px;
   margin-top: 4px;
-  font-family: var(--font-mono, ui-monospace, monospace);
+  font-family: var(--font-display, "Space Grotesk", sans-serif);
+  font-weight: 900;
+  text-transform: uppercase;
   font-size: 9px;
   color: var(--pj-orange);
 }
@@ -455,9 +467,9 @@
 }
 .pv-orr-node i {
   font-style: normal;
-  font-family: var(--font-mono, ui-monospace, monospace);
+  font-family: var(--font-display, "Space Grotesk", sans-serif);
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 900;
   color: #fff;
   /* Counter-rotate on the SAME period so the track number stays upright as its planet orbits. */
   display: inline-block;
@@ -486,8 +498,9 @@
   left: 50%;
   bottom: -4px;
   transform: translateX(-50%);
-  font-family: var(--font-mono, ui-monospace, monospace);
+  font-family: var(--font-display, "Space Grotesk", sans-serif);
   font-size: 9px;
+  font-weight: 900;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: rgba(255, 255, 255, 0.35);

@@ -61,12 +61,22 @@ import { getMusicEngines, unavailableMusicEngines, type EngineStatus } from '../
 import { insertGeneratedAudio, insertGeneratedNotes } from '../../../services/melos/generation/insert';
 import GenerationPanel, { type GenerationInsertion } from './composer/GenerationPanel';
 import { encodeWav } from '../../../services/audio/wavEncode';
+import {
+  CLASSIC_BOOK_SOUNDTRACKS,
+  buildClassicBookGrooveDoc,
+  hydrateClassicBookGrooveAudioStems,
+  seedAdminClassicBookProjects,
+  getMasterBookScore,
+} from '../../../data/classicBookSoundtracks';
 
 export interface BeatsLaunchPayload {
   grooveId?: string;
   productionId?: string;
   sampleUrl?: string;
   sampleName?: string;
+  classicBookThemeId?: string;
+  classicBookTrackIndex?: number;
+  classicBookGrooveDoc?: GrooveDoc;
 }
 
 interface BeatsRoomProps {
@@ -642,6 +652,53 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
     setShowBass(false);
   }, [mutate, pattern?.id]);
 
+  // 12 Admin-Seeded Classic Book Literary Score & Chora DAW Showcase Template Projects
+  const [showLiteraryScores, setShowLiteraryScores] = useState(false);
+  const [showcaseScoreMode, setShowcaseScoreMode] = useState<'full-film-score' | 'light-background'>('full-film-score');
+  const loadClassicBookTemplate = useCallback((themeId: string, trackIdx = 0, mode: 'full-film-score' | 'light-background' = showcaseScoreMode) => {
+    const master = getMasterBookScore(themeId);
+    const nextDoc = buildClassicBookGrooveDoc(themeId, auth.currentUser?.uid || 'lorea-classic-showcase', trackIdx, mode);
+    replace(nextDoc);
+    setActivePatternId(nextDoc.patterns[trackIdx]?.id || nextDoc.patterns[0]?.id || '');
+    setPlayMode('song');
+    setSongStartBeats(nextDoc.loop?.startBeats ?? 0);
+    setView('timeline');
+    setShowLiteraryScores(false);
+    void BeatsEngine.get().init().then(async () => {
+      BeatsEngine.get().syncInstruments();
+      if (master) {
+        const hydrated = await hydrateClassicBookGrooveAudioStems(nextDoc, themeId);
+        replace({ ...hydrated, updatedAt: Date.now() });
+      }
+    });
+    const durTag = nextDoc.showcaseMetadata?.durationFormatted || '3:20';
+    flash(
+      mode === 'full-film-score'
+        ? `Loaded Chora Showcase Template "${nextDoc.name}" (${durTag} Full Film Score · 5 MPE Synths + 3 ACE-Step 2.5 / YuE2 Stems)`
+        : `Loaded Light Reading Background "${nextDoc.name}" (Light Chamber Mode)`
+    );
+  }, [replace, setView, flash, showcaseScoreMode]);
+
+  useEffect(() => {
+    void seedAdminClassicBookProjects(auth.currentUser?.uid || 'lorea-admin-composer');
+    if (payload?.classicBookThemeId) {
+      loadClassicBookTemplate(payload.classicBookThemeId, payload.classicBookTrackIndex || 0);
+      return;
+    }
+    try {
+      const pendingRaw = sessionStorage.getItem('melos_classic_book_template_pending');
+      if (pendingRaw) {
+        sessionStorage.removeItem('melos_classic_book_template_pending');
+        const parsed = JSON.parse(pendingRaw);
+        if (parsed?.bookThemeId) {
+          loadClassicBookTemplate(parsed.bookThemeId, parsed.trackIndex || 0);
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, [payload?.classicBookThemeId, payload?.classicBookTrackIndex, loadClassicBookTemplate]);
+
   // ── Aria music-assistant wiring ──────────────────────────────────────────────
   // Publishes the beat's live state and exposes production actions Aria can take.
   // Actions reuse the existing engine-safe handlers above. See ariaContext.ts.
@@ -972,7 +1029,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           business showing pattern chips. */}
       {view !== 'mixer' && view !== 'project' && (
       <div
-        className="flex items-center gap-1.5 px-4 h-9 border-b border-white/[0.07] bg-black/20 flex-none"
+        className="flex items-center gap-1.5 px-4 min-h-[38px] py-1 border-b border-white/[0.07] bg-black/20 flex-none"
         onDragOver={(e) => { if (e.dataTransfer.types.includes('Files')) e.preventDefault(); }}
         onDrop={(e) => {
           const f = e.dataTransfer.files?.[0];
@@ -982,23 +1039,24 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
         }}
         title="Drop a drum loop here to transcribe it into a new pattern"
       >
-        <div className="relative flex items-center gap-1.5">
+        <div className="relative flex items-center gap-1.5 shrink-0">
           <input
             value={doc.name}
+            title={doc.name}
             onChange={(e) => mutate((d) => { d.name = e.target.value; })}
             onBlur={() => { void saveNow(); }}
             aria-label="Groove name"
-            className="w-32 h-6 rounded-lg bg-transparent border border-transparent hover:border-white/10 focus:border-white/25 px-2 text-[11px] font-semibold text-white outline-none"
+            className="w-36 xl:w-44 h-6 rounded-lg bg-transparent border border-transparent hover:border-white/10 focus:border-white/25 px-2 text-[11px] font-semibold text-white outline-none truncate"
           />
           <span
             className="w-1.5 h-1.5 rounded-full flex-none"
             title={saveState === 'saved' ? 'Saved' : saveState === 'saving' ? 'Saving…' : saveState === 'unsaved' ? 'Unsaved changes (autosaves)' : 'In-memory only — sign in to save'}
             style={{ background: saveState === 'saved' ? '#06D6A0' : saveState === 'saving' ? '#F59E0B' : saveState === 'unsaved' ? '#FF8C00' : 'rgba(255,255,255,0.25)' }}
           />
-          <button onClick={() => setShowGrooves((v) => !v)} aria-label="My grooves" title="My grooves" className="h-6 w-6 grid place-items-center rounded-lg border border-white/10 text-white/40 hover:text-white">
+          <button onClick={() => setShowGrooves((v) => !v)} aria-label="My grooves" title="My grooves" className="h-6 w-6 shrink-0 grid place-items-center rounded-lg border border-white/10 text-white/40 hover:text-white">
             <FolderOpen size={11} />
           </button>
-          <button onClick={newGroove} aria-label="New groove" title="New groove" className="h-6 w-6 grid place-items-center rounded-lg border border-white/10 text-white/40 hover:text-white">
+          <button onClick={newGroove} aria-label="New groove" title="New groove" className="h-6 w-6 shrink-0 grid place-items-center rounded-lg border border-white/10 text-white/40 hover:text-white">
             <FilePlus2 size={11} />
           </button>
           {showGrooves && (
@@ -1019,11 +1077,11 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
                 <div key={g.id} className="flex items-center gap-1 group">
                   <button
                     onClick={() => { setShowGrooves(false); void openGroove(g.id); }}
-                    className={`flex-1 text-left px-2 py-1.5 rounded-lg text-[11px] ${g.id === doc.id ? 'text-white bg-white/10' : 'text-white/60 hover:text-white hover:bg-white/5'}`}
+                    className={`flex-1 text-left px-2 py-1.5 rounded-lg text-[11px] truncate ${g.id === doc.id ? 'text-white bg-white/10' : 'text-white/60 hover:text-white hover:bg-white/5'}`}
                   >
                     {g.name} <span className="text-white/25 font-mono text-[9px] ml-1">{g.bpm.toFixed(0)}bpm</span>
                   </button>
-                  <button onClick={() => { void removeGroove(g.id); }} aria-label={`Delete ${g.name}`} className="w-6 h-6 grid place-items-center rounded text-white/20 hover:text-[#EF4444] opacity-0 group-hover:opacity-100">
+                  <button onClick={() => { void removeGroove(g.id); }} aria-label={`Delete ${g.name}`} className="w-6 h-6 shrink-0 grid place-items-center rounded text-white/20 hover:text-[#EF4444] opacity-0 group-hover:opacity-100">
                     <Trash2 size={11} />
                   </button>
                 </div>
@@ -1031,91 +1089,190 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
             </div>
           )}
         </div>
-        <div className="w-px h-4 bg-white/10 mx-1" />
-        <span className="text-[9px] uppercase tracking-[0.18em] text-white/25 font-semibold mr-1">Patterns</span>
+        <div className="w-px h-4 bg-white/10 mx-1 shrink-0" />
+        <span className="text-[9px] uppercase tracking-[0.18em] text-white/25 font-semibold mr-1 shrink-0 whitespace-nowrap">Patterns</span>
         {patternMenu.node}
-        {doc.patterns.map((p) => (
+        <div className="flex items-center gap-1 min-w-[120px] flex-1 overflow-x-auto py-0.5" style={{ scrollbarWidth: 'none' }}>
+          {doc.patterns.map((p, pIdx) => (
+            <button
+              key={p.id}
+              onClick={() => {
+                setActivePatternId(p.id);
+                if (doc.showcaseMetadata?.isShowcaseTemplate && doc.showcaseMetadata.bookThemeId) {
+                  loadClassicBookTemplate(doc.showcaseMetadata.bookThemeId, pIdx, doc.showcaseMetadata.scoreMode || showcaseScoreMode);
+                }
+              }}
+              {...patternMenu.bind(p.id)}
+              title={p.name}
+              className="h-6 px-2.5 rounded-lg text-[11px] border transition-colors shrink-0 whitespace-nowrap max-w-[140px] truncate"
+              style={p.id === pattern?.id
+                ? { background: `${SELECT}26`, borderColor: `${SELECT}66`, color: '#fff', fontWeight: 600 }
+                : { borderColor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.45)' }}
+            >{p.name}</button>
+          ))}
+          <button onClick={addPattern} aria-label="New pattern" title="New pattern" className="h-6 w-6 shrink-0 grid place-items-center rounded-lg border border-white/10 text-white/40 hover:text-white">
+            <Plus size={11} />
+          </button>
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+          <div className="relative shrink-0">
+            <button onClick={() => setShowGenres(v => !v)} title="Load a ready-made genre drum pattern"
+              className="h-6 px-2.5 rounded-lg text-[10px] border border-[#00DAF3]/35 text-[#00DAF3] hover:bg-[#00DAF3]/10 flex items-center gap-1 shrink-0 whitespace-nowrap">
+              <Sparkles size={10} /> Genres
+            </button>
+            {showGenres && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowGenres(false)} />
+                <div className="absolute z-50 top-7 left-0 w-60 max-h-80 overflow-y-auto rounded-xl border border-white/12 bg-[#0c0d12] shadow-2xl p-1">
+                  <div className="px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.16em] text-white/30">Genre patterns</div>
+                  {GENRE_PRESETS.map(g => (
+                    <button key={g.id} onClick={() => applyGenre(g)}
+                      className="w-full text-left px-2 py-2 rounded-lg hover:bg-white/8 transition-colors">
+                      <DrumPatternThumb pattern={cachedPattern(g.id, g.make)} bpm={g.bpm} style={{ marginBottom: 6 }} />
+                      <div className="flex items-center justify-between gap-2 px-1">
+                        <span className="text-[12px] font-bold text-white">{g.name}</span>
+                        <span className="text-[9px] font-mono text-white/35 shrink-0">{g.bpm} BPM</span>
+                      </div>
+                      <div className="text-[10px] text-white/45 leading-snug mt-0.5 px-1">{g.hint}</div>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+          <div className="relative shrink-0">
+            <button onClick={() => setShowBass(v => !v)} title="Drop a BAJO bassline into this pattern"
+              className="h-6 px-2.5 rounded-lg text-[10px] border border-[#D0BCFF]/35 text-[#D0BCFF] hover:bg-[#D0BCFF]/10 flex items-center gap-1 shrink-0 whitespace-nowrap">
+              <Sparkles size={10} /> Bass
+            </button>
+            {showBass && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowBass(false)} />
+                <div className="absolute z-50 top-7 left-0 w-60 max-h-80 overflow-y-auto rounded-xl border border-white/12 bg-[#0c0d12] shadow-2xl p-1">
+                  <div className="px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.16em] text-white/30">MIDI basslines · adds a BAJO</div>
+                  {BASSLINES.map(b => (
+                    <button key={b.id} onClick={() => applyBass(b)}
+                      className="w-full text-left px-2 py-2 rounded-lg hover:bg-white/8 transition-colors">
+                      <BasslineThumb notes={b.notes} bpm={b.bpm} style={{ marginBottom: 6 }} />
+                      <div className="flex items-center justify-between gap-2 px-1">
+                        <span className="text-[12px] font-bold text-white">{b.name}</span>
+                        <span className="text-[9px] font-mono text-white/35 shrink-0">{b.genre}</span>
+                      </div>
+                      <div className="text-[10px] text-white/45 leading-snug mt-0.5 px-1">{b.hint}</div>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+          <button onClick={() => setUlOpen((v) => !v)} title="Universal Library — grooves, basslines and your assets — docks on the right"
+            className={`h-6 px-2.5 rounded-lg text-[10px] border flex items-center gap-1 shrink-0 whitespace-nowrap ${ulOpen ? 'border-[#8B5CFF]/70 text-white bg-[#8B5CFF]/15' : 'border-[#8B5CFF]/40 text-[#D0BCFF] hover:bg-[#8B5CFF]/12'}`}>▦ Library</button>
+          <button onClick={() => setShowBreakdownImport(true)} title="Score from Chora — turn a song's Breakdown into instrument tracks"
+            className="h-6 px-2.5 rounded-lg text-[10px] border border-[#00DAF3]/35 text-[#00DAF3] hover:bg-[#00DAF3]/10 flex items-center gap-1 shrink-0 whitespace-nowrap">♪ From Chora</button>
+          <div className="relative shrink-0">
+            <button
+              onClick={() => setShowLiteraryScores(v => !v)}
+              title="Load Official Chora DAW Showcase & Film Score Template Projects (Pride & Prejudice, Dracula + 10 Classics)"
+              className="h-6 px-2.5 rounded-lg text-[10px] border border-amber-400/45 text-amber-300 hover:bg-amber-400/15 flex items-center gap-1 font-semibold shrink-0 whitespace-nowrap"
+            >
+              <Sparkles size={10} /> Chora Showcase Templates
+            </button>
+            {showLiteraryScores && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowLiteraryScores(false)} />
+                <div className="absolute z-50 top-7 right-0 w-[min(440px,92vw)] max-h-[480px] overflow-y-auto rounded-xl border border-amber-400/25 bg-[#0c0d12]/98 backdrop-blur-xl shadow-2xl p-2">
+                  <div className="flex items-center justify-between gap-2 px-2 py-1.5 border-b border-white/10 mb-1.5">
+                    <div>
+                      <div className="text-[10px] font-black uppercase tracking-[0.14em] text-amber-300">
+                        Chora DAW Showcase & Film Score Templates
+                      </div>
+                      <div className="text-[9px] text-white/45">
+                        ACE-Step 2.5 + YuE2 Orchestral Stems + 5 Melos MPE Synths (2:15–5:30 Min)
+                      </div>
+                    </div>
+                    <div className="flex gap-1 bg-white/[0.06] p-0.5 rounded-lg border border-white/10 shrink-0">
+                      <button
+                        onClick={() => setShowcaseScoreMode('full-film-score')}
+                        className={`px-2 py-0.5 rounded text-[9px] font-bold whitespace-nowrap ${
+                          showcaseScoreMode === 'full-film-score' ? 'bg-amber-400 text-black' : 'text-white/50'
+                        }`}
+                      >
+                        Full Film Score
+                      </button>
+                      <button
+                        onClick={() => setShowcaseScoreMode('light-background')}
+                        className={`px-2 py-0.5 rounded text-[9px] font-bold whitespace-nowrap ${
+                          showcaseScoreMode === 'light-background' ? 'bg-sky-400 text-black' : 'text-white/50'
+                        }`}
+                      >
+                        Light Bg
+                      </button>
+                    </div>
+                  </div>
+                  {Object.values(CLASSIC_BOOK_SOUNDTRACKS).map(album => {
+                    const master = getMasterBookScore(album.bookThemeId);
+                    const isPriority = album.bookThemeId === 'pride-and-prejudice' || album.bookThemeId === 'dracula';
+                    return (
+                      <div
+                        key={album.bookThemeId}
+                        className={`mb-2 rounded-lg border p-2 ${
+                          isPriority ? 'border-amber-400/35 bg-amber-500/[0.06]' : 'border-white/[0.06] bg-white/[0.02]'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] font-bold text-white truncate">{album.bookTitle}</span>
+                          <span className="text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 shrink-0">
+                            {isPriority ? '★ Flagship 6-Song Showcase' : '6 Film Movements'}
+                          </span>
+                        </div>
+                        <div className="text-[9.5px] text-amber-200/80 truncate mt-0.5">
+                          {master ? master.albumTitle : album.albumTitle}
+                        </div>
+                        {master && (
+                          <div className="grid grid-cols-2 gap-1 mt-1.5">
+                            {master.movements.map((mvt, mvtIdx) => {
+                              const beats = showcaseScoreMode === 'light-background' ? (mvt.lightBackgroundLengthBeats || 32) : mvt.lengthBeats;
+                              const durSec = Math.round((beats * 60) / mvt.bpm);
+                              const durStr = `${Math.floor(durSec / 60)}:${String(durSec % 60).padStart(2, '0')}`;
+                              return (
+                                <button
+                                  key={mvt.movementNumber}
+                                  onClick={() => loadClassicBookTemplate(album.bookThemeId, mvtIdx, showcaseScoreMode)}
+                                  className="text-left px-2 py-1 rounded bg-black/40 hover:bg-amber-400/20 border border-white/10 hover:border-amber-400/40 transition"
+                                >
+                                  <div className="flex items-center justify-between text-[9px] font-semibold text-white">
+                                    <span className="truncate">{mvt.movementNumber}. {mvt.title}</span>
+                                    <span className="text-amber-300 font-mono ml-1 shrink-0">{durStr}</span>
+                                  </div>
+                                  <div className="text-[8px] text-white/45 truncate">
+                                    {mvt.key} {mvt.mode} · {mvt.bpm} BPM · ACE-Step 2.5 + MPE
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </div>
+          {musicEngines && <button data-testid="music-lab-generate" onClick={() => setShowGeneration(value => !value)} title="Generate audio, MIDI notes or a sample (private music lab)"
+            className={`h-6 px-2.5 rounded-lg text-[10px] border text-[#D0BCFF] flex items-center gap-1 shrink-0 whitespace-nowrap ${showGeneration ? 'border-[#D0BCFF] bg-[#8B5CFF]/20' : 'border-[#D0BCFF]/40 hover:bg-[#8B5CFF]/10'}`}><Sparkles size={10} /> AI Generate</button>}
           <button
-            key={p.id}
-            onClick={() => setActivePatternId(p.id)}
-            {...patternMenu.bind(p.id)}
-            className="h-6 px-2.5 rounded-lg text-[11px] border transition-colors"
-            style={p.id === pattern?.id
-              ? { background: `${SELECT}26`, borderColor: `${SELECT}66`, color: '#fff', fontWeight: 600 }
-              : { borderColor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.45)' }}
-          >{p.name}</button>
-        ))}
-        <button onClick={addPattern} aria-label="New pattern" className="h-6 w-6 grid place-items-center rounded-lg border border-white/10 text-white/40 hover:text-white">
-          <Plus size={11} />
-        </button>
-        <div className="relative">
-          <button onClick={() => setShowGenres(v => !v)} title="Load a ready-made genre drum pattern"
-            className="h-6 px-2.5 rounded-lg text-[10px] border border-[#00DAF3]/35 text-[#00DAF3] hover:bg-[#00DAF3]/10 flex items-center gap-1">
-            <Sparkles size={10} /> Genres
-          </button>
-          {showGenres && (
-            <>
-              <div className="fixed inset-0 z-40" onClick={() => setShowGenres(false)} />
-              <div className="absolute z-50 top-7 left-0 w-60 max-h-80 overflow-y-auto rounded-xl border border-white/12 bg-[#0c0d12] shadow-2xl p-1">
-                <div className="px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.16em] text-white/30">Genre patterns</div>
-                {GENRE_PRESETS.map(g => (
-                  <button key={g.id} onClick={() => applyGenre(g)}
-                    className="w-full text-left px-2 py-2 rounded-lg hover:bg-white/8 transition-colors">
-                    <DrumPatternThumb pattern={cachedPattern(g.id, g.make)} bpm={g.bpm} style={{ marginBottom: 6 }} />
-                    <div className="flex items-center justify-between gap-2 px-1">
-                      <span className="text-[12px] font-bold text-white">{g.name}</span>
-                      <span className="text-[9px] font-mono text-white/35 shrink-0">{g.bpm} BPM</span>
-                    </div>
-                    <div className="text-[10px] text-white/45 leading-snug mt-0.5 px-1">{g.hint}</div>
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
+            onClick={() => { if (pattern) mutate((d) => { const p = d.patterns.find((x) => x.id === pattern.id); if (p) autoFill(d, p, 4); }); }}
+            title="Auto fill — write a snare-roll fill into the last bar of this pattern"
+            className="h-6 px-2.5 rounded-lg text-[10px] border border-[#FF8C00]/35 text-[#FF8C00] hover:bg-[#FF8C00]/10 flex items-center gap-1 shrink-0 whitespace-nowrap"
+          ><Sparkles size={10} /> Fill</button>
+          <button
+            onClick={() => { if (pattern) mutate((d) => { const p = d.patterns.find((x) => x.id === pattern.id); if (p) quantizePattern(p, 1); }); }}
+            title="Quantize — snap all micro-timing in this pattern back to the grid"
+            className="h-6 px-2.5 rounded-lg text-[10px] border border-white/15 text-white/50 hover:text-white hover:bg-white/10 flex items-center gap-1 shrink-0 whitespace-nowrap"
+          ><AlignStartVertical size={10} /> Quantize</button>
+          <span className="text-[9px] text-white/20 ml-1 hidden 2xl:inline shrink-0 whitespace-nowrap">{busy === 'transcribe' ? 'Listening…' : 'drop a loop here to transcribe'}</span>
         </div>
-        <div className="relative">
-          <button onClick={() => setShowBass(v => !v)} title="Drop a BAJO bassline into this pattern"
-            className="h-6 px-2.5 rounded-lg text-[10px] border border-[#D0BCFF]/35 text-[#D0BCFF] hover:bg-[#D0BCFF]/10 flex items-center gap-1">
-            <Sparkles size={10} /> Bass
-          </button>
-          {showBass && (
-            <>
-              <div className="fixed inset-0 z-40" onClick={() => setShowBass(false)} />
-              <div className="absolute z-50 top-7 left-0 w-60 max-h-80 overflow-y-auto rounded-xl border border-white/12 bg-[#0c0d12] shadow-2xl p-1">
-                <div className="px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.16em] text-white/30">MIDI basslines · adds a BAJO</div>
-                {BASSLINES.map(b => (
-                  <button key={b.id} onClick={() => applyBass(b)}
-                    className="w-full text-left px-2 py-2 rounded-lg hover:bg-white/8 transition-colors">
-                    <BasslineThumb notes={b.notes} bpm={b.bpm} style={{ marginBottom: 6 }} />
-                    <div className="flex items-center justify-between gap-2 px-1">
-                      <span className="text-[12px] font-bold text-white">{b.name}</span>
-                      <span className="text-[9px] font-mono text-white/35 shrink-0">{b.genre}</span>
-                    </div>
-                    <div className="text-[10px] text-white/45 leading-snug mt-0.5 px-1">{b.hint}</div>
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-        <button onClick={() => setUlOpen((v) => !v)} title="Universal Library — grooves, basslines and your assets — docks on the right"
-          className={`h-6 px-2.5 rounded-lg text-[10px] border flex items-center gap-1 ${ulOpen ? 'border-[#8B5CFF]/70 text-white bg-[#8B5CFF]/15' : 'border-[#8B5CFF]/40 text-[#D0BCFF] hover:bg-[#8B5CFF]/12'}`}>▦ Library</button>
-        <button onClick={() => setShowBreakdownImport(true)} title="Score from Chora — turn a song's Breakdown into instrument tracks"
-          className="h-6 px-2.5 rounded-lg text-[10px] border border-[#00DAF3]/35 text-[#00DAF3] hover:bg-[#00DAF3]/10 flex items-center gap-1">♪ From Chora</button>
-        {musicEngines && <button data-testid="music-lab-generate" onClick={() => setShowGeneration(value => !value)} title="Generate audio, MIDI notes or a sample (private music lab)"
-          className={`h-6 px-2.5 rounded-lg text-[10px] border text-[#D0BCFF] flex items-center gap-1 ${showGeneration ? 'border-[#D0BCFF] bg-[#8B5CFF]/20' : 'border-[#D0BCFF]/40 hover:bg-[#8B5CFF]/10'}`}><Sparkles size={10} /> AI Generate</button>}
-        <div className="flex-1" />
-        <button
-          onClick={() => { if (pattern) mutate((d) => { const p = d.patterns.find((x) => x.id === pattern.id); if (p) autoFill(d, p, 4); }); }}
-          title="Auto fill — write a snare-roll fill into the last bar of this pattern"
-          className="h-6 px-2.5 rounded-lg text-[10px] border border-[#FF8C00]/35 text-[#FF8C00] hover:bg-[#FF8C00]/10 flex items-center gap-1"
-        ><Sparkles size={10} /> Fill</button>
-        <button
-          onClick={() => { if (pattern) mutate((d) => { const p = d.patterns.find((x) => x.id === pattern.id); if (p) quantizePattern(p, 1); }); }}
-          title="Quantize — snap all micro-timing in this pattern back to the grid"
-          className="h-6 px-2.5 rounded-lg text-[10px] border border-white/15 text-white/50 hover:text-white hover:bg-white/10 flex items-center gap-1"
-        ><AlignStartVertical size={10} /> Quantize</button>
-        <span className="text-[9px] text-white/20 ml-1">{busy === 'transcribe' ? 'Listening…' : 'drop a loop here to transcribe'}</span>
       </div>
       )}
 

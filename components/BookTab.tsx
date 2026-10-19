@@ -16,11 +16,12 @@ import {
 import { searchGoogleBooks, GoogleBook } from '../services/googleBooksService';
 import { fetchPublicBooks, syncPublicDomainAsset } from '../services/backendService';
 import { importComic } from '../services/comicImport';
-import { CLASSIC_BOOKS } from '../data/classicBooks';
+import { CLASSIC_BOOKS, findClassicBook, getClassicBookTextUrl, resolveAudiobookCover } from '../data/classicBooks';
+import { prefetchBookContent } from '../services/bookContentService';
 import {
   BookOpen, Search, Filter, Star, Clock, ChevronLeft, ChevronRight, Bookmark, Download,
   Loader2, Library as LibraryIcon, ShoppingCart, User as UserIcon, Globe, Play, Pause,
-  Sparkles, AudioLines, Music2, Landmark, Baby, Users, ArrowUpRight
+  Sparkles, AudioLines, Music2, Landmark, Baby, Users, ArrowUpRight, Volume2, VolumeX
 } from 'lucide-react';
 import { useContextMenu } from './ui/ContextMenu';
 import PlajahPlusBanner from './PlajahPlusBanner';
@@ -32,12 +33,24 @@ import LazyImage from './LazyImage';
 import { goldenThread } from '../data/showcase/books/goldenThread';
 import goldenThreadLiving from '../data/showcase/living/golden-thread';
 import { SHOWCASE_BOOKS, showcaseById } from '../data/showcase';
-import { buildShowcaseTelaDoc, loadShowcaseTelaDoc, makeShowcaseBundle, showcaseAlbumId } from '../services/showcase/livingDoc';
+import { buildShowcaseTelaDoc, loadShowcaseTelaDoc, makeShowcaseBundle, pageObjects, showcaseAlbumId } from '../services/showcase/livingDoc';
+import { TELA_PUBLICATION_TEMPLATES } from '../services/telaPublicationTemplates';
+import { objectsToSvg } from '../services/tela/telaSvg';
 import { registerMemoryBundle } from '../services/bookTela/upgradeStore';
 import TelaLivePage, { type TelaLivePageHandle } from './living/TelaLivePage';
 import { frameObjects, frameSize, livingPageFor } from '../services/living/runtime/objects';
 import { loadBookAudio } from '../services/living/runtime/audioProvider';
 import type { BookAudioApi } from '../services/living/contracts';
+import { buildLoreaWritingSvg, loreaWritingBoard } from '../services/loreaWritingArt';
+import { chalkBoard } from '../services/creatorArt';
+import { launchClassicBookInChoraDaw } from '../services/melos/classicBookChoraProjects';
+import {
+  LOREA_PANTHEON_MASTERS,
+  LOREA_DISCIPLINE_FILTERS,
+  buildMasterHeroStageSvg,
+  type LiteraryDiscipline,
+  type LoreaPantheonMaster,
+} from '../data/loreaLiteraryPantheon';
 
 interface BookTabProps {
   onSelectBook: (book: any) => void;
@@ -48,6 +61,9 @@ interface BookTabProps {
 
 const GENRES: Array<{ id: string; name: string; topic: string; source?: 'gutendex' | 'ia' | 'loc' | 'arxiv' | 'europeana' | 'standard-ebooks' | 'wikisource' | 'world-heritage' }> = [
   { id: 'all', name: 'All Classics', topic: '' },
+  { id: 'philosophy', name: 'Philosophy (Plato · Aristotle · Stoics)', topic: 'philosophy' },
+  { id: 'drama', name: 'Drama & Stage Plays', topic: 'drama' },
+  { id: 'poetry', name: 'Poetry & Epic Verse', topic: 'poetry' },
   // Europeana European cultural heritage
   { id: 'europeana', name: 'Europeana Heritage', topic: '', source: 'europeana' },
   // Standard Ebooks beautifully typeset modern public domain editions
@@ -73,8 +89,13 @@ const GENRES: Array<{ id: string; name: string; topic: string; source?: 'gutende
 ];
 
 // Module-level caches — survive tab switches, only fetch once per session
-// Pre-seed 'all' with the bundled classics so the page is never blank on first open
-const _classicCache: Map<string, ArchiveBook[]> = new Map([['all', CLASSIC_BOOKS]]);
+// Pre-seed 'all', 'philosophy', 'drama', and 'poetry' with the bundled classics so the page is never blank on first open
+const _classicCache: Map<string, ArchiveBook[]> = new Map([
+  ['all', CLASSIC_BOOKS],
+  ['philosophy', CLASSIC_BOOKS.filter(b => b.genre === 'Philosophy' || b.subjects.some(s => s.toLowerCase().includes('philosophy')))],
+  ['drama', CLASSIC_BOOKS.filter(b => b.genre === 'Drama' || b.subjects.some(s => s.toLowerCase().includes('drama') || s.toLowerCase().includes('tragedy')))],
+  ['poetry', CLASSIC_BOOKS.filter(b => b.genre === 'Poetry' || b.subjects.some(s => s.toLowerCase().includes('poetry')))],
+]);
 const _archiveCache: Map<string, ArchiveBook[]> = new Map();
 let _marketplaceCache: import('../types').Album[] | null = null;
 
@@ -116,6 +137,19 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
   const [catalogSort, setCatalogSort] = useState<'POPULAR' | 'TITLE' | 'AUTHOR'>('POPULAR');
   // Never block on initial render — classics are bundled as static data
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (_marketplaceCache && marketplaceBooks.length === 0) {
+      setMarketplaceBooks(_marketplaceCache);
+    } else if (!_marketplaceCache) {
+      fetchPublicBooks()
+        .then(books => {
+          _marketplaceCache = books;
+          setMarketplaceBooks(books);
+        })
+        .catch(() => {});
+    }
+  }, []);
 
   useEffect(() => {
     if (activeTab === 'CLASSICS') {
@@ -197,6 +231,10 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
         default:                books = await fetchClassicBooks(activeGenre.topic);
       }
       if (books.length > 0) {
+        if (!activeGenre.source && activeGenre.id === 'all') {
+          const seen = new Set(CLASSIC_BOOKS.map(b => b.id));
+          books = [...CLASSIC_BOOKS, ...books.filter(b => !seen.has(b.id))];
+        }
         cache.set(cacheKey, books);
         setArchiveBooks(books);
       }
@@ -231,15 +269,21 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
     let bookChapters: BookChapter[] = [];
 
     if (isDirect) {
+      const txtUrl  = archiveBook.formats['text/plain'] || getClassicBookTextUrl(archiveBook.title) || undefined;
       const pdfUrl  = archiveBook.formats['application/pdf'];
       const epubUrl = archiveBook.formats['application/epub+zip'];
-      const url = epubUrl || pdfUrl || Object.values(archiveBook.formats)[0] || '';
+      // If a curated World Heritage or Standard Ebook has a direct verified Gutenberg TXT URL, prefer TXT so it opens instantly in the themed page reader
+      const url = ((archiveBook.id.startsWith('heritage-') || archiveBook.id.startsWith('se-')) && txtUrl)
+        ? txtUrl
+        : (epubUrl || pdfUrl || txtUrl || Object.values(archiveBook.formats)[0] || '');
+      const fmt = (url === txtUrl) ? 'TXT' : epubUrl && url === epubUrl ? 'EPUB' : 'PDF';
       if (url) {
         bookChapters = [{
           id: 'full-doc',
-          title: archiveBook.id.startsWith('arxiv-') ? 'Full Paper' : 'Complete Work',
+          title: archiveBook.id.startsWith('arxiv-') ? 'Full Paper' : 'Chapter 1',
           url,
-          format: epubUrl ? 'EPUB' : 'PDF',
+          format: fmt,
+          ...(txtUrl && url !== txtUrl ? { fallbackUrl: txtUrl } : {}),
         }];
       }
     } else if (isIA) {
@@ -270,29 +314,30 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
         }
       }
     } else {
-      // Priority: EPUB (native chapter/TOC) → Firebase Storage TXT (fast CDN) → Gutenberg TXT cache
-      const epubUrl    = archiveBook.formats['application/epub+zip'] || Object.values(archiveBook.formats).find(f => typeof f === 'string' && f.includes('epub'));
-      const storedUrl  = archiveBook.formats['text/plain; charset=utf-8'];   // Firebase Storage
-      const gutenbUrl  = archiveBook.formats['text/plain'];                   // Gutenberg TXT cache
+      // Gutenberg / Classic Literature:
+      // Prefer direct Gutenberg TXT cache first so full novels load fast in one request and paginate into chapters & pages cleanly
+      const gutenbUrl =
+        archiveBook.formats['text/plain'] ||
+        archiveBook.formats['text/plain; charset=us-ascii'] ||
+        getClassicBookTextUrl(archiveBook.id) ||
+        getClassicBookTextUrl(archiveBook.title) ||
+        (archiveBook.id.match(/^\d+$/) ? `https://www.gutenberg.org/cache/epub/${archiveBook.id}/pg${archiveBook.id}.txt` : undefined);
+      const storedUrl = archiveBook.formats['text/plain; charset=utf-8'];
+      const epubUrl   = archiveBook.formats['application/epub+zip'] || Object.values(archiveBook.formats).find(f => typeof f === 'string' && f.includes('epub'));
 
-      const primaryUrl = epubUrl || storedUrl || gutenbUrl || '';
-      const isEpubPrimary = !!epubUrl;
-      // TXT to fall back to when EPUB fails. Prefer the Gutenberg cache URL:
-      // the Firebase Storage copy 404s until the seed endpoint has run.
-      const txtFallback = gutenbUrl || storedUrl || undefined;
+      const primaryUrl = gutenbUrl || epubUrl || storedUrl || '';
+      const isEpubPrimary = !gutenbUrl && !!epubUrl;
+      const fallbackUrl = primaryUrl === gutenbUrl
+        ? (storedUrl && storedUrl !== gutenbUrl ? storedUrl : epubUrl)
+        : (gutenbUrl || storedUrl || undefined);
 
       bookChapters = [
         {
           id: 'full-text',
-          title: 'Complete Work',
+          title: 'Chapter 1',
           url: primaryUrl,
           format: isEpubPrimary ? 'EPUB' : 'TXT',
-          // fallbackUrl: for EPUB chapters → points to TXT; for TXT → next TXT option
-          ...(isEpubPrimary && txtFallback
-            ? { fallbackUrl: txtFallback }
-            : !isEpubPrimary && storedUrl && gutenbUrl
-            ? { fallbackUrl: gutenbUrl }
-            : {}),
+          ...(fallbackUrl ? { fallbackUrl } : {}),
         }
       ];
     }
@@ -301,7 +346,7 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
       id: isDirect ? archiveBook.id : isIA ? `archive-${archiveBook.id}` : `guttenberg-${archiveBook.id}`,
       title: archiveBook.title,
       artist: archiveBook.authors.join(', '),
-      coverImage: archiveBook.coverImage || '',
+      coverImage: resolveAudiobookCover(archiveBook.title, archiveBook.coverImage) || '',
       type: 'BOOK',
       subType: isIA && bookChapters.some(chapter => chapter.pages?.length) ? 'GRAPHIC_NOVEL' : 'NOVEL',
       genre: archiveBook.genre,
@@ -332,6 +377,8 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
   const [goldenSpreadIdx, setGoldenSpreadIdx] = useState<number>(2); // Start on Spread 3 ("One night, the thread gave a tug. Tug, tug, tug...")
   const [bookFlipped, setBookFlipped] = useState(false);
   const [isPlayingReadAloud, setIsPlayingReadAloud] = useState(false);
+  const [isDemoPaused, setIsDemoPaused] = useState(false);
+  const [isDemoMuted, setIsDemoMuted] = useState(false);
   const [hotWordIdx, setHotWordIdx] = useState<number>(5);
   const [goldenAudio, setGoldenAudio] = useState<BookAudioApi | null>(null);
   const [comicMode, setComicMode] = useState<'page' | 'spread' | 'webtoon'>('page');
@@ -356,18 +403,78 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
   // Build the real Tela document for The Golden Thread once
   const goldenThreadDoc = useMemo(() => buildShowcaseTelaDoc('golden-thread', goldenThreadLiving), []);
 
+  // Build real illustrated SVG cover data URLs for all 6 Showcase Living Books from their publication templates (Spread 1 / Cover)
+  const showcaseCovers = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const sb of SHOWCASE_BOOKS) {
+      try {
+        const tpl = TELA_PUBLICATION_TEMPLATES.find(t => t.id === sb.templateId);
+        if (!tpl) continue;
+        const { objects } = pageObjects(sb.templateId, 0, tpl.width, tpl.height);
+        const svg = objectsToSvg(objects.filter(o => !o.hidden), tpl.width, tpl.height);
+        const dataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+        map[sb.id] = dataUrl;
+        map[`showcase_${sb.id}`] = dataUrl;
+      } catch {
+        // Ignore individual template failure
+      }
+    }
+    return map;
+  }, []);
+
   const ensureGoldenAudio = useCallback(async () => {
+    if (isDemoMuted || isDemoPaused) return goldenAudio;
     if (goldenAudio) {
+      goldenAudio.setGains({
+        music: goldenThreadLiving.defaults?.musicGain ?? 0.55,
+        sfx: goldenThreadLiving.defaults?.sfxGain ?? 0.8,
+      });
       void goldenAudio.unlock();
       return goldenAudio;
     }
     const a = await loadBookAudio(goldenThreadLiving.scores);
     if (a) {
-      a.setGains({ music: goldenThreadLiving.defaults?.musicGain ?? 0.55, sfx: goldenThreadLiving.defaults?.sfxGain ?? 0.8 });
+      a.setGains({
+        music: goldenThreadLiving.defaults?.musicGain ?? 0.55,
+        sfx: goldenThreadLiving.defaults?.sfxGain ?? 0.8,
+      });
       void a.unlock();
       setGoldenAudio(a);
     }
     return a;
+  }, [goldenAudio, isDemoMuted, isDemoPaused]);
+
+  const toggleDemoPause = useCallback(() => {
+    setIsDemoPaused(prev => {
+      const nextPaused = !prev;
+      if (nextPaused) {
+        setIsPlayingReadAloud(false);
+        goldenAudio?.stopAll();
+        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+          try { window.speechSynthesis.cancel(); } catch { /* ignore */ }
+        }
+      }
+      return nextPaused;
+    });
+  }, [goldenAudio]);
+
+  const toggleDemoMute = useCallback(() => {
+    setIsDemoMuted(prev => {
+      const nextMuted = !prev;
+      if (nextMuted) {
+        goldenAudio?.setGains({ music: 0, sfx: 0 });
+        goldenAudio?.stopAll();
+        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+          try { window.speechSynthesis.cancel(); } catch { /* ignore */ }
+        }
+      } else if (goldenAudio) {
+        goldenAudio.setGains({
+          music: goldenThreadLiving.defaults?.musicGain ?? 0.55,
+          sfx: goldenThreadLiving.defaults?.sfxGain ?? 0.8,
+        });
+      }
+      return nextMuted;
+    });
   }, [goldenAudio]);
 
   useEffect(() => {
@@ -451,12 +558,17 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
     registerMemoryBundle(albumId, versionId, bundle);
 
     const existing = marketplaceBooks.find(b => b.id === albumId);
+    const resolvedShowcaseCover =
+      (existing as any)?.coverThumb ||
+      existing?.coverImage ||
+      showcaseCovers[bookMeta.id] ||
+      '';
     const livingAlbum: Album = {
       ...(existing || {}),
       id: albumId,
       title: bookMeta.title,
       artist: bookMeta.author,
-      coverImage: existing?.coverImage || '',
+      coverImage: resolvedShowcaseCover,
       type: 'BOOK',
       subType: 'GRAPHIC_NOVEL',
       genre: "Children's Picture Books",
@@ -500,7 +612,7 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
     } as any;
 
     onSelectBook(livingAlbum);
-  }, [goldenAudio, goldenThreadDoc, marketplaceBooks, onSelectBook]);
+  }, [goldenAudio, goldenThreadDoc, marketplaceBooks, onSelectBook, showcaseCovers]);
 
   const openCatalogView = (targetTab?: 'CLASSICS' | 'MARKETPLACE' | 'GLOBAL', focusSearch = true) => {
     if (targetTab) setActiveTab(targetTab);
@@ -567,7 +679,7 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
 
   // Real Read-Aloud word highlighter + Web Speech synthesis for The Golden Thread
   useEffect(() => {
-    if (!isPlayingReadAloud) {
+    if (!isPlayingReadAloud || isDemoPaused) {
       if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
         try { window.speechSynthesis.cancel(); } catch { /* ignore */ }
       }
@@ -578,7 +690,7 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
     setHotWordIdx(0);
     const totalWords = Math.max(1, goldenWords.length);
 
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+    if (!isDemoMuted && typeof window !== 'undefined' && 'speechSynthesis' in window) {
       try {
         window.speechSynthesis.cancel();
         const utter = new SpeechSynthesisUtterance(goldenWords.join(' '));
@@ -649,14 +761,6 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
     }
   };
 
-  if (loreaMode === 'WRITERS_DESK') {
-    return (
-      <div className="flex-1 w-full pb-32 lg:pb-40">
-        <WritersDesk onBackToLibrary={() => setLoreaMode('LIBRARY')} onOpenNewsroom={() => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'JOURNALIST_DESK' } }))} />
-      </div>
-    );
-  }
-
   const renderComicPageBox = (n: number) => (
     <div key={n} className="cpg" style={{ '--h': n * 57 + 18 } as React.CSSProperties}>
       <i /><i /><i /><i />
@@ -665,7 +769,7 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
     </div>
   );
 
-  // Only render big title/author text inside the thumbnail when there is NO cover art loading in the thumbnail
+  // Render book thumbnail cover with guaranteed showcase SVG fallback & eager visibility inside carousels
   const renderCoverBox = (
     id: string,
     title: string,
@@ -673,24 +777,43 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
     coverImage: string | undefined | null,
     badge: string,
     hue: number,
-    priority = false
+    _priority = false
   ) => {
-    const hasCover = Boolean(coverImage && !failedCovers[id]);
+    const fallbackShowcase = showcaseCovers[id] || showcaseCovers[id.replace(/^showcase_/, '')];
+    const primaryOk = Boolean(coverImage && !failedCovers[id]);
+    const activeCover = primaryOk ? coverImage! : fallbackShowcase;
     return (
       <div className="cover" style={{ '--h': hue } as React.CSSProperties}>
-        {hasCover ? (
-          <LazyImage
-            src={coverImage!}
+        {activeCover ? (
+          <img
+            src={activeCover}
             alt={title}
-            className="absolute inset-0 w-full h-full object-cover"
-            priority={priority}
+            loading="eager"
+            decoding="async"
             referrerPolicy="no-referrer"
+            style={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              display: 'block',
+              zIndex: 2,
+            }}
             onLoad={(e) => {
-              if (e.currentTarget.naturalWidth <= 2 || e.currentTarget.naturalHeight <= 2) {
+              if (
+                primaryOk &&
+                !activeCover.startsWith('data:') &&
+                (e.currentTarget.naturalWidth === 1 || e.currentTarget.naturalHeight === 1)
+              ) {
                 setFailedCovers(prev => (prev[id] ? prev : { ...prev, [id]: true }));
               }
             }}
-            onError={() => setFailedCovers(prev => (prev[id] ? prev : { ...prev, [id]: true }))}
+            onError={() => {
+              if (primaryOk) {
+                setFailedCovers(prev => (prev[id] ? prev : { ...prev, [id]: true }));
+              }
+            }}
           />
         ) : (
           <>
@@ -718,10 +841,77 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
     return 0;
   });
 
+  const loreaWritingSvgMarkup = useMemo(() => buildLoreaWritingSvg({ variant: 'hero', animated: true }), []);
+  const loreaChalkWritingUri = useMemo(
+    () => chalkBoard('Writing', { tint: '#280a40', strength: 0.52, ink: '#ffd98a', animated: true }),
+    []
+  );
+  const loreaWritingBoardUri = useMemo(() => loreaWritingBoard({ variant: 'hero', animated: true }), []);
+
+  // Rotating Hero Author / Philosopher / Manga Legend Background & Interwoven Literary Pantheon state
+  const [heroMasterIdx, setHeroMasterIdx] = useState<number>(0);
+  const [isHeroRotationPaused, setIsHeroRotationPaused] = useState<boolean>(false);
+  const [pantheonDiscipline, setPantheonDiscipline] = useState<'ALL' | LiteraryDiscipline>('ALL');
+  const [selectedPantheonMasterId, setSelectedPantheonMasterId] = useState<string>(LOREA_PANTHEON_MASTERS[0].id);
+  const [failedPortraits, setFailedPortraits] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    if (isHeroRotationPaused || loreaMode !== 'LIBRARY') return;
+    const id = window.setInterval(() => {
+      setHeroMasterIdx((prev) => (prev + 1) % LOREA_PANTHEON_MASTERS.length);
+    }, 7500);
+    return () => window.clearInterval(id);
+  }, [isHeroRotationPaused, loreaMode]);
+
+  const activeHeroMaster: LoreaPantheonMaster =
+    LOREA_PANTHEON_MASTERS[heroMasterIdx] || LOREA_PANTHEON_MASTERS[0];
+  const activeHeroStageSvg = useMemo(
+    () => buildMasterHeroStageSvg(activeHeroMaster),
+    [activeHeroMaster]
+  );
+
+  const filteredPantheonMasters = useMemo(
+    () =>
+      pantheonDiscipline === 'ALL'
+        ? LOREA_PANTHEON_MASTERS
+        : LOREA_PANTHEON_MASTERS.filter((m) => m.discipline === pantheonDiscipline),
+    [pantheonDiscipline]
+  );
+
+  const activePantheonMaster: LoreaPantheonMaster = useMemo(
+    () =>
+      filteredPantheonMasters.find((m) => m.id === selectedPantheonMasterId) ||
+      filteredPantheonMasters[0] ||
+      LOREA_PANTHEON_MASTERS[0],
+    [filteredPantheonMasters, selectedPantheonMasterId]
+  );
+
+  const openClassicBookByGutenbergId = useCallback(
+    (gid: number, fallbackTitle?: string) => {
+      const found =
+        CLASSIC_BOOKS.find((b) => Number(b.id) === gid) ||
+        (fallbackTitle ? findClassicBook(fallbackTitle) : undefined) ||
+        findClassicBook(String(gid));
+      if (found) {
+        void handleBookSelect(found);
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [archiveBooks]
+  );
+
+  if (loreaMode === 'WRITERS_DESK') {
+    return (
+      <div className="flex-1 w-full pb-32 lg:pb-40">
+        <WritersDesk onBackToLibrary={() => setLoreaMode('LIBRARY')} onOpenNewsroom={() => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'JOURNALIST_DESK' } }))} />
+      </div>
+    );
+  }
+
   return (
     <div
       ref={loreaRootRef}
-      className="lorea-landing-root flex-1 w-full pb-32 lg:pb-40"
+      className="lorea-landing-root relative overflow-hidden flex-1 w-full pb-32 lg:pb-40"
       data-lt={loreaTheme === 'plajah' ? undefined : loreaTheme}
     >
       {bookMenu.node}
@@ -736,39 +926,86 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
 
       <style>{`
         .lorea-landing-root {
-          --bg:#1a0026; --fg:#ffffff; --sec:#ff8c00; --acc:#d40055; --accfg:#ffffff;
-          --card:rgba(107,0,153,.15); --bd:rgba(212,0,85,.25); --dim:rgba(255,255,255,.62);
-          --glow:rgba(212,0,85,.28); --page:#f3ead6; --ink:#1b1712;
-          --grad:linear-gradient(135deg,#6B0099,#D40055); --rail:rgba(255,255,255,.07); --rail-bd:rgba(255,255,255,.15);
+          --bg:#160024; --fg:#ffffff; --sec:#ff9e2c; --acc:#d40055; --accfg:#ffffff;
+          --card:rgba(107,0,153,.22); --bd:rgba(255,140,0,.28); --dim:rgba(255,255,255,.72);
+          --glow:rgba(212,0,85,.38); --page:#f3ead6; --ink:#1b1712;
+          --grad:linear-gradient(135deg,#6B0099 0%,#D40055 52%,#FF8C00 100%);
+          --rail:rgba(255,255,255,.08); --rail-bd:rgba(255,255,255,.18);
           --cyan:#22d3ee; --violet:#d0bcff; --green:#34d399; --pink:#ff4d8d;
           --f-display:'Outfit','Space Grotesk',sans-serif; --f-body:'Inter','Manrope',sans-serif; --f-mono:'JetBrains Mono',monospace; --f-hand:'Gochi Hand',cursive;
           --lift:transform .8s cubic-bezier(.4,0,.2,1),box-shadow .8s cubic-bezier(.4,0,.2,1);
-          background:var(--bg); color:var(--fg); font:16px/1.55 var(--f-body); transition:background .5s,color .5s;
+          background-color: var(--bg);
+          background-image:
+            radial-gradient(1300px 680px at 88% -4%, rgba(212, 0, 85, 0.48), transparent 65%),
+            radial-gradient(1050px 620px at 6% 2%, rgba(107, 0, 153, 0.68), transparent 62%),
+            radial-gradient(920px 540px at 94% 32%, rgba(255, 140, 0, 0.28), transparent 66%),
+            radial-gradient(1150px 680px at 12% 58%, rgba(212, 0, 85, 0.26), transparent 68%),
+            radial-gradient(980px 580px at 82% 86%, rgba(107, 0, 153, 0.48), transparent 66%),
+            linear-gradient(165deg, #1f0033 0%, #140022 42%, #24002e 74%, #13001e 100%);
+          color:var(--fg); font:16px/1.55 var(--f-body); transition:background .5s,color .5s;
           border-radius:32px;
+          box-shadow: inset 0 1px 0 rgba(255,255,255,.12);
         }
-        .lorea-landing-root[data-lt="dark"]{--bg:#020202;--acc:#ff8c00;--accfg:#1a0d00;--card:rgba(255,255,255,.03);--bd:rgba(255,255,255,.08);--dim:rgba(255,255,255,.55);--glow:rgba(255,140,0,.18)}
-        .lorea-landing-root[data-lt="pastel"]{color-scheme:light;--bg:#fdf6e3;--fg:#073642;--sec:#2aa198;--acc:#2aa198;--accfg:#fdf6e3;--card:#eee8d5;--bd:rgba(7,54,66,.14);--dim:rgba(7,54,66,.65);--glow:rgba(42,161,152,.2);--grad:linear-gradient(135deg,#2aa198,#2aa198);--rail:rgba(7,54,66,.06);--rail-bd:rgba(7,54,66,.18)}
-        .lorea-landing-root .wrap{max-width:1180px;margin-inline:auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+        .lorea-landing-root[data-lt="dark"]{
+          --bg:#040208;--acc:#ff8c00;--accfg:#1a0d00;--card:rgba(255,255,255,.04);--bd:rgba(255,255,255,.1);--dim:rgba(255,255,255,.6);--glow:rgba(255,140,0,.22);
+          background-image:
+            radial-gradient(1100px 560px at 85% 0%, rgba(212, 0, 85, 0.22), transparent 65%),
+            radial-gradient(900px 500px at 10% 5%, rgba(107, 0, 153, 0.28), transparent 65%),
+            linear-gradient(180deg, #07030d 0%, #020202 100%);
+        }
+        .lorea-landing-root[data-lt="pastel"]{
+          color-scheme:light;--bg:#fdf6e3;--fg:#073642;--sec:#b54600;--acc:#d40055;--accfg:#fdf6e3;--card:rgba(255,248,231,.76);--bd:rgba(107,0,153,.18);--dim:rgba(7,54,66,.72);--glow:rgba(212,0,85,.18);--grad:linear-gradient(135deg,#6B0099,#D40055,#FF8C00);--rail:rgba(7,54,66,.06);--rail-bd:rgba(7,54,66,.18);
+          background-image:
+            radial-gradient(1100px 540px at 88% 0%, rgba(212, 0, 85, 0.12), transparent 65%),
+            radial-gradient(950px 500px at 8% 4%, rgba(107, 0, 153, 0.14), transparent 65%),
+            radial-gradient(850px 460px at 90% 42%, rgba(255, 140, 0, 0.14), transparent 65%),
+            linear-gradient(180deg, #fdf6e3 0%, #f7ebd2 100%);
+        }
+        @keyframes lorea-typewriter-loop {
+          0%, 4% { width: 0ch; }
+          48%, 78% { width: 54ch; }
+          92%, 100% { width: 0ch; }
+        }
+        @keyframes lorea-typewriter-loop-b {
+          0%, 12% { width: 0ch; }
+          58%, 84% { width: 48ch; }
+          96%, 100% { width: 0ch; }
+        }
+        @keyframes lorea-caret-pulse {
+          0%, 49% { border-color: #ff9e2c; }
+          50%, 100% { border-color: transparent; }
+        }
+        .lorea-type-ticker {
+          display: inline-block;
+          overflow: hidden;
+          white-space: nowrap;
+          border-right: 2.5px solid #ff9e2c;
+          animation: lorea-typewriter-loop 9.5s steps(54, end) infinite, lorea-caret-pulse 0.75s step-end infinite;
+        }
+        .lorea-type-ticker.alt {
+          animation: lorea-typewriter-loop-b 11s steps(48, end) infinite, lorea-caret-pulse 0.75s step-end infinite;
+        }
+        .lorea-landing-root .wrap{position:relative;z-index:2;max-width:1180px;margin-inline:auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
         .lorea-landing-root .eyebrow{font:700 10px var(--f-display);letter-spacing:.5em;text-transform:uppercase;color:var(--sec)}
         .lorea-landing-root .disp{font-family:var(--f-display);font-weight:900;letter-spacing:-.045em;line-height:.95;text-wrap:balance}
-        .lorea-landing-root .glass{background:var(--card);border:1px solid var(--bd);border-radius:28px;backdrop-filter:blur(12px) saturate(180%);-webkit-backdrop-filter:blur(12px) saturate(180%)}
+        .lorea-landing-root .glass{background:var(--card);border:1px solid var(--bd);border-radius:28px;backdrop-filter:blur(14px) saturate(180%);-webkit-backdrop-filter:blur(14px) saturate(180%);box-shadow:0 20px 50px -20px rgba(0,0,0,.45)}
         .lorea-landing-root .nav{display:flex;align-items:center;justify-content:space-between;gap:14px;padding-block:22px;flex-wrap:wrap}
         .lorea-landing-root .logo{font:900 22px var(--f-display);letter-spacing:-.04em;display:flex;align-items:center;gap:10px}
-        .lorea-landing-root .logo i{width:30px;height:30px;border-radius:10px;background:var(--acc);display:grid;place-items:center;color:var(--accfg)}
+        .lorea-landing-root .logo i{width:30px;height:30px;border-radius:10px;background:var(--grad);display:grid;place-items:center;color:var(--accfg);box-shadow:0 6px 18px -4px var(--glow)}
         .lorea-landing-root .themes{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
         .lorea-landing-root .themes span{font:500 10px var(--f-mono);letter-spacing:.15em;text-transform:uppercase;color:var(--dim);margin-right:4px}
         .lorea-landing-root .themes button{font:600 11px var(--f-display);letter-spacing:.14em;text-transform:uppercase;color:var(--fg);background:transparent;border:1px solid var(--bd);padding:7px 12px;border-radius:99px;cursor:pointer}
-        .lorea-landing-root .themes button[aria-pressed="true"]{background:var(--acc);color:var(--accfg);border-color:var(--acc)}
+        .lorea-landing-root .themes button[aria-pressed="true"]{background:var(--grad);color:var(--accfg);border-color:transparent}
         .lorea-landing-root .hero{position:relative;display:grid;grid-template-columns:1fr 1.1fr;gap:40px;align-items:center;padding-block:28px 72px;z-index:1}
         .lorea-landing-root .hero>*{min-width:0}
         .lorea-landing-root .hero:before{content:"";position:absolute;inset:-10% -10% auto auto;width:70%;aspect-ratio:1;background:radial-gradient(closest-side,var(--glow),transparent);pointer-events:none;z-index:-1}
-        .lorea-landing-root .hero h1{font-size:clamp(46px,7.4vw,104px);margin-top:20px}
-        .lorea-landing-root .hero h1 em{font-style:normal;color:var(--acc)}
+        .lorea-landing-root .hero h1{font-size:clamp(46px,7.4vw,104px);margin-top:20px;text-shadow:0 4px 28px rgba(0,0,0,.45)}
+        .lorea-landing-root .hero h1 em{font-style:normal;background:linear-gradient(95deg,#FFB04A 0%,#FF5E97 52%,#D896FF 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
         .lorea-landing-root .lede{color:var(--dim);font-size:18px;max-width:44ch;margin-top:22px}
         .lorea-landing-root .cta{display:flex;gap:12px;margin-top:30px;flex-wrap:wrap;align-items:center}
-        .lorea-landing-root .btn{font:800 12px var(--f-display);letter-spacing:.2em;text-transform:uppercase;text-decoration:none;border-radius:99px;padding:16px 26px;border:1px solid var(--bd);color:var(--fg);background:transparent;cursor:pointer;transition:transform .25s cubic-bezier(.2,0,0,1),box-shadow .25s;display:inline-flex;align-items:center;gap:8px}
+        .lorea-landing-root .btn{font:800 12px var(--f-display);letter-spacing:.2em;text-transform:uppercase;text-decoration:none;border-radius:99px;padding:16px 26px;border:1px solid var(--bd);color:var(--fg);background:rgba(255,255,255,.04);cursor:pointer;transition:transform .25s cubic-bezier(.2,0,0,1),box-shadow .25s;display:inline-flex;align-items:center;gap:8px}
         .lorea-landing-root .btn:hover{transform:translateY(-3px)}
-        .lorea-landing-root .btn.p{background:var(--acc);border-color:var(--acc);color:var(--accfg);box-shadow:0 10px 30px -8px var(--glow)}
+        .lorea-landing-root .btn.p{background:var(--grad);border-color:transparent;color:var(--accfg);box-shadow:0 12px 34px -6px var(--glow)}
         .lorea-landing-root .hand{font:22px var(--f-hand);color:var(--sec);transform:rotate(-4deg);display:inline-block}
         .lorea-landing-root .stagewrap{perspective:2000px;min-width:0}
         .lorea-landing-root .bookbox{transform:rotateX(12deg) rotateY(-6deg);transform-style:preserve-3d;transition:transform .8s cubic-bezier(.4,0,.2,1)}
@@ -802,17 +1039,16 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
         .lorea-landing-root .leaf.back{transform:rotateY(180deg);border-radius:18px 0 0 18px;background:var(--page);padding:8%;color:var(--ink);display:flex;flex-direction:column;justify-content:space-between}
         .lorea-landing-root .bk.flip .leaf.front{transform:rotateY(-180deg)}
         .lorea-landing-root .bk.flip .leaf.back{transform:rotateY(0deg)}
-        .lorea-landing-root .player{margin-top:34px;display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:99px}
-        .lorea-landing-root .playbtn{flex:none;width:46px;height:46px;border-radius:50%;border:0;background:var(--acc);color:var(--accfg);display:grid;place-items:center;cursor:pointer}
-        .lorea-landing-root .bars{display:flex;gap:3px;align-items:center;height:26px;flex:none}
-        .lorea-landing-root .bars b{width:3px;height:30%;border-radius:2px;background:var(--sec);opacity:.8}
+        .lorea-landing-root .player{margin:18px auto 0;width:fit-content;max-width:100%;display:inline-flex;align-items:center;justify-content:center;gap:10px;padding:6px 10px;border-radius:999px;white-space:nowrap}
+        .lorea-landing-root .playbtn{flex:none;width:36px;height:36px;border-radius:50%;border:0;background:var(--acc);color:var(--accfg);display:grid;place-items:center;cursor:pointer;transition:transform .15s}
+        .lorea-landing-root .playbtn:hover{transform:scale(1.05)}
+        .lorea-landing-root .bars{display:flex;gap:2.5px;align-items:center;height:18px;flex:none}
+        .lorea-landing-root .bars b{width:2.5px;height:30%;border-radius:2px;background:var(--sec);opacity:.8}
         .lorea-landing-root .playing .bars b{animation:lorea-mb 1s ease-in-out infinite}
         .lorea-landing-root .bars b:nth-child(2n){animation-delay:.2s!important}.lorea-landing-root .bars b:nth-child(3n){animation-delay:.45s!important}
         @keyframes lorea-mb{0%,100%{height:20%}50%{height:100%}}
-        .lorea-landing-root .cap{flex:1;min-width:0;font:600 14px/1.35 var(--f-display);color:var(--fg)}
-        .lorea-landing-root .cap small{display:block;font:500 10px var(--f-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-bottom:2px}
-        .lorea-landing-root .turnbtn{flex:none;font:700 11px var(--f-display);letter-spacing:.16em;text-transform:uppercase;color:var(--fg);background:transparent;border:1px solid var(--bd);padding:10px 14px;border-radius:99px;cursor:pointer}
-        .lorea-landing-root .turnbtn:hover{border-color:var(--acc)}
+        .lorea-landing-root .turnbtn{flex:none;font:800 10.5px var(--f-display);letter-spacing:.14em;text-transform:uppercase;color:var(--fg);background:transparent;border:1px solid var(--bd);padding:8px 13px;border-radius:99px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:border-color .15s,background .15s}
+        .lorea-landing-root .turnbtn:hover{border-color:var(--acc);background:rgba(255,255,255,.05)}
         .lorea-landing-root section.s{padding-block:72px;border-top:1px solid var(--bd)}
         .lorea-landing-root .s h2{font-size:clamp(32px,5vw,60px);margin-top:14px;max-width:18ch}
         .lorea-landing-root .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:44px}
@@ -925,23 +1161,174 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
         .lorea-landing-root .door b{display:block;font:800 17px var(--f-display);letter-spacing:-.02em}
         .lorea-landing-root .door span{display:block;color:var(--dim);font-size:13px;margin-top:2px}
         @media (max-width:860px){
-          .lorea-landing-root .cm{grid-template-columns:1fr}
-          .lorea-landing-root .hero,.lorea-landing-root .turn,.lorea-landing-root .two{grid-template-columns:1fr}
-          .lorea-landing-root .tiles{grid-template-columns:1fr 1fr}
-          .lorea-landing-root .player{border-radius:28px;flex-wrap:wrap}
-          .lorea-landing-root .bookbox{transform:rotateX(8deg)}
+          .lorea-landing-root{border-radius:20px}
+          .lorea-landing-root .cm{grid-template-columns:1fr;gap:24px}
+          .lorea-landing-root .hero,.lorea-landing-root .turn,.lorea-landing-root .two{grid-template-columns:1fr;gap:24px}
+          .lorea-landing-root .hero{padding-block:16px 44px}
+          .lorea-landing-root .hero h1{font-size:clamp(34px,8.5vw,64px);margin-top:12px}
+          .lorea-landing-root .lede{font-size:15px;margin-top:14px}
+          .lorea-landing-root .cta{margin-top:20px;gap:10px}
+          .lorea-landing-root .btn{padding:12px 18px;font-size:11px;letter-spacing:.14em}
+          .lorea-landing-root .tiles{grid-template-columns:1fr 1fr;gap:12px;margin-top:28px}
+          .lorea-landing-root .tile{padding:20px;min-height:180px}
+          .lorea-landing-root .player{border-radius:999px;gap:8px;padding:6px 10px;margin-top:14px}
+          .lorea-landing-root .bookbox{transform:none}
+          .lorea-landing-root section.s{padding-block:44px}
+          .lorea-landing-root .big{padding:24px;border-radius:24px;min-height:200px}
+          .lorea-landing-root .browse{padding-block:36px 28px}
+          .lorea-landing-root .search{width:100%}
         }
-        @media (max-width:560px){.lorea-landing-root .tiles{grid-template-columns:1fr}}
+        @media (max-width:560px){
+          .lorea-landing-root .wrap{padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px))}
+          .lorea-landing-root .nav{padding-block:14px;gap:10px}
+          .lorea-landing-root .logo{font-size:18px}
+          .lorea-landing-root .themes{width:100%;justify-content:space-between;overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none;padding-bottom:2px}
+          .lorea-landing-root .themes::-webkit-scrollbar{display:none}
+          .lorea-landing-root .themes span{display:none}
+          .lorea-landing-root .tiles{grid-template-columns:1fr}
+          .lorea-landing-root .pills button{padding:10px 18px;font-size:9px;letter-spacing:.15em}
+          .lorea-landing-root .bookc{width:clamp(136px,40vw,180px)}
+          .lorea-landing-root .cover{border-radius:1.35rem;padding:12px}
+          .lorea-landing-root .player .bars{display:none}
+          .lorea-landing-root .turnbtn{padding:8px 12px;font-size:10px;letter-spacing:.12em}
+          .lorea-landing-root .base{grid-template-columns:1fr;aspect-ratio:auto}
+          .lorea-landing-root .bk{aspect-ratio:1.15/1}
+        }
       `}</style>
+
+      {/* Art-Council Engineered Animated Writing & Typing Loops + Rotating Pantheon of Legendary Authors, Philosophers & Manga/Comic Masters */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden z-0 select-none" aria-hidden="true">
+        {/* Top Hero Stage: Creator-Course Chalkboard Texture (softly faded so text stays crisp) */}
+        <div
+          className="absolute inset-x-0 top-0 h-[920px] bg-cover bg-right-top opacity-10 sm:opacity-16 mix-blend-screen"
+          style={{
+            backgroundImage: `url("${loreaChalkWritingUri}")`,
+            maskImage: 'linear-gradient(180deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.5) 65%, transparent 100%)',
+            WebkitMaskImage: 'linear-gradient(180deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.5) 65%, transparent 100%)',
+          }}
+        />
+
+        {/* Rotating Legendary Author / Philosopher / Poet / Playwright / Manga & Comic Master Portrait & Thematic Stage */}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={`hero-bg-master-${activeHeroMaster.id}`}
+            initial={{ opacity: 0, scale: 1.03 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.98 }}
+            transition={{ duration: 1.25, ease: [0.22, 1, 0.36, 1] }}
+            className="absolute inset-x-0 top-0 h-[920px]"
+          >
+            {/* Bespoke Architectural & Literary Motif SVG (Athenian Cave, Lyceum Theater, Manga Cinema Grid, Regency Estate, etc.) */}
+            <div
+              className="absolute inset-0 w-full h-full opacity-55 sm:opacity-75"
+              dangerouslySetInnerHTML={{ __html: activeHeroStageSvg }}
+            />
+            {/* Museum Portrait Backdrop with Chiaroscuro Radial Mask & Era Tint */}
+            {!failedPortraits[activeHeroMaster.id] && (
+              <div
+                className="absolute right-[-6%] sm:right-[2%] lg:right-[5%] top-[28px] w-[380px] sm:w-[540px] lg:w-[640px] h-[640px] sm:h-[760px]"
+                style={{
+                  maskImage:
+                    'radial-gradient(ellipse 58% 60% at 54% 44%, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.62) 48%, rgba(0,0,0,0.18) 74%, transparent 96%)',
+                  WebkitMaskImage:
+                    'radial-gradient(ellipse 58% 60% at 54% 44%, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.62) 48%, rgba(0,0,0,0.18) 74%, transparent 96%)',
+                }}
+              >
+                <img
+                  src={activeHeroMaster.portraitUrl}
+                  alt={activeHeroMaster.name}
+                  referrerPolicy="no-referrer"
+                  onError={() =>
+                    setFailedPortraits((prev) => (prev[activeHeroMaster.id] ? prev : { ...prev, [activeHeroMaster.id]: true }))
+                  }
+                  className="w-full h-full object-cover object-top"
+                  style={{
+                    opacity: loreaTheme === 'pastel' ? 0.22 : 0.34,
+                    filter:
+                      loreaTheme === 'pastel'
+                        ? 'sepia(0.35) contrast(1.08) brightness(0.95)'
+                        : 'sepia(0.28) saturate(1.25) contrast(1.15) brightness(0.88)',
+                    mixBlendMode: loreaTheme === 'pastel' ? 'multiply' : 'luminosity',
+                  }}
+                />
+                <div
+                  className="absolute inset-0"
+                  style={{
+                    background: `radial-gradient(circle at 54% 42%, ${activeHeroMaster.accentColor}33 0%, ${activeHeroMaster.secondaryColor}18 48%, transparent 78%)`,
+                    mixBlendMode: 'screen',
+                  }}
+                />
+              </div>
+            )}
+          </motion.div>
+        </AnimatePresence>
+
+        {/* Primary Live Animated SVG Stage: Gliding Fountain Pen Calligraphy Loop + Typewriter Carriage & Keystrikes + Illuminated Folio */}
+        <div
+          className="absolute inset-x-0 top-0 h-[880px] w-full opacity-15 sm:opacity-22"
+          style={{
+            maskImage:
+              'radial-gradient(ellipse 52% 48% at 24% 38%, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0.85) 75%, rgba(0,0,0,0.95) 100%)',
+            WebkitMaskImage:
+              'radial-gradient(ellipse 52% 48% at 24% 38%, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0.85) 75%, rgba(0,0,0,0.95) 100%)',
+          }}
+          dangerouslySetInnerHTML={{ __html: loreaWritingSvgMarkup }}
+        />
+        {/* Hero Readability Vignette so left-hand headline, lede, and buttons pop with 100% contrast */}
+        <div
+          className="absolute inset-x-0 top-0 h-[920px]"
+          style={{
+            background:
+              loreaTheme === 'pastel'
+                ? 'radial-gradient(960px 520px at 24% 36%, rgba(253,246,227,0.92) 0%, rgba(253,246,227,0.68) 52%, transparent 82%)'
+                : 'radial-gradient(960px 520px at 24% 36%, rgba(20,0,34,0.88) 0%, rgba(20,0,34,0.58) 54%, transparent 84%), linear-gradient(180deg, rgba(22,0,36,0.28) 0%, transparent 45%, rgba(22,0,36,0.68) 100%)',
+          }}
+        />
+
+        {/* Subtle Faded Typewriter Loop Ticker Strips in Negative Space (Dynamic to Rotating Hero Master) */}
+        <div className="hidden md:flex flex-col gap-2.5 absolute left-[4%] top-[735px] opacity-20 font-mono text-[10.5px] tracking-[0.22em] uppercase text-[#ffd98a]">
+          <div>
+            <span className="text-[#ff5e97] mr-2">¶ PANTHEON //</span>
+            <span className="lorea-type-ticker">
+              {activeHeroMaster.name.toUpperCase()} ({activeHeroMaster.lifespan}) · {activeHeroMaster.disciplineLabel.toUpperCase()}
+            </span>
+          </div>
+          <div className="pl-8 text-[#ffb347]/75">
+            <span className="text-[#c882ff] mr-2">§ CRAFT //</span>
+            <span className="lorea-type-ticker alt">
+              {activeHeroMaster.craftTitle.toUpperCase()} · EVERY BOOK A LIVING WORLD...
+            </span>
+          </div>
+        </div>
+
+        {/* Mid-Page & Lower-Page Plajah Gradient + Whisper-Faded Writing Loop Echoes */}
+        <div
+          className="absolute inset-x-0 top-[1180px] h-[820px] bg-cover bg-center opacity-[0.08] sm:opacity-[0.12]"
+          style={{
+            backgroundImage: `url("${loreaWritingBoardUri}")`,
+            transform: 'scaleX(-1)',
+            maskImage: 'linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.8) 30%, rgba(0,0,0,0.8) 70%, transparent 100%)',
+            WebkitMaskImage: 'linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.8) 30%, rgba(0,0,0,0.8) 70%, transparent 100%)',
+          }}
+        />
+        <div
+          className="absolute inset-x-0 top-[2350px] h-[820px] bg-cover bg-right-bottom opacity-[0.08] sm:opacity-[0.12]"
+          style={{
+            backgroundImage: `url("${loreaWritingBoardUri}")`,
+            maskImage: 'linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.8) 30%, rgba(0,0,0,0.8) 70%, transparent 100%)',
+            WebkitMaskImage: 'linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.8) 30%, rgba(0,0,0,0.8) 70%, transparent 100%)',
+          }}
+        />
+      </div>
 
       <div className="wrap">
         {/* Top Nav + View Toggle + Theme Switcher */}
         <nav className="nav">
-          <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center justify-between sm:justify-start gap-2.5 sm:gap-3 w-full sm:w-auto flex-wrap">
             <button
               type="button"
               onClick={() => setLoreaMode('LIBRARY')}
-              className="logo cursor-pointer bg-transparent border-0 p-0 text-inherit"
+              className="logo cursor-pointer bg-transparent border-0 p-0 text-inherit shrink-0"
             >
               <i><BookOpen size={16} /></i>
               LOREA
@@ -967,6 +1354,36 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
                 onClick={() => setLoreaMode('WRITERS_DESK')}
               >
                 Writer&apos;s Desk
+              </button>
+              <button
+                type="button"
+                aria-selected={false}
+                onClick={() => {
+                  setLoreaMode('LIBRARY');
+                  setTimeout(() => {
+                    document.getElementById('pantheon')?.scrollIntoView({ behavior: 'smooth' });
+                  }, 50);
+                }}
+              >
+                <Landmark size={13} /> Pantheon &amp; Philosophy
+              </button>
+              <button
+                type="button"
+                aria-selected={false}
+                onClick={() => launchClassicBookInChoraDaw('pride-and-prejudice', 0)}
+                style={{ borderColor: 'rgba(251,191,36,0.55)', background: 'rgba(251,191,36,0.14)', color: '#fde68a', opacity: 1 }}
+                title="Open the 6-Song Pride & Prejudice Hybrid Orchestral + MPE Film Score Showcase Project directly in Chora Studio DAW"
+              >
+                <Music2 size={13} /> ★ Chora DAW: Pride &amp; Prejudice Score
+              </button>
+              <button
+                type="button"
+                aria-selected={false}
+                onClick={() => launchClassicBookInChoraDaw('dracula', 0)}
+                style={{ borderColor: 'rgba(244,63,94,0.55)', background: 'rgba(244,63,94,0.16)', color: '#fecdd3', opacity: 1 }}
+                title="Open the 6-Song Dracula Gothic Symphonic + MPE Film Score Showcase Project directly in Chora Studio DAW"
+              >
+                <Music2 size={13} /> ★ Chora DAW: Dracula Score
               </button>
             </div>
           </div>
@@ -1100,53 +1517,53 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
               </div>
 
               {/* Quick Library Wings Strip */}
-              <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-white/10">
-                <span className="text-[10px] font-mono uppercase tracking-widest opacity-60 mr-2">Library Wings:</span>
+              <div className="flex items-center gap-2 pt-2 border-t border-white/10 overflow-x-auto no-scrollbar sm:flex-wrap pb-1">
+                <span className="text-[10px] font-mono uppercase tracking-widest opacity-60 mr-1 shrink-0">Library Wings:</span>
                 <button
                   type="button"
-                  className="turnbtn"
+                  className="turnbtn shrink-0 whitespace-nowrap"
                   onClick={() => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'KIDS_LIBRARY' } }))}
                 >
                   Kids&apos; Library
                 </button>
                 <button
                   type="button"
-                  className="turnbtn"
+                  className="turnbtn shrink-0 whitespace-nowrap"
                   onClick={() => window.dispatchEvent(new CustomEvent('OPEN_SACRED_LIBRARY'))}
                 >
                   Sacred Library
                 </button>
                 <button
                   type="button"
-                  className="turnbtn"
+                  className="turnbtn shrink-0 whitespace-nowrap"
                   onClick={() => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'COMIC_MUSEUM' } }))}
                 >
                   Comics &amp; Manga Museum
                 </button>
                 <button
                   type="button"
-                  className="turnbtn"
+                  className="turnbtn shrink-0 whitespace-nowrap"
                   onClick={() => window.dispatchEvent(new CustomEvent('OPEN_AUDIOBOOK_PAVILION'))}
                 >
                   Audiobooks
                 </button>
                 <button
                   type="button"
-                  className="turnbtn"
+                  className="turnbtn shrink-0 whitespace-nowrap"
                   onClick={() => window.dispatchEvent(new CustomEvent('OPEN_LOREA_SCORES'))}
                 >
                   Sheet Music &amp; Scores
                 </button>
                 <button
                   type="button"
-                  className="turnbtn"
+                  className="turnbtn shrink-0 whitespace-nowrap"
                   onClick={() => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'MY_LIBRARY' } }))}
                 >
                   My Library
                 </button>
                 <button
                   type="button"
-                  className="turnbtn"
+                  className="turnbtn shrink-0 whitespace-nowrap"
                   onClick={() => comicFileInputRef.current?.click()}
                 >
                   Import CBZ / PDF
@@ -1182,7 +1599,7 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
                   No books matched &ldquo;{searchTerm}&rdquo; in {activeGenre.name}. Try clearing the search or switching collections.
                 </div>
               ) : catalogLayout === 'GRID' ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3.5 sm:gap-5">
                   {sortedArchive.map((book, idx) => (
                     <div
                       key={book.id}
@@ -1212,10 +1629,10 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
                       key={book.id}
                       onClick={() => handleBookSelect(book)}
                       {...bookMenu.bind(book)}
-                      className="glass p-4 sm:p-5 flex items-center gap-5 cursor-pointer hover:border-pink-500/60 transition-all"
+                      className="glass p-3.5 sm:p-5 flex items-center gap-3.5 sm:gap-5 cursor-pointer hover:border-pink-500/60 transition-all"
                     >
                       <div
-                        className="w-16 h-24 rounded-xl overflow-hidden shrink-0 relative"
+                        className="w-14 h-20 sm:w-16 sm:h-24 rounded-xl overflow-hidden shrink-0 relative"
                         style={{
                           background: `linear-gradient(160deg,hsl(${(idx * 37 + 150) % 360} 60% 38%),hsl(${((idx * 37 + 190) % 360)} 55% 14%))`,
                         }}
@@ -1233,25 +1650,26 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap mb-1">
-                          <span className="text-[10px] font-mono uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-white/10">
+                          <span className="text-[9px] sm:text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full bg-white/10">
                             {activeGenre.name}
                           </span>
                           {book.download_count > 0 && (
-                            <span className="text-[10px] font-mono uppercase tracking-widest opacity-60">
+                            <span className="text-[9px] sm:text-[10px] font-mono uppercase tracking-widest opacity-60">
                               {Math.max(1, Math.floor(book.download_count / 100)).toLocaleString()}+ readers
                             </span>
                           )}
                         </div>
-                        <h3 className="font-display font-black text-lg sm:text-xl truncate">{book.title}</h3>
+                        <h3 className="font-display font-black text-base sm:text-xl truncate">{book.title}</h3>
                         <p className="text-xs opacity-70 truncate">{book.authors.join(', ')}</p>
                         {book.subjects && book.subjects.length > 0 && (
-                          <p className="text-[11px] opacity-50 truncate mt-1">
+                          <p className="hidden sm:block text-[11px] opacity-50 truncate mt-1">
                             {book.subjects.slice(0, 4).join(' · ')}
                           </p>
                         )}
                       </div>
-                      <button type="button" className="btn p shrink-0" style={{ padding: '12px 20px' }}>
-                        Read Book
+                      <button type="button" className="btn p shrink-0 max-sm:px-3.5 max-sm:py-2.5 max-sm:text-[10px]">
+                        <BookOpen size={14} className="shrink-0" />
+                        <span className="hidden sm:inline">Read Book</span>
                       </button>
                     </div>
                   ))}
@@ -1353,6 +1771,193 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
                 experience The Golden Thread &#8599;
               </button>
             </div>
+
+            {/* Live Rotating Hero Pantheon Spotlight (Legendary Authors, Philosophers, Poets, Playwrights & Manga/Comic Masters) */}
+            <div
+              className="glass mt-5 p-3.5 sm:p-4 relative overflow-hidden transition-all"
+              style={{
+                borderRadius: 22,
+                borderColor: `${activeHeroMaster.accentColor}44`,
+                boxShadow: `0 16px 40px -16px ${activeHeroMaster.accentColor}33`,
+              }}
+              onMouseEnter={() => setIsHeroRotationPaused(true)}
+              onMouseLeave={() => setIsHeroRotationPaused(false)}
+            >
+              <div className="flex items-center justify-between gap-2 mb-2.5">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span
+                    className="w-2 h-2 rounded-full animate-pulse shrink-0"
+                    style={{ background: activeHeroMaster.accentColor }}
+                  />
+                  <span className="text-[9.5px] font-mono uppercase tracking-[0.22em] opacity-80 truncate">
+                    Lorea Pantheon &middot; {activeHeroMaster.disciplineLabel}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setHeroMasterIdx(
+                        (prev) => (prev - 1 + LOREA_PANTHEON_MASTERS.length) % LOREA_PANTHEON_MASTERS.length
+                      )
+                    }
+                    className="w-6 h-6 rounded-full border border-white/15 bg-white/5 hover:bg-white/15 flex items-center justify-center cursor-pointer text-inherit"
+                    title="Previous Master in Hero Backdrop"
+                    aria-label="Previous Master"
+                  >
+                    <ChevronLeft size={12} />
+                  </button>
+                  <span className="text-[9.5px] font-mono opacity-60 px-1">
+                    {heroMasterIdx + 1}/{LOREA_PANTHEON_MASTERS.length}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setHeroMasterIdx((prev) => (prev + 1) % LOREA_PANTHEON_MASTERS.length)
+                    }
+                    className="w-6 h-6 rounded-full border border-white/15 bg-white/5 hover:bg-white/15 flex items-center justify-center cursor-pointer text-inherit"
+                    title="Next Master in Hero Backdrop"
+                    aria-label="Next Master"
+                  >
+                    <ChevronRight size={12} />
+                  </button>
+                </div>
+              </div>
+
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={`hero-card-${activeHeroMaster.id}`}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.32 }}
+                  className="flex items-start gap-3.5"
+                >
+                  <div
+                    className="w-14 h-16 sm:w-16 sm:h-20 rounded-2xl overflow-hidden shrink-0 border relative flex items-center justify-center"
+                    style={{
+                      borderColor: `${activeHeroMaster.accentColor}66`,
+                      background: `linear-gradient(145deg, ${activeHeroMaster.accentColor}33, ${activeHeroMaster.secondaryColor}22)`,
+                    }}
+                  >
+                    {!failedPortraits[activeHeroMaster.id] ? (
+                      <img
+                        src={activeHeroMaster.portraitUrl}
+                        alt={activeHeroMaster.name}
+                        referrerPolicy="no-referrer"
+                        onError={() =>
+                          setFailedPortraits((prev) => ({ ...prev, [activeHeroMaster.id]: true }))
+                        }
+                        className="w-full h-full object-cover object-top"
+                      />
+                    ) : (
+                      <span className="font-display font-black text-lg">
+                        {activeHeroMaster.name
+                          .split(' ')
+                          .map((w) => w[0])
+                          .slice(0, 2)
+                          .join('')}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <b className="font-display text-base sm:text-lg leading-tight">
+                        {activeHeroMaster.name}
+                      </b>
+                      <span
+                        className="text-[9px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-full"
+                        style={{
+                          background: `${activeHeroMaster.accentColor}24`,
+                          color: activeHeroMaster.accentColor,
+                          border: `1px solid ${activeHeroMaster.accentColor}55`,
+                        }}
+                      >
+                        {activeHeroMaster.era} &middot; {activeHeroMaster.lifespan}
+                      </span>
+                    </div>
+                    <p className="text-xs italic opacity-85 mt-1 line-clamp-2">
+                      &ldquo;{activeHeroMaster.quote}&rdquo;
+                    </p>
+                    <p className="text-[11px] opacity-70 mt-1 truncate">
+                      <strong style={{ color: activeHeroMaster.accentColor }}>Craft Lesson:</strong>{' '}
+                      {activeHeroMaster.craftTitle}
+                    </p>
+                    <div className="flex items-center gap-2 flex-wrap mt-2.5">
+                      {activeHeroMaster.primaryBookGutenbergId && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            openClassicBookByGutenbergId(
+                              activeHeroMaster.primaryBookGutenbergId!,
+                              activeHeroMaster.keyWorks[0]?.title
+                            )
+                          }
+                          className="turnbtn"
+                          style={{
+                            padding: '5px 11px',
+                            fontSize: '9.5px',
+                            borderColor: `${activeHeroMaster.accentColor}88`,
+                            background: `${activeHeroMaster.accentColor}22`,
+                          }}
+                        >
+                          <BookOpen size={11} /> Read {activeHeroMaster.keyWorks[0]?.title || 'Masterwork'}
+                        </button>
+                      )}
+                      {activeHeroMaster.choraScoreBookId && (
+                        <button
+                          type="button"
+                          onClick={() => launchClassicBookInChoraDaw(activeHeroMaster.choraScoreBookId!, 0)}
+                          className="turnbtn"
+                          style={{ padding: '5px 11px', fontSize: '9.5px' }}
+                        >
+                          <Music2 size={11} /> ★ Chora DAW Score
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPantheonDiscipline('ALL');
+                          setSelectedPantheonMasterId(activeHeroMaster.id);
+                          document.getElementById('pantheon')?.scrollIntoView({ behavior: 'smooth' });
+                        }}
+                        className="turnbtn"
+                        style={{ padding: '5px 11px', fontSize: '9.5px' }}
+                      >
+                        Bio &amp; Craft Teaching &#8595;
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              </AnimatePresence>
+
+              {/* Quick Avatar Pill Selector for the Hero Background Rotation */}
+              <div className="flex items-center gap-1.5 mt-3 pt-2.5 border-t border-white/10 overflow-x-auto no-scrollbar">
+                {LOREA_PANTHEON_MASTERS.map((m, idx) => {
+                  const isCurrent = idx === heroMasterIdx;
+                  return (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => {
+                        setHeroMasterIdx(idx);
+                        setSelectedPantheonMasterId(m.id);
+                      }}
+                      className="shrink-0 px-2.5 py-1 rounded-full text-[9.5px] font-bold tracking-wide transition-all cursor-pointer border"
+                      style={{
+                        background: isCurrent ? `${m.accentColor}30` : 'rgba(255,255,255,0.04)',
+                        borderColor: isCurrent ? m.accentColor : 'rgba(255,255,255,0.12)',
+                        color: isCurrent ? '#ffffff' : 'var(--dim)',
+                      }}
+                      title={`${m.name} (${m.disciplineLabel})`}
+                    >
+                      {m.name.split('&')[0].trim()}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
 
           <div className="stagewrap">
@@ -1402,7 +2007,7 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
                       </div>
                       <div className="flex items-center justify-between gap-2">
                         <div className="n">
-                          PAGE {currentGoldenSpread.n} OF {goldenThread.spreads.length}
+                          Chapter 1 · Page {currentGoldenSpread.n} of {goldenThread.spreads.length}
                         </div>
                         <button
                           type="button"
@@ -1443,9 +2048,9 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
                         height={currentHeroArt.height}
                         living={currentLivingPage}
                         audio={goldenAudio}
-                        reducedMotion={false}
-                        soundEnabled={true}
-                        active={!bookFlipped}
+                        reducedMotion={isDemoPaused}
+                        soundEnabled={!isDemoMuted && !isDemoPaused}
+                        active={!bookFlipped && !isDemoPaused}
                         hints={true}
                         style={{ width: '100%', height: '100%' }}
                         onGoto={(p) => {
@@ -1501,59 +2106,89 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
                     {nextGoldenSpread.text}
                   </div>
                   <div className="n" style={{ font: '500 10px var(--f-mono)', opacity: 0.5, letterSpacing: '.14em' }}>
-                    PAGE {nextGoldenSpread.n} OF {goldenThread.spreads.length}
+                    Chapter 1 · Page {nextGoldenSpread.n} of {goldenThread.spreads.length}
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className={`glass player ${isPlayingReadAloud ? 'playing' : ''}`}>
-              <button
-                type="button"
-                className="playbtn"
-                aria-label="Play read aloud"
-                onClick={() => setIsPlayingReadAloud(p => !p)}
-              >
-                {isPlayingReadAloud ? <Pause size={18} /> : <Play size={18} />}
-              </button>
-              <div className="bars" aria-hidden="true">
-                <b /><b /><b /><b /><b /><b />
-              </div>
-              <div className="cap">
-                <small>The Golden Thread &middot; Page {currentGoldenSpread.n}/{goldenThread.spreads.length} &middot; Read Aloud</small>
-                {currentLivingHint}
-              </div>
-              <div className="flex items-center gap-1.5 flex-none">
+            <div className="flex justify-center">
+              <div className={`glass player ${isPlayingReadAloud && !isDemoPaused ? 'playing' : ''}`}>
+                <button
+                  type="button"
+                  className="playbtn"
+                  aria-label="Play storybook read-aloud"
+                  title="Play read-aloud & storybook"
+                  onClick={() => {
+                    setIsDemoPaused(false);
+                    setIsPlayingReadAloud(true);
+                  }}
+                >
+                  <Play size={15} />
+                </button>
                 <button
                   type="button"
                   className="turnbtn"
-                  style={{ padding: '10px 11px' }}
+                  style={{
+                    padding: '8px 10px',
+                    background: isDemoPaused ? 'var(--acc)' : 'transparent',
+                    borderColor: isDemoPaused ? 'var(--acc)' : 'var(--bd)',
+                    color: isDemoPaused ? 'var(--accfg)' : 'var(--fg)',
+                  }}
+                  aria-pressed={isDemoPaused}
+                  aria-label={isDemoPaused ? 'Resume live storybook' : 'Pause live storybook'}
+                  title={isDemoPaused ? 'Resume live storybook' : 'Pause live storybook & audio'}
+                  onClick={toggleDemoPause}
+                >
+                  <Pause size={13} />
+                  <span>{isDemoPaused ? 'Paused' : 'Pause'}</span>
+                </button>
+                <button
+                  type="button"
+                  className="turnbtn"
+                  style={{
+                    padding: '8px 10px',
+                    background: isDemoMuted ? 'rgba(212,0,85,.22)' : 'transparent',
+                    borderColor: isDemoMuted ? 'var(--acc)' : 'var(--bd)',
+                  }}
+                  aria-pressed={isDemoMuted}
+                  aria-label={isDemoMuted ? 'Unmute storybook audio' : 'Mute storybook audio'}
+                  title={isDemoMuted ? 'Unmute storybook audio' : 'Mute storybook audio'}
+                  onClick={toggleDemoMute}
+                >
+                  {isDemoMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}
+                  <span>{isDemoMuted ? 'Muted' : 'Mute'}</span>
+                </button>
+                <div className="bars" aria-hidden="true">
+                  <b /><b /><b /><b /><b />
+                </div>
+                <span
+                  style={{
+                    font: '700 10px var(--f-mono)',
+                    letterSpacing: '.14em',
+                    textTransform: 'uppercase',
+                    color: 'var(--dim)',
+                    paddingInline: '2px 4px',
+                  }}
+                >
+                  {currentGoldenSpread.n} / {goldenThread.spreads.length}
+                </span>
+                <button
+                  type="button"
+                  className="turnbtn"
+                  style={{ padding: '7px 11px' }}
                   aria-label="Previous page"
+                  title="Previous page"
                   onClick={() => turnGoldenSpread(-1)}
                 >
-                  &#8249;
+                  &#8249; Prev
                 </button>
                 <button
                   type="button"
                   className="turnbtn"
                   onClick={() => turnGoldenSpread(1)}
                 >
-                  Turn page
-                </button>
-                <button
-                  type="button"
-                  className="turnbtn"
-                  style={{
-                    background: 'var(--acc)',
-                    borderColor: 'var(--acc)',
-                    color: 'var(--accfg)',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                  }}
-                  onClick={() => openShowcaseLivingBook('golden-thread')}
-                >
-                  Experience Full Book <ArrowUpRight size={13} />
+                  Turn page &#8250;
                 </button>
               </div>
             </div>
@@ -1791,7 +2426,8 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
             </div>
             <div className="car" ref={car2Ref}>
               {LIVING_BOOKS.map((lb) => {
-                const matchCover = marketplaceBooks.find(b => b.id === `showcase_${lb.id}`)?.coverImage;
+                const matchBook = marketplaceBooks.find(b => b.id === `showcase_${lb.id}`);
+                const matchCover = (matchBook as any)?.coverThumb || matchBook?.coverImage || showcaseCovers[lb.id];
                 return (
                   <div
                     key={lb.id}
@@ -1799,7 +2435,7 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
                     tabIndex={0}
                     onClick={() => openShowcaseLivingBook(lb.id)}
                   >
-                    {renderCoverBox(lb.id, lb.title, lb.subtitle, matchCover, 'Living Book', lb.hue)}
+                    {renderCoverBox(lb.id, lb.title, lb.subtitle, matchCover, 'Living Book', lb.hue, true)}
                     <h4>{lb.title}</h4>
                     <p>{lb.subtitle}</p>
                   </div>
@@ -1918,6 +2554,421 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
               )}
             </div>
           )}
+        </section>
+
+        {/* Interwoven Literary History, Biographies, Philosophy & Master Craft Teachings (Lorea Pantheon — Paralleling Chora & Taleo History/Conservatory) */}
+        <section className="s" id="pantheon">
+          <div className="bhead">
+            <div>
+              <div className="eyebrow">Lorea Pantheon &middot; Literary History, Philosophy &amp; Craft Conservatory</div>
+              <h2 className="disp" style={{ maxWidth: '22ch' }}>
+                Learn the craft from the minds who shaped human thought.
+              </h2>
+              <p className="lede" style={{ marginTop: 12 }}>
+                From Plato&apos;s Academy and Aristotle&apos;s <em>Poetics</em> to Regency novelists, Elizabethan playwrights, lyric songwriters, screenwriters, and the pioneers of manga and sequential art—explore their biographies, study their signature craft principles, and read their works directly on Lorea.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                className="turnbtn"
+                onClick={() => openClassicBookByGutenbergId(1497, 'The Republic')}
+                style={{ borderColor: 'rgba(245,158,11,0.55)', background: 'rgba(245,158,11,0.14)' }}
+              >
+                <Landmark size={13} /> Read Plato&apos;s Republic
+              </button>
+              <button
+                type="button"
+                className="turnbtn"
+                onClick={() => openClassicBookByGutenbergId(1974, 'Poetics')}
+                style={{ borderColor: 'rgba(56,189,248,0.55)', background: 'rgba(56,189,248,0.14)' }}
+              >
+                <BookOpen size={13} /> Read Aristotle&apos;s Poetics
+              </button>
+            </div>
+          </div>
+
+          {/* Discipline Filter Pills */}
+          <div className="pills" style={{ marginTop: 22 }}>
+            {LOREA_DISCIPLINE_FILTERS.map((df) => (
+              <button
+                key={df.id}
+                type="button"
+                aria-pressed={pantheonDiscipline === df.id}
+                onClick={() => {
+                  setPantheonDiscipline(df.id);
+                  const firstMatch =
+                    df.id === 'ALL'
+                      ? LOREA_PANTHEON_MASTERS[0]
+                      : LOREA_PANTHEON_MASTERS.find((m) => m.discipline === df.id);
+                  if (firstMatch) {
+                    setSelectedPantheonMasterId(firstMatch.id);
+                    const idx = LOREA_PANTHEON_MASTERS.findIndex((m) => m.id === firstMatch.id);
+                    if (idx >= 0) setHeroMasterIdx(idx);
+                  }
+                }}
+              >
+                {df.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Master Portrait Selector Carousel */}
+          <div className="car" style={{ marginTop: 22 }}>
+            {filteredPantheonMasters.map((m) => {
+              const isSelected = m.id === activePantheonMaster.id;
+              return (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedPantheonMasterId(m.id);
+                    const globalIdx = LOREA_PANTHEON_MASTERS.findIndex((x) => x.id === m.id);
+                    if (globalIdx >= 0) setHeroMasterIdx(globalIdx);
+                  }}
+                  className="glass p-3.5 text-left transition-all cursor-pointer shrink-0 flex flex-col gap-2.5"
+                  style={{
+                    width: 215,
+                    borderRadius: 24,
+                    borderColor: isSelected ? m.accentColor : 'var(--bd)',
+                    background: isSelected
+                      ? `linear-gradient(160deg, ${m.accentColor}26, rgba(255,255,255,0.05))`
+                      : 'var(--card)',
+                    boxShadow: isSelected ? `0 18px 38px -14px ${m.accentColor}44` : undefined,
+                  }}
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-12 h-14 rounded-xl overflow-hidden shrink-0 border flex items-center justify-center"
+                      style={{
+                        borderColor: `${m.accentColor}66`,
+                        background: `${m.accentColor}22`,
+                      }}
+                    >
+                      {!failedPortraits[m.id] ? (
+                        <img
+                          src={m.portraitUrl}
+                          alt={m.name}
+                          referrerPolicy="no-referrer"
+                          onError={() => setFailedPortraits((prev) => ({ ...prev, [m.id]: true }))}
+                          className="w-full h-full object-cover object-top"
+                        />
+                      ) : (
+                        <span className="font-display font-black text-sm">
+                          {m.name
+                            .split(' ')
+                            .map((w) => w[0])
+                            .slice(0, 2)
+                            .join('')}
+                        </span>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <span
+                        className="text-[8.5px] font-mono uppercase tracking-widest block truncate"
+                        style={{ color: m.accentColor }}
+                      >
+                        {m.era}
+                      </span>
+                      <b className="font-display text-sm block truncate mt-0.5">{m.name}</b>
+                      <span className="text-[10px] opacity-65 block truncate">{m.lifespan}</span>
+                    </div>
+                  </div>
+                  <p className="text-[11px] opacity-75 line-clamp-2 leading-snug">{m.epithet}</p>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Deep Master Biography & Craft Teaching Conservatory Card */}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={`pantheon-detail-${activePantheonMaster.id}`}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.35 }}
+              className="glass mt-6 p-6 sm:p-8 lg:p-10 relative overflow-hidden"
+              style={{
+                borderRadius: 32,
+                borderColor: `${activePantheonMaster.accentColor}55`,
+                boxShadow: `0 28px 64px -20px ${activePantheonMaster.accentColor}30`,
+              }}
+            >
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                {/* Left Column: Portrait, Historical Biography & Clickable Platform Works */}
+                <div className="lg:col-span-7 space-y-5">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
+                    <div
+                      className="w-24 h-28 sm:w-28 sm:h-32 rounded-3xl overflow-hidden shrink-0 border-2 shadow-xl flex items-center justify-center"
+                      style={{
+                        borderColor: activePantheonMaster.accentColor,
+                        background: `linear-gradient(145deg, ${activePantheonMaster.accentColor}33, ${activePantheonMaster.secondaryColor}22)`,
+                      }}
+                    >
+                      {!failedPortraits[activePantheonMaster.id] ? (
+                        <img
+                          src={activePantheonMaster.portraitUrl}
+                          alt={activePantheonMaster.name}
+                          referrerPolicy="no-referrer"
+                          onError={() =>
+                            setFailedPortraits((prev) => ({ ...prev, [activePantheonMaster.id]: true }))
+                          }
+                          className="w-full h-full object-cover object-top"
+                        />
+                      ) : (
+                        <span className="font-display font-black text-2xl">
+                          {activePantheonMaster.name
+                            .split(' ')
+                            .map((w) => w[0])
+                            .slice(0, 2)
+                            .join('')}
+                        </span>
+                      )}
+                    </div>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span
+                          className="text-[10px] font-mono uppercase tracking-[0.2em] px-3 py-1 rounded-full font-bold"
+                          style={{
+                            background: `${activePantheonMaster.accentColor}26`,
+                            color: activePantheonMaster.accentColor,
+                            border: `1px solid ${activePantheonMaster.accentColor}66`,
+                          }}
+                        >
+                          {activePantheonMaster.disciplineLabel}
+                        </span>
+                        <span className="text-xs font-mono opacity-70">
+                          {activePantheonMaster.era} &middot; {activePantheonMaster.lifespan}
+                        </span>
+                      </div>
+                      <h3 className="disp text-2xl sm:text-4xl">{activePantheonMaster.name}</h3>
+                      <p className="text-sm opacity-80 font-medium">{activePantheonMaster.epithet}</p>
+                    </div>
+                  </div>
+
+                  <blockquote
+                    className="p-4 rounded-2xl border-l-4 italic text-sm sm:text-base"
+                    style={{
+                      borderColor: activePantheonMaster.accentColor,
+                      background: 'rgba(255,255,255,0.04)',
+                    }}
+                  >
+                    &ldquo;{activePantheonMaster.quote}&rdquo;
+                  </blockquote>
+
+                  <div>
+                    <div className="text-[10px] font-mono uppercase tracking-[0.22em] opacity-60 mb-2">
+                      Historical Biography &amp; Literary Lineage
+                    </div>
+                    <p className="text-sm sm:text-[15px] leading-relaxed opacity-90">
+                      {activePantheonMaster.bio}
+                    </p>
+                  </div>
+
+                  {/* Key Works on Platform */}
+                  <div className="pt-2">
+                    <div className="text-[10px] font-mono uppercase tracking-[0.22em] opacity-60 mb-3">
+                      Essential Works &amp; Editions on Lorea
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {activePantheonMaster.keyWorks.map((kw) => (
+                        <div
+                          key={kw.title}
+                          onClick={() => {
+                            if (kw.gutenbergId) {
+                              openClassicBookByGutenbergId(kw.gutenbergId, kw.title);
+                            } else if (activePantheonMaster.studioTarget === 'COMIC_MUSEUM') {
+                              window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'COMIC_MUSEUM' } }));
+                            } else if (activePantheonMaster.studioTarget === 'COMIC_STUDIO') {
+                              window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'COMIC_STUDIO' } }));
+                            }
+                          }}
+                          className="p-3.5 rounded-2xl border border-white/15 bg-white/[0.04] hover:bg-white/[0.09] transition-all cursor-pointer flex flex-col justify-between gap-2"
+                        >
+                          <div>
+                            <div className="flex items-center justify-between gap-2">
+                              <b className="font-display text-sm">{kw.title}</b>
+                              <span className="text-[10px] font-mono opacity-60 shrink-0">{kw.year}</span>
+                            </div>
+                            <p className="text-xs opacity-70 mt-1">{kw.note}</p>
+                          </div>
+                          <div className="flex items-center gap-2 mt-1">
+                            {kw.gutenbergId ? (
+                              <span
+                                className="text-[9.5px] font-mono uppercase tracking-wider font-bold inline-flex items-center gap-1"
+                                style={{ color: activePantheonMaster.accentColor }}
+                              >
+                                <BookOpen size={11} /> Read on Lorea &#8599;
+                              </span>
+                            ) : (
+                              <span
+                                className="text-[9.5px] font-mono uppercase tracking-wider font-bold inline-flex items-center gap-1"
+                                style={{ color: activePantheonMaster.accentColor }}
+                              >
+                                <Sparkles size={11} /> Explore in Museum &#8599;
+                              </span>
+                            )}
+                            {kw.choraBookId && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  launchClassicBookInChoraDaw(kw.choraBookId!, 0);
+                                }}
+                                className="ml-auto text-[9px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-400/20 border border-amber-400/50 text-amber-200 cursor-pointer"
+                              >
+                                ★ Chora Score
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Column: The Master's Craft Teaching & Interactive Studio Exercise */}
+                <div
+                  className="lg:col-span-5 p-5 sm:p-6 rounded-3xl border space-y-5"
+                  style={{
+                    borderColor: `${activePantheonMaster.accentColor}44`,
+                    background: `linear-gradient(165deg, ${activePantheonMaster.accentColor}16 0%, rgba(15,8,26,0.65) 100%)`,
+                  }}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span
+                      className="text-[10px] font-mono uppercase tracking-[0.22em] font-bold"
+                      style={{ color: activePantheonMaster.accentColor }}
+                    >
+                      ★ Masterclass Craft Teaching
+                    </span>
+                    <span className="text-[10px] font-mono opacity-60">Lorea Writers Conservatory</span>
+                  </div>
+
+                  <h4 className="disp text-xl sm:text-2xl leading-snug">
+                    {activePantheonMaster.craftTitle}
+                  </h4>
+
+                  <div className="space-y-2">
+                    <div className="text-[10px] font-mono uppercase tracking-widest opacity-60">
+                      The Architectural Principle
+                    </div>
+                    <p className="text-sm leading-relaxed opacity-90">
+                      {activePantheonMaster.craftPrinciple}
+                    </p>
+                  </div>
+
+                  <div
+                    className="p-4 rounded-2xl border border-white/15 bg-black/25 space-y-2"
+                  >
+                    <div
+                      className="text-[10px] font-mono uppercase tracking-widest font-bold"
+                      style={{ color: activePantheonMaster.secondaryColor }}
+                    >
+                      ✍️ Studio Practice Prompt
+                    </div>
+                    <p className="text-xs sm:text-sm leading-relaxed opacity-85">
+                      {activePantheonMaster.craftExercise}
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2.5 pt-2">
+                    {activePantheonMaster.primaryBookGutenbergId && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          openClassicBookByGutenbergId(
+                            activePantheonMaster.primaryBookGutenbergId!,
+                            activePantheonMaster.keyWorks[0]?.title
+                          )
+                        }
+                        className="btn p"
+                        style={{ padding: '11px 18px', fontSize: '10.5px' }}
+                      >
+                        <BookOpen size={14} /> Open {activePantheonMaster.keyWorks[0]?.title}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (activePantheonMaster.studioTarget === 'SCRIPT_STUDIO') {
+                          if (onCreateScript) onCreateScript();
+                          else window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'SCRIPT_STUDIO' } }));
+                        } else if (activePantheonMaster.studioTarget === 'COMIC_STUDIO') {
+                          window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'COMIC_STUDIO' } }));
+                        } else if (activePantheonMaster.studioTarget === 'COMIC_MUSEUM') {
+                          window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'COMIC_MUSEUM' } }));
+                        } else {
+                          setLoreaMode('WRITERS_DESK');
+                        }
+                      }}
+                      className="btn"
+                      style={{ padding: '11px 18px', fontSize: '10.5px' }}
+                    >
+                      {activePantheonMaster.studioTarget === 'SCRIPT_STUDIO'
+                        ? 'Practice in Script Studio'
+                        : activePantheonMaster.studioTarget === 'COMIC_STUDIO'
+                        ? 'Practice in Comic Studio'
+                        : activePantheonMaster.studioTarget === 'COMIC_MUSEUM'
+                        ? 'Explore Manga & Comic Museum'
+                        : "Practice at Writer's Desk"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </AnimatePresence>
+
+          {/* Dedicated Philosophical Foundations Shelf: Plato, Aristotle, Marcus Aurelius & Sun Tzu */}
+          <div className="row" style={{ marginTop: 42 }}>
+            <div className="rowhead">
+              <div>
+                <small>The Athenian Academy, The Lyceum &amp; Stoic Stoa</small>
+                <h3>Great Philosophers on Lorea: Plato, Aristotle &amp; Ancient Wisdom</h3>
+              </div>
+              <button
+                type="button"
+                className="turnbtn"
+                onClick={() => {
+                  const philGenre = GENRES.find((g) => g.id === 'philosophy') || GENRES[0];
+                  setActiveGenre(philGenre);
+                  setActiveTab('CLASSICS');
+                  document.getElementById('browse')?.scrollIntoView({ behavior: 'smooth' });
+                }}
+              >
+                Filter Philosophy Shelf &#8593;
+              </button>
+            </div>
+            <div className="car">
+              {CLASSIC_BOOKS.filter((b) =>
+                ['1497', '1600', '1656', '1974', '8438', '6762', '2680', '17405', '31', '1727', '1001'].includes(b.id)
+              ).map((book, idx) => {
+                const hue = (idx * 43 + 32) % 360;
+                return (
+                  <div
+                    key={`phil-shelf-${book.id}`}
+                    className="bookc"
+                    tabIndex={0}
+                    onClick={() => handleBookSelect(book)}
+                    {...bookMenu.bind(book)}
+                  >
+                    {renderCoverBox(
+                      book.id,
+                      book.title,
+                      book.authors.join(', '),
+                      book.coverImage,
+                      book.genre || 'Philosophy',
+                      hue,
+                      true
+                    )}
+                    <h4>{book.title}</h4>
+                    <p>{book.authors.join(', ')}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </section>
 
         {/* Comics & Manga Section: Reader Demo + Museum Lanes + Legends */}

@@ -22,8 +22,9 @@ import {
   Heart, MessageCircle, Share2, X, ArrowLeft, Volume2, VolumeX,
   Play, Pause, Maximize2, Minimize2, Settings, Camera, Tag, Globe,
   Lock, Check, Upload, Eye, EyeOff, ChevronDown, ChevronUp,
-  UserPlus, MoreVertical, Bookmark, Flag, SkipForward, Sparkles,
+  UserPlus, MoreVertical, Bookmark, Flag, SkipForward, Sparkles, Megaphone,
 } from 'lucide-react';
+import ChoraPromoModal from './music/ChoraPromoModal';
 import { LensPicker, LensVideoOverlay } from './LensVideoOverlay';
 import type { LensId } from '../services/lenses/lensEngine';
 import { motion, AnimatePresence } from 'motion/react';
@@ -461,6 +462,7 @@ const VideoPlayerInner: React.FC<VideoPlayerProps> = ({ video: initialVideo, onB
   const [controlsVisible, setControlsVisible] = useState(true);
   const [descExpanded, setDescExpanded]       = useState(false);
   const [showEditModal, setShowEditModal]     = useState(false);
+  const [showPromoModal, setShowPromoModal]   = useState(false);
   const [ownerProfile, setOwnerProfile]       = useState<UserProfile | null>(null);
   const [isFollowingOwner, setIsFollowingOwner] = useState(false);
   const [followBusy, setFollowBusy]           = useState(false);
@@ -485,7 +487,14 @@ const VideoPlayerInner: React.FC<VideoPlayerProps> = ({ video: initialVideo, onB
   const controlsTimer      = useRef<NodeJS.Timeout | null>(null);
   const introHandled       = useRef(false);
 
-  const isOwner = !!(currentUser?.uid && currentUser.uid === video.ownerId);
+  const activeUid = currentUser?.uid || auth.currentUser?.uid;
+  const isOwner = Boolean(
+    activeUid && (
+      video.ownerId === activeUid ||
+      (video as any).creatorId === activeUid ||
+      (video as any).artistId === activeUid
+    )
+  );
   const thumbnail = video.thumbnailUrl || video.coverImageUrl || '';
   const progress  = (currentTime / duration) * 100 || 0;
   // Subtitles are opt-in per video; when present the element needs CORS for cross-origin VTT.
@@ -1250,13 +1259,23 @@ const VideoPlayerInner: React.FC<VideoPlayerProps> = ({ video: initialVideo, onB
           <h1 className="text-sm font-black uppercase tracking-widest text-white line-clamp-1 flex-1 min-w-0">{video.title}</h1>
           <div className="flex items-center gap-2 shrink-0">
             {isOwner && (
-              <button
-                onClick={() => setShowEditModal(true)}
-                className="p-2.5 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full text-white/70 hover:text-white transition-all"
-                title="Video Settings"
-              >
-                <Settings size={16} />
-              </button>
+              <>
+                <button
+                  onClick={() => setShowPromoModal(true)}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-[#A855F7]/20 hover:bg-[#A855F7]/30 border border-[#A855F7]/40 backdrop-blur-md rounded-full text-purple-200 hover:text-white text-[9px] font-black uppercase tracking-widest transition-all"
+                  title="Promote Project — Auto-Promo Cards, Built Promotions & Assets"
+                >
+                  <Megaphone size={13} />
+                  <span>Promote</span>
+                </button>
+                <button
+                  onClick={() => setShowEditModal(true)}
+                  className="p-2.5 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full text-white/70 hover:text-white transition-all"
+                  title="Video Settings"
+                >
+                  <Settings size={16} />
+                </button>
+              </>
             )}
             {/* Mobile: toggle comments */}
             <button
@@ -1524,7 +1543,7 @@ const VideoPlayerInner: React.FC<VideoPlayerProps> = ({ video: initialVideo, onB
             )}
 
             {/* Action buttons */}
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-2 flex-wrap shrink-0">
               <button
                 onClick={handleLike}
                 className={`flex items-center gap-2 px-4 py-2.5 rounded-full border font-black text-[9px] uppercase tracking-widest transition-all ${isLiked ? 'bg-red-500/15 border-red-500/40 text-red-400' : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:text-white'}`}
@@ -1548,15 +1567,16 @@ const VideoPlayerInner: React.FC<VideoPlayerProps> = ({ video: initialVideo, onB
                 }
                 className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white font-black text-[9px] uppercase tracking-widest transition-all"
                 onPostToPlajah={currentUser ? async () => {
+                  const pid = (video as any).muxPlaybackId || undefined;
                   await createPost({
                     text: `🎬 ${video.title}`,
                     media: [{
                       type: 'VIDEO',
-                      url: video.url || '',
+                      url: pid ? `https://stream.mux.com/${pid}.m3u8` : (video.url || ''),
                       id: video.id,
                       title: video.title,
                       thumbnail: video.thumbnailUrl || video.coverImageUrl,
-                      muxPlaybackId: (video as any).muxPlaybackId,
+                      muxPlaybackId: pid,
                     }],
                   });
                 } : undefined}
@@ -1564,6 +1584,16 @@ const VideoPlayerInner: React.FC<VideoPlayerProps> = ({ video: initialVideo, onB
                 label="Share"
                 iconSize={15}
               />
+              {isOwner && (
+                <button
+                  onClick={() => setShowPromoModal(true)}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-[#A855F7]/40 bg-[#A855F7]/20 text-purple-200 hover:bg-[#A855F7]/30 hover:text-white font-black text-[9px] uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(168,85,247,0.25)]"
+                  title="Promote Project — Auto-Promo Cards, Built Promotions & Assets"
+                >
+                  <Megaphone size={15} />
+                  <span>Promote</span>
+                </button>
+              )}
               {/* Watch Party — host a synchronized session others follow. Hidden while already in one
                   (the status banner over the video handles host/follower state + leave). */}
               {!activePartyId && (
@@ -1680,6 +1710,25 @@ const VideoPlayerInner: React.FC<VideoPlayerProps> = ({ video: initialVideo, onB
 
       {/* Save to playlist */}
       {showSaveModal && <AddToPlaylistModal video={video} onClose={() => setShowSaveModal(false)} />}
+
+      {/* Unified Project Promote Studio & Asset Hub */}
+      {showPromoModal && (
+        <ChoraPromoModal
+          album={{
+            id: video.id,
+            title: video.title,
+            artist: ownerProfile?.displayName || video.artist || 'Creator',
+            coverImage: video.coverImageUrl || video.thumbnailUrl || '',
+            type: 'VIDEO',
+            genre: video.genre,
+            description: video.description,
+            ownerId: video.ownerId,
+            promoKit: (video as any).promoKit,
+            promoConfig: (video as any).promoConfig,
+          } as any}
+          onClose={() => setShowPromoModal(false)}
+        />
+      )}
     </div>
   );
 };

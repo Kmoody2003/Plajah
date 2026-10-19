@@ -7,6 +7,7 @@ import {
 import DemoRibbon from './DemoRibbon';
 import ChurchAdminDemoView from './ChurchAdminDemoView';
 import ChurchMemberHub from './elevate/ChurchMemberHub';
+import RelloChurchViewer from './elevate/RelloChurchViewer';
 import {
   DEMO_CHURCH, DEMO_CHURCH_STAFF, DEMO_CHURCH_ALBUMS, DEMO_CHURCH_EVENTS,
   DEMO_CHURCH_VIDEOS, DEMO_CHURCH_FEED, DEMO_MINISTRY_DETAIL,
@@ -83,18 +84,18 @@ const StaffCard: React.FC<{ s: DemoStaff; onVisit: () => void }> = ({ s, onVisit
 const ChurchDemoView: React.FC<{ onBack?: () => void; onCreate: () => void; onVisitUser?: (uid: string) => void }> = ({ onBack, onCreate, onVisitUser }) => {
   const [tab, setTab] = useState<Tab>('HOME');
   const [ministryId, setMinistryId] = useState<string | null>(null);
-  const [mode, setMode] = useState<'hub' | 'member' | 'admin'>('hub');
+  const [mode, setMode] = useState<'hub' | 'member' | 'admin'>('member');
   const c = DEMO_CHURCH;
 
-  // Segmented control to flip between the Edition I Member Hub, Public Church Page, and Admin Backend.
+  // Segmented control to flip between the Grace Chapel Church Page, Edition I Member Hub, and Admin Backend.
   const modeToggle = (
     <div className="sticky top-0 z-40 flex justify-center gap-1 p-1.5 bg-[#0d0b12]/95 backdrop-blur-xl border-b border-white/8">
       <div className="inline-flex rounded-full bg-white/5 border border-white/10 p-0.5">
-        {(['hub', 'member', 'admin'] as const).map(m => (
+        {(['member', 'hub', 'admin'] as const).map(m => (
           <button key={m} onClick={() => setMode(m)}
             className={`px-4 py-1.5 rounded-full ${TYPE.labelSm} transition-all ${mode === m ? 'text-white' : 'text-white/45 hover:text-white'}`}
             style={mode === m ? { background: m === 'hub' ? 'linear-gradient(135deg,#6B0099,#D40055)' : V } : undefined}>
-            {m === 'hub' ? 'Edition I Member Hub' : m === 'member' ? 'Public Church Page' : 'Admin Backend'}
+            {m === 'member' ? 'Public Church Page' : m === 'hub' ? 'Edition I Member Hub' : 'Admin Backend'}
           </button>
         ))}
       </div>
@@ -167,7 +168,7 @@ const ChurchDemoView: React.FC<{ onBack?: () => void; onCreate: () => void; onVi
 
       {/* Tabs */}
       <div className="sticky top-0 z-30 bg-[#0d0b12]/90 backdrop-blur-xl border-b border-white/8">
-        <div className="flex items-center gap-1 px-4 overflow-x-auto scrollbar-hide max-w-4xl mx-auto">
+        <div className="flex items-center gap-1 px-4 overflow-x-auto scrollbar-hide max-w-5xl mx-auto">
           {TABS.map(({ k, label, icon: Icon }) => {
             const active = tab === k && !ministryId;
             return (
@@ -181,7 +182,10 @@ const ChurchDemoView: React.FC<{ onBack?: () => void; onCreate: () => void; onVi
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+        {/* Persistent Live Stream & Ministry TV Channel Thumbnail Carousel right under the tabs */}
+        <RelloChurchViewer org={c} defaultPlayerExpanded={false} />
+
         {/* ── Ministry detail (drill-down) ── */}
         {ministry ? (
           <div className="space-y-6">

@@ -45,9 +45,10 @@ import {
 import {
   fetchAudiusTrending, searchAudius,
   loadAudiusCuration, fetchAudiusPlaylistTracks, fetchAudiusArtistTracks, fetchAudiusArtistById,
-  audiusAlbumToNativeAlbum, audiusTrackToNativeAlbum,
+  audiusAlbumToNativeAlbum, audiusTrackToNativeAlbum, isAudiusOwner,
   AudiusCuration, AudiusPlaylist, AudiusArtist, AudiusAlbum,
 } from '../services/audiusService';
+import { followedAudiusOwnerIds } from '../services/audiusLibrary';
 import { listIncomingLicenseRequests } from '../services/licenseRequests';
 import PlajahPlusBanner from './PlajahPlusBanner';
 import { WC26_TEAMS } from '../data/worldCup2026';
@@ -354,9 +355,9 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
   const [vaultSearchQuery, setVaultSearchQuery] = useState('');
   const [audiusSearchResults, setAudiusSearchResults] = useState<ArchiveTrack[]>([]);
   const [audiusEnabled, setAudiusEnabled] = useState(() => {
-    // Fast localStorage seed; profile value wins once loaded
+    // Fast localStorage seed; profile value wins once loaded. Default to true so Audius discovery is woven into Chora out of the box.
     const saved = localStorage.getItem('chora_audiusEnabled');
-    return saved !== null ? JSON.parse(saved) : (userProfile?.uiSettings?.audiusEnabled ?? false);
+    return saved !== null ? JSON.parse(saved) : (userProfile?.uiSettings?.audiusEnabled ?? true);
   });
   const [audiusCuration, setAudiusCuration] = useState<AudiusCuration | null>(null);
   const [audiusLoading, setAudiusLoading] = useState(false);
@@ -623,14 +624,14 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
     }
   }, [userProfile?.uid]);
 
-  // Load full Audius curation when Audius mode enabled
+  // Load full Audius curation when Audius mode enabled or when browsing For You discovery
   useEffect(() => {
-    if (!audiusEnabled || audiusCuration) return;
+    if ((!audiusEnabled && activeTab !== 'FOR_YOU') || audiusCuration) return;
     setAudiusLoading(true);
     loadAudiusCuration(['Electronic', 'Hip-Hop/Rap', 'Pop', 'R&B/Soul', 'Rock', 'Jazz'])
       .then(setAudiusCuration)
       .finally(() => setAudiusLoading(false));
-  }, [audiusEnabled]);
+  }, [audiusEnabled, activeTab, audiusCuration]);
 
   const toggleAudiusEnabled = async () => {
     const next = !audiusEnabled;
@@ -820,6 +821,94 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
     [...albums].filter(a => (a.playCount || 0) > 0).sort((a, b) => (b.playCount || 0) - (a.playCount || 0)).slice(0, 10),
     [albums]
   );
+
+  // ── For You: Native Plajah Chora priority first + Audius discovery woven into the mix ──
+  const forYouRecommendations = useMemo(() => {
+    const nativePool = [...albums]
+      .filter(a => !isAudiusOwner(a.ownerId) && (!a.type || a.type === 'MUSIC') && (a.tracks?.length || 0) > 0)
+      .sort((a, b) => {
+        const aFollow = musicFollowing.ids.has(a.ownerId || '') ? 1000 : 0;
+        const bFollow = musicFollowing.ids.has(b.ownerId || '') ? 1000 : 0;
+        const aScore = aFollow + (a.playCount || 0) * 5 + ((a.createdAt || 0) / 1e11);
+        const bScore = bFollow + (b.playCount || 0) * 5 + ((b.createdAt || 0) / 1e11);
+        return bScore - aScore;
+      })
+      .map(album => ({ kind: 'native' as const, id: album.id, album }));
+
+    const seenAudiusArtists = new Set<string>();
+    const audiusPool: Array<{ kind: 'audius'; id: string; track: ArchiveTrack; isUnderground: boolean }> = [];
+    const undergroundIds = new Set((audiusCuration?.underground ?? []).map(u => u.id));
+    for (const t of [...(audiusCuration?.trending ?? []), ...(audiusCuration?.underground ?? [])]) {
+      const artistKey = (t.artistId || t.artist || '').toLowerCase();
+      if (!t.id || !t.url || (artistKey && seenAudiusArtists.has(artistKey))) continue;
+      if (artistKey) seenAudiusArtists.add(artistKey);
+      audiusPool.push({ kind: 'audius', id: t.id, track: t, isUnderground: undergroundIds.has(t.id) });
+    }
+
+    // Interleave: Native Plajah Chora albums always lead first (2 native per 1 Audius discovery track)
+    const out: Array<typeof nativePool[number] | typeof audiusPool[number]> = [];
+    let nIdx = 0;
+    let aIdx = 0;
+    const limit = 10;
+    while (out.length < limit && (nIdx < nativePool.length || aIdx < audiusPool.length)) {
+      for (let k = 0; k < 2 && out.length < limit && nIdx < nativePool.length; k++) {
+        out.push(nativePool[nIdx++]);
+      }
+      if (out.length < limit && aIdx < audiusPool.length) {
+        out.push(audiusPool[aIdx++]);
+      }
+    }
+    return out;
+  }, [albums, audiusCuration, musicFollowing.ids]);
+
+  const forYouFollowedReleases = useMemo(() => {
+    const audiusFollows = new Set<string>([
+      ...followedAudiusOwnerIds(),
+      ...Array.from(musicFollowing.ids).filter(id => id.startsWith('audius:')),
+    ]);
+    const nativeFollowed = albums
+      .filter(a => musicFollowing.ids.has(a.ownerId || '') && !isAudiusOwner(a.ownerId))
+      .map(album => ({ kind: 'native' as const, id: album.id, album }));
+    const audiusFollowed: Array<{ kind: 'audius'; id: string; track: ArchiveTrack }> = [];
+    if (audiusFollows.size > 0 && audiusCuration) {
+      const seen = new Set<string>();
+      for (const t of [...(audiusCuration.trending ?? []), ...(audiusCuration.underground ?? [])]) {
+        if (t.artistId && audiusFollows.has(`audius:${t.artistId}`) && !seen.has(t.id)) {
+          seen.add(t.id);
+          audiusFollowed.push({ kind: 'audius', id: t.id, track: t });
+        }
+      }
+    }
+    return [...nativeFollowed, ...audiusFollowed];
+  }, [albums, audiusCuration, musicFollowing.ids]);
+
+  const forYouSuggestedCreators = useMemo(() => {
+    const audiusFollows = new Set<string>([
+      ...followedAudiusOwnerIds(),
+      ...Array.from(musicFollowing.ids).filter(id => id.startsWith('audius:')),
+    ]);
+    const nativeCreators = artists
+      .filter(a => !musicFollowing.ids.has(a.uid))
+      .map(artist => ({ kind: 'native' as const, id: artist.uid, artist }));
+    const audiusCreators = (audiusCuration?.artists ?? [])
+      .filter(a => !audiusFollows.has(`audius:${a.id}`))
+      .map(artist => ({ kind: 'audius' as const, id: `audius:${artist.id}`, audiusArtist: artist }));
+
+    // Prioritize Native Plajah Chora creators first, weaving in Audius artists (2 Native : 1 Audius)
+    const out: Array<typeof nativeCreators[number] | typeof audiusCreators[number]> = [];
+    let nIdx = 0;
+    let aIdx = 0;
+    const limit = 12;
+    while (out.length < limit && (nIdx < nativeCreators.length || aIdx < audiusCreators.length)) {
+      for (let k = 0; k < 2 && out.length < limit && nIdx < nativeCreators.length; k++) {
+        out.push(nativeCreators[nIdx++]);
+      }
+      if (out.length < limit && aIdx < audiusCreators.length) {
+        out.push(audiusCreators[aIdx++]);
+      }
+    }
+    return out;
+  }, [artists, audiusCuration, musicFollowing.ids]);
 
   const getSortedArtists = () => {
     let sorted = [...artists];
@@ -2456,7 +2545,83 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
 
                {/* ── Your Daily Mix — Chora curates a ≤40-min mix from your taste ── */}
                {userProfile && <RecentRail kind="JUMP" showEmpty albums={albums} uid={userProfile.uid} remote={userProfile.choraRecents} onSelectAlbum={onSelectAlbum} onVisitUser={onVisitUser} />}
-               <DailyMixCard onSelectAlbum={onSelectAlbum} />
+               <DailyMixCard onSelectAlbum={onSelectAlbum} onVisitUser={onVisitUser} />
+
+               {/* ── Recommended For You (Native Plajah Chora First + Audius Discovery) ── */}
+               {forYouRecommendations.length > 0 && (
+                 <section>
+                   <div className="flex flex-wrap items-center justify-between gap-2 mb-6">
+                     <div className="flex items-center gap-3">
+                       <span className="w-0.5 h-4 rounded-full bg-gradient-to-b from-small-orange to-[#7E1BCC] shrink-0" />
+                       <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-white">Recommended For You</h2>
+                     </div>
+                     <span className="text-[8px] font-black uppercase tracking-[0.22em] text-white/40">
+                       Chora First · Audius Discovery Mix
+                     </span>
+                   </div>
+                   <AdaptiveGrid phone={2} tablet={3} desktop={5} gap="1.5rem">
+                     {forYouRecommendations.map((item) => {
+                       if (item.kind === 'native') {
+                         const album = item.album;
+                         return (
+                           <div key={`rec_native_${album.id}`} onClick={() => onSelectAlbum(album)} className="group cursor-pointer">
+                             <div className="aspect-square rounded-[2rem] overflow-hidden mb-3 border border-white/10 shadow-xl relative">
+                               <ThreeDImage src={thumb(coverGridSrc(album), THUMB.card)} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+                               <span className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded-full bg-black/75 border border-small-orange/40 text-[7px] font-black uppercase tracking-widest text-small-orange">
+                                 Chora
+                               </span>
+                             </div>
+                             <h4 className="text-[10px] font-black uppercase tracking-widest truncate group-hover:text-small-orange transition-colors">{album.title}</h4>
+                             <p
+                               onClick={e => {
+                                 if (album.ownerId) {
+                                   e.stopPropagation();
+                                   onVisitUser(album.ownerId, 'CONTENT');
+                                 }
+                               }}
+                               className="text-[8px] font-bold text-white/45 hover:text-white uppercase tracking-widest truncate"
+                             >
+                               {album.artist}
+                             </p>
+                           </div>
+                         );
+                       }
+                       const track = item.track;
+                       return (
+                         <div key={`rec_audius_${track.id}`} onClick={() => handlePlayVaultTrack(track)} className="group cursor-pointer">
+                           <div className="aspect-square rounded-[2rem] overflow-hidden mb-3 border border-[#7E1BCC]/35 shadow-xl relative bg-white/5">
+                             {track.thumbnailUrl ? (
+                               <img
+                                 src={thumb(track.thumbnailUrl, THUMB.card) || undefined}
+                                 onError={onThumbError(track.thumbnailUrl)}
+                                 loading="lazy"
+                                 decoding="async"
+                                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                               />
+                             ) : null}
+                             <span className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded-full bg-[#7E1BCC]/90 border border-[#C56BFF]/40 text-[7px] font-black uppercase tracking-widest text-white shadow">
+                               {item.isUnderground ? 'Audius Underground' : 'Audius Discovery'}
+                             </span>
+                           </div>
+                           <h4 className="text-[10px] font-black uppercase tracking-widest truncate group-hover:text-[#C56BFF] transition-colors">{track.title}</h4>
+                           <p
+                             onClick={e => {
+                               if (track.artistId) {
+                                 e.stopPropagation();
+                                 onVisitUser(`audius:${track.artistId}`, 'CONTENT');
+                               }
+                             }}
+                             className="text-[8px] font-bold text-white/45 hover:text-[#C56BFF] uppercase tracking-widest truncate"
+                           >
+                             {track.artist}
+                           </p>
+                         </div>
+                       );
+                     })}
+                   </AdaptiveGrid>
+                 </section>
+               )}
+
                {userProfile && <RecentRail kind="SONGS" albums={albums} uid={userProfile.uid} remote={userProfile.choraRecents} onSelectAlbum={onSelectAlbum} onVisitUser={onVisitUser} />}
                {userProfile && <RecentRail kind="ARTISTS" albums={albums} uid={userProfile.uid} remote={userProfile.choraRecents} onSelectAlbum={onSelectAlbum} onVisitUser={onVisitUser} />}
                {userProfile && <RecentRail kind="ALBUMS" albums={albums} uid={userProfile.uid} remote={userProfile.choraRecents} onSelectAlbum={onSelectAlbum} onVisitUser={onVisitUser} />}
@@ -2495,33 +2660,89 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                  </section>
                )}
 
-               <section>
-                 <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/40 mb-6">From Authors You Follow</h2>
-                 <AdaptiveGrid phone={2} tablet={3} desktop={5} gap="1.5rem">
-                   {albums.filter(a => musicFollowing.ids.has(a.ownerId || '')).map((album) => (
-                     <div key={album.id} onClick={() => onSelectAlbum(album)} className="group cursor-pointer">
-                        <div className="aspect-square rounded-[2rem] overflow-hidden mb-3 border border-white/5 shadow-xl relative">
-                          <ThreeDImage src={thumb(coverGridSrc(album), THUMB.card)} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
-                        </div>
-                        <h4 className="text-[10px] font-black uppercase tracking-widest truncate">{album.title}</h4>
-                        <p className="text-[8px] font-bold text-white/40 uppercase tracking-widest truncate">{album.artist}</p>
-                     </div>
-                   ))}
-                 </AdaptiveGrid>
-               </section>
+               {forYouFollowedReleases.length > 0 && (
+                 <section>
+                   <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/40 mb-6">From Authors You Follow</h2>
+                   <AdaptiveGrid phone={2} tablet={3} desktop={5} gap="1.5rem">
+                     {forYouFollowedReleases.map((item) => {
+                       if (item.kind === 'native') {
+                         const album = item.album;
+                         return (
+                           <div key={`follow_native_${album.id}`} onClick={() => onSelectAlbum(album)} className="group cursor-pointer">
+                             <div className="aspect-square rounded-[2rem] overflow-hidden mb-3 border border-white/5 shadow-xl relative">
+                               <ThreeDImage src={thumb(coverGridSrc(album), THUMB.card)} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+                             </div>
+                             <h4 className="text-[10px] font-black uppercase tracking-widest truncate">{album.title}</h4>
+                             <p className="text-[8px] font-bold text-white/40 uppercase tracking-widest truncate">{album.artist}</p>
+                           </div>
+                         );
+                       }
+                       const track = item.track;
+                       return (
+                         <div key={`follow_audius_${track.id}`} onClick={() => handlePlayVaultTrack(track)} className="group cursor-pointer">
+                           <div className="aspect-square rounded-[2rem] overflow-hidden mb-3 border border-[#7E1BCC]/35 shadow-xl relative bg-white/5">
+                             {track.thumbnailUrl ? (
+                               <img
+                                 src={thumb(track.thumbnailUrl, THUMB.card) || undefined}
+                                 onError={onThumbError(track.thumbnailUrl)}
+                                 loading="lazy"
+                                 decoding="async"
+                                 className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                               />
+                             ) : null}
+                             <span className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded-full bg-[#7E1BCC]/90 text-[7px] font-black uppercase tracking-widest text-white">
+                               Audius
+                             </span>
+                           </div>
+                           <h4 className="text-[10px] font-black uppercase tracking-widest truncate">{track.title}</h4>
+                           <p className="text-[8px] font-bold text-white/40 uppercase tracking-widest truncate">{track.artist}</p>
+                         </div>
+                       );
+                     })}
+                   </AdaptiveGrid>
+                 </section>
+               )}
 
                <section>
-                 <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/40 mb-6">Suggested Creators</h2>
+                 <div className="flex flex-wrap items-center justify-between gap-2 mb-6">
+                   <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/40">Suggested Creators</h2>
+                   <span className="text-[8px] font-black uppercase tracking-[0.22em] text-white/30">
+                     Chora Artists First · Plus Audius Discovery
+                   </span>
+                 </div>
                  <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4 mask-fade-edges">
-                    {artists.filter(a => !musicFollowing.ids.has(a.uid)).slice(0, 10).map(artist => (
-                      <div key={artist.uid} onClick={() => onVisitUser(artist.uid, 'CONTENT')} className="min-w-[140px] text-center group cursor-pointer flex-shrink-0">
-                         <div className="aspect-square rounded-full overflow-hidden mb-4 border-2 border-white/5 p-1 relative">
-                            <img src={thumb((artist as any).choraPhotoURL || artist.photoURL, THUMB.card) || undefined} onError={onThumbError(artist.photoURL)} className="w-full h-full object-cover rounded-full group-hover:scale-110 transition-transform" loading="lazy" decoding="async" />
+                   {forYouSuggestedCreators.map(item => {
+                     if (item.kind === 'native') {
+                       const artist = item.artist;
+                       return (
+                         <div key={`creator_native_${artist.uid}`} onClick={() => onVisitUser(artist.uid, 'CONTENT')} className="min-w-[140px] text-center group cursor-pointer flex-shrink-0">
+                           <div className="aspect-square rounded-full overflow-hidden mb-4 border-2 border-small-orange/30 p-1 relative">
+                             <img src={thumb((artist as any).choraPhotoURL || artist.photoURL, THUMB.card) || undefined} onError={onThumbError(artist.photoURL)} className="w-full h-full object-cover rounded-full group-hover:scale-110 transition-transform" loading="lazy" decoding="async" />
+                           </div>
+                           <h4 className="text-[10px] font-black uppercase tracking-widest truncate">{artist.displayName}</h4>
+                           <span className="text-[8px] font-bold text-small-orange uppercase tracking-widest bg-small-orange/10 px-2 py-1 rounded-full mt-2 inline-block">Chora Artist</span>
                          </div>
-                         <h4 className="text-[10px] font-black uppercase tracking-widest truncate">{artist.displayName}</h4>
-                         <span className="text-[8px] font-bold text-small-orange uppercase tracking-widest bg-small-orange/10 px-2 py-1 rounded-full mt-2 inline-block">Recommended</span>
-                      </div>
-                    ))}
+                       );
+                     }
+                     const audiusArtist = item.audiusArtist;
+                     return (
+                       <div key={`creator_audius_${audiusArtist.id}`} onClick={() => handleOpenAudiusArtist(audiusArtist)} className="min-w-[140px] text-center group cursor-pointer flex-shrink-0">
+                         <div className="aspect-square rounded-full overflow-hidden mb-4 border-2 border-[#7E1BCC]/50 p-1 relative">
+                           {audiusArtist.profilePicture ? (
+                             <img src={thumb(audiusArtist.profilePicture, THUMB.card) || undefined} onError={onThumbError(audiusArtist.profilePicture)} className="w-full h-full object-cover rounded-full group-hover:scale-110 transition-transform" loading="lazy" decoding="async" />
+                           ) : (
+                             <div className="w-full h-full rounded-full bg-[#7E1BCC]/30 flex items-center justify-center text-white font-black text-lg">
+                               {(audiusArtist.name || 'A')[0]}
+                             </div>
+                           )}
+                         </div>
+                         <h4 className="text-[10px] font-black uppercase tracking-widest truncate group-hover:text-[#C56BFF] transition-colors">{audiusArtist.name}</h4>
+                         <span className="text-[8px] font-bold text-[#C56BFF] uppercase tracking-widest bg-[#7E1BCC]/20 border border-[#C56BFF]/30 px-2 py-1 rounded-full mt-2 inline-block">
+                           Audius Artist
+                         </span>
+                       </div>
+                     );
+                   })}
                  </div>
                </section>
              </div>

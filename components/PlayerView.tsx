@@ -47,8 +47,9 @@ import {
   Layers, Music2, Plus, MessageSquare, Send, User, Users, Clock, Activity, BookOpen, ChevronDown, ChevronUp, Image as ImageIcon,
   AlertCircle, Video as VideoIcon, Radio, List, HeartHandshake, Heart, Pen, Maximize2, Minimize2, GripVertical, Upload, EyeOff, Eye,
   SkipBack, SkipForward, ChevronLeft, ChevronRight, Waves, RotateCcw, ListPlus,
-  Languages, RefreshCw, Film, ZapOff, Scissors, CheckSquare, Square, MoreHorizontal, Search
+  Languages, RefreshCw, Film, ZapOff, Scissors, CheckSquare, Square, MoreHorizontal, Search, Megaphone
 } from 'lucide-react';
+import { ChoraPromoModal } from './music/ChoraPromoModal';
 
 import { User as FirebaseUser } from 'firebase/auth';
 import DonationModal from './DonationModal';
@@ -264,7 +265,7 @@ const HUDCommentModule: React.FC<{ album: Album; trackId: string | null; videoId
   }
 
   return (
-    <div className={`flex flex-col h-full font-sans transition-all duration-500 animate-in slide-in-from-top-4`}>
+    <div className={`flex flex-col h-full font-display uppercase transition-all duration-500 animate-in slide-in-from-top-4`}>
       <div className="flex items-center justify-between mb-4">
         <div className="flex gap-4">
           <button 
@@ -306,7 +307,7 @@ const HUDCommentModule: React.FC<{ album: Album; trackId: string | null; videoId
                   value={newSticky}
                   onChange={(e) => setNewSticky(e.target.value)}
                   placeholder="Share the vibe or background behind this track..."
-                  className="w-full bg-transparent border-none outline-none text-xs font-bold p-0 resize-none h-20 placeholder:text-white/10"
+                  className="w-full bg-transparent border-none outline-none text-xs font-display font-bold uppercase tracking-wider p-0 resize-none h-20 placeholder:text-white/10"
                 />
                 <button 
                   onClick={handleAddSticky}
@@ -330,7 +331,7 @@ const HUDCommentModule: React.FC<{ album: Album; trackId: string | null; videoId
                     <Sparkles size={12} className="text-small-orange" />
                     <span className="text-[8px] font-black uppercase tracking-[0.3em] text-white/40">Artist Insight</span>
                   </div>
-                  <p className="text-xs font-bold leading-relaxed tracking-wide text-white/80">{note}</p>
+                  <p className="text-xs font-display font-bold uppercase leading-relaxed tracking-wider text-white/80">{note}</p>
                   
                   {isOwner && (
                     <button 
@@ -668,6 +669,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   
   const [comments, setComments] = useState<Comment[]>([]);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showPromoModal, setShowPromoModal] = useState(false);
   const tabScrollRef = useRef<HTMLDivElement>(null);
   const [tabEdge, setTabEdge] = useState({ left: false, right: true });
   const onTabScroll = useCallback(() => {
@@ -794,7 +796,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
           <button onClick={() => cycleFxPreset(-1)} aria-label="Previous preset"
             className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full bg-black/50 border border-white/10 text-white/60 hover:text-white transition-all cursor-pointer"><ChevronLeft size={14} /></button>
           <button onClick={() => setFxMenuOpen(o => !o)}
-            className="shrink-0 flex items-center gap-1.5 h-7 px-3 rounded-full bg-black/50 border border-white/10 text-white text-[9px] font-bold hover:bg-black/70 transition-all max-w-[170px] cursor-pointer">
+            className="shrink-0 flex items-center gap-1.5 h-7 px-3 rounded-full bg-black/50 border border-white/10 text-white text-[9px] font-display font-black uppercase tracking-wider hover:bg-black/70 transition-all max-w-[170px] cursor-pointer">
             <span className="truncate">{fxCurrentPreset || (fxEngine === 'MILKDROP' || fxEngine === 'SHADER' ? 'Loading…' : `Preset ${fxPresetIndex + 1}`)}</span>
             <ChevronDown size={12} className={`shrink-0 transition-transform ${fxMenuOpen ? 'rotate-180' : ''}`} />
           </button>
@@ -821,20 +823,20 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                         value={fxSearch}
                         onChange={(e) => setFxSearch(e.target.value)}
                         placeholder="Search presets..."
-                        className="w-full bg-white/5 border border-white/10 rounded-lg pl-7 pr-2 py-1 text-[10px] text-white placeholder-white/40 focus:outline-none focus:border-small-orange/60"
+                        className="w-full bg-white/5 border border-white/10 rounded-lg pl-7 pr-2 py-1 text-[10px] font-display font-bold uppercase tracking-wider text-white placeholder-white/40 focus:outline-none focus:border-small-orange/60"
                         autoFocus
                       />
                     </div>
                   </div>
                 )}
                 <div className="flex-1 overflow-y-auto no-scrollbar space-y-0.5 pt-1">
-                  {fxPresetList.length === 0 && <div className="px-3 py-2 text-[10px] text-white/30">Loading presets…</div>}
+                  {fxPresetList.length === 0 && <div className="px-3 py-2 text-[10px] font-display font-bold uppercase tracking-wider text-white/30">Loading presets…</div>}
                   {fxPresetList
                     .map((name, idx) => ({ name, idx }))
                     .filter(item => !fxSearch.trim() || item.name.toLowerCase().includes(fxSearch.toLowerCase()))
                     .map(({ name, idx }) => (
                       <button key={idx} onClick={() => { setFxPresetIndex(idx); setFxMenuOpen(false); setFxSearch(''); }}
-                        className={`w-full text-left px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-colors truncate flex items-center justify-between cursor-pointer ${(((fxPresetIndex % fxPresetList.length) + fxPresetList.length) % fxPresetList.length) === idx ? 'bg-small-orange/20 text-small-orange font-black' : 'text-white/60 hover:text-white hover:bg-white/5'}`}>
+                        className={`w-full text-left px-2.5 py-1.5 rounded-lg text-[10px] font-display font-bold uppercase tracking-wider transition-colors truncate flex items-center justify-between cursor-pointer ${(((fxPresetIndex % fxPresetList.length) + fxPresetList.length) % fxPresetList.length) === idx ? 'bg-small-orange/20 text-small-orange font-black' : 'text-white/60 hover:text-white hover:bg-white/5'}`}>
                         <span className="truncate">{name}</span>
                         {(((fxPresetIndex % fxPresetList.length) + fxPresetList.length) % fxPresetList.length) === idx && <span className="text-small-orange ml-1 text-xs">✓</span>}
                       </button>
@@ -1075,7 +1077,8 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   const openPlajahPixels = React.useCallback(() => {
     window.dispatchEvent(new CustomEvent('OPEN_PLAJAH_PIXELS', { detail: { track: currentTrack, album } }));
   }, [currentTrack, album]);
-  const isOwner = user && album.ownerId === user.uid;
+  const currentUid = user?.uid || auth.currentUser?.uid;
+  const isOwner = Boolean(currentUid && (album.ownerId === currentUid || (album as any).artistId === currentUid || (album as any).creatorId === currentUid));
   const isLockerRelease = Boolean(album.isPrivate || album.id.startsWith('locker-') || album.id.startsWith('palbum_'));
   const [isLockerEditOpen, setIsLockerEditOpen] = useState(false);
 
@@ -1525,7 +1528,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
 
   if (isMobile && !isTVMode) {
     return (
-      <div className={`h-[100dvh] bg-transparent text-primary overflow-hidden relative selection:bg-white selection:text-black font-sans flex flex-col${gatefoldOn ? (choraNext.isNight ? ' chora-next chora-night' : ' chora-next') : ''}`}>
+      <div className={`h-[100dvh] bg-transparent text-primary overflow-hidden relative selection:bg-white selection:text-black font-display uppercase flex flex-col${gatefoldOn ? (choraNext.isNight ? ' chora-next chora-night' : ' chora-next') : ''}`}>
         {/* Mobile Atmospheric Background — blurred artwork at 60%, fades into app bg at bottom */}
         <div className="fixed inset-0 z-0 pointer-events-none">
           <img
@@ -1553,11 +1556,21 @@ const PlayerView: React.FC<PlayerViewProps> = ({
               </span>
             )}
           </div>
-          <div className="flex items-center gap-1 shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0">
             <ChoraQualityButton className="p-2" />
-            <button onClick={() => setShowShareModal(true)} className="p-2 text-white/40 hover:text-white transition-all">
-              <Share2 size={20} />
+            <button onClick={() => setShowShareModal(true)} title="Share" className="p-2 text-white/60 hover:text-white transition-all">
+              <Share2 size={18} />
             </button>
+            {isOwner && (
+              <button
+                onClick={() => setShowPromoModal(true)}
+                title="Promote Project — Auto-Promo Cards, Built Promotions & Assets"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-gradient-to-r from-[#d40055] to-[#ff8c00] text-white text-[9px] font-black uppercase tracking-widest shadow-md active:scale-95 transition-all"
+              >
+                <Megaphone size={12} />
+                <span>Promote</span>
+              </button>
+            )}
           </div>
         </header>
 
@@ -1565,11 +1578,18 @@ const PlayerView: React.FC<PlayerViewProps> = ({
             (native Chora artists first, Audius filling behind) + a radio on/off toggle. */}
         {upNext && (
           <div className="flex items-center gap-2 px-4 py-1.5 bg-black/30 border-b border-white/5">
-            {upNext.cover && <img src={thumb(upNext.cover, THUMB.small) || undefined} loading="lazy" className="w-6 h-6 rounded object-cover shrink-0" />}
-            <div className="min-w-0 flex-1 text-left">
-              <span className="text-[7px] font-black uppercase tracking-widest" style={{ color: upNext.native ? '#FF8C00' : '#C56BFF' }}>Up next · {upNext.native ? 'Chora artist' : 'via Audius'}</span>
-              <p className="text-[10px] font-bold text-white/80 truncate">{upNext.title}{upNext.artist ? ` — ${upNext.artist}` : ''}</p>
-            </div>
+            <button
+              type="button"
+              onClick={() => next()}
+              title="Play up next now"
+              className="flex items-center gap-2 min-w-0 flex-1 text-left hover:opacity-90 transition-opacity"
+            >
+              {upNext.cover && <img src={thumb(upNext.cover, THUMB.small) || undefined} loading="lazy" className="w-6 h-6 rounded object-cover shrink-0" />}
+              <div className="min-w-0 flex-1 text-left">
+                <span className="text-[7px] font-black uppercase tracking-widest" style={{ color: upNext.native ? '#FF8C00' : '#C56BFF' }}>Up next · {upNext.native ? 'Chora artist' : 'via Audius'}</span>
+                <p className="text-[10px] font-display font-black uppercase tracking-wider text-white/80 truncate">{upNext.title}{upNext.artist ? ` — ${upNext.artist}` : ''}</p>
+              </div>
+            </button>
             <button onClick={() => setAutoRadio(!autoRadio)} title={autoRadio ? 'Radio on — keeps playing when the album ends' : 'Radio off'}
               className={`shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-widest transition-colors ${autoRadio ? 'bg-white/15 text-white' : 'bg-white/5 text-white/40'}`}>
               <Radio size={9} /> {autoRadio ? 'Radio' : 'Off'}
@@ -1842,29 +1862,43 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                 )}
               </div>
 
-              {/* Share icon overlaid on cover art */}
-              <button
-                onClick={(e) => { e.stopPropagation(); setShowShareModal(true); }}
-                className="absolute top-4 right-4 z-20 w-10 h-10 rounded-xl bg-black/50 backdrop-blur-md border border-white/20 flex items-center justify-center text-white/60 hover:text-white hover:bg-black/70 hover:border-white/40 transition-all"
-                style={{top:'max(1rem, env(safe-area-inset-top))', right:'max(1rem, env(safe-area-inset-right))'}}
+              {/* Share & Promote icons overlaid on cover art */}
+              <div
+                className="absolute top-4 right-4 z-20 flex items-center gap-2"
+                style={{ top: 'max(1rem, env(safe-area-inset-top))', right: 'max(1rem, env(safe-area-inset-right))' }}
               >
-                <Share2 size={16} />
-              </button>
-              {/* Floating Track Info on Cover — Gatefold: sleeve credits (italic title,
-                  gradient artist, live ember progress bar); classic keeps the old style */}
+                <button
+                  onClick={(e) => { e.stopPropagation(); setShowShareModal(true); }}
+                  title="Share"
+                  className="w-10 h-10 rounded-xl bg-black/50 backdrop-blur-md border border-white/20 flex items-center justify-center text-white/60 hover:text-white hover:bg-black/70 hover:border-white/40 transition-all"
+                >
+                  <Share2 size={16} />
+                </button>
+                {isOwner && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setShowPromoModal(true); }}
+                    title="Promote Project"
+                    className="h-10 px-3.5 rounded-xl bg-gradient-to-r from-[#d40055] to-[#ff8c00] text-white text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 shadow-lg active:scale-95 transition-all"
+                  >
+                    <Megaphone size={13} />
+                    <span>Promote</span>
+                  </button>
+                )}
+              </div>
+              {/* Floating Track Info on Cover — Plajah all-caps display typography */}
               <div className="absolute bottom-6 left-6 right-6" style={{bottom:'max(1.5rem, env(safe-area-inset-bottom))'}}>
                 {gatefoldOn ? (
                   <>
-                    <h2 className="text-2xl font-black italic tracking-tight leading-none mb-0.5 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">{currentTrack?.title || album.title}</h2>
-                    <p className="text-[11px] font-black uppercase tracking-[0.18em] w-fit bg-gradient-to-r from-[#FF8C00] via-[#D40055] to-[#6B0099] bg-clip-text text-transparent drop-shadow-[0_1px_6px_rgba(0,0,0,0.6)] cursor-pointer hover:opacity-80 transition-opacity" onClick={(e) => { e.stopPropagation(); if (onVisitUser && album.ownerId) onVisitUser(album.ownerId); }}>{album.artist}</p>
+                    <h2 className="text-2xl font-display font-black uppercase tracking-tight leading-none mb-0.5 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">{currentTrack?.title || album.title}</h2>
+                    <p className="text-[11px] font-display font-black uppercase tracking-[0.18em] w-fit bg-gradient-to-r from-[#FF8C00] via-[#D40055] to-[#6B0099] bg-clip-text text-transparent drop-shadow-[0_1px_6px_rgba(0,0,0,0.6)] cursor-pointer hover:opacity-80 transition-opacity" onClick={(e) => { e.stopPropagation(); if (onVisitUser && album.ownerId) onVisitUser(album.ownerId); }}>{album.artist}</p>
                     <div className="h-[3px] rounded-full bg-white/15 mt-2 overflow-hidden">
                       <div className="h-full rounded-full bg-gradient-to-r from-[#D40055] to-[#FF8C00] transition-[width] duration-500" style={{ width: `${isCurrentTrackGlobal && globalDuration > 0 ? Math.min(100, (globalCurrentTime / globalDuration) * 100) : 0}%` }} />
                     </div>
                   </>
                 ) : (
                   <>
-                    <h2 className="text-2xl font-black uppercase tracking-tightest leading-none mb-1 shadow-md">{currentTrack?.title}</h2>
-                    <p className="text-xs font-bold text-small-orange uppercase tracking-widest shadow-md cursor-pointer hover:opacity-80 transition-opacity" onClick={(e) => { e.stopPropagation(); if (onVisitUser && album.ownerId) onVisitUser(album.ownerId); }}>{album.artist}</p>
+                    <h2 className="text-2xl font-display font-black uppercase tracking-tight leading-none mb-1 shadow-md">{currentTrack?.title}</h2>
+                    <p className="text-xs font-display font-bold text-small-orange uppercase tracking-widest shadow-md cursor-pointer hover:opacity-80 transition-opacity" onClick={(e) => { e.stopPropagation(); if (onVisitUser && album.ownerId) onVisitUser(album.ownerId); }}>{album.artist}</p>
                   </>
                 )}
               </div>
@@ -2133,21 +2167,21 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                         onClick={selectMode ? (e) => { e.stopPropagation(); trackSelection.handleSelect(t.id, e); } : () => { setCurrentTrackIndex(i); playTrack(t, album, 'LIBRARY'); }}
                         className="flex items-center gap-3 text-left flex-1 min-w-0"
                       >
-                        <span className="text-[10px] font-black text-small-orange w-4 shrink-0 self-start pt-0.5">{i + 1}</span>
+                        <span className="text-[10px] font-display font-black text-small-orange w-4 shrink-0 self-start pt-0.5 tabular-nums">{i + 1}</span>
                         <div className="min-w-0 flex-1">
                           {/* Track-list titles stay a single line (the full title is the big header above) */}
-                          <p className="text-xs font-bold uppercase tracking-widest truncate">{t.title}</p>
+                          <p className="text-xs font-display font-black uppercase tracking-widest truncate">{t.title}</p>
                           {/* Lyrics get the full-width title column (timing moved to the right) */}
                           {isActive && isCurrentTrackGlobal
                             ? <CaptionTicker caption={getCurrentCaption()} />
-                            : <p className="text-[8px] font-bold text-white/20 uppercase tracking-widest break-words">{t.artist || album.artist}</p>}
+                            : <p className="text-[8px] font-display font-bold text-white/20 uppercase tracking-widest break-words">{t.artist || album.artist}</p>}
                           {(t.isEclipsa || t.isAtmos) && <ImmersiveBadge isEclipsa={t.isEclipsa} isAtmos={t.isAtmos} size="sm" className="mt-1" />}
                         </div>
                       </button>
                       <div className="flex items-center gap-2 shrink-0">
                         {/* Active track: countdown / total on the RIGHT, right-aligned */}
                         {isActive && isCurrentTrackGlobal && globalDuration > 0 && (
-                          <div className="flex flex-col items-end font-mono tabular-nums text-[9px] font-black tracking-tight leading-tight self-center">
+                          <div className="flex flex-col items-end font-display tabular-nums text-[9px] font-black uppercase tracking-wider leading-tight self-center">
                             <span className={isEndingSoon ? 'text-red-400' : 'text-white/70'}>-{formatTime(trackRemaining)}</span>
                             <span className="text-white/35">{formatTime(globalDuration)}</span>
                           </div>
@@ -2195,7 +2229,6 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                             onPostToPlajah={async () => {
                               await createPost({
                                 text: `🎵 ${t.title} — ${t.artist || album.artist}`,
-                                media: [{ type: 'AUDIO', url: t.url || '', id: t.id, title: t.title, thumbnail: album.coverImage } as any],
                                 albumEmbed: album,
                               });
                             }}
@@ -2258,7 +2291,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                               </div>
                               <div className="flex-1 min-w-0">
                                 <p className="text-[9px] font-black uppercase tracking-widest text-white/40">Slot {slot}</p>
-                                <p className="text-[10px] font-bold truncate">{saved ? 'Saved!' : existing ? existing.title : 'No track assigned'}</p>
+                                <p className="text-[10px] font-display font-bold uppercase tracking-wider truncate">{saved ? 'Saved!' : existing ? existing.title : 'No track assigned'}</p>
                               </div>
                               {/* Pick from album tracks */}
                               <button type="button"
@@ -2419,7 +2452,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
               <div className="flex items-center gap-4 flex-wrap">
                 <img src={thumb(album.artistImage || album.coverImage, THUMB.small) || undefined} loading="lazy" decoding="async" onError={onThumbError(album.artistImage || album.coverImage)} className="w-16 h-16 rounded-2xl object-cover border border-white/10" />
                 <div>
-                  <h3 className="text-lg font-black uppercase tracking-tight">{album.artist}</h3>
+                  <h3 className="text-lg font-display font-black uppercase tracking-tight">{album.artist}</h3>
                   {(album as any).source === 'AUDIUS' ? (
                     <a href={(album as any).audiusUrl || 'https://audius.co/'} target="_blank" rel="noopener noreferrer"
                       className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest"
@@ -2438,7 +2471,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                   />
                 </div>
               </div>
-              <p className="text-sm font-medium leading-relaxed text-white/60 italic font-display">
+              <p className="text-sm font-display font-bold uppercase tracking-wider leading-relaxed text-white/60">
                 {album.artistBio || cleanDescription(album.description)}
               </p>
 
@@ -2560,6 +2593,14 @@ const PlayerView: React.FC<PlayerViewProps> = ({
             </div>
           </div>
         )}
+        {showPromoModal && (
+          <ChoraPromoModal
+            album={album}
+            currentUser={user as any}
+            onClose={() => setShowPromoModal(false)}
+            onUpdateAlbum={onUpdate}
+          />
+        )}
       </div>
     );
   }
@@ -2591,7 +2632,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
 
   if (isTVMode) {
     return (
-      <div className="h-[100dvh] bg-[#080808] text-white relative overflow-hidden font-sans selection:bg-small-orange selection:text-black">
+      <div className="h-[100dvh] bg-[#080808] text-white relative overflow-hidden font-display uppercase selection:bg-small-orange selection:text-black">
         <AtmosphericBackground album={album} analyser={globalAnalyser} isPlaying={globalIsPlaying && isCurrentTrackGlobal} simplified={true} />
         
         <div className="relative z-40 w-full h-full flex flex-col p-8 lg:p-14 gap-10">
@@ -2811,7 +2852,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                              );
                            })
                          ) : (
-                           <p className="text-lg font-medium italic text-white/40 leading-relaxed">{currentTrack?.lyrics || "Lyrics unavailable for this signal."}</p>
+                           <p className="text-lg font-display font-bold uppercase tracking-wide text-white/40 leading-relaxed">{currentTrack?.lyrics || "Lyrics unavailable for this signal."}</p>
                          )}
                        </div>
                     )}
@@ -2820,7 +2861,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                     )}
                     {activeHUD === 'INFO' && (
                       <div className="space-y-6">
-                        <p className="text-sm font-medium leading-relaxed italic text-white/60">{album.linerNotes || "Operational data compilation in progress."}</p>
+                        <p className="text-sm font-display font-bold uppercase tracking-wide leading-relaxed text-white/60">{album.linerNotes || "Operational data compilation in progress."}</p>
                         {album.worldId && (
                           <WorldBadge worldId={album.worldId} contentTitle={album.title} contentType="album" onNavigate={onNavigateToWorld} />
                         )}
@@ -2871,7 +2912,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                       <div className="space-y-4">
                         <img src={thumb(album.artistImage || album.coverImage, THUMB.card) || undefined} loading="lazy" decoding="async" onError={onThumbError(album.artistImage || album.coverImage)} className="w-full aspect-square object-cover rounded-2xl mb-4" />
                         <h3 className="text-2xl font-display font-black uppercase">{album.artist}</h3>
-                        <p className="text-xs font-medium italic text-white/40 leading-relaxed">{album.artistBio}</p>
+                        <p className="text-xs font-display font-bold uppercase tracking-wide text-white/40 leading-relaxed">{album.artistBio}</p>
                       </div>
                     )}
                     {activeHUD === 'MEDIA' && (
@@ -2911,7 +2952,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   }
 
   return (
-    <div className={`fixed inset-0 z-10 bg-transparent text-primary overflow-hidden selection:bg-white selection:text-black font-sans${gatefoldOn ? (choraNext.isNight ? ' chora-next chora-night' : ' chora-next') : ''}`}>
+    <div className={`fixed inset-0 z-10 bg-transparent text-primary overflow-hidden selection:bg-white selection:text-black font-display uppercase${gatefoldOn ? (choraNext.isNight ? ' chora-next chora-night' : ' chora-next') : ''}`}>
       {/* ── Full-page cover art — clear, fades to transparent at bottom ── */}
       <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
         {/* Ambient blurred base (very soft, low opacity) */}
@@ -3216,9 +3257,9 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                  <div className="shrink-0 px-6 pb-4 pt-3 relative z-10">
                    {/* Credits */}
                    <div className="hidden [@media(min-height:820px)]:block mb-2">
-                    <h2 className="text-xl font-black italic tracking-tight text-white leading-[1.02]" style={{ textWrap: 'balance' } as React.CSSProperties}>{album.title}</h2>
+                    <h2 className="text-xl font-display font-black uppercase tracking-tight text-white leading-[1.02]" style={{ textWrap: 'balance' } as React.CSSProperties}>{album.title}</h2>
                     <p
-                      className="mt-0.5 text-[10px] font-black uppercase tracking-[0.22em] inline-block cursor-pointer hover:opacity-80 transition-opacity"
+                      className="mt-0.5 text-[10px] font-display font-black uppercase tracking-[0.22em] inline-block cursor-pointer hover:opacity-80 transition-opacity"
                       style={{ background: 'var(--pj-grad-ember, linear-gradient(135deg,#D40055,#FF8C00))', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}
                       onClick={() => { if (onVisitUser && album.ownerId) onVisitUser(album.ownerId); }}
                     >
@@ -3226,17 +3267,17 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                     </p>
                     <div className="mt-1.5 flex flex-wrap gap-1.5">
                       {(album.releaseDate || album.createdAt) && (
-                        <span className="px-2.5 py-1 rounded-full border border-white/15 text-[8px] font-black uppercase tracking-widest text-white/60">{new Date(album.releaseDate || album.createdAt).getFullYear()}</span>
+                        <span className="px-2.5 py-1 rounded-full border border-white/15 text-[8px] font-display font-black uppercase tracking-widest text-white/60 tabular-nums">{new Date(album.releaseDate || album.createdAt).getFullYear()}</span>
                       )}
                       {album.genre && (
-                        <span className="px-2.5 py-1 rounded-full border border-white/15 text-[8px] font-black uppercase tracking-widest text-white/60">{album.genre}</span>
+                        <span className="px-2.5 py-1 rounded-full border border-white/15 text-[8px] font-display font-black uppercase tracking-widest text-white/60">{album.genre}</span>
                       )}
-                      <span className="px-2.5 py-1 rounded-full border border-white/15 text-[8px] font-black uppercase tracking-widest text-white/60">
+                      <span className="px-2.5 py-1 rounded-full border border-white/15 text-[8px] font-display font-black uppercase tracking-widest text-white/60 tabular-nums">
                         {album.type === 'BOOK' ? `${album.bookChapters?.length || 0} chapters` : `${album.tracks?.length || 0} tracks`}
                       </span>
                     </div>
                     {(album.linerNotes || cleanDescription(album.description)) && (
-                      <p className="mt-2 text-[10px] leading-relaxed text-white/55 line-clamp-2">{album.linerNotes || cleanDescription(album.description)}</p>
+                      <p className="mt-2 text-[10px] font-display font-bold uppercase tracking-wider leading-relaxed text-white/55 line-clamp-2">{album.linerNotes || cleanDescription(album.description)}</p>
                     )}
                    </div>
 
@@ -3386,7 +3427,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
              ? 'absolute bottom-10 inset-x-8 z-20 pointer-events-none animate-in slide-in-from-bottom-4 duration-700'
              : 'mt-auto mb-8 animate-in slide-in-from-bottom-4 duration-700'}>
              <div className="h-16 flex items-center justify-center overflow-hidden">
-               <p className={`text-xl lg:text-2xl font-display font-black text-center tracking-tight leading-tight transition-all duration-700 ${gatefoldOn ? 'text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]' : 'text-white/80'}`}>
+               <p className={`text-xl lg:text-2xl font-display font-black uppercase text-center tracking-tight leading-tight transition-all duration-700 ${gatefoldOn ? 'text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]' : 'text-white/80'}`}>
                  {getCurrentCaption()}
                </p>
              </div>
@@ -3496,12 +3537,13 @@ const PlayerView: React.FC<PlayerViewProps> = ({
           {/* Thin divider */}
           <div className="w-6 h-px bg-white/10 my-1" />
 
-          {/* About / Gallery / Captions / Share */}
+          {/* About / Gallery / Captions / Share / Promote */}
           {[
             { key: 'about', icon: User, label: activeHUD === 'ABOUT' ? 'Close Bio' : 'About Artist', onClick: () => setActiveHUD(activeHUD === 'ABOUT' ? 'TRACKS' : 'ABOUT'), active: activeHUD === 'ABOUT' },
             ...(album.galleryUrl ? [{ key: 'gallery', icon: Globe, label: 'Gallery', onClick: () => window.open(album.galleryUrl!, '_blank'), active: false }] : []),
             { key: 'captions', icon: MessageSquare, label: showCaptions ? 'Hide Captions' : 'Captions', onClick: () => setShowCaptions(!showCaptions), active: showCaptions },
             ...(!isPublic ? [{ key: 'share', icon: Share2, label: 'Share', onClick: () => setShowShareModal(true), active: false }] : []),
+            ...(isOwner ? [{ key: 'promote', icon: Megaphone, label: 'Promote', onClick: () => setShowPromoModal(true), active: showPromoModal }] : []),
           ].map(item => (
             <button
               key={item.key}
@@ -3567,6 +3609,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                 ...(album.galleryUrl ? [{ key: 'gallery', icon: Globe, label: 'Gallery', onClick: () => window.open(album.galleryUrl!, '_blank'), active: false }] : []),
                 { key: 'captions', icon: MessageSquare, label: showCaptions ? 'Hide Captions' : 'Captions', onClick: () => setShowCaptions(!showCaptions), active: showCaptions },
                 ...(!isPublic ? [{ key: 'share', icon: Share2, label: 'Share', onClick: () => setShowShareModal(true), active: false }] : []),
+                ...(isOwner ? [{ key: 'promote', icon: Megaphone, label: 'Promote', onClick: () => setShowPromoModal(true), active: showPromoModal }] : []),
                 ...(isOwner ? [{ key: 'edit', icon: Zap, label: isLockerRelease ? 'Edit Locker' : 'Edit Album', onClick: handleOpenEdit, active: false }] : []),
                 { key: 'fxlab', icon: Radio, label: 'FX Lab', onClick: () => window.dispatchEvent(new CustomEvent('OPEN_LIVE_FX_LAB')), active: false },
                 { key: 'fx', icon: Activity, label: isVisualizerLayout ? 'Exit FX' : 'FX Stage', onClick: () => { if (isVisualizerLayout) setIsVisualizerLayout(false); else setIsTvFxActive(true); }, active: isVisualizerLayout },
@@ -3752,124 +3795,186 @@ const PlayerView: React.FC<PlayerViewProps> = ({
             </motion.div>
           )}
 
-          {/* Gatefold: the Audio Session card compresses into the Marquee Strip —
-              cover thumb, eyebrow status, compact title, live progress + countdown.
-              Every action chip below survives unchanged. Classic keeps the big card. */}
-          <div className={`relative overflow-hidden w-full bg-theme-card backdrop-blur-3xl ${gatefoldOn ? 'rounded-2xl border border-white/12 shadow-lg' : 'rounded-[2.5rem] shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_8px_40px_rgba(0,0,0,0.25)]'} ${isVisualizerLayout ? 'p-4 lg:p-5' : gatefoldOn ? 'p-4' : 'p-6 lg:p-8'}`}>
+          {/* ── Plajah Audio Session Command Deck ──
+              Unified architectural glass header: cover medallion, Plajah all-caps display hierarchy,
+              live progress rail, uniform single-line pill action bar (zero wrap/clip), and studio Live FX dock. */}
+          <div
+            className={`relative overflow-hidden w-full bg-theme-card backdrop-blur-3xl border border-white/[0.12] ${
+              gatefoldOn ? 'rounded-[1.5rem] p-4 lg:p-5' : 'rounded-[2rem] p-5 lg:p-6'
+            } shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_16px_48px_rgba(0,0,0,0.4)]`}
+          >
              {/* Animated Plajah brand gradient — living sweep, weighted to purple + magenta */}
-             <div className="absolute inset-0 audio-session-gradient opacity-25 pointer-events-none" aria-hidden="true" />
-             <div className="absolute inset-0 bg-gradient-to-r from-black/25 via-black/10 to-black/25 pointer-events-none" aria-hidden="true" />
-             <div className={`relative z-10 flex flex-col ${gatefoldOn ? 'gap-3' : 'gap-4'}`}>
-                {gatefoldOn && (
-                  <div className="flex items-center gap-3">
+             <div className="absolute inset-0 audio-session-gradient opacity-30 pointer-events-none" aria-hidden="true" />
+             <div className="absolute inset-0 bg-gradient-to-br from-black/35 via-black/15 to-black/40 pointer-events-none" aria-hidden="true" />
+             <div className="relative z-10 flex flex-col gap-3.5">
+                {/* ── Row 1: Session Identity + Artwork Medallion + Telemetry Readout ── */}
+                <div className="flex items-center gap-3.5 min-w-0">
+                  <div className="relative shrink-0 group/thumb">
                     <img
                       src={thumb(album.coverImage, THUMB.small) || undefined}
                       alt={album.title}
                       loading="lazy"
                       decoding="async"
                       onError={onThumbError(album.coverImage)}
-                      className="w-12 h-12 rounded-lg object-cover border border-white/20 shrink-0"
+                      className="w-14 h-14 lg:w-16 lg:h-16 rounded-2xl object-cover border border-white/20 shadow-[0_8px_24px_rgba(0,0,0,0.5)] shrink-0"
                     />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[9px] font-black uppercase tracking-[0.22em] text-white/45">
-                        <span className="text-small-orange">●</span> Audio Session · Track {currentTrackIndex + 1} / {album.tracks.length}
-                      </p>
-                      <h2 className="text-lg font-black italic tracking-tight leading-tight text-white truncate">{currentTrack?.title || album.title}</h2>
-                      <p className="text-[11px] font-black uppercase tracking-[0.18em] w-fit bg-gradient-to-r from-[#FF8C00] via-[#D40055] to-[#6B0099] bg-clip-text text-transparent">{album.artist}</p>
-                      <div className="h-[3px] rounded-full bg-white/10 mt-1.5 overflow-hidden">
-                        <div className="h-full rounded-full bg-gradient-to-r from-[#D40055] to-[#FF8C00] transition-[width] duration-500" style={{ width: `${isCurrentTrackGlobal && globalDuration > 0 ? Math.min(100, (globalCurrentTime / globalDuration) * 100) : 0}%` }} />
-                      </div>
-                    </div>
-                    {isCurrentTrackGlobal && globalDuration > 0 && (
-                      <span className={`self-start font-mono tabular-nums text-xs font-black ${isEndingSoon ? 'text-red-400' : 'text-small-orange'}`}>-{formatTime(trackRemaining)}</span>
+                    {globalIsPlaying && isCurrentTrackGlobal && (
+                      <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-[#FF8C00] border-2 border-[#0d0614] shadow-[0_0_10px_#FF8C00]" />
                     )}
                   </div>
-                )}
-                <div className="flex items-center gap-4">
-                   {/* Marquee already announces session + track position in Gatefold */}
-                   {!gatefoldOn && <span className="px-3 py-1 bg-white/10 rounded-md text-[10px] font-black tracking-widest text-small-orange uppercase">Audio Session</span>}
-                   {!gatefoldOn && <span className="text-[10px] font-bold opacity-30 uppercase tracking-widest">Track {currentTrackIndex+1} / {album.tracks.length}</span>}
-                   {isOwner && (
-                     <button 
-                       onClick={async () => {
-                         try {
-                           const { fetchUserProfile, updateUserProfile } = await import('../services/backendService');
-                           const { auth } = await import('../services/backendService');
-                           if (!auth.currentUser) return;
-                           const profile = await fetchUserProfile(auth.currentUser.uid);
-                           if (profile) {
-                             const pinnedItems = profile.pinnedItems || [];
-                             const newPin: { id: string; type: "AUDIO"; refId: string } = { id: Date.now().toString(), type: 'AUDIO', refId: album.id };
-                             if (!pinnedItems.find((p: any) => p.refId === album.id)) {
-                               await updateUserProfile(auth.currentUser.uid, { pinnedItems: [...pinnedItems, newPin] });
-                               alert('Project Pinned to Profile!');
-                             } else {
-                               alert('Project is already pinned.');
-                             }
-                           }
-                         } catch (e) { console.error(e); }
-                       }}
-                       className="flex items-center gap-2 px-3 py-1 bg-small-orange/20 hover:bg-small-orange/30 rounded-md text-[10px] font-black tracking-widest text-small-orange uppercase transition-all"
-                     >
-                       <Zap size={12} /> Pin
-                     </button>
-                   )}
-                   {isOwner && (
-                     <button
-                       onClick={handleGenerateCaptions}
-                       disabled={isGeneratingCaptions}
-                       className="flex items-center gap-2 px-3 py-1 bg-white/5 hover:bg-white/10 rounded-md text-[10px] font-black tracking-widest text-white/40 uppercase transition-all disabled:opacity-50"
-                     >
-                       {isGeneratingCaptions ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
-                       {isGeneratingCaptions ? 'Analyzing...' : currentTrack.timeCodedLyrics ? 'Re-Sync Lyrics' : 'Sync Lyrics'}
-                     </button>
-                   )}
 
-                   {/* Save the current track for offline playback */}
-                   {currentTrack?.url && (
-                     <div className="ml-auto">
+                  <div className="flex-1 min-w-0">
+                    {/* Eyebrow: Live status beacon + Track counter + Immersive badge */}
+                    <div className="flex flex-wrap items-center gap-2 mb-1">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#FF8C00]/15 border border-[#FF8C00]/35 text-[9px] font-display font-black uppercase tracking-[0.24em] text-[#FF8C00] shrink-0">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#FF8C00] shadow-[0_0_8px_#FF8C00]" />
+                        AUDIO SESSION
+                      </span>
+                      <span className="text-[9px] font-display font-black uppercase tracking-[0.22em] text-white/55 shrink-0">
+                        TRACK {currentTrackIndex + 1} / {album.tracks.length}
+                      </span>
+                      {(() => {
+                        const ecl = currentTrack?.isEclipsa || album.tracks?.some(t => t.isEclipsa);
+                        const atm = currentTrack?.isAtmos || album.tracks?.some(t => t.isAtmos);
+                        return (ecl || atm) ? <ImmersiveBadge isEclipsa={ecl} isAtmos={atm} size="sm" /> : null;
+                      })()}
+                    </div>
+
+                    {/* Track Title — Plajah Display All-Caps Typography */}
+                    <h1
+                      className={`font-display font-black uppercase tracking-tight leading-[1.06] text-white truncate drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)] ${
+                        isVisualizerLayout ? 'text-lg lg:text-xl' : gatefoldOn ? 'text-xl lg:text-2xl' : 'text-2xl lg:text-3xl'
+                      }`}
+                    >
+                      {currentTrack?.title || album.title}
+                    </h1>
+
+                    {/* Artist Subline — Signature Plajah Warm Ember Gradient */}
+                    <p
+                      className="mt-0.5 font-display text-[11px] lg:text-xs font-black uppercase tracking-[0.24em] w-fit bg-gradient-to-r from-[#FF8C00] via-[#D40055] to-[#D0BCFF] bg-clip-text text-transparent cursor-pointer hover:opacity-80 transition-opacity truncate max-w-full"
+                      onClick={() => { if (onVisitUser && album.ownerId) onVisitUser(album.ownerId); }}
+                    >
+                      {album.artist}
+                    </p>
+                  </div>
+
+                  {/* Live Countdown / Duration Readout Pill */}
+                  {isCurrentTrackGlobal && globalDuration > 0 && (
+                    <div className="shrink-0 self-start flex items-center gap-1 px-3 py-1 rounded-full bg-black/45 border border-white/12 font-display tabular-nums text-[10px] font-black uppercase tracking-[0.14em] shadow-inner">
+                      <span className={isEndingSoon ? 'text-red-400' : 'text-[#FF8C00]'}>-{formatTime(trackRemaining)}</span>
+                      <span className="text-white/25">/</span>
+                      <span className="text-white/50">{formatTime(globalDuration)}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Live Progress Scrubber Hairline */}
+                <div className="h-[3px] w-full rounded-full bg-white/[0.08] overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-[#6B0099] via-[#D40055] to-[#FF8C00] shadow-[0_0_12px_rgba(255,140,0,0.5)] transition-[width] duration-500"
+                    style={{ width: `${isCurrentTrackGlobal && globalDuration > 0 ? Math.min(100, (globalCurrentTime / globalDuration) * 100) : 0}%` }}
+                  />
+                </div>
+
+                {/* ── Row 2: Unified Plajah Action Command Bar (Uniform h-8 pills, zero wrap/clip) ── */}
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-2.5 border-t border-white/[0.08]">
+                   {/* Left / Utility & Creator Controls */}
+                   <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+                     {isOwner && (
+                       <button
+                         onClick={async () => {
+                           try {
+                             const { fetchUserProfile, updateUserProfile } = await import('../services/backendService');
+                             const { auth } = await import('../services/backendService');
+                             if (!auth.currentUser) return;
+                             const profile = await fetchUserProfile(auth.currentUser.uid);
+                             if (profile) {
+                               const pinnedItems = profile.pinnedItems || [];
+                               const newPin: { id: string; type: "AUDIO"; refId: string } = { id: Date.now().toString(), type: 'AUDIO', refId: album.id };
+                               if (!pinnedItems.find((p: any) => p.refId === album.id)) {
+                                 await updateUserProfile(auth.currentUser.uid, { pinnedItems: [...pinnedItems, newPin] });
+                                 alert('Project Pinned to Profile!');
+                               } else {
+                                 alert('Project is already pinned.');
+                               }
+                             }
+                           } catch (e) { console.error(e); }
+                         }}
+                         className="h-8 px-3.5 rounded-full inline-flex items-center gap-1.5 bg-[#FF8C00]/15 hover:bg-[#FF8C00]/25 border border-[#FF8C00]/40 text-[#FF8C00] text-[9px] font-display font-black uppercase tracking-[0.16em] whitespace-nowrap shrink-0 shadow-[0_0_14px_rgba(255,140,0,0.12)] transition-all cursor-pointer"
+                       >
+                         <Zap size={12} className="shrink-0" />
+                         <span>PIN</span>
+                       </button>
+                     )}
+                     {isOwner && (
+                       <button
+                         onClick={handleGenerateCaptions}
+                         disabled={isGeneratingCaptions}
+                         className="h-8 px-3.5 rounded-full inline-flex items-center gap-1.5 bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.12] hover:border-white/[0.24] text-white/80 hover:text-white text-[9px] font-display font-black uppercase tracking-[0.16em] whitespace-nowrap shrink-0 transition-all disabled:opacity-50 cursor-pointer"
+                       >
+                         {isGeneratingCaptions ? <Loader2 size={12} className="animate-spin text-[#FF8C00] shrink-0" /> : <Sparkles size={12} className="text-[#FF8C00] shrink-0" />}
+                         <span>{isGeneratingCaptions ? 'ANALYZING...' : currentTrack?.timeCodedLyrics ? 'RE-SYNC LYRICS' : 'SYNC LYRICS'}</span>
+                       </button>
+                     )}
+
+                     {/* Add the current song to a playlist */}
+                     {currentTrack && (
+                       <button
+                         onClick={() => setPlaylistPickerTrack(currentTrack)}
+                         title="Add this song to a playlist"
+                         className="h-8 px-3.5 rounded-full inline-flex items-center gap-1.5 bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.12] hover:border-white/[0.24] text-white/80 hover:text-white text-[9px] font-display font-black uppercase tracking-[0.16em] whitespace-nowrap shrink-0 transition-all cursor-pointer"
+                       >
+                         <ListPlus size={12} className="text-white/70 shrink-0" />
+                         <span>ADD TO PLAYLIST</span>
+                       </button>
+                     )}
+
+                     {/* Save the current track for offline playback */}
+                     {currentTrack?.url && (
                        <OfflineDownloadButton
                          url={currentTrack.url}
                          size="sm"
+                         className="!w-8 !h-8 !rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.12] hover:border-white/[0.24] !text-white/75 hover:!text-white shrink-0"
                          meta={{ title: currentTrack.title || album.title, type: 'MUSIC', artist: album.artist, cover: album.coverImage, albumId: album.id, trackId: currentTrack.id }}
                        />
-                     </div>
-                   )}
+                     )}
+                   </div>
 
-                   {/* Add the current song to a playlist — obvious + always visible */}
-                   {currentTrack && (
-                     <button
-                       onClick={() => setPlaylistPickerTrack(currentTrack)}
-                       title="Add this song to a playlist"
-                       className={`${currentTrack?.url ? '' : 'ml-auto'} flex items-center gap-2 px-3 py-1 bg-white/5 hover:bg-white/10 rounded-md text-[10px] font-black tracking-widest text-white/50 hover:text-white uppercase transition-all`}
-                     >
-                       <ListPlus size={13} /> Add to Playlist
-                     </button>
-                   )}
+                   {/* Right / Social, Premiere & Commerce CTAs */}
+                   <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                     {/* Listening Party — premiere/showcase this album, listeners sync to your playback */}
+                     {!isPreview && !activePartyId && (
+                       <button
+                         onClick={() => auth.currentUser ? startListeningParty() : alert('Sign in to host a listening party.')}
+                         title="Premiere this album — invited listeners sync to your playback"
+                         className="h-8 px-3.5 rounded-full inline-flex items-center gap-1.5 bg-gradient-to-r from-[#6B0099]/35 to-[#D40055]/35 hover:from-[#6B0099]/55 hover:to-[#D40055]/55 border border-[#D40055]/50 text-white text-[9px] font-display font-black uppercase tracking-[0.16em] whitespace-nowrap shrink-0 shadow-[0_4px_16px_rgba(212,0,85,0.20)] transition-all cursor-pointer"
+                       >
+                         <Users size={12} className="text-[#ff7eb3] shrink-0" />
+                         <span>LISTENING PARTY</span>
+                       </button>
+                     )}
 
-                   {/* Listening Party — premiere/showcase this album, listeners sync to your playback */}
-                   {!isPreview && !activePartyId && (
-                     <button
-                       onClick={() => auth.currentUser ? startListeningParty() : alert('Sign in to host a listening party.')}
-                       title="Premiere this album — invited listeners sync to your playback"
-                       className="flex items-center gap-2 px-3 py-1 bg-[#D40055]/10 hover:bg-[#D40055]/20 border border-[#D40055]/25 rounded-md text-[10px] font-black tracking-widest text-[#ff5c9d] uppercase transition-all"
-                     >
-                       <Users size={13} /> Listening Party
-                     </button>
-                   )}
+                     {/* Back the artist — gift always; buy only when the artist priced the release */}
+                     {album.ownerId && album.ownerId !== user?.uid && (
+                       <>
+                         <button
+                           onClick={() => setSupportSheet('gift')}
+                           className="h-8 px-3.5 rounded-full inline-flex items-center gap-1.5 bg-gradient-to-r from-[#6B0099] to-[#D40055] hover:brightness-110 text-white text-[9px] font-display font-black uppercase tracking-[0.16em] whitespace-nowrap shrink-0 shadow-[0_4px_14px_rgba(212,0,85,0.28)] transition-all cursor-pointer"
+                         >
+                           <span>GIFT ARTIST</span>
+                         </button>
+                         {musicOffers(album, currentTrack).any && (
+                           <button
+                             onClick={() => setSupportSheet('buy')}
+                             className="h-8 px-3.5 rounded-full inline-flex items-center gap-1.5 bg-[#FF8C00] hover:brightness-110 text-black text-[9px] font-display font-black uppercase tracking-[0.16em] whitespace-nowrap shrink-0 shadow-[0_4px_14px_rgba(255,140,0,0.3)] transition-all cursor-pointer"
+                           >
+                             <span>BUY</span>
+                           </button>
+                         )}
+                       </>
+                     )}
 
-                   {/* Back the artist — gift always; buy only when the artist priced the release */}
-                   {album.ownerId && album.ownerId !== user?.uid && (
-                     <div className={`flex items-center gap-2 ${currentTrack ? '' : 'ml-auto'}`}>
-                       <button onClick={() => setSupportSheet('gift')} className="pj-btn pj-btn--primary pj-btn--sm">Gift this artist</button>
-                       {musicOffers(album, currentTrack).any && (
-                         <button onClick={() => setSupportSheet('buy')} className="pj-btn pj-btn--accent pj-btn--sm">Buy</button>
-                       )}
-                     </div>
-                   )}
-
-                   {/* Share — to the Plajah feed or out to social sites */}
-                   <div className={currentTrack ? '' : 'ml-auto'}>
+                     {/* Share & Promote — to the Plajah feed or out to social sites */}
                      <ShareButton
                        title={currentTrack?.title || album.title}
                        artist={album.artist}
@@ -3880,17 +3985,29 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                        contentType="album"
                        ctaText="▶ LISTEN LOSSLESS ON PLAJAH"
                        plajahLabel="Share to Plajah feed"
+                       label="SHARE"
+                       iconSize={12}
                        onPostToPlajah={async () => {
                          await createPost({
                            text: `🎵 ${currentTrack?.title || album.title} — ${album.artist}`,
-                           media: [{ type: 'AUDIO', url: currentTrack?.url || '', id: currentTrack?.id, title: currentTrack?.title || album.title, thumbnail: album.coverImage } as any],
                            albumEmbed: album,
                          });
                        }}
-                       className="flex items-center gap-2 px-3 py-1 bg-white/5 hover:bg-white/10 rounded-md text-[10px] font-black tracking-widest text-white/50 hover:text-white uppercase transition-all"
+                       className="h-8 px-3.5 rounded-full inline-flex items-center gap-1.5 bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.12] hover:border-white/[0.24] text-white/85 hover:text-white text-[9px] font-display font-black uppercase tracking-[0.16em] whitespace-nowrap shrink-0 transition-all cursor-pointer"
                      />
+                     {isOwner && (
+                       <button
+                         onClick={() => setShowPromoModal(true)}
+                         title="Promote this project — auto-promo cards, built promotions & promo assets"
+                         className="h-8 px-4 rounded-full inline-flex items-center gap-1.5 bg-gradient-to-r from-[#6B0099] via-[#D40055] to-[#FF8C00] hover:brightness-110 border border-white/20 text-white text-[9px] font-display font-black uppercase tracking-[0.16em] whitespace-nowrap shrink-0 shadow-[0_4px_18px_rgba(212,0,85,0.35)] transition-all cursor-pointer"
+                       >
+                         <Megaphone size={12} className="shrink-0" />
+                         <span>PROMOTE</span>
+                       </button>
+                     )}
                    </div>
                 </div>
+
                 {/* Listening party — shared PartyBar (status, listeners, chat, reactions, invite, remote). */}
                 {activePartyId && (
                   <PartyBar
@@ -3904,99 +4021,111 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                   />
                 )}
                 {activePartyId && partyLockedTrack && party.isFollower && (
-                  <div className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs text-white" style={{ background: 'rgba(245,158,11,0.12)', border: '1px solid var(--pj-warning)' }}>
-                    <span className="flex-1">“{partyLockedTrack.title}” needs a purchase to listen along past the preview.</span>
-                    <button onClick={() => setSupportSheet('buy')} className="px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest text-black" style={{ background: 'var(--pj-orange)' }}>Buy</button>
+                  <div className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-display font-bold uppercase tracking-wider text-white" style={{ background: 'rgba(245,158,11,0.12)', border: '1px solid var(--pj-warning)' }}>
+                    <span className="flex-1">“{partyLockedTrack.title}” NEEDS A PURCHASE TO LISTEN ALONG PAST THE PREVIEW.</span>
+                    <button onClick={() => setSupportSheet('buy')} className="px-3 py-1.5 rounded-full text-[10px] font-display font-black uppercase tracking-widest text-black" style={{ background: 'var(--pj-orange)' }}>BUY</button>
                   </div>
                 )}
 
-                {/* Surface the real reason a caption sync failed (large-file 413, fetch, quota) so the
-                    creator can act on it instead of the button silently doing nothing. */}
+                {/* Surface the real reason a caption sync failed (large-file 413, fetch, quota) */}
                 {isOwner && captionError && (
-                  <div className="flex items-start gap-2 px-3 py-2 rounded-xl bg-red-500/10 border border-red-500/25 text-[11px] font-semibold text-red-200 leading-snug">
+                  <div className="flex items-start gap-2 px-3 py-2 rounded-xl bg-red-500/10 border border-red-500/25 text-[10px] font-display font-bold uppercase tracking-wider text-red-200 leading-snug">
                     <Sparkles size={13} className="text-red-300 shrink-0 mt-0.5" />
                     <span>{captionError}</span>
                     <button onClick={() => setCaptionError(null)} className="ml-auto text-red-300/60 hover:text-red-200 shrink-0" aria-label="Dismiss">✕</button>
                   </div>
                 )}
-                {/* Gatefold: the marquee above carries title + artist compactly */}
-                {!gatefoldOn && (
-                  <h1 className={`font-black uppercase tracking-tighter leading-[0.9] text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)] ${isVisualizerLayout ? 'text-lg lg:text-2xl' : 'text-3xl lg:text-5xl'}`}>{currentTrack?.title || album.title}</h1>
-                )}
-                {!isVisualizerLayout && !gatefoldOn && (
-                  <p className="text-lg lg:text-2xl font-display font-black italic tracking-tight bg-gradient-to-r from-[#FF8C00] via-[#D40055] to-[#6B0099] bg-clip-text text-transparent w-fit drop-shadow-[0_1px_8px_rgba(0,0,0,0.4)] cursor-pointer hover:opacity-80 transition-opacity" onClick={() => { if (onVisitUser && album.ownerId) onVisitUser(album.ownerId); }}>{album.artist}</p>
-                )}
-                {(() => { const ecl = currentTrack?.isEclipsa || album.tracks?.some(t => t.isEclipsa); const atm = currentTrack?.isAtmos || album.tracks?.some(t => t.isAtmos); return (ecl || atm) ? <ImmersiveBadge isEclipsa={ecl} isAtmos={atm} showHint className="mt-3" /> : null; })()}
 
-                {/* ── Chora Live Real-Time FX Bar (Lo-Fi, Chipmunk, AM Radio, Boost Mode) ── */}
-                <div className="flex items-center gap-1.5 p-1 rounded-full bg-white/[0.05] border border-white/10 backdrop-blur-xl w-fit max-w-full overflow-x-auto no-scrollbar pt-1 mt-1">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-white/35 pl-2 pr-1 select-none shrink-0">
-                    Live FX
-                  </span>
-                  <button
-                    onClick={() => toggleLiveFx?.('lofi')}
-                    title="Lo-Fi: Vintage tape warmth, gentle wow/flutter & vinyl air"
-                    className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold transition-all shrink-0 ${
-                      activeLiveFx === 'lofi'
-                        ? 'bg-amber-500/30 text-amber-200 border border-amber-400/60 shadow-[0_0_12px_rgba(245,158,11,0.4)]'
-                        : 'text-white/70 hover:text-white hover:bg-white/10 border border-transparent'
-                    }`}
-                  >
-                    <span>📻</span>
-                    <span>Lo-Fi</span>
-                  </button>
-                  <button
-                    onClick={() => toggleLiveFx?.('chipmunk')}
-                    title="Chipmunk: Vocal pitch shift + comic cartoon squeak (+10 st)"
-                    className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold transition-all shrink-0 ${
-                      activeLiveFx === 'chipmunk'
-                        ? 'bg-emerald-500/30 text-emerald-200 border border-emerald-400/60 shadow-[0_0_12px_rgba(16,185,129,0.4)]'
-                        : 'text-white/70 hover:text-white hover:bg-white/10 border border-transparent'
-                    }`}
-                  >
-                    <span>🐿️</span>
-                    <span>Chipmunk</span>
-                  </button>
-                  <button
-                    onClick={() => toggleLiveFx?.('radio')}
-                    title="AM Radio: Old-time shortwave transmitter with heterodyne whistle & static"
-                    className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold transition-all shrink-0 ${
-                      activeLiveFx === 'radio'
-                        ? 'bg-orange-500/30 text-orange-200 border border-orange-400/60 shadow-[0_0_12px_rgba(249,115,22,0.4)]'
-                        : 'text-white/70 hover:text-white hover:bg-white/10 border border-transparent'
-                    }`}
-                  >
-                    <span>🎙️</span>
-                    <span>AM Radio</span>
-                  </button>
-                  <button
-                    onClick={() => toggleLiveFx?.('boost')}
-                    title="Boost: Mastering maximizer with low punch, air sheen & soft-knee loudness"
-                    className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold transition-all shrink-0 ${
-                      activeLiveFx === 'boost'
-                        ? 'bg-cyan-500/30 text-cyan-200 border border-cyan-400/60 shadow-[0_0_12px_rgba(6,182,212,0.4)]'
-                        : 'text-white/70 hover:text-white hover:bg-white/10 border border-transparent'
-                    }`}
-                  >
-                    <span>⚡</span>
-                    <span>Boost</span>
-                  </button>
-                  {activeLiveFx && (
+                {/* ── Row 3: Studio Live DSP FX Console Dock (Plajah Design Language, Vector Icons, All-Caps) ── */}
+                <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 rounded-2xl bg-black/35 border border-white/[0.08] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+                  <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+                    <div className="flex items-center gap-2 pr-2.5 mr-0.5 border-r border-white/10 shrink-0">
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full transition-all ${
+                          activeLiveFx
+                            ? 'bg-[#FF8C00] shadow-[0_0_8px_#FF8C00]'
+                            : 'bg-white/25'
+                        }`}
+                      />
+                      <span className="text-[9px] font-display font-black uppercase tracking-[0.22em] text-white/50 select-none">
+                        LIVE FX
+                      </span>
+                    </div>
+
                     <button
-                      onClick={() => clearLiveFx?.()}
-                      title="Turn off Live FX — reset track to dry sound"
-                      className="flex items-center gap-1 px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-wider text-red-300 hover:text-red-200 hover:bg-red-500/20 border border-red-500/30 transition-all shrink-0 ml-0.5"
+                      onClick={() => toggleLiveFx?.('lofi')}
+                      title="Lo-Fi: Vintage tape warmth, gentle wow/flutter & vinyl air"
+                      className={`h-7 px-3 rounded-full inline-flex items-center gap-1.5 text-[9px] font-display font-black uppercase tracking-[0.15em] whitespace-nowrap shrink-0 transition-all cursor-pointer ${
+                        activeLiveFx === 'lofi'
+                          ? 'bg-gradient-to-r from-[#FF8C00]/30 to-[#D40055]/25 text-[#FFD19A] border border-[#FF8C00]/60 shadow-[0_0_14px_rgba(255,140,0,0.3)]'
+                          : 'bg-white/[0.04] hover:bg-white/[0.10] text-white/65 hover:text-white border border-white/[0.08] hover:border-white/[0.18]'
+                      }`}
                     >
-                      <span>✕ Dry</span>
+                      <Disc size={11} className={activeLiveFx === 'lofi' ? 'text-[#FF8C00] shrink-0' : 'text-white/50 shrink-0'} />
+                      <span>LO-FI</span>
                     </button>
-                  )}
-                  <button
-                    onClick={() => window.dispatchEvent(new CustomEvent('OPEN_LIVE_FX_LAB'))}
-                    title="Open Live FX Audition Studio with custom file testing"
-                    className="flex items-center gap-1 px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-wider text-purple-300 hover:text-purple-200 hover:bg-purple-500/20 border border-purple-500/30 transition-all shrink-0 ml-0.5"
-                  >
-                    <span>Lab ↗</span>
-                  </button>
+
+                    <button
+                      onClick={() => toggleLiveFx?.('chipmunk')}
+                      title="Chipmunk: Vocal pitch shift + comic cartoon squeak (+10 st)"
+                      className={`h-7 px-3 rounded-full inline-flex items-center gap-1.5 text-[9px] font-display font-black uppercase tracking-[0.15em] whitespace-nowrap shrink-0 transition-all cursor-pointer ${
+                        activeLiveFx === 'chipmunk'
+                          ? 'bg-gradient-to-r from-[#D40055]/35 to-[#6B0099]/35 text-[#FFB3D1] border border-[#D40055]/60 shadow-[0_0_14px_rgba(212,0,85,0.3)]'
+                          : 'bg-white/[0.04] hover:bg-white/[0.10] text-white/65 hover:text-white border border-white/[0.08] hover:border-white/[0.18]'
+                      }`}
+                    >
+                      <Music2 size={11} className={activeLiveFx === 'chipmunk' ? 'text-[#ff7eb3] shrink-0' : 'text-white/50 shrink-0'} />
+                      <span>CHIPMUNK</span>
+                    </button>
+
+                    <button
+                      onClick={() => toggleLiveFx?.('radio')}
+                      title="AM Radio: Old-time shortwave transmitter with heterodyne whistle & static"
+                      className={`h-7 px-3 rounded-full inline-flex items-center gap-1.5 text-[9px] font-display font-black uppercase tracking-[0.15em] whitespace-nowrap shrink-0 transition-all cursor-pointer ${
+                        activeLiveFx === 'radio'
+                          ? 'bg-gradient-to-r from-[#6B0099]/40 to-[#FF8C00]/25 text-[#E9D5FF] border border-[#D0BCFF]/55 shadow-[0_0_14px_rgba(107,0,153,0.35)]'
+                          : 'bg-white/[0.04] hover:bg-white/[0.10] text-white/65 hover:text-white border border-white/[0.08] hover:border-white/[0.18]'
+                      }`}
+                    >
+                      <Radio size={11} className={activeLiveFx === 'radio' ? 'text-[#D0BCFF] shrink-0' : 'text-white/50 shrink-0'} />
+                      <span>AM RADIO</span>
+                    </button>
+
+                    <button
+                      onClick={() => toggleLiveFx?.('boost')}
+                      title="Boost: Mastering maximizer with low punch, air sheen & soft-knee loudness"
+                      className={`h-7 px-3 rounded-full inline-flex items-center gap-1.5 text-[9px] font-display font-black uppercase tracking-[0.15em] whitespace-nowrap shrink-0 transition-all cursor-pointer ${
+                        activeLiveFx === 'boost'
+                          ? 'bg-gradient-to-r from-[#6B0099]/35 to-[#00DAF3]/30 text-[#A5F3FC] border border-[#00DAF3]/60 shadow-[0_0_14px_rgba(0,218,243,0.3)]'
+                          : 'bg-white/[0.04] hover:bg-white/[0.10] text-white/65 hover:text-white border border-white/[0.08] hover:border-white/[0.18]'
+                      }`}
+                    >
+                      <Zap size={11} className={activeLiveFx === 'boost' ? 'text-[#00DAF3] shrink-0' : 'text-white/50 shrink-0'} />
+                      <span>BOOST</span>
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {activeLiveFx && (
+                      <button
+                        onClick={() => clearLiveFx?.()}
+                        title="Turn off Live FX — reset track to dry sound"
+                        className="h-7 px-2.5 rounded-full inline-flex items-center gap-1 text-[9px] font-display font-black uppercase tracking-[0.15em] text-red-200 bg-red-500/15 hover:bg-red-500/25 border border-red-500/35 transition-all shrink-0 cursor-pointer"
+                      >
+                        <RotateCcw size={10} className="shrink-0" />
+                        <span>DRY</span>
+                      </button>
+                    )}
+                    <button
+                      onClick={() => window.dispatchEvent(new CustomEvent('OPEN_LIVE_FX_LAB'))}
+                      title="Open Live FX Audition Studio with custom file testing"
+                      className="h-7 px-3 rounded-full inline-flex items-center gap-1.5 text-[9px] font-display font-black uppercase tracking-[0.16em] bg-gradient-to-r from-[#6B0099]/30 to-[#D40055]/20 hover:from-[#6B0099]/50 hover:to-[#D40055]/35 text-[#D0BCFF] hover:text-white border border-[#D0BCFF]/25 hover:border-[#D0BCFF]/45 transition-all shrink-0 cursor-pointer"
+                    >
+                      <Activity size={10} className="text-[#FF8C00] shrink-0" />
+                      <span>FX LAB</span>
+                      <ExternalLink size={9} className="opacity-70 shrink-0" />
+                    </button>
+                  </div>
                 </div>
              </div>
           </div>
@@ -4009,11 +4138,11 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                   </div>
                   <div className="flex-1 space-y-8">
                     <div>
-                      <span className="text-[11px] font-black uppercase tracking-[0.5em] text-small-orange mb-4 block">Archive Identity</span>
-                      <h2 className="text-5xl font-display font-black tracking-tighter leading-none mb-6 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => { if (onVisitUser && album.ownerId) onVisitUser(album.ownerId); }}>{album.artist}</h2>
+                      <span className="text-[11px] font-display font-black uppercase tracking-[0.5em] text-small-orange mb-4 block">Archive Identity</span>
+                      <h2 className="text-5xl font-display font-black uppercase tracking-tighter leading-none mb-6 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => { if (onVisitUser && album.ownerId) onVisitUser(album.ownerId); }}>{album.artist}</h2>
                       <div className="w-20 h-1 bg-white" />
                     </div>
-                    <p className="text-lg lg:text-xl font-medium leading-relaxed text-white/60 italic font-display">{album.artistBio}</p>
+                    <p className="text-lg lg:text-xl font-display font-bold uppercase tracking-wide leading-relaxed text-white/60">{album.artistBio}</p>
                     
                     {album.socialLinks && (
                       <div className="flex flex-wrap gap-6 pt-6">
@@ -4136,28 +4265,23 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                     )}
                     {activeHUD === 'TRACKS' && (
                       <div className="flex-1 flex flex-col gap-4 overflow-hidden">
-                        <div className="flex items-center justify-between">
-                          {/* Gatefold: shelf line ("The registry · N tracks · runtime"); classic keeps the label */}
-                          {gatefoldOn ? (
-                            <div className="flex items-baseline gap-3 min-w-0">
-                              <h5 className="text-base font-black italic tracking-tight text-white whitespace-nowrap">{album.type === 'BOOK' ? 'The contents' : 'The registry'}</h5>
-                              <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-white/35 truncate">
-                                {localTracks.length} {album.type === 'BOOK' ? 'chapters' : 'tracks'}
-                                {(() => { const s = localTracks.reduce((a, t) => a + (t.duration || 0), 0); return s > 0 && localTracks.every(t => t.duration) ? ` · ${formatTime(s)}` : ''; })()}
-                              </span>
-                            </div>
-                          ) : (
-                          <div className="flex items-center gap-3">
-                            {album.type === 'BOOK' ? <BookOpen size={16} className="text-small-orange" /> : <List size={16} className="text-small-orange" />}
-                            <span className="text-[10px] font-black uppercase tracking-widest text-white/40">{album.trackListLabel || (album.type === 'BOOK' ? 'Table of Contents' : 'Track List')}</span>
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            {album.type === 'BOOK' ? <BookOpen size={15} className="text-[#FF8C00] shrink-0" /> : <List size={15} className="text-[#FF8C00] shrink-0" />}
+                            <h5 className="text-xs lg:text-sm font-display font-black uppercase tracking-[0.22em] text-white whitespace-nowrap">
+                              {album.trackListLabel || (album.type === 'BOOK' ? 'TABLE OF CONTENTS' : 'TRACK LIST')}
+                            </h5>
+                            <span className="px-2.5 py-0.5 rounded-full bg-white/[0.06] border border-white/10 font-display text-[9px] font-black uppercase tracking-[0.18em] text-white/50 truncate tabular-nums">
+                              {localTracks.length} {album.type === 'BOOK' ? 'CHAPTERS' : 'TRACKS'}
+                              {(() => { const s = localTracks.reduce((a, t) => a + (t.duration || 0), 0); return s > 0 && localTracks.every(t => t.duration) ? ` · ${formatTime(s)}` : ''; })()}
+                            </span>
                           </div>
-                          )}
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 shrink-0">
                             {selectMode && (
                               <button
                                 type="button"
                                 onClick={() => trackSelection.selectedIds.length === localTracks.length ? trackSelection.clear() : trackSelection.selectAll()}
-                                className="px-2.5 py-1 rounded-lg border border-white/10 bg-white/5 text-white/60 hover:text-white text-[8px] font-black uppercase tracking-widest transition-all"
+                                className="px-2.5 py-1 rounded-lg border border-white/10 bg-white/5 text-white/60 hover:text-white text-[8px] font-display font-black uppercase tracking-widest transition-all"
                               >
                                 {trackSelection.selectedIds.length === localTracks.length ? 'Clear all' : 'Select all'}
                               </button>
@@ -4165,7 +4289,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                             <button
                               type="button"
                               onClick={toggleSelectMode}
-                              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border text-[10px] font-display font-black uppercase tracking-widest transition-all cursor-pointer ${
                                 selectMode
                                   ? 'bg-small-orange text-black border-small-orange shadow-[0_0_12px_rgba(255,140,0,0.4)] font-bold'
                                   : 'bg-white/10 text-white border-white/25 hover:bg-white/20 hover:border-white/40'
@@ -4174,12 +4298,57 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                               <CheckSquare size={13} className={selectMode ? 'text-black' : 'text-small-orange'} />
                               {selectMode ? 'Done' : 'Select'}
                             </button>
-                            {isOwner && !selectMode && <span className="text-[8px] font-bold text-white/20 uppercase tracking-widest">Drag to reorder</span>}
+                            {album.type !== 'BOOK' && (
+                              <button
+                                type="button"
+                                onClick={() => setAutoRadio(!autoRadio)}
+                                title={autoRadio ? 'Auto-Radio on — prioritizes Chora releases first, plus Audius discovery when the album ends' : 'Auto-Radio off'}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[10px] font-display font-black uppercase tracking-widest transition-all cursor-pointer ${
+                                  autoRadio
+                                    ? 'bg-[#6B0099]/30 text-white border-[#C56BFF]/50 hover:bg-[#6B0099]/45'
+                                    : 'bg-white/5 text-white/40 border-white/10 hover:text-white/70'
+                                }`}
+                              >
+                                <Radio size={12} className={autoRadio ? 'text-[#C56BFF]' : 'text-white/40'} />
+                                {autoRadio ? 'Auto-Radio' : 'Radio Off'}
+                              </button>
+                            )}
+                            {isOwner && !selectMode && <span className="text-[8px] font-display font-bold text-white/20 uppercase tracking-widest">Drag to reorder</span>}
                             <button onClick={() => setIsTracksCollapsed(!isTracksCollapsed)} className="p-2 hover:bg-white/5 rounded-lg transition-all text-white/20 hover:text-white">
                               {isTracksCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
                             </button>
                           </div>
                         </div>
+
+                        {upNext && (
+                          <div className="flex items-center justify-between gap-3 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-[#6B0099]/25 via-black/40 to-black/30 border border-white/10">
+                            <button
+                              type="button"
+                              onClick={() => next()}
+                              title="Play up next now"
+                              className="flex items-center gap-3 min-w-0 flex-1 text-left hover:opacity-90 transition-opacity"
+                            >
+                              {upNext.cover && (
+                                <img src={thumb(upNext.cover, THUMB.small) || undefined} loading="lazy" className="w-8 h-8 rounded-lg object-cover shrink-0 border border-white/10" />
+                              )}
+                              <div className="min-w-0 flex-1">
+                                <span className="text-[8px] font-display font-black uppercase tracking-[0.2em]" style={{ color: upNext.native ? '#FF8C00' : '#C56BFF' }}>
+                                  Up next · {upNext.native ? 'Chora artist' : 'via Audius'}
+                                </span>
+                                <p className="text-xs font-display font-black uppercase tracking-wider text-white/90 truncate">
+                                  {upNext.title}{upNext.artist ? ` — ${upNext.artist}` : ''}
+                                </p>
+                              </div>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => next()}
+                              className="shrink-0 px-3 py-1 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-[9px] font-display font-black uppercase tracking-widest text-white transition-all"
+                            >
+                              Play Next
+                            </button>
+                          </div>
+                        )}
 
                         {!isTracksCollapsed && (
                           <div className="flex-1 flex flex-col gap-1.5 overflow-y-auto pr-2 custom-scrollbar animate-in slide-in-from-top-2 duration-300">
@@ -4230,7 +4399,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                                         </button>
                                       ) : (
                                         <div className="relative w-5 h-5 flex items-center justify-center">
-                                          <span className={`text-[10px] font-black group-hover:opacity-0 transition-opacity ${gatefoldOn ? 'font-mono tabular-nums' : ''} ${isActive ? 'text-small-orange' : 'text-white/30'}`}>
+                                          <span className={`text-[10px] font-display font-black tabular-nums uppercase group-hover:opacity-0 transition-opacity ${isActive ? 'text-small-orange' : 'text-white/30'}`}>
                                             {i + 1}
                                           </span>
                                           <button
@@ -4258,13 +4427,12 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                                       className="flex items-center gap-3 text-left flex-1 min-w-0 relative z-10"
                                     >
                                       {selectMode && (
-                                        <span className={`text-[10px] font-black w-4 shrink-0 ${gatefoldOn ? 'font-mono tabular-nums' : ''} ${isActive ? 'text-small-orange' : 'text-white/30'}`}>
+                                        <span className={`text-[10px] font-display font-black w-4 shrink-0 tabular-nums uppercase ${isActive ? 'text-small-orange' : 'text-white/30'}`}>
                                           {i + 1}
                                         </span>
                                       )}
                                       <span className="min-w-0 flex-1">
-                                        {/* Track-list titles stay a single line (full title is the big header above).
-                                            Gatefold registry: sentence-case bold, no letterspacing shout.
+                                        {/* Track-list titles stay a single line in Plajah all-caps display typography.
                                             Owner inline-edit: double-click to rename. */}
                                         {isOwner && editingTrackId === t.id ? (
                                           <input
@@ -4275,11 +4443,11 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                                             onBlur={() => commitTrackRename(t.id)}
                                             onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); commitTrackRename(t.id); } if (e.key === 'Escape') setEditingTrackId(null); }}
                                             onClick={e => e.stopPropagation()}
-                                            className={`block w-full bg-white/10 border border-white/20 rounded px-1.5 py-0.5 outline-none focus:border-[#D40055] ${gatefoldOn ? 'text-[13px] font-bold' : 'text-sm font-bold uppercase tracking-widest'} text-white`}
+                                            className="block w-full bg-white/10 border border-white/20 rounded px-1.5 py-0.5 outline-none focus:border-[#D40055] font-display text-xs lg:text-sm font-black uppercase tracking-[0.14em] text-white"
                                           />
                                         ) : (
                                           <span
-                                            className={`block truncate ${gatefoldOn ? 'text-[13px] font-bold' : 'text-sm font-bold uppercase tracking-widest'} ${isActive ? 'text-white' : 'text-white/60 group-hover:text-white'}`}
+                                            className={`block truncate font-display text-xs lg:text-sm font-black uppercase tracking-[0.14em] ${isActive ? 'text-white' : 'text-white/65 group-hover:text-white'}`}
                                             onDoubleClick={isOwner ? (e) => { e.stopPropagation(); e.preventDefault(); startTrackRename(t); } : undefined}
                                             title={isOwner ? 'Double-click to rename' : undefined}
                                           >
@@ -4293,17 +4461,17 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                                     </button>
                                     <div className="flex items-center gap-2 shrink-0 relative z-10">
                                       {isActive && isCurrentTrackGlobal && globalDuration > 0 && (
-                                        <div className="flex flex-col items-end font-mono tabular-nums text-[9px] font-black tracking-tight leading-tight self-center">
+                                        <div className="flex flex-col items-end font-display tabular-nums text-[9px] font-black uppercase tracking-wider leading-tight self-center">
                                           <span className={isEndingSoon ? 'text-red-400' : 'text-white/70'}>-{formatTime(trackRemaining)}</span>
                                           <span className="text-white/35">{formatTime(globalDuration)}</span>
                                         </div>
                                       )}
-                                      {/* Gatefold registry: queued rows carry a mono NEXT tag; resting rows show their duration */}
-                                      {gatefoldOn && isNextUp && <span className="font-mono text-[8px] font-bold text-[#06D6A0] tracking-[0.14em]">NEXT</span>}
+                                      {/* Queued rows carry a NEXT tag; resting rows show their duration */}
+                                      {gatefoldOn && isNextUp && <span className="font-display text-[8px] font-black uppercase text-[#06D6A0] tracking-[0.14em]">NEXT</span>}
                                       {gatefoldOn && !isActive && !!t.duration && (
-                                        <span className="font-mono tabular-nums text-[9px] text-white/35">{formatTime(t.duration)}</span>
+                                        <span className="font-display tabular-nums text-[9px] font-black uppercase tracking-wider text-white/35">{formatTime(t.duration)}</span>
                                       )}
-                                      {t.isExclusive && <span className="text-[8px] font-black text-small-orange uppercase">Excl.</span>}
+                                      {t.isExclusive && <span className="text-[8px] font-display font-black text-small-orange uppercase">Excl.</span>}
                                       {isActive && globalIsPlaying && isCurrentTrackGlobal
                                         ? <div className="flex gap-0.5 items-end h-3">{[0,1,2].map(b => <motion.div key={b} animate={{height:[4,12,6,10,4]}} transition={{duration:1,repeat:Infinity,delay:b*0.2}} className="w-0.5 bg-small-orange rounded-full" />)}</div>
                                         : <Play size={13} className="text-white/10 group-hover:text-white/40" fill="currentColor" />}
@@ -4389,7 +4557,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                                               </div>
                                               <div className="flex-1 min-w-0">
                                                 <p className="text-[8px] font-black uppercase tracking-widest text-white/30">Alternate Slot {slot}</p>
-                                                <p className="text-[10px] font-bold truncate">{saved ? 'Saved!' : existing ? existing.title : 'Drop or click to upload…'}</p>
+                                                <p className="text-[10px] font-display font-bold uppercase tracking-wider truncate">{saved ? 'Saved!' : existing ? existing.title : 'Drop or click to upload…'}</p>
                                               </div>
                                               {!uploading && !saved && <Upload size={11} className="text-white/20 shrink-0" />}
                                             </div>
@@ -4625,16 +4793,16 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                     {activeHUD === 'INFO' && (
                       <div className="flex-1 overflow-y-auto pr-4 custom-scrollbar space-y-10 animate-in fade-in duration-700">
                         <div className="flex items-center justify-between">
-                          <span className="text-[11px] font-black uppercase tracking-[0.4em] text-small-orange">Operational Overview</span>
+                          <span className="text-[11px] font-display font-black uppercase tracking-[0.4em] text-small-orange">Operational Overview</span>
                           {isOwner && (
-                            <button onClick={handleOpenEdit} className="text-[10px] font-bold text-white/20 hover:text-white uppercase tracking-widest flex items-center gap-2">
+                            <button onClick={handleOpenEdit} className="text-[10px] font-display font-bold text-white/20 hover:text-white uppercase tracking-widest flex items-center gap-2">
                               <Pen size={12} /> Edit Notes
                             </button>
                           )}
                         </div>
                         
                         <div className="space-y-8">
-                          <p className="text-2xl font-medium leading-relaxed text-white/80 italic font-display">
+                          <p className="text-xl lg:text-2xl font-display font-bold uppercase tracking-wide leading-relaxed text-white/80">
                             {album.linerNotes || `This transmission represents a curated soundscape by ${album.artist}. Each signal has been captured and compiled under the ${album.title} directive, exploring themes of digital resonance and sonic architecture within the Plajah ecosytem.`}
                           </p>
 
@@ -4652,7 +4820,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                           {/* ── Featured Characters ── */}
                           {worldCharacters.length > 0 && (
                             <div className="space-y-3">
-                              <h4 className="text-[10px] font-black uppercase tracking-widest text-white/30 flex items-center gap-2">
+                              <h4 className="text-[10px] font-display font-black uppercase tracking-widest text-white/30 flex items-center gap-2">
                                 <Users size={11} className="text-white/20" />
                                 Featured Characters
                               </h4>
@@ -4670,8 +4838,8 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                                       />
                                     </div>
                                     <div>
-                                      <p className="text-[11px] font-black text-white leading-tight">{char.name}</p>
-                                      {char.role && <p className="text-[8px] text-white/35 uppercase tracking-wider">{char.role}</p>}
+                                      <p className="text-[11px] font-display font-black uppercase tracking-wider text-white leading-tight">{char.name}</p>
+                                      {char.role && <p className="text-[8px] font-display font-bold text-white/35 uppercase tracking-wider">{char.role}</p>}
                                     </div>
                                   </div>
                                 ))}
@@ -4680,15 +4848,15 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                           )}
 
                           <div className="pt-8 border-t border-white/5 space-y-4">
-                            <h4 className="text-[10px] font-black uppercase tracking-widest text-white/20">Album Metadata</h4>
+                            <h4 className="text-[10px] font-display font-black uppercase tracking-widest text-white/20">Album Metadata</h4>
                             <div className="grid grid-cols-2 gap-6">
                               <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
-                                <span className="text-[8px] font-black text-white/20 uppercase block mb-1">Release Date</span>
-                                <span className="text-xs font-bold text-white">{album.releaseDate ? new Date(album.releaseDate).toLocaleDateString() : new Date(album.createdAt).toLocaleDateString()}</span>
+                                <span className="text-[8px] font-display font-black text-white/20 uppercase block mb-1">Release Date</span>
+                                <span className="text-xs font-display font-black uppercase tracking-wider text-white tabular-nums">{album.releaseDate ? new Date(album.releaseDate).toLocaleDateString() : new Date(album.createdAt).toLocaleDateString()}</span>
                               </div>
                               <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
-                                <span className="text-[8px] font-black text-white/20 uppercase block mb-1">Genre Spectrum</span>
-                                <span className="text-xs font-bold text-white">{album.genre || 'Multi-Experimental'}</span>
+                                <span className="text-[8px] font-display font-black text-white/20 uppercase block mb-1">Genre Spectrum</span>
+                                <span className="text-xs font-display font-black uppercase tracking-wider text-white">{album.genre || 'Multi-Experimental'}</span>
                               </div>
                             </div>
                           </div>
@@ -5064,6 +5232,14 @@ const PlayerView: React.FC<PlayerViewProps> = ({
       )}
       {supportSheet && (
         <ArtistSupportSheet album={album} track={currentTrack as any} user={user as any} initialTab={supportSheet} onClose={() => setSupportSheet(null)} onSignUp={() => { loginWithGoogle(); }} />
+      )}
+      {showPromoModal && (
+        <ChoraPromoModal
+          album={album}
+          currentUser={user as any}
+          onClose={() => setShowPromoModal(false)}
+          onUpdateAlbum={onUpdate}
+        />
       )}
     </div>
   );

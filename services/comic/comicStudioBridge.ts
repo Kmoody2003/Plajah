@@ -88,16 +88,22 @@ export function canAccessPumpkinPatchProject(
       email.startsWith('kmoody2003@') ||
       email.includes('briangage') ||
       email.includes('brianjamesgage') ||
-      email.includes('brian.gage')
+      email.includes('brian.gage') ||
+      email.includes('briancage') ||
+      email.includes('brianjamescage') ||
+      email.includes('brian.cage')
     ) {
       return true;
     }
     if (
       name === 'brian james gage' ||
       name === 'brian gage' ||
+      name === 'brian james cage' ||
+      name === 'brian cage' ||
       name === 'kenneth moody' ||
       name === 'kenne' ||
-      name.includes('brian james gage')
+      name.includes('brian james gage') ||
+      name.includes('brian james cage')
     ) {
       return true;
     }

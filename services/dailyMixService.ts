@@ -22,6 +22,9 @@ export interface DailyMix {
   overview: string;        // "why this mix" — a couple of exploratory sentences
   insight?: string;        // a line about an artist in the set
   trackCount: number;
+  nativeCount: number;
+  audiusCount: number;
+  featuredArtists: Array<{ name: string; native: boolean; artistId?: string }>;
   durationSec: number;
   topGenres: string[];
 }
@@ -45,23 +48,26 @@ const sentenceOf = (text?: string): string | undefined => {
 };
 
 // A warm, exploratory overview written in Chora's voice, shaped by the day's taste.
-function writeOverview(name: string, genres: string[], hasTaste: boolean): string {
+function writeOverview(name: string, genres: string[], hasTaste: boolean, audiusCount: number): string {
   const g = genres.filter(Boolean).slice(0, 2);
+  const audiusNote = audiusCount > 0
+    ? ' leading with native Chora releases first and weaving in Audius artists so you can discover new sounds.'
+    : ' — heart the ones that land and I’ll learn your sound fast.';
   if (!hasTaste) {
-    return `A first taste, ${name}. I pulled a spread of what's moving on Chora right now — heart the ones that land and I'll learn your sound fast.`;
+    return `A first taste, ${name}. I pulled a spread of what's moving on Chora right now,${audiusNote}`;
   }
   const lead = g.length
     ? `Today I leaned into your ${g.join(' and ')}`
     : `Today I followed the thread of what you've been loving`;
-  return `${lead}, ${name}, and slipped in a few nearby rooms to explore. Forty minutes, no filler — tell me what hits with a heart.`;
+  return `${lead}, ${name},${audiusCount > 0 ? ' prioritizing native Chora albums first and mixing in fresh Audius artists to explore.' : ' and slipped in a few nearby rooms to explore.'} Forty minutes, no filler — tell me what hits with a heart.`;
 }
 
 let _cache: { uid: string; dateKey: string; mix: DailyMix } | null = null;
 
 /**
- * Build (or return today's cached) Daily Mix for the signed-in user. Returns null if signed out or
- * nothing could be assembled.
- */
+  * Build (or return today's cached) Daily Mix for the signed-in user. Returns null if signed out or
+  * nothing could be assembled.
+  */
 export async function buildDailyMix(opts: { force?: boolean } = {}): Promise<DailyMix | null> {
   const uid = auth.currentUser?.uid;
   if (!uid) return null;
@@ -86,10 +92,13 @@ export async function buildDailyMix(opts: { force?: boolean } = {}): Promise<Dai
   catch { items = []; }
   if (!items.length) return null;
 
-  // Trim to 40 minutes, de-duplicating by track id.
+  // Trim to 40 minutes, de-duplicating by track id while preserving the native-first + Audius interleave.
   const tracks: Track[] = [];
+  const chosenItems: typeof items = [];
   const seen = new Set<string>();
   let total = 0;
+  let nativeCount = 0;
+  let audiusCount = 0;
   for (const it of items) {
     if (!it.track?.id || seen.has(it.track.id) || !it.track.url) continue;
     const secs = trackSeconds(it.track);
@@ -97,15 +106,34 @@ export async function buildDailyMix(opts: { force?: boolean } = {}): Promise<Dai
     seen.add(it.track.id);
     // Carry the album cover onto the track so the player + card have art.
     tracks.push({ ...it.track, albumCover: it.track.albumCover || it.album?.coverImage });
+    chosenItems.push(it);
+    if (it.native) nativeCount++;
+    else audiusCount++;
     total += secs;
     if (total >= MAX_SECONDS) break;
   }
   if (!tracks.length) return null;
 
+  // Collect distinct featured artists (native Chora first, then Audius discovery artists).
+  const seenArtists = new Set<string>();
+  const nativeArtists: Array<{ name: string; native: boolean; artistId?: string }> = [];
+  const audiusArtists: Array<{ name: string; native: boolean; artistId?: string }> = [];
+  for (const it of chosenItems) {
+    const artistName = (it.track.artist || it.album?.artist || '').trim();
+    if (!artistName) continue;
+    const key = artistName.toLowerCase();
+    if (seenArtists.has(key)) continue;
+    seenArtists.add(key);
+    const entry = { name: artistName, native: it.native, artistId: (it.track as any).artistId || it.album?.ownerId };
+    if (it.native) nativeArtists.push(entry);
+    else audiusArtists.push(entry);
+  }
+  const featuredArtists = [...nativeArtists.slice(0, 4), ...audiusArtists.slice(0, 3)];
+
   // Insight: the first artist bio we can find among the mix's albums.
   let insight: string | undefined;
   let insightArtist: string | undefined;
-  for (const it of items) {
+  for (const it of chosenItems) {
     const bio = sentenceOf((it.album as any)?.artistBio);
     if (bio) { insight = bio; insightArtist = it.album?.artist; break; }
   }
@@ -113,13 +141,14 @@ export async function buildDailyMix(opts: { force?: boolean } = {}): Promise<Dai
 
   const name = firstName();
   const cover = tracks.find(t => t.albumCover)?.albumCover || '';
+  const overview = writeOverview(name, genres, hasTaste, audiusCount);
   const album: Album = {
     id: `dailymix_${uid.slice(0, 6)}_${dateKey}`,
     ownerId: uid,
     title: 'Your Daily Mix',
     artist: 'Chora',
     coverImage: cover,
-    description: writeOverview(name, genres, hasTaste),
+    description: overview,
     tracks,
     type: 'MUSIC',
     subType: 'PLAYLIST',
@@ -132,9 +161,12 @@ export async function buildDailyMix(opts: { force?: boolean } = {}): Promise<Dai
     album, dateKey,
     title: 'Your Daily Mix',
     greetingName: name,
-    overview: album.description,
+    overview,
     insight,
     trackCount: tracks.length,
+    nativeCount,
+    audiusCount,
+    featuredArtists,
     durationSec: total,
     topGenres: genres.slice(0, 3),
   };

@@ -68,7 +68,7 @@ export const BeatsMobileShell: React.FC<BeatsMobileProps> = (p) => {
         {!p.hideClose && (
           <button onClick={p.onClose} aria-label="Back" className="flex items-center gap-1 h-8 px-2 rounded-lg border border-white/10 text-white/55 text-[12px]"><ChevronLeft size={15} /> Plajah</button>
         )}
-        <span className="font-black text-[12px] tracking-[0.06em]"><span className="bg-gradient-to-br from-[#B84DFF] to-[#D40055] bg-clip-text text-transparent">MELOS</span><span className="text-white/80"> · BEATS</span></span>
+        <span className="font-black text-[12px] tracking-[0.06em] shrink-0 whitespace-nowrap"><span className="bg-gradient-to-br from-[#B84DFF] to-[#D40055] bg-clip-text text-transparent">CHORA</span><span className="text-white/80"> · STUDIO</span></span>
         <span className="flex-1" />
         <span className="text-[11px] text-white/45 truncate max-w-[38%]">{p.doc.name}</span>
       </div>

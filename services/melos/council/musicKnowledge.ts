@@ -81,5 +81,122 @@ export function knowledgeGrounding(genre?: string, platform?: string): string {
   if (t) parts.push(`Delivery target (${t.platform}): ${t.lufs} LUFS integrated, true-peak ≤ ${t.truePeakDb} dBTP. ${t.note}`);
   if (g) parts.push(`Genre norm (${g.genre}): masters usually ${g.lufs[0]}…${g.lufs[1]} LUFS, PLR ${g.plr[0]}–${g.plr[1]}. ${g.feel}`);
   parts.push('Technique cues: ' + TECHNIQUES.map((x) => `${x.symptom} → ${x.move} (${x.where})`).join('; '));
+  parts.push('Master Composer Scoring School: ' + MASTER_COMPOSER_LINEAGES.map((c) => `${c.composer} (${c.signature}) → Melos Presets: ${c.melosPresets.join(', ')}`).join(' | '));
   return parts.join('\n');
 }
+
+export interface MasterComposerLineage {
+  id: string;
+  composer: string;
+  era: string;
+  signature: string;
+  harmonicLanguage: string;
+  orchestrationRules: string[];
+  melosPresets: string[];
+}
+
+/**
+ * Grounded Film & Classical Master Composer Knowledge Base used by the Composer Council
+ * when writing, orchestrating, and building multi-track scores in Melos / Chora Studio.
+ */
+export const MASTER_COMPOSER_LINEAGES: MasterComposerLineage[] = [
+  {
+    id: 'john-williams',
+    composer: 'John Williams',
+    era: 'Neo-Romantic Symphonic Cinema',
+    signature: 'Leitmotif transformation, intervallic heroism (rising 5ths/6ths), contrapuntal horn counter-lines & celesta/woodwind filigree',
+    harmonicLanguage: 'Chromatic mediant planing, Lydian wonder, half-diminished dramatic suspensions, and Wagnerian thematic metamorphosis.',
+    orchestrationRules: [
+      'State the primary leitmotif with a clear intervallic silhouette (leap of a 5th or 6th followed by stepwise resolution).',
+      'Weave a lyrical French horn or oboe/flute obligato counter-melody during sustained melody notes.',
+      'Double upper-register magical/intimate motifs with Celesta (aura-celesta-bell-69) and Concert Harp arpeggios (aura-harpsichord-68).',
+    ],
+    melosPresets: ['f_aura-celesta-bell-69', 'f_aura-mellotron-flute', 'f_aura-mellotron-violins', 'f_pneuma-ney'],
+  },
+  {
+    id: 'hans-zimmer',
+    composer: 'Hans Zimmer',
+    era: 'Modern Hybrid Symphonic & Ostinato Architecture',
+    signature: 'Relentless 16th-note spiccato/synth ostinatos over slow cathedral pedal points, ticking clockwork pulse, bowed cello menace & sub-bass braaams',
+    harmonicLanguage: 'Dorian and Aeolian harmonic gravity (i – VI – III – VII or i – iv – V7), sustained tonic/dominant drones under building dynamic walls.',
+    orchestrationRules: [
+      'Anchor tension with a continuous 16th-note ostinato that shifts chord voicings every 2 to 4 bars.',
+      'Drive low-end weight with physical Bowed Cello Menace (bajo: f_cello-menace), Braam impacts (bajo: f_braam), and Clockwork Timpani (aura: f_aura-clockwork-timpani).',
+      'Layer analog CS-80 brass swells (aura: f_aura-cs80-bladerunner) with deep cathedral pipe organ pedals (ison: f_ison-bourdon).',
+    ],
+    melosPresets: ['f_cello-menace', 'f_braam', 'f_dune-drone', 'f_aura-cs80-bladerunner', 'f_aura-clockwork-timpani', 'f_ison-bourdon'],
+  },
+  {
+    id: 'howard-shore',
+    composer: 'Howard Shore',
+    era: 'Mythic & Gothic Wagnerian Worldbuilding',
+    signature: 'Ancient modal worldbuilding, dark low brass, monastic stone-crypt choirs & chromatic third-related tragedy',
+    harmonicLanguage: 'Phrygian, Dorian, and Aeolian modes; minor-third chromatic mediants (Dm → Fm → C#m → A7); pedal-point fatalism.',
+    orchestrationRules: [
+      'Ground mythic and Gothic darkness in immovable 32ft organ bourdon drones (ison: f_ison-bourdon) and monastic voices (cantus: f_cantus-vault, f_cantus-byzantine).',
+      'Transform character leitmotifs through modal darkening (Ionian → Dorian → Phrygian) as narrative stakes escalate.',
+    ],
+    melosPresets: ['f_cantus-vault', 'f_cantus-byzantine', 'f_cantus-plainsong', 'f_ison-bourdon', 'f_reliquary'],
+  },
+  {
+    id: 'don-davis',
+    composer: 'Don Davis',
+    era: 'Avant-Garde & Minimalist Action Symphonism',
+    signature: 'Polytonal brass cluster swells, mirror-canon counterpoint & kinetic minimalist ostinatos',
+    harmonicLanguage: 'Bitonal triad superimpositions (e.g., Eb minor over D minor), interlocking rhythmic cells, and pyramid brass entries.',
+    orchestrationRules: [
+      'Superimpose interlocking rhythmic ostinatos in contrasting registers to create kinetic forward momentum.',
+      'Use mirror-inversion counterpoint between high strings/woodwinds and low brass/basses.',
+    ],
+    melosPresets: ['f_aura-modular-brass-69', 'f_aura-clockwork-timpani', 'f_tremolo-strings', 'f_ferrous'],
+  },
+  {
+    id: 'danny-elfman',
+    composer: 'Danny Elfman',
+    era: 'Gothic Waltz Macabre & Storybook Chiaroscuro',
+    signature: '3/4 and 6/8 Gothic waltzes, crystalline Celesta & Music Box over pizzicato bass, wordless soprano choir & #4 Lydian-minor twists',
+    harmonicLanguage: 'Harmonic minor with raised 4th (Hungarian minor), alternating i – V7/iv – iv – V7b9 waltz cadences, tritone bell inflections.',
+    orchestrationRules: [
+      'Lead intimate or uncanny openings with fragile Celesta/Music Box (aura: f_aura-celesta-bell-69, vela: f_vitreous) over plucked upright contrabass (bajo: f_upright-jazz).',
+      'Float wordless Gothic choir (aura: f_aura-mellotron-choir, cantus: f_cantus-vault) over waltz-time string counter-lines.',
+    ],
+    melosPresets: ['f_aura-celesta-bell-69', 'f_vitreous', 'f_aura-mellotron-choir', 'f_upright-jazz'],
+  },
+  {
+    id: 'ludwig-goransson',
+    composer: 'Ludwig Göransson',
+    era: 'Organic Solo Woodwind, Bowed Bass Pulse & Analog Hybrid (Mandalorian / Oppenheimer)',
+    signature: 'Stark breath-forward solo woodwind call in open space, physical bowed bass guitar/contrabass pulse & vintage analog synth brass',
+    harmonicLanguage: 'Stark Dorian/Aeolian open fifths, metric modulation, and visceral acoustic-electronic timbral fusion.',
+    orchestrationRules: [
+      'Open with an exposed, breath-heavy solo reed/flute call (pneuma: f_pneuma-ney or f_pneuma-shakuhachi) drenched in chamber/spring space.',
+      'Answer the solo woodwind with a physical bowed contrabass/cello pulse (bajo: f_bowed-contrabass, f_cello-menace) and vintage analog brass/tape echo (aura: f_aura-cs80-bladerunner, f_aura-bbc-radiophonic).',
+    ],
+    melosPresets: ['f_pneuma-ney', 'f_pneuma-shakuhachi', 'f_bowed-contrabass', 'f_cello-menace', 'f_aura-cs80-bladerunner', 'f_aura-bbc-radiophonic'],
+  },
+  {
+    id: 'marianelli-classical-regency',
+    composer: 'Dario Marianelli, Beethoven, Schubert & Chopin',
+    era: 'Classical & Regency Chamber Virtuosity (Pride & Prejudice)',
+    signature: 'Flowing 3-octave fortepiano broken-chord waves, cantabile right-hand melody with Regency turns, pastoral woodwinds & divisi string quartet',
+    harmonicLanguage: 'Luminous Classical-Romantic diatonicism (G major, D major, F major, E minor) with 4–3 and 9–8 voice-led suspensions and first-inversion bass walks.',
+    orchestrationRules: [
+      'Write continuous left-hand 16th/triplet broken-chord waves spanning a 10th (root–fifth–tenth–octave–third) underneath a lyrical right-hand cantabile melody.',
+      'Dialog the fortepiano with pastoral flute/oboe (pneuma: f_pneuma-ney, aura: f_aura-mellotron-flute) and warm 4-voice divisi strings (aura: f_aura-mellotron-violins, f_aura-solina-74) over bowed cello continuo (bajo: f_bowed-contrabass).',
+    ],
+    melosPresets: ['f_aura-celesta-bell-69', 'f_aura-harpsichord-68', 'f_pneuma-ney', 'f_aura-mellotron-violins', 'f_bowed-contrabass'],
+  },
+  {
+    id: 'kilar-liszt-gothic',
+    composer: 'Wojciech Kilar, Franz Liszt, Berlioz & Bartók',
+    era: 'Carpathian Gothic Romanticism (Bram Stoker’s Dracula)',
+    signature: 'Hypnotic unison low cello/contrabass ostinatos, soaring tragic violin cantilena in D harmonic minor, Dies Irae brass/organ & Sanctus choir',
+    harmonicLanguage: 'D Harmonic Minor & Phrygian Dominant (D–Eb–F#–G–A–Bb–C#), chromatic appoggiaturas, and Dies Irae plainsong cells.',
+    orchestrationRules: [
+      'Build hypnotic forward dread with unison bowed cellos and contrabasses (bajo: f_cello-menace, f_bowed-contrabass) repeating a tight minor-second / fifth ostinato.',
+      'Soar above the ostinato with an aching, octave-doubled solo violin & string melody (aura: f_aura-mellotron-violins, vela: f_tremolo-strings) supported by stone-vault choir (cantus: f_cantus-vault) and 32ft organ pedal (ison: f_ison-bourdon).',
+    ],
+    melosPresets: ['f_aura-mellotron-violins', 'f_tremolo-strings', 'f_cantus-vault', 'f_cello-menace', 'f_ison-bourdon', 'f_braam'],
+  },
+];
+

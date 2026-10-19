@@ -31,6 +31,7 @@ import { Knob } from '../melos/beats/shared/Knob';
 import { plajahAudioCore } from '../../services/voice/plajahAudioCore';
 import { proceduralFoley, FOLEY_PRESETS } from '../../services/audio/proceduralFoleyEngine';
 import { choraGenerativeMusicEngine, ChoraMusicStem } from '../../services/chora/choraGenerativeMusicEngine';
+import { CLASSIC_BOOK_SOUNDTRACKS, buildClassicBookMixerStrips } from '../../data/classicBookSoundtracks';
 import {
   SURFACE,
   SURFACE_RAISED,
@@ -391,6 +392,30 @@ export const ChoraStudioMixer: React.FC<Props> = ({ onClose, initialTracks, embe
             <span className="text-white/20">/</span>
             <span style={{ color: '#06D6A0' }} className="font-bold">IEEE 1722 Milan</span>
           </div>
+
+          <select
+            aria-label="Load Classic Book Literary Score Console Template"
+            defaultValue=""
+            onChange={(e) => {
+              const themeId = e.target.value;
+              if (!themeId) {
+                setTracks(DEFAULT_TRACKS);
+                setSelectedTrackIndex(0);
+                return;
+              }
+              const bookStrips = buildClassicBookMixerStrips(themeId);
+              setTracks(bookStrips);
+              setSelectedTrackIndex(0);
+            }}
+            className="h-7 px-2.5 rounded-lg border border-amber-400/35 bg-[#14131B] text-[10px] font-bold text-amber-300 outline-none cursor-pointer"
+          >
+            <option value="">📚 Literary Score Templates (12 Classics)…</option>
+            {Object.values(CLASSIC_BOOK_SOUNDTRACKS).map(alb => (
+              <option key={alb.bookThemeId} value={alb.bookThemeId}>
+                {alb.bookTitle} · {alb.ensembleName}
+              </option>
+            ))}
+          </select>
         </div>
 
         {/* Center: Mackie MCU Hardware Controller HUD */}

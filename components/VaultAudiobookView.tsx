@@ -557,9 +557,9 @@ export const VaultAudiobookView: React.FC<VaultAudiobookViewProps> = ({
                 <img
                   src={thumb(track.thumbnailUrl, THUMB.large) || undefined}
                   onError={onThumbError(track.thumbnailUrl)}
-                  className="absolute inset-0 w-full h-full object-cover opacity-50 mix-blend-luminosity group-hover:scale-105 transition-transform duration-700"
+                  className="absolute inset-0 w-full h-full object-cover opacity-90 group-hover:scale-105 transition-transform duration-700"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-black/60 pointer-events-none" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/15 to-black/45 pointer-events-none" />
 
                 {/* Foil Header Label */}
                 <div className="relative z-10 text-center pt-4">

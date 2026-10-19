@@ -77,7 +77,7 @@ export const AdminFilmIngestVault: React.FC<AdminFilmIngestVaultProps> = ({ onPr
   const [films, setFilms] = useState<FilmVaultItemWithJob[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingDir, setSavingDir] = useState(false);
-  const [activeFilter, setActiveFilter] = useState<'ALL' | 'KOFA' | 'EUROPEANA' | 'INTERNET_ARCHIVE' | 'COMPLETED'>('ALL');
+  const [activeFilter, setActiveFilter] = useState<'ALL' | 'ANIME' | 'TV_SERIES' | 'KOFA' | 'EUROPEANA' | 'INTERNET_ARCHIVE' | 'COMPLETED'>('ALL');
   const [actionMessage, setActionMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
   const [previewingFilm, setPreviewingFilm] = useState<FilmVaultItemWithJob | null>(null);
 
@@ -182,7 +182,27 @@ export const AdminFilmIngestVault: React.FC<AdminFilmIngestVaultProps> = ({ onPr
       if (res.ok && data.success) {
         setActionMessage({
           type: 'success',
-          text: `Batch auto-resume queue initiated: ${data.queued.length} title(s) queued.`,
+          text: `Sequential Vault Pull Queue initiated (2 concurrent max, 5 GB disk guard): ${data.queued.length} title(s) queued.`,
+        });
+        fetchStatus();
+      }
+    } catch (err: any) {
+      setActionMessage({ type: 'error', text: err.message });
+    }
+  };
+
+  const handleIngestAllNative = async (downloadToLocalVault = false) => {
+    try {
+      const res = await fetch('/api/admin/film-ingest/ingest-all-native', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ downloadToLocalVault }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setActionMessage({
+          type: 'success',
+          text: data.message || `Synced ${data.totalCatalog} titles to Platform Firestore & Mux HLS.`,
         });
         fetchStatus();
       }
@@ -227,6 +247,13 @@ export const AdminFilmIngestVault: React.FC<AdminFilmIngestVaultProps> = ({ onPr
   const filteredFilms = films.filter((f) => {
     if (activeFilter === 'ALL') return true;
     if (activeFilter === 'COMPLETED') return f.jobStatus?.status === 'COMPLETED';
+    if (activeFilter === 'ANIME') {
+      const g = (f.genre || '').toLowerCase();
+      return g.includes('anime') || g.includes('animation') || f.identifier.startsWith('anime-');
+    }
+    if (activeFilter === 'TV_SERIES') {
+      return f.identifier.startsWith('tv-') || (f as any).subType === 'TV_SERIES';
+    }
     return f.archive === activeFilter;
   });
 
@@ -367,11 +394,18 @@ export const AdminFilmIngestVault: React.FC<AdminFilmIngestVaultProps> = ({ onPr
       <div className="flex flex-wrap items-center justify-between gap-4 bg-white/5 p-6 rounded-3xl border border-white/10">
         <div className="flex flex-wrap items-center gap-2">
           <button
+            onClick={() => handleIngestAllNative(false)}
+            className="px-5 py-2.5 bg-amber-500 text-black hover:bg-amber-400 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center gap-2 transition-all shadow"
+          >
+            <Database size={14} />
+            Sync All to Platform &amp; Mux
+          </button>
+          <button
             onClick={handleDownloadAll}
             className="px-5 py-2.5 bg-white text-black hover:bg-white/90 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center gap-2 transition-all shadow"
           >
             <Download size={14} />
-            Download / Resume All
+            Download / Resume All to Disk
           </button>
           <button
             onClick={handlePauseAll}
@@ -390,8 +424,8 @@ export const AdminFilmIngestVault: React.FC<AdminFilmIngestVaultProps> = ({ onPr
         </div>
 
         {/* Filters */}
-        <div className="flex items-center gap-1 bg-black/40 p-1 rounded-2xl border border-white/10 text-[10px] font-black uppercase tracking-wider">
-          {(['ALL', 'KOFA', 'EUROPEANA', 'INTERNET_ARCHIVE', 'COMPLETED'] as const).map((tab) => (
+        <div className="flex flex-wrap items-center gap-1 bg-black/40 p-1 rounded-2xl border border-white/10 text-[10px] font-black uppercase tracking-wider">
+          {(['ALL', 'ANIME', 'TV_SERIES', 'KOFA', 'EUROPEANA', 'INTERNET_ARCHIVE', 'COMPLETED'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveFilter(tab)}
@@ -401,7 +435,13 @@ export const AdminFilmIngestVault: React.FC<AdminFilmIngestVaultProps> = ({ onPr
                   : 'text-white/50 hover:text-white'
               }`}
             >
-              {tab === 'INTERNET_ARCHIVE' ? 'US / Archive' : tab}
+              {tab === 'INTERNET_ARCHIVE'
+                ? 'US / Archive'
+                : tab === 'ANIME'
+                ? '🏯 Anime & Toons'
+                : tab === 'TV_SERIES'
+                ? '📺 TV Series'
+                : tab}
             </button>
           ))}
         </div>

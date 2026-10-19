@@ -7,7 +7,7 @@ import clockUrl from './clockProcessor.worklet.js?url';
 import { platformAudio } from '../../../mediaEngine/audioRuntime';
 import loudnessUrl from './loudnessProcessor.worklet.js?url';
 import type { ArrangeTrack, GrooveDoc, PadConfig, TimelineClip } from '../grooveDoc';
-import { newGrooveDoc } from '../grooveDoc';
+import { newGrooveDoc, evaluateNoteMpeAtProgress } from '../grooveDoc';
 import { buildGraph, type BeatsGraph } from './graph';
 import { VoiceBank } from './voices';
 import { StepScheduler, type PlayMode, LOOKAHEAD_SEC } from './scheduler';
@@ -887,10 +887,49 @@ export class BeatsEngine {
   private startInstrumentNote(track: ATrack, note: NoteEvent, when: number, durSec: number): void {
     const inst = this.instruments.get(track.id);
     if (!inst || !this.ctx) return;
-    const voiceId = inst.noteOn(note.key, Math.max(0.05, note.vel / 127), when, this.ctx.currentTime, this.ctx.sampleRate);
-    if (note.expr) inst.setExpression(voiceId, note.expr.bend ?? 0, note.expr.pressure ?? 0, note.expr.timbre ?? 0);
+
+    const art = note.articulation ?? 'legato';
+    const gateScale =
+      art === 'spiccato' || art === 'staccato'
+        ? 0.42
+        : art === 'pizzicato'
+          ? 0.35
+          : art === 'marcato'
+            ? 0.85
+            : art === 'legato' || art === 'portamento'
+              ? 1.04
+              : 0.96;
+    const effectiveDurSec = Math.max(0.04, durSec * gateScale);
+    const velBoost = art === 'marcato' || art === 'sfz-hairpin' ? 1.12 : art === 'con-sordino' || art === 'sul-tasto' ? 0.82 : 1.0;
+
+    const voiceId = inst.noteOn(
+      note.key,
+      Math.max(0.05, Math.min(1, (note.vel / 127) * velBoost)),
+      when,
+      this.ctx.currentTime,
+      this.ctx.sampleRate,
+    );
+
+    const initMpe = evaluateNoteMpeAtProgress(note, 0, 0);
+    inst.setExpression(voiceId, initMpe.bend, initMpe.pressure, initMpe.timbre);
+
+    // Schedule continuous MPE curve ticks (hairpin swells, vibrato buildup, portamento glide, timbre breath)
+    if (note.expr || (note.articulation && note.articulation !== 'staccato' && note.articulation !== 'pizzicato') || effectiveDurSec >= 0.35) {
+      const steps = Math.min(18, Math.max(4, Math.round(effectiveDurSec / 0.065)));
+      const startDelayMs = Math.max(0, (when - this.ctx.currentTime) * 1000);
+      for (let s = 1; s <= steps; s++) {
+        const progress01 = s / steps;
+        const elapsedSec = progress01 * effectiveDurSec;
+        const mpe = evaluateNoteMpeAtProgress(note, progress01, elapsedSec);
+        setTimeout(() => {
+          if (!this.running) return;
+          inst.setExpression(voiceId, mpe.bend, mpe.pressure, mpe.timbre);
+        }, startDelayMs + elapsedSec * 1000);
+      }
+    }
+
     // Schedule the note-off. The engine's own release stage shapes the tail; this just gates it.
-    const offIn = Math.max(0, (when - this.ctx.currentTime) + durSec) * 1000;
+    const offIn = Math.max(0, (when - this.ctx.currentTime) + effectiveDurSec) * 1000;
     setTimeout(() => inst.noteOff(voiceId, true), offIn);
   }
 

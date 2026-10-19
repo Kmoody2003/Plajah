@@ -13,6 +13,7 @@ import { auth, db, storage } from './firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { onSnapshot } from './safeSnapshot';
 import { ref, getDownloadURL } from 'firebase/storage';
+import { getHalloweenStoryIntelBundle, getSyntheticAnalysisJob } from '../data/halloweenStoryIntel';
 
 /**
  * Ask the server to run (or re-run) Story Intelligence for an album the caller owns.
@@ -288,29 +289,40 @@ export function watchAnalysisJob(
   albumId: string,
   cb: (job: TaleoAnalysisJob | null) => void
 ): () => void {
+  const fallbackJob = getSyntheticAnalysisJob(albumId);
   try {
     return onSnapshot(
       doc(db, 'taleoAnalysis', albumId),
       snap => {
         try {
-          cb(snap.exists() ? (snap.data() as TaleoAnalysisJob) : null);
+          if (snap.exists()) {
+            const remoteJob = snap.data() as TaleoAnalysisJob;
+            cb(remoteJob.status === 'READY' || !fallbackJob ? remoteJob : fallbackJob);
+          } else {
+            cb(fallbackJob);
+          }
         } catch { /* subscriber errors must not kill the stream */ }
       },
-      () => cb(null)
+      () => cb(fallbackJob)
     );
   } catch {
-    cb(null);
+    cb(fallbackJob);
     return () => {};
   }
 }
 
 /** One-shot read of the analysis job. Null when absent or unreadable. */
 export async function getAnalysisJob(albumId: string): Promise<TaleoAnalysisJob | null> {
+  const fallbackJob = getSyntheticAnalysisJob(albumId);
   try {
     const snap = await getDoc(doc(db, 'taleoAnalysis', albumId));
-    return snap.exists() ? (snap.data() as TaleoAnalysisJob) : null;
+    if (snap.exists()) {
+      const remoteJob = snap.data() as TaleoAnalysisJob;
+      return remoteJob.status === 'READY' || !fallbackJob ? remoteJob : fallbackJob;
+    }
+    return fallbackJob;
   } catch {
-    return null;
+    return fallbackJob;
   }
 }
 
@@ -330,6 +342,10 @@ export function fetchStoryReport(job: TaleoAnalysisJob): Promise<StoryReport | n
   if (cached) return cached;
 
   const p = (async (): Promise<StoryReport | null> => {
+    const precomputed = getHalloweenStoryIntelBundle(job.albumId)?.report;
+    if (job.reportPath?.startsWith('inline://halloween-story-intel/') && precomputed) {
+      return precomputed;
+    }
     try {
       const path = job.reportPath || `taleoAnalysis/${job.ownerId}/${job.albumId}/report.json`;
       const url = await getDownloadURL(ref(storage, path));
@@ -339,6 +355,7 @@ export function fetchStoryReport(job: TaleoAnalysisJob): Promise<StoryReport | n
       if (!report || !Array.isArray(report.scenes)) throw new Error('malformed report');
       return report;
     } catch (e) {
+      if (precomputed) return precomputed;
       console.warn('[storyIntel] report fetch failed:', (e as Error)?.message);
       reportCache.delete(job.albumId); // let a later open retry
       return null;

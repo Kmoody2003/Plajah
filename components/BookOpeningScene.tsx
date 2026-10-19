@@ -13,10 +13,12 @@ interface Props {
   chapterTitle?: string;
   pageIndex?: number;      // 0-based; shown as "Page X"
   resuming?: boolean;      // true when opening to a saved position
+  isReady?: boolean;       // true when the reader pages are already loaded in memory
 }
 
-const HOLD_MS  = 1800; // how long the cover is shown before auto-dismiss
-const FADE_MS  =  400; // CSS fade-out duration
+const HOLD_MS  = 420; // crisp transition without artificially blocking book pages
+const READY_MS = 180; // instant reveal when pages are already parsed/cached
+const FADE_MS  = 180; // CSS fade-out duration
 
 export const BookOpeningScene: React.FC<Props> = ({
   coverImage,
@@ -26,6 +28,7 @@ export const BookOpeningScene: React.FC<Props> = ({
   chapterTitle,
   pageIndex,
   resuming = false,
+  isReady = false,
 }) => {
   const [dismissed, setDismissed] = useState(false);
   const calledRef  = useRef(false);
@@ -37,16 +40,23 @@ export const BookOpeningScene: React.FC<Props> = ({
     calledRef.current = true;
     setDismissed(true);
     // Call after fade duration
-    fadeTimer.current = setTimeout(onBeginReading, FADE_MS + 50);
+    fadeTimer.current = setTimeout(onBeginReading, FADE_MS + 20);
   };
 
   useEffect(() => {
-    holdTimer.current = setTimeout(dismiss, HOLD_MS);
+    holdTimer.current = setTimeout(dismiss, isReady ? READY_MS : HOLD_MS);
     return () => {
       if (holdTimer.current) clearTimeout(holdTimer.current);
       if (fadeTimer.current) clearTimeout(fadeTimer.current);
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (isReady && !calledRef.current) {
+      if (holdTimer.current) clearTimeout(holdTimer.current);
+      holdTimer.current = setTimeout(dismiss, READY_MS);
+    }
+  }, [isReady]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const showResume = resuming && (chapterTitle || (pageIndex !== undefined && pageIndex > 0));
 

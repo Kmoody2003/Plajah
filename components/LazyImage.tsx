@@ -20,12 +20,19 @@ const LazyImage: React.FC<LazyImageProps> = ({
   onLoad,
   ...rest
 }) => {
-  const [loaded, setLoaded] = useState(false);
+  const isInstant = Boolean(priority || src?.startsWith('data:') || src?.startsWith('blob:'));
+  const [loaded, setLoaded] = useState(isInstant);
   const imgRef = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
-    if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) setLoaded(true);
-  }, [src]);
+    if (isInstant) {
+      setLoaded(true);
+      return;
+    }
+    if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) {
+      setLoaded(true);
+    }
+  }, [src, isInstant]);
 
   if (!src) return null;
 
@@ -34,9 +41,9 @@ const LazyImage: React.FC<LazyImageProps> = ({
       ref={imgRef}
       src={src}
       alt={alt}
-      loading={priority ? 'eager' : 'lazy'}
+      loading={isInstant ? 'eager' : 'lazy'}
       decoding={priority ? 'sync' : 'async'}
-      className={`${className} transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+      className={`${className} transition-opacity duration-200 ${loaded || isInstant ? 'opacity-100' : 'opacity-95'}`}
       style={style}
       onLoad={e => { setLoaded(true); onLoad?.(e); }}
       {...rest}

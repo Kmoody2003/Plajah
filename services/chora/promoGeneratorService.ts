@@ -13,10 +13,12 @@ export function promoEligible(album: Album): boolean {
 export function createPromoRecipe(album: PromoRelease, now = Date.now()): PromoRecipe {
   const previous = album.autoPromo;
   const defaults = selectPromoSnippets(album.tracks);
-  const snippets = previous?.snippets?.length ? Array.from({ length: 3 }, (_, i) => {
+  const snippets = previous?.snippets?.length ? Array.from({ length: Math.max(1, defaults.length) }, (_, i) => {
     const old = previous.snippets[i];
     const track = album.tracks.find(t => t.id === old?.trackId && (t.url || t.browserCompatUrl));
-    return track ? clampSnippet(track, old.start, old.source) : defaults[i];
+    if (!track) return defaults[i];
+    const startSec = old.source === 'manual' ? old.start : 0;
+    return clampSnippet(track, startSec, old.source);
   }).filter(Boolean) : defaults;
   const secondaryDsps: PromoRecipe['secondaryDsps'] = {};
   for (const name of DSP_NAMES) {

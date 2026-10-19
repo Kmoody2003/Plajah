@@ -16,14 +16,21 @@ import {
   fetchSystemSettingsConfig, fetchVideoPlaylistsByIds, fetchAllVideos, auth,
   fetchAllPublicWorlds, fetchWorldCharacters,
   addToWatchlist, removeFromWatchlist, fetchWatchlist, WatchlistItem, fetchProjectFromCloud,
+  createPost, loginWithGoogle,
 } from '../services/backendService';
 import SignInPrompt from './SignInPrompt';
 import {
   fetchArchiveVideos, fetchArchiveByAllGenres, GenreCollection, ArchiveVideo,
   getArchiveItemFiles, getBestVideoUrl, CURATED_EUROPEANA_FILMS, CURATED_KOFA_FILMS,
-  CURATED_HALLOWEEN_FILMS, HALLOWEEN_CURATED_SECTIONS, HALLOWEEN_DOUBLE_FEATURES,
+  CURATED_HALLOWEEN_FILMS, CURATED_INTERNATIONAL_FILMS, CURATED_US_CLASSIC_FILMS,
+  CURATED_DIRECTOR_VAULT_FILMS, CURATED_ANIME_AND_ANIMATION_FILMS, CURATED_PUBLIC_DOMAIN_TV_SERIES, ALL_CURATED_ARCHIVE_FILMS,
+  HALLOWEEN_CURATED_SECTIONS, HALLOWEEN_DOUBLE_FEATURES,
   PUMPKIN_PATCH_HERO_ALBUM, archiveVideoToAlbum, fetchArchiveVideoById,
 } from '../services/archiveContentService';
+import {
+  hydrateSelfHostedFilmsFromServer,
+  ensureFilmNativelyOnPlatform,
+} from '../services/selfHostedFilms';
 import { TelevisionView } from './TelevisionView';
 import { ExploreView } from './ExploreView';
 import { MoviesSpecificView } from './MoviesSpecificView';
@@ -35,6 +42,7 @@ import { fetchPublicClubs, fetchVideoById } from '../services/backendService';
 import HoverPreviewThumb, { previewSourceFor } from './HoverPreviewThumb';
 import { getContinueWatching, removeEntry, WatchEntry } from '../services/watchHistoryService';
 import { shareAsset, buildShareUrl } from '../services/deepLinkService';
+import ShareButton from './ShareButton';
 import PersonalVideoLocker from './PersonalVideoLocker';
 import type { Club } from '../types';
 import TaleoFilmMuseum from './TaleoFilmMuseum';
@@ -43,6 +51,20 @@ import TaleoFilmCurator from './TaleoFilmCurator';
 import { Landmark } from 'lucide-react';
 import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
 import { coverGridSrc } from '../services/imageDerivatives';
+import {
+  ClassicDirectorsShowcaseSection,
+  ClassicDirectorDossierModal,
+  HalloweenCurationStoryIntelSection,
+  CharacterActorModal,
+  EnrichedPortrait,
+  findPlayableFilmById,
+} from './taleo/ClassicCinemaDossier';
+import { getDirectorProfile, type ClassicDirectorProfile } from '../data/classicDirectors';
+import {
+  getCharactersForFilm,
+  getHalloweenStoryIntelBundle,
+  type HalloweenCharacterWithActor,
+} from '../data/halloweenStoryIntel';
 
 interface MoviesTVViewProps {
   onBack: () => void;
@@ -87,6 +109,11 @@ const TaleoTabNav: React.FC<{
 
 const GENRE_ICONS: Record<string, React.ComponentType<any>> = {
   '🎃 Halloween Cinema': Ghost,
+  '🏯 Classic Japanese Anime & Global Animation': Rocket,
+  '🌍 World Cinema Masterworks': Globe,
+  '🕵️ Film Noir, Hitchcock & US Classics': Moon,
+  '🎬 Director Dossier Vault': Film,
+  '📺 Public Domain TV Series & Serials': Monitor,
   'Feature Films': Film,
   'Classic TV': Monitor,
   'Animation': Rocket,
@@ -158,9 +185,62 @@ const PosterCard: React.FC<{
   previewItem?: any;
   /** Content rating (G / PG-13 / R / TV-MA …). Rendered as a corner badge when present. */
   rating?: string;
-}> = ({ title, subtitle, image, genre, onPlay, width = 'w-36 flex-shrink-0', accentBorder, previewItem, rating }) => {
+  directorName?: string;
+  filmId?: string;
+  onSelectDirector?: (director: ClassicDirectorProfile) => void;
+}> = ({
+  title,
+  subtitle,
+  image,
+  genre,
+  onPlay,
+  width = 'w-36 flex-shrink-0',
+  accentBorder,
+  previewItem,
+  rating,
+  directorName,
+  filmId,
+  onSelectDirector,
+}) => {
   const preview = previewItem ? previewSourceFor(previewItem) : null;
   const badge = rating ? <RatingBadge rating={rating} /> : null;
+  const directorProfile = useMemo(
+    () => (directorName || filmId ? getDirectorProfile(directorName, filmId) : undefined),
+    [directorName, filmId]
+  );
+  const hasStoryIntel = useMemo(
+    () => (filmId ? !!getHalloweenStoryIntelBundle(filmId) : false),
+    [filmId]
+  );
+
+  const directorChip = directorProfile ? (
+    <div
+      onClick={(ev) => {
+        if (onSelectDirector) {
+          ev.stopPropagation();
+          onSelectDirector(directorProfile);
+        }
+      }}
+      title={`${directorProfile.name} (${directorProfile.lifespan}) — Click for Director Biography & ${directorProfile.filmography.length}-Film Filmography`}
+      className="mt-1.5 flex items-center gap-1.5 p-1 rounded-lg bg-white/[0.04] hover:bg-amber-500/15 border border-white/10 hover:border-amber-500/40 transition cursor-pointer"
+    >
+      <EnrichedPortrait
+        name={directorProfile.name}
+        wikiSlug={directorProfile.wikiSlug}
+        fallbackUrl={directorProfile.portraitUrl}
+        className="w-5 h-5 rounded-full ring-1 ring-amber-400/50"
+      />
+      <div className="min-w-0 flex-1">
+        <p className="text-[8px] font-black text-amber-300 truncate leading-tight">
+          {directorProfile.name}
+        </p>
+        <p className="text-[7px] text-white/45 truncate leading-tight">
+          Bio · {directorProfile.filmography.length} Films →
+        </p>
+      </div>
+    </div>
+  ) : null;
+
   if (preview) {
     return (
       <div className={`${width} relative`}>
@@ -175,34 +255,41 @@ const PosterCard: React.FC<{
           fallbackIcon={<Film size={28} className="text-white/10" />}
         />
         {badge && <div className="absolute top-2 right-2 pointer-events-none">{badge}</div>}
+        {directorChip}
       </div>
     );
   }
   return (
-  <motion.div whileHover={{ y: -5 }} onClick={onPlay} className={`group cursor-pointer ${width}`}>
-    <div className={`aspect-[2/3] rounded-xl overflow-hidden bg-white/5 relative border transition-all duration-300 ${accentBorder ? 'border-[#D0BCFF]/20 group-hover:border-[#D0BCFF]/50' : 'border-white/8 group-hover:border-white/20'}`}>
-      {image ? (
-        <img src={thumb(image, THUMB.card) || undefined} loading="lazy" decoding="async" referrerPolicy="no-referrer" onError={onThumbError(image)} className="w-full h-full object-cover opacity-85 group-hover:opacity-100 transition-all duration-500" alt={title} />
-      ) : (
-        <div className="w-full h-full flex items-center justify-center">
-          <Film size={28} className="text-white/10" />
+    <motion.div whileHover={{ y: -5 }} onClick={onPlay} className={`group cursor-pointer ${width}`}>
+      <div className={`aspect-[2/3] rounded-xl overflow-hidden bg-white/5 relative border transition-all duration-300 ${accentBorder ? 'border-[#D0BCFF]/20 group-hover:border-[#D0BCFF]/50' : 'border-white/8 group-hover:border-white/20'}`}>
+        {image ? (
+          <img src={thumb(image, THUMB.card) || undefined} loading="lazy" decoding="async" referrerPolicy="no-referrer" onError={onThumbError(image)} className="w-full h-full object-cover opacity-85 group-hover:opacity-100 transition-all duration-500" alt={title} />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <Film size={28} className="text-white/10" />
+          </div>
+        )}
+        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+          <div className="w-11 h-11 rounded-full bg-white/15 border border-white/30 flex items-center justify-center backdrop-blur-sm">
+            <Play fill="white" size={17} className="ml-0.5" />
+          </div>
         </div>
-      )}
-      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-        <div className="w-11 h-11 rounded-full bg-white/15 border border-white/30 flex items-center justify-center backdrop-blur-sm">
-          <Play fill="white" size={17} className="ml-0.5" />
-        </div>
+        {genre && (
+          <div className="absolute top-2 left-2 px-2 py-0.5 bg-black/60 backdrop-blur-sm rounded-md">
+            <span className="text-[7px] font-black uppercase tracking-widest text-white/50">{genre}</span>
+          </div>
+        )}
+        {hasStoryIntel && (
+          <div className="absolute bottom-2 left-2 px-1.5 py-0.5 bg-orange-500/85 backdrop-blur-sm rounded text-[6.5px] font-black uppercase tracking-widest text-black shadow">
+            Story Intel + Cast
+          </div>
+        )}
+        {badge && <div className="absolute top-2 right-2">{badge}</div>}
       </div>
-      {genre && (
-        <div className="absolute top-2 left-2 px-2 py-0.5 bg-black/60 backdrop-blur-sm rounded-md">
-          <span className="text-[7px] font-black uppercase tracking-widest text-white/50">{genre}</span>
-        </div>
-      )}
-      {badge && <div className="absolute top-2 right-2">{badge}</div>}
-    </div>
-    <h4 className="mt-2 text-[10px] font-black uppercase tracking-tight truncate text-white/70 group-hover:text-white transition-colors">{title}</h4>
-    {subtitle && <p className="text-[8px] text-white/30 font-black uppercase tracking-widest mt-0.5 truncate">{subtitle}</p>}
-  </motion.div>
+      <h4 className="mt-2 text-[10px] font-black uppercase tracking-tight truncate text-white/70 group-hover:text-white transition-colors">{title}</h4>
+      {subtitle && <p className="text-[8px] text-white/30 font-black uppercase tracking-widest mt-0.5 truncate">{subtitle}</p>}
+      {directorChip}
+    </motion.div>
   );
 };
 
@@ -239,11 +326,27 @@ const HomeView: React.FC<{
 }) => {
   const [heroIdx, setHeroIdx] = useState(0);
   const [worldBannerIdx, setWorldBannerIdx] = useState(0);
+  const [selectedDirector, setSelectedDirector] = useState<ClassicDirectorProfile | null>(null);
 
   const pumpkinPatchHero = useMemo(() => {
     const found = localContent.find(a => a.id === PUMPKIN_PATCH_HERO_ALBUM.id || /pumpkin\s*patch/i.test(a.title || ''));
     return found ? { ...PUMPKIN_PATCH_HERO_ALBUM, ...found } : PUMPKIN_PATCH_HERO_ALBUM;
   }, [localContent]);
+
+  const handlePlayFilmById = (filmId: string) => {
+    if (filmId === pumpkinPatchHero.id || filmId === 'album_1787881859314_mlt23') {
+      onSelectMovie(pumpkinPatchHero);
+      return;
+    }
+    const found = findPlayableFilmById(filmId);
+    if (found) {
+      if ((found as ArchiveVideo).identifier) {
+        onSelectArchiveItem(found as ArchiveVideo);
+      } else {
+        onSelectMovie(found);
+      }
+    }
+  };
 
   // Hero carousel: Pumpkin Patch Halloween Hero first, platform content, featured Halloween classics, then archive classics
   const heroItems = useMemo(() => {
@@ -351,11 +454,9 @@ const HomeView: React.FC<{
   useEffect(() => { getContinueWatching('TALEO').then(setContinueWatching).catch(() => {}); }, []);
   const resumeItem = async (entry: WatchEntry) => {
     const cleanId = entry.id.replace(/-main$/, '');
-    // 1. Check in-memory Halloween / Europeana / KOFA / Archive movies first
+    // 1. Check in-memory Curated / Archive movies first
     const archMatch = [
-      ...CURATED_HALLOWEEN_FILMS,
-      ...CURATED_EUROPEANA_FILMS,
-      ...CURATED_KOFA_FILMS,
+      ...ALL_CURATED_ARCHIVE_FILMS,
       ...movies,
       ...tvSeries,
     ].find(m => m.identifier === cleanId || m.identifier === entry.id);
@@ -706,7 +807,7 @@ const HomeView: React.FC<{
             <div className="space-y-3 max-w-2xl">
               <div className="flex items-center gap-2.5 flex-wrap">
                 <span className="px-3 py-1 rounded-full bg-orange-500/20 text-orange-300 text-[9px] font-black uppercase tracking-[0.25em] border border-orange-500/40 flex items-center gap-1.5">
-                  <Ghost size={12} /> Halloween Hero Feature · Plajah Original
+                  <Ghost size={12} /> Halloween Hero Feature · Featured Selection
                 </span>
                 <span className="text-[9px] font-black uppercase tracking-widest text-white/45">
                   Directed by Brian James Gage · Planet Ween Universe + 12 Restored Classics
@@ -731,12 +832,39 @@ const HomeView: React.FC<{
                 >
                   <Ghost size={14} /> Explore Halloween Vault
                 </button>
-                <button
-                  onClick={handleShareHalloweenCollection}
+                <ShareButton
+                  title={`Halloween Curation · Pumpkin Patch & ${CURATED_HALLOWEEN_FILMS.length} Classics`}
+                  artist="Directed by Brian James Gage · Halloween Curation"
+                  text={`Stream Brian James Gage’s "Pumpkin Patch" alongside ${CURATED_HALLOWEEN_FILMS.length} restored horror, Korean gothic & silent classics in the Halloween Curation`}
+                  url={buildShareUrl('taleoCollection', 'halloween')}
+                  imageUrl={pumpkinPatchHero.headerImage || pumpkinPatchHero.coverImage}
+                  contentType="movie"
+                  ctaText="🎃 EXPLORE HALLOWEEN CURATION"
+                  plajahLabel="Share Halloween Curation to feed"
+                  onPostToPlajah={async () => {
+                    if (!auth.currentUser) {
+                      await loginWithGoogle();
+                      if (!auth.currentUser) throw new Error('Sign in required');
+                    }
+                    const img = pumpkinPatchHero.headerImage || pumpkinPatchHero.coverImage;
+                    await createPost({
+                      text: `🎃 Exploring the Halloween Curation — headlined by Brian James Gage’s "Pumpkin Patch" alongside ${CURATED_HALLOWEEN_FILMS.length} restored horror & Gothic classics!`,
+                      isPublic: true,
+                      tags: ['HalloweenCuration', 'Taleo', 'PumpkinPatch', 'HorrorCinema'],
+                      assetEmbed: {
+                        type: 'TALEO_COLLECTION',
+                        id: 'halloween',
+                        title: `🎃 Halloween Curation — Pumpkin Patch & ${CURATED_HALLOWEEN_FILMS.length} Classics`,
+                        subtitle: 'Headlined by Brian James Gage’s Pumpkin Patch · Korean Gothic · Midnight Horror',
+                        imageUrl: img,
+                      },
+                      media: img ? [{ type: 'PHOTO' as any, url: img, title: `🎃 Halloween Curation — Pumpkin Patch & ${CURATED_HALLOWEEN_FILMS.length} Classics` }] : undefined,
+                    } as any);
+                  }}
                   className="h-11 px-5 bg-white/5 hover:bg-white/10 border border-white/15 text-white/80 font-black text-[10px] uppercase tracking-widest rounded-full flex items-center gap-2 transition-all cursor-pointer"
                 >
                   <Share2 size={13} /> Share Halloween Selection
-                </button>
+                </ShareButton>
               </div>
             </div>
 
@@ -792,24 +920,45 @@ const HomeView: React.FC<{
                   title="Pumpkin Patch"
                   subtitle="2026 · Brian James Gage"
                   image={pumpkinPatchHero.coverImage}
-                  genre="Plajah Original"
+                  genre="58 min · Action / Horror"
+                  directorName="Brian James Gage"
+                  filmId={pumpkinPatchHero.id}
+                  onSelectDirector={setSelectedDirector}
                   onPlay={() => onSelectMovie(pumpkinPatchHero)}
                 />
-                <button
-                  type="button"
-                  title="Share Pumpkin Patch"
-                  onClick={async (ev) => {
-                    ev.stopPropagation();
-                    const res = await shareAsset('movie', pumpkinPatchHero.id, {
-                      title: 'Pumpkin Patch | Taleo Halloween Hero Feature',
-                      text: 'Watch Brian James Gage’s Halloween action-satire "Pumpkin Patch" on Plajah Taleo!',
-                    });
-                    if (res === 'copied') onShareToast?.('Link to "Pumpkin Patch" copied!');
-                  }}
-                  className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/75 hover:bg-orange-500 text-white hover:text-black border border-white/20 flex items-center justify-center opacity-0 group-hover/hcard:opacity-100 transition-all z-10 cursor-pointer"
-                >
-                  <Share2 size={12} />
-                </button>
+                <div onClick={ev => ev.stopPropagation()} className="absolute top-2 right-2 z-10 opacity-0 group-hover/hcard:opacity-100 [@media(hover:none)]:opacity-100 transition-all">
+                  <ShareButton
+                    title="Pumpkin Patch · Directed by Brian James Gage"
+                    artist="Brian James Gage"
+                    text='Watch Brian James Gage’s Halloween action-satire "Pumpkin Patch" on Taleo'
+                    url={buildShareUrl('movie', pumpkinPatchHero.id)}
+                    imageUrl={pumpkinPatchHero.coverImage}
+                    contentType="movie"
+                    ctaText="▶ STREAM PUMPKIN PATCH ON TALEO"
+                    plajahLabel="Share Pumpkin Patch"
+                    onPostToPlajah={async () => {
+                      if (!auth.currentUser) {
+                        await loginWithGoogle();
+                        if (!auth.currentUser) throw new Error('Sign in required');
+                      }
+                      await createPost({
+                        text: `🎃 Watching Brian James Gage’s "Pumpkin Patch" in the Taleo Halloween Curation!`,
+                        isPublic: true,
+                        tags: ['PumpkinPatch', 'HalloweenCuration', 'Taleo'],
+                        assetEmbed: {
+                          type: 'MOVIE',
+                          id: pumpkinPatchHero.id,
+                          title: 'Pumpkin Patch (2026)',
+                          subtitle: 'Directed by Brian James Gage · Halloween Hero Feature',
+                          imageUrl: pumpkinPatchHero.coverImage,
+                        },
+                        media: pumpkinPatchHero.coverImage ? [{ type: 'PHOTO' as any, url: pumpkinPatchHero.coverImage, title: 'Pumpkin Patch' }] : undefined,
+                      } as any);
+                    }}
+                    iconSize={12}
+                    className="w-7 h-7 rounded-full bg-black/75 hover:bg-orange-500 text-white hover:text-black border border-white/20 flex items-center justify-center transition-all cursor-pointer"
+                  />
+                </div>
               </div>
               {CURATED_HALLOWEEN_FILMS.map(film => (
                 <div key={`hal-rail-${film.identifier}`} className="w-36 flex-shrink-0 group/hcard relative">
@@ -818,23 +967,44 @@ const HomeView: React.FC<{
                     subtitle={`${film.year} · ${film.director || 'Horror'}`}
                     image={film.thumbnailUrl}
                     genre={film.runtime || 'Horror'}
+                    directorName={film.director}
+                    filmId={film.identifier}
+                    onSelectDirector={setSelectedDirector}
                     onPlay={() => onSelectArchiveItem(film)}
                   />
-                  <button
-                    type="button"
-                    title={`Share ${film.title}`}
-                    onClick={async (ev) => {
-                      ev.stopPropagation();
-                      const res = await shareAsset('archive', film.identifier, {
-                        title: `${film.title} (${film.year}) | Taleo Halloween`,
-                        text: `Watch "${film.title}" (${film.year}) free on Plajah Taleo!`,
-                      });
-                      if (res === 'copied') onShareToast?.(`Link to "${film.title}" copied!`);
-                    }}
-                    className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/75 hover:bg-orange-500 text-white hover:text-black border border-white/20 flex items-center justify-center opacity-0 group-hover/hcard:opacity-100 transition-all z-10 cursor-pointer"
-                  >
-                    <Share2 size={12} />
-                  </button>
+                  <div onClick={ev => ev.stopPropagation()} className="absolute top-2 right-2 z-10 opacity-0 group-hover/hcard:opacity-100 [@media(hover:none)]:opacity-100 transition-all">
+                    <ShareButton
+                      title={`${film.title} (${film.year})`}
+                      artist={film.director ? `Dir. ${film.director} · Taleo Halloween` : 'Taleo Halloween'}
+                      text={`Watch "${film.title}" (${film.year}) free in the Plajah Halloween Curation`}
+                      url={buildShareUrl('archive', film.identifier)}
+                      imageUrl={film.thumbnailUrl}
+                      contentType="movie"
+                      ctaText="▶ STREAM CLASSIC ON TALEO"
+                      plajahLabel="Share to Plajah feed"
+                      onPostToPlajah={async () => {
+                        if (!auth.currentUser) {
+                          await loginWithGoogle();
+                          if (!auth.currentUser) throw new Error('Sign in required');
+                        }
+                        await createPost({
+                          text: `🎬 Streaming "${film.title}" (${film.year}${film.director ? `, dir. ${film.director}` : ''}) in the Plajah Halloween Curation!`,
+                          isPublic: true,
+                          tags: ['HalloweenCuration', 'Taleo', 'ClassicHorror'],
+                          assetEmbed: {
+                            type: 'ARCHIVE',
+                            id: film.identifier,
+                            title: `${film.title} (${film.year})`,
+                            subtitle: `${film.director ? `Dir. ${film.director} · ` : ''}Taleo Halloween Curation`,
+                            imageUrl: film.thumbnailUrl,
+                          },
+                          media: film.thumbnailUrl ? [{ type: 'PHOTO' as any, url: film.thumbnailUrl, title: film.title }] : undefined,
+                        } as any);
+                      }}
+                      iconSize={12}
+                      className="w-7 h-7 rounded-full bg-black/75 hover:bg-orange-500 text-white hover:text-black border border-white/20 flex items-center justify-center transition-all cursor-pointer"
+                    />
+                  </div>
                 </div>
               ))}
             </div>
@@ -898,9 +1068,9 @@ const HomeView: React.FC<{
                 Curated Cinema Heritage
               </h3>
               <p className="text-xs sm:text-sm text-white/60 leading-relaxed">
-                Step into the preserved masterworks that shaped global cinema history. Restored classics from the Korean Film Archive, German Expressionist milestones, and early European avant-garde with curator commentary.
+                Step into the preserved masterworks that shaped global cinema history. Restored classics from the Korean Film Archive, German Expressionist milestones, and early European avant-garde — complete with director portraits, biographies, and annotated filmographies of their other landmark works.
               </p>
-              <div className="flex items-center gap-3 pt-2">
+              <div className="flex items-center gap-3 pt-2 flex-wrap">
                 <button
                   onClick={() => setCurrentSubView('CURATOR')}
                   className="h-10 px-6 bg-[#D0BCFF] hover:bg-[#E8DAFF] text-[#1C1B1F] font-black text-[10px] uppercase tracking-widest rounded-full flex items-center gap-2 transition-all hover:scale-105 shadow-lg cursor-pointer"
@@ -925,7 +1095,7 @@ const HomeView: React.FC<{
                 <img src={CURATED_KOFA_FILMS[0].thumbnailUrl} alt="The Housemaid" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
                 <div className="absolute bottom-2 left-2 right-2">
-                  <p className="text-[7px] font-black uppercase text-[#D0BCFF]">KOFA Restored</p>
+                  <p className="text-[7px] font-black uppercase text-[#D0BCFF]">KOFA Restored · Kim Ki-young</p>
                   <p className="text-[9px] font-black text-white truncate">{CURATED_KOFA_FILMS[0].title}</p>
                 </div>
               </div>
@@ -937,7 +1107,7 @@ const HomeView: React.FC<{
                 <img src={CURATED_EUROPEANA_FILMS[1].thumbnailUrl} alt="Metropolis" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
                 <div className="absolute bottom-2 left-2 right-2">
-                  <p className="text-[7px] font-black uppercase text-[#FFB68D]">Europeana</p>
+                  <p className="text-[7px] font-black uppercase text-[#FFB68D]">Europeana · Fritz Lang</p>
                   <p className="text-[9px] font-black text-white truncate">{CURATED_EUROPEANA_FILMS[1].title}</p>
                 </div>
               </div>
@@ -949,7 +1119,7 @@ const HomeView: React.FC<{
         <section>
           <div className="flex items-end justify-between mb-5">
             <div>
-              <p className="text-[9px] font-black uppercase tracking-[0.3em] text-[#FFB68D] mb-1.5">Korean Film Archive Preservation</p>
+              <p className="text-[9px] font-black uppercase tracking-[0.3em] text-[#FFB68D] mb-1.5">Korean Film Archive Preservation · With Director Bios &amp; Filmographies</p>
               <h3 className="text-2xl font-black uppercase tracking-tight text-white">Golden Age of Korean Cinema</h3>
             </div>
             <button
@@ -967,6 +1137,9 @@ const HomeView: React.FC<{
                 subtitle={`${film.year} · ${film.director || 'KOFA'}`}
                 image={film.thumbnailUrl}
                 genre={film.genre}
+                directorName={film.director}
+                filmId={film.identifier}
+                onSelectDirector={setSelectedDirector}
                 onPlay={() => onSelectArchiveItem(film)}
                 accentBorder
               />
@@ -978,7 +1151,7 @@ const HomeView: React.FC<{
         <section>
           <div className="flex items-end justify-between mb-5">
             <div>
-              <p className="text-[9px] font-black uppercase tracking-[0.3em] text-[#D0BCFF] mb-1.5">Europeana Film Heritage</p>
+              <p className="text-[9px] font-black uppercase tracking-[0.3em] text-[#D0BCFF] mb-1.5">Europeana Film Heritage · With Director Bios &amp; Filmographies</p>
               <h3 className="text-2xl font-black uppercase tracking-tight text-white">European Expressionism &amp; Avant-Garde</h3>
             </div>
             <button
@@ -996,11 +1169,184 @@ const HomeView: React.FC<{
                 subtitle={`${film.year} · ${film.director || 'Europeana'}`}
                 image={film.thumbnailUrl}
                 genre={film.genre}
+                directorName={film.director}
+                filmId={film.identifier}
+                onSelectDirector={setSelectedDirector}
                 onPlay={() => onSelectArchiveItem(film)}
               />
             ))}
           </div>
         </section>
+
+        {/* World Cinema Masterworks (Japan, USSR, France, Denmark, Sweden, India, China, Mexico, Italy, Spain) */}
+        <section>
+          <div className="flex items-end justify-between mb-5">
+            <div>
+              <p className="text-[9px] font-black uppercase tracking-[0.3em] text-[#3FBE85] mb-1.5">Global Public Domain Preservation · Japan · USSR · France · Denmark · Sweden · India · China · Mexico</p>
+              <h3 className="text-2xl font-black uppercase tracking-tight text-white">World Cinema Masterworks</h3>
+            </div>
+            <button
+              onClick={() => setCurrentSubView('MOVIES')}
+              className="text-[9px] font-black uppercase tracking-widest text-[#3FBE85] hover:underline flex items-center gap-1 cursor-pointer"
+            >
+              <Globe size={11} /> Explore All ({CURATED_INTERNATIONAL_FILMS.length})
+            </button>
+          </div>
+          <div className="flex gap-6 overflow-x-auto no-scrollbar pb-4 pt-2">
+            {CURATED_INTERNATIONAL_FILMS.map(film => (
+              <PosterCard
+                key={film.identifier}
+                title={film.title}
+                subtitle={`${film.year} · ${film.country || ''} · ${film.director || 'World Cinema'}`}
+                image={film.thumbnailUrl}
+                genre={film.genre}
+                directorName={film.director}
+                filmId={film.identifier}
+                onSelectDirector={setSelectedDirector}
+                onPlay={() => onSelectArchiveItem(film)}
+                accentBorder
+              />
+            ))}
+          </div>
+        </section>
+
+        {/* Film Noir, Hitchcock, Silent Slapstick & Golden Age US Classics */}
+        <section>
+          <div className="flex items-end justify-between mb-5">
+            <div>
+              <p className="text-[9px] font-black uppercase tracking-[0.3em] text-[#FFB68D] mb-1.5">Hollywood &amp; British Public Domain · Noir · Hitchcock · Keaton · Chaplin · Capra · Welles</p>
+              <h3 className="text-2xl font-black uppercase tracking-tight text-white">Film Noir, Hitchcock &amp; US Classics</h3>
+            </div>
+            <button
+              onClick={() => setCurrentSubView('MOVIES')}
+              className="text-[9px] font-black uppercase tracking-widest text-[#FFB68D] hover:underline flex items-center gap-1 cursor-pointer"
+            >
+              <Film size={11} /> Explore All ({CURATED_US_CLASSIC_FILMS.length})
+            </button>
+          </div>
+          <div className="flex gap-6 overflow-x-auto no-scrollbar pb-4 pt-2">
+            {CURATED_US_CLASSIC_FILMS.map(film => (
+              <PosterCard
+                key={film.identifier}
+                title={film.title}
+                subtitle={`${film.year} · ${film.director || 'Classic'}`}
+                image={film.thumbnailUrl}
+                genre={film.genre}
+                directorName={film.director}
+                filmId={film.identifier}
+                onSelectDirector={setSelectedDirector}
+                onPlay={() => onSelectArchiveItem(film)}
+              />
+            ))}
+          </div>
+        </section>
+
+        {/* Newly Unlocked Director Dossier Vault Films */}
+        <section>
+          <div className="flex items-end justify-between mb-5">
+            <div>
+              <p className="text-[9px] font-black uppercase tracking-[0.3em] text-[#D0BCFF] mb-1.5">Auteur Filmography Vault · Murnau · Lang · Corman · Méliès · Vertov · Wiene · Dawley</p>
+              <h3 className="text-2xl font-black uppercase tracking-tight text-white">Director Dossier Vault</h3>
+            </div>
+            <button
+              onClick={() => setCurrentSubView('CURATOR')}
+              className="text-[9px] font-black uppercase tracking-widest text-[#D0BCFF] hover:underline flex items-center gap-1 cursor-pointer"
+            >
+              <Sparkles size={11} /> {CURATED_DIRECTOR_VAULT_FILMS.length} Restored Works
+            </button>
+          </div>
+          <div className="flex gap-6 overflow-x-auto no-scrollbar pb-4 pt-2">
+            {CURATED_DIRECTOR_VAULT_FILMS.map(film => (
+              <PosterCard
+                key={film.identifier}
+                title={film.title}
+                subtitle={`${film.year} · ${film.director || 'Auteur Vault'}`}
+                image={film.thumbnailUrl}
+                genre={film.genre}
+                directorName={film.director}
+                filmId={film.identifier}
+                onSelectDirector={setSelectedDirector}
+                onPlay={() => onSelectArchiveItem(film)}
+                accentBorder
+              />
+            ))}
+          </div>
+        </section>
+
+        {/* Classic Japanese Anime & Global Animation (NFAJ Restorations, Toei, Eiken, Wan Brothers, Starevich, Fleischer, McCay) */}
+        <section>
+          <div className="flex items-end justify-between mb-5">
+            <div>
+              <p className="text-[9px] font-black uppercase tracking-[0.3em] text-[#FFB68D] mb-1.5">NFAJ 1917–1943 Restorations · Toei 1958 · Eiken · China · France · Fleischer · McCay</p>
+              <h3 className="text-2xl font-black uppercase tracking-tight text-white">🏯 Classic Japanese Anime &amp; Global Animation</h3>
+            </div>
+            <button
+              onClick={() => setCurrentSubView('MOVIES')}
+              className="text-[9px] font-black uppercase tracking-widest text-[#FFB68D] hover:underline flex items-center gap-1 cursor-pointer"
+            >
+              <Rocket size={11} /> Explore All ({CURATED_ANIME_AND_ANIMATION_FILMS.length})
+            </button>
+          </div>
+          <div className="flex gap-6 overflow-x-auto no-scrollbar pb-4 pt-2">
+            {CURATED_ANIME_AND_ANIMATION_FILMS.map(film => (
+              <PosterCard
+                key={film.identifier}
+                title={film.title}
+                subtitle={`${film.year} · ${film.country || ''} · ${film.director || 'Animation'}`}
+                image={film.thumbnailUrl}
+                genre={film.genre}
+                directorName={film.director}
+                filmId={film.identifier}
+                onSelectDirector={setSelectedDirector}
+                onPlay={() => onSelectArchiveItem(film)}
+                accentBorder
+              />
+            ))}
+          </div>
+        </section>
+
+        {/* Public Domain Television Series & Theatrical Serials (Multi-Episode) */}
+        <section>
+          <div className="flex items-end justify-between mb-5">
+            <div>
+              <p className="text-[9px] font-black uppercase tracking-[0.3em] text-[#3FBE85] mb-1.5">Multi-Episode Broadcasts &amp; Cliffhanger Serials · Verified Streams</p>
+              <h3 className="text-2xl font-black uppercase tracking-tight text-white">Public Domain TV Series &amp; Serials</h3>
+            </div>
+            <button
+              onClick={() => setCurrentSubView('TV')}
+              className="text-[9px] font-black uppercase tracking-widest text-[#3FBE85] hover:underline flex items-center gap-1 cursor-pointer"
+            >
+              <Monitor size={11} /> Browse TV ({CURATED_PUBLIC_DOMAIN_TV_SERIES.length} Series)
+            </button>
+          </div>
+          <div className="flex gap-6 overflow-x-auto no-scrollbar pb-4 pt-2">
+            {CURATED_PUBLIC_DOMAIN_TV_SERIES.map(seriesItem => {
+              const epCount = seriesItem.seasons?.reduce((acc, s) => acc + (s.episodes?.length || 0), 0) || 1;
+              return (
+                <PosterCard
+                  key={seriesItem.identifier}
+                  title={seriesItem.title}
+                  subtitle={`${seriesItem.year} · ${epCount} Episodes`}
+                  image={seriesItem.thumbnailUrl}
+                  genre={seriesItem.genre}
+                  filmId={seriesItem.identifier}
+                  onPlay={() => onSelectArchiveItem(seriesItem)}
+                />
+              );
+            })}
+          </div>
+        </section>
+
+        {/* Masters of Classic Cinema: Director Portraits, Biographies & Filmographies of Other Works */}
+        <ClassicDirectorsShowcaseSection
+          onPlayFilm={handlePlayFilmById}
+        />
+
+        {/* Halloween Curation: Full Story Intelligence, Characters & The Actors Behind Them */}
+        <HalloweenCurationStoryIntelSection
+          onPlayFilm={handlePlayFilmById}
+          onOpenFilmStoryIntel={handlePlayFilmById}
+        />
 
         {/* Worlds Discovery Banner */}
         {worlds.length > 0 && currentWorld && (
@@ -1334,6 +1680,9 @@ const HomeView: React.FC<{
                     subtitle={`${item.year || 'Classic'} · ${item.genre}`}
                     image={item.thumbnailUrl}
                     genre={item.genre}
+                    directorName={item.director}
+                    filmId={item.identifier}
+                    onSelectDirector={setSelectedDirector}
                     onPlay={() => onSelectArchiveItem(item)}
                   />
                 ))}
@@ -1343,6 +1692,14 @@ const HomeView: React.FC<{
         })}
 
       </div>
+
+      {selectedDirector && (
+        <ClassicDirectorDossierModal
+          director={selectedDirector}
+          onClose={() => setSelectedDirector(null)}
+          onPlayFilm={handlePlayFilmById}
+        />
+      )}
     </div>
   );
 };
@@ -1356,10 +1713,31 @@ const HalloweenShowcaseView: React.FC<{
   onToggleWatchlist: (item: any) => void;
   onShareToast: (msg: string) => void;
 }> = ({ onSelectArchiveItem, onSelectMovie, localContent = [], watchlist, onToggleWatchlist, onShareToast }) => {
+  const [selectedDirector, setSelectedDirector] = useState<ClassicDirectorProfile | null>(null);
+  const [selectedCharModal, setSelectedCharModal] = useState<{
+    char: HalloweenCharacterWithActor;
+    filmTitle: string;
+  } | null>(null);
+
   const pumpkinPatchHero = useMemo(() => {
     const found = localContent.find(a => a.id === PUMPKIN_PATCH_HERO_ALBUM.id || /pumpkin\s*patch/i.test(a.title || ''));
     return found ? { ...PUMPKIN_PATCH_HERO_ALBUM, ...found } : PUMPKIN_PATCH_HERO_ALBUM;
   }, [localContent]);
+
+  const handlePlayFilmById = (filmId: string) => {
+    if (filmId === pumpkinPatchHero.id || filmId === 'album_1787881859314_mlt23') {
+      onSelectMovie(pumpkinPatchHero);
+      return;
+    }
+    const found = findPlayableFilmById(filmId);
+    if (found) {
+      if ((found as ArchiveVideo).identifier) {
+        onSelectArchiveItem(found as ArchiveVideo);
+      } else {
+        onSelectMovie(found);
+      }
+    }
+  };
 
   const isHeroInWatchlist = watchlist.some(w => w.id === pumpkinPatchHero.id);
 
@@ -1380,36 +1758,36 @@ const HalloweenShowcaseView: React.FC<{
     return found ? found.items : CURATED_HALLOWEEN_FILMS;
   }, [selectedShelfId]);
 
-  const handleShareCollection = async (shelf?: string) => {
-    const res = await shareAsset('taleoCollection', 'halloween', {
-      title: 'Pumpkin Patch & 31 Nights of Cinema Terror | Taleo Halloween',
-      text: 'Stream Brian James Gage’s Plajah Original "Pumpkin Patch" plus 12 restored horror masterpieces — Night of the Living Dead, House on Haunted Hill, Carnival of Souls, Nosferatu & more — on Plajah Taleo!',
-      extra: shelf ? { shelf } : undefined,
-    });
-    if (res === 'copied') {
-      onShareToast(shelf ? 'Double Feature share link copied!' : 'Halloween Showcase link copied to clipboard!');
-    }
-  };
+  const halloweenShareUrl = buildShareUrl('taleoCollection', 'halloween');
+  const halloweenShareImage = pumpkinPatchHero.headerImage || pumpkinPatchHero.coverImage;
 
-  const handleShareHeroFilm = async () => {
-    const res = await shareAsset('movie', pumpkinPatchHero.id, {
-      title: 'Pumpkin Patch · Taleo Halloween Hero Feature | Plajah',
-      text: 'Watch Brian James Gage’s Halloween action-satire "Pumpkin Patch" on Plajah Taleo!',
-    });
-    if (res === 'copied') {
-      onShareToast('Share link for "Pumpkin Patch" copied!');
+  const handlePostHalloweenCollectionToPlajah = async (shelf?: string, shelfTitle?: string) => {
+    if (!auth.currentUser) {
+      await loginWithGoogle();
+      if (!auth.currentUser) throw new Error('Sign in required');
     }
-  };
-
-  const handleShareFilm = async (film: ArchiveVideo, e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    const res = await shareAsset('archive', film.identifier, {
-      title: `${film.title} (${film.year}) · Taleo Halloween`,
-      text: `Watch "${film.title}" (${film.year}, dir. ${film.director || 'Classic'}) free on Plajah Taleo!`,
-    });
-    if (res === 'copied') {
-      onShareToast(`Share link for "${film.title}" copied!`);
-    }
+    const titleText = shelfTitle
+      ? `🎃 ${shelfTitle} · Taleo Halloween Double Feature`
+      : `🎃 Halloween Curation — Pumpkin Patch & ${CURATED_HALLOWEEN_FILMS.length} Classics`;
+    await createPost({
+      text: shelfTitle
+        ? `🎃 Watching the "${shelfTitle}" Double Feature in the Halloween Curation on Taleo Cinema!`
+        : `🎃 Exploring the Halloween Curation — headlined by Brian James Gage’s "Pumpkin Patch" alongside ${CURATED_HALLOWEEN_FILMS.length} restored horror, Korean gothic & silent classics on Taleo Cinema!`,
+      isPublic: true,
+      tags: ['HalloweenCuration', 'Taleo', 'PumpkinPatch', 'HorrorCinema'],
+      assetEmbed: {
+        type: 'TALEO_COLLECTION',
+        id: 'halloween',
+        ...(shelf ? { shelf } : {}),
+        title: titleText,
+        subtitle: 'Headlined by Brian James Gage’s Pumpkin Patch · Korean Gothic · Midnight Horror',
+        imageUrl: halloweenShareImage,
+      },
+      media: halloweenShareImage
+        ? [{ type: 'PHOTO' as any, url: halloweenShareImage, title: titleText }]
+        : undefined,
+    } as any);
+    onShareToast(shelf ? 'Double Feature shared!' : 'Halloween Curation shared!');
   };
 
   const handleRandomFright = () => {
@@ -1438,7 +1816,7 @@ const HalloweenShowcaseView: React.FC<{
           <div className="space-y-4 max-w-2xl">
             <div className="flex items-center gap-2.5 flex-wrap">
               <span className="px-3 py-1 rounded-full bg-orange-500 text-black text-[9px] font-black uppercase tracking-[0.22em] flex items-center gap-1.5 shadow-lg">
-                <Ghost size={12} /> Halloween Hero Feature · Plajah Original
+                <Ghost size={12} /> Halloween Hero Feature · Featured Selection
               </span>
               <span className="px-3 py-1 rounded-full bg-white/10 border border-orange-400/30 text-orange-200 text-[9px] font-black uppercase tracking-widest">
                 Planet Ween Universe · District 13
@@ -1478,12 +1856,39 @@ const HalloweenShowcaseView: React.FC<{
                 {isHeroInWatchlist ? <Check size={15} /> : <Bookmark size={15} />}
                 {isHeroInWatchlist ? 'In Watchlist' : '+ Watchlist'}
               </button>
-              <button
-                onClick={handleShareHeroFilm}
+              <ShareButton
+                title="Pumpkin Patch · Directed by Brian James Gage"
+                artist="Brian James Gage"
+                text='Watch Brian James Gage’s Halloween action-satire "Pumpkin Patch" on Taleo'
+                url={buildShareUrl('movie', pumpkinPatchHero.id)}
+                imageUrl={pumpkinPatchHero.coverImage}
+                contentType="movie"
+                ctaText="▶ STREAM PUMPKIN PATCH ON TALEO"
+                plajahLabel="Share Pumpkin Patch"
+                onPostToPlajah={async () => {
+                  if (!auth.currentUser) {
+                    await loginWithGoogle();
+                    if (!auth.currentUser) throw new Error('Sign in required');
+                  }
+                  await createPost({
+                    text: `🎃 Watching Brian James Gage’s "Pumpkin Patch" in the Taleo Halloween Curation!`,
+                    isPublic: true,
+                    tags: ['PumpkinPatch', 'HalloweenCuration', 'Taleo'],
+                    assetEmbed: {
+                      type: 'MOVIE',
+                      id: pumpkinPatchHero.id,
+                      title: 'Pumpkin Patch (2026)',
+                      subtitle: 'Directed by Brian James Gage · Halloween Hero Feature',
+                      imageUrl: pumpkinPatchHero.coverImage,
+                    },
+                    media: pumpkinPatchHero.coverImage ? [{ type: 'PHOTO' as any, url: pumpkinPatchHero.coverImage, title: 'Pumpkin Patch' }] : undefined,
+                  } as any);
+                  onShareToast('Shared "Pumpkin Patch"!');
+                }}
                 className="h-12 px-5 bg-white/10 hover:bg-white/15 border border-orange-400/35 text-orange-200 font-black text-xs uppercase tracking-widest rounded-full flex items-center gap-2 transition-all cursor-pointer"
               >
                 <Share2 size={14} /> Share Film
-              </button>
+              </ShareButton>
               <button
                 onClick={handleRandomFright}
                 className="h-12 px-5 bg-white/5 hover:bg-white/10 border border-white/15 text-white/75 hover:text-white font-black text-xs uppercase tracking-widest rounded-full flex items-center gap-2 transition-all cursor-pointer"
@@ -1517,19 +1922,27 @@ const HalloweenShowcaseView: React.FC<{
                 <Flame size={14} className="text-orange-400" />
               </div>
               <p className="text-xs text-white/60 leading-relaxed">
-                Share the entire Halloween showcase — featuring <span className="text-white font-semibold">Pumpkin Patch</span> &amp; 12 restored horror classics — with a rich social preview card.
+                Share the entire Halloween curation — featuring <span className="text-white font-semibold">Pumpkin Patch</span> &amp; {CURATED_HALLOWEEN_FILMS.length} restored horror classics — with a rich preview card.
               </p>
               <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-2">
                 <span className="text-[10px] font-mono text-white/70 truncate flex-1">
-                  {buildShareUrl('taleoCollection', 'halloween')}
+                  {halloweenShareUrl}
                 </span>
-                <button
-                  onClick={() => handleShareCollection()}
-                  className="px-2.5 py-1 rounded-lg bg-orange-500 hover:bg-orange-400 text-black font-black text-[9px] uppercase tracking-widest shrink-0 cursor-pointer"
-                >
-                  Copy
-                </button>
               </div>
+              <ShareButton
+                title={`Halloween Curation · Pumpkin Patch & ${CURATED_HALLOWEEN_FILMS.length} Classics`}
+                artist="Headlined by Brian James Gage"
+                text={`Stream Brian James Gage’s "Pumpkin Patch" alongside ${CURATED_HALLOWEEN_FILMS.length} restored horror, Korean gothic & silent classics in the Halloween Curation`}
+                url={halloweenShareUrl}
+                imageUrl={halloweenShareImage}
+                contentType="movie"
+                ctaText="🎃 EXPLORE HALLOWEEN CURATION"
+                plajahLabel="Share Halloween Curation"
+                onPostToPlajah={() => handlePostHalloweenCollectionToPlajah()}
+                className="w-full py-2.5 px-4 rounded-xl bg-orange-500 hover:bg-orange-400 text-black font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg shadow-orange-500/20"
+              >
+                <Share2 size={13} /> Share Halloween Curation
+              </ShareButton>
             </div>
           </div>
         </div>
@@ -1557,13 +1970,20 @@ const HalloweenShowcaseView: React.FC<{
                     <span className="px-2.5 py-0.5 rounded-full bg-orange-500/15 border border-orange-500/30 text-orange-300 text-[8px] font-black uppercase tracking-widest">
                       {df.theme}
                     </span>
-                    <button
-                      onClick={() => handleShareCollection(df.id)}
-                      title="Share this Double Feature"
+                    <ShareButton
+                      title={`${df.title} · Taleo Halloween Double Feature`}
+                      artist={df.theme}
+                      text={`${df.curatorPitch}`}
+                      url={buildShareUrl('taleoCollection', 'halloween', { shelf: df.id })}
+                      imageUrl={df.films[0]?.thumbnailUrl || halloweenShareImage}
+                      contentType="movie"
+                      ctaText="🎃 WATCH DOUBLE FEATURE ON TALEO"
+                      plajahLabel="Share Double Feature to Plajah feed"
+                      onPostToPlajah={() => handlePostHalloweenCollectionToPlajah(df.id, df.title)}
                       className="text-[9px] font-black uppercase tracking-widest text-white/40 hover:text-orange-300 flex items-center gap-1 transition-colors cursor-pointer"
                     >
                       <Share2 size={11} /> Share Bill
-                    </button>
+                    </ShareButton>
                   </div>
 
                   <h3 className="text-lg font-black uppercase tracking-tight text-white mb-2">{df.title}</h3>
@@ -1614,7 +2034,7 @@ const HalloweenShowcaseView: React.FC<{
         <section>
           <div className="flex items-center justify-between flex-wrap gap-4 mb-6">
             <div>
-              <p className="text-[9px] font-black uppercase tracking-[0.3em] text-[#D0BCFF] mb-1.5">Annotated Filmography</p>
+              <p className="text-[9px] font-black uppercase tracking-[0.3em] text-[#D0BCFF] mb-1.5">Annotated Filmography · Director Bios · Story Intelligence · Cast &amp; Characters</p>
               <h2 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-white">
                 All Curated Halloween Classics ({displayedFilms.length})
               </h2>
@@ -1650,6 +2070,9 @@ const HalloweenShowcaseView: React.FC<{
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {displayedFilms.map(film => {
               const inWl = watchlist.some(w => w.id === film.identifier);
+              const dirProfile = getDirectorProfile(film.director, film.identifier);
+              const chars = getCharactersForFilm(film.identifier);
+              const intel = getHalloweenStoryIntelBundle(film.identifier);
               return (
                 <motion.div
                   key={film.identifier}
@@ -1668,13 +2091,13 @@ const HalloweenShowcaseView: React.FC<{
                         className="w-full h-full object-cover opacity-85 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-[#131314] via-black/30 to-transparent" />
-                      <div className="absolute top-3 left-3 flex items-center gap-1.5">
+                      <div className="absolute top-3 left-3 flex items-center gap-1.5 flex-wrap">
                         <span className="px-2.5 py-0.5 rounded-md bg-black/75 backdrop-blur-sm border border-orange-400/30 text-[8px] font-black uppercase tracking-widest text-orange-300">
                           {film.year} · {film.runtime}
                         </span>
-                        {film.movement && (
-                          <span className="px-2 py-0.5 rounded-md bg-black/65 text-[7px] font-black uppercase tracking-widest text-white/70 truncate max-w-[160px]">
-                            {film.movement}
+                        {intel && (
+                          <span className="px-2 py-0.5 rounded-md bg-emerald-500/85 text-black text-[7.5px] font-black uppercase tracking-widest">
+                            Story Intel Ready
                           </span>
                         )}
                       </div>
@@ -1685,7 +2108,7 @@ const HalloweenShowcaseView: React.FC<{
                       </div>
                     </div>
 
-                    <div className="p-5 space-y-2.5">
+                    <div className="p-5 space-y-3">
                       <div className="flex items-start justify-between gap-2">
                         <div>
                           <h3
@@ -1700,12 +2123,88 @@ const HalloweenShowcaseView: React.FC<{
                         </div>
                       </div>
 
+                      {/* Clickable Director Portrait + Bio + Other Works Filmography Strip */}
+                      {dirProfile && (
+                        <div
+                          onClick={() => setSelectedDirector(dirProfile)}
+                          className="p-2.5 rounded-xl bg-amber-500/[0.07] hover:bg-amber-500/[0.14] border border-amber-500/25 flex items-center gap-3 cursor-pointer transition"
+                        >
+                          <EnrichedPortrait
+                            name={dirProfile.name}
+                            wikiSlug={dirProfile.wikiSlug}
+                            fallbackUrl={dirProfile.portraitUrl}
+                            className="w-10 h-12 rounded-lg ring-1 ring-amber-400/40"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between gap-1">
+                              <span className="text-[11px] font-black text-amber-300 truncate">
+                                {dirProfile.name}
+                              </span>
+                              <span className="text-[9px] font-bold text-amber-200/80 shrink-0">
+                                {dirProfile.filmography.length} Films →
+                              </span>
+                            </div>
+                            <p className="text-[10px] text-white/60 line-clamp-1">
+                              {dirProfile.bio}
+                            </p>
+                            <p className="text-[9px] text-amber-300/75 truncate mt-0.5">
+                              Other works:{' '}
+                              {dirProfile.filmography
+                                .filter(w => w.platformFilmId !== film.identifier)
+                                .slice(0, 2)
+                                .map(w => `${w.title} (${w.year})`)
+                                .join(', ')}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
                       <p className="text-xs text-white/60 line-clamp-2 leading-relaxed">{film.description}</p>
+
+                      {/* Characters & The Actors Behind Them Strip */}
+                      {chars.length > 0 && (
+                        <div className="rounded-xl bg-white/[0.03] border border-white/10 p-3 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[8px] font-black uppercase tracking-widest text-orange-300">
+                              Characters &amp; The Actors Behind Them ({chars.length})
+                            </span>
+                          </div>
+                          <div className="space-y-1.5">
+                            {chars.slice(0, 3).map(c => (
+                              <div
+                                key={c.id}
+                                onClick={() => setSelectedCharModal({ char: c, filmTitle: film.title })}
+                                className="flex items-center gap-2 p-1.5 rounded-lg bg-black/40 hover:bg-orange-500/15 border border-white/5 hover:border-orange-500/30 cursor-pointer transition"
+                              >
+                                <EnrichedPortrait
+                                  name={c.actorName}
+                                  wikiSlug={c.actorWikiSlug}
+                                  fallbackUrl={c.actorPortraitUrl}
+                                  className="w-7 h-7 rounded-full ring-1 ring-orange-400/40"
+                                />
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-[10px] font-black text-white truncate leading-tight">
+                                    {c.characterName}{' '}
+                                    <span className="text-orange-300 font-semibold">
+                                      ({c.role})
+                                    </span>
+                                  </p>
+                                  <p className="text-[9px] text-white/55 truncate leading-tight">
+                                    Actor: <span className="text-amber-200 font-semibold">{c.actorName}</span>{' '}
+                                    {c.actorYears ? `(${c.actorYears})` : ''}
+                                  </p>
+                                </div>
+                                <ChevronRight size={12} className="text-orange-300 shrink-0" />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
 
                       {film.curatorNote && (
                         <div className="rounded-xl bg-white/[0.03] border border-white/8 p-3">
                           <p className="text-[8px] font-black uppercase tracking-widest text-orange-300 mb-1">Curator’s Note</p>
-                          <p className="text-[11px] text-white/55 leading-relaxed line-clamp-3">{film.curatorNote}</p>
+                          <p className="text-[11px] text-white/55 leading-relaxed line-clamp-2">{film.curatorNote}</p>
                         </div>
                       )}
                     </div>
@@ -1716,7 +2215,7 @@ const HalloweenShowcaseView: React.FC<{
                       onClick={() => onSelectArchiveItem(film)}
                       className="flex-1 h-9 rounded-xl bg-orange-500 hover:bg-orange-400 text-black font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                     >
-                      <Play size={12} fill="currentColor" /> Watch Now
+                      <Play size={12} fill="currentColor" /> Watch &amp; Story Intel
                     </button>
                     <button
                       onClick={() => onToggleWatchlist(film)}
@@ -1730,20 +2229,76 @@ const HalloweenShowcaseView: React.FC<{
                       {inWl ? <Check size={12} /> : <Plus size={12} />}
                       {inWl ? 'Saved' : 'List'}
                     </button>
-                    <button
-                      onClick={(e) => handleShareFilm(film, e)}
-                      title={`Share ${film.title}`}
+                    <ShareButton
+                      title={`${film.title} (${film.year})`}
+                      artist={film.director ? `Dir. ${film.director} · Taleo Halloween` : 'Taleo Halloween'}
+                      text={`Watch "${film.title}" (${film.year}) free in the Plajah Halloween Curation`}
+                      url={buildShareUrl('archive', film.identifier)}
+                      imageUrl={film.thumbnailUrl}
+                      contentType="movie"
+                      ctaText="▶ STREAM CLASSIC ON TALEO"
+                      plajahLabel="Share to Plajah feed"
+                      onPostToPlajah={async () => {
+                        if (!auth.currentUser) {
+                          await loginWithGoogle();
+                          if (!auth.currentUser) throw new Error('Sign in required');
+                        }
+                        await createPost({
+                          text: `🎬 Streaming "${film.title}" (${film.year}${film.director ? `, dir. ${film.director}` : ''}) in the Plajah Halloween Curation!`,
+                          isPublic: true,
+                          tags: ['HalloweenCuration', 'Taleo', 'ClassicHorror'],
+                          assetEmbed: {
+                            type: 'ARCHIVE',
+                            id: film.identifier,
+                            title: `${film.title} (${film.year})`,
+                            subtitle: `${film.director ? `Dir. ${film.director} · ` : ''}Taleo Halloween Curation`,
+                            imageUrl: film.thumbnailUrl,
+                          },
+                          media: film.thumbnailUrl ? [{ type: 'PHOTO' as any, url: film.thumbnailUrl, title: film.title }] : undefined,
+                        } as any);
+                        onShareToast(`Shared "${film.title}" to Plajah feed!`);
+                      }}
                       className="h-9 px-3 rounded-xl bg-white/5 hover:bg-white/15 border border-white/15 text-white/70 hover:text-white font-black text-[9px] uppercase tracking-widest flex items-center gap-1 transition-all cursor-pointer"
                     >
                       <Share2 size={12} /> Share
-                    </button>
+                    </ShareButton>
                   </div>
                 </motion.div>
               );
             })}
           </div>
         </section>
+
+        {/* Full Story Intelligence, Character & Actor Dossiers Across All Halloween Films */}
+        <HalloweenCurationStoryIntelSection
+          onPlayFilm={handlePlayFilmById}
+          onOpenFilmStoryIntel={handlePlayFilmById}
+        />
+
+        {/* Halloween Auteurs: Director Portraits, Biographies & Filmographies */}
+        <ClassicDirectorsShowcaseSection
+          filterMovement="HALLOWEEN"
+          onPlayFilm={handlePlayFilmById}
+          title="Halloween Auteurs: Directors, Biographies & Filmographies"
+          subtitle="Meet the masters of horror, silent expressionism, and psychological dread — with their portraits, biographies, and complete filmographies of other works."
+        />
       </div>
+
+      {selectedDirector && (
+        <ClassicDirectorDossierModal
+          director={selectedDirector}
+          onClose={() => setSelectedDirector(null)}
+          onPlayFilm={handlePlayFilmById}
+        />
+      )}
+
+      {selectedCharModal && (
+        <CharacterActorModal
+          character={selectedCharModal.char}
+          filmTitle={selectedCharModal.filmTitle}
+          onClose={() => setSelectedCharModal(null)}
+        />
+      )}
     </div>
   );
 };
@@ -1757,8 +2312,10 @@ const LibraryView: React.FC<{
   onSelectArchiveItem: (item: ArchiveVideo) => void;
   onSelectMovie: (item: any) => void;
 }> = ({ movies, localContent, watchlist, onToggleWatchlist, onSelectArchiveItem, onSelectMovie }) => {
+  const [libraryFilter, setLibraryFilter] = useState<'ALL' | 'ANIME' | 'TV' | 'WORLD' | 'US_NOIR' | 'DIRECTOR_VAULT' | 'HALLOWEEN' | 'KOFA_EURO'>('ALL');
+
   const handleOpenWatchlistItem = async (w: WatchlistItem) => {
-    const archMatch = [...CURATED_HALLOWEEN_FILMS, ...CURATED_EUROPEANA_FILMS, ...CURATED_KOFA_FILMS, ...movies].find(m => m.identifier === w.id);
+    const archMatch = [...ALL_CURATED_ARCHIVE_FILMS, ...movies].find(m => m.identifier === w.id);
     if (archMatch) { onSelectArchiveItem(archMatch); return; }
     const localMatch = localContent.find(a => a.id === w.id);
     if (localMatch) { onSelectMovie(localMatch); return; }
@@ -1770,6 +2327,39 @@ const LibraryView: React.FC<{
     if (remoteArch) onSelectArchiveItem(remoteArch);
   };
 
+  const filteredVaultCatalog = useMemo(() => {
+    switch (libraryFilter) {
+      case 'ANIME':
+        return CURATED_ANIME_AND_ANIMATION_FILMS;
+      case 'TV':
+        return CURATED_PUBLIC_DOMAIN_TV_SERIES;
+      case 'WORLD':
+        return CURATED_INTERNATIONAL_FILMS;
+      case 'US_NOIR':
+        return CURATED_US_CLASSIC_FILMS;
+      case 'DIRECTOR_VAULT':
+        return CURATED_DIRECTOR_VAULT_FILMS;
+      case 'HALLOWEEN':
+        return CURATED_HALLOWEEN_FILMS;
+      case 'KOFA_EURO':
+        return [...CURATED_KOFA_FILMS, ...CURATED_EUROPEANA_FILMS];
+      case 'ALL':
+      default:
+        return ALL_CURATED_ARCHIVE_FILMS;
+    }
+  }, [libraryFilter]);
+
+  const LIBRARY_FILTERS: Array<{ id: typeof libraryFilter; label: string; count: number }> = [
+    { id: 'ALL', label: 'All Platform Vault', count: ALL_CURATED_ARCHIVE_FILMS.length },
+    { id: 'ANIME', label: '🏯 Classic Anime & Cartoons', count: CURATED_ANIME_AND_ANIMATION_FILMS.length },
+    { id: 'TV', label: '📺 TV Series & Serials', count: CURATED_PUBLIC_DOMAIN_TV_SERIES.length },
+    { id: 'WORLD', label: '🌍 World Cinema', count: CURATED_INTERNATIONAL_FILMS.length },
+    { id: 'US_NOIR', label: '🕵️ US Classics & Noir', count: CURATED_US_CLASSIC_FILMS.length },
+    { id: 'DIRECTOR_VAULT', label: '🎬 Director Vault', count: CURATED_DIRECTOR_VAULT_FILMS.length },
+    { id: 'HALLOWEEN', label: '🎃 Halloween Vault', count: CURATED_HALLOWEEN_FILMS.length },
+    { id: 'KOFA_EURO', label: '🇰🇷 KOFA & 🇪🇺 Europeana', count: CURATED_KOFA_FILMS.length + CURATED_EUROPEANA_FILMS.length },
+  ];
+
   return (
     <div className="pt-4 pb-40 px-4 sm:px-6 md:px-12 container mx-auto">
       <div className="mb-10 pt-8">
@@ -1778,7 +2368,7 @@ const LibraryView: React.FC<{
           My <span className="text-[#D0BCFF]">Library</span>
         </h2>
         <p className="mt-4 text-white/40 max-w-lg text-sm leading-relaxed">
-          Your saved Watchlist, private movie &amp; TV locker, plus content you own or purchased on your account.
+          Your saved Watchlist, private movie &amp; TV locker, and the complete {ALL_CURATED_ARCHIVE_FILMS.length}-title On-Platform Public Domain Cinema, Anime &amp; TV Vault.
         </p>
       </div>
 
@@ -1791,7 +2381,7 @@ const LibraryView: React.FC<{
           <div className="rounded-2xl border border-dashed border-white/10 p-8 text-center">
             <Bookmark size={28} className="text-white/15 mx-auto mb-2" />
             <p className="text-xs font-bold uppercase tracking-widest text-white/35">Your Watchlist is empty</p>
-            <p className="text-[11px] text-white/25 mt-1">Click "+ Watchlist" on any film or series across Taleo to save it here.</p>
+            <p className="text-[11px] text-white/25 mt-1">Click "+ Watchlist" on any film or series below or across Taleo to save it here.</p>
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-5">
@@ -1825,6 +2415,73 @@ const LibraryView: React.FC<{
 
       {/* Plex-style private locker — upload & stream your own movie/TV collection */}
       <PersonalVideoLocker onPlay={onSelectMovie} />
+
+      {/* Complete On-Platform Public Domain Cinema, Anime & TV Vault Library */}
+      <div className="mt-14 mb-12">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
+          <div>
+            <p className="text-[9px] font-black uppercase tracking-[0.3em] text-[#3FBE85] mb-1.5">
+              Native On-Platform Vault · 3-Tier Unbreakable Stream Resolution
+            </p>
+            <h3 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-white">
+              Platform Cinema, Anime &amp; TV Library ({filteredVaultCatalog.length})
+            </h3>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-4 mb-4">
+          {LIBRARY_FILTERS.map(f => (
+            <button
+              key={f.id}
+              onClick={() => setLibraryFilter(f.id)}
+              className={`shrink-0 px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all cursor-pointer ${
+                libraryFilter === f.id
+                  ? 'bg-[#D0BCFF] text-[#1C1B1F] border-[#D0BCFF] shadow-lg'
+                  : 'bg-white/5 hover:bg-white/10 text-white/65 border-white/10'
+              }`}
+            >
+              {f.label} ({f.count})
+            </button>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-5">
+          {filteredVaultCatalog.map(item => {
+            const inWl = watchlist.some(w => w.id === item.identifier);
+            const epCount = item.seasons?.reduce((acc, s) => acc + (s.episodes?.length || 0), 0);
+            return (
+              <div key={`lib-vault-${item.identifier}`} className="relative group">
+                <PosterCard
+                  title={item.title}
+                  subtitle={epCount ? `${item.year} · ${epCount} Eps` : `${item.year || ''} · ${item.country || item.director || 'Classic'}`}
+                  image={item.thumbnailUrl}
+                  genre={item.genre}
+                  directorName={item.director}
+                  filmId={item.identifier}
+                  width="w-full"
+                  onPlay={() => onSelectArchiveItem(item)}
+                  accentBorder
+                />
+                <button
+                  type="button"
+                  title={inWl ? 'Remove from Watchlist' : 'Add to Watchlist'}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleWatchlist(item);
+                  }}
+                  className={`absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center transition-all z-10 cursor-pointer border ${
+                    inWl
+                      ? 'bg-[#3FBE85] text-black border-[#3FBE85]'
+                      : 'bg-black/75 hover:bg-[#D0BCFF] text-white hover:text-black border-white/20 opacity-0 group-hover:opacity-100'
+                  }`}
+                >
+                  {inWl ? <Check size={13} /> : <Bookmark size={12} />}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
       {localContent.filter(c => c.type === 'VIDEO').length > 0 && (
         <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/30 mt-12 mb-4">On your account</p>
@@ -1948,8 +2605,16 @@ const TALEO_CACHE_TTL_MS = 5 * 60 * 1000;
 
 // ── MoviesTVView ───────────────────────────────────────────────────────────────
 const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNavigate }) => {
-  const [movies, setMovies] = useState<ArchiveVideo[]>(() => taleoSessionCache?.movies ?? CURATED_HALLOWEEN_FILMS);
-  const [tvSeries, setTvSeries] = useState<ArchiveVideo[]>(() => taleoSessionCache?.tvSeries ?? []);
+  const [movies, setMovies] = useState<ArchiveVideo[]>(() => taleoSessionCache?.movies ?? [
+    ...CURATED_HALLOWEEN_FILMS,
+    ...CURATED_ANIME_AND_ANIMATION_FILMS,
+    ...CURATED_INTERNATIONAL_FILMS,
+    ...CURATED_US_CLASSIC_FILMS,
+    ...CURATED_DIRECTOR_VAULT_FILMS,
+    ...CURATED_KOFA_FILMS,
+    ...CURATED_EUROPEANA_FILMS,
+  ]);
+  const [tvSeries, setTvSeries] = useState<ArchiveVideo[]>(() => taleoSessionCache?.tvSeries ?? CURATED_PUBLIC_DOMAIN_TV_SERIES);
   const [genreCollections, setGenreCollections] = useState<GenreCollection[]>(() => taleoSessionCache?.genreCollections ?? []);
   const [curatedPlaylists, setCuratedPlaylists] = useState<VideoPlaylist[]>(() => taleoSessionCache?.curatedPlaylists ?? []);
   const [localContent, setLocalContent] = useState<Album[]>(() => taleoSessionCache?.localContent ?? []);
@@ -1968,6 +2633,11 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
       if (deepSub) {
         sessionStorage.removeItem('plajah:taleo:initialSubView');
         return deepSub;
+      }
+      const sp = new URLSearchParams(window.location.search);
+      const col = sp.get('collection') || (sp.get('type') === 'taleo' ? (sp.get('id') || 'halloween') : '');
+      if (col && col.toLowerCase().includes('halloween')) {
+        return 'HALLOWEEN';
       }
     } catch {}
     return taleoSessionCache?.lastSubView ?? 'HOME';
@@ -1989,6 +2659,19 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
   useEffect(() => {
     if (taleoSessionCache) taleoSessionCache.lastSubView = currentSubView;
   }, [currentSubView]);
+
+  // Listen for in-app OPEN_TALEO_COLLECTION events (e.g. clicking a shared Halloween Curation card in Plajah feed)
+  useEffect(() => {
+    const onOpenCollection = (e: Event) => {
+      const detail = (e as CustomEvent).detail || {};
+      const colId = String(detail.id || 'halloween').toLowerCase();
+      if (colId.includes('halloween')) {
+        setCurrentSubView('HALLOWEEN');
+      }
+    };
+    window.addEventListener('OPEN_TALEO_COLLECTION', onOpenCollection);
+    return () => window.removeEventListener('OPEN_TALEO_COLLECTION', onOpenCollection);
+  }, []);
 
   // Load Watchlist & listen for changes
   useEffect(() => {
@@ -2041,9 +2724,7 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
     if (searchQuery.trim().length < 2) return [];
     const q = searchQuery.toLowerCase().trim();
     const archiveItems = [
-      ...CURATED_HALLOWEEN_FILMS,
-      ...CURATED_KOFA_FILMS,
-      ...CURATED_EUROPEANA_FILMS,
+      ...ALL_CURATED_ARCHIVE_FILMS,
       ...movies,
       ...tvSeries,
       ...genreCollections.flatMap(g => g.items ?? []),
@@ -2053,14 +2734,17 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
       const title = String(Array.isArray(item.title) ? item.title[0] : item.title || '').toLowerCase();
       const genre = String(Array.isArray(item.genre) ? item.genre[0] : item.genre || '').toLowerCase();
       const director = String((item as any).director || (item as any).ownerName || '').toLowerCase();
+      const country = String((item as any).country || '').toLowerCase();
       const year = String(item.year || '').toLowerCase();
       const isHalloweenMatch = (q === 'halloween' || q === 'spooky') && CURATED_HALLOWEEN_FILMS.some(h => h.identifier === item.identifier);
-      return isHalloweenMatch || title.includes(q) || genre.includes(q) || director.includes(q) || year.includes(q);
+      const isAnimeMatch = (q === 'anime' || q === 'animation' || q === 'cartoon' || q === 'japanese') && CURATED_ANIME_AND_ANIMATION_FILMS.some(a => a.identifier === item.identifier);
+      return isHalloweenMatch || isAnimeMatch || title.includes(q) || genre.includes(q) || director.includes(q) || country.includes(q) || year.includes(q);
     }).slice(0, 48);
   }, [searchQuery, movies, tvSeries, genreCollections, adaptedPlatformVideos]);
 
   useEffect(() => {
     setTheme('DARK');
+    void hydrateSelfHostedFilmsFromServer().catch(() => {});
     const isFresh = taleoSessionCache && (Date.now() - taleoSessionCache.updatedAt < TALEO_CACHE_TTL_MS);
     if (!isFresh) {
       loadContent(!taleoSessionCache);
@@ -2148,15 +2832,20 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
 
       const mergedMovies = [
         ...CURATED_HALLOWEEN_FILMS,
+        ...CURATED_ANIME_AND_ANIMATION_FILMS,
+        ...CURATED_INTERNATIONAL_FILMS,
+        ...CURATED_US_CLASSIC_FILMS,
+        ...CURATED_DIRECTOR_VAULT_FILMS,
         ...(featureGenre?.items ?? []),
         ...(euroGenre?.items ?? []),
         ...(kofaGenre?.items ?? []),
       ].filter((item, idx, self) => self.findIndex(i => i.identifier === item.identifier) === idx);
 
       const mergedTv = [
+        ...CURATED_PUBLIC_DOMAIN_TV_SERIES,
         ...(tvGenre?.items ?? []),
         ...(euroTvGenre?.items ?? []),
-      ];
+      ].filter((item, idx, self) => self.findIndex(i => i.identifier === item.identifier) === idx);
 
       const nextFeatured = (featureGenre?.items?.[0]) || CURATED_HALLOWEEN_FILMS[0] || null;
 
@@ -2212,6 +2901,10 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
     if (videoUrl) {
       void syncPublicDomainAsset(item, videoUrl, 'VIDEO').catch(() => {});
     }
+    void ensureFilmNativelyOnPlatform({
+      ...item,
+      videoUrl: videoUrl || item.videoUrl,
+    }).catch(() => {});
     const transformed = archiveVideoToAlbum(item, videoUrl);
     onSelectMovie(transformed);
   };
@@ -2250,6 +2943,7 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
 
   const SEARCH_QUICK_PILLS = [
     { label: '🎃 Halloween Horror', query: 'Halloween' },
+    { label: '🏯 Classic Anime', query: 'Anime' },
     { label: 'Film Noir', query: 'Film Noir' },
     { label: 'Sci-Fi', query: 'Sci-Fi' },
     { label: 'Silent Cinema', query: 'Silent' },

@@ -12,6 +12,7 @@ import { fetchFinanceSnapshot, type FinanceSnapshot } from '../../../../services
 import { pendingApprovalCount } from './OverviewTab';
 import type { TabProps } from './shared';
 import { useBillingNav, SoonPill } from '../../../BillingMounts';
+import OrgSecurityShield from '../../OrgSecurityShield';
 
 const OverviewTab = lazy(() => import('./OverviewTab'));
 const EnterTab = lazy(() => import('./EnterTab'));
@@ -103,6 +104,7 @@ const FinanceHub: React.FC<FinanceHubProps> = ({ org: initialOrg, myMembership, 
 
   return (
     <ToastProvider>
+    <OrgSecurityShield org={org} surface={`Finance Hub · ${tab}`} mode="financial">
     <div>
       <ShortcutSheet open={keysOpen} onClose={() => setKeysOpen(false)} />
       <div className="flex items-center gap-3 mb-5">
@@ -149,6 +151,7 @@ const FinanceHub: React.FC<FinanceHubProps> = ({ org: initialOrg, myMembership, 
         </Suspense>
       ))}
     </div>
+    </OrgSecurityShield>
     </ToastProvider>
   );
 };

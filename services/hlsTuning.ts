@@ -97,20 +97,32 @@ export function hlsTuning(retries?: Partial<Pick<HlsTuning,
  *
  * Call once from MANIFEST_PARSED, where the level list is known.
  */
-export function capLevelsToPanel(hls: { levels?: Array<{ height?: number }>; autoLevelCapping: number }): void {
+export function capLevelsToPanel(hls: { levels?: Array<{ width?: number; height?: number }>; autoLevelCapping: number }): void {
   try {
     const levels = hls.levels || [];
     if (levels.length < 2) return;
 
-    const dpr = window.devicePixelRatio || 1;
-    // screen.* is CSS pixels; multiplying by DPR gives the real panel. Guard against a lying
-    // WebView by never capping below 720p — a too-low cap is a visible quality regression.
+    const isTv = getPlatformInfo().isTV;
+    const dpr = isTv ? 1 : Math.min(window.devicePixelRatio || 1, 1.5);
+    // Guard against a lying WebView by never capping below 1280x720 — a too-low cap is a visible
+    // quality regression. Checking BOTH width and height matters for 2.20:1 / 2.39:1 widescreen
+    // films (e.g. Pumpkin Patch, where 2560x1164 @ 11.7 Mbps has height 1164 but 2.5K width).
+    const panelWidth = Math.max(Math.round((window.screen?.width || 1920) * dpr), 1280);
     const panelHeight = Math.max(Math.round((window.screen?.height || 1080) * dpr), 720);
 
     let capIndex = -1;
     for (let i = 0; i < levels.length; i++) {
+      const w = levels[i].width || 0;
       const h = levels[i].height || 0;
-      if (h && h <= panelHeight && (capIndex === -1 || h > (levels[capIndex].height || 0))) capIndex = i;
+      const fitsWidth = !w || w <= panelWidth;
+      const fitsHeight = !h || h <= panelHeight;
+      if (fitsWidth && fitsHeight) {
+        const bestH = capIndex === -1 ? 0 : (levels[capIndex].height || 0);
+        const bestW = capIndex === -1 ? 0 : (levels[capIndex].width || 0);
+        if (capIndex === -1 || h > bestH || (h === bestH && w > bestW)) {
+          capIndex = i;
+        }
+      }
     }
     // Every rendition exceeds the panel (rare, but possible): take the smallest rather than
     // leaving it uncapped and asking the GPU to decode all of them.
@@ -120,3 +132,4 @@ export function capLevelsToPanel(hls: { levels?: Array<{ height?: number }>; aut
     hls.autoLevelCapping = capIndex;
   } catch { /* capping is an optimisation — never let it break playback */ }
 }
+

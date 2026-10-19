@@ -31,6 +31,7 @@ export interface GenerationJob {
   result?: GenerationResult;
 }
 export const ENGINE_KINDS: Record<MusicEngineId, readonly GenerationKind[]> = {
+  'ace-step-2.5': ['audio', 'midi', 'sample'],
   'ace-step': ['audio', 'sample'], heartmula: ['audio'],
   'qwen-score': ['midi'], 'basic-pitch': ['transcribe'],
   yue2: ['audio', 'midi'], sheetsage2: ['transcribe'],
@@ -51,8 +52,8 @@ export function validateGenerationRequest(raw: any): GenerationRequest {
   };
   const request: GenerationRequest = {
     engine, kind: raw.kind, prompt: text(raw.prompt, 4000), lyrics: text(raw.lyrics, 12000),
-    bpm: number(raw.bpm, 30, 300), bars: number(raw.bars, 1, 16),
-    seconds: number(raw.seconds, 1, 120), key: text(raw.key, 40), seed: number(raw.seed, 0, 2147483647),
+    bpm: number(raw.bpm, 30, 300), bars: number(raw.bars, 1, 128),
+    seconds: number(raw.seconds, 1, 360), key: text(raw.key, 40), seed: number(raw.seed, 0, 2147483647),
   };
   if (!Number.isInteger(request.bars) || !Number.isInteger(request.seed)) throw new Error('Bars and seed must be integers');
   if (request.kind !== 'transcribe' && !request.prompt) throw new Error('Describe what you want to create');

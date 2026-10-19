@@ -9,8 +9,9 @@ import {
   Pause, Volume2, VolumeX, Award, ChevronRight,
   RotateCcw, RotateCw, Gauge, PictureInPicture2, Captions, SkipForward,
   ThumbsUp, ThumbsDown, ScrollText, Milestone, ShieldCheck,
-  Crown, Link2, Radio,
+  Crown, Link2, Radio, Megaphone,
 } from 'lucide-react';
+import { ChoraPromoModal } from './music/ChoraPromoModal';
 import CommentSection from './CommentSection';
 import PlatformBumperPlayer from './tv/PlatformBumperPlayer';
 import WorldBadge from './WorldBadge';
@@ -55,7 +56,15 @@ import AriaMark from './aria/AriaMark';
 import { watchAnalysisJob, type TaleoAnalysisJob } from '../services/storyIntelService';
 import { canAccessStoryIntelTools } from '../services/storyIntelBridge';
 import { MoreLikeThis, StoryBreakdown, useRelatedFilms, filmArt } from './taleo/FilmExtras';
-import { getArchiveItemFiles, getBestVideoUrl } from '../services/archiveContentService';
+import { getArchiveItemFiles, getBestVideoUrl, archiveVideoToAlbum } from '../services/archiveContentService';
+import { getSelfHostedFilm, hydrateSelfHostedFilmsFromServer, registerSelfHostedFilm } from '../services/selfHostedFilms';
+import { ARCHIVE_FILM_ITEMS } from '../services/filmIngestSources';
+import {
+  DirectorSpotlightCard,
+  CharactersAndActorsSection,
+  findPlayableFilmById,
+} from './taleo/ClassicCinemaDossier';
+import { getHalloweenStoryIntelBundle } from '../data/halloweenStoryIntel';
 
 // Universal Video Player (Pixels & CrossOver DSP)
 const ReelloUniversalVideoPlayer = React.lazy(() => import('./reello/ReelloUniversalVideoPlayer'));
@@ -1129,9 +1138,10 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({
   };
 
   const [resolvedArchiveUrl, setResolvedArchiveUrl] = useState<string>('');
+  const [resolvedMuxId, setResolvedMuxId] = useState<string>('');
   const [selectedSeasonNum, setSelectedSeasonNum] = useState<number>(1);
 
-  // Load watchlist status, user clubs, active club parties, film discussions, and resolve missing Archive MP4 URLs when item changes
+  // Load watchlist status, user clubs, active club parties, film discussions, and resolve Archive/Mux URLs when item changes
   useEffect(() => {
     const itemId = item.id || (item as any).identifier;
     if (itemId) {
@@ -1152,25 +1162,106 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({
     }
     setSelectedSeasonNum(((item as Album).seasons?.[0]?.number) ?? 1);
     setResolvedArchiveUrl('');
-    const archiveId = (item as any).identifier || ((item as any).ownerId === 'internet-archive' ? item.id : '');
-    const existingUrl = (item as any).videoUrl || (item as Album).customVideoUrl || (item as Album).tracks?.[0]?.url || (item as Video).url || '';
-    if (
-      archiveId &&
-      !existingUrl &&
-      (item as any).source !== 'KOFA' &&
-      (item as any).source !== 'EUROPEANA' &&
-      (item as any).source !== 'LIBRARY_OF_CONGRESS'
-    ) {
-      let alive = true;
-      getArchiveItemFiles(archiveId)
+    setResolvedMuxId('');
+
+    const candidateId = String((item as any).identifier || item.id || '').replace(/^public_domain_/, '');
+    const isNativePlatformUpload =
+      /^(album_|vid_|video_)/i.test(candidateId) &&
+      (item as any).ownerId !== 'internet-archive' &&
+      (item as any).ownerId !== 'plajah-public-domain';
+
+    const rawArchiveId = isNativePlatformUpload
+      ? ''
+      : (item as any).identifier ||
+        ((item as any).ownerId === 'internet-archive' ||
+        (item as any).ownerId === 'plajah-public-domain' ||
+        String(item.id || '').startsWith('public_domain_')
+          ? candidateId
+          : '');
+
+    const isPublicDomainFilm =
+      !isNativePlatformUpload &&
+      (!!rawArchiveId ||
+        (item as any).source === 'INTERNET_ARCHIVE' ||
+        (item as any).source === 'KOFA' ||
+        (item as any).source === 'EUROPEANA' ||
+        (item as any).source === 'LIBRARY_OF_CONGRESS' ||
+        (item as any).isPublicDomain === true);
+
+    if (!isPublicDomainFilm && !rawArchiveId) return;
+
+    const cleanId = (rawArchiveId || candidateId).trim();
+    if (!cleanId) return;
+
+    let alive = true;
+
+    // 1. Check in-memory self-hosted / Mux registry
+    hydrateSelfHostedFilmsFromServer().then(() => {
+      if (!alive) return;
+      const sh = getSelfHostedFilm(cleanId);
+      if (sh?.muxPlaybackId) setResolvedMuxId(sh.muxPlaybackId);
+      else if (sh?.isAvailable && sh.videoUrl) setResolvedArchiveUrl(sh.videoUrl);
+    });
+
+    // 2. Ask server to resolve best playback source & ensure film is hosted on platform + ingested into Mux in background
+    fetch('/api/admin/film-ingest/ensure-on-platform', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        identifier: cleanId,
+        title: item.title,
+        description: item.description,
+        director: (item as any).director || (item as Album).artist,
+        year: (item as any).year || (item as Video).movieMetadata?.releaseYear,
+        runtime: (item as any).runtime || (item as Video).movieMetadata?.duration,
+        genre: (item as any).genre,
+        thumbnailUrl: (item as Album).coverImage || (item as Video).thumbnailUrl,
+        source: (item as any).source || 'INTERNET_ARCHIVE',
+        videoUrl: (item as any).videoUrl || (item as Album).customVideoUrl || (item as Album).tracks?.[0]?.url || (item as Album).tracks?.[0]?.videoUrl,
+        sourceUrl: (item as any).sourceUrl,
+        rights: (item as any).rights || 'Public Domain',
+      }),
+    })
+      .then(async (r) => {
+        if (!alive || !r.ok) return;
+        const data = await r.json();
+        if (data?.muxPlaybackId) {
+          setResolvedMuxId(data.muxPlaybackId);
+          registerSelfHostedFilm({
+            identifier: cleanId,
+            videoUrl: `https://stream.mux.com/${data.muxPlaybackId}.m3u8`,
+            muxPlaybackId: data.muxPlaybackId,
+            muxAssetId: data.muxAssetId,
+            sourceType: 'MUX',
+            isAvailable: true,
+          });
+        } else if (data?.streamUrl) {
+          setResolvedArchiveUrl(data.streamUrl);
+        }
+      })
+      .catch(() => {});
+
+    // 3. Also resolve directly from Archive.org metadata when an Archive item exists (either mapped or direct IA item)
+    const hasArchiveMapping = !!ARCHIVE_FILM_ITEMS[cleanId];
+    const isDirectIaSource =
+      hasArchiveMapping ||
+      ((item as any).source !== 'KOFA' &&
+        (item as any).source !== 'EUROPEANA' &&
+        (item as any).source !== 'LIBRARY_OF_CONGRESS');
+
+    if (isDirectIaSource) {
+      getArchiveItemFiles(cleanId)
         .then(files => {
           if (!alive) return;
-          const url = getBestVideoUrl(archiveId, files);
-          if (url) setResolvedArchiveUrl(url);
+          const url = getBestVideoUrl(cleanId, files);
+          if (url) {
+            setResolvedArchiveUrl(prev => prev || url);
+          }
         })
         .catch(() => {});
-      return () => { alive = false; };
     }
+
+    return () => { alive = false; };
   }, [item.id, (item as any).identifier]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleWatchlistToggle = async () => {
@@ -1291,7 +1382,9 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({
   const artist = (item as Album).artist || (item as Video).artist;
   const ownerId = (item as Album).ownerId || (item as Video).ownerId;
   const isOwner = !!(currentUser?.uid && currentUser.uid === ownerId);
-  const canAccessStoryIntel = canAccessStoryIntelTools(ownerId, currentUser as any);
+  const filmLookupId = String((item as any).identifier || item.id || '').replace(/^public_domain_/, '');
+  const hasCuratedStoryIntel = !!getHalloweenStoryIntelBundle(filmLookupId) || !!getHalloweenStoryIntelBundle(item.id);
+  const canAccessStoryIntel = canAccessStoryIntelTools(ownerId, currentUser as any) || hasCuratedStoryIntel;
   const castMembers = (item as Video).movieMetadata?.castMembers || [];
   const releaseYear = (item as Video).movieMetadata?.releaseYear;
 
@@ -1323,13 +1416,15 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({
   const filmOwnership = useOwnership('film', item.id, currentUser?.uid);
   const hasFilmAccess = isOwner || !isPaidFilm || filmOwnership.owned;
 
-  // ── Taleo Story Intelligence (strictly creator-only + platform architect verification) ──
+  // ── Taleo Story Intelligence (creator + curated Halloween & classic films) ──
   const [storyIntelJob, setStoryIntelJob] = useState<TaleoAnalysisJob | null>(null);
   const [showStoryIntel, setShowStoryIntel] = useState(false);
+  const [showPromoModal, setShowPromoModal] = useState(false);
   useEffect(() => {
-    if (!canAccessStoryIntel || !item.id) { setStoryIntelJob(null); return; }
-    return watchAnalysisJob(item.id, setStoryIntelJob);
-  }, [canAccessStoryIntel, item.id]);
+    const targetId = filmLookupId || item.id;
+    if (!canAccessStoryIntel || !targetId) { setStoryIntelJob(null); return; }
+    return watchAnalysisJob(targetId, setStoryIntelJob);
+  }, [canAccessStoryIntel, filmLookupId, item.id]);
 
   // More-like-this films (shared by the page row and the end-of-film suggestions).
   const relatedFilms = useRelatedFilms(item as any, 12);
@@ -1340,6 +1435,14 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({
     const vid = item as Video;
     let payload: Video | null = null;
 
+    const cleanId = String((item as any).identifier || item.id || '').replace(/^public_domain_/, '');
+    const selfHosted = getSelfHostedFilm(cleanId);
+    const effectiveMuxId =
+      resolvedMuxId ||
+      selfHosted?.muxPlaybackId ||
+      (item as any).muxPlaybackId ||
+      album.tracks?.[0]?.muxPlaybackId;
+
     const isArchiveSource =
       (item as any).source === 'KOFA' ||
       (item as any).source === 'EUROPEANA' ||
@@ -1349,18 +1452,46 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({
       (item as any).ownerId === 'europeana' ||
       (item as any).ownerId === 'library-of-congress';
 
-    if ((item as any).muxPlaybackId) {
-      payload = vid;
+    if (effectiveMuxId && !isTV) {
+      payload = {
+        ...vid,
+        id: (item as any).identifier || item.id,
+        ownerId: album.ownerId || vid.ownerId || 'plajah-public-domain',
+        title: item.title,
+        muxPlaybackId: effectiveMuxId,
+        url: `https://stream.mux.com/${effectiveMuxId}.m3u8`,
+        artist: album.artist || vid.artist || (item as any).director || '',
+        timestamp: album.createdAt || vid.timestamp || Date.now(),
+        description: cleanDescription(item.description),
+        thumbnailUrl: album.coverImage || vid.thumbnailUrl || (item as any).coverImageUrl,
+        genre: album.genre || vid.genre,
+        subType: 'MOVIE',
+      } as Video;
     } else if (isArchiveSource) {
-      const rawStreamUrl = (item as any).videoUrl || (item as any).embedUrl || album.tracks?.[0]?.url || album.customVideoUrl || (vid as any).url || '';
-      let embedUrl = (item as any).embedUrl || rawStreamUrl;
-      if (rawStreamUrl.includes('youtube.com') || rawStreamUrl.includes('youtu.be') || rawStreamUrl.includes('youtube-nocookie.com')) {
-        const match = rawStreamUrl.match(/(?:youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*)/);
+      const directCandidate =
+        resolvedArchiveUrl ||
+        (selfHosted?.isAvailable ? selfHosted.videoUrl : '') ||
+        '';
+      const rawStreamUrl =
+        directCandidate ||
+        (item as any).videoUrl ||
+        (item as any).embedUrl ||
+        album.tracks?.[0]?.url ||
+        album.tracks?.[0]?.videoUrl ||
+        album.customVideoUrl ||
+        (vid as any).url ||
+        '';
+      const rawFallbackEmbed = (item as any).embedUrl || (item as any).videoUrl || rawStreamUrl;
+      let embedUrl = rawFallbackEmbed;
+      if (rawFallbackEmbed.includes('youtube.com') || rawFallbackEmbed.includes('youtu.be') || rawFallbackEmbed.includes('youtube-nocookie.com')) {
+        const match = rawFallbackEmbed.match(/(?:youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*)/);
         const ytId = match && match[1].length === 11 ? match[1] : '';
         const originParam = typeof window !== 'undefined' ? `&origin=${encodeURIComponent(window.location.origin)}` : '';
         if (ytId) embedUrl = `https://www.youtube-nocookie.com/embed/${ytId}?autoplay=1&rel=0&enablejsapi=1${originParam}`;
       }
-      const isDirect = rawStreamUrl.endsWith('.mp4') || rawStreamUrl.endsWith('.m3u8') || rawStreamUrl.endsWith('.webm');
+      const isDirect =
+        rawStreamUrl.startsWith('/api/') ||
+        /\.(mp4|mpeg4|m4v|m3u8|webm|ogv)(\?|$)/i.test(rawStreamUrl);
       const isKofa = (item as any).source === 'KOFA' || (item as any).ownerId === 'korean-film-archive' || (item as any).ownerId === 'kofa';
       const isEuro = (item as any).source === 'EUROPEANA' || (item as any).ownerId === 'europeana';
       const owner = isKofa ? 'korean-film-archive' : isEuro ? 'europeana' : 'library-of-congress';
@@ -1372,7 +1503,7 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({
         ownerId: owner,
         title: item.title,
         url: isDirect ? rawStreamUrl : '',
-        embedUrl: isDirect ? undefined : embedUrl,
+        embedUrl,
         artist: artistName,
         timestamp: album.createdAt || Date.now(),
         description: cleanDescription(album.description),
@@ -1381,20 +1512,25 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({
         subType: 'MOVIE',
         sourceUrl: (item as any).sourceUrl,
       } as any;
-    } else if (vid.url || vid.embedUrl) {
-      payload = vid;
-    } else if (vid.id && !(item as any).tracks && (item as any).ownerId !== 'internet-archive') {
-      payload = vid;
-    } else if ((item as any).ownerId === 'internet-archive' || (item as any).identifier) {
-      const trackUrl = resolvedArchiveUrl || (item as any).videoUrl || album.customVideoUrl || album.tracks?.[0]?.url || '';
-      const archiveId = trackUrl.includes('/download/')
-        ? trackUrl.slice(trackUrl.indexOf('/download/') + 10).split('/')[0]
-        : (item as any).identifier || item.id;
+    } else if ((item as any).ownerId === 'internet-archive' || (item as any).identifier || String(item.id || '').startsWith('public_domain_')) {
+      const trackUrl =
+        resolvedArchiveUrl ||
+        (selfHosted?.isAvailable ? selfHosted.videoUrl : '') ||
+        (item as any).videoUrl ||
+        album.customVideoUrl ||
+        album.tracks?.[0]?.url ||
+        album.tracks?.[0]?.videoUrl ||
+        '';
+      const archiveId = ARCHIVE_FILM_ITEMS[cleanId]
+        || (trackUrl.includes('/download/')
+          ? trackUrl.slice(trackUrl.indexOf('/download/') + 10).split('/')[0]
+          : cleanId);
       payload = {
         id: (item as any).identifier || item.id,
         ownerId: 'internet-archive',
         title: item.title,
         url: trackUrl,
+        muxPlaybackId: effectiveMuxId,
         embedUrl: `https://archive.org/embed/${archiveId}?autoplay=1`,
         artist: album.artist || (item as any).director || (item as any).creator || '',
         timestamp: album.createdAt || Date.now(),
@@ -1403,13 +1539,17 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({
         genre: album.genre || (item as any).genre,
         subType: 'MOVIE',
       } as Video;
+    } else if (vid.url || vid.embedUrl) {
+      payload = vid;
+    } else if (vid.id && !(item as any).tracks && (item as any).ownerId !== 'internet-archive') {
+      payload = vid;
     } else if (isTV) {
       if (album.seasons?.[0]?.episodes?.[0]) {
         payload = album.seasons[0].episodes[0] as Video;
-      } else if (album.tracks?.[0]?.muxPlaybackId || album.tracks?.[0]?.muxUploadId || album.tracks?.[0]?.url) {
+      } else if (album.tracks?.[0]?.muxPlaybackId || album.tracks?.[0]?.muxUploadId || album.tracks?.[0]?.url || album.tracks?.[0]?.videoUrl) {
         payload = {
           id: album.id, ownerId: album.ownerId || 'system', title: album.title,
-          url: album.tracks[0].url || '', muxPlaybackId: album.tracks[0].muxPlaybackId,
+          url: album.tracks[0].url || album.tracks[0].videoUrl || '', muxPlaybackId: album.tracks[0].muxPlaybackId,
           artist: album.artist, timestamp: album.createdAt || Date.now(),
         } as Video;
       } else if (album.customVideoUrl) {
@@ -1418,9 +1558,9 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({
           url: album.customVideoUrl, artist: album.artist, timestamp: album.createdAt || Date.now(),
         } as Video;
       }
-    } else if (album.tracks?.[0]?.muxPlaybackId || album.tracks?.[0]?.muxUploadId || album.tracks?.[0]?.url) {
+    } else if (album.tracks?.[0]?.muxPlaybackId || album.tracks?.[0]?.muxUploadId || album.tracks?.[0]?.url || album.tracks?.[0]?.videoUrl) {
       const t0 = album.tracks[0];
-      const trackUrl = t0.url || resolvedArchiveUrl || '';
+      const trackUrl = resolvedArchiveUrl || t0.url || t0.videoUrl || '';
       const isArchive = trackUrl.includes('archive.org') &&
         album.ownerId !== 'korean-film-archive' &&
         album.ownerId !== 'kofa' &&
@@ -1430,7 +1570,7 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({
       payload = {
         id: album.id, ownerId: album.ownerId || 'system', title: album.title,
         url: trackUrl,
-        muxPlaybackId: t0.muxPlaybackId,
+        muxPlaybackId: effectiveMuxId || t0.muxPlaybackId,
         embedUrl: archiveId ? `https://archive.org/embed/${archiveId}?autoplay=1` : undefined,
         artist: album.artist, timestamp: album.createdAt || Date.now(),
         description: cleanDescription(album.description), thumbnailUrl: album.coverImage,
@@ -1443,7 +1583,18 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({
       } as Video;
     }
     return payload;
-  }, [item, resolvedArchiveUrl, isTV]);
+  }, [item, resolvedArchiveUrl, resolvedMuxId, isTV]);
+
+  // Keep activeVideo in sync when resolvedArchiveUrl or resolvedMuxId arrives after the user presses Watch Now
+  useEffect(() => {
+    if (!activeVideo) return;
+    if (!resolvedArchiveUrl && !resolvedMuxId) return;
+    const updated = buildPlaybackPayload();
+    if (updated && (updated.muxPlaybackId !== activeVideo.muxPlaybackId || (updated.url && updated.url !== activeVideo.url))) {
+      primaryPayloadRef.current = updated;
+      setActiveVideo(updated);
+    }
+  }, [resolvedArchiveUrl, resolvedMuxId, activeVideo, buildPlaybackPayload]);
 
   const handlePlay = () => {
     if (!hasFilmAccess) { setIsUIVisible(true); return; }
@@ -2528,9 +2679,21 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({
                         else if (item.id) shareAsset('movie', item.id, { title: item.title, text: shareText(item.title, (item as any).creator || (item as any).director) });
                       }}
                       title="Share"
-                      className="h-12 w-12 bg-white/[0.07] hover:bg-white/[0.12] backdrop-blur-sm border border-white/[0.10] rounded-full flex items-center justify-center text-white/45 hover:text-white transition-all">
+                      className="h-12 px-5 bg-white/[0.07] hover:bg-white/[0.12] backdrop-blur-sm border border-white/[0.10] rounded-full flex items-center justify-center gap-2 text-white/65 hover:text-white font-black text-sm uppercase tracking-widest transition-all">
                       <Share2 size={17} />
+                      <span>Share</span>
                     </button>
+                    {isOwner && (
+                      <motion.button
+                        whileHover={{ scale: 1.04 }}
+                        whileTap={{ scale: 0.97 }}
+                        onClick={() => setShowPromoModal(true)}
+                        className="h-12 px-6 bg-gradient-to-r from-[#d40055] via-[#6b0099] to-[#ff8c00] hover:opacity-95 text-white font-black text-sm uppercase tracking-widest rounded-full flex items-center gap-2.5 transition-all shadow-[0_8px_25px_rgba(212,0,85,0.35)]"
+                        title="Promote this project — auto-promo cards, built promotions & promo kit assets"
+                      >
+                        <Megaphone size={16} /> Promote
+                      </motion.button>
+                    )}
                   </div>
                 </div>
 
@@ -2594,6 +2757,33 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({
                   </div>
                 </section>
               )}
+
+              {/* ── CLASSIC DIRECTOR PORTRAIT, BIOGRAPHY & FILMOGRAPHY OF OTHER WORKS ── */}
+              <div className="mt-10">
+                <DirectorSpotlightCard
+                  directorName={(item as any).director || (item as any).movieMetadata?.director || artist}
+                  filmId={filmLookupId || item.id}
+                  onPlayFilm={(fid) => {
+                    const target = findPlayableFilmById(fid);
+                    if (target && onOpenItem) {
+                      onOpenItem((target as any).identifier ? archiveVideoToAlbum(target) : target);
+                    }
+                  }}
+                />
+              </div>
+
+              {/* ── CHARACTERS & THE ACTORS BEHIND THEM (Interactive 2-Card Shuffle Deck) ── */}
+              <div className="mt-8">
+                <CharactersAndActorsSection
+                  filmId={filmLookupId || item.id}
+                  filmTitle={title}
+                  directorName={(item as any).director || (item as any).movieMetadata?.director || artist}
+                  characters={(item as any).charactersWithActors}
+                  fallbackCastMembers={castMembers}
+                  worldCharacters={worldCharacters}
+                  onOpenStoryIntel={storyIntelJob ? () => setShowStoryIntel(true) : undefined}
+                />
+              </div>
 
               {/* ── SEASONS & EPISODES (Series / Episodic Titles) ── */}
               {((item as Album).seasons || []).length > 0 && (() => {
@@ -2668,106 +2858,6 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({
                   </section>
                 );
               })()}
-
-              {/* ── CHARACTERS ────────────────────────────────────────────────── */}
-              {worldCharacters.length > 0 && (
-                <section className="mt-14 space-y-5">
-                  <div className="border-l-2 border-[#D0BCFF] pl-3">
-                    <p className="text-[9px] font-black uppercase tracking-[0.3em] text-[#D0BCFF] mb-1">Cast</p>
-                    <h3 className="text-xl font-black uppercase tracking-[0.15em] text-white">Characters</h3>
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                    {worldCharacters.slice(0, 10).map(char => (
-                      <div
-                        key={char.id}
-                        className="relative"
-                        onMouseEnter={() => setHoveredCharId(char.id)}
-                        onMouseLeave={() => setHoveredCharId(null)}
-                      >
-                        {/* Card */}
-                        <motion.div
-                          whileHover={{ y: -4 }}
-                          onClick={() => { const wid = (item as any).worldId; if (onNavigateToWorld && wid) onNavigateToWorld(wid, char.id); else setActiveCharacter(char); }}
-                          className="bg-white/[0.05] backdrop-blur-xl border border-white/[0.08] hover:border-[#D0BCFF]/35 rounded-2xl p-4 flex flex-col items-center text-center gap-3 cursor-pointer transition-colors"
-                        >
-                          <div
-                            className="w-14 h-14 rounded-full overflow-hidden border-2 transition-all"
-                            style={{ borderColor: hoveredCharId === char.id ? char.accentColor || '#D0BCFF' : 'rgba(255,255,255,0.1)' }}
-                          >
-                            <img
-                              src={char.imageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(char.name)}&background=333&color=fff`}
-                              alt={char.name}
-                              className="w-full h-full object-cover"
-                              onError={e => { (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(char.name)}&background=333&color=fff`; }}
-                            />
-                          </div>
-                          <div className="space-y-0.5 min-w-0 w-full">
-                            <p className="text-sm font-black text-white leading-tight truncate">{char.name}</p>
-                            {char.actorName && (
-                              <p className="text-[10px] text-white/35 font-black uppercase tracking-wider truncate">{char.actorName}</p>
-                            )}
-                            {char.role && (
-                              <p className="text-[9px] text-[#D0BCFF]/50 uppercase tracking-widest truncate">{char.role}</p>
-                            )}
-                          </div>
-                        </motion.div>
-
-                        {/* Hover popup — top 3 connected assets */}
-                        <AnimatePresence>
-                          {hoveredCharId === char.id && (
-                            <motion.div
-                              initial={{ opacity: 0, y: 8, scale: 0.93 }}
-                              animate={{ opacity: 1, y: 0, scale: 1 }}
-                              exit={{ opacity: 0, y: 8, scale: 0.93 }}
-                              transition={{ duration: 0.15 }}
-                              className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 z-50 w-64 max-w-[90vw] bg-[#0C0C1A]/95 backdrop-blur-2xl border border-white/[0.12] rounded-2xl p-4 shadow-2xl pointer-events-none"
-                            >
-                              <p className="text-[8px] font-black uppercase tracking-[0.3em] text-white/30 mb-3">
-                                Featured In
-                              </p>
-                              {hoveredCharAssets.length > 0 ? (
-                                <div className="space-y-2.5">
-                                  {hoveredCharAssets.map((asset, i) => {
-                                    const thumb =
-                                      (asset as any).coverImage ||
-                                      (asset as any).coverImageUrl ||
-                                      (asset as any).thumbnailUrl;
-                                    return (
-                                      <div key={i} className="flex items-center gap-3">
-                                        <div className="w-10 h-14 rounded-lg overflow-hidden bg-white/5 shrink-0 border border-white/8">
-                                          {thumb ? (
-                                            <img src={thumb} className="w-full h-full object-cover" alt={asset.title} />
-                                          ) : (
-                                            <div className="w-full h-full flex items-center justify-center">
-                                              <Film size={12} className="text-white/20" />
-                                            </div>
-                                          )}
-                                        </div>
-                                        <div className="min-w-0">
-                                          <p className="text-[11px] font-black text-white truncate">{asset.title}</p>
-                                          <p className="text-[9px] text-white/35 uppercase tracking-wider mt-0.5">
-                                            {(asset as any).genre || (asset as any).subType || 'Content'}
-                                          </p>
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              ) : (
-                                <p className="text-[10px] text-white/20 font-black uppercase tracking-widest">
-                                  No connected content yet
-                                </p>
-                              )}
-                              {/* Arrow */}
-                              <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-[6px] border-r-[6px] border-t-[6px] border-l-transparent border-r-transparent border-t-white/10" />
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              )}
 
               {/* ── UNIVERSE RAIL (lore + timeline) ───────────────────────────── */}
               {hasUniverseRail && (
@@ -3288,10 +3378,12 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({
           <div className="flex items-center gap-2.5">
             {isOwner && (
               <button
-                title="Edit film details"
-                className="w-9 h-9 bg-white/[0.07] backdrop-blur-md border border-white/[0.10] rounded-full flex items-center justify-center text-white/50 hover:text-white hover:bg-white/[0.12] transition-all"
+                onClick={() => setShowPromoModal(true)}
+                title="Promote Film — Auto-Promo Cards & Assets"
+                className="h-9 px-3.5 bg-gradient-to-r from-[#d40055] to-[#ff8c00] rounded-full flex items-center justify-center gap-1.5 text-white text-[10px] font-black uppercase tracking-widest shadow-md hover:opacity-95 transition-all"
               >
-                <Plus size={17} />
+                <Megaphone size={13} />
+                <span>Promote</span>
               </button>
             )}
             {currentUser?.photoURL ? (
@@ -3309,16 +3401,33 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({
           </div>
         </div>
 
-        {/* ── Story Intelligence review (owner-only, lazy) ─────────────────── */}
+        {/* ── Story Intelligence review (creator + curated classics, lazy) ─── */}
         {showStoryIntel && (
           <React.Suspense fallback={null}>
             <StoryIntelReview
-              albumId={item.id}
+              albumId={filmLookupId || item.id}
               ownerId={ownerId || ''}
               title={title}
               onClose={() => setShowStoryIntel(false)}
             />
           </React.Suspense>
+        )}
+
+        {/* ── Project Promote Studio Modal ─────────────────────────────────── */}
+        {showPromoModal && (
+          <ChoraPromoModal
+            album={{
+              ...(item as any),
+              id: item.id,
+              title: title || item.title,
+              artist: artist || (item as any).director || (item as any).creator || 'Creator',
+              coverImage: coverImage || (item as any).thumbnailUrl || (item as any).coverImageUrl || '',
+              type: isTV ? 'TV' : 'MOVIE',
+              tracks: (item as Album).tracks || [],
+            } as Album}
+            currentUser={currentUser as any}
+            onClose={() => setShowPromoModal(false)}
+          />
         )}
       </div>
     </>

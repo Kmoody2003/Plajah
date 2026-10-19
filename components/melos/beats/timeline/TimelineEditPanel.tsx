@@ -56,14 +56,14 @@ export const TimelineEditPanel: React.FC<Props> = ({ doc, selected, onMutate, he
       <div className="h-4 flex items-center justify-center cursor-ns-resize touch-none" onPointerDown={onResizeDown} onPointerMove={onResizeMove} onPointerUp={() => { resize.current = null; }}>
         <GripHorizontal size={13} className="text-white/25" />
       </div>
-      <div className="flex items-center gap-1.5 px-3 pb-1.5">
+      <div className="flex items-center gap-1.5 px-3 pb-1.5 min-w-0">
         {availableTabs.map((t) => (
-          <button key={t} onClick={() => setTab(t)} className="h-7 px-3 rounded-lg text-[11px] font-bold border"
+          <button key={t} onClick={() => setTab(t)} className="h-7 px-3 rounded-lg text-[11px] font-bold border shrink-0 whitespace-nowrap"
             style={tab === t ? { color: '#fff', borderColor: 'rgba(255,255,255,0.25)', background: 'rgba(255,255,255,0.08)' } : { color: 'rgba(255,255,255,0.4)', borderColor: 'rgba(255,255,255,0.12)' }}>
             {t === 'device' ? 'Devices' : t === 'note' ? 'Note editor' : 'Audio editor'}
           </button>
         ))}
-        <span className="ml-auto text-[10px] text-white/35">{clip ? (kind === 'audio' ? clip.audio?.name : track?.name) : 'select a clip'}</span>
+        <span className="ml-auto text-[10px] text-white/35 truncate pl-2">{clip ? (kind === 'audio' ? clip.audio?.name : track?.name) : 'select a clip'}</span>
       </div>
       <div className="flex-1 min-h-0 overflow-auto px-3 pb-3">
         {!clip && <div className="h-full grid place-items-center text-[12px] text-white/25">Select a clip on the timeline to edit it here.</div>}

@@ -80,7 +80,11 @@ import { setLyricsProgram } from '../../services/ambo/lyricsProgram';
 import { lyricsFor } from '../../services/ambo/lyricFeed';
 import { startTypoTextDriver, publishScriptureToTypo, setTypoTextDemand } from '../../services/ambo/typoTextDriver';
 import { getVizParams, getVizApplyTarget, lastChangedVizMode, subscribeVizParams, numericVizParams } from '../../services/ambo/visualizerParams';
-import { TYPO_PREFIX } from '../../services/ambo/layerSources';
+import { TYPO_PREFIX, scaleVisualizerSize } from '../../services/ambo/layerSources';
+import {
+  registerProgramBusCanvas, notifyProgramBusFrame, subscribeProgramBusFollower,
+  getProgramBusCanvas, getProgramBusStream, installProgramBusRtcHost,
+} from '../../services/ambo/programBus';
 import AmboAutoScriptureControl from './AmboAutoScriptureControl';
 import AmboOutputFitControl from './AmboOutputFitControl';
 import type { FitSpec } from '../../services/ambo/outputFit';
@@ -155,31 +159,29 @@ const glass = 'rgba(255,255,255,0.035)';
 const line = 'rgba(255,255,255,0.09)';
 const line2 = 'rgba(255,255,255,0.15)';
 
-/** A live canvas driven by the shared renderer — same compositor the outputs run. */
-const OutputMonitor = React.memo<{ stack: LiveStack; audio?: boolean; className?: string; fit?: Partial<FitSpec>; transform?: TransformSpec; take?: ProgramTake }>(({ stack, audio, className, fit, transform, take }) => {
+/** A live canvas driven by the shared renderer — Program monitors mirror the single Master Program Bus. */
+const OutputMonitor = React.memo<{ stack: LiveStack; audio?: boolean; isProgram?: boolean; className?: string; fit?: Partial<FitSpec>; transform?: TransformSpec; take?: ProgramTake }>(({ stack, audio, isProgram, className, fit, transform, take }) => {
   const ref = useRef<HTMLCanvasElement>(null);
   const shownTakeRef = useRef<number | null>(take?.seq ?? null);
   const rendererRef = useRef<LayerRenderer | null>(null);
   const fitRef = useRef(fit); fitRef.current = fit;
   const transformRef = useRef(transform); transformRef.current = transform;
+  const followProgramBus = isProgram ?? (audio !== undefined);
+
   useEffect(() => {
     const c = ref.current;
     if (!c) return;
+    if (followProgramBus && getProgramBusCanvas()) {
+      c.width = 960;
+      c.height = 540;
+      return subscribeProgramBusFollower(c);
+    }
     const r = new LayerRenderer(c, { w: 960, h: 540 });
     r.setOptions({ audioEnabled: !!audio, fit: fitRef.current, outputTransform: transformRef.current });
     r.start();
     rendererRef.current = r;
-
-    // Publish to the platform virtual video bus for the Live Switcher
-    try {
-      if (typeof (c as any).captureStream === 'function') {
-        const stream = (c as any).captureStream(30);
-        publishAmboLiveOutput('ambo:audience', stream, 'Ambo Audience Output');
-      }
-    } catch { /* best-effort capture */ }
-
     return () => { r.dispose(); rendererRef.current = null; };
-  }, [audio]);
+  }, [audio, followProgramBus]);
   useEffect(() => { rendererRef.current?.setOptions({ fit, outputTransform: transform }); }, [fit, transform]);
   useEffect(() => {
     const r = rendererRef.current;
@@ -968,11 +970,87 @@ useEffect(() => {
   // the first frame. The playlist must not outlive its controls.
   useEffect(() => { amboAudio.ensure(); return () => { audioBus.release(); setProgramVideoAudible(false); }; }, []);
 
+  // ── Single Authoritative Master Program Bus Engine ──
+  // Renders Program Out ONCE for the entire session (surviving multiview collapse,
+  // tab switches, and monitor placement changes). Every in-app Program monitor and
+  // physical Output Window mirrors this exact canvas/stream so there is never a
+  // duplicate generator, shader, or media instance running out of sync.
+  const masterBusRendererRef = useRef<LayerRenderer | null>(null);
+  const masterBusTakeSeqRef = useRef<number | null>(programTake?.seq ?? null);
+  const pgmOutConfig = useMemo(() => outputs.find(o => o.kind === 'PROGRAM') || outputs[0], [outputs]);
+  const masterBusSize = useMemo(
+    () => scaleVisualizerSize(pgmOutConfig?.width || 1920, pgmOutConfig?.height || 1080, 1280),
+    [pgmOutConfig?.width, pgmOutConfig?.height],
+  );
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const c = document.createElement('canvas');
+    const r = new LayerRenderer(c, { w: masterBusSize.w, h: masterBusSize.h });
+    r.setOptions({
+      audioEnabled: !isBlackout,
+      fit: programFit,
+      outputTransform: programTransform,
+      onFrame: () => notifyProgramBusFrame(),
+    });
+    r.setStack(withScriptureLook(effectiveLiveStack));
+    r.start();
+    masterBusRendererRef.current = r;
+    const unregBus = registerProgramBusCanvas(c);
+
+    try {
+      const stream = getProgramBusStream();
+      if (stream) publishAmboLiveOutput('ambo:audience', stream, 'Ambo Audience Output');
+    } catch { /* best-effort capture */ }
+
+    const unregRtc = installProgramBusRtcHost(
+      () => getProgramBusStream(),
+      (m) => {
+        setOutputs(prev => prev.map(o => {
+          const isMatch = (m.outputId && o.id === m.outputId) || (!m.outputId && o.kind === 'PROGRAM');
+          if (!isMatch || o.autoDetectDisplay === false) return o;
+          if (o.width === m.width && o.height === m.height && o.aspectRatio === m.aspectRatio) return o;
+          return { ...o, width: m.width, height: m.height, aspectRatio: m.aspectRatio };
+        }));
+      },
+    );
+
+    return () => {
+      unregRtc();
+      unregBus();
+      r.dispose();
+      masterBusRendererRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    masterBusRendererRef.current?.resize(masterBusSize.w, masterBusSize.h);
+  }, [masterBusSize.w, masterBusSize.h]);
+
+  useEffect(() => {
+    masterBusRendererRef.current?.setOptions({
+      audioEnabled: !isBlackout,
+      fit: programFit,
+      outputTransform: programTransform,
+      timers: { elapsed },
+    });
+  }, [isBlackout, programFit, programTransform, elapsed]);
+
+  useEffect(() => {
+    const r = masterBusRendererRef.current;
+    if (!r) return;
+    if (programTake && masterBusTakeSeqRef.current !== programTake.seq) {
+      r.beginTransition(programTake);
+      masterBusTakeSeqRef.current = programTake.seq;
+    }
+    r.setStack(withScriptureLook(effectiveLiveStack));
+  }, [effectiveLiveStack, programTake]);
+
   // Sync Live Stack & Timers to physical output windows
   useEffect(() => {
     if (!routerRef.current) return;
     routerRef.current.send(withScriptureLook(effectiveLiveStack), { elapsed }, programTake);
-  }, [effectiveLiveStack, elapsed]);
+  }, [effectiveLiveStack, elapsed, programTake]);
 
   // Cleanup output windows and stop orphaned audio on window close or unmount
   useEffect(() => {
@@ -4273,7 +4351,7 @@ useEffect(() => {
 
       {/* ── INDEPENDENT HORIZONTAL MULTIVIEW PANEL (Resizable on top of media library) ── */}
       <AmboHorizontalMultiview
-        liveStack={isBlackout ? {} : live}
+        liveStack={effectiveLiveStack}
         previewStack={previewStack}
         liveSlide={liveSlideObj}
         previewSlide={previewSlide}

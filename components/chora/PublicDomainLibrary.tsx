@@ -23,10 +23,17 @@ import {
   searchPlayableItems, resolveItems, type PDItem, type PDTrack, type PDRights,
 } from '../../services/publicDomainMusic';
 import { PD_SHELVES, PD_SEARCH_SCOPE, type PDShelf } from '../../data/pdMusicCollections';
+import {
+  CLASSIC_BOOK_SOUNDTRACKS,
+  getOrRenderBookMovementAudioUrl,
+  getMasterBookScore,
+  type ClassicBookSoundtrackAlbum,
+} from '../../data/classicBookSoundtracks';
 import { useGlobalPlayer } from '../../contexts/GlobalPlayerContext';
 import type { Track, Album } from '../../types';
 
 const ACCENT = '#E0A458';
+const BOOK_SOUNDTRACK_SHELF_ID = 'classic-book-soundtracks';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -264,10 +271,65 @@ const ItemDetail: React.FC<{
 
 // ── shelf loading ────────────────────────────────────────────────────────────
 
+const BOOK_SOUNDTRACK_SHELF: PDShelf = {
+  id: BOOK_SOUNDTRACK_SHELF_ID,
+  label: 'Classic Book Soundtracks',
+  eyebrow: 'Original 6-Movement Literary Scores',
+  blurb:
+    'Bespoke 6-track symphonic & chamber soundtracks composed for each classic book in our library — starting with Pride & Prejudice (The Pemberley Botanical & Regency Symphonic Suite) and Dracula (Symphony of the Carpathian Blood Moon). Listen here in Chora or while reading.',
+  rightsNote:
+    'Original Lorea & Chora Studio Literary Soundtrack Productions inspired by public-domain literary classics.',
+  featured: [],
+};
+
+const ALL_SHELVES: PDShelf[] = [BOOK_SOUNDTRACK_SHELF, ...PD_SHELVES];
+
+function buildClassicBookPdItems(): PDItem[] {
+  const orderedAlbums: ClassicBookSoundtrackAlbum[] = [
+    CLASSIC_BOOK_SOUNDTRACKS['pride-and-prejudice'],
+    CLASSIC_BOOK_SOUNDTRACKS['dracula'],
+    ...Object.values(CLASSIC_BOOK_SOUNDTRACKS).filter(
+      a => a.bookThemeId !== 'pride-and-prejudice' && a.bookThemeId !== 'dracula'
+    ),
+  ].filter(Boolean);
+
+  return orderedAlbums.map(album => {
+    const master = getMasterBookScore(album.bookThemeId);
+    const coverUrl = `/covers/audiobooks/${album.bookThemeId}.png`;
+    return {
+      identifier: `lorea-book-score-${album.bookThemeId}`,
+      title: `${album.bookTitle} — ${master ? master.suiteTitle : album.albumTitle}`,
+      creator: album.ensembleName,
+      year: '2026',
+      publisher: 'Chora Literary Soundtrack Series',
+      description: `${album.composerNotes} 6 movements composed for reading or standalone listening in Chora.`,
+      subjects: ['Literary Soundtrack', album.bookTitle],
+      coverUrl,
+      itemUrl: '#chora-literary-soundtrack',
+      rights: {
+        basis: 'ITEM_LICENCE',
+        label: 'Chora Original Literary Score · 6 Movements',
+        detail: `Composed & seeded in Melos Studio for ${album.bookTitle} (${album.author}).`,
+      },
+      tracks: album.tracks.map(tr => ({
+        id: `chora_book_${album.bookThemeId}_${tr.trackNumber}`,
+        title: `0${tr.trackNumber}. ${tr.title} (${tr.chapterCue})`,
+        artist: album.ensembleName,
+        url: `lorea-score://${album.bookThemeId}/${tr.trackNumber - 1}`,
+        durationSec: tr.durationSec,
+        format: 'WAV',
+      })),
+    };
+  });
+}
+
 /** Resolve a shelf: verified featured identifiers first, then the live query,
  *  de-duplicated. Anything that doesn't actually stream is silently dropped by
  *  the service, so a shelf can only ever render playable material. */
 async function loadShelf(shelf: PDShelf): Promise<PDItem[]> {
+  if (shelf.id === BOOK_SOUNDTRACK_SHELF_ID) {
+    return buildClassicBookPdItems();
+  }
   const featured = await resolveItems(shelf.featured);
   if (!shelf.query) return featured;
   const found = await searchPlayableItems(shelf.query, 12);
@@ -280,7 +342,7 @@ async function loadShelf(shelf: PDShelf): Promise<PDItem[]> {
 const PublicDomainLibrary: React.FC = () => {
   const { playTrack, currentTrack } = useGlobalPlayer();
 
-  const [shelfId, setShelfId] = useState(PD_SHELVES[0].id);
+  const [shelfId, setShelfId] = useState(ALL_SHELVES[0].id);
   const [items, setItems] = useState<PDItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState<PDItem | null>(null);
@@ -290,7 +352,7 @@ const PublicDomainLibrary: React.FC = () => {
   /** Guards against a slow shelf resolving after the user has moved on. */
   const reqRef = useRef(0);
 
-  const shelf = PD_SHELVES.find(s => s.id === shelfId) ?? PD_SHELVES[0];
+  const shelf = ALL_SHELVES.find(s => s.id === shelfId) ?? ALL_SHELVES[0];
 
   useEffect(() => {
     const req = ++reqRef.current;
@@ -314,7 +376,21 @@ const PublicDomainLibrary: React.FC = () => {
     if (reqRef.current === req) { setSearchResults(res); setSearching(false); }
   }, [query]);
 
-  const handlePlay = useCallback((item: PDItem, index = 0) => {
+  const handlePlay = useCallback(async (item: PDItem, index = 0) => {
+    if (item.identifier.startsWith('lorea-book-score-')) {
+      const bookThemeId = item.identifier.replace('lorea-book-score-', '');
+      const { url, durationSec } = await getOrRenderBookMovementAudioUrl(bookThemeId, index, 2);
+      const hydratedItem: PDItem = {
+        ...item,
+        tracks: item.tracks.map((t, idx) =>
+          idx === index ? { ...t, url, durationSec } : t
+        ),
+      };
+      const album = toAlbum(hydratedItem);
+      const track = album.tracks[index];
+      if (track) playTrack(track, album, 'LIBRARY');
+      return;
+    }
     const album = toAlbum(item);
     const track = album.tracks[index];
     if (track) playTrack(track, album, 'LIBRARY');
@@ -333,8 +409,7 @@ const PublicDomainLibrary: React.FC = () => {
         </p>
         <h1 className="text-2xl sm:text-3xl font-black uppercase tracking-tight mt-1">Free To Listen, Forever</h1>
         <p className="text-sm text-white/45 mt-1.5 max-w-2xl">
-          Real recordings streaming live from the Internet Archive — the Great 78 Project's shellac transfers and
-          Musopen's public domain studio sessions. Everything plays in Chora's own player.
+          Original 6-movement Literary Soundtracks composed for our classic books alongside real historical recordings streaming from the Internet Archive. Everything plays in Chora's own player.
         </p>
 
         <div className="mt-4 flex items-center gap-2 max-w-lg">
@@ -369,7 +444,7 @@ const PublicDomainLibrary: React.FC = () => {
       {/* Shelf switch */}
       {!searchResults && (
         <div className="flex gap-2 flex-wrap">
-          {PD_SHELVES.map(s => {
+          {ALL_SHELVES.map(s => {
             const active = s.id === shelfId;
             return (
               <button

@@ -119,21 +119,54 @@ const Model3DEmbed: React.FC<{ url: string; title?: string; poster?: string }> =
   );
 };
 
+const parseChoraSongUrl = (rawUrl: string): { albumId: string; trackId?: string } | null => {
+  try {
+    const parsed = new URL(rawUrl, typeof window !== 'undefined' ? window.location.origin : 'https://plajah.com');
+    const isPlajahOrigin =
+      (typeof window !== 'undefined' && parsed.origin === window.location.origin) ||
+      parsed.hostname.endsWith('plajah.com') ||
+      parsed.hostname.endsWith('plajah.app');
+    if (!isPlajahOrigin) return null;
+    const qType = (parsed.searchParams.get('type') || '').toLowerCase();
+    const qId = parsed.searchParams.get('id') || '';
+    const qTrack = parsed.searchParams.get('track') || undefined;
+    const pathParts = parsed.pathname.split('/').filter(Boolean);
+    const albumId = (qType === 'album' || qType === 'track') && qId
+      ? qId
+      : pathParts[0] === 'album' && pathParts[1]
+        ? pathParts[1]
+        : '';
+    if (!albumId) return null;
+    return { albumId, trackId: qTrack };
+  } catch {
+    return null;
+  }
+};
+
 const PostLinkBanner: React.FC<{ url: string }> = ({ url }) => {
   let domain = '';
   try { domain = new URL(url).hostname.replace(/^www\./, ''); } catch {}
+  const choraTarget = parseChoraSongUrl(url);
   return (
     <a
       href={url}
-      target="_blank"
+      target={choraTarget ? undefined : '_blank'}
       rel="noopener noreferrer"
-      onClick={e => e.stopPropagation()}
+      onClick={e => {
+        e.stopPropagation();
+        if (choraTarget) {
+          e.preventDefault();
+          window.dispatchEvent(new CustomEvent('NAVIGATE', {
+            detail: { target: 'PLAYER', albumId: choraTarget.albumId, trackId: choraTarget.trackId },
+          }));
+        }
+      }}
       className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-white/[0.03] border border-white/[0.07] hover:bg-white/[0.07] hover:border-white/[0.15] transition-all group"
       style={{ textDecoration: 'none' }}
     >
       <LinkIcon size={11} className="text-small-orange/60 shrink-0" />
       <span className="text-[10px] font-black uppercase tracking-widest text-white/50 shrink-0 group-hover:text-white/80 transition-colors">
-        {domain}
+        {choraTarget ? 'PLAJAH CHORA' : domain}
       </span>
       <span className="text-[9px] text-white/20 truncate flex-1 min-w-0 font-mono group-hover:text-white/35 transition-colors">
         {url}
@@ -502,13 +535,31 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser: onVisitUserProp,
         </button>
       );
     }
-    if (!post.media || post.media.length === 0) return null;
+    const ae = (post as any).assetEmbed as { type?: string; id?: string; title?: string; imageUrl?: string; image?: string; url?: string } | undefined;
+    const rawMedia = Array.isArray(post.media) ? [...post.media] : [];
+    if (ae?.type === 'VIDEO' && ae.id && !rawMedia.some(m => m.type === 'VIDEO')) {
+      rawMedia.push({
+        type: 'VIDEO',
+        id: ae.id,
+        url: ae.url || '',
+        title: ae.title || 'Reello Video',
+        thumbnail: ae.imageUrl || ae.image,
+      } as any);
+    }
+    if (rawMedia.length === 0) return null;
+
+    // When an album/track player is embedded (MiniMusicPlayer), never render a duplicate raw <audio> card below it.
+    const hasEmbeddedMusicPlayer = Boolean(
+      post.albumEmbed || ae?.type === 'ALBUM' || ae?.type === 'TRACK'
+    );
 
     // Photos + videos become an inline gallery/carousel with per-asset fullscreen; everything
     // else (audio, links, 3D) stays in its own stacked card below.
     const GALLERY_TYPES = new Set(['PHOTO', 'GIF', 'STICKER', 'VIDEO']);
-    const gallery = post.media.filter(m => GALLERY_TYPES.has(m.type));
-    const others = post.media.filter(m => !GALLERY_TYPES.has(m.type));
+    const gallery = rawMedia.filter(m => GALLERY_TYPES.has(m.type));
+    const others = rawMedia.filter(
+      m => !GALLERY_TYPES.has(m.type) && !(hasEmbeddedMusicPlayer && m.type === 'AUDIO')
+    );
 
     return (
       <>
@@ -528,7 +579,13 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser: onVisitUserProp,
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-black uppercase tracking-widest truncate">{item.title || "Audio Clip"}</p>
-                    <audio src={item.url} controls className="w-full h-8 mt-2" />
+                    <audio
+                      src={item.url}
+                      controls
+                      controlsList="nodownload noplaybackrate"
+                      onContextMenu={(e) => e.preventDefault()}
+                      className="w-full h-8 mt-2"
+                    />
                   </div>
                 </div>
               );
@@ -600,11 +657,33 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser: onVisitUserProp,
     );
   }
 
+  // Album artwork background when sharing an album or track onto the social feed
+  const albumArtworkBg =
+    post.albumEmbed?.coverImage ||
+    (((post as any).assetEmbed?.type === 'ALBUM' || (post as any).assetEmbed?.type === 'TRACK')
+      ? ((post as any).assetEmbed?.imageUrl || (post as any).assetEmbed?.image)
+      : undefined) ||
+    post.media?.find(m => m.type === 'AUDIO' && m.thumbnail)?.thumbnail;
+
   return (
     <>
     {/* Edge-to-edge on phones (fills the device width, tighter), rounded card on desktop. */}
-    <div ref={impressionRef} className={`${presentation === 'signal' ? 'pj-signal-post' : ''} relative group/card rounded-none sm:rounded-2xl border-y sm:border border-white/[0.06] transition-all duration-200 sm:hover:-translate-y-0.5 hover:shadow-[0_8px_32px_rgba(0,0,0,0.35),_0_-4px_10px_rgba(0,0,0,0.18)] hover:border-white/[0.1] hover:z-10 will-change-transform`}>
-      <div className="flex gap-3 px-3 sm:px-4 py-3 sm:py-3.5 rounded-none sm:rounded-2xl hover:bg-white/[0.025] transition-colors">
+    <div ref={impressionRef} className={`${presentation === 'signal' ? 'pj-signal-post' : ''} relative overflow-hidden group/card rounded-none sm:rounded-2xl border-y sm:border border-white/[0.06] transition-all duration-200 sm:hover:-translate-y-0.5 hover:shadow-[0_8px_32px_rgba(0,0,0,0.35),_0_-4px_10px_rgba(0,0,0,0.18)] hover:border-white/[0.1] hover:z-10 will-change-transform`}>
+      {albumArtworkBg && (
+        <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+          <img
+            src={albumArtworkBg}
+            alt=""
+            aria-hidden="true"
+            loading="lazy"
+            decoding="async"
+            referrerPolicy="no-referrer"
+            className="w-full h-full object-cover scale-105 opacity-45 blur-[2px] transition-transform duration-700 group-hover/card:scale-110"
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/75 to-black/90 backdrop-blur-[4px]" />
+        </div>
+      )}
+      <div className="relative z-10 flex gap-3 px-3 sm:px-4 py-3 sm:py-3.5 rounded-none sm:rounded-2xl hover:bg-white/[0.025] transition-colors">
         {/* Avatar col */}
         <div className="relative flex-shrink-0 group/profile">
           <button
@@ -865,27 +944,76 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser: onVisitUserProp,
             </div>
           )}
 
-          {/* Embedded platform asset (video / world / article / etc.) — music renders as the
-              player above, so only show this card when there's no full album player. */}
-          {(post as any).assetEmbed && !post.albumEmbed && (() => {
-            const ae = (post as any).assetEmbed as { type: string; id: string; title?: string; imageUrl?: string; subtitle?: string; sourceId?: string; channelNumber?: string };
-            const linkFor: Record<string, string> = { VIDEO: 'video', ARTICLE: 'article', TRACK: 'track', ALBUM: 'album', CHANNEL: 'channel' };
+          {/* Embedded platform asset (world / article / taleo curation / etc.) — music renders as the
+              player above, and Reello videos render inline via PostVideo below. */}
+          {(post as any).assetEmbed && !post.albumEmbed && (post as any).assetEmbed.type !== 'VIDEO' && (() => {
+            const ae = (post as any).assetEmbed as { type: string; id: string; trackId?: string; title?: string; imageUrl?: string; image?: string; url?: string; subtitle?: string; sourceId?: string; channelNumber?: string; shelf?: string };
+            const linkFor: Record<string, string> = {
+              VIDEO: 'video',
+              ARTICLE: 'article',
+              TRACK: 'album',
+              ALBUM: 'album',
+              CHANNEL: 'channel',
+              TALEO_COLLECTION: 'taleoCollection',
+              MOVIE: 'movie',
+              ARCHIVE: 'archive',
+            };
             const asset = linkFor[ae.type];
-            const href = asset ? buildShareUrl(asset as any, ae.id, ae.type === 'CHANNEL' ? { source: ae.sourceId, n: ae.channelNumber || ae.subtitle?.match(/^CH ([0-9.]+)/)?.[1] } : undefined) : undefined;
+            const extraParams =
+              ae.type === 'CHANNEL'
+                ? { source: ae.sourceId, n: ae.channelNumber || ae.subtitle?.match(/^CH ([0-9.]+)/)?.[1] }
+                : ae.type === 'TALEO_COLLECTION' && ae.shelf
+                ? { shelf: ae.shelf }
+                : (ae.type === 'TRACK' || ae.type === 'ALBUM') && ae.trackId
+                ? { track: ae.trackId }
+                : undefined;
+            const href = ae.url || (asset ? buildShareUrl(asset as any, ae.id, extraParams) : undefined);
+            const thumbImg = ae.imageUrl || ae.image;
+            const badgeLabel = ae.type === 'TALEO_COLLECTION'
+              ? 'TALEO CURATION'
+              : ae.type === 'TRACK' || ae.type === 'ALBUM'
+              ? 'CHORA STREAM'
+              : ae.type.replace(/_/g, ' ');
+            const handleAssetClick = (e: React.MouseEvent) => {
+              if (ae.type === 'TALEO_COLLECTION') {
+                e.preventDefault();
+                e.stopPropagation();
+                try {
+                  if (String(ae.id || 'halloween').toLowerCase().includes('halloween')) {
+                    sessionStorage.setItem('plajah:taleo:initialSubView', 'HALLOWEEN');
+                  }
+                  if (ae.shelf) {
+                    sessionStorage.setItem('plajah:taleo:initialShelf', ae.shelf);
+                  }
+                } catch {}
+                window.dispatchEvent(new CustomEvent('OPEN_TALEO_COLLECTION', { detail: { id: ae.id || 'halloween', shelf: ae.shelf } }));
+              } else if (ae.type === 'TRACK' || ae.type === 'ALBUM') {
+                e.preventDefault();
+                e.stopPropagation();
+                const parsedChora = href ? parseChoraSongUrl(href) : null;
+                window.dispatchEvent(new CustomEvent('NAVIGATE', {
+                  detail: {
+                    target: 'PLAYER',
+                    albumId: parsedChora?.albumId || ae.id,
+                    trackId: ae.trackId || parsedChora?.trackId,
+                  },
+                }));
+              }
+            };
             const Inner = (
               <div className="flex items-center gap-3 p-3 bg-white/[0.04] border border-white/10 rounded-2xl hover:border-white/25 transition-all">
-                {ae.imageUrl
-                  ? <img src={ae.imageUrl} alt="" className="w-12 h-12 rounded-xl object-cover shrink-0" />
+                {thumbImg
+                  ? <img src={thumbImg} alt="" className="w-12 h-12 rounded-xl object-cover shrink-0" />
                   : <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center shrink-0"><Play size={16} className="text-white/40" /></div>}
                 <div className="min-w-0 flex-1">
-                  <p className="text-[8px] font-black uppercase tracking-[0.25em] text-small-orange">{ae.type} · On Plajah</p>
-                  <p className="text-sm font-black text-white truncate">{ae.title || 'Open on Plajah'}</p>
+                  <p className="text-[8px] font-black uppercase tracking-[0.25em] text-small-orange">{badgeLabel} · On Plajah</p>
+                  <p className="text-sm font-black text-white truncate">{ae.title || 'Open on Plajah Chora'}</p>
                   {ae.subtitle && <p className="text-[11px] text-white/45 truncate">{ae.subtitle}</p>}
                 </div>
                 {href && <ChevronRight size={16} className="text-white/30 shrink-0" />}
               </div>
             );
-            return <div className="mt-3">{href ? <a href={href} className="block">{Inner}</a> : Inner}</div>;
+            return <div className="mt-3">{href ? <a href={href} onClick={handleAssetClick} className="block">{Inner}</a> : Inner}</div>;
           })()}
 
           {/* Rich Media */}

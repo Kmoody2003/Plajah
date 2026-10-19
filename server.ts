@@ -47,7 +47,7 @@ import os from 'node:os';
 import Stripe from 'stripe';
 import { coraRouter } from './routes/cora';
 import { createMusicLabRouter } from './routes/musicLab';
-import { createAdminFilmIngestRouter } from './routes/adminFilmIngest';
+import { createAdminFilmIngestRouter, handleMuxAssetReadyForPublicDomain, startPublicDomainAutoIngestScheduler } from './routes/adminFilmIngest';
 import { learnerAuthRouter } from './routes/learnerAuth';
 import { schoolsRouter } from './routes/schools';
 import { elevateAccountsRouter } from './routes/elevateAccounts';
@@ -10074,6 +10074,12 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
         const playbackId = data?.playback_ids?.[0]?.id;
         if (assetId && playbackId) {
           console.log(`[MUX] Asset ${assetId} ready with playbackId ${playbackId}`);
+          await handleMuxAssetReadyForPublicDomain(
+            assetId,
+            playbackId,
+            typeof data?.passthrough === 'string' ? data.passthrough : undefined,
+            typeof data?.duration === 'number' ? Math.round(data.duration) : undefined
+          ).catch((e: any) => console.warn('[MUX webhook] Public domain ready handler note:', e?.message));
           try {
             // Find video doc with muxAssetId == assetId and update playbackId
             const url = `${fsBase}:runQuery`;
@@ -12994,6 +13000,10 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
     const intervalMs = Number(process.env.TERRA_INGESTION_INTERVAL_MS) || undefined;
     const { startTerraIngestionScheduler } = await import('./services/terraIngestionWorker.js');
     startTerraIngestionScheduler({ intervalMs });
+  }
+
+  if (process.env.PUBLIC_DOMAIN_AUTO_INGEST !== 'false') {
+    startPublicDomainAutoIngestScheduler();
   }
 
   const server = app.listen(PORT, '0.0.0.0', () => {

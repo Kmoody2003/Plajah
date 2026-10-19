@@ -10,10 +10,21 @@ import {
 import { fetchPublicOrganizations, openElevateGatewayModal } from '../services/organizationService';
 import { DEMO_CHURCH, DEMO_CHURCH_ID } from '../data/demoShowcase';
 import { orgMediaUids, fetchLiveOwnerSet } from '../services/orgMedia';
-import { Organization, OrgType } from '../types';
+import { Organization, OrgType, AppView } from '../types';
 import { TYPE } from '../src/lib/designSystem';
 import AriaMark from './aria/AriaMark';
 import PlajahPlusBanner from './PlajahPlusBanner';
+import {
+  PageVisualConfig,
+  EditableCarouselItem,
+  PLAJAH_GRADIENT_CSS,
+  PRESET_HERO_PLATES,
+  isGlobalEditModeEnabled,
+  subscribeGlobalEditMode,
+  subscribePageVisualConfig,
+  savePageVisualConfig,
+  updateHeroArtSlot,
+} from '../services/siteVisualEditorService';
 
 export type ElevateLayoutVariant = 'A_BUSINESS_DIRECTORY' | 'B_LOREA_STAGE' | 'C_PORTAL_CONCIERGE';
 
@@ -292,16 +303,32 @@ const ElevateOrgCard: React.FC<{
 };
 
 const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNavigate, isSignedIn }) => {
-  // Layout Switcher — lets the user compare all 3 requested Plajah Design Language layouts live!
-  const [layout, setLayout] = useState<ElevateLayoutVariant>(() => {
-    if (typeof window !== 'undefined') {
-      const lp = (new URLSearchParams(window.location.search).get('layout') || '').toLowerCase();
-      if (lp === '2' || lp === 'b' || lp === 'lorea' || lp === 'stage') return 'B_LOREA_STAGE';
-      if (lp === '3' || lp === 'c' || lp === 'portal' || lp === 'gateway') return 'C_PORTAL_CONCIERGE';
-    }
-    return 'A_BUSINESS_DIRECTORY';
-  });
   const [elevateTheme, setElevateTheme] = useState<'plajah' | 'dark' | 'pastel'>('plajah');
+  const [visualConfig, setVisualConfig] = useState<PageVisualConfig | null>(null);
+  const [editMode, setEditMode] = useState<boolean>(() => isGlobalEditModeEnabled());
+  const [showAddCarouselCard, setShowAddCarouselCard] = useState(false);
+  const [newCardDraft, setNewCardDraft] = useState<{
+    title: string;
+    subtitle: string;
+    tag: string;
+    coverUrl: string;
+    linkedTool: EditableCarouselItem['linkedTool'];
+  }>({
+    title: '',
+    subtitle: '',
+    tag: 'LIVING SANCTUARY',
+    coverUrl: PRESET_HERO_PLATES[0].url,
+    linkedTool: 'LIVING_BOOK',
+  });
+
+  useEffect(() => {
+    const unsubCfg = subscribePageVisualConfig('PLAJAH_ELEVATE', cfg => setVisualConfig(cfg));
+    const unsubEdit = subscribeGlobalEditMode(on => setEditMode(on));
+    return () => {
+      unsubCfg();
+      unsubEdit();
+    };
+  }, []);
 
   const [orgsByType, setOrgsByType] = useState<Record<string, Organization[]>>({
     spiritual: [DEMO_CHURCH],
@@ -314,12 +341,9 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
   const [activeSection, setActiveSection] = useState<string>('all');
   const [liveUids, setLiveUids] = useState<Set<string>>(new Set());
 
-  // Interactive states for Layout B (Lorea Interactive Sanctuary Stage) & Layout C (Portal Concierge)
+  // Interactive states for The Living Sanctuary (Lorea Interactive Sanctuary Stage)
   const [slideIdx, setSlideIdx] = useState(0);
   const [autoCycleStage, setAutoCycleStage] = useState(false);
-  const [memberIdQuick, setMemberIdQuick] = useState('');
-  const [lastNameQuick, setLastNameQuick] = useState('');
-  const [portalDoor, setPortalDoor] = useState<'CLAIM' | 'JOIN' | 'EXPLORE' | 'CREATE'>('CLAIM');
 
   const carRef1 = useRef<HTMLDivElement>(null);
 
@@ -364,18 +388,6 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
     return list;
   }, [orgsByType]);
 
-  const filterList = (list: Organization[]) => {
-    const q = query.trim().toLowerCase();
-    if (!q) return list;
-    return list.filter(o =>
-      o.name?.toLowerCase().includes(q) ||
-      o.tagline?.toLowerCase().includes(q) ||
-      o.denomination?.toLowerCase().includes(q) ||
-      o.location?.city?.toLowerCase().includes(q) ||
-      o.tags?.some(t => t.toLowerCase().includes(q))
-    );
-  };
-
   const filteredAllOrgs = useMemo(() => {
     const base = activeSection === 'all'
       ? allOrgs
@@ -403,18 +415,6 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
     }
   };
 
-  const handleCapabilityAction = (actionKey?: string) => {
-    if (actionKey === 'AMBO_PRO') {
-      triggerNavigate('AMBO_PRO');
-    } else if (actionKey === 'CLAIM') {
-      openElevateGatewayModal({ mode: 'claim' });
-    } else if (actionKey === 'GIVE' || actionKey === 'DEMO') {
-      onOpenOrg(DEMO_CHURCH_ID);
-    } else {
-      onCreate();
-    }
-  };
-
   const currentSlide = AMBO_DEMO_SLIDES[slideIdx];
 
   // Theme wrapper styles for Pastel / Dark / Plajah
@@ -427,70 +427,37 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
 
   return (
     <div className={`w-full min-h-screen overflow-y-auto custom-scrollbar transition-colors duration-500 ${rootBg}`}>
-      {/* ── STICKY TOP DESIGN LAYOUT SWITCHER + NAV ── */}
+      {/* ── STICKY TOP NAV ── */}
       <div className="sticky top-0 z-40 bg-[#0a0612]/90 backdrop-blur-xl border-b border-white/[0.08] text-white">
-        {/* Top Layout Selector Bar — lets user toggle between the 3 requested Plajah Elevate layouts */}
-        <div className="bg-gradient-to-r from-[#6B0099]/35 via-[#D40055]/25 to-[#FF8C00]/25 border-b border-white/[0.07] px-4 py-2">
-          <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-[#FF8C00] animate-pulse" />
-              <span className="text-[10px] font-black uppercase tracking-[0.25em] text-white/80" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                Elevate Redesign · 3 Layouts
-              </span>
-            </div>
-            <div className="flex items-center gap-1.5 flex-wrap" role="tablist" aria-label="Choose Elevate layout">
-              {([
-                { id: 'A_BUSINESS_DIRECTORY' as const, num: '01', label: 'Flagship Hub (Business Style)' },
-                { id: 'B_LOREA_STAGE' as const,        num: '02', label: 'Living Sanctuary (Lorea Style)' },
-                { id: 'C_PORTAL_CONCIERGE' as const,   num: '03', label: 'Congregation Portal & Gateway' },
-              ]).map(opt => {
-                const active = layout === opt.id;
-                return (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    role="tab"
-                    aria-selected={active}
-                    onClick={() => setLayout(opt.id)}
-                    className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 ${
-                      active
-                        ? 'text-white shadow-[0_6px_20px_rgba(212,0,85,0.4)] scale-[1.02]'
-                        : 'bg-white/[0.06] text-white/55 hover:text-white border border-white/10'
-                    }`}
-                    style={active ? { background: 'linear-gradient(135deg,#6B0099,#D40055 55%,#FF8C00)' } : undefined}
-                  >
-                    <span className="font-mono opacity-75">{opt.num}</span>
-                    <span>{opt.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
         {/* Main Elevate Sticky Nav */}
-        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center gap-4">
-          <div className="flex items-center gap-3 mr-2">
+        <div className="max-w-6xl mx-auto px-3.5 sm:px-6 h-14 sm:h-16 flex items-center gap-2 sm:gap-4">
+          <div className="flex items-center gap-2.5 sm:gap-3 mr-1 sm:mr-2 min-w-0">
             <div
-              className="w-8 h-8 rounded-[10px] grid place-items-center text-white shadow-lg"
+              className="w-8 h-8 rounded-[10px] grid place-items-center text-white shadow-lg shrink-0"
               style={{ background: 'linear-gradient(135deg,#6B0099,#D40055 55%,#FF8C00)', boxShadow: '0 8px 24px rgba(212,0,85,.34)' }}
             >
               <Church size={16} />
             </div>
-            <div className="leading-none">
-              <div className="text-[16px] font-black tracking-tight" style={{ fontFamily: 'Outfit, sans-serif' }}>Plajah Elevate</div>
-              <div className="text-[8px] font-black uppercase tracking-[0.22em] text-white/40 mt-0.5">Faith · Culture · Causes</div>
+            <div className="leading-none min-w-0">
+              <div className="text-[14px] sm:text-[16px] font-black tracking-tight truncate" style={{ fontFamily: 'Outfit, sans-serif' }}>Plajah Elevate</div>
+              <div className="text-[7.5px] sm:text-[8px] font-black uppercase tracking-[0.2em] text-white/40 mt-0.5 truncate">Faith · Culture · Causes</div>
             </div>
           </div>
 
           <button onClick={() => scrollTo('elevate-dir')} className="hidden md:block px-3 py-2 rounded-full text-[12.5px] font-bold text-white/55 hover:text-white hover:bg-white/5 transition-all">Directory</button>
           <button onClick={() => scrollTo('elevate-caps')} className="hidden md:block px-3 py-2 rounded-full text-[12.5px] font-bold text-white/55 hover:text-white hover:bg-white/5 transition-all">For Leaders</button>
           <button onClick={() => scrollTo('elevate-doors')} className="hidden md:block px-3 py-2 rounded-full text-[12.5px] font-bold text-white/55 hover:text-white hover:bg-white/5 transition-all">All Doors</button>
-          <button onClick={() => openElevateGatewayModal({ mode: 'claim' })} className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-black uppercase tracking-wider text-[#D0BCFF] bg-[#8B5CF6]/15 border border-[#8B5CF6]/30 hover:bg-[#8B5CF6]/25 transition-all">
-            <KeyRound size={12} /> Claim Member ID
+          <button
+            onClick={() => openElevateGatewayModal({ mode: 'claim' })}
+            className="inline-flex items-center justify-center gap-1.5 h-9 px-2.5 lg:px-3 rounded-full text-[10px] lg:text-[11px] font-black uppercase tracking-wider text-[#D0BCFF] bg-[#8B5CF6]/15 border border-[#8B5CF6]/30 hover:bg-[#8B5CF6]/25 transition-all shrink-0"
+            title="Claim Member ID"
+            aria-label="Claim Member ID"
+          >
+            <KeyRound size={13} className="shrink-0" />
+            <span className="hidden lg:inline">Claim Member ID</span>
           </button>
 
-          <div className="ml-auto flex items-center gap-2.5">
+          <div className="ml-auto flex items-center gap-1.5 sm:gap-2.5 shrink-0">
             {/* Theme pill switcher (from Lorea) */}
             <div className="hidden xl:flex items-center gap-1 bg-white/[0.04] border border-white/10 rounded-full p-1">
               {(['plajah', 'dark', 'pastel'] as const).map(th => (
@@ -514,275 +481,148 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
                 placeholder="Search churches, cities, causes…"
                 value={query}
                 onChange={e => setQuery(e.target.value)}
-                className="w-52 bg-white/[0.05] border border-white/10 rounded-full py-2 pl-9 pr-4 text-[12px] font-medium text-white outline-none focus:border-white/30 transition-all placeholder:text-white/30"
+                className="w-44 lg:w-52 bg-white/[0.05] border border-white/10 rounded-full py-2 pl-9 pr-4 text-[12px] font-medium text-white outline-none focus:border-white/30 transition-all placeholder:text-white/30"
               />
             </div>
 
             <button
               onClick={onCreate}
-              className="flex items-center gap-2 px-4 h-10 rounded-full text-[12px] font-black tracking-tight text-white hover:-translate-y-px transition-transform whitespace-nowrap"
+              className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 h-9 sm:h-10 rounded-full text-[11px] sm:text-[12px] font-black tracking-tight text-white hover:-translate-y-px transition-transform whitespace-nowrap shrink-0"
               style={{ background: 'linear-gradient(135deg,#6B0099,#D40055 55%,#FF8C00)', boxShadow: '0 8px 24px rgba(212,0,85,.34)', fontFamily: 'Outfit, sans-serif' }}
             >
-              <Plus size={14} /> {isSignedIn ? 'Launch Organization' : 'Start Free'}
+              <Plus size={14} className="shrink-0" />
+              <span className="hidden sm:inline">{isSignedIn ? 'Launch Organization' : 'Start Free'}</span>
+              <span className="sm:hidden">{isSignedIn ? 'Launch' : 'Start'}</span>
             </button>
           </div>
         </div>
       </div>
 
       {/* =====================================================================
-          LAYOUT 1 — FLAGSHIP HUB (PLAJAH SMALL BUSINESS INSPIRED)
+          THE LIVING SANCTUARY STAGE (LOREA STYLE ELEVATE LANDING PAGE)
           ===================================================================== */}
-      {layout === 'A_BUSINESS_DIRECTORY' && (
-        <div>
-          {/* ── HERO (Small Business kinetic Outfit italic uppercase style) ── */}
-          <header className="relative overflow-hidden border-b border-white/[0.08]">
-            <div className="pointer-events-none absolute -top-40 -right-24 w-[36rem] h-[36rem] rounded-full blur-3xl" style={{ background: 'radial-gradient(circle,rgba(139,92,246,.35),transparent 66%)' }} />
-            <div className="pointer-events-none absolute -bottom-52 -left-28 w-[32rem] h-[32rem] rounded-full blur-3xl" style={{ background: 'radial-gradient(circle,rgba(212,0,85,.38),transparent 66%)' }} />
-            <div className="pointer-events-none absolute top-12 left-1/2 w-[24rem] h-[24rem] rounded-full blur-3xl" style={{ background: 'radial-gradient(circle,rgba(255,140,0,.20),transparent 66%)' }} />
-
-            <div className="relative max-w-6xl mx-auto px-6 py-16 sm:py-20 text-center">
-              <motion.p
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="text-[11px] font-black uppercase tracking-[0.35em] text-[#D0BCFF] mb-5"
-                style={{ fontFamily: 'Outfit, sans-serif' }}
-              >
-                Plajah Elevate · Faith, Culture &amp; Community
-              </motion.p>
-              <motion.h1
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.05 }}
-                className="font-black italic uppercase leading-[0.86] tracking-[-0.035em]"
-                style={{ fontFamily: 'Outfit, sans-serif', fontSize: 'clamp(48px,9vw,104px)' }}
-              >
-                <span className={elevateTheme === 'pastel' ? 'text-[#073642]' : 'text-white'}>Gather. Serve. </span>
-                <span
-                  className="block"
+      <div>
+        {/* ── SPLIT INTERACTIVE HERO (Lorea 2-Column Stage + Interactive Ambo Sanctuary) ── */}
+        <header className="relative overflow-hidden border-b border-white/[0.08]">
+            {/* Admin-Customizable Hero Background Artwork & Plajah Brand Gradient Scrim */}
+            {visualConfig?.heroArt?.['primary_hero']?.backgroundUrl && (
+              <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
+                <img
+                  src={visualConfig.heroArt['primary_hero'].backgroundUrl}
+                  alt=""
+                  className="w-full h-full object-cover opacity-35 transition-all duration-700"
+                />
+                <div
+                  className="absolute inset-0 transition-opacity duration-500"
                   style={{
-                    background: 'linear-gradient(135deg,#8B5CF6,#D40055 55%,#FF8C00)',
-                    WebkitBackgroundClip: 'text',
-                    backgroundClip: 'text',
-                    color: 'transparent',
+                    background:
+                      PLAJAH_GRADIENT_CSS[
+                        visualConfig.heroArt['primary_hero'].gradientPreset || 'warm'
+                      ]?.css || PLAJAH_GRADIENT_CSS.warm.css,
+                    opacity: (visualConfig.heroArt['primary_hero'].overlayOpacity ?? 42) / 100,
                   }}
-                >
-                  Elevate.
-                </span>
-              </motion.h1>
-              <motion.p
-                initial={{ opacity: 0, y: 14 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-                className="opacity-70 mx-auto mt-6 max-w-2xl leading-relaxed"
-                style={{ fontSize: 'clamp(16px,2.1vw,20px)' }}
-              >
-                Your sanctuary stage, live broadcast, tithes &amp; designated funds, pre-provisioned member accounts, choir &amp; Christian education — all in one app. Free to start. Zero platform cut on giving.
-              </motion.p>
-
-              {/* Primary CTAs */}
-              <motion.div
-                initial={{ opacity: 0, y: 14 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.16 }}
-                className="mt-9 flex flex-wrap gap-3 justify-center"
-              >
-                <button
-                  onClick={onCreate}
-                  className="flex items-center gap-2.5 h-14 px-7 rounded-full text-[15px] font-black tracking-tight text-white hover:-translate-y-0.5 transition-transform"
-                  style={{
-                    fontFamily: 'Outfit, sans-serif',
-                    background: 'linear-gradient(135deg,#6B0099,#D40055 55%,#FF8C00)',
-                    boxShadow: '0 10px 34px rgba(212,0,85,.38)',
-                  }}
-                >
-                  <Church size={18} /> Set up your church or org
-                </button>
-                <button
-                  onClick={() => openElevateGatewayModal({ mode: 'claim' })}
-                  className="flex items-center gap-2.5 h-14 px-7 rounded-full text-[15px] font-black tracking-tight bg-[#8B5CF6]/20 border border-[#8B5CF6]/45 text-white hover:bg-[#8B5CF6]/30 transition-all"
-                  style={{ fontFamily: 'Outfit, sans-serif' }}
-                >
-                  <KeyRound size={17} className="text-[#D0BCFF]" /> Claim Member Seat
-                </button>
-                <button
-                  onClick={() => scrollTo('elevate-dir')}
-                  className="flex items-center gap-2.5 h-14 px-7 rounded-full text-[15px] font-black tracking-tight bg-white/[0.05] border border-white/15 text-white hover:bg-white/10 transition-all"
-                  style={{ fontFamily: 'Outfit, sans-serif' }}
-                >
-                  <Search size={17} /> Browse directory
-                </button>
-              </motion.div>
-
-              {/* Trust Badges */}
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.24 }}
-                className="mt-7 flex flex-wrap gap-2.5 justify-center"
-              >
-                {[
-                  { t: 'Free to launch', dot: true },
-                  { t: '0% platform fee on tithes & giving' },
-                  { t: 'Import Servant Keeper · Planning Center · Breeze' },
-                  { t: 'Ambo multi-screen sanctuary stage included' },
-                ].map(c => (
-                  <span key={c.t} className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/[0.04] border border-white/10 text-[12.5px] font-semibold text-white/70">
-                    {c.dot && <span className="w-1.5 h-1.5 rounded-full bg-[#06D6A0]" style={{ boxShadow: '0 0 0 3px rgba(6,214,160,.2)' }} />}
-                    {c.t}
-                  </span>
-                ))}
-              </motion.div>
-            </div>
-          </header>
-
-          {/* ── 4 PILLAR CATEGORY TILES (Small Business Category Bento) ── */}
-          <section className="max-w-6xl mx-auto px-6 py-14">
-            <div className="flex items-end justify-between gap-5 mb-6">
-              <div>
-                <h2 className="font-black italic uppercase tracking-[-0.02em] leading-[0.95]" style={{ fontFamily: 'Outfit, sans-serif', fontSize: 'clamp(24px,3.4vw,34px)' }}>
-                  Find your community
-                </h2>
-                <p className="text-white/45 text-sm mt-2">Every church, cultural center, faith tradition and nonprofit on Plajah Elevate.</p>
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0b0214] via-[#0b0214]/70 to-transparent" />
               </div>
-              {activeSection !== 'all' && (
-                <button
-                  onClick={() => setActiveSection('all')}
-                  className="text-[12px] font-black text-white/60 hover:text-white flex items-center gap-1.5 whitespace-nowrap"
-                  style={{ fontFamily: 'Outfit, sans-serif' }}
-                >
-                  Show all ({allOrgs.length}) <span className="text-white/40">✕</span>
-                </button>
-              )}
-            </div>
+            )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-              {SECTIONS.map(s => {
-                const active = activeSection === s.key;
-                const count = (orgsByType[s.key] || []).length;
-                return (
-                  <button
-                    key={s.key}
-                    onClick={() => { setActiveSection(active ? 'all' : s.key); scrollTo('elevate-dir'); }}
-                    className={`group relative overflow-hidden text-left p-5 rounded-3xl border transition-all min-h-[140px] flex flex-col gap-3 ${
-                      active ? 'border-white/30 scale-[1.01]' : 'border-white/[0.08] hover:border-white/20'
-                    }`}
-                    style={{ background: active ? `${s.accent}18` : 'rgba(255,255,255,0.035)' }}
-                  >
-                    <span className="absolute w-36 h-36 rounded-full blur-[46px] -top-10 -right-10 opacity-40 group-hover:opacity-65 transition-opacity" style={{ background: s.accent }} />
-                    <span className="relative w-11 h-11 rounded-2xl grid place-items-center" style={{ background: `${s.accent}22`, color: s.accent }}>
-                      <s.icon size={20} />
-                    </span>
-                    <span className="relative font-black text-[16px] text-white" style={{ fontFamily: 'Outfit, sans-serif' }}>{s.title}</span>
-                    <span className="relative mt-auto flex items-center gap-2 text-[11.5px] text-white/45">
-                      {count > 0 ? `${count} ${count === 1 ? 'organization' : 'organizations'}` : s.sub}
-                      <ChevronRight size={13} className="ml-auto opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all" style={{ color: s.accent }} />
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-
-          {/* ── CAPABILITIES VALUE BAND ("One sanctuary runs the whole ministry") ── */}
-          <section id="elevate-caps" className="bg-[#07020e] border-y border-white/[0.08]">
-            <div className="max-w-6xl mx-auto px-6 py-14">
-              <div className="flex items-end justify-between gap-5 mb-7">
-                <div>
-                  <div className="text-[11px] font-black uppercase tracking-[0.3em] text-[#FF8C00] mb-3" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                    Why pastors, directors &amp; boards choose Plajah Elevate
-                  </div>
-                  <h2 className="font-black italic uppercase tracking-[-0.02em] leading-[0.95] text-white" style={{ fontFamily: 'Outfit, sans-serif', fontSize: 'clamp(24px,3.4vw,36px)' }}>
-                    One platform runs the whole ministry
-                  </h2>
-                  <p className="text-white/45 text-sm mt-2 max-w-xl">
-                    Replace five disconnected subscriptions (ChMS, projection software, livestreaming, giving, and group chat) with one unified home.
-                  </p>
-                </div>
-                <button
-                  onClick={onCreate}
-                  className="hidden sm:flex items-center gap-2 text-[12.5px] font-black text-white/75 hover:text-white whitespace-nowrap"
-                  style={{ fontFamily: 'Outfit, sans-serif' }}
-                >
-                  Start setup <ArrowRight size={14} />
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {ELEVATE_CAPABILITIES.map(cap => (
-                  <div
-                    key={cap.title}
-                    onClick={() => handleCapabilityAction(cap.actionKey)}
-                    className={`group relative overflow-hidden p-6 rounded-[28px] border border-white/[0.08] hover:border-white/25 hover:-translate-y-1 transition-all flex flex-col cursor-pointer ${
-                      cap.wide ? 'lg:col-span-2' : ''
-                    }`}
-                    style={{ background: 'linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.02))' }}
-                  >
-                    <span className="absolute inset-0 opacity-50 pointer-events-none" style={{ background: `radial-gradient(120% 120% at 100% 0%, ${cap.color}26, transparent 55%)` }} />
-                    <span className="relative w-11 h-11 rounded-2xl grid place-items-center mb-4" style={{ background: `${cap.color}22`, color: cap.color }}>
-                      <cap.icon size={22} />
-                    </span>
-                    <h3 className="relative font-black text-[18px] text-white" style={{ fontFamily: 'Outfit, sans-serif' }}>{cap.title}</h3>
-                    <p className="relative text-white/60 text-[13.5px] mt-2 leading-relaxed max-w-[48ch]">{cap.desc}</p>
-                    {cap.power && (
-                      <span className="relative mt-3 inline-flex items-center gap-1.5 text-[10.5px] font-black uppercase tracking-widest text-[#FF8C00]">
-                        <Zap size={13} /> {cap.power}
-                      </span>
-                    )}
-                    <span className="relative mt-auto pt-4 text-[11.5px] text-white/40 font-mono flex items-center justify-between gap-2">
-                      <span>{cap.stat}</span>
-                      <ArrowRight size={13} className="opacity-0 group-hover:opacity-100 transition-opacity text-white" />
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
-        </div>
-      )}
-
-      {/* =====================================================================
-          LAYOUT 2 — LIVING SANCTUARY STAGE (REBUILT LOREA INSPIRED)
-          ===================================================================== */}
-      {layout === 'B_LOREA_STAGE' && (
-        <div>
-          {/* ── SPLIT INTERACTIVE HERO (Lorea 2-Column Stage + Interactive Ambo Sanctuary) ── */}
-          <header className="relative overflow-hidden border-b border-white/[0.08]">
             <div className="pointer-events-none absolute -top-24 right-0 w-[42rem] h-[42rem] rounded-full blur-3xl opacity-40" style={{ background: 'radial-gradient(closest-side,rgba(212,0,85,.35),transparent)' }} />
-            <div className="max-w-6xl mx-auto px-6 py-12 lg:py-16 grid grid-cols-1 lg:grid-cols-[1fr_1.12fr] gap-10 items-center">
+
+            {/* Inline Hero Background Art Quick-Bar when Admin Edit Mode is ON */}
+            {editMode && (
+              <div
+                data-pj-admin-editor-ui="true"
+                className="relative z-20 max-w-6xl mx-auto px-6 pt-4"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 rounded-2xl bg-black/75 backdrop-blur-xl border border-[#FF8C00]/40 text-xs">
+                  <div className="flex items-center gap-2">
+                    <Sparkles size={13} className="text-[#FF8C00]" />
+                    <span className="font-black uppercase tracking-wider text-white">
+                      Living Sanctuary Hero Backdrop:
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {PRESET_HERO_PLATES.slice(0, 5).map(plate => (
+                      <button
+                        key={plate.id}
+                        type="button"
+                        onClick={() =>
+                          updateHeroArtSlot('PLAJAH_ELEVATE', 'primary_hero', {
+                            backgroundUrl: plate.url,
+                          })
+                        }
+                        className="px-2.5 py-1 rounded-full bg-white/10 hover:bg-[#D40055] text-[10px] font-bold text-white transition-all"
+                      >
+                        {plate.label.split(' (')[0]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12 lg:py-16 grid grid-cols-1 lg:grid-cols-[1fr_1.12fr] gap-7 sm:gap-10 items-center">
               {/* Left Column: Editorial Headline + CTAs */}
               <div>
-                <div className="text-[10px] font-black uppercase tracking-[0.45em] text-[#FF8C00]" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                  Plajah · Elevate · Sanctuary
+                <div
+                  data-pj-edit="elevate_hero_eyebrow"
+                  data-pj-label="Hero Eyebrow"
+                  className="text-[10px] font-black uppercase tracking-[0.3em] sm:tracking-[0.45em] text-[#FF8C00]"
+                  style={{ fontFamily: 'Outfit, sans-serif' }}
+                >
+                  {visualConfig?.textOverrides?.['elevate_hero_eyebrow'] ?? 'Plajah · Elevate · Sanctuary'}
                 </div>
                 <h1
-                  className="font-black tracking-[-0.045em] leading-[0.94] mt-4"
-                  style={{ fontFamily: 'Outfit, sans-serif', fontSize: 'clamp(44px,6.8vw,88px)' }}
+                  data-pj-edit="elevate_hero_title"
+                  data-pj-label="Hero Main Headline"
+                  className="font-black tracking-[-0.045em] leading-[0.94] mt-3 sm:mt-4"
+                  style={{ fontFamily: 'Outfit, sans-serif', fontSize: 'clamp(34px,6.8vw,88px)' }}
                 >
-                  The sanctuary that <span className="text-[#D40055]">gathers your people</span> anywhere.
+                  {visualConfig?.textOverrides?.['elevate_hero_title'] ? (
+                    visualConfig.textOverrides['elevate_hero_title']
+                  ) : (
+                    <>
+                      The sanctuary that <span className="text-[#D40055]">gathers your people</span> anywhere.
+                    </>
+                  )}
                 </h1>
-                <p className="text-white/65 text-[17px] leading-relaxed mt-5 max-w-[44ch]">
-                  Scripture that beams to every phone in the pews. Choirs that rehearse with live stems. Tithes with zero platform fees. One home for Sunday morning and the six days in between.
+                <p
+                  data-pj-edit="elevate_hero_subtitle"
+                  data-pj-label="Hero Subtitle Copy"
+                  className="text-white/65 text-[15px] sm:text-[17px] leading-relaxed mt-4 sm:mt-5 max-w-[44ch]"
+                >
+                  {visualConfig?.textOverrides?.['elevate_hero_subtitle'] ??
+                    'Scripture that beams to every phone in the pews. Choirs that rehearse with live stems. Tithes with zero platform fees. One home for Sunday morning and the six days in between.'}
                 </p>
 
-                <div className="flex flex-wrap items-center gap-3 mt-7">
+                <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 mt-5 sm:mt-7">
                   <button
                     type="button"
                     onClick={() => onOpenOrg(DEMO_CHURCH_ID)}
-                    className="px-7 py-4 rounded-full text-[12px] font-black uppercase tracking-[0.2em] text-white transition-transform hover:-translate-y-0.5 shadow-[0_10px_30px_-6px_rgba(212,0,85,0.5)]"
+                    className="px-5 sm:px-7 py-3.5 sm:py-4 rounded-full text-[11px] sm:text-[12px] font-black uppercase tracking-[0.16em] sm:tracking-[0.2em] text-white transition-transform hover:-translate-y-0.5 shadow-[0_10px_30px_-6px_rgba(212,0,85,0.5)]"
                     style={{ background: '#D40055', fontFamily: 'Outfit, sans-serif' }}
                   >
-                    Tour Grace Chapel
+                    <span data-pj-edit="elevate_hero_cta_primary" data-pj-label="Primary CTA Button">
+                      {visualConfig?.textOverrides?.['elevate_hero_cta_primary'] ?? 'Tour Grace Chapel'}
+                    </span>
                   </button>
                   <button
                     type="button"
                     onClick={() => openElevateGatewayModal({ mode: 'claim' })}
-                    className="px-6 py-4 rounded-full text-[12px] font-black uppercase tracking-[0.2em] border border-white/20 hover:border-[#8B5CF6] bg-white/[0.03] text-white transition-all"
+                    className="px-5 sm:px-6 py-3.5 sm:py-4 rounded-full text-[11px] sm:text-[12px] font-black uppercase tracking-[0.16em] sm:tracking-[0.2em] border border-white/20 hover:border-[#8B5CF6] bg-white/[0.03] text-white transition-all"
                     style={{ fontFamily: 'Outfit, sans-serif' }}
                   >
-                    Claim Member ID
+                    <span data-pj-edit="elevate_hero_cta_secondary" data-pj-label="Secondary CTA Button">
+                      {visualConfig?.textOverrides?.['elevate_hero_cta_secondary'] ?? 'Claim Member ID'}
+                    </span>
                   </button>
-                  <span className="text-[#FF8C00] text-xl -rotate-3 ml-1" style={{ fontFamily: 'Gochi Hand, cursive' }}>
-                    try the live pulpit ↗
+                  <span
+                    data-pj-edit="elevate_hero_handwritten"
+                    data-pj-label="Handwritten Callout"
+                    className="text-[#FF8C00] text-lg sm:text-xl -rotate-3 ml-1"
+                    style={{ fontFamily: 'Gochi Hand, cursive' }}
+                  >
+                    {visualConfig?.textOverrides?.['elevate_hero_handwritten'] ?? 'try the live pulpit ↗'}
                   </span>
                 </div>
               </div>
@@ -790,21 +630,21 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
               {/* Right Column: Interactive 3D Ambo Sanctuary Stage + Follow-Along Bar */}
               <div className="min-w-0" style={{ perspective: '1800px' }}>
                 <div
-                  className="rounded-[28px] p-5 sm:p-6 border border-[#D40055]/30 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.85)] transition-transform duration-500 hover:scale-[1.01]"
+                  className="rounded-[24px] sm:rounded-[28px] p-4 sm:p-6 border border-[#D40055]/30 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.85)] transition-transform duration-500 hover:scale-[1.01]"
                   style={{
                     background: 'linear-gradient(160deg, rgba(107,0,153,0.28), rgba(15,6,28,0.92))',
                     backdropFilter: 'blur(16px)',
                   }}
                 >
                   {/* Stage Mode Selector Pills */}
-                  <div className="flex items-center justify-between gap-2 flex-wrap mb-4">
-                    <div className="flex items-center gap-1.5 bg-black/40 border border-white/10 rounded-full p-1">
+                  <div className="flex items-center justify-between gap-2 flex-wrap mb-3.5 sm:mb-4">
+                    <div className="flex items-center gap-1 bg-black/40 border border-white/10 rounded-full p-1 overflow-x-auto no-scrollbar max-w-full">
                       {AMBO_DEMO_SLIDES.map((s, idx) => (
                         <button
                           key={s.kind}
                           type="button"
                           onClick={() => setSlideIdx(idx)}
-                          className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${
+                          className={`shrink-0 px-2.5 sm:px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${
                             slideIdx === idx
                               ? 'bg-gradient-to-r from-[#6B0099] to-[#D40055] text-white shadow'
                               : 'text-white/50 hover:text-white'
@@ -814,7 +654,7 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
                         </button>
                       ))}
                     </div>
-                    <span className="flex items-center gap-1.5 text-[9px] font-mono uppercase tracking-widest text-[#06D6A0]">
+                    <span className="flex items-center gap-1.5 text-[8.5px] sm:text-[9px] font-mono uppercase tracking-widest text-[#06D6A0] shrink-0">
                       <span className="w-2 h-2 rounded-full bg-[#06D6A0] animate-ping" /> Ambo Stage Live
                     </span>
                   </div>
@@ -827,7 +667,7 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
                       animate={{ opacity: 1, rotateY: 0, scale: 1 }}
                       exit={{ opacity: 0, rotateY: 8, scale: 0.98 }}
                       transition={{ duration: 0.35 }}
-                      className="relative aspect-[16/10] rounded-2xl overflow-hidden border border-white/15 p-6 sm:p-8 flex flex-col justify-between"
+                      className="relative min-h-[210px] sm:aspect-[16/10] rounded-2xl overflow-hidden border border-white/15 p-4 sm:p-8 flex flex-col justify-between gap-3"
                       style={{
                         background:
                           slideIdx === 0
@@ -839,20 +679,34 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
                             : 'radial-gradient(circle at 50% 20%, rgba(255,140,0,0.38), rgba(12,6,24,0.96) 70%)',
                       }}
                     >
-                      <div className="flex items-center justify-between text-[10px] font-mono uppercase tracking-[0.2em] text-[#FF8C00]">
-                        <span>{currentSlide.ref}</span>
-                        <span className="px-2 py-0.5 rounded bg-white/10 text-white/70 text-[8px]">CH 1 · SANCTUARY WALL</span>
+                      <div className="flex items-center justify-between gap-2 text-[9px] sm:text-[10px] font-mono uppercase tracking-[0.15em] sm:tracking-[0.2em] text-[#FF8C00]">
+                        <span
+                          data-pj-edit={`ambo_slide_${slideIdx}_ref`}
+                          data-pj-label={`Ambo Slide ${slideIdx + 1} Reference`}
+                          className="truncate"
+                        >
+                          {visualConfig?.textOverrides?.[`ambo_slide_${slideIdx}_ref`] ?? currentSlide.ref}
+                        </span>
+                        <span className="px-2 py-0.5 rounded bg-white/10 text-white/70 text-[8px] shrink-0">CH 1 · SANCTUARY WALL</span>
                       </div>
 
                       <p
+                        data-pj-edit={`ambo_slide_${slideIdx}_text`}
+                        data-pj-label={`Ambo Slide ${slideIdx + 1} Lyric/Scripture`}
                         className="font-black text-white leading-snug tracking-tight my-auto"
-                        style={{ fontFamily: 'Outfit, sans-serif', fontSize: 'clamp(17px,2.2vw,25px)' }}
+                        style={{ fontFamily: 'Outfit, sans-serif', fontSize: 'clamp(15px,2.2vw,25px)' }}
                       >
-                        {currentSlide.text}
+                        {visualConfig?.textOverrides?.[`ambo_slide_${slideIdx}_text`] ?? currentSlide.text}
                       </p>
 
-                      <div className="flex items-center justify-between gap-3 pt-3 border-t border-white/10 text-[11px] text-white/60">
-                        <span className="truncate">{currentSlide.note}</span>
+                      <div className="flex items-center justify-between gap-3 pt-2.5 sm:pt-3 border-t border-white/10 text-[10px] sm:text-[11px] text-white/60">
+                        <span
+                          data-pj-edit={`ambo_slide_${slideIdx}_note`}
+                          data-pj-label={`Ambo Slide ${slideIdx + 1} Caption`}
+                          className="truncate"
+                        >
+                          {visualConfig?.textOverrides?.[`ambo_slide_${slideIdx}_note`] ?? currentSlide.note}
+                        </span>
                         <span className="font-mono text-[9px] uppercase tracking-widest text-[#D0BCFF] shrink-0">
                           {slideIdx + 1} / {AMBO_DEMO_SLIDES.length}
                         </span>
@@ -861,27 +715,32 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
                   </AnimatePresence>
 
                   {/* Interactive Control Pill Bar (Lorea Player style) */}
-                  <div className="mt-4 flex items-center gap-3 p-2.5 rounded-full bg-black/45 border border-white/12">
+                  <div className="mt-3.5 sm:mt-4 flex items-center gap-2.5 sm:gap-3 p-2 sm:p-2.5 rounded-full bg-black/45 border border-white/12">
                     <button
                       type="button"
                       onClick={() => setAutoCycleStage(p => !p)}
-                      className="w-10 h-10 rounded-full bg-[#D40055] text-white grid place-items-center shrink-0 hover:brightness-110 transition-all"
+                      className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-[#D40055] text-white grid place-items-center shrink-0 hover:brightness-110 transition-all"
                       aria-label="Toggle Sanctuary Stage autoplay"
                     >
                       {autoCycleStage ? <Pause size={16} /> : <Play size={16} />}
                     </button>
                     <div className="min-w-0 flex-1">
-                      <div className="text-[9px] font-mono uppercase tracking-widest text-white/45">
+                      <div className="text-[8.5px] sm:text-[9px] font-mono uppercase tracking-widest text-white/45 truncate">
                         Ambo Presenter · Follow-Along Sync
                       </div>
-                      <div className="text-xs font-bold text-white truncate">
-                        Click any mode above or press play to preview Sunday morning
+                      <div
+                        data-pj-edit="ambo_player_hint"
+                        data-pj-label="Ambo Presenter Bar Hint"
+                        className="text-[11px] sm:text-xs font-bold text-white truncate"
+                      >
+                        {visualConfig?.textOverrides?.['ambo_player_hint'] ??
+                          'Click any mode above or press play to preview Sunday morning'}
                       </div>
                     </div>
                     <button
                       type="button"
                       onClick={() => setSlideIdx(i => (i + 1) % AMBO_DEMO_SLIDES.length)}
-                      className="px-3.5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest border border-white/15 hover:border-[#FF8C00] text-white shrink-0"
+                      className="px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-full text-[9.5px] sm:text-[10px] font-black uppercase tracking-widest border border-white/15 hover:border-[#FF8C00] text-white shrink-0 whitespace-nowrap"
                     >
                       Next cue →
                     </button>
@@ -891,16 +750,42 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
             </div>
           </header>
 
-          {/* ── LOREA-STYLE HORIZONTAL CAROUSEL OF INSTITUTIONS ── */}
+          {/* ── LOREA-STYLE HORIZONTAL CAROUSEL OF INSTITUTIONS + ADMIN CURATED CARDS ── */}
           <section className="max-w-6xl mx-auto px-6 py-12 border-b border-white/[0.08]">
-            <div className="flex items-end justify-between gap-4 mb-5">
+            <div className="flex items-end justify-between gap-4 mb-5 flex-wrap">
               <div>
-                <div className="text-[10px] font-black uppercase tracking-[0.4em] text-[#FF8C00]">Live Sanctuary Shelf</div>
-                <h2 className="font-black tracking-tight text-2xl sm:text-3xl mt-1" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                  Featured Churches, Ministries &amp; Cultural Houses
+                <div
+                  data-pj-edit="elevate_shelf_eyebrow"
+                  data-pj-label="Carousel Shelf Eyebrow"
+                  className="text-[10px] font-black uppercase tracking-[0.4em] text-[#FF8C00]"
+                >
+                  {visualConfig?.textOverrides?.['elevate_shelf_eyebrow'] ?? 'Live Sanctuary Shelf'}
+                </div>
+                <h2
+                  data-pj-edit="elevate_shelf_title"
+                  data-pj-label="Carousel Shelf Heading"
+                  className="font-black tracking-tight text-2xl sm:text-3xl mt-1"
+                  style={{ fontFamily: 'Outfit, sans-serif' }}
+                >
+                  {visualConfig?.textOverrides?.['elevate_shelf_title'] ??
+                    'Featured Churches, Ministries & Cultural Houses'}
                 </h2>
               </div>
               <div className="flex items-center gap-2">
+                {editMode && (
+                  <button
+                    type="button"
+                    data-pj-admin-editor-ui="true"
+                    onClick={() => setShowAddCarouselCard(v => !v)}
+                    className="px-3.5 py-2 rounded-full text-xs font-black uppercase tracking-wider text-white flex items-center gap-1.5 shadow-lg"
+                    style={{
+                      background: 'linear-gradient(135deg, #6B0099 0%, #D40055 55%, #FF8C00 100%)',
+                    }}
+                  >
+                    <Plus size={14} />
+                    <span>Add Carousel Card</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => carRef1.current?.scrollBy({ left: -340, behavior: 'smooth' })}
@@ -918,7 +803,171 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
               </div>
             </div>
 
+            {/* Inline Carousel Card Creator Modal/Drawer when Admin clicks "+ Add Carousel Card" */}
+            {editMode && showAddCarouselCard && visualConfig && (
+              <div
+                data-pj-admin-editor-ui="true"
+                className="mb-6 rounded-3xl p-5 bg-[#13111C] border border-[#FF8C00]/50 shadow-2xl grid grid-cols-1 md:grid-cols-4 gap-3 items-end"
+              >
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-white/50 mb-1">
+                    Card Title
+                  </label>
+                  <input
+                    value={newCardDraft.title}
+                    onChange={e => setNewCardDraft({ ...newCardDraft, title: e.target.value })}
+                    placeholder="e.g. Psalms of Ascent Living Book"
+                    className="w-full rounded-xl bg-black/50 border border-white/15 px-3 py-2 text-xs text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-white/50 mb-1">
+                    Subtitle / Description
+                  </label>
+                  <input
+                    value={newCardDraft.subtitle}
+                    onChange={e => setNewCardDraft({ ...newCardDraft, subtitle: e.target.value })}
+                    placeholder="Interactive study & Melos score"
+                    className="w-full rounded-xl bg-black/50 border border-white/15 px-3 py-2 text-xs text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-white/50 mb-1">
+                    Pre-Wired Creative Tool
+                  </label>
+                  <select
+                    value={newCardDraft.linkedTool}
+                    onChange={e =>
+                      setNewCardDraft({
+                        ...newCardDraft,
+                        linkedTool: e.target.value as EditableCarouselItem['linkedTool'],
+                      })
+                    }
+                    className="w-full rounded-xl bg-black/50 border border-white/15 px-3 py-2 text-xs text-white"
+                  >
+                    <option value="LIVING_BOOK">Lorea · Living Book</option>
+                    <option value="AMBO_STAGE">Ambo · Sanctuary Visualizer</option>
+                    <option value="TELA_DESIGN">Tela · Publication Design</option>
+                    <option value="CURATED_PLAYLIST">Chora · Worship Stems</option>
+                    <option value="PIXELS_ART">Plajah Pixels · Visual Art</option>
+                  </select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!newCardDraft.title.trim()) return;
+                      const shelf = visualConfig.carousels['elevate_featured'] || {
+                        shelfId: 'elevate_featured',
+                        eyebrow: 'Live Sanctuary Shelf',
+                        title: 'Featured Churches, Ministries & Cultural Houses',
+                        subtitle: '',
+                        items: [],
+                      };
+                      const newItem: EditableCarouselItem = {
+                        id: `item_${Date.now()}`,
+                        title: newCardDraft.title.trim(),
+                        subtitle: newCardDraft.subtitle.trim() || 'Curated by Sanctuary Admin',
+                        tag: newCardDraft.tag,
+                        coverUrl: newCardDraft.coverUrl,
+                        accentColor: '#FF8C00',
+                        linkedTool: newCardDraft.linkedTool,
+                      };
+                      savePageVisualConfig({
+                        ...visualConfig,
+                        carousels: {
+                          ...visualConfig.carousels,
+                          elevate_featured: {
+                            ...shelf,
+                            items: [newItem, ...shelf.items],
+                          },
+                        },
+                      });
+                      setNewCardDraft({ ...newCardDraft, title: '', subtitle: '' });
+                      setShowAddCarouselCard(false);
+                    }}
+                    className="flex-1 py-2 px-4 rounded-xl bg-[#D40055] hover:bg-[#FF8C00] text-white text-xs font-black uppercase tracking-wider transition-all"
+                  >
+                    Save to Carousel
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div ref={carRef1} className="flex gap-4 overflow-x-auto no-scrollbar pb-4 snap-x snap-mandatory">
+              {/* Render Admin-Curated Carousel Cards First */}
+              {(visualConfig?.carousels?.['elevate_featured']?.items || []).map(item => (
+                <div
+                  key={item.id}
+                  className="w-[290px] sm:w-[320px] shrink-0 snap-start rounded-[28px] overflow-hidden bg-white/[0.04] border border-white/15 flex flex-col justify-between group relative"
+                >
+                  <div className="h-36 relative overflow-hidden">
+                    <img
+                      src={item.coverUrl}
+                      alt={item.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#0b0214] via-transparent to-transparent" />
+                    <span className="absolute top-3 left-3 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-[#D40055] text-white">
+                      {item.linkedTool?.replace(/_/g, ' ') || item.tag}
+                    </span>
+                    {editMode && (
+                      <button
+                        type="button"
+                        data-pj-admin-editor-ui="true"
+                        onClick={() => {
+                          if (!visualConfig) return;
+                          const shelf = visualConfig.carousels['elevate_featured'];
+                          if (!shelf) return;
+                          savePageVisualConfig({
+                            ...visualConfig,
+                            carousels: {
+                              ...visualConfig.carousels,
+                              elevate_featured: {
+                                ...shelf,
+                                items: shelf.items.filter(x => x.id !== item.id),
+                              },
+                            },
+                          });
+                        }}
+                        className="absolute top-3 right-3 px-2 py-1 rounded-full bg-red-500/80 text-white text-[9px] font-black uppercase"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                  <div className="p-5 flex-1 flex flex-col">
+                    <h3
+                      data-pj-edit={`carousel_${item.id}_title`}
+                      className="font-black text-base text-white"
+                      style={{ fontFamily: 'Outfit, sans-serif' }}
+                    >
+                      {visualConfig?.textOverrides?.[`carousel_${item.id}_title`] ?? item.title}
+                    </h3>
+                    <p
+                      data-pj-edit={`carousel_${item.id}_sub`}
+                      className="text-xs text-white/60 mt-1 leading-relaxed flex-1"
+                    >
+                      {visualConfig?.textOverrides?.[`carousel_${item.id}_sub`] ?? item.subtitle}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (item.linkedTool === 'LIVING_BOOK') triggerNavigate('BOOKS');
+                        else if (item.linkedTool === 'AMBO_STAGE') triggerNavigate('AMBO_PRO');
+                        else if (item.linkedTool === 'TELA_DESIGN') triggerNavigate('TELA_STUDIO');
+                        else if (item.linkedTool === 'PIXELS_ART') triggerNavigate('PLAJAH_PIXELS');
+                        else onOpenOrg(DEMO_CHURCH_ID);
+                      }}
+                      className="mt-4 w-full py-2.5 rounded-2xl bg-white/[0.08] hover:bg-white/[0.15] text-[10px] font-black uppercase tracking-widest text-white flex items-center justify-center gap-1.5"
+                    >
+                      <span>Open in Studio</span>
+                      <ArrowRight size={11} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+
               {allOrgs.map(({ org, accent }) => (
                 <div key={org.id} className="w-[290px] sm:w-[320px] shrink-0 snap-start">
                   <ElevateOrgCard
@@ -938,30 +987,54 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
                 <span className="w-12 h-12 rounded-2xl grid place-items-center text-white" style={{ background: 'linear-gradient(135deg,#6B0099,#D40055,#FF8C00)' }}>
                   <Plus size={22} />
                 </span>
-                <span className="font-black text-base" style={{ fontFamily: 'Outfit, sans-serif' }}>Plant Your Sanctuary</span>
-                <span className="text-xs text-white/45">Set up departments, giving, and live streaming in two minutes.</span>
+                <span
+                  data-pj-edit="elevate_plant_sanctuary_title"
+                  className="font-black text-base"
+                  style={{ fontFamily: 'Outfit, sans-serif' }}
+                >
+                  {visualConfig?.textOverrides?.['elevate_plant_sanctuary_title'] ?? 'Plant Your Sanctuary'}
+                </span>
+                <span
+                  data-pj-edit="elevate_plant_sanctuary_sub"
+                  className="text-xs text-white/45"
+                >
+                  {visualConfig?.textOverrides?.['elevate_plant_sanctuary_sub'] ??
+                    'Set up departments, giving, and live streaming in two minutes.'}
+                </span>
               </button>
             </div>
           </section>
 
           {/* ── SIX PILLARS OF ELEVATE ("Six ways to gather, one sanctuary") ── */}
           <section id="elevate-caps" className="max-w-6xl mx-auto px-6 py-14 border-b border-white/[0.08]">
-            <div className="text-[10px] font-black uppercase tracking-[0.45em] text-[#FF8C00]">One Sanctuary</div>
-            <h2 className="font-black tracking-[-0.04em] leading-[0.95] mt-3 max-w-xl" style={{ fontFamily: 'Outfit, sans-serif', fontSize: 'clamp(32px,5vw,56px)' }}>
-              Six ways to gather, one connected home.
+            <div
+              data-pj-edit="elevate_pillars_eyebrow"
+              data-pj-label="Six Pillars Eyebrow"
+              className="text-[10px] font-black uppercase tracking-[0.45em] text-[#FF8C00]"
+            >
+              {visualConfig?.textOverrides?.['elevate_pillars_eyebrow'] ?? 'One Sanctuary'}
+            </div>
+            <h2
+              data-pj-edit="elevate_pillars_title"
+              data-pj-label="Six Pillars Heading"
+              className="font-black tracking-[-0.04em] leading-[0.95] mt-3 max-w-xl"
+              style={{ fontFamily: 'Outfit, sans-serif', fontSize: 'clamp(32px,5vw,56px)' }}
+            >
+              {visualConfig?.textOverrides?.['elevate_pillars_title'] ??
+                'Six ways to gather, one connected home.'}
             </h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-9">
               {[
-                { title: 'Ambo Pro Presenter', desc: 'Scripture, lyrics, lower-thirds and stage monitors driven from your browser.', tag: 'Sanctuary Stage', color: '#8B5CF6', icon: MonitorPlay, act: () => triggerNavigate('AMBO_PRO') },
-                { title: 'Sacred Library & Lectio', desc: 'Open the Bible and world faith texts with audio narration and study notes.', tag: 'Scripture', color: '#FF8C00', icon: BookOpen, act: () => triggerNavigate('SACRED_LIBRARY') },
-                { title: 'Tithes & Finance Hub', desc: 'Multi-fund giving, expense approvals, and automated donor statements.', tag: 'Stewardship', color: '#06D6A0', icon: Gift, act: () => onOpenOrg(DEMO_CHURCH_ID) },
-                { title: 'Music & Choir Dept', desc: 'Share setlists, rehearsal stems, sheet music scores and choir rosters.', tag: 'Worship', color: '#D40055', icon: Music, act: () => onOpenOrg(DEMO_CHURCH_ID) },
-                { title: 'Christian Education', desc: 'Sunday school classes, youth curricula, lesson plans and family check-in.', tag: 'Discipleship', color: '#00DAF3', icon: GraduationCap, act: () => onOpenOrg(DEMO_CHURCH_ID) },
-                { title: 'Prayer Wall & Care', desc: 'Live congregation prayer requests, "Praying for you" counts, and elder care.', tag: 'Fellowship', color: '#D0BCFF', icon: HandHeart, act: () => onOpenOrg(DEMO_CHURCH_ID) },
+                { key: 'p1', title: 'Ambo Pro Presenter', desc: 'Scripture, lyrics, lower-thirds and stage monitors driven from your browser.', tag: 'Sanctuary Stage', color: '#8B5CF6', icon: MonitorPlay, act: () => triggerNavigate('AMBO_PRO') },
+                { key: 'p2', title: 'Sacred Library & Lectio', desc: 'Open the Bible and world faith texts with audio narration and study notes.', tag: 'Scripture', color: '#FF8C00', icon: BookOpen, act: () => triggerNavigate('SACRED_LIBRARY') },
+                { key: 'p3', title: 'Tithes & Finance Hub', desc: 'Multi-fund giving, expense approvals, and automated donor statements.', tag: 'Stewardship', color: '#06D6A0', icon: Gift, act: () => onOpenOrg(DEMO_CHURCH_ID) },
+                { key: 'p4', title: 'Music & Choir Dept', desc: 'Share setlists, rehearsal stems, sheet music scores and choir rosters.', tag: 'Worship', color: '#D40055', icon: Music, act: () => onOpenOrg(DEMO_CHURCH_ID) },
+                { key: 'p5', title: 'Christian Education', desc: 'Sunday school classes, youth curricula, lesson plans and family check-in.', tag: 'Discipleship', color: '#00DAF3', icon: GraduationCap, act: () => onOpenOrg(DEMO_CHURCH_ID) },
+                { key: 'p6', title: 'Prayer Wall & Care', desc: 'Live congregation prayer requests, "Praying for you" counts, and elder care.', tag: 'Fellowship', color: '#D0BCFF', icon: HandHeart, act: () => onOpenOrg(DEMO_CHURCH_ID) },
               ].map(tile => (
                 <article
-                  key={tile.title}
+                  key={tile.key}
                   onClick={tile.act}
                   className="p-6 rounded-[28px] border border-white/10 bg-white/[0.03] hover:bg-white/[0.06] hover:-translate-y-2 transition-all duration-300 cursor-pointer flex flex-col gap-3 min-h-[220px]"
                 >
@@ -971,270 +1044,33 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
                   >
                     <tile.icon size={21} />
                   </div>
-                  <h3 className="font-black text-xl tracking-tight" style={{ fontFamily: 'Outfit, sans-serif' }}>{tile.title}</h3>
-                  <p className="text-sm text-white/60 leading-relaxed">{tile.desc}</p>
-                  <span className="mt-auto font-mono text-[10px] uppercase tracking-[0.18em]" style={{ color: tile.color }}>
-                    {tile.tag} →
+                  <h3
+                    data-pj-edit={`elevate_pillar_${tile.key}_title`}
+                    data-pj-label={`${tile.title} Heading`}
+                    className="font-black text-xl tracking-tight"
+                    style={{ fontFamily: 'Outfit, sans-serif' }}
+                  >
+                    {visualConfig?.textOverrides?.[`elevate_pillar_${tile.key}_title`] ?? tile.title}
+                  </h3>
+                  <p
+                    data-pj-edit={`elevate_pillar_${tile.key}_desc`}
+                    data-pj-label={`${tile.title} Description`}
+                    className="text-sm text-white/60 leading-relaxed"
+                  >
+                    {visualConfig?.textOverrides?.[`elevate_pillar_${tile.key}_desc`] ?? tile.desc}
+                  </p>
+                  <span
+                    data-pj-edit={`elevate_pillar_${tile.key}_tag`}
+                    className="mt-auto font-mono text-[10px] uppercase tracking-[0.18em]"
+                    style={{ color: tile.color }}
+                  >
+                    {visualConfig?.textOverrides?.[`elevate_pillar_${tile.key}_tag`] ?? `${tile.tag} →`}
                   </span>
                 </article>
               ))}
             </div>
           </section>
-        </div>
-      )}
-
-      {/* =====================================================================
-          LAYOUT 3 — CONGREGATION PORTAL & GATEWAY CONCIERGE
-          ===================================================================== */}
-      {layout === 'C_PORTAL_CONCIERGE' && (
-        <div>
-          <header className="relative overflow-hidden border-b border-white/[0.08]">
-            <div className="pointer-events-none absolute -top-32 left-1/4 w-[38rem] h-[38rem] rounded-full blur-3xl opacity-35" style={{ background: 'radial-gradient(circle,#8B5CF6,transparent 65%)' }} />
-            <div className="pointer-events-none absolute bottom-0 right-10 w-[30rem] h-[30rem] rounded-full blur-3xl opacity-30" style={{ background: 'radial-gradient(circle,#FF8C00,transparent 65%)' }} />
-
-            <div className="relative max-w-6xl mx-auto px-6 py-12 lg:py-16">
-              <div className="grid grid-cols-1 lg:grid-cols-[1.05fr_1fr] gap-10 items-start">
-                {/* Left: Role-first Welcome & Four Interactive Doors */}
-                <div>
-                  <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#8B5CF6]/15 border border-[#8B5CF6]/35 text-[10px] font-black uppercase tracking-[0.25em] text-[#D0BCFF]">
-                    <ShieldCheck size={12} /> Official Congregation &amp; Org Gateway
-                  </span>
-                  <h1
-                    className="font-black italic uppercase leading-[0.88] tracking-[-0.035em] mt-4"
-                    style={{ fontFamily: 'Outfit, sans-serif', fontSize: 'clamp(40px,6.2vw,76px)' }}
-                  >
-                    Step inside your{' '}
-                    <span
-                      style={{
-                        background: 'linear-gradient(135deg,#8B5CF6,#D40055 55%,#FF8C00)',
-                        WebkitBackgroundClip: 'text',
-                        backgroundClip: 'text',
-                        color: 'transparent',
-                      }}
-                    >
-                      Sanctuary.
-                    </span>
-                  </h1>
-                  <p className="text-white/65 text-base sm:text-lg mt-4 leading-relaxed max-w-xl">
-                    Whether you are claiming a pre-provisioned church seat with your Member ID, onboarding your family into a congregation, or setting up a ministry as a pastor — choose your door below.
-                  </p>
-
-                  {/* 4 Interactive Gateway Doors */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-7">
-                    {([
-                      {
-                        id: 'CLAIM' as const,
-                        title: 'Claim Member Seat',
-                        sub: 'Have a Member ID (e.g. GC-48213) or roster email? Unlock your seat.',
-                        icon: KeyRound,
-                        color: '#8B5CF6',
-                      },
-                      {
-                        id: 'JOIN' as const,
-                        title: 'Request & Onboard',
-                        sub: 'Join your church or organization roster & select your ministries.',
-                        icon: UserCheck,
-                        color: '#06D6A0',
-                      },
-                      {
-                        id: 'EXPLORE' as const,
-                        title: 'Follow & Watch Live',
-                        sub: 'Public updates, Sunday streams, and giving — no approval required.',
-                        icon: Bell,
-                        color: '#FF8C00',
-                      },
-                      {
-                        id: 'CREATE' as const,
-                        title: 'Launch a Ministry / Org',
-                        sub: 'Pastors & directors: seed departments, chat, giving & ChMS in 2 mins.',
-                        icon: Sparkles,
-                        color: '#D40055',
-                      },
-                    ]).map(d => {
-                      const active = portalDoor === d.id;
-                      return (
-                        <button
-                          key={d.id}
-                          type="button"
-                          onClick={() => setPortalDoor(d.id)}
-                          className={`text-left p-4 rounded-3xl border transition-all flex flex-col gap-2 ${
-                            active
-                              ? 'bg-white/[0.09] border-white/35 shadow-xl scale-[1.01]'
-                              : 'bg-white/[0.03] border-white/10 hover:bg-white/[0.06]'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="w-9 h-9 rounded-xl grid place-items-center" style={{ background: `${d.color}25`, color: d.color }}>
-                              <d.icon size={18} />
-                            </span>
-                            <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${active ? 'bg-white text-black' : 'text-white/35'}`}>
-                              {active ? 'Selected' : 'Select'}
-                            </span>
-                          </div>
-                          <div className="font-black text-[15px] text-white mt-1" style={{ fontFamily: 'Outfit, sans-serif' }}>{d.title}</div>
-                          <div className="text-[11.5px] text-white/50 leading-snug">{d.sub}</div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Right: Live Concierge Card that responds to the selected Door */}
-                <div className="relative rounded-[32px] bg-[#10071c] border border-[#8B5CF6]/35 p-6 sm:p-8 shadow-[0_30px_80px_rgba(107,0,153,0.4)]">
-                  <div className="absolute -inset-px rounded-[32px] bg-gradient-to-br from-[#8B5CF6]/25 via-transparent to-[#FF8C00]/15 pointer-events-none" />
-                  <div className="relative">
-                    {portalDoor === 'CLAIM' && (
-                      <div className="space-y-4">
-                        <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.28em] text-[#D0BCFF]">
-                          <KeyRound size={13} /> Instant Seat Claim · Pre-Provisioned Roster
-                        </div>
-                        <h3 className="text-2xl font-black text-white" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                          Claim your pre-provisioned church or org seat
-                        </h3>
-                        <p className="text-xs text-white/55 leading-relaxed">
-                          If your church imported its roster from Servant Keeper, Planning Center, Breeze, or CCB, your seat and ministry roles are already waiting.
-                        </p>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
-                          <div>
-                            <label className="block text-[9px] font-black uppercase tracking-widest text-white/45 mb-1">Member ID</label>
-                            <input
-                              value={memberIdQuick}
-                              onChange={e => setMemberIdQuick(e.target.value.toUpperCase())}
-                              placeholder="e.g. GC-48213"
-                              className="w-full bg-white/[0.06] border border-white/15 rounded-2xl px-4 py-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-[#8B5CF6]"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[9px] font-black uppercase tracking-widest text-white/45 mb-1">Last Name</label>
-                            <input
-                              value={lastNameQuick}
-                              onChange={e => setLastNameQuick(e.target.value)}
-                              placeholder="Your last name"
-                              className="w-full bg-white/[0.06] border border-white/15 rounded-2xl px-4 py-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-[#8B5CF6]"
-                            />
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => openElevateGatewayModal({ mode: 'claim', memberNumber: memberIdQuick.trim() || undefined })}
-                          className="w-full py-4 rounded-2xl text-white text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg hover:brightness-110 transition-all"
-                          style={{ background: 'linear-gradient(135deg,#6B0099,#8B5CF6)' }}
-                        >
-                          <KeyRound size={14} /> Lookup &amp; Claim My Seat
-                        </button>
-                        <div className="pt-2 border-t border-white/10 flex items-center justify-between text-[11px] text-white/45">
-                          <span>Want to test with Grace Chapel?</span>
-                          <button
-                            type="button"
-                            onClick={() => { setMemberIdQuick('GC-1001'); openElevateGatewayModal({ orgKey: DEMO_CHURCH_ID, mode: 'claim', memberNumber: 'GC-1001' }); }}
-                            className="text-[#FF8C00] font-bold hover:underline"
-                          >
-                            Try Demo Claim →
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    {portalDoor === 'JOIN' && (
-                      <div className="space-y-4">
-                        <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.28em] text-[#06D6A0]">
-                          <UserCheck size={13} /> Congregation Onboarding &amp; Ministry Selection
-                        </div>
-                        <h3 className="text-2xl font-black text-white" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                          Request membership &amp; onboard your family
-                        </h3>
-                        <p className="text-xs text-white/55 leading-relaxed">
-                          Doubles as your official church/organization onboarding card and connects your Plajah account to Choir, Youth, Greeters, or Sunday School.
-                        </p>
-                        <ul className="space-y-2 text-xs text-white/70">
-                          {[
-                            'Select the ministries and departments you serve in',
-                            'Leadership reviews & approves verified congregation members',
-                            'Automatically follow public broadcasts while approval is pending',
-                          ].map(item => (
-                            <li key={item} className="flex items-center gap-2">
-                              <CheckCircle2 size={14} className="text-[#06D6A0] shrink-0" /> {item}
-                            </li>
-                          ))}
-                        </ul>
-                        <button
-                          type="button"
-                          onClick={() => openElevateGatewayModal({ mode: 'join' })}
-                          className="w-full py-4 rounded-2xl text-black bg-[#06D6A0] text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg hover:brightness-110 transition-all"
-                        >
-                          <UserCheck size={14} /> Open Member Onboarding
-                        </button>
-                      </div>
-                    )}
-
-                    {portalDoor === 'EXPLORE' && (
-                      <div className="space-y-4">
-                        <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.28em] text-[#FF8C00]">
-                          <MonitorPlay size={13} /> Open Sanctuary · Visitors Welcome
-                        </div>
-                        <h3 className="text-2xl font-black text-white" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                          Experience Grace Chapel (Interactive Demo)
-                        </h3>
-                        <p className="text-xs text-white/55 leading-relaxed">
-                          See how a complete church runs on Plajah Elevate — switch between Congregant, Choir/Ministry Leader, and Pastor/Finance views live.
-                        </p>
-                        <div className="grid grid-cols-2 gap-2 text-[11px]">
-                          <div className="p-3 rounded-2xl bg-white/[0.04] border border-white/10">
-                            <div className="font-black text-white">Sunday Stream &amp; Ambo</div>
-                            <div className="text-white/45 text-[10px] mt-0.5">Live sermon + scripture notes</div>
-                          </div>
-                          <div className="p-3 rounded-2xl bg-white/[0.04] border border-white/10">
-                            <div className="font-black text-white">Giving &amp; Prayer Wall</div>
-                            <div className="text-white/45 text-[10px] mt-0.5">4 funds + real-time prayer</div>
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => onOpenOrg(DEMO_CHURCH_ID)}
-                          className="w-full py-4 rounded-2xl text-black bg-[#FF8C00] text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg hover:brightness-110 transition-all"
-                        >
-                          <Play size={14} /> Enter Grace Chapel Demo
-                        </button>
-                      </div>
-                    )}
-
-                    {portalDoor === 'CREATE' && (
-                      <div className="space-y-4">
-                        <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.28em] text-[#FF8C00]">
-                          <Sparkles size={13} /> 2-Minute Sanctuary &amp; Non-Profit Wizard
-                        </div>
-                        <h3 className="text-2xl font-black text-white" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                          Set up your church, ministry or nonprofit
-                        </h3>
-                        <ul className="space-y-2 text-xs text-white/70">
-                          {[
-                            'Departments & ministries pre-seeded for your tradition',
-                            'Department chat rooms & social feeds wired automatically',
-                            'CSV import from Servant Keeper, Planning Center, Breeze & CCB',
-                            'Tithes, designated funds, and dual-approval Spending Desk',
-                          ].map(item => (
-                            <li key={item} className="flex items-center gap-2">
-                              <CheckCircle2 size={14} className="text-[#FF8C00] shrink-0" /> {item}
-                            </li>
-                          ))}
-                        </ul>
-                        <button
-                          type="button"
-                          onClick={onCreate}
-                          className="w-full py-4 rounded-2xl text-white text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg hover:brightness-110 transition-all"
-                          style={{ background: 'linear-gradient(135deg,#6B0099,#D40055 55%,#FF8C00)' }}
-                        >
-                          <Sparkles size={14} /> Launch Setup Wizard
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </header>
-        </div>
-      )}
+      </div>
 
       {/* =====================================================================
           SHARED LIVE DIRECTORY + GRACE CHAPEL SPOTLIGHT BANNER

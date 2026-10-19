@@ -2806,6 +2806,9 @@ export interface Organization {
     connectedBy?: string; connectedAt?: number;
   };
 
+  /** Organization Security & Privacy posture (anti-screenshot financial shield, strict PII firewall, auto ID assignment). */
+  securitySettings?: OrgSecuritySettings;
+
   createdAt: number;
   updatedAt: number;
 }
@@ -2874,6 +2877,8 @@ export interface ChmsPerson {
   /** Human-friendly member ID printed on cards / statements and used to claim the pre-provisioned account.
    *  Imported from the source system's member number when present, else generated (e.g. "GC-48213"). */
   memberNumber?: string;
+  /** Employment / staff ID auto-populated on backend approval or imported from payroll (e.g. "GCC-EMP-4821"). */
+  employeeNumber?: string;
   /** Source system id, enables idempotent re-import. */
   source?: ChmsSource;
   photoUrl?: string;
@@ -3350,8 +3355,10 @@ export interface OrgMembership {
   isProvisioned?: boolean;
   /** The chmsPeople record this provisioned seat was created from (import / directory). */
   provisionedPersonId?: string;
-  /** Member ID the person can claim with (mirrors ChmsPerson.memberNumber). */
+  /** Member ID the person can claim with or auto-populated on backend approval (mirrors ChmsPerson.memberNumber). */
   memberNumber?: string;
+  /** Employment / staff number auto-populated on backend approval (e.g. "GCC-EMP-4821"). */
+  employeeNumber?: string;
   /** Lower-cased email the person can claim with (never shown publicly). */
   claimEmailLower?: string;
   /** Department / ministry ids this person belongs to (from the import or roster). */
@@ -3362,18 +3369,53 @@ export interface OrgMembership {
   onboarding?: OrgMembershipOnboarding;
 }
 
-/** Member onboarding payload submitted when requesting org/church membership (requires org approval). */
+/** Member onboarding payload submitted when requesting org/church membership (requires org approval).
+ *  NOTE: Private contact/address/family fields are stored in `orgOnboardingVault/{membershipId}` and `chmsPeople/{id}`
+ *  and NEVER exposed on public platform surfaces. */
 export interface OrgMembershipOnboarding {
   firstName: string;
   lastName: string;
+  preferredName?: string;
   email?: string;
   phone?: string;
+  address?: {
+    line1?: string;
+    line2?: string;
+    city?: string;
+    region?: string;
+    postal?: string;
+  };
+  birthDate?: string;
+  maritalStatus?: string;
+  familyMembers?: string;
+  skills?: string[];
   memberNumber?: string;
+  employeeNumber?: string;
+  requestedRoleKey?: string;
   ministryIds?: string[];
   isExistingCongregant?: boolean;
+  directoryVisible?: boolean;
+  hasPrivateVault?: boolean;
   householdNote?: string;
   note?: string;
   submittedAt: number;
+}
+
+export interface OrgSecuritySettings {
+  /** Block screenshots, PrintScreen, window-blur capture, and PDF printing on Finance, Giving & Accounting views (default: true). */
+  blockFinancialScreenshots?: boolean;
+  /** Render dynamic forensic watermark (viewer name + uid + timestamp) over financial ledgers (default: true). */
+  financialWatermark?: boolean;
+  /** Never expose member email, phone, or home address on any public org/profile UI (always enforced). */
+  strictPublicPiiFirewall?: boolean;
+  /** Default new member directory visibility to private/opt-in only (default: true). */
+  directoryOptInOnly?: boolean;
+  /** Auto-generate and populate Member ID & Employment Number on backend upon approval (default: true). */
+  autoAssignIdsOnApproval?: boolean;
+  /** Mask sensitive dollar amounts & PII by default until hovered or unlocked (screen-share safe mode). */
+  defaultMaskMode?: boolean;
+  updatedAt?: number;
+  updatedBy?: string;
 }
 
 /** Which roster a role appears on. Org pages render PASTORAL → LEADERSHIP → STAFF; the rest are operational only. */
@@ -3387,6 +3429,8 @@ export interface OrgAffiliation {
   roleKey: string;
   title: string;          // "Senior Pastor", "Youth Leader"
   ministryName?: string;
+  memberNumber?: string;
+  employeeNumber?: string;
   about?: string;         // the org-specific about blurb
   since?: number;
 }
@@ -3924,6 +3968,22 @@ export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW'
   | 'PLAJAH_HOME'
   // LD — Lighting Designer (top-level experience, peer to Chora/Pixels/Melos)
   | 'LD_MODE';
+
+const APP_VIEW_RUNTIME_ALIASES: Record<string, AppView> = {
+  TELA_STUDIO: 'TELA',
+  ADMIN: 'ADMIN_DASHBOARD',
+  SOCIAL: 'FEED',
+  PODCASTS: 'PODCAST_STUDIO',
+};
+
+export const AppView: Record<string, AppView> = new Proxy(APP_VIEW_RUNTIME_ALIASES, {
+  get(target, prop) {
+    if (typeof prop === 'string') {
+      return target[prop] ?? (prop as AppView);
+    }
+    return undefined;
+  },
+});
 
 // ── Script Writing Studio ─────────────────────────────────────────────────────
 

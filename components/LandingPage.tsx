@@ -1,7 +1,7 @@
 import React, { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { loginWithGoogle, loginWithTwitter, loginWithFacebook, loginWithMicrosoft, fetchRandomActiveUser, fetchLandingBgConfig, auth } from '../services/backendService';
-import { ArrowRight, Sparkles, Mail, GraduationCap, User as UserIcon, Rocket, Loader2, AlertCircle, LogIn, Church, KeyRound, Search } from 'lucide-react';
+import { ArrowRight, Sparkles, Mail, GraduationCap, User as UserIcon, Rocket, Loader2, AlertCircle, LogIn, Church, HeartHandshake, KeyRound, Search } from 'lucide-react';
 import { GoogleIcon, FacebookIcon, MicrosoftIcon, XIcon } from './ui/ProviderIcons';
 import { LandingBgAsset, LandingBgConfig, UserProfile } from '../types';
 import ThreeDImage from './ThreeDImage';
@@ -404,75 +404,94 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter, onVisitUser }) => {
           </button>
         </motion.div>
 
-        {/* Plajah Academia — education sign-in as a first-class path, not a footnote */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, delay: 0.85 }}
-          className="mt-8 w-full max-w-2xl rounded-3xl border border-[#3FB98E]/30 bg-gradient-to-br from-[#0f1a16]/80 to-black/40 backdrop-blur-md p-5 sm:p-6"
-        >
-          <div className="flex items-center gap-2 text-[#3FB98E] mb-1">
-            <GraduationCap size={18} /><span className="text-[10px] font-black uppercase tracking-[0.3em]">Plajah Academia · For Schools</span>
-          </div>
-          <h3 className="text-lg sm:text-xl font-black text-white leading-tight">Teachers, students &amp; families</h3>
-          <p className="text-[12px] text-white/55 leading-snug mt-1">Class points, courses, and the portable learner record — <span className="text-green-300 font-bold">safe, ad-free, and family-visible</span>.</p>
-          <div className="flex flex-col sm:flex-row gap-3 mt-4">
-            <button
-              onClick={() => setShowStudent(true)}
-              className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl bg-[#3FB98E] text-black font-black text-[12px] uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all"
-            >
-              <UserIcon size={16} /> Student sign-in
-            </button>
-            <button
-              onClick={() => setAuthMode('SIGN_IN')}
-              className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl bg-white/10 border border-white/20 text-white font-black text-[12px] uppercase tracking-widest hover:bg-white/15 active:scale-95 transition-all"
-            >
-              <Mail size={16} /> Teacher / school sign-in
-            </button>
-          </div>
-          <button
-            onClick={() => { onEnter(); setTimeout(() => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'ACADEMIA_DEMOS' } })), 500); }}
-            className="mt-3 inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest text-[#3FB98E]/80 hover:text-[#3FB98E] transition-colors"
+        {/* Plajah Academia & Plajah Elevate — side-by-side organization / education sign-in paths */}
+        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6 w-full max-w-4xl items-stretch text-left">
+          {/* Plajah Academia — education sign-in as a first-class path, not a footnote */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 1, delay: 0.85 }}
+            className="h-full flex flex-col justify-between rounded-3xl border border-[#3FB98E]/30 bg-gradient-to-br from-[#0f1a16]/80 to-black/40 backdrop-blur-md p-5 sm:p-6"
           >
-            <Sparkles size={13} /> Tour Academia — no signup →
-          </button>
-        </motion.div>
+            <div>
+              <div className="flex items-center gap-2 text-[#3FB98E] mb-1.5">
+                <GraduationCap size={18} className="shrink-0" />
+                <span className="text-[10px] font-black uppercase tracking-[0.28em]">Plajah Academia · For Schools</span>
+              </div>
+              <h3 className="text-lg sm:text-xl font-black text-white leading-tight">Teachers, students &amp; families</h3>
+              <p className="text-[12px] text-white/55 leading-snug mt-1.5">
+                Class points, courses, and the portable learner record — <span className="text-green-300 font-bold">safe, ad-free, and family-visible</span>.
+              </p>
+            </div>
+            <div className="mt-4">
+              <div className="flex flex-col sm:flex-row gap-2.5">
+                <button
+                  onClick={() => setShowStudent(true)}
+                  className="flex-1 inline-flex items-center justify-center gap-2 px-3.5 py-3 rounded-2xl bg-[#3FB98E] text-black font-black text-[11px] uppercase tracking-wider hover:brightness-110 active:scale-95 transition-all"
+                >
+                  <UserIcon size={15} className="shrink-0" /> <span>Student sign-in</span>
+                </button>
+                <button
+                  onClick={() => setAuthMode('SIGN_IN')}
+                  className="flex-1 inline-flex items-center justify-center gap-2 px-3.5 py-3 rounded-2xl bg-white/10 border border-white/20 text-white font-black text-[11px] uppercase tracking-wider hover:bg-white/15 active:scale-95 transition-all"
+                >
+                  <Mail size={15} className="shrink-0" /> <span>Teacher / school sign-in</span>
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-x-5 gap-y-1 mt-3">
+                <button
+                  onClick={() => { onEnter(); setTimeout(() => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'ACADEMIA_DEMOS' } })), 500); }}
+                  className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest text-[#3FB98E]/80 hover:text-[#3FB98E] transition-colors"
+                >
+                  <Sparkles size={13} /> Tour Academia — no signup →
+                </button>
+              </div>
+            </div>
+          </motion.div>
 
-        {/* Plajah Elevate — churches, ministries, nonprofits: claim the account your organization set up, join one, or set one up */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, delay: 0.95 }}
-          className="w-full max-w-2xl rounded-3xl border border-[#8B5CF6]/40 bg-gradient-to-br from-[#160a26]/85 to-black/40 backdrop-blur-md p-5 sm:p-6 shadow-[0_0_40px_rgba(139,92,246,0.12)]"
-        >
-          <div className="flex items-center gap-2 text-[#C4B5FD] mb-1">
-            <Church size={18} /><span className="text-[10px] font-black uppercase tracking-[0.3em]">Plajah Elevate · For churches &amp; ministries</span>
-          </div>
-          <h3 className="text-lg sm:text-xl font-black text-white leading-tight">Members, staff, pastors &amp; volunteers</h3>
-          <p className="text-[12px] text-white/55 leading-snug mt-1">Your organization may have already set up your account — <span className="text-[#C4B5FD] font-bold">claim it with your member ID or email</span>. New here? Find your ministry, or set one up.</p>
-          <div className="flex flex-col sm:flex-row gap-3 mt-4">
-            <button
-              onClick={() => setElevate('claim')}
-              className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl bg-gradient-to-r from-[#6B0099] to-[#8B5CF6] text-white font-black text-[12px] uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all shadow-[0_10px_30px_rgba(139,92,246,0.3)]"
-            >
-              <KeyRound size={16} /> Claim your account
-            </button>
-            <button
-              onClick={() => setElevate('join')}
-              className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl bg-white/10 border border-[#8B5CF6]/40 text-white font-black text-[12px] uppercase tracking-widest hover:bg-white/15 active:scale-95 transition-all"
-            >
-              <Search size={16} /> Find &amp; join a ministry
-            </button>
-          </div>
-          <div className="flex flex-wrap gap-x-5 gap-y-1 mt-3">
-            <button onClick={() => setElevate('home')} className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest text-[#C4B5FD]/80 hover:text-[#C4B5FD] transition-colors">
-              <LogIn size={13} /> Elevate sign in
-            </button>
-            <button onClick={() => setElevate('create')} className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest text-[#C4B5FD]/80 hover:text-[#C4B5FD] transition-colors">
-              <Sparkles size={13} /> Set up a ministry (staff) →
-            </button>
-          </div>
-        </motion.div>
+          {/* Plajah Elevate — churches, religious communities, charities, cultural institutions & nonprofits: for staff, leaders, volunteers & participants */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 1, delay: 0.95 }}
+            className="h-full flex flex-col justify-between rounded-3xl border border-[#8B5CF6]/40 bg-gradient-to-br from-[#160a26]/85 to-black/40 backdrop-blur-md p-5 sm:p-6 shadow-[0_0_40px_rgba(139,92,246,0.12)]"
+          >
+            <div>
+              <div className="flex items-center gap-2 text-[#C4B5FD] mb-1.5">
+                <HeartHandshake size={18} className="shrink-0" />
+                <span className="text-[10px] font-black uppercase tracking-[0.22em]">Plajah Elevate · Churches, Charities, Cultural &amp; Nonprofits</span>
+              </div>
+              <h3 className="text-lg sm:text-xl font-black text-white leading-tight">Staff, leaders &amp; participants making a difference</h3>
+              <p className="text-[12px] text-white/55 leading-snug mt-1.5">
+                For <span className="text-white/85 font-semibold">churches, religious orgs, charities, cultural institutions &amp; nonprofits</span> — <span className="text-[#C4B5FD] font-bold">claim your pre-set account</span> with your ID or email, or join your organization as staff, volunteer, or participant.
+              </p>
+            </div>
+            <div className="mt-4">
+              <div className="flex flex-col sm:flex-row gap-2.5">
+                <button
+                  onClick={() => setElevate('claim')}
+                  className="flex-1 inline-flex items-center justify-center gap-2 px-3.5 py-3 rounded-2xl bg-gradient-to-r from-[#6B0099] to-[#8B5CF6] text-white font-black text-[11px] uppercase tracking-wider hover:brightness-110 active:scale-95 transition-all shadow-[0_10px_30px_rgba(139,92,246,0.3)]"
+                >
+                  <KeyRound size={15} className="shrink-0" /> <span>Claim your account</span>
+                </button>
+                <button
+                  onClick={() => setElevate('join')}
+                  className="flex-1 inline-flex items-center justify-center gap-2 px-3.5 py-3 rounded-2xl bg-white/10 border border-[#8B5CF6]/40 text-white font-black text-[11px] uppercase tracking-wider hover:bg-white/15 active:scale-95 transition-all"
+                >
+                  <Search size={15} className="shrink-0" /> <span>Find &amp; join your org</span>
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-x-5 gap-y-1 mt-3">
+                <button onClick={() => setElevate('home')} className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest text-[#C4B5FD]/80 hover:text-[#C4B5FD] transition-colors">
+                  <LogIn size={13} /> Elevate sign in
+                </button>
+                <button onClick={() => setElevate('create')} className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest text-[#C4B5FD]/80 hover:text-[#C4B5FD] transition-colors">
+                  <Sparkles size={13} /> Set up an organization (staff) →
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
 
       </div>
 
