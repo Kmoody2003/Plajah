@@ -211,10 +211,14 @@ export function mapPostView(post: any, accountId: string, reason?: any): Fediver
   const author = post.author ?? {};
   const viewer = post.viewer ?? {};
   const uri = String(post.uri ?? '');
+  const cid = String(post.cid ?? '');
   const e = mapEmbedView(post.embed);
   const reply = record.reply;
+  const ver = author.verification;
+  const st = author.status;
   return {
-    id: String(post.cid ?? ''),
+    id: cid,
+    cid,
     uri,
     protocol: 'bluesky',
     accountId,
@@ -222,13 +226,17 @@ export function mapPostView(post: any, accountId: string, reason?: any): Fediver
     authorDisplayName: String(author.displayName || author.handle || ''),
     authorAvatarUrl: author.avatar ? String(author.avatar) : undefined,
     authorDid: String(author.did ?? ''),
+    authorVerified: !!(ver?.verifiedStatus === 'valid' || ver?.trustedVerifierStatus === 'valid'),
+    authorIsLive: !!(st?.status === 'app.bsky.actor.status#live' && st?.isActive !== false),
     content: String(record.text ?? ''),
     contentText: String(record.text ?? ''),
     createdAt: Date.parse(String(record.createdAt ?? post.indexedAt ?? '')) || 0,
     url: postUrl(String(author.handle || author.did), uri),
     replyCount: Number(post.replyCount ?? 0),
     repostCount: Number(post.repostCount ?? 0) + Number(post.quoteCount ?? 0) * 0,
+    quoteCount: Number(post.quoteCount ?? 0),
     likeCount: Number(post.likeCount ?? 0),
+    bookmarkCount: Number(post.bookmarkCount ?? 0),
     isLiked: !!viewer.like,
     isReposted: !!viewer.repost,
     isBookmarked: !!viewer.bookmarked,
@@ -248,12 +256,18 @@ export function mapPostView(post: any, accountId: string, reason?: any): Fediver
 function mapProfile(actor: any): FediverseProfile {
   const viewer = actor.viewer ?? {};
   const handle = String(actor.handle ?? '');
+  const ver = actor.verification;
+  const st = actor.status;
+  const isLive = !!(st?.status === 'app.bsky.actor.status#live' && st?.isActive !== false);
+  const liveExt = st?.embed?.external;
   return {
     id: String(actor.did ?? ''),
     did: String(actor.did ?? ''),
     protocol: 'bluesky',
     handle,
     displayName: String(actor.displayName || handle),
+    pronouns: actor.pronouns ? String(actor.pronouns) : undefined,
+    website: actor.website ? String(actor.website) : undefined,
     bio: actor.description ? String(actor.description) : undefined,
     avatarUrl: actor.avatar ? String(actor.avatar) : undefined,
     headerUrl: actor.banner ? String(actor.banner) : undefined,
@@ -262,6 +276,10 @@ function mapProfile(actor: any): FediverseProfile {
     postsCount: Number(actor.postsCount ?? 0),
     isFollowing: viewer.following ? true : viewer.following === undefined ? undefined : false,
     isFollowedBy: viewer.followedBy ? true : undefined,
+    verified: !!(ver?.verifiedStatus === 'valid' || ver?.trustedVerifierStatus === 'valid'),
+    isLive,
+    liveEmbedUrl: isLive && liveExt?.uri ? String(liveExt.uri) : undefined,
+    liveEmbedTitle: isLive && liveExt?.title ? String(liveExt.title) : undefined,
     followRecordUri: viewer.following ? String(viewer.following) : undefined,
     url: `https://bsky.app/profile/${handle || actor.did}`,
   };
@@ -270,6 +288,7 @@ function mapProfile(actor: any): FediverseProfile {
 // ─── Building a post record ───────────────────────────────────────────────────
 
 type BlobUploader = (url: string) => Promise<{ blob: unknown; width?: number; height?: number }>;
+type VideoUploader = (url: string) => Promise<{ blob: unknown }>;
 
 /** Download + shrink + uploadBlob. Loaded lazily so the browser bundle never pulls in sharp. */
 function serverUploader(agent: AtpAgent): BlobUploader {
@@ -282,15 +301,37 @@ function serverUploader(agent: AtpAgent): BlobUploader {
   };
 }
 
+/** Upload a native video via app.bsky.video.uploadVideo and poll getJobStatus until the processed blob is ready. */
+function serverVideoUploader(agent: AtpAgent): VideoUploader {
+  return async (url) => {
+    const modPath = './blueskyMedia';
+    const { prepareVideo } = await import(/* @vite-ignore */ modPath) as typeof import('./blueskyMedia');
+    const vid = await prepareVideo(url);
+    const up = await agent.app.bsky.video.uploadVideo(vid.bytes, { encoding: 'video/mp4' });
+    let job = up.data.jobStatus;
+    const deadline = Date.now() + 45_000;
+    while (!job.blob && job.state !== 'JOB_STATE_COMPLETED' && job.state !== 'JOB_STATE_FAILED' && Date.now() < deadline) {
+      await new Promise(r => setTimeout(r, 1500));
+      const st = await agent.app.bsky.video.getJobStatus({ jobId: job.jobId });
+      job = st.data.jobStatus;
+    }
+    if (job.state === 'JOB_STATE_FAILED' || !job.blob) {
+      throw new FediverseError('bluesky', 'API_ERROR', job.message || job.error || 'Bluesky video processing failed');
+    }
+    return { blob: job.blob };
+  };
+}
+
 /**
  * The app.bsky.feed.post record for `text` + options: facets for mentions/links/hashtags, reply refs, up to 4
- * images (alt text + aspect ratio) or a link card, and an optional quoted post. Exported for tests.
+ * images (alt text + aspect ratio), a native video, or a link card, and an optional quoted post. Exported for tests.
  */
 export async function buildPostRecord(
   agent: AtpAgent,
   text: string,
   options: CreatePostOptions | undefined,
   upload: BlobUploader,
+  uploadVideo?: VideoUploader,
 ): Promise<Record<string, unknown>> {
   const rt = new RichText({ text });
   if (rt.graphemeLength > GRAPHEME_LIMIT) {
@@ -327,6 +368,14 @@ export async function buildPostRecord(
       });
     }
     media = { $type: 'app.bsky.embed.images', images };
+  } else if (options?.video?.url && uploadVideo) {
+    const up = await uploadVideo(options.video.url);
+    media = {
+      $type: 'app.bsky.embed.video',
+      video: up.blob,
+      alt: options.video.alt ?? '',
+      ...(options.video.width && options.video.height ? { aspectRatio: { width: options.video.width, height: options.video.height } } : {}),
+    };
   } else if (options?.link?.uri) {
     let thumb: unknown;
     if (options.link.thumbUrl) { try { thumb = (await upload(options.link.thumbUrl)).blob; } catch { /* card without a thumbnail */ } }
@@ -343,6 +392,15 @@ export async function buildPostRecord(
     record.embed = media;
   }
   return record;
+}
+
+function buildThreadgateAllowRules(gate: CreatePostOptions['replyGate']): Array<{ $type: string }> | undefined {
+  if (!gate || gate === 'everyone') return undefined;
+  if (gate === 'nobody') return [];
+  if (gate === 'mentioned') return [{ $type: 'app.bsky.feed.threadgate#mentionRule' }];
+  if (gate === 'followers') return [{ $type: 'app.bsky.feed.threadgate#followerRule' }];
+  if (gate === 'following') return [{ $type: 'app.bsky.feed.threadgate#followingRule' }];
+  return undefined;
 }
 
 // ─── Adapter ─────────────────────────────────────────────────────────────────
@@ -370,13 +428,41 @@ export const blueskyadapter: FediverseAdapter = {
 
   async createPost(creds, content, options?: CreatePostOptions) {
     return run(creds, async (agent) => {
-      const record = await buildPostRecord(agent, content, options, serverUploader(agent));
+      const record = await buildPostRecord(agent, content, options, serverUploader(agent), serverVideoUploader(agent));
       const res = await agent.com.atproto.repo.createRecord({
         repo: creds.did!, collection: 'app.bsky.feed.post', record,
       });
+      const rkey = rkeyOf(res.data.uri);
+      const allowRules = buildThreadgateAllowRules(options?.replyGate);
+      if (allowRules !== undefined && rkey) {
+        await agent.com.atproto.repo.putRecord({
+          repo: creds.did!,
+          collection: 'app.bsky.feed.threadgate',
+          rkey,
+          record: {
+            $type: 'app.bsky.feed.threadgate',
+            post: res.data.uri,
+            allow: allowRules,
+            createdAt: new Date().toISOString(),
+          },
+        }).catch(() => {});
+      }
+      if (options?.allowQuote === false && rkey) {
+        await agent.com.atproto.repo.putRecord({
+          repo: creds.did!,
+          collection: 'app.bsky.feed.postgate',
+          rkey,
+          record: {
+            $type: 'app.bsky.feed.postgate',
+            post: res.data.uri,
+            embeddingRules: [{ $type: 'app.bsky.feed.postgate#disableRule' }],
+            createdAt: new Date().toISOString(),
+          },
+        }).catch(() => {});
+      }
       const handle = creds.handle || creds.did!;
       return {
-        id: res.data.cid, uri: res.data.uri, protocol: 'bluesky', accountId: creds.did ?? 'local',
+        id: res.data.cid, cid: res.data.cid, uri: res.data.uri, protocol: 'bluesky', accountId: creds.did ?? 'local',
         authorHandle: creds.handle ?? '', authorDisplayName: '',
         content: String(record.text), contentText: String(record.text), createdAt: Date.now(),
         url: postUrl(handle, res.data.uri),
@@ -706,3 +792,346 @@ export async function bskyGetFollows(
     return out.slice(0, max);
   });
 }
+
+// ─── Latest AT Protocol (v0.19+) Capabilities ────────────────────────────────
+// Bookmarks (app.bsky.bookmark.*), Live Actor Status (app.bsky.actor.status),
+// Threadgates & Postgates (app.bsky.feed.threadgate / postgate),
+// Starter Packs (app.bsky.graph.starterpack), Trending Topics (app.bsky.unspecced.getTrendingTopics),
+// Actor Typeahead (app.bsky.actor.searchActorsTypeahead), Post Engagement (getQuotes / getLikes / getRepostedBy),
+// and DM Conversation creation + Message Reactions (chat.bsky.convo.*).
+
+export async function bskyBookmarkPost(creds: FediverseCredentials, uri: string, cid: string): Promise<{ ok: true }> {
+  await run(creds, (agent) => agent.app.bsky.bookmark.createBookmark({ uri, cid }));
+  return { ok: true };
+}
+
+export async function bskyUnbookmarkPost(creds: FediverseCredentials, uri: string): Promise<{ ok: true }> {
+  await run(creds, (agent) => agent.app.bsky.bookmark.deleteBookmark({ uri }));
+  return { ok: true };
+}
+
+export async function bskyGetBookmarks(
+  creds: FediverseCredentials,
+  cursor?: string,
+): Promise<{ posts: FediversePost[]; cursor?: string }> {
+  return run(creds, async (agent) => {
+    const { data } = await agent.app.bsky.bookmark.getBookmarks({ limit: 30, ...(cursor ? { cursor } : {}) });
+    const posts: FediversePost[] = [];
+    for (const b of data.bookmarks ?? []) {
+      const item: any = b.item;
+      if (item && (item.$type === 'app.bsky.feed.defs#postView' || item.record)) {
+        const mapped = mapPostView(item, acct(creds));
+        mapped.isBookmarked = true;
+        posts.push(mapped);
+      }
+    }
+    return { posts, cursor: data.cursor };
+  });
+}
+
+/**
+ * Advertise or clear the account's LIVE badge on Bluesky (`app.bsky.actor.status#live`).
+ * When a creator goes live on Plajah (Reello Live or LiveTalk), this lights up a LIVE pill on their
+ * Bluesky profile and posts with a clickable card back to their Plajah stream.
+ */
+export async function bskySetLiveStatus(
+  creds: FediverseCredentials,
+  opts: { active: boolean; streamUrl?: string; title?: string; description?: string; durationMinutes?: number },
+): Promise<{ ok: true }> {
+  return run(creds, async (agent) => {
+    if (!opts.active) {
+      await agent.com.atproto.repo.deleteRecord({
+        repo: creds.did!,
+        collection: 'app.bsky.actor.status',
+        rkey: 'self',
+      }).catch(() => {});
+      return { ok: true };
+    }
+    const record: Record<string, unknown> = {
+      $type: 'app.bsky.actor.status',
+      status: 'app.bsky.actor.status#live',
+      durationMinutes: Math.max(5, Math.min(240, opts.durationMinutes ?? 60)),
+      createdAt: new Date().toISOString(),
+    };
+    if (opts.streamUrl) {
+      record.embed = {
+        $type: 'app.bsky.embed.external',
+        external: {
+          uri: opts.streamUrl,
+          title: opts.title || 'Live on Plajah',
+          description: opts.description || 'Watch live on Plajah',
+        },
+      };
+    }
+    await agent.com.atproto.repo.putRecord({
+      repo: creds.did!,
+      collection: 'app.bsky.actor.status',
+      rkey: 'self',
+      record,
+    });
+    return { ok: true };
+  });
+}
+
+/** Update reply restrictions (threadgate) or quote permissions / detached quotes (postgate) on an existing post. */
+export async function bskySetPostInteractionGates(
+  creds: FediverseCredentials,
+  postUri: string,
+  opts: {
+    replyGate?: CreatePostOptions['replyGate'];
+    hiddenReplies?: string[];
+    allowQuote?: boolean;
+    detachedEmbeddingUris?: string[];
+  },
+): Promise<{ ok: true }> {
+  return run(creds, async (agent) => {
+    const rkey = rkeyOf(postUri);
+    if (!rkey) throw new FediverseError('bluesky', 'API_ERROR', 'Invalid post URI');
+    if (opts.replyGate !== undefined || opts.hiddenReplies !== undefined) {
+      if (opts.replyGate === 'everyone' && !opts.hiddenReplies?.length) {
+        await agent.com.atproto.repo.deleteRecord({ repo: creds.did!, collection: 'app.bsky.feed.threadgate', rkey }).catch(() => {});
+      } else {
+        const allow = buildThreadgateAllowRules(opts.replyGate);
+        await agent.com.atproto.repo.putRecord({
+          repo: creds.did!,
+          collection: 'app.bsky.feed.threadgate',
+          rkey,
+          record: {
+            $type: 'app.bsky.feed.threadgate',
+            post: postUri,
+            ...(allow !== undefined ? { allow } : {}),
+            ...(opts.hiddenReplies?.length ? { hiddenReplies: opts.hiddenReplies } : {}),
+            createdAt: new Date().toISOString(),
+          },
+        });
+      }
+    }
+    if (opts.allowQuote !== undefined || opts.detachedEmbeddingUris !== undefined) {
+      if (opts.allowQuote === true && !opts.detachedEmbeddingUris?.length) {
+        await agent.com.atproto.repo.deleteRecord({ repo: creds.did!, collection: 'app.bsky.feed.postgate', rkey }).catch(() => {});
+      } else {
+        await agent.com.atproto.repo.putRecord({
+          repo: creds.did!,
+          collection: 'app.bsky.feed.postgate',
+          rkey,
+          record: {
+            $type: 'app.bsky.feed.postgate',
+            post: postUri,
+            ...(opts.allowQuote === false ? { embeddingRules: [{ $type: 'app.bsky.feed.postgate#disableRule' }] } : {}),
+            ...(opts.detachedEmbeddingUris?.length ? { detachedEmbeddingUris: opts.detachedEmbeddingUris } : {}),
+            createdAt: new Date().toISOString(),
+          },
+        });
+      }
+    }
+    return { ok: true };
+  });
+}
+
+export interface BskyTrendingTopic {
+  topic: string;
+  displayName?: string;
+  description?: string;
+  link: string;
+}
+
+export async function bskyGetTrendingTopics(
+  creds: FediverseCredentials,
+  limit = 12,
+): Promise<{ topics: BskyTrendingTopic[]; suggested: BskyTrendingTopic[] }> {
+  return run(creds, async (agent) => {
+    const { data } = await agent.app.bsky.unspecced.getTrendingTopics({ limit, viewer: creds.did });
+    const mapT = (t: any): BskyTrendingTopic => ({
+      topic: String(t.topic ?? ''),
+      displayName: t.displayName ? String(t.displayName) : undefined,
+      description: t.description ? String(t.description) : undefined,
+      link: String(t.link ?? ''),
+    });
+    return {
+      topics: (data.topics ?? []).map(mapT),
+      suggested: (data.suggested ?? []).map(mapT),
+    };
+  });
+}
+
+export async function bskyTypeaheadActors(
+  creds: FediverseCredentials,
+  q: string,
+  limit = 8,
+): Promise<FediverseProfile[]> {
+  return run(creds, async (agent) => {
+    const { data } = await agent.app.bsky.actor.searchActorsTypeahead({ q, limit });
+    return (data.actors ?? []).map(mapProfile);
+  });
+}
+
+export interface BskyStarterPackSummary {
+  uri: string;
+  cid: string;
+  name: string;
+  description?: string;
+  creator: FediverseProfile;
+  listItemCount: number;
+  joinedWeekCount: number;
+  joinedAllTimeCount: number;
+  url: string;
+}
+
+export interface BskyStarterPackDetail extends BskyStarterPackSummary {
+  members: FediverseProfile[];
+  feeds: BskyFeedInfo[];
+}
+
+function mapStarterPackBasic(sp: any): BskyStarterPackSummary {
+  const rec = sp.record ?? {};
+  const creator = sp.creator ? mapProfile(sp.creator) : {
+    id: '', protocol: 'bluesky' as const, handle: '', displayName: '', followersCount: 0, followingCount: 0, postsCount: 0, url: '',
+  };
+  const rkey = rkeyOf(String(sp.uri ?? ''));
+  return {
+    uri: String(sp.uri ?? ''),
+    cid: String(sp.cid ?? ''),
+    name: String(rec.name || 'Starter Pack'),
+    description: rec.description ? String(rec.description) : undefined,
+    creator,
+    listItemCount: Number(sp.listItemCount ?? 0),
+    joinedWeekCount: Number(sp.joinedWeekCount ?? 0),
+    joinedAllTimeCount: Number(sp.joinedAllTimeCount ?? 0),
+    url: `https://bsky.app/starter-pack/${creator.handle || creator.did}/${rkey}`,
+  };
+}
+
+export async function bskyGetActorStarterPacks(
+  creds: FediverseCredentials,
+  actor: string,
+  cursor?: string,
+): Promise<{ starterPacks: BskyStarterPackSummary[]; cursor?: string }> {
+  return run(creds, async (agent) => {
+    const { data } = await agent.app.bsky.graph.getActorStarterPacks({
+      actor: actor.replace(/^@/, ''),
+      limit: 25,
+      ...(cursor ? { cursor } : {}),
+    });
+    return {
+      starterPacks: (data.starterPacks ?? []).map(mapStarterPackBasic),
+      cursor: data.cursor,
+    };
+  });
+}
+
+export async function bskySearchStarterPacks(
+  creds: FediverseCredentials,
+  q: string,
+  cursor?: string,
+): Promise<{ starterPacks: BskyStarterPackSummary[]; cursor?: string }> {
+  return run(creds, async (agent) => {
+    const { data } = await agent.app.bsky.graph.searchStarterPacks({
+      q,
+      limit: 20,
+      ...(cursor ? { cursor } : {}),
+    });
+    return {
+      starterPacks: (data.starterPacks ?? []).map(mapStarterPackBasic),
+      cursor: data.cursor,
+    };
+  });
+}
+
+export async function bskyGetStarterPack(
+  creds: FediverseCredentials,
+  starterPackUri: string,
+): Promise<BskyStarterPackDetail> {
+  return run(creds, async (agent) => {
+    const { data } = await agent.app.bsky.graph.getStarterPack({ starterPack: starterPackUri });
+    const sp: any = data.starterPack;
+    const base = mapStarterPackBasic(sp);
+    const members: FediverseProfile[] = (sp.listItemsSample ?? [])
+      .map((item: any) => item?.subject)
+      .filter(Boolean)
+      .map(mapProfile);
+    const feeds: BskyFeedInfo[] = (sp.feeds ?? []).map((g: any): BskyFeedInfo => ({
+      uri: String(g.uri ?? ''),
+      name: String(g.displayName ?? ''),
+      description: g.description ? String(g.description) : undefined,
+      avatar: g.avatar ? String(g.avatar) : undefined,
+      creator: String(g.creator?.handle ?? ''),
+      likeCount: Number(g.likeCount ?? 0),
+    }));
+    return { ...base, listItemCount: Number(sp.list?.listItemCount ?? base.listItemCount), members, feeds };
+  });
+}
+
+export async function bskyGetPostQuotes(
+  creds: FediverseCredentials,
+  uri: string,
+  cursor?: string,
+): Promise<{ posts: FediversePost[]; cursor?: string }> {
+  return run(creds, async (agent) => {
+    const { data } = await agent.app.bsky.feed.getQuotes({ uri, limit: 25, ...(cursor ? { cursor } : {}) });
+    return { posts: (data.posts ?? []).map(p => mapPostView(p, acct(creds))), cursor: data.cursor };
+  });
+}
+
+export async function bskyGetPostLikes(
+  creds: FediverseCredentials,
+  uri: string,
+  cursor?: string,
+): Promise<{ profiles: FediverseProfile[]; cursor?: string }> {
+  return run(creds, async (agent) => {
+    const { data } = await agent.app.bsky.feed.getLikes({ uri, limit: 40, ...(cursor ? { cursor } : {}) });
+    return { profiles: (data.likes ?? []).map((l: any) => mapProfile(l.actor)), cursor: data.cursor };
+  });
+}
+
+export async function bskyGetPostRepostedBy(
+  creds: FediverseCredentials,
+  uri: string,
+  cursor?: string,
+): Promise<{ profiles: FediverseProfile[]; cursor?: string }> {
+  return run(creds, async (agent) => {
+    const { data } = await agent.app.bsky.feed.getRepostedBy({ uri, limit: 40, ...(cursor ? { cursor } : {}) });
+    return { profiles: (data.repostedBy ?? []).map(mapProfile), cursor: data.cursor };
+  });
+}
+
+/** Open or create a 1:1 DM conversation with `memberDid` (`chat.bsky.convo.getConvoForMembers`). */
+export async function bskyStartConversation(creds: FediverseCredentials, memberDid: string): Promise<BskyConversation> {
+  return run(creds, async (agent) => {
+    const { data } = await chatFor(agent).getConvoForMembers({ members: [memberDid] });
+    const c: any = data.convo;
+    return {
+      id: String(c.id),
+      unreadCount: Number(c.unreadCount ?? 0),
+      muted: !!c.muted,
+      lastMessage: c.lastMessage && c.lastMessage.text !== undefined
+        ? { text: String(c.lastMessage.text ?? ''), sentAt: String(c.lastMessage.sentAt ?? '') }
+        : undefined,
+      members: (c.members ?? []).map((m: any) => ({ did: m.did, handle: m.handle, displayName: m.displayName, avatarUrl: m.avatar })),
+    };
+  });
+}
+
+/** Add or remove an emoji reaction on a Bluesky DM message (`chat.bsky.convo.addReaction` / `removeReaction`). */
+export async function bskyReactToMessage(
+  creds: FediverseCredentials,
+  convoId: string,
+  messageId: string,
+  value: string,
+  remove = false,
+): Promise<{ ok: true }> {
+  return run(creds, async (agent) => {
+    const chat = chatFor(agent);
+    if (remove) await chat.removeReaction({ convoId, messageId, value });
+    else await chat.addReaction({ convoId, messageId, value });
+    return { ok: true };
+  });
+}
+
+/** Accept a pending DM conversation request (`chat.bsky.convo.acceptConvo`). */
+export async function bskyAcceptConversation(creds: FediverseCredentials, convoId: string): Promise<{ ok: true }> {
+  return run(creds, async (agent) => {
+    await chatFor(agent).acceptConvo({ convoId });
+    return { ok: true };
+  });
+}
+

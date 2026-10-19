@@ -10,9 +10,12 @@ import { decentralizedAuth } from '../services/fediverse/auth';
 import {
   blueskyadapter, bskyGetProfile, bskyGetAuthorFeed, bskyGetThread, bskySearchPosts, bskySearchActors,
   bskyGetFollowers, bskyListFollows, bskySuggestedFollows, bskySetMuted, bskySetBlocked, bskyGetSavedFeeds, bskyGetFeed,
+  bskyBookmarkPost, bskyUnbookmarkPost, bskyGetBookmarks, bskySetLiveStatus, bskySetPostInteractionGates,
+  bskyGetTrendingTopics, bskyTypeaheadActors, bskyGetActorStarterPacks, bskySearchStarterPacks, bskyGetStarterPack,
+  bskyGetPostQuotes, bskyGetPostLikes, bskyGetPostRepostedBy, bskyStartConversation, bskyReactToMessage, bskyAcceptConversation,
   type AuthorFeedFilter,
 } from '../services/fediverse/bluesky';
-import type { FediverseCredentials } from '../services/fediverse/types';
+import type { FediverseCredentials, BlueskyReplyGate } from '../services/fediverse/types';
 
 export const blueskyClientRouter = Router();
 
@@ -114,3 +117,107 @@ blueskyClientRouter.post('/quote', (req, res) => {
   if (!text || !uri || !cid || !AT_URI.test(uri)) return bad(res, 'text, uri and cid required');
   withBluesky(req, res, async (c) => ({ post: await blueskyadapter.createPost(c, text, { quote: { uri, cid } }) }));
 });
+
+// ─── Latest AT Protocol (v0.19+) Endpoints ───────────────────────────────────
+
+blueskyClientRouter.get('/bookmarks', (req, res) => {
+  withBluesky(req, res, (c) => bskyGetBookmarks(c, str(req.query.cursor, 400)));
+});
+
+blueskyClientRouter.post('/bookmark', (req, res) => {
+  const uri = str(req.body?.uri, 400); const cid = str(req.body?.cid, 120);
+  if (!uri || !cid || !AT_URI.test(uri)) return bad(res, 'valid uri and cid required');
+  withBluesky(req, res, (c) => bskyBookmarkPost(c, uri, cid));
+});
+
+blueskyClientRouter.post('/unbookmark', (req, res) => {
+  const uri = str(req.body?.uri, 400);
+  if (!uri || !AT_URI.test(uri)) return bad(res, 'valid uri required');
+  withBluesky(req, res, (c) => bskyUnbookmarkPost(c, uri));
+});
+
+blueskyClientRouter.post('/live-status', (req, res) => {
+  const active = Boolean(req.body?.active);
+  const streamUrl = str(req.body?.streamUrl, 500);
+  const title = str(req.body?.title, 160);
+  const description = str(req.body?.description, 300);
+  const durationMinutes = Number(req.body?.durationMinutes) || 60;
+  withBluesky(req, res, (c) => bskySetLiveStatus(c, { active, streamUrl, title, description, durationMinutes }));
+});
+
+blueskyClientRouter.post('/gates', (req, res) => {
+  const postUri = str(req.body?.postUri, 400);
+  if (!postUri || !AT_URI.test(postUri)) return bad(res, 'valid postUri required');
+  const replyGate = str(req.body?.replyGate, 32) as BlueskyReplyGate | undefined;
+  const allowQuote = typeof req.body?.allowQuote === 'boolean' ? req.body.allowQuote : undefined;
+  const hiddenReplies = Array.isArray(req.body?.hiddenReplies) ? req.body.hiddenReplies.filter((u: unknown): u is string => typeof u === 'string' && AT_URI.test(u)) : undefined;
+  const detachedEmbeddingUris = Array.isArray(req.body?.detachedEmbeddingUris) ? req.body.detachedEmbeddingUris.filter((u: unknown): u is string => typeof u === 'string' && AT_URI.test(u)) : undefined;
+  withBluesky(req, res, (c) => bskySetPostInteractionGates(c, postUri, { replyGate, allowQuote, hiddenReplies, detachedEmbeddingUris }));
+});
+
+blueskyClientRouter.get('/trending', (req, res) => {
+  withBluesky(req, res, (c) => bskyGetTrendingTopics(c, 12));
+});
+
+blueskyClientRouter.get('/search/typeahead', (req, res) => {
+  const q = str(req.query.q, 120)?.trim();
+  if (!q) return res.json({ profiles: [] });
+  withBluesky(req, res, (c) => bskyTypeaheadActors(c, q, 8).then(profiles => ({ profiles })));
+});
+
+blueskyClientRouter.get('/starter-packs', (req, res) => {
+  const actor = str(req.query.actor, 260);
+  if (!actor || !ACTOR.test(actor)) return bad(res, 'actor required');
+  withBluesky(req, res, (c) => bskyGetActorStarterPacks(c, actor, str(req.query.cursor, 400)));
+});
+
+blueskyClientRouter.get('/starter-packs/search', (req, res) => {
+  const q = str(req.query.q, 200)?.trim();
+  if (!q) return bad(res, 'q required');
+  withBluesky(req, res, (c) => bskySearchStarterPacks(c, q, str(req.query.cursor, 400)));
+});
+
+blueskyClientRouter.get('/starter-pack', (req, res) => {
+  const uri = str(req.query.uri, 400);
+  if (!uri || !AT_URI.test(uri)) return bad(res, 'valid starterPack uri required');
+  withBluesky(req, res, (c) => bskyGetStarterPack(c, uri));
+});
+
+blueskyClientRouter.get('/post/quotes', (req, res) => {
+  const uri = str(req.query.uri, 400);
+  if (!uri || !AT_URI.test(uri)) return bad(res, 'valid post uri required');
+  withBluesky(req, res, (c) => bskyGetPostQuotes(c, uri, str(req.query.cursor, 400)));
+});
+
+blueskyClientRouter.get('/post/likes', (req, res) => {
+  const uri = str(req.query.uri, 400);
+  if (!uri || !AT_URI.test(uri)) return bad(res, 'valid post uri required');
+  withBluesky(req, res, (c) => bskyGetPostLikes(c, uri, str(req.query.cursor, 400)));
+});
+
+blueskyClientRouter.get('/post/reposts', (req, res) => {
+  const uri = str(req.query.uri, 400);
+  if (!uri || !AT_URI.test(uri)) return bad(res, 'valid post uri required');
+  withBluesky(req, res, (c) => bskyGetPostRepostedBy(c, uri, str(req.query.cursor, 400)));
+});
+
+blueskyClientRouter.post('/dm/start', (req, res) => {
+  const did = str(req.body?.did, 260);
+  if (!did || !/^did:/.test(did)) return bad(res, 'did required');
+  withBluesky(req, res, (c) => bskyStartConversation(c, did));
+});
+
+blueskyClientRouter.post('/dm/react', (req, res) => {
+  const convoId = str(req.body?.convoId, 160);
+  const messageId = str(req.body?.messageId, 160);
+  const value = str(req.body?.value, 32);
+  if (!convoId || !messageId || !value) return bad(res, 'convoId, messageId, and value required');
+  withBluesky(req, res, (c) => bskyReactToMessage(c, convoId, messageId, value, Boolean(req.body?.remove)));
+});
+
+blueskyClientRouter.post('/dm/accept', (req, res) => {
+  const convoId = str(req.body?.convoId, 160);
+  if (!convoId) return bad(res, 'convoId required');
+  withBluesky(req, res, (c) => bskyAcceptConversation(c, convoId));
+});
+

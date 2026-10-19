@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   ArrowLeft, Play, Pause, Music2, ExternalLink,
-  Sparkles, Disc3, List,
+  Sparkles, Disc3, List, UserPlus, UserCheck, Heart, Repeat2,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useGlobalPlayer } from '../contexts/GlobalPlayerContext';
@@ -10,7 +10,12 @@ import {
   AudiusArtist, AudiusAlbum,
   fetchAudiusArtistTracks, fetchAudiusArtistAlbums, fetchAudiusArtistPlaylists,
   fetchAudiusRelatedArtists, getAudiusStreamUrl,
+  followAudiusUser, unfollowAudiusUser,
+  favoriteAudiusTrack, unfavoriteAudiusTrack,
+  repostAudiusTrack, unrepostAudiusTrack,
 } from '../services/audiusService';
+import { getAudiusSession, startAudiusAuth } from '../services/audiusAuth';
+import { fetchAudiusLibrary, invalidateAudiusLibrary } from '../services/audiusLibrary';
 import type { ArchiveTrack } from '../services/archiveContentService';
 import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
 
@@ -43,22 +48,101 @@ const AudiusArtistPage: React.FC<Props> = ({ artist, onBack, onSelectAlbum }) =>
   const [related, setRelated] = useState<AudiusArtist[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeSection, setActiveSection] = useState<'TRACKS' | 'ALBUMS' | 'PLAYLISTS'>('TRACKS');
+  const [isFollowingArtist, setIsFollowingArtist] = useState(false);
+  const [followerDelta, setFollowerDelta] = useState(0);
+  const [followBusy, setFollowBusy] = useState(false);
+  const [favoritedIds, setFavoritedIds] = useState<Set<string>>(new Set());
+  const [repostedIds, setRepostedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     setLoading(true);
+    setFollowerDelta(0);
     Promise.all([
       fetchAudiusArtistTracks(artist.id, 20),
       fetchAudiusArtistAlbums(artist.id),
       fetchAudiusArtistPlaylists(artist.id),
       fetchAudiusRelatedArtists(artist.id, 6),
-    ]).then(([t, a, p, r]) => {
+      fetchAudiusLibrary().catch(() => null),
+    ]).then(([t, a, p, r, lib]) => {
       setTracks(t);
       setAlbums(a);
       setPlaylists(p);
       setRelated(r.filter(r => r.id !== artist.id));
+      if (lib) {
+        setIsFollowingArtist(lib.following.some(f => f.id === artist.id));
+        setFavoritedIds(new Set(lib.favorites.map(f => f.id)));
+        setRepostedIds(new Set(lib.reposts.map(rp => rp.id)));
+      }
       setLoading(false);
     });
   }, [artist.id]);
+
+  const ensureWriteSession = async () => {
+    let session = getAudiusSession();
+    if (!session || session.scope !== 'write') {
+      session = await startAudiusAuth({ scope: 'write' });
+    }
+    return session;
+  };
+
+  const handleToggleFollow = async () => {
+    if (followBusy) return;
+    setFollowBusy(true);
+    try {
+      const session = await ensureWriteSession();
+      const next = !isFollowingArtist;
+      setIsFollowingArtist(next);
+      setFollowerDelta(d => d + (next ? 1 : -1));
+      const ok = next
+        ? await followAudiusUser(artist.id, session.accessToken, session.userId)
+        : await unfollowAudiusUser(artist.id, session.accessToken, session.userId);
+      if (ok) invalidateAudiusLibrary();
+      else {
+        setIsFollowingArtist(!next);
+        setFollowerDelta(d => d - (next ? 1 : -1));
+      }
+    } catch {
+      // auth cancelled or failed
+    } finally {
+      setFollowBusy(false);
+    }
+  };
+
+  const handleToggleFavorite = async (e: React.MouseEvent, rawTrackId: string) => {
+    e.stopPropagation();
+    const audiusId = rawTrackId.replace(/^audius_/, '');
+    try {
+      const session = await ensureWriteSession();
+      const wasFav = favoritedIds.has(rawTrackId);
+      setFavoritedIds(prev => {
+        const next = new Set(prev);
+        wasFav ? next.delete(rawTrackId) : next.add(rawTrackId);
+        return next;
+      });
+      const ok = wasFav
+        ? await unfavoriteAudiusTrack(audiusId, session.accessToken, session.userId)
+        : await favoriteAudiusTrack(audiusId, session.accessToken, session.userId);
+      if (ok) invalidateAudiusLibrary();
+    } catch { /* ignore */ }
+  };
+
+  const handleToggleRepost = async (e: React.MouseEvent, rawTrackId: string) => {
+    e.stopPropagation();
+    const audiusId = rawTrackId.replace(/^audius_/, '');
+    try {
+      const session = await ensureWriteSession();
+      const wasRep = repostedIds.has(rawTrackId);
+      setRepostedIds(prev => {
+        const next = new Set(prev);
+        wasRep ? next.delete(rawTrackId) : next.add(rawTrackId);
+        return next;
+      });
+      const ok = wasRep
+        ? await unrepostAudiusTrack(audiusId, session.accessToken, session.userId)
+        : await repostAudiusTrack(audiusId, session.accessToken, session.userId);
+      if (ok) invalidateAudiusLibrary();
+    } catch { /* ignore */ }
+  };
 
   const buildAlbum = (trackList: ArchiveTrack[]): Album => ({
     id: `audius_artist_${artist.id}`,
@@ -154,7 +238,7 @@ const AudiusArtistPage: React.FC<Props> = ({ artist, onBack, onSelectAlbum }) =>
             {/* Stats row */}
             <div className="flex items-center gap-6 mb-6">
               <div className="text-center">
-                <p className="text-lg font-black text-white">{fmt(artist.followerCount)}</p>
+                <p className="text-lg font-black text-white">{fmt(Math.max(0, artist.followerCount + followerDelta))}</p>
                 <p className="text-[8px] font-black uppercase tracking-widest text-white/40">Followers</p>
               </div>
               <div className="w-px h-8 bg-white/10" />
@@ -202,7 +286,7 @@ const AudiusArtistPage: React.FC<Props> = ({ artist, onBack, onSelectAlbum }) =>
             </div>
 
             {/* Actions */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <button
                 onClick={handlePlayAll}
                 disabled={tracks.length === 0}
@@ -210,6 +294,17 @@ const AudiusArtistPage: React.FC<Props> = ({ artist, onBack, onSelectAlbum }) =>
                 style={{ background: PURPLE.text }}
               >
                 <Play size={15} fill="currentColor" /> Play All
+              </button>
+              <button
+                onClick={handleToggleFollow}
+                disabled={followBusy}
+                className="flex items-center gap-2 px-5 py-3.5 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all disabled:opacity-50"
+                style={isFollowingArtist
+                  ? { background: PURPLE.bg, borderColor: PURPLE.border, color: '#e9d5ff' }
+                  : { background: 'rgba(255,255,255,0.06)', borderColor: PURPLE.border, color: PURPLE.text }}
+              >
+                {isFollowingArtist ? <UserCheck size={14} /> : <UserPlus size={14} />}
+                {isFollowingArtist ? 'Following on Audius' : 'Follow on Audius'}
               </button>
               <a
                 href={`https://audius.co/${artist.handle}`}
@@ -258,11 +353,16 @@ const AudiusArtistPage: React.FC<Props> = ({ artist, onBack, onSelectAlbum }) =>
                   <div className="space-y-1">
                     {tracks.map((track, i) => {
                       const isCurrent = currentTrack?.id === track.id;
+                      const isFav = favoritedIds.has(track.id);
+                      const isRep = repostedIds.has(track.id);
                       return (
-                        <button
+                        <div
                           key={track.id}
                           onClick={() => handlePlayTrack(track)}
-                          className={`w-full flex items-center gap-4 px-4 py-3 rounded-2xl transition-all text-left group ${
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') handlePlayTrack(track); }}
+                          className={`w-full flex items-center gap-4 px-4 py-3 rounded-2xl transition-all text-left group cursor-pointer ${
                             isCurrent
                               ? 'bg-purple-500/15 border border-purple-500/30'
                               : 'hover:bg-white/5 border border-transparent'
@@ -300,11 +400,31 @@ const AudiusArtistPage: React.FC<Props> = ({ artist, onBack, onSelectAlbum }) =>
                             {track.genre && <p className="text-[9px] font-bold uppercase tracking-widest text-white/30 truncate">{track.genre}</p>}
                           </div>
 
+                          {/* Audius Social Actions: Favorite + Repost */}
+                          <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
+                            <button
+                              type="button"
+                              onClick={e => handleToggleFavorite(e, track.id)}
+                              title={isFav ? 'Unfavorite on Audius' : 'Favorite on Audius'}
+                              className={`p-1.5 rounded-full transition-colors ${isFav ? 'text-pink-400 bg-pink-500/10' : 'text-white/30 hover:text-pink-400 hover:bg-white/5'}`}
+                            >
+                              <Heart size={13} fill={isFav ? 'currentColor' : 'none'} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={e => handleToggleRepost(e, track.id)}
+                              title={isRep ? 'Unrepost on Audius' : 'Repost on Audius'}
+                              className={`p-1.5 rounded-full transition-colors ${isRep ? 'text-purple-400 bg-purple-500/10' : 'text-white/30 hover:text-purple-400 hover:bg-white/5'}`}
+                            >
+                              <Repeat2 size={13} />
+                            </button>
+                          </div>
+
                           {/* Duration */}
                           {track.duration && (
                             <span className="text-[10px] font-mono text-white/30 shrink-0">{fmtDur(track.duration)}</span>
                           )}
-                        </button>
+                        </div>
                       );
                     })}
                   </div>

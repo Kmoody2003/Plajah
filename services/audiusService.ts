@@ -421,6 +421,13 @@ export interface AudiusPublishResult {
   permalink: string;
 }
 
+export interface AudiusAlbumPublishResponse {
+  albumId?: string;
+  albumPermalink?: string;
+  published: AudiusPublishResult[];
+  failed: string[];
+}
+
 export async function publishTrackToAudius(
   track: Track,
   album: Album,
@@ -469,12 +476,69 @@ export async function publishTrackToAudius(
   }
 }
 
+/**
+ * Bundles uploaded Audius track IDs into an official Audius Album (a playlist record with `is_album: true`).
+ */
+export async function createAudiusAlbumCollection(
+  album: Album,
+  trackIds: string[],
+  bearerToken: string,
+  audiusUserId: string,
+  audiusHandle?: string
+): Promise<{ albumId: string; permalink: string } | null> {
+  if (!trackIds.length) return null;
+  try {
+    const host = await getAudiusHost();
+    let coverBlob: Blob | null = null;
+    if (album.coverImage) {
+      try {
+        const coverRes = await fetch(album.coverImage);
+        if (coverRes.ok) coverBlob = await coverRes.blob();
+      } catch { /* continue without cover */ }
+    }
+
+    const form = new FormData();
+    if (coverBlob) form.append('cover_art_file', coverBlob, 'album-cover.jpg');
+    form.append('metadata', JSON.stringify({
+      playlist_name: album.title || 'Untitled Album',
+      description: album.description ?? '',
+      genre: album.genre ?? 'Electronic',
+      mood: 'Other',
+      is_album: true,
+      is_private: false,
+      playlist_contents: {
+        track_ids: trackIds.map(id => ({ track: id, time: Math.floor(Date.now() / 1000) })),
+      },
+      track_ids: trackIds,
+    }));
+
+    const res = await fetch(`${host}/v1/playlists?app_name=${APP_NAME}`, {
+      method: 'POST',
+      headers: { ...audiusHeaders(), Authorization: `Bearer ${bearerToken}`, 'X-User-ID': audiusUserId },
+      body: form,
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const albumId: string = data.data?.id ?? data.id ?? data.playlistId;
+    if (!albumId) return null;
+    const slug = (album.title || 'album').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    const permalink = audiusHandle
+      ? `https://audius.co/${audiusHandle}/album/${slug}-${albumId}`
+      : `https://audius.co/albums/${albumId}`;
+    return { albumId, permalink };
+  } catch (err) {
+    console.error('[Audius] createAudiusAlbumCollection:', err);
+    return null;
+  }
+}
+
 export async function publishAlbumToAudius(
   album: Album,
   bearerToken: string,
   audiusUserId: string,
-  onProgress?: (done: number, total: number) => void
-): Promise<{ published: AudiusPublishResult[]; failed: string[] }> {
+  onProgress?: (done: number, total: number) => void,
+  audiusHandle?: string
+): Promise<AudiusAlbumPublishResponse> {
   const tracks = album.tracks ?? [];
   const published: AudiusPublishResult[] = [];
   const failed: string[] = [];
@@ -483,11 +547,297 @@ export async function publishAlbumToAudius(
     result ? published.push(result) : failed.push(tracks[i].title ?? `Track ${i + 1}`);
     onProgress?.(i + 1, tracks.length);
   }
-  return { published, failed };
+
+  // Group uploaded tracks into a single Audius Album (is_album: true) when publishing an album/EP or multiple tracks
+  let albumId: string | undefined;
+  let albumPermalink: string | undefined;
+  if (published.length > 0 && (tracks.length > 1 || (album.subType && album.subType !== 'SINGLE'))) {
+    const collection = await createAudiusAlbumCollection(
+      album,
+      published.map(p => p.trackId),
+      bearerToken,
+      audiusUserId,
+      audiusHandle,
+    );
+    if (collection) {
+      albumId = collection.albumId;
+      albumPermalink = collection.permalink;
+    }
+  } else if (published.length === 1) {
+    albumPermalink = published[0].permalink;
+  }
+
+  return { albumId, albumPermalink, published, failed };
 }
 
 export function generateAudiusUploadLink(): string {
   return `https://audius.co/upload?app_name=${APP_NAME}&ref=plajah`;
+}
+
+// ─── Audius Social Network Integration (Follow, Favorite, Repost, Comments, Feed) ──
+
+export interface AudiusComment {
+  id: string;
+  userId: string;
+  userName: string;
+  userHandle: string;
+  userAvatar?: string;
+  userVerified: boolean;
+  message: string;
+  trackTimestampS?: number;
+  createdAt: number;
+  reactCount: number;
+  replies?: AudiusComment[];
+}
+
+async function audiusMutate(path: string, method: 'POST' | 'DELETE' = 'POST', body?: Record<string, unknown>): Promise<any> {
+  const { getAudiusSession, getAudiusAccessToken, loginWithAudius } = await import('./audiusAuth');
+  let session = getAudiusSession();
+  let token = await getAudiusAccessToken();
+  if (!session || !token || session.scope !== 'write') {
+    session = await loginWithAudius({ scope: 'write' });
+    token = session.accessToken;
+  }
+  const host = await getAudiusHost();
+  const url = `${host}${path}?app_name=${APP_NAME}&user_id=${encodeURIComponent(session.userId)}`;
+  const res = await fetch(url, {
+    method,
+    headers: {
+      ...audiusHeaders(),
+      Authorization: `Bearer ${token}`,
+      'X-User-ID': session.userId,
+      ...(body ? { 'Content-Type': 'application/json' } : {}),
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (!res.ok) throw new Error(`Audius ${method} ${path} failed (${res.status})`);
+  return res.json().catch(() => ({ ok: true }));
+}
+
+export async function followAudiusUser(targetUserId: string): Promise<boolean> {
+  const cleanId = targetUserId.replace(/^audius:/, '');
+  try {
+    await audiusMutate(`/v1/users/${encodeURIComponent(cleanId)}/follow`, 'POST');
+    return true;
+  } catch (err) {
+    console.error('[Audius] followAudiusUser:', err);
+    return false;
+  }
+}
+
+export async function unfollowAudiusUser(targetUserId: string): Promise<boolean> {
+  const cleanId = targetUserId.replace(/^audius:/, '');
+  try {
+    await audiusMutate(`/v1/users/${encodeURIComponent(cleanId)}/follow`, 'DELETE');
+    return true;
+  } catch (err) {
+    console.error('[Audius] unfollowAudiusUser:', err);
+    return false;
+  }
+}
+
+export async function favoriteAudiusTrack(trackId: string): Promise<boolean> {
+  const cleanId = trackId.replace(/^audius_/, '');
+  try {
+    await audiusMutate(`/v1/tracks/${encodeURIComponent(cleanId)}/favorites`, 'POST');
+    return true;
+  } catch (err) {
+    console.error('[Audius] favoriteAudiusTrack:', err);
+    return false;
+  }
+}
+
+export async function unfavoriteAudiusTrack(trackId: string): Promise<boolean> {
+  const cleanId = trackId.replace(/^audius_/, '');
+  try {
+    await audiusMutate(`/v1/tracks/${encodeURIComponent(cleanId)}/favorites`, 'DELETE');
+    return true;
+  } catch (err) {
+    console.error('[Audius] unfavoriteAudiusTrack:', err);
+    return false;
+  }
+}
+
+export async function repostAudiusTrack(trackId: string): Promise<boolean> {
+  const cleanId = trackId.replace(/^audius_/, '');
+  try {
+    await audiusMutate(`/v1/tracks/${encodeURIComponent(cleanId)}/reposts`, 'POST');
+    return true;
+  } catch (err) {
+    console.error('[Audius] repostAudiusTrack:', err);
+    return false;
+  }
+}
+
+export async function unrepostAudiusTrack(trackId: string): Promise<boolean> {
+  const cleanId = trackId.replace(/^audius_/, '');
+  try {
+    await audiusMutate(`/v1/tracks/${encodeURIComponent(cleanId)}/reposts`, 'DELETE');
+    return true;
+  } catch (err) {
+    console.error('[Audius] unrepostAudiusTrack:', err);
+    return false;
+  }
+}
+
+function mapAudiusComment(c: any): AudiusComment {
+  const u = c.user ?? {};
+  return {
+    id: String(c.id ?? ''),
+    userId: String(c.user_id ?? u.id ?? ''),
+    userName: String(u.name ?? u.handle ?? 'Audius Listener'),
+    userHandle: String(u.handle ?? ''),
+    userAvatar: u.profile_picture?.['150x150'] ?? u.profile_picture?.['480x480'] ?? undefined,
+    userVerified: !!u.is_verified,
+    message: String(c.message ?? ''),
+    trackTimestampS: typeof c.track_timestamp_s === 'number' ? c.track_timestamp_s : undefined,
+    createdAt: c.created_at ? Date.parse(c.created_at) || Date.now() : Date.now(),
+    reactCount: Number(c.react_count ?? 0),
+    replies: Array.isArray(c.replies) ? c.replies.map(mapAudiusComment) : undefined,
+  };
+}
+
+export async function fetchAudiusTrackComments(trackId: string, limit = 30): Promise<AudiusComment[]> {
+  const cleanId = trackId.replace(/^audius_/, '');
+  try {
+    const data = await audiusFetch(`/v1/tracks/${encodeURIComponent(cleanId)}/comments`, { limit: String(limit) });
+    return (data.data ?? []).map(mapAudiusComment);
+  } catch {
+    return [];
+  }
+}
+
+export async function postAudiusTrackComment(
+  trackId: string,
+  message: string,
+  trackTimestampS?: number
+): Promise<AudiusComment | null> {
+  const cleanId = trackId.replace(/^audius_/, '');
+  try {
+    const res = await audiusMutate('/v1/comments', 'POST', {
+      entity_id: cleanId,
+      entity_type: 'Track',
+      body: message.trim(),
+      ...(typeof trackTimestampS === 'number' ? { track_timestamp_s: Math.floor(trackTimestampS) } : {}),
+    });
+    const d = res?.data ?? res;
+    if (d?.id) return mapAudiusComment(d);
+    const { getAudiusSession } = await import('./audiusAuth');
+    const s = getAudiusSession();
+    return {
+      id: `audius_c_${Date.now()}`,
+      userId: s?.userId ?? '',
+      userName: s?.name ?? 'You',
+      userHandle: s?.handle ?? '',
+      userAvatar: s?.profilePicture,
+      userVerified: !!s?.verified,
+      message: message.trim(),
+      trackTimestampS,
+      createdAt: Date.now(),
+      reactCount: 0,
+    };
+  } catch (err) {
+    console.error('[Audius] postAudiusTrackComment:', err);
+    return null;
+  }
+}
+
+export async function fetchAudiusFollowers(userId: string, limit = 30): Promise<AudiusArtist[]> {
+  const cleanId = userId.replace(/^audius:/, '');
+  try {
+    const data = await audiusFetch(`/v1/users/${encodeURIComponent(cleanId)}/followers`, { limit: String(limit) });
+    return (data.data ?? []).map(mapArtist);
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchAudiusFollowing(userId: string, limit = 30): Promise<AudiusArtist[]> {
+  const cleanId = userId.replace(/^audius:/, '');
+  try {
+    const data = await audiusFetch(`/v1/users/${encodeURIComponent(cleanId)}/following`, { limit: String(limit) });
+    return (data.data ?? []).map(mapArtist);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Fetches recent track releases and reposts from the connected user's followed Audius artists,
+ * normalized as FediversePost items so they weave chronologically into Plajah's main social timeline.
+ */
+export async function fetchAudiusSocialFeed(limit = 20): Promise<any[]> {
+  try {
+    const { getAudiusSession } = await import('./audiusAuth');
+    const { fetchAudiusLibrary } = await import('./audiusLibrary');
+    const session = getAudiusSession();
+    if (!session?.userId) return [];
+
+    const host = await getAudiusHost();
+    const lib = await fetchAudiusLibrary({ limit: 25 });
+    const followed = lib.following.slice(0, 8);
+
+    // Fetch latest tracks from followed artists concurrently
+    const rawTracksByArtist = await Promise.all(
+      followed.map(async artist => {
+        try {
+          const data = await audiusFetch(`/v1/users/${encodeURIComponent(artist.id)}/tracks`, { limit: '4' });
+          return (data.data ?? []).map((t: any) => ({ raw: t, artist }));
+        } catch {
+          return [];
+        }
+      })
+    );
+
+    const favIds = new Set(lib.favorites.map(f => f.id.replace(/^audius_/, '')));
+    const repostIds = new Set(lib.reposts.map(r => r.id.replace(/^audius_/, '')));
+    const flat = rawTracksByArtist.flat();
+
+    const posts = flat.map(({ raw: t, artist }) => {
+      const mapped = mapTrack(t, host);
+      const createdAt = t.release_date
+        ? Date.parse(t.release_date) || Date.now() - 3600_000
+        : t.created_at
+          ? Date.parse(t.created_at) || Date.now() - 3600_000
+          : Date.now() - 3600_000;
+      const desc = t.description ? String(t.description).trim() : '';
+      const content = desc ? `🎵 ${mapped.title}${mapped.genre ? ` (${mapped.genre})` : ''}\n${desc}` : `🎵 Released "${mapped.title}"${mapped.genre ? ` · ${mapped.genre}` : ''}`;
+      return {
+        id: `audius_${t.id}`,
+        uri: `audius://track/${t.id}`,
+        protocol: 'audius',
+        accountId: session.userId,
+        authorHandle: `@${artist.handle}`,
+        authorDisplayName: artist.name,
+        authorAvatarUrl: artist.profilePicture || undefined,
+        authorDid: `audius:${artist.id}`,
+        content,
+        contentText: content,
+        createdAt,
+        url: mapped.sourcePageUrl || `https://audius.co/${artist.handle}`,
+        replyCount: Number(t.comment_count ?? 0),
+        repostCount: Number(t.repost_count ?? 0),
+        likeCount: Number(t.favorite_count ?? 0),
+        isLiked: favIds.has(String(t.id)),
+        isReposted: repostIds.has(String(t.id)),
+        isBookmarked: false,
+        media: [
+          {
+            type: 'audio' as const,
+            url: mapped.url,
+            previewUrl: mapped.thumbnailUrl,
+            altText: `${mapped.title} — ${artist.name}`,
+          },
+        ],
+      };
+    });
+
+    posts.sort((a, b) => b.createdAt - a.createdAt);
+    return posts.slice(0, limit);
+  } catch (err) {
+    console.warn('[Audius] fetchAudiusSocialFeed:', err);
+    return [];
+  }
 }
 
 // ─── Native normalization (Audius → Plajah Album/Track) ────────────────────────
@@ -498,6 +848,10 @@ export function generateAudiusUploadLink(): string {
 export const AUDIUS_THEME = '#7E1BCC';
 export const isAudiusOwner = (ownerId?: string) => !!ownerId && ownerId.startsWith('audius:');
 export const audiusUserIdFromOwner = (ownerId?: string) => (ownerId || '').replace(/^audius:/, '');
+export const audiusStreamUrlSync = (trackId: string): string => {
+  const rawId = (trackId || '').replace(/^audius_/, '');
+  return `${_cachedHost || FALLBACK_HOST}/v1/tracks/${rawId}/stream?app_name=${APP_NAME}`;
+};
 
 /** An aggregated Audius ArchiveTrack → a native, playable Track. */
 export const archiveTrackToNativeTrack = (t: ArchiveTrack): Track => ({

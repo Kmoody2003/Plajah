@@ -44,6 +44,8 @@ export interface NativePostLike {
   postMode?: 'thread' | 'booklet';
   threadChunks?: string[];
   quotedPost?: { authorName?: string; text?: string } | null;
+  /** Reply audience on Plajah ('EVERYONE' | 'FOLLOWING' | 'FOLLOWERS' | 'MENTIONED' | 'NOBODY') → Bluesky threadgate. */
+  replyAudience?: string;
 }
 
 export type NoteLevel = 'info' | 'warn';
@@ -60,10 +62,14 @@ export interface BlueskyVersion {
   truncated: boolean;
   images: { url: string; alt: string }[];
   droppedImages: number;
+  /** Native video uploaded via app.bsky.video.uploadVideo when no images are attached. */
+  video?: { url: string; alt: string };
   /** Link card shown under the text (a pasted link, or the way back to the Plajah post). */
   card?: { uri: string; title: string; description?: string; thumbUrl?: string };
   /** Bluesky self-label values (`sexual`, `nudity`, `graphic-media`). */
   labels: string[];
+  /** Reply restriction rule for app.bsky.feed.threadgate. */
+  replyGate?: 'everyone' | 'mentioned' | 'followers' | 'following' | 'nobody';
   /** The text split into highlightable pieces (links, #tags, @mentions) for the preview. */
   tokens: PreviewToken[];
   notes: PlanNote[];
@@ -114,6 +120,14 @@ const LABEL_MAP: Record<string, string> = {
   ARTISTIC_NUDITY: 'nudity',
 };
 
+const REPLY_AUDIENCE_MAP: Record<string, BlueskyVersion['replyGate']> = {
+  EVERYONE: 'everyone',
+  FOLLOWING: 'following',
+  FOLLOWERS: 'followers',
+  MENTIONED: 'mentioned',
+  NOBODY: 'nobody',
+};
+
 const firstLine = (t: string) => t.replace(/\s+/g, ' ').trim().slice(0, 90);
 
 // ── the plan ──────────────────────────────────────────────────────────────────
@@ -135,14 +149,20 @@ export function planBlueskyVersion(
   const notes: PlanNote[] = [];
   const media = post.media ?? [];
   const photos = media.filter(m => m.type === 'PHOTO' && m.url);
+  const videos = media.filter(m => m.type === 'VIDEO' && m.url);
   const linkMedia = media.find(m => m.type === 'LINK' && m.linkPreview?.url);
+
+  // Native video upload is supported by @atproto/api v0.19+ when no photos occupy the embed slot.
+  const nativeVideo = !photos.length && videos.length > 0
+    ? { url: videos[0].url!, alt: (videos[0].alt ?? '').trim() }
+    : undefined;
 
   // 2) What can't be shown natively on Bluesky → needs a way back to Plajah.
   const plajahOnly: string[] = [];
   if (post.poll) plajahOnly.push('poll');
   if (post.dataViz) plajahOnly.push('data visualisation');
   if (post.albumEmbed || post.assetEmbed) plajahOnly.push(String(post.assetEmbed?.type ?? 'album').toLowerCase() === 'track' ? 'track' : 'embedded media');
-  if (media.some(m => m.type === 'VIDEO')) plajahOnly.push('video');
+  if (videos.length > 0 && !nativeVideo) plajahOnly.push('video');
   if (media.some(m => m.type === 'AUDIO')) plajahOnly.push('audio');
   if (media.some(m => m.type === 'MODEL3D')) plajahOnly.push('3D model');
   if (media.some(m => m.type === 'GIF' || m.type === 'STICKER')) plajahOnly.push('GIF');
@@ -153,6 +173,9 @@ export function planBlueskyVersion(
   let text = (opts.override ?? (longForm ? post.threadChunks![0] : post.text) ?? '').trim();
   const needsLinkBack = plajahOnly.length > 0;
 
+  if (nativeVideo) {
+    notes.push({ level: 'info', text: 'Your video uploads natively to Bluesky (app.bsky.video).' });
+  }
   for (const what of [...new Set(plajahOnly)]) {
     notes.push({ level: 'info', text: `Bluesky can't show this ${what} — your post there links back to Plajah so people can open it.` });
   }
@@ -165,11 +188,10 @@ export function planBlueskyVersion(
   const missingAlt = images.filter(i => !i.alt).length;
   if (images.length && missingAlt) notes.push({ level: 'info', text: `${missingAlt} of ${images.length} image${images.length === 1 ? '' : 's'} on Bluesky ${missingAlt === 1 ? 'has' : 'have'} no description — add alt text so everyone can follow the post.` });
 
-  // 4) Card: images win; otherwise a pasted link, otherwise the way back to Plajah.
+  // 4) Card: images or native video win; otherwise a pasted link, otherwise the way back to Plajah.
   let card: BlueskyVersion['card'];
   let linkInText = false;
-  const explicitLinkInText = (text.match(URL_RE) ?? []).length > 0;
-  if (!images.length) {
+  if (!images.length && !nativeVideo) {
     if (needsLinkBack) {
       const thumb = media.find(m => m.thumbnail)?.thumbnail ?? (post.assetEmbed?.imageUrl) ?? photos[0]?.url;
       card = { uri: opts.postUrl, title: post.authorName ? `${post.authorName} on Plajah` : 'Open on Plajah', description: firstLine(text) || undefined, thumbUrl: thumb };
@@ -178,7 +200,7 @@ export function planBlueskyVersion(
       card = { uri: lp.url, title: lp.title || lp.url, description: lp.description, thumbUrl: lp.image };
     }
   } else if (needsLinkBack) {
-    linkInText = true; // images occupy the embed slot, so the way back goes into the text itself
+    linkInText = true; // images or video occupy the embed slot, so the way back goes into the text itself
   }
 
   // 5) Fit to 300. The link back (when needed, or whenever we trim) is never the part that gets cut.
@@ -196,14 +218,19 @@ export function planBlueskyVersion(
   } else {
     text = text + tail;
   }
-  if (!text && !images.length && !card) return empty('Nothing to share.');
+  if (!text && !images.length && !nativeVideo && !card) return empty('Nothing to share.');
 
   // 6) Content warnings → Bluesky self-labels.
   const labels = [...new Set((post.contentLabels ?? []).map(l => LABEL_MAP[l]).filter(Boolean))];
-  if (labels.length && !images.length) labels.length = 0; // self-labels describe media; no media, nothing to blur
+  if (labels.length && !images.length && !nativeVideo) labels.length = 0; // self-labels describe media; no media, nothing to blur
   if (labels.length) notes.push({ level: 'info', text: 'Your content warning travels with the post, so Bluesky blurs the media too.' });
 
-  return { text, graphemes: graphemeCount(text), truncated, images, droppedImages, card, labels, tokens: tokenize(text), notes, linkInText };
+  const replyGate = post.replyAudience ? REPLY_AUDIENCE_MAP[post.replyAudience.toUpperCase()] : undefined;
+  if (replyGate && replyGate !== 'everyone') {
+    notes.push({ level: 'info', text: `Reply rule (${replyGate}) is enforced on Bluesky via threadgate.` });
+  }
+
+  return { text, graphemes: graphemeCount(text), truncated, images, droppedImages, video: nativeVideo, card, labels, replyGate, tokens: tokenize(text), notes, linkInText };
 }
 
 /** Plain text + link for networks that aren't Bluesky (Mastodon/Threads allow 500 characters). */

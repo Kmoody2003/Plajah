@@ -50,6 +50,7 @@ export interface FediverseMedia {
 
 export interface FediversePost {
   id: string;
+  cid?: string;                   // Bluesky content identifier (mirrors id on Bluesky)
   uri: string;                    // canonical AT-URI or URL for deduplication
   protocol: FediverseProtocol;
   accountId: string;              // local FediverseAccount.id that fetched this
@@ -57,13 +58,17 @@ export interface FediversePost {
   authorDisplayName: string;
   authorAvatarUrl?: string;
   authorDid?: string;             // Bluesky DID
+  authorVerified?: boolean;       // Bluesky verification badge (app.bsky.actor.defs#verificationState)
+  authorIsLive?: boolean;         // Bluesky live status (app.bsky.actor.status#live)
   content: string;                // may contain HTML (Mastodon) or plain text
   contentText: string;            // always stripped plain text
   createdAt: number;              // unix ms
   url: string;                    // web-browsable URL
   replyCount: number;
   repostCount: number;
+  quoteCount?: number;
   likeCount: number;
+  bookmarkCount?: number;
   isLiked: boolean;
   isReposted: boolean;
   isBookmarked: boolean;
@@ -95,6 +100,8 @@ export interface FediverseProfile {
   protocol: FediverseProtocol;
   handle: string;
   displayName: string;
+  pronouns?: string;
+  website?: string;
   bio?: string;
   avatarUrl?: string;
   headerUrl?: string;
@@ -103,6 +110,10 @@ export interface FediverseProfile {
   postsCount: number;
   isFollowing?: boolean;
   isFollowedBy?: boolean;
+  verified?: boolean;
+  isLive?: boolean;
+  liveEmbedUrl?: string;
+  liveEmbedTitle?: string;
   url: string;
   followRecordUri?: string;       // AT-URI of follow record (Bluesky), needed to unfollow
 }
@@ -125,6 +136,8 @@ export interface FediverseNotification {
 
 // ─── Post Options ────────────────────────────────────────────────────────────
 
+export type BlueskyReplyGate = 'everyone' | 'mentioned' | 'followers' | 'following' | 'nobody';
+
 export interface CreatePostOptions {
   inReplyToId?: string;
   inReplyToUri?: string;         // Bluesky needs the AT-URI for replies
@@ -137,12 +150,18 @@ export interface CreatePostOptions {
   langs?: string[];
   /** Images to attach (public https URLs, max 4). Bluesky: uploaded as blobs with alt text. */
   images?: { url: string; alt?: string }[];
-  /** Link card (Bluesky external embed). Ignored when images are attached. */
+  /** Native video to attach (Bluesky app.bsky.video.uploadVideo → app.bsky.embed.video). */
+  video?: { url: string; alt?: string; width?: number; height?: number };
+  /** Link card (Bluesky external embed). Ignored when images or video are attached. */
   link?: { uri: string; title?: string; description?: string; thumbUrl?: string };
   /** Quote another post (Bluesky). */
   quote?: { uri: string; cid: string };
   /** Bluesky self-labels (`sexual`, `nudity`, `graphic-media`, `porn`) so media is blurred for viewers. */
   labels?: string[];
+  /** Bluesky threadgate rule (who can reply to this post). */
+  replyGate?: BlueskyReplyGate;
+  /** Bluesky postgate rule (whether others can quote-post this post; defaults to true). */
+  allowQuote?: boolean;
 }
 
 // ─── Adapter Interface ───────────────────────────────────────────────────────

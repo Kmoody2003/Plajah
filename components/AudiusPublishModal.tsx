@@ -11,15 +11,13 @@
  */
 
 import React, { useState, useCallback } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { X, Music2, ExternalLink, Loader2, Check, AlertCircle, LogIn } from 'lucide-react';
+import { motion } from 'motion/react';
+import { X, Music2, ExternalLink, Loader2, Check, AlertCircle, LogIn, Disc3 } from 'lucide-react';
 import { Album } from '../types';
 import { publishAlbumToAudius } from '../services/audiusService';
 import { loginWithAudius, logoutAudius, getAudiusSession } from '../services/audiusAuth';
+import { publishToCloud } from '../services/backendService';
 
-// Publishing needs the `write` scope, which Audius only grants to an app authenticated with
-// its API key. The session (tokens + identity) is owned by services/audiusAuth — this modal
-// no longer keeps its own credential blob.
 interface AudiusCreds { bearerToken: string; userId: string; handle: string }
 
 function loadCreds(): AudiusCreds | null {
@@ -29,17 +27,22 @@ function loadCreds(): AudiusCreds | null {
     : null;
 }
 
-interface Props { album: Album; onClose: () => void }
+interface Props {
+  album: Album;
+  onClose: () => void;
+  onPublished?: (updatedAlbum: Album) => void;
+}
 
 type Step = 'idle' | 'oauth' | 'publishing' | 'done' | 'error';
 
 interface TrackResult { title: string; trackId: string | null; permalink: string | null }
 
-export default function AudiusPublishModal({ album, onClose }: Props) {
+export default function AudiusPublishModal({ album, onClose, onPublished }: Props) {
   const [creds, setCreds] = useState<AudiusCreds | null>(() => loadCreds());
   const [step, setStep] = useState<Step>('idle');
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [results, setResults] = useState<TrackResult[]>([]);
+  const [albumPermalink, setAlbumPermalink] = useState<string | null>(null);
   const [error, setError] = useState('');
 
   const startOAuth = async () => {
@@ -63,20 +66,50 @@ export default function AudiusPublishModal({ album, onClose }: Props) {
     const trackResults: TrackResult[] = [];
 
     try {
-      await publishAlbumToAudius(album, c.bearerToken, c.userId, (done, total) => {
-        setProgress({ done, total });
-        if (done > 0 && tracks[done - 1]) {
-          trackResults.push({ title: tracks[done - 1].title, trackId: null, permalink: null });
-          setResults([...trackResults]);
-        }
-      });
-      setResults(tracks.map(t => ({ title: t.title, trackId: 'published', permalink: `https://audius.co/${c.handle}` })));
+      const res = await publishAlbumToAudius(
+        album,
+        c.bearerToken,
+        c.userId,
+        (done, total) => {
+          setProgress({ done, total });
+          if (done > 0 && tracks[done - 1]) {
+            trackResults.push({ title: tracks[done - 1].title, trackId: null, permalink: null });
+            setResults([...trackResults]);
+          }
+        },
+        c.handle,
+      );
+
+      if (res.published.length === 0 && res.failed.length > 0) {
+        throw new Error(`Could not upload tracks to Audius (${res.failed.join(', ')})`);
+      }
+
+      const finalPermalink = res.albumPermalink || `https://audius.co/${c.handle}`;
+      setAlbumPermalink(finalPermalink);
+      setResults(
+        tracks.map((t, idx) => ({
+          title: t.title,
+          trackId: res.published[idx]?.trackId ?? 'published',
+          permalink: res.published[idx]?.permalink ?? finalPermalink,
+        }))
+      );
+
+      const updated: Album = {
+        ...album,
+        publishToAudius: true,
+        audiusPublishStatus: 'published',
+        audiusUrl: finalPermalink,
+      } as Album;
+      try {
+        await publishToCloud(updated);
+      } catch { /* best-effort cloud status sync */ }
+      onPublished?.(updated);
       setStep('done');
     } catch (err: any) {
       setError(err.message ?? 'Publish failed');
       setStep('error');
     }
-  }, [album]);
+  }, [album, onPublished]);
 
   const handlePublish = () => {
     if (!creds) { startOAuth(); return; }
@@ -101,8 +134,8 @@ export default function AudiusPublishModal({ album, onClose }: Props) {
               <Music2 size={15} className="text-purple-400" />
             </div>
             <div>
-              <div className="font-bold text-sm">Publish to Audius</div>
-              <div className="text-xs text-white/30">Decentralized music distribution</div>
+              <div className="font-bold text-sm">Publish Album to Audius</div>
+              <div className="text-xs text-white/30">Decentralized music distribution · Album + Tracks</div>
             </div>
           </div>
           <button onClick={onClose} className="text-white/20 hover:text-white transition-colors"><X size={16}/></button>
@@ -127,12 +160,12 @@ export default function AudiusPublishModal({ album, onClose }: Props) {
               </div>
             ) : (
               <div className="mb-4 p-3 bg-purple-500/5 border border-purple-500/15 rounded-xl text-xs text-white/50">
-                You'll be redirected to Audius to authorize Plajah to upload on your behalf.
+                You'll be redirected to Audius to authorize Plajah to upload tracks and create an album on your behalf.
               </div>
             )}
             <button onClick={handlePublish}
               className="w-full py-3 bg-purple-500 text-white font-bold rounded-xl hover:bg-purple-400 transition-colors flex items-center justify-center gap-2">
-              {creds ? <><Music2 size={15}/> Publish {trackCount} track{trackCount !== 1 ? 's' : ''} to Audius</> : <><LogIn size={15}/> Connect Audius to publish</>}
+              {creds ? <><Disc3 size={15}/> Publish Album ({trackCount} track{trackCount !== 1 ? 's' : ''}) to Audius</> : <><LogIn size={15}/> Connect Audius to publish</>}
             </button>
           </>
         )}
@@ -149,7 +182,9 @@ export default function AudiusPublishModal({ album, onClose }: Props) {
           <div className="space-y-4">
             <div className="flex items-center gap-2 text-sm text-white/60">
               <Loader2 size={14} className="animate-spin text-purple-400"/>
-              Uploading {progress.done} of {progress.total} tracks…
+              {progress.done < progress.total
+                ? `Uploading track ${progress.done + 1} of ${progress.total}…`
+                : 'Bundling tracks into Audius Album…'}
             </div>
             <div className="w-full bg-white/5 rounded-full h-1.5">
               <div className="bg-purple-500 h-1.5 rounded-full transition-all"
@@ -166,15 +201,29 @@ export default function AudiusPublishModal({ album, onClose }: Props) {
         {step === 'done' && (
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-green-400 font-bold text-sm">
-              <Check size={16}/> Published successfully!
+              <Check size={16}/> Album published to Audius!
             </div>
-            {creds && (
-              <a href={`https://audius.co/${creds.handle}`} target="_blank" rel="noopener noreferrer"
+            {(albumPermalink || creds) && (
+              <a href={albumPermalink || `https://audius.co/${creds?.handle}`} target="_blank" rel="noopener noreferrer"
                 className="flex items-center gap-2 px-4 py-2.5 bg-purple-500/10 border border-purple-500/30 rounded-xl text-purple-400 text-sm hover:bg-purple-500/15 transition-colors">
-                <ExternalLink size={13}/> View your Audius profile
+                <ExternalLink size={13}/> Open Album on Audius
               </a>
             )}
-            <p className="text-xs text-white/30">Note: Audius may take a few minutes to process audio files.</p>
+            {results.length > 0 && (
+              <div className="max-h-36 overflow-y-auto space-y-1.5 pt-1">
+                {results.map((r, idx) => (
+                  <div key={idx} className="flex items-center justify-between text-xs text-white/50">
+                    <span className="truncate">{idx + 1}. {r.title}</span>
+                    {r.permalink && (
+                      <a href={r.permalink} target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:underline shrink-0 ml-2">
+                        Track ↗
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="text-xs text-white/30">Note: Audius content nodes may take a moment to finish transcoding audio.</p>
           </div>
         )}
 

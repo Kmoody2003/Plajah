@@ -56,3 +56,20 @@ export async function prepareImage(url: string): Promise<PreparedImage> {
   }
   throw new Error('Could not shrink the image under Bluesky\'s 1MB limit');
 }
+
+const MAX_VIDEO_BYTES = 50_000_000; // 50MB cap for native Bluesky video uploads
+export interface PreparedVideo { bytes: Uint8Array; mime: string }
+
+export async function prepareVideo(url: string): Promise<PreparedVideo> {
+  assertPublicHttps(url);
+  const res = await fetch(url, { signal: AbortSignal.timeout(45_000), redirect: 'follow' });
+  if (!res.ok) throw new Error(`Could not download video (${res.status})`);
+  const len = Number(res.headers.get('content-length') || 0);
+  if (len > MAX_VIDEO_BYTES) throw new Error('Video exceeds Bluesky\'s 50MB limit');
+  const buf = Buffer.from(await res.arrayBuffer());
+  if (buf.length > MAX_VIDEO_BYTES) throw new Error('Video exceeds Bluesky\'s 50MB limit');
+  const rawMime = (res.headers.get('content-type') || 'video/mp4').split(';')[0].trim();
+  const mime = /^video\//.test(rawMime) ? rawMime : 'video/mp4';
+  return { bytes: new Uint8Array(buf), mime };
+}
+

@@ -45,6 +45,7 @@ const SamplingRightsPanel = lazy(() => import('./melos/sampling/SamplingRightsPa
 const ProjectPromoManager = lazy(() => import('./ProjectPromoManager'));
 import { AUDIO_ACCEPT } from '../services/audioFormatService';
 import AudioHealthPanel from './AudioHealthPanel';
+import { getAudiusSession, loginWithAudius, publishAlbumToAudius } from '../services/audiusService';
 
 interface AlbumCreatorProps {
   onCreated: (album: Album, opts?: { keepOpen?: boolean }) => void;
@@ -213,6 +214,10 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   const [seasons, setSeasons] = useState<TVSeason[]>(initialAlbum?.seasons || []);
   const [relatedProjectIds, setRelatedProjectIds] = useState<string[]>(initialAlbum?.relatedProjectIds || []);
   const [publishToAudius, setPublishToAudius] = useState<boolean>(initialAlbum?.publishToAudius ?? false);
+  const [audiusWriteHandle, setAudiusWriteHandle] = useState<string | null>(() => {
+    const s = getAudiusSession();
+    return s && s.scope === 'write' ? s.handle : null;
+  });
   // Which thing the Rights & Identifiers panel is open on: the release (UPC, catalogue
   // number) or one track (ISRC, ISWC). Null = closed.
   const [rightsSubject, setRightsSubject] = useState<RegistrySubject | null>(null);
@@ -1078,6 +1083,23 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
             // same windowed-transcription endpoint the player's "Sync Lyrics" uses (short audio
             // windows anchored to real timestamps), instead of guessing evenly-spaced times.
             void syncCaptionsAfterPublish(finalAlbum);
+            if (publishToAudius && !draftMode) {
+              const s = getAudiusSession();
+              if (s && s.scope === 'write' && s.accessToken) {
+                void publishAlbumToAudius(finalAlbum, s.accessToken, s.userId, undefined, s.handle)
+                  .then(res => {
+                    if (res.published.length > 0) {
+                      void publishToCloud({
+                        ...finalAlbum,
+                        publishToAudius: true,
+                        audiusPublishStatus: 'published',
+                        audiusUrl: res.albumPermalink || `https://audius.co/${s.handle}`,
+                      });
+                    }
+                  })
+                  .catch(() => {});
+              }
+            }
           }
         },
       });
@@ -2966,13 +2988,28 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
             </div>
             {publishToAudius && (
               <div className="space-y-3 pt-2 border-t border-purple-900/30">
-                <div className="flex items-start gap-3 px-1">
-                  <div className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0" style={{ background: '#a855f7' }} />
-                  <p className="text-[9px] leading-relaxed" style={{ color: 'rgba(168,85,247,0.8)' }}>
-                    Your album will be queued for publishing to the Audius decentralized network after saving.
-                    Connect your Audius account in <span className="font-black">Profile → Settings → Audius</span> to enable direct publishing.
-                    Audius pays artists in $AUDIO tokens on every stream — no middlemen.
-                  </p>
+                <div className="flex items-center justify-between gap-3 px-1 flex-wrap">
+                  <div className="flex items-start gap-3 flex-1 min-w-0">
+                    <div className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0" style={{ background: '#a855f7' }} />
+                    <p className="text-[9px] leading-relaxed" style={{ color: 'rgba(168,85,247,0.8)' }}>
+                      {audiusWriteHandle
+                        ? <>Connected as <span className="font-black text-purple-300">@{audiusWriteHandle}</span>. Your album and tracks will publish to Audius automatically on release.</>
+                        : <>Authorize your Audius account so Chora can upload tracks and create the album collection automatically upon publish.</>}
+                    </p>
+                  </div>
+                  {!audiusWriteHandle && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void loginWithAudius({ scope: 'write' })
+                          .then(s => setAudiusWriteHandle(s.handle))
+                          .catch(() => {});
+                      }}
+                      className="px-3.5 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-purple-600 text-white hover:bg-purple-500 transition-all shrink-0"
+                    >
+                      Connect Audius
+                    </button>
+                  )}
                 </div>
                 {/* Legal disclaimer */}
                 <div className="px-3 py-3 rounded-xl" style={{ background: 'rgba(126,34,206,0.08)', border: '1px solid rgba(168,85,247,0.2)' }}>

@@ -9,6 +9,7 @@ import { fetchUserAlbums, fetchUserProfile, auth } from '../services/backendServ
 import type { Album, UserProfile } from '../types';
 import ArtistRadioBuilder from './ArtistRadioBuilder';
 import PodcastDistributionHub from './PodcastDistributionHub';
+import AudiusPublishModal from './AudiusPublishModal';
 
 interface Props {
   user: UserProfile;
@@ -58,6 +59,7 @@ export default function MusicDistributionHub({ user, onCreateAlbum }: Props) {
   const [tab, setTab]                 = useState<HubTab>('OVERVIEW');
   const [musicAlbums, setMusicAlbums] = useState<Album[]>([]);
   const [loading, setLoading]         = useState(true);
+  const [audiusModalAlbum, setAudiusModalAlbum] = useState<Album | null>(null);
 
   useEffect(() => {
     if (!auth.currentUser) return;
@@ -179,10 +181,10 @@ export default function MusicDistributionHub({ user, onCreateAlbum }: Props) {
         <section>
           <p className="text-[9px] font-black uppercase tracking-[0.35em] text-white/20 mb-5">Audius Publishing Status</p>
           <div className="space-y-2">
-            {musicAlbums.slice(0, 8).map(a => (
+            {musicAlbums.slice(0, 12).map(a => (
               <div key={a.id} className="flex items-center gap-4 p-4 rounded-2xl bg-white/[0.02] border border-white/5">
                 {a.coverImage ? (
-                  <img src={thumb(coverGridSrc(a), THUMB.small)} onError={onThumbError(a.coverImage)} decoding="async" loading="lazy" alt={a.title} className="w-10 h-10 rounded-xl object-cover flex-shrink-0" />
+                  <img src={thumb(a.coverImage, THUMB.small)} onError={onThumbError(a.coverImage)} decoding="async" loading="lazy" alt={a.title} className="w-10 h-10 rounded-xl object-cover flex-shrink-0" />
                 ) : (
                   <div className="w-10 h-10 rounded-xl bg-white/8 flex items-center justify-center flex-shrink-0">
                     <Music2 size={14} className="text-white/20" />
@@ -203,10 +205,26 @@ export default function MusicDistributionHub({ user, onCreateAlbum }: Props) {
                   }}>
                   {a.audiusPublishStatus ?? 'Not published'}
                 </span>
+                <button
+                  onClick={() => setAudiusModalAlbum(a)}
+                  className="px-3.5 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-purple-600/20 border border-purple-500/30 text-purple-300 hover:bg-purple-600/35 transition-all flex-shrink-0"
+                >
+                  {a.audiusPublishStatus === 'published' ? 'Sync / View' : 'Publish to Audius'}
+                </button>
               </div>
             ))}
           </div>
         </section>
+      )}
+
+      {audiusModalAlbum && (
+        <AudiusPublishModal
+          album={audiusModalAlbum}
+          onClose={() => setAudiusModalAlbum(null)}
+          onPublished={updated => {
+            setMusicAlbums(prev => prev.map(x => x.id === updated.id ? updated : x));
+          }}
+        />
       )}
     </motion.div>
   );

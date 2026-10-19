@@ -86,6 +86,9 @@ import { withAltText, linkPreviewMedia } from '../services/postingLogic';
 import { isModerationHiddenFor } from '../services/safety/safetyPolicy';
 import { publishComposerPost } from '../services/postingService';
 import { crosspostNative } from '../services/fediverse/crosspostClient';
+import { fetchAudiusSocialFeed } from '../services/audiusService';
+import { getAudiusSession } from '../services/audiusAuth';
+import type { FediversePost } from '../services/fediverse/types';
 const GoLiveWizard = lazy(() => import('./GoLiveWizard'));
 const LiveTalkView = lazy(() => import('./LiveTalkView'));
 
@@ -1633,14 +1636,30 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
     : displayedPosts.map(post => ({ type: 'post' as const, key: `post:${post.id}`, post })),
   [forYouActive, displayedPosts, feedCards, viewerUid]);
 
-  // Posts from the user's Bluesky/Mastodon timeline, woven into the same list by time and rendered as native posts.
+  // Posts from the user's Bluesky/Mastodon/Audius timeline, woven into the same list by time and rendered as native posts.
   // Off by default only when no network account is connected; the chip next to the feed filters turns it off.
   const [mixFediverse, setMixFediverse] = useState<boolean>(() => { try { return localStorage.getItem('plajah.feed.mixFediverse') !== '0'; } catch { return true; } });
   const toggleMixFediverse = () => setMixFediverse(v => { const n = !v; try { localStorage.setItem('plajah.feed.mixFediverse', n ? '1' : '0'); } catch { /* private mode */ } return n; });
+  const [audiusSocialPosts, setAudiusSocialPosts] = useState<FediversePost[]>([]);
+  useEffect(() => {
+    const session = getAudiusSession();
+    if (!session?.userId || activeTab !== 'GLOBAL') return;
+    let alive = true;
+    fetchAudiusSocialFeed(session.userId, 24)
+      .then(posts => { if (alive) setAudiusSocialPosts(posts as unknown as FediversePost[]); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [activeTab, currentUser?.uid]);
+
+  const combinedExternalFeed = React.useMemo(
+    () => [...fediverseFeed, ...audiusSocialPosts],
+    [fediverseFeed, audiusSocialPosts],
+  );
+  const hasExternalAccounts = fediverseAccounts.length > 0 || Boolean(getAudiusSession()?.userId) || audiusSocialPosts.length > 0;
   const externalForFeed = React.useMemo(
-    () => (mixFediverse && activeTab === 'GLOBAL' && !hashtagView && plajahFilter !== 'LIKED' && fediverseAccounts.length > 0)
-      ? selectExternalForFeed(fediverseFeed, displayedPosts) : [],
-    [mixFediverse, activeTab, hashtagView, plajahFilter, fediverseAccounts.length, fediverseFeed, displayedPosts]);
+    () => (mixFediverse && activeTab === 'GLOBAL' && !hashtagView && plajahFilter !== 'LIKED' && hasExternalAccounts)
+      ? selectExternalForFeed(combinedExternalFeed, displayedPosts) : [],
+    [mixFediverse, activeTab, hashtagView, plajahFilter, hasExternalAccounts, combinedExternalFeed, displayedPosts]);
   const mergedEntries = React.useMemo(
     () => mergeExternalEntries(feedEntries, externalForFeed, e => (e.type === 'post' ? e.post.timestamp : null)),
     [feedEntries, externalForFeed]);
@@ -2529,14 +2548,14 @@ const toggleFavoriteTeam = async (team: string) => {
                       <Search size={14} />
                     </button>
                   )}
-                  {fediverseAccounts.length > 0 && (
+                  {hasExternalAccounts && (
                     <button
                       onClick={toggleMixFediverse}
                       aria-pressed={mixFediverse}
-                      title={mixFediverse ? 'Bluesky posts are mixed into your feed — tap to hide them' : 'Mix your Bluesky timeline into this feed'}
+                      title={mixFediverse ? 'Bluesky & Audius posts are mixed into your feed — tap to hide them' : 'Mix your Bluesky & Audius timelines into this feed'}
                       className={`inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full border text-[9px] font-black uppercase tracking-widest transition-all ${mixFediverse ? 'bg-[#1185fe]/15 border-[#1185fe]/40 text-[#7ab8ff]' : 'bg-white/5 border-white/10 text-white/40 hover:text-white'}`}
                     >
-                      🦋 {mixFediverse ? 'In feed' : 'Hidden'}
+                      {fediverseAccounts.length > 0 ? '🦋' : ''}{getAudiusSession()?.userId ? '🎧' : ''} {mixFediverse ? 'In feed' : 'Hidden'}
                     </button>
                   )}
                   <button

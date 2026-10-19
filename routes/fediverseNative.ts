@@ -43,6 +43,7 @@ function toPlanInput(post: Record<string, any>): NativePostLike {
     contentLabels: post.contentLabels,
     postMode: post.postMode, threadChunks: post.threadChunks,
     quotedPost: post.quotedPost ?? null,
+    replyAudience: post.replyAudience,
   };
 }
 
@@ -67,11 +68,24 @@ export async function crosspostNativePost(
     const base = { accountId: acct.id, protocol: acct.protocol, handle: acct.handle };
     try {
       if (acct.protocol === 'bluesky') {
-        const p = await blueskyadapter.createPost(acct.credentials, plan.text, {
-          images: plan.images.length ? plan.images : undefined,
-          link: !plan.images.length && plan.card ? { uri: plan.card.uri, title: plan.card.title, description: plan.card.description, thumbUrl: plan.card.thumbUrl } : undefined,
-          labels: plan.labels.length ? plan.labels : undefined,
-        });
+        let p;
+        try {
+          p = await blueskyadapter.createPost(acct.credentials, plan.text, {
+            images: plan.images.length ? plan.images : undefined,
+            video: !plan.images.length && plan.video ? plan.video : undefined,
+            link: !plan.images.length && !plan.video && plan.card ? { uri: plan.card.uri, title: plan.card.title, description: plan.card.description, thumbUrl: plan.card.thumbUrl } : undefined,
+            labels: plan.labels.length ? plan.labels : undefined,
+            replyGate: plan.replyGate,
+          });
+        } catch (err) {
+          if (!plan.video) throw err;
+          // Fallback: if native video upload fails (e.g., over daily quota or unsupported codec), share as a link card back to Plajah
+          p = await blueskyadapter.createPost(acct.credentials, plan.text, {
+            link: { uri: postUrl, title: post.authorName ? `${post.authorName} on Plajah` : 'Watch on Plajah', description: plan.text.slice(0, 90) },
+            labels: plan.labels.length ? plan.labels : undefined,
+            replyGate: plan.replyGate,
+          });
+        }
         return { ...base, ok: true, url: p.url, ...({ uri: p.uri, cid: p.id } as object) };
       }
       const plain = planPlainVersion(input, { postUrl, limit: 500, override: opts.override });

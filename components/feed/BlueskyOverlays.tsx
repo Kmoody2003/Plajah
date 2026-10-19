@@ -8,7 +8,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowLeft, X, Search, UserPlus, UserCheck, MoreHorizontal, VolumeX, Volume2, Ban, ExternalLink, Loader2 } from 'lucide-react';
+import { ArrowLeft, X, Search, UserPlus, UserCheck, MoreHorizontal, VolumeX, Volume2, Ban, ExternalLink, Loader2, CheckCircle2, Radio, Bookmark, Package, TrendingUp } from 'lucide-react';
 import ExternalPostCard from './ExternalPostCard';
 import { BSKY_OPEN_EVENT, openBluesky, type BskyNav } from '../../services/fediverse/blueskyNav';
 import { tokenize } from '../../services/fediverse/blueskyVersion';
@@ -16,7 +16,9 @@ import type { FediversePost, FediverseProfile } from '../../services/fediverse/t
 import {
   bskyProfile, bskyAuthorFeed, bskyThread, bskySearchPostsApi, bskySearchPeople, bskyFollowers, bskyFollowing,
   bskySuggestions, bskyFollow, bskyUnfollow, bskyMute, bskyBlock,
+  bskyBookmarks, bskyTrending, bskyActorStarterPacks, bskySearchStarterPacksApi,
   type BskyProfileDetail, type BskyThread, type BskyThreadNode, type AuthorFeedFilter,
+  type BskyTrendingTopic, type BskyStarterPackSummary,
 } from '../../services/fediverse/blueskyClient';
 
 const BLUE = '#1185fe';
@@ -51,19 +53,57 @@ const RichBio: React.FC<{ text: string }> = ({ text }) => (
   </p>
 );
 
-// ── people ────────────────────────────────────────────────────────────────────
+// ── people & starter packs ────────────────────────────────────────────────────
 
 const PersonRow: React.FC<{ p: FediverseProfile }> = ({ p }) => (
   <button onClick={() => openBluesky({ kind: 'profile', actor: p.did || p.handle })} className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-white/[0.04] transition-colors">
-    <div className="w-11 h-11 rounded-full overflow-hidden bg-white/5 shrink-0 border border-white/10">
+    <div className="relative w-11 h-11 rounded-full overflow-hidden bg-white/5 shrink-0 border border-white/10">
       {p.avatarUrl && <img src={p.avatarUrl} alt="" className="w-full h-full object-cover" loading="lazy" referrerPolicy="no-referrer" />}
+      {p.isLive && <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-red-500 ring-2 ring-[#0a0a0a]" title="Live now" />}
     </div>
     <div className="min-w-0 flex-1">
-      <p className="text-[14px] font-bold text-white truncate">{p.displayName}</p>
+      <div className="flex items-center gap-1.5">
+        <p className="text-[14px] font-bold text-white truncate">{p.displayName}</p>
+        {p.verified && <CheckCircle2 size={13} className="shrink-0" style={{ color: BLUE }} />}
+        {p.isLive && <span className="px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 text-[9px] font-black uppercase tracking-widest">Live</span>}
+      </div>
       <p className="text-[12px] text-white/40 truncate">@{p.handle.replace(/^@/, '')}</p>
       {p.bio && <p className="text-[12px] text-white/55 line-clamp-2 mt-0.5">{p.bio}</p>}
     </div>
   </button>
+);
+
+const StarterPackCard: React.FC<{ sp: BskyStarterPackSummary }> = ({ sp }) => (
+  <div className="mx-3 my-2 p-3.5 rounded-2xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.05] transition-colors">
+    <div className="flex items-start justify-between gap-3">
+      <div className="min-w-0">
+        <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-[#7ab8ff] mb-1">
+          <Package size={12} /> Starter Pack · {sp.listItemCount} people
+        </div>
+        <p className="text-[15px] font-black text-white truncate">{sp.name}</p>
+        <button
+          type="button"
+          onClick={() => openBluesky({ kind: 'profile', actor: sp.creator.did || sp.creator.handle })}
+          className="text-[11px] text-white/45 hover:text-white mt-0.5"
+        >
+          by @{sp.creator.handle.replace(/^@/, '')}
+        </button>
+      </div>
+      <a
+        href={sp.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="px-3 py-1.5 rounded-full text-[10px] font-black text-white shrink-0 flex items-center gap-1"
+        style={{ background: BLUE }}
+      >
+        Open <ExternalLink size={11} />
+      </a>
+    </div>
+    {sp.description && <p className="text-[12px] text-white/65 line-clamp-2 mt-2">{sp.description}</p>}
+    {sp.joinedAllTimeCount > 0 && (
+      <p className="text-[10px] font-bold text-white/35 mt-2">{sp.joinedAllTimeCount.toLocaleString()} joined ({sp.joinedWeekCount.toLocaleString()} this week)</p>
+    )}
+  </div>
 );
 
 function usePaged<T>(load: (cursor?: string) => Promise<{ items: T[]; cursor?: string }>, deps: unknown[]) {
@@ -90,7 +130,7 @@ const MoreButton: React.FC<{ onClick: () => void; loading: boolean }> = ({ onCli
 
 // ── profile ───────────────────────────────────────────────────────────────────
 
-type ProfileTab = 'posts' | 'replies' | 'media' | 'followers' | 'following';
+type ProfileTab = 'posts' | 'replies' | 'media' | 'starterPacks' | 'followers' | 'following';
 const TAB_FILTER: Partial<Record<ProfileTab, AuthorFeedFilter>> = { posts: 'posts_no_replies', replies: 'posts_with_replies', media: 'posts_with_media' };
 
 const ProfileScreen: React.FC<{ actor: string; onTitle: (t: string) => void }> = ({ actor, onTitle }) => {
@@ -111,6 +151,10 @@ const ProfileScreen: React.FC<{ actor: string; onTitle: (t: string) => void }> =
     if (tab !== 'followers' && tab !== 'following') return { items: [] };
     const r = await (tab === 'followers' ? bskyFollowers : bskyFollowing)(actor, c); return { items: r.profiles, cursor: r.cursor };
   }, [actor, tab]);
+  const starterPacks = usePaged<BskyStarterPackSummary>(async (c) => {
+    if (tab !== 'starterPacks') return { items: [] };
+    const r = await bskyActorStarterPacks(actor, c); return { items: r.starterPacks, cursor: r.cursor };
+  }, [actor, tab]);
 
   const toggleFollow = async () => {
     if (!p || busy) return; setBusy(true);
@@ -128,13 +172,20 @@ const ProfileScreen: React.FC<{ actor: string; onTitle: (t: string) => void }> =
 
   if (err && !p) return <ErrorNote msg={err} onRetry={load} />;
   if (!p) return <Spinner />;
-  const tabs: [ProfileTab, string][] = [['posts', 'Posts'], ['replies', 'Replies'], ['media', 'Media'], ['followers', `${p.followersCount.toLocaleString()} followers`], ['following', `${p.followingCount.toLocaleString()} following`]];
+  const tabs: [ProfileTab, string][] = [
+    ['posts', 'Posts'],
+    ['replies', 'Replies'],
+    ['media', 'Media'],
+    ['starterPacks', 'Starter Packs'],
+    ['followers', `${p.followersCount.toLocaleString()} followers`],
+    ['following', `${p.followingCount.toLocaleString()} following`],
+  ];
   return (
     <div>
       <div className="h-28 bg-gradient-to-br from-[#1185fe]/30 to-[#0a0a0a] relative">{p.headerUrl && <img src={p.headerUrl} alt="" className="w-full h-full object-cover" />}</div>
       <div className="px-4 -mt-9 relative">
         <div className="flex items-end justify-between">
-          <div className="w-[72px] h-[72px] rounded-full overflow-hidden border-4 border-[#0a0a0a] bg-white/5">{p.avatarUrl && <img src={p.avatarUrl} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />}</div>
+          <div className={`w-[72px] h-[72px] rounded-full overflow-hidden border-4 bg-white/5 ${p.isLive ? 'border-red-500' : 'border-[#0a0a0a]'}`}>{p.avatarUrl && <img src={p.avatarUrl} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />}</div>
           <div className="flex items-center gap-2 pb-1 relative">
             <button onClick={() => setMenu(m => !m)} className="p-2 rounded-full border border-white/15 text-white/60 hover:text-white" aria-label="More"><MoreHorizontal size={16} /></button>
             {menu && (
@@ -151,10 +202,29 @@ const ProfileScreen: React.FC<{ actor: string; onTitle: (t: string) => void }> =
             )}
           </div>
         </div>
-        <h2 className="text-xl font-black text-white mt-2 leading-tight">{p.displayName}</h2>
+        <div className="flex items-center gap-2 mt-2 flex-wrap">
+          <h2 className="text-xl font-black text-white leading-tight">{p.displayName}</h2>
+          {p.verified && <CheckCircle2 size={16} style={{ color: BLUE }} title="Verified on Bluesky" />}
+          {p.pronouns && <span className="text-[11px] font-bold text-white/40 px-2 py-0.5 rounded-full bg-white/5">{p.pronouns}</span>}
+          {p.isLive && (
+            <a
+              href={p.liveEmbedUrl || p.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-red-500/20 border border-red-500/40 text-red-300 text-[10px] font-black uppercase tracking-widest"
+            >
+              <Radio size={11} className="animate-pulse" /> {p.liveEmbedTitle || 'Live Now'}
+            </a>
+          )}
+        </div>
         <p className="text-[13px] text-white/40">@{p.handle.replace(/^@/, '')}{p.isFollowedBy ? <span className="ml-2 px-1.5 py-0.5 rounded bg-white/10 text-[10px] font-bold text-white/60">Follows you</span> : null}</p>
         {(p.muted || p.blocked) && <p className="mt-2 text-[11px] font-bold text-amber-300/90">{p.blocked ? 'You blocked this account.' : 'You muted this account — their posts are hidden from your timeline.'}</p>}
         {p.bio && <div className="mt-3"><RichBio text={p.bio} /></div>}
+        {p.website && (
+          <a href={p.website} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1 text-[12px] font-bold hover:underline" style={{ color: BLUE }}>
+            <ExternalLink size={12} /> {p.website.replace(/^https?:\/\//, '')}
+          </a>
+        )}
         <p className="mt-3 text-[12px] text-white/40">{p.postsCount.toLocaleString()} posts</p>
         {err && <p className="mt-2 text-[11px] text-red-300/80">{err}</p>}
       </div>
@@ -169,6 +239,11 @@ const ProfileScreen: React.FC<{ actor: string; onTitle: (t: string) => void }> =
         <div>
           {people.items.map(pr => <PersonRow key={pr.id} p={pr} />)}
           {people.error ? <ErrorNote msg={people.error} onRetry={people.retry} /> : people.loading ? <Spinner /> : people.hasMore ? <MoreButton onClick={people.more} loading={people.loading} /> : !people.items.length ? <p className="text-center text-[12px] text-white/30 py-10">Nobody here yet.</p> : null}
+        </div>
+      ) : tab === 'starterPacks' ? (
+        <div className="py-2">
+          {starterPacks.items.map(sp => <StarterPackCard key={sp.uri} sp={sp} />)}
+          {starterPacks.error ? <ErrorNote msg={starterPacks.error} onRetry={starterPacks.retry} /> : starterPacks.loading ? <Spinner /> : starterPacks.hasMore ? <MoreButton onClick={starterPacks.more} loading={starterPacks.loading} /> : !starterPacks.items.length ? <p className="text-center text-[12px] text-white/30 py-10">No starter packs published yet.</p> : null}
         </div>
       ) : (
         <div className="space-y-2 p-2">
@@ -213,14 +288,20 @@ const ThreadScreen: React.FC<{ uri: string }> = ({ uri }) => {
   );
 };
 
-// ── search ────────────────────────────────────────────────────────────────────
+// ── search, trending, starter packs & bookmarks ───────────────────────────────
+
+type SearchTab = 'people' | 'posts' | 'starterPacks' | 'bookmarks';
 
 const SearchScreen: React.FC<{ initialQ?: string }> = ({ initialQ }) => {
   const [q, setQ] = useState(initialQ ?? ''); const [debounced, setDebounced] = useState(initialQ ?? '');
-  const [tab, setTab] = useState<'people' | 'posts'>(initialQ?.startsWith('#') ? 'posts' : 'people');
+  const [tab, setTab] = useState<SearchTab>(initialQ?.startsWith('#') ? 'posts' : 'people');
   const [suggested, setSuggested] = useState<FediverseProfile[]>([]);
+  const [trending, setTrending] = useState<BskyTrendingTopic[]>([]);
   useEffect(() => { const t = setTimeout(() => setDebounced(q.trim()), 350); return () => clearTimeout(t); }, [q]);
-  useEffect(() => { bskySuggestions().then(r => setSuggested(r.profiles)).catch(() => {}); }, []);
+  useEffect(() => {
+    bskySuggestions().then(r => setSuggested(r.profiles)).catch(() => {});
+    bskyTrending().then(r => setTrending(r.topics?.length ? r.topics : r.suggested ?? [])).catch(() => {});
+  }, []);
 
   const people = usePaged<FediverseProfile>(async (c) => {
     if (!debounced || tab !== 'people') return { items: [] };
@@ -230,20 +311,63 @@ const SearchScreen: React.FC<{ initialQ?: string }> = ({ initialQ }) => {
     if (!debounced || tab !== 'posts') return { items: [] };
     const r = await bskySearchPostsApi(debounced, 'top', c); return { items: r.posts, cursor: r.cursor };
   }, [debounced, tab]);
+  const packs = usePaged<BskyStarterPackSummary>(async (c) => {
+    if (!debounced || tab !== 'starterPacks') return { items: [] };
+    const r = await bskySearchStarterPacksApi(debounced, c); return { items: r.starterPacks, cursor: r.cursor };
+  }, [debounced, tab]);
+  const bookmarks = usePaged<FediversePost>(async (c) => {
+    if (tab !== 'bookmarks') return { items: [] };
+    const r = await bskyBookmarks(c); return { items: r.posts, cursor: r.cursor };
+  }, [tab]);
 
   return (
     <div>
       <div className="p-3 sticky top-0 bg-[#0a0a0a] z-10 border-b border-white/10">
         <div className="flex items-center gap-2 rounded-full bg-white/5 border border-white/10 px-3">
           <Search size={15} className="text-white/35" />
-          <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="Search Bluesky — people, posts, #tags" className="flex-1 bg-transparent py-2.5 text-[14px] text-white placeholder-white/30 outline-none" />
+          <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="Search Bluesky — people, posts, starter packs, #tags" className="flex-1 bg-transparent py-2.5 text-[14px] text-white placeholder-white/30 outline-none" />
         </div>
-        <div className="flex gap-2 mt-2">
-          {(['people', 'posts'] as const).map(t => <button key={t} onClick={() => setTab(t)} className={`px-3 py-1 rounded-full text-[11px] font-black ${tab === t ? 'text-white' : 'bg-white/5 text-white/45'}`} style={tab === t ? { background: BLUE } : undefined}>{t === 'people' ? 'People' : 'Posts'}</button>)}
+        <div className="flex gap-2 mt-2 overflow-x-auto no-scrollbar">
+          {([
+            ['people', 'People'],
+            ['posts', 'Posts'],
+            ['starterPacks', 'Starter Packs'],
+            ['bookmarks', 'Bookmarks'],
+          ] as const).map(([id, label]) => (
+            <button key={id} onClick={() => setTab(id)} className={`px-3 py-1 rounded-full text-[11px] font-black whitespace-nowrap flex items-center gap-1 ${tab === id ? 'text-white' : 'bg-white/5 text-white/45'}`} style={tab === id ? { background: BLUE } : undefined}>
+              {id === 'bookmarks' && <Bookmark size={11} />}
+              {id === 'starterPacks' && <Package size={11} />}
+              {label}
+            </button>
+          ))}
         </div>
       </div>
-      {!debounced ? (
+      {tab === 'bookmarks' ? (
+        <div className="p-2 space-y-2">
+          {bookmarks.items.map(po => <ExternalPostCard key={po.uri} post={po} />)}
+          {bookmarks.error ? <ErrorNote msg={bookmarks.error} onRetry={bookmarks.retry} /> : bookmarks.loading ? <Spinner /> : bookmarks.hasMore ? <MoreButton onClick={bookmarks.more} loading={bookmarks.loading} /> : !bookmarks.items.length ? <p className="text-center text-[12px] text-white/30 py-10">No Bluesky bookmarks saved yet.</p> : null}
+        </div>
+      ) : !debounced ? (
         <div className="py-2">
+          {trending.length > 0 && (
+            <div className="px-4 pt-2 pb-3 border-b border-white/10">
+              <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-white/35 mb-2">
+                <TrendingUp size={12} style={{ color: BLUE }} /> Trending on Bluesky
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {trending.slice(0, 10).map((t, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => { setQ(t.topic); setDebounced(t.topic); setTab('posts'); }}
+                    className="px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] font-bold text-white/80 transition-colors"
+                  >
+                    {t.displayName || t.topic}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <p className="px-4 pt-3 pb-1 text-[10px] font-black uppercase tracking-widest text-white/30">Suggested people</p>
           {suggested.length ? suggested.map(s => <PersonRow key={s.id} p={s} />) : <p className="px-4 py-6 text-[12px] text-white/30">Type to search the network.</p>}
         </div>
@@ -251,6 +375,11 @@ const SearchScreen: React.FC<{ initialQ?: string }> = ({ initialQ }) => {
         <div>
           {people.items.map(pr => <PersonRow key={pr.id} p={pr} />)}
           {people.error ? <ErrorNote msg={people.error} onRetry={people.retry} /> : people.loading ? <Spinner /> : people.hasMore ? <MoreButton onClick={people.more} loading={people.loading} /> : !people.items.length ? <p className="text-center text-[12px] text-white/30 py-10">No people found.</p> : null}
+        </div>
+      ) : tab === 'starterPacks' ? (
+        <div className="py-2">
+          {packs.items.map(sp => <StarterPackCard key={sp.uri} sp={sp} />)}
+          {packs.error ? <ErrorNote msg={packs.error} onRetry={packs.retry} /> : packs.loading ? <Spinner /> : packs.hasMore ? <MoreButton onClick={packs.more} loading={packs.loading} /> : !packs.items.length ? <p className="text-center text-[12px] text-white/30 py-10">No starter packs found.</p> : null}
         </div>
       ) : (
         <div className="p-2 space-y-2">
