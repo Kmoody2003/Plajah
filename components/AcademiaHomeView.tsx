@@ -34,7 +34,7 @@ const AcademiaHomeView: React.FC<{ user?: any; profile?: UserProfile | null; onN
   const directory = (
     <div className="bg-[#0a0a0f] px-5 pb-10">
       <div className="max-w-5xl mx-auto">
-        <button type="button" onClick={() => onNavigate('ACADEMIA_DIRECTORY')}
+        <button type="button" onClick={() => onNavigate('ACADEMIA_LANDING')}
           className="w-full rounded-2xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.07] text-white/70 text-[12px] font-black uppercase tracking-widest py-3 transition-colors">
           Everything in Academia →
         </button>

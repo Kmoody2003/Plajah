@@ -1123,7 +1123,7 @@ const App: React.FC = () => {
   useEffect(() => {
     // Replace current state so we can navigate back to initial view
     // Preserve query string and hash so deep-links (?type=album&id=xxx) survive replaceState
-    window.history.replaceState({ view: 'LANDING' }, '', window.location.pathname + window.location.search + window.location.hash);
+    window.history.replaceState({ view: initialView }, '', window.location.pathname + window.location.search + window.location.hash);
 
     const handlePopState = (event: PopStateEvent) => {
       // Ignore in-page anchor clicks (#browse, #shelf, etc.) which fire popstate with event.state === null
@@ -1216,16 +1216,14 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       ? 'ACADEMIA_HOME'
       : 'DASHBOARD';
 
-    if (historyStackRef.current.length > 1) {
+    if (navDepthRef.current > 0) {
+      // Let the browser's popstate handler pop historyStackRef and update view once,
+      // preventing a double-pop of historyStackRef.current.
+      window.history.back();
+    } else if (historyStackRef.current.length > 1) {
       historyStackRef.current.pop();
       const prevView = historyStackRef.current[historyStackRef.current.length - 1];
-      if (navDepthRef.current > 0) {
-        window.history.back();
-      } else {
-        setViewInternal(prevView);
-      }
-    } else if (navDepthRef.current > 0) {
-      window.history.back();
+      setViewInternal(prevView);
     } else {
       setView(fallback || defaultFallback);
     }
@@ -2427,6 +2425,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     // A television opens on its home destination — Taleo by default, so the app behaves like
     // a streaming service rather than dropping the viewer into a creation hub.
     if (isTV) return { view: getTvHome() as AppView, theme: 'BIG_SCREEN' };
+    const p = effectiveProfile || userProfile;
+    if (isEducationAccount(p) || (p as any)?.accountType === 'PARENT') {
+      const studentLike = (p as any)?.accountType === 'STUDENT' || (p as any)?.accountType === 'CHILD' || (p as any)?.isChild
+        || (p as any)?.childState === 'SCHOOL_PROVISIONED' || !!(p as any)?.provisionedByTeacherUid;
+      return { view: studentLike ? 'STUDENT_HOME' : 'ACADEMIA_HOME', theme };
+    }
     const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 640;
     if (isMobileDevice) return { view: 'MUSIC', theme: 'PHONE' };
     const expRouteMap: Record<ExperienceMode, AppView> = {
@@ -2956,7 +2960,16 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           const studentLike = (p as any)?.accountType === 'STUDENT' || (p as any)?.accountType === 'CHILD' || (p as any)?.isChild
             || (p as any)?.childState === 'SCHOOL_PROVISIONED' || !!(p as any)?.provisionedByTeacherUid;
           const landing: AppView = studentLike ? 'STUDENT_HOME' : 'ACADEMIA_HOME';
-          setViewInternal(prev => (prev === 'DASHBOARD' || prev === 'MUSIC') ? landing : prev);
+          setViewInternal(prev => {
+            if (prev === 'DASHBOARD' || prev === 'MUSIC') {
+              if (historyStackRef.current.length <= 1) {
+                historyStackRef.current = [landing];
+                window.history.replaceState({ view: landing }, '', window.location.pathname + window.location.search + window.location.hash);
+              }
+              return landing;
+            }
+            return prev;
+          });
         }
 
         if (p?.uiSettings?.lastTheme) {
@@ -6130,7 +6143,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
             {view === 'ACADEMIA_DIRECTORY' && (
               <Suspense fallback={null}>
-                <AcademiaDirectory profile={effectiveProfile || userProfile} onNavigate={(v) => setView(v as AppView)} />
+                <AcademiaLandingView profile={effectiveProfile || userProfile} onNavigate={(v) => setView(v as AppView)} onEnterCourses={() => setView('ACADEMIA_COURSES')} onOpenTour={(role) => { setDemoRole(role); setView('ACADEMIA_TOUR'); }} />
               </Suspense>
             )}
 
@@ -7277,7 +7290,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {/* ── Math Classroom (BETA) ── */}
             {view === 'MATH_CLASSROOM' && (
               <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-sm">Loading…</div>}>
-                <MathClassroom onBack={() => setView('CLASSROOMS')} user={user} />
+                <MathClassroom onBack={() => goBack('MATH_SCHOOL')} user={user} />
               </Suspense>
             )}
             {view === 'STUDENT_ASSIGNMENT' && (
@@ -7472,18 +7485,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {(view === 'AMBO' || view === 'AMBO_PRO') && <AmboProPresenter onBack={() => setView('APPS')} />}
             {view === 'FOLLOW_ALONG' && <FollowAlongView sessionId={followSessionId} onBack={() => setView('APPS')} />}
             {view === 'VESPERS' && vespersRecapId && <VespersRecap recapId={vespersRecapId} onBack={() => setView('APPS')} />}
-            {view === 'CLASSROOMS' && (
-              (isEducationAccount(effectiveProfile) || (effectiveProfile as any)?.accountType === 'PARENT')
-                ? <ClassroomsView onBack={() => setView('DASHBOARD')} user={user} onNavigate={(v) => setView(v as any)} />
-                : (
-                  <Suspense fallback={null}>
-                    <AcademiaLandingView profile={userProfile} onNavigate={(v) => setView(v as AppView)} onEnterCourses={() => setView('ACADEMIA_COURSES')} onOpenTour={(role) => { setDemoRole(role); setView('ACADEMIA_TOUR'); }} />
-                  </Suspense>
-                )
-            )}
-            {view === 'ACADEMIA_LANDING' && (
+            {(view === 'CLASSROOMS' || view === 'ACADEMIA_LANDING') && (
               <Suspense fallback={null}>
-                <AcademiaLandingView profile={userProfile} onNavigate={(v) => setView(v as AppView)} onEnterCourses={() => setView('ACADEMIA_COURSES')} onOpenTour={(role) => { setDemoRole(role); setView('ACADEMIA_TOUR'); }} />
+                <AcademiaLandingView profile={effectiveProfile || userProfile} onNavigate={(v) => setView(v as AppView)} onEnterCourses={() => setView('ACADEMIA_COURSES')} onOpenTour={(role) => { setDemoRole(role); setView('ACADEMIA_TOUR'); }} />
               </Suspense>
             )}
             {view === 'ECON_SCHOOL' && (
@@ -7588,7 +7592,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 profile={userProfile}
                 user={user}
                 onNavigate={(v) => setView(v as any)}
-                onBack={() => goBack('CLASSROOMS')}
+                onBack={() => goBack('ACADEMIA_LANDING')}
               />
             )}
             {view === 'STUDENT_ID_CARD' && (
@@ -7599,9 +7603,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               />
             )}
             {view === 'ACADEMIA_COURSES' && (
-              (academiaModule || academiaBrowseGrid) ? (
+              academiaModule ? (
                 <ClassroomsView
-                  key={academiaModule || 'grid'}
+                  key={academiaModule}
                   initialModule={academiaModule}
                   onBack={() => { setAcademiaModule(null); setAcademiaBrowseGrid(false); }}
                   user={user}
@@ -7609,12 +7613,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 />
               ) : (
                 <AcademiaHubView
-                  profile={userProfile}
+                  profile={effectiveProfile || userProfile}
                   user={user}
                   onNavigate={(v) => setView(v as any)}
-                  onBrowseAll={() => setAcademiaBrowseGrid(true)}
+                  onBrowseAll={() => setView('LEARN')}
                   onOpenModule={(m) => setAcademiaModule(m)}
-                  onBack={() => goBack()}
+                  onBack={() => goBack('ACADEMIA_LANDING')}
                 />
               )
             )}
