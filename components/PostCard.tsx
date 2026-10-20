@@ -10,10 +10,7 @@ import MiniMusicPlayer from './MiniMusicPlayer';
 import ThreeDImage from './ThreeDImage';
 import ShareButton from './ShareButton';
 import { formatDistanceToNow } from 'date-fns';
-import { auth, updatePost, deletePost, togglePostLike, processDonation, fetchUserClubs, createClubPost } from '../services/backendService';
-import { searchUsersSafe as searchUsers } from '../services/searchUsersSafe';
-import { db } from '../services/firebase';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { auth, updatePost, deletePost, togglePostLike, processDonation, fetchUserClubs, createClubPost, searchUsers } from '../services/backendService';
 import { Trash2, Zap } from 'lucide-react';
 import CommentSection from './CommentSection';
 import MediaWaterfallView, { WaterfallMediaItem } from './MediaWaterfallView';
@@ -25,51 +22,45 @@ import SignInPrompt from './SignInPrompt';
 import SocialEmbedCard from './SocialEmbedCard';
 import { parseSocialUrl, detectSocialEmbeds, extractUrlsFromText, stripUrlsFromText } from '../utils/socialEmbed';
 import { SensitiveContentGate, MutedContentGate, CleanText } from './safety/SafetyGates';
-import { ModerationGate } from './safety/ModerationGate';
-import { RenderTextWithMentions } from '../src/lib/richText';
 import { useGateAccess, SanctuaryGateLock } from './sanctuary/SanctuaryGate';
 const CommunityNoteBadge = lazy(() => import('./notes/CommunityNotes'));
 import { TYPE } from '../src/lib/designSystem';
 import { isActiveToday, formatTodayCountdown, todayProgress } from '../services/todayPosts';
-import UserSafetyMenu from './safety/UserSafetyMenu';
-import { SafetyToastHost } from './safety/SafetyToast';
-import { useSocialSafety, useViewerFollows } from '../hooks/useSocialSafety';
-// Social supercharge — posting power (bookmark, repost/quote, insights, edit history, impressions, reply gating)
-import { getDoc } from 'firebase/firestore';
-import BookmarkButton from './feed/posting/BookmarkButton';
-import RepostButton from './feed/posting/RepostButton';
-import QuotedPostEmbed from './feed/posting/QuotedPostEmbed';
-import EditedBadge from './feed/posting/EditedBadge';
-import { PostInsightsButton } from './feed/posting/PostInsightsSheet';
-import { useImpressionTracker } from './feed/posting/useImpressionTracker';
-import { canReply, replyRestrictionLabel, extractMentionUids } from '../services/postingLogic';
-import { editPostText } from '../services/postingService';
-import { togglePrivatePostLike } from '../services/privatePostsService';
-import { recordPostStat } from '../services/postAnalyticsService';
+import ElevateBriefingDoc from './ElevateBriefingDoc';
 
 interface PostCardProps {
   post: Post;
   onVisitUser?: (uid: string) => void;
-  presentation?: 'default' | 'signal';
-  /**
-   * Fired when the viewer picks "Show less like this" in the post's ... menu. Intentionally
-   * unwired: the host (FeedView) should forward it to services/feedPreferencesService.
-   * The menu item is only shown when this prop is provided.
-   */
-  onShowLess?: (post: Post) => void;
-  /**
-   * Skip the block/mute hiding (e.g. on that person's own profile page, or in the Blocked
-   * accounts view). Block hiding still applies unless this is true.
-   */
-  ignoreHidden?: boolean;
-  /** Repost button's Quote action: the host opens its composer in quote mode with `quoteOf={post}`. Omit to hide Quote. */
-  onQuote?: (post: Post) => void;
-  /** Where the viewer found this card, for the author's post insights (default FEED). */
-  referrer?: 'FEED' | 'PROFILE' | 'SEARCH' | 'HASHTAG' | 'SHARE' | 'OTHER';
 }
 
-// Mentions, scripture references and plain text — see src/lib/richText.tsx.
-// Was a local copy duplicated with FeedView; both now share one implementation.
+const RenderTextWithMentions: React.FC<{ text: string; onVisitUser?: (uid: string) => void }> = ({ text, onVisitUser }) => {
+  const parts = text.split(/(@\[[^\]]+\]\([^\)]+\))/g);
+  return (
+    <>
+      {parts.map((part, i) => {
+        const mentionMatch = part.match(/@\[([^\]]+)\]\(([^)]+)\)/);
+        if (mentionMatch) {
+          const name = mentionMatch[1];
+          const uid = mentionMatch[2];
+          return (
+            <span
+              key={i}
+              className="text-small-orange hover:underline cursor-pointer font-bold inline-block"
+              onClick={(e) => {
+                e.stopPropagation();
+                onVisitUser?.(uid);
+              }}
+            >
+              @{name}
+            </span>
+          );
+        }
+        // Plain text runs through the viewer's Clean Speech filter
+        return <CleanText key={i} text={part} />;
+      })}
+    </>
+  );
+};
 
 // Inline embedded 3D-scan viewer for academic/artifact posts. Shows a poster with
 // a "View in 3D" affordance; the interactive iframe loads only on click so a feed
@@ -119,54 +110,21 @@ const Model3DEmbed: React.FC<{ url: string; title?: string; poster?: string }> =
   );
 };
 
-const parseChoraSongUrl = (rawUrl: string): { albumId: string; trackId?: string } | null => {
-  try {
-    const parsed = new URL(rawUrl, typeof window !== 'undefined' ? window.location.origin : 'https://plajah.com');
-    const isPlajahOrigin =
-      (typeof window !== 'undefined' && parsed.origin === window.location.origin) ||
-      parsed.hostname.endsWith('plajah.com') ||
-      parsed.hostname.endsWith('plajah.app');
-    if (!isPlajahOrigin) return null;
-    const qType = (parsed.searchParams.get('type') || '').toLowerCase();
-    const qId = parsed.searchParams.get('id') || '';
-    const qTrack = parsed.searchParams.get('track') || undefined;
-    const pathParts = parsed.pathname.split('/').filter(Boolean);
-    const albumId = (qType === 'album' || qType === 'track') && qId
-      ? qId
-      : pathParts[0] === 'album' && pathParts[1]
-        ? pathParts[1]
-        : '';
-    if (!albumId) return null;
-    return { albumId, trackId: qTrack };
-  } catch {
-    return null;
-  }
-};
-
 const PostLinkBanner: React.FC<{ url: string }> = ({ url }) => {
   let domain = '';
   try { domain = new URL(url).hostname.replace(/^www\./, ''); } catch {}
-  const choraTarget = parseChoraSongUrl(url);
   return (
     <a
       href={url}
-      target={choraTarget ? undefined : '_blank'}
+      target="_blank"
       rel="noopener noreferrer"
-      onClick={e => {
-        e.stopPropagation();
-        if (choraTarget) {
-          e.preventDefault();
-          window.dispatchEvent(new CustomEvent('NAVIGATE', {
-            detail: { target: 'PLAYER', albumId: choraTarget.albumId, trackId: choraTarget.trackId },
-          }));
-        }
-      }}
+      onClick={e => e.stopPropagation()}
       className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-white/[0.03] border border-white/[0.07] hover:bg-white/[0.07] hover:border-white/[0.15] transition-all group"
       style={{ textDecoration: 'none' }}
     >
       <LinkIcon size={11} className="text-small-orange/60 shrink-0" />
       <span className="text-[10px] font-black uppercase tracking-widest text-white/50 shrink-0 group-hover:text-white/80 transition-colors">
-        {choraTarget ? 'PLAJAH CHORA' : domain}
+        {domain}
       </span>
       <span className="text-[9px] text-white/20 truncate flex-1 min-w-0 font-mono group-hover:text-white/35 transition-colors">
         {url}
@@ -176,11 +134,7 @@ const PostLinkBanner: React.FC<{ url: string }> = ({ url }) => {
   );
 };
 
-const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser: onVisitUserProp, presentation = 'default', onShowLess, ignoreHidden = false, onQuote, referrer = 'FEED' }) => {
-  // Opening the author's profile from a card counts toward that post's "profile visits" insight.
-  const onVisitUser = onVisitUserProp
-    ? (uid: string) => { if (uid === post.authorId) void recordPostStat(post.id, post.authorId, 'profileVisits'); onVisitUserProp(uid); }
-    : undefined;
+const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser }) => {
   const [isLiked, setIsLiked] = useState(() => !!(auth.currentUser && post.likedBy?.includes(auth.currentUser.uid)));
   const [likes, setLikes] = useState(post.likesCount);
   const [isEditing, setIsEditing] = useState(false);
@@ -194,27 +148,6 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser: onVisitUserProp,
   const [customGift, setCustomGift] = useState('');
   const [isGifting, setIsGifting] = useState(false);
   const [giftSent, setGiftSent] = useState(false);
-
-  // A "Live now" post must reflect the REAL stream state. The post's isLiveNow flag only flips to
-  // false when the broadcaster hits Save — so a stream ended by discard, tab-close, or a crash left
-  // the pulsing LIVE bug up forever (and tapping it opened a dead viewer). Watch streams/{id} live:
-  // when it's no longer live, switch this card to the replay (or an "ended" state), instantly.
-  const [liveState, setLiveState] = useState<{ isLive: boolean; recordingVideoId?: string } | null>(null);
-  useEffect(() => {
-    if (!(post.isLiveNow && post.liveStreamId)) { setLiveState(null); return; }
-    const unsub = onSnapshot(
-      doc(db, 'streams', post.liveStreamId),
-      snap => {
-        if (!snap.exists()) { setLiveState({ isLive: false }); return; } // no stream doc → ended
-        const d = snap.data() as any;
-        // Ended when isLive is explicitly false OR an endedAt is stamped; live otherwise.
-        const ended = d.isLive === false || !!d.endedAt;
-        setLiveState({ isLive: !ended, recordingVideoId: d.recordingVideoId });
-      },
-      () => setLiveState(null), // read error → fall back to the post flag (optimistic live)
-    );
-    return () => unsub();
-  }, [post.isLiveNow, post.liveStreamId]);
   const [showWaterfall, setShowWaterfall] = useState(false);
   const [signInAction, setSignInAction] = useState<string | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
@@ -293,36 +226,6 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser: onVisitUserProp,
 
   const isAuthor = auth.currentUser?.uid === post.authorId;
 
-  // Social safety: hide posts from people the viewer blocked / was blocked by / muted, and
-  // soft-gate followers-only posts of private accounts (rules cannot enforce this — see
-  // services/socialSafetyService.ts). `authorIsPrivate` is stamped on the post by the composer.
-  const { hidden: hiddenUids } = useSocialSafety();
-  const authorIsPrivate = !!post.authorIsPrivate;
-  const viewerFollowsAuthor = useViewerFollows(post.authorId, authorIsPrivate && !isAuthor);
-
-  // Impressions + dwell for the author's insights (no-op for own posts / signed-out viewers).
-  const impressionRef = useImpressionTracker({ postId: post.id, authorId: post.authorId, referrer });
-
-  // Reply gating (UI-level, see postingLogic.canReply). The only audience that needs a lookup is
-  // 'following' (does the AUTHOR follow the viewer?) — fetched lazily, one getDoc, only for such posts.
-  const viewerUid = auth.currentUser?.uid;
-  const needsAuthorFollowCheck = post.replyAudience === 'following' && !!viewerUid && viewerUid !== post.authorId;
-  const [authorFollowsViewer, setAuthorFollowsViewer] = useState(false);
-  useEffect(() => {
-    if (!needsAuthorFollowCheck || !viewerUid) return;
-    let alive = true;
-    getDoc(doc(db, 'follows', `${post.authorId}_${viewerUid}`))
-      .then(s => { if (alive) setAuthorFollowsViewer(s.exists()); })
-      .catch(() => { /* unknown -> stays restricted */ });
-    return () => { alive = false; };
-  }, [needsAuthorFollowCheck, viewerUid, post.authorId]);
-  const mentionedUids = useMemo(
-    () => (post.replyAudience === 'mentioned' ? extractMentionUids(post.text || '') : []),
-    [post.replyAudience, post.text],
-  );
-  const replyAllowed = canReply(post, viewerUid, authorFollowsViewer, mentionedUids);
-  const replyRestricted = !!viewerUid && !replyAllowed;
-
   // "Today" (Blueprint 1B.4) — a 24h ephemeral post. Ticks once a minute so the
   // countdown chip stays honest, and self-removes the card the moment it expires.
   // The interval only ever runs on Today posts; every other post pays nothing.
@@ -394,9 +297,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser: onVisitUserProp,
     const optimisticLiked = !isLiked;
     setIsLiked(optimisticLiked);
     setLikes(prev => optimisticLiked ? prev + 1 : prev - 1);
-    const result = post.sourceCollection === 'private_posts'
-      ? await togglePrivatePostLike(post.id).then(r => r ? { liked: r.liked, likesCount: Math.max(0, likes + (r.liked === optimisticLiked ? (optimisticLiked ? 1 : -1) : 0)) } : undefined)
-      : await togglePostLike(post.id);
+    const result = await togglePostLike(post.id);
     if (result) {
       setIsLiked(result.liked);
       setLikes(result.likesCount);
@@ -407,9 +308,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser: onVisitUserProp,
     if (!editedText.trim()) return;
     setIsSaving(true);
     try {
-      // editPostText keeps the last 5 revisions + re-derives #hashtags; private_posts docs fall back to a plain update.
-      if (post.sourceCollection === 'private_posts') await updatePost(post.id, { text: editedText }, 'private_posts');
-      else await editPostText(post, editedText);
+      await updatePost(post.id, { text: editedText });
       setIsEditing(false);
     } catch (error) {
       console.error("Failed to update post:", error);
@@ -422,7 +321,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser: onVisitUserProp,
     if (!window.confirm("Are you sure you want to delete this post?")) return;
     setIsDeleting(true);
     try {
-      await deletePost(post.id, post.sourceCollection === 'private_posts' ? 'private_posts' : 'posts');
+      await deletePost(post.id);
       // The feed should update automatically via onSnapshot
     } catch (error) {
       console.error("Failed to delete post:", error);
@@ -474,43 +373,6 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser: onVisitUserProp,
     // opening the same WebRTC viewer a shared livestream link does.
     if (post.isLiveNow && post.liveStreamId) {
       const liveTitle = (post.text || '').replace(/^🔴\s*Live now:\s*/i, '').trim() || 'Live now';
-      // The stream has actually ENDED (isLive false / endedAt / doc gone) → don't show the LIVE bug.
-      const ended = liveState !== null && !liveState.isLive;
-      const replayId = liveState?.recordingVideoId;
-      if (ended) {
-        // Ended WITH a saved replay → a "Watch replay" card that opens the recording.
-        if (replayId) {
-          return (
-            <button
-              onClick={e => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'RELLO', params: { videoId: replayId } } })); }}
-              className="mt-4 relative w-full aspect-video rounded-3xl overflow-hidden border border-white/10 block group"
-            >
-              {post.authorPhoto
-                ? <img src={post.authorPhoto} alt="" loading="lazy" className="w-full h-full object-cover blur-[2px] scale-105 opacity-70" />
-                : <div className="w-full h-full" style={{ background: 'linear-gradient(135deg,#1a1a22,#0a0a0d)' }} />}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
-              <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-white/15 backdrop-blur text-white text-[10px] font-black uppercase tracking-widest">Replay</div>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="w-16 h-16 rounded-full bg-white/90 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <Play size={26} className="text-black ml-1" fill="black" />
-                </span>
-              </div>
-              <div className="absolute bottom-3 left-4 right-4 text-left">
-                <p className="text-white font-black text-sm truncate">{liveTitle}</p>
-                <p className="text-white/75 text-[11px] font-bold">{post.authorName} · Watch the replay</p>
-              </div>
-            </button>
-          );
-        }
-        // Ended with no replay (discarded / still processing) → a calm, non-clickable ended card.
-        return (
-          <div className="mt-4 relative w-full aspect-video rounded-3xl overflow-hidden border border-white/10 flex flex-col items-center justify-center" style={{ background: 'linear-gradient(135deg,#141418,#0a0a0d)' }}>
-            <span className="px-2.5 py-1 rounded-full bg-white/10 text-white/60 text-[10px] font-black uppercase tracking-widest mb-2">Stream ended</span>
-            <p className="text-white/80 font-black text-sm truncate max-w-[80%] text-center">{liveTitle}</p>
-            <p className="text-white/40 text-[11px] font-bold mt-0.5">{post.authorName}</p>
-          </div>
-        );
-      }
       return (
         <button
           onClick={e => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('OPEN_LIVESTREAM', { detail: { streamId: post.liveStreamId, title: liveTitle, ownerName: post.authorName, ownerId: post.authorId } })); }}
@@ -535,31 +397,13 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser: onVisitUserProp,
         </button>
       );
     }
-    const ae = (post as any).assetEmbed as { type?: string; id?: string; title?: string; imageUrl?: string; image?: string; url?: string } | undefined;
-    const rawMedia = Array.isArray(post.media) ? [...post.media] : [];
-    if (ae?.type === 'VIDEO' && ae.id && !rawMedia.some(m => m.type === 'VIDEO')) {
-      rawMedia.push({
-        type: 'VIDEO',
-        id: ae.id,
-        url: ae.url || '',
-        title: ae.title || 'Reello Video',
-        thumbnail: ae.imageUrl || ae.image,
-      } as any);
-    }
-    if (rawMedia.length === 0) return null;
-
-    // When an album/track player is embedded (MiniMusicPlayer), never render a duplicate raw <audio> card below it.
-    const hasEmbeddedMusicPlayer = Boolean(
-      post.albumEmbed || ae?.type === 'ALBUM' || ae?.type === 'TRACK'
-    );
+    if (!post.media || post.media.length === 0) return null;
 
     // Photos + videos become an inline gallery/carousel with per-asset fullscreen; everything
     // else (audio, links, 3D) stays in its own stacked card below.
     const GALLERY_TYPES = new Set(['PHOTO', 'GIF', 'STICKER', 'VIDEO']);
-    const gallery = rawMedia.filter(m => GALLERY_TYPES.has(m.type));
-    const others = rawMedia.filter(
-      m => !GALLERY_TYPES.has(m.type) && !(hasEmbeddedMusicPlayer && m.type === 'AUDIO')
-    );
+    const gallery = post.media.filter(m => GALLERY_TYPES.has(m.type));
+    const others = post.media.filter(m => !GALLERY_TYPES.has(m.type));
 
     return (
       <>
@@ -579,13 +423,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser: onVisitUserProp,
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-black uppercase tracking-widest truncate">{item.title || "Audio Clip"}</p>
-                    <audio
-                      src={item.url}
-                      controls
-                      controlsList="nodownload noplaybackrate"
-                      onContextMenu={(e) => e.preventDefault()}
-                      className="w-full h-8 mt-2"
-                    />
+                    <audio src={item.url} controls className="w-full h-8 mt-2" />
                   </div>
                 </div>
               );
@@ -645,45 +483,12 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser: onVisitUserProp,
   // realtime snapshot or a surface that hasn't adopted the filter must not leak one —
   // this is the last-line guard. Placed after every hook so hook order stays stable.
   if (todayExpired) return null;
-  if (!isAuthor && (!ignoreHidden && hiddenUids.has(post.authorId))) {
-    return <SafetyToastHost />; // keeps the undo toast alive after the card disappears
-  }
-  if (authorIsPrivate && !isAuthor && viewerFollowsAuthor !== true) {
-    return (
-      <div className="px-4 py-4 text-[11px] text-white/40 flex items-center gap-2">
-        <span className="font-black uppercase tracking-widest">{post.authorName}</span>
-        <span>has a private account. Follow them to see this post.</span>
-      </div>
-    );
-  }
-
-  // Album artwork background when sharing an album or track onto the social feed
-  const albumArtworkBg =
-    post.albumEmbed?.coverImage ||
-    (((post as any).assetEmbed?.type === 'ALBUM' || (post as any).assetEmbed?.type === 'TRACK')
-      ? ((post as any).assetEmbed?.imageUrl || (post as any).assetEmbed?.image)
-      : undefined) ||
-    post.media?.find(m => m.type === 'AUDIO' && m.thumbnail)?.thumbnail;
 
   return (
     <>
     {/* Edge-to-edge on phones (fills the device width, tighter), rounded card on desktop. */}
-    <div ref={impressionRef} className={`${presentation === 'signal' ? 'pj-signal-post' : ''} relative overflow-hidden group/card rounded-none sm:rounded-2xl border-y sm:border border-white/[0.06] transition-all duration-200 sm:hover:-translate-y-0.5 hover:shadow-[0_8px_32px_rgba(0,0,0,0.35),_0_-4px_10px_rgba(0,0,0,0.18)] hover:border-white/[0.1] hover:z-10 will-change-transform`}>
-      {albumArtworkBg && (
-        <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
-          <img
-            src={albumArtworkBg}
-            alt=""
-            aria-hidden="true"
-            loading="lazy"
-            decoding="async"
-            referrerPolicy="no-referrer"
-            className="w-full h-full object-cover scale-105 opacity-45 blur-[2px] transition-transform duration-700 group-hover/card:scale-110"
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/75 to-black/90 backdrop-blur-[4px]" />
-        </div>
-      )}
-      <div className="relative z-10 flex gap-3 px-3 sm:px-4 py-3 sm:py-3.5 rounded-none sm:rounded-2xl hover:bg-white/[0.025] transition-colors">
+    <div className="relative group/card rounded-none sm:rounded-2xl border-y sm:border border-white/[0.06] transition-all duration-200 sm:hover:-translate-y-0.5 hover:shadow-[0_8px_32px_rgba(0,0,0,0.35),_0_-4px_10px_rgba(0,0,0,0.18)] hover:border-white/[0.1] hover:z-10 will-change-transform">
+      <div className="flex gap-3 px-3 sm:px-4 py-3 sm:py-3.5 rounded-none sm:rounded-2xl hover:bg-white/[0.025] transition-colors">
         {/* Avatar col */}
         <div className="relative flex-shrink-0 group/profile">
           <button
@@ -755,26 +560,15 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser: onVisitUserProp,
                   </span>
                 </span>
               )}
-              <EditedBadge post={post} />
-              {post.repostOf && (
-                <span className="flex-shrink-0 px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-white/40 text-[9px] font-black uppercase tracking-widest">Reposted</span>
+              {post.modifiedAt && (
+                <span className="flex items-center gap-1 text-small-orange text-[11px]">
+                  <span className="w-1.5 h-1.5 bg-small-orange rounded-full animate-pulse" />
+                  <span>edited</span>
+                </span>
               )}
             </div>
 
-            {/* Safety menu for other people's posts (report / mute / block / show less / copy link) */}
-            {!isAuthor && auth.currentUser && (
-              <UserSafetyMenu
-                targetUid={post.authorId}
-                targetName={post.authorName}
-                contentRef={{ type: 'post', id: post.id, snapshot: post.text }}
-                linkUrl={typeof window !== 'undefined' ? `${window.location.origin}/share?type=feed&id=${post.id}` : undefined}
-                onShowLess={onShowLess ? () => onShowLess(post) : undefined}
-                triggerClassName="p-1 rounded-full text-white/30 hover:text-white hover:bg-white/10 transition-all md:opacity-0 md:group-hover/card:opacity-100 focus:opacity-100"
-              />
-            )}
-
-            {/* Options menu — visible on hover (author only) */}
-            {isAuthor && (
+            {/* Options menu — visible on hover */}
             <div className="relative flex-shrink-0">
               <button
                 onClick={() => setShowOptions(!showOptions)}
@@ -831,7 +625,6 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser: onVisitUserProp,
                 )}
               </AnimatePresence>
             </div>
-            )}
           </div>
 
           {/* Post text / edit */}
@@ -905,15 +698,17 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser: onVisitUserProp,
           ) : (
             // Safety gates: muted words/topics blur the CONTENT (author stays
             // visible above); creator content labels gate behind blur+consent.
-            // Server moderation (routes/trustSafety.ts) wraps everything: hidden statuses vanish (author sees a
-            // notice), blur_interstitial forces tap-to-reveal, 'label' feeds safetyLabels into the viewer gate.
-            <ModerationGate status={(post as any).moderationStatus} labels={(post as any).safetyLabels} viewerIsAuthor={isAuthor}>
             <MutedContentGate text={post.text}>
-            <SensitiveContentGate labels={((post as any).moderationStatus === 'label' ? [...(post.contentLabels || []), ...((post as any).safetyLabels || [])] : post.contentLabels) as any}>
+            <SensitiveContentGate labels={post.contentLabels as any}>
             {displayText && (
               <p className={`${TYPE.bodyMd} leading-normal text-white/80 whitespace-pre-wrap`}>
                 <RenderTextWithMentions text={displayText} onVisitUser={onVisitUser} />
               </p>
+            )}
+
+            {/* Elevate Live briefing — the full document renders inline in the post */}
+            {(post as any).documentKind === 'ELEVATE_BRIEFING' && (
+              <ElevateBriefingDoc post={post as any} />
             )}
 
             {/* Live Room — time-boxed room attached to this post */}
@@ -944,92 +739,31 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser: onVisitUserProp,
             </div>
           )}
 
-          {/* Embedded platform asset (world / article / taleo curation / etc.) — music renders as the
-              player above, and Reello videos render inline via PostVideo below. */}
-          {(post as any).assetEmbed && !post.albumEmbed && (post as any).assetEmbed.type !== 'VIDEO' && (() => {
-            const ae = (post as any).assetEmbed as { type: string; id: string; trackId?: string; title?: string; imageUrl?: string; image?: string; url?: string; subtitle?: string; sourceId?: string; channelNumber?: string; shelf?: string };
-            const linkFor: Record<string, string> = {
-              VIDEO: 'video',
-              ARTICLE: 'article',
-              TRACK: 'album',
-              ALBUM: 'album',
-              CHANNEL: 'channel',
-              TALEO_COLLECTION: 'taleoCollection',
-              MOVIE: 'movie',
-              ARCHIVE: 'archive',
-            };
+          {/* Embedded platform asset (video / world / article / etc.) — music renders as the
+              player above, so only show this card when there's no full album player. */}
+          {(post as any).assetEmbed && !post.albumEmbed && (() => {
+            const ae = (post as any).assetEmbed as { type: string; id: string; title?: string; imageUrl?: string; subtitle?: string };
+            const linkFor: Record<string, string> = { VIDEO: 'video', ARTICLE: 'article', TRACK: 'track', ALBUM: 'album' };
             const asset = linkFor[ae.type];
-            const extraParams =
-              ae.type === 'CHANNEL'
-                ? { source: ae.sourceId, n: ae.channelNumber || ae.subtitle?.match(/^CH ([0-9.]+)/)?.[1] }
-                : ae.type === 'TALEO_COLLECTION' && ae.shelf
-                ? { shelf: ae.shelf }
-                : (ae.type === 'TRACK' || ae.type === 'ALBUM') && ae.trackId
-                ? { track: ae.trackId }
-                : undefined;
-            const href = ae.url || (asset ? buildShareUrl(asset as any, ae.id, extraParams) : undefined);
-            const thumbImg = ae.imageUrl || ae.image;
-            const badgeLabel = ae.type === 'TALEO_COLLECTION'
-              ? 'TALEO CURATION'
-              : ae.type === 'TRACK' || ae.type === 'ALBUM'
-              ? 'CHORA STREAM'
-              : ae.type.replace(/_/g, ' ');
-            const handleAssetClick = (e: React.MouseEvent) => {
-              if (ae.type === 'TALEO_COLLECTION') {
-                e.preventDefault();
-                e.stopPropagation();
-                try {
-                  if (String(ae.id || 'halloween').toLowerCase().includes('halloween')) {
-                    sessionStorage.setItem('plajah:taleo:initialSubView', 'HALLOWEEN');
-                  }
-                  if (ae.shelf) {
-                    sessionStorage.setItem('plajah:taleo:initialShelf', ae.shelf);
-                  }
-                } catch {}
-                window.dispatchEvent(new CustomEvent('OPEN_TALEO_COLLECTION', { detail: { id: ae.id || 'halloween', shelf: ae.shelf } }));
-              } else if (ae.type === 'TRACK' || ae.type === 'ALBUM') {
-                e.preventDefault();
-                e.stopPropagation();
-                const parsedChora = href ? parseChoraSongUrl(href) : null;
-                window.dispatchEvent(new CustomEvent('NAVIGATE', {
-                  detail: {
-                    target: 'PLAYER',
-                    albumId: parsedChora?.albumId || ae.id,
-                    trackId: ae.trackId || parsedChora?.trackId,
-                  },
-                }));
-              }
-            };
+            const href = asset ? buildShareUrl(asset as any, ae.id) : undefined;
             const Inner = (
               <div className="flex items-center gap-3 p-3 bg-white/[0.04] border border-white/10 rounded-2xl hover:border-white/25 transition-all">
-                {thumbImg
-                  ? <img src={thumbImg} alt="" className="w-12 h-12 rounded-xl object-cover shrink-0" />
+                {ae.imageUrl
+                  ? <img src={ae.imageUrl} alt="" className="w-12 h-12 rounded-xl object-cover shrink-0" />
                   : <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center shrink-0"><Play size={16} className="text-white/40" /></div>}
                 <div className="min-w-0 flex-1">
-                  <p className="text-[8px] font-black uppercase tracking-[0.25em] text-small-orange">{badgeLabel} · On Plajah</p>
-                  <p className="text-sm font-black text-white truncate">{ae.title || 'Open on Plajah Chora'}</p>
+                  <p className="text-[8px] font-black uppercase tracking-[0.25em] text-small-orange">{ae.type} · On Plajah</p>
+                  <p className="text-sm font-black text-white truncate">{ae.title || 'Open on Plajah'}</p>
                   {ae.subtitle && <p className="text-[11px] text-white/45 truncate">{ae.subtitle}</p>}
                 </div>
                 {href && <ChevronRight size={16} className="text-white/30 shrink-0" />}
               </div>
             );
-            return <div className="mt-3">{href ? <a href={href} onClick={handleAssetClick} className="block">{Inner}</a> : Inner}</div>;
+            return <div className="mt-3">{href ? <a href={href} className="block">{Inner}</a> : Inner}</div>;
           })()}
 
           {/* Rich Media */}
           {renderMedia()}
-
-          {/* Quote post / repost: embedded snapshot of the source post */}
-          {(post.quotedPost || post.quotedPostId || post.repostOf) && (
-            <div className="mt-3">
-              <QuotedPostEmbed
-                post={post}
-                isHidden={hiddenUids.has.bind(hiddenUids)}
-                onVisitUser={onVisitUser}
-                onOpenPost={(id) => { try { window.location.assign(`${window.location.origin}/share?type=feed&id=${id}`); } catch { /* */ } }}
-              />
-            </div>
-          )}
 
           {/* Learn chip — education as a discovery surface (only renders on a real match) */}
           <LearnChip tags={post.tags} text={post.text} className="mt-3" compact />
@@ -1044,7 +778,6 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser: onVisitUserProp,
           )}
             </SensitiveContentGate>
             </MutedContentGate>
-            </ModerationGate>
           )}
 
           {/* Data Viz embed preview */}
@@ -1115,9 +848,6 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser: onVisitUserProp,
               )}
             </motion.button>
 
-            {/* Repost / Quote */}
-            {auth.currentUser && <RepostButton post={post} onQuote={onQuote} />}
-
             {/* Gift — non-author only */}
             {!isAuthor && (
               <motion.button
@@ -1161,20 +891,11 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser: onVisitUserProp,
             )}
 
             {/* Share */}
-            <div className="ml-auto flex items-center gap-0.5">
-              <PostInsightsButton post={post} />
-              <BookmarkButton post={post} />
+            <div className="ml-auto">
               <ShareButton
-                title={(post as any).poll?.question ? `Poll: ${(post as any).poll.question}` : `Post by ${post.authorName}`}
-                text={(post as any).poll?.question || post.text || 'Check out this on Plajah'}
-                url={typeof window !== 'undefined' ? `${window.location.origin}/share?type=feed&id=${post.id}` : ''}
-                contentType={(post as any).poll?.question ? 'poll' : 'post'}
-                pollData={(post as any).poll}
-                postText={post.text}
-                authorName={post.authorName}
-                authorPhoto={post.authorPhoto}
-                imageUrl={post.media?.find(m => m.url)?.url}
-                ctaText={(post as any).poll?.question ? '⚡ CAST YOUR VOTE ON PLAJAH' : '💬 JOIN THE CONVERSATION ON PLAJAH'}
+                title={`Post by ${post.authorName}`}
+                text={post.text || 'Check out this post on Plajah'}
+                url={`${window.location.origin}/post/${post.id}`}
               />
             </div>
           </div>
@@ -1254,14 +975,10 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser: onVisitUserProp,
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
-            <div className={`px-4 py-3 border-b border-white/[0.06] ${replyRestricted ? '[&_form]:hidden' : ''}`}>
-              {replyRestricted && (
-                <p className="mb-2 text-[11px] text-white/45">{replyRestrictionLabel(post.replyAudience)}</p>
-              )}
+            <div className="px-4 py-3 border-b border-white/[0.06]">
               <CommentSection
                 postId={post.id}
                 postAuthorId={post.authorId}
-                postCollection={post.sourceCollection === 'private_posts' ? 'private_posts' : 'posts'}
                 onVisitUser={onVisitUser}
                 onClose={() => setShowComments(false)}
               />
@@ -1278,15 +995,12 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser: onVisitUserProp,
           items={waterfallItems}
           onClose={() => setShowWaterfall(false)}
           commentNode={
-            <div className={replyRestricted ? '[&_form]:hidden' : undefined}>
-              <CommentSection
-                postId={post.id}
-                postAuthorId={post.authorId}
-                postCollection={post.sourceCollection === 'private_posts' ? 'private_posts' : 'posts'}
-                onVisitUser={onVisitUser}
-                layout="inline"
-              />
-            </div>
+            <CommentSection
+              postId={post.id}
+              postAuthorId={post.authorId}
+              onVisitUser={onVisitUser}
+              layout="inline"
+            />
           }
         />
       )}
