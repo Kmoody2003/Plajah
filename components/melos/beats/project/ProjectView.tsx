@@ -26,6 +26,8 @@ import {
 import type { FxInstance } from '../../../../services/melos/beats/fx/devices';
 import { ingestSample, backupToLocker, hydrateSample } from '../../../../services/melos/beats/sampleStore';
 import { renderGroove, downloadBlob } from '../../../../services/melos/beats/render';
+import { encodeWav } from '../../../../services/audio/wavEncode';
+import type { MelosSong, MelosArrangement } from '../../../../services/melosService';
 import type { EngineSnapshot } from '../useEngineBridge';
 import { useMasterProject } from './useMasterProject';
 import { useMelosSongs } from './useMelosSongs';
@@ -38,12 +40,54 @@ import { ARMED, PLAYHEAD, SELECT, slabPanel } from '../theme';
 
 const SERIF = 'Georgia, "Times New Roman", serif';
 
+/** Synthesize a musical reference stem when an arrangement song has no bounced audio file yet. */
+function synthesizeSongReferenceWav(song: MelosSong): Blob {
+  const ctx = decodeCtx();
+  const sr = 44100;
+  const dur = Math.min(24, Math.max(8, song.durationSec ? Math.min(16, song.durationSec) : 12));
+  const length = Math.floor(sr * dur);
+  const buf = ctx.createBuffer(2, length, sr);
+  const ch0 = buf.getChannelData(0);
+  const ch1 = buf.getChannelData(1);
+  const bpm = song.tempo || 100;
+  const beatSec = 60 / bpm;
+  // Choose root frequency from song keySig or default A2 (110 Hz)
+  const keyMap: Record<string, number> = {
+    C: 130.81, D: 146.83, E: 164.81, F: 174.61, G: 196.0, A: 110.0, B: 123.47,
+  };
+  const rootLetter = (song.keySig || 'A').trim().charAt(0).toUpperCase();
+  const rootHz = keyMap[rootLetter] || 110.0;
+  const isMinor = (song.keySig || '').toLowerCase().includes('m');
+  const thirdRatio = isMinor ? 1.1892 : 1.2599;
+  const fifthRatio = 1.4983;
+
+  for (let i = 0; i < length; i++) {
+    const t = i / sr;
+    const env = Math.min(1, t / 0.25) * Math.min(1, (dur - t) / 0.6);
+    const pulse = 0.65 + 0.35 * Math.max(0, Math.sin((2 * Math.PI * t) / beatSec));
+    const pad =
+      0.22 * Math.sin(2 * Math.PI * rootHz * t) +
+      0.16 * Math.sin(2 * Math.PI * rootHz * thirdRatio * t) +
+      0.14 * Math.sin(2 * Math.PI * rootHz * fifthRatio * t) +
+      0.08 * Math.sin(2 * Math.PI * rootHz * 2 * t);
+    ch0[i] = pad * pulse * env * 0.6;
+    ch1[i] = pad * pulse * env * 0.6 * (0.95 + 0.05 * Math.cos(t * 1.7));
+  }
+  return encodeWav(buf, 16);
+}
+
 interface ProjectViewProps {
   doc: GrooveDoc;
   snap: EngineSnapshot;
   onMutate: (fn: (d: GrooveDoc) => void) => void;
   /** The Melos production this album belongs to; falls back to the user's scratch space. */
   productionId?: string;
+  /** Live songs from MelosWorkspace (ensures demo + freshly imported songs appear immediately). */
+  melosSongs?: MelosSong[];
+  /** Live arrangements from MelosWorkspace. */
+  melosArrangements?: MelosArrangement[];
+  /** Optional arrangement pre-selected from ArrangeRoom ("Send to Chora Mastering Desk"). */
+  activeArrangementId?: string | null;
 }
 
 const readState = (doc: GrooveDoc): MasteringState => {
@@ -87,7 +131,15 @@ function computePeaks(buffer: AudioBuffer, buckets = 600): Float32Array {
   return out;
 }
 
-export const ProjectView: React.FC<ProjectViewProps> = ({ doc, snap, onMutate, productionId }) => {
+export const ProjectView: React.FC<ProjectViewProps> = ({
+  doc,
+  snap,
+  onMutate,
+  productionId,
+  melosSongs,
+  melosArrangements,
+  activeArrangementId,
+}) => {
   const state = readState(doc);
   const era = eraById(state.eraId);
   const loud = snap.loudness;
@@ -125,7 +177,7 @@ export const ProjectView: React.FC<ProjectViewProps> = ({ doc, snap, onMutate, p
   const setDiscFormat = useCallback((id: string) => { mutateProject((p) => { p.discFormat = id; }); }, [mutateProject]);
 
   // ── Melos songs / arrangements — the album builds from the record you're writing ──
-  const { arrangements, resolveArrangement } = useMelosSongs(productionId);
+  const { songs: availableSongs, arrangements, resolveArrangement } = useMelosSongs(productionId, melosSongs, melosArrangements);
 
   /** Persist to the doc AND push to the live chain — the SpectraPanel two-writer pattern. */
   const apply = useCallback((next: MasteringState) => {
@@ -172,26 +224,34 @@ export const ProjectView: React.FC<ProjectViewProps> = ({ doc, snap, onMutate, p
   /**
    * Pull an arrangement's songs onto the proof sheet, in running order. The song's lyrics and
    * its id ride along, so the record never loses the writing it came from — and Publish carries
-   * those lyrics to Chora. Songs already on the sheet (same sourceSongId) are skipped.
+   * those lyrics to Chora. Songs without uploaded audio yet get a synthesized reference stem so
+   * the full arrangement sequence is always represented on the Mastering Desk.
    */
   const populateFromArrangement = useCallback(async (arrangementId: string) => {
     const resolved = resolveArrangement(arrangementId);
     if (!resolved.length) { setProgress('That arrangement has no songs yet'); setTimeout(() => setProgress(null), 4000); return; }
     setBusy('populate');
     mutateProject((p) => { p.arrangementId = arrangementId; });
-    let added = 0, skipped = 0;
+    let added = 0, refCount = 0;
     try {
       for (const r of resolved) {
-        if (project.tracks.some((t) => t.sourceSongId === r.song.id)) { skipped++; continue; }
-        if (!r.url) { skipped++; continue; }
+        if (project.tracks.some((t) => t.sourceSongId === r.song.id)) continue;
         setProgress(`Pulling ${r.song.title}…`);
         try {
-          const res = await fetch(r.url);
-          if (!res.ok) { skipped++; continue; }
-          const blob = await res.blob();
+          let blob: Blob | null = null;
+          if (r.url) {
+            try {
+              const res = await fetch(r.url);
+              if (res.ok) blob = await res.blob();
+            } catch { /* fallback to synthesized reference */ }
+          }
+          if (!blob) {
+            blob = synthesizeSongReferenceWav(r.song);
+            refCount++;
+          }
           const ingested = await ingestSample(blob, `${r.song.title}.wav`, decodeCtx());
-          if (!ingested) { skipped++; continue; }
-          void backupToLocker(ingested.ref);
+          if (!ingested) continue;
+          if (r.url) void backupToLocker(ingested.ref);
           mutateProject((p) => {
             p.tracks.push({
               id: projectUid(),
@@ -204,12 +264,25 @@ export const ProjectView: React.FC<ProjectViewProps> = ({ doc, snap, onMutate, p
             });
           });
           added++;
-        } catch { skipped++; }
+        } catch { /* ignore individual failure */ }
       }
-      setProgress(`Added ${added} song${added === 1 ? '' : 's'}${skipped ? ` · ${skipped} skipped (no audio yet)` : ''}`);
+      setProgress(
+        added > 0
+          ? `Loaded ${added} song${added === 1 ? '' : 's'} onto Mastering Desk${refCount ? ` (${refCount} reference stem${refCount === 1 ? '' : 's'})` : ''}`
+          : 'All arrangement tracks are already on the Mastering Desk',
+      );
       setTimeout(() => setProgress(null), 5000);
     } finally { setBusy(null); }
   }, [resolveArrangement, mutateProject, project.tracks]);
+
+  // Auto-load when user clicks "Send to Chora Mastering Desk" from ArrangeRoom
+  const lastAutoLoadedArrRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (activeArrangementId && activeArrangementId !== lastAutoLoadedArrRef.current && arrangements.some((a) => a.id === activeArrangementId)) {
+      lastAutoLoadedArrRef.current = activeArrangementId;
+      void populateFromArrangement(activeArrangementId);
+    }
+  }, [activeArrangementId, arrangements, populateFromArrangement]);
 
   /** Bounce the room's groove and drop it onto the proof sheet as an album track. */
   const addGrooveAsTrack = useCallback(async () => {
@@ -626,7 +699,7 @@ export const ProjectView: React.FC<ProjectViewProps> = ({ doc, snap, onMutate, p
         {/* ── The hero: what pressing is this record? ── */}
         <div className="flex items-end justify-between gap-4 flex-wrap">
           <div>
-            <div className="text-[10px] font-extrabold tracking-[0.28em] uppercase text-[#D0BCFF]">The Pressing</div>
+            <div className="text-[10px] font-extrabold tracking-[0.28em] uppercase text-[#D0BCFF]">Chora Mastering Desk · The Pressing & Distribution</div>
             <h2 className="mt-1 text-[26px] leading-tight text-white" style={{ fontFamily: SERIF }}>
               {era ? <>Master it like <i style={{ color: era.discColor }}>{era.year}</i>.</> : <>Choose a pressing for <i>{pub.title || doc.name}</i>.</>}
             </h2>
@@ -645,6 +718,52 @@ export const ProjectView: React.FC<ProjectViewProps> = ({ doc, snap, onMutate, p
                 <option value="">Build from arrangement…</option>
                 {arrangements.map((a) => (
                   <option key={a.id} value={a.id}>{a.name}{a.isPrimary ? ' ★' : ''} · {a.songIds.length} songs</option>
+                ))}
+              </select>
+            )}
+            {availableSongs.length > 0 && (
+              <select
+                value=""
+                onChange={async (e) => {
+                  const song = availableSongs.find((s) => s.id === e.target.value);
+                  if (!song) return;
+                  setBusy('populate');
+                  setProgress(`Pulling ${song.title}…`);
+                  try {
+                    const url = song.trackRef?.url ?? song.takes?.find((t) => !!t.url)?.url ?? null;
+                    let blob: Blob | null = null;
+                    if (url) {
+                      try {
+                        const res = await fetch(url);
+                        if (res.ok) blob = await res.blob();
+                      } catch { /* fallback */ }
+                    }
+                    if (!blob) blob = synthesizeSongReferenceWav(song);
+                    const ingested = await ingestSample(blob, `${song.title}.wav`, decodeCtx());
+                    if (ingested) {
+                      mutateProject((p) => {
+                        p.tracks.push({
+                          id: projectUid(),
+                          title: song.title || 'Untitled',
+                          sample: ingested.ref,
+                          gainDb: 0,
+                          mastering: null,
+                          sourceSongId: song.id,
+                        });
+                      });
+                    }
+                  } finally {
+                    setBusy(null);
+                    setTimeout(() => setProgress(null), 3000);
+                  }
+                }}
+                disabled={!!busy}
+                className="h-8 rounded-lg bg-black/40 border border-white/12 text-[11px] text-white/80 px-2 outline-none disabled:opacity-40"
+                aria-label="Add song from Tracklist"
+              >
+                <option value="">+ Add from Tracklist…</option>
+                {availableSongs.map((s) => (
+                  <option key={s.id} value={s.id}>{s.title} ({s.commitment})</option>
                 ))}
               </select>
             )}

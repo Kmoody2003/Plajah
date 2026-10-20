@@ -61,6 +61,8 @@ import { getMusicEngines, unavailableMusicEngines, type EngineStatus } from '../
 import { insertGeneratedAudio, insertGeneratedNotes } from '../../../services/melos/generation/insert';
 import GenerationPanel, { type GenerationInsertion } from './composer/GenerationPanel';
 import { encodeWav } from '../../../services/audio/wavEncode';
+import { halloweenAudio } from '../../../services/halloween/halloweenAudioSfx';
+import { stopRealtimeSympPlayback } from '../../../services/melos/melosRealtimeSympPlayer';
 import {
   CLASSIC_BOOK_SOUNDTRACKS,
   buildClassicBookGrooveDoc,
@@ -96,7 +98,7 @@ interface BeatsRoomProps {
   musicLabAdmin?: boolean;
 }
 
-const AVAILABLE_VIEWS: BeatsViewId[] = ['machine', 'glass', 'timeline', 'mixer', 'project'];
+const AVAILABLE_VIEWS: BeatsViewId[] = ['machine', 'glass', 'timeline', 'mixer'];
 
 const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, embedded, melosSamples, onRenderTake, takeTargetName, musicLabAdmin = false }) => {
   const { doc, saveState, grooves, mutate, undo, redo, canUndo, canRedo, replace, saveNow, openGroove, newGroove, removeGroove } =
@@ -320,7 +322,11 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
   }, [handlePlay, handleStop]);
 
   // Stop the transport when the room unmounts — the engine singleton outlives the view.
-  useEffect(() => () => { BeatsEngine.get().stop(); }, []);
+  useEffect(() => {
+    try { halloweenAudio.stopGothicCastleMusic(); } catch { /* ignore */ }
+    try { stopRealtimeSympPlayback(); } catch { /* ignore */ }
+    return () => { BeatsEngine.get().stop(); };
+  }, []);
 
   // Hardware MIDI — premapped for Maschine, Komplete Kontrol and Maschine Jam (the same devices
   // Pixels sees). mapMidiEvent turns each event into ONE Melos action given the device and

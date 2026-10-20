@@ -24,16 +24,27 @@ export function resolveSongAudio(song: MelosSong): { url: string | null; duratio
   return { url: take?.url ?? null, durationSec: take?.durationSec ?? songDuration(song) ?? 0 };
 }
 
-export function useMelosSongs(productionId?: string) {
-  const [songs, setSongs] = useState<MelosSong[]>([]);
-  const [arrangements, setArrangements] = useState<MelosArrangement[]>([]);
+export function useMelosSongs(
+  productionId?: string,
+  externalSongs?: MelosSong[],
+  externalArrangements?: MelosArrangement[],
+) {
+  const [subbedSongs, setSubbedSongs] = useState<MelosSong[]>([]);
+  const [subbedArrangements, setSubbedArrangements] = useState<MelosArrangement[]>([]);
 
   useEffect(() => {
-    if (!productionId) { setSongs([]); setArrangements([]); return; }
-    const un1 = subSongs(productionId, setSongs);
-    const un2 = subArrangements(productionId, setArrangements);
+    if (!productionId || productionId === 'demo_velvet_hour') {
+      setSubbedSongs([]);
+      setSubbedArrangements([]);
+      return;
+    }
+    const un1 = subSongs(productionId, setSubbedSongs);
+    const un2 = subArrangements(productionId, setSubbedArrangements);
     return () => { un1?.(); un2?.(); };
   }, [productionId]);
+
+  const songs = externalSongs && externalSongs.length > 0 ? externalSongs : subbedSongs;
+  const arrangements = externalArrangements && externalArrangements.length > 0 ? externalArrangements : subbedArrangements;
 
   const byId = useMemo(() => new Map(songs.map((s) => [s.id, s])), [songs]);
 

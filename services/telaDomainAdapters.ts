@@ -3,7 +3,7 @@ import type {
   TelaNotesDevice, TelaWriterDevice, OraEntry,
 } from '../types';
 import {
-  BLOCK_KINDS, fetchSongs, parseLyrics, patchSong, type BlockKind, type LyricBlock, type MelosSong,
+  BLOCK_KINDS, fetchSongs, parseLyrics, patchSong, type BlockKind, type InspirationPin, type LyricBlock, type MelosSong,
 } from './melosService';
 import { deleteEntry as deleteNotebookEntry, loadNotebook, putEntry, type SyncableEntry } from './notebookService';
 import { deleteEntry as deleteOraEntry, listEntries as listOraEntries, saveEntry as saveOraEntry } from './oraService';
@@ -142,6 +142,139 @@ export async function openMelosTracklistInTela(productionId: string, songs: Melo
   const docId = melosDocId(productionId, 'tracklist'); const prior = await loadTelaDoc(docId); const base = melosSongsToTelaTracklist(productionId, songs, prior?.frames[0]?.deviceIds.map(deviceId => prior.devices[deviceId]).find(device => device?.type === 'BASE')?.id); const now = Date.now();
   const doc: TelaDoc = { id: docId, ownerId, title: 'Melos tracklist', createdAt: prior?.createdAt || now, updatedAt: now, bindings: [], frames: [{ id: prior?.frames[0]?.id || id('frame'), kind: 'BOARD', preset: 'FREE', x: 0, y: 0, w: 980, h: 620, deviceIds: [base.id], label: 'Tracklist' }], devices: { [base.id]: base } };
   await saveTelaDoc(doc); window.dispatchEvent(new CustomEvent('plajah:openTela', { detail: { docId } })); return doc;
+}
+
+/**
+ * Silently keep the song's Tela WRITER/NOTES document in sync whenever edits happen in the Pad,
+ * so the Pad and Tela share one bidirectional truth.
+ */
+export async function syncMelosSongToTelaDoc(productionId: string, song: MelosSong, songs: MelosSong[], ownerId: string) {
+  if (!productionId || !song?.id) return;
+  try {
+    const docId = melosDocId(productionId, song.id);
+    const prior = await loadTelaDoc(docId);
+    const writer = melosLyricsToTelaWriter(
+      productionId,
+      song,
+      prior?.frames[0]?.deviceIds.map(deviceId => prior.devices[deviceId]).find(device => device?.type === 'WRITER')?.id
+    );
+    const tracklist = melosSongsToTelaTracklist(
+      productionId,
+      songs,
+      prior?.frames.flatMap(frame => frame.deviceIds).map(deviceId => prior?.devices[deviceId]).find(device => device?.type === 'BASE')?.id
+    );
+    const notes = songNotesDevice(
+      productionId,
+      song,
+      prior?.frames.flatMap(frame => frame.deviceIds).map(deviceId => prior?.devices[deviceId]).find(device => device?.type === 'NOTES')?.id
+    );
+    const now = song.updatedAt || Date.now();
+    const doc: TelaDoc = {
+      id: docId,
+      ownerId,
+      title: `${song.title} · Melos writing`,
+      createdAt: prior?.createdAt || now,
+      updatedAt: now,
+      bindings: prior?.bindings || [],
+      frames: [
+        { id: prior?.frames[0]?.id || id('frame'), kind: 'PAPER', preset: 'LETTER', orientation: 'PORTRAIT', x: 0, y: 0, w: 816, h: 1056, deviceIds: [writer.id], label: `${song.title} · lyrics` },
+        { id: prior?.frames[1]?.id || id('frame'), kind: 'BOARD', preset: 'FREE', x: 912, y: 0, w: 760, h: 560, deviceIds: [tracklist.id], label: 'Tracklist' },
+        { id: prior?.frames[2]?.id || id('frame'), kind: 'BOARD', preset: 'FREE', x: 912, y: 650, w: 760, h: 560, deviceIds: [notes.id], label: 'Song notebook' },
+      ],
+      devices: { [writer.id]: writer, [tracklist.id]: tracklist, [notes.id]: notes },
+    };
+    await saveTelaDoc(doc);
+  } catch { /* non-fatal in offline/demo */ }
+}
+
+/**
+ * Check if the song's Tela document has newer edits from the Tela editor and pull them back into MelosSong.
+ */
+export async function pullTelaSongUpdatesIfNewer(productionId: string, song: MelosSong): Promise<Partial<MelosSong> | null> {
+  if (!productionId || !song?.id) return null;
+  try {
+    const docId = melosDocId(productionId, song.id);
+    const doc = await loadTelaDoc(docId);
+    if (!doc || (doc.updatedAt || 0) <= (song.updatedAt || 0)) return null;
+    const devices = Object.values(doc.devices || {});
+    const writer = devices.find((d): d is TelaWriterDevice => d?.type === 'WRITER');
+    const notesDev = devices.find((d): d is TelaNotesDevice => d?.type === 'NOTES');
+    const patch: Partial<MelosSong> = { updatedAt: doc.updatedAt };
+    if (writer) patch.lyrics = telaWriterToMelosLyrics(writer);
+    if (notesDev && notesDev.entries?.[0]) {
+      patch.notes = notesDev.entries[0].blocks.map(b => plain(b.text)).join('\n\n');
+    }
+    return patch;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Open the Melos Work Board in Tela as a multi-frame infinite canvas with sticky notes, ideas, audio/sample cards, and live tracklist.
+ */
+export async function openMelosBoardInTela(productionId: string, pins: InspirationPin[], songs: MelosSong[], ownerId: string) {
+  const docId = melosDocId(productionId, 'board');
+  const prior = await loadTelaDoc(docId);
+  const now = Date.now();
+  const entries: TelaNoteEntry[] = pins.map((pin) => {
+    const title = pin.title || (pin.kind === 'STICKY' ? 'Sticky Note' : pin.kind === 'TRACK' ? 'Unfinished Track' : pin.kind);
+    const bodyParts = [
+      pin.text || '',
+      pin.note ? `Note: ${pin.note}` : '',
+      pin.url ? `Asset URL: ${pin.url}` : '',
+      pin.color ? `Color: ${pin.color}` : '',
+    ].filter(Boolean);
+    return {
+      id: pin.id,
+      domainRecordId: pin.id,
+      kind: pin.kind === 'STICKY' || pin.kind === 'TEXT' ? 'LYRIC_IDEA' : 'NOTE',
+      title,
+      blocks: [{ id: blockId(`${pin.id}_body`), kind: 'p', text: inline(bodyParts.join('\n')), textRole: 'NOTE' }],
+      tags: ['melos-board', pin.kind.toLowerCase()],
+      createdAt: pin.createdAt || now,
+      updatedAt: now,
+      privacy: 'PRIVATE',
+    };
+  });
+  const boardNotes: TelaNotesDevice = {
+    id: prior?.frames[0]?.deviceIds.map(d => prior.devices[d]).find(d => d?.type === 'NOTES')?.id || id('dev'),
+    type: 'NOTES',
+    name: 'Chora Work Board · Ideas & Assets',
+    entries: entries.length ? entries : [{
+      id: id('entry'),
+      kind: 'LYRIC_IDEA',
+      title: 'Board Scratchpad',
+      blocks: [{ id: id('blk'), kind: 'p', text: 'Drop ideas, sticky notes, audio references, and samples here.', textRole: 'NOTE' }],
+      tags: ['melos-board'],
+      createdAt: now,
+      updatedAt: now,
+      privacy: 'PRIVATE',
+    }],
+    activeEntryId: entries[0]?.id,
+    defaultKind: 'LYRIC_IDEA',
+  };
+  const tracklist = melosSongsToTelaTracklist(
+    productionId,
+    songs,
+    prior?.frames[1]?.deviceIds.map(d => prior.devices[d]).find(d => d?.type === 'BASE')?.id
+  );
+  const doc: TelaDoc = {
+    id: docId,
+    ownerId,
+    title: 'Chora Work Board · Tela Canvas',
+    createdAt: prior?.createdAt || now,
+    updatedAt: now,
+    bindings: prior?.bindings || [],
+    frames: [
+      { id: prior?.frames[0]?.id || id('frame'), kind: 'BOARD', preset: 'FREE', x: 0, y: 0, w: 860, h: 640, deviceIds: [boardNotes.id], label: 'Work Board Ideas & Sticky Notes' },
+      { id: prior?.frames[1]?.id || id('frame'), kind: 'BOARD', preset: 'FREE', x: 920, y: 0, w: 820, h: 640, deviceIds: [tracklist.id], label: 'Production Tracklist' },
+    ],
+    devices: { [boardNotes.id]: boardNotes, [tracklist.id]: tracklist },
+  };
+  await saveTelaDoc(doc);
+  window.dispatchEvent(new CustomEvent('plajah:openTela', { detail: { docId } }));
+  return doc;
 }
 
 export async function openNotebookInTela(storageKey: string, entries: SyncableEntry[], ownerId: string, title = 'Plajah Notes') {

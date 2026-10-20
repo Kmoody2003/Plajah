@@ -130,9 +130,20 @@ export interface LyricBlock {
   /** Display label — "Verse 2", "Chorus (alt)". Falls back to the kind label. */
   label?: string;
   lines: string[];
+  /** Optional inline chord progression or lead-sheet chords for this section (e.g. "Am - F - C - G"). */
+  chords?: string;
   /** Locked blocks can't be dragged or edited — the hook you don't want touched. */
   locked?: boolean;
   color?: string;
+}
+
+export interface SongSheetNote {
+  id?: string;
+  midi: number;
+  startBeat: number;
+  durBeats: number;
+  voice?: 'melody' | 'bass';
+  lyric?: string;
 }
 
 // ═══ Song ════════════════════════════════════════════════════════════════════
@@ -213,6 +224,8 @@ export interface MelosSong {
   sampleIds: string[];
   /** Capped at 4 — Notebook view's photo slot. */
   images: string[];
+  /** Optional engraved sheet music notes written directly in the Pad. */
+  sheetNotes?: SongSheetNote[];
   color?: string;
   tags: string[];
   order: number;
@@ -237,7 +250,11 @@ export interface MelosArrangement {
 
 // ═══ Inspiration board ═══════════════════════════════════════════════════════
 
-export type PinKind = 'IMAGE' | 'LINK' | 'TRACK' | 'TEXT' | 'COLOR' | 'AUDIO' | 'VIDEO';
+export type PinKind =
+  | 'IMAGE' | 'LINK' | 'TRACK' | 'TEXT' | 'COLOR'
+  | 'AUDIO' | 'VIDEO' | 'STICKY' | 'SAMPLE' | 'TELA';
+
+export type BoardTrackTag = 'UNFINISHED' | 'IDEA' | 'DEMO' | 'STEM' | 'SAMPLE' | 'REFERENCE';
 
 export interface InspirationPin {
   id: string;
@@ -256,6 +273,14 @@ export interface InspirationPin {
   /** Optionally scoped to one song. */
   songId?: string;
   source?: string;
+  /** Duration in seconds for AUDIO, TRACK, SAMPLE, or VIDEO pins. */
+  durationSec?: number;
+  /** Linked SampleCandidate id when kind === 'SAMPLE'. */
+  sampleId?: string;
+  /** Tag for audio / unfinished track pins on the work board. */
+  trackTag?: BoardTrackTag;
+  /** Linked Tela doc id when kind === 'TELA'. */
+  telaDocId?: string;
   createdAt: number;
 }
 
@@ -536,7 +561,7 @@ export function flattenLyrics(blocks: LyricBlock[], includeLabels = true): strin
     .join('\n\n');
 }
 
-/** Parse pasted/imported lyrics into typed blocks, honouring [Verse]-style tags. */
+/** Parse pasted/imported lyrics into typed blocks, honouring [Verse]-style tags, "Chorus:" headers, and smart stanza detection. */
 export function parseLyrics(text: string): LyricBlock[] {
   const out: LyricBlock[] = [];
   if (!text?.trim()) return out;
@@ -549,35 +574,96 @@ export function parseLyrics(text: string): LyricBlock[] {
     if (l.includes('bridge')) return 'BRIDGE';
     if (l.includes('refrain')) return 'REFRAIN';
     if (l.includes('intro')) return 'INTRO';
-    if (l.includes('outro')) return 'OUTRO';
-    if (l.includes('ad') && l.includes('lib')) return 'AD_LIB';
+    if (l.includes('outro') || l.includes('coda')) return 'OUTRO';
+    if ((l.includes('ad') && l.includes('lib')) || l.includes('vocal')) return 'AD_LIB';
+    if (l.includes('note') || l.includes('spoken')) return 'NOTE';
     if (l.includes('verse')) return 'VERSE';
     return 'VERSE';
   };
 
-  const push = (label: string | undefined, lines: string[]) => {
-    const body = lines.filter(l => l.trim());
+  const push = (label: string | undefined, lines: string[], chords?: string) => {
+    const body = lines.map(l => l.trimEnd()).filter(l => l.trim());
     if (!body.length) return;
     const kind = label ? guessKind(label) : 'VERSE';
-    out.push({ id: uid('lb'), kind, label: label || undefined, lines: body });
+    out.push({ id: uid('lb'), kind, label: label || undefined, lines: body, ...(chords ? { chords } : {}) });
   };
 
-  // Tagged form: [Verse 1] … [Chorus] …
-  if (/\[[^\]\n]{1,40}\]/.test(text)) {
+  const HEADER_RE = /^\s*(?:\[([^\]\n]{1,40})\]|\(([^)\n]{1,32})\)|((?:intro|verse|pre[-\s]?chorus|chorus|hook|bridge|refrain|outro|ad[-\s]?libs?|interlude|coda)(?:\s*\d+)?)\s*[:\-–—]?)\s*$/i;
+  const CHORD_LINE_RE = /^\s*(?:chords?\s*[:\-]\s*)?([A-G][#b]?(?:m|maj|min|dim|aug|sus|add)?\d*(?:\/[A-G][#b]?)?(?:\s*(?:[-–—|•·,/\s])\s*[A-G][#b]?(?:m|maj|min|dim|aug|sus|add)?\d*(?:\/[A-G][#b]?)?)+)\s*$/;
+
+  const allLines = text.split(/\r?\n/);
+  const hasExplicitHeaders = allLines.some(raw => HEADER_RE.test(raw));
+
+  if (hasExplicitHeaders) {
     let label: string | undefined;
     let buf: string[] = [];
-    for (const raw of text.split(/\r?\n/)) {
-      const m = raw.match(/^\s*\[([^\]]{1,40})\]\s*$/);
-      if (m) { push(label, buf); label = m[1].trim(); buf = []; }
-      else buf.push(raw);
+    let chords: string | undefined;
+    for (const raw of allLines) {
+      const m = raw.match(HEADER_RE);
+      if (m) {
+        push(label, buf, chords);
+        label = (m[1] || m[2] || m[3] || '').trim();
+        buf = [];
+        chords = undefined;
+      } else {
+        const cm = !buf.length && raw.match(CHORD_LINE_RE);
+        if (cm) {
+          chords = cm[1].trim();
+        } else {
+          buf.push(raw);
+        }
+      }
     }
-    push(label, buf);
-    return out;
+    push(label, buf, chords);
+    return autoLabelBlocks(out);
   }
 
-  // Untagged: blank lines separate blocks.
-  for (const chunk of text.split(/\r?\n\s*\r?\n/)) push(undefined, chunk.split(/\r?\n/));
-  return out;
+  // Untagged: blank lines separate stanzas; detect repeated stanzas as CHORUS and short stanzas as PRE/INTRO/OUTRO.
+  const chunks = text
+    .split(/\r?\n\s*\r?\n/)
+    .map(c => c.split(/\r?\n/).map(l => l.trimEnd()).filter(l => l.trim()))
+    .filter(c => c.length > 0);
+
+  // Normalize first line / full stanza fingerprint to spot repeated choruses/refrains
+  const fingerprint = (lines: string[]) =>
+    lines.map(l => l.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim()).join(' | ');
+  const counts = new Map<string, number>();
+  for (const c of chunks) {
+    const fp = fingerprint(c);
+    if (fp) counts.set(fp, (counts.get(fp) || 0) + 1);
+  }
+
+  chunks.forEach((lines, idx) => {
+    let extractedChords: string | undefined;
+    let bodyLines = lines;
+    const firstChordMatch = lines.length > 1 ? lines[0].match(CHORD_LINE_RE) : null;
+    if (firstChordMatch) {
+      extractedChords = firstChordMatch[1].trim();
+      bodyLines = lines.slice(1);
+    }
+    const fp = fingerprint(lines);
+    const repeatCount = fp ? (counts.get(fp) || 1) : 1;
+    let kind: BlockKind = 'VERSE';
+    if (repeatCount > 1) {
+      kind = bodyLines.length <= 2 ? 'REFRAIN' : 'CHORUS';
+    } else if (idx === 0 && bodyLines.length <= 2 && chunks.length >= 4) {
+      kind = 'INTRO';
+    } else if (idx === chunks.length - 1 && bodyLines.length <= 2 && chunks.length >= 4) {
+      kind = 'OUTRO';
+    } else if (bodyLines.length <= 2 && idx > 0 && idx < chunks.length - 1) {
+      kind = 'PRE';
+    } else if (idx === chunks.length - 2 && chunks.length >= 5) {
+      kind = 'BRIDGE';
+    }
+    out.push({
+      id: uid('lb'),
+      kind,
+      lines: bodyLines,
+      ...(extractedChords ? { chords: extractedChords } : {}),
+    });
+  });
+
+  return autoLabelBlocks(out);
 }
 
 /** Move a block within a song's lyric array. Locked blocks never move. */
@@ -1149,12 +1235,14 @@ export function buildDemoProduction(ownerUid: string, artistName = 'You'): Seede
   ];
 
   const pins: InspirationPin[] = [
-    { id: uid('pin'), kind: 'TEXT', text: 'A cold house is not the same as an empty one.', x: 60, y: 48, w: 240, rotation: -1.6, createdAt: now - 90 * DAY },
-    { id: uid('pin'), kind: 'COLOR', color: '#4A3D5C', title: 'the blue of 6am', x: 340, y: 40, w: 120, h: 120, rotation: 1.2, createdAt: now - 88 * DAY },
-    { id: uid('pin'), kind: 'COLOR', color: '#7A4A2E', title: 'rust', x: 480, y: 62, w: 120, h: 120, rotation: -0.8, createdAt: now - 88 * DAY },
-    { id: uid('pin'), kind: 'TEXT', text: 'No song longer than five minutes. No song that explains itself.', x: 80, y: 210, w: 260, rotation: 0.9, songId: undefined, createdAt: now - 70 * DAY },
-    { id: uid('pin'), kind: 'LINK', title: 'Bill Withers — Live at Carnegie Hall', url: 'https://example.org/reference', note: 'The room sound. That is all I want.', x: 380, y: 230, w: 250, rotation: -0.5, createdAt: now - 64 * DAY },
-    { id: uid('pin'), kind: 'TEXT', text: 'Marisol: "play it like you are trying not to wake someone"', x: 140, y: 350, w: 250, rotation: -2.1, songId: songs[1].id, createdAt: now - 40 * DAY },
+    { id: uid('pin'), kind: 'STICKY', color: '#E9A85C', title: 'Album Thesis', text: 'A cold house is not the same as an empty one.', x: 40, y: 36, w: 236, rotation: -1.6, createdAt: now - 90 * DAY },
+    { id: uid('pin'), kind: 'COLOR', color: '#4A3D5C', title: 'the blue of 6am', x: 310, y: 32, w: 128, h: 120, rotation: 1.2, createdAt: now - 88 * DAY },
+    { id: uid('pin'), kind: 'COLOR', color: '#7A4A2E', title: 'rust', x: 460, y: 48, w: 128, h: 120, rotation: -0.8, createdAt: now - 88 * DAY },
+    { id: uid('pin'), kind: 'STICKY', color: '#D0BCFF', title: 'Rule #1', text: 'No song longer than five minutes. No song that explains itself.', x: 52, y: 204, w: 256, rotation: 0.9, songId: undefined, createdAt: now - 70 * DAY },
+    { id: uid('pin'), kind: 'LINK', title: 'Bill Withers — Live at Carnegie Hall', url: 'https://example.org/reference', note: 'The room sound. That is all I want.', x: 340, y: 204, w: 256, rotation: -0.5, createdAt: now - 64 * DAY },
+    { id: uid('pin'), kind: 'TRACK', title: 'Low Ceilings — Basement Tape (Rough)', trackTag: 'UNFINISHED', durationSec: 142, note: 'Unfinished bridge idea — needs Wurlitzer overdub before moving to Tracklist.', x: 628, y: 40, w: 268, rotation: 0.7, songId: songs[1].id, createdAt: now - 50 * DAY },
+    { id: uid('pin'), kind: 'SAMPLE', title: 'Harbor Bells (1931 PD Chop)', sampleId: samples[0].id, durationSec: 7, note: 'Public domain bell intro loop (12s–19s) — cleared for Mercy, Michigan.', x: 632, y: 230, w: 264, rotation: -0.9, songId: songs[3].id, createdAt: now - 44 * DAY },
+    { id: uid('pin'), kind: 'TEXT', text: 'Marisol: "play it like you are trying not to wake someone"', x: 110, y: 360, w: 256, rotation: -2.1, songId: songs[1].id, createdAt: now - 40 * DAY },
   ];
 
   return { production, songs, arrangements, pins, samples, sessions, people };

@@ -89,16 +89,14 @@ export const TransportBar: React.FC<TransportBarProps> = (p) => {
       {p.menuSlot}
 
       <div className="flex gap-0.5 bg-white/[0.06] border border-white/10 rounded-[10px] p-0.5 shrink-0">
-        {VIEWS.map((v) => {
-          const enabled = p.availableViews.includes(v.id);
+        {VIEWS.filter((v) => p.availableViews.includes(v.id)).map((v) => {
           const active = p.view === v.id;
           return (
             <button
               key={v.id}
-              disabled={!enabled}
               onClick={() => p.onSetView(v.id)}
-              title={enabled ? v.label : `${v.label} — coming in this build`}
-              className={`h-7 px-3 rounded-lg text-[11px] transition-colors shrink-0 whitespace-nowrap ${active ? 'bg-[#D0BCFF]/20 text-[#D0BCFF] font-semibold' : enabled ? 'text-white/50 hover:text-white' : 'text-white/20 cursor-not-allowed'}`}
+              title={v.label}
+              className={`h-7 px-3 rounded-lg text-[11px] transition-colors shrink-0 whitespace-nowrap ${active ? 'bg-[#D0BCFF]/20 text-[#D0BCFF] font-semibold' : 'text-white/50 hover:text-white'}`}
             >{v.label}</button>
           );
         })}
