@@ -65,6 +65,8 @@ import {
   getHalloweenStoryIntelBundle,
   type HalloweenCharacterWithActor,
 } from '../data/halloweenStoryIntel';
+import { HalloweenVaultChatAndFanRoom } from './taleo/HalloweenVaultChatAndFanRoom';
+import { HauntedCastleExhibition } from './taleo/HauntedCastleExhibition';
 
 interface MoviesTVViewProps {
   onBack: () => void;
@@ -72,7 +74,7 @@ interface MoviesTVViewProps {
   onNavigate?: (view: 'WORLDS' | 'USER_PROFILE' | 'TALEO_HISTORY' | 'FILM_SCHOOL') => void;
 }
 
-type SubView = 'HOME' | 'HALLOWEEN' | 'MOVIES' | 'TV' | 'CURATOR' | 'MUSEUM' | 'CLUBS' | 'UNIVERSE' | 'LIBRARY' | 'HIVE' | 'MY_NEBULA' | 'ALLY_VIEW';
+type SubView = 'HOME' | 'HALLOWEEN' | 'HAUNTED_EXHIBIT' | 'MOVIES' | 'TV' | 'CURATOR' | 'MUSEUM' | 'CLUBS' | 'UNIVERSE' | 'LIBRARY' | 'HIVE' | 'MY_NEBULA' | 'ALLY_VIEW';
 
 const TaleoTabNav: React.FC<{
   currentSubView: SubView;
@@ -85,17 +87,18 @@ const TaleoTabNav: React.FC<{
   <div className="sticky top-16 z-40 bg-[#131314]/90 backdrop-blur-xl border-b border-white/5 px-2 py-2 flex justify-center">
     <ChipRail
       items={[
-        { id: 'HOME',      icon: <Home size={13} />,        label: 'Home'         },
-        { id: 'HALLOWEEN', icon: <Ghost size={13} className="text-orange-400" />, label: '🎃 Halloween' },
-        { id: 'MOVIES',    icon: <Film size={13} />,        label: 'Movies'       },
-        { id: 'TV',        icon: <Monitor size={13} />,     label: 'TV'           },
-        { id: 'CURATOR',   icon: <Sparkles size={13} />,    label: 'Curator'      },
-        { id: 'MUSEUM',    icon: <Landmark size={13} />,    label: 'Museum'       },
-        { id: 'CLUBS',     icon: <Users size={13} />,       label: 'Clubs'        },
-        { id: 'UNIVERSE',  icon: <Globe size={13} />,       label: 'Universe'     },
-        { id: 'EXPLORE',   icon: <ExploreIcon size={13} />, label: 'Explore', door: true },
-        { id: 'LIBRARY',   icon: <Library size={13} />,     label: 'Library'      },
-        { id: 'PROFILE',   icon: <PersonIcon size={13} />,  label: 'Profile', door: true },
+        { id: 'HOME',            icon: <Home size={13} />,        label: 'Home'         },
+        { id: 'HALLOWEEN',       icon: <Ghost size={13} className="text-orange-400" />, label: '🎃 Halloween Vault' },
+        { id: 'HAUNTED_EXHIBIT', icon: <Flame size={13} className="text-amber-400" />,  label: '🏰 Haunted Crossroads' },
+        { id: 'MOVIES',          icon: <Film size={13} />,        label: 'Movies'       },
+        { id: 'TV',              icon: <Monitor size={13} />,     label: 'TV'           },
+        { id: 'CURATOR',         icon: <Sparkles size={13} />,    label: 'Curator'      },
+        { id: 'MUSEUM',          icon: <Landmark size={13} />,    label: 'Museum'       },
+        { id: 'CLUBS',           icon: <Users size={13} />,       label: 'Clubs'        },
+        { id: 'UNIVERSE',        icon: <Globe size={13} />,       label: 'Universe'     },
+        { id: 'EXPLORE',         icon: <ExploreIcon size={13} />, label: 'Explore', door: true },
+        { id: 'LIBRARY',         icon: <Library size={13} />,     label: 'Library'      },
+        { id: 'PROFILE',         icon: <PersonIcon size={13} />,  label: 'Profile', door: true },
       ]}
       activeId={currentSubView === 'HIVE' ? 'EXPLORE' : currentSubView}
       onSelect={(id) => {
@@ -840,7 +843,13 @@ const HomeView: React.FC<{
                   onClick={() => setCurrentSubView('HALLOWEEN')}
                   className="h-11 px-5 bg-white/10 hover:bg-white/15 border border-orange-400/35 text-orange-200 font-black text-[10px] uppercase tracking-widest rounded-full flex items-center gap-2 transition-all cursor-pointer"
                 >
-                  <Ghost size={14} /> Explore Halloween Vault
+                  <Ghost size={14} /> Halloween Vault &amp; Live Chat Room
+                </button>
+                <button
+                  onClick={() => setCurrentSubView('HAUNTED_EXHIBIT')}
+                  className="h-11 px-5 bg-gradient-to-r from-purple-950/90 via-stone-900 to-orange-950/90 hover:from-purple-900 hover:to-orange-900 border border-amber-400/45 text-amber-200 font-black text-[10px] uppercase tracking-widest rounded-full flex items-center gap-2 transition-all hover:scale-105 shadow-lg cursor-pointer"
+                >
+                  <Flame size={14} className="text-orange-400" /> 🏰 Enter Haunted Castle &amp; Crossroads 3D Exhibit
                 </button>
                 <ShareButton
                   title={`Halloween Curation · Pumpkin Patch & ${CURATED_HALLOWEEN_FILMS.length} Classics`}
@@ -1722,7 +1731,16 @@ const HalloweenShowcaseView: React.FC<{
   watchlist: WatchlistItem[];
   onToggleWatchlist: (item: any) => void;
   onShareToast: (msg: string) => void;
-}> = ({ onSelectArchiveItem, onSelectMovie, localContent = [], watchlist, onToggleWatchlist, onShareToast }) => {
+  onOpenHauntedExhibition: () => void;
+}> = ({
+  onSelectArchiveItem,
+  onSelectMovie,
+  localContent = [],
+  watchlist,
+  onToggleWatchlist,
+  onShareToast,
+  onOpenHauntedExhibition,
+}) => {
   const [selectedDirector, setSelectedDirector] = useState<ClassicDirectorProfile | null>(null);
   const [selectedCharModal, setSelectedCharModal] = useState<{
     char: HalloweenCharacterWithActor;
@@ -1816,9 +1834,38 @@ const HalloweenShowcaseView: React.FC<{
   };
 
   return (
-    <div className="pb-40">
+    <div className="pb-40 bg-gradient-to-b from-[#0b0510] via-[#120818] to-[#0d0712] relative">
+      {/* Spooky Halloween Atmospheric Top Marquee Bar */}
+      <div className="border-b border-orange-500/30 bg-gradient-to-r from-orange-950/80 via-[#1a0926] to-orange-950/80 px-4 py-2.5">
+        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2 text-xs">
+          <div className="flex items-center gap-2.5">
+            <span className="text-base">🎃🕸️🦇</span>
+            <span className="font-black uppercase tracking-widest text-orange-300 text-[10px]">
+              Halloween Curation Vault · Midnight Coven Edition
+            </span>
+            <span className="hidden md:inline text-[11px] text-amber-200/70">
+              Live Persistent Chat &amp; Fan Room · 6 Realistic Monster Face Filters · Found-Footage Night Beam · 3D Haunted Castle Crossroads
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <a
+              href="#halloween-vault-live-room"
+              className="px-3 py-1 rounded-full bg-orange-500/20 hover:bg-orange-500/35 border border-orange-400/50 text-orange-200 text-[10px] font-black uppercase tracking-wider transition"
+            >
+              💬 Jump to Vault Chat &amp; Face Filters
+            </a>
+            <button
+              onClick={onOpenHauntedExhibition}
+              className="px-3 py-1 rounded-full bg-emerald-500/20 hover:bg-emerald-500/35 border border-emerald-400/50 text-emerald-200 text-[10px] font-black uppercase tracking-wider transition cursor-pointer"
+            >
+              🏰 Enter Haunted Castle &amp; Crossroads 3D Exhibit →
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Halloween Hero Feature: Pumpkin Patch */}
-      <section className="relative overflow-hidden border-b border-orange-500/25 bg-[#131314] py-14 sm:py-20 px-4 sm:px-8 md:px-14">
+      <section className="relative overflow-hidden border-b border-orange-500/30 bg-[#0d0614] py-14 sm:py-20 px-4 sm:px-8 md:px-14">
         {/* Cinematic backdrop */}
         <div className="absolute inset-0 pointer-events-none">
           <img
@@ -1826,11 +1873,11 @@ const HalloweenShowcaseView: React.FC<{
             alt="Pumpkin Patch"
             className="w-full h-full object-cover opacity-30 scale-105"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#131314] via-[#131314]/85 to-[#131314]/50" />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#131314] via-transparent to-[#131314]/60" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#0b0510] via-[#13081c]/85 to-[#0b0510]/50" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#0b0510] via-transparent to-[#0b0510]/60" />
         </div>
-        <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-orange-500/15 blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-1/3 w-80 h-80 rounded-full bg-purple-600/10 blur-3xl pointer-events-none" />
+        <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-orange-500/20 blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-1/3 w-80 h-80 rounded-full bg-purple-600/15 blur-3xl pointer-events-none" />
 
         <div className="max-w-7xl mx-auto relative z-10 flex flex-col lg:flex-row gap-10 items-start lg:items-center justify-between">
           <div className="space-y-4 max-w-2xl">
@@ -1846,7 +1893,7 @@ const HalloweenShowcaseView: React.FC<{
               </span>
             </div>
 
-            <h1 className="text-4xl sm:text-6xl md:text-7xl font-black uppercase tracking-tight leading-[0.9] text-white">
+            <h1 className="text-4xl sm:text-6xl md:text-7xl font-black uppercase tracking-tight leading-[0.9] text-white drop-shadow-[0_4px_24px_rgba(249,115,22,0.3)]">
               Pumpkin <span className="text-orange-400">Patch</span>
             </h1>
 
@@ -1864,6 +1911,12 @@ const HalloweenShowcaseView: React.FC<{
                 className="h-12 px-8 bg-orange-500 hover:bg-orange-400 text-[#131314] font-black text-xs uppercase tracking-widest rounded-full flex items-center gap-2.5 transition-all hover:scale-105 shadow-[0_0_25px_rgba(249,115,22,0.45)] cursor-pointer"
               >
                 <Play size={16} fill="currentColor" /> Watch Pumpkin Patch
+              </button>
+              <button
+                onClick={onOpenHauntedExhibition}
+                className="h-12 px-6 bg-gradient-to-r from-emerald-600 via-teal-600 to-orange-600 hover:from-emerald-500 hover:to-orange-500 text-white font-black text-xs uppercase tracking-widest rounded-full flex items-center gap-2 transition-all hover:scale-105 shadow-[0_0_25px_rgba(16,185,129,0.35)] cursor-pointer"
+              >
+                <span>🏰</span> Enter Haunted Castle &amp; Crossroads 3D Exhibit
               </button>
               <button
                 onClick={() => onToggleWatchlist(pumpkinPatchHero)}
@@ -1969,6 +2022,95 @@ const HalloweenShowcaseView: React.FC<{
       </section>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-12 pt-10 space-y-16">
+        {/* ── OPTIONAL INTERACTIVE 3D EXHIBITION PORTAL: HAUNTED CASTLE & LONESOME CROSSROADS ── */}
+        <section className="relative rounded-3xl overflow-hidden border-2 border-orange-500/40 bg-gradient-to-r from-[#1a0b25] via-[#0e171f] to-[#240e08] p-6 sm:p-8 shadow-[0_0_60px_rgba(249,115,22,0.18)]">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+            <div className="lg:col-span-7 space-y-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/50 text-emerald-300 text-[10px] font-black uppercase tracking-widest">
+                  ✨ Optional Live Interactive 3D Exhibition
+                </span>
+                <span className="px-2.5 py-0.5 rounded-full bg-orange-500/20 border border-orange-400/40 text-orange-300 text-[10px] font-mono">
+                  Powered by Story Intelligence + 26-Page Graphic Novel + Stills
+                </span>
+              </div>
+              <h2 className="text-2xl sm:text-4xl font-black uppercase tracking-tight text-white">
+                🏰 Virtual Haunted Castle &amp; <span className="text-orange-400">Lonesome Road Intersection</span>
+              </h2>
+              <p className="text-xs sm:text-sm text-stone-300 leading-relaxed">
+                Step into a live spooky night landscape where the <span className="text-orange-300 font-semibold">curated Halloween movies are the directional road signs</span> at a lonesome highway intersection and appear on <span className="text-amber-300 font-semibold">dilapidated roadside billboards</span> down each road. Watch as <span className="text-emerald-300 font-semibold">Wicked Witch Miriam flies across the full moon with her laughing witch cackle and army of winged monkeys</span>, and <span className="text-orange-400 font-semibold">Pumpkin Patch himself materializes in the road igniting his dual plasma blades</span> before vanishing into the mist.
+              </p>
+              <div className="flex flex-wrap items-center gap-3 pt-2">
+                <button
+                  onClick={onOpenHauntedExhibition}
+                  className="px-6 py-3 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-black font-black text-xs uppercase tracking-widest shadow-xl flex items-center gap-2 transition transform hover:scale-105 cursor-pointer"
+                >
+                  <span>🏰</span> Enter Haunted Castle &amp; Crossroads Exhibition
+                </button>
+                <a
+                  href="#halloween-vault-live-room"
+                  className="px-5 py-3 rounded-2xl bg-white/10 hover:bg-white/15 border border-orange-400/40 text-orange-200 font-black text-xs uppercase tracking-widest transition"
+                >
+                  🎭 Open Live Chat &amp; Monster Face Filters
+                </a>
+              </div>
+            </div>
+
+            <div className="lg:col-span-5 grid grid-cols-3 gap-2.5">
+              <div
+                onClick={onOpenHauntedExhibition}
+                className="rounded-xl overflow-hidden border border-emerald-500/40 bg-black/60 cursor-pointer group relative h-36"
+              >
+                <img
+                  src="/generated/comics/pumpkin_patch_v4/char_3_portrait.jpg"
+                  alt="Miriam & Flying Monkeys"
+                  className="w-full h-full object-cover group-hover:scale-110 transition"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
+                <div className="absolute bottom-1.5 inset-x-1.5 text-[9px] font-bold text-emerald-300 leading-tight">
+                  🧙‍♀️ Miriam + Flying Monkeys Sky Flyover
+                </div>
+              </div>
+              <div
+                onClick={onOpenHauntedExhibition}
+                className="rounded-xl overflow-hidden border border-orange-500/50 bg-black/60 cursor-pointer group relative h-36"
+              >
+                <img
+                  src="/generated/comics/pumpkin_patch_v4/frame_2310s.jpg"
+                  alt="Pumpkin Patch Dual Plasma Blades"
+                  className="w-full h-full object-cover group-hover:scale-110 transition"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
+                <div className="absolute bottom-1.5 inset-x-1.5 text-[9px] font-bold text-orange-300 leading-tight">
+                  ⚔️ Pumpkin Patch Dual Blades in the Road
+                </div>
+              </div>
+              <div
+                onClick={onOpenHauntedExhibition}
+                className="rounded-xl overflow-hidden border border-purple-500/40 bg-black/60 cursor-pointer group relative h-36"
+              >
+                <img
+                  src="/generated/comics/pumpkin_patch_v4/panel_014.jpg"
+                  alt="26-Page Graphic Novel & Billboards"
+                  className="w-full h-full object-cover group-hover:scale-110 transition"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
+                <div className="absolute bottom-1.5 inset-x-1.5 text-[9px] font-bold text-purple-200 leading-tight">
+                  🪧 Movie Road Signs &amp; Dilapidated Billboards
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ── PERSISTENT HALLOWEEN VAULT CHAT ROOM, FAN COVEN ROOM & REALISTIC MONSTER FILTERS ── */}
+        <section id="halloween-vault-live-room">
+          <HalloweenVaultChatAndFanRoom
+            onOpenHauntedExhibition={onOpenHauntedExhibition}
+            onPlayFilmById={handlePlayFilmById}
+          />
+        </section>
+
         {/* Curated Double Features */}
         <section>
           <div className="flex items-end justify-between mb-6 flex-wrap gap-3">
@@ -3054,6 +3196,12 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
             >
               <Ghost size={12} /> Halloween Vault
             </button>
+            <button
+              onClick={() => setCurrentSubView('HAUNTED_EXHIBIT')}
+              className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-emerald-300 text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer"
+            >
+              <Flame size={12} className="text-orange-400" /> 🏰 Haunted Crossroads 3D
+            </button>
             <button className="text-white/60 hover:text-white transition-colors p-2 rounded-xl hover:bg-white/5" onClick={() => setShowSearch(true)}>
               <Search size={20} />
             </button>
@@ -3245,6 +3393,18 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
                 watchlist={watchlist}
                 onToggleWatchlist={handleToggleWatchlist}
                 onShareToast={triggerShareToast}
+                onOpenHauntedExhibition={() => setCurrentSubView('HAUNTED_EXHIBIT')}
+              />
+            </div>
+          )}
+          {currentSubView === 'HAUNTED_EXHIBIT' && (
+            <div className="pt-16">
+              {tabNavEl}
+              <HauntedCastleExhibition
+                onBackToVault={() => setCurrentSubView('HALLOWEEN')}
+                onPlayPumpkinPatch={() => onSelectMovie(PUMPKIN_PATCH_HERO_ALBUM)}
+                onSelectArchiveFilm={handleSelectArchiveItem}
+                onOpenChatRoom={() => setCurrentSubView('HALLOWEEN')}
               />
             </div>
           )}

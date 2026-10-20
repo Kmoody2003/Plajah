@@ -2,12 +2,20 @@ import { useState, useEffect, useCallback } from 'react';
 import { Album, Track, HideNSeekAlternate, HideNSeekConfig } from '../types';
 import { auth, fetchHideNSeekAlternates, fetchHideNSeekProgress, recordHideNSeekDiscovery, fetchHideNSeekStats } from '../services/backendService';
 import { useAchievements } from '../contexts/AchievementContext';
+import {
+  getActiveAdKeyPassExpiry,
+  grantAdKeyPass,
+  claimHideNSeekDiscoveryBounty,
+  HnsBountyClaimResult,
+} from '../services/patronageAdService';
 
 // ─── Scheduling helpers ───────────────────────────────────────────────────────
 
 /** Returns true if the current moment falls inside any of the album's H&S windows. */
-export function isHideNSeekActive(config?: HideNSeekConfig): boolean {
-  if (!config?.isEnabled || !config.windows?.length) return false;
+export function isHideNSeekActive(config?: HideNSeekConfig, albumId?: string): boolean {
+  if (!config?.isEnabled) return false;
+  if (albumId && getActiveAdKeyPassExpiry(albumId) !== null) return true;
+  if (!config.windows?.length) return false;
   const now = new Date();
   const dayOfWeek = now.getDay();
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
@@ -115,6 +123,12 @@ export function buildHideNSeekTrackList(
 
 interface UseHideNSeekResult {
   isActive: boolean;
+  isScheduledWindowActive: boolean;
+  hasAdKeyPass: boolean;
+  adKeyPassExpiresAt: number | null;
+  unlockWithAdKey: () => Promise<void>;
+  lastBountyReward: HnsBountyClaimResult | null;
+  dismissBountyReward: () => void;
   isOwner: boolean;
   effectiveAlbum: Album;            // album with tracks substituted (or original for owner)
   alternates: HideNSeekAlternate[];
@@ -127,10 +141,28 @@ export function useHideNSeek(album: Album | null): UseHideNSeekResult {
   const { triggerAction, registerAndUnlock, achievements } = useAchievements();
   const [alternates, setAlternates] = useState<HideNSeekAlternate[]>([]);
   const [discoveredAltIds, setDiscoveredAltIds] = useState<string[]>([]);
+  const [adKeyPassExpiresAt, setAdKeyPassExpiresAt] = useState<number | null>(() =>
+    getActiveAdKeyPassExpiry(album?.id)
+  );
+  const [lastBountyReward, setLastBountyReward] = useState<HnsBountyClaimResult | null>(null);
 
   const uid = auth.currentUser?.uid;
   const isOwner = !!album && !!uid && album.ownerId === uid;
-  const isActive = !isOwner && isHideNSeekActive(album?.hideNSeekConfig);
+  const isScheduledWindowActive = !isOwner && isHideNSeekActive(album?.hideNSeekConfig);
+  const hasAdKeyPass = !isOwner && !!adKeyPassExpiresAt && Date.now() < adKeyPassExpiresAt;
+  const isActive = isScheduledWindowActive || hasAdKeyPass;
+
+  useEffect(() => {
+    setAdKeyPassExpiresAt(getActiveAdKeyPassExpiry(album?.id));
+  }, [album?.id]);
+
+  const unlockWithAdKey = useCallback(async () => {
+    if (!album) return;
+    const res = await grantAdKeyPass(album, 30);
+    setAdKeyPassExpiresAt(res.expiresAt);
+  }, [album]);
+
+  const dismissBountyReward = useCallback(() => setLastBountyReward(null), []);
 
   // Load alternates + user progress when album changes
   useEffect(() => {
@@ -149,6 +181,7 @@ export function useHideNSeek(album: Album | null): UseHideNSeekResult {
   const onTrackPlayed = useCallback(async (track: HnsTrack) => {
     if (!album || !track._hnsAltId) return;
 
+    const wasAlreadyDiscovered = discoveredAltIds.includes(track._hnsAltId);
     const newlyDiscovered = await recordHideNSeekDiscovery(album.id, [track._hnsAltId]);
     setDiscoveredAltIds(newlyDiscovered);
 
@@ -164,7 +197,8 @@ export function useHideNSeek(album: Album | null): UseHideNSeekResult {
 
     // Super achievement: all alternates in album discovered
     const totalAlts = alternates.length;
-    if (totalAlts > 0 && newlyDiscovered.length >= totalAlts) {
+    const isFullCompletion = totalAlts > 0 && newlyDiscovered.length >= totalAlts;
+    if (isFullCompletion) {
       const albumAchId = `hns_album_${album.id}`;
       if (!achievements.find(a => a.id === albumAchId)) {
         registerAndUnlock({
@@ -184,6 +218,14 @@ export function useHideNSeek(album: Album | null): UseHideNSeekResult {
       }
     }
 
+    // ── Sponsored Seek-to-Earn Bounty Payout (if newly discovered) ─────────
+    if (!wasAlreadyDiscovered && album.hideNSeekConfig?.sponsorBounty?.enabled) {
+      const bountyRes = await claimHideNSeekDiscoveryBounty(album, track._hnsAltId, isFullCompletion);
+      if (bountyRes?.awarded) {
+        setLastBountyReward(bountyRes);
+      }
+    }
+
     // ── Artist achievements (check stats) ─────────────────────────────────
     if (album.ownerId) {
       const stats = await fetchHideNSeekStats(album.id);
@@ -195,5 +237,18 @@ export function useHideNSeek(album: Album | null): UseHideNSeekResult {
     }
   }, [album, alternates, discoveredAltIds, triggerAction, registerAndUnlock, achievements]);
 
-  return { isActive, isOwner, effectiveAlbum: effectiveAlbum ?? album!, alternates, discoveredAltIds, onTrackPlayed };
+  return {
+    isActive,
+    isScheduledWindowActive,
+    hasAdKeyPass,
+    adKeyPassExpiresAt,
+    unlockWithAdKey,
+    lastBountyReward,
+    dismissBountyReward,
+    isOwner,
+    effectiveAlbum: effectiveAlbum ?? album!,
+    alternates,
+    discoveredAltIds,
+    onTrackPlayed,
+  };
 }

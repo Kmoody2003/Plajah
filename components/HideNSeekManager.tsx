@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Plus, Trash2, Clock, Music, BarChart2, Eye, EyeOff, Upload, Check, AlertCircle, Shuffle } from 'lucide-react';
-import { Album, Track, HideNSeekAlternate, HideNSeekConfig, HideNSeekTrackConfig, HideNSeekWindow } from '../types';
+import { X, Plus, Trash2, Clock, Music, BarChart2, Eye, EyeOff, Upload, Check, AlertCircle, Shuffle, Sparkles } from 'lucide-react';
+import { Album, Track, HideNSeekAlternate, HideNSeekConfig, HideNSeekTrackConfig, HideNSeekWindow, AlbumCanvasSponsor, HideNSeekSponsorBounty } from '../types';
 import {
   saveHideNSeekConfig,
+  updateAlbum,
   fetchHideNSeekAlternates,
   uploadHideNSeekAlternate,
   deleteHideNSeekAlternate,
@@ -14,7 +15,37 @@ import { validateHideNSeekWindow } from '../hooks/useHideNSeek';
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 function defaultConfig(): HideNSeekConfig {
-  return { isEnabled: false, globalEnabled: false, windows: [], trackConfigs: [] };
+  return { isEnabled: false, globalEnabled: false, windows: [], trackConfigs: [], adKeyUnlockEnabled: false };
+}
+
+function defaultBounty(existing?: HideNSeekSponsorBounty): HideNSeekSponsorBounty {
+  return existing ?? {
+    enabled: false,
+    sponsorName: '',
+    sponsorUrl: '',
+    totalPoolCents: 5000,
+    remainingPoolCents: 5000,
+    fanBountyCentsPerDiscovery: 50,
+    completionJackpotCents: 250,
+    goldenTicketTitle: '',
+    goldenTicketCode: '',
+  };
+}
+
+function defaultCanvasSponsor(existing?: AlbumCanvasSponsor): AlbumCanvasSponsor {
+  return existing ?? {
+    enabled: false,
+    sponsorName: '',
+    sponsorTagline: '',
+    artworkUrl: '',
+    backgroundThemeUrl: '',
+    themeColor: '#FF8C00',
+    ctaLabel: 'Visit Sponsor',
+    ctaUrl: '',
+    intervalMinutes: 15,
+    displayDurationSec: 16,
+    hnsClueText: '',
+  };
 }
 
 interface Props {
@@ -24,8 +55,10 @@ interface Props {
 }
 
 const HideNSeekManager: React.FC<Props> = ({ album, onClose, onSaved }) => {
-  const [tab, setTab] = useState<'SCHEDULE' | 'TRACKS' | 'STATS'>('SCHEDULE');
+  const [tab, setTab] = useState<'SCHEDULE' | 'TRACKS' | 'SPONSOR' | 'STATS'>('SCHEDULE');
   const [config, setConfig] = useState<HideNSeekConfig>(album.hideNSeekConfig ?? defaultConfig());
+  const [bounty, setBounty] = useState<HideNSeekSponsorBounty>(() => defaultBounty(album.hideNSeekConfig?.sponsorBounty));
+  const [canvasSponsor, setCanvasSponsor] = useState<AlbumCanvasSponsor>(() => defaultCanvasSponsor(album.canvasSponsor));
   const [alternates, setAlternates] = useState<HideNSeekAlternate[]>([]);
   const [stats, setStats] = useState<{ discoverers: number; byAlt: Record<string, number> } | null>(null);
   const [saving, setSaving] = useState(false);
@@ -141,8 +174,18 @@ const HideNSeekManager: React.FC<Props> = ({ album, onClose, onSaved }) => {
     setSaving(true);
     setError(null);
     try {
-      await saveHideNSeekConfig(album.id, config);
-      onSaved({ ...album, hideNSeekConfig: config });
+      const mergedConfig: HideNSeekConfig = {
+        ...config,
+        sponsorBounty: bounty.enabled ? bounty : undefined,
+      };
+      await saveHideNSeekConfig(album.id, mergedConfig);
+      const updatedAlbum: Album = {
+        ...album,
+        hideNSeekConfig: mergedConfig,
+        canvasSponsor: canvasSponsor.enabled ? canvasSponsor : undefined,
+      };
+      await updateAlbum(album.id, updatedAlbum);
+      onSaved(updatedAlbum);
     } catch (err: any) {
       setError(err?.message ?? 'Failed to save. Try again.');
     } finally {
@@ -251,8 +294,8 @@ const HideNSeekManager: React.FC<Props> = ({ album, onClose, onSaved }) => {
         </div>
 
         {/* Tabs */}
-        <div className="flex items-center gap-1 px-8 pt-4 shrink-0">
-          {(['SCHEDULE', 'TRACKS', 'STATS'] as const).map(t => (
+        <div className="flex items-center gap-1 px-8 pt-4 shrink-0 flex-wrap">
+          {(['SCHEDULE', 'TRACKS', 'SPONSOR', 'STATS'] as const).map(t => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -262,6 +305,7 @@ const HideNSeekManager: React.FC<Props> = ({ album, onClose, onSaved }) => {
             >
               {t === 'SCHEDULE' && <Clock size={11} className="inline mr-1.5" />}
               {t === 'TRACKS' && <Music size={11} className="inline mr-1.5" />}
+              {t === 'SPONSOR' && <Sparkles size={11} className="inline mr-1.5" />}
               {t === 'STATS' && <BarChart2 size={11} className="inline mr-1.5" />}
               {t}
             </button>
@@ -404,6 +448,159 @@ const HideNSeekManager: React.FC<Props> = ({ album, onClose, onSaved }) => {
               })}
               {/* Hidden file input */}
               <input ref={fileInputRef} type="file" accept="audio/*" className="hidden" onChange={handleFileChosen} />
+            </div>
+          )}
+
+          {/* ── SPONSOR (Ad-Key Unlocks + Seek-to-Earn Bounty + Silent Album Canvas) ── */}
+          {tab === 'SPONSOR' && (
+            <div className="space-y-6">
+              {/* 1. Ad-Key Out-of-Window Personal Pass */}
+              <div className="glass p-6 rounded-2xl border border-white/5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-black">Ad-Key Out-of-Window Pass (90% to Artist Stripe)</p>
+                    <p className="text-[11px] text-white/40 mt-0.5">
+                      When your 3-hour window is closed, fans can interact with a sponsor showcase to unlock a personal 30-minute Hide &amp; Seek hunt.
+                    </p>
+                  </div>
+                  <div
+                    onClick={() => updateConfig({ adKeyUnlockEnabled: !config.adKeyUnlockEnabled })}
+                    className={`w-12 h-6 rounded-full transition-colors relative cursor-pointer shrink-0 ${config.adKeyUnlockEnabled ? 'bg-primary' : 'bg-white/10'}`}
+                  >
+                    <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${config.adKeyUnlockEnabled ? 'left-7' : 'left-1'}`} />
+                  </div>
+                </div>
+              </div>
+
+              {/* 2. Sponsored Hide & Seek Bounty Pool ("Seek-to-Earn") */}
+              <div className="glass p-6 rounded-2xl border border-white/5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-black">Sponsored Hunt Bounty Pool ("Seek-to-Earn")</p>
+                    <p className="text-[11px] text-white/40 mt-0.5">
+                      60% Artist Stripe · 30% Fan Seeker Bounty (direct to Stripe or Zero-KYC Wallet) · 10% Plajah.
+                    </p>
+                  </div>
+                  <div
+                    onClick={() => setBounty(prev => ({ ...prev, enabled: !prev.enabled }))}
+                    className={`w-12 h-6 rounded-full transition-colors relative cursor-pointer shrink-0 ${bounty.enabled ? 'bg-primary' : 'bg-white/10'}`}
+                  >
+                    <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${bounty.enabled ? 'left-7' : 'left-1'}`} />
+                  </div>
+                </div>
+
+                {bounty.enabled && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest opacity-40 block mb-1">Sponsor Name</label>
+                      <input
+                        value={bounty.sponsorName}
+                        onChange={e => setBounty(p => ({ ...p, sponsorName: e.target.value }))}
+                        placeholder="e.g. Blue Note Roasters"
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs font-bold text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest opacity-40 block mb-1">Fan Bounty per Hidden Track (¢)</label>
+                      <input
+                        type="number"
+                        min={10}
+                        value={bounty.fanBountyCentsPerDiscovery}
+                        onChange={e => setBounty(p => ({ ...p, fanBountyCentsPerDiscovery: Number(e.target.value) || 50 }))}
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs font-bold text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest opacity-40 block mb-1">Golden Ticket Reward Title</label>
+                      <input
+                        value={bounty.goldenTicketTitle || ''}
+                        onChange={e => setBounty(p => ({ ...p, goldenTicketTitle: e.target.value }))}
+                        placeholder="e.g. Free Vinyl / 25% Off Cafe"
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs font-bold text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest opacity-40 block mb-1">Golden Ticket Code</label>
+                      <input
+                        value={bounty.goldenTicketCode || ''}
+                        onChange={e => setBounty(p => ({ ...p, goldenTicketCode: e.target.value }))}
+                        placeholder="e.g. SEEKER25"
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs font-bold text-white"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 3. Silent Album Canvas & Art-Rotation Sponsorship (10–15 Mins, No Sound) */}
+              <div className="glass p-6 rounded-2xl border border-white/5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-black">Silent Album Canvas &amp; Art Rotation (Billboards Only · No Sound)</p>
+                    <p className="text-[11px] text-white/40 mt-0.5">
+                      Every 10–15 mins, rotates your direct sponsor&apos;s artwork &amp; custom background theme into the art viewer with a pop-up link. Never interrupts the music.
+                    </p>
+                  </div>
+                  <div
+                    onClick={() => setCanvasSponsor(prev => ({ ...prev, enabled: !prev.enabled }))}
+                    className={`w-12 h-6 rounded-full transition-colors relative cursor-pointer shrink-0 ${canvasSponsor.enabled ? 'bg-primary' : 'bg-white/10'}`}
+                  >
+                    <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${canvasSponsor.enabled ? 'left-7' : 'left-1'}`} />
+                  </div>
+                </div>
+
+                {canvasSponsor.enabled && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest opacity-40 block mb-1">Direct Sponsor Name</label>
+                      <input
+                        value={canvasSponsor.sponsorName}
+                        onChange={e => setCanvasSponsor(p => ({ ...p, sponsorName: e.target.value }))}
+                        placeholder="Sponsor Brand / Business"
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs font-bold text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest opacity-40 block mb-1">Rotation Interval</label>
+                      <select
+                        value={canvasSponsor.intervalMinutes}
+                        onChange={e => setCanvasSponsor(p => ({ ...p, intervalMinutes: Number(e.target.value) === 10 ? 10 : 15 }))}
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs font-bold text-white"
+                      >
+                        <option value={10} className="bg-black">Every 10 Minutes (Silent)</option>
+                        <option value={15} className="bg-black">Every 15 Minutes (Silent)</option>
+                      </select>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="text-[10px] font-black uppercase tracking-widest opacity-40 block mb-1">Sponsor Billboard Image URL</label>
+                      <input
+                        value={canvasSponsor.artworkUrl}
+                        onChange={e => setCanvasSponsor(p => ({ ...p, artworkUrl: e.target.value }))}
+                        placeholder="https://…"
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs font-bold text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest opacity-40 block mb-1">Pop-Up Link URL</label>
+                      <input
+                        value={canvasSponsor.ctaUrl}
+                        onChange={e => setCanvasSponsor(p => ({ ...p, ctaUrl: e.target.value }))}
+                        placeholder="https://…"
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs font-bold text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest opacity-40 block mb-1">Hide &amp; Seek Clue in Slide (Optional)</label>
+                      <input
+                        value={canvasSponsor.hnsClueText || ''}
+                        onChange={e => setCanvasSponsor(p => ({ ...p, hnsClueText: e.target.value }))}
+                        placeholder="Secret cipher or track hint…"
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs font-bold text-white"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

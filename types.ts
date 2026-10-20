@@ -703,6 +703,10 @@ export interface Album {
   characterIds?: string[];
   isSlideshowEnabled?: boolean; // Toggle for slideshow experience in player
   hideNSeekConfig?: HideNSeekConfig;
+  /** Creator-approved silent visual billboard & custom background theme rotation (every 10–15 mins, no audio). */
+  canvasSponsor?: AlbumCanvasSponsor;
+  /** Optional Sponsor-to-Unlock vault that pays the creator 90% retail when fans unlock paywalled works via sponsor interaction. */
+  sponsorUnlockVault?: SponsorUnlockVault;
   gameUrl?: string;
   gameFeatures?: Record<string, boolean>;
   gameScreenshots?: string[];
@@ -791,6 +795,88 @@ export interface HideNSeekConfig {
   windows: HideNSeekWindow[];   // max 3; each window lasts exactly 3 h, min 1 h apart
   trackConfigs: HideNSeekTrackConfig[];
   timezone?: string;       // IANA timezone string of the artist
+  /** Allows listeners outside the 3-hour window to interact with a sponsor spot to unlock a 30-min personal hunt pass (90% to artist Stripe). */
+  adKeyUnlockEnabled?: boolean;
+  /** Optional sponsor bounty pool that pays both the artist and fans who discover hidden slots. */
+  sponsorBounty?: HideNSeekSponsorBounty;
+}
+
+export interface AlbumCanvasSponsor {
+  enabled: boolean;
+  sponsorUid?: string;
+  sponsorName: string;
+  sponsorTagline?: string;
+  artworkUrl: string;
+  backgroundThemeUrl?: string;
+  themeColor?: string;
+  ctaLabel?: string;
+  ctaUrl: string;
+  intervalMinutes: 10 | 15;
+  displayDurationSec?: number;
+  hnsClueText?: string;
+  rateUsd?: number;
+  approvedAt?: number;
+}
+
+export interface HideNSeekSponsorBounty {
+  enabled: boolean;
+  sponsorUid?: string;
+  sponsorName: string;
+  sponsorUrl?: string;
+  totalPoolCents: number;
+  remainingPoolCents: number;
+  fanBountyCentsPerDiscovery: number;
+  completionJackpotCents?: number;
+  goldenTicketTitle?: string;
+  goldenTicketCode?: string;
+  geoTriggerBusinessId?: string;
+}
+
+export interface SponsorUnlockVault {
+  enabled: boolean;
+  sponsorUid?: string;
+  sponsorName: string;
+  sponsorHeadline?: string;
+  sponsorCtaUrl?: string;
+  sponsorImageUrl?: string;
+  unlockPriceCents: number;
+  remainingUnlocks: number;
+  totalUnlocksFunded: number;
+}
+
+export interface CuratorCoOpSlot {
+  id: string;
+  curatorUid: string;
+  curatorName: string;
+  creatorUid: string;
+  creatorName: string;
+  targetKind: 'ALBUM' | 'PRODUCT' | 'COURSE' | 'FILM' | 'BOOK';
+  targetId: string;
+  targetTitle: string;
+  targetImageUrl: string;
+  priceCents: number;
+  curatorCommissionPct: number;
+  createdAt: number;
+}
+
+export interface AdSyncBounty {
+  id: string;
+  sponsorUid: string;
+  sponsorName: string;
+  title: string;
+  brief: string;
+  upfrontBountyCents: number;
+  adSpendRoyaltyPct: number;
+  status: 'OPEN' | 'IN_PROGRESS' | 'COMPLETED';
+  createdAt: number;
+}
+
+export interface PatronageWallet {
+  uid: string;
+  pendingStripeBalanceCents: number;
+  lifetimeDirectStripeCents: number;
+  lifetimeEarnedCents: number;
+  updatedAt: number;
 }
 
 export interface HideNSeekUserProgress {
@@ -1572,6 +1658,10 @@ export interface UserProfile {
     radioAd?: number;         // $ for a commercial spot on their Artist Radio
     fastAd?: number;          // $ for a spot/placement on their FAST channel
     crossPromo?: number;      // $ for a cross-promotion (shoutout/post/feature)
+    albumCanvasAd?: number;   // $ for silent visual billboard + background theme rotation on an album (every 10–15 mins)
+    hnsSponsor?: number;      // $ for sponsoring a 3-hour Chora Hide & Seek treasure hunt window
+    sponsorUnlock?: number;   // $ to fund a Sponsor-to-Unlock patronage vault on paywalled works
+    worldGalleryPatron?: number; // $ to underwrite a 3D Walk-in Gallery wing or IPWorld billboard
     notes?: string;
   };
   isArtist?: boolean; // True if they have uploaded content
@@ -1887,6 +1977,8 @@ export type EarningCategory =
   | 'club'           // club membership fees
   | 'seedraiser'     // crowdfunding pledge
   | 'sync_license'   // music sync-license fee (track used in a film/video)
+  | 'ad_patronage'   // Silent Album Canvas ads, Hide & Seek sponsorships, Sponsor-to-Unlock vaults, Attention Dividends
+  | 'curator_coop'   // 15% Curator Co-Op billboard affiliate commissions
   | 'other';
 
 export interface EarningSplit {
@@ -5492,8 +5584,22 @@ export interface PromoBooking {
   businessName: string;
   creatorUid: string;      // the artist (buyerId is n/a; creator = recipient)
   creatorName: string;
-  kind: 'RADIO_AD' | 'FAST_AD' | 'CROSS_PROMO';
+  kind:
+    | 'RADIO_AD'
+    | 'FAST_AD'
+    | 'CROSS_PROMO'
+    | 'ALBUM_CANVAS_AD'
+    | 'HNS_SPONSOR'
+    | 'SPONSOR_TO_UNLOCK'
+    | 'SEEDRAISER_MATCH'
+    | 'WORLD_GALLERY_PATRON';
   rate: number;            // $ the creator set for this kind, snapshotted at request time
+  targetAlbumId?: string;
+  artworkUrl?: string;
+  ctaUrl?: string;
+  ctaLabel?: string;
+  themeColor?: string;
+  intervalMinutes?: 10 | 15;
   message?: string;
   status: 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'PAID';
   createdAt: number;
@@ -8182,4 +8288,331 @@ export interface UserThreatWarning {
   originIp: string;
   guidanceMessage: string;
   resolved: boolean;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PLAJAH ELEVATE — MOBILIZATION, MULTI-SHIFT VOLUNTEERING, PEER SPOKES,
+   PETITIONS / COVENANTS & NON-SMS REMINDER SYNERGY ENGINE
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/** Non-SMS communication channels for Elevate mobilization reminders and follow-ups. */
+export type ElevateReminderChannel =
+  | 'IN_APP_PUSH'
+  | 'POST_MAN_EMAIL'
+  | 'MINISTRY_ROOM_PING'
+  | 'CALENDAR_ICS';
+
+/** Interactive quick-action buttons embedded inside Plajah In-App Notifications & Post Man emails. */
+export type ElevateReminderQuickAction =
+  | 'CONFIRM_SHIFT'
+  | 'RELEASE_SEAT_TO_WAITLIST'
+  | 'OPEN_CHECKIN_PASS'
+  | 'JOIN_MINISTRY_ROOM'
+  | 'BRING_A_FRIEND'
+  | 'UPLOAD_TO_PHOTO_POOL';
+
+export interface ElevateReminderCadenceConfig {
+  enabled: boolean;
+  channels: ElevateReminderChannel[];
+  /** Send role briefing / orientation packet (Ambo cue sheet, Chora stems, or safety notes) 72h prior. */
+  send72hPrepBrief: boolean;
+  /** Send 1-tap attendance confirmation 24h prior (releasing a seat auto-promotes the waitlist). */
+  send24hConfirmPing: boolean;
+  /** Send 1h prior sanctuary geofence / QR check-in pass and live room link. */
+  send1hDoorsPass: boolean;
+  /** Post-event synergy hooks unique to Plajah. */
+  postEventSynergy: {
+    sendImpactReceipt: boolean;
+    promptCommunityPhotoPool: boolean;
+    autoQueueAriaRepurposeBrief: boolean;
+    nextStepCta?: 'JOIN_MINISTRY' | 'SIGN_COVENANT' | 'RECURRING_GIVING' | 'HOST_SPOKE';
+  };
+}
+
+/** Plajah-exclusive "Volunteer-to-Unlock" reward attached to a volunteer shift slot. */
+export interface ElevateShiftRewardUnlock {
+  plajahPoints: number;
+  badgeTitle?: string;
+  /** Unlocks a Sanctuary asset (Chora stems, Taleo film pass, Lorea Living Book, or Merch voucher). */
+  sanctuaryUnlockKind?: 'CHORA_STEMS' | 'TALEO_SCREENING_PASS' | 'LOREA_LIVING_BOOK' | 'SANCTUARY_BADGE';
+  sanctuaryUnlockTitle?: string;
+  sanctuaryAssetId?: string;
+  /** Credits verified hours toward the member's OraGoal & ChmsPerson Impact Passport. */
+  stampOraGoalProvenance?: boolean;
+}
+
+export interface ElevateShiftSlot {
+  id: string;
+  driveId: string;
+  orgId: string;
+  ministryId?: string;
+  campusId?: string;
+  roleTitle: string;
+  description?: string;
+  dateISO: string;          // e.g. '2026-10-25'
+  startTime: string;        // e.g. '08:30 AM'
+  endTime: string;          // e.g. '11:30 AM'
+  durationHours: number;    // e.g. 3
+  locationLabel: string;
+  capacity: number;
+  confirmedCount: number;
+  waitlistCount: number;
+  checkedInCount: number;
+  waitlistEnabled: boolean;
+  skillsRequired?: string[];
+  rewardUnlock?: ElevateShiftRewardUnlock;
+}
+
+export type ElevateShiftSignupStatus =
+  | 'CONFIRMED'
+  | 'WAITLISTED'
+  | 'CHECKED_IN'
+  | 'COMPLETED'
+  | 'CANCELLED';
+
+export interface ElevateShiftSignup {
+  id: string;
+  driveId: string;
+  slotId: string;
+  orgId: string;
+  /** Coalition referral attribution when signed up via a co-hosting Elevate partner org. */
+  sourceOrgId?: string;
+  uid: string;
+  userName: string;
+  userEmail?: string;
+  userAvatar?: string;
+  status: ElevateShiftSignupStatus;
+  confirmedAttendance24h?: boolean;
+  signedUpAt: number;
+  promotedFromWaitlistAt?: number;
+  checkedInAt?: number;
+  completedAt?: number;
+  verifiedHours: number;
+  checkInMethod?: 'QR_PASS' | 'SANCTUARY_GEOFENCE' | 'LEADER_ROSTER';
+  unlockedRewardTitle?: string;
+}
+
+export interface ElevateShiftDrive {
+  id: string;
+  orgId: string;
+  ministryId?: string;
+  linkedEventId?: string;
+  title: string;
+  subtitle: string;
+  category: 'SUNDAY_SANCTUARY' | 'COMMUNITY_OUTREACH' | 'CULTURAL_DOCENT' | 'RAPID_RELIEF' | 'YOUTH_MENTORSHIP';
+  coverUrl?: string;
+  coordinatorName: string;
+  coordinatorRole?: string;
+  slots: ElevateShiftSlot[];
+  reminderCadence: ElevateReminderCadenceConfig;
+  coalitionPartnerOrgIds?: string[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** Petitions, Open Letters, Congregational Covenants & Non-Monetary Action Pledges. */
+export type ElevatePetitionKind =
+  | 'COVENANT'
+  | 'PETITION'
+  | 'OPEN_LETTER'
+  | 'ACTION_PLEDGE';
+
+export interface ElevatePetitionMilestone {
+  id: string;
+  targetSignatures: number;
+  title: string;
+  description: string;
+  unlockType: 'SPONSOR_GIVING_MATCH' | 'SANCTUARY_MEDIA_DROP' | 'TELA_DOSSIER_PUBLICATION' | 'CITY_COUNCIL_DELIVERY';
+  matchAmountUsd?: number;
+  sponsorName?: string;
+  unlocked: boolean;
+  unlockedAt?: number;
+}
+
+export interface ElevatePetitionSignature {
+  id: string;
+  petitionId: string;
+  orgId: string;
+  sourceOrgId?: string;
+  uid: string;
+  signerName: string;
+  signerCity?: string;
+  signerRoleBadge?: string; // e.g. 'Verified Member · Grace Chapel' | 'Elder' | 'Community Ally'
+  comment?: string;
+  /** Optional 30s Plajah Voice or Video Testimony attached to the signature. */
+  testimonyKind?: 'TEXT' | 'VOICE_30S' | 'VIDEO_30S';
+  testimonyMediaUrl?: string;
+  testimonyDurationSec?: number;
+  pledgedHours?: number;
+  isPublic: boolean;
+  createdAt: number;
+}
+
+export interface ElevatePetitionDrive {
+  id: string;
+  orgId: string;
+  ministryId?: string;
+  kind: ElevatePetitionKind;
+  title: string;
+  summary: string;
+  bodyMarkdown: string;
+  recipientTarget?: string; // e.g. 'Atlanta Housing Authority & Faith Coalition' or 'Grace Chapel Congregation'
+  goalSignatures: number;
+  signatureCount: number;
+  verifiedMemberCount: number;
+  voiceTestimonyCount: number;
+  totalPledgedHours: number;
+  milestones: ElevatePetitionMilestone[];
+  coalitionPartnerOrgIds?: string[];
+  telaExportReady?: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** Distributed Peer-to-Peer Chapter & Spoke Event Hosting (with Plajah Community Screening Licenses). */
+export interface ElevateCommunityScreeningLicense {
+  assetKind: 'TALEO_FILM' | 'REELLO_LIVE_STREAM' | 'CHORA_WORSHIP_SET' | 'LOREA_LIVING_BOOK';
+  assetId: string;
+  assetTitle: string;
+  licenseCode: string;
+  includesAmboSlideDeck: boolean;
+  includesDiscussionGuide: boolean;
+}
+
+export interface ElevateSpokeHostEvent {
+  id: string;
+  campaignId: string;
+  parentOrgId: string;
+  hostUid: string;
+  hostName: string;
+  hostRoleBadge: string;
+  title: string;
+  city: string;
+  neighborhood: string;
+  venueKind: 'HOME_SANCTUARY' | 'CAMPUS_CHAPTER' | 'ALLIED_CHURCH' | 'COMMUNITY_CENTER' | 'VIRTUAL_ROOM';
+  dateISO: string;
+  timeLabel: string;
+  capacity: number;
+  rsvpCount: number;
+  checkedInCount: number;
+  status: 'PENDING_VETTING' | 'APPROVED_LIVE' | 'COMPLETED' | 'DECLINED';
+  hostVetted: boolean;
+  notes?: string;
+  createdAt: number;
+}
+
+export interface ElevateSpokeCampaign {
+  id: string;
+  orgId: string;
+  title: string;
+  subtitle: string;
+  description: string;
+  toolkitSummary: string[];
+  /** Plajah-exclusive: grant approved peer hosts a license to screen a Taleo film, Reello stream, or Chora set. */
+  screeningLicense?: ElevateCommunityScreeningLicense;
+  requireHostVetting: boolean;
+  spokes: ElevateSpokeHostEvent[];
+  createdAt: number;
+}
+
+/** External CRM & Coalition Sync Bridge (NGP VAN, EveryAction, Planning Center, NationBuilder, Salesforce). */
+export type ElevateExternalCrmProvider =
+  | 'PLANNING_CENTER'
+  | 'SERVANT_KEEPER'
+  | 'NGP_VAN_EVERYACTION'
+  | 'NATIONBUILDER'
+  | 'SALESFORCE_NONPROFIT';
+
+export interface ElevateCrmSyncProfile {
+  id: string;
+  orgId: string;
+  provider: ElevateExternalCrmProvider;
+  label: string;
+  direction: 'IMPORT' | 'EXPORT' | 'BIDIRECTIONAL';
+  syncPeopleToChms: boolean;
+  syncShiftsToAttendance: boolean;
+  syncPetitionsToTags: boolean;
+  syncGivingToPledges: boolean;
+  webhookEndpoint?: string;
+  lastSyncedAt?: number;
+  lastSyncedRecordCount?: number;
+  status: 'CONNECTED' | 'READY_CSV' | 'SYNCING';
+}
+
+export interface ElevateImpactPassport {
+  uid: string;
+  orgId: string;
+  verifiedVolunteerHours: number;
+  completedShiftsCount: number;
+  upcomingShiftsCount: number;
+  petitionsSignedCount: number;
+  spokesHostedCount: number;
+  plajahPointsEarned: number;
+  unlockedRewards: string[];
+  badges: string[];
+}
+
+export type ElevateCampaignJurisdiction =
+  | 'GRASSROOTS_MUNICIPAL'
+  | 'SCHOOL_BOARD_COUNTY'
+  | 'STATE_LEGISLATIVE'
+  | 'BALLOT_MEASURE'
+  | 'FEDERAL_FEC';
+
+export type ElevateCampaignTaxClassification =
+  | '501C3_PUBLIC_CHARITY'
+  | '501C4_CIVIC_ACTION'
+  | '527_CANDIDATE_COMMITTEE'
+  | 'BALLOT_QUESTION_COMMITTEE';
+
+export interface ElevateCampaignDonorAttestation {
+  isUsCitizenOrPermanentResident: boolean;
+  isPersonalFunds: boolean;
+  isNotFederalOrMunicipalContractor: boolean;
+  isPersonalCardNotCorporate: boolean;
+  isAtLeast18: boolean;
+}
+
+export interface ElevateCampaignContributionRecord {
+  id: string;
+  orgId: string;
+  donorFullName: string;
+  donorEmail: string;
+  streetAddress: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  occupation: string;
+  employer: string;
+  amountUsd: number;
+  aggregateCycleToDateUsd: number;
+  electionCycle: string;
+  attestation: ElevateCampaignDonorAttestation;
+  receiptNotice: string;
+  createdAt: number;
+}
+
+export interface ElevateCivicCampaignComplianceConfig {
+  enabled: boolean;
+  taxClassification: ElevateCampaignTaxClassification;
+  jurisdiction: ElevateCampaignJurisdiction;
+  committeeLegalName: string;
+  candidateName?: string;
+  officeSought?: string;
+  treasurerFullName: string;
+  committeeRegistrationId?: string;
+  authorizedByCandidate: boolean;
+  perDonorElectionLimitUsd: number;
+  itemizationThresholdUsd: number;
+  electionCycleLabel: string;
+  /** 26 U.S.C. § 501(c)(3) Johnson Amendment firewall: blocks 501(c)(3) orgs from co-hosting partisan drives */
+  johnsonAmendmentFirewallActive: boolean;
+  /** 18 U.S.C. § 597 Anti-Vote-Buying guard: rewards allowed only on volunteer labor shifts, never on voting/registration */
+  antiVoteBuyingRewardGuardActive: boolean;
+  /** 11 CFR § 114.2 Corporate In-Kind Ban: disables corporate sponsor matching grants on partisan candidate petitions */
+  blockCorporateInKindMatchActive: boolean;
+  /** Statutory AI / Synthetic Media Disclosure on ARIA / Fabula / Reello campaign broadcasts */
+  syntheticMediaDisclosureActive: boolean;
+  /** Replaces 501(c)(3) tax-deductible receipt language with statutory non-deductible notice */
+  taxDeductibleReceiptsDisabled: boolean;
 }

@@ -1,0 +1,516 @@
+{
+  "char_1": {
+    "characterId": "char_1",
+    "name": "Melvin Lester (Pumpkin Patch)",
+    "quote": "I already told you... I don't work for government stooges. Keep it. You got nothing I need.",
+    "movieSampleUrl": "/audio/halloween/voices/char_1_movie_sample.wav",
+    "vocalTractIrUrl": "/audio/halloween/voices/char_1_vocal_ir.wav",
+    "segments": [
+      [
+        1196.0,
+        1206.5
+      ],
+      [
+        1223.0,
+        1233.5
+      ]
+    ],
+    "durationSec": 21.38,
+    "naturalSemitoneTarget": 9.76,
+    "f0MedianHz": 324.3,
+    "f0StdHz": 129.1,
+    "formants": {
+      "f1Hz": 257.8,
+      "f1GainDb": 8.06,
+      "f2Hz": 914.1,
+      "f2GainDb": 2.04,
+      "f3Hz": 2414.1,
+      "f3GainDb": 0.15,
+      "f4Hz": 3656.2,
+      "f4GainDb": -3.69
+    },
+    "spectralEnvelope24": [
+      -0.275,
+      1.274,
+      0.803,
+      0.416,
+      0.28,
+      0.238,
+      0.152,
+      0.13,
+      0.176,
+      0.068,
+      -0.19,
+      -0.33,
+      -0.336,
+      -0.434,
+      -0.615,
+      -0.689,
+      -0.671,
+      -0.673,
+      -0.653,
+      -0.576,
+      -0.54,
+      -0.569,
+      -0.578,
+      -0.554
+    ],
+    "voicedFramesAnalyzed": 1095
+  },
+  "char_3": {
+    "characterId": "char_3",
+    "name": "Wicked Witch Miriam",
+    "quote": "Zoraster is dead, darling. Come out wherever you are, horseman. I sense you're near.",
+    "movieSampleUrl": "/audio/halloween/voices/char_3_movie_sample.wav",
+    "vocalTractIrUrl": "/audio/halloween/voices/char_3_vocal_ir.wav",
+    "segments": [
+      [
+        934.0,
+        938.5
+      ],
+      [
+        2329.0,
+        2335.0
+      ]
+    ],
+    "durationSec": 10.89,
+    "naturalSemitoneTarget": 9.76,
+    "f0MedianHz": 421.1,
+    "f0StdHz": 112.8,
+    "formants": {
+      "f1Hz": 257.8,
+      "f1GainDb": 8.08,
+      "f2Hz": 914.1,
+      "f2GainDb": 2.8,
+      "f3Hz": 2742.2,
+      "f3GainDb": -0.48,
+      "f4Hz": 3656.2,
+      "f4GainDb": -2.97
+    },
+    "spectralEnvelope24": [
+      0.001,
+      1.199,
+      0.554,
+      0.456,
+      0.408,
+      0.167,
+      0.094,
+      0.131,
+      -0.029,
+      -0.173,
+      -0.103,
+      -0.121,
+      -0.339,
+      -0.475,
+      -0.495,
+      -0.561,
+      -0.589,
+      -0.548,
+      -0.619,
+      -0.757,
+      -0.767,
+      -0.743,
+      -0.813,
+      -0.806
+    ],
+    "voicedFramesAnalyzed": 751
+  },
+  "char_4": {
+    "characterId": "char_4",
+    "name": "Stitch (The Scarecrow)",
+    "quote": "Well, hello there, gorgeous. Remember me? It's been a while. Sorry your little attack plan failed.",
+    "movieSampleUrl": "/audio/halloween/voices/char_4_movie_sample.wav",
+    "vocalTractIrUrl": "/audio/halloween/voices/char_4_vocal_ir.wav",
+    "segments": [
+      [
+        1025.0,
+        1035.0
+      ]
+    ],
+    "durationSec": 10.19,
+    "naturalSemitoneTarget": 5.73,
+    "f0MedianHz": 229.7,
+    "f0StdHz": 66.6,
+    "formants": {
+      "f1Hz": 843.8,
+      "f1GainDb": 6.65,
+      "f2Hz": 914.1,
+      "f2GainDb": 6.53,
+      "f3Hz": 2671.9,
+      "f3GainDb": 0.82,
+      "f4Hz": 3796.9,
+      "f4GainDb": -2.7
+    },
+    "spectralEnvelope24": [
+      -0.855,
+      0.807,
+      0.873,
+      1.104,
+      0.844,
+      0.177,
+      -0.207,
+      -0.259,
+      -0.259,
+      -0.095,
+      0.13,
+      -0.047,
+      -0.489,
+      -0.625,
+      -0.485,
+      -0.47,
+      -0.594,
+      -0.707,
+      -0.809,
+      -0.841,
+      -0.808,
+      -0.896,
+      -1.054,
+      -1.029
+    ],
+    "voicedFramesAnalyzed": 336
+  },
+  "char_8": {
+    "characterId": "char_8",
+    "name": "Director Jack (Ichabod Crane)",
+    "quote": "District 13? Dracula, dammit! Nobody walks out of District 13. Not even our best operatives.",
+    "movieSampleUrl": "/audio/halloween/voices/char_8_movie_sample.wav",
+    "vocalTractIrUrl": "/audio/halloween/voices/char_8_vocal_ir.wav",
+    "segments": [
+      [
+        444.0,
+        457.5
+      ]
+    ],
+    "durationSec": 13.69,
+    "naturalSemitoneTarget": 5.81,
+    "f0MedianHz": 230.8,
+    "f0StdHz": 136.9,
+    "formants": {
+      "f1Hz": 257.8,
+      "f1GainDb": 5.86,
+      "f2Hz": 1101.6,
+      "f2GainDb": 1.8,
+      "f3Hz": 2414.1,
+      "f3GainDb": 0.78,
+      "f4Hz": 3656.2,
+      "f4GainDb": -2.08
+    },
+    "spectralEnvelope24": [
+      -0.527,
+      0.877,
+      0.38,
+      0.243,
+      0.299,
+      0.227,
+      0.064,
+      -0.001,
+      0.065,
+      0.13,
+      0.056,
+      -0.122,
+      -0.231,
+      -0.254,
+      -0.347,
+      -0.509,
+      -0.596,
+      -0.627,
+      -0.71,
+      -0.789,
+      -0.795,
+      -0.792,
+      -0.809,
+      -0.803
+    ],
+    "voicedFramesAnalyzed": 1220
+  },
+  "char_5": {
+    "characterId": "char_5",
+    "name": "Commander Crane (Robo-Bones)",
+    "quote": "Scareforce One launched, unannounced, then flew toward the border over New Hallows City.",
+    "movieSampleUrl": "/audio/halloween/voices/char_5_movie_sample.wav",
+    "vocalTractIrUrl": "/audio/halloween/voices/char_5_vocal_ir.wav",
+    "segments": [
+      [
+        412.0,
+        418.0
+      ],
+      [
+        448.0,
+        453.0
+      ]
+    ],
+    "durationSec": 11.4,
+    "naturalSemitoneTarget": 3.77,
+    "f0MedianHz": 205.1,
+    "f0StdHz": 132.9,
+    "formants": {
+      "f1Hz": 257.8,
+      "f1GainDb": 6.53,
+      "f2Hz": 914.1,
+      "f2GainDb": 3.03,
+      "f3Hz": 2414.1,
+      "f3GainDb": 0.12,
+      "f4Hz": 3656.2,
+      "f4GainDb": -3.01
+    },
+    "spectralEnvelope24": [
+      -0.536,
+      1.028,
+      0.701,
+      0.536,
+      0.444,
+      0.258,
+      0.036,
+      -0.062,
+      -0.025,
+      0.02,
+      -0.024,
+      -0.143,
+      -0.275,
+      -0.394,
+      -0.501,
+      -0.582,
+      -0.647,
+      -0.736,
+      -0.831,
+      -0.884,
+      -0.911,
+      -0.948,
+      -0.968,
+      -0.966
+    ],
+    "voicedFramesAnalyzed": 1036
+  },
+  "char_2": {
+    "characterId": "char_2",
+    "name": "Special Agent Katrina Van Tassel",
+    "quote": "Scareforce One went down in Hallow Bay. Every camera in New Hallows saw it.",
+    "movieSampleUrl": "/audio/halloween/voices/char_2_movie_sample.wav",
+    "vocalTractIrUrl": "/audio/halloween/voices/char_2_vocal_ir.wav",
+    "segments": [
+      [
+        469.0,
+        474.5
+      ],
+      [
+        1105.0,
+        1113.3
+      ]
+    ],
+    "durationSec": 14.19,
+    "naturalSemitoneTarget": -3.78,
+    "f0MedianHz": 132.6,
+    "f0StdHz": 112.6,
+    "formants": {
+      "f1Hz": 257.8,
+      "f1GainDb": 7.7,
+      "f2Hz": 914.1,
+      "f2GainDb": 3.51,
+      "f3Hz": 3046.9,
+      "f3GainDb": -1.16,
+      "f4Hz": 3656.2,
+      "f4GainDb": -2.08
+    },
+    "spectralEnvelope24": [
+      -0.269,
+      1.201,
+      0.795,
+      0.625,
+      0.483,
+      0.272,
+      0.191,
+      0.169,
+      -0.067,
+      -0.373,
+      -0.397,
+      -0.234,
+      -0.207,
+      -0.295,
+      -0.347,
+      -0.488,
+      -0.796,
+      -0.994,
+      -0.907,
+      -0.806,
+      -0.913,
+      -1.031,
+      -1.009,
+      -1.085
+    ],
+    "voicedFramesAnalyzed": 942
+  },
+  "char_marv": {
+    "characterId": "char_marv",
+    "name": "Marv (District 13 Tavern Fixer)",
+    "quote": "You better pray, Pumpkin Patch! Goddamn it, Melvin, what did I say about beheadings?",
+    "movieSampleUrl": "/audio/halloween/voices/char_marv_movie_sample.wav",
+    "vocalTractIrUrl": "/audio/halloween/voices/char_marv_vocal_ir.wav",
+    "segments": [
+      [
+        710.0,
+        716.5
+      ],
+      [
+        732.0,
+        737.0
+      ]
+    ],
+    "durationSec": 11.89,
+    "naturalSemitoneTarget": 9.76,
+    "f0MedianHz": 375.0,
+    "f0StdHz": 82.2,
+    "formants": {
+      "f1Hz": 257.8,
+      "f1GainDb": 6.14,
+      "f2Hz": 914.1,
+      "f2GainDb": 2.17,
+      "f3Hz": 2414.1,
+      "f3GainDb": -0.85,
+      "f4Hz": 3656.2,
+      "f4GainDb": -1.93
+    },
+    "spectralEnvelope24": [
+      -0.646,
+      0.977,
+      0.704,
+      0.456,
+      0.19,
+      -0.032,
+      -0.083,
+      -0.034,
+      -0.05,
+      -0.128,
+      -0.181,
+      -0.194,
+      -0.201,
+      -0.243,
+      -0.321,
+      -0.368,
+      -0.368,
+      -0.408,
+      -0.491,
+      -0.509,
+      -0.484,
+      -0.507,
+      -0.516,
+      -0.472
+    ],
+    "voicedFramesAnalyzed": 806
+  },
+  "char_6": {
+    "characterId": "char_6",
+    "name": "Lil' Boo (Ectoplasmic Ghost)",
+    "quote": "Boo-oo! Ectoplasmic containment jar charged to 100%!",
+    "movieSampleUrl": "/audio/halloween/voices/char_6_movie_sample.wav",
+    "vocalTractIrUrl": "/audio/halloween/voices/char_6_vocal_ir.wav",
+    "segments": [
+      [
+        737.0,
+        742.0
+      ],
+      [
+        2241.0,
+        2246.5
+      ]
+    ],
+    "durationSec": 10.91,
+    "naturalSemitoneTarget": 1.55,
+    "f0MedianHz": 180.5,
+    "f0StdHz": 125.4,
+    "formants": {
+      "f1Hz": 257.8,
+      "f1GainDb": 8.68,
+      "f2Hz": 914.1,
+      "f2GainDb": 3.8,
+      "f3Hz": 2484.4,
+      "f3GainDb": -1.05,
+      "f4Hz": 3656.2,
+      "f4GainDb": -3.04
+    },
+    "spectralEnvelope24": [
+      -0.177,
+      1.384,
+      1.013,
+      0.721,
+      0.492,
+      0.297,
+      0.135,
+      -0.039,
+      -0.175,
+      -0.184,
+      -0.198,
+      -0.369,
+      -0.537,
+      -0.533,
+      -0.506,
+      -0.595,
+      -0.668,
+      -0.648,
+      -0.628,
+      -0.628,
+      -0.615,
+      -0.648,
+      -0.732,
+      -0.765
+    ],
+    "voicedFramesAnalyzed": 890
+  },
+  "char_7": {
+    "characterId": "char_7",
+    "name": "President Tepes",
+    "quote": "That's pretty metal, I guess. You think we'll make it?",
+    "movieSampleUrl": "/audio/halloween/voices/char_7_movie_sample.wav",
+    "vocalTractIrUrl": "/audio/halloween/voices/char_7_vocal_ir.wav",
+    "segments": [
+      [
+        2241.0,
+        2246.5
+      ],
+      [
+        3052.5,
+        3059.0
+      ]
+    ],
+    "durationSec": 12.4,
+    "naturalSemitoneTarget": 8.31,
+    "f0MedianHz": 266.7,
+    "f0StdHz": 116.3,
+    "formants": {
+      "f1Hz": 257.8,
+      "f1GainDb": 7.97,
+      "f2Hz": 914.1,
+      "f2GainDb": 3.63,
+      "f3Hz": 2414.1,
+      "f3GainDb": -0.49,
+      "f4Hz": 3656.2,
+      "f4GainDb": -3.15
+    },
+    "spectralEnvelope24": [
+      -0.339,
+      1.279,
+      0.943,
+      0.666,
+      0.538,
+      0.414,
+      0.161,
+      -0.074,
+      -0.103,
+      -0.071,
+      -0.225,
+      -0.47,
+      -0.55,
+      -0.502,
+      -0.524,
+      -0.603,
+      -0.627,
+      -0.632,
+      -0.648,
+      -0.605,
+      -0.545,
+      -0.592,
+      -0.688,
+      -0.696
+    ],
+    "voicedFramesAnalyzed": 981
+  }
+}
