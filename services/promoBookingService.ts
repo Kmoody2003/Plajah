@@ -9,7 +9,14 @@ import type { PromoBooking, UserProfile } from '../types';
 
 export type PromoKind = PromoBooking['kind'];
 export const PROMO_LABEL: Record<PromoKind, string> = {
-  RADIO_AD: 'Radio commercial', FAST_AD: 'FAST channel spot', CROSS_PROMO: 'Cross-promotion',
+  RADIO_AD: 'Radio commercial',
+  FAST_AD: 'FAST channel spot',
+  CROSS_PROMO: 'Cross-promotion',
+  ALBUM_CANVAS_AD: 'Silent Album Art & Background Rotation (10–15 min)',
+  HNS_SPONSOR: 'Chora Hide & Seek 3-Hour Hunt Sponsor',
+  SPONSOR_TO_UNLOCK: 'Sponsor-to-Unlock Patronage Vault',
+  SEEDRAISER_MATCH: 'SeedRaiser Ad-Matched Crowdfunding Pool',
+  WORLD_GALLERY_PATRON: '3D Walk-in Gallery & World Underwriting',
 };
 
 /** Creator: save the rates businesses can book. */
@@ -23,7 +30,17 @@ export async function setCreatorPromoRates(rates: NonNullable<UserProfile['promo
 export function rateFor(profile: Pick<UserProfile, 'promoRates'>, kind: PromoKind): number {
   const r = profile.promoRates;
   if (!r) return 0;
-  return kind === 'RADIO_AD' ? (r.radioAd || 0) : kind === 'FAST_AD' ? (r.fastAd || 0) : (r.crossPromo || 0);
+  switch (kind) {
+    case 'RADIO_AD': return r.radioAd || 0;
+    case 'FAST_AD': return r.fastAd || 0;
+    case 'CROSS_PROMO': return r.crossPromo || 0;
+    case 'ALBUM_CANVAS_AD': return r.albumCanvasAd || 0;
+    case 'HNS_SPONSOR': return r.hnsSponsor || 0;
+    case 'SPONSOR_TO_UNLOCK': return r.sponsorUnlock || 0;
+    case 'WORLD_GALLERY_PATRON': return r.worldGalleryPatron || 0;
+    case 'SEEDRAISER_MATCH': return r.sponsorUnlock || r.crossPromo || 0;
+    default: return 0;
+  }
 }
 
 /** Artist directory for businesses — creators who accept promo bookings. */

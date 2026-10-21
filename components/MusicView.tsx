@@ -16,13 +16,18 @@ import {
   ChevronLeft, ChevronRight, PlayCircle, User,
   ListMusic, Sparkles, Clock, Zap, BookOpen, Headphones, VideoIcon, LayoutGrid,
   Filter, ArrowUpDown, Archive, History, Library, Search,
-  Headphones as HeadphonesIcon, BarChart2, Flame, Plus, X, Trash2, ChevronDown, ChevronUp, Layers, Upload, Waves, Film
+  Headphones as HeadphonesIcon, BarChart2, Flame, Plus, X, Trash2, ChevronDown, ChevronUp, Layers, Upload, Waves, Film,
+  Sun, Moon, MessageSquare, Undo2, ThumbsUp
 } from 'lucide-react';
+import { listMyLikedTracks, type TrackReaction } from '../services/tasteService';
 import { motion, AnimatePresence } from 'motion/react';
 import { fetchAllPublicAlbums, fetchUpcomingAlbums, fetchUserProfile, searchUsers, fetchSystemSettingsConfig, fetchPlaylistsByIds, syncPublicDomainAsset, fetchPersonalPlaylists, fetchPersonalTracks, createPlaylist, deletePlaylist, addTrackToPlaylist, addExternalTrackToPlaylist, removeTrackFromPlaylist, fetchTrackStats, updateUserProfile, auth } from '../services/backendService';
 import SignInPrompt from './SignInPrompt';
 import ChipRail from './ui/ChipRail';
-import ChoraNextMasthead from './ChoraNextMasthead';
+import ChoraMarquee, { SourceBadge, type MarqueeItem } from './chora/ChoraMarquee';
+import ChoraSkyBand from './chora/ChoraSkyBand';
+import { fetchTopPodcasts, type PodcastShow } from '../services/podcastDirectory';
+import { getFollowedPodcasts, subscribePodcastLibrary } from '../services/podcastLibraryService';
 import { useChoraNext } from '../hooks/useChoraNext';
 import PlaylistPickerModal from './PlaylistPickerModal';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
@@ -45,10 +50,11 @@ import {
 import {
   fetchAudiusTrending, searchAudius,
   loadAudiusCuration, fetchAudiusPlaylistTracks, fetchAudiusArtistTracks, fetchAudiusArtistById,
-  audiusAlbumToNativeAlbum, audiusTrackToNativeAlbum, isAudiusOwner,
+  audiusAlbumToNativeAlbum, audiusTrackToNativeAlbum, audiusTrackToMixAlbum, fetchAudiusMixes, audiusStreamUrlSync, isAudiusOwner,
   AudiusCuration, AudiusPlaylist, AudiusArtist, AudiusAlbum,
 } from '../services/audiusService';
-import { followedAudiusOwnerIds } from '../services/audiusLibrary';
+import { followedAudiusOwnerIds, invalidateAudiusLibrary } from '../services/audiusLibrary';
+import { getAudiusSession, loginWithAudius, AUDIUS_SESSION_EVENT, type AudiusSession } from '../services/audiusAuth';
 import { listIncomingLicenseRequests } from '../services/licenseRequests';
 import PlajahPlusBanner from './PlajahPlusBanner';
 import { WC26_TEAMS } from '../data/worldCup2026';
@@ -129,50 +135,6 @@ const AudiusArtistPage = lazy(() => import('./AudiusArtistPage'));
 const AudiusAlbumView  = lazy(() => import('./AudiusAlbumView'));
 const AudiusLibraryPanel = lazy(() => import('./AudiusLibraryPanel'));
 const ChoraConservatory = lazy(() => import('./ChoraConservatory'));
-
-// ── World Cup Anthem Banner ────────────────────────────────────────────────────
-const WcAnthemBanner: React.FC<{ onOpenPlaylist: () => void }> = ({ onOpenPlaylist }) => {
-  const [dismissed, setDismissed] = React.useState(() => localStorage.getItem('wc26_anthem_banner_dismissed') === '1');
-  if (dismissed) return null;
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: -8 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="mt-4 relative overflow-hidden rounded-2xl px-4 py-2.5 sm:px-5 sm:py-4 flex items-center gap-3 sm:gap-4 cursor-pointer group"
-      style={{ background: 'linear-gradient(135deg, #001A35 0%, #003366 50%, #001A35 100%)', border: '1px solid rgba(255,140,0,0.3)' }}
-      onClick={onOpenPlaylist}
-    >
-      {/* Flags strip */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-10 select-none">
-        <div className="flex gap-1 text-2xl pt-2 pl-2">
-          {WC26_TEAMS.slice(0, 16).map(t => <span key={t.id}>{t.flag}</span>)}
-        </div>
-      </div>
-      <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-[#FF8C00]/15 flex items-center justify-center shrink-0 text-base sm:text-xl">🎵</div>
-      <div className="flex-1 min-w-0">
-        {/* Phone: a single tight line */}
-        <p className="sm:hidden text-xs font-black text-white truncate">Nations of the World Cup Anthems</p>
-        {/* Tablet+: the richer copy */}
-        <p className="hidden sm:block text-[7px] font-black uppercase tracking-[0.4em] text-[#FF8C00] mb-0.5">World Cup 2026</p>
-        <p className="hidden sm:block text-xs font-black text-white leading-snug">
-          Celebrate the Countries of the World Cup — in music with our World Cup Playlist of National Anthems
-        </p>
-      </div>
-      <button
-        onClick={onOpenPlaylist}
-        className="shrink-0 px-3 py-1.5 sm:px-4 sm:py-2 bg-[#FF8C00] text-black rounded-xl text-[8px] font-black uppercase tracking-widest hover:bg-[#FFA020] transition-colors whitespace-nowrap"
-      >
-        Play All
-      </button>
-      <button
-        onClick={e => { e.stopPropagation(); localStorage.setItem('wc26_anthem_banner_dismissed', '1'); setDismissed(true); }}
-        className="shrink-0 p-1.5 rounded-full text-white/30 hover:text-white/60 transition-colors"
-      >
-        <X size={12} />
-      </button>
-    </motion.div>
-  );
-};
 
 // ── World Cup Anthems Playlist ─────────────────────────────────────────────────
 const WcAnthemPlaylist: React.FC<{ onOpenAlbum?: (album: Album) => void }> = ({ onOpenAlbum }) => {
@@ -389,33 +351,76 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
   const [pulseIdx, setPulseIdx] = useState(0);
   const [sponsoredIdx, setSponsoredIdx] = useState(0);
   const [upcomingAlbums, setUpcomingAlbums] = useState<Album[]>([]);
-  const [heroAlbumIndex, setHeroAlbumIndex] = useState(0);
-  const [heroParallax, setHeroParallax] = useState({ x: 0, y: 0 });
-
+  // Newest native releases with art — the marquee's Chora bill.
   const bgAlbums = useMemo(() =>
     [...albums]
-      .filter(a => !!a.coverImage)
+      .filter(a => !!a.coverImage && !isAudiusOwner(a.ownerId))
       .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
       .slice(0, 5),
     [albums]
   );
 
-  const goToHeroAlbum = (direction: 'prev' | 'next') => {
-    if (!bgAlbums.length) return;
-    setHeroAlbumIndex(prev =>
-      direction === 'next'
-        ? (prev + 1) % bgAlbums.length
-        : (prev - 1 + bgAlbums.length) % bgAlbums.length
-    );
-  };
-
+  // Create menu (Upload · Melos · Sync requests · Audius discovery) in the tab bar.
+  const [createOpen, setCreateOpen] = useState(false);
+  const createMenuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (bgAlbums.length < 2) return;
-    const id = setInterval(() => {
-      setHeroAlbumIndex((prev) => (prev + 1) % bgAlbums.length);
-    }, 20000);
-    return () => clearInterval(id);
-  }, [bgAlbums.length]);
+    if (!createOpen) return;
+    const close = (e: MouseEvent) => { if (!createMenuRef.current?.contains(e.target as Node)) setCreateOpen(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setCreateOpen(false); };
+    window.addEventListener('mousedown', close);
+    window.addEventListener('keydown', esc);
+    return () => { window.removeEventListener('mousedown', close); window.removeEventListener('keydown', esc); };
+  }, [createOpen]);
+
+  // Connected Audius account — drives "Connect your Audius" vs the Your Audius library under the rail.
+  const [audiusSession, setAudiusSession] = useState<AudiusSession | null>(() => getAudiusSession());
+  const [audiusConnecting, setAudiusConnecting] = useState(false);
+  useEffect(() => {
+    const onChange = () => setAudiusSession(getAudiusSession());
+    window.addEventListener(AUDIUS_SESSION_EVENT, onChange);
+    return () => window.removeEventListener(AUDIUS_SESSION_EVENT, onChange);
+  }, []);
+  // Long-form Audius sets for the Mixes tab — fetched the first time Mixes opens (Audius discovery on).
+  const [audiusMixes, setAudiusMixes] = useState<ArchiveTrack[] | null>(null);
+  useEffect(() => {
+    if (activeTab !== 'MIXES' || !audiusEnabled || audiusMixes) return;
+    let dead = false;
+    fetchAudiusMixes(18).then(m => { if (!dead) setAudiusMixes(m); }).catch(() => { if (!dead) setAudiusMixes([]); });
+    return () => { dead = true; };
+  }, [activeTab, audiusEnabled, audiusMixes]);
+
+  // ── Landing, beyond music: podcasts (your shows · Chora originals · the chart), audiobooks, and
+  //    one Vault shelf a day. Fetched the first time the New tab shows. ──
+  const [pendingPodcast, setPendingPodcast] = useState<PodcastShow | null>(null);
+  const [topPodcasts, setTopPodcasts] = useState<PodcastShow[]>([]);
+  const [followedPods, setFollowedPods] = useState<PodcastShow[]>(() => getFollowedPodcasts() as PodcastShow[]);
+  useEffect(() => subscribePodcastLibrary(() => setFollowedPods(getFollowedPodcasts() as PodcastShow[])), []);
+  const [landingVault, setLandingVault] = useState<(VaultShelf & { items: ArchiveTrack[] }) | null>(null);
+  const landingExtrasStarted = useRef(false);
+  useEffect(() => {
+    if (activeTab !== 'NEW' || landingExtrasStarted.current) return;
+    landingExtrasStarted.current = true;
+    fetchTopPodcasts(10).then(setTopPodcasts).catch(err => console.error('[Chora] podcast chart failed:', err));
+    // Today's Vault shelf rotates daily; a shelf that comes back empty hands over to the next one.
+    const pool = VAULT_SHELVES.filter(s => s.kind !== 'AUDIOBOOK');
+    const day = Math.floor(Date.now() / 86_400_000);
+    (async () => {
+      for (let k = 0; k < Math.min(3, pool.length); k++) {
+        const shelf = pool[(day + k) % pool.length];
+        try {
+          const items = await shelf.fetch(8);
+          if (items.length) { setLandingVault({ ...shelf, items: items.slice(0, 6) }); return; }
+        } catch (err) { console.error(`[Chora] Vault shelf "${shelf.id}" failed:`, err); }
+      }
+    })();
+  }, [activeTab]);
+
+  const connectAudius = async () => {
+    setAudiusConnecting(true);
+    try { await loginWithAudius({ scope: 'read' }); invalidateAudiusLibrary(); }
+    catch (err) { console.error('[Chora] Audius login failed:', err); }
+    finally { setAudiusConnecting(false); setAudiusSession(getAudiusSession()); }
+  };
 
   // Listen for global open audiobook requests (from Lorea BookReader or other views)
   useEffect(() => {
@@ -919,6 +924,112 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
     }
     return sorted;
   };
+
+  // Liked songs / Loved — smart playlists built from the listener's reactions (services/tasteService).
+  // Older reactions saved before the url was stored are resolved from the loaded catalog (native)
+  // or the Audius stream endpoint; anything still unplayable is left out rather than shown broken.
+  const [reactionRows, setReactionRows] = useState<TrackReaction[]>([]);
+  useEffect(() => {
+    if (!userProfile?.uid || (activeTab !== 'PLAYLISTS' && activeTab !== 'NEW')) return;
+    let dead = false;
+    const load = () => listMyLikedTracks('LIKED').then(rows => { if (!dead) setReactionRows(rows); });
+    void load();
+    window.addEventListener('taste:changed', load);
+    return () => { dead = true; window.removeEventListener('taste:changed', load); };
+  }, [userProfile?.uid, activeTab]);
+  const reactionAlbum = (which: 'LIKED' | 'LOVED'): Album => {
+    const rows = which === 'LOVED' ? reactionRows.filter(r => r.signal === 'LOVE') : reactionRows;
+    const byId = new Map(albums.map(a => [a.id, a]));
+    const tracks = rows.map(r => {
+      let url = r.url; let cover = r.cover; let duration = r.duration;
+      if (!url && r.albumId) {
+        const al = byId.get(r.albumId);
+        const t = al?.tracks?.find(x => x.id === r.trackId);
+        if (t) { url = t.url; cover = cover || t.albumCover || al!.coverImage; duration = duration || t.duration; }
+      }
+      if (!url && r.source === 'AUDIUS') url = audiusStreamUrlSync(r.trackId);
+      if (!url) return null;
+      return { id: r.trackId, title: r.title || 'Untitled', artist: r.artist || '', url, duration, albumCover: cover, images: cover ? [cover] : undefined, albumId: r.albumId, genre: r.genre } as Track;
+    }).filter((t): t is Track => !!t);
+    return {
+      id: which === 'LOVED' ? 'smart:loved' : 'smart:liked',
+      title: which === 'LOVED' ? 'Loved' : 'Liked songs',
+      artist: userProfile?.displayName || 'You',
+      coverImage: tracks[0]?.albumCover || '',
+      type: 'MUSIC', subType: 'PLAYLIST', tracks, createdAt: Date.now(),
+      themeColor: which === 'LOVED' ? '#D40055' : '#00DAF3', isPrivate: true,
+    } as Album;
+  };
+
+  // Landing podcast shelf: shows you follow, then Chora originals, then the US chart (each with its reason).
+  const landingPodcasts = useMemo(() => {
+    const out: Array<{ key: string; title: string; artist: string; art: string; why: string; chora?: boolean; open: () => void }> = [];
+    const seen = new Set<string>();
+    const openShow = (p: PodcastShow) => () => { setPendingPodcast(p); setActiveTab('PODCASTS'); };
+    for (const p of followedPods.slice(0, 2)) {
+      seen.add(p.id);
+      out.push({ key: `f_${p.id}`, title: p.title, artist: p.artist, art: p.coverImage, why: 'A show you follow', open: openShow(p) });
+    }
+    for (const a of albums.filter(a => a.subType === 'PODCAST').slice(0, 2)) {
+      out.push({ key: `c_${a.id}`, title: a.title, artist: a.artist, art: thumb(coverGridSrc(a), THUMB.card) || a.coverImage || '', why: 'A Chora original', chora: true, open: () => onSelectAlbum(a) });
+    }
+    topPodcasts.forEach((p, i) => {
+      if (out.length >= 6 || seen.has(p.id)) return;
+      seen.add(p.id);
+      out.push({ key: `t_${p.id}`, title: p.title, artist: p.artist, art: p.coverImage, why: `#${i + 1} in the US podcast charts`, open: openShow(p) });
+    });
+    return out.slice(0, 6);
+  }, [followedPods, albums, topPodcasts]);
+
+  // Landing audiobook shelf: Chora's own audiobooks first, then curated public-domain classics.
+  const landingAudiobooks = useMemo(() => {
+    const platform = albums
+      .filter(a => (a.type === 'BOOK' || a.subType === 'AUDIOBOOK' || a.genre?.toLowerCase() === 'audiobook') && !!a.coverImage)
+      .slice(0, 2)
+      .map(a => ({ key: `p_${a.id}`, title: a.title, artist: a.artist, art: thumb(coverGridSrc(a), THUMB.card) || a.coverImage || '', chora: true, open: () => onSelectAlbum(a) }));
+    const vault = CURATED_VAULT_AUDIOBOOKS.slice(0, 6 - platform.length)
+      .map(t => ({ key: `v_${t.id}`, title: t.title, artist: t.artist, art: t.thumbnailUrl, chora: false, open: () => setSelectedAudiobookTrack(enrichAudiobookTrack(t)) }));
+    return [...platform, ...vault];
+  }, [albums]);
+
+  // The marquee bill: newest Chora releases lead, two Audius trending picks share the stage.
+  const marqueeItems = useMemo<MarqueeItem[]>(() => {
+    const week = 7 * 86_400_000;
+    const native: MarqueeItem[] = bgAlbums.slice(0, 4).map(a => ({
+      id: a.id,
+      title: a.title,
+      artist: a.artist,
+      art: thumb(coverGridSrc(a), THUMB.large) || a.coverImage || '',
+      source: 'CHORA',
+      eyebrow: Date.now() - (a.createdAt || 0) < week ? 'New this week' : 'Featured on Chora',
+      meta: a.type === 'BOOK' ? `${a.bookChapters?.length || 0} chapters` : `${a.tracks?.length || 0} ${(a.tracks?.length || 0) === 1 ? 'song' : 'songs'}`,
+      onPlay: () => { const t = a.tracks?.[0]; if (t) playTrack(t, a, 'LIBRARY'); else onSelectAlbum(a); },
+      onOpen: () => onSelectAlbum(a),
+    }));
+    const audius: MarqueeItem[] = (audiusEnabled ? (audiusCuration?.trending ?? []) : [])
+      .filter(t => t.thumbnailUrl && t.url)
+      .slice(0, 2)
+      .map(t => ({
+        id: t.id,
+        title: t.title,
+        artist: t.artist,
+        art: t.thumbnailUrl,
+        source: 'AUDIUS',
+        eyebrow: 'Trending on Audius',
+        meta: t.genre || '',
+        onPlay: () => { const na = audiusTrackToNativeAlbum(t); if (na.tracks?.[0]) playTrack(na.tracks[0], na, 'LIBRARY'); },
+        onOpen: () => handlePlayVaultTrack(t),
+      }));
+    // Chora · Chora · Audius · Chora · Audius · Chora
+    const out: MarqueeItem[] = [];
+    const order = ['n', 'n', 'a', 'n', 'a', 'n'];
+    let n = 0, au = 0;
+    for (const slot of order) {
+      if (slot === 'n' && native[n]) out.push(native[n++]);
+      else if (slot === 'a' && audius[au]) out.push(audius[au++]);
+    }
+    return out;
+  }, [bgAlbums, audiusCuration, audiusEnabled]);
 
   const handlePlayVaultTrack = (track: ArchiveTrack) => {
     // Audius: open the SAME native album view a native single gets (which unlocks
@@ -1773,124 +1884,48 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
     <div className={`flex-1 bg-transparent text-white overflow-y-auto custom-scrollbar pb-40 relative${choraNextOn ? (choraNext.isNight ? ' chora-next chora-night' : ' chora-next') : ''}`}>
       <div className="flex flex-col h-full relative z-[1]">
         <div className="flex-1 min-w-0">
-          <div className="px-4 sm:px-6 lg:px-12 pt-8 mb-2 relative z-10" style={{ opacity: choraNextOn ? 1 : 0.82 }}>
+          {/* L1 Marquee header — one quiet line: the wordmark, then the skin controls. The marquee,
+              Tonight's sky and the shelves carry the page (New tab). */}
+          <div className="px-4 sm:px-6 lg:px-12 pt-6 pb-3 relative z-10 normal-case">
             <KaijuGlobalSignal>
-            {choraNextOn ? (
-              <ChoraNextMasthead
-                albums={albums}
-                upcomingAlbums={upcomingAlbums}
-                isNight={choraNext.isNight}
-                mode={choraNext.mode}
-                onCycleMode={choraNext.cycleMode}
-                onExit={() => choraNext.setEnabled(false)}
-                onFeedback={() => window.dispatchEvent(new CustomEvent('OPEN_BUG_REPORT', { detail: { context: 'chora-next' } }))}
-                onSelectAlbum={onSelectAlbum}
-                mascots={<KaijuLogoDuo className="h-14 sm:h-16 lg:h-20" />}
-                behindTitle={<KaijuLetterPeek />}
-              />
-            ) : (
-              <PageHeader mark={<KaijuLogoDuo />} behind={isTvUi ? undefined : <KaijuLetterPeek />}>Plajah Chora</PageHeader>
-            )}
-            </KaijuGlobalSignal>
-            {/* Both banners are off on TV. The Plajah+ promo belongs in the side panel, not
-                stacked above the content a viewer came for; and the World Cup anthems banner is
-                for a tournament that has finished — the playlist still lives in Playlists, which
-                is where a finished event's music belongs. */}
-            {!isTvUi && (
-              <div className="mt-4">
-                <PlajahPlusBanner variant="COMPACT" />
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+              <div className="flex items-end gap-3 min-w-0">
+                <div className="relative">
+                  {!isTvUi && <KaijuLetterPeek />}
+                  <h1 className="relative z-[1] text-white uppercase" style={{ fontFamily: "'Bricolage Grotesque', var(--font-display), sans-serif", fontWeight: 800, fontSize: 'clamp(1.75rem, 3vw, 2.4rem)', lineHeight: 1, letterSpacing: '-0.01em', paddingTop: '0.42em' }}>
+                    Plajah <span style={{ background: 'linear-gradient(120deg, #FF8C00, #D40055 55%, #6B0099)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>Chora</span>
+                  </h1>
+                </div>
+                <KaijuLogoDuo className="h-10 sm:h-12" />
               </div>
-            )}
-            {!isTvUi && <WcAnthemBanner onOpenPlaylist={() => { setActiveTab('PLAYLISTS'); }} />}
-          </div>
-
-          {bgAlbums.length > 0 && (
-            <div className="px-4 sm:px-6 lg:px-12 pb-5">
-              <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-black/20 shadow-[0_24px_60px_rgba(0,0,0,0.38)]">
-                <div className="relative h-[280px] sm:h-[340px] lg:h-[420px]">
-                  <AnimatePresence mode="wait">
-                    <motion.button
-                      key={bgAlbums[heroAlbumIndex].id}
-                      type="button"
-                      initial={{ opacity: 0, scale: 0.98 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 1.02 }}
-                      transition={{ duration: 1.2, ease: 'easeInOut' }}
-                      onClick={() => onSelectAlbum(bgAlbums[heroAlbumIndex])}
-                      onMouseMove={(e) => {
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        const x = ((e.clientX - rect.left) / rect.width - 0.5) * 18;
-                        const y = ((e.clientY - rect.top) / rect.height - 0.5) * 18;
-                        setHeroParallax({ x, y });
-                      }}
-                      onMouseLeave={() => setHeroParallax({ x: 0, y: 0 })}
-                      className="absolute inset-0 w-full h-full overflow-hidden group"
-                    >
-                      <motion.div
-                        animate={{ x: heroParallax.x, y: heroParallax.y, scale: 1.08 }}
-                        transition={{ type: 'spring', stiffness: 110, damping: 18 }}
-                        className="absolute inset-0"
-                      >
-                        <img
-                          src={thumb(coverGridSrc(bgAlbums[heroAlbumIndex]), THUMB.large) || undefined}
-                          alt={bgAlbums[heroAlbumIndex].title}
-                          onError={onThumbError(bgAlbums[heroAlbumIndex].coverImage)}
-                          className="w-full h-full object-cover"
-                          style={{ filter: 'brightness(0.72) saturate(1.05)' }}
-                        />
-                      </motion.div>
-                      <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(0,0,0,0.22) 0%, rgba(0,0,0,0.46) 52%, rgba(0,0,0,0.84) 100%)' }} />
-                      <div className="relative z-10 flex h-full flex-col justify-between p-5 sm:p-7 lg:p-9">
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full bg-small-orange animate-pulse" />
-                          <span className="text-[7px] font-black uppercase tracking-[0.45em] text-small-orange">Featured</span>
-                        </div>
-
-                        <div className="max-w-[32rem]">
-                          <p className="text-[8px] font-black uppercase tracking-[0.38em] text-white/65 mb-2">Next in Chora</p>
-                          <h3 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white leading-none tracking-tight drop-shadow-[0_8px_18px_rgba(0,0,0,0.35)]">
-                            {bgAlbums[heroAlbumIndex].title}
-                          </h3>
-                          <p className="mt-2 text-[9px] sm:text-[11px] font-black uppercase tracking-[0.28em] text-white/60 truncate">
-                            {bgAlbums[heroAlbumIndex].artist}
-                          </p>
-                        </div>
-                      </div>
-                    </motion.button>
-                  </AnimatePresence>
-
-                  <button
-                    type="button"
-                    aria-label="Previous album"
-                    onClick={(e) => { e.stopPropagation(); goToHeroAlbum('prev'); }}
-                    className="absolute left-3 top-1/2 z-20 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-black/30 text-white/80 backdrop-blur-md transition hover:bg-black/45 hover:text-white"
-                  >
-                    <ChevronLeft size={18} />
+              <div className="flex-1" />
+              {choraNextOn ? (
+                <div className="flex items-center gap-1 text-[13px] font-semibold">
+                  <button type="button" onClick={choraNext.cycleMode} title="Cycle day / night / auto" className="h-9 px-3 rounded-full flex items-center gap-1.5 text-white/75 hover:text-white hover:bg-white/[0.06] transition-colors">
+                    {choraNext.mode === 'auto' ? <Clock size={14} /> : choraNext.mode === 'day' ? <Sun size={14} /> : <Moon size={14} />}
+                    {choraNext.mode === 'auto' ? (choraNext.isNight ? 'Auto · night' : 'Auto · day') : choraNext.mode === 'day' ? 'Day' : 'Night'}
                   </button>
-                  <button
-                    type="button"
-                    aria-label="Next album"
-                    onClick={(e) => { e.stopPropagation(); goToHeroAlbum('next'); }}
-                    className="absolute right-3 top-1/2 z-20 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-black/30 text-white/80 backdrop-blur-md transition hover:bg-black/45 hover:text-white"
-                  >
-                    <ChevronRight size={18} />
+                  <button type="button" onClick={() => window.dispatchEvent(new CustomEvent('OPEN_BUG_REPORT', { detail: { context: 'chora-next' } }))} className="h-9 px-3 rounded-full flex items-center gap-1.5 text-white/75 hover:text-white hover:bg-white/[0.06] transition-colors">
+                    <MessageSquare size={14} /> Feedback
+                  </button>
+                  <button type="button" onClick={() => choraNext.setEnabled(false)} title="Return to the classic Chora UI" className="h-9 px-3 rounded-full flex items-center gap-1.5 text-white/55 hover:text-white hover:bg-white/[0.06] transition-colors">
+                    <Undo2 size={14} /> Classic
                   </button>
                 </div>
-
-                <div className="flex items-center justify-center gap-2 py-3">
-                  {bgAlbums.map((album, index) => (
-                    <button
-                      key={album.id}
-                      type="button"
-                      aria-label={`Show ${album.title}`}
-                      onClick={() => setHeroAlbumIndex(index)}
-                      className={`h-1.5 rounded-full transition-all duration-300 ${index === heroAlbumIndex ? 'w-10 bg-small-orange' : 'w-2 bg-white/35 hover:bg-white/60'}`}
-                    />
-                  ))}
-                </div>
-              </div>
+              ) : !isTvUi && (
+                <button
+                  type="button"
+                  onClick={() => choraNext.setEnabled(true)}
+                  className="h-9 px-3.5 rounded-full flex items-center gap-1.5 text-[13px] font-semibold text-white"
+                  style={{ background: 'linear-gradient(120deg, #6B0099, #00DAF3)' }}
+                  title="Preview the new Chora UI — switch back anytime"
+                >
+                  <Sparkles size={14} /> Try the new Chora
+                </button>
+              )}
             </div>
-          )}
+            </KaijuGlobalSignal>
+          </div>
 
           <nav className={`px-4 lg:px-12 mb-6 lg:mb-12 sticky top-0 backdrop-blur-2xl bg-black/40 border-b border-white/20 shadow-[0_4px_30px_rgba(0,0,0,0.5)] z-40 py-3 ${s.nav} transition-all duration-500`}>
             {/* Tabs + actions share one flex row: the Chip Rail takes flex-1/min-w-0
@@ -1909,29 +1944,16 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                 onSelect={(id) => { setActiveTab(id as TabType); setSelectedArchiveArtist(null); setSelectedAudiusArtist(null); setSelectedAudiusAlbum(null); setSelectedInterviewTrack(null); setSelectedAudiobookTrack(null); setSelectedSpeechTrack(null); setShowConservatory(false); }}
               />
             </div>
-            {/* Row 2: action buttons — beside the rail on md+, below it on mobile */}
-            <div className="flex items-center gap-2 shrink-0 overflow-x-auto no-scrollbar">
-              {/* Opt-in door to the Chora Next skin — beta, per-device, reversible. */}
-              {!choraNextOn && !isTvUi && (
-                <button
-                  onClick={() => choraNext.setEnabled(true)}
-                  className="shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all text-white hover:scale-105"
-                  style={{ background: 'linear-gradient(120deg, #6B0099, #00DAF3)', boxShadow: '0 0 14px rgba(0,218,243,0.3)' }}
-                  title="Preview the new Chora UI — switch back anytime"
-                >
-                  <Sparkles size={12} />
-                  <span className="hidden sm:inline">Try the new Chora</span>
-                  <span className="sm:hidden">New UI</span>
-                </button>
-              )}
+            {/* Row 2: the browse filter, then everything a creator starts from in one Create menu */}
+            <div className="flex items-center gap-2 shrink-0 normal-case">
               {(activeTab === 'ARTISTS' || activeTab === 'ALBUMS') && (
                 <div className="flex items-center bg-white/5 rounded-full p-0.5 border border-white/10">
-                  {([['ALL', 'All'], ['CHORA', 'Chora Only'], ['OWNED', 'Owned']] as const).map(([id, label]) => (
+                  {([['ALL', 'All'], ['CHORA', 'Chora only'], ['OWNED', 'Owned']] as const).map(([id, label]) => (
                     <button
                       key={id}
                       onClick={() => setSourceFilter(id)}
-                      className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${
-                        sourceFilter === id ? 'bg-small-orange text-black shadow-[0_0_12px_rgba(255,140,0,0.4)]' : 'text-white/40 hover:text-white'
+                      className={`h-8 px-3 rounded-full text-[13px] font-semibold transition-all whitespace-nowrap ${
+                        sourceFilter === id ? 'bg-[#FF8C00] text-[#06040A]' : 'text-white/60 hover:text-white'
                       }`}
                     >
                       {label}
@@ -1939,183 +1961,286 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                   ))}
                 </div>
               )}
-              {canUpload() && <button
-                onClick={toggleAudiusEnabled}
-                className="flex items-center gap-2 px-3 py-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all whitespace-nowrap"
-                style={audiusEnabled
-                  ? { background: '#7e22ce', color: '#e9d5ff', boxShadow: '0 0 16px rgba(126,34,206,0.5)' }
-                  : { background: 'rgba(126,34,206,0.15)', color: 'rgba(168,85,247,0.8)', border: '1px solid rgba(168,85,247,0.3)' }}
-              >
-                <Music2 size={12} />
-                {audiusLoading ? 'Loading…' : 'Audius'}
-              </button>}
-              {userProfile && onNavigate && canUpload() && (
-                <button
-                  onClick={() => onNavigate('LICENSE_REQUESTS')}
-                  title="Filmmakers requesting to license your tracks"
-                  className="relative flex items-center gap-2 px-3 py-2 bg-white/5 border border-white/10 text-white/70 hover:text-white rounded-full text-[9px] font-black uppercase tracking-widest transition-all whitespace-nowrap"
-                >
-                  <Film size={12} />
-                  <span className="hidden sm:inline">Sync Requests</span>
-                  <span className="sm:hidden">Sync</span>
-                  {pendingSyncReqs > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 grid place-items-center rounded-full bg-small-orange text-black text-[9px] font-black tabular-nums">{pendingSyncReqs > 9 ? '9+' : pendingSyncReqs}</span>
+              {userProfile && canUpload() && (
+                <div className="relative" ref={createMenuRef}>
+                  <button
+                    type="button"
+                    onClick={() => setCreateOpen(o => !o)}
+                    aria-expanded={createOpen}
+                    className="relative h-10 px-4 rounded-full flex items-center gap-1.5 bg-[#FF8C00] text-[#06040A] text-sm font-extrabold hover:brightness-110 transition"
+                  >
+                    <Plus size={15} /> Create <ChevronDown size={14} className={`transition-transform ${createOpen ? 'rotate-180' : ''}`} />
+                    {pendingSyncReqs > 0 && (
+                      <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 grid place-items-center rounded-full bg-white text-[#06040A] text-[10px] font-black tabular-nums">{pendingSyncReqs > 9 ? '9+' : pendingSyncReqs}</span>
+                    )}
+                  </button>
+                  {createOpen && (
+                    <div role="menu" className="absolute right-0 top-[calc(100%+8px)] z-50 w-64 rounded-2xl border border-white/12 p-1.5 shadow-[0_24px_60px_rgba(0,0,0,0.6)]" style={{ background: 'rgba(16,10,24,0.98)' }}>
+                      {onUploadMusic && (
+                        <button role="menuitem" type="button" onClick={() => { setCreateOpen(false); onUploadMusic(); }} className="w-full h-11 px-3 rounded-xl flex items-center gap-3 text-left text-sm font-medium text-white/90 hover:bg-white/[0.07]">
+                          <Upload size={16} className="text-[#FF8C00]" /> Upload music
+                        </button>
+                      )}
+                      {onNavigate && (
+                        <button role="menuitem" type="button" onClick={() => { setCreateOpen(false); onNavigate('MELOS'); }} className="w-full h-11 px-3 rounded-xl flex items-center gap-3 text-left text-sm font-medium text-white/90 hover:bg-white/[0.07]">
+                          <Disc size={16} className="text-[#FF6FA5]" /> Start a production in Melos
+                        </button>
+                      )}
+                      {onNavigate && (
+                        <button role="menuitem" type="button" onClick={() => { setCreateOpen(false); onNavigate('LICENSE_REQUESTS'); }} className="w-full h-11 px-3 rounded-xl flex items-center gap-3 text-left text-sm font-medium text-white/90 hover:bg-white/[0.07]">
+                          <Film size={16} className="text-white/60" /> Sync requests
+                          {pendingSyncReqs > 0 && <span className="ml-auto text-[11px] font-bold text-[#06040A] bg-[#FF8C00] px-2 py-0.5 rounded-full">{pendingSyncReqs}</span>}
+                        </button>
+                      )}
+                      <div className="my-1.5 border-t border-white/10" />
+                      <button role="menuitemcheckbox" aria-checked={audiusEnabled} type="button" onClick={() => { void toggleAudiusEnabled(); }} className="w-full h-11 px-3 rounded-xl flex items-center gap-3 text-left text-sm font-medium text-white/90 hover:bg-white/[0.07]">
+                        <Music2 size={16} style={{ color: '#C084FC' }} /> Audius discovery
+                        <span className="ml-auto text-xs font-semibold" style={{ color: audiusEnabled ? '#C084FC' : 'rgba(255,255,255,0.45)' }}>{audiusLoading ? 'Loading…' : audiusEnabled ? 'On' : 'Off'}</span>
+                      </button>
+                    </div>
                   )}
-                </button>
-              )}
-              {/* Melos — the production workspace. Sits beside Upload because the two are
-                  the same decision at different stages: upload a finished record, or open
-                  the room where one gets made. */}
-              {userProfile && onNavigate && canUpload() && (
-                <button
-                  onClick={() => onNavigate('MELOS')}
-                  title="Open Melos — write, sequence and build an album in progress"
-                  className="flex items-center gap-2 px-3 py-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all whitespace-nowrap hover:scale-105 active:scale-95"
-                  style={{ background: 'linear-gradient(120deg, #6B0099, #D40055)', color: '#fff', boxShadow: '0 0 16px rgba(212,0,85,0.35)' }}
-                >
-                  <Disc size={12} />
-                  <span className="hidden sm:inline">Start a Production</span>
-                  <span className="sm:hidden">Produce</span>
-                </button>
-              )}
-              {onUploadMusic && canUpload() && (
-                <button
-                  onClick={onUploadMusic}
-                  className="flex items-center gap-2 px-3 py-2 bg-small-orange text-black rounded-full text-[9px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-[0_0_16px_rgba(255,140,0,0.4)] whitespace-nowrap"
-                >
-                  <Upload size={12} />
-                  <span className="hidden sm:inline">Upload Music</span>
-                  <span className="sm:hidden">Upload</span>
-                </button>
+                </div>
               )}
             </div>
             </div>
           </nav>
 
-          {/* Conservatory + History Moments + Music Theory Studio — below tab bar.
-              Chora Next names this shelf "The Rooms" (honest doors, per the
-              Listening Room direction); the cards themselves are unchanged. */}
-          {choraNextOn && (
-            <p className="pj-eyebrow px-4 sm:px-6 lg:px-12 pt-6 -mb-3" style={{ color: 'rgba(255,255,255,0.4)' }}>
-              The Rooms · Chora's studios &amp; museum <span aria-hidden="true" style={{ color: 'var(--pj-orange)' }}>↗</span>
-            </p>
-          )}
-          {(onNavigate || true) && (
-            <div className="flex gap-4 px-4 sm:px-6 lg:px-12 pt-6 pb-2 overflow-x-auto no-scrollbar">
-              {/* Chora Conservatory — music museum + history */}
-              <button
-                onClick={() => setShowConservatory(true)}
-                className="shrink-0 relative w-[calc(100vw-32px)] max-w-72 h-40 rounded-[1.5rem] overflow-hidden group hover:scale-[1.03] transition-all duration-300 shadow-2xl"
-                style={{ border: '1px solid rgba(224,164,88,0.25)' }}
-              >
-                <img
-                  src="https://upload.wikimedia.org/wikipedia/commons/thumb/6/6a/Johann_Sebastian_Bach.jpg/480px-Johann_Sebastian_Bach.jpg"
-                  alt="Conservatory"
-                  className="absolute inset-0 w-full h-full object-cover object-top scale-110 group-hover:scale-125 transition-transform duration-500"
-                  style={{ filter: 'brightness(0.45) saturate(0.9) sepia(0.2)' }}
-                />
-                <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(224,164,88,0.28) 0%, transparent 48%, rgba(0,0,0,0.82) 100%)' }} />
-                <div className="relative h-full flex flex-col justify-between p-5">
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: '#E0A458' }} />
-                    <span className="text-[7px] font-black uppercase tracking-[0.35em]" style={{ color: '#E0A458' }}>The Museum</span>
-                  </div>
-                  <div>
-                    <p className="text-[8px] font-black uppercase tracking-widest mb-0.5" style={{ color: 'rgba(224,164,88,0.85)' }}>Bach to Coltrane to Aretha</p>
-                    <h3 className="text-lg font-black text-white leading-tight">The Conservatory</h3>
-                    <p className="text-[9px] text-white/55 mt-1">Masters &amp; a history of music →</p>
-                  </div>
-                </div>
-              </button>
-
-              {/* Melos — the making side of Chora. Sits beside the Conservatory deliberately:
-                  one is where music was made, this is where yours gets made. */}
-              <button
-                onClick={() => onNavigate?.('MELOS')}
-                className="shrink-0 relative w-[calc(100vw-32px)] max-w-72 h-40 rounded-[1.5rem] overflow-hidden group hover:scale-[1.03] transition-all duration-300 shadow-2xl"
-                style={{ border: '1px solid rgba(212,0,85,0.25)' }}
-              >
-                <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, #6B0099 0%, #D40055 100%)' }} />
-                <div className="absolute inset-0 opacity-35 group-hover:opacity-50 transition-opacity duration-500"
-                  style={{ background: 'radial-gradient(circle at 80% 15%, rgba(255,140,0,0.45) 0%, transparent 55%)' }} />
-                <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, transparent 35%, rgba(0,0,0,0.75) 100%)' }} />
-                <div className="relative h-full flex flex-col justify-between p-5">
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: '#FF8C00' }} />
-                    <span className="text-[7px] font-black uppercase tracking-[0.35em]" style={{ color: '#FFB86B' }}>The Studio</span>
-                  </div>
-                  <div>
-                    <p className="text-[8px] font-black uppercase tracking-widest mb-0.5" style={{ color: 'rgba(255,255,255,0.75)' }}>Write · Sequence · Produce</p>
-                    <h3 className="text-lg font-black text-white leading-tight">Melos</h3>
-                    <p className="text-[9px] text-white/60 mt-1">Where your record gets made →</p>
-                  </div>
-                </div>
-              </button>
-
-              {/* History Moments */}
-              <button
-                onClick={() => onNavigate?.('CHORA_HISTORY')}
-                className="shrink-0 relative w-[calc(100vw-32px)] max-w-72 h-40 rounded-[1.5rem] overflow-hidden group hover:scale-[1.03] transition-all duration-300 shadow-2xl"
-                style={{ border: '1px solid rgba(167,139,250,0.25)' }}
-              >
-                <img
-                  src="https://upload.wikimedia.org/wikipedia/commons/thumb/6/6a/Johann_Sebastian_Bach.jpg/480px-Johann_Sebastian_Bach.jpg"
-                  alt="History"
-                  className="absolute inset-0 w-full h-full object-cover object-top scale-110 group-hover:scale-125 transition-transform duration-500"
-                  style={{ filter: 'brightness(0.45) saturate(0.8)' }}
-                />
-                <div className="absolute inset-0 bg-gradient-to-br from-violet-950/45 via-slate-900/10 to-black/80" />
-                <div className="relative h-full flex flex-col justify-between p-5">
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-1.5 h-1.5 rounded-full bg-small-orange animate-pulse" />
-                    <span className="text-[7px] font-black uppercase tracking-[0.35em] text-small-orange">Platform Pulse</span>
-                  </div>
-                  <div>
-                    <p className="text-[8px] font-black uppercase tracking-widest text-violet-200/80 mb-0.5">Today in Music History</p>
-                    <h3 className="text-lg font-black text-white leading-tight">History Moments</h3>
-                    <p className="text-[9px] text-white/55 mt-1">Legends, composers &amp; icons →</p>
-                  </div>
-                </div>
-              </button>
-
-              {/* Music Theory Studio */}
-              <button
-                onClick={() => onNavigate?.('MUSIC_THEORY')}
-                className="shrink-0 relative w-[calc(100vw-32px)] max-w-72 h-40 rounded-[1.5rem] overflow-hidden group hover:scale-[1.03] transition-all duration-300 shadow-2xl"
-                style={{ border: '1px solid rgba(99,102,241,0.25)' }}
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-indigo-950/80 via-blue-900/60 to-violet-900/70" />
-                <svg className="absolute inset-0 w-full h-full opacity-15" viewBox="0 0 256 144">
-                  {[35, 50, 65, 80, 95].map(y => <line key={y} x1="0" y1={y} x2="256" y2={y} stroke="white" strokeWidth="1" />)}
-                  <text x="10" y="110" fontSize="80" fill="white" fontFamily="serif" opacity="0.35">𝄞</text>
-                  {[[80,65],[115,50],[150,65],[185,50],[220,65]].map(([x, cy], i) => (
-                    <ellipse key={i} cx={x} cy={cy} rx="7" ry="5" fill="white" opacity="0.5" transform={`rotate(-15,${x},${cy})`} />
-                  ))}
-                </svg>
-                <div className="relative h-full flex flex-col justify-between p-5">
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-                    <span className="text-[7px] font-black uppercase tracking-[0.35em] text-cyan-300">Learn</span>
-                  </div>
-                  <div>
-                    <p className="text-[8px] font-black uppercase tracking-widest text-cyan-200/75 mb-0.5">Novice · Intermediate · Maestro</p>
-                    <h3 className="text-lg font-black text-white leading-tight">Music Theory Studio</h3>
-                    <p className="text-[9px] text-white/55 mt-1">Ear training, scales &amp; harmony →</p>
-                  </div>
-                </div>
-              </button>
-            </div>
-          )}
-
           {activeTab === 'NEW' && !selectedArchiveArtist && (
-            <div className="px-4 sm:px-6 lg:px-12 pt-8 mb-6">
-              {/* Chora Next: the masthead + hero already announce NEW — the giant
-                  wordmark collapses to a shelf eyebrow. Classic UI keeps it. */}
-              {choraNextOn ? (
-                <p className="pj-eyebrow mb-6" style={{ color: 'rgba(255,255,255,0.4)' }}>New this week</p>
-              ) : (
-                <h1 style={{ fontSize: 'clamp(2.5rem, 12vw, 12rem)' }} className="break-words font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none mb-6 sm:mb-12">New</h1>
+            <>
+            {/* ── L1 Marquee: the stage, then Tonight's sky (both catalogs), then Audius, your circle, Selects ── */}
+            <ChoraMarquee items={marqueeItems} />
+            <ChoraSkyBand
+              albums={albums.filter(a => !isAudiusOwner(a.ownerId))}
+              upcomingAlbums={upcomingAlbums}
+              audiusTrending={audiusEnabled ? (audiusCuration?.trending ?? []) : []}
+              isNight={choraNext.isNight}
+              onSelectAlbum={onSelectAlbum}
+              onPlayAudius={handlePlayVaultTrack}
+            />
+
+            <div className="px-4 sm:px-6 lg:px-12 normal-case">
+              {audiusEnabled && (
+                <section className="pt-9" aria-label="On Audius now">
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                    <span aria-hidden="true" className="w-7 h-7 rounded-lg grid place-items-center text-[13px] font-extrabold text-white" style={{ background: '#7E1BCC' }}>A</span>
+                    <h2 className="text-white" style={{ fontFamily: "'Bricolage Grotesque', var(--font-display), sans-serif", fontWeight: 800, fontSize: 26 }}>On Audius now</h2>
+                    <span className="text-sm text-white/60">Trending across the open music network</span>
+                    <div className="flex-1" />
+                    <button type="button" onClick={() => { setVaultSource('AUDIUS'); setActiveTab('VAULT'); }} className="h-10 px-2 text-sm font-semibold transition-colors" style={{ color: '#D8B4FE' }}>See all trending</button>
+                    {!audiusSession && (
+                      <button type="button" onClick={connectAudius} disabled={audiusConnecting} className="h-10 px-4 rounded-full text-[13px] font-bold border transition-colors disabled:opacity-50" style={{ borderColor: 'rgba(168,85,247,0.5)', background: 'rgba(126,27,204,0.2)', color: '#E9D5FF' }}>
+                        {audiusConnecting ? 'Connecting…' : 'Connect your Audius'}
+                      </button>
+                    )}
+                  </div>
+                  <div className="mt-4 grid gap-5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(160px, 42vw), 1fr))' }}>
+                    {(audiusCuration?.trending ?? []).slice(0, 6).map((track, i) => (
+                      <div key={track.id} className="group min-w-0">
+                        <button type="button" onClick={() => handlePlayVaultTrack(track)} aria-label={`Play ${track.title} by ${track.artist}`} className="relative block w-full aspect-square rounded-[18px] overflow-hidden shadow-[0_16px_40px_rgba(0,0,0,0.45)]">
+                          <img src={thumb(track.thumbnailUrl, THUMB.card) || track.thumbnailUrl || undefined} onError={onThumbError(track.thumbnailUrl)} alt="" loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                          <span className="absolute left-2.5 top-2.5 h-6 px-2 rounded-full text-[11px] text-white inline-flex items-center tabular-nums" style={{ background: 'rgba(6,4,10,0.72)', fontFamily: "'JetBrains Mono', monospace" }}>#{i + 1}</span>
+                          <span className="absolute inset-0 grid place-items-center bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity"><PlayCircle size={44} style={{ color: '#E9D5FF' }} /></span>
+                        </button>
+                        <p className="mt-2.5 text-sm font-bold text-white truncate">{track.title}</p>
+                        <button type="button" onClick={() => { if (track.artistId) onVisitUser(`audius:${track.artistId}`); }} className="block max-w-full text-[13px] text-white/60 hover:text-white truncate transition-colors">{track.artist}</button>
+                      </div>
+                    ))}
+                    {!audiusCuration && audiusLoading && Array.from({ length: 6 }, (_, i) => (
+                      <div key={i} className="aspect-square rounded-[18px] bg-white/[0.05] animate-pulse" />
+                    ))}
+                  </div>
+                  {audiusSession && (
+                    <div className="mt-6">
+                      <Suspense fallback={null}>
+                        <AudiusLibraryPanel onOpenCollection={openAudiusAlbumNative} onPlayTrack={handlePlayVaultTrack} onOpenArtist={handleOpenAudiusArtist} />
+                      </Suspense>
+                    </div>
+                  )}
+                </section>
               )}
+
+              <section className="pt-11 grid gap-8 lg:gap-10" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(380px, 100%), 1fr))' }}>
+                {/* Your circle — only real signal: who you follow, what they released, who to follow next */}
+                <div className="rounded-3xl px-6 py-5 border" style={{ background: 'linear-gradient(135deg, rgba(107,0,153,0.32), rgba(212,0,85,0.14))', borderColor: 'rgba(208,188,255,0.22)' }}>
+                  <h2 className="text-white" style={{ fontFamily: "'Bricolage Grotesque', var(--font-display), sans-serif", fontWeight: 800, fontSize: 22 }}>Your circle</h2>
+                  <p className="mt-1 text-[13px] text-white/70">
+                    {musicFollowing.ids.size > 0 ? `You follow ${musicFollowing.ids.size} ${musicFollowing.ids.size === 1 ? 'artist' : 'artists'} on Chora and Audius` : 'Follow artists on Chora or Audius and their news lands here'}
+                  </p>
+                  <div className="mt-4 flex flex-col gap-3">
+                    {(forYouFollowedReleases.length > 0 ? forYouFollowedReleases.slice(0, 3) : []).map(item => item.kind === 'native' ? (
+                      <button key={item.id} type="button" onClick={() => onSelectAlbum(item.album)} className="flex items-center gap-3 text-left">
+                        <img src={thumb(coverGridSrc(item.album), THUMB.small) || undefined} onError={onThumbError(item.album.coverImage)} alt="" className="w-9 h-9 rounded-full object-cover shrink-0" />
+                        <span className="text-sm leading-snug text-white/75 min-w-0"><b className="text-white">{item.album.artist}</b> released <span className="text-white">{item.album.title}</span></span>
+                      </button>
+                    ) : (
+                      <button key={item.id} type="button" onClick={() => handlePlayVaultTrack(item.track)} className="flex items-center gap-3 text-left">
+                        <img src={item.track.thumbnailUrl || undefined} alt="" className="w-9 h-9 rounded-full object-cover shrink-0" />
+                        <span className="text-sm leading-snug text-white/75 min-w-0"><b className="text-white">{item.track.artist}</b> is trending on Audius with <span className="text-white">{item.track.title}</span></span>
+                      </button>
+                    ))}
+                    {forYouFollowedReleases.length === 0 && forYouSuggestedCreators.length > 0 && (
+                      <>
+                        <p className="text-[13px] font-semibold text-white/60">Artists to follow</p>
+                        <div className="flex flex-wrap gap-3">
+                          {forYouSuggestedCreators.slice(0, 6).map(item => {
+                            const name = item.kind === 'native' ? item.artist.displayName : item.audiusArtist.name;
+                            const pic = item.kind === 'native' ? ((item.artist as any).choraPhotoURL || item.artist.photoURL) : item.audiusArtist.profilePicture;
+                            return (
+                              <button key={item.id} type="button" title={name} onClick={() => item.kind === 'native' ? onVisitUser(item.artist.uid, 'CONTENT') : handleOpenAudiusArtist(item.audiusArtist)} className="flex items-center gap-2 h-10 pl-1 pr-3 rounded-full bg-black/25 border border-white/10 hover:border-white/30 transition-colors">
+                                {pic ? <img src={thumb(pic, THUMB.micro) || pic} alt="" className="w-8 h-8 rounded-full object-cover" /> : <span className="w-8 h-8 rounded-full grid place-items-center bg-white/10 text-xs font-bold">{(name || '?')[0]}</span>}
+                                <span className="text-[13px] font-semibold text-white max-w-[120px] truncate">{name}</span>
+                                {item.kind === 'audius' && <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#A855F7' }} aria-label="on Audius" />}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  {marqueeItems[0] && (
+                    <button type="button" onClick={marqueeItems[0].onOpen} title="Open tonight's premiere and press Listen together" className="mt-5 w-full h-11 rounded-full border border-white/35 text-sm font-bold text-white hover:bg-white/10 transition-colors">
+                      Host a listening party
+                    </button>
+                  )}
+                </div>
+
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-baseline gap-x-3.5">
+                    <h2 className="text-white" style={{ fontFamily: "'Bricolage Grotesque', var(--font-display), sans-serif", fontWeight: 800, fontSize: 22 }}>New from artists you follow</h2>
+                    <span className="text-[13px] text-white/60">Chora and Audius, together</span>
+                  </div>
+                  {forYouFollowedReleases.length > 0 ? (
+                    <div className="mt-4 grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(150px, 40vw), 1fr))' }}>
+                      {forYouFollowedReleases.slice(0, 4).map(item => {
+                        const isNative = item.kind === 'native';
+                        const art = isNative ? (thumb(coverGridSrc(item.album), THUMB.card) || item.album.coverImage) : item.track.thumbnailUrl;
+                        return (
+                          <button key={item.id} type="button" onClick={() => isNative ? onSelectAlbum(item.album) : handlePlayVaultTrack(item.track)} className="group text-left min-w-0">
+                            <span className="relative block aspect-square rounded-2xl overflow-hidden">
+                              <img src={art || undefined} alt="" loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                              <SourceBadge source={isNative ? 'CHORA' : 'AUDIUS'} className="absolute right-2 bottom-2" />
+                            </span>
+                            <span className="mt-2 block text-sm font-bold text-white truncate">{isNative ? item.album.title : item.track.title}</span>
+                            <span className="block text-[13px] text-white/60 truncate">{isNative ? item.album.artist : item.track.artist}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="mt-4 text-sm text-white/55" style={{ fontFamily: 'Newsreader, Georgia, serif', fontStyle: 'italic', fontSize: 17 }}>
+                      Nothing new from the artists you follow yet — follow a few from Your circle and their releases arrive here first.
+                    </p>
+                  )}
+                </div>
+              </section>
+
+              {forYouRecommendations.length > 0 && (
+                <section className="pt-11" aria-label="Chora Selects">
+                  <div className="flex flex-wrap items-baseline gap-x-3.5">
+                    <h2 className="text-white" style={{ fontFamily: "'Bricolage Grotesque', var(--font-display), sans-serif", fontWeight: 800, fontSize: 26 }}>Chora Selects</h2>
+                    <span style={{ fontFamily: 'Newsreader, Georgia, serif', fontStyle: 'italic', fontSize: 17, color: '#FFB86B' }}>picked for you, from both catalogs</span>
+                  </div>
+                  <div className="mt-4 grid gap-5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(180px, 42vw), 1fr))' }}>
+                    {forYouRecommendations.slice(0, 10).map(item => {
+                      const isNative = item.kind === 'native';
+                      const art = isNative ? (thumb(coverGridSrc(item.album), THUMB.card) || item.album.coverImage) : item.track.thumbnailUrl;
+                      const why = isNative
+                        ? (musicFollowing.ids.has(item.album.ownerId || '') ? 'From an artist you follow'
+                          : Date.now() - (item.album.createdAt || 0) < 7 * 86_400_000 ? 'New on Chora this week'
+                          : (item.album.playCount || 0) > 0 ? 'Popular on Chora' : 'From the Chora catalog')
+                        : (item.isUnderground ? 'Rising in the Audius underground' : 'Trending on Audius');
+                      return (
+                        <button key={`sel_${item.id}`} type="button" onClick={() => isNative ? onSelectAlbum(item.album) : handlePlayVaultTrack(item.track)} className="group text-left min-w-0">
+                          <span className="relative block aspect-square rounded-[18px] overflow-hidden">
+                            <img src={art || undefined} alt="" loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                            <SourceBadge source={isNative ? 'CHORA' : 'AUDIUS'} className="absolute left-2.5 top-2.5" />
+                          </span>
+                          <span className="mt-2.5 block text-sm font-bold text-white truncate">{isNative ? item.album.title : item.track.title}</span>
+                          <span className="block text-[13px] text-white/60 truncate">{isNative ? item.album.artist : item.track.artist}</span>
+                          <span className="mt-1 block text-white/70 truncate" style={{ fontFamily: 'Newsreader, Georgia, serif', fontStyle: 'italic', fontSize: 14 }}>{why}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+              )}
+
+              {/* ── Beyond music: podcasts, audiobooks and today's Vault shelf ── */}
+              {landingPodcasts.length > 0 && (
+                <section className="pt-11" aria-label="Podcasts for you">
+                  <div className="flex flex-wrap items-baseline gap-x-3.5 gap-y-1">
+                    <h2 className="text-white" style={{ fontFamily: "'Bricolage Grotesque', var(--font-display), sans-serif", fontWeight: 800, fontSize: 26 }}>Podcasts for you</h2>
+                    <span style={{ fontFamily: 'Newsreader, Georgia, serif', fontStyle: 'italic', fontSize: 17, color: '#FFB86B' }}>your shows, Chora originals and the charts</span>
+                    <div className="flex-1" />
+                    <button type="button" onClick={() => setActiveTab('PODCASTS')} className="h-10 text-sm font-semibold text-[#FFB86B] hover:text-[#FF8C00] transition-colors">All podcasts</button>
+                  </div>
+                  <div className="mt-4 grid gap-5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(160px, 42vw), 1fr))' }}>
+                    {landingPodcasts.map(item => (
+                      <button key={item.key} type="button" onClick={item.open} className="group text-left min-w-0">
+                        <span className="relative block aspect-square rounded-[18px] overflow-hidden">
+                          {item.art && <img src={item.art} alt="" loading="lazy" referrerPolicy="no-referrer" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />}
+                          {item.chora && <SourceBadge source="CHORA" className="absolute left-2.5 top-2.5" />}
+                        </span>
+                        <span className="mt-2.5 block text-sm font-bold text-white truncate">{item.title}</span>
+                        <span className="block text-[13px] text-white/60 truncate">{item.artist}</span>
+                        <span className="mt-1 block text-white/70 truncate" style={{ fontFamily: 'Newsreader, Georgia, serif', fontStyle: 'italic', fontSize: 14 }}>{item.why}</span>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {landingAudiobooks.length > 0 && (
+                <section className="pt-11" aria-label="Audiobooks">
+                  <div className="flex flex-wrap items-baseline gap-x-3.5 gap-y-1">
+                    <h2 className="text-white" style={{ fontFamily: "'Bricolage Grotesque', var(--font-display), sans-serif", fontWeight: 800, fontSize: 26 }}>Audiobooks</h2>
+                    <span style={{ fontFamily: 'Newsreader, Georgia, serif', fontStyle: 'italic', fontSize: 17, color: '#FFB86B' }}>Chora releases and free public-domain classics</span>
+                    <div className="flex-1" />
+                    <button type="button" onClick={() => setActiveTab('AUDIO_BOOKS')} className="h-10 text-sm font-semibold text-[#FFB86B] hover:text-[#FF8C00] transition-colors">All audiobooks</button>
+                  </div>
+                  <div className="mt-4 grid gap-5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(150px, 40vw), 1fr))' }}>
+                    {landingAudiobooks.map(item => (
+                      <button key={item.key} type="button" onClick={item.open} className="group text-left min-w-0">
+                        <span className="relative block aspect-[2/3] rounded-[14px] overflow-hidden bg-white/[0.04]">
+                          {item.art && <img src={item.art} alt="" loading="lazy" referrerPolicy="no-referrer" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />}
+                          {item.chora && <SourceBadge source="CHORA" className="absolute left-2 top-2" />}
+                        </span>
+                        <span className="mt-2.5 block text-sm font-bold text-white line-clamp-2">{item.title}</span>
+                        <span className="block text-[13px] text-white/60 truncate">{item.artist}</span>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {landingVault && landingVault.items.length > 0 && (
+                <section className="pt-11" aria-label="From The Vault">
+                  <div className="rounded-3xl px-6 py-6 border" style={{ background: 'linear-gradient(135deg, rgba(224,164,88,0.12), rgba(107,0,153,0.12))', borderColor: 'rgba(224,164,88,0.28)' }}>
+                    <div className="flex flex-wrap items-baseline gap-x-3.5 gap-y-1">
+                      <span className="text-[13px] font-semibold" style={{ color: '#E0A458' }}>From The Vault</span>
+                      <h2 className="text-white" style={{ fontFamily: "'Bricolage Grotesque', var(--font-display), sans-serif", fontWeight: 800, fontSize: 26 }}>{landingVault.title}</h2>
+                      <div className="flex-1" />
+                      <button type="button" onClick={() => setActiveTab('VAULT')} className="h-10 text-sm font-semibold text-[#FFB86B] hover:text-[#FF8C00] transition-colors">Open The Vault</button>
+                    </div>
+                    <p className="mt-1 max-w-3xl text-white/75" style={{ fontFamily: 'Newsreader, Georgia, serif', fontSize: 17, lineHeight: 1.5 }}>{landingVault.blurb}</p>
+                    <div className="mt-5 grid gap-5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(160px, 42vw), 1fr))' }}>
+                      {landingVault.items.map(track => (
+                        <button key={track.id} type="button" onClick={() => handlePlayVaultTrack(track)} className="group text-left min-w-0">
+                          <span className="relative block aspect-square rounded-[16px] overflow-hidden bg-white/[0.05]">
+                            {track.thumbnailUrl && <img src={track.thumbnailUrl} alt="" loading="lazy" referrerPolicy="no-referrer" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" style={{ filter: 'sepia(0.15)' }} />}
+                            <span className="absolute inset-0 grid place-items-center bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity"><PlayCircle size={40} className="text-[#FFE0B8]" /></span>
+                          </span>
+                          <span className="mt-2.5 block text-sm font-bold text-white line-clamp-2">{track.title}</span>
+                          <span className="block text-[13px] text-white/60 truncate">{track.artist}{track.year ? ` · ${track.year}` : ''}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </section>
+              )}
+            </div>
+
+            <div className="px-4 sm:px-6 lg:px-12 pt-12 mb-6">
               <AdaptiveGrid phone={1} tablet={2} desktop={3} gap="2rem">
               <div className="lg:col-span-2 space-y-12">
 
@@ -2188,55 +2313,6 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                   <FeaturedCarousel items={artists.slice(0, 5).map(artist => ({ id: artist.uid, title: artist.displayName, subtitle: "Featured Artist", imageUrl: (artist as any).choraPhotoURL || artist.coverArt || artist.featuredArtistPhoto || artist.photoURL || `https://picsum.photos/seed/${artist.uid}/1280/720`, onClick: () => onVisitUser(artist.uid, 'CONTENT') }))} />
                 </section>
                 
-                {/* ── Your Audius (connected account: favorites, reposts, playlists, follows) ── */}
-                {audiusEnabled && (
-                  <Suspense fallback={null}>
-                    <AudiusLibraryPanel
-                      onOpenCollection={openAudiusAlbumNative}
-                      onPlayTrack={handlePlayVaultTrack}
-                      onOpenArtist={handleOpenAudiusArtist}
-                    />
-                  </Suspense>
-                )}
-
-                {/* ── Audius Trending ── */}
-                {audiusEnabled && audiusCuration && audiusCuration.trending.length > 0 && (
-                  <section className="animate-in fade-in duration-500">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{ background: '#7e22ce' }}><Music2 size={10} className="text-purple-200" /></div>
-                      <h2 className="text-[10px] font-black uppercase tracking-[0.4em]" style={{ color: '#a855f7' }}>Audius Trending</h2>
-                      <span className="text-[8px] font-black px-2 py-0.5 rounded-full" style={{ background: 'rgba(126,34,206,0.2)', color: '#c084fc' }}>Decentralized</span>
-                    </div>
-                    <AdaptiveGrid phone={2} tablet={3} desktop={4} gap="1rem">
-                      {audiusCuration.trending.slice(0, 10).map(track => (
-                        <motion.div key={track.id} whileHover={{ y: -4 }}
-                          className="group cursor-pointer rounded-2xl p-3 transition-all"
-                          style={{ background: 'rgba(126,34,206,0.08)', border: '1px solid rgba(168,85,247,0.15)' }}
-                          onClick={() => handlePlayVaultTrack(track)}>
-                          <div className="aspect-square rounded-xl overflow-hidden mb-3 relative">
-                            <img src={thumb(track.thumbnailUrl, THUMB.small)} className="w-full h-full object-cover group-hover:scale-110 transition-transform" loading="lazy" />
-                            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.4)' }}>
-                              <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: '#7e22ce' }}><Play size={14} fill="currentColor" className="text-purple-100 ml-0.5" /></div>
-                            </div>
-                            <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded text-[6px] font-black" style={{ background: 'rgba(126,34,206,0.85)', color: '#e9d5ff' }}>AUDIUS</div>
-                          </div>
-                          <div className="flex items-center justify-between gap-1 mt-0.5">
-                            <p className="text-[8px] truncate cursor-pointer hover:underline" style={{ color: 'rgba(168,85,247,0.7)' }}
-                              onClick={(e) => { e.stopPropagation(); if (track.artistId) onVisitUser(`audius:${track.artistId}`); }}>{track.artist}</p>
-                            {personalPlaylists.length > 0 && (
-                              <button onClick={e => { e.stopPropagation(); setExternalTrackPicker(track); }}
-                                className="tap shrink-0 w-5 h-5 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                                style={{ background: 'rgba(126,34,206,0.3)' }}>
-                                <Plus size={9} style={{ color: '#c084fc' }} />
-                              </button>
-                            )}
-                          </div>
-                        </motion.div>
-                      ))}
-                    </AdaptiveGrid>
-                  </section>
-                )}
-
                 {/* ── Audius Playlists ── */}
                 {audiusEnabled && audiusCuration && audiusCuration.playlists.length > 0 && (
                   <section className="animate-in fade-in duration-500">
@@ -2537,6 +2613,32 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
               </div>
               </AdaptiveGrid>
             </div>
+            {/* The rooms — Chora's studios and museum, as slim doors at the foot of the page */}
+            <section className="px-4 sm:px-6 lg:px-12 pt-6 pb-4 normal-case" aria-label="The rooms">
+              <h2 className="text-[15px] font-semibold text-white/60">The rooms</h2>
+              <div className="mt-3 grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(240px, 100%), 1fr))' }}>
+                <button type="button" onClick={() => setShowConservatory(true)} className="h-[72px] px-5 rounded-[18px] text-left flex flex-col justify-center border hover:brightness-125 transition" style={{ background: 'rgba(224,164,88,0.12)', borderColor: 'rgba(224,164,88,0.3)' }}>
+                  <b className="text-[15px] text-white">The Conservatory</b><span className="text-xs text-white/70">Masters and a history of music</span>
+                </button>
+                {onNavigate && (
+                  <button type="button" onClick={() => onNavigate('MELOS')} className="h-[72px] px-5 rounded-[18px] text-left flex flex-col justify-center border hover:brightness-125 transition" style={{ background: 'linear-gradient(120deg, rgba(107,0,153,0.5), rgba(212,0,85,0.4))', borderColor: 'rgba(212,0,85,0.35)' }}>
+                    <b className="text-[15px] text-white">Melos</b><span className="text-xs text-white/75">Where your record gets made</span>
+                  </button>
+                )}
+                {onNavigate && (
+                  <button type="button" onClick={() => onNavigate('CHORA_HISTORY')} className="h-[72px] px-5 rounded-[18px] text-left flex flex-col justify-center border hover:brightness-125 transition" style={{ background: 'rgba(167,139,250,0.12)', borderColor: 'rgba(167,139,250,0.3)' }}>
+                    <b className="text-[15px] text-white">History Moments</b><span className="text-xs text-white/70">Today in music history</span>
+                  </button>
+                )}
+                {onNavigate && (
+                  <button type="button" onClick={() => onNavigate('MUSIC_THEORY')} className="h-[72px] px-5 rounded-[18px] text-left flex flex-col justify-center border hover:brightness-125 transition" style={{ background: 'rgba(0,218,243,0.08)', borderColor: 'rgba(0,218,243,0.3)' }}>
+                    <b className="text-[15px] text-white">Music Theory Studio</b><span className="text-xs text-white/70">Ear training, scales and harmony</span>
+                  </button>
+                )}
+              </div>
+              {!isTvUi && <div className="mt-8"><PlajahPlusBanner variant="COMPACT" /></div>}
+            </section>
+            </>
           )}
 
           {activeTab === 'FOR_YOU' && !selectedArchiveArtist && userProfile && (
@@ -2751,7 +2853,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
           <div className="px-4 sm:px-6 lg:px-12 space-y-16">
             {selectedArchiveArtist ? renderArchiveArtistInfo() : (
               <>
-                {activeTab === 'PODCASTS' && <PodcastsView />}
+                {activeTab === 'PODCASTS' && <PodcastsView onOpenAlbum={onSelectAlbum} openShow={pendingPodcast} onOpenedShow={() => setPendingPodcast(null)} />}
                 {/* Radio lives inside Chora on TV. Lazy + Suspense because RadioView is a whole
                     view and there is no reason to carry it until the tab is chosen. onBack drops
                     to the previous tab rather than leaving Chora — on a remote, a Back that exits
@@ -2767,6 +2869,32 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                   <section className="animate-in fade-in duration-500 space-y-16">
                     {userProfile && <RecentRail kind="PLAYLISTS" albums={albums} uid={userProfile.uid} remote={userProfile.choraRecents} onSelectAlbum={onSelectAlbum} onVisitUser={onVisitUser} />}
                     {tabWordmark('Playlists', true)}
+
+                    {/* ── Smart playlists your reactions build: Liked songs (like + love) and Loved ── */}
+                    {userProfile && (
+                      <div className="normal-case grid gap-5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(280px, 100%), 1fr))' }}>
+                        {([
+                          { which: 'LIKED' as const, title: 'Liked songs', note: 'Every song you like or love, newest first', bg: 'linear-gradient(135deg, #006B7A, #6B0099)', Icon: ThumbsUp },
+                          { which: 'LOVED' as const, title: 'Loved', note: 'Only the ones you hearted', bg: 'linear-gradient(135deg, #D40055, #6B0099)', Icon: Heart },
+                        ]).map(card => {
+                          const list = reactionAlbum(card.which);
+                          const n = list.tracks?.length || 0;
+                          return (
+                            <button key={card.which} type="button" disabled={!n}
+                              onClick={() => { if (n) { onSelectAlbum(list); playTrack(list.tracks![0], list, 'LIBRARY'); } }}
+                              className="group h-[104px] rounded-3xl px-5 flex items-center gap-4 text-left border border-white/10 disabled:cursor-default hover:brightness-110 transition"
+                              style={{ background: card.bg }}>
+                              <span className="w-14 h-14 rounded-2xl grid place-items-center bg-black/25 shrink-0"><card.Icon size={24} className="text-white" fill="currentColor" /></span>
+                              <span className="flex-1 min-w-0">
+                                <span className="block text-white" style={{ fontFamily: "'Bricolage Grotesque', var(--font-display), sans-serif", fontWeight: 800, fontSize: 22 }}>{card.title}</span>
+                                <span className="block text-[13px] text-white/80 truncate">{n ? `${n} ${n === 1 ? 'song' : 'songs'} · ${card.note}` : 'Tap the thumbs-up on any song to start it'}</span>
+                              </span>
+                              {n > 0 && <PlayCircle size={36} className="text-white/90 shrink-0 group-hover:scale-110 transition-transform" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
 
                     {/* ── World Cup 2026 National Anthems ── */}
                     <WcAnthemPlaylist onOpenAlbum={onSelectAlbum} />
@@ -3181,6 +3309,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                     </div>
                     <p className="text-[10px] font-bold text-white/40 uppercase tracking-[0.3em] -mt-6">Long-form DJ sets · waveform · reactive Pixels visuals</p>
                     {albums.filter(a => a.subType === 'MIX').length === 0 ? (
+                      audiusEnabled && (audiusMixes?.length || 0) > 0 ? null :
                       <div className="py-16 text-center">
                         <p className="text-sm text-white/50">No mixes yet.</p>
                         <p className="text-[11px] text-white/30 mt-2 uppercase tracking-widest">Post a mix from Reello, DJ Mode, or an upload — it lands here.</p>
@@ -3209,6 +3338,43 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                           </div>
                         ))}
                       </AdaptiveGrid>
+                    )}
+
+                    {/* ── Sets from Audius — long-form (20 min+), streamed, opening in the Chora Mixes player ── */}
+                    {audiusEnabled && (
+                      <div className="normal-case pt-2" aria-label="Sets from Audius">
+                        <div className="flex flex-wrap items-baseline gap-x-3.5 gap-y-1 mb-4">
+                          <span aria-hidden="true" className="w-7 h-7 rounded-lg grid place-items-center text-[13px] font-extrabold text-white self-center" style={{ background: '#7E1BCC' }}>A</span>
+                          <h3 className="text-white" style={{ fontFamily: "'Bricolage Grotesque', var(--font-display), sans-serif", fontWeight: 800, fontSize: 24 }}>Sets from Audius</h3>
+                          <span style={{ fontFamily: 'Newsreader, Georgia, serif', fontStyle: 'italic', fontSize: 16, color: '#D8B4FE' }}>long-form DJ sets and mixtapes, played in the Chora mix player</span>
+                        </div>
+                        {audiusMixes === null ? (
+                          <div className="grid gap-6" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(300px, 100%), 1fr))' }}>
+                            {Array.from({ length: 6 }, (_, i) => <div key={i} className="aspect-video rounded-3xl bg-white/[0.05] animate-pulse" />)}
+                          </div>
+                        ) : audiusMixes.length === 0 ? (
+                          <p className="text-sm text-white/50">No long-form sets came back from Audius just now.</p>
+                        ) : (
+                          <div className="grid gap-6" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(300px, 100%), 1fr))' }}>
+                            {audiusMixes.map(t => (
+                              <button key={t.id} type="button" onClick={() => onSelectAlbum(audiusTrackToMixAlbum(t))} className="group text-left min-w-0" aria-label={`Open the mix ${t.title} by ${t.artist}`}>
+                                <span className="relative block aspect-video rounded-3xl overflow-hidden shadow-2xl border border-white/5">
+                                  <img src={thumb(t.thumbnailUrl, THUMB.card) || t.thumbnailUrl || undefined} onError={onThumbError(t.thumbnailUrl)} alt="" loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                  <span className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 55%)' }} />
+                                  <SourceBadge source="AUDIUS" className="absolute top-2.5 left-2.5" />
+                                  {t.duration ? (
+                                    <span className="absolute top-2.5 right-2.5 h-6 px-2.5 rounded-full text-[11px] font-semibold text-white/90 bg-black/60 inline-flex items-center tabular-nums">{Math.round(t.duration / 60)} min</span>
+                                  ) : null}
+                                  <span className="absolute bottom-3 left-3.5 right-3.5">
+                                    <span className="block text-[15px] font-bold text-white truncate">{t.title}</span>
+                                    <span className="block text-[13px] text-white/65 truncate">{t.artist}{t.genre ? ` · ${t.genre}` : ''}</span>
+                                  </span>
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     )}
                   </section>
                 )}

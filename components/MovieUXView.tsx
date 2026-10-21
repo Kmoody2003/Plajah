@@ -14,6 +14,7 @@ import {
 import { ChoraPromoModal } from './music/ChoraPromoModal';
 import CommentSection from './CommentSection';
 import PlatformBumperPlayer from './tv/PlatformBumperPlayer';
+import { pickCinemaIdent } from '../services/cinemaIdents';
 import WorldBadge from './WorldBadge';
 import HoverPreviewThumb, { previewSourceFor } from './HoverPreviewThumb';
 import { motion, AnimatePresence } from 'motion/react';
@@ -979,6 +980,9 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({
   const [isUIVisible, setIsUIVisible] = useState(true);
   /** Payload waiting behind the studio ident. Non-null only between Watch Now and the ident ending. */
   const [prerollFor, setPrerollFor] = useState<Video | null>(null);
+  // Picked once per Watch Now: werewolf for Pumpkin Patch, a random horror reveal for horror /
+  // suspense / Halloween Vault titles, the general Cinema reveal for everything else.
+  const prerollIdent = useMemo(() => (prerollFor ? pickCinemaIdent(item, prerollFor) : null), [prerollFor]); // eslint-disable-line react-hooks/exhaustive-deps
   const [activeVideo, setActiveVideo] = useState<Video | null>(null);
   const [useUniversalPlayer, setUseUniversalPlayer] = useState(() => {
     // Universal player is the default (versioned key so devices that had the old opt-in saved as off get it too).
@@ -1995,6 +1999,7 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({
       {prerollFor && (
         <PlatformBumperPlayer
           kind="TALEO_PREROLL"
+          asset={prerollIdent}
           allowSkip
           onDone={() => { const p = prerollFor; setPrerollFor(null); beginPlayback(p); }}
         />

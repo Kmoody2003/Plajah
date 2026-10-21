@@ -77,6 +77,11 @@ function mapTrack(t: any, host: string): ArchiveTrack {
   const sourcePageUrl = t.permalink
     ? `https://audius.co${t.permalink}`
     : (handle ? `https://audius.co/${handle}` : 'https://audius.co/');
+  // playCount rides along (not part of ArchiveTrack) so Chora's sky can size Audius comets by real plays.
+  return Object.assign(mapTrackFields(t, host, handle, sourcePageUrl), t.play_count != null ? { playCount: Number(t.play_count) } : {});
+}
+
+function mapTrackFields(t: any, host: string, handle: string, sourcePageUrl: string): ArchiveTrack {
   return {
     id: `audius_${t.id}`,
     title: t.title ?? 'Untitled',
@@ -898,6 +903,46 @@ export const resolveNativeAudiusAlbum = async (nativeId: string): Promise<Album 
     return audiusAlbumToNativeAlbum(album, tracks, curator);
   } catch { return null; }
 };
+
+/** A long-form Audius set → a Chora Mix album, so it opens in MixPlayerView (waveform + Pixels
+ *  auto-show) instead of the album view. Comments stay off: they live on a Plajah album doc. */
+export const audiusTrackToMixAlbum = (t: ArchiveTrack): Album => ({
+  ...audiusTrackToNativeAlbum(t),
+  id: `audius:mix:${t.id.replace(/^audius_/, '')}`,
+  subType: 'MIX',
+  mixMeta: { source: 'AUDIUS', visualMode: 'AUTO', allowComments: false, durationSec: t.duration },
+} as any);
+
+const MIX_MIN_SEC = 20 * 60;
+const MIX_QUERIES = ['dj mix', 'dj set', 'live set', 'mixtape', 'radio show'];
+let mixCache: { at: number; tracks: ArchiveTrack[] } | null = null;
+
+/** Long-form sets on Audius (≥ 20 min) for Chora Mixes: a few set-shaped searches plus trending,
+ *  deduped, at most two per artist, most-played first. Cached for 10 minutes. */
+export async function fetchAudiusMixes(limit = 18): Promise<ArchiveTrack[]> {
+  if (mixCache && Date.now() - mixCache.at < 10 * 60_000) return mixCache.tracks.slice(0, limit);
+  const results = await Promise.allSettled([
+    ...MIX_QUERIES.map(q => searchAudius(q, 40)),
+    fetchAudiusTrending(undefined, 100),
+  ]);
+  const seen = new Set<string>();
+  const perArtist = new Map<string, number>();
+  const pool = results
+    .flatMap(r => (r.status === 'fulfilled' ? r.value : []))
+    .filter(t => (t.duration || 0) >= MIX_MIN_SEC && !!t.url && !!t.thumbnailUrl)
+    .sort((a, b) => (Number((b as any).playCount) || 0) - (Number((a as any).playCount) || 0));
+  const out: ArchiveTrack[] = [];
+  for (const t of pool) {
+    if (seen.has(t.id)) continue;
+    const key = (t.artistId || t.artist || '').toLowerCase();
+    if ((perArtist.get(key) || 0) >= 2) continue;
+    seen.add(t.id);
+    perArtist.set(key, (perArtist.get(key) || 0) + 1);
+    out.push(t);
+  }
+  mixCache = { at: Date.now(), tracks: out };
+  return out.slice(0, limit);
+}
 
 /** A single Audius track → a one-track native Album (native album UI for a song). */
 export const audiusTrackToNativeAlbum = (t: ArchiveTrack, artistName?: string): Album => ({

@@ -31,6 +31,7 @@ import {
   hydrateSelfHostedFilmsFromServer,
   ensureFilmNativelyOnPlatform,
 } from '../services/selfHostedFilms';
+import { isPeerTubeItem, resolvePeerTubeVideo, peerTubeVideoToAlbum } from '../services/peertubeService';
 import { TelevisionView } from './TelevisionView';
 import { ExploreView } from './ExploreView';
 import { MoviesSpecificView } from './MoviesSpecificView';
@@ -1668,6 +1669,8 @@ const HomeView: React.FC<{
           const firstItem = items[0];
           const sourceBadge = genre.includes('Halloween')
             ? 'Curated Showcase'
+            : firstItem?.source === 'PEERTUBE'
+            ? 'PeerTube'
             : firstItem?.source === 'EUROPEANA'
             ? 'Europeana'
             : firstItem?.source === 'KOFA'
@@ -1677,6 +1680,8 @@ const HomeView: React.FC<{
             : 'Archive.org';
           const eyebrow = genre.includes('Halloween')
             ? '31 Nights of Terror'
+            : firstItem?.source === 'PEERTUBE'
+            ? 'Creative Commons'
             : firstItem?.source === 'EUROPEANA'
             ? 'European Heritage'
             : firstItem?.source === 'KOFA'
@@ -3100,6 +3105,12 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
   };
 
   const handleSelectArchiveItem = async (item: ArchiveVideo) => {
+    // PeerTube films stream from their home server; never vault-sync or ingest them.
+    if (isPeerTubeItem(item)) {
+      const full = await resolvePeerTubeVideo(item.identifier).catch(() => ({ streamUrl: '', description: undefined }));
+      onSelectMovie(peerTubeVideoToAlbum({ ...item, description: full.description || item.description }, full.streamUrl));
+      return;
+    }
     let videoUrl = item.videoUrl;
     if (!videoUrl && (!item.source || item.source === 'INTERNET_ARCHIVE')) {
       try {

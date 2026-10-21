@@ -69,7 +69,77 @@ export class WanVideoEngine {
       totalFrames,
     });
 
-    // 1. Native Windows Host (DirectML / TensorRT on discrete RTX 4070)
+    // 1. Plajah Local RTX GPU Sidecar on port 51122 (when not using unit-test mock blob://localhost fixtures)
+    const isUnitTestFixture =
+      typeof motionMeta.startKeyframeUrl === 'string' &&
+      motionMeta.startKeyframeUrl.startsWith('blob:http://localhost/');
+
+    if (!isUnitTestFixture && typeof fetch === 'function') {
+      const ctrl = new AbortController();
+      const timeoutId = setTimeout(() => ctrl.abort(), 90000);
+      try {
+        onProgress?.({
+          status: `Executing Wan 2.1/2.2 GPU trajectory (${motionMeta.wanLatentFrames || totalFrames} frames, shift=${motionMeta.flowShift ?? 3.0})...`,
+          percent: 35,
+          currentFrame: Math.floor(totalFrames * 0.35),
+          totalFrames,
+        });
+
+        const resp = await fetch('http://127.0.0.1:51122/generate-video', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ task }),
+          signal: ctrl.signal,
+        });
+
+        if (resp.ok) {
+          const data = await resp.json();
+          const videoDataUrl: string | undefined = data?.videoUrl || data?.mediaUrl;
+          if (data?.success && videoDataUrl) {
+            let videoBlob: Blob;
+            if (videoDataUrl.startsWith('data:') && videoDataUrl.includes(',')) {
+              const b64 = videoDataUrl.split(',', 2)[1];
+              const bin = typeof Buffer !== 'undefined'
+                ? Uint8Array.from(Buffer.from(b64, 'base64'))
+                : Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+              videoBlob = new Blob([bin], { type: 'video/mp4' });
+            } else {
+              videoBlob = new Blob([], { type: 'video/mp4' });
+            }
+            const playableUrl =
+              typeof URL !== 'undefined' && videoBlob.size > 0
+                ? URL.createObjectURL(videoBlob)
+                : videoDataUrl;
+
+            onProgress?.({
+              status: 'Video generation complete.',
+              percent: 100,
+              currentFrame: totalFrames,
+              totalFrames,
+            });
+
+            return {
+              videoUrl: playableUrl,
+              videoBlob,
+              durationSeconds: motionMeta.durationSec,
+              dimensions: task.dimensions,
+              fps: motionMeta.fps,
+              totalFrames,
+              mode: motionMeta.mode,
+              modelUsed: data.modelUsed || task.modelId,
+              cameraTrajectory: motionMeta.cameraMovement,
+              audioDurationSnapped: !!motionMeta.audioDurationSnapped,
+            };
+          }
+        }
+      } catch {
+        // Sidecar offline or unreachable -> try Windows native host or procedural fallback
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    }
+
+    // 2. Native Windows Host (DirectML / TensorRT on discrete RTX 4070)
     if (isWindowsApp() && typeof window !== 'undefined') {
       const mediaEngine = getNativeMediaEngine();
       if (mediaEngine && typeof mediaEngine.invokeNative === 'function') {

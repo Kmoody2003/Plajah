@@ -299,6 +299,16 @@ export interface PlajahNativeTask {
     resolution: '480p' | '720p';
     audioDurationSnapped?: boolean;
     dialogueDurationSec?: number;
+    /** Wan 2.1/2.2 3D Causal VAE temporal frame count snapped to 4k + 1 rule (e.g. 33, 49, 65, 73, 81). */
+    wanLatentFrames?: number;
+    /** FlowMatchEulerDiscreteScheduler shift (3.0 for 480p detail, 5.0 for 720p or high-kinetic camera motion). */
+    flowShift?: number;
+    /** TeaCache relative L1 threshold (0.12 - 0.16) for ~2x DiT acceleration without temporal shimmer. */
+    teaCacheThreshold?: number;
+    /** Transformer blocks offloaded to pinned system RAM on 8GB VRAM GPUs (28/40 for 14B, 0 for 1.3B). */
+    blockSwapCount?: number;
+    /** Spatial tile size (px) for 3D Causal VAE decoding to prevent VRAM OOM on 8GB GPUs. */
+    vaeTileSize?: number;
   };
   identity?: {
     characterRef?: string;
@@ -533,6 +543,20 @@ export function compileCinemaMotionTask(intent: CinemaMotionIntent): PlajahNativ
   }
   fullPrompt = [fullPrompt, motionTrajectory, '24 frames per second, filmic motion blur, smooth physical dynamics'].filter(Boolean).join(', ');
 
+  const fps = intent.fps || 24;
+  const rawFrames = Math.round(duration * fps);
+  // Wan 2.1 3D Causal VAE requires frame counts of the form 4k + 1 (e.g., 33, 49, 65, 73, 81)
+  const wanLatentFrames = Math.max(17, Math.round((rawFrames - 1) / 4) * 4 + 1);
+  const strength = intent.motionStrength || 5;
+  const isHighKinetic =
+    res === '720p' ||
+    strength >= 7 ||
+    intent.cameraMovement === 'whip_pan' ||
+    intent.cameraMovement === 'orbit_360' ||
+    intent.cameraMovement === 'drone_aerial';
+  const flowShift = isHighKinetic ? 5.0 : 3.0;
+  const teaCacheThreshold = res === '720p' ? 0.12 : 0.16;
+
   return {
     id: `plajah_motion_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
     taskType: 'cinema_motion',
@@ -547,14 +571,19 @@ export function compileCinemaMotionTask(intent: CinemaMotionIntent): PlajahNativ
     motion: {
       mode,
       cameraMovement: intent.cameraMovement || 'push_in',
-      motionStrength: intent.motionStrength || 5,
+      motionStrength: strength,
       durationSec: duration,
-      fps: intent.fps || 24,
+      fps,
       startKeyframeUrl: startKeyframe,
       endKeyframeUrl: endKeyframe,
       resolution: res,
       audioDurationSnapped: audioSnapped,
       dialogueDurationSec: intent.dialogueDurationSec,
+      wanLatentFrames,
+      flowShift,
+      teaCacheThreshold,
+      blockSwapCount: 28,
+      vaeTileSize: 256,
     },
   };
 }

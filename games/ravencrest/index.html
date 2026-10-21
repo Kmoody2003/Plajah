@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ravencrest</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #05070a; overflow: hidden; font-family: Georgia, 'Times New Roman', serif; color: #c9d2de; }
+    #view { position: fixed; inset: 0; }
+    #view canvas { display: block; width: 100%; height: 100%; }
+    #ref { position: fixed; pointer-events: none; opacity: 0; object-fit: fill; }
+    #hud { position: fixed; left: 16px; bottom: 14px; font-size: 12px; letter-spacing: .04em; opacity: .55; text-shadow: 0 1px 2px #000; }
+    #hud b { color: #e8b26a; font-weight: normal; }
+    #review { position: fixed; right: 16px; top: 14px; display: none; gap: 8px; align-items: center; font-size: 12px; background: #0b0f15cc; padding: 6px 10px; border: 1px solid #2a3442; }
+    #review.on { display: flex; }
+    #loading { position: fixed; inset: 0; display: grid; place-items: center; font-size: 15px; letter-spacing: .3em; color: #8a97a8; }
+    #fade { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity .42s ease; }
+    #prompt { position: fixed; left: 50%; bottom: 18%; transform: translateX(-50%); font-size: 18px; letter-spacing: .25em; text-transform: uppercase; color: #e8c79a; text-shadow: 0 2px 8px #000; pointer-events: none; }
+  </style>
+</head>
+<body>
+  <div id="view"></div>
+  <img id="ref" alt="" />
+  <div id="review">
+    <span id="shotName">reference</span>
+    <label>art overlay <input id="refOpacity" type="range" min="0" max="1" step="0.05" value="0.5" /></label>
+    <label><input id="refSplit" type="checkbox" /> split</label>
+  </div>
+  <div id="hud">Click to capture mouse (or drag) · mouse steers camera &amp; direction · WASD move · Shift run · wheel zoom · Esc release · <b>R</b> art overlay · <b>F</b> free cam · <b>C</b> collision</div>
+  <div id="prompt"></div>
+  <div id="fade"></div>
+  <div id="loading">RAVENCREST</div>
+  <script type="module" src="./src/main.ts"></script>
+</body>
+</html>

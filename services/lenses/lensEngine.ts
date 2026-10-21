@@ -2,13 +2,18 @@
 //
 //   googly    — big plastic googly eyes pinned to every face (up to 2), pupils that SLOSH: they fall
 //               with gravity and swing the opposite way when your head accelerates.
-//   cardboard — South Park paper cut-out: you are a flat, thick-outlined cut-out on a flat mountain-town
-//               backdrop, your head is one flat skin colour with oval eyes and a black FLAPPING mouth
-//               driven by your real mouth, all in 12fps limited animation.
-//   comic     — comic-book ink: posterised colour + hard ink lines + paper grain; with a person matte you
-//               become a cream-bordered paper figure with a drop shadow.
+//   cardboard — South Park cut-out animation: the real person is painted OUT of a construction-paper world
+//               (clean plate) and replaced by a jointed paper puppet driven by face + pose tracking,
+//               coloured from your skin/hair/shirt, in 12fps pose-to-pose holds.
+//   comic     — a printed comic page: XDoG ink, cel tones, Ben-Day dots, hatching, newsprint; the subject
+//               gets a heavy contour and the background a halftone panel with speed lines on action.
 //   bigface   — big eyes + big mouth: a magnifying bulge on each tracked face's eyes and mouth ONLY.
-//   matrix    — falling glyph rain that reads through to the scene (bright where you are bright).
+//   matrix    — "Neo sees the code": the scene rebuilt from falling glyph columns sized by DEPTH, so the
+//               code wraps onto objects; contours carry hotter streams.
+//   silent / grindhouse / vhs / foundfootage — film & tape looks (lensShadersFilm.ts); Found Footage's
+//               handheld rig reacts to the mouse, clicks and the action on screen.
+//   pixel / ascii — the frame redrawn as palette pixel art / a terminal, with the subject (selfie matte,
+//               or Segment Anything when there's no person) and Depth Anything layering the scene.
 //
 // One engine serves BOTH the broadcaster (LiveComposer applies it to the published frame) and any
 // <video> (LensVideoOverlay, for viewers and players). The contract is deliberately tiny:
@@ -30,26 +35,96 @@ import type { FaceEyes } from '../vtuber/eyeGeometry';
 import { PersonMatte } from './personMatte';
 import { EmotionSmoother, scoreEmotions, EMOTIONS, type AuraState, type EmotionId } from './emotion';
 import { AuraOrbs, type Collect } from './auraOrbs';
-import { LENS_VERT, MATRIX_FRAG, COMIC_FRAG, SOUTHPARK_FRAG, BIGFACE_FRAG, NIGHT_FRAG, HEAT_FRAG, AURA_FRAG } from './lensShaders';
+import { LENS_VERT, BIGFACE_FRAG, NIGHT_FRAG, HEAT_FRAG, AURA_FRAG } from './lensShaders';
+import { MATRIX_FRAG, COMIC_FRAG, SOUTHPARK_FRAG, PIXEL_FRAG, ASCII_FRAG } from './lensShadersArt';
+import { SILENT_FRAG, GRINDHOUSE_FRAG, VHS_FRAG, FOUND_FRAG } from './lensShadersFilm';
+import { MotionMeter, PointerShake, SceneDepth, ObjectMatte } from './lensAux';
+import { drawPuppet, paperTone, css, type PuppetPose, type PuppetColours } from './cutoutPuppet';
+import { PoseTracker, POSE } from '../vtuber/poseTracker';
+import { HalloweenFilterEngine, type HalloweenFilterId } from '../halloween/halloweenFilterEngine';
 
-export type LensId = 'none' | 'googly' | 'cardboard' | 'comic' | 'bigface' | 'matrix' | 'night' | 'heat' | 'aura';
+export type LensId =
+  | 'none'
+  | 'googly'
+  | 'cardboard'
+  | 'comic'
+  | 'bigface'
+  | 'matrix'
+  | 'night'
+  | 'heat'
+  | 'aura'
+  | 'silent'
+  | 'grindhouse'
+  | 'vhs'
+  | 'foundfootage'
+  | 'pixel'
+  | 'ascii'
+  | 'jackolantern'
+  | 'ghostface'
+  | 'zombie'
+  | 'werewolf'
+  | 'vampire'
+  | 'bats'
+  | 'dimlights';
+
+const HALLOWEEN_LENS_IDS = new Set<LensId>([
+  'jackolantern',
+  'ghostface',
+  'zombie',
+  'werewolf',
+  'vampire',
+  'bats',
+  'dimlights',
+]);
+
 export const LENSES: { id: LensId; label: string; icon: string; blurb: string }[] = [
   { id: 'none', label: 'Off', icon: '🚫', blurb: 'No lens' },
+  { id: 'jackolantern', label: "Jack-o'-Lantern", icon: '🎃', blurb: 'Carved 3D pumpkin head + talking fire jaw' },
+  { id: 'ghostface', label: 'Ghost Face', icon: '👻', blurb: 'Shrouded phantom scream visage' },
+  { id: 'zombie', label: 'Zombie', icon: '🧟', blurb: 'Necrotic undead veins, cataract eyes & jaw' },
+  { id: 'werewolf', label: 'Werewolf', icon: '🐺', blurb: 'Lupine fur, glowing amber eyes & fangs' },
+  { id: 'vampire', label: 'Vampire', icon: '🧛', blurb: 'Pale Nosferatu skin, crimson eyes & fangs' },
+  { id: 'bats', label: 'Bat Swarm', icon: '🦇', blurb: '3D nocturnal bats circling your head' },
+  { id: 'dimlights', label: 'Dim the Lights', icon: '🔦', blurb: 'Found-footage night cam & flashlight beam' },
   { id: 'googly', label: 'Googly eyes', icon: '👀', blurb: 'Wobbly plastic eyes' },
   { id: 'bigface', label: 'Big eyes & mouth', icon: '🤪', blurb: 'Faces only — goofy caricature' },
-  { id: 'cardboard', label: 'South Park', icon: '✂️', blurb: 'Flat paper cut-out, flappy mouth' },
-  { id: 'comic', label: 'Comic book', icon: '💥', blurb: 'Bold ink + flat colour' },
-  { id: 'matrix', label: 'The Matrix', icon: '🟩', blurb: '3D digital rain' },
+  { id: 'cardboard', label: 'South Park', icon: '✂️', blurb: 'Jointed paper cut-out puppet of you' },
+  { id: 'comic', label: 'Comic book', icon: '💥', blurb: 'Ink, Ben-Day dots, speed lines' },
+  { id: 'matrix', label: 'The Matrix', icon: '🟩', blurb: 'The world rebuilt from falling code' },
+  { id: 'silent', label: 'Silent film', icon: '🎩', blurb: '1910s hand-cranked nitrate' },
+  { id: 'grindhouse', label: 'Grindhouse', icon: '🎞️', blurb: 'Burns, splices, reel changes' },
+  { id: 'vhs', label: 'VHS camcorder', icon: '📼', blurb: '80s/90s home tape + date stamp' },
+  { id: 'foundfootage', label: 'Found footage', icon: '🎥', blurb: 'Shaky cam that reacts to you' },
+  { id: 'pixel', label: 'Pixel art', icon: '👾', blurb: 'Sprite palette, depth planes' },
+  { id: 'ascii', label: 'ASCII', icon: '🔤', blurb: 'Live terminal art, traced edges' },
   { id: 'night', label: 'Night vision', icon: '🌙', blurb: 'Goggle phosphor + grain' },
   { id: 'heat', label: 'Heat map', icon: '🔥', blurb: 'Thermal camera' },
   { id: 'aura', label: 'Aura', icon: '🔮', blurb: 'Emotion glow + orbs to collect' },
 ];
 
 type Fit = 'cover' | 'contain';
-type ShaderLens = 'matrix' | 'comic' | 'southpark' | 'bigface' | 'night' | 'heat' | 'aura';
-const FRAGS: Record<ShaderLens, string> = { matrix: MATRIX_FRAG, comic: COMIC_FRAG, southpark: SOUTHPARK_FRAG, bigface: BIGFACE_FRAG, night: NIGHT_FRAG, heat: HEAT_FRAG, aura: AURA_FRAG };
-const UNIFORMS = ['uTex', 'uGlyph', 'uMask', 'uRes', 'uT', 'uCell', 'uBoil', 'uHasMask', 'uMapA', 'uMapB', 'uHead', 'uSkin', 'uHeadOn', 'uBulge', 'uN', 'uAuraA', 'uAuraB', 'uAuraAmt'];
-const MIP_KINDS: ShaderLens[] = ['southpark', 'matrix', 'night', 'heat', 'aura'];
+type ShaderLens = 'matrix' | 'comic' | 'southpark' | 'bigface' | 'night' | 'heat' | 'aura' | 'silent' | 'grindhouse' | 'vhs' | 'found' | 'pixel' | 'ascii';
+const FRAGS: Record<ShaderLens, string> = {
+  matrix: MATRIX_FRAG, comic: COMIC_FRAG, southpark: SOUTHPARK_FRAG, bigface: BIGFACE_FRAG, night: NIGHT_FRAG, heat: HEAT_FRAG, aura: AURA_FRAG,
+  silent: SILENT_FRAG, grindhouse: GRINDHOUSE_FRAG, vhs: VHS_FRAG, found: FOUND_FRAG, pixel: PIXEL_FRAG, ascii: ASCII_FRAG,
+};
+const UNIFORMS = ['uTex', 'uGlyph', 'uMask', 'uRes', 'uT', 'uCell', 'uBoil', 'uHasMask', 'uMapA', 'uMapB', 'uBulge', 'uN', 'uAuraA', 'uAuraB', 'uAuraAmt',
+  'uSeed', 'uEvt', 'uReel', 'uCam', 'uVel', 'uFocus', 'uExpo', 'uGlitch', 'uDepth', 'uHasDepth', 'uPlate', 'uHasPlate', 'uMotion', 'uPal', 'uPalN', 'uGrid'];
+const MIP_KINDS: ShaderLens[] = ['southpark', 'matrix', 'comic', 'night', 'heat', 'aura', 'silent', 'grindhouse', 'vhs', 'found', 'pixel', 'ascii'];
+/** Art lenses: subject mask on unit 2, depth on unit 3 (unit 1 = glyph atlas / plate / palette). */
+const LAYERED: ShaderLens[] = ['matrix', 'comic', 'southpark', 'pixel', 'ascii'];
+const DEPTH_LENSES = new Set<LensId>(['matrix', 'comic', 'pixel', 'ascii']);
+const MATTE_LENSES = new Set<LensId>(['cardboard', 'comic', 'matrix', 'heat', 'aura', 'pixel', 'ascii']);
+/** Lenses that re-render at a film/animation frame rate and hold the frame in between. */
+const HOLD_FPS: Partial<Record<LensId, number>> = { cardboard: 12, silent: 16, grindhouse: 24 };
+const PIXEL_PALETTE = [   // pixel-art palette: 32 hand-picked colours, darkest first (index 0 = outline ink)
+  '0d0b14', '241a2e', '3b2a45', '5c3c55', '8a2f3c', 'c4423f', 'e8784a', 'f5b06a', 'f9dc8a', 'fff6d6', '2c4a2e', '3f7a3a', '6aab45', 'a8d35f', '1f4f5a', '2f8a8a',
+  '56c4b5', 'a7ecd9', '1a2a5c', '2e4fa3', '4f86d9', '8fc0f2', '4a2a6e', '7a46a8', 'b47ed6', '4a2f22', '7a4b32', 'b07a52', 'dba980', 'f2d2b3', '6e6a78', 'a9a4b2',
+];
+/** ASCII atlas (4×4): a 12-step density ramp, then the four edge characters the shader aligns to contours. */
+const ASCII_CHARS = [' ', '.', '`', ':', '-', '=', '+', '*', 'o', '#', '%', '@', '|', '_', '/', '\\'];
+const hasWebGPU = () => typeof navigator !== 'undefined' && !!(navigator as any).gpu;
+const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 interface Prog { prog: WebGLProgram; u: Record<string, WebGLUniformLocation | null> }
 
 const isAndroid = () => typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent);
@@ -67,6 +142,7 @@ interface Eye {
   vx: number; vy: number; ax: number; ay: number; // frame velocity / low-passed acceleration (px/s, px/s²)
   px: number; py: number; pvx: number; pvy: number; // pupil, in unit-disc space
   gx: number; gy: number; tgx: number; tgy: number;  // iris gaze offset (eye-widths) — South Park pupils
+  o: number; to: number;                      // lid opening (blink) — the cut-out puppet's eyes
 }
 /** Mouth centre/width (canvas px) + how open it is (inner-lip gap / width). */
 interface Mouth { x: number; y: number; w: number; open: number; tx: number; ty: number; tw: number; topen: number }
@@ -74,7 +150,7 @@ interface Mouth { x: number; y: number; w: number; open: number; tx: number; ty:
 interface Head { x: number; y: number; rx: number; ry: number; tx: number; ty: number; trx: number; try_: number }
 interface Track { cx: number; cy: number; eyes: [Eye, Eye]; mouth: Mouth; head: Head; seen: number; alpha: number }
 const newEye = (x: number, y: number, r: number, gx = 0, gy = 0): Eye =>
-  ({ x, y, r, tx: x, ty: y, tr: r, vx: 0, vy: 0, ax: 0, ay: 0, px: 0, py: 0.5, pvx: 0, pvy: 0, gx, gy, tgx: gx, tgy: gy });
+  ({ x, y, r, tx: x, ty: y, tr: r, vx: 0, vy: 0, ax: 0, ay: 0, px: 0, py: 0.5, pvx: 0, pvy: 0, gx, gy, tgx: gx, tgy: gy, o: 0.3, to: 0.3 });
 
 const PUPIL = 0.44;                       // pupil radius ÷ eye radius
 const REACH = 1 - PUPIL;                  // how far the pupil centre may roam
@@ -114,16 +190,62 @@ export class LensEngine {
   // ── matte (comic / cardboard) ──
   private matte = new PersonMatte();
 
-  // ── South Park limited animation: the whole frame re-renders ~12x/s and is held in between ──
+  // ── limited animation / projector rate: the whole frame re-renders at HOLD_FPS and is held in between ──
   private hold = document.createElement('canvas');
   private holdAt = 0;
+  private holdGap = 83;
+  private frameNo = 0;                    // advances once per rendered (not held) frame: film grain/dust seed
 
-  constructor() { this.initGL(); }
+  // ── newer senses (lensAux) ──
+  private motion = new MotionMeter();
+  private pointer = new PointerShake();
+  private depth = new SceneDepth();
+  private sam = new ObjectMatte();
+  private depthTex: WebGLTexture | null = null;
+  private depthStamp = -1;
+  private plateTex: WebGLTexture | null = null;
+  private palTex: WebGLTexture | null = null;
+  private asciiTex: WebGLTexture | null = null;
+  private noPersonSince = 0;              // when the selfie matte last saw nobody (→ Segment Anything takes over)
+  private personSeen = false;
+  private samStamp = -1;
+
+  // ── South Park: clean plate (background as last seen, video space) + body pose + paper colours ──
+  private plate = document.createElement('canvas');
+  private plateTmp = document.createElement('canvas');
+  private plateAlpha = document.createElement('canvas');
+  private plateStamp = -1;
+  private plateReady = false;
+  private pose: PoseTracker | null = null;
+  private poseState: 'idle' | 'loading' | 'ready' | 'failed' = 'idle';
+  private poseTs = 0;
+  private lastPose: PuppetPose | null = null;
+  private colours: PuppetColours = { skin: 'rgb(242,206,170)', hair: 'rgb(90,60,40)', shirt: 'rgb(60,110,200)', pants: 'rgb(60,70,120)', glove: 'rgb(200,40,40)' };
+  private coloursAt = 0;
+  private swatch = document.createElement('canvas');
+
+  // ── film/tape state ──
+  private startedAt = 0;
+  private freeze = document.createElement('canvas');      // grindhouse: the frame stuck in the gate while it burns
+  private evt = { type: 0, start: 0, dur: 0, seed: 0 };
+  private nextEvtAt = 0;
+  private reel: [number, number, number, number] = [0.3, 0.5, 0.3, 1];
+  private vhsYear = 1994;
+  private track = { amt: 0, pos: 0.8, until: 0, next: 0 };
+  // found footage handheld rig
+  private rig = { x: 0, y: 0, r: 0, z: 1.12, vx: 0, vy: 0, vr: 0, vz: 0, px: 0, py: 0, panic: 0, focus: 0, expo: 1, glitch: 0, punch: 0 };
+
+  // ── Halloween Face & Camera Filter Engine ──
+  private halloweenEngine: HalloweenFilterEngine | null = null;
+
+  /** `models: false` = shaders only (no face/pose/matte/depth/SAM downloads) — the lab's still-frame review uses it. */
+  private models: boolean;
+  constructor(opts: { models?: boolean } = {}) { this.models = opts.models !== false; this.initGL(); }
 
   getLens() { return this.lens; }
   /** Short human-readable state for diagnostics / a status pill ('' when all is well). */
   getStatus(): string {
-    if (this.lens === 'none') return '';
+    if (this.lens === 'none' || HALLOWEEN_LENS_IDS.has(this.lens)) return '';
     if (this.tainted && this.lens !== 'googly') return 'this video blocks filters (cross-origin)';
     if (this.lens !== 'googly' && !this.gl) return 'GPU filters unavailable on this device';
     if (this.lens === 'googly' || this.lens === 'cardboard' || this.lens === 'bigface' || this.lens === 'aura') {
@@ -131,7 +253,9 @@ export class LensEngine {
       if (this.faceState === 'failed') return 'face tracker unavailable on this device';
       if (this.tracks.length === 0) return 'looking for a face…';
     }
-    if ((this.lens === 'cardboard' || this.lens === 'comic') && this.matte.state === 'loading') return 'loading cut-out model…';
+    if (MATTE_LENSES.has(this.lens) && this.lens !== 'heat' && this.lens !== 'aura' && this.matte.state === 'loading') return 'loading cut-out model…';
+    if (DEPTH_LENSES.has(this.lens) && this.depth.state() === 'loading') return 'loading depth model…';
+    if (this.lens === 'cardboard' && this.poseState === 'loading') return 'loading body tracker…';
     return this.note;
   }
 
@@ -139,11 +263,29 @@ export class LensEngine {
     if (id === this.lens) return;
     this.lens = id;
     this.note = '';
-    if (id === 'googly' || id === 'cardboard' || id === 'bigface' || id === 'aura') this.startFace(id === 'aura');   // all need eyes/mouth; aura also expressions
-    if (id === 'cardboard' || id === 'comic' || id === 'matrix' || id === 'heat' || id === 'aura') void this.matte.init();
+    if (HALLOWEEN_LENS_IDS.has(id)) {
+      if (!this.halloweenEngine) this.halloweenEngine = new HalloweenFilterEngine();
+      if (id === 'dimlights') {
+        this.halloweenEngine.setFilter('none');
+        this.halloweenEngine.setDimLights(true);
+      } else {
+        this.halloweenEngine.setDimLights(false);
+        this.halloweenEngine.setFilter(id as HalloweenFilterId);
+      }
+      return;
+    }
+    if (this.models && (id === 'googly' || id === 'cardboard' || id === 'bigface' || id === 'aura')) this.startFace(id === 'aura');   // all need eyes/mouth; aura also expressions
+    if (this.models && MATTE_LENSES.has(id)) void this.matte.init();
+    // depth + Segment Anything are transformer models: only where WebGPU can carry them (wasm would stall the frame)
+    if (this.models && DEPTH_LENSES.has(id) && hasWebGPU() && !isAndroid()) this.depth.init();
+    if (this.models && id === 'cardboard') this.startPose();
+    if (id === 'foundfootage') this.pointer.start(); else this.pointer.stop();
     if (id !== 'googly' && id !== 'cardboard' && id !== 'bigface' && id !== 'aura') this.tracks = [];
     if (id !== 'aura') this.orbs.reset();
-    this.holdAt = 0;
+    this.holdAt = 0; this.frameNo = 0; this.startedAt = 0;
+    this.evt.type = 0; this.nextEvtAt = 0; this.plateReady = false; this.plateStamp = -1;
+    this.vhsYear = 1986 + Math.floor(Math.random() * 12);
+    this.rig = { x: 0, y: 0, r: 0, z: 1.12, vx: 0, vy: 0, vr: 0, vz: 0, px: 0, py: 0, panic: 0, focus: 0.6, expo: 1, glitch: 0, punch: 0 };
   }
 
   // ───────────────────────────── GL ─────────────────────────────
@@ -169,7 +311,12 @@ export class LensEngine {
       gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, 1, 1, 0, gl.RED, gl.UNSIGNED_BYTE, new Uint8Array([0]));
       gl.pixelStorei(gl.UNPACK_ALIGNMENT, 4);
-      this.glyphTex = null;
+      this.depthTex = mkTex(gl.LINEAR); this.depthStamp = -1;
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([128, 128, 128, 255]));
+      this.plateTex = mkTex(gl.LINEAR_MIPMAP_LINEAR);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 0]));
+      gl.generateMipmap(gl.TEXTURE_2D);
+      this.glyphTex = null; this.palTex = null; this.asciiTex = null;
       this.gl = gl;
     } catch (e) {
       console.warn('[lens] WebGL2 unavailable — shader lenses pass through:', e);
@@ -252,6 +399,91 @@ export class LensEngine {
     gl.uniform3f(P.u.uAuraA, ...this.auraA); gl.uniform3f(P.u.uAuraB, ...this.auraB); gl.uniform1f(P.u.uAuraAmt, this.auraAmt);
   }
 
+  /** Glyph atlas for the ASCII lens (4×4, monospace), drawn once. */
+  private ensureAscii() {
+    const gl = this.gl; if (!gl || this.asciiTex) return;
+    const S = 512, C = S / 4;
+    const c = document.createElement('canvas'); c.width = c.height = S;
+    const x = c.getContext('2d')!;
+    x.fillStyle = '#000'; x.fillRect(0, 0, S, S);
+    x.fillStyle = '#fff'; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.font = `700 ${Math.round(C * 0.92)}px "Consolas","Menlo","DejaVu Sans Mono","Courier New",monospace`;
+    ASCII_CHARS.forEach((ch, i) => {
+      x.save(); x.translate((i % 4) * C + C / 2, Math.floor(i / 4) * C + C / 2 + C * 0.04);
+      x.scale(1.45, 1);                                     // the shader's cells are 0.6 wide: pre-widen so glyphs fill them
+      x.fillText(ch, 0, 0); x.restore();
+    });
+    const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, c);
+    gl.generateMipmap(gl.TEXTURE_2D);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    this.asciiTex = t;
+  }
+
+  /** 32×1 palette texture for the pixel-art lens. */
+  private ensurePalette() {
+    const gl = this.gl; if (!gl || this.palTex) return;
+    const d = new Uint8Array(32 * 4);
+    PIXEL_PALETTE.forEach((h, i) => { d[i * 4] = parseInt(h.slice(0, 2), 16); d[i * 4 + 1] = parseInt(h.slice(2, 4), 16); d[i * 4 + 2] = parseInt(h.slice(4, 6), 16); d[i * 4 + 3] = 255; });
+    const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 32, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, d);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    this.palTex = t;
+  }
+
+  /** The subject on texture `unit`: the selfie matte while it sees a person; after ~2.5s of nobody (and with
+   *  WebGPU) Segment Anything, prompted where the action is, so pets/products/cars get cut out too. */
+  private bindSubject(P: Prog, src: HTMLVideoElement, W: number, H: number, nowMs: number, fit: Fit, unit: number) {
+    const gl = this.gl!;
+    const m = this.matte.update(src, nowMs);
+    if (m && m.stamp !== this.presenceStamp) {
+      this.presenceStamp = m.stamp;
+      let on = 0, n = 0;
+      for (let i = 0; i < m.data.length; i += 61) { n++; if (m.data[i] > 140) on++; }
+      this.personSeen = on / Math.max(1, n) > 0.015;
+      if (this.personSeen) this.noPersonSince = 0; else if (!this.noPersonSince) this.noPersonSince = nowMs;
+    }
+    const wantSam = this.lens !== 'cardboard' && this.matte.state === 'ready' && !this.personSeen && this.noPersonSince > 0
+      && nowMs - this.noPersonSince > 2500 && hasWebGPU() && !isAndroid();
+    if (!wantSam) { this.bindMatte(P, src, W, H, nowMs, fit, unit); return; }
+    this.sam.init();
+    const vw = src.videoWidth || W, vh = src.videoHeight || H;
+    const pl = placement(W, H, vw, vh, fit);
+    // prompt point: the motion centroid pulled toward the centre, in video uv
+    const cx = (0.5 + (this.motion.cx - 0.5) * 0.6) * W, cy = (0.5 + (this.motion.cy - 0.5) * 0.6) * H;
+    const vx = Math.max(0.02, Math.min(0.98, (cx - pl.ox) / (vw * pl.s))), vy = Math.max(0.02, Math.min(0.98, (cy - pl.oy) / (vh * pl.s)));
+    const c = this.sam.update(src, nowMs, vx, vy);
+    if (!c) { this.bindMatte(P, src, W, H, nowMs, fit, unit); return; }
+    gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, this.maskTex);
+    if (this.sam.stamp !== this.samStamp) {
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, c);
+      this.samStamp = this.sam.stamp; this.maskStamp = -1;   // the person matte must re-upload when it returns
+    }
+    gl.uniform1i(P.u.uMask, unit);
+    gl.uniform1f(P.u.uHasMask, 1);
+    gl.uniform2f(P.u.uMapA, W / (vw * pl.s), H / (vh * pl.s));
+    gl.uniform2f(P.u.uMapB, -pl.ox / (vw * pl.s), -pl.oy / (vh * pl.s));
+    gl.activeTexture(gl.TEXTURE0);
+  }
+  private presenceStamp = -1;
+
+  /** Depth Anything map on texture `unit` (video space, same uMapA/B as the matte). */
+  private bindDepth(P: Prog, src: HTMLVideoElement, nowMs: number, unit: number) {
+    const gl = this.gl!;
+    const d = DEPTH_LENSES.has(this.lens) ? this.depth.update(src, nowMs) : null;
+    gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, this.depthTex);
+    if (d && this.depth.stamp !== this.depthStamp) {
+      try { gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, d); this.depthStamp = this.depth.stamp; } catch { /* */ }
+    }
+    gl.uniform1i(P.u.uDepth, unit);
+    gl.uniform1f(P.u.uHasDepth, d && this.depthStamp >= 0 ? 1 : 0);
+    gl.activeTexture(gl.TEXTURE0);
+  }
+
   private shade(kind: ShaderLens, ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, src: HTMLVideoElement, nowMs: number, fit: Fit) {
     const gl = this.gl; if (!gl || this.tainted) return;
     const P = this.program(kind); if (!P || !this.gl) return;
@@ -272,12 +504,48 @@ export class LensEngine {
     gl.uniform2f(P.u.uRes, W, H);
 
     gl.uniform1f(P.u.uT, nowMs / 1000);
+    gl.uniform1f(P.u.uSeed, this.frameNo);
+    gl.uniform1f(P.u.uBoil, Math.floor(nowMs / 83));   // ~12 fps stop-motion
+    if (LAYERED.includes(kind)) {
+      this.bindSubject(P, src, W, H, nowMs, fit, 2);
+      this.bindDepth(P, src, nowMs, 3);
+    }
     if (kind === 'matrix') {
       this.ensureGlyphs();
       gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, this.glyphTex);
       gl.uniform1i(P.u.uGlyph, 1);
-      gl.uniform1f(P.u.uCell, Math.max(7, Math.round(W / 66)));
-      this.bindMatte(P, src, W, H, nowMs, fit, 2);        // unit 2: the glyph atlas holds unit 1
+      gl.uniform1f(P.u.uCell, Math.max(8, Math.round(W / 62)));
+    } else if (kind === 'ascii') {
+      this.ensureAscii();
+      gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, this.asciiTex);
+      gl.uniform1i(P.u.uGlyph, 1);
+      gl.uniform1f(P.u.uCell, Math.max(9, Math.round(H / 50)));
+    } else if (kind === 'pixel') {
+      this.ensurePalette();
+      gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, this.palTex);
+      gl.uniform1i(P.u.uPal, 1);
+      gl.uniform1f(P.u.uPalN, PIXEL_PALETTE.length);
+      gl.uniform1f(P.u.uGrid, Math.max(4, Math.round(Math.max(W, H) / 170)));
+    } else if (kind === 'comic') {
+      gl.uniform3f(P.u.uMotion, this.motion.energy, this.motion.cx, this.motion.cy);
+    } else if (kind === 'southpark') {
+      gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, this.plateTex);
+      gl.uniform1i(P.u.uPlate, 1);
+      // only paint the person out when a puppet will stand in for them
+      gl.uniform1f(P.u.uHasPlate, this.plateReady && this.tracks.some(t => t.alpha > 0.3) ? 1 : 0);
+    } else if (kind === 'grindhouse') {
+      const e = this.evt;
+      gl.uniform4f(P.u.uEvt, e.type, e.type ? Math.min(1, (nowMs - e.start) / e.dur) : 0, e.seed, 1);
+      gl.uniform4f(P.u.uReel, ...this.reel);
+    } else if (kind === 'vhs') {
+      gl.uniform4f(P.u.uEvt, this.track.amt, this.track.pos, 0, 0);
+    } else if (kind === 'found') {
+      const r = this.rig;
+      gl.uniform4f(P.u.uCam, r.x, r.y, r.r, r.z);
+      gl.uniform2f(P.u.uVel, r.px, r.py);
+      gl.uniform1f(P.u.uFocus, r.focus);
+      gl.uniform1f(P.u.uExpo, r.expo);
+      gl.uniform1f(P.u.uGlitch, r.glitch);
     } else if (kind === 'bigface') {
       // up to 3 faces x (2 eyes + mouth). Radii follow the face's own scale; the mouth swells further as it opens.
       const b = new Float32Array(36); let n = 0;
@@ -289,24 +557,220 @@ export class LensEngine {
         b.set([m.x, m.y, Math.max(8, m.w * (0.95 + m.open * 0.5)), (0.5 + Math.min(0.2, m.open * 0.6)) * k], 4 * n++);
       }
       gl.uniform4fv(P.u.uBulge, b); gl.uniform1i(P.u.uN, n);
-    } else if (kind !== 'night') {                       // comic, southpark, heat, aura all want the person matte
+    } else if (kind === 'heat' || kind === 'aura') {
       this.bindMatte(P, src, W, H, nowMs, fit, 1);
-      gl.uniform1f(P.u.uBoil, Math.floor(nowMs / 83));   // ~12 fps stop-motion
-      if (kind === 'southpark') {
-        const heads = new Float32Array(8), skins = new Float32Array(4), on = new Float32Array(2);
-        this.tracks.filter(t => t.alpha > 0.3).slice(0, 2).forEach((t, i) => {
-          heads.set([t.head.x, t.head.y, Math.max(8, t.head.rx), Math.max(8, t.head.ry)], i * 4);
-          // skin tone is read at the nose: halfway between the eyes and the mouth
-          const ex = (t.eyes[0].x + t.eyes[1].x) / 2, ey = (t.eyes[0].y + t.eyes[1].y) / 2;
-          skins.set([((ex + t.mouth.x) / 2) / W, ((ey + t.mouth.y) / 2) / H], i * 2);
-          on[i] = 1;
-        });
-        gl.uniform4fv(P.u.uHead, heads); gl.uniform2fv(P.u.uSkin, skins); gl.uniform1fv(P.u.uHeadOn, on);
-      }
       if (kind === 'aura') this.setAuraUniforms(P);
     }
     gl.drawArrays(gl.TRIANGLES, 0, 3);
     ctx.drawImage(this.glc, 0, 0, W, H);            // same-task blit: spec-guaranteed to see this frame
+  }
+
+  // ───────────────────────────── South Park: plate, pose, colours ─────────────────────────────
+  private startPose() {
+    if (this.poseState !== 'idle') return;
+    this.poseState = 'loading';
+    const p = new PoseTracker();
+    p.init().then(ok => { if (ok) { this.pose = p; this.poseState = 'ready'; } else this.poseState = 'failed'; });
+  }
+
+  /** Body landmarks in canvas px (run at the 12fps hold rate — the puppet only moves on holds anyway). */
+  private feedPose(src: HTMLVideoElement, W: number, H: number, fit: Fit) {
+    if (!this.pose || src.readyState < 2 || !src.videoWidth) return;
+    this.poseTs = Math.max(this.poseTs + 1, Math.round(performance.now()));
+    const f = this.pose.detect(this.feed.src(src), this.poseTs);
+    if (!f) { this.lastPose = null; return; }
+    const vw = src.videoWidth, vh = src.videoHeight, pl = placement(W, H, vw, vh, fit);
+    const at = (i: number) => { const p = f.pts[i]; return p ? { x: p.x * vw * pl.s + pl.ox, y: p.y * vh * pl.s + pl.oy, v: p.v } : undefined; };
+    this.lastPose = {
+      shoulderL: at(POSE.shoulderL), shoulderR: at(POSE.shoulderR),
+      elbowL: at(POSE.elbowL), elbowR: at(POSE.elbowR),
+      wristL: at(POSE.wristL), wristR: at(POSE.wristR),
+    };
+  }
+
+  /** Keep the background as last seen (video space, premultiplied alpha = "known"), so the person can be painted out. */
+  private updatePlate(src: HTMLVideoElement, nowMs: number) {
+    const gl = this.gl; if (!gl) return;
+    const m = this.matte.update(src, nowMs);
+    if (!m || m.stamp === this.plateStamp || !src.videoWidth) return;
+    this.plateStamp = m.stamp;
+    const pw = 192, ph = Math.max(2, Math.round(192 * src.videoHeight / src.videoWidth));
+    for (const c of [this.plate, this.plateTmp, this.plateAlpha]) if (c.width !== pw || c.height !== ph) { c.width = pw; c.height = ph; if (c === this.plate) this.plateReady = false; }
+    // background alpha = NOT person (dilated: the matte's soft edge carries person colour)
+    const ax = this.plateAlpha.getContext('2d')!;
+    const img = ax.createImageData(pw, ph), d = img.data;
+    const sx = m.w / pw, sy = m.h / ph, R = 3;
+    for (let y = 0; y < ph; y++) for (let x = 0; x < pw; x++) {
+      let v = 0;
+      for (let dy = -R; dy <= R; dy += R) for (let dx = -R; dx <= R; dx += R) {
+        const mx = Math.min(m.w - 1, Math.max(0, Math.round((x + dx) * sx))), my = Math.min(m.h - 1, Math.max(0, Math.round((y + dy) * sy)));
+        v = Math.max(v, m.data[my * m.w + mx]);
+      }
+      d[(y * pw + x) * 4 + 3] = v > 70 ? 0 : 255;
+    }
+    ax.putImageData(img, 0, 0);
+    const tx = this.plateTmp.getContext('2d')!;
+    tx.globalCompositeOperation = 'copy'; tx.drawImage(src, 0, 0, pw, ph);
+    tx.globalCompositeOperation = 'destination-in'; tx.drawImage(this.plateAlpha, 0, 0);
+    tx.globalCompositeOperation = 'source-over';
+    const px = this.plate.getContext('2d')!;
+    px.globalAlpha = this.plateReady ? 0.35 : 1; px.drawImage(this.plateTmp, 0, 0); px.globalAlpha = 1;
+    this.plateReady = true;
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, this.plateTex);
+    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this.plate);
+    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+    gl.generateMipmap(gl.TEXTURE_2D);
+    gl.activeTexture(gl.TEXTURE0);
+  }
+
+  /** Cut the puppet's paper from the person: skin at the nose, hair above the brow, shirt at the chest, trousers at the hips. */
+  private sampleColours(canvas: HTMLCanvasElement, nowMs: number) {
+    if (nowMs - this.coloursAt < 400) return;
+    const t = this.tracks.find(k => k.alpha > 0.3); if (!t) return;
+    this.coloursAt = nowMs;
+    const W = canvas.width, H = canvas.height;
+    const sw = this.swatch; sw.width = sw.height = 1;
+    const sx = sw.getContext('2d', { willReadFrequently: true })!;
+    const pick = (x: number, y: number, r: number): [number, number, number] | null => {
+      if (x < 0 || y < 0 || x >= W || y >= H) return null;
+      sx.drawImage(canvas, Math.max(0, x - r), Math.max(0, y - r), r * 2, r * 2, 0, 0, 1, 1);
+      const d = sx.getImageData(0, 0, 1, 1).data;
+      return [d[0], d[1], d[2]];
+    };
+    const ex = (t.eyes[0].x + t.eyes[1].x) / 2, ey = (t.eyes[0].y + t.eyes[1].y) / 2;
+    const hr = Math.max(t.head.rx, t.head.ry), rr = Math.max(2, hr * 0.12);
+    const mix = (old: string, c: [number, number, number] | null, minL?: number) => c ? css(paperTone(c, minL)) : old;
+    const p = this.lastPose;
+    const chest = p?.shoulderL && p.shoulderR && p.shoulderL.v > 0.5 && p.shoulderR.v > 0.5
+      ? { x: (p.shoulderL.x + p.shoulderR.x) / 2, y: (p.shoulderL.y + p.shoulderR.y) / 2 + Math.abs(p.shoulderL.x - p.shoulderR.x) * 0.3 }
+      : { x: t.head.x, y: t.head.y + t.head.ry * 1.9 };
+    this.colours = {
+      skin: mix(this.colours.skin, pick((ex + t.mouth.x) / 2, (ey + t.mouth.y) / 2, rr), 0.3),
+      hair: mix(this.colours.hair, pick(t.head.x, t.head.y - t.head.ry * 0.92, rr), 0.12),
+      shirt: mix(this.colours.shirt, pick(chest.x, Math.min(H - rr - 1, chest.y), rr * 2)),
+      pants: this.colours.pants,
+      glove: this.colours.glove,
+    };
+  }
+
+  // ───────────────────────────── film / tape / handheld ─────────────────────────────
+  /** Grindhouse projector events: burns, rolls, splices, changeovers, desyncs, a few seconds apart. */
+  private stepGrindhouse(nowMs: number) {
+    const e = this.evt;
+    if (e.type && nowMs - e.start > e.dur) {
+      if (e.type === 4 || e.type === 1) this.reel = [Math.random() * 0.7, Math.random(), Math.random() * 0.6, Math.random() * 10];   // next reel
+      e.type = 0;
+      this.nextEvtAt = nowMs + 2500 + Math.random() * 6000;
+    }
+    if (!this.nextEvtAt) this.nextEvtAt = nowMs + 2000;
+    if (!e.type && nowMs > this.nextEvtAt) {
+      const r = Math.random();
+      const [type, dur] = r < 0.24 ? [2, 650] : r < 0.48 ? [3, 260] : r < 0.68 ? [5, 900] : r < 0.88 ? [4, 1100] : [1, 2600];
+      Object.assign(e, { type, start: nowMs, dur, seed: Math.random() * 100 });
+    }
+  }
+
+  private stepVhs(nowMs: number, dt: number) {
+    const k = this.track;
+    if (!k.next) k.next = nowMs + 4000 + Math.random() * 6000;
+    if (nowMs > k.next) { k.until = nowMs + 700 + Math.random() * 1600; k.next = k.until + 5000 + Math.random() * 9000; k.pos = 0.95; }
+    const on = nowMs < k.until ? 1 : 0;
+    k.amt += (on - k.amt) * (1 - Math.exp(-dt * 6));
+    k.pos -= dt * 0.25 * k.amt;                                    // the band crawls up the picture
+    if (k.pos < 0.05) k.pos = 0.95;
+  }
+
+  /** Date stamp burned into the tape BEFORE the VHS pass, so it smears and wobbles with the picture. */
+  private drawVhsStamp(c: CanvasRenderingContext2D, W: number, H: number, nowMs: number) {
+    const d = new Date();
+    const fs = Math.round(H / 15);
+    c.save();
+    c.font = `700 ${fs}px "VCR OSD Mono","Consolas","Courier New",monospace`;
+    c.textBaseline = 'alphabetic';
+    const line = (s: string, x: number, y: number, align: CanvasTextAlign = 'left') => {
+      c.textAlign = align;
+      c.fillStyle = 'rgba(0,0,0,0.7)'; c.fillText(s, x + fs * 0.07, y + fs * 0.07);
+      c.fillStyle = '#f4f4ee'; c.fillText(s, x, y);
+    };
+    if (nowMs - this.startedAt < 4500) line('PLAY ▶', W * 0.07, H * 0.12);
+    const h = d.getHours(), ap = h < 12 ? 'AM' : 'PM', h12 = h % 12 || 12;
+    const p2 = (n: number) => String(n).padStart(2, '0');
+    line(`${ap} ${h12}:${p2(d.getMinutes())}`, W * 0.07, H * 0.86);
+    line(`${MONTHS[d.getMonth()]}. ${p2(d.getDate())} ${this.vhsYear}`, W * 0.07, H * 0.86 + fs * 1.15);
+    if (nowMs - this.startedAt > 4500) line('SP', W * 0.93, H * 0.12, 'right');
+    c.restore();
+  }
+
+  /** The operator: springs pulled by a slow breath, by YOUR mouse (they whip after it), by clicks (a stumble),
+   *  and by the action on screen (they panic, swing toward it, punch in). Calm scene + still mouse = calm camera. */
+  private stepRig(dt: number, nowMs: number) {
+    const r = this.rig, t = nowMs / 1000;
+    this.pointer.step(dt);
+    const vw = typeof window !== 'undefined' ? window.innerWidth || 1280 : 1280, vh = typeof window !== 'undefined' ? window.innerHeight || 720 : 720;
+    const mvx = this.pointer.vx / vw, mvy = this.pointer.vy / vh;         // screens / s
+    const ms = Math.min(1, this.pointer.speed / Math.max(vw, vh) * 0.9);
+    const clicks = this.pointer.takeClicks();
+    const action = Math.min(1, this.motion.energy * 1.7), burst = this.motion.burst;
+    const want = Math.min(1, action * 0.8 + ms * 0.9);
+    r.panic += (want - r.panic) * (1 - Math.exp(-dt * (want > r.panic ? 6 : 0.7)));
+    const P = r.panic;
+    const n = (a: number, b: number) => (Math.sin(t * a + b) + Math.sin(t * a * 1.73 + b * 2.1) * 0.6) / 1.6;
+    // targets: breath + tremble (grows with panic) + whip after the mouse + swing toward the action
+    let tx = n(0.9, 1) * 0.006 + n(11, 3) * (0.0012 + P * 0.022) - mvx * 0.025 + (this.motion.cx - 0.5) * 0.06 * P;
+    let ty = n(0.7, 5) * 0.008 + n(13, 7) * (0.0012 + P * 0.026) - mvy * 0.025 + (this.motion.cy - 0.5) * 0.05 * P;
+    tx = Math.max(-0.07, Math.min(0.07, tx)); ty = Math.max(-0.07, Math.min(0.07, ty));
+    const tr = n(0.5, 9) * 0.008 + n(9, 2) * P * 0.045 - mvx * 0.02;
+    if (burst > 0.35 && r.punch <= 0) r.punch = 1.2;                         // sudden action: crash zoom
+    r.punch = Math.max(0, r.punch - dt);
+    const tz = 1.12 + n(0.15, 4) * 0.025 + (r.punch > 0 ? 0.28 : 0) + P * 0.04;
+    if (clicks) {                                                           // stumble
+      r.vx += (Math.random() - 0.5) * 1.6; r.vy += 0.6 + Math.random() * 1.2; r.vr += (Math.random() - 0.5) * 3;
+      r.glitch = 1; r.focus = 1;
+    }
+    const ox = r.x, oy = r.y;
+    const spring = (p: number, v: number, target: number, k: number, c: number) => { v += (k * (target - p) - c * v) * dt; return [p + v * dt, v]; };
+    [r.x, r.vx] = spring(r.x, r.vx, tx, 90, 11);
+    [r.y, r.vy] = spring(r.y, r.vy, ty, 90, 11);
+    [r.r, r.vr] = spring(r.r, r.vr, tr, 70, 10);
+    [r.z, r.vz] = spring(r.z, r.vz, tz, r.punch > 0 ? 160 : 25, r.punch > 0 ? 14 : 9);
+    r.px = Math.max(-0.05, Math.min(0.05, r.x - ox)); r.py = Math.max(-0.05, Math.min(0.05, r.y - oy));
+    // autofocus hunts after big moves and zoom changes, auto-exposure lags the scene
+    const jolt = Math.hypot(r.px, r.py) * 40 + Math.abs(r.vz) * 0.4;
+    r.focus = Math.max(r.focus * Math.exp(-dt * 1.6), Math.min(1, jolt * 0.6));
+    r.focus = Math.min(1, r.focus * (0.85 + 0.15 * Math.abs(Math.sin(t * 7))));
+    const expoT = Math.max(0.75, Math.min(1.8, 0.46 / Math.max(0.05, this.motion.luma)));   // AGC: lifts dark rooms into noise, never to white
+    r.expo += (expoT - r.expo) * (1 - Math.exp(-dt * 1.4));
+    r.glitch = Math.max(r.glitch * Math.exp(-dt * 3), P > 0.75 && Math.random() < 0.04 ? 0.6 : 0);
+  }
+
+  /** Camcorder viewfinder: blinking REC, tape counter, battery, corner brackets. Drawn after the shake — it lives on the glass. */
+  private drawViewfinder(c: CanvasRenderingContext2D, W: number, H: number, nowMs: number) {
+    const fs = Math.round(H / 22), m = H * 0.06;
+    const el = Math.max(0, (nowMs - this.startedAt) / 1000);
+    const p2 = (n: number) => String(Math.floor(n)).padStart(2, '0');
+    c.save();
+    c.font = `600 ${fs}px "Consolas","Courier New",monospace`;
+    c.textBaseline = 'middle';
+    c.shadowColor = 'rgba(0,0,0,0.6)'; c.shadowBlur = 2;
+    c.fillStyle = 'rgba(255,255,255,0.88)'; c.strokeStyle = 'rgba(255,255,255,0.75)'; c.lineWidth = Math.max(1.5, H / 360);
+    if (Math.floor(nowMs / 600) % 2 === 0) { c.fillStyle = '#ff2a2a'; c.beginPath(); c.arc(m + fs * 0.4, m + fs * 0.5, fs * 0.32, 0, Math.PI * 2); c.fill(); }
+    c.fillStyle = 'rgba(255,255,255,0.88)';
+    c.textAlign = 'left'; c.fillText('REC', m + fs, m + fs * 0.5);
+    c.fillText(`SP ${p2(el / 3600)}:${p2((el / 60) % 60)}:${p2(el % 60)}`, m, H - m - fs * 0.5);
+    // battery, top-right
+    const bw = fs * 1.6, bh = fs * 0.75, bx = W - m - bw, by = m + fs * 0.12;
+    c.strokeRect(bx, by, bw, bh); c.fillRect(bx + bw, by + bh * 0.3, bh * 0.18, bh * 0.4);
+    const bars = Math.floor(nowMs / 4000) % 9 < 7 ? 2 : 1;
+    for (let i = 0; i < bars; i++) c.fillRect(bx + 3 + i * (bw - 6) / 3, by + 3, (bw - 6) / 3 - 2, bh - 6);
+    // corner brackets
+    const L = H * 0.07, i0 = H * 0.035;
+    c.beginPath();
+    for (const [x, y, sx, sy] of [[i0, i0, 1, 1], [W - i0, i0, -1, 1], [i0, H - i0, 1, -1], [W - i0, H - i0, -1, -1]] as const) {
+      c.moveTo(x, y + sy * L); c.lineTo(x, y); c.lineTo(x + sx * L, y);
+    }
+    c.stroke();
+    c.restore();
   }
 
   // ───────────────────────────── googly eyes ─────────────────────────────
@@ -358,7 +822,7 @@ export class LensEngine {
         x: e.cx * vw * pl.s + pl.ox, y: e.cy * vh * pl.s + pl.oy,
         // true eye width in canvas px, then enlarged: googly eyes are meant to be absurd
         r: Math.hypot(e.dx * vw, e.dy * vh) * pl.s * 0.95,
-        gx: e.gx, gy: e.gy,
+        gx: e.gx, gy: e.gy, open: e.open,
       }));
       const m = f.mouth, bb = f.bbox;
       const mouth = { x: m.cx * vw * pl.s + pl.ox, y: m.cy * vh * pl.s + pl.oy, w: Math.hypot(m.dx * vw, m.dy * vh) * pl.s, open: m.open };
@@ -385,7 +849,7 @@ export class LensEngine {
       }
       used.add(best);
       best.cx = cx; best.cy = cy; best.seen = nowMs;
-      best.eyes.forEach((ey, i) => { ey.tx = eyes[i].x; ey.ty = eyes[i].y; ey.tr = eyes[i].r; ey.tgx = eyes[i].gx; ey.tgy = eyes[i].gy; });
+      best.eyes.forEach((ey, i) => { ey.tx = eyes[i].x; ey.ty = eyes[i].y; ey.tr = eyes[i].r; ey.tgx = eyes[i].gx; ey.tgy = eyes[i].gy; ey.to = eyes[i].open; });
       best.mouth.tx = mouth.x; best.mouth.ty = mouth.y; best.mouth.tw = mouth.w; best.mouth.topen = mouth.open;
       best.head.tx = head.x; best.head.ty = head.y; best.head.trx = head.rx; best.head.try_ = head.ry;
     }
@@ -405,6 +869,7 @@ export class LensEngine {
         const ox = e.x, oy = e.y;
         e.x += (e.tx - e.x) * kPos; e.y += (e.ty - e.y) * kPos; e.r += (e.tr - e.r) * kPos;
         e.gx += (e.tgx - e.gx) * kPos; e.gy += (e.tgy - e.gy) * kPos;
+        e.o += (e.to - e.o) * kMouth;
         // frame acceleration (low-passed, clamped: tracker jitter must not fling the pupils)
         const vx = (e.x - ox) / dt, vy = (e.y - oy) / dt;
         const ax = Math.max(-1, Math.min(1, ((vx - e.vx) / dt) / (e.r * 120)));
@@ -443,42 +908,37 @@ export class LensEngine {
     }
   }
 
-  /** South Park face parts, drawn over the flat skin patch the shader laid down: two wide oval eyes
-   *  with tiny pupils that follow your gaze, and a black mouth flap that opens with your real mouth. */
-  private paintSouthPark(c: CanvasRenderingContext2D) {
-    for (const t of this.tracks) {
-      if (t.alpha < 0.02) continue;
-      c.save(); c.globalAlpha = t.alpha;
-      for (const e of t.eyes) {
-        const rx = e.r * 0.8, ry = rx * 1.22;
-        if (rx < 3) continue;
-        c.fillStyle = '#ffffff'; c.strokeStyle = '#070707'; c.lineWidth = Math.max(2, rx * 0.15);
-        c.beginPath(); c.ellipse(e.x, e.y, rx, ry, 0, 0, Math.PI * 2); c.fill(); c.stroke();
-        const off = (v: number) => Math.max(-0.55, Math.min(0.55, v * 3));
-        c.fillStyle = '#070707';
-        c.beginPath(); c.arc(e.x + off(e.gx) * rx, e.y + off(e.gy) * ry, Math.max(1.5, rx * 0.17), 0, Math.PI * 2); c.fill();
-      }
-      const m = t.mouth, w = m.w * 1.2;
-      if (w > 6) {
-        const roll = Math.atan2(t.eyes[1].y - t.eyes[0].y, t.eyes[1].x - t.eyes[0].x);   // follow head tilt
-        c.translate(m.x, m.y); c.rotate(roll);
-        c.fillStyle = '#070707'; c.strokeStyle = '#070707';
-        if (m.open < 0.07) {                               // closed: a short smile line
-          c.lineWidth = Math.max(3, w * 0.075); c.lineCap = 'round';
-          c.beginPath(); c.moveTo(-w / 2, 0); c.quadraticCurveTo(0, w * 0.16, w / 2, 0); c.stroke();
-        } else {                                           // open: the cut-out flap - flat top, round bottom
-          const h = Math.min(w * 0.95, m.open * w * 1.7), top = -h * 0.25;
-          c.beginPath(); c.moveTo(-w / 2, top); c.lineTo(w / 2, top); c.ellipse(0, top, w / 2, h, 0, 0, Math.PI); c.closePath(); c.fill();
-          if (h > w * 0.42) {                              // wide open: a flat pink tongue
-            c.save(); c.clip();
-            c.fillStyle = '#d9526b'; c.beginPath(); c.ellipse(0, top + h * 0.95, w * 0.3, h * 0.38, 0, 0, Math.PI * 2); c.fill();
-            c.restore();
-          }
-        }
-      }
-      c.restore();
-    }
+  /** The cut-out puppets: one per tracked face (body pose drives the first). SP heads are huge — 1.3× the face. */
+  private paintPuppets(c: CanvasRenderingContext2D) {
+    this.tracks.filter(t => t.alpha > 0.3).slice(0, 2).forEach((t, i) => {
+      const roll = Math.atan2(t.eyes[1].y - t.eyes[0].y, t.eyes[1].x - t.eyes[0].x);
+      const r0 = Math.atan2(Math.sin(roll), Math.cos(roll));
+      const rollUp = Math.abs(r0) > Math.PI / 2 ? r0 - Math.sign(r0) * Math.PI : r0;     // eye order may be either way round
+      const [a, b] = t.eyes[0].x <= t.eyes[1].x ? [t.eyes[0], t.eyes[1]] : [t.eyes[1], t.eyes[0]];
+      drawPuppet(c, {
+        x: t.head.x, y: t.head.y - t.head.ry * 0.08, r: Math.max(t.head.rx, t.head.ry) * 1.3, roll: rollUp,
+        eyes: [a, b].map(e => ({ x: e.x, y: e.y, gx: e.gx, gy: e.gy, open: e.o })),
+        mouthOpen: t.mouth.open,
+      }, i === 0 ? this.lastPose : null, this.colours, Math.min(1, t.alpha));
+    });
   }
+
+  /** Projector / limited-animation hold: true = this frame was the held one (already drawn). */
+  private holdFrame(ctx: CanvasRenderingContext2D, W: number, H: number, nowMs: number): boolean {
+    const h = this.hold;
+    if (h.width === W && h.height === H && this.holdAt && nowMs - this.holdAt < this.holdGap) { ctx.drawImage(h, 0, 0, W, H); return true; }
+    this.holdAt = nowMs; this.frameNo++;
+    const base = 1000 / (HOLD_FPS[this.lens] ?? 30);
+    // hand-cranked: the rate wanders 14-19fps; a worn print skips the odd frame
+    this.holdGap = base * (this.lens === 'silent' ? 0.85 + Math.random() * 0.35 : this.lens === 'grindhouse' && Math.random() < 0.08 ? 2 : 1);
+    return false;
+  }
+  private keepHold(canvas: HTMLCanvasElement, W: number, H: number) {
+    const h = this.hold;
+    if (h.width !== W || h.height !== H) { h.width = W; h.height = H; }
+    h.getContext('2d')!.drawImage(canvas, 0, 0, W, H);
+  }
+  private freezeAt = -1;
 
   private paintEye(c: CanvasRenderingContext2D, e: Eye, alpha: number) {
     const { x, y, r } = e;
@@ -509,6 +969,20 @@ export class LensEngine {
    */
   apply(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, src: HTMLVideoElement, nowMs: number, fit: Fit = 'cover') {
     if (this.lens === 'none') return;
+    if (HALLOWEEN_LENS_IDS.has(this.lens)) {
+      if (!this.halloweenEngine) {
+        this.halloweenEngine = new HalloweenFilterEngine();
+        if (this.lens === 'dimlights') {
+          this.halloweenEngine.setFilter('none');
+          this.halloweenEngine.setDimLights(true);
+        } else {
+          this.halloweenEngine.setDimLights(false);
+          this.halloweenEngine.setFilter(this.lens as HalloweenFilterId);
+        }
+      }
+      this.halloweenEngine.apply(ctx, canvas, src, nowMs);
+      return;
+    }
     const dt = Math.max(1 / 120, Math.min(0.1, this.lastApply ? (nowMs - this.lastApply) / 1000 : 1 / 30));
     this.lastApply = nowMs;
     ctx.globalAlpha = 1;
@@ -533,16 +1007,43 @@ export class LensEngine {
       this.feedFaces(src, nowMs, W, H, fit);
       this.stepTracks(dt, nowMs);
       // limited animation: re-render ~12x/s, hold the last frame in between - the jerky cut-out feel
-      const h = this.hold;
-      if (h.width === W && h.height === H && this.holdAt && nowMs - this.holdAt < 83) { ctx.drawImage(h, 0, 0, W, H); return; }
-      this.holdAt = nowMs;
+      if (this.holdFrame(ctx, W, H, nowMs)) return;
+      this.feedPose(src, W, H, fit);
+      this.sampleColours(canvas, nowMs);
+      this.updatePlate(src, nowMs);
       this.shade('southpark', ctx, canvas, src, nowMs, fit);
       if (!this.gl || this.tainted) return;                // shader unavailable -> leave the plain frame
-      this.paintSouthPark(ctx);
-      if (h.width !== W || h.height !== H) { h.width = W; h.height = H; }
-      h.getContext('2d')!.drawImage(canvas, 0, 0, W, H);
-    } else {
+      this.paintPuppets(ctx);
+      this.keepHold(canvas, W, H);
+    } else if (this.lens === 'silent' || this.lens === 'grindhouse') {
+      if (this.lens === 'grindhouse') this.stepGrindhouse(nowMs);
+      if (this.holdFrame(ctx, W, H, nowMs)) return;
+      if (this.lens === 'grindhouse' && this.evt.type === 1) {       // the burn: the frame is stuck in the gate
+        const fz = this.freeze;
+        if (this.freezeAt !== this.evt.start || fz.width !== W || fz.height !== H) {
+          fz.width = W; fz.height = H; fz.getContext('2d')!.drawImage(canvas, 0, 0, W, H); this.freezeAt = this.evt.start;
+        }
+        ctx.drawImage(fz, 0, 0, W, H);
+      }
       this.shade(this.lens, ctx, canvas, src, nowMs, fit);
+      this.keepHold(canvas, W, H);
+    } else if (this.lens === 'vhs') {
+      if (!this.startedAt) this.startedAt = nowMs;
+      this.frameNo++;
+      this.stepVhs(nowMs, dt);
+      this.drawVhsStamp(ctx, W, H, nowMs);
+      this.shade('vhs', ctx, canvas, src, nowMs, fit);
+    } else if (this.lens === 'foundfootage') {
+      if (!this.startedAt) this.startedAt = nowMs;
+      this.frameNo++;
+      this.motion.update(canvas);
+      this.stepRig(dt, nowMs);
+      this.shade('found', ctx, canvas, src, nowMs, fit);
+      if (this.gl && !this.tainted) this.drawViewfinder(ctx, W, H, nowMs);
+    } else {
+      // comic reads the action every frame (speed lines); the others only need it to aim Segment Anything
+      if (this.lens === 'comic' || (++this.frameNo & 3) === 0) this.motion.update(canvas);
+      this.shade(this.lens as ShaderLens, ctx, canvas, src, nowMs, fit);
     }
   }
 
@@ -573,10 +1074,14 @@ export class LensEngine {
   dispose() {
     this.worker.dispose();
     try { this.sync?.dispose(); } catch { /* */ }
+    this.halloweenEngine?.dispose();
+    this.halloweenEngine = null;
     this.matte.dispose();
+    this.pointer.stop();
+    this.pose?.dispose(); this.pose = null; this.poseState = 'idle';
     const gl = this.gl;
     if (gl) {
-      for (const t of [this.srcTex, this.maskTex, this.glyphTex]) if (t) gl.deleteTexture(t);
+      for (const t of [this.srcTex, this.maskTex, this.glyphTex, this.depthTex, this.plateTex, this.palTex, this.asciiTex]) if (t) gl.deleteTexture(t);
       for (const p of Object.values(this.progs)) if (p) gl.deleteProgram(p.prog);
       gl.getExtension('WEBGL_lose_context')?.loseContext();
     }

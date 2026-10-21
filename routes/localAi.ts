@@ -36,8 +36,41 @@ function ensureSidecarRunning(): void {
   }
 }
 
+// Tela Diffusion Runtime (engines/tela-diffusion): Plajah's own PyTorch/diffusers image engine — generative fill,
+// outpaint and text-to-image for Tela documents, no ComfyUI. Lives in its own env on D: (C: has no room).
+const TELA_RUNTIME_PORT = 51123;
+const TELA_RUNTIME_ROOT = process.env.TELA_RUNTIME_ROOT || 'D:\\Plajah Runtime';
+let telaRuntimeProcess: any = null;
+
+function ensureTelaRuntimeRunning(): void {
+  if (telaRuntimeProcess && !telaRuntimeProcess.killed && telaRuntimeProcess.exitCode === null) return;
+  const pythonExe = path.join(TELA_RUNTIME_ROOT, 'tela-py', 'Scripts', 'python.exe');
+  const scriptPath = path.resolve('engines/tela-diffusion/tela_runtime.py');
+  if (!fs.existsSync(pythonExe) || !fs.existsSync(scriptPath)) return;
+  try {
+    telaRuntimeProcess = spawn(pythonExe, ['-u', scriptPath, '--port', String(TELA_RUNTIME_PORT)], {
+      cwd: path.dirname(scriptPath),
+      detached: false,
+      stdio: 'ignore',
+      env: {
+        ...process.env,
+        HF_HOME: path.join(TELA_RUNTIME_ROOT, 'cache', 'hf'),
+        TMP: path.join(TELA_RUNTIME_ROOT, 'tmp'),
+        TEMP: path.join(TELA_RUNTIME_ROOT, 'tmp'),
+        PYTHONIOENCODING: 'utf-8',
+      },
+    });
+    telaRuntimeProcess.on('error', () => { telaRuntimeProcess = null; });
+    telaRuntimeProcess.unref();
+    console.log(`[Local AI] Started Tela Diffusion Runtime on port ${TELA_RUNTIME_PORT}`);
+  } catch (err) {
+    console.warn('[Local AI] Failed to start Tela Diffusion Runtime:', err);
+  }
+}
+
 // Ensure sidecar is active on router load
 ensureSidecarRunning();
+ensureTelaRuntimeRunning();
 
 localAiRouter.get('/health', async (_req: Request, res: Response) => {
   try {

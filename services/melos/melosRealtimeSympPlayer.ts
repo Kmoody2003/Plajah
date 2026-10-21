@@ -238,8 +238,8 @@ function renderHybridOrchestraAndMpeChunk(
         const env = attEnv * relEnv * (0.40 + 0.60 * mpe.pressure) * velAmp;
         if (env <= 0.0005) continue;
 
-        const instFreq = baseFreq * Math.pow(2, (mpe.pitchOffsetSemis || 0) / 12);
-        const phase = 2 * Math.PI * instFreq * elapsedSec;
+        const bendMod = (mpe.pitchOffsetSemis || 0) * 0.42;
+        const phase = 2 * Math.PI * baseFreq * elapsedSec + bendMod;
         const bright = 0.35 + 0.65 * mpe.timbre;
 
         let synthSig = 0;
@@ -252,7 +252,7 @@ function renderHybridOrchestraAndMpeChunk(
             0.28 * bright * Math.sin(2 * phase + 0.15) +
             0.14 * bright * Math.sin(3 * phase) +
             0.06 * Math.sin(4 * phase);
-          const chorusDetune = 2 * Math.PI * (instFreq * 1.0028) * elapsedSec;
+          const chorusDetune = 2 * Math.PI * (baseFreq * 1.0028) * elapsedSec + bendMod;
           const soloViolin =
             0.46 * Math.sin(phase) +
             0.31 * bright * Math.sin(2 * phase) +
@@ -272,8 +272,8 @@ function renderHybridOrchestraAndMpeChunk(
           aceStepOrchSigL = hornWave * 0.22 * orchScale;
           aceStepOrchSigR = hornWave * 0.19 * orchScale;
         } else if (tr.role === 'harmony') {
-          const detL = 2 * Math.PI * (instFreq * 0.9975) * elapsedSec;
-          const detR = 2 * Math.PI * (instFreq * 1.0025) * elapsedSec;
+          const detL = 2 * Math.PI * (baseFreq * 0.9975) * elapsedSec + bendMod * 0.8;
+          const detR = 2 * Math.PI * (baseFreq * 1.0025) * elapsedSec + bendMod * 0.8;
           synthSig = 0.50 * Math.sin(phase) + 0.25 * bright * Math.sin(2 * phase);
           aceStepOrchSigL = (0.44 * Math.sin(detL) + 0.24 * bright * Math.sin(2 * detL) + 0.12 * Math.sin(3 * detL)) * 0.22 * orchScale;
           aceStepOrchSigR = (0.44 * Math.sin(detR) + 0.24 * bright * Math.sin(2 * detR) + 0.12 * Math.sin(3 * detR)) * 0.22 * orchScale;
@@ -624,13 +624,14 @@ export function buildShowcaseGenerativeStemAudioBuffer(
       const baseFreq = 440 * Math.pow(2, (n.key - 69) / 12);
       const velAmp = (n.vel / 127) * 0.16;
 
+      let ph = 0;
       for (let f = onFrame; f < offFrame; f++) {
         const el = (f - onFrame) / sr;
         const prog = el / dur;
         const mpe = evaluateNoteMpeAtProgress(n, prog, el);
         const env = Math.min(1, el / 0.04) * Math.min(1, (1 - prog) / 0.2) * (0.4 + 0.6 * mpe.pressure) * velAmp;
-        const instFreq = baseFreq * Math.pow(2, mpe.bendSemis / 12);
-        const ph = 2 * Math.PI * instFreq * el;
+        const instFreq = baseFreq * Math.pow(2, (mpe.bendSemis || 0) / 12);
+        ph += (2 * Math.PI * instFreq) / sr;
         const sig =
           0.52 * Math.sin(ph) +
           0.28 * mpe.timbre * Math.sin(2 * ph + (stemIdx * 0.4)) +

@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import * as THREE from 'three';
+import { buildResidentialCastle } from './ravencrest/buildResidentialCastle';
+import { RESIDENTIAL_FLOORS, RESIDENTIAL_WORLD_ROOMS, residentialSupportAt, slideCastleCollisions } from '../../services/halloween/residentialCastleLayout';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
@@ -93,7 +95,7 @@ export const CASTLE_COUNCIL_LENSES: Array<{
 ];
 
 // ============================================================================
-// TYPES & ENCOUNTER DEFINITIONS (Sheet-Accurate 3D Rigs + 12-Room Castle Mansion)
+// TYPES & ENCOUNTER DEFINITIONS (Sheet-Accurate 3D Rigs + Five-Level Residential Castle)
 // ============================================================================
 
 export type PumpkinPatchEncounterId =
@@ -149,7 +151,7 @@ export interface CastleRoomDefinition {
   id: string;
   roomNumber: number;
   name: string;
-  floorIndex: 0 | 1 | 2 | 3;
+  floorIndex: number;
   floorLabel: string;
   elevationY: number;
   musicZone: CastleMusicZone;
@@ -164,207 +166,21 @@ export interface CastleRoomDefinition {
 
 const PUMPKIN_PATCH_FILM_ID = 'album_1787881859314_mlt23';
 
-export const CASTLE_ROOMS: CastleRoomDefinition[] = [
-  // LEVEL 0: SUBTERRANEAN BASEMENT CRYPT (Y = -6.0m — Reached via Center Crypt Staircase!)
-  {
-    id: 'crypt_alchemy',
-    roomNumber: 1,
-    name: 'Torture & Alchemy Crypt',
-    floorIndex: 0,
-    floorLabel: 'Basement Crypt (-6m)',
-    elevationY: -6.0,
-    musicZone: 'BASEMENT_CRYPT',
-    surface: 'STONE',
-    center: [-15.0, -6.0, -46.0],
-    bounds: { minX: -23.5, maxX: -6.8, minZ: -54.5, maxZ: -36.5 },
-    paintingPos: [-22.3, -3.3, -46.0],
-    paintingRotY: Math.PI / 2,
-    subtitle: 'Glowing emerald alchemical vats, iron cages & dungeon stone vaults',
-    accentColor: '#10b981',
-  },
-  {
-    id: 'crypt_catacombs',
-    roomNumber: 2,
-    name: 'Flooded Catacombs & Bone Vault',
-    floorIndex: 0,
-    floorLabel: 'Basement Crypt (-6m)',
-    elevationY: -6.0,
-    musicZone: 'BASEMENT_CRYPT',
-    surface: 'CRYPT_WATER',
-    center: [0.0, -6.0, -66.5],
-    bounds: { minX: -23.5, maxX: 23.5, minZ: -71.5, maxZ: -55.0 },
-    paintingPos: [0.0, -3.3, -70.3],
-    paintingRotY: 0,
-    subtitle: 'Ankle-deep subterranean black water, skull ossuary alcoves & catacomb arches',
-    accentColor: '#06b6d4',
-  },
-  {
-    id: 'crypt_ritual',
-    roomNumber: 3,
-    name: 'Sacrificial Blood Ritual Chamber',
-    floorIndex: 0,
-    floorLabel: 'Basement Crypt (-6m)',
-    elevationY: -6.0,
-    musicZone: 'BASEMENT_CRYPT',
-    surface: 'STONE',
-    center: [15.0, -6.0, -46.0],
-    bounds: { minX: 6.8, maxX: 23.5, minZ: -54.5, maxZ: -36.5 },
-    paintingPos: [22.3, -3.3, -46.0],
-    paintingRotY: -Math.PI / 2,
-    subtitle: 'Glowing crimson ritual seal, obsidian monoliths & ancient sarcophagi',
-    accentColor: '#ef4444',
-  },
-
-  // LEVEL 1: GROUND FLOOR MANSION HALLS (Y = 0.0m — Enter across Moat Drawbridge at Z = -36!)
-  {
-    id: 'foyer_grand',
-    roomNumber: 4,
-    name: 'Grand Gothic Entrance Foyer & Nave',
-    floorIndex: 1,
-    floorLabel: 'Ground Floor (0m)',
-    elevationY: 0.0,
-    musicZone: 'GROUND_HALLS',
-    surface: 'STONE',
-    center: [0.0, 0.0, -41.5],
-    bounds: { minX: -6.8, maxX: 6.8, minZ: -47.0, maxZ: -36.0 },
-    paintingPos: [-6.3, 2.7, -41.5],
-    paintingRotY: Math.PI / 2,
-    subtitle: 'Open iron portcullis entrance from Drawbridge, crimson carpet & Grand Staircase arches',
-    accentColor: '#f97316',
-  },
-  {
-    id: 'gallery_portraits',
-    roomNumber: 5,
-    name: 'Cursed Portrait Gallery (West Wing)',
-    floorIndex: 1,
-    floorLabel: 'Ground Floor (0m)',
-    elevationY: 0.0,
-    musicZone: 'GROUND_HALLS',
-    surface: 'STONE',
-    center: [-15.0, 0.0, -44.0],
-    bounds: { minX: -23.5, maxX: -7.0, minZ: -53.5, maxZ: -36.5 },
-    paintingPos: [-22.3, 2.7, -43.5],
-    paintingRotY: Math.PI / 2,
-    subtitle: 'Ornate gold-framed interactive movie paintings & velvet exhibition ropes',
-    accentColor: '#f59e0b',
-  },
-  {
-    id: 'chapel_organ',
-    roomNumber: 6,
-    name: 'Haunted Pipe-Organ Chapel (East Wing)',
-    floorIndex: 1,
-    floorLabel: 'Ground Floor (0m)',
-    elevationY: 0.0,
-    musicZone: 'GROUND_HALLS',
-    surface: 'STONE',
-    center: [15.0, 0.0, -44.0],
-    bounds: { minX: 7.0, maxX: 23.5, minZ: -53.5, maxZ: -36.5 },
-    paintingPos: [22.3, 2.7, -43.5],
-    paintingRotY: -Math.PI / 2,
-    subtitle: 'Towering brass cathedral pipe organ, dark oak pews & crimson rose window',
-    accentColor: '#a855f7',
-  },
-  {
-    id: 'banquet_blood',
-    roomNumber: 7,
-    name: 'Blood Banquet Dining Hall (NW Wing)',
-    floorIndex: 1,
-    floorLabel: 'Ground Floor (0m)',
-    elevationY: 0.0,
-    musicZone: 'GROUND_HALLS',
-    surface: 'STONE',
-    center: [-15.0, 0.0, -63.0],
-    bounds: { minX: -23.5, maxX: -7.0, minZ: -71.5, maxZ: -54.5 },
-    paintingPos: [-15.0, 2.7, -70.3],
-    paintingRotY: 0,
-    subtitle: 'Long Gothic feast table, silver candelabras, roaring hearth & vampire goblets',
-    accentColor: '#ec4899',
-  },
-  {
-    id: 'library_occult',
-    roomNumber: 8,
-    name: 'Forbidden Occult Library (NE Wing)',
-    floorIndex: 1,
-    floorLabel: 'Ground Floor (0m)',
-    elevationY: 0.0,
-    musicZone: 'GROUND_HALLS',
-    surface: 'STONE',
-    center: [15.0, 0.0, -63.0],
-    bounds: { minX: 7.0, maxX: 23.5, minZ: -71.5, maxZ: -54.5 },
-    paintingPos: [15.0, 2.7, -70.3],
-    paintingRotY: 0,
-    subtitle: 'Floor-to-ceiling grimoire bookshelves, levitating tomes & reading lectern',
-    accentColor: '#38bdf8',
-  },
-
-  // LEVEL 2: UPPER NOBLE FLOOR (Y = +6.0m — Reached via West Grand Staircase!)
-  {
-    id: 'rotunda_spiral',
-    roomNumber: 9,
-    name: 'Grand Imperial Staircase & North Gallery',
-    floorIndex: 2,
-    floorLabel: 'Upper Noble Floor (+6m)',
-    elevationY: 6.0,
-    musicZone: 'UPPER_NOBLE',
-    surface: 'SPIRAL_STAIR',
-    center: [0.0, 6.0, -66.5],
-    bounds: { minX: -8.0, maxX: 8.0, minZ: -71.5, maxZ: -36.5 },
-    paintingPos: [0.0, 8.7, -70.3],
-    paintingRotY: 0,
-    subtitle: 'Grand Gothic Mezzanine Gallery overlooking the Foyer & connecting to Belfry Attic Stairs',
-    accentColor: '#eab308',
-  },
-  {
-    id: 'miriam_lab',
-    roomNumber: 10,
-    name: "Wicked Witch Miriam's Coven Lab",
-    floorIndex: 2,
-    floorLabel: 'Upper Noble Floor (+6m)',
-    elevationY: 6.0,
-    musicZone: 'UPPER_NOBLE',
-    surface: 'STONE',
-    center: [-15.0, 6.0, -54.0],
-    bounds: { minX: -23.5, maxX: -7.5, minZ: -71.5, maxZ: -36.5 },
-    paintingPos: [-22.3, 8.7, -54.0],
-    paintingRotY: Math.PI / 2,
-    subtitle: 'Bubbling emerald witch cauldron, celestial astrolabe & spell apothecary',
-    accentColor: '#22c55e',
-  },
-  {
-    id: 'vampire_chamber',
-    roomNumber: 11,
-    name: 'Master Vampire Bedchamber & Balcony',
-    floorIndex: 2,
-    floorLabel: 'Upper Noble Floor (+6m)',
-    elevationY: 6.0,
-    musicZone: 'UPPER_NOBLE',
-    surface: 'STONE',
-    center: [15.0, 6.0, -54.0],
-    bounds: { minX: 7.5, maxX: 23.5, minZ: -71.5, maxZ: -36.5 },
-    paintingPos: [22.3, 8.7, -54.0],
-    paintingRotY: -Math.PI / 2,
-    subtitle: 'Four-poster crimson velvet canopy bed, ornate mirror & Moat overlook',
-    accentColor: '#f43f5e',
-  },
-
-  // LEVEL 3: CREEPY COBWEBBED ATTIC & CLOCKTOWER BELFRY (Y = +12.0m — Reached via East Belfry Staircase!)
-  {
-    id: 'attic_belfry',
-    roomNumber: 12,
-    name: 'Creepy Cobwebbed Attic & Clocktower Belfry',
-    floorIndex: 3,
-    floorLabel: 'Creepy Attic (+12m)',
-    elevationY: 12.0,
-    musicZone: 'CREEPY_ATTIC',
-    surface: 'WOOD_ATTIC',
-    center: [0.0, 12.0, -42.5],
-    bounds: { minX: -19.0, maxX: 19.0, minZ: -71.0, maxZ: -36.5 },
-    paintingPos: [-15.2, 14.5, -54.0],
-    paintingRotY: Math.PI / 2,
-    subtitle: 'Pitched timber rafters, backlit Gothic clockface, antique mannequins & swinging bell',
-    accentColor: '#c084fc',
-  },
-];
+export const CASTLE_ROOMS: CastleRoomDefinition[] = RESIDENTIAL_WORLD_ROOMS.map((room, index) => ({
+  id: room.id, roomNumber: index + 1, name: room.name, floorIndex: room.floorIndex,
+  floorLabel: room.floorLabel, elevationY: room.elevationY,
+  musicZone: room.floorIndex === 0 ? 'BASEMENT_CRYPT' : room.floorIndex === 1 ? 'GROUND_HALLS' : room.floorIndex === 4 ? 'CREEPY_ATTIC' : 'UPPER_NOBLE',
+  surface: room.floorIndex === 4 ? 'WOOD_ATTIC' : 'STONE',
+  center: room.center, bounds: room.bounds,
+  paintingPos: [room.center[0], room.elevationY + 2.5, room.bounds.minZ + 0.28], paintingRotY: 0,
+  subtitle: room.kind === 'bedroom' ? 'Residential bedroom from the selected Ravencrest plan' : room.name,
+  accentColor: ['#8ba8b5', '#d1ad76', '#a6b794', '#b6a1c9', '#c4b284'][room.floorIndex],
+}));
+const CASTLE_FLOOR_DESTINATIONS = RESIDENTIAL_FLOORS.map(floor => ({
+  idx: floor.index, label: floor.name,
+  room: CASTLE_ROOMS.find(room => room.id === ['basement_stairs', 'main_entrance', 'central_gallery', 'kings_hallway', 'observatory_dome'][floor.index])!,
+}));
+const EXHIBITION_ROOM_IDS = ['dining_room', 'kitchen_pantry', 'library_study', 'living_room', 'wine_cellar', 'armory', 'queens_suite', 'bedroom_1', 'kings_suite', 'bedroom_5', 'recreation_north', 'storage_west'];
 
 export const SPARSE_ENCOUNTERS: SparseCharacterEncounter[] = [
   {
@@ -483,7 +299,7 @@ export const SPARSE_ENCOUNTERS: SparseCharacterEncounter[] = [
     comicPageNumber: 11,
     comicPanelId: 'p11_pan3',
     scriptQuote:
-      '"Follow the glowing paintings inside the 12 Castle Rooms—each frame holds a portal into the Vault!"',
+      '"Follow the glowing paintings inside the residential castle rooms—each frame holds a portal into the Vault!"',
     sfxText: 'WHOOO-GLIMMER!',
     storyIntelSceneTitle:
       "Act II (25:40) — The Farmhouse Sanctuary & Lil' Boo's Guidance",
@@ -508,10 +324,10 @@ export const HauntedCastleExhibition: React.FC<HauntedCastleExhibitionProps> = (
   onSelectArchiveFilm,
   onOpenChatRoom,
 }) => {
-  // Build billboard / road-sign nodes AND map each movie to a Wall Painting inside the 12 Castle Rooms!
+  // Build billboard / road-sign nodes AND map each movie to a Wall Painting inside the residential castle rooms!
   const billboardNodes = useMemo<BillboardMovieNode[]>(() => {
     const ppIntel = getHalloweenStoryIntelBundle(PUMPKIN_PATCH_FILM_ID);
-    const foyerRoom = CASTLE_ROOMS[3]; // Room 4: Grand Gothic Entrance Foyer
+    const foyerRoom = CASTLE_ROOMS.find(room => room.id === 'grand_hall')!;
     const heroNode: BillboardMovieNode = {
       id: PUMPKIN_PATCH_FILM_ID,
       title: 'Pumpkin Patch (2025)',
@@ -657,12 +473,10 @@ export const HauntedCastleExhibition: React.FC<HauntedCastleExhibitionProps> = (
     const filmNodes: BillboardMovieNode[] = CURATED_HALLOWEEN_FILMS.slice(0, 12).map(
       (film, idx) => {
         const p = placements[idx % placements.length];
-        const room = CASTLE_ROOMS[p.roomIdx] || CASTLE_ROOMS[0];
+        const room = CASTLE_ROOMS.find(room => room.id === EXHIBITION_ROOM_IDS[idx])!;
         const intel = getHalloweenStoryIntelBundle(film.identifier);
-        // For the 12th film sharing the Attic, place its painting on the opposite East gable wall
-        const paintingPos: [number, number, number] =
-          idx === 11 ? [15.2, 14.5, -54.0] : room.paintingPos;
-        const paintingRotY = idx === 11 ? -Math.PI / 2 : room.paintingRotY;
+        const paintingPos = room.paintingPos;
+        const paintingRotY = room.paintingRotY;
 
         return {
           id: film.identifier,
@@ -883,7 +697,7 @@ export const HauntedCastleExhibition: React.FC<HauntedCastleExhibitionProps> = (
     };
   }, []);
 
-  // Teleport Player directly into any of the 12 Castle Rooms or Crossroads Road
+  // Teleport Player directly into any of the residential castle rooms or Crossroads Road
   const teleportToCastleRoom = useCallback((room: CastleRoomDefinition | 'CROSSROADS') => {
     const p = playerStateRef.current;
     if (room === 'CROSSROADS') {
@@ -2262,692 +2076,20 @@ export const HauntedCastleExhibition: React.FC<HauntedCastleExhibitionProps> = (
     }
     scene.add(grassGroup);
 
-    // ==========================================================================
-    // 2. TOTALLY EXPLORABLE 4-LEVEL, 12-ROOM GOTHIC CATHEDRAL & VAMPIRE CASTLE
-    //    MANSION (`Z = -36` TO `-72`) WITH FLYING BUTTRESSES, OCTAGONAL KEEP
-    //    TOWERS, 3 WALKABLE GRAND STONE STAIRCASES & FULL AABB COLLIDERS!
-    // ==========================================================================
-    // Note: We offset `castleMansionGroup` by `Z = -14.0m` so its local `Z in [-22, -58]`
-    // maps to World `Z in [-36, -72]`, right across the Moat Drawbridge!
-    const CASTLE_Z_SHIFT = -14.0;
-    const castleMansionGroup = new THREE.Group();
-    castleMansionGroup.position.set(0, 0, CASTLE_Z_SHIFT);
+    // Residential geometry, stairs and colliders share one construction contract.
+    const residentialCastle = buildResidentialCastle({
+      stone: stoneWallMat, floor: marbleFloorMat, wood: woodRafterMat,
+      trim: darkTrimMat, carpet: redCarpetMat,
+    }, registerBoxCollider);
+    const castleMansionGroup = residentialCastle.group;
     scene.add(castleMansionGroup);
-
-    // Reposition interior castle chandelier lights to match `CASTLE_Z_SHIFT`
-    cryptChandelierLight.position.set(0, -1.5, -40.0 + CASTLE_Z_SHIFT);
-    groundHallChandelierLight.position.set(0, 4.8, -38.0 + CASTLE_Z_SHIFT);
-    upperNobleChandelierLight.position.set(0, 10.8, -40.0 + CASTLE_Z_SHIFT);
-    atticBelfryChandelierLight.position.set(0, 16.8, -38.0 + CASTLE_Z_SHIFT);
-    crossroadsCenterLight.position.set(0, 7.5, 20.0);
-
-    const addBoxMesh = (
-      w: number,
-      h: number,
-      d: number,
-      x: number,
-      y: number,
-      z: number,
-      mat: THREE.Material = stoneWallMat,
-      rotY = 0,
-      collidable = false
-    ) => {
-      const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
-      m.position.set(x, y, z);
-      if (rotY !== 0) m.rotation.y = rotY;
-      m.receiveShadow = true;
-      m.castShadow = true;
-      castleMansionGroup.add(m);
-      if (collidable && rotY === 0) {
-        registerBoxCollider(x, y, z + CASTLE_Z_SHIFT, w, h, d);
-      }
-      return m;
-    };
-
-    const addGothicChandelier = (cx: number, cy: number, cz: number, candleColor = '#ffbe42') => {
-      const chGroup = new THREE.Group();
-      chGroup.position.set(cx, cy, cz);
-      const chain = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.3, 8), darkTrimMat);
-      chain.position.y = 0.65;
-      chGroup.add(chain);
-      const wheel = new THREE.Mesh(
-        new THREE.TorusGeometry(1.45, 0.09, 10, 24),
-        goldFrameMat
-      );
-      wheel.rotation.x = Math.PI / 2;
-      chGroup.add(wheel);
-      const innerWheel = new THREE.Mesh(
-        new THREE.TorusGeometry(0.75, 0.06, 8, 18),
-        darkTrimMat
-      );
-      innerWheel.rotation.x = Math.PI / 2;
-      innerWheel.position.y = 0.25;
-      chGroup.add(innerWheel);
-      const candleMat = new THREE.MeshStandardMaterial({ color: '#fef3c7', roughness: 0.4 });
-      const flameMat = new THREE.MeshBasicMaterial({ color: candleColor });
-      for (let i = 0; i < 8; i++) {
-        const ang = (i / 8) * Math.PI * 2;
-        const rx = Math.cos(ang) * 1.45;
-        const rz = Math.sin(ang) * 1.45;
-        const candle = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.34, 8), candleMat);
-        candle.position.set(rx, 0.22, rz);
-        chGroup.add(candle);
-        const flame = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 8), flameMat);
-        flame.scale.set(0.8, 1.6, 0.8);
-        flame.position.set(rx, 0.45, rz);
-        chGroup.add(flame);
-      }
-      addVolumetricLightHalo(chGroup, 0, 0.25, 0, 2.9, candleColor, 0.48);
-      castleMansionGroup.add(chGroup);
-    };
-
-    const addGothicWindowWithBillowingCurtains = (
-      wx: number,
-      wy: number,
-      wz: number,
-      rotY: number,
-      glassColor = '#ff8c38',
-      rayColor = '#ffbe73'
-    ) => {
-      const winGroup = new THREE.Group();
-      winGroup.position.set(wx, wy, wz);
-      winGroup.rotation.y = rotY;
-
-      const outerFrame = new THREE.Mesh(
-        new THREE.BoxGeometry(2.55, 4.45, 0.28),
-        darkTrimMat
-      );
-      winGroup.add(outerFrame);
-
-      // Pointed Gothic Lancet Arch Crest at top of window
-      const archCrest = new THREE.Mesh(
-        new THREE.ConeGeometry(1.35, 1.25, 4),
-        darkTrimMat
-      );
-      archCrest.position.set(0, 2.75, 0);
-      archCrest.rotation.y = Math.PI / 4;
-      winGroup.add(archCrest);
-
-      const glassMat = new THREE.MeshStandardMaterial({
-        color: glassColor,
-        emissive: new THREE.Color(glassColor),
-        emissiveIntensity: 2.2,
-        roughness: 0.15,
-        metalness: 0.1,
-      });
-      const glassPane = new THREE.Mesh(new THREE.PlaneGeometry(2.1, 3.95), glassMat);
-      glassPane.position.z = 0.16;
-      winGroup.add(glassPane);
-
-      const vBar = new THREE.Mesh(new THREE.BoxGeometry(0.09, 3.95, 0.32), darkTrimMat);
-      winGroup.add(vBar);
-      for (const hy of [-0.8, 0.8]) {
-        const hBar = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.09, 0.32), darkTrimMat);
-        hBar.position.y = hy;
-        winGroup.add(hBar);
-      }
-
-      const rod = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.045, 0.045, 3.4, 10),
-        goldFrameMat
-      );
-      rod.rotation.z = Math.PI / 2;
-      rod.position.set(0, 2.25, 0.32);
-      winGroup.add(rod);
-      for (const fx of [-1.72, 1.72]) {
-        const finial = new THREE.Mesh(new THREE.SphereGeometry(0.11, 10, 10), goldFrameMat);
-        finial.position.set(fx, 2.25, 0.32);
-        winGroup.add(finial);
-      }
-
-      const curtainGeo = new THREE.PlaneGeometry(1.15, 4.35, 14, 24);
-      const leftCurtain = new THREE.Mesh(curtainGeo, velvetCurtainMat);
-      leftCurtain.position.set(-1.08, 0.05, 0.34);
-      winGroup.add(leftCurtain);
-
-      const rightCurtain = new THREE.Mesh(curtainGeo, velvetCurtainMat);
-      rightCurtain.position.set(1.08, 0.05, 0.34);
-      winGroup.add(rightCurtain);
-
-      const rayMat = new THREE.MeshBasicMaterial({
-        color: rayColor,
-        transparent: true,
-        opacity: 0.11,
-        depthWrite: false,
-        side: THREE.DoubleSide,
-      });
-      const rayShaft = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.95, 1.85, 6.2, 14, 1, true),
-        rayMat
-      );
-      rayShaft.position.set(0, -0.95, 2.45);
-      rayShaft.rotation.x = Math.PI * 0.34;
-      winGroup.add(rayShaft);
-
-      castleMansionGroup.add(winGroup);
-    };
-
-    const addGothicColumn = (cx: number, floorY: number, cz: number, height = 5.8) => {
-      const colGroup = new THREE.Group();
-      colGroup.position.set(cx, floorY, cz);
-      const base = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.45, 1.1), darkTrimMat);
-      base.position.y = 0.225;
-      colGroup.add(base);
-      const shaft = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.36, 0.42, height - 0.9, 14),
-        stoneWallMat
-      );
-      shaft.position.y = height * 0.5;
-      shaft.castShadow = true;
-      shaft.receiveShadow = true;
-      colGroup.add(shaft);
-      const cap = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.45, 1.15), darkTrimMat);
-      cap.position.y = height - 0.225;
-      colGroup.add(cap);
-      const sconceFlame = new THREE.Mesh(
-        new THREE.SphereGeometry(0.13, 8, 8),
-        new THREE.MeshBasicMaterial({ color: '#ff9d3b' })
-      );
-      sconceFlame.position.set(0, height * 0.58, 0.52);
-      colGroup.add(sconceFlame);
-      castleMansionGroup.add(colGroup);
-      registerBoxCollider(cx, floorY + height * 0.5, cz + CASTLE_Z_SHIFT, 0.95, height, 0.95);
-    };
-
-    const addGothicFireplace = (fx: number, fy: number, fz: number, rotY: number) => {
-      const fpGroup = new THREE.Group();
-      fpGroup.position.set(fx, fy, fz);
-      fpGroup.rotation.y = rotY;
-      const surround = new THREE.Mesh(new THREE.BoxGeometry(3.8, 3.2, 0.95), gothicBrickMat);
-      surround.position.y = 1.6;
-      fpGroup.add(surround);
-      const mantel = new THREE.Mesh(new THREE.BoxGeometry(4.3, 0.35, 1.25), woodRafterMat);
-      mantel.position.y = 3.25;
-      fpGroup.add(mantel);
-      const firebox = new THREE.Mesh(
-        new THREE.BoxGeometry(2.2, 1.85, 0.55),
-        new THREE.MeshBasicMaterial({ color: '#14080e' })
-      );
-      firebox.position.set(0, 0.95, 0.28);
-      fpGroup.add(firebox);
-      const hearthGlow = new THREE.Mesh(
-        new THREE.ConeGeometry(0.78, 1.25, 12),
-        new THREE.MeshBasicMaterial({ color: '#ff6a00' })
-      );
-      hearthGlow.position.set(0, 0.72, 0.42);
-      fpGroup.add(hearthGlow);
-      castleMansionGroup.add(fpGroup);
-      registerBoxCollider(fx, fy + 1.6, fz + CASTLE_Z_SHIFT, 3.8, 3.2, 1.1);
-    };
-
-    // --- FLOOR SLABS WITH OPEN STAIRWELL CUTOUT AT `X in [-6.8, +6.8], Z in [-48.0, -32.0]` ---
-    // (In World coordinates, the 3-Lane Grand Staircase Hall spans `Z in [-62.0, -46.0]`)
-    const addFloorWithStairwellHole = (elevY: number, mat: THREE.Material) => {
-      // South Foyer Slab (`Z in [-22, -32]`, full 48m width)
-      addBoxMesh(48, 0.38, 10.0, 0, elevY - 0.19, -27.0, mat);
-      // North Gallery Landing Slab (`Z in [-48, -58]`, full 48m width)
-      addBoxMesh(48, 0.38, 10.0, 0, elevY - 0.19, -53.0, mat);
-      // West Wing Slab (`X in [-24, -6.8]`, `Z in [-32, -48]`)
-      addBoxMesh(17.2, 0.38, 16.0, -15.4, elevY - 0.19, -40.0, mat);
-      // East Wing Slab (`X in [+6.8, +24]`, `Z in [-32, -48]`)
-      addBoxMesh(17.2, 0.38, 16.0, 15.4, elevY - 0.19, -40.0, mat);
-    };
-
-    // Level 0: Basement Crypt Floor (`Y = -6.0m`)
-    addBoxMesh(48, 0.42, 36, 0, -6.21, -40.0, marbleFloorMat);
-    addBoxMesh(45, 0.08, 15.5, 0, -5.94, -49.5, cryptWaterMat);
-
-    // Level 1: Ground Floor (`Y = 0.0m`) — note: West & East stair lanes at Y=0 have solid approaches!
-    addFloorWithStairwellHole(0.0, marbleFloorMat);
-    addBoxMesh(4.2, 0.38, 16.0, -4.6, -0.19, -40.0, marbleFloorMat);
-    addBoxMesh(4.2, 0.38, 16.0, 4.6, -0.19, -40.0, marbleFloorMat);
-    addBoxMesh(15.8, 0.04, 16.2, -15.2, 0.02, -49.0, woodPlankFloorMat);
-    addBoxMesh(15.8, 0.04, 16.2, 15.2, 0.02, -49.0, woodPlankFloorMat);
-    addBoxMesh(4.4, 0.05, 10.5, 0, 0.03, -27.0, redCarpetMat);
-
-    // Circular Inlaid RAVENCREST RAVEN FLOOR MEDALLION in the Center of the Grand Entrance Hall (`creation_3752887346.png`!)
-    const medallionTex = textureLoader.load('/models/halloween/ravencrest/ravencrest_medallion.png');
-    medallionTex.colorSpace = THREE.SRGBColorSpace;
-    const medallionMat = new THREE.MeshStandardMaterial({
-      map: medallionTex,
-      normalMap: darkMarblePbr.normalMap,
-      normalScale: new THREE.Vector2(0.85, 0.85),
-      roughness: 0.14,
-      metalness: 0.42,
-      transparent: true,
-    });
-    const grandHallMedallion = new THREE.Mesh(new THREE.CircleGeometry(4.4, 48), medallionMat);
-    grandHallMedallion.rotation.x = -Math.PI / 2;
-    grandHallMedallion.position.set(0, 0.058, -27.0);
-    grandHallMedallion.receiveShadow = true;
-    castleMansionGroup.add(grandHallMedallion);
-
-    // Hanging RAVENCREST HERALDIC BANNERS (`banner_raven_navy.png` & `banner_raven_red.png`)
-    // along the Gatehouse Towers, Grand Hall Gothic Piers, and Upper Gallery!
-    const bannerNavyTex = textureLoader.load('/models/halloween/ravencrest/banner_raven_navy.png');
-    bannerNavyTex.colorSpace = THREE.SRGBColorSpace;
-    const bannerRedTex = textureLoader.load('/models/halloween/ravencrest/banner_raven_red.png');
-    bannerRedTex.colorSpace = THREE.SRGBColorSpace;
-    const bannerHouseTex = textureLoader.load('/models/halloween/ravencrest/banner_house_crest.png');
-    bannerHouseTex.colorSpace = THREE.SRGBColorSpace;
-
-    const bannerNavyMat = new THREE.MeshStandardMaterial({
-      map: bannerNavyTex,
-      roughness: 0.58,
-      side: THREE.DoubleSide,
-    });
-    const bannerRedMat = new THREE.MeshStandardMaterial({
-      map: bannerRedTex,
-      roughness: 0.58,
-      side: THREE.DoubleSide,
-    });
-    const bannerHouseMat = new THREE.MeshStandardMaterial({
-      map: bannerHouseTex,
-      roughness: 0.58,
-      side: THREE.DoubleSide,
-    });
-    applyWindSwayShader(bannerNavyMat, 'VELVET_CURTAIN');
-    applyWindSwayShader(bannerRedMat, 'VELVET_CURTAIN');
-    applyWindSwayShader(bannerHouseMat, 'VELVET_CURTAIN');
-
-    const addRavencrestHangingBanner = (
-      bx: number,
-      by: number,
-      bz: number,
-      rotY: number,
-      mat: THREE.Material,
-      bw = 1.45,
-      bh = 3.4
-    ) => {
-      const bg = new THREE.Group();
-      bg.position.set(bx, by, bz);
-      bg.rotation.y = rotY;
-      const rod = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.035, 0.035, bw + 0.35, 8),
-        goldFrameMat
-      );
-      rod.rotation.z = Math.PI / 2;
-      rod.position.set(0, bh * 0.5, 0);
-      bg.add(rod);
-      const cloth = new THREE.Mesh(new THREE.PlaneGeometry(bw, bh, 8, 16), mat);
-      cloth.position.set(0, 0, 0.03);
-      bg.add(cloth);
-      castleMansionGroup.add(bg);
-    };
-
-    // Exterior Gatehouse Barbican Raven Banners (`creation_3752929161.png`)
-    addRavencrestHangingBanner(-6.4, 8.2, -18.8, 0, bannerNavyMat, 1.8, 4.4);
-    addRavencrestHangingBanner(6.4, 8.2, -18.8, 0, bannerNavyMat, 1.8, 4.4);
-
-    // Grand Entrance Hall & Mezzanine Pier Raven Banners (`creation_3752887346.png`)
-    for (const pz of [-26.0, -31.5, -48.5, -54.0]) {
-      addRavencrestHangingBanner(-6.15, 3.4, pz, Math.PI / 2, bannerNavyMat, 1.35, 3.1);
-      addRavencrestHangingBanner(6.15, 3.4, pz, -Math.PI / 2, bannerNavyMat, 1.35, 3.1);
-      addRavencrestHangingBanner(-6.15, 9.4, pz, Math.PI / 2, bannerRedMat, 1.35, 3.1);
-      addRavencrestHangingBanner(6.15, 9.4, pz, -Math.PI / 2, bannerRedMat, 1.35, 3.1);
-    }
-
-    // Framed Oil Portraits of Lord Ravencrest (`portrait_lord.png`) & Medieval Tapestries (`tapestry_castle.png`)
-    const portraitLordTex = textureLoader.load('/models/halloween/ravencrest/portrait_lord.png');
-    portraitLordTex.colorSpace = THREE.SRGBColorSpace;
-    const tapestryCastleTex = textureLoader.load('/models/halloween/ravencrest/tapestry_castle.png');
-    tapestryCastleTex.colorSpace = THREE.SRGBColorSpace;
-    const portraitLordMat = new THREE.MeshStandardMaterial({ map: portraitLordTex, roughness: 0.38 });
-    const tapestryCastleMat = new THREE.MeshStandardMaterial({ map: tapestryCastleTex, roughness: 0.72 });
-
-    for (const [tx, ty, tz, ry, isTap] of [
-      [-11.5, 3.2, -57.3, 0, true],
-      [11.5, 3.2, -57.3, 0, true],
-      [-11.5, 9.2, -57.3, 0, false],
-      [11.5, 9.2, -57.3, 0, false],
-      [-23.3, 3.2, -40.0, Math.PI / 2, true],
-      [23.3, 3.2, -40.0, -Math.PI / 2, false],
-    ] as Array<[number, number, number, number, boolean]>) {
-      const decor = new THREE.Mesh(
-        new THREE.PlaneGeometry(isTap ? 2.8 : 1.9, isTap ? 3.6 : 2.5),
-        isTap ? tapestryCastleMat : portraitLordMat
-      );
-      decor.position.set(tx, ty, tz);
-      decor.rotation.y = ry;
-      castleMansionGroup.add(decor);
-    }
-
-    // Level 2: Upper Noble Floor (`Y = +6.0m`) — Center lane bridged at Y=6m so you can walk across North Gallery
-    addFloorWithStairwellHole(6.0, woodPlankFloorMat);
-    addBoxMesh(4.4, 0.38, 16.0, 0.0, 5.81, -40.0, woodPlankFloorMat);
-    addBoxMesh(6.5, 0.05, 9.5, 0, 6.03, -53.0, redCarpetMat);
-
-    // Level 3: Creepy Attic Floor (`Y = +12.0m`) — West & Center lanes floored at Y=12m, East lane open for Attic Stairs!
-    addFloorWithStairwellHole(12.0, woodRafterMat);
-    addBoxMesh(9.0, 0.38, 16.0, -2.2, 11.81, -40.0, woodRafterMat);
-
-    // ==========================================================================
-    // 2B. THREE REAL WALKABLE GRAND GOTHIC STONE STAIRCASES (`Z_local in [-32 .. -48]`,
-    //     WHICH IS `Z_world in [-46 .. -62]`!)
-    //     1) WEST GRAND STAIRCASE (`X in [-6.5, -2.5]`): Ground (0m at Z_w=-46) -> Upper (+6m at Z_w=-62)
-    //     2) CENTER CRYPT STAIRCASE (`X in [-2.2, +2.2]`): Ground (0m at Z_w=-46) -> Crypt (-6m at Z_w=-62)
-    //     3) EAST BELFRY STAIRCASE (`X in [+2.5, +6.5]`): Upper (+6m at Z_w=-62) -> Attic (+12m at Z_w=-46)
-    // ==========================================================================
-    const buildGrandStairFlight = (
-      laneX: number,
-      laneWidth: number,
-      zStartLocal: number,
-      zEndLocal: number,
-      yStart: number,
-      yEnd: number,
-      carpetColor = '#a31d36'
-    ) => {
-      const steps = 28;
-      const dz = (zEndLocal - zStartLocal) / steps;
-      const dy = (yEnd - yStart) / steps;
-      const stepDepth = Math.abs(dz) * 1.08;
-      const stepHeight = Math.abs(dy) + 0.14;
-      const runnerMat = new THREE.MeshStandardMaterial({
-        color: carpetColor,
-        roughness: 0.65,
-      });
-
-      for (let i = 0; i <= steps; i++) {
-        const sz = zStartLocal + dz * i;
-        const sy = yStart + dy * i;
-        const tread = new THREE.Mesh(
-          new THREE.BoxGeometry(laneWidth, stepHeight, stepDepth),
-          i % 2 === 0 ? marbleFloorMat : stoneWallMat
-        );
-        tread.position.set(laneX, sy - stepHeight * 0.5, sz);
-        tread.castShadow = true;
-        tread.receiveShadow = true;
-        castleMansionGroup.add(tread);
-
-        const runner = new THREE.Mesh(
-          new THREE.BoxGeometry(laneWidth * 0.56, 0.04, stepDepth * 1.02),
-          runnerMat
-        );
-        runner.position.set(laneX, sy + 0.02, sz);
-        castleMansionGroup.add(runner);
-      }
-    };
-
-    // 1. West Flight: Ground Floor (`Y=0` at `z_local=-32`) UP to 2nd Floor (`Y=+6` at `z_local=-48`)
-    buildGrandStairFlight(-4.5, 3.8, -32.0, -48.0, 0.0, 6.0, '#b91c1c');
-    // 2. Center Flight: Ground Floor (`Y=0` at `z_local=-32`) DOWN to Crypt (`Y=-6` at `z_local=-48`)
-    buildGrandStairFlight(0.0, 4.1, -32.0, -48.0, 0.0, -6.0, '#0f766e');
-    // 3. East Flight: 2nd Floor (`Y=+6` at `z_local=-48`) UP to Creepy Attic (`Y=+12` at `z_local=-32`)
-    buildGrandStairFlight(4.5, 3.8, -48.0, -32.0, 6.0, 12.0, '#7e22ce');
-
-    // Stone Balustrade Divider Walls between the 3 Staircase Lanes (prevents falling sideways off stairs!)
-    addBoxMesh(0.36, 14.0, 15.6, -6.6, 3.5, -40.0, darkTrimMat, 0, true);
-    addBoxMesh(0.36, 14.0, 15.6, -2.35, 1.5, -40.0, darkTrimMat, 0, true);
-    addBoxMesh(0.36, 14.0, 15.6, 2.35, 5.5, -40.0, darkTrimMat, 0, true);
-    addBoxMesh(0.36, 14.0, 15.6, 6.6, 6.5, -40.0, darkTrimMat, 0, true);
-
-    // Exterior Castle Walls with Colliders (`X = ±24`, `Z_local = -22` and `-58`)
-    addBoxMesh(0.85, 22.0, 36.0, -24.0, 5.0, -40.0, stoneWallMat, 0, true);
-    addBoxMesh(0.85, 22.0, 36.0, 24.0, 5.0, -40.0, stoneWallMat, 0, true);
-    addBoxMesh(48.8, 22.0, 0.85, 0.0, 5.0, -58.0, stoneWallMat, 0, true);
-
-    // 8 Exterior Gothic Cathedral Flying Buttresses & Corner Octagonal Keep Towers!
-    for (const side of [-1, 1]) {
-      for (const bz of [-26.0, -35.0, -45.0, -54.0]) {
-        const pier = addBoxMesh(1.8, 16.5, 1.8, side * 27.2, 5.2, bz, stoneWallMat, 0, true);
-        const flyer = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.75, 1.2), stoneWallMat);
-        flyer.position.set(side * 25.5, 11.5, bz);
-        flyer.rotation.z = side * -0.45;
-        castleMansionGroup.add(flyer);
-        const pinnacle = new THREE.Mesh(new THREE.ConeGeometry(1.1, 3.2, 6), darkTrimMat);
-        pinnacle.position.set(side * 27.2, 15.0, bz);
-        castleMansionGroup.add(pinnacle);
-      }
-
-      // Twin Gatehouse Barbican Towers flanking the Front Drawbridge Portal (`X = ±6.2, Z_local = -21.2`)
-      const barbican = new THREE.Mesh(
-        new THREE.CylinderGeometry(2.2, 2.5, 21.0, 12),
-        stoneWallMat
-      );
-      barbican.position.set(side * 6.4, 7.5, -21.2);
-      barbican.castShadow = true;
-      barbican.receiveShadow = true;
-      castleMansionGroup.add(barbican);
-      registerBoxCollider(side * 6.4, 2.0, -21.2 + CASTLE_Z_SHIFT, 3.8, 10.0, 3.8);
-
-      const barbicanSpire = new THREE.Mesh(
-        new THREE.ConeGeometry(2.6, 7.5, 12),
-        darkTrimMat
-      );
-      barbicanSpire.position.set(side * 6.4, 21.6, -21.2);
-      castleMansionGroup.add(barbicanSpire);
-    }
-
-    for (const wy of [0.85, 6.85]) {
-      addBoxMesh(0.18, 1.65, 35.2, -23.48, wy, -40.0, woodRafterMat);
-      addBoxMesh(0.18, 1.65, 35.2, 23.48, wy, -40.0, woodRafterMat);
-      addBoxMesh(47.0, 1.65, 0.18, 0.0, wy, -57.48, woodRafterMat);
-    }
-
-    // Front Facade Wall left/right of the Open Portcullis Gate (`X in [-4.2 .. +4.2]` is OPEN!)
-    addBoxMesh(19.8, 22.0, 0.85, -14.1, 5.0, -22.0, stoneWallMat, 0, true);
-    addBoxMesh(19.8, 22.0, 0.85, 14.1, 5.0, -22.0, stoneWallMat, 0, true);
-    addBoxMesh(8.4, 6.0, 0.85, 0.0, -3.2, -22.0, stoneWallMat);
-    addBoxMesh(8.4, 10.8, 0.85, 0.0, 10.6, -22.0, stoneWallMat);
-
-    for (let mx = -22; mx <= 22; mx += 4.0) {
-      addBoxMesh(2.2, 1.6, 1.1, mx, 16.8, -22.0, darkTrimMat);
-      addBoxMesh(2.2, 1.6, 1.1, mx, 16.8, -58.0, darkTrimMat);
-    }
-
-    for (let gx = -3.6; gx <= 3.6; gx += 0.6) {
-      addBoxMesh(0.09, 1.8, 0.09, gx, 5.1, -21.8, darkTrimMat);
-    }
-    for (const tx of [-4.8, 4.8]) {
-      addBoxMesh(0.7, 2.3, 0.7, tx, 1.15, -21.1, darkTrimMat);
-      const flame = new THREE.Mesh(
-        new THREE.ConeGeometry(0.42, 0.95, 10),
-        new THREE.MeshBasicMaterial({ color: '#ff8800' })
-      );
-      flame.position.set(tx, 2.68, -21.1);
-      castleMansionGroup.add(flame);
-    }
-
-    // --- GOTHIC WINDOWS WITH BILLOWING VELVET CURTAINS & MOONBEAM SHAFTS ACROSS THE MANSION ---
-    for (const wz of [-28.0, -35.0, -45.0, -52.0]) {
-      addGothicWindowWithBillowingCurtains(-23.5, 3.0, wz, Math.PI / 2, '#ff8c38', '#ffbe73');
-      addGothicWindowWithBillowingCurtains(-23.5, 9.0, wz, Math.PI / 2, '#38bdf8', '#7dd3fc');
-    }
-    for (const wz of [-28.0, -35.0, -45.0, -52.0]) {
-      addGothicWindowWithBillowingCurtains(23.5, 3.0, wz, -Math.PI / 2, '#f97316', '#fdba74');
-      addGothicWindowWithBillowingCurtains(23.5, 9.0, wz, -Math.PI / 2, '#a855f7', '#d8b4fe');
-    }
-    for (const wx of [-17.0, -10.5, 10.5, 17.0]) {
-      addGothicWindowWithBillowingCurtains(wx, 3.0, -22.45, 0, '#ff7b29', '#fdba74');
-      addGothicWindowWithBillowingCurtains(wx, 9.0, -22.45, 0, '#ec4899', '#f9a8d4');
-    }
-
-    // --- HANGING WROUGHT-IRON & GOLD CANDLE CHANDELIERS IN EVERY ROOM & HALL ---
-    addGothicChandelier(0, 4.6, -27.5, '#ffbe42');
-    addGothicChandelier(-15.5, 4.6, -30.5, '#ffbe42');
-    addGothicChandelier(15.5, 4.6, -30.5, '#ffbe42');
-    addGothicChandelier(-15.5, 4.6, -49.0, '#ff9d3b');
-    addGothicChandelier(15.5, 4.6, -49.0, '#ffbe42');
-    addGothicChandelier(0, 10.6, -53.0, '#ffbe42');
-    addGothicChandelier(-15.5, 10.6, -40.0, '#34d399');
-    addGothicChandelier(15.5, 10.6, -40.0, '#f43f5e');
-    addGothicChandelier(-15.0, -1.4, -31.0, '#34d399');
-    addGothicChandelier(0, -1.4, -52.0, '#38bdf8');
-    addGothicChandelier(15.0, -1.4, -31.0, '#ef4444');
-
-    // --- FLUTED GOTHIC STONE PILLARS & RIBBED GROIN-VAULT CEILING ARCHES ---
-    for (const cz of [-26.0, -31.5, -48.5, -54.0]) {
-      for (const cx of [-6.8, 6.8]) {
-        addGothicColumn(cx, -6.0, cz, 5.8);
-        addGothicColumn(cx, 0.0, cz, 5.8);
-        addGothicColumn(cx, 6.0, cz, 5.8);
-      }
-      addBoxMesh(14.2, 0.38, 0.45, 0, 5.65, cz, darkTrimMat);
-      addBoxMesh(16.4, 0.38, 0.45, 0, 11.65, cz, darkTrimMat);
-    }
-
-    const addPartitionWallWithDoorway = (
-      axis: 'X' | 'Z',
-      fixedCoord: number,
-      spanStart: number,
-      spanEnd: number,
-      floorY: number,
-      wallHeight = 5.8,
-      doorWidth = 4.6
-    ) => {
-      const totalLen = spanEnd - spanStart;
-      const mid = (spanStart + spanEnd) * 0.5;
-      const segLen = Math.max(0.5, (totalLen - doorWidth) * 0.5);
-      const seg1Center = spanStart + segLen * 0.5;
-      const seg2Center = spanEnd - segLen * 0.5;
-      const yCenter = floorY + wallHeight * 0.5;
-
-      if (axis === 'Z') {
-        addBoxMesh(0.45, wallHeight, segLen, fixedCoord, yCenter, seg1Center, gothicBrickMat, 0, true);
-        addBoxMesh(0.45, wallHeight, segLen, fixedCoord, yCenter, seg2Center, gothicBrickMat, 0, true);
-        addBoxMesh(0.55, 1.15, doorWidth, fixedCoord, floorY + wallHeight - 0.58, mid, darkTrimMat);
-      } else {
-        addBoxMesh(segLen, wallHeight, 0.45, seg1Center, yCenter, fixedCoord, gothicBrickMat, 0, true);
-        addBoxMesh(segLen, wallHeight, 0.45, seg2Center, yCenter, fixedCoord, gothicBrickMat, 0, true);
-        addBoxMesh(doorWidth, 1.15, 0.55, mid, floorY + wallHeight - 0.58, fixedCoord, darkTrimMat);
-      }
-    };
-
-    addPartitionWallWithDoorway('Z', -7.0, -40.5, -22.5, -6.0);
-    addPartitionWallWithDoorway('Z', 7.0, -40.5, -22.5, -6.0);
-    addPartitionWallWithDoorway('X', -40.5, -23.5, -7.0, -6.0);
-    addPartitionWallWithDoorway('X', -40.5, 7.0, 23.5, -6.0);
-
-    addPartitionWallWithDoorway('Z', -7.0, -39.5, -22.5, 0.0);
-    addPartitionWallWithDoorway('Z', 7.0, -39.5, -22.5, 0.0);
-    addPartitionWallWithDoorway('X', -40.0, -23.5, -7.0, 0.0);
-    addPartitionWallWithDoorway('X', -40.0, 7.0, 23.5, 0.0);
-    addPartitionWallWithDoorway('Z', -7.0, -57.5, -40.5, 0.0);
-    addPartitionWallWithDoorway('Z', 7.0, -57.5, -40.5, 0.0);
-
-    addPartitionWallWithDoorway('Z', -8.0, -57.5, -22.5, 6.0);
-    addPartitionWallWithDoorway('Z', 8.0, -57.5, -22.5, 6.0);
-
-    for (let rz = -25; rz >= -55; rz -= 4.5) {
-      const leftBeam = new THREE.Mesh(new THREE.BoxGeometry(19.5, 0.48, 0.48), woodRafterMat);
-      leftBeam.position.set(-8.2, 16.5, rz);
-      leftBeam.rotation.z = Math.atan2(8.5, 16.0);
-      castleMansionGroup.add(leftBeam);
-
-      const rightBeam = new THREE.Mesh(new THREE.BoxGeometry(19.5, 0.48, 0.48), woodRafterMat);
-      rightBeam.position.set(8.2, 16.5, rz);
-      rightBeam.rotation.z = -Math.atan2(8.5, 16.0);
-      castleMansionGroup.add(rightBeam);
-    }
-
-    const clockFace = new THREE.Mesh(
-      new THREE.CircleGeometry(2.8, 32),
-      new THREE.MeshBasicMaterial({ color: '#ffae38', side: THREE.DoubleSide })
-    );
-    clockFace.position.set(0, 15.5, -22.45);
-    castleMansionGroup.add(clockFace);
-
-    const belfryBellGroup = new THREE.Group();
-    belfryBellGroup.position.set(0, 18.2, -34.0);
-    const bellMesh = new THREE.Mesh(new THREE.ConeGeometry(1.4, 1.95, 20), goldFrameMat);
-    bellMesh.position.y = -0.95;
-    belfryBellGroup.add(bellMesh);
-    castleMansionGroup.add(belfryBellGroup);
-
-    // --- RICH REALISTIC FURNITURE, HEARTHS & SET DRESSING ACROSS ALL 12 ROOMS ---
-    addGothicFireplace(-15.0, 0.0, -57.2, 0);
-    addGothicFireplace(15.0, 0.0, -57.2, 0);
-    addGothicFireplace(16.5, 6.0, -57.2, 0);
-
-    const emeraldGlowMat = new THREE.MeshBasicMaterial({ color: '#10b981' });
-    for (const vz of [-28, -35]) {
-      const vat = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 2.5, 18), emeraldGlowMat);
-      vat.position.set(-18.5, -4.75, vz);
-      castleMansionGroup.add(vat);
-    }
-    addBoxMesh(2.6, 0.95, 4.2, -13.5, -5.52, -31.5, woodRafterMat, 0, true);
-
-    for (const sx of [-14.0, 0.0, 14.0]) {
-      addBoxMesh(2.8, 0.65, 4.6, sx, -5.65, -51.5, stoneWallMat, 0, true);
-      addBoxMesh(2.2, 0.85, 3.8, sx, -5.0, -51.5, darkTrimMat);
-    }
-
-    const ritualRing = new THREE.Mesh(
-      new THREE.RingGeometry(2.5, 2.9, 32),
-      new THREE.MeshBasicMaterial({ color: '#ef4444', side: THREE.DoubleSide })
-    );
-    ritualRing.rotation.x = -Math.PI / 2;
-    ritualRing.position.set(14.5, -5.95, -32.0);
-    castleMansionGroup.add(ritualRing);
-    addBoxMesh(2.4, 1.15, 1.3, 14.5, -5.42, -32.0, darkTrimMat, 0, true);
-
-    for (const bz of [-27.5, -33.5]) {
-      addBoxMesh(1.2, 0.65, 2.8, -14.5, 0.32, bz, redCarpetMat, 0, true);
-    }
-
-    for (let pIdx = -6; pIdx <= 6; pIdx++) {
-      const pipeH = 4.8 - Math.abs(pIdx) * 0.3;
-      const pipe = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.14, 0.14, pipeH, 12),
-        goldFrameMat
-      );
-      pipe.position.set(22.8, 1.0 + pipeH * 0.5, -34.5 + pIdx * 0.42);
-      castleMansionGroup.add(pipe);
-    }
-    for (const pewZ of [-26.5, -29.5, -32.5]) {
-      addBoxMesh(4.6, 0.55, 0.85, 14.5, 0.28, pewZ, woodRafterMat, 0, true);
-      addBoxMesh(4.6, 1.05, 0.18, 14.5, 0.52, pewZ + 0.35, woodRafterMat);
-    }
-
-    addBoxMesh(3.2, 0.95, 10.2, -15.0, 0.48, -48.5, woodRafterMat, 0, true);
-    addBoxMesh(1.4, 0.98, 9.8, -15.0, 0.5, -48.5, redCarpetMat);
-    for (let cZ = -44.5; cZ >= -52.5; cZ -= 2.0) {
-      for (const side of [-1, 1]) {
-        const chX = -15.0 + side * 2.15;
-        addBoxMesh(0.65, 0.55, 0.65, chX, 0.28, cZ, woodRafterMat);
-        addBoxMesh(0.14, 1.35, 0.65, chX + side * 0.26, 0.68, cZ, redCarpetMat);
-        const goblet = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.11, 0.07, 0.26, 10),
-          goldFrameMat
-        );
-        goblet.position.set(-15.0 + side * 0.85, 1.12, cZ);
-        castleMansionGroup.add(goblet);
-      }
-    }
-
-    for (const shelfZ of [-43.5, -48.5, -53.5]) {
-      addBoxMesh(0.95, 4.9, 3.8, 22.7, 2.45, shelfZ, woodRafterMat, 0, true);
-      for (let rowY = 0.9; rowY <= 4.1; rowY += 0.8) {
-        addBoxMesh(0.75, 0.52, 3.3, 22.55, rowY, shelfZ, redCarpetMat);
-      }
-    }
-    addBoxMesh(2.4, 0.88, 3.4, 14.5, 0.44, -48.5, woodRafterMat, 0, true);
-
-    const cauldron = new THREE.Mesh(
-      new THREE.CylinderGeometry(1.35, 0.98, 1.4, 20),
-      darkTrimMat
-    );
-    cauldron.position.set(-15.0, 6.7, -40.0);
-    castleMansionGroup.add(cauldron);
-    registerBoxCollider(-15.0, 6.7, -40.0 + CASTLE_Z_SHIFT, 2.5, 1.8, 2.5);
-    const cauldronBroth = new THREE.Mesh(
-      new THREE.CircleGeometry(1.22, 20),
-      emeraldGlowMat
-    );
-    cauldronBroth.rotation.x = -Math.PI / 2;
-    cauldronBroth.position.set(-15.0, 7.42, -40.0);
-    castleMansionGroup.add(cauldronBroth);
-
-    addBoxMesh(3.8, 0.88, 4.6, 16.5, 6.44, -45.0, redCarpetMat, 0, true);
-    for (const [px, pz] of [
-      [14.7, -42.8],
-      [18.3, -42.8],
-      [14.7, -47.2],
-      [18.3, -47.2],
-    ]) {
-      addBoxMesh(0.24, 3.9, 0.24, px, 7.95, pz, woodRafterMat);
-    }
-    addBoxMesh(4.0, 0.28, 4.8, 16.5, 9.9, -45.0, redCarpetMat);
+    castleMansionGroup.updateMatrixWorld(true);
+    const cameraOcclusionRay = new THREE.Raycaster();
+    const cameraAnchor = new THREE.Vector3();
+    const cameraDirection = new THREE.Vector3();
+    for (const light of [cryptChandelierLight, groundHallChandelierLight, upperNobleChandelierLight, atticBelfryChandelierLight]) light.visible = false;
+    moonLight.target.position.set(0, 8, -58);
+    scene.add(moonLight.target);
 
     // ==========================================================================
     // 3. INTERACTIVE ROADSIDE BILLBOARDS (WITH WARM GROUND FLOODLIGHTS & JACK-O'-LANTERNS)
@@ -3256,6 +2398,10 @@ export const HauntedCastleExhibition: React.FC<HauntedCastleExhibitionProps> = (
     ];
 
     monsterConfigs.forEach((cfg, idx) => {
+      if (idx >= 4) {
+        const room = CASTLE_ROOMS.find(room => room.id === ['wine_cellar', 'library_study', 'living_room', 'kings_suite'][idx - 4])!;
+        cfg.homeX = room.center[0]; cfg.homeZ = room.center[2]; cfg.floorY = room.elevationY;
+      }
       const mGroup = new THREE.Group();
       const rigSlot = new THREE.Group();
       mGroup.add(rigSlot);
@@ -3440,78 +2586,21 @@ export const HauntedCastleExhibition: React.FC<HauntedCastleExhibitionProps> = (
         const brazierTpl = gltf.scene.getObjectByName('Ravencrest_StandingBrazier');
         const telescopeTpl = gltf.scene.getObjectByName('Ravencrest_Telescope');
 
-        // 8 Full Suits of Medieval Plate Armor flanking the Grand Entrance Hall Piers & Gatehouse (`creation_3752887346.png`)
-        if (knightTpl) {
-          const armorPlacements: Array<[number, number, number, number]> = [
-            [-5.6, 0.0, -25.2, Math.PI / 2],
-            [5.6, 0.0, -25.2, -Math.PI / 2],
-            [-5.6, 0.0, -30.8, Math.PI / 2],
-            [5.6, 0.0, -30.8, -Math.PI / 2],
-            [-5.6, 0.0, -49.2, Math.PI / 2],
-            [5.6, 0.0, -49.2, -Math.PI / 2],
-            [-5.6, 6.0, -52.5, Math.PI / 2],
-            [5.6, 6.0, -52.5, -Math.PI / 2],
-          ];
-          armorPlacements.forEach(([ax, ay, az, rotY]) => {
-            const kClone = knightTpl.clone(true);
-            kClone.position.set(ax, ay, az);
-            kClone.rotation.y = rotY;
-            kClone.scale.setScalar(1.12);
-            castleMansionGroup.add(kClone);
-          });
-        }
-
-        // King's Gothic Throne Chair on the North Grand Gallery & Throne Dais (`creation_3752891684.png`)
-        if (throneTpl) {
-          for (const [tx, ty, tz, rotY] of [
-            [0.0, 0.0, -31.2, 0],
-            [0.0, 6.0, -56.2, 0],
-          ] as Array<[number, number, number, number]>) {
-            const tClone = throneTpl.clone(true);
-            tClone.position.set(tx, ty, tz);
-            tClone.rotation.y = rotY;
-            tClone.scale.setScalar(1.25);
-            castleMansionGroup.add(tClone);
-          }
-        }
-
-        // Four-Poster Gothic Velvet Canopy Beds in the Royal Chambers (`creation_3752894391.png`)
-        if (bedTpl) {
-          for (const [bx, by, bz, rotY] of [
-            [16.5, 6.0, -48.5, 0],
-            [-16.5, 6.0, -30.5, 0],
-          ] as Array<[number, number, number, number]>) {
-            const bClone = bedTpl.clone(true);
-            bClone.position.set(bx, by, bz);
-            bClone.rotation.y = rotY;
-            bClone.scale.setScalar(1.15);
-            castleMansionGroup.add(bClone);
-          }
-        }
-
-        // Wrought-Iron Standing Fire Braziers inside the Grand Entrance Doors & Stair Landing (`creation_3752887346.png`)
-        if (brazierTpl) {
-          for (const [brx, bry, brz] of [
-            [-3.5, 0.0, -23.5],
-            [3.5, 0.0, -23.5],
-            [-3.5, 6.0, -50.5],
-            [3.5, 6.0, -50.5],
-          ] as Array<[number, number, number]>) {
-            const brClone = brazierTpl.clone(true);
-            brClone.position.set(brx, bry, brz);
-            brClone.scale.setScalar(1.1);
-            addVolumetricLightHalo(brClone, 0, 1.45, 0, 2.2, '#ff7b00', 0.65);
-            castleMansionGroup.add(brClone);
-          }
-        }
-
-        // 4th-Floor / Upper Observatory Brass Equatorial Telescope (`creation_3752884004.png`)
-        if (telescopeTpl) {
-          const telClone = telescopeTpl.clone(true);
-          telClone.position.set(0.0, 12.0, -30.5);
-          telClone.scale.setScalar(1.25);
-          castleMansionGroup.add(telClone);
-        }
+        const place = (template: THREE.Object3D | undefined, roomId: string, dx = 0, dz = 0, scale = 1) => {
+          const room = CASTLE_ROOMS.find(room => room.id === roomId);
+          if (!template || !room) return;
+          const object = template.clone(true);
+          object.position.set(room.center[0] + dx, room.elevationY, room.center[2] + dz);
+          object.scale.setScalar(scale);
+          castleMansionGroup.add(object);
+        };
+        place(knightTpl, 'main_entrance', -2.6, 7, 1.05);
+        place(knightTpl, 'main_entrance', 2.6, 7, 1.05);
+        place(throneTpl, 'kings_suite', 0, -4, 1.1);
+        for (const room of RESIDENTIAL_WORLD_ROOMS.filter(room => room.kind === 'bedroom')) place(bedTpl, room.id, 2.4, -2, 1);
+        place(brazierTpl, 'grand_hall', -4.8, -4, 1);
+        place(brazierTpl, 'grand_hall', 4.8, -4, 1);
+        place(telescopeTpl, 'observatory_dome', 0, 1.5, 1.15);
       })
       .catch((err) => console.warn('Ravencrest props GLB load error:', err));
 
@@ -3612,18 +2701,13 @@ export const HauntedCastleExhibition: React.FC<HauntedCastleExhibitionProps> = (
       .loadAsync('/models/mascots/props/book.glb')
       .then((gltf) => {
         const bookTpl = gltf.scene;
-        const bookSpots: Array<[number, number, number]> = [
-          [14.5, 0.95, -48.5],
-          [-13.5, -4.95, -31.5],
-          [14.5, -4.8, -32.0],
-        ];
-        bookSpots.forEach(([bx, by, bz], idx) => {
-          const bClone = bookTpl.clone(true);
-          bClone.position.set(bx, by, bz);
-          bClone.scale.setScalar(0.85);
-          bClone.rotation.y = idx * 1.2;
-          castleMansionGroup.add(bClone);
-        });
+        const room = CASTLE_ROOMS.find(room => room.id === 'library_study')!;
+        for (let index = 0; index < 3; index++) {
+          const book = bookTpl.clone(true);
+          book.position.set(room.center[0] + index - 1, room.elevationY + 0.1, room.center[2] - 2);
+          book.scale.setScalar(0.85);
+          castleMansionGroup.add(book);
+        }
       })
       .catch(() => {});
 
@@ -4070,49 +3154,8 @@ export const HauntedCastleExhibition: React.FC<HauntedCastleExhibitionProps> = (
     let smoothedGaitSpeed = 0;
 
     // 2D Circle-vs-AABB Sliding Depenetration Solver
-    const resolvePlayerCollisions = (
-      candX: number,
-      candZ: number,
-      playerY: number,
-      radius = 0.54
-    ): [number, number] => {
-      let rx = candX;
-      let rz = candZ;
-      const pMinY = playerY + 0.35;
-      const pMaxY = playerY + 1.65;
-
-      for (let i = 0; i < worldColliders.length; i++) {
-        const box = worldColliders[i];
-        if (pMaxY < box.minY || pMinY > box.maxY) continue;
-
-        const closestX = Math.max(box.minX, Math.min(rx, box.maxX));
-        const closestZ = Math.max(box.minZ, Math.min(rz, box.maxZ));
-        const dx = rx - closestX;
-        const dz = rz - closestZ;
-        const distSq = dx * dx + dz * dz;
-
-        if (distSq < radius * radius) {
-          if (distSq > 0.00001) {
-            const dist = Math.sqrt(distSq);
-            const overlap = radius - dist;
-            rx += (dx / dist) * overlap;
-            rz += (dz / dist) * overlap;
-          } else {
-            // Center is inside AABB: push out along shallowest axis
-            const penLeft = rx - box.minX;
-            const penRight = box.maxX - rx;
-            const penFront = rz - box.minZ;
-            const penBack = box.maxZ - rz;
-            const minPen = Math.min(penLeft, penRight, penFront, penBack);
-            if (minPen === penLeft) rx = box.minX - radius;
-            else if (minPen === penRight) rx = box.maxX + radius;
-            else if (minPen === penFront) rz = box.minZ - radius;
-            else rz = box.maxZ + radius;
-          }
-        }
-      }
-      return [rx, rz];
-    };
+    const resolvePlayerCollisions = (x: number, z: number, y: number, radius = 0.54): [number, number] =>
+      slideCastleCollisions(worldColliders, x, z, y, radius);
 
     const animate = (now: number) => {
       reqId = requestAnimationFrame(animate);
@@ -4172,7 +3215,9 @@ export const HauntedCastleExhibition: React.FC<HauntedCastleExhibitionProps> = (
       moonLight.intensity = referenceLook ? 2.1 : 2.95;
       scene.fog!.color.set(referenceLook ? '#14232c' : '#0c071b');
 
-      belfryBellGroup.rotation.z = Math.sin(t * 1.6) * 0.28;
+      residentialCastle.floorLights.forEach((light, index) => {
+        light.visible = Math.abs(p.y - RESIDENTIAL_FLOORS[index].elevationY) < 3.5;
+      });
 
       // --- A. PLAYER MOVEMENT, 3 WALKABLE GRAND STAIRCASES & SLIDING AABB COLLISION ---
       if (cameraModeRef.current === 'THIRD_PERSON') {
@@ -4204,45 +3249,13 @@ export const HauntedCastleExhibition: React.FC<HauntedCastleExhibitionProps> = (
         }
 
         const rawNextX = Math.max(-56, Math.min(56, p.x + p.vx * dt));
-        const rawNextZ = Math.max(-71.2, Math.min(64, p.z + p.vz * dt));
+        const rawNextZ = Math.max(-81, Math.min(64, p.z + p.vz * dt));
         const [resolvedX, resolvedZ] = resolvePlayerCollisions(rawNextX, rawNextZ, p.y, 0.54);
-        p.x = resolvedX;
-        p.z = resolvedZ;
-
-        // --- DETERMINISTIC WALKABLE GRAND STAIRCASE RAMPS (`Z_world in [-62.0, -46.0]`) ---
-        const inStairZBand = p.z <= -46.0 && p.z >= -62.0;
-        const rampProgressNorth = Math.max(0, Math.min(1, (-46.0 - p.z) / 16.0)); // 0 at South (-46), 1 at North (-62)
-
-        if (p.z >= -35.8) {
-          // Outside on the Crossroads Road or Moat Drawbridge: elevation is 0.0m
-          p.onSpiralStairs = false;
-          p.targetFloorY = 0.0;
-        } else if (inStairZBand && p.x >= -6.45 && p.x <= -2.5 && p.y >= -0.8 && p.y <= 6.8) {
-          // 1) WEST GRAND STAIRCASE: Ground (0m at Z=-46) <-> Upper Noble Floor (+6m at Z=-62)
-          p.onSpiralStairs = true;
-          p.targetFloorY = rampProgressNorth * 6.0;
-        } else if (inStairZBand && p.x >= -2.2 && p.x <= 2.2 && p.y >= -6.8 && p.y <= 0.8) {
-          // 2) CENTER CRYPT STAIRCASE: Ground (0m at Z=-46) <-> Basement Crypt (-6m at Z=-62)
-          p.onSpiralStairs = true;
-          p.targetFloorY = -rampProgressNorth * 6.0;
-        } else if (inStairZBand && p.x >= 2.5 && p.x <= 6.45 && p.y >= 5.2 && p.y <= 12.8) {
-          // 3) EAST BELFRY STAIRCASE: Upper Noble (+6m at Z=-62) <-> Creepy Attic (+12m at Z=-46)
-          p.onSpiralStairs = true;
-          p.targetFloorY = 6.0 + (1.0 - rampProgressNorth) * 6.0;
-        } else {
-          p.onSpiralStairs = false;
-          const levels = [-6.0, 0.0, 6.0, 12.0];
-          let closestLvl = 0.0;
-          let minDiff = 999;
-          for (const lvl of levels) {
-            const diff = Math.abs(p.targetFloorY - lvl);
-            if (diff < minDiff) {
-              minDiff = diff;
-              closestLvl = lvl;
-            }
-          }
-          p.targetFloorY = closestLvl;
-        }
+        const support = residentialSupportAt(resolvedX, resolvedZ, p.y);
+        if (support) {
+          p.x = resolvedX; p.z = resolvedZ;
+          p.targetFloorY = support.y; p.onSpiralStairs = support.stair;
+        } else { p.vx = 0; p.vz = 0; }
 
         // Vertical Gravity & Smooth Step-Up Physics
         if (p.y > p.targetFloorY + 0.08 && !p.onSpiralStairs) {
@@ -4257,12 +3270,12 @@ export const HauntedCastleExhibition: React.FC<HauntedCastleExhibitionProps> = (
           p.y += (p.targetFloorY - p.y) * Math.min(1, dt * 16);
         }
 
-        // Detect which of the 12 Castle Rooms the player is currently inside
+        // Detect which of the residential castle rooms the player is currently inside
         let detectedRoom: CastleRoomDefinition | null = null;
         if (p.z < -36.0) {
           for (const rm of CASTLE_ROOMS) {
             if (
-              Math.abs(p.y - rm.elevationY) < 2.9 &&
+              Math.abs(p.y - rm.elevationY) < 1.2 &&
               p.x >= rm.bounds.minX &&
               p.x <= rm.bounds.maxX &&
               p.z >= rm.bounds.minZ &&
@@ -4592,8 +3605,9 @@ export const HauntedCastleExhibition: React.FC<HauntedCastleExhibitionProps> = (
             m.x = nextMx;
             m.z = Math.max(-10.5, nextMz);
           } else {
-            m.x = Math.max(-22.5, Math.min(22.5, nextMx));
-            m.z = Math.max(-70.5, Math.min(-37.0, nextMz));
+            const [mx, mz] = resolvePlayerCollisions(nextMx, nextMz, m.floorY, 0.6);
+            const support = residentialSupportAt(mx, mz, m.floorY);
+            if (support && !support.stair) { m.x = mx; m.z = mz; }
           }
         } else if (sameFloor && dist <= 1.55) {
           if (p.parryWindowTimer > 0) {
@@ -4731,6 +3745,16 @@ export const HauntedCastleExhibition: React.FC<HauntedCastleExhibitionProps> = (
           p.z + Math.cos(p.yaw) * camDist - Math.sin(p.yaw) * shoulderOffset;
 
         camera.position.lerp(new THREE.Vector3(desiredCamX, desiredCamY, desiredCamZ), 0.16);
+        if (isInsideCastle) {
+          cameraAnchor.set(p.x, p.y + 1.65, p.z);
+          cameraDirection.copy(camera.position).sub(cameraAnchor);
+          const distance = cameraDirection.length();
+          cameraDirection.normalize();
+          cameraOcclusionRay.set(cameraAnchor, cameraDirection);
+          cameraOcclusionRay.far = distance;
+          const obstruction = cameraOcclusionRay.intersectObjects(residentialCastle.cameraOccluders, false)[0];
+          if (obstruction) camera.position.copy(cameraAnchor).addScaledVector(cameraDirection, Math.max(0.25, obstruction.distance - 0.2));
+        }
 
         const shakeX = p.cameraShakeTimer > 0 ? (Math.random() - 0.5) * 0.25 : 0;
         const shakeY = p.cameraShakeTimer > 0 ? (Math.random() - 0.5) * 0.25 : 0;
@@ -4919,14 +3943,14 @@ export const HauntedCastleExhibition: React.FC<HauntedCastleExhibitionProps> = (
             <div className="flex items-center gap-2">
               <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
               <span className="text-[10px] font-black uppercase tracking-[0.22em] text-orange-400">
-                60FPS 3D Engine • 12-Room Castle Mansion • Sheet-Accurate Rigs
+                Residential Castle Rebuild • Five Levels • Character asset pass pending
               </span>
               <span className="px-2 py-0.5 rounded bg-emerald-950/90 border border-emerald-500/40 text-[10px] font-bold text-emerald-300">
                 ⚡ {fpsCount} FPS • {glbLoadedCount}/4 GLB Bundles
               </span>
             </div>
             <h1 className="text-base md:text-lg font-black tracking-tight text-white">
-              The Lonesome Crossroads &amp; 12-Room Haunted Castle Mansion
+              The Lonesome Crossroads &amp; Ravencrest Residential Castle
             </h1>
           </div>
         </div>
@@ -5027,7 +4051,7 @@ export const HauntedCastleExhibition: React.FC<HauntedCastleExhibitionProps> = (
             ))}
           </div>
 
-          {/* 12-Room Castle Map Modal Button */}
+          {/* Five-Level Castle Map Modal Button */}
           <button
             onClick={() => setShowCastleMapModal((prev) => !prev)}
             className={`px-2.5 py-1.5 rounded-lg border text-[11px] font-black uppercase tracking-wider transition cursor-pointer ${
@@ -5036,7 +4060,7 @@ export const HauntedCastleExhibition: React.FC<HauntedCastleExhibitionProps> = (
                 : 'bg-purple-950/80 hover:bg-purple-900 border-purple-500/50 text-purple-200'
             }`}
           >
-            🏰 12-Room Castle Map
+            🏰 Five-Level Castle Map
           </button>
 
           {/* Summon Tank Backup */}
@@ -5103,12 +4127,7 @@ export const HauntedCastleExhibition: React.FC<HauntedCastleExhibitionProps> = (
           >
             🛣️ Crossroads (Outside)
           </button>
-          {[
-            { idx: 0, label: '[B] Basement Crypt (-6m)', room: CASTLE_ROOMS[0] },
-            { idx: 1, label: '[F1] Ground Mansion (0m)', room: CASTLE_ROOMS[3] },
-            { idx: 2, label: '[F2] Upper Noble (+6m)', room: CASTLE_ROOMS[8] },
-            { idx: 3, label: '[F3] Creepy Attic (+12m)', room: CASTLE_ROOMS[11] },
-          ].map((fl) => (
+          {CASTLE_FLOOR_DESTINATIONS.map((fl) => (
             <button
               key={fl.idx}
               onClick={() => {
@@ -5202,12 +4221,7 @@ export const HauntedCastleExhibition: React.FC<HauntedCastleExhibitionProps> = (
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-            {[
-              { floorIdx: 3, title: 'Level 3: Creepy Attic (+12m)' },
-              { floorIdx: 2, title: 'Level 2: Upper Noble (+6m)' },
-              { floorIdx: 1, title: 'Level 1: Ground Halls (0m)' },
-              { floorIdx: 0, title: 'Level 0: Basement Crypt (-6m)' },
-            ].map((lvl) => (
+            {[...RESIDENTIAL_FLOORS].reverse().map(floor => ({ floorIdx: floor.index, title: floor.name })).map((lvl) => (
               <div
                 key={lvl.floorIdx}
                 className="rounded-xl bg-zinc-900/90 border border-zinc-800 p-3 flex flex-col gap-2"
@@ -5493,7 +4507,7 @@ export const HauntedCastleExhibition: React.FC<HauntedCastleExhibitionProps> = (
           <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
             <div>
               <span className="text-[10px] font-black uppercase tracking-widest text-purple-400">
-                100% Sheet-Accurate 3D Volumetric Rigs • Story Intelligence
+                Character Reference Sheets • Story Intelligence
               </span>
               <h2 className="text-lg font-black text-white">
                 {selectedNode.title} — Character Sheets &amp; Breakdown
@@ -5535,8 +4549,8 @@ export const HauntedCastleExhibition: React.FC<HauntedCastleExhibitionProps> = (
               <div className="space-y-3">
                 {[
                   {
-                    title: 'Ravencrest Castle — 5-Floor Architectural Blueprint (12 Bedrooms • 4 Towers • Observatory)',
-                    url: '/models/halloween/ravencrest/floorplan_blueprint.jpg',
+                    title: 'Selected Residential Plan — Grand Hall, Queen, King & Observatory · 12 Bedrooms',
+                    url: '/models/halloween/ravencrest/floorplan_blueprint_2.jpg',
                   },
                   {
                     title: 'Ravencrest Castle — Grand Entrance Hall & Raven Floor Medallion Master Plate',

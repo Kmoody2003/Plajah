@@ -50,12 +50,21 @@ const Visualizer: React.FC<VisualizerProps> = ({ analyser, themeColor, trackTitl
       }
       if (analyser) analyser.getByteFrequencyData(dataArray);
 
-      const width = (canvas.width = canvas.clientWidth * devicePixelRatio);
-      const height = (canvas.height = canvas.clientHeight * devicePixelRatio);
+      // Resize only when the box changes — assigning canvas.width every frame reallocates the
+      // backing store, which is what made this reactor stutter once it ran full-bleed.
+      const tw = Math.round(canvas.clientWidth * devicePixelRatio);
+      const th = Math.round(canvas.clientHeight * devicePixelRatio);
+      if (canvas.width !== tw) canvas.width = tw;
+      if (canvas.height !== th) canvas.height = th;
+      const width = tw;
+      const height = th;
       const centerX = width / 2;
       const centerY = height / 2;
       const baseRadius = Math.min(width, height) / 4;
 
+      // No per-frame resize any more, so reset what a resize used to reset for us.
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.globalAlpha = 1;
       ctx.clearRect(0, 0, width, height);
 
       let bass = 0;

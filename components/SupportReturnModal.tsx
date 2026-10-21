@@ -48,10 +48,10 @@ const PurchaseDone: React.FC<{ info: Extract<ReturnInfo, { mode: 'purchase' }>; 
   const [result, setResult] = useState<DownloadResult | null>(null);
   const [busy, setBusy] = useState(false);
   const autoRan = useRef(false);
-
-  const tracks = kind === 'track' ? (album.tracks || []).filter(t => t.id === trackId) : (album.tracks || []);
   const [fmts, setFmts] = useState<MusicFormats | null>(null);
   const [format, setFormat] = useState('');
+
+  const tracks = kind === 'track' ? (album.tracks || []).filter(t => t.id === trackId) : (album.tracks || []);
   const label = kind === 'track' ? (tracks[0]?.title || album.title) : album.title;
 
   // The licence is minted by the Stripe webhook a moment after checkout — poll for it.
@@ -79,9 +79,9 @@ const PurchaseDone: React.FC<{ info: Extract<ReturnInfo, { mode: 'purchase' }>; 
   useEffect(() => {
     if (state !== 'ready' || autoRan.current) return;
     autoRan.current = true;
+    fetchMusicFormats(album.id, kind === 'track' ? trackId : undefined).then(f => { setFmts(f); setFormat(f.default); });
     hasSilentFolderAccess().then(ok => { if (ok) run(false); });
   }, [state]); // eslint-disable-line react-hooks/exhaustive-deps
-    fetchMusicFormats(album.id, kind === 'track' ? trackId : undefined).then(f => { setFmts(f); setFormat(f.default); });
 
   const where = result?.target === 'android-music' ? 'your Music folder (Plajah)' : result?.target === 'folder' ? `your Music folder${result.folderName ? ` (${result.folderName})` : ''}` : 'your downloads';
 
@@ -99,8 +99,6 @@ const PurchaseDone: React.FC<{ info: Extract<ReturnInfo, { mode: 'purchase' }>; 
           <p className="text-base leading-relaxed text-white/70 mb-5">
             {kind === 'album' ? 'The whole album' : 'This track'} now plays in full and is in your library on every device. Save a copy to this one?
           </p>
-          <div className="pj-actions" style={{ justifyContent: 'stretch' }}>
-            <Button variant="primary" size="lg" icon={canPickFolder() ? <FolderOpen /> : <Download />} loading={busy} onClick={() => run(true)}>
           {fmts && fmts.formats.length > 1 && (
             <label className="block text-left text-sm text-white/70 mb-5">
               Format
@@ -110,6 +108,8 @@ const PurchaseDone: React.FC<{ info: Extract<ReturnInfo, { mode: 'purchase' }>; 
               </select>
             </label>
           )}
+          <div className="pj-actions" style={{ justifyContent: 'stretch' }}>
+            <Button variant="primary" size="lg" icon={canPickFolder() ? <FolderOpen /> : <Download />} loading={busy} onClick={() => run(true)}>
               {canPickFolder() ? 'Save to my Music folder' : 'Download'}
             </Button>
             <Button variant="secondary" size="lg" onClick={onClose}>Not now</Button>

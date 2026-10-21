@@ -30,11 +30,21 @@ try {
       focus: member.specialty || member.medium || member.lens,
       protects: member.protects,
     }));
-    const response = await localLane(
-      `You are the ${name} production council. Use these actual project member roles: ${JSON.stringify(roles).slice(0, 2400)}. Return a concise actionable production review, not promotional copy. Admit missing evidence.`,
-      `${brief}\n\nRelevant source excerpt:\n${evidence.slice(0, 1600)}`,
-      600,
-    );
+    let response = '';
+    for (let attempt = 0; attempt < 10; attempt++) {
+      try {
+        response = await localLane(
+          `You are the ${name} production council. Use these actual project member roles: ${JSON.stringify(roles).slice(0, 2400)}. Return a concise actionable production review, not promotional copy. Admit missing evidence.`,
+          `${brief}\n\nRelevant source excerpt:\n${evidence.slice(0, 1600)}`,
+          600,
+        );
+        break;
+      } catch (error) {
+        if (!String(error).includes('thermal pause') || attempt === 9) throw error;
+        console.log(`${name}: waiting 20 seconds for the existing thermal guard`);
+        await new Promise(resolve => setTimeout(resolve, 20000));
+      }
+    }
     writeFileSync(`${destination}/${name}.json`, JSON.stringify({ council: name, source: 'local-model', visualInput: false, model: health?.model ?? null, authoritativePlan: 'creation_3752884032.png', review: response }, null, 2));
     console.log(`Saved ${name} review`);
   }

@@ -39,7 +39,7 @@ export class MusicGenerationJobs {
       if (job.status === 'cancelled') return;
       job.controller.signal.throwIfAborted();
       job.audio = result.audio;
-      job.result = { notes: result.notes, abc: result.abc, mime: result.mime, warning: result.warning, audioAvailable: !!result.audio };
+      job.result = { notes: result.notes, abc: result.abc, mime: result.mime, warning: result.warning, plan: result.plan, audioAvailable: !!result.audio };
       job.status = 'succeeded'; job.message = 'Ready to insert';
     } catch (error) {
       if (job.status !== 'cancelled') {
@@ -68,9 +68,10 @@ export class MusicGenerationJobs {
     const job = this.owned(owner, id);
     if (job.status === 'running') {
       job.status = 'cancelled';
-      job.message = job.engine === 'ace-step' ? 'Cancelled in Melos. ACE-Step may finish its submitted task in the background.' : 'Generation cancelled';
+      const ace = job.engine === 'ace-step' || job.engine === 'ace-step-2.5';
+      job.message = ace ? 'Cancelled in Melos. ACE-Step may finish its submitted task in the background.' : 'Generation cancelled';
       // ACE's API has no documented cancellation. Keep its GPU slot occupied until it finishes.
-      if (job.engine !== 'ace-step') job.controller.abort();
+      if (!ace) job.controller.abort();
     }
     return this.view(job);
   }

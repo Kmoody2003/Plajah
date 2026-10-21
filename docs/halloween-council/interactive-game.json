@@ -1,0 +1,8 @@
+{
+  "council": "interactive-game",
+  "source": "local-model",
+  "visualInput": false,
+  "model": null,
+  "authoritativePlan": "creation_3752884032.png",
+  "review": "{\"project\": \"Ravencrest\", \"status\": \"initial source/artwork assessment\", \"goal\": \"near-1:1 playable reconstruction of Ravencrest artwork\", \"reference_authority\": \"floorplan_blueprint_2.jpg\", \"implementation_priority\": \"1. Reconstruct the castle's 5 levels and 12 bedrooms including the main hall, queen's floor, king's floor and observatory.\", \"disagreement\": \"The provided plans have conflicting labels, bedroom counts, and scale annotations. They should prioritize the residential plan's topology and massing.\", \"asset_requirements\": \"The source needs to provide the full set of art assets and blueprints for all the levels and spaces.\", \"visual_acceptance_gates\": [{\"description\": \"The reconstructed castle must have the 5 levels and 12 bedrooms as per the chosen authority.\", \"measurement\": \"Detailed level-by-level visual inspection\"}, {\"description\": \"The castle's massing and silhouette must closely match the reference artwork.\", \"measurement\": \"Human-eye visual inspection with comparison to reference images\"}, {\"description\": \"The overall lighting and ambiance should match the reference.\", \"measurement\": \"Comparison of lighting to reference images and mood comparison\"}], \"measurable_acceptance_gates\": [{\"description\": \"The player and monster appearance in the game must match the reference artwork.\", \"measurement\": \"Human eye visual inspection\"}]}"
+}

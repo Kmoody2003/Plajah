@@ -66,6 +66,7 @@ import { bookSubmissionsRouter } from './routes/bookSubmissions';
 import { campaignsRouter } from './routes/campaigns';
 import { createPodRouter, fulfillPodOrderFromStripe } from './routes/pod';
 import { createBookVaultRouter } from './routes/bookVault';
+import { createMusicDownloadRouter } from './routes/musicDownload';
 import { PLATFORM_CUT_PCT as BOOK_PLATFORM_CUT_PCT } from './services/bookmeta/pricing';
 import { readRegistry as readEditionRegistry, licenceActive, entitledEditions, editionOf, type BookVersionStamp } from './services/bookEditions/policy';
 import { createLedgerRouter, appendLedger } from './routes/ledger';
@@ -4216,6 +4217,17 @@ async function startServer() {
         actorUid: req.uid, actorName: '', action: 'DOWNLOADED', createdAt: Date.now() }).catch(() => {});
     }
     return streamHqObject(req, res, source.storagePath, source.name || asset?.name, source.mimeType || asset?.mimeType);
+  });
+
+  // Stage Announcements inbox (services/ambo/stageInbox.ts): the operator's Stage pulls each
+  // department/guest upload through here — the stage-inbox/ Storage prefix has no client read.
+  // Org owner/admins and ACTIVE members may stream; the path must belong to that org's item.
+  app.get('/api/stage/inbox/:orgId/:itemId/file', apiLimiter, authMiddleware, async (req: any, res: any) => {
+    const orgId = String(req.params.orgId);
+    const item = await firestoreRead(`organizations/${encodeURIComponent(orgId)}/stageInbox`, encodeURIComponent(String(req.params.itemId)));
+    if (!item?.storagePath || !String(item.storagePath).startsWith(`stage-inbox/${orgId}/`)) return res.status(404).json({ error: 'Upload not found' });
+    if (item.uploaderUid !== req.uid && !await canAccessHqAsset(req.uid, { scopeKind: 'org', scopeId: orgId })) return res.status(403).json({ error: 'Forbidden' });
+    return streamHqObject(req, res, String(item.storagePath), item.fileName || 'upload', item.mimeType || 'application/octet-stream');
   });
 
   // Server-authoritative storage-cap check the client MUST pass before an HQ upload. Computes the
@@ -12257,6 +12269,122 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     }
   });
 
+  // ── Two-Gear Patronage & Sponsorship Payout Engine ───────────────────────────
+  // Gear 2: If recipient has a connected Stripe account (`stripeConnectAccountId`), transfers
+  //         funds directly to their Stripe account immediately (`stripe.transfers.create`).
+  // Gear 1: If recipient has not connected Stripe yet, credits their Zero-KYC `patronageWallets`
+  //         balance immediately so they can spend in-app or cash out to Stripe anytime.
+  // Moves platform money, so only a verified platform admin may call it. It used to be open to
+  // anyone, who could send up to $500 per call to any connected account.
+  app.post('/api/patronage/payout', authMiddleware, requireVerifiedAdmin, express.json(), async (req: any, res) => {
+    try {
+      const { recipientUid, amountCents, category = 'ad_patronage', sourceModel = 'PATRONAGE', albumId = '', sponsorName = '', note = '' } = req.body || {};
+      const cleanCents = Math.round(Number(amountCents) || 0);
+      if (!recipientUid || cleanCents <= 0 || cleanCents > 50000) {
+        return res.status(400).json({ error: 'Valid recipientUid and amountCents (1..50000) required' });
+      }
+
+      const userDoc = await firestoreRead('users', recipientUid);
+      const stripeConnectAccountId = userDoc?.stripeConnectAccountId as string | undefined;
+      let settledDirectToStripe = false;
+
+      if (stripeConnectAccountId && process.env.STRIPE_SECRET_KEY) {
+        try {
+          const stripe = getStripe();
+          await (stripe as any).transfers.create({
+            amount: cleanCents,
+            currency: 'usd',
+            destination: stripeConnectAccountId,
+            metadata: {
+              type: 'patronage_payout',
+              recipientUid,
+              category,
+              sourceModel,
+              albumId,
+              sponsorName,
+            },
+          });
+          settledDirectToStripe = true;
+        } catch (transferErr: any) {
+          console.warn('[Patronage] Direct Stripe transfer deferred to Zero-KYC wallet:', transferErr.message);
+        }
+      }
+
+      const existingWallet = (await firestoreRead('patronageWallets', recipientUid)) || {
+        uid: recipientUid,
+        pendingStripeBalanceCents: 0,
+        lifetimeDirectStripeCents: 0,
+        lifetimeEarnedCents: 0,
+      };
+
+      const updatedWallet = {
+        uid: recipientUid,
+        pendingStripeBalanceCents: settledDirectToStripe
+          ? Number(existingWallet.pendingStripeBalanceCents || 0)
+          : Number(existingWallet.pendingStripeBalanceCents || 0) + cleanCents,
+        lifetimeDirectStripeCents: settledDirectToStripe
+          ? Number(existingWallet.lifetimeDirectStripeCents || 0) + cleanCents
+          : Number(existingWallet.lifetimeDirectStripeCents || 0),
+        lifetimeEarnedCents: Number(existingWallet.lifetimeEarnedCents || 0) + cleanCents,
+        updatedAt: Date.now(),
+      };
+
+      await firestoreWrite('patronageWallets', recipientUid, updatedWallet);
+      await firestoreCreate('creatorEarnings', {
+        creatorUid: recipientUid,
+        payerUid: sponsorName || 'plajah_patronage',
+        category,
+        grossCents: cleanCents,
+        platformFeeCents: 0,
+        netCents: cleanCents,
+        creatorNetCents: cleanCents,
+        title: note || `${sourceModel} (${sponsorName || 'Plajah Patron'})`,
+        status: settledDirectToStripe ? 'paid' : 'pending',
+        timestamp: Date.now(),
+      });
+
+      res.json({ ok: true, settledDirectToStripe, wallet: updatedWallet });
+    } catch (err: any) {
+      console.error('[Patronage] payout error:', err.message);
+      res.status(500).json({ error: err.message || 'Patronage payout failed' });
+    }
+  });
+
+  app.post('/api/patronage/cashout-to-stripe', authMiddleware, express.json(), async (req: any, res) => {
+    try {
+      const uid = req.uid as string;   // the signed-in user cashes out their own wallet only
+      const userDoc = await firestoreRead('users', uid);
+      const acct = userDoc?.stripeConnectAccountId as string | undefined;
+      if (!acct) {
+        return res.status(400).json({ error: 'Connect your Stripe account in the Payment Dashboard first to cash out directly.' });
+      }
+      const wallet = await firestoreRead('patronageWallets', uid);
+      const pendingCents = Math.round(Number(wallet?.pendingStripeBalanceCents || 0));
+      if (pendingCents <= 0) {
+        return res.status(400).json({ error: 'No pending balance to transfer.' });
+      }
+      const stripe = getStripe();
+      await (stripe as any).transfers.create({
+        amount: pendingCents,
+        currency: 'usd',
+        destination: acct,
+        metadata: { type: 'patronage_wallet_cashout', uid },
+      });
+      const updatedWallet = {
+        ...wallet,
+        uid,
+        pendingStripeBalanceCents: 0,
+        lifetimeDirectStripeCents: Number(wallet?.lifetimeDirectStripeCents || 0) + pendingCents,
+        updatedAt: Date.now(),
+      };
+      await firestoreWrite('patronageWallets', uid, updatedWallet);
+      res.json({ ok: true, transferredCents: pendingCents, wallet: updatedWallet });
+    } catch (err: any) {
+      console.error('[Patronage] cashout error:', err.message);
+      res.status(500).json({ error: err.message || 'Stripe transfer failed' });
+    }
+  });
+
   // ─────────────────────────────────────────────────────────────────────────────
   // MERCH API — Printful + Gelato proxy + Stripe checkout + platform fee payout
   // All keys stay server-side. Frontend calls /api/merch/* with a Firebase token.
@@ -13391,6 +13519,7 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   // No body parser at the mount: /api/books/submit below needs its own 14mb limit.
   app.use('/api/books', createBookVaultRouter({ authMiddleware, isAdmin: isPlatformAdminReq }));
   // Purchased music: server-rendered MP3/AAC/FLAC/WAV with tags + cover art, zipped for albums (licence-checked).
+  app.use('/api/music', express.json({ limit: '4kb' }), createMusicDownloadRouter({ authMiddleware }));
   // Licence + rights ledger (hash-chained, server-written): my licence history, and an author's audit view.
   app.use('/api/ledger', createLedgerRouter({ authMiddleware, isAdmin: isPlatformAdminReq }));
   // Sponsored + gift copies of books: fans/named people/org bulk codes; each claim mints a licence + ledger entry.

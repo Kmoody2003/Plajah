@@ -251,6 +251,16 @@ service firebase.storage {
       allow delete: if canDeleteStamped();
     }
 
+    // ── Stage Announcements inbox (services/ambo/stageInbox.ts) ───────────────
+    // A member's phone upload for the operator's Announcements row. Private: Stage streams it
+    // through GET /api/stage/inbox/:orgId/:itemId/file, which checks org membership.
+    match /stage-inbox/{orgId}/{uid}/{itemId}/{fileName} {
+      allow read: if false;
+      allow create: if isRegisteredUser() && request.auth.uid == uid && stampsSelf() && isMediaType()
+                    && request.resource.size < 4 * 1024 * 1024 * 1024;
+      allow delete: if isRegisteredUser() && request.auth.uid == uid;
+    }
+
     // ── Private media locker (Chora music + Taleo movies/TV the user owns) ────
     // personal/<uid>/… — owner-only read+write. Kept private (the user may not
     // hold distribution rights); playback works via tokenized download URLs.

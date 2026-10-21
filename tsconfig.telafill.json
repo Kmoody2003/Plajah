@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": true, "skipLibCheck": true },
+  "include": ["services/tela/telaInpaintService.ts", "components/tela/useTelaFillModels.ts", "components/tela/TelaImage.tsx", "components/tela/TelaImageSelectionOverlay.tsx", "scripts/tela/fillBench.ts", "routes/localAi.ts"]
+}

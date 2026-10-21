@@ -59,6 +59,7 @@ import {
 } from '../../services/tela/telaInpaintService';
 import { samSegmentationService, type PromptPoint } from '../../services/samSegmentationService';
 import type { TelaImageLayer } from '../../types';
+import { useTelaFillModels } from './useTelaFillModels';
 
 export interface TelaImageSelectionOverlayProps {
   width: number;
@@ -110,6 +111,7 @@ export const TelaImageSelectionOverlay: React.FC<TelaImageSelectionOverlayProps>
   // 'auto': the sidecar routes prompt-less fills to Big-LaMa and guided fills to the SDXL inpainting UNet when they are
   // installed; without them the content-aware fill stands for prompt-less work (measured better than the legacy pass).
   const [genFillModel, setGenFillModel] = useState<GenerativeFillModelId>('auto');
+  const fillModels = useTelaFillModels();
   const [inpaintBusy, setInpaintBusy] = useState(false);
   const [inpaintMsg, setInpaintMsg] = useState<string | null>(null);
   const [wandTolerance, setWandTolerance] = useState(32);
@@ -1067,7 +1069,7 @@ export const TelaImageSelectionOverlay: React.FC<TelaImageSelectionOverlayProps>
             <select
               value={genFillModel}
               onChange={(e) => setGenFillModel(e.target.value as GenerativeFillModelId)}
-              title="Generative Fill model — Auto routes prompt-less fills to Big-LaMa and guided fills to SDXL Inpainting when installed"
+              title="Generative Fill model — runs on this PC through the Tela runtime; Auto picks the best installed model"
               style={{
                 height: 26,
                 padding: '0 6px',
@@ -1081,11 +1083,9 @@ export const TelaImageSelectionOverlay: React.FC<TelaImageSelectionOverlayProps>
                 cursor: 'pointer',
               }}
             >
-              <option value="auto" style={{ background: '#14111d', color: '#fff' }}>⚡ Auto (LaMa remove · SDXL Inpainting guided)</option>
-              <option value="lama" style={{ background: '#14111d', color: '#fff' }}>Big-LaMa (remove / complete)</option>
-              <option value="sdxl_inpaint" style={{ background: '#14111d', color: '#fff' }}>SDXL Inpainting 0.1 (guided)</option>
-              <option value="sdxl_turbo" style={{ background: '#14111d', color: '#fff' }}>SDXL Turbo (legacy latent mask)</option>
-              <option value="patchmatch" style={{ background: '#14111d', color: '#fff' }}>Content-Aware Fill (CPU)</option>
+              {fillModels.map((o) => (
+                <option key={o.id} value={o.id} disabled={!o.available} style={{ background: '#14111d', color: '#fff' }}>{o.label}</option>
+              ))}
             </select>
 
             <input

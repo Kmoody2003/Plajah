@@ -18,6 +18,8 @@ import { buildShareUrl } from '../services/deepLinkService';
 import ScrollingWaveform from './ScrollingWaveform';
 import MixPixelsStage, { type MixPixelsInfo } from './MixPixelsStage';
 import ShareButton from './ShareButton';
+import { fetchAudiusMixes, audiusTrackToMixAlbum } from '../services/audiusService';
+import TrackReactionButton from './TrackReactionButton';
 
 interface MixPlayerViewProps {
   album: Album;
@@ -107,13 +109,17 @@ const MixPlayerView: React.FC<MixPlayerViewProps> = ({ album, onBack, user, onOp
   const [rail, setRail] = useState<Album[]>([]);
   useEffect(() => {
     let cancelled = false;
-    fetchAllPublicAlbums().then(list => {
+    // Chora mixes first (same artist leading), then long-form sets from Audius behind them.
+    Promise.all([
+      fetchAllPublicAlbums().catch(() => [] as Album[]),
+      fetchAudiusMixes(12).catch(() => []),
+    ]).then(([list, audius]) => {
       if (cancelled) return;
       const mixes = (list || []).filter(a => a.subType === 'MIX' && a.id !== album.id);
-      // Prefer same-artist first, then the rest.
       mixes.sort((a, b) => (b.ownerId === album.ownerId ? 1 : 0) - (a.ownerId === album.ownerId ? 1 : 0));
-      setRail(mixes.slice(0, 24));
-    }).catch(() => {});
+      const fromAudius = audius.map(audiusTrackToMixAlbum).filter(a => a.id !== album.id);
+      setRail([...mixes, ...fromAudius].slice(0, 24));
+    });
     return () => { cancelled = true; };
   }, [album.id, album.ownerId]);
 
@@ -192,6 +198,14 @@ const MixPlayerView: React.FC<MixPlayerViewProps> = ({ album, onBack, user, onOp
             {meta.source === 'REELLO' && (
               <div className="absolute top-3 right-3 text-[10px] font-black uppercase tracking-[0.1em] text-[#00DAF3] px-2.5 py-1.5 rounded-full bg-[#00DAF3]/10 border border-[#00DAF3]/30">audio-only · from Reello</div>
             )}
+            {/* Streamed from Audius — credit the source and link back (Open Music License attribution) */}
+            {meta.source === 'AUDIUS' && (
+              <a href={(album as any).audiusUrl || 'https://audius.co/'} target="_blank" rel="noopener noreferrer"
+                className="absolute top-3 right-3 flex items-center gap-1.5 text-[12px] font-semibold text-white px-3 py-1.5 rounded-full border"
+                style={{ background: 'rgba(126,27,204,0.45)', borderColor: 'rgba(168,85,247,0.6)' }}>
+                Streaming from Audius ↗
+              </a>
+            )}
             {/* now playing overlay */}
             <div className="absolute left-4 right-4 bottom-3 flex items-end gap-3">
               {cover && <img src={cover} alt="" className="w-14 h-14 rounded-xl object-cover shadow-lg" />}
@@ -199,6 +213,11 @@ const MixPlayerView: React.FC<MixPlayerViewProps> = ({ album, onBack, user, onOp
                 <h1 className="font-black uppercase tracking-tight leading-[0.95] text-2xl sm:text-3xl truncate">{album.title}</h1>
                 <div className="text-white/70 text-sm truncate">by <b className="text-[#D0BCFF]">{album.artist}</b></div>
               </div>
+              {track && (
+                <div className="w-12 h-12 rounded-full grid place-items-center bg-[#08060d]/60 border border-white/15 shrink-0">
+                  <TrackReactionButton track={track} album={album} size={18} box={44} />
+                </div>
+              )}
               {!playing && (
                 <button onClick={play} aria-label="Play mix"
                   className="w-14 h-14 rounded-full grid place-items-center text-white shrink-0 shadow-xl"

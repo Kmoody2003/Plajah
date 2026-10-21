@@ -47,3 +47,29 @@ export async function cancelMusicGeneration(id: string): Promise<GenerationJob> 
 export async function getGeneratedAudio(id: string, signal?: AbortSignal): Promise<Blob> {
   return (await authorizedFetch(`/jobs/${encodeURIComponent(id)}/audio`, { signal })).blob();
 }
+
+/** Execute an actual authenticated engine job; failures never switch to a synthesizer. */
+export async function runLocalMusicGeneration(request: GenerationRequest, signal: AbortSignal,
+  progress?: (text: string) => void) {
+  signal.throwIfAborted();
+  let job = await startMusicGeneration(request);
+  const cancel = () => { void cancelMusicGeneration(job.id).catch(() => {}); };
+  signal.addEventListener('abort', cancel, { once: true });
+  try {
+    if (signal.aborted) { cancel(); signal.throwIfAborted(); }
+    while (job.status === 'running') {
+      progress?.(job.message);
+      await new Promise<void>((resolve, reject) => {
+        const stop = () => { clearTimeout(timer); reject(new Error('Cancelled')); };
+        const timer = setTimeout(() => { signal.removeEventListener('abort', stop); resolve(); }, 1200);
+        signal.addEventListener('abort', stop, { once: true });
+      });
+      signal.throwIfAborted();
+      job = await getMusicGeneration(job.id, signal);
+    }
+    if (job.status !== 'succeeded' || !job.result) throw new Error(job.message);
+    const audio = job.result.audioAvailable ? await getGeneratedAudio(job.id, signal) : undefined;
+    signal.throwIfAborted();
+    return { result: job.result, audio };
+  } finally { signal.removeEventListener('abort', cancel); }
+}

@@ -4892,8 +4892,8 @@ export interface MixMeta {
   visualMode?: 'AUTO' | 'AUTHORED';
   /** Cloud PlajahProject id when visualMode==='AUTHORED' (users/{uid}/plajahProjects/{id}). */
   pixelsProjectId?: string;
-  /** Where the mix audio came from. */
-  source?: 'UPLOAD' | 'REELLO' | 'DJ_MODE';
+  /** Where the mix audio came from. AUDIUS = a long-form set streamed from Audius (never re-hosted). */
+  source?: 'UPLOAD' | 'REELLO' | 'DJ_MODE' | 'AUDIUS';
   /** Origin Reello video id when source==='REELLO' (mirrors Track.soundOfVideoId). */
   sourceVideoId?: string;
   /** Timestamped comments on/off for this mix (default true). */

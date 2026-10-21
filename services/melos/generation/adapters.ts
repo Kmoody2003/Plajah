@@ -7,14 +7,18 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 import type { MusicEngineId } from '../../musicEnginePolicy';
 import { validateGeneratedNotes, type GenerationRequest, type GenerationResult } from './types';
+import { buildEnsemblePlan, validateEnsemblePlan } from './ensemblePlan';
 
 export interface AdapterResult extends GenerationResult { audio?: Buffer }
-export interface EngineConfig { url?: string; token?: string; python?: string; model?: string }
+export interface EngineConfig { url?: string; token?: string; python?: string; model?: string; aceThinking?: boolean }
 export type EngineConfigs = Partial<Record<MusicEngineId, EngineConfig>>;
 export function generationConfigs(env: NodeJS.ProcessEnv = process.env): EngineConfigs {
   return {
-    'ace-step': { url: env.MELOS_ACE_URL, token: env.MELOS_ACE_TOKEN },
-    'qwen-score': { url: env.MELOS_OLLAMA_URL, model: env.MELOS_QWEN_MODEL || 'qwen3:8b', token: env.MELOS_OLLAMA_TOKEN },
+    ...(env.MELOS_ACE_URL ? { 'ace-step-2.5': { url: env.MELOS_ACE_URL, token: env.MELOS_ACE_TOKEN, aceThinking: env.MELOS_ACE_THINKING === 'true' } } : {}),
+    'ace-step': { url: env.MELOS_ACE_URL, token: env.MELOS_ACE_TOKEN, aceThinking: env.MELOS_ACE_THINKING === 'true' },
+    'qwen-score': env.MELOS_OLLAMA_URL
+      ? { url: env.MELOS_OLLAMA_URL, model: env.MELOS_QWEN_MODEL || 'qwen3:8b', token: env.MELOS_OLLAMA_TOKEN }
+      : { python: env.MELOS_QWEN_PYTHON, model: env.MELOS_QWEN_GGUF },
     heartmula: { python: env.MELOS_HEARTMULA_PYTHON, model: env.MELOS_HEARTMULA_MODEL },
     yue2: { python: env.MELOS_YUE2_PYTHON, model: env.MELOS_YUE2_MODEL },
     sheetsage2: { python: env.MELOS_SHEETSAGE2_PYTHON, model: env.MELOS_SHEETSAGE2_MODEL },
@@ -46,8 +50,49 @@ export async function runGeneration(request: GenerationRequest, config: EngineCo
     return result;
   };
   if (request.engine === 'qwen-score') {
+    const chat = async (payload: unknown) => {
+      if (config.url) return post('/api/chat', payload);
+      if (!config.python || !config.model) throw new Error('Configure Ollama or a local GGUF score runtime');
+      const dir = await mkdtemp(path.join(tmpdir(), 'melos-score-'));
+      try {
+        await writeFile(path.join(dir, 'request.json'), JSON.stringify({ model: config.model, payload }));
+        await new Promise<void>((resolve, reject) => {
+          const child = spawn(config.python!, [fileURLToPath(new URL('../../../scripts/music_score_worker.py', import.meta.url)), dir],
+            { shell: false, windowsHide: true, signal, stdio: ['ignore', 'ignore', 'pipe'],
+              env: { ...process.env, HF_HUB_OFFLINE: '1', TRANSFORMERS_OFFLINE: '1' } });
+          child.stderr?.on('data', () => {});
+          child.once('error', reject);
+          child.once('close', code => code === 0 ? resolve() : reject(new Error('Local score worker failed; inspect the Python environment and GPU memory')));
+        });
+        signal.throwIfAborted();
+        const resultPath = path.join(dir, 'result.json');
+        if ((await stat(resultPath)).size > 2000000) throw new Error('Score output exceeded its size limit');
+        return JSON.parse(await readFile(resultPath, 'utf8'));
+      } finally { await rm(dir, { recursive: true, force: true }); }
+    };
+    if (request.purpose === 'arrangement-plan') {
+      progress('Planning form, harmonic motion, motif development and instrument roles…');
+      const base = buildEnsemblePlan({ prompt: request.prompt, bpm: request.bpm, keySignature: request.key,
+        startBeats: 0, regionBeats: request.bars * 4, allowShort: true });
+      const reply = await chat({
+        model: config.model, stream: false, think: false, keep_alive: 0,
+        options: { seed: request.seed, num_ctx: 8192, num_predict: 4096, temperature: 0.65 },
+        format: { type: 'object', properties: {
+          concept: { type: 'string' }, chords: { type: 'array', items: { type: 'string' }, minItems: request.bars, maxItems: request.bars },
+          sections: { type: 'array', minItems: 1, maxItems: 8, items: { type: 'object', properties: {
+            title: { type: 'string' }, startBar: { type: 'integer' }, bars: { type: 'integer' },
+            direction: { type: 'string' }, dynamic: { type: 'string' },
+          }, required: ['title', 'startBar', 'bars', 'direction', 'dynamic'] } },
+        }, required: ['concept', 'chords', 'sections'] },
+        messages: [
+          { role: 'system', content: `You are the local music director. Plan EXACTLY ${request.bars} bars in 4/4, ${request.bpm} BPM, ${request.key}. Return the required JSON. Chords: one named chord per bar (Dm, A7, Fmaj7 etc.). Sections use zero-based startBar, cover all bars once without gaps/overlap, at most 8 sections. Plan a memorable motif, phrase lengths, voice-leading, harmonic tension and release, purposeful groove and production contrast. The requested genre and instrumentation take precedence over generic pop form. Direction must specify what the platform synths play and what is left for generated audio. Do not invent sample libraries or lyric singing capabilities for synths. Dynamics p/mp/mf/f. /no_think` },
+          { role: 'user', content: request.prompt },
+        ],
+      });
+      return { plan: validateEnsemblePlan(JSON.parse(reply.message?.content || '{}'), base) };
+    }
     progress('Composing editable notes…');
-    const reply = await post('/api/chat', {
+    const reply = await chat({
       model: config.model, stream: false, think: false, keep_alive: 0,
       options: { seed: request.seed, num_ctx: 4096, num_predict: 4096, temperature: 0.7 },
       format: { type: 'object', properties: { notes: { type: 'array', items: { type: 'object', properties: {
@@ -61,15 +106,26 @@ export async function runGeneration(request: GenerationRequest, config: EngineCo
     const raw = JSON.parse(reply.message?.content || '{}');
     return { notes: validateGeneratedNotes(raw.notes, request.bars * 4) };
   }
-  if (request.engine === 'ace-step') {
+  if (request.engine === 'ace-step' || request.engine === 'ace-step-2.5') {
     progress('Submitting audio generation…');
+    const isFullSong = request.kind === 'audio';
+    const isUltraEngine = request.engine === 'ace-step-2.5';
+    const defaultInstrumentalArrangement = isFullSong
+      ? '[Instrumental]\n[Intro - Atmospheric Motif & Texture]\n[Verse - Tight Pocket Groove & Bassline]\n[Chorus - Full Harmonic Lift & Layered Arrangement]\n[Bridge - Dynamic Breakdown]\n[Outro - Warm Fade]'
+      : '[Instrumental]';
+    const studioPrompt = request.kind === 'sample'
+      ? `${request.prompt}. Isolated musical sample, no vocals.`
+      : `${request.prompt}. Studio master quality, wide stereo separation, crisp transient definition, rich harmonic arrangement.`;
     const reply = await post('/release_task', {
-      prompt: request.kind === 'sample' ? `${request.prompt}. Isolated musical sample, no vocals.` : request.prompt,
-      lyrics: request.lyrics || '[Instrumental]', audio_duration: Math.max(10, request.seconds),
+      prompt: studioPrompt,
+      lyrics: request.lyrics || defaultInstrumentalArrangement, audio_duration: Math.max(10, request.seconds),
       bpm: Math.round(request.bpm), key_scale: request.key, time_signature: '4',
       seed: request.seed, use_random_seed: false, batch_size: 1, audio_format: 'wav',
-      thinking: false, use_cot_caption: false, use_cot_language: false, use_format: false,
-      inference_steps: 8, task_type: 'text2music',
+      thinking: isFullSong && !!config.aceThinking, use_cot_caption: false, use_cot_language: false, use_format: false,
+      inference_steps: isUltraEngine ? 16 : 8, infer_method: 'ode', shift: 3.0,
+      // Omit dcw_enabled: this runtime resolves it by checkpoint. Forcing it on
+      // incompatible checkpoints can distort audio (upstream issue #1259).
+      task_type: 'text2music',
     });
     const taskId = reply.data?.task_id;
     if (typeof taskId !== 'string' || !taskId) throw new Error('ACE-Step did not return a task ID');

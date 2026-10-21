@@ -8,7 +8,7 @@
 // duration; otherwise title / artist / album, cycling. Time is the player's currentTime,
 // extrapolated between progress ticks so word highlighting doesn't stutter.
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { useGlobalPlayerState, useGlobalPlayerProgress } from '../contexts/GlobalPlayerContext';
 import { loadAtlas, makeVol, disposeVol, lineStreams, clamp, TypoDirector, type Vol, type LyricState } from './chora/typo/typoEngine';

@@ -1,0 +1,70 @@
+[
+  {
+    "id": "castle_brick_01",
+    "author": "Rob Tuytel",
+    "widthMeters": 1.5,
+    "use": "Damp basement masonry candidate; not the exterior ashlar authority",
+    "license": "CC0-1.0",
+    "licenseUrl": "https://polyhaven.com/license",
+    "originalUrl": "https://polyhaven.com/a/castle_brick_01",
+    "resolution": "1k",
+    "status": "candidate-awaiting-material-review",
+    "files": [
+      {
+        "map": "Diffuse",
+        "path": "public/models/halloween/materials/polyhaven/castle_brick_01/albedo.jpg",
+        "source": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/castle_brick_01/castle_brick_01_diff_1k.jpg",
+        "bytes": 693571,
+        "md5": "d3d6194b814cbda8a17dc5ebe407a41e"
+      },
+      {
+        "map": "nor_gl",
+        "path": "public/models/halloween/materials/polyhaven/castle_brick_01/normal_gl.jpg",
+        "source": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/castle_brick_01/castle_brick_01_nor_gl_1k.jpg",
+        "bytes": 1069379,
+        "md5": "6e187b440caae18cd2edf5925edf6b7b"
+      },
+      {
+        "map": "Rough",
+        "path": "public/models/halloween/materials/polyhaven/castle_brick_01/roughness.jpg",
+        "source": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/castle_brick_01/castle_brick_01_rough_1k.jpg",
+        "bytes": 263291,
+        "md5": "5707e3fd1088d9602dd57b19175bc4a1"
+      }
+    ]
+  },
+  {
+    "id": "roof_slates_03",
+    "author": "Rob Tuytel",
+    "widthMeters": 3,
+    "use": "Slate roof material candidate for the authored castle roof kit",
+    "license": "CC0-1.0",
+    "licenseUrl": "https://polyhaven.com/license",
+    "originalUrl": "https://polyhaven.com/a/roof_slates_03",
+    "resolution": "1k",
+    "status": "candidate-awaiting-material-review",
+    "files": [
+      {
+        "map": "Diffuse",
+        "path": "public/models/halloween/materials/polyhaven/roof_slates_03/albedo.jpg",
+        "source": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/roof_slates_03/roof_slates_03_diff_1k.jpg",
+        "bytes": 654296,
+        "md5": "b416c53d9720ff8b057631ccc6331bf3"
+      },
+      {
+        "map": "nor_gl",
+        "path": "public/models/halloween/materials/polyhaven/roof_slates_03/normal_gl.jpg",
+        "source": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/roof_slates_03/roof_slates_03_nor_gl_1k.jpg",
+        "bytes": 788841,
+        "md5": "bc28f302d4f9345ba462e19436aed93a"
+      },
+      {
+        "map": "Rough",
+        "path": "public/models/halloween/materials/polyhaven/roof_slates_03/roughness.jpg",
+        "source": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/roof_slates_03/roof_slates_03_rough_1k.jpg",
+        "bytes": 12644,
+        "md5": "a9d3cec6ba6480e9aa18817d391a53d4"
+      }
+    ]
+  }
+]

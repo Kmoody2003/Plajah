@@ -6,7 +6,7 @@ import { useViewport } from '../hooks/useViewport';
 import { useShellNext } from '../hooks/useShellNext';
 import { getPlatformInfo } from '../hooks/usePlatform';
 import CommandPlayer from './CommandPlayer';
-import TrackReactions from './TrackReactions';
+import TrackReactionButton from './TrackReactionButton';
 import { Play, Pause, Activity, SkipBack, SkipForward, Volume2, Music, Radio, X, ChevronUp, ChevronDown, Library, Globe, Cast, Home, Search, MessageSquare, Bell, User as UserIcon, Moon, Sun, Palette, Sparkles, Tv, Repeat, Repeat1, Shuffle, Smartphone, Plus, Settings, LogOut, Upload, Shield, Maximize2, Minimize2, Share2, Users, Heart, Trophy, Layers, RotateCcw, List, Box, Video as VideoIcon, Headphones, ZapOff } from 'lucide-react';
 import Logo from './Logo';
 import AriaMark from './aria/AriaMark';
@@ -845,7 +845,7 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
               {/* Taste — teaches Chora what to recommend (works for Chora, Audius & library tracks). */}
               {currentTrack && audioSource !== 'VIDEO' && (
                 <div className="flex items-center justify-center mt-3">
-                  <TrackReactions track={currentTrack} album={currentAlbum} size={17} />
+                  <TrackReactionButton track={currentTrack} album={currentAlbum} size={19} box={44} />
                 </div>
               )}
             </div>
@@ -1350,6 +1350,10 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                     </div>
                   </button>
                 )}
+                {/* Like the song without opening anything — tap like, double-tap love, hold for more */}
+                {!isShrunk && currentTrack && audioSource !== 'VIDEO' && (
+                  <TrackReactionButton track={currentTrack} album={currentAlbum} size={15} box={36} className="shrink-0" />
+                )}
 
                 {!isShrunk && (
                   <div className="flex items-center gap-4">
@@ -1500,6 +1504,9 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                     {currentTrack?.artist || currentAlbum?.artist || 'Unknown'}
                   </p>
                 </div>
+                {currentTrack && audioSource !== 'VIDEO' && (
+                  <TrackReactionButton track={currentTrack} album={currentAlbum} size={15} box={34} className="shrink-0" />
+                )}
               </div>
 
               {/* Basic Playback */}

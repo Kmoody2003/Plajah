@@ -17,7 +17,7 @@ import { synthesizeGenerativeFill, sidecarInpaintBody, createDistanceFeatheredMa
 
 // ── --engine flux: the production generative-fill core (PatchMatch pre-fill → context crop → on-device sidecar → stitch →
 //    harmonise → feathered layer mask), driven from Node with sharp for PNG and fetch to the sidecar on 127.0.0.1:51122.
-const SIDECAR = process.env.PLAJAH_SIDECAR || 'http://127.0.0.1:51122';
+const SIDECAR = process.env.PLAJAH_SIDECAR || 'http://127.0.0.1:51123'; // Tela Diffusion Runtime (51122 = legacy sidecar)
 /** A prompt per case for the guided mode (what a user would type); autonomous mode sends none. */
 const GUIDED_PROMPTS: Record<string, string> = {
   'forest-foliage': 'a mossy boulder among the ferns',
@@ -44,7 +44,11 @@ const nodeIO: GenerativeFillIO = {
     const t0 = Date.now();
     const r = await fetch(`${SIDECAR}/tela/inpaint`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(15 * 60e3) });
     const data: any = await r.json().catch(() => ({}));
-    if (!r.ok || !data?.mediaUrl) throw new Error(`sidecar ${r.status}: ${String(data?.error || data?.message || '').slice(0, 160)}`);
+    if (!r.ok || !data?.mediaUrl) {
+      const err = `sidecar ${r.status}: ${String(data?.error || data?.message || '').slice(0, 300)}`;
+      console.warn(`   ${err}`); // the fill core swallows this and keeps the PatchMatch result
+      throw new Error(err);
+    }
     console.log(`   sidecar: ${crop.width}×${crop.height} crop, ${args.inpaintMode}, ${data.modelUsed || '?'}, ${Math.round((Date.now() - t0) / 1000)} s${data.synthesizedPrompt ? ` · prompt: ${String(data.synthesizedPrompt).slice(0, 110)}` : ''}`);
     return { bitmap: await bitmapFromDataUrl(data.mediaUrl, crop.width, crop.height), modelUsed: typeof data.modelUsed === 'string' ? data.modelUsed : undefined };
   },

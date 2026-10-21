@@ -32,6 +32,7 @@ import TelaColoristSuite, {
 import { CREATIVE_LOOKS } from '../../services/photoEditingService';
 import { getLutById, lutToCssFilter } from '../../services/color/cinematicLutLibrary';
 import { TelaLookGallery } from './color/TelaLookGallery';
+import { useTelaFillModels } from './useTelaFillModels';
 
 export const NEUTRAL_ADJUST: TelaImageAdjust = {
   brightness: 1,
@@ -117,6 +118,7 @@ export const TelaImageLayerControls: React.FC<{
   const [segmentFeedback, setSegmentFeedback] = useState<string | null>(null);
   const [inpaintPrompt, setInpaintPrompt] = useState('');
   const [inpaintModel, setInpaintModel] = useState<GenerativeFillModelId>('auto');
+  const fillModels = useTelaFillModels();
   const [isInpainting, setIsInpainting] = useState(false);
   const [inpaintFeedback, setInpaintFeedback] = useState<string | null>(null);
   const [lookGalleryOpen, setLookGalleryOpen] = useState(false);
@@ -289,11 +291,9 @@ export const TelaImageLayerControls: React.FC<{
               marginBottom: 5,
             }}
           >
-            <option value="auto">⚡ Auto (Big-LaMa remove · SDXL Inpainting guided)</option>
-            <option value="lama">Big-LaMa (remove / complete)</option>
-            <option value="sdxl_inpaint">SDXL Inpainting 0.1 (guided)</option>
-            <option value="sdxl_turbo">SDXL Turbo (legacy latent mask)</option>
-            <option value="patchmatch">Content-Aware Fill (CPU only)</option>
+            {fillModels.map((o) => (
+              <option key={o.id} value={o.id} disabled={!o.available}>{o.label}</option>
+            ))}
           </select>
 
           <input

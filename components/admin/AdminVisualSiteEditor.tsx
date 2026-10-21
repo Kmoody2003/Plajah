@@ -59,6 +59,8 @@ export const AdminVisualSiteEditor: React.FC<AdminVisualSiteEditorProps> = ({
   const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<EditorTab>('HERO_ART');
   const [telemetryQuickOpen, setTelemetryQuickOpen] = useState<boolean>(false);
+  // The floating dock rests collapsed; hovering or focusing it opens the full pill.
+  const [dockHover, setDockHover] = useState(false);
   const [config, setConfig] = useState<PageVisualConfig | null>(null);
   const [telemetry, setTelemetry] = useState<LiveTelemetrySnapshot | null>(null);
   const [simTraffic, setSimTraffic] = useState<boolean>(() => isSimulatedTrafficEnabled());
@@ -787,8 +789,31 @@ export const AdminVisualSiteEditor: React.FC<AdminVisualSiteEditorProps> = ({
           </div>
         )}
 
-        {/* Primary Floating Admin Pill */}
-        <div className="flex items-center gap-2 rounded-full p-1.5 bg-[#13111C]/90 backdrop-blur-2xl border border-white/15 shadow-[0_16px_40px_rgba(0,0,0,0.75)]">
+        {/* Primary Floating Admin Pill — rests as a small live dot so it never sits on top of the
+            page's own controls; opens on hover / keyboard focus, and stays open while editing or
+            while one of its panels is up. */}
+        {!(dockHover || editMode || telemetryQuickOpen || drawerOpen) ? (
+          <button
+            type="button"
+            onMouseEnter={() => setDockHover(true)}
+            onFocus={() => setDockHover(true)}
+            onClick={() => setDockHover(true)}
+            aria-label={`Admin tools · ${telemetry?.totalActiveNow ?? 1} live`}
+            title="Admin tools"
+            className="h-9 pl-2.5 pr-3 rounded-full flex items-center gap-1.5 bg-[#13111C]/80 border border-white/12 text-white/80 shadow-[0_8px_24px_rgba(0,0,0,0.5)] opacity-70 hover:opacity-100 transition-opacity"
+          >
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+            </span>
+            <span className="text-[11px] font-bold tabular-nums" style={{ fontFamily: 'var(--font-mono-tech, monospace)' }}>{telemetry?.totalActiveNow ?? 1}</span>
+          </button>
+        ) : (
+        <div
+          onMouseLeave={() => setDockHover(false)}
+          onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDockHover(false); }}
+          className="flex items-center gap-2 rounded-full p-1.5 bg-[#13111C]/90 backdrop-blur-2xl border border-white/15 shadow-[0_16px_40px_rgba(0,0,0,0.75)]"
+        >
           {/* Live Telemetry Counter Pill */}
           <button
             onClick={() => setTelemetryQuickOpen(!telemetryQuickOpen)}
@@ -840,6 +865,7 @@ export const AdminVisualSiteEditor: React.FC<AdminVisualSiteEditorProps> = ({
             <Sliders size={15} />
           </button>
         </div>
+        )}
       </div>
 
       {/* ── 4. FULL ADMIN VISUAL SITE EDITOR & COUNCILS DRAWER ── */}

@@ -12,18 +12,20 @@ await writeFile(path.join(dir, 'index.html'), '<html><head><meta name="viewport"
 await writeFile(path.join(dir, 'preview.tsx'), `
 import React from 'react'; import { createRoot } from 'react-dom/client';
 import GenerationPanel from '../../components/melos/beats/composer/GenerationPanel';
+import { TimelineView } from '../../components/melos/beats/timeline/TimelineView';
 import { newGrooveDoc } from '../../services/melos/beats/grooveDoc';
 import './preview.css';
 const engines = [
- {id:'ace-step',name:'ACE-Step 1.5',kinds:['audio','sample'],access:{allowed:true,reason:'Admin evaluation only'}},
- {id:'qwen-score',name:'Qwen3 score composer',kinds:['midi'],access:{allowed:true,reason:'Admin evaluation only'}},
+ {id:'ace-step',name:'ACE-Step 1.5',kinds:['audio','sample'],runtimeConnected:true,access:{allowed:true,reason:'Admin evaluation only'}},
+ {id:'qwen-score',name:'Local Qwen music director',kinds:['midi'],runtimeConnected:true,access:{allowed:true,reason:'Admin evaluation only'}},
  {id:'yue2',name:'YuE2',kinds:['audio','midi'],access:{allowed:false,reason:'Written evaluation permission pending'}},
  {id:'basic-pitch',name:'Basic Pitch',kinds:['transcribe'],access:{allowed:false,reason:'Browser model'}},
 ];
-createRoot(document.getElementById('root')!).render(<div style={{height:'100vh',display:'flex',justifyContent:'flex-end',background:'#0c0812',fontFamily:'sans-serif'}}><GenerationPanel doc={newGrooveDoc('preview')} engines={engines as any} startBeats={8} initialDestination="timeline" onClose={()=>{}} onInsert={async()=>{}} /></div>);
+const doc = newGrooveDoc('preview');
+createRoot(document.getElementById('root')!).render(<div style={{height:'100vh',display:'flex',justifyContent:'flex-end',background:'#0c0812',fontFamily:'sans-serif',color:'white'}}>{location.search.includes('timeline') ? <TimelineView doc={doc} activePattern={doc.patterns[0]} beats={0} running={false} playMode="song" meters={{groups:[],master:0,sends:[]}} onMutate={()=>{}} onPlayFrom={()=>{}} /> : <GenerationPanel doc={doc} engines={engines as any} startBeats={8} initialDestination="timeline" onClose={()=>{}} onInsert={async()=>{}} />}</div>);
 `);
-await writeFile(path.join(dir, 'preview.css'), '@import "tailwindcss" source(none); @source "../../components/melos/beats/composer/GenerationPanel.tsx"; body { margin: 0; }');
-const server = await createServer({ configFile: false, plugins: [react(), tailwind()], server: { host: '127.0.0.1', port: 4319, strictPort: true, watch: { ignored: ['**/artifacts/melos-runtime/**'] } }, optimizeDeps: { noDiscovery: true, include: ['react', 'react-dom/client', 'react/jsx-runtime', 'lucide-react'] } });
+await writeFile(path.join(dir, 'preview.css'), '@import "tailwindcss" source(none); @source "../../components/melos/beats"; body { margin: 0; }');
+const server = await createServer({ configFile: false, plugins: [react(), tailwind()], server: { host: '127.0.0.1', port: 4319, strictPort: true, watch: null }, optimizeDeps: { noDiscovery: true, include: ['react', 'react-dom/client', 'react/jsx-runtime', 'lucide-react'] } });
 await server.listen();
 const browser = await chromium.launch({ headless: true });
 try {
@@ -42,6 +44,15 @@ try {
   await page.locator('select').nth(0).selectOption('sample');
   await page.locator('select').nth(1).selectOption('ace-step');
   await page.screenshot({ path: path.join(dir, 'sample.png'), fullPage: true });
+  await page.goto('http://127.0.0.1:4319/artifacts/melos-generation-ui/index.html?timeline');
+  await page.getByRole('button', { name: 'Full DAW Project', exact: true }).waitFor();
+  await page.screenshot({ path: path.join(dir, 'timeline-initial.png'), fullPage: true });
+  await page.getByRole('button', { name: 'Timeline Part · MIDI', exact: true }).click();
+  await page.getByRole('combobox', { name: 'MIDI part instrument' }).selectOption('bajo');
+  await page.screenshot({ path: path.join(dir, 'timeline-midi-part.png'), fullPage: true });
+  await page.getByRole('button', { name: 'Full DAW Project', exact: true }).click();
+  await page.getByRole('button', { name: 'Generate DAW Project', exact: true }).waitFor();
+  await page.screenshot({ path: path.join(dir, 'timeline-full-project.png'), fullPage: true, animations: 'disabled' });
   if (errors.length) throw new Error(errors.join('\n'));
   console.log('Panel renders; audio/MIDI/sample controls and YuE2 disabled state verified. Screenshots:', dir);
 } finally { await browser.close(); await server.close(); }

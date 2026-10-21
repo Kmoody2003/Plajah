@@ -141,3 +141,15 @@ public/ort/
 .tmp-asr-test/
 # Built worship-gallery bundle — generated, and it inlines model/API config (GitHub push protection flagged a key)
 public/sanctuary-plates/worshipGallery.bundle.js
+
+# Ravencrest CC0 cache (re-create with: node scripts/ravencrest/fetchPolyhaven.mjs)
+public/games/ravencrest/assets/polyhaven/
+.lens-shots/
+
+# Raw/source media kept local (too large for git; not loaded by the app)
+halloween interactiv elayou/
+public/promo/
+public/audio/melos-test/
+docs/scores/**/*.wav
+games/ravencrest/review/
+public/games/ravencrest/assets/characters/jack_thorne_rigged.glb

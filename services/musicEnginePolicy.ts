@@ -1,10 +1,10 @@
 // Shared metadata; authorization decisions are made again on the server.
 export const MUSIC_ENGINES = [
-  { id: 'ace-step-2.5', name: 'ACE-Step 2.5 Symphonic', purpose: 'Full-length orchestral stems, hybrid synth-acoustics & film scoring', license: 'MIT', permissionRequired: false },
+  { id: 'ace-step-2.5', name: 'ACE-Step local quality preset', purpose: 'ACE-Step runtime with additional sampling steps; not a separate model version', license: 'MIT', permissionRequired: false },
   { id: 'ace-step', name: 'ACE-Step 1.5', purpose: 'Song and instrumental generation', license: 'MIT', permissionRequired: false },
   { id: 'heartmula', name: 'HeartMuLa 3B', purpose: 'Song generation from lyrics and style', license: 'Apache 2.0', permissionRequired: false },
   { id: 'basic-pitch', name: 'Basic Pitch', purpose: 'Audio to editable notes', license: 'Apache 2.0', permissionRequired: false },
-  { id: 'qwen-score', name: 'Qwen3 score composer', purpose: 'Experimental composition of editable notes', license: 'Apache 2.0', permissionRequired: false },
+  { id: 'qwen-score', name: 'Local Qwen music director', purpose: 'Song planning and instrument-aware MIDI composition via local GGUF or Ollama', license: 'Apache 2.0', permissionRequired: false },
   { id: 'yue2', name: 'YuE2', purpose: 'Song generation and editable ABC scores', license: 'CC BY-NC 4.0 weights', permissionRequired: true },
   { id: 'sheetsage2', name: 'SheetSage2', purpose: 'Recordings to scores and musical annotations', license: 'CC BY-NC 4.0 weights', permissionRequired: true },
 ] as const;

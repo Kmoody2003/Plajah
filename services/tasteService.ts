@@ -27,6 +27,11 @@ export interface TrackReaction {
   artistId?: string;
   artist?: string;
   title?: string;
+  /** Enough to play it back from the Liked songs playlist without re-fetching the album. */
+  url?: string;
+  cover?: string;
+  duration?: number;
+  albumTitle?: string;
   source: TasteSource;
   at: number;
 }
@@ -107,6 +112,10 @@ export async function setTrackReaction(
     const artistId = track.artistId || (album as any)?.ownerId; if (artistId) reaction.artistId = artistId;
     if (track.artist || album?.artist) reaction.artist = track.artist || album!.artist;
     if (track.title) reaction.title = track.title;
+    if (track.url) reaction.url = track.url;
+    const cover = track.albumCover || track.images?.[0] || album?.coverImage; if (cover) reaction.cover = cover;
+    if (track.duration) reaction.duration = track.duration;
+    if (album?.title) reaction.albumTitle = album.title;
     try { await setDoc(ref, reaction); } catch (e) { console.warn('[taste] set failed', e); }
   }
   vectorCache = null; // invalidate derived vector
@@ -143,6 +152,21 @@ export function topAffinities(vec: TasteVector): { genres: string[]; artists: st
   const pos = (rec: Record<string, number>) =>
     Object.entries(rec).filter(([, w]) => w > 0).sort((a, b) => b[1] - a[1]).map(([k]) => k);
   return { genres: pos(vec.genres), artists: pos(vec.artists) };
+}
+
+/** The signed-in user's liked and loved songs, newest first — the source of the Liked songs playlist. */
+export async function listMyLikedTracks(which: 'LIKED' | 'LOVED' = 'LIKED'): Promise<TrackReaction[]> {
+  const uid = uidNow();
+  if (!uid) return [];
+  try {
+    const snap = await getDocs(collection(db, 'users', uid, 'trackReactions'));
+    const out: TrackReaction[] = [];
+    snap.forEach(d => {
+      const r = { ...(d.data() as TrackReaction), trackId: d.id };
+      if (which === 'LOVED' ? r.signal === 'LOVE' : (r.signal === 'UP' || r.signal === 'LOVE')) out.push(r);
+    });
+    return out.sort((a, b) => (b.at || 0) - (a.at || 0));
+  } catch (e) { console.warn('[taste] liked list failed', e); return []; }
 }
 
 /** Reset caches on sign-out / account switch. */

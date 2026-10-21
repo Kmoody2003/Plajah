@@ -5,7 +5,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ListPlus, Maximize2, MoreHorizontal, Pause, Play, Shuffle, ZapOff, type LucideIcon } from 'lucide-react';
 
-export type CinemaStage = 'ART' | 'VISUALIZER' | 'SLIDESHOW' | 'VIDEO';
+export type CinemaStage = 'ART' | 'VISUALIZER' | 'SLIDESHOW' | 'ORRERY' | 'VIDEO';
 
 export interface CinemaMenuItem {
   key: string;
@@ -36,6 +36,8 @@ interface Props {
   onPlay: () => void;
   onShuffle?: () => void;
   onAddToPlaylist?: () => void;
+  /** The current song's like / love / dislike control. */
+  reaction?: React.ReactNode;
   menu: CinemaMenuItem[][];
   onBack: () => void;
   fxHot?: boolean;
@@ -48,11 +50,12 @@ const SERIF = "Newsreader, Georgia, serif";
 // Which of the eight stage bays catch light (1-based), and how strongly.
 const SHAFTS: Record<number, number> = { 2: 0.10, 5: 0.18, 6: 0.18, 8: 0.10 };
 
-const roundBtn = 'w-12 h-12 rounded-full grid place-items-center text-white border border-white/25 bg-black/30 backdrop-blur-md hover:bg-white/10 transition-colors';
+// Solid fills, no backdrop-filter: a blur behind a button over a live canvas is re-rendered every frame.
+const roundBtn = 'w-12 h-12 rounded-full grid place-items-center text-white border border-white/25 bg-[#06040A]/55 hover:bg-white/10 transition-colors';
 
 const CinemaProsceniumHero: React.FC<Props> = ({
   backdropSrc, stage, stages, onStage, onFullscreen, stageContent, floor, medallion, eyebrow, title, artist, onArtist,
-  meta, badges, isPlaying, onPlay, onShuffle, onAddToPlaylist, menu, onBack, fxHot, onKillFx, topRight,
+  meta, badges, isPlaying, onPlay, onShuffle, onAddToPlaylist, reaction, menu, onBack, fxHot, onKillFx, topRight,
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -66,6 +69,7 @@ const CinemaProsceniumHero: React.FC<Props> = ({
   }, [menuOpen]);
 
   const isVideo = stage === 'VIDEO';
+  const isArt = stage === 'ART';
   const titleSize = title.length > 28 ? 'clamp(2.5rem, 4.4vw, 4.25rem)' : 'clamp(3rem, 6vw, 5.5rem)';
 
   return (
@@ -73,41 +77,39 @@ const CinemaProsceniumHero: React.FC<Props> = ({
       className="relative w-full overflow-hidden normal-case"
       style={{ height: isVideo ? 'clamp(560px, 82vh, 900px)' : 'clamp(460px, 62vh, 660px)', background: '#100A18' }}
     >
-      {/* Stage — art backdrop or the live stage engine */}
+      {/* Stage — the cover art, or the live engine running clean (nothing composited over a moving
+          canvas except one plain fade at the floor, so the visualizers keep their full frame rate). */}
       <div className="absolute inset-0">
-        {backdropSrc && (
+        {isArt && backdropSrc && (
           <img
             src={backdropSrc}
             alt=""
             referrerPolicy="no-referrer"
             className="absolute inset-0 w-full h-full object-cover"
-            style={{ filter: stage === 'ART' ? 'brightness(0.55) saturate(1.05)' : 'blur(40px) brightness(0.35)', transform: 'scale(1.06)' }}
+            style={{ filter: 'brightness(0.72)' }}
           />
         )}
-        {stage !== 'ART' && !isVideo && stageContent && <div className="absolute inset-0">{stageContent}</div>}
+        {!isArt && !isVideo && stageContent && <div className="absolute inset-0">{stageContent}</div>}
       </div>
 
-      {/* Proscenium — warm wash, light shafts across eight bays, the stage edge */}
-      <div aria-hidden="true" className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(45% 75% at 68% 38%, rgba(255,140,0,0.30) 0%, rgba(212,0,85,0.26) 32%, rgba(107,0,153,0.34) 62%, rgba(16,10,24,0) 100%)', mixBlendMode: 'screen' }} />
-      <div aria-hidden="true" className="absolute inset-0 pointer-events-none grid" style={{ gridTemplateColumns: 'repeat(8, minmax(0, 1fr))' }}>
-        {Array.from({ length: 8 }, (_, i) => (
-          <div
-            key={i}
-            style={{
-              borderRight: i < 7 ? '1px solid rgba(255,255,255,0.035)' : undefined,
-              background: SHAFTS[i + 1] ? `linear-gradient(180deg, rgba(255,184,107,${SHAFTS[i + 1]}), rgba(255,184,107,0) 78%)` : undefined,
-            }}
-          />
-        ))}
-      </div>
-      <div aria-hidden="true" className="absolute inset-x-0 bottom-0 pointer-events-none" style={{ height: '58%', background: 'linear-gradient(180deg, rgba(6,4,10,0) 0%, rgba(6,4,10,0.6) 50%, #06040A 100%)' }} />
-      <div aria-hidden="true" className="absolute pointer-events-none" style={{ inset: '20px 20px 0 20px', border: '1px solid rgba(255,255,255,0.14)', borderBottom: 0, borderRadius: '26px 26px 0 0' }} />
+      {/* Proscenium — light shafts and the stage edge dress the art only */}
+      {isArt && (
+        <>
+          <div aria-hidden="true" className="absolute inset-0 pointer-events-none grid" style={{ gridTemplateColumns: 'repeat(8, minmax(0, 1fr))' }}>
+            {Array.from({ length: 8 }, (_, i) => (
+              <div key={i} style={SHAFTS[i + 1] ? { background: `linear-gradient(180deg, rgba(255,184,107,${SHAFTS[i + 1]}), rgba(255,184,107,0) 78%)` } : undefined} />
+            ))}
+          </div>
+          <div aria-hidden="true" className="absolute pointer-events-none" style={{ inset: '20px 20px 0 20px', border: '1px solid rgba(255,255,255,0.14)', borderBottom: 0, borderRadius: '26px 26px 0 0' }} />
+        </>
+      )}
+      <div aria-hidden="true" className="absolute inset-x-0 bottom-0 pointer-events-none" style={{ height: isArt ? '55%' : '38%', background: 'linear-gradient(180deg, rgba(6,4,10,0) 0%, rgba(6,4,10,0.55) 55%, #06040A 100%)' }} />
 
       {isVideo && stageContent && (
         <div className="absolute z-10" style={{ left: 48, right: 48, top: 92, bottom: 230 }}>{stageContent}</div>
       )}
 
-      {floor && <div className="absolute inset-x-0 bottom-0 z-[5]">{floor}</div>}
+      {floor && <div className="absolute inset-x-0 bottom-0 z-[5] opacity-60">{floor}</div>}
 
       {/* Top bar — back, stage switcher, fullscreen, more */}
       <div className="absolute z-30 flex items-center justify-between gap-6" style={{ top: 32, left: 48, right: 48 }}>
@@ -173,12 +175,13 @@ const CinemaProsceniumHero: React.FC<Props> = ({
           </p>
         </div>
         <div className="flex items-center gap-3 pb-1.5 pointer-events-auto">
+          {reaction && <div className="w-12 h-12 rounded-full grid place-items-center border border-white/25 bg-[#06040A]/55">{reaction}</div>}
           {onAddToPlaylist && <button type="button" onClick={onAddToPlaylist} aria-label="Add to playlist" title="Add this song to a playlist" className={roundBtn}><ListPlus size={19} /></button>}
           {onShuffle && <button type="button" onClick={onShuffle} aria-label="Shuffle" title="Shuffle this album" className={roundBtn}><Shuffle size={19} /></button>}
           <div className="relative" ref={menuRef}>
             <button type="button" onClick={() => setMenuOpen(o => !o)} aria-label="More options" aria-expanded={menuOpen} className={roundBtn}><MoreHorizontal size={19} /></button>
             {menuOpen && (
-              <div role="menu" className="absolute right-0 bottom-[calc(100%+12px)] w-64 max-h-[60vh] overflow-y-auto rounded-2xl border border-white/12 p-1.5 shadow-[0_24px_60px_rgba(0,0,0,0.6)]" style={{ background: 'rgba(16,10,24,0.97)', backdropFilter: 'blur(20px)' }}>
+              <div role="menu" className="absolute right-0 bottom-[calc(100%+12px)] w-64 max-h-[60vh] overflow-y-auto rounded-2xl border border-white/12 p-1.5 shadow-[0_24px_60px_rgba(0,0,0,0.6)]" style={{ background: 'rgba(16,10,24,0.98)' }}>
                 {menu.filter(g => g.length).map((group, gi) => (
                   <div key={gi} className={gi ? 'mt-1.5 pt-1.5 border-t border-white/10' : ''}>
                     {group.map(item => (

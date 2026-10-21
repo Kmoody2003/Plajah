@@ -7,6 +7,7 @@ import { insertGeneratedAudio, insertGeneratedNotes } from '../services/melos/ge
 import { validateGenerationRequest, validateGeneratedNotes, type GenerationRequest } from '../services/melos/generation/types.ts';
 import { MusicGenerationJobs } from '../services/melos/generation/jobs.ts';
 import { runGeneration } from '../services/melos/generation/adapters.ts';
+import './melosEnsemble.test';
 
 const request: GenerationRequest = { engine: 'qwen-score', kind: 'midi', prompt: 'piano melody', lyrics: '', bpm: 120, bars: 4, seconds: 10, key: 'C Major', seed: 42 };
 const notes = [{ startBeats: 0, lengthBeats: 1, key: 60, vel: 90 }, { startBeats: 1, lengthBeats: 2, key: 67, vel: 100 }];
@@ -77,6 +78,22 @@ test('a configured YuE2 runtime still cannot run without evaluation permission',
   assert.throws(() => jobs.start('admin', { ...request, engine: 'yue2' }), /permission pending/);
   assert.equal(invoked, false);
 });
+
+test('cancelling either ACE identifier keeps its GPU slot until the submitted task ends', async () => {
+  for (const engine of ['ace-step', 'ace-step-2.5'] as const) {
+    let finish!: (value: any) => void;
+    let workerSignal!: AbortSignal;
+    const jobs = new MusicGenerationJobs({ [engine]: { url: 'http://127.0.0.1:1' } }, () => undefined,
+      async (_req, _config, signal) => { workerSignal = signal; return new Promise(resolve => { finish = resolve; }); });
+    const job = jobs.start('admin', { ...request, engine, kind: 'audio' });
+    jobs.cancel('admin', job.id);
+    assert.equal(workerSignal.aborted, false);
+    assert.throws(() => jobs.start('admin', { ...request, engine, kind: 'audio' }), /Another generation/);
+    finish({ audio: Buffer.from('fixture'), mime: 'audio/wav' });
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(jobs.get('admin', job.id).result, undefined);
+  }
+});
 test('ACE adapter follows the documented job API with one low-memory candidate', async () => {
   const app = express(); app.use(express.json()); let submitted: any;
   app.post('/release_task', (req, res) => { submitted = req.body; res.json({ code: 200, data: { task_id: 'ace-job' } }); });
@@ -90,6 +107,8 @@ test('ACE adapter follows the documented job API with one low-memory candidate',
     const url = `http://127.0.0.1:${(server.address() as any).port}`;
     const result = await runGeneration({ ...request, engine: 'ace-step', kind: 'sample', seconds: 2 }, { url }, new AbortController().signal, () => {});
     assert.equal(submitted.audio_duration, 10); assert.equal(submitted.batch_size, 1); assert.equal(submitted.thinking, false);
+    assert.equal(submitted.dcw_enabled, undefined, 'checkpoint must decide DCW compatibility');
+    assert.equal(submitted.sampler_mode, undefined, 'do not send an unsupported sampler control');
     assert.equal(result.audio!.toString(), 'test-audio'); assert.match(result.warning!, /10 seconds/);
   } finally { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); }
 });
@@ -97,13 +116,21 @@ test('Qwen adapter requests structured notes and rejects out-of-range compositio
   const app = express(); app.use(express.json()); let invalid = false;
   app.post('/api/chat', (req, res) => {
     assert.equal(req.body.keep_alive, 0); assert.equal(req.body.format.type, 'object');
+    if (req.body.format.properties.chords) return void res.json({ message: { content: JSON.stringify({
+      concept: 'A restrained piano hook grows into a full cadence.', chords: ['C', 'Am', 'G7', 'C'],
+      sections: [{ title: 'Theme', startBar: 0, bars: invalid ? 3 : 4, direction: 'Develop the piano hook with bass responses.', dynamic: 'mf' }],
+    }) } });
     res.json({ message: { content: JSON.stringify({ notes: invalid ? [{ ...notes[0], lengthBeats: 1000 }] : notes }) } });
   });
   const server = app.listen(0, '127.0.0.1'); await once(server, 'listening');
   try {
     const config = { url: `http://127.0.0.1:${(server.address() as any).port}`, model: 'qwen3:8b' };
     assert.deepEqual((await runGeneration(request, config, new AbortController().signal, () => {})).notes, notes);
+    assert.equal((await runGeneration({ ...request, key: 'C Major', purpose: 'arrangement-plan' }, config,
+      new AbortController().signal, () => {})).plan?.chords.length, 4);
     invalid = true;
     await assert.rejects(runGeneration(request, config, new AbortController().signal, () => {}), /invalid note/);
+    await assert.rejects(runGeneration({ ...request, key: 'C Major', purpose: 'arrangement-plan' }, config,
+      new AbortController().signal, () => {}), /unplanned/);
   } finally { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); }
 });

@@ -1,0 +1,75 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Lens Lab</title>
+<style>
+  body { margin: 0; background: #111; color: #ddd; font: 12px system-ui, sans-serif; }
+  #bar { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px; }
+  #bar button { background: #262626; color: #ddd; border: 0; border-radius: 6px; padding: 5px 8px; cursor: pointer; }
+  #bar button.on { background: #f97316; color: #000; }
+  #stage { position: relative; width: min(100vw, 960px); aspect-ratio: 16/9; background: #000; }
+  #stage video, #stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+  #st { padding: 4px 8px; color: #fbbf24; min-height: 16px; }
+</style>
+</head>
+<body>
+<!-- Dev harness for services/lenses: ?lens=<id>&src=<video url>&cam=1 (webcam). window.lensLab exposes the engine. -->
+<div id="bar"></div>
+<div id="stage"><video id="v" muted loop playsinline crossorigin="anonymous"></video><canvas id="c"></canvas></div>
+<div id="st"></div>
+<script type="module">
+  import { LensEngine, LENSES } from '/services/lenses/lensEngine.ts';
+  const q = new URLSearchParams(location.search);
+  const v = document.getElementById('v'), c = document.getElementById('c'), ctx = c.getContext('2d', { alpha: false });
+  const st = document.getElementById('st'), bar = document.getElementById('bar');
+  const engine = new LensEngine({ models: !q.get('noml') });
+  let lens = q.get('lens') || 'matrix';
+  const warns = [];
+  const ow = console.warn; console.warn = (...a) => { warns.push(a.map(String).join(' ')); ow(...a); };
+  const paint = () => { bar.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.id === lens)); };
+  for (const l of LENSES) {
+    const b = document.createElement('button'); b.textContent = `${l.icon} ${l.label}`; b.dataset.id = l.id;
+    b.onclick = () => { lens = l.id; engine.setLens(lens); paint(); };
+    bar.appendChild(b);
+  }
+  engine.setLens(lens); paint();
+  if (q.get('cam')) v.srcObject = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 } });
+  else v.src = q.get('src') || '/promo/chora/clips/seg_06_creator_studio.mp4';
+  v.play().catch(e => { st.textContent = 'play failed: ' + e; });   // never await: a hidden pane defers playback
+  let frames = 0, ms = 0;
+  const tick = () => {
+    if (document.visibilityState === 'visible' && !q.get('timer')) requestAnimationFrame(tick); else setTimeout(tick, 33);   // hidden panes don't run rAF
+    const vw = v.videoWidth, vh = v.videoHeight; if (!vw || v.readyState < 2) return;
+    const k = Math.min(1, 1280 / Math.max(vw, vh));
+    const w = Math.round(vw * k / 2) * 2, h = Math.round(vh * k / 2) * 2;
+    if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
+    const t0 = performance.now();
+    ctx.drawImage(v, 0, 0, w, h);
+    engine.apply(ctx, c, v, t0, 'contain');
+    ms += performance.now() - t0; frames++;
+    st.textContent = (engine.getStatus() || 'ok') + `  ·  ${(ms / frames).toFixed(1)} ms/frame`;
+    if (frames > 60) { frames = 0; ms = 0; }
+  };
+  tick();
+  /** Render `frames` frames of each lens over a still and POST the last one to /__lens-shot (saved under .lens-shots/). */
+  async function shoot(ids, imgUrl, frames = 8, w = 960) {
+    const img = new Image(); img.src = imgUrl; await img.decode();
+    const h = Math.round(w * img.naturalHeight / img.naturalWidth / 2) * 2;
+    const sc = document.createElement('canvas'); sc.width = w; sc.height = h; const sx = sc.getContext('2d');
+    const eng = new LensEngine({ models: false }), res = {};
+    for (const id of ids) {
+      eng.setLens(id); const t = performance.now(), n0 = warns.length;
+      for (let f = 0; f < frames; f++) { sx.drawImage(img, 0, 0, w, h); eng.apply(sx, sc, v, t + f * 70, 'contain'); }
+      const tag = imgUrl.split('/').pop().split('.')[0];
+      await fetch(`/__lens-shot?name=${id}-${tag}`, { method: 'POST', body: sc.toDataURL('image/jpeg', 0.86) });
+      res[id] = warns.slice(n0);
+    }
+    eng.dispose();
+    return res;
+  }
+  window.lensLab = { shoot, engine, setLens: id => { lens = id; engine.setLens(id); paint(); }, warns, video: v };
+</script>
+</body>
+</html>

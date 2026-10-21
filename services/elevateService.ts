@@ -77,24 +77,50 @@ export async function setupElevateOrg(opts: SetupElevateOptions): Promise<Organi
   };
   await updateOrganization(org.id, patch);
   Object.assign(org, patch, { ministries });
-  // Creator becomes the lead (Senior Pastor / Director) on the pastoral roster.
+  if (opts.linkAccount) await linkAccountToOrg(org.id).catch(() => {});
+  await provisionElevateLeadAndChat(org, opts.orgType);
+  return org;
+}
+
+/** Creator becomes the lead on the pastoral roster, then chat is provisioned (#announcements, #general, a space per department). */
+async function provisionElevateLeadAndChat(org: Organization, orgType: OrgType): Promise<void> {
+  const u = auth.currentUser;
+  if (!u) return;
   const mem = (await fetchOrgMembers(org.id)).find(m => m.userId === u.uid);
-  if (mem) {
+  // Skip if a lead role/title was already assigned (a converted org keeps its existing roster).
+  if (mem && !mem.isSenior && !mem.title) {
     await updateDoc(doc(db, 'orgMemberships', mem.id), strip({
-      roleKey: 'SENIOR_PASTOR', title: leadTitleFor(opts.orgType), rosterGroup: 'PASTORAL' as RosterGroup,
+      roleKey: 'SENIOR_PASTOR', title: leadTitleFor(orgType), rosterGroup: 'PASTORAL' as RosterGroup,
       isSenior: true, syncToProfile: true, rosterOrder: 0,
     }));
     await recomputeOrgRoleIndex(org.id);
     await syncMembershipToProfile(org.id, u.uid).catch(() => {});
   }
-  if (opts.linkAccount) await linkAccountToOrg(org.id).catch(() => {});
-  // Auto-configure chat: #announcements, #general, one space per department with its rooms. Idempotent.
+  // Idempotent.
   try {
     const members = await fetchOrgMembers(org.id);
-    await provisionOrgChat({ ...org, ministries } as Organization, members, u.uid);
+    await provisionOrgChat(org, members, u.uid);
     org.chatProvisionedAt = Date.now();
   } catch { /* the owner can still press "Set up channels" in Chat */ }
-  return org;
+}
+
+/**
+ * Turn an existing org (e.g. a brand page) into an Elevate org of `orgType` with the same provisioning a fresh
+ * setup gets: template departments (each with its chat rooms + social feed audience), lead role, org chat.
+ * Existing departments are kept; they only gain any missing default rooms.
+ */
+export async function convertOrgToElevate(org: Organization, orgType: OrgType, orgKindLabel?: string): Promise<Organization> {
+  const base = org.ministries && org.ministries.length ? org.ministries : defaultMinistries(orgType);
+  const ministries = withDefaultRooms(base.map(m => strip(m) as Ministry)).map(m => strip(m) as Ministry);
+  const patch: Partial<Organization> = {
+    orgType, orgKindLabel, ministries,
+    threadAudience: org.threadAudience || 'ORG',
+    setupState: { ...(org.setupState || {}), departmentsSeeded: ministries.length > 0 },
+  };
+  await updateOrganization(org.id, JSON.parse(JSON.stringify(patch)));
+  const next = { ...org, ...patch } as Organization;
+  await provisionElevateLeadAndChat(next, orgType);
+  return next;
 }
 
 // ── Account ⇄ Organization link ─────────────────────────────────────────────
@@ -111,12 +137,12 @@ export async function linkAccountToOrg(orgId: string): Promise<void> {
  * The ORGANIZATION / BRAND account has been chosen: auto-create the matching org (once) populated from the
  * account's profile. If the account already has a linked org it is returned unchanged.
  */
-export async function createOrgFromAccount(orgType: OrgType, extra?: Partial<SetupElevateOptions>): Promise<Organization | null> {
+export async function createOrgFromAccount(orgType: OrgType, extra?: Partial<SetupElevateOptions>, forceNew = false): Promise<Organization | null> {
   const u = auth.currentUser;
   if (!u) return null;
   const snap = await getDoc(doc(db, 'users', u.uid));
   const profile: any = snap.data() || {};
-  if (profile.linkedOrgId) {
+  if (profile.linkedOrgId && !forceNew) {
     const existing = await fetchOrganization(profile.linkedOrgId);
     if (existing) return existing;
   }

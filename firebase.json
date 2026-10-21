@@ -18,7 +18,9 @@
     "ignore": [
       "firebase.json",
       "**/.*",
-      "**/node_modules/**"
+      "**/node_modules/**",
+      "models/onnx-community/**",
+      "promo/chora/*.mp4"
     ],
     "headers": [
       {

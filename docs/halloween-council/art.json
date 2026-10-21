@@ -1,0 +1,8 @@
+{
+  "council": "art",
+  "source": "local-model",
+  "visualInput": false,
+  "model": null,
+  "authoritativePlan": "creation_3752884032.png",
+  "review": "{\"project_name\": \"Ravencrest\", \"implementation_status\": \"not started\", \"priority_tasks\": [\"Resolve conflicting plan topology\", \"Implement the castle's massing and geometry\", \"Improve lighting and material setup\"], \"asset_requirements\": \"Referencing source materials\", \"acceptance_criteria\": \"Accurate room placement, geometry and proportions of the chosen plan\"}"
+}

@@ -242,6 +242,7 @@ export default defineConfig(({ mode }) => {
         // and a GraphModel from one copy operates on tensors from the other →
         // unstable / hanging inference.
         dedupe: [
+          'react', 'react-dom',
           'firebase', '@firebase/app', '@firebase/app-check',
           '@tensorflow/tfjs', '@tensorflow/tfjs-core',
           '@tensorflow/tfjs-backend-webgl', '@tensorflow/tfjs-backend-cpu',
@@ -254,6 +255,14 @@ export default defineConfig(({ mode }) => {
         // share one optimized firebase/app dependency. Pre-bundle tfjs +
         // basic-pitch together so they share ONE tfjs instance.
         include: [
+          'react',
+          'react-dom',
+          'react-dom/client',
+          'react/jsx-runtime',
+          'react/jsx-dev-runtime',
+          'motion/react',
+          'lucide-react',
+          'three',
           'firebase/app',
           'firebase/app-check',
           'firebase/auth',

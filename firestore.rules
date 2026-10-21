@@ -1406,6 +1406,12 @@ service cloud.firestore {
         allow read, write: if isOwner(userId);
       }
 
+      // Song reactions (services/tasteService) — like / love / dislike per track. Feeds the taste
+      // vector, Daily Mix and the Liked songs playlist. Owner-private, same as videoReactions.
+      match /trackReactions/{trackId} {
+        allow read, write: if isOwner(userId);
+      }
+
       // Marketing campaigns (services/marketing/campaignService) — the Local Reach
       // Campaign Hub. Lives under the operating user's subtree even when scoped to
       // a managed BUSINESS/ORG identity (scope.id / authorOrgId are logical partition
@@ -5937,6 +5943,47 @@ service cloud.firestore {
     match /organizations/{orgId}/amboProjects/{projectId} {
       allow read, write: if orgAdminOf(orgId)
         || (isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/organizations/$(orgId)).data.get('members', []));
+    }
+
+    // ── Stage Announcements inbox (services/ambo/stageInbox.ts) ──────────────
+    // Operators = org admins/pastors, staff and department heads. Members send while the operator
+    // has the inbox open; a sender may only touch their own item and may only fire remoteCommand
+    // once the operator granted remoteAllowed. Operators own status + remoteAllowed.
+    function stageOperatorOf(orgId) {
+      return orgPastorOrAdmin(orgId) ||
+        request.auth.uid in orgDoc(orgId).get('staffUids', []) ||
+        request.auth.uid in orgDoc(orgId).get('leaderUids', []);
+    }
+    function stageMemberOf(orgId) {
+      return isAuthenticated() && (
+        stageOperatorOf(orgId) ||
+        exists(/databases/$(database)/documents/orgMemberIndex/$(orgId + '_' + request.auth.uid))
+      );
+    }
+    match /organizations/{orgId}/stageControl/{docId} {
+      allow read: if stageMemberOf(orgId);
+      allow write: if isAuthenticated() && stageOperatorOf(orgId);
+    }
+    match /organizations/{orgId}/stageInbox/{itemId} {
+      allow read: if stageMemberOf(orgId);
+      allow create: if stageMemberOf(orgId)
+        && request.resource.data.uploaderUid == request.auth.uid
+        && request.resource.data.orgId == orgId
+        && request.resource.data.status == 'uploading'
+        && request.resource.data.storagePath.matches('stage-inbox/' + orgId + '/' + request.auth.uid + '/' + itemId + '/.+')
+        && (request.resource.data.remoteAllowed == false || stageOperatorOf(orgId) ||
+            get(/databases/$(database)/documents/organizations/$(orgId)/stageControl/inbox).data.get('remoteDefault', false) == true)
+        && get(/databases/$(database)/documents/organizations/$(orgId)/stageControl/inbox).data.get('accepting', false) == true;
+      allow update: if isAuthenticated() && (
+        (stageOperatorOf(orgId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'remoteAllowed', 'updatedAt']))
+        || (resource.data.uploaderUid == request.auth.uid
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'progress', 'remoteCommand', 'updatedAt'])
+            && (!('status' in request.resource.data.diff(resource.data).affectedKeys())
+                || (resource.data.status == 'uploading' && request.resource.data.status in ['ready', 'failed']))
+            && (!('remoteCommand' in request.resource.data.diff(resource.data).affectedKeys())
+                || (resource.data.remoteAllowed == true && request.resource.data.remoteCommand.byUid == request.auth.uid)))
+      );
+      allow delete: if isAuthenticated() && (resource.data.uploaderUid == request.auth.uid || stageOperatorOf(orgId));
     }
   }
 }

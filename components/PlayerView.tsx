@@ -10,6 +10,7 @@ import AnimatedSlideshow from './AnimatedSlideshow';
 import { resolveSlideshowImages } from '../services/slideshow';
 import ScrollingWaveform from './ScrollingWaveform';
 import CinemaProsceniumHero, { type CinemaStage, type CinemaMenuItem } from './chora/CinemaProsceniumHero';
+import TrackReactionButton from './TrackReactionButton';
 import { getCachedAnalysis, getOrComputeAnalysis } from '../services/djAnalysis';
 import { getTrackStream } from '../services/choraStreamService';
 import { canUseFxStage } from '../services/tvCapabilities';
@@ -705,10 +706,6 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   const [isMobile, setIsMobile] = useState(detectMobile);
   const [isVisualizerLayout, setIsVisualizerLayout] = useState(false);
   const [isVisualizerFullscreen, setIsVisualizerFullscreen] = useState(false);
-  // Cinema × Proscenium (desktop, non-Gatefold): which engine the hero stage shows. Slideshow and video
-  // ride the existing isSlideshowActive / activeVideoId state so every other door into them still works.
-  const [cinemaStage, setCinemaStage] = useState<'ART' | 'VISUALIZER'>('ART');
-  const [cinemaFxOpen, setCinemaFxOpen] = useState(false);
   // FX Stage engine: 'FLOW'/'PAINT' are the built-in reactors; the rest pull the
   // three Plajah Pixels engines (MilkDrops / Shaders / Generators) as no-param reactors.
   const [fxEngine, setFxEngine] = useState<'FLOW' | 'PAINT' | FxEngine>('FLUX');
@@ -1585,7 +1582,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
           <div className="flex items-center gap-2 px-4 py-1.5 bg-black/30 border-b border-white/5">
             <button
               type="button"
-              onClick={() => next()}
+              onClick={() => globalNext()}
               title="Play up next now"
               className="flex items-center gap-2 min-w-0 flex-1 text-left hover:opacity-90 transition-opacity"
             >
@@ -1758,6 +1755,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                     presentation="panel"
                     isPlaying={globalIsPlaying && isCurrentTrackGlobal}
                     themeColor={album.themeColor}
+                    canvasSponsor={album.canvasSponsor}
                   />
                 </div>
               ) : gatefoldStageMode === 'FX' ? (
@@ -1789,8 +1787,8 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                 />
               )}
               <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent pointer-events-none" />
-              {/* Proscenium — light shafts across four bays + the stage edge (classic skin; Gatefold keeps its own) */}
-              {!gatefoldOn && (
+              {/* Proscenium — light shafts across four bays + the stage edge (both skins) */}
+              {(
                 <>
                   <div aria-hidden="true" className="absolute inset-0 pointer-events-none grid" style={{ gridTemplateColumns: 'repeat(4, minmax(0, 1fr))' }}>
                     <div />
@@ -1801,17 +1799,6 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                   <div aria-hidden="true" className="absolute pointer-events-none" style={{ inset: '12px 12px 0 12px', border: '1px solid rgba(255,255,255,0.14)', borderBottom: 0, borderRadius: '20px 20px 0 0' }} />
                 </>
               )}
-
-              <div className="absolute inset-0 flex items-center justify-center p-8 pointer-events-none">
-                {gatefoldOn && (!globalIsPlaying || !isCurrentTrackGlobal) && gatefoldStageMode === 'ART' && !isFlipped && (
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); playTrack(album.tracks[0], album, 'LIBRARY'); setCurrentTrackIndex(0); }}
-                    className="w-20 h-20 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center transform scale-100 opacity-100 transition-all duration-500 border border-white/30 shadow-2xl z-10 pointer-events-auto"
-                  >
-                    <Play size={32} />
-                  </button>
-                )}
-              </div>
 
               {/* Mobile Stage View Switcher Pills */}
               <div 
@@ -1904,16 +1891,8 @@ const PlayerView: React.FC<PlayerViewProps> = ({
               </div>
               {/* Floating Track Info on Cover — Plajah all-caps display typography */}
               <div className="absolute bottom-6 left-6 right-6" style={{bottom:'max(1.5rem, env(safe-area-inset-bottom))'}}>
-                {gatefoldOn ? (
-                  <>
-                    <h2 className="text-2xl font-display font-black uppercase tracking-tight leading-none mb-0.5 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">{currentTrack?.title || album.title}</h2>
-                    <p className="text-[11px] font-display font-black uppercase tracking-[0.18em] w-fit bg-gradient-to-r from-[#FF8C00] via-[#D40055] to-[#6B0099] bg-clip-text text-transparent drop-shadow-[0_1px_6px_rgba(0,0,0,0.6)] cursor-pointer hover:opacity-80 transition-opacity" onClick={(e) => { e.stopPropagation(); if (onVisitUser && album.ownerId) onVisitUser(album.ownerId); }}>{album.artist}</p>
-                    <div className="h-[3px] rounded-full bg-white/15 mt-2 overflow-hidden">
-                      <div className="h-full rounded-full bg-gradient-to-r from-[#D40055] to-[#FF8C00] transition-[width] duration-500" style={{ width: `${isCurrentTrackGlobal && globalDuration > 0 ? Math.min(100, (globalCurrentTime / globalDuration) * 100) : 0}%` }} />
-                    </div>
-                  </>
-                ) : (
-                  /* Cinema × Proscenium (B1 phone): serif eyebrow, display title, artist · year */
+                {(
+                  /* Cinema × Proscenium (B1 phone): serif eyebrow, display title, artist · year, progress */
                   <div className="normal-case">
                     <p style={{ fontFamily: 'Newsreader, Georgia, serif', fontStyle: 'italic', fontSize: 15, color: '#FFB86B' }}>
                       {(album as any).source === 'AUDIUS' ? 'Streaming from Audius' : album.type === 'BOOK' ? 'An audiobook on Chora' : (album.tracks?.length || 0) === 1 ? 'A single on Chora' : 'An album on Chora'}
@@ -1923,6 +1902,11 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                       <button type="button" className="font-bold text-white" onClick={(e) => { e.stopPropagation(); if (onVisitUser && album.ownerId) onVisitUser(album.ownerId); }}>{album.artist}</button>
                       {(album.releaseDate || album.createdAt) ? <span> · {new Date(album.releaseDate || album.createdAt).getFullYear()}</span> : null}
                     </p>
+                    {isCurrentTrackGlobal && globalDuration > 0 && (
+                      <div className="h-[3px] rounded-full bg-white/15 mt-2.5 overflow-hidden">
+                        <div className="h-full rounded-full bg-gradient-to-r from-[#D40055] to-[#FF8C00] transition-[width] duration-500" style={{ width: `${Math.min(100, (globalCurrentTime / globalDuration) * 100)}%` }} />
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -1930,8 +1914,8 @@ const PlayerView: React.FC<PlayerViewProps> = ({
           )}
         </div>
 
-        {/* B1 action row — one clear Play, then add-to-playlist and Listen together (classic skin) */}
-        {!gatefoldOn && (
+        {/* B1 action row — one clear Play, then add-to-playlist and Listen together (both skins) */}
+        {(
           <div className="shrink-0 z-20 flex items-center gap-2.5 px-5 py-3.5 normal-case" style={{ background: '#06040A' }}>
             <button
               type="button"
@@ -2226,6 +2210,8 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                         {isActive && globalIsPlaying && isCurrentTrackGlobal
                           ? <AmplitudeBar analyser={globalAnalyser} isPlaying={true} />
                           : <Play size={14} className="text-white/20" fill="currentColor" />}
+                        {/* Like / love / dislike — tap like, double-tap love, hold for more */}
+                        <TrackReactionButton track={t} album={album} size={16} box={40} />
                         <button
                           onClick={(e) => { e.stopPropagation(); setPlaylistPickerTrack(t); }}
                           title="Add this song to a playlist"
@@ -2588,9 +2574,9 @@ const PlayerView: React.FC<PlayerViewProps> = ({
           )}
         </div>
 
-        {/* B1 live lyric bar — the current line, floating over the list (classic skin, captions on) */}
-        {!gatefoldOn && showCaptions && activeHUD !== 'LYRICS' && currentTrack && (currentTrack.lyrics || currentTrack.timeCodedLyrics) && getCurrentCaption() !== '...' && (
-          <div className="absolute inset-x-3 z-40 pointer-events-none normal-case" style={{ bottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
+        {/* B1 live lyric bar — the current line, floating over the list (captions on); sits above the Gatefold dock */}
+        {showCaptions && activeHUD !== 'LYRICS' && currentTrack && (currentTrack.lyrics || currentTrack.timeCodedLyrics) && getCurrentCaption() !== '...' && (
+          <div className="absolute inset-x-3 z-40 pointer-events-none normal-case" style={{ bottom: gatefoldOn ? 'calc(max(0.5rem, env(safe-area-inset-bottom)) + 4.5rem)' : 'max(0.75rem, env(safe-area-inset-bottom))' }}>
             <div className="h-[52px] px-4 rounded-2xl flex items-center gap-3 border border-white/10" style={{ background: 'rgba(28,18,38,0.94)', backdropFilter: 'blur(16px)' }}>
               <span className="flex-1 min-w-0 truncate text-white" style={{ fontFamily: 'Newsreader, Georgia, serif', fontSize: 16 }}>{getCurrentCaption()}</span>
               {isCurrentTrackGlobal && globalDuration > 0 && <span className="shrink-0 font-mono text-[11px] text-white/60 tabular-nums">{formatTime(globalCurrentTime)}</span>}
@@ -2998,6 +2984,9 @@ const PlayerView: React.FC<PlayerViewProps> = ({
     );
   }
 
+  // The credits column only appears when some song credits someone other than the album artist.
+  const hasTrackCredits = localTracks.some(t => !!t.artist && t.artist !== album.artist);
+
   const pinAlbumToProfile = async () => {
     try {
       const { fetchUserProfile, updateUserProfile } = await import('../services/backendService');
@@ -3017,7 +3006,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
     } catch (e) { console.error(e); }
   };
 
-  // Desktop building blocks — shared by the Cinema × Proscenium layout and the Gatefold (Chora Next) leaf layout.
+  // Desktop building blocks for the Cinema × Proscenium layout.
   const desktopVideoEl = (
     <>
            <div className="relative w-full h-full flex items-center justify-center animate-in fade-in zoom-in-95 duration-700">
@@ -3067,124 +3056,6 @@ const PlayerView: React.FC<PlayerViewProps> = ({
            </div>
     </>
   );
-  const deckActionsEl = (
-    <>
-                {/* ── Row 2: Unified Plajah Action Command Bar (Uniform h-8 pills, zero wrap/clip) ── */}
-                <div className="flex flex-wrap items-center justify-between gap-2 pt-2.5 border-t border-white/[0.08]">
-                   {/* Left / Utility & Creator Controls */}
-                   <div className="flex flex-wrap items-center gap-1.5 min-w-0">
-                     {isOwner && (
-                       <button
-                         onClick={pinAlbumToProfile}
-                         className="h-8 px-3.5 rounded-full inline-flex items-center gap-1.5 bg-[#FF8C00]/15 hover:bg-[#FF8C00]/25 border border-[#FF8C00]/40 text-[#FF8C00] text-[9px] font-display font-black uppercase tracking-[0.16em] whitespace-nowrap shrink-0 shadow-[0_0_14px_rgba(255,140,0,0.12)] transition-all cursor-pointer"
-                       >
-                         <Zap size={12} className="shrink-0" />
-                         <span>PIN</span>
-                       </button>
-                     )}
-                     {isOwner && (
-                       <button
-                         onClick={handleGenerateCaptions}
-                         disabled={isGeneratingCaptions}
-                         className="h-8 px-3.5 rounded-full inline-flex items-center gap-1.5 bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.12] hover:border-white/[0.24] text-white/80 hover:text-white text-[9px] font-display font-black uppercase tracking-[0.16em] whitespace-nowrap shrink-0 transition-all disabled:opacity-50 cursor-pointer"
-                       >
-                         {isGeneratingCaptions ? <Loader2 size={12} className="animate-spin text-[#FF8C00] shrink-0" /> : <Sparkles size={12} className="text-[#FF8C00] shrink-0" />}
-                         <span>{isGeneratingCaptions ? 'ANALYZING...' : currentTrack?.timeCodedLyrics ? 'RE-SYNC LYRICS' : 'SYNC LYRICS'}</span>
-                       </button>
-                     )}
-
-                     {/* Add the current song to a playlist */}
-                     {currentTrack && (
-                       <button
-                         onClick={() => setPlaylistPickerTrack(currentTrack)}
-                         title="Add this song to a playlist"
-                         className="h-8 px-3.5 rounded-full inline-flex items-center gap-1.5 bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.12] hover:border-white/[0.24] text-white/80 hover:text-white text-[9px] font-display font-black uppercase tracking-[0.16em] whitespace-nowrap shrink-0 transition-all cursor-pointer"
-                       >
-                         <ListPlus size={12} className="text-white/70 shrink-0" />
-                         <span>ADD TO PLAYLIST</span>
-                       </button>
-                     )}
-
-                     {/* Save the current track for offline playback */}
-                     {currentTrack?.url && (
-                       <OfflineDownloadButton
-                         url={currentTrack.url}
-                         size="sm"
-                         className="!w-8 !h-8 !rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.12] hover:border-white/[0.24] !text-white/75 hover:!text-white shrink-0"
-                         meta={{ title: currentTrack.title || album.title, type: 'MUSIC', artist: album.artist, cover: album.coverImage, albumId: album.id, trackId: currentTrack.id }}
-                       />
-                     )}
-                   </div>
-
-                   {/* Right / Social, Premiere & Commerce CTAs */}
-                   <div className="flex flex-wrap items-center gap-1.5 shrink-0">
-                     {/* Listening Party — premiere/showcase this album, listeners sync to your playback */}
-                     {!isPreview && !activePartyId && (
-                       <button
-                         onClick={() => auth.currentUser ? startListeningParty() : alert('Sign in to host a listening party.')}
-                         title="Premiere this album — invited listeners sync to your playback"
-                         className="h-8 px-3.5 rounded-full inline-flex items-center gap-1.5 bg-gradient-to-r from-[#6B0099]/35 to-[#D40055]/35 hover:from-[#6B0099]/55 hover:to-[#D40055]/55 border border-[#D40055]/50 text-white text-[9px] font-display font-black uppercase tracking-[0.16em] whitespace-nowrap shrink-0 shadow-[0_4px_16px_rgba(212,0,85,0.20)] transition-all cursor-pointer"
-                       >
-                         <Users size={12} className="text-[#ff7eb3] shrink-0" />
-                         <span>LISTENING PARTY</span>
-                       </button>
-                     )}
-
-                     {/* Back the artist — gift always; buy only when the artist priced the release */}
-                     {album.ownerId && album.ownerId !== user?.uid && (
-                       <>
-                         <button
-                           onClick={() => setSupportSheet('gift')}
-                           className="h-8 px-3.5 rounded-full inline-flex items-center gap-1.5 bg-gradient-to-r from-[#6B0099] to-[#D40055] hover:brightness-110 text-white text-[9px] font-display font-black uppercase tracking-[0.16em] whitespace-nowrap shrink-0 shadow-[0_4px_14px_rgba(212,0,85,0.28)] transition-all cursor-pointer"
-                         >
-                           <span>GIFT ARTIST</span>
-                         </button>
-                         {musicOffers(album, currentTrack).any && (
-                           <button
-                             onClick={() => setSupportSheet('buy')}
-                             className="h-8 px-3.5 rounded-full inline-flex items-center gap-1.5 bg-[#FF8C00] hover:brightness-110 text-black text-[9px] font-display font-black uppercase tracking-[0.16em] whitespace-nowrap shrink-0 shadow-[0_4px_14px_rgba(255,140,0,0.3)] transition-all cursor-pointer"
-                           >
-                             <span>BUY</span>
-                           </button>
-                         )}
-                       </>
-                     )}
-
-                     {/* Share & Promote — to the Plajah feed or out to social sites */}
-                     <ShareButton
-                       title={currentTrack?.title || album.title}
-                       artist={album.artist}
-                       text={`Check out ${currentTrack?.title || album.title} by ${album.artist} on Plajah.com`}
-                       url={buildShareUrl('album', album.id, { track: currentTrack?.id })}
-                       showModeUrl={buildShowUrl(album.id, { track: currentTrack?.id })}
-                       imageUrl={album.coverImage}
-                       contentType="album"
-                       ctaText="▶ LISTEN LOSSLESS ON PLAJAH"
-                       plajahLabel="Share to Plajah feed"
-                       label="SHARE"
-                       iconSize={12}
-                       onPostToPlajah={async () => {
-                         await createPost({
-                           text: `🎵 ${currentTrack?.title || album.title} — ${album.artist}`,
-                           albumEmbed: album,
-                         });
-                       }}
-                       className="h-8 px-3.5 rounded-full inline-flex items-center gap-1.5 bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.12] hover:border-white/[0.24] text-white/85 hover:text-white text-[9px] font-display font-black uppercase tracking-[0.16em] whitespace-nowrap shrink-0 transition-all cursor-pointer"
-                     />
-                     {isOwner && (
-                       <button
-                         onClick={() => setShowPromoModal(true)}
-                         title="Promote this project — auto-promo cards, built promotions & promo assets"
-                         className="h-8 px-4 rounded-full inline-flex items-center gap-1.5 bg-gradient-to-r from-[#6B0099] via-[#D40055] to-[#FF8C00] hover:brightness-110 border border-white/20 text-white text-[9px] font-display font-black uppercase tracking-[0.16em] whitespace-nowrap shrink-0 shadow-[0_4px_18px_rgba(212,0,85,0.35)] transition-all cursor-pointer"
-                       >
-                         <Megaphone size={12} className="shrink-0" />
-                         <span>PROMOTE</span>
-                       </button>
-                     )}
-                   </div>
-                </div>
-    </>
-  );
   const deckPartyEl = (
     <>
                 {/* Listening party — shared PartyBar (status, listeners, chat, reactions, invite, remote). */}
@@ -3214,101 +3085,6 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                     <button onClick={() => setCaptionError(null)} className="ml-auto text-red-300/60 hover:text-red-200 shrink-0" aria-label="Dismiss">✕</button>
                   </div>
                 )}
-    </>
-  );
-  const liveFxConsoleEl = (
-    <>
-                {/* ── Row 3: Studio Live DSP FX Console Dock (Plajah Design Language, Vector Icons, All-Caps) ── */}
-                <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 rounded-2xl bg-black/35 border border-white/[0.08] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-                  <div className="flex flex-wrap items-center gap-1.5 min-w-0">
-                    <div className="flex items-center gap-2 pr-2.5 mr-0.5 border-r border-white/10 shrink-0">
-                      <span
-                        className={`w-1.5 h-1.5 rounded-full transition-all ${
-                          activeLiveFx
-                            ? 'bg-[#FF8C00] shadow-[0_0_8px_#FF8C00]'
-                            : 'bg-white/25'
-                        }`}
-                      />
-                      <span className="text-[9px] font-display font-black uppercase tracking-[0.22em] text-white/50 select-none">
-                        LIVE FX
-                      </span>
-                    </div>
-
-                    <button
-                      onClick={() => toggleLiveFx?.('lofi')}
-                      title="Lo-Fi: Vintage tape warmth, gentle wow/flutter & vinyl air"
-                      className={`h-7 px-3 rounded-full inline-flex items-center gap-1.5 text-[9px] font-display font-black uppercase tracking-[0.15em] whitespace-nowrap shrink-0 transition-all cursor-pointer ${
-                        activeLiveFx === 'lofi'
-                          ? 'bg-gradient-to-r from-[#FF8C00]/30 to-[#D40055]/25 text-[#FFD19A] border border-[#FF8C00]/60 shadow-[0_0_14px_rgba(255,140,0,0.3)]'
-                          : 'bg-white/[0.04] hover:bg-white/[0.10] text-white/65 hover:text-white border border-white/[0.08] hover:border-white/[0.18]'
-                      }`}
-                    >
-                      <Disc size={11} className={activeLiveFx === 'lofi' ? 'text-[#FF8C00] shrink-0' : 'text-white/50 shrink-0'} />
-                      <span>LO-FI</span>
-                    </button>
-
-                    <button
-                      onClick={() => toggleLiveFx?.('chipmunk')}
-                      title="Chipmunk: Vocal pitch shift + comic cartoon squeak (+10 st)"
-                      className={`h-7 px-3 rounded-full inline-flex items-center gap-1.5 text-[9px] font-display font-black uppercase tracking-[0.15em] whitespace-nowrap shrink-0 transition-all cursor-pointer ${
-                        activeLiveFx === 'chipmunk'
-                          ? 'bg-gradient-to-r from-[#D40055]/35 to-[#6B0099]/35 text-[#FFB3D1] border border-[#D40055]/60 shadow-[0_0_14px_rgba(212,0,85,0.3)]'
-                          : 'bg-white/[0.04] hover:bg-white/[0.10] text-white/65 hover:text-white border border-white/[0.08] hover:border-white/[0.18]'
-                      }`}
-                    >
-                      <Music2 size={11} className={activeLiveFx === 'chipmunk' ? 'text-[#ff7eb3] shrink-0' : 'text-white/50 shrink-0'} />
-                      <span>CHIPMUNK</span>
-                    </button>
-
-                    <button
-                      onClick={() => toggleLiveFx?.('radio')}
-                      title="AM Radio: Old-time shortwave transmitter with heterodyne whistle & static"
-                      className={`h-7 px-3 rounded-full inline-flex items-center gap-1.5 text-[9px] font-display font-black uppercase tracking-[0.15em] whitespace-nowrap shrink-0 transition-all cursor-pointer ${
-                        activeLiveFx === 'radio'
-                          ? 'bg-gradient-to-r from-[#6B0099]/40 to-[#FF8C00]/25 text-[#E9D5FF] border border-[#D0BCFF]/55 shadow-[0_0_14px_rgba(107,0,153,0.35)]'
-                          : 'bg-white/[0.04] hover:bg-white/[0.10] text-white/65 hover:text-white border border-white/[0.08] hover:border-white/[0.18]'
-                      }`}
-                    >
-                      <Radio size={11} className={activeLiveFx === 'radio' ? 'text-[#D0BCFF] shrink-0' : 'text-white/50 shrink-0'} />
-                      <span>AM RADIO</span>
-                    </button>
-
-                    <button
-                      onClick={() => toggleLiveFx?.('boost')}
-                      title="Boost: Mastering maximizer with low punch, air sheen & soft-knee loudness"
-                      className={`h-7 px-3 rounded-full inline-flex items-center gap-1.5 text-[9px] font-display font-black uppercase tracking-[0.15em] whitespace-nowrap shrink-0 transition-all cursor-pointer ${
-                        activeLiveFx === 'boost'
-                          ? 'bg-gradient-to-r from-[#6B0099]/35 to-[#00DAF3]/30 text-[#A5F3FC] border border-[#00DAF3]/60 shadow-[0_0_14px_rgba(0,218,243,0.3)]'
-                          : 'bg-white/[0.04] hover:bg-white/[0.10] text-white/65 hover:text-white border border-white/[0.08] hover:border-white/[0.18]'
-                      }`}
-                    >
-                      <Zap size={11} className={activeLiveFx === 'boost' ? 'text-[#00DAF3] shrink-0' : 'text-white/50 shrink-0'} />
-                      <span>BOOST</span>
-                    </button>
-                  </div>
-
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    {activeLiveFx && (
-                      <button
-                        onClick={() => clearLiveFx?.()}
-                        title="Turn off Live FX — reset track to dry sound"
-                        className="h-7 px-2.5 rounded-full inline-flex items-center gap-1 text-[9px] font-display font-black uppercase tracking-[0.15em] text-red-200 bg-red-500/15 hover:bg-red-500/25 border border-red-500/35 transition-all shrink-0 cursor-pointer"
-                      >
-                        <RotateCcw size={10} className="shrink-0" />
-                        <span>DRY</span>
-                      </button>
-                    )}
-                    <button
-                      onClick={() => window.dispatchEvent(new CustomEvent('OPEN_LIVE_FX_LAB'))}
-                      title="Open Live FX Audition Studio with custom file testing"
-                      className="h-7 px-3 rounded-full inline-flex items-center gap-1.5 text-[9px] font-display font-black uppercase tracking-[0.16em] bg-gradient-to-r from-[#6B0099]/30 to-[#D40055]/20 hover:from-[#6B0099]/50 hover:to-[#D40055]/35 text-[#D0BCFF] hover:text-white border border-[#D0BCFF]/25 hover:border-[#D0BCFF]/45 transition-all shrink-0 cursor-pointer"
-                    >
-                      <Activity size={10} className="text-[#FF8C00] shrink-0" />
-                      <span>FX LAB</span>
-                      <ExternalLink size={9} className="opacity-70 shrink-0" />
-                    </button>
-                  </div>
-                </div>
     </>
   );
   const hudContentEl = (
@@ -3362,10 +3138,8 @@ const PlayerView: React.FC<PlayerViewProps> = ({
 
              {activeHUD !== 'ABOUT' && (
                <div className="flex-1 animate-in slide-in-from-right-20 duration-1000 overflow-hidden flex flex-col">
-                  <div className="relative w-full h-full backdrop-blur-3xl p-6 lg:p-10 rounded-[2.5rem] lg:rounded-[3rem] shadow-[0_0_0_1px_rgba(255,255,255,0.05),0_0_60px_rgba(107,0,153,0.08),0_16px_48px_rgba(0,0,0,0.2)] overflow-hidden flex flex-col border border-white/[0.06]" style={{ background: 'rgba(10,6,16,0.20)' }}>
-                    {/* Animated Plajah gradient — slow sweep, purple→magenta (no orange) */}
-                    <div className="absolute inset-0 tracklist-gradient pointer-events-none" aria-hidden="true" />
-                    <div className="absolute inset-0 bg-gradient-to-b from-black/15 via-transparent to-black/20 pointer-events-none" aria-hidden="true" />
+                  {/* Cinema × Proscenium: the section sits straight on the page — no glass card, no sweep */}
+                  <div className="relative w-full h-full overflow-hidden flex flex-col">
                     {activeHUD === 'LYRICS' && (
                       <div className="flex-1 flex flex-col gap-6 overflow-hidden">
                         <div className="flex items-center justify-between mb-4">
@@ -3448,23 +3222,17 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                     )}
                     {activeHUD === 'TRACKS' && (
                       <div className="flex-1 flex flex-col gap-4 overflow-hidden">
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="flex items-center gap-3 min-w-0">
-                            {album.type === 'BOOK' ? <BookOpen size={15} className="text-[#FF8C00] shrink-0" /> : <List size={15} className="text-[#FF8C00] shrink-0" />}
-                            <h5 className="text-xs lg:text-sm font-display font-black uppercase tracking-[0.22em] text-white whitespace-nowrap">
-                              {album.trackListLabel || (album.type === 'BOOK' ? 'TABLE OF CONTENTS' : 'TRACK LIST')}
-                            </h5>
-                            <span className="px-2.5 py-0.5 rounded-full bg-white/[0.06] border border-white/10 font-display text-[9px] font-black uppercase tracking-[0.18em] text-white/50 truncate tabular-nums">
-                              {localTracks.length} {album.type === 'BOOK' ? 'CHAPTERS' : 'TRACKS'}
-                              {(() => { const s = localTracks.reduce((a, t) => a + (t.duration || 0), 0); return s > 0 && localTracks.every(t => t.duration) ? ` · ${formatTime(s)}` : ''; })()}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 normal-case font-sans">
+                          <p className="min-w-0 truncate text-sm text-white/60 tabular-nums">
+                            {localTracks.length} {album.type === 'BOOK' ? (localTracks.length === 1 ? 'chapter' : 'chapters') : (localTracks.length === 1 ? 'song' : 'songs')}
+                            {(() => { const s = localTracks.reduce((a, t) => a + (t.duration || 0), 0); return s > 0 && localTracks.every(t => t.duration) ? ` · ${formatTime(s)}` : ''; })()}
+                          </p>
+                          <div className="flex flex-wrap items-center gap-1">
                             {selectMode && (
                               <button
                                 type="button"
                                 onClick={() => trackSelection.selectedIds.length === localTracks.length ? trackSelection.clear() : trackSelection.selectAll()}
-                                className="px-2.5 py-1 rounded-lg border border-white/10 bg-white/5 text-white/60 hover:text-white text-[8px] font-display font-black uppercase tracking-widest transition-all"
+                                className="h-9 px-3 rounded-full flex items-center gap-1.5 text-[13px] font-semibold text-white/70 hover:text-white hover:bg-white/[0.06] transition-colors whitespace-nowrap"
                               >
                                 {trackSelection.selectedIds.length === localTracks.length ? 'Clear all' : 'Select all'}
                               </button>
@@ -3472,32 +3240,24 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                             <button
                               type="button"
                               onClick={toggleSelectMode}
-                              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border text-[10px] font-display font-black uppercase tracking-widest transition-all cursor-pointer ${
-                                selectMode
-                                  ? 'bg-small-orange text-black border-small-orange shadow-[0_0_12px_rgba(255,140,0,0.4)] font-bold'
-                                  : 'bg-white/10 text-white border-white/25 hover:bg-white/20 hover:border-white/40'
-                              }`}
+                              className={`h-9 px-3 rounded-full flex items-center gap-1.5 text-[13px] font-semibold transition-colors whitespace-nowrap ${selectMode ? 'bg-[#FF8C00] text-[#06040A]' : 'text-white/70 hover:text-white hover:bg-white/[0.06]'}`}
                             >
-                              <CheckSquare size={13} className={selectMode ? 'text-black' : 'text-small-orange'} />
+                              <CheckSquare size={14} className={selectMode ? '' : 'text-[#FF8C00]'} />
                               {selectMode ? 'Done' : 'Select'}
                             </button>
                             {album.type !== 'BOOK' && (
                               <button
                                 type="button"
                                 onClick={() => setAutoRadio(!autoRadio)}
-                                title={autoRadio ? 'Auto-Radio on — prioritizes Chora releases first, plus Audius discovery when the album ends' : 'Auto-Radio off'}
-                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[10px] font-display font-black uppercase tracking-widest transition-all cursor-pointer ${
-                                  autoRadio
-                                    ? 'bg-[#6B0099]/30 text-white border-[#C56BFF]/50 hover:bg-[#6B0099]/45'
-                                    : 'bg-white/5 text-white/40 border-white/10 hover:text-white/70'
-                                }`}
+                                aria-pressed={autoRadio}
+                                title={autoRadio ? 'Auto-radio on — prioritizes Chora releases first, plus Audius discovery when the album ends' : 'Auto-radio off'}
+                                className={`h-9 px-3 rounded-full flex items-center gap-1.5 text-[13px] font-semibold transition-colors whitespace-nowrap ${autoRadio ? 'text-[#E6DAFF] bg-[#6B0099]/30 hover:bg-[#6B0099]/45' : 'text-white/55 hover:text-white hover:bg-white/[0.06]'}`}
                               >
-                                <Radio size={12} className={autoRadio ? 'text-[#C56BFF]' : 'text-white/40'} />
-                                {autoRadio ? 'Auto-Radio' : 'Radio Off'}
+                                <Radio size={14} className={autoRadio ? 'text-[#C56BFF]' : ''} />
+                                {autoRadio ? 'Auto-radio on' : 'Auto-radio off'}
                               </button>
                             )}
-                            {isOwner && !selectMode && <span className="text-[8px] font-display font-bold text-white/20 uppercase tracking-widest">Drag to reorder</span>}
-                            <button onClick={() => setIsTracksCollapsed(!isTracksCollapsed)} className="p-2 hover:bg-white/5 rounded-lg transition-all text-white/20 hover:text-white">
+                            <button type="button" onClick={() => setIsTracksCollapsed(!isTracksCollapsed)} aria-label={isTracksCollapsed ? 'Show tracks' : 'Hide tracks'} className="w-9 h-9 rounded-full grid place-items-center text-white/45 hover:text-white hover:bg-white/[0.06] transition-colors">
                               {isTracksCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
                             </button>
                           </div>
@@ -3507,7 +3267,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                           <div className="flex items-center justify-between gap-3 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-[#6B0099]/25 via-black/40 to-black/30 border border-white/10">
                             <button
                               type="button"
-                              onClick={() => next()}
+                              onClick={() => globalNext()}
                               title="Play up next now"
                               className="flex items-center gap-3 min-w-0 flex-1 text-left hover:opacity-90 transition-opacity"
                             >
@@ -3525,7 +3285,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                             </button>
                             <button
                               type="button"
-                              onClick={() => next()}
+                              onClick={() => globalNext()}
                               className="shrink-0 px-3 py-1 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-[9px] font-display font-black uppercase tracking-widest text-white transition-all"
                             >
                               Play Next
@@ -3534,7 +3294,14 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                         )}
 
                         {!isTracksCollapsed && (
-                          <div className="flex-1 flex flex-col gap-1.5 overflow-y-auto pr-2 custom-scrollbar animate-in slide-in-from-top-2 duration-300">
+                          <div className="flex-1 flex flex-col overflow-y-auto pr-2 custom-scrollbar animate-in slide-in-from-top-2 duration-300">
+                            <div className="sticky top-0 z-20 flex items-center gap-5 h-10 px-4 text-[13px] font-semibold text-white/45 border-b border-white/10 normal-case font-sans" style={{ background: '#06040A' }}>
+                              <span className="w-7 shrink-0">#</span>
+                              <span className="flex-1">Title</span>
+                              {hasTrackCredits && <span className="hidden xl:block w-[220px] shrink-0">Credits</span>}
+                              <span className="w-16 shrink-0 text-right">Time</span>
+                              <span className="w-[116px] shrink-0" aria-hidden="true" />
+                            </div>
                             {localTracks.map((t, i) => {
                               const isActive = currentTrackIndex === i;
                               const isExpanded = expandedTrackId === t.id;
@@ -3549,132 +3316,114 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                                   onDragLeave={() => setDragOverTrackIndex(null)}
                                   onDrop={(e) => { e.preventDefault(); const from = dragTrackIndexRef.current; setDragOverTrackIndex(null); if (from !== null && from !== i) reorderTracks(from, i); dragTrackIndexRef.current = null; }}
                                   onDragEnd={() => { dragTrackIndexRef.current = null; setDragOverTrackIndex(null); }}
-                                  className={`relative shrink-0 min-h-[3.25rem] overflow-hidden border transition-all ${gatefoldOn ? 'rounded-[10px]' : 'rounded-2xl'} ${isNextUp ? 'track-next-glow' : ''} ${dragOverTrackIndex === i ? 'scale-[1.01] border-small-orange/60' : isActive ? 'border-[#FF8C00]/50' : gatefoldOn ? 'border-transparent' : 'border-white/5'} ${trackSelection.selectedSet.has(t.id) ? '!border-small-orange/80 bg-small-orange/15 shadow-[0_0_15px_rgba(255,140,0,0.2)]' : ''}`}
+                                  className={`relative shrink-0 transition-all ${isActive || isExpanded ? 'my-0.5 rounded-[14px]' : 'border-b border-white/[0.07]'} ${isNextUp ? 'track-next-glow rounded-[14px]' : ''} ${dragOverTrackIndex === i ? 'ring-1 ring-[#FF8C00]/60 rounded-[14px]' : ''} ${trackSelection.selectedSet.has(t.id) ? 'bg-[#FF8C00]/10 ring-1 ring-[#FF8C00]/60 rounded-[14px]' : ''}`}
                                 >
-                                  {/* Gatefold registry rows are quiet glass; the classic skin keeps its gradient wash. */}
+                                  {/* Cinema × Proscenium row: # · title · credits (serif) · time (mono) · actions */}
                                   <div
                                     {...trackContextMenu.bind(t)}
                                     onClick={selectMode ? (e) => trackSelection.handleSelect(t.id, e) : undefined}
-                                    className={`flex items-center gap-3 px-3 py-[9px] relative overflow-hidden group ${gatefoldOn ? 'rounded-[10px]' : 'rounded-2xl'} ${selectMode ? 'cursor-pointer' : ''} ${isActive ? 'backdrop-blur-2xl shadow-[0_0_30px_rgba(107,0,153,0.3)]' : gatefoldOn ? 'bg-white/[0.03] hover:bg-white/[0.07] backdrop-blur-xl' : 'bg-gradient-to-r from-[#6B0099]/10 via-transparent to-[#FF8C00]/10 backdrop-blur-xl hover:from-[#6B0099]/20 hover:to-[#FF8C00]/20'} ${isExpanded ? '!rounded-b-none' : ''}`}
+                                    className={`flex items-center gap-5 h-[54px] px-4 relative overflow-hidden group normal-case font-sans ${isActive ? 'rounded-[14px]' : 'rounded-[10px] hover:bg-white/[0.04]'} ${selectMode ? 'cursor-pointer' : ''} ${isExpanded ? '!rounded-b-none bg-white/[0.04]' : ''}`}
                                   >
                                     {/* Active row: animated brand gradient + repeat-one green + final-10s red flash */}
                                     {isActive && <div className="absolute inset-0 track-gradient-active pointer-events-none" aria-hidden="true" />}
                                     {isActive && repeatOneGreenOpacity > 0 && <div className="absolute inset-0 pointer-events-none" aria-hidden="true" style={{ background: 'linear-gradient(90deg, rgba(34,197,94,0.55) 0%, rgba(34,197,94,0) 34%)', opacity: repeatOneGreenOpacity }} />}
                                     {isActive && isEndingSoon && <div className="absolute inset-0 pointer-events-none track-ending-flash" aria-hidden="true" />}
-                                    
-                                    {/* Selection Checkbox & Track Number */}
-                                    <div className="flex items-center gap-2 shrink-0 relative z-10">
+
+                                    {/* Number / playing bars / select box, with the owner's drag grip on hover */}
+                                    <div className="relative z-10 w-7 shrink-0 flex items-center justify-start">
+                                      {isOwner && !selectMode && (
+                                        <span title="Drag to reorder" className="absolute -left-4 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing">
+                                          <GripVertical size={13} className="text-white/35" />
+                                        </span>
+                                      )}
                                       {selectMode ? (
                                         <button
                                           type="button"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            trackSelection.handleSelect(t.id, e);
-                                          }}
-                                          className="p-1 text-white hover:text-small-orange transition-colors cursor-pointer"
+                                          onClick={(e) => { e.stopPropagation(); trackSelection.handleSelect(t.id, e); }}
+                                          className="text-white hover:text-[#FF8C00] transition-colors"
                                           title={trackSelection.selectedSet.has(t.id) ? 'Deselect track' : 'Select track'}
                                         >
-                                          {trackSelection.selectedSet.has(t.id) ? (
-                                            <CheckSquare size={17} className="text-small-orange fill-small-orange/20" />
-                                          ) : (
-                                            <Square size={17} className="text-white/50 hover:text-white" />
-                                          )}
+                                          {trackSelection.selectedSet.has(t.id) ? <CheckSquare size={17} className="text-[#FF8C00]" /> : <Square size={17} className="text-white/50" />}
                                         </button>
+                                      ) : isActive && globalIsPlaying && isCurrentTrackGlobal ? (
+                                        <div className="flex gap-[3px] items-end h-4" aria-label="Playing">{[0, 1, 2].map(b => <motion.div key={b} animate={{ height: [5, 15, 7, 12, 5] }} transition={{ duration: 1, repeat: Infinity, delay: b * 0.2 }} className="w-[3px] bg-[#FF8C00] rounded-full" />)}</div>
                                       ) : (
-                                        <div className="relative w-5 h-5 flex items-center justify-center">
-                                          <span className={`text-[10px] font-display font-black tabular-nums uppercase group-hover:opacity-0 transition-opacity ${isActive ? 'text-small-orange' : 'text-white/30'}`}>
-                                            {i + 1}
-                                          </span>
+                                        <>
+                                          <span className={`text-[13px] tabular-nums group-hover:opacity-0 transition-opacity ${isActive ? 'text-[#FF8C00]' : 'text-white/50'}`} style={{ fontFamily: "'JetBrains Mono', monospace" }}>{String(i + 1).padStart(2, '0')}</span>
                                           <button
                                             type="button"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              setSelectMode(true);
-                                              trackSelection.handleSelect(t.id, e);
-                                            }}
-                                            className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white/50 hover:text-white cursor-pointer"
+                                            onClick={(e) => { e.stopPropagation(); setSelectMode(true); trackSelection.handleSelect(t.id, e); }}
+                                            className="absolute inset-0 flex items-center opacity-0 group-hover:opacity-100 transition-opacity text-white/60 hover:text-white"
                                             title="Select track"
                                           >
                                             <Square size={15} />
                                           </button>
-                                        </div>
-                                      )}
-                                      {isOwner && !selectMode && (
-                                        <GripVertical size={13} className="text-white/20 hover:text-white/50 shrink-0 cursor-grab active:cursor-grabbing" />
+                                        </>
                                       )}
                                     </div>
 
                                     <button
                                       type="button"
                                       onClick={selectMode ? (e) => { e.stopPropagation(); trackSelection.handleSelect(t.id, e); } : () => { setCurrentTrackIndex(i); playTrack(t, album, 'LIBRARY'); }}
-                                      className="flex items-center gap-3 text-left flex-1 min-w-0 relative z-10"
+                                      className="relative z-10 flex-1 min-w-0 text-left"
                                     >
-                                      {selectMode && (
-                                        <span className={`text-[10px] font-display font-black w-4 shrink-0 tabular-nums uppercase ${isActive ? 'text-small-orange' : 'text-white/30'}`}>
-                                          {i + 1}
+                                      {/* Owner inline-edit: double-click to rename. */}
+                                      {isOwner && editingTrackId === t.id ? (
+                                        <input
+                                          autoFocus
+                                          type="text"
+                                          value={editingTitle}
+                                          onChange={e => setEditingTitle(e.target.value)}
+                                          onBlur={() => commitTrackRename(t.id)}
+                                          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); commitTrackRename(t.id); } if (e.key === 'Escape') setEditingTrackId(null); }}
+                                          onClick={e => e.stopPropagation()}
+                                          className="block w-full bg-white/10 border border-white/20 rounded-lg px-2 py-1 outline-none focus:border-[#D40055] text-[15px] font-semibold text-white"
+                                        />
+                                      ) : (
+                                        <span
+                                          className={`block truncate text-[16px] ${isActive ? 'font-bold text-white' : 'font-semibold text-white/90 group-hover:text-white'}`}
+                                          onDoubleClick={isOwner ? (e) => { e.stopPropagation(); e.preventDefault(); startTrackRename(t); } : undefined}
+                                          title={isOwner ? 'Double-click to rename' : undefined}
+                                        >
+                                          {t.title || 'Untitled'}
+                                          {isOwner && <Pen size={10} className="inline-block ml-2 opacity-0 group-hover:opacity-40 transition-opacity" />}
                                         </span>
                                       )}
-                                      <span className="min-w-0 flex-1">
-                                        {/* Track-list titles stay a single line in Plajah all-caps display typography.
-                                            Owner inline-edit: double-click to rename. */}
-                                        {isOwner && editingTrackId === t.id ? (
-                                          <input
-                                            autoFocus
-                                            type="text"
-                                            value={editingTitle}
-                                            onChange={e => setEditingTitle(e.target.value)}
-                                            onBlur={() => commitTrackRename(t.id)}
-                                            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); commitTrackRename(t.id); } if (e.key === 'Escape') setEditingTrackId(null); }}
-                                            onClick={e => e.stopPropagation()}
-                                            className="block w-full bg-white/10 border border-white/20 rounded px-1.5 py-0.5 outline-none focus:border-[#D40055] font-display text-xs lg:text-sm font-black uppercase tracking-[0.14em] text-white"
-                                          />
-                                        ) : (
-                                          <span
-                                            className={`block truncate font-display text-xs lg:text-sm font-black uppercase tracking-[0.14em] ${isActive ? 'text-white' : 'text-white/65 group-hover:text-white'}`}
-                                            onDoubleClick={isOwner ? (e) => { e.stopPropagation(); e.preventDefault(); startTrackRename(t); } : undefined}
-                                            title={isOwner ? 'Double-click to rename' : undefined}
-                                          >
-                                            {t.title || 'Untitled'}
-                                            {isOwner && <Pen size={9} className="inline-block ml-1.5 opacity-0 group-hover:opacity-40 transition-opacity" />}
-                                          </span>
-                                        )}
-                                        {/* Live lyrics — only when there's a real caption (getActiveCaption returns '...' when none) */}
-                                        {isActive && isCurrentTrackGlobal && getCurrentCaption() !== '...' && <CaptionTicker caption={getCurrentCaption()} />}
-                                      </span>
+                                      {/* Live lyrics — only when there's a real caption (getActiveCaption returns '...' when none) */}
+                                      {isActive && isCurrentTrackGlobal && getCurrentCaption() !== '...' && <CaptionTicker caption={getCurrentCaption()} />}
                                     </button>
-                                    <div className="flex items-center gap-2 shrink-0 relative z-10">
-                                      {isActive && isCurrentTrackGlobal && globalDuration > 0 && (
-                                        <div className="flex flex-col items-end font-display tabular-nums text-[9px] font-black uppercase tracking-wider leading-tight self-center">
-                                          <span className={isEndingSoon ? 'text-red-400' : 'text-white/70'}>-{formatTime(trackRemaining)}</span>
-                                          <span className="text-white/35">{formatTime(globalDuration)}</span>
-                                        </div>
-                                      )}
-                                      {/* Queued rows carry a NEXT tag; resting rows show their duration */}
-                                      {gatefoldOn && isNextUp && <span className="font-display text-[8px] font-black uppercase text-[#06D6A0] tracking-[0.14em]">NEXT</span>}
-                                      {gatefoldOn && !isActive && !!t.duration && (
-                                        <span className="font-display tabular-nums text-[9px] font-black uppercase tracking-wider text-white/35">{formatTime(t.duration)}</span>
-                                      )}
-                                      {t.isExclusive && <span className="text-[8px] font-display font-black text-small-orange uppercase">Excl.</span>}
-                                      {isActive && globalIsPlaying && isCurrentTrackGlobal
-                                        ? <div className="flex gap-0.5 items-end h-3">{[0,1,2].map(b => <motion.div key={b} animate={{height:[4,12,6,10,4]}} transition={{duration:1,repeat:Infinity,delay:b*0.2}} className="w-0.5 bg-small-orange rounded-full" />)}</div>
-                                        : <Play size={13} className="text-white/10 group-hover:text-white/40" fill="currentColor" />}
-                                      
-                                      {/* Context Menu Button */}
+
+                                    {hasTrackCredits && (
+                                      <span className={`relative z-10 hidden xl:block w-[220px] shrink-0 truncate ${isActive ? 'text-white/90' : 'text-white/60'}`} style={{ fontFamily: 'Newsreader, Georgia, serif', fontStyle: 'italic', fontSize: 16 }}>
+                                        {t.artist && t.artist !== album.artist ? t.artist : ''}
+                                      </span>
+                                    )}
+
+                                    <div className="relative z-10 flex items-center gap-2 shrink-0">
+                                      {isNextUp && <span className="text-[11px] font-bold text-[#06040A] bg-[#00DAF3] px-2.5 py-0.5 rounded-full">Next</span>}
+                                      {t.isExclusive && <span className="text-[11px] font-bold text-[#FF8C00]">Exclusive</span>}
+                                    </div>
+
+                                    <span className="relative z-10 w-16 shrink-0 text-right text-[13px] tabular-nums" style={{ fontFamily: "'JetBrains Mono', monospace", color: isActive && isCurrentTrackGlobal && globalDuration > 0 ? (isEndingSoon ? '#F87171' : '#fff') : 'rgba(255,255,255,0.6)' }}>
+                                      {isActive && isCurrentTrackGlobal && globalDuration > 0 ? `-${formatTime(trackRemaining)}` : t.duration ? formatTime(t.duration) : ''}
+                                    </span>
+
+                                    {/* Like / love / dislike — your mark stays visible; un-rated rows show it on hover */}
+                                    <TrackReactionButton track={t} album={album} size={16} box={36} quiet={!isActive} className="relative z-10 shrink-0" />
+
+                                    <div className={`relative z-10 w-[76px] shrink-0 flex items-center justify-end gap-0.5 transition-opacity ${isActive || isExpanded ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 focus-within:opacity-100'}`}>
                                       <button
                                         type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          trackContextMenu.openFrom(e.currentTarget, t);
-                                        }}
+                                        onClick={(e) => { e.stopPropagation(); trackContextMenu.openFrom(e.currentTarget, t); }}
                                         title="Track options (right-click also available)"
-                                        className="p-1 rounded-lg text-white/25 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                                        aria-label="Track options"
+                                        className="w-9 h-9 rounded-full grid place-items-center text-white/70 hover:text-white hover:bg-white/10 transition-colors"
                                       >
-                                        <MoreHorizontal size={14} />
+                                        <MoreHorizontal size={16} />
                                       </button>
-
                                       {/* Breakdown / PP / Use-in-film live in the collapsible drawer below (all rows) */}
-                                      <button onClick={(e) => { e.stopPropagation(); setExpandedTrackId(isExpanded ? null : t.id); }} title="More actions" className={`p-1.5 rounded-lg transition-all ${isExpanded ? 'bg-small-orange/20 text-small-orange' : 'text-white/25 hover:text-white'}`}>
-                                        <ChevronDown size={13} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                                      <button onClick={(e) => { e.stopPropagation(); setExpandedTrackId(isExpanded ? null : t.id); }} title="More actions" aria-label="More actions" aria-expanded={isExpanded} className={`w-9 h-9 rounded-full grid place-items-center transition-colors ${isExpanded ? 'bg-[#FF8C00]/20 text-[#FF8C00]' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
+                                        <ChevronDown size={15} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                                       </button>
                                     </div>
                                   </div>
@@ -4418,19 +4167,24 @@ const PlayerView: React.FC<PlayerViewProps> = ({
     </>
   );
 
-  // ── Cinema × Proscenium — the desktop album view (the Gatefold skin keeps its own leaf layout below) ──
-  if (!gatefoldOn) {
-    const cinemaStageNow: CinemaStage = activeVideoId ? 'VIDEO' : isSlideshowActive ? 'SLIDESHOW' : cinemaStage;
+  // ── Cinema × Proscenium — the desktop album view, in both skins. The hero stage IS the Gatefold
+  //    viewer: it rides gatefoldStageMode, so Chora Next keeps its Art → Slideshow → Orrery → FX cycle. ──
+  {
+    const cinemaStageNow: CinemaStage = activeVideoId ? 'VIDEO'
+      : (isSlideshowActive || gatefoldStageMode === 'SLIDESHOW') ? 'SLIDESHOW'
+      : gatefoldStageMode === 'FX' ? 'VISUALIZER'
+      : gatefoldStageMode === 'ORRERY' ? 'ORRERY'
+      : 'ART';
     const leaveVideo = () => { if (activeVideoId) { setActiveVideoId(null); clearMedia(); } };
     const selectCinemaStage = (s: CinemaStage) => {
       if (s === 'VIDEO') {
+        setIsStageCycling(false);
         const v = album.musicVideos?.[0];
         if (v && !activeVideoId) { setActiveVideoId(v.id); playVideo(v); }
         return;
       }
       leaveVideo();
-      setIsSlideshowActive(s === 'SLIDESHOW');
-      if (s !== 'SLIDESHOW') setCinemaStage(s);
+      selectGatefoldStage(s === 'VISUALIZER' ? 'FX' : s);
     };
     const playingHere = globalIsPlaying && isCurrentTrackGlobal;
     const cinemaPlay = () => {
@@ -4466,7 +4220,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
       { id: 'MEDIA', label: 'Videos & art' },
       { id: 'COMMENTS', label: 'Feed' },
       { id: 'INFO', label: isBook ? 'Synopsis' : 'Liner notes' },
-      { id: 'ABOUT', label: 'About the artist' },
+      { id: 'ABOUT', label: 'About' },
     ] as const;
     const railLink = 'h-11 px-1 text-sm font-semibold text-[#FFB86B] hover:text-[#FF8C00] transition-colors';
     const railRow = 'w-full h-11 px-3 rounded-xl flex items-center gap-3 text-left text-sm font-medium text-white/88 hover:bg-white/[0.06] transition-colors';
@@ -4510,11 +4264,13 @@ const PlayerView: React.FC<PlayerViewProps> = ({
     );
 
     return (
-      <div className="fixed inset-0 z-10 overflow-y-auto overflow-x-hidden custom-scrollbar text-primary selection:bg-white selection:text-black" style={{ background: '#06040A', fontFamily: 'Inter, system-ui, sans-serif' }}>
+      <div className={`fixed inset-0 z-10 overflow-y-auto overflow-x-hidden custom-scrollbar text-primary selection:bg-white selection:text-black${gatefoldOn ? (choraNext.isNight ? ' chora-next chora-night' : ' chora-next') : ''}`} style={{ background: '#06040A', fontFamily: 'Inter, system-ui, sans-serif' }}>
         <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-          <img src={album.coverImage || undefined} alt="" referrerPolicy="no-referrer" className="absolute inset-0 w-full h-full object-cover scale-110 blur-[90px] opacity-20" />
+          <img src={thumb(album.coverImage, THUMB.small) || album.coverImage || undefined} alt="" referrerPolicy="no-referrer" className="absolute inset-0 w-full h-full object-cover scale-110 blur-[60px] opacity-20" />
         </div>
-        <AtmosphericBackground album={album} analyser={globalAnalyser} isPlaying={playingHere} simplified />
+        {/* The page's ambient reactor only runs while the hero shows still art — a live stage engine
+            gets the GPU to itself (the old two-leaf layout never ran both at full size). */}
+        {cinemaStageNow === 'ART' && <AtmosphericBackground album={album} analyser={globalAnalyser} isPlaying={playingHere} />}
 
         <div className="relative z-10">
           <CinemaProsceniumHero
@@ -4524,6 +4280,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
               { id: 'ART', label: 'Art' },
               ...(canUseFxStage() ? [{ id: 'VISUALIZER' as const, label: 'Visualizer' }] : []),
               { id: 'SLIDESHOW', label: 'Slideshow' },
+              { id: 'ORRERY', label: 'Orrery' },
               ...(album.musicVideos?.length ? [{ id: 'VIDEO' as const, label: 'Video' }] : []),
             ]}
             onStage={selectCinemaStage}
@@ -4532,6 +4289,11 @@ const PlayerView: React.FC<PlayerViewProps> = ({
               cinemaStageNow === 'VIDEO' ? desktopVideoEl
               : cinemaStageNow === 'SLIDESHOW' ? <AnimatedSlideshow images={resolveSlideshowImages(album, currentTrack)} isPlaying={playingHere} themeColor={album.themeColor} artistNotes={undefined} />
               : cinemaStageNow === 'VISUALIZER' ? visualizerStageEl
+              : cinemaStageNow === 'ORRERY' ? (
+                <div className="absolute inset-0 flex items-center justify-center" style={{ paddingBottom: 140 }}>
+                  <OrreryStage album={album} tracks={localTracks} activeIndex={currentTrackIndex} isPlaying={playingHere} onPlayTrack={(t, i) => { setCurrentTrackIndex(i); playTrack(t, album, 'LIBRARY'); }} />
+                </div>
+              )
               : null
             }
             floor={
@@ -4559,6 +4321,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
             onPlay={cinemaPlay}
             onShuffle={trackCount > 1 ? cinemaShuffle : undefined}
             onAddToPlaylist={currentTrack ? () => setPlaylistPickerTrack(currentTrack) : undefined}
+            reaction={currentTrack ? <TrackReactionButton track={currentTrack} album={album} size={19} box={44} trayAt="top" /> : undefined}
             menu={menu}
             onBack={onBack}
             fxHot={!!(isFxActive || activeLiveFx)}
@@ -4582,12 +4345,41 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                   </button>
                 ))}
               </nav>
-              <div className="font-display uppercase flex flex-col pt-5" style={{ height: 'calc(100vh - 96px)', minHeight: 560 }}>
+              <div className="font-display flex flex-col pt-4" style={{ height: 'calc(100vh - 96px)', minHeight: 560 }}>
                 {hudContentEl}
               </div>
             </div>
 
             <aside className="flex flex-col gap-4 pt-4">
+              {/* Live FX — always in view, quiet until one is on */}
+              <div className="flex flex-wrap items-center gap-1.5 px-1" role="group" aria-label="Live FX">
+                <span className="mr-1 flex items-center gap-2 text-[13px] font-semibold text-white/55">
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: activeLiveFx ? '#FF8C00' : 'rgba(255,255,255,0.3)', boxShadow: activeLiveFx ? '0 0 8px #FF8C00' : undefined }} />
+                  Live FX
+                </span>
+                {([
+                  ['lofi', 'Lo-fi', 'Vintage tape warmth, gentle wow/flutter & vinyl air'],
+                  ['chipmunk', 'Chipmunk', 'Vocal pitch shift + comic cartoon squeak (+10 st)'],
+                  ['radio', 'AM radio', 'Old-time shortwave transmitter with heterodyne whistle & static'],
+                  ['boost', 'Boost', 'Mastering maximizer with low punch, air sheen & soft-knee loudness'],
+                ] as const).map(([id, label, tip]) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => toggleLiveFx?.(id)}
+                    aria-pressed={activeLiveFx === id}
+                    title={tip}
+                    className={`h-8 px-3 rounded-full text-[13px] font-medium border transition-colors ${activeLiveFx === id ? 'text-[#FFD19A] border-[#FF8C00]/60 bg-[#FF8C00]/15' : 'text-white/70 border-white/10 hover:text-white hover:border-white/25'}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+                {activeLiveFx && (
+                  <button type="button" onClick={() => clearLiveFx?.()} title="Turn off Live FX — reset track to dry sound" className="h-8 px-3 rounded-full text-[13px] font-medium text-red-200 border border-red-400/40 hover:bg-red-500/15 transition-colors">Dry</button>
+                )}
+                <button type="button" onClick={() => window.dispatchEvent(new CustomEvent('OPEN_LIVE_FX_LAB'))} title="Open the Live FX Audition Studio" className="h-8 px-2 text-[13px] font-medium text-[#D0BCFF] hover:text-white transition-colors">FX Lab ↗</button>
+              </div>
+
               {album.worldId && <WorldBadge worldId={album.worldId} contentTitle={album.title} contentType="album" onNavigate={onNavigateToWorld} />}
 
               {(currentTrack || caption) && (
@@ -4675,16 +4467,6 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                 )}
               </div>
 
-              <div className="rounded-3xl bg-white/[0.03] border border-white/[0.08] overflow-hidden">
-                <button type="button" onClick={() => setCinemaFxOpen(o => !o)} aria-expanded={cinemaFxOpen || !!activeLiveFx} className="w-full h-12 px-5 flex items-center justify-between text-sm font-semibold text-white/85">
-                  <span className="flex items-center gap-2.5">
-                    <span className="w-2 h-2 rounded-full" style={{ background: activeLiveFx ? '#FF8C00' : 'rgba(255,255,255,0.25)', boxShadow: activeLiveFx ? '0 0 8px #FF8C00' : undefined }} />
-                    Live FX{activeLiveFx ? ` · ${activeLiveFx}` : ''}
-                  </span>
-                  <ChevronRight size={16} className={`transition-transform ${cinemaFxOpen || activeLiveFx ? 'rotate-90' : ''}`} />
-                </button>
-                {(cinemaFxOpen || !!activeLiveFx) && <div className="px-3 pb-3 font-display">{liveFxConsoleEl}</div>}
-              </div>
             </aside>
           </div>
 
@@ -4698,913 +4480,6 @@ const PlayerView: React.FC<PlayerViewProps> = ({
       </div>
     );
   }
-
-  return (
-    <div className={`fixed inset-0 z-10 bg-transparent text-primary overflow-hidden selection:bg-white selection:text-black font-display uppercase${gatefoldOn ? (choraNext.isNight ? ' chora-next chora-night' : ' chora-next') : ''}`}>
-      {/* ── Full-page cover art — clear, fades to transparent at bottom ── */}
-      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-        {/* Ambient blurred base (very soft, low opacity) */}
-        <img
-          src={activeVideo?.coverImageUrl || (currentTrack?.images?.[0]) || album.coverImage || undefined}
-          alt=""
-          className="absolute inset-0 w-full h-full object-cover scale-110 blur-[80px] opacity-30 transition-all duration-1000"
-          referrerPolicy="no-referrer"
-        />
-
-        {/* Crisp full-page cover fading to transparent */}
-        <AnimatePresence mode="wait">
-          {!isSlideshowActive && (
-            <motion.img
-              key={currentTrack?.id || album.coverImage}
-              src={activeVideo?.coverImageUrl || (currentTrack?.images?.[0]) || album.coverImage || undefined}
-              alt=""
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 1.2 }}
-              className="absolute inset-0 w-full h-full object-cover transition-all duration-1000"
-              referrerPolicy="no-referrer"
-              style={{
-                WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.55) 35%, rgba(0,0,0,0.15) 65%, transparent 90%)',
-                maskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.55) 35%, rgba(0,0,0,0.15) 65%, transparent 90%)',
-              }}
-            />
-          )}
-        </AnimatePresence>
-
-        {/* Slideshow full-page blurred backdrop when active */}
-        <AnimatePresence>
-          {isSlideshowActive && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.8 }}
-              className="absolute inset-0"
-            >
-              <AnimatedSlideshow
-                images={resolveSlideshowImages(album, currentTrack)}
-                isPlaying={globalIsPlaying && isCurrentTrackGlobal}
-                themeColor={album.themeColor}
-                artistNotes={undefined}
-              />
-              {/* Soft defocus blur + fade overlay */}
-              <div
-                className="absolute inset-0"
-                style={{ backdropFilter: 'blur(18px)', WebkitBackdropFilter: 'blur(18px)' }}
-              />
-              <div
-                className="absolute inset-0"
-                style={{
-                  WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.35) 40%, rgba(0,0,0,0.08) 70%, transparent 92%)',
-                  maskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.35) 40%, rgba(0,0,0,0.08) 70%, transparent 92%)',
-                  background: 'transparent',
-                }}
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Vignette edges */}
-        <div className="absolute inset-0 bg-gradient-to-r from-black/15 via-transparent to-black/15 pointer-events-none" />
-        <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/75 to-transparent pointer-events-none" />
-      </div>
-
-      <AtmosphericBackground album={album} analyser={globalAnalyser} isPlaying={globalIsPlaying && isCurrentTrackGlobal} />
-      <ScrollingWaveform
-        currentTime={globalCurrentTime}
-        duration={globalDuration}
-        trackId={currentTrack?.id || 'unknown'}
-        isPlaying={globalIsPlaying && isCurrentTrackGlobal}
-        peaks={trackPeaks}
-        onScratchStart={isCurrentTrackGlobal ? beginScratch : undefined}
-        onScratchBy={isCurrentTrackGlobal ? scratchBy : undefined}
-        onScratchEnd={isCurrentTrackGlobal ? endScratch : undefined}
-      />
-
-      {/* Subtle depth overlay — no blur so background stays visible */}
-      <div className="fixed inset-0 bg-black/5 pointer-events-none z-[1]" />
-
-      <div className={`fixed inset-0 z-10 flex flex-col p-6 lg:p-8 xl:p-10 2xl:p-12 ${isVisualizerLayout ? 'lg:right-[38%] xl:right-[34%] 2xl:right-[30%]' : 'lg:right-[50%]'}`}>
-         {activeVideoId ? (
-           desktopVideoEl
-         ) : isVisualizerLayout ? (
-           /* ── STAGE MODE: audio-reactive visualizer palette ── */
-           <div className="flex-1 min-h-0 w-full relative overflow-hidden rounded-3xl bg-black/40 border border-white/[0.06] shadow-[0_0_80px_rgba(0,0,0,0.6)]">
-             {/* Full-panel visualizer — always animates (idle or audio-reactive) */}
-             <div className="absolute inset-0 z-0">
-               {isPixelsEngine ? (
-                 /* Plajah Pixels engines — MilkDrops / Shaders / Generators (no-param reactors) */
-                 <div className="absolute inset-0">
-                   <FxStageVisualizers engine={fxEngine as FxEngine} presetIndex={fxPresetIndex} analyser={globalAnalyser} isPlaying={true} />
-                 </div>
-               ) : (
-                 <>
-                   <div className="absolute inset-0" style={{ opacity: fxEngine === 'PAINT' ? 0.35 : 1, transition: 'opacity 0.8s ease' }}>
-                     <Visualizer
-                       analyser={globalAnalyser}
-                       themeColor={album.themeColor}
-                       trackTitle={currentTrack?.title || album.title}
-                       artist={album.artist}
-                       isPlaying={globalIsPlaying && isCurrentTrackGlobal}
-                       scrollingText={scrollingText}
-                       alwaysAnimate={true}
-                     />
-                   </div>
-                   {fxEngine === 'PAINT' && (
-                     <div className="absolute inset-0 pointer-events-none">
-                       <PaintPoolVisualizer analyser={globalAnalyser} isPlaying={globalIsPlaying && isCurrentTrackGlobal} alwaysAnimate={true} />
-                     </div>
-                   )}
-                 </>
-               )}
-             </div>
-
-             {/* Atmospheric edge gradients */}
-             <div className="absolute inset-0 z-10 pointer-events-none">
-               <div className="absolute inset-0 bg-gradient-to-r from-black/30 via-transparent to-black/50" />
-               <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-black/80 to-transparent" />
-             </div>
-
-             {/* Top controls bar */}
-             <div className="absolute top-0 left-0 right-0 z-20 p-5 flex items-center justify-between bg-gradient-to-b from-black/70 to-transparent">
-               <button
-                 onClick={() => setIsVisualizerLayout(false)}
-                 className="flex items-center gap-2 px-4 py-2 bg-black/60 backdrop-blur-xl border border-white/10 rounded-full text-[9px] font-black uppercase tracking-widest text-white/50 hover:text-white hover:bg-black/80 transition-all"
-               >
-                 <X size={11} /> Exit
-               </button>
-
-               {/* Reactor selector — dropdown of engines + preset-cycling arrows */}
-               {fxSelectorEl}
-
-               <div className="flex items-center gap-2 shrink-0">
-                 {/* PP → full Plajah Pixels experience (same action as the track-row PP button) */}
-                 <button
-                   onClick={openPlajahPixels}
-                   title="Open the full Plajah Pixels experience"
-                   className="flex items-center gap-1.5 px-3.5 py-2 bg-purple-500/15 backdrop-blur-xl border border-purple-400/30 rounded-full text-[9px] font-black uppercase tracking-widest text-purple-200 hover:bg-purple-500/30 hover:text-white transition-all"
-                 >
-                   <Sparkles size={11} /> PP
-                 </button>
-                  <button
-                    onClick={() => setIsTvFxActive(true)}
-                    title="Open Fullscreen FX Stage"
-                    className="flex items-center gap-2 px-4 py-2 bg-small-orange text-black hover:bg-white hover:text-black border border-small-orange rounded-full text-[9px] font-black uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(255,140,0,0.3)] hover:scale-105 active:scale-95"
-                  >
-                    <Maximize2 size={12} /> Full Stage
-                  </button>
-               </div>
-             </div>
-
-             {/* Bottom: album art thumbnail + track info */}
-             <div className="absolute bottom-0 left-0 right-0 z-20 p-5 flex items-end gap-4">
-               <img
-                 src={thumb(album.coverImage, THUMB.small) || undefined}
-                 alt={album.title}
-                 loading="lazy"
-                 decoding="async"
-                 onError={onThumbError(album.coverImage)}
-                 className="w-14 h-14 rounded-xl object-cover border border-white/20 shadow-xl shrink-0"
-               />
-               <div className="flex-1 min-w-0 pb-1">
-                 <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/30 mb-0.5">{album.artist}</p>
-                 <p className="text-sm font-black uppercase tracking-tight text-white/80 truncate">{currentTrack?.title || album.title}</p>
-                 {!globalIsPlaying && (
-                   <p className="text-[8px] font-black uppercase tracking-widest text-white/20 mt-1">Play music to activate audio reactivity</p>
-                 )}
-               </div>
-             </div>
-           </div>
-         ) : (
-           /* ── DEFAULT MODE: cover art full-page bg + floating cards.
-                Gatefold: this column becomes the sleeve's LEFT LEAF — a solid
-                glass panel that folds open (rotateY from its right hinge) as
-                the album opens. Classic skin renders exactly as before. ── */
-           <motion.div
-             className={`relative flex flex-col ${gatefoldOn ? 'w-full flex-1 min-h-0 rounded-[1.75rem] border border-white/12 overflow-hidden' : 'w-full h-full'}`}
-             initial={gatefoldOn ? { rotateY: -55, opacity: 0.35 } : false}
-             animate={gatefoldOn ? { rotateY: 0, opacity: 1 } : {}}
-             transition={{ duration: 0.9, ease: [0.2, 0, 0, 1] }}
-             style={gatefoldOn ? { transformOrigin: '100% 50%', transformPerspective: 1400, background: 'rgba(14,8,22,0.66)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' } : undefined}
-           >
-             {/* Layer 0 — subtle visualizer at very low opacity for ambient movement */}
-             <div className="absolute inset-0 pointer-events-none opacity-20">
-               <div className="absolute inset-0" style={{ opacity: visualizerType === "PAINT" ? 0.35 : 1, transition: 'opacity 0.8s ease' }}>
-                 <Visualizer analyser={globalAnalyser} themeColor={album.themeColor} trackTitle={currentTrack?.title || album.title} artist={album.artist} isPlaying={globalIsPlaying && isCurrentTrackGlobal} scrollingText={scrollingText} />
-               </div>
-               {visualizerType === "PAINT" && (
-                 <div className="absolute inset-0 pointer-events-none" style={{ opacity: 0.92 }}>
-                   <PaintPoolVisualizer analyser={globalAnalyser} isPlaying={globalIsPlaying && isCurrentTrackGlobal} />
-                 </div>
-               )}
-             </div>
-
-             {/* Layer 1 — stage viewport (gatefold only).
-                 Stages fill the entire panel via absolute positioning. */}
-             {gatefoldOn && (
-              <div className="flex-1 relative z-10 min-h-0">
-                <AnimatePresence mode="wait" initial={false}>
-                  {gatefoldStageMode === 'ORRERY' ? (
-                    <motion.div key="orrery" className="absolute inset-0 flex items-center justify-center" initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.02 }} transition={{ duration: 0.7 }}>
-                      <OrreryStage album={album} tracks={localTracks} activeIndex={currentTrackIndex} isPlaying={globalIsPlaying && isCurrentTrackGlobal} onPlayTrack={(t, i) => { setCurrentTrackIndex(i); playTrack(t, album, 'LIBRARY'); }} />
-                    </motion.div>
-                  ) : gatefoldStageMode === 'SLIDESHOW' ? (
-                    <motion.div key="slideshow" className="absolute inset-0 overflow-hidden" initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.02 }} transition={{ duration: 0.7 }}>
-                      <AnimatedSlideshow key={`gatefold-slide-${album.id}-${currentTrack?.id || 'album'}`} images={gatefoldSlides} startIndex={gatefoldSlides.length > 1 ? 1 : 0} presentation="panel" isPlaying={globalIsPlaying && isCurrentTrackGlobal} themeColor={album.themeColor} canvasSponsor={album.canvasSponsor} />
-                    </motion.div>
-                  ) : gatefoldStageMode === 'FX' ? (
-                    <motion.div key="fx" className="absolute inset-0 overflow-hidden bg-black" initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.02 }} transition={{ duration: 0.7 }}>
-                      <div className="absolute inset-0">
-                        {isPixelsEngine ? (
-                          <FxStageVisualizers engine={fxEngine as FxEngine} presetIndex={fxPresetIndex} analyser={globalAnalyser} isPlaying={globalIsPlaying && isCurrentTrackGlobal} />
-                        ) : (
-                          <>
-                            <Visualizer analyser={globalAnalyser} themeColor={album.themeColor} trackTitle={currentTrack?.title || album.title} artist={album.artist} isPlaying={globalIsPlaying && isCurrentTrackGlobal} scrollingText={scrollingText} />
-                            {visualizerType === 'PAINT' && <div className="absolute inset-0"><PaintPoolVisualizer analyser={globalAnalyser} isPlaying={globalIsPlaying && isCurrentTrackGlobal} /></div>}
-                          </>
-                        )}
-                      </div>
-                      <div className="absolute inset-x-0 top-0 z-20 p-3 flex items-center justify-center bg-gradient-to-b from-black/75 to-transparent">
-                        {fxSelectorEl}
-                      </div>
-                      <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/85 via-black/50 to-transparent flex items-center justify-between gap-2 text-[9px] font-black uppercase tracking-[0.22em] text-small-orange">
-                        <span className="flex items-center gap-2"><Activity size={12} /> FX Stage</span>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setIsTvFxActive(true);
-                          }}
-                          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-small-orange text-black font-black uppercase tracking-widest text-[9px] hover:bg-white hover:scale-105 active:scale-95 transition-all shadow-[0_0_15px_rgba(255,140,0,0.4)] cursor-pointer"
-                          title="Open Fullscreen FX Stage"
-                        >
-                          <Maximize2 size={11} /> Full Stage
-                        </button>
-                      </div>
-                    </motion.div>
-                  ) : (
-                    <motion.div key="art-gatefold" initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0, scale: 1.02 }} transition={{ duration: 0.6, type: 'spring', damping: 20 }} className="absolute inset-0 overflow-hidden group flex items-center justify-center">
-                      <LookedCover src={thumb(album.coverImage, THUMB.large) || undefined} textureSrc={album.coverImage} trackId={currentTrack?.id} analyser={globalAnalyser} isPlaying={globalIsPlaying && isCurrentTrackGlobal} alt={album.title} loading="lazy" decoding="async" onError={onThumbError(album.coverImage)} className="max-w-full max-h-full object-contain transition-transform duration-700 group-hover:scale-105" />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-                      {album.worldId && <div className="absolute bottom-4 left-4 right-4"><WorldBadge worldId={album.worldId} contentTitle={album.title} contentType="album" onNavigate={onNavigateToWorld} /></div>}
-                      <div className="pointer-events-none absolute top-4 left-4 right-4 flex flex-col opacity-0 group-hover:opacity-100 transition-opacity duration-300"><h2 className="text-lg font-black uppercase tracking-tight drop-shadow-lg text-white">{album.title}</h2><p className="text-[10px] font-bold text-white/70 uppercase tracking-widest drop-shadow-md">{album.artist}</p></div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-             )}
-
-               {/* ── Gatefold bottom section — credits, view mode buttons, share.
-                    Sits below the viewport as a flex-column sibling so it stays at the bottom. */}
-               {gatefoldOn && (
-                 <div className="shrink-0 px-6 pb-4 pt-3 relative z-10">
-                   {/* Credits */}
-                   <div className="hidden [@media(min-height:820px)]:block mb-2">
-                    <h2 className="text-xl font-display font-black uppercase tracking-tight text-white leading-[1.02]" style={{ textWrap: 'balance' } as React.CSSProperties}>{album.title}</h2>
-                    <p
-                      className="mt-0.5 text-[10px] font-display font-black uppercase tracking-[0.22em] inline-block cursor-pointer hover:opacity-80 transition-opacity"
-                      style={{ background: 'var(--pj-grad-ember, linear-gradient(135deg,#D40055,#FF8C00))', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}
-                      onClick={() => { if (onVisitUser && album.ownerId) onVisitUser(album.ownerId); }}
-                    >
-                      {album.artist}
-                    </p>
-                    <div className="mt-1.5 flex flex-wrap gap-1.5">
-                      {(album.releaseDate || album.createdAt) && (
-                        <span className="px-2.5 py-1 rounded-full border border-white/15 text-[8px] font-display font-black uppercase tracking-widest text-white/60 tabular-nums">{new Date(album.releaseDate || album.createdAt).getFullYear()}</span>
-                      )}
-                      {album.genre && (
-                        <span className="px-2.5 py-1 rounded-full border border-white/15 text-[8px] font-display font-black uppercase tracking-widest text-white/60">{album.genre}</span>
-                      )}
-                      <span className="px-2.5 py-1 rounded-full border border-white/15 text-[8px] font-display font-black uppercase tracking-widest text-white/60 tabular-nums">
-                        {album.type === 'BOOK' ? `${album.bookChapters?.length || 0} chapters` : `${album.tracks?.length || 0} tracks`}
-                      </span>
-                    </div>
-                    {(album.linerNotes || cleanDescription(album.description)) && (
-                      <p className="mt-2 text-[10px] font-display font-bold uppercase tracking-wider leading-relaxed text-white/55 line-clamp-2">{album.linerNotes || cleanDescription(album.description)}</p>
-                    )}
-                   </div>
-
-                   {/* View mode toggle */}
-                   <div className="flex items-center justify-center gap-2 flex-wrap py-2">
-                  <button
-                    onClick={() => selectGatefoldStage('ART')}
-                    className={`px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border ${gatefoldStageMode === 'ART' ? 'bg-white text-black border-white' : 'bg-white/[0.06] border-white/10 text-white/40 hover:text-white'}`}
-                  >
-                    Art
-                  </button>
-                  <button
-                    onClick={() => selectGatefoldStage('SLIDESHOW')}
-                    className={`px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border ${gatefoldStageMode === 'SLIDESHOW' ? 'bg-white text-black border-white' : 'bg-white/[0.06] border-white/10 text-white/40 hover:text-white'}`}
-                  >
-                    Slideshow
-                  </button>
-                  {gatefoldOn && (
-                    <button
-                       onClick={() => selectGatefoldStage('ORRERY')}
-                       className={`px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border ${gatefoldStageMode === 'ORRERY' ? 'text-white border-transparent' : 'bg-white/[0.06] border-white/10 text-white/40 hover:text-white hover:border-[#00DAF3]/50'}`}
-                       style={gatefoldStageMode === 'ORRERY' ? { backgroundImage: 'var(--pj-grad-spatial, linear-gradient(135deg,#6B0099,#00DAF3))' } : {}}
-                    >
-                      Orrery
-                    </button>
-                  )}
-                  {canUseFxStage() && (
-                    <div className="flex items-center gap-1.5">
-                      <button
-                         onClick={() => selectGatefoldStage('FX')}
-                         className={`px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border flex items-center gap-2 ${gatefoldStageMode === 'FX' ? 'bg-small-orange/20 border-small-orange/60 text-small-orange' : 'bg-white/[0.06] border-white/10 text-white/40 hover:text-white hover:border-small-orange/50 hover:bg-small-orange/10'}`}
-                      >
-                        <Activity size={10} /> FX Stage
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setIsTvFxActive(true)}
-                        title="Open Fullscreen FX Stage"
-                        className="px-3 py-2 rounded-full bg-small-orange text-black hover:bg-white transition-all text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 shadow-[0_0_15px_rgba(255,140,0,0.3)] hover:scale-105 active:scale-95 cursor-pointer"
-                      >
-                        <Maximize2 size={11} /> Full Stage
-                      </button>
-                    </div>
-                  )}
-                   </div>
-
-                   {/* Share */}
-                   {!isPublic && (
-                     <button
-                       onClick={() => setShowShareModal(true)}
-                       className="w-full flex items-center justify-center gap-2.5 px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 group mt-1"
-                       style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: '#fff' }}
-                       onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,140,0,0.15)'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,140,0,0.35)'; (e.currentTarget as HTMLButtonElement).style.color = '#FF8C00'; }}
-                       onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.06)'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.12)'; (e.currentTarget as HTMLButtonElement).style.color = '#fff'; }}
-                     >
-                       <Share2 size={14} /> Share This Album
-                     </button>
-                   )}
-                 </div>
-               )}
-
-               {/* Non-gatefold: keep original layout inside viewport */}
-               {!gatefoldOn && (
-                 <div className="flex-1 flex flex-col items-center justify-center gap-5 px-8 pt-8 relative z-10">
-                   <AnimatePresence mode="wait" initial={false}>
-                     <motion.div key="art" initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0, scale: 1.02 }} transition={{ duration: 0.6, type: 'spring', damping: 20 }} className="relative w-[min(460px,48vh)] max-w-full aspect-square rounded-[2rem] overflow-hidden shadow-[0_24px_80px_rgba(0,0,0,0.6)] border border-white/10 group">
-                       <LookedCover src={thumb(album.coverImage, THUMB.large) || undefined} textureSrc={album.coverImage} trackId={currentTrack?.id} analyser={globalAnalyser} isPlaying={globalIsPlaying && isCurrentTrackGlobal} alt={album.title} loading="lazy" decoding="async" onError={onThumbError(album.coverImage)} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-                       {album.worldId && <div className="absolute bottom-4 left-4 right-4"><WorldBadge worldId={album.worldId} contentTitle={album.title} contentType="album" onNavigate={onNavigateToWorld} /></div>}
-                       <div className="pointer-events-none absolute top-4 left-4 right-4 flex flex-col opacity-0 group-hover:opacity-100 transition-opacity duration-300"><h2 className="text-lg font-black uppercase tracking-tight drop-shadow-lg text-white">{album.title}</h2><p className="text-[10px] font-bold text-white/70 uppercase tracking-widest drop-shadow-md">{album.artist}</p></div>
-                     </motion.div>
-                   </AnimatePresence>
-                 </div>
-               )}
-
-             {/* Layer 2 — World + character info cards just below album art */}
-             <div className="relative z-10 px-6 pb-6 space-y-3">
-               {/* Featured Characters horizontal scroll */}
-               {worldCharacters.length > 0 && (
-                 <motion.div
-                   initial={{ opacity: 0, y: 12 }}
-                   animate={{ opacity: 1, y: 0 }}
-                   transition={{ delay: 0.2 }}
-                   className="bg-white/[0.06] backdrop-blur-2xl border border-white/[0.08] rounded-2xl p-4"
-                 >
-                   <p className="text-[8px] font-black uppercase tracking-[0.3em] text-white/30 mb-3 flex items-center gap-2">
-                     <Users size={9} /> Featured Characters
-                   </p>
-                   <div className="flex gap-3 overflow-x-auto no-scrollbar">
-                     {worldCharacters.slice(0, 8).map(char => (
-                       <div key={char.id} className="flex flex-col items-center gap-1.5 shrink-0 w-12">
-                         <div className="w-10 h-10 rounded-full overflow-hidden border border-[#D0BCFF]/25 bg-white/5 shadow-lg">
-                           <img
-                             src={thumb(char.imageUrl, THUMB.micro) || `https://ui-avatars.com/api/?name=${encodeURIComponent(char.name)}&background=333&color=fff`}
-                             alt={char.name}
-                             loading="lazy"
-                             decoding="async"
-                             className="w-full h-full object-cover"
-                             onError={e => { (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(char.name)}&background=333&color=fff`; }}
-                           />
-                         </div>
-                         <p className="text-[7px] font-black text-white/40 uppercase tracking-wide truncate w-full text-center">{char.name}</p>
-                       </div>
-                     ))}
-                   </div>
-                 </motion.div>
-               )}
-
-               {/* More From This World compact strip */}
-               {worldContent && ([...worldContent.videos, ...worldContent.albums].filter(c => c.id !== album.id).length > 0) && (
-                 <motion.div
-                   initial={{ opacity: 0, y: 12 }}
-                   animate={{ opacity: 1, y: 0 }}
-                   transition={{ delay: 0.35 }}
-                   className="bg-white/[0.06] backdrop-blur-2xl border border-white/[0.08] rounded-2xl p-4"
-                 >
-                   <p className="text-[8px] font-black uppercase tracking-[0.3em] text-white/30 mb-3">More From This World</p>
-                   <div className="flex gap-2.5 overflow-x-auto no-scrollbar">
-                     {[...worldContent.videos, ...worldContent.albums]
-                       .filter(c => c.id !== album.id)
-                       .slice(0, 10)
-                       .map((content, i) => {
-                         const coverThumb = (content as any).coverImage || (content as any).coverImageUrl || (content as any).thumbnailUrl;
-                         return (
-                           <div key={(content as any).id || i} className="shrink-0 w-12">
-                             <div className="w-12 h-16 rounded-xl overflow-hidden bg-white/5 border border-white/8 mb-1 shadow-md">
-                               {coverThumb
-                                 ? <img src={thumb(coverThumb, THUMB.small) || undefined} onError={onThumbError(coverThumb)} loading="lazy" decoding="async" alt={content.title} className="w-full h-full object-cover" />
-                                 : <div className="w-full h-full flex items-center justify-center"><Music2 size={13} className="text-white/15" /></div>}
-                             </div>
-                             <p className="text-[7px] font-black text-white/35 truncate uppercase tracking-wide">{content.title}</p>
-                           </div>
-                         );
-                       })}
-                   </div>
-                 </motion.div>
-               )}
-             </div>
-           </motion.div>
-         )}
-
-         {/* Gatefold: the live lyric rides ON the leaf's lower edge as a subtitle
-             overlay (z-20, pointer-events-none) — it can never be covered by the
-             leaf again. Classic keeps the old stacked strip below the art. */}
-         {showCaptions && currentTrack && (currentTrack.lyrics || currentTrack.timeCodedLyrics) && !activeVideoId && (
-           <div className={gatefoldOn
-             ? 'absolute bottom-10 inset-x-8 z-20 pointer-events-none animate-in slide-in-from-bottom-4 duration-700'
-             : 'mt-auto mb-8 animate-in slide-in-from-bottom-4 duration-700'}>
-             <div className="h-16 flex items-center justify-center overflow-hidden">
-               <p className={`text-xl lg:text-2xl font-display font-black uppercase text-center tracking-tight leading-tight transition-all duration-700 ${gatefoldOn ? 'text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]' : 'text-white/80'}`}>
-                 {getCurrentCaption()}
-               </p>
-             </div>
-           </div>
-         )}
-      </div>
-
-      <div className="relative z-40 w-full h-full flex flex-col p-6 lg:p-12 pointer-events-none">
-        {/* ── Upper-left branded Back → Chora (desktop) ── */}
-        <button
-          onClick={onBack}
-          aria-label="Back to Chora"
-          className="hidden lg:flex absolute left-6 top-6 z-50 items-center gap-2 py-1.5 pl-2 pr-4 rounded-full pointer-events-auto transition-all hover:scale-[1.03] active:scale-95"
-          style={{ background: 'rgba(8,6,12,0.55)', border: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(12px)' }}
-        >
-          <Logo size={22} flip />
-          <span className="text-[9px] font-black uppercase tracking-widest text-white/80">Back</span>
-        </button>
-        {/* ── Kill: reset the track to its natural dry state (no DJ FX) ── */}
-        <button
-          onClick={() => resetAudioFx?.()}
-          aria-label="Kill DJ audio FX — reset to dry"
-          title="Kill all DJ audio FX — reset the track to its natural, dry sound"
-          className={`hidden lg:flex absolute left-6 top-[3.6rem] z-50 items-center gap-1.5 py-1.5 pl-3 pr-4 rounded-full pointer-events-auto transition-all hover:scale-[1.03] active:scale-95 ${(isFxActive || activeLiveFx) ? 'animate-pulse' : ''}`}
-          style={{
-            background: (isFxActive || activeLiveFx) ? 'rgba(220,38,38,0.28)' : 'rgba(8,6,12,0.55)',
-            border: `1px solid ${(isFxActive || activeLiveFx) ? 'rgba(248,113,113,0.6)' : 'rgba(255,255,255,0.08)'}`,
-            backdropFilter: 'blur(12px)',
-          }}
-        >
-          <ZapOff size={13} className={(isFxActive || activeLiveFx) ? 'text-red-300' : 'text-white/60'} />
-          <span className={`text-[9px] font-black uppercase tracking-widest ${(isFxActive || activeLiveFx) ? 'text-red-200' : 'text-white/60'}`}>Kill</span>
-        </button>
-
-        {/* ── Right-side vertical action column (desktop only; hidden in the
-               Gatefold skin, which renders the bottom chip dock instead) ── */}
-        {!gatefoldOn && (
-        <div className="hidden lg:flex absolute right-6 top-0 bottom-0 z-50 flex-col items-end justify-center gap-[3px] pointer-events-auto" style={{ paddingRight: '0px' }}>
-          {/* Helper: icon + expandable label pill */}
-          {[
-            ...(isPublic ? [{ key: 'live', icon: Globe, label: 'Live Microsite', onClick: undefined, style: { color: 'rgb(74 222 128)' } }] : []),
-            ...(isOwner ? [{ key: 'edit', icon: Zap, label: isLockerRelease ? 'Edit Locker' : 'Edit Album', onClick: handleOpenEdit, style: { color: '#FF8C00' } }] : []),
-            { key: 'fxlab', icon: Radio, label: 'FX Audition Lab', onClick: () => window.dispatchEvent(new CustomEvent('OPEN_LIVE_FX_LAB')), style: { color: '#00DAF3' } },
-            { key: 'fx', icon: Activity, label: isVisualizerLayout ? 'Exit FX' : 'FX Stage', onClick: () => { if (isVisualizerLayout) setIsVisualizerLayout(false); else setIsTvFxActive(true); }, style: isVisualizerLayout ? { color: '#FF8C00' } : {} },
-            { key: 'tv', icon: VideoIcon, label: isTVMode ? 'TV On' : 'TV Mode', onClick: () => setIsTVMode(!isTVMode), style: isTVMode ? { color: '#FF8C00' } : {} },
-            { key: 'dj', icon: Disc, label: 'DJ Mode', onClick: () => { getAudioContext?.(); setIsDJMode(true); }, style: {} },
-            { key: 'lights', icon: Zap, label: 'Lights', onClick: () => setIsLightingOpen(true), style: isLightingOpen ? { color: '#FF8C00' } : {} },
-            { key: 'pixels', icon: Sparkles, label: 'Pixels', onClick: () => window.dispatchEvent(new CustomEvent('OPEN_PLAJAH_PIXELS', { detail: { album } })), style: {} },
-            ...(!isOwner && !isPreview && !isLockerRelease ? [
-              { key: 'gifts', icon: HeartHandshake, label: 'Gifts & Tips', onClick: () => setIsDonationModalOpen(true), style: { color: '#FF8C00' } },
-              { key: 'pif', icon: Heart, label: 'Pay It Forward', onClick: () => window.dispatchEvent(new CustomEvent('OPEN_PIF_MODAL')), style: {} },
-            ] : []),
-          ].map(item => (
-            <button
-              key={item.key}
-              onClick={item.onClick}
-              disabled={!item.onClick}
-              className="group flex items-center gap-1.5 py-1.5 pr-2 pl-3 rounded-full transition-all duration-200 cursor-pointer select-none"
-              style={{ background: 'rgba(8,6,12,0.55)', border: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(12px)' }}
-            >
-              <span className="max-w-0 group-hover:max-w-[120px] overflow-hidden whitespace-nowrap transition-all duration-200 ease-in-out text-[8px] font-black uppercase tracking-widest opacity-0 group-hover:opacity-100" style={item.style}>
-                {item.label}
-              </span>
-              <div className="w-6 h-6 flex items-center justify-center shrink-0">
-                <item.icon size={12} className="transition-colors" style={item.style} />
-              </div>
-            </button>
-          ))}
-
-          {/* Thin divider */}
-          <div className="w-6 h-px bg-white/10 my-1" />
-
-          {/* Tab nav buttons */}
-          {([
-            { id: 'TRACKS', label: album.trackListLabel || (album.type === 'BOOK' ? 'Contents' : 'Track List'), icon: album.type === 'BOOK' ? BookOpen : List },
-            { id: 'LYRICS', label: 'Lyrics', icon: Music2 },
-            { id: 'MEDIA', label: 'Videos & Art', icon: VideoIcon },
-            { id: 'COMMENTS', label: 'Feed', icon: MessageSquare },
-            { id: 'INFO', label: album.type === 'BOOK' ? 'Synopsis' : 'Liner Notes', icon: Sparkles },
-          ] as const).map(tab => {
-            const active = activeHUD === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveHUD(tab.id as any)}
-                className="group flex items-center gap-1.5 py-1.5 pr-2 pl-3 rounded-full transition-all duration-200 cursor-pointer select-none"
-                style={active ? {
-                  background: 'linear-gradient(135deg, rgba(255,140,0,0.22) 0%, rgba(139,92,246,0.22) 100%)',
-                  border: '1px solid rgba(255,140,0,0.35)',
-                  backdropFilter: 'blur(12px)',
-                } : {
-                  background: 'rgba(8,6,12,0.55)',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                  backdropFilter: 'blur(12px)',
-                }}
-              >
-                <span className={`max-w-0 group-hover:max-w-[120px] overflow-hidden whitespace-nowrap transition-all duration-200 ease-in-out text-[8px] font-black uppercase tracking-widest opacity-0 group-hover:opacity-100 ${active ? 'text-white' : 'text-white/45'}`}>
-                  {tab.label}
-                </span>
-                <div className="w-6 h-6 flex items-center justify-center shrink-0">
-                  <tab.icon size={12} className={active ? 'text-small-orange' : 'text-white/40 group-hover:text-white/70 transition-colors'} />
-                </div>
-              </button>
-            );
-          })}
-
-          {/* Thin divider */}
-          <div className="w-6 h-px bg-white/10 my-1" />
-
-          {/* About / Gallery / Captions / Share / Promote */}
-          {[
-            { key: 'about', icon: User, label: activeHUD === 'ABOUT' ? 'Close Bio' : 'About Artist', onClick: () => setActiveHUD(activeHUD === 'ABOUT' ? 'TRACKS' : 'ABOUT'), active: activeHUD === 'ABOUT' },
-            ...(album.galleryUrl ? [{ key: 'gallery', icon: Globe, label: 'Gallery', onClick: () => window.open(album.galleryUrl!, '_blank'), active: false }] : []),
-            { key: 'captions', icon: MessageSquare, label: showCaptions ? 'Hide Captions' : 'Captions', onClick: () => setShowCaptions(!showCaptions), active: showCaptions },
-            ...(!isPublic ? [{ key: 'share', icon: Share2, label: 'Share', onClick: () => setShowShareModal(true), active: false }] : []),
-            ...(isOwner ? [{ key: 'promote', icon: Megaphone, label: 'Promote', onClick: () => setShowPromoModal(true), active: showPromoModal }] : []),
-          ].map(item => (
-            <button
-              key={item.key}
-              onClick={item.onClick}
-              className="group flex items-center gap-1.5 py-1.5 pr-2 pl-3 rounded-full transition-all duration-200 cursor-pointer select-none"
-              style={item.active ? {
-                background: 'rgba(255,140,0,0.18)',
-                border: '1px solid rgba(255,140,0,0.35)',
-                backdropFilter: 'blur(12px)',
-              } : {
-                background: 'rgba(8,6,12,0.55)',
-                border: '1px solid rgba(255,255,255,0.08)',
-                backdropFilter: 'blur(12px)',
-              }}
-            >
-              <span className={`max-w-0 group-hover:max-w-[120px] overflow-hidden whitespace-nowrap transition-all duration-200 ease-in-out text-[8px] font-black uppercase tracking-widest opacity-0 group-hover:opacity-100 ${item.active ? 'text-small-orange' : 'text-white/45'}`}>
-                {item.label}
-              </span>
-              <div className="w-6 h-6 flex items-center justify-center shrink-0">
-                <item.icon size={12} className={item.active ? 'text-small-orange' : 'text-white/40 group-hover:text-white/70 transition-colors'} />
-              </div>
-            </button>
-          ))}
-        </div>
-        )}
-
-        {/* ── Gatefold bottom chip dock (Chora Next skin, desktop only) ──
-            The same three groups as the vertical rail — HUD tabs as labeled
-            chips (Chip Rail language, gradient active), then icon chips for
-            About/Captions/Share/Gallery and the action set. Item definitions
-            mirror the rail above; consolidate when Gatefold graduates. */}
-        {gatefoldOn && (
-          <div className="hidden lg:flex absolute bottom-4 inset-x-0 z-50 justify-center pointer-events-none px-6">
-            <div
-              className="pointer-events-auto flex items-center gap-[3px] p-[5px] rounded-full border border-white/15 overflow-x-auto no-scrollbar max-w-full"
-              style={{ background: 'rgba(10,6,16,0.72)', backdropFilter: 'blur(24px) saturate(160%)' }}
-            >
-              {([
-                { id: 'TRACKS', label: album.trackListLabel || (album.type === 'BOOK' ? 'Contents' : 'Tracks'), icon: album.type === 'BOOK' ? BookOpen : List },
-                { id: 'LYRICS', label: 'Lyrics', icon: Music2 },
-                { id: 'MEDIA', label: 'Videos & Art', icon: VideoIcon },
-                { id: 'COMMENTS', label: 'Feed', icon: MessageSquare },
-                { id: 'INFO', label: album.type === 'BOOK' ? 'Synopsis' : 'Notes', icon: Sparkles },
-              ] as const).map(tab => {
-                const active = activeHUD === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveHUD(tab.id as any)}
-                    className="shrink-0 flex items-center gap-1.5 h-[30px] px-3.5 rounded-full text-[9px] font-black uppercase tracking-widest whitespace-nowrap transition-all"
-                    style={active
-                      ? { backgroundImage: 'var(--pj-grad-brand, linear-gradient(135deg,#6B0099,#D40055))', color: '#fff' }
-                      : { color: 'rgba(255,255,255,0.55)' }}
-                  >
-                    <tab.icon size={12} className={active ? 'text-white' : 'text-white/40'} />
-                    {tab.label}
-                  </button>
-                );
-              })}
-              <div className="w-px h-5 bg-white/15 mx-1 shrink-0" />
-              {[
-                { key: 'about', icon: User, label: 'About Artist', onClick: () => setActiveHUD(activeHUD === 'ABOUT' ? 'TRACKS' : 'ABOUT'), active: activeHUD === 'ABOUT' },
-                ...(album.galleryUrl ? [{ key: 'gallery', icon: Globe, label: 'Gallery', onClick: () => window.open(album.galleryUrl!, '_blank'), active: false }] : []),
-                { key: 'captions', icon: MessageSquare, label: showCaptions ? 'Hide Captions' : 'Captions', onClick: () => setShowCaptions(!showCaptions), active: showCaptions },
-                ...(!isPublic ? [{ key: 'share', icon: Share2, label: 'Share', onClick: () => setShowShareModal(true), active: false }] : []),
-                ...(isOwner ? [{ key: 'promote', icon: Megaphone, label: 'Promote', onClick: () => setShowPromoModal(true), active: showPromoModal }] : []),
-                ...(isOwner ? [{ key: 'edit', icon: Zap, label: isLockerRelease ? 'Edit Locker' : 'Edit Album', onClick: handleOpenEdit, active: false }] : []),
-                { key: 'fxlab', icon: Radio, label: 'FX Lab', onClick: () => window.dispatchEvent(new CustomEvent('OPEN_LIVE_FX_LAB')), active: false },
-                { key: 'fx', icon: Activity, label: isVisualizerLayout ? 'Exit FX' : 'FX Stage', onClick: () => { if (isVisualizerLayout) setIsVisualizerLayout(false); else setIsTvFxActive(true); }, active: isVisualizerLayout },
-                { key: 'tv', icon: VideoIcon, label: isTVMode ? 'TV On' : 'TV Mode', onClick: () => setIsTVMode(!isTVMode), active: isTVMode },
-                { key: 'dj', icon: Disc, label: 'DJ Mode', onClick: () => { getAudioContext?.(); setIsDJMode(true); }, active: false },
-                { key: 'lights', icon: Zap, label: 'Lights', onClick: () => setIsLightingOpen(true), active: isLightingOpen },
-                { key: 'pixels', icon: Sparkles, label: 'Pixels', onClick: () => window.dispatchEvent(new CustomEvent('OPEN_PLAJAH_PIXELS', { detail: { album } })), active: false },
-                ...(!isOwner && !isPreview && !isLockerRelease ? [
-                  { key: 'gifts', icon: HeartHandshake, label: 'Gifts & Tips', onClick: () => setIsDonationModalOpen(true), active: false },
-                  { key: 'pif', icon: Heart, label: 'Pay It Forward', onClick: () => window.dispatchEvent(new CustomEvent('OPEN_PIF_MODAL')), active: false },
-                ] : []),
-                ...(isPublic ? [{ key: 'live', icon: Globe, label: 'Live Microsite', onClick: undefined as (() => void) | undefined, active: false }] : []),
-              ].map(item => (
-                <button
-                  key={item.key}
-                  onClick={item.onClick}
-                  disabled={!item.onClick}
-                  title={item.label}
-                  aria-label={item.label}
-                  className="shrink-0 w-[30px] h-[30px] rounded-full flex items-center justify-center transition-all hover:bg-white/10 disabled:opacity-40"
-                  style={item.active ? { background: 'rgba(255,140,0,0.18)', border: '1px solid rgba(255,140,0,0.4)' } : {}}
-                >
-                  <item.icon size={13} className={item.active ? 'text-small-orange' : 'text-white/45'} />
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ── LEGACY horizontal header kept as empty anchor (remove chevron refs) ── */}
-        {false && <header ref={tabScrollRef} onScroll={onTabScroll} className="hidden">
-             {isVisualizerLayout && (
-               <button
-                 onClick={() => setIsVisualizerLayout(false)}
-                 className="flex items-center gap-1.5 px-3.5 py-2 bg-small-orange/20 border border-small-orange/30 text-small-orange rounded-lg font-black text-[9px] uppercase tracking-widest hover:bg-small-orange/30 transition-all shrink-0 whitespace-nowrap"
-               >
-                 <Activity size={13} /> FX Stage On
-               </button>
-             )}
-             {!isPublic ? (
-               <button onClick={onBack} className="flex items-center gap-1.5 px-3.5 py-2 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-all font-black text-[9px] uppercase tracking-widest shrink-0 whitespace-nowrap">
-                 <ArrowLeft size={13} /> Library
-               </button>
-             ) : (
-               <div className="flex items-center gap-1.5 px-3.5 py-2 bg-white/5 backdrop-blur-md border border-white/10 rounded-lg font-black text-[9px] uppercase tracking-widest shrink-0 whitespace-nowrap">
-                 <Globe size={13} className="text-green-500" /> Live Microsite
-               </div>
-             )}
-             {isOwner && onEdit && (
-               <button onClick={() => onEdit(album)} className="flex items-center gap-1.5 px-3.5 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-all font-black text-[9px] uppercase tracking-widest shadow-lg shrink-0 whitespace-nowrap">
-                 <Zap size={13} /> Edit Album
-               </button>
-             )}
-             <button
-               onClick={() => setIsTVMode(!isTVMode)}
-               className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg transition-all font-black text-[9px] uppercase tracking-widest shrink-0 whitespace-nowrap ${isTVMode ? 'bg-small-orange text-black' : 'bg-white/8 text-white border border-white/10'}`}
-             >
-               <VideoIcon size={13} /> {isTVMode ? 'TV On' : 'TV Mode'}
-             </button>
-             <button
-               onClick={() => { getAudioContext?.(); setIsDJMode(true); }}
-               className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg transition-all font-black text-[9px] uppercase tracking-widest bg-white/8 text-white border border-white/10 hover:bg-[#00D4AA]/20 hover:border-[#00D4AA]/40 hover:text-[#00D4AA] shrink-0 whitespace-nowrap"
-             >
-               <Disc size={13} /> DJ Mode
-             </button>
-             <button
-               onClick={() => setIsLightingOpen(true)}
-               className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg transition-all font-black text-[9px] uppercase tracking-widest shrink-0 whitespace-nowrap border ${isLightingOpen ? 'bg-[#FF8C00]/20 border-[#FF8C00]/40 text-[#FF8C00]' : 'bg-white/8 text-white border-white/10 hover:bg-[#FF8C00]/10 hover:border-[#FF8C00]/30 hover:text-[#FF8C00]'}`}
-             >
-               <Zap size={13} /> Lights
-             </button>
-             <button
-               onClick={() => window.dispatchEvent(new CustomEvent('OPEN_PLAJAH_PIXELS', { detail: { album } }))}
-               className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg transition-all font-black text-[9px] uppercase tracking-widest bg-white/8 text-white border border-white/10 hover:bg-purple-500/20 hover:border-purple-400/40 hover:text-purple-200 shrink-0 whitespace-nowrap"
-             >
-               <Sparkles size={13} /> Plajah Pixels
-             </button>
-             {!isOwner && !isPreview && (
-               <>
-                 <button onClick={() => setIsDonationModalOpen(true)} className="flex items-center gap-1.5 px-3.5 py-2 bg-small-orange text-black rounded-lg font-black text-[9px] uppercase tracking-widest shrink-0 whitespace-nowrap hover:scale-105 transition-all active:scale-95">
-                   <HeartHandshake size={13} /> Gifts & Tips
-                 </button>
-                 <button onClick={() => window.dispatchEvent(new CustomEvent('OPEN_PIF_MODAL'))} className="flex items-center gap-1.5 px-3.5 py-2 bg-white/5 border border-white/10 text-white rounded-lg font-black text-[9px] uppercase tracking-widest shrink-0 whitespace-nowrap hover:bg-white/10 transition-all active:scale-95">
-                   <Heart size={13} /> Pay It Forward
-                 </button>
-               </>
-             )}
-
-             {/* ── Tab nav — rounded-rect with orange-purple frost glass active state ── */}
-             <div className="w-px h-5 bg-white/10 shrink-0 mx-1" />
-             {([
-               { id: 'TRACKS', label: album.trackListLabel || (album.type === 'BOOK' ? 'Contents' : 'Track List'), icon: album.type === 'BOOK' ? BookOpen : List },
-               { id: 'LYRICS', label: 'Lyrics', icon: Music2 },
-               { id: 'MEDIA', label: 'Videos & Art', icon: VideoIcon },
-               { id: 'COMMENTS', label: 'Feed', icon: MessageSquare },
-               { id: 'INFO', label: album.type === 'BOOK' ? 'Synopsis' : 'Liner Notes', icon: Sparkles },
-             ] as const).map(tab => {
-               const active = activeHUD === tab.id;
-               return (
-                 <button
-                   key={tab.id}
-                   onClick={() => setActiveHUD(tab.id as any)}
-                   className="relative flex items-center gap-1.5 px-3.5 py-2 font-black text-[9px] uppercase tracking-widest shrink-0 whitespace-nowrap overflow-hidden transition-all duration-200"
-                   style={active ? {
-                     borderRadius: '8px',
-                     background: 'linear-gradient(135deg, rgba(255,140,0,0.16) 0%, rgba(139,92,246,0.16) 100%)',
-                     border: '1px solid rgba(255,140,0,0.30)',
-                     boxShadow: '0 0 14px rgba(255,140,0,0.10), inset 0 1px 0 rgba(255,255,255,0.07)',
-                     color: '#fff',
-                   } : {
-                     borderRadius: '8px',
-                     background: 'rgba(255,255,255,0.04)',
-                     border: '1px solid rgba(255,255,255,0.08)',
-                     color: 'rgba(255,255,255,0.35)',
-                   }}
-                 >
-                   {active && <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(135deg, rgba(255,140,0,0.06) 0%, rgba(139,92,246,0.06) 100%)', borderRadius: '7px' }} />}
-                   <tab.icon size={13} className="relative shrink-0" />
-                   <span className="relative">{tab.label}</span>
-                 </button>
-               );
-             })}
-             <div className="w-px h-5 bg-white/10 shrink-0 mx-1" />
-
-             <button
-               onClick={() => setActiveHUD(activeHUD === 'ABOUT' ? 'TRACKS' : 'ABOUT')}
-               className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg font-black text-[9px] uppercase tracking-widest border transition-all shrink-0 whitespace-nowrap ${activeHUD === 'ABOUT' ? 'bg-small-orange text-black border-small-orange' : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10 hover:text-white'}`}
-             >
-               <User size={13} /> {activeHUD === 'ABOUT' ? 'Close Bio' : 'About Artist'}
-             </button>
-             {album.galleryUrl && (
-               <a href={album.galleryUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-3.5 py-2 bg-white text-black rounded-lg font-black text-[9px] uppercase tracking-widest shrink-0 whitespace-nowrap hover:scale-105 transition-all">
-                 <Globe size={13} /> Gallery
-               </a>
-             )}
-             <button
-               onClick={() => setShowCaptions(!showCaptions)}
-               className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg font-black text-[9px] uppercase tracking-widest border transition-all shrink-0 whitespace-nowrap ${showCaptions ? 'bg-small-orange text-black border-small-orange' : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10 hover:text-white'}`}
-             >
-               {showCaptions ? 'Hide Captions' : 'Captions'}
-             </button>
-             {!isPublic && (
-               <button onClick={() => setShowShareModal(true)} className="flex items-center gap-1.5 px-3.5 py-2 bg-white text-black rounded-lg font-black text-[9px] uppercase tracking-widest shrink-0 whitespace-nowrap hover:scale-105 transition-all ml-auto">
-                 <Share2 size={13} /> Share
-               </button>
-             )}
-          </header>}
-
-        {/* Gatefold: the RIGHT LEAF — panel-framed, seamed at 50% beside the left
-            leaf (classic skin keeps the overlapping floating-card layout). */}
-        <div
-          className={`pointer-events-auto flex flex-col gap-6 flex-1 overflow-hidden ${isVisualizerLayout ? 'lg:w-[38%] lg:ml-[62%] xl:w-[34%] xl:ml-[66%] 2xl:w-[30%] 2xl:ml-[70%] lg:mr-0' : gatefoldOn ? 'lg:w-[50%] lg:ml-[50%] lg:mr-auto rounded-[1.75rem] border border-white/12 p-5' : 'lg:w-[50%] lg:ml-[44%] lg:mr-auto'}`}
-          style={gatefoldOn && !isVisualizerLayout ? { background: 'rgba(10,6,16,0.4)', backdropFilter: 'blur(28px)', WebkitBackdropFilter: 'blur(28px)' } : undefined}
-        >
-          {/* ── Compact album art strip (shown only in visualizer layout mode) ── */}
-          {isVisualizerLayout && (
-            <motion.div
-              initial={{ opacity: 0, y: -16 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="flex items-center gap-4 px-5 py-3 bg-black/50 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-xl"
-            >
-              <img
-                src={thumb(album.coverImage, THUMB.small) || undefined}
-                alt={album.title}
-                loading="lazy"
-                decoding="async"
-                onError={onThumbError(album.coverImage)}
-                className="w-14 h-14 rounded-xl object-cover border border-white/20 shadow-lg shrink-0 cursor-pointer hover:scale-105 transition-all"
-                onClick={() => { setIsVisualizerLayout(false); }}
-                title="Back to album art"
-              />
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-black uppercase tracking-widest text-white truncate">{currentTrack?.title || album.title}</p>
-                <p className="text-[9px] font-bold text-small-orange uppercase tracking-widest truncate opacity-70">{album.artist}</p>
-              </div>
-              <button
-                onClick={() => setIsTvFxActive(true)}
-                className="p-2 text-white/30 hover:text-white hover:bg-white/10 rounded-xl transition-all shrink-0"
-                title="Full Stage"
-              >
-                <Maximize2 size={14} />
-              </button>
-            </motion.div>
-          )}
-
-          {/* ── Plajah Audio Session Command Deck ──
-              Unified architectural glass header: cover medallion, Plajah all-caps display hierarchy,
-              live progress rail, uniform single-line pill action bar (zero wrap/clip), and studio Live FX dock. */}
-          <div
-            className={`relative overflow-hidden w-full bg-theme-card backdrop-blur-3xl border border-white/[0.12] ${
-              gatefoldOn ? 'rounded-[1.5rem] p-4 lg:p-5' : 'rounded-[2rem] p-5 lg:p-6'
-            } shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_16px_48px_rgba(0,0,0,0.4)]`}
-          >
-             {/* Animated Plajah brand gradient — living sweep, weighted to purple + magenta */}
-             <div className="absolute inset-0 audio-session-gradient opacity-30 pointer-events-none" aria-hidden="true" />
-             <div className="absolute inset-0 bg-gradient-to-br from-black/35 via-black/15 to-black/40 pointer-events-none" aria-hidden="true" />
-             <div className="relative z-10 flex flex-col gap-3.5">
-                {/* ── Row 1: Session Identity + Artwork Medallion + Telemetry Readout ── */}
-                <div className="flex items-center gap-3.5 min-w-0">
-                  <div className="relative shrink-0 group/thumb">
-                    <img
-                      src={thumb(album.coverImage, THUMB.small) || undefined}
-                      alt={album.title}
-                      loading="lazy"
-                      decoding="async"
-                      onError={onThumbError(album.coverImage)}
-                      className="w-14 h-14 lg:w-16 lg:h-16 rounded-2xl object-cover border border-white/20 shadow-[0_8px_24px_rgba(0,0,0,0.5)] shrink-0"
-                    />
-                    {globalIsPlaying && isCurrentTrackGlobal && (
-                      <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-[#FF8C00] border-2 border-[#0d0614] shadow-[0_0_10px_#FF8C00]" />
-                    )}
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    {/* Eyebrow: Live status beacon + Track counter + Immersive badge */}
-                    <div className="flex flex-wrap items-center gap-2 mb-1">
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#FF8C00]/15 border border-[#FF8C00]/35 text-[9px] font-display font-black uppercase tracking-[0.24em] text-[#FF8C00] shrink-0">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#FF8C00] shadow-[0_0_8px_#FF8C00]" />
-                        AUDIO SESSION
-                      </span>
-                      <span className="text-[9px] font-display font-black uppercase tracking-[0.22em] text-white/55 shrink-0">
-                        TRACK {currentTrackIndex + 1} / {album.tracks.length}
-                      </span>
-                      {(() => {
-                        const ecl = currentTrack?.isEclipsa || album.tracks?.some(t => t.isEclipsa);
-                        const atm = currentTrack?.isAtmos || album.tracks?.some(t => t.isAtmos);
-                        return (ecl || atm) ? <ImmersiveBadge isEclipsa={ecl} isAtmos={atm} size="sm" /> : null;
-                      })()}
-                    </div>
-
-                    {/* Track Title — Plajah Display All-Caps Typography */}
-                    <h1
-                      className={`font-display font-black uppercase tracking-tight leading-[1.06] text-white truncate drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)] ${
-                        isVisualizerLayout ? 'text-lg lg:text-xl' : gatefoldOn ? 'text-xl lg:text-2xl' : 'text-2xl lg:text-3xl'
-                      }`}
-                    >
-                      {currentTrack?.title || album.title}
-                    </h1>
-
-                    {/* Artist Subline — Signature Plajah Warm Ember Gradient */}
-                    <p
-                      className="mt-0.5 font-display text-[11px] lg:text-xs font-black uppercase tracking-[0.24em] w-fit bg-gradient-to-r from-[#FF8C00] via-[#D40055] to-[#D0BCFF] bg-clip-text text-transparent cursor-pointer hover:opacity-80 transition-opacity truncate max-w-full"
-                      onClick={() => { if (onVisitUser && album.ownerId) onVisitUser(album.ownerId); }}
-                    >
-                      {album.artist}
-                    </p>
-                  </div>
-
-                  {/* Live Countdown / Duration Readout Pill */}
-                  {isCurrentTrackGlobal && globalDuration > 0 && (
-                    <div className="shrink-0 self-start flex items-center gap-1 px-3 py-1 rounded-full bg-black/45 border border-white/12 font-display tabular-nums text-[10px] font-black uppercase tracking-[0.14em] shadow-inner">
-                      <span className={isEndingSoon ? 'text-red-400' : 'text-[#FF8C00]'}>-{formatTime(trackRemaining)}</span>
-                      <span className="text-white/25">/</span>
-                      <span className="text-white/50">{formatTime(globalDuration)}</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Live Progress Scrubber Hairline */}
-                <div className="h-[3px] w-full rounded-full bg-white/[0.08] overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-[#6B0099] via-[#D40055] to-[#FF8C00] shadow-[0_0_12px_rgba(255,140,0,0.5)] transition-[width] duration-500"
-                    style={{ width: `${isCurrentTrackGlobal && globalDuration > 0 ? Math.min(100, (globalCurrentTime / globalDuration) * 100) : 0}%` }}
-                  />
-                </div>
-
-                {deckActionsEl}
-
-                {deckPartyEl}
-
-                {liveFxConsoleEl}
-             </div>
-          </div>
-
-          {hudContentEl}
-        </div>
-
-        {/* Gatefold: bottom margin lifts the footer clear of the fixed chip dock */}
-        <footer className={`mt-auto pt-16 flex justify-end items-center text-[10px] font-black uppercase tracking-[0.4em] text-white/10${gatefoldOn ? ' mb-12' : ''}`}>
-           <div className="flex gap-6 items-center">
-             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#6B0099] to-[#FF8C00] flex items-center justify-center shadow-lg">
-               <Logo size={16} />
-             </div>
-             Plajah — Creative Control by {album.artist}
-           </div>
-        </footer>
-      </div>
-
-      {desktopOverlaysEl}
-    </div>
-  );
 };
 
 export default PlayerView;

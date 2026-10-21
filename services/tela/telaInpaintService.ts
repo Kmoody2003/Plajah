@@ -24,15 +24,46 @@ import type { Bitmap8, Mask8 } from './raster/buffer';
 import { computeEuclideanDistanceTransform } from '../matting/alphaMattingEngine';
 
 /**
- * 'auto' lets the on-device sidecar route: prompt-less fills to Big-LaMa, guided fills to the SDXL inpainting UNet,
- * and only when neither is installed the legacy latent-noise-mask pass on the resident checkpoint (which is SDXL
- * Turbo — the "FLUX.3 [klein]" files on disk are stubs). 'patchmatch' never leaves the CPU.
+ * Fill models served by the Tela Diffusion Runtime (engines/tela-diffusion, port 51123 — plain PyTorch/diffusers, no
+ * ComfyUI). 'auto' lets the runtime pick the best installed model (FLUX 3 Klein → FLUX.2 klein 4B → SDXL → SD 1.5).
+ * 'lama' / 'sdxl_inpaint' are only understood by the legacy sidecar on 51122. 'patchmatch' never leaves the CPU.
  */
-export type GenerativeFillModelId = 'auto' | 'lama' | 'sdxl_inpaint' | 'flux3_klein' | 'flux2_klein_4b' | 'sdxl_turbo' | 'patchmatch';
-/** Models whose prompt-less result is trusted over the PatchMatch pre-fill (measured with scripts/tela/fillBench.ts). */
-export const TRUSTED_AUTONOMOUS_MODELS = ['big-lama', 'sdxl-inpainting-0.1'];
+export type GenerativeFillModelId =
+  | 'auto' | 'flux3_klein' | 'flux2_klein_4b' | 'animagine_xl' | 'sdxl_turbo' | 'sd15'
+  | 'lama' | 'sdxl_inpaint' | 'patchmatch';
+/** The fill model picker, best first. `installed` comes from the runtime's /models. */
+export const TELA_FILL_MODEL_OPTIONS: { id: GenerativeFillModelId; label: string }[] = [
+  { id: 'auto', label: '⚡ Auto (best installed model)' },
+  { id: 'flux3_klein', label: 'FLUX 3 Image Klein' },
+  { id: 'flux2_klein_4b', label: 'FLUX.2 [klein] 4B' },
+  { id: 'animagine_xl', label: 'Animagine XL 3.1 (illustration)' },
+  { id: 'sdxl_turbo', label: 'SDXL Turbo (fast)' },
+  { id: 'sd15', label: 'Stable Diffusion 1.5' },
+  { id: 'patchmatch', label: 'Content-Aware Fill (CPU)' },
+];
+export const TELA_RUNTIME_URL = 'http://127.0.0.1:51123';
+const LEGACY_SIDECAR_URL = 'http://127.0.0.1:51122';
+/** Tela runtime first, then the legacy sidecar while it is still around. */
+const GPU_FILL_ENDPOINTS = [`${TELA_RUNTIME_URL}/tela/inpaint`, `${LEGACY_SIDECAR_URL}/tela/inpaint`, `${LEGACY_SIDECAR_URL}/generate`];
+/** Which runtime models are installed on this machine (empty when the runtime is not running). */
+export async function fetchInstalledFillModels(): Promise<Set<string>> {
+  try {
+    const r = await fetch(`${TELA_RUNTIME_URL}/models`, { signal: AbortSignal.timeout(1500) });
+    const data = await r.json();
+    return new Set((data?.models || []).filter((m: any) => m.installed).map((m: any) => String(m.id)));
+  } catch {
+    return new Set();
+  }
+}
+/**
+ * Models whose prompt-less result is trusted over the PatchMatch pre-fill (measured with scripts/tela/fillBench.ts).
+ * FLUX klein sees the whole crop as a reference while it fills, so its removals continue the scene.
+ */
+export const TRUSTED_AUTONOMOUS_MODELS = ['big-lama', 'sdxl-inpainting-0.1', 'flux2_klein_4b', 'flux3_klein'];
 export function describeFillModel(modelUsed: string | undefined, engine: string): string {
   if (!modelUsed) return engine === 'patchmatch' ? 'Content-Aware Fill' : engine;
+  const option = TELA_FILL_MODEL_OPTIONS.find((o) => o.id === modelUsed);
+  if (option) return option.label;
   if (modelUsed === 'big-lama') return 'Big-LaMa';
   if (modelUsed === 'sdxl-inpainting-0.1') return 'SDXL Inpainting 0.1';
   return modelUsed.replace(/\.safetensors$/i, '');
@@ -104,6 +135,8 @@ export type GenerativeFillProvider = {
     image: Blob;
     mask: Blob;
     prompt: string;
+    /** The words the user typed (empty for a prompt-less fill). */
+    userPrompt?: string;
     referenceImageUrl?: string;
     width: number;
     height: number;
@@ -134,21 +167,16 @@ async function blobToDataUrl(blob: Blob): Promise<string> {
 // Auto-register Plajah on-device discrete GPU generative fill provider (defaults to FLUX.3 [klein])
 provider = {
   id: 'flux3_klein',
-  async fill({ image, mask, prompt, referenceImageUrl, width, height, seed, strength, modelId, inpaintMode }) {
+  async fill({ image, mask, prompt, userPrompt, referenceImageUrl, width, height, seed, strength, modelId, inpaintMode }) {
     const imgDataUrl = await blobToDataUrl(image);
     const maskDataUrl = await blobToDataUrl(mask);
-    const activeModel = modelId && modelId !== 'patchmatch' ? modelId : 'flux3_klein';
-    const eps = [
-      'http://127.0.0.1:51122/tela/inpaint',
-      'http://127.0.0.1:51122/generate',
-      'http://localhost:51122/generate',
-    ];
-    for (const ep of eps) {
+    const activeModel = modelId && modelId !== 'patchmatch' ? modelId : 'auto';
+    for (const ep of GPU_FILL_ENDPOINTS) {
       try {
         const resp = await fetch(ep, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(sidecarInpaintBody(imgDataUrl, maskDataUrl, { prompt, seed, strength, width, height, modelId: activeModel, inpaintMode, referenceImageUrl })),
+          body: JSON.stringify(sidecarInpaintBody(imgDataUrl, maskDataUrl, { prompt, userPrompt, seed, strength, width, height, modelId: activeModel, inpaintMode, referenceImageUrl })),
         });
         if (resp.ok) {
           const data = await resp.json();
@@ -672,7 +700,7 @@ export interface GenerativeFillIO {
    * Inpaint a context crop on the GPU; returns a bitmap of the same size plus the model that actually ran (the
    * sidecar's `modelUsed`). Throw to leave the PatchMatch result standing.
    */
-  gpuFill?(crop: Bitmap8, mask: Mask8, args: { prompt: string; seed: number; strength: number; modelId: GenerativeFillModelId; inpaintMode: GenerativeInpaintIntent; referenceImageUrl?: string }): Promise<{ bitmap: Bitmap8; modelUsed?: string }>;
+  gpuFill?(crop: Bitmap8, mask: Mask8, args: { prompt: string; userPrompt?: string; seed: number; strength?: number; modelId: GenerativeFillModelId; inpaintMode: GenerativeInpaintIntent; referenceImageUrl?: string }): Promise<{ bitmap: Bitmap8; modelUsed?: string }>;
 }
 
 export interface GenerativeFillCoreResult {
@@ -691,7 +719,7 @@ export interface GenerativeFillCoreResult {
 }
 
 /** The body the on-device sidecar expects for a Tela inpaint; shared by the browser provider and the Node bench. */
-export function sidecarInpaintBody(imgDataUrl: string, maskDataUrl: string, args: { prompt: string; seed: number; strength?: number; width: number; height: number; modelId?: GenerativeFillModelId; inpaintMode?: GenerativeInpaintIntent; referenceImageUrl?: string }) {
+export function sidecarInpaintBody(imgDataUrl: string, maskDataUrl: string, args: { prompt: string; userPrompt?: string; seed: number; strength?: number; width: number; height: number; modelId?: GenerativeFillModelId; inpaintMode?: GenerativeInpaintIntent; referenceImageUrl?: string }) {
   const activeModel = args.modelId && args.modelId !== 'patchmatch' ? args.modelId : 'auto';
   return {
     outputFormat: 'png',
@@ -705,9 +733,11 @@ export function sidecarInpaintBody(imgDataUrl: string, maskDataUrl: string, args
       outputFormat: 'png',
       clientSupportsJxlDecode: false,
       dimensions: { width: Math.round(args.width), height: Math.round(args.height) },
+      // the runtime prefers the words the user typed; the enriched prompt is for the legacy SDXL path
+      userPrompt: args.userPrompt,
       seed: args.seed,
-      strength: args.strength ?? 0.88,
-      denoise: args.strength ?? 0.88,
+      strength: args.strength,
+      denoise: args.strength,
       sourceImage: imgDataUrl,
       maskImage: maskDataUrl,
       referenceImages: args.referenceImageUrl ? [args.referenceImageUrl] : undefined,
@@ -794,14 +824,11 @@ export async function synthesizeGenerativeFill(
       // Feed the PatchMatch pre-conditioned crop (NOT raw object or gray hole!) into the GPU sidecar
       const croppedPreFilled = cropBitmap(patchMatchFilled, box.x0, box.y0, box.w, box.h);
       const croppedMask = cropMask(binary, box.x0, box.y0, box.w, box.h);
-      const optimalStrength =
-        intent === 'guided'
-          ? (params.strength ?? 0.96)
-          : intent === 'autonomous_complete'
-            ? (params.strength ?? 0.76)
-            : (params.strength ?? 0.68);
+      // An explicit strength wins; otherwise the runtime picks one for the model and intent.
+      const optimalStrength = params.strength;
       const gpu = await io.gpuFill(croppedPreFilled, croppedMask, {
         prompt: sceneReasoning.enrichedPrompt,
+        userPrompt: rawPrompt,
         referenceImageUrl: params.referenceImageUrl,
         seed,
         strength: optimalStrength,
@@ -867,6 +894,7 @@ export async function executeGenerativeInpaint(
             image: await toBlob(crop),
             mask: await toBlob({ width: crop.width, height: crop.height, data: maskRgba }),
             prompt: args.prompt,
+            userPrompt: args.userPrompt,
             referenceImageUrl: args.referenceImageUrl,
             width: crop.width,
             height: crop.height,
@@ -999,12 +1027,8 @@ export async function executeGenerativeOutpaint(
   });
   let engine = 'patchmatch_outpaint';
 
-  // Refine the PatchMatch-seeded outpaint canvas with FLUX.3 [klein] on the local GPU sidecar
-  const eps = [
-    'http://127.0.0.1:51122/tela/inpaint',
-    'http://127.0.0.1:51122/generate',
-    'http://localhost:51122/generate',
-  ];
+  // Refine the PatchMatch-seeded outpaint canvas on the local GPU (Tela runtime first)
+  const eps = GPU_FILL_ENDPOINTS;
   const preFilledUrl = bitmapToDataUrl(synthesizedBm);
   const maskRgba = new Uint8ClampedArray(newW * newH * 4);
   for (let i = 0; i < outpaintHole.data.length; i++) {

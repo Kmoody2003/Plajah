@@ -1,4 +1,5 @@
 import type { MusicEngineId } from '../../musicEnginePolicy';
+import type { EnsemblePlan } from './ensemblePlan';
 
 export type GenerationKind = 'audio' | 'midi' | 'sample' | 'transcribe';
 export interface GeneratedNote { startBeats: number; lengthBeats: number; key: number; vel: number }
@@ -14,6 +15,7 @@ export interface GenerationRequest {
   seed: number;
   abc?: string;
   inputAudio?: string;
+  purpose?: 'arrangement-plan';
 }
 export interface GenerationResult {
   notes?: GeneratedNote[];
@@ -21,6 +23,7 @@ export interface GenerationResult {
   audioAvailable?: boolean;
   mime?: string;
   warning?: string;
+  plan?: EnsemblePlan;
 }
 export interface GenerationJob {
   id: string;
@@ -58,6 +61,10 @@ export function validateGenerationRequest(raw: any): GenerationRequest {
   if (!Number.isInteger(request.bars) || !Number.isInteger(request.seed)) throw new Error('Bars and seed must be integers');
   if (request.kind !== 'transcribe' && !request.prompt) throw new Error('Describe what you want to create');
   if (raw.abc) request.abc = text(raw.abc, 100000);
+  if (raw.purpose !== undefined) {
+    if (raw.purpose !== 'arrangement-plan' || engine !== 'qwen-score' || request.kind !== 'midi') throw new Error('Unsupported composition purpose');
+    request.purpose = raw.purpose;
+  }
   if (request.kind === 'transcribe') {
     if (typeof raw.inputAudio !== 'string' || !raw.inputAudio.length || raw.inputAudio.length > 28000000 || !/^[A-Za-z0-9+/]+={0,2}$/.test(raw.inputAudio)) throw new Error('Choose an audio file smaller than 20 MB');
     request.inputAudio = raw.inputAudio;

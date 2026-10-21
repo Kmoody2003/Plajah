@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "allowJs": false, "noEmit": true },
+  "include": [
+    "services/ambo/stageInbox.ts", "components/scripture/AmboAnnouncementsStrip.tsx",
+    "components/elevate/StageAnnouncementUploader.tsx", "components/scripture/AmboProPresenter.tsx",
+    "components/elevate/ChurchMemberHub.tsx"
+  ]
+}

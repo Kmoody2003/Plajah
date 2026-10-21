@@ -126,11 +126,17 @@ All four disciplines must review the same captured slice rather than independent
 - Animation: own skeleton/clip compatibility, locomotion blending, foot contact, turn-in-place, weapon attachment, distinct monster movement, attack anticipation/contact/recovery and character turntables. The existing animation clips need inspection, not automatic acceptance based on their names.
 - Music: own a restrained recurring gothic motif and transitionable exploration/tension/combat layers. Ground hall, queen, king, basement and observatory require distinct orchestration/ambience without unrelated songs restarting at doorways. Mix voices, footsteps and attack cues ahead of music; measure actual loudness/true peak and check loop seams before choosing mastering values. No measured mix has been supplied yet.
 
-`scripts/halloween/run-fidelity-councils.ts` prepares four actual local-model reviews from the project's council rosters and source audit. It does not change shared profiles or production data. Its inputs are textual evidence, not image pixels; do not represent those responses as visual review. The attempted run was blocked by the GPU-service exclusivity guard. The user authorized suspending the idle sidecar (PID 40020); suspension succeeded, but subsequent status inspection showed a mix of suspended/waiting threads and the guard still classified the process as running. The guard has been left unchanged. No live council output has been obtained or fabricated.
+`scripts/halloween/run-fidelity-councils.ts` prepares four actual local-model reviews from the project's council rosters and source audit. It does not change shared profiles or production data. Its inputs are textual evidence, not image pixels; do not represent those responses as visual review. The user authorized temporarily stopping the idle sidecar and restarting it afterward. `run-review-with-idle-worker.ps1` performs that restoration in a finally block. The council now starts and loads its GPU model, but the thermal guard pauses at 83 °C until the GPU cools to 78 °C. The runner waits and retries within that unchanged guard. No completed council output has been obtained or fabricated at the time of this assessment.
+
+Final attempt: the bounded retry period ended with the GPU at 79 °C, still above the 78 °C resume threshold. The council process stopped and the original sidecar was restarted (latest PID in `artifacts/ravencrest-review/sidecar-restored.json`). The thermal and exclusivity guards were not changed.
+
+Update after the user's request to stop the service and run the council: all four reviews subsequently completed with cooldowns between runs. Results and limitations are recorded in [the council run summary](halloween-council/summary.md). The sidecar was restarted afterward. These outputs supersede the earlier failed-run status; they remain source-based reviews rather than visual/audio approval.
 
 ## Asset procurement and likeness policy
 
-Download supplemental assets only against a specific gap, recording original URL, author, license, intended use and local path. CC0 masonry, slate, wood, iron, terrain and ambience may be useful foundations. Generic purchased/downloaded humans, werewolves or castles are not evidence of a likeness match; they may need custom sculpting, clothing, texture authoring, hair/fur and retargeting. Do not buy assets without an agreed budget. No new third-party assets have been downloaded in this pass.
+Download supplemental assets only against a specific gap, recording original URL, author, license, intended use and local path. CC0 masonry, slate, wood, iron, terrain and ambience may be useful foundations. Generic purchased/downloaded humans, werewolves or castles are not evidence of a likeness match; they may need custom sculpting, clothing, texture authoring, hair/fur and retargeting. Do not buy assets without an agreed budget.
+
+Downloaded and integrity-checked two 1K Poly Haven PBR candidate sets (3.48 MB total): Rob Tuytel's [Castle Brick 01](https://polyhaven.com/a/castle_brick_01) for damp basement masonry, and [Roof Slates 03](https://polyhaven.com/a/roof_slates_03) for the roof kit. Both are [CC0](https://polyhaven.com/license). They include separate diffuse, OpenGL normal and roughness maps. Original URLs, author, license, real-world width and checksums are saved in `public/models/halloween/materials/polyhaven/provenance.json`. They are staged for material review, not silently substituted as a claimed exact artwork match.
 
 The target is the closest defensible visual match at chosen reference cameras plus coherent freely explorable 3D. An exact pixel match from every moving viewpoint is not a meaningful promise for a perspective concept painting with contradictory details. Acceptance must be based on paired captures, geometry/route checks and explicit approved interpretations, not a verbal percentage.
 
@@ -139,3 +145,15 @@ The target is the closest defensible visual match at chosen reference cameras pl
 `data/ravencrestResidentialLayout.ts` now records five selected floors and 37 named room/space IDs, including twelve bedrooms. This is explicitly a **draft trace**; doors, towers, bathrooms, stair flights and dimensions are pending. It is not wired into the live mansion and must not be treated as a finished navigable level.
 
 Run `node node_modules/tsx/dist/cli.mjs scripts/halloween/prepare-fidelity-review.ts` to validate the floor/bedroom/ID constraints and regenerate the original-artwork overlay, layout JSON and GLB inventory in `artifacts/ravencrest-review`. Counts are file metadata, not quality measurements.
+
+## Validation limits
+
+- Layout contract validation passed: five floors, 37 unique room/space IDs, twelve bedrooms, valid normalized rectangles. All eight GLB files were parsed for the inventory.
+- Six downloaded texture maps matched the original API byte counts and MD5 checksums.
+- Targeted TypeScript checking no longer reports errors in the edited exhibition component or the layout contract. It still fails on four existing imported-service errors: two archive API argument-count errors and two StoryReportCharacter ID errors. See `artifacts/ravencrest-typecheck.txt`.
+- Browser screenshot verification did not complete: navigation to the isolated local preview timed out, including after limiting dependency scanning to the Halloween entry. No before/after screenshot comparison or measured runtime performance is claimed. The rendering changes need this review before visual acceptance.
+
+
+## Phase 2 implementation update
+
+The selected residential construction contract is now integrated into the live exhibition: five floors, 37 destinations, all-room circulation and four connected stair flights. The standalone construction viewer passed browser rendering and walking checks. See artifacts/ravencrest-review/phase2-status.md for evidence and remaining work. Earlier statements that the layout was not yet connected to the runtime describe the initial assessment, not the current implementation.

@@ -523,3 +523,22 @@
   .pv-orr-node i { animation-duration: calc(var(--pv-orr-dur, 24s) * 2.4); }
   .pv-orr-node.is-playing { animation-duration: 16s !important; }
 }
+
+/* ── Tonight's sky · Audius comets ──────────────────────────────────────────────
+   The landing sky carries both catalogs. Chora comets keep the orange→magenta fire
+   above; Audius comets burn lilac→purple with a cyan coma so the source reads at a
+   glance. Same lanes, same pace rules — only the colour of the fire changes. */
+.chora-next .cn-comet--audius::before {
+  background:
+    radial-gradient(100% 60% at 100% 50%,
+      rgba(255,255,255,.97) 0%, rgba(233,213,255,.92) 7%, rgba(192,132,252,.8) 20%,
+      rgba(126,27,204,.58) 42%, rgba(76,29,149,.34) 64%, transparent 100%),
+    radial-gradient(150% 135% at 100% 50%,
+      rgba(0,218,243,.36) 0%, rgba(126,27,204,.22) 44%, transparent 72%);
+}
+.chora-next .cn-comet--audius::after {
+  background: radial-gradient(100% 58% at 100% 50%,
+    rgba(255,255,255,.98) 0%, rgba(233,213,255,.85) 16%, rgba(168,85,247,.55) 42%, transparent 78%);
+}
+.chora-next .cn-comet--audius .cn-disc { box-shadow: 0 0 22px rgba(168,85,247,.55); }
+.chora-next .cn-sky--band { height: clamp(220px, 30vh, 280px); margin-top: 0; border-radius: 0; border-left: 0; border-right: 0; }
