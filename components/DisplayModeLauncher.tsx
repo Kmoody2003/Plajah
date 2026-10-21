@@ -3,14 +3,17 @@
 // Kiosk (self-order), and Register (POS). Pick a mode → it goes full-screen; a corner control returns
 // to the picker so a device can be repurposed on the fly.
 
-import React, { useEffect, useRef, useState } from 'react';
-import type { BusinessMenuItem, DigitalSignageSlide } from '../types';
-import { fetchSignageSlides } from '../services/businessService';
+import React, { useEffect, useMemo, useState } from 'react';
+import type { BusinessEvent, BusinessMenuItem, StoreProduct } from '../types';
+import { fetchBusinessPage } from '../services/businessService';
+import { subscribeCatalog, onCommerce, applySaleLocally, priceBoard, boardPrice } from '../services/commerceBus';
+import { SignagePlayer } from './business/SignageStudio';
 import { subscribeNowPlaying, type NowPlayingTrack } from '../services/storefrontLiveService';
 import StoreKioskMode from './StoreKioskMode';
 import PosRegister from './PosRegister';
 
 const GRAD = 'linear-gradient(135deg,#6B0099,#D40055 55%,#FF8C00)';
+const DISPLAY = "'Bricolage Grotesque', Inter, system-ui, sans-serif";
 type Mode = 'PICKER' | 'NOW_PLAYING' | 'MENU' | 'SIGNAGE' | 'KIOSK' | 'REGISTER';
 
 interface Props { businessUid: string; businessName: string; pageId?: string; menuItems?: BusinessMenuItem[]; onExit: () => void; }
@@ -39,25 +42,64 @@ function NowPlayingDisplay({ businessUid, businessName }: { businessUid: string;
 }
 
 // ── Menu board ─────────────────────────────────────────────────────────────────
-function MenuBoard({ businessName, menuItems }: { businessName: string; menuItems: BusinessMenuItem[] }) {
+// Two price sources: the page's hand-written menuItems (restaurants), or — when a page has none — the
+// LIVE inventory (storeProducts) grouped by category, so a sale on the register flips an item to
+// "Sold out" here instantly.
+function MenuBoard({ businessName, menuItems, businessUid }: { businessName: string; menuItems: BusinessMenuItem[]; businessUid: string }) {
   const available = menuItems.filter(m => m.isAvailable !== false);
+  if (available.length === 0) return <LiveMenuBoard businessName={businessName} businessUid={businessUid} />;
   const cats = Array.from(new Set(available.map(m => m.category || 'Menu')));
   return (
     <div className="w-full h-full overflow-y-auto p-10">
-      <h1 className="text-5xl md:text-7xl font-black uppercase tracking-tighter italic mb-8">{businessName}</h1>
-      {available.length === 0 ? (
-        <p className="text-white/40 text-xl">No menu items yet — add them on your business page.</p>
-      ) : (
+      <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight mb-8" style={{ fontFamily: DISPLAY }}>{businessName}</h1>
+      <div className="grid md:grid-cols-2 gap-x-12 gap-y-8">
+        {cats.map(cat => (
+          <div key={cat}>
+            <h2 className="text-2xl font-bold mb-3" style={{ color: '#FF8C00', fontFamily: DISPLAY }}>{cat}</h2>
+            <div className="space-y-3">
+              {available.filter(m => (m.category || 'Menu') === cat).map(m => (
+                <div key={m.id} className="flex items-baseline gap-3">
+                  <span className="text-2xl font-bold">{m.name}</span>
+                  <span className="flex-1 border-b border-dashed border-white/15 translate-y-[-4px]" />
+                  <span className="text-3xl font-extrabold tabular-nums" style={{ fontFamily: DISPLAY }}>${Number(m.price).toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function LiveMenuBoard({ businessName, businessUid }: { businessName: string; businessUid: string }) {
+  const [products, setProducts] = useState<StoreProduct[] | null>(null);
+  useEffect(() => subscribeCatalog(businessUid, setProducts), [businessUid]);
+  useEffect(() => onCommerce(e => {
+    if (e.type === 'SALE' && e.sellerUid === businessUid) setProducts(p => (p ? applySaleLocally(p, e.lines) : p));
+  }), [businessUid]);
+  const groups = useMemo(() => {
+    const rows = priceBoard(products || []);
+    const m = new Map<string, typeof rows>();
+    for (const r of rows) (m.get(r.category) || m.set(r.category, []).get(r.category)!).push(r);
+    return Array.from(m.entries());
+  }, [products]);
+  return (
+    <div className="w-full h-full overflow-y-auto p-10">
+      <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight mb-8" style={{ fontFamily: DISPLAY }}>{businessName}</h1>
+      {products === null ? <p className="text-white/40 text-xl">Loading menu…</p>
+        : groups.length === 0 ? <p className="text-white/40 text-xl">No menu items yet — add them on your business page or in Inventory.</p> : (
         <div className="grid md:grid-cols-2 gap-x-12 gap-y-8">
-          {cats.map(cat => (
+          {groups.map(([cat, rows]) => (
             <div key={cat}>
-              <h2 className="text-lg font-black uppercase tracking-widest mb-3" style={{ color: '#FF8C00' }}>{cat}</h2>
+              <h2 className="text-2xl font-bold mb-3" style={{ color: '#FF8C00', fontFamily: DISPLAY }}>{cat.charAt(0) + cat.slice(1).toLowerCase()}</h2>
               <div className="space-y-3">
-                {available.filter(m => (m.category || 'Menu') === cat).map(m => (
-                  <div key={m.id} className="flex items-baseline gap-3">
-                    <span className="text-2xl font-bold">{m.name}</span>
+                {rows.map(r => (
+                  <div key={r.id} className={`flex items-baseline gap-3 ${r.status === 'out' ? 'opacity-45' : ''}`}>
+                    <span className={`text-2xl font-bold ${r.status === 'out' ? 'line-through' : ''}`}>{r.title}</span>
+                    {r.badge && <span className="text-base font-semibold px-2.5 py-0.5 rounded-full" style={r.status === 'out' ? { background: 'rgba(212,0,85,.22)', color: '#FF6FA3' } : { background: 'rgba(255,140,0,.2)', color: '#FF8C00' }}>{r.badge}</span>}
                     <span className="flex-1 border-b border-dashed border-white/15 translate-y-[-4px]" />
-                    <span className="text-2xl font-black">${Number(m.price).toFixed(2)}</span>
+                    <span className="text-3xl font-extrabold tabular-nums" style={{ fontFamily: DISPLAY }}>{boardPrice(r.price)}</span>
                   </div>
                 ))}
               </div>
@@ -71,38 +113,17 @@ function MenuBoard({ businessName, menuItems }: { businessName: string; menuItem
 
 // ── Signage slideshow ────────────────────────────────────────────────────────
 // Slides are keyed by the business PAGE id (not the owner uid), matching how the dashboard saves them.
-function SignageDisplay({ pageId }: { pageId: string }) {
-  const [slides, setSlides] = useState<DigitalSignageSlide[]>([]);
-  const [idx, setIdx] = useState(0);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
+// Live: slides, catalog and offers stream through commerceBus (SignagePlayer).
+function SignageDisplay({ pageId, businessUid }: { pageId: string; businessUid: string }) {
+  const [events, setEvents] = useState<BusinessEvent[]>([]);
   useEffect(() => {
-    if (!pageId) { setSlides([]); return; }
-    fetchSignageSlides(pageId).then(s => setSlides(s.filter(x => x.isActive))).catch(() => setSlides([]));
+    if (!pageId) return;
+    let alive = true;
+    fetchBusinessPage(pageId).then(p => { if (alive) setEvents(p?.events || []); }).catch(() => {});
+    return () => { alive = false; };
   }, [pageId]);
-
-  useEffect(() => {
-    if (slides.length === 0) return;
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => setIdx(i => (i + 1) % slides.length), (slides[idx]?.durationSeconds || 8) * 1000);
-    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
-  }, [slides, idx]);
-
-  if (slides.length === 0) return <div className="w-full h-full flex items-center justify-center text-white/40 text-2xl font-bold">No signage slides yet.</div>;
-  const s = slides[idx];
-  return (
-    <div className="w-full h-full flex items-center justify-center" style={{ background: s.backgroundColor || '#000' }}>
-      {s.type === 'IMAGE' && s.url && <img src={s.url} alt="" className="w-full h-full object-contain" />}
-      {s.type === 'VIDEO' && s.url && <video src={s.url} autoPlay muted loop className="w-full h-full object-contain" />}
-      {(s.type === 'TEXT' || s.type === 'PROMO' || !s.url) && (
-        <div className="text-center p-12">
-          {s.type === 'PROMO' && <div className="text-sm font-black uppercase tracking-[0.3em] mb-4" style={{ color: '#FF8C00' }}>Special offer</div>}
-          <div className="text-6xl md:text-8xl font-black tracking-tight">{s.headline}</div>
-          {s.subtext && <div className="mt-6 text-2xl md:text-4xl text-white/70">{s.subtext}</div>}
-        </div>
-      )}
-    </div>
-  );
+  if (!pageId) return <div className="w-full h-full flex items-center justify-center text-white/40 text-2xl font-bold">No signage slides yet.</div>;
+  return <div className="relative w-full h-full"><SignagePlayer businessId={pageId} sellerUid={businessUid} events={events} /></div>;
 }
 
 export default function DisplayModeLauncher({ businessUid, businessName, pageId, menuItems = [], onExit }: Props) {
@@ -151,8 +172,8 @@ export default function DisplayModeLauncher({ businessUid, businessName, pageId,
           </div>
         )}
         {mode === 'NOW_PLAYING' && <NowPlayingDisplay businessUid={businessUid} businessName={businessName} />}
-        {mode === 'MENU' && <MenuBoard businessName={businessName} menuItems={menuItems} />}
-        {mode === 'SIGNAGE' && <SignageDisplay pageId={pageId || ''} />}
+        {mode === 'MENU' && <MenuBoard businessName={businessName} menuItems={menuItems} businessUid={businessUid} />}
+        {mode === 'SIGNAGE' && <SignageDisplay pageId={pageId || ''} businessUid={businessUid} />}
       </div>
     </div>
   );

@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": true, "allowJs": false },
+  "include": [
+    "components/events/HostEventsPanel.tsx",
+    "components/events/HostEventsPublic.tsx",
+    "components/EventCreationWizard.tsx",
+    "services/hostEventsService.ts",
+    "services/evite/eviteServer.ts",
+    "tests/hostEvents.test.ts"
+  ]
+}

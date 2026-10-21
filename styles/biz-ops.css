@@ -1,0 +1,97 @@
+/* Plajah Business · Ops — the shared visual language for small-business owner and staff surfaces
+   (dashboard, CRM, growth, signage, register back office) and org growth tools.
+
+   Same bones as Elevate · Vellum (dark chrome, Bricolage Grotesque display, Inter interface, a 12px
+   label floor, hairlines instead of boxes) but in the Plajah brand: purple → magenta → orange for the
+   page mark, ORANGE for acting, and the business's own pack colour as a quiet accent (--bo-accent).
+   Paper "receipt" sheets stand in for Vellum wherever money or a printed document appears.
+
+   Scoped to .bo-scope. Overrides are unlayered so they win over Tailwind inside the scope and retire
+   the shouting label stack (font-black + 0.2em tracking + 9px) without rewriting every call site. */
+
+.bo-scope {
+  --bo-chrome: #0D0B10;
+  --bo-panel: #17141C;
+  --bo-raised: #211C28;
+  --bo-line: rgba(255, 255, 255, 0.08);
+  --bo-line-strong: rgba(255, 255, 255, 0.14);
+  --bo-ink: #F4F0F7;
+  --bo-ink-2: #D9D3E0;
+  --bo-muted: #A39BAE;
+  --bo-purple: #6B0099;
+  --bo-magenta: #D40055;
+  --bo-orange: #FF8C00;
+  --bo-accent: #FF8C00;
+  --bo-success: #06D6A0;
+  --bo-warn: #F59E0B;
+  --bo-danger: #EF4444;
+  --bo-paper: #F6F2EC;
+  --bo-paper-ink: #1D1922;
+  --bo-paper-muted: #6A6170;
+  --bo-grad: linear-gradient(135deg, #6B0099, #D40055 55%, #FF8C00);
+  --bo-display: 'Bricolage Grotesque', Inter, system-ui, sans-serif;
+  --bo-ui: Inter, system-ui, sans-serif;
+  font-family: var(--bo-ui);
+  color: var(--bo-ink);
+  background: var(--bo-chrome);
+}
+
+/* ── Voice ─────────────────────────────────────────────────────────────── */
+.bo-scope h1, .bo-scope h2, .bo-scope h3 { font-family: var(--bo-display); font-weight: 700; letter-spacing: -0.025em; }
+.bo-scope h3 { font-weight: 600; letter-spacing: -0.015em; }
+.bo-scope .font-black { font-weight: 700; }
+.bo-scope .tracking-widest, .bo-scope .tracking-wider, .bo-scope [class*="tracking-[0."] { letter-spacing: 0.05em; }
+.bo-scope [class*="text-[8"], .bo-scope [class*="text-[9px"], .bo-scope [class*="text-[9."],
+.bo-scope [class*="text-[10px"], .bo-scope [class*="text-[10."] { font-size: 11px; }
+
+/* ── Primitives ────────────────────────────────────────────────────────── */
+.bo-display { font-family: var(--bo-display); font-weight: 700; letter-spacing: -0.04em; line-height: 0.95; }
+.bo-title { font-family: var(--bo-display); font-weight: 600; letter-spacing: -0.02em; }
+.bo-label { font: 600 12px/1.2 var(--bo-ui); letter-spacing: 0.06em; text-transform: uppercase; color: var(--bo-muted); }
+.bo-num { font-family: var(--bo-display); font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.bo-muted { color: var(--bo-muted); }
+.bo-mark { background: var(--bo-grad); }
+.bo-text-brand { background: var(--bo-grad); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; }
+
+.bo-panel { background: var(--bo-panel); border-radius: 24px; }
+.bo-raised { background: var(--bo-raised); border-radius: 16px; }
+.bo-rule > * + * { border-top: 1px solid var(--bo-line); }
+.bo-hair { border: 1px solid var(--bo-line); }
+
+.bo-paper { background: var(--bo-paper); color: var(--bo-paper-ink); border-radius: 24px; }
+.bo-paper .bo-label { color: var(--bo-paper-muted); }
+.bo-paper .bo-muted { color: var(--bo-paper-muted); }
+.bo-paper.bo-rule > * + *, .bo-paper .bo-rule > * + * { border-top-color: rgba(29, 25, 34, 0.12); }
+
+.bo-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 18px; border-radius: 12px; font: 600 14px/1 var(--bo-ui); letter-spacing: 0; text-transform: none; transition: filter .15s ease, background-color .15s ease, opacity .15s ease; white-space: nowrap; }
+.bo-btn:hover { filter: brightness(1.08); }
+.bo-btn:disabled { opacity: .45; cursor: not-allowed; filter: none; }
+.bo-btn-primary { background: var(--bo-orange); color: #160A00; }
+.bo-btn-brand { background: var(--bo-grad); color: #fff; }
+.bo-btn-light { background: var(--bo-ink); color: var(--bo-chrome); }
+.bo-btn-ghost { border: 1px solid var(--bo-line-strong); color: var(--bo-ink); font-weight: 500; }
+.bo-btn-ghost:hover { background: rgba(255, 255, 255, 0.05); }
+.bo-btn-ink { background: var(--bo-paper-ink); color: var(--bo-paper); }
+.bo-btn-sm { min-height: 34px; padding: 0 12px; font-size: 13px; border-radius: 10px; }
+
+.bo-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 0 10px; border-radius: 999px; font: 500 12px/1 var(--bo-ui); background: rgba(255,255,255,0.06); color: var(--bo-ink-2); white-space: nowrap; }
+.bo-chip[aria-pressed="true"] { background: var(--bo-ink); color: var(--bo-chrome); }
+
+.bo-input { width: 100%; min-height: 44px; padding: 0 14px; border-radius: 12px; background: rgba(255,255,255,0.04); border: 1px solid var(--bo-line-strong); color: var(--bo-ink); font: 400 15px/1.3 var(--bo-ui); }
+.bo-input:focus { outline: 2px solid var(--bo-accent); outline-offset: 1px; }
+textarea.bo-input { padding: 12px 14px; min-height: 96px; }
+
+.bo-tab { padding: 16px 0 14px; border-bottom: 2px solid transparent; color: var(--bo-muted); font: 500 14px/1 var(--bo-ui); white-space: nowrap; transition: color .15s ease; }
+.bo-tab:hover { color: var(--bo-ink); }
+.bo-tab[aria-current="page"] { color: var(--bo-ink); font-weight: 600; border-bottom-color: var(--bo-accent); }
+
+.bo-row-link { transition: background-color .15s ease; border-radius: 12px; }
+.bo-row-link:hover { background: rgba(255, 255, 255, 0.03); }
+
+.bo-live-dot { width: 8px; height: 8px; border-radius: 999px; background: var(--bo-orange); display: inline-block; animation: bo-pulse 2.4s ease-out infinite; }
+@keyframes bo-pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 140, 0, .45); } 70%, 100% { box-shadow: 0 0 0 8px rgba(255, 140, 0, 0); } }
+
+.bo-rise { animation: bo-rise .45s cubic-bezier(.2, 0, 0, 1) both; }
+@keyframes bo-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+@media (prefers-reduced-motion: reduce) { .bo-live-dot, .bo-rise { animation: none; } }

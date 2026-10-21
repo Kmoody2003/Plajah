@@ -10,7 +10,7 @@ import React, { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   X, Check, ArrowLeft, Loader2, Sparkles, Store, ShoppingBasket, Shirt, Scissors, Flower2, Wrench,
-  WashingMachine, UtensilsCrossed, Building2, Clock, Tag, Users, ShieldCheck, Lock, Package,
+  WashingMachine, UtensilsCrossed, Building2, ShoppingCart, Sofa, Car, Landmark, PartyPopper, Clock, Tag, Users, ShieldCheck, Lock, Package,
 } from 'lucide-react';
 import {
   packsByParent, packReadiness, capabilityBreakdown, READINESS_LABEL, CAPABILITIES,
@@ -19,6 +19,7 @@ import {
 
 export const PACK_ICONS: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
   ShoppingBasket, Shirt, Scissors, Flower2, Wrench, WashingMachine, UtensilsCrossed, Building2, Store,
+  ShoppingCart, Sofa, Car, Landmark, PartyPopper,
 };
 
 const READY_STYLE: Record<PackReadiness, { color: string; dot: string }> = {

@@ -175,6 +175,127 @@ describe('pack content (real-world rules)', () => {
   });
 });
 
+describe('pack content: retail big-ticket + events (2026-10-20)', () => {
+  const item = (p: VerticalPack, k: string) => { const it = p.starterCatalog.items.find(i => i.key === k); assert.ok(it, `${p.id}:${k}`); return it!; };
+  const sizeOk = (p: VerticalPack) => {
+    const n = p.starterCatalog.items.length;
+    assert.ok(n >= 20 && n <= 40, `${p.id} has ${n} items`);
+    assert.ok(p.roles.length >= 3 && p.roles.length <= 6, `${p.id} roles`);
+    assert.ok(p.deals.length >= 2 && p.deals.length <= 4, `${p.id} deals`);
+    assert.ok(p.signage.length >= 3 && p.signage.length <= 5, `${p.id} signage`);
+    assert.ok(p.loyalty.ladder.length >= 3, `${p.id} loyalty ladder`);
+    assert.ok(p.hardware.length >= 3 && p.hardware.some(h => h.required), `${p.id} hardware`);
+    assert.ok(p.automations.length >= 3, `${p.id} automations`);
+    assert.ok((p.policies ?? []).length >= 3, `${p.id} policies`);
+    for (const a of p.automations) if (a.requires) assert.ok(CAPABILITIES[a.requires], `${p.id}:${a.id}`);
+  };
+
+  test('new packs are registered with the right parent, icon and label', () => {
+    const exp: [string, string, string, string][] = [
+      ['supermarket', 'RETAIL', 'ShoppingCart', 'Grocery Store'],
+      ['furniture_store', 'RETAIL', 'Sofa', 'Furniture Store'],
+      ['car_dealership', 'RETAIL', 'Car', 'Car Dealership'],
+      ['event_venue', 'ENTERTAINMENT', 'Landmark', 'Event Venue'],
+      ['event_planner', 'SERVICE', 'PartyPopper', 'Event Planner'],
+    ];
+    for (const [id, parent, icon, label] of exp) {
+      const p = must(id);
+      assert.equal(p.parent, parent, id); assert.equal(p.icon, icon, id); assert.equal(p.label, label, id);
+      assert.ok(!p.tabs.includes('TICKETS'), `${id}: the service-ticket tab stays auto/laundry only`);
+      assert.equal(p.ticket, undefined, id);
+      sizeOk(p);
+    }
+  });
+
+  test('corner store is relabelled but keeps its id and keys', () => {
+    const g = must('grocery_corner_store');
+    assert.equal(g.label, 'Corner Store & Convenience');
+    assert.notEqual(g.label, must('supermarket').label);
+    assert.ok(g.starterCatalog.items.some(i => i.key === 'cigs_pack'));
+  });
+
+  test('supermarket: departments, SNAP, age and weighed-item honesty', () => {
+    const s = must('supermarket');
+    const cats = s.starterCatalog.categories.map(c => c.name);
+    for (const d of ['Produce', 'Meat & Seafood', 'Deli', 'Bakery', 'Dairy', 'Frozen', 'Pantry', 'Household', 'Health & Beauty']) assert.ok(cats.includes(d), d);
+    assert.ok(cats.some(c => c.startsWith('Beer & Wine')));
+    for (const it of s.starterCatalog.items) {
+      assert.ok(!(it.ageRestricted && it.snapEligible), `${it.key} age-restricted must not be SNAP`);
+      if (it.soldBy === 'weight') assert.equal(it.requires, 'WEIGHED_REGISTER', it.key);
+    }
+    assert.equal(item(s, 'wine_red').ageRestricted, 'ALCOHOL');
+    assert.equal(item(s, 'rotisserie').snapEligible, false);   // hot food
+    assert.equal(item(s, 'cold_sub').snapEligible, true);
+    for (const k of ['vitamins', 'dog_food', 'paper_towels', 'shampoo']) assert.equal(item(s, k).snapEligible, false, k);
+    const plan = planApply(s, blank(), ctx);
+    assert.equal(plan.productsToCreate.find(p => p.packSampleId === 'supermarket:chicken_breast')!.isActive, false);
+    assert.equal(plan.productsToCreate.find(p => p.packSampleId === 'supermarket:ground_beef')!.isActive, true);
+    assert.ok(s.checklist.some(st => st.id === 'ebt_connected' && st.optional));
+  });
+
+  test('furniture: variants, delivery services, protection add-ons, special-order stages', () => {
+    const f = must('furniture_store');
+    const sofa = toProductDraft(f, item(f, 'sofa_3'), ctx);
+    assert.equal(sofa.variants.length, item(f, 'sofa_3').colors!.length);
+    assert.equal(item(f, 'white_glove').kind, 'service');
+    assert.equal(item(f, 'white_glove').requires, 'DELIVERY');
+    assert.equal(item(f, 'protect_uph').kind, 'addon');
+    assert.deepEqual(f.stages!.map(st => st.id), ['ordered', 'in_transit', 'received', 'delivery_scheduled', 'delivered']);
+    const so = computeChecklist(f, emptySnapshot({})).steps.find(st => st.id === 'special_orders')!;
+    assert.equal(so.state, 'soon');   // SPECIAL_ORDERS is planned: never offered as working
+    assert.ok(f.capabilities.some(c => c.id === 'LAYAWAY' && c.importance === 'nice'));
+  });
+
+  test('car dealership: one-off vehicles, optional F&I, deal stages and compliance notes', () => {
+    const d = must('car_dealership');
+    const cars = d.starterCatalog.items.filter(i => i.kind === 'product');
+    assert.ok(cars.length >= 10);
+    for (const c of cars) {
+      assert.equal(c.stock, 1, c.key); assert.equal(c.storeCategory, 'OTHER', c.key);
+      assert.ok(/^\d{4} /.test(c.name) && /miles/.test(c.description), c.key);
+      assert.ok(d.extras!.vehicleSpecs[c.key].miles > 0, c.key);
+    }
+    for (const k of ['vsc', 'gap', 'tint', 'doc_fee']) assert.equal(item(d, k).kind, 'addon', k);
+    assert.ok(d.starterCatalog.items.filter(i => i.category === 'F&I Products').every(i => i.description.startsWith('Optional.')));
+    assert.deepEqual(d.stages!.map(st => st.id), ['lead', 'test_drive', 'working', 'fi', 'delivered']);
+    for (const f of ['vin', 'stock_no', 'trade_in', 'financing']) assert.ok(d.jobFields!.some(j => j.id === f), f);
+    assert.equal(d.vocabulary.catalogNoun, 'Vehicles'); assert.equal(d.vocabulary.orderNoun, 'deal'); assert.equal(d.vocabulary.staff, 'salesperson');
+    for (const c of ['VIN_DECODE', 'RECALL_CHECK', 'FINANCING']) assert.equal(d.capabilities.find(x => x.id === c)?.importance, 'nice', c);
+    assert.ok(d.policies!.some(p => p.id === 'buyers_guide'));
+    assert.ok(d.checklist.some(st => st.id === 'dealer_license'));
+  });
+
+  test('event venue: rentals by space, 21+ bar, deposits, full stage pipeline, tours + orders tabs', () => {
+    const v = must('event_venue');
+    assert.deepEqual(v.stages!.map(st => st.id), ['inquiry', 'tour', 'hold', 'contract', 'deposit_paid', 'event', 'settled']);
+    assert.ok(v.tabs.includes('APPOINTMENTS') && v.tabs.includes('ORDERS'));
+    for (const k of ['bar_beer_wine', 'bar_standard', 'bar_premium']) assert.equal(item(v, k).ageRestricted, 'ALCOHOL', k);
+    assert.equal(item(v, 'bar_soft').ageRestricted, undefined);
+    assert.equal(item(v, 'damage_deposit').requires, 'DEPOSITS');
+    assert.ok(v.capabilities.some(c => c.id === 'TICKETS'));
+    assert.ok(item(v, 'ballroom_sat').price > item(v, 'ballroom_weekday').price);
+  });
+
+  test('event planner: packages, add-ons, referral disclosure, stage pipeline', () => {
+    const p = must('event_planner');
+    assert.deepEqual(p.stages!.map(st => st.id), ['inquiry', 'consult', 'proposal', 'contract', 'planning', 'event', 'review']);
+    assert.ok(item(p, 'day_of').price < item(p, 'partial').price && item(p, 'partial').price < item(p, 'full').price);
+    assert.ok(p.policies!.some(x => x.id === 'referrals'));
+    assert.ok(p.starterCatalog.items.some(i => i.kind === 'addon'));
+  });
+
+  test('real estate: $0 commission-based services, stages, fields, NAR + fair housing', () => {
+    const re = must('real_estate_brokerage');
+    for (const k of ['listing_consult', 'cma', 'buyer_consult', 'staging_consult']) { assert.equal(item(re, k).kind, 'service', k); assert.equal(item(re, k).price, 0, k); }
+    assert.deepEqual(re.stages!.map(st => st.id), ['lead', 'appointment', 'showing', 'offer', 'under_contract', 'closed']);
+    for (const f of ['budget', 'beds', 'area', 'pre_approved']) assert.ok(re.jobFields!.some(j => j.id === f), f);
+    assert.equal(re.deals.length, 3);
+    assert.ok(re.deals.every(d => d.startActive === false));
+    assert.ok(re.policies!.some(x => x.id === 'fair_housing') && re.policies!.some(x => x.id === 'buyer_agreement'));
+    assert.ok(re.automations.length >= 3);
+  });
+});
+
 describe('capability honesty', () => {
   test('readiness derives from core capabilities only', () => {
     const mk = (caps: VerticalPack['capabilities']) => packReadiness({ capabilities: caps });
@@ -195,6 +316,25 @@ describe('capability honesty', () => {
     assert.equal(r('health_spa'), 'early');
     assert.equal(r('auto_repair'), 'partial');   // vehicle records/DVI/estimates are built (unverified live) -> works with gaps
     assert.equal(r('laundromat'), 'partial');   // weigh-in + tickets work (partial); self-serve machine control is separate and planned
+    assert.equal(r('supermarket'), 'partial');   // TAX + AGE_GATE are partial; weighed register is nice-to-have
+    assert.equal(r('furniture_store'), 'partial');   // DELIVERY partial; special orders / layaway / financing are nice + planned
+    assert.equal(r('car_dealership'), 'partial');   // vehicle inventory, test drives, CRM pipeline partial; financing planned (nice)
+    assert.equal(r('event_venue'), 'partial');
+    assert.equal(r('event_planner'), 'partial');
+  });
+
+  test('retail big-ticket + events capability statuses (2026-10-20)', () => {
+    const st = (id: keyof typeof CAPABILITIES) => CAPABILITIES[id].status;
+    assert.equal(st('TICKETS'), 'partial');   // plajahEvents tiers, purchase, kiosk/scanner exist
+    assert.equal(st('VEHICLE_INVENTORY'), 'partial');
+    assert.equal(st('TEST_DRIVES'), 'partial');
+    assert.equal(st('FINANCING'), 'planned');   // no lender integration
+    assert.equal(st('SPECIAL_ORDERS'), 'planned');   // ticket engine is only on for auto + laundry
+    assert.equal(st('LAYAWAY'), 'planned');
+    assert.equal(st('DEPOSITS'), 'partial');   // ticket deposits only
+    assert.equal(st('CRM_PIPELINE'), 'partial');
+    assert.equal(st('EVENT_WORKFLOW'), 'partial');
+    assert.ok(/new/i.test(CAPABILITIES.CRM_PIPELINE.note));
   });
 
   test('capabilityBreakdown buckets by status', () => {

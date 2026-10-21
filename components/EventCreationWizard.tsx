@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Calendar, MapPin, Globe, Video, Ticket, List, Image, Settings2,
@@ -10,6 +10,8 @@ import {
 import { createOrUpdateEvent, DEFAULT_VENUE_PACKAGES, uploadFile } from '../services/backendService';
 import { UserProfile, PlajahEvent, TicketTier, ItineraryItem, EventType, AlbumArtTransform, EventPackageAddon } from '../types';
 import { TELA_STYLE_ERAS } from '../services/telaStyleEraLibrary';
+import type { EventPlaybook } from '../services/opsPresets/types';
+import { playbookTierDrafts } from '../services/hostEventsService';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -18,6 +20,10 @@ interface Props {
   editingEvent?: Partial<PlajahEvent>;
   onSaved: (eventId: string) => void;
   onBack: () => void;
+  /** Run the event as an org or business (verified server-side). Ignored when editing an event that already has a host. */
+  host?: PlajahEvent['host'];
+  /** Ops-preset playbook to prefill a NEW event from (title, format, duration, capacity, tiers, run of show). */
+  playbook?: EventPlaybook;
 }
 
 type Section = 'basics' | 'datetime' | 'location' | 'tiers' | 'packages' | 'itinerary' | 'media' | 'tela' | 'advanced';
@@ -87,9 +93,32 @@ const takeEventPrefill = (): Partial<PlajahEvent> | undefined => {
   } catch { return undefined; }
 };
 
-const EventCreationWizard: React.FC<Props> = ({ currentUser, editingEvent: editingEventProp, onSaved, onBack }) => {
-  const [editingEvent] = useState<Partial<PlajahEvent> | undefined>(() => editingEventProp ?? takeEventPrefill());
-  const isEdit = !!editingEvent?.id;
+/** datetime-local value in the viewer's own zone. */
+const toLocalInput = (ms: number) => { const d = new Date(ms - new Date(ms).getTimezoneOffset() * 60000); return d.toISOString().slice(0, 16); };
+
+const ITINERARY_TYPE_GUESS: Array<[RegExp, ItineraryItem['type']]> = [
+  [/\bdoors?\b/i, 'DOORS'], [/break|intermission/i, 'BREAK'], [/workshop|class|session/i, 'WORKSHOP'],
+  [/meet|greet|mingle/i, 'MEET_GREET'], [/ceremony|award|toast|vows/i, 'CEREMONY'], [/set|band|perform|show|music|sermon|worship/i, 'PERFORMANCE'],
+];
+
+/** A new event's starting point from an ops-preset playbook. Free playbooks get one $0 tier (RSVP lives in Evites). */
+const playbookPrefill = (pb: EventPlaybook): Partial<PlajahEvent> => ({
+  title: pb.label,
+  description: pb.blurb,
+  type: pb.format,
+  tiers: playbookTierDrafts(pb).map((t, idx) => ({ ...newTier(idx), id: `tier_${Date.now()}_${idx}`, name: t.name, priceCents: t.priceCents, quantity: t.quantity, description: t.perks || '', benefits: t.perks ? [t.perks] : [] })),
+  itinerary: pb.runOfShow.map((r, i) => ({
+    id: `item_${Date.now()}_${i}`, time: r.t, title: r.what, performer: r.owner, description: '',
+    type: ITINERARY_TYPE_GUESS.find(([re]) => re.test(r.what))?.[1] || 'OTHER',
+  })),
+});
+
+const EventCreationWizard: React.FC<Props> = ({ currentUser, editingEvent: editingEventProp, onSaved, onBack, host: hostProp, playbook }) => {
+  const [editingEvent] = useState<Partial<PlajahEvent> | undefined>(() => editingEventProp ?? takeEventPrefill() ?? (playbook ? playbookPrefill(playbook) : undefined));
+  // Once saved (e.g. a draft), later saves update that event instead of creating another.
+  const [savedId, setSavedId] = useState<string | undefined>(editingEvent?.id);
+  const isEdit = !!savedId;
+  const host = editingEvent?.host ?? hostProp;
 
   // Form state
   const [title, setTitle]             = useState(editingEvent?.title ?? '');
@@ -193,8 +222,18 @@ const EventCreationWizard: React.FC<Props> = ({ currentUser, editingEvent: editi
   const updateItem = (id: string, patch: Partial<ItineraryItem>) => setItinerary(prev => prev.map(i => i.id === id ? { ...i, ...patch } : i));
 
   // ── Save ──────────────────────────────────────────────────────────────────
+  // Playbook duration: fill the end time from the start until the host sets one themselves.
+  const [endTouched, setEndTouched] = useState(!!editingEvent?.endDate);
+  useEffect(() => {
+    if (!playbook || endTouched || !startDate) return;
+    const start = new Date(startDate).getTime();
+    if (Number.isFinite(start)) setEndDate(toLocalInput(start + playbook.durationMin * 60000));
+  }, [startDate, playbook, endTouched]);
+
   const buildPayload = (status: 'DRAFT' | 'ON_SALE') => ({
-    id: editingEvent?.id,
+    id: savedId,
+    ...(host ? { host: { kind: host.kind, id: host.id } } : {}),
+    ...(playbook && !editingEvent?.playbookKey ? { playbookKey: playbook.key } : editingEvent?.playbookKey ? { playbookKey: editingEvent.playbookKey } : {}),
     title, subtitle, description, type: eventType, tags,
     startDate: startDate ? new Date(startDate).getTime() : 0,
     endDate: endDate ? new Date(endDate).getTime() : 0,
@@ -233,6 +272,7 @@ const EventCreationWizard: React.FC<Props> = ({ currentUser, editingEvent: editi
     setSaving(true); setSaveError('');
     try {
       const id = await createOrUpdateEvent(buildPayload(status));
+      setSavedId(id);
       if (status === 'DRAFT') { setSavedDraft(true); setTimeout(() => setSavedDraft(false), 2000); }
       else onSaved(id);
     } catch (e: any) {
@@ -252,7 +292,7 @@ const EventCreationWizard: React.FC<Props> = ({ currentUser, editingEvent: editi
         </button>
         <div>
           <h1 className="text-2xl font-black uppercase tracking-tight">{isEdit ? 'Edit Event' : 'Create Event'}</h1>
-          <p className="text-[10px] text-white/30 uppercase tracking-widest">All setup in one page</p>
+          <p className="text-[10px] text-white/30 uppercase tracking-widest">{host?.name ? `Hosted by ${host.name}` : 'All setup in one page'}{playbook ? ` · ${playbook.emoji} ${playbook.label} playbook` : ''}</p>
         </div>
         <div className="ml-auto flex items-center gap-2">
           <button onClick={() => handleSave('DRAFT')} disabled={saving} className="flex items-center gap-1.5 px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-xs font-black uppercase tracking-widest text-white/50 hover:text-white transition-all disabled:opacity-40">
@@ -337,7 +377,7 @@ const EventCreationWizard: React.FC<Props> = ({ currentUser, editingEvent: editi
                           </div>
                           <div>
                             <label className="field-label">End Date & Time *</label>
-                            <input type="datetime-local" value={endDate} onChange={e => setEndDate(e.target.value)} className="field-input" />
+                            <input type="datetime-local" value={endDate} onChange={e => { setEndTouched(true); setEndDate(e.target.value); }} className="field-input" />
                           </div>
                         </div>
                         <div>

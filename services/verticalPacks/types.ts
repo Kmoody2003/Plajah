@@ -23,7 +23,10 @@ export type CapabilityId =
   // Laundromat layer (2026-10-04)
   | 'WEIGHED_REGISTER' | 'BAG_TAGS' | 'WALLET_PROMO' | 'DELIVERY' | 'MACHINE_CONTROL'
   // Auto repair layer (2026-10-04)
-  | 'DVI' | 'VIN_DECODE' | 'RECALL_CHECK' | 'AI_ADVISOR' | 'SERVICE_REMINDERS' | 'VEHICLE_PASSPORT';
+  | 'DVI' | 'VIN_DECODE' | 'RECALL_CHECK' | 'AI_ADVISOR' | 'SERVICE_REMINDERS' | 'VEHICLE_PASSPORT'
+  // Retail big-ticket + events layer (2026-10-20)
+  | 'VEHICLE_INVENTORY' | 'TEST_DRIVES' | 'FINANCING' | 'SPECIAL_ORDERS' | 'LAYAWAY' | 'DEPOSITS'
+  | 'CRM_PIPELINE' | 'EVENT_WORKFLOW';
 
 /** ready = works end to end today; partial = usable with gaps (note says which); planned = not built. */
 export type CapabilityStatus = 'ready' | 'partial' | 'planned';

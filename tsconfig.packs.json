@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": true, "allowJs": false },
+  "include": [
+    "services/verticalPacks/**/*.ts",
+    "services/businessTemplates.ts",
+    "components/business/PackPicker.tsx",
+    "components/business/BusinessLaunchModal.tsx",
+    "tests/verticalPacks.test.ts"
+  ]
+}

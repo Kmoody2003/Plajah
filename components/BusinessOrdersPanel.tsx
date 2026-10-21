@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ShoppingBag, Clock, Check, Truck, RefreshCw, Bell, AlertTriangle, MapPin, Package, Copy, ExternalLink, Mail } from 'lucide-react';
 import { useContextMenu } from './ui/ContextMenu';
 import { Button, IconButton, Chip } from './ui';
 import { fetchBusinessStoreOrders, advanceStoreOrder, type StoreOrderRecord } from '../services/businessOpsService';
 import { notifyOrderReady, notifyOrderShipped } from '../services/businessMessagingService';
 import { CARRIERS, trackingUrl } from '../services/inventoryCore';
+import { subscribeOrders, emitCommerce, onCommerce } from '../services/commerceBus';
 
 /**
  * Seller-side view of incoming store / kiosk / POS orders (the server order spine). Closes the loop:
@@ -51,7 +52,33 @@ const BusinessOrdersPanel: React.FC<{ businessUid: string; businessName: string;
   const [msg, setMsg] = useState('');
 
   const load = async () => { setLoading(true); setOrders(await fetchBusinessStoreOrders(businessUid).catch(() => [])); setLoading(false); };
-  useEffect(() => { load(); }, [businessUid]);
+
+  // Live orders (commerceBus). New paid orders announce themselves; the one-shot read is the fallback if
+  // the listener can't start (and what the refresh button does).
+  const known = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    known.current = null;
+    setLoading(true);
+    let gotLive = false;
+    const un = subscribeOrders(businessUid, list => {
+      gotLive = true;
+      const paidNow = list.filter(o => o.status !== 'PENDING_PAYMENT');
+      if (known.current) {
+        const fresh = paidNow.filter(o => !known.current!.has(o.id));
+        if (fresh.length) {
+          const o = fresh[0];
+          setMsg(fresh.length > 1 ? `${fresh.length} new orders just came in.` : `New ${o.source === 'POS' ? 'register sale' : 'order'}: ${o.customerName || 'Customer'} · ${fmt(o.totalCents ?? o.subtotalCents)}`);
+        }
+      }
+      known.current = new Set(paidNow.map(o => o.id));
+      setOrders(list);
+      setLoading(false);
+    }, { onError: () => { if (!gotLive) load(); } });
+    // Same-device instant nudge (e.g. the register in another window just rang a sale).
+    const off = onCommerce(e => { if (e.type === 'SALE' && e.sellerUid === businessUid) setMsg('Sale rung up — updating…'); });
+    return () => { un(); off(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [businessUid]);
 
   const label = (o: StoreOrderRecord) => o.items.map(i => `${i.qty}× ${i.title}`).slice(0, 3).join(', ') || 'Your order';
 
@@ -66,6 +93,7 @@ const BusinessOrdersPanel: React.FC<{ businessUid: string; businessName: string;
       if (step.to === 'OUT_FOR_DELIVERY') await notifyOrderShipped(biz, o.customerUid, label(o), { carrier: extra.trackingCarrier, number: extra.trackingNumber }).catch(() => {});
       setOrders(os => os.map(x => x.id === o.id ? { ...x, status: step.to, trackingNumber: extra.trackingNumber || x.trackingNumber, trackingCarrier: extra.trackingCarrier || x.trackingCarrier } : x));
       setShipping(null); setTracking('');
+      emitCommerce({ type: 'ORDER', sellerUid: businessUid, orderId: o.id, status: step.to });
       onChanged?.();
     } catch { setMsg('Couldn\'t update that order — check your connection and try again.'); }
     finally { setBusyId(null); }

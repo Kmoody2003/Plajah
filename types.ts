@@ -5758,7 +5758,10 @@ export interface BusinessReward {
 export interface DigitalSignageSlide {
   id: string;
   businessId: string;
-  type: 'IMAGE' | 'VIDEO' | 'TEXT' | 'PROMO';
+  /** Static: IMAGE/VIDEO/TEXT/PROMO. Live (bound to the commerce bus, re-render on every stock/price/deal change):
+   *  PRODUCT = named storeProducts with live price + sold-out; MENU = a live price board for an inventory category;
+   *  DEAL = an active offer from businesses/{uid}/offers; EVENT = the host's next upcoming events. */
+  type: 'IMAGE' | 'VIDEO' | 'TEXT' | 'PROMO' | 'PRODUCT' | 'MENU' | 'DEAL' | 'EVENT';
   url?: string;
   headline?: string;
   subtext?: string;
@@ -5848,6 +5851,13 @@ export interface OffPlatformPromotion {
 
 export interface AdBoostProfile {
   userId: string;
+  /** Live bindings (PRODUCT / MENU / DEAL / EVENT). sellerUid = storeProducts.sellerId (the owner uid). */
+  sellerUid?: string;
+  productIds?: string[];
+  category?: string;
+  offerId?: string;
+  /** Hide sold-out products instead of stamping them "Sold out". */
+  hideSoldOut?: boolean;
   subscriptionTierBoost: number;
   achievementBoostMultiplier: number;
   achievementBoostExpiresAt?: number;
@@ -5964,6 +5974,49 @@ export interface SanctuaryCreatorConfig {
   coverImageUrl?: string;
   totalMembers: number;
   monthlyRevenue: number;
+  // ── Pipeline CRM (services/opsPresets + services/crm) — all optional, zero-migration ──
+  firstName?: string;
+  lastName?: string;
+  company?: string;
+  address?: { line1?: string; line2?: string; city?: string; region?: string; postal?: string };
+  /** Pipeline id from the business's ops preset (e.g. 'sales', 'showings'); stage id inside it. */
+  pipelineId?: string;
+  stageId?: string;
+  stageEnteredAt?: number;
+  /** Estimated value of the open deal, in cents. */
+  dealValueCents?: number;
+  source?: 'walk_in' | 'website' | 'pos' | 'event' | 'referral' | 'social' | 'ad' | 'mail' | 'import' | 'phone' | 'other';
+  assignedTo?: string;
+  nextActionAt?: number;
+  nextAction?: string;
+  lastContactAt?: number;
+  /** Preset custom fields (vehicle of interest, move-in date, event date...). */
+  custom?: Record<string, string>;
+  /** Consent for marketing email / mail; transactional mail is always allowed. */
+  marketingOptIn?: boolean;
+  mailOptOut?: boolean;
+  birthday?: string;
+  updatedAt?: number;
+}
+
+/** One touchpoint on a CRM contact: a note, call, email, letter, stage move, sale, event RSVP... (crmActivities). */
+export interface CrmActivity {
+  id: string;
+  businessId: string;
+  contactId: string;
+  kind: 'note' | 'call' | 'email' | 'push' | 'letter' | 'postcard' | 'meeting' | 'stage' | 'sale' | 'event' | 'task' | 'system';
+  summary: string;
+  body?: string;
+  /** Correspondence template id when it was sent from a preset template. */
+  templateId?: string;
+  fromStageId?: string;
+  toStageId?: string;
+  amountCents?: number;
+  dueAt?: number;
+  doneAt?: number;
+  byUid: string;
+  byName?: string;
+  at: number;
 }
 
 // ── SANCTUARY (Patreon / Kickstarter / GoFundMe hybrid) ─────────────────────────
@@ -6739,6 +6792,10 @@ export interface EventTicket {
   id: string;
   eventId: string;
   eventTitle: string;
+  /** The org or business this event is run under (verified server-side on create). Absent = personal event. */
+  host?: { kind: 'org' | 'business'; id: string; name?: string };
+  /** Ops-preset event playbook key it was started from (services/opsPresets). */
+  playbookKey?: string;
   eventStartDate: number;
   eventVenue?: string;
   eventCoverImage?: string;

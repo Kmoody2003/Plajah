@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": true, "allowJs": false },
+  "include": [
+    "services/crm/**/*.ts",
+    "components/crm/**/*.tsx",
+    "components/crm/**/*.ts",
+    "tests/crmCore.test.ts"
+  ]
+}

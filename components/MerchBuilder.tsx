@@ -15,13 +15,33 @@ import {
   suggestGelatoRetailPrice,
   type GelatoProduct, type GelatoVariant,
 } from '../services/gelatoService';
-import { addMerchItem } from '../services/backendService';
-import { MerchItem } from '../types';
+import { auth } from '../services/backendService';
+import { publishMerchProduct } from '../services/commerceBus';
+import type { MerchItem, StoreProduct } from '../types';
 
 interface MerchBuilderProps {
   artistId: string;
-  onComplete: (item: MerchItem) => void;
+  /** Called with a MerchItem-shaped view (legacy callers) and the canonical storeProducts doc it created. */
+  onComplete: (item: MerchItem, product?: StoreProduct) => void;
   onClose: () => void;
+  /** Store owner display name (defaults to the signed-in user's name). */
+  sellerName?: string;
+  /** 'ORG' when building merch for an organization's store. */
+  sellerType?: 'USER' | 'ORG';
+}
+
+// New merch is written as a canonical storeProducts doc (one catalog: inventory, POS, kiosk, storefront,
+// signage) — never the legacy `merch` collection. Rules require sellerId === the signed-in uid.
+async function publishAsProduct(item: Omit<MerchItem, 'id'>, fallbackOwner: string, sellerName?: string, sellerType: 'USER' | 'ORG' = 'USER'): Promise<{ item: MerchItem; product: StoreProduct }> {
+  const sellerId = auth.currentUser?.uid || fallbackOwner;
+  const product = await publishMerchProduct({
+    title: item.title, description: item.description, price: item.price,
+    images: item.imageUrl ? [item.imageUrl] : [], category: item.category === 'ACCESSORY' ? 'ACCESSORIES' : item.category === 'MUSIC' ? 'MUSIC' : item.category === 'DIGITAL' ? 'DIGITAL' : item.category === 'COLLECTIBLES' ? 'COLLECTIBLES' : 'APPAREL',
+    stock: item.stock, fulfillmentSource: item.fulfillmentSource,
+    printfulSyncProductId: item.printfulSyncProductId, printfulVariantId: item.printfulVariantId,
+    externalStoreUrl: item.externalStoreUrl,
+  }, { sellerId, sellerName: sellerName || auth.currentUser?.displayName || '', sellerType });
+  return { item: { ...item, ownerId: sellerId, id: product.id }, product };
 }
 
 // ── Fulfillment Partner Choice ─────────────────────────────────────────────────
@@ -69,7 +89,7 @@ const STEP_LABELS: Partial<Record<Step, string>> = {
 
 // ── Component ──────────────────────────────────────────────────────────────────
 
-const MerchBuilder: React.FC<MerchBuilderProps> = ({ artistId, onComplete, onClose }) => {
+const MerchBuilder: React.FC<MerchBuilderProps> = ({ artistId, onComplete, onClose, sellerName, sellerType = 'USER' }) => {
   const [step, setStep] = useState<Step>('choose-partner');
   const [mode, setMode] = useState<FulfillmentMode>('printful');
   const [loading, setLoading] = useState(false);
@@ -255,8 +275,8 @@ const MerchBuilder: React.FC<MerchBuilderProps> = ({ artistId, onComplete, onClo
         printfulVariantId: mode === 'printful' ? pfSelectedVariant?.id : undefined,
       };
 
-      const id = await addMerchItem(newItem);
-      onComplete({ ...newItem, id: id ?? `${mode}-${Date.now()}` });
+      const out = await publishAsProduct(newItem, artistId, sellerName, sellerType);
+      onComplete(out.item, out.product);
     } catch (err: any) {
       setError(err.message ?? 'Publishing failed.');
       setStep('pricing');
@@ -285,8 +305,8 @@ const MerchBuilder: React.FC<MerchBuilderProps> = ({ artistId, onComplete, onClo
         fulfillmentSource: 'external',
         externalStoreUrl,
       };
-      const id = await addMerchItem(newItem);
-      onComplete({ ...newItem, id: id ?? `ext-${Date.now()}` });
+      const out = await publishAsProduct(newItem, artistId, sellerName, sellerType);
+      onComplete(out.item, out.product);
     } catch (err: any) {
       setError(err.message ?? 'Failed to link store.');
       setStep('external-link');

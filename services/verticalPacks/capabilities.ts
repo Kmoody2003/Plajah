@@ -3,7 +3,7 @@
  * Update a status here (and the test expectations) when a feature ships or is rolled back. Packs, the
  * picker, the checklist and the applier all read it, so the UI can never offer a broken feature.
  *
- * Statuses reflect the repo as of 2026-10-04. Items marked (unverified) were reported by teammates
+ * Statuses reflect the repo as of 2026-10-04 (TICKETS and the retail big-ticket + events layer re-checked 2026-10-20). Items marked (unverified) were reported by teammates
  * working concurrently and were not re-verified live by the pack author.
  */
 import type { CapabilityId, CapabilityInfo, CapabilityStatus, PackReadiness, VerticalPack } from './types';
@@ -18,7 +18,7 @@ export const CAPABILITIES: Record<CapabilityId, CapabilityInfo> = Object.fromEnt
   c('VARIANTS', 'Size / color variants', 'ready', 'Variant matrix with per-variant stock.'),
   c('BOOKING', 'Appointment booking', 'partial', 'AppointmentsManager handles bookings; no per-stylist calendars or online deposits yet.'),
   c('MEMBERSHIPS', 'Memberships & packages', 'planned', 'Recurring plans and prepaid packages are not built yet.'),
-  c('TICKETS', 'Event tickets', 'planned', 'Ticketed events are not built yet.'),
+  c('TICKETS', 'Event tickets', 'partial', 'Ticketed events with price tiers, checkout, attendee list, door kiosk and scanner (plajahEvents, EventCreationWizard, EventTicketingDashboard). Events are being attributed to business/org hosts this week, so a business-hosted show may still list under the creator; not yet verified live end to end.'),
   c('GIFT_CARDS', 'Gift cards', 'partial', 'Sell/redeem/void gift cards at the register and online (storedValueCore + /api/stored-value/*); not yet verified live.'),
   c('LOYALTY', 'Loyalty rewards', 'ready', 'Points per dollar and members-only deals at the register.'),
   c('DEALS', 'Deals & markdowns', 'ready', 'OffersManager: percent/amount deals, best one auto-applies.'),
@@ -53,6 +53,14 @@ export const CAPABILITIES: Record<CapabilityId, CapabilityInfo> = Object.fromEnt
   c('BAG_TAGS', 'Bag tags & rack tracking', 'partial', 'Per-bag scannable tags (Code 128 + QR), rack/shelf, missing-bag and partial-pickup flows on laundry tickets; browser/thermal-label printing. Not verified with a real label printer or scanner.'),
   c('WALLET_PROMO', 'Wallet top-up bonus', 'partial', 'Owner-set bonus (e.g. load $50 get $5) credited as an idempotent stored-value ADJUST on wallet reload. Not yet verified live.'),
   c('DELIVERY', 'Pickup & delivery', 'partial', 'Delivery fee line, address, time windows, driver and a printable day route list. No maps or route optimisation.'),
+  c('VEHICLE_INVENTORY', 'Vehicle inventory', 'partial', 'Each vehicle is an inventory item (stock 1) with year/make/model/miles in the description and specs on the item. No DMS, no VIN-level inventory sync, no marketplace feeds (Autotrader, Cars.com) and no window-sticker printing.'),
+  c('TEST_DRIVES', 'Test drives', 'partial', 'Book test drives as appointments (AppointmentsManager). No license scan or insurance capture; copy the license by hand per your dealer policy.'),
+  c('FINANCING', 'Financing & credit apps', 'planned', 'No lender integration (RouteOne / Dealertrack), no credit applications or rate quotes. Customers arrange financing outside Plajah; record the lender on the deal by hand.'),
+  c('SPECIAL_ORDERS', 'Special orders', 'planned', 'No special-order tracker yet: the ticket engine is only switched on for auto repair and laundry. Ring the deposit at the register and track the vendor order by hand (or in the CRM pipeline) for now.'),
+  c('LAYAWAY', 'Layaway', 'planned', 'No layaway plans or scheduled installments. Partial payments are not tracked against a held item.'),
+  c('DEPOSITS', 'Deposits & retainers', 'partial', 'Deposits can be recorded on service tickets and credited at checkout (ticket engine, auto repair and laundry only). No online deposit links and no deposit-on-booking for other packs yet; take a deposit as a register sale and note it on the booking.'),
+  c('CRM_PIPELINE', 'Deal pipeline (CRM)', 'partial', 'New: a stage-based pipeline CRM (services/crm) is being built this week. Contacts and notes work in the CRM tab today; drag-through stages are not yet verified live.'),
+  c('EVENT_WORKFLOW', 'Event bookings workflow', 'partial', 'Inquiries, tours (appointments) and the event stage pipeline ride on Booking + the CRM pipeline. No floor plans, BEOs, run-of-show documents or e-signed contracts yet.'),
   c('MACHINE_CONTROL', 'Self-service machine control', 'planned', 'Machine status and payment/start integration with a laundry controller vendor is a later phase; nothing is controlled from Plajah today.'),
 ] as [CapabilityId, CapabilityInfo][]) as Record<CapabilityId, CapabilityInfo>;
 

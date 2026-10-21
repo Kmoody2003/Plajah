@@ -40,18 +40,35 @@ import ArtistPromoDirectory from './ArtistPromoDirectory';
 import StaffHRManager from './StaffHRManager';
 import AppointmentsManager from './clinic/AppointmentsManager';
 import { ClinicalCareGate, NoPhiNotice } from './clinic/ClinicalGuardrails';
+import { BO, BoScope, BoModeBar, BoKpiStrip, BoSectionHead, BoTaskList, BoLabel, money } from './business/opsKit';
+import { opsPresetForPage } from '../services/opsPresets';
+import { subscribeCatalog, subscribeOrders } from '../services/commerceBus';
+import { stockStatus } from '../services/inventoryCore';
+import type { StoreProduct } from '../types';
+import type { StoreOrderRecord } from '../services/businessOpsService';
+import type { MailRecipient } from '../services/marketing/handoff';
+import SignageStudio from './business/SignageStudio';
+import GrowthHub from './growth/GrowthHub';
+const BizCrm = lazy(() => import('./crm/BizCrm'));
 
-type BizTab = 'OVERVIEW' | 'APPOINTMENTS' | 'ORDERS' | 'INVENTORY' | 'TEAM' | 'MESSAGING' | 'CRM' | 'SIGNAGE' | 'SEEDRAISER' | 'RADIO' | 'MARKETING' | 'SETTINGS' | 'LISTINGS' | 'COMPLIANCE' | 'BILLING' | 'TICKETS';
+type BizTab = 'OVERVIEW' | 'TODAY' | 'APPOINTMENTS' | 'ORDERS' | 'INVENTORY' | 'TEAM' | 'MESSAGING' | 'CRM' | 'SIGNAGE' | 'SEEDRAISER' | 'RADIO' | 'MARKETING' | 'SETTINGS' | 'LISTINGS' | 'COMPLIANCE' | 'BILLING' | 'TICKETS' | 'EVENTS' | 'SOCIAL';
+type BizMode = 'owner' | 'staff';
 
 // "Storefront Command" rail — the vertical-filtered tabs collapse into four
 // working groups so nothing wraps. Only ids that survive the vertical filter
 // (see `tabs` below) actually render, so a clinic has Appointments/Telehealth.
 const TAB_GROUPS: { label: string; ids: BizTab[] }[] = [
-  { label: 'Sell',   ids: ['OVERVIEW', 'TICKETS', 'APPOINTMENTS', 'ORDERS', 'INVENTORY', 'LISTINGS'] },
-  { label: 'Engage', ids: ['CRM', 'MESSAGING', 'SIGNAGE', 'RADIO'] },
-  { label: 'Grow',   ids: ['MARKETING', 'SEEDRAISER'] },
-  { label: 'Manage', ids: ['BILLING', 'TEAM', 'COMPLIANCE', 'SETTINGS'] },
+  { label: 'Sell',      ids: ['OVERVIEW', 'TODAY', 'TICKETS', 'APPOINTMENTS', 'ORDERS', 'INVENTORY', 'LISTINGS'] },
+  { label: 'Customers', ids: ['CRM', 'MESSAGING'] },
+  { label: 'Grow',      ids: ['EVENTS', 'SOCIAL', 'MARKETING', 'SEEDRAISER'] },
+  { label: 'Screens',   ids: ['SIGNAGE', 'RADIO'] },
+  { label: 'Manage',    ids: ['BILLING', 'TEAM', 'COMPLIANCE', 'SETTINGS'] },
 ];
+
+/** What a team member sees in Staff view: the work, not the money or the settings. */
+const STAFF_TABS: BizTab[] = ['TODAY', 'ORDERS', 'TICKETS', 'APPOINTMENTS', 'INVENTORY', 'CRM', 'EVENTS', 'SIGNAGE', 'RADIO'];
+
+const startOfToday = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); };
 
 // ── Status badge ──────────────────────────────────────────────────────────────
 
@@ -109,12 +126,12 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
   const [campaigns, setCampaigns] = useState<SeedRaiserCampaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingPage, setEditingPage] = useState<Partial<BusinessPage> | null>(null);
-  const [editingContact, setEditingContact] = useState<Partial<CrmContact> | null>(null);
   const [editingCampaign, setEditingCampaign] = useState<Partial<SeedRaiserCampaign> | null>(null);
-  const [editingSlide, setEditingSlide] = useState<Partial<DigitalSignageSlide> | null>(null);
-  const [contactSearch, setContactSearch] = useState('');
-  const [signageRunning, setSignageRunning] = useState(false);
-  const [signageIdx, setSignageIdx] = useState(0);
+  const [mode, setMode] = useState<BizMode>('owner');
+  const [showSuite, setShowSuite] = useState(false);
+  // Live commerce: one catalog + order stream shared with the register, kiosk, store and screens.
+  const [catalog, setCatalog] = useState<StoreProduct[]>([]);
+  const [storeOrders, setStoreOrders] = useState<StoreOrderRecord[]>([]);
 
   useEffect(() => {
     const load = async () => {
@@ -135,20 +152,18 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
   useEffect(() => {
     if (!activePage) return;
     const unsub = listenToBusinessOrders(activePage.id, setOrders);
-    fetchCrmContacts(activePage.id).then(setContacts);
-    fetchSignageSlides(activePage.id).then(setSlides);
-    fetchMySeedRaiserCampaigns().then(setCampaigns);
+    fetchCrmContacts(activePage.id).then(setContacts).catch(() => setContacts([]));
+    fetchSignageSlides(activePage.id).then(setSlides).catch(() => setSlides([]));
+    fetchMySeedRaiserCampaigns().then(setCampaigns).catch(() => setCampaigns([]));
     return unsub;
   }, [activePage?.id]);
 
-  // Signage slideshow
   useEffect(() => {
-    if (!signageRunning || slides.length === 0) return;
-    const active = slides.filter(s => s.isActive);
-    if (active.length === 0) return;
-    const id = setInterval(() => setSignageIdx(i => (i + 1) % active.length), (active[signageIdx]?.durationSeconds || 10) * 1000);
-    return () => clearInterval(id);
-  }, [signageRunning, slides, signageIdx]);
+    if (!activePage) return;
+    const offCat = subscribeCatalog(currentUser.uid, setCatalog, { onError: () => {} });
+    const offOrd = subscribeOrders(currentUser.uid, setStoreOrders, { limit: 200, onError: () => {} });
+    return () => { offCat(); offOrd(); };
+  }, [activePage?.id, currentUser.uid]);
 
   const handleSeedFullDemo = async () => {
     if (seedingDemo) return;
@@ -177,16 +192,6 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
     setEditingPage(null);
   };
 
-  const handleSaveContact = async () => {
-    if (!editingContact || !activePage) return;
-    const saved = await saveCrmContact({ ...editingContact, businessId: activePage.id });
-    setContacts(prev => {
-      const exists = prev.find(c => c.id === saved.id);
-      return exists ? prev.map(c => c.id === saved.id ? saved : c) : [...prev, saved];
-    });
-    setEditingContact(null);
-  };
-
   const handleSaveCampaign = async () => {
     if (!editingCampaign) return;
     const saved = await saveSeedRaiserCampaign(editingCampaign);
@@ -202,21 +207,14 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
     setCampaigns(prev => prev.map(c => c.id === id ? { ...c, status: 'ACTIVE' } : c));
   };
 
-  const handleSaveSlide = async () => {
-    if (!editingSlide || !activePage) return;
-    const saved = await saveSignageSlide({ ...editingSlide, businessId: activePage.id });
-    setSlides(prev => {
-      const exists = prev.find(s => s.id === saved.id);
-      return exists ? prev.map(s => s.id === saved.id ? saved : s) : [...prev, saved];
-    });
-    setEditingSlide(null);
-  };
-
   const cap = (w: string) => w.charAt(0).toUpperCase() + w.slice(1);
   const ticketPackId = packForPage(activePage)?.ticket ? packForPage(activePage)!.id : '';
   const ticketApi = useMemo(() => (ticketPackId ? serverTicketApi(currentUser.uid, ticketPackId) : null), [ticketPackId, currentUser.uid]);
   const ALL_TABS: { id: BizTab; label: string; icon: React.ComponentType<{ size?: number; className?: string }> }[] = [
     { id: 'OVERVIEW',     label: 'Overview',     icon: Store },
+    { id: 'TODAY',        label: 'Today',        icon: Clock },
+    { id: 'EVENTS',       label: 'Events',       icon: Calendar },
+    { id: 'SOCIAL',       label: 'Social',       icon: Globe },
     { id: 'APPOINTMENTS', label: activePage?.businessType === 'HEALTH' ? 'Clinical Care' : 'Appointments', icon: activePage?.businessType === 'HEALTH' ? Stethoscope : Calendar },
     { id: 'TICKETS',      label: packForPage(activePage)?.ticket ? cap(packForPage(activePage)!.ticket!.nounPlural) : 'Tickets', icon: ClipboardList },
     { id: 'LISTINGS',     label: 'Listings',     icon: Building2 },
@@ -225,7 +223,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
     { id: 'INVENTORY',    label: packForPage(activePage) ? vocabularyFor(activePage).catalogNoun : 'Inventory', icon: Package },
     { id: 'TEAM',         label: 'Team & HR',    icon: Users },
     { id: 'MESSAGING',    label: 'Messaging',    icon: Mail },
-    { id: 'CRM',          label: 'CRM',          icon: Users },
+    { id: 'CRM',          label: 'CRM',          icon: Target },
     { id: 'SIGNAGE',      label: 'Signage',      icon: Monitor },
     { id: 'SEEDRAISER',   label: 'Seed Raiser',  icon: Leaf },
     { id: 'RADIO',        label: 'Radio',        icon: Radio },
@@ -233,138 +231,159 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
   ];
 
   // Show only the tabs this vertical actually uses — a realtor has no inventory
-  // or in-store radio. Ordered by the vertical so its priorities lead.
+  // or in-store radio. Ordered by the vertical so its priorities lead. Events, social, marketing and
+  // billing are offered to every business; Staff view narrows to the day's work.
   const vertical = getVertical(activePage?.businessType);
-  const MARKETING_TAB = { id: 'MARKETING' as BizTab, label: 'Marketing', icon: Megaphone };
-  const BILLING_TAB = { id: 'BILLING' as BizTab, label: 'Billing', icon: Receipt };
-  const tabs = [
-    ...tabsFor(activePage)
-      .map(id => ALL_TABS.find(t => t.id === (id as BizTab)))
-      .filter((t): t is typeof ALL_TABS[number] => Boolean(t)),
-    // Marketing is offered for every vertical (identity-scoped Organic ⇄ Paid),
-    // so append it if the vertical config didn't already include it.
-    ...(vertical.tabs.includes('MARKETING' as any) ? [] : [MARKETING_TAB]),
-    // Plajah Billing — every vertical can invoice; flag-gated inside the mount ("Soon" pill while OFF).
-    BILLING_TAB,
-  ];
+  const pick = (id: BizTab) => ALL_TABS.find(t => t.id === id) ?? (id === 'MARKETING' ? { id, label: 'Marketing', icon: Megaphone } : id === 'BILLING' ? { id, label: 'Billing', icon: Receipt } : null);
+  const ownerIds: BizTab[] = Array.from(new Set<BizTab>([
+    'OVERVIEW', 'TODAY', ...(tabsFor(activePage) as BizTab[]), 'CRM', 'EVENTS', 'SOCIAL', 'MARKETING', 'BILLING',
+  ]));
+  const visibleIds = mode === 'staff' ? ownerIds.filter(id => STAFF_TABS.includes(id)) : ownerIds;
+  const tabs = visibleIds.map(pick).filter((t): t is typeof ALL_TABS[number] => Boolean(t));
+
+  // Keep the selected tab valid when the mode or page changes.
+  useEffect(() => {
+    if (!visibleIds.includes(activeTab)) setActiveTab(mode === 'staff' ? 'TODAY' : 'OVERVIEW');
+  }, [mode, activePage?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const preset = useMemo(() => opsPresetForPage(activePage), [activePage?.subtype, activePage?.packId, activePage?.businessType]);
+  const accent = packForPage(activePage)?.color || preset.accent || BO.orange;
+  const vocab = vocabularyFor(activePage);
+
+  // ── Live numbers (storeOrders + storeProducts: the same data the register and screens use) ──
+  const today0 = startOfToday();
+  const paidToday = storeOrders.filter(o => (o.paidAt || o.createdAt) >= today0 && o.status !== 'CANCELLED' && o.status !== 'PENDING_PAYMENT');
+  const salesToday = paidToday.reduce((a, o) => a + (o.totalCents ?? o.subtotalCents ?? 0), 0) / 100;
+  const openStoreOrders = storeOrders.filter(o => ['CONFIRMED', 'PREPARING', 'READY'].includes(o.status));
+  const lowStock = catalog.filter(p => p.isActive !== false && (stockStatus(p) === 'LOW' || stockStatus(p) === 'OUT'));
+  const openLegacy = orders.filter(o => o.status !== 'COMPLETED' && o.status !== 'CANCELLED');
+
+  const identity = activePage ? {
+    name: activePage.businessName, phone: activePage.phone, website: activePage.website, logoUrl: activePage.logoUrl,
+    address: { line1: activePage.address, city: activePage.city, region: activePage.state, postal: activePage.postalCode },
+  } : { name: 'Business' };
+
+  const loadRecipients = async (segmentId?: string): Promise<MailRecipient[]> => {
+    if (!activePage) return [];
+    const all = await fetchCrmContacts(activePage.id).catch(() => [] as CrmContact[]);
+    const now = Date.now();
+    const seg = preset.crm.segments.find(x => x.id === segmentId);
+    return all
+      .filter(c => !c.mailOptOut && c.address?.line1 && c.address.city && c.address.region && c.address.postal)
+      .filter(c => {
+        if (!seg) return true;
+        const r = seg.rule;
+        if (r.inactiveDays && (now - (c.lastVisit || c.lastContactAt || c.createdAt)) < r.inactiveDays * 86400000) return false;
+        if (r.newWithinDays && (now - c.createdAt) > r.newWithinDays * 86400000) return false;
+        if (r.minSpend && (c.totalSpend || 0) < r.minSpend) return false;
+        if (r.minVisits && (c.visitCount || 0) < r.minVisits) return false;
+        if (r.tagsAny?.length && !r.tagsAny.some(t => c.tags?.includes(t))) return false;
+        if (r.stageIn?.length && !r.stageIn.includes(c.stageId || '')) return false;
+        if (r.optedIn && !c.marketingOptIn) return false;
+        return true;
+      })
+      .map(c => ({ name: c.name, line1: c.address!.line1!, line2: c.address!.line2, city: c.address!.city!, region: c.address!.region!, postal: c.address!.postal! }));
+  };
 
   if (loading) return (
-    <div className="flex items-center gap-3 text-white/30 p-8">
-      <div className="w-5 h-5 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
-      <span className="text-xs">Loading business dashboard…</span>
-    </div>
+    <BoScope className="min-h-[60vh] grid place-items-center">
+      <div className="flex items-center gap-3 text-[#A39BAE]">
+        <div className="w-5 h-5 border-2 border-white/20 border-t-white/70 rounded-full animate-spin" />
+        <span className="text-sm">Loading your business…</span>
+      </div>
+    </BoScope>
   );
 
-  return (
-    <div className="space-y-8 pb-16">
-      {/* Header */}
-      <div className="flex items-end justify-between">
-        <div>
-          <h1 className="text-5xl md:text-[6rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Business</h1>
-          <p className="text-white/40 text-sm font-bold uppercase tracking-widest mt-4">Your storefront command center</p>
-        </div>
-        <button
-          onClick={() => setEditingPage({ businessType: 'RETAIL', isAcceptingOrders: false, radioServiceEnabled: false, digitalSignageEnabled: false, crmEnabled: false, rewardsEnabled: false })}
-          className="flex items-center gap-2 px-5 py-3 bg-white text-black rounded-full text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all"
-        >
-          <Plus size={12} /> New Business
-        </button>
-      </div>
+  const newPage = () => setEditingPage({ businessType: 'RETAIL', isAcceptingOrders: false, radioServiceEnabled: false, digitalSignageEnabled: false, crmEnabled: false, rewardsEnabled: false });
 
-      {/* Business page selector */}
-      {pages.length > 0 && (
-        <div className="flex gap-3 flex-wrap">
-          {pages.map(p => (
-            <button
-              key={p.id}
-              onClick={() => setActivePage(p)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-black uppercase tracking-widest transition-all ${
-                activePage?.id === p.id ? 'bg-white text-black' : 'bg-white/5 text-white/50 hover:text-white border border-white/10'
-              }`}
-            >
-              <Store size={11} />
-              {p.businessName}
-            </button>
-          ))}
-        </div>
-      )}
+  return (
+    <BoScope accent={accent} className="pb-16 -mx-4 sm:mx-0 rounded-none sm:rounded-[28px] overflow-hidden">
+      {/* ── Mode bar: Owner / Staff / Public page ── */}
+      <BoModeBar
+        modes={activePage ? [{ k: 'owner', label: 'Owner' }, { k: 'staff', label: 'Staff view' }, { k: 'public', label: 'Public page' }] : [{ k: 'owner', label: 'Owner' }]}
+        value={mode}
+        onChange={k => {
+          if (k === 'public') { if (activePage && onNavigate) onNavigate('BUSINESS_PUBLIC', { businessPage: activePage }); return; }
+          setMode(k as BizMode);
+        }}
+        leading={
+          <div className="flex items-center gap-2.5 py-2 pr-2">
+            <span className="w-8 h-8 rounded-[10px] bo-mark grid place-items-center text-white text-sm font-bold">{(activePage?.businessName || 'B').charAt(0).toUpperCase()}</span>
+            <span className="bo-title text-[15px] text-white hidden sm:inline">Plajah Business</span>
+          </div>
+        }
+        trailing={
+          <>
+            {pages.length > 1 && (
+              <select
+                aria-label="Switch business"
+                value={activePage?.id || ''}
+                onChange={e => setActivePage(pages.find(p => p.id === e.target.value) || null)}
+                className="bo-input" style={{ minHeight: 36, width: 'auto', paddingRight: 28 }}
+              >
+                {pages.map(p => <option key={p.id} value={p.id}>{p.businessName}</option>)}
+              </select>
+            )}
+            {mode === 'owner' && <button onClick={newPage} className="bo-btn bo-btn-ghost bo-btn-sm"><Plus size={14} /> New business</button>}
+          </>
+        }
+      />
 
       {/* No pages yet */}
       {pages.length === 0 && !editingPage && (
-        <Card>
-          <div className="flex flex-col items-center gap-6 py-12">
-            <div className="p-6 bg-white/5 rounded-3xl">
-              <Store size={40} className="text-white/20" />
-            </div>
-            <div className="text-center">
-              <p className="text-white font-black text-lg">No Business Pages Yet</p>
-              <p className="text-white/30 text-sm mt-1 max-w-sm">Create a business page to unlock orders, CRM, digital signage, in-store radio, and Seed Raiser crowdfunding.</p>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <button
-                onClick={() => setEditingPage({ businessType: 'RETAIL', isAcceptingOrders: false, radioServiceEnabled: false, digitalSignageEnabled: false, crmEnabled: false, rewardsEnabled: false })}
-                className="flex items-center gap-2 px-6 py-3 bg-white/10 border border-white/15 rounded-2xl text-xs font-black uppercase tracking-widest text-white"
-              >
-                <Plus size={12} /> Create Business Page
-              </button>
-              <button
-                onClick={handleSeedFullDemo}
-                disabled={seedingDemo}
-                className="flex items-center gap-2 px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest text-white disabled:opacity-40"
-                style={{ background: 'linear-gradient(135deg,#6B0099,#D40055 55%,#FF8C00)' }}
-              >
-                <Zap size={12} /> {seedingDemo ? 'Building demo…' : 'Populate full demo'}
-              </button>
-            </div>
-            <p className="text-white/25 text-[11px] max-w-sm text-center">“Populate full demo” builds a complete café — products, deals, team, signage, menu, geofence & a live now-playing track — so you can tour the entire stack.</p>
+        <section className="max-w-[1320px] mx-auto px-4 sm:px-8 pt-14 pb-10">
+          <BoLabel className="mb-4">Plajah Business</BoLabel>
+          <h1 className="m-0 bo-display text-white" style={{ fontSize: 'clamp(2.8rem, 7vw, 6rem)' }}>Run the whole shop<br /><span className="bo-text-brand">from one place.</span></h1>
+          <p className="mt-6 text-[17px] text-[#D9D3E0] max-w-2xl">Register, inventory, online store and merch, screens, customers, events, social and local marketing, pre-wired for your kind of business: grocery, corner store, mechanic, furniture, dealership, venue, event planner, real estate and more.</p>
+          <div className="flex flex-wrap gap-3 mt-8">
+            <button onClick={newPage} className="bo-btn bo-btn-primary"><Plus size={16} /> Create your business</button>
+            <button onClick={handleSeedFullDemo} disabled={seedingDemo} className="bo-btn bo-btn-ghost"><Zap size={16} /> {seedingDemo ? 'Building demo…' : 'Tour a full demo café'}</button>
           </div>
-        </Card>
+        </section>
       )}
 
       {/* Tab nav (only when a page is selected) */}
       {activePage && (
-        <div className="grid grid-cols-1 md:grid-cols-[236px_minmax(0,1fr)] gap-6 items-start">
-          {/* ── Storefront Command rail — grouped nav (replaces the 13-tab row) ── */}
-          <aside className="md:sticky md:top-4 self-start">
-            <div className="flex items-center gap-3 px-2 pb-4 mb-3 border-b border-white/[0.06]">
-              <div className="w-9 h-9 rounded-xl grid place-items-center text-white font-black text-base shrink-0" style={{ background: 'linear-gradient(135deg,#D40055,#FF8C00)' }}>
-                {(activePage.businessName || 'B').charAt(0).toUpperCase()}
-              </div>
+        <div className="max-w-[1320px] mx-auto px-4 sm:px-8 pt-8 grid grid-cols-1 md:grid-cols-[232px_minmax(0,1fr)] gap-8 items-start">
+          {/* ── Ops rail ── */}
+          <aside className="md:sticky md:top-16 self-start">
+            <div className="flex items-center gap-3 pb-4 mb-4" style={{ borderBottom: `1px solid ${BO.line}` }}>
+              {activePage.logoUrl
+                ? <img src={activePage.logoUrl} alt="" className="w-10 h-10 rounded-xl object-cover shrink-0" />
+                : <span className="w-10 h-10 rounded-xl grid place-items-center text-[#160A00] text-base font-bold shrink-0" style={{ background: accent }}>{(activePage.businessName || 'B').charAt(0).toUpperCase()}</span>}
               <div className="min-w-0">
-                <div className="text-[13px] font-black truncate leading-tight">{activePage.businessName}</div>
-                <div className="text-[9px] text-white/40 truncate uppercase tracking-widest font-black">{vertical.label}</div>
+                <div className="bo-title text-[16px] text-white truncate leading-tight">{activePage.businessName}</div>
+                <div className="text-[13px] text-[#A39BAE] truncate">{mode === 'staff' ? 'Staff view' : (packForPage(activePage)?.label || vertical.label)}</div>
               </div>
             </div>
-            <div className="px-2 pb-4"><CreateEventButton compact host={{ kind: 'business', id: activePage.id, label: activePage.businessName }} /></div>
-            <div className="flex md:flex-col gap-4 overflow-x-auto md:overflow-visible pb-1 -mx-1 px-1">
+            {mode === 'owner' && <div className="pb-4"><CreateEventButton compact host={{ kind: 'business', id: activePage.id, label: activePage.businessName }} /></div>}
+            <nav aria-label="Business sections" className="flex md:flex-col gap-5 overflow-x-auto md:overflow-visible pb-1 -mx-1 px-1">
               {TAB_GROUPS.map(g => {
-                const items = g.ids
-                  .map(id => tabs.find(t => t.id === id))
-                  .filter((t): t is typeof tabs[number] => Boolean(t));
+                const items = g.ids.map(id => tabs.find(t => t.id === id)).filter((t): t is typeof tabs[number] => Boolean(t));
                 if (items.length === 0) return null;
                 return (
                   <div key={g.label} className="min-w-max md:min-w-0">
-                    <div className="text-[9px] font-black uppercase tracking-[0.2em] text-white/25 px-2.5 mb-1.5">{g.label}</div>
-                    <div className="flex md:flex-col gap-1">
+                    <BoLabel className="px-2.5 mb-1.5">{g.label}</BoLabel>
+                    <div className="flex md:flex-col gap-0.5">
                       {items.map(t => {
                         const sel = activeTab === t.id;
-                        const count = t.id === 'ORDERS'
-                          ? orders.filter(o => o.status !== 'COMPLETED' && o.status !== 'CANCELLED').length
+                        const count = t.id === 'ORDERS' ? openStoreOrders.length + openLegacy.length
+                          : t.id === 'INVENTORY' ? lowStock.length
                           : t.id === 'CRM' ? contacts.length : 0;
                         return (
                           <button
                             key={t.id}
                             onClick={() => setActiveTab(t.id)}
-                            className={`relative flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-[12.5px] font-bold transition-all whitespace-nowrap ${
-                              sel ? 'bg-white/[0.08] text-white' : 'text-white/55 hover:text-white hover:bg-white/[0.04]'
-                            }`}
+                            aria-current={sel ? 'page' : undefined}
+                            className="relative flex items-center gap-2.5 min-h-[40px] px-2.5 rounded-[10px] text-[14px] transition-colors whitespace-nowrap"
+                            style={sel ? { background: BO.raised, color: BO.ink, fontWeight: 600 } : { color: BO.muted }}
                           >
-                            {sel && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r" style={{ background: 'linear-gradient(180deg,#D40055,#FF8C00)' }} />}
-                            <t.icon size={15} />
+                            {sel && <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r" style={{ background: accent }} />}
+                            <t.icon size={16} />
                             <span>{t.label}</span>
                             {t.id === 'BILLING' && billingNav.state === 'soon' && <SoonPill />}
                             {count > 0 && (
-                              <span className="ml-auto text-[9px] font-black text-black rounded-full px-1.5 py-0.5 leading-none" style={{ background: t.id === 'ORDERS' ? '#FF8C00' : '#00DAF3' }}>{count}</span>
+                              <span className="ml-auto bo-num text-[12px] rounded-full px-2 py-0.5 leading-none" style={t.id === 'INVENTORY' ? { background: 'rgba(245,158,11,0.16)', color: BO.warn } : { background: 'rgba(255,255,255,0.08)', color: BO.ink }}>{count}</span>
                             )}
                           </button>
                         );
@@ -373,7 +392,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
                   </div>
                 );
               })}
-            </div>
+            </nav>
           </aside>
 
           {/* ── Panel column ── */}
@@ -387,11 +406,25 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
           )}
 
           {activeTab === 'OVERVIEW' && (
-            <div className="space-y-6">
+            <div className="space-y-10 bo-rise">
+              <header>
+                <BoLabel className="mb-3">{packForPage(activePage)?.label || vertical.label}</BoLabel>
+                <h1 className="m-0 bo-display text-white" style={{ fontSize: 'clamp(2.4rem, 5.4vw, 4.4rem)' }}>{activePage.businessName}</h1>
+                <p className="m-0 mt-3 text-[16px] text-[#D9D3E0] max-w-2xl">{preset.commerce.note}</p>
+              </header>
+
+              <BoKpiStrip items={[
+                { label: 'Sales today', value: money(salesToday), note: `${paidToday.length} ${paidToday.length === 1 ? vocab.orderNoun : vocab.orderNounPlural}`, tone: salesToday > 0 ? 'up' : 'flat', onClick: () => setActiveTab('ORDERS') },
+                { label: `Open ${vocab.orderNounPlural}`, value: String(openStoreOrders.length + openLegacy.length), note: openStoreOrders.some(o => o.status === 'READY') ? 'Some are ready for pickup' : undefined, tone: 'warn', onClick: () => setActiveTab('ORDERS') },
+                { label: 'Low or out of stock', value: String(lowStock.length), note: lowStock.length ? lowStock.slice(0, 2).map(p => p.title).join(', ') : 'All stocked', tone: lowStock.length ? 'warn' : 'up', onClick: () => setActiveTab('INVENTORY') },
+                { label: preset.crm.contactNoun === 'customer' ? 'Customers' : `${preset.crm.contactNoun[0].toUpperCase()}${preset.crm.contactNoun.slice(1)}s`, value: String(contacts.length), onClick: () => setActiveTab('CRM') },
+                { label: 'Live products', value: String(catalog.filter(p => p.isActive !== false).length), note: 'Register · store · screens', onClick: () => setActiveTab('INVENTORY') },
+              ]} />
+
               {activePage && (
                 <PackOnboarding
                   page={activePage}
-                  orderCount={orders.length}
+                  orderCount={orders.length + storeOrders.length}
                   contactCount={contacts.length}
                   slideCount={slides.length}
                   onPageChange={updated => { setActivePage(updated); setPages(prev => prev.map(x => x.id === updated.id ? updated : x)); }}
@@ -401,112 +434,143 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
               {activePage && billingNav.state !== 'soon' && (
                 <BillingSummaryMount entity={{ kind: 'BUSINESS', id: activePage.id }} />
               )}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                {[
-                  { label: 'Total Orders', value: orders.length, icon: ShoppingBag, color: '#D40055' },
-                  { label: 'Active', value: orders.filter(o => o.status !== 'COMPLETED' && o.status !== 'CANCELLED').length, icon: Clock, color: '#FF8C00' },
-                  { label: 'CRM Contacts', value: contacts.length, icon: Users, color: '#6B0099' },
-                  { label: 'Campaigns', value: campaigns.length, icon: Leaf, color: '#06D6A0' },
-                ].map(item => (
-                  <Card key={item.label}>
-                    <div className="p-2 rounded-xl w-fit mb-3" style={{ background: `${item.color}20` }}>
-                      <item.icon size={16} style={{ color: item.color }} />
-                    </div>
-                    <p className="text-2xl font-black text-white">{item.value}</p>
-                    <p className="text-[9px] font-black uppercase tracking-widest text-white/40 mt-0.5">{item.label}</p>
-                  </Card>
-                ))}
-              </div>
 
-              {/* Storefront powers — marquee capabilities, live/off at a glance */}
-              <Card>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-sm font-black uppercase tracking-widest text-white">Your storefront powers</h3>
-                  <span className="text-[9px] font-black uppercase tracking-widest text-white/25">Powered by Plajah</span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* One catalog, every surface */}
+              <section>
+                <BoSectionHead size="md" title="Connected systems" sub="Inventory is the source of truth. A sale anywhere updates stock, the online store, the merch shop and every screen in seconds." />
+                <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))' }}>
                   {[
-                    { key: 'isAcceptingOrders',    tab: 'INVENTORY', label: 'Online Store',     desc: 'Powered by your Merch Store — products, variants & checkout.', color: '#FF8C00', icon: ShoppingBag },
-                    { key: 'rewardsEnabled',        tab: 'CRM',       label: 'Customer Rewards', desc: 'Points, tiers & auto-deals recognized at the register.',        color: '#00DAF3', icon: Star },
-                    { key: 'radioServiceEnabled',   tab: 'RADIO',     label: 'In-Store Radio',   desc: 'Now Playing to every phone in the room — tip & buy live.',      color: '#D40055', icon: Radio },
-                    { key: 'digitalSignageEnabled', tab: 'SIGNAGE',   label: 'Digital Signage',  desc: 'Menu boards & promos pushed to any screen remotely.',          color: '#6B0099', icon: Monitor },
-                  ].map(p => {
-                    const on = Boolean((activePage as any)[p.key]);
-                    return (
-                      <button
-                        key={p.key}
-                        onClick={() => setActiveTab(p.tab as BizTab)}
-                        className="relative text-left p-4 rounded-2xl bg-white/[0.03] border border-white/[0.07] hover:border-white/20 hover:-translate-y-0.5 transition-all flex flex-col gap-2.5 overflow-hidden"
-                      >
-                        <span className="absolute top-3 right-3 text-[8px] font-black uppercase tracking-widest" style={{ color: on ? '#06D6A0' : 'rgba(255,255,255,0.3)' }}>{on ? '● Live' : '○ Set up'}</span>
-                        <span className="w-9 h-9 rounded-xl grid place-items-center shrink-0" style={{ background: `${p.color}22`, color: p.color }}><p.icon size={17} /></span>
-                        <div>
-                          <div className="text-[13px] font-black text-white">{p.label}</div>
-                          <div className="text-[10.5px] text-white/40 leading-snug">{p.desc}</div>
-                        </div>
-                      </button>
-                    );
-                  })}
+                    { k: 'pos', on: preset.commerce.pos, label: 'Register (POS)', desc: `${catalog.length} items ready to ring`, act: 'Open register', go: () => setShowRegister(true) },
+                    { k: 'store', on: activePage.isAcceptingOrders, label: 'Online store', desc: activePage.isAcceptingOrders ? 'Taking orders' : 'Turn on to sell online', act: 'Manage', go: () => setActiveTab('INVENTORY') },
+                    { k: 'merch', on: preset.commerce.merchShop, label: 'Merch shop', desc: 'Branded goods from the same stock', act: 'Add merch', go: () => setActiveTab('INVENTORY') },
+                    { k: 'kiosk', on: preset.commerce.kiosk, label: 'Self-order kiosk', desc: 'Any tablet, live menu', act: 'Launch', go: () => setShowKiosk(true) },
+                    { k: 'signage', on: activePage.digitalSignageEnabled || slides.length > 0, label: 'Digital signage', desc: `${slides.filter(x => x.isActive).length} slides · feeds: ${preset.commerce.signageFeeds.map(f => f.toLowerCase().replace('_', ' ')).join(', ')}`, act: 'Screens', go: () => setActiveTab('SIGNAGE') },
+                    { k: 'crm', on: true, label: 'CRM', desc: `${preset.crm.pipelines.map(p => p.label).join(' · ')}`, act: 'Open', go: () => setActiveTab('CRM') },
+                  ].map(x => (
+                    <button key={x.k} onClick={x.go} className="bo-panel text-left p-5 flex flex-col gap-2 bo-row-link" style={{ borderRadius: 20 }}>
+                      <span className="flex items-center gap-2 text-[13px]" style={{ color: x.on ? BO.success : BO.muted }}>
+                        <span className="w-2 h-2 rounded-full" style={{ background: x.on ? BO.success : 'rgba(255,255,255,0.25)' }} />{x.on ? 'Connected' : 'Not set up'}
+                      </span>
+                      <span className="bo-title text-[19px] text-white">{x.label}</span>
+                      <span className="text-[13px] text-[#A39BAE] leading-snug">{x.desc}</span>
+                      <span className="text-[13px] font-semibold mt-1" style={{ color: accent }}>{x.act} →</span>
+                    </button>
+                  ))}
                 </div>
-              </Card>
+              </section>
 
-              {/* Feature toggles */}
-              <Card>
-                <h3 className="text-sm font-black uppercase tracking-widest text-white mb-5">Business Features</h3>
-                <div className="space-y-4">
+              {/* Ready-to-run wiring from the ops preset */}
+              <section>
+                <BoSectionHead size="md" title={`Ready to run for ${preset.label.toLowerCase()}`} sub="Playbooks, pipelines and templates already set up for your kind of business. Edit anything." />
+                <div className="bo-rule" style={{ borderTop: `1px solid ${BO.line}` }}>
                   {[
-                    { key: 'isAcceptingOrders',       label: 'Online Orders',           icon: ShoppingBag, desc: 'Accept orders from Plajah users with Stripe checkout' },
-                    { key: 'crmEnabled',               label: 'CRM & Rewards',           icon: Users,       desc: 'Customer relationship management and loyalty points' },
-                    { key: 'digitalSignageEnabled',    label: 'Digital Signage',         icon: Monitor,     desc: 'Manage in-store display content remotely' },
-                    { key: 'radioServiceEnabled',      label: 'In-Store Radio',          icon: Radio,       desc: 'Plajah radio streaming service for your business' },
-                    { key: 'rewardsEnabled',           label: 'Customer Rewards',        icon: Star,        desc: 'Points-based loyalty program for your customers' },
-                  ].map(feat => {
-                    const isOn = (activePage as any)[feat.key] as boolean;
-                    return (
-                      <div key={feat.key} className="flex items-center gap-4 py-3 border-b border-white/[0.05] last:border-0">
-                        <div className="p-2 bg-white/5 rounded-xl">
-                          <feat.icon size={14} className="text-white/40" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-xs font-black text-white">{feat.label}</p>
-                          <p className="text-[9px] text-white/30">{feat.desc}</p>
-                        </div>
-                        <button
-                          onClick={async () => {
-                            const updated = await saveBusinessPage({ ...activePage, [feat.key]: !isOn });
-                            setActivePage(updated);
-                          }}
-                          className="shrink-0"
-                        >
-                          {isOn ? <ToggleRight size={28} className="text-[#06D6A0]" /> : <ToggleLeft size={28} className="text-white/20" />}
-                        </button>
-                      </div>
-                    );
-                  })}
+                    { n: preset.events.length, label: 'Event playbooks', items: preset.events.map(e => `${e.emoji} ${e.label}`).join(' · '), tab: 'EVENTS' as BizTab },
+                    { n: preset.crm.pipelines.length, label: 'Sales pipelines', items: preset.crm.pipelines.map(p => `${p.label} (${p.stages.length} stages)`).join(' · '), tab: 'CRM' as BizTab },
+                    { n: preset.correspondence.length, label: 'Letters, emails & postcards', items: preset.correspondence.slice(0, 5).map(t => t.label).join(' · '), tab: 'CRM' as BizTab },
+                    { n: preset.social.starterPosts.length, label: 'Starter social posts', items: preset.social.pillars.map(p => p.label).join(' · '), tab: 'SOCIAL' as BizTab },
+                    { n: preset.marketing.length, label: 'Marketing plays', items: preset.marketing.map(m => m.label).join(' · '), tab: 'MARKETING' as BizTab },
+                  ].map(r => (
+                    <button key={r.label} onClick={() => setActiveTab(r.tab)} className="bo-row-link w-full text-left grid items-baseline gap-4 py-4 px-1" style={{ gridTemplateColumns: '56px minmax(0,1fr) auto' }}>
+                      <span className="bo-num text-[28px] text-white">{r.n}</span>
+                      <span className="min-w-0"><span className="block text-[16px] font-semibold text-white">{r.label}</span><span className="block text-[13px] text-[#A39BAE] truncate">{r.items}</span></span>
+                      <span className="text-[13px] font-semibold" style={{ color: accent }}>Open →</span>
+                    </button>
+                  ))}
                 </div>
-              </Card>
+              </section>
 
-              {/* Plajah user discount */}
-              <Card>
-                <h3 className="text-sm font-black uppercase tracking-widest text-white mb-4">Plajah User Discount</h3>
-                <p className="text-xs text-white/40 mb-4">Offer an exclusive discount to all Plajah subscribers at your business. Attracts platform users to your location.</p>
-                <div className="flex items-center gap-4">
-                  <input
-                    type="number"
-                    min={0}
-                    max={50}
-                    value={activePage.plajahUserDiscountPct || 0}
-                    onChange={async e => {
-                      const val = parseInt(e.target.value) || 0;
-                      const updated = await saveBusinessPage({ ...activePage, plajahUserDiscountPct: val });
-                      setActivePage(updated);
-                    }}
-                    className="w-24 bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-center text-xl font-black text-white outline-none"
+              {/* Feature switches */}
+              <section className="grid gap-8" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))' }}>
+                <div>
+                  <BoLabel className="mb-2">Features</BoLabel>
+                  <div className="bo-rule">
+                    {[
+                      { key: 'isAcceptingOrders', label: 'Online orders', desc: 'Plajah customers check out with Stripe' },
+                      { key: 'crmEnabled', label: 'CRM', desc: 'Pipelines, segments and correspondence' },
+                      { key: 'rewardsEnabled', label: 'Rewards', desc: 'Points recognized at the register' },
+                      { key: 'digitalSignageEnabled', label: 'Digital signage', desc: 'Live menu, deals and events on any screen' },
+                      { key: 'radioServiceEnabled', label: 'In-store radio', desc: 'Now Playing to every phone in the room' },
+                    ].map(feat => {
+                      const isOn = Boolean((activePage as any)[feat.key]);
+                      return (
+                        <div key={feat.key} className="flex items-center gap-4 py-3.5">
+                          <div className="flex-1 min-w-0">
+                            <div className="text-[15px] font-medium text-white">{feat.label}</div>
+                            <div className="text-[13px] text-[#A39BAE]">{feat.desc}</div>
+                          </div>
+                          <button
+                            role="switch" aria-checked={isOn} aria-label={feat.label}
+                            onClick={async () => { const updated = await saveBusinessPage({ ...activePage, [feat.key]: !isOn }); setActivePage(updated); setPages(prev => prev.map(x => x.id === updated.id ? updated : x)); }}
+                            className="shrink-0 w-12 h-7 rounded-full relative transition-colors"
+                            style={{ background: isOn ? accent : 'rgba(255,255,255,0.14)' }}
+                          >
+                            <span className="absolute top-1 w-5 h-5 rounded-full bg-white transition-all" style={{ left: isOn ? 24 : 4 }} />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div>
+                  <BoLabel className="mb-2">Plajah member discount</BoLabel>
+                  <p className="m-0 text-[14px] text-[#A39BAE] mb-4">An exclusive discount for Plajah members brings platform users through your door.</p>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="number" min={0} max={50} aria-label="Plajah member discount percent"
+                      value={activePage.plajahUserDiscountPct || 0}
+                      onChange={async e => { const val = Math.max(0, Math.min(50, parseInt(e.target.value) || 0)); const updated = await saveBusinessPage({ ...activePage, plajahUserDiscountPct: val }); setActivePage(updated); }}
+                      className="bo-input bo-num text-center" style={{ width: 96, fontSize: 24 }}
+                    />
+                    <span className="bo-num text-2xl text-white">%</span>
+                  </div>
+                </div>
+              </section>
+            </div>
+          )}
+
+          {/* ── TODAY (the staff board) ── */}
+          {activeTab === 'TODAY' && (
+            <div className="space-y-10 bo-rise">
+              <BoSectionHead
+                title={`Today at ${activePage.businessName}`}
+                sub={new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
+                action={<>
+                  {preset.commerce.pos && <button className="bo-btn bo-btn-primary" onClick={() => setShowRegister(true)}><ShoppingBag size={16} /> Open register</button>}
+                  {preset.commerce.kiosk && <button className="bo-btn bo-btn-ghost" onClick={() => setShowKiosk(true)}>Kiosk</button>}
+                </>}
+              />
+              <BoKpiStrip items={[
+                { label: 'Sales today', value: money(salesToday) },
+                { label: `Open ${vocab.orderNounPlural}`, value: String(openStoreOrders.length + openLegacy.length), onClick: () => setActiveTab('ORDERS') },
+                { label: 'Ready for pickup', value: String(openStoreOrders.filter(o => o.status === 'READY').length), onClick: () => setActiveTab('ORDERS') },
+                { label: 'Low stock', value: String(lowStock.length), tone: lowStock.length ? 'warn' : 'flat', onClick: () => setActiveTab('INVENTORY') },
+              ]} />
+              <div className="grid gap-10" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))' }}>
+                <div>
+                  <BoLabel className="mb-2">Needs attention</BoLabel>
+                  <BoTaskList
+                    empty="All caught up."
+                    items={[
+                      ...openStoreOrders.slice(0, 6).map(o => ({ id: `o_${o.id}`, title: `${o.customerName || 'Walk-in'} · ${o.items.reduce((a, l) => a + l.qty, 0)} items`, meta: `${o.fulfillment === 'SHIP' ? 'Ship' : 'Pickup'} · ${new Date(o.createdAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`, tone: (o.status === 'READY' ? 'ok' : 'due') as 'ok' | 'due', action: o.status === 'READY' ? 'Ready' : 'Prepare', onClick: () => setActiveTab('ORDERS') })),
+                      ...lowStock.slice(0, 5).map(p => ({ id: `s_${p.id}`, title: p.title, meta: stockStatus(p) === 'OUT' ? 'Out of stock: hidden from screens' : `Low: ${p.stock} left`, tone: 'due' as const, action: 'Restock', onClick: () => setActiveTab('INVENTORY') })),
+                    ]}
                   />
-                  <span className="text-2xl font-black text-white">%</span>
-                  <span className="text-xs text-white/40">discount for Plajah users</span>
                 </div>
-              </Card>
+                <div>
+                  <BoLabel className="mb-2">Your role today</BoLabel>
+                  <div className="bo-rule">
+                    {preset.staffToday.map(d => (
+                      <div key={d.role} className="py-4">
+                        <div className="flex items-baseline justify-between gap-3">
+                          <span className="bo-title text-lg text-white">{d.role}</span>
+                          {d.opens && visibleIds.includes(d.opens as BizTab) && <button onClick={() => setActiveTab(d.opens as BizTab)} className="text-[13px] font-semibold" style={{ color: accent }}>Open →</button>}
+                        </div>
+                        <ul className="m-0 mt-1.5 pl-4 text-[14px] text-[#D9D3E0] space-y-0.5">{d.duties.map(x => <li key={x}>{x}</li>)}</ul>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
@@ -651,140 +715,33 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
           )}
 
           {activeTab === 'CRM' && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="flex-1 flex items-center gap-2 bg-white/5 border border-white/10 rounded-2xl px-4 py-3">
-                  <Search size={14} className="text-white/30" />
-                  <input
-                    value={contactSearch}
-                    onChange={e => setContactSearch(e.target.value)}
-                    placeholder="Search contacts…"
-                    className="flex-1 bg-transparent text-xs text-white placeholder-white/20 outline-none"
-                  />
-                </div>
-                <button
-                  onClick={() => setEditingContact({ tags: [], notes: '', businessId: activePage.id, rewardPoints: 0, totalSpend: 0, visitCount: 0 })}
-                  className="flex items-center gap-2 px-4 py-3 bg-white text-black rounded-2xl text-xs font-black uppercase tracking-widest hover:scale-105 transition-all"
-                >
-                  <Plus size={12} /> Add
-                </button>
+            <Suspense fallback={<div className="py-16 text-center text-sm text-[#A39BAE]">Loading CRM…</div>}>
+              <BizCrm businessPage={activePage} currentUser={{ uid: currentUser.uid, displayName: currentUser.displayName }} preset={preset} accent={accent} mode={mode} />
+            </Suspense>
+          )}
+
+          {/* ── DIGITAL SIGNAGE (live: products, menu, deals and events from the shared catalog) ── */}
+          {activeTab === 'SIGNAGE' && (
+            <div className="space-y-6">
+              <div className="flex justify-end">
+                <button onClick={() => setShowDisplays(true)} className="bo-btn bo-btn-ghost bo-btn-sm"><Monitor size={14} /> Display modes</button>
               </div>
-              {contacts.filter(c => c.name.toLowerCase().includes(contactSearch.toLowerCase())).map(contact => (
-                <Card key={contact.id}>
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-sm font-black text-white">{contact.name}</p>
-                      <div className="flex items-center gap-3 mt-1">
-                        {contact.email && <span className="flex items-center gap-1 text-[9px] text-white/40"><Mail size={9} />{contact.email}</span>}
-                        {contact.phone && <span className="flex items-center gap-1 text-[9px] text-white/40"><Phone size={9} />{contact.phone}</span>}
-                      </div>
-                      {contact.tags.length > 0 && (
-                        <div className="flex gap-1 mt-2 flex-wrap">
-                          {contact.tags.map(tag => (
-                            <span key={tag} className="px-2 py-0.5 bg-white/5 rounded-full text-[8px] text-white/40">{tag}</span>
-                          ))}
-                        </div>
-                      )}
-                      <div className="flex gap-4 mt-2">
-                        <span className="text-[9px] text-white/30">Points: <span className="text-white/60 font-black">{contact.rewardPoints}</span></span>
-                        <span className="text-[9px] text-white/30">Spend: <span className="text-white/60 font-black">${contact.totalSpend.toFixed(2)}</span></span>
-                        <span className="text-[9px] text-white/30">Visits: <span className="text-white/60 font-black">{contact.visitCount}</span></span>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <button onClick={() => setEditingContact(contact)} className="p-2 bg-white/5 rounded-xl hover:bg-white/10 transition-all">
-                        <Edit3 size={12} className="text-white/40" />
-                      </button>
-                      <button onClick={() => deleteCrmContact(contact.id).then(() => setContacts(prev => prev.filter(c => c.id !== contact.id)))} className="p-2 bg-white/5 rounded-xl hover:bg-red-500/20 transition-all">
-                        <Trash2 size={12} className="text-white/40 hover:text-red-400" />
-                      </button>
-                    </div>
-                  </div>
-                </Card>
-              ))}
+              <SignageStudio businessPage={activePage} sellerUid={activePage.ownerId || currentUser.uid} accent={accent} />
             </div>
           )}
 
-          {/* ── DIGITAL SIGNAGE ── */}
-          {activeTab === 'SIGNAGE' && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-end">
-                <button onClick={() => setShowDisplays(true)} className="flex items-center gap-2 px-4 py-2 rounded-full text-white text-[10px] font-black uppercase tracking-widest" style={{ background: 'linear-gradient(135deg,#6B0099,#D40055 55%,#FF8C00)' }}>
-                  <Monitor size={13} /> Open display modes
-                </button>
-              </div>
-              {/* Live preview */}
-              {slides.filter(s => s.isActive).length > 0 && (
-                <Card>
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-sm font-black uppercase tracking-widest text-white">Live Preview</h3>
-                    <button
-                      onClick={() => setSignageRunning(!signageRunning)}
-                      className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${
-                        signageRunning ? 'bg-[#D40055]/20 text-[#D40055]' : 'bg-white/5 text-white/40 hover:text-white'
-                      }`}
-                    >
-                      {signageRunning ? <><Pause size={10} /> Stop</> : <><Play size={10} /> Preview</>}
-                    </button>
-                  </div>
-                  {(() => {
-                    const activeSlides = slides.filter(s => s.isActive);
-                    const current = activeSlides[signageIdx % activeSlides.length];
-                    if (!current) return null;
-                    return (
-                      <div
-                        className="aspect-video rounded-2xl flex items-center justify-center relative overflow-hidden"
-                        style={{ background: current.backgroundColor || '#0a0a0a' }}
-                      >
-                        {current.url && current.type === 'IMAGE' && (
-                          <img src={current.url} className="w-full h-full object-cover" alt="" />
-                        )}
-                        {current.headline && (
-                          <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center">
-                            <p className="text-2xl font-black text-white">{current.headline}</p>
-                            {current.subtext && <p className="text-sm text-white/60 mt-2">{current.subtext}</p>}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()}
-                </Card>
-              )}
-
-              <div className="flex justify-end">
-                <button
-                  onClick={() => setEditingSlide({ type: 'TEXT', durationSeconds: 10, isActive: true, order: slides.length, businessId: activePage.id })}
-                  className="flex items-center gap-2 px-4 py-2 bg-white text-black rounded-2xl text-xs font-black uppercase tracking-widest hover:scale-105 transition-all"
-                >
-                  <Plus size={12} /> Add Slide
-                </button>
-              </div>
-
-              <div className="space-y-3">
-                {slides.map((slide, i) => (
-                  <Card key={slide.id}>
-                    <div className="flex items-center gap-4">
-                      <div className="w-16 h-12 rounded-xl bg-white/5 flex items-center justify-center shrink-0" style={{ background: slide.backgroundColor || '#111' }}>
-                        {slide.type === 'IMAGE' && slide.url ? (
-                          <img src={slide.url} className="w-full h-full object-cover rounded-xl" alt="" />
-                        ) : (
-                          <Monitor size={16} className="text-white/20" />
-                        )}
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-xs font-black text-white">{slide.headline || slide.type}</p>
-                        <p className="text-[9px] text-white/40">{slide.durationSeconds}s · {slide.type}</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {slide.isActive ? <ToggleRight size={22} className="text-[#06D6A0]" /> : <ToggleLeft size={22} className="text-white/20" />}
-                        <button onClick={() => setEditingSlide(slide)}><Edit3 size={14} className="text-white/30 hover:text-white" /></button>
-                        <button onClick={() => deleteSignageSlide(slide.id).then(() => setSlides(prev => prev.filter(s => s.id !== slide.id)))}><Trash2 size={14} className="text-white/30 hover:text-red-400" /></button>
-                      </div>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            </div>
+          {/* ── EVENTS / SOCIAL (ops-preset playbooks) ── */}
+          {(activeTab === 'EVENTS' || activeTab === 'SOCIAL') && (
+            <GrowthHub
+              preset={preset}
+              host={{ kind: 'business', id: activePage.id, name: activePage.businessName }}
+              currentUser={currentUser}
+              identity={identity}
+              canManage={mode === 'owner'}
+              loadRecipients={loadRecipients}
+              onOpenSuite={() => { setActiveTab('MARKETING'); setShowSuite(true); }}
+              only={activeTab === 'EVENTS' ? 'events' : 'social'}
+            />
           )}
 
           {/* ── SEED RAISER ── */}
@@ -895,14 +852,27 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
             <NowPlayingPublisher businessUid={currentUser.uid} businessName={activePage?.businessName || currentUser.displayName || 'My Business'} />
           )}
 
-          {/* ── MARKETING (identity-scoped Organic ⇄ Paid) ── */}
+          {/* ── MARKETING: preset plays + billboard / mail hand-offs, then the full Organic ⇄ Paid suite ── */}
           {activeTab === 'MARKETING' && activePage && (
-            <div className="rounded-3xl overflow-hidden border border-white/10">
-              <MarketingKit
-                scope={{ kind: 'BUSINESS', id: activePage.id, name: activePage.businessName }}
+            showSuite ? (
+              <div className="space-y-4">
+                <button className="bo-btn bo-btn-ghost bo-btn-sm" onClick={() => setShowSuite(false)}>← Plays & hand-offs</button>
+                <div className="rounded-[24px] overflow-hidden" style={{ border: `1px solid ${BO.line}` }}>
+                  <MarketingKit scope={{ kind: 'BUSINESS', id: activePage.id, name: activePage.businessName }} currentUser={currentUser} />
+                </div>
+              </div>
+            ) : (
+              <GrowthHub
+                preset={preset}
+                host={{ kind: 'business', id: activePage.id, name: activePage.businessName }}
                 currentUser={currentUser}
+                identity={identity}
+                canManage={mode === 'owner'}
+                loadRecipients={loadRecipients}
+                onOpenSuite={() => setShowSuite(true)}
+                only="marketing"
               />
-            </div>
+            )
           )}
 
           {/* ── SETTINGS ── */}
@@ -1050,57 +1020,17 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
                   onChange={e => setEditingPage(prev => ({ ...prev, businessType: e.target.value as any }))}
                   className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white outline-none"
                 >
-                  {['RETAIL','RESTAURANT','SERVICE','ENTERTAINMENT','TECH','HEALTH','OTHER'].map(t => (
-                    <option key={t} value={t}>{t}</option>
+                  {['RETAIL','RESTAURANT','SERVICE','ENTERTAINMENT','TECH','HEALTH','REAL_ESTATE','OTHER'].map(t => (
+                    <option key={t} value={t}>{getVertical(t).label}</option>
                   ))}
                 </select>
               </div>
+              <p className="text-[13px] text-[#A39BAE]">After you save, pick your exact business type (grocery, mechanic, dealership, venue…) on the Overview to load its catalog, pipelines and playbooks.</p>
               <button
                 onClick={handleSavePage}
-                className="w-full py-4 bg-gradient-to-r from-[#D40055] to-[#FF8C00] rounded-2xl text-xs font-black uppercase tracking-widest text-white hover:scale-[1.02] transition-all"
+                className="bo-btn bo-btn-primary w-full"
               >
                 {editingPage.id ? 'Save Changes' : 'Create Business Page'}
-              </button>
-            </motion.div>
-          </motion.div>
-        )}
-
-        {/* ── Edit Contact Modal ── */}
-        {editingContact && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/70 backdrop-blur-md"
-            onClick={e => { if (e.target === e.currentTarget) setEditingContact(null); }}
-          >
-            <motion.div
-              initial={{ y: 40, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              className="w-full max-w-md bg-[#0a0a0a] border border-white/10 rounded-3xl p-6 space-y-4"
-            >
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-black uppercase tracking-widest text-white">CRM Contact</h3>
-                <button onClick={() => setEditingContact(null)}><X size={16} className="text-white/40" /></button>
-              </div>
-              {[
-                { key: 'name', label: 'Name', placeholder: 'Contact name' },
-                { key: 'email', label: 'Email', placeholder: 'email@example.com' },
-                { key: 'phone', label: 'Phone', placeholder: '+1 555 000 0000' },
-                { key: 'notes', label: 'Notes', placeholder: 'Any notes about this customer…' },
-              ].map(f => (
-                <div key={f.key}>
-                  <label className="text-[9px] font-black uppercase tracking-widest text-white/40 block mb-1">{f.label}</label>
-                  <input
-                    value={(editingContact as any)[f.key] || ''}
-                    onChange={e => setEditingContact(prev => ({ ...prev, [f.key]: e.target.value }))}
-                    placeholder={f.placeholder}
-                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-2.5 text-xs text-white placeholder-white/20 outline-none"
-                  />
-                </div>
-              ))}
-              <button onClick={handleSaveContact} className="w-full py-3 bg-white text-black rounded-2xl text-xs font-black uppercase tracking-widest hover:scale-[1.02] transition-all">
-                Save Contact
               </button>
             </motion.div>
           </motion.div>
@@ -1177,79 +1107,8 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
           </motion.div>
         )}
 
-        {/* ── Edit Slide Modal ── */}
-        {editingSlide && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/70 backdrop-blur-md"
-            onClick={e => { if (e.target === e.currentTarget) setEditingSlide(null); }}
-          >
-            <motion.div
-              initial={{ y: 40, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              className="w-full max-w-md bg-[#0a0a0a] border border-white/10 rounded-3xl p-6 space-y-4"
-            >
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-black uppercase tracking-widest text-white">Signage Slide</h3>
-                <button onClick={() => setEditingSlide(null)}><X size={16} className="text-white/40" /></button>
-              </div>
-              <div>
-                <label className="text-[9px] font-black uppercase tracking-widest text-white/40 block mb-1">Slide Type</label>
-                <select
-                  value={editingSlide.type || 'TEXT'}
-                  onChange={e => setEditingSlide(prev => ({ ...prev, type: e.target.value as any }))}
-                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-2.5 text-xs text-white outline-none"
-                >
-                  {['TEXT','IMAGE','VIDEO','PROMO'].map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
-              </div>
-              {['IMAGE','VIDEO'].includes(editingSlide.type || '') && (
-                <div>
-                  <label className="text-[9px] font-black uppercase tracking-widest text-white/40 block mb-1">Media URL</label>
-                  <input
-                    value={editingSlide.url || ''}
-                    onChange={e => setEditingSlide(prev => ({ ...prev, url: e.target.value }))}
-                    placeholder="https://…"
-                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-2.5 text-xs text-white placeholder-white/20 outline-none"
-                  />
-                </div>
-              )}
-              {[
-                { key: 'headline', label: 'Headline', placeholder: 'Your headline text…' },
-                { key: 'subtext', label: 'Subtext', placeholder: 'Supporting text…' },
-                { key: 'backgroundColor', label: 'Background Color', placeholder: '#0a0a0a' },
-              ].map(f => (
-                <div key={f.key}>
-                  <label className="text-[9px] font-black uppercase tracking-widest text-white/40 block mb-1">{f.label}</label>
-                  <input
-                    value={(editingSlide as any)[f.key] || ''}
-                    onChange={e => setEditingSlide(prev => ({ ...prev, [f.key]: e.target.value }))}
-                    placeholder={f.placeholder}
-                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-2.5 text-xs text-white placeholder-white/20 outline-none"
-                  />
-                </div>
-              ))}
-              <div>
-                <label className="text-[9px] font-black uppercase tracking-widest text-white/40 block mb-1">Duration (seconds)</label>
-                <input
-                  type="number"
-                  min={3}
-                  max={60}
-                  value={editingSlide.durationSeconds || 10}
-                  onChange={e => setEditingSlide(prev => ({ ...prev, durationSeconds: parseInt(e.target.value) || 10 }))}
-                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-2.5 text-xs text-white outline-none"
-                />
-              </div>
-              <button onClick={handleSaveSlide} className="w-full py-3 bg-white text-black rounded-2xl text-xs font-black uppercase tracking-widest hover:scale-[1.02] transition-all">
-                Save Slide
-              </button>
-            </motion.div>
-          </motion.div>
-        )}
       </AnimatePresence>
-    </div>
+    </BoScope>
   );
 };
 

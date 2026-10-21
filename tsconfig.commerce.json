@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": true, "allowJs": false },
+  "include": [
+    "services/commerceBus.ts",
+    "tests/commerceBus.test.ts",
+    "components/PosRegister.tsx",
+    "components/StoreKioskMode.tsx",
+    "components/BusinessOrdersPanel.tsx",
+    "components/business/SignageStudio.tsx",
+    "components/DisplayModeLauncher.tsx",
+    "components/tv/TvReceiverSurfaces.tsx",
+    "components/MerchManager.tsx",
+    "components/MerchBuilder.tsx",
+    "components/elevate/OrgStoreSection.tsx",
+    "services/businessService.ts"
+  ]
+}

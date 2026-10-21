@@ -45,6 +45,26 @@ export interface EviteDeps {
   mayUseTemplate?: (uid: string, templateId: string) => Promise<boolean>;
   /** Creator themes: the art for a non-catalogue design id, attached to the guest view as `art`. */
   resolveArt?: (templateId: string) => Promise<EviteArt | null>;
+  /** Org / business hosts: may this uid run events as {kind,id}? (server.ts eventHostAccess). Without it, org/business hosts are never listed. */
+  canManageHost?: (uid: string | undefined, kind: 'org' | 'business', id: string) => Promise<{ ok: boolean; exists: boolean; name?: string }>;
+  /** The signed-in uid when a valid Bearer token is present (public routes with owner extras). */
+  optionalUid?: (req: any) => Promise<string | undefined>;
+}
+
+/** Only org / business hosts are verified and listed on host pages; personal / school / teacher evites are untouched. */
+export const isListedHostKind = (k: unknown): k is 'org' | 'business' => k === 'org' || k === 'business';
+export const eviteHostKey = (h: { kind?: string; id?: string } | undefined | null): string => (h && isListedHostKind(h.kind) && h.id ? `${h.kind}:${h.id}` : '');
+
+/** What an org/business page may show about an invite: no RSVPs, no guest names, address only when it isn't private. */
+export function hostEviteSummary(inv: EviteDoc, counts?: ReturnType<typeof summarize>) {
+  const f = inv.fields;
+  return {
+    id: inv.id, title: f.headline, subline: f.subline || undefined, startsAt: f.startsAt, endsAt: f.endsAt, timezone: f.timezone,
+    venueName: f.venueName || undefined, address: inv.settings.revealAddressAfterYes ? undefined : (f.address || undefined),
+    coverUrl: inv.photoUrl || inv.ogImage || plateOgUrl(inv.templateId) || undefined,
+    status: inv.status, eventId: inv.eventId, photoPoolId: inv.photoPoolId, rsvpPath: `/i/${inv.id}`,
+    capacity: inv.settings.capacity, ...(counts ? { counts } : {}),
+  };
 }
 export interface EviteArt { plate: string; depth?: string; thumb?: string; preset: string; foil?: string; voice?: string; light?: boolean }
 
@@ -63,7 +83,8 @@ export function registerEviteRoutes(d: EviteDeps) {
   const loadInvite = async (id: string): Promise<EviteDoc | null> => isShortId(id) ? parse<EviteDoc>(await d.firestoreRead('evites', id)) : null;
   const loadRsvps = async (id: string): Promise<EviteRsvp[]> => (await d.fsQueryDocs('evite_rsvps', [{ field: 'inviteId', op: 'EQUAL', value: id }], MAX_RSVPS)).map(r => parse<EviteRsvp>(r.data)).filter(Boolean) as EviteRsvp[];
   const loadWall = async (id: string): Promise<EviteWallNote[]> => ((await d.fsQueryDocs('evite_wall', [{ field: 'inviteId', op: 'EQUAL', value: id }], 100)).map(r => parse<EviteWallNote>(r.data)).filter(Boolean) as EviteWallNote[]).sort((a, b) => b.createdAt - a.createdAt);
-  const saveInvite = (inv: EviteDoc) => d.firestoreWrite('evites', inv.id, { ownerUid: inv.ownerUid, status: inv.status, json: JSON.stringify(inv) }, true);
+  // hostKey ("org:<id>" / "business:<id>") is written only after the host was verified; hostListed = may show on the host's page.
+  const saveInvite = (inv: EviteDoc, listing: { hostKey: string; hostListed: boolean }) => d.firestoreWrite('evites', inv.id, { ownerUid: inv.ownerUid, status: inv.status, json: JSON.stringify(inv), hostKey: listing.hostKey, hostListed: listing.hostListed }, true);
   const isHost = (inv: EviteDoc, uid: string) => inv.ownerUid === uid || inv.coHostUids.includes(uid);
   const hostStripe = async (uid: string): Promise<string | undefined> => (await d.firestoreRead('users', uid))?.stripeConnectAccountId || undefined;
   const raised = async (id: string) => (await d.fsQueryDocs('evite_gifts', [{ field: 'inviteId', op: 'EQUAL', value: id }], 1000)).reduce((n, r) => n + (Number(r.data.amountCents) || 0), 0);
@@ -113,6 +134,19 @@ export function registerEviteRoutes(d: EviteDeps) {
         createdAt: inv?.createdAt || now, updatedAt: now, sentCount: inv?.sentCount || 0, viewCount: inv?.viewCount || 0,
       };
       if (!next.fields.headline) return res.status(400).json({ error: 'Give the invitation a headline.' });
+      // Org / business hosts are verified (same rule as ticketed events). A new or changed host the caller doesn't manage
+      // is refused; an unchanged legacy host that no longer verifies simply stays off the host's page.
+      const prevRow = inv ? await d.firestoreRead('evites', inv.id) : null;
+      let hostKey = eviteHostKey(next.host);
+      if (hostKey && prevRow?.hostKey !== hostKey) {
+        const h = next.host as { kind: 'org' | 'business'; id: string; label?: string };
+        const access = d.canManageHost ? await d.canManageHost(req.uid, h.kind, h.id) : { ok: false, exists: false };
+        const unchanged = !!inv?.host && eviteHostKey(inv.host) === hostKey;
+        if (!access.ok && !unchanged) return res.status(403).json({ error: access.exists ? 'You don’t manage that organization or business.' : 'We couldn’t find that host.' });
+        if (!access.ok) hostKey = '';
+        else if (access.name) next.host = { ...h, label: access.name };
+      }
+      const listing = { hostKey, hostListed: typeof b.hostListed === 'boolean' ? b.hostListed : prevRow?.hostListed !== false };
       if (!inv) {
         for (let i = 0; i < 6 && !next.id; i++) {
           const id = newShortId(8);
@@ -120,9 +154,9 @@ export function registerEviteRoutes(d: EviteDeps) {
           if (r === 'created') next.id = id; else if (r === 'error') return res.status(500).json({ error: 'Could not save the invite. Try again.' });
         }
         if (!next.id) return res.status(500).json({ error: 'Could not save the invite. Try again.' });
-        await saveInvite(next);
-      } else await saveInvite(next);
-      res.json({ invite: next });
+        await saveInvite(next, listing);
+      } else await saveInvite(next, listing);
+      res.json({ invite: next, hostListed: !!listing.hostKey && listing.hostListed });
     } catch (err: any) { console.error('/api/evite/save', err?.message || err); res.status(500).json({ error: 'Could not save the invite.' }); }
   });
 
@@ -133,6 +167,29 @@ export function registerEviteRoutes(d: EviteDeps) {
       const out = await Promise.all(invites.sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 100).map(async inv => ({ invite: inv, counts: summarize(await loadRsvps(inv.id), inv.settings) })));
       res.json({ items: out });
     } catch (err: any) { console.error('/api/evite/mine', err?.message || err); res.status(500).json({ error: 'Could not load your invites.' }); }
+  });
+
+  // Invites hosted by an org / business. Public: live + hostListed only, as public-safe summaries (no guests, private
+  // addresses withheld). The host's team (canManageHost) gets every status plus RSVP counts.
+  app.get('/api/evite/host/:kind/:id', readLimiter, async (req: any, res: any) => {
+    const kind = String(req.params.kind || ''), id = clampStr(req.params.id, 128);
+    if (!isListedHostKind(kind) || !id) return res.status(400).json({ error: 'Bad host.' });
+    try {
+      // ?public=1 → the public view even for the host's own team (public page widgets).
+      const uid = d.optionalUid && req.query?.public !== '1' ? await d.optionalUid(req) : undefined;
+      const manage = !!uid && !!d.canManageHost && (await d.canManageHost(uid, kind, id)).ok;
+      const rows = await d.fsQueryDocs('evites', [{ field: 'hostKey', op: 'EQUAL', value: `${kind}:${id}` }], 300);
+      const invites = rows
+        .filter(r => manage || (r.data.status === 'live' && r.data.hostListed !== false))
+        .map(r => parse<EviteDoc>(r.data)).filter(Boolean) as EviteDoc[];
+      const now = Date.now();
+      const end = (i: EviteDoc) => i.fields.endsAt || i.fields.startsAt;
+      const upcoming = invites.filter(i => end(i) >= now).sort((a, b) => a.fields.startsAt - b.fields.startsAt);
+      const past = invites.filter(i => end(i) < now).sort((a, b) => b.fields.startsAt - a.fields.startsAt);
+      const chosen = [...upcoming, ...(manage ? past : past.slice(0, 10))].slice(0, 50);
+      const items = await Promise.all(chosen.map(async inv => hostEviteSummary(inv, manage ? summarize(await loadRsvps(inv.id), inv.settings) : undefined)));
+      res.set('Vary', 'Authorization').set('Cache-Control', manage ? 'private, no-store' : 'public, max-age=60').json({ items, canManage: manage });
+    } catch (err: any) { console.error('/api/evite/host', err?.message || err); res.status(500).json({ error: 'Could not load invitations.' }); }
   });
 
   app.post('/api/evite/guests', d.authMiddleware, jsonBody, async (req: any, res: any) => {

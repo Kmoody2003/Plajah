@@ -2197,6 +2197,38 @@ service cloud.firestore {
 
       // A customer opts into a business's updates (writes their own doc); the business reads its list.
       match /subscribers/{customerUid} {
+    // Business CRM (services/crm): contacts + an append-only activity timeline, keyed by businessId = the
+    // businessPages doc id. Only that page's owner (or an admin) can read or write; a contact can't be moved
+    // onto another business. Queries must filter where('businessId', '==', id) for the get() to resolve.
+    match /crmContacts/{id} {
+      allow read, delete: if isAuthenticated() && (
+        get(/databases/$(database)/documents/businessPages/$(resource.data.businessId)).data.ownerId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && (
+        get(/databases/$(database)/documents/businessPages/$(request.resource.data.businessId)).data.ownerId == request.auth.uid || isAdmin());
+      allow update: if isAuthenticated() && request.resource.data.businessId == resource.data.businessId && (
+        get(/databases/$(database)/documents/businessPages/$(resource.data.businessId)).data.ownerId == request.auth.uid || isAdmin());
+    }
+    match /crmActivities/{id} {
+      allow read: if isAuthenticated() && (
+        get(/databases/$(database)/documents/businessPages/$(resource.data.businessId)).data.ownerId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && request.resource.data.byUid == request.auth.uid && (
+        get(/databases/$(database)/documents/businessPages/$(request.resource.data.businessId)).data.ownerId == request.auth.uid || isAdmin());
+      allow update, delete: if isAdmin();
+    }
+
+    // Digital signage slides, keyed by businessId = the businessPages doc id. Public read: in-store
+    // screens are often unauthenticated TVs. Writes only by that page's owner (or an admin); an update
+    // must stay owned by the same page owner on both sides (no moving a slide onto someone else's page).
+    match /signageSlides/{id} {
+      function signageOwner(bizId) {
+        return get(/databases/$(database)/documents/businessPages/$(bizId)).data.ownerId == request.auth.uid;
+      }
+      allow read: if true;
+      allow create: if isAuthenticated() && (signageOwner(request.resource.data.businessId) || isAdmin());
+      allow update: if isAuthenticated() && ((signageOwner(resource.data.businessId) && signageOwner(request.resource.data.businessId)) || isAdmin());
+      allow delete: if isAuthenticated() && (signageOwner(resource.data.businessId) || isAdmin());
+    }
+
         allow read: if isAuthenticated() && (request.auth.uid == businessUid || request.auth.uid == customerUid);
         allow write: if isAuthenticated() && (request.auth.uid == customerUid || request.auth.uid == businessUid);
       }

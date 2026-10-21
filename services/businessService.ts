@@ -1,4 +1,4 @@
-import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, orderBy, limit, addDoc, runTransaction } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, deleteField, query, where, orderBy, limit, addDoc, runTransaction } from 'firebase/firestore';
 import { onSnapshot } from './safeSnapshot';
 import { db, auth } from './firebase';
 import {
@@ -211,32 +211,41 @@ export async function addRewardPoints(
 // ── Digital Signage ───────────────────────────────────────────────────────────
 
 export async function fetchSignageSlides(businessId: string): Promise<DigitalSignageSlide[]> {
-  const q = query(
-    collection(db, 'signageSlides'),
-    where('businessId', '==', businessId),
-    orderBy('order', 'asc')
-  );
+  // Equality-only + client sort: where(businessId)+orderBy(order) needs a composite index, and a missing
+  // index made this read fail (a blank signage TV). Live displays use commerceBus.subscribeSignage.
+  const q = query(collection(db, 'signageSlides'), where('businessId', '==', businessId));
   const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...d.data() } as DigitalSignageSlide));
+  return snap.docs
+    .map(d => ({ id: d.id, ...d.data() } as DigitalSignageSlide))
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 }
 
 export async function saveSignageSlide(slide: Partial<DigitalSignageSlide>): Promise<DigitalSignageSlide> {
   const now = Date.now();
   if (slide.id) {
     const ref = doc(db, 'signageSlides', slide.id);
-    await updateDoc(ref, { ...slide, updatedAt: now });
+    // Firestore rejects undefined values: a field cleared in the editor (undefined) is deleted instead.
+    const patch: Record<string, any> = { updatedAt: now };
+    for (const [k, v] of Object.entries(slide)) {
+      if (k === 'id') continue;
+      patch[k] = v === undefined ? deleteField() : v;
+    }
+    await updateDoc(ref, patch);
     return slide as DigitalSignageSlide;
   }
   const ref = doc(collection(db, 'signageSlides'));
-  const newSlide: DigitalSignageSlide = {
+  const { id: _drop, ...rest } = slide;
+  const newSlide: DigitalSignageSlide = JSON.parse(JSON.stringify({
+    type: 'TEXT',
+    durationSeconds: 10,
+    isActive: true,
+    order: 0,
+    ...rest,
     id: ref.id,
     businessId: slide.businessId!,
-    type: slide.type || 'TEXT',
-    durationSeconds: slide.durationSeconds || 10,
-    isActive: true,
-    order: slide.order || 0,
-    ...slide,
-  };
+    createdAt: now,
+    updatedAt: now,
+  }));
   await setDoc(ref, newSlide);
   return newSlide;
 }

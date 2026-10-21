@@ -30,7 +30,8 @@ import RegisterDrawerSheet from './RegisterDrawerSheet';
 import RegisterGiftSheet, { type GiftSheetMode } from './RegisterGiftSheet';
 import QRCode from 'qrcode';
 import { registerPinLogin, receiptLink, type RegisterStaffSession } from '../services/registerService';
-import { fetchOffers, bestOffer, type BusinessOffer } from '../services/offersService';
+import { bestOffer, type BusinessOffer } from '../services/offersService';
+import { subscribeCatalog, subscribeOffers, emitCommerce } from '../services/commerceBus';
 import { printReceipt, openCashDrawer, isQzAvailable, type ReceiptData } from '../services/posPeripherals';
 
 const GRAD = 'linear-gradient(135deg,#6B0099,#D40055 55%,#FF8C00)';
@@ -107,20 +108,31 @@ export default function PosRegister({ businessUid, businessName, onExit }: Props
 
   useEffect(() => {
     (async () => {
-      setLoading(true);
-      const [list, us, offs] = await Promise.all([
-        sellerProducts(businessUid).catch(() => [] as StoreProduct[]),
-        searchUsers('').catch(() => [] as UserProfile[]),
-        fetchOffers(businessUid).catch(() => [] as BusinessOffer[]),
-      ]);
-      setProducts(list.filter(p => p.isActive !== false));
+      const us = await searchUsers('').catch(() => [] as UserProfile[]);
       setAllUsers(us || []);
-      setOffers(offs || []);
-      setLoading(false);
       fetchRegisterSettings(businessUid).then(rs => { setTaxSettings(rs.tax); setTipPresets(rs.tipPresets); setDiscLimit(rs.discountLimitPct); }).catch(() => {});
     })();
     return () => stopScan();
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [businessUid]);
+
+  // Live inventory + deals (commerceBus): a sale on the kiosk, a restock in Inventory or a new deal shows
+  // on the register grid without a refresh. If the listener can't start, fall back to a one-shot read.
+  useEffect(() => {
+    setLoading(true);
+    let gotLive = false;
+    const unCat = subscribeCatalog(businessUid, list => {
+      gotLive = true;
+      setProducts(list.filter(p => p.isActive !== false));
+      setLoading(false);
+    }, {
+      onError: () => {
+        if (gotLive) return;
+        sellerProducts(businessUid).then(list => setProducts(list.filter(p => p.isActive !== false))).catch(() => {}).finally(() => setLoading(false));
+      },
+    });
+    const unOff = subscribeOffers(businessUid, offs => setOffers(offs || []));
+    return () => { unCat(); unOff(); };
   }, [businessUid]);
 
   // Recognition — match the cached user list by uid / @handle / phone / name (no extra query).
@@ -275,7 +287,9 @@ export default function PosRegister({ businessUid, businessName, onExit }: Props
       if (rd.giftCards?.length) rd.giftCards = await Promise.all(rd.giftCards.map(async g => ({ ...g, qr: await QRCode.toDataURL(g.code.replace(/-/g, ''), { margin: 1, width: 220 }).catch(() => undefined) })));
       setLastReceipt(rd);
       if (qzOn) { printReceipt(rd); if (tenders.some(t => t.type === 'CASH')) openCashDrawer(); } // auto with real hardware
-      sellerProducts(businessUid).then(list => setProducts(list.filter(p => p.isActive !== false))).catch(() => {});
+      // Stock refresh comes through the live catalog listener; tell other screens on this device right away.
+      emitCommerce({ type: 'SALE', sellerUid: businessUid, orderId: out.orderId, source: 'POS', totalCents: out.paidCents,
+        lines: cart.map(l => ({ productId: l.product.id, variantId: l.variant?.id, qty: l.qty })) });
       setCart([]); setGiftLines([]); setRedeem(false); setTenderOpen(false); setDiscVal(''); setDiscPin('');
       if (customer) setCustPoints(p => Math.max(0, p - out.redeemCents) + out.pointsEarned);
     } catch (e: any) {

@@ -1,0 +1,23 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "allowJs": false,
+    "noEmit": true
+  },
+  "include": [
+    "services/opsPresets/*.ts",
+    "services/marketing/handoff.ts",
+    "tests/opsPresets.test.ts",
+    "components/business/opsKit.tsx",
+    "components/growth/*.tsx",
+    "components/BusinessDashboard.tsx",
+    "components/OrgHub.tsx",
+    "components/elevate/ElevateOps.tsx",
+    "components/BusinessPublicPage.tsx",
+    "components/crm/*.tsx",
+    "components/events/HostEventsPanel.tsx",
+    "components/events/HostEventsPublic.tsx",
+    "components/business/SignageStudio.tsx",
+    "components/elevate/OrgStoreSection.tsx"
+  ]
+}

@@ -3652,14 +3652,67 @@ async function startServer() {
   // ── EVENTS & TICKETING ────────────────────────────────────────────────────
   // ══════════════════════════════════════════════════════════════════════════
 
-  // Create or update an event
+  // ── Event hosts (org / business) ──────────────────────────────────────────
+  // Who may run events AS an org or business. Business: businessPages/{id}.ownerId. Org: creator, admins[],
+  // staffUids[], accountUid, or an ACTIVE orgMemberships row (orgId + userId; random doc id) with role
+  // OWNER|ADMIN|STAFF. Also injected into the evite routes (services/evite/eviteServer.ts) as canManageHost.
+  async function eventHostAccess(uid: string | undefined, kind: unknown, id: unknown): Promise<{ ok: boolean; exists: boolean; name?: string }> {
+    const hid = String(id || '').trim();
+    if ((kind !== 'org' && kind !== 'business') || !hid || hid.length > 128 || hid.includes('/')) return { ok: false, exists: false };
+    if (kind === 'business') {
+      const page = await firestoreRead('businessPages', hid);
+      if (!page) return { ok: false, exists: false };
+      return { ok: !!uid && page.ownerId === uid, exists: true, name: String(page.businessName || page.name || '') || undefined };
+    }
+    const org = await firestoreGetDeep('organizations', hid);
+    if (!org) return { ok: false, exists: false };
+    const name = String(org.name || '') || undefined;
+    if (!uid) return { ok: false, exists: true, name };
+    const inList = (k: string) => Array.isArray(org[k]) && org[k].includes(uid);
+    if (org.creatorId === uid || org.accountUid === uid || inList('admins') || inList('staffUids')) return { ok: true, exists: true, name };
+    const memberships = await queryFirebase('orgMemberships', [{ field: 'orgId', value: hid }, { field: 'userId', value: uid }], 5);
+    const ok = memberships.some((m: any) => m.status === 'ACTIVE' && ['OWNER', 'ADMIN', 'STAFF'].includes(String(m.role)));
+    return { ok, exists: true, name };
+  }
+  /** The signed-in uid when a valid Bearer token is present; undefined otherwise (public routes with owner extras). */
+  async function optionalUidFromReq(req: any): Promise<string | undefined> {
+    const auth = req.headers?.authorization;
+    if (!auth?.startsWith('Bearer ')) return undefined;
+    try { return (await verifyFirebaseToken(auth.slice(7)))?.uid || undefined; } catch { return undefined; }
+  }
+  const parseEventJsonField = (v: any, fallback: any) => { if (typeof v !== 'string') return v ?? fallback; if (!v) return fallback; try { return JSON.parse(v); } catch { return fallback; } };
+
+  // Create or update an event. Optional body.host {kind:'org'|'business', id} is verified server-side;
+  // an update must come from the event's creator or someone who manages its current host.
   app.post('/api/events', authMiddleware, express.json(), async (req: any, res) => {
     const uid: string = req.uid;
     try {
-      const body = req.body;
-      const eventId = body.id || `evt_${uid.slice(0,8)}_${Date.now()}`;
+      const body = { ...(req.body || {}) };
+      const eventId = String(body.id || `evt_${uid.slice(0,8)}_${Date.now()}`);
+      if (eventId.includes('/') || eventId.length > 128) return res.status(400).json({ error: 'Bad event id' });
+      const existing = body.id ? await firestoreRead('plajahEvents', eventId) : null;
+      const prevHost = existing ? parseEventJsonField(existing.host, null) : null;
+      if (existing && existing.creatorUid && existing.creatorUid !== uid) {
+        const access = prevHost?.kind ? await eventHostAccess(uid, prevHost.kind, prevHost.id) : { ok: false };
+        if (!access.ok) return res.status(403).json({ error: 'Only the event creator or its host team can edit this event' });
+      }
+      // Host: keep the existing one unless the caller asks for (and may set) a different one. null clears it (creator only).
+      let host: { kind: 'org' | 'business'; id: string; name?: string } | null = prevHost?.kind ? prevHost : null;
+      const askedHost = body.host;
+      if (askedHost && (askedHost.kind !== prevHost?.kind || String(askedHost.id) !== String(prevHost?.id))) {
+        const access = await eventHostAccess(uid, askedHost.kind, askedHost.id);
+        if (!access.ok) return res.status(403).json({ error: access.exists ? 'You do not manage that organization or business' : 'Host not found' });
+        host = { kind: askedHost.kind, id: String(askedHost.id), ...(access.name ? { name: access.name } : {}) };
+      } else if (askedHost === null && prevHost && (!existing?.creatorUid || existing.creatorUid === uid)) {
+        host = null;
+      }
+      delete body.host;
+      const playbookKey = typeof body.playbookKey === 'string' ? body.playbookKey.slice(0, 60) : String(existing?.playbookKey || '');
+      delete body.playbookKey;
       await firestoreWrite('plajahEvents', eventId, {
-        ...body, id: eventId, creatorUid: uid, updatedAt: Date.now(),
+        ...body, id: eventId, creatorUid: existing?.creatorUid || uid, updatedAt: Date.now(),
+        host: host ? JSON.stringify(host) : '', hostKey: host ? `${host.kind}:${host.id}` : '',
+        hostName: host?.name || '', playbookKey,
         createdAt: body.createdAt || Date.now(), viewCount: body.viewCount || 0,
         shareCount: body.shareCount || 0, totalSold: body.totalSold || 0, status: body.status || 'DRAFT',
         tiers: JSON.stringify(body.tiers || []), itinerary: JSON.stringify(body.itinerary || []),
@@ -4469,7 +4522,7 @@ async function startServer() {
       const doc = await fetchFirebaseDoc('plajahEvents', req.params.eventId);
       if (!doc?.fields) return res.status(404).json({ error: 'Event not found' });
       const f = doc.fields;
-      const event = { id: req.params.eventId, creatorUid: f.creatorUid?.stringValue, creatorName: f.creatorName?.stringValue, creatorPhotoURL: f.creatorPhotoURL?.stringValue, title: f.title?.stringValue, subtitle: f.subtitle?.stringValue, description: f.description?.stringValue, coverImage: f.coverImage?.stringValue, heroVideoUrl: f.heroVideoUrl?.stringValue, type: f.type?.stringValue, status: f.status?.stringValue, venueName: f.venueName?.stringValue, venueAddress: f.venueAddress?.stringValue, city: f.city?.stringValue, state: f.state?.stringValue, country: f.country?.stringValue, streamUrl: f.streamUrl?.stringValue, startDate: parseInt(f.startDate?.integerValue ?? '0'), endDate: parseInt(f.endDate?.integerValue ?? '0'), doorsOpenDate: f.doorsOpenDate?.integerValue ? parseInt(f.doorsOpenDate.integerValue) : undefined, timezone: f.timezone?.stringValue ?? 'America/New_York', totalCapacity: parseInt(f.totalCapacity?.integerValue ?? '0'), totalSold: parseInt(f.totalSold?.integerValue ?? '0'), kioskEnabled: f.kioskEnabled?.booleanValue ?? false, printingEnabled: f.printingEnabled?.booleanValue ?? false, sanctuaryMembersOnly: f.sanctuaryMembersOnly?.booleanValue ?? false, refundPolicy: f.refundPolicy?.stringValue ?? 'NO_REFUND', ageRestriction: f.ageRestriction?.stringValue, dresscode: f.dresscode?.stringValue, accessibilityInfo: f.accessibilityInfo?.stringValue, viewCount: parseInt(f.viewCount?.integerValue ?? '0'), shareCount: parseInt(f.shareCount?.integerValue ?? '0'), tiers: JSON.parse(f.tiers?.stringValue ?? '[]'), itinerary: JSON.parse(f.itinerary?.stringValue ?? '[]'), faqItems: JSON.parse(f.faqItems?.stringValue ?? '[]'), promoCodes: JSON.parse(f.promoCodes?.stringValue ?? '[]'), galleryImages: JSON.parse(f.galleryImages?.stringValue ?? '[]'), tags: JSON.parse(f.tags?.stringValue ?? '[]'), packages: JSON.parse(f.packages?.stringValue ?? '[]'), createdAt: parseInt(f.createdAt?.integerValue ?? '0'), updatedAt: parseInt(f.updatedAt?.integerValue ?? '0') };
+      const event = { id: req.params.eventId, creatorUid: f.creatorUid?.stringValue, creatorName: f.creatorName?.stringValue, creatorPhotoURL: f.creatorPhotoURL?.stringValue, title: f.title?.stringValue, subtitle: f.subtitle?.stringValue, description: f.description?.stringValue, coverImage: f.coverImage?.stringValue, heroVideoUrl: f.heroVideoUrl?.stringValue, type: f.type?.stringValue, status: f.status?.stringValue, venueName: f.venueName?.stringValue, venueAddress: f.venueAddress?.stringValue, city: f.city?.stringValue, state: f.state?.stringValue, country: f.country?.stringValue, streamUrl: f.streamUrl?.stringValue, startDate: parseInt(f.startDate?.integerValue ?? '0'), endDate: parseInt(f.endDate?.integerValue ?? '0'), doorsOpenDate: f.doorsOpenDate?.integerValue ? parseInt(f.doorsOpenDate.integerValue) : undefined, timezone: f.timezone?.stringValue ?? 'America/New_York', totalCapacity: parseInt(f.totalCapacity?.integerValue ?? '0'), totalSold: parseInt(f.totalSold?.integerValue ?? '0'), kioskEnabled: f.kioskEnabled?.booleanValue ?? false, printingEnabled: f.printingEnabled?.booleanValue ?? false, sanctuaryMembersOnly: f.sanctuaryMembersOnly?.booleanValue ?? false, refundPolicy: f.refundPolicy?.stringValue ?? 'NO_REFUND', ageRestriction: f.ageRestriction?.stringValue, dresscode: f.dresscode?.stringValue, accessibilityInfo: f.accessibilityInfo?.stringValue, viewCount: parseInt(f.viewCount?.integerValue ?? '0'), shareCount: parseInt(f.shareCount?.integerValue ?? '0'), tiers: JSON.parse(f.tiers?.stringValue ?? '[]'), itinerary: JSON.parse(f.itinerary?.stringValue ?? '[]'), faqItems: JSON.parse(f.faqItems?.stringValue ?? '[]'), promoCodes: JSON.parse(f.promoCodes?.stringValue ?? '[]'), galleryImages: JSON.parse(f.galleryImages?.stringValue ?? '[]'), tags: JSON.parse(f.tags?.stringValue ?? '[]'), packages: JSON.parse(f.packages?.stringValue ?? '[]'), createdAt: parseInt(f.createdAt?.integerValue ?? '0'), updatedAt: parseInt(f.updatedAt?.integerValue ?? '0'), host: parseEventJsonField(f.host?.stringValue, undefined) || undefined, playbookKey: f.playbookKey?.stringValue || undefined, photoPoolId: f.photoPoolId?.stringValue || undefined };
       firestoreWrite('plajahEvents', req.params.eventId, { viewCount: event.viewCount + 1, updatedAt: Date.now() }).catch(() => {});
       res.json(event);
     } catch (err: any) { res.status(500).json({ error: err.message }); }
@@ -4536,6 +4589,44 @@ async function startServer() {
             },
             quantity: 1,
           });
+  // Events run by an org or business. Public: PUBLISHED / ON_SALE / SOLD_OUT / COMPLETED. The host's own team
+  // (eventHostAccess) also gets DRAFT + CANCELLED. Single-equality query on hostKey (no composite index); sorted here:
+  // upcoming soonest-first, then past most-recent-first, 50 max.
+  app.get('/api/events/host/:kind/:id', apiLimiter, async (req: any, res) => {
+    const kind = String(req.params.kind || '');
+    const id = String(req.params.id || '');
+    if ((kind !== 'org' && kind !== 'business') || !id || id.length > 128) return res.status(400).json({ error: 'Bad host' });
+    try {
+      // ?public=1 → the public view even for the host's own team (public page widgets).
+      const uid = req.query.public === '1' ? undefined : await optionalUidFromReq(req);
+      const access = uid ? await eventHostAccess(uid, kind, id) : { ok: false };
+      const PUBLIC =['PUBLISHED', 'ON_SALE', 'SOLD_OUT', 'COMPLETED'];
+      const rows = await queryFirebase('plajahEvents', [{ field: 'hostKey', value: `${kind}:${id}` }], 300);
+      const now = Date.now();
+      const events = rows
+        .filter((f: any) => access.ok || PUBLIC.includes(String(f.status)))
+        .map((f: any) => {
+          const tiers: any[] = parseEventJsonField(f.tiers, []);
+          const visible = Array.isArray(tiers) ? tiers.filter(t => t && t.isVisible !== false) : [];
+          const prices = visible.map(t => Number(t.priceCents) || 0);
+          return {
+            id: String(f.id || ''), title: f.title || 'Untitled event', subtitle: f.subtitle || undefined, status: f.status || 'DRAFT', type: f.type,
+            startDate: Number(f.startDate) || 0, endDate: Number(f.endDate) || undefined, coverImage: f.coverImage || undefined,
+            venueName: f.venueName || undefined, city: f.city || undefined, state: f.state || undefined,
+            totalSold: Number(f.totalSold) || 0, totalCapacity: Number(f.totalCapacity) || 0,
+            priceFromCents: prices.length ? Math.min(...prices) : undefined,
+            playbookKey: f.playbookKey || undefined, host: parseEventJsonField(f.host, undefined) || undefined,
+            photoPoolId: f.photoPoolId || undefined, kioskEnabled: f.kioskEnabled === true,
+          };
+        })
+        .filter(e => e.id);
+      const upcoming = events.filter(e => (e.endDate || e.startDate) >= now).sort((a, b) => a.startDate - b.startDate);
+      const past = events.filter(e => (e.endDate || e.startDate) < now).sort((a, b) => b.startDate - a.startDate);
+      res.set('Vary', 'Authorization'); res.set('Cache-Control', access.ok ? 'private, no-store' : 'public, max-age=60');
+      res.json({ events: [...upcoming, ...past].slice(0, 50), canManage: access.ok });
+    } catch (err: any) { res.status(500).json({ error: err?.message || 'Could not load events' }); }
+  });
+
         }
       }
 
@@ -10565,6 +10656,8 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
   // Time clock by PIN, verified server-side against the hash with the SAME lockout as the register login.
   app.post('/api/register/clock', authMiddleware, express.json(), async (req: any, res) => {
     try {
+    canManageHost: (uid: string | undefined, kind: 'org' | 'business', id: string) => eventHostAccess(uid, kind, id),
+    optionalUid: (req: any) => optionalUidFromReq(req),
       const { businessUid, pin, direction } = req.body || {};
       if (!businessUid || !isValidPin(String(pin || '')) || !['IN', 'OUT'].includes(String(direction))) return res.status(400).json({ error: 'Enter your PIN.' });
       const b = String(businessUid);

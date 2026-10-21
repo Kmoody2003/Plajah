@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ShoppingBag, Plus, Minus, Package, Loader2, ArrowLeft, Store } from 'lucide-react';
 import type { StoreProduct, StoreProductVariant } from '../types';
 import { sellerProducts } from '../services/inventoryService';
+import { subscribeCatalog } from '../services/commerceBus';
 import { availableFor, storefrontBadge, unitPriceCents } from '../services/inventoryCore';
 import { auth } from '../services/backendService';
 import VariantPicker from './inventory/VariantPicker';
@@ -29,12 +30,36 @@ const StoreKioskMode: React.FC<{ businessUid: string; businessName: string; onEx
   const [placing, setPlacing] = useState(false);
   const [error, setError] = useState('');
 
+  // Live catalog (commerceBus): the register selling the last unit flips this tile to "Sold out" instantly,
+  // and the cart is re-clamped to what's still on the shelf. One-shot read only if the listener fails.
   useEffect(() => {
-    sellerProducts(businessUid)
-      .then(ps => setProducts(ps.filter(p => p.isActive !== false && !p.isDigital)))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    setLoading(true);
+    let gotLive = false;
+    const keep = (ps: StoreProduct[]) => ps.filter(p => p.isActive !== false && !p.isDigital);
+    return subscribeCatalog(businessUid, ps => { gotLive = true; setProducts(keep(ps)); setLoading(false); }, {
+      onError: () => {
+        if (gotLive) return;
+        sellerProducts(businessUid).then(ps => setProducts(keep(ps))).catch(() => {}).finally(() => setLoading(false));
+      },
+    });
   }, [businessUid]);
+
+  useEffect(() => {
+    if (!products.length) return;
+    setCart(c => {
+      let changed = false;
+      const next: Record<string, number> = {};
+      for (const [key, qty] of Object.entries(c)) {
+        const [id, vid] = key.split('|');
+        const p = products.find(x => x.id === id);
+        const cap = p ? availableFor(p, vid || undefined) : 0;
+        const q = Math.min(qty, cap);
+        if (q !== qty) changed = true;
+        if (q > 0) next[key] = q;
+      }
+      return changed ? next : c;
+    });
+  }, [products]);
 
   const find = (key: string): { p: StoreProduct; v?: StoreProductVariant } | null => {
     const [id, vid] = key.split('|');

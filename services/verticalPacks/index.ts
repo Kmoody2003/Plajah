@@ -15,11 +15,18 @@ import auto from './packs/autoRepair';
 import laundromat from './packs/laundromat';
 import restaurant from './packs/restaurantCafe';
 import realEstate from './packs/realEstateBrokerage';
+import supermarket from './packs/supermarket';
+import furniture from './packs/furnitureStore';
+import dealership from './packs/carDealership';
+import venue from './packs/eventVenue';
+import planner from './packs/eventPlanner';
 
 export * from './types';
 export { CAPABILITIES, capabilityStatus, isUsable, isReady, packReadiness, READINESS_LABEL, capabilityBreakdown } from './capabilities';
 
-export const PACKS: VerticalPack[] = [grocery, boutique, salon, spa, auto, laundromat, restaurant, realEstate];
+export const PACKS: VerticalPack[] = [
+  supermarket, grocery, boutique, furniture, dealership, salon, spa, auto, laundromat, planner, restaurant, venue, realEstate,
+];
 
 const BY_ID = new Map(PACKS.map(p => [p.id, p] as const));
 export const PACK_IDS = PACKS.map(p => p.id);

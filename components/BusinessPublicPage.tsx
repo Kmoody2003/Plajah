@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   ArrowLeft, MapPin, Phone, Globe, Clock, Star, MessageSquare,
@@ -12,6 +12,10 @@ import type { BusinessPage, BusinessMenuItem, BusinessEvent, PitchDeck } from '.
 import { generateBusinessDeck } from '../services/pitchDeckTemplates';
 import BusinessMessageOptIn from './BusinessMessageOptIn';
 import StorefrontNowPlaying from './StorefrontNowPlaying';
+import HostEventsPublic from './events/HostEventsPublic';
+import { packForPage } from '../services/verticalPacks';
+import { subscribeCatalog } from '../services/commerceBus';
+const StorePageView = lazy(() => import('./StorePageView'));
 
 // ── HELPERS ──────────────────────────────────────────────────────────────────
 
@@ -389,7 +393,7 @@ interface BusinessPublicPageProps {
   onCreatePitchDeck?: (deck: PitchDeck) => void;
 }
 
-type TabId = 'ABOUT' | 'MENU' | 'GALLERY' | 'EVENTS' | 'REVIEWS' | 'HOURS';
+type TabId = 'ABOUT' | 'SHOP' | 'MENU' | 'GALLERY' | 'EVENTS' | 'REVIEWS' | 'HOURS';
 
 export default function BusinessPublicPage({ business, onBack, currentUserId, currentUserName, onCreatePitchDeck }: BusinessPublicPageProps) {
   const [activeTab, setActiveTab] = useState<TabId>('ABOUT');
@@ -424,10 +428,30 @@ export default function BusinessPublicPage({ business, onBack, currentUserId, cu
 
   const hasMenu = business.menuItems && business.menuItems.length > 0;
   const hasGallery = business.galleryImages && business.galleryImages.length > 0;
-  const hasEvents = business.events && business.events.length > 0;
+  const hasLegacyEvents = !!(business.events && business.events.length > 0);
+  // Events are always offered: hosted (ticketed + RSVP) events come from the server by host, legacy
+  // inline events still render underneath.
+  const hasEvents = true;
+
+  // Shop: the same live catalog the register, kiosk and in-store screens use (storeProducts by owner).
+  const [liveCount, setLiveCount] = useState(0);
+  useEffect(() => {
+    if (!business.ownerId) return;
+    return subscribeCatalog(business.ownerId, ps => setLiveCount(ps.filter(x => x.isActive !== false).length), { onError: () => {} });
+  }, [business.ownerId]);
+  const pack = packForPage(business);
+  const shopLabel = pack?.vocabulary.catalogNoun || 'Shop';
+  const hasShop = liveCount > 0 && (business.isAcceptingOrders || !pack || pack.publicSections.includes('products') || pack.publicSections.includes('menu'));
+  // Deep-link: StorefrontNowPlaying's "Buy" fires OPEN_STORE.
+  useEffect(() => {
+    const go = () => { if (hasShop) setActiveTab('SHOP'); };
+    window.addEventListener('OPEN_STORE', go);
+    return () => window.removeEventListener('OPEN_STORE', go);
+  }, [hasShop]);
 
   const tabs: { id: TabId; label: string }[] = [
     { id: 'ABOUT', label: 'About' },
+    ...(hasShop ? [{ id: 'SHOP' as TabId, label: shopLabel }] : []),
     ...(hasMenu ? [{ id: 'MENU' as TabId, label: 'Menu' }] : []),
     ...(hasGallery ? [{ id: 'GALLERY' as TabId, label: 'Gallery' }] : []),
     ...(hasEvents ? [{ id: 'EVENTS' as TabId, label: 'Events' }] : []),
@@ -555,8 +579,8 @@ export default function BusinessPublicPage({ business, onBack, currentUserId, cu
               <Presentation size={15} /> Create Pitch Deck
             </button>
           )}
-          {business.isAcceptingOrders && (
-            <button className="flex items-center gap-2 bg-[--small-orange] text-white text-sm font-bold px-4 py-2.5 rounded-xl hover:opacity-90 transition-opacity">
+          {business.isAcceptingOrders && hasShop && (
+            <button onClick={() => setActiveTab('SHOP')} className="flex items-center gap-2 bg-[--small-orange] text-white text-sm font-bold px-4 py-2.5 rounded-xl hover:opacity-90 transition-opacity">
               <ShoppingBag size={15} /> Order Now
             </button>
           )}
@@ -813,7 +837,16 @@ export default function BusinessPublicPage({ business, onBack, currentUserId, cu
             )}
 
             {/* ── EVENTS ────────────────────────────────────────────────────── */}
-            {activeTab === 'EVENTS' && hasEvents && (
+            {activeTab === 'SHOP' && hasShop && (
+              <Suspense fallback={<div className="py-12 text-center text-sm text-white/40">Loading the shop…</div>}>
+                <StorePageView embedded sellerId={business.ownerId} />
+              </Suspense>
+            )}
+
+            {activeTab === 'EVENTS' && (
+              <HostEventsPublic host={{ kind: 'business', id: business.id, name: business.businessName }} accent="#FF8C00" emptyText={hasLegacyEvents ? '' : 'No upcoming events right now.'} />
+            )}
+            {activeTab === 'EVENTS' && hasLegacyEvents && (
               <EventsSection events={business.events!} />
             )}
 

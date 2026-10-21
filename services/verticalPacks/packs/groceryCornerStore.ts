@@ -1,5 +1,7 @@
 /**
- * Grocery / corner store. Real-world notes baked in:
+ * Corner store & convenience (bodega, c-store, gas-station mart). Full-service supermarkets use the separate
+ * `supermarket` pack ("Grocery Store"). Id and item keys are unchanged from the original "Grocery / Corner Store"
+ * label so existing businesses keep their samples. Real-world notes baked in:
  *  - Prices are typical US convenience-store shelf prices; costs are ~65-75% of shelf on packaged goods
  *    (c-store gross margin on packaged food is usually 30-40%, tobacco ~10-15%, beer ~20-25%).
  *  - Tobacco and nicotine: federal minimum sale age is 21. Alcohol: 21. Lottery: state-run, usually 18
@@ -87,8 +89,8 @@ const grocery: VerticalPack = {
   id: 'grocery_corner_store',
   version: 1,
   parent: 'RETAIL',
-  label: 'Grocery / Corner Store',
-  blurb: 'Convenience, bodega and small grocery. Fast register, age checks, stock alerts.',
+  label: 'Corner Store & Convenience',
+  blurb: 'Bodegas, convenience and gas-station marts. Fast register, tobacco/beer age checks, roller-grill and coffee, stock alerts.',
   icon: 'ShoppingBasket',
   color: '#06D6A0',
   clinical: false,

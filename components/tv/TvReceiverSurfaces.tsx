@@ -11,9 +11,10 @@ import Hls from 'hls.js';
 import { useRtcSession } from '../../hooks/useRtcSession';
 import { useParty } from '../../hooks/useParty';
 import { shouldResync } from '../../services/partyService';
-import { fetchSignageSlides } from '../../services/businessService';
+import { fetchBusinessPage } from '../../services/businessService';
+import { SignagePlayer } from '../business/SignageStudio';
 import { hlsTuning, capLevelsToPanel } from '../../services/hlsTuning';
-import type { DigitalSignageSlide } from '../../types';
+import type { BusinessEvent } from '../../types';
 import type { EventDeviceDuty } from '../../services/ambo/amboPartyEventService';
 
 const Center: React.FC<{ title: string; sub?: string }> = ({ title, sub }) => (
@@ -137,26 +138,22 @@ export const TvPartyDisplay: React.FC<{ partyId: string }> = ({ partyId }) => {
 
 export const TvSignage: React.FC<{ duty: EventDeviceDuty }> = ({ duty }) => {
   const pageId = duty.sourceData?.signagePageId;
-  const [slides, setSlides] = useState<DigitalSignageSlide[]>([]);
-  const [idx, setIdx] = useState(0);
+  const [owner, setOwner] = useState<{ uid?: string; events: BusinessEvent[] }>({ events: [] });
   const [clock, setClock] = useState('');
 
+  // The page gives live slides their seller (owner uid) and EVENT slides their events. Re-read lightly:
+  // slides, prices, stock and deals themselves stream live through SignagePlayer (commerceBus), which
+  // falls back to a 5-minute poll only if the Firestore listener errors.
   useEffect(() => {
-    if (!pageId) { setSlides([]); return; }
+    if (!pageId) { setOwner({ events: [] }); return; }
     let alive = true;
-    const load = () => fetchSignageSlides(pageId)
-      .then(s => { if (alive) setSlides(s.filter(x => x.isActive)); })
+    const load = () => fetchBusinessPage(pageId)
+      .then(p => { if (alive && p) setOwner({ uid: p.ownerId, events: p.events || [] }); })
       .catch(() => { /* keep what we have — a signage TV must not go blank on a network blip */ });
     load();
-    const t = window.setInterval(load, 5 * 60_000);   // pick up edits without a listener
+    const t = window.setInterval(load, 30 * 60_000);
     return () => { alive = false; window.clearInterval(t); };
   }, [pageId]);
-
-  useEffect(() => {
-    if (slides.length < 2) return;
-    const t = window.setTimeout(() => setIdx(i => (i + 1) % slides.length), (slides[idx % slides.length]?.durationSeconds || 8) * 1000);
-    return () => window.clearTimeout(t);
-  }, [slides, idx]);
 
   useEffect(() => {
     const tick = () => setClock(new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }));
@@ -165,23 +162,7 @@ export const TvSignage: React.FC<{ duty: EventDeviceDuty }> = ({ duty }) => {
     return () => window.clearInterval(t);
   }, []);
 
-  const s = slides.length ? slides[idx % slides.length] : null;
-  if (s) {
-    return (
-      <div className="absolute inset-0 flex items-center justify-center" style={{ background: s.backgroundColor || '#000' }}>
-        {s.type === 'IMAGE' && s.url && <img src={heroImage(s.url)} onError={onThumbError(s.url)} decoding="async" alt="" className="w-full h-full object-contain" />}
-        {s.type === 'VIDEO' && s.url && <video key={s.id} src={s.url} autoPlay muted loop playsInline className="w-full h-full object-contain" />}
-        {(s.type === 'TEXT' || s.type === 'PROMO' || !s.url) && (
-          <div className="text-center p-12 text-white">
-            {s.type === 'PROMO' && <div className="text-sm font-black uppercase tracking-[0.3em] mb-4" style={{ color: '#FF8C00' }}>Special offer</div>}
-            <div className="text-7xl font-black tracking-tight">{s.headline}</div>
-            {s.subtext && <div className="mt-6 text-3xl text-white/70">{s.subtext}</div>}
-          </div>
-        )}
-      </div>
-    );
-  }
-  return (
+  const welcome = () => (
     <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-12"
       style={{ background: 'radial-gradient(circle at center, rgba(218,0,243,0.14) 0%, #05040a 70%)' }}>
       <h1 className="text-7xl font-black tracking-tight text-white">{duty.sourceData?.headline || duty.title || 'Welcome'}</h1>
@@ -189,4 +170,7 @@ export const TvSignage: React.FC<{ duty: EventDeviceDuty }> = ({ duty }) => {
       <div className="absolute bottom-10 right-12 text-4xl font-black text-white/70 tabular-nums">{clock}</div>
     </div>
   );
+
+  if (!pageId) return welcome();
+  return <SignagePlayer businessId={pageId} sellerUid={owner.uid} events={owner.events} pollFallbackMs={5 * 60_000} renderEmpty={welcome} />;
 };

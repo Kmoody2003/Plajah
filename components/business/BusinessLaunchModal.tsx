@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import {
   X, Loader2, Check, ArrowRight, ArrowLeft, Users, Store, ShieldCheck,
   Disc3, Clapperboard, BookOpen, Building2, UtensilsCrossed, Music, Sparkles,
+  Stethoscope, Smile, ShoppingCart, Sofa, Car, Landmark, PartyPopper,
 } from 'lucide-react';
 import { BUSINESS_TEMPLATES, type BusinessTemplate } from '../../services/businessTemplates';
 import { launchBusinessPage } from '../../services/brandActivation';
@@ -11,7 +12,11 @@ import type { Organization } from '../../types';
 // Icon-name (from the template registry) → lucide component.
 const ICONS: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
   Disc3, Clapperboard, BookOpen, Building2, UtensilsCrossed, Music, Sparkles,
+  Stethoscope, Smile, ShoppingCart, Sofa, Car, Landmark, PartyPopper,
 };
+
+// Plajah brand gradient (purple -> magenta -> orange).
+const BRAND_GRADIENT = 'linear-gradient(135deg,#6B0099,#D40055 55%,#FF8C00)';
 
 const BusinessLaunchModal: React.FC<{
   onClose: () => void;
@@ -26,7 +31,7 @@ const BusinessLaunchModal: React.FC<{
   const [error, setError] = useState<string | null>(null);
   const [doneOrg, setDoneOrg] = useState<Organization | null>(null);
 
-  const field = 'w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white outline-none focus:border-[#0070FF]/50 transition-all placeholder:text-white/25';
+  const field = 'w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white outline-none focus:border-[#D40055]/50 transition-all placeholder:text-white/25';
 
   const launch = async () => {
     if (!selected) return;
@@ -47,7 +52,7 @@ const BusinessLaunchModal: React.FC<{
 
         {/* Header */}
         <div className="flex items-center gap-3 px-5 py-4 border-b border-white/8 sticky top-0 bg-[#0a0a0d] z-10">
-          <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#0070FF,#FFD400)' }}>
+          <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: BRAND_GRADIENT }}>
             <Building2 size={15} className="text-white" />
           </div>
           <div>
@@ -67,7 +72,7 @@ const BusinessLaunchModal: React.FC<{
               Your <strong className="text-white/80">{selected?.label}</strong> page is set up with {selected?.defaultRoles.length} predefined roles.
               Next, add employees and assign them roles from your dashboard.
             </p>
-            <button onClick={onClose} className="w-full py-3 rounded-2xl text-black text-[11px] font-black uppercase tracking-widest" style={{ background: 'linear-gradient(135deg,#0070FF,#FFD400)' }}>Done</button>
+            <button onClick={onClose} className="w-full py-3 rounded-2xl text-white text-[11px] font-black uppercase tracking-widest" style={{ background: BRAND_GRADIENT }}>Done</button>
           </div>
         ) : !selected ? (
           /* Template gallery */
@@ -129,8 +134,8 @@ const BusinessLaunchModal: React.FC<{
             {error && <p className="text-[10px] font-bold text-red-400">{error}</p>}
 
             <button onClick={launch} disabled={busy}
-              className="w-full py-3 rounded-2xl text-black text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50"
-              style={{ background: 'linear-gradient(135deg,#0070FF,#FFD400)' }}>
+              className="w-full py-3 rounded-2xl text-white text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50"
+              style={{ background: BRAND_GRADIENT }}>
               {busy ? <><Loader2 size={14} className="animate-spin" /> Launching…</> : <>Launch {selected.label} <ArrowRight size={14} /></>}
             </button>
           </div>
