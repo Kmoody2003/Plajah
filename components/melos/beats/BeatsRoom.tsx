@@ -31,6 +31,11 @@ import { transcribeToPattern, addTranscribedPattern } from '../../../services/me
 import type { MelosSampleRef } from './melosSamples';
 import { useBeatsDoc } from './useBeatsDoc';
 import { useAutomationRecorder } from './useAutomationRecorder';
+import {
+  forgetPattern, groupLetter, groupPatterns, ideasSet, newGroupPattern, padGroup, patternGroup, scenePatternIds, syncSongFromSections,
+} from '../../../services/melos/beats/songSections';
+import { recordPadHit } from '../../../services/melos/beats/padRecord';
+import type { Scene } from '../../../services/melos/beats/grooveDoc';
 import { useEngineBridge } from './useEngineBridge';
 import { useBeatsHid } from './useBeatsHid';
 import { useInstrumentKeyboard, commitRecordedNote, type RecordedNote } from './instrument/useInstrumentKeyboard';
@@ -129,7 +134,21 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
   // Song/arrangement play position — the timeline playhead. Defaults to the very start so Play in the
   // timeline always begins at bar 1 on first load; a ruler click moves it (and remembers it).
   const [songStartBeats, setSongStartBeats] = useState(0);
-  const [activePatternId, setActivePatternId] = useState(doc.patterns[0]?.id || '');
+  const [activePatternId, setActivePatternIdRaw] = useState(doc.patterns[0]?.id || '');
+  // Maschine "Ideas": the pattern each Group plays in pattern mode. Selecting a pattern makes it
+  // the edited pattern AND its Group's pick; while pattern mode runs, the switch lands on the bar.
+  const [choice, setChoice] = useState<Record<number, string | undefined>>({});
+  const setActivePatternId = useCallback((id: string) => {
+    setActivePatternIdRaw(id);
+    const pat = docRefForChoice.current?.patterns.find((x) => x.id === id);
+    if (!pat) return;
+    setChoice((c) => (c[patternGroup(pat)] === id ? c : { ...c, [patternGroup(pat)]: id }));
+    const engine = BeatsEngine.get();
+    if (engine.isRunning() && engine.playingPatternIds().length) engine.queuePattern(id);
+  }, []);
+  const docRefForChoice = React.useRef(doc);
+  docRefForChoice.current = doc;
+  const [recQuantize, setRecQuantize] = useState(() => localStorage.getItem('melos:padrec:quantize') !== '0');
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [showGrooves, setShowGrooves] = useState(false);
   const [octave, setOctave] = useState(4);
@@ -296,9 +315,11 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
       setPlayMode('song');
       void engine.init().then(() => engine.play('song', { fromBeats: songStartBeats, countInBeats }));
     } else {
-      void engine.init().then(() => engine.play(playMode, { patternId: pattern?.id, countInBeats }));
+      // Pattern mode plays every Group's pick together (Maschine Ideas), not one pattern alone.
+      const patternIds = ideasSet(doc, { ...choice, ...(pattern ? { [patternGroup(pattern)]: pattern.id } : {}) });
+      void engine.init().then(() => engine.play(playMode, { patternIds, countInBeats }));
     }
-  }, [view, playMode, pattern?.id, preRollBars, songStartBeats, doc]);
+  }, [view, playMode, pattern?.id, preRollBars, songStartBeats, doc, choice]);
 
   const handleStop = useCallback(() => { BeatsEngine.get().stop(); }, []);
 
@@ -310,11 +331,12 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
       recordingRef.current = next;
       if (next && !BeatsEngine.get().isRunning()) {
         const engine = BeatsEngine.get();
-        void engine.init().then(() => engine.play(playMode, { patternId: pattern?.id, countInBeats: preRollBars * MeterMap.fromDoc(doc).at(0).lenBeats }));
+        const patternIds = ideasSet(doc, { ...choice, ...(pattern ? { [patternGroup(pattern)]: pattern.id } : {}) });
+        void engine.init().then(() => engine.play(playMode, { patternIds, countInBeats: preRollBars * MeterMap.fromDoc(doc).at(0).lenBeats }));
       }
       return next;
     });
-  }, [playMode, pattern?.id, preRollBars, doc]);
+  }, [playMode, pattern?.id, preRollBars, doc, choice]);
 
   // Space = play/stop, the one shortcut every DAW agrees on.
   useEffect(() => {
@@ -377,11 +399,11 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
       noteMidiRouted(e.note);
       switch (action.kind) {
         case 'pad':
-          void engine.init().then(() => engine.trigger(action.pad, action.velocity));
+          void engine.init().then(() => engine.padDown(action.pad, action.velocity));
           setSelectedPad(action.pad);
           break;
         case 'padOff':
-          engine.release(action.pad);
+          engine.padUp(action.pad);
           break;
         case 'note': {
           // Auto-route. `mapMidiEvent` deliberately returns a note for a generic keyboard so it is
@@ -644,13 +666,45 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
     finally { setBusy(null); }
   }, [doc.bpm, flash, mutate]);
 
+  // The Group the user is working in follows the selected pad (MEKA's Group buttons select pads).
+  const currentGroup = padGroup(selectedPad);
   const addPattern = useCallback(() => {
-    mutate((d: GrooveDoc) => {
-      const name = `Pattern ${String.fromCharCode(65 + (d.patterns.length % 26))}`;
-      const p = defaultPattern(name);
-      p.id = grooveUid() + grooveUid();
-      d.patterns.push(p);
-      setActivePatternId(p.id);
+    let id = '';
+    mutate((d: GrooveDoc) => { id = newGroupPattern(d, currentGroup).id; });
+    if (id) setActivePatternId(id);
+  }, [mutate, currentGroup, setActivePatternId]);
+  // Entering a Group: edit its pick (or first pattern). A Group with no patterns yet gets its
+  // first one, so step edits on its pads never land in another Group's pattern.
+  useEffect(() => {
+    if (pattern && patternGroup(pattern) === currentGroup) return;
+    const list = groupPatterns(doc, currentGroup);
+    if (list.length) { setActivePatternId(choice[currentGroup] && list.some((x) => x.id === choice[currentGroup]) ? choice[currentGroup]! : list[0].id); return; }
+    if (currentGroup > 0) addPattern();
+  }, [currentGroup]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Launch a MEKA scene: every Group switches to the scene's pattern at the next bar.
+  const launchScene = useCallback((scene: Scene) => {
+    const ids = scenePatternIds(doc, scene);
+    if (!ids.length) return;
+    setChoice((c) => { const n = { ...c }; for (const [g, pid] of Object.entries(scene.slots)) if (pid) n[Number(g)] = pid; return n; });
+    const mine = scene.slots[currentGroup];
+    if (mine) setActivePatternIdRaw(mine);
+    setPlayMode('pattern');
+    BeatsEngine.get().queuePatternSet(ids);
+  }, [doc, currentGroup]);
+
+  // Live pad recording: armed record + a running transport → pad hits land in the playing
+  // pattern of the pad's Group (padRecord.ts). One undo step per pass.
+  const recQuantRef = React.useRef(recQuantize);
+  recQuantRef.current = recQuantize;
+  useEffect(() => {
+    let pass = '';
+    return BeatsEngine.get().onPadHit((hit) => {
+      if (!recordingRef.current || hit.beat === null) { pass = ''; return; }
+      const engine = BeatsEngine.get();
+      if (!pass) pass = `pad-rec:${Date.now()}`;
+      const playing = engine.playingPatternIds();
+      mutate((d) => { recordPadHit(d, { padIdx: hit.padIdx, vel: hit.vel, beat: hit.beat!, mode: hit.mode }, playing, recQuantRef.current || hit.repeat); }, { coalesce: pass });
     });
   }, [mutate]);
 
@@ -799,10 +853,10 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
     return [
       { kind: 'header', label: p.name },
       { id: 'rename', label: 'Rename…', onSelect: () => { const name = window.prompt('Pattern name', p.name)?.trim(); if (name) mutate((d) => { const pt = d.patterns.find((x) => x.id === id); if (pt) pt.name = name; }); } },
-      { id: 'dup', label: 'Duplicate', onSelect: () => mutate((d) => { const src = d.patterns.find((x) => x.id === id); if (!src) return; const copy = JSON.parse(JSON.stringify(src)); copy.id = grooveUid() + grooveUid(); copy.name = `${src.name} copy`; d.patterns.push(copy); setActivePatternId(copy.id); }) },
+      { id: 'dup', label: 'Duplicate', onSelect: () => mutate((d) => { const src = d.patterns.find((x) => x.id === id); if (!src) return; const copy = JSON.parse(JSON.stringify(src)); copy.id = grooveUid() + grooveUid(); copy.name = `${src.name} copy`; d.patterns.push(copy); setTimeout(() => setActivePatternId(copy.id)); }) },
       { id: 'clear', label: 'Clear steps', onSelect: () => mutate((d) => { const pt = d.patterns.find((x) => x.id === id); if (pt) pt.steps = {}; }) },
       { kind: 'separator' },
-      { id: 'del', label: 'Delete pattern', danger: true, disabled: doc.patterns.length <= 1, onSelect: () => mutate((d) => { const i = d.patterns.findIndex((x) => x.id === id); if (i < 0 || d.patterns.length <= 1) return; d.patterns.splice(i, 1); if (pattern?.id === id) setActivePatternId(d.patterns[Math.max(0, i - 1)].id); }) },
+      { id: 'del', label: 'Delete pattern', danger: true, disabled: doc.patterns.length <= 1, onSelect: () => mutate((d) => { const i = d.patterns.findIndex((x) => x.id === id); if (i < 0 || d.patterns.length <= 1) return; d.patterns.splice(i, 1); forgetPattern(d, id); syncSongFromSections(d); if (pattern?.id === id) setActivePatternId(d.patterns[Math.max(0, i - 1)].id); }) },
     ] as MenuNode<string>[];
   });
 
@@ -996,6 +1050,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           const rest = (d.meter ?? []).filter((m) => m.bar !== 0);
           d.meter = num === 4 && den === 4 && !rest.length ? undefined : [{ bar: 0, num, den }, ...rest];
           if (!d.meter) delete d.meter;
+          syncSongFromSections(d); // song sections are counted in bars
         })}
         beats={snap.beats}
         onSetLoop={(loop) => mutate((d) => { d.loop = loop; })}
@@ -1119,10 +1174,10 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           )}
         </div>
         <div className="w-px h-4 bg-white/10 mx-1 shrink-0" />
-        <span className="text-[9px] uppercase tracking-[0.18em] text-white/25 font-semibold mr-1 shrink-0 whitespace-nowrap">Patterns</span>
+        <span className="text-[9px] uppercase tracking-[0.18em] text-white/25 font-semibold mr-1 shrink-0 whitespace-nowrap" title="Patterns of the Group you're working in (select a pad in another Group to switch)">Patterns · {groupLetter(currentGroup)}</span>
         {patternMenu.node}
         <div className="flex items-center gap-1 min-w-[120px] flex-1 overflow-x-auto py-0.5" style={{ scrollbarWidth: 'none' }}>
-          {doc.patterns.map((p, pIdx) => (
+          {doc.patterns.map((p, pIdx) => patternGroup(p) !== currentGroup ? null : (
             <button
               key={p.id}
               onClick={() => {
@@ -1380,6 +1435,10 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           onLoadMelosSample={(padIdx, ref) => { void loadMelosSample(padIdx, ref); }}
           onPickInstrumentForPad={(padIdx) => setPadPickerFor(padIdx)}
           onEditPadInstrument={(padIdx) => { const id = doc.kit[padIdx]?.instrumentTrackId; if (id) setOpenInstrumentId(id); }}
+          choice={{ ...choice, ...(pattern ? { [patternGroup(pattern)]: pattern.id } : {}) }}
+          onLaunchScene={launchScene}
+          recQuantize={recQuantize}
+          onToggleRecQuantize={() => setRecQuantize((v) => { const n = !v; try { localStorage.setItem('melos:padrec:quantize', n ? '1' : '0'); } catch { /* */ } return n; })}
         />
       )}
       </div>

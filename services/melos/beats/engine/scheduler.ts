@@ -10,6 +10,9 @@ import type { ArrangeTrack, GrooveDoc, NoteEvent, Pattern, TimelineClip } from '
 import { songTime } from '../tempoMap';
 import { noteOccurrences } from '../clipContent';
 import { effectiveLanesFor, sustainedEnd } from '../automation';
+import { patternGroup } from '../songSections';
+
+const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((x) => b.includes(x));
 
 export const LOOKAHEAD_SEC = 0.15;
 const STEP_BEATS = 0.25; // 16th notes — the step grid is meter-independent
@@ -54,33 +57,48 @@ export function seededRng(seed: number): () => number {
 
 export class StepScheduler {
   private mode: PlayMode = 'pattern';
-  private patternId: string | null = null;
-  private queuedPatternId: string | null = null; // launcher: switch at the next bar boundary
+  // Pattern mode plays a SET of patterns — one per MEKA Group (Maschine "Ideas"); a legacy
+  // single-pattern play is a set of one. A queued set takes over at the next bar line.
+  private playing: string[] = [];
+  private queued: string[] | null = null;
   private nextStep = 0;                       // monotonic global 16th index from transport zero
   private startedAudioClips = new Set<string>();
   private running = false;
 
   constructor(private deps: SchedulerDeps) {}
 
-  start(mode: PlayMode, fromBeats: number, patternId?: string) {
+  start(mode: PlayMode, fromBeats: number, patternIds?: string | string[]) {
     this.mode = mode;
-    this.patternId = patternId ?? null;
-    this.queuedPatternId = null;
+    this.playing = patternIds === undefined ? [] : Array.isArray(patternIds) ? [...patternIds] : [patternIds];
+    this.queued = null;
     this.nextStep = Math.ceil(fromBeats / STEP_BEATS - 1e-9);
     this.startedAudioClips.clear();
     this.running = true;
     if (mode === 'song') this.startMidClips(fromBeats);
   }
 
-  stop() { this.running = false; this.queuedPatternId = null; }
+  stop() { this.running = false; this.queued = null; }
 
   /** Clip-launcher gesture: hand the transport to another pattern at the next bar boundary. */
   queuePattern(patternId: string) {
-    if (patternId === this.patternId) { this.queuedPatternId = null; return; }
-    this.queuedPatternId = patternId;
+    // Swap the pattern of the SAME Group (other Groups keep playing), at the next bar.
+    const doc = this.deps.doc();
+    const groupOf = (id: string) => { const p = doc.patterns.find((x) => x.id === id); return p ? patternGroup(p) : -1; };
+    const g = groupOf(patternId);
+    const base = this.queued ?? this.playing;
+    const next = [...base.filter((id) => groupOf(id) !== g), patternId];
+    if (!this.queued && sameSet(next, this.playing)) return;
+    this.queued = next;
   }
-  currentPatternId(): string | null { return this.patternId; }
-  queuedId(): string | null { return this.queuedPatternId; }
+  /** Clip-launcher scene: replace the whole set at the next bar. */
+  queueSet(patternIds: string[]) {
+    this.queued = sameSet(patternIds, this.playing) ? null : [...patternIds];
+  }
+  currentPatternId(): string | null { return this.playing[0] ?? null; }
+  currentPatternIds(): string[] { return this.playing; }
+  /** Patterns waiting for the bar line (those not already playing). */
+  queuedIds(): string[] { return this.queued ? this.queued.filter((id) => !this.playing.includes(id)) : []; }
+  queuedId(): string | null { return this.queuedIds()[0] ?? null; }
 
   /** Live path — called on every worklet tick with the current audio time. */
   onTick(nowSec: number) {
@@ -222,14 +240,16 @@ export class StepScheduler {
 
   private schedulePatternStep(doc: GrooveDoc, beat: number) {
     // A queued launcher pattern takes over on the bar line — the Bitwig launch quantum.
-    if (this.queuedPatternId && songTime(doc).meter.isBarLine(beat)) {
-      this.patternId = this.queuedPatternId;
-      this.queuedPatternId = null;
+    if (this.queued && songTime(doc).meter.isBarLine(beat)) {
+      this.playing = this.queued;
+      this.queued = null;
     }
-    const pattern = doc.patterns.find((p) => p.id === this.patternId) || doc.patterns[0];
-    if (!pattern) return;
-    const localStep = ((this.nextStep % pattern.length) + pattern.length) % pattern.length;
-    this.fireRow(doc, pattern, localStep, beat);
+    const set = this.playing.map((id) => doc.patterns.find((p) => p.id === id)).filter((p): p is Pattern => !!p);
+    if (!set.length && doc.patterns[0]) set.push(doc.patterns[0]);
+    for (const pattern of set) {
+      const localStep = ((this.nextStep % pattern.length) + pattern.length) % pattern.length;
+      this.fireRow(doc, pattern, localStep, beat);
+    }
   }
 
   private audiblePatternTracks(doc: GrooveDoc): ArrangeTrack[] {

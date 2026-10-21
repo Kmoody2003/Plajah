@@ -7,6 +7,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import type { GrooveDoc, Pattern } from '../../../../services/melos/beats/grooveDoc';
+import { padGroup } from '../../../../services/melos/beats/songSections';
 import { PLAYHEAD, SELECT } from '../theme';
 import { useContextMenu, type MenuNode } from '../../../ui/ContextMenu';
 
@@ -118,6 +119,8 @@ export const ChannelRack: React.FC<ChannelRackProps> = ({ doc, pattern, selected
       <div className="flex flex-col gap-[3px] max-h-[46vh] overflow-y-auto pr-1">
         {doc.kit.map((pad, padIdx) => {
           if (pad.empty) return null; // greyed placeholder — nothing to sequence
+          // A Group's pattern sequences that Group's pads (MEKA Groups); legacy patterns show all.
+          if (pattern.groupIdx !== undefined && padGroup(padIdx) !== pattern.groupIdx) return null;
           const row = pattern.steps[padIdx] || {};
           const selected = padIdx === selectedPad;
           return (

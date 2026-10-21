@@ -37,6 +37,33 @@ Deferred:
 - `.dawproject` export still writes one tempo and 4/4.
 - Docked NoteTab vs PianoRoll duplication is a product decision.
 
+## Phase 3 status (2026-10-21)
+
+Done:
+- **Group-scoped patterns** (`Pattern.groupIdx`; untagged legacy patterns count as Group A, so old songs are unchanged).
+  - The pattern bar shows the current Group's patterns (it follows the selected pad).
+  - New patterns are named per Group (A1, B1…), and a new Group gets its first pattern automatically.
+  - Glass's channel rack shows only the pattern's Group pads.
+- **Pattern mode plays every Group at once** (Maschine "Ideas"). The scheduler plays a set of patterns; picking a pattern while playing swaps only its Group at the next bar. The clip launcher shows every live slot.
+- **Scenes + Song** (`songSections.ts`, MEKA `ScenesBar`):
+  - Scenes capture each Group's pattern and launch together at the bar.
+  - Song sections (scene × bars, sized by the meter) build one managed track per Group on the Timeline, with one clip per section. The default Grooves track is adopted as Group A; hand-made clips on managed tracks are kept.
+  - The Timeline arranger lane (`ArrangerLane.tsx`) drags sections to reorder the song and changes their scene or length.
+- **Live pad recording** (`padRecord.ts`):
+  - Armed record + running transport writes hits into the playing pattern of the pad's Group. In song mode it writes the pattern clip under the playhead, slip-aware.
+  - Rec Q snaps to the 16th; off keeps micro-timing. Hits are latency-compensated and each pass is one undo step.
+  - Every input path is covered (pads, QWERTY, MIDI, note repeat).
+- **Note repeat in the engine**:
+  - Scheduled on the audio clock, locked to the transport (or a free clock at the song tempo when stopped).
+  - Rates 1/4–1/32 including triplets, plus swing.
+  - Pads, QWERTY and MIDI pads all use it, and repeats are recorded on the grid.
+- Tests: `tests/melosSong.test.ts` (27 total via `npm run test:melostime`).
+
+Not done:
+- The NI controller (HID) path still fires plain hits (no note repeat; it reports no pad releases).
+- No 16 Levels, keyboard or chord pad modes yet.
+- Scenes can't be reordered in MEKA (the song sections can).
+
 ## Phase 2 status (2026-10-21)
 
 Done:

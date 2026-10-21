@@ -197,6 +197,7 @@ export function pasteClips(doc: GrooveDoc, cb: ClipClipboard, atBeat: number, an
     const copy = JSON.parse(JSON.stringify(item.clip)) as TimelineClip;
     copy.id = grooveUid() + grooveUid();
     copy.startBeats = Math.max(0, atBeat + (item.clip.startBeats - cb.spanStart));
+    delete copy.sectionId; // a pasted copy is the user's clip, not one the song sections rewrite
     if (copy.notes) copy.notes = copy.notes.map((n) => ({ ...n, id: grooveUid() }));
     target.clips.push(copy);
     made.push(copy.id);

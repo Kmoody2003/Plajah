@@ -51,6 +51,10 @@ interface LiveClipSource { src: AudioBufferSourceNode; gain: GainNode; }
 const isSuiteType = (t?: string): boolean =>
   t === 'vela' || t === 'cantus' || t === 'ison' || t === 'pneuma';
 
+/** A live pad hit, as the recorder sees it: `beat` is the transport beat heard at that moment
+ *  (null when stopped); `repeat` marks note-repeat retriggers (already grid-exact). */
+export interface PadHit { padIdx: number; vel: number; time: number; beat: number | null; mode: PlayMode; repeat: boolean }
+
 export class BeatsEngine {
   private static _inst: BeatsEngine | null = null;
   static get(): BeatsEngine {
@@ -88,7 +92,7 @@ export class BeatsEngine {
   // there the playhead still reads from the outgoing pass.
   private running = false;
   private mode: PlayMode = 'pattern';
-  private currentPatternId: string | undefined;
+  private currentPatternIds: string[] = [];
   private anchorBeats = 0;
   private anchorTime = 0;
   private prevAnchor: { beats: number; time: number } | null = null;
@@ -330,6 +334,8 @@ export class BeatsEngine {
    */
   trigger(padIdx: number, vel127: number, when?: number, gateSec?: number, semiOffset?: number, pan?: number, stepFx?: number, skipChoke?: boolean): void {
     if (!this.voices || !this.ctx) return;
+    // A LIVE hit (no scheduled time) is a performance — tell the recorder.
+    if (when === undefined) this.emitPadHit(padIdx, vel127, this.ctx.currentTime, false);
     const pad = this.doc.kit[padIdx];
     if (pad?.empty) return; // greyed placeholder pad — no sound
     // Channel mute covers instrument pads too (VoiceBank checks it for one-shots, but instrument
@@ -459,6 +465,90 @@ export class BeatsEngine {
     if (!inst) return;
     if (live.kera) inst.keraNoteOff(live.note);
     else inst.noteOff(live.voiceId, true);
+  }
+
+  // ── Live pad performance: hit feed (recording) + engine-scheduled Note Repeat ──────────
+
+  private padHitListeners = new Set<(hit: PadHit) => void>();
+  /** Subscribe to live pad hits (and note-repeat hits) — the pad recorder listens here. */
+  onPadHit(fn: (hit: PadHit) => void): () => void {
+    this.padHitListeners.add(fn);
+    return () => { this.padHitListeners.delete(fn); };
+  }
+  private emitPadHit(padIdx: number, vel: number, time: number, repeat: boolean): void {
+    if (!this.padHitListeners.size) return;
+    // What the performer HEARD when they hit: the audio clock minus the output latency.
+    const lat = repeat ? 0 : Math.max(0, ((this.ctx as unknown as { outputLatency?: number })?.outputLatency || this.ctx?.baseLatency || 0));
+    const hit: PadHit = { padIdx, vel, time, beat: this.running ? this.beatAt(time - lat) : null, mode: this.mode, repeat };
+    for (const fn of this.padHitListeners) fn(hit);
+  }
+
+  /** Transport beat heard at an audio-context time (reads through a pending loop wrap). */
+  beatAt(time: number): number {
+    const a = this.prevAnchor && time < this.anchorTime ? this.prevAnchor : { beats: this.anchorBeats, time: this.anchorTime };
+    return this.tempo.secToBeat(this.tempo.beatToSec(a.beats) + (time - a.time));
+  }
+
+  // Note Repeat (Maschine / MPC): hold a pad and it retriggers on the beat grid at the rate, with
+  // swing on every other hit. Scheduled ahead on the audio clock (not a UI timer), locked to the
+  // transport when it runs and to a free clock at the song tempo when it doesn't.
+  private repeat = { on: false, rateBeats: 0.25, swing: 0 };
+  private repeatHeld = new Map<number, { vel: number; next: number }>(); // pad → next grid index
+  private repeatTimer: ReturnType<typeof setInterval> | null = null;
+  private repeatFree = { time: 0, bpm: 120 };
+
+  setNoteRepeat(cfg: Partial<{ on: boolean; rateBeats: number; swing: number }>): void {
+    Object.assign(this.repeat, cfg);
+    if (!this.repeat.on) for (const pad of [...this.repeatHeld.keys()]) this.noteRepeatRelease(pad);
+  }
+  noteRepeatState(): { on: boolean; rateBeats: number; swing: number } { return { ...this.repeat }; }
+
+  /** Live pad press: a plain hit, or — with Note Repeat on — a hit that keeps repeating. */
+  padDown(padIdx: number, vel127: number): void {
+    if (!this.ctx) return;
+    if (!this.repeat.on) { this.trigger(padIdx, vel127); return; }
+    // The first hit sounds now; repeats follow on the grid.
+    this.trigger(padIdx, vel127);
+    if (!this.running && !this.repeatHeld.size) this.repeatFree = { time: this.ctx.currentTime, bpm: this.tempo.bpmAt(0) };
+    const nowBeat = this.repeatBeatAt(this.ctx.currentTime);
+    this.repeatHeld.set(padIdx, { vel: vel127, next: Math.floor(nowBeat / this.repeat.rateBeats + 1e-6) + 1 });
+    if (!this.repeatTimer) this.repeatTimer = setInterval(() => this.repeatTick(), 20);
+    this.repeatTick();
+  }
+  padUp(padIdx: number): void {
+    if (this.repeatHeld.has(padIdx)) { this.noteRepeatRelease(padIdx); return; }
+    this.release(padIdx);
+  }
+  private noteRepeatRelease(padIdx: number): void {
+    this.repeatHeld.delete(padIdx);
+    this.release(padIdx);
+    if (!this.repeatHeld.size && this.repeatTimer) { clearInterval(this.repeatTimer); this.repeatTimer = null; }
+  }
+  private repeatBeatAt(time: number): number {
+    if (this.running) return this.beatAt(time);
+    return (time - this.repeatFree.time) * this.repeatFree.bpm / 60;
+  }
+  private repeatTimeAt(beat: number): number {
+    if (this.running) return this.toTime(beat);
+    return this.repeatFree.time + beat * 60 / this.repeatFree.bpm;
+  }
+  private repeatTick(): void {
+    if (!this.ctx) return;
+    const horizon = this.ctx.currentTime + 0.08;
+    const rate = Math.max(1 / 64, this.repeat.rateBeats);
+    for (const [padIdx, h] of this.repeatHeld) {
+      for (let guard = 0; guard < 64; guard++) {
+        let beat = h.next * rate;
+        if (h.next % 2 === 1) beat += this.repeat.swing * rate * 0.5; // swing every other hit
+        const t = this.repeatTimeAt(beat);
+        if (t >= horizon) break;
+        h.next++;
+        if (t < this.ctx.currentTime - 0.01) continue; // fell behind (tab hidden) — skip, never burst
+        const gate = (rate * 60 / this.tempo.bpmAt(Math.max(0, beat))) * 0.9;
+        this.trigger(padIdx, h.vel, Math.max(t, this.ctx.currentTime), gate);
+        this.emitPadHit(padIdx, h.vel, t, true);
+      }
+    }
   }
 
   /** Note-off for held pads (pointer up / key up / MIDI note-off). */
@@ -999,11 +1089,25 @@ export class BeatsEngine {
   }
 
   /** The pattern the scheduler is actually playing right now (pattern mode). */
-  playingPatternId(): string | null { return this.scheduler?.currentPatternId() ?? this.currentPatternId ?? null; }
+  playingPatternId(): string | null { return this.scheduler?.currentPatternId() ?? this.currentPatternIds[0] ?? null; }
+  /** Every pattern playing in pattern mode (one per MEKA Group). */
+  playingPatternIds(): string[] { return this.running && this.mode === 'pattern' ? (this.scheduler?.currentPatternIds() ?? []) : []; }
+  /** Patterns queued for the next bar. */
+  queuedPatternIds(): string[] { return this.scheduler?.queuedIds() ?? []; }
+
+  /** Launch a whole set (a MEKA scene) at the next bar; starts pattern playback when stopped. */
+  queuePatternSet(patternIds: string[]): void {
+    if (!patternIds.length) return;
+    if (!this.running || this.mode !== 'pattern') {
+      void this.init().then(() => this.play('pattern', { patternIds }));
+      return;
+    }
+    this.scheduler?.queueSet(patternIds);
+  }
   /** A pattern waiting for the next bar boundary, or null. */
   queuedPatternId(): string | null { return this.scheduler?.queuedId() ?? null; }
 
-  play(mode: PlayMode, opts: { patternId?: string; fromBeats?: number; countInBeats?: number } = {}): void {
+  play(mode: PlayMode, opts: { patternId?: string; patternIds?: string[]; fromBeats?: number; countInBeats?: number } = {}): void {
     if (!this.ctx || !this.scheduler || !this.clock) return;
     this.stopAudition(); // the transport and an album audition never fight over the bus
     this.resume();
@@ -1031,8 +1135,8 @@ export class BeatsEngine {
     this.jitterWindow.length = 0;
     this.lastTickAudio = 0;
     this.resetLoudness(); // integrated/LRA/TP measure THIS pass, not everything since page load
-    this.currentPatternId = opts.patternId;
-    this.scheduler.start(mode, from, opts.patternId);
+    this.currentPatternIds = opts.patternIds ?? (opts.patternId ? [opts.patternId] : []);
+    this.scheduler.start(mode, from, this.currentPatternIds);
     this.automation.resetMessages();
     this.rescheduleAutomation();
     this.clock.port.postMessage({ cmd: 'start' });
@@ -1041,6 +1145,8 @@ export class BeatsEngine {
   }
 
   stop(): void {
+    // Held note repeats were locked to the transport clock — stop them with it.
+    for (const pad of [...this.repeatHeld.keys()]) this.noteRepeatRelease(pad);
     const parkedAt = this.posBeatsDisplay();
     this.running = false;
     if (this.graph && this.ctx) this.automation.parkParams(this.doc, this.graph, this.mode === 'song' ? parkedAt : 0, this.ctx.currentTime);
@@ -1090,6 +1196,8 @@ export class BeatsEngine {
 
   dispose(): void {
     this.stop();
+    if (this.repeatTimer) { clearInterval(this.repeatTimer); this.repeatTimer = null; }
+    this.padHitListeners.clear();
     for (const inst of this.instruments.values()) inst.dispose();
     this.instruments.clear();
     this.liveNotes.clear();
@@ -1183,7 +1291,7 @@ export class BeatsEngine {
     }
     this.liveClipSources = [];
     // A queued launcher switch may have landed since play() — keep playing what's actually playing.
-    this.scheduler.start(this.mode, beats, this.scheduler.currentPatternId() ?? this.currentPatternId);
+    this.scheduler.start(this.mode, beats, this.scheduler.currentPatternIds().length ? this.scheduler.currentPatternIds() : this.currentPatternIds);
     this.scheduler.onTick(this.ctx.currentTime);
     if (this.graph) this.automation.scheduleParams(this.doc, this.graph, beats, atTime, this.automationHorizon(), (b) => this.toTime(b));
     this.automation.resetMessages();
@@ -1213,9 +1321,10 @@ export class BeatsEngine {
   posBeatsDisplay(): number {
     const p = this.posBeats();
     if (this.mode === 'pattern') {
-      const id = this.scheduler?.currentPatternId() ?? this.currentPatternId;
-      const pat = this.doc.patterns.find((x) => x.id === id) || this.doc.patterns[0];
-      const lenBeats = Math.max(1, pat?.length ?? 16) * 0.25;
+      // Several Groups may play patterns of different lengths: the readout wraps on the longest.
+      const ids = this.scheduler?.currentPatternIds().length ? this.scheduler.currentPatternIds() : this.currentPatternIds;
+      const lens = ids.map((id) => this.doc.patterns.find((x) => x.id === id)?.length ?? 0).filter((x) => x > 0);
+      const lenBeats = Math.max(1, lens.length ? Math.max(...lens) : (this.doc.patterns[0]?.length ?? 16)) * 0.25;
       return ((p % lenBeats) + lenBeats) % lenBeats;
     }
     const loop = this.doc.loop;

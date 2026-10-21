@@ -22,11 +22,12 @@ interface Props {
 
 export const ClipLauncher: React.FC<Props> = ({ doc, activePatternId, playMode, running, onMutate }) => {
   // Poll the engine for what's playing / queued — launcher state is engine truth, not doc state.
-  const [live, setLive] = useState<{ playing: string | null; queued: string | null }>({ playing: null, queued: null });
+  // Pattern mode plays one pattern per MEKA Group, so several slots can be live at once.
+  const [live, setLive] = useState<{ playing: string[]; queued: string[] }>({ playing: [], queued: [] });
   useEffect(() => {
     const t = setInterval(() => {
       const e = BeatsEngine.get();
-      setLive({ playing: e.isRunning() ? e.playingPatternId() : null, queued: e.queuedPatternId() });
+      setLive({ playing: e.playingPatternIds(), queued: e.queuedPatternIds() });
     }, 180);
     return () => clearInterval(t);
   }, []);
@@ -77,8 +78,8 @@ export const ClipLauncher: React.FC<Props> = ({ doc, activePatternId, playMode, 
       </div>
       <div className="flex-1 min-h-0 overflow-y-auto p-1.5 flex flex-col gap-1">
         {doc.patterns.map((pat) => {
-          const playing = live.playing === pat.id && playMode === 'pattern';
-          const queued = live.queued === pat.id;
+          const playing = live.playing.includes(pat.id) && playMode === 'pattern';
+          const queued = live.queued.includes(pat.id);
           const isActive = pat.id === activePatternId;
           return (
             <div

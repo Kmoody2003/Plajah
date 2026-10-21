@@ -27,9 +27,6 @@ interface PadGridProps {
   onEditPadInstrument?: (padIdx: number) => void;
   /** Edit the doc — for the right-click "Clear pad". */
   onMutate?: (fn: (d: GrooveDoc) => void) => void;
-  /** Maschine Note Repeat: hold a pad → it retriggers at the rate (cycles per beat) at the
-   *  current tempo. */
-  noteRepeat?: { on: boolean; cyclesPerBeat: number; bpm: number };
   /** Maschine 16 Velocities: every pad plays the SELECTED pad, velocity rising with the pad
    *  number — a whole grid of dynamics for one sound. */
   velocity16?: boolean;
@@ -37,13 +34,14 @@ interface PadGridProps {
 
 const HIT_GLOW_MS = 160;
 
-export const PadGrid: React.FC<PadGridProps> = ({ doc, selectedPad, onSelectPad, onDropSample, melosSamples, bank = 0, onAddToPad, onEditPadInstrument, onMutate, noteRepeat, velocity16 }) => {
+export const PadGrid: React.FC<PadGridProps> = ({ doc, selectedPad, onSelectPad, onDropSample, melosSamples, bank = 0, onAddToPad, onEditPadInstrument, onMutate, velocity16 }) => {
   const engine = BeatsEngine.get();
   const base = bank * 16;
 
-  // Note Repeat timers, keyed by the PHYSICAL pad held (target may differ in 16-vel mode).
-  const repeatTimers = useRef(new Map<number, { timer: ReturnType<typeof setInterval>; target: number }>());
-  useEffect(() => () => { for (const { timer } of repeatTimers.current.values()) clearInterval(timer); }, []);
+  // The sound each PHYSICAL pad is holding (16-vel mode plays the selected pad from every cell),
+  // so the lift releases the right voice / note repeat.
+  const held = useRef(new Map<number, number>());
+  useEffect(() => () => { for (const target of held.current.values()) engine.padUp(target); }, [engine]);
 
   // Right-click "Replace with sample…" → a hidden file input targeting one pad.
   const sampleInputRef = useRef<HTMLInputElement>(null);
@@ -90,24 +88,20 @@ export const PadGrid: React.FC<PadGridProps> = ({ doc, selectedPad, onSelectPad,
     const vel = velocity16
       ? Math.max(8, Math.round(((padIdx - base + 1) / 16) * 127))
       : pressure ? Math.round(30 + pressure * 97) : Math.round(127 - yRel * 82);
-    void engine.init().then(() => engine.trigger(target, vel));
+    // padDown = a hit, or a hit that repeats on the grid while held (engine Note Repeat).
+    held.current.set(padIdx, target);
+    void engine.init().then(() => engine.padDown(target, vel));
     if (!velocity16) onSelectPad(padIdx);
-    if (noteRepeat?.on) {
-      const prev = repeatTimers.current.get(padIdx);
-      if (prev) clearInterval(prev.timer);
-      const intervalMs = Math.max(20, (60000 / Math.max(20, noteRepeat.bpm)) / Math.max(1, noteRepeat.cyclesPerBeat));
-      const timer = setInterval(() => { engine.trigger(target, vel); }, intervalMs);
-      repeatTimers.current.set(padIdx, { timer, target });
-    }
-  }, [engine, onSelectPad, doc.kit, onAddToPad, velocity16, selectedPad, base, noteRepeat?.on, noteRepeat?.cyclesPerBeat, noteRepeat?.bpm]);
+  }, [engine, onSelectPad, doc.kit, onAddToPad, velocity16, selectedPad, base]);
 
   // Note-off: sustaining pads (env.sustain > 0) hold while pressed and release here; a held
   // Note Repeat stops with the finger.
   const lift = useCallback((padIdx: number) => {
-    const rep = repeatTimers.current.get(padIdx);
-    if (rep) { clearInterval(rep.timer); repeatTimers.current.delete(padIdx); engine.release(rep.target); return; }
-    engine.release(velocity16 ? selectedPad : padIdx);
-  }, [engine, velocity16, selectedPad]);
+    const target = held.current.get(padIdx);
+    if (target === undefined) return; // already lifted (pointerleave after pointerup)
+    held.current.delete(padIdx);
+    engine.padUp(target);
+  }, [engine]);
 
   const now = performance.now();
 

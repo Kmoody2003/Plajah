@@ -2,7 +2,7 @@
 // (one gesture apart), macros right. QWERTY drumming: zxcv/asdf/qwer/1234 = pads bottom-to-top.
 
 import React, { useEffect, useRef, useState } from 'react';
-import type { GrooveDoc, Pattern } from '../../../../services/melos/beats/grooveDoc';
+import type { GrooveDoc, Pattern, Scene } from '../../../../services/melos/beats/grooveDoc';
 import { bankCount, addPadBank, BANK_LETTERS } from '../../../../services/melos/beats/grooveDoc';
 import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine';
 import { Plus } from 'lucide-react';
@@ -12,6 +12,7 @@ import { StepStrip } from './StepStrip';
 import { MacroKnobs } from './MacroKnobs';
 import { BrowserRail } from './BrowserRail';
 import { PitchRoll } from './PitchRoll';
+import { ScenesBar } from './ScenesBar';
 import type { MelosSampleRef } from '../melosSamples';
 
 const KEY_ROWS = ['zxcv', 'asdf', 'qwer', '1234']; // row 0 = pads 0–3 (bottom)
@@ -31,18 +32,32 @@ interface MachineViewProps {
   onLoadMelosSample?: (padIdx: number, ref: MelosSampleRef) => void;
   onPickInstrumentForPad?: (padIdx: number) => void;
   onEditPadInstrument?: (padIdx: number) => void;
+  /** Per-Group pattern choice (what pattern mode plays) + scene launch. */
+  choice: Record<number, string | undefined>;
+  onLaunchScene: (scene: Scene) => void;
+  /** Record quantize for live pad recording (on = snap hits to the 16th). */
+  recQuantize: boolean;
+  onToggleRecQuantize: () => void;
 }
 
+// Note Repeat rates in beats per hit (triplets = 2/3 of the straight value).
 const REPEAT_RATES = [
-  { label: '1/4', cycles: 1 }, { label: '1/8', cycles: 2 }, { label: '1/8T', cycles: 3 },
-  { label: '1/16', cycles: 4 }, { label: '1/32', cycles: 8 },
+  { label: '1/4', beats: 1 }, { label: '1/8', beats: 0.5 }, { label: '1/8T', beats: 1 / 3 },
+  { label: '1/16', beats: 0.25 }, { label: '1/16T', beats: 1 / 6 }, { label: '1/32', beats: 0.125 },
 ];
+const REPEAT_SWINGS = [0, 0.25, 0.5, 0.66];
 
 export const MachineView: React.FC<MachineViewProps> = (p) => {
   // Maschine performance modes: Note Repeat (hold a pad → retriggers at the rate) and
   // 16 Velocities (the grid plays the selected pad at sixteen levels).
-  const [noteRepeat, setNoteRepeat] = useState(false);
+  // Note Repeat lives in the ENGINE (scheduled on the audio clock, locked to the transport), so
+  // pads, QWERTY, MIDI and the NI controller all repeat the same way; this is just its panel.
+  const [noteRepeat, setNoteRepeat] = useState(() => BeatsEngine.get().noteRepeatState().on);
   const [repeatRate, setRepeatRate] = useState(3); // 1/16 — the Maschine default
+  const [repeatSwing, setRepeatSwing] = useState(0);
+  useEffect(() => {
+    BeatsEngine.get().setNoteRepeat({ on: noteRepeat, rateBeats: REPEAT_RATES[repeatRate].beats, swing: REPEAT_SWINGS[repeatSwing] });
+  }, [noteRepeat, repeatRate, repeatSwing]);
   const [vel16, setVel16] = useState(false);
   // Which Maschine "Group" (bank of 16) is showing. Follows the selected pad across banks.
   const banks = bankCount(p.doc.kit);
@@ -67,13 +82,13 @@ export const MachineView: React.FC<MachineViewProps> = (p) => {
       if (local < 0) return;
       const padIdx = bankRef.current * 16 + local; // keys play the CURRENT Group
       const engine = BeatsEngine.get();
-      void engine.init().then(() => engine.trigger(padIdx, 110));
+      void engine.init().then(() => engine.padDown(padIdx, 110));
       p.onSelectPad(padIdx);
     };
     // Key-up = note-off, so sustaining pads hold under a finger like real keys.
     const onKeyUp = (e: KeyboardEvent) => {
       const local = padForKey(e.key.toLowerCase());
-      if (local >= 0) BeatsEngine.get().release(bankRef.current * 16 + local);
+      if (local >= 0) BeatsEngine.get().padUp(bankRef.current * 16 + local);
     };
     window.addEventListener('keydown', onKey);
     window.addEventListener('keyup', onKeyUp);
@@ -106,6 +121,7 @@ export const MachineView: React.FC<MachineViewProps> = (p) => {
           playMode={p.playMode}
           onMutate={p.onMutate}
         />
+        <ScenesBar doc={p.doc} choice={p.choice} onLaunchScene={p.onLaunchScene} onMutate={p.onMutate} />
         {/* Group selector — Maschine banks of 16. Adding an instrument fills the next empty pad
             and spawns a new Group when one fills up. */}
         <div className="flex items-center justify-center gap-1.5 mb-2.5">
@@ -120,7 +136,7 @@ export const MachineView: React.FC<MachineViewProps> = (p) => {
             >{BANK_LETTERS[b]}</button>
           ))}
           <button
-            onClick={() => { p.onMutate((d) => addPadBank(d.kit)); setBank(banks); }}
+            onClick={() => { p.onMutate((d) => addPadBank(d.kit)); setBank(banks); p.onSelectPad(banks * 16); }}
             className="w-7 h-7 grid place-items-center rounded-lg border border-white/12 text-white/40 hover:text-white"
             title="Add a Group (16 more pads)"
           ><Plus size={13} /></button>
@@ -142,12 +158,26 @@ export const MachineView: React.FC<MachineViewProps> = (p) => {
               style={i === repeatRate ? { color: '#FF8C00', borderColor: 'rgba(255,140,0,0.5)' } : { color: 'rgba(255,255,255,0.35)', borderColor: 'rgba(255,255,255,0.1)' }}
             >{r.label}</button>
           ))}
+          {noteRepeat && (
+            <button
+              onClick={() => setRepeatSwing((i) => (i + 1) % REPEAT_SWINGS.length)}
+              className="h-7 px-1.5 rounded-lg text-[9px] font-mono border transition-colors"
+              style={repeatSwing ? { color: '#FF8C00', borderColor: 'rgba(255,140,0,0.5)' } : { color: 'rgba(255,255,255,0.35)', borderColor: 'rgba(255,255,255,0.1)' }}
+              title="Note Repeat swing — delays every other repeat"
+            >sw {Math.round(REPEAT_SWINGS[repeatSwing] * 100)}%</button>
+          )}
           <button
             onClick={() => setVel16((v) => !v)}
             className="h-7 px-2 rounded-lg text-[9px] uppercase tracking-wide border transition-colors"
             style={vel16 ? { color: '#00DAF3', borderColor: 'rgba(0,218,243,0.5)', background: 'rgba(0,218,243,0.1)' } : { color: 'rgba(255,255,255,0.4)', borderColor: 'rgba(255,255,255,0.12)' }}
             title="16 Velocities — the whole grid plays the selected pad, soft to full"
           >16 Vel</button>
+          <button
+            onClick={p.onToggleRecQuantize}
+            className="h-7 px-2 rounded-lg text-[9px] uppercase tracking-wide border transition-colors"
+            style={p.recQuantize ? { color: '#FF4D8C', borderColor: 'rgba(255,77,140,0.5)', background: 'rgba(255,77,140,0.1)' } : { color: 'rgba(255,255,255,0.4)', borderColor: 'rgba(255,255,255,0.12)' }}
+            title={p.recQuantize ? 'Record quantize ON — recorded hits snap to the 16th' : 'Record quantize OFF — recorded hits keep your timing'}
+          >Rec Q</button>
         </div>
         <PadGrid
           doc={p.doc}
@@ -160,7 +190,6 @@ export const MachineView: React.FC<MachineViewProps> = (p) => {
           onEditPadInstrument={p.onEditPadInstrument}
           onMutate={p.onMutate}
           melosSamples={p.melosSamples}
-          noteRepeat={{ on: noteRepeat, cyclesPerBeat: REPEAT_RATES[repeatRate].cycles, bpm: p.doc.bpm }}
           velocity16={vel16}
         />
         <StepStrip

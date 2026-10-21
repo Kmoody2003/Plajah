@@ -37,6 +37,8 @@ import { contentWindows, noteOccurrences } from '../../../../services/melos/beat
 import { docKey, keyLabel, parseKey } from '../../../../services/melos/beats/songKey';
 import { TempoLane, TimelineGrid } from './TempoLane';
 import { TrackAutomation } from './TrackAutomation';
+import { ArrangerLane } from './ArrangerLane';
+import { syncSongFromSections } from '../../../../services/melos/beats/songSections';
 import { downloadMidi, exportClipMidi, exportTrackMidi } from '../../../../services/melos/beats/midiExport';
 
 import { PLAYHEAD, SELECT, glassPanel } from '../theme';
@@ -385,6 +387,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
         return !(m.num === prev.num && m.den === prev.den);
       });
       if (!d.meter.length) delete d.meter;
+      syncSongFromSections(d); // song sections are counted in bars
     });
     return [
       { kind: 'header', label: `Bar ${bar + 1} · ${cur.num}/${cur.den}` },
@@ -1363,6 +1366,9 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
             {/* lanes */}
             <div ref={marqueeSurfaceRef} {...marqueeSelection.bind} className="relative">
               <TimelineGrid meter={meter} grid={grid} pxPerBeat={pxPerBeat} contentBeats={contentBeats} left={headerW} />
+              {(p.doc.sections?.length ?? 0) > 0 && (
+                <ArrangerLane doc={p.doc} pxPerBeat={pxPerBeat} headerW={headerW} onMutate={p.onMutate} onPlayFrom={p.onPlayFrom} />
+              )}
               {showTempo && (
                 <TempoLane doc={p.doc} meter={meter} grid={grid} pxPerBeat={pxPerBeat} contentBeats={contentBeats} headerW={headerW} onMutate={p.onMutate} />
               )}
@@ -1647,6 +1653,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
                                    if (!lane) continue;
                                    const copy = structuredClone(member.clip);
                                    copy.id = grooveUid() + grooveUid();
+                                   delete copy.sectionId;
                                    if (copy.notes) copy.notes = copy.notes.map((n) => ({ ...n, id: grooveUid() }));
                                    lane.clips.push(copy);
                                    member.copyId = copy.id;

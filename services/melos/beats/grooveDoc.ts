@@ -93,6 +93,9 @@ export interface MeloNote {
 export interface Pattern {
   id: string;
   name: string;
+  /** The MEKA Group (bank of 16 pads) this pattern belongs to — Maschine's per-group patterns.
+   *  Absent = a legacy kit-wide pattern, listed under Group A (songSections.patternGroup). */
+  groupIdx?: number;
   length: 16 | 32 | 48 | 64;                       // 16th-note grid
   steps: Record<number, Record<number, Step>>;     // sparse: padIdx → stepIdx → Step
   // Pitch-roll lane per pad: padIdx → stepIdx → chord (multiple notes allowed per step).
@@ -361,6 +364,8 @@ export interface TimelineClip {
   /** Optional clip title / film cue section label */
   name?: string;
   patternId?: string;                              // kind 'pattern'
+  /** Written by the song sections (songSections.ts) — regenerated whenever the song changes. */
+  sectionId?: string;
   /** kind 'pattern' — per-pad loop-length override IN 16th STEPS inside this clip. MEKA's
    *  pattern length is the default; a pad listed here loops its own shorter cycle instead
    *  (independent per-track clip lengths, Bitwig-style polymeter). */
@@ -445,12 +450,30 @@ export interface ArrangeTrack {
   automationMode?: AutomationMode;
   /** Timeline UI: automation lanes expanded under the track. */
   showAutomation?: boolean;
+  /** kind 'pattern' — the MEKA Group this track plays for the song sections (managed track). */
+  songGroup?: number;
   /** Optional generative model badge for hybrid AI + synth tracks (e.g. 'ace-step-2.5', 'yue2', 'qwen-score') */
   generativeEngine?: string;
 }
 
 import type { FxInstance } from './fx/devices';
 import type { MeterChange, TempoPoint } from './tempoMap';
+
+/** A MEKA scene: which pattern each Group plays (missing / null = the Group is silent). */
+export interface Scene {
+  id: string;
+  name: string;
+  color: string;
+  slots: Record<number, string | null>;
+}
+
+/** One block of the song: a scene for N bars (the meter decides how long a bar is). */
+export interface SongSection {
+  id: string;
+  sceneId: string;
+  bars: number;
+  name?: string;
+}
 
 /** Project key: tonic pitch class (C=0) + a theory.ts SCALES id ('major', 'minor', 'dorian'…). */
 export interface SongKey {
@@ -503,6 +526,10 @@ export interface GrooveDoc {
   meter?: MeterChange[];
   /** The project key — read by the piano roll, hum transcription, generators and the council. */
   key?: SongKey;
+  /** MEKA scenes: one pattern per Group, launched together (Maschine scenes / MPC sequences). */
+  scenes?: Scene[];
+  /** The song as scene sections in order (Maschine Song view). They write the Group tracks. */
+  sections?: SongSection[];
   // Song-mode loop/cycle region (beats). Optional for back-compat with docs saved before it
   // existed — consumers default it off. Pattern mode loops the pattern itself, independently.
   loop?: { on: boolean; startBeats: number; endBeats: number };

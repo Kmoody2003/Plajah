@@ -32,6 +32,15 @@
     "components/melos/beats/useAutomationRecorder.ts",
     "components/melos/beats/instrument/useInstrumentKeyboard.ts",
     "tests/melosTimeAxis.test.ts",
-    "tests/melosEditing.test.ts"
+    "tests/melosEditing.test.ts",
+    "services/melos/beats/songSections.ts",
+    "services/melos/beats/padRecord.ts",
+    "components/melos/beats/machine/ScenesBar.tsx",
+    "components/melos/beats/machine/MachineView.tsx",
+    "components/melos/beats/machine/PadGrid.tsx",
+    "components/melos/beats/timeline/ArrangerLane.tsx",
+    "components/melos/beats/timeline/ClipLauncher.tsx",
+    "components/melos/beats/glass/ChannelRack.tsx",
+    "tests/melosSong.test.ts"
   ]
 }
