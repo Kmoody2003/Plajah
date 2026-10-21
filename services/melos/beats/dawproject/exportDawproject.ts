@@ -8,6 +8,7 @@
 //   • any preserved foreign XML (imported Bitwig/S1 elements we don't model) re-emitted
 //     verbatim — opening a foreign project in Beats and re-exporting destroys nothing.
 
+import { flattenClipNotes } from '../clipEdit';
 import { zipSync, strToU8 } from 'fflate';
 import type { GrooveDoc, Pattern } from '../grooveDoc';
 import { el, xmlDoc, xmlEscape } from './xml';
@@ -167,7 +168,8 @@ export async function exportDawproject(inp: ExportInputs): Promise<Blob> {
   const instLanes = instrumentArrTracks.map((t) => {
     const clips = t.clips.filter((c) => c.notes?.length).map((c) =>
       el('Clip', { time: num(c.startBeats), duration: num(c.lengthBeats), playStart: '0', name: `${t.name} clip` },
-        el('Notes', { id: `n-${c.id}` }, ...c.notes!.map((n) => el('Note', {
+        // What the clip PLAYS (slip offset + loop baked in), so other DAWs hear the same thing.
+        el('Notes', { id: `n-${c.id}` }, ...flattenClipNotes(c).map((n) => el('Note', {
           time: num(n.startBeats),
           duration: num(Math.max(0.05, Math.min(n.lengthBeats, c.lengthBeats - n.startBeats))),
           channel: 0,

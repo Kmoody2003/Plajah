@@ -170,7 +170,7 @@ export interface NoteMpeExpression {
 
 export interface NoteEvent {
   id: string;
-  startBeats: number;   // relative to the clip start
+  startBeats: number;   // in CLIP CONTENT beats (= relative to the clip start unless the clip is slipped/looped — clipContent.ts)
   lengthBeats: number;
   key: number;          // MIDI note number
   vel: number;          // 1–127
@@ -180,25 +180,42 @@ export interface NoteEvent {
   expr?: NoteMpeExpression;
 }
 
-export type TrackAutomationTarget =
-  | 'cc1-modwheel'
-  | 'cc11-expression'
-  | 'cc74-timbre'
-  | 'cc64-sustain'
-  | 'tempo-rubato';
+/**
+ * What an automation lane drives (automation.ts owns ranges, defaults and labels). Values are
+ * stored in NATIVE units so a lane reads the way the control does:
+ *   volume dB (-70 = −∞ … +6) · pan −1…1 · send 0…1.5 · macro 0…1 (instrument macro 1–8)
+ *   mod-wheel (CC1) 0…1 · expression (CC11) 0…1 · sustain (CC64) 0|1 · pitch-bend −1…1
+ * Track lanes use absolute song beats; clip lanes (the piano roll's CC lanes) use clip-content
+ * beats, like the clip's notes.
+ */
+export type AutomationTarget =
+  | { kind: 'volume' }
+  | { kind: 'pan' }
+  | { kind: 'send'; index: number }
+  | { kind: 'macro'; index: number }
+  | { kind: 'mod-wheel' }
+  | { kind: 'expression' }
+  | { kind: 'sustain' }
+  | { kind: 'pitch-bend' };
+
+/** Shape of the segment from this point to the next. */
+export type AutomationCurve = 'linear' | 'smooth' | 'ease-in' | 'ease-out' | 'hold';
 
 export interface AutomationPoint {
   beat: number;
-  value: number; // 0..1 (or BPM multiplier 0.75..1.35 for tempo-rubato)
-  curve?: 'linear' | 'smooth' | 'exp';
+  value: number;
+  curve?: AutomationCurve;   // default linear
 }
 
 export interface TrackAutomationLane {
   id: string;
-  target: TrackAutomationTarget;
-  label: string;
-  points: AutomationPoint[];
+  target: AutomationTarget;
+  points: AutomationPoint[]; // sorted by beat
 }
+
+/** Bitwig/Studio One automation modes. Read plays lanes; Touch writes while a control moves;
+ *  Latch writes from the first move until stop; Write overwrites for the whole pass. */
+export type AutomationMode = 'read' | 'touch' | 'latch' | 'write';
 
 export interface FilmScoreSectionMarker {
   id: string;
@@ -350,14 +367,22 @@ export interface TimelineClip {
   padLens?: Record<number, number>;
   /** kind 'instrument' — a MIDI clip with MPE per-note expression and articulations. */
   notes?: NoteEvent[];
-  /** Optional CC & MPE automation lanes attached to this clip */
+  /** MIDI CC / pitch-bend lanes drawn in the piano roll (clip-content beats). */
   automationLanes?: TrackAutomationLane[];
+  /** Slip/left-trim: the content beat that plays at the clip's start (notes, patterns, CC lanes).
+   *  Audio uses audio.offsetSec instead. Default 0. Non-destructive — trimmed notes stay in the clip. */
+  contentOffsetBeats?: number;
+  /** Loop the clip's content (notes/CC) over its length: content plays from contentOffsetBeats and
+   *  wraps from loop end back to loop start (content beats), so an intro before the loop plays once. */
+  loop?: { startBeats: number; lengthBeats: number };
   /** Optional generative model badge that created or hybrid-layered this clip (e.g. 'ace-step-2.5', 'yue2') */
   generativeEngine?: string;
   audio?: { sampleKey: string; name: string; offsetSec: number; gainDb: number;
             durationSec: number; stretch?: number /* simple linear rate only */;
             /** Durable private-locker fallback for reopening on another device. */
             lockerUrl?: string;
+            /** Loop a region of the FILE (seconds) over the clip's length. */
+            loop?: { startSec: number; lengthSec: number };
             /** Downsampled channel peak envelope used by every timeline renderer. */
             peaks?: number[]; detectedBpm?: number;
             /** Optional generative model provenance for ACE-Step 2.5 / YuE2 / HeartMuLa stems */
@@ -414,8 +439,12 @@ export interface ArrangeTrack {
   collapsed?: boolean;
   /** Per-track lane height in the arrangement timeline (px). Undefined = default LANE_H. */
   laneH?: number;
-  /** Optional track-level CC & MPE automation lanes */
+  /** Track automation lanes (absolute song beats): volume, pan, sends, macros, MIDI CCs. */
   automationLanes?: TrackAutomationLane[];
+  /** How the track's lanes behave during playback (default 'read'). */
+  automationMode?: AutomationMode;
+  /** Timeline UI: automation lanes expanded under the track. */
+  showAutomation?: boolean;
   /** Optional generative model badge for hybrid AI + synth tracks (e.g. 'ace-step-2.5', 'yue2', 'qwen-score') */
   generativeEngine?: string;
 }

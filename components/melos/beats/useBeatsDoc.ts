@@ -20,7 +20,8 @@ export interface BeatsDocApi {
   rev: number;
   saveState: SaveState;
   grooves: GrooveSummary[];
-  mutate: (fn: (d: GrooveDoc) => void) => void;
+  /** `coalesce`: consecutive mutations with the same key are one undo step (an automation pass). */
+  mutate: (fn: (d: GrooveDoc) => void, opts?: { coalesce?: string }) => void;
   undo: () => void;
   redo: () => void;
   canUndo: boolean;
@@ -100,10 +101,15 @@ export function useBeatsDoc(launchGrooveId?: string, launchProdId?: string): Bea
     saveTimer.current = setTimeout(() => { void saveNow(); }, 2500);
   }, [saveNow]);
 
-  const mutate = useCallback((fn: (d: GrooveDoc) => void) => {
+  const lastCoalesce = useRef<string | null>(null);
+  const mutate = useCallback((fn: (d: GrooveDoc) => void, opts?: { coalesce?: string }) => {
     const d = docRef.current!;
     const g = gestureRef.current;
-    if (!g.active || !g.snapped) {
+    const key = opts?.coalesce ?? null;
+    const continuing = key !== null && key === lastCoalesce.current;
+    lastCoalesce.current = key;
+    if (continuing) { /* same pass as the previous mutation — already snapshotted */ }
+    else if (!g.active || !g.snapped) {
       historyRef.current.past.push(cloneDoc(d));
       if (historyRef.current.past.length > 100) historyRef.current.past.shift();
       historyRef.current.future = [];
@@ -126,6 +132,7 @@ export function useBeatsDoc(launchGrooveId?: string, launchProdId?: string): Bea
 
   const restoreHistory = useCallback((doc: GrooveDoc) => {
     gestureRef.current.snapped = false; // undo mid-drag: the rest of the drag is a fresh step
+    lastCoalesce.current = null;
     docRef.current = doc;
     BeatsEngine.get().loadDoc(doc);
     bump();

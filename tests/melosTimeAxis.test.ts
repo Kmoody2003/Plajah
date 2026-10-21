@@ -6,6 +6,7 @@ import { MeterMap, TempoMap } from '../services/melos/beats/tempoMap';
 import { DEFAULT_GRID, gridLines, gridStep, snapBeat, type GridSettings } from '../services/melos/beats/snapGrid';
 import { newGrooveDoc } from '../services/melos/beats/grooveDoc';
 import { audioSourceSecToBeat, splitClipAt } from '../services/melos/beats/clipEdit';
+import { noteOccurrences } from '../services/melos/beats/clipContent';
 import { keyLabel, parseKey } from '../services/melos/beats/songKey';
 
 const near = (a: number, b: number, eps = 1e-6) => assert.ok(Math.abs(a - b) < eps, `${a} ≉ ${b}`);
@@ -96,10 +97,13 @@ test('splitClipAt: notes partition, audio offset follows tempo + stretch', () =>
   const right = doc.arrangement[1].clips.find((c) => c.id === rid)!;
   near(right.audio!.offsetSec, 1 + 1 * 2); // 2 beats @120 = 1s of timeline × rate 2
   near(doc.arrangement[1].clips[0].lengthBeats, 2);
+  // Non-destructive: both halves keep the notes; each WINDOW plays its side of the cut.
   const rid2 = splitClipAt(doc, 'm', 'n', 2)!;
   const mc = doc.arrangement[2].clips;
-  assert.deepEqual(mc[0].notes!.map((n) => [n.id, n.lengthBeats]), [['1', 2]]);
-  assert.equal(mc.find((c) => c.id === rid2)!.notes![0].startBeats, 0.5);
+  const left = noteOccurrences(mc[0]);
+  assert.deepEqual(left.map((o) => [o.note.id, o.lengthBeats]), [['1', 2]]);
+  const rightOcc = noteOccurrences(mc.find((c) => c.id === rid2)!);
+  assert.deepEqual(rightOcc.map((o) => [o.note.id, o.songBeat]), [["2", 2.5]]);
   assert.equal(splitClipAt(doc, 'm', 'n', 0), null);
   // Source-file seconds → timeline beat (inverse of the offset math above).
   near(audioSourceSecToBeat(doc, doc.arrangement[1].clips[0], 2)!, 5);

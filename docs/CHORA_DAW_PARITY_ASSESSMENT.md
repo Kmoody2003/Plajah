@@ -37,6 +37,44 @@ Deferred:
 - `.dawproject` export still writes one tempo and 4/4.
 - Docked NoteTab vs PianoRoll duplication is a product decision.
 
+## Phase 2 status (2026-10-21)
+
+Done:
+- **Clips are windows onto their content** (`clipContent.ts`):
+  - `contentOffsetBeats` (slip / left trim) plus an optional content `loop`, and `audio.loop` for audio.
+  - The scheduler, bounce, timeline drawing, recording, piano roll, CC lanes, MIDI and .dawproject export all read clips through it.
+  - Split is non-destructive. Glue and Consolidate bake the window into plain notes.
+- **Timeline clip gestures**:
+  - Drag the left or right edge to trim.
+  - Alt-drag slips the content; Ctrl/⌘-drag copies; Shift bypasses snap.
+  - Loop content from the clip menu, then drag the right edge to repeat it.
+  - Keys: Ctrl+C/X/V (paste at the playhead onto the selected track, keeping track offsets), Ctrl+D, Ctrl+A, ←/→ nudge by a grid cell (Shift = a bar).
+- **Piano roll**:
+  - Marquee and Shift/Ctrl multi-select; move and resize every selected note at once.
+  - Ctrl+C/X/V/D/A, Delete, ↑/↓ transpose (Shift = octave), ←/→ nudge, Q quantize.
+  - Quantize menu with strength, swing and ends; transpose buttons.
+  - Scale lock and Fit to scale (project key).
+  - Loop brace and slip handle on a strip above the grid; content outside the window is dimmed; velocity and MPE lanes paint the whole selection.
+- **CC lanes** in the roll drawer: mod wheel (CC1), expression (CC11), sustain (CC64), pitch bend. Sustain extends note-offs live and in the bounce; expression is a sample-accurate strip gain.
+- **Track automation** (`automation.ts`, `engine/automationPlayer.ts`, `TrackAutomation.tsx`):
+  - Lanes for volume, pan, send 1/2, instrument macros 1–8 and the MIDI CCs, with five curve shapes (linear, smooth, ease-in, ease-out, hold).
+  - AudioParam targets are scheduled ahead, sample-accurate, live and in the bounce. Instrument-message targets are sent per tick live; the bounce suspends the offline context at each change.
+  - Read/Touch/Latch/Write recording from mixer moves (`useAutomationRecorder`), one undo step per pass.
+- **MIDI export** (`midiExport.ts`): project (File → Export MIDI), track and clip (timeline menus). Includes:
+  - SMF type 1 at 480 PPQ.
+  - A conductor track with the tempo map, meters and key.
+  - Played notes with slip and loop baked in.
+  - CC and pitch-bend lanes.
+  - MEKA patterns as a GM drum track on channel 10.
+- **Bugs fixed**: instrument-track fader and pan did nothing (the graph only applied audio tracks); instrument-track inserts and sends were missing from the bounce.
+- Tests: `npm run test:melostime` (21 tests, including a MIDI export → import round-trip).
+
+Not done / caveats:
+- Mixer faders show the static value, not the automated one, while a lane plays.
+- Alt-slip and Ctrl-copy drags are unit-tested at the edit level but were not browser-driven (the test harness can't hold modifiers during a drag).
+- MEKA pad pitch-roll notes aren't in the MIDI drum export.
+- `.dawproject` export doesn't carry automation yet.
+
 ## 0. Bugs to fix first (found during the audit, verified)
 
 | Bug | Where | Effect |

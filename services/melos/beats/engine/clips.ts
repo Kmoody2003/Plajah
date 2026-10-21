@@ -3,6 +3,7 @@
 
 import type { ArrangeTrack, TimelineClip } from '../grooveDoc';
 import { dbToGain, type BeatsGraph } from './graph';
+import { audioLoop } from '../clipContent';
 
 export function startAudioClipSource(
   ctx: BaseAudioContext,
@@ -25,8 +26,22 @@ export function startAudioClipSource(
   const gain = ctx.createGain();
   const level = dbToGain(clip.audio.gainDb);
   src.connect(gain).connect(graph.trackDestination(track));
-  const bufferOffset = (clip.audio.offsetSec || 0) + offsetIntoClipSec * rate;
-  const playSeconds = Math.max(0, Math.min(clipSeconds - offsetIntoClipSec, (buf.duration - bufferOffset) / rate));
+  // A looped audio clip repeats a region of the file for as long as the clip runs; the start
+  // position wraps into that region when transport starts mid-clip.
+  const loop = audioLoop(clip);
+  let bufferOffset = (clip.audio.offsetSec || 0) + offsetIntoClipSec * rate;
+  if (loop && loop.endSec <= buf.duration + 1e-6) {
+    src.loop = true;
+    src.loopStart = loop.startSec;
+    src.loopEnd = loop.endSec;
+    if (bufferOffset >= loop.endSec) {
+      const len = loop.endSec - loop.startSec;
+      bufferOffset = loop.startSec + ((bufferOffset - loop.startSec) % len);
+    }
+  }
+  const playSeconds = Math.max(0, src.loop
+    ? clipSeconds - offsetIntoClipSec
+    : Math.min(clipSeconds - offsetIntoClipSec, (buf.duration - bufferOffset) / rate));
   if (playSeconds <= 0) return null;
   // 2ms edge fades: clips trimmed mid-waveform click without them.
   const t0 = Math.max(when, ctx.currentTime);

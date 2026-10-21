@@ -6,6 +6,9 @@
 
 import type { GrooveDoc } from './grooveDoc';
 import { songTime } from './tempoMap';
+import { noteOccurrences } from './clipContent';
+import { effectiveLanes, isMessageTarget, laneValueAt, sustainedEnd } from './automation';
+import { AutomationPlayer, applyMessage } from './engine/automationPlayer';
 import { buildGraph } from './engine/graph';
 import { MasteringChain, type MasteringState } from './fx/mastering';
 import { FxChainHost } from './fx/devices';
@@ -56,7 +59,11 @@ export async function renderGroove(
   const anchor = 0.05; // tiny lead-in so t=0 events get their attack ramp
 
   const graph = buildGraph(offline, 16);
-  graph.applyDoc(doc);
+  // Automation prints too: param lanes are scheduled on the offline graph below, so applyDoc
+  // leaves the params they own alone.
+  const automation = new AutomationPlayer();
+  automation.refresh(doc);
+  graph.applyDoc(doc, automation.automated);
   // The Pressing renders too — the bounce must sound like the room did (quality gate #1 again).
   // MasteringChain is context-agnostic native nodes, so the identical device rebuilds offline.
   const masteringState = doc.mixer.master.mastering as unknown as MasteringState | undefined;
@@ -82,7 +89,10 @@ export async function renderGroove(
     for (let s = 0; s < 2; s++) graph.setPadSend(i, s, sends[s] ?? 0);
   });
   for (const t of doc.arrangement) {
-    if (t.kind !== 'audio') continue;
+    // Audio AND instrument tracks print their inserts/sends (instrument tracks used to be skipped
+    // here, so a synth's channel FX were heard live but missing from the bounce).
+    if (t.kind !== 'audio' && t.kind !== 'instrument') continue;
+    if (t.foreign) continue;
     graph.trackDestination(t); // ensure the strip exists before wiring its insert/sends
     const inserts = (t.inserts ?? []).filter((f) => f.on);
     if (inserts.length) { const h = chain(t.inserts ?? []); graph.setTrackInsert(t.id, h.input, h.output); }
@@ -157,17 +167,17 @@ export async function renderGroove(
       inst.clearSchedule();
       instByTrackId.set(track.id, inst);
 
+      const sustain = effectiveLanes(track).get('sustain');
       for (const clip of track.clips) {
         if (!clip.notes?.length) continue;
-        for (const note of clip.notes) {
-          const startBeats = clip.startBeats + note.startBeats;
-          if (startBeats >= endBeats) continue;
-          const maxLen = clip.lengthBeats - note.startBeats;
-          const lenBeats = Math.max(0.05, Math.min(note.lengthBeats, maxLen));
+        // Same window (slip offset + loop) and sustain-pedal rules as the live scheduler.
+        for (const occ of noteOccurrences(clip, -Infinity, endBeats)) {
+          const startBeats = occ.songBeat;
+          const end = sustainedEnd(sustain, startBeats + Math.max(0.05, occ.lengthBeats), clip.startBeats + clip.lengthBeats);
           // anchor mirrors the drum scheduler's lead-in so both land on the same grid.
           const onFrame = Math.round((anchor + tempo.beatToSec(startBeats)) * SAMPLE_RATE);
-          const offFrame = Math.round((anchor + tempo.beatToSec(startBeats + lenBeats)) * SAMPLE_RATE);
-          const voiceId = inst.scheduleNoteOn(note.key, Math.max(0.05, note.vel / 127), onFrame);
+          const offFrame = Math.round((anchor + tempo.beatToSec(end)) * SAMPLE_RATE);
+          const voiceId = inst.scheduleNoteOn(occ.note.key, Math.max(0.05, occ.note.vel / 127), onFrame);
           inst.scheduleNoteOff(voiceId, offFrame);
         }
       }
@@ -227,6 +237,47 @@ export async function renderGroove(
   // postMessage with a synchronous mip build on the far side; the OfflineAudioContext renders
   // faster than messages deliver, so without this flush a bounce can read an uncommitted table and
   // go silent (live playback is unaffected — it always has real time between load and note).
+  // Track automation: AudioParam lanes as sample-accurate ramps; instrument-message lanes (macros,
+  // mod wheel, pitch bend) by suspending the render at each change and posting the message.
+  if (opts.range === 'song') {
+    automation.scheduleParams(doc, graph, 0, 0, endBeats, (b) => anchor + tempo.beatToSec(b));
+    const QUANTUM = 128 / SAMPLE_RATE;
+    const events = new Map<number, (() => void)[]>();
+    const MAX_EVENTS = 4000;
+    let count = 0;
+    for (const [trackId, inst] of instByTrackId) {
+      const lanes = automation.lanesFor(trackId);
+      if (!lanes) continue;
+      for (const lane of lanes.values()) {
+        if (!isMessageTarget(lane.target)) continue;
+        let last: number | undefined;
+        for (let b = 0; b <= endBeats + 1e-9 && count < MAX_EVENTS; b += 1 / 16) {
+          const v = laneValueAt(lane, b);
+          if (v === undefined) break;
+          if (last !== undefined && Math.abs(v - last) < 0.002) continue;
+          last = v;
+          const q = Math.floor((anchor + tempo.beatToSec(b)) / QUANTUM) * QUANTUM;
+          const target = lane.target;
+          const act = () => applyMessage(inst, target, v);
+          if (q <= 0) { act(); continue; } // initial values: before the first sample
+          const list = events.get(q) ?? [];
+          list.push(act);
+          events.set(q, list);
+          count++;
+        }
+      }
+    }
+    const insts = [...instByTrackId.values()];
+    for (const [q, acts] of events) {
+      if (q >= seconds) continue;
+      void offline.suspend(q).then(async () => {
+        for (const a of acts) a();
+        await Promise.all(insts.map((i) => i.flush()));
+        await offline.resume();
+      });
+    }
+  }
+
   await Promise.all([...instByTrackId.values()].map((i) => i.flush()));
 
   const rendered = await offline.startRendering();

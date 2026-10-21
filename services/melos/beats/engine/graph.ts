@@ -55,6 +55,8 @@ export interface PadStrip extends ChannelFx {
 }
 
 export interface TrackStrip extends ChannelFx {
+  /** Where sources connect: the CC11 expression stage (unity unless an expression lane drives it). */
+  input: GainNode;
   gain: GainNode;
   pan: StereoPannerNode;
   analyser: AnalyserNode;
@@ -70,6 +72,13 @@ export interface SendBus {
 }
 
 export const SEND_COUNT = 2;
+
+/** Is an arrangement track's strip audible (mute / solo among audio + instrument tracks)? */
+export function trackAudible(doc: GrooveDoc, t: ArrangeTrack): boolean {
+  if (t.padOwned) return !t.mute;
+  const anySolo = doc.arrangement.some((x) => x.solo && !x.padOwned && (x.kind === 'audio' || x.kind === 'instrument'));
+  return !t.mute && (!anySolo || t.solo);
+}
 
 export interface BeatsGraph {
   ctx: BaseAudioContext;
@@ -92,7 +101,9 @@ export interface BeatsGraph {
     suiteIn: AudioNode | null;  // unified FX "Suite" insert (post-pressing, pre-glue), or null
     suiteOut: AudioNode | null;
   };
-  applyDoc(doc: GrooveDoc): void;         // idempotent — push mixer/pad params into the nodes
+  /** Idempotent — push mixer/pad params into the nodes. `automated(trackId, param)` → true means
+   *  an automation lane owns that AudioParam, so its static value isn't written over the schedule. */
+  applyDoc(doc: GrooveDoc, automated?: (trackId: string, param: 'volume' | 'pan' | 'send0' | 'send1') => boolean): void;
   padDestination(padIdx: number): AudioNode;
   trackDestination(track: ArrangeTrack): AudioNode;
   /** Insert a device (Spectra EQ) on the mix bus, pre-fader. Passing the same nodes is idempotent. */
@@ -294,11 +305,11 @@ export function buildGraph(ctx: BaseAudioContext, padCount = 16, output: AudioNo
     for (const sg of strip.sends) strip.tap.connect(sg);
   };
   const makeTrackStrip = (): TrackStrip => {
-    const g = ctx.createGain(); const p = ctx.createStereoPanner();
+    const inp = ctx.createGain(); const g = ctx.createGain(); const p = ctx.createStereoPanner();
     const analyser = ctx.createAnalyser(); analyser.fftSize = 256; analyser.smoothingTimeConstant = 0.2;
     const fx = makeChannelFx();
-    g.connect(p);
-    const strip: TrackStrip = { gain: g, pan: p, analyser, ...fx };
+    inp.connect(g); g.connect(p);
+    const strip: TrackStrip = { input: inp, gain: g, pan: p, analyser, ...fx };
     repatchTrackOut(strip);
     return strip;
   };
@@ -325,7 +336,7 @@ export function buildGraph(ctx: BaseAudioContext, padCount = 16, output: AudioNo
   const graph: BeatsGraph = {
     ctx, pads, groups, groupAnalysers, sendBuses, tracks, master,
 
-    applyDoc(doc: GrooveDoc) {
+    applyDoc(doc: GrooveDoc, automated) {
       doc.kit.forEach((pad, i) => { if (pads[i]) setPadRouting(pads[i], pad); });
       const anySolo = doc.mixer.groups.some((g) => g.solo);
       doc.mixer.groups.forEach((g, i) => {
@@ -338,17 +349,21 @@ export function buildGraph(ctx: BaseAudioContext, padCount = 16, output: AudioNo
         master.limiterOn = doc.mixer.master.limiterOn;
         repatchMaster();
       }
-      // Arrangement audio tracks: create strips on demand, apply mute/solo/gain/pan.
-      const anyTrackSolo = doc.arrangement.some((t) => t.solo && t.kind === 'audio');
+      // Arrangement audio + instrument tracks: create strips on demand, apply mute/solo/gain/pan.
+      // (Instrument tracks used to be skipped here, so their fader and pan did nothing.) A pad's
+      // backing instrument track is driven by the pad channel — solo never silences it.
       for (const t of doc.arrangement) {
-        if (t.kind !== 'audio') continue;
+        if (t.kind !== 'audio' && t.kind !== 'instrument') continue;
         let strip = tracks.get(t.id);
         if (!strip) { strip = makeTrackStrip(); tracks.set(t.id, strip); }
-        const audible = !t.mute && (!anyTrackSolo || t.solo);
-        strip.gain.gain.value = audible ? dbToGain(t.gainDb) : 0;
-        strip.pan.pan.value = clamp(t.pan, -1, 1);
-        const sends = (t as unknown as { sends?: number[] }).sends ?? [];
-        strip.sends.forEach((sg, s) => { sg.gain.value = Math.max(0, Math.min(2, sends[s] ?? 0)); });
+        const audible = trackAudible(doc, t);
+        if (!audible) strip.gain.gain.value = 0;
+        else if (!automated?.(t.id, 'volume')) strip.gain.gain.value = dbToGain(t.gainDb);
+        if (!automated?.(t.id, 'pan')) strip.pan.pan.value = clamp(t.pan, -1, 1);
+        const sends = t.sends ?? [];
+        strip.sends.forEach((sg, s) => {
+          if (!automated?.(t.id, s === 0 ? 'send0' : 'send1')) sg.gain.value = Math.max(0, Math.min(2, sends[s] ?? 0));
+        });
       }
     },
 
@@ -357,7 +372,7 @@ export function buildGraph(ctx: BaseAudioContext, padCount = 16, output: AudioNo
     trackDestination(track: ArrangeTrack) {
       let strip = tracks.get(track.id);
       if (!strip) { strip = makeTrackStrip(); tracks.set(track.id, strip); }
-      return strip.gain;
+      return strip.input;
     },
 
     setMasterEq(eqInput: AudioNode, eqOutput: AudioNode) {

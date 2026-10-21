@@ -8,6 +8,8 @@
 
 import type { ArrangeTrack, GrooveDoc, NoteEvent, Pattern, TimelineClip } from '../grooveDoc';
 import { songTime } from '../tempoMap';
+import { noteOccurrences } from '../clipContent';
+import { effectiveLanesFor, sustainedEnd } from '../automation';
 
 export const LOOKAHEAD_SEC = 0.15;
 const STEP_BEATS = 0.25; // 16th notes — the step grid is meter-independent
@@ -243,7 +245,8 @@ export class StepScheduler {
         if (beat < clip.startBeats - 1e-9 || beat >= clip.startBeats + clip.lengthBeats - 1e-9) continue;
         const pattern = doc.patterns.find((p) => p.id === clip.patternId);
         if (!pattern) continue;
-        const intoClipSteps = Math.round((beat - clip.startBeats) / STEP_BEATS);
+        // A slipped pattern clip starts that many 16ths into its pattern.
+        const intoClipSteps = Math.round((beat - clip.startBeats + (clip.contentOffsetBeats ?? 0)) / STEP_BEATS);
         this.fireRowClip(doc, pattern, clip, intoClipSteps, beat);
       }
     }
@@ -255,18 +258,16 @@ export class StepScheduler {
       // Arps are fired by runArps() (both modes); when a track's arp is active its clip notes
       // are skipped so an arped performance doesn't double against a recording.
       if (d.arpActive?.(track)) continue;
+      const sustain = effectiveLanesFor(doc, track).get('sustain');
       for (const clip of track.clips) {
         if (!clip.notes?.length) continue;
         if (beat < clip.startBeats - 1e-9 || beat >= clip.startBeats + clip.lengthBeats - 1e-9) continue;
-        const intoClip = beat - clip.startBeats;
-        for (const note of clip.notes) {
-          if (note.startBeats < intoClip - 1e-9 || note.startBeats >= intoClip + STEP_BEATS - 1e-9) continue;
-          const when = d.toTime(clip.startBeats + note.startBeats);
-          // Clamp the note to the clip end so a long note never outlives its clip.
-          const maxLen = clip.lengthBeats - note.startBeats;
-          const lenBeats = Math.max(0.05, Math.min(note.lengthBeats, maxLen));
-          const at = clip.startBeats + note.startBeats;
-          d.startInstrumentNote(track, note, when, d.secBetween(at, at + lenBeats));
+        // Through the clip's window (slip offset + loop): notes starting in this 16th, clipped to
+        // their pass and the clip end; the sustain pedal (CC64 lane) holds note-offs.
+        for (const occ of noteOccurrences(clip, beat, beat + STEP_BEATS)) {
+          const at = occ.songBeat;
+          const end = sustainedEnd(sustain, at + Math.max(0.05, occ.lengthBeats), clip.startBeats + clip.lengthBeats);
+          d.startInstrumentNote(track, occ.note, d.toTime(at), d.secBetween(at, end));
         }
       }
     }

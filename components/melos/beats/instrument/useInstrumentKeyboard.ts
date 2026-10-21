@@ -9,6 +9,8 @@
 import { useEffect, useRef } from 'react';
 import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine';
 import { grooveUid, type ArrangeTrack, type GrooveDoc, type NoteEvent } from '../../../../services/melos/beats/grooveDoc';
+import { songTime } from '../../../../services/melos/beats/tempoMap';
+import { contentPosAt } from '../../../../services/melos/beats/clipContent';
 
 /** key → semitone offset from the base octave's C. */
 const KEY_MAP: Record<string, number> = {
@@ -144,23 +146,29 @@ export function commitRecordedNote(
     if (!clip) {
       // Start the clip on the bar the take began in — recording from bar 3 shouldn't create a
       // clip that starts at an arbitrary fraction of a beat.
-      const barStart = Math.floor(rec.startBeats / 4) * 4;
-      clip = { id: grooveUid(), startBeats: barStart, lengthBeats: 4, notes: [] };
+      const bar = songTime(d).meter.at(rec.startBeats);
+      clip = { id: grooveUid(), startBeats: bar.startBeat, lengthBeats: bar.lenBeats, notes: [] };
       track.clips.push(clip);
     }
     if (!clip.notes) clip.notes = [];
 
     const note: NoteEvent = {
       id: grooveUid(),
-      startBeats: rec.startBeats - clip.startBeats,
+      // Content beats: a slipped or looped clip stores the note where its window shows it.
+      startBeats: contentPosAt(clip, rec.startBeats) ?? rec.startBeats - clip.startBeats,
       lengthBeats,
       key: rec.key,
       vel: rec.vel,
     };
     clip.notes.push(note);
 
-    // Grow the clip to contain the note, rounded out to the bar.
-    const needed = note.startBeats + note.lengthBeats;
-    if (needed > clip.lengthBeats) clip.lengthBeats = Math.ceil(needed / 4) * 4;
+    // Grow an unlooped clip to contain the note, rounded out to the bar (a looped clip already
+    // repeats its content — the take lands inside the loop).
+    const songEnd = rec.startBeats + lengthBeats;
+    if (!clip.loop && songEnd > clip.startBeats + clip.lengthBeats) {
+      const b = songTime(d).meter.at(songEnd);
+      const ceil = b.beatInBar < 1e-6 ? songEnd : b.startBeat + b.lenBeats;
+      clip.lengthBeats = ceil - clip.startBeats;
+    }
   });
 }

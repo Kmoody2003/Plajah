@@ -13,6 +13,7 @@ import { VoiceBank } from './voices';
 import { StepScheduler, type PlayMode, LOOKAHEAD_SEC } from './scheduler';
 import { startAudioClipSource } from './clips';
 import { MeterMap, TempoMap } from '../tempoMap';
+import { AutomationPlayer, applyMessage } from './automationPlayer';
 import { Instrument } from './InstrumentHost';
 import type { ArrangeTrack as ATrack, NoteEvent } from '../grooveDoc';
 import { arpStep, defaultArpPatch, type ArpPatch } from '../../arp';
@@ -93,6 +94,9 @@ export class BeatsEngine {
   private prevAnchor: { beats: number; time: number } | null = null;
   private tempo: TempoMap = TempoMap.constant(120);
   private lastInstrumentBpm = 120;
+  // Track automation + clip CC lanes (automationPlayer.ts): AudioParams scheduled ahead, instrument
+  // messages sent per tick.
+  private automation = new AutomationPlayer();
 
   // Diagnostics: worklet ticks should arrive every postEvery/sampleRate seconds of audio time;
   // jitter is how late the MESSAGE was relative to audio progress (main-thread health metric).
@@ -166,7 +170,8 @@ export class BeatsEngine {
       metronome: () => this.metronomeOn,
       click: (when, accent) => this.clickAt(when, accent),
     });
-    this.graph.applyDoc(this.doc);
+    this.automation.refresh(this.doc);
+    this.graph.applyDoc(this.doc, this.automation.automated);
     this.syncMixerFx();
   }
 
@@ -281,7 +286,9 @@ export class BeatsEngine {
   loadDoc(doc: GrooveDoc): void {
     this.doc = doc;
     this.tempo = TempoMap.fromDoc(doc);
-    this.graph?.applyDoc(doc);
+    this.automation.refresh(doc);
+    this.graph?.applyDoc(doc, this.automation.automated);
+    if (this.graph && this.ctx) this.automation.parkParams(doc, this.graph, this.anchorBeats, this.ctx.currentTime);
     if (this.ctx) { this.syncInstruments(); this.syncMasterEq(); this.syncMastering(); }
   }
 
@@ -302,7 +309,13 @@ export class BeatsEngine {
       this.tempo = next;
       this.syncInstrumentTempo(true);
     }
-    this.graph?.applyDoc(this.doc);
+    const lanesBefore = this.automation.snapshot();
+    this.automation.refresh(this.doc);
+    this.graph?.applyDoc(this.doc, this.automation.automated);
+    if (this.graph && this.ctx) {
+      this.automation.releaseParams(this.doc, this.graph, this.ctx.currentTime, lanesBefore);
+      this.rescheduleAutomation();
+    }
     if (this.ctx) { this.syncInstruments(); this.syncMixerFx(); }
   }
 
@@ -1020,13 +1033,17 @@ export class BeatsEngine {
     this.resetLoudness(); // integrated/LRA/TP measure THIS pass, not everything since page load
     this.currentPatternId = opts.patternId;
     this.scheduler.start(mode, from, opts.patternId);
+    this.automation.resetMessages();
+    this.rescheduleAutomation();
     this.clock.port.postMessage({ cmd: 'start' });
     // First window immediately — don't wait ~21ms for the first worklet tick.
     this.scheduler.onTick(this.ctx.currentTime);
   }
 
   stop(): void {
+    const parkedAt = this.posBeatsDisplay();
     this.running = false;
+    if (this.graph && this.ctx) this.automation.parkParams(this.doc, this.graph, this.mode === 'song' ? parkedAt : 0, this.ctx.currentTime);
     this.clock?.port.postMessage({ cmd: 'stop' });
     this.scheduler?.stop();
     for (const inst of this.instruments.values()) inst.allNotesOff();
@@ -1140,6 +1157,14 @@ export class BeatsEngine {
     }
     this.scheduler?.onTick(tick.t);
     if (!this.tempo.isConstant) this.syncInstrumentTempo();
+    if (this.mode === 'song') {
+      this.automation.sendMessages(this.posBeatsDisplay(), (_t, trackId, target, v) => {
+        const inst = this.instruments.get(trackId);
+        if (!inst) return false;
+        applyMessage(inst, target, v);
+        return true;
+      }, this.doc);
+    }
   }
 
   /** Loop wrap: restart scheduling at `beats`, anchored at the future audio time `atTime`. */
@@ -1160,6 +1185,26 @@ export class BeatsEngine {
     // A queued launcher switch may have landed since play() — keep playing what's actually playing.
     this.scheduler.start(this.mode, beats, this.scheduler.currentPatternId() ?? this.currentPatternId);
     this.scheduler.onTick(this.ctx.currentTime);
+    if (this.graph) this.automation.scheduleParams(this.doc, this.graph, beats, atTime, this.automationHorizon(), (b) => this.toTime(b));
+    this.automation.resetMessages();
+  }
+
+  /** Song-mode automation runs to the loop end (re-armed at each wrap) or the end of the song. */
+  private automationHorizon(): number {
+    const loop = this.doc.loop;
+    return loop?.on && loop.endBeats > loop.startBeats ? loop.endBeats : Number.POSITIVE_INFINITY;
+  }
+
+  /** (Re)schedule automation for the current transport state. */
+  private rescheduleAutomation(): void {
+    if (!this.graph || !this.ctx) return;
+    if (!this.running) { this.automation.parkParams(this.doc, this.graph, this.anchorBeats, this.ctx.currentTime); return; }
+    if (this.mode !== 'song') { this.automation.parkParams(this.doc, this.graph, 0, this.ctx.currentTime); return; }
+    // Before playback has reached the anchor (count-in, a pending wrap), schedule from the anchor.
+    const now = this.ctx.currentTime;
+    const fromTime = Math.max(now, this.anchorTime);
+    const fromBeat = now < this.anchorTime ? this.anchorBeats : this.posBeats();
+    this.automation.scheduleParams(this.doc, this.graph, fromBeat, fromTime, this.automationHorizon(), (b) => this.toTime(b));
   }
 
   /** Playhead position mapped into the loop for display — the cursor visibly jumps back.

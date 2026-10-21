@@ -1,17 +1,24 @@
-// The piano roll — the instrument-track note & MPE orchestral expression editor.
+// The piano roll — the instrument-track note, MPE and CC editor.
 //
 // One note list, two editors: this and the step grid render the SAME `clip.notes`, so switching
-// between them is a view change, never a conversion. Notes may sit off-grid here; the scheduler
-// fires them at their exact time, and the step grid simply shows them snapped.
+// between them is a view change, never a conversion. Notes live in CLIP-CONTENT beats: the clip
+// is a window onto them (slip offset + optional loop, clipContent.ts), so the roll shows the whole
+// content, dims what the window doesn't play, and lets you drag the loop brace and the window
+// start on the strip above the grid.
 //
-// Upgraded for Chora Studio Symphonic Film Scoring:
-//   - Per-note MPE expression curves (`pressure` / CC11 swell, `timbre` / CC74 brightness, `bend` / glide, `vibratoDepth`)
-//   - Orchestral articulations (`legato`, `spiccato`, `marcato`, `tremolo`, `pizzicato`, `con-sordino`, `sul-ponticello`, `portamento`, `sfz-hairpin`)
-//   - Interactive bottom Expression & Velocity Lane Drawer + Composer Expression Macros (Hairpin Swell, Legato Overlap, Humanize Rubato)
+// Editing (Bitwig / Studio One grammar): double-click = add · drag empty grid = marquee ·
+// click/Shift/Ctrl-click = select / extend / toggle · drag notes = move all selected (grid snap,
+// Shift = free) · right edge = resize all selected · ↑↓ transpose (Shift = octave) · ←→ nudge ·
+// Ctrl+C/X/V/D copy/cut/paste/duplicate · Ctrl+A all · Delete · Q quantize (when no track is armed).
+//
+// Orchestral MPE (per-note pressure / timbre / bend / vibrato, articulations, swell shapes) and the
+// clip's MIDI CC lanes (mod wheel, expression, sustain, pitch bend) share the bottom drawer.
 
-import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { Grid3x3, Music4, Sparkles, Sliders, Trash2, Wand2 } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Grid3x3, Music4, Repeat, Sparkles, Sliders, Trash2, Wand2 } from 'lucide-react';
 import type {
+  AutomationPoint,
+  AutomationTarget,
   GrooveDoc,
   MpeSwellShape,
   NoteEvent,
@@ -23,12 +30,21 @@ import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine
 import { songTime } from '../../../../services/melos/beats/tempoMap';
 import { gridCellBeats, snapBeat, type GridDiv, type GridSettings } from '../../../../services/melos/beats/snapGrid';
 import { docKey, keyLabel, keyPitchClasses } from '../../../../services/melos/beats/songKey';
+import { clipLoop, contentExtent, contentPosAt, contentWindows } from '../../../../services/melos/beats/clipContent';
+import { setClipLoop } from '../../../../services/melos/beats/clipEdit';
+import { MIDI_LANE_TARGETS, targetKey, targetSpec } from '../../../../services/melos/beats/automation';
+import {
+  copyNotes, fitNotesToScale, lockPitch, notesInRect, pasteNotes, quantizeNotes, transposeNotes, type NoteClipboard,
+} from '../../../../services/melos/beats/noteEdit';
+import { useContextMenu } from '../../../ui/ContextMenu';
+import { AutomationLaneEditor } from './AutomationLaneEditor';
 import { PLAYHEAD, SELECT } from '../theme';
 
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 const BLACK = new Set([1, 3, 6, 8, 10]);
 const ROW_H = 15;
 const KEY_W = 46;
+const STRIP_H = 16;
 const LOW = 24;  // C1
 const HIGH = 96; // C7
 const ROWS = HIGH - LOW + 1;
@@ -53,7 +69,8 @@ const snapGridOf = (id: string): GridSettings => {
 const noteName = (k: number) => `${NOTE_NAMES[((k % 12) + 12) % 12]}${Math.floor(k / 12) - 1}`;
 
 type EditMode = 'roll' | 'steps';
-type ExpressionLaneKind = 'velocity' | 'pressure' | 'timbre' | 'bend' | 'vibrato';
+type MpeLaneKind = 'velocity' | 'pressure' | 'timbre' | 'bend' | 'vibrato';
+type DrawerLane = MpeLaneKind | `cc:${'mod-wheel' | 'expression' | 'sustain' | 'pitch-bend'}`;
 
 const ARTICULATION_SPECS: Array<{ id: OrchestralArticulation; label: string; short: string; color: string }> = [
   { id: 'legato', label: 'Legato Cantabile', short: 'LEG', color: '#38BDF8' },
@@ -76,6 +93,17 @@ const SWELL_SHAPES: Array<{ id: MpeSwellShape; label: string }> = [
   { id: 'sustained', label: '— Sustained' },
 ];
 
+const MPE_LANES: { id: MpeLaneKind; label: string; color: string }[] = [
+  { id: 'pressure', label: 'MPE Pressure', color: '#38BDF8' },
+  { id: 'velocity', label: 'Velocity', color: '#F43F5E' },
+  { id: 'timbre', label: 'MPE Timbre', color: '#A78BFA' },
+  { id: 'vibrato', label: 'Vibrato', color: '#34D399' },
+  { id: 'bend', label: 'MPE Bend', color: '#FBBF24' },
+];
+
+// The note clipboard outlives a single roll window (copy here, open another clip, paste).
+let noteClipboard: NoteClipboard | null = null;
+
 interface PianoRollProps {
   doc: GrooveDoc;
   trackId: string;
@@ -93,45 +121,75 @@ export const PianoRoll: React.FC<PianoRollProps> = ({ doc, trackId, clip, beats,
   const [snapId, setSnapId] = useState('1/16');
   const snapGrid = snapGridOf(snapId);
   const { meter } = songTime(doc);
-  // Notes are clip-relative; the grid is the SONG's (bars from the meter map), so snapping goes
-  // through absolute beats. Shift/Alt held = free placement.
-  const snapRel = (rel: number, e?: { shiftKey?: boolean; altKey?: boolean }) =>
-    snapBeat(clip.startBeats + rel, snapGrid, meter, pxPerBeat, { bypass: !!(e?.shiftKey || e?.altKey) }) - clip.startBeats;
+  const offset = clip.contentOffsetBeats ?? 0;
+  // Content beat ↔ song beat for grid purposes (the window's start aligns content to the song).
+  const toSong = (c: number) => clip.startBeats + (c - offset);
+  /** Snap a content beat to the SONG's grid (bars from the meter map). Shift = free. */
+  const snapRel = (c: number, e?: { shiftKey?: boolean }) =>
+    snapBeat(toSong(c), snapGrid, meter, pxPerBeat, { bypass: !!e?.shiftKey }) - toSong(0);
+  const cellAt = (c: number) => gridCellBeats(toSong(c), snapGrid.mode === 'off' ? { mode: 'fixed', div: '1/16', triplet: false } : snapGrid, meter, pxPerBeat);
   const songKey = docKey(doc);
   const inKey = songKey ? keyPitchClasses(songKey) : null;
-  const [selected, setSelected] = useState<string | null>(null);
+  const [scaleLock, setScaleLock] = useState(() => localStorage.getItem('melos:roll:scaleLock') === '1');
+  const lock = scaleLock ? songKey : null;
+  const [sel, setSel] = useState<string[]>([]);
+  const selSet = useMemo(() => new Set(sel), [sel]);
+  const selected = sel.length ? sel[sel.length - 1] : null;
   const [lastLen, setLastLen] = useState(0.5);
   const [defaultArticulation, setDefaultArticulation] = useState<OrchestralArticulation>('legato');
   const [defaultSwell, setDefaultSwell] = useState<MpeSwellShape>('hairpin');
-  const [exprLane, setExprLane] = useState<ExpressionLaneKind>('pressure');
+  const [drawerLane, setDrawerLane] = useState<DrawerLane>('pressure');
   const [showExprDrawer, setShowExprDrawer] = useState(true);
+  const [q, setQ] = useState(() => {
+    try { return { strength: 1, swing: 0, ends: false, ...JSON.parse(localStorage.getItem('melos:roll:quantize') || '{}') }; } catch { return { strength: 1, swing: 0, ends: false }; }
+  });
+  const setQuant = (next: typeof q) => { setQ(next); try { localStorage.setItem('melos:roll:quantize', JSON.stringify(next)); } catch { /* */ } };
+  const [marquee, setMarquee] = useState<{ b0: number; b1: number; k0: number; k1: number } | null>(null);
 
-  const drag = useRef<{ id: string; mode: 'move' | 'len'; x: number; y: number; start: number; len: number; key: number } | null>(null);
+  const drag = useRef<{
+    ids: string[]; primary: string; mode: 'move' | 'len'; x: number; y: number;
+    orig: Map<string, { start: number; len: number; key: number }>; moved: boolean;
+  } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
 
   const track = doc.arrangement.find((t) => t.id === trackId);
   const notes = clip.notes || [];
   const selectedNote = useMemo(() => notes.find((n) => n.id === selected) || null, [notes, selected]);
-  const width = Math.max(640, clip.lengthBeats * pxPerBeat);
+  const extent = contentExtent(clip);
+  const width = Math.max(640, (extent + 1) * pxPerBeat);
+  const loop = clipLoop(clip);
+
+  // Content that doesn't play through the window is dimmed.
+  const played = contentWindows(clip).map((w) => [w.contentStart, w.contentEnd] as const);
+  const dimmed = useMemo(() => {
+    const spans = played.slice().sort((a, b) => a[0] - b[0]);
+    const out: { from: number; to: number }[] = [];
+    let at = 0;
+    for (const [a, b] of spans) { if (a > at + 1e-6) out.push({ from: at, to: a }); at = Math.max(at, b); }
+    if (at < extent + 1) out.push({ from: at, to: extent + 1 });
+    return out;
+  }, [JSON.stringify(played), extent]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Centre on the notes (or middle C) the first time this clip opens.
   const centred = useRef<string | null>(null);
-  React.useEffect(() => {
+  useEffect(() => {
     if (centred.current === clip.id || !scrollRef.current) return;
     centred.current = clip.id;
     const avg = notes.length ? notes.reduce((a, n) => a + n.key, 0) / notes.length : 60;
     scrollRef.current.scrollTop = Math.max(0, (HIGH - avg - 6) * ROW_H);
-  }, [clip.id, notes]);
+    scrollRef.current.scrollLeft = Math.max(0, offset * pxPerBeat - 40);
+  }, [clip.id, notes]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const editNotes = useCallback((fn: (list: NoteEvent[]) => void) => {
+  const editClip = useCallback((fn: (c: TimelineClip) => void) => {
     onMutate((d) => {
-      const t = d.arrangement.find((x) => x.id === trackId);
-      const c = t?.clips.find((x) => x.id === clip.id);
-      if (!c) return;
-      if (!c.notes) c.notes = [];
-      fn(c.notes);
+      const c = d.arrangement.find((x) => x.id === trackId)?.clips.find((x) => x.id === clip.id);
+      if (c) fn(c);
     });
   }, [onMutate, trackId, clip.id]);
+  const editNotes = useCallback((fn: (list: NoteEvent[]) => void) => {
+    editClip((c) => { if (!c.notes) c.notes = []; fn(c.notes); });
+  }, [editClip]);
 
   const audition = useCallback((key: number, vel = 100) => {
     if (!track) return;
@@ -142,7 +200,8 @@ export const PianoRoll: React.FC<PianoRollProps> = ({ doc, trackId, clip, beats,
     });
   }, [track]);
 
-  const addNote = useCallback((key: number, startBeats: number, free = false) => {
+  const addNote = (rawKey: number, startBeats: number, free = false) => {
+    const key = lockPitch(rawKey, lock);
     const snapped = Math.max(0, free ? startBeats : snapRel(startBeats));
     const id = grooveUid();
     editNotes((list) => {
@@ -163,22 +222,89 @@ export const PianoRoll: React.FC<PianoRollProps> = ({ doc, trackId, clip, beats,
         },
       });
     });
-    setSelected(id);
+    setSel([id]);
     audition(key);
-  }, [editNotes, snapId, meter, clip.startBeats, pxPerBeat, lastLen, defaultArticulation, defaultSwell, audition]); // eslint-disable-line react-hooks/exhaustive-deps
+  };
 
-  const removeNote = useCallback((id: string) => {
-    editNotes((list) => {
-      const i = list.findIndex((n) => n.id === id);
-      if (i >= 0) list.splice(i, 1);
-    });
-    if (selected === id) setSelected(null);
-  }, [editNotes, selected]);
+  const removeNotes = useCallback((ids: Set<string>) => {
+    if (!ids.size) return;
+    editNotes((list) => { for (let i = list.length - 1; i >= 0; i--) if (ids.has(list[i].id)) list.splice(i, 1); });
+    setSel((s) => s.filter((x) => !ids.has(x)));
+  }, [editNotes]);
 
-  // ── Composer Expression Macros ──────────────────────────────────────────────
+  /** The notes an action applies to: the selection, or every note when nothing is selected. */
+  const targetsOf = (list: NoteEvent[]) => (selSet.size ? list.filter((n) => selSet.has(n.id)) : list);
+
+  const quantize = useCallback(() => {
+    editNotes((list) => quantizeNotes(list, selSet, {
+      snap: (b) => snapRel(b), cell: cellAt, strength: q.strength, swing: q.swing, ends: q.ends,
+      phase: (b) => meter.at(toSong(b)).startBeat - toSong(0),
+    }));
+  }, [editNotes, selSet, q, snapId, pxPerBeat, meter, clip.startBeats, offset]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const transpose = useCallback((semis: number) => {
+    editNotes((list) => transposeNotes(list, selSet, semis));
+  }, [editNotes, selSet]);
+
+  // ── keyboard: capture phase so ↑↓ beat the QWERTY keyboard's octave shift while notes are selected
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (el && typeof el.matches === 'function' && el.matches('input, textarea, select, [contenteditable="true"]')) return;
+      const mod = e.ctrlKey || e.metaKey;
+      const k = e.key.toLowerCase();
+      const done = () => { e.preventDefault(); e.stopImmediatePropagation(); };
+      const cursorContent = () => {
+        if (running && playMode === 'song') { const c = contentPosAt(clip, beats); if (c !== null) return c; }
+        return null;
+      };
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selSet.size) { removeNotes(selSet); done(); return; }
+      if (e.key === 'Escape' && selSet.size) { setSel([]); done(); return; }
+      if (mod && k === 'a') { setSel(notes.map((n) => n.id)); done(); return; }
+      if (mod && (k === 'c' || k === 'x') && selSet.size) {
+        noteClipboard = copyNotes(notes, selSet);
+        if (k === 'x') removeNotes(selSet);
+        done(); return;
+      }
+      if (mod && k === 'v' && noteClipboard) {
+        const cb = noteClipboard;
+        const selEnd = selSet.size ? Math.max(...notes.filter((n) => selSet.has(n.id)).map((n) => n.startBeats + n.lengthBeats)) : null;
+        const at = snapRel(cursorContent() ?? selEnd ?? offset);
+        let made: string[] = [];
+        editNotes((list) => { made = pasteNotes(list, cb, at); });
+        setSel(made); done(); return;
+      }
+      if (mod && k === 'd' && selSet.size) {
+        const cb = copyNotes(notes, selSet);
+        if (cb) {
+          const t0 = Math.min(...notes.filter((n) => selSet.has(n.id)).map((n) => n.startBeats));
+          let made: string[] = [];
+          editNotes((list) => { made = pasteNotes(list, cb, t0 + cb.span); });
+          setSel(made);
+        }
+        done(); return;
+      }
+      if (!mod && selSet.size && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+        transpose((e.key === 'ArrowUp' ? 1 : -1) * (e.shiftKey ? 12 : 1)); done(); return;
+      }
+      if (!mod && selSet.size && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+        const dir = e.key === 'ArrowLeft' ? -1 : 1;
+        editNotes((list) => {
+          for (const n of list) if (selSet.has(n.id)) n.startBeats = Math.max(0, n.startBeats + dir * (e.shiftKey ? meter.at(toSong(n.startBeats)).lenBeats : cellAt(n.startBeats)));
+        });
+        done(); return;
+      }
+      // Q = quantize — unless a track is armed, where Q is a QWERTY note.
+      if (!mod && k === 'q' && !doc.arrangement.some((t) => t.armed)) { quantize(); done(); }
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }); // re-bound every render: it reads the live selection, notes and grid
+
+  // ── Composer Expression Macros (selection, or every note) ────────────────────
   const applyHairpinSwells = useCallback(() => {
     editNotes((list) => {
-      const targets = selected ? list.filter((n) => n.id === selected) : list;
+      const targets = targetsOf(list);
       targets.forEach((n, idx) => {
         const isLong = n.lengthBeats >= 1.25;
         n.articulation = isLong ? 'legato' : (n.articulation || 'legato');
@@ -193,11 +319,11 @@ export const PianoRoll: React.FC<PianoRollProps> = ({ doc, trackId, clip, beats,
         };
       });
     });
-  }, [editNotes, selected]);
+  }, [editNotes, selSet]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const applyLegatoPortamento = useCallback(() => {
     editNotes((list) => {
-      const sorted = [...list].sort((a, b) => a.startBeats - b.startBeats);
+      const sorted = [...targetsOf(list)].sort((a, b) => a.startBeats - b.startBeats);
       for (let i = 0; i < sorted.length; i++) {
         const cur = sorted[i];
         const next = sorted[i + 1];
@@ -220,11 +346,11 @@ export const PianoRoll: React.FC<PianoRollProps> = ({ doc, trackId, clip, beats,
         }
       }
     });
-  }, [editNotes]);
+  }, [editNotes, selSet]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const applyHumanizeRubato = useCallback(() => {
     editNotes((list) => {
-      list.forEach((n, i) => {
+      targetsOf(list).forEach((n, i) => {
         const phase = (i * 1.6180339) % 1;
         const velDelta = Math.round(Math.sin(i * 0.85) * 9 + (phase - 0.5) * 6);
         n.vel = Math.max(28, Math.min(126, n.vel + velDelta));
@@ -239,14 +365,14 @@ export const PianoRoll: React.FC<PianoRollProps> = ({ doc, trackId, clip, beats,
         };
       });
     });
-  }, [editNotes]);
+  }, [editNotes, selSet]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const updateSelectedArticulation = useCallback((art: OrchestralArticulation) => {
     setDefaultArticulation(art);
-    if (!selected) return;
+    if (!selSet.size) return;
     editNotes((list) => {
-      const target = list.find((n) => n.id === selected);
-      if (target) {
+      for (const target of list) {
+        if (!selSet.has(target.id)) continue;
         target.articulation = art;
         target.expr = {
           ...(target.expr || {}),
@@ -259,36 +385,123 @@ export const PianoRoll: React.FC<PianoRollProps> = ({ doc, trackId, clip, beats,
         };
       }
     });
-  }, [selected, editNotes]);
+  }, [selSet, editNotes]);
 
   const updateSelectedSwell = useCallback((swell: MpeSwellShape) => {
     setDefaultSwell(swell);
-    if (!selected) return;
-    editNotes((list) => {
-      const target = list.find((n) => n.id === selected);
-      if (target) {
-        target.expr = { ...(target.expr || {}), swellShape: swell };
-      }
-    });
-  }, [selected, editNotes]);
+    if (!selSet.size) return;
+    editNotes((list) => { for (const t of list) if (selSet.has(t.id)) t.expr = { ...(t.expr || {}), swellShape: swell }; });
+  }, [selSet, editNotes]);
 
-  const playheadBeats = running && playMode === 'song' ? beats - clip.startBeats : -1;
+  const quantMenu = useContextMenu<void>(() => [
+    { kind: 'header', label: `Quantize · ${selSet.size ? `${selSet.size} selected` : 'all notes'} · grid ${SNAP_OPTIONS.find((o) => o.id === snapId)?.label}` },
+    { id: 'go', label: 'Quantize now', shortcut: 'Q', onSelect: quantize },
+    { kind: 'separator' },
+    { id: 'strength', label: `Strength · ${Math.round(q.strength * 100)}%`, submenu: [1, 0.75, 0.5, 0.25].map((v) => ({
+      id: `s${v}`, label: `${v * 100}%`, checked: q.strength === v, onSelect: () => setQuant({ ...q, strength: v }),
+    })) },
+    { id: 'swing', label: `Swing · ${Math.round(q.swing * 100)}%`, submenu: [0, 0.25, 0.5, 0.66, 0.75].map((v) => ({
+      id: `w${v}`, label: `${Math.round(v * 100)}%`, checked: q.swing === v, onSelect: () => setQuant({ ...q, swing: v }),
+    })) },
+    { id: 'ends', label: 'Quantize note ends', checked: q.ends, onSelect: () => setQuant({ ...q, ends: !q.ends }) },
+  ]);
+
+  const playheadContent = running && playMode === 'song' ? contentPosAt(clip, beats) : null;
 
   // ── step grid: the same notes on a 16th grid, one row per pitch actually in use ──
   const stepRows = useMemo(() => {
     const keys = [...new Set(notes.map((n) => n.key))].sort((a, b) => b - a);
     return keys.length ? keys : [60];
   }, [notes]);
-  const stepCount = Math.max(16, Math.round(clip.lengthBeats * 4));
+  const stepCount = Math.max(16, Math.round(extent * 4));
+
+  // ── CC lanes (clip.automationLanes, content beats) ─────────────────────────
+  const ccTarget: AutomationTarget | null = drawerLane.startsWith('cc:')
+    ? MIDI_LANE_TARGETS.find((t) => `cc:${t.kind}` === drawerLane) ?? null
+    : null;
+  const ccPoints = ccTarget ? clip.automationLanes?.find((l) => targetKey(l.target) === targetKey(ccTarget))?.points ?? [] : [];
+  const setCcPoints = (pts: AutomationPoint[]) => {
+    if (!ccTarget) return;
+    editClip((c) => {
+      const lanes = (c.automationLanes ??= []);
+      const i = lanes.findIndex((l) => targetKey(l.target) === targetKey(ccTarget));
+      if (!pts.length) { if (i >= 0) lanes.splice(i, 1); if (!lanes.length) delete c.automationLanes; return; }
+      if (i >= 0) lanes[i].points = pts;
+      else lanes.push({ id: grooveUid(), target: ccTarget, points: pts });
+    });
+  };
+
+  // Bar / count lines across the visible content, from the song's meter.
+  const gridLinesContent = useMemo(() => {
+    const out: { at: number; strong: boolean }[] = [];
+    const s0 = toSong(0), s1 = toSong(extent + 1);
+    const first = meter.at(Math.max(0, s0));
+    for (const bar of [first, ...meter.bars(first.startBeat + first.lenBeats - 1e-6, s1)]) {
+      out.push({ at: bar.startBeat - s0, strong: true });
+      for (let u = 1; u < bar.num; u++) out.push({ at: bar.startBeat + u * bar.unitBeats - s0, strong: false });
+    }
+    return out.filter((l) => l.at >= -1e-6 && l.at <= extent + 1);
+  }, [meter, clip.startBeats, offset, extent]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** Drag on the window strip: the loop brace (body / ends) or the window start (slip). */
+  const dragStrip = (what: 'loop' | 'loopL' | 'loopR' | 'start') => (e: React.PointerEvent) => {
+    e.preventDefault(); e.stopPropagation();
+    const x0 = e.clientX;
+    const orig = { offset, loop: clip.loop ? { ...clip.loop } : null };
+    const move = (ev: PointerEvent) => {
+      const d = (ev.clientX - x0) / pxPerBeat;
+      editClip((c) => {
+        if (what === 'start') { c.contentOffsetBeats = snapRel(orig.offset + d, ev); return; }
+        if (!orig.loop || !c.loop) return;
+        const cell = cellAt(orig.loop.startBeats);
+        if (what === 'loop') { c.loop.startBeats = Math.max(0, snapRel(orig.loop.startBeats + d, ev)); return; }
+        if (what === 'loopL') {
+          const end = orig.loop.startBeats + orig.loop.lengthBeats;
+          const s = Math.max(0, Math.min(end - cell, snapRel(orig.loop.startBeats + d, ev)));
+          c.loop.startBeats = s; c.loop.lengthBeats = end - s; return;
+        }
+        c.loop.lengthBeats = Math.max(cell, snapRel(orig.loop.startBeats + orig.loop.lengthBeats + d, ev) - orig.loop.startBeats);
+      });
+    };
+    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+  };
+
+  // Marquee on the empty grid (a click without dragging clears the selection).
+  const startMarquee = (e: React.PointerEvent) => {
+    if (e.button !== 0 || !gridRef.current) return;
+    const r = gridRef.current.getBoundingClientRect();
+    const at = (ev: { clientX: number; clientY: number }) => ({
+      b: (ev.clientX - r.left - KEY_W) / pxPerBeat,
+      k: HIGH - Math.floor((ev.clientY - r.top - STRIP_H) / ROW_H),
+    });
+    const a = at(e);
+    const additive = e.shiftKey || e.ctrlKey || e.metaKey;
+    const base = additive ? sel : [];
+    let movedFar = false;
+    const move = (ev: PointerEvent) => {
+      const b = at(ev);
+      if (!movedFar && Math.abs(ev.clientX - e.clientX) + Math.abs(ev.clientY - e.clientY) < 4) return;
+      movedFar = true;
+      setMarquee({ b0: a.b, b1: b.b, k0: a.k, k1: b.k });
+      setSel([...new Set([...base, ...notesInRect(notes, a.b, b.b, a.k, b.k)])]);
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up);
+      setMarquee(null);
+      if (!movedFar && !additive) setSel([]);
+    };
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+  };
 
   return (
     <div className="absolute inset-x-0 bottom-0 z-30 border-t border-white/15 bg-[#0A0A0D] flex flex-col" style={{ height: showExprDrawer ? '58%' : '46%' }}>
-      {/* Top Toolbar: Mode, Snap, Articulation, MPE Swell & Composer Expression Macros */}
+      {/* Top Toolbar: Mode, Snap, Key/Scale, Quantize, Transpose, Loop, Articulation, Swell, Macros */}
       <div className="flex items-center gap-1.5 px-3 h-10 border-b border-white/10 flex-none overflow-x-auto">
         <span className="text-[10px] uppercase tracking-[0.14em] text-white/45 font-semibold whitespace-nowrap">
           {track?.name || 'Clip'}
         </span>
-        <span className="text-[10px] text-white/25 whitespace-nowrap">{notes.length} notes</span>
+        <span className="text-[10px] text-white/25 whitespace-nowrap">{sel.length ? `${sel.length}/${notes.length}` : notes.length} notes</span>
 
         <div className="flex gap-0.5 bg-white/[0.06] border border-white/10 rounded-lg p-0.5 ml-1">
           <button onClick={() => setMode('roll')} className={`h-6 px-2 rounded-md text-[10px] flex items-center gap-1 ${mode === 'roll' ? 'bg-white/15 text-white font-semibold' : 'text-white/40'}`}><Music4 size={10} /> MPE Roll</button>
@@ -296,15 +509,33 @@ export const PianoRoll: React.FC<PianoRollProps> = ({ doc, trackId, clip, beats,
         </div>
 
         <label className="flex items-center gap-1 text-[10px] text-white/35 whitespace-nowrap">Snap
-          <select value={snapId} onChange={(e) => setSnapId(e.target.value)} title="Snap grid · hold Shift (or Alt) while placing or dragging for free timing" className="bg-black/40 border border-white/10 rounded px-1 h-6 text-[10px] text-white/75 outline-none">
+          <select value={snapId} onChange={(e) => setSnapId(e.target.value)} title="Snap grid · hold Shift while placing or dragging for free timing" className="bg-black/40 border border-white/10 rounded px-1 h-6 text-[10px] text-white/75 outline-none">
             {SNAP_OPTIONS.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
           </select>
         </label>
+        <button onClick={(e) => quantMenu.openFrom(e.currentTarget, undefined)} title="Quantize the selection (or all notes) to the snap grid — strength, swing, ends" className="h-6 px-2 rounded-md border border-white/10 text-white/60 hover:text-white text-[10px] whitespace-nowrap">Quantize ▾</button>
+        <div className="flex items-center rounded-md border border-white/10 overflow-hidden" title="Transpose the selection (or all notes) — ↑↓ keys, Shift = octave">
+          {[-12, -1, 1, 12].map((s) => (
+            <button key={s} onClick={() => transpose(s)} className="h-6 px-1.5 text-[10px] font-mono text-white/55 hover:text-white hover:bg-white/10">{s > 0 ? `+${s}` : s}</button>
+          ))}
+        </div>
         {songKey && (
-          <span className="text-[10px] text-white/35 whitespace-nowrap" title="Project key — in-key rows are lit (set it from the transport bar)">
-            Key <b className="text-[#D0BCFF]/80 font-semibold">{keyLabel(songKey)}</b>
-          </span>
+          <>
+            <button
+              onClick={() => setScaleLock((v) => { const n = !v; try { localStorage.setItem('melos:roll:scaleLock', n ? '1' : '0'); } catch { /* */ } return n; })}
+              aria-pressed={scaleLock}
+              title={`Scale lock — drawn and dragged notes stay in ${keyLabel(songKey)} (set the key from the transport bar)`}
+              className={`h-6 px-2 rounded-md border text-[10px] whitespace-nowrap ${scaleLock ? 'border-[#D0BCFF]/50 text-[#D0BCFF] bg-[#D0BCFF]/12' : 'border-white/10 text-white/45 hover:text-white'}`}
+            >{keyLabel(songKey)}{scaleLock ? ' · lock' : ''}</button>
+            <button onClick={() => editNotes((list) => fitNotesToScale(list, selSet, songKey))} title="Move the selection (or all notes) to the nearest note of the project scale" className="h-6 px-2 rounded-md border border-white/10 text-white/50 hover:text-white text-[10px] whitespace-nowrap">Fit to scale</button>
+          </>
         )}
+        <button
+          onClick={() => onMutate((d) => { const c = d.arrangement.find((x) => x.id === trackId)?.clips.find((x) => x.id === clip.id); if (c) setClipLoop(d, c, !c.loop); })}
+          aria-pressed={!!loop}
+          title="Loop the clip's content — drag the brace above the grid to set the loop"
+          className={`h-6 px-2 rounded-md border text-[10px] flex items-center gap-1 whitespace-nowrap ${loop ? 'border-[#00DAF3]/50 text-[#00DAF3] bg-[#00DAF3]/10' : 'border-white/10 text-white/45 hover:text-white'}`}
+        ><Repeat size={10} /> Loop{loop ? ` ${+(loop.len).toFixed(2)}b` : ''}</button>
 
         {/* Orchestral Articulation Selector */}
         <label className="flex items-center gap-1 text-[10px] text-white/40 whitespace-nowrap">Articulation
@@ -371,21 +602,45 @@ export const PianoRoll: React.FC<PianoRollProps> = ({ doc, trackId, clip, beats,
             showExprDrawer ? 'border-[#D0BCFF]/40 bg-[#D0BCFF]/15 text-[#D0BCFF]' : 'border-white/10 text-white/45'
           }`}
         >
-          <Sliders size={10} /> MPE Lanes
+          <Sliders size={10} /> Lanes
         </button>
 
-        {selected && (
-          <button onClick={() => removeNote(selected)} className="h-6 px-2 rounded-lg border border-white/10 text-white/40 hover:text-[#EF4444] text-[10px] flex items-center gap-1">
-            <Trash2 size={10} /> Delete
+        {sel.length > 0 && (
+          <button onClick={() => removeNotes(selSet)} className="h-6 px-2 rounded-lg border border-white/10 text-white/40 hover:text-[#EF4444] text-[10px] flex items-center gap-1">
+            <Trash2 size={10} /> Delete{sel.length > 1 ? ` ${sel.length}` : ''}
           </button>
         )}
         <button onClick={onClose} className="h-6 px-2.5 rounded-lg border border-white/15 text-white/50 hover:text-white text-[10px]">Close</button>
       </div>
+      {quantMenu.node}
 
       {mode === 'roll' ? (
         <div ref={scrollRef} className="flex-1 min-h-0 overflow-auto flex flex-col">
           {/* Note Grid Area */}
-          <div className="relative flex-none" style={{ width: KEY_W + width, height: ROWS * ROW_H }}>
+          <div ref={gridRef} className="relative flex-none" style={{ width: KEY_W + width, height: STRIP_H + ROWS * ROW_H }}>
+            {/* Window strip: where the clip starts reading (drag = slip) and the loop brace. */}
+            <div className="sticky top-0 z-20 flex" style={{ height: STRIP_H }}>
+              <div className="sticky left-0 z-10 flex-none bg-[#0A0A0D] border-r border-b border-white/10 text-[7.5px] text-white/30 flex items-center justify-center" style={{ width: KEY_W }}>{loop ? 'LOOP' : 'CLIP'}</div>
+              <div className="relative flex-1 bg-[#0E0F15] border-b border-white/10">
+                {loop && (
+                  <div
+                    className="absolute top-[3px] bottom-[3px] rounded-sm cursor-grab"
+                    style={{ left: loop.start * pxPerBeat, width: loop.len * pxPerBeat, background: 'rgba(0,218,243,0.22)', border: '1px solid rgba(0,218,243,0.7)' }}
+                    onPointerDown={dragStrip('loop')}
+                    title="Loop — drag to move · drag an end to resize (Shift = no snap)"
+                  >
+                    <span onPointerDown={dragStrip('loopL')} className="absolute left-0 top-0 bottom-0 w-2 -ml-1 cursor-ew-resize" />
+                    <span onPointerDown={dragStrip('loopR')} className="absolute right-0 top-0 bottom-0 w-2 -mr-1 cursor-ew-resize" />
+                  </div>
+                )}
+                <span
+                  onPointerDown={dragStrip('start')}
+                  className="absolute top-0 bottom-0 w-[9px] -ml-[1px] cursor-ew-resize"
+                  style={{ left: offset * pxPerBeat, background: 'linear-gradient(90deg, #FF8C00 0 2px, transparent 2px)' }}
+                  title="Clip start — drag to slip which content the clip begins on"
+                />
+              </div>
+            </div>
             {/* keyboard + rows */}
             {Array.from({ length: ROWS }, (_, r) => {
               const key = HIGH - r;
@@ -394,7 +649,7 @@ export const PianoRoll: React.FC<PianoRollProps> = ({ doc, trackId, clip, beats,
               const outOfKey = inKey ? !inKey[pc] : false;
               const tonicRow = songKey ? pc === songKey.tonic : false;
               return (
-                <div key={r} className="absolute left-0 right-0 flex" style={{ top: r * ROW_H, height: ROW_H }}>
+                <div key={r} className="absolute left-0 right-0 flex" style={{ top: STRIP_H + r * ROW_H, height: ROW_H }}>
                   <button
                     onPointerDown={() => audition(key)}
                     className="sticky left-0 z-10 flex-none flex items-center justify-end pr-1.5 text-[8px] font-mono border-b border-r"
@@ -415,41 +670,42 @@ export const PianoRoll: React.FC<PianoRollProps> = ({ doc, trackId, clip, beats,
                         ? (tonicRow ? 'rgba(208,188,255,0.07)' : outOfKey ? 'rgba(0,0,0,0.38)' : 'transparent')
                         : (black ? 'rgba(0,0,0,0.30)' : 'transparent'),
                     }}
+                    onPointerDown={startMarquee}
                     onDoubleClick={(e) => {
                       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                      const raw = (e.clientX - rect.left) / pxPerBeat;
-                      addNote(key, raw, e.shiftKey || e.altKey);
+                      addNote(key, (e.clientX - rect.left) / pxPerBeat, e.shiftKey);
                     }}
                   />
                 </div>
               );
             })}
-            {/* bar + count lines from the song's meter (clip-relative) */}
-            {meter.bars(clip.startBeats - 1e-6, clip.startBeats + clip.lengthBeats + 1e-6).flatMap((bar) => {
-              const lines: { at: number; strong: boolean }[] = [{ at: bar.startBeat, strong: true }];
-              for (let u = 1; u < bar.num; u++) lines.push({ at: bar.startBeat + u * bar.unitBeats, strong: false });
-              return lines;
-            }).concat(meter.at(clip.startBeats).beatInBar > 1e-6
-              // A clip starting mid-bar still shows the counts before its first bar line.
-              ? (() => { const b0 = meter.at(clip.startBeats); const out: { at: number; strong: boolean }[] = [];
-                  for (let u = 1; u < b0.num; u++) { const at = b0.startBeat + u * b0.unitBeats; if (at > clip.startBeats) out.push({ at, strong: false }); }
-                  return out; })()
-              : [])
-              .filter((l) => l.at - clip.startBeats <= clip.lengthBeats + 1e-6)
-              .map((l) => (
-                <div key={`b${l.at}`} className="absolute top-0 bottom-0 pointer-events-none" style={{
-                  left: KEY_W + (l.at - clip.startBeats) * pxPerBeat, width: 1,
-                  background: l.strong ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.06)',
-                }} />
-              ))}
-            {playheadBeats >= 0 && playheadBeats <= clip.lengthBeats && (
-              <div className="absolute top-0 bottom-0 w-[2px] z-20 pointer-events-none" style={{ left: KEY_W + playheadBeats * pxPerBeat, background: PLAYHEAD, boxShadow: `0 0 10px ${PLAYHEAD}` }} />
+            {/* content the clip window doesn't play */}
+            {dimmed.map((r, i) => (
+              <div key={`dim${i}`} className="absolute bottom-0 pointer-events-none" style={{ top: STRIP_H, left: KEY_W + r.from * pxPerBeat, width: Math.max(0, (r.to - r.from) * pxPerBeat), background: 'rgba(0,0,0,0.4)', zIndex: 6 }} />
+            ))}
+            {/* bar + count lines from the song's meter */}
+            {gridLinesContent.map((l) => (
+              <div key={`b${l.at}`} className="absolute bottom-0 pointer-events-none" style={{
+                top: STRIP_H, left: KEY_W + l.at * pxPerBeat, width: 1,
+                background: l.strong ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.06)',
+              }} />
+            ))}
+            {playheadContent !== null && (
+              <div className="absolute bottom-0 w-[2px] z-20 pointer-events-none" style={{ top: STRIP_H, left: KEY_W + playheadContent * pxPerBeat, background: PLAYHEAD, boxShadow: `0 0 10px ${PLAYHEAD}` }} />
+            )}
+            {marquee && (
+              <div className="absolute z-30 pointer-events-none border border-[#00DAF3] bg-[#00DAF3]/10" style={{
+                left: KEY_W + Math.min(marquee.b0, marquee.b1) * pxPerBeat,
+                width: Math.abs(marquee.b1 - marquee.b0) * pxPerBeat,
+                top: STRIP_H + (HIGH - Math.max(marquee.k0, marquee.k1)) * ROW_H,
+                height: (Math.abs(marquee.k1 - marquee.k0) + 1) * ROW_H,
+              }} />
             )}
             {/* notes with inline MPE swell curve & articulation badge */}
             {notes.map((n) => {
               const r = HIGH - n.key;
               if (r < 0 || r >= ROWS) return null;
-              const isSel = n.id === selected;
+              const isSel = selSet.has(n.id);
               const artSpec = ARTICULATION_SPECS.find((a) => a.id === (n.articulation || 'legato')) || ARTICULATION_SPECS[0];
               const noteW = Math.max(6, n.lengthBeats * pxPerBeat - 2);
               const swell = n.expr?.swellShape || (n.lengthBeats >= 2 ? 'hairpin' : 'arch');
@@ -458,54 +714,68 @@ export const PianoRoll: React.FC<PianoRollProps> = ({ doc, trackId, clip, beats,
                   key={n.id}
                   onPointerDown={(e) => {
                     e.stopPropagation();
-                    setSelected(n.id);
+                    if (e.ctrlKey || e.metaKey) { setSel((s) => (s.includes(n.id) ? s.filter((x) => x !== n.id) : [...s, n.id])); return; }
+                    const nextSel = e.shiftKey ? [...new Set([...sel, n.id])] : isSel ? sel : [n.id];
+                    setSel(nextSel.filter((x) => x !== n.id).concat(n.id)); // the grabbed note is primary
                     const el = e.currentTarget as HTMLElement;
                     const nearEnd = e.clientX > el.getBoundingClientRect().right - 8;
                     el.setPointerCapture(e.pointerId);
-                    drag.current = { id: n.id, mode: nearEnd ? 'len' : 'move', x: e.clientX, y: e.clientY, start: n.startBeats, len: n.lengthBeats, key: n.key };
+                    const orig = new Map(notes.filter((x) => nextSel.includes(x.id)).map((x) => [x.id, { start: x.startBeats, len: x.lengthBeats, key: x.key }]));
+                    drag.current = { ids: nextSel, primary: n.id, mode: nearEnd ? 'len' : 'move', x: e.clientX, y: e.clientY, orig, moved: false };
                     if (!nearEnd) audition(n.key, n.vel);
                   }}
                   onPointerMove={(e) => {
                     const dr = drag.current;
-                    if (!dr || dr.id !== n.id) return;
+                    if (!dr || dr.primary !== n.id) return;
+                    if (!dr.moved && Math.abs(e.clientX - dr.x) + Math.abs(e.clientY - dr.y) < 3) return;
+                    dr.moved = true;
+                    const p0 = dr.orig.get(dr.primary)!;
                     const dBeats = (e.clientX - dr.x) / pxPerBeat;
                     const dRows = Math.round((e.clientY - dr.y) / ROW_H);
                     editNotes((list) => {
-                      const t = list.find((x) => x.id === dr.id);
-                      if (!t) return;
                       if (dr.mode === 'move') {
-                        const raw = Math.max(0, dr.start + dBeats);
-                        t.startBeats = Math.max(0, snapRel(raw, e));
-                        t.key = Math.max(LOW, Math.min(HIGH, dr.key - dRows));
+                        // The grabbed note lands on the grid; the rest keep their offsets to it.
+                        const minStart = Math.min(...[...dr.orig.values()].map((o) => o.start));
+                        const delta = Math.max(-minStart, snapRel(p0.start + dBeats, e) - p0.start);
+                        for (const t of list) {
+                          const o = dr.orig.get(t.id); if (!o) continue;
+                          t.startBeats = o.start + delta;
+                          t.key = lockPitch(Math.max(LOW, Math.min(HIGH, o.key - dRows)), lock);
+                        }
                       } else {
-                        // Snap the note END to the grid, never shorter than one grid cell.
-                        const raw = Math.max(0.05, dr.len + dBeats);
-                        const end = snapRel(dr.start + raw, e);
-                        const minCell = gridCellBeats(clip.startBeats + dr.start, snapGrid, meter, pxPerBeat);
-                        t.lengthBeats = e.shiftKey || e.altKey || snapGrid.mode === 'off' ? raw : Math.max(minCell, end - dr.start);
+                        // Snap the grabbed note's END; every selected note grows by the same amount.
+                        const raw = Math.max(0.05, p0.len + dBeats);
+                        const end = snapRel(p0.start + raw, e);
+                        const minCell = cellAt(p0.start);
+                        const newLen = e.shiftKey || snapGrid.mode === 'off' ? raw : Math.max(minCell, end - p0.start);
+                        const dLen = newLen - p0.len;
+                        for (const t of list) {
+                          const o = dr.orig.get(t.id); if (!o) continue;
+                          t.lengthBeats = Math.max(e.shiftKey ? 0.02 : Math.min(minCell, o.len), o.len + dLen);
+                        }
                       }
                     });
                   }}
                   onPointerUp={() => {
                     const dr = drag.current;
                     drag.current = null;
-                    if (dr?.mode === 'len') {
-                      const cur = (clip.notes || []).find((x) => x.id === dr.id);
+                    if (dr?.mode === 'len' && dr.moved) {
+                      const cur = (clip.notes || []).find((x) => x.id === dr.primary);
                       if (cur) setLastLen(cur.lengthBeats);
                     }
                   }}
-                  onDoubleClick={(e) => { e.stopPropagation(); removeNote(n.id); }}
+                  onDoubleClick={(e) => { e.stopPropagation(); removeNotes(new Set([n.id])); }}
                   className="absolute rounded-[4px] cursor-grab overflow-hidden"
                   title={`${noteName(n.key)} · vel ${n.vel} · ${artSpec.label} · MPE ${swell} — drag to move, right edge to resize, double-click to delete`}
                   style={{
                     left: KEY_W + n.startBeats * pxPerBeat,
-                    top: r * ROW_H + 1,
+                    top: STRIP_H + r * ROW_H + 1,
                     width: noteW,
                     height: ROW_H - 2,
                     background: `linear-gradient(90deg, rgba(212,0,85,${0.32 + (n.vel / 127) * 0.58}), ${artSpec.color}99)`,
                     outline: isSel ? `1.5px solid ${SELECT}` : 'none',
                     outlineOffset: 1,
-                    zIndex: 5,
+                    zIndex: 7,
                   }}
                 >
                   {/* Inline MPE Envelope Contour Overlay */}
@@ -540,100 +810,111 @@ export const PianoRoll: React.FC<PianoRollProps> = ({ doc, trackId, clip, beats,
             })}
           </div>
 
-          {/* Interactive Bottom MPE & Velocity Expression Lane Drawer */}
+          {/* Bottom drawer: per-note MPE lanes and the clip's MIDI CC lanes */}
           {showExprDrawer && (
             <div className="sticky bottom-0 left-0 z-20 border-t border-white/15 bg-[#0D0E14]/95 backdrop-blur-md" style={{ width: KEY_W + width, height: 108 }}>
-              <div className="sticky left-0 flex items-center gap-1.5 px-2 h-6 border-b border-white/10 bg-[#12131C] text-[9px]">
-                <span className="text-white/40 font-semibold uppercase tracking-wider mr-1">MPE Expression Lane:</span>
-                {(
-                  [
-                    { id: 'pressure', label: 'MPE Pressure / CC11 Swell', color: '#38BDF8' },
-                    { id: 'velocity', label: 'Note Velocity (1–127)', color: '#F43F5E' },
-                    { id: 'timbre', label: 'MPE Timbre / CC74 Brightness', color: '#A78BFA' },
-                    { id: 'vibrato', label: 'Vibrato Depth (LFO)', color: '#34D399' },
-                    { id: 'bend', label: 'MPE Pitch Bend / Glide', color: '#FBBF24' },
-                  ] as const
-                ).map((lane) => (
-                  <button
-                    key={lane.id}
-                    onClick={() => setExprLane(lane.id)}
-                    className={`px-2 py-0.5 rounded text-[9px] font-medium transition ${
-                      exprLane === lane.id ? 'bg-white/15 text-white border border-white/25' : 'text-white/45 hover:text-white/75'
-                    }`}
-                    style={exprLane === lane.id ? { color: lane.color } : undefined}
-                  >
-                    {lane.label}
-                  </button>
+              <div className="sticky left-0 flex items-center gap-1 px-2 h-6 border-b border-white/10 bg-[#12131C] text-[9px] w-max">
+                <span className="text-white/40 font-semibold uppercase tracking-wider mr-1">Note:</span>
+                {MPE_LANES.map((lane) => (
+                  <button key={lane.id} onClick={() => setDrawerLane(lane.id)}
+                    className={`px-2 py-0.5 rounded text-[9px] font-medium transition ${drawerLane === lane.id ? 'bg-white/15 border border-white/25' : 'text-white/45 hover:text-white/75'}`}
+                    style={drawerLane === lane.id ? { color: lane.color } : undefined}
+                  >{lane.label}</button>
                 ))}
-                <span className="ml-auto text-white/35">Click or drag any note’s MPE stalk to sculpt expression</span>
-              </div>
-
-              <div className="relative h-[82px]" style={{ marginLeft: KEY_W, width }}>
-                {/* Horizontal reference grid lines */}
-                <div className="absolute inset-x-0 top-1/4 border-t border-white/[0.05] pointer-events-none" />
-                <div className="absolute inset-x-0 top-1/2 border-t border-white/[0.08] pointer-events-none" />
-                <div className="absolute inset-x-0 top-3/4 border-t border-white/[0.05] pointer-events-none" />
-
-                {notes.map((n) => {
-                  const left = n.startBeats * pxPerBeat;
-                  const w = Math.max(8, n.lengthBeats * pxPerBeat - 2);
-                  const val01 =
-                    exprLane === 'velocity'
-                      ? n.vel / 127
-                      : exprLane === 'pressure'
-                        ? n.expr?.pressure ?? n.vel / 127
-                        : exprLane === 'timbre'
-                          ? n.expr?.timbre ?? 0.65
-                          : exprLane === 'vibrato'
-                            ? Math.min(1, (n.expr?.vibratoDepth ?? 0.16) / 0.5)
-                            : ((n.expr?.bend ?? 0) + 1) * 0.5;
-                  const barH = Math.max(6, Math.round(val01 * 72));
-                  const color =
-                    exprLane === 'pressure'
-                      ? '#38BDF8'
-                      : exprLane === 'velocity'
-                        ? '#F43F5E'
-                        : exprLane === 'timbre'
-                          ? '#A78BFA'
-                          : exprLane === 'vibrato'
-                            ? '#34D399'
-                            : '#FBBF24';
-
+                <span className="text-white/40 font-semibold uppercase tracking-wider ml-2 mr-1">CC:</span>
+                {MIDI_LANE_TARGETS.map((t) => {
+                  const id = `cc:${t.kind}` as DrawerLane;
+                  const spec = targetSpec(t);
+                  const has = !!clip.automationLanes?.some((l) => targetKey(l.target) === targetKey(t) && l.points.length);
                   return (
-                    <div
-                      key={`expr_${n.id}`}
-                      onPointerDown={(e) => {
-                        e.stopPropagation();
-                        setSelected(n.id);
-                        const rect = (e.currentTarget.parentElement as HTMLElement).getBoundingClientRect();
-                        const new01 = Math.max(0.05, Math.min(1, 1 - (e.clientY - rect.top) / 76));
-                        editNotes((list) => {
-                          const target = list.find((x) => x.id === n.id);
-                          if (!target) return;
-                          if (exprLane === 'velocity') {
-                            target.vel = Math.max(1, Math.min(127, Math.round(new01 * 127)));
-                          } else {
-                            target.expr = { ...(target.expr || {}) };
-                            if (exprLane === 'pressure') target.expr.pressure = Number(new01.toFixed(2));
-                            else if (exprLane === 'timbre') target.expr.timbre = Number(new01.toFixed(2));
-                            else if (exprLane === 'vibrato') target.expr.vibratoDepth = Number((new01 * 0.5).toFixed(2));
-                            else if (exprLane === 'bend') target.expr.bend = Number(((new01 - 0.5) * 2).toFixed(2));
-                          }
-                        });
-                      }}
-                      className="absolute bottom-1 rounded-t cursor-ns-resize group"
-                      style={{
-                        left,
-                        width: w,
-                        height: barH,
-                        background: `linear-gradient(180deg, ${color}cc, ${color}33)`,
-                        borderTop: `2px solid ${color}`,
-                      }}
-                      title={`${noteName(n.key)} · ${exprLane}: ${Math.round(val01 * 100)}%`}
-                    />
+                    <button key={id} onClick={() => setDrawerLane(id)}
+                      className={`px-2 py-0.5 rounded text-[9px] font-medium transition ${drawerLane === id ? 'bg-white/15 border border-white/25' : 'text-white/45 hover:text-white/75'}`}
+                      style={drawerLane === id ? { color: spec.color } : undefined}
+                    >{spec.label}{has ? ' •' : ''}</button>
                   );
                 })}
               </div>
+
+              {ccTarget ? (
+                <div style={{ marginLeft: KEY_W }}>
+                  <AutomationLaneEditor
+                    target={ccTarget}
+                    points={ccPoints}
+                    originBeat={0}
+                    widthBeats={extent + 1}
+                    pxPerBeat={pxPerBeat}
+                    height={82}
+                    snap={(b, e) => snapRel(b, e)}
+                    cell={cellAt}
+                    onChange={setCcPoints}
+                    dimmed={dimmed}
+                    cursorBeat={playheadContent}
+                  />
+                </div>
+              ) : (
+                <div className="relative h-[82px]" style={{ marginLeft: KEY_W, width }}>
+                  {/* Horizontal reference grid lines */}
+                  <div className="absolute inset-x-0 top-1/4 border-t border-white/[0.05] pointer-events-none" />
+                  <div className="absolute inset-x-0 top-1/2 border-t border-white/[0.08] pointer-events-none" />
+                  <div className="absolute inset-x-0 top-3/4 border-t border-white/[0.05] pointer-events-none" />
+
+                  {notes.map((n) => {
+                    const lane = drawerLane as MpeLaneKind;
+                    const left = n.startBeats * pxPerBeat;
+                    const w = Math.max(8, n.lengthBeats * pxPerBeat - 2);
+                    const val01 =
+                      lane === 'velocity' ? n.vel / 127
+                        : lane === 'pressure' ? n.expr?.pressure ?? n.vel / 127
+                          : lane === 'timbre' ? n.expr?.timbre ?? 0.65
+                            : lane === 'vibrato' ? Math.min(1, (n.expr?.vibratoDepth ?? 0.16) / 0.5)
+                              : ((n.expr?.bend ?? 0) + 1) * 0.5;
+                    const barH = Math.max(6, Math.round(val01 * 72));
+                    const color = MPE_LANES.find((l) => l.id === lane)?.color ?? '#38BDF8';
+                    // Drag paints the value; with a selection, every selected note follows.
+                    const paint = (clientY: number, rect: DOMRect) => {
+                      const new01 = Math.max(0.05, Math.min(1, 1 - (clientY - rect.top) / 76));
+                      const ids = selSet.has(n.id) ? selSet : new Set([n.id]);
+                      editNotes((list) => {
+                        for (const target of list) {
+                          if (!ids.has(target.id)) continue;
+                          if (lane === 'velocity') { target.vel = Math.max(1, Math.min(127, Math.round(new01 * 127))); continue; }
+                          target.expr = { ...(target.expr || {}) };
+                          if (lane === 'pressure') target.expr.pressure = Number(new01.toFixed(2));
+                          else if (lane === 'timbre') target.expr.timbre = Number(new01.toFixed(2));
+                          else if (lane === 'vibrato') target.expr.vibratoDepth = Number((new01 * 0.5).toFixed(2));
+                          else if (lane === 'bend') target.expr.bend = Number(((new01 - 0.5) * 2).toFixed(2));
+                        }
+                      });
+                    };
+                    return (
+                      <div
+                        key={`expr_${n.id}`}
+                        onPointerDown={(e) => {
+                          e.stopPropagation();
+                          if (!selSet.has(n.id)) setSel([n.id]);
+                          const rect = (e.currentTarget.parentElement as HTMLElement).getBoundingClientRect();
+                          paint(e.clientY, rect);
+                          (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+                        }}
+                        onPointerMove={(e) => {
+                          if (e.buttons !== 1) return;
+                          paint(e.clientY, (e.currentTarget.parentElement as HTMLElement).getBoundingClientRect());
+                        }}
+                        className="absolute bottom-1 rounded-t cursor-ns-resize group"
+                        style={{
+                          left,
+                          width: w,
+                          height: barH,
+                          background: `linear-gradient(180deg, ${color}cc, ${color}33)`,
+                          borderTop: `2px solid ${color}`,
+                          outline: selSet.has(n.id) ? `1px solid ${SELECT}` : 'none',
+                        }}
+                        title={`${noteName(n.key)} · ${lane}: ${Math.round(val01 * 100)}%`}
+                      />
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -652,7 +933,7 @@ export const PianoRoll: React.FC<PianoRollProps> = ({ doc, trackId, clip, beats,
                     return (
                       <button
                         key={s}
-                        onClick={() => (hit ? removeNote(hit.id) : addNote(key, at))}
+                        onClick={() => (hit ? removeNotes(new Set([hit.id])) : addNote(key, at, true))}
                         aria-label={`${noteName(key)} step ${s + 1}`}
                         className="h-5 rounded-[3px] border transition"
                         style={{

@@ -7,6 +7,7 @@ import { Plus, Sparkles, AlignStartVertical, FolderOpen, FilePlus2, Trash2, Down
 import { auth } from '../../../services/firebase';
 import { BeatsEngine } from '../../../services/melos/beats/engine/BeatsEngine';
 import { MeterMap } from '../../../services/melos/beats/tempoMap';
+import { downloadMidi, exportProjectMidi } from '../../../services/melos/beats/midiExport';
 import { defaultPattern, grooveUid, type GrooveDoc, type InstrumentType, type ArrangeTrack } from '../../../services/melos/beats/grooveDoc';
 import { useContextMenu, type MenuNode } from '../../ui/ContextMenu';
 import { autoFill, quantizePattern } from '../../../services/melos/beats/grooveTools';
@@ -29,6 +30,7 @@ import { importDawproject } from '../../../services/melos/beats/dawproject/impor
 import { transcribeToPattern, addTranscribedPattern } from '../../../services/melos/beats/transcribeImport';
 import type { MelosSampleRef } from './melosSamples';
 import { useBeatsDoc } from './useBeatsDoc';
+import { useAutomationRecorder } from './useAutomationRecorder';
 import { useEngineBridge } from './useEngineBridge';
 import { useBeatsHid } from './useBeatsHid';
 import { useInstrumentKeyboard, commitRecordedNote, type RecordedNote } from './instrument/useInstrumentKeyboard';
@@ -122,6 +124,8 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
   const selectedPadRef = React.useRef(0);
   useEffect(() => { selectedPadRef.current = selectedPad; }, [selectedPad]);
   const [playMode, setPlayMode] = useState<'pattern' | 'song'>('pattern');
+  // Touch / Latch / Write: mixer moves during song playback become automation (useAutomationRecorder).
+  useAutomationRecorder(doc, snap.running, playMode, mutate);
   // Song/arrangement play position — the timeline playhead. Defaults to the very start so Play in the
   // timeline always begins at bar 1 on first load; a ruler click moves it (and remembers it).
   const [songStartBeats, setSongStartBeats] = useState(0);
@@ -919,6 +923,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
         'sep',
         { id: 'import-song', label: 'Import Melos Song…', hint: '.dawproject', onSelect: () => dawFileRef.current?.click() },
         { id: 'export-song', label: 'Export Melos Song', hint: '.dawproject', disabled: !!busy, onSelect: () => { void handleExportDawproject(); } },
+        { id: 'export-midi', label: 'Export MIDI', hint: '.mid', onSelect: () => downloadMidi(exportProjectMidi(doc), doc.name || 'Melos') },
         'sep',
         { id: 'bounce', label: onRenderTake ? `Bounce to take${takeTargetName ? ` — ${takeTargetName}` : ''}` : 'Bounce to WAV', hint: '24-bit', disabled: !!busy, onSelect: () => { void handleBounce(); } },
         { id: 'fabula', label: 'Send to Fabula', disabled: !!busy, onSelect: () => { void handleSendToFabula(); } },

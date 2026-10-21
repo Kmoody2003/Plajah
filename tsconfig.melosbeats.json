@@ -1,6 +1,8 @@
 {
   "extends": "./tsconfig.json",
-  "compilerOptions": { "noEmit": true },
+  "compilerOptions": {
+    "noEmit": true
+  },
   "include": [
     "services/melos/beats/tempoMap.ts",
     "services/melos/beats/songKey.ts",
@@ -17,6 +19,19 @@
     "components/melos/beats/timeline/TimelineEditPanel.tsx",
     "components/melos/beats/timeline/PianoRoll.tsx",
     "components/melos/beats/glass/StepGraphEditor.tsx",
-    "components/melos/beats/composer/HumRecorder.tsx"
+    "components/melos/beats/composer/HumRecorder.tsx",
+    "services/melos/beats/clipContent.ts",
+    "services/melos/beats/automation.ts",
+    "services/melos/beats/noteEdit.ts",
+    "services/melos/beats/midiExport.ts",
+    "services/melos/beats/engine/automationPlayer.ts",
+    "services/melos/beats/engine/graph.ts",
+    "services/melos/beats/dawproject/exportDawproject.ts",
+    "components/melos/beats/timeline/AutomationLaneEditor.tsx",
+    "components/melos/beats/timeline/TrackAutomation.tsx",
+    "components/melos/beats/useAutomationRecorder.ts",
+    "components/melos/beats/instrument/useInstrumentKeyboard.ts",
+    "tests/melosTimeAxis.test.ts",
+    "tests/melosEditing.test.ts"
   ]
 }
