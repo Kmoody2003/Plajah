@@ -2582,8 +2582,28 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   // Registers a video as the active source without touching videoRef.current.
   // Safe to call from VideoPlayer's mount effect — doesn't clear the video element's src.
   const activateVideoSource = useCallback((video: Video) => {
-    audioRef.current.pause();
-    audioRef.current.src = '';
+    // Video takes over playback, so the music path must be fully silenced, not just paused.
+    // A bare pause() left intendedPlayingRef set, so onPause treated it as an interruption and
+    // the resume-recovery (or a still-attached hls.js / decode fallback / in-flight playTrack)
+    // restarted the last music track on top of the film's audio.
+    intendedPlayingRef.current = false;
+    if (resumeRecoveryRef.current.timer) { clearTimeout(resumeRecoveryRef.current.timer); resumeRecoveryRef.current.timer = null; }
+    resumeRecoveryRef.current.tries = 0;
+    playbackRequestRef.current += 1; // abandon any async play/fallback work still in flight
+    stateRef.current.audioSource = 'VIDEO';
+    stateRef.current.currentTrack = null;
+    stateRef.current.currentAlbum = null;
+    if (decodedPlayerRef.current) {
+      try { decodedPlayerRef.current.stop(); } catch (_) {}
+      decodedPlayerRef.current = null;
+      usingDecodeFallbackRef.current = false;
+    }
+    if (hlsRef.current) { try { hlsRef.current.destroy(); } catch { /* */ } hlsRef.current = null; }
+    discardPrewarm();
+    const audio = audioRef.current;
+    audio.pause();
+    audio.removeAttribute('src');
+    try { audio.load(); } catch (_) {}
     try { ytPlayerRef.current?.stopVideo?.(); } catch (_) {}
     setCurrentVideo(video);
     setCurrentTrack(null);
