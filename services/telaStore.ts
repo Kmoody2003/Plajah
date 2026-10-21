@@ -21,6 +21,24 @@ import {
 import { db, auth } from './backendService';
 import type { TelaDoc, TelaDocMeta, TelaVersion, TelaVersionMeta } from '../types';
 import { decryptWith, encryptWith, isEncrypted } from './cryptoService';
+import {
+  deleteCloudProject,
+  getCloudHead,
+  isCloudNewer,
+  listCloudProjects,
+  loadCloudProject,
+  nameCurrentVersion,
+  scheduleCreativeSync,
+  syncCreativeProject,
+} from './creativeCloud/cloudStore';
+
+/** Cloud copies (services/creativeCloud) are filed under this kind. */
+export const TELA_CLOUD_KIND = 'tela';
+
+/** Gives up on the network after `ms` so an offline open/list never hangs. */
+function withTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return Promise.race([p, new Promise<T>((r) => setTimeout(() => r(fallback), ms))]);
+}
 
 const OPFS_DIR = 'tela';
 const VERSIONS_DIR = 'versions';
@@ -111,6 +129,16 @@ async function restoreSensitiveComponents(doc: TelaDoc): Promise<TelaDoc> {
   return changed ? { ...doc, devices } : doc;
 }
 
+/** A doc exactly as the store keeps it (sensitive Notes encrypted) — what cloud history holds. */
+export async function serializeTelaDocForStore(doc: TelaDoc): Promise<string> {
+  return JSON.stringify(await protectSensitiveComponents(doc));
+}
+
+/** Reads a stored / cloud-version JSON back into a live doc. */
+export async function telaDocFromStoredJson(json: string): Promise<TelaDoc> {
+  return restoreSensitiveComponents(JSON.parse(json) as TelaDoc);
+}
+
 /** Where docs are being kept on this device (for the save-state indicator). */
 export async function telaStorageMode(): Promise<'opfs' | 'local'> {
   return (await opfsAvailable()) ? 'opfs' : 'local';
@@ -137,11 +165,55 @@ export async function saveTelaDoc(doc: TelaDoc): Promise<{ ok: boolean; synced: 
     catch (e) { console.error('[telaStore] saveTelaDoc failed (no storage available)', e); }
   }
   const synced = ok ? await upsertManifest(doc) : false;
-  if (ok) emitDocChanged({ docId: doc.id, versionId: doc.currentVersionId, kind: 'save' });
+  if (ok) {
+    emitDocChanged({ docId: doc.id, versionId: doc.currentVersionId, kind: 'save' });
+    // Cloud copy + version history (throttled; sensitive Notes are already encrypted in `json`).
+    scheduleCreativeSync({ kind: TELA_CLOUD_KIND, localId: doc.id, title: doc.title || 'Untitled canvas', json });
+  }
   return { ok, synced };
 }
 
+/** Writes a doc fetched from the cloud into this device's store (no re-upload). */
+async function cacheLocally(json: string, id: string): Promise<void> {
+  if (await opfsAvailable()) {
+    try {
+      const dir = await telaDir();
+      const w = await (await dir.getFileHandle(`${id}.json`, { create: true })).createWritable();
+      await w.write(json);
+      await w.close();
+      return;
+    } catch { /* fall back */ }
+  }
+  try { localStorage.setItem(LS_PREFIX + id, json); } catch { /* full: still opens this session */ }
+}
+
+/** Fetches the cloud copy of a doc, caches it on this device, and returns it decrypted. */
+async function loadFromCloud(id: string): Promise<TelaDoc | null> {
+  const cloud = await withTimeout(loadCloudProject(TELA_CLOUD_KIND, id), 15000, null);
+  if (!cloud) return null;
+  try {
+    await cacheLocally(cloud.json, id);
+    return restoreSensitiveComponents(JSON.parse(cloud.json) as TelaDoc);
+  } catch { return null; }
+}
+
+/**
+ * Opens a doc from wherever its newest copy is: this device, or the cloud when another device
+ * saved after this one last saw it. Used when the author opens a canvas.
+ */
+export async function loadTelaDocFreshest(id: string): Promise<TelaDoc | null> {
+  const local = await loadLocalTelaDoc(id);
+  const head = await withTimeout(getCloudHead(TELA_CLOUD_KIND, id), 4000, null);
+  if (head && (!local || isCloudNewer(head, local.updatedAt))) return (await loadFromCloud(id)) ?? local;
+  return local;
+}
+
+/** This device's copy, falling back to the cloud copy when the doc was made elsewhere. */
 export async function loadTelaDoc(id: string): Promise<TelaDoc | null> {
+  return (await loadLocalTelaDoc(id)) ?? loadFromCloud(id);
+}
+
+async function loadLocalTelaDoc(id: string): Promise<TelaDoc | null> {
   if (await opfsAvailable()) {
     try {
       const dir = await telaDir();
@@ -174,7 +246,16 @@ export async function listTelaDocs(): Promise<TelaDocMeta[]> {
     } catch (e) { console.warn('[telaStore] listTelaDocs OPFS scan failed', e); }
   }
   for (const d of lsList()) {
-    if (d?.id && !seen.has(d.id)) metas.push(toMeta(d));
+    if (d?.id && !seen.has(d.id)) { metas.push(toMeta(d)); seen.add(d.id); }
+  }
+  // Docs saved from the user's other devices (open anywhere; content downloads on open).
+  for (const head of await withTimeout(listCloudProjects(TELA_CLOUD_KIND), 4000, [])) {
+    const local = metas.find((m) => m.id === head.localId);
+    if (local) {
+      if (head.updatedAt > local.updatedAt) { local.updatedAt = head.updatedAt; local.title = head.title; }
+      continue;
+    }
+    metas.push({ id: head.localId, ownerId: head.ownerId, title: head.title, createdAt: head.createdAt, updatedAt: head.updatedAt });
   }
   return metas.sort((a, b) => b.updatedAt - a.updatedAt);
 }
@@ -186,6 +267,7 @@ export async function deleteTelaDoc(id: string): Promise<void> {
   }
   try { localStorage.removeItem(LS_PREFIX + id); } catch { /* */ }
   await deleteManifest(id);
+  await deleteCloudProject(TELA_CLOUD_KIND, id).catch(() => {});
 }
 
 function toMeta(d: TelaDoc): TelaDocMeta {
@@ -301,6 +383,13 @@ export async function publishTelaVersion(doc: TelaDoc, label?: string): Promise<
   // Adopt the stamped fields onto the live doc + persist (saveTelaDoc emits 'save').
   const stamped: TelaDoc = { ...doc, locked: true, currentVersionId: versionId, updatedAt: Date.now() };
   if (ok) await saveTelaDoc(stamped);
+  // Pin the published edition in the cloud history too (never thinned, opens on any device).
+  if (ok) {
+    const json = JSON.stringify(await protectSensitiveComponents(stamped));
+    void syncCreativeProject({ kind: TELA_CLOUD_KIND, localId: doc.id, title: doc.title || 'Untitled canvas', json })
+      .then((r) => (r.state === 'synced' ? nameCurrentVersion(TELA_CLOUD_KIND, doc.id, label || 'Published', 'publish') : null))
+      .catch(() => {});
+  }
   // Explicit publish signal (versionId set) so follow-latest embeds jump to it.
   if (ok) emitDocChanged({ docId: doc.id, versionId, kind: 'publish' });
   return { ok, version, doc: stamped };

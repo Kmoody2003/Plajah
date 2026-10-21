@@ -16,17 +16,17 @@ import { createPortal } from 'react-dom';
 import {
   BarChart3, BookHeart, BookOpen, Brush, CheckCircle2, ChevronDown, ChevronLeft, Circle, CircleHelp, Clipboard, Copy, CopyPlus, Database, Eye, EyeOff, Feather, FileDown, FilePlus2, FileText, FileUp, FlipHorizontal, Folder, FormInput,
   Grid3X3, Hand, Hexagon, Image as ImageIcon, ImagePlus, Lasso, Layers, LayoutPanelTop, Link as LinkIcon, Link2, Loader2, Maximize2, Minimize2,
-  Minus, Monitor, MousePointer2, MousePointerClick, Music2, Paintbrush, Eraser, Palette, Pencil, PenLine, PenTool, Pipette, Plus, Redo2, Scan, Shapes, Sliders, Sparkles, Spline, Square, Star, TextQuote, Trash2, Type, Undo2, Wand2, X, ZoomIn,
-} from 'lucide-react';
+  Minus, Monitor, MousePointer2, MousePointerClick, Music2, Paintbrush, Eraser, Palette, Pencil, PenLine, PenTool, Pipette, Plus, Redo2, Scan, Shapes, Sliders, Sparkles, Spline, Square, Star, TextQuote, Trash2, Type, Undo2, Wand2, X, ZoomIn, History as HistoryIcon } from 'lucide-react';
 import type {
   TelaAssignmentAudienceRole, TelaBaseDevice, TelaBinding, TelaBlock, TelaDevice, TelaDoc, TelaDocMeta, TelaField,
   TelaFormDevice, TelaFrame, TelaFramePreset, TelaGridDevice, TelaImageDevice, TelaImageLayer, TelaMediaDevice, TelaMediaKind, TelaNotesDevice,
   TelaRow, TelaVectorDevice, TelaVectorObject, TelaWriterDevice,
 } from '../../types';
 import {
-  deleteTelaDoc, listTelaDocs, loadTelaDoc, newTelaId, saveTelaDoc, telaStorageMode,
+  deleteTelaDoc, listTelaDocs, loadTelaDoc, loadTelaDocFreshest, newTelaId, serializeTelaDocForStore, telaDocFromStoredJson, TELA_CLOUD_KIND, saveTelaDoc, telaStorageMode,
   publishTelaVersion,
 } from '../../services/telaStore';
+import { CreativeStorageMeter, CreativeVersionHistory, useCreativeSyncState } from '../creative/CreativeCloudPanels';
 import { auth } from '../../services/backendService';
 import { extractDocument, isSupportedImport, escapeHtml, SUPPORTED_IMPORT_ACCEPT } from '../../services/documentImport';
 import { uploadTelaAsset, uploadTelaImage } from '../../services/telaAssets';
@@ -347,6 +347,8 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
   const [cam, setCam] = useState({ x: 0, y: 0, z: 1 });
   const [activeFrameId, setActiveFrameId] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>('clean');
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const cloudSync = useCreativeSyncState(TELA_CLOUD_KIND, doc?.id);
   const [storageMode, setStorageMode] = useState<'opfs' | 'local'>('opfs');
   const [canvasList, setCanvasList] = useState<TelaDocMeta[] | null>(null);
   const [canvasesOpen, setCanvasesOpen] = useState(false);
@@ -475,7 +477,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
       const requestedId = initialDocId || metas[0]?.id;
       if (initialDocId) setShowHome(false);
       if (requestedId) {
-        const d = await loadTelaDoc(requestedId);
+        const d = await loadTelaDocFreshest(requestedId);
         if (!alive) return;
         if (d) { const hydrated = await hydrateTelaDomainDoc(d); if (!alive) return; openDoc(hydrated); if (hydrated !== d) void saveTelaDoc(hydrated); return; }
       }
@@ -1969,7 +1971,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
   const openCanvas = async (id: string) => {
     const cur = docRef.current;
     if (cur && cur.id !== id) await saveTelaDoc(cur);
-    const d = await loadTelaDoc(id);
+    const d = await loadTelaDocFreshest(id);
     if (d) { const hydrated = await hydrateTelaDomainDoc(d); openDoc(hydrated); if (hydrated !== d) void saveTelaDoc(hydrated); }
     setShowHome(false);
     setCanvasesOpen(false);
@@ -2456,6 +2458,10 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
   const saveLabel =
     saveState === 'saving' ? 'Saving…'
     : saveState === 'dirty' ? 'Unsaved'
+    : cloudSync === 'syncing' ? 'Saving to cloud…'
+    : cloudSync === 'synced' ? 'Saved to cloud'
+    : cloudSync === 'offline' ? 'Offline · saved on this device'
+    : cloudSync === 'error' ? 'Saved on this device · cloud retrying'
     : saveState === 'synced' ? 'Saved · synced'
     : saveState === 'saved' ? (storageMode === 'opfs' ? 'Saved on this device' : 'Saved (browser storage)')
     : 'Saved';
@@ -2682,16 +2688,39 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
           <Link2 size={15} /> Embed demo
         </button>
 
-        {/* Save state */}
-        <span
-          className="text-[.68rem] font-semibold px-2.5 h-9 inline-flex items-center rounded-[10px] border"
-          style={{
-            color: saveState === 'dirty' ? 'var(--pj-warning, #F59E0B)' : saveState === 'synced' ? 'var(--pj-success, #06D6A0)' : 'rgba(255,255,255,0.55)',
-            borderColor: 'rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.04)',
-          }}
-        >
-          {saveLabel}
-        </span>
+        {/* Save state — click for version history */}
+        <div className="relative">
+          <button
+            className="text-[.68rem] font-semibold px-2.5 h-9 inline-flex items-center gap-1 rounded-[10px] border"
+            style={{
+              color: saveState === 'dirty' ? 'var(--pj-warning, #F59E0B)' : saveState === 'synced' || cloudSync === 'synced' ? 'var(--pj-success, #06D6A0)' : 'rgba(255,255,255,0.55)',
+              borderColor: 'rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.04)',
+            }}
+            title="Version history"
+            onClick={() => setHistoryOpen(o => !o)}
+          >
+            {saveLabel}<ChevronDown size={12} className="opacity-60" />
+          </button>
+          {historyOpen && doc && (
+            <div style={{ ...menuStyle, width: 320, padding: 12 }} className="flex flex-col gap-3 max-h-[70vh] overflow-y-auto custom-scrollbar">
+              <CreativeVersionHistory
+                kind={TELA_CLOUD_KIND}
+                localId={doc.id}
+                title={doc.title || 'Untitled canvas'}
+                getCurrentJson={() => serializeTelaDocForStore(docRef.current ?? doc)}
+                onRestore={async (json) => {
+                  const restored = await telaDocFromStoredJson(json);
+                  const next = { ...restored, id: doc.id, updatedAt: Date.now() };
+                  openDoc(next);
+                  const { ok, synced } = await saveTelaDoc(next);
+                  setSaveState(ok ? (synced ? 'synced' : 'saved') : 'dirty');
+                  setHistoryOpen(false);
+                }}
+              />
+              <CreativeStorageMeter />
+            </div>
+          )}
+        </div>
 
         {/* My Canvases */}
         <div className="relative">
@@ -2759,6 +2788,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
               <div className="h-px my-1 bg-white/[.07]"/>
               <button className={menuBarItem} onClick={() => { void saveTelaDoc(doc).then(({ok,synced}) => setSaveState(ok ? (synced ? 'synced' : 'saved') : 'dirty')); setAppMenuOpen(null); }}><CheckCircle2 size={14}/>Save<span className="ml-auto text-[9px] text-white/25">Ctrl+S</span></button>
               <button className={menuBarItem} onClick={() => void saveAsCopy()}><CopyPlus size={14}/>Save a copy</button>
+              <button className={menuBarItem} onClick={() => { setHistoryOpen(true); setAppMenuOpen(null); }}><HistoryIcon size={14}/>Version history</button>
               <button className={menuBarItem} onClick={() => { downloadTelaBoard(doc); setAppMenuOpen(null); }}><FileDown size={14}/>Download Tela board<span className="ml-auto text-[9px] text-white/25">.tela</span></button>
               <div className="h-px my-1 bg-white/[.07]"/>
               <button className={menuBarItem} onClick={() => { exportPdf(); setAppMenuOpen(null); }} disabled={!activeFrame}><FileDown size={14}/>Print / save active page as PDF<span className="ml-auto text-[9px] text-white/25">Ctrl+P</span></button>

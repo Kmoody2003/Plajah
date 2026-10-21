@@ -81,6 +81,7 @@
     "test:transcode": "npx tsx --test tests/choraTranscodeWorker.test.ts",
     "test:showcase": "npx tsx --test tests/showcaseBooks.test.ts",
     "test:comicproject": "npx tsx --test tests/comicProject.test.ts",
+    "test:creativecloud": "npx tsx --test tests/creativeCloud.test.ts",
     "test:showcaselive": "npx tsx --test tests/showcaseLive*.test.ts",
     "showcase:pages": "npx tsx scripts/showcase/exportPages.ts",
     "showcase:living": "npx tsx scripts/showcase/publishLiving.ts",

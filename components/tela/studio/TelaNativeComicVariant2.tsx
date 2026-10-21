@@ -83,7 +83,13 @@ import {
   setLastComicProjectId,
   stashPendingComicProject,
   takePendingComicProject,
+  COMIC_CLOUD_KIND,
 } from '../../../services/comicProject/store';
+import {
+  CreativeStorageMeter,
+  CreativeSyncPill,
+  CreativeVersionHistory,
+} from '../../creative/CreativeCloudPanels';
 import {
   listShowcaseCatalog,
   openShowcaseAsProject,
@@ -380,6 +386,8 @@ export interface TelaComicVariant2Controller {
   importProjectFile: (file: File) => Promise<void>;
   exportShowcaseJson: () => void;
   deleteSavedProject: (id: string) => Promise<void>;
+  /** Replace the open project with a restored version's JSON (autosaves as a new edit). */
+  restoreProjectJson: (json: string) => void;
 
   // ── Living graphic novel playback + direct edits ──
   readMode: boolean;
@@ -675,6 +683,19 @@ export function useTelaComicVariant2Controller(extraDocWords = 0, active = true)
       flush();
     };
   }, []);
+
+  const restoreProjectJson = useCallback(
+    (json: string) => {
+      try {
+        const p = JSON.parse(json) as ComicProject;
+        if (p?.schema !== 'plajah.comicProject') throw new Error('Not a comic project version.');
+        openProject({ ...p, id: project.id }, true);
+      } catch (err) {
+        setProjectError(err instanceof Error ? err.message : 'Could not restore that version.');
+      }
+    },
+    [openProject, project.id]
+  );
 
   const loadShowcaseBook = useCallback((bookId: string) => void openShowcase(bookId), [openShowcase]);
 
@@ -1161,6 +1182,7 @@ export function useTelaComicVariant2Controller(extraDocWords = 0, active = true)
     importProjectFile,
     exportShowcaseJson,
     deleteSavedProject,
+    restoreProjectJson,
     readMode,
     setReadMode,
     loopsEnabled,
@@ -2742,6 +2764,7 @@ const fieldCls = 'w-full px-2 rounded-[8px] text-[.68rem] text-white/85 outline-
 const ComicProjectCard: React.FC<{ ctrl: TelaComicVariant2Controller }> = ({ ctrl }) => {
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [open, setOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const p = ctrl.project;
   const panelCount = p.pages.reduce((n, pg) => n + pg.panels.length, 0);
   const saveLabel =
@@ -2794,6 +2817,24 @@ const ComicProjectCard: React.FC<{ ctrl: TelaComicVariant2Controller }> = ({ ctr
         <input type="checkbox" checked={ctrl.loopsEnabled} onChange={(e) => ctrl.setLoopsEnabled(e.target.checked)} />
         Play living panel loops
       </label>
+      <div className="flex items-center justify-between gap-2">
+        <CreativeSyncPill kind={COMIC_CLOUD_KIND} localId={p.id} />
+        <button onClick={() => setHistoryOpen((v) => !v)} className="text-[.62rem] font-bold text-[#D0BCFF] hover:underline">
+          {historyOpen ? 'Hide history' : 'History'}
+        </button>
+      </div>
+      {historyOpen && (
+        <div className="rounded-[10px] p-2 flex flex-col gap-2" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <CreativeVersionHistory
+            kind={COMIC_CLOUD_KIND}
+            localId={p.id}
+            title={p.title}
+            getCurrentJson={() => JSON.stringify(ctrl.project)}
+            onRestore={ctrl.restoreProjectJson}
+          />
+          <CreativeStorageMeter />
+        </div>
+      )}
       {ctrl.projectError && <div className="text-[10px] text-red-300">{ctrl.projectError}</div>}
 
       {open && (
@@ -2830,7 +2871,7 @@ const ComicProjectCard: React.FC<{ ctrl: TelaComicVariant2Controller }> = ({ ctr
               >
                 <div className="text-[.68rem] font-bold text-white truncate">{s.title}</div>
                 <div className="text-[9px] text-white/40">
-                  {s.pageCount} pages · {new Date(s.updatedAt).toLocaleString()}
+                  {s.inCloudOnly ? 'From another device' : `${s.pageCount} pages`} · {new Date(s.updatedAt).toLocaleString()}
                 </div>
               </button>
               {p.id !== s.id && (

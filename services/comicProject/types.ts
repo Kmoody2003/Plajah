@@ -285,6 +285,8 @@ export interface ComicProjectSummary {
   coverUrl?: string;
   source?: ComicProject['source'];
   updatedAt: number;
+  /** Saved from another device; downloads when opened. */
+  inCloudOnly?: boolean;
 }
 
 export const DEFAULT_PAGE_ASPECT = 1040 / 780;

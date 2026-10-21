@@ -70,6 +70,7 @@ import { PLATFORM_CUT_PCT as BOOK_PLATFORM_CUT_PCT } from './services/bookmeta/p
 import { readRegistry as readEditionRegistry, licenceActive, entitledEditions, editionOf, type BookVersionStamp } from './services/bookEditions/policy';
 import { createLedgerRouter, appendLedger } from './routes/ledger';
 import { createSponsorCopiesRouter, activateCopyPool } from './routes/sponsorCopies';
+import { createCreativeStorageRouter } from './routes/creativeStorage';
 import { academiaIntegrityRouter } from './routes/academiaIntegrity';
 import { kithSightingsRouter } from './routes/kithSightings';
 import { createAriaSpeakRouter, decideAriaVoiceAccess } from './routes/ariaSpeak';
@@ -13398,6 +13399,8 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
     canManageHost: (uid, kind, id) => eventHostAccess(uid, kind, id),
     firestoreIncrement: (path, inc) => firestoreIncrement(path, inc), sendEmail: resendEmail,
   }));
+  // Creative storage: server recount of a user's cloud creative projects (5 GB free; not enforced yet).
+  app.use('/api/creative-storage', createCreativeStorageRouter({ authMiddleware }));
   app.use('/api/books', express.json({ limit: '14mb' }), bookSubmissionsRouter);
   // Article syndication (RSS/Atom per author or publication, AMP-lite, Apple News Format, email render).
   app.use('/feeds', articleFeedsRouter);

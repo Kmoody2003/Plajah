@@ -2,10 +2,21 @@
 //
 // Projects live in IndexedDB (a 294-panel graphic novel is too big for localStorage);
 // a small index keeps the open-project picker fast. The last opened id is remembered
-// so Tela comic mode reopens where the author left off.
+// so Tela comic mode reopens where the author left off. Every save also queues a cloud copy
+// with version history (services/creativeCloud), so projects open on any signed-in device.
 
 import { get as idbGet, set as idbSet, del as idbDel } from 'idb-keyval';
 import type { ComicProject, ComicProjectSummary } from './types';
+import {
+  deleteCloudProject,
+  getCloudHead,
+  isCloudNewer,
+  listCloudProjects,
+  loadCloudProject,
+  scheduleCreativeSync,
+} from '../creativeCloud/cloudStore';
+
+export const COMIC_CLOUD_KIND = 'comic';
 
 const KEY = (id: string) => `comicProject:${id}`;
 const INDEX_KEY = 'comicProject:index';
@@ -30,14 +41,54 @@ export function summarizeComicProject(p: ComicProject): ComicProjectSummary {
   };
 }
 
-export async function listComicProjects(): Promise<ComicProjectSummary[]> {
-  const index = (await idbGet<ComicProjectSummary[]>(INDEX_KEY)) ?? [];
-  return [...index].sort((a, b) => b.updatedAt - a.updatedAt);
+function withTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return Promise.race([p, new Promise<T>((r) => setTimeout(() => r(fallback), ms))]);
 }
 
+/** Projects on this device plus those saved from the user's other devices. */
+export async function listComicProjects(): Promise<ComicProjectSummary[]> {
+  const index = [...((await idbGet<ComicProjectSummary[]>(INDEX_KEY)) ?? [])];
+  for (const head of await withTimeout(listCloudProjects(COMIC_CLOUD_KIND), 4000, [])) {
+    const local = index.find((s) => s.id === head.localId);
+    if (local) {
+      if (head.updatedAt > local.updatedAt) index[index.indexOf(local)] = { ...local, title: head.title, updatedAt: head.updatedAt };
+      continue;
+    }
+    index.push({ id: head.localId, title: head.title, format: 'comic', pageCount: 0, panelCount: 0, coverUrl: head.coverUrl, updatedAt: head.updatedAt, inCloudOnly: true });
+  }
+  return index.sort((a, b) => b.updatedAt - a.updatedAt);
+}
+
+function parseProject(json: string): ComicProject | null {
+  try {
+    const p = JSON.parse(json);
+    return p && p.schema === 'plajah.comicProject' ? (p as ComicProject) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Opens the newest copy: this device's, or the cloud's when another device saved after it. */
 export async function loadComicProject(id: string): Promise<ComicProject | null> {
-  const p = await idbGet<ComicProject>(KEY(id));
-  return p && p.schema === 'plajah.comicProject' ? p : null;
+  const stored = await idbGet<ComicProject>(KEY(id));
+  const local = stored && stored.schema === 'plajah.comicProject' ? stored : null;
+  const head = await withTimeout(getCloudHead(COMIC_CLOUD_KIND, id), 4000, null);
+  if (head && (!local || isCloudNewer(head, local.updatedAt))) {
+    const cloud = await withTimeout(loadCloudProject(COMIC_CLOUD_KIND, id), 20000, null);
+    const p = cloud ? parseProject(cloud.json) : null;
+    if (p) {
+      await cacheLocally(p);
+      return p;
+    }
+  }
+  return local;
+}
+
+/** Puts a project (e.g. one fetched from the cloud or a restored version) on this device without re-uploading. */
+export async function cacheLocally(project: ComicProject) {
+  await idbSet(KEY(project.id), project);
+  const index = (await idbGet<ComicProjectSummary[]>(INDEX_KEY)) ?? [];
+  await idbSet(INDEX_KEY, [summarizeComicProject(project), ...index.filter((s) => s.id !== project.id)]);
 }
 
 export async function saveComicProject(project: ComicProject): Promise<ComicProject> {
@@ -47,6 +98,13 @@ export async function saveComicProject(project: ComicProject): Promise<ComicProj
   const summary = summarizeComicProject(saved);
   await idbSet(INDEX_KEY, [summary, ...index.filter((s) => s.id !== saved.id)]);
   setLastComicProjectId(saved.id);
+  scheduleCreativeSync({
+    kind: COMIC_CLOUD_KIND,
+    localId: saved.id,
+    title: saved.title,
+    json: JSON.stringify(saved),
+    ...(summary.coverUrl && !summary.coverUrl.startsWith('blob:') && !summary.coverUrl.startsWith('data:') ? { coverUrl: summary.coverUrl } : {}),
+  });
   return saved;
 }
 
@@ -55,6 +113,7 @@ export async function deleteComicProject(id: string): Promise<void> {
   const index = (await idbGet<ComicProjectSummary[]>(INDEX_KEY)) ?? [];
   await idbSet(INDEX_KEY, index.filter((s) => s.id !== id));
   if (getLastComicProjectId() === id) setLastComicProjectId(null);
+  await deleteCloudProject(COMIC_CLOUD_KIND, id).catch(() => {});
 }
 
 export function getLastComicProjectId(): string | null {
