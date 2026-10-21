@@ -119,7 +119,7 @@ const ElevateLivePanel: React.FC<{ church: Organization }> = ({ church }) => {
   const runDueNow = async () => {
     setBusy('due');
     try {
-      const res = await processDueElevateRuns();
+      const res = await processDueElevateRuns(Date.now(), church.id);
       flash(res.processed.length ? `Generated ${res.processed.length} run(s).` : res.errors.length ? `Errors: ${res.errors.map(e => e.error).join(', ')}` : 'No runs are due yet.');
       await load();
     } catch { flash('Sweep failed.'); }

@@ -55,8 +55,13 @@ export async function updateElevateLiveRun(id: string, patch: Partial<ElevateLiv
  * processed. Claims each by flipping it to PROCESSING before returning it —
  * callers must mark READY/ERROR when done.
  */
-export async function claimDueElevateRuns(now = Date.now(), archiveBufferMs = 5 * 60 * 1000, max = 10): Promise<ElevateLiveRun[]> {
-  const snap = await getDocs(query(collection(db, ELEVATE_RUNS), where('status', 'in', ['SCHEDULED', 'MONITORING']), qlimit(50)));
+export async function claimDueElevateRuns(now = Date.now(), archiveBufferMs = 5 * 60 * 1000, max = 10, orgId?: string): Promise<ElevateLiveRun[]> {
+  // When orgId is given (the Master Control panel sweep), scope the query to
+  // that org — Firestore rules are per-doc org-admin, so an unscoped sweep
+  // query is denied from a client session.
+  const constraints: any[] = [where('status', 'in', ['SCHEDULED', 'MONITORING']), qlimit(50)];
+  if (orgId) constraints.unshift(where('orgId', '==', orgId));
+  const snap = await getDocs(query(collection(db, ELEVATE_RUNS), ...constraints));
   const due = snap.docs
     .map(d => d.data() as ElevateLiveRun)
     .filter(r => r.windowEnd + archiveBufferMs <= now)

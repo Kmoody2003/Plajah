@@ -4602,6 +4602,34 @@ service cloud.firestore {
       }
     }
 
+    // ── Plajah Elevate Live (auto article + briefing from live streams) ──────
+    // Master Control → Elevate Live surface: per-org config, scheduled runs,
+    // generated briefings and repurpose jobs. Org admins (creatorId/admins)
+    // manage their own org's docs; platform admins manage all.
+    match /elevateLiveConfigs/{orgId} {
+      allow read: if orgAdminOf(orgId) || isAdmin();
+      allow create, update: if orgAdminOf(orgId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+    match /elevateLiveRuns/{runId} {
+      allow read: if orgAdminOf(resource.data.orgId) || isAdmin();
+      allow create: if orgAdminOf(request.resource.data.orgId) || isAdmin();
+      allow update: if orgAdminOf(resource.data.orgId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+    match /elevateBriefings/{briefingId} {
+      allow read: if orgAdminOf(resource.data.orgId) || isAdmin();
+      allow create: if orgAdminOf(request.resource.data.orgId) || isAdmin();
+      allow update: if orgAdminOf(resource.data.orgId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+    match /contentRepurposeJobs/{jobId} {
+      allow read: if orgAdminOf(resource.data.orgId) || isAdmin();
+      allow create: if orgAdminOf(request.resource.data.orgId) || isAdmin();
+      allow update: if orgAdminOf(resource.data.orgId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
     // ===============================================================
     // COMMUNITY PLAYLISTS — public playlist sharing across the platform
     // ===============================================================

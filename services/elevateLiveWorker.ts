@@ -46,13 +46,13 @@ export async function findArchiveForRun(run: ElevateLiveRun, ownerIds: string[])
 let processing = false;
 
 /** One sweep: claim every due run and process it end-to-end. */
-export async function processDueElevateRuns(now = Date.now()): Promise<{ processed: string[]; errors: Array<{ runId: string; error: string }> }> {
+export async function processDueElevateRuns(now = Date.now(), orgId?: string): Promise<{ processed: string[]; errors: Array<{ runId: string; error: string }> }> {
   const processed: string[] = [];
   const errors: Array<{ runId: string; error: string }> = [];
   if (processing) return { processed, errors };
   processing = true;
   try {
-    const runs = await claimDueElevateRuns(now);
+    const runs = await claimDueElevateRuns(now, 5 * 60 * 1000, 10, orgId);
     for (const run of runs) {
       try {
         let org: Organization | null = null;
