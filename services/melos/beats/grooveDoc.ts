@@ -32,6 +32,10 @@ export interface PadConfig {
   group: 0 | 1 | 2 | 3;         // bus A–D
   choke: number;                // 0 = none, 1–8 = choke group (open/closed hat pairs etc.)
   mute?: boolean;               // per-channel mute (FL rack style) — scheduler skips, live hits too
+  /** Channel solo (Glass rack): while any pad is soloed, only soloed pads play in the sequence. */
+  solo?: boolean;
+  /** Per-channel swing 0..1 on offbeat 16ths (FL channel shuffle). Absent = the song's swing. */
+  swing?: number;
   // A greyed placeholder in a Maschine "Group" (bank of 16) — no sound yet. The scheduler and live
   // hits skip it; the pad grid shows it dimmed; adding an instrument fills the first empty pad.
   empty?: boolean;
@@ -80,6 +84,11 @@ export interface Step {
   pan?: number;   // -1..1 pan for this hit only (overrides the pad's pan)
   /** Step Effects: index into the pad's stepFx slots (feature 2), or undefined = dry. */
   fx?: number;
+  // Glass graph lanes (FL's channel graph). All optional; absent = the pad's own setting.
+  fine?: number;  // −100..100 cents on top of `pitch`
+  cut?: number;   // 0..1 per-hit low-pass cutoff (40 Hz … 20 kHz, log), FL "Mod X"
+  res?: number;   // 0..1 per-hit filter resonance, FL "Mod Y" (applies with `cut`)
+  rel?: number;   // 0..1 tail length: 0.5 = the pad's own decay/release, 0 = ×¼, 1 = ×4
 }
 
 // A drawn note in the pitch roll: semitone offset from the pad's own tuning, velocity, and

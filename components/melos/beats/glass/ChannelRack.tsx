@@ -5,9 +5,47 @@
 // pad-backed (imported .dawproject synth tracks) list below the rack so nothing you add is
 // ever invisible here.
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { GrooveDoc, Pattern } from '../../../../services/melos/beats/grooveDoc';
 import { padGroup } from '../../../../services/melos/beats/songSections';
+import {
+  cloneChannel, deleteChannel, fillEvery, invertRow, moveChannel, randomizeRow, rotateRow, sendRowToPitchRoll,
+} from '../../../../services/melos/beats/channelOps';
+import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine';
+
+/** QWERTY → semitones (z = C … m = B, q row an octave up) for step recording, like FL's typing keyboard. */
+const STEP_KEYS: Record<string, number> = {
+  z: 0, s: 1, x: 2, d: 3, c: 4, v: 5, g: 6, b: 7, h: 8, n: 9, j: 10, m: 11, ',': 12,
+  q: 12, '2': 13, w: 14, '3': 15, e: 16, r: 17, '5': 18, t: 19, '6': 20, y: 21, '7': 22, u: 23, i: 24,
+};
+
+/** A rack-sized knob: drag up/down (Shift = fine), wheel, double-click resets. */
+const RackKnob: React.FC<{ value: number; min: number; max: number; def: number; color: string; label: string; format: (v: number) => string; onChange: (v: number) => void }> =
+  ({ value, min, max, def, color, label, format, onChange }) => {
+    const drag = useRef<{ y: number; v: number } | null>(null);
+    const frac = Math.max(0, Math.min(1, (value - min) / (max - min)));
+    return (
+      <div
+        role="slider" aria-label={label} aria-valuemin={min} aria-valuemax={max} aria-valuenow={value} tabIndex={0}
+        title={`${label}: ${format(value)} — drag (Shift = fine) · double-click resets`}
+        className="w-[18px] h-[18px] rounded-full cursor-ns-resize touch-none"
+        style={{
+          background: `conic-gradient(${color} ${Math.round(frac * 100)}%, rgba(255,255,255,0.12) 0)`,
+          WebkitMask: 'radial-gradient(circle, transparent 0 4px, #000 4.5px)',
+          mask: 'radial-gradient(circle, transparent 0 4px, #000 4.5px)',
+        }}
+        onPointerDown={(e) => { e.stopPropagation(); (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); drag.current = { y: e.clientY, v: value }; }}
+        onPointerMove={(e) => {
+          const d = drag.current; if (!d) return;
+          const span = (max - min) * ((d.y - e.clientY) / (e.shiftKey ? 600 : 120));
+          onChange(Math.max(min, Math.min(max, d.v + span)));
+        }}
+        onPointerUp={() => { drag.current = null; }}
+        onDoubleClick={() => onChange(def)}
+        onWheel={(e) => { e.preventDefault(); onChange(Math.max(min, Math.min(max, value + ((max - min) / 40) * (e.deltaY < 0 ? 1 : -1)))); }}
+      />
+    );
+  };
 import { PLAYHEAD, SELECT } from '../theme';
 import { useContextMenu, type MenuNode } from '../../../ui/ContextMenu';
 
@@ -22,9 +60,11 @@ interface ChannelRackProps {
   onMutate: (fn: (d: GrooveDoc) => void) => void;
   /** Open an instrument's window (pad instruments and track instruments alike). */
   onOpenInstrument?: (trackId: string) => void;
+  /** FL "Send to piano roll": the row became pitch-roll notes — show them in MEKA's pitch roll. */
+  onOpenPianoRoll?: (padIdx: number) => void;
 }
 
-export const ChannelRack: React.FC<ChannelRackProps> = ({ doc, pattern, selectedPad, beats, running, playMode, onSelectPad, onMutate, onOpenInstrument }) => {
+export const ChannelRack: React.FC<ChannelRackProps> = ({ doc, pattern, selectedPad, beats, running, playMode, onSelectPad, onMutate, onOpenInstrument, onOpenPianoRoll }) => {
   const pages = Math.max(1, Math.ceil(pattern.length / 16));
   const [page, setPage] = useState(0);
   useEffect(() => { if (page >= pages) setPage(0); }, [pages, page]);
@@ -41,6 +81,60 @@ export const ChannelRack: React.FC<ChannelRackProps> = ({ doc, pattern, selected
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [globalPlayStep >= 0 ? Math.floor(globalPlayStep / 16) : -1]);
   const playStep = globalPlayStep >= colBase && globalPlayStep < colBase + cols ? globalPlayStep - colBase : -1;
+
+  // FL step recording: a cursor walks the selected channel's row; hitting a pad (or typing a note
+  // on the QWERTY keyboard for the selected channel) writes a step at the cursor and advances.
+  // ← → move, Backspace clears and steps back. Works while the transport is stopped (playing with
+  // record armed is live recording, handled by the room).
+  const [stepRec, setStepRec] = useState(false);
+  const [cursor, setCursor] = useState(0);
+  const stepState = useRef({ cursor: 0, selectedPad, pattern, onMutate });
+  stepState.current = { cursor, selectedPad, pattern, onMutate };
+  useEffect(() => { if (cursor >= pattern.length) setCursor(0); }, [pattern.length, cursor]);
+  const writeAtCursor = useCallback((padIdx: number, vel: number, pitch?: number) => {
+    const st = stepState.current;
+    const at = st.cursor;
+    st.onMutate((d) => {
+      const pat = d.patterns.find((x) => x.id === st.pattern.id);
+      if (!pat) return;
+      const row = (pat.steps[padIdx] ??= {});
+      row[at] = { ...(row[at] ?? {}), v: Math.max(1, Math.min(127, Math.round(vel))) };
+      if (pitch !== undefined && pitch !== 0) row[at].pitch = Math.max(-24, Math.min(24, pitch)); else if (pitch === 0) delete row[at].pitch;
+    });
+    setCursor((at + 1) % st.pattern.length);
+    setPage(Math.floor(((at + 1) % st.pattern.length) / 16));
+  }, []);
+  useEffect(() => {
+    if (!stepRec) return;
+    const engine = BeatsEngine.get();
+    const offHit = engine.onPadHit((hit) => { if (!engine.isRunning() && !hit.repeat) writeAtCursor(hit.padIdx, hit.vel); });
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (e.metaKey || e.ctrlKey || e.altKey || (el && typeof el.matches === 'function' && el.matches('input, textarea, select, [contenteditable="true"]'))) return;
+      const st = stepState.current;
+      const len = st.pattern.length;
+      const done = () => { e.preventDefault(); e.stopImmediatePropagation(); };
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        const next = (st.cursor + (e.key === 'ArrowRight' ? 1 : -1) + len) % len;
+        setCursor(next); setPage(Math.floor(next / 16)); done(); return;
+      }
+      if (e.key === 'Backspace') {
+        const prev = (st.cursor - 1 + len) % len;
+        st.onMutate((d) => { const pat = d.patterns.find((x) => x.id === st.pattern.id); if (pat?.steps[st.selectedPad]) delete pat.steps[st.selectedPad][prev]; });
+        setCursor(prev); setPage(Math.floor(prev / 16)); done(); return;
+      }
+      if (e.repeat) return;
+      const semi = STEP_KEYS[e.key.toLowerCase()];
+      if (semi === undefined) return;
+      done();
+      // Audition at an explicit time: an untimed trigger is a "live hit", which would also arrive
+      // through onPadHit above and write the step twice.
+      void engine.init().then(() => engine.trigger(st.selectedPad, 100, engine.getContext()?.currentTime ?? 0, 0.2, semi));
+      writeAtCursor(st.selectedPad, e.shiftKey ? 127 : 100, semi);
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => { offHit(); window.removeEventListener('keydown', onKey, true); };
+  }, [stepRec, writeAtCursor]);
 
   const [renamingPad, setRenamingPad] = useState<number | null>(null);
   const [renamingTrack, setRenamingTrack] = useState<string | null>(null);
@@ -70,11 +164,35 @@ export const ChannelRack: React.FC<ChannelRackProps> = ({ doc, pattern, selected
       { id: 'select', label: 'Select pad', onSelect: () => onSelectPad(padIdx) },
       { id: 'rename', label: 'Rename…', onSelect: () => { setNameText(pad.name); setRenamingPad(padIdx); } },
       { id: 'mute', label: 'Mute', checked: !!pad.mute, keepOpen: true, onSelect: () => onMutate((d) => { const p = d.kit[padIdx]; if (p) p.mute = !p.mute; }) },
+      { id: 'solo', label: 'Solo', checked: !!pad.solo, keepOpen: true, onSelect: () => onMutate((d) => { const p = d.kit[padIdx]; if (p) p.solo = !p.solo; }) },
+      { id: 'swing', label: `Swing · ${pad.swing === undefined ? 'song' : `${Math.round(pad.swing * 100)}%`}`, submenu: [
+        { id: 'sw-song', label: 'Follow the song', checked: pad.swing === undefined, onSelect: () => onMutate((d) => { const p = d.kit[padIdx]; if (p) delete p.swing; }) },
+        ...[0, 0.25, 0.5, 0.66, 0.75].map((v) => ({
+          id: `sw${v}`, label: `${Math.round(v * 100)}%`, checked: pad.swing === v, onSelect: () => onMutate((d) => { const p = d.kit[padIdx]; if (p) p.swing = v; }),
+        })),
+      ] },
+      { kind: 'separator' },
+      { id: 'tools', label: 'Steps', submenu: [
+        ...[2, 4, 8].map((n) => ({ id: `fill${n}`, label: `Fill each ${n} steps`, onSelect: () => editRow((pat) => fillEvery(pat, padIdx, n)) })),
+        { id: 'rotl', label: 'Rotate left', onSelect: () => editRow((pat) => rotateRow(pat, padIdx, -1)) },
+        { id: 'rotr', label: 'Rotate right', onSelect: () => editRow((pat) => rotateRow(pat, padIdx, 1)) },
+        { id: 'inv', label: 'Invert', onSelect: () => editRow((pat) => invertRow(pat, padIdx)) },
+        { id: 'rand', label: 'Randomize', onSelect: () => editRow((pat) => randomizeRow(pat, padIdx)) },
+      ] },
+      { id: 'roll', label: 'Send to piano roll', onSelect: () => { onMutate((d) => { const pat = d.patterns.find((x) => x.id === pattern.id); if (pat) sendRowToPitchRoll(pat, padIdx); }); onSelectPad(padIdx); onOpenPianoRoll?.(padIdx); } },
+      { kind: 'separator' },
+      { id: 'up', label: 'Move up', onSelect: () => { let to = padIdx; onMutate((d) => { to = moveChannel(d, padIdx, -1); }); onSelectPad(to); } },
+      { id: 'down', label: 'Move down', onSelect: () => { let to = padIdx; onMutate((d) => { to = moveChannel(d, padIdx, 1); }); onSelectPad(to); } },
+      { id: 'clone', label: 'Clone', onSelect: () => { let to = -1; onMutate((d) => { to = cloneChannel(d, padIdx, false); }); if (to >= 0) { onSelectPad(to); BeatsEngine.get().syncInstruments(); } } },
+      { id: 'clone-steps', label: 'Clone with steps', onSelect: () => { let to = -1; onMutate((d) => { to = cloneChannel(d, padIdx, true); }); if (to >= 0) { onSelectPad(to); BeatsEngine.get().syncInstruments(); } } },
       { kind: 'separator' },
       { id: 'clear', label: 'Clear steps', danger: true, onSelect: () => onMutate((d) => { const pat = d.patterns.find((p) => p.id === pattern.id); if (pat) pat.steps[padIdx] = {}; }) },
+      { id: 'delete', label: 'Delete channel', danger: true, onSelect: () => { onMutate((d) => deleteChannel(d, padIdx)); BeatsEngine.get().syncInstruments(); } },
     );
     return items;
   });
+
+  const editRow = (fn: (pat: Pattern) => void) => onMutate((d) => { const pat = d.patterns.find((x) => x.id === pattern.id); if (pat) fn(pat); });
 
   const commitPadRename = (padIdx: number) => {
     setRenamingPad(null);
@@ -100,6 +218,13 @@ export const ChannelRack: React.FC<ChannelRackProps> = ({ doc, pattern, selected
       {rowMenu.node}
       <div className="flex items-center gap-2 mb-2.5">
         <p className="text-[9px] uppercase tracking-[0.18em] text-white/30 font-semibold">Channel rack · {pattern.name}</p>
+        <button
+          onClick={() => setStepRec((v) => !v)}
+          aria-pressed={stepRec}
+          title={stepRec ? 'Step record ON — hit a pad (or type z…m for the selected channel) to write at the cursor · ← → move · Backspace clears' : 'Step record — write steps one at a time from pads or the keyboard'}
+          className="h-[18px] px-1.5 rounded text-[9px] font-semibold uppercase tracking-wide border transition-colors"
+          style={stepRec ? { color: '#FF4D8C', borderColor: 'rgba(255,77,140,0.55)', background: 'rgba(255,77,140,0.12)' } : { color: 'rgba(255,255,255,0.35)', borderColor: 'rgba(255,255,255,0.1)' }}
+        >Step rec{stepRec ? ` · ${cursor + 1}` : ''}</button>
         {pages > 1 && (
           <div className="flex gap-1">
             {Array.from({ length: pages }, (_, i) => (
@@ -124,7 +249,7 @@ export const ChannelRack: React.FC<ChannelRackProps> = ({ doc, pattern, selected
           const row = pattern.steps[padIdx] || {};
           const selected = padIdx === selectedPad;
           return (
-            <div key={pad.id} className="grid items-center gap-2" style={{ gridTemplateColumns: '18px 108px 1fr' }} {...rowMenu.bind(padIdx)}>
+            <div key={pad.id} className="grid items-center gap-2" style={{ gridTemplateColumns: '18px 108px 18px 18px 18px 1fr' }} {...rowMenu.bind(padIdx)}>
               <button
                 onClick={() => onMutate((d) => { const p = d.kit[padIdx]; if (p) p.mute = !p.mute; })}
                 aria-label={`${pad.mute ? 'Unmute' : 'Mute'} ${pad.name}`}
@@ -153,6 +278,20 @@ export const ChannelRack: React.FC<ChannelRackProps> = ({ doc, pattern, selected
                   style={selected ? { color: '#fff', background: `${SELECT}26`, fontWeight: 600 } : { color: pad.mute ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.6)' }}
                 >{pad.name}</button>
               )}
+              {/* In-rack volume + pan (the same channel the mixer drives) and solo. */}
+              <RackKnob label={`${pad.name} volume`} value={pad.gainDb} min={-40} max={6} def={0} color="#06D6A0"
+                format={(v) => `${v >= 0 ? '+' : ''}${v.toFixed(1)} dB`}
+                onChange={(v) => onMutate((d) => { const x = d.kit[padIdx]; if (x) x.gainDb = Math.round(v * 10) / 10; })} />
+              <RackKnob label={`${pad.name} pan`} value={pad.pan} min={-1} max={1} def={0} color="#D0BCFF"
+                format={(v) => (Math.abs(v) < 0.01 ? 'C' : v < 0 ? `L${Math.round(-v * 100)}` : `R${Math.round(v * 100)}`)}
+                onChange={(v) => onMutate((d) => { const x = d.kit[padIdx]; if (x) x.pan = Math.round(v * 100) / 100; })} />
+              <button
+                onClick={() => onMutate((d) => { const x = d.kit[padIdx]; if (x) x.solo = !x.solo; })}
+                aria-label={`Solo ${pad.name}`}
+                title={pad.solo ? 'Soloed — only soloed channels play' : 'Solo'}
+                className="w-[18px] h-[18px] rounded-[5px] border text-[8px] grid place-items-center"
+                style={pad.solo ? { background: 'rgba(0,218,243,0.2)', borderColor: PLAYHEAD, color: PLAYHEAD } : { borderColor: 'rgba(255,255,255,0.16)', color: 'rgba(255,255,255,0.35)' }}
+              >S</button>
               <div className="grid gap-[3px]" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
                 {Array.from({ length: cols }, (_, c) => {
                   const stepIdx = colBase + c;
@@ -162,14 +301,14 @@ export const ChannelRack: React.FC<ChannelRackProps> = ({ doc, pattern, selected
                   return (
                     <button
                       key={c}
-                      onClick={() => toggle(padIdx, stepIdx)}
+                      onClick={() => { toggle(padIdx, stepIdx); if (stepRec && selected) setCursor((stepIdx + 1) % pattern.length); }}
                       aria-label={`${pad.name} step ${stepIdx + 1}${step ? ' on' : ''}`}
                       className="h-[22px] rounded-[7px] border-0 transition-colors"
                       style={{
                         background: step
                           ? `rgba(212,0,85,${0.35 + velFrac * 0.6})`
                           : c % 8 < 4 ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.045)',
-                        outline: playStep === c ? `1.5px solid ${PLAYHEAD}` : 'none',
+                        outline: playStep === c ? `1.5px solid ${PLAYHEAD}` : stepRec && selected && stepIdx === cursor ? '1.5px solid #FF4D8C' : 'none',
                         outlineOffset: 1,
                         opacity: pad.mute ? 0.35 : 1,
                       }}

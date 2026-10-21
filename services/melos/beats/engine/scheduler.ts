@@ -6,11 +6,18 @@
 // follows the tempo track — durations are measured with `secBetween`, never beats × a constant.
 // Bars (metronome accents, launch quantum) come from the doc's meter map, not a fixed 4/4.
 
-import type { ArrangeTrack, GrooveDoc, NoteEvent, Pattern, TimelineClip } from '../grooveDoc';
+import type { ArrangeTrack, GrooveDoc, NoteEvent, Pattern, Step, TimelineClip } from '../grooveDoc';
+import type { StepMods } from './stepMods';
 import { songTime } from '../tempoMap';
 import { noteOccurrences } from '../clipContent';
 import { effectiveLanesFor, sustainedEnd } from '../automation';
 import { patternGroup } from '../songSections';
+
+/** Channel solo: while any pad is soloed, the others sit out of the sequence. */
+const soloOut = (doc: GrooveDoc, padIdx: number) => !doc.kit[padIdx]?.solo && doc.kit.some((p) => p.solo);
+/** A step's graph-lane mods for the voice (undefined when it has none). */
+const stepMods = (st: Step): StepMods | undefined =>
+  st.cut !== undefined || st.rel !== undefined ? { cut: st.cut, res: st.res, rel: st.rel } : undefined;
 
 const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((x) => b.includes(x));
 
@@ -27,7 +34,7 @@ export interface SchedulerDeps {
   // rng is injectable so offline renders are deterministic (seeded) while live stays random —
   // the render-twice-byte-identical quality gate depends on this.
   rng(): number;
-  trigger(padIdx: number, vel127: number, when: number, gateSec?: number, semiOffset?: number, pan?: number, stepFx?: number, skipChoke?: boolean): void;
+  trigger(padIdx: number, vel127: number, when: number, gateSec?: number, semiOffset?: number, pan?: number, stepFx?: number, skipChoke?: boolean, mods?: StepMods): void;
   startAudioClip(track: ArrangeTrack, clip: TimelineClip, when: number, offsetIntoClipSec: number): void;
   /** Instrument tracks: one MIDI note, at an absolute context time, for `durSec`. */
   startInstrumentNote(track: ArrangeTrack, note: NoteEvent, when: number, durSec: number): void;
@@ -148,10 +155,12 @@ export class StepScheduler {
     }
   }
 
-  private eventTime(beat: number, localStep: number, doc: GrooveDoc, micro?: number): number {
+  private eventTime(beat: number, localStep: number, doc: GrooveDoc, micro?: number, padIdx?: number): number {
     const d = this.deps;
     let b = beat;
-    if (localStep % 2 === 1 && doc.swing > 0) b += doc.swing * 0.5 * STEP_BEATS; // offbeat 16ths
+    // Offbeat 16ths swing by the channel's own shuffle when it has one, else the song's.
+    const swing = (padIdx !== undefined ? doc.kit[padIdx]?.swing : undefined) ?? doc.swing;
+    if (localStep % 2 === 1 && swing > 0) b += swing * 0.5 * STEP_BEATS;
     if (micro) b += micro * STEP_BEATS;
     return d.toTime(b);
   }
@@ -185,9 +194,10 @@ export class StepScheduler {
       const step = pattern.steps[padIdx]?.[localStep];
       if (!step) continue;
       if (step.p !== undefined && step.p < 1 && d.rng() > step.p) continue;
-      const when = this.eventTime(beat, localStep, doc, step.micro);
+      if (soloOut(doc, padIdx)) continue;
+      const when = this.eventTime(beat, localStep, doc, step.micro, padIdx);
       const sustaining = (doc.kit[padIdx]?.env.sustain || 0) > 0.001;
-      d.trigger(padIdx, step.v, when, sustaining ? this.legatoGateSec(doc, pattern, padIdx, localStep, beat, len) : undefined, step.pitch ?? 0, step.pan, step.fx);
+      d.trigger(padIdx, step.v, when, sustaining ? this.legatoGateSec(doc, pattern, padIdx, localStep, beat, len) : undefined, (step.pitch ?? 0) + (step.fine ?? 0) / 100, step.pan, step.fx, false, stepMods(step));
     }
     if (pattern.melo) {
       for (const padKey of Object.keys(pattern.melo)) {
@@ -196,7 +206,8 @@ export class StepScheduler {
         const localStep = ((intoClipSteps % len) + len) % len;
         const notes = pattern.melo[padIdx]?.[localStep];
         if (!notes?.length) continue;
-        const when = this.eventTime(beat, localStep, doc);
+        if (soloOut(doc, padIdx)) continue;
+        const when = this.eventTime(beat, localStep, doc, undefined, padIdx);
         for (const n of notes) d.trigger(padIdx, n.v, when, d.secBetween(beat, beat + Math.max(1, n.len) * STEP_BEATS), n.semi, undefined, undefined, true);
       }
     }
@@ -209,10 +220,11 @@ export class StepScheduler {
       const step = pattern.steps[padIdx]?.[localStep];
       if (!step) continue;
       if (step.p !== undefined && step.p < 1 && d.rng() > step.p) continue;
-      const when = this.eventTime(beat, localStep, doc, step.micro);
+      if (soloOut(doc, padIdx)) continue;
+      const when = this.eventTime(beat, localStep, doc, step.micro, padIdx);
       const sustaining = (doc.kit[padIdx]?.env.sustain || 0) > 0.001;
       // Per-step pitch + pan (Glass graph editor) + Step-FX slot ride the trigger.
-      d.trigger(padIdx, step.v, when, sustaining ? this.legatoGateSec(doc, pattern, padIdx, localStep, beat) : undefined, step.pitch ?? 0, step.pan, step.fx);
+      d.trigger(padIdx, step.v, when, sustaining ? this.legatoGateSec(doc, pattern, padIdx, localStep, beat) : undefined, (step.pitch ?? 0) + (step.fine ?? 0) / 100, step.pan, step.fx, false, stepMods(step));
     }
     // Pitch-roll notes: explicit gate from the drawn length, per-note pitch offset.
     if (pattern.melo) {
@@ -220,7 +232,8 @@ export class StepScheduler {
         const padIdx = Number(padKey);
         const notes = pattern.melo[padIdx]?.[localStep];
         if (!notes?.length) continue;
-        const when = this.eventTime(beat, localStep, doc);
+        if (soloOut(doc, padIdx)) continue;
+        const when = this.eventTime(beat, localStep, doc, undefined, padIdx);
         // Pitched notes are polyphonic — skip the choke group so a chord/overlap doesn't self-cut.
         for (const n of notes) d.trigger(padIdx, n.v, when, d.secBetween(beat, beat + Math.max(1, n.len) * STEP_BEATS), n.semi, undefined, undefined, true);
       }

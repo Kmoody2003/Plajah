@@ -9,7 +9,7 @@ import loudnessUrl from './loudnessProcessor.worklet.js?url';
 import type { ArrangeTrack, GrooveDoc, PadConfig, TimelineClip } from '../grooveDoc';
 import { newGrooveDoc, evaluateNoteMpeAtProgress } from '../grooveDoc';
 import { buildGraph, type BeatsGraph } from './graph';
-import { VoiceBank } from './voices';
+import { VoiceBank, type StepMods } from './voices';
 import { StepScheduler, type PlayMode, LOOKAHEAD_SEC } from './scheduler';
 import { startAudioClipSource } from './clips';
 import { MeterMap, TempoMap } from '../tempoMap';
@@ -165,7 +165,7 @@ export class BeatsEngine {
       rng: Math.random, // offline renders inject a seeded rng in render.ts instead
       // Forward pan + stepFx too — the scheduler passes step.pan/step.fx, and dropping them here
       // is why per-step Step Effects (and per-step pan) applied on Audition but were dry on playback.
-      trigger: (padIdx, vel, when, gateSec, semiOffset, pan, stepFx, skipChoke) => this.trigger(padIdx, vel, when, gateSec, semiOffset, pan, stepFx, skipChoke),
+      trigger: (padIdx, vel, when, gateSec, semiOffset, pan, stepFx, skipChoke, mods) => this.trigger(padIdx, vel, when, gateSec, semiOffset, pan, stepFx, skipChoke, mods),
       startAudioClip: (track, clip, when, offset) => this.startAudioClip(track, clip, when, offset),
       startInstrumentNote: (track, note, when, durSec) => this.startInstrumentNote(track, note, when, durSec),
       runArp: (track, stepIndex, beat) => this.runArp(track, stepIndex, beat),
@@ -332,7 +332,7 @@ export class BeatsEngine {
    * MIDI handlers and pad pointerdown call this directly. A live hit on a sustaining pad
    * (env.sustain > 0) HOLDS until release(padIdx); sequenced notes pass gateSec instead.
    */
-  trigger(padIdx: number, vel127: number, when?: number, gateSec?: number, semiOffset?: number, pan?: number, stepFx?: number, skipChoke?: boolean): void {
+  trigger(padIdx: number, vel127: number, when?: number, gateSec?: number, semiOffset?: number, pan?: number, stepFx?: number, skipChoke?: boolean, mods?: StepMods): void {
     if (!this.voices || !this.ctx) return;
     // A LIVE hit (no scheduled time) is a performance — tell the recorder.
     if (when === undefined) this.emitPadHit(padIdx, vel127, this.ctx.currentTime, false);
@@ -349,7 +349,7 @@ export class BeatsEngine {
     }
     // Step Effects: route this hit through the referenced per-pad slot's chain (feature 2).
     const dest = this.stepFxDestFor(padIdx, stepFx);
-    this.voices.trigger(this.doc, padIdx, vel127, when, gateSec, semiOffset, pan, dest, skipChoke);
+    this.voices.trigger(this.doc, padIdx, vel127, when, gateSec, semiOffset, pan, dest, skipChoke, mods);
     this.lastHit[padIdx] = performance.now();
   }
 

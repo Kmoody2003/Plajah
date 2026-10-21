@@ -6,6 +6,9 @@
 import type { GrooveDoc, PadConfig } from '../grooveDoc';
 import type { BeatsGraph } from './graph';
 import { playSynthVoice } from './synthVoices';
+import { cutoffHz, tailMul, type StepMods } from './stepMods';
+
+export type { StepMods } from './stepMods';
 
 interface LiveVoice {
   padIdx: number;
@@ -56,8 +59,9 @@ export class VoiceBank {
    * skipChoke: pitched notes (piano-roll / melo lane) are polyphonic — a chord or an overlapping
    *            melody must NOT choke itself. Choke stays a drum-articulation feature for the step
    *            row (open/closed hat pairs), never for the pitch roll.
+   * mods: per-step graph lanes — a private low-pass for this hit, and a longer/shorter tail.
    */
-  trigger(doc: GrooveDoc, padIdx: number, vel127: number, when?: number, gateSec?: number, semiOffset = 0, panOverride?: number, destOverride?: AudioNode, skipChoke = false): void {
+  trigger(doc: GrooveDoc, padIdx: number, vel127: number, when?: number, gateSec?: number, semiOffset = 0, panOverride?: number, destOverride?: AudioNode, skipChoke = false, mods?: StepMods): void {
     const ctx = this.graph.ctx;
     const pad = doc.kit[padIdx];
     if (!pad || pad.mute) return;
@@ -72,9 +76,10 @@ export class VoiceBank {
     const env = pad.env;
     const atk = Math.max(0.001, (env.attackMs || 0) / 1000);
     const hold = Math.max(0, (env.holdMs || 0) / 1000);
-    const dec = Math.max(0.005, (env.decayMs || 0) / 1000);
+    const tail = mods?.rel !== undefined ? tailMul(mods.rel) : 1;
+    const dec = Math.max(0.005, ((env.decayMs || 0) / 1000) * (env.sustain > 0.001 ? 1 : tail));
     const sus = Math.max(0, Math.min(1, env.sustain || 0));
-    const rel = Math.max(0.005, (env.releaseMs || 80) / 1000);
+    const rel = Math.max(0.005, ((env.releaseMs || 80) / 1000) * (env.sustain > 0.001 ? tail : 1));
     const sustaining = sus > 0.001;
     const heldLive = sustaining && gateSec === undefined;
 
@@ -113,14 +118,24 @@ export class VoiceBank {
         audibleEnd = Math.max(tR, t + atk + hold + dec) + rel;
       }
     }
+    // Per-step low-pass (graph lane): a private filter for this hit only.
+    let out: AudioNode = vGain;
+    if (mods?.cut !== undefined) {
+      const f = ctx.createBiquadFilter();
+      f.type = 'lowpass';
+      f.frequency.setValueAtTime(cutoffHz(mods.cut), t);
+      f.Q.setValueAtTime(0.7 + Math.max(0, Math.min(1, mods.res ?? 0)) * 17, t);
+      vGain.connect(f);
+      out = f;
+    }
     // Per-step pan: a private panner between the voice and the pad bus, so a hard-left hit and a
     // hard-right hit on the same pad don't clobber a shared StereoPanner.
     if (panOverride !== undefined && Math.abs(panOverride) > 0.001) {
       const panner = ctx.createStereoPanner();
       panner.pan.setValueAtTime(Math.max(-1, Math.min(1, panOverride)), t);
-      vGain.connect(panner); panner.connect(dest);
+      out.connect(panner); panner.connect(dest);
     } else {
-      vGain.connect(dest);
+      out.connect(dest);
     }
 
     const semis = (pad.pitchSemis || 0) + semiOffset;

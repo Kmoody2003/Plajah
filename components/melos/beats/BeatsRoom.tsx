@@ -1416,6 +1416,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           onMutate={mutate}
           onAddInstrument={(dest?: 'meka' | 'track') => { setInstrumentDest(dest || 'meka'); setShowInstrumentPicker(true); }}
           onOpenInstrument={(id) => setOpenInstrumentId(id)}
+          onOpenPianoRoll={(padIdx) => { setSelectedPad(padIdx); setView('machine'); }}
         />
       )}
 

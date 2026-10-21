@@ -37,6 +37,28 @@ Deferred:
 - `.dawproject` export still writes one tempo and 4/4.
 - Docked NoteTab vs PianoRoll duplication is a product decision.
 
+## Phase 4 status (2026-10-21)
+
+Done (Glass ≈ FL Studio's channel rack):
+- **Channel ops** (`channelOps.ts`, row right-click): Clone, Clone with steps, Delete channel, Move up/down.
+  - Every pattern's steps and pitch-roll notes move with the pad, along with clip loop lengths and the backing instrument track (an instrument pad's clone gets its own track).
+  - A clone lands in the Group's first empty pad, or a new Group when it's full.
+- **In-rack volume and pan knobs plus Solo.** Solo silences the other channels in the sequence, live and in the bounce.
+- **Graph lanes**: velocity, pitch, fine (cents), pan, cutoff + resonance (a low-pass on that hit only), tail (×¼…×4 decay/release) and shift (micro-timing).
+  - Drag across the bars to paint; reset a lane per channel.
+  - Played by the engine and printed in the bounce.
+- **Step tools**: fill each 2/4/8, rotate left/right, invert, randomize.
+- **Per-channel swing**: follow the song or 0–75%.
+- **Send to piano roll**: the row's steps become MEKA pitch-roll notes and MEKA opens on that pad.
+- **Step record**: a cursor walks the selected channel; a pad hit writes that pad, QWERTY z…m writes pitched steps on the selected channel, ← → move, Backspace clears and steps back. Works while stopped; armed live recording covers playback.
+- Tests: `tests/melosGlass.test.ts` (32 total via `npm run test:melostime`).
+
+Not done:
+- Pattern length beyond 16/32/48/64.
+- Ghost channels and channel filter groups.
+- Audio-clip channels in the rack.
+- Release velocity as its own lane (the tail lane covers note length).
+
 ## Phase 3 status (2026-10-21)
 
 Done:

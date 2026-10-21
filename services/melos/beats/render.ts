@@ -201,7 +201,7 @@ export async function renderGroove(
     toTime: (beats) => anchor + tempo.beatToSec(beats),
     secBetween: (a, b) => tempo.secBetween(a, b),
     rng: seededRng(hashSeed(doc.id || 'groove')),
-    trigger: (padIdx, vel, when, gateSec, semiOffset, pan) => {
+    trigger: (padIdx, vel, when, gateSec, semiOffset, pan, _stepFx, skipChoke, mods) => {
       const pad = doc.kit[padIdx];
       if (pad?.empty || pad?.mute) return; // placeholder / muted pad prints nothing
       if (pad?.source === 'instrument' && pad.instrumentTrackId) {
@@ -218,7 +218,7 @@ export async function renderGroove(
         return;
       }
       // Per-step pan prints in the bounce; Step-FX offline routing is a follow-up.
-      voices.trigger(doc, padIdx, vel, when, gateSec, semiOffset, pan);
+      voices.trigger(doc, padIdx, vel, when, gateSec, semiOffset, pan, undefined, skipChoke, mods);
     },
     startAudioClip: (track, clip, when, offset) =>
       void startAudioClipSource(offline, graph, (k) => voices.getBuffer(k), track, clip, when, offset,

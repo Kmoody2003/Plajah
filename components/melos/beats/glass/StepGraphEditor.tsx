@@ -8,15 +8,25 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { GrooveDoc, Pattern, Step } from '../../../../services/melos/beats/grooveDoc';
 import { PLAYHEAD } from '../theme';
+import { cutoffHz, tailMul } from '../../../../services/melos/beats/engine/stepMods';
 
-const ORANGE_MODE = '#FF8C00';
 
-type Mode = 'vel' | 'pitch' | 'pan';
-const MODES: { id: Mode; label: string; color: string }[] = [
+// FL's channel-graph lanes, on Melos's Step fields (grooveDoc Step): velocity, pitch (+ fine
+// cents), pan, the per-hit low-pass (cutoff = FL Mod X, resonance = Mod Y), tail length, and shift
+// (the step's micro timing).
+type Mode = 'vel' | 'pitch' | 'fine' | 'pan' | 'cut' | 'res' | 'rel' | 'shift';
+const MODES: { id: Mode; label: string; color: string; field?: keyof Step }[] = [
   { id: 'vel', label: 'Velocity', color: '#FF8C00' },
-  { id: 'pitch', label: 'Pitch', color: '#00DAF3' },
-  { id: 'pan', label: 'Pan', color: '#D0BCFF' },
+  { id: 'pitch', label: 'Pitch', color: '#00DAF3', field: 'pitch' },
+  { id: 'fine', label: 'Fine', color: '#38BDF8', field: 'fine' },
+  { id: 'pan', label: 'Pan', color: '#D0BCFF', field: 'pan' },
+  { id: 'cut', label: 'Cutoff', color: '#06D6A0', field: 'cut' },
+  { id: 'res', label: 'Res', color: '#34D399', field: 'res' },
+  { id: 'rel', label: 'Tail', color: '#FFD166', field: 'rel' },
+  { id: 'shift', label: 'Shift', color: '#FF4D8D', field: 'micro' },
 ];
+/** Lanes that sit at the centre when unset (bipolar). */
+const BIPOLAR = new Set<Mode>(['pitch', 'fine', 'pan', 'shift']);
 
 interface Props {
   doc: GrooveDoc;
@@ -27,20 +37,41 @@ interface Props {
 
 // value → 0..1 bar fraction, and back, per mode.
 const toFrac = (mode: Mode, s: Step | undefined): number => {
-  if (mode === 'vel') return (s?.v ?? 1) / 127;
-  if (mode === 'pitch') return 0.5 + (s?.pitch ?? 0) / 48;   // ±24 semis
-  return 0.5 + (s?.pan ?? 0) / 2;                             // ±1 pan
+  switch (mode) {
+    case 'vel': return (s?.v ?? 1) / 127;
+    case 'pitch': return 0.5 + (s?.pitch ?? 0) / 48;   // ±24 semis
+    case 'fine': return 0.5 + (s?.fine ?? 0) / 200;    // ±100 cents
+    case 'pan': return 0.5 + (s?.pan ?? 0) / 2;        // ±1
+    case 'cut': return s?.cut ?? 1;                    // unset = open
+    case 'res': return s?.res ?? 0;
+    case 'rel': return s?.rel ?? 0.5;                  // unset = the pad's own tail
+    case 'shift': return 0.5 + (s?.micro ?? 0);        // ±½ step
+  }
 };
 const fromFrac = (mode: Mode, f: number): Partial<Step> => {
   const y = Math.max(0, Math.min(1, f));
-  if (mode === 'vel') return { v: Math.round(1 + y * 126) };
-  if (mode === 'pitch') return { pitch: Math.round((y - 0.5) * 48) };
-  return { pan: +((y - 0.5) * 2).toFixed(2) };
+  switch (mode) {
+    case 'vel': return { v: Math.round(1 + y * 126) };
+    case 'pitch': return { pitch: Math.round((y - 0.5) * 48) };
+    case 'fine': return { fine: Math.round((y - 0.5) * 200) };
+    case 'pan': return { pan: +((y - 0.5) * 2).toFixed(2) };
+    case 'cut': return { cut: +y.toFixed(3) };
+    case 'res': return { res: +y.toFixed(3) };
+    case 'rel': return { rel: +y.toFixed(3) };
+    case 'shift': return { micro: +(y - 0.5).toFixed(3) };
+  }
 };
 const fmt = (mode: Mode, s: Step | undefined): string => {
-  if (mode === 'vel') return String(s?.v ?? '—');
-  if (mode === 'pitch') { const p = s?.pitch ?? 0; return `${p >= 0 ? '+' : ''}${p}`; }
-  const p = s?.pan ?? 0; return p === 0 ? 'C' : p < 0 ? `L${Math.round(-p * 100)}` : `R${Math.round(p * 100)}`;
+  switch (mode) {
+    case 'vel': return String(s?.v ?? '—');
+    case 'pitch': { const p = s?.pitch ?? 0; return `${p >= 0 ? '+' : ''}${p}`; }
+    case 'fine': { const c = s?.fine ?? 0; return `${c >= 0 ? '+' : ''}${c}c`; }
+    case 'pan': { const p = s?.pan ?? 0; return p === 0 ? 'C' : p < 0 ? `L${Math.round(-p * 100)}` : `R${Math.round(p * 100)}`; }
+    case 'cut': return s?.cut === undefined ? 'open' : `${Math.round(cutoffHz(s.cut))} Hz`;
+    case 'res': return `${Math.round((s?.res ?? 0) * 100)}%`;
+    case 'rel': return s?.rel === undefined ? 'pad' : `×${tailMul(s.rel).toFixed(2)}`;
+    case 'shift': return `${Math.round((s?.micro ?? 0) * 100)}%`;
+  }
 };
 
 export const StepGraphEditor: React.FC<Props> = ({ doc, pattern, padIdx, onMutate }) => {
@@ -77,6 +108,15 @@ export const StepGraphEditor: React.FC<Props> = ({ doc, pattern, padIdx, onMutat
   }, [setStepValue]);
 
   const sel = row[selStep];
+  /** Graph column under a client x (null outside the bars). */
+  const colAt = (clientX: number): number | null => {
+    const g = graphRef.current; if (!g) return null;
+    const r = g.getBoundingClientRect();
+    const x = clientX - r.left - 10;
+    const w = r.width - 20;
+    if (x < 0 || x > w) return null;
+    return colBase + Math.max(0, Math.min(cols - 1, Math.floor((x / w) * cols)));
+  };
 
   return (
     <div className="bg-white/[0.055] border border-white/10 rounded-[18px] backdrop-blur-xl p-4">
@@ -114,8 +154,15 @@ export const StepGraphEditor: React.FC<Props> = ({ doc, pattern, padIdx, onMutat
         </span>
       </div>
 
-      <div ref={graphRef} className="relative rounded-[12px] border border-white/10 bg-black/30 p-2.5" style={{ height: 128 }}>
-        {mode !== 'vel' && <div className="absolute left-2.5 right-2.5 top-1/2 h-px bg-white/12" />}
+      <div
+        ref={graphRef}
+        className="relative rounded-[12px] border border-white/10 bg-black/30 p-2.5 touch-none"
+        style={{ height: 128 }}
+        // Paint across bars FL-style: the column follows the pointer while the button is held.
+        onPointerDown={(e) => { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); const c = colAt(e.clientX); if (c !== null) dragTo(c, e.clientY); }}
+        onPointerMove={(e) => { if (e.buttons !== 1) return; const c = colAt(e.clientX); if (c !== null) dragTo(c, e.clientY); }}
+      >
+        {BIPOLAR.has(mode) && <div className="absolute left-2.5 right-2.5 top-1/2 h-px bg-white/12" />}
         <div className="grid gap-[4px] h-full items-end" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
           {Array.from({ length: cols }, (_, ci) => {
             const c = colBase + ci;
@@ -127,8 +174,6 @@ export const StepGraphEditor: React.FC<Props> = ({ doc, pattern, padIdx, onMutat
               <div
                 key={c}
                 className="h-full flex flex-col justify-end cursor-ns-resize relative"
-                onPointerDown={(e) => { try { (e.target as HTMLElement).setPointerCapture(e.pointerId); } catch { /* */ } dragTo(c, e.clientY); }}
-                onPointerMove={(e) => { if (e.buttons === 1) dragTo(c, e.clientY); }}
                 title={`Step ${c + 1}`}
               >
                 {isSel && <div className="absolute -top-4 left-1/2 -translate-x-1/2 font-mono text-[8px]" style={{ color: modeColor }}>{fmt(mode, s)}</div>}
@@ -148,12 +193,20 @@ export const StepGraphEditor: React.FC<Props> = ({ doc, pattern, padIdx, onMutat
       </div>
 
       <div className="flex items-center gap-2 mt-2.5 text-[10px] text-white/30 flex-wrap">
-        <span>drag a bar to set · dragging an empty step turns it on</span>
-        <span className="ml-auto flex items-center gap-3">
-          <span style={{ color: ORANGE_MODE }}>velocity 1–127</span>
-          <span style={{ color: '#00DAF3' }}>pitch ±24 st</span>
-          <span style={{ color: '#D0BCFF' }}>pan L↔R</span>
-        </span>
+        <span>drag across the bars to paint · dragging an empty step turns it on</span>
+        {MODES.find((m) => m.id === mode)?.field && (
+          <button
+            onClick={() => onMutate((d) => {
+              const pat = d.patterns.find((p) => p.id === pattern.id);
+              const r = pat?.steps[padIdx];
+              const field = MODES.find((m) => m.id === mode)!.field!;
+              if (r) for (const st of Object.values(r)) delete st[field];
+            })}
+            className="ml-auto h-6 px-2 rounded-md border border-white/12 hover:text-white"
+            style={{ color: modeColor }}
+            title="Reset this lane on every step of the channel"
+          >Reset {MODES.find((m) => m.id === mode)?.label}</button>
+        )}
       </div>
     </div>
   );

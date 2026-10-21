@@ -164,32 +164,9 @@ export function syncPadWithTrack(doc: GrooveDoc, trackId: string): void {
   if (track.instrument) pad.color = instrumentColor(track.instrument.type);
 }
 
-/**
- * Detach a pad's instrument: remove its padOwned track from the arrangement and unlink the pad.
- * Call this before replacing a pad's sound (with a sample or a different instrument) so the old
- * instrument track doesn't linger as an orphan — a wasted worklet the engine keeps alive and a
- * phantom channel. No-op for a pad that isn't an instrument.
- */
-export function detachPadInstrument(doc: GrooveDoc, padIdx: number): void {
-  const pad = doc.kit[padIdx];
-  const id = pad?.instrumentTrackId;
-  if (!id) return;
-  doc.arrangement = doc.arrangement.filter((t) => t.id !== id);
-  pad.instrumentTrackId = undefined;
-}
-
-/** Turn a pad back into an empty placeholder — drops its sample/instrument and clears its name. */
-export function clearPad(doc: GrooveDoc, padIdx: number): void {
-  detachPadInstrument(doc, padIdx);
-  const pad = doc.kit[padIdx];
-  if (!pad) return;
-  pad.source = 'synth';
-  pad.sample = null;
-  pad.empty = true;
-  pad.name = 'Empty';
-  pad.color = '#2A2431';
-  pad.melos = undefined;
-}
+// Pad clearing lives with the other channel operations (pure, engine-free); re-exported here
+// so existing callers keep importing it from the factory.
+export { clearPad, detachPadInstrument } from './channelOps';
 
 /**
  * Give an EXISTING independent (clip-driven) instrument track a MEKA pad — and therefore a Glass step

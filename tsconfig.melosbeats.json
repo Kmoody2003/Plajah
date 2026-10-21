@@ -41,6 +41,12 @@
     "components/melos/beats/timeline/ArrangerLane.tsx",
     "components/melos/beats/timeline/ClipLauncher.tsx",
     "components/melos/beats/glass/ChannelRack.tsx",
-    "tests/melosSong.test.ts"
+    "tests/melosSong.test.ts",
+    "services/melos/beats/channelOps.ts",
+    "services/melos/beats/engine/stepMods.ts",
+    "services/melos/beats/engine/voices.ts",
+    "services/melos/beats/instrumentFactory.ts",
+    "components/melos/beats/glass/GlassView.tsx",
+    "tests/melosGlass.test.ts"
   ]
 }

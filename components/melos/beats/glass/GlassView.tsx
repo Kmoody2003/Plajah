@@ -22,6 +22,8 @@ interface GlassViewProps {
   onAddInstrument?: () => void;
   /** Open an instrument's window from a rack row. */
   onOpenInstrument?: (trackId: string) => void;
+  /** A channel was sent to the piano roll — show it in MEKA's pitch roll. */
+  onOpenPianoRoll?: (padIdx: number) => void;
 }
 
 // The Sequence strip moved to the Timeline page (Song mode only) — Glass is the pattern
@@ -38,6 +40,7 @@ export const GlassView: React.FC<GlassViewProps> = (p) => (
       onSelectPad={p.onSelectPad}
       onMutate={p.onMutate}
       onOpenInstrument={p.onOpenInstrument}
+      onOpenPianoRoll={p.onOpenPianoRoll}
     />
     {/* FL-style per-step pitch / velocity / pan for the selected channel. */}
     <StepGraphEditor
