@@ -9,15 +9,18 @@ import { fetchUserClubs, fetchClassrooms } from '../../services/backendService';
 import { lessonLink } from '../../services/assignmentTemplateService';
 import { requestTextChat, proposeClub } from '../../services/homeroomService';
 import EduFeedPanel from '../academia/EduFeedPanel';
-import MediaToolsRow from '../academia/MediaToolsRow';
 import WellbeingPanel from '../academia/WellbeingPanel';
 import DailyScripture from '../academia/DailyScripture';
 import { useSchoolProfile } from '../../hooks/useSchoolProfile';
 import { loadLearnerStats, type LearnerStats, type AppStat } from '../../services/academiaStats';
+import StudentScoreboard from '../academia/StudentScoreboard';
+import { DidYouKnow, ExhibitsRow, StudiosRow, LoreaShelf, CurriculumShowcase, AcademiaResponsiveStyles } from '../academia/AcademiaShowcase';
+import { bandForAge } from '../../data/academiaShowcase';
 
 /**
  * Homeroom — the student's home screen (view STUDENT_HOME). The Creator Hub, rebuilt around school:
- * who you are → what's due → reading → play → classes, chat, clubs → your Sigil shelf.
+ * who you are → your learning tools (Voca and Penna first) → Ora check-in → scoreboard, assignment ledger
+ * and the school feed → did you know, Lorea, studios, exhibitions → the schools.
  *
  * Rules carried in from the design:
  *  • child accounts always land here; switching context needs a grown-up;
@@ -39,6 +42,8 @@ const CSS = `
 .hr *{box-sizing:border-box}
 .hr button,.hr input,.hr textarea,.hr select{font:inherit;color:inherit}
 .hr .wrap{max-width:1180px;margin:0 auto;display:grid;gap:16px}
+.hr .wrap>*{min-width:0}
+.hr .col>*{min-width:0}
 .hr .top{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .hr .av{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#6B0099,#00DAF3);display:grid;place-items:center;font-family:var(--fd);font-weight:900}
 .hr .who b{font-family:var(--fd);font-weight:800;display:block}
@@ -111,6 +116,18 @@ const CSS = `
 .hr .field input,.hr .field textarea,.hr .field select{background:#0d0915;border:1px solid var(--bd);border-radius:12px;padding:10px 12px}
 .hr .note{font-size:.8rem;color:var(--faint)}
 .hr :focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.hr .heroes{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:16px}
+.hr .hero{appearance:none;border:1px solid;cursor:pointer;text-align:left;border-radius:26px;padding:24px;min-height:210px;display:flex;flex-direction:column;justify-content:space-between;gap:16px;position:relative;overflow:hidden;color:#fff;transition:transform .25s cubic-bezier(.2,.8,.2,1),box-shadow .25s}
+.hr .hero:hover{transform:translateY(-4px);box-shadow:0 18px 44px -14px rgba(0,0,0,.7)}
+.hr .hero .nm{font-family:var(--fd);font-weight:900;font-size:1.9rem;line-height:1}
+.hr .hero .big{font-family:var(--fd);font-weight:900;font-size:2.1rem;line-height:1.05}
+.hr .hero .sub{font-size:.82rem;opacity:.85}
+.hr .hero .cta{display:inline-flex;align-items:center;height:44px;padding:0 20px;border-radius:14px;font-family:var(--fd);font-weight:800;font-size:.92rem;color:#09070e;white-space:nowrap}
+.hr .hero .art{position:absolute;right:-8px;top:16px;opacity:.5;pointer-events:none}
+.hr .hero .foot{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px;position:relative}
+.hr .quests{display:flex;gap:12px;overflow-x:auto;padding-bottom:6px;margin-top:14px}
+.hr .quests .app{flex:1 0 190px;min-height:140px}
+@media (max-width:520px){.hr{padding:12px 12px 48px}.hr .hero{padding:18px;min-height:190px}.hr .hero .big{font-size:1.6rem}.hr .hero .art{opacity:.2}.hr .hero .nm{font-size:1.5rem}.hr .quests .app{flex-basis:160px}}
 @media (max-width:900px){.hr .grid{grid-template-columns:1fr}.hr .play{grid-template-columns:1fr 1fr}}
 @media (max-width:520px){.hr .app.feature{grid-column:span 1}}
 @media (max-width:520px){.hr .play{grid-template-columns:1fr}.hr .hello{grid-template-columns:1fr}}
@@ -172,6 +189,7 @@ const HomeroomView: React.FC<Props> = ({ user, profile, onNavigate }) => {
   return (
     <div className="hr">
       <style>{CSS}</style>
+      <AcademiaResponsiveStyles />
       <div className="wrap">
         <div className="top">
           <div className="av">{first[0]?.toUpperCase() || 'S'}</div>
@@ -198,32 +216,48 @@ const HomeroomView: React.FC<Props> = ({ user, profile, onNavigate }) => {
         </div>
 
 
-        <DailyScripture school={schoolSp} />
-        <WellbeingPanel role="student" user={user} profile={profile} classes={classes || []} onNavigate={onNavigate} />
-        <section aria-label="Learning apps">
+        <section aria-label="Your learning tools">
           <div className="card-hd" style={{ marginBottom: 10 }}>
-            <h2 className="h2">Jump in &amp; learn</h2>
+            <h2 className="h2">Your learning tools</h2>
             <span className="note">Your progress shows on every card</span>
           </div>
-          <div className="apps">
-            <AppCard feature name="Voca" tag="NEW" bg="linear-gradient(135deg,#D40055,#6B0099)" stat={stats?.voca}
-              fallback={`Today: ${story.title}`} sub={`${story.kind} · Level ${story.level} · ${zone}/3 strong reads to level up`} cta="🎙️ Read with Chora" onOpen={() => onNavigate('VOCA')} />
-            <AppCard name="Penna" bg="linear-gradient(135deg,#C9871F,#6B0099)" stat={stats?.penna} fallback="Handwriting" sub="Trace letters, earn the picture" onOpen={() => onNavigate('HANDWRITING_WORKSHOP')} />
+          <div className="heroes">
+            <button type="button" className="hero" onClick={() => onNavigate('VOCA')} style={{ background: '#062a31', borderColor: 'rgba(0,218,243,.35)' }}>
+              <svg className="art" width="240" height="120" viewBox="0 0 240 120" aria-hidden="true"><g fill="#00DAF3">{[20, 48, 80, 36, 100, 60, 28, 72, 44, 92, 52, 24, 64, 32, 16].map((h, i) => <rect key={i} x={i * 16} y={60 - h / 2} width="8" height={h} rx="4" />)}</g></svg>
+              <span><span className="nm">Voca</span><br /><span className="sub" style={{ color: '#9EEFF8' }}>Read aloud with Chora</span></span>
+              <span className="foot">
+                <span><span className="big" style={{ color: '#00DAF3' }}>{stats?.voca.started ? stats.voca.headline : story.title}</span><br /><span className="sub">{stats?.voca.started ? stats.voca.detail : `${story.kind} · Level ${story.level} · ${zone}/3 strong reads to level up`}</span></span>
+                <span className="cta" style={{ background: '#00DAF3' }}>🎙️ {stats?.voca.started ? 'Keep reading' : 'Start reading'}</span>
+              </span>
+            </button>
+            <button type="button" className="hero" onClick={() => onNavigate('HANDWRITING_WORKSHOP')} style={{ background: '#33101f', borderColor: 'rgba(255,111,168,.35)' }}>
+              <svg className="art" width="260" height="120" viewBox="0 0 260 120" aria-hidden="true"><path d="M10 84c20-60 40-60 50 0s30 60 50 0 30-60 50 0 30 60 50 0" fill="none" stroke="#FF6FA8" strokeWidth="5" strokeLinecap="round" strokeDasharray="2 12" /><path d="M10 84c20-60 40-60 50 0s30 60 50 0" fill="none" stroke="#FF6FA8" strokeWidth="5" strokeLinecap="round" /></svg>
+              <span><span className="nm">Penna</span><br /><span className="sub" style={{ color: '#FFB8D3' }}>Handwriting workshop</span></span>
+              <span className="foot">
+                <span><span className="big" style={{ color: '#FF8EBB' }}>{stats?.penna.started ? stats.penna.headline : 'Trace & earn'}</span><br /><span className="sub">{stats?.penna.started ? stats.penna.detail : 'Trace letters, earn the picture'}</span></span>
+                <span className="cta" style={{ background: '#FF6FA8' }}>✍️ {stats?.penna.started ? 'Keep tracing' : 'Start tracing'}</span>
+              </span>
+            </button>
+          </div>
+          <div className="quests">
             <AppCard name="Reading Quest" bg="linear-gradient(135deg,#D40055,#7a2bd6)" stat={stats?.reading} fallback="Reading" sub="Phonics to comprehension" onOpen={() => onNavigate('READING_QUEST')} />
+            <AppCard name="Science Quest" bg="linear-gradient(135deg,#36c5f0,#1e3a8a)" fallback="Lab quests" sub="Explore the Lab Map" onOpen={() => onNavigate('SCIENCE_QUEST')} />
+            <AppCard name="History Quest" bg="linear-gradient(135deg,#FF8C00,#7c2d12)" fallback="History quest" sub="Moments that shaped us" onOpen={() => onNavigate('HISTORY_QUEST')} />
+            <AppCard name="Math" bg="linear-gradient(135deg,#3B82F6,#1e1b4b)" fallback="Practice drills" sub="Time Attack + practice by grade" onOpen={() => onNavigate('MATH_CLASSROOM')} />
             <AppCard name="Languages" bg="linear-gradient(135deg,#7a2bd6,#1e1b4b)" stat={stats?.languages} fallback="Languages" sub="Spanish, French, Mandarin" onOpen={() => onNavigate('LANGUAGE_QUEST')} />
-            <AppCard name="Math" bg="linear-gradient(135deg,#3B82F6,#1e1b4b)" fallback="Math drills" sub="Time Attack + practice by grade" onOpen={() => onNavigate('MATH_CLASSROOM')} />
-            <AppCard name="Science" bg="linear-gradient(135deg,#36c5f0,#1e3a8a)" fallback="Lab quests" sub="Explore the Lab Map" onOpen={() => onNavigate('SCIENCE_QUEST')} />
-            <AppCard name="History" bg="linear-gradient(135deg,#FF8C00,#7c2d12)" fallback="History quest" sub="Moments that shaped us" onOpen={() => onNavigate('HISTORY_QUEST')} />
             <AppCard name="Library" bg="linear-gradient(135deg,#2bd67a,#0b5f6b)" fallback="Stories" sub="Leveled readers + phonics" onOpen={() => onNavigate('KIDS_LIBRARY')} />
+            <AppCard name="Investigate" bg="linear-gradient(135deg,#0e7490,#0f172a)" fallback="Run an experiment" sub="Ask, graph real data, conclude" cta="Open the studio →" onOpen={() => onNavigate('INQUIRY')} />
             <AppCard name="All courses" bg="linear-gradient(135deg,#1d4ed8,#0f172a)" fallback="Every subject" sub="Math to film, with practice and mastery" cta="Open the map →" onOpen={() => onNavigate('LEARN')} />
-            <AppCard name="Investigate" bg="linear-gradient(135deg,#0e7490,#0f172a)" fallback="Run an experiment" sub="Ask a question, graph real data, conclude" cta="Open the studio →" onOpen={() => onNavigate('INQUIRY')} />
-            <AppCard name="My Notebook" bg="linear-gradient(135deg,#6B0099,#1e1b4b)" fallback="Notes and drawings" sub="Write, draw and clip from your lessons" cta="Open my notes →" onOpen={() => onNavigate('NOTES')} />
+            <AppCard name="My Notebook" bg="linear-gradient(135deg,#6B0099,#1e1b4b)" fallback="Notes and drawings" sub="Write, draw and clip from lessons" cta="Open my notes →" onOpen={() => onNavigate('NOTES')} />
             <AppCard name="My Record" bg="linear-gradient(135deg,#0f766e,#1e293b)" stat={stats?.ledger} fallback="Learning record" sub="Your skills, owned by you" onOpen={() => onNavigate('LEARNER_LEDGER')} />
           </div>
         </section>
 
-        <div className="grid">
+        <WellbeingPanel role="student" user={user} profile={profile} classes={classes || []} onNavigate={onNavigate} />
+
+        <div className="grid acad-split">
           <div className="col">
+            <StudentScoreboard uid={uid} onNavigate={onNavigate} />
             <TodayDueFirst uid={uid} role="student"
               onOpenAssignment={(id) => { try { window.history.pushState({}, '', lessonLink(id)); } catch { /* non-fatal */ } onNavigate('STUDENT_LESSON'); }}
               onNavigate={onNavigate} />
@@ -245,6 +279,9 @@ const HomeroomView: React.FC<Props> = ({ user, profile, onNavigate }) => {
           </div>
 
           <div className="col">
+            <div style={{ color: '#fff' }}>
+              <EduFeedPanel currentUser={user || (uid ? { uid } : null)} profile={profile} eduRole="STUDENT" limit={4} onOpenFeed={() => onNavigate('EDU_SOCIAL')} />
+            </div>
             <div className="card">
               <div className="card-hd"><h2 className="h2">Class chat</h2><span className="tag ok">parent-visible</span></div>
               <div className="policy">
@@ -301,9 +338,13 @@ const HomeroomView: React.FC<Props> = ({ user, profile, onNavigate }) => {
         </div>
       </div>
 
-      <div className="wrap" style={{ marginTop: 16, color: '#fff' }}>
-        <MediaToolsRow prefsUid={classes?.[0]?.ownerId || uid} onNavigate={onNavigate} />
-        <EduFeedPanel currentUser={user || (uid ? { uid } : null)} profile={profile} eduRole="STUDENT" limit={2} onOpenFeed={() => onNavigate('EDU_SOCIAL')} />
+      <div className="wrap" style={{ marginTop: 40, color: '#fff', display: 'block' }}>
+        <DidYouKnow role="student" onNavigate={onNavigate} />
+        <LoreaShelf role="student" onNavigate={onNavigate} initialBand={bandForAge(band)} />
+        <StudiosRow role="student" onNavigate={onNavigate} prefsUid={classes?.[0]?.ownerId || uid} />
+        <ExhibitsRow role="student" onNavigate={onNavigate} />
+        <div style={{ marginBottom: 48 }}><DailyScripture school={schoolSp} /></div>
+        <CurriculumShowcase role="student" onNavigate={onNavigate} />
       </div>
 
       {sheet === 'chat' && <ChatRequestSheet uid={uid} guardianUid={profile?.guardianUid} onClose={() => setSheet(null)} onDone={ok => { setSheet(null); flash(ok ? 'Request sent to your grown-up.' : "Couldn't send that right now. Ask your grown-up in person."); }} />}

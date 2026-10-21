@@ -24,7 +24,7 @@ export const MEDIA_TOOLS: Tool[] = [
 
 const KEY = (uid?: string) => `plajah:classroomTools:${uid || 'anon'}`;
 export function loadHiddenTools(uid?: string): string[] { try { return JSON.parse(localStorage.getItem(KEY(uid)) || '[]'); } catch { return []; } }
-function saveHiddenTools(uid: string | undefined, hidden: string[]) { try { localStorage.setItem(KEY(uid), JSON.stringify(hidden)); } catch { /* private mode */ } }
+export function saveHiddenTools(uid: string | undefined, hidden: string[]) { try { localStorage.setItem(KEY(uid), JSON.stringify(hidden)); } catch { /* private mode */ } }
 
 interface Props {
   /** Whose preference to read. For a teacher this is their own uid; students use their teacher's if known. */

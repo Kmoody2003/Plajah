@@ -44,7 +44,7 @@ const EduFeedPanel: React.FC<Props> = ({ currentUser, profile, eduRole, onOpenFe
 
   return (
     <section className="mb-9" aria-label="School community feed">
-      <div className="flex items-end justify-between gap-3 mb-3">
+      <div className="flex flex-wrap items-end justify-between gap-3 mb-3">
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.25em] text-white/40 flex items-center gap-1.5"><MessagesSquare size={12} /> Community</p>
           <h2 className="text-lg font-black">{copy.title}</h2>

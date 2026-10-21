@@ -6,6 +6,7 @@ import { fetchChildWork, type ChildWork } from '../../services/assignmentTemplat
 import { relativeDue } from './TodayDueFirst';
 import EduFeedPanel from './EduFeedPanel';
 import WellbeingPanel from './WellbeingPanel';
+import { ChildSnapshot, ParentFamilySections } from './ParentFamily';
 
 /**
  * Parent hub (ACADEMIA_HOME for parents). Two jobs: talk to the teacher, and see the child's
@@ -114,6 +115,10 @@ const ParentHub: React.FC<Props> = ({ user, profile, onNavigate }) => {
 
         {child && (
           <>
+            {/* How they're doing, then Ora, before anything else */}
+            <ChildSnapshot child={child} work={work} stats={stats} onNavigate={onNavigate} />
+            <WellbeingPanel role="parent" user={user} profile={profile} onNavigate={onNavigate} />
+
             {/* 1 — Communication */}
             <section className="mb-9">
               <p className="text-[10px] font-black uppercase tracking-[0.25em] text-white/40">01</p>
@@ -178,7 +183,8 @@ const ParentHub: React.FC<Props> = ({ user, profile, onNavigate }) => {
           </>
         )}
 
-        <WellbeingPanel role="parent" user={user} profile={profile} onNavigate={onNavigate} />
+        {!child && <WellbeingPanel role="parent" user={user} profile={profile} onNavigate={onNavigate} />}
+        <ParentFamilySections child={child} onNavigate={onNavigate} />
         <EduFeedPanel currentUser={user} profile={profile} eduRole="PARENT" onOpenFeed={() => onNavigate('EDU_SOCIAL')} />
       </div>
     </div>
