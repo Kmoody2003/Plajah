@@ -2628,6 +2628,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       setView('CHAT');
     } else if (target === 'SETTINGS') {
       if (!user) { loginWithGoogle(); return; }
+      if (params?.tab) setDashboardInitialTab(params.tab);
       setView('CREATOR');
     } else if (target === 'CREATOR') {
       if (!user) {

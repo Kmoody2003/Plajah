@@ -690,7 +690,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
   if (profile.accountType === 'ORGANIZATION' && profile.linkedOrgId) {
     return (
       <Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="w-12 h-12 border-4 border-small-orange border-t-transparent rounded-full animate-spin" /></div>}>
-        <OrgAccountPage orgId={profile.linkedOrgId} onBack={onBack} onVisitUser={onVisitUser} />
+        <OrgAccountPage orgId={profile.linkedOrgId} onBack={onBack} onVisitUser={onVisitUser} ownAccount={isOwnProfile} />
       </Suspense>
     );
   }

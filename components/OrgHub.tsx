@@ -380,7 +380,7 @@ const VIOLET_SOFT = '#B79BF5';
 const HERO_SHEEN = 'linear-gradient(135deg, rgba(139,92,246,0.18), rgba(0,0,0,0.4))';
 
 // ── Public / owner org profile (Grace Chapel default layout for all Elevate & Org pages) ──
-const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => void; onDeleted?: () => void; initialGive?: boolean; initialContentHq?: boolean; onVisitUser?: (uid: string) => void } & OrgMediaOpeners> = ({ org: initialOrg, isOwner, onBack, onDeleted, initialGive, initialContentHq, onVisitUser, onOpenVideo, onOpenAlbum, onOpenLive, onOpenChannel }) => {
+const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => void; onDeleted?: () => void; initialGive?: boolean; initialContentHq?: boolean; onVisitUser?: (uid: string) => void; ownAccount?: boolean } & OrgMediaOpeners> = ({ org: initialOrg, isOwner, onBack, onDeleted, initialGive, initialContentHq, onVisitUser, onOpenVideo, onOpenAlbum, onOpenLive, onOpenChannel, ownAccount }) => {
   const [org, setOrg] = useState<Organization>(initialOrg);
   const [staff, setStaff] = useState<OrgMembership[]>([]);
   const [managing, setManaging] = useState(false);
@@ -477,6 +477,13 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
       </div>
       <div className="flex items-center gap-1.5">
         {hasOps && <CreateEventButton compact host={{ kind: 'org', id: org.id, label: org.name }} />}
+        {ownAccount && (
+          // This org page is the signed-in account's profile — switching to a non-org type restores the personal profile.
+          <button onClick={() => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'SETTINGS', params: { tab: 'ACCOUNT' } } }))}
+            title="Change account type" className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 border border-white/10 rounded-full text-[9px] font-black uppercase tracking-widest text-white/65 hover:text-white hover:bg-white/10 transition-all">
+            <KeyRound size={11} /> Account type
+          </button>
+        )}
         {isOwner && (
           <button onClick={() => setElevateLive(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 border border-white/10 rounded-full text-[9px] font-black uppercase tracking-widest text-white/65 hover:text-white hover:bg-white/10 transition-all">
             <Radio size={11} /> Elevate Live
@@ -1184,7 +1191,7 @@ const OrgManage: React.FC<{ org: Organization; staff: OrgMembership[]; onClose: 
 };
 
 /** An ORGANIZATION account's profile page IS its org page: same hero, tabs, member hub and admin backend. */
-export const OrgAccountPage: React.FC<{ orgId: string; onBack: () => void; onVisitUser?: (uid: string) => void } & OrgMediaOpeners> = ({ orgId, onBack, ...rest }) => {
+export const OrgAccountPage: React.FC<{ orgId: string; onBack: () => void; onVisitUser?: (uid: string) => void; ownAccount?: boolean } & OrgMediaOpeners> = ({ orgId, onBack, ...rest }) => {
   const [org, setOrg] = useState<Organization | null | undefined>(undefined);
   useEffect(() => {
     let alive = true;
