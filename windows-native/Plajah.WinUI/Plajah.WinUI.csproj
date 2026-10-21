@@ -8,6 +8,11 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Platforms>x86;x64;ARM64</Platforms>
     <RuntimeIdentifiers>win-x86;win-x64;win-arm64</RuntimeIdentifiers>
+    <!-- Always build for one Windows runtime (release already passes -r win-x64). Without it,
+         LLamaSharp's native packages copy every OS's libraries and the resource indexer fails. -->
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == '' and '$(Platform)' == 'ARM64'">win-arm64</RuntimeIdentifier>
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == '' and '$(Platform)' == 'x86'">win-x86</RuntimeIdentifier>
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-x64</RuntimeIdentifier>
     <UseWinUI>true</UseWinUI>
     <Nullable>enable</Nullable>
     <!-- Single-project MSIX: the modern packaging target — no separate .wapproj needed. -->
@@ -25,6 +30,12 @@
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.7.250606001" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.4188" />
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3351.48" />
+    <!-- On-device language models (NativeLlmService): llama.cpp through LLamaSharp. Vulkan reaches
+         NVIDIA RTX / AMD / Intel GPUs from one small runtime; CPU is the fallback. CUDA is left out
+         on purpose — it would add ~0.5 GB+ to every install for a modest speedup on NVIDIA only. -->
+    <PackageReference Include="LLamaSharp" Version="0.30.0" />
+    <PackageReference Include="LLamaSharp.Backend.Vulkan.Windows" Version="0.30.0" />
+    <PackageReference Include="LLamaSharp.Backend.Cpu" Version="0.30.0" />
   </ItemGroup>
 
   <ItemGroup>

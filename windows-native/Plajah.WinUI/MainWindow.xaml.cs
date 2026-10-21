@@ -49,6 +49,7 @@ public sealed partial class MainWindow : Window
     {
         InitializeComponent();
         Title = "Plajah";
+        NativeLlmService.GpuNameProvider = () => PlajahAiNativeService.GetHardwareProfile().GpuName;
 
         // Win11-native chrome: Mica backdrop + content extended into the title bar.
         SystemBackdrop = new MicaBackdrop();
@@ -946,10 +947,60 @@ public sealed partial class MainWindow : Window
             }
             else if (type == "LOCAL_LLM_REQUEST")
             {
-                var prompt = root.TryGetProperty("prompt", out var p) ? p.GetString() ?? string.Empty : string.Empty;
-                var sys = root.TryGetProperty("systemPrompt", out var s) ? s.GetString() : null;
-                var res = await PlajahAiNativeService.RunLocalLlmAsync(prompt, sys);
-                PostNativeMessage("LOCAL_LLM_RESULT", res);
+                // Real on-device inference (NativeLlmService). Accepts either `messages` or the older
+                // prompt/systemPrompt pair; answers carry the caller's requestId so concurrent callers
+                // (Aria, the composer council) never read each other's replies.
+                var requestId = root.TryGetProperty("requestId", out var rid) ? rid.GetString() ?? string.Empty : string.Empty;
+                var messages = new List<NativeLlmService.ChatMessage>();
+                if (root.TryGetProperty("messages", out var msgs) && msgs.ValueKind == System.Text.Json.JsonValueKind.Array)
+                {
+                    foreach (var m in msgs.EnumerateArray())
+                    {
+                        var role = m.TryGetProperty("role", out var r) ? r.GetString() ?? "user" : "user";
+                        var content = m.TryGetProperty("content", out var c) ? c.GetString() ?? string.Empty : string.Empty;
+                        messages.Add(new NativeLlmService.ChatMessage(role, content));
+                    }
+                }
+                else
+                {
+                    var sys = root.TryGetProperty("systemPrompt", out var s) ? s.GetString() : null;
+                    if (!string.IsNullOrWhiteSpace(sys)) messages.Add(new NativeLlmService.ChatMessage("system", sys));
+                    messages.Add(new NativeLlmService.ChatMessage("user", root.TryGetProperty("prompt", out var p) ? p.GetString() ?? string.Empty : string.Empty));
+                }
+                var model = root.TryGetProperty("model", out var mk) ? mk.GetString() : null;
+                var maxTokens = root.TryGetProperty("maxTokens", out var mt) && mt.TryGetInt32(out var mti) ? mti : 512;
+                var temperature = root.TryGetProperty("temperature", out var tp) && tp.TryGetSingle(out var tps) ? tps : 0.7f;
+                using var cts = new System.Threading.CancellationTokenSource();
+                if (requestId.Length > 0) NativeLlmService.Inflight[requestId] = cts;
+                try
+                {
+                    var res = await NativeLlmService.GenerateAsync(messages, model, maxTokens, temperature, cts.Token);
+                    PostNativeMessage("LOCAL_LLM_RESULT", new
+                    {
+                        requestId, success = res.success, text = res.text, model = res.model, backend = res.backend,
+                        tokensUsed = res.tokens, seconds = res.seconds, error = res.error,
+                    });
+                }
+                finally
+                {
+                    if (requestId.Length > 0) NativeLlmService.Inflight.TryRemove(requestId, out _);
+                }
+            }
+            else if (type == "LOCAL_LLM_CANCEL")
+            {
+                var requestId = root.TryGetProperty("requestId", out var rid) ? rid.GetString() ?? string.Empty : string.Empty;
+                if (NativeLlmService.Inflight.TryGetValue(requestId, out var cts)) cts.Cancel();
+            }
+            else if (type == "LOCAL_LLM_STATUS")
+            {
+                PostNativeMessage("LOCAL_LLM_STATUS_RESULT", NativeLlmService.Status());
+            }
+            else if (type == "LOCAL_LLM_DOWNLOAD")
+            {
+                var key = root.TryGetProperty("key", out var k) ? k.GetString() ?? string.Empty : string.Empty;
+                var (ok, path, error) = await NativeLlmService.DownloadAsync(key, (done, total) =>
+                    PostNativeMessage("LOCAL_LLM_DOWNLOAD_PROGRESS", new { key, done, total }), System.Threading.CancellationToken.None);
+                PostNativeMessage("LOCAL_LLM_DOWNLOAD_RESULT", new { key, success = ok, path, error });
             }
             else if (type == "VST_LIST_DIRECTORIES")
             {

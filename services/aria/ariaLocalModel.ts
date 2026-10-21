@@ -30,7 +30,7 @@
  * Install (already a dependency): @huggingface/transformers (>= 4, which ships Gemma 4).
  */
 
-import { isWindowsApp, invokeNativeLlm } from '../windowsBridgeService';
+import { isWindowsApp, invokeNativeLlm, getNativeLlmStatus } from '../windowsBridgeService';
 
 // Picked to balance quality vs. download/VRAM. WebGPU gets the 1.5B; wasm-only
 // devices fall back to the tiny 0.5B so it still runs (slowly) anywhere.
@@ -142,13 +142,23 @@ class AriaLocalModel {
     this.loading = (async () => {
       try {
         if (isWindowsApp()) {
-          onStatus?.('Connecting Aria to NVIDIA RTX local engine…');
-          this.backend = 'nvidia-rtx';
-          this.modelId = 'Nemotron-Mini-4B-Instruct-INT4';
-          this.engine = 'qwen';
-          this.status = 'ready';
-          onStatus?.('Aria on-device ready (NVIDIA RTX / Nemotron).');
-          return true;
+          // Desktop first: the app's native engine (llama.cpp on the PC's GPU) when it has a model.
+          onStatus?.('Connecting Aria to this PC\'s local engine…');
+          try {
+            const st = await getNativeLlmStatus();
+            const model = st.models.find((m) => m.present);
+            if (model) {
+              this.backend = 'nvidia-rtx';
+              this.modelId = model.label;
+              this.engine = 'qwen';
+              this.status = 'ready';
+              onStatus?.(`Aria on-device ready (${model.label} on ${st.gpu || 'this PC'}).`);
+              return true;
+            }
+            onStatus?.('No language model installed in the desktop app yet — using the in-browser model.');
+          } catch {
+            onStatus?.('The desktop engine did not answer — using the in-browser model.');
+          }
         }
 
         // @vite-ignore keeps the bundler from resolving the optional dep at build time.

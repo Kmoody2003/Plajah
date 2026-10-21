@@ -144,27 +144,16 @@ public static class PlajahAiNativeService
     }
 
     /// <summary>
-    /// Execute Nemotron-Mini local reasoning and tool generation.
+    /// On-device language model reply — real inference through NativeLlmService (the best GGUF on
+    /// this PC, on its GPU). Kept for older callers; the bridge talks to NativeLlmService directly.
     /// </summary>
     public static async Task<LlmResponseResult> RunLocalLlmAsync(string prompt, string? systemPrompt = null, int maxTokens = 512)
     {
-        await VramGate.WaitAsync();
-        try
-        {
-            await Task.Delay(50); // Simulate minimal dispatch latency
-            string response = string.Empty;
-            // Format response as structured tool/assistant response
-            return new LlmResponseResult(
-                Text: response,
-                TokensUsed: prompt.Length / 4,
-                Backend: "Nemotron-Mini-4B-Instruct-RTX",
-                Success: true
-            );
-        }
-        finally
-        {
-            VramGate.Release();
-        }
+        var messages = new List<NativeLlmService.ChatMessage>();
+        if (!string.IsNullOrWhiteSpace(systemPrompt)) messages.Add(new NativeLlmService.ChatMessage("system", systemPrompt));
+        messages.Add(new NativeLlmService.ChatMessage("user", prompt));
+        var res = await NativeLlmService.GenerateAsync(messages, null, maxTokens, 0.7f, CancellationToken.None);
+        return new LlmResponseResult(Text: res.text, TokensUsed: res.tokens, Backend: $"{res.model} · {res.backend}", Success: res.success);
     }
 
     /// <summary>

@@ -57,6 +57,16 @@
     "services/melos/beats/voice/voiceCapture.ts",
     "components/melos/beats/voice/VoicePanel.tsx",
     "components/melos/beats/shared/TransportBar.tsx",
-    "tests/melosVoice.test.ts"
+    "tests/melosVoice.test.ts",
+    "services/melos/beats/council/composeContext.ts",
+    "services/melos/beats/council/composeCouncil.ts",
+    "services/melos/beats/council/rulesArranger.ts",
+    "services/melos/beats/council/noteLines.ts",
+    "services/melos/beats/council/councilRepair.ts",
+    "services/melos/beats/council/localCouncil.ts",
+    "services/melos/beats/council/councilModel.ts",
+    "services/melos/beats/council/councilModel.worker.ts",
+    "components/melos/beats/council/CouncilComposerPanel.tsx",
+    "tests/melosCouncil.test.ts"
   ]
 }

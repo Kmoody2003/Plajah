@@ -477,6 +477,13 @@ export interface Scene {
 }
 
 /** One block of the song: a scene for N bars (the meter decides how long a bar is). */
+/** One lyric line, placed on the bar where it starts (0-based, like MeterMap bars). */
+export interface LyricLine {
+  id: string;
+  bar: number;
+  text: string;
+}
+
 export interface SongSection {
   id: string;
   sceneId: string;
@@ -548,6 +555,9 @@ export interface GrooveDoc {
   mixer: MixerState;
   /** Film cue section markers across the arrangement timeline (Overture, Theme A, Theme B, Development, Climax, Coda) */
   sectionMarkers?: FilmScoreSectionMarker[];
+  /** The song's words, line by line, each on the (0-based) bar where it is sung. Read by the
+   *  composer council so melodies fit the words; edited in the council panel. */
+  lyrics?: LyricLine[];
   /** Optional Chora DAW Showcase & Template project metadata */
   showcaseMetadata?: {
     isShowcaseTemplate: boolean;

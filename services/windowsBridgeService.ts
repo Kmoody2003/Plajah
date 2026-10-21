@@ -342,16 +342,65 @@ export function deletePersonaPlexWeights(): Promise<boolean> {
     .catch(() => false);
 }
 
-/** Invoke on-device Nemotron model via WinUI shell. */
+/** One-shot reply from the app's on-device model (kept for Aria's prompt/system call shape). */
 export function invokeNativeLlm(prompt: string, systemPrompt?: string): Promise<LlmResponseResult> {
-  if (!isWindowsApp()) {
-    return Promise.reject(new Error('Native LLM only available in Windows app'));
-  }
-  return requestNativeResponse<LlmResponseResult>(
-    'LOCAL_LLM_REQUEST',
-    'LOCAL_LLM_RESULT',
-    { prompt, systemPrompt }
-  );
+  const messages: NativeChatMessage[] = [];
+  if (systemPrompt) messages.push({ role: 'system', content: systemPrompt });
+  messages.push({ role: 'user', content: prompt });
+  return nativeLlmChat(messages).then((r) => ({ text: r.text, tokensUsed: r.tokensUsed, backend: `${r.model} · ${r.backend}`, success: r.success }));
+}
+
+// ── On-device language models (NativeLlmService in the WinUI app) ─────────────
+// Desktop first: inside the app every AI feature runs its language model here — llama.cpp on the
+// PC's GPU (Vulkan: NVIDIA RTX / AMD / Intel) with GGUF models on disk. Browsers fall back to
+// in-browser models only when this isn't available.
+
+export interface NativeChatMessage { role: 'system' | 'user' | 'assistant'; content: string }
+export interface NativeLlmReply {
+  requestId: string; success: boolean; text: string; model: string; backend: string;
+  tokensUsed: number; seconds: number; error?: string | null;
+}
+export interface NativeLlmModel { key: string; label: string; present: boolean; path?: string | null; downloadable: boolean; loaded: boolean }
+export interface NativeLlmStatus { models: NativeLlmModel[]; backend: string; gpu: string; modelDir: string; ready: boolean }
+
+let nativeLlmSeq = 0;
+
+/** Chat with the app's on-device model. `signal` cancels the generation on the GPU. */
+export function nativeLlmChat(
+  messages: NativeChatMessage[],
+  opts: { model?: string; maxTokens?: number; temperature?: number; signal?: AbortSignal; timeoutMs?: number } = {},
+): Promise<NativeLlmReply> {
+  if (!isWindowsApp()) return Promise.reject(new Error('On-device models run in the Plajah desktop app'));
+  const requestId = `llm-${Date.now().toString(36)}-${++nativeLlmSeq}`;
+  const cancel = () => postToNative({ type: 'LOCAL_LLM_CANCEL', requestId });
+  opts.signal?.addEventListener('abort', cancel, { once: true });
+  return requestNativeResponse<NativeLlmReply>('LOCAL_LLM_REQUEST', 'LOCAL_LLM_RESULT',
+    { requestId, messages, model: opts.model, maxTokens: opts.maxTokens ?? 512, temperature: opts.temperature ?? 0.7 },
+    (m) => m?.requestId === requestId,
+    opts.timeoutMs ?? 10 * 60_000, // a cold load of a 7B model plus a long answer
+  ).finally(() => opts.signal?.removeEventListener('abort', cancel));
+}
+
+/** Which models are on this PC, which can be downloaded, which is loaded. */
+export function getNativeLlmStatus(): Promise<NativeLlmStatus> {
+  if (!isWindowsApp()) return Promise.reject(new Error('On-device models run in the Plajah desktop app'));
+  return requestNativeResponse<NativeLlmStatus>('LOCAL_LLM_STATUS', 'LOCAL_LLM_STATUS_RESULT');
+}
+
+/** Download a model into the app's model folder (resumes a partial download). */
+export function downloadNativeLlmModel(key: string, onProgress?: (done: number, total: number) => void): Promise<{ success: boolean; path?: string; error?: string }> {
+  if (!isWindowsApp()) return Promise.reject(new Error('On-device models run in the Plajah desktop app'));
+  const webview = (window as any).chrome?.webview;
+  const onMsg = (event: MessageEvent) => {
+    try {
+      const m = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+      if (m?.type === 'LOCAL_LLM_DOWNLOAD_PROGRESS' && m.key === key) onProgress?.(m.done, m.total);
+    } catch { /* not ours */ }
+  };
+  webview?.addEventListener('message', onMsg);
+  return requestNativeResponse<{ success: boolean; path?: string; error?: string }>('LOCAL_LLM_DOWNLOAD', 'LOCAL_LLM_DOWNLOAD_RESULT',
+    { key }, (m) => m?.key === key, 6 * 60 * 60_000)
+    .finally(() => webview?.removeEventListener('message', onMsg));
 }
 
 export interface WindowsVstPlugin {
@@ -779,7 +828,7 @@ export async function extractStudioThumbnails(paths: string[], targetSize: numbe
   }
 }
 
-function requestNativeResponse<T>(requestType: string, responseType: string, payload: object = {}, matches?: (message: any) => boolean): Promise<T> {
+function requestNativeResponse<T>(requestType: string, responseType: string, payload: object = {}, matches?: (message: any) => boolean, timeoutMs = 30_000): Promise<T> {
   return new Promise((resolve, reject) => {
     const webview = (window as any).chrome?.webview;
     if (!webview) {
@@ -789,7 +838,7 @@ function requestNativeResponse<T>(requestType: string, responseType: string, pay
     const timeout = window.setTimeout(() => {
       webview.removeEventListener('message', onMessage);
       reject(new Error(`Windows native request timed out: ${requestType}`));
-    }, 30_000);
+    }, timeoutMs);
     const onMessage = (event: MessageEvent) => {
       let message: any;
       try {

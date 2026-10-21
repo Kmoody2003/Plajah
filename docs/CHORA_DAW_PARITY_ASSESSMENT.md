@@ -37,6 +37,69 @@ Deferred:
 - `.dawproject` export still writes one tempo and 4/4.
 - Docked NoteTab vs PianoRoll duplication is a product decision.
 
+## Phase 7 status (2026-10-21)
+
+Done (the composer council, entirely on the user's machine — no cloud model, no account):
+- **Council · Notation** is the new default mode of the timeline region bar. "Compose with the council" opens `components/melos/beats/council/CouncilComposerPanel.tsx` for the loop region. In the panel you:
+  - describe how the passage should feel;
+  - pick new parts by role and/or tick existing instrument tracks to rewrite;
+  - edit the song's lyrics (`doc.lyrics`, `LyricLine { id, bar, text }`, 0-based bars): paste lines and place them every N bars, or edit each line's bar, with syllable estimates;
+  - choose the **melody writer**.
+- **Context packet** (`composeContext.ts`, pure). For the region ±2 bars it gathers:
+  - every bar's meter and section;
+  - the chord the other tracks imply, as a name plus `chordPcs` (root first); if nothing else plays, from the tracks being rewritten;
+  - the lyric line on each bar;
+  - every track's notes, drum grids and where each track plays across the song;
+  - the key (`keyPc`/`scaleId`, C major when unset) and the tempo.
+- **Rules arranger** (`rulesArranger.ts`):
+  - `readMood` turns the description into energy, brightness and lift.
+  - `regionChords` reads the bar chords, or realises a progression in the key when the region is silent (minor-mode progressions rooted correctly).
+  - It writes bass (roots/fifths/octave pulse by energy), voice-led harmony (`voiceChord` picks the inversion with the least movement), held pads, arps and a fill.
+  - It also has fallback writers: a melody (one note per syllable, arch contour, chord tones on strong beats, a lift on the last phrase) and a guide-tone counter-melody kept mid-register.
+  - Every part gets phrase dynamics.
+- **Melody writers** (`localCouncil.ts`, `writerLanes()` detects what this machine has; priority `desktop → studio → device → rules`, best available auto-selected):
+  - `desktop` — **the Plajah desktop app's native engine** (`windows-native/Plajah.WinUI/NativeLlmService.cs`).
+    - llama.cpp via LLamaSharp 0.30 on the PC's GPU through **Vulkan** (NVIDIA / AMD / Intel; no CUDA bundle, to keep the MSIX small).
+    - GGUF models from `%LOCALAPPDATA%\Plajah\Models\llm`, `D:\Plajah Models\llm` or `PLAJAH_LLM_DIR`. Ladder: Gemma 4 (if its GGUF is present) → Qwen2.5-7B → Nemotron 4B → Gemma 2 2B. In-app download is resumable.
+    - One resident model with **one resident context**, cleared per request (the per-request context had cost ~6 s), unloaded after 4 idle minutes.
+    - Bridge messages: `LOCAL_LLM_REQUEST` (requestId, messages, model, maxTokens, temperature), `LOCAL_LLM_CANCEL`, `LOCAL_LLM_STATUS`, `LOCAL_LLM_DOWNLOAD` (+ progress). Web side: `nativeLlmChat` / `getNativeLlmStatus` / `downloadNativeLlmModel` in `services/windowsBridgeService.ts`.
+    - This replaced a stub that returned an empty string. Aria now uses it too, falling back to her browser model when no GGUF is installed.
+  - `device` — an on-device model in **its own Web Worker** (`councilModel.ts` + `councilModel.worker.ts`). A worker gets a fresh wasm heap, keeps generation off the audio thread, and `release()` (on panel close, cancel or timeout) terminates it so every byte returns.
+    - Engine ladder, stepping down on any load failure (each failure is remembered for 24 h): Gemma 4 E2B q4f16 (when chosen in Aria's settings, WebGPU) → Qwen 2.5 1.5B q4 (WebGPU, ≈1.8 GB) → Qwen 2.5 0.5B q4 (≈0.8 GB).
+    - The panel shows download/load progress.
+    - The model writes the compact note-line format (`noteLines.ts`: `bar beat length pitch`); the parser tolerates prose and code fences. There is one firmer retry, a token budget sized to the part, a 2-minute time limit, and the rules fill any phrase the model leaves empty (credited).
+  - `studio` — the studio's local score models through the music lab (admin, backend connected): YuE2 sets a sung melody from the lyrics; Qwen (`qwen-score`, Qwen3 8B via Ollama or GGUF) writes the other lines.
+  - `rules` — instant fallback.
+  - A failed or empty model answer falls back to the rules for that part, and the take's credits say who wrote what.
+- **Critic** (`councilRepair.ts` + `critiqueComposition`): it repairs instead of asking for a revision:
+  - folds notes into range (a sung range when there are lyrics);
+  - pulls out-of-key notes in, except weak-beat stepwise passing tones;
+  - moves strong-beat minor-second rubs onto chord tones;
+  - fits each lyric line to about one note per syllable (splits long notes, adds a line when it's missing, thins one too busy to sing);
+  - moves doubled notes onto pitches the other track isn't playing;
+  - shapes flat dynamics.
+  The take lists what was fixed and what is still worth a look.
+- **Takes** A, B, C… show the brief (key, tempo, mood, chord names), credits, parts, the lyric reading and the critic. Applying one is a single undo step. A rewrite onto a busy track goes to a take track under it. Clips are tagged `local-council:<lane>`.
+- Tests: `tests/melosCouncil.test.ts` (in `npm run test:melostime`).
+
+Not done / limits:
+- **Desktop engine, measured with a console harness that compiles `NativeLlmService.cs`**:
+  - It picked the RTX 4070 Laptop GPU by itself and offloaded all layers.
+  - The Vulkan build needs the CPU package's `ggml-cpu.dll`; the loader supplies it.
+  - On the warm context a 1-token reply takes 0.14 s.
+  - Qwen 2.5 7B follows the note-line format. Gemma 2 2B doesn't (bare note names), so it is last in the ladder.
+  - Throughput on this laptop was low (≈2–9 tok/s) because the GPU was thermally throttled: 83–85 °C idle with a GPU sidecar holding a context, clocks at 210 MHz under load. That's the machine's state, not the engine.
+  - Not yet run inside the WinUI window itself (the bridge contract is covered by the build).
+- **In-browser, measured on the dev laptop (the browser used the Intel Xe-LPG iGPU, not the RTX)**:
+  - Qwen 1.5B failed with `std::bad_alloc` at session create, both in the studio tab and in its own worker; its 1.8 GB weights plus the session don't fit the 4 GB wasm address space.
+  - Qwen 0.5B loads (≈1.5 min first time) and writes, but slowly: about 2.5 minutes per attempt with the window minimised.
+  - It also writes weakly: line 1 was a few repeated notes, line 2 empty. The repair pass plus the rules make the take usable, but **0.5B is not a melodist**.
+  - Gemma 4 (≈2 GB, q4f16) was not tested; it will likely hit the same heap limit here, and fp16 risks garbage on Intel iGPUs.
+- The `.NET 8` build of LLamaSharp has no backend-selection API, so `NativeLlmService.ConfigureBackend` preloads the native DLLs itself (Vulkan → AVX2 → AVX → none).
+- The csproj now defaults a RuntimeIdentifier; without one, LLamaSharp copies every OS's runtimes and the PRI resource indexer fails.
+- The studio lane only works where the music lab backend is connected (admin).
+- No "regenerate bars 3–4 of a take" yet. Lyrics aren't imported from the Project view yet. Drums are context only.
+
 ## Phase 6 status (2026-10-21)
 
 Done (voice — the mic as an instrument):

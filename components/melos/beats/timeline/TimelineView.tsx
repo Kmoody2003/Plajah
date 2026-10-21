@@ -38,6 +38,7 @@ import { docKey, keyLabel, parseKey } from '../../../../services/melos/beats/son
 import { TempoLane, TimelineGrid } from './TempoLane';
 import { TrackAutomation } from './TrackAutomation';
 import { ArrangerLane } from './ArrangerLane';
+import { CouncilComposerPanel } from '../council/CouncilComposerPanel';
 import { syncSongFromSections } from '../../../../services/melos/beats/songSections';
 import { downloadMidi, exportClipMidi, exportTrackMidi } from '../../../../services/melos/beats/midiExport';
 
@@ -822,7 +823,8 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
   // Draggable loop/cycle region on the ruler — move the body, drag either edge to resize; snaps
   // to the bar grid, and turns the loop on the moment you touch it.
   const loop = p.doc.loop ?? { on: false, startBeats: 0, endBeats: meter.barToBeat(4) };
-  const [regionGenMode, setRegionGenMode] = useState<'stems' | 'holistic' | 'idea' | 'full_song'>('stems');
+  const [regionGenMode, setRegionGenMode] = useState<'council' | 'stems' | 'holistic' | 'idea' | 'full_song'>('council');
+  const [councilOpen, setCouncilOpen] = useState(false);
   const [regionPrompt, setRegionPrompt] = useState('');
   const [partInstrument, setPartInstrument] = useState<InstrumentType>('onda');
   const [regionGenerating, setRegionGenerating] = useState(false);
@@ -845,6 +847,8 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
   };
 
   const generateInTimelineRegion = async () => {
+    // The composer council works in its own panel (parts, lyrics, takes) — open it for this region.
+    if (regionGenMode === 'council') { setCouncilOpen(true); return; }
     if (regionGenerating) return;
     const effectivePrompt = (regionPrompt.trim() || "a cinematic hip hop instrumental 90's vibe and jazz sample running in reverse");
     setRegionGenerating(true);
@@ -1227,6 +1231,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
           </div>
           <div className="flex flex-wrap rounded-lg border border-white/15 bg-black/30 p-0.5 max-w-full" role="group" aria-label="Timeline generation mode">
             {([
+              ['council', 'Council · Notation'],
               ['stems', 'Timeline Part · Audio'],
               ['idea', 'Timeline Part · MIDI'],
               ['holistic', 'Full DAW Project'],
@@ -1259,7 +1264,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
             maxLength={4000}
             onChange={(e) => setRegionPrompt(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') void generateInTimelineRegion(); }}
-            placeholder="Describe your part, full DAW arrangement, or music track…"
+            placeholder={regionGenMode === 'council' ? 'How should this passage feel? The council reads every track and the lyrics…' : 'Describe your part, full DAW arrangement, or music track…'}
             className="flex-1 min-w-[200px] h-7 rounded-lg border border-white/15 bg-[#171020] px-2.5 text-[11px] text-white placeholder:text-white/35 outline-none focus:border-[#00DAF3]/70"
           />
           <button
@@ -1267,11 +1272,21 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
             disabled={regionGenerating}
             className="h-7 px-3 rounded-lg bg-gradient-to-r from-[#8B5CFF] to-[#00DAF3] text-white text-[10.5px] font-bold tracking-wide flex items-center gap-1.5 disabled:opacity-50 shrink-0 shadow-[0_0_12px_rgba(139,92,255,0.35)]"
           >
-            {regionGenerating ? <><Loader2 size={12} className="animate-spin" /> Generating…</> : <><Sparkles size={12} /> Generate {regionGenMode === 'holistic' ? 'DAW Project' : regionGenMode === 'full_song' ? 'Music Track' : regionGenMode === 'idea' ? 'MIDI Part' : 'Audio Part'}</>}
+            {regionGenerating ? <><Loader2 size={12} className="animate-spin" /> Generating…</> : regionGenMode === 'council' ? <><Sparkles size={12} /> Compose with the council</> : <><Sparkles size={12} /> Generate {regionGenMode === 'holistic' ? 'DAW Project' : regionGenMode === 'full_song' ? 'Music Track' : regionGenMode === 'idea' ? 'MIDI Part' : 'Audio Part'}</>}
           </button>
           {regionGenerating && <button onClick={() => regionOperation.current?.abort()}
             className="h-7 px-2 rounded-lg border border-white/20 text-xs text-white">Cancel</button>}
           {regionStatus && <span className="text-[10px] text-emerald-300 font-medium truncate max-w-[320px]">{regionStatus}</span>}
+          {councilOpen && (
+            <CouncilComposerPanel
+              doc={p.doc}
+              onMutate={p.onMutate}
+              startBeats={barFloorOf(p.doc, loop.startBeats)}
+              endBeats={Math.max(barFloorOf(p.doc, loop.startBeats) + barsSpan(p.doc, barFloorOf(p.doc, loop.startBeats), 1), loop.endBeats)}
+              initialDescription={regionPrompt}
+              onClose={() => setCouncilOpen(false)}
+            />
+          )}
         </div>
         <div className="flex-1 min-h-0 flex">
         {showLauncher && (
