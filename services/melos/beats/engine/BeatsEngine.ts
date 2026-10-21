@@ -475,12 +475,23 @@ export class BeatsEngine {
     this.padHitListeners.add(fn);
     return () => { this.padHitListeners.delete(fn); };
   }
-  private emitPadHit(padIdx: number, vel: number, time: number, repeat: boolean): void {
+  private emitPadHit(padIdx: number, vel: number, time: number, repeat: boolean, exact = false): void {
     if (!this.padHitListeners.size) return;
-    // What the performer HEARD when they hit: the audio clock minus the output latency.
-    const lat = repeat ? 0 : Math.max(0, ((this.ctx as unknown as { outputLatency?: number })?.outputLatency || this.ctx?.baseLatency || 0));
+    // What the performer HEARD when they hit: the audio clock minus the output latency. Repeats
+    // and voice hits arrive already stamped with their true time.
+    const lat = repeat || exact ? 0 : Math.max(0, ((this.ctx as unknown as { outputLatency?: number })?.outputLatency || this.ctx?.baseLatency || 0));
     const hit: PadHit = { padIdx, vel, time, beat: this.running ? this.beatAt(time - lat) : null, mode: this.mode, repeat };
     for (const fn of this.padHitListeners) fn(hit);
+  }
+
+  /**
+   * A pad hit performed by something with its own timing (beatbox → MEKA): it sounds NOW, but the
+   * recorder hears it at `onsetTime` — when the sound actually started at the mic.
+   */
+  performPadHit(padIdx: number, vel127: number, onsetTime: number): void {
+    if (!this.ctx) return;
+    this.trigger(padIdx, vel127, this.ctx.currentTime);
+    this.emitPadHit(padIdx, vel127, onsetTime, false, true);
   }
 
   /** Transport beat heard at an audio-context time (reads through a pending loop wrap). */

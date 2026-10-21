@@ -51,6 +51,12 @@
     "services/melos/beats/notation/scoreModel.ts",
     "services/melos/beats/notation/musicXml.ts",
     "components/melos/beats/timeline/ScoreView.tsx",
-    "tests/melosNotation.test.ts"
+    "tests/melosNotation.test.ts",
+    "services/melos/beats/voice/pitchTrack.ts",
+    "services/melos/beats/voice/beatbox.ts",
+    "services/melos/beats/voice/voiceCapture.ts",
+    "components/melos/beats/voice/VoicePanel.tsx",
+    "components/melos/beats/shared/TransportBar.tsx",
+    "tests/melosVoice.test.ts"
   ]
 }

@@ -44,6 +44,7 @@ import { useEngineBridge } from './useEngineBridge';
 import { useBeatsHid } from './useBeatsHid';
 import { useInstrumentKeyboard, commitRecordedNote, type RecordedNote } from './instrument/useInstrumentKeyboard';
 import { TransportBar, type BeatsViewId } from './shared/TransportBar';
+import { VoicePanel } from './voice/VoicePanel';
 import { MenuBar, type MenuGroup } from './shared/MenuBar';
 import { InstrumentWindow } from './instrument/InstrumentWindow';
 import { DiagnosticsReadout } from './shared/DiagnosticsReadout';
@@ -256,6 +257,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
   const [showEq, setShowEq] = useState(false);
   const [showLibrary, setShowLibrary] = useState(false);
   const [showMidi, setShowMidi] = useState(false);
+  const [showVoice, setShowVoice] = useState(false);
   const [midiConnected, setMidiConnected] = useState(false);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -1114,6 +1116,8 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
         onSetPlayMode={setPlayMode}
         onToggleDiagnostics={() => setShowDiagnostics((v) => !v)}
         onOpenMidi={() => setShowMidi(true)}
+        onOpenVoice={() => setShowVoice((v) => !v)}
+        voiceOpen={showVoice}
         midiConnected={midiConnected}
         onPublish={() => { void handlePublish(); }}
         busy={busy}
@@ -1525,6 +1529,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
       )}
 
       {showMidi && <MidiLearnPanel onClose={() => setShowMidi(false)} />}
+      {showVoice && <VoicePanel doc={doc} mutate={mutate} isRecording={() => recordingRef.current} onClose={() => setShowVoice(false)} />}
 
       {/* Add an instrument from the pattern-editing views — the picker leads with the
           instrument choice rather than a preset list. Mixer and Project don't add sounds. */}

@@ -37,6 +37,21 @@ Deferred:
 - `.dawproject` export still writes one tempo and 4/4.
 - Docked NoteTab vs PianoRoll duplication is a product decision.
 
+## Phase 6 status (2026-10-21)
+
+Done (voice — the mic as an instrument):
+- **Voice panel** (mic button in the transport bar → `components/melos/beats/voice/VoicePanel.tsx`), with Sing / hum and Beatbox modes, a level meter and a sensitivity control.
+- **Pitch → notes** (`services/melos/beats/voice/pitchTrack.ts`): YIN on 10 ms hops of 40 ms windows and a streaming `NoteSegmenter`. Onsets are back-dated to the first confirming frame. Legato re-articulates only when a new pitch holds; vibrato, scoops and single-frame octave slips do not spray notes.
+- **Click-locked capture** (`voiceCapture.ts`): an AnalyserNode on the engine's own AudioContext, so every event is on the transport clock (input latency + half a window subtracted) and is converted with `engine.beatAt()`. Raw mic: no echo cancel, no noise suppression, no AGC. With record armed and the transport running (the existing count-in and metronome), finished notes go through `commitRecordedNote` into the armed track. Writes are clip- and meter-aware, and a whole take is one undo step (`coalesce`).
+- **Sing the synth:** live note on/off drives the armed instrument. "Glide" maps the voice's fractional pitch to pitch bend (±2 semitones). "Snap to key" uses `docKey`.
+- **Beatbox → MEKA** (`beatbox.ts`): a 10 ms level onset detector, then a 40 ms spectral fingerprint (centroid, low/high share, zcr, flatness). Built-in rules handle kick, snare and hat. **Teach it your mouth** takes 5 examples per class into a z-scored nearest-template model (level ignored), stored in localStorage. Hits call `engine.performPadHit` (plays now, `onPadHit` with the exact onset time), so the phase-3 pad recorder records them. The class → pad map defaults by pad name/voice.
+- Tests: `tests/melosVoice.test.ts` (in `npm run test:melostime`).
+- Browser-verified in the lab with synthetic sources: a sung C-E-G-C phrase recorded as 60/64/67/72, each 1 beat long, within 0.02 beats of the sung onsets, and undone in one step. Alternating kick/hat bursts classified 8/8. Teach captured 5 examples, persisted them and switched to the taught model.
+
+Not done / limits:
+- Not yet tested with a real microphone and a human voice (the sensitivity defaults may want tuning). There is no AudioWorklet: the analysis is a 10 ms main-thread timer, so a busy UI thread can delay (but not mis-time) events.
+- Monophonic only. No pitch-bend recording into the clip (glide is live only). Beatbox has 4 classes.
+
 ## Phase 5 status (2026-10-21)
 
 Done (notation as a native lens):

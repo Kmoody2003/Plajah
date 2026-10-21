@@ -2,7 +2,7 @@
 // Purple appears here ONLY in the wordmark (brand-chrome rule).
 
 import React, { useCallback, useRef, useState } from 'react';
-import { Play, Square, Activity, X, Circle, UploadCloud, OctagonX, Repeat, SlidersHorizontal, Timer } from 'lucide-react';
+import { Play, Square, Activity, X, Circle, UploadCloud, OctagonX, Repeat, SlidersHorizontal, Timer, Mic } from 'lucide-react';
 import type { GrooveDoc, SongKey } from '../../../../services/melos/beats/grooveDoc';
 import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine';
 import { songTime } from '../../../../services/melos/beats/tempoMap';
@@ -50,6 +50,9 @@ interface TransportBarProps {
   onSetLoop: (loop: { on: boolean; startBeats: number; endBeats: number }) => void;
   onToggleDiagnostics: () => void;
   onOpenMidi?: () => void;
+  /** Open the Voice panel (sing / hum / beatbox into the project). */
+  onOpenVoice?: () => void;
+  voiceOpen?: boolean;
   midiConnected?: boolean;
   onPublish?: () => void;
   busy?: string | null;
@@ -307,6 +310,12 @@ export const TransportBar: React.FC<TransportBarProps> = (p) => {
         <UploadCloud size={12} /> {p.busy === 'publish' ? 'Rendering…' : p.busy === 'bounce' ? 'Rendering…' : 'Publish'}
       </button>
 
+      {p.onOpenVoice && (
+        <button onClick={p.onOpenVoice} aria-label="Voice" title="Voice — sing or hum into the armed track, beatbox into the pads"
+          className={`w-8 h-8 shrink-0 grid place-items-center rounded-lg border transition-colors ${p.voiceOpen ? 'border-[#FF4D8C]/50 text-[#FF4D8C] bg-[#FF4D8C]/10' : 'border-white/10 text-white/40 hover:text-white'}`}>
+          <Mic size={14} />
+        </button>
+      )}
       {p.onOpenMidi && (
         <button onClick={p.onOpenMidi} aria-label="MIDI controllers" title="MIDI controllers — devices and Learn mapping"
           className="w-8 h-8 shrink-0 grid place-items-center rounded-lg border transition-colors relative border-white/10 text-white/40 hover:text-white">
