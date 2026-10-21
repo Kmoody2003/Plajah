@@ -65,6 +65,7 @@ import { blueskyClientRouter } from './routes/blueskyClient';
 import { bookSubmissionsRouter } from './routes/bookSubmissions';
 import { campaignsRouter } from './routes/campaigns';
 import { createPodRouter, fulfillPodOrderFromStripe } from './routes/pod';
+import { createMusicDownloadRouter } from './routes/musicDownload';
 import { academiaIntegrityRouter } from './routes/academiaIntegrity';
 import { kithSightingsRouter } from './routes/kithSightings';
 import { createAriaSpeakRouter, decideAriaVoiceAccess } from './routes/ariaSpeak';
@@ -13193,3 +13194,5 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
 }
 
 startServer();
+  // Purchased music: server-rendered MP3/AAC/FLAC/WAV with tags + cover art, zipped for albums (licence-checked).
+  app.use('/api/music', express.json({ limit: '4kb' }), createMusicDownloadRouter({ authMiddleware }));

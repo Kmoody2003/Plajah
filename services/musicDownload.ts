@@ -12,7 +12,10 @@
 
 import { registerPlugin } from '@capacitor/core';
 import type { Album, Track } from '../types';
+import { auth } from './backendService';
 
+export interface MusicFormatOption { id: string; label: string }
+export interface MusicFormats { formats: MusicFormatOption[]; lossless: boolean; default: string }
 export type SaveTarget = 'android-music' | 'folder' | 'browser';
 export interface DownloadProgress { done: number; total: number; current?: string }
 export interface DownloadResult { saved: number; failed: string[]; target: SaveTarget; folderName?: string }
@@ -95,15 +98,53 @@ interface FilesystemPlugin { writeFile(o: { path: string; data: string; director
 // Resolved by Capacitor at runtime from the native plugin (@capacitor/filesystem + `npx cap sync android`).
 const NativeFilesystem = registerPlugin<FilesystemPlugin>('Filesystem');
 
+const authHeader = async (): Promise<Record<string, string>> => {
+  const token = await auth.currentUser?.getIdToken().catch(() => undefined);
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
+/** Formats the server can render this release in. Lossless ones appear only when the artist's master is lossless. */
+export async function fetchMusicFormats(albumId: string, trackId?: string): Promise<MusicFormats> {
+  const fallback: MusicFormats = { formats: [{ id: 'mp3-320', label: 'MP3 320 kbps' }, { id: 'original', label: 'Original file from the artist' }], lossless: false, default: 'mp3-320' };
+  try {
+    const q = trackId ? `?trackId=${encodeURIComponent(trackId)}` : '';
+    const res = await fetch(`/api/music/${encodeURIComponent(albumId)}/formats${q}`, { headers: await authHeader() });
+    return res.ok ? await res.json() as MusicFormats : fallback;
+  } catch { return fallback; }
+}
+
+/** Ask the server to render the buyer's copy (checks the licence). Returns null when it can't. */
+async function fetchRendered(albumId: string, format: string, trackId?: string): Promise<{ blob: Blob; name: string } | null> {
+  try {
+    const res = await fetch(`/api/music/${encodeURIComponent(albumId)}/download`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
+      body: JSON.stringify({ format, ...(trackId ? { trackId } : {}) }),
+    });
+    if (!res.ok) return null;
+    const cd = res.headers.get('content-disposition') || '';
+    const name = decodeURIComponent(/filename*=UTF-8''([^;]+)/i.exec(cd)?.[1] || '') || '';
+    return { blob: await res.blob(), name };
+  } catch { return null; }
+}
+
+const saveBlobInBrowser = (blob: Blob, name: string) => {
+  const u = URL.createObjectURL(blob);
+  const el = document.createElement('a');
+  el.href = u; el.download = name;
+  document.body.appendChild(el); el.click(); el.remove();
+  setTimeout(() => URL.revokeObjectURL(u), 10_000);
+};
+
 /**
  * Download tracks of a purchased release. `interactive` = called from a click, so we may show the
  * folder picker / permission prompt; otherwise we only write if access is already granted and
  * otherwise return target 'browser' with nothing saved (caller shows a Download button).
  */
 export async function downloadRelease(
-  album: Pick<Album, 'title' | 'artist'>,
+  album: Pick<Album, 'id' | 'title' | 'artist'>,
   tracks: Track[],
-  opts: { interactive: boolean; onProgress?: (p: DownloadProgress) => void },
+  opts: { interactive: boolean; format?: string; wholeAlbum?: boolean; onProgress?: (p: DownloadProgress) => void },
 ): Promise<DownloadResult> {
   const failed: string[] = [];
   let saved = 0;
@@ -119,16 +160,39 @@ export async function downloadRelease(
     else if (!opts.interactive) return { saved: 0, failed: [], target: 'browser' };
   }
 
+  const format = opts.format || 'mp3-320';
+
+  // Plain browser + a whole album: one server-built zip (tagged files + cover) instead of a prompt per track.
+  if (target === 'browser' && opts.wholeAlbum && tracks.length > 1) {
+    opts.onProgress?.({ done: 0, total: total, current: 'Preparing your download…' });
+    const z = await fetchRendered(album.id, format);
+    if (z) {
+      saveBlobInBrowser(z.blob, z.name || `${clean(album.artist)} - ${albumDir}.zip`);
+      opts.onProgress?.({ done: total, total });
+      return { saved: total, failed: [], target };
+    }
+  }
+
   for (let i = 0; i < tracks.length; i++) {
     const t = tracks[i];
     opts.onProgress?.({ done: i, total, current: t.title });
     try {
       if (!t.url) throw new Error('no url');
-      const res = await fetch(t.url);
-      if (!res.ok) throw new Error(String(res.status));
-      const blob = await res.blob();
+      // The server checks the licence and renders the chosen format with tags + cover art embedded.
+      const rendered = await fetchRendered(album.id, format, t.id);
+      let blob: Blob, ext: string;
+      if (rendered) {
+        blob = rendered.blob;
+        ext = /.([a-z0-9]+)$/i.exec(rendered.name)?.[1]?.toLowerCase() || extFor(t.url, blob.type);
+      } else {
+        // Server unavailable: fall back to the artist's original file so the buyer still gets their music.
+        const res = await fetch(t.originalUrl || t.url);
+        if (!res.ok) throw new Error(String(res.status));
+        blob = await res.blob();
+        ext = extFor(t.originalUrl || t.url, blob.type);
+      }
       const no = String(t.trackNo ?? i + 1).padStart(2, '0');
-      const file = `${no} ${clean(t.title)}.${extFor(t.url, blob.type)}`;
+      const file = `${no} ${clean(t.title)}.${ext}`;
 
       if (target === 'android-music') {
         const data = await blobToBase64(blob);

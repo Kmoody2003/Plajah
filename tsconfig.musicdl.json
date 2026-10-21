@@ -1,0 +1,4 @@
+{
+  "extends": "./tsconfig.json",
+  "include": ["services/musicDownload.ts", "components/SupportReturnModal.tsx", "routes/musicDownload.ts"]
+}

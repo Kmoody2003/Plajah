@@ -10,7 +10,7 @@ import { Heart, Check, Download, FolderOpen } from 'lucide-react';
 import type { Album } from '../types';
 import { Button, Eyebrow } from './ui';
 import { loadOwnedMusic, ownsRelease } from './../services/musicAccess';
-import { downloadRelease, hasSilentFolderAccess, canPickFolder, type DownloadResult } from '../services/musicDownload';
+import { downloadRelease, fetchMusicFormats, hasSilentFolderAccess, canPickFolder, type DownloadResult, type MusicFormats } from '../services/musicDownload';
 
 export type ReturnInfo =
   | { mode: 'gift'; artist: string; title: string; amount: number }
@@ -48,6 +48,8 @@ const PurchaseDone: React.FC<{ info: Extract<ReturnInfo, { mode: 'purchase' }>; 
   const autoRan = useRef(false);
 
   const tracks = kind === 'track' ? (album.tracks || []).filter(t => t.id === trackId) : (album.tracks || []);
+  const [fmts, setFmts] = useState<MusicFormats | null>(null);
+  const [format, setFormat] = useState('');
   const label = kind === 'track' ? (tracks[0]?.title || album.title) : album.title;
 
   // The licence is minted by the Stripe webhook a moment after checkout — poll for it.
@@ -66,7 +68,7 @@ const PurchaseDone: React.FC<{ info: Extract<ReturnInfo, { mode: 'purchase' }>; 
 
   const run = async (interactive: boolean) => {
     setBusy(true);
-    const r = await downloadRelease(album, tracks, { interactive, onProgress: setProg });
+    const r = await downloadRelease(album, tracks, { interactive, format: format || fmts?.default, wholeAlbum: kind === 'album', onProgress: setProg });
     setResult(r); setBusy(false);
   };
 
@@ -77,6 +79,7 @@ const PurchaseDone: React.FC<{ info: Extract<ReturnInfo, { mode: 'purchase' }>; 
     autoRan.current = true;
     hasSilentFolderAccess().then(ok => { if (ok) run(false); });
   }, [state]); // eslint-disable-line react-hooks/exhaustive-deps
+    fetchMusicFormats(album.id, kind === 'track' ? trackId : undefined).then(f => { setFmts(f); setFormat(f.default); });
 
   const where = result?.target === 'android-music' ? 'your Music folder (Plajah)' : result?.target === 'folder' ? `your Music folder${result.folderName ? ` (${result.folderName})` : ''}` : 'your downloads';
 
@@ -96,6 +99,15 @@ const PurchaseDone: React.FC<{ info: Extract<ReturnInfo, { mode: 'purchase' }>; 
           </p>
           <div className="pj-actions" style={{ justifyContent: 'stretch' }}>
             <Button variant="primary" size="lg" icon={canPickFolder() ? <FolderOpen /> : <Download />} loading={busy} onClick={() => run(true)}>
+          {fmts && fmts.formats.length > 1 && (
+            <label className="block text-left text-sm text-white/70 mb-5">
+              Format
+              <select value={format} onChange={e => setFormat(e.target.value)} disabled={busy}
+                className="mt-1 w-full rounded-lg bg-white/10 px-3 py-2 text-white">
+                {fmts.formats.map(f => <option key={f.id} value={f.id} className="text-black">{f.label}</option>)}
+              </select>
+            </label>
+          )}
               {canPickFolder() ? 'Save to my Music folder' : 'Download'}
             </Button>
             <Button variant="secondary" size="lg" onClick={onClose}>Not now</Button>
