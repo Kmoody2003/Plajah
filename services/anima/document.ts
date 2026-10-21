@@ -7,7 +7,7 @@
  * of the document, so moving the playhead never dirties or re-saves the project.
  */
 
-import type { AnimaChannel, AnimaLayer, AnimaProject, DrawingCel, DrawingStroke, InterpolationEase, Keyframe } from './types';
+import type { AnimaChannel, AnimaLayer, AnimaProject, BezierHandle, DrawingCel, DrawingStroke, InterpolationEase, Keyframe, OnionSkinConfig } from './types';
 import { evaluateChannel, frameToTime } from './evaluator';
 
 // ── Animatable properties shown in the inspector ────────────────────────────
@@ -60,6 +60,39 @@ export function isAnimated(layer: AnimaLayer, path: string): boolean {
   return (layer.channels[path]?.keyframes.length ?? 0) > 0;
 }
 
+// ── Key references (timeline / graph selection, clipboard) ──────────────────
+
+export interface KeyRef {
+  layerId: string;
+  path: string;
+  keyId: string;
+}
+
+export const keyRefId = (r: KeyRef) => `${r.layerId}|${r.path}|${r.keyId}`;
+
+/** A copied key, positioned relative to the earliest copied key. */
+export interface ClipboardKey {
+  layerId: string;
+  path: string;
+  offsetFrames: number;
+  v: number;
+  ease?: InterpolationEase;
+  inHandle?: BezierHandle;
+  outHandle?: BezierHandle;
+}
+
+export function copyKeys(p: AnimaProject, refs: KeyRef[]): ClipboardKey[] {
+  const found: (ClipboardKey & { frame: number })[] = [];
+  for (const r of refs) {
+    const k = p.layers.find((l) => l.id === r.layerId)?.channels[r.path]?.keyframes.find((x) => x.id === r.keyId);
+    if (!k) continue;
+    const frame = Math.round(k.t * p.fps) + 1;
+    found.push({ layerId: r.layerId, path: r.path, offsetFrames: 0, frame, v: k.v, ease: k.ease, inHandle: k.inHandle, outHandle: k.outHandle });
+  }
+  const first = Math.min(...found.map((f) => f.frame));
+  return found.map(({ frame, ...k }) => ({ ...k, offsetFrames: frame - first }));
+}
+
 // ── Actions ─────────────────────────────────────────────────────────────────
 
 export type AnimaAction =
@@ -82,7 +115,15 @@ export type AnimaAction =
   | { type: 'addStroke'; layerId: string; frame: number; stroke: DrawingStroke; newDrawingId: string }
   /** Expose a drawing (e.g. a stop-motion capture) on a cel layer from `frame` for `hold` frames. */
   | { type: 'exposeDrawing'; layerId: string; frame: number; hold: number; drawing: DrawingCel }
-  | { type: 'setHold'; layerId: string; stepRate: 1 | 2 | 3 | 4 };
+  | { type: 'setHold'; layerId: string; stepRate: 1 | 2 | 3 | 4 }
+  /** Slide keys along the timeline by whole frames. A moved key replaces any unselected key it lands on. */
+  | { type: 'moveKeys'; refs: KeyRef[]; deltaFrames: number }
+  | { type: 'deleteKeys'; refs: KeyRef[] }
+  /** Paste copied keys from `atFrame`. With `targetLayerId`, keys copied from one layer land on that layer. */
+  | { type: 'pasteKeys'; keys: ClipboardKey[]; atFrame: number; targetLayerId?: string }
+  /** Graph editor: change a key's time (seconds), value, handles or ease. */
+  | { type: 'updateKey'; ref: KeyRef; patch: { t?: number; v?: number; inHandle?: BezierHandle; outHandle?: BezierHandle; ease?: InterpolationEase } }
+  | { type: 'setOnionSkin'; patch: Partial<OnionSkinConfig> };
 
 const newKeyId = () => `kf_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
@@ -253,6 +294,104 @@ export function applyAnimaAction(p: AnimaProject, a: AnimaAction): AnimaProject 
         ...mapLayer(p, a.layerId, (l) => exposeAt(l, a.frame, Math.max(1, a.hold), a.drawing.id)),
         drawingBank: { ...p.drawingBank, [a.drawing.id]: a.drawing },
       };
+    case 'moveKeys': {
+      if (!a.deltaFrames || !a.refs.length) return p;
+      const maxT = frameToTime(p.durationFrames, p.fps);
+      const byChannel = new Map<string, Set<string>>();
+      for (const r of a.refs) {
+        const k = `${r.layerId}|${r.path}`;
+        if (!byChannel.has(k)) byChannel.set(k, new Set());
+        byChannel.get(k)!.add(r.keyId);
+      }
+      // Keep the selection's shape: clamp the shift so no selected key leaves the clip.
+      let delta = a.deltaFrames;
+      for (const [k, ids] of byChannel) {
+        const [layerId, path] = k.split('|');
+        for (const kf of p.layers.find((l) => l.id === layerId)?.channels[path]?.keyframes ?? []) {
+          if (!ids.has(kf.id)) continue;
+          const f = Math.round(kf.t * p.fps);
+          delta = Math.max(delta, -f);
+          delta = Math.min(delta, Math.round(maxT * p.fps) - f);
+        }
+      }
+      if (!delta) return p;
+      return {
+        ...p,
+        layers: p.layers.map((l) => {
+          let channels = l.channels;
+          for (const [path, ch] of Object.entries(l.channels)) {
+            const ids = byChannel.get(`${l.id}|${path}`);
+            if (!ids) continue;
+            const moved = ch.keyframes.filter((k) => ids.has(k.id)).map((k) => ({ ...k, t: (Math.round(k.t * p.fps) + delta) / p.fps }));
+            const landing = new Set(moved.map((k) => Math.round(k.t * p.fps)));
+            const kept = ch.keyframes.filter((k) => !ids.has(k.id) && !landing.has(Math.round(k.t * p.fps)));
+            channels = { ...channels, [path]: { ...ch, keyframes: [...kept, ...moved].sort((x, y) => x.t - y.t) } };
+          }
+          return channels === l.channels ? l : { ...l, channels };
+        }),
+      };
+    }
+    case 'deleteKeys': {
+      const ids = new Set(a.refs.map(keyRefId));
+      return {
+        ...p,
+        layers: p.layers.map((l) => {
+          let next = l;
+          for (const [path, ch] of Object.entries(l.channels)) {
+            const removed = ch.keyframes.filter((k) => ids.has(keyRefId({ layerId: l.id, path, keyId: k.id })));
+            if (!removed.length) continue;
+            const keyframes = ch.keyframes.filter((k) => !removed.includes(k));
+            if (keyframes.length) next = { ...next, channels: { ...next.channels, [path]: { ...ch, keyframes } } };
+            else {
+              // The property stays where the last remaining key had it.
+              const { [path]: _, ...rest } = next.channels;
+              next = setBase({ ...next, channels: rest }, path, removed[removed.length - 1].v);
+            }
+          }
+          return next;
+        }),
+      };
+    }
+    case 'pasteKeys': {
+      const singleSource = new Set(a.keys.map((k) => k.layerId)).size === 1;
+      let next = p;
+      for (const k of a.keys) {
+        const layerId = singleSource && a.targetLayerId ? a.targetLayerId : k.layerId;
+        const frame = a.atFrame + k.offsetFrames;
+        if (frame > p.durationFrames) continue;
+        next = mapLayer(next, layerId, (l) => {
+          const ch = upsertKey(channelFor(l, k.path), frameToTime(frame, p.fps), k.v, p.fps);
+          const t = frameToTime(frame, p.fps);
+          const keyframes = ch.keyframes.map((x) => (Math.abs(x.t - t) < 0.5 / p.fps ? { ...x, ease: k.ease, inHandle: k.inHandle, outHandle: k.outHandle } : x));
+          return { ...l, channels: { ...l.channels, [k.path]: { ...ch, keyframes } } };
+        });
+      }
+      return next;
+    }
+    case 'updateKey':
+      return mapLayer(p, a.ref.layerId, (l) => {
+        const ch = l.channels[a.ref.path];
+        if (!ch) return l;
+        const maxT = frameToTime(p.durationFrames, p.fps);
+        const keyframes = ch.keyframes
+          .map((k) => {
+            if (k.id !== a.ref.keyId) return k;
+            const next = { ...k, ...a.patch };
+            if (a.patch.t != null) next.t = Math.max(0, Math.min(maxT, Math.round(a.patch.t * p.fps) / p.fps));
+            return next;
+          })
+          .sort((x, y) => x.t - y.t);
+        if (a.patch.t != null) {
+          // Dragged onto another key's frame: it replaces that key.
+          const moved = keyframes.find((k) => k.id === a.ref.keyId);
+          const f = moved ? Math.round(moved.t * p.fps) : -1;
+          const deduped = keyframes.filter((k) => k.id === a.ref.keyId || Math.round(k.t * p.fps) !== f);
+          return { ...l, channels: { ...l.channels, [a.ref.path]: { ...ch, keyframes: deduped } } };
+        }
+        return { ...l, channels: { ...l.channels, [a.ref.path]: { ...ch, keyframes } } };
+      });
+    case 'setOnionSkin':
+      return { ...p, onionSkin: { ...p.onionSkin, ...a.patch } };
     case 'setHold':
       return mapLayer(p, a.layerId, (l) =>
         l.celTrack ? { ...l, celTrack: { ...l.celTrack, stepRate: a.stepRate } } : { ...l, celTrack: { id: `cel_${l.id}`, name: 'Exposures', layerId: l.id, stepRate: a.stepRate, exposures: [] } }

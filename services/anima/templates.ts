@@ -47,6 +47,8 @@ export const makeDrawingLayer = (name = 'Drawing') => makeLayer('cel', name);
 export const makeCharacterLayer = (rigId: AnimaRigId) =>
   makeLayer('character', RIG_CHOICES.find((r) => r.id === rigId)?.name ?? 'Character', { rigId, origin: { x: ANIMA_W / 2, y: ANIMA_H - 170 } });
 export const makePlateLayer = (plate?: AnimaPlate) => makeLayer('plate', plate?.name || 'Plate', plate ? { plate } : {});
+/** The camera: move, zoom (scale) and roll (rotation) it like any layer; the stage shows what it sees. */
+export const makeCameraLayer = () => makeLayer('camera', 'Camera');
 
 export const EFFECT_CHOICES: { kind: AnimaEffect['kind']; name: string; color: string }[] = [
   { kind: 'rain', name: 'Rain', color: '#9fd8ff' },

@@ -111,3 +111,106 @@ test('layers add, reorder and remove', () => {
   p = applyAnimaAction(p, { type: 'removeLayer', id: extra.id });
   assert.equal(p.layers.length, 1);
 });
+
+// ── Phase 2: key editing, camera, onion skin ────────────────────────────────
+
+import { copyKeys, type KeyRef } from '../services/anima/document';
+import { apply, cameraView, invert, layerMatrix, mul } from '../services/anima/affine';
+import { onionGhosts } from '../services/anima/onion';
+import { makeCameraLayer } from '../services/anima/templates';
+
+function keyed(frames: number[], path = 'transform.x') {
+  let p = blankAnimaProject();
+  const id = p.layers[0].id;
+  frames.forEach((f, i) => (p = applyAnimaAction(p, { type: 'setValue', layerId: id, path, frame: f, value: i * 10, autoKey: true })));
+  const keys = p.layers[0].channels[path].keyframes;
+  const refs: KeyRef[] = keys.map((k) => ({ layerId: id, path, keyId: k.id }));
+  return { p, id, keys, refs };
+}
+const framesOf = (p: ReturnType<typeof blankAnimaProject>, path = 'transform.x') => p.layers[0].channels[path].keyframes.map((k) => Math.round(k.t * p.fps) + 1);
+
+test('dragging keys moves them by whole frames, clamped to the clip, replacing what they land on', () => {
+  const { p, refs } = keyed([1, 10, 20]);
+  assert.deepEqual(framesOf(applyAnimaAction(p, { type: 'moveKeys', refs: [refs[1]], deltaFrames: 5 })), [1, 15, 20]);
+  // Selection keeps its shape: can't push the first key before frame 1.
+  assert.deepEqual(framesOf(applyAnimaAction(p, { type: 'moveKeys', refs: [refs[0], refs[1]], deltaFrames: -4 })), [1, 10, 20]);
+  // Landing on an unselected key replaces it.
+  const landed = applyAnimaAction(p, { type: 'moveKeys', refs: [refs[1]], deltaFrames: 10 });
+  assert.deepEqual(framesOf(landed), [1, 20]);
+  assert.equal(landed.layers[0].channels['transform.x'].keyframes[1].v, 10);
+});
+
+test('deleting keys; deleting all leaves the property at the last value', () => {
+  const { p, refs } = keyed([1, 10]);
+  assert.deepEqual(framesOf(applyAnimaAction(p, { type: 'deleteKeys', refs: [refs[0]] })), [10]);
+  const gone = applyAnimaAction(p, { type: 'deleteKeys', refs });
+  assert.equal(gone.layers[0].channels['transform.x'], undefined);
+  assert.equal(gone.layers[0].transform.x, 10);
+});
+
+test('copy / paste keeps spacing, values and eases, onto another layer too', () => {
+  const { p, id, refs } = keyed([5, 9]);
+  const p1 = applyAnimaAction(p, { type: 'setKeyEase', layerId: id, path: 'transform.x', keyId: refs[0].keyId, ease: 'bounce' });
+  const clip = copyKeys(p1, refs);
+  assert.deepEqual(clip.map((c) => [c.offsetFrames, c.v, c.ease]), [[0, 0, 'bounce'], [4, 10, 'smooth']]);
+  const other = makeLayer('cel', 'Other');
+  let q = applyAnimaAction(p1, { type: 'addLayer', layer: other });
+  q = applyAnimaAction(q, { type: 'pasteKeys', keys: clip, atFrame: 30, targetLayerId: other.id });
+  const pasted = q.layers[0].channels['transform.x'].keyframes;
+  assert.deepEqual(pasted.map((k) => [Math.round(k.t * q.fps) + 1, k.v, k.ease]), [[30, 0, 'bounce'], [34, 10, 'smooth']]);
+});
+
+test('graph edits: value, handles, and time that lands on another key', () => {
+  const { p, refs } = keyed([1, 10, 20]);
+  let q = applyAnimaAction(p, { type: 'updateKey', ref: refs[1], patch: { v: 99, outHandle: { dx: 0.1, dy: 5 }, ease: 'bezier' } });
+  const k = q.layers[0].channels['transform.x'].keyframes[1];
+  assert.deepEqual([k.v, k.ease, k.outHandle], [99, 'bezier', { dx: 0.1, dy: 5 }]);
+  q = applyAnimaAction(q, { type: 'updateKey', ref: refs[1], patch: { t: 19 / 24 } });
+  assert.deepEqual(framesOf(q), [1, 20]);
+});
+
+test('matrices: layers transform around their pivot; the camera view inverts its move', () => {
+  const p = blankAnimaProject();
+  const layer = { ...p.layers[0], origin: { x: 100, y: 100 } };
+  const st = { layerId: layer.id, name: '', type: layer.type, visible: true, opacity: 1, activeDrawingId: null, channels: {}, transform: { x: 10, y: 0, z: 0, rotationZ: 90, scaleX: 2, scaleY: 2 } };
+  const m = layerMatrix(layer, st);
+  const pivot = apply(m, 100, 100);
+  near(pivot.x, 110);
+  near(pivot.y, 100);
+  const right = apply(m, 101, 100); // one pixel right of the pivot → rotated 90° and doubled
+  near(right.x, 110);
+  near(right.y, 102);
+  const back = apply(invert(m), right.x, right.y);
+  near(back.x, 101);
+  near(back.y, 100);
+
+  const cam = makeCameraLayer();
+  const camSt = { ...st, layerId: cam.id, type: 'camera' as const, transform: { x: 100, y: 0, z: 0, rotationZ: 0, scaleX: 2, scaleY: 2 } };
+  const view = cameraView(p, cam, camSt);
+  const centre = apply(view, 640 + 100, 360); // what the camera points at lands mid-frame
+  near(centre.x, 640);
+  near(centre.y, 360);
+  near(apply(view, 740 + 10, 360).x, 660); // and is zoomed 2×
+  near(apply(mul(view, invert(view)), 5, 7).x, 5);
+});
+
+test('onion skin walks to neighbouring drawings, not frames', () => {
+  const layer = makeLayer('cel', 'D');
+  layer.celTrack = {
+    id: 'c', name: 'c', layerId: layer.id, stepRate: 2,
+    exposures: [
+      { startFrame: 1, durationFrames: 2, drawingId: 'a' },
+      { startFrame: 3, durationFrames: 2, drawingId: 'b' },
+      { startFrame: 5, durationFrames: 2, drawingId: 'c' },
+      { startFrame: 7, durationFrames: 2, drawingId: 'd' },
+    ],
+  };
+  assert.deepEqual(onionGhosts(layer, 6, 2, 1), [
+    { drawingId: 'b', step: -1, frame: 3 },
+    { drawingId: 'a', step: -2, frame: 1 },
+    { drawingId: 'd', step: 1, frame: 7 },
+  ]);
+  assert.deepEqual(onionGhosts(layer, 1, 2, 0), []);
+  // Past the end: the last drawings are "previous".
+  assert.deepEqual(onionGhosts(layer, 20, 1, 1).map((g) => g.drawingId), ['d']);
+});

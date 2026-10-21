@@ -13,7 +13,7 @@
 import React, { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { ArrowLeft, ChevronDown, Download, FilePlus2, FolderOpen, Hand, MousePointer2, PenTool, Redo2, Sparkles, Trash2, Undo2, Upload } from 'lucide-react';
 import type { AnimaProject, DrawingCel } from '../../../services/anima/types';
-import { animaHistoryReducer, initHistory, type AnimaAction } from '../../../services/anima/document';
+import { animaHistoryReducer, copyKeys, initHistory, type AnimaAction, type ClipboardKey, type KeyRef } from '../../../services/anima/document';
 import { ANIMA_TEMPLATES, blankAnimaProject, newAnimaId } from '../../../services/anima/templates';
 import {
   ANIMA_CLOUD_KIND,
@@ -32,7 +32,7 @@ import {
 import type { MotionBrushKind } from '../../../services/anima/worldClassEngine';
 import { CreativeStorageMeter, CreativeVersionHistory, useCreativeSyncState } from '../../creative/CreativeCloudPanels';
 import { createFrameStore } from './frameStore';
-import { AnimaStage, type AnimaTool } from './AnimaStage';
+import { AnimaStage, type AnimaTool, type CameraMode } from './AnimaStage';
 import { AnimaLayersPanel } from './AnimaLayersPanel';
 import { AnimaInspector } from './AnimaInspector';
 import { AnimaTimeline } from './AnimaTimeline';
@@ -64,6 +64,13 @@ export const AnimaStudio: React.FC<{ onBackToEdit?: () => void }> = ({ onBackToE
   const [brushKind, setBrushKind] = useState<MotionBrushKind>('sparkle_stardust');
   const [ink, setInk] = useState({ color: '#D0BCFF', width: 5 });
   const [autoKey, setAutoKey] = useState(false);
+  const [cameraMode, setCameraMode] = useState<CameraMode>('camera');
+  /** Selected keys (timeline + graph), as `layerId|path|keyId`. */
+  const [keySel, setKeySel] = useState<string[]>([]);
+  const keySelRef = useRef<string[]>([]);
+  keySelRef.current = keySel;
+  const clipboardRef = useRef<ClipboardKey[]>([]);
+  const selectedLayerRef = useRef<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [menu, setMenu] = useState<'project' | 'history' | null>(null);
@@ -218,6 +225,29 @@ export const AnimaStudio: React.FC<{ onBackToEdit?: () => void }> = ({ onBackToE
       if (isTyping(e.target)) return;
       const mod = e.ctrlKey || e.metaKey;
       const p = projectRef.current;
+      const refs = (): KeyRef[] =>
+        keySelRef.current.map((id) => {
+          const [layerId, path, keyId] = id.split('|');
+          return { layerId, path, keyId };
+        });
+      if ((e.key === 'Delete' || e.key === 'Backspace') && keySelRef.current.length) {
+        e.preventDefault();
+        dispatch({ type: 'deleteKeys', refs: refs() });
+        setKeySel([]);
+        return;
+      }
+      if (mod && e.key.toLowerCase() === 'c' && keySelRef.current.length) {
+        clipboardRef.current = copyKeys(p, refs());
+        say(`Copied ${clipboardRef.current.length} key${clipboardRef.current.length > 1 ? 's' : ''}.`);
+        return;
+      }
+      if (mod && e.key.toLowerCase() === 'v' && clipboardRef.current.length) {
+        e.preventDefault();
+        dispatch({ type: 'pasteKeys', keys: clipboardRef.current, atFrame: frames.get(), targetLayerId: selectedLayerRef.current ?? undefined });
+        say(`Pasted ${clipboardRef.current.length} key${clipboardRef.current.length > 1 ? 's' : ''} at frame ${frames.get()}.`);
+        return;
+      }
+      if (e.key === 'Escape') setKeySel([]);
       if (mod && e.key.toLowerCase() === 'z') {
         e.preventDefault();
         dirtyRef.current = true;
@@ -242,9 +272,11 @@ export const AnimaStudio: React.FC<{ onBackToEdit?: () => void }> = ({ onBackToE
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [frames]);
+  }, [frames, dispatch, say]);
 
   const selectedLayer = project.layers.find((l) => l.id === selectedLayerId) ?? null;
+  selectedLayerRef.current = selectedLayerId;
+  const hasCamera = project.layers.some((l) => l.type === 'camera' && l.visible);
 
   const exportFile = () => {
     const blob = new Blob([JSON.stringify(project, null, 2)], { type: 'application/json' });
@@ -378,6 +410,19 @@ export const AnimaStudio: React.FC<{ onBackToEdit?: () => void }> = ({ onBackToE
                 {t.icon} {t.label}
               </button>
             ))}
+            {hasCamera && (
+              <>
+                <span className="w-px h-5 bg-white/15 mx-1" />
+                <button
+                  onClick={() => setCameraMode(cameraMode === 'camera' ? 'overview' : 'camera')}
+                  title="Switch between what the camera sees and the whole frame"
+                  className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-[9px] text-[12px] font-semibold"
+                  style={{ color: '#ffd166', background: 'rgba(255,209,102,0.10)' }}
+                >
+                  {cameraMode === 'camera' ? 'Camera view' : 'Overview'}
+                </button>
+              </>
+            )}
           </div>
           <AnimaStage
             project={project}
@@ -388,6 +433,7 @@ export const AnimaStudio: React.FC<{ onBackToEdit?: () => void }> = ({ onBackToE
             brushKind={brushKind}
             ink={ink}
             cameraVideo={cameraStream ? cameraVideoRef.current : null}
+            cameraMode={cameraMode}
             autoKey={autoKey}
             dispatch={dispatch}
             setPlaying={setPlaying}
@@ -425,7 +471,7 @@ export const AnimaStudio: React.FC<{ onBackToEdit?: () => void }> = ({ onBackToE
       </div>
 
       {/* ── Timeline ── */}
-      <section className="shrink-0" style={{ height: 250, background: panelBg, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+      <section className="shrink-0" style={{ height: 290, background: panelBg, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
         <AnimaTimeline
           project={project}
           frames={frames}
@@ -436,6 +482,8 @@ export const AnimaStudio: React.FC<{ onBackToEdit?: () => void }> = ({ onBackToE
           autoKey={autoKey}
           setAutoKey={setAutoKey}
           dispatch={dispatch}
+          keySel={keySel}
+          setKeySel={setKeySel}
         />
       </section>
 

@@ -166,6 +166,12 @@ const PropertiesTab: React.FC<AnimaInspectorProps> = ({ project, layer, frames, 
         </div>
       )}
 
+      {layer.type === 'camera' && (
+        <div className="text-[12px] text-white/55 leading-relaxed">
+          Position pans, <b className="text-white/80">Scale</b> zooms and <b className="text-white/80">Rotation</b> rolls the shot. Key them like any layer. Use the stage's Camera view / Overview switch to see the shot or the whole frame.
+        </div>
+      )}
+
       {layer.type === 'character' && (
         <label className="flex flex-col gap-1.5">
           <span className={lbl}>Rig</span>

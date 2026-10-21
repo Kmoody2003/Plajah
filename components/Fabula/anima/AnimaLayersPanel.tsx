@@ -2,10 +2,10 @@
 // Top of the list is the front of the picture.
 
 import React, { useState } from 'react';
-import { ChevronDown, ChevronUp, Copy, Eye, EyeOff, Image as ImageIcon, Lock, PenTool, Plus, Sparkles, Trash2, Unlock, UserRound } from 'lucide-react';
+import { ChevronDown, ChevronUp, Copy, Eye, EyeOff, Image as ImageIcon, Lock, PenTool, Plus, Sparkles, Trash2, Unlock, UserRound, Video } from 'lucide-react';
 import type { AnimaLayer } from '../../../services/anima/types';
 import type { AnimaAction } from '../../../services/anima/document';
-import { EFFECT_CHOICES, RIG_CHOICES, makeCharacterLayer, makeDrawingLayer, makeEffectLayer, makePlateLayer, newAnimaId } from '../../../services/anima/templates';
+import { EFFECT_CHOICES, RIG_CHOICES, makeCameraLayer, makeCharacterLayer, makeDrawingLayer, makeEffectLayer, makePlateLayer, newAnimaId } from '../../../services/anima/templates';
 import { iconBtn, lbl } from './ui';
 
 const TYPE_ICON: Partial<Record<AnimaLayer['type'], React.ReactNode>> = {
@@ -14,6 +14,7 @@ const TYPE_ICON: Partial<Record<AnimaLayer['type'], React.ReactNode>> = {
   character: <UserRound size={13} />,
   plate: <ImageIcon size={13} />,
   effect: <Sparkles size={13} />,
+  camera: <Video size={13} />,
 };
 
 export const AnimaLayersPanel: React.FC<{
@@ -49,6 +50,11 @@ export const AnimaLayersPanel: React.FC<{
           <button className="text-left px-2 py-1.5 rounded-lg hover:bg-white/[0.06] text-[12px] text-white/85 flex items-center gap-2" onClick={() => add(makePlateLayer())}>
             <ImageIcon size={13} className="text-[#00DAF3]" /> Image or video plate
           </button>
+          {!layers.some((l) => l.type === 'camera') && (
+            <button className="text-left px-2 py-1.5 rounded-lg hover:bg-white/[0.06] text-[12px] text-white/85 flex items-center gap-2" onClick={() => add(makeCameraLayer())}>
+              <Video size={13} className="text-[#ffd166]" /> Camera
+            </button>
+          )}
           <div className="px-2 pt-1 text-[10px] text-white/40">Character</div>
           <div className="grid grid-cols-2 gap-1">
             {RIG_CHOICES.map((r) => (

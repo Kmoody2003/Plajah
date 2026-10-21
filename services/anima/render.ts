@@ -8,7 +8,9 @@
  * Layer order: layers[0] is the front (top of the Layers panel), so layers draw back to front.
  */
 
-import type { AnimaLayer, AnimaProject, AnimaRigId } from './types';
+import type { AnimaLayer, AnimaProject, AnimaRigId, DrawingCel } from './types';
+import { IDENTITY, activeCamera, apply, invert, layerMatrix, mul, type Affine } from './affine';
+import { onionGhosts } from './onion';
 import { evaluateProjectAtFrame, frameToTime, type EvaluatedLayerState } from './evaluator';
 import { ParticleSystem, HairSystem, DEFAULT_FORCES, type ParticleEmitterConfig } from './physics';
 import { FluidSimulator } from './fluids';
@@ -292,16 +294,92 @@ export interface RenderOptions {
   dt: number;
   /** Wall clock seconds, for sims. */
   now: number;
-  /** Editor overlays: placeholders for empty plates, the selected layer's pivot. */
+  /** Editor overlays: placeholders for empty plates, onion skin, the camera frame. */
   editor?: { selectedLayerId: string | null };
+  /** 'camera': show what the camera sees (default). 'overview': the whole frame, camera outlined. */
+  cameraMode?: 'camera' | 'overview';
 }
 
-export function renderAnimaFrame(ctx: CanvasRenderingContext2D, project: AnimaProject, frame: number, rt: AnimaRenderRuntime, opt: RenderOptions): EvaluatedLayerState[] {
+export interface RenderResult {
+  evaluated: EvaluatedLayerState[];
+  /** Frame → stage matrix actually used (identity, or the camera view). */
+  view: Affine;
+}
+
+const RIG_BOX = { x: -130, y: -300, w: 260, h: 310 };
+
+/** A layer's content box (in its own content space) for selection handles. */
+export function layerContentBounds(project: AnimaProject, layer: AnimaLayer, st: EvaluatedLayerState): { x: number; y: number; w: number; h: number } {
+  const W = project.width;
+  const H = project.height;
+  if (layer.type === 'character') {
+    const k = layer.rigId === 'rello' || layer.rigId === 'chora' ? 1.3 : 1.1;
+    return { x: RIG_BOX.x * k, y: RIG_BOX.y * k, w: RIG_BOX.w * k, h: RIG_BOX.h * k };
+  }
+  if (layer.type === 'effect' && layer.effect?.kind === 'balloon') {
+    const o = layer.origin ?? { x: W / 2, y: H / 2 };
+    return { x: o.x - 140, y: o.y - 40, w: 280, h: 110 };
+  }
+  if (layer.type === 'cel' || layer.type === 'stop_motion') {
+    const cel = st.activeDrawingId ? project.drawingBank[st.activeDrawingId] : null;
+    if (cel && !cel.rasterUrl && !cel.rasterDataUrl && cel.strokes.length) {
+      let x0 = Infinity;
+      let y0 = Infinity;
+      let x1 = -Infinity;
+      let y1 = -Infinity;
+      for (const s of cel.strokes)
+        for (const p of s.points) {
+          const r = s.width / 2;
+          x0 = Math.min(x0, p.x - r);
+          y0 = Math.min(y0, p.y - r);
+          x1 = Math.max(x1, p.x + r);
+          y1 = Math.max(y1, p.y + r);
+        }
+      return { x: x0, y: y0, w: Math.max(1, x1 - x0), h: Math.max(1, y1 - y0) };
+    }
+  }
+  return { x: 0, y: 0, w: W, h: H };
+}
+
+function drawDrawing(ctx: CanvasRenderingContext2D, cel: DrawingCel, rt: AnimaRenderRuntime, W: number, H: number, tint?: string) {
+  const raster = cel.rasterUrl || cel.rasterDataUrl;
+  if (raster) {
+    const img = rt.image(raster);
+    if (img) ctx.drawImage(img, 0, 0, W, H);
+  }
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  for (const s of cel.strokes) {
+    if (s.points.length < 1) continue;
+    ctx.save();
+    ctx.globalAlpha *= s.opacity ?? 1;
+    ctx.strokeStyle = tint ?? s.color;
+    ctx.lineWidth = s.width;
+    ctx.beginPath();
+    ctx.moveTo(s.points[0].x, s.points[0].y);
+    for (let k = 1; k < s.points.length - 1; k++) {
+      const a = s.points[k];
+      const b = s.points[k + 1];
+      ctx.quadraticCurveTo(a.x, a.y, (a.x + b.x) / 2, (a.y + b.y) / 2);
+    }
+    const last = s.points[s.points.length - 1];
+    ctx.lineTo(last.x, last.y);
+    if (s.fill && !tint) {
+      ctx.fillStyle = s.fill;
+      ctx.fill();
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+export function renderAnimaFrame(ctx: CanvasRenderingContext2D, project: AnimaProject, frame: number, rt: AnimaRenderRuntime, opt: RenderOptions): RenderResult {
   const W = project.width;
   const H = project.height;
   const t = frameToTime(frame, project.fps);
+  const toCanvas: Affine = [ctx.canvas.width / W, 0, 0, ctx.canvas.height / H, 0, 0];
   ctx.save();
-  ctx.setTransform(ctx.canvas.width / W, 0, 0, ctx.canvas.height / H, 0, 0);
+  ctx.setTransform(...toCanvas);
   const bg = ctx.createLinearGradient(0, 0, 0, H);
   bg.addColorStop(0, '#15121d');
   bg.addColorStop(1, '#0a090d');
@@ -310,117 +388,100 @@ export function renderAnimaFrame(ctx: CanvasRenderingContext2D, project: AnimaPr
 
   const evaluated = evaluateProjectAtFrame(project, frame);
   const byId = new Map(project.layers.map((l) => [l.id, l]));
+  const cam = activeCamera(project, evaluated);
+  const view: Affine = cam && opt.cameraMode !== 'overview' ? cam.view : IDENTITY;
+  const base = mul(toCanvas, view);
+  const onion = opt.editor && !opt.playing && project.onionSkin.enabled ? project.onionSkin : null;
 
   for (let i = evaluated.length - 1; i >= 0; i--) {
     const st = evaluated[i];
     const layer = byId.get(st.layerId);
-    if (!layer || !st.visible || st.opacity <= 0) continue;
+    if (!layer || layer.type === 'camera' || !st.visible || st.opacity <= 0) continue;
+
+    // Onion skin: neighbouring drawings, tinted, behind the current one.
+    if (onion && (layer.type === 'cel' || layer.type === 'stop_motion')) {
+      for (const g of onionGhosts(layer, frame, onion.prevFrames, onion.nextFrames)) {
+        const cel = project.drawingBank[g.drawingId];
+        const gst = evaluateProjectAtFrame({ ...project, layers: [layer] }, g.frame)[0];
+        if (!cel || !gst) continue;
+        ctx.save();
+        ctx.setTransform(...mul(base, layerMatrix(layer, gst)));
+        ctx.globalAlpha = 0.55 * Math.pow(onion.opacityFalloff, Math.abs(g.step) - 1);
+        drawDrawing(ctx, cel, rt, W, H, g.step < 0 ? onion.prevColor : onion.nextColor);
+        ctx.restore();
+      }
+    }
+
     const o = layer.origin ?? { x: 0, y: 0 };
     ctx.save();
+    ctx.setTransform(...mul(base, layerMatrix(layer, st)));
     ctx.globalAlpha = st.opacity;
-    ctx.translate(o.x + st.transform.x, o.y + st.transform.y);
-    ctx.rotate((st.transform.rotationZ * Math.PI) / 180);
-    ctx.scale(st.transform.scaleX, st.transform.scaleY);
 
     if (layer.type === 'character' && layer.rigId) {
       const rig = layer.rigId === 'rello' || layer.rigId === 'chora' ? PLAJAH_MASCOTS[layer.rigId] : CLASSIC_CHARACTERS[layer.rigId]?.rig;
-      const scale = layer.rigId === 'rello' || layer.rigId === 'chora' ? 1.3 : 1.1;
-      rig?.drawRoutine(ctx, t * (RIG_TIME_SCALE[layer.rigId] ?? 0.8), frame, scale);
-    } else {
-      // Frame-space content: undo the pivot so it draws where it was authored.
-      ctx.translate(-o.x, -o.y);
-      if (layer.type === 'plate') {
-        const plate = layer.plate;
-        if (plate?.kind === 'image') {
-          const img = rt.image(plate.url);
-          if (img) drawCover(ctx, img, img.naturalWidth, img.naturalHeight, W, H);
-        } else if (plate?.kind === 'video') {
-          const v = rt.video(plate.url);
-          rt.syncVideo(v, t, opt.playing);
-          if (v.readyState >= 2) drawCover(ctx, v, v.videoWidth, v.videoHeight, W, H);
-        } else if (opt.editor) {
-          ctx.save();
-          ctx.strokeStyle = 'rgba(255,255,255,0.25)';
-          ctx.setLineDash([10, 8]);
-          ctx.lineWidth = 2;
-          ctx.strokeRect(24, 24, W - 48, H - 48);
-          ctx.fillStyle = 'rgba(255,255,255,0.45)';
-          ctx.font = '600 22px Inter, sans-serif';
-          ctx.textAlign = 'center';
-          ctx.fillText('Empty plate · import a still or video in Properties', W / 2, H / 2);
-          ctx.restore();
-        }
-      } else if (layer.type === 'cel' || layer.type === 'stop_motion') {
-        const cel = st.activeDrawingId ? project.drawingBank[st.activeDrawingId] : null;
-        if (cel) {
-          const raster = cel.rasterUrl || cel.rasterDataUrl;
-          if (raster) {
-            const img = rt.image(raster);
-            if (img) ctx.drawImage(img, 0, 0, W, H);
-          }
-          ctx.lineCap = 'round';
-          ctx.lineJoin = 'round';
-          for (const s of cel.strokes) {
-            if (s.points.length < 1) continue;
-            ctx.save();
-            ctx.globalAlpha *= s.opacity ?? 1;
-            ctx.strokeStyle = s.color;
-            ctx.lineWidth = s.width;
-            ctx.beginPath();
-            ctx.moveTo(s.points[0].x, s.points[0].y);
-            for (let k = 1; k < s.points.length - 1; k++) {
-              const a = s.points[k];
-              const b = s.points[k + 1];
-              ctx.quadraticCurveTo(a.x, a.y, (a.x + b.x) / 2, (a.y + b.y) / 2);
-            }
-            const last = s.points[s.points.length - 1];
-            ctx.lineTo(last.x, last.y);
-            if (s.fill) {
-              ctx.fillStyle = s.fill;
-              ctx.fill();
-            }
-            ctx.stroke();
-            ctx.restore();
-          }
-        }
-      } else if (layer.type === 'effect' && layer.effect) {
-        const fx = layer.effect;
-        if (fx.kind === 'speed_lines') drawSpeedLines(ctx, o, frame, fx.color || '#fff', fx.intensity ?? 1, W);
-        else if (fx.kind === 'balloon') {
-          ctx.save();
-          ctx.translate(o.x, o.y);
-          drawBalloon(ctx, fx.text || '…', fx.color || '#fff');
-          ctx.restore();
-        } else {
-          const sim = rt.effect(layer, W, H);
-          if (sim) {
-            if (opt.playing) stepSim(sim, opt.dt, opt.now, W, H, o, fx.color);
-            drawSim(ctx, sim, W, H);
-          }
+      const k = layer.rigId === 'rello' || layer.rigId === 'chora' ? 1.3 : 1.1;
+      rig?.drawRoutine(ctx, t * (RIG_TIME_SCALE[layer.rigId] ?? 0.8), frame, k);
+    } else if (layer.type === 'plate') {
+      const plate = layer.plate;
+      if (plate?.kind === 'image') {
+        const img = rt.image(plate.url);
+        if (img) drawCover(ctx, img, img.naturalWidth, img.naturalHeight, W, H);
+      } else if (plate?.kind === 'video') {
+        const v = rt.video(plate.url);
+        rt.syncVideo(v, t, opt.playing);
+        if (v.readyState >= 2) drawCover(ctx, v, v.videoWidth, v.videoHeight, W, H);
+      } else if (opt.editor) {
+        ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+        ctx.setLineDash([10, 8]);
+        ctx.lineWidth = 2;
+        ctx.strokeRect(24, 24, W - 48, H - 48);
+        ctx.setLineDash([]);
+        ctx.fillStyle = 'rgba(255,255,255,0.45)';
+        ctx.font = '600 22px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Empty plate · import a still or video in Properties', W / 2, H / 2);
+      }
+    } else if (layer.type === 'cel' || layer.type === 'stop_motion') {
+      const cel = st.activeDrawingId ? project.drawingBank[st.activeDrawingId] : null;
+      if (cel) drawDrawing(ctx, cel, rt, W, H);
+    } else if (layer.type === 'effect' && layer.effect) {
+      const fx = layer.effect;
+      if (fx.kind === 'speed_lines') drawSpeedLines(ctx, o, frame, fx.color || '#fff', fx.intensity ?? 1, W);
+      else if (fx.kind === 'balloon') {
+        ctx.translate(o.x, o.y);
+        drawBalloon(ctx, fx.text || '…', fx.color || '#fff');
+      } else {
+        const sim = rt.effect(layer, W, H);
+        if (sim) {
+          if (opt.playing) stepSim(sim, opt.dt, opt.now, W, H, o, fx.color);
+          drawSim(ctx, sim, W, H);
         }
       }
     }
     ctx.restore();
-
-    if (opt.editor?.selectedLayerId === layer.id && !layer.locked) {
-      ctx.save();
-      ctx.strokeStyle = '#00DAF3';
-      ctx.lineWidth = 2;
-      const cx = o.x + st.transform.x;
-      const cy = o.y + st.transform.y;
-      ctx.beginPath();
-      ctx.arc(cx, cy, 7, 0, Math.PI * 2);
-      ctx.moveTo(cx - 14, cy);
-      ctx.lineTo(cx + 14, cy);
-      ctx.moveTo(cx, cy - 14);
-      ctx.lineTo(cx, cy + 14);
-      ctx.stroke();
-      ctx.restore();
-    }
   }
 
+  ctx.setTransform(...base);
   rt.brush.update(opt.dt);
   rt.brush.render(ctx);
+
+  // Overview: outline what the camera sees.
+  if (opt.editor && cam && opt.cameraMode === 'overview') {
+    const inv = invert(cam.view);
+    const corners = [apply(inv, 0, 0), apply(inv, W, 0), apply(inv, W, H), apply(inv, 0, H)];
+    ctx.setTransform(...toCanvas);
+    ctx.strokeStyle = '#ffd166';
+    ctx.lineWidth = 3;
+    ctx.setLineDash([14, 8]);
+    ctx.beginPath();
+    corners.forEach((c, i) => (i ? ctx.lineTo(c.x, c.y) : ctx.moveTo(c.x, c.y)));
+    ctx.closePath();
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#ffd166';
+    ctx.font = '700 16px Inter, sans-serif';
+    ctx.fillText('CAMERA', corners[0].x + 8, corners[0].y + 22);
+  }
   ctx.restore();
-  return evaluated;
+  return { evaluated, view };
 }
