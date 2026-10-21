@@ -1,827 +1,250 @@
-import React, { useRef, useState, useCallback, useEffect } from 'react';
-import {
-  Play,
-  Pause,
-  SkipBack,
-  SkipForward,
-  ChevronRight,
-  ChevronDown,
-  Eye,
-  EyeOff,
-  Lock,
-  Unlock,
-  Plus,
-  Repeat,
-  Sparkles,
-  Sliders,
-  Grid,
-} from 'lucide-react';
-import type { AnimaProject, AnimaLayer, Keyframe } from '../../../services/anima/types';
+// components/Fabula/anima/AnimaTimeline.tsx — transport + dope sheet.
+// One scroll container (names stick left, ruler sticks top) so names and tracks never drift
+// apart. Rows: each layer (all its keys + drawing exposures), expandable to its animated
+// properties. Click a key to jump there; drag on the ruler to scrub.
 
-interface AnimaTimelineProps {
+import React, { memo, useMemo, useRef, useState } from 'react';
+import { ChevronDown, ChevronRight, Pause, Play, Repeat, SkipBack, SkipForward, StepBack, StepForward } from 'lucide-react';
+import type { AnimaLayer, AnimaProject } from '../../../services/anima/types';
+import { propertyDef, type AnimaAction } from '../../../services/anima/document';
+import { timeToFrame } from '../../../services/anima/evaluator';
+import { useFrame, type FrameStore } from './frameStore';
+import { ScrubNumber, iconBtn, lbl } from './ui';
+
+const NAME_W = 220;
+const ROW_H = 26;
+
+export interface AnimaTimelineProps {
   project: AnimaProject;
-  onUpdateProject: React.Dispatch<React.SetStateAction<AnimaProject>>;
-  isPlaying: boolean;
-  onTogglePlay: () => void;
-  onAddKeyframe?: (layerId: string, channelPath: string, value: number) => void;
-  className?: string;
+  frames: FrameStore;
+  playing: boolean;
+  setPlaying: (p: boolean) => void;
+  selectedLayerId: string | null;
+  onSelectLayer: (id: string) => void;
+  autoKey: boolean;
+  setAutoKey: (v: boolean) => void;
+  dispatch: (a: AnimaAction, coalesceKey?: string) => void;
 }
 
-export const AnimaTimeline: React.FC<AnimaTimelineProps> = ({
-  project,
-  onUpdateProject,
-  isPlaying,
-  onTogglePlay,
-  onAddKeyframe,
-  className,
-}) => {
-  const [expandedLayers, setExpandedLayers] = useState<Record<string, boolean>>({
-    l_hero: true,
-  });
-  const [autoKeyEnabled, setAutoKeyEnabled] = useState(true);
-  const [zoom, setZoom] = useState(16); // pixels per frame
-  const [isScrubbing, setIsScrubbing] = useState(false);
-  const [selectedKeyframeId, setSelectedKeyframeId] = useState<string | null>(null);
+const timecode = (frame: number, fps: number) => {
+  const total = frame - 1;
+  const s = Math.floor(total / fps);
+  const f = total % fps;
+  return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}:${String(f).padStart(2, '0')}`;
+};
 
-  const rulerRef = useRef<HTMLDivElement>(null);
-  const tracksScrollRef = useRef<HTMLDivElement>(null);
-
-  const totalFrames = project.durationFrames || 72;
-  const currentFrame = project.currentFrame || 1;
-  const fps = project.fps || 24;
-
-  const toggleLayerExpanded = (layerId: string) => {
-    setExpandedLayers((prev) => ({ ...prev, [layerId]: !prev[layerId] }));
-  };
-
-  const handleFrameJump = useCallback(
-    (targetFrame: number) => {
-      const clamped = Math.max(1, Math.min(totalFrames, Math.round(targetFrame)));
-      onUpdateProject((prev) => ({ ...prev, currentFrame: clamped }));
-    },
-    [totalFrames, onUpdateProject]
+const Transport: React.FC<{ project: AnimaProject; frames: FrameStore; playing: boolean; setPlaying: (p: boolean) => void }> = ({ project, frames, playing, setPlaying }) => {
+  const frame = useFrame(frames);
+  const go = (f: number) => frames.set(Math.max(1, Math.min(project.durationFrames, f)));
+  return (
+    <div className="flex items-center gap-1">
+      <button className={iconBtn} onClick={() => go(1)} aria-label="First frame" title="First frame (Home)"><SkipBack size={15} /></button>
+      <button className={iconBtn} onClick={() => go(frame - 1)} aria-label="Previous frame" title="Previous frame (←)"><StepBack size={15} /></button>
+      <button
+        className="inline-flex items-center gap-1.5 h-8 px-3 rounded-[9px] text-[12px] font-bold text-white"
+        style={{ background: playing ? 'rgba(212,0,85,0.85)' : 'linear-gradient(135deg,#00DAF3,#6B0099)' }}
+        onClick={() => setPlaying(!playing)}
+        title="Play / pause (Space)"
+      >
+        {playing ? <Pause size={14} /> : <Play size={14} />} {playing ? 'Pause' : 'Play'}
+      </button>
+      <button className={iconBtn} onClick={() => go(frame + 1)} aria-label="Next frame" title="Next frame (→)"><StepForward size={15} /></button>
+      <button className={iconBtn} onClick={() => go(project.durationFrames)} aria-label="Last frame" title="Last frame (End)"><SkipForward size={15} /></button>
+      <span className="ml-2 font-mono text-[12px] text-[#8ff5ff] tabular-nums">{timecode(frame, project.fps)}</span>
+      <span className="ml-2 text-[11px] text-white/45 tabular-nums">frame {frame} / {project.durationFrames}</span>
+      <span className="ml-1 text-white/30" title="Playback loops"><Repeat size={12} /></span>
+    </div>
   );
+};
 
-  const handleRulerMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    setIsScrubbing(true);
-    const rect = e.currentTarget.getBoundingClientRect();
-    const scrollLeft = tracksScrollRef.current ? tracksScrollRef.current.scrollLeft : 0;
-    const clickX = e.clientX - rect.left + scrollLeft;
-    const targetFrame = clickX / zoom + 1;
-    handleFrameJump(targetFrame);
-  };
+/** Playhead line + ruler highlight; isolated so only this repaints during playback. */
+const Playhead: React.FC<{ frames: FrameStore; pxPerFrame: number }> = ({ frames, pxPerFrame }) => {
+  const frame = useFrame(frames);
+  return (
+    <div className="absolute top-0 bottom-0 w-px pointer-events-none z-20" style={{ left: NAME_W + (frame - 1) * pxPerFrame + pxPerFrame / 2, background: '#D40055', boxShadow: '0 0 6px rgba(212,0,85,0.8)' }}>
+      <div className="absolute -top-0 -left-[5px] w-[11px] h-[11px] rotate-45" style={{ background: '#D40055' }} />
+    </div>
+  );
+};
 
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isScrubbing || !rulerRef.current) return;
-      const rect = rulerRef.current.getBoundingClientRect();
-      const scrollLeft = tracksScrollRef.current ? tracksScrollRef.current.scrollLeft : 0;
-      const moveX = e.clientX - rect.left + scrollLeft;
-      const targetFrame = moveX / zoom + 1;
-      handleFrameJump(targetFrame);
-    };
+const Diamond: React.FC<{ x: number; color: string; title: string; onClick: () => void; small?: boolean }> = ({ x, color, title, onClick, small }) => (
+  <button
+    title={title}
+    aria-label={title}
+    onClick={(e) => {
+      e.stopPropagation();
+      onClick();
+    }}
+    className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 grid place-items-center w-4 h-4"
+    style={{ left: x }}
+  >
+    <span className="block rotate-45" style={{ width: small ? 7 : 9, height: small ? 7 : 9, background: color, border: '1px solid rgba(255,255,255,0.85)' }} />
+  </button>
+);
 
-    const handleMouseUp = () => {
-      if (isScrubbing) setIsScrubbing(false);
-    };
+const LayerRows = memo(function LayerRows({
+  layer,
+  project,
+  pxPerFrame,
+  selected,
+  expanded,
+  onToggle,
+  onSelect,
+  onJump,
+}: {
+  layer: AnimaLayer;
+  project: AnimaProject;
+  pxPerFrame: number;
+  selected: boolean;
+  expanded: boolean;
+  onToggle: () => void;
+  onSelect: () => void;
+  onJump: (frame: number) => void;
+}) {
+  const fx = (f: number) => (f - 1) * pxPerFrame + pxPerFrame / 2;
+  const channels = Object.entries(layer.channels).filter(([, ch]) => ch.keyframes.length > 0);
+  const allFrames = useMemo(() => {
+    const set = new Set<number>();
+    for (const [, ch] of channels) for (const k of ch.keyframes) set.add(timeToFrame(k.t, project.fps));
+    return [...set].filter((f) => f <= project.durationFrames).sort((a, b) => a - b);
+  }, [layer.channels, project.fps, project.durationFrames]);
+  const exposures = layer.celTrack?.exposures ?? [];
+  const width = project.durationFrames * pxPerFrame;
+  return (
+    <>
+      <div className="flex" style={{ height: ROW_H + 4, background: selected ? 'rgba(212,0,85,0.10)' : 'transparent' }} onClick={onSelect}>
+        <div className="sticky left-0 z-10 flex items-center gap-1 px-2 shrink-0 cursor-pointer" style={{ width: NAME_W, background: selected ? '#24121c' : '#0e0d14', borderRight: '1px solid rgba(255,255,255,0.08)', opacity: layer.visible ? 1 : 0.45 }}>
+          <button
+            className="grid place-items-center w-5 h-5 text-white/50 hover:text-white disabled:opacity-20"
+            disabled={!channels.length}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggle();
+            }}
+            aria-label={expanded ? 'Collapse' : 'Expand'}
+          >
+            {expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+          </button>
+          <span className={`truncate text-[12px] ${selected ? 'text-white font-semibold' : 'text-white/80'}`}>{layer.name}</span>
+        </div>
+        <div className="relative shrink-0 cursor-pointer" style={{ width }}>
+          {exposures.map((e, i) => (
+            <div
+              key={i}
+              className="absolute top-[7px] bottom-[7px] rounded-[4px]"
+              title={project.drawingBank[e.drawingId]?.name ?? 'Drawing'}
+              style={{ left: (e.startFrame - 1) * pxPerFrame + 1, width: Math.max(2, e.durationFrames * pxPerFrame - 2), background: 'rgba(208,188,255,0.22)', border: '1px solid rgba(208,188,255,0.45)' }}
+            />
+          ))}
+          {allFrames.map((f) => (
+            <Diamond key={f} x={fx(f)} color="#00DAF3" title={`Key at frame ${f}`} onClick={() => onJump(f)} />
+          ))}
+        </div>
+      </div>
+      {expanded &&
+        channels.map(([path, ch]) => (
+          <div key={path} className="flex" style={{ height: ROW_H }}>
+            <div className="sticky left-0 z-10 flex items-center pl-8 pr-2 shrink-0" style={{ width: NAME_W, background: '#0e0d14', borderRight: '1px solid rgba(255,255,255,0.08)' }}>
+              <span className="truncate text-[11px] text-white/55">{propertyDef(path).label === path ? ch.name || path : propertyDef(path).label}</span>
+            </div>
+            <div className="relative shrink-0" style={{ width }}>
+              <div className="absolute left-0 right-0 top-1/2 h-px bg-white/[0.05]" />
+              {ch.keyframes.map((k) => {
+                const f = timeToFrame(k.t, project.fps);
+                return f <= project.durationFrames ? <Diamond key={k.id} small x={fx(f)} color="#ffd166" title={`${ch.name || path}: ${k.v.toFixed(2)} at frame ${f}`} onClick={() => onJump(f)} /> : null;
+              })}
+            </div>
+          </div>
+        ))}
+    </>
+  );
+});
 
-    if (isScrubbing) {
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
-    }
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isScrubbing, zoom, handleFrameJump]);
+export const AnimaTimeline: React.FC<AnimaTimelineProps> = ({ project, frames, playing, setPlaying, selectedLayerId, onSelectLayer, autoKey, setAutoKey, dispatch }) => {
+  const [pxPerFrame, setPxPerFrame] = useState(14);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const scrubbing = useRef(false);
+  const width = project.durationFrames * pxPerFrame;
+  const tickEvery = pxPerFrame >= 20 ? 1 : pxPerFrame >= 10 ? 2 : pxPerFrame >= 6 ? 6 : 12;
 
-  const handleToggleLayerVisibility = (layerId: string) => {
-    onUpdateProject((prev) => ({
-      ...prev,
-      layers: prev.layers.map((l) => (l.id === layerId ? { ...l, visible: !l.visible } : l)),
-    }));
-  };
-
-  const handleToggleLayerLock = (layerId: string) => {
-    onUpdateProject((prev) => ({
-      ...prev,
-      layers: prev.layers.map((l) => (l.id === layerId ? { ...l, locked: !l.locked } : l)),
-    }));
-  };
-
-  const handleAddKeyAtCurrent = (layerId: string, channelKey: string) => {
-    const targetSec = (currentFrame - 1) / fps;
-    const newKeyId = `kf_${Date.now()}`;
-
-    onUpdateProject((prev) => {
-      return {
-        ...prev,
-        layers: prev.layers.map((l) => {
-          if (l.id !== layerId) return l;
-          const ch = l.channels[channelKey];
-          if (!ch) return l;
-
-          // Compute default value or current interpolated value
-          let val = ch.defaultValue ?? 0;
-          if (channelKey === 'transform.x') val = l.transform.x;
-          else if (channelKey === 'transform.y') val = l.transform.y;
-          else if (channelKey === 'transform.rotationZ') val = l.transform.rotationZ;
-          else if (channelKey === 'opacity') val = l.opacity;
-
-          const existingIdx = ch.keyframes.findIndex((k) => Math.abs(k.t - targetSec) < 0.01);
-          let updatedKeys: Keyframe<number>[];
-
-          if (existingIdx >= 0) {
-            updatedKeys = [...ch.keyframes];
-            updatedKeys[existingIdx] = { ...updatedKeys[existingIdx], v: val };
-          } else {
-            const newKey: Keyframe<number> = {
-              id: newKeyId,
-              t: targetSec,
-              v: val,
-              ease: 'smooth',
-            };
-            updatedKeys = [...ch.keyframes, newKey].sort((a, b) => a.t - b.t);
-          }
-
-          return {
-            ...l,
-            channels: {
-              ...l.channels,
-              [channelKey]: { ...ch, keyframes: updatedKeys },
-            },
-          };
-        }),
-      };
-    });
-  };
-
-  // Convert frame to timecode HH:MM:SS:FF
-  const formatTimecode = (f: number, rate: number) => {
-    const totalSeconds = Math.floor((f - 1) / rate);
-    const frames = (f - 1) % rate;
-    const m = Math.floor(totalSeconds / 60);
-    const s = totalSeconds % 60;
-    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}:${frames.toString().padStart(2, '0')}`;
+  const scrubTo = (e: React.PointerEvent<HTMLDivElement>) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    const f = Math.floor((e.clientX - r.left) / pxPerFrame) + 1;
+    frames.set(Math.max(1, Math.min(project.durationFrames, f)));
   };
 
   return (
-    <div
-      className={className}
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        width: '100%',
-        height: '100%',
-        backgroundColor: '#121018',
-        borderTop: '1px solid rgba(255, 255, 255, 0.1)',
-        color: '#e8e6ee',
-        fontFamily: "'Inter', sans-serif",
-        userSelect: 'none',
-      }}
-    >
-      {/* ── 1. TIMELINE TRANSPORT & TOOLBAR ── */}
-      <div
-        style={{
-          height: 38,
-          backgroundColor: '#181520',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '0 12px',
-        }}
-      >
-        {/* Left: Playback Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+    <div className="flex flex-col min-h-0 h-full">
+      <div className="flex items-center gap-3 px-3 h-11 shrink-0 flex-wrap" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+        <Transport project={project} frames={frames} playing={playing} setPlaying={setPlaying} />
+        <div className="ml-auto flex items-center gap-2">
+          <span className={lbl}>fps</span>
+          <ScrubNumber className="w-16" value={project.fps} step={1} min={1} max={120} ariaLabel="Frames per second" onChange={(v, ph) => ph === 'commit' && dispatch({ type: 'setTiming', fps: v })} />
+          <span className={lbl}>length</span>
+          <ScrubNumber className="w-20" value={project.durationFrames} step={1} min={1} unit="f" ariaLabel="Length in frames" onChange={(v, ph) => ph === 'commit' && dispatch({ type: 'setTiming', durationFrames: v })} />
           <button
-            onClick={() => handleFrameJump(1)}
-            title="First Frame"
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'rgba(255, 255, 255, 0.7)',
-              cursor: 'pointer',
-              padding: 4,
-            }}
+            className="h-8 px-2.5 rounded-[9px] text-[11px] font-bold border"
+            style={autoKey ? { background: 'rgba(212,0,85,0.22)', borderColor: 'rgba(212,0,85,0.6)', color: '#ff9cc2' } : { background: 'rgba(255,255,255,0.04)', borderColor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.6)' }}
+            onClick={() => setAutoKey(!autoKey)}
+            title="Auto-key: every edit sets a key at the playhead"
           >
-            <SkipBack size={14} />
+            ● Auto-key
           </button>
-
-          <button
-            onClick={() => handleFrameJump(currentFrame - 1)}
-            title="Previous Frame"
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'rgba(255, 255, 255, 0.7)',
-              cursor: 'pointer',
-              padding: 4,
-              fontSize: 11,
-              fontWeight: 800,
-            }}
-          >
-            ◀
-          </button>
-
-          <button
-            onClick={onTogglePlay}
-            style={{
-              background: isPlaying ? '#FF8C00' : '#00DAF3',
-              border: 'none',
-              color: '#000',
-              borderRadius: 6,
-              padding: '4px 12px',
-              fontSize: 11,
-              fontWeight: 900,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 5,
-            }}
-          >
-            {isPlaying ? <Pause size={12} fill="#000" /> : <Play size={12} fill="#000" />}
-            {isPlaying ? 'PAUSE' : 'PLAY'}
-          </button>
-
-          <button
-            onClick={() => handleFrameJump(currentFrame + 1)}
-            title="Next Frame"
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'rgba(255, 255, 255, 0.7)',
-              cursor: 'pointer',
-              padding: 4,
-              fontSize: 11,
-              fontWeight: 800,
-            }}
-          >
-            ▶
-          </button>
-
-          <button
-            onClick={() => handleFrameJump(totalFrames)}
-            title="Last Frame"
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'rgba(255, 255, 255, 0.7)',
-              cursor: 'pointer',
-              padding: 4,
-            }}
-          >
-            <SkipForward size={14} />
-          </button>
-
-          <div
-            style={{
-              height: 16,
-              width: 1,
-              backgroundColor: 'rgba(255, 255, 255, 0.15)',
-              margin: '0 6px',
-            }}
-          />
-
-          {/* Timecode Badge */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'baseline',
-              gap: 8,
-              background: 'rgba(0, 0, 0, 0.4)',
-              padding: '3px 8px',
-              borderRadius: 4,
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              fontFamily: 'monospace',
-            }}
-          >
-            <span style={{ fontSize: 12, fontWeight: 900, color: '#00DAF3' }}>
-              {formatTimecode(currentFrame, fps)}
-            </span>
-            <span style={{ fontSize: 10, color: 'rgba(255, 255, 255, 0.5)' }}>
-              FRAME {currentFrame} / {totalFrames}
-            </span>
-          </div>
-        </div>
-
-        {/* Center: Cadence & Keyframe Quick Directives */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ fontSize: 10, fontWeight: 900, color: 'rgba(255, 255, 255, 0.45)', textTransform: 'uppercase' }}>
-            Hold Cadence:
-          </div>
-          {[
-            { rate: 1, label: 'On 1s (24 FPS Full)' },
-            { rate: 2, label: 'On 2s (12 FPS Anime / Cartoon)' },
-            { rate: 3, label: 'On 3s (8 FPS)' },
-          ].map(({ rate, label }) => (
-            <button
-              key={rate}
-              onClick={() => {
-                onUpdateProject((p) => {
-                  const hero = p.layers.find((l) => l.id === 'l_hero');
-                  if (hero && hero.celTrack) hero.celTrack.stepRate = rate as any;
-                  return { ...p };
-                });
-              }}
-              style={{
-                fontSize: 10,
-                fontWeight: 800,
-                padding: '3px 8px',
-                borderRadius: 4,
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                background:
-                  project.layers.find((l) => l.id === 'l_hero')?.celTrack?.stepRate === rate
-                    ? 'rgba(107, 0, 153, 0.5)'
-                    : 'rgba(255, 255, 255, 0.04)',
-                color:
-                  project.layers.find((l) => l.id === 'l_hero')?.celTrack?.stepRate === rate
-                    ? '#00DAF3'
-                    : 'rgba(255, 255, 255, 0.7)',
-                cursor: 'pointer',
-              }}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-
-        {/* Right: Keyframing Controls & Zoom */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <button
-            onClick={() => setAutoKeyEnabled(!autoKeyEnabled)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4,
-              fontSize: 10,
-              fontWeight: 900,
-              padding: '3px 8px',
-              borderRadius: 4,
-              border: `1px solid ${autoKeyEnabled ? '#D40055' : 'rgba(255,255,255,0.1)'}`,
-              background: autoKeyEnabled ? 'rgba(212, 0, 85, 0.2)' : 'transparent',
-              color: autoKeyEnabled ? '#FF4F8B' : 'rgba(255,255,255,0.4)',
-              cursor: 'pointer',
-            }}
-          >
-            <span style={{ fontSize: 12 }}>●</span> AUTO-KEY
-          </button>
-
-          {/* Zoom Slider */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)' }}>ZOOM</span>
-            <input
-              type="range"
-              min={8}
-              max={32}
-              value={zoom}
-              onChange={(e) => setZoom(Number(e.target.value))}
-              style={{ width: 64, accentColor: '#00DAF3' }}
-            />
-          </div>
+          <span className={lbl}>zoom</span>
+          <input type="range" min={4} max={36} value={pxPerFrame} onChange={(e) => setPxPerFrame(Number(e.target.value))} aria-label="Timeline zoom" className="w-24" />
         </div>
       </div>
 
-      {/* ── 2. MAIN TIMELINE BODY: LAYERS & TRACK LANES ── */}
-      <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
-        {/* Left Column: Layer & Channel Outliner Header (Width 280px) */}
-        <div
-          style={{
-            width: 280,
-            flexShrink: 0,
-            backgroundColor: '#15131c',
-            borderRight: '1px solid rgba(255, 255, 255, 0.1)',
-            display: 'flex',
-            flexDirection: 'column',
-          }}
-        >
-          {/* Outliner Header */}
-          <div
-            style={{
-              height: 28,
-              borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '0 10px',
-              fontSize: 10,
-              fontWeight: 900,
-              color: 'rgba(255, 255, 255, 0.5)',
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-            }}
-          >
-            <span>ANIMATION LAYERS & TRACKS</span>
-            <span style={{ fontSize: 9 }}>KEYFRAME</span>
-          </div>
-
-          {/* Layer Rows */}
-          <div style={{ flex: 1, overflowY: 'auto' }}>
-            {project.layers.map((layer) => {
-              const isExpanded = !!expandedLayers[layer.id];
-              return (
-                <div key={layer.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.04)' }}>
-                  {/* Layer Main Header Row */}
-                  <div
-                    style={{
-                      height: 28,
-                      backgroundColor: 'rgba(255, 255, 255, 0.03)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '0 8px',
-                      fontSize: 11,
-                      fontWeight: 800,
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <button
-                        onClick={() => toggleLayerExpanded(layer.id)}
-                        style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', padding: 0 }}
-                      >
-                        {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-                      </button>
-
-                      <button
-                        onClick={() => handleToggleLayerVisibility(layer.id)}
-                        style={{
-                          background: 'transparent',
-                          border: 'none',
-                          color: layer.visible ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.2)',
-                          cursor: 'pointer',
-                          padding: 2,
-                        }}
-                      >
-                        {layer.visible ? <Eye size={12} /> : <EyeOff size={12} />}
-                      </button>
-
-                      <button
-                        onClick={() => handleToggleLayerLock(layer.id)}
-                        style={{
-                          background: 'transparent',
-                          border: 'none',
-                          color: layer.locked ? '#FF8C00' : 'rgba(255, 255, 255, 0.2)',
-                          cursor: 'pointer',
-                          padding: 2,
-                        }}
-                      >
-                        {layer.locked ? <Lock size={11} /> : <Unlock size={11} />}
-                      </button>
-
-                      <span style={{ color: layer.id === 'l_hero' ? '#00DAF3' : '#fff' }}>
-                        {layer.name}
-                      </span>
-                    </div>
-
-                    <span
-                      style={{
-                        fontSize: 9,
-                        padding: '1px 5px',
-                        borderRadius: 3,
-                        background: 'rgba(255, 255, 255, 0.08)',
-                        color: 'rgba(255, 255, 255, 0.6)',
-                        fontFamily: 'monospace',
-                      }}
-                    >
-                      {layer.type.toUpperCase()}
-                    </span>
-                  </div>
-
-                  {/* Expanded Property Channels */}
-                  {isExpanded && (
-                    <div style={{ backgroundColor: 'rgba(0, 0, 0, 0.25)' }}>
-                      {/* Cel Exposure Track (X-Sheet) */}
-                      {layer.celTrack && (
-                        <div
-                          style={{
-                            height: 24,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            padding: '0 8px 0 28px',
-                            fontSize: 10,
-                            color: '#FF8C00',
-                            borderBottom: '1px solid rgba(255, 255, 255, 0.02)',
-                          }}
-                        >
-                          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <span>🎞️</span> Cel Exposures (On {layer.celTrack.stepRate}s)
-                          </span>
-                        </div>
-                      )}
-
-                      {/* Property Tracks: Position X, Position Y, Rotation, Opacity */}
-                      {Object.entries(layer.channels).map(([chKey, channel]: [string, any]) => (
-                        <div
-                          key={chKey}
-                          style={{
-                            height: 22,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            padding: '0 8px 0 28px',
-                            fontSize: 10,
-                            color: 'rgba(255, 255, 255, 0.65)',
-                            borderBottom: '1px solid rgba(255, 255, 255, 0.02)',
-                          }}
-                        >
-                          <span>{channel.name}</span>
-
-                          {/* Add Keyframe Button */}
-                          <button
-                            onClick={() => handleAddKeyAtCurrent(layer.id, chKey)}
-                            title={`Add keyframe at frame ${currentFrame}`}
-                            style={{
-                              background: 'transparent',
-                              border: 'none',
-                              color: channel.keyframes.some(
-                                (k) => Math.abs(k.t - (currentFrame - 1) / fps) < 0.01
-                              )
-                                ? '#FFD700'
-                                : 'rgba(255, 255, 255, 0.3)',
-                              fontSize: 12,
-                              cursor: 'pointer',
-                              padding: '0 4px',
-                            }}
-                          >
-                            ◆
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Right Area: Keyframe Tracks & Ruler */}
-        <div
-          ref={tracksScrollRef}
-          style={{
-            flex: 1,
-            display: 'flex',
-            flexDirection: 'column',
-            overflowX: 'auto',
-            overflowY: 'hidden',
-            backgroundColor: '#0d0c12',
-            position: 'relative',
-          }}
-        >
-          {/* Top Ruler Bar */}
-          <div
-            ref={rulerRef}
-            onMouseDown={handleRulerMouseDown}
-            style={{
-              height: 28,
-              backgroundColor: '#16141e',
-              borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-              position: 'relative',
-              width: totalFrames * zoom + 120,
-              cursor: 'pointer',
-              flexShrink: 0,
-            }}
-          >
-            {/* Frame Tick Marks & Labels */}
-            {Array.from({ length: totalFrames }, (_, i) => {
-              const frameNum = i + 1;
-              const isMajor = frameNum % 6 === 0 || frameNum === 1;
-              const isSecond = frameNum % fps === 0;
-
-              return (
-                <div
-                  key={frameNum}
-                  style={{
-                    position: 'absolute',
-                    left: i * zoom,
-                    top: 0,
-                    bottom: 0,
-                    width: 1,
-                    backgroundColor: isSecond
-                      ? 'rgba(0, 218, 243, 0.4)'
-                      : isMajor
-                      ? 'rgba(255, 255, 255, 0.2)'
-                      : 'rgba(255, 255, 255, 0.06)',
-                  }}
-                >
-                  {isMajor && (
-                    <span
-                      style={{
-                        position: 'absolute',
-                        left: 3,
-                        top: 4,
-                        fontSize: 9,
-                        fontFamily: 'monospace',
-                        color: isSecond ? '#00DAF3' : 'rgba(255, 255, 255, 0.5)',
-                        pointerEvents: 'none',
-                      }}
-                    >
-                      {frameNum}
-                    </span>
-                  )}
-                </div>
-              );
-            })}
-
-            {/* Playhead Needle Head */}
+      <div className="relative flex-1 min-h-0 overflow-auto custom-scrollbar">
+        <div className="relative" style={{ width: NAME_W + width, minHeight: '100%' }}>
+          {/* Ruler */}
+          <div className="sticky top-0 z-30 flex" style={{ height: 24, background: '#0b0a10', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+            <div className="sticky left-0 z-10 flex items-center px-3 shrink-0" style={{ width: NAME_W, background: '#0b0a10', borderRight: '1px solid rgba(255,255,255,0.08)' }}>
+              <span className={lbl}>Layers</span>
+            </div>
             <div
-              style={{
-                position: 'absolute',
-                left: (currentFrame - 1) * zoom,
-                top: 0,
-                width: 12,
-                height: 18,
-                transform: 'translateX(-50%)',
-                backgroundColor: '#D40055',
-                clipPath: 'polygon(0 0, 100% 0, 100% 60%, 50% 100%, 0 60%)',
-                zIndex: 30,
-                pointerEvents: 'none',
+              className="relative shrink-0 cursor-ew-resize"
+              style={{ width }}
+              onPointerDown={(e) => {
+                scrubbing.current = true;
+                e.currentTarget.setPointerCapture(e.pointerId);
+                setPlaying(false);
+                scrubTo(e);
+              }}
+              onPointerMove={(e) => scrubbing.current && scrubTo(e)}
+              onPointerUp={() => (scrubbing.current = false)}
+            >
+              {Array.from({ length: Math.ceil(project.durationFrames / tickEvery) }, (_, i) => i * tickEvery + 1).map((f) => (
+                <div key={f} className="absolute top-0 bottom-0" style={{ left: (f - 1) * pxPerFrame }}>
+                  <div className="w-px h-2 bg-white/25" />
+                  <span className="absolute top-2 left-1 text-[9px] text-white/40 tabular-nums">{f}</span>
+                </div>
+              ))}
+              {Array.from({ length: Math.floor((project.durationFrames - 1) / project.fps) }, (_, i) => (i + 1) * project.fps + 1).map((f) => (
+                <div key={`s${f}`} className="absolute top-0 bottom-0 w-px bg-[#00DAF3]/40" style={{ left: (f - 1) * pxPerFrame }} />
+              ))}
+            </div>
+          </div>
+
+          {project.layers.map((l) => (
+            <LayerRows
+              key={l.id}
+              layer={l}
+              project={project}
+              pxPerFrame={pxPerFrame}
+              selected={l.id === selectedLayerId}
+              expanded={!!expanded[l.id]}
+              onToggle={() => setExpanded((s) => ({ ...s, [l.id]: !s[l.id] }))}
+              onSelect={() => onSelectLayer(l.id)}
+              onJump={(f) => {
+                setPlaying(false);
+                frames.set(f);
               }}
             />
-          </div>
-
-          {/* Track Lanes Canvas / Grid */}
-          <div
-            style={{
-              flex: 1,
-              width: totalFrames * zoom + 120,
-              position: 'relative',
-              overflowY: 'auto',
-            }}
-          >
-            {/* Background Grid Lines */}
-            {Array.from({ length: totalFrames }, (_, i) => (
-              <div
-                key={i}
-                style={{
-                  position: 'absolute',
-                  left: i * zoom,
-                  top: 0,
-                  bottom: 0,
-                  width: 1,
-                  backgroundColor: (i + 1) % 12 === 0 ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.02)',
-                  pointerEvents: 'none',
-                }}
-              />
-            ))}
-
-            {/* Vertical Red/Cyan Playhead Line */}
-            <div
-              style={{
-                position: 'absolute',
-                left: (currentFrame - 1) * zoom,
-                top: 0,
-                bottom: 0,
-                width: 2,
-                backgroundColor: '#D40055',
-                boxShadow: '0 0 8px rgba(212, 0, 85, 0.8)',
-                zIndex: 25,
-                pointerEvents: 'none',
-              }}
-            />
-
-            {/* Layer Track Lanes */}
-            {project.layers.map((layer) => {
-              const isExpanded = !!expandedLayers[layer.id];
-              return (
-                <div key={layer.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.04)' }}>
-                  {/* Layer Summary Lane */}
-                  <div
-                    style={{
-                      height: 28,
-                      backgroundColor: 'rgba(255, 255, 255, 0.02)',
-                      position: 'relative',
-                    }}
-                  >
-                    {/* Summary Diamonds: show keyframe if any sub-channel has one */}
-                    {Object.values(layer.channels).flatMap((ch: any) =>
-                      ch.keyframes.map((k) => {
-                        const framePos = Math.round(k.t * fps) + 1;
-                        return (
-                          <div
-                            key={k.id}
-                            title={`${ch.name}: ${k.v} at frame ${framePos}`}
-                            style={{
-                              position: 'absolute',
-                              left: (framePos - 1) * zoom,
-                              top: 7,
-                              width: 12,
-                              height: 12,
-                              transform: 'translateX(-50%) rotate(45deg)',
-                              backgroundColor: selectedKeyframeId === k.id ? '#FFD700' : '#00DAF3',
-                              border: '1px solid #000',
-                              cursor: 'pointer',
-                              zIndex: 10,
-                            }}
-                            onClick={() => setSelectedKeyframeId(k.id)}
-                          />
-                        );
-                      })
-                    )}
-                  </div>
-
-                  {/* Expanded Property Channel Lanes */}
-                  {isExpanded && (
-                    <div style={{ backgroundColor: 'rgba(0, 0, 0, 0.15)' }}>
-                      {/* Cel Exposure Track (X-Sheet bars) */}
-                      {layer.celTrack && (
-                        <div
-                          style={{
-                            height: 24,
-                            position: 'relative',
-                            borderBottom: '1px solid rgba(255, 255, 255, 0.02)',
-                          }}
-                        >
-                          {/* Exposure blocks on 2s / 1s */}
-                          {Array.from(
-                            { length: Math.ceil(totalFrames / (layer.celTrack.stepRate || 2)) },
-                            (_, bIdx) => {
-                              const start = bIdx * (layer.celTrack?.stepRate || 2);
-                              const width = (layer.celTrack?.stepRate || 2) * zoom;
-                              return (
-                                <div
-                                  key={bIdx}
-                                  style={{
-                                    position: 'absolute',
-                                    left: start * zoom,
-                                    top: 2,
-                                    width: width - 2,
-                                    height: 20,
-                                    borderRadius: 3,
-                                    backgroundColor:
-                                      bIdx % 2 === 0
-                                        ? 'rgba(255, 140, 0, 0.3)'
-                                        : 'rgba(212, 0, 85, 0.3)',
-                                    border: '1px solid rgba(255, 140, 0, 0.5)',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    paddingLeft: 4,
-                                    fontSize: 9,
-                                    fontWeight: 900,
-                                    color: '#fff',
-                                    fontFamily: 'monospace',
-                                  }}
-                                >
-                                  CEL {bIdx + 1}
-                                </div>
-                              );
-                            }
-                          )}
-                        </div>
-                      )}
-
-                      {/* Property Lanes with Diamond Keyframes */}
-                      {Object.entries(layer.channels).map(([chKey, channel]: [string, any]) => (
-                        <div
-                          key={chKey}
-                          style={{
-                            height: 22,
-                            position: 'relative',
-                            borderBottom: '1px solid rgba(255, 255, 255, 0.02)',
-                          }}
-                        >
-                          {/* Keyframe diamonds */}
-                          {channel.keyframes.map((k) => {
-                            const framePos = Math.round(k.t * fps) + 1;
-                            const isSelected = selectedKeyframeId === k.id;
-                            return (
-                              <div
-                                key={k.id}
-                                title={`${channel.name}: ${k.v} (${k.ease || 'smooth'})`}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedKeyframeId(k.id);
-                                  handleFrameJump(framePos);
-                                }}
-                                style={{
-                                  position: 'absolute',
-                                  left: (framePos - 1) * zoom,
-                                  top: 5,
-                                  width: 10,
-                                  height: 10,
-                                  transform: 'translateX(-50%) rotate(45deg)',
-                                  backgroundColor: isSelected ? '#FFD700' : '#00DAF3',
-                                  boxShadow: isSelected ? '0 0 8px #FFD700' : 'none',
-                                  border: '1px solid #100e16',
-                                  cursor: 'pointer',
-                                  zIndex: 15,
-                                }}
-                              />
-                            );
-                          })}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+          ))}
+          <Playhead frames={frames} pxPerFrame={pxPerFrame} />
         </div>
       </div>
     </div>
   );
 };
-
-export default AnimaTimeline;

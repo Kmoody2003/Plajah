@@ -18,21 +18,20 @@ test('free accounts get 5 GB; Plajah+ gets its tier storage', () => {
   assert.equal(creativeLimitBytes({ active: true, storageLimitGb: 100 }), 100 * GiB);
 });
 
-test('music projects and film are exempt; on-platform creative work counts', () => {
-  assert.equal(quotaClassOf('melos'), 'exempt');
-  assert.equal(quotaClassOf('fabula'), 'exempt');
-  for (const k of ['tela', 'comic', 'anima', 'script', 'design', 'something-new']) assert.equal(quotaClassOf(k), 'counted');
+test('everything made on the platform counts, Fabula and Melos projects included', () => {
+  for (const k of ['tela', 'comic', 'anima', 'fabula', 'melos', 'script', 'design', 'something-new']) assert.equal(quotaClassOf(k), 'counted');
   const t = tallyUsage([
     { kind: 'tela', size: 100 },
     { kind: 'comic', size: 50 },
     { kind: 'melos', size: 1000 },
     { kind: 'fabula', size: 7 },
   ]);
-  assert.deepEqual(t, { countedBytes: 150, exemptBytes: 1007, byKind: { tela: 100, comic: 50, melos: 1000, fabula: 7 } });
+  assert.deepEqual(t, { countedBytes: 1157, exemptBytes: 0, byKind: { tela: 100, comic: 50, melos: 1000, fabula: 7 } });
 });
 
 test('releases live outside measured prefixes', () => {
   const prefixes = creativePrefixes('u1').map((p) => p.prefix);
+  // Releases and uploads (Chora albums, Taleo/Reello video, the private media locker) are never measured.
   for (const releasePath of ['albums/a1/track.mp3', 'videos/v1/master.mp4', 'personal/u1/music/x.flac']) {
     assert.ok(!prefixes.some((p) => releasePath.startsWith(p)), releasePath);
   }
@@ -47,10 +46,8 @@ test('quota is measured but never blocks while enforcement is off', () => {
     { allowed: true, wouldExceed: true, usedAfterBytes: 5 * GiB + 10, limitBytes: 5 * GiB, percentAfter: 0 }
   );
   assert.equal(evaluateCreativeQuota({ ...over, enforced: true }).allowed, false);
-  // Exempt kinds never move the needle, enforced or not.
-  const music = evaluateCreativeQuota({ ...over, kind: 'melos', enforced: true });
-  assert.equal(music.allowed, true);
-  assert.equal(music.wouldExceed, false);
+  // On-platform music projects count like everything else.
+  assert.equal(evaluateCreativeQuota({ ...over, kind: 'melos', enforced: true }).allowed, false);
 });
 
 test('autosave checkpoints at most every 10 minutes', () => {

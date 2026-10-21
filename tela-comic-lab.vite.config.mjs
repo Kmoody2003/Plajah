@@ -13,6 +13,8 @@ export default defineConfig({
     host: '127.0.0.1',
     port: 3163,
     strictPort: true,
+    // The app's own index.html can't build here (no PWA plugin); don't let its error cover lab pages.
+    hmr: { overlay: false },
     watch: {
       ignored: (p) => {
         const f = p.replace(/\\/g, '/');

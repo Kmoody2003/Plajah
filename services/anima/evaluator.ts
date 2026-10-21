@@ -20,6 +20,11 @@ import type {
   InterpolationEase,
   Keyframe,
 } from './types';
+import { compileExpression } from './expression';
+
+/** Frames are 1-based on the timeline: frame 1 is t = 0. */
+export const frameToTime = (frame: number, fps: number) => (frame - 1) / Math.max(1, fps);
+export const timeToFrame = (t: number, fps: number) => Math.round(t * Math.max(1, fps)) + 1;
 
 // Clamp helper
 const clamp01 = (x: number) => (x < 0 ? 0 : x > 1 ? 1 : x);
@@ -68,6 +73,40 @@ export function shapeEase(p: number, ease?: InterpolationEase): number {
   }
 }
 
+/**
+ * A 'bezier' segment from a to b: the curve runs through (a.t, a.v) → a.outHandle →
+ * b.inHandle → (b.t, b.v), the same curve the graph editor draws. Time is solved for the
+ * curve parameter, then the value read off it, so flat segments (a.v === b.v) can still bulge.
+ * Missing handles default to a third of the span with zero slope (smooth).
+ */
+export function sampleBezierSegment(a: Keyframe<number>, b: Keyframe<number>, p: number): number {
+  const span = b.t - a.t;
+  const out = a.outHandle ?? { dx: span / 3, dy: 0 };
+  const inn = b.inHandle ?? { dx: -span / 3, dy: 0 };
+  const x1 = clamp01(out.dx / span);
+  const x2 = clamp01(1 + inn.dx / span);
+  const y0 = a.v;
+  const y1 = a.v + out.dy;
+  const y2 = b.v + inn.dy;
+  const y3 = b.v;
+  // Solve x(s) = p for the curve parameter s (x is monotonic because x1, x2 ∈ [0, 1]).
+  let s = p;
+  for (let i = 0; i < 8; i++) {
+    const x = 3 * (1 - s) * (1 - s) * s * x1 + 3 * (1 - s) * s * s * x2 + s * s * s;
+    const dx = 3 * (1 - s) * (1 - s) * x1 + 6 * (1 - s) * s * (x2 - x1) + 3 * s * s * (1 - x2);
+    if (Math.abs(x - p) < 1e-6) break;
+    if (Math.abs(dx) < 1e-6) {
+      // Flat slope: fall back to bisection-ish nudge.
+      s += x < p ? 1e-3 : -1e-3;
+    } else {
+      s -= (x - p) / dx;
+    }
+    s = clamp01(s);
+  }
+  const u = 1 - s;
+  return u * u * u * y0 + 3 * u * u * s * y1 + 3 * u * s * s * y2 + s * s * s * y3;
+}
+
 /** Binary search to find bracketing keyframes: O(log K) */
 export function sampleKeyframeTrack(keyframes: Keyframe<number>[], t: number, defaultValue: number): number {
   if (!keyframes || keyframes.length === 0) return defaultValue;
@@ -87,6 +126,7 @@ export function sampleKeyframeTrack(keyframes: Keyframe<number>[], t: number, de
         const span = b.t - a.t;
         if (span < 1e-6) return a.v;
         const normP = clamp01((t - a.t) / span);
+        if (a.ease === 'bezier') return sampleBezierSegment(a, b, normP);
         const p = shapeEase(normP, a.ease);
         return a.v + (b.v - a.v) * p;
       }
@@ -99,35 +139,15 @@ export function sampleKeyframeTrack(keyframes: Keyframe<number>[], t: number, de
   return defaultValue;
 }
 
-/** Wiggle expression generator */
-function evaluateWiggle(freq: number, amp: number, time: number): number {
-  const t = time * freq;
-  const i = Math.floor(t);
-  const f = t - i;
-  const u = f * f * (3 - 2 * f);
-  const h1 = Math.sin(i * 12.9898 + 78.233) * 43758.5453;
-  const r1 = (h1 - Math.floor(h1)) * 2 - 1;
-  const h2 = Math.sin((i + 1) * 12.9898 + 78.233) * 43758.5453;
-  const r2 = (h2 - Math.floor(h2)) * 2 - 1;
-  return (r1 + (r2 - r1) * u) * amp;
-}
-
 /** Evaluate a single AnimaChannel with Keyframe + Expression + Behavior tiers */
 export function evaluateChannel(channel: AnimaChannel<number>, t: number, fps = 24): number {
   // Tier 1: Keyframe Base
   let val = sampleKeyframeTrack(channel.keyframes, t, channel.defaultValue);
 
-  // Tier 2: Mathematical Expression
+  // Tier 2: Expression (safe parser — services/anima/expression.ts)
   if (channel.expression?.enabled && channel.expression.code) {
     const code = channel.expression.code.trim();
-    if (code.startsWith('wiggle(')) {
-      const match = code.match(/wiggle\s*\(\s*([\d.]+)\s*,\s*([\d.]+)\s*\)/);
-      if (match) {
-        const freq = parseFloat(match[1]) || 2;
-        const amp = parseFloat(match[2]) || 10;
-        val += evaluateWiggle(freq, amp, t);
-      }
-    } else if (code.startsWith('loopOut(')) {
+    if (code.startsWith('loopOut(')) {
       if (channel.keyframes.length >= 2) {
         const first = channel.keyframes[0].t;
         const last = channel.keyframes[channel.keyframes.length - 1].t;
@@ -137,12 +157,12 @@ export function evaluateChannel(channel: AnimaChannel<number>, t: number, fps = 
           val = sampleKeyframeTrack(channel.keyframes, first + rem, channel.defaultValue);
         }
       }
-    } else if (code.includes('Math.sin')) {
-      try {
-        const fn = new Function('time', 'frame', 'fps', 'value', `return (${code});`);
-        val = fn(t, Math.floor(t * fps), fps, val);
-      } catch {
-        // Safe fallback
+    } else {
+      const fn = compileExpression(code);
+      if (fn) {
+        const scope = { time: t, frame: Math.floor(t * fps) + 1, fps, value: val };
+        // A bare wiggle() adds to the keyed motion; any other expression replaces it.
+        val = /^wiggle\s*\(/.test(code) ? val + fn(scope) : fn(scope);
       }
     }
   }
@@ -192,11 +212,13 @@ export interface EvaluatedLayerState {
     scaleY: number;
   };
   activeDrawingId: string | null;
+  /** Every channel on the layer evaluated at this frame, by path (bone.*, face.*, fx.* …). */
+  channels: Record<string, number>;
 }
 
 /** Evaluate the entire project at a given frame */
 export function evaluateProjectAtFrame(project: AnimaProject, frame: number): EvaluatedLayerState[] {
-  const t = frame / Math.max(1, project.fps);
+  const t = frameToTime(frame, project.fps);
 
   return project.layers.map((layer) => {
     // 1. Evaluate channels or fall back to static transform
@@ -230,6 +252,8 @@ export function evaluateProjectAtFrame(project: AnimaProject, frame: number): Ev
 
     // 2. Resolve Cel Drawing if applicable
     const activeDrawingId = resolveCelExposure(layer.celTrack, frame);
+    const channels: Record<string, number> = {};
+    for (const [path, ch] of Object.entries(layer.channels)) channels[path] = evaluateChannel(ch, t, project.fps);
 
     return {
       layerId: layer.id,
@@ -246,6 +270,7 @@ export function evaluateProjectAtFrame(project: AnimaProject, frame: number): Ev
         scaleY: scY,
       },
       activeDrawingId,
+      channels,
     };
   });
 }

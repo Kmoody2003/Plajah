@@ -1,3594 +1,486 @@
 /**
- * components/Fabula/anima/AnimaStudio.tsx
+ * components/Fabula/anima/AnimaStudio.tsx — Anima, Fabula's motion studio.
  *
- * Plajah Fabula — 2D/3D Unified Animation & Living Media Suite ("Anima")
- * Powered by Aria Creative Intelligence & The Motion Director Council
+ *   ┌ top bar: project · undo/redo · cloud + version history · back to Fabula ┐
+ *   │ Layers │            Stage (tools float on top)            │ Inspector │
+ *   └ Timeline: transport, timing, auto-key, dope sheet ───────────────────────┘
  *
- * Unified Cross-Platform Engine for:
- * 1. 📖 Storybooks & Living Books (Interactive Lorea reader pages, tap triggers, fireflies, idle breathing)
- * 2. 💥 Comics & Manga / Graphic Novels (Panels, motion comics, elastic speech balloons, speed lines)
- * 3. 🎨 Living Canvas (Animate still Midjourney/Flux images & Runway/Kling video plates with effect compositing)
- * 4. 🎬 Film, NLE & Broadcast Graphics (Lower thirds, titles, camera choreography)
- *
- * Design Philosophy:
- * - Progressive Disclosure: UI is clean, intuitive, and welcoming. Complexity stays out of the way.
- * - Aria as Co-Pilot: Natural language leads the interaction, translating creative intent into deep systems math.
- * - Deep Pro Mode: Full exposure sheet (X-Sheet), curve editor, bone rigger, and physics parameters when needed.
+ * The project is a document (services/anima/document.ts) with undo/redo; it autosaves on this
+ * device and to the cloud with version history (services/anima/projectStore.ts). Playhead,
+ * selection and tool are UI state, so playing or selecting never re-saves the project.
  */
 
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useCallback, useEffect, useReducer, useRef, useState } from 'react';
+import { ArrowLeft, ChevronDown, Download, FilePlus2, FolderOpen, Hand, MousePointer2, PenTool, Redo2, Sparkles, Trash2, Undo2, Upload } from 'lucide-react';
+import type { AnimaProject, DrawingCel } from '../../../services/anima/types';
+import { animaHistoryReducer, initHistory, type AnimaAction } from '../../../services/anima/document';
+import { ANIMA_TEMPLATES, blankAnimaProject, newAnimaId } from '../../../services/anima/templates';
 import {
-  Play, Pause, SkipBack, SkipForward, Sparkles, Layers,
-  Camera, Eye, EyeOff, Sliders, Activity, Wind, Spline,
-  Flame, Droplets, Zap, ShieldAlert, Grid, RefreshCw,
-  Plus, Trash2, ChevronRight, Wand2, Download, Video,
-  Clock, Disc, PenTool, Move, RotateCcw, BookOpen,
-  MessageSquare, ChevronDown, ChevronUp, Bot, Image as ImageIcon,
-  Smile, UserCheck, FileText, Library, MessageCircle, FileCode,
-  FolderPlus, Type, Compass, Mic, MicOff, Hand, Palette, Footprints
-} from 'lucide-react';
-import type {
-  AnimaProject,
-  AnimaLayer,
-  DrawingCel,
-  DrawingStroke,
-  OnionSkinConfig,
-  AnimaChannel,
-} from '../../../services/anima/types';
-import { evaluateProjectAtFrame } from '../../../services/anima/evaluator';
-import {
-  ParticleSystem,
-  HairSystem,
-  SoftBodySystem,
-  DEFAULT_FORCES,
-  fracturePolygonAtImpact,
-  type FracturePiece,
-  type ParticleEmitterConfig,
-} from '../../../services/anima/physics';
-import { FluidSimulator } from '../../../services/anima/fluids';
-import {
-  synthesizeProceduralCanvas,
-  ProceduralGeometryEngine,
-  type ProceduralTextureKind,
-} from '../../../services/anima/procedural';
-import {
-  AriaMotionAgent,
-  type CreativeMedium,
-  type AriaMotionProposal,
-} from '../../../services/anima/ariaMotionAgent';
-import {
-  AnimaMediaCompositor,
-  type ImportedMediaPlate,
-} from './AnimaMediaCompositor';
+  ANIMA_CLOUD_KIND,
+  deleteAnimaProject,
+  getLastAnimaProjectId,
+  listAnimaProjects,
+  loadAnimaProject,
+  parseAnimaProject,
+  saveAnimaProject,
+  setLastAnimaProjectId,
+  stashPendingAnimaProject,
+  storeAnimaMedia,
+  takePendingAnimaProject,
+  type AnimaProjectSummary,
+} from '../../../services/anima/projectStore';
+import type { MotionBrushKind } from '../../../services/anima/worldClassEngine';
+import { CreativeStorageMeter, CreativeVersionHistory, useCreativeSyncState } from '../../creative/CreativeCloudPanels';
+import { createFrameStore } from './frameStore';
+import { AnimaStage, type AnimaTool } from './AnimaStage';
+import { AnimaLayersPanel } from './AnimaLayersPanel';
+import { AnimaInspector } from './AnimaInspector';
 import { AnimaTimeline } from './AnimaTimeline';
-import {
-  CLASSIC_CHARACTERS,
-  listClassicCharacters,
-  getClassicCharacter,
-  instantiateClassicCharacterLayer,
-} from '../../../services/anima/classicCharacters';
-import { PLAJAH_MASCOTS } from '../../../services/anima/plajahMascots';
-import {
-  CharacterFaceAnimator,
-  bakeFacePerformanceToTimeline,
-  type FacePerformanceClip,
-} from '../../../services/anima/faceAnimator';
-import {
-  VideoMotionTracker,
-  bakeMotionToTimeline,
-  type TrackedMotionClip,
-} from '../../../services/anima/videoMotionTracker';
-import {
-  parseMotionFile,
-  applyMotionDataToProject,
-} from '../../../services/anima/motionDataLoader';
-import {
-  ASSET_CATALOG,
-  instantiateAsset,
-  getAssetCategories,
-  getAssetsByCategory,
-  type AssetCategory,
-} from '../../../services/anima/assetLibrary';
-import {
-  applyPanelEntranceTransition,
-  createOnomatopoeiaLayer,
-  createComicBalloonLayer,
-  createSpeedLinesLayer,
-  createShockwaveLayer,
-  PanelParallaxEngine,
-  type PanelEntranceKind,
-  type OnomatopoeiaPhrase,
-} from '../../../services/anima/comicMotion';
-import {
-  LiveMotionPuppeteer,
-  SmartMotionPresets,
-  VoiceLipSyncEngine,
-  POSE_LIBRARY,
-  stampPoseOntoLayer,
-  InteractiveSplineGraph,
-  MotionFXBrushEngine,
-  type MotionBrushKind,
-  type MagicPresetKind,
-  type PoseDefinition,
-} from '../../../services/anima/worldClassEngine';
-import {
-  autoRigEngine,
-  type AutoRigResult,
-  type ArtworkAnalysisInput,
-} from '../../../services/anima/autoRigEngine';
-import {
-  visualStoryIntelligence,
-  storyVoiceIntelligence,
-} from '../../../services/story/visualStoryIntelligence';
-import {
-  videoLipSyncBridge,
-} from '../../../services/anima/videoLipSyncBridge';
-import {
-  backgroundDialogueSynthesizer,
-} from '../../../services/voice/backgroundDialogueSynthesizer';
-import type {
-  CharacterMorphologyType,
-  CharacterStoryDossier,
-  BackgroundDialogueTakeResult,
-  VideoLipSyncTrackResult,
-} from '../../../services/anima/types';
+import { btn, iconBtn, lbl, panelBg } from './ui';
 
-// Plajah Theme Palette
-const THEME = {
-  bg: '#0f0e13',
-  panel: 'rgba(25, 23, 33, 0.88)',
-  border: 'rgba(255, 255, 255, 0.08)',
-  purple: '#6B0099',
-  magenta: '#D40055',
-  cyan: '#00DAF3',
-  orange: '#FF8C00',
-  lilac: '#D0BCFF',
-  success: '#06D6A0',
+type SaveState = 'idle' | 'dirty' | 'saving' | 'saved' | 'error';
+
+const isTyping = (t: EventTarget | null) => {
+  const el = t as HTMLElement | null;
+  return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable);
 };
 
-const createInitialProject = (): AnimaProject => ({
-  id: 'proj_anime_01',
-  name: 'Plajah Living Story Beat',
-  fps: 24,
-  durationFrames: 72,
-  width: 1280,
-  height: 720,
-  currentFrame: 1,
-  drawingBank: {
-    cel_01: {
-      id: 'cel_01',
-      name: 'Key A',
-      strokes: [
-        {
-          id: 's1',
-          points: [
-            { x: 380, y: 320 },
-            { x: 420, y: 300 },
-            { x: 460, y: 320 },
-            { x: 440, y: 370 },
-            { x: 390, y: 370 },
-          ],
-          color: '#D0BCFF',
-          width: 5,
-          opacity: 1,
-          fill: 'rgba(107, 0, 153, 0.25)',
-        },
-      ],
-      width: 1280,
-      height: 720,
-      createdAt: Date.now(),
-    },
-  },
-  layers: [
-    {
-      id: 'l_hero',
-      name: 'Focal Artwork Layer',
-      type: 'cel',
-      visible: true,
-      locked: false,
-      opacity: 1,
-      parentId: null,
-      transform: { x: 0, y: 0, z: 0, rotationX: 0, rotationY: 0, rotationZ: 0, scaleX: 1, scaleY: 1, scaleZ: 1 },
-      channels: {
-        'transform.x': {
-          id: 'ch_x',
-          name: 'Position X',
-          targetProperty: 'transform.x',
-          defaultValue: 0,
-          keyframes: [
-            { id: 'kf_x_1', t: 0, v: 0, ease: 'smooth' },
-            { id: 'kf_x_2', t: 1.0, v: 48, ease: 'smooth' },
-            { id: 'kf_x_3', t: 2.0, v: -32, ease: 'smooth' },
-            { id: 'kf_x_4', t: 2.95, v: 0, ease: 'smooth' },
-          ],
-        },
-        'transform.y': {
-          id: 'ch_y',
-          name: 'Position Y',
-          targetProperty: 'transform.y',
-          defaultValue: 0,
-          keyframes: [
-            { id: 'kf_y_1', t: 0, v: 0, ease: 'smooth' },
-            { id: 'kf_y_2', t: 0.5, v: -22, ease: 'smooth' },
-            { id: 'kf_y_3', t: 1.5, v: -18, ease: 'smooth' },
-            { id: 'kf_y_4', t: 2.95, v: 0, ease: 'smooth' },
-          ],
-        },
-        'transform.rotationZ': {
-          id: 'ch_rot',
-          name: 'Rotation Z',
-          targetProperty: 'transform.rotationZ',
-          defaultValue: 0,
-          keyframes: [
-            { id: 'kf_rot_1', t: 0, v: 0, ease: 'smooth' },
-            { id: 'kf_rot_2', t: 1.0, v: 5.2, ease: 'smooth' },
-            { id: 'kf_rot_3', t: 2.0, v: -4.1, ease: 'smooth' },
-            { id: 'kf_rot_4', t: 2.95, v: 0, ease: 'smooth' },
-          ],
-        },
-        'opacity': {
-          id: 'ch_op',
-          name: 'Opacity',
-          targetProperty: 'opacity',
-          defaultValue: 1,
-          keyframes: [
-            { id: 'kf_op_1', t: 0, v: 1, ease: 'linear' },
-            { id: 'kf_op_2', t: 2.95, v: 1, ease: 'linear' },
-          ],
-        },
-      },
-      celTrack: {
-        id: 't_cel_01',
-        name: 'Main Exposure',
-        layerId: 'l_hero',
-        stepRate: 2,
-        exposures: [{ startFrame: 1, durationFrames: 72, drawingId: 'cel_01' }],
-      },
-    },
-    {
-      id: 'l_mascot',
-      name: 'Kaiju Mascot Rig Track',
-      type: 'character',
-      visible: true,
-      locked: false,
-      opacity: 1,
-      parentId: null,
-      transform: { x: 0, y: 0, z: 0, rotationX: 0, rotationY: 0, rotationZ: 0, scaleX: 1, scaleY: 1, scaleZ: 1 },
-      channels: {
-        'transform.x': {
-          id: 'ch_m_x',
-          name: 'Mascot Walk X',
-          targetProperty: 'transform.x',
-          defaultValue: 0,
-          keyframes: [
-            { id: 'km_1', t: 0, v: -80, ease: 'smooth' },
-            { id: 'km_2', t: 1.5, v: 0, ease: 'smooth' },
-            { id: 'km_3', t: 2.95, v: 80, ease: 'smooth' },
-          ],
-        },
-        'transform.y': {
-          id: 'ch_m_y',
-          name: 'Bounce Bob (On 2s)',
-          targetProperty: 'transform.y',
-          defaultValue: 0,
-          keyframes: [
-            { id: 'km_4', t: 0, v: 0, ease: 'smooth' },
-            { id: 'km_5', t: 0.75, v: -16, ease: 'smooth' },
-            { id: 'km_6', t: 1.5, v: 0, ease: 'smooth' },
-            { id: 'km_7', t: 2.25, v: -16, ease: 'smooth' },
-            { id: 'km_8', t: 2.95, v: 0, ease: 'smooth' },
-          ],
-        },
-      },
-    },
-  ],
-  onionSkin: {
-    enabled: true,
-    prevFrames: 2,
-    nextFrames: 1,
-    prevColor: 'rgba(0, 218, 243, 0.45)',
-    nextColor: 'rgba(212, 0, 85, 0.45)',
-    opacityFalloff: 0.5,
-  },
-  camera: { x: 0, y: 0, z: 1000, zoom: 1, rotation: 0 },
-  selectedLayerId: 'l_hero',
-  selectedBoneId: null,
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// PRO SUB-COMPONENT: INTERACTIVE BÉZIER SPLINE GRAPH EDITOR
-// ─────────────────────────────────────────────────────────────────────────────
-
-interface SplineGraphEditorProps {
-  channel: AnimaChannel<number>;
-  durationFrames: number;
-  fps: number;
-  onUpdateChannel: (ch: AnimaChannel<number>) => void;
-}
-
-const SplineGraphEditor: React.FC<SplineGraphEditorProps> = ({
-  channel,
-  durationFrames,
-  fps,
-  onUpdateChannel,
-}) => {
-  const [selectedKeyIndex, setSelectedKeyIndex] = useState<number | null>(null);
-  const durationSec = durationFrames / fps;
-  const width = 840;
-  const height = 180;
-  const padding = 28;
-
-  const valMin = -100;
-  const valMax = 100;
-
-  const toSvgX = (t: number) => padding + (t / durationSec) * (width - padding * 2);
-  const toSvgY = (v: number) => {
-    const norm = (v - valMin) / (valMax - valMin);
-    return (height - padding) - norm * (height - padding * 2);
-  };
-
-  const pathD = useMemo(() => {
-    const kfs = channel.keyframes;
-    if (kfs.length === 0) return '';
-    if (kfs.length === 1) return `M ${toSvgX(kfs[0].t)} ${toSvgY(kfs[0].v)}`;
-
-    let d = `M ${toSvgX(kfs[0].t)} ${toSvgY(kfs[0].v)}`;
-    for (let i = 0; i < kfs.length - 1; i++) {
-      const k0 = kfs[i];
-      const k1 = kfs[i + 1];
-      const span = k1.t - k0.t;
-      const h0x = k0.t + (k0.outHandle ? k0.outHandle.dx : span * 0.35);
-      const h0y = k0.v + (k0.outHandle ? k0.outHandle.dy : 0);
-      const h1x = k1.t + (k1.inHandle ? k1.inHandle.dx : -span * 0.35);
-      const h1y = k1.v + (k1.inHandle ? k1.inHandle.dy : 0);
-
-      d += ` C ${toSvgX(h0x)} ${toSvgY(h0y)}, ${toSvgX(h1x)} ${toSvgY(h1y)}, ${toSvgX(k1.t)} ${toSvgY(k1.v)}`;
-    }
-    return d;
-  }, [channel.keyframes, durationSec]);
-
-  const applyEaseToSelected = (easePreset: 'easy_ease' | 'ease_in' | 'ease_out' | 'back_overshoot' | 'linear') => {
-    if (selectedKeyIndex === null || selectedKeyIndex >= channel.keyframes.length - 1) return;
-    const cloned = JSON.parse(JSON.stringify(channel)) as AnimaChannel<number>;
-    InteractiveSplineGraph.setEasePreset(cloned.keyframes[selectedKeyIndex], cloned.keyframes[selectedKeyIndex + 1], easePreset);
-    onUpdateChannel(cloned);
-  };
-
-  return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8, padding: 10 }}>
-      {/* Ease Presets Toolbar */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 10, fontWeight: 900, color: THEME.cyan }}>SPLINE GRAPH: {channel.name}</span>
-          <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)' }}>({channel.keyframes.length} keyframes)</span>
-        </div>
-        <div style={{ display: 'flex', gap: 6 }}>
-          {[
-            { id: 'easy_ease', label: 'Easy Ease (S-Curve)' },
-            { id: 'ease_in', label: 'Ease In (Accelerate)' },
-            { id: 'ease_out', label: 'Ease Out (Decelerate)' },
-            { id: 'back_overshoot', label: 'Back (Overshoot Bounce)' },
-            { id: 'linear', label: 'Linear' },
-          ].map((btn) => (
-            <button
-              key={btn.id}
-              onClick={() => applyEaseToSelected(btn.id as any)}
-              disabled={selectedKeyIndex === null || selectedKeyIndex >= channel.keyframes.length - 1}
-              style={{
-                padding: '3px 8px', borderRadius: 4,
-                background: selectedKeyIndex !== null ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.02)',
-                border: '1px solid rgba(255,255,255,0.12)',
-                color: selectedKeyIndex !== null ? '#fff' : 'rgba(255,255,255,0.3)',
-                fontSize: 9, fontWeight: 800, cursor: selectedKeyIndex !== null ? 'pointer' : 'default',
-              }}
-            >
-              {btn.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* SVG Spline Canvas */}
-      <div style={{
-        background: '#09080c', border: `1px solid ${THEME.border}`, borderRadius: 8,
-        height: height, position: 'relative', overflow: 'hidden',
-      }}>
-        <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} style={{ display: 'block' }}>
-          <line x1={padding} y1={toSvgY(0)} x2={width - padding} y2={toSvgY(0)} stroke="rgba(255,255,255,0.15)" strokeWidth={1} strokeDasharray="3 3" />
-          
-          {[0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0].map((t) => (
-            <g key={t}>
-              <line x1={toSvgX(t)} y1={padding} x2={toSvgX(t)} y2={height - padding} stroke="rgba(255,255,255,0.05)" strokeWidth={1} />
-              <text x={toSvgX(t)} y={height - 8} fill="rgba(255,255,255,0.35)" fontSize={8} textAnchor="middle">{t}s</text>
-            </g>
-          ))}
-
-          <path d={pathD} fill="none" stroke={THEME.cyan} strokeWidth={2.5} />
-
-          {channel.keyframes.map((kf, idx) => {
-            const cx = toSvgX(kf.t);
-            const cy = toSvgY(kf.v);
-            const isSelected = selectedKeyIndex === idx;
-
-            return (
-              <g key={kf.id || idx}>
-                {isSelected && kf.outHandle && (
-                  <line
-                    x1={cx} y1={cy}
-                    x2={toSvgX(kf.t + kf.outHandle.dx)} y2={toSvgY(kf.v + kf.outHandle.dy)}
-                    stroke="rgba(212, 0, 85, 0.7)" strokeWidth={1.5}
-                  />
-                )}
-                <polygon
-                  points={`${cx},${cy - 5} ${cx + 5},${cy} ${cx},${cy + 5} ${cx - 5},${cy}`}
-                  fill={isSelected ? THEME.magenta : THEME.cyan}
-                  stroke="#fff" strokeWidth={1.5}
-                  style={{ cursor: 'pointer' }}
-                  onClick={() => setSelectedKeyIndex(idx)}
-                />
-              </g>
-            );
-          })}
-        </svg>
-      </div>
-    </div>
-  );
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// PRO SUB-COMPONENT: TRADITIONAL DISNEY/ANIME CEL EXPOSURE DOPE SHEET (X-SHEET)
-// ─────────────────────────────────────────────────────────────────────────────
-
-interface XSheetProps {
-  project: AnimaProject;
-  currentFrame: number;
-  onSelectFrame: (frame: number) => void;
-  onSetStepRate: (rate: 1 | 2 | 3 | 4) => void;
-}
-
-const TraditionalXSheet: React.FC<XSheetProps> = ({
-  project,
-  currentFrame,
-  onSelectFrame,
-  onSetStepRate,
-}) => {
-  const heroLayer = project.layers.find((l) => l.id === 'l_hero');
-  const currentStep = heroLayer?.celTrack?.stepRate ?? 2;
-
-  return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8, padding: 10, overflow: 'hidden' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 10, fontWeight: 900, color: THEME.lilac }}>TRADITIONAL CEL EXPOSURE (X-SHEET)</span>
-          <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)' }}>Disney / Anime Exposure Desk</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 9, fontWeight: 800, color: 'rgba(255,255,255,0.5)' }}>HOLD TIMING:</span>
-          {[1, 2, 3, 4].map((rate) => (
-            <button
-              key={rate}
-              onClick={() => onSetStepRate(rate as any)}
-              style={{
-                padding: '3px 8px', borderRadius: 4,
-                background: currentStep === rate ? THEME.purple : 'rgba(255,255,255,0.06)',
-                border: 'none', color: '#fff', fontSize: 9, fontWeight: 900, cursor: 'pointer',
-              }}
-            >
-              ON {rate}s ({Math.floor(24 / rate)} FPS)
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div style={{
-        flex: 1, overflowY: 'auto', background: '#09080c', border: `1px solid ${THEME.border}`, borderRadius: 8,
-      }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 9, fontFamily: 'monospace' }}>
-          <thead>
-            <tr style={{ background: 'rgba(255,255,255,0.04)', borderBottom: `1px solid ${THEME.border}`, textAlign: 'left', color: 'rgba(255,255,255,0.6)' }}>
-              <th style={{ padding: '6px 10px', width: 60 }}>FRAME</th>
-              <th style={{ padding: '6px 10px', width: 140 }}>HERO CEL (LVL A)</th>
-              <th style={{ padding: '6px 10px', width: 140 }}>MASCOT / CHAR (LVL B)</th>
-              <th style={{ padding: '6px 10px', width: 100 }}>CADENCE</th>
-              <th style={{ padding: '6px 10px' }}>PHONETIC DIALOGUE & NOTES</th>
-            </tr>
-          </thead>
-          <tbody>
-            {Array.from({ length: project.durationFrames }, (_, i) => i + 1).map((f) => {
-              const isCurrent = f === currentFrame;
-              const isHoldFrame = (f - 1) % currentStep === 0;
-
-              return (
-                <tr
-                  key={f}
-                  onClick={() => onSelectFrame(f)}
-                  style={{
-                    background: isCurrent ? 'rgba(212, 0, 85, 0.25)' : isHoldFrame ? 'rgba(255,255,255,0.02)' : 'transparent',
-                    borderBottom: '1px solid rgba(255,255,255,0.03)',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <td style={{ padding: '4px 10px', fontWeight: isCurrent ? 900 : 600, color: isCurrent ? '#FF4F8B' : 'rgba(255,255,255,0.6)' }}>
-                    {f.toString().padStart(2, '0')}
-                  </td>
-                  <td style={{ padding: '4px 10px', color: isHoldFrame ? THEME.cyan : 'rgba(255,255,255,0.2)' }}>
-                    {isHoldFrame ? `Key Drawing ${Math.floor((f - 1) / currentStep) + 1}` : '— hold —'}
-                  </td>
-                  <td style={{ padding: '4px 10px', color: isHoldFrame ? THEME.orange : 'rgba(255,255,255,0.2)' }}>
-                    {isHoldFrame ? 'Pose Stance' : '— hold —'}
-                  </td>
-                  <td style={{ padding: '4px 10px', color: 'rgba(255,255,255,0.4)' }}>
-                    {isHoldFrame ? `On ${currentStep}s` : ''}
-                  </td>
-                  <td style={{ padding: '4px 10px', color: isCurrent ? '#fff' : 'rgba(255,255,255,0.4)' }}>
-                    {f === 1 ? 'Action Beat: Opening Stance' : f === 24 ? 'Phoneme /A/ (Jaw Open)' : f === 48 ? 'Impact Recovery' : ''}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-};
+const TOOLS: { id: AnimaTool; label: string; key: string; icon: React.ReactNode }[] = [
+  { id: 'select', label: 'Move', key: 'V', icon: <MousePointer2 size={15} /> },
+  { id: 'draw', label: 'Draw', key: 'B', icon: <PenTool size={15} /> },
+  { id: 'puppet', label: 'Puppet', key: 'P', icon: <Hand size={15} /> },
+  { id: 'brush', label: 'FX brush', key: 'F', icon: <Sparkles size={15} /> },
+];
 
 export const AnimaStudio: React.FC<{ onBackToEdit?: () => void }> = ({ onBackToEdit }) => {
-  const [project, setProject] = useState<AnimaProject>(createInitialProject);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [activeMedium, setActiveMedium] = useState<CreativeMedium>('living_canvas');
+  const [history, dispatchHistory] = useReducer(animaHistoryReducer, undefined, () => initHistory(blankAnimaProject()));
+  const project = history.present;
+  const framesRef = useRef(createFrameStore(1));
+  const frames = framesRef.current;
 
-  // Progressive Disclosure: Simple vs Pro Studio
-  const [isProModeOpen, setIsProModeOpen] = useState(false);
-  const [proTab, setProTab] = useState<
-    | 'timeline'
-    | 'xsheet'
-    | 'auto_rig'
-    | 'video_lipsync'
-    | 'face_animator'
-    | 'video_mocap'
-    | 'mocap_import'
-    | 'asset_library'
-    | 'comic_fx'
-    | 'curves'
-    | 'physics'
-    | 'procedural'
-  >('timeline');
-
-  // Face Animator States
-  const [isFaceTracking, setIsFaceTracking] = useState(false);
-  const [faceGain, setFaceGain] = useState(1.25);
-  const [liveFaceMetrics, setLiveFaceMetrics] = useState({ jawOpen: 0, smile: 0, blinkL: 0, blinkR: 0, headRoll: 0 });
-  const faceAnimatorRef = useRef(new CharacterFaceAnimator());
-
-  // Video Mocap States
-  const [isBodyTracking, setIsBodyTracking] = useState(false);
-  const [liveBodyMetrics, setLiveBodyMetrics] = useState({ spine: 0, armL: 0, armR: 0, legL: 0, legR: 0 });
-  const videoTrackerRef = useRef(new VideoMotionTracker());
-
-  // Mocap Data Import
-  const [mocapStatus, setMocapStatus] = useState<string | null>(null);
-
-  // Asset Library State
-  const [selectedAssetCategory, setSelectedAssetCategory] = useState<string>('all');
-
-  // Comic FX States
-  const [parallaxMode, setParallaxMode] = useState<'pointer_hover' | 'device_gyro' | 'camera_drift' | 'reading_scroll'>('pointer_hover');
-  const [parallaxEnabled, setParallaxEnabled] = useState(true);
-  const parallaxEngineRef = useRef(new PanelParallaxEngine());
-
-  // Aria Conversation & Intelligence
-  const [ariaPrompt, setAriaPrompt] = useState('');
-  const [ariaProposal, setAriaProposal] = useState<AriaMotionProposal | null>(null);
-  const [isAriaThinking, setIsAriaThinking] = useState(false);
-
-  // Active Ingested Media Plate (Still Image or Video)
-  const [activePlate, setActivePlate] = useState<ImportedMediaPlate | null>({
-    id: 'sample_default',
-    type: 'image',
-    name: 'Midjourney · Cyberpunk Wanderer',
-    url: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=1280&q=80',
-    width: 1280,
-    height: 720,
-  });
-
-  // Stop-motion webcam tethering
-  const [isCameraActive, setIsCameraActive] = useState(false);
+  const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
+  const [playing, setPlaying] = useState(false);
+  const [tool, setTool] = useState<AnimaTool>('select');
+  const [brushKind, setBrushKind] = useState<MotionBrushKind>('sparkle_stardust');
+  const [ink, setInk] = useState({ color: '#D0BCFF', width: 5 });
+  const [autoKey, setAutoKey] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [saveState, setSaveState] = useState<SaveState>('idle');
+  const [menu, setMenu] = useState<'project' | 'history' | null>(null);
+  const [startScreen, setStartScreen] = useState(false);
+  const [recent, setRecent] = useState<AnimaProjectSummary[]>([]);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const plateImgRef = useRef<HTMLImageElement | null>(null);
+  const cameraVideoRef = useRef<HTMLVideoElement | null>(null);
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const dirtyRef = useRef(false);
+  const projectRef = useRef(project);
+  projectRef.current = project;
+  const syncState = useCreativeSyncState(ANIMA_CLOUD_KIND, project.id);
 
-  // Physics & Simulation Subsystems
-  const particleSystemRef = useRef(new ParticleSystem());
-  const hairSystemRef = useRef(new HairSystem());
-  const softBodySystemRef = useRef(new SoftBodySystem());
-  const fluidSimRef = useRef(new FluidSimulator({ gridResolution: 64 }));
-  const [activeSim, setActiveSim] = useState<'none' | 'particles' | 'hair' | 'soft_body' | 'fluid' | 'fracture'>('none');
-  const [fracturePieces, setFracturePieces] = useState<FracturePiece[]>([]);
-  const [speedLinesActive, setSpeedLinesActive] = useState(false);
-  const [speechBalloon, setSpeechBalloon] = useState<{ text: string; x: number; y: number } | null>(null);
-
-  // Active Rigged Character or Kaiju Mascot
-  const [activeRigId, setActiveRigId] = useState<'none' | 'rello' | 'chora' | 'steamboat_willie' | 'felix_the_cat' | 'fleischer_flapper' | 'oswald_rabbit' | 'sailor_swagger'>('rello');
-
-  // ── World-Class Animation State (Creator Play vs Master Pro) ──
-  const [studioMode, setStudioMode] = useState<'creator' | 'master'>('creator');
-  const [isPuppetRecording, setIsPuppetRecording] = useState(false);
-  const [isPuppetDragging, setIsPuppetDragging] = useState(false);
-  const puppeteerRef = useRef(new LiveMotionPuppeteer({ fps: 24, stepRate: 2, inertia: 0.45, enableSquashStretch: true }));
-  const puppetPathRef = useRef<{ x: number; y: number }[]>([]);
-
-  // Smart Presets, Poses & FX Paint Brushes
-  const [activePresetMenu, setActivePresetMenu] = useState(false);
-  const [activePoseMenu, setActivePoseMenu] = useState(false);
-  const [activeBrushMenu, setActiveBrushMenu] = useState(false);
-  const [activeBrush, setActiveBrush] = useState<MotionBrushKind | 'none'>('none');
-  const fxBrushRef = useRef(new MotionFXBrushEngine());
-
-  // Voice & Beat Lip Sync
-  const [isVoiceLipSyncActive, setIsVoiceLipSyncActive] = useState(false);
-
-  // Spline Curve Editor
-  const [curveChannelPath, setCurveChannelPath] = useState<string>('transform.y');
-  const [selectedSplineKeyId, setSelectedSplineKeyId] = useState<string | null>(null);
-
-  // X-Sheet Dope Sheet
-  const [xsheetSelectedFrame, setXsheetSelectedFrame] = useState<number>(1);
-
-  // ── Auto-Rig & Mass Dynamics State ──
-  const [autoRigMorphology, setAutoRigMorphology] = useState<CharacterMorphologyType>('mascot_creature');
-  const [autoRigMassKg, setAutoRigMassKg] = useState<number>(140);
-  const [autoRigElasticity, setAutoRigElasticity] = useState<number>(0.7);
-  const [autoRigDamping, setAutoRigDamping] = useState<number>(0.55);
-  const [autoRigStoryDossierId, setAutoRigStoryDossierId] = useState<string>('char_rello');
-  const [autoRigResult, setAutoRigResult] = useState<AutoRigResult | null>(null);
-  const [isAutoRigging, setIsAutoRigging] = useState<boolean>(false);
-  const [autoRigSamplePrompt, setAutoRigSamplePrompt] = useState<string>('Reello the Film Kaiju mascot, navy fur with flame crest');
-
-  // ── Off-Platform Video Lip-Sync Bridge State ──
-  const [lipSyncVideoUrl, setLipSyncVideoUrl] = useState<string>('https://storage.plajah.com/external_mascot_walk.mp4');
-  const [lipSyncSelectedTakeId, setLipSyncSelectedTakeId] = useState<string>('');
-  const [lipSyncJawGain, setLipSyncJawGain] = useState<number>(1.25);
-  const [activeLipSyncTrack, setActiveLipSyncTrack] = useState<VideoLipSyncTrackResult | null>(null);
-  const [recentTakes, setRecentTakes] = useState<BackgroundDialogueTakeResult[]>([]);
-
-  // Subscribe to background dialogue takes from script/story
+  const say = useCallback((msg: string) => setNotice(msg), []);
   useEffect(() => {
-    const unsub = backgroundDialogueSynthesizer.subscribe((take) => {
-      setRecentTakes((prev) => [take, ...prev.filter(t => t.takeId !== take.takeId)].slice(0, 8));
-      setLipSyncSelectedTakeId(take.takeId);
-    });
-    return unsub;
+    if (!notice) return;
+    const t = window.setTimeout(() => setNotice(null), 3800);
+    return () => window.clearTimeout(t);
+  }, [notice]);
+
+  /** Every document edit goes through here: marks the project dirty for autosave. */
+  const dispatch = useCallback((action: AnimaAction, coalesceKey?: string) => {
+    dirtyRef.current = true;
+    dispatchHistory({ type: 'do', action, coalesceKey });
   }, []);
 
-  const handleRunAutoRig = () => {
-    setIsAutoRigging(true);
-    setTimeout(() => {
-      const recognition = visualStoryIntelligence.recognizeCharacterInArtwork(
-        autoRigSamplePrompt,
-        [autoRigSamplePrompt]
-      );
+  const open = useCallback((p: AnimaProject, dirty = false) => {
+    dispatchHistory({ type: 'reset', project: p });
+    dirtyRef.current = dirty;
+    frames.set(1);
+    setPlaying(false);
+    setSelectedLayerId(p.layers[0]?.id ?? null);
+    setSaveState(dirty ? 'dirty' : 'saved');
+    setLastAnimaProjectId(p.id);
+    setStartScreen(false);
+    setMenu(null);
+  }, [frames]);
 
-      const dossier: CharacterStoryDossier = recognition.matchedCharacter || {
-        characterId: autoRigStoryDossierId,
-        name: autoRigStoryDossierId === 'char_rello' ? 'Reello (Lumi)' : autoRigStoryDossierId === 'char_chora' ? 'Chora (Lorik)' : 'Cyber Adventurer',
-        archetype: 'mascot',
-        physicalStats: { weight: `${autoRigMassKg} kg` },
-        locomotionStyle: 'mascot_bob',
-      };
+  const refreshRecent = useCallback(async () => setRecent(await listAnimaProjects().catch(() => [])), []);
 
-      const res = autoRigEngine.autoRigArtwork({
-        width: 1280,
-        height: 720,
-        suggestedMorphology: autoRigMorphology,
-        storyDossier: dossier,
-      });
-
-      setAutoRigResult(res);
-      setIsAutoRigging(false);
-    }, 200);
-  };
-
-  const handleApplyAutoRigToCanvas = () => {
-    if (!autoRigResult) return;
-    const newLayerId = `layer_autorig_${Date.now()}`;
-    const newRigLayer: AnimaLayer = {
-      id: newLayerId,
-      name: `${autoRigResult.morphology.toUpperCase()} [Mass: ${Math.round(autoRigResult.massProfile.estimatedMassKg)}kg]`,
-      type: 'character',
-      visible: true,
-      locked: false,
-      opacity: 1,
-      parentId: null,
-      transform: { x: 0, y: 0, z: 0, rotationX: 0, rotationY: 0, rotationZ: 0, scaleX: 1, scaleY: 1, scaleZ: 1 },
-      channels: autoRigResult.walkCycleChannels,
-    };
-
-    setProject(prev => ({
-      ...prev,
-      selectedLayerId: newLayerId,
-      layers: [newRigLayer, ...prev.layers],
-    }));
-    setProTab('timeline');
-  };
-
-  const handleRunVideoLipSync = () => {
-    let take = recentTakes.find(t => t.takeId === lipSyncSelectedTakeId);
-    if (!take) {
-      take = {
-        takeId: `take_lip_${Date.now()}`,
-        cueId: 'cue_ext_1',
-        speaker: 'Reello',
-        text: 'Action! Welcome to the unified living media studio!',
-        durationSeconds: 2.8,
-        audioWavBlob: new Blob([], { type: 'audio/wav' }),
-        wordMarks: [
-          { word: 'Action!', startSec: 0.1, endSec: 0.6, viseme: 'A' },
-          { word: 'Welcome', startSec: 0.7, endSec: 1.2, viseme: 'E' },
-          { word: 'to', startSec: 1.25, endSec: 1.45, viseme: 'U' },
-          { word: 'the', startSec: 1.5, endSec: 1.7, viseme: 'E' },
-          { word: 'unified', startSec: 1.75, endSec: 2.2, viseme: 'I' },
-          { word: 'studio!', startSec: 2.25, endSec: 2.7, viseme: 'O' },
-        ],
-        synthesizedSfx: [{ sfxId: 'sfx_1', preset: 'whoosh', offsetSec: 0 }],
-        generatedAt: Date.now(),
-      };
-    }
-
-    const track = videoLipSyncBridge.generateLipSyncFromAudioTake(take, lipSyncVideoUrl, {
-      fps: 24,
-      jawAmplification: lipSyncJawGain,
-    });
-    setActiveLipSyncTrack(track);
-
-    const targetId = project.selectedLayerId || project.layers[0]?.id;
-    if (targetId) {
-      setProject(prev => ({
-        ...prev,
-        layers: prev.layers.map(l => {
-          if (l.id !== targetId) return l;
-          return {
-            ...l,
-            channels: {
-              ...l.channels,
-              ...track.bakedChannels,
-            },
-          };
-        }),
-      }));
-    }
-  };
-
-  // Load plate image
+  // Boot: a project parked at the last page close, else the last project, else the start screen.
   useEffect(() => {
-    if (activePlate?.type === 'image' && activePlate.url) {
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.src = activePlate.url;
-      img.onload = () => {
-        plateImgRef.current = img;
-      };
-    } else {
-      plateImgRef.current = null;
-    }
-  }, [activePlate]);
-
-  // Handle Aria Command
-  const handleAriaDirect = (customText?: string) => {
-    const text = customText || ariaPrompt;
-    if (!text.trim()) return;
-
-    setIsAriaThinking(true);
-
-    const lower = text.toLowerCase();
-    if (lower.includes('rello') || lower.includes('lumi') || lower.includes('film kaiju') || lower.includes('camera')) {
-      setTimeout(() => {
-        setActiveRigId('rello');
-        setAriaProposal({
-          lens: 'Kith Mascot Rig',
-          headline: 'Reello (Lumi) — The Film & Vision Mascot',
-          actionSummary: 'Kith Style Bible: Navy speckled body, bright orange bandit eye patches, white face mask, orange/peach belly with flame mark, rangefinder camera on 2s',
-          channels: {},
-        });
-        setIsAriaThinking(false);
-      }, 150);
-      return;
-    }
-    if (lower.includes('chora') || lower.includes('lorik') || lower.includes('sonic kaiju') || lower.includes('music')) {
-      setTimeout(() => {
-        setActiveRigId('chora');
-        setAriaProposal({
-          lens: 'Kith Mascot Rig',
-          headline: 'Chora (Lorik) — The Sonic & Music Mascot',
-          actionSummary: 'Kith Style Bible: Purple speckled body, purple bandit eye patches, white face mask, segmented magenta belly with golden notes, LORIK music book on 2s',
-          channels: {},
-        });
-        setIsAriaThinking(false);
-      }, 150);
-      return;
-    }
-    if (lower.includes('willie') || lower.includes('steamboat') || lower.includes('mickey')) {
-      setTimeout(() => {
-        setActiveRigId('steamboat_willie');
-        setAriaProposal({
-          lens: 'Historic Disney / Ub Iwerks',
-          headline: 'Steamboat Willie Rubber-Hose Active',
-          actionSummary: '1928 pilot rig on 2s with bouncy whistling mouth and noodle limb physics',
-          channels: {},
-        });
-        setIsAriaThinking(false);
-      }, 150);
-      return;
-    }
-    if (lower.includes('felix') || lower.includes('pacing cat')) {
-      setTimeout(() => {
-        setActiveRigId('felix_the_cat');
-        setAriaProposal({
-          lens: 'Silent Era Pioneer 1919',
-          headline: 'Felix the Cat Pacing Walk Active',
-          actionSummary: 'Hands behind back, hunched contemplative stride, question-mark tail on 2s',
-          channels: {},
-        });
-        setIsAriaThinking(false);
-      }, 150);
-      return;
-    }
-    if (lower.includes('flapper') || lower.includes('fleischer')) {
-      setTimeout(() => {
-        setActiveRigId('fleischer_flapper');
-        setAriaProposal({
-          lens: 'Fleischer Studios 1930',
-          headline: 'Jazz Flapper 2-Beat Shimmy Active',
-          actionSummary: 'Syncopated jazz bounce, head curls, inkwell boiling line aesthetic on 2s',
-          channels: {},
-        });
-        setIsAriaThinking(false);
-      }, 150);
-      return;
-    }
-    if (lower.includes('oswald') || lower.includes('rabbit')) {
-      setTimeout(() => {
-        setActiveRigId('oswald_rabbit');
-        setAriaProposal({
-          lens: 'Universal / Disney 1927',
-          headline: 'Oswald the Lucky Rabbit Stride Active',
-          actionSummary: 'Springy high-stepping stride, floppy ears with secondary overlap drag on 2s',
-          channels: {},
-        });
-        setIsAriaThinking(false);
-      }, 150);
-      return;
-    }
-    if (lower.includes('sailor') || lower.includes('popeye') || lower.includes('swagger')) {
-      setTimeout(() => {
-        setActiveRigId('sailor_swagger');
-        setAriaProposal({
-          lens: 'Fleischer Archetype 1933',
-          headline: 'Sailor Swagger Sea-Legs Strut Active',
-          actionSummary: 'Bulging forearms with anchor tattoos, corncob pipe puffing smoke rings, squinted eye & rolling sea-legs swagger on 2s',
-          channels: {},
-        });
-        setIsAriaThinking(false);
-      }, 150);
-      return;
-    }
-
-    setTimeout(() => {
-      const proposal = AriaMotionAgent.interpret(text, activeMedium, 3.0);
-      setAriaProposal(proposal);
-      setIsAriaThinking(false);
-
-      // Apply channels to selected layer
-      setProject((prev) => {
-        const nextLayers = prev.layers.map((l) => {
-          if (l.id === prev.selectedLayerId || l.id === 'l_hero') {
-            return {
-              ...l,
-              channels: { ...l.channels, ...proposal.channels } as any,
-              celTrack: proposal.suggestedStepRate && l.celTrack ? { ...l.celTrack, stepRate: proposal.suggestedStepRate } : l.celTrack,
-            };
-          }
-          return l;
-        });
-        return { ...prev, layers: nextLayers };
-      });
-
-
-      // Handle specific compositing layers
-      if (proposal.compositingLayer) {
-        if (proposal.compositingLayer.kind === 'particles') {
-          const cfg = proposal.compositingLayer.config;
-          const emitter: ParticleEmitterConfig = {
-            id: 'em_aria',
-            name: 'Aria Emitter',
-            enabled: true,
-            type: cfg.type || 'box',
-            position: { x: 640, y: 100, z: 0 },
-            ratePerSecond: cfg.ratePerSecond || 50,
-            lifespan: cfg.lifespan || 2.0,
-            speed: cfg.speed || 150,
-            spreadAngle: 45,
-            directionAngle: cfg.directionAngle || 90,
-            startSize: 5,
-            endSize: 1,
-            color: cfg.color || THEME.cyan,
-            colorFade: THEME.magenta,
-            bounceElasticity: 0.5,
-          };
-          (particleSystemRef.current as any).defaultEmitter = emitter;
-          setActiveSim('particles');
-        } else if (proposal.compositingLayer.kind === 'fluid') {
-          setActiveSim('fluid');
-        } else if (proposal.compositingLayer.kind === 'speed_lines') {
-          setSpeedLinesActive(true);
-        } else if (proposal.compositingLayer.kind === 'speech_balloon') {
-          setSpeechBalloon({ text: proposal.compositingLayer.config.text || 'HELLO!', x: 640, y: 260 });
-        }
+    let alive = true;
+    (async () => {
+      const pending = takePendingAnimaProject();
+      const lastId = pending?.id ?? getLastAnimaProjectId();
+      const saved = lastId ? await loadAnimaProject(lastId).catch(() => null) : null;
+      if (!alive) return;
+      if (pending && (!saved || (pending.updatedAt ?? 0) >= (saved.updatedAt ?? 0))) open(pending, true);
+      else if (saved) open(saved);
+      else {
+        setSelectedLayerId(projectRef.current.layers[0]?.id ?? null);
+        setStartScreen(true);
       }
-    }, 280);
-  };
+      void refreshRecent();
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [open, refreshRecent]);
 
-  // Quick Compositing Action Dispatcher
-  const handleQuickCompositing = (type: string) => {
-    switch (type) {
-      case 'weather_rain':
-        handleAriaDirect('cinematic wind-blown rain atmosphere');
-        break;
-      case 'fireflies':
-        handleAriaDirect('ambient starlight fireflies gently floating');
-        break;
-      case 'camera_drift':
-        handleAriaDirect('2.5D handheld parallax camera drift');
-        break;
-      case 'hair_flutter':
-        hairSystemRef.current.createStrand({ x: 580, y: 220, z: 0 }, 140, 7, THEME.cyan, 0.88);
-        hairSystemRef.current.createStrand({ x: 610, y: 220, z: 0 }, 160, 8, THEME.lilac, 0.9);
-        setActiveSim('hair');
-        break;
-      case 'fluid_aura':
-        handleAriaDirect('swirling fluid magic aura');
-        break;
-      case 'speed_lines':
-        handleAriaDirect('radial manga action speed lines');
-        break;
-    }
-  };
+  // Autosave (debounced) — local first, then the cloud copy with version history.
+  useEffect(() => {
+    if (!dirtyRef.current) return;
+    setSaveState('dirty');
+    const t = window.setTimeout(() => {
+      dirtyRef.current = false;
+      setSaveState('saving');
+      saveAnimaProject(project)
+        .then(() => setSaveState('saved'))
+        .catch(() => {
+          dirtyRef.current = true;
+          setSaveState('error');
+        });
+    }, 900);
+    return () => window.clearTimeout(t);
+  }, [project]);
 
-  // WebCam Stop-Motion toggle
+  // Page close inside the debounce window: park the edit synchronously.
+  useEffect(() => {
+    const flush = () => {
+      if (dirtyRef.current) stashPendingAnimaProject(projectRef.current);
+    };
+    const onVis = () => document.visibilityState === 'hidden' && flush();
+    window.addEventListener('pagehide', flush);
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      document.removeEventListener('visibilitychange', onVis);
+      if (dirtyRef.current) void saveAnimaProject(projectRef.current);
+    };
+  }, []);
+
+  // Keep the selection valid as layers come and go (undo can remove the selected one).
+  useEffect(() => {
+    if (selectedLayerId && !project.layers.some((l) => l.id === selectedLayerId)) setSelectedLayerId(project.layers[0]?.id ?? null);
+  }, [project.layers, selectedLayerId]);
+  useEffect(() => {
+    if (frames.get() > project.durationFrames) frames.set(project.durationFrames);
+  }, [project.durationFrames, frames]);
+
+  // Stop-motion camera.
   const toggleCamera = async () => {
-    if (isCameraActive) {
-      cameraStream?.getTracks().forEach((t) => t.stop());
+    if (cameraStream) {
+      cameraStream.getTracks().forEach((t) => t.stop());
       setCameraStream(null);
-      setIsCameraActive(false);
-    } else {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 } });
-        setCameraStream(stream);
-        setIsCameraActive(true);
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-      } catch (e) {
-        console.warn('Unable to access camera for stop-motion:', e);
-      }
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 } });
+      setCameraStream(stream);
+    } catch {
+      say("Couldn't open the camera. Check the browser's camera permission.");
     }
   };
+  useEffect(() => {
+    if (cameraVideoRef.current) cameraVideoRef.current.srcObject = cameraStream;
+  }, [cameraStream]);
+  useEffect(() => () => cameraStream?.getTracks().forEach((t) => t.stop()), [cameraStream]);
 
-  // Capture frame from camera
-  const captureStopMotionFrame = () => {
-    if (!videoRef.current) return;
-    const v = videoRef.current;
+  const capture = async () => {
+    const v = cameraVideoRef.current;
+    const layer = project.layers.find((l) => l.id === selectedLayerId);
+    if (!v || v.readyState < 2) return;
+    if (!layer || (layer.type !== 'cel' && layer.type !== 'stop_motion')) {
+      say('Captures go on a drawing layer. Select one first.');
+      return;
+    }
     const off = document.createElement('canvas');
-    off.width = 1280;
-    off.height = 720;
-    const ctx = off.getContext('2d');
-    if (!ctx) return;
-    ctx.drawImage(v, 0, 0, 1280, 720);
-    const dataUrl = off.toDataURL('image/webp', 0.85);
-
-    const celId = `cel_sm_${Date.now()}`;
-    const newCel: DrawingCel = {
-      id: celId,
-      name: `Capture Frame ${project.currentFrame}`,
-      strokes: [],
-      rasterDataUrl: dataUrl,
-      width: 1280,
-      height: 720,
-      createdAt: Date.now(),
-    };
-
-    setProject((prev) => ({
-      ...prev,
-      drawingBank: { ...prev.drawingBank, [celId]: newCel },
-      currentFrame: Math.min(prev.durationFrames, prev.currentFrame + 2),
-    }));
-  };
-
-  // Interactive Tap Trigger on Canvas
-  const handleCanvasTap = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    const tapX = ((e.clientX - rect.left) / rect.width) * 1280;
-    const tapY = ((e.clientY - rect.top) / rect.height) * 720;
-
-    if (activeMedium === 'storybook') {
-      // Tap-to-bloom particle burst
-      const ps = particleSystemRef.current;
-      const em: ParticleEmitterConfig = {
-        id: 'em_tap',
-        name: 'Tap Sparkles',
-        enabled: true,
-        type: 'point',
-        position: { x: tapX, y: tapY, z: 0 },
-        ratePerSecond: 100,
-        lifespan: 1.0,
-        speed: 180,
-        spreadAngle: 360,
-        directionAngle: 0,
-        startSize: 6,
-        endSize: 1,
-        color: '#FFD700',
-        colorFade: '#D0BCFF',
-        bounceElasticity: 0.6,
-      };
-      (ps as any).defaultEmitter = em;
-      setActiveSim('particles');
+    off.width = project.width;
+    off.height = project.height;
+    off.getContext('2d')?.drawImage(v, 0, 0, off.width, off.height);
+    const blob: Blob | null = await new Promise((r) => off.toBlob(r, 'image/webp', 0.85));
+    if (!blob) return;
+    const frame = frames.get();
+    const hold = layer.celTrack?.stepRate ?? 2;
+    const id = newAnimaId('capture');
+    let drawing: DrawingCel = { id, name: `Capture ${frame}`, strokes: [], width: project.width, height: project.height, createdAt: Date.now() };
+    try {
+      const stored = await storeAnimaMedia(project.id, blob, `${id}.webp`);
+      drawing = stored.sessionOnly ? { ...drawing, rasterDataUrl: off.toDataURL('image/webp', 0.85) } : { ...drawing, rasterUrl: stored.url };
+    } catch {
+      drawing = { ...drawing, rasterDataUrl: off.toDataURL('image/webp', 0.85) };
     }
+    dispatch({ type: 'exposeDrawing', layerId: layer.id, frame, hold, drawing });
+    frames.set(Math.min(project.durationFrames, frame + hold));
   };
 
-  // ── World-Class Handlers: Live Motion Puppeteering, Presets & Stamps ──
-
-  const handleCanvasPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 1280;
-    const y = ((e.clientY - rect.top) / rect.height) * 720;
-
-    if (isPuppetRecording) {
-      setIsPuppetDragging(true);
-      puppetPathRef.current = [{ x, y }];
-      puppeteerRef.current.startRecording(x, y, (project.currentFrame - 1) / project.fps);
-      if (!isPlaying) setIsPlaying(true);
-    } else if (activeBrush !== 'none') {
-      fxBrushRef.current.emitFromBrush(activeBrush, x, y, 4);
-    } else {
-      handleCanvasTap(e as any);
-    }
-  };
-
-  const handleCanvasPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 1280;
-    const y = ((e.clientY - rect.top) / rect.height) * 720;
-
-    if (isPuppetRecording && isPuppetDragging) {
-      puppetPathRef.current.push({ x, y });
-      if (puppetPathRef.current.length > 50) puppetPathRef.current.shift();
-      const currentSec = (project.currentFrame - 1) / project.fps;
-      puppeteerRef.current.feedPoint(x, y, currentSec);
-    } else if (activeBrush !== 'none' && e.buttons === 1) {
-      fxBrushRef.current.emitFromBrush(activeBrush, x, y, 2);
-    }
-  };
-
-  const handleCanvasPointerUp = () => {
-    if (isPuppetRecording && isPuppetDragging) {
-      setIsPuppetDragging(false);
-      const targetLayerId = project.selectedLayerId || project.layers[0]?.id || 'l_hero';
-      const result = puppeteerRef.current.stopRecording(targetLayerId);
-
-      setProject((prev) => {
-        const nextLayers = prev.layers.map((l) => {
-          if (l.id === targetLayerId) {
-            return {
-              ...l,
-              channels: {
-                ...l.channels,
-                'transform.x': result.xChannel,
-                'transform.y': result.yChannel,
-                ...(result.rotationChannel ? { 'transform.rotationZ': result.rotationChannel } : {}),
-                ...(result.scaleXChannel ? { 'transform.scaleX': result.scaleXChannel } : {}),
-                ...(result.scaleYChannel ? { 'transform.scaleY': result.scaleYChannel } : {}),
-              },
-            };
-          }
-          return l;
-        });
-        return { ...prev, layers: nextLayers };
-      });
-      setIsPuppetRecording(false);
-      puppetPathRef.current = [];
-    }
-  };
-
-  const applySmartPreset = (preset: MagicPresetKind) => {
-    const targetLayerId = project.selectedLayerId || project.layers[0]?.id || 'l_hero';
-    let newChannels: Record<string, AnimaChannel<number>> = {};
-
-    if (preset === 'auto_walk') {
-      newChannels = SmartMotionPresets.generateAutoWalk({ durationSeconds: 3.0, intensity: 1.0 });
-    } else if (preset === 'idle_breathing') {
-      newChannels = SmartMotionPresets.generateIdleBreathing({ durationSeconds: 3.0, intensity: 1.0 });
-    } else if (preset === 'jelly_physics') {
-      newChannels = SmartMotionPresets.generateJellyPhysics({ durationSeconds: 2.0, intensity: 1.0 });
-    } else if (preset === 'ghibli_float') {
-      newChannels = SmartMotionPresets.generateGhibliFloat({ durationSeconds: 3.5, intensity: 1.0 });
-    } else if (preset === 'comic_impact_burst') {
-      newChannels = SmartMotionPresets.generateComicImpactBurst();
-    }
-
-    setProject((prev) => ({
-      ...prev,
-      layers: prev.layers.map((l) =>
-        l.id === targetLayerId ? { ...l, channels: { ...l.channels, ...newChannels } } : l
-      ),
-    }));
-    setActivePresetMenu(false);
-  };
-
-  const applyPoseStamp = (poseId: string) => {
-    const targetLayerId = project.selectedLayerId || project.layers[0]?.id || 'l_hero';
-    const currentTimeSec = (project.currentFrame - 1) / project.fps;
-    setProject((prev) => {
-      const nextLayers = prev.layers.map((l) => {
-        if (l.id === targetLayerId) {
-          const cloned = JSON.parse(JSON.stringify(l));
-          stampPoseOntoLayer(cloned, poseId, currentTimeSec, 0.25);
-          return cloned;
-        }
-        return l;
-      });
-      return { ...prev, layers: nextLayers };
-    });
-    setActivePoseMenu(false);
-  };
-
-  const toggleVoiceLipSync = () => {
-    if (isVoiceLipSyncActive) {
-      setIsVoiceLipSyncActive(false);
-    } else {
-      setIsVoiceLipSyncActive(true);
-      const visemes: any[] = [];
-      for (let f = 0; f <= 72; f += 2) {
-        const t = f / 24;
-        const speechAmp = Math.max(0, Math.sin(t * 7) * 0.85);
-        visemes.push({
-          time: t,
-          jawOpen: speechAmp,
-          mouthSmile: 0.4 + Math.cos(t * 4) * 0.4,
-          mouthPucker: Math.sin(t * 9) > 0.4 ? 0.7 : 0.1,
-          mouthWide: 0.5,
-          phoneme: speechAmp > 0.6 ? 'A' : speechAmp > 0.3 ? 'E' : 'silence',
-        });
-      }
-      const targetLayerId = project.selectedLayerId || project.layers[0]?.id || 'l_hero';
-      const lipChannels = VoiceLipSyncEngine.visemesToChannels(visemes, targetLayerId);
-      setProject((prev) => ({
-        ...prev,
-        layers: prev.layers.map((l) =>
-          l.id === targetLayerId ? { ...l, channels: { ...l.channels, ...lipChannels } } : l
-        ),
-      }));
-    }
-  };
-
-  // Playback Loop
+  // Keyboard.
   useEffect(() => {
-    if (!isPlaying) return;
-    const interval = setInterval(() => {
-      setProject((p) => ({
-        ...p,
-        currentFrame: p.currentFrame >= p.durationFrames ? 1 : p.currentFrame + 1,
-      }));
-    }, 1000 / project.fps);
-    return () => clearInterval(interval);
-  }, [isPlaying, project.fps, project.durationFrames]);
-
-  // Main Canvas Render Loop
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    let animId: number;
-    let lastTime = performance.now();
-
-    const render = (now: number) => {
-      const dt = Math.min(0.05, (now - lastTime) / 1000);
-      lastTime = now;
-
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      // 1. Render Ingested Background Plate (Still Image or Video)
-      if (plateImgRef.current) {
-        ctx.drawImage(plateImgRef.current, 0, 0, canvas.width, canvas.height);
-      } else {
-        // Fallback dark gradient
-        const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-        grad.addColorStop(0, '#13111a');
-        grad.addColorStop(1, '#09080c');
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const onKey = (e: KeyboardEvent) => {
+      if (isTyping(e.target)) return;
+      const mod = e.ctrlKey || e.metaKey;
+      const p = projectRef.current;
+      if (mod && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        dirtyRef.current = true;
+        dispatchHistory({ type: e.shiftKey ? 'redo' : 'undo' });
+      } else if (mod && e.key.toLowerCase() === 'y') {
+        e.preventDefault();
+        dirtyRef.current = true;
+        dispatchHistory({ type: 'redo' });
+      } else if (e.key === ' ') {
+        e.preventDefault();
+        setPlaying((v) => !v);
+      } else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        e.preventDefault();
+        const step = (e.shiftKey ? 10 : 1) * (e.key === 'ArrowRight' ? 1 : -1);
+        frames.set(Math.max(1, Math.min(p.durationFrames, frames.get() + step)));
+      } else if (e.key === 'Home') frames.set(1);
+      else if (e.key === 'End') frames.set(p.durationFrames);
+      else if (!mod) {
+        const t = TOOLS.find((x) => x.key.toLowerCase() === e.key.toLowerCase());
+        if (t) setTool(t.id);
       }
-
-      // Camera view if active (Stop-motion tether overlay)
-      if (isCameraActive && videoRef.current) {
-        ctx.save();
-        ctx.globalAlpha = 0.55;
-        ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-        ctx.restore();
-      }
-
-      // 2. Evaluated Animation Layer Tracks
-      const evaluated = evaluateProjectAtFrame(project, project.currentFrame);
-
-      for (const layerState of evaluated) {
-        if (!layerState.visible) continue;
-        ctx.save();
-        ctx.globalAlpha = layerState.opacity;
-        ctx.translate(layerState.transform.x, layerState.transform.y);
-        ctx.rotate((layerState.transform.rotationZ * Math.PI) / 180);
-        ctx.scale(layerState.transform.scaleX, layerState.transform.scaleY);
-
-        // Vector Cel strokes
-        if (layerState.activeDrawingId && project.drawingBank[layerState.activeDrawingId]) {
-          const cel = project.drawingBank[layerState.activeDrawingId];
-          for (const stroke of cel.strokes) {
-            ctx.strokeStyle = stroke.color;
-            ctx.lineWidth = stroke.width;
-            ctx.beginPath();
-            stroke.points.forEach((pt, idx) => {
-              if (idx === 0) ctx.moveTo(pt.x, pt.y);
-              else ctx.lineTo(pt.x, pt.y);
-            });
-            if (stroke.fill) {
-              ctx.fillStyle = stroke.fill;
-              ctx.fill();
-            }
-            ctx.stroke();
-          }
-        }
-        ctx.restore();
-      }
-
-      // 2.5 Articulated Mascot & Classic Character Rig Rendering
-      if (activeRigId === 'rello') {
-        ctx.save();
-        ctx.translate(640, 520);
-        PLAJAH_MASCOTS.rello.drawRoutine(ctx, (now / 1000) * 0.75, project.currentFrame, 1.3);
-        ctx.restore();
-      } else if (activeRigId === 'chora') {
-        ctx.save();
-        ctx.translate(640, 520);
-        PLAJAH_MASCOTS.chora.drawRoutine(ctx, (now / 1000) * 0.85, project.currentFrame, 1.3);
-        ctx.restore();
-      } else if (CLASSIC_CHARACTERS[activeRigId]) {
-        ctx.save();
-        ctx.translate(640, 440);
-        CLASSIC_CHARACTERS[activeRigId].rig.drawRoutine(ctx, (now / 1000) * 0.8, project.currentFrame, 1.1);
-        ctx.restore();
-      }
-
-      // 3. Manga Radial Speed Lines Overlay
-
-      if (speedLinesActive) {
-        ctx.save();
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
-        ctx.lineWidth = 2;
-        const cx = 640;
-        const cy = 360;
-        for (let a = 0; a < Math.PI * 2; a += 0.08) {
-          const r1 = 280 + Math.random() * 40;
-          const r2 = 680;
-          ctx.beginPath();
-          ctx.moveTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1);
-          ctx.lineTo(cx + Math.cos(a) * r2, cy + Math.sin(a) * r2);
-          ctx.stroke();
-        }
-        ctx.restore();
-      }
-
-      // 4. Comic Speech Balloon Overlay
-      if (speechBalloon) {
-        ctx.save();
-        ctx.fillStyle = '#FFFFFF';
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.roundRect(speechBalloon.x - 120, speechBalloon.y - 45, 240, 70, 20);
-        ctx.fill();
-        ctx.stroke();
-
-        // Balloon tail
-        ctx.beginPath();
-        ctx.moveTo(speechBalloon.x, speechBalloon.y + 25);
-        ctx.lineTo(speechBalloon.x - 20, speechBalloon.y + 55);
-        ctx.lineTo(speechBalloon.x + 10, speechBalloon.y + 25);
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.fillStyle = '#000000';
-        ctx.font = '900 16px "Comic Sans MS", Impact, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(speechBalloon.text, speechBalloon.x, speechBalloon.y);
-        ctx.restore();
-      }
-
-      // 5. Physics & Dynamic Subsystems
-      if (activeSim === 'particles') {
-        const ps = particleSystemRef.current;
-        const em = (ps as any).defaultEmitter;
-        if (em) {
-          ps.step(dt, em, DEFAULT_FORCES, now / 1000, { w: canvas.width, h: canvas.height });
-          for (const p of ps.particles) {
-            ctx.save();
-            ctx.fillStyle = p.color;
-            ctx.beginPath();
-            ctx.arc(p.position.x, p.position.y, p.size, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.restore();
-          }
-        }
-      } else if (activeSim === 'hair') {
-        const hs = hairSystemRef.current;
-        hs.step(dt, DEFAULT_FORCES, now / 1000);
-        for (const s of hs.strands) {
-          ctx.save();
-          ctx.strokeStyle = s.color;
-          ctx.lineWidth = 4;
-          ctx.lineCap = 'round';
-          ctx.beginPath();
-          s.points.forEach((p, idx) => {
-            if (idx === 0) ctx.moveTo(p.pos.x, p.pos.y);
-            else ctx.lineTo(p.pos.x, p.pos.y);
-          });
-          ctx.stroke();
-          ctx.restore();
-        }
-      } else if (activeSim === 'fluid') {
-        const fl = fluidSimRef.current;
-        fl.addVelocity(0.5, 0.8, (Math.random() - 0.5) * 8, -6);
-        fl.addDye(0.5, 0.8, 0.8, 0.2, 0.9, 3);
-        fl.step(dt);
-        fl.paintToCanvas(ctx, canvas.width, canvas.height);
-      }
-
-      // 6. Real-Time Motion FX Brush Particles
-      fxBrushRef.current.update(dt);
-      fxBrushRef.current.render(ctx);
-
-      // 7. Live Puppet Path Tracer (Glowing Interactive Motion Feedback)
-      if (isPuppetRecording && isPuppetDragging && puppetPathRef.current.length > 1) {
-        ctx.save();
-        ctx.lineWidth = 4;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        ctx.strokeStyle = '#00DAF3';
-        ctx.shadowColor = '#00DAF3';
-        ctx.shadowBlur = 12;
-        ctx.beginPath();
-        const pts = puppetPathRef.current;
-        pts.forEach((pt, idx) => {
-          if (idx === 0) ctx.moveTo(pt.x, pt.y);
-          else ctx.lineTo(pt.x, pt.y);
-        });
-        ctx.stroke();
-
-        // Tip reticle
-        const latest = pts[pts.length - 1];
-        ctx.fillStyle = '#D40055';
-        ctx.beginPath();
-        ctx.arc(latest.x, latest.y, 7, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = '#FFFFFF';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-        ctx.restore();
-      }
-
-      animId = requestAnimationFrame(render);
     };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [frames]);
 
-    animId = requestAnimationFrame(render);
-    return () => cancelAnimationFrame(animId);
-  }, [project, isCameraActive, activeSim, speedLinesActive, speechBalloon, activeRigId, isPuppetRecording, isPuppetDragging]);
+  const selectedLayer = project.layers.find((l) => l.id === selectedLayerId) ?? null;
+
+  const exportFile = () => {
+    const blob = new Blob([JSON.stringify(project, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${project.name.replace(/[^\w-]+/g, '_') || 'anima'}.anima.json`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  };
+
+  const saveLabel =
+    saveState === 'saving' || saveState === 'dirty'
+      ? 'Saving…'
+      : saveState === 'error'
+      ? 'Save failed'
+      : syncState === 'syncing'
+      ? 'Saving to cloud…'
+      : syncState === 'synced'
+      ? 'Saved to cloud'
+      : syncState === 'guest'
+      ? 'Saved on this device'
+      : syncState === 'offline'
+      ? 'Offline · saved on this device'
+      : syncState === 'error'
+      ? 'Saved on this device · cloud retrying'
+      : 'Saved';
 
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      width: '100%',
-      height: '100%',
-      backgroundColor: THEME.bg,
-      color: '#e8e6ee',
-      fontFamily: 'Inter, sans-serif',
-      userSelect: 'none',
-      overflow: 'hidden',
-    }}>
-      {/* ── 1. STUDIO HEADER WITH CREATIVE MEDIUM SWITCHER ── */}
-      <header style={{
-        height: 48,
-        backgroundColor: THEME.panel,
-        borderBottom: `1px solid ${THEME.border}`,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '0 16px',
-        backdropFilter: 'blur(20px)',
-        zIndex: 20,
-      }}>
-        {/* Brand Lockup */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{
-            width: 28,
-            height: 28,
-            borderRadius: 7,
-            background: 'linear-gradient(135deg, #6B0099 0%, #D40055 55%, #FF8C00 100%)',
-            display: 'grid',
-            placeItems: 'center',
-            fontWeight: 900,
-            fontSize: 13,
-            color: '#fff',
-            boxShadow: '0 0 16px rgba(212, 0, 85, 0.45)',
-          }}>
-            AN
-          </div>
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-              ANIMA UNIFIED MOTION
-            </div>
-            <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.45)' }}>
-              Aria Co-Pilot · Storybooks, Comics & Living Plates
-            </div>
-          </div>
-        </div>
-
-        {/* Medium Selector */}
-        <div style={{ display: 'flex', gap: 4, background: 'rgba(0,0,0,0.5)', padding: 3, borderRadius: 8 }}>
-          {[
-            { id: 'living_canvas', label: 'Living Canvas (Stills & Video)', icon: ImageIcon },
-            { id: 'storybook', label: 'Storybook & Lorea', icon: BookOpen },
-            { id: 'comic', label: 'Comic & Graphic Novel', icon: MessageSquare },
-            { id: 'film_vfx', label: 'Film & Broadcast', icon: Video },
-          ].map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              onClick={() => setActiveMedium(id as any)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '5px 11px',
-                borderRadius: 6,
-                fontSize: 10,
-                fontWeight: 800,
-                border: 'none',
-                cursor: 'pointer',
-                background: activeMedium === id ? 'linear-gradient(135deg, #6B0099, #D40055)' : 'transparent',
-                color: activeMedium === id ? '#ffffff' : 'rgba(255,255,255,0.6)',
-              }}
-            >
-              <Icon size={12} />
-              {label}
-            </button>
-          ))}
-        </div>
-
-        {/* Pro Mode Toggle & NLE Return */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <button
-            onClick={() => setIsProModeOpen(!isProModeOpen)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              background: isProModeOpen ? 'rgba(0, 218, 243, 0.16)' : 'rgba(255,255,255,0.06)',
-              border: `1px solid ${isProModeOpen ? THEME.cyan : 'rgba(255,255,255,0.12)'}`,
-              color: isProModeOpen ? THEME.cyan : '#fff',
-              fontSize: 10,
-              fontWeight: 800,
-              padding: '4px 10px',
-              borderRadius: 6,
-              cursor: 'pointer',
-            }}
-          >
-            <Sliders size={12} />
-            {isProModeOpen ? 'HIDE PRO STUDIO' : 'EXPAND PRO STUDIO'}
-            {isProModeOpen ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
+    <div className="flex flex-col w-full h-full text-white select-none" style={{ background: '#0b0a10', fontFamily: 'Inter, system-ui, sans-serif' }}>
+      {/* ── Top bar ── */}
+      <header className="flex items-center gap-2 px-3 h-12 shrink-0" style={{ background: panelBg, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+        <div className="grid place-items-center w-8 h-8 rounded-[9px] text-[12px] font-black" style={{ background: 'linear-gradient(135deg,#6B0099,#D40055)' }}>An</div>
+        <input
+          key={project.id}
+          defaultValue={project.name}
+          aria-label="Project name"
+          className="h-8 w-56 px-2 rounded-[8px] bg-transparent hover:bg-white/[0.05] focus:bg-white/[0.06] text-[14px] font-semibold text-white outline-none"
+          onBlur={(e) => e.currentTarget.value.trim() && e.currentTarget.value !== project.name && dispatch({ type: 'rename', name: e.currentTarget.value.trim() })}
+          onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+        />
+        <div className="relative">
+          <button className={btn} onClick={() => { setMenu(menu === 'project' ? null : 'project'); void refreshRecent(); }}>
+            <FolderOpen size={14} /> Project <ChevronDown size={12} className="opacity-60" />
           </button>
-
-          {onBackToEdit && (
-            <button
-              onClick={onBackToEdit}
-              style={{
-                fontSize: 10,
-                fontWeight: 800,
-                background: 'rgba(255,255,255,0.05)',
-                border: '1px solid rgba(255,255,255,0.12)',
-                color: '#fff',
-                padding: '4px 10px',
-                borderRadius: 6,
-                cursor: 'pointer',
-              }}
-            >
-              RETURN TO NLE
-            </button>
+          {menu === 'project' && (
+            <div className="absolute left-0 top-[110%] z-50 w-80 p-2 rounded-[12px] flex flex-col gap-1 max-h-[70vh] overflow-y-auto custom-scrollbar" style={{ background: '#17131d', border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 20px 50px rgba(0,0,0,0.6)' }}>
+              <div className={`${lbl} px-2 pt-1`}>New</div>
+              {ANIMA_TEMPLATES.map((t) => (
+                <button key={t.id} className="text-left px-2 py-1.5 rounded-lg hover:bg-white/[0.06]" onClick={() => open(t.build(), true)}>
+                  <div className="text-[12px] font-semibold flex items-center gap-1.5"><FilePlus2 size={12} className="text-[#00DAF3]" /> {t.name}</div>
+                  <div className="text-[11px] text-white/45">{t.blurb}</div>
+                </button>
+              ))}
+              {recent.length > 0 && <div className={`${lbl} px-2 pt-2`}>Open</div>}
+              {recent.map((r) => (
+                <div key={r.id} className="flex items-center gap-1">
+                  <button className="flex-1 min-w-0 text-left px-2 py-1.5 rounded-lg hover:bg-white/[0.06]" style={{ background: r.id === project.id ? 'rgba(212,0,85,0.14)' : undefined }} onClick={() => void loadAnimaProject(r.id).then((p) => (p ? open(p) : say('That project could not be opened.')))}>
+                    <div className="text-[12px] font-semibold truncate">{r.name}</div>
+                    <div className="text-[10px] text-white/40">{r.inCloudOnly ? 'From another device' : `${r.layerCount} layers · ${r.durationFrames} frames`} · {new Date(r.updatedAt).toLocaleString()}</div>
+                  </button>
+                  {r.id !== project.id && (
+                    <button className={iconBtn} title="Delete project" aria-label={`Delete ${r.name}`} onClick={() => window.confirm(`Delete "${r.name}" and its version history?`) && void deleteAnimaProject(r.id).then(refreshRecent)}>
+                      <Trash2 size={13} />
+                    </button>
+                  )}
+                </div>
+              ))}
+              <div className={`${lbl} px-2 pt-2`}>File</div>
+              <div className="grid grid-cols-2 gap-1">
+                <button className={btn} onClick={() => fileRef.current?.click()}><Upload size={13} /> Import</button>
+                <button className={btn} onClick={exportFile}><Download size={13} /> Export file</button>
+              </div>
+            </div>
           )}
         </div>
+        <button className={iconBtn} disabled={!history.past.length} onClick={() => { dirtyRef.current = true; dispatchHistory({ type: 'undo' }); }} aria-label="Undo" title="Undo (Ctrl+Z)"><Undo2 size={15} /></button>
+        <button className={iconBtn} disabled={!history.future.length} onClick={() => { dirtyRef.current = true; dispatchHistory({ type: 'redo' }); }} aria-label="Redo" title="Redo (Ctrl+Shift+Z)"><Redo2 size={15} /></button>
+
+        <div className="relative ml-auto">
+          <button
+            className="h-8 px-2.5 rounded-[9px] text-[12px] font-semibold inline-flex items-center gap-1 border border-white/10 bg-white/[0.04]"
+            style={{ color: saveState === 'error' ? '#fca5a5' : syncState === 'synced' ? '#6ee7b7' : 'rgba(255,255,255,0.6)' }}
+            onClick={() => setMenu(menu === 'history' ? null : 'history')}
+            title="Version history"
+          >
+            {saveLabel} <ChevronDown size={12} className="opacity-60" />
+          </button>
+          {menu === 'history' && (
+            <div className="absolute right-0 top-[110%] z-50 w-80 p-3 rounded-[12px] flex flex-col gap-3 max-h-[70vh] overflow-y-auto custom-scrollbar" style={{ background: '#17131d', border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 20px 50px rgba(0,0,0,0.6)' }}>
+              <CreativeVersionHistory
+                kind={ANIMA_CLOUD_KIND}
+                localId={project.id}
+                title={project.name}
+                getCurrentJson={() => JSON.stringify(projectRef.current)}
+                onRestore={(json) => {
+                  const p = parseAnimaProject(json);
+                  if (!p) return say('That version could not be read.');
+                  dispatch({ type: 'replace', project: { ...p, id: projectRef.current.id } });
+                  setMenu(null);
+                  say('Version restored. Undo brings back what you had.');
+                }}
+              />
+              <CreativeStorageMeter />
+            </div>
+          )}
+        </div>
+        {onBackToEdit && (
+          <button className={btn} onClick={onBackToEdit}>
+            <ArrowLeft size={14} /> Back to Fabula
+          </button>
+        )}
       </header>
 
-      {/* ── 2. ARIA MOTION CO-PILOT BAR (NATURAL LANGUAGE FORWARD) ── */}
-      <div style={{
-        backgroundColor: 'rgba(18, 16, 24, 0.98)',
-        borderBottom: `1px solid ${THEME.border}`,
-        padding: '10px 16px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 8,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-            background: 'linear-gradient(135deg, rgba(212, 0, 85, 0.2), rgba(107, 0, 153, 0.2))',
-            padding: '3px 8px',
-            borderRadius: 6,
-            border: '1px solid rgba(212, 0, 85, 0.4)',
-            color: THEME.magenta,
-            fontSize: 10,
-            fontWeight: 900,
-          }}>
-            <Bot size={13} />
-            ARIA CO-PILOT
+      {/* ── Body ── */}
+      <div className="flex-1 min-h-0 grid" style={{ gridTemplateColumns: '232px minmax(0,1fr) 316px' }} onPointerDown={() => menu && setMenu(null)}>
+        <aside className="min-h-0" style={{ background: panelBg, borderRight: '1px solid rgba(255,255,255,0.08)' }}>
+          <AnimaLayersPanel layers={project.layers} selectedId={selectedLayerId} onSelect={setSelectedLayerId} dispatch={dispatch} />
+        </aside>
+
+        <main className="relative min-h-0 min-w-0 flex items-center justify-center p-6 pt-16" style={{ background: 'radial-gradient(900px 500px at 50% 30%, rgba(107,0,153,0.10), transparent 60%), #0b0a10' }}>
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 flex items-center gap-1 p-1 rounded-[12px] z-10" style={{ background: 'rgba(18,13,28,0.92)', border: '1px solid rgba(255,255,255,0.12)' }}>
+            {TOOLS.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setTool(t.id)}
+                title={`${t.label} (${t.key})`}
+                className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-[9px] text-[12px] font-semibold transition-colors"
+                style={tool === t.id ? { background: 'linear-gradient(135deg,#6B0099,#D40055)', color: '#fff' } : { color: 'rgba(255,255,255,0.65)' }}
+              >
+                {t.icon} {t.label}
+              </button>
+            ))}
           </div>
-
-          <input
-            type="text"
-            value={ariaPrompt}
-            onChange={(e) => setAriaPrompt(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleAriaDirect()}
-            placeholder={`Tell Aria what to animate in this ${activeMedium.replace('_', ' ')} (e.g. 'cinematic rain streaks with slow push-in', 'bouncy speech balloon', 'fireflies with breathing idle')...`}
-            style={{
-              flex: 1,
-              height: 32,
-              backgroundColor: 'rgba(255, 255, 255, 0.05)',
-              border: '1px solid rgba(255, 255, 255, 0.12)',
-              borderRadius: 8,
-              padding: '0 12px',
-              color: '#fff',
-              fontSize: 11,
-              outline: 'none',
-            }}
-          />
-
-          <button
-            onClick={() => handleAriaDirect()}
-            style={{
-              height: 32,
-              padding: '0 14px',
-              background: 'linear-gradient(135deg, #D40055, #FF8C00)',
-              border: 'none',
-              borderRadius: 8,
-              color: '#fff',
-              fontSize: 11,
-              fontWeight: 900,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              boxShadow: '0 0 16px rgba(212, 0, 85, 0.35)',
-            }}
-          >
-            <Sparkles size={13} />
-            {isAriaThinking ? 'DIRECTING…' : 'DIRECT MOTION'}
-          </button>
-        </div>
-
-        {/* Aria Quick Suggestions per Medium */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflowX: 'auto' }}>
-          <span style={{ fontSize: 9, fontWeight: 800, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>
-            Aria Ideas:
-          </span>
-          {AriaMotionAgent.getQuickPrompts(activeMedium).map((qp, idx) => (
-            <button
-              key={idx}
-              onClick={() => handleAriaDirect(qp.prompt)}
-              style={{
-                flex: 'none',
-                background: 'rgba(255, 255, 255, 0.04)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                borderRadius: 14,
-                padding: '3px 10px',
-                fontSize: 10,
-                color: 'rgba(255, 255, 255, 0.75)',
-                cursor: 'pointer',
-              }}
-            >
-              {qp.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Mascot Kaijus & Public Domain Cartoon Rigs */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, overflowX: 'auto', paddingTop: 2 }}>
-          <span style={{ fontSize: 9, fontWeight: 900, color: THEME.orange, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span>🦖</span> MASCOTS & RIGS:
-          </span>
-
-          {/* Reello (Lumi) */}
-          <button
-            onClick={() => handleAriaDirect('rello lumi film mascot')}
-            style={{
-              flex: 'none',
-              background: activeRigId === 'rello' ? 'rgba(242, 98, 28, 0.25)' : 'rgba(255, 255, 255, 0.04)',
-              border: `1px solid ${activeRigId === 'rello' ? '#F2621C' : 'rgba(255, 255, 255, 0.1)'}`,
-              borderRadius: 14,
-              padding: '3px 10px',
-              fontSize: 10,
-              fontWeight: 800,
-              color: activeRigId === 'rello' ? '#F2621C' : 'rgba(255, 255, 255, 0.8)',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4,
-            }}
-          >
-            <span>📷</span> Reello (Lumi) · Film
-          </button>
-
-          {/* Chora (Lorik) */}
-          <button
-            onClick={() => handleAriaDirect('chora lorik music mascot')}
-            style={{
-              flex: 'none',
-              background: activeRigId === 'chora' ? 'rgba(122, 102, 188, 0.28)' : 'rgba(255, 255, 255, 0.04)',
-              border: `1px solid ${activeRigId === 'chora' ? '#7A66BC' : 'rgba(255, 255, 255, 0.1)'}`,
-              borderRadius: 14,
-              padding: '3px 10px',
-              fontSize: 10,
-              fontWeight: 800,
-              color: activeRigId === 'chora' ? '#D0BCFF' : 'rgba(255, 255, 255, 0.8)',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4,
-            }}
-          >
-            <span>🎵</span> Chora (Lorik) · Music
-          </button>
-
-          {/* Steamboat Willie */}
-          <button
-            onClick={() => handleAriaDirect('steamboat willie 1928')}
-            style={{
-              flex: 'none',
-              background: activeRigId === 'steamboat_willie' ? 'rgba(212, 0, 85, 0.22)' : 'rgba(255, 255, 255, 0.04)',
-              border: `1px solid ${activeRigId === 'steamboat_willie' ? THEME.magenta : 'rgba(255, 255, 255, 0.1)'}`,
-              borderRadius: 14,
-              padding: '3px 10px',
-              fontSize: 10,
-              fontWeight: 800,
-              color: activeRigId === 'steamboat_willie' ? THEME.magenta : 'rgba(255, 255, 255, 0.8)',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4,
-            }}
-          >
-            <span>🚢</span> Willie (1928 Rig)
-          </button>
-
-          {/* Felix */}
-          <button
-            onClick={() => handleAriaDirect('felix the cat 1919')}
-            style={{
-              flex: 'none',
-              background: activeRigId === 'felix_the_cat' ? 'rgba(208, 188, 255, 0.22)' : 'rgba(255, 255, 255, 0.04)',
-              border: `1px solid ${activeRigId === 'felix_the_cat' ? THEME.lilac : 'rgba(255, 255, 255, 0.1)'}`,
-              borderRadius: 14,
-              padding: '3px 10px',
-              fontSize: 10,
-              fontWeight: 800,
-              color: activeRigId === 'felix_the_cat' ? THEME.lilac : 'rgba(255, 255, 255, 0.8)',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4,
-            }}
-          >
-            <span>🐱</span> Felix (1919)
-          </button>
-
-          {/* ⚡ Auto-Rig Quick Launcher */}
-          <button
-            onClick={() => {
-              setIsProModeOpen(true);
-              setProTab('auto_rig');
-            }}
-            style={{
-              flex: 'none',
-              background: 'linear-gradient(135deg, rgba(0, 218, 243, 0.2), rgba(107, 0, 153, 0.2))',
-              border: `1px solid ${THEME.cyan}`,
-              borderRadius: 14,
-              padding: '3px 10px',
-              fontSize: 10,
-              fontWeight: 900,
-              color: THEME.cyan,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4,
-              boxShadow: '0 0 10px rgba(0, 218, 243, 0.2)',
-            }}
-          >
-            <span>⚡</span> AUTO-RIG ARTWORK
-          </button>
-
-          {/* 📹 Video Lip-Sync Quick Launcher */}
-          <button
-            onClick={() => {
-              setIsProModeOpen(true);
-              setProTab('video_lipsync');
-            }}
-            style={{
-              flex: 'none',
-              background: 'linear-gradient(135deg, rgba(255, 140, 0, 0.2), rgba(212, 0, 85, 0.2))',
-              border: `1px solid ${THEME.orange}`,
-              borderRadius: 14,
-              padding: '3px 10px',
-              fontSize: 10,
-              fontWeight: 900,
-              color: THEME.orange,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4,
-              boxShadow: '0 0 10px rgba(255, 140, 0, 0.2)',
-            }}
-          >
-            <span>📹</span> VIDEO LIP-SYNC
-          </button>
-
-          {/* Clear / Stage Only */}
-          {activeRigId !== 'none' && (
-            <button
-              onClick={() => setActiveRigId('none')}
-              style={{
-                flex: 'none',
-                background: 'transparent',
-                border: 'none',
-                color: 'rgba(255, 255, 255, 0.4)',
-                fontSize: 10,
-                cursor: 'pointer',
-                padding: '2px 6px',
-              }}
-            >
-              ✕ Clear Rig
-            </button>
-          )}
-        </div>
-
-        {/* Aria Rationale / Council Card */}
-
-        {ariaProposal && (
-          <div style={{
-            background: 'rgba(107, 0, 153, 0.18)',
-            border: '1px solid rgba(107, 0, 153, 0.35)',
-            borderRadius: 8,
-            padding: '8px 12px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            fontSize: 10,
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontWeight: 900, color: THEME.cyan }}>
-                [{ariaProposal.lens}]:
-              </span>
-              <span style={{ color: '#fff' }}>
-                {ariaProposal.headline}
-              </span>
-              <span style={{ color: 'rgba(255,255,255,0.5)' }}>
-                — {ariaProposal.actionSummary}
-              </span>
-            </div>
-            <button
-              onClick={() => setAriaProposal(null)}
-              style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: 11 }}
-            >
-              ✕
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* ── 3. WORKSPACE BODY: STAGE + MEDIA INGESTION ── */}
-      <div style={{ flex: 1, display: 'flex', position: 'relative', overflow: 'hidden' }}>
-        {/* Main Viewport Stage */}
-        <div style={{
-          flex: 1,
-          position: 'relative',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: '#09080c',
-        }}>
-          <video ref={videoRef} autoPlay playsInline muted style={{ display: 'none' }} />
-
-          {/* ── World-Class Floating Magic Creative Bar over Canvas ── */}
-          <div style={{
-            position: 'absolute',
-            top: 14,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            background: 'rgba(15, 14, 20, 0.88)',
-            backdropFilter: 'blur(20px)',
-            border: `1px solid ${THEME.border}`,
-            borderRadius: 30,
-            padding: '4px 10px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            boxShadow: '0 12px 40px rgba(0,0,0,0.7)',
-            zIndex: 30,
-          }}>
-            {/* Mode Switcher */}
-            <div style={{ display: 'flex', background: 'rgba(0,0,0,0.5)', padding: 2, borderRadius: 20 }}>
-              <button
-                onClick={() => setStudioMode('creator')}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 16,
-                  fontSize: 10, fontWeight: 900, border: 'none', cursor: 'pointer',
-                  background: studioMode === 'creator' ? 'linear-gradient(135deg, #00DAF3, #6B0099)' : 'transparent',
-                  color: studioMode === 'creator' ? '#fff' : 'rgba(255,255,255,0.6)',
-                }}
-              >
-                <Sparkles size={11} />
-                MAGIC PLAY
-              </button>
-              <button
-                onClick={() => { setStudioMode('master'); setIsProModeOpen(true); }}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 16,
-                  fontSize: 10, fontWeight: 900, border: 'none', cursor: 'pointer',
-                  background: studioMode === 'master' ? 'linear-gradient(135deg, #FF8C00, #D40055)' : 'transparent',
-                  color: studioMode === 'master' ? '#fff' : 'rgba(255,255,255,0.6)',
-                }}
-              >
-                <Sliders size={11} />
-                MASTER PRO
-              </button>
-            </div>
-
-            <div style={{ width: 1, height: 16, background: 'rgba(255,255,255,0.15)' }} />
-
-            {/* 1. Puppet Record (Record & Act) */}
-            <button
-              onClick={() => {
-                setIsPuppetRecording(!isPuppetRecording);
-                if (!isPuppetRecording) setIsPlaying(true);
-              }}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-                background: isPuppetRecording ? '#D40055' : 'rgba(212, 0, 85, 0.15)',
-                border: `1px solid ${isPuppetRecording ? '#FF4F8B' : 'rgba(212, 0, 85, 0.35)'}`,
-                color: isPuppetRecording ? '#fff' : '#FF4F8B',
-                borderRadius: 18, padding: '4px 12px', fontSize: 10, fontWeight: 900, cursor: 'pointer',
-                boxShadow: isPuppetRecording ? '0 0 16px rgba(212, 0, 85, 0.7)' : 'none',
-              }}
-            >
-              <Hand size={12} />
-              {isPuppetRecording ? '🔴 DRAG CHARACTER TO ACT' : 'PUPPET RECORD'}
-            </button>
-
-            {/* 2. Magic Presets Dropdown */}
-            <div style={{ position: 'relative' }}>
-              <button
-                onClick={() => setActivePresetMenu(!activePresetMenu)}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 5,
-                  background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
-                  color: '#fff', borderRadius: 16, padding: '4px 10px', fontSize: 10, fontWeight: 800, cursor: 'pointer',
-                }}
-              >
-                <Wand2 size={11} color={THEME.cyan} />
-                MAGIC PRESETS
-                <ChevronDown size={10} />
-              </button>
-
-              {activePresetMenu && (
-                <div style={{
-                  position: 'absolute', top: 32, left: 0, width: 220,
-                  background: '#181622', border: `1px solid ${THEME.border}`, borderRadius: 10,
-                  padding: 6, boxShadow: '0 12px 36px rgba(0,0,0,0.8)', zIndex: 50, display: 'flex', flexDirection: 'column', gap: 4,
-                }}>
-                  {[
-                    { id: 'auto_walk', label: '🚶 1-Tap Auto Walk', desc: '8-pose stride & hip bob on 2s' },
-                    { id: 'idle_breathing', label: '🫁 Life & Idle Breathing', desc: 'Subtle chest expansion & life wiggles' },
-                    { id: 'jelly_physics', label: '🍮 Jelly Physics Wobble', desc: 'Elastic squash/stretch bounce' },
-                    { id: 'ghibli_float', label: '☁️ Ghibli Floating Drift', desc: 'Organic wind flutter & levitation' },
-                    { id: 'comic_impact_burst', label: '💥 Comic Action Burst', desc: 'Anticipation squat -> explosive pop' },
-                  ].map((pr) => (
-                    <button
-                      key={pr.id}
-                      onClick={() => applySmartPreset(pr.id as any)}
-                      style={{
-                        display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
-                        background: 'transparent', border: 'none', borderRadius: 6, padding: '6px 8px',
-                        textAlign: 'left', cursor: 'pointer', color: '#fff', fontSize: 10, fontWeight: 800,
-                      }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
-                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                    >
-                      <div>{pr.label}</div>
-                      <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.4)', fontWeight: 500 }}>{pr.desc}</div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* 3. Voice & Beat Lip-Sync */}
-            <button
-              onClick={toggleVoiceLipSync}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 5,
-                background: isVoiceLipSyncActive ? 'rgba(0, 218, 243, 0.25)' : 'rgba(255,255,255,0.06)',
-                border: `1px solid ${isVoiceLipSyncActive ? THEME.cyan : 'rgba(255,255,255,0.12)'}`,
-                color: isVoiceLipSyncActive ? THEME.cyan : '#fff',
-                borderRadius: 16, padding: '4px 10px', fontSize: 10, fontWeight: 800, cursor: 'pointer',
-              }}
-            >
-              {isVoiceLipSyncActive ? <Mic size={11} /> : <MicOff size={11} />}
-              {isVoiceLipSyncActive ? 'LIP-SYNC ACTIVE' : 'LIP-SYNC / BEAT'}
-            </button>
-
-            {/* 4. Pose Stamps Drawer */}
-            <div style={{ position: 'relative' }}>
-              <button
-                onClick={() => setActivePoseMenu(!activePoseMenu)}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 5,
-                  background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
-                  color: '#fff', borderRadius: 16, padding: '4px 10px', fontSize: 10, fontWeight: 800, cursor: 'pointer',
-                }}
-              >
-                <span>🎭</span>
-                POSE STAMPS
-                <ChevronDown size={10} />
-              </button>
-
-              {activePoseMenu && (
-                <div style={{
-                  position: 'absolute', top: 32, left: -60, width: 320,
-                  background: '#181622', border: `1px solid ${THEME.border}`, borderRadius: 12,
-                  padding: 10, boxShadow: '0 16px 48px rgba(0,0,0,0.85)', zIndex: 50,
-                  display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6,
-                }}>
-                  {POSE_LIBRARY.map((pose) => (
-                    <button
-                      key={pose.id}
-                      onClick={() => applyPoseStamp(pose.id)}
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: 8,
-                        background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)',
-                        borderRadius: 8, padding: 8, textAlign: 'left', cursor: 'pointer', color: '#fff',
-                      }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.12)')}
-                      onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
-                    >
-                      <span style={{ fontSize: 20 }}>{pose.icon}</span>
-                      <div>
-                        <div style={{ fontSize: 10, fontWeight: 900 }}>{pose.name}</div>
-                        <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.5)' }}>{pose.description}</div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* 5. Motion FX Paint Brush */}
-            <div style={{ position: 'relative' }}>
-              <button
-                onClick={() => setActiveBrushMenu(!activeBrushMenu)}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 5,
-                  background: activeBrush !== 'none' ? 'rgba(255, 140, 0, 0.25)' : 'rgba(255,255,255,0.06)',
-                  border: `1px solid ${activeBrush !== 'none' ? THEME.orange : 'rgba(255,255,255,0.12)'}`,
-                  color: activeBrush !== 'none' ? THEME.orange : '#fff',
-                  borderRadius: 16, padding: '4px 10px', fontSize: 10, fontWeight: 800, cursor: 'pointer',
-                }}
-              >
-                <Palette size={11} />
-                {activeBrush === 'none' ? 'FX BRUSH' : activeBrush.replace('_', ' ').toUpperCase()}
-                <ChevronDown size={10} />
-              </button>
-
-              {activeBrushMenu && (
-                <div style={{
-                  position: 'absolute', top: 32, right: 0, width: 180,
-                  background: '#181622', border: `1px solid ${THEME.border}`, borderRadius: 10,
-                  padding: 6, boxShadow: '0 12px 36px rgba(0,0,0,0.8)', zIndex: 50, display: 'flex', flexDirection: 'column', gap: 4,
-                }}>
-                  {[
-                    { id: 'none', label: '✕ Off (Normal Pointer)' },
-                    { id: 'sparkle_stardust', label: '✨ Sparkle Stardust' },
-                    { id: 'ghibli_leaves', label: '🍂 Ghibli Autumn Leaves' },
-                    { id: 'action_fire', label: '🔥 Action Fire Sparks' },
-                    { id: 'manga_ink', label: '🖋️ Manga Sumi Ink' },
-                  ].map((br) => (
-                    <button
-                      key={br.id}
-                      onClick={() => { setActiveBrush(br.id as any); setActiveBrushMenu(false); }}
-                      style={{
-                        background: activeBrush === br.id ? 'rgba(255,255,255,0.12)' : 'transparent',
-                        border: 'none', borderRadius: 6, padding: '6px 8px',
-                        textAlign: 'left', cursor: 'pointer', color: activeBrush === br.id ? THEME.orange : '#fff',
-                        fontSize: 10, fontWeight: 800,
-                      }}
-                    >
-                      {br.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          <canvas
-            ref={canvasRef}
-            width={1280}
-            height={720}
-            onClick={handleCanvasTap}
-            onPointerDown={handleCanvasPointerDown}
-            onPointerMove={handleCanvasPointerMove}
-            onPointerUp={handleCanvasPointerUp}
-            onPointerCancel={handleCanvasPointerUp}
-            style={{
-              width: '94%',
-              height: '94%',
-              objectFit: 'contain',
-              borderRadius: 10,
-              border: `1px solid ${isPuppetRecording ? '#D40055' : THEME.border}`,
-              boxShadow: isPuppetRecording ? '0 0 32px rgba(212, 0, 85, 0.45)' : '0 16px 64px rgba(0, 0, 0, 0.85)',
-              cursor: isPuppetRecording ? 'crosshair' : activeBrush !== 'none' ? 'cell' : activeMedium === 'storybook' ? 'pointer' : 'default',
-              touchAction: 'none',
-            }}
-          />
-
-          {/* Quick Floating Controls (Camera / Play / Onion Skin) */}
-          <div style={{
-            position: 'absolute',
-            bottom: 20,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            background: 'rgba(20, 18, 26, 0.88)',
-            backdropFilter: 'blur(16px)',
-            border: `1px solid ${THEME.border}`,
-            borderRadius: 30,
-            padding: '6px 18px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
-          }}>
-            {/* Play/Pause */}
-            <button
-              onClick={() => setIsPlaying(!isPlaying)}
-              style={{
-                background: isPlaying ? THEME.orange : THEME.cyan,
-                border: 'none',
-                color: '#000',
-                borderRadius: 20,
-                cursor: 'pointer',
-                padding: '4px 12px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                fontWeight: 900,
-                fontSize: 10,
-              }}
-            >
-              {isPlaying ? <Pause size={12} /> : <Play size={12} />}
-              {isPlaying ? 'PAUSE' : 'PLAY'}
-            </button>
-
-            {/* Stop Motion Webcam Tether */}
-            <button
-              onClick={toggleCamera}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                background: isCameraActive ? 'rgba(212, 0, 85, 0.25)' : 'transparent',
-                color: isCameraActive ? THEME.magenta : 'rgba(255,255,255,0.5)',
-                border: `1px solid ${isCameraActive ? THEME.magenta : 'transparent'}`,
-                borderRadius: 16,
-                padding: '4px 10px',
-                fontSize: 10,
-                fontWeight: 800,
-                cursor: 'pointer',
-              }}
-            >
-              <Camera size={13} />
-              {isCameraActive ? 'STOP-MOTION LIVE' : 'CAMERA TETHER'}
-            </button>
-
-            {isCameraActive && (
-              <button
-                onClick={captureStopMotionFrame}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  background: 'linear-gradient(135deg, #00DAF3, #6B0099)',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: 16,
-                  padding: '4px 12px',
-                  fontSize: 10,
-                  fontWeight: 900,
-                  cursor: 'pointer',
-                }}
-              >
-                <Disc size={13} />
-                CAPTURE FRAME
-              </button>
-            )}
-
-            {/* Timecode badge */}
-            <span style={{ fontSize: 10, fontFamily: 'monospace', color: 'rgba(255,255,255,0.6)' }}>
-              Frame {project.currentFrame} / {project.durationFrames}
-            </span>
-          </div>
-        </div>
-
-        {/* Right Sidebar: Media Plate Ingestion & Effect Compositing */}
-        <div style={{
-          width: 340,
-          backgroundColor: THEME.panel,
-          borderLeft: `1px solid ${THEME.border}`,
-          overflowY: 'auto',
-          padding: 14,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 14,
-        }}>
-          <AnimaMediaCompositor
-            medium={activeMedium}
-            activePlate={activePlate}
-            onSelectPlate={(plate) => setActivePlate(plate)}
-            onApplyCompositingEffect={handleQuickCompositing}
-          />
-        </div>
-      </div>
-
-      {/* ── 4. UNIFIED MULTI-TRACK TIMELINE & KEYFRAME SYSTEM (ALWAYS DOCKED & VISIBLE) ── */}
-      <div style={{
-        height: studioMode === 'creator' ? 260 : isProModeOpen ? 300 : 240,
-        backgroundColor: '#121018',
-        borderTop: `1px solid ${THEME.border}`,
-        display: 'flex',
-        flexDirection: 'column',
-        flexShrink: 0,
-        zIndex: 15,
-      }}>
-        {studioMode === 'creator' ? (
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '10px 16px', gap: 10, overflowY: 'auto' }}>
-            {/* Creator Deck Top Bar */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{
-                  fontSize: 11,
-                  fontWeight: 900,
-                  letterSpacing: '0.05em',
-                  background: 'linear-gradient(135deg, #FF8C00, #D40055, #00DAF3)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                }}>
-                  <Sparkles size={14} color={THEME.orange} /> MAGIC CREATOR DECK · ZERO-TEDIUM ANIMATION
-                </span>
-                <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.45)', padding: '2px 8px', borderRadius: 10, background: 'rgba(255,255,255,0.05)' }}>
-                  1-Tap Living Presets · Live Drag Puppeteering · Pose Stamps
-                </span>
-              </div>
-              <button
-                onClick={() => {
-                  setStudioMode('master');
-                  setIsProModeOpen(true);
-                }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  padding: '4px 12px',
-                  borderRadius: 6,
-                  background: 'rgba(255,255,255,0.06)',
-                  border: '1px solid rgba(255,255,255,0.15)',
-                  color: THEME.cyan,
-                  fontSize: 10,
-                  fontWeight: 800,
-                  cursor: 'pointer',
-                }}
-              >
-                <Spline size={12} />
-                OPEN MASTER PRO STUDIO (◆ Splines, X-Sheet & Mocap) →
-              </button>
-            </div>
-
-            {/* Quick Creator Control Cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr 1fr', gap: 12, flex: 1 }}>
-              {/* Card 1: Transport & Scrubber */}
-              <div style={{
-                background: 'rgba(255,255,255,0.025)',
-                border: `1px solid ${THEME.border}`,
-                borderRadius: 8,
-                padding: 10,
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-                gap: 8,
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: 9, fontWeight: 800, color: 'rgba(255,255,255,0.5)' }}>SCRUB & PLAY</span>
-                  <span style={{ fontSize: 10, fontFamily: 'monospace', fontWeight: 900, color: THEME.cyan }}>
-                    F{project.currentFrame} / {project.durationFrames}
-                  </span>
-                </div>
-
-                {/* Frame Slider */}
-                <input
-                  type="range"
-                  min={1}
-                  max={project.durationFrames}
-                  value={project.currentFrame}
-                  onChange={(e) => setProject((p) => ({ ...p, currentFrame: parseInt(e.target.value) || 1 }))}
-                  style={{ width: '100%', accentColor: THEME.cyan, cursor: 'pointer' }}
-                />
-
-                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                  <button
-                    onClick={() => setIsPlaying(!isPlaying)}
-                    style={{
-                      flex: 1,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 6,
-                      padding: '6px 12px',
-                      borderRadius: 6,
-                      background: isPlaying ? 'linear-gradient(135deg, #FF8C00, #D40055)' : 'linear-gradient(135deg, #00DAF3, #6B0099)',
-                      color: '#fff',
-                      border: 'none',
-                      fontSize: 10,
-                      fontWeight: 900,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {isPlaying ? <Pause size={12} /> : <Play size={12} />}
-                    {isPlaying ? 'PAUSE' : 'PLAY LOOP'}
-                  </button>
-                  <button
-                    onClick={() => setProject((p) => ({ ...p, currentFrame: Math.max(1, p.currentFrame - 2) }))}
-                    title="Step -2 frames (on 2s)"
-                    style={{
-                      padding: '6px 8px',
-                      borderRadius: 6,
-                      background: 'rgba(255,255,255,0.06)',
-                      border: 'none',
-                      color: '#fff',
-                      fontSize: 10,
-                      fontWeight: 800,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    -2f
-                  </button>
-                  <button
-                    onClick={() => setProject((p) => ({ ...p, currentFrame: Math.min(p.durationFrames, p.currentFrame + 2) }))}
-                    title="Step +2 frames (on 2s)"
-                    style={{
-                      padding: '6px 8px',
-                      borderRadius: 6,
-                      background: 'rgba(255,255,255,0.06)',
-                      border: 'none',
-                      color: '#fff',
-                      fontSize: 10,
-                      fontWeight: 800,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    +2f
-                  </button>
-                </div>
-
-                {/* Puppet Drag Toggle */}
-                <button
-                  onClick={() => setIsPuppetRecording(!isPuppetRecording)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 6,
-                    padding: '6px 10px',
-                    borderRadius: 6,
-                    background: isPuppetRecording ? 'linear-gradient(135deg, #FF0055, #FF8C00)' : 'rgba(255,255,255,0.05)',
-                    border: isPuppetRecording ? '1px solid #FF8C00' : '1px solid rgba(255,255,255,0.1)',
-                    color: isPuppetRecording ? '#fff' : 'rgba(255,255,255,0.7)',
-                    fontSize: 10,
-                    fontWeight: 900,
-                    cursor: 'pointer',
-                    boxShadow: isPuppetRecording ? '0 0 16px rgba(255, 0, 85, 0.4)' : 'none',
-                  }}
-                >
-                  <Hand size={12} />
-                  {isPuppetRecording ? '🔴 RECORDING (DRAG CANVAS)' : '🔴 POINTER PUPPETEER'}
-                </button>
-              </div>
-
-              {/* Card 2: 1-Tap Magic Motion Presets */}
-              <div style={{
-                background: 'rgba(255,255,255,0.025)',
-                border: `1px solid ${THEME.border}`,
-                borderRadius: 8,
-                padding: 10,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 6,
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: 9, fontWeight: 800, color: 'rgba(255,255,255,0.5)' }}>1-TAP LIVING MOTION PRESETS</span>
-                  <span style={{ fontSize: 9, color: THEME.orange, fontWeight: 700 }}>Zero Keyframing</span>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6, flex: 1 }}>
-                  {[
-                    { id: 'auto_walk', label: '🚶 Auto-Walk', desc: '8-pose stride with bob on 2s', color: THEME.cyan },
-                    { id: 'idle_breathing', label: '🫁 Idle Breathe', desc: 'Organic squash & life rhythm', color: THEME.lilac },
-                    { id: 'jelly_physics', label: '🍮 Jelly Wobble', desc: 'Juicy secondary inertia lag', color: THEME.orange },
-                    { id: 'ghibli_float', label: '🍃 Ghibli Wind', desc: 'Ethereal floating levitation', color: THEME.success },
-                    { id: 'comic_impact', label: '💥 Comic Impact', desc: 'Anticipation squat -> pop', color: THEME.magenta },
-                  ].map((preset) => (
-                    <button
-                      key={preset.id}
-                      onClick={() => applySmartPreset(preset.id as any)}
-                      style={{
-                        background: 'rgba(255,255,255,0.04)',
-                        border: '1px solid rgba(255,255,255,0.08)',
-                        borderRadius: 6,
-                        padding: '6px 8px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'flex-start',
-                        cursor: 'pointer',
-                        textAlign: 'left',
-                        transition: 'all 0.15s ease',
-                      }}
-                    >
-                      <span style={{ fontSize: 10, fontWeight: 900, color: preset.color }}>{preset.label}</span>
-                      <span style={{ fontSize: 8, color: 'rgba(255,255,255,0.45)', marginTop: 2 }}>{preset.desc}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Card 3: Instant Pose Stamps Rack */}
-              <div style={{
-                background: 'rgba(255,255,255,0.025)',
-                border: `1px solid ${THEME.border}`,
-                borderRadius: 8,
-                padding: 10,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 6,
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: 9, fontWeight: 800, color: 'rgba(255,255,255,0.5)' }}>POSE STAMP RACK (FRAME {project.currentFrame})</span>
-                  <span style={{ fontSize: 9, color: THEME.magenta, fontWeight: 700 }}>1-Tap Stance</span>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, flex: 1 }}>
-                  {POSE_LIBRARY.map((pose) => (
-                    <button
-                      key={pose.id}
-                      onClick={() => applyPoseStamp(pose.id)}
-                      style={{
-                        background: 'rgba(255,255,255,0.04)',
-                        border: '1px solid rgba(255,255,255,0.08)',
-                        borderRadius: 6,
-                        padding: '6px 8px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer',
-                        textAlign: 'center',
-                      }}
-                    >
-                      <span style={{ fontSize: 16 }}>{pose.icon}</span>
-                      <span style={{ fontSize: 9, fontWeight: 800, color: '#fff', marginTop: 2 }}>{pose.name}</span>
-                    </button>
-                  ))}
-                </div>
-                <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
-                  <button
-                    onClick={toggleVoiceLipSync}
-                    style={{
-                      flex: 1,
-                      padding: '4px 8px',
-                      borderRadius: 4,
-                      background: isVoiceLipSyncActive ? 'rgba(0, 218, 243, 0.2)' : 'rgba(255,255,255,0.04)',
-                      border: `1px solid ${isVoiceLipSyncActive ? THEME.cyan : 'rgba(255,255,255,0.1)'}`,
-                      color: isVoiceLipSyncActive ? THEME.cyan : 'rgba(255,255,255,0.7)',
-                      fontSize: 9,
-                      fontWeight: 800,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 4,
-                    }}
-                  >
-                    <Mic size={10} />
-                    {isVoiceLipSyncActive ? 'LIP-SYNC ACTIVE' : 'AUTO VOICE LIP-SYNC'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <>
-            {/* Pro Mode Sub-Tab Header if expanded */}
-            {isProModeOpen && (
-              <div style={{
-                height: 32,
-                backgroundColor: 'rgba(0,0,0,0.5)',
-                borderBottom: `1px solid ${THEME.border}`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '0 16px',
-                flexShrink: 0,
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  {[
-                    { id: 'timeline', label: 'Timeline & Keyframes', icon: Clock },
-                    { id: 'auto_rig', label: '⚡ Auto-Rig & Mass Dynamics', icon: Zap },
-                    { id: 'video_lipsync', label: '📹 Off-Platform Lip-Sync', icon: Video },
-                    { id: 'xsheet', label: 'X-Sheet Exposure', icon: Grid },
-                    { id: 'face_animator', label: 'Face Animator (ARKit)', icon: Smile },
-                    { id: 'video_mocap', label: 'Video-to-Rig Mocap', icon: UserCheck },
-                    { id: 'mocap_import', label: 'Mocap File (BVH/JSON)', icon: FileCode },
-                    { id: 'asset_library', label: 'Asset & Motion Library', icon: Library },
-                    { id: 'comic_fx', label: 'Comic & Manga FX', icon: MessageCircle },
-                    { id: 'curves', label: 'Bézier Splines', icon: Spline },
-                    { id: 'physics', label: 'Physics & Forces', icon: Activity },
-                    { id: 'procedural', label: 'Procedural Texture', icon: Wand2 },
-                  ].map(({ id, label, icon: Icon }) => (
-                    <button
-                      key={id}
-                      onClick={() => setProTab(id as any)}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        padding: '3px 8px',
-                        borderRadius: 4,
-                        fontSize: 10,
-                        fontWeight: 800,
-                        border: 'none',
-                        cursor: 'pointer',
-                        background: proTab === id ? 'rgba(255,255,255,0.1)' : 'transparent',
-                        color: proTab === id ? THEME.cyan : 'rgba(255,255,255,0.5)',
-                      }}
-                    >
-                      <Icon size={12} />
-                      {label}
-                    </button>
-                  ))}
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <button
-                    onClick={() => {
-                      setStudioMode('creator');
-                      setIsProModeOpen(false);
-                    }}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 4,
-                      padding: '2px 8px',
-                      borderRadius: 4,
-                      background: 'rgba(255, 140, 0, 0.15)',
-                      border: '1px solid rgba(255, 140, 0, 0.3)',
-                      color: THEME.orange,
-                      fontSize: 9,
-                      fontWeight: 800,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <Sparkles size={11} />
-                    ✨ MAGIC CREATOR DECK
-                  </button>
-                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace' }}>
-                    O(log N) Splines · Diamond Keyframes (◆)
-                  </div>
-                </div>
-              </div>
-            )}
-
-        {/* Pro Sub-Panels (if not timeline) or Full AnimaTimeline */}
-        {isProModeOpen && proTab === 'auto_rig' ? (
-          <div style={{ flex: 1, padding: 14, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 11, fontWeight: 900, color: THEME.cyan }}>
-                  ⚡ INTELLIGENT AUTO-RIG & MASS DYNAMICS
-                </span>
-                <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 4, background: 'rgba(0, 218, 243, 0.15)', color: THEME.cyan, fontWeight: 700 }}>
-                  Non-Destructive Silhouette Contouring · Inertia & Gravity Profiles · Bespoke Walk Cycles
-                </span>
-              </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button
-                  onClick={handleRunAutoRig}
-                  disabled={isAutoRigging}
-                  style={{
-                    padding: '5px 14px',
-                    borderRadius: 6,
-                    background: isAutoRigging ? 'rgba(255,255,255,0.1)' : 'linear-gradient(135deg, #00DAF3, #6B0099)',
-                    color: '#fff',
-                    border: 'none',
-                    fontSize: 10,
-                    fontWeight: 900,
-                    cursor: isAutoRigging ? 'wait' : 'pointer',
-                    boxShadow: '0 0 16px rgba(0, 218, 243, 0.3)',
-                  }}
-                >
-                  {isAutoRigging ? 'ANALYZING MORPHOLOGY…' : '⚡ RUN AUTO-RIG & DERIVE MASS'}
-                </button>
-                {autoRigResult && (
-                  <button
-                    onClick={handleApplyAutoRigToCanvas}
-                    style={{
-                      padding: '5px 14px',
-                      borderRadius: 6,
-                      background: 'linear-gradient(135deg, #06D6A0, #00DAF3)',
-                      color: '#000',
-                      border: 'none',
-                      fontSize: 10,
-                      fontWeight: 900,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    APPLY RIG TO CANVAS LAYER
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Main 3-column control grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-              {/* Column 1: Artwork & Story Intelligence Matching */}
-              <div style={{ background: 'rgba(0,0,0,0.4)', borderRadius: 8, padding: 12, border: `1px solid ${THEME.border}`, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <div style={{ fontSize: 10, fontWeight: 900, color: THEME.lilac }}>
-                  1. ARTWORK & STORY DOSSIER MATCHING
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <label style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)', fontWeight: 700 }}>ARTWORK VISUAL PROMPT / SOURCE:</label>
-                  <input
-                    type="text"
-                    value={autoRigSamplePrompt}
-                    onChange={(e) => setAutoRigSamplePrompt(e.target.value)}
-                    style={{
-                      background: 'rgba(255,255,255,0.06)',
-                      border: '1px solid rgba(255,255,255,0.12)',
-                      borderRadius: 6,
-                      padding: '5px 8px',
-                      fontSize: 10,
-                      color: '#fff',
-                      outline: 'none',
-                    }}
-                  />
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <label style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)', fontWeight: 700 }}>STORY DOSSIER / CHARACTER BIBLE:</label>
-                  <select
-                    value={autoRigStoryDossierId}
-                    onChange={(e) => {
-                      setAutoRigStoryDossierId(e.target.value);
-                      if (e.target.value === 'char_rello') {
-                        setAutoRigMorphology('mascot_creature');
-                        setAutoRigMassKg(140);
-                        setAutoRigSamplePrompt('Reello the Film Kaiju mascot, navy fur with flame crest');
-                      } else if (e.target.value === 'char_chora') {
-                        setAutoRigMorphology('mascot_creature');
-                        setAutoRigMassKg(120);
-                        setAutoRigSamplePrompt('Chora the Sonic Kaiju mascot, purple fur with music notes');
-                      } else if (e.target.value === 'char_kael') {
-                        setAutoRigMorphology('biped_humanoid');
-                        setAutoRigMassKg(85);
-                        setAutoRigSamplePrompt('Kael the rugged cyber operative in trenchcoat');
-                      } else if (e.target.value === 'char_maya') {
-                        setAutoRigMorphology('biped_humanoid');
-                        setAutoRigMassKg(62);
-                        setAutoRigSamplePrompt('Maya the tech specialist with holographic gauntlet');
-                      }
-                    }}
-                    style={{
-                      background: 'rgba(255,255,255,0.06)',
-                      border: '1px solid rgba(255,255,255,0.12)',
-                      borderRadius: 6,
-                      padding: '5px 8px',
-                      fontSize: 10,
-                      color: '#fff',
-                      outline: 'none',
-                    }}
-                  >
-                    <option value="char_rello" style={{ background: '#191721' }}>Reello (Lumi) · Film Mascot (140 kg)</option>
-                    <option value="char_chora" style={{ background: '#191721' }}>Chora (Lorik) · Music Mascot (120 kg)</option>
-                    <option value="char_kael" style={{ background: '#191721' }}>Kael · Humanoid Operative (85 kg)</option>
-                    <option value="char_maya" style={{ background: '#191721' }}>Maya · Humanoid Specialist (62 kg)</option>
-                    <option value="custom" style={{ background: '#191721' }}>Custom Artwork Silhouette</option>
-                  </select>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <label style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)', fontWeight: 700 }}>DETECTED MORPHOLOGY TYPE:</label>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 4 }}>
-                    {(['mascot_creature', 'biped_humanoid', 'quadruped_animal', 'mechanical_vehicle', 'ethereal_spirit'] as CharacterMorphologyType[]).map((m) => (
-                      <button
-                        key={m}
-                        onClick={() => setAutoRigMorphology(m)}
-                        style={{
-                          padding: '4px 6px',
-                          borderRadius: 4,
-                          fontSize: 9,
-                          fontWeight: 800,
-                          border: 'none',
-                          cursor: 'pointer',
-                          background: autoRigMorphology === m ? THEME.purple : 'rgba(255,255,255,0.05)',
-                          color: autoRigMorphology === m ? '#fff' : 'rgba(255,255,255,0.6)',
-                        }}
-                      >
-                        {m.replace('_', ' ').toUpperCase()}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Column 2: Physical Sense of Mass & Dynamics */}
-              <div style={{ background: 'rgba(0,0,0,0.4)', borderRadius: 8, padding: 12, border: `1px solid ${THEME.border}`, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <div style={{ fontSize: 10, fontWeight: 900, color: THEME.orange }}>
-                  2. PHYSICAL MASS & INERTIA DYNAMICS
-                </div>
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, marginBottom: 4 }}>
-                    <span style={{ color: 'rgba(255,255,255,0.5)', fontWeight: 700 }}>TOTAL MASS:</span>
-                    <span style={{ color: THEME.orange, fontWeight: 900 }}>{autoRigMassKg} kg</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="15"
-                    max="1200"
-                    value={autoRigMassKg}
-                    onChange={(e) => setAutoRigMassKg(Number(e.target.value))}
-                    style={{ width: '100%', accentColor: THEME.orange }}
-                  />
-                </div>
-
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, marginBottom: 4 }}>
-                    <span style={{ color: 'rgba(255,255,255,0.5)', fontWeight: 700 }}>ELASTICITY (SQUASH & STRETCH):</span>
-                    <span style={{ color: THEME.cyan, fontWeight: 900 }}>{autoRigElasticity.toFixed(2)}</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="0.1"
-                    max="1.0"
-                    step="0.05"
-                    value={autoRigElasticity}
-                    onChange={(e) => setAutoRigElasticity(Number(e.target.value))}
-                    style={{ width: '100%', accentColor: THEME.cyan }}
-                  />
-                </div>
-
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, marginBottom: 4 }}>
-                    <span style={{ color: 'rgba(255,255,255,0.5)', fontWeight: 700 }}>GROUND IMPACT DAMPING:</span>
-                    <span style={{ color: THEME.lilac, fontWeight: 900 }}>{autoRigDamping.toFixed(2)}</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="0.1"
-                    max="0.95"
-                    step="0.05"
-                    value={autoRigDamping}
-                    onChange={(e) => setAutoRigDamping(Number(e.target.value))}
-                    style={{ width: '100%', accentColor: THEME.lilac }}
-                  />
-                </div>
-
-                {autoRigResult && (
-                  <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 6, padding: '8px 10px', fontSize: 9, display: 'flex', flexDirection: 'column', gap: 3 }}>
-                    <div style={{ color: 'rgba(255,255,255,0.4)', fontWeight: 700 }}>CALCULATED PHYSICS METRICS:</div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: 'rgba(255,255,255,0.7)' }}>Center of Mass:</span>
-                      <span style={{ color: '#fff', fontFamily: 'monospace' }}>({Math.round(autoRigResult.massProfile.centerOfMass.x)}, {Math.round(autoRigResult.massProfile.centerOfMass.y)})</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: 'rgba(255,255,255,0.7)' }}>Moment of Inertia:</span>
-                      <span style={{ color: '#fff', fontFamily: 'monospace' }}>{Math.round(autoRigResult.massProfile.momentOfInertia)} kg·px²</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: 'rgba(255,255,255,0.7)' }}>Material Kind:</span>
-                      <span style={{ color: THEME.success, fontWeight: 800 }}>{autoRigResult.massProfile.materialKind.toUpperCase()}</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Column 3: Skeleton Bones & Walk Cycle */}
-              <div style={{ background: 'rgba(0,0,0,0.4)', borderRadius: 8, padding: 12, border: `1px solid ${THEME.border}`, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <div style={{ fontSize: 10, fontWeight: 900, color: THEME.success }}>
-                  3. ADAPTIVE SKELETON & BESPOKE MOTION
-                </div>
-                {autoRigResult ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9 }}>
-                      <span style={{ color: 'rgba(255,255,255,0.5)' }}>Hierarchical Bones:</span>
-                      <span style={{ color: THEME.success, fontWeight: 900 }}>{autoRigResult.bones.length} FK/IK Bones</span>
-                    </div>
-                    <div style={{ maxHeight: 90, overflowY: 'auto', background: 'rgba(0,0,0,0.3)', borderRadius: 4, padding: 4, fontSize: 8, fontFamily: 'monospace', color: 'rgba(255,255,255,0.7)' }}>
-                      {autoRigResult.bones.map((b) => (
-                        <div key={b.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 4px' }}>
-                          <span>🦴 {b.name}</span>
-                          <span style={{ color: 'rgba(255,255,255,0.3)' }}>len: {Math.round(b.length)}px</span>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)', fontWeight: 700 }}>SYNTHESIZED EMOTION STANCES:</div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 4 }}>
-                      {Object.keys(autoRigResult.emotionStances).map((stanceKey) => (
-                        <button
-                          key={stanceKey}
-                          onClick={() => {
-                            const stance = autoRigResult.emotionStances[stanceKey];
-                            if (stance && project.selectedLayerId) {
-                              setProject(prev => ({
-                                ...prev,
-                                layers: prev.layers.map(l => {
-                                  if (l.id !== project.selectedLayerId) return l;
-                                  const updated = { ...l.channels };
-                                  Object.entries(stance).forEach(([prop, val]) => {
-                                    const ch = updated[prop] || {
-                                      id: `ch_${prop}_${Date.now()}`,
-                                      name: prop,
-                                      targetProperty: prop,
-                                      defaultValue: val,
-                                      keyframes: [],
-                                    };
-                                    updated[prop] = {
-                                      ...ch,
-                                      keyframes: [
-                                        ...ch.keyframes.filter(k => Math.abs(k.t - (prev.currentFrame / prev.fps)) > 0.05),
-                                        { id: `kf_${Date.now()}_${Math.random()}`, t: prev.currentFrame / prev.fps, v: val, ease: 'smooth' }
-                                      ],
-                                    };
-                                  });
-                                  return { ...l, channels: updated };
-                                }),
-                              }));
-                            }
-                          }}
-                          style={{
-                            padding: '3px 6px',
-                            borderRadius: 4,
-                            fontSize: 8,
-                            fontWeight: 800,
-                            background: 'rgba(255,255,255,0.06)',
-                            border: '1px solid rgba(255,255,255,0.1)',
-                            color: THEME.lilac,
-                            cursor: 'pointer',
-                          }}
-                        >
-                          {stanceKey.replace('_', ' ').toUpperCase()}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', textAlign: 'center', margin: 'auto' }}>
-                    Click "RUN AUTO-RIG" above to generate adaptive skeleton and custom mass-driven walk cycles.
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        ) : isProModeOpen && proTab === 'video_lipsync' ? (
-          <div style={{ flex: 1, padding: 14, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 11, fontWeight: 900, color: THEME.orange }}>
-                  📹 OFF-PLATFORM VIDEO LIP-SYNC BRIDGE
-                </span>
-                <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 4, background: 'rgba(255, 140, 0, 0.15)', color: THEME.orange, fontWeight: 700 }}>
-                  Runway / Pika / Kling Video Plates · Viseme Phoneme Alignment · Feathered Mouth Warping
-                </span>
-              </div>
-              <button
-                onClick={handleRunVideoLipSync}
-                style={{
-                  padding: '5px 14px',
-                  borderRadius: 6,
-                  background: 'linear-gradient(135deg, #FF8C00, #D40055)',
-                  color: '#fff',
-                  border: 'none',
-                  fontSize: 10,
-                  fontWeight: 900,
-                  cursor: 'pointer',
-                  boxShadow: '0 0 16px rgba(255, 140, 0, 0.3)',
-                }}
-              >
-                📹 BAKE LIP-SYNC CHANNELS TO TIMELINE
-              </button>
-            </div>
-
-            {/* 2-Column Controls */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
-              {/* Column 1: Video File & Audio Take Selector */}
-              <div style={{ background: 'rgba(0,0,0,0.4)', borderRadius: 8, padding: 12, border: `1px solid ${THEME.border}`, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <div style={{ fontSize: 10, fontWeight: 900, color: THEME.cyan }}>
-                  1. OFF-PLATFORM VIDEO & AUDIO SOURCE
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <label style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)', fontWeight: 700 }}>VIDEO FILE URL / DROPPER:</label>
-                  <input
-                    type="text"
-                    value={lipSyncVideoUrl}
-                    onChange={(e) => setLipSyncVideoUrl(e.target.value)}
-                    style={{
-                      background: 'rgba(255,255,255,0.06)',
-                      border: '1px solid rgba(255,255,255,0.12)',
-                      borderRadius: 6,
-                      padding: '5px 8px',
-                      fontSize: 10,
-                      color: '#fff',
-                      outline: 'none',
-                    }}
-                  />
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <label style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)', fontWeight: 700 }}>SYNCHRONIZED DIALOGUE TAKE (FROM SCRIPT / STORY):</label>
-                  <select
-                    value={lipSyncSelectedTakeId}
-                    onChange={(e) => setLipSyncSelectedTakeId(e.target.value)}
-                    style={{
-                      background: 'rgba(255,255,255,0.06)',
-                      border: '1px solid rgba(255,255,255,0.12)',
-                      borderRadius: 6,
-                      padding: '5px 8px',
-                      fontSize: 10,
-                      color: '#fff',
-                      outline: 'none',
-                    }}
-                  >
-                    {recentTakes.length > 0 ? (
-                      recentTakes.map((t) => (
-                        <option key={t.takeId} value={t.takeId} style={{ background: '#191721' }}>
-                          [{t.speaker}] "{t.text.slice(0, 32)}..." ({t.durationSeconds}s)
-                        </option>
-                      ))
-                    ) : (
-                      <>
-                        <option value="sample_maya" style={{ background: '#191721' }}>[Maya] "Hold on! The perimeter is breached!" (2.4s)</option>
-                        <option value="sample_kael" style={{ background: '#191721' }}>[Kael] "Open the bulkhead door now!" (1.9s)</option>
-                        <option value="sample_rello" style={{ background: '#191721' }}>[Reello] "Roll camera, living canvas rolling!" (2.1s)</option>
-                      </>
-                    )}
-                  </select>
-                </div>
-
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, marginBottom: 4 }}>
-                    <span style={{ color: 'rgba(255,255,255,0.5)', fontWeight: 700 }}>JAW AMPLIFICATION:</span>
-                    <span style={{ color: THEME.orange, fontWeight: 900 }}>{lipSyncJawGain.toFixed(2)}x</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="0.5"
-                    max="2.5"
-                    step="0.05"
-                    value={lipSyncJawGain}
-                    onChange={(e) => setLipSyncJawGain(Number(e.target.value))}
-                    style={{ width: '100%', accentColor: THEME.orange }}
-                  />
-                </div>
-              </div>
-
-              {/* Column 2: Visemes Preview & Channel Readout */}
-              <div style={{ background: 'rgba(0,0,0,0.4)', borderRadius: 8, padding: 12, border: `1px solid ${THEME.border}`, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <div style={{ fontSize: 10, fontWeight: 900, color: THEME.lilac }}>
-                  2. PHONETIC VISEMES & JAW TRACKING
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)', fontWeight: 700 }}>VISEME PHONEME ENVELOPES:</span>
-                  <div style={{ display: 'flex', gap: 4 }}>
-                    {['A', 'E', 'I', 'O', 'U', 'M'].map((vis) => (
-                      <span key={vis} style={{ padding: '2px 8px', borderRadius: 4, background: 'rgba(0, 218, 243, 0.12)', color: THEME.cyan, fontSize: 9, fontWeight: 900 }}>
-                        /{vis}/
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                {activeLipSyncTrack ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    <div style={{ fontSize: 9, color: THEME.success, fontWeight: 800 }}>
-                      ✅ Lip-Sync Track Synchronized ({activeLipSyncTrack.visemeFrames.length} frames)
-                    </div>
-                    <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 6, padding: '8px 10px', fontSize: 9, display: 'flex', flexDirection: 'column', gap: 3 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ color: 'rgba(255,255,255,0.6)' }}>Mouth Bounds:</span>
-                        <span style={{ color: '#fff', fontFamily: 'monospace' }}>
-                          x:{activeLipSyncTrack.mouthRegion.x} y:{activeLipSyncTrack.mouthRegion.y} ({activeLipSyncTrack.mouthRegion.width}×{activeLipSyncTrack.mouthRegion.height})
-                        </span>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ color: 'rgba(255,255,255,0.6)' }}>Feather Radius:</span>
-                        <span style={{ color: THEME.cyan }}>{activeLipSyncTrack.mouthRegion.featherRadius}px</span>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ color: 'rgba(255,255,255,0.6)' }}>Baked Channels:</span>
-                        <span style={{ color: THEME.lilac, fontWeight: 800 }}>face.jawOpen, face.mouthWide, face.mouthPucker</span>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', textAlign: 'center', margin: 'auto' }}>
-                    Select an external video plate and click "BAKE LIP-SYNC CHANNELS" to align mouth articulation.
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        ) : isProModeOpen && proTab === 'face_animator' ? (
-          <div style={{ flex: 1, padding: 14, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 11, fontWeight: 900, color: THEME.cyan }}>VTUBER FACE RIG · ARKIT 52 CHANNELS</span>
-                <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: 'rgba(0, 218, 243, 0.15)', color: THEME.cyan }}>
-                  Continuous Lip Sync & Expressive Posing
-                </span>
-              </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button
-                  onClick={() => {
-                    const t = Date.now() / 1000;
-                    setLiveFaceMetrics({
-                      jawOpen: Number((0.3 + Math.sin(t * 4) * 0.4).toFixed(2)),
-                      smile: Number((0.2 + Math.cos(t * 2) * 0.5).toFixed(2)),
-                      blinkL: Number((Math.sin(t * 1.5) > 0.8 ? 1 : 0).toFixed(2)),
-                      blinkR: 0,
-                      headRoll: Number((Math.sin(t * 2) * 12).toFixed(1)),
-                    });
-                  }}
-                  style={{
-                    padding: '4px 10px',
-                    borderRadius: 4,
-                    background: 'rgba(255,255,255,0.08)',
-                    color: '#fff',
-                    border: '1px solid rgba(255,255,255,0.15)',
-                    fontSize: 10,
-                    fontWeight: 800,
-                    cursor: 'pointer',
-                  }}
-                >
-                  <RefreshCw size={11} style={{ display: 'inline', marginRight: 4 }} />
-                  TEST LIVE METERS
-                </button>
-                <button
-                  onClick={() => {
-                    // Generate a 2-second face performance clip and bake into current layer
-                    const frames: any[] = [];
-                    for (let i = 0; i <= 24; i++) {
-                      const t = i / 12;
-                      frames.push({
-                        timeSec: t,
-                        frameIndex: i,
-                        blendshapes: {
-                          jawOpen: Math.abs(Math.sin(t * 6)) * 0.8,
-                          mouthSmileLeft: 0.5 + Math.sin(t * 3) * 0.3,
-                          mouthSmileRight: 0.5 + Math.sin(t * 3) * 0.3,
-                          eyeBlinkLeft: i === 6 || i === 7 ? 0.95 : 0,
-                          eyeBlinkRight: i === 6 || i === 7 ? 0.95 : 0,
-                          mouthPucker: Math.abs(Math.cos(t * 6)) * 0.6,
-                        },
-                        head: { pitch: 0, yaw: 0, roll: Math.sin(t * 3) * 10, x: 0, y: 0, z: 0 },
-                        expressions: { jaw: Math.abs(Math.sin(t * 6)) * 0.8, blinkLeft: 0, blinkRight: 0 },
-                        gaze: { lookX: 0, lookY: 0 },
-                      });
-                    }
-                    const targetId = project.selectedLayerId || project.layers[0]?.id;
-                    if (targetId) {
-                      const baked = bakeFacePerformanceToTimeline(project, { id: 'face_perf', name: 'Face Performance', fps: 24, durationSec: 2.0, frames }, targetId);
-                      setProject(baked);
-                      setProTab('timeline');
-                    }
-                  }}
-                  style={{
-                    padding: '4px 12px',
-                    borderRadius: 4,
-                    background: 'linear-gradient(135deg, #00DAF3, #6B0099)',
-                    color: '#fff',
-                    border: 'none',
-                    fontSize: 10,
-                    fontWeight: 900,
-                    cursor: 'pointer',
-                  }}
-                >
-                  BAKE PERFORMANCE TO TIMELINE
-                </button>
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8 }}>
-              {[
-                { label: 'Jaw Open / Mouth', val: liveFaceMetrics.jawOpen, color: THEME.cyan },
-                { label: 'Smile / Expression', val: liveFaceMetrics.smile, color: THEME.magenta },
-                { label: 'Blink Left', val: liveFaceMetrics.blinkL, color: THEME.lilac },
-                { label: 'Blink Right', val: liveFaceMetrics.blinkR, color: THEME.lilac },
-                { label: 'Head Roll (deg)', val: `${liveFaceMetrics.headRoll}°`, color: THEME.orange },
-              ].map((m, idx) => (
-                <div key={idx} style={{ background: 'rgba(0,0,0,0.4)', borderRadius: 6, padding: '8px 10px', border: '1px solid rgba(255,255,255,0.06)' }}>
-                  <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)', marginBottom: 4, fontWeight: 700 }}>{m.label}</div>
-                  <div style={{ fontSize: 14, fontWeight: 900, color: m.color, fontFamily: 'monospace' }}>{m.val}</div>
-                </div>
-              ))}
-            </div>
-
-            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)' }}>
-              Compatible Rigs: Plajah Mascots (Reello & Chora), Steamboat Willie, Felix, Fleischer Flapper, Oswald, Sailor Swagger, and custom bone layers.
-            </div>
-          </div>
-        ) : isProModeOpen && proTab === 'video_mocap' ? (
-          <div style={{ flex: 1, padding: 14, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 11, fontWeight: 900, color: THEME.orange }}>VIDEO-TO-RIG MOTION TRACKER · 33 POSE KEYPOINTS</span>
-                <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: 'rgba(255, 140, 0, 0.15)', color: THEME.orange }}>
-                  Body Pose Joint Angle Retargeting
-                </span>
-              </div>
-              <button
-                onClick={() => {
-                  const targetId = project.selectedLayerId || project.layers[0]?.id;
-                  if (targetId) {
-                    const frames: any[] = [];
-                    for (let i = 0; i <= 24; i++) {
-                      const t = i / 12;
-                      frames.push({
-                        timeSec: t,
-                        frameIndex: i,
-                        landmarks: [],
-                        angles: {
-                          rootX: Math.sin(t * 3) * 15,
-                          rootY: Math.abs(Math.sin(t * 6)) * 12,
-                          spineRot: Math.sin(t * 3) * 8,
-                          headRot: -Math.sin(t * 3) * 5,
-                          armL_upperRot: Math.sin(t * 6) * 45,
-                          armL_lowerRot: Math.abs(Math.sin(t * 6)) * 60,
-                          armR_upperRot: -Math.sin(t * 6) * 45,
-                          armR_lowerRot: Math.abs(Math.cos(t * 6)) * 60,
-                          legL_upperRot: -Math.sin(t * 6) * 35,
-                          legL_lowerRot: Math.abs(Math.sin(t * 6)) * 40,
-                          legR_upperRot: Math.sin(t * 6) * 35,
-                          legR_lowerRot: Math.abs(Math.cos(t * 6)) * 40,
-                          footL_rot: 0,
-                          footR_rot: 0,
-                        },
-                        confidence: 0.95,
-                      });
-                    }
-                    const baked = bakeMotionToTimeline(project, { id: 'mocap_clip', name: 'Body Mocap', fps: 24, durationSec: 2.0, frames }, targetId);
-                    setProject(baked);
-                    setProTab('timeline');
-                  }
-                }}
-                style={{
-                  padding: '4px 12px',
-                  borderRadius: 4,
-                  background: 'linear-gradient(135deg, #FF8C00, #D40055)',
-                  color: '#fff',
-                  border: 'none',
-                  fontSize: 10,
-                  fontWeight: 900,
-                  cursor: 'pointer',
-                }}
-              >
-                BAKE TRACKED MOTION TO BONES
-              </button>
-            </div>
-            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.7)' }}>
-              Tracks shoulders, elbows, wrists, spine, hips, knees, and ankles from video reference frames and maps continuous joint angles to 2D skeletal bones.
-            </div>
-          </div>
-        ) : isProModeOpen && proTab === 'mocap_import' ? (
-          <div style={{ flex: 1, padding: 14, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 11, fontWeight: 900, color: THEME.lilac }}>MOTION CAPTURE DATA FILE LOADER</span>
-              <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: 'rgba(208, 188, 255, 0.15)', color: THEME.lilac }}>
-                BVH · JSON Pose · Point Tracker CSV
-              </span>
-            </div>
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button
-                onClick={() => {
-                  const sampleBVH = `HIERARCHY\nROOT Hips\n{\n  OFFSET 0 0 0\n  CHANNELS 6 Xposition Yposition Zposition Zrotation Xrotation Yrotation\n  JOINT Chest\n  {\n    OFFSET 0 25 0\n    CHANNELS 3 Zrotation Xrotation Yrotation\n    End Site { OFFSET 0 15 0 }\n  }\n}\nMOTION\nFrames: 4\nFrame Time: 0.0333\n0 0 0 0 0 0 10 0 0\n5 0 0 5 0 0 25 0 0\n10 0 0 0 0 0 15 0 0\n0 0 0 -5 0 0 5 0 0\n`;
-                  const parsed = parseMotionFile('sample.bvh', sampleBVH);
-                  const targetId = project.selectedLayerId || project.layers[0]?.id;
-                  if (targetId) {
-                    const applied = applyMotionDataToProject(project, parsed, targetId);
-                    setProject(applied);
-                    setMocapStatus('Imported 4 frames from sample.bvh');
-                    setProTab('timeline');
-                  }
-                }}
-                style={{
-                  padding: '6px 14px',
-                  borderRadius: 6,
-                  background: 'rgba(255,255,255,0.06)',
-                  border: '1px solid rgba(255,255,255,0.12)',
-                  color: '#fff',
-                  fontSize: 10,
-                  fontWeight: 800,
-                  cursor: 'pointer',
-                }}
-              >
-                LOAD SAMPLE BVH MOCAP
-              </button>
-              <button
-                onClick={() => {
-                  const sampleCSV = `Frame,Time,Tracker1_X,Tracker1_Y\n0,0.0,0,0\n1,0.04,15,4\n2,0.08,35,12\n3,0.12,20,8\n`;
-                  const parsed = parseMotionFile('point_track.csv', sampleCSV);
-                  const targetId = project.selectedLayerId || project.layers[0]?.id;
-                  if (targetId) {
-                    const applied = applyMotionDataToProject(project, parsed, targetId);
-                    setProject(applied);
-                    setMocapStatus('Imported 4 tracking points from CSV');
-                    setProTab('timeline');
-                  }
-                }}
-                style={{
-                  padding: '6px 14px',
-                  borderRadius: 6,
-                  background: 'rgba(255,255,255,0.06)',
-                  border: '1px solid rgba(255,255,255,0.12)',
-                  color: '#fff',
-                  fontSize: 10,
-                  fontWeight: 800,
-                  cursor: 'pointer',
-                }}
-              >
-                LOAD 2D POINT TRACKER CSV
-              </button>
-            </div>
-            {mocapStatus && <div style={{ fontSize: 10, color: THEME.success }}>{mocapStatus}</div>}
-          </div>
-        ) : isProModeOpen && proTab === 'asset_library' ? (
-          <div style={{ flex: 1, padding: 14, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
-              {['all', 'walk_cycles', 'vehicles', 'skies', 'props', 'animals', 'classic_cartoons'].map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setSelectedAssetCategory(cat)}
-                  style={{
-                    padding: '4px 10px',
-                    borderRadius: 14,
-                    background: selectedAssetCategory === cat ? THEME.purple : 'rgba(255,255,255,0.06)',
-                    color: '#fff',
-                    border: 'none',
-                    fontSize: 9,
-                    fontWeight: 800,
-                    cursor: 'pointer',
-                    textTransform: 'uppercase',
-                  }}
-                >
-                  {cat.replace('_', ' ')}
-                </button>
-              ))}
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
-              {/* Assets from Catalog */}
-              {(selectedAssetCategory === 'all' || selectedAssetCategory !== 'classic_cartoons'
-                ? ASSET_CATALOG.filter((a) => selectedAssetCategory === 'all' || a.category === selectedAssetCategory)
-                : []
-              ).map((asset) => (
-                <div
-                  key={asset.id}
-                  style={{
-                    background: 'rgba(0,0,0,0.3)',
-                    border: '1px solid rgba(255,255,255,0.08)',
-                    borderRadius: 6,
-                    padding: 8,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                  }}
-                >
-                  <div>
-                    <div style={{ fontSize: 18, marginBottom: 4 }}>{asset.thumbnailIcon}</div>
-                    <div style={{ fontSize: 10, fontWeight: 800, color: '#fff' }}>{asset.name}</div>
-                    <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)', marginTop: 2, height: 24, overflow: 'hidden' }}>
-                      {asset.description}
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => {
-                      const newLayer = instantiateAsset(asset.id, `layer_${asset.id}_${Date.now()}`);
-                      setProject((p) => ({ ...p, layers: [...p.layers, newLayer] }));
-                      setProTab('timeline');
-                    }}
-                    style={{
-                      marginTop: 8,
-                      padding: '4px 8px',
-                      borderRadius: 4,
-                      background: 'rgba(255,255,255,0.1)',
-                      color: THEME.cyan,
-                      border: 'none',
-                      fontSize: 9,
-                      fontWeight: 800,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    + ADD TO PROJECT
-                  </button>
-                </div>
-              ))}
-
-              {/* Authentic Classic Cartoons */}
-              {(selectedAssetCategory === 'all' || selectedAssetCategory === 'classic_cartoons') &&
-                listClassicCharacters().map((char) => (
-                  <div
-                    key={char.id}
-                    style={{
-                      background: 'rgba(0,0,0,0.4)',
-                      border: '1px solid rgba(255,255,255,0.12)',
-                      borderRadius: 6,
-                      padding: 8,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'space-between',
-                    }}
-                  >
-                    <div>
-                      <div style={{ fontSize: 18, marginBottom: 4 }}>
-                        {char.id === 'steamboat_willie' ? '🚢' : char.id.includes('felix') ? '🐱' : char.id.includes('flapper') ? '💃' : char.id.includes('rabbit') ? '🐰' : '⚓'}
-                      </div>
-                      <div style={{ fontSize: 10, fontWeight: 800, color: '#fff' }}>{char.name}</div>
-                      <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)', marginTop: 2, height: 24, overflow: 'hidden' }}>
-                        {char.description}
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => {
-                        const newLayer = instantiateClassicCharacterLayer(char.id, `layer_${char.id}_${Date.now()}`);
-                        setProject((p) => ({ ...p, layers: [...p.layers, newLayer] }));
-                        setProTab('timeline');
-                      }}
-                      style={{
-                        marginTop: 8,
-                        padding: '4px 8px',
-                        borderRadius: 4,
-                        background: 'linear-gradient(135deg, #FF8C00, #D40055)',
-                        color: '#fff',
-                        border: 'none',
-                        fontSize: 9,
-                        fontWeight: 800,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      + ADD RIG & CYCLE
-                    </button>
-                  </div>
-                ))}
-            </div>
-          </div>
-        ) : isProModeOpen && proTab === 'comic_fx' ? (
-          <div style={{ flex: 1, padding: 14, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 11, fontWeight: 900, color: THEME.magenta }}>COMIC & MANGA PANEL ANIMATION SUITE</span>
-              <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: 'rgba(212, 0, 85, 0.15)', color: THEME.magenta }}>
-                Transitions · Onomatopoeia · SFX · Parallax
-              </span>
-            </div>
-
-            {/* Entrance Transitions */}
-            <div>
-              <div style={{ fontSize: 9, fontWeight: 800, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>
-                PANEL ENTRANCE TRANSITIONS:
-              </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                {[
-                  { id: 'smash_zoom', label: '💥 Smash Zoom' },
-                  { id: 'manga_shutter_wipe', label: '⚔️ Shutter Wipe' },
-                  { id: 'page_curl', label: '📖 Page Curl' },
-                  { id: 'elastic_pop', label: '🎯 Elastic Pop' },
-                  { id: 'split_panel_slide', label: '⚡ Split Slide' },
-                ].map((tr) => (
-                  <button
-                    key={tr.id}
-                    onClick={() => {
-                      const targetId = project.selectedLayerId || project.layers[0]?.id;
-                      if (targetId) {
-                        const targetLayer = project.layers.find((l) => l.id === targetId);
-                        if (targetLayer) {
-                          applyPanelEntranceTransition(targetLayer, tr.id as any, 0, 0.5);
-                          setProject({ ...project });
-                          setProTab('timeline');
-                        }
-                      }
-                    }}
-                    style={{
-                      padding: '4px 10px',
-                      borderRadius: 4,
-                      background: 'rgba(255,255,255,0.06)',
-                      border: '1px solid rgba(255,255,255,0.1)',
-                      color: '#fff',
-                      fontSize: 10,
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {tr.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Action Phrases / SFX */}
-            <div>
-              <div style={{ fontSize: 9, fontWeight: 800, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>
-                DYNAMIC ACTION PHRASES & ONOMATOPOEIA (WITH LINE BOIL):
-              </div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {['BAM!', 'POW!', 'SLASH!', 'WHAM!', 'BOOM!', 'DON!!', 'GO GO GO...'].map((phrase) => (
-                  <button
-                    key={phrase}
-                    onClick={() => {
-                      const sfx = createOnomatopoeiaLayer({
-                        phrase: phrase as any,
-                        position: { x: 400 + (Math.random() - 0.5) * 80, y: 300 + (Math.random() - 0.5) * 80 },
-                        scale: 1.25,
-                        lineBoil: true,
-                      });
-                      setProject((p) => ({ ...p, layers: [...p.layers, sfx] }));
-                      setProTab('timeline');
-                    }}
-                    style={{
-                      padding: '4px 10px',
-                      borderRadius: 4,
-                      background: 'rgba(212, 0, 85, 0.15)',
-                      border: '1px solid rgba(212, 0, 85, 0.3)',
-                      color: THEME.magenta,
-                      fontSize: 11,
-                      fontWeight: 900,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {phrase}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Balloons & Motion Effects */}
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button
-                onClick={() => {
-                  const balloon = createComicBalloonLayer({
-                    text: 'Dynamic speech bubble!',
-                    kind: 'shout',
-                    position: { x: 420, y: 220 },
-                    tailTarget: { x: 350, y: 350 },
-                  });
-                  setProject((p) => ({ ...p, layers: [...p.layers, balloon] }));
-                  setProTab('timeline');
-                }}
-                style={{
-                  padding: '4px 10px',
-                  borderRadius: 4,
-                  background: 'rgba(255,255,255,0.06)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  color: '#fff',
-                  fontSize: 10,
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                }}
-              >
-                + ADD SHOUT BALLOON
-              </button>
-              <button
-                onClick={() => {
-                  const lines = createSpeedLinesLayer('radial_focus', { x: 400, y: 300 });
-                  setProject((p) => ({ ...p, layers: [...p.layers, lines] }));
-                  setProTab('timeline');
-                }}
-                style={{
-                  padding: '4px 10px',
-                  borderRadius: 4,
-                  background: 'rgba(255,255,255,0.06)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  color: '#fff',
-                  fontSize: 10,
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                }}
-              >
-                + ADD MANGA SPEED LINES
-              </button>
-              <button
-                onClick={() => {
-                  const shock = createShockwaveLayer({ x: 400, y: 300 }, 0.6);
-                  setProject((p) => ({ ...p, layers: [...p.layers, shock] }));
-                  setProTab('timeline');
-                }}
-                style={{
-                  padding: '4px 10px',
-                  borderRadius: 4,
-                  background: 'rgba(255,255,255,0.06)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  color: '#fff',
-                  fontSize: 10,
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                }}
-              >
-                + ADD IMPACT SHOCKWAVE
-              </button>
-            </div>
-          </div>
-        ) : isProModeOpen && proTab === 'xsheet' ? (
-          <TraditionalXSheet
+          <AnimaStage
             project={project}
-            currentFrame={project.currentFrame}
-            onSelectFrame={(f) => setProject((p) => ({ ...p, currentFrame: f }))}
-            onSetStepRate={(rate) => {
-              setProject((p) => {
-                const targetId = p.selectedLayerId || 'l_hero';
-                return {
-                  ...p,
-                  layers: p.layers.map((l) =>
-                    l.id === targetId && l.celTrack ? { ...l, celTrack: { ...l.celTrack, stepRate: rate } } : l
-                  ),
-                };
-              });
-            }}
+            frames={frames}
+            playing={playing}
+            tool={tool}
+            selectedLayerId={selectedLayerId}
+            brushKind={brushKind}
+            ink={ink}
+            cameraVideo={cameraStream ? cameraVideoRef.current : null}
+            autoKey={autoKey}
+            dispatch={dispatch}
+            setPlaying={setPlaying}
+            onSelectLayer={setSelectedLayerId}
+            onNotice={say}
           />
-        ) : isProModeOpen && proTab === 'physics' ? (
-          <div style={{ flex: 1, padding: 12, overflowY: 'auto' }}>
-            <div style={{ display: 'flex', gap: 8 }}>
-              {['particles', 'hair', 'soft_body', 'fluid'].map((sim) => (
-                <button
-                  key={sim}
-                  onClick={() => setActiveSim(sim as any)}
-                  style={{
-                    padding: '6px 12px',
-                    borderRadius: 6,
-                    background: activeSim === sim ? THEME.orange : 'rgba(255,255,255,0.05)',
-                    border: 'none',
-                    color: activeSim === sim ? '#000' : '#fff',
-                    fontSize: 10,
-                    fontWeight: 800,
-                    cursor: 'pointer',
-                  }}
-                >
-                  RUN {sim.toUpperCase()}
+          <video ref={cameraVideoRef} autoPlay muted playsInline className="hidden" />
+          {notice && (
+            <div role="status" className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-2 rounded-[10px] text-[12px] text-white z-20" style={{ background: 'rgba(18,13,28,0.95)', border: '1px solid rgba(255,255,255,0.14)' }}>
+              {notice}
+            </div>
+          )}
+        </main>
+
+        <aside className="min-h-0" style={{ background: panelBg, borderLeft: '1px solid rgba(255,255,255,0.08)' }}>
+          <AnimaInspector
+            project={project}
+            layer={selectedLayer}
+            frames={frames}
+            autoKey={autoKey}
+            dispatch={dispatch}
+            onSelectLayer={setSelectedLayerId}
+            tool={tool}
+            setTool={setTool}
+            brushKind={brushKind}
+            setBrushKind={setBrushKind}
+            ink={ink}
+            setInk={setInk}
+            cameraOn={!!cameraStream}
+            onToggleCamera={() => void toggleCamera()}
+            onCapture={() => void capture()}
+            onNotice={say}
+          />
+        </aside>
+      </div>
+
+      {/* ── Timeline ── */}
+      <section className="shrink-0" style={{ height: 250, background: panelBg, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+        <AnimaTimeline
+          project={project}
+          frames={frames}
+          playing={playing}
+          setPlaying={setPlaying}
+          selectedLayerId={selectedLayerId}
+          onSelectLayer={setSelectedLayerId}
+          autoKey={autoKey}
+          setAutoKey={setAutoKey}
+          dispatch={dispatch}
+        />
+      </section>
+
+      {/* ── Start screen (no project yet) ── */}
+      {startScreen && (
+        <div className="fixed inset-0 z-[60] grid place-items-center p-6" style={{ background: 'rgba(5,4,8,0.72)', backdropFilter: 'blur(6px)' }}>
+          <div className="w-full max-w-[640px] p-6 rounded-[18px] flex flex-col gap-4" style={{ background: '#15111c', border: '1px solid rgba(255,255,255,0.12)' }}>
+            <div>
+              <div className="text-[20px] font-bold">Start an animation</div>
+              <div className="text-[13px] text-white/55">Projects save automatically, keep a version history, and open on any device you sign in on.</div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {ANIMA_TEMPLATES.map((t) => (
+                <button key={t.id} className="text-left p-3 rounded-[12px] bg-white/[0.04] hover:bg-white/[0.08] border border-white/10" onClick={() => open(t.build(), true)}>
+                  <div className="text-[13px] font-bold">{t.name}</div>
+                  <div className="text-[11px] text-white/50 mt-1">{t.blurb}</div>
                 </button>
               ))}
             </div>
-          </div>
-        ) : isProModeOpen && proTab === 'curves' ? (
-          (() => {
-            const heroLayer = project.layers.find((l) => l.id === (project.selectedLayerId || 'l_hero')) || project.layers[0];
-            const channelKeys = heroLayer ? Object.keys(heroLayer.channels) : [];
-            const activeKey = channelKeys.includes(curveChannelPath) ? curveChannelPath : channelKeys[0] || 'transform.y';
-            const ch = heroLayer?.channels?.[activeKey];
-
-            if (!heroLayer || !ch) {
-              return (
-                <div style={{ flex: 1, padding: 16, fontSize: 11, color: 'rgba(255,255,255,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  Select an animated layer with keyframed channels to edit Bézier spline curves.
-                </div>
-              );
-            }
-
-            return (
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  padding: '6px 14px',
-                  background: 'rgba(0,0,0,0.4)',
-                  borderBottom: `1px solid ${THEME.border}`,
-                  overflowX: 'auto',
-                }}>
-                  <span style={{ fontSize: 9, fontWeight: 900, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase' }}>
-                    EDIT CHANNEL:
-                  </span>
-                  {channelKeys.map((k) => (
-                    <button
-                      key={k}
-                      onClick={() => setCurveChannelPath(k)}
-                      style={{
-                        padding: '3px 8px',
-                        borderRadius: 4,
-                        fontSize: 9,
-                        fontWeight: 800,
-                        border: 'none',
-                        cursor: 'pointer',
-                        background: activeKey === k ? THEME.cyan : 'rgba(255,255,255,0.06)',
-                        color: activeKey === k ? '#000' : 'rgba(255,255,255,0.8)',
-                      }}
-                    >
-                      {heroLayer.channels[k].name || k}
-                    </button>
-                  ))}
-                </div>
-                <SplineGraphEditor
-                  channel={ch as any}
-                  durationFrames={project.durationFrames}
-                  fps={project.fps}
-                  onUpdateChannel={(updatedCh) => {
-                    setProject((prev) => ({
-                      ...prev,
-                      layers: prev.layers.map((l) =>
-                        l.id === heroLayer.id
-                          ? { ...l, channels: { ...l.channels, [activeKey]: updatedCh } }
-                          : l
-                      ),
-                    }));
-                  }}
-                />
+            {recent.length > 0 && (
+              <div className="flex flex-col gap-1">
+                <div className={lbl}>Recent</div>
+                {recent.slice(0, 6).map((r) => (
+                  <button key={r.id} className="text-left px-3 py-2 rounded-[10px] hover:bg-white/[0.06] flex items-center justify-between gap-2" onClick={() => void loadAnimaProject(r.id).then((p) => (p ? open(p) : say('That project could not be opened.')))}>
+                    <span className="text-[13px] font-semibold truncate">{r.name}</span>
+                    <span className="text-[11px] text-white/40 shrink-0">{r.inCloudOnly ? 'From another device · ' : ''}{new Date(r.updatedAt).toLocaleDateString()}</span>
+                  </button>
+                ))}
               </div>
-            );
-          })()
-        ) : isProModeOpen && proTab === 'procedural' ? (
-          <div style={{ flex: 1, padding: 12, fontSize: 11, color: 'rgba(255,255,255,0.7)' }}>
-            <div style={{ fontWeight: 800, color: THEME.lilac, marginBottom: 6 }}>Procedural Shader & Noise Engine:</div>
-            Perlin / Simplex fractal turbulence synthesizer for organic background textures, water refractions, and atmosphere.
+            )}
+            <div className="flex justify-end gap-2">
+              <button className={btn} onClick={() => fileRef.current?.click()}><Upload size={13} /> Import file</button>
+            </div>
           </div>
-        ) : (
-          <div style={{ flex: 1, minHeight: 0 }}>
-            <AnimaTimeline
-              project={project}
-              onUpdateProject={setProject}
-              isPlaying={isPlaying}
-              onTogglePlay={() => setIsPlaying(!isPlaying)}
-            />
-          </div>
-        )}
-      </>
-    )}
-  </div>
+        </div>
+      )}
+
+      <input ref={fileRef} type="file" accept=".json,application/json" className="hidden" onChange={async (e) => {
+        const f = e.target.files?.[0];
+        e.target.value = '';
+        if (!f) return;
+        const p = parseAnimaProject(await f.text());
+        if (!p) return say("That file isn't an Anima project.");
+        open({ ...p, id: newAnimaId() }, true);
+      }} />
     </div>
   );
 };

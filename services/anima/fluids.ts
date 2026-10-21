@@ -222,6 +222,33 @@ export class FluidSimulator {
   }
 
   /** Render fluid directly into an HTML5 Canvas 2D ImageData */
+  /**
+   * Synchronous paint: writes the dye field into a small N×N canvas the caller then scales
+   * with drawImage. (paintToCanvas below is async and can land after the next frame clears.)
+   */
+  paintToSmallCanvas(small: HTMLCanvasElement): void {
+    if (small.width !== this.N || small.height !== this.N) {
+      small.width = this.N;
+      small.height = this.N;
+    }
+    const sctx = small.getContext('2d');
+    if (!sctx) return;
+    const imgData = sctx.createImageData(this.N, this.N);
+    const data = imgData.data;
+    let ptr = 0;
+    for (let j = 1; j <= this.N; j++) {
+      for (let i = 1; i <= this.N; i++) {
+        const idx = this.idx(i, j);
+        data[ptr] = Math.min(255, Math.floor(this.densityR[idx] * 255));
+        data[ptr + 1] = Math.min(255, Math.floor(this.densityG[idx] * 255));
+        data[ptr + 2] = Math.min(255, Math.floor(this.densityB[idx] * 255));
+        data[ptr + 3] = Math.min(255, Math.floor(Math.max(this.densityR[idx], this.densityG[idx], this.densityB[idx]) * 255));
+        ptr += 4;
+      }
+    }
+    sctx.putImageData(imgData, 0, 0);
+  }
+
   paintToCanvas(ctx: CanvasRenderingContext2D, width: number, height: number): void {
     const imgData = ctx.createImageData(this.N, this.N);
     const data = imgData.data;

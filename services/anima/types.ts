@@ -117,7 +117,9 @@ export interface DrawingCel {
   id: string;
   name: string;
   strokes: DrawingStroke[];
-  rasterDataUrl?: string; // for physical stop-motion webcam/scanner captures
+  rasterDataUrl?: string; // for physical stop-motion webcam/scanner captures (guests / legacy)
+  /** Uploaded capture (signed-in users), so it opens on any device. */
+  rasterUrl?: string;
   thumbnailUrl?: string;
   width: number;
   height: number;
@@ -153,10 +155,50 @@ export interface OnionSkinConfig {
   opacityFalloff: number; // 0.5 per frame step
 }
 
+/** Imported still or video behind / inside the scene. Drawn to cover the frame. */
+export interface AnimaPlate {
+  kind: 'image' | 'video';
+  url: string;
+  name: string;
+  /** Cloud Storage path when uploaded; blob: URLs only last this session. */
+  storagePath?: string;
+  sessionOnly?: boolean;
+}
+
+export type AnimaEffectKind = 'rain' | 'snow' | 'fireflies' | 'sparkles' | 'hair' | 'smoke' | 'speed_lines' | 'balloon';
+
+/** A live atmosphere / comic effect, drawn in layer order. Simulations run in real time. */
+export interface AnimaEffect {
+  kind: AnimaEffectKind;
+  color?: string;
+  /** 0.25 .. 3 — spawn rate / line density. */
+  intensity?: number;
+  /** Speech balloon text. */
+  text?: string;
+}
+
+export type AnimaRigId =
+  | 'rello'
+  | 'chora'
+  | 'steamboat_willie'
+  | 'felix_the_cat'
+  | 'fleischer_flapper'
+  | 'oswald_rabbit'
+  | 'sailor_swagger';
+
 export interface AnimaLayer {
   id: string;
   name: string;
-  type: 'vector' | 'cel' | 'bone' | 'group' | 'camera' | 'audio' | 'stop_motion' | 'character';
+  type: 'vector' | 'cel' | 'bone' | 'group' | 'camera' | 'audio' | 'stop_motion' | 'character' | 'plate' | 'effect';
+  /**
+   * Pivot in frame pixels. The layer is moved by origin + transform and rotates / scales
+   * around the origin; transform values (and presets) are offsets from it.
+   */
+  origin?: { x: number; y: number };
+  plate?: AnimaPlate;
+  effect?: AnimaEffect;
+  /** Character layers: which built-in rig draws here. */
+  rigId?: AnimaRigId;
   visible: boolean;
   locked: boolean;
   opacity: number;
@@ -179,8 +221,12 @@ export interface AnimaLayer {
 
 /** Complete Timeline Project Document for Anima */
 export interface AnimaProject {
+  /** 'plajah.animaProject' for saved projects. */
+  schema?: 'plajah.animaProject';
   id: string;
   name: string;
+  createdAt?: number;
+  updatedAt?: number;
   fps: number;          // 24 (anime standard), 25 (PAL), 30, 60
   durationFrames: number;
   width: number;

@@ -1,9 +1,10 @@
 // services/creativeCloud/policy.ts — who pays storage for which creative work.
 //
-// Every on-platform creative project (Tela documents, comics, animation, scripts, designs…)
-// autosaves to the cloud and counts toward the owner's creative storage. Free accounts get
-// 5 GB; Plajah+ subscribers get their tier's storage. Music projects, film, and book
-// releases never count. Enforcement ships OFF: usage is measured and shown, nothing is
+// Every project made on the platform (Tela documents, comics, Anima, Fabula edits, Melos music
+// projects, scripts, designs…) autosaves to the cloud and counts toward the owner's creative
+// storage. Free accounts get 5 GB; Plajah+ subscribers get their tier's storage. Releases never
+// count: music, film and books uploaded to Chora, Taleo, Reello or Lorea live outside the
+// measured prefixes. Enforcement ships OFF: usage is measured and shown, nothing is
 // blocked, until Kenne turns on `enforceCreativeQuota` in Firestore `config/storagePolicy`.
 //
 // Pure module (no Firebase) so the client, the server recount and tests share one answer.
@@ -33,9 +34,9 @@ export type CreativeKind =
 export type QuotaClass = 'counted' | 'exempt';
 
 /**
- * Music projects, film, and book releases are exempt. Everything else made in a Plajah
- * creative tool counts. Unknown kinds count (fail toward measuring, never toward blocking —
- * enforcement is a separate switch).
+ * Everything made in a Plajah creative tool counts, including Fabula film edits and Melos music
+ * projects. Releases are exempt by never being measured (see creativePrefixes), not by kind.
+ * Unknown kinds count (fail toward measuring, never toward blocking — enforcement is separate).
  */
 export const KIND_QUOTA_CLASS: Record<CreativeKind, QuotaClass> = {
   tela: 'counted',
@@ -47,8 +48,8 @@ export const KIND_QUOTA_CLASS: Record<CreativeKind, QuotaClass> = {
   design: 'counted',
   presentation: 'counted',
   podcast: 'counted',
-  melos: 'exempt', // music projects
-  fabula: 'exempt', // film
+  melos: 'counted',
+  fabula: 'counted',
   other: 'counted',
 };
 

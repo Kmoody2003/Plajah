@@ -84,7 +84,7 @@ export const CreativeStorageMeter: React.FC<{ compact?: boolean }> = ({ compact 
       </div>
       {!compact && (
         <div className="text-[9px] text-white/35">
-          Music, film and book releases don't count.{over && !usage.enforced ? ' Over the free allowance; nothing is blocked yet.' : ''}
+          Uploads to Chora, Taleo, Reello and Lorea don't count.{over && !usage.enforced ? ' Over the free allowance; nothing is blocked yet.' : ''}
         </div>
       )}
     </div>
