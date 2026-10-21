@@ -8,6 +8,7 @@ import React, { Suspense, lazy, useCallback, useEffect, useMemo, useState } from
 import {
   ArrowLeft, LayoutDashboard, Users, Church, Link2, Gift, HandHeart, MonitorPlay, MessagesSquare, ShoppingBag,
   Briefcase, Megaphone, Check, Circle, Loader2, Trash2, Sparkles, Mail, HardDrive, UserCog, Mic2, Wallet, KeyRound, GraduationCap, Music, ShieldCheck,
+  Calendar, Radio, Upload, Send, DollarSign, TrendingUp,
 } from 'lucide-react';
 import { spendingPerms } from '../../services/acctSpending';
 import { CountBadge, useMoneyInbox } from './chms/finance/SpendingUi';
@@ -23,6 +24,7 @@ import ChurchPrayerWall from '../ChurchPrayerWall';
 import OrgThread from './OrgThread';
 import OrgStoreSection from './OrgStoreSection';
 import OrgSecurityShield, { OrgSecurityPanel } from './OrgSecurityShield';
+import CreateEventButton from '../events/CreateEventButton';
 
 // Sibling modules built in parallel — lazy so a missing/late file never breaks the page shell.
 const RosterManager = lazy(() => import('./RosterManager'));
@@ -44,9 +46,20 @@ const ChurchEducation = lazy(() => import('../church/ChurchEducation'));
 const ChurchMusicDepartmentHub = lazy(() => import('./ChurchMusicDepartmentHub'));
 
 const card = 'bg-white/[0.03] border border-white/10 rounded-[2rem]';
+const V = '#8B5CF6';   // Grace Chapel violet
+const VS = '#B79BF5';
+const SECTION_SUB: Partial<Record<SectionKey, string>> = {
+  overview: 'Everything about your organization at a glance.',
+  people: 'Your directory — import from Servant Keeper or a CSV, export anytime.',
+  giving: 'Funds, recurring gifts and payouts — on your own Stripe account.',
+  events: 'Ticketing, RSVPs and check-in — built in.',
+  prayer: 'Moderate requests, mark answered, keep private ones private.',
+  team: 'Staff, volunteers and roles — grant access to the tools each needs.',
+  education: 'Sunday school, Bible study & discipleship on the education stack.',
+};
 const field = 'w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white outline-none focus:border-small-orange/50 transition-all placeholder:text-white/25';
 
-type SectionKey = 'overview' | 'people' | 'ministries' | 'education' | 'music' | 'invites' | 'accounts' | 'security' | 'giving' | 'money' | 'prayer' | 'media' | 'social' | 'store' | 'team' | 'marketing';
+type SectionKey = 'overview' | 'messages' | 'events' | 'multisite' | 'people' | 'ministries' | 'education' | 'music' | 'invites' | 'accounts' | 'security' | 'giving' | 'money' | 'prayer' | 'media' | 'social' | 'store' | 'team' | 'marketing';
 type Tool = null | 'sermons' | 'master' | 'console' | 'hq' | 'employees' | 'hiring' | 'marketing';
 
 interface Props {
@@ -97,22 +110,26 @@ const ElevateOps: React.FC<Props> = ({ org: initialOrg, isOwner, onClose, onOrgC
   const showMoney = !!myMembership && (sp.canSubmit || sp.canApprove || sp.canViewBooks);
   const moneyInbox = useMoneyInbox(org, myMembership, null, showMoney);
 
+  // Grace Chapel admin-backend order first (Overview → Classes), then the deeper tools.
   const nav = useMemo(() => ([
     { key: 'overview' as const, label: 'Overview', icon: LayoutDashboard, show: !!myMembership },
-    { key: 'people' as const, label: 'People & Roster', icon: Users, show: can('MANAGE_ROSTER') || can('ASSIGN_ROLES') || (!!uid && (org.ministries || []).some(m => m.headUids?.includes(uid))) },
-    { key: 'ministries' as const, label: 'Ministries', icon: Church, show: can('MANAGE_MINISTRIES') },
-    { key: 'education' as const, label: 'Christian Education', icon: GraduationCap, show: faith && !!myMembership },
+    { key: 'messages' as const, label: 'Messages', icon: Mail, show: can('MANAGE_MEDIA') },
+    { key: 'people' as const, label: 'People', icon: Users, show: can('MANAGE_ROSTER') || can('ASSIGN_ROLES') || (!!uid && (org.ministries || []).some(m => m.headUids?.includes(uid))) },
+    { key: 'giving' as const, label: 'Giving', icon: Gift, show: can('MANAGE_GIVING') || can('VIEW_GIVING') || can('MANAGE_ACCOUNTING') || can('VIEW_ACCOUNTING') },
+    { key: 'events' as const, label: 'Events', icon: Calendar, show: can('POST_AS_ORG') || can('MANAGE_CONTENT') || isOwner },
+    { key: 'prayer' as const, label: 'Prayer', icon: HandHeart, show: faith && can('VIEW_PRAYER') },
+    { key: 'team' as const, label: 'Team & Roles', icon: UserCog, show: can('MANAGE_EMPLOYEES') || can('ASSIGN_ROLES') },
+    { key: 'multisite' as const, label: 'Multi-site', icon: MonitorPlay, show: faith && can('MANAGE_MEDIA') },
+    { key: 'education' as const, label: 'Classes', icon: GraduationCap, show: faith && !!myMembership },
+    { key: 'ministries' as const, label: faith ? 'Ministries' : 'Departments', icon: Church, show: can('MANAGE_MINISTRIES') },
     { key: 'music' as const, label: 'Music Department', icon: Music, show: faith && !!myMembership },
     { key: 'invites' as const, label: 'Invites', icon: Link2, show: can('MANAGE_INVITES') },
     { key: 'accounts' as const, label: 'Accounts & Access', icon: KeyRound, show: can('MANAGE_ROSTER') },
     { key: 'security' as const, label: 'Security & Privacy', icon: ShieldCheck, show: can('MANAGE_ROSTER') || can('MANAGE_GIVING') || can('MANAGE_ACCOUNTING') || isOwner },
-    { key: 'giving' as const, label: 'Giving', icon: Gift, show: can('MANAGE_GIVING') || can('VIEW_GIVING') || can('MANAGE_ACCOUNTING') || can('VIEW_ACCOUNTING') },
     { key: 'money' as const, label: 'Money', icon: Wallet, show: showMoney, badge: moneyInbox.count },
-    { key: 'prayer' as const, label: 'Prayer', icon: HandHeart, show: faith && can('VIEW_PRAYER') },
-    { key: 'media' as const, label: 'Media & Sermons', icon: MonitorPlay, show: can('MANAGE_SERMONS') || can('MANAGE_MEDIA') || can('MANAGE_CONTENT') },
+    { key: 'media' as const, label: 'Media & Sermons', icon: Radio, show: can('MANAGE_SERMONS') || can('MANAGE_MEDIA') || can('MANAGE_CONTENT') },
     { key: 'social' as const, label: 'Social', icon: MessagesSquare, show: can('MODERATE_THREADS') || can('POST_AS_ORG') },
     { key: 'store' as const, label: 'Store', icon: ShoppingBag, show: can('MANAGE_STORE') },
-    { key: 'team' as const, label: faith ? 'Volunteers & Staff' : 'Hiring & Staff', icon: Briefcase, show: can('MANAGE_EMPLOYEES') },
     { key: 'marketing' as const, label: 'Marketing', icon: Megaphone, show: can('MANAGE_CONTENT') || can('VIEW_ANALYTICS') },
   ] as { key: SectionKey; label: string; icon: any; show: boolean; badge?: number }[]).filter(n => n.show), [can, faith, isOwner, myMembership, showMoney, moneyInbox.count, org.ministries, uid]);
 
@@ -156,50 +173,70 @@ const ElevateOps: React.FC<Props> = ({ org: initialOrg, isOwner, onClose, onOrgC
     </button>
   );
 
+  const current = nav.find(n => n.key === section);
+  const kpi = (label: string, value: React.ReactNode, sub: string | undefined, Icon: any) => (
+    <div key={label} className="rounded-2xl p-4 bg-white/[0.03] border border-white/10">
+      <div className="flex items-center justify-between mb-2"><span className="text-[9px] font-black uppercase tracking-widest text-white/35">{label}</span><Icon size={14} style={{ color: VS }} /></div>
+      <p className="text-2xl font-black text-white tabular-nums">{value}</p>
+      {sub && <p className="text-[10px] font-bold mt-0.5" style={{ color: VS }}>{sub}</p>}
+    </div>
+  );
+  const quick = (label: string, Icon: any, to: SectionKey) => nav.some(n => n.key === to) && (
+    <button key={label} onClick={() => setSection(to)} className="flex items-center gap-1.5 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest bg-white/5 border border-white/10 text-white/60 hover:text-white transition-all">
+      <Icon size={12} /> {label}
+    </button>
+  );
+
+  // Same shell as the Grace Chapel admin backend (ChurchAdminDemoView): violet strip, icon sidebar, section header.
   return (
-    <div className="min-h-full p-4 sm:p-6 lg:p-10 max-w-6xl mx-auto">
-      <div className="flex items-center gap-4 mb-6">
-        <button onClick={onClose} className="flex items-center gap-2 text-white/40 hover:text-white text-[10px] font-black uppercase tracking-widest"><ArrowLeft size={14} /> Public view</button>
-        <div className="min-w-0">
-          <h1 className="text-xl lg:text-3xl font-black uppercase tracking-tight text-white truncate">{org.name} · Operations</h1>
-          <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">{myMembership?.title || myMembership?.roleKey || myMembership?.role || 'Member'}</p>
-        </div>
+    <div className="flex flex-col bg-[#0d0b12]" style={{ minHeight: 'calc(100dvh - 48px)' }}>
+      <div className="shrink-0 flex items-center gap-3 px-5 py-2.5 border-b border-white/8" style={{ background: 'rgba(139,92,246,0.10)' }}>
+        <span className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md text-white shrink-0" style={{ background: V }}>Admin Backend</span>
+        <p className="type-body-sm font-bold text-white/60 truncate">{org.name} · {faith ? 'Ministry admin' : 'Organization admin'} · {myMembership?.title || myMembership?.roleKey || myMembership?.role || 'Member'}</p>
+        <button onClick={onClose} className="ml-auto shrink-0 flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest text-white/70 hover:text-white bg-white/5 border border-white/10"><ArrowLeft size={12} /> Public page</button>
       </div>
 
       {nav.length === 0 ? (
-        <div className={`${card} p-10 text-center text-sm text-white/50`}>You don't have operations access for this organization yet.</div>
+        <div className="m-6 rounded-2xl p-10 text-center text-sm text-white/50 bg-white/[0.03] border border-white/10">You don't have admin access for this organization yet.</div>
       ) : (
-        <div className="flex flex-col md:flex-row gap-6">
-          <nav className="md:w-56 shrink-0 flex md:flex-col gap-1.5 overflow-x-auto md:overflow-visible pb-2 md:pb-0">
+        <div className="flex-1 min-h-0 flex">
+          <nav className="w-16 lg:w-52 shrink-0 border-r border-white/8 p-2 lg:p-3 overflow-y-auto scrollbar-hide">
             {nav.map(n => (
-              <button key={n.key} onClick={() => setSection(n.key)}
-                className={`flex items-center gap-2.5 px-4 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${section === n.key ? 'bg-white text-black' : 'bg-white/5 text-white/50 hover:text-white hover:bg-white/10'}`}>
-                <n.icon size={14} /> {n.label}<CountBadge n={n.badge || 0} />
+              <button key={n.key} onClick={() => setSection(n.key)} title={n.label}
+                className={`w-full flex items-center gap-2.5 px-2 lg:px-3 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all mb-1 ${section === n.key ? 'text-white' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
+                style={section === n.key ? { background: 'rgba(139,92,246,0.18)' } : undefined}>
+                <n.icon size={15} className="shrink-0" /> <span className="hidden lg:inline truncate">{n.label}</span><CountBadge n={n.badge || 0} />
               </button>
             ))}
           </nav>
 
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 overflow-y-auto scrollbar-hide p-4 sm:p-5 lg:p-8">
+            {current && section !== 'messages' && section !== 'multisite' && (
+              <div className="mb-5"><h2 className="text-xl font-black uppercase tracking-tight text-white">{current.label}</h2>{SECTION_SUB[section] && <p className="type-body-sm text-white/40 mt-0.5">{SECTION_SUB[section]}</p>}</div>
+            )}
             <Suspense fallback={<Fallback />}>
               {section === 'overview' && (
-                <div className="space-y-5">
+                <div className="space-y-5 max-w-4xl">
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                    {[
-                      ['Members', active], ['Pending', pending], ['Followers', org.followerCount ?? 0],
-                      ...(can('VIEW_GIVING') ? [['Given', `$${totalGiven.toLocaleString()}`]] : [['Ministries', org.ministries?.length || 0]]),
-                    ].map(([l, v]) => (
-                      <div key={String(l)} className={`${card} p-4`}>
-                        <p className="text-2xl font-black text-white">{v as any}</p>
-                        <p className="text-[9px] font-black uppercase tracking-widest text-white/40 mt-1">{l}</p>
-                      </div>
-                    ))}
+                    {kpi('Members', active, pending ? `${pending} pending` : undefined, Users)}
+                    {can('VIEW_GIVING') ? kpi('Giving · all time', `$${totalGiven.toLocaleString()}`, undefined, TrendingUp) : kpi(faith ? 'Ministries' : 'Departments', org.ministries?.length || 0, undefined, Church)}
+                    {kpi('Followers', org.followerCount ?? 0, undefined, Sparkles)}
+                    {kpi('Campuses', Math.max(1, org.campuses?.length || 0), undefined, MonitorPlay)}
                   </div>
-                  <div className={`${card} p-6`}>
+                  <div className="rounded-2xl p-4 bg-white/[0.03] border border-white/10">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-3">Quick actions</p>
+                    <div className="flex flex-wrap gap-2">
+                      {quick('Broadcast', Send, 'messages')}
+                      {quick('Import people', Upload, 'people')}
+                      {quick('Giving', DollarSign, 'giving')}
+                    </div>
+                  </div>
+                  <div className="rounded-2xl p-5 bg-white/[0.03] border border-white/10">
                     <div className="flex items-center justify-between mb-3">
-                      <h2 className="text-[10px] font-black uppercase tracking-widest text-small-orange">Setup</h2>
+                      <h2 className="text-[10px] font-black uppercase tracking-widest" style={{ color: VS }}>Setup</h2>
                       <span className="text-[10px] font-black text-white/50">{done}/{checklist.length}</span>
                     </div>
-                    <div className="h-1.5 rounded-full bg-white/10 overflow-hidden mb-4"><div className="h-full bg-small-orange" style={{ width: `${(done / checklist.length) * 100}%` }} /></div>
+                    <div className="h-1.5 rounded-full bg-white/10 overflow-hidden mb-4"><div className="h-full" style={{ width: `${(done / checklist.length) * 100}%`, background: V }} /></div>
                     <div className="space-y-2">
                       {checklist.map(c => (
                         <div key={c.key} className="flex items-center gap-2.5 text-xs">
@@ -214,6 +251,19 @@ const ElevateOps: React.FC<Props> = ({ org: initialOrg, isOwner, onClose, onOrgC
                       {pending} pending request{pending === 1 ? '' : 's'} waiting for review →
                     </button>
                   )}
+                </div>
+              )}
+
+
+              {section === 'messages' && can('MANAGE_MEDIA') && <ChurchConsole church={org} onClose={() => setSection('overview')} />}
+              {section === 'multisite' && can('MANAGE_MEDIA') && <ChurchMasterControl church={org} onClose={() => setSection('overview')} />}
+
+              {section === 'events' && (
+                <div className="max-w-3xl space-y-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <CreateEventButton host={{ kind: 'org', id: org.id, label: org.name }} />
+                  </div>
+                  <p className="type-body-sm text-white/40">Events you create here appear on the public page's Events tab, with RSVPs, ticketing and check-in.</p>
                 </div>
               )}
 
@@ -294,9 +344,14 @@ const ElevateOps: React.FC<Props> = ({ org: initialOrg, isOwner, onClose, onOrgC
               {section === 'store' && <OrgStoreSection org={org} mode="manage" onVisitUser={onVisitUser} onOrgChange={setOrg} />}
 
               {section === 'team' && (
-                <div className="grid sm:grid-cols-2 gap-3">
-                  {toolBtn('employees', 'Employees', UserCog, can('MANAGE_EMPLOYEES'), 'Staff records, roles, schedules')}
-                  {toolBtn('hiring', faith ? 'Volunteers' : 'Hiring', Mic2, can('MANAGE_EMPLOYEES'), 'Open roles, applicants, sign-ups')}
+                <div className="space-y-5">
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    {toolBtn('employees', 'Employees', UserCog, can('MANAGE_EMPLOYEES'), 'Staff records, roles, schedules')}
+                    {toolBtn('hiring', faith ? 'Volunteers' : 'Hiring', Mic2, can('MANAGE_EMPLOYEES'), 'Open roles, applicants, sign-ups')}
+                  </div>
+                  {(can('MANAGE_ROSTER') || can('ASSIGN_ROLES')) && (
+                    <RosterManager org={org} myMembership={myMembership} onClose={() => setSection('overview')} onChanged={() => { reload(); }} />
+                  )}
                 </div>
               )}
 

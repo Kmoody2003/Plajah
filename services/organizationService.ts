@@ -183,8 +183,14 @@ export async function fetchPublicOrganizations(orgType?: OrgType): Promise<Organ
 export async function fetchUserOrganizations(uid: string): Promise<Organization[]> {
   const snap = await getDocs(query(collection(db, 'orgMemberships'), where('userId', '==', uid)));
   const memberships = snap.docs.map(d => d.data() as OrgMembership).filter(m => m.status === 'ACTIVE');
-  const orgs = await Promise.all(memberships.map(m => fetchOrganization(m.orgId).catch(() => null)));
-  return orgs.filter(Boolean) as Organization[];
+  const orgs = (await Promise.all(memberships.map(m => fetchOrganization(m.orgId).catch(() => null)))).filter(Boolean) as Organization[];
+  // Orgs this user created always count as theirs, even if the owner membership row is missing —
+  // otherwise a stray duplicate can't be found (or deleted).
+  try {
+    const created = await getDocs(query(collection(db, 'organizations'), where('creatorId', '==', uid)));
+    for (const d of created.docs) if (!orgs.some(o => o.id === d.id)) orgs.push({ id: d.id, ...d.data() } as Organization);
+  } catch { /* */ }
+  return orgs;
 }
 
 export async function fetchOrgMembers(orgId: string): Promise<OrgMembership[]> {

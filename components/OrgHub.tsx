@@ -4,43 +4,63 @@
 // create form, and a public org profile. Brand accounts are Organizations
 // (orgType 'BRAND'); the same page will serve churches (orgType 'CHURCH') in Part 3.
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, lazy, Suspense } from 'react';
+import CreateEventButton from './events/CreateEventButton';
 import { motion } from 'motion/react';
 import {
   Building2, Plus, ArrowLeft, Check, Globe, MapPin, Users, Star, Loader2, Camera, Pencil,
-  Church, Clock, Gift, Trash2, Sparkles, MonitorPlay, Mail, HardDrive, Briefcase, Radio,
+  Church, Clock, Gift, Trash2, Sparkles, MonitorPlay, Mail, HardDrive, Briefcase, Megaphone,
+  KeyRound, UserCheck, Home, Image as ImageIcon, Calendar, Play, HandHeart, BookOpen,
+  Heart, MessageSquare, Ticket, ExternalLink, Radio, NotebookPen, ArrowRight, ChevronLeft,
 } from 'lucide-react';
-import type { Organization, OrgMembership, OrgType, OrgRole } from '../types';
+import type { Organization, OrgMembership, OrgType, OrgRole, UserProfile } from '../types';
 import { AdaptiveGrid, TYPE } from '../src/lib/designSystem';
 import {
   createOrganization, fetchUserOrganizations, fetchOrgMembers, updateOrganization,
   addOrgMember, removeOrgMember, setOrgMemberRole, fetchUnmigratedBrands, migrateLegacyBrands,
-  createDemoChurch, fetchChurchDonations, sumDonationsByFund,
+  createDemoChurch, fetchChurchDonations, sumDonationsByFund, openElevateGatewayModal,
 } from '../services/organizationService';
 import { uploadFile, searchUserProfiles, auth } from '../services/backendService';
 import { connectStripe } from '../services/stripeService';
-import ContentHQ from './ContentHQ';
-import EmployeeManager from './business/EmployeeManager';
-import HiringBoard from './business/HiringBoard';
 import ApplyModal from './business/ApplyModal';
 import CareersView from './business/CareersView';
 import { fetchOrgPostings } from '../services/hiringService';
-import type { JobPosting } from '../types';
+import { orgCan } from '../services/orgPermissions';
+import type { JobPosting, Video, Album, LiveFeed } from '../types';
+import ElevateSetupWizard from './elevate/ElevateSetupWizard';
+import DeleteOrgDialog from './elevate/DeleteOrgDialog';
+import IdentityEditor from './elevate/IdentityEditor';
 import ChurchGive from './ChurchGive';
-import SermonStudio from './SermonStudio';
 import ChurchMasterControl from './ChurchMasterControl';
-import ChurchConsole from './ChurchConsole';
 import ChurchDemoView from './ChurchDemoView';
 import BusinessDemoView from './BusinessDemoView';
 import { DEMO_BUSINESS_ORG, DEMO_BUSINESS_ID } from '../data/demoBusiness';
 import ChurchPrayerWall from './ChurchPrayerWall';
 import ChurchAnnouncements from './ChurchAnnouncements';
-import { DEMO_CHURCH, DEMO_CHURCH_ID } from '../data/demoShowcase';
+import ChurchEducation from './church/ChurchEducation';
+import {
+  DEMO_CHURCH, DEMO_CHURCH_ID, DEMO_CHURCH_FEED, DEMO_CHURCH_EVENTS,
+  DEMO_CHURCH_ALBUMS, DEMO_CHURCH_VIDEOS, DEMO_CHURCH_LIBRARY, DEMO_CHURCH_STAFF,
+} from '../data/demoShowcase';
+import { elevateCan } from '../services/elevateRoles';
+import { isElevateOrg, isFaithOrg, defaultMinistries } from '../services/elevateTemplates';
+import { followOrg, unfollowOrg, listenFollowedState } from '../services/orgFollowService';
+import MinistryPage from './elevate/MinistryPage';
+import OrgStoreSection from './elevate/OrgStoreSection';
+import OrgThread from './elevate/OrgThread';
+import OrgLiveNow from './elevate/OrgLiveNow';
+import OrgMediaShelves from './elevate/OrgMediaShelves';
+import RelloChurchViewer from './elevate/RelloChurchViewer';
+// Operations side + public rosters + Church Member Hub (lazy so the public page never blocks on them).
+const ElevateOps = lazy(() => import('./elevate/ElevateOps'));
+const ElevateRosters = lazy(() => import('./elevate/ElevateRosters'));
+const ChurchMemberHub = lazy(() => import('./elevate/ChurchMemberHub'));
 
 const ORG_TYPES: { type: OrgType; label: string; blurb: string }[] = [
   { type: 'BRAND',        label: 'Brand',        blurb: 'A label, studio, or product brand with a roster + community.' },
   { type: 'BUSINESS',     label: 'Business',     blurb: 'A local or online business page with hours + storefront.' },
   { type: 'CHURCH',       label: 'Church',       blurb: 'A ministry with sub-groups, giving, and streaming.' },
+  { type: 'RELIGIOUS',    label: 'Religious',    blurb: 'A mosque, temple, synagogue, or other faith community.' },
   { type: 'NONPROFIT',    label: 'Nonprofit',    blurb: 'A cause or charity with members and fundraising.' },
   { type: 'CULTURAL',     label: 'Cultural',     blurb: 'A museum, cultural center, or heritage institution.' },
   { type: 'LABEL',        label: 'Label',        blurb: 'A music/film label managing multiple artists.' },
@@ -50,15 +70,25 @@ const ORG_TYPES: { type: OrgType; label: string; blurb: string }[] = [
 const card = 'bg-white/[0.03] border border-white/10 rounded-[2rem]';
 const field = 'w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white outline-none focus:border-small-orange/50 transition-all placeholder:text-white/25';
 
-interface OrgHubProps { user: any; onBack: () => void; initialOrgId?: string; initialGive?: boolean; onVisitUser?: (uid: string) => void }
+interface OrgHubProps extends OrgMediaOpeners { user: any; onBack: () => void; /** Open straight into the Elevate setup wizard ("List your institution"). */ initialCreate?: boolean; initialOrgId?: string; initialGive?: boolean; initialContentHq?: boolean; onVisitUser?: (uid: string) => void }
 
-const OrgHub: React.FC<OrgHubProps> = ({ user, onBack, initialOrgId, initialGive, onVisitUser }) => {
-  const [mode, setMode] = useState<'list' | 'create' | 'view'>(initialOrgId ? 'view' : 'list');
+/** Navigation handlers for the live/media blocks on an org page (wired from App). */
+interface OrgMediaOpeners {
+  onOpenVideo?: (video: Video) => void;
+  onOpenAlbum?: (album: Album) => void;
+  onOpenLive?: (feed: LiveFeed) => void;
+  onOpenChannel?: (channelOwnerId: string, sourceId?: string) => void;
+}
+
+const OrgHub: React.FC<OrgHubProps> = ({ user, onBack, initialCreate, initialOrgId, initialGive, initialContentHq, onVisitUser, onOpenVideo, onOpenAlbum, onOpenLive, onOpenChannel }) => {
+  const [mode, setMode] = useState<'list' | 'create' | 'view'>(initialOrgId ? 'view' : initialCreate ? 'create' : 'list');
   const [orgs, setOrgs] = useState<Organization[]>([]);
   const [loading, setLoading] = useState(true);
   const [active, setActive] = useState<Organization | null>(null);
   const [legacyCount, setLegacyCount] = useState(0);
   const [importing, setImporting] = useState(false);
+  const [createFlow, setCreateFlow] = useState<null | 'elevate' | 'brand'>(initialCreate && !initialOrgId ? 'elevate' : null);
+  const [deleting, setDeleting] = useState<Organization | null>(null);
 
   const loadOrgs = useCallback(async () => {
     if (!user?.uid) return;
@@ -92,7 +122,30 @@ const OrgHub: React.FC<OrgHubProps> = ({ user, onBack, initialOrgId, initialGive
   }, [initialOrgId]);
 
   if (mode === 'create') {
-    return <OrgCreator onCancel={() => setMode('list')} onCreated={(o) => { setActive(o); setMode('view'); loadOrgs(); }} />;
+    if (createFlow === 'elevate') {
+      return <ElevateSetupWizard user={user} onCancel={() => { if (initialCreate) { onBack(); return; } setCreateFlow(null); setMode('list'); }} onCreated={(o) => { setCreateFlow(null); setActive(o); setMode('view'); loadOrgs(); }} />;
+    }
+    if (createFlow === null) {
+      return (
+        <div className="min-h-full p-4 sm:p-6 lg:p-12 max-w-2xl mx-auto">
+          <button onClick={() => setMode('list')} className="flex items-center gap-2 text-white/40 hover:text-white text-[10px] font-black uppercase tracking-widest mb-8"><ArrowLeft size={14} /> Cancel</button>
+          <h1 className="text-3xl font-black uppercase tracking-tight text-white mb-8">New organization</h1>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <button onClick={() => setCreateFlow('elevate')} className={`${card} p-6 text-left hover:bg-white/[0.06] transition-all`}>
+              <Church size={22} className="text-small-orange mb-3" />
+              <span className="block text-sm font-black uppercase tracking-widest text-white mb-1">Elevate</span>
+              <span className="text-xs text-white/40">Church, religious, cultural, non-profit or other — with departments, roles and invites.</span>
+            </button>
+            <button onClick={() => setCreateFlow('brand')} className={`${card} p-6 text-left hover:bg-white/[0.06] transition-all`}>
+              <Building2 size={22} className="text-small-orange mb-3" />
+              <span className="block text-sm font-black uppercase tracking-widest text-white mb-1">Brand / Business</span>
+              <span className="text-xs text-white/40">Brand, business, label or team page.</span>
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return <OrgCreator onCancel={() => { setCreateFlow(null); setMode('list'); }} onCreated={(o) => { setCreateFlow(null); setActive(o); setMode('view'); loadOrgs(); }} />;
   }
   if (mode === 'view' && active) {
     // Demo orgs open a fully-populated tour. Church → ministry tour; everything else
@@ -104,45 +157,45 @@ const OrgHub: React.FC<OrgHubProps> = ({ user, onBack, initialOrgId, initialGive
         ? <ChurchDemoView onBack={back} onCreate={create} onVisitUser={onVisitUser} />
         : <BusinessDemoView onBack={back} onCreate={create} />;
     }
-    return <OrgProfile org={active} isOwner={active.creatorId === user?.uid || !!active.admins?.includes(user?.uid)} initialGive={initialGive} onBack={() => { setActive(null); setMode('list'); }} />;
+    return <OrgProfile org={active} isOwner={active.creatorId === user?.uid || !!active.admins?.includes(user?.uid)} initialGive={initialGive} initialContentHq={initialContentHq} onVisitUser={onVisitUser} onOpenVideo={onOpenVideo} onOpenAlbum={onOpenAlbum} onOpenLive={onOpenLive} onOpenChannel={onOpenChannel} onBack={() => { setActive(null); setMode('list'); if (initialOrgId) onBack(); }} onDeleted={() => { setActive(null); setMode('list'); loadOrgs(); if (initialCreate || initialOrgId) onBack(); }} />;
   }
 
   // ── List ────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-full p-4 sm:p-6 lg:p-12 max-w-5xl mx-auto">
-      <div className="flex items-center justify-between mb-10">
-        <button onClick={onBack} className="flex items-center gap-2 text-white/40 hover:text-white text-[10px] font-black uppercase tracking-widest"><ArrowLeft size={14} /> Back</button>
-        <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-8 sm:mb-10">
+        <button onClick={onBack} className="flex items-center gap-2 text-white/40 hover:text-white text-[10px] font-black uppercase tracking-widest shrink-0"><ArrowLeft size={14} /> Back</button>
+        <div className="flex flex-wrap items-center gap-2">
           {legacyCount > 0 && (
-            <button onClick={importBrands} disabled={importing} className="flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/15 rounded-full text-[10px] font-black uppercase tracking-widest text-white/70 hover:text-white hover:bg-white/10 disabled:opacity-40">
+            <button onClick={importBrands} disabled={importing} className="flex items-center gap-1.5 px-3.5 sm:px-4 py-2 sm:py-2.5 bg-white/5 border border-white/15 rounded-full text-[10px] font-black uppercase tracking-widest text-white/70 hover:text-white hover:bg-white/10 disabled:opacity-40">
               {importing ? <Loader2 size={13} className="animate-spin" /> : <Building2 size={13} />} Import {legacyCount} brand{legacyCount > 1 ? 's' : ''}
             </button>
           )}
-          <button onClick={() => { setActive(DEMO_BUSINESS_ORG); setMode('view'); }} className="flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/15 rounded-full text-[10px] font-black uppercase tracking-widest text-white/70 hover:text-white hover:bg-white/10"><Building2 size={14} /> Demo business</button>
-          <button onClick={() => setMode('create')} className="flex items-center gap-2 px-5 py-2.5 bg-small-orange text-black rounded-full text-[10px] font-black uppercase tracking-widest hover:brightness-110"><Plus size={14} /> New organization</button>
+          <button onClick={() => { setActive(DEMO_BUSINESS_ORG); setMode('view'); }} className="flex items-center gap-1.5 px-3.5 sm:px-4 py-2 sm:py-2.5 bg-white/5 border border-white/15 rounded-full text-[10px] font-black uppercase tracking-widest text-white/70 hover:text-white hover:bg-white/10"><Building2 size={14} /> Demo business</button>
+          <button onClick={() => setMode('create')} className="flex items-center gap-1.5 px-4 sm:px-5 py-2 sm:py-2.5 bg-small-orange text-black rounded-full text-[10px] font-black uppercase tracking-widest hover:brightness-110"><Plus size={14} /> New organization</button>
         </div>
       </div>
       <div className="flex items-center gap-3 mb-8">
-        <div className="p-3 bg-small-orange/15 rounded-2xl"><Building2 className="text-small-orange" size={24} /></div>
-        <div>
-          <h1 className="text-3xl font-black uppercase tracking-tight text-white leading-none">Your organizations</h1>
-          <p className={`${TYPE.labelMd} font-bold text-white/40 uppercase tracking-widest mt-1`}>Brands, businesses, ministries — pages you run</p>
+        <div className="p-3 bg-small-orange/15 rounded-2xl shrink-0"><Building2 className="text-small-orange" size={24} /></div>
+        <div className="min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-white leading-none truncate">Your organizations</h1>
+          <p className={`${TYPE.labelMd} font-bold text-white/40 uppercase tracking-widest mt-1 truncate`}>Brands, businesses, ministries — pages you run</p>
         </div>
       </div>
 
       {loading ? (
         <div className="flex justify-center py-20"><Loader2 className="animate-spin text-white/30" size={28} /></div>
       ) : orgs.length === 0 ? (
-        <div className={`${card} p-12 text-center`}>
+        <div className={`${card} p-6 sm:p-12 text-center`}>
           <Building2 size={40} className="mx-auto text-white/15 mb-4" />
           <p className="text-white/50 font-bold mb-1">No organizations yet</p>
           <p className="text-[11px] text-white/30 mb-6">Create a brand, business, or ministry page — a parallel account with its own profile, staff, and community.</p>
-          <div className="flex items-center justify-center gap-3">
-            <button onClick={() => setMode('create')} className="px-6 py-3 bg-small-orange text-black rounded-full text-[10px] font-black uppercase tracking-widest hover:brightness-110">Create your first</button>
-            <button onClick={spinUpDemoChurch} disabled={importing} className="px-6 py-3 bg-white/5 border border-white/15 text-white/70 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-white/10 disabled:opacity-40 flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-center gap-2.5 sm:gap-3">
+            <button onClick={() => setMode('create')} className="px-5 sm:px-6 py-3 bg-small-orange text-black rounded-full text-[10px] font-black uppercase tracking-widest hover:brightness-110">Create your first</button>
+            <button onClick={spinUpDemoChurch} disabled={importing} className="px-5 sm:px-6 py-3 bg-white/5 border border-white/15 text-white/70 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-white/10 disabled:opacity-40 flex items-center gap-2">
               {importing ? <Loader2 size={13} className="animate-spin" /> : <Church size={13} />} Demo church
             </button>
-            <button onClick={() => { setActive(DEMO_BUSINESS_ORG); setMode('view'); }} className="px-6 py-3 bg-white/5 border border-white/15 text-white/70 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-white/10 flex items-center gap-2">
+            <button onClick={() => { setActive(DEMO_BUSINESS_ORG); setMode('view'); }} className="px-5 sm:px-6 py-3 bg-white/5 border border-white/15 text-white/70 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-white/10 flex items-center gap-2">
               <Building2 size={13} /> Demo business
             </button>
           </div>
@@ -150,7 +203,8 @@ const OrgHub: React.FC<OrgHubProps> = ({ user, onBack, initialOrgId, initialGive
       ) : (
         <AdaptiveGrid phone={1} tablet={2} desktop={2} gap="1rem">
           {orgs.map(o => (
-            <button key={o.id} onClick={() => { setActive(o); setMode('view'); }} className={`${card} p-5 text-left hover:bg-white/[0.06] transition-all flex items-center gap-4`}>
+            <div key={o.id} className="relative group">
+            <button onClick={() => { setActive(o); setMode('view'); }} className={`${card} w-full p-5 text-left hover:bg-white/[0.06] transition-all flex items-center gap-4`}>
               <div className="w-14 h-14 rounded-2xl overflow-hidden bg-white/5 border border-white/10 shrink-0 grid place-items-center">
                 {o.logoUrl ? <img src={o.logoUrl} alt="" className="w-full h-full object-cover" /> : <Building2 size={20} className="text-white/30" />}
               </div>
@@ -162,11 +216,19 @@ const OrgHub: React.FC<OrgHubProps> = ({ user, onBack, initialOrgId, initialGive
                 <p className={`${TYPE.labelSm} font-black uppercase tracking-widest text-small-orange/70 mt-0.5`}>{o.orgType}</p>
                 <p className="type-body-sm text-white/40 truncate mt-0.5">{o.tagline || o.about || '—'}</p>
               </div>
-              <span className={`${TYPE.labelSm} font-bold text-white/30 flex items-center gap-1 shrink-0`}><Users size={11} /> {o.memberCount ?? 1}</span>
+              <span className={`${TYPE.labelSm} font-bold text-white/30 flex items-center gap-1 shrink-0 ${o.creatorId === user?.uid && !o.isDemo ? 'mr-8' : ''}`}><Users size={11} /> {o.memberCount ?? 1}</span>
             </button>
+            {o.creatorId === user?.uid && !o.isDemo && (
+              <button onClick={() => setDeleting(o)} title={`Delete ${o.name}`} aria-label={`Delete ${o.name}`}
+                className="absolute top-1/2 -translate-y-1/2 right-4 p-2 rounded-full text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-all">
+                <Trash2 size={15} />
+              </button>
+            )}
+            </div>
           ))}
         </AdaptiveGrid>
       )}
+      {deleting && <DeleteOrgDialog org={deleting} onClose={() => setDeleting(null)} onDeleted={() => { setDeleting(null); loadOrgs(); }} />}
     </div>
   );
 };
@@ -257,283 +319,655 @@ const ImagePick: React.FC<{ label: string; file: File | null; onPick: (f: File) 
   </label>
 );
 
-// ── Public / owner org profile ──────────────────────────────────────────────
-const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => void; initialGive?: boolean }> = ({ org: initialOrg, isOwner, onBack, initialGive }) => {
+type ElevateOrgTab = 'HOME' | 'MINISTRIES' | 'PHOTOS' | 'EVENTS' | 'WATCH' | 'PRAYER' | 'LIBRARY' | 'STAFF' | 'GIVE';
+
+function getElevateOrgTabs(orgType?: OrgType): { k: ElevateOrgTab; label: string; icon: React.ComponentType<{ size?: number; className?: string }> }[] {
+  const faith = isFaithOrg(orgType);
+  if (faith) {
+    return [
+      { k: 'HOME',       label: 'Home',       icon: Home },
+      { k: 'MINISTRIES', label: 'Ministries', icon: Users },
+      { k: 'PHOTOS',     label: 'Photos',     icon: ImageIcon },
+      { k: 'EVENTS',     label: 'Events',     icon: Calendar },
+      { k: 'WATCH',      label: 'Watch',      icon: Play },
+      { k: 'PRAYER',     label: 'Prayer',     icon: HandHeart },
+      { k: 'LIBRARY',    label: 'Library',    icon: BookOpen },
+      { k: 'STAFF',      label: 'Staff',      icon: Users },
+      { k: 'GIVE',       label: 'Give',       icon: Gift },
+    ];
+  }
+  if (orgType === 'NONPROFIT') {
+    return [
+      { k: 'HOME',       label: 'Home',               icon: Home },
+      { k: 'MINISTRIES', label: 'Programs',           icon: Users },
+      { k: 'PHOTOS',     label: 'Photos',             icon: ImageIcon },
+      { k: 'EVENTS',     label: 'Events',             icon: Calendar },
+      { k: 'WATCH',      label: 'Watch',              icon: Play },
+      { k: 'PRAYER',     label: 'Community Wall',     icon: HandHeart },
+      { k: 'LIBRARY',    label: 'Resources',          icon: BookOpen },
+      { k: 'STAFF',      label: 'Leadership & Staff', icon: Users },
+      { k: 'GIVE',       label: 'Donate',             icon: Gift },
+    ];
+  }
+  if (orgType === 'CULTURAL') {
+    return [
+      { k: 'HOME',       label: 'Home',                icon: Home },
+      { k: 'MINISTRIES', label: 'Exhibits & Programs', icon: Users },
+      { k: 'PHOTOS',     label: 'Gallery',             icon: ImageIcon },
+      { k: 'EVENTS',     label: 'Events',              icon: Calendar },
+      { k: 'WATCH',      label: 'Watch',               icon: Play },
+      { k: 'PRAYER',     label: 'Patron Wall',         icon: HandHeart },
+      { k: 'LIBRARY',    label: 'Archives & Library',  icon: BookOpen },
+      { k: 'STAFF',      label: 'Curators & Staff',    icon: Users },
+      { k: 'GIVE',       label: 'Support',             icon: Gift },
+    ];
+  }
+  return [
+    { k: 'HOME',       label: 'Home',              icon: Home },
+    { k: 'MINISTRIES', label: 'Departments',       icon: Users },
+    { k: 'PHOTOS',     label: 'Photos',            icon: ImageIcon },
+    { k: 'EVENTS',     label: 'Events',            icon: Calendar },
+    { k: 'WATCH',      label: 'Watch',             icon: Play },
+    { k: 'PRAYER',     label: 'Community',         icon: HandHeart },
+    { k: 'LIBRARY',    label: 'Catalog & Library', icon: BookOpen },
+    { k: 'STAFF',      label: 'Team & Staff',      icon: Users },
+    { k: 'GIVE',       label: 'Support & Shop',    icon: Gift },
+  ];
+}
+
+const VIOLET = '#8B5CF6';
+const VIOLET_SOFT = '#B79BF5';
+const HERO_SHEEN = 'linear-gradient(135deg, rgba(139,92,246,0.18), rgba(0,0,0,0.4))';
+
+// ── Public / owner org profile (Grace Chapel default layout for all Elevate & Org pages) ──
+const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => void; onDeleted?: () => void; initialGive?: boolean; initialContentHq?: boolean; onVisitUser?: (uid: string) => void } & OrgMediaOpeners> = ({ org: initialOrg, isOwner, onBack, onDeleted, initialGive, initialContentHq, onVisitUser, onOpenVideo, onOpenAlbum, onOpenLive, onOpenChannel }) => {
   const [org, setOrg] = useState<Organization>(initialOrg);
   const [staff, setStaff] = useState<OrgMembership[]>([]);
   const [managing, setManaging] = useState(false);
-  const [giving, setGiving] = useState(!!initialGive);
-  const [studio, setStudio] = useState(false);
-  const [master, setMaster] = useState(false);
   const [elevateLive, setElevateLive] = useState(false);
-  const [showConsole, setShowConsole] = useState(false);
-  const [contentHq, setContentHq] = useState(false);
-  const [showEmployees, setShowEmployees] = useState(false);
-  const [showHiring, setShowHiring] = useState(false);
+  const [giving, setGiving] = useState(!!initialGive);
   const [openings, setOpenings] = useState<JobPosting[]>([]);
   const [applyFor, setApplyFor] = useState<JobPosting | null>(null);
   const [showCareers, setShowCareers] = useState(false);
   const [fundGiven, setFundGiven] = useState<Record<string, number>>({});
+  // Grace Chapel model: Public Page (with Hero + Sticky Tabs + Persistent Stream Carousel) is the default layout,
+  // with Edition I Member Hub and Operations right in the top bar.
+  const [view, setView] = useState<'member' | 'public' | 'ops'>(
+    initialContentHq ? 'ops' : 'public'
+  );
+  const [tab, setTab] = useState<ElevateOrgTab>('HOME');
+  const [following, setFollowing] = useState(false);
+  const [openMinistry, setOpenMinistry] = useState<string | null>(null);
+  useEffect(() => listenFollowedState(org.id, s => setFollowing(s.org)), [org.id]);
   const reloadStaff = useCallback(() => { fetchOrgMembers(org.id).then(setStaff).catch(() => {}); }, [org.id]);
   useEffect(() => { reloadStaff(); }, [reloadStaff]);
-  useEffect(() => { fetchOrgPostings(org.id).then(ps => setOpenings(ps.filter(p => p.status === 'OPEN'))).catch(() => {}); }, [org.id, showHiring]);
+  useEffect(() => { fetchOrgPostings(org.id).then(ps => setOpenings(ps.filter(p => p.status === 'OPEN'))).catch(() => {}); }, [org.id]);
   useEffect(() => {
-    if (org.orgType === 'CHURCH') fetchChurchDonations(org.id).then(d => setFundGiven(sumDonationsByFund(d))).catch(() => {});
+    if (isElevateOrg(org.orgType)) fetchChurchDonations(org.id).then(d => setFundGiven(sumDonationsByFund(d))).catch(() => {});
   }, [org.id, org.orgType]);
 
+  const myMembership = staff.find(m => m.userId === auth.currentUser?.uid) ||
+    (isOwner && auth.currentUser
+      ? { id: '', orgId: org.id, userId: auth.currentUser.uid, role: 'OWNER' as OrgRole, status: 'ACTIVE' as const, displayName: '', joinedAt: 0 }
+      : null);
+  const elevate = isElevateOrg(org.orgType);
+  const faith = isFaithOrg(org.orgType);
+  const can = (p: Parameters<typeof elevateCan>[2]) => isOwner || elevateCan(myMembership, org, p);
+  const hasOps = isOwner || (['MANAGE_ROSTER', 'MANAGE_MINISTRIES', 'MANAGE_INVITES', 'MANAGE_GIVING', 'VIEW_GIVING', 'VIEW_PRAYER', 'MANAGE_SERMONS', 'MANAGE_MEDIA', 'MODERATE_THREADS', 'MANAGE_STORE', 'MANAGE_EMPLOYEES', 'POST_AS_ORG'] as const).some(p => elevateCan(myMembership, org, p));
+  const toggleFollow = async () => {
+    if (!auth.currentUser) { alert('Sign in to follow.'); return; }
+    try { following ? await unfollowOrg(org.id) : await followOrg(org.id); } catch (e: any) { alert(e?.message || 'Could not update follow.'); }
+  };
+
+  const orgTabs = getElevateOrgTabs(org.orgType);
+  const ministriesLabel = orgTabs.find(t => t.k === 'MINISTRIES')?.label || 'Ministries';
+  const effectiveMinistries = (org.ministries && org.ministries.filter(m => !m.isInternal && !m.parentId).length > 0)
+    ? org.ministries.filter(m => !m.isInternal && !m.parentId)
+    : defaultMinistries(org.orgType || 'CHURCH').filter(m => !m.isInternal);
+  const effectiveServiceTimes = (org.serviceTimes && org.serviceTimes.length > 0)
+    ? org.serviceTimes
+    : (DEMO_CHURCH.serviceTimes || []);
+  const effectiveGivingFunds = (org.givingFunds && org.givingFunds.length > 0)
+    ? org.givingFunds
+    : (DEMO_CHURCH.givingFunds || []);
+
   if (managing && isOwner) {
-    return <OrgManage org={org} staff={staff} onClose={() => setManaging(false)} onSaved={setOrg} reloadStaff={reloadStaff} />;
-  }
-  if (giving) {
-    return <ChurchGive org={org} fundGiven={fundGiven} onClose={() => setGiving(false)} />;
-  }
-  if (studio && isOwner) {
-    return <SermonStudio church={org} onClose={() => setStudio(false)} />;
-  }
-  if (master && isOwner) {
-    return <ChurchMasterControl church={org} onClose={() => setMaster(false)} />;
+    return <OrgManage org={org} staff={staff} onClose={() => setManaging(false)} onSaved={setOrg} reloadStaff={reloadStaff} onDeleted={onDeleted} />;
   }
   if (elevateLive && isOwner) {
     return <ChurchMasterControl church={org} onClose={() => setElevateLive(false)} defaultMode="elevate" />;
   }
-  if (showConsole && isOwner) {
-    return <ChurchConsole church={org} onClose={() => setShowConsole(false)} />;
-  }
-  if (contentHq && isOwner) {
-    return <ContentHQ scope={{ kind: 'org', id: org.id, ownerUid: org.creatorId, adminUids: org.admins, label: org.name }} canEdit={isOwner} mediaOwnerUid={org.creatorId} onClose={() => setContentHq(false)} />;
+  if (giving) {
+    return <ChurchGive org={org} fundGiven={fundGiven} onClose={() => setGiving(false)} />;
   }
   if (showCareers) {
     return <CareersView org={org} onBack={() => setShowCareers(false)} />;
   }
 
+  // Segmented control at the top of every Elevate / Org page (identical to Grace Chapel)
+  const modeToggle = (
+    <div className="sticky top-0 z-40 flex flex-wrap items-center justify-between gap-2 px-4 py-1.5 bg-[#0d0b12]/95 backdrop-blur-xl border-b border-white/8">
+      <button onClick={onBack} className={`flex items-center gap-1.5 text-white/60 hover:text-white ${TYPE.labelMd}`}>
+        <ChevronLeft size={16} /> Back
+      </button>
+      <div className="inline-flex rounded-full bg-white/5 border border-white/10 p-0.5">
+        <button
+          onClick={() => setView('public')}
+          className={`px-4 py-1.5 rounded-full ${TYPE.labelSm} transition-all ${view === 'public' ? 'text-white' : 'text-white/45 hover:text-white'}`}
+          style={view === 'public' ? { background: VIOLET } : undefined}
+        >
+          {faith ? 'Public Church Page' : `Public ${org.orgKindLabel || org.orgType || 'Org'} Page`}
+        </button>
+        <button
+          onClick={() => setView('member')}
+          className={`px-4 py-1.5 rounded-full ${TYPE.labelSm} transition-all ${view === 'member' ? 'text-white' : 'text-white/45 hover:text-white'}`}
+          style={view === 'member' ? { background: 'linear-gradient(135deg,#6B0099,#D40055)' } : undefined}
+        >
+          Edition I Member Hub
+        </button>
+        {hasOps && (
+          <button
+            onClick={() => setView('ops')}
+            className={`px-4 py-1.5 rounded-full ${TYPE.labelSm} transition-all ${view === 'ops' ? 'text-white' : 'text-white/45 hover:text-white'}`}
+            style={view === 'ops' ? { background: VIOLET } : undefined}
+          >
+            Admin Backend
+          </button>
+        )}
+      </div>
+      <div className="flex items-center gap-1.5">
+        {hasOps && <CreateEventButton compact host={{ kind: 'org', id: org.id, label: org.name }} />}
+        {isOwner && (
+          <button onClick={() => setElevateLive(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 border border-white/10 rounded-full text-[9px] font-black uppercase tracking-widest text-white/65 hover:text-white hover:bg-white/10 transition-all">
+            <Radio size={11} /> Elevate Live
+          </button>
+        )}
+        {isOwner && (
+          <button onClick={() => setManaging(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 border border-white/10 rounded-full text-[9px] font-black uppercase tracking-widest text-white/65 hover:text-white hover:bg-white/10 transition-all">
+            <Pencil size={11} /> Manage
+          </button>
+        )}
+      </div>
+    </div>
+  );
+
+  if (view === 'ops' && hasOps) {
+    return (
+      <div className="min-h-full bg-[#0d0b12]">
+        {modeToggle}
+        <Suspense fallback={<div className="flex justify-center py-20"><Loader2 className="animate-spin text-white/30" size={24} /></div>}>
+          <ElevateOps org={org} isOwner={isOwner} onClose={() => setView('public')} onOrgChange={setOrg} onVisitUser={onVisitUser} initialTool={initialContentHq ? 'hq' : undefined} />
+        </Suspense>
+      </div>
+    );
+  }
+
+  if (view === 'member') {
+    return (
+      <div className="min-h-full bg-[#05030A]">
+        {modeToggle}
+        <div className="max-w-[1440px] mx-auto px-4 sm:px-8 py-6">
+          <Suspense fallback={<div className="flex justify-center py-20"><Loader2 className="animate-spin text-white/30" size={24} /></div>}>
+            <ChurchMemberHub
+              org={org}
+              membership={myMembership}
+              user={auth.currentUser}
+              onOpenGive={() => setGiving(true)}
+              onOpenMinistry={id => { setView('public'); setTab('MINISTRIES'); setOpenMinistry(id); }}
+            />
+          </Suspense>
+        </div>
+      </div>
+    );
+  }
+
+  const ministryOpen = openMinistry
+    ? (org.ministries?.find(m => m.id === openMinistry) || effectiveMinistries.find(m => m.id === openMinistry))
+    : undefined;
+
   return (
-    <div className="min-h-full">
-      {/* Cover */}
-      <div className="relative h-48 lg:h-64 bg-gradient-to-br from-[#1a1030] to-[#2a1500] overflow-hidden">
-        {org.coverUrl && <img src={org.coverUrl} alt="" className="w-full h-full object-cover" />}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#050505] to-transparent" />
-        <button onClick={onBack} className="absolute top-5 left-5 flex items-center gap-2 px-3 py-2 bg-black/50 backdrop-blur rounded-full text-white/70 hover:text-white text-[10px] font-black uppercase tracking-widest"><ArrowLeft size={13} /> Back</button>
+    <div className="min-h-full bg-[#0d0b12]">
+      {modeToggle}
+
+      {/* ── Grace Chapel Hero ── */}
+      <div className="relative h-56 md:h-68 max-h-[45vh] overflow-hidden">
+        <img src={org.coverUrl || DEMO_CHURCH.coverUrl} className="absolute inset-0 w-full h-full object-cover opacity-45" alt="" />
+        <div className="absolute inset-0" style={{ background: HERO_SHEEN }} />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0d0b12] via-[#0d0b12]/35 to-transparent" />
+        <div className="absolute bottom-4 flex flex-wrap items-end justify-between gap-4" style={{ left: 'max(1.5rem, env(safe-area-inset-left))', right: 'max(1.5rem, env(safe-area-inset-right))' }}>
+          <div className="flex items-end gap-4 min-w-0">
+            <div className="w-20 h-20 rounded-2xl overflow-hidden border-2 shrink-0 bg-[#111] grid place-items-center" style={{ borderColor: VIOLET }}>
+              {org.logoUrl ? <img src={org.logoUrl} className="w-full h-full object-cover" alt="" /> : <Church size={28} style={{ color: VIOLET_SOFT }} />}
+            </div>
+            <div className="min-w-0 pb-1">
+              <div className="flex items-center gap-2">
+                <Church size={16} style={{ color: VIOLET_SOFT }} />
+                <h1 className="font-black tracking-tight text-white truncate" style={{ fontSize: 'clamp(1.65rem,5vw,2.5rem)' }}>{org.name}</h1>
+                {org.isVerified && <Check size={16} className="text-small-orange shrink-0" />}
+              </div>
+              <p className="type-body-md text-white/65 truncate">{org.tagline || org.about || `${org.denomination || org.orgKindLabel || org.orgType} · Welcome home`}</p>
+              <div className="flex flex-wrap items-center gap-3 mt-1 text-[10px] text-white/45">
+                <span className="flex items-center gap-1"><Users size={11} /> {org.memberCount ?? Math.max(1, staff.length)} members</span>
+                {org.location?.city && <span className="flex items-center gap-1"><MapPin size={11} /> {org.location.city}</span>}
+                {org.socialLinks?.website && <a href={org.socialLinks.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-white"><Globe size={11} /> Website</a>}
+              </div>
+            </div>
+          </div>
+
+          {/* Follow / Claim / Request Membership / Give action pills */}
+          <div className="flex flex-wrap items-center gap-2 pb-1">
+            <button
+              onClick={toggleFollow}
+              title="Follow for public updates and streams (no approval required)"
+              className={`px-3.5 py-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${following ? 'bg-white/10 text-white border border-white/15' : 'bg-small-orange text-black hover:brightness-110'}`}
+            >
+              {following ? 'Following ✓' : 'Follow'}
+            </button>
+            {myMembership?.status === 'ACTIVE' ? (
+              <span className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-emerald-500/15 border border-emerald-500/35 text-emerald-300 text-[9px] font-black uppercase tracking-widest">
+                <UserCheck size={12} /> Member{myMembership.memberNumber ? ` · ${myMembership.memberNumber}` : ''}
+              </span>
+            ) : myMembership?.status === 'PENDING' ? (
+              <span className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-amber-500/15 border border-amber-500/35 text-amber-300 text-[9px] font-black uppercase tracking-widest">
+                <Clock size={12} /> Pending Approval
+              </span>
+            ) : (
+              <>
+                <button
+                  onClick={() => openElevateGatewayModal({ orgKey: org.slug || org.id, mode: 'claim' })}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-gradient-to-r from-[#6B0099] to-[#D40055] text-white text-[9px] font-black uppercase tracking-widest shadow hover:brightness-110 transition-all"
+                >
+                  <KeyRound size={11} /> Claim Account
+                </button>
+                <button
+                  onClick={() => openElevateGatewayModal({ orgKey: org.slug || org.id, mode: 'join' })}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-white/[0.08] hover:bg-white/[0.15] border border-white/15 text-white text-[9px] font-black uppercase tracking-widest transition-all"
+                >
+                  <UserCheck size={11} /> Join &amp; Onboard
+                </button>
+              </>
+            )}
+            <button
+              onClick={() => setGiving(true)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-white text-[9px] font-black uppercase tracking-widest transition-all hover:brightness-110"
+              style={{ background: VIOLET }}
+            >
+              <Gift size={11} /> {orgTabs.find(t => t.k === 'GIVE')?.label || 'Give'}
+            </button>
+          </div>
+        </div>
       </div>
 
-      <div className="px-6 lg:px-12 max-w-5xl mx-auto">
-        {/* Identity */}
-        <div className="flex items-end gap-5 -mt-14 relative">
-          <div className="w-28 h-28 rounded-3xl overflow-hidden bg-[#111] border-4 border-[#050505] grid place-items-center shrink-0">
-            {org.logoUrl ? <img src={org.logoUrl} alt="" className="w-full h-full object-cover" /> : <Building2 size={36} className="text-white/30" />}
-          </div>
-          <div className="flex-1 min-w-0 pb-2">
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl lg:text-4xl font-black uppercase tracking-tight text-white truncate">{org.name}</h1>
-              {org.isVerified && <Check size={18} className="text-small-orange shrink-0" />}
-            </div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-small-orange/80 mt-1">{org.orgType}{org.category ? ` · ${org.category}` : ''}</p>
-          </div>
-          {isOwner && (
-            <button onClick={() => setManaging(true)} className="pb-2 flex items-center gap-1.5 px-4 py-2 bg-white/5 border border-white/10 rounded-full text-[9px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/10 transition-all shrink-0"><Pencil size={11} /> Manage</button>
-          )}
+      {/* ── Sticky Horizontal Tab Bar (Grace Chapel Model — Tab Names Tailored to Org Type) ── */}
+      <div className="sticky top-[45px] z-30 bg-[#0d0b12]/90 backdrop-blur-xl border-b border-white/8">
+        <div className="flex items-center gap-1 px-4 overflow-x-auto scrollbar-hide max-w-5xl mx-auto">
+          {orgTabs.map(({ k, label, icon: Icon }) => {
+            const active = tab === k && !ministryOpen;
+            return (
+              <button
+                key={k}
+                onClick={() => { setTab(k); setOpenMinistry(null); }}
+                className={`shrink-0 flex items-center gap-1.5 px-3.5 py-3 ${TYPE.labelMd} border-b-2 transition-all`}
+                style={active ? { color: '#fff', borderColor: VIOLET } : { color: 'rgba(255,255,255,0.35)', borderColor: 'transparent' }}
+              >
+                <Icon size={13} /> {label}
+              </button>
+            );
+          })}
         </div>
+      </div>
 
-        {org.tagline && <p className="text-white/70 mt-4 text-sm font-medium">{org.tagline}</p>}
-        {org.about && <p className="text-white/50 mt-3 text-sm leading-relaxed max-w-2xl">{org.about}</p>}
+      {/* ── Main Content Container with Persistent Live Stream Carousel Under the Tabs ── */}
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+        {/* PERSISTENT LIVE STREAM THUMBNAIL CAROUSEL (Always mounted under the tabs so users can hop in and watch from anywhere on the org page without interrupting playback) */}
+        <RelloChurchViewer org={org} defaultPlayerExpanded={false} />
 
-        {/* Meta row */}
-        <div className="flex flex-wrap items-center gap-4 mt-5 text-[11px] text-white/40">
-          <span className="flex items-center gap-1.5"><Users size={13} /> {org.memberCount ?? 1} members</span>
-          {org.socialLinks?.website && <a href={org.socialLinks.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 hover:text-white"><Globe size={13} /> Website</a>}
-          {org.location?.city && <span className="flex items-center gap-1.5"><MapPin size={13} /> {org.location.city}</span>}
-        </div>
+        {/* Also render real live feed banner if broadcasting on Plajah Live */}
+        <OrgLiveNow org={org} viewerIsOrgMember={myMembership?.status === 'ACTIVE'} onOpenLive={onOpenLive} onOpenChannel={onOpenChannel} />
 
-        {/* Owner tools available to every org type */}
-        {isOwner && (
-          <div className="mt-6 flex flex-wrap gap-2">
-            <button onClick={() => setContentHq(true)} className="flex items-center gap-2 px-5 py-2.5 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/10 transition-all">
-              <HardDrive size={14} className="text-small-orange" /> Content HQ
-            </button>
-            <button onClick={() => setShowEmployees(true)} className="flex items-center gap-2 px-5 py-2.5 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/10 transition-all">
-              <Users size={14} className="text-[#0070FF]" /> Employees
-            </button>
-            <button onClick={() => setShowHiring(true)} className="flex items-center gap-2 px-5 py-2.5 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/10 transition-all">
-              <Briefcase size={14} className="text-[#0070FF]" /> {(org.orgType === 'CHURCH' || org.orgType === 'NONPROFIT' || org.orgType === 'CULTURAL') ? 'Volunteers' : 'Hiring'}
-            </button>
-          </div>
-        )}
-
-        {showHiring && (
-          <HiringBoard
-            org={org}
-            myMembership={
-              staff.find(m => m.userId === auth.currentUser?.uid) ||
-              (isOwner && auth.currentUser
-                ? { id: '', orgId: org.id, userId: auth.currentUser.uid, role: 'OWNER', status: 'ACTIVE', displayName: '', joinedAt: 0 }
-                : null)
-            }
-            onClose={() => setShowHiring(false)}
-          />
-        )}
-
-        {/* Public "Careers / Get Involved" — anyone can see open roles and apply in one tap */}
-        {openings.length > 0 && (
-          <div className="mt-8">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-xs font-black uppercase tracking-widest text-white/40">
-                {(org.orgType === 'CHURCH' || org.orgType === 'NONPROFIT' || org.orgType === 'CULTURAL') ? 'Get Involved' : 'Careers'}
-              </h3>
-              <button onClick={() => setShowCareers(true)} className="text-[9px] font-black uppercase tracking-widest text-small-orange/70 hover:text-small-orange">See all openings →</button>
-            </div>
-            <div className="space-y-2">
-              {openings.map(p => (
-                <div key={p.id} className="flex items-center gap-3 p-4 rounded-2xl bg-white/[0.03] border border-white/8">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-white truncate">{p.title}</p>
-                    <p className="text-[9px] font-black uppercase tracking-widest text-white/30">{p.postingType === 'VOLUNTEER' ? 'Volunteer' : (p.employmentType || 'Paid')}{p.location ? ` · ${p.location}` : ''}{p.isRemote ? ' · Remote' : ''}</p>
-                  </div>
-                  <button onClick={() => setApplyFor(p)} className="px-4 py-2 rounded-full text-black text-[10px] font-black uppercase tracking-widest shrink-0" style={{ background: 'linear-gradient(135deg,#0070FF,#FFD400)' }}>
-                    {p.postingType === 'VOLUNTEER' ? 'Sign up' : 'Apply'}
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
         {applyFor && <ApplyModal posting={applyFor} orgName={org.name} onClose={() => setApplyFor(null)} />}
 
-        {showEmployees && (
-          <EmployeeManager
-            org={org}
-            myMembership={
-              staff.find(m => m.userId === auth.currentUser?.uid) ||
-              (isOwner && auth.currentUser
-                ? { id: '', orgId: org.id, userId: auth.currentUser.uid, role: 'OWNER', status: 'ACTIVE', displayName: '', joinedAt: 0 }
-                : null)
-            }
-            onClose={() => setShowEmployees(false)}
-          />
-        )}
-
-        {/* Church vertical — plan your visit + ministries + give */}
-        {org.orgType === 'CHURCH' && (
+        {/* ── Ministry / Department Drill-Down (inline below the persistent stream carousel!) ── */}
+        {ministryOpen ? (
+          <div className="space-y-4">
+            <MinistryPage
+              org={org}
+              ministry={ministryOpen}
+              myMembership={myMembership}
+              onBack={() => setOpenMinistry(null)}
+              onVisitUser={onVisitUser}
+              onOrgChange={setOrg}
+            />
+          </div>
+        ) : (
           <>
-            <div className="mt-6 flex flex-wrap gap-2">
-              <button onClick={() => setGiving(true)}
-                className="flex items-center gap-2 px-5 py-2.5 bg-small-orange text-black rounded-full text-[10px] font-black uppercase tracking-widest hover:brightness-110">
-                <Gift size={14} /> Give
-              </button>
-              <span className="flex items-center gap-2 px-5 py-2.5 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest text-white/50">
-                <Church size={14} /> Plan a visit
-              </span>
-              {isOwner && (
-                <button onClick={() => setStudio(true)} className="flex items-center gap-2 px-5 py-2.5 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/10 transition-all">
-                  <Sparkles size={14} className="text-small-orange" /> Sermon Studio
-                </button>
-              )}
-              {isOwner && (
-                <button onClick={() => setMaster(true)} className="flex items-center gap-2 px-5 py-2.5 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/10 transition-all">
-                  <MonitorPlay size={14} className="text-small-orange" /> Master Control
-                </button>
-              )}
-              {isOwner && (
-                <button onClick={() => setElevateLive(true)} className="flex items-center gap-2 px-5 py-2.5 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/10 transition-all">
-                  <Radio size={14} className="text-small-orange" /> Elevate Live
-                </button>
-              )}
-              {isOwner && (
-                <button onClick={() => setShowConsole(true)} className="flex items-center gap-2 px-5 py-2.5 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/10 transition-all">
-                  <Mail size={14} className="text-small-orange" /> Console
-                </button>
-              )}
-            </div>
+            {/* ── TAB 1: HOME ── */}
+            {tab === 'HOME' && (
+              <AdaptiveGrid phone={1} tablet={1} desktop={3} gap="1.5rem">
+                <div className="lg:col-span-2 space-y-5">
+                  <ChurchAnnouncements orgId={org.id} orgName={org.name} orgPhoto={org.logoUrl || ''} isOwner={isOwner} canPost={can('POST_AS_ORG')} />
+                  <OrgThread org={org} myMembership={myMembership} onVisitUser={onVisitUser} onOrgChange={setOrg} readOnly={!myMembership || myMembership.status !== 'ACTIVE'} />
+                  <div className="space-y-3">
+                    <p className={TYPE.labelSm} style={{ color: VIOLET_SOFT }}>Latest from {org.name}</p>
+                    {DEMO_CHURCH_FEED.map(p => (
+                      <div key={p.id} className="rounded-2xl p-4 bg-white/[0.03] border border-white/10">
+                        <div className="flex items-center gap-2.5 mb-2">
+                          <img src={p.authorPhoto} className="w-9 h-9 rounded-full object-cover border border-white/10" alt="" />
+                          <div><p className={`${TYPE.titleSm} text-white`}>{p.author}</p><p className={`${TYPE.labelSm} text-white/35`}>{p.when} ago</p></div>
+                        </div>
+                        <p className="text-sm text-white/80 leading-relaxed">{p.text}</p>
+                        {p.image && <img src={p.image} className="w-full max-h-72 object-cover rounded-xl mt-3 border border-white/10" alt="" loading="lazy" />}
+                        <div className="flex items-center gap-4 mt-3 pt-2 border-t border-white/6 text-white/40">
+                          <span className="flex items-center gap-1.5 text-[11px] font-bold"><Heart size={13} /> {p.likes}</span>
+                          <span className="flex items-center gap-1.5 text-[11px] font-bold"><MessageSquare size={13} /> {p.comments}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
 
-            <ChurchAnnouncements orgId={org.id} orgName={org.name} orgPhoto={org.logoUrl || ''} isOwner={isOwner} />
+                <div className="space-y-4">
+                  <div className="rounded-2xl p-4 bg-white/[0.03] border border-white/10">
+                    <p className={`${TYPE.labelMd} text-white/40 mb-3`}>
+                      {faith ? 'Service times' : org.orgType === 'CULTURAL' ? 'Hours & Gatherings' : 'Schedule & Gatherings'}
+                    </p>
+                    {effectiveServiceTimes.map(s => (
+                      <div key={s.id} className="flex items-center justify-between py-1.5 border-b border-white/6 last:border-0">
+                        <span className="type-body-md text-white/70">{s.label}</span>
+                        <span className="type-body-sm font-black text-white tabular-nums">{s.day} · {s.time}</span>
+                      </div>
+                    ))}
+                  </div>
 
-            {org.givingFunds && org.givingFunds.length > 0 && (
-              <section className="mt-10">
-                <h2 className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-3 flex items-center gap-2"><Gift size={12} className="text-small-orange" /> Giving funds</h2>
-                <div className="grid sm:grid-cols-2 gap-3">
-                  {org.givingFunds.map(f => {
-                    const raised = (f.raised || 0) + (fundGiven[f.name] || 0);
-                    return (
-                    <button key={f.id} onClick={() => setGiving(true)} className="text-left p-4 rounded-2xl bg-white/[0.04] border border-white/10 hover:bg-white/[0.07] transition-all">
-                      <p className="text-sm font-black text-white">{f.name}</p>
-                      {f.description && <p className="text-[11px] text-white/40 mt-0.5">{f.description}</p>}
-                      {typeof f.goal === 'number' && f.goal > 0 && (
-                        <>
-                          <div className="mt-2 h-1.5 rounded-full bg-white/10 overflow-hidden"><div className="h-full bg-small-orange" style={{ width: `${Math.min(100, (raised / f.goal) * 100)}%` }} /></div>
-                          <p className="text-[9px] font-black uppercase tracking-widest text-white/40 mt-1.5">${raised.toLocaleString()} of ${f.goal.toLocaleString()}</p>
-                        </>
-                      )}
+                  <div className="rounded-2xl p-4 bg-white/[0.03] border border-white/10">
+                    <p className={`${TYPE.labelMd} text-white/40 mb-3`}>Coming up</p>
+                    <div className="space-y-2">
+                      {DEMO_CHURCH_EVENTS.slice(0, 2).map(e => (
+                        <button key={e.id} onClick={() => setTab('EVENTS')} className="w-full text-left flex items-center gap-2 group">
+                          <img src={e.image} className="w-12 h-12 rounded-lg object-cover" alt="" />
+                          <div className="min-w-0">
+                            <p className="type-body-md font-bold text-white truncate group-hover:text-violet-300">{e.title}</p>
+                            <p className="text-[10px] text-white/40">{e.date}</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {openings.length > 0 && (
+                    <div className="rounded-2xl p-4 bg-white/[0.03] border border-white/10 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <p className={`${TYPE.labelMd} text-white/40`}>
+                          {elevate ? 'Get Involved' : 'Careers'}
+                        </p>
+                        <button onClick={() => setShowCareers(true)} className="text-[9px] font-black uppercase tracking-widest text-small-orange">All →</button>
+                      </div>
+                      {openings.slice(0, 3).map(p => (
+                        <div key={p.id} className="flex items-center justify-between gap-2 py-1.5 border-b border-white/5 last:border-0">
+                          <span className="text-xs font-bold text-white truncate">{p.title}</span>
+                          <button onClick={() => setApplyFor(p)} className="px-2.5 py-1 rounded-full bg-small-orange text-black text-[9px] font-black uppercase tracking-widest shrink-0">
+                            {p.postingType === 'VOLUNTEER' ? 'Sign up' : 'Apply'}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </AdaptiveGrid>
+            )}
+
+            {/* ── TAB 2: MINISTRIES / PROGRAMS / EXHIBITS / DEPARTMENTS ── */}
+            {tab === 'MINISTRIES' && (
+              <AdaptiveGrid phone={1} tablet={2} desktop={3} gap="0.75rem">
+                {effectiveMinistries.map(m => (
+                  <button
+                    key={m.id}
+                    onClick={() => setOpenMinistry(m.id)}
+                    className="text-left rounded-2xl p-5 bg-white/[0.03] border border-white/10 hover:border-white/25 hover:bg-white/[0.06] transition-all group"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-3xl">{m.iconEmoji || '✨'}</span>
+                      <span className={`${TYPE.labelSm} px-2 py-0.5 rounded-full`} style={{ color: VIOLET_SOFT, background: 'rgba(139,92,246,0.12)' }}>
+                        Live space
+                      </span>
+                    </div>
+                    <h4 className="text-base font-black text-white mb-0.5 group-hover:text-violet-200">{m.name}</h4>
+                    {m.description && <p className="type-body-sm text-white/45 leading-snug mb-2">{m.description}</p>}
+                    {m.meetingTime && <span className={`flex items-center gap-1 ${TYPE.labelMd} text-white/35`}><Clock size={10} /> {m.meetingTime}</span>}
+                    <span className={`flex items-center gap-1 ${TYPE.labelMd} mt-3`} style={{ color: VIOLET_SOFT }}>
+                      Open {ministriesLabel.toLowerCase()} space <ArrowRight size={11} />
+                    </span>
+                  </button>
+                ))}
+              </AdaptiveGrid>
+            )}
+
+            {/* ── TAB 3: PHOTOS / GALLERY ── */}
+            {tab === 'PHOTOS' && (
+              <div className="space-y-8">
+                <OrgMediaShelves org={org} isOwner={isOwner} canManage={can('MANAGE_CONTENT')} onOrgChange={setOrg} onVisitUser={onVisitUser} onOpenVideo={onOpenVideo} onOpenAlbum={onOpenAlbum} />
+                {DEMO_CHURCH_ALBUMS.map(a => (
+                  <div key={a.id}>
+                    <p className="text-sm font-black uppercase tracking-widest text-white mb-3">{a.title} <span className="text-white/30 text-[11px]">· {a.photos.length}</span></p>
+                    <AdaptiveGrid phone={2} tablet={3} desktop={3} gap="0.5rem">
+                      {a.photos.map((ph, i) => (
+                        <img key={i} src={ph} className="aspect-square object-cover rounded-xl border border-white/10 hover:opacity-90" alt="" loading="lazy" />
+                      ))}
+                    </AdaptiveGrid>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* ── TAB 4: EVENTS ── */}
+            {tab === 'EVENTS' && (
+              <div className="space-y-4">
+                {hasOps && (
+                  <div className="flex justify-end">
+                    <CreateEventButton host={{ kind: 'org', id: org.id, label: org.name }} />
+                  </div>
+                )}
+                <AdaptiveGrid phone={1} tablet={2} desktop={2} gap="1rem">
+                  {DEMO_CHURCH_EVENTS.map(e => (
+                    <div key={e.id} className="rounded-2xl overflow-hidden bg-white/[0.03] border border-white/10">
+                      <img src={e.image} className="w-full h-40 object-cover" alt="" loading="lazy" />
+                      <div className="p-4">
+                        <div className={`flex items-center gap-2 ${TYPE.labelSm} mb-1`} style={{ color: VIOLET_SOFT }}><Calendar size={10} /> {e.date} · {e.time}</div>
+                        <h4 className="text-base font-black text-white mb-1">{e.title}</h4>
+                        <p className="type-body-md text-white/50 leading-snug mb-2">{e.blurb}</p>
+                        <div className="flex items-center justify-between">
+                          <span className={`flex items-center gap-1 ${TYPE.labelMd} text-white/40`}><MapPin size={10} /> {e.location}</span>
+                          <span className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full ${TYPE.labelMd} text-white`} style={{ background: VIOLET }}>
+                            <Ticket size={11} /> {e.price === 'FREE' ? 'Reserve · Free' : `Tickets · $${e.price}`}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </AdaptiveGrid>
+              </div>
+            )}
+
+            {/* ── TAB 5: WATCH ── */}
+            {tab === 'WATCH' && (
+              <div className="space-y-6">
+                {faith && (
+                  <button
+                    onClick={() => window.dispatchEvent(new CustomEvent('OPEN_FOLLOW_ALONG', { detail: {} }))}
+                    className="w-full text-left p-4 rounded-2xl border transition-all hover:brightness-110"
+                    style={{ borderColor: 'rgba(212,175,55,0.35)', background: 'linear-gradient(135deg, rgba(212,175,55,0.12), rgba(139,92,246,0.08))' }}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <Radio size={14} style={{ color: '#d4af37' }} />
+                      <span className={`${TYPE.labelMd} text-white`}>Follow along with the service</span>
+                      <span className="ml-auto px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest" style={{ background: 'rgba(212,175,55,0.2)', color: '#d4af37' }}>Live</span>
+                    </div>
+                    <p className="type-body-sm text-white/50 leading-relaxed">
+                      Whether you’re in the room or watching from home, your phone turns to each passage as it’s read — and saves it to your notes with the moment it happened.
+                    </p>
+                  </button>
+                )}
+                <OrgMediaShelves org={org} isOwner={isOwner} canManage={can('MANAGE_CONTENT')} onOrgChange={setOrg} onVisitUser={onVisitUser} onOpenVideo={onOpenVideo} onOpenAlbum={onOpenAlbum} />
+                <AdaptiveGrid phone={1} tablet={2} desktop={2} gap="1rem">
+                  {DEMO_CHURCH_VIDEOS.map(v => (
+                    <div key={v.id} className="text-left group">
+                      <div className="relative rounded-2xl overflow-hidden border border-white/10 aspect-video">
+                        <img src={v.thumb} className="w-full h-full object-cover group-hover:scale-105 transition-transform" alt="" loading="lazy" />
+                        <div className="absolute inset-0 bg-black/30 flex items-center justify-center"><div className="w-12 h-12 rounded-full bg-white/15 backdrop-blur flex items-center justify-center"><Play size={20} className="text-white ml-0.5" /></div></div>
+                        <span className="absolute bottom-2 right-2 px-1.5 py-0.5 rounded bg-black/70 text-[9px] font-black text-white tabular-nums">{v.duration}</span>
+                      </div>
+                      <p className={`${TYPE.labelSm} mt-2`} style={{ color: VIOLET_SOFT }}>{v.series}</p>
+                      <p className="text-sm font-bold text-white leading-tight">{v.title}</p>
+                      <p className="text-[10px] text-white/35">{v.date}</p>
+                    </div>
+                  ))}
+                </AdaptiveGrid>
+              </div>
+            )}
+
+            {/* ── TAB 6: PRAYER / COMMUNITY WALL ── */}
+            {tab === 'PRAYER' && (
+              <div className="max-w-3xl space-y-6">
+                <ChurchPrayerWall orgId={org.id} isOwner={isOwner} canSeePrivate={can('VIEW_PRAYER')} canManage={can('MANAGE_PRAYER')} />
+              </div>
+            )}
+
+            {/* ── TAB 7: LIBRARY / RESOURCES ── */}
+            {tab === 'LIBRARY' && (
+              <div className="space-y-8">
+                {faith && (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    {[
+                      { icon: BookOpen, title: 'Read Scripture', sub: 'KJV · Vulgate · Greek · Hebrew, side by side', ev: 'OPEN_BIBLE' },
+                      { icon: Radio, title: 'Follow along', sub: 'Your phone turns to each passage in service', ev: 'OPEN_FOLLOW_ALONG' },
+                      { icon: NotebookPen, title: 'Service notes', sub: 'Every passage you’ve been taught, by day', ev: 'OPEN_BIBLE' },
+                    ].map(({ icon: Icon, title, sub, ev }) => (
+                      <button
+                        key={title}
+                        onClick={() => window.dispatchEvent(new CustomEvent(ev, { detail: {} }))}
+                        className="text-left p-3.5 rounded-2xl border transition-all hover:brightness-125"
+                        style={{ borderColor: 'rgba(212,175,55,0.28)', background: 'rgba(212,175,55,0.05)' }}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          <Icon size={14} style={{ color: '#d4af37' }} />
+                          <span className={`${TYPE.labelMd} text-white`}>{title}</span>
+                        </div>
+                        <p className="type-body-sm text-white/45 leading-snug">{sub}</p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {faith && (
+                  <section aria-label="Classes and studies">
+                    <h2 className="text-[11px] font-black uppercase tracking-[0.25em] text-white/50 mb-3">Classes and studies</h2>
+                    <ChurchEducation church={org} canEdit={can('MANAGE_CONTENT')} />
+                  </section>
+                )}
+
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <p className="type-title-sm text-white/55 max-w-md">A reading list curated by {org.name}, powered by Lorea.</p>
+                    <button
+                      onClick={() => window.dispatchEvent(new CustomEvent('OPEN_BIBLE', { detail: {} }))}
+                      className={`shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-full ${TYPE.labelMd} text-white`}
+                      style={{ background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)' }}
+                    >
+                      <BookOpen size={12} style={{ color: VIOLET_SOFT }} /> Sacred Library <ExternalLink size={11} />
                     </button>
+                  </div>
+                  <AdaptiveGrid phone={2} tablet={4} desktop={5} gap="1rem">
+                    {DEMO_CHURCH_LIBRARY.map(b => (
+                      <div key={b.id} className="text-left group">
+                        <div className="rounded-xl overflow-hidden border border-white/10 aspect-[3/4] shadow-lg">
+                          <img src={b.cover} className="w-full h-full object-cover group-hover:scale-105 transition-transform" alt="" loading="lazy" />
+                        </div>
+                        <p className="type-body-md font-bold text-white leading-tight mt-2 line-clamp-2">{b.title}</p>
+                        <p className="text-[10px] text-white/40">{b.author}</p>
+                      </div>
+                    ))}
+                  </AdaptiveGrid>
+                </div>
+              </div>
+            )}
+
+            {/* ── TAB 8: STAFF & LEADERSHIP ── */}
+            {tab === 'STAFF' && (
+              <div className="space-y-8">
+                <Suspense fallback={null}><ElevateRosters org={org} onVisitUser={onVisitUser} /></Suspense>
+                {staff.length > 0 ? (
+                  <AdaptiveGrid phone={1} tablet={2} desktop={2} gap="0.75rem">
+                    {staff.filter(m => m.status === 'ACTIVE').map(m => (
+                      <div key={m.id} className="rounded-2xl p-4 bg-white/[0.03] border border-white/10 flex items-center gap-3">
+                        <button
+                          onClick={() => m.userId && onVisitUser?.(m.userId)}
+                          className="flex items-center gap-3 flex-1 min-w-0 text-left group"
+                        >
+                          <div className="w-14 h-14 rounded-2xl overflow-hidden bg-white/10 border border-white/10 shrink-0 grid place-items-center text-lg font-black text-white/50">
+                            {(m.orgPhotoUrl || m.photoUrl) ? <img src={m.orgPhotoUrl || m.photoUrl} className="w-full h-full object-cover" alt="" /> : m.displayName.charAt(0)}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-black text-white truncate group-hover:text-violet-200">{m.displayName}</p>
+                            <p className={`${TYPE.labelMd} mb-1`} style={{ color: VIOLET_SOFT }}>{m.title || m.role}</p>
+                            {m.aboutInOrg && <p className="type-body-sm text-white/45 leading-snug line-clamp-2">{m.aboutInOrg}</p>}
+                          </div>
+                        </button>
+                      </div>
+                    ))}
+                  </AdaptiveGrid>
+                ) : (
+                  <AdaptiveGrid phone={1} tablet={2} desktop={2} gap="0.75rem">
+                    {DEMO_CHURCH_STAFF.map(s => (
+                      <div key={s.id} className="rounded-2xl p-4 bg-white/[0.03] border border-white/10 flex items-center gap-3">
+                        <img src={s.photo} className="w-14 h-14 rounded-2xl object-cover border border-white/10 shrink-0" alt="" loading="lazy" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-black text-white truncate">{s.name}</p>
+                          <p className={`${TYPE.labelMd} mb-1`} style={{ color: VIOLET_SOFT }}>{s.role}</p>
+                          {s.bio && <p className="type-body-sm text-white/45 leading-snug line-clamp-2">{s.bio}</p>}
+                        </div>
+                      </div>
+                    ))}
+                  </AdaptiveGrid>
+                )}
+              </div>
+            )}
+
+            {/* ── TAB 9: GIVE / DONATE / SUPPORT ── */}
+            {tab === 'GIVE' && (
+              <div className="space-y-8">
+                <div className="space-y-4 max-w-xl">
+                  <p className="type-title-sm text-white/55">
+                    Give to a fund below — one-time or recurring. Direct payout to {org.name}.
+                  </p>
+                  {effectiveGivingFunds.map(f => {
+                    const raised = (f.raised || 0) + (fundGiven[f.name] || 0);
+                    const pct = f.goal ? Math.min(100, Math.round((raised / f.goal) * 100)) : 0;
+                    return (
+                      <div key={f.id} className="rounded-2xl p-4 bg-white/[0.03] border border-white/10">
+                        <div className="flex items-center justify-between mb-1">
+                          <h4 className="text-sm font-black text-white">{f.name}</h4>
+                          <button onClick={() => setGiving(true)} className={`px-4 py-1.5 rounded-full ${TYPE.labelMd} text-white`} style={{ background: VIOLET }}>
+                            {orgTabs.find(t => t.k === 'GIVE')?.label || 'Give'}
+                          </button>
+                        </div>
+                        {f.description && <p className="type-body-sm text-white/45 mb-3">{f.description}</p>}
+                        {f.goal ? (
+                          <>
+                            <div className="h-2 rounded-full bg-black/40 overflow-hidden"><div className="h-full rounded-full" style={{ width: `${pct}%`, background: VIOLET }} /></div>
+                            <div className={`flex justify-between mt-1.5 ${TYPE.labelMd} text-white/40 tabular-nums`}>
+                              <span style={{ color: VIOLET_SOFT }}>${raised.toLocaleString()} raised</span>
+                              <span>of ${f.goal.toLocaleString()}</span>
+                            </div>
+                          </>
+                        ) : null}
+                      </div>
                     );
                   })}
                 </div>
-              </section>
+                <OrgStoreSection org={org} mode="public" onVisitUser={onVisitUser} />
+              </div>
             )}
-
-            {org.serviceTimes && org.serviceTimes.length > 0 && (
-              <section className="mt-10">
-                <h2 className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-3 flex items-center gap-2"><Clock size={12} className="text-small-orange" /> Service times</h2>
-                <div className="grid sm:grid-cols-2 gap-3">
-                  {org.serviceTimes.map(s => (
-                    <div key={s.id} className="flex items-center justify-between px-4 py-3 rounded-2xl bg-white/[0.04] border border-white/10">
-                      <div>
-                        <p className="text-sm font-bold text-white">{s.label}</p>
-                        <p className="text-[10px] text-white/40">{s.day} · {s.time}</p>
-                      </div>
-                      {s.isOnline && <span className="text-[8px] font-black uppercase tracking-widest text-green-400 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-green-400" /> Online</span>}
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {org.ministries && org.ministries.length > 0 && (
-              <section className="mt-10">
-                <h2 className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-3 flex items-center gap-2"><Church size={12} className="text-small-orange" /> Ministries</h2>
-                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {org.ministries.map(m => (
-                    <div key={m.id} className="p-4 rounded-2xl bg-white/[0.04] border border-white/10">
-                      <p className="text-sm font-black text-white flex items-center gap-2">{m.iconEmoji && <span>{m.iconEmoji}</span>}{m.name}</p>
-                      {m.description && <p className="text-[11px] text-white/40 mt-1">{m.description}</p>}
-                      {m.meetingTime && <p className="text-[9px] font-black uppercase tracking-widest text-small-orange/70 mt-2">{m.meetingTime}</p>}
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            <ChurchPrayerWall orgId={org.id} isOwner={isOwner} />
           </>
-        )}
-
-        {/* Staff / roster */}
-        {staff.length > 0 && (
-          <section className="mt-10">
-            <h2 className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-3 flex items-center gap-2"><Star size={12} className="text-small-orange" /> Staff</h2>
-            <div className="flex flex-wrap gap-3">
-              {staff.map(m => (
-                <div key={m.id} className="flex items-center gap-2.5 px-3 py-2 rounded-2xl bg-white/[0.04] border border-white/10">
-                  <div className="w-8 h-8 rounded-full overflow-hidden bg-white/10 shrink-0">
-                    {m.photoUrl ? <img src={m.photoUrl} alt="" className="w-full h-full object-cover" /> : null}
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-bold text-white leading-none">{m.displayName}</p>
-                    <p className="text-[8px] font-black uppercase tracking-widest text-white/40 mt-1">{m.title || m.role}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* Channels */}
-        {org.channels && org.channels.length > 0 && (
-          <section className="mt-10 pb-16">
-            <h2 className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-3">Channels</h2>
-            <div className="flex flex-wrap gap-2">
-              {org.channels.map(c => (
-                <span key={c.id} className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-[10px] font-bold text-white/60">#{c.name}</span>
-              ))}
-            </div>
-          </section>
         )}
         <div className="h-16" />
       </div>
@@ -544,7 +978,9 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
 // ── Owner management: edit details + staff/roles ────────────────────────────
 const ROLES: OrgRole[] = ['OWNER', 'ADMIN', 'STAFF', 'MODERATOR', 'MEMBER'];
 
-const OrgManage: React.FC<{ org: Organization; staff: OrgMembership[]; onClose: () => void; onSaved: (o: Organization) => void; reloadStaff: () => void }> = ({ org, staff, onClose, onSaved, reloadStaff }) => {
+const OrgManage: React.FC<{ org: Organization; staff: OrgMembership[]; onClose: () => void; onSaved: (o: Organization) => void; reloadStaff: () => void; onDeleted?: () => void }> = ({ org, staff, onClose, onSaved, reloadStaff, onDeleted }) => {
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const canDelete = !org.isDemo && org.creatorId === auth.currentUser?.uid;
   const [name, setName] = useState(org.name);
   const [tagline, setTagline] = useState(org.tagline || '');
   const [about, setAbout] = useState(org.about || '');
@@ -606,6 +1042,7 @@ const OrgManage: React.FC<{ org: Organization; staff: OrgMembership[]; onClose: 
 
       <section className="space-y-4 mb-10">
         <h2 className="text-[10px] font-black uppercase tracking-widest text-small-orange">Details</h2>
+        <IdentityEditor org={org} onSaved={onSaved} />
         <input value={name} onChange={e => setName(e.target.value)} placeholder="Name" className={field} />
         <input value={tagline} onChange={e => setTagline(e.target.value)} placeholder="Tagline" className={field} />
         <textarea value={about} onChange={e => setAbout(e.target.value)} rows={3} placeholder="About" className={`${field} resize-none`} />
@@ -733,9 +1170,32 @@ const OrgManage: React.FC<{ org: Organization; staff: OrgMembership[]; onClose: 
           ))}
         </div>
       </section>
+      {canDelete && (
+        <section className="mt-12 rounded-3xl border border-red-500/25 bg-red-500/[0.04] p-5">
+          <h2 className="text-[10px] font-black uppercase tracking-widest text-red-400 mb-1 flex items-center gap-2"><Trash2 size={12} /> Danger zone</h2>
+          <p className="text-xs text-white/50 mb-4 leading-relaxed">Permanently delete {org.name}: its page, members, roles, invites and community. Financial records are sealed, not erased. You'll be asked to confirm.</p>
+          <button onClick={() => setConfirmDelete(true)} className="px-5 py-2.5 rounded-full border border-red-500/40 text-red-300 hover:bg-red-500/10 text-[10px] font-black uppercase tracking-widest transition-all">Delete this organization</button>
+        </section>
+      )}
+      {confirmDelete && <DeleteOrgDialog org={org} onClose={() => setConfirmDelete(false)} onDeleted={() => { setConfirmDelete(false); onDeleted ? onDeleted() : onClose(); }} />}
       <div className="h-16" />
     </div>
   );
+};
+
+/** An ORGANIZATION account's profile page IS its org page: same hero, tabs, member hub and admin backend. */
+export const OrgAccountPage: React.FC<{ orgId: string; onBack: () => void; onVisitUser?: (uid: string) => void } & OrgMediaOpeners> = ({ orgId, onBack, ...rest }) => {
+  const [org, setOrg] = useState<Organization | null | undefined>(undefined);
+  useEffect(() => {
+    let alive = true;
+    import('../services/organizationService').then(m => m.fetchOrganization(orgId)).then(o => { if (alive) setOrg(o); }).catch(() => { if (alive) setOrg(null); });
+    return () => { alive = false; };
+  }, [orgId]);
+  if (org === undefined) return <div className="flex justify-center py-24"><Loader2 className="animate-spin text-white/30" size={28} /></div>;
+  if (!org) return <div className="p-10 text-center text-white/50 text-sm">This organization page is no longer available.</div>;
+  const uid = auth.currentUser?.uid;
+  const isOwner = !!uid && (org.creatorId === uid || org.accountUid === uid || !!org.admins?.includes(uid));
+  return <OrgProfile key={org.id} org={org} isOwner={isOwner} onBack={onBack} onDeleted={onBack} {...rest} />;
 };
 
 export default OrgHub;
