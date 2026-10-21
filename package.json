@@ -104,6 +104,8 @@
     "test:spatial": "npx tsx --test tests/fabulaSpatialEngine.test.ts",
     "test:sayhirate": "npx tsx --test tests/sayHiRate.test.ts",
     "test:booktela": "npx tsx --test tests/bookTela.test.ts",
+    "test:editions": "npx tsx --test tests/bookEditions.test.ts",
+    "test:copies": "npx tsx --test tests/sponsorCopies.test.ts",
     "test:books": "npx tsx --test tests/bookEpub.test.ts tests/bookIsbn.test.ts tests/bookPreflight.test.ts tests/bookMeta.test.ts",
     "test:sheet": "npx tsx --test tests/sheetFormula.test.ts tests/sheetFunctions.test.ts tests/sheetEngine.test.ts tests/sheetNumfmt.test.ts tests/sheetOps.test.ts tests/sheetIo.test.ts tests/sheetBench.test.ts",
     "test:tela": "npx tsx --test tests/telaTemplates.test.ts tests/lowerThirds.test.ts tests/telaStyleEraLibrary.test.ts tests/telaPublicationTemplates.test.ts tests/telaDoodleBoardBooks.test.ts",

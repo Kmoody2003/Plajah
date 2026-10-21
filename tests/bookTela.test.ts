@@ -448,18 +448,21 @@ test('export rights: author always; buyer only with DOWNLOAD_OPEN, pinned, water
   assert.equal(decideExportRights({ isOwner: false, signedIn: true, isPaid: false, bookLicense: 'CC-BY' }).scope, 'open-license');
 });
 
-test('buy-to-own: a sold copy pins to the newest version at purchase time and never moves; owners and free readers follow latest', () => {
+test('buy-to-own: buyers follow updates within their edition, can roll back, and owners/free readers follow latest', () => {
   const vs = [{ versionId: 'v1', createdAt: 100 }, { versionId: 'v2', createdAt: 200 }, { versionId: 'v3', createdAt: 300 }];
   assert.equal(pinnedVersionFor(vs, 250)!.versionId, 'v2');
   assert.equal(pinnedVersionFor(vs, 200)!.versionId, 'v2');
   assert.equal(pinnedVersionFor(vs, 50), null);
   const base = { versions: vs, isOwner: false, isPaid: true, telaEnabled: true };
-  assert.deepEqual(chooseReaderMode({ ...base, license: { issuedAt: 250 } }), { mode: 'tela', pin: 'pinned', version: vs[1] });
-  assert.deepEqual(chooseReaderMode({ ...base, license: { issuedAt: 250 } }), chooseReaderMode({ ...base, versions: [...vs, { versionId: 'v4', createdAt: 999 }], license: { issuedAt: 250 } }), 'later versions never reach the buyer');
-  assert.equal(chooseReaderMode({ ...base, license: { issuedAt: 50 } }).mode, 'classic');
+  const v = (m: ReturnType<typeof chooseReaderMode>) => (m.mode === 'tela' ? [m.pin, m.version.versionId] : [m.mode]);
+  // Unstamped versions are edition 1; a legacy licence (no editions list) covers edition 1 → newest of it.
+  assert.deepEqual(v(chooseReaderMode({ ...base, license: { issuedAt: 250 } })), ['follow-latest', 'v3'], 'corrections reach the buyer');
+  assert.deepEqual(v(chooseReaderMode({ ...base, license: { issuedAt: 250 }, preferredVersionId: 'v2' })), ['pinned', 'v2'], 'rollback to the version bought');
+  assert.deepEqual(v(chooseReaderMode({ ...base, license: { issuedAt: 50 } })), ['follow-latest', 'v3'], 'bought before the Tela edition: still their edition');
   assert.equal(chooseReaderMode({ ...base, license: null }).mode, 'classic');
-  assert.deepEqual(chooseReaderMode({ ...base, isOwner: true }), { mode: 'tela', pin: 'follow-latest', version: vs[2] });
-  assert.deepEqual(chooseReaderMode({ ...base, isPaid: false }), { mode: 'tela', pin: 'follow-latest', version: vs[2] });
+  assert.equal(chooseReaderMode({ ...base, license: { issuedAt: 250, revokedAt: 400 } }).mode, 'classic', 'refunded licence reads nothing');
+  assert.deepEqual(v(chooseReaderMode({ ...base, isOwner: true })), ['follow-latest', 'v3']);
+  assert.deepEqual(v(chooseReaderMode({ ...base, isPaid: false })), ['follow-latest', 'v3']);
   assert.equal(chooseReaderMode({ ...base, isPaid: false, telaEnabled: false }).mode, 'classic');
   assert.equal(chooseReaderMode({ ...base, isPaid: false, versions: [] }).mode, 'classic');
 });

@@ -38,6 +38,13 @@ import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import PlajahPlusButton from './PlajahPlusButton';
 import { BookOpeningScene } from './BookOpeningScene';
 import { BuyToOwn, useOwnership } from './BuyToOwn';
+import { isSealedBook, openSealedBook, type BookAccess } from '../services/bookVault';
+import { getPreferredVersion, VERSION_PREF_EVENT } from '../services/bookEditions/readerPrefs';
+import EditionBar from './lorea/EditionBar';
+import { readRegistry } from '../services/bookEditions/policy';
+import BookGiveaways from './lorea/BookGiveaways';
+import { openSponsor } from '../services/sponsorCopies/client';
+import { Gift } from 'lucide-react';
 import { useTelaEdition } from './bookTela/useTelaEdition';
 import { isLivingPictureBook, useLivingPictureBook } from './living/useLivingPictureBook';
 // Tela edition (services/bookTela): lazy, so the classic reader pays nothing unless the author upgraded the book.
@@ -112,7 +119,7 @@ function loadSavedPosition(bookId: string): { chapter: number; page: number } {
   } catch { return { chapter: 0, page: 0 }; }
 }
 
-const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVisitUser, onOpenAudioStudio, partyId }) => {
+const BookReaderInner: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVisitUser, onOpenAudioStudio, partyId }) => {
   const { theme } = useGlobalPlayerState();
 
   // Restore last-read position from localStorage (respecting initialChapterIndex / skipOpeningScene)
@@ -475,13 +482,17 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
 
   useEffect(() => {
     // Determine if already saved (basic check)
-    if (book.ownerId === currentUser?.uid) {
+    // A bought book is already on the buyer's shelf through their licence.
+    if (book.ownerId === currentUser?.uid || (isPaidBook && bookOwnership.owned)) {
       setIsSaved(true);
     }
-  }, [book, currentUser]);
+  }, [book, currentUser, isPaidBook, bookOwnership.owned]);
 
   const handleSaveBook = async () => {
     if (!currentUser || isSaved || isSaving) return;
+    // "Save" clones the album into the reader's own public shelf — a paid book would be republished
+    // with its content. Buyers already keep it through their licence.
+    if (isPaidBook) return;
     setIsSaving(true);
     try {
       const { publishToCloud } = await import('../services/backendService');
@@ -1465,6 +1476,17 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
                 {isSaving ? <Loader2 size={18} className="animate-spin shrink-0" /> : <Library size={18} className="shrink-0" />}
               </button>
 
+              {isPaidBook && (
+                <button
+                  onClick={() => openSponsor({ book: { id: book.id, title: book.title, price: book.price, ownerId: book.ownerId, coverImage: book.coverImage, artist: book.artist } })}
+                  className={`shrink-0 w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full transition-all ${s.btnHover}`}
+                  title={isBookOwner ? 'Give away copies' : 'Gift this book'}
+                  aria-label={isBookOwner ? 'Give away copies' : 'Gift this book'}
+                >
+                  <Gift size={18} className="shrink-0" />
+                </button>
+              )}
+
               <button
                 onClick={toggleBookmark}
                 className={`shrink-0 w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full transition-all ${isCurrentPageBookmarked ? 'text-[#D0BCFF]' : s.btnHover}`}
@@ -1619,7 +1641,7 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
                 <Users size={18} className="shrink-0" />
               </button>
               
-              {currentChapter?.url && (
+              {currentChapter?.url && (!isPaidBook || isBookOwner || bookOwnership.license?.delivery !== 'PLAJAH_ONLY') && (
                 <button
                   onClick={() => window.open(currentChapter.url, '_blank')}
                   className={`hidden sm:flex shrink-0 w-9 h-9 sm:w-10 sm:h-10 items-center justify-center rounded-full transition-all ${s.btnHover}`}
@@ -2970,7 +2992,7 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
           <h2 className="text-2xl font-black text-white leading-tight">{book.title}</h2>
           {book.artist && <p className="text-white/50 text-sm font-bold mt-1">by {book.artist}</p>}
           <p className="text-white/40 text-xs mt-4 leading-relaxed">
-            Buy once and it's yours to keep — read it anywhere, and your ownership is recorded as a portable OCME credential.
+            Buy once and it's yours to keep — read it anywhere, with the author's corrections and updates included. Your ownership is recorded on Plajah's licence ledger.
           </p>
           <div className="mt-6 flex justify-center">
             <BuyToOwn
@@ -2987,6 +3009,7 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
             />
           </div>
           <div className="mt-4 flex justify-center"><BuyPrintEdition albumId={book.id} /></div>
+          <BookGiveaways book={book} showGiveaways className="mt-5" />
         </div>
       </div>
     );
@@ -3001,6 +3024,9 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
     return (
       <React.Suspense fallback={<div className="fixed inset-0 z-[80] flex items-center justify-center bg-[#0A0A0A]"><Loader2 className="animate-spin text-white/50" size={22} /></div>}>
         <TelaBookReader album={book} bundle={telaEdition.bundle} pin={telaEdition.pin} uid={currentUser?.uid} isOwner={isBookOwner} isPaid={isPaidBook} license={bookOwnership.license} onBack={onBack} />
+        <EditionBar bookId={book.id} bookTitle={book.title} creatorUid={book.ownerId} registry={readRegistry(book.bookEditions)}
+          version={telaEdition.choice.version} followLatest={telaEdition.choice.followLatest} readable={telaEdition.choice.readable}
+          purchased={telaEdition.choice.purchased} upgradeOffer={telaEdition.choice.upgradeOffer} />
       </React.Suspense>
     );
   }
@@ -3016,5 +3042,56 @@ const BookOpen = ({ size, className }: { size: number, className?: string }) => 
     <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
   </svg>
 );
+
+// A sealed (paid) book's album carries no readable content — fetch what this reader is entitled to
+// from the vault first. Non-buyers get the sealed album back, so the inner reader shows its purchase screen.
+const BookReader: React.FC<BookReaderProps> = (props) => {
+  const sealed = isSealedBook(props.book);
+  const uid = props.currentUser?.uid || auth.currentUser?.uid || '';
+  const [opened, setOpened] = useState<{ key: string; book: Album; access: BookAccess } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  // The reader's rollback choice (services/bookEditions): refetch when they switch versions.
+  const [preferred, setPreferred] = useState<string | null>(() => getPreferredVersion(props.book.id));
+  useEffect(() => {
+    setPreferred(getPreferredVersion(props.book.id));
+    const on = (e: Event) => { if ((e as CustomEvent).detail?.bookId === props.book.id) setPreferred(getPreferredVersion(props.book.id)); };
+    window.addEventListener(VERSION_PREF_EVENT, on);
+    return () => window.removeEventListener(VERSION_PREF_EVENT, on);
+  }, [props.book.id]);
+  const key = `${props.book.id}:${uid}:${preferred || ''}`;
+  useEffect(() => {
+    if (!sealed) return;
+    let alive = true;
+    setError(null);
+    openSealedBook(props.book, preferred)
+      .then(r => { if (alive) setOpened({ key, book: r.book, access: r.access }); })
+      .catch(e => { if (alive) setError(e?.message || 'Could not open this book'); });
+    return () => { alive = false; };
+  }, [sealed, key]);
+  if (!sealed) return <BookReaderInner {...props} />;
+  if (error) {
+    return (
+      <div className="fixed inset-0 z-[80] flex flex-col items-center justify-center gap-4 bg-[#0A0A0A] text-white/70 p-6 text-center">
+        <AlertCircle size={28} className="text-red-400" />
+        <p className="text-sm">{error}</p>
+        <button onClick={props.onBack} className="h-10 px-5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-black uppercase tracking-widest">Back</button>
+      </div>
+    );
+  }
+  if (!opened || opened.key !== key) {
+    return <div className="fixed inset-0 z-[80] flex items-center justify-center bg-[#0A0A0A]"><Loader2 className="animate-spin text-white/50" size={22} /></div>;
+  }
+  const a = opened.access;
+  return (
+    <>
+      {/* Remount on a version switch so pagination/position state starts clean for that version's text. */}
+      <BookReaderInner key={a.version?.versionId || 'current'} {...props} book={opened.book} />
+      {a.entitled && !props.book.bookTela?.enabled && (
+        <EditionBar bookId={props.book.id} bookTitle={props.book.title} creatorUid={props.book.ownerId} registry={a.registry}
+          version={a.version ?? null} followLatest={a.followLatest !== false} readable={a.readable || []} purchased={a.purchased} upgradeOffer={a.upgradeOffer} />
+      )}
+    </>
+  );
+};
 
 export default BookReader;

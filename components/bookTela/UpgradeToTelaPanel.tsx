@@ -10,6 +10,8 @@ import { fidelitySummary } from '../../services/bookTela/model';
 import { Card, Field, inputCls, btnGhost, btnPrimary, hintCls } from '../bookSubmit/ui';
 import { FidelityBadge, FidelityReport } from './FidelityBadge';
 import PageTurnPreview from '../lorea/PageTurnPreview';
+import PublishUpdatePicker from '../lorea/PublishUpdatePicker';
+import { readRegistry, type PublishUpdate } from '../../services/bookEditions/policy';
 import { PAGE_TURNS, PICKABLE_STYLES, defaultStyleForKind, getSpec, inferBookKind, sanitizeAuthorPageTurn, type AuthorPageTurn, type PageTurnId } from '../../services/lorea/pageTransitions';
 
 export interface AlbumCtx { id: string; ownerId: string; price?: number }
@@ -69,6 +71,18 @@ export default function UpgradeToTelaPanel({ book, album, onChaptersChanged, onO
   const [formAnchor, setFormAnchor] = useState('');
   const [formAlt, setFormAlt] = useState('');
   const [draftTurn, setDraftTurn] = useState<AuthorPageTurn | undefined>(undefined);
+  // Once a Tela edition is out, each publish is a correction, an update or a new edition (services/bookEditions/policy.ts).
+  const [released, setReleased] = useState<{ count: number; edition: number }>({ count: 0, edition: 1 });
+  const [publishUpdate, setPublishUpdate] = useState<PublishUpdate>({ kind: 'MINOR' });
+  useEffect(() => {
+    if (!album?.id) return;
+    let alive = true;
+    Promise.all([import('firebase/firestore'), import('../../services/backendService')]).then(async ([{ doc, getDoc }, { db }]) => {
+      const a = (await getDoc(doc(db, 'albums', album.id))).data() as any;
+      if (alive) setReleased({ count: a?.bookTela?.versions?.length || 0, edition: readRegistry(a?.bookEditions).current });
+    }).catch(() => {});
+    return () => { alive = false; };
+  }, [album?.id, upgrade?.publishedVersionId]);
 
   useEffect(() => { let alive = true; loadUpgrade(book.id).then(u => { if (alive) { setUpgrade(u && !u.revertedAt ? u : null); setLoaded(true); } }); return () => { alive = false; }; }, [book.id]);
 
@@ -132,10 +146,13 @@ export default function UpgradeToTelaPanel({ book, album, onChaptersChanged, onO
   });
   const doPublish = () => run('publish', async () => {
     if (!upgrade || !album) throw new Error('Publish the book to Lorea first, then publish its Tela edition.');
-    const r = await publishBookTela(album, book, upgrade, 'Published from the editor');
+    const r = await publishBookTela(album, book, upgrade, 'Published from the editor', released.count ? publishUpdate : null);
     if (!r.ok) throw new Error(r.error || 'Publish failed.');
     setUpgrade({ ...upgrade, publishedVersionId: r.versionId });
-    setMsg({ tone: 'ok', text: 'Published. Free readers now see the Tela edition; buyers stay on the version they purchased.' });
+    setMsg({ tone: 'ok', text: !released.count ? 'Published. Readers and buyers now see the Tela edition.'
+      : publishUpdate.kind === 'NEW_EDITION' ? (publishUpdate.upgrade === 'PAID' ? 'New edition published. New buyers get it; current owners can upgrade.' : 'New edition published. Every owner gets it free.')
+      : 'Update published. Every owner of this edition gets it automatically and can switch back to an earlier version.' });
+    setPublishUpdate({ kind: 'MINOR' });
   });
   const doRevert = () => run('revert', async () => {
     if (!upgrade) return;
@@ -277,6 +294,10 @@ export default function UpgradeToTelaPanel({ book, album, onChaptersChanged, onO
         </div>
         {preview ? <FidelityReport pages={preview.fidelity.pages} /> : <p className="text-[12px] text-white/40">Add text to see the report.</p>}
       </Card>
+
+      {upgrade && album && released.count > 0 && (
+        <PublishUpdatePicker value={publishUpdate} onChange={setPublishUpdate} currentEdition={released.edition} bookPrice={album.price} />
+      )}
 
       {msg && <p role="status" className={`text-sm ${msg.tone === 'ok' ? 'text-emerald-300' : 'text-red-300'}`}>{msg.text}</p>}
 

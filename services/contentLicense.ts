@@ -28,7 +28,8 @@ import { passportIdFor, isPlaceholderPassport, stripUndefined } from './creatorP
 
 export type ContentKind = 'film' | 'book' | 'album' | 'track';
 /** PURCHASE / PPV are owned forever; RENTAL expires. */
-export type LicenseGrant = 'PURCHASE' | 'RENTAL' | 'PPV';
+/** GIFT = a sponsored/gifted copy claimed from a pool (routes/sponsorCopies.ts); owned like a purchase. */
+export type LicenseGrant = 'PURCHASE' | 'RENTAL' | 'PPV' | 'GIFT';
 /** How the buyer receives the work once owned. Films: FilmDistribution.delivery. */
 export type Delivery = 'DOWNLOAD_OPEN' | 'PLAJAH_ONLY';
 
@@ -48,6 +49,9 @@ export interface ContentLicense {
   issuedAt: number;              // ms
   expiresAt?: number;            // ms — RENTAL only
   watermarkTag?: string;         // per-buyer forensic stamp for the download copy
+  editions?: number[];           // book editions covered (missing = edition 1) — services/bookEditions/policy.ts
+  versionAtPurchase?: string;    // newest version at purchase: "the version you bought"
+  revokedAt?: number | null;     // set when the purchase is refunded
   proof: null;                   // signature — null until OCME/Passport signing lands
   placeholder: boolean;          // true while DIDs are placeholders, not real
 }

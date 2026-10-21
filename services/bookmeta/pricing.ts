@@ -1,6 +1,7 @@
 // Pricing + royalty maths. Pure.
 //
-// Platform cut on direct sales: 5% (the older "90/10" figure is stale).
+// Platform cut on direct book sales: 5%. server.ts imports PLATFORM_CUT_PCT for the Stripe webhook's
+// earnings split, so this is the single source of truth (other content types keep the 90/10 split).
 // Payment processing: Stripe's published fees depend on country, card type, currency conversion and your
 // agreement, so the numbers below are an ESTIMATE using the commonly published US-card list rate
 // (2.9% + 30 cents). The UI labels them as an estimate; real figures are in the Stripe dashboard.

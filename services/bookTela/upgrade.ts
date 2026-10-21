@@ -10,6 +10,7 @@ import { fidelitySummary, pageFidelity } from './model';
 import { htmlToNodes, normalizeChapterHtml, plainText, wordCountOf } from './html';
 import { validateInstance } from './enhancements';
 import { sanitizeAuthorPageTurn, type AuthorPageTurn } from '../lorea/pageTransitions';
+import { chooseVersion, readRegistry, type BookVersionStamp, type EditionLicense, type ReaderChoice } from '../bookEditions/policy';
 import type { BookSource, BookSourceChapter, BookTelaUpgrade, EnhancementInstance, ExportFormat, PageFidelity, UpgradeOptions } from './types';
 
 // ── adapters ─────────────────────────────────────────────────────────────────
@@ -144,28 +145,36 @@ export function makeBundle(book: BookSource, upgrade: BookTelaUpgrade, doc: Tela
   return { schemaVersion: 1, bookId: book.id, versionId, createdAt: now, ...(label ? { label } : {}), doc: { ...doc, currentVersionId: versionId }, enhancements: upgrade.enhancements, ...(sanitizeAuthorPageTurn(upgrade.pageTurn) ? { pageTurn: sanitizeAuthorPageTurn(upgrade.pageTurn) } : {}), toc, book: rest };
 }
 
-export interface VersionStamp { versionId: string; createdAt: number }
+/** Write-once version stamp; edition/kind/notes are set by the server when the author publishes. */
+export type VersionStamp = BookVersionStamp;
 
-/**
- * Buy-to-own pin, derived rather than stored: a sold copy reads the NEWEST version that existed at or before the
- * moment of purchase (license.issuedAt). Versions are write-once, so this never changes after the sale. If no
- * version existed yet, returns null: the buyer reads the classic text they bought (never a later upgrade).
- */
+/** The version a buyer bought: the newest one that existed at or before the purchase (license.issuedAt). */
 export function pinnedVersionFor(versions: ReadonlyArray<VersionStamp>, licenseIssuedAt: number): VersionStamp | null {
   return [...versions].filter(v => v.createdAt <= licenseIssuedAt).sort((a, b) => b.createdAt - a.createdAt)[0] ?? null;
 }
 
 export const latestVersion = (versions: ReadonlyArray<VersionStamp>): VersionStamp | null => [...versions].sort((a, b) => b.createdAt - a.createdAt)[0] ?? null;
 
-export type ReaderMode = { mode: 'classic' } | { mode: 'tela'; pin: 'follow-latest' | 'pinned'; version: VersionStamp };
+/** pin: 'follow-latest' = newest version the reader is entitled to; 'pinned' = the reader rolled back to an older one. */
+export type ReaderMode = { mode: 'classic' } | { mode: 'tela'; pin: 'follow-latest' | 'pinned'; version: VersionStamp; choice: ReaderChoice };
 
-/** Decide how Lorea should render this book for this reader. Pure so the policy is testable. */
-export function chooseReaderMode(i: { versions: ReadonlyArray<VersionStamp>; isOwner: boolean; isPaid: boolean; license?: { issuedAt: number } | null; telaEnabled: boolean }): ReaderMode {
+/**
+ * Decide how Lorea should render this book for this reader. The version rule is the shared edition policy
+ * (services/bookEditions/policy.ts): buyers follow corrections and updates within the editions they hold,
+ * free new editions included, and may roll back to any of those versions.
+ */
+export function chooseReaderMode(i: {
+  versions: ReadonlyArray<VersionStamp>; isOwner: boolean; isPaid: boolean;
+  license?: EditionLicense | null; telaEnabled: boolean;
+  editions?: unknown; preferredVersionId?: string | null; now?: number;
+}): ReaderMode {
   if (!i.telaEnabled || !i.versions.length) return { mode: 'classic' };
-  if (i.isOwner || !i.isPaid) { const v = latestVersion(i.versions); return v ? { mode: 'tela', pin: 'follow-latest', version: v } : { mode: 'classic' }; }
-  if (!i.license) return { mode: 'classic' };           // not entitled: the gate handles it, nothing to render
-  const v = pinnedVersionFor(i.versions, i.license.issuedAt);
-  return v ? { mode: 'tela', pin: 'pinned', version: v } : { mode: 'classic' };
+  const choice = chooseVersion({
+    versions: i.versions, registry: readRegistry(i.editions), isOwner: i.isOwner, isPaid: i.isPaid,
+    license: i.license, preferredVersionId: i.preferredVersionId, now: i.now,
+  });
+  if (!choice.version) return { mode: 'classic' };     // not entitled: the purchase gate handles it
+  return { mode: 'tela', pin: choice.followLatest ? 'follow-latest' : 'pinned', version: choice.version, choice };
 }
 
 // ── more adapters ────────────────────────────────────────────────────────────

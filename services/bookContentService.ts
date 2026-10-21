@@ -209,6 +209,9 @@ const buildCandidateFetchUrls = (url: string, expectZip?: boolean): string[] => 
     if (u && !candidates.includes(u)) candidates.push(u);
   };
 
+  // Signed vault files (paid books) are served by our own API with CORS; a proxy hop would only fail.
+  if (url.includes('/api/books/') && url.includes('/file?')) return [url];
+
   const gid = extractGutenbergId(url);
 
   // Firebase Storage URLs support CORS natively — try direct only if it's not an unseeded classic stub,
@@ -303,7 +306,9 @@ export const fetchBookBinary = async (url: string, opts: FetchBookOptions = {}):
   if (!url || !url.trim()) throw new Error('Empty book URL');
 
   const gid = extractGutenbergId(url);
-  const canonicalCacheKey = gid && !opts.expectZip ? `gutenberg-txt-${gid}` : url;
+  // Vault links carry a fresh expiry/signature on every open; cache the file under its stable path.
+  const vaultKey = url.includes('/api/books/') && url.includes('/file?') ? url.replace(/[?&](exp|sig)=[^&]*/g, '') : null;
+  const canonicalCacheKey = vaultKey || (gid && !opts.expectZip ? `gutenberg-txt-${gid}` : url);
 
   if (!opts.refresh) {
     const cached = (await idbGet(canonicalCacheKey)) || (canonicalCacheKey !== url ? await idbGet(url) : null);
@@ -336,7 +341,7 @@ export const fetchBookBinary = async (url: string, opts: FetchBookOptions = {}):
         );
         const now = Date.now();
         void idbPut({ url: canonicalCacheKey, buffer: winner, size: winner.byteLength, lastAccess: now });
-        if (canonicalCacheKey !== url) {
+        if (canonicalCacheKey !== url && !vaultKey) {
           void idbPut({ url, buffer: winner, size: winner.byteLength, lastAccess: now });
         }
         return winner;
@@ -353,7 +358,7 @@ export const fetchBookBinary = async (url: string, opts: FetchBookOptions = {}):
           const buf = validateBuffer(await fetchRawWithProgress(candidateUrl, opts.onProgress), opts.expectZip);
           const now = Date.now();
           void idbPut({ url: canonicalCacheKey, buffer: buf, size: buf.byteLength, lastAccess: now });
-          if (canonicalCacheKey !== url) {
+          if (canonicalCacheKey !== url && !vaultKey) {
             void idbPut({ url, buffer: buf, size: buf.byteLength, lastAccess: now });
           }
           return buf;

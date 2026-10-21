@@ -11,6 +11,7 @@ import type { BookSource, BookTelaUpgrade } from './types';
 import { createUpgrade, makeBundle, type BookTelaBundle, type VersionStamp } from './upgrade';
 import { telaDocToBook } from './bookToTela';
 import { bundleFromVersionDoc } from './bundleStorage';
+import type { PublishUpdate } from '../bookEditions/policy';
 
 export const MAX_BUNDLE_BYTES = 900_000;
 
@@ -54,9 +55,13 @@ export async function syncFromTela(book: BookSource, upgrade: BookTelaUpgrade) {
   return { doc, ...telaDocToBook(doc, book) };
 }
 
-/** Freeze a version, copy it to Firestore for readers on other devices, and flag the album. */
-export async function publishBookTela(album: { id: string; ownerId: string; price?: number }, book: BookSource, upgrade: BookTelaUpgrade, label?: string): Promise<{ ok: boolean; versionId?: string; error?: string }> {
-  const [{ loadTelaDoc, publishTelaVersion }, { doc: fsDoc, setDoc, updateDoc, arrayUnion, deleteField }, { db, auth }] = await Promise.all([
+/**
+ * Freeze a version, copy it to Firestore for readers on other devices, and flag the album. `update` says what
+ * kind of release this is (correction / minor update / new edition, free or paid) — the server stamps the
+ * edition and records it on the ledger (services/bookEditions/policy.ts decides who sees it).
+ */
+export async function publishBookTela(album: { id: string; ownerId: string; price?: number }, book: BookSource, upgrade: BookTelaUpgrade, label?: string, update?: PublishUpdate | null): Promise<{ ok: boolean; versionId?: string; error?: string }> {
+  const [{ loadTelaDoc, publishTelaVersion }, { doc: fsDoc, setDoc, updateDoc, deleteField }, { db, auth }] = await Promise.all([
     import('../telaStore'), import('firebase/firestore'), import('../backendService'),
   ]);
   const user = auth.currentUser;
@@ -71,14 +76,20 @@ export async function publishBookTela(album: { id: string; ownerId: string; pric
   if (bundleJson.length > MAX_BUNDLE_BYTES) return { ok: false, error: 'This book is too large to publish as a Tela edition (embedded images?). Use uploaded image links instead of pasted image data.' };
   try {
     await setDoc(fsDoc(db, 'albums', album.id, 'telaVersions', version.versionId), { versionId: version.versionId, bookId: book.id, ownerId: user.uid, createdAt: bundle.createdAt, ...(label ? { label } : {}), bundleJson });
-    // The album carries the (small) version list so readers can pick their version without downloading any bundle.
     await updateDoc(fsDoc(db, 'albums', album.id), {
       'bookTela.enabled': true, 'bookTela.docId': upgrade.docId, 'bookTela.versionId': version.versionId, 'bookTela.upgradedAt': upgrade.upgradedAt,
       'bookTela.layoutPreference': upgrade.layoutPreference ?? 'AUTO', 'bookTela.enhancementCount': upgrade.enhancements.length,
-      'bookTela.versions': arrayUnion({ versionId: version.versionId, createdAt: bundle.createdAt }),
       // The author's page-turn choice rides on the album (small) so the classic reader and the Tela reader both see it; deleteField when it is back to Auto (Firestore rejects undefined).
       'bookTela.pageTurn': bundle.pageTurn ?? deleteField(),
     });
+    // The album's (small) version list — what readers pick from — is written by the server, which owns the
+    // edition registry and the ledger. Until it lands the version exists but no reader is routed to it.
+    const res = await fetch(`/api/books/${encodeURIComponent(album.id)}/tela-versions/${encodeURIComponent(version.versionId)}/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await user.getIdToken()}` },
+      body: JSON.stringify({ update: update ?? null }),
+    });
+    if (!res.ok) return { ok: false, versionId: version.versionId, error: (await res.json().catch(() => null))?.error || 'The edition was saved but could not be released to readers. Publish again to retry.' };
     await saveUpgrade({ ...upgrade, publishedVersionId: version.versionId });
     return { ok: true, versionId: version.versionId };
   } catch (e) { return { ok: false, error: e instanceof Error ? e.message : 'Publish failed.' }; }

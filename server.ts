@@ -65,6 +65,11 @@ import { blueskyClientRouter } from './routes/blueskyClient';
 import { bookSubmissionsRouter } from './routes/bookSubmissions';
 import { campaignsRouter } from './routes/campaigns';
 import { createPodRouter, fulfillPodOrderFromStripe } from './routes/pod';
+import { createBookVaultRouter } from './routes/bookVault';
+import { PLATFORM_CUT_PCT as BOOK_PLATFORM_CUT_PCT } from './services/bookmeta/pricing';
+import { readRegistry as readEditionRegistry, licenceActive, entitledEditions, editionOf, type BookVersionStamp } from './services/bookEditions/policy';
+import { createLedgerRouter, appendLedger } from './routes/ledger';
+import { createSponsorCopiesRouter, activateCopyPool } from './routes/sponsorCopies';
 import { academiaIntegrityRouter } from './routes/academiaIntegrity';
 import { kithSightingsRouter } from './routes/kithSightings';
 import { createAriaSpeakRouter, decideAriaVoiceAccess } from './routes/ariaSpeak';
@@ -1903,6 +1908,48 @@ async function firestoreCreateOnce(collection: string, id: string, data: Record<
     return 'error';
   } catch { return 'error'; }
 }
+/** Transactional email through Resend (RESEND_API_KEY); undefined when email isn't configured. */
+const resendEmail = process.env.RESEND_API_KEY ? async (to: string, subject: string, text: string): Promise<boolean> => {
+  const r = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ from: process.env.RESEND_FROM || 'Plajah <onboarding@resend.dev>', to, subject, text }) });
+  return r.ok;
+} : undefined;
+
+/**
+ * Transfer one earning's creator share to the creator's Stripe Connect account and mark the row
+ * paid_out. Safe to call repeatedly: the Stripe idempotency key is per earning, so a retry returns
+ * the original transfer instead of sending money twice. Returns false (row stays 'pending') when the
+ * creator has no Connect account yet or Stripe refuses the transfer.
+ */
+async function payCreatorEarning(earningId: string, creatorUid: string, amountCents: number, category: string, paymentIntentId = ''): Promise<boolean> {
+  if (!(amountCents > 0)) return false;
+  const user = await firestoreRead('users', creatorUid);
+  const destination = user?.stripeConnectAccountId as string | undefined;
+  if (!destination) return false;
+  try {
+    const stripe = getStripe();
+    // Tie the transfer to the buyer's charge when we have it, so it can go out before the
+    // platform balance settles; a later sweep has no charge and draws on available balance.
+    let sourceTransaction: string | undefined;
+    if (paymentIntentId) {
+      try { sourceTransaction = (await stripe.paymentIntents.retrieve(paymentIntentId))?.latest_charge || undefined; } catch { /* fall back to balance */ }
+    }
+    const transfer = await stripe.transfers.create({
+      amount: amountCents,
+      currency: 'usd',
+      destination,
+      ...(sourceTransaction ? { source_transaction: sourceTransaction } : {}),
+      metadata: { type: 'creator_earning', earningId, creatorUid, category },
+    }, { idempotencyKey: `earning_${earningId}` });
+    await firestoreWrite('creatorEarnings', earningId, { status: 'paid_out', transferId: transfer.id, paidOutAt: Date.now() });
+    return true;
+  } catch (e: any) {
+    console.error(`[Connect] earning ${earningId} transfer failed:`, e?.message || e);
+    await firestoreWrite('creatorEarnings', earningId, { lastPayoutError: String(e?.message || e).slice(0, 300), lastPayoutAttemptAt: Date.now() });
+    return false;
+  }
+}
+
 /** Mirror a Stripe subscription's status onto its Plajah+ row(s) (found by stripeSubscriptionId). */
 async function syncPlajahPlusSubscription(sub: any, deleted: boolean): Promise<void> {
   try {
@@ -1916,6 +1963,67 @@ async function syncPlajahPlusSubscription(sub: any, deleted: boolean): Promise<v
       });
     }
   } catch (e: any) { console.error('[Plajah+] subscription sync failed:', e?.message); }
+}
+
+/**
+ * A fully refunded content purchase: revoke the licence (or just the upgraded edition), take back the
+ * creator's transfer, and record it on the ledger. Partial refunds leave the licence alone.
+ */
+async function revokeContentPurchase(charge: any): Promise<void> {
+  if (!charge?.refunded && !(charge?.amount_refunded >= charge?.amount)) return;
+  let meta = charge?.metadata || {};
+  const pi = String(charge?.payment_intent || '');
+  if (meta.type !== 'content_purchase' && pi) {
+    try { meta = (await getStripe().paymentIntents.retrieve(pi))?.metadata || {}; } catch { return; }
+  }
+  if (meta.type !== 'content_purchase' || !meta.uid || !meta.kind || !meta.contentId) return;
+  const now = Date.now();
+  const licPath = `users/${meta.uid}/contentLicenses`, licId = `${meta.kind}_${meta.contentId}`;
+  const cur = await firestoreGetDeep(licPath, licId);
+  const upgradeEdition = parseInt(meta.upgradeEdition || '0', 10) || 0;
+  if (cur) {
+    if (upgradeEdition) {
+      const editions = (Array.isArray(cur.editions) ? cur.editions : [1]).filter((e: number) => e !== upgradeEdition);
+      await firestorePatchDeep(licPath, licId, { editions: editions.length ? editions : [1] });
+    } else if (!cur.revokedAt) {
+      await firestorePatchDeep(licPath, licId, { revokedAt: now, expiresAt: now, revokeReason: 'refund' });
+    }
+  }
+  if ((await firestoreCreateOnce('ledgerReceipts', `refund_${charge.id}`, { at: now })) === 'created') {
+    await appendLedger({ event: 'REVOKE', workKind: meta.kind, workId: meta.contentId, at: now, subjectUid: meta.uid, licenseId: licId, ...(upgradeEdition ? { edition: upgradeEdition } : {}), paymentRef: pi, note: 'refund' });
+  }
+  // Take back what the creator was paid for this sale.
+  if (!pi) return;
+  const rows = await fsQueryDocs('creatorEarnings', [{ field: 'stripePaymentIntentId', op: 'EQUAL', value: pi }], 5);
+  for (const r of rows) {
+    if (r.data.status === 'refunded') continue;
+    if (r.data.transferId) {
+      try { await getStripe().transfers.createReversal(String(r.data.transferId), {}, { idempotencyKey: `reverse_${r.id}` }); }
+      catch (e: any) { console.error(`[Connect] reversal for ${r.id} failed:`, e?.message || e); }
+    }
+    await firestoreWrite('creatorEarnings', r.id, { status: 'refunded', refundedAt: now });
+  }
+}
+
+/** Pay every still-pending content sale owed to one creator (run after they connect payouts). */
+async function payPendingCreatorEarnings(creatorUid: string): Promise<{ paid: number; pending: number }> {
+  const rows = await fsQueryDocs('creatorEarnings', [
+    { field: 'creatorUid', op: 'EQUAL', value: creatorUid },
+    { field: 'status', op: 'EQUAL', value: 'pending' },
+  ], 200);
+  let paid = 0, pending = 0;
+  // Every platform-collected category the checkout webhook records as 'pending' (destination
+  // charges are logged 'paid_direct' and never land here).
+  const SWEEPABLE = new Set(['content_purchase', 'sanctuary', 'club', 'seedraiser', 'digital_sale', 'plajahplus']);
+  for (const r of rows) {
+    // Older club/seedraiser rows could name the BUYER as creatorUid, so only rows written since that
+    // fix (payeeVerified) are paid out; content sales always resolved the payee server-side.
+    if (!SWEEPABLE.has(r.data.category) || !String(r.id).startsWith('cs_')) continue;
+    if (r.data.category !== 'content_purchase' && r.data.payeeVerified !== true) continue;
+    const cents = Number(r.data.creatorNetCents) || 0;
+    if (await payCreatorEarning(r.id, creatorUid, cents, r.data.category)) paid++; else pending++;
+  }
+  return { paid, pending };
 }
 
 /**
@@ -2774,6 +2882,12 @@ async function startServer() {
             try { await fulfillPodOrderFromStripe(session); } catch (e: any) { console.error('[pod] fulfil failed', e?.message || e); }
           }
 
+          // ── Sponsored / gift copies paid: open the pool (codes, recipient notices, ledger) ──
+          if (mode === 'payment' && meta.type === 'copy_pool' && meta.poolId) {
+            await activateCopyPool(String(meta.poolId), { sendEmail: resendEmail }, process.env.VITE_APP_URL || 'https://plajah.com', String(session.payment_intent || ''), session.amount_total || 0)
+              .catch((e: any) => console.error('[copies] activation failed', meta.poolId, e?.message || e));
+          }
+
           // ── Content purchase: mint the "own it forever" license ───────────────
           // Films (Taleo) + books (Lorea). Server-only mint after a real charge —
           // the client can never self-grant (contentLicenses is read-only in rules).
@@ -2812,7 +2926,30 @@ async function startServer() {
             };
             if (grant === 'RENTAL' && rentalHrs > 0) licenseDoc.expiresAt = now + rentalHrs * 3600_000;
             if (delivery === 'DOWNLOAD_OPEN' && wantsWatermark) licenseDoc.watermarkTag = wm;
-            await firestoreWrite(`users/${buyerUid}/contentLicenses`, `${kind}_${contentId}`, licenseDoc);
+            const licPath = `users/${buyerUid}/contentLicenses`, licId = `${kind}_${contentId}`;
+            const upgradeEdition = parseInt(meta.upgradeEdition || '0', 10) || 0;
+            // Each Checkout session is ledgered once, however often Stripe re-sends the event.
+            const firstDelivery = (await firestoreCreateOnce('ledgerReceipts', `cs_${session.id}`, { at: now, kind, contentId })) === 'created';
+            if (kind === 'book' && upgradeEdition) {
+              // Paid edition upgrade: add the edition to the licence the buyer already holds.
+              const cur = await firestoreGetDeep(licPath, licId);
+              const editions = [...new Set([...(Array.isArray(cur?.editions) && cur!.editions.length ? cur!.editions : [1]), upgradeEdition])].sort((a, b) => a - b);
+              await firestorePatchDeep(licPath, licId, { editions, upgradedAt: now });
+              if (firstDelivery) await appendLedger({ event: 'EDITION_UPGRADE', workKind: 'book', workId: contentId, at: now, subjectUid: buyerUid, licenseId: licId, edition: upgradeEdition, editions, paymentRef: licenseDoc.paymentRef, priceCents: licenseDoc.priceCents, currency: licenseDoc.currency });
+            } else {
+              if (kind === 'book') {
+                // The licence covers the edition on sale now; the newest version is "the version you bought".
+                const b = await firestoreGetDeep('albums', contentId);
+                const registry = readEditionRegistry(b?.bookEditions);
+                const stamps: BookVersionStamp[] = b?.bookTela?.enabled && Array.isArray(b.bookTela.versions) && b.bookTela.versions.length
+                  ? b.bookTela.versions : Array.isArray(b?.bookVersions) ? b!.bookVersions : [];
+                const latest = stamps.filter(v => editionOf(v) === registry.current).sort((x, y) => y.createdAt - x.createdAt)[0];
+                licenseDoc.editions = [registry.current];
+                if (latest) licenseDoc.versionAtPurchase = latest.versionId;
+              }
+              await firestorePatchDeep(licPath, licId, licenseDoc);
+              if (firstDelivery) await appendLedger({ event: 'MINT', workKind: kind, workId: contentId, at: now, subjectUid: buyerUid, actorUid: meta.creatorUid || undefined, licenseId: licId, editions: licenseDoc.editions, versionId: licenseDoc.versionAtPurchase, paymentRef: licenseDoc.paymentRef, priceCents: licenseDoc.priceCents, currency: licenseDoc.currency, note: grant !== 'PURCHASE' ? grant : undefined });
+            }
             // TODO(ocme): also POST this as a VC to OCME's registry + emit a settlement
             // receipt carrying paymentRef (buyer identity must NOT cross). See the
             // plajah-payments-direction + plajah-ocme-integration memos.
@@ -3075,6 +3212,7 @@ async function startServer() {
             club_membership: 'club',
             seedraiser_pledge: 'seedraiser',
             content_purchase: 'content_purchase',
+            copy_pool: 'content_purchase',     // sponsored/gift copies of a book (routes/sponsorCopies.ts)
           };
           const DESTINATION_CHARGE_TYPES = new Set(['live_tip']);
           const isDirect = DESTINATION_CHARGE_TYPES.has(meta.type);
@@ -3086,7 +3224,9 @@ async function startServer() {
 
           if (earningCategory && recipientUid && session.amount_total) {
             const grossCents       = session.amount_total;
-            const platformFeeCents = Math.round(grossCents * 0.10);
+            // Book sales carry the published Lorea author cut (services/bookmeta/pricing); everything else stays 90/10.
+            const platformFeePct   = (meta.type === 'content_purchase' || meta.type === 'copy_pool') && meta.kind === 'book' ? BOOK_PLATFORM_CUT_PCT : 10;
+            const platformFeeCents = Math.round(grossCents * platformFeePct / 100);
             const netCents         = grossCents - platformFeeCents;
 
             // Load creator's split config
@@ -3121,14 +3261,19 @@ async function startServer() {
               meta.type === 'store_order'           ? `Store Order${meta.title ? `: ${meta.title}` : ''}` :
               meta.type === 'club_membership'       ? `Club Membership` :
               meta.type === 'seedraiser_pledge'     ? `SeedRaiser Pledge` :
+              meta.type === 'copy_pool'             ? `Gift copies (${meta.quantity || '?'})${meta.title ? `: ${meta.title}` : ''}` :
               meta.type === 'content_purchase'      ? `${meta.kind === 'book' ? 'Book' : meta.kind === 'album' ? 'Album' : meta.kind === 'track' ? 'Track' : 'Film'} ${meta.grant === 'RENTAL' ? 'Rental' : 'Sale'}${meta.title ? `: ${meta.title}` : ''}` : 'Payment';
 
-            await firestoreCreate('creatorEarnings', {
+            // Deterministic id per Checkout session: a re-fired webhook finds the row and skips the
+            // transfers below instead of paying twice.
+            const earningId = `cs_${session.id}`;
+            const claimed = await firestoreCreateOnce('creatorEarnings', earningId, {
               creatorUid:            recipientUid,
               payerUid:              meta.uid || '',
               category:              earningCategory,
               grossCents,
               platformFeeCents,
+              platformFeePct,
               netCents,
               creatorNetCents,
               splits:                JSON.stringify(splitDetails),
@@ -3139,8 +3284,15 @@ async function startServer() {
               timestamp:             now,
             });
 
+            // Platform-collected sales: send the creator's own net share to their Connect account
+            // now. Without an account it stays 'pending' and is swept when they finish payout
+            // onboarding (payPendingCreatorEarnings).
+            if (claimed === 'created' && !isDirect && creatorNetCents > 0) {
+              await payCreatorEarning(earningId, recipientUid, creatorNetCents, earningCategory, String(session.payment_intent || ''));
+            }
+
             // Fire split transfers if recipients have Connect accounts
-            if (!isDirect && splitDetails.length > 0) {
+            if (claimed === 'created' && !isDirect && splitDetails.length > 0) {
               const stripe = getStripe();
               for (const split of splitDetails) {
                 try {
@@ -3192,6 +3344,7 @@ async function startServer() {
         }
         case 'charge.refunded': {
           await applyChargeRefund(event.data.object, false).catch((e: any) => console.error('[Elevate] charge.refunded failed:', e?.message));
+          await revokeContentPurchase(event.data.object).catch((e: any) => console.error('[Content] refund revoke failed:', e?.message));
           break;
         }
         case 'charge.dispute.created':
@@ -3584,6 +3737,9 @@ async function startServer() {
           stripeConnectPayoutsEnabled: account.payouts_enabled,
           updatedAt: Date.now(),
         });
+        // Sales made before the creator connected were held as 'pending' — pay them out now.
+        // Idempotent per earning, so the frequent status polls can't double-pay.
+        void payPendingCreatorEarnings(uid).catch((e: any) => console.error('[Connect] pending sweep failed:', e?.message || e));
       }
 
       res.json({
@@ -11871,6 +12027,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     try {
       let { kind, contentId, creatorUid, title, grant, price, delivery, watermark, rentalWindowHrs } = req.body;
       const { trackId } = req.body;
+      let upgradeEdition = 0;
       // Music (Chora): the album/track price is read from Firestore, never trusted from the client.
       // A track purchase is licensed as `track` with contentId `<albumId>__<trackId>`.
       if (kind === 'album' || kind === 'track') {
@@ -11906,6 +12063,37 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
         creatorUid = owner; price = resolved; title = title || resolvedTitle; grant = 'PURCHASE';
         if (kind === 'track') contentId = `${albumId}__${trackId}`;
         delivery = 'PLAJAH_ONLY';
+      }
+      // Books (Lorea): same rule — price, payee and delivery terms come from the published album,
+      // never the request body (a client could otherwise pay $0.01 or name any payee).
+      if (kind === 'book') {
+        const bookId = String(contentId || '');
+        const b = bookId ? await firestoreGetDeep('albums', bookId) : null;
+        if (!b || b.type !== 'BOOK') return res.status(404).json({ error: 'Book not found' });
+        const owner = String(b.ownerId || b.ownerUid || b.creatorUid || '');
+        if (!owner) return res.status(400).json({ error: 'This book has no owner to pay' });
+        if (owner === req.uid) return res.status(400).json({ error: 'You already own this book — it’s yours' });
+        let resolved = Number(b.price) || 0;
+        if (!(resolved > 0)) return res.status(400).json({ error: 'This book is not for sale' });
+        const registry = readEditionRegistry(b.bookEditions);
+        const existingLic = await firestoreGetDeep(`users/${req.uid}/contentLicenses`, `book_${bookId}`);
+        const want = Number(req.body?.upgradeEdition) || 0;
+        if (want) {
+          // Paid upgrade to a newer edition: only for a current licence holder, at the author's upgrade price.
+          const ed = registry.list.find(e => e.number === want);
+          if (!ed || ed.upgrade !== 'PAID' || !(Number(ed.upgradePrice) > 0)) return res.status(400).json({ error: 'That edition is not a paid upgrade' });
+          if (!licenceActive(existingLic as any)) return res.status(400).json({ error: 'Buy the book first — the upgrade is for existing owners' });
+          if (entitledEditions(existingLic as any, registry).has(want)) return res.status(400).json({ error: 'You already have this edition' });
+          resolved = Number(ed.upgradePrice);
+          upgradeEdition = want;
+        } else if (licenceActive(existingLic as any)) {
+          return res.status(400).json({ error: 'You already own this book' });
+        }
+        creatorUid = owner; price = resolved; title = String(b.title || title || '') + (upgradeEdition ? ` — Edition ${upgradeEdition} upgrade` : '');
+        grant = 'PURCHASE';
+        delivery = b.bookDistribution?.delivery === 'PLAJAH_ONLY' ? 'PLAJAH_ONLY' : 'DOWNLOAD_OPEN';
+        watermark = b.bookDistribution?.watermark !== false;
+        rentalWindowHrs = undefined;
       }
       // Films (Taleo): price, grant (rent/buy/PPV), payee, delivery and rental window all come
       // from the album's filmDistribution — the client only says whether it wants to rent or buy.
@@ -11950,7 +12138,10 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
           delivery: delivery === 'PLAJAH_ONLY' ? 'PLAJAH_ONLY' : 'DOWNLOAD_OPEN',
           watermark: watermark === false ? 'false' : 'true',
           rentalWindowHrs: rentalWindowHrs ? String(rentalWindowHrs) : '',
+          upgradeEdition: upgradeEdition ? String(upgradeEdition) : '',
         },
+        // Mirrored onto the PaymentIntent so a later charge.refunded can find and revoke the licence.
+        payment_intent_data: { metadata: { type: 'content_purchase', uid: req.uid, kind: String(kind), contentId: String(contentId), upgradeEdition: upgradeEdition ? String(upgradeEdition) : '' } },
       });
       res.json({ url: session.url });
     } catch (err: any) {
@@ -13195,6 +13386,18 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   // In-app Bluesky client screens: profiles, threads, search, follow graph, custom feeds, mute/block, quote.
   app.use('/api/fediverse/bluesky/c', express.json({ limit: '32kb' }), blueskyClientRouter);
   // Independent-author ebook submissions (status transitions are server-only; see firestore.rules bookSubmissions).
+  // Paid-book vault: seal content off the public album, serve it back to the author and buyers only.
+  // No body parser at the mount: /api/books/submit below needs its own 14mb limit.
+  app.use('/api/books', createBookVaultRouter({ authMiddleware, isAdmin: isPlatformAdminReq }));
+  // Purchased music: server-rendered MP3/AAC/FLAC/WAV with tags + cover art, zipped for albums (licence-checked).
+  // Licence + rights ledger (hash-chained, server-written): my licence history, and an author's audit view.
+  app.use('/api/ledger', createLedgerRouter({ authMiddleware, isAdmin: isPlatformAdminReq }));
+  // Sponsored + gift copies of books: fans/named people/org bulk codes; each claim mints a licence + ledger entry.
+  app.use('/api/copies', createSponsorCopiesRouter({
+    authMiddleware, requireRegisteredUser, getStripe: () => getStripe(), trustedRequestOrigin: (req: any) => trustedRequestOrigin(req),
+    canManageHost: (uid, kind, id) => eventHostAccess(uid, kind, id),
+    firestoreIncrement: (path, inc) => firestoreIncrement(path, inc), sendEmail: resendEmail,
+  }));
   app.use('/api/books', express.json({ limit: '14mb' }), bookSubmissionsRouter);
   // Article syndication (RSS/Atom per author or publication, AMP-lite, Apple News Format, email render).
   app.use('/feeds', articleFeedsRouter);

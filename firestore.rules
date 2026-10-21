@@ -1913,6 +1913,46 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Paid-book vault (routes/bookVault.ts): a sealed book's chapter content + the origin→vault file
+    // index. Server-only — readers get content through /api/books/:id/access after an entitlement check.
+    match /bookVault/{albumId} {
+      allow read, write: if false;
+    }
+    match /bookVaultIndex/{entryId} {
+      allow read, write: if false;
+    }
+
+    // Licence + rights ledger (routes/ledger.ts): append-only, server-written hash chain. A reader may read
+    // the entries about their own licences; authors audit their works through /api/ledger/work.
+    match /licenseLedger/{entryId} {
+      allow read: if isAuthenticated() && (resource.data.get('subjectUid', '') == request.auth.uid || isAdmin());
+      allow write: if false;
+    }
+    match /ledgerHeads/{workKey} {
+      allow read, write: if false;
+    }
+    match /ledgerReceipts/{receiptId} {
+      allow read, write: if false;
+    }
+
+    // Sponsored + gift copies (routes/sponsorCopies.ts): pools, seats, claim codes and claims are server-only.
+    // Sponsors and claimers go through /api/copies, which checks who may see codes or take a seat.
+    match /copyPools/{poolId} {
+      allow read, write: if false;
+      match /seats/{seat} {
+        allow read, write: if false;
+      }
+    }
+    match /copyPoolSecrets/{poolId} {
+      allow read, write: if false;
+    }
+    match /copyCodes/{codeHash} {
+      allow read, write: if false;
+    }
+    match /copyClaims/{claimId} {
+      allow read, write: if false;
+    }
+
     // Editorial & Copyright Council (services/editorial/council): a reading of the author's own manuscript and their
     // accept/adapt/decline decisions. Private to the owner. Written by the server (service account); clients cannot
     // forge a session, so there is no client create/update.
@@ -3157,17 +3197,33 @@ service cloud.firestore {
     // Book -> Tela upgrade (services/bookTela): frozen reader bundles, one per publish. Write-once, so a sold copy
     // pinned to a version never changes. Free books are readable by anyone; PAID books only by the author or a
     // buyer holding a book license (users/{uid}/contentLicenses/book_{albumId}), so the paid text is not world-readable.
+    // Edition-aware (services/bookEditions/policy.ts): a buyer reads versions of the editions their licence
+    // covers, plus every edition the author released as a free upgrade. Licences minted before editions
+    // existed have no `editions` list and cover edition 1; revoked (refunded) or expired licences read nothing.
+    function bookLicenceCoversEdition(albumId, edition) {
+      let licPath = /databases/$(database)/documents/users/$(request.auth.uid)/contentLicenses/$('book_' + albumId);
+      return exists(licPath) && licenceCoversEdition(get(licPath).data, albumId, edition);
+    }
+    function licenceCoversEdition(lic, albumId, edition) {
+      return lic.get('revokedAt', null) == null
+        && (lic.get('expiresAt', null) == null || lic.expiresAt > request.time.toMillis())
+        && (edition in lic.get('editions', [1])
+            || edition in get(/databases/$(database)/documents/albums/$(albumId)).data.get('bookEditions', {}).get('freeEditions', [1]));
+    }
     match /albums/{albumId}/telaVersions/{versionId} {
       allow read: if !(get(/databases/$(database)/documents/albums/$(albumId)).data.get('price', 0) > 0)
                   || (isAuthenticated() && (get(/databases/$(database)/documents/albums/$(albumId)).data.ownerId == request.auth.uid
-                      || exists(/databases/$(database)/documents/users/$(request.auth.uid)/contentLicenses/$('book_' + albumId))
+                      || bookLicenceCoversEdition(albumId, resource.data.get('edition', 1))
                       || isAdmin()));
+      // The edition stamp is server-only (POST /api/books/:id/tela-versions/:versionId/register).
       allow create: if isAuthenticated()
                     && get(/databases/$(database)/documents/albums/$(albumId)).data.ownerId == request.auth.uid
                     && request.resource.data.ownerId == request.auth.uid
                     && request.resource.data.versionId == versionId
                     && request.resource.data.bundleJson is string
-                    && request.resource.data.bundleJson.size() < 950000;
+                    && request.resource.data.bundleJson.size() < 950000
+                    && !('edition' in request.resource.data)
+                    && !('kind' in request.resource.data);
       allow update, delete: if false;
     }
 

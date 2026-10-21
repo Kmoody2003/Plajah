@@ -30,6 +30,7 @@ import { buildCoverPdf } from '../services/pod/coverPdf';
 import { normalizeIsbn13 } from '../services/pod/barcode';
 import { buildMetadataCsv, buildOnix, EXPORT_GUIDES } from '../services/pod/providers/exportPack';
 import { LuluProvider } from '../services/pod/providers/lulu';
+import { withVaultContent } from './bookVault';
 
 export interface PodRouterDeps {
   authMiddleware: any;
@@ -96,7 +97,8 @@ export function dimsFromTotal(widthIn: number, heightIn: number, trimId: string,
   };
 }
 
-async function loadAlbum(id: string) { return id ? fsGet(`albums/${encodeURIComponent(id)}`) : null; }
+// Sealed (paid) books keep their text in the vault; print interiors need it back.
+async function loadAlbum(id: string) { return id ? withVaultContent(id, await fsGet(`albums/${encodeURIComponent(id)}`)) : null; }
 
 async function buildFiles(album: any, e: PrintEdition & { pageCount?: number }, opts: { preview?: boolean } = {}) {
   const { chapters } = chaptersOf(album);

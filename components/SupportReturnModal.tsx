@@ -6,7 +6,8 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Heart, Check, Download, FolderOpen } from 'lucide-react';
+import { Heart, Check, Download, FolderOpen, BookOpen } from 'lucide-react';
+import { getContentLicense } from '../services/contentLicense';
 import type { Album } from '../types';
 import { Button, Eyebrow } from './ui';
 import { loadOwnedMusic, ownsRelease } from './../services/musicAccess';
@@ -14,7 +15,8 @@ import { downloadRelease, fetchMusicFormats, hasSilentFolderAccess, canPickFolde
 
 export type ReturnInfo =
   | { mode: 'gift'; artist: string; title: string; amount: number }
-  | { mode: 'purchase'; album: Album; kind: 'album' | 'track'; trackId?: string };
+  | { mode: 'purchase'; album: Album; kind: 'album' | 'track'; trackId?: string }
+  | { mode: 'book'; album: Album };
 
 const Shell: React.FC<{ onClose: () => void; children: React.ReactNode }> = ({ onClose, children }) => createPortal(
   <div className="fixed inset-0 z-[9300] flex items-center justify-center p-4 bg-black/70" onClick={onClose}>
@@ -128,7 +130,54 @@ const PurchaseDone: React.FC<{ info: Extract<ReturnInfo, { mode: 'purchase' }>; 
   );
 };
 
+// Lorea book bought: wait for the licence the webhook mints, then open the book.
+const BookPurchaseDone: React.FC<{ info: Extract<ReturnInfo, { mode: 'book' }>; onClose: () => void; uid?: string }> = ({ info, onClose, uid }) => {
+  const { album } = info;
+  const [state, setState] = useState<'confirming' | 'ready' | 'slow'>('confirming');
+  useEffect(() => {
+    if (!uid) return;
+    let alive = true;
+    (async () => {
+      for (let i = 0; i < 10 && alive; i++) {
+        const lic = await getContentLicense(uid, 'book', album.id);
+        if (lic) { if (alive) setState('ready'); return; }
+        await new Promise(r => setTimeout(r, 1500));
+      }
+      if (alive) setState('slow');
+    })();
+    return () => { alive = false; };
+  }, [uid, album.id]);
+  const read = () => {
+    window.dispatchEvent(new CustomEvent('OPEN_LOREA_BOOK', { detail: { album } }));
+    onClose();
+  };
+  return (
+    <Shell onClose={onClose}>
+      <div className="mx-auto mb-4 w-16 h-16 rounded-full grid place-items-center" style={{ background: state === 'ready' ? 'var(--pj-grad-warm)' : 'var(--pj-glass-3)' }}>
+        {state === 'ready' ? <BookOpen size={28} /> : <Check size={28} />}
+      </div>
+      <Eyebrow>{state === 'confirming' ? 'Confirming your purchase' : 'It\'s yours'}</Eyebrow>
+      <h3 className="type-headline-sm font-black mt-1 mb-3">{album.title}</h3>
+      {state === 'confirming' && <p className="text-white/60 mb-2">One moment while the author's payment clears.</p>}
+      {state === 'slow' && <p className="text-white/70 mb-4">Your payment went through, but it is taking a little longer to show up. The book will be in My Purchases shortly. You can close this.</p>}
+      {state === 'ready' && (
+        <>
+          <p className="text-base leading-relaxed text-white/70 mb-5">
+            The whole book is unlocked and saved to My Purchases, so you can read it on any device you sign in to.
+          </p>
+          <div className="pj-actions" style={{ justifyContent: 'stretch' }}>
+            <Button variant="primary" size="lg" icon={<BookOpen />} onClick={read}>Start reading</Button>
+            <Button variant="secondary" size="lg" onClick={onClose}>Later</Button>
+          </div>
+        </>
+      )}
+    </Shell>
+  );
+};
+
 const SupportReturnModal: React.FC<{ info: ReturnInfo; uid?: string; onClose: () => void }> = ({ info, uid, onClose }) =>
-  info.mode === 'gift' ? <GiftThanks info={info} onClose={onClose} /> : <PurchaseDone info={info} uid={uid} onClose={onClose} />;
+  info.mode === 'gift' ? <GiftThanks info={info} onClose={onClose} />
+    : info.mode === 'book' ? <BookPurchaseDone info={info} uid={uid} onClose={onClose} />
+    : <PurchaseDone info={info} uid={uid} onClose={onClose} />;
 
 export default SupportReturnModal;

@@ -1613,7 +1613,7 @@ export default function BookAuthoringStudio({ onBack, initialBook }: Props) {
                       <div className="min-w-0">
                         <p className="text-[11px] font-bold text-amber-200/90">Connect payouts to get paid</p>
                         <p className="text-[10px] text-white/40 leading-relaxed mt-0.5">
-                          You can publish now, but you'll only receive your ~90% until you connect a payout account. Earnings are held as pending until then.
+                          You can publish now, but you'll only receive your 95% (less card processing) until you connect a payout account. Earnings are held as pending until then.
                         </p>
                         <button type="button" onClick={handleConnectPayouts} disabled={connectingPayouts}
                           className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-400 text-black text-[10px] font-black uppercase tracking-widest hover:bg-amber-300 disabled:opacity-50 transition-colors">

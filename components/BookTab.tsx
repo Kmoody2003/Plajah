@@ -28,6 +28,7 @@ import PlajahPlusBanner from './PlajahPlusBanner';
 import { motion, AnimatePresence } from 'motion/react';
 import { warmImages } from '../src/lib/performanceCache';
 import ChipRail from './ui/ChipRail';
+import PurchasedBooksShelf from './lorea/PurchasedBooksShelf';
 import { WritersDesk } from './lorea/WritersDesk';
 import LazyImage from './LazyImage';
 import { goldenThread } from '../data/showcase/books/goldenThread';
@@ -3299,6 +3300,8 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
             </div>
           </div>
         </section>
+
+        <PurchasedBooksShelf onSelectBook={onSelectBook} />
 
         {/* For Readers and Authors */}
         <section className="s">
