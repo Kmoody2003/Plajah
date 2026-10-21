@@ -36,7 +36,7 @@ export function useDialogEscape(open: boolean, onClose: () => void) {
 
 export const dialogShell: React.CSSProperties = { background: 'rgba(16,13,28,0.98)', border: '1px solid rgba(208,188,255,.22)', boxShadow: '0 24px 80px rgba(0,0,0,.6)' };
 
-export const AmboShareDialog: React.FC<{ template: SavedTemplate | null; onClose: () => void; onSaved?: (t: SavedTemplate) => void; where?: string }> = ({ template, onClose, onSaved, where = 'Ambo → Slide Templates → Shared with me' }) => {
+export const AmboShareDialog: React.FC<{ template: SavedTemplate | null; onClose: () => void; onSaved?: (t: SavedTemplate) => void; where?: string }> = ({ template, onClose, onSaved, where = 'Stage → Slide Templates → Shared with me' }) => {
   const [term, setTerm] = useState('');
   const [results, setResults] = useState<Person[]>([]);
   const [searching, setSearching] = useState(false);

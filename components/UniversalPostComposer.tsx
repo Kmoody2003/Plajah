@@ -1104,7 +1104,7 @@ Post it anyway?`)) return;
               {onSendToRello && (
                 <button onClick={() => onSendToRello(att.url, att.title || 'Video')}
                   className="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border border-white/20 text-white/60 hover:border-white/40 hover:text-white transition-all">
-                  📺 Send to Rello
+                  📺 Send to Reello
                 </button>
               )}
               {onMakeStory && (

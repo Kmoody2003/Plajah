@@ -121,7 +121,7 @@ const TypoSourceSettings: React.FC<{ source: string }> = ({ source }) => {
             <input type="checkbox" checked={p.sendLyrics} onChange={e => setTypoTextPrefs({ sendLyrics: e.target.checked })} className="accent-[#D0BCFF]" />
             Song lyrics drive Auto visualizers
           </label>
-          <label className="flex items-center gap-2 text-[10px] text-white/70" title="A song with no lyric file: Ambo transcribes the program mix to get its words">
+          <label className="flex items-center gap-2 text-[10px] text-white/70" title="A song with no lyric file: Stage transcribes the program mix to get its words">
             <input type="checkbox" checked={p.autoTranscribePlayback} onChange={e => setTypoTextPrefs({ autoTranscribePlayback: e.target.checked })} className="accent-[#2BE0A8]" />
             <Radio size={10} className="text-[#2BE0A8]" /> Auto-pull lyrics of anything playing (live transcription)
           </label>

@@ -132,7 +132,7 @@ export const AmboRouterReceiver: React.FC<AmboRouterReceiverProps> = ({
             </span>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-[14px] font-bold text-white tracking-tight">Ambo Router Receiver</span>
+                <span className="text-[14px] font-bold text-white tracking-tight">Stage Router Receiver</span>
                 <span className="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-[#7c9ce8]/20 text-[#7c9ce8] border border-[#7c9ce8]/30">
                   NDI &amp; Platform Video Matrix
                 </span>

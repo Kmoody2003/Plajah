@@ -207,7 +207,7 @@ export const AmboSlideTemplateGallery: React.FC<AmboSlideTemplateGalleryProps> =
   /** Load a saved template into the editor: base template, theme, words and style. */
   const openSaved = (t: SavedTemplate) => {
     const base = t.baseTemplateId && templateById(t.baseTemplateId);
-    if (!base) { setFlash(`“${t.name}” uses a template this version of Ambo doesn't have`); window.setTimeout(() => setFlash(''), 2600); return; }
+    if (!base) { setFlash(`“${t.name}” uses a template this version of Stage doesn't have`); window.setTimeout(() => setFlash(''), 2600); return; }
     const th = themeById(t.theme);
     const f = { ...(t.fields || {}) };
     const ground = f[GROUND_FIELD];

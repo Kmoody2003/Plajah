@@ -113,7 +113,7 @@ export async function saveProject(project: AmboProject): Promise<{ success: bool
       await updateLocalIndex(summary);
       setActiveProjectId(updatedProject.id);
     } catch (err) {
-      console.error('Failed to save Ambo project to IndexedDB', err);
+      console.error('Failed to save Stage project to IndexedDB', err);
       return { success: false, cloudSynced: false };
     }
   } else {

@@ -10,11 +10,11 @@ import { DEMO_SANCTUARY, DEMO_SANCTUARY_TIERS, DEMO_SANCTUARY_POSTS } from '../.
 // like, then build their own. No Firestore, no listeners (unlike the live view).
 const SanctuaryDemoView: React.FC<{ onBack?: () => void; onCreate: () => void }> = ({ onBack, onCreate }) => {
   const s = DEMO_SANCTUARY;
-  const demoAction = () => alert('This is a live demo. Create your own Sanctuary to accept real memberships, unlocks and backing.');
+  const demoAction = () => alert('This is a live demo. Create your own Backstage to accept real memberships, unlocks and backing.');
 
   return (
     <div className="h-full overflow-y-auto scrollbar-hide" style={{ background: SANCTUARY_THEME.obsidian }}>
-      <DemoRibbon label="sanctuary" accent={SANCTUARY_THEME.gold} ctaText="Create your Sanctuary" onCreate={onCreate} />
+      <DemoRibbon label="sanctuary" accent={SANCTUARY_THEME.gold} ctaText="Create your Backstage" onCreate={onCreate} />
 
       {/* Hero */}
       <div className="relative">
@@ -112,9 +112,9 @@ const SanctuaryDemoView: React.FC<{ onBack?: () => void; onCreate: () => void }>
           <div className="mt-10 mb-6 rounded-2xl p-6 text-center" style={{ background: SANCTUARY_THEME.goldSheen, border: `1px solid ${SANCTUARY_THEME.line}` }}>
             <Gem size={24} className="mx-auto mb-2" style={{ color: SANCTUARY_THEME.gold }} />
             <p className="text-sm font-black uppercase tracking-widest mb-1" style={{ color: SANCTUARY_THEME.goldSoft }}>Your turn</p>
-            <p className="text-[12px] text-white/50 max-w-md mx-auto mb-4">Launch your own Sanctuary in minutes — set tiers, gate any content, run a campaign, and get paid.</p>
+            <p className="text-[12px] text-white/50 max-w-md mx-auto mb-4">Launch your own Backstage in minutes — set tiers, gate any content, run a campaign, and get paid.</p>
             <button onClick={onCreate} className="px-6 py-2.5 rounded-full text-[11px] font-black uppercase tracking-widest text-black" style={{ background: SANCTUARY_THEME.gold }}>
-              Create your Sanctuary
+              Create your Backstage
             </button>
           </div>
         </div>

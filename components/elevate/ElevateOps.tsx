@@ -281,7 +281,7 @@ const ElevateOps: React.FC<Props> = ({ org: initialOrg, isOwner, onClose, onOrgC
                         {quick('Giving', DollarSign, 'giving')}
                         {faith && (
                           <button onClick={() => window.dispatchEvent(new CustomEvent('OPEN_AMBO'))} className="ev-btn ev-btn-ghost" style={{ minHeight: 40, fontSize: 13 }}>
-                            <MonitorPlay size={14} /> Open Ambo
+                            <MonitorPlay size={14} /> Open Stage
                           </button>
                         )}
                       </div>
@@ -293,7 +293,7 @@ const ElevateOps: React.FC<Props> = ({ org: initialOrg, isOwner, onClose, onOrgC
               {section === 'mobilize' && (
                 <ElevateMobilizeHub
                   org={org}
-                  currentUserId={uid || 'demo-member-elena'}
+                  currentUserId={uid || ''}
                   currentUserName={myMembership?.displayName || auth.currentUser?.displayName || 'Ministry Leader'}
                   currentUserEmail={auth.currentUser?.email || undefined}
                   canManage={can('MANAGE_MINISTRIES') || can('MANAGE_ROSTER') || can('MANAGE_EMPLOYEES') || isOwner}

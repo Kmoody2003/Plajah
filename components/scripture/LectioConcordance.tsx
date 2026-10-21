@@ -68,7 +68,7 @@ export default function LectioConcordance({ slug, corpusVersion, selected, onNav
     </select>
     {mode === 'word' && query.trim().includes(' ') && <p>Choose Exact phrase or All words for a multiword query.</p>}
     <p>{result.matches.length} verses · {result.occurrences} occurrences</p>
-    {!!result.matches.length && <button className="text-[#d4af37]" onClick={() => downloadResearchFile('lectio-concordance.json', JSON.stringify({ edition: slug, query, mode, filters: { book, testament, fromChapter, toChapter, ignoreAccents, exclude }, coverage: 'Hydrated local chapters only', occurrences: result.occurrences, matches: result.matches }, null, 2), 'application/json')}>Export all cited results</button>}
+    {!!result.matches.length && <button className="text-[#d4af37]" onClick={() => downloadResearchFile('verse-concordance.json', JSON.stringify({ edition: slug, query, mode, filters: { book, testament, fromChapter, toChapter, ignoreAccents, exclude }, coverage: 'Hydrated local chapters only', occurrences: result.occurrences, matches: result.matches }, null, 2), 'application/json')}>Export all cited results</button>}
     {selected && <button className="block text-[#d4af37]" onClick={() => {
       try { pinResearchSource({ id: `bible/${slug}/${selected.ref.book}/${selected.ref.chapter}/${selected.ref.verse}`, faith: 'christianity', kind: 'passage', title: selected.ref.bookName,
         locator: `${selected.ref.bookName} ${selected.ref.chapter}:${selected.ref.verse}`, edition: TRANSLATIONS.find(t => t.slug === slug)?.label ?? slug, text: selected.text,

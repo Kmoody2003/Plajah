@@ -90,7 +90,7 @@ const TvLiveSourcePlayer: React.FC<{ ownerId: string; source: ChannelSource; onC
           <div>
             <Lock size={44} className="mx-auto text-white/40 mb-5" />
             <p className="text-2xl font-black text-white">Members-only live</p>
-            <p className="text-white/50 mt-2">This live feed is for the creator's Sanctuary members.</p>
+            <p className="text-white/50 mt-2">This live feed is for the creator's Backstage members.</p>
           </div>
         </div>
       ) : access === 'checking' ? (

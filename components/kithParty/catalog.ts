@@ -2,7 +2,7 @@ import {speciesSvg} from './species';
 export type GameId = 'circuit' | 'crystals' | 'rhythm' | 'tennis';
 export interface Character { id: string; name: string; title: string; bio: string; color: string; accent: string; fin: string; mark: string; shape: number; }
 export const CHARACTERS: Character[] = [
-  { id:'rello', name:'Rello', title:'The scene stealer', bio:'Camera ready. Corner hungry. Every finish deserves a close-up.', color:'#263c73', accent:'#f28a36', fin:'#d7378a', mark:'✦', shape:0 },
+  { id:'rello', name:'Reello', title:'The scene stealer', bio:'Camera ready. Corner hungry. Every finish deserves a close-up.', color:'#263c73', accent:'#f28a36', fin:'#d7378a', mark:'✦', shape:0 },
   { id:'chora', name:'Chora', title:'The beat keeper', bio:'A little grumpy. A lot of groove. Finds the rhythm in every adventure.', color:'#7961b6', accent:'#db388f', fin:'#f59b4c', mark:'♫', shape:1 },
   { id:'moki', name:'Moki', title:'The moss mischief', bio:'A forest kaiju with leaf fins, muddy feet, and an excellent shortcut.', color:'#32867b', accent:'#bee16f', fin:'#78ba5e', mark:'❧', shape:2 },
   { id:'zippi', name:'Zippi', title:'The little lightning', bio:'Two antenna horns. Zero patience. First to volunteer for a turbo test.', color:'#eab742', accent:'#fff0a1', fin:'#ec7356', mark:'ϟ', shape:3 },

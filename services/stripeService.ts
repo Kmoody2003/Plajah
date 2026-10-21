@@ -238,31 +238,6 @@ export async function startChurchDonation(opts: {
   window.location.href = url;
 }
 
-// ── Business Order Payment ────────────────────────────────────────────────────
-
-export async function checkoutBusinessOrder(opts: {
-  businessId: string;
-  items: { name: string; price: number; quantity: number }[];
-  userIdToken: string;
-}): Promise<void> {
-  const res = await fetch('/api/stripe/business-order', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${opts.userIdToken}`,
-    },
-    body: JSON.stringify(opts),
-  });
-
-  if (!res.ok) {
-    const { error } = await res.json().catch(() => ({ error: 'Unknown error' }));
-    throw new Error(error || 'Order payment failed');
-  }
-
-  const { url } = await res.json();
-  if (url) window.location.href = url;
-}
-
 // ── Sanctuary (memberships · à la carte unlocks · campaign backing) ─────────────
 // All three route the customer to Stripe Checkout; the webhook records the
 // membership / purchase / pledge and the creator earning (10% platform, ~90%
@@ -304,6 +279,7 @@ export async function purchaseContent(opts: {
   delivery?: 'DOWNLOAD_OPEN' | 'PLAJAH_ONLY';
   watermark?: boolean;
   rentalWindowHrs?: number;                 // RENTAL only
+  upgradeEdition?: number;                  // books: buy the paid upgrade to this edition (existing owners)
 }): Promise<void> {
   await redirectToCheckout('/api/stripe/content-purchase', opts);
 }
@@ -343,7 +319,7 @@ export const TIER_META = {
       '10% off all platform transactions',
       '10% off Plajah & bound artist merch',
       '100 points / month',
-      '10% off bound artist Sanctuary access',
+      '10% off bound artist Backstage access',
       'Early access to drops & specials',
       '50 GB personal cloud storage',
       'Boosted account promotion',
@@ -367,7 +343,7 @@ export const TIER_META = {
       '15% off all platform transactions',
       '15% off Plajah & bound artist merch',
       '300 points / month',
-      '15% off bound artist Sanctuary access',
+      '15% off bound artist Backstage access',
       'Early access to drops & specials',
       '75 GB personal cloud storage',
       'Boosted account promotion',
@@ -391,7 +367,7 @@ export const TIER_META = {
       '20% off all platform transactions',
       '20% off Plajah & bound artist merch',
       '1,000 points / month',
-      '20% off bound artist Sanctuary access',
+      '20% off bound artist Backstage access',
       'Early access to drops & specials',
       '100 GB personal cloud storage',
       'Maximum account promotion boost',

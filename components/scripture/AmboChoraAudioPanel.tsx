@@ -747,7 +747,7 @@ export const AmboChoraAudioPanel: React.FC<Props> = (p) => {
                   <MenuItem
                     key={pl.id}
                     disabled={inIt || localIntoChora}
-                    title={localIntoChora ? 'Local files can only go in Ambo playlists — Chora playlists sync to the cloud' : undefined}
+                    title={localIntoChora ? 'Local files can only go in Stage playlists — Chora playlists sync to the cloud' : undefined}
                     onClick={() => { addToPlaylist(pl, menuFor.t); close(); }}
                     icon={inIt ? <Check size={11} /> : pl.source === 'chora' ? <Cloud size={11} /> : <ListMusic size={11} />}
                   >{pl.title}</MenuItem>

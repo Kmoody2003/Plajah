@@ -44,7 +44,7 @@ export const SanctuaryGateLock: React.FC<{
       </div>
       <div className="relative">
         <p className="text-[11px] font-black uppercase tracking-widest" style={{ color: SANCTUARY_THEME.goldSoft }}>
-          {gate.label || (gate.accessType === 'ONE_TIME' ? 'Unlock this' : 'Sanctuary members only')}
+          {gate.label || (gate.accessType === 'ONE_TIME' ? 'Unlock this' : 'Backstage members only')}
         </p>
         {itemTitle && <p className="text-[9px] text-white/40 uppercase tracking-widest mt-1 max-w-[220px] truncate">{itemTitle}</p>}
       </div>
@@ -58,7 +58,7 @@ export const SanctuaryGateLock: React.FC<{
           <button onClick={() => onVisitSanctuary?.(gate.sanctuaryId)}
             className="px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest"
             style={{ color: SANCTUARY_THEME.goldSoft, background: 'rgba(0,0,0,0.4)', border: `1px solid ${SANCTUARY_THEME.line}` }}>
-            <Gem size={11} className="inline mr-1" style={{ color: SANCTUARY_THEME.gold }} /> Enter Sanctuary
+            <Gem size={11} className="inline mr-1" style={{ color: SANCTUARY_THEME.gold }} /> Enter Backstage
           </button>
         )}
       </div>

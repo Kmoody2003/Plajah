@@ -301,7 +301,7 @@ export function evaluateSanctuaryAutoEngage(
     gpsMatched,
     distanceMeters,
     sanctuaryName: `${org.name} · Main Sanctuary Nave`,
-    coordinatesLabel: `${sanctuaryCoords.lat.toFixed(4)}° N, ${Math.abs(sanctuaryCoords.lng).toFixed(4)}° W (${distanceMeters}m from Ambo Pulpit)`,
+    coordinatesLabel: `${sanctuaryCoords.lat.toFixed(4)}° N, ${Math.abs(sanctuaryCoords.lng).toFixed(4)}° W (${distanceMeters}m from Stage Pulpit)`,
     autoEngaged,
     syncSource: autoEngaged ? 'AMBO_ROOM_DICTATION_AND_KAIROS' : 'STANDBY',
   };

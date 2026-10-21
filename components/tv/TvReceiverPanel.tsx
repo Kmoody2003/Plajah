@@ -24,7 +24,7 @@ const OVERLAY_ID = 'receiver-panel';
 
 const DUTY_LABEL: Record<string, string> = {
   STANDBY: 'Standby — not receiving',
-  AMBO_PROGRAM: 'Ambo program out', AMBO_STAGE: 'Ambo stage display', AMBO_PRESENTATION: 'Ambo presentation',
+  AMBO_PROGRAM: 'Stage program out', AMBO_STAGE: 'Stage display', AMBO_PRESENTATION: 'Stage presentation',
   CHORA_PLAYLIST: 'Chora playlist', REELLO_VIDEO: 'Reello video', AMBIENT_SIGNAGE: 'Digital signage',
   PROGRAM_FEED: 'Switcher program feed', PARTY_DISPLAY: 'Party display',
 };
@@ -195,7 +195,7 @@ const TvReceiverPanel: React.FC<{ onClose: () => void; open?: boolean }> = ({ on
           <h1 className="text-3xl font-black tracking-tight">Use this TV as a display</h1>
         </div>
         <p className="text-white/50 mb-8 max-w-2xl">
-          Ambo, the Video Switcher, parties and signage can send to this TV.
+          Stage, the Video Switcher, parties and signage can send to this TV.
           Current: <span className="text-white font-semibold">{DUTY_LABEL[st.duty.dutyType] || st.duty.title}</span>
           {st.duty.dutyType !== 'STANDBY' && <> · from {st.sourceLabel}</>}
         </p>
@@ -216,14 +216,14 @@ const TvReceiverPanel: React.FC<{ onClose: () => void; open?: boolean }> = ({ on
                   ) : row(i, <Pencil size={22} />, st.deviceName, 'Display name · OK to rename');
                 case 'available':
                   return row(i, st.available ? <ToggleRight size={26} className="text-emerald-500" /> : <ToggleLeft size={26} />,
-                    'Available as a display', st.available ? 'On — shows up in Ambo and the switcher' : 'Off — hidden from controllers');
+                    'Available as a display', st.available ? 'On — shows up in Stage and the switcher' : 'Off — hidden from controllers');
                 case 'stop':
                   return row(i, <StopCircle size={22} className="text-red-500" />, 'Stop receiving', `Now showing ${DUTY_LABEL[st.duty.dutyType] || st.duty.title}`);
                 case 'session':
                   return row(i, it.s.kind === 'PARTY' ? <PartyPopper size={22} /> : <Radio size={22} />, `Join: ${it.s.title}`, it.s.subtitle);
                 case 'refresh':
                   return row(i, <RefreshCw size={22} className={loadingSessions ? 'animate-spin' : ''} />,
-                    sessions.length ? 'Refresh sessions' : 'No active parties or Ambo sessions — refresh', 'Parties you host and your Ambo event appear here');
+                    sessions.length ? 'Refresh sessions' : 'No active parties or Stage sessions — refresh', 'Parties you host and your Stage event appear here');
                 case 'unpair':
                   return row(i, <Link2Off size={22} />, 'Unpair controller', `Paired by code ${st.claimedCode}`);
                 case 'autostart':
@@ -245,7 +245,7 @@ const TvReceiverPanel: React.FC<{ onClose: () => void; open?: boolean }> = ({ on
           <>
             {qr ? <img src={qr} alt="" className="w-[260px] h-[260px] rounded-2xl bg-white p-2" /> : <div className="w-[260px] h-[260px] rounded-2xl bg-white/5" />}
             <div className="mt-6 text-5xl font-black tracking-[0.2em] font-mono">{st.pairing.code}</div>
-            <div className="mt-3 text-white/50 text-sm">Scan, or enter the code in Ambo / the Video Switcher → Send to TV. Expires in {pairingMinutes} min.</div>
+            <div className="mt-3 text-white/50 text-sm">Scan, or enter the code in Stage / the Video Switcher → Send to TV. Expires in {pairingMinutes} min.</div>
           </>
         ) : (
           <div className="text-white/40">{!st.signedIn ? 'Sign in to pair.' : !st.available ? 'Turn on "Available as a display" to pair.' : 'Getting a code…'}</div>

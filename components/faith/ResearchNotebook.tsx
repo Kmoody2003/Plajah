@@ -35,7 +35,7 @@ export default function ResearchNotebook() {
   const a = notebook.sources.find(s => s.id === left), b = notebook.sources.find(s => s.id === right);
   return <section className="space-y-3 text-sm text-white/75">
     <h3 className="font-semibold text-[#e3c57e]">Research notebook</h3>
-    <p>Sources saved in any faith reader or Lectio appear here. Your comparisons retain both passages, editions, and source links.</p>
+    <p>Sources saved in any faith reader or Verse appear here. Your comparisons retain both passages, editions, and source links.</p>
     <p className="text-white/45">{notebook.sources.length} saved sources · {notebook.comparisons.length} comparisons · {researchSyncsToAccount() ? 'synced to your account' : 'stored on this device (sign in to sync)'}</p>
     <div className="flex flex-wrap gap-3 text-xs">
       <button onClick={() => downloadResearchFile('sacred-research.json', JSON.stringify(notebook, null, 2), 'application/json')}>Export notebook</button>

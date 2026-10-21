@@ -197,7 +197,7 @@ const SIMULATED_PRESENCE_SEED: Omit<PresenceSession, 'enteredAt' | 'lastHeartbea
     currentView: AppView.PLAJAH_ELEVATE,
     viewLabel: VIEW_METADATA[AppView.PLAJAH_ELEVATE].label,
     category: 'Sanctuary & Faith',
-    activeSection: 'Ambo Sanctuary Stage',
+    activeSection: 'Plajah Stage',
     deviceType: 'desktop',
     isSimulated: true,
   },

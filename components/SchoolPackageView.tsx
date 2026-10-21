@@ -22,7 +22,7 @@ const PILLARS: Pillar[] = [
   {
     key: 'store', label: 'School Store & Merch', tagline: 'Spirit wear, fundraising & fees in one storefront.',
     icon: ShoppingBag, accent: '#2bd67a', view: 'STORE', cta: 'Open the Store',
-    uses: ['Spirit wear, yearbooks & concessions with real inventory', 'Fundraiser drives tied to a Sanctuary goal', 'Booster-club merch with proceeds to the program'],
+    uses: ['Spirit wear, yearbooks & concessions with real inventory', 'Fundraiser drives tied to Backstage goal', 'Booster-club merch with proceeds to the program'],
   },
   {
     key: 'events', label: 'Live Events & Ticketing', tagline: 'Sell out the show — and stream it too.',

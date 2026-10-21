@@ -207,7 +207,7 @@ const SacredLibraryHub: React.FC<SacredLibraryHubProps> = ({ onBack }) => {
 
         <p className="text-center text-xs text-white/35 mt-11 leading-relaxed">
           The Sacred Library — a world-faiths learning experience within Plajah Academia.<br />
-          Christianity is the reference build (Lectio lives in Gallery 01).
+          Christianity is the reference build (Verse lives in Gallery 01).
         </p>
       </div>
     </div>

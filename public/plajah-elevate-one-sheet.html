@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="en" class="theme-dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Plajah Elevate — Executive One-Sheet (Nonprofits, Faith &amp; Cultural Orgs)</title>
+  <meta name="description" content="Where Broadcast, Generosity (0% Platform Fee) & Volunteer Action Live Together. Executive One-Sheet for Nonprofits, Churches & Faith Traditions, and Cultural Institutions." />
+  <meta property="og:title" content="Plajah Elevate — Executive One-Sheet" />
+  <meta property="og:description" content="One connected home for Sanctuary & Stage Broadcast, 0% Platform-Fee Giving, Member Rosters, and Full-Spectrum Volunteer Action & Shifts." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://plajah.com/elevate-one-sheet" />
+  <meta property="og:image" content="https://plajah.com/og-default.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Plajah Elevate — Executive One-Sheet" />
+  <meta name="twitter:description" content="One connected home for Broadcast, 0% Fee Generosity & Volunteer Action across Nonprofits, Faith & Cultural Orgs." />
+  <link rel="icon" href="/plajah-app-icon-192.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800;900&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet" />
+  <style>
+    /* ═══════════════════════════════════════════════════════════════════════════
+       PLAJAH DESIGN SYSTEM — Self-Contained Canonical Tokens & Control Layer
+       Spec: docs/PLAJAH_DESIGN_SYSTEM.md & styles/plajah-ds.css
+       ═══════════════════════════════════════════════════════════════════════════ */
+    :root {
+      --bg-color: #020202;
+      --text-primary: #ffffff;
+      --text-secondary: #FF8C00;
+      --on-surface-variant: rgba(255, 255, 255, 0.70);
+
+      --pj-purple: #6B0099;
+      --pj-magenta: #D40055;
+      --pj-orange: #FF8C00;
+      --pj-cyan: #00DAF3;
+      --pj-lilac: #D0BCFF;
+
+      --pj-purple-soft: rgba(107, 0, 153, 0.16);
+      --pj-magenta-soft: rgba(212, 0, 85, 0.16);
+      --pj-orange-soft: rgba(255, 140, 0, 0.14);
+      --pj-cyan-soft: rgba(0, 218, 243, 0.14);
+
+      --pj-success: #06D6A0;
+      --pj-warning: #F59E0B;
+      --pj-danger: #EF4444;
+      --pj-info: #3B82F6;
+      --pj-success-soft: rgba(6, 214, 160, 0.14);
+
+      --pj-grad-brand: linear-gradient(135deg, var(--pj-purple) 0%, var(--pj-magenta) 100%);
+      --pj-grad-warm: linear-gradient(135deg, var(--pj-purple) 0%, var(--pj-magenta) 55%, var(--pj-orange) 100%);
+      --pj-grad-ember: linear-gradient(135deg, var(--pj-magenta) 0%, var(--pj-orange) 100%);
+      --pj-grad-spatial: linear-gradient(135deg, var(--pj-purple) 0%, var(--pj-cyan) 100%);
+
+      --pj-radius-xs: 8px;
+      --pj-radius-sm: 12px;
+      --pj-radius-md: 16px;
+      --pj-radius-lg: 24px;
+      --pj-radius-xl: 28px;
+      --pj-radius-2xl: 36px;
+      --pj-radius-full: 9999px;
+
+      --pj-ctl-h-xs: 28px; --pj-ctl-px-xs: 10px; --pj-ctl-gap-xs: 4px;
+      --pj-ctl-h-sm: 34px; --pj-ctl-px-sm: 14px; --pj-ctl-gap-sm: 6px;
+      --pj-ctl-h-md: 42px; --pj-ctl-px-md: 18px; --pj-ctl-gap-md: 8px;
+      --pj-ctl-h-lg: 50px; --pj-ctl-px-lg: 24px; --pj-ctl-gap-lg: 10px;
+
+      --pj-elev-1: 0 1px 2px rgba(0,0,0,0.30);
+      --pj-elev-2: 0 4px 12px rgba(0,0,0,0.35);
+      --pj-elev-3: 0 10px 28px rgba(0,0,0,0.45);
+      --pj-glow-brand: 0 6px 22px rgba(212, 0, 85, 0.34);
+      --pj-glow-orange: 0 6px 22px rgba(255, 140, 0, 0.30);
+
+      --pj-glass-1: rgba(255, 255, 255, 0.03);
+      --pj-glass-2: rgba(255, 255, 255, 0.05);
+      --pj-glass-3: rgba(255, 255, 255, 0.08);
+      --pj-glass-4: rgba(255, 255, 255, 0.12);
+      --pj-border: rgba(255, 255, 255, 0.10);
+      --pj-border-strong: rgba(255, 255, 255, 0.22);
+
+      --font-display: 'Outfit', sans-serif;
+      --font-label: 'Outfit', sans-serif;
+      --font-body: 'Inter', sans-serif;
+      --font-mono-tech: 'JetBrains Mono', monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background-color: var(--bg-color);
+      background-image:
+        radial-gradient(circle at 85% 8%, rgba(255, 140, 0, 0.14) 0%, transparent 40%),
+        radial-gradient(circle at 12% 22%, rgba(107, 0, 153, 0.24) 0%, transparent 48%),
+        radial-gradient(circle at 50% 90%, rgba(212, 0, 85, 0.14) 0%, transparent 50%);
+      color: var(--text-primary);
+      font-family: var(--font-body);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      padding: 24px 16px 64px;
+    }
+
+    .pj-surface {
+      background-color: var(--pj-glass-1);
+      border: 1px solid var(--pj-border);
+      border-radius: var(--pj-radius-lg);
+      box-shadow: var(--pj-elev-1);
+    }
+    .pj-surface--2 { background-color: var(--pj-glass-2); box-shadow: var(--pj-elev-2); }
+    .pj-surface--3 { background-color: var(--pj-glass-3); box-shadow: var(--pj-elev-3); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); }
+    .pj-surface--sheet { border-radius: var(--pj-radius-xl); }
+    .pj-surface--hero { border-radius: var(--pj-radius-2xl); }
+    .pj-surface--brand {
+      border-color: transparent;
+      background-image: linear-gradient(var(--bg-color), var(--bg-color)), var(--pj-grad-brand);
+      background-origin: border-box;
+      background-clip: padding-box, border-box;
+    }
+
+    .pj-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      height: var(--pj-ctl-h-sm);
+      padding-inline: var(--pj-ctl-px-sm);
+      border-radius: var(--pj-radius-full);
+      border: 1px solid transparent;
+      font-family: var(--font-label);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      white-space: nowrap;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 180ms cubic-bezier(0.2, 0, 0, 1);
+    }
+    .pj-btn:active { transform: scale(0.97); }
+    .pj-btn--primary {
+      background-image: var(--pj-grad-brand);
+      color: #ffffff;
+      box-shadow: var(--pj-glow-brand);
+    }
+    .pj-btn--primary:hover { filter: brightness(1.12); }
+    .pj-btn--accent {
+      background-color: var(--pj-orange);
+      color: #12080a;
+      box-shadow: var(--pj-glow-orange);
+    }
+    .pj-btn--secondary {
+      background-color: var(--pj-glass-3);
+      color: var(--text-primary);
+      border-color: var(--pj-border);
+    }
+    .pj-btn--secondary:hover { background-color: var(--pj-glass-4); border-color: var(--pj-border-strong); }
+
+    .pj-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      height: 30px;
+      padding-inline: 12px;
+      border-radius: var(--pj-radius-full);
+      border: 1px solid var(--pj-border);
+      background-color: var(--pj-glass-2);
+      color: var(--text-primary);
+      font-family: var(--font-label);
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .pj-chip--selected {
+      background-color: var(--pj-orange-soft);
+      border-color: var(--pj-orange);
+      color: var(--pj-orange);
+    }
+
+    .pj-eyebrow {
+      font-family: var(--font-label);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.26em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+    }
+
+    .pj-text-ember {
+      background-image: var(--pj-grad-ember);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .pj-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+    .sheet-container {
+      max-width: 1140px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+      padding: 16px 24px;
+    }
+
+    .brand-lockup {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .hero-card {
+      padding: 32px;
+      background:
+        radial-gradient(circle at 90% 15%, rgba(255, 140, 0, 0.18) 0%, rgba(212, 0, 85, 0.16) 38%, rgba(107, 0, 153, 0.24) 72%, rgba(8, 4, 15, 0.96) 100%);
+      border: 1px solid rgba(212, 0, 85, 0.38);
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1.55fr 1fr;
+      gap: 28px;
+      align-items: center;
+    }
+
+    .headline-display {
+      font-family: var(--font-display);
+      font-size: clamp(28px, 4.2vw, 48px);
+      font-weight: 900;
+      letter-spacing: -0.035em;
+      line-height: 0.98;
+      margin-top: 8px;
+    }
+
+    .section-title {
+      font-family: var(--font-display);
+      font-size: clamp(20px, 2.6vw, 28px);
+      font-weight: 900;
+      letter-spacing: -0.025em;
+      line-height: 1.08;
+      margin-top: 4px;
+    }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+
+    .kpi-box { padding: 16px; }
+
+    .kpi-val {
+      font-family: var(--font-mono-tech);
+      font-size: 26px;
+      font-weight: 800;
+      margin-top: 4px;
+    }
+
+    .pillars-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    .pillar-card {
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .cap-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .cap-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 13px;
+    }
+
+    .cap-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      margin-top: 6px;
+      flex-shrink: 0;
+    }
+
+    .gaps-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+
+    .gap-card {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .compare-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .compare-table th,
+    .compare-table td {
+      padding: 11px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--pj-border);
+    }
+
+    .compare-table th {
+      font-family: var(--font-label);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: rgba(255, 255, 255, 0.55);
+      border-bottom: 1px solid var(--pj-border-strong);
+    }
+
+    .vertical-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+
+    @media (max-width: 960px) {
+      .hero-grid,
+      .pillars-grid,
+      .gaps-grid {
+        grid-template-columns: 1fr;
+      }
+      .vertical-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media print {
+      body {
+        padding: 0;
+        background: #07040d !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      .no-print {
+        display: none !important;
+      }
+      .sheet-container {
+        gap: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="sheet-container">
+    <!-- TOP BAR -->
+    <div class="pj-surface pj-surface--3 pj-surface--sheet topbar">
+      <div class="brand-lockup">
+        <svg width="38" height="38" viewBox="0 0 100 100" fill="none" aria-hidden="true">
+          <defs>
+            <linearGradient id="pjOneSheetGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#6B0099" />
+              <stop offset="50%" stop-color="#D40055" />
+              <stop offset="100%" stop-color="#FF8C00" />
+            </linearGradient>
+          </defs>
+          <path d="M30 20 L70 50 L30 80" stroke="url(#pjOneSheetGrad)" stroke-width="18" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        <div>
+          <div class="pj-eyebrow">PLAJAH ELEVATE · EXECUTIVE ONE-SHEET</div>
+          <div style="font-size: 13px; color: var(--on-surface-variant);">
+            Nonprofits &amp; Causes · Churches &amp; Faith Traditions · Cultural Institutions
+          </div>
+        </div>
+      </div>
+
+      <div class="pj-row no-print">
+        <a href="/?view=elevate" class="pj-btn pj-btn--secondary">Open Plajah Elevate</a>
+        <button type="button" class="pj-btn pj-btn--secondary" onclick="copyShareUrl(this)">
+          Copy Share Link
+        </button>
+        <button type="button" class="pj-btn pj-btn--primary" onclick="window.print()">
+          Print / Save as PDF
+        </button>
+      </div>
+    </div>
+
+    <!-- HERO SECTION -->
+    <section class="pj-surface pj-surface--3 pj-surface--hero hero-card">
+      <div class="hero-grid">
+        <div>
+          <div class="pj-row" style="margin-bottom: 10px;">
+            <span class="pj-chip pj-chip--selected">0% Plajah Platform Fee*</span>
+            <span class="pj-chip">Native Action &amp; Shifts Engine</span>
+            <span class="pj-chip">Licensed Watch Parties</span>
+          </div>
+          <p class="pj-eyebrow">ONE CONNECTED ECOSYSTEM FOR MISSION-DRIVEN ORGANIZATIONS</p>
+          <h1 class="headline-display">
+            Where Broadcast, Generosity &amp; <span class="pj-text-ember">Volunteer Action</span> Live Together.
+          </h1>
+          <p style="margin-top: 14px; font-size: 15px; color: rgba(255,255,255,0.78); max-width: 68ch;">
+            Organizations today duct-tape 6 to 8 disconnected tools together: one for volunteer shifts, one for stage projection,
+            one for livestreaming, one for donations, one for petitions, and another for member rosters.
+            <strong style="color: #fff;">Plajah Elevate</strong> replaces the fragmented stack with a single home where every volunteer shift,
+            spoke watch party, and covenant signature directly unlocks media, verified service credentials, and measurable impact.
+          </p>
+          <p style="margin-top: 8px; font-size: 12px; color: rgba(255,255,255,0.58);">
+            *<strong style="color: rgba(255,255,255,0.85);">0% Plajah Platform Fee:</strong> Plajah takes $0 platform markup on donations, tithes, or campaign contributions. Standard Stripe merchant processing rates (2.9% + $0.30, or Stripe’s discounted nonprofit rate for eligible 501(c)(3)s) apply directly.
+          </p>
+
+          <!-- Interactive Lens Filter -->
+          <div class="pj-row no-print" style="margin-top: 16px;">
+            <span style="font-family: var(--font-label); font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(255,255,255,0.55);">
+              Filter Lens:
+            </span>
+            <button type="button" class="pj-btn pj-btn--accent lens-btn" data-lens="ALL" onclick="filterPillars('ALL')">All 3 Pillars</button>
+            <button type="button" class="pj-btn pj-btn--secondary lens-btn" data-lens="NONPROFIT" onclick="filterPillars('NONPROFIT')">Nonprofits &amp; Causes</button>
+            <button type="button" class="pj-btn pj-btn--secondary lens-btn" data-lens="FAITH" onclick="filterPillars('FAITH')">Churches &amp; Faith</button>
+            <button type="button" class="pj-btn pj-btn--secondary lens-btn" data-lens="CULTURAL" onclick="filterPillars('CULTURAL')">Cultural &amp; Museums</button>
+            <button type="button" class="pj-btn pj-btn--secondary lens-btn" data-lens="GRASSROOTS" onclick="filterPillars('GRASSROOTS')">Grassroots &amp; Civic (Opt-In)</button>
+          </div>
+        </div>
+
+        <div class="kpi-grid">
+          <div class="pj-surface pj-surface--2 kpi-box">
+            <div style="font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: var(--pj-success);">
+              Plajah Platform Fee
+            </div>
+            <div class="kpi-val">0% Markup</div>
+            <div style="font-size: 12px; color: var(--on-surface-variant); margin-top: 2px;">
+              Standard Stripe processing only + instant receipts
+            </div>
+          </div>
+
+          <div class="pj-surface pj-surface--2 kpi-box">
+            <div style="font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: var(--pj-orange);">
+              Turnout Cadence
+            </div>
+            <div class="kpi-val">72h·24h·1h</div>
+            <div style="font-size: 12px; color: var(--on-surface-variant); margin-top: 2px;">
+              No-SMS Push, Post Man HTML Email &amp; .ICS
+            </div>
+          </div>
+
+          <div class="pj-surface pj-surface--2 kpi-box">
+            <div style="font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: var(--pj-cyan);">
+              Chapter Licensing
+            </div>
+            <div class="kpi-val">1-Click</div>
+            <div style="font-size: 12px; color: var(--on-surface-variant); margin-top: 2px;">
+              Reello Live + Cinema Film + Stage Slides
+            </div>
+          </div>
+
+          <div class="pj-surface pj-surface--2 kpi-box">
+            <div style="font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: var(--pj-lilac);">
+              CRM &amp; ChMS Bridge
+            </div>
+            <div class="kpi-val">6 Presets</div>
+            <div style="font-size: 12px; color: var(--on-surface-variant); margin-top: 2px;">
+              PCO · Breeze · Servant Keeper · VAN · SF
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- THE 3 INSTITUTIONAL PILLARS -->
+    <section>
+      <div style="margin-bottom: 14px;">
+        <p class="pj-eyebrow">THREE INSTITUTIONAL PILLARS · ADAPTIVE VOCABULARY</p>
+        <h2 class="section-title">Purpose-Built for Nonprofits, Faith Traditions &amp; Cultural Orgs</h2>
+      </div>
+
+      <div id="pillarsGrid" class="pillars-grid">
+        <!-- Nonprofits -->
+        <article data-pillar="NONPROFIT" class="pj-surface pj-surface--2 pj-surface--sheet pillar-card" style="border-top: 3px solid var(--pj-success);">
+          <div style="display: flex; flex-direction: column; gap: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+              <span style="font-family: var(--font-label); font-size: 12px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--pj-success);">
+                Nonprofits &amp; Causes
+              </span>
+              <span class="pj-chip">Tab: Take Action</span>
+            </div>
+            <h3 style="font-family: var(--font-display); font-size: 20px; font-weight: 900;">
+              Mission Scale Without Tool Fragmentation
+            </h3>
+            <ul class="cap-list">
+              <li class="cap-item">
+                <span class="cap-dot" style="background: var(--pj-success);"></span>
+                <span><strong>Multi-Shift Field Drives &amp; Auto-Waitlists:</strong> Role-based shift slots with capacity caps, automatic waitlist promotion, and QR / geofence check-in.</span>
+              </li>
+              <li class="cap-item">
+                <span class="cap-dot" style="background: var(--pj-success);"></span>
+                <span><strong>30s Voice/Video Petitions &amp; Dossiers:</strong> Constituents attach spoken testimonies, trigger <strong>SeedRaiser</strong> matching grants, and export bound <strong>Tela Studio</strong> PDFs.</span>
+              </li>
+              <li class="cap-item">
+                <span class="cap-dot" style="background: var(--pj-success);"></span>
+                <span><strong>Distributed Chapter Hosting:</strong> Supporters host neighborhood screenings with an official Community Screening License.</span>
+              </li>
+              <li class="cap-item">
+                <span class="cap-dot" style="background: var(--pj-success);"></span>
+                <span><strong>0% Fee Funds &amp; Dual-Signature Treasury:</strong> Campaign funds, audit trails, and 2-way sync with NGP VAN, EveryAction &amp; Salesforce.</span>
+              </li>
+            </ul>
+          </div>
+          <div class="pj-surface" style="padding: 12px; font-size: 12px; color: rgba(255,255,255,0.82);">
+            <strong style="color: var(--pj-orange); text-transform: uppercase;">Volunteer Retention Edge:</strong>
+            Verified Impact Passport hours exportable for university credit, corporate matching, and documentary screening unlocks.
+          </div>
+        </article>
+
+        <!-- Faith & Religious -->
+        <article data-pillar="FAITH" class="pj-surface pj-surface--2 pj-surface--sheet pillar-card" style="border-top: 3px solid var(--pj-purple);">
+          <div style="display: flex; flex-direction: column; gap: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+              <span style="font-family: var(--font-label); font-size: 12px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--pj-lilac);">
+                Churches &amp; Faith Orgs
+              </span>
+              <span class="pj-chip">Tab: Serve &amp; Action</span>
+            </div>
+            <h3 style="font-family: var(--font-display); font-size: 20px; font-weight: 900;">
+              From Sunday Sanctuary to Seven-Day Service
+            </h3>
+            <ul class="cap-list">
+              <li class="cap-item">
+                <span class="cap-dot" style="background: var(--pj-lilac);"></span>
+                <span><strong>Stage Pro Sanctuary Stage + Follow-Along:</strong> Project scripture &amp; worship lyrics on sanctuary walls while beaming interactive cards to every phone in the pews.</span>
+              </li>
+              <li class="cap-item">
+                <span class="cap-dot" style="background: var(--pj-lilac);"></span>
+                <span><strong>Ministry Shift Rosters &amp; Mercy Drives:</strong> Schedule Greeters, AV/Stage crews, Choir rehearsals, and food pantry drives with automatic waitlists.</span>
+              </li>
+              <li class="cap-item">
+                <span class="cap-dot" style="background: var(--pj-lilac);"></span>
+                <span><strong>Congregation Covenants &amp; Watch Parties:</strong> 1,000-hour service covenants with 30s spoken testimonies + licensed house-church watch parties.</span>
+              </li>
+              <li class="cap-item">
+                <span class="cap-dot" style="background: var(--pj-lilac);"></span>
+                <span><strong>0% Fee Tithes, ChMS Import &amp; Prayer Wall:</strong> Multi-fund giving, 1-click import from Planning Center / Servant Keeper / Breeze, and pastoral care routing.</span>
+              </li>
+            </ul>
+          </div>
+          <div class="pj-surface" style="padding: 12px; font-size: 12px; color: rgba(255,255,255,0.82);">
+            <strong style="color: var(--pj-orange); text-transform: uppercase;">Volunteer Retention Edge:</strong>
+            Every shift served is checked in and kept on the volunteer’s verified service record and in your ChMS.
+          </div>
+        </article>
+
+        <!-- Cultural Institutions -->
+        <article data-pillar="CULTURAL" class="pj-surface pj-surface--2 pj-surface--sheet pillar-card" style="border-top: 3px solid var(--pj-orange);">
+          <div style="display: flex; flex-direction: column; gap: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+              <span style="font-family: var(--font-label); font-size: 12px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--pj-orange);">
+                Cultural &amp; Museums
+              </span>
+              <span class="pj-chip">Tab: Docents &amp; Action</span>
+            </div>
+            <h3 style="font-family: var(--font-display); font-size: 20px; font-weight: 900;">
+              Living Archives, Docent Corps &amp; Patron Salons
+            </h3>
+            <ul class="cap-list">
+              <li class="cap-item">
+                <span class="cap-dot" style="background: var(--pj-orange);"></span>
+                <span><strong>Docent &amp; Exhibition Crew Scheduling:</strong> Coordinate gallery docents, opening-night ushers, and conservation volunteers with skill tags &amp; auto-waitlists.</span>
+              </li>
+              <li class="cap-item">
+                <span class="cap-dot" style="background: var(--pj-orange);"></span>
+                <span><strong>Licensed Patron Salons &amp; Screenings:</strong> Grant patrons and university chapters a Community Screening License for <strong>Cinema</strong> films + <strong>Stage</strong> lecture decks.</span>
+              </li>
+              <li class="cap-item">
+                <span class="cap-dot" style="background: var(--pj-orange);"></span>
+                <span><strong>Lorea Living Archives &amp; Heritage Plates:</strong> Publish interactive exhibition catalogs, musical scores, and oral histories with synced audio.</span>
+              </li>
+              <li class="cap-item">
+                <span class="cap-dot" style="background: var(--pj-orange);"></span>
+                <span><strong>Cultural Charters &amp; Endowment Giving:</strong> Preservation charters, exhibition sponsorship funds, museum store drops, and automated tax receipts.</span>
+              </li>
+            </ul>
+          </div>
+          <div class="pj-surface" style="padding: 12px; font-size: 12px; color: rgba(255,255,255,0.82);">
+            <strong style="color: var(--pj-orange); text-transform: uppercase;">Volunteer Retention Edge:</strong>
+            Docents and stewards build a verified service record of hours and roles that travels with them.
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- BUILT-IN OPT-IN GRASSROOTS & LOCAL CIVIC CAMPAIGN COMPLIANCE SHIELD -->
+    <section id="grassrootsComplianceSection" class="pj-surface pj-surface--2 pj-surface--sheet" style="padding: 24px; border-top: 3px solid var(--pj-cyan);">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; margin-bottom: 14px;">
+        <div>
+          <p class="pj-eyebrow">BUILT-IN OPT-IN OPERATIONAL CAPABILITY · UNPROMOTED ON PUBLIC MARKETING</p>
+          <h2 class="section-title">Grassroots Candidates &amp; Local Civic Campaign Compliance Shield</h2>
+          <p style="font-size: 13px; color: var(--on-surface-variant); margin-top: 6px; max-width: 82ch;">
+            Local and grassroots candidates running for <strong style="color: #fff;">School Board, City Council, County Commission, Mayor, State Legislature, or Local Ballot Initiatives</strong> rarely have $1,500+/month for fragmented political tech stacks (NGP VAN + ActBlue + Mobilize + ScaleToWin). Inside the Action &amp; Shifts workspace, administrators can quietly toggle on <strong style="color: #fff;">Grassroots &amp; Civic Campaign Compliance Mode</strong> (<code>Tab: Volunteer &amp; Canvass</code>) to enforce 7 statutory guardrails automatically:
+          </p>
+        </div>
+        <span class="pj-chip" style="border-color: var(--pj-cyan); color: var(--pj-cyan);">527 · 501(c)(4) · Local Ballot Ready</span>
+      </div>
+
+      <div class="gaps-grid">
+        <div class="pj-surface gap-card">
+          <div>
+            <div style="font-family: var(--font-mono-tech); font-size: 12px; font-weight: 800; color: var(--pj-orange);">[01] · 11 CFR § 110.11</div>
+            <h3 style="font-family: var(--font-display); font-size: 16px; font-weight: 800; margin-top: 4px;">Statutory “Paid for by…” Box Disclaimers</h3>
+            <p style="font-size: 12px; color: var(--on-surface-variant); margin-top: 6px;">
+              Auto-renders a bordered box (<em>“PAID FOR BY [COMMITTEE NAME], [TREASURER], TREASURER. Authorized by [Candidate]…”</em>) across campaign pages, Post Man emails, Reello lower-thirds, and Tela Studio PDFs.
+            </p>
+          </div>
+        </div>
+
+        <div class="pj-surface gap-card">
+          <div>
+            <div style="font-family: var(--font-mono-tech); font-size: 12px; font-weight: 800; color: var(--pj-success);">[02] · 11 CFR § 104.7</div>
+            <h3 style="font-family: var(--font-display); font-size: 16px; font-weight: 800; margin-top: 4px;">Occupation, Employer &amp; Street Address Gate</h3>
+            <p style="font-size: 12px; color: var(--on-surface-variant); margin-top: 6px;">
+              Requires Donor Full Legal Name, <strong>Physical Residential Street Address (rejects P.O. Boxes)</strong>, <strong>Occupation</strong>, <strong>Employer</strong>, and the <strong>5-Point Eligibility Attestation</strong> while enforcing per-donor election-cycle aggregate caps.
+            </p>
+          </div>
+        </div>
+
+        <div class="pj-surface gap-card">
+          <div>
+            <div style="font-family: var(--font-mono-tech); font-size: 12px; font-weight: 800; color: var(--pj-cyan);">[03] · 26 U.S.C. § 6113 &amp; 11 CFR § 100.52(d)</div>
+            <h3 style="font-family: var(--font-display); font-size: 16px; font-weight: 800; margin-top: 4px;">Non-Deductible Receipts + Stripe Pass-Through</h3>
+            <p style="font-size: 12px; color: var(--on-surface-variant); margin-top: 6px;">
+              Replaces 501(c)(3) tax receipts with statutory <em>“Contributions or gifts are NOT tax-deductible”</em> notices. <strong>0% Plajah platform markup</strong> while standard Stripe processing fees (2.9% + $0.30) pass through directly to avoid any illegal corporate in-kind subsidy.
+            </p>
+          </div>
+        </div>
+
+        <div class="pj-surface gap-card">
+          <div>
+            <div style="font-family: var(--font-mono-tech); font-size: 12px; font-weight: 800; color: var(--pj-magenta);">[04] · 26 U.S.C. § 501(c)(3)</div>
+            <h3 style="font-family: var(--font-display); font-size: 16px; font-weight: 800; margin-top: 4px;">IRS “Johnson Amendment” Coalition Firewall</h3>
+            <p style="font-size: 12px; color: var(--on-surface-variant); margin-top: 6px;">
+              Strictly blocks 501(c)(3) churches, charities, and cultural institutions from co-hosting a partisan 527 candidate drive or commingling member rosters.
+            </p>
+          </div>
+        </div>
+
+        <div class="pj-surface gap-card">
+          <div>
+            <div style="font-family: var(--font-mono-tech); font-size: 12px; font-weight: 800; color: var(--pj-lilac);">[05] · 18 U.S.C. § 597</div>
+            <h3 style="font-family: var(--font-display); font-size: 16px; font-weight: 800; margin-top: 4px;">Anti-Vote-Buying Reward Guardrail</h3>
+            <p style="font-size: 12px; color: var(--on-surface-variant); margin-top: 6px;">
+              Records verified hours <strong>only</strong> on genuine volunteer labor shifts (canvassing, phonebanking, hosting a house party) — never on registering to vote or casting a ballot.
+            </p>
+          </div>
+        </div>
+
+        <div class="pj-surface gap-card">
+          <div>
+            <div style="font-family: var(--font-mono-tech); font-size: 12px; font-weight: 800; color: var(--pj-orange);">[06] · 11 CFR § 114.2 &amp; FEC CSV</div>
+            <h3 style="font-family: var(--font-display); font-size: 16px; font-weight: 800; margin-top: 4px;">Corporate Match Block, AI Notice &amp; FEC Export</h3>
+            <p style="font-size: 12px; color: var(--on-surface-variant); margin-top: 6px;">
+              Blocks corporate SeedRaiser matches on candidate petitions, stamps statutory AI disclosure on ARIA/Fabula clips, and exports a 1-click <strong>FEC Form 3 / Municipal Treasurer CSV</strong>.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6 CLOSED VOLUNTEER & ACTION GAPS -->
+    <section>
+      <div style="margin-bottom: 14px;">
+        <p class="pj-eyebrow">CLOSING THE VOLUNTEER &amp; ACTION GAP</p>
+        <h2 class="section-title">Six Capabilities Standalone Volunteer Tools Cannot Replicate</h2>
+      </div>
+
+      <div class="gaps-grid">
+        <div class="pj-surface pj-surface--2 gap-card">
+          <div>
+            <div style="font-family: var(--font-mono-tech); font-size: 12px; font-weight: 800; color: var(--pj-orange);">[01] · SHIFTS &amp; WAITLISTS</div>
+            <h3 style="font-family: var(--font-display); font-size: 17px; font-weight: 800; margin-top: 4px;">Multi-Shift Scheduling &amp; Auto-Waitlist Promotion</h3>
+            <p style="font-size: 13px; color: var(--on-surface-variant); margin-top: 6px;">
+              Capacity-capped shift slots with automatic waitlist promotion the instant a confirmed seat opens, plus 1-tap QR &amp; Sanctuary Geofence check-in.
+            </p>
+          </div>
+          <div style="font-size: 12px; color: var(--pj-orange); font-weight: 700;">
+            Connected directly to your Org Roster &amp; Ministry/Program spaces.
+          </div>
+        </div>
+
+        <div class="pj-surface pj-surface--2 gap-card">
+          <div>
+            <div style="font-family: var(--font-mono-tech); font-size: 12px; font-weight: 800; color: var(--pj-magenta);">[02] · RETENTION ENGINE</div>
+            <h3 style="font-family: var(--font-display); font-size: 17px; font-weight: 800; margin-top: 4px;">Verified Service Records</h3>
+            <p style="font-size: 13px; color: var(--on-surface-variant); margin-top: 6px;">
+              Every check-in is recorded — hours, roles and history — on a verified record the volunteer and your staff can both trust.
+            </p>
+          </div>
+          <div style="font-size: 12px; color: var(--pj-orange); font-weight: 700;">
+            Turns every volunteer shift into an unforgettable cultural reward.
+          </div>
+        </div>
+
+        <div class="pj-surface pj-surface--2 gap-card">
+          <div>
+            <div style="font-family: var(--font-mono-tech); font-size: 12px; font-weight: 800; color: var(--pj-cyan);">[03] · DISTRIBUTED CHAPTERS</div>
+            <h3 style="font-family: var(--font-display); font-size: 17px; font-weight: 800; margin-top: 4px;">Peer Spoke Hosting with Screening Licenses</h3>
+            <p style="font-size: 13px; color: var(--on-surface-variant); margin-top: 6px;">
+              Vetted members host neighborhood watch parties or salon chapters with an official Community Screening License for live broadcasts &amp; films.
+            </p>
+          </div>
+          <div style="font-size: 12px; color: var(--pj-orange); font-weight: 700;">
+            Includes synced Stage Follow-Along slides for every guest&apos;s phone.
+          </div>
+        </div>
+
+        <div class="pj-surface pj-surface--2 gap-card">
+          <div>
+            <div style="font-family: var(--font-mono-tech); font-size: 12px; font-weight: 800; color: var(--pj-lilac);">[04] · VOICE &amp; ADVOCACY</div>
+            <h3 style="font-family: var(--font-display); font-size: 17px; font-weight: 800; margin-top: 4px;">Covenants &amp; Petitions with 30s Voice Testimonies</h3>
+            <p style="font-size: 13px; color: var(--on-surface-variant); margin-top: 6px;">
+              Signers attach 30-second voice or video testimonies and pledged hours; signature milestones trigger <strong>SeedRaiser</strong> sponsor matching grants.
+            </p>
+          </div>
+          <div style="font-size: 12px; color: var(--pj-orange); font-weight: 700;">
+            1-click export to Tela Studio generates a print-ready bound PDF dossier.
+          </div>
+        </div>
+
+        <div class="pj-surface pj-surface--2 gap-card">
+          <div>
+            <div style="font-family: var(--font-mono-tech); font-size: 12px; font-weight: 800; color: var(--pj-success);">[05] · ZERO CARRIER FEES</div>
+            <h3 style="font-family: var(--font-display); font-size: 17px; font-weight: 800; margin-top: 4px;">No-SMS Native Cadence + ARIA Synergy Loop</h3>
+            <p style="font-size: 13px; color: var(--on-surface-variant); margin-top: 6px;">
+              Automated 72h Prep Brief, 24h 1-Tap Confirm, and 1h Doors Pass via In-App Push, <strong>Post Man</strong> Rich HTML Email, and .ICS Calendar.
+            </p>
+          </div>
+          <div style="font-size: 12px; color: var(--pj-orange); font-weight: 700;">
+            Post-event ARIA loop auto-drafts recap reels, threads &amp; impact receipts.
+          </div>
+        </div>
+
+        <div class="pj-surface pj-surface--2 gap-card">
+          <div>
+            <div style="font-family: var(--font-mono-tech); font-size: 12px; font-weight: 800; color: var(--pj-lilac);">[06] · PORTABLE CREDENTIALS</div>
+            <h3 style="font-family: var(--font-display); font-size: 17px; font-weight: 800; margin-top: 4px;">Verified Impact Passports + Coalition CRM Sync</h3>
+            <p style="font-size: 13px; color: var(--on-surface-variant); margin-top: 6px;">
+              Members build a portable record of verified hours across co-hosting Elevate organizations, backed by 2-way CSV &amp; webhook CRM sync.
+            </p>
+          </div>
+          <div style="font-size: 12px; color: var(--pj-orange); font-weight: 700;">
+            Presets for Planning Center, Servant Keeper, Breeze, VAN &amp; Salesforce.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- STACK CONSOLIDATION TABLE -->
+    <section class="pj-surface pj-surface--2 pj-surface--sheet" style="padding: 24px;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 12px; margin-bottom: 14px;">
+        <div>
+          <p class="pj-eyebrow">STACK CONSOLIDATION ECONOMICS</p>
+          <h2 class="section-title">Replace 6+ Disconnected Subscriptions with One Home</h2>
+        </div>
+        <span class="pj-chip pj-chip--selected">Single Member ID · Unified Ledger</span>
+      </div>
+
+      <table class="compare-table">
+        <thead>
+          <tr>
+            <th>Operational Capability</th>
+            <th>Legacy Fragmented Stack</th>
+            <th style="color: var(--pj-orange);">Plajah Elevate Native</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Volunteer Shifts, Waitlists &amp; Check-In</strong></td>
+            <td style="color: var(--on-surface-variant);">Mobilize / SignUpGenius / TimeCounts ($150–$800+/mo)</td>
+            <td style="color: var(--pj-success); font-weight: 600;">Action &amp; Shifts Engine + Verified Service Records</td>
+          </tr>
+          <tr>
+            <td><strong>Sanctuary / Stage Projection &amp; Mobile Slides</strong></td>
+            <td style="color: var(--on-surface-variant);">ProPresenter + Custom Mobile App ($80–$300/mo)</td>
+            <td style="color: var(--pj-success); font-weight: 600;">Stage Pro Browser Stage + Live Phone Follow-Along</td>
+          </tr>
+          <tr>
+            <td><strong>Livestreaming, Film Screenings &amp; Stems</strong></td>
+            <td style="color: var(--on-surface-variant);">Vimeo Enterprise / BoxCast / SoundCloud ($100–$500/mo)</td>
+            <td style="color: var(--pj-success); font-weight: 600;">Reello Live + Cinema Cinema + Chora Multi-Track Stems</td>
+          </tr>
+          <tr>
+            <td><strong>Petitions, Covenants &amp; Civic Dossiers</strong></td>
+            <td style="color: var(--on-surface-variant);">ActionNetwork / Change.org / InDesign ($100–$400/mo)</td>
+            <td style="color: var(--pj-success); font-weight: 600;">30s Voice/Video Testimonies + SeedRaiser Match + Tela PDF</td>
+          </tr>
+          <tr>
+            <td><strong>Donations, Tithes &amp; Campaign Contributions</strong></td>
+            <td style="color: var(--on-surface-variant);">Pushpay / Tithe.ly / ActBlue (1–5% platform markup + processor fees)</td>
+            <td style="color: var(--pj-success); font-weight: 600;">0% Plajah Platform Fee (Standard Stripe Processing Only) + Dual-Signature / FEC Desk</td>
+          </tr>
+          <tr>
+            <td><strong>Member Roster, ChMS &amp; Reminder Cadence</strong></td>
+            <td style="color: var(--on-surface-variant);">Planning Center / Breeze + Mailchimp ($100–$350/mo)</td>
+            <td style="color: var(--pj-success); font-weight: 600;">Pre-Provisioned Member IDs + Push, Post Man Email &amp; .ICS</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- CROSS-VERTICAL ENGINE MATRIX -->
+    <section class="pj-surface pj-surface--2 pj-surface--sheet" style="padding: 24px;">
+      <div style="margin-bottom: 14px;">
+        <p class="pj-eyebrow">SHARED PLATFORM ARCHITECTURE</p>
+        <h2 class="section-title">One Action &amp; Shifts Engine Across Every Plajah Vertical</h2>
+      </div>
+
+      <div class="vertical-grid">
+        <div class="pj-surface" style="padding: 16px;">
+          <div style="font-size: 12px; font-weight: 800; color: var(--pj-orange); text-transform: uppercase;">Nonprofits · Faith · Cultural</div>
+          <div style="font-family: var(--font-display); font-size: 17px; font-weight: 900; margin-top: 2px;">Plajah Elevate</div>
+          <div style="font-size: 12px; color: var(--pj-lilac); margin-bottom: 8px;">Tabs: Serve &amp; Action · Take Action · Docents</div>
+          <p style="font-size: 12px; color: var(--on-surface-variant);">
+            Outreach &amp; ministry shifts, house-church &amp; salon watch parties, spoken-testimony covenants, and verified tax/service passports.
+          </p>
+        </div>
+
+        <div class="pj-surface" style="padding: 16px;">
+          <div style="font-size: 12px; font-weight: 800; color: var(--pj-cyan); text-transform: uppercase;">Universities · K-12 · Seminars</div>
+          <div style="font-family: var(--font-display); font-size: 17px; font-weight: 900; margin-top: 2px;">Plajah Academia</div>
+          <div style="font-size: 12px; color: var(--pj-lilac); margin-bottom: 8px;">Tab: Service &amp; Chapters</div>
+          <p style="font-size: 12px; color: var(--on-surface-variant);">
+            Service-learning practicums, lab/TA shifts, regional alumni chapters, student senate resolutions, and Co-Curricular Transcripts.
+          </p>
+        </div>
+
+        <div class="pj-surface" style="padding: 16px;">
+          <div style="font-size: 12px; font-weight: 800; color: var(--pj-magenta); text-transform: uppercase;">Fan Clubs · Guilds · Run Clubs</div>
+          <div style="font-family: var(--font-display); font-size: 17px; font-weight: 900; margin-top: 2px;">Plajah Clubs</div>
+          <div style="font-size: 12px; color: var(--pj-lilac); margin-bottom: 8px;">Tab: Meetups &amp; Crew</div>
+          <p style="font-size: 12px; color: var(--on-surface-variant);">
+            Event crew &amp; moderator shifts, city-by-city album listening parties, club bylaw votes, and VIP stem/backstage unlocks.
+          </p>
+        </div>
+
+        <div class="pj-surface" style="padding: 16px;">
+          <div style="font-size: 12px; font-weight: 800; color: var(--pj-success); text-transform: uppercase;">Brands · Studios · Creators</div>
+          <div style="font-family: var(--font-display); font-size: 17px; font-weight: 900; margin-top: 2px;">Plajah Business</div>
+          <div style="font-size: 12px; color: var(--pj-lilac); margin-bottom: 8px;">Tab: Ambassadors &amp; Pop-Ups</div>
+          <p style="font-size: 12px; color: var(--on-surface-variant);">
+            Pop-up retail &amp; street-team shifts, licensed community launch parties, B-Corp sustainability pledges, and loyalty drops.
+          </p>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    function filterPillars(lens) {
+      var cards = document.querySelectorAll('#pillarsGrid .pillar-card');
+      cards.forEach(function (card) {
+        if (lens === 'ALL' || card.getAttribute('data-pillar') === lens) {
+          card.style.display = 'flex';
+        } else {
+          card.style.display = 'none';
+        }
+      });
+      var grid = document.getElementById('pillarsGrid');
+      grid.style.gridTemplateColumns = lens === 'ALL' ? 'repeat(3, 1fr)' : '1fr';
+
+      var grassrootsSec = document.getElementById('grassrootsComplianceSection');
+      if (lens === 'GRASSROOTS' && grassrootsSec) {
+        grassrootsSec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+
+      var btns = document.querySelectorAll('.lens-btn');
+      btns.forEach(function (b) {
+        if (b.getAttribute('data-lens') === lens) {
+          b.className = 'pj-btn pj-btn--accent lens-btn';
+        } else {
+          b.className = 'pj-btn pj-btn--secondary lens-btn';
+        }
+      });
+    }
+
+    function copyShareUrl(btn) {
+      var url = window.location.href;
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(url).catch(function () {});
+      }
+      var prev = btn.textContent;
+      btn.textContent = 'Share Link Copied!';
+      setTimeout(function () { btn.textContent = prev; }, 2200);
+    }
+  </script>
+</body>
+</html>

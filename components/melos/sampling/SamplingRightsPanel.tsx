@@ -23,7 +23,7 @@ const OFFERS: { id: SampleOffer; label: string; icon: React.ReactNode; hint: str
   { id: 'sell', label: 'Sell', icon: <DollarSign size={13} />, hint: 'a sample pack listeners buy' },
   { id: 'free', label: 'Free', icon: <Gift size={13} />, hint: 'free to everyone' },
   { id: 'library', label: 'Melos Library', icon: <Library size={13} />, hint: 'listed for producers on Melos' },
-  { id: 'gated', label: 'Club / Sanctuary', icon: <Lock size={13} />, hint: 'members-only' },
+  { id: 'gated', label: 'Club / Backstage', icon: <Lock size={13} />, hint: 'members-only' },
 ];
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 

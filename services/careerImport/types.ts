@@ -80,6 +80,6 @@ export const DESTINATION_LABEL: Record<Destination, string> = {
   CHORA: 'Chora',
   LOREA: 'Lorea',
   REELLO: 'Reello',
-  TALEO: 'Taleo',
+  TALEO: 'Cinema',
   PODCAST: 'Podcasts',
 };

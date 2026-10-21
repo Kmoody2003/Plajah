@@ -5,13 +5,15 @@ import {
   Plus, ArrowRight, ChevronRight, ChevronLeft, MonitorPlay, Gift, HandHeart,
   GraduationCap, Music, KeyRound, UserCheck, ShieldCheck, Globe, BookOpen,
   Play, Pause, Radio, ShoppingBag, Wallet, MessagesSquare, CheckCircle2,
-  Zap, Eye, Layers, Compass, Building2, Star, Calendar, Bell
+  Zap, Eye, Layers, Compass, Building2, Star, Calendar, Bell, FileText, Share2
 } from 'lucide-react';
 import { fetchPublicOrganizations, openElevateGatewayModal } from '../services/organizationService';
 import { DEMO_CHURCH, DEMO_CHURCH_ID } from '../data/demoShowcase';
 import { orgMediaUids, fetchLiveOwnerSet } from '../services/orgMedia';
 import { Organization, OrgType, AppView } from '../types';
 import { TYPE } from '../src/lib/designSystem';
+import { Button } from './ui';
+import ElevateOneSheetModal from './elevate/ElevateOneSheetModal';
 import AriaMark from './aria/AriaMark';
 import PlajahPlusBanner from './PlajahPlusBanner';
 import {
@@ -105,21 +107,21 @@ const ELEVATE_CAPABILITIES: {
   actionKey?: string;
 }[] = [
   {
-    title: 'Ambo Sanctuary Stage & Live Broadcast',
+    title: 'Plajah Stage & Live Broadcast',
     color: '#8B5CF6',
     icon: MonitorPlay,
     wide: true,
     desc: 'Run scripture, worship lyrics, lower-thirds and multi-screen sanctuary walls from your browser — while streaming live to every member at home.',
-    power: 'Powered by Ambo Pro & Plajah Live',
+    power: 'Powered by Stage & Plajah Live',
     stat: 'Dual-output stage · NDI & TV receiver · Follow-Along scripture on phones',
     actionKey: 'AMBO_PRO',
   },
   {
-    title: 'Zero-Platform-Fee Tithes & Funds',
+    title: '0% Plajah Platform-Fee Tithes & Funds',
     color: '#06D6A0',
     icon: Gift,
-    desc: 'Designated giving funds (Tithes, Building Fund, Missions, Youth) with instant receipts and direct Stripe payouts.',
-    stat: 'Tithes · designated funds · Finance Hub',
+    desc: 'Designated giving funds (Tithes, Building Fund, Missions, Youth) with 0% Plajah platform markup (standard Stripe processing rates apply) and instant receipts.',
+    stat: '0% Plajah markup · direct Stripe · Finance Hub',
     actionKey: 'GIVE',
   },
   {
@@ -161,7 +163,7 @@ const AMBO_DEMO_SLIDES = [
     kind: 'SCRIPTURE',
     ref: 'ISAIAH 40:31 · KJV',
     text: '“But they that wait upon the LORD shall renew their strength; they shall mount up with wings as eagles…”',
-    note: 'Ambo projects onto sanctuary screens + beams interactive Follow-Along text to every phone in the pews.',
+    note: 'Stage projects onto sanctuary screens + beams interactive Follow-Along text to every phone in the pews.',
   },
   {
     kind: 'WORSHIP',
@@ -304,6 +306,7 @@ const ElevateOrgCard: React.FC<{
 
 const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNavigate, isSignedIn }) => {
   const [elevateTheme, setElevateTheme] = useState<'plajah' | 'dark' | 'pastel'>('plajah');
+  const [showOneSheetModal, setShowOneSheetModal] = useState(false);
   const [visualConfig, setVisualConfig] = useState<PageVisualConfig | null>(null);
   const [editMode, setEditMode] = useState<boolean>(() => isGlobalEditModeEnabled());
   const [showAddCarouselCard, setShowAddCarouselCard] = useState(false);
@@ -456,6 +459,17 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
             <KeyRound size={13} className="shrink-0" />
             <span className="hidden lg:inline">Claim Member ID</span>
           </button>
+
+          <Button
+            size="xs"
+            variant="accent"
+            icon={<FileText />}
+            onClick={() => setShowOneSheetModal(true)}
+            title="Open Shareable Executive One-Sheet for Colleagues"
+          >
+            <span className="hidden md:inline">Executive One-Sheet</span>
+            <span className="md:hidden">One-Sheet</span>
+          </Button>
 
           <div className="ml-auto flex items-center gap-1.5 sm:gap-2.5 shrink-0">
             {/* Theme pill switcher (from Lorea) */}
@@ -616,14 +630,14 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
                       {visualConfig?.textOverrides?.['elevate_hero_cta_secondary'] ?? 'Claim Member ID'}
                     </span>
                   </button>
-                  <span
-                    data-pj-edit="elevate_hero_handwritten"
-                    data-pj-label="Handwritten Callout"
-                    className="text-[#FF8C00] text-lg sm:text-xl -rotate-3 ml-1"
-                    style={{ fontFamily: 'Gochi Hand, cursive' }}
+                  <Button
+                    size="md"
+                    variant="secondary"
+                    icon={<Share2 />}
+                    onClick={() => setShowOneSheetModal(true)}
                   >
-                    {visualConfig?.textOverrides?.['elevate_hero_handwritten'] ?? 'try the live pulpit ↗'}
-                  </span>
+                    Share Colleague One-Sheet
+                  </Button>
                 </div>
               </div>
 
@@ -655,7 +669,7 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
                       ))}
                     </div>
                     <span className="flex items-center gap-1.5 text-[8.5px] sm:text-[9px] font-mono uppercase tracking-widest text-[#06D6A0] shrink-0">
-                      <span className="w-2 h-2 rounded-full bg-[#06D6A0] animate-ping" /> Ambo Stage Live
+                      <span className="w-2 h-2 rounded-full bg-[#06D6A0] animate-ping" /> Stage Live
                     </span>
                   </div>
 
@@ -682,7 +696,7 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
                       <div className="flex items-center justify-between gap-2 text-[9px] sm:text-[10px] font-mono uppercase tracking-[0.15em] sm:tracking-[0.2em] text-[#FF8C00]">
                         <span
                           data-pj-edit={`ambo_slide_${slideIdx}_ref`}
-                          data-pj-label={`Ambo Slide ${slideIdx + 1} Reference`}
+                          data-pj-label={`Stage Slide ${slideIdx + 1} Reference`}
                           className="truncate"
                         >
                           {visualConfig?.textOverrides?.[`ambo_slide_${slideIdx}_ref`] ?? currentSlide.ref}
@@ -692,7 +706,7 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
 
                       <p
                         data-pj-edit={`ambo_slide_${slideIdx}_text`}
-                        data-pj-label={`Ambo Slide ${slideIdx + 1} Lyric/Scripture`}
+                        data-pj-label={`Stage Slide ${slideIdx + 1} Lyric/Scripture`}
                         className="font-black text-white leading-snug tracking-tight my-auto"
                         style={{ fontFamily: 'Outfit, sans-serif', fontSize: 'clamp(15px,2.2vw,25px)' }}
                       >
@@ -702,7 +716,7 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
                       <div className="flex items-center justify-between gap-3 pt-2.5 sm:pt-3 border-t border-white/10 text-[10px] sm:text-[11px] text-white/60">
                         <span
                           data-pj-edit={`ambo_slide_${slideIdx}_note`}
-                          data-pj-label={`Ambo Slide ${slideIdx + 1} Caption`}
+                          data-pj-label={`Stage Slide ${slideIdx + 1} Caption`}
                           className="truncate"
                         >
                           {visualConfig?.textOverrides?.[`ambo_slide_${slideIdx}_note`] ?? currentSlide.note}
@@ -726,7 +740,7 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
                     </button>
                     <div className="min-w-0 flex-1">
                       <div className="text-[8.5px] sm:text-[9px] font-mono uppercase tracking-widest text-white/45 truncate">
-                        Ambo Presenter · Follow-Along Sync
+                        Plajah Stage · Follow-Along Sync
                       </div>
                       <div
                         data-pj-edit="ambo_player_hint"
@@ -846,7 +860,7 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
                     className="w-full rounded-xl bg-black/50 border border-white/15 px-3 py-2 text-xs text-white"
                   >
                     <option value="LIVING_BOOK">Lorea · Living Book</option>
-                    <option value="AMBO_STAGE">Ambo · Sanctuary Visualizer</option>
+                    <option value="AMBO_STAGE">Stage · Sanctuary Visualizer</option>
                     <option value="TELA_DESIGN">Tela · Publication Design</option>
                     <option value="CURATED_PLAYLIST">Chora · Worship Stems</option>
                     <option value="PIXELS_ART">Plajah Pixels · Visual Art</option>
@@ -1026,12 +1040,12 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-9">
               {[
-                { key: 'p1', title: 'Ambo Pro Presenter', desc: 'Scripture, lyrics, lower-thirds and stage monitors driven from your browser.', tag: 'Sanctuary Stage', color: '#8B5CF6', icon: MonitorPlay, act: () => triggerNavigate('AMBO_PRO') },
-                { key: 'p2', title: 'Sacred Library & Lectio', desc: 'Open the Bible and world faith texts with audio narration and study notes.', tag: 'Scripture', color: '#FF8C00', icon: BookOpen, act: () => triggerNavigate('SACRED_LIBRARY') },
-                { key: 'p3', title: 'Tithes & Finance Hub', desc: 'Multi-fund giving, expense approvals, and automated donor statements.', tag: 'Stewardship', color: '#06D6A0', icon: Gift, act: () => onOpenOrg(DEMO_CHURCH_ID) },
+                { key: 'p1', title: 'Stage Presenter', desc: 'Scripture, lyrics, lower-thirds and stage monitors driven from your browser.', tag: 'Sanctuary Stage', color: '#8B5CF6', icon: MonitorPlay, act: () => triggerNavigate('AMBO_PRO') },
+                { key: 'p2', title: 'Sacred Library & Verse', desc: 'Open the Bible and world faith texts with audio narration and study notes.', tag: 'Scripture', color: '#FF8C00', icon: BookOpen, act: () => triggerNavigate('SACRED_LIBRARY') },
+                { key: 'p3', title: 'Tithes & Finance Hub', desc: 'Multi-fund giving with 0% Plajah platform fee (standard Stripe processing applies), dual-signature expense approvals, and automated statements.', tag: 'Stewardship', color: '#06D6A0', icon: Gift, act: () => onOpenOrg(DEMO_CHURCH_ID) },
                 { key: 'p4', title: 'Music & Choir Dept', desc: 'Share setlists, rehearsal stems, sheet music scores and choir rosters.', tag: 'Worship', color: '#D40055', icon: Music, act: () => onOpenOrg(DEMO_CHURCH_ID) },
                 { key: 'p5', title: 'Christian Education', desc: 'Sunday school classes, youth curricula, lesson plans and family check-in.', tag: 'Discipleship', color: '#00DAF3', icon: GraduationCap, act: () => onOpenOrg(DEMO_CHURCH_ID) },
-                { key: 'p6', title: 'Prayer Wall & Care', desc: 'Live congregation prayer requests, "Praying for you" counts, and elder care.', tag: 'Fellowship', color: '#D0BCFF', icon: HandHeart, act: () => onOpenOrg(DEMO_CHURCH_ID) },
+                { key: 'p6', title: 'Serve, Shifts & Watch Parties', desc: 'Multi-shift volunteer scheduling, automatic waitlists, 30s voice-testimony covenants, and licensed neighborhood watch parties.', tag: 'Action & Chapters', color: '#FF8C00', icon: Sparkles, act: () => onOpenOrg(DEMO_CHURCH_ID) },
               ].map(tile => (
                 <article
                   key={tile.key}
@@ -1068,6 +1082,27 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
                   </span>
                 </article>
               ))}
+            </div>
+
+            {/* Subtle Action & Institutional Stack Ribbon */}
+            <div className="mt-6 p-5 rounded-[28px] border border-white/10 bg-white/[0.02] flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div className="space-y-1 max-w-2xl">
+                <div className="text-[10px] font-black uppercase tracking-[0.32em] text-[#FF8C00]" style={{ fontFamily: 'Outfit, sans-serif' }}>
+                  Native Action, Shifts &amp; Institutional Stack
+                </div>
+                <p className="text-xs text-white/65 leading-relaxed">
+                  Built into every Elevate workspace: capacity-capped volunteer shifts with automatic waitlist promotion,{' '}
+                  no-SMS <b className="text-white/90">72h·24h·1h</b> Push &amp; Post Man Email cadences, portable Impact Passports, 2-way ChMS/CRM sync, and opt-in compliance guards for local civic &amp; grassroots initiatives.
+                </p>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap shrink-0">
+                <Button size="sm" variant="secondary" icon={<FileText />} onClick={() => setShowOneSheetModal(true)}>
+                  Executive One-Sheet
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => onOpenOrg(DEMO_CHURCH_ID)}>
+                  Explore Action Hub →
+                </Button>
+              </div>
             </div>
           </section>
       </div>
@@ -1172,15 +1207,16 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
                   {DEMO_CHURCH.name}
                 </h3>
                 <p className="text-white/65 text-xs sm:text-sm mt-1 line-clamp-2 max-w-2xl">
-                  {DEMO_CHURCH.tagline || 'Experience a live multi-ministry congregation with Sunday streams, Ambo scripture follow-along, Music Department, Christian Education, and Finance Hub.'}
+                  {DEMO_CHURCH.tagline || 'Experience a live multi-ministry congregation with Sunday streams, Stage scripture follow-along, Music Department, Christian Education, and Finance Hub.'}
                 </p>
 
                 <div className="flex flex-wrap gap-2 mt-3.5">
                   {[
                     { label: 'Live Sanctuary Stream', icon: MonitorPlay },
                     { label: '4 Giving Funds', icon: Gift },
+                    { label: 'Serve, Shifts & Waitlists', icon: Calendar },
+                    { label: 'Licensed Watch Parties', icon: Globe },
                     { label: 'Choir & Music Dept', icon: Music },
-                    { label: 'Christian Education', icon: GraduationCap },
                     { label: 'Prayer Wall', icon: HandHeart },
                   ].map(p => (
                     <span
@@ -1250,7 +1286,7 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
                 Free to launch · 2-min setup
               </span>
               <span className="text-[11px] text-white/45 mt-2 max-w-[24ch]">
-                Pre-seeded ministries, giving funds, Ambo stage &amp; member claim cards.
+                Pre-seeded ministries, giving funds, Stage &amp; member claim cards.
               </span>
             </button>
           </div>
@@ -1276,9 +1312,9 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {[
               { title: 'Grace Chapel Demo', sub: 'Full interactive church tour (Member, Leader & Pastor views)', color: '#8B5CF6', act: () => onOpenOrg(DEMO_CHURCH_ID) },
-              { title: 'Ambo Pro Presenter', sub: 'Multi-screen scripture, lyrics & sanctuary confidence stage', color: '#D40055', act: () => triggerNavigate('AMBO_PRO') },
+              { title: 'Stage Presenter', sub: 'Multi-screen scripture, lyrics & sanctuary confidence stage', color: '#D40055', act: () => triggerNavigate('AMBO_PRO') },
               { title: 'Sacred Library', sub: 'World faith traditions, study Bibles & audio scripture', color: '#FF8C00', act: () => triggerNavigate('SACRED_LIBRARY') },
-              { title: 'Lectio Bible Reader', sub: 'Chapter-by-chapter study with Follow-Along sync', color: '#00DAF3', act: () => triggerNavigate('BIBLE') },
+              { title: 'Plajah Verse', sub: 'Chapter-by-chapter study with Follow-Along sync', color: '#00DAF3', act: () => triggerNavigate('BIBLE') },
             ].map(d => (
               <button
                 key={d.title}
@@ -1323,6 +1359,34 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
             ))}
           </div>
         </div>
+
+        {/* Group 3: Volunteer Action, Chapters & Institutional Stack */}
+        <div className="mt-8">
+          <h3 className="text-[10px] font-black uppercase tracking-[0.45em] text-[#00DAF3] mb-3.5">
+            Volunteer Action, Chapters &amp; Institutional Stack
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {[
+              { title: 'Shifts & Auto-Waitlists', sub: 'Multi-shift scheduling, QR check-in & automatic waitlists', color: '#FF8C00', act: () => onOpenOrg(DEMO_CHURCH_ID) },
+              { title: 'Licensed Watch Parties', sub: 'Community Screening Licenses for Reello live, Cinema film & Stage slides', color: '#00DAF3', act: () => onOpenOrg(DEMO_CHURCH_ID) },
+              { title: '30s Voice Covenants & Tela PDF', sub: 'Spoken testimonies, SeedRaiser matches & bound open-letter dossiers', color: '#D40055', act: () => onOpenOrg(DEMO_CHURCH_ID) },
+              { title: 'Executive One-Sheet & CRM Sync', sub: 'PCO, Servant Keeper & VAN sync + opt-in local civic compliance', color: '#06D6A0', act: () => setShowOneSheetModal(true) },
+            ].map(d => (
+              <button
+                key={d.title}
+                type="button"
+                onClick={d.act}
+                className="flex items-start gap-3.5 p-4 rounded-3xl bg-white/[0.03] border border-white/10 hover:border-white/25 hover:-translate-y-1 transition-all text-left"
+              >
+                <span className="w-2.5 h-2.5 rounded-full mt-1.5 shrink-0" style={{ background: d.color, boxShadow: `0 0 10px ${d.color}` }} />
+                <div>
+                  <div className="font-black text-[15px] text-white" style={{ fontFamily: 'Outfit, sans-serif' }}>{d.title}</div>
+                  <div className="text-xs text-white/50 mt-0.5 leading-snug">{d.sub}</div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
       </section>
 
       {/* =====================================================================
@@ -1344,7 +1408,7 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
             Bring your sanctuary<br />onto Plajah Elevate
           </h2>
           <p className="relative text-white/70 text-[16px] mt-5 max-w-xl mx-auto leading-relaxed">
-            Seed your ministries, import your congregation roster, connect Stripe for direct giving, and open Ambo Pro on your sanctuary screens in minutes.
+            Seed your ministries, import your congregation roster, connect Stripe for direct giving, and open Stage on your sanctuary screens in minutes.
           </p>
           <div className="relative mt-8 flex flex-wrap gap-3 justify-center">
             <button
@@ -1379,6 +1443,13 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
           </div>
         </div>
       </section>
+
+      <ElevateOneSheetModal
+        isOpen={showOneSheetModal}
+        onClose={() => setShowOneSheetModal(false)}
+        onExploreDemo={() => onOpenOrg(DEMO_CHURCH_ID)}
+        onCreateOrg={onCreate}
+      />
     </div>
   );
 };

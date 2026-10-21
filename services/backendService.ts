@@ -3512,8 +3512,39 @@ export const publishToCloud = async (album: Album, onProgress?: (status: string,
   });
 
   const path = `albums/${album.id}`;
+  // Publish options ride on the album object but are never stored.
+  const publishUpdate = (cloudAlbum as any).publishUpdate;
+  const saveOnly = !!(cloudAlbum as any).saveOnly;
+  delete (cloudAlbum as any).publishUpdate; delete (cloudAlbum as any).saveOnly;
+  if (cloudAlbum.type === 'BOOK') {
+    if (Array.isArray(cloudAlbum.bookChapters)) {
+      const { toVaultRefs } = await import('./bookVault');
+      cloudAlbum.bookChapters = toVaultRefs(cloudAlbum.bookChapters);
+    }
+    // Versions, editions and the sealed flag are written by the server. The editor's copy may be stale
+    // (another device published since it opened), and this setDoc replaces the whole doc — keep the live ones.
+    try {
+      const live = (await getDoc(doc(db, 'albums', album.id))).data() as any;
+      for (const k of ['sealed', 'sealedAt', 'bookVersions', 'bookEditions'] as const) {
+        if (live?.[k] !== undefined) (cloudAlbum as any)[k] = live[k];
+      }
+      if (live?.bookTela?.versions && (cloudAlbum as any).bookTela) (cloudAlbum as any).bookTela = { ...(cloudAlbum as any).bookTela, versions: live.bookTela.versions };
+    } catch { /* first publish: nothing to keep */ }
+  }
   try {
     await setDoc(doc(db, "albums", album.id), cloudAlbum);
+    // A paid book's content must not stay on the public album doc: move it into the vault now.
+    if (cloudAlbum.type === 'BOOK' && (Number(cloudAlbum.price) || 0) > 0) {
+      onProgress?.('Securing your book for buyers…', 97);
+      try {
+        const { sealPaidBook } = await import('./bookVault');
+        // Autosaves and drafts secure the content without releasing a new version to readers.
+        await sealPaidBook(album.id, { update: publishUpdate, draft: saveOnly || !!cloudAlbum.isDraft });
+      } catch (error) {
+        console.error('[Lorea] Book saved, but sealing its paid content failed:', error);
+        throw new Error('Your book was saved, but we could not secure its paid content. Publish again to retry.');
+      }
+    }
     if (cloudAlbum.type === 'MUSIC') {
       try {
         const { requestChoraConversion } = await import('./choraUploadQueue');
@@ -5354,7 +5385,7 @@ Welcome aboard. This is a one-way ticket to your own potential — and you're on
 
 You made it in early, which means some gates are wide open and boarding, and some are still being built (signposted on purpose, so you can see where we're headed). It's a big terminal — you don't have to see all of it today. Walk to the one gate that's useful to you now; the rest reveals itself as you go.
 
-Your ticket already reaches ten places: Chora (music), Reello (video), Taleo (film & TV), Lorea (books & comics), Plajah Labs, Academia, Business, Sanctuary, Live & Rooms, and Aria — one companion across all of it.
+Your ticket already reaches ten places: Chora (music), Reello (video), Cinema (film & TV), Lorea (books & comics), Plajah Labs, Academia, Business, Backstage, Live & Rooms, and Aria — one companion across all of it.
 
 Two promises for the road: you keep up to 100% of what you make — 0% commerce fee with Plajah+, a flat 5% without — and every sale settles straight to your own account. We never hold your money. Your work and your audience are yours: portable, DRM-free.
 
@@ -12050,18 +12081,21 @@ export const fetchDiscussionPostsByContentId = async (contentId: string): Promis
 
 // ── Club membership Stripe checkout ───────────────────────────────────────────
 
+// The server reads the club's price and owner; the client only picks monthly or yearly billing.
 export const startClubMembershipCheckout = async (
   clubId: string,
-  clubName: string,
-  monthlyPrice: number,
+  interval: 'month' | 'year',
   userIdToken: string,
 ): Promise<void> => {
   const res = await fetch('/api/stripe/club-membership', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${userIdToken}` },
-    body: JSON.stringify({ clubId, clubName, monthlyPrice }),
+    body: JSON.stringify({ clubId, interval }),
   });
-  if (!res.ok) throw new Error('Failed to create club membership checkout');
+  if (!res.ok) {
+    const { error } = await res.json().catch(() => ({ error: '' }));
+    throw new Error(error || 'Failed to create club membership checkout');
+  }
   const { url } = await res.json();
   if (url) window.location.href = url;
 };

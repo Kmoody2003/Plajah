@@ -155,7 +155,7 @@ function ThemeSheet({ theme, currentUser, onClose, onSignIn, onUse }: { theme: P
       onUse(r.templateId, r.art);
     } catch (e: any) {
       if (e?.code === 'OWNED') { onUse(theme.templateId, artOf(theme)); return; }
-      setMsg(e?.code === 'MEMBERS' ? 'This theme is for members of the creator’s Sanctuary. Join their Sanctuary to use it.' : e?.message || 'Something went wrong.');
+      setMsg(e?.code === 'MEMBERS' ? 'This theme is for members of the creator’s Backstage. Join their Backstage to use it.' : e?.message || 'Something went wrong.');
     } finally { setBusy(false); }
   };
   const label = mine ? 'Use for an event' : theme.access === 'paid' ? `Buy · ${formatCents(theme.priceCents)}` : theme.access === 'sanctuary' ? 'Use (members)' : 'Use for free';
@@ -253,7 +253,7 @@ function Licences({ onUse, notify, onChanged }: { onUse(templateId: string, art:
           <img src={t.assets.thumb} alt="" width={72} height={108} className="w-[72px] h-[108px] object-cover rounded-xl block" />
           <div className="min-w-0 grid gap-1.5">
             <b className="truncate">{t.title}</b>
-            <p className="text-xs text-white/60">{t.ownerName ? `By ${t.ownerName} · ` : ''}{l.source === 'purchase' ? 'Bought' : l.source === 'gift' ? 'Gift from the creator' : l.source === 'transfer' ? 'Passed on to you' : l.source === 'member' ? 'Sanctuary members' : 'Free'}</p>
+            <p className="text-xs text-white/60">{t.ownerName ? `By ${t.ownerName} · ` : ''}{l.source === 'purchase' ? 'Bought' : l.source === 'gift' ? 'Gift from the creator' : l.source === 'transfer' ? 'Passed on to you' : l.source === 'member' ? 'Backstage members' : 'Free'}</p>
             <div className="flex flex-wrap gap-1.5">
               <button className="pj-chip pj-chip-on" onClick={() => onUse(t.templateId, artOf(t))}>Use for an event</button>
               {l.transferable && <button className="pj-chip" onClick={() => setGiftFor(giftFor === l.id ? null : l.id)}>Give to someone</button>}

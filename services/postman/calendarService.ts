@@ -41,7 +41,7 @@ export type CalLayer =
 export const CAL_LAYERS: { id: CalLayer; label: string; color: string; hint: string }[] = [
   { id: 'mine',     label: 'My calendar',   color: 'var(--pj-orange)', hint: 'What you wrote down and what you kept.' },
   { id: 'releases', label: 'Releases',      color: '#c084fc',          hint: 'Albums, books, films and chapters from people you follow.' },
-  { id: 'events',   label: 'Events & tickets', color: '#38bdf8',       hint: 'Tickets you hold, events you RSVP\'d to, club and Sanctuary events.' },
+  { id: 'events',   label: 'Events & tickets', color: '#38bdf8',       hint: 'Tickets you hold, events you RSVP\'d to, club and Backstage events.' },
   { id: 'live',     label: 'Premieres & live', color: '#f43f5e',       hint: 'Premieres and pay-per-view from people you follow.' },
   { id: 'learning', label: 'Learning',      color: '#34d399',          hint: 'Live classes and homework due.' },
   { id: 'sports',   label: 'Your teams',    color: '#facc15',          hint: 'Games for the teams you follow.' },
@@ -388,9 +388,9 @@ export async function fetchPlatformFeed(from: number, to: number, force = false)
     const t = releaseMs(e.scheduledAt);
     if (!t) continue;
     push({
-      id: `p:sanctuary:${e.id}`, sourceKey: `sanctuary:${e.id}`, title: String(e.title ?? 'Sanctuary event'),
+      id: `p:sanctuary:${e.id}`, sourceKey: `sanctuary:${e.id}`, title: String(e.title ?? 'Backstage event'),
       start: t, end: t + (Number(e.durationMinutes) || 60) * MIN, allDay: false, layer: 'events', source: 'platform', readOnly: true,
-      kindLabel: 'Sanctuary · you\'re going', open: { kind: 'navigate', target: 'SANCTUARY_HUB' },
+      kindLabel: 'Backstage · you\'re going', open: { kind: 'navigate', target: 'SANCTUARY_HUB' },
     });
   }
 

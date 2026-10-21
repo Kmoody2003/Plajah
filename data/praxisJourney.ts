@@ -74,7 +74,7 @@ export const STAGES: Stage[] = [
     oneLiner: 'Get the capital that fits your business.',
     learn: 'The whole ladder — bootstrapping, business credit, grants, crowdfunding, angels, VC — plus SAFEs, cap tables, and dilution, at your level.',
     produces: 'A funding plan + a pitch deck + a cap table.',
-    tools: ['Sanctuary / SeedRaiser', 'Pitch deck', 'Cap table'] },
+    tools: ['Backstage / SeedRaiser', 'Pitch deck', 'Cap table'] },
   { key: 'grow', order: 8, title: 'Grow', lead: 'prosper',
     oneLiner: 'Scale up — and build real wealth while you do.',
     learn: 'Unit economics, hiring, and growth — woven with financial literacy: personal & business credit, investing, stocks, and crypto (honest about risk).',

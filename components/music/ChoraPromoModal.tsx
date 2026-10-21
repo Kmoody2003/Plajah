@@ -48,10 +48,10 @@ interface SlotDef {
 
 const PROMO_KIT_SLOTS: SlotDef[] = [
   { key: 'teaserLoopUrl', label: 'Teaser Loop', where: 'Landing panorama columns · story tease', spec: '1080 × 1920 · 9:16 · MP4/WebM · ≤ 30 s', accept: 'video/*,.mp4,.m4v,.mov,.webm', kind: 'video', ratio: '9 / 16', maxBytes: 40 * 1024 * 1024 },
-  { key: 'trailerUrl', label: 'Trailer', where: 'Marquee hero · Taleo page · TV apps', spec: '1920 × 1080 · 16:9 · MP4 H.264 · ≤ 90 s', accept: 'video/*,.m4v,.mp4,.mov,.webm', kind: 'video', ratio: '16 / 9', maxBytes: 120 * 1024 * 1024 },
+  { key: 'trailerUrl', label: 'Trailer', where: 'Marquee hero · Cinema page · TV apps', spec: '1920 × 1080 · 16:9 · MP4 H.264 · ≤ 90 s', accept: 'video/*,.m4v,.mp4,.mov,.webm', kind: 'video', ratio: '16 / 9', maxBytes: 120 * 1024 * 1024 },
   { key: 'audioSampleUrl', label: 'Audio Sample', where: 'Chora hover · rails · listening parties', spec: 'Chora 15s stream · 48 kHz AAC/MP3', accept: 'audio/*,.mp3,.m4a,.aac,.wav,.flac,.ogg', kind: 'audio', ratio: '5 / 2', maxBytes: 50 * 1024 * 1024 },
   { key: 'keyArtUrl', label: 'Key Art', where: 'Archive tiles · rails · search', spec: '1500 × 1500 · 1:1 · PNG/JPG', accept: 'image/*', kind: 'image', ratio: '1 / 1', maxBytes: 8 * 1024 * 1024 },
-  { key: 'posterUrl', label: 'Poster', where: 'Taleo & Lorea poster surfaces', spec: '1000 × 1500 · 2:3 · PNG/JPG', accept: 'image/*', kind: 'image', ratio: '2 / 3', maxBytes: 8 * 1024 * 1024 },
+  { key: 'posterUrl', label: 'Poster', where: 'Cinema & Lorea poster surfaces', spec: '1000 × 1500 · 2:3 · PNG/JPG', accept: 'image/*', kind: 'image', ratio: '2 / 3', maxBytes: 8 * 1024 * 1024 },
   { key: 'wideBannerUrl', label: 'Wide Banner', where: 'Rail headers · profile & org headers', spec: '2560 × 720 · 32:9 · PNG/JPG', accept: 'image/*', kind: 'image', ratio: '32 / 9', maxBytes: 10 * 1024 * 1024 },
   { key: 'shareCardUrl', label: 'Share Card', where: 'Link previews (OG) · social shares', spec: '1200 × 630 · 1.91:1 · PNG/JPG', accept: 'image/*', kind: 'image', ratio: '1.91 / 1', maxBytes: 5 * 1024 * 1024 },
   { key: 'tvBillboardUrl', label: 'TV Billboard', where: 'Android TV · Fire TV · FAST channels', spec: '1920 × 1080 · 16:9 · JPG · 5% title-safe margin', accept: 'image/*', kind: 'image', ratio: '16 / 9', maxBytes: 8 * 1024 * 1024 },

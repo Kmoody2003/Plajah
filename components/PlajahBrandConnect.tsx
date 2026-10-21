@@ -83,7 +83,7 @@ const MediaKitGenerator: React.FC<{ profile: UserProfile; onClose: () => void }>
 Account type: ${profile.accountType ?? 'Creator'}
 Bio: ${profile.bio ?? 'Independent creator on Plajah.'}
 Followers: ${profile.followerCount ?? 0}
-Sanctuary members: (data live on platform)
+Backstage members: (data live on platform)
 
 Include:
 1. A 2-sentence creator introduction (compelling, not generic)

@@ -26,7 +26,7 @@ const Passage: React.FC<{ refText: string; translation: string }> = ({ refText, 
     <div className="mt-1.5">
       <div className="flex items-center gap-2 flex-wrap">
         <button type="button" onClick={toggle} aria-expanded={open} className="text-[12px] font-black text-[#fbbf24] hover:text-[#fde68a] inline-flex items-center gap-1.5"><BookOpen size={12} /> {formatRef(ref, 'display')}</button>
-        <button type="button" onClick={() => { try { window.dispatchEvent(new CustomEvent('OPEN_BIBLE', { detail: { refId: refId(ref) } })); } catch { /* */ } }} className="text-[10px] text-white/45 hover:text-white inline-flex items-center gap-1">Open in Lectio <ExternalLink size={9} /></button>
+        <button type="button" onClick={() => { try { window.dispatchEvent(new CustomEvent('OPEN_BIBLE', { detail: { refId: refId(ref) } })); } catch { /* */ } }} className="text-[10px] text-white/45 hover:text-white inline-flex items-center gap-1">Open in Verse <ExternalLink size={9} /></button>
       </div>
       {open && (
         <blockquote className="mt-1.5 border-l-2 border-[#fbbf24]/50 pl-3 text-[13px] text-white/80 leading-relaxed">

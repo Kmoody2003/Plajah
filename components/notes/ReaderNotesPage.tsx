@@ -13,7 +13,7 @@ interface Props { page: PageMeta; panel: boolean; onShowPanel: () => void; zoom:
 
 const openLectio = (refId?: string) => { try { window.dispatchEvent(new CustomEvent('OPEN_BIBLE', { detail: refId ? { refId } : {} })); } catch { /* */ } };
 const openSacredLibrary = () => { try { window.dispatchEvent(new CustomEvent('OPEN_SACRED_LIBRARY')); } catch { /* */ } };
-const SOURCE_LABEL = { verse: 'Your verse notes from Lectio', sacred: 'Your passage notes from the Sacred Library', research: 'Your research notebook (sources and comparisons)' } as const;
+const SOURCE_LABEL = { verse: 'Your verse notes from Verse', sacred: 'Your passage notes from the Sacred Library', research: 'Your research notebook (sources and comparisons)' } as const;
 
 const ItemCard: React.FC<{ item: ReaderItem; kind: 'verse' | 'sacred' | 'research' }> = ({ item, kind }) => {
   const [draft, setDraft] = useState<string | null>(null);
@@ -23,7 +23,7 @@ const ItemCard: React.FC<{ item: ReaderItem; kind: 'verse' | 'sacred' | 'researc
     <article className="py-4 border-b border-slate-200 last:border-b-0">
       <div className="flex items-center gap-2 flex-wrap mb-1.5">
         <h3 className="text-[15px] font-black text-slate-900 flex-1 min-w-0">{item.label}</h3>
-        {item.refId && <button type="button" onClick={() => openLectio(item.refId)} className="text-[11px] font-black text-[#0e7490] hover:underline inline-flex items-center gap-1"><BookOpen size={12} /> Open in Lectio</button>}
+        {item.refId && <button type="button" onClick={() => openLectio(item.refId)} className="text-[11px] font-black text-[#0e7490] hover:underline inline-flex items-center gap-1"><BookOpen size={12} /> Open in Verse</button>}
         {item.editable && draft === null && <>
           <button type="button" onClick={() => setDraft(item.text)} aria-label={`Edit the note on ${item.label}`} className="text-[11px] font-black text-slate-600 hover:text-slate-900 inline-flex items-center gap-1"><Pencil size={12} /> Edit</button>
           <button type="button" onClick={remove} aria-label={`Delete the note on ${item.label}`} className="text-slate-400 hover:text-rose-600"><Trash2 size={13} /></button>
@@ -52,8 +52,8 @@ const ReaderNotesPage: React.FC<Props> = ({ page, panel, onShowPanel, zoom }) =>
   const back = r.kind === 'sacred'
     ? <button type="button" onClick={openSacredLibrary} className="px-3 h-8 rounded-full text-[11px] font-black bg-white/8 text-white/80 hover:bg-white/15 inline-flex items-center gap-1"><Library size={12} /> Open the Sacred Library</button>
     : r.kind === 'research'
-      ? <button type="button" onClick={() => openLectio()} title="Edit sources and comparisons in the research notebook (Lectio → Notebook)" className="px-3 h-8 rounded-full text-[11px] font-black bg-white/8 text-white/80 hover:bg-white/15 inline-flex items-center gap-1"><ExternalLink size={12} /> Open in Lectio notebook</button>
-      : <button type="button" onClick={() => openLectio(r.items.find(i => i.refId)?.refId)} className="px-3 h-8 rounded-full text-[11px] font-black bg-white/8 text-white/80 hover:bg-white/15 inline-flex items-center gap-1"><BookOpen size={12} /> Open in Lectio</button>;
+      ? <button type="button" onClick={() => openLectio()} title="Edit sources and comparisons in the research notebook (Verse → Notebook)" className="px-3 h-8 rounded-full text-[11px] font-black bg-white/8 text-white/80 hover:bg-white/15 inline-flex items-center gap-1"><ExternalLink size={12} /> Open in Verse notebook</button>
+      : <button type="button" onClick={() => openLectio(r.items.find(i => i.refId)?.refId)} className="px-3 h-8 rounded-full text-[11px] font-black bg-white/8 text-white/80 hover:bg-white/15 inline-flex items-center gap-1"><BookOpen size={12} /> Open in Verse</button>;
   return (
     <>
       <div className="sticky top-0 z-30 bg-[#0e0b16]/95 backdrop-blur border-b border-white/10 px-3 py-2 grid gap-1.5">

@@ -139,7 +139,7 @@ const STUDIO_APPS: {
   },
   {
     app: 'TALEO',
-    name: 'Taleo',
+    name: 'Cinema',
     role: 'Cinema & Living Graphic Novel',
     viewTarget: 'COMIC_BUILDER',
     icon: PenTool,
@@ -160,7 +160,7 @@ function getShowcaseEntities(world: ShowcaseWorld): {
     worldId: world.id,
     name: fc.name,
     role: fc.role,
-    bio: `${fc.name} serves as ${fc.role} within ${fc.faction}. Canonical crossover protagonist tracked across Fabula, Lorea, Chora, and Taleo via Story Intelligence.`,
+    bio: `${fc.name} serves as ${fc.role} within ${fc.faction}. Canonical crossover protagonist tracked across Fabula, Lorea, Chora, and Cinema via Story Intelligence.`,
     imageUrl: fc.avatarUrl,
     tags: [fc.faction, fc.role, 'Story Intel Canonical'],
     isPublished: true,
@@ -1080,7 +1080,7 @@ export const WorldsView: React.FC<WorldsViewProps> = ({
                       </h3>
                       <p className="text-white/65 font-medium leading-loose">
                         {selectedWorld?.description ||
-                          'This living universe is accessible across Fabula, Lorea, Chora, and Taleo.'}
+                          'This living universe is accessible across Fabula, Lorea, Chora, and Cinema.'}
                       </p>
                       <div className="grid grid-cols-3 gap-3">
                         {[
@@ -1628,7 +1628,7 @@ export const WorldsView: React.FC<WorldsViewProps> = ({
                       </h3>
                       <p className="text-xs text-white/60 mt-1 max-w-2xl">
                         Automatically syncs private & published characters, locations, and
-                        MacGuffins from Fabula, Lorea, Chora, and Taleo — and merges duplicate
+                        MacGuffins from Fabula, Lorea, Chora, and Cinema — and merges duplicate
                         crossover characters across films non-destructively.
                       </p>
                     </div>
@@ -1677,7 +1677,7 @@ export const WorldsView: React.FC<WorldsViewProps> = ({
                           100% Canonical Entity Integrity — Zero Unmerged Duplicates
                         </div>
                         <div className="text-xs text-white/60">
-                          All characters and lore entries across Fabula, Lorea, Chora, and Taleo
+                          All characters and lore entries across Fabula, Lorea, Chora, and Cinema
                           share unified canonical IDs.
                         </div>
                       </div>

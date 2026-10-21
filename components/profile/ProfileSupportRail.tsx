@@ -95,7 +95,7 @@ const ProfileSupportRail: React.FC<ProfileSupportRailProps> = ({
         <section className="flex min-w-0 flex-col rounded-3xl border border-white/10 bg-white/[0.035] p-4">
           <CellHead
             icon={<HeartHandshake size={11} className="text-small-orange" />}
-            title="Sanctuary"
+            title="Backstage"
             action="Open"
             onAction={onOpenSanctuary}
           />
@@ -120,7 +120,7 @@ const ProfileSupportRail: React.FC<ProfileSupportRailProps> = ({
           ) : (
             <div className="flex flex-1 flex-col justify-center gap-2">
               <p className="m-0 text-[15px] font-black uppercase italic tracking-tight text-white">
-                {sanctuary?.name || 'The Sanctuary'}
+                {sanctuary?.name || 'Backstage'}
               </p>
               {sanctuary?.tagline && <p className="m-0 line-clamp-2 text-[12px] font-medium text-white/50">{sanctuary.tagline}</p>}
               <p className="m-0 text-[10px] font-black uppercase tracking-widest text-white/35">

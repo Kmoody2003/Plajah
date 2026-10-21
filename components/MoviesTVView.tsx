@@ -425,16 +425,16 @@ const HomeView: React.FC<{
     if (!id) return;
     const isArch = !!(hero as any).identifier && !heroIsplatform;
     const res = await shareAsset(isArch ? 'archive' : 'movie', id, {
-      title: `${heroTitle} | Plajah Taleo`,
-      text: `Watch "${heroTitle}" on Plajah Taleo`,
+      title: `${heroTitle} | Plajah Cinema`,
+      text: `Watch "${heroTitle}" on Plajah Cinema`,
     });
     if (res === 'copied') onShareToast?.(`Link to "${heroTitle}" copied!`);
   };
 
   const handleShareHalloweenCollection = async () => {
     const res = await shareAsset('taleoCollection', 'halloween', {
-      title: 'Taleo Halloween — 31 Nights of Cinema Terror | Plajah',
-      text: 'Stream 12 restored horror masterpieces — Night of the Living Dead, House on Haunted Hill, Carnival of Souls, Nosferatu & more — free on Plajah Taleo!',
+      title: 'Cinema Halloween — 31 Nights of Cinema Terror | Plajah',
+      text: 'Stream 12 restored horror masterpieces — Night of the Living Dead, House on Haunted Hill, Carnival of Souls, Nosferatu & more — free on Plajah Cinema!',
     });
     if (res === 'copied') onShareToast?.('Halloween Showcase link copied to clipboard!');
   };
@@ -545,7 +545,7 @@ const HomeView: React.FC<{
                     ? 'bg-orange-500/20 text-orange-300 border-orange-500/40'
                     : 'bg-white/10 text-white/70 border-white/12'
                 }`}>
-                  {heroIsHalloween ? '🎃 Halloween Showcase' : heroIsplatform ? 'Platform Original' : 'Taleo Cinema'}
+                  {heroIsHalloween ? '🎃 Halloween Showcase' : heroIsplatform ? 'Platform Original' : 'Cinema'}
                 </span>
                 {heroGenre && (
                   <span className="text-[#FFB68D] text-[9px] font-black uppercase tracking-[0.2em]">{heroGenre}</span>
@@ -949,7 +949,7 @@ const HomeView: React.FC<{
                   <ShareButton
                     title="Pumpkin Patch · Directed by Brian James Gage"
                     artist="Brian James Gage"
-                    text='Watch Brian James Gage’s Halloween action-satire "Pumpkin Patch" on Taleo'
+                    text='Watch Brian James Gage’s Halloween action-satire "Pumpkin Patch" on Cinema'
                     url={buildShareUrl('movie', pumpkinPatchHero.id)}
                     imageUrl={pumpkinPatchHero.coverImage}
                     contentType="movie"
@@ -961,7 +961,7 @@ const HomeView: React.FC<{
                         if (!auth.currentUser) throw new Error('Sign in required');
                       }
                       await createPost({
-                        text: `🎃 Watching Brian James Gage’s "Pumpkin Patch" in the Taleo Halloween Curation!`,
+                        text: `🎃 Watching Brian James Gage’s "Pumpkin Patch" in the Cinema Halloween Curation!`,
                         isPublic: true,
                         tags: ['PumpkinPatch', 'HalloweenCuration', 'Taleo'],
                         assetEmbed: {
@@ -994,7 +994,7 @@ const HomeView: React.FC<{
                   <div onClick={ev => ev.stopPropagation()} className="absolute top-2 right-2 z-10 opacity-0 group-hover/hcard:opacity-100 [@media(hover:none)]:opacity-100 transition-all">
                     <ShareButton
                       title={`${film.title} (${film.year})`}
-                      artist={film.director ? `Dir. ${film.director} · Taleo Halloween` : 'Taleo Halloween'}
+                      artist={film.director ? `Dir. ${film.director} · Cinema Halloween` : 'Cinema Halloween'}
                       text={`Watch "${film.title}" (${film.year}) free in the Plajah Halloween Curation`}
                       url={buildShareUrl('archive', film.identifier)}
                       imageUrl={film.thumbnailUrl}
@@ -1014,7 +1014,7 @@ const HomeView: React.FC<{
                             type: 'ARCHIVE',
                             id: film.identifier,
                             title: `${film.title} (${film.year})`,
-                            subtitle: `${film.director ? `Dir. ${film.director} · ` : ''}Taleo Halloween Curation`,
+                            subtitle: `${film.director ? `Dir. ${film.director} · ` : ''}Cinema Halloween Curation`,
                             imageUrl: film.thumbnailUrl,
                           },
                           media: film.thumbnailUrl ? [{ type: 'PHOTO' as any, url: film.thumbnailUrl, title: film.title }] : undefined,
@@ -1054,7 +1054,7 @@ const HomeView: React.FC<{
         {/* New to Taleo */}
         {newToTaleo.length > 0 && (
           <section>
-            <SectionHeader label="Just Added" title="New to Taleo" accent="#D0BCFF" />
+            <SectionHeader label="Just Added" title="New to Cinema" accent="#D0BCFF" />
             <div className="flex gap-6 overflow-x-auto no-scrollbar pb-4 pt-2">
               {newToTaleo.map(v => (
                 <PosterCard
@@ -1805,12 +1805,12 @@ const HalloweenShowcaseView: React.FC<{
       if (!auth.currentUser) throw new Error('Sign in required');
     }
     const titleText = shelfTitle
-      ? `🎃 ${shelfTitle} · Taleo Halloween Double Feature`
+      ? `🎃 ${shelfTitle} · Cinema Halloween Double Feature`
       : `🎃 Halloween Curation — Pumpkin Patch & ${CURATED_HALLOWEEN_FILMS.length} Classics`;
     await createPost({
       text: shelfTitle
-        ? `🎃 Watching the "${shelfTitle}" Double Feature in the Halloween Curation on Taleo Cinema!`
-        : `🎃 Exploring the Halloween Curation — headlined by Brian James Gage’s "Pumpkin Patch" alongside ${CURATED_HALLOWEEN_FILMS.length} restored horror, Korean gothic & silent classics on Taleo Cinema!`,
+        ? `🎃 Watching the "${shelfTitle}" Double Feature in the Halloween Curation on Cinema!`
+        : `🎃 Exploring the Halloween Curation — headlined by Brian James Gage’s "Pumpkin Patch" alongside ${CURATED_HALLOWEEN_FILMS.length} restored horror, Korean gothic & silent classics on Cinema!`,
       isPublic: true,
       tags: ['HalloweenCuration', 'Taleo', 'PumpkinPatch', 'HorrorCinema'],
       assetEmbed: {
@@ -1932,7 +1932,7 @@ const HalloweenShowcaseView: React.FC<{
               <ShareButton
                 title="Pumpkin Patch · Directed by Brian James Gage"
                 artist="Brian James Gage"
-                text='Watch Brian James Gage’s Halloween action-satire "Pumpkin Patch" on Taleo'
+                text='Watch Brian James Gage’s Halloween action-satire "Pumpkin Patch" on Cinema'
                 url={buildShareUrl('movie', pumpkinPatchHero.id)}
                 imageUrl={pumpkinPatchHero.coverImage}
                 contentType="movie"
@@ -1944,7 +1944,7 @@ const HalloweenShowcaseView: React.FC<{
                     if (!auth.currentUser) throw new Error('Sign in required');
                   }
                   await createPost({
-                    text: `🎃 Watching Brian James Gage’s "Pumpkin Patch" in the Taleo Halloween Curation!`,
+                    text: `🎃 Watching Brian James Gage’s "Pumpkin Patch" in the Cinema Halloween Curation!`,
                     isPublic: true,
                     tags: ['PumpkinPatch', 'HalloweenCuration', 'Taleo'],
                     assetEmbed: {
@@ -2133,7 +2133,7 @@ const HalloweenShowcaseView: React.FC<{
                       {df.theme}
                     </span>
                     <ShareButton
-                      title={`${df.title} · Taleo Halloween Double Feature`}
+                      title={`${df.title} · Cinema Halloween Double Feature`}
                       artist={df.theme}
                       text={`${df.curatorPitch}`}
                       url={buildShareUrl('taleoCollection', 'halloween', { shelf: df.id })}
@@ -2393,7 +2393,7 @@ const HalloweenShowcaseView: React.FC<{
                     </button>
                     <ShareButton
                       title={`${film.title} (${film.year})`}
-                      artist={film.director ? `Dir. ${film.director} · Taleo Halloween` : 'Taleo Halloween'}
+                      artist={film.director ? `Dir. ${film.director} · Cinema Halloween` : 'Cinema Halloween'}
                       text={`Watch "${film.title}" (${film.year}) free in the Plajah Halloween Curation`}
                       url={buildShareUrl('archive', film.identifier)}
                       imageUrl={film.thumbnailUrl}
@@ -2413,7 +2413,7 @@ const HalloweenShowcaseView: React.FC<{
                             type: 'ARCHIVE',
                             id: film.identifier,
                             title: `${film.title} (${film.year})`,
-                            subtitle: `${film.director ? `Dir. ${film.director} · ` : ''}Taleo Halloween Curation`,
+                            subtitle: `${film.director ? `Dir. ${film.director} · ` : ''}Cinema Halloween Curation`,
                             imageUrl: film.thumbnailUrl,
                           },
                           media: film.thumbnailUrl ? [{ type: 'PHOTO' as any, url: film.thumbnailUrl, title: film.title }] : undefined,
@@ -2543,7 +2543,7 @@ const LibraryView: React.FC<{
           <div className="rounded-2xl border border-dashed border-white/10 p-8 text-center">
             <Bookmark size={28} className="text-white/15 mx-auto mb-2" />
             <p className="text-xs font-bold uppercase tracking-widest text-white/35">Your Watchlist is empty</p>
-            <p className="text-[11px] text-white/25 mt-1">Click "+ Watchlist" on any film or series below or across Taleo to save it here.</p>
+            <p className="text-[11px] text-white/25 mt-1">Click "+ Watchlist" on any film or series below or across Cinema to save it here.</p>
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-5">
@@ -3074,7 +3074,7 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
         updatedAt: Date.now(),
       };
     } catch (err) {
-      console.error('[Taleo] Archive fetch failed:', err);
+      console.error('[Cinema] Archive fetch failed:', err);
     } finally {
       setArchiveLoading(false);
     }
@@ -3189,7 +3189,7 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
             <button className="text-white/60 hover:text-white transition-colors p-2 rounded-xl hover:bg-white/5 shrink-0" onClick={onBack}>
               <ChevronLeft size={22} />
             </button>
-            <span className="flex-1 text-sm font-black uppercase tracking-[0.3em] text-white/80">Taleo</span>
+            <span className="flex-1 text-sm font-black uppercase tracking-[0.3em] text-white/80">Cinema</span>
             <button
               onClick={() => setCurrentSubView('HALLOWEEN')}
               className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/35 text-orange-300 text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer"

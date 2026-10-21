@@ -772,7 +772,7 @@ function buildSynthesizedShowcaseRef(card: ShowcaseWorldCardData, idx: number): 
         id: `${card.id}-loc-${locIdx}`,
         category: 'locations' as const,
         name: locName,
-        description: `Canonical stronghold and primary story sector within ${card.title}. Linked across Fabula, Lorea, Chora, and Taleo.`,
+        description: `Canonical stronghold and primary story sector within ${card.title}. Linked across Fabula, Lorea, Chora, and Cinema.`,
         tags: [card.genre, 'Canonical Sector', card.activeClubName],
         imageUrl: card.coverImage,
         relationships: [],

@@ -78,7 +78,7 @@ export default function WritersPitchDoc() {
               <div className="text-xs text-white/30 mt-1">They own your reach. They can change the rules.</div>
             </div>
             <div className="bg-green-500/5 border border-green-500/20 rounded-xl p-4">
-              <div className="text-xs text-white/40 mb-1">Plajah Sanctuary (100 readers)</div>
+              <div className="text-xs text-white/40 mb-1">Plajah Backstage (100 readers)</div>
               <div className="text-xl font-black text-green-400">$449 / month</div>
               <div className="text-xs text-white/30 mt-1">100 × $4.99 · 90% to you · your list, forever</div>
             </div>

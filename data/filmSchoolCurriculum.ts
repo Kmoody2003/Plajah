@@ -41,7 +41,7 @@ const SILENT_NOTE = 'Timings are approximate: surviving prints of this film run 
 
 export const FILM_SCHOOL: Curriculum = {
   id: 'film-school',
-  label: 'Taleo Film School',
+  label: 'Cinema Film School',
   blurb:
     'A complete film education — from the first principles of the shot to the technique lineages of screen acting. ' +
     'Every lesson pairs teaching with a watch-along from the public-domain canon and ends with something you actually make in Fabula. ' +

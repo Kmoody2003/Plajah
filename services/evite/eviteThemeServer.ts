@@ -402,7 +402,7 @@ export function registerEviteThemeRoutes(d: EviteThemeDeps) {
       if (t.ownerUid === req.uid) return res.json({ ok: true, owner: true, templateId: themeTemplateId(t.id), art: themeArt(t) });
       if (t.access === 'paid') return res.status(402).json({ error: 'This theme is for sale. Buy it to use it.', code: 'PAID' });
       if (!t.listed) return res.status(410).json({ error: 'The creator isn’t offering this theme any more.' });
-      if (t.access === 'sanctuary' && !(await isSanctuaryMember(d, t, req.uid))) return res.status(403).json({ error: 'This theme is for members of the creator’s Sanctuary.', code: 'MEMBERS', sanctuaryId: t.sanctuaryId || t.ownerUid });
+      if (t.access === 'sanctuary' && !(await isSanctuaryMember(d, t, req.uid))) return res.status(403).json({ error: 'This theme is for members of the creator’s Backstage.', code: 'MEMBERS', sanctuaryId: t.sanctuaryId || t.ownerUid });
       const g = await grantLicense(d, { uid: req.uid, themeId: t.id, ownerUid: t.ownerUid, source: t.access === 'sanctuary' ? 'member' : 'claim' });
       if (g.result === 'error') return res.status(500).json({ error: 'Could not add the theme. Try again.' });
       res.json({ ok: true, templateId: themeTemplateId(t.id), art: themeArt(t) });

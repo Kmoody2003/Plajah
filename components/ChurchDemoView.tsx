@@ -234,7 +234,7 @@ const ChurchDemoView: React.FC<{ onBack?: () => void; onCreate: () => void; onVi
                   verse={{ n: 12, text: 'I am the light of the world. He who follows me will not walk in the darkness, but will have the light of life.', ref: 'John 8:12' }}
                   onWatch={() => setTab('WATCH')}
                   onRead={() => openLectio('43.8.12')}
-                  readLabel="Read John 8 in Lectio"
+                  readLabel="Read John 8 in Verse"
                   earlier={earlier.map((v, i) => ({ id: v.id, n: v.series === latest.series ? String(7 - i).padStart(2, '0') : undefined, title: splitTitle(v.title).title, meta: `${splitTitle(v.title).ref ? `${splitTitle(v.title).ref} · ` : ''}${v.date}`, len: v.duration, onClick: () => setTab('WATCH') }))}
                 />
 

@@ -38,7 +38,7 @@ const helpSections: HelpSection[] = [
       },
       {
         name: 'Navigating Between Sections',
-        description: 'Use the sidebar navigation to jump between Chora (music), Reello (videos), Taleo (movies & TV), Newsstand (articles), Radio, Games, Clubs, Sports, Classrooms, and more. Each section has its own genre filters and discovery layout. On mobile, tap the menu icon to open the navigation sidebar.'
+        description: 'Use the sidebar navigation to jump between Chora (music), Reello (videos), Cinema (movies & TV), Newsstand (articles), Radio, Games, Clubs, Sports, Classrooms, and more. Each section has its own genre filters and discovery layout. On mobile, tap the menu icon to open the navigation sidebar.'
       },
       {
         name: 'Search',
@@ -120,13 +120,13 @@ const helpSections: HelpSection[] = [
   },
   {
     id: 'taleo',
-    title: 'Movies & TV (Taleo)',
+    title: 'Movies & TV (Cinema)',
     icon: Film,
     description: 'Browse a curated library of movies, TV series, trailers, and classic public domain films.',
     features: [
       {
         name: 'Browsing Movies',
-        description: 'Navigate to Taleo from the main sidebar. Movies are displayed in a cinematic poster grid. Use the genre chips (Action, Drama, Comedy, Horror, Sci-Fi, Documentary, etc.) to filter the view. Click any poster to open the full detail page with cast, synopsis, year, and the video player.'
+        description: 'Navigate to Cinema from the main sidebar. Movies are displayed in a cinematic poster grid. Use the genre chips (Action, Drama, Comedy, Horror, Sci-Fi, Documentary, etc.) to filter the view. Click any poster to open the full detail page with cast, synopsis, year, and the video player.'
       },
       {
         name: 'Watching TV Series',
@@ -138,11 +138,11 @@ const helpSections: HelpSection[] = [
       },
       {
         name: 'Public Domain Content',
-        description: 'Taleo includes classic public domain films sourced from the Internet Archive. These films appear in the library automatically and can be added to any user\'s FAST channel for free. Look for the public domain badge on posters — these are always free to watch with no restrictions or paywalls.'
+        description: 'Cinema includes classic public domain films sourced from the Internet Archive. These films appear in the library automatically and can be added to any user\'s FAST channel for free. Look for the public domain badge on posters — these are always free to watch with no restrictions or paywalls.'
       },
       {
         name: 'Creating a Movie or TV Series Project',
-        description: 'In Creator Studio, go to Video Manager and click "Add to Project." Create a new Movie or TV Series project. For TV series, add episodes and assign them to seasons. Publish the project and it appears in Taleo with full metadata — cover art, cast, genre, synopsis, release year, and a proper episode browser.'
+        description: 'In Creator Studio, go to Video Manager and click "Add to Project." Create a new Movie or TV Series project. For TV series, add episodes and assign them to seasons. Publish the project and it appears in Cinema with full metadata — cover art, cast, genre, synopsis, release year, and a proper episode browser.'
       }
     ]
   },
@@ -158,7 +158,7 @@ const helpSections: HelpSection[] = [
       },
       {
         name: 'Publishing Articles',
-        description: 'Click "Write Article" in Creator Studio to open the block-based article editor. Add text blocks, headers, images, embedded audio clips, video embeds, and pull quotes. Articles publish to the Newsstand and appear on your profile. You can also lock articles for Sanctuary members only.'
+        description: 'Click "Write Article" in Creator Studio to open the block-based article editor. Add text blocks, headers, images, embedded audio clips, video embeds, and pull quotes. Articles publish to the Newsstand and appear on your profile. You can also lock articles for Backstage members only.'
       },
       {
         name: 'Video Manager',
@@ -166,7 +166,7 @@ const helpSections: HelpSection[] = [
       },
       {
         name: 'Privacy & Access Control',
-        description: 'Every piece of content — music, video, article, book — has a privacy control. Set it to Public (visible to everyone), Private (only you), or Exclusive (Sanctuary members only). For paid content, set a price and visitors see a preview until they purchase. You can change these settings any time.'
+        description: 'Every piece of content — music, video, article, book — has a privacy control. Set it to Public (visible to everyone), Private (only you), or Exclusive (Backstage members only). For paid content, set a price and visitors see a preview until they purchase. You can change these settings any time.'
       },
       {
         name: 'Merch Store Setup',
@@ -210,7 +210,7 @@ const helpSections: HelpSection[] = [
       },
       {
         name: 'Asset Sharing & Platform Library',
-        description: 'In the Assets tab of Channel Manager, grant other creators access to your FAST channel content — per video or your entire library, free or for a monthly price. In the Library tab, add your videos to the platform-wide FAST content library so any creator can include them in their own channel schedule. Public domain films from Taleo can also be added to any FAST channel.'
+        description: 'In the Assets tab of Channel Manager, grant other creators access to your FAST channel content — per video or your entire library, free or for a monthly price. In the Library tab, add your videos to the platform-wide FAST content library so any creator can include them in their own channel schedule. Public domain films from Cinema can also be added to any FAST channel.'
       }
     ]
   },
@@ -280,29 +280,29 @@ const helpSections: HelpSection[] = [
   },
   {
     id: 'sanctuary',
-    title: 'Sanctuary',
+    title: 'Backstage',
     icon: ShieldCheck,
     description: 'Exclusive membership spaces where artists and their most dedicated fans connect deeply and share privately.',
     features: [
       {
-        name: 'Joining a Sanctuary',
-        description: 'Go to any artist\'s profile. If they have a Sanctuary enabled, you\'ll see a "Join Sanctuary" button near the top. Some Sanctuaries are free; others require a monthly subscription. Click Join, complete payment if prompted, and instantly gain access to all the exclusive content that creator has locked for members.'
+        name: 'Joining Backstage',
+        description: 'Go to any artist\'s profile. If they have Backstage enabled, you\'ll see a "Join Backstage" button near the top. Some Sanctuaries are free; others require a monthly subscription. Click Join, complete payment if prompted, and instantly gain access to all the exclusive content that creator has locked for members.'
       },
       {
         name: 'What You Get as a Member',
-        description: 'Sanctuary members access exclusive content the creator has marked "Members Only" — locked albums, private video streams, exclusive articles, and behind-the-scenes posts. Members also get access to the creator\'s private chat room for direct interaction and community with other top fans.'
+        description: 'Backstage members access exclusive content the creator has marked "Members Only" — locked albums, private video streams, exclusive articles, and behind-the-scenes posts. Members also get access to the creator\'s private chat room for direct interaction and community with other top fans.'
       },
       {
         name: 'Exclusive Content Locks',
-        description: 'On any content page, look for the gold lock icon. This means the content is locked for Sanctuary members only. If you\'re not yet a member, clicking the lock icon takes you directly to the join flow for that artist\'s Sanctuary. After joining, all locked content unlocks immediately.'
+        description: 'On any content page, look for the gold lock icon. This means the content is locked for Backstage members only. If you\'re not yet a member, clicking the lock icon takes you directly to the join flow for that artist\'s Backstage. After joining, all locked content unlocks immediately.'
       },
       {
-        name: 'Creating Your Own Sanctuary',
-        description: 'In Creator Studio, find the Sanctuary section. Set your monthly price — or leave it free. Toggle "Sanctuary Active" to enable it on your profile. Once active, the Join button appears for all visitors. Now mark any content as exclusive using the lock toggle when uploading or editing content.'
+        name: 'Creating Your Own Backstage',
+        description: 'In Creator Studio, find the Backstage section. Set your monthly price — or leave it free. Toggle "Backstage Active" to enable it on your profile. Once active, the Join button appears for all visitors. Now mark any content as exclusive using the lock toggle when uploading or editing content.'
       },
       {
         name: 'Messaging Your Members',
-        description: 'From Postman in Creator Studio, send a broadcast message to your entire mailing list or specifically to Sanctuary members. Use this for early-access announcements, exclusive download links, event invitations, and personal updates that reward your most loyal supporters.'
+        description: 'From Postman in Creator Studio, send a broadcast message to your entire mailing list or specifically to Backstage members. Use this for early-access announcements, exclusive download links, event invitations, and personal updates that reward your most loyal supporters.'
       }
     ]
   },
@@ -330,7 +330,7 @@ const helpSections: HelpSection[] = [
       },
       {
         name: 'Artist Membership Tiers',
-        description: 'Beyond the Sanctuary subscription, configure multi-tiered memberships with different benefits at each price point — different access levels, merch discounts, or bonus content. Set up tiers in Creator Studio. Each tier can unlock different categories of content, making your community scalable for different fan budgets.'
+        description: 'Beyond the Backstage subscription, configure multi-tiered memberships with different benefits at each price point — different access levels, merch discounts, or bonus content. Set up tiers in Creator Studio. Each tier can unlock different categories of content, making your community scalable for different fan budgets.'
       }
     ]
   },
@@ -382,7 +382,7 @@ const helpSections: HelpSection[] = [
       },
       {
         name: 'Glow Tier ($9.99/month)',
-        description: 'Glow unlocks Radio + Live TV + PPV monetization, 75 GB of creator storage, 300 monthly loyalty points, and a 15% discount on Plajah For Business. The right tier for active creators running live shows, PPV events, or TV-format content who want additional earning streams beyond just Sanctuary memberships.'
+        description: 'Glow unlocks Radio + Live TV + PPV monetization, 75 GB of creator storage, 300 monthly loyalty points, and a 15% discount on Plajah For Business. The right tier for active creators running live shows, PPV events, or TV-format content who want additional earning streams beyond just Backstage memberships.'
       },
       {
         name: 'Nova Tier ($14.99/month)',
@@ -414,11 +414,11 @@ const helpSections: HelpSection[] = [
       },
       {
         name: 'How Payouts Work',
-        description: 'When a fan tips you, buys your content, or subscribes to your Sanctuary, Stripe processes the payment and automatically transfers your share (90% of the total) to your connected bank account on Stripe\'s standard payout schedule (typically 2 business days in the US). You do not need to manually request a withdrawal — it\'s fully automatic.'
+        description: 'When a fan tips you, buys your content, or subscribes to your Backstage, Stripe processes the payment and automatically transfers your share (90% of the total) to your connected bank account on Stripe\'s standard payout schedule (typically 2 business days in the US). You do not need to manually request a withdrawal — it\'s fully automatic.'
       },
       {
         name: 'Earnings Dashboard — Overview',
-        description: 'The Overview tab shows your total gross, net earnings, pending transfers, and paid-out amounts for the selected period (7 days, 30 days, 90 days, or 1 year). A revenue bar chart breaks down earnings by category — tips, digital sales, Sanctuary memberships, Plajah+ subscriptions, store orders, club memberships, and SeedRaiser pledges.'
+        description: 'The Overview tab shows your total gross, net earnings, pending transfers, and paid-out amounts for the selected period (7 days, 30 days, 90 days, or 1 year). A revenue bar chart breaks down earnings by category — tips, digital sales, Backstage memberships, Plajah+ subscriptions, store orders, club memberships, and SeedRaiser pledges.'
       },
       {
         name: 'Earnings by Category',
@@ -494,7 +494,7 @@ const helpSections: HelpSection[] = [
       },
       {
         name: 'Unlocking Achievements',
-        description: 'Achievements are milestones that unlock automatically as you use the platform — "First Upload," "100 Plays," "Joined a Sanctuary," and many more. When you unlock one, an animated celebration notification appears on screen. View all earned and locked achievements in your profile under the Achievements tab.'
+        description: 'Achievements are milestones that unlock automatically as you use the platform — "First Upload," "100 Plays," "Joined Backstage," and many more. When you unlock one, an animated celebration notification appears on screen. View all earned and locked achievements in your profile under the Achievements tab.'
       },
       {
         name: 'Badges',
@@ -506,7 +506,7 @@ const helpSections: HelpSection[] = [
       },
       {
         name: 'Notification Center',
-        description: 'Click the bell icon to open the Notification Center. You\'ll see activity on your content (new plays, followers, comments), Sanctuary member events, achievement unlocks, and platform announcements. Mark all as read or dismiss individual notifications. New notifications pulse the bell icon to alert you.'
+        description: 'Click the bell icon to open the Notification Center. You\'ll see activity on your content (new plays, followers, comments), Backstage member events, achievement unlocks, and platform announcements. Mark all as read or dismiss individual notifications. New notifications pulse the bell icon to alert you.'
       },
       {
         name: 'Account & Privacy Settings',
@@ -516,13 +516,13 @@ const helpSections: HelpSection[] = [
   },
   {
     id: 'ambo',
-    title: 'Ambo Pro Broadcast',
+    title: 'Stage Broadcast',
     icon: MonitorPlay,
     description: 'Master live presentation, worship broadcasts, multi-screen LED wall mapping, and NDI video routing with background auto-save.',
     features: [
       {
         name: 'Master Presentation Broadcast',
-        description: 'Ambo allows multi-display live presentation with seamless slide ordering, scripture lookups, lyric overlays, and background auto-save. Broadcast slides never freeze or drop display sync during live events.',
+        description: 'Stage allows multi-display live presentation with seamless slide ordering, scripture lookups, lyric overlays, and background auto-save. Broadcast slides never freeze or drop display sync during live events.',
         tutorial: 'ambo-broadcast'
       },
       {
@@ -900,7 +900,7 @@ const HelpCenter: React.FC<HelpCenterProps> = ({ onBack, onDeleteAccount, onOpen
           </div>
           <div className="p-6 bg-white/5 rounded-2xl border border-white/5 flex gap-4">
             <ShieldCheck className="text-small-orange shrink-0" size={20} />
-            <p className="text-[11px] font-bold text-white/60 leading-relaxed">Join an artist's Sanctuary to unlock exclusive tracks, private video streams, and direct chat access with the creator.</p>
+            <p className="text-[11px] font-bold text-white/60 leading-relaxed">Join an artist's Backstage to unlock exclusive tracks, private video streams, and direct chat access with the creator.</p>
           </div>
           <div className="p-6 bg-white/5 rounded-2xl border border-white/5 flex gap-4">
             <Sparkles className="text-small-orange shrink-0" size={20} />

@@ -561,7 +561,7 @@ const EventLandingPage: React.FC<Props> = ({ eventId, currentUser, onBack, onSig
 
               {/* Platform synergies */}
               <div className="mt-4 space-y-2">
-                {event.sanctuaryMembersOnly && <div className="flex items-center gap-2 text-[10px] text-[#f472b6]/70 p-2 bg-[#f472b6]/5 rounded-xl border border-[#f472b6]/15"><Heart size={11} />Members-only event — join Sanctuary to purchase</div>}
+                {event.sanctuaryMembersOnly && <div className="flex items-center gap-2 text-[10px] text-[#f472b6]/70 p-2 bg-[#f472b6]/5 rounded-xl border border-[#f472b6]/15"><Heart size={11} />Members-only event — join Backstage to purchase</div>}
                 {event.plajahPlusDiscount && event.plajahPlusDiscount > 0 && <div className="flex items-center gap-2 text-[10px] text-[#fbbf24]/70 p-2 bg-[#fbbf24]/5 rounded-xl border border-[#fbbf24]/15"><Zap size={11} />Plajah+ subscribers get {event.plajahPlusDiscount}% off</div>}
                 {event.kioskEnabled && <div className="flex items-center gap-2 text-[10px] text-[#60a5fa]/70 p-2 bg-[#60a5fa]/5 rounded-xl border border-[#60a5fa]/15"><Package size={11} />Merch kiosk available at this event</div>}
                 {event.printingEnabled && <div className="flex items-center gap-2 text-[10px] text-white/40 p-2 bg-white/[0.03] rounded-xl border border-white/8"><Printer size={11} />Physical ticket printing available</div>}

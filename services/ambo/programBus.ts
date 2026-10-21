@@ -133,7 +133,7 @@ export function registerProgramBusCanvas(canvas: HTMLCanvasElement | null): () =
       if (typeof window !== 'undefined') {
         try { (window as any)[GLOBAL_STREAM_KEY] = stream; } catch { /* */ }
       }
-      publishAppOutput('ambo:audience', stream, 'Ambo Audience Output', 'ambo');
+      publishAppOutput('ambo:audience', stream, 'Stage Audience Output', 'ambo');
       updateRtcSenderTracks(stream);
     }
   } catch { /* captureStream unsupported in test env */ }

@@ -22,7 +22,7 @@ export const SANCTUARY_THEME = {
 
 /** The wordmark chip that labels a space as a Sanctuary (vs a Club). */
 export const SanctuaryBadge: React.FC<{ size?: 'sm' | 'md'; label?: string; className?: string }> = ({
-  size = 'md', label = 'Sanctuary', className = '',
+  size = 'md', label = 'Backstage', className = '',
 }) => {
   const sm = size === 'sm';
   return (

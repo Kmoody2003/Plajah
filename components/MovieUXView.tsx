@@ -65,6 +65,7 @@ import {
   findPlayableFilmById,
 } from './taleo/ClassicCinemaDossier';
 import { getHalloweenStoryIntelBundle } from '../data/halloweenStoryIntel';
+import { filmDistributionOf, filmOffers } from '../services/filmPricing';
 
 // Universal Video Player (Pixels & CrossOver DSP)
 const ReelloUniversalVideoPlayer = React.lazy(() => import('./reello/ReelloUniversalVideoPlayer'));
@@ -271,7 +272,7 @@ const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
               if (data.type === Hls.ErrorTypes.NETWORK_ERROR) { hls.startLoad(); return; }
               if (data.type === Hls.ErrorTypes.MEDIA_ERROR) { hls.recoverMediaError(); return; }
             }
-            console.warn('[PlajahTV] Taleo HLS fatal', strategy, data?.type, data?.details);
+            console.warn('[PlajahTV] Cinema HLS fatal', strategy, data?.type, data?.details);
             hls.destroy(); hlsRef.current = null; onFatal();
           });
         } else if (el.canPlayType('application/vnd.apple.mpegurl')) {
@@ -280,7 +281,7 @@ const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
           el.play().catch(() => { el.muted = true; el.play().catch(() => {}); });
         } else {
           // No MSE (hls.js) AND no native HLS — the exact Android TV WebView failure mode.
-          console.warn('[PlajahTV] Taleo: no MSE + no native HLS → falling back', strategy);
+          console.warn('[PlajahTV] Cinema: no MSE + no native HLS → falling back', strategy);
           onFatal();
         }
       } catch { onFatal(); }
@@ -713,7 +714,7 @@ const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
         autoPlay={strategy === 'direct' || strategy === 'mux-mp4'}
         onError={() => {
           if (strategy === 'direct') setDirectFailed(true);
-          else if (strategy === 'mux-mp4') { console.warn('[PlajahTV] Taleo Mux MP4 fallback failed'); setMuxMp4Failed(true); }
+          else if (strategy === 'mux-mp4') { console.warn('[PlajahTV] Cinema Mux MP4 fallback failed'); setMuxMp4Failed(true); }
         }}
       >
         {subtitles.map(st => (
@@ -1415,10 +1416,11 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({
   };
 
   // ── Buy-to-own gate (Taleo) ────────────────────────────────────────────────
-  const filmDist = (item as any).filmDistribution as import('../types').FilmDistribution | undefined;
-  const filmBuyPrice = filmDist?.purchasePrice ?? 0;
-  const filmRentPrice = (filmDist?.model === 'RENTAL' || filmDist?.model === 'HYBRID') ? (filmDist?.rentalPrice ?? 0) : 0;
-  const isPaidFilm = !!filmDist && filmDist.model !== 'FREE_FAST' && (filmBuyPrice > 0 || filmRentPrice > 0);
+  const filmDist = filmDistributionOf(item as any);
+  const filmOffer = filmOffers(filmDist);
+  const filmBuyPrice = filmOffer.buy?.price ?? 0;
+  const filmRentPrice = filmOffer.rent?.price ?? 0;
+  const isPaidFilm = filmBuyPrice > 0 || filmRentPrice > 0;
   const filmOwnership = useOwnership('film', item.id, currentUser?.uid);
   const hasFilmAccess = isOwner || !isPaidFilm || filmOwnership.owned;
 
@@ -2432,7 +2434,7 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({
                   {/* Badges */}
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="bg-white/[0.07] backdrop-blur-sm text-white/60 rounded-lg text-[10px] font-black tracking-[0.15em] uppercase border border-white/[0.10] px-3 py-1">
-                      Plajah Taleo Cinema
+                      Plajah Cinema
                     </span>
                     {isPaywalled && (
                       <span className="bg-[#D0BCFF]/12 text-[#D0BCFF] rounded-lg text-[10px] font-black tracking-[0.15em] uppercase border border-[#D0BCFF]/20 px-3 py-1 flex items-center gap-1.5">
@@ -2604,7 +2606,7 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({
                         title={title}
                         purchasePrice={filmBuyPrice || undefined}
                         rentalPrice={filmRentPrice || undefined}
-                        rentalWindowHrs={filmDist?.rentalWindowHrs}
+                        rentalWindowHrs={filmOffer.rent?.windowHrs}
                         delivery={filmDist?.delivery}
                         watermark={filmDist?.watermark}
                         uid={currentUser?.uid}
@@ -2723,7 +2725,7 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({
                   <div className="flex items-center justify-between gap-4 flex-wrap">
                     <div className="border-l-2 border-[#FF8C00] pl-3">
                       <p className="text-[9px] font-black uppercase tracking-[0.3em] text-[#FF8C00] mb-1">
-                        {(item as any).movement || 'Taleo Film Historian'}
+                        {(item as any).movement || 'Cinema Film Historian'}
                       </p>
                       <h3 className="text-xl font-black uppercase tracking-[0.12em] text-white">
                         Curator &amp; Preservation Notes
@@ -3378,7 +3380,7 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({
           </button>
 
           <h1 className={`font-black text-base tracking-[0.35em] uppercase text-white/90 transition-all duration-500 ${scrolled ? 'opacity-100' : 'opacity-0'}`}>
-            Plajah Taleo
+            Plajah Cinema
           </h1>
 
           <div className="flex items-center gap-2.5">

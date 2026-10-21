@@ -986,7 +986,7 @@ export const DesktopLauncherOverlay: React.FC<DesktopLauncherOverlayProps> = ({
                     >
                       <div className="flex items-center justify-between text-xs">
                         <span className="font-bold text-amber-300 font-display">SACRED SCRIPTURE</span>
-                        <span className="text-white/40">Lectio</span>
+                        <span className="text-white/40">Verse</span>
                       </div>
                       <h4 className="text-sm font-bold text-white mt-1 group-hover:text-amber-200 transition-colors">
                         Personal Devotional & Reading
@@ -1095,7 +1095,7 @@ export const DesktopLauncherOverlay: React.FC<DesktopLauncherOverlayProps> = ({
                   onClick={() => handleOpenItem('MOVIES_TV')}
                   className="text-pink-400 font-semibold cursor-pointer hover:underline"
                 >
-                  Taleo Cinema →
+                  Cinema →
                 </span>
               </div>
 
@@ -1225,7 +1225,7 @@ export const DesktopLauncherOverlay: React.FC<DesktopLauncherOverlayProps> = ({
               className="px-3.5 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white font-medium transition-all flex items-center gap-1.5"
             >
               <Presentation size={13} className="text-cyan-400" />
-              <span>Ambo Presenter</span>
+              <span>Plajah Stage</span>
             </button>
 
             {hasActiveBusinessOrMerch && (

@@ -356,7 +356,7 @@ export const ClassicDirectorDossierModal: React.FC<{
             <div className="space-y-3">
               <h3 className="text-xs font-black uppercase tracking-widest text-emerald-400 flex items-center gap-2">
                 <Play className="w-4 h-4 fill-current" />
-                Streaming Now on Plajah Taleo ({playableWorks.length})
+                Streaming Now on Plajah Cinema ({playableWorks.length})
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {playableWorks.map((work) => (
@@ -1618,7 +1618,7 @@ export const HalloweenCurationStoryIntelSection: React.FC<{
             Halloween Curation: Story Intelligence, Characters & The Actors Behind Them
           </h2>
           <p className="text-xs md:text-sm text-zinc-400 max-w-3xl mt-1">
-            Every film in the Halloween Curation has been analyzed by Taleo Story Intelligence — unlocking 3-act structural breakdowns, timestamped scenes, key MacGuffins, character psychological arcs, and the biographies & filmographies of the actors and directors behind them.
+            Every film in the Halloween Curation has been analyzed by Cinema Story Intelligence — unlocking 3-act structural breakdowns, timestamped scenes, key MacGuffins, character psychological arcs, and the biographies & filmographies of the actors and directors behind them.
           </p>
         </div>
       </div>

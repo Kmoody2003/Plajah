@@ -232,7 +232,7 @@ const MORE_TOOLS: { id: string; label: string; icon: Lucide }[] = [
   { id: 'DJ_CONSOLE',     label: 'DJ Console',        icon: Disc3 },
   { id: 'PLAJAH_PIXELS',  label: 'Plajah Pixels',     icon: Grid3x3 },
   { id: 'TV_STUDIO',      label: 'TV Studio',         icon: Clapperboard },
-  { id: 'AMBO',           label: 'Ambo',              icon: MonitorPlay },
+  { id: 'AMBO',           label: 'Stage',              icon: MonitorPlay },
   { id: 'MEDIA_ROUTER',   label: 'Router & Switcher', icon: Cctv },
   { id: 'POSTMAN',        label: 'The Postman',       icon: Mail },
   { id: 'TERRA',          label: 'Terra',             icon: MapPin },

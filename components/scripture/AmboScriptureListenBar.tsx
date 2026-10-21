@@ -50,7 +50,7 @@ export const AutoScriptureSourcePicker: React.FC<{ className?: string }> = ({ cl
   return (
     <div className={`flex items-center gap-1.5 min-w-0 ${className}`}>
       <select value={value} onChange={e => choose(e.target.value)}
-        title="What Ambo listens to for scripture"
+        title="What Stage listens to for scripture"
         className="min-w-0 max-w-[220px] h-7 rounded-md bg-black/50 border border-white/15 text-[10.5px] text-white px-1.5 focus:outline-hidden focus:border-[#E3C57E]">
         <option value="" className="bg-[#14101e]">🎙 Live mic (default)</option>
         {devices.map(d => <option key={d.deviceId} value={d.deviceId} className="bg-[#14101e]">{d.label}</option>)}
@@ -162,7 +162,7 @@ export const IntentToggles: React.FC = () => {
     ? { color: '#120d02', background: color, borderColor: color }
     : { color: 'rgba(255,255,255,0.5)', background: 'transparent', borderColor: 'rgba(255,255,255,0.15)' };
   return (
-    <div className="inline-flex items-center gap-1 flex-none" title="What Ambo acts on when it hears it">
+    <div className="inline-flex items-center gap-1 flex-none" title="What Stage acts on when it hears it">
       <button onClick={() => setAutoScripturePrefs({ listenScripture: !prefs.listenScripture })}
         title="Spoken references (“John three sixteen”) bring up the verse"
         className="h-7 px-2 rounded-md text-[10px] font-bold border inline-flex items-center gap-1" style={chip(prefs.listenScripture, TAG_COLOR.scripture)}>

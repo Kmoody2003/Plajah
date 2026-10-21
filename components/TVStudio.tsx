@@ -493,7 +493,7 @@ const TVStudio: React.FC<TVStudioProps> = ({ currentUser, onBack, onStreamReady 
   const handleAddAmboFeed = useCallback(() => {
     const stream = getAppOutputStream('ambo:audience') || getAppOutputStream('ambo:lower_third');
     if (stream && engineRef.current) {
-      engineRef.current.addStreamSourceWithId('ambo_audience', stream, 'Ambo Output');
+      engineRef.current.addStreamSourceWithId('ambo_audience', stream, 'Stage Output');
     }
   }, []);
   const handleAddMedia   = useCallback(() => {
@@ -955,7 +955,7 @@ const TVStudio: React.FC<TVStudioProps> = ({ currentUser, onBack, onStreamReady 
                     <button onClick={handleAddMedia}  className="text-[8px] px-2 py-0.5 rounded opacity-40 hover:opacity-80 uppercase" style={{border:'1px solid rgba(255,255,255,0.1)'}}>+ Media</button>
                     <button onClick={openCampusPicker} className="text-[8px] px-2 py-0.5 rounded opacity-40 hover:opacity-80 uppercase" style={{border:'1px solid rgba(255,140,0,0.4)',color:'#FF8C00'}}>+ Campus</button>
                     <button onClick={handleAddPrompter} className="text-[8px] px-2 py-0.5 rounded opacity-40 hover:opacity-80 uppercase" style={{border:'1px solid rgba(255,140,0,0.4)',color:'#FF8C00'}}>+ Prompter</button>
-                    <button onClick={handleAddAmboFeed} className="text-[8px] px-2 py-0.5 rounded opacity-40 hover:opacity-80 uppercase" style={{border:'1px solid rgba(147,51,234,0.4)',color:'#c084fc'}}>+ Ambo</button>
+                    <button onClick={handleAddAmboFeed} className="text-[8px] px-2 py-0.5 rounded opacity-40 hover:opacity-80 uppercase" style={{border:'1px solid rgba(147,51,234,0.4)',color:'#c084fc'}}>+ Stage</button>
                     <button onClick={()=>setShowImport(true)} className="text-[8px] px-2 py-0.5 rounded opacity-40 hover:opacity-80 uppercase" style={{border:'1px solid rgba(107,0,153,0.4)',color:'#a855f7'}}>Import…</button>
                   </div>
                 </div>

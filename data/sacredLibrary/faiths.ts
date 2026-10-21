@@ -83,7 +83,7 @@ export const CHRISTIANITY_META: FaithMeta = {
   id: 'christianity',
   name: 'Christianity',
   symbol: '✝',
-  blurb: 'The reference build. Everything in the Sacred Library today lives here — read and studied in Lectio.',
+  blurb: 'The reference build. Everything in the Sacred Library today lives here — read and studied in Verse.',
   accent: '#E3C57E',
   status: 'model',
   wing: 'data',
@@ -107,10 +107,10 @@ export const CHRISTIANITY: FaithWingData = {
   deviations: [],
   galleries: [
     {
-      no: '01', kicker: 'Sacred Texts', title: 'The Bible — read & studied in Lectio', icon: '📖',
-      blurb: 'The whole canon opens in Lectio, our Logos-class study Bible: reverse interlinear, commentaries, word studies, cross-references and your own notes. This is where the Sacred Library’s depth lives.',
+      no: '01', kicker: 'Sacred Texts', title: 'The Bible — read & studied in Verse', icon: '📖',
+      blurb: 'The whole canon opens in Verse, our Logos-class study Bible: reverse interlinear, commentaries, word studies, cross-references and your own notes. This is where the Sacred Library’s depth lives.',
       items: ['Old & New Testament', 'Reverse interlinear', 'Commentaries', 'Word study', 'Reading plans'],
-      cta: 'Open in Lectio', opensReader: true,
+      cta: 'Open in Verse', opensReader: true,
     },
     { no: '02', kicker: 'The Story', title: 'Two thousand years', icon: '🕰',
       blurb: 'From the early church through councils, schisms, and reform to the global church.',
@@ -137,7 +137,7 @@ export const CHRISTIANITY: FaithWingData = {
       blurb: 'The Sermon on the Mount, the fruits of the Spirit, and works of mercy.',
       items: ['Beatitudes', 'Ten Commandments'] },
     { no: '10', kicker: 'Study Tools', title: 'Go deeper', icon: '🔎',
-      blurb: 'Greek & Hebrew, concordances, a glossary of terms — powered by Lectio.',
+      blurb: 'Greek & Hebrew, concordances, a glossary of terms — powered by Verse.',
       items: ['Koine Greek', 'Biblical Hebrew', 'Glossary'] },
   ],
 };
@@ -166,7 +166,7 @@ export const BUDDHISM: FaithWingData = {
   galleries: [
     {
       no: '01', kicker: 'Sacred Texts', title: 'The Tripiṭaka & sutras', icon: '📜',
-      blurb: 'The same deep reader that powers Lectio, tuned for Buddhist canons: the Pāli "three baskets," Mahāyāna sutras, and Tibetan collections — with Pāli/Sanskrit glosses and parallel translations.',
+      blurb: 'The same deep reader that powers Verse, tuned for Buddhist canons: the Pāli "three baskets," Mahāyāna sutras, and Tibetan collections — with Pāli/Sanskrit glosses and parallel translations.',
       items: ['Pāli Canon', 'Dhammapada', 'Heart & Lotus Sutra', 'Pāli · Sanskrit gloss'],
       cta: 'Open in the Sutra Reader', opensReader: true,
     },

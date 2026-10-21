@@ -67,7 +67,7 @@ export default function MusicPitchDoc() {
             {[
               { icon: Radio, title: 'Your 24/7 Artist Radio', body: 'Auto-built from your catalog. No curation. One click.' },
               { icon: DollarSign, title: '90% to you, always', body: 'Tips, memberships, merch, downloads. Direct to your bank via Stripe.' },
-              { icon: Mic2, title: 'Sanctuary Memberships', body: 'Monthly recurring fans. Exclusive tracks, private chat, early access.' },
+              { icon: Mic2, title: 'Backstage Memberships', body: 'Monthly recurring fans. Exclusive tracks, private chat, early access.' },
             ].map(({ icon: Icon, title, body }) => (
               <div key={title} className="bg-white/[0.03] border border-white/5 rounded-xl p-4">
                 <Icon size={18} className="text-orange-400 mb-2" />
@@ -85,7 +85,7 @@ export default function MusicPitchDoc() {
               <div className="text-xs text-white/30 mt-1">Need 1M streams to earn $3,000</div>
             </div>
             <div className="bg-green-500/5 border border-green-500/20 rounded-xl p-4">
-              <div className="text-xs text-white/40 mb-1">Plajah Sanctuary (200 fans)</div>
+              <div className="text-xs text-white/40 mb-1">Plajah Backstage (200 fans)</div>
               <div className="text-xl font-black text-green-400">$898 / month</div>
               <div className="text-xs text-white/30 mt-1">200 fans × $4.99/mo · you keep 90%</div>
             </div>

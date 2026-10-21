@@ -41,10 +41,10 @@ export const APP_BUILD = '2026.09.27-01';
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    id: 'ambo-master-broadcast', date: '2026-09-27', time: '10:00', level: 'major', area: 'Ambo',
+    id: 'ambo-master-broadcast', date: '2026-09-27', time: '10:00', level: 'major', area: 'Stage',
     title: 'Master live broadcast engine with LED Wall and auto-save',
     technical: 'Resolved ReferenceError initialization ordering for nextSlide in master broadcast; implemented background auto-save loop, persistent workspace storage, File and Output menus, dedicated LED Wall modal entry point, and multi-display presentation rasterizer with NDI video routing support.',
-    plain: 'Ambo now features a bulletproof live presentation and broadcast command center: your presentations auto-save in the background, multi-screen LED walls can be targeted directly from the Output menu, and broadcast slides advance seamlessly without presentation freezes.',
+    plain: 'Stage now features a bulletproof live presentation and broadcast command center: your presentations auto-save in the background, multi-screen LED walls can be targeted directly from the Output menu, and broadcast slides advance seamlessly without presentation freezes.',
   },
   {
     id: 'academia-museion-overhaul', date: '2026-09-25', time: '14:30', level: 'major', area: 'Academia',
@@ -151,7 +151,7 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     id: 'tv-remote-fluidity', date: '2026-08-26', time: '18:00', level: 'minor', area: 'TV',
     title: 'A faster, calmer TV experience',
-    technical: 'TV focus unified on one GPU-composited orange ring (index.css) — [data-tv-focusable] was out-specified to the legacy blue, so focus changed colour by element type; only transform animates now and the 50px focus blur is cut to 20px. Removed the redundant BIG_SCREEN linear key-walker on TV (a third navigator running a full-document querySelectorAll every arrow press). Fullscreen exit made reliable on Taleo (Fullscreen-API button dropped on TV; capture-phase Back/Esc/hardware-back → exit) and Reello (own Back handler + data-tv-no-trap). SmartGuide tips no longer mount on TV.',
+    technical: 'TV focus unified on one GPU-composited orange ring (index.css) — [data-tv-focusable] was out-specified to the legacy blue, so focus changed colour by element type; only transform animates now and the 50px focus blur is cut to 20px. Removed the redundant BIG_SCREEN linear key-walker on TV (a third navigator running a full-document querySelectorAll every arrow press). Fullscreen exit made reliable on Cinema (Fullscreen-API button dropped on TV; capture-phase Back/Esc/hardware-back → exit) and Reello (own Back handler + data-tv-no-trap). SmartGuide tips no longer mount on TV.',
     plain: 'Moving around on the TV with the remote is quicker and smoother, and the focus highlight is one consistent colour. Going fullscreen on films, videos and Live TV+ now reliably closes with the Back button, and the on-screen tips no longer pop up over the content where a remote can\'t dismiss them.',
   },
   {
@@ -199,23 +199,23 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     id: 'e1c2216', date: '2026-07-26', time: '15:30', level: 'major', area: 'Live TV',
     title: 'Run your own always-on TV channel',
-    technical: 'Per-creator FAST channels: first-class channel entity (fast_channels collection — name/logo/category/number) + FastChannelManager; auto-built schedules with real per-asset durations and an optional commercial-free mode; deterministic linear-to-clock FastChannelPlayer (epoch-anchored "on now" so everyone sees the same programme); Live Channels rails in Taleo (MoviesTvView) and Reello (ReelloTvView) on TV. Industry EPG feeds emitted server-side (XMLTV / MRSS / lineup.json).',
-    plain: 'You can now run your own 24/7 channel of your content on Plajah. It builds a schedule from your videos automatically, plays the same thing for everyone like real TV, and shows up in the Live sections of Taleo and Reello on the big screen.',
+    technical: 'Per-creator FAST channels: first-class channel entity (fast_channels collection — name/logo/category/number) + FastChannelManager; auto-built schedules with real per-asset durations and an optional commercial-free mode; deterministic linear-to-clock FastChannelPlayer (epoch-anchored "on now" so everyone sees the same programme); Live Channels rails in Cinema (MoviesTvView) and Reello (ReelloTvView) on TV. Industry EPG feeds emitted server-side (XMLTV / MRSS / lineup.json).',
+    plain: 'You can now run your own 24/7 channel of your content on Plajah. It builds a schedule from your videos automatically, plays the same thing for everyone like real TV, and shows up in the Live sections of Cinema and Reello on the big screen.',
   },
   {
     id: 'd810792', date: '2026-07-26', time: '15:00', level: 'major', area: 'Live TV',
     title: 'Go live — with multiple simultaneous feeds',
-    technical: 'Up to 3 concurrent sources per account (FAST loop / external 24/7 live / Reello live show), each independently active. TvLiveSourcePlayer prioritises HLS → YouTube/Twitch embed → Mux. A saved Feed Library (name + URL, on-platform streams listed first, unlimited saves, pick from a dropdown). BRAND/ORGANIZATION/PARTNER accounts run multiple concurrent feeds (main + ASL + languages, up to 8). "Live Now" rail added to Taleo + Reello.',
+    technical: 'Up to 3 concurrent sources per account (FAST loop / external 24/7 live / Reello live show), each independently active. TvLiveSourcePlayer prioritises HLS → YouTube/Twitch embed → Mux. A saved Feed Library (name + URL, on-platform streams listed first, unlimited saves, pick from a dropdown). BRAND/ORGANIZATION/PARTNER accounts run multiple concurrent feeds (main + ASL + languages, up to 8). "Live Now" rail added to Cinema + Reello.',
     plain: 'Creators can now broadcast live — from a link (HLS, YouTube or Twitch) or a Plajah live show — and save their favourite feeds to pick from a dropdown. Businesses, brands and organisations can send several feeds of one event at once, so it can carry a main feed plus sign-language and other-language versions side by side.',
   },
   {
     id: '54aa0a0', date: '2026-07-26', time: '14:30', level: 'minor', area: 'Live TV',
     title: 'Members get special channel programming',
-    technical: 'FastChannelPlayer runs checkMembership(creatorId) at load — Sanctuary members see members-only special programming (per-video isExclusive) in the loop plus members-only live interrupts; non-members get the regular schedule. Linear semantics (filter, not paywall); the deterministic join runs on the gated list.',
-    plain: 'If you hold a Sanctuary membership with a creator, their channel now shows you special members-only programming; everyone else sees the regular schedule.',
+    technical: 'FastChannelPlayer runs checkMembership(creatorId) at load — Backstage members see members-only special programming (per-video isExclusive) in the loop plus members-only live interrupts; non-members get the regular schedule. Linear semantics (filter, not paywall); the deterministic join runs on the gated list.',
+    plain: 'If you hold Backstage membership with a creator, their channel now shows you special members-only programming; everyone else sees the regular schedule.',
   },
   {
-    id: '464c9dd', date: '2026-07-26', time: '14:00', level: 'minor', area: 'Taleo',
+    id: '464c9dd', date: '2026-07-26', time: '14:00', level: 'minor', area: 'Cinema',
     title: 'Smoother film & video streaming',
     technical: 'One-click "Optimize for Streaming (HLS)" per video plus a bulk optimizer that transcodes an entire catalogue to Mux HLS, fixing progressive-playback choppiness (e.g. the "astrocats" title) by moving it onto adaptive HLS.',
     plain: 'Films and videos stream more smoothly now — creators can optimise a single title or their whole catalogue in one click, so playback stops stuttering.',
@@ -223,7 +223,7 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     id: '717e369', date: '2026-07-26', time: '13:30', level: 'major', area: 'TV Apps',
     title: 'A big-screen experience built for the living room',
-    technical: 'TV overhaul: persistent Plajah branding (logo + gradient chevron + Early Access badge), centered Taleo/Chora/Reello tabs, an always-present playback transport + now-playing bar, a full-bleed album art slideshow, an FX Stage visualiser (reduced-res upscaled, channel-up/down presets), reusable hero carousels, declarative D-pad navigation (useTvGrid) with reliable hardware-Back handling, and "More From This World" / character rows across Chora, Taleo and Reello.',
+    technical: 'TV overhaul: persistent Plajah branding (logo + gradient chevron + Early Access badge), centered Cinema/Chora/Reello tabs, an always-present playback transport + now-playing bar, a full-bleed album art slideshow, an FX Stage visualiser (reduced-res upscaled, channel-up/down presets), reusable hero carousels, declarative D-pad navigation (useTvGrid) with reliable hardware-Back handling, and "More From This World" / character rows across Chora, Cinema and Reello.',
     plain: 'The Plajah TV app got a big living-room upgrade — clearer branding and navigation, a full-screen album slideshow and an FX visual stage, controls you never lose while a song plays, and rows that suggest more from the same world and characters.',
   },
   {
@@ -235,7 +235,7 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     id: '195cffe', date: '2026-07-01', time: '15:22', level: 'minor', area: 'Sharing',
     title: 'Films get shareable previews too',
-    technical: 'Film (Taleo/archive.org) deep-linking: new "archive" share type → /share?type=archive&id=<identifier>; fetchArchiveVideoById rebuilds the item on boot; server injects OG from the archive.org metadata API; wired the movie Share button.',
+    technical: 'Film (Cinema/archive.org) deep-linking: new "archive" share type → /share?type=archive&id=<identifier>; fetchArchiveVideoById rebuilds the item on boot; server injects OG from the archive.org metadata API; wired the movie Share button.',
     plain: 'Sharing a film now opens that exact film and shows a real preview card (poster + "Experience “Title” now on Plajah") — same as songs, videos and books.',
   },
   {

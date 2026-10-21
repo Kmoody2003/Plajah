@@ -337,7 +337,7 @@ export const PlajahFseView: React.FC<PlajahFseViewProps> = ({
           <div className="flex items-center gap-3 min-w-0">
             <img src="https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=120&auto=format&fit=crop&q=80" className="w-10 h-10 rounded-xl object-cover border-2 border-orange-500/50 flex-shrink-0 shadow-lg" alt="" />
             <span className="text-sm sm:text-lg font-black text-white truncate">Neon Echoes <span className="text-orange-300 font-normal">by Astra Nova</span></span>
-            <span className="hidden xl:inline text-xs sm:text-sm text-gray-200 truncate">— Premiering exclusively on Chora & Taleo. Keep up to 100% creator royalties.</span>
+            <span className="hidden xl:inline text-xs sm:text-sm text-gray-200 truncate">— Premiering exclusively on Chora & Cinema. Keep up to 100% creator royalties.</span>
           </div>
         </div>
         <div className="flex items-center gap-2.5 flex-shrink-0">
@@ -675,7 +675,7 @@ export const PlajahFseView: React.FC<PlajahFseViewProps> = ({
                 <div className="flex items-center justify-between mb-4 pb-3 border-b border-pink-500/30">
                   <div>
                     <span className="px-3 py-1 rounded-lg text-xs font-black uppercase bg-red-600 text-white">Tier 1 Living Room</span>
-                    <h2 className="text-3xl sm:text-4xl font-black text-white mt-1">Plajah Home Theatre: Front Row & Taleo IMAX</h2>
+                    <h2 className="text-3xl sm:text-4xl font-black text-white mt-1">Plajah Home Theatre: Front Row & Cinema IMAX</h2>
                   </div>
                   <span className="text-xs sm:text-sm font-mono font-bold text-orange-400">4K HDR Spatial Master</span>
                 </div>
@@ -684,7 +684,7 @@ export const PlajahFseView: React.FC<PlajahFseViewProps> = ({
                     <img src="https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=800&auto=format&fit=crop&q=80" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt="" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent"></div>
                     <div className="absolute bottom-4 left-4 right-4">
-                      <span className="px-2.5 py-0.5 rounded bg-pink-600 text-xs font-black uppercase text-white">Taleo Premiere</span>
+                      <span className="px-2.5 py-0.5 rounded bg-pink-600 text-xs font-black uppercase text-white">Cinema Premiere</span>
                       <h3 className="text-xl sm:text-2xl font-black text-white mt-1">Neon Horizon: Episode 1</h3>
                       <p className="text-xs sm:text-sm text-gray-200 mt-0.5">Stream exclusively on Plajah Theatre in Dolby Atmos.</p>
                     </div>
@@ -817,7 +817,7 @@ export const PlajahFseView: React.FC<PlajahFseViewProps> = ({
                   <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent"></div>
                   <div className="absolute bottom-4 left-4 right-4">
                     <span className="px-2.5 py-0.5 rounded bg-pink-600 text-xs font-black uppercase text-white">Live Looping Feed</span>
-                    <h3 className="text-2xl font-black text-white mt-1">Taleo: Cyberpunk Ascension (Official Trailer)</h3>
+                    <h3 className="text-2xl font-black text-white mt-1">Cinema: Cyberpunk Ascension (Official Trailer)</h3>
                     <p className="text-sm text-gray-200">Exclusive streaming premiering Friday on The Plajah FSE</p>
                   </div>
                 </div>
@@ -998,7 +998,7 @@ export const PlajahFseView: React.FC<PlajahFseViewProps> = ({
                 <span className="text-xs sm:text-sm font-black uppercase text-orange-400 tracking-wider">🎬 Entertainment</span>
                 <div className="space-y-1">
                   <button onClick={() => { setShowCommandSplit(false); setActiveTab('CHORA'); }} className="w-full text-left p-2 rounded-lg hover:bg-orange-600/20 text-gray-200 font-semibold">Chora Music</button>
-                  <button onClick={() => { setShowCommandSplit(false); setActiveTab('THEATRE'); }} className="w-full text-left p-2 rounded-lg hover:bg-orange-600/20 text-gray-200 font-semibold">Taleo Movies</button>
+                  <button onClick={() => { setShowCommandSplit(false); setActiveTab('THEATRE'); }} className="w-full text-left p-2 rounded-lg hover:bg-orange-600/20 text-gray-200 font-semibold">Cinema</button>
                   <button onClick={() => { setShowCommandSplit(false); setActiveTab('GAMES'); }} className="w-full text-left p-2 rounded-lg hover:bg-orange-600/20 text-gray-200 font-semibold">Game Hub</button>
                 </div>
               </div>

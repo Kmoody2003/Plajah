@@ -23,7 +23,7 @@ const PTYPES: { kind: UserAdPromotedType; label: string; Icon: React.ComponentTy
   { kind: 'ARTICLE',    label: 'Article',        Icon: Newspaper, color: '#E9C46A' },
   { kind: 'GAME',       label: 'Game Release',   Icon: Gamepad2,  color: '#06D6A0' },
   { kind: 'LIVE_EVENT', label: 'Live Event',     Icon: Users,     color: '#D40055' },
-  { kind: 'SANCTUARY',  label: 'Sanctuary Page', Icon: Zap,       color: '#6B0099' },
+  { kind: 'SANCTUARY',  label: 'Backstage Page', Icon: Zap,       color: '#6B0099' },
 ];
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -105,7 +105,7 @@ const AdCreator: React.FC<AdCreatorProps> = ({ userProfile, existingAd, onClose,
         } else if (type === 'LIVE_EVENT') {
           items = []; // live events fetched via a different path; show placeholder
         } else if (type === 'SANCTUARY') {
-          items = [{ id: 'sanctuary', title: 'My Sanctuary', coverImage: userProfile.coverArt || userProfile.photoURL || '' }];
+          items = [{ id: 'sanctuary', title: 'My Backstage', coverImage: userProfile.coverArt || userProfile.photoURL || '' }];
         }
         setPickerItems(items);
       } catch {
@@ -429,7 +429,7 @@ const AdCreator: React.FC<AdCreatorProps> = ({ userProfile, existingAd, onClose,
                             patch({ promotedType: kind, promotedAssetId: undefined, promotedAssetTitle: undefined, promotedAssetImageUrl: undefined });
                             if (kind !== 'SANCTUARY') setPickerOpen(true);
                             else {
-                              patch({ promotedType: 'SANCTUARY', promotedAssetId: 'sanctuary', promotedAssetTitle: 'My Sanctuary', promotedAssetImageUrl: userProfile.coverArt || userProfile.photoURL });
+                              patch({ promotedType: 'SANCTUARY', promotedAssetId: 'sanctuary', promotedAssetTitle: 'My Backstage', promotedAssetImageUrl: userProfile.coverArt || userProfile.photoURL });
                             }
                           }}
                           className={`flex items-center gap-3 p-3 rounded-2xl border text-left transition-all ${active ? 'border-white/30 bg-white/8' : 'border-white/10 bg-white/5 hover:border-white/25'}`}
@@ -538,7 +538,7 @@ const AdCreator: React.FC<AdCreatorProps> = ({ userProfile, existingAd, onClose,
                     <p className="text-[9px] font-black uppercase tracking-widest text-white/50 mb-1">Call to Action Tag</p>
                     <p className="text-[8px] text-white/30 mb-3">Short pill shown at the bottom of your ad</p>
                     <input type="text" maxLength={42}
-                      placeholder="e.g. Stream Now · Out This Friday · Join My Sanctuary"
+                      placeholder="e.g. Stream Now · Out This Friday · Join My Backstage"
                       value={ad.ctaText || ''}
                       onChange={e => patch({ ctaText: e.target.value || undefined })}
                       className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-[10px] text-white placeholder-white/22 focus:outline-none focus:border-small-orange/50"

@@ -148,25 +148,25 @@ export const PRESET_HERO_PLATES: { id: string; label: string; category: string; 
   {
     id: 'plate_gethsemane',
     label: 'Gethsemane Olive Dusk (Sanctuary Plate)',
-    category: 'Ambo Sanctuary Plates',
+    category: 'Stage Sanctuary Plates',
     url: '/sanctuary-plates/calm-olive-gethsemane.jpg',
   },
   {
     id: 'plate_galilee',
     label: 'Galilee Dawn Waters (Sanctuary Plate)',
-    category: 'Ambo Sanctuary Plates',
+    category: 'Stage Sanctuary Plates',
     url: '/sanctuary-plates/calm-galilee-dawn.jpg',
   },
   {
     id: 'plate_bokeh',
     label: 'Candlelit Bokeh Vigil (Sanctuary Plate)',
-    category: 'Ambo Sanctuary Plates',
+    category: 'Stage Sanctuary Plates',
     url: '/sanctuary-plates/calm-contemporary-bokeh-leaks.jpg',
   },
   {
     id: 'plate_prism',
     label: 'Cathedral Prism Light Leak',
-    category: 'Ambo Sanctuary Plates',
+    category: 'Stage Sanctuary Plates',
     url: '/sanctuary-plates/optical-light-leak-prism-overlay.jpg',
   },
   {
@@ -377,7 +377,7 @@ export function createPrewiredSection(
         eyebrow: 'SANCTUARY STAGE · LIVE GATHERING',
         title: 'Where Sacred Architecture Meets Living Breath.',
         subtitle:
-          'Pre-wired with Ambo Council optical passes, Outfit display hierarchy, and L3 glass elevation. Click any copy or artwork to customize directly.',
+          'Pre-wired with Stage Council optical passes, Outfit display hierarchy, and L3 glass elevation. Click any copy or artwork to customize directly.',
         handwrittenCallout: 'light before content — every word arrives on measure',
         ctaPrimaryLabel: 'Enter the Sanctuary',
         ctaPrimaryTarget: AppView.PLAJAH_ELEVATE,
@@ -397,7 +397,7 @@ export function createPrewiredSection(
         template,
         eyebrow: 'CURATED SANCTUARY SHELF',
         title: 'Featured Living Sanctuaries & Guilds',
-        subtitle: 'Horizontal snap carousel pre-wired to Lorea Living Books, Chora Music, and Ambo Stages.',
+        subtitle: 'Horizontal snap carousel pre-wired to Lorea Living Books, Chora Music, and Plajah Stage.',
         handwrittenCallout: 'curated by the sanctuary council',
         ctaPrimaryLabel: 'Explore All Sanctuaries',
         ctaPrimaryTarget: AppView.PLAJAH_ELEVATE,
@@ -429,7 +429,7 @@ export function createPrewiredSection(
             id: `${id}_c3`,
             badge: 'CHORA · WORSHIP STEMS',
             title: 'Galilee Dawn Choir & Strings',
-            body: 'Multi-track sanctuary audio stems reactive to Ambo lyric progression.',
+            body: 'Multi-track sanctuary audio stems reactive to Stage lyric progression.',
             imageUrl: PRESET_HERO_PLATES[1].url,
             accentColor: '#00DAF3',
             linkedTool: 'CURATED_PLAYLIST',
@@ -536,7 +536,7 @@ export function createPrewiredSection(
           {
             id: `${id}_p1`,
             badge: '01 · SANCTUARY',
-            title: 'Sacred Broadcast & Ambo Stage',
+            title: 'Sacred Broadcast & Stage',
             body: 'Zero-latency lyric projection, scripture lower-thirds, and congregation watch parties.',
             accentColor: '#FF8C00',
           },
@@ -608,7 +608,7 @@ export function runAdminCouncilDeliberation(
       const pick = builds[Math.floor(Math.random() * Math.min(5, builds.length))] || builds[0];
       return {
         councilId,
-        councilName: 'Ambo Sanctuary Visualizer Council',
+        councilName: 'Stage Sanctuary Visualizer Council',
         leadDirector: pick.director,
         counterpointDirector: pick.counterpoint,
         editorDirector: pick.editor,
@@ -677,7 +677,7 @@ export function runAdminCouncilDeliberation(
     case 'LECTIO_EDITORIAL':
       return {
         councilId,
-        councilName: 'Lectio & World-Eclectic Sanctuary Council',
+        councilName: 'Verse & World-Eclectic Sanctuary Council',
         leadDirector: COUNCIL_LIST[3].epithet, // World-Eclectic Traveller
         counterpointDirector: COUNCIL_LIST[0].epithet, // Classical Mind
         editorDirector: COUNCIL_LIST[5].epithet, // Radical Minimalist

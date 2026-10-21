@@ -340,7 +340,7 @@ const RelloView: React.FC<RelloViewProps> = ({ onBack, currentUser, initialVideo
           </button>
 
           <div className="flex items-center gap-2">
-            <span className="text-xs font-black uppercase tracking-[0.25em] text-white">Rello</span>
+            <span className="text-xs font-black uppercase tracking-[0.25em] text-white">Reello</span>
             {isTheaterMode && (
               <span className="hidden sm:inline-flex px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-orange-500/20 text-orange-400 border border-orange-500/30">
                 Theater Mode
@@ -503,13 +503,13 @@ const RelloView: React.FC<RelloViewProps> = ({ onBack, currentUser, initialVideo
       {loading ? (
         <div className="flex-1 flex flex-col items-center justify-center py-32 gap-4 text-white/40">
           <div className="w-12 h-12 border-2 border-white/20 border-t-orange-500 rounded-full animate-spin" />
-          <p className="text-xs font-black uppercase tracking-widest text-white/60">Loading Rello...</p>
+          <p className="text-xs font-black uppercase tracking-widest text-white/60">Loading Reello...</p>
         </div>
       ) : videos.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center py-32 gap-4 text-white/40 max-w-sm mx-auto text-center px-6">
           <Film size={36} className="text-white/20" />
           <p className="text-xs font-black uppercase tracking-widest leading-relaxed">
-            No Rello videos yet. Attach a video to a post and tap "Send to Rello".
+            No Reello videos yet. Attach a video to a post and tap "Send to Reello".
           </p>
         </div>
       ) : useUniversalPlayer && current ? (

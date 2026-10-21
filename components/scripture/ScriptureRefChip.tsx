@@ -94,7 +94,7 @@ const ScriptureRefChip: React.FC<Props> = ({ refObj, raw, preview = true, classN
         ref={anchorRef}
         role="link"
         tabIndex={0}
-        aria-label={`Open ${label} in Lectio`}
+        aria-label={`Open ${label} in Verse`}
         title={label}
         onClick={activate}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') activate(e); }}
@@ -161,7 +161,7 @@ const ScriptureRefChip: React.FC<Props> = ({ refObj, raw, preview = true, classN
               )}
             </div>
             <div className="px-4 pb-3 text-[9px] uppercase tracking-widest text-white/30">
-              Tap to open in Lectio
+              Tap to open in Verse
             </div>
           </motion.div>
         </AnimatePresence>,

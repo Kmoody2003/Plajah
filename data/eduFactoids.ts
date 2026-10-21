@@ -7,8 +7,8 @@ export interface EduFactoid { id: string; subject: string; emoji: string; text: 
 export const EDU_FACTOIDS: EduFactoid[] = [
   { id: 'f_music1', subject: 'Music', emoji: '🎼', text: 'Bach was once jailed for a month for trying to quit his job — and composed some of his sharpest music from the cell.', source: 'Chora · Music History' },
   { id: 'f_music2', subject: 'Music', emoji: '🎷', text: 'Jazz "swing" comes from playing pairs of notes long-then-short. Your brain hears it as a groove even when the beat is perfectly even.', source: 'Chora · The Vault' },
-  { id: 'f_film1', subject: 'Film', emoji: '🎬', text: 'The first movie ever made — 1888\'s "Roundhay Garden Scene" — is just 2.11 seconds long.', source: 'Taleo · Film History' },
-  { id: 'f_film2', subject: 'Film', emoji: '🎞️', text: 'Early films had no sound, so live pianists improvised the whole score in the theater — a different one every night.', source: 'Taleo · Film History' },
+  { id: 'f_film1', subject: 'Film', emoji: '🎬', text: 'The first movie ever made — 1888\'s "Roundhay Garden Scene" — is just 2.11 seconds long.', source: 'Cinema · Film History' },
+  { id: 'f_film2', subject: 'Film', emoji: '🎞️', text: 'Early films had no sound, so live pianists improvised the whole score in the theater — a different one every night.', source: 'Cinema · Film History' },
   { id: 'f_art1', subject: 'Art', emoji: '🖼️', text: 'Van Gogh sold only ONE painting while he was alive. Today a single one can sell for over $80 million.', source: 'Museion · Art Masters' },
   { id: 'f_art2', subject: 'Art', emoji: '🎨', text: 'The Met in New York has released 490,000+ artworks as free, public-domain images — anyone can use them.', source: 'Metropolitan Museum · Open Access' },
   { id: 'f_hist1', subject: 'History', emoji: '🏛️', text: 'The Library of Alexandria didn\'t burn down all at once — it declined slowly over centuries as funding dried up.', source: 'Museion · World History' },

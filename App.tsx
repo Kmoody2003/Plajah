@@ -77,7 +77,6 @@ const ChoraConservatory = retryLazy(() => import('./components/ChoraConservatory
 const PrivateBoardsView = retryLazy(() => import('./components/PrivateBoardsView'));
 const AdminAdDashboard = retryLazy(() => import('./components/AdminAdDashboard'));
 const ChatSystem = retryLazy(() => import('./components/ChatSystem'));
-const ChatFlyout = retryLazy(() => import('./components/ChatFlyout'));
 const ClassroomsView = retryLazy(() => import('./components/ClassroomsView'));
 const PPVEventsView = retryLazy(() => import('./components/PPVEventsView'));
 const GamePlayerView = retryLazy(() => import('./components/GamePlayerView'));
@@ -377,6 +376,7 @@ const OrgHub = retryLazy(() => import('./components/OrgHub'));
 const PlajahElevate = retryLazy(() => import('./components/PlajahElevate'));
 const InviteRedeemView = retryLazy(() => import('./components/elevate/InviteRedeemView'));
 const ElevateGateway = retryLazy(() => import('./components/elevate/ElevateGateway'));
+const StageAnnouncementUploader = retryLazy(() => import('./components/elevate/StageAnnouncementUploader'));
 const EstimatePublicView = retryLazy(() => import('./components/billing/EstimatePublicView'));
 const ChmsClaimCard = retryLazy(() => import('./components/elevate/chms/PeopleMyProfileCard').then(m => ({ default: m.ClaimRecordCard })));
 const ChmsCheckinCard = retryLazy(() => import('./components/elevate/chms/PeopleMyProfileCard').then(m => ({ default: m.MyProfileCard })));
@@ -1287,7 +1287,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         setPartyIdForMovie(partyId);
         setSelectedMovieItem(resolvedItem);
         setView('MOVIE_UX');
-        document.title = `Watch Party · ${resolvedItem.title || p.content?.title || 'Cinema'} | Taleo`;
+        document.title = `Watch Party · ${resolvedItem.title || p.content?.title || 'Cinema'} | Cinema`;
       } else {
         setPartyIdForPlayer(partyId);
         setSelectedVideo(vid || resolvedItem);
@@ -1447,7 +1447,13 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       const [albumId, trackId] = rest.split('__');
       strip('content_purchased', 'session_id');
       fetchProjectFromCloud(albumId).then(album => { if (album) setReturnInfo({ mode: 'purchase', album, kind, trackId }); }).catch(() => {});
+    } else if (cp && cp.startsWith('book:')) {
+      const bookId = cp.slice('book:'.length);
+      strip('content_purchased', 'session_id');
+      fetchProjectFromCloud(bookId).then(album => { if (album) setReturnInfo({ mode: 'book', album }); }).catch(() => {});
     }
+    // A cancelled checkout only needs the query string cleaned up.
+    if (sp.get('content_cancelled')) strip('content_cancelled');
   }, []);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [cloudStatus, setCloudStatus] = useState<'CONNECTED' | 'OFFLINE' | 'CHECKING'>('CHECKING');
@@ -1692,6 +1698,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     }
   };
   const [notifDrawerTrigger, setNotifDrawerTrigger] = useState<{ tab: string; ts: number } | null>(null);
+  // Plajah Comms drawer (Inbox / Live / Alerts). It owns its open state; the New shell bells
+  // toggle it through the 'plajah:comms' window event and show the unread count it reports.
+  const [commsUnread, setCommsUnread] = useState(0);
+  const toggleComms = useCallback(() => {
+    window.dispatchEvent(new CustomEvent('plajah:comms', { detail: { action: 'toggle' } }));
+  }, []);
   const [selectedChatRoomId, setSelectedChatRoomId] = useState<string | undefined>(undefined);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   // Plajah Evites studio: which invite to edit, which design to start from, and who is hosting (you / org / business / school / teacher)
@@ -1762,7 +1774,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     { id: 'DASHBOARD', label: 'Home', icon: Home },
     { id: 'MUSIC', label: 'Chora', icon: Music2 },
     { id: 'VIDEOS', label: 'Reello', icon: VideoIcon },
-    { id: 'MOVIES_TV', label: 'Taleo', icon: Film },
+    { id: 'MOVIES_TV', label: 'Cinema', icon: Film },
     { id: 'PLAJAH_SPORTS', label: 'Sports', icon: Zap },
     { id: 'BOOKS', label: 'Lorea', icon: BookOpen },
     { id: 'FEED', label: 'Social', icon: Rss },
@@ -1824,6 +1836,18 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       window.removeEventListener('plajah:open-elevate-gateway', hOpen);
     };
   }, []);
+  // Stage Announcements upload (?stageUpload=<orgId> from the operator's QR, or plajah:open-stage-upload {orgId}).
+  const [stageUpload, setStageUpload] = useState<{ orgId?: string } | null>(() => {
+    if (typeof window === 'undefined') return null;
+    const id = new URLSearchParams(window.location.search).get('stageUpload');
+    return id ? { orgId: id } : null;
+  });
+  useEffect(() => {
+    const hOpen = (e: Event) => setStageUpload({ orgId: (e as CustomEvent<{ orgId?: string }>).detail?.orgId });
+    window.addEventListener('plajah:open-stage-upload', hOpen);
+    return () => window.removeEventListener('plajah:open-stage-upload', hOpen);
+  }, []);
+  const closeStageUpload = () => { setStageUpload(null); try { const u = new URL(window.location.href); u.searchParams.delete('stageUpload'); window.history.replaceState({}, '', u.toString()); } catch {} };
   const closeElevateGateway = () => { setElevateGateway(null); try { const u = new URL(window.location.href); ['elevateJoin', 'claim', 'member'].forEach(k => u.searchParams.delete(k)); window.history.replaceState({}, '', u.toString()); } catch {} };
   const [relloInitialVideoId, setRelloInitialVideoId] = useState<string | undefined>(undefined);
   const [videoPlaylistInitialId, setVideoPlaylistInitialId] = useState<string | undefined>(undefined);
@@ -2628,6 +2652,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       setView('CHAT');
     } else if (target === 'SETTINGS') {
       if (!user) { loginWithGoogle(); return; }
+      if (params?.tab) setDashboardInitialTab(params.tab);
       setView('CREATOR');
     } else if (target === 'CREATOR') {
       if (!user) {
@@ -3318,7 +3343,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 setSelectedMovieItem(arch.archiveVideoToAlbum(item));
                 setIsPublicView(true);
                 setView('MOVIE_UX');
-                document.title = `${item.title} | Taleo Halloween | Plajah`;
+                document.title = `${item.title} | Cinema Halloween | Plajah`;
                 return;
               }
             } catch {}
@@ -3328,8 +3353,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           setIsPublicView(true);
           setView('MOVIES_TV');
           document.title = colSlug.includes('halloween')
-            ? 'Taleo Halloween — 31 Nights of Cinema Terror | Plajah'
-            : 'Taleo Cinema | Plajah';
+            ? 'Cinema Halloween — 31 Nights of Cinema Terror | Plajah'
+            : 'Cinema | Plajah';
         }
         setIsLoading(false);
         return;
@@ -4749,6 +4774,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 avatarUrl={user?.photoURL || userProfile?.photoURL || undefined}
                 accountSlot={linkedAccounts.find(a => a.uid === user?.uid)?.slot ?? null}
                 onCreate={() => setShowCreator(true)}
+                notificationCount={commsUnread}
+                onOpenNotifications={toggleComms}
                 onOpenAccountSwitcher={() => setShowAccountSwitcher(true)}
                 onExitNew={() => shellNext.setEnabled(false)}
                 onVisitUser={handleVisitUser}
@@ -4823,6 +4850,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 ) : undefined}
                 onCreate={() => setShowCreator(true)}
                 onGoLive={() => { if (!user) { loginWithGoogle(); return; } (window as any).__reelloGoLivePending = true; setView('VIDEOS'); window.dispatchEvent(new CustomEvent('plajah:reelloGoLive')); }}
+                notificationCount={commsUnread}
+                onOpenNotifications={toggleComms}
                 onOpenAccountSwitcher={() => setShowAccountSwitcher(true)}
                 onSignOut={() => { try { logout(); } catch { /* ignore */ } }}
                 onExitNew={() => shellNext.setEnabled(false)}
@@ -4970,13 +4999,13 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         MUSIC: { label: 'Chora', icon: Music2 },
                         WORLDS: { label: 'Worlds', icon: Globe },
                         VIDEOS: { label: 'Reello', icon: VideoIcon },
-                        MOVIES_TV: { label: 'Taleo', icon: Film },
+                        MOVIES_TV: { label: 'Cinema', icon: Film },
                         PLAJAH_SPORTS: { label: 'Plajah Sports', icon: Zap },
                         HEALTH_FITNESS: { label: 'Health & Fitness', icon: Activity },
                         ARTICLES: { label: 'The Newstand', icon: Newspaper },
                         BOOKS: { label: 'Lorea', icon: BookOpen },
                         SACRED_LIBRARY: { label: 'Sacred Library', icon: Library },
-                        BIBLE: { label: 'Lectio', icon: Cross },
+                        BIBLE: { label: 'Verse', icon: Cross },
                         PLAJAH_LABS: { label: 'Museion', icon: FlaskConical },
                         PLAJAH_HOME: { label: 'Plajah Home', icon: Home },
                         RADIO: { label: 'Radio', icon: Radio },
@@ -4986,7 +5015,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         CLUBS: { label: 'Clubs', icon: Users },
                         CHARITY: { label: 'Charity', icon: Heart },
                         PLAJAH_ELEVATE: { label: 'Plajah Elevate', icon: Landmark },
-                        SANCTUARY_HUB: { label: 'Sanctuary', icon: Shield },
+                        SANCTUARY_HUB: { label: 'Backstage', icon: Shield },
                         STORE_HUB: { label: 'Plajah Store', icon: ShoppingBag },
                         CLASSROOMS: { label: 'Plajah Academia', icon: GraduationCap },
                         PPV_EVENTS: { label: 'Live Events', icon: Ticket },
@@ -4998,8 +5027,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         FEED: { label: 'Plajah Social', icon: Rss },
                         LIVE_HUB: { label: 'Live Hub', icon: Sparkles },
                         FABULA: { label: 'Fabula', icon: Film },
-                        TV_STUDIO: { label: 'TV Studio', icon: Clapperboard }, AMBO: { label: 'Ambo Presenter', icon: MonitorPlay },
-                        AMBO_PRO: { label: 'Ambo', icon: MonitorPlay },
+                        TV_STUDIO: { label: 'TV Studio', icon: Clapperboard }, AMBO: { label: 'Plajah Stage', icon: MonitorPlay },
+                        AMBO_PRO: { label: 'Stage', icon: MonitorPlay },
                         MEDIA_ROUTER: { label: 'Router & Switcher', icon: Cctv },
                         SEARCH: { label: 'Find People', icon: Search },
                         HELP_CENTER: { label: 'Help Center', icon: HelpCircle },
@@ -5135,21 +5164,21 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                     const allNavItems: { [k: string]: { label: string; icon: any } } = {
                       USER_PROFILE: { label: 'My Profile', icon: User }, DASHBOARD: { label: 'Front Row', icon: Settings },
                       MUSIC: { label: 'Chora', icon: Music2 }, WORLDS: { label: 'Worlds', icon: Globe },
-                      VIDEOS: { label: 'Reello', icon: VideoIcon }, MOVIES_TV: { label: 'Taleo', icon: Film },
+                      VIDEOS: { label: 'Reello', icon: VideoIcon }, MOVIES_TV: { label: 'Cinema', icon: Film },
                       PLAJAH_SPORTS: { label: 'Plajah Sports', icon: Zap }, HEALTH_FITNESS: { label: 'Health & Fitness', icon: Activity },
                       ARTICLES: { label: 'The Newstand', icon: Newspaper },
-                      BOOKS: { label: 'Lorea', icon: BookOpen }, SACRED_LIBRARY: { label: 'Sacred Library', icon: Library }, BIBLE: { label: 'Lectio', icon: Cross },
+                      BOOKS: { label: 'Lorea', icon: BookOpen }, SACRED_LIBRARY: { label: 'Sacred Library', icon: Library }, BIBLE: { label: 'Verse', icon: Cross },
                       PLAJAH_LABS: { label: 'Museion', icon: FlaskConical },
                       PLAJAH_HOME: { label: 'Plajah Home', icon: Home },
                       RADIO: { label: 'Radio', icon: Radio }, APPS: { label: 'Apps', icon: AppWindow }, CROSSOVER: { label: 'Crossover', icon: Repeat },
                       GAMES: { label: 'Games', icon: Gamepad2 }, CLUBS: { label: 'Clubs', icon: Users },
-                      CHARITY: { label: 'Charity', icon: Heart }, PLAJAH_ELEVATE: { label: 'Plajah Elevate', icon: Landmark }, SANCTUARY_HUB: { label: 'Sanctuary', icon: Shield },
+                      CHARITY: { label: 'Charity', icon: Heart }, PLAJAH_ELEVATE: { label: 'Plajah Elevate', icon: Landmark }, SANCTUARY_HUB: { label: 'Backstage', icon: Shield },
                       STORE_HUB: { label: 'Plajah Store', icon: ShoppingBag }, CLASSROOMS: { label: 'Plajah Academia', icon: GraduationCap },
                       GLOBAL_PHOTOS: { label: 'Photos', icon: Camera },
                       PAY_IT_FORWARD: { label: 'Pay It Forward', icon: Heart }, CHAT: { label: 'Chat', icon: MessageSquare },
                       DISCUSSION: { label: 'Discussion', icon: MessageCircle }, POSTMAN: { label: 'The Postman', icon: Mail },
                       FEED: { label: 'Plajah Social', icon: Rss }, LIVE_HUB: { label: 'Live Hub', icon: Sparkles },
-                      FABULA: { label: 'Fabula', icon: Film }, TV_STUDIO: { label: 'TV Studio', icon: Clapperboard }, AMBO: { label: 'Ambo Presenter', icon: MonitorPlay }, AMBO_PRO: { label: 'Ambo', icon: MonitorPlay }, MEDIA_ROUTER: { label: 'Router & Switcher', icon: Cctv }, SEARCH: { label: 'Find People', icon: Search },
+                      FABULA: { label: 'Fabula', icon: Film }, TV_STUDIO: { label: 'TV Studio', icon: Clapperboard }, AMBO: { label: 'Plajah Stage', icon: MonitorPlay }, AMBO_PRO: { label: 'Stage', icon: MonitorPlay }, MEDIA_ROUTER: { label: 'Router & Switcher', icon: Cctv }, SEARCH: { label: 'Find People', icon: Search },
                       HELP_CENTER: { label: 'Help Center', icon: HelpCircle }, BROWSER: { label: 'Partner Sites', icon: Monitor },
                       BUSINESS_DASHBOARD: { label: 'Plajah Business', icon: Briefcase }, TERRA: { label: 'Terra', icon: MapPin }, AD_PACKAGES: { label: 'Promote', icon: TrendingUp },
                       ARTIST_MANAGER: { label: 'Chora Artist Manager', icon: Music2 },
@@ -5231,21 +5260,21 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                     const navItems: { [k: string]: { label: string; icon: any } } = {
                       USER_PROFILE: { label: 'My Profile', icon: User }, DASHBOARD: { label: 'Front Row', icon: Settings },
                       MUSIC: { label: 'Chora', icon: Music2 }, WORLDS: { label: 'Worlds', icon: Globe },
-                      VIDEOS: { label: 'Reello', icon: VideoIcon }, MOVIES_TV: { label: 'Taleo', icon: Film },
+                      VIDEOS: { label: 'Reello', icon: VideoIcon }, MOVIES_TV: { label: 'Cinema', icon: Film },
                       PLAJAH_SPORTS: { label: 'Plajah Sports', icon: Zap }, HEALTH_FITNESS: { label: 'Health & Fitness', icon: Activity },
                       ARTICLES: { label: 'The Newstand', icon: Newspaper },
-                      BOOKS: { label: 'Lorea', icon: BookOpen }, SACRED_LIBRARY: { label: 'Sacred Library', icon: Library }, BIBLE: { label: 'Lectio', icon: Cross },
+                      BOOKS: { label: 'Lorea', icon: BookOpen }, SACRED_LIBRARY: { label: 'Sacred Library', icon: Library }, BIBLE: { label: 'Verse', icon: Cross },
                       PLAJAH_LABS: { label: 'Museion', icon: FlaskConical },
                       PLAJAH_HOME: { label: 'Plajah Home', icon: Home },
                       RADIO: { label: 'Radio', icon: Radio }, APPS: { label: 'Apps', icon: AppWindow }, CROSSOVER: { label: 'Crossover', icon: Repeat },
                       GAMES: { label: 'Games', icon: Gamepad2 }, CLUBS: { label: 'Clubs', icon: Users },
-                      CHARITY: { label: 'Charity', icon: Heart }, PLAJAH_ELEVATE: { label: 'Plajah Elevate', icon: Landmark }, SANCTUARY_HUB: { label: 'Sanctuary', icon: Shield },
+                      CHARITY: { label: 'Charity', icon: Heart }, PLAJAH_ELEVATE: { label: 'Plajah Elevate', icon: Landmark }, SANCTUARY_HUB: { label: 'Backstage', icon: Shield },
                       STORE_HUB: { label: 'Plajah Store', icon: ShoppingBag }, CLASSROOMS: { label: 'Plajah Academia', icon: GraduationCap },
                       GLOBAL_PHOTOS: { label: 'Photos', icon: Camera },
                       PAY_IT_FORWARD: { label: 'Pay It Forward', icon: Heart }, CHAT: { label: 'Chat', icon: MessageSquare },
                       DISCUSSION: { label: 'Discussion', icon: MessageCircle }, POSTMAN: { label: 'The Postman', icon: Mail },
                       FEED: { label: 'Plajah Social', icon: Rss }, LIVE_HUB: { label: 'Live Hub', icon: Sparkles },
-                      FABULA: { label: 'Fabula', icon: Film }, TV_STUDIO: { label: 'TV Studio', icon: Clapperboard }, AMBO: { label: 'Ambo Presenter', icon: MonitorPlay }, AMBO_PRO: { label: 'Ambo', icon: MonitorPlay }, MEDIA_ROUTER: { label: 'Router & Switcher', icon: Cctv }, SEARCH: { label: 'Find People', icon: Search },
+                      FABULA: { label: 'Fabula', icon: Film }, TV_STUDIO: { label: 'TV Studio', icon: Clapperboard }, AMBO: { label: 'Plajah Stage', icon: MonitorPlay }, AMBO_PRO: { label: 'Stage', icon: MonitorPlay }, MEDIA_ROUTER: { label: 'Router & Switcher', icon: Cctv }, SEARCH: { label: 'Find People', icon: Search },
                       HELP_CENTER: { label: 'Help Center', icon: HelpCircle }, BROWSER: { label: 'Partner Sites', icon: Monitor },
                       BUSINESS_DASHBOARD: { label: 'Plajah Business', icon: Briefcase }, TERRA: { label: 'Terra', icon: MapPin }, AD_PACKAGES: { label: 'Promote', icon: TrendingUp },
                       ARTIST_MANAGER: { label: 'Chora Artist Manager', icon: Music2 },
@@ -6357,6 +6386,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   onOpenOrg={(orgId) => { closeElevateGateway(); setOrgHubInitial({ orgId, fromElevate: true }); setView('ORG_HUB'); }}
                   onCreate={() => { closeElevateGateway(); setOrgHubInitial({ create: true, fromElevate: true }); setView('ORG_HUB'); }}
                 />
+              </Suspense>
+            )}
+            {stageUpload && user && (
+              <Suspense fallback={null}>
+                <StageAnnouncementUploader orgId={stageUpload.orgId} onClose={closeStageUpload} />
               </Suspense>
             )}
             {view === 'ORG_HUB' && (user || orgHubInitial?.orgId) && (
@@ -8056,7 +8090,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             </Suspense>
           )}
 
-          <KidsSessionGuard profile={effectiveProfile} />
+          <KidsSessionGuard profile={effectiveProfile} activeView={view} onNavigateHome={() => setView('STUDENT_HOME')} />
           {activeChildProfile && <KidsModeBar child={activeChildProfile} onExit={() => setActiveChildProfile(null)} />}
           {!activeChildProfile && isPlatformAdmin(user, userProfile) && (roleLens || ['ACADEMIA_HOME', 'STUDENT_HOME', 'ACADEMIA_DIRECTORY', 'CLASSROOMS', 'TEACHER_TOOLS'].includes(view as string)) && (
             <RoleLensBar lens={roleLens} onChange={(r) => { setRoleLensState(r); if (r) setView('ACADEMIA_HOME'); }} />
@@ -8122,18 +8156,6 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             <AriaMark size={26} petals={false} />
           </button>
         )}
-
-         {/* Custom Delete Confirmation Modal */}
-        {/* Not on TV: the floating chat widget is a 10-foot irrelevance, and worse, its focusable
-            controls sit in a fixed off-screen overlay that trapped D-pad focus — the remote could
-            walk into it and never get out. */}
-        {user && !isMobile && !getPlatformInfo().isTV && (
-          <ChatFlyout
-            onNavigateToChat={() => setView('CHAT')}
-            onSelectRoom={(roomId) => setSelectedChatRoomId(roomId)}
-            userProfile={userProfile}
-          />
-          )}
 
         {/* ── Plajah Aria — private creative agent ── */}
         <AriaHalo
@@ -8402,7 +8424,15 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           no D-pad can reach it, and chat without a keyboard is not something anyone wants from a
           sofa. Gated here rather than inside the component, which would mean returning before its
           hooks. */}
-      {user && !getPlatformInfo().isTV && <PersistentChatDrawer currentView={view} onNotificationNavigate={handleNotificationNavigate} externalTrigger={notifDrawerTrigger} />}
+      {user && !getPlatformInfo().isTV && (
+        <PersistentChatDrawer
+          currentView={view}
+          onNotificationNavigate={handleNotificationNavigate}
+          externalTrigger={notifDrawerTrigger}
+          onUnreadChange={setCommsUnread}
+          onOpenChatRoom={(roomId) => { setView('CHAT'); if (roomId) setSelectedChatRoomId(roomId); }}
+        />
+      )}
       {user && <MediaRepairApprovals open={mediaRepairOpen} onClose={() => setMediaRepairOpen(false)} />}
 
       {/* Nudge users stuck in an in-app WebView (Google app, etc.) into Chrome. Self-gates:

@@ -225,7 +225,7 @@ export function buildFountainFromStoryReport(report: StoryReport, title = 'Untit
   }
   const lines: string[] = [
     `Title: ${title}`,
-    `Credit: Reverse-Engineered by Plajah Taleo Story Intelligence`,
+    `Credit: Reverse-Engineered by Plajah Cinema Story Intelligence`,
     `Notes: ${report.logline || ''}`,
     '',
     'FADE IN:',

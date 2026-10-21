@@ -1164,7 +1164,7 @@ export const AdHubTab: React.FC = () => {
   const adChannels = [
     { name: 'Plajah Boost', description: 'Algorithmic content boost within the Plajah platform. Increases reach across feeds, search, and discovery.', action: 'Manage Packages', route: 'AD_PACKAGES', color: '#FF8C00', icon: <Zap size={16} /> },
     { name: 'TikTok Creator', description: 'Promote your content to TikTok audiences. Use Plajah content links as your destination.', action: 'Go to TikTok Ads', url: 'https://ads.tiktok.com', color: '#00f2ea', icon: <TrendingUp size={16} /> },
-    { name: 'Instagram / Meta', description: 'Run story and feed ads on Instagram and Facebook. Link directly to your Plajah profile or Sanctuary.', action: 'Go to Meta Ads', url: 'https://business.facebook.com/adsmanager', color: '#e1306c', icon: <Star size={16} /> },
+    { name: 'Instagram / Meta', description: 'Run story and feed ads on Instagram and Facebook. Link directly to your Plajah profile or Backstage.', action: 'Go to Meta Ads', url: 'https://business.facebook.com/adsmanager', color: '#e1306c', icon: <Star size={16} /> },
     { name: 'Google / YouTube', description: 'YouTube pre-roll ads and Google Display ads targeted to music fans and your genre audience.', action: 'Go to Google Ads', url: 'https://ads.google.com', color: '#4285f4', icon: <BarChart2 size={16} /> },
     { name: 'Spotify for Artists', description: 'Promote new releases on Spotify with Marquee and Showcase. Drive streams to build chart momentum.', action: 'Go to Spotify', url: 'https://artists.spotify.com', color: '#1db954', icon: <Music2 size={16} /> },
     { name: 'SubmitHub', description: 'Submit tracks to blogs, playlists, and YouTube channels. Curated placements for independent artists.', action: 'Go to SubmitHub', url: 'https://www.submithub.com', color: '#ff6b35', icon: <Send size={16} /> },
@@ -1220,7 +1220,7 @@ export const AdHubTab: React.FC = () => {
           {[
             'Start with Plajah Boost to build organic momentum before spending on external ads.',
             'TikTok → Plajah is the highest-converting funnel: clip gets views, link in bio converts to subscribers.',
-            'Run Instagram Story ads with a 15-sec preview clip. Destination: your Plajah Sanctuary page.',
+            'Run Instagram Story ads with a 15-sec preview clip. Destination: your Plajah Backstage page.',
             'SubmitHub playlist placements cost $1–3 per submission. 10 placements = potential 50K+ new listeners.',
           ].map((tip, i) => (
             <div key={i} className="flex gap-2.5">

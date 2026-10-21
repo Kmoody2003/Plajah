@@ -15,7 +15,7 @@ import Logo from './Logo';
  * destination should be "up, then across".
  */
 const TAB_META: Record<string, { label: string; icon: React.ComponentType<{ size?: number; className?: string }> }> = {
-  MOVIES_TV:    { label: 'Taleo',   icon: Film },
+  MOVIES_TV:    { label: 'Cinema',   icon: Film },
   MUSIC:        { label: 'Chora',   icon: Music2 },
   VIDEOS:       { label: 'Reello',  icon: Video },
   LIVE_HUB:     { label: 'Live TV+', icon: Radio },

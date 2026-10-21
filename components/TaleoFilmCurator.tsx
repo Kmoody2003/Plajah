@@ -145,7 +145,7 @@ export const TaleoFilmCurator: React.FC<TaleoFilmCuratorProps> = ({
               <div className="flex items-center gap-2">
                 <Sparkles size={14} className="text-[#D0BCFF]" />
                 <h1 className="text-base font-black text-white leading-none uppercase tracking-tight">The Film Historian & Curator</h1>
-                <span className="px-2 py-0.5 rounded-full bg-[#D0BCFF]/10 text-[#D0BCFF] text-[8px] font-black uppercase tracking-widest border border-[#D0BCFF]/20">Taleo Curated</span>
+                <span className="px-2 py-0.5 rounded-full bg-[#D0BCFF]/10 text-[#D0BCFF] text-[8px] font-black uppercase tracking-widest border border-[#D0BCFF]/20">Cinema Curated</span>
               </div>
               <p className="text-[9px] text-white/40 font-black uppercase tracking-widest mt-1">
                 Preservation Insights · Cultural Context · Curated Pairings
@@ -237,7 +237,7 @@ export const TaleoFilmCurator: React.FC<TaleoFilmCuratorProps> = ({
                     </button>
                     <button
                       onClick={() => shareAsset('archive', selectedFilm.identifier, {
-                        title: `${selectedFilm.title} (${selectedFilm.year}) — Plajah Taleo`,
+                        title: `${selectedFilm.title} (${selectedFilm.year}) — Plajah Cinema`,
                         text: shareText(selectedFilm.title, selectedFilm.director || selectedFilm.dataProvider),
                       })}
                       className="h-12 px-5 bg-white/10 hover:bg-white/20 border border-white/15 text-white font-black text-xs uppercase tracking-widest rounded-full flex items-center gap-2 transition-all cursor-pointer"
@@ -393,8 +393,8 @@ export const TaleoFilmCurator: React.FC<TaleoFilmCuratorProps> = ({
                   </p>
                 </div>
                 <ShareButton
-                  title="🎃 Taleo Halloween Selection — Curated Horror & Macabre Cinema"
-                  text="Stream 12 restored Gothic & midnight horror classics — Nosferatu, Night of the Living Dead, Carnival of Souls, House on Haunted Hill, The Phantom of the Opera & more — free on Plajah Taleo."
+                  title="🎃 Cinema Halloween Selection — Curated Horror & Macabre Cinema"
+                  text="Stream 12 restored Gothic & midnight horror classics — Nosferatu, Night of the Living Dead, Carnival of Souls, House on Haunted Hill, The Phantom of the Opera & more — free on Plajah Cinema."
                   url={buildShareUrl('taleoCollection', 'halloween')}
                   imageUrl={CURATED_HALLOWEEN_FILMS[0]?.thumbnailUrl}
                   contentType="movie"
@@ -412,14 +412,14 @@ export const TaleoFilmCurator: React.FC<TaleoFilmCuratorProps> = ({
                       authorName: user.displayName || 'Cinema Curator',
                       authorAvatar: user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.uid}`,
                       authorRole: 'Filmmaker',
-                      content: `🎃 Explore the Special Halloween Curation on Plajah Taleo — 12 restored public-domain horror & Gothic cinema classics streaming free!\n\n${shareUrl}`,
+                      content: `🎃 Explore the Special Halloween Curation on Plajah Cinema — 12 restored public-domain horror & Gothic cinema classics streaming free!\n\n${shareUrl}`,
                       mediaType: 'IMAGE',
                       mediaUrl: CURATED_HALLOWEEN_FILMS[0]?.thumbnailUrl,
                       assetEmbed: {
                         type: 'TALEO_COLLECTION',
                         id: 'halloween',
                         title: '🎃 Special Halloween Curation — 31 Nights of Cinema Terror',
-                        subtitle: `${CURATED_HALLOWEEN_FILMS.length} Restored Horror Classics · Free on Plajah Taleo`,
+                        subtitle: `${CURATED_HALLOWEEN_FILMS.length} Restored Horror Classics · Free on Plajah Cinema`,
                         imageUrl: CURATED_HALLOWEEN_FILMS[0]?.thumbnailUrl,
                       },
                       likes: 0,

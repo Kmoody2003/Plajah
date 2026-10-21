@@ -217,7 +217,7 @@ const MoviesTvView: React.FC<{
 
       <div className="relative flex items-center gap-3 px-12 pt-9 pb-3 shrink-0">
         <Film size={22} className="text-white/70" />
-        <h1 className="text-2xl font-black tracking-tight">Taleo</h1>
+        <h1 className="text-2xl font-black tracking-tight">Cinema</h1>
       </div>
 
       <div ref={scrollerRef} onClick={onClickDelegated} className="relative flex-1 overflow-y-auto no-scrollbar px-12 pb-16 space-y-9">
@@ -228,7 +228,7 @@ const MoviesTvView: React.FC<{
               <TvHeroCarousel
                 items={heroItems as any}
                 accent="#FF8C00"
-                eyebrow="Featured on Taleo"
+                eyebrow="Featured on Cinema"
                 focused={heroFocused}
                 activeIndex={heroFocused ? pos.col : undefined}
               />

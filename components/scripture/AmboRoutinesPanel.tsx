@@ -301,7 +301,7 @@ export default function AmboRoutinesPanel({ shows = [] }: { shows?: Show[] }) {
               onClick={() => { eng.install(sundayServiceTemplate({ layoutId: layouts[0]?.id })); }}>
               <Zap size={11} /> Install “Sunday Service” template
             </button>
-            <span className="text-[10px] text-white/35">Routines run in this window while Ambo is open. Missed runs inside the grace window fire late; older ones are skipped and logged.</span>
+            <span className="text-[10px] text-white/35">Routines run in this window while Stage is open. Missed runs inside the grace window fire late; older ones are skipped and logged.</span>
           </div>
           {editing && (
             <RoutineEditor key={editing.id} initial={editing} lists={lists} eng={eng}

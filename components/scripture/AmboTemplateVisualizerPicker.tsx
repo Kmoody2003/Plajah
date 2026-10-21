@@ -49,7 +49,7 @@ export function buildVisualizerCatalog(milk: string[]): VisualizerEntry[] {
   });
   for (const g of GENERATOR_ITEMS) {
     const mode = g.content.kind === 'GENERATOR' ? g.content.mode : '';
-    add({ id: g.id, name: g.name, kind: 'GENERATOR', mode, value: mode, sub: g.category, group: 'Ambo', gradient: 'linear-gradient(135deg, #042f2e, #0d9488)' });
+    add({ id: g.id, name: g.name, kind: 'GENERATOR', mode, value: mode, sub: g.category, group: 'Stage', gradient: 'linear-gradient(135deg, #042f2e, #0d9488)' });
   }
   SHADER_LIBRARY.forEach((s, i) => add({
     id: `sh_${i}_${s.name.replace(/\s+/g, '_')}`, name: s.name, kind: 'SHADER', src: s.src, mode: s.src,

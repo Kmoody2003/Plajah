@@ -142,7 +142,7 @@ const TvSearchView: React.FC<Props> = ({ onBack, onSelectAlbum, onSelectMovie, o
           open: () => { if (it.action.kind === 'TRACK') playTrack(it.action.track, it.action.album, 'RADIO'); },
         };
       }) },
-      { id: 'taleo', title: 'Taleo — Film & TV', items: taleo.map(it => ({
+      { id: 'taleo', title: 'Cinema — Film & TV', items: taleo.map(it => ({
         id: it.id, title: it.title, subtitle: (it as any).artist || '', shape: 'wide' as Shape,
         image: (it as any).coverImage || (it as any).thumbnailUrl || (it as any).coverImageUrl,
         open: () => onSelectMovie(it),
@@ -227,7 +227,7 @@ const TvSearchView: React.FC<Props> = ({ onBack, onSelectAlbum, onSelectMovie, o
       {/* ── Results ── */}
       <div ref={scrollerRef} className="relative flex-1 overflow-y-auto no-scrollbar px-16 pb-16">
         {!debounced && !artist && (
-          <p className="text-white/40 text-lg mt-8">Type to search across Chora, Taleo, Reello, live and radio.</p>
+          <p className="text-white/40 text-lg mt-8">Type to search across Chora, Cinema, Reello, live and radio.</p>
         )}
         {nothing && !artist && (
           <p className="text-white/40 text-lg mt-8">No matches for “{debounced}”.</p>

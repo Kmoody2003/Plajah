@@ -96,7 +96,7 @@ function writeLastDuty(d: EventDeviceDuty | null) {
 export function dutySourceLabel(d: EventDeviceDuty, sessionName?: string): string {
   if (d.sourceData?.sourceLabel) return d.sourceData.sourceLabel;
   switch (d.dutyType) {
-    case 'AMBO_PROGRAM': case 'AMBO_STAGE': case 'AMBO_PRESENTATION': return sessionName || 'Ambo';
+    case 'AMBO_PROGRAM': case 'AMBO_STAGE': case 'AMBO_PRESENTATION': return sessionName || 'Stage';
     case 'PROGRAM_FEED': return d.title || 'Video Switcher';
     case 'PARTY_DISPLAY': return d.title || 'Party';
     case 'CHORA_PLAYLIST': return d.title || 'Chora';
@@ -154,7 +154,7 @@ function initialState(): TvReceiverState {
 
 function emit(patch: Partial<TvReceiverState>) {
   const next = { ...state, ...patch };
-  next.sourceLabel = next.followingMaster ? (next.sessionName || 'Ambo master') : dutySourceLabel(next.duty, next.sessionName);
+  next.sourceLabel = next.followingMaster ? (next.sessionName || 'Stage master') : dutySourceLabel(next.duty, next.sessionName);
   if (JSON.stringify(next) === JSON.stringify(state)) return;
   state = next;
   listeners.forEach(l => { try { l(state); } catch { /* */ } });
@@ -569,8 +569,8 @@ export async function fetchJoinableSessions(): Promise<JoinableSession[]> {
     const sess = s.exists() ? (s.data() as PartyEventSession) : null;
     if (sess?.isActive) {
       out.push({
-        id: 'ambo_session', kind: 'AMBO_EVENT', title: sess.eventName || 'Ambo event', subtitle: 'Ambo Central Command',
-        duty: { dutyType: 'AMBO_PROGRAM', title: 'Ambo Program Out', subtitle: sess.eventName, sourceData: { sourceLabel: sess.eventName || 'Ambo' } },
+        id: 'ambo_session', kind: 'AMBO_EVENT', title: sess.eventName || 'Stage event', subtitle: 'Stage Central Command',
+        duty: { dutyType: 'AMBO_PROGRAM', title: 'Stage Program Out', subtitle: sess.eventName, sourceData: { sourceLabel: sess.eventName || 'Stage' } },
         slaved: true,
       });
     }

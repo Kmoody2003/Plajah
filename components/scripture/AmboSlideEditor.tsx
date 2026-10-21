@@ -1095,7 +1095,7 @@ export default function AmboSlideEditor({ slide, boundRef, onSave, onClose }: Am
 
       <AmboSlideTemplateGallery open={galleryOpen} onClose={() => setGalleryOpen(false)} onInsert={applyTemplate} activeShowTitle="this slide (replaces its text and design)" />
       <AmboSaveTemplateDialog open={saveTplOpen} onClose={() => setSaveTplOpen(false)} kind="ambo-slide" defaultName={label || 'My slide design'} build={buildTemplatePayload}
-        onSaved={rec => say(`Saved “${rec.name}” to My templates`)} shareWhere="Ambo → Slide Templates" />
+        onSaved={rec => say(`Saved “${rec.name}” to My templates`)} shareWhere="Stage → Slide Templates" />
     </div>
   );
 }

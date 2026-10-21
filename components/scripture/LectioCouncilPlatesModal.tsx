@@ -435,7 +435,7 @@ export const CouncilPlatePreviewCard: React.FC<{
           }
         >
           <Check size={12} />
-          <span>{isSelected ? 'Active Lectio Plate' : 'Use Plate in Lectio'}</span>
+          <span>{isSelected ? 'Active Verse Plate' : 'Use Plate in Verse'}</span>
         </button>
 
         <button
@@ -485,7 +485,7 @@ export const LectioCouncilPlatesModal: React.FC<LectioCouncilPlatesModalProps> =
           <div>
             <div className="flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-[0.22em] text-[#E8C170]">
               <Sparkles size={12} />
-              <span>Plajah Art Council · Lectio & Lorea Sacred Treasury</span>
+              <span>Plajah Art Council · Verse & Lorea Sacred Treasury</span>
             </div>
             <h2 className="text-xl font-bold text-white mt-0.5">
               12 Non-Scripture Sacred Text Plates, Public-Domain Hymnal & Liturgical Prayers

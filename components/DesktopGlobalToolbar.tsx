@@ -44,7 +44,7 @@ const APP_DESTINATIONS: AppDestination[] = [
   // Entertainment
   { id: 'MUSIC', label: 'Chora Music', category: 'Entertainment', icon: Music2 },
   { id: 'VIDEOS', label: 'Reello Video', category: 'Entertainment', icon: VideoIcon },
-  { id: 'MOVIES_TV', label: 'Taleo Cinema', category: 'Entertainment', icon: Film },
+  { id: 'MOVIES_TV', label: 'Cinema', category: 'Entertainment', icon: Film },
   { id: 'RADIO', label: 'Radio Stream', category: 'Entertainment', icon: Radio },
   { id: 'GAMES', label: 'Arcade', category: 'Entertainment', icon: Gamepad2 },
   { id: 'LIVE_HUB', label: 'Live Hub', category: 'Entertainment', icon: Sparkles },
@@ -57,7 +57,7 @@ const APP_DESTINATIONS: AppDestination[] = [
 
   // Creation & Studio
   { id: 'FABULA', label: 'Fabula Studio', category: 'Creation & Studio', icon: Film },
-  { id: 'AMBO_PRO', label: 'Ambo Stage', category: 'Creation & Studio', icon: MonitorPlay },
+  { id: 'AMBO_PRO', label: 'Stage', category: 'Creation & Studio', icon: MonitorPlay },
   { id: 'TELA', label: 'Tela Studio', category: 'Creation & Studio', icon: LayoutPanelTop },
   { id: 'PLAJAH_PIXELS', label: 'Plajah Pixels', category: 'Creation & Studio', icon: Grid3x3 },
   { id: 'TV_STUDIO', label: 'TV Broadcast Studio', category: 'Creation & Studio', icon: Clapperboard },

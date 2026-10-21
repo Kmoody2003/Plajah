@@ -1,5 +1,5 @@
 // churchEducationService — Sunday school, Bible study and discipleship programs for Elevate churches.
-// A program is a week-by-week plan whose weeks point at Lectio passages and Sacred Library readings,
+// A program is a week-by-week plan whose weeks point at Verse passages and Sacred Library readings,
 // plus Academia courses, a dedicated Classroom Chat Room, and an Academia Classroom (roster, assignments,
 // paper worksheet scanner, and Tela lesson builder).
 import { db, auth } from './firebase';
@@ -8,6 +8,7 @@ import { parseRef, refId, formatRef } from './scriptureRef';
 import { createChurchClass } from './churchConsoleService';
 import { classChatRoomId } from './orgChatService';
 import type { Organization } from '../types';
+import { isDemoOrg } from './elevateTruth';
 
 export type ProgramKind = 'sunday-school' | 'bible-study' | 'youth' | 'adult' | 'confirmation' | 'vbs' | 'discipleship';
 export interface PlanWeek {
@@ -71,7 +72,11 @@ const wk = (title: string, passage: string, note: string, library?: string, work
   worksheetPrompt,
 });
 
-/** 7 Default Templated Classrooms for Church Christian Education, wired to Lectio, Sacred Library & Academia. */
+/**
+ * 7 classroom templates for Church Christian Education, wired to Verse, Sacred Library & Academia.
+ * The named instructors, schedules and opening chat are sample content for the demo church only;
+ * a real church that starts from a template gets the syllabus without them.
+ */
 export const STARTERS: Array<{
   id: string;
   name: string;
@@ -162,8 +167,8 @@ export const STARTERS: Array<{
       {
         senderName: 'Pastor Elena Rostova',
         senderRole: 'PASTOR',
-        text: 'Confirmands: Please open the Nicene Creed plate in Lectio Council Plates before Sunday’s seminar on John 1:1-18 and Council of Nicaea (325 AD).',
-        attachmentLabel: 'Lectio Plate: Patristic Folio (Nicaea 325 AD)',
+        text: 'Confirmands: Please open the Nicene Creed plate in Verse Council Plates before Sunday’s seminar on John 1:1-18 and Council of Nicaea (325 AD).',
+        attachmentLabel: 'Verse Plate: Patristic Folio (Nicaea 325 AD)',
       },
     ],
     weeks: [
@@ -188,7 +193,7 @@ export const STARTERS: Array<{
       {
         senderName: 'Rev. Dr. Nathaniel Sterling',
         senderRole: 'PASTOR',
-        text: 'Welcome to Adult Foundations! Our syllabus links each week’s Scripture directly to Lectio and the 12 Sacred Text Plates in Lorea.',
+        text: 'Welcome to Adult Foundations! Our syllabus links each week’s Scripture directly to Verse and the 12 Sacred Text Plates in Lorea.',
       },
     ],
     weeks: [
@@ -369,7 +374,7 @@ export function newProgram(church: Organization, partial: Partial<ChurchProgram>
         id: `msg_${Date.now()}`,
         senderName: church.name || 'Christian Education Lead',
         senderRole: 'INSTRUCTOR',
-        text: `Welcome to the ${partial.name} classroom chat! Syllabus readings, Academia worksheets, and Lectio passages will be posted here.`,
+        text: `Welcome to the ${partial.name} classroom chat! Syllabus readings, Academia worksheets, and Verse passages will be posted here.`,
         createdAt: Date.now(),
       },
     ],
@@ -381,24 +386,34 @@ export function newProgram(church: Organization, partial: Partial<ChurchProgram>
 
 export function fromStarter(church: Organization, starterId: string, indexOffset = 0): ChurchProgram {
   const s = STARTERS.find(x => x.id === starterId) || STARTERS[0];
-  const deterministicId = `${church.id}_starter_${s.id}`;
+  const demo = isDemoOrg(church);
+  // The demo church keeps one deterministic copy per template; a real church may start the same
+  // template more than once, so each copy gets its own id.
+  const id = demo
+    ? `${church.id}_starter_${s.id}`
+    : `${church.id}_tpl_${s.id}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
   const now = Date.now() + indexOffset;
   return newProgram(church, {
-    id: deterministicId,
+    id,
     name: s.name,
     kind: s.kind,
     ageBand: s.ageBand,
-    meetingSchedule: s.meetingSchedule,
-    leadInstructor: s.leadInstructor,
+    // Sample instructors, rooms and chat messages are demo-only.
+    meetingSchedule: demo ? s.meetingSchedule : '',
+    leadInstructor: demo ? s.leadInstructor : '',
     description: s.description,
     courseIds: [...s.courseIds],
     classroomId: `acad_class_${church.id}_${s.id}`,
-    chatRoomId: classChatRoomId(church.id, deterministicId),
-    chatMessages: s.initialChat.map((m, idx) => ({
-      ...m,
-      id: `seed_msg_${s.id}_${idx}`,
-      createdAt: now - (s.initialChat.length - idx) * 3600_000,
-    })),
+    chatRoomId: classChatRoomId(church.id, id),
+    ...(demo
+      ? {
+          chatMessages: s.initialChat.map((m, idx) => ({
+            ...m,
+            id: `seed_msg_${s.id}_${idx}`,
+            createdAt: now - (s.initialChat.length - idx) * 3600_000,
+          })),
+        }
+      : {}),
     weeks: s.weeks.map((w, i) => {
       const r = resolvePassage(w.passage);
       return {
@@ -412,12 +427,47 @@ export function fromStarter(church: Organization, starterId: string, indexOffset
 }
 
 /**
- * Ensures a Church Organization has all 7 Default Templated Classrooms provisioned
- * with their Academia Classroom IDs and dedicated Classroom Chat rooms out of the box.
+ * Earlier builds auto-provisioned every church with all seven templates, including sample
+ * instructors, rooms and chat. For a real church, drop the copies nobody touched and strip the
+ * sample people/chat from any copy that was edited.
+ */
+function stripSeededStarterPrograms(church: Organization, list: ChurchProgram[]): ChurchProgram[] {
+  const out: ChurchProgram[] = [];
+  for (const p of list) {
+    const starter = STARTERS.find(s => p.id === `${church.id}_starter_${s.id}`);
+    if (!starter) {
+      out.push(p);
+      continue;
+    }
+    const chat = p.chatMessages || [];
+    const ownChat = chat.filter(m => !m.id.startsWith('seed_msg_'));
+    const untouched =
+      ownChat.length === 0 &&
+      p.name === starter.name &&
+      p.description === starter.description &&
+      (p.weeks || []).length === starter.weeks.length &&
+      (p.leadInstructor || '') === starter.leadInstructor &&
+      (p.meetingSchedule || '') === starter.meetingSchedule;
+    if (untouched) continue;
+    out.push({
+      ...p,
+      leadInstructor: p.leadInstructor === starter.leadInstructor ? '' : p.leadInstructor,
+      meetingSchedule: p.meetingSchedule === starter.meetingSchedule ? '' : p.meetingSchedule,
+      chatMessages: ownChat,
+    });
+  }
+  return out;
+}
+
+/**
+ * Loads a church's Christian Education classrooms. The demo church is provisioned with all seven
+ * templated classrooms (sample content); a real church sees only the classrooms it created.
  */
 export async function ensureDefaultTemplatedClassrooms(church: Organization): Promise<ChurchProgram[]> {
-  const existing = await listPrograms(church.id);
-  if (existing.length > 0) {
+  const demo = isDemoOrg(church);
+  const listed = await listPrograms(church.id);
+  const existing = demo ? listed : stripSeededStarterPrograms(church, listed);
+  if (existing.length > 0 || !demo) {
     // Ensure every existing program has a chatRoomId and classroomId
     const upgraded = existing.map(p => ({
       ...p,

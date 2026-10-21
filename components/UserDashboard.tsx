@@ -72,6 +72,7 @@ import BookClubCreator from './BookClubCreator';
 import ClassroomAnalyticsView from './ClassroomAnalyticsView';
 import CertificateGenerator from './CertificateGenerator';
 import OrganizationAccountModal from './elevate/OrganizationAccountModal';
+import { useFaithContentScope } from '../hooks/useFaithContentScope';
 // Content & Safety
 const LazyContentSafetySettings = React.lazy(() => import('./safety/ContentSafetySettings'));
 // Opt-in rights layer: the switch, plus every work that already has a record.
@@ -102,6 +103,7 @@ const THEME_OPTIONS: { id: ThemeType; label: string; bg: string; text: string }[
 const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentTheme, onSetTheme, onOpenTVStudio, onOpenScriptStudio, initialTab, onOpenOrg }) => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [showOrgAccountModal, setShowOrgAccountModal] = useState(false);
+  const [faithScope, setFaithScope] = useFaithContentScope(user?.uid);
   const [activeTab, setActiveTab] = useState<
     'ACCOUNT' | 'ASSETS' | 'PHOTOS' | 'BROADCAST' | 'PAYMENTS' | 'INTERESTS' |
     'MAILING_LIST' | 'SIDEBAR' | 'ALIASES' | 'STORE_MANAGEMENT' | 'REVENUE' |
@@ -934,6 +936,31 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                 <ArrowRight size={18} className="text-white/40 group-hover:text-white group-hover:translate-x-1 transition-all shrink-0" />
               </button>
 
+              {/* Faith content: hymns & prayers tailored to the member's church, or from every tradition. Saves immediately. */}
+              <section aria-labelledby="faith-scope-title" className="p-5 rounded-3xl border border-white/10 bg-white/[0.03] space-y-3">
+                <div>
+                  <p id="faith-scope-title" className="text-sm font-black uppercase tracking-widest text-white">Hymns &amp; prayers</p>
+                  <p className="text-[12px] text-white/50 font-medium mt-1">
+                    In your church's member home, hymns and prayers follow your church's tradition. Turn this on to see them from every tradition.
+                  </p>
+                </div>
+                <label className="flex items-center gap-3 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    className="w-5 h-5 accent-[#7A1FC0]"
+                    checked={faithScope === 'ALL'}
+                    onChange={e => {
+                      const next = e.target.checked ? 'ALL' : 'ORG';
+                      setFaithScope(next);
+                      // The profile form below saves the whole profile, so keep its copy in step.
+                      setProfile(prev => (prev ? { ...prev, faithContentScope: next } : prev));
+                    }}
+                  />
+                  <span className="text-sm font-bold text-white">Show hymns &amp; prayers from every tradition</span>
+                </label>
+                <p className="text-[11px] text-white/40 m-0">{faithScope === 'ALL' ? 'On · saved to your profile' : 'Off · tailored to each church you belong to'}</p>
+              </section>
+
               <form onSubmit={handleUpdateProfile} className="space-y-8">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div>
@@ -1108,7 +1135,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                       { id: 'FOLLOWING', label: 'Following' },
                       { id: 'FRIENDS', label: 'Friends' },
                       { id: 'INTERESTS', label: 'Interests' },
-                      { id: 'MEMBERS', label: 'Sanctuary' }
+                      { id: 'MEMBERS', label: 'Backstage' }
                     ].map(tab => (
                       <option key={tab.id} value={tab.id} className="bg-[#0a0a0a]">{tab.label}</option>
                     ))}

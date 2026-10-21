@@ -87,7 +87,7 @@ export const DEMO_LESSON: DemoLesson = {
   summary: "A cross-arts unit where students explore the 1920s–30s Black cultural movement through the music, film, and painting of the era — pulled straight from Plajah's archives.",
   content: [
     { kind: 'MUSIC', title: 'Duke Ellington & the sound of the Cotton Club', source: 'Chora · The Vault (National Jukebox, LOC)', note: 'Listen to the era. Rights-cleared from the Library of Congress.', icon: '🎷' },
-    { kind: 'FILM',  title: 'Harlem street life, c. 1930s (archival footage)', source: 'Taleo · Film History (Internet Archive)', note: 'Primary-source moving image of the neighborhood.', icon: '🎞️' },
+    { kind: 'FILM',  title: 'Harlem street life, c. 1930s (archival footage)', source: 'Cinema · Film History (Internet Archive)', note: 'Primary-source moving image of the neighborhood.', icon: '🎞️' },
     { kind: 'ART',   title: 'Aaron Douglas — "Aspects of Negro Life"', source: 'Museion · Art Masters hall', note: 'Study the muralist of the movement.', icon: '🖼️' },
     { kind: 'READING', title: 'Langston Hughes — "Dreams" (guided read + vocabulary)', source: 'Lorea · Reading Quest', note: 'Comprehension + a Spanish/French vocabulary side-quest.', icon: '📖' },
   ],

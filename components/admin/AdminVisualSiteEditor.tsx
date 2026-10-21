@@ -1087,7 +1087,7 @@ export const AdminVisualSiteEditor: React.FC<AdminVisualSiteEditorProps> = ({
                 {/* Ambo Council Visualizer Preset */}
                 <div>
                   <label className="block text-xs font-black uppercase tracking-wider text-white/80 mb-2">
-                    Pre-Wired Ambo Council Visualizer Pass
+                    Pre-Wired Stage Council Visualizer Pass
                   </label>
                   <div className="space-y-1.5">
                     {Object.values(WORSHIP_COUNCIL_BUILDS)
@@ -1136,13 +1136,13 @@ export const AdminVisualSiteEditor: React.FC<AdminVisualSiteEditorProps> = ({
                     {
                       type: 'SANCTUARY_HERO_STAGE' as PlajahSectionTemplateType,
                       title: 'Sanctuary Hero & Stage Banner',
-                      desc: 'Full-bleed 36px stage with Ambo optical pass, handwritten callout, and dual CTAs.',
+                      desc: 'Full-bleed 36px stage with Stage optical pass, handwritten callout, and dual CTAs.',
                       badge: 'Hero Stage',
                     },
                     {
                       type: 'CURATED_CAROUSEL_SHELF' as PlajahSectionTemplateType,
                       title: 'Curated Sanctuary & Media Shelf',
-                      desc: '3-card showcase pre-wired to Lorea Living Books, Chora Stems, and Ambo Visualizers.',
+                      desc: '3-card showcase pre-wired to Lorea Living Books, Chora Stems, and Stage Visualizers.',
                       badge: 'Carousel Shelf',
                     },
                     {
@@ -1153,7 +1153,7 @@ export const AdminVisualSiteEditor: React.FC<AdminVisualSiteEditorProps> = ({
                     },
                     {
                       type: 'AMBO_VISUALIZER_STAGE' as PlajahSectionTemplateType,
-                      title: 'Ambo Council Visualizer Stage',
+                      title: 'Stage Council Visualizer Stage',
                       desc: 'Embeds a real Council of Art Directors worship build with geometry & lyric specs.',
                       badge: 'Visualizer',
                     },
@@ -1219,7 +1219,7 @@ export const AdminVisualSiteEditor: React.FC<AdminVisualSiteEditorProps> = ({
                     },
                     {
                       id: 'AMBO_WORSHIP' as const,
-                      name: 'Ambo Sanctuary Visualizer Council',
+                      name: 'Stage Sanctuary Visualizer Council',
                       sub: '72 Sanctuary Visualizers · Cantus Firmus Luminance Grid & 40m Lyric Projection',
                     },
                     {
@@ -1234,7 +1234,7 @@ export const AdminVisualSiteEditor: React.FC<AdminVisualSiteEditorProps> = ({
                     },
                     {
                       id: 'LECTIO_EDITORIAL' as const,
-                      name: 'Lectio & Inter-Tradition Editorial Council',
+                      name: 'Verse & Inter-Tradition Editorial Council',
                       sub: 'Provenance, sanctuary hospitality, and multi-tradition liturgical care',
                     },
                   ].map(c => (
@@ -1369,7 +1369,7 @@ export const AdminVisualSiteEditor: React.FC<AdminVisualSiteEditorProps> = ({
                     },
                     {
                       title: 'Plajah Elevate · Living Sanctuary Stage',
-                      desc: 'Jump directly to the Living Sanctuary landing experience & Ambo Pro stage.',
+                      desc: 'Jump directly to the Living Sanctuary landing experience & Stage stage.',
                       badge: 'Living Sanctuary',
                       color: '#10B981',
                       action: () => onNavigate(AppView.PLAJAH_ELEVATE),

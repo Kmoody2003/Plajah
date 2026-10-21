@@ -1082,7 +1082,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
         {/* Movies & TV (Taleo) — distinct so clicking opens the cinema experience as expected */}
         {userTaleo.length > 0 && (
           <section>
-            <h2 className="text-sm font-black uppercase tracking-widest flex items-center gap-2.5 mb-5"><Monitor className="text-small-orange" size={16} /> Movies &amp; TV <span className="text-white/20">{userTaleo.length}</span><span className="text-[8px] font-black tracking-widest text-white/25 border border-white/10 rounded-full px-2 py-0.5 ml-1">Plajah Taleo</span></h2>
+            <h2 className="text-sm font-black uppercase tracking-widest flex items-center gap-2.5 mb-5"><Monitor className="text-small-orange" size={16} /> Movies &amp; TV <span className="text-white/20">{userTaleo.length}</span><span className="text-[8px] font-black tracking-widest text-white/25 border border-white/10 rounded-full px-2 py-0.5 ml-1">Plajah Cinema</span></h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {userTaleo.map(v => (
                 <VideoCard key={v.id} video={v} currentUser={currentUser} onPlay={() => handlePlay(v)} onAssignWorld={() => setAssigningVideo(v)} />
@@ -1508,7 +1508,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
               {/* Movies & TV — Taleo content, kept distinct so opening the cinema experience is expected */}
               {userTaleo.length > 0 && (
                 <div>
-                  <h2 className="text-lg font-black uppercase tracking-widest flex items-center gap-2.5"><Monitor className="text-small-orange" size={18} /> Movies &amp; TV <span className="text-white/20">{userTaleo.length}</span><span className="text-[8px] font-black tracking-widest text-white/25 border border-white/10 rounded-full px-2 py-0.5 ml-1">Plajah Taleo</span></h2>
+                  <h2 className="text-lg font-black uppercase tracking-widest flex items-center gap-2.5"><Monitor className="text-small-orange" size={18} /> Movies &amp; TV <span className="text-white/20">{userTaleo.length}</span><span className="text-[8px] font-black tracking-widest text-white/25 border border-white/10 rounded-full px-2 py-0.5 ml-1">Plajah Cinema</span></h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mt-5">
                     {userTaleo.map(video => (
                       <VideoCard key={video.id} video={video} currentUser={currentUser} onPlay={() => handlePlay(video)} onAssignWorld={isOwner ? () => setAssigningVideo(video) : undefined} />
@@ -2354,7 +2354,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
           <div className="flex items-center gap-3">
             <h1 className="text-lg font-display font-black uppercase tracking-widest shrink-0 hidden sm:block"
               style={{ background: 'linear-gradient(115deg,#a855f7 0%,#D40055 55%,#FF8C00 100%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>
-              {mode === 'MOVIES_TV' ? 'Plajah Taleo' : 'Plajah Reello'}
+              {mode === 'MOVIES_TV' ? 'Plajah Cinema' : 'Plajah Reello'}
             </h1>
             {/* Primary mode switch — the main navigation, top center */}
             <div className="flex-1 flex justify-center">
@@ -2509,7 +2509,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
         <div className="max-w-7xl mx-auto flex items-center gap-4">
           <h1 className="text-xl font-display font-black uppercase tracking-widest shrink-0 hidden lg:block"
             style={{ background: 'linear-gradient(115deg,#a855f7 0%,#D40055 55%,#FF8C00 100%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>
-            {mode === 'MOVIES_TV' ? 'Plajah Taleo' : 'Plajah Reello'}
+            {mode === 'MOVIES_TV' ? 'Plajah Cinema' : 'Plajah Reello'}
           </h1>
 
           {/* Search */}

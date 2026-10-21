@@ -239,12 +239,12 @@ export class TVStudioEngine {
     });
     this.amboAudienceUnsub?.();
     this.amboAudienceUnsub = onAppOutputStream('ambo:audience', (stream) => {
-      this.addStreamSourceWithId('ambo_audience', stream, 'Ambo Audience');
+      this.addStreamSourceWithId('ambo_audience', stream, 'Stage Audience');
     });
 
     this.amboLowerThirdUnsub?.();
     this.amboLowerThirdUnsub = onAppOutputStream('ambo:lower_third', (stream) => {
-      this.addStreamSourceWithId('ambo_lower_third', stream, 'Ambo Lower Third');
+      this.addStreamSourceWithId('ambo_lower_third', stream, 'Stage Lower Third');
     });
   }
 
@@ -1003,7 +1003,7 @@ ${events}
   disconnectNDI(): void { this.ndiWs?.close(); this.ndiWs = null; }
   isNDIConnected(): boolean { return this.ndiWs?.readyState === WebSocket.OPEN; }
 
-  async startNativeOmtBroadcast(streamName = 'Ambo Switcher PGM', port = 9998): Promise<boolean> {
+  async startNativeOmtBroadcast(streamName = 'Stage Switcher PGM', port = 9998): Promise<boolean> {
     try {
       const { startOmtBroadcast } = await import('./mediaEngine/bridge');
       const res = await startOmtBroadcast({ streamId: 'ambo_pgm_omt', name: streamName, port, width: 1920, height: 1080, fps: 60, audioChannels: 8, hasAlpha: true });
@@ -1026,11 +1026,11 @@ ${events}
       const { startSrtListener, connectSrtCaller } = await import('./mediaEngine/bridge');
       if (mode === 'listener') {
         const port = parseInt(endpoint.split(':')[1] || '9000', 10);
-        const res = await startSrtListener({ streamId: 'ambo_srt_feed', name: 'Ambo Program SRT', port, latencyMs, passphrase });
+        const res = await startSrtListener({ streamId: 'ambo_srt_feed', name: 'Stage Program SRT', port, latencyMs, passphrase });
         this.srtActive = !!res?.success;
       } else {
         const [host, portStr] = endpoint.split(':');
-        const res = await connectSrtCaller({ streamId: 'ambo_srt_feed', name: 'Ambo Program SRT', host: host || '127.0.0.1', port: parseInt(portStr || '9000', 10), latencyMs, passphrase });
+        const res = await connectSrtCaller({ streamId: 'ambo_srt_feed', name: 'Stage Program SRT', host: host || '127.0.0.1', port: parseInt(portStr || '9000', 10), latencyMs, passphrase });
         this.srtActive = !!res?.success;
       }
       return this.srtActive;

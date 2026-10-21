@@ -3243,7 +3243,7 @@ const toggleFavoriteTeam = async (team: string) => {
                       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
                       <div className="absolute top-2.5 left-2.5">
                         <span className="flex items-center gap-1 px-2 py-0.5 bg-black/70 border border-cyan-400/25 rounded-full text-[7px] font-black uppercase tracking-widest text-cyan-400">
-                          <Film size={7} /> Taleo · New
+                          <Film size={7} /> Cinema · New
                         </span>
                       </div>
                       <div className="absolute bottom-0 left-0 right-0 p-3">

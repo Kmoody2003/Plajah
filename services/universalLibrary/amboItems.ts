@@ -24,7 +24,7 @@ export function amboPresetItems(defaultTheme = 'sanctuary'): LibraryItem[] {
   for (const t of SLIDE_TEMPLATES) {
     const motion = defaultMotionSpec('slide', t.id, { theme: defaultTheme });
     out.push({
-      id: 'ambo:' + t.id, name: t.name, source: 'presets', kind: 'motion', category: t.category, author: 'Ambo',
+      id: 'ambo:' + t.id, name: t.name, source: 'presets', kind: 'motion', category: t.category, author: 'Stage',
       tags: ['ambo', 'slide', t.category, ...(t.media ? [t.media] : []), t.blurb], typeLabel: 'SLIDE · ' + t.category.toUpperCase(),
       preview: { mode: 'motion', motion }, facets: { motionKind: 'slide', themeSet: themeSetOf(defaultTheme), media: t.media },
     });
@@ -32,7 +32,7 @@ export function amboPresetItems(defaultTheme = 'sanctuary'): LibraryItem[] {
   for (const l of SCRIPTURE_LAYOUTS) {
     const motion = defaultMotionSpec('scripture', l.id);
     out.push({
-      id: 'scripture:' + l.id, name: l.name, source: 'presets', kind: 'motion', category: l.family, author: l.director ? `${l.director} · Ambo` : 'Ambo',
+      id: 'scripture:' + l.id, name: l.name, source: 'presets', kind: 'motion', category: l.family, author: l.director ? `${l.director} · Stage` : 'Stage',
       tags: ['ambo', 'scripture', 'verse', l.family, l.background, l.blurb], typeLabel: 'SCRIPTURE · ' + (l.background === 'transparent' ? 'OVERLAY' : 'FULL'),
       preview: { mode: 'motion', motion }, facets: { motionKind: 'scripture', themeSet: scriptureSetOf(l.id) },
     });

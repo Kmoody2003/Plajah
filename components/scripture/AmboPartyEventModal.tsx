@@ -84,12 +84,12 @@ export const AmboPartyEventModal: React.FC<Props> = ({
   const handleDutyChange = async (device: PartyEventDevice, dutyType: EventDeviceDuty['dutyType']) => {
     let newDuty: EventDeviceDuty = {
       dutyType,
-      title: 'Ambo Output',
+      title: 'Stage Output',
       subtitle: '',
     };
 
     if (dutyType === 'AMBO_PROGRAM') {
-      newDuty = { dutyType, title: 'Ambo Program Out', subtitle: 'Live Audience Mirror' };
+      newDuty = { dutyType, title: 'Stage Program Out', subtitle: 'Live Audience Mirror' };
     } else if (dutyType === 'AMBO_STAGE') {
       newDuty = { dutyType, title: 'Stage Confidence', subtitle: 'Speaker Notes & Clock' };
     } else if (dutyType === 'CHORA_PLAYLIST') {
@@ -326,7 +326,7 @@ export const AmboPartyEventModal: React.FC<Props> = ({
                 <div className="grid grid-cols-1 gap-3">
                   {devices.map((device) => {
                     const isOnline = device.isOnline;
-                    const duty = device.duty || { dutyType: 'AMBO_PROGRAM', title: 'Ambo Program Out' };
+                    const duty = device.duty || { dutyType: 'AMBO_PROGRAM', title: 'Stage Program Out' };
                     const isEditing = editingDeviceId === device.deviceId;
 
                     return (
@@ -406,7 +406,7 @@ export const AmboPartyEventModal: React.FC<Props> = ({
                             onChange={(e) => handleDutyChange(device, e.target.value as any)}
                             className="bg-black/40 border border-white/15 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-white outline-none hover:border-[#00DAF3] focus:border-[#00DAF3] transition-colors cursor-pointer"
                           >
-                            <option value="AMBO_PROGRAM">Ambo Program Out</option>
+                            <option value="AMBO_PROGRAM">Stage Program Out</option>
                             <option value="AMBO_STAGE">Stage Confidence Display</option>
                             <option value="AMBO_PRESENTATION">Specific Presentation</option>
                             <option value="CHORA_PLAYLIST">Chora Music Playlist</option>
@@ -527,7 +527,7 @@ export const AmboPartyEventModal: React.FC<Props> = ({
               <div>
                 <h3 className="text-lg font-bold">Connect Any Browser or Display</h3>
                 <p className="text-xs text-white/60 mt-1">
-                  Any web browser on your network signed in to your Plajah account automatically links to this Ambo Central Command.
+                  Any web browser on your network signed in to your Plajah account automatically links to this Stage Central Command.
                 </p>
               </div>
 
@@ -545,7 +545,7 @@ export const AmboPartyEventModal: React.FC<Props> = ({
                 <div className="font-bold text-white/70 uppercase text-[10px] tracking-wider">Quick Setup:</div>
                 <div>1. Open the URL above on your Smart TV, iPad, or secondary laptop.</div>
                 <div>2. Ensure you are signed in with the same Plajah user account.</div>
-                <div>3. The screen immediately becomes a registered output in Ambo Multiview!</div>
+                <div>3. The screen immediately becomes a registered output in Stage Multiview!</div>
               </div>
             </div>
           )}
@@ -553,7 +553,7 @@ export const AmboPartyEventModal: React.FC<Props> = ({
 
         {/* ── MODAL FOOTER ──────────────────────────────────────────────── */}
         <div className="px-6 py-3 border-t border-white/10 bg-white/[0.02] flex items-center justify-between text-xs text-white/50">
-          <span>Ambo Party/Event Mesh Engine v1.0</span>
+          <span>Stage Party/Event Mesh Engine v1.0</span>
           <button
             onClick={onClose}
             className="px-4 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-white font-bold transition-all"

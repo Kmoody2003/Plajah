@@ -59,7 +59,7 @@ export interface LineupRow {
 export const LINEUP_ROWS: LineupRow[] = [
   // Live leads the rail because it is the home screen (getTvHome) — what you land on is first.
   { num: '41+', name: 'Live TV+', view: 'LIVE_HUB', group: 'live' },
-  { num: '1', name: 'Taleo', view: 'MOVIES_TV', group: 'apps' },
+  { num: '1', name: 'Cinema', view: 'MOVIES_TV', group: 'apps' },
   { num: '2', name: 'Chora', view: 'MUSIC', group: 'apps' },
   { num: '3', name: 'Reello', view: 'VIDEOS', group: 'apps' },
   { num: '90', name: 'Settings', view: 'USER_PROFILE', group: 'system' },

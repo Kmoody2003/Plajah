@@ -73,7 +73,7 @@ const SanctuaryFeed: React.FC<Props> = ({ sanctuaryId, isOwner, membership, purc
     setUnlocking(p.id);
     try {
       // Stripe Checkout; the webhook records the purchase and access unlocks on return.
-      await purchaseSanctuaryUnlock({ creatorId: sanctuaryId, itemId: p.id, itemType: 'POST', itemTitle: 'Sanctuary post', price: p.oneTimePrice || 0 });
+      await purchaseSanctuaryUnlock({ creatorId: sanctuaryId, itemId: p.id, itemType: 'POST', itemTitle: 'Backstage post', price: p.oneTimePrice || 0 });
     } catch { setUnlocking(''); }
   };
 

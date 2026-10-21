@@ -124,7 +124,7 @@ const CreatorCard: React.FC<{ data: CreatorCardData; onClick: () => void }> = ({
           style={{ color: SANCTUARY_THEME.goldSoft, background: SANCTUARY_THEME.goldSheen, border: `1px solid ${SANCTUARY_THEME.line}` }}
           onClick={onClick}
         >
-          <Shield size={11} /> Enter Sanctuary <ArrowRight size={10} />
+          <Shield size={11} /> Enter Backstage <ArrowRight size={10} />
         </button>
       </div>
     </motion.div>
@@ -210,7 +210,7 @@ const SanctuaryHubView: React.FC<SanctuaryHubViewProps> = ({
             <div className="w-10 h-10 bg-purple-600 rounded-xl flex items-center justify-center shadow-2xl shadow-purple-900">
               <Shield size={20} className="text-white" />
             </div>
-            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-purple-400">Sanctuary</span>
+            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-purple-400">Backstage</span>
           </div>
           <h1 className="text-5xl md:text-6xl font-black uppercase tracking-tightest leading-none mb-3">
             Support the<br />
@@ -270,7 +270,7 @@ const SanctuaryHubView: React.FC<SanctuaryHubViewProps> = ({
               onClick={() => onVisitProfile(currentUserId)}
               className="flex items-center gap-1.5 px-5 py-2.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-lg shadow-purple-900 flex-shrink-0"
             >
-              <Zap size={12} /> Start Your Sanctuary
+              <Zap size={12} /> Start Your Backstage
             </button>
           )}
         </div>
@@ -302,7 +302,7 @@ const SanctuaryHubView: React.FC<SanctuaryHubViewProps> = ({
                   <div className="w-14 h-14 rounded-xl border-2 border-black overflow-hidden shadow-xl" style={{ background: SANCTUARY_THEME.panel }}>
                     <div className="w-full h-full flex items-center justify-center text-2xl">◈</div>
                   </div>
-                  <h3 className="text-xs font-black uppercase tracking-tight mt-2 mb-0.5" style={{ color: SANCTUARY_THEME.goldSoft }}>See a Sanctuary in action</h3>
+                  <h3 className="text-xs font-black uppercase tracking-tight mt-2 mb-0.5" style={{ color: SANCTUARY_THEME.goldSoft }}>See Backstage in action</h3>
                   <p className="text-[9px] text-white/40 leading-relaxed mb-3">Tour tiers, gated posts, a live campaign &amp; more — then build your own.</p>
                   <span className="inline-block w-full text-center py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest text-black" style={{ background: SANCTUARY_THEME.gold }}>Explore demo →</span>
                 </div>
@@ -333,7 +333,7 @@ const SanctuaryHubView: React.FC<SanctuaryHubViewProps> = ({
         <div className="bg-white/[0.03] border border-white/[0.06] rounded-[3rem] p-10">
           <div className="flex items-center gap-3 mb-10 justify-center">
             <Sparkles size={18} className="text-purple-400" />
-            <h2 className="text-xl font-black uppercase tracking-tightest text-center">How Sanctuary Works</h2>
+            <h2 className="text-xl font-black uppercase tracking-tightest text-center">How Backstage Works</h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {HOW_IT_WORKS.map((step, i) => {

@@ -29,7 +29,7 @@ const MUSIC_STRATEGIES = [
     hook: '"TikTok made you famous. Plajah makes you money."',
     steps: [
       'Post 15-sec preview clip on TikTok with Plajah link in bio',
-      'Full track lives on Plajah — play it free, or unlock early access via Sanctuary',
+      'Full track lives on Plajah — play it free, or unlock early access via Backstage',
       'Enable Artist Radio so the algorithm auto-builds your station',
       'Fans who convert earn PlajahBucks by finding hidden tracks (Hide N Seek)',
     ],
@@ -44,7 +44,7 @@ const MUSIC_STRATEGIES = [
       'When you go viral, your Plajah memberships capture the spike — not just streams',
       'TikTok can ban your account. Plajah subscribers are yours forever.',
     ],
-    metric: 'One 1M-view TikTok video → 1,000 Plajah clicks → ~50 Sanctuary members = $500/mo recurring',
+    metric: 'One 1M-view TikTok video → 1,000 Plajah clicks → ~50 Backstage members = $500/mo recurring',
   },
 ];
 
@@ -68,7 +68,7 @@ const CAPTION_TEMPLATES: Record<string, string[]> = {
     "can't put the full track here bc TikTok will mute it 🙃 it's on my Plajah for free — link in bio",
     "y'all asked for the full version — it's up on Plajah with the stems too. link in bio #producer #musicproduction",
     "Plajah pays me 90% of every tip. Spotify pays $0.003. just saying. link in bio",
-    "join my Sanctuary on Plajah for early access + stems + the demos 🎧 link in bio",
+    "join my Backstage on Plajah for early access + stems + the demos 🎧 link in bio",
   ],
   film: [
     "full short film is on my Plajah channel — streaming 24/7. link in bio 🎬",
@@ -89,7 +89,7 @@ const TIKTOK_TACTICS = [
   { title: 'Link-in-bio funnel', body: 'Your Plajah profile URL IS your link-in-bio. One link — music, video, merch, membership, all live.' },
   { title: 'Duet-friendly music', body: 'TikTok\'s duet/stitch feature works best with tracks under 60s. Upload the full song on Plajah, post the hook on TikTok.' },
   { title: 'Cross-post to Bluesky + Mastodon', body: 'Every Plajah post can broadcast to Mastodon and Bluesky via Fediverse — hit creator communities that don\'t use TikTok.' },
-  { title: 'Viral moment monetization', body: 'When a clip goes viral, your Plajah memberships capture the spike. Email all new visitors with a Sanctuary pitch.' },
+  { title: 'Viral moment monetization', body: 'When a clip goes viral, your Plajah memberships capture the spike. Email all new visitors with Backstage pitch.' },
   { title: 'TikTok LIVE → Plajah FAST', body: 'After a TikTok LIVE, download it and schedule it as a FAST channel broadcast on Plajah. One live session = 24/7 content.' },
   { title: 'Collab with other creators', body: 'License your film clips or music to other creators\' FAST channels via Plajah. Cross-creator discovery + passive income.' },
 ];
@@ -170,7 +170,7 @@ export default function TikTokCreatorHub() {
                 ))}
               </div>
               <div className="mt-4 p-3 bg-emerald-500/10 rounded-xl text-xs text-emerald-400">
-                1 viral BookTok → 2,000 Plajah clicks → ~80 Sanctuary readers at $4.99/mo = $400/mo recurring
+                1 viral BookTok → 2,000 Plajah clicks → ~80 Backstage readers at $4.99/mo = $400/mo recurring
               </div>
             </div>
           ) : (
@@ -254,7 +254,7 @@ export default function TikTokCreatorHub() {
             <div className="text-white/30 text-xs mt-1">Algorithm controls reach. No memberships. No direct payments.</div>
           </div>
           <div>
-            <div className="text-white/40 text-xs mb-2">Plajah Sanctuary Membership</div>
+            <div className="text-white/40 text-xs mb-2">Plajah Backstage Membership</div>
             <div className="text-green-400 font-bold">$4.99–19.99/mo per subscriber</div>
             <div className="text-white/30 text-xs mt-1">You keep 90%. Algorithm doesn't control it. Yours forever.</div>
           </div>

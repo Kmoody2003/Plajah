@@ -55,7 +55,7 @@ const EXPERIENCES: ExperienceOption[] = [
   {
     mode: 'STORY_TELLER',
     label: 'Story Teller',
-    tagline: 'Enter Taleo',
+    tagline: 'Enter Cinema',
     description: "Film and TV are your home base. Dive into movies, series, and original content from creators worldwide.",
     icon: Film,
     gradient: 'from-[#1a1a2e] via-[#16213e] to-[#0f3460]',

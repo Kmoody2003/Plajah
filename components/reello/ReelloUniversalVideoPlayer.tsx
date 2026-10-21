@@ -1223,7 +1223,7 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
                     <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-[color-mix(in_srgb,var(--ua)_20%,transparent)] text-[var(--ua)] border border-[color-mix(in_srgb,var(--ua)_40%,transparent)]">
                       {activeContext === 'LOCAL' && 'Desktop File'}
                       {activeContext === 'REELLO' && 'Reello Universal'}
-                      {activeContext === 'TALEO' && 'Taleo Cinema'}
+                      {activeContext === 'TALEO' && 'Cinema'}
                       {activeContext === 'ASSET_HQ' && 'Asset HQ QC'}
                     </span>
                   </div>

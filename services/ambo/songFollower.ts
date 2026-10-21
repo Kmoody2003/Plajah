@@ -416,7 +416,7 @@ async function resolveSource(): Promise<TranscribeSource> {
   if (s.kind === 'program') {
     const { amboAudio } = await import('./amboAudioEngine');
     const stream = amboAudio.programStream();
-    if (!stream) throw new Error('The Ambo program mix is not available yet');
+    if (!stream) throw new Error('The Stage program mix is not available yet');
     return { kind: 'stream', stream };
   }
   if (s.kind === 'system') {

@@ -111,6 +111,7 @@ import type { StoreProduct } from '../types';
 import { fetchProductsBySeller } from '../services/storeService';
 // The working shop (cart, server checkout, stock badges, waitlist) — loaded only when the Merch tab has products.
 const StorePageView = lazy(() => import('./StorePageView'));
+const OrgAccountPage = lazy(() => import('./OrgHub').then(m => ({ default: m.OrgAccountPage })));
 import DonationModal from './DonationModal';
 import MerchManager from './MerchManager';
 import PhotoGallery from './PhotoGallery';
@@ -684,6 +685,15 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
   }
 
   const isOwnProfile = auth.currentUser?.uid === uid;
+
+  // Organization accounts: the profile page is the org's public page (hero + org tabs), for owner and visitors alike.
+  if (profile.accountType === 'ORGANIZATION' && profile.linkedOrgId) {
+    return (
+      <Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="w-12 h-12 border-4 border-small-orange border-t-transparent rounded-full animate-spin" /></div>}>
+        <OrgAccountPage orgId={profile.linkedOrgId} onBack={onBack} onVisitUser={onVisitUser} ownAccount={isOwnProfile} />
+      </Suspense>
+    );
+  }
 
   const handleClaimPioneerReward = async () => {
     if (!auth.currentUser?.uid) {
@@ -1614,7 +1624,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
             ...(isOwnProfile && profile?.accountType !== 'FAN' ? [{ id: 'MANAGE', label: 'Management' }] : []),
             ...(isOwnProfile && profile?.accountType !== 'FAN' ? [{ id: 'ARTIST_SERVICES', label: 'Artist Services' }] : []),
             ...(isOwnProfile && profile?.accountType !== 'FAN' ? [{ id: 'BRAND_CONNECT', label: 'Brand Connect' }] : []),
-            ...(profile?.accountType !== 'FAN' ? [{ id: 'MEMBERS', label: 'Sanctuary' }] : [])
+            ...(profile?.accountType !== 'FAN' ? [{ id: 'MEMBERS', label: 'Backstage' }] : [])
           ];
 
           // Apply saved order: put saved-order IDs first, append any new tabs at the end

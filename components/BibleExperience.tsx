@@ -158,7 +158,7 @@ const Home: React.FC<{ onOpen: (v: View) => void }> = ({ onOpen }) => (
             act: () => window.dispatchEvent(new CustomEvent('OPEN_FOLLOW_ALONG', { detail: {} })),
           },
           {
-            icon: <MonitorPlay size={18} />, title: 'Ambo — present',
+            icon: <MonitorPlay size={18} />, title: 'Stage — present',
             sub: 'Put Scripture on the screens and key the switcher',
             act: () => window.dispatchEvent(new CustomEvent('OPEN_AMBO', { detail: {} })),
           },

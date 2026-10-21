@@ -281,7 +281,7 @@ const VespersRecap: React.FC<Props> = ({ recapId, onSeek, onBack }) => {
               if (ref) openScripture(ref);
             }}
             className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-lg border border-[#d4af37]/35 bg-[#d4af37]/[0.06] text-[9px] font-black uppercase tracking-widest text-[#d4af37]">
-            <Sparkles size={11} /> Keep reading in Lectio
+            <Sparkles size={11} /> Keep reading in Verse
           </button>
         )}
 

@@ -53,7 +53,7 @@ export function generateSanctuaryDeck(creator: UserProfile, tiers: SanctuaryTier
       elements: [
         el('text', { x:10, y:24, width:80, height:18, content: name.toUpperCase(), fontSize:52, fontWeight:'900', color:'#ff8c00', textAlign:'center', fontFamily:'"Outfit",sans-serif', letterSpacing:4, animation:'fade-in' }),
         el('text', { x:12, y:48, width:76, height:14, content: bio, fontSize:16, fontWeight:'400', color:'rgba(255,255,255,0.6)', textAlign:'center', lineHeight:1.6, animation:'slide-up', animationDelay:300 }),
-        el('button', { x:30, y:76, width:40, height:10, label:'Join My Sanctuary', href:'#', btnColor:'#ff8c00', btnTextColor:'#000', btnBorderRadius:999, animation:'pop', animationDelay:600 }),
+        el('button', { x:30, y:76, width:40, height:10, label:'Join My Backstage', href:'#', btnColor:'#ff8c00', btnTextColor:'#000', btnBorderRadius:999, animation:'pop', animationDelay:600 }),
       ],
     }),
 
@@ -110,7 +110,7 @@ export function generateSanctuaryDeck(creator: UserProfile, tiers: SanctuaryTier
 
   return {
     id: uuidv4(),
-    title: `${name} — Sanctuary Pitch`,
+    title: `${name} — Backstage Pitch`,
     theme: 'music',
     slides,
     bgMusicVolume: 0.3,

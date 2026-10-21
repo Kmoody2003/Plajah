@@ -460,7 +460,7 @@ export const AmboHorizontalMultiview: React.FC<AmboHorizontalMultiviewProps> = (
             partyDevices.map((dev) => {
               const isSlaved = dev.isSlaved !== false;
               const isFollowing = isPartyActive && isMasterSyncEngaged && isSlaved;
-              const duty = dev.duty || { dutyType: 'AMBO_PROGRAM', title: 'Ambo Program Out' };
+              const duty = dev.duty || { dutyType: 'AMBO_PROGRAM', title: 'Stage Program Out' };
 
               return (
                 <div

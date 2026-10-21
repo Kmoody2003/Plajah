@@ -468,7 +468,7 @@ const LectioReader: React.FC<Props> = ({ openAt }) => {
 
       {/* ── Study rail ─────────────────────────────────────────────── */}
       {railOpen && (
-        <aside aria-label="Lectio study tools" className="absolute inset-y-0 right-0 z-20 flex w-[min(92vw,360px)] shrink-0 flex-col border-l border-white/10 bg-[#0d0a13] lg:static lg:w-[340px]">
+        <aside aria-label="Verse study tools" className="absolute inset-y-0 right-0 z-20 flex w-[min(92vw,360px)] shrink-0 flex-col border-l border-white/10 bg-[#0d0a13] lg:static lg:w-[340px]">
           <div className="flex justify-between border-b border-white/10 px-3 py-2"><span className="text-xs text-[#e3c57e]">Study workbench</span><button aria-label="Close study tools" onClick={() => setRailOpen(false)}><X size={15} /></button></div>
           <div className="grid grid-cols-3 border-b border-white/8">
             {([['refs', 'Refs'], ['notes', 'Notes'], ['search', 'Search'], ['study', 'Concordance'], ['words', 'Word study'], ['originals', 'Originals'], ['history', 'History'], ['compare', 'Compare'], ['notebook', 'Notebook']] as const).map(([id, label]) => (

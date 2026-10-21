@@ -71,7 +71,7 @@ export const PLAJAH_MASCOTS: Record<'rello' | 'chora', PlajahMascotRig> = {
   // ─────────────────────────────────────────────────────────────────────────
   rello: {
     id: 'rello',
-    name: 'Rello',
+    name: 'Reello',
     alias: 'Lumi',
     title: 'The Vision & Film Kaiju',
     species: 'Kith Kaiju',

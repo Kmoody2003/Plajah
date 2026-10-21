@@ -27,7 +27,7 @@ type Pick = { key: string; label: string; desc: string; icon: React.ComponentTyp
 const PICKS: Pick[] = [
   { key: 'everything', label: 'Everything', desc: 'All of Plajah, full blast — every home, every studio.', icon: LayoutGrid, color: '#FF8C00', home: 'DASHBOARD', badge: 'Recommended' },
   { key: 'music', label: 'Music', desc: 'Open on Chora, with Melos ready to make.', icon: Music2, color: '#8B5CF6', home: 'MUSIC' },
-  { key: 'film', label: 'Film & Video', desc: 'Taleo, Reello and the Fabula editor.', icon: Clapperboard, color: '#D40055', home: 'MOVIES_TV' },
+  { key: 'film', label: 'Film & Video', desc: 'Cinema, Reello and the Fabula editor.', icon: Clapperboard, color: '#D40055', home: 'MOVIES_TV' },
   { key: 'books', label: 'Books & Writing', desc: 'Read in Lorea, write in Tela.', icon: BookOpen, color: '#FF9E2C', home: 'BOOKS' },
   { key: 'learn', label: 'Learning', desc: 'Academia — classrooms, courses, your record.', icon: GraduationCap, color: '#3FB98E', home: 'CLASSROOMS' },
   { key: 'sports', label: 'Sports', desc: 'Straight into teams, scores and highlights.', icon: Trophy, color: '#2E7BFF', home: 'PLAJAH_SPORTS' },
@@ -42,7 +42,7 @@ const ROWS: Row[] = [
     { name: 'Melos', kind: 'Studio', desc: 'The full production room — beats, instruments, mixing.', icon: SlidersHorizontal, color: '#00DAF3' },
   ] },
   { medium: 'Film · Video', apps: [
-    { name: 'Taleo', kind: 'Home', desc: 'Cinema-grade movies & series.', icon: Film, color: '#D40055' },
+    { name: 'Cinema', kind: 'Home', desc: 'Cinema-grade movies & series.', icon: Film, color: '#D40055' },
     { name: 'Reello', kind: 'Home', desc: 'Shorts, a channel, going live.', icon: Play, color: '#2E7BFF' },
     { name: 'Fabula', kind: 'Studio', desc: 'The AI film editor — cut, grade, finish.', icon: Scissors, color: '#FF4D8D' },
   ] },

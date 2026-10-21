@@ -203,8 +203,8 @@ const VERTICALS = [
   { label: 'Books',      color: '#3b82f6', angle: 103 },
   { label: 'Journalism', color: '#10b981', angle: 154 },
   { label: 'IP Worlds',  color: '#f59e0b', angle: 206 },
-  { label: 'Taleo',      color: '#ec4899', angle: 257 },
-  { label: 'Rello',      color: '#14b8a6', angle: 309 },
+  { label: 'Cinema',      color: '#ec4899', angle: 257 },
+  { label: 'Reello',      color: '#14b8a6', angle: 309 },
 ];
 
 const FlywheelPanel: React.FC = () => (
@@ -267,7 +267,7 @@ const FlywheelPanel: React.FC = () => (
           { from: 'Music', to: 'Film', via: 'Soundtracks commissioned on-chain' },
           { from: 'Books', to: 'IP Worlds', via: 'Characters migrate with license contracts' },
           { from: 'Journalism', to: 'Film', via: 'Investigations optioned for documentary' },
-          { from: 'Film', to: 'Taleo', via: 'Talent sourced and paid via smart contract' },
+          { from: 'Film', to: 'Cinema', via: 'Talent sourced and paid via smart contract' },
         ].map(conn => (
           <div key={conn.from + conn.to} className="mb-3 border-l-2 border-white/10 pl-3">
             <p className="text-[9px] font-black text-white/60">

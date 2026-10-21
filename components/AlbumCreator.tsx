@@ -6,6 +6,9 @@ import { getPlatformInfo } from '../hooks/usePlatform';
 import { buildShareUrl, shareText } from '../services/deepLinkService';
 import { cleanDescription } from '../utils/description';
 import { generateAlbumMetadata, generateTrackLyrics, type ReleaseKind } from '../services/geminiService';
+import { isSealedBook, openSealedBook } from '../services/bookVault';
+import PublishUpdatePicker from './lorea/PublishUpdatePicker';
+import { readRegistry, type PublishUpdate } from '../services/bookEditions/policy';
 import { publishToCloud, auth, fetchAllPublicAlbums, fetchUserWorlds, createIPWorld, addAssetToWorld, addCharactersToWorld, createCharacter, fetchUserCharacters, uploadFile as storageUpload, uploadVideo, fetchUserVideos } from '../services/backendService';
 import { listCloudProjects } from './plajahPixels/services/projectService';
 import { requestAnalysis } from '../services/storyIntelService';
@@ -33,6 +36,7 @@ import { useUpload } from '../contexts/UploadContext';
 import { usePublishQueue } from '../contexts/PublishQueueContext';
 import EarlyAccessManager from './EarlyAccessManager';
 import FilmDistributionStep, { DEFAULT_FILM_DISTRIBUTION } from './FilmDistributionStep';
+import { legacyFilmFields } from '../services/filmPricing';
 import FilmVersionsManager from './FilmVersionsManager';
 import LicensePicker from './LicensePicker';
 import { isFeatureEnabled } from '../services/featureFlagService';
@@ -46,6 +50,13 @@ const ProjectPromoManager = lazy(() => import('./ProjectPromoManager'));
 import { AUDIO_ACCEPT } from '../services/audioFormatService';
 import AudioHealthPanel from './AudioHealthPanel';
 import { getAudiusSession, loginWithAudius, publishAlbumToAudius } from '../services/audiusService';
+import {
+  STORY_INTEL_VTUBER_CHARACTERS,
+  loadCreatorCharacterPolicy,
+  saveCreatorCharacterPolicy,
+  type CharacterAccessTier,
+  type CreatorFilmInteractivePolicy,
+} from '../services/halloween/storyIntelCharacterRigAndVoiceEngine';
 
 interface AlbumCreatorProps {
   onCreated: (album: Album, opts?: { keepOpen?: boolean }) => void;
@@ -172,7 +183,21 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   const [slideshow, setSlideshow] = useState<string[]>(initialAlbum?.slideshow || []);
   const [slideshowFiles, setSlideshowFiles] = useState<File[]>([]);
   const [bookChapters, setBookChapters] = useState<BookChapter[]>(initialAlbum?.bookChapters || []);
+  // A sealed (paid) book keeps its chapter content in the vault; load it back so the author edits the real text.
+  const [loadingSealedChapters, setLoadingSealedChapters] = useState(() => isSealedBook(initialAlbum));
+  useEffect(() => {
+    if (!initialAlbum || !isSealedBook(initialAlbum)) return;
+    let alive = true;
+    openSealedBook(initialAlbum)
+      .then(({ book, access }) => { if (alive && access.owner && book.bookChapters) setBookChapters(book.bookChapters); })
+      .catch(e => console.error('[AlbumCreator] could not load sealed chapters', e))
+      .finally(() => { if (alive) setLoadingSealedChapters(false); });
+    return () => { alive = false; };
+  }, [initialAlbum?.id]);
   const [showBookTela, setShowBookTela] = useState(false);
+  // Republishing a book readers own: correction / update / new edition.
+  const hasReleasedVersions = !!initialAlbum?.bookVersions?.length;
+  const [publishUpdate, setPublishUpdate] = useState<PublishUpdate>({ kind: 'MINOR' });
   const [bookPreviewConfig, setBookPreviewConfig] = useState(initialAlbum?.bookPreviewConfig || { type: 'PAGES' as const, allowedPageRange: [1, 5] as [number, number] });
   const [allowPageSharing, setAllowPageSharing] = useState(initialAlbum?.allowPageSharing || false);
   const [isDeploying, setIsDeploying] = useState(false);
@@ -196,6 +221,13 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   // Story Intelligence re-run toggle (films/TV, Edit Details). Not persisted — it's a one-shot
   // "run it again on save"; the analysis itself is a server-side job that outlives this dialog.
   const [runStoryIntel, setRunStoryIntel] = useState(false);
+  const [interactiveCharPolicy, setInteractiveCharPolicy] = useState<CreatorFilmInteractivePolicy>(() =>
+    loadCreatorCharacterPolicy()
+  );
+  const updateInteractiveCharPolicy = (next: CreatorFilmInteractivePolicy) => {
+    setInteractiveCharPolicy(next);
+    saveCreatorCharacterPolicy(next);
+  };
   const [releaseDate, setReleaseDate] = useState<string>(initialAlbum?.releaseDate ? new Date(initialAlbum.releaseDate).toISOString().slice(0, 16) : '');
   const [publishVideosToGallery, setPublishVideosToGallery] = useState<boolean>(initialAlbum?.publishVideosToGallery ?? true);
   const [newVideoTitle, setNewVideoTitle] = useState('');
@@ -839,6 +871,8 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title) return;
+    // Never save a sealed book before its real chapters have loaded back from the vault.
+    if (loadingSealedChapters) { quietSaveRef.current = false; saveAsDraftRef.current = false; return; }
     // Autosave runs "quiet": no deploy overlay, no QC gate, no alerts — just persist a draft.
     const quiet = quietSaveRef.current; quietSaveRef.current = false;
     // "Save as draft" sets this ref; a draft is unlisted and can be resumed + refined later.
@@ -956,12 +990,8 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
       // filmDistribution). Films/TV go straight to the Taleo experience on publish.
       const filmFields: Partial<Album> = isFilm ? (() => {
         const d = filmDist;
-        const isPaid = d.model !== 'FREE_FAST';
-        const px = d.model === 'RENTAL' ? (d.rentalPrice || 0) : (d.purchasePrice || 0);
         return {
-          isAdSupported: d.model === 'FREE_FAST' || !!d.fastChannel,
-          isPaywalled: isPaid,
-          price: isPaid ? px : 0,
+          ...legacyFilmFields(d),
           isPrivate: d.release === 'PRIVATE',
           isPublic: d.release !== 'PRIVATE' && !draftMode,
           isScheduled: d.release === 'SCHEDULED',
@@ -1063,7 +1093,9 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
       enqueue({
         title: title || 'Untitled',
         kind: contentNoun,
-        run: (onProgress) => publishToCloud(newAlbum, onProgress),
+        // A paid book readers already own: say what kind of release this is (services/bookEditions/policy.ts).
+        // Autosaves secure the content without releasing it as a new version.
+        run: (onProgress) => publishToCloud({ ...newAlbum, ...(type === 'BOOK' ? { publishUpdate: hasReleasedVersions ? publishUpdate : null, saveOnly: quiet } : {}) } as Album, onProgress),
         onDone: (published) => {
           const finalAlbum: any = typeof published === 'string' ? newAlbum : published;
           onCreated(finalAlbum, { keepOpen });
@@ -1726,6 +1758,9 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         </Suspense>
       )}
 
+      {type === 'BOOK' && hasReleasedVersions && price > 0 && (
+        <PublishUpdatePicker value={publishUpdate} onChange={setPublishUpdate} currentEdition={readRegistry(initialAlbum?.bookEditions).current} bookPrice={price} className="mb-6" />
+      )}
       {type === 'BOOK' && bookChapters.length > 0 && (
         <div className="space-y-4 max-h-[500px] overflow-y-auto pr-4 custom-scrollbar">
           {bookChapters.map((chapter, i) => (
@@ -1753,7 +1788,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-[9px] font-black uppercase tracking-widest text-white/20">Chapter Price ($)</label>
-                  <input type="number" step="0.01" value={chapter.price || 0} onChange={(e) => setBookChapters(bookChapters.map(c => c.id === chapter.id ? { ...c, price: parseFloat(e.target.value) } : c))} className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-3 text-xs font-bold text-white focus:outline-none" />
+                  <input type="number" step="0.01" value={chapter.price || 0} onChange={(e) => setBookChapters(bookChapters.map(c => c.id === chapter.id ? { ...c, price: Math.max(0, parseFloat(e.target.value) || 0) } : c))} className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-3 text-xs font-bold text-white focus:outline-none" />
                 </div>
                 <div className="space-y-2">
                   <label className="text-[9px] font-black uppercase tracking-widest text-white/20">Paywall Status</label>
@@ -1860,7 +1895,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <label className="text-[9px] font-black uppercase tracking-widest text-white/20">Price ($)</label>
-                  <input type="number" step="0.01" value={track.price || 0} onChange={(e) => updateTrack(track.id, { price: parseFloat(e.target.value) })} className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-3 text-[10px] font-bold text-white outline-none" />
+                  <input type="number" step="0.01" value={track.price || 0} onChange={(e) => updateTrack(track.id, { price: Math.max(0, parseFloat(e.target.value) || 0) })} className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-3 text-[10px] font-bold text-white outline-none" />
                 </div>
                 <div className="space-y-2">
                   <label className="text-[9px] font-black uppercase tracking-widest text-white/20">Options</label>
@@ -2869,15 +2904,197 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
       {/* Story Intelligence — toggle on, hit Save, and Aria re-analyzes the film server-side
           (keeps running after this dialog closes; progress lands on the film page's pill). */}
       {isFilm && (
-        <div className="flex items-center justify-between p-6 bg-white/[0.03] rounded-[2rem] border border-white/5">
-          <div className="flex items-center gap-4">
-            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${runStoryIntel ? 'bg-[#8b5cf6] text-white' : 'bg-white/5 text-white/20'}`}><Sparkles size={24} /></div>
-            <div>
-              <h4 className="text-sm font-display font-black tracking-tight uppercase">Story Intelligence</h4>
-              <p className="text-[9px] font-black uppercase tracking-widest text-white/40">Aria watches the film & rebuilds characters, scenes and story — runs in the background after save</p>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between p-6 bg-white/[0.03] rounded-[2rem] border border-white/5">
+            <div className="flex items-center gap-4">
+              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${runStoryIntel ? 'bg-[#8b5cf6] text-white' : 'bg-white/5 text-white/20'}`}><Sparkles size={24} /></div>
+              <div>
+                <h4 className="text-sm font-display font-black tracking-tight uppercase">Story Intelligence</h4>
+                <p className="text-[9px] font-black uppercase tracking-widest text-white/40">Aria watches the film & rebuilds characters, scenes and story — runs in the background after save</p>
+              </div>
             </div>
+            <button type="button" onClick={() => setRunStoryIntel(!runStoryIntel)} className={`px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all border ${runStoryIntel ? 'bg-[#8b5cf6] text-white border-[#8b5cf6] shadow-xl' : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10'}`}>{runStoryIntel ? 'Run on Save' : 'Off'}</button>
           </div>
-          <button type="button" onClick={() => setRunStoryIntel(!runStoryIntel)} className={`px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all border ${runStoryIntel ? 'bg-[#8b5cf6] text-white border-[#8b5cf6] shadow-xl' : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10'}`}>{runStoryIntel ? 'Run on Save' : 'Off'}</button>
+
+          {/* Story Intelligence Interactive Characters: VTuber Face-Mapping, Realtime Voice Changer & Subscriber Unlocks */}
+          <div className="p-6 bg-gradient-to-br from-orange-500/[0.07] via-purple-500/[0.05] to-white/[0.02] rounded-[2rem] border border-orange-500/25 space-y-5">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex items-start gap-4">
+                <div
+                  className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-all ${
+                    interactiveCharPolicy.interactiveCharactersEnabled
+                      ? 'bg-orange-500 text-black shadow-lg shadow-orange-500/30'
+                      : 'bg-white/5 text-white/30'
+                  }`}
+                >
+                  <Mic2 size={22} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h4 className="text-sm font-display font-black tracking-tight uppercase text-white">
+                      Interactive Character Experiences, Voice Changer &amp; VTuber Rigging
+                    </h4>
+                    <span className="px-2 py-0.5 rounded-full bg-orange-500/20 border border-orange-500/40 text-orange-300 text-[8px] font-black uppercase tracking-widest">
+                      Story Intelligence Powered
+                    </span>
+                  </div>
+                  <p className="text-[10px] font-bold text-white/55 mt-1 leading-relaxed max-w-2xl">
+                    Allow characters extracted by Story Intelligence to appear in live interactive experiences (Realtime Character Voice Changer, VTuber Face-Mapping Chats, and 3D Exhibition Worlds). Control which characters are enabled and whether they are shared across the platform, restricted to your Worlds &amp; Backstage, or unlocked by your active Backstage &amp; creator subscribers while subscribed.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  updateInteractiveCharPolicy({
+                    ...interactiveCharPolicy,
+                    interactiveCharactersEnabled: !interactiveCharPolicy.interactiveCharactersEnabled,
+                  })
+                }
+                className={`px-6 py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all border shrink-0 cursor-pointer ${
+                  interactiveCharPolicy.interactiveCharactersEnabled
+                    ? 'bg-orange-500 text-black border-orange-400 shadow-xl'
+                    : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10'
+                }`}
+              >
+                {interactiveCharPolicy.interactiveCharactersEnabled ? 'Interactive Enabled' : 'Disabled'}
+              </button>
+            </div>
+
+            {interactiveCharPolicy.interactiveCharactersEnabled && (
+              <div className="space-y-4 pt-4 border-t border-white/10">
+                {/* Global Default Licensing Mode Selector */}
+                <div>
+                  <label className="block text-[9px] font-black uppercase tracking-[0.25em] text-orange-300 mb-2">
+                    Default Character Access &amp; Subscriber Unlock Policy
+                  </label>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+                    {(
+                      [
+                        {
+                          tier: 'SANCTUARY_SUBSCRIBER_UNLOCK' as CharacterAccessTier,
+                          title: '🔑 Backstage & Subscribers Unlock on Platform',
+                          desc: 'Active subscribers to you & Backstage members unlock your characters for use across the entire platform while subscribed.',
+                        },
+                        {
+                          tier: 'WORLD_SANCTUARY_ONLY' as CharacterAccessTier,
+                          title: '🏰 Only My Worlds & Backstage Experiences',
+                          desc: 'Characters can only be used inside your official Creator Worlds, Haunted Exhibits, and Backstage rooms.',
+                        },
+                        {
+                          tier: 'PLATFORM_PUBLIC' as CharacterAccessTier,
+                          title: '🌐 Share with Entire Platform',
+                          desc: 'All viewers and live streamers on the platform can use your characters in VTuber chats & voice changers.',
+                        },
+                      ] as const
+                    ).map((opt) => {
+                      const active = interactiveCharPolicy.globalDefaultTier === opt.tier;
+                      return (
+                        <button
+                          key={opt.tier}
+                          type="button"
+                          onClick={() => {
+                            const updatedChars = { ...interactiveCharPolicy.characters };
+                            Object.keys(updatedChars).forEach((cid) => {
+                              updatedChars[cid] = {
+                                ...updatedChars[cid],
+                                accessTier: opt.tier,
+                              };
+                            });
+                            updateInteractiveCharPolicy({
+                              ...interactiveCharPolicy,
+                              globalDefaultTier: opt.tier,
+                              characters: updatedChars,
+                            });
+                          }}
+                          className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
+                            active
+                              ? 'bg-orange-500/20 border-orange-400 text-white shadow-lg'
+                              : 'bg-black/40 border-white/10 text-white/65 hover:border-white/25'
+                          }`}
+                        >
+                          <div className="text-[11px] font-black text-white flex items-center justify-between gap-2">
+                            <span>{opt.title}</span>
+                            {active && <Check size={13} className="text-orange-400 shrink-0" />}
+                          </div>
+                          <p className="text-[9px] text-white/55 mt-1 leading-relaxed">{opt.desc}</p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Per-Character Roster & Access Tier Overrides */}
+                <div>
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <span className="text-[9px] font-black uppercase tracking-[0.25em] text-white/60">
+                      Per-Character Interactive Permissions (Story Intelligence Roster)
+                    </span>
+                    <span className="text-[9px] font-bold text-orange-300">
+                      Choose which characters appear in VTuber, Voice Changer &amp; 3D Exhibits
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                    {STORY_INTEL_VTUBER_CHARACTERS.map((char) => {
+                      const rule = interactiveCharPolicy.characters[char.id] || {
+                        characterId: char.id,
+                        enabledForVTuber: true,
+                        enabledForVoiceChanger: true,
+                        enabledFor3DExhibit: true,
+                        accessTier: char.defaultAccessTier,
+                      };
+                      return (
+                        <div
+                          key={char.id}
+                          className="p-3 rounded-2xl bg-black/50 border border-white/10 flex items-center justify-between gap-3"
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <img
+                              src={char.portraitUrl}
+                              alt={char.name}
+                              className="w-10 h-10 rounded-xl object-cover border border-white/15 shrink-0"
+                            />
+                            <div className="min-w-0">
+                              <div className="text-xs font-black text-white truncate">
+                                {char.emoji} {char.shortName}
+                              </div>
+                              <div className="text-[9px] text-white/45 truncate">
+                                {char.actorName} · {char.voicePreset.presetLabel}
+                              </div>
+                            </div>
+                          </div>
+                          <select
+                            value={rule.accessTier}
+                            onChange={(e) => {
+                              const nextTier = e.target.value as CharacterAccessTier;
+                              updateInteractiveCharPolicy({
+                                ...interactiveCharPolicy,
+                                characters: {
+                                  ...interactiveCharPolicy.characters,
+                                  [char.id]: {
+                                    ...rule,
+                                    accessTier: nextTier,
+                                    enabledForVTuber: nextTier !== 'DISABLED',
+                                    enabledForVoiceChanger: nextTier !== 'DISABLED',
+                                  },
+                                },
+                              });
+                            }}
+                            className="bg-black/80 border border-white/15 rounded-xl px-2.5 py-1.5 text-[10px] font-bold text-white outline-none focus:border-orange-400 shrink-0"
+                          >
+                            <option value="PLATFORM_PUBLIC">🌐 Public on Platform</option>
+                            <option value="SANCTUARY_SUBSCRIBER_UNLOCK">🔑 Subscribers &amp; Backstage Unlock</option>
+                            <option value="WORLD_SANCTUARY_ONLY">🏰 Creator Worlds &amp; Backstage Only</option>
+                            <option value="DISABLED">🚫 Disabled</option>
+                          </select>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -2887,7 +3104,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         <div className="space-y-3">
           <label className="block text-[10px] font-black uppercase tracking-[0.4em] text-small-orange opacity-60">Full Project Price ($)</label>
           <div className="flex items-center gap-3">
-            <input type="number" step="0.01" value={price} onChange={(e) => setPrice(parseFloat(e.target.value))} placeholder="0.00" className="flex-1 bg-white/[0.04] border border-white/10 rounded-2xl px-6 py-3.5 text-white font-bold focus:outline-none focus:ring-4 focus:ring-white/5 transition-all placeholder:text-white/10" />
+            <input type="number" step="0.01" value={price} onChange={(e) => setPrice(Math.max(0, parseFloat(e.target.value) || 0))} placeholder="0.00" className="flex-1 bg-white/[0.04] border border-white/10 rounded-2xl px-6 py-3.5 text-white font-bold focus:outline-none focus:ring-4 focus:ring-white/5 transition-all placeholder:text-white/10" />
             <button type="button" onClick={() => setIsPaywalled(!isPaywalled)} className={`px-6 py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest border transition-all ${isPaywalled ? 'bg-small-orange text-white border-small-orange shadow-xl' : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10'}`}>{isPaywalled ? 'Paywalled' : 'Free'}</button>
           </div>
         </div>
@@ -2902,7 +3119,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         )}
         <div className="space-y-3">
           <label className="block text-[10px] font-black uppercase tracking-[0.4em] text-small-orange opacity-60">Gifts & Tips Goal ($)</label>
-          <input type="number" value={donationGoal} onChange={(e) => setDonationGoal(parseFloat(e.target.value))} placeholder="e.g. 500.00" className="w-full bg-white/[0.04] border border-white/10 rounded-2xl px-6 py-3.5 text-white font-bold focus:outline-none focus:ring-4 focus:ring-white/5 transition-all placeholder:text-white/10" />
+          <input type="number" value={donationGoal} onChange={(e) => setDonationGoal(Math.max(0, parseFloat(e.target.value) || 0))} placeholder="e.g. 500.00" className="w-full bg-white/[0.04] border border-white/10 rounded-2xl px-6 py-3.5 text-white font-bold focus:outline-none focus:ring-4 focus:ring-white/5 transition-all placeholder:text-white/10" />
         </div>
       </div>
       )}
@@ -3036,7 +3253,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
                   <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest">
                     {type === 'MUSIC'
                       ? `Your ${musicVideos.length} music video${musicVideos.length > 1 ? 's' : ''} also go to the Reello video feed for more reach`
-                      : 'Also surface this in the Reello video feed — it stays in Taleo either way'}
+                      : 'Also surface this in the Reello video feed — it stays in Cinema either way'}
                   </p>
                 </div>
               </div>

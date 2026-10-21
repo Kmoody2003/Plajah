@@ -278,7 +278,7 @@ const AmboLiveInputWaveform: React.FC<Props> = ({ height = 46, showWords = true,
   return (
     <div ref={wrapRef} className={`relative overflow-hidden rounded-md transition-shadow ${className}`}
       style={{ height, boxShadow: hearing ? `0 0 0 1px ${ring}, 0 0 14px ${hexA(ring, 0.45)}` : `0 0 0 1px ${ring}` }}
-      title="Live input — what Ambo is hearing right now">
+      title="Live input — what Stage is hearing right now">
       <canvas ref={canvasRef} className="block" />
       <span className="absolute left-1.5 top-1 inline-flex items-center gap-1 px-1.5 py-[1px] rounded-sm text-[8px] font-black tracking-[0.14em] pointer-events-none"
         style={{ background: 'rgba(4,17,13,0.82)', color: MINT, border: '1px solid rgba(43,224,168,0.35)' }}>

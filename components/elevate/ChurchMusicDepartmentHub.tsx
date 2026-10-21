@@ -59,6 +59,7 @@ import { orgRoomId } from '../../services/orgChatService';
 import SheetMusic from '../SheetMusic';
 import VerovioScore from '../VerovioScore';
 import LoreaScoresModal from '../LoreaScoresModal';
+import { isDemoOrg } from '../../services/elevateTruth';
 
 export type MusicSubCategoryKey =
   | 'ALL'
@@ -217,6 +218,7 @@ function hymnToScratchpadSong(item: SacredHymnOrPrayer): ScratchpadSongItem {
   };
 }
 
+// Sample original song for the demo church only.
 const DEFAULT_COLLECTIVE_ORIGINALS: ScratchpadSongItem[] = [
   {
     id: 'collective-orig-sanctuary-fire',
@@ -269,6 +271,7 @@ const DEFAULT_COLLECTIVE_ORIGINALS: ScratchpadSongItem[] = [
   },
 ];
 
+// Sample setlists (with sample vocalists) for the demo church only; real churches start empty.
 const INITIAL_SETLISTS: WorshipServiceSetlist[] = [
   {
     id: 'setlist-sunday-sanctuary',
@@ -378,6 +381,8 @@ export const ChurchMusicDepartmentHub: React.FC<ChurchMusicDepartmentHubProps> =
   initialSubDept = 'ALL',
   onOpenChatRoom,
 }) => {
+  // Only the demo church shows sample rosters, call times, setlists and the sample original song.
+  const isDemo = isDemoOrg(church);
   const [activeSubDept, setActiveSubDept] = useState<MusicSubCategoryKey>(initialSubDept);
   const [activeSurface, setActiveSurface] = useState<
     'CHORA_SCRATCHPAD' | 'SETLIST_BUILDER' | 'GLOBAL_SCORES_ARCHIVE'
@@ -387,8 +392,8 @@ export const ChurchMusicDepartmentHub: React.FC<ChurchMusicDepartmentHubProps> =
   const baseCatalog = useMemo<ScratchpadSongItem[]>(() => {
     const hymns = PUBLIC_DOMAIN_HYMNS.map(hymnToScratchpadSong);
     const gospel = PUBLIC_DOMAIN_GOSPEL_SONGS.map(hymnToScratchpadSong);
-    return [...hymns, ...gospel, ...DEFAULT_COLLECTIVE_ORIGINALS];
-  }, []);
+    return [...hymns, ...gospel, ...(isDemo ? DEFAULT_COLLECTIVE_ORIGINALS : [])];
+  }, [isDemo]);
 
   const [customSongs, setCustomSongs] = useState<ScratchpadSongItem[]>(() => {
     try {
@@ -419,14 +424,21 @@ export const ChurchMusicDepartmentHub: React.FC<ChurchMusicDepartmentHubProps> =
 
   // Setlists state
   const [setlists, setSetlists] = useState<WorshipServiceSetlist[]>(() => {
+    const fallback = isDemo ? INITIAL_SETLISTS : [];
     try {
       const raw = localStorage.getItem(STORAGE_SETLISTS_KEY(church.id));
-      return raw ? JSON.parse(raw) : INITIAL_SETLISTS;
+      if (!raw) return fallback;
+      const parsed = JSON.parse(raw) as WorshipServiceSetlist[];
+      if (!Array.isArray(parsed)) return fallback;
+      if (isDemo) return parsed;
+      // Earlier builds saved the sample setlists for every church; drop those leftovers.
+      const sampleIds = new Set(INITIAL_SETLISTS.map(sl => sl.id));
+      return parsed.filter(sl => !sampleIds.has(sl.id));
     } catch {
-      return INITIAL_SETLISTS;
+      return fallback;
     }
   });
-  const [activeSetlistId, setActiveSetlistId] = useState<string>(INITIAL_SETLISTS[0].id);
+  const [activeSetlistId, setActiveSetlistId] = useState<string>(() => setlists[0]?.id || '');
 
   // Paper Song Scanner (Worksheet Digitizer Tech)
   const scanInputRef = useRef<HTMLInputElement | null>(null);
@@ -580,11 +592,7 @@ export const ChurchMusicDepartmentHub: React.FC<ChurchMusicDepartmentHubProps> =
           id: `scan_fallback_${Date.now()}`,
           kind: 'VERSE',
           label: 'Scanned Verse 1',
-          lines: [
-            `[Scanned from ${file.name}]`,
-            'Lord of the harvest, hear our humble song,',
-            'To Thee alone our grateful hearts belong.',
-          ],
+          lines: [`[Scanned from ${file.name}] No lyrics were recognized. Type the words here.`],
         });
       }
 
@@ -613,7 +621,7 @@ export const ChurchMusicDepartmentHub: React.FC<ChurchMusicDepartmentHubProps> =
       setActiveSurface('CHORA_SCRATCHPAD');
       triggerToast(`Scanned "${scannedSong.title}" from paper into Chora Scratchpad blocks!`);
     } catch {
-      triggerToast('Scanned paper sheet into a new Chora Scratchpad song.');
+      triggerToast('Could not read that sheet. Started a blank song instead.');
       handleCreateBlankScratchpadSong();
     } finally {
       setScanningPaperSong(false);
@@ -692,7 +700,7 @@ export const ChurchMusicDepartmentHub: React.FC<ChurchMusicDepartmentHubProps> =
       bpm: activeSong.bpm,
       ccli: 'Public Domain / Church Collective',
     });
-    triggerToast(`Synced "${activeSong.title}" to Ambo Live Projection Library!`);
+    triggerToast(`Synced "${activeSong.title}" to Stage Live Projection Library!`);
   };
 
   // Export engraved sheet music as MusicXML (.musicxml)
@@ -767,7 +775,6 @@ export const ChurchMusicDepartmentHub: React.FC<ChurchMusicDepartmentHubProps> =
     song: ScratchpadSongItem,
     subDept: Exclude<MusicSubCategoryKey, 'ALL'> = 'music-worship-teams'
   ) => {
-    if (!activeSetlist) return;
     const subMeta = MUSIC_SUB_DEPARTMENTS.find(d => d.key === subDept) || MUSIC_SUB_DEPARTMENTS[0];
     const newSlot: WorshipSetlistSlot = {
       id: `slot_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
@@ -779,6 +786,20 @@ export const ChurchMusicDepartmentHub: React.FC<ChurchMusicDepartmentHubProps> =
       leadVocalistOrDirector: `${subMeta.name} Lead`,
       momentInService: 'Congregational Worship',
     };
+    if (!activeSetlist) {
+      // No setlist yet: start one with this song.
+      const created: WorshipServiceSetlist = {
+        id: `setlist_${Date.now().toString(36)}`,
+        serviceTitle: 'New Worship Service Setlist',
+        serviceDate: 'Upcoming Service',
+        liturgicalTheme: '',
+        slots: [newSlot],
+      };
+      persistSetlists([created, ...setlists]);
+      setActiveSetlistId(created.id);
+      triggerToast(`Started a new setlist with "${song.title}".`);
+      return;
+    }
     const updated = setlists.map(sl =>
       sl.id === activeSetlist.id ? { ...sl, slots: [...sl.slots, newSlot] } : sl
     );
@@ -799,7 +820,7 @@ export const ChurchMusicDepartmentHub: React.FC<ChurchMusicDepartmentHubProps> =
       id: `setlist_${Date.now().toString(36)}`,
       serviceTitle: `New Worship Service Setlist (${setlists.length + 1})`,
       serviceDate: 'Upcoming Service',
-      liturgicalTheme: 'Sanctuary Praise & Word',
+      liturgicalTheme: isDemo ? 'Sanctuary Praise & Word' : '',
       slots: [],
     };
     const next = [created, ...setlists];
@@ -987,16 +1008,18 @@ export const ChurchMusicDepartmentHub: React.FC<ChurchMusicDepartmentHubProps> =
                 <div>
                   <div className="flex items-center justify-between gap-1">
                     <span className="text-lg">{sub.emoji}</span>
-                    <span
-                      className="text-[10px] font-mono px-2 py-0.5 rounded-full font-bold"
-                      style={{
-                        background: `${sub.badgeColor}22`,
-                        color: sub.badgeColor,
-                        border: `1px solid ${sub.badgeColor}55`,
-                      }}
-                    >
-                      {sub.rosterCount} Members
-                    </span>
+                    {isDemo && (
+                      <span
+                        className="text-[10px] font-mono px-2 py-0.5 rounded-full font-bold"
+                        style={{
+                          background: `${sub.badgeColor}22`,
+                          color: sub.badgeColor,
+                          border: `1px solid ${sub.badgeColor}55`,
+                        }}
+                      >
+                        {sub.rosterCount} Members
+                      </span>
+                    )}
                   </div>
                   <p
                     className="font-black text-xs mt-1.5 text-white"
@@ -1009,7 +1032,7 @@ export const ChurchMusicDepartmentHub: React.FC<ChurchMusicDepartmentHubProps> =
                   </p>
                 </div>
                 <div className="flex items-center justify-between gap-1 pt-2 mt-2 border-t border-white/10">
-                  <span className="text-[9px] text-amber-200/80 truncate">{sub.callTime.split('·')[0]}</span>
+                  <span className="text-[9px] text-amber-200/80 truncate">{isDemo ? sub.callTime.split('·')[0] : ''}</span>
                   {onOpenChatRoom && (
                     <button
                       type="button"
@@ -1355,7 +1378,7 @@ export const ChurchMusicDepartmentHub: React.FC<ChurchMusicDepartmentHubProps> =
                     onClick={handleSyncSongToAmbo}
                     className="px-2.5 py-1 rounded-lg bg-indigo-500/20 border border-indigo-400/40 text-indigo-200 text-[11px] font-bold inline-flex items-center gap-1"
                   >
-                    <Radio size={11} /> Push to Ambo Live
+                    <Radio size={11} /> Push to Stage Live
                   </button>
                   <button
                     type="button"
@@ -1600,6 +1623,11 @@ export const ChurchMusicDepartmentHub: React.FC<ChurchMusicDepartmentHubProps> =
             </div>
 
             <div className="space-y-2">
+              {setlists.length === 0 && (
+                <p className="text-xs text-white/50 leading-relaxed">
+                  No setlists yet. Start one for your next service, or add a song from the song gallery.
+                </p>
+              )}
               {setlists.map(sl => {
                 const active = sl.id === activeSetlist?.id;
                 return (
@@ -1621,7 +1649,7 @@ export const ChurchMusicDepartmentHub: React.FC<ChurchMusicDepartmentHubProps> =
                     </p>
                     <p className="text-[11px] text-amber-200/80 mt-0.5">{sl.serviceDate}</p>
                     <p className="text-[11px] text-white/50 mt-0.5">
-                      Theme: {sl.liturgicalTheme} · {sl.slots.length} songs
+                      {sl.liturgicalTheme ? `Theme: ${sl.liturgicalTheme} · ` : ''}{sl.slots.length} songs
                     </p>
                   </button>
                 );
@@ -1647,7 +1675,7 @@ export const ChurchMusicDepartmentHub: React.FC<ChurchMusicDepartmentHubProps> =
                   />
                   <div className="flex flex-wrap gap-2 text-xs text-white/60">
                     <span>🗓️ {activeSetlist.serviceDate}</span>
-                    <span>• Theme: {activeSetlist.liturgicalTheme}</span>
+                    {activeSetlist.liturgicalTheme && <span>• Theme: {activeSetlist.liturgicalTheme}</span>}
                   </div>
                 </div>
 
@@ -1667,16 +1695,19 @@ export const ChurchMusicDepartmentHub: React.FC<ChurchMusicDepartmentHubProps> =
                         });
                       }
                     }
-                    triggerToast(`Synced all ${activeSetlist.slots.length} setlist songs to Ambo Live Service!`);
+                    triggerToast(`Synced all ${activeSetlist.slots.length} setlist songs to Stage Live Service!`);
                   }}
                   className="px-4 py-2 rounded-xl bg-amber-400 text-black text-xs font-black inline-flex items-center gap-1.5"
                 >
-                  <Send size={13} /> Push Entire Setlist to Ambo Live
+                  <Send size={13} /> Push Entire Setlist to Stage Live
                 </button>
               </div>
 
               {/* Slots List */}
               <div className="space-y-2.5">
+                {activeSetlist.slots.length === 0 && (
+                  <p className="text-xs text-white/50">No songs in this setlist yet. Add songs from the song gallery.</p>
+                )}
                 {activeSetlist.slots.map((slot, idx) => {
                   const deptMeta =
                     MUSIC_SUB_DEPARTMENTS.find(d => d.key === slot.assignedSubDept) ||
@@ -1711,8 +1742,9 @@ export const ChurchMusicDepartmentHub: React.FC<ChurchMusicDepartmentHubProps> =
                           {slot.songTitle}
                         </p>
                         <p className="text-xs text-white/60 pl-8">
-                          Lead: {slot.leadVocalistOrDirector}
-                          {slot.notes ? ` · ${slot.notes}` : ''}
+                          {[slot.leadVocalistOrDirector ? `Lead: ${slot.leadVocalistOrDirector}` : '', slot.notes || '']
+                            .filter(Boolean)
+                            .join(' · ')}
                         </p>
                       </div>
 

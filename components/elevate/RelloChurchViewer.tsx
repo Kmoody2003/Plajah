@@ -25,6 +25,7 @@ import {
 import type { Organization } from '../../types';
 import { useOrgLive, useOrgChannels, onAirItems, type OnAirItem } from '../../services/orgMedia';
 import OrgOnAirPlayer from './OrgOnAirPlayer';
+import { isDemoOrg } from '../../services/elevateTruth';
 import {
   listenToSession,
   resolveCue,
@@ -49,7 +50,7 @@ export interface ChurchStreamItem {
   ministryChannelName: string;
   speaker: string;
   kind: 'LIVE_SANCTUARY' | 'MINISTRY_TV_CHANNEL' | 'SERVICE_REPLAY';
-  viewerCount: number;
+  viewerCount?: number;
   badgeText: string;
   videoUrl?: string;
   thumbnailGradient: string;
@@ -127,14 +128,21 @@ interface RelloChurchViewerProps {
   onOpenOnAir?: (item: OnAirItem) => void;
 }
 
+const NOTHING_ON_AIR: ChurchStreamItem = {
+  id: 'nothing-on-air', title: '', ministryChannelName: '', speaker: '', kind: 'LIVE_SANCTUARY',
+  badgeText: '', thumbnailGradient: 'linear-gradient(135deg, #18141F, #0E0C13)', durationSec: 1, initialPlayheadSec: 0, scriptureCues: [],
+};
+
 export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
   org,
   onOpenFullLectio,
-  inSanctuaryAutoEngaged = true,
+  inSanctuaryAutoEngaged = false,
   defaultPlayerExpanded = true,
   viewerIsOrgMember = false,
   onOpenOnAir,
 }) => {
+  // Only the demo church shows sample channels; a real org shows only what is genuinely on air.
+  const demo = isDemoOrg(org);
   const liveFeeds = useOrgLive(org, viewerIsOrgMember);
   const orgChannels = useOrgChannels(org, viewerIsOrgMember);
   // Whatever the org has on air (a live stream, or its channel in TV Live Hub+) plays here, muted.
@@ -157,7 +165,7 @@ export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
       {
         id: 'stream-main-sanctuary-live',
         title: `${org.name} · Sunday Morning Choral Eucharist & Homily`,
-        ministryChannelName: 'Main Sanctuary Broadcast · Ambo Pro Production',
+        ministryChannelName: 'Main Sanctuary Broadcast · Stage Production',
         speaker: 'Pastor Daniel Reyes',
         kind: 'LIVE_SANCTUARY',
         viewerCount: 418,
@@ -253,7 +261,7 @@ export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
       {
         id: 'stream-vespers-replay-archive',
         title: 'Midweek Candlelight Vespers & Patristic Exposition (Replay)',
-        ministryChannelName: 'Rello On-Demand Archive · Timecode Synced',
+        ministryChannelName: 'Reello On-Demand Archive · Timecode Synced',
         speaker: 'Pastor Daniel Reyes',
         kind: 'SERVICE_REPLAY',
         viewerCount: 1290,
@@ -289,13 +297,13 @@ export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
       ministryChannelName: (f as any).channelName || f.ownerName || `${org.name} Live`,
       speaker: (f as any).hostName || f.ownerName,
       kind: 'LIVE_SANCTUARY',
-      viewerCount: (f as any).viewerCount || 120 + idx * 15,
-      badgeText: 'LIVE NOW · AMBO SYNC',
+      viewerCount: (f as any).viewerCount,
+      badgeText: 'LIVE NOW',
       videoUrl: (f as any).videoUrl || (f as any).streamUrl,
       thumbnailGradient: defaults[0].thumbnailGradient,
       durationSec: 3600,
-      initialPlayheadSec: 1800,
-      scriptureCues: defaults[0].scriptureCues,
+      initialPlayheadSec: 0,
+      scriptureCues: demo ? defaults[0].scriptureCues : [],
     }));
 
     const dynamicChannels: ChurchStreamItem[] = orgChannels.map(ch => ({
@@ -304,22 +312,22 @@ export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
       ministryChannelName: ch.nowPlaying || 'Ministry TV Channel',
       speaker: org.name,
       kind: 'MINISTRY_TV_CHANNEL',
-      viewerCount: 85,
+      viewerCount: undefined,
       badgeText: 'LIVE TV CHANNEL',
       thumbnailGradient: defaults[1].thumbnailGradient,
       durationSec: 3600,
-      initialPlayheadSec: 900,
-      scriptureCues: defaults[1].scriptureCues,
+      initialPlayheadSec: 0,
+      scriptureCues: demo ? defaults[1].scriptureCues : [],
     }));
 
-    return [...dynamicFeeds, ...dynamicChannels, ...defaults];
-  }, [liveFeeds, orgChannels, org.name]);
+    return demo ? [...dynamicFeeds, ...dynamicChannels, ...defaults] : [...dynamicFeeds, ...dynamicChannels];
+  }, [liveFeeds, orgChannels, org.name, demo]);
 
   const [selectedStreamId, setSelectedStreamId] = useState<string>(
     () => streamCatalog[0]?.id ?? 'stream-main-sanctuary-live'
   );
   const activeStream = useMemo(
-    () => streamCatalog.find(s => s.id === selectedStreamId) ?? streamCatalog[0],
+    () => streamCatalog.find(s => s.id === selectedStreamId) ?? streamCatalog[0] ?? NOTHING_ON_AIR,
     [streamCatalog, selectedStreamId]
   );
 
@@ -509,6 +517,8 @@ export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
     setLectioMiniMounted(true);
   };
 
+  if (!demo && streamCatalog.length === 0) return null;
+
   return (
     <div className="space-y-5">
       {/* ── 1. TOP LIVE STREAM & MINISTRY TV CHANNEL CAROUSEL ── */}
@@ -529,7 +539,7 @@ export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
           <div className="flex items-center gap-2.5">
             <span className="inline-flex items-center gap-2 ev-title text-lg text-white">
               <span className="ev-live-dot" />
-              {org.orgType === 'CULTURAL' || org.orgType === 'NONPROFIT' ? 'Live & on demand' : 'Watch on Rello'}
+              {org.orgType === 'CULTURAL' || org.orgType === 'NONPROFIT' ? 'Live & on demand' : 'Watch on Reello'}
             </span>
             <span className="text-[13px] text-[#A49CB2] hidden sm:inline">Keeps playing while you move between tabs</span>
           </div>
@@ -538,7 +548,7 @@ export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
             {inSanctuaryAutoEngaged && (
               <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-400/40 text-emerald-300 text-[10.5px] font-bold">
                 <Navigation size={11} />
-                <span>Schedule + GPS Lock Active · Ambo Synced</span>
+                <span>In the sanctuary · Stage synced</span>
               </div>
             )}
             <button
@@ -560,7 +570,7 @@ export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
               }
             >
               {playerExpanded ? <Pause size={10} /> : <Play size={10} />}
-              <span>{playerExpanded ? 'Minimize Stream Stage' : 'Expand Stream Stage'}</span>
+              <span>{playerExpanded ? 'Hide player' : 'Show player'}</span>
             </button>
           </div>
         </div>
@@ -605,9 +615,11 @@ export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
                     )}
                     {item.badgeText}
                   </span>
-                  <span className="text-[10px] font-mono text-white/80 bg-black/45 px-2 py-0.5 rounded-full">
-                    {item.viewerCount} watching
-                  </span>
+                  {typeof item.viewerCount === 'number' && (
+                    <span className="text-[10px] font-mono text-white/80 bg-black/45 px-2 py-0.5 rounded-full">
+                      {item.viewerCount} watching
+                    </span>
+                  )}
                 </div>
 
                 <div>
@@ -643,7 +655,7 @@ export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
         <div className="px-5 py-3 border-b border-white/10 flex items-center justify-between gap-3 flex-wrap bg-black/40">
           <div className="flex items-center gap-2.5">
             <span className="px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest bg-[#7A1FC0] text-white border border-[#D8D2E2]/30">
-              Rello Live Stream Stage
+              Reello Live Player
             </span>
             <span className="text-sm font-bold text-white truncate max-w-md">
               {activeStream.title}
@@ -662,7 +674,7 @@ export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
               <Mic size={11} />
               <span>
                 {isLiveStream
-                  ? 'Live Sync: Ambo Service Production Team + Speech ASR'
+                  ? 'Live Sync: Stage Service Production Team + Speech ASR'
                   : 'Replay Sync: Playhead Timecode + Speech Scripture Detection'}
               </span>
             </span>
@@ -685,7 +697,7 @@ export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
               }
             >
               <BookOpen size={12} />
-              <span>{lectioMiniMounted ? 'Lectio Mini-Bible Mounted' : 'Mount Lectio Mini-Bible'}</span>
+              <span>{lectioMiniMounted ? 'Verse Mini-Bible Mounted' : 'Mount Verse Mini-Bible'}</span>
             </button>
           </div>
         </div>
@@ -741,7 +753,7 @@ export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
               <div className="my-auto text-center max-w-xl mx-auto px-4 z-10">
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/65 border border-[#E2C27E]/50 text-[#F0D9A6] text-[10px] font-extrabold uppercase tracking-widest mb-2">
                   <Sparkles size={11} />
-                  <span>{resolvedCueInfo.sourceBadge} · Auto-Mounted in Lectio</span>
+                  <span>{resolvedCueInfo.sourceBadge} · Auto-Mounted in Verse</span>
                 </div>
                 <p className="text-base sm:text-lg font-serif italic text-white drop-shadow">
                   {resolvedCueInfo.spokenExcerpt}
@@ -765,7 +777,7 @@ export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
                     className="px-2.5 py-1.5 rounded-lg bg-[#E2C27E] text-black text-[10px] font-black whitespace-nowrap flex items-center gap-1"
                   >
                     <Maximize2 size={11} />
-                    <span>Full Lectio</span>
+                    <span>Full Verse</span>
                   </button>
                 )}
               </div>
@@ -856,7 +868,7 @@ export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
                       </div>
                       <p className="text-white/85 text-[11.5px] leading-snug">{n.text}</p>
                     </div>
-                    <span title="Saved to Lectio Notebook" className="shrink-0 mt-1">
+                    <span title="Saved to Verse Notebook" className="shrink-0 mt-1">
                       <CheckCircle2 size={13} className="text-emerald-400" />
                     </span>
                   </div>
@@ -873,7 +885,7 @@ export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
                 <div>
                   <div className="flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-[0.18em] text-[#E2C27E]">
                     <BookOpen size={11} />
-                    <span>Lectio Mini-Bible · Auto-Mounted</span>
+                    <span>Verse Mini-Bible · Auto-Mounted</span>
                   </div>
                   <div className="text-sm font-bold text-white">
                     {formatRef(resolvedCueInfo.ref, 'display')}
@@ -900,7 +912,7 @@ export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
                       <button
                         key={s.id}
                         onClick={() => setSkinId(s.id)}
-                        title={`${s.label} Lectio Surface`}
+                        title={`${s.label} Verse Surface`}
                         className={`w-4 h-4 rounded-full border transition-all ${
                           s.id === skinId ? 'border-[#E2C27E] scale-115' : 'border-white/25'
                         }`}
@@ -929,7 +941,7 @@ export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
 
                 {loadingVerses ? (
                   <div className="py-16 text-center text-xs italic" style={{ color: activeSkin.muted }}>
-                    Syncing chapter from Lectio witness cache…
+                    Syncing chapter from Verse witness cache…
                   </div>
                 ) : chapterVerses.length === 0 ? (
                   <div className="space-y-3 font-serif text-sm leading-relaxed">
@@ -979,7 +991,7 @@ export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
               <div className="px-4 py-2.5 border-t border-white/10 bg-black/50 flex items-center justify-between text-[10.5px] text-white/70">
                 <span>
                   {isLiveStream
-                    ? 'Synced with Ambo Production Team & Live Speech Detection'
+                    ? 'Synced with Stage Production Team & Live Speech Detection'
                     : 'Synced with Replay Timecode & Caption Scripture Detection'}
                 </span>
                 {onOpenFullLectio && (

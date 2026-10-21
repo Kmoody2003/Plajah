@@ -245,7 +245,7 @@ export const createOrUpdateSanctuary = async (
     ownerType: data.ownerType || 'USER',
     ownerName: data.ownerName || auth.currentUser.displayName || 'Creator',
     ownerPhoto: data.ownerPhoto || auth.currentUser.photoURL || '',
-    name: data.name || `${auth.currentUser.displayName || 'My'} Sanctuary`,
+    name: data.name || `${auth.currentUser.displayName || 'My'} Backstage`,
     handle: data.handle,
     tagline: data.tagline,
     about: data.about,

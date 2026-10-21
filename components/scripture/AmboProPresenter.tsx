@@ -100,6 +100,7 @@ import { AmboLedWallCanvas } from './AmboLedWallCanvas';
 import { AmboVideoTransportBar } from './AmboVideoTransportBar';
 import { AmboSlideStill } from './AmboSlideStill';
 import AmboPartyEventModal from './AmboPartyEventModal';
+import AmboAnnouncementsStrip, { type AnnouncementMedia } from './AmboAnnouncementsStrip';
 import {
   type PartyEventSession, type PartyEventDevice, type EventDeviceDutyType,
   listenToPartyEventSession, listenToEventDevices, broadcastMasterSource,
@@ -1000,7 +1001,7 @@ useEffect(() => {
 
     try {
       const stream = getProgramBusStream();
-      if (stream) publishAmboLiveOutput('ambo:audience', stream, 'Ambo Audience Output');
+      if (stream) publishAmboLiveOutput('ambo:audience', stream, 'Stage Audience Output');
     } catch { /* best-effort capture */ }
 
     const unregRtc = installProgramBusRtcHost(
@@ -1829,6 +1830,40 @@ useEffect(() => {
     setIsDjLiveOnProgram(false);
     setIsDjCuedInPreview(false);
   };
+  // ── Announcements row (department / guest uploads → services/ambo/stageInbox.ts) ──
+  const announcementSlideIds = useRef<Record<string, string>>({});
+  const announcementSlide = ({ item, url }: AnnouncementMedia): Slide | null => {
+    const s = slideFromMedia({ name: item.fileName, kind: item.kind === 'image' ? 'IMAGE' : 'VIDEO', url });
+    if (!s) return null;
+    // Announcement videos play once (they are a moment, not a loop) unless the note says otherwise.
+    const layers = s.layers.map(l => (l.content.kind === 'VIDEO' ? { ...l, content: { ...l.content, loop: false } } : l));
+    return { ...s, label: item.title, group: `Announcements · ${item.sourceName}`, groupColor: '#FF8C00', layers };
+  };
+  const takeAnnouncement = (m: AnnouncementMedia) => {
+    const s = announcementSlide(m);
+    if (!s) return;
+    announcementSlideIds.current[m.item.id] = s.id;
+    take(s);
+  };
+  const stopAnnouncement = (m: AnnouncementMedia) => {
+    const sid = announcementSlideIds.current[m.item.id];
+    if (sid && liveSlideId === sid) { clearBackground(); setLiveSlideId(null); setLiveSlideObj(null); }
+  };
+  const addAnnouncementToShow = (m: AnnouncementMedia) => {
+    const s = announcementSlide(m);
+    if (!s) return;
+    setLibrary(libs => libs.map(sh => (sh.id !== activeShow.id ? sh : { ...sh, slides: [...sh.slides, s] })));
+    setSelected(slides.length);
+  };
+  const sendAnnouncementAudio = ({ item, url }: AnnouncementMedia, autoplay: boolean) => {
+    setActiveDjTrack({ id: `ann_${item.id}`, title: item.title, artist: `${item.sourceName} · ${item.uploaderName}`, url, duration: 'Upload', category: 'Announcement' });
+    if (autoplay) setTimeout(() => audioBus.play(), 150);
+  };
+  const stopAnnouncementAudio = ({ item }: AnnouncementMedia) => {
+    const cur = audioBus.state.queue[audioBus.state.index];
+    if (cur?.id === `ann_${item.id}`) audioBus.pause();
+  };
+
   const clearSlide = () => {
     setLive(prev => clearLayer(prev, 'slide'));
     setLiveSlideId(null);
@@ -2819,7 +2854,7 @@ useEffect(() => {
         <div className="flex items-center gap-2.5">
           <span className="w-8 h-8 rounded-lg grid place-items-center text-white font-extrabold text-[15px]" style={{ background: BRAND, boxShadow: '0 6px 22px rgba(212,0,85,0.34)' }}>A</span>
           <div className="leading-tight">
-            <div className="font-bold tracking-tight text-[15px]">Ambo</div>
+            <div className="font-bold tracking-tight text-[15px]">Stage</div>
             <div className="text-[9.5px] text-white/40 -mt-0.5">MEDIA SERVER</div>
           </div>
         </div>
@@ -3535,7 +3570,7 @@ useEffect(() => {
               </div>
               {screens.length <= 1 && (
                 <div className="mx-1 mb-1 px-2 py-1.5 rounded-lg text-[10.5px] leading-snug text-white/55 bg-white/5">
-                  Only one display is visible{screens.length ? '' : ' yet'}. Plug in the projector/TV, then press Detect — Chrome/Edge will ask to allow window management so Ambo can place Program Out on it.
+                  Only one display is visible{screens.length ? '' : ' yet'}. Plug in the projector/TV, then press Detect — Chrome/Edge will ask to allow window management so Stage can place Program Out on it.
                 </div>
               )}
               {screens.map(scr => (
@@ -3739,6 +3774,18 @@ useEffect(() => {
           </div>
         )}
       </div>
+
+      {/* ── ANNOUNCEMENTS ROW (phone uploads from departments, leadership, volunteers, guests) ── */}
+      <AmboAnnouncementsStrip
+        orgId={currentProject.scope === 'ORGANIZATION' ? currentProject.organizationId : undefined}
+        orgName={currentProject.organizationName}
+        onTakeVisual={takeAnnouncement}
+        onStopVisual={stopAnnouncement}
+        onSendAudio={sendAnnouncementAudio}
+        onStopAudio={stopAnnouncementAudio}
+        onAddToShow={addAnnouncementToShow}
+        onLinkOrg={() => setIsProjectSwitcherOpen(true)}
+      />
 
       {/* ── TOP SECTION (Slide Grid + Left Library + Right Monitors/Inspector) ── */}
       <div className="flex-1 min-h-0 flex overflow-hidden">
@@ -4378,8 +4425,8 @@ useEffect(() => {
         onAssignDeviceDuty={(devId, dutyType) => {
           const dev = partyDevices.find(d => d.deviceId === devId);
           if (dev) {
-            let newDuty: any = { dutyType, title: 'Ambo Output' };
-            if (dutyType === 'AMBO_PROGRAM') newDuty = { dutyType, title: 'Ambo Program Out', subtitle: 'Live Audience Feed' };
+            let newDuty: any = { dutyType, title: 'Stage Output' };
+            if (dutyType === 'AMBO_PROGRAM') newDuty = { dutyType, title: 'Stage Program Out', subtitle: 'Live Audience Feed' };
             else if (dutyType === 'AMBO_STAGE') newDuty = { dutyType, title: 'Stage Confidence', subtitle: 'Speaker Notes & Clock' };
             else if (dutyType === 'CHORA_PLAYLIST') newDuty = { dutyType, title: 'Chora Lounge Mix', subtitle: 'Ambient Music' };
             else if (dutyType === 'REELLO_VIDEO') newDuty = { dutyType, title: 'Reello Highlight Reel', subtitle: 'Video Loop' };

@@ -73,7 +73,7 @@ export default function AmboOperatorWindow() {
   const sRef = useRef<SessionSync | null>(null);
 
   useEffect(() => {
-    document.title = `Ambo operator · ${role}`;
+    document.title = `Stage operator · ${role}`;
     const s = new SessionSync({ role, label: `${role} operator`, canLead: false, onChange: () => force(n => n + 1) });
     sRef.current = s;
     const t = setInterval(() => force(n => n + 1), 1500); // refresh presence ageing
@@ -100,7 +100,7 @@ export default function AmboOperatorWindow() {
         <span className="text-white/50">{peers.length} window{peers.length === 1 ? '' : 's'}</span>
         <span className="w-2 h-2 rounded-full" style={{ background: hasLeader ? '#10B981' : ORANGE }} title={hasLeader ? 'Connected to main window' : 'Main window not found'} />
       </div>
-      {!hasLeader && <div className="text-[12px] rounded-lg border p-3" style={{ borderColor: ORANGE, color: ORANGE }}>Waiting for the main Ambo window… Open this project in the main window first.</div>}
+      {!hasLeader && <div className="text-[12px] rounded-lg border p-3" style={{ borderColor: ORANGE, color: ORANGE }}>Waiting for the main Stage window… Open this project in the main window first.</div>}
       {msg && <div className="text-[11px]" style={{ color: ORANGE }}>{msg}</div>}
 
       <div className="rounded-xl border border-white/10 p-3 bg-white/[0.03]">

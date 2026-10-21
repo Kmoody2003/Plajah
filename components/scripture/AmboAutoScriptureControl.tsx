@@ -84,7 +84,7 @@ const AmboAutoScriptureControl: React.FC = () => {
               <Mic size={10} /> Hearing
             </div>
             <div className="text-[11.5px] text-white/35 leading-snug mt-1 break-words">
-              Off. Turn it on and Ambo listens for verses the speaker mentions and for the offering.
+              Off. Turn it on and Stage listens for verses the speaker mentions and for the offering.
             </div>
           </div>
         )}

@@ -26,7 +26,7 @@ export type SchoolWallTag = typeof SCHOOL_WALL_TAGS[number];
 
 /** Display metadata for the known school tags. Unknown tags degrade to a generic label. */
 export const SCHOOL_WALL_META: Record<string, { label: string; blurb: string }> = {
-  filmschool:  { label: 'Film School',        blurb: 'Assignments from the Taleo Film School' },
+  filmschool:  { label: 'Film School',        blurb: 'Assignments from the Cinema Film School' },
   photoschool: { label: 'Photography School', blurb: 'Assignments from the Photography track' },
   artschool:   { label: 'Art School',         blurb: 'Assignments from the Art track' },
   choraschool: { label: 'Chora School',       blurb: 'Assignments from the Chora music school' },

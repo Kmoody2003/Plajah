@@ -924,6 +924,31 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
     let localList = [];
     try { const idx = await stGet("studio:index"); localList = idx?.list || []; setIndex(localList); setStorageReady(true); }
     catch { setStorageReady(false); }
+    // Ensure the built-in 30s Plajah Chora Flagship Promo (K-Moody · Goliath EP) editable project is seeded & upgraded
+    try {
+      const existingPromo = await stGet("studio:prod:prod_chora_promo_30s");
+      if (!existingPromo || existingPromo.buildVersion !== "v10-agency-council-kinetic-typography") {
+        const res = await fetch("/promo/chora/chora-promo-30s.fabula.json");
+        if (res.ok) {
+          const promoProd = await res.json();
+          if (promoProd?.id) {
+            await stSet("studio:prod:" + promoProd.id, promoProd);
+            await stSet("studio:prod:chora-promo-v3-20261018", { ...promoProd, id: "chora-promo-v3-20261018" });
+            const sceneCount = (promoProd.acts || []).reduce((n, a) => n + (a.scenes || []).length, 0);
+            const entry = {
+              id: promoProd.id,
+              title: promoProd.title,
+              type: promoProd.type || "film",
+              updated: promoProd.updatedAt || Date.now(),
+              sceneCount,
+            };
+            localList = [entry, ...localList.filter((x) => x.id !== promoProd.id && x.id !== "chora-promo-v3-20261018")];
+            setIndex(localList);
+            await stSet("studio:index", { list: localList });
+          }
+        }
+      }
+    } catch { /* optional promo seed */ }
     // Cloud sync: projects durably live on the platform (Storage + Firestore), not just
     // this browser's IndexedDB. Merge the cloud list in (newest `updated` wins) so projects
     // survive local eviction / other devices, then back up any local-only projects to the cloud.
@@ -952,6 +977,16 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
         }
       }
     } catch { /* offline — local cache still works */ }
+    // Support URL param ?fabulaProd=<id> to jump directly into an editable production
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const urlProdId = params.get("fabulaProd");
+      if (urlProdId) {
+        await openProduction(urlProdId);
+        setPage("edit");
+        return;
+      }
+    } catch { /* ignore */ }
     // Pixels → Fabula handoff: if a session was just exported, open that production
     // straight into its edit (the standalone timeline). Consumed once.
     try {
@@ -1221,6 +1256,16 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
         p = cloudP;
         stSet("studio:prod:" + id, p).catch(() => {}); // re-seed the local cache
       }
+    }
+    if ((id === "prod_chora_promo_30s" || id === "chora-promo-v3-20261018") && (!p || p.buildVersion !== "v7-mascots-parallax-logo-reveal")) {
+      try {
+        const res = await fetch("/promo/chora/chora-promo-30s.fabula.json");
+        if (res.ok) {
+          const fresh = await res.json();
+          p = { ...fresh, id };
+          stSet("studio:prod:" + id, p).catch(() => {});
+        }
+      } catch { /* ignore */ }
     }
     if (!p) { setError("Couldn't load that production."); return; }
     const mp = migrate(p);
@@ -4140,7 +4185,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
         <input type="checkbox" checked={pubDownload} onChange={(e) => setPubDownload(e.target.checked)} />
         <span style={{ fontWeight: 800, fontSize: 12 }}>DOWNLOAD .MP4</span>
       </label>
-      <div className="dim small" style={{ marginTop: 8 }}>One upload — the checkboxes are routing flags on the same file, so it can surface in Reello, Taleo, the Fabula library, or any mix. Reello defaults to private.</div>
+      <div className="dim small" style={{ marginTop: 8 }}>One upload — the checkboxes are routing flags on the same file, so it can surface in Reello, Cinema, the Fabula library, or any mix. Reello defaults to private.</div>
     </>
   );
   // One file, flag-routed: a single videos/{id} document whose isRello / subType(MOVIE) / isFabula
@@ -4159,7 +4204,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
         setTimeout(() => URL.revokeObjectURL(a.href), 30000);
       }
       if (pubReello || pubFabula || pubTaleo) {
-        if (!auth.currentUser) { window.alert("Sign in to publish to Reello / Taleo / the Fabula library. The file was " + (pubDownload ? "downloaded instead." : "NOT saved — check Download and export again.")); return; }
+        if (!auth.currentUser) { window.alert("Sign in to publish to Reello / Cinema / the Fabula library. The file was " + (pubDownload ? "downloaded instead." : "NOT saved — check Download and export again.")); return; }
         const file = new File([blob], name.replace(/\s+/g, "_").toLowerCase() + ".mp4", { type: "video/mp4" });
         const vid = await uploadVideo({
           file, title: name,
@@ -4176,7 +4221,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
           addAssetToPool({ id: aid, name: name + ".mp4", type: "video", url: URL.createObjectURL(blob), duration: seqEnd, session: true, bin: "exports", cloudUrl: vid?.url || undefined });
           stSet("studio:blob:" + aid, blob);
         }
-        const dests = [pubReello && `Reello (${pubVisibility})`, pubTaleo && "Taleo", pubFabula && "Fabula library"].filter(Boolean).join(" + ");
+        const dests = [pubReello && `Reello (${pubVisibility})`, pubTaleo && "Cinema", pubFabula && "Fabula library"].filter(Boolean).join(" + ");
         ping(`🚀 Published to ${dests}${pubDownload ? " · downloaded" : ""}`);
         // Keep the dialog open in a success state so we can deep-link straight to the video in
         // Reello (the reel player at THAT short) instead of dropping the user on a generic feed.
@@ -5269,7 +5314,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
                         <span className="lbl" style={{ margin: 0 }}>📁 SYNC FOLDERS</span>
                         <span className="dim small" style={{ letterSpacing: 0 }}>auto-import</span>
                         <button className="minibtn" style={{ marginLeft: "auto", fontSize: 8 }} disabled={folderSyncing} onClick={addSyncFolderNow} title="Watch a folder on this computer — new files auto-import as you add them, and the media/clip bins mirror the folder structure. Reads local-first + uploads to the cloud in the background.">{folderSyncing ? "…" : "＋ ADD"}</button>
-                        <SavedFoldersMenu className="minibtn" label="SAVED" onOpen={addSavedFolderNow} title="Folders you've added anywhere in Plajah (Ambo, Pixels, Photos …) — one click to import" />
+                        <SavedFoldersMenu className="minibtn" label="SAVED" onOpen={addSavedFolderNow} title="Folders you've added anywhere in Plajah (Stage, Pixels, Photos …) — one click to import" />
                         {syncFolders.length > 0 && <button className="minibtn" style={{ fontSize: 8 }} disabled={folderSyncing} onClick={() => rescanAll(true)} title="Rescan all watched folders now">↻</button>}
                       </div>
                       {syncFolders.length === 0
@@ -5662,7 +5707,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
                           <>
                             <div className="insp-div" />
                             <MotionTemplateClipFields spec={selClip.mGraphic} onChange={(next) => updateClip(selClip.id, { mGraphic: next, text: next.fields?.title || next.fields?.reference || selClip.text })} />
-                            <div className="dim small">An Ambo template drawn live from code. Its entrance plays from the clip start and its exit ends at the clip end; drag the clip handles to retime it.</div>
+                            <div className="dim small">An Stage template drawn live from code. Its entrance plays from the clip start and its exit ends at the clip end; drag the clip handles to retime it.</div>
                           </>
                         )}
                         {selClip.kind === "title" && !selClip.tGraphic && !selClip.bGraphic && !selClip.mGraphic && (
@@ -7293,7 +7338,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
                     <div className="lbl">MEDIA ASSETS — the production’s single file source. Import a folder (kept as a watch folder that auto-updates); its subfolders become bins, names matching your Cast or World auto-tag into those libraries, and the edit page’s media pool mirrors this exactly. Drop <strong>.txt / .fountain</strong> scripts anywhere here and Lorea structures them into the Structure page.</div>
                     <div className="btnrow" style={{ marginTop: 10, flexWrap: "wrap" }}>
                       <button className="cta" onClick={addSyncFolderNow} disabled={folderSyncing} title="Pick a folder — it becomes a watch folder that auto-imports new/changed files, mirroring its structure"><FolderOpen size={13} /> {folderSyncing ? "IMPORTING…" : "IMPORT FOLDER (WATCH)"}</button>
-                      <SavedFoldersMenu className="minibtn" label="SAVED FOLDERS" onOpen={addSavedFolderNow} title="Folders you've added anywhere in Plajah (Ambo, Pixels, Photos …) — one click to import" />
+                      <SavedFoldersMenu className="minibtn" label="SAVED FOLDERS" onOpen={addSavedFolderNow} title="Folders you've added anywhere in Plajah (Stage, Pixels, Photos …) — one click to import" />
                       <button className="minibtn" onClick={() => mirrorFolderRef.current?.click()} title="One-time folder import (mirrors structure, no watch)"><Upload size={12} /> FOLDER (ONCE)</button>
                       <button className="minibtn" onClick={() => mediaFilesRef.current?.click()}><Upload size={12} /> FILES</button>
                       <button className="minibtn" onClick={() => scriptFilesRef.current?.click()} disabled={scriptImporting} title="Structure a .txt / .md / .fountain script into scenes with Lorea, then auto-run the SLATE breakdown"><FileText size={12} /> {scriptImporting ? (scriptMsg || "STRUCTURING…") : "IMPORT SCRIPT"}</button>

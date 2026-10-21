@@ -175,7 +175,7 @@ export const EvSundaySheet: React.FC<{
   onRead?: () => void;
   readLabel?: string;
   earlier?: EvSermon[];
-}> = ({ eyebrow, title, byline, verse, onWatch, onRead, readLabel = 'Read along in Lectio', earlier }) => (
+}> = ({ eyebrow, title, byline, verse, onWatch, onRead, readLabel = 'Read along in Verse', earlier }) => (
   <section className="ev-sheet p-7 sm:p-14 flex flex-wrap gap-12">
     <div className="flex flex-col gap-4" style={{ flex: '1 1 420px', minWidth: 0 }}>
       <EvLabel>{eyebrow}</EvLabel>
@@ -188,7 +188,7 @@ export const EvSundaySheet: React.FC<{
         </blockquote>
       )}
       <div className="flex flex-wrap gap-2.5 pt-2">
-        {onWatch && <button onClick={onWatch} className="ev-btn ev-btn-ink">Watch on Rello</button>}
+        {onWatch && <button onClick={onWatch} className="ev-btn ev-btn-ink">Watch on Reello</button>}
         {onRead && <button onClick={onRead} className="ev-btn ev-btn-paper">{readLabel}</button>}
       </div>
     </div>
@@ -243,7 +243,7 @@ export const EvLectioSheet: React.FC<{
   onAddNote?: () => void;
   footnote?: string;
 }> = ({ planLabel, progressLabel, reference, verses, notes, onContinue, onAddNote, footnote }) => (
-  <section aria-label="Lectio — today's reading" className="ev-sheet p-7 sm:p-12 flex flex-col gap-5">
+  <section aria-label="Verse — today's reading" className="ev-sheet p-7 sm:p-12 flex flex-col gap-5">
     <div className="flex flex-wrap justify-between gap-2">
       <EvLabel>{planLabel}</EvLabel>
       {progressLabel && <EvLabel style={{ color: EV.vellumMuted }}>{progressLabel}</EvLabel>}
@@ -273,7 +273,7 @@ export const EvLectioSheet: React.FC<{
       )}
     </div>
     <div className="flex flex-wrap items-center gap-2.5 pt-5" style={{ borderTop: '1px solid rgba(34,28,20,0.12)' }}>
-      <button onClick={onContinue} className="ev-btn ev-btn-ink">Continue in Lectio</button>
+      <button onClick={onContinue} className="ev-btn ev-btn-ink">Continue in Verse</button>
       {onAddNote && <button onClick={onAddNote} className="ev-btn" style={{ color: '#6B0099', paddingLeft: 6, paddingRight: 6, fontWeight: 500 }}>Add a note</button>}
       {footnote && <span className="text-[13px] ml-auto" style={{ color: EV.vellumMuted }}>{footnote}</span>}
     </div>

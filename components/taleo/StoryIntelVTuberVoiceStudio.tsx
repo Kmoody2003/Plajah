@@ -1058,7 +1058,7 @@ export const StoryIntelVTuberVoiceStudio: React.FC<StoryIntelVTuberVoiceStudioPr
                 {policy.filmTitle} — Creator: {policy.creatorName}
               </h4>
               <p className="text-xs text-stone-300 mt-1">
-                When creators upload a film to Taleo, Story Intelligence extracts its characters, 3D rigs, and vocal-tract profiles. Creators control which characters can appear in live interactive experiences and whether they are <span className="text-amber-300 font-semibold">restricted to their Worlds &amp; Sanctuary</span>, <span className="text-emerald-300 font-semibold">shared with the platform</span>, or <span className="text-purple-300 font-semibold">unlocked by Sanctuary members &amp; active subscribers for platform-wide use while subscribed</span>.
+                When creators upload a film to Cinema, Story Intelligence extracts its characters, 3D rigs, and vocal-tract profiles. Creators control which characters can appear in live interactive experiences and whether they are <span className="text-amber-300 font-semibold">restricted to their Worlds &amp; Sanctuary</span>, <span className="text-emerald-300 font-semibold">shared with the platform</span>, or <span className="text-purple-300 font-semibold">unlocked by Sanctuary members &amp; active subscribers for platform-wide use while subscribed</span>.
               </p>
             </div>
 

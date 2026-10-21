@@ -475,7 +475,7 @@ const FilmSchoolView: React.FC<Props> = ({ onBack }) => {
           </button>
           <div>
             <h1 className="text-base font-black text-white">Film & TV School</h1>
-            <p className="text-[9px] text-white/40 font-black uppercase tracking-widest">Taleo — Learn Filmmaking</p>
+            <p className="text-[9px] text-white/40 font-black uppercase tracking-widest">Cinema — Learn Filmmaking</p>
           </div>
         </div>
         <div className="flex gap-1 border-b border-white/5 pb-1 overflow-x-auto no-scrollbar">

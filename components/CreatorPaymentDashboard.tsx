@@ -37,7 +37,7 @@ interface SplitRecipient {
 const CATEGORIES: { key: EarningCategory; label: string; icon: React.ComponentType<any>; color: string; desc: string }[] = [
   { key: 'tip',          label: 'Tips & Gifts',          icon: Gift,       color: '#f472b6', desc: 'Live stream tips and direct gifts' },
   { key: 'digital_sale', label: 'Digital Sales',         icon: Music2,     color: '#a78bfa', desc: 'Music, books, movies sold individually' },
-  { key: 'sanctuary',    label: 'Sanctuary',             icon: Heart,      color: '#f87171', desc: 'Sanctuary memberships & exclusive access' },
+  { key: 'sanctuary',    label: 'Backstage',             icon: Heart,      color: '#f87171', desc: 'Backstage memberships & exclusive access' },
   { key: 'plajahplus',   label: 'Plajah+ (Bound)',       icon: Zap,        color: '#fbbf24', desc: 'Plajah+ subscribers bound to your profile' },
   { key: 'store_order',  label: 'Store Orders',          icon: ShoppingBag,color: '#34d399', desc: 'Merch and physical store sales' },
   { key: 'club',         label: 'Club Memberships',      icon: Users,      color: '#60a5fa', desc: 'Fan club membership fees' },
@@ -48,7 +48,7 @@ const CATEGORIES: { key: EarningCategory; label: string; icon: React.ComponentTy
 const APPLY_OPTIONS: { key: EarningCategory; label: string }[] = [
   { key: 'tip',          label: 'Tips & Gifts' },
   { key: 'digital_sale', label: 'Digital Sales' },
-  { key: 'sanctuary',    label: 'Sanctuary' },
+  { key: 'sanctuary',    label: 'Backstage' },
   { key: 'plajahplus',   label: 'Plajah+' },
   { key: 'store_order',  label: 'Store' },
   { key: 'club',         label: 'Clubs' },

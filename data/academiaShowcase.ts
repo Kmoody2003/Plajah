@@ -109,7 +109,7 @@ export const ACADEMIA_SCHOOLS: School[] = [
   { view: 'CIVICS_HALL', name: 'Civics Hall', tag: 'Citizenship', blurb: 'Founding documents with the Telescoping Text reader.', color: '#FF9EC4', img: '/dossier/founding/archival/a-declaration-trumbull.jpg', bg: '#33101f' },
   { view: 'ECON_SCHOOL', name: 'Econ School', tag: 'Economics', blurb: 'Markets, trade and scarcity, told through stories.', color: '#60A5FA', img: '/academia/archipelago.jpg', bg: '#0b1a33' },
   { view: 'PHILOSOPHY_SCHOOL', name: 'Philosophy School', tag: 'Thinking', blurb: 'Big questions, sized for every grade, with structured dialogue.', color: '#c4b5fd', img: '/academia/pillars.jpg', bg: '#1a1033' },
-  { view: 'FILM_SCHOOL', name: 'Film School', tag: 'Storytelling', blurb: 'Story, camera and editing under Taleo.', color: '#FF6FA8', img: '/academia/stargate.jpg', bg: '#33101f' },
+  { view: 'FILM_SCHOOL', name: 'Film School', tag: 'Storytelling', blurb: 'Story, camera and editing under Cinema.', color: '#FF6FA8', img: '/academia/stargate.jpg', bg: '#33101f' },
   { view: 'CHORA_CONSERVATORY', name: 'Chora Conservatory', tag: 'Music', blurb: 'Music theory, ear training and composing.', color: '#00DAF3', img: '/academia/lounge.jpg', bg: '#062a31' },
   { view: 'BUSINESS_SCHOOL', name: 'Business School', tag: 'Entrepreneurship', blurb: 'Profit and loss, go-to-market and the Business Sim.', color: '#FF8C00', emoji: '💼', bg: '#2e1704' },
   { view: 'REAL_ESTATE_SCHOOL', name: 'Real Estate School', tag: 'Property', blurb: 'Labs on Terra parcels: measure, value and build.', color: '#FFB266', emoji: '🏗️', bg: '#2a1a08' },

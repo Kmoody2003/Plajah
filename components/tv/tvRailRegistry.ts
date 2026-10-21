@@ -366,7 +366,7 @@ export const REELLO_TV_RAILS: TvRailDef<ReelloBase, TvVideoItem>[] = [
 
 export const TALEO_TV_RAILS: TvRailDef<void, TaleoItem>[] = [
   {
-    id: 'halloween-cinema', title: '🎃 Taleo Halloween Selection', section: 'HOME', position: 'start',
+    id: 'halloween-cinema', title: '🎃 Cinema Halloween Selection', section: 'HOME', position: 'start',
     webSource: 'MoviesTVView HomeView → PUMPKIN_PATCH_HERO_ALBUM + CURATED_HALLOWEEN_FILMS',
     load: () => [vItem(PUMPKIN_PATCH_HERO_ALBUM), ...CURATED_HALLOWEEN_FILMS.map(archItem)],
   },

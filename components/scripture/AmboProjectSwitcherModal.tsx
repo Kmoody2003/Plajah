@@ -168,7 +168,7 @@ export const AmboProjectSwitcherModal: React.FC<AmboProjectSwitcherModalProps> =
               <Folder size={17} />
             </div>
             <div>
-              <h2 className="text-base font-bold text-white tracking-wide">Ambo Project Workspaces</h2>
+              <h2 className="text-base font-bold text-white tracking-wide">Stage Project Workspaces</h2>
               <p className="text-xs text-white/50">Manage personal services and enrolled organization presentations</p>
             </div>
           </div>

@@ -117,7 +117,7 @@ export const DEFAULT_HOUSE_FORMAT: VideoFormat = { width: 1920, height: 1080, fp
 export const KIND_LABEL: Record<SourceKind, string> = {
   decklink: 'DeckLink', ndi: 'NDI', omt: 'OMT (LAN)', srt: 'SRT (WAN)', avb: 'AVB (Audio)', rtmp: 'RTMP',
   webrtc: 'WebRTC', uvc: 'Webcam', file: 'File', braw: 'BRAW',
-  ambo: 'Ambo Output', switcher: 'Live Switcher',
+  ambo: 'Stage Output', switcher: 'Live Switcher',
 };
 
 /** Pseudo-source id meaning "the switcher's composited program" — routable to any

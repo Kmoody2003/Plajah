@@ -25,7 +25,7 @@ const CONFIGS: Record<PitchSegment, {
     gradient: 'linear-gradient(135deg, #ff8c00 0%, #ff4500 100%)',
     headline: 'Your music. Your 24/7 radio. Your 90%.',
     subline: 'The first platform built for independent musicians who own their revenue.',
-    points: ['Artist Radio auto-built from your catalog', '90% of every tip, sale, and subscription', 'Sanctuary fan memberships — like Patreon, built in', 'Hide N Seek gamified discovery'],
+    points: ['Artist Radio auto-built from your catalog', '90% of every tip, sale, and subscription', 'Backstage fan memberships — like Patreon, built in', 'Hide N Seek gamified discovery'],
     cta: 'plajah.com/for-music',
   },
   film: {

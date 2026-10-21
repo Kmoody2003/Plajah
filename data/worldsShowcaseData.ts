@@ -542,7 +542,7 @@ export const SHOWCASE_WORLDS: ShowcaseWorld[] = [
     tagline: 'Nine Precursor Stargates. Five Colonized Worlds. One Fractured Solar Coalition.',
     genre: 'Hard Sci-Fi & Interstellar Space Opera',
     description:
-      'When the Aethelgard Orbital Stargate re-ignited after four millennia of silence, five planetary factions raced to claim its quantum network. Every planet, orbital ring, and fleet movement is tracked in real time across Fabula, Lorea, Chora, and Taleo.',
+      'When the Aethelgard Orbital Stargate re-ignited after four millennia of silence, five planetary factions raced to claim its quantum network. Every planet, orbital ring, and fleet movement is tracked in real time across Fabula, Lorea, Chora, and Cinema.',
     coverImage: '/worlds/council_world_stargate.jpg',
     coverImageUrl: '/worlds/council_world_stargate.jpg',
     defaultCoverPreset: 'STARGATE_ODYSSEY',
@@ -571,7 +571,7 @@ export const SHOWCASE_WORLDS: ShowcaseWorld[] = [
       { app: 'FABULA', label: 'Fabula Story Engine', projectTitle: 'Season 1 Show Bible & System Map', status: 'Synced' },
       { app: 'LOREA_SCRIPT', label: 'Lorea Screenplay', projectTitle: 'Ep 101: Chevron Nine', status: 'Act III Lock' },
       { app: 'CHORA', label: 'Chora Audio Score', projectTitle: 'Event Horizon Orchestral Suite', status: '24 Stems' },
-      { app: 'TALEO', label: 'Taleo Graphic Novel', projectTitle: 'The Cassini Ring Drift #1', status: '48 Panels' },
+      { app: 'TALEO', label: 'Cinema Graphic Novel', projectTitle: 'The Cassini Ring Drift #1', status: '48 Panels' },
     ],
     entries: [
       createEntry(
@@ -672,7 +672,7 @@ export const SHOWCASE_WORLDS: ShowcaseWorld[] = [
     activeStudios: [
       { app: 'LOREA_BOOK', label: 'Lorea Novel Studio', projectTitle: 'Book I: The Clockwork Throne (140k words)', status: 'Published' },
       { app: 'FABULA', label: 'Fabula Beat Board', projectTitle: 'Five Kingdoms War Timeline', status: 'Synced' },
-      { app: 'TALEO', label: 'Taleo Illustrated Atlas', projectTitle: 'Heraldry & Citadel Blueprints', status: '64 Plates' },
+      { app: 'TALEO', label: 'Cinema Illustrated Atlas', projectTitle: 'Heraldry & Citadel Blueprints', status: '64 Plates' },
       { app: 'CHORA', label: 'Chora Symphony', projectTitle: 'Main Title: Gears of Valoria', status: 'Mastered' },
     ],
     entries: [
@@ -767,7 +767,7 @@ export const SHOWCASE_WORLDS: ShowcaseWorld[] = [
     activeStudios: [
       { app: 'FABULA', label: 'Fabula World Architect', projectTitle: 'Sky-Archipelago Lore & Ley-Lines', status: 'Synced' },
       { app: 'CHORA', label: 'Chora Spatial Audio', projectTitle: 'Echo Conservatory Interactive Score', status: 'Dolby Atmos' },
-      { app: 'TALEO', label: 'Taleo Webtoon Series', projectTitle: 'Children of the World-Spire', status: 'Episode 18' },
+      { app: 'TALEO', label: 'Cinema Webtoon Series', projectTitle: 'Children of the World-Spire', status: 'Episode 18' },
       { app: 'LOREA_BOOK', label: 'Lorea Anthology', projectTitle: 'Tales of the Zephyr Harbor', status: 'In Review' },
     ],
     entries: [
@@ -857,7 +857,7 @@ export const STORY_INTEL_PIPELINE_STEPS = [
   {
     step: '04',
     title: 'Cross-Studio Canon Lock',
-    subtitle: 'Fabula • Lorea • Chora • Taleo',
+    subtitle: 'Fabula • Lorea • Chora • Cinema',
     description:
       'Every update to a character, faction, or rule propagates across your books, screenplays, comics, and audio scores with zero canon drift.',
     codeRef: 'services/storyIntelBridge.ts → syncStoryReportToWorldAndUniverse()',

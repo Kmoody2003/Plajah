@@ -3064,7 +3064,7 @@ export const AnimaStudio: React.FC<{ onBackToEdit?: () => void }> = ({ onBackToE
             </div>
 
             <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)' }}>
-              Compatible Rigs: Plajah Mascots (Rello & Chora), Steamboat Willie, Felix, Fleischer Flapper, Oswald, Sailor Swagger, and custom bone layers.
+              Compatible Rigs: Plajah Mascots (Reello & Chora), Steamboat Willie, Felix, Fleischer Flapper, Oswald, Sailor Swagger, and custom bone layers.
             </div>
           </div>
         ) : isProModeOpen && proTab === 'video_mocap' ? (

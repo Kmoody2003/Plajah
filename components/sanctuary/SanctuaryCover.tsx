@@ -136,7 +136,7 @@ const SanctuaryCover: React.FC<Props> = ({
                 className="flex items-center gap-2 px-7 h-12 rounded-full text-[11px] font-black uppercase tracking-widest text-white transition-all hover:brightness-110"
                 style={{ background: 'var(--pj-grad-warm)', boxShadow: 'var(--pj-glow-brand)' }}
               >
-                <Gem size={15} /> Join the Sanctuary
+                <Gem size={15} /> Join Backstage
               </motion.button>
             )}
 

@@ -17,7 +17,7 @@ import AriaMark from './AriaMark';
 interface Suggestion { label: string; prompt: string; }
 
 const VIEW_LABEL: Record<string, string> = {
-  MUSIC: 'Chora', VIDEOS: 'Reello', MOVIES_TV: 'Taleo', BOOKS: 'Lorea',
+  MUSIC: 'Chora', VIDEOS: 'Reello', MOVIES_TV: 'Cinema', BOOKS: 'Lorea',
   PRAXIS: 'Praxis', BUSINESS_DASHBOARD: 'your dashboard', PLAJAH_BUSINESS: 'Business',
   DASHBOARD: 'the Front Row', FEED: 'your feed', PLAJAH_LABS: 'Labs',
   CLASSROOMS: 'Academia', ACADEMIA_HOME: 'Academia',

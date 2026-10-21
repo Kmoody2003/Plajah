@@ -12,7 +12,7 @@ import { uploadFile as uploadFileService } from '../../services/backendService';
 
 const KINDS: { key: PlatformMediaKind; label: string; hint: string; icon: React.ReactNode; accent: string }[] = [
   { key: 'TV_OPEN_BUMPER', label: 'TV App Open', hint: 'Plays when the Plajah TV app launches — one is picked at random each open', icon: <Tv size={13} />, accent: '#FF8C00' },
-  { key: 'TALEO_PREROLL', label: 'Taleo Pre-roll', hint: 'Studio ident before Taleo content plays (Netflix ta-dum style)', icon: <Clapperboard size={13} />, accent: '#D40055' },
+  { key: 'TALEO_PREROLL', label: 'Cinema Pre-roll', hint: 'Studio ident before Cinema content plays (Netflix ta-dum style)', icon: <Clapperboard size={13} />, accent: '#D40055' },
   { key: 'PLATFORM_BUMPER', label: 'Platform Bumpers', hint: 'Plajah-branded interstitials any channel/broadcast can insert', icon: <Sparkles size={13} />, accent: '#6B0099' },
   { key: 'PLATFORM_AD', label: 'House Ads', hint: 'Platform ads the ad rail can fall back to', icon: <DollarSign size={13} />, accent: '#ca8a04' },
   { key: 'CHANNEL_PROMO', label: 'Channel Promos', hint: 'Cross-promos for Plajah channels & shows', icon: <Megaphone size={13} />, accent: '#0d9488' },
@@ -75,7 +75,7 @@ const AdminPlatformMediaLibrary: React.FC = () => {
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-black uppercase tracking-tight text-white flex items-center gap-2"><Radio size={20} className="text-small-orange" /> Plajah Media Library</h2>
-        <p className="text-[10px] text-white/40 uppercase tracking-widest font-bold mt-1">The central repository of Plajah branding — every broadcast, the TV app, and Taleo pull from here</p>
+        <p className="text-[10px] text-white/40 uppercase tracking-widest font-bold mt-1">The central repository of Plajah branding — every broadcast, the TV app, and Cinema pull from here</p>
       </div>
 
       {/* Kind tabs */}

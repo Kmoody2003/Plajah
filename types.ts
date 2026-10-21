@@ -100,6 +100,12 @@ export interface FilmDistribution {
    * delivery === 'DOWNLOAD_OPEN'.
    */
   watermark?: boolean;
+  /** Limited-time buy price (Film Distribution Hub). Applied at checkout while the window is open. */
+  promo?: { price: number; startsAt?: number | null; endsAt?: number | null } | null;
+  /** ISO country codes the film is offered in; empty/undefined = worldwide. */
+  territories?: string[];
+  /** Fan-club members only. */
+  membershipGated?: boolean;
 }
 
 /** An alternate cut/version of a film (extended, director's, unrated, …). The main film
@@ -676,9 +682,15 @@ export interface Album {
   movieMetadata?: MovieMetadata; // Added for Movie Album type
   filmDistribution?: FilmDistribution; // Film/TV monetization + release (uploader → Taleo)
   /** Independent-author ebook submission (components/bookSubmit). delivery mirrors FilmDistribution.delivery: DRM-free by default, never a paid upsell. */
+  /** Paid book whose readable content lives in the server-only vault (routes/bookVault.ts). */
+  sealed?: boolean;
+  /** Immutable versions of a sealed book's classic content (server-written). */
+  bookVersions?: Array<{ versionId: string; createdAt: number; edition?: number; kind?: 'INITIAL' | 'CORRECTION' | 'MINOR' | 'NEW_EDITION'; notes?: string }>;
+  /** Edition registry shared by the vault and Tela editions (services/bookEditions/policy.ts EditionRegistry). */
+  bookEditions?: { current: number; list: Array<{ number: number; label?: string; publishedAt: number; upgrade: 'FREE' | 'PAID'; upgradePrice?: number }>; freeEditions: number[] };
   bookDistribution?: { delivery?: 'DOWNLOAD_OPEN' | 'PLAJAH_ONLY'; watermark?: boolean; submissionId?: string; language?: string; isbn13?: string; arkId?: string; wordCount?: number; aiDisclosure?: string; license?: string };
   /** Book upgraded to the full Tela stack (services/bookTela). Readers render the published Tela version; exports stay open-format (EPUB/PDF). */
-  bookTela?: { enabled: boolean; docId: string; versionId?: string; upgradedAt: number; layoutPreference?: 'AUTO' | 'REFLOW' | 'FIXED'; enhancementCount?: number; /** Author's page-turn animation (services/lorea/pageTransitions AuthorPageTurn). Untrusted on read: run sanitizeAuthorPageTurn. Not exported: page turns only exist in the Lorea reader. */ pageTurn?: { style?: string; perChapter?: Record<string, string>; perPage?: Record<string, string> }; /** Write-once version stamps; a buyer pins to the newest one at or before their license.issuedAt. */ versions?: Array<{ versionId: string; createdAt: number }>; /** 'living' = the Tela edition carries a LivingBook (behaviours, music, narration); the album's bookChapters stay the flat pages (export version + fallback). docs/LIVING_PUBLISHING.md */ edition?: 'standard' | 'living'; hasLiving?: boolean; /** Copy of the newest version manifest (bundleUrl, byteLength, sha256...). Albums are publicly readable, so readers can load a living edition even when the telaVersions rules are not deployed. */ manifest?: Record<string, unknown>; /** Where the newest bundle lives when it is too big for a Firestore doc (gzip JSON in Cloud Storage). Informational: the reader follows telaVersions/{versionId}.bundleUrl. */ bundleUrl?: string };
+  bookTela?: { enabled: boolean; docId: string; versionId?: string; upgradedAt: number; layoutPreference?: 'AUTO' | 'REFLOW' | 'FIXED'; enhancementCount?: number; /** Author's page-turn animation (services/lorea/pageTransitions AuthorPageTurn). Untrusted on read: run sanitizeAuthorPageTurn. Not exported: page turns only exist in the Lorea reader. */ pageTurn?: { style?: string; perChapter?: Record<string, string>; perPage?: Record<string, string> }; /** Write-once version stamps (edition/kind/notes stamped by the server). Which one a reader sees: services/bookEditions/policy.ts. */ versions?: Array<{ versionId: string; createdAt: number; edition?: number; kind?: 'INITIAL' | 'CORRECTION' | 'MINOR' | 'NEW_EDITION'; notes?: string }>; /** 'living' = the Tela edition carries a LivingBook (behaviours, music, narration); the album's bookChapters stay the flat pages (export version + fallback). docs/LIVING_PUBLISHING.md */ edition?: 'standard' | 'living'; hasLiving?: boolean; /** Copy of the newest version manifest (bundleUrl, byteLength, sha256...). Albums are publicly readable, so readers can load a living edition even when the telaVersions rules are not deployed. */ manifest?: Record<string, unknown>; /** Where the newest bundle lives when it is too big for a Firestore doc (gzip JSON in Cloud Storage). Informational: the reader follows telaVersions/{versionId}.bundleUrl. */ bundleUrl?: string };
   alternateVersions?: FilmVersion[]; // Extended / director's / unrated cuts (film)
   bookPreviewConfig?: {
     type: 'CHAPTERS' | 'PAGES';
@@ -1815,6 +1827,10 @@ export interface UserProfile {
   birthYear?: number;
   /** Per-account safety + screen-time settings. A child's are owned by the guardian. */
   parentalControls?: ParentalControls;
+  /** Recent chronological activity log for a managed child account (viewable by parent). */
+  childActivityLog?: ChildActivityEntry[];
+  /** Today's screen-time summary (overall + per-category minutes) for a managed child account. */
+  screenTimeSummary?: ChildScreenTimeSummary;
   // ─── Learner identity & lifecycle (Education Ledger — see docs/education) ───────
   /** Login handle for a CHILD account (the only account type with no email). */
   username?: string;
@@ -1878,6 +1894,8 @@ export interface UserProfile {
   statCardConfig?: StatCardConfig;
   onboardingStartTimestamp?: number;
   tooltipsEnabled?: boolean;
+  /** Hymns, prayers and other tradition-specific faith assets: tailored to the member's church (default) or every tradition. */
+  faithContentScope?: 'ORG' | 'ALL';
   frostedBackground?: string;
   themeBackgrounds?: { [theme: string]: string };
   videoBackgroundUrl?: string;
@@ -3909,6 +3927,60 @@ export type ExperienceMode =
  *  viewer's ceiling. Child accounts default to 'PG'. */
 export type MaturityRating = 'G' | 'PG' | 'PG13' | 'TEEN' | 'MATURE';
 
+/** Mature theme categories that parents can automatically hide on a child's account. */
+export type BlockedMatureTheme =
+  | 'violence'      // Violence, combat, weapons, fighting
+  | 'horror'        // Scary, horror, thriller, jump-scares
+  | 'profanity'     // Strong language, cursing, insults
+  | 'romance'       // Dating, romantic/suggestive themes
+  | 'substances'    // Alcohol, tobacco, drugs, vaping
+  | 'gambling'      // Casino, betting, loot-box mechanics
+  | 'unratedUgc';   // Unmoderated / unrated community uploads
+
+/** Platform sections that a parent can toggle on/off for a child. */
+export type ControllableSurfaceGroup =
+  | 'GAMES'         // Arcade & Games
+  | 'VIDEOS'        // Reello & Video Hub
+  | 'MOVIES_TV'     // Taleo Movies & Live TV
+  | 'MUSIC'         // Chora Music & Radio
+  | 'BOOKS'         // Lorea Books & Comics
+  | 'FEED'          // Social Feed & Discussions
+  | 'CHAT'          // Messaging & Live Rooms
+  | 'LIVE_HUB'      // Live Streams & Events
+  | 'CREATOR';      // Creation Studios & Labs
+
+/** Category buckets for per-category daily time allowances. */
+export type ChildActivityCategory =
+  | 'learning'
+  | 'games'
+  | 'videos'
+  | 'movies'
+  | 'music'
+  | 'books'
+  | 'social'
+  | 'creative'
+  | 'other';
+
+export interface ChildActivityEntry {
+  id: string;
+  timestamp: number;
+  category: ChildActivityCategory;
+  action: 'view_opened' | 'lesson_completed' | 'reading_session' | 'writing_session' | 'game_played' | 'video_watched' | 'post_created' | 'blocked_attempt';
+  title: string;
+  detail?: string;
+  viewId?: string;
+  durationMins?: number;
+  flaggedReason?: string;
+}
+
+export interface ChildScreenTimeSummary {
+  /** YYYY-MM-DD in local time */
+  dateKey: string;
+  totalMins: number;
+  byCategory: Partial<Record<ChildActivityCategory, number>>;
+  updatedAt: number;
+}
+
 export interface ParentalControls {
   /** Hide adult / explicit / NSFW / age-restricted content. ON by default for children
    *  and not child-overridable. */
@@ -3934,6 +4006,24 @@ export interface ParentalControls {
   /** Homeroom chat: text chat with classmates (voice notes are always available). Granted by the guardian
    *  on the child's request, with limits. */
   textChat?: { enabled: boolean; scope: 'classes' | 'classes_clubs'; hours?: { start: number; end: number }; expiresAt?: number; grantedAt?: number };
+  /** Automatically hide content matching mature themes (violence, horror, romance, etc.). */
+  autoHideMatureThemes?: boolean;
+  /** Specific mature theme categories blocked on this account. */
+  blockedThemes?: BlockedMatureTheme[];
+  /** Automatically filter out common profanity/slurs across posts, comments, titles, and captions. */
+  profanityFilter?: boolean;
+  /** Custom list of words/phrases/topics blocked by the parent (case-insensitive match). */
+  blockedWords?: string[];
+  /** Platform surface groups disabled by the parent (e.g. ['GAMES', 'FEED', 'LIVE_HUB']). */
+  blockedSurfaces?: ControllableSurfaceGroup[];
+  /** Per-category daily time allowances in minutes (0 or undefined = no category-specific cap). */
+  categoryLimitsMins?: Partial<Record<ChildActivityCategory, number>>;
+  /** School-hours focus mode: restrict non-learning surfaces during weekday school hours (8am-3pm). */
+  schoolHoursLearningOnly?: boolean;
+  /** Parent-visible copy of the child's login password so the parent can view/remind the child. */
+  savedChildPassword?: string;
+  /** Timestamp of last password reset by parent. */
+  passwordUpdatedAt?: number;
   updatedAt?: number;
   updatedBy?: string;
 }

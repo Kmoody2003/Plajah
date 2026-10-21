@@ -25,7 +25,7 @@ export interface EviteThemeCreatorProps {
 const ACCESS: Array<{ id: ThemeAccess; label: string; hint: string }> = [
   { id: 'free', label: 'Free', hint: 'Anyone can use it for their events.' },
   { id: 'paid', label: 'For sale', hint: 'People buy a licence once. Money goes to your Stripe payouts.' },
-  { id: 'sanctuary', label: 'Sanctuary members', hint: 'Only members of your Sanctuary can use it.' },
+  { id: 'sanctuary', label: 'Backstage members', hint: 'Only members of your Backstage can use it.' },
   { id: 'private', label: 'Only me', hint: 'Just for your own events. You can still gift it to someone.' },
 ];
 
@@ -200,7 +200,7 @@ export default function EviteThemeCreator({ editTheme, onClose, onDone }: EviteT
                   : <p className="text-xs text-amber-300" role="alert">Choose a price between {formatCents(MIN_PRICE_CENTS)} and {formatCents(MAX_PRICE_CENTS)}.</p>}
               </div>
             )}
-            {access === 'sanctuary' && <p className="text-xs text-white/60 pl-1">Members with an active membership of your Sanctuary can use it. If someone’s membership ends, they can’t start new invitations with it.</p>}
+            {access === 'sanctuary' && <p className="text-xs text-white/60 pl-1">Members with an active membership of your Backstage can use it. If someone’s membership ends, they can’t start new invitations with it.</p>}
           </fieldset>
 
           {/* 5. Attest + publish */}

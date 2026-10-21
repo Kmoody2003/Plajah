@@ -34,7 +34,7 @@ const ArtistMembersArea: React.FC<ArtistMembersAreaProps> = ({ artistId, artist:
     return (
       <div className="flex flex-col items-center justify-center h-full bg-theme text-white">
         <div className="w-16 h-16 border-4 border-small-orange border-t-transparent rounded-full animate-spin mb-4" />
-        <p className="text-xs font-black uppercase tracking-widest opacity-40">Entering the Sanctuary...</p>
+        <p className="text-xs font-black uppercase tracking-widest opacity-40">Entering Backstage...</p>
       </div>
     );
   }
@@ -49,7 +49,7 @@ const ArtistMembersArea: React.FC<ArtistMembersAreaProps> = ({ artistId, artist:
         <img 
           src={artist.coverArt || 'https://picsum.photos/seed/sanctuary/1920/1080'} 
           className="w-full h-full object-cover opacity-40"
-          alt="Sanctuary Cover"
+          alt="Backstage Cover"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-theme via-theme/50 to-transparent" />
         
@@ -62,7 +62,7 @@ const ArtistMembersArea: React.FC<ArtistMembersAreaProps> = ({ artistId, artist:
             <img src={artist.photoURL || 'https://picsum.photos/seed/artist/200/200'} className="w-full h-full object-cover" alt={artist.displayName} />
           </motion.div>
           <h1 className="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">
-            {artist.displayName}'s <span className="text-small-orange">Sanctuary</span>
+            {artist.displayName}'s <span className="text-small-orange">Backstage</span>
           </h1>
           <p className="text-white/40 text-sm font-bold uppercase tracking-[0.3em] max-w-2xl">
             A private members-only space for true supporters and collaborators.
@@ -169,7 +169,7 @@ const ArtistMembersArea: React.FC<ArtistMembersAreaProps> = ({ artistId, artist:
               {/* Sidebar Stats */}
               <div className="space-y-8">
                 <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8">
-                  <h3 className="text-[10px] font-black uppercase tracking-widest text-white/20 mb-6">Sanctuary Stats</h3>
+                  <h3 className="text-[10px] font-black uppercase tracking-widest text-white/20 mb-6">Backstage Stats</h3>
                   <div className="space-y-6">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Active Members</span>
@@ -297,7 +297,7 @@ const ArtistMembersArea: React.FC<ArtistMembersAreaProps> = ({ artistId, artist:
             >
               <div className="bg-white/5 border border-white/10 rounded-[3rem] p-12 text-center">
                 <MessageSquare className="mx-auto mb-8 text-small-orange opacity-40" size={64} />
-                <h2 className="text-3xl font-black uppercase tracking-tight mb-4">Sanctuary Community</h2>
+                <h2 className="text-3xl font-black uppercase tracking-tight mb-4">Backstage Community</h2>
                 <p className="text-white/40 text-sm font-bold uppercase tracking-widest mb-10 max-w-md mx-auto">
                   Connect with other members and the artist in our private community space.
                 </p>

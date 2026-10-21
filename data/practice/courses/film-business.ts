@@ -377,11 +377,11 @@ Territories can also be cross-collateralized by contract, meaning a shortfall in
           {
             id: L19,
             title: 'Plajah\'s Film Tools in the Professional Picture',
-            blurb: 'Where Fabula, the production suite and Taleo fit the stages you have learned, and what they do not replace.',
+            blurb: 'Where Fabula, the production suite and Cinema fit the stages you have learned, and what they do not replace.',
             minutes: 9,
             body: `Important: this course is education, not legal or financial advice. Tools can organize your work, but they do not replace an entertainment attorney, accountant, insurer or guild.
 
-Plajah's film tools map to the stages of the film's life. Fabula is Plajah's film editor, where cuts, titles and effects are built for post-production and short-form work. The production suite is the on-set layer for pre-production and production: a hub that keeps script, crew authority, schedule, call sheets and reports in one shared record, a roster of cast and crew, a daily brief that each person confirms, and craft services planning. It can also hold budget lines, locations, festival plans and clearance records, so the paper trail you learned about stays attached to the project. Taleo is Plajah's home for the release side, where finished films can be presented to an audience. It does not replace a sales agent or distributor if you want one, and your rights and contracts still matter.
+Plajah's film tools map to the stages of the film's life. Fabula is Plajah's film editor, where cuts, titles and effects are built for post-production and short-form work. The production suite is the on-set layer for pre-production and production: a hub that keeps script, crew authority, schedule, call sheets and reports in one shared record, a roster of cast and crew, a daily brief that each person confirms, and craft services planning. It can also hold budget lines, locations, festival plans and clearance records, so the paper trail you learned about stays attached to the project. Cinema is Plajah's home for the release side, where finished films can be presented to an audience. It does not replace a sales agent or distributor if you want one, and your rights and contracts still matter.
 
 Think of using them against the checklist from this course. Does each call sheet reflect the current schedule? Does every clearance have a signed document behind it? Is your budget revised when your schedule changes? Are festival dates recorded against deliverables? A good tool makes missing items visible.
 

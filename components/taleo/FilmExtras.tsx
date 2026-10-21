@@ -71,7 +71,7 @@ export const MoreLikeThis: React.FC<{ related: Film[]; onOpenItem?: (i: Film) =>
   if (!related.length) return null;
   return (
     <section className="mt-14 space-y-5" data-testid="more-like-this">
-      <Heading eyebrow="Taleo" title="More Like This" />
+      <Heading eyebrow="Cinema" title="More Like This" />
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
         {related.slice(0, 8).map((c: any) => (
           <HoverPreviewThumb

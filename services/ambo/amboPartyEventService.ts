@@ -221,7 +221,7 @@ export function setCustomDeviceName(name: string): void {
 
 export const DEFAULT_DUTY: EventDeviceDuty = {
   dutyType: 'AMBO_PROGRAM',
-  title: 'Ambo Program Out',
+  title: 'Stage Program Out',
   subtitle: 'Live Audience Mirror',
 };
 
@@ -347,7 +347,7 @@ export function listenToEventDevices(uid: string, cb: (devices: PartyEventDevice
 
 // ── Session Management (Ambo Central Command) ────────────────────────────────
 
-export async function startPartyEventSession(eventName = 'Ambo Event Central Command'): Promise<PartyEventSession> {
+export async function startPartyEventSession(eventName = 'Stage Event Central Command'): Promise<PartyEventSession> {
   const user = auth.currentUser;
   if (!user) throw new Error('Must be signed in to start Party/Event Mode');
 

@@ -198,7 +198,7 @@ export const TelaMotionTemplateInspector: React.FC<{ object: TelaVectorObject; o
     <div data-mt-inspector style={{ marginBottom: 10, padding: 8, borderRadius: 9, background: 'rgba(255,140,0,.05)', border: '1px solid rgba(255,140,0,.2)', color: '#fff' }}>
       <div className="flex items-center gap-2" style={{ marginBottom: 6 }}>
         <Clapperboard size={13} color="#ffd9a8" />
-        <div style={{ ...lbl, marginBottom: 0, color: '#ffd9a8' }}>Motion template · {spec.kind === 'scripture' ? 'Scripture look' : 'Ambo slide'}</div>
+        <div style={{ ...lbl, marginBottom: 0, color: '#ffd9a8' }}>Motion template · {spec.kind === 'scripture' ? 'Scripture look' : 'Stage slide'}</div>
         <span style={{ marginLeft: 'auto', fontSize: 9.5, color: 'rgba(255,255,255,.45)' }}>{spec.savedTemplateId ? 'from a saved template' : 'platform code'}</span>
       </div>
 

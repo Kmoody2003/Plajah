@@ -404,7 +404,7 @@ export function buildDebateSignals(interactions: PostInteractions): DebateSignal
 // ─── Exported constants and labels ────────────────────────────────────────────
 
 export const ACTION_LABELS: Record<DeepAction | MediumAction | BaseAction, string> = {
-  SANCTUARY_SUBSCRIBE:  '+Sanctuary',
+  SANCTUARY_SUBSCRIBE:  '+Backstage',
   PITCH_DECK_CONVERT:   '+Pitch',
   SEED_RAISER_CONTRIB:  '+Seed',
   TIP_DONATION:         '+Tip',

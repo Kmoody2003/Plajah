@@ -55,7 +55,7 @@ export const AmboLiveInputTile: React.FC<{ inputId: string; tint: string }> = ({
             onClick={e => { e.stopPropagation(); setLiveAudio(inputId, !audioOn); }}
             onDoubleClick={e => e.stopPropagation()}
             className={`absolute left-1 bottom-1 h-6 px-1.5 rounded-md flex items-center gap-1 text-[9px] font-black border ${audioOn ? 'bg-[#FF8C00] text-black border-[#FF8C00]' : 'bg-black/70 text-white/80 border-white/20 hover:bg-black/85'}`}
-            title={audioOn ? 'This feed’s sound is ON in Ambo’s mix. Click to mute.' : 'Muted. Click to deliberately put this feed’s sound into Ambo’s mix.'}
+            title={audioOn ? 'This feed’s sound is ON in Stage’s mix. Click to mute.' : 'Muted. Click to deliberately put this feed’s sound into Stage’s mix.'}
             aria-pressed={audioOn}
             data-live-audio={audioOn ? 'on' : 'off'}
           >

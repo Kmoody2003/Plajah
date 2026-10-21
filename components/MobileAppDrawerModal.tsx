@@ -36,12 +36,12 @@ const MODULES: DrawerModule[] = [
   { label: 'Plajah Photos', desc: 'Visual Signal Archive', icon: Camera, color: '#00DAF3', targetView: 'GLOBAL_PHOTOS' },
   { label: 'Tela Canvas', desc: 'Docs & Whiteboards', icon: FileText, color: '#3B82F6', targetView: 'TELA' },
   { label: 'Horizon 3D', desc: 'Spatial Engine', icon: Box, color: '#06B6D4', targetView: 'WORLDS' },
-  { label: 'Lectio Reader', desc: 'Scripture Study', icon: BookOpen, color: '#F59E0B', targetView: 'LECTIO' },
+  { label: 'Plajah Verse', desc: 'Scripture Study', icon: BookOpen, color: '#F59E0B', targetView: 'LECTIO' },
   { label: 'POS Terminal', desc: 'Storefront Register', icon: Store, color: '#10B981', targetView: 'BUSINESS' },
   { label: 'Lorea Research', desc: 'Academic Archive', icon: GraduationCap, color: '#6366F1', targetView: 'ACADEMIA_HOME' },
   { label: 'Front Row', desc: 'Marquee Hub', icon: Sparkles, color: '#FF8C00', targetView: 'DASHBOARD' },
   { label: 'Content HQ', desc: 'Social & Sales Stats', icon: BarChart3, color: '#14B8A6', targetView: 'CONTENT_HQ' },
-  { label: 'Ambo Worship', desc: 'Sanctuary Audio', icon: Flame, color: '#F97316', targetView: 'AMBO_HOME' },
+  { label: 'Plajah Stage', desc: 'Sanctuary Audio', icon: Flame, color: '#F97316', targetView: 'AMBO_HOME' },
   { label: 'Preferences', desc: 'System & Theme', icon: Settings, color: '#94A3B8', targetView: 'SETTINGS' },
 ];
 

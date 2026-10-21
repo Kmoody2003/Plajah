@@ -45,6 +45,7 @@ import {
 } from '../data/demoShowcase';
 import { elevateCan } from '../services/elevateRoles';
 import { isElevateOrg, isFaithOrg, defaultMinistries } from '../services/elevateTemplates';
+import { isDemoOrg } from '../services/elevateTruth';
 import { followOrg, unfollowOrg, listenFollowedState } from '../services/orgFollowService';
 import MinistryPage from './elevate/MinistryPage';
 import OrgStoreSection from './elevate/OrgStoreSection';
@@ -429,15 +430,13 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
 
   const orgTabs = getElevateOrgTabs(org.orgType);
   const ministriesLabel = orgTabs.find(t => t.k === 'MINISTRIES')?.label || 'Ministries';
-  const effectiveMinistries = (org.ministries && org.ministries.filter(m => !m.isInternal && !m.parentId).length > 0)
-    ? org.ministries.filter(m => !m.isInternal && !m.parentId)
-    : defaultMinistries(org.orgType || 'CHURCH').filter(m => !m.isInternal);
-  const effectiveServiceTimes = (org.serviceTimes && org.serviceTimes.length > 0)
-    ? org.serviceTimes
-    : (DEMO_CHURCH.serviceTimes || []);
-  const effectiveGivingFunds = (org.givingFunds && org.givingFunds.length > 0)
-    ? org.givingFunds
-    : (DEMO_CHURCH.givingFunds || []);
+  // Only the demo church borrows sample content; a real org shows what it has actually set up.
+  const demo = isDemoOrg(org);
+  const ownMinistries = (org.ministries || []).filter(m => !m.isInternal && !m.parentId);
+  const effectiveMinistries = ownMinistries.length > 0 || !demo ? ownMinistries : defaultMinistries(org.orgType || 'CHURCH').filter(m => !m.isInternal);
+  const effectiveServiceTimes = org.serviceTimes?.length ? org.serviceTimes : demo ? (DEMO_CHURCH.serviceTimes || []) : [];
+  const effectiveGivingFunds = org.givingFunds?.length ? org.givingFunds : demo ? (DEMO_CHURCH.givingFunds || []) : [];
+  const emptyNote = (text: string) => <div className="ev-panel p-6 text-[15px] text-[#A49CB2]">{text}</div>;
 
   if (managing && isOwner) {
     return <OrgManage org={org} staff={staff} onClose={() => setManaging(false)} onSaved={setOrg} reloadStaff={reloadStaff} onDeleted={onDeleted} />;
@@ -526,7 +525,7 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
         tagline={org.tagline || `${org.name}. Welcome home.`}
         intro={org.tagline ? org.about : undefined}
         times={effectiveServiceTimes.map(s => ({ id: s.id, label: `${s.label}${s.isOnline ? ' · also online' : ''}`, day: s.day === 'Sunday' ? 'Sun' : s.day?.slice(0, 3), time: s.time }))}
-        coverUrl={heroImage(org.coverUrl || DEMO_CHURCH.coverUrl)}
+        coverUrl={heroImage(org.coverUrl || (demo ? DEMO_CHURCH.coverUrl : undefined))}
         actions={<>
           {myMembership?.status === 'ACTIVE' ? (
             <span className="ev-btn" style={{ ...pill, background: 'rgba(127,216,176,0.12)', color: EV.success }}>
@@ -597,7 +596,7 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
                 <div className="lg:col-span-2 space-y-5">
                   <ChurchAnnouncements orgId={org.id} orgName={org.name} orgPhoto={org.logoUrl || ''} isOwner={isOwner} canPost={can('POST_AS_ORG')} />
                   <OrgThread org={org} myMembership={myMembership} onVisitUser={onVisitUser} onOrgChange={setOrg} readOnly={!myMembership || myMembership.status !== 'ACTIVE'} />
-                  <div className="space-y-3">
+                  {demo && <div className="space-y-3">
                     <p className={TYPE.labelSm} style={{ color: VIOLET_SOFT }}>Latest from {org.name}</p>
                     {DEMO_CHURCH_FEED.map(p => (
                       <div key={p.id} className="rounded-2xl p-4 bg-white/[0.03] border border-white/10">
@@ -613,7 +612,7 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
                         </div>
                       </div>
                     ))}
-                  </div>
+                  </div>}
                 </div>
 
                 <div className="space-y-4">
@@ -621,6 +620,9 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
                     <p className={`${TYPE.labelMd} text-white/40 mb-3`}>
                       {faith ? 'Service times' : org.orgType === 'CULTURAL' ? 'Hours & Gatherings' : 'Schedule & Gatherings'}
                     </p>
+                    {effectiveServiceTimes.length === 0 && (
+                      <p className="text-sm text-[#A49CB2] m-0">{isOwner || hasOps ? 'Add your service times in Manage so visitors know when to come.' : 'Service times haven’t been posted yet.'}</p>
+                    )}
                     {effectiveServiceTimes.map(s => (
                       <div key={s.id} className="flex items-center justify-between py-1.5 border-b border-white/6 last:border-0">
                         <span className="type-body-md text-white/70">{s.label}</span>
@@ -631,7 +633,7 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
 
                   <div className="rounded-2xl p-4 bg-white/[0.03] border border-white/10">
                     <p className={`${TYPE.labelMd} text-white/40 mb-3`}>Coming up</p>
-                    {!org.isDemo ? (
+                    {!demo ? (
                       <HostEventsPublic host={{ kind: 'org', id: org.id, name: org.name }} accent={VIOLET} limit={2} emptyText="Nothing on the calendar yet." onOpenEvent={() => setTab('EVENTS')} />
                     ) : (
                     <div className="space-y-2">
@@ -671,7 +673,10 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
             )}
 
             {/* ── TAB 2: MINISTRIES / PROGRAMS / EXHIBITS / DEPARTMENTS ── */}
-            {tab === 'MINISTRIES' && (
+            {tab === 'MINISTRIES' && effectiveMinistries.length === 0 && emptyNote(
+              isOwner || hasOps ? `No ${ministriesLabel.toLowerCase()} yet. Add them in Staff → ${ministriesLabel}.` : `${org.name} hasn’t listed its ${ministriesLabel.toLowerCase()} yet.`
+            )}
+            {tab === 'MINISTRIES' && effectiveMinistries.length > 0 && (
               <AdaptiveGrid phone={1} tablet={2} desktop={3} gap="0.75rem">
                 {effectiveMinistries.map(m => (
                   <button
@@ -701,8 +706,8 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
               <Suspense fallback={<div className="flex justify-center py-16"><Loader2 className="animate-spin text-white/30" size={24} /></div>}>
                 <ElevateMobilizeHub
                   org={org}
-                  currentUserId={auth.currentUser?.uid || 'demo-member-elena'}
-                  currentUserName={myMembership?.displayName || auth.currentUser?.displayName || 'Elena Sterling'}
+                  currentUserId={auth.currentUser?.uid || (demo ? 'demo-member-elena' : '')}
+                  currentUserName={myMembership?.displayName || auth.currentUser?.displayName || (demo ? 'Elena Sterling' : 'Guest')}
                   currentUserEmail={auth.currentUser?.email || undefined}
                   canManage={hasOps}
                   initialContext="public"
@@ -714,7 +719,7 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
             {tab === 'PHOTOS' && (
               <div className="space-y-8">
                 <OrgMediaShelves org={org} isOwner={isOwner} canManage={can('MANAGE_CONTENT')} onOrgChange={setOrg} onVisitUser={onVisitUser} onOpenVideo={onOpenVideo} onOpenAlbum={onOpenAlbum} />
-                {DEMO_CHURCH_ALBUMS.map(a => (
+                {demo && DEMO_CHURCH_ALBUMS.map(a => (
                   <div key={a.id}>
                     <p className="text-sm font-black uppercase tracking-widest text-white mb-3">{a.title} <span className="text-white/30 text-[11px]">· {a.photos.length}</span></p>
                     <AdaptiveGrid phone={2} tablet={3} desktop={3} gap="0.5rem">
@@ -735,7 +740,7 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
                     <CreateEventButton host={{ kind: 'org', id: org.id, label: org.name }} />
                   </div>
                 )}
-                {!org.isDemo ? (
+                {!demo ? (
                   <HostEventsPublic host={{ kind: 'org', id: org.id, name: org.name }} accent={VIOLET} emptyText={hasOps ? 'No events yet. Create one, or start from a playbook in Staff → Events.' : 'No upcoming events right now. Check back soon.'} />
                 ) : (
                 <AdaptiveGrid phone={1} tablet={2} desktop={2} gap="1rem">
@@ -780,7 +785,7 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
                   </button>
                 )}
                 <OrgMediaShelves org={org} isOwner={isOwner} canManage={can('MANAGE_CONTENT')} onOrgChange={setOrg} onVisitUser={onVisitUser} onOpenVideo={onOpenVideo} onOpenAlbum={onOpenAlbum} />
-                <AdaptiveGrid phone={1} tablet={2} desktop={2} gap="1rem">
+                {demo && <AdaptiveGrid phone={1} tablet={2} desktop={2} gap="1rem">
                   {DEMO_CHURCH_VIDEOS.map(v => (
                     <div key={v.id} className="text-left group">
                       <div className="relative rounded-2xl overflow-hidden border border-white/10 aspect-video">
@@ -793,7 +798,7 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
                       <p className="text-[10px] text-white/35">{v.date}</p>
                     </div>
                   ))}
-                </AdaptiveGrid>
+                </AdaptiveGrid>}
               </div>
             )}
 
@@ -837,7 +842,7 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
                   </section>
                 )}
 
-                <div>
+                {demo && <div>
                   <div className="flex items-center justify-between mb-4">
                     <p className="type-title-sm text-white/55 max-w-md">A reading list curated by {org.name}, powered by Lorea.</p>
                     <button
@@ -859,7 +864,7 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
                       </div>
                     ))}
                   </AdaptiveGrid>
-                </div>
+                </div>}
               </div>
             )}
 
@@ -887,7 +892,7 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
                       </div>
                     ))}
                   </AdaptiveGrid>
-                ) : (
+                ) : !demo ? emptyNote(`${org.name} hasn’t listed its team yet.`) : (
                   <AdaptiveGrid phone={1} tablet={2} desktop={2} gap="0.75rem">
                     {DEMO_CHURCH_STAFF.map(s => (
                       <div key={s.id} className="rounded-2xl p-4 bg-white/[0.03] border border-white/10 flex items-center gap-3">
@@ -909,8 +914,13 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
               <div className="space-y-8">
                 <div className="space-y-4 max-w-xl">
                   <p className="type-title-sm text-white/55">
-                    Give to a fund below — one-time or recurring. Direct payout to {org.name}.
+                    {effectiveGivingFunds.length ? 'Give to a fund below — one-time or recurring.' : 'Give one-time or recurring.'} Direct payout to {org.name}.
                   </p>
+                  {effectiveGivingFunds.length === 0 && (
+                    <button onClick={() => setGiving(true)} className="ev-btn ev-btn-primary">
+                      <Gift size={14} /> {orgTabs.find(t => t.k === 'GIVE')?.label || 'Give'} to {org.name}
+                    </button>
+                  )}
                   {effectiveGivingFunds.map(f => {
                     const raised = (f.raised || 0) + (fundGiven[f.name] || 0);
                     const pct = f.goal ? Math.min(100, Math.round((raised / f.goal) * 100)) : 0;

@@ -162,7 +162,7 @@ export async function importProjectFile(
   }
 
   if (!manifestEntry) {
-    throw new Error('Invalid Ambo bundle: missing project.json manifest');
+    throw new Error('Invalid Stage bundle: missing project.json manifest');
   }
 
   const jsonStr = strFromU8(manifestEntry);

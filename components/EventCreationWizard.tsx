@@ -719,7 +719,7 @@ const EventCreationWizard: React.FC<Props> = ({ currentUser, editingEvent: editi
                         <label className="flex items-center justify-between p-3 bg-white/[0.03] border border-white/8 rounded-xl cursor-pointer">
                           <div className="flex items-center gap-3">
                             <Heart size={16} className="text-[#f472b6]" />
-                            <div><p className="text-xs font-black text-white">Sanctuary Members Only</p><p className="text-[9px] text-white/30">Restrict ticket purchasing to your Sanctuary members</p></div>
+                            <div><p className="text-xs font-black text-white">Backstage Members Only</p><p className="text-[9px] text-white/30">Restrict ticket purchasing to your Backstage members</p></div>
                           </div>
                           <input type="checkbox" checked={sanctuaryOnly} onChange={e => setSanctuaryOnly(e.target.checked)} className="w-5 h-5 accent-[#6B0099] cursor-pointer" />
                         </label>

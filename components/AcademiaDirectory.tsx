@@ -42,7 +42,7 @@ const TILES: Tile[] = [
 // Content sources a teacher can pull into a lesson (Phase D preview — links into the archives).
 const CONTENT_SOURCES = [
   { label: 'Chora music history + the Vault', icon: Music, view: 'MUSIC', accent: '#FF8C00' },
-  { label: 'Film history (Taleo)', icon: Film, view: 'MOVIES_TV', accent: '#e23b6d' },
+  { label: 'Film history (Cinema)', icon: Film, view: 'MOVIES_TV', accent: '#e23b6d' },
   { label: 'Art masters & museum halls', icon: ImageIcon, view: 'ART_GALLERY', accent: '#7a2bd6' },
 ];
 

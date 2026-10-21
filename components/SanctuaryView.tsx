@@ -282,7 +282,7 @@ const CreatorSetupPanel: React.FC<{ creatorId: string }> = ({ creatorId }) => {
             <div className="py-16 text-center">
               <Users size={32} className="text-white/10 mx-auto mb-3" />
               <p className="text-[10px] font-black uppercase tracking-widest text-white/20">No members yet</p>
-              <p className="text-[9px] text-white/15 mt-2">Share your Sanctuary page to attract members</p>
+              <p className="text-[9px] text-white/15 mt-2">Share your Backstage page to attract members</p>
             </div>
           ) : members.map(m => (
             <div key={m.id} className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
@@ -615,7 +615,7 @@ const SanctuaryView: React.FC<SanctuaryViewProps> = ({
   const onPurchased = (id: string) => setPurchasedIds(prev => new Set(prev).add(id));
 
   const memberCount = sanctuary?.memberCount || tiers.reduce((s, t) => s + t.memberCount, 0);
-  const sanctuaryName = sanctuary?.name || `${creatorProfile?.displayName || 'Creator'} Sanctuary`;
+  const sanctuaryName = sanctuary?.name || `${creatorProfile?.displayName || 'Creator'} Backstage`;
   // Monthly membership total, shown only if the creator opted to expose it.
   const monthlyTotal = sanctuary?.showMonthlyTotal
     ? tiers.reduce((s, t) => s + t.price * t.memberCount, 0)
@@ -672,7 +672,7 @@ const SanctuaryView: React.FC<SanctuaryViewProps> = ({
                 <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
                   className="flex items-center gap-2 px-4 py-3 rounded-2xl text-[11px] font-bold mb-4"
                   style={{ color: SANCTUARY_THEME.goldSoft, background: SANCTUARY_THEME.goldSheen, border: `1px solid ${SANCTUARY_THEME.line}` }}>
-                  <Check size={14} /> Welcome to the Sanctuary — your access is unlocked.
+                  <Check size={14} /> Welcome to Backstage — your access is unlocked.
                 </motion.div>
               )}
             </AnimatePresence>
@@ -714,7 +714,7 @@ const SanctuaryView: React.FC<SanctuaryViewProps> = ({
                     // Empty state — no tiers yet.
                     <div className="py-16 text-center rounded-3xl" style={{ background: SANCTUARY_THEME.panel, border: `1px dashed ${SANCTUARY_THEME.line}` }}>
                       <Gem size={34} className="mx-auto mb-3" style={{ color: 'rgba(201,165,92,0.35)' }} />
-                      <p className="text-sm font-black tracking-tight mb-1" style={{ color: SANCTUARY_THEME.goldSoft }}>This Sanctuary is just getting started</p>
+                      <p className="text-sm font-black tracking-tight mb-1" style={{ color: SANCTUARY_THEME.goldSoft }}>This Backstage is just getting started</p>
                       <p className="text-[11px] text-white/40">{isOwnProfile ? 'Open the owner console to create your first tier.' : 'Follow to be first in when membership opens.'}</p>
                       {isOwnProfile && (
                         <button onClick={() => setView('MANAGE')} className="mt-4 px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest text-black" style={{ background: SANCTUARY_THEME.gold }}>

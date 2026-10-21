@@ -73,7 +73,7 @@ const H: React.FC<{ children: React.ReactNode; sub?: string }> = ({ children, su
 
 // Sunday's Ambo run of show, as the staff "Sunday sheet".
 const SUNDAY_CUES: EvCue[] = [
-  { t: '9:55', what: 'Stream opens on Rello', owner: 'Andre Cole', status: 'Ready', tone: 'ready' },
+  { t: '9:55', what: 'Stream opens on Reello', owner: 'Andre Cole', status: 'Ready', tone: 'ready' },
   { t: '10:00', what: 'Call to worship', ref: 'Psalm 27:4', owner: 'Marcus Bell', status: 'Ready', tone: 'ready' },
   { t: '10:06', what: 'Worship set · 4 songs', owner: 'Grace Lin', status: 'Ready', tone: 'ready' },
   { t: '10:30', what: 'Scripture reading', ref: 'John 8:12–20', owner: 'Priya Nair', status: 'Ready', tone: 'ready' },
@@ -143,8 +143,8 @@ const ChurchAdminDemoView: React.FC<{ onCreate: () => void }> = ({ onCreate }) =
               ]} />
               <div className="flex flex-wrap gap-5 items-start">
                 <div style={{ flex: '999 1 540px', minWidth: 0 }}>
-                  <EvRunSheet title="Sunday sheet" subtitle="From Ambo · synced to Lectio" cues={SUNDAY_CUES}
-                    action={<button onClick={() => window.dispatchEvent(new CustomEvent('OPEN_AMBO'))} className="ev-btn ev-btn-ink" style={{ minHeight: 36, fontSize: 13 }}>Open Ambo</button>} />
+                  <EvRunSheet title="Sunday sheet" subtitle="From Stage · synced to Verse" cues={SUNDAY_CUES}
+                    action={<button onClick={() => window.dispatchEvent(new CustomEvent('OPEN_AMBO'))} className="ev-btn ev-btn-ink" style={{ minHeight: 36, fontSize: 13 }}>Open Stage</button>} />
                 </div>
                 <div className="ev-panel p-6 flex flex-col" style={{ flex: '1 1 320px', minWidth: 0 }}>
                   <h3 className="m-0 mb-2 ev-title text-[22px] text-white">Needs a person</h3>

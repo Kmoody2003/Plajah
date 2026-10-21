@@ -36,7 +36,7 @@ const firstSentence = (s: string) => {
 
 const FIGURE_META = {
   MUSIC: { service: 'chora', label: 'Chora · Music History', view: 'CHORA_HISTORY', topic: 'music' },
-  FILM_TV: { service: 'taleo', label: 'Taleo · Film History', view: 'TALEO_HISTORY', topic: 'film' },
+  FILM_TV: { service: 'taleo', label: 'Cinema · Film History', view: 'TALEO_HISTORY', topic: 'film' },
 } as const;
 
 export function cardsFromFigure(f: HistoryFigure): ThesaCard[] {

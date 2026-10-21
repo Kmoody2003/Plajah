@@ -275,7 +275,7 @@ export function useSanctuarySummary(uid: string, isOwnProfile: boolean): Sanctua
               id: m.id,
               name: m.memberName || 'A member',
               photo: m.memberPhoto,
-              detail: m.tierName ? `joined ${m.tierName}` : 'joined your Sanctuary',
+              detail: m.tierName ? `joined ${m.tierName}` : 'joined your Backstage',
               at: m.startedAt || 0,
             })),
         );

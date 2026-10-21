@@ -98,7 +98,7 @@ export const AdminLiveFeedsManager: React.FC = () => {
            <div className="flex items-center gap-4">
              <label className="flex items-center gap-2 text-sm font-bold cursor-pointer">
                 <input type="checkbox" checked={isSanctuary} onChange={e => setIsSanctuary(e.target.checked)} className="rounded" />
-                Sanctuary Only
+                Backstage Only
              </label>
            </div>
 

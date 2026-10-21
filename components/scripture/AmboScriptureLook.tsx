@@ -279,7 +279,7 @@ export const AmboScriptureLook: React.FC = () => {
               </div>
               {lookTab !== 'platform' && (
                 <SavedTemplateGrid tab={lookTab} lib={lib} compact noun="looks" selectedId={appliedId} onOpen={applyLook}
-                  shareWhere="Ambo → Scripture Look → Saved looks → Shared"
+                  shareWhere="Stage → Scripture Look → Saved looks → Shared"
                   subtitle={t => `${t.look ? scriptureLayoutById(t.look.layoutId).name : 'Look'}${t.look?.transition ? ' · ' + transitionById(t.look.transition).name : ''}`} />
               )}
             </div>
@@ -297,7 +297,7 @@ export const AmboScriptureLook: React.FC = () => {
       {/* Portalled, but React events still bubble to the backdrop's close handler — stop them here. */}
       <div className="contents" onClick={e => e.stopPropagation()}>
       <AmboSaveTemplateDialog open={saveOpen} onClose={() => setSaveOpen(false)} kind="scripture-look" defaultName={`${layout.name} · ${tr.name}`}
-        build={buildLook} onSaved={rec => { setAppliedId(rec.id); setLookTab('mine'); }} shareWhere="Ambo → Scripture Look → Saved looks → Shared" />
+        build={buildLook} onSaved={rec => { setAppliedId(rec.id); setLookTab('mine'); }} shareWhere="Stage → Scripture Look → Saved looks → Shared" />
       </div>
     </div>,
     document.body,

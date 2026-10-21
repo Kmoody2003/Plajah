@@ -39,7 +39,7 @@ const INSIDER_UP = ['demo-tier-insider', 'demo-tier-innercircle'];
 export const DEMO_SANCTUARY_CONTENT: SanctuaryExclusiveContent[] = [
   {
     id: 'demo-content-welcome', creatorId: DEMO_SANCTUARY_ID, sanctuaryId: DEMO_SANCTUARY_ID,
-    title: 'Welcome to the Sanctuary', description: 'A hello from me and what to expect inside.',
+    title: 'Welcome to Backstage', description: 'A hello from me and what to expect inside.',
     type: 'POST', accessType: 'FREE', requiredTierIds: [], isPublicPreview: true,
     publishedAt: now - DAY * 2, likesCount: 96, commentsCount: 12,
   },

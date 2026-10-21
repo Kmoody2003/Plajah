@@ -138,7 +138,7 @@ export const AmboLedWallCanvas: React.FC<AmboLedWallCanvasProps> = ({
           </div>
           <div>
             <div className="text-[15px] font-extrabold tracking-tight flex items-center gap-2">
-              <span>Ambo LED Wall & Digital Signage Studio</span>
+              <span>Stage LED Wall & Digital Signage Studio</span>
               <span className="px-2 py-0.5 rounded-full bg-[#00DAF3]/15 text-[#00DAF3] text-[9.5px] font-black uppercase tracking-widest border border-[#00DAF3]/30">
                 SSSP & MDC Live
               </span>
@@ -438,7 +438,7 @@ export const AmboLedWallCanvas: React.FC<AmboLedWallCanvasProps> = ({
                           onChange={e => handleSetSamsungSource(d.id, e.target.value)}
                           className="bg-black/60 border border-white/15 rounded px-2 py-0.5 text-xs text-white font-bold"
                         >
-                          <option value="HDMI1">HDMI 1 (Ambo Main)</option>
+                          <option value="HDMI1">HDMI 1 (Stage Main)</option>
                           <option value="HDMI2">HDMI 2 (Aux Feed)</option>
                           <option value="DisplayPort">DisplayPort</option>
                           <option value="MagicINFO">MagicINFO / SSSP</option>

@@ -76,7 +76,7 @@ export async function loadPlatformRails(): Promise<TaleoRail[]> {
         action: { kind: 'RESUME', id: e.id } as TaleoAction,
       })),
     },
-    { id: 'new', title: 'New to Taleo', items: newest.map(it => ((it as any).type === 'VIDEO' ? aItem(it as Album) : vItem(it as Video))) },
+    { id: 'new', title: 'New to Cinema', items: newest.map(it => ((it as any).type === 'VIDEO' ? aItem(it as Album) : vItem(it as Video))) },
     { id: 'movies', title: 'Movies', items: movies.map(vItem) },
     { id: 'series', title: 'TV Series', items: series.map(vItem) },
     { id: 'creators', title: 'Films & Series by Creators', items: cinema.map(vItem) },

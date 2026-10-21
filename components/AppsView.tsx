@@ -551,7 +551,7 @@ const AppsView: React.FC<AppsViewProps> = ({ onBack, currentUser, initialAppId, 
                   <div className="relative aspect-square rounded-[2.5rem] overflow-hidden border border-[#d4af37]/25 shadow-2xl transition-all group-hover:scale-105 group-hover:-translate-y-2 bg-gradient-to-br from-[#3b2f10]/70 via-[#1a1526]/60 to-[#08070c]">
                     <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-center p-8">
                       <BookOpen size={56} className="text-[#d4af37] drop-shadow-[0_0_24px_rgba(212,175,55,0.5)]" />
-                      <p className="text-2xl font-black uppercase tracking-tighter italic text-white">Lectio</p>
+                      <p className="text-2xl font-black uppercase tracking-tighter italic text-white">Plajah Verse</p>
                     </div>
                     <div className="absolute top-4 left-4 px-2.5 py-1 rounded-md bg-white/90 text-black text-[8px] font-black uppercase tracking-widest">Native</div>
                     <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all flex flex-col items-center justify-center backdrop-blur-sm">
@@ -560,7 +560,7 @@ const AppsView: React.FC<AppsViewProps> = ({ onBack, currentUser, initialAppId, 
                     </div>
                   </div>
                   <div className="space-y-2 px-2">
-                    <h3 className="text-lg font-black uppercase tracking-tight text-white truncate">Lectio</h3>
+                    <h3 className="text-lg font-black uppercase tracking-tight text-white truncate">Verse</h3>
                     <p className="text-[10px] font-bold uppercase tracking-widest text-white/30">Scripture · Study · Free for everyone</p>
                   </div>
                 </div>
@@ -576,7 +576,7 @@ const AppsView: React.FC<AppsViewProps> = ({ onBack, currentUser, initialAppId, 
                   <div className="relative aspect-square rounded-[2.5rem] overflow-hidden border border-[#d4af37]/25 shadow-2xl transition-all group-hover:scale-105 group-hover:-translate-y-2 bg-gradient-to-br from-[#1a1526]/80 via-[#2a2010]/50 to-[#08070c]">
                     <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-center p-8">
                       <MonitorPlay size={56} className="text-[#d4af37] drop-shadow-[0_0_24px_rgba(212,175,55,0.5)]" />
-                      <p className="text-2xl font-black uppercase tracking-tighter italic text-white">Ambo</p>
+                      <p className="text-2xl font-black uppercase tracking-tighter italic text-white">Stage</p>
                     </div>
                     <div className="absolute top-4 left-4 px-2.5 py-1 rounded-md bg-white/90 text-black text-[8px] font-black uppercase tracking-widest">Native</div>
                     <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all flex flex-col items-center justify-center backdrop-blur-sm">
@@ -585,7 +585,7 @@ const AppsView: React.FC<AppsViewProps> = ({ onBack, currentUser, initialAppId, 
                     </div>
                   </div>
                   <div className="space-y-2 px-2">
-                    <h3 className="text-lg font-black uppercase tracking-tight text-white truncate">Ambo</h3>
+                    <h3 className="text-lg font-black uppercase tracking-tight text-white truncate">Stage</h3>
                     <p className="text-[10px] font-bold uppercase tracking-widest text-white/30">Scripture presenter · keys the switcher</p>
                   </div>
                 </div>

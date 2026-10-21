@@ -265,7 +265,7 @@ export const UniversalLibraryPanel: React.FC<UniversalLibraryProps> = ({ accent 
                 <button data-facet-clear onClick={() => setFacets(DEFAULT_MOTION_FACETS)} style={facetChip(true, accent)}>Clear filters</button>
               </div>
             ) : items.length === 0 ? (
-              <EmptyState title="Nothing here yet" body={source === 'presets' ? 'No preset matches your search.' : source === 'mine' ? (auth.currentUser ? 'Save or receive a customised Ambo template and it appears here.' : 'Templates you save in Ambo on this browser appear here. Sign in to see ones shared with you.') : source === 'community' ? 'No public templates match yet. Share one from Ambo to start the shelf.' : 'Upload assets to this shelf, or connect an account, and they appear here.'} />
+              <EmptyState title="Nothing here yet" body={source === 'presets' ? 'No preset matches your search.' : source === 'mine' ? (auth.currentUser ? 'Save or receive a customised Stage template and it appears here.' : 'Templates you save in Stage on this browser appear here. Sign in to see ones shared with you.') : source === 'community' ? 'No public templates match yet. Share one from Stage to start the shelf.' : 'Upload assets to this shelf, or connect an account, and they appear here.'} />
             ) : (
               <div ref={gridRef} {...marqueeSelection.bind} style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 9, position: 'relative' }}>
                 {items.map((it) => (

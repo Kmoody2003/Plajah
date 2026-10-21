@@ -295,7 +295,7 @@ const AmboSongLyricsTab: React.FC<AmboSongLyricsTabProps> = ({ onInsertSlide, ac
           on={cap.on}
           onClick={() => (cap.on ? stopCapture() : void startCapture())}
           color={RED}
-          title="Transcribe everything heard. Mark IN when a new song starts and OUT when it ends, then save it — next time Ambo will know it."
+          title="Transcribe everything heard. Mark IN when a new song starts and OUT when it ends, then save it — next time Stage will know it."
         >
           <span className="inline-flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full" style={{ background: cap.on ? RED : 'rgba(255,255,255,0.4)' }} />Transcribe new song</span>
         </Toggle>
@@ -356,7 +356,7 @@ const AmboSongLyricsTab: React.FC<AmboSongLyricsTabProps> = ({ onInsertSlide, ac
             Following <b className="text-white">{fs.title}</b>{fs.artist ? ` · ${fs.artist}` : ''}{curSection ? ` · ${curSection.name}` : ''}
           </span>
         ) : (
-          <span className="text-white/40">{fs.listening ? 'Listening for a song… sing or play the first line or two.' : 'Pick a song, or press Listen and let Ambo detect it.'}</span>
+          <span className="text-white/40">{fs.listening ? 'Listening for a song… sing or play the first line or two.' : 'Pick a song, or press Listen and let Stage detect it.'}</span>
         )}
         {fs.offScript && <span className="px-1.5 py-0.5 rounded text-[8.5px] font-black" style={{ color: '#000', background: ADLIB_COLOR }}>ADLIB · holding on last word</span>}
         {fs.sharedWith.length > 0 && <span className="text-white/35 whitespace-nowrap">sharing mic with {fs.sharedWith.join(', ')}</span>}
@@ -516,7 +516,7 @@ const AmboSongLyricsTab: React.FC<AmboSongLyricsTabProps> = ({ onInsertSlide, ac
                   </div>
                 )}
                 {!cap.lines.length && !cap.partial && (
-                  <div className="py-8 text-center text-[11px] text-white/35">Every word Ambo hears will appear here, line by line.</div>
+                  <div className="py-8 text-center text-[11px] text-white/35">Every word Stage hears will appear here, line by line.</div>
                 )}
               </div>
             </>
@@ -677,7 +677,7 @@ const AmboSongLyricsTab: React.FC<AmboSongLyricsTabProps> = ({ onInsertSlide, ac
             </>
           ) : (
             <div className="flex-1 flex items-center justify-center text-[11px] text-white/35 p-6 text-center">
-              Pick a song — or press <b className="mx-1 text-white/60">Listen</b> and Ambo will recognise it from the first line or two.
+              Pick a song — or press <b className="mx-1 text-white/60">Listen</b> and Stage will recognise it from the first line or two.
             </div>
           )}
         </div>
@@ -698,7 +698,7 @@ const AmboSongLyricsTab: React.FC<AmboSongLyricsTabProps> = ({ onInsertSlide, ac
               <div className="flex items-center gap-2">
                 <Music size={16} className="text-amber-300" />
                 <span className="text-sm font-black text-white" style={{ fontFamily: "'Outfit', sans-serif" }}>
-                  Ambo × Chora Studio Songwriting Scratchpad, Setlists &amp; Global Public-Domain Scores
+                  Stage × Chora Studio Songwriting Scratchpad, Setlists &amp; Global Public-Domain Scores
                 </span>
               </div>
               <button

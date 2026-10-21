@@ -63,7 +63,7 @@ function getRealTemplatePage(t: TelaDesignTemplate, pageIndex: number = 0): Tela
 // Ecosystem Pillars: Where Tela powers the Plajah Experience
 const PLAJAH_ECOSYSTEM_PILLARS = [
   {
-    studio: 'Ambo Worship & Broadcast Studio',
+    studio: 'Plajah Stage & Broadcast Studio',
     badge: 'LIVE LYRICS & SACRED',
     tag: '10 Council Styles & 4K Output',
     desc: 'The complete broadcast presentation engine: 10 council-authored lyric looks (Sanctuary Lower Third, Karaoke Sweep, Word Stack, Gilded), sermon slides, live scripture search, and multi-screen SDI/NDI output.',
@@ -380,7 +380,7 @@ export default function TelaHome({
         collection: 'PRESENTATION' as const,
         group: 'AMBO BROADCAST',
         tagline: def.blurb,
-        description: `Ambo Sanctuary live template · ${def.category}. Reflows to 16:9, 4:3, or ultrawide.`,
+        description: `Stage Sanctuary live template · ${def.category}. Reflows to 16:9, 4:3, or ultrawide.`,
         palette: ['#0C0814', '#FAF8EE', '#D4AF37', '#6B0099'],
         fonts: ['fraunces', 'inter'],
         width: 1920,
@@ -1162,7 +1162,7 @@ export default function TelaHome({
                   type="text"
                   value={promptText}
                   onChange={e => setPromptText(e.target.value)}
-                  placeholder='e.g., "Ambo Sanctuary hymnal lyric slide", "4K digital signage TV menu", "Film call sheet day 14", "Interactive worksheet"...'
+                  placeholder='e.g., "Stage Sanctuary hymnal lyric slide", "4K digital signage TV menu", "Film call sheet day 14", "Interactive worksheet"...'
                   className="flex-1 bg-white/[0.05] border border-white/[0.08] hover:border-white/[0.16] focus:border-[var(--pj-magenta,#D40055)] rounded-[14px] px-4 py-3 text-[.84rem] text-white placeholder-white/30 outline-none transition-all font-sans"
                 />
                 <button
@@ -1182,7 +1182,7 @@ export default function TelaHome({
               <div className="mt-2 pt-2 border-t border-white/[0.06] flex items-center gap-1.5 overflow-x-auto px-2 pb-0.5 custom-scrollbar text-[8px] font-mono">
                 <span className="text-white/30 shrink-0">TRY:</span>
                 {[
-                  { label: '🎙️ Sanctuary Hymnal Slide', q: 'Ambo Sanctuary hymnal lyric slide' },
+                  { label: '🎙️ Sanctuary Hymnal Slide', q: 'Stage Sanctuary hymnal lyric slide' },
                   { label: '🏪 Cafe 4K TV Menu', q: '4K digital signage TV menu board' },
                   { label: '🎬 Noir Screenplay Treatment', q: 'Courier 12pt film screenplay script' },
                   { label: '📚 Ocean Picture Book', q: 'Children picture book watercolor' },
@@ -1268,7 +1268,7 @@ export default function TelaHome({
             <div className="space-y-4">
               {/* Row 1: Ambo Sacred & Worship Broadcast Slides */}
               <TelaCarouselRow
-                title="Ambo Sacred & Worship Broadcast Slides"
+                title="Stage Sacred & Worship Broadcast Slides"
                 subtitle="10 Council-authored hymnal & kinetic lyric looks, 4K sermon cards, scripture looks, and prayer slides"
                 badge="AMBO SACRED"
                 accentColor="#00DAF3"
@@ -1419,7 +1419,7 @@ export default function TelaHome({
             {/* Workflow Mode Tabs */}
             <div className="flex gap-2 overflow-x-auto pb-3 custom-scrollbar">
               {[
-                { id: 'AMBO', label: '🎙️ Ambo: Live Lyric Sync', tag: 'WORSHIP' },
+                { id: 'AMBO', label: '🎙️ Stage: Live Lyric Sync', tag: 'WORSHIP' },
                 { id: 'SHADERS', label: '🔮 Shaders & Quantum Waves', tag: 'ART COUNCIL' },
                 { id: 'LOTTIE_MOTION', label: '🎬 Motion Graphics & .Lottie', tag: 'CINEMA' },
                 { id: 'STORYBOOK', label: '📖 The Living Story Books', tag: 'FOLIO' },
@@ -1715,7 +1715,7 @@ export default function TelaHome({
                       style={{ background: 'linear-gradient(135deg, #00DAF3, #2563EB)', color: '#000' }}
                     >
                       <Sparkles size={11} />
-                      <span>✦ Open Real Ambo Template in Tela Studio</span>
+                      <span>✦ Open Real Stage Template in Tela Studio</span>
                     </button>
                   </div>
                 </div>

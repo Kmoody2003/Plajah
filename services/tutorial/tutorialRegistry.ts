@@ -40,8 +40,8 @@ export interface FeatureTutorial {
 export const TUTORIAL_REGISTRY: Record<string, FeatureTutorial> = {
   'ambo-broadcast': {
     featureId: 'ambo-broadcast',
-    featureName: 'Ambo Master Live Broadcast & LED Wall',
-    moduleName: 'Ambo / Elevate',
+    featureName: 'Stage Master Live Broadcast & LED Wall',
+    moduleName: 'Stage / Elevate',
     category: 'Broadcast',
     estimatedTime: '2 min',
     summary: 'Master multi-display presentation rasterization, LED wall routing, auto-saving, and uninterrupted slide playback.',
@@ -50,7 +50,7 @@ export const TUTORIAL_REGISTRY: Record<string, FeatureTutorial> = {
         stepNumber: 1,
         id: 'step-1-workspace',
         title: 'Open Live Presentation Workspace',
-        instruction: 'Navigate to Ambo from the top switcher. Notice the Master Slides rail on the left and the Live Program Preview in the center.',
+        instruction: 'Navigate to Stage from the top switcher. Notice the Master Slides rail on the left and the Live Program Preview in the center.',
         targetSelector: '#ambo-master-slides',
         actionType: 'click',
         hotkey: 'Alt + A',

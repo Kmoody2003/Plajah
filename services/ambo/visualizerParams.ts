@@ -42,7 +42,7 @@ export function vizFamily(mode: string | undefined | null, kind?: string): VizFa
 const AUDIO: VizParamDef = {
   key: 'audioSource', label: 'Reacts to', kind: 'select', default: 'ambo-playback', group: 'Audio',
   options: [
-    { value: 'ambo-playback', label: 'Ambo mix (what is playing)' },
+    { value: 'ambo-playback', label: 'Stage mix (what is playing)' },
     { value: 'live-input', label: 'Live input (microphone)' },
     { value: 'none', label: 'Nothing — gentle idle motion' },
   ],

@@ -36,7 +36,7 @@ interface Asset {
 const SERVICES: { key: ServiceKey | 'ALL' | 'PROJECTS'; label: string; icon: React.ComponentType<{ size?: number; className?: string }>; accent: string }[] = [
   { key: 'ALL',      label: 'All',      icon: Layers,       accent: '#FF8C00' },
   { key: 'CHORA',    label: 'Chora',    icon: Music2,       accent: '#22D3AA' },
-  { key: 'TALEO',    label: 'Taleo',    icon: Clapperboard, accent: '#D0BCFF' },
+  { key: 'TALEO',    label: 'Cinema',    icon: Clapperboard, accent: '#D0BCFF' },
   { key: 'LOREA',    label: 'Lorea',    icon: BookOpen,     accent: '#F0A868' },
   { key: 'REELLO',   label: 'Reello',   icon: Film,         accent: '#FF6B9D' },
   { key: 'PHOTOS',   label: 'Photos',   icon: Camera,       accent: '#5EC8F2' },
@@ -398,7 +398,7 @@ const AssetCard: React.FC<{ asset: Asset; selected: boolean; open?: boolean; onT
       <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
       <button onClick={e => { e.stopPropagation(); onToggle(); }} className="absolute top-2 left-2 text-white/70 hover:text-white z-10">{selected ? <CheckSquare size={17} className="text-[#FF8C00]" /> : <Square size={17} />}</button>
       <div className="absolute top-2 right-2 flex items-center gap-1">
-        {asset.gated && <span title="Sanctuary members-only" className="w-5 h-5 rounded bg-[#6B0099] flex items-center justify-center"><Crown size={11} className="text-white" /></span>}
+        {asset.gated && <span title="Backstage members-only" className="w-5 h-5 rounded bg-[#6B0099] flex items-center justify-center"><Crown size={11} className="text-white" /></span>}
         <span className="px-1.5 py-0.5 rounded text-[7px] font-black uppercase tracking-widest" style={{ background: `${svcAccent(asset.service)}22`, color: svcAccent(asset.service) }}>{asset.typeLabel}</span>
       </div>
       <div className="absolute inset-0 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/30">
@@ -564,7 +564,7 @@ const AssetDetail: React.FC<{
               ['Type', asset.typeLabel],
               [asset.product ? 'Price' : ph ? 'Likes' : 'Plays', asset.product ? `$${(asset.price ?? 0).toFixed(2)}` : asset.plays.toLocaleString()],
               [ph ? 'Captured' : 'Updated', asset.updatedAt ? new Date(asset.updatedAt).toLocaleDateString() : '—'],
-              ['Access', asset.gated ? 'Sanctuary' : 'Open'],
+              ['Access', asset.gated ? 'Backstage' : 'Open'],
               ['Visibility', v ? (v.isPrivate ? 'Private' : 'Public') : ph ? (ph.isPublic ? 'Public' : 'Private') : '—'],
             ].map(([k, val]) => (
               <div key={k} className="p-3 rounded-xl bg-white/[0.03] border border-white/8">
@@ -622,17 +622,17 @@ const AssetDetail: React.FC<{
           {/* Sanctuary gating — deep link between the asset manager and Sanctuary */}
           {(onToggleGate || asset.product) && (
             <div className="p-4 rounded-2xl bg-gradient-to-br from-[#6B0099]/15 to-transparent border border-[#6B0099]/25 space-y-3">
-              <div className="flex items-center gap-2"><Crown size={14} className="text-[#D0A0FF]" /><p className="text-[10px] font-black uppercase tracking-widest text-white/70">Sanctuary</p></div>
+              <div className="flex items-center gap-2"><Crown size={14} className="text-[#D0A0FF]" /><p className="text-[10px] font-black uppercase tracking-widest text-white/70">Backstage</p></div>
               {onToggleGate && (
                 <button onClick={onToggleGate} disabled={busy} className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${asset.gated ? 'bg-[#6B0099] text-white' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}>
                   {busy ? <Loader2 size={13} className="animate-spin" /> : (asset.gated ? <Lock size={12} /> : <Globe size={12} />)}
-                  {asset.gated ? 'Members-only — tap to unlock' : 'Gate to Sanctuary (members-only)'}
+                  {asset.gated ? 'Members-only — tap to unlock' : 'Gate to Backstage (members-only)'}
                 </button>
               )}
               {onManageSanctuary && (
-                <button onClick={onManageSanctuary} className="w-full py-2 rounded-full bg-white/5 text-white/50 text-[9px] font-black uppercase tracking-widest hover:text-white">Manage tiers & à-la-carte in Sanctuary →</button>
+                <button onClick={onManageSanctuary} className="w-full py-2 rounded-full bg-white/5 text-white/50 text-[9px] font-black uppercase tracking-widest hover:text-white">Manage tiers & à-la-carte in Backstage →</button>
               )}
-              <p className="text-[8px] text-white/25 leading-relaxed">Gated assets are locked to your Sanctuary members (or à-la-carte buyers). Set tiers and pricing in Sanctuary.</p>
+              <p className="text-[8px] text-white/25 leading-relaxed">Gated assets are locked to your Backstage members (or à-la-carte buyers). Set tiers and pricing in Backstage.</p>
             </div>
           )}
 

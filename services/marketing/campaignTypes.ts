@@ -131,5 +131,5 @@ export const CAMPAIGN_OBJECTIVES: { id: CampaignObjective; label: string; blurb:
   { id: 'traffic',    label: 'Foot traffic', blurb: 'Drive people through the door this week.' },
   { id: 'sales',      label: 'Sales',      blurb: 'Push a specific offer or product.' },
   { id: 'event',      label: 'Event',      blurb: 'Fill seats for a date on the calendar.' },
-  { id: 'membership', label: 'Membership', blurb: 'Grow Plajah+ binds or Sanctuary members.' },
+  { id: 'membership', label: 'Membership', blurb: 'Grow Plajah+ binds or Backstage members.' },
 ];

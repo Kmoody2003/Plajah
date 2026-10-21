@@ -141,7 +141,7 @@ const AmboPresenter: React.FC<Props> = ({ engine, compact, onBack }) => {
       visible: true,
     };
     if (existing) engine.updateOverlay(OVERLAY_ID, patch);
-    else engine.addOverlay({ id: OVERLAY_ID, label: 'Ambo — Scripture', type: 'SCRIPTURE', opacity: 1, ...patch });
+    else engine.addOverlay({ id: OVERLAY_ID, label: 'Stage — Scripture', type: 'SCRIPTURE', opacity: 1, ...patch });
   }, [engine, dest.switcher]);
 
   // The whole point of building the presenter and the switcher as one product:
@@ -377,7 +377,7 @@ const AmboPresenter: React.FC<Props> = ({ engine, compact, onBack }) => {
     return (
       <div className="flex flex-col h-full text-white">
         <div className="flex items-center justify-between px-3 py-2 border-b border-white/10 bg-black/30">
-          <span className="text-[9px] font-black uppercase tracking-[0.16em] text-[#d4af37]">Ambo</span>
+          <span className="text-[9px] font-black uppercase tracking-[0.16em] text-[#d4af37]">Stage</span>
           <span className="px-1.5 py-0.5 rounded text-[7.5px] font-mono tracking-widest border border-[#d4af37]/40 text-[#d4af37]">
             {engine ? 'KEY' : 'NO ENGINE'}
           </span>
@@ -417,7 +417,7 @@ const AmboPresenter: React.FC<Props> = ({ engine, compact, onBack }) => {
             <ChevronLeft size={14} /> Exit
           </button>
         )}
-        <span className="text-[15px] font-serif tracking-wide text-[#d4af37]" style={{ fontFamily: 'Palatino Linotype, Palatino, Georgia, serif' }}>Ambo</span>
+        <span className="text-[15px] font-serif tracking-wide text-[#d4af37]" style={{ fontFamily: 'Palatino Linotype, Palatino, Georgia, serif' }}>Stage</span>
         <span className="text-[9px] font-mono text-white/25">Scripture presenter</span>
         <div className="flex-1" />
         <span className="flex items-center gap-1.5 px-2 py-1 rounded-full border border-white/12 text-[9px] font-mono text-white/50">

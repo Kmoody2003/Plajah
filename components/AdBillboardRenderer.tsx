@@ -15,7 +15,7 @@ interface AdBillboardRendererProps {
 const PROMOTED_LABEL: Record<string, string> = {
   MUSIC: 'Music', VIDEO: 'Video', PODCAST: 'Podcast', ARTICLE: 'Article',
   BOOK: 'Book', FILM: 'Film', TV: 'TV Series', GAME: 'Game',
-  LIVE_EVENT: 'Live Event', SANCTUARY: 'Sanctuary',
+  LIVE_EVENT: 'Live Event', SANCTUARY: 'Backstage',
 };
 
 const AdBillboardRenderer: React.FC<AdBillboardRendererProps> = ({

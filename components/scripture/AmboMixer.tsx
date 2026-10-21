@@ -124,7 +124,7 @@ const LiveInStrip: React.FC<{ height: number }> = ({ height }) => {
 };
 
 const VIZ_FOLLOW: Array<{ id: VizFollow; label: string; hint: string }> = [
-  { id: 'mix', label: 'Program', hint: 'Visuals react to what Ambo is playing' },
+  { id: 'mix', label: 'Program', hint: 'Visuals react to what Stage is playing' },
   { id: 'live', label: 'Live in', hint: 'Visuals react to the live input only (the band, the room)' },
   { id: 'both', label: 'Both', hint: 'Visuals react to the program mix and the live input together' },
 ];
@@ -309,7 +309,7 @@ const AmboMixer: React.FC = () => {
       style={{ height: 'min(560px, 70vh)', background: 'rgba(12,9,20,0.98)', borderColor: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(14px)' }}>
       <div className="flex items-center gap-2 px-3 py-2 border-b border-white/10">
         <SlidersHorizontal size={14} className="text-[#D0BCFF]" />
-        <div className="text-[11px] font-bold text-white">Ambo Mixer</div>
+        <div className="text-[11px] font-bold text-white">Stage Mixer</div>
         <div className="text-[9.5px] text-white/40">Same audio device, plugins and meters as Chora, DJ mode, Melos and Fabula</div>
         {busState.unmetered && <span className="px-1.5 py-0.5 rounded text-[8.5px] font-bold text-[#F5C542] bg-[#F5C542]/15" title="This song's host blocks cross-origin audio, so it plays directly — no meters, plugins or visualizer reaction">PLAYLIST SONG UNMETERED</span>}
         {!amboAudio.isRunning() && <span className="px-1.5 py-0.5 rounded text-[8.5px] font-bold text-white/60 bg-white/10">Audio starts on first click</span>}
@@ -353,7 +353,7 @@ const AmboMixer: React.FC = () => {
         ref={btnRef}
         onClick={() => setOpen(o => !o)}
         className={`px-2 py-1 rounded text-[9.5px] font-bold border flex items-center gap-1 ${open ? 'text-[#D0BCFF] bg-[#D0BCFF]/15 border-[#D0BCFF]/30' : 'text-white/70 bg-white/5 border-white/10 hover:bg-white/15'}`}
-        title="Ambo mixer — channels, plugins, meters, limiter"
+        title="Stage mixer — channels, plugins, meters, limiter"
       >
         <SlidersHorizontal size={11} /> Mixer
       </button>

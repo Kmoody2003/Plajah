@@ -1128,7 +1128,7 @@ const RUNGS: Rung[] = [
   { key: 'credit', title: 'Business credit', desc: 'Build EIN-based credit (Net-30 vendors, a business card) — separate from your personal score, and the key to bigger financing later.', fits: () => true },
   { key: 'grants', title: 'Grants', desc: "Money you don't repay — competitive. Try grants.gov and local/industry programs.", url: 'https://www.grants.gov/', fits: v => ['nonprofit', 'local_service', 'retail', 'restaurant'].includes(v.archetype) },
   { key: 'loan', title: 'Microloan / SBA', desc: 'Small loans built for small businesses (SBA, CDFIs, credit unions).', url: 'https://www.sba.gov/funding-programs/loans', fits: v => fitsLocal(v.archetype) },
-  { key: 'crowd', title: 'Crowdfunding', desc: 'Raise from your audience and customers. On Plajah: Sanctuary & SeedRaiser.', internal: 'SANCTUARY_HUB', fits: () => true },
+  { key: 'crowd', title: 'Crowdfunding', desc: 'Raise from your audience and customers. On Plajah: Backstage & SeedRaiser.', internal: 'SANCTUARY_HUB', fits: () => true },
   { key: 'angel', title: 'Angel investors', desc: 'Early individuals buy equity, usually via a SAFE. Money plus mentorship.', equity: true, fits: v => ['startup', 'creator'].includes(v.archetype) },
   { key: 'vc', title: 'Venture capital', desc: 'Funds buy equity to fuel fast growth — the raise-and-scale track.', equity: true, fits: v => v.archetype === 'startup' },
 ];

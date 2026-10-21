@@ -343,7 +343,7 @@ export class OutputRouter {
         outputId: output.id,
         displayIndex: output.screenIndex ?? 1,
         feedUrl: url,
-        title: output.name || 'Ambo Output',
+        title: output.name || 'Stage Output',
         width: output.width || 0,
         height: output.height || 0,
       });
@@ -589,7 +589,7 @@ import { publishAppOutput } from '../mediaEngine/bridge';
 export function publishAmboLiveOutput(
   channelId: 'ambo:audience' | 'ambo:lower_third' | string,
   stream: MediaStream,
-  label = 'Ambo Program Output',
+  label = 'Stage Program Output',
 ): void {
   publishAppOutput(channelId, stream, label, 'ambo');
 }

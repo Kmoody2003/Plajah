@@ -63,6 +63,7 @@ import {
   exportElevateMobilizeToCrmCsv,
   getActionHubVerticalConfig,
   getDefaultCivicCampaignComplianceConfig,
+  getDefaultElevateReminderCadence,
   loadElevateMobilizeBundleLocal,
   mapExternalCrmCsvToElevateChms,
   reviewElevateSpokeHostEvent,
@@ -79,6 +80,16 @@ import {
 } from '../../services/elevateMobilizeService';
 import { Button, Surface, Eyebrow, Chip } from '../ui';
 import { EV, EvLabel, EvKpiStrip } from './vellum';
+import { isDemoOrg } from '../../services/elevateTruth';
+
+/** Quiet empty state used by every tab when the organization has not added anything yet. */
+const HubEmpty: React.FC<{ title: string; detail?: string; action?: React.ReactNode }> = ({ title, detail, action }) => (
+  <div className="ev-panel rounded-3xl p-8 text-center space-y-2">
+    <div className="text-base font-bold text-white">{title}</div>
+    {detail && <p className="m-0 text-xs text-[#A49CB2] leading-relaxed max-w-md mx-auto">{detail}</p>}
+    {action && <div className="pt-2 flex justify-center">{action}</div>}
+  </div>
+);
 
 export interface ElevateMobilizeHubProps {
   org: Organization;
@@ -104,13 +115,21 @@ type MobilizeTabId =
 
 export const ElevateMobilizeHub: React.FC<ElevateMobilizeHubProps> = ({
   org,
-  currentUserId = 'demo-member-elena',
-  currentUserName = 'Elena Sterling',
-  currentUserEmail = 'elena.sterling@example.org',
+  currentUserId: currentUserIdProp,
+  currentUserName: currentUserNameProp,
+  currentUserEmail: currentUserEmailProp,
   canManage = false,
   initialContext = 'public',
   verticalOverride,
 }) => {
+  // Only the demo church may fall back to its sample member; a real org uses the signed-in person.
+  const isDemo = isDemoOrg(org);
+  const currentUserId = currentUserIdProp || (isDemo ? 'demo-member-elena' : 'guest');
+  const currentUserName = currentUserNameProp || (isDemo ? 'Elena Sterling' : 'You');
+  const currentUserEmail = currentUserEmailProp || (isDemo ? 'elena.sterling@example.org' : undefined);
+  const orgCityLabel = org.location?.city
+    ? [org.location.city, (org.location as { state?: string }).state].filter(Boolean).join(', ')
+    : '';
   const [bundle, setBundle] = useState<ElevateMobilizeBundle>(() =>
     loadElevateMobilizeBundleLocal(org)
   );
@@ -131,7 +150,7 @@ export const ElevateMobilizeHub: React.FC<ElevateMobilizeHubProps> = ({
   // Petition signing state
   const [selectedPetitionId, setSelectedPetitionId] = useState<string | null>(null);
   const [sigComment, setSigComment] = useState('');
-  const [sigCity, setSigCity] = useState(org.location?.city ? `${org.location.city}, ${org.location.state || ''}` : 'Atlanta, GA');
+  const [sigCity, setSigCity] = useState(orgCityLabel || (isDemo ? 'Atlanta, GA' : ''));
   const [sigTestimonyKind, setSigTestimonyKind] = useState<'TEXT' | 'VOICE_30S' | 'VIDEO_30S'>('VOICE_30S');
   const [sigPledgedHours, setSigPledgedHours] = useState<number>(10);
   const [telaDossierModal, setTelaDossierModal] = useState<{ title: string; markdown: string } | null>(null);
@@ -140,7 +159,7 @@ export const ElevateMobilizeHub: React.FC<ElevateMobilizeHubProps> = ({
   const [showHostModal, setShowHostModal] = useState(false);
   const [hostDraft, setHostDraft] = useState({
     title: '',
-    city: org.location?.city || 'Atlanta, GA',
+    city: org.location?.city || (isDemo ? 'Atlanta, GA' : ''),
     neighborhood: '',
     venueKind: 'HOME_SANCTUARY' as ElevateSpokeHostEvent['venueKind'],
     dateISO: '2026-11-02',
@@ -158,10 +177,8 @@ export const ElevateMobilizeHub: React.FC<ElevateMobilizeHubProps> = ({
     startTime: '09:00 AM',
     endTime: '12:00 PM',
     durationHours: 3,
-    locationLabel: 'Main Sanctuary Commons',
+    locationLabel: isDemo ? 'Main Sanctuary Commons' : '',
     capacity: 10,
-    plajahPoints: 150,
-    sanctuaryUnlockTitle: 'Chora Acoustic Worship Stems + Steward Badge',
   });
 
   // Non-SMS Reminder preview state
@@ -171,7 +188,9 @@ export const ElevateMobilizeHub: React.FC<ElevateMobilizeHubProps> = ({
   // CRM Sync state
   const [selectedCrmProvider, setSelectedCrmProvider] = useState<ElevateExternalCrmProvider>('PLANNING_CENTER');
   const [csvImportInput, setCsvImportInput] = useState(
-    'first_name,last_name,email,phone,tags,external_id\nNaomi,Osei,naomi.osei@example.org,555-310-8821,Choir;Hospitality,pco_991\nDavid,Kowalski,david.k@example.org,555-419-2044,Youth Mentor;Deacon,pco_992'
+    isDemo
+      ? 'first_name,last_name,email,phone,tags,external_id\nNaomi,Osei,naomi.osei@example.org,555-310-8821,Choir;Hospitality,pco_991\nDavid,Kowalski,david.k@example.org,555-419-2044,Youth Mentor;Deacon,pco_992'
+      : 'first_name,last_name,email,phone,tags,external_id\n'
   );
   const [importedChmsPeople, setImportedChmsPeople] = useState<ChmsPerson[]>([]);
   const [exportedCsvPreview, setExportedCsvPreview] = useState<string>('');
@@ -185,22 +204,41 @@ export const ElevateMobilizeHub: React.FC<ElevateMobilizeHubProps> = ({
     () => bundle.campaignContributions || [],
     [bundle.campaignContributions]
   );
-  const [contribDraft, setContribDraft] = useState({
-    donorFullName: 'Devon A. Brooks',
-    donorEmail: 'devon.brooks@example.org',
-    streetAddress: '742 Euclid Ave NE',
-    city: 'Atlanta',
-    state: 'GA',
-    postalCode: '30307',
-    occupation: 'High School History Teacher',
-    employer: 'DeKalb County School District',
-    amountUsd: 100,
-    isUsCitizenOrPermanentResident: true,
-    isPersonalFunds: true,
-    isNotFederalOrMunicipalContractor: true,
-    isPersonalCardNotCorporate: true,
-    isAtLeast18: true,
-  });
+  const [contribDraft, setContribDraft] = useState(() =>
+    isDemo
+      ? {
+          donorFullName: 'Devon A. Brooks',
+          donorEmail: 'devon.brooks@example.org',
+          streetAddress: '742 Euclid Ave NE',
+          city: 'Atlanta',
+          state: 'GA',
+          postalCode: '30307',
+          occupation: 'High School History Teacher',
+          employer: 'DeKalb County School District',
+          amountUsd: 100,
+          isUsCitizenOrPermanentResident: true,
+          isPersonalFunds: true,
+          isNotFederalOrMunicipalContractor: true,
+          isPersonalCardNotCorporate: true,
+          isAtLeast18: true,
+        }
+      : {
+          donorFullName: '',
+          donorEmail: '',
+          streetAddress: '',
+          city: '',
+          state: '',
+          postalCode: '',
+          occupation: '',
+          employer: '',
+          amountUsd: 0,
+          isUsCitizenOrPermanentResident: false,
+          isPersonalFunds: false,
+          isNotFederalOrMunicipalContractor: false,
+          isPersonalCardNotCorporate: false,
+          isAtLeast18: false,
+        }
+  );
   const [contribErrors, setContribErrors] = useState<string[]>([]);
   const [complianceCsvPreview, setComplianceCsvPreview] = useState<string>('');
   const [rewardGuardTestAction, setRewardGuardTestAction] = useState<
@@ -274,12 +312,13 @@ export const ElevateMobilizeHub: React.FC<ElevateMobilizeHubProps> = ({
       totalSlots,
       totalConfirmed,
       totalWaitlisted,
-      totalVerifiedHours: totalVerifiedHours + 340, // Org YTD baseline + active session
+      // The demo church carries a sample year-to-date baseline; real orgs count only their own hours.
+      totalVerifiedHours: totalVerifiedHours + (isDemo ? 340 : 0),
       totalPetitionSigs,
       totalPledgedHours,
       spokeRollup,
     };
-  }, [bundle]);
+  }, [bundle, isDemo]);
 
   // ── Actions ────────────────────────────────────────────────────────────────
 
@@ -368,12 +407,8 @@ export const ElevateMobilizeHub: React.FC<ElevateMobilizeHubProps> = ({
     updateBundle(nextBundle);
     setDispatchedReminders(prev => [res.postEventNotification, ...prev]);
     showToast(
-      `Checked In (${method.replace(/_/g, ' ')}) · +${res.completedSignup.verifiedHours}h Verified!`,
-      `${signup.userName} earned +${res.completedSignup.verifiedHours}h on their ChmsPerson & OraGoal Impact Passport${
-        res.completedSignup.unlockedRewardTitle
-          ? ` and unlocked "${res.completedSignup.unlockedRewardTitle}"!`
-          : '!'
-      }`,
+      `Checked In (${method.replace(/_/g, ' ')}) · +${res.completedSignup.verifiedHours}h Verified`,
+      `${signup.userName}'s ${res.completedSignup.verifiedHours}h of service is recorded on their impact passport. Thank you for serving.`,
       'emerald'
     );
   };
@@ -384,9 +419,7 @@ export const ElevateMobilizeHub: React.FC<ElevateMobilizeHubProps> = ({
       signerName: currentUserName,
       signerCity: sigCity,
       signerRoleBadge: `Verified Member · ${org.name}`,
-      comment:
-        sigComment.trim() ||
-        'Standing in covenant with our congregation and neighbors to serve and build up our city.',
+      comment: sigComment.trim() || undefined,
       testimonyKind: sigTestimonyKind,
       testimonyDurationSec: sigTestimonyKind === 'TEXT' ? undefined : 29,
       pledgedHours: sigPledgedHours,
@@ -404,8 +437,8 @@ export const ElevateMobilizeHub: React.FC<ElevateMobilizeHubProps> = ({
     if (res.newlyUnlockedMilestones.length > 0) {
       const ms = res.newlyUnlockedMilestones[0];
       showToast(
-        `Milestone Unlocked: ${ms.title}!`,
-        ms.description,
+        `Goal reached: ${ms.targetSignatures} signers`,
+        `Your signature helped "${petition.title}" reach ${res.petition.signatureCount} signers.`,
         'emerald'
       );
     } else {
@@ -420,7 +453,8 @@ export const ElevateMobilizeHub: React.FC<ElevateMobilizeHubProps> = ({
   };
 
   const handleSimulateMilestoneUnlock = (petition: ElevatePetitionDrive) => {
-    // Adds verified community signatures to reach the next locked milestone so leaders/visitors can see the unlock trigger live
+    // Demo church only: adds sample signers so visitors can watch a goal being reached.
+    if (!isDemo) return;
     const nextLocked = petition.milestones.find(m => !m.unlocked);
     if (!nextLocked) return;
     let curPetition = petition;
@@ -453,8 +487,8 @@ export const ElevateMobilizeHub: React.FC<ElevateMobilizeHubProps> = ({
     });
 
     showToast(
-      unlockedLabel ? `Milestone Unlocked: ${unlockedLabel}!` : 'Signatures Added!',
-      `Reached ${curPetition.signatureCount} verified signers — Sponsor Match & Sanctuary Unlocks activated!`,
+      unlockedLabel ? `Goal reached: ${nextLocked.targetSignatures} signers` : 'Sample signatures added',
+      `"${petition.title}" now has ${curPetition.signatureCount} signers (demo).`,
       'emerald'
     );
   };
@@ -467,8 +501,8 @@ export const ElevateMobilizeHub: React.FC<ElevateMobilizeHubProps> = ({
       hostName: currentUserName,
       hostRoleBadge: `Verified Member · ${org.name}`,
       title: hostDraft.title.trim(),
-      city: hostDraft.city.trim() || 'Atlanta, GA',
-      neighborhood: hostDraft.neighborhood.trim() || 'Downtown',
+      city: hostDraft.city.trim() || (isDemo ? 'Atlanta, GA' : ''),
+      neighborhood: hostDraft.neighborhood.trim() || (isDemo ? 'Downtown' : ''),
       venueKind: hostDraft.venueKind,
       dateISO: hostDraft.dateISO,
       timeLabel: hostDraft.timeLabel,
@@ -504,7 +538,7 @@ export const ElevateMobilizeHub: React.FC<ElevateMobilizeHubProps> = ({
         ? 'Spoke Host Approved & Screening License Activated!'
         : 'Spoke Application Declined',
       decision === 'APPROVE'
-        ? 'Host now has access to the synchronized Reello stream, Ambo Follow-Along deck, and RSVP roster.'
+        ? 'Host now has access to the synchronized Reello stream, Stage Follow-Along deck, and RSVP roster.'
         : 'Host application was declined.',
       decision === 'APPROVE' ? 'emerald' : 'amber'
     );
@@ -520,22 +554,36 @@ export const ElevateMobilizeHub: React.FC<ElevateMobilizeHubProps> = ({
     });
     showToast(
       `RSVP Confirmed for "${title}"`,
-      'Added to your Elevate Calendar with Ambo Mobile Follow-Along link and Post Man email confirmation.',
+      'Added to your Elevate Calendar with Stage Mobile Follow-Along link and Post Man email confirmation.',
       'emerald'
     );
   };
 
   const handleCreateNewShiftSlot = () => {
-    const targetDrive =
+    if (!newSlotDraft.roleTitle.trim()) return;
+    const existingDrive =
       bundle.shiftDrives.find(d => d.id === newSlotDraft.driveId) || bundle.shiftDrives[0];
-    if (!targetDrive || !newSlotDraft.roleTitle.trim()) return;
+    // First shift for this org: open a simple "Volunteer shifts" drive to hold it.
+    const now = Date.now();
+    const targetDrive: ElevateShiftDrive = existingDrive || {
+      id: `${org.id}_drive_${now}`,
+      orgId: org.id,
+      title: 'Volunteer shifts',
+      subtitle: '',
+      category: 'COMMUNITY_OUTREACH',
+      coordinatorName: currentUserNameProp || '',
+      slots: [],
+      reminderCadence: getDefaultElevateReminderCadence(),
+      createdAt: now,
+      updatedAt: now,
+    };
 
     const newSlot: ElevateShiftSlot = {
       id: `${org.id}_slot_${Date.now()}`,
       driveId: targetDrive.id,
       orgId: org.id,
       roleTitle: newSlotDraft.roleTitle.trim(),
-      description: 'Created via Elevate Mobilize Operations.',
+      description: '',
       dateISO: newSlotDraft.dateISO,
       startTime: newSlotDraft.startTime,
       endTime: newSlotDraft.endTime,
@@ -546,13 +594,6 @@ export const ElevateMobilizeHub: React.FC<ElevateMobilizeHubProps> = ({
       waitlistCount: 0,
       checkedInCount: 0,
       waitlistEnabled: true,
-      rewardUnlock: {
-        plajahPoints: Number(newSlotDraft.plajahPoints) || 150,
-        badgeTitle: 'Sanctuary Action Steward',
-        sanctuaryUnlockKind: 'CHORA_STEMS',
-        sanctuaryUnlockTitle: newSlotDraft.sanctuaryUnlockTitle,
-        stampOraGoalProvenance: true,
-      },
     };
 
     const updatedDrive: ElevateShiftDrive = {
@@ -563,13 +604,15 @@ export const ElevateMobilizeHub: React.FC<ElevateMobilizeHubProps> = ({
 
     updateBundle({
       ...bundle,
-      shiftDrives: bundle.shiftDrives.map(d => (d.id === targetDrive.id ? updatedDrive : d)),
+      shiftDrives: existingDrive
+        ? bundle.shiftDrives.map(d => (d.id === targetDrive.id ? updatedDrive : d))
+        : [...bundle.shiftDrives, updatedDrive],
     });
     setShowNewSlotModal(false);
     setNewSlotDraft({ ...newSlotDraft, roleTitle: '' });
     showToast(
       'New Multi-Shift Slot Published',
-      `Added "${newSlot.roleTitle}" (${newSlot.capacity} seats + auto-waitlist + Volunteer-to-Unlock reward).`,
+      `Added "${newSlot.roleTitle}" (${newSlot.capacity} seats + auto-waitlist).`,
       'emerald'
     );
   };
@@ -725,9 +768,11 @@ export const ElevateMobilizeHub: React.FC<ElevateMobilizeHubProps> = ({
     );
   };
 
-  const sampleDrive = bundle.shiftDrives[0];
+  const sampleDrive = bundle.shiftDrives.find(d => d.slots.length > 0);
   const sampleSlot = sampleDrive?.slots[0];
-  const sampleSignup = bundle.shiftSignups[0] || {
+  const sampleSignup = (isDemo
+    ? bundle.shiftSignups[0]
+    : bundle.shiftSignups.find(s => s.uid === currentUserId && s.slotId === sampleSlot?.id)) || {
     id: 'sample_sig',
     driveId: sampleDrive?.id || 'd1',
     slotId: sampleSlot?.id || 's1',
@@ -758,7 +803,7 @@ export const ElevateMobilizeHub: React.FC<ElevateMobilizeHubProps> = ({
           </p>
         </div>
         <aside aria-label="Before you serve" className="ev-sheet p-5 sm:p-6 flex flex-col gap-1.5" style={{ flex: '1 1 300px', maxWidth: 420, borderRadius: 20 }}>
-          <EvLabel>Lectio · before you serve</EvLabel>
+          <EvLabel>Verse · before you serve</EvLabel>
           <p className="m-0 ev-scripture text-[19px] leading-[1.45]">“Whatever you do, work heartily, as for the Lord, and not for men.”</p>
           <span className="text-xs ev-muted">Colossians 3:23</span>
         </aside>
@@ -843,7 +888,32 @@ export const ElevateMobilizeHub: React.FC<ElevateMobilizeHubProps> = ({
           ═════════════════════════════════════════════════════════════════════════ */}
       {activeTab === 'SHIFTS' && (
         <div className="space-y-6">
-          {bundle.shiftDrives.map(drive => (
+          {summaryStats.totalSlots === 0 && (
+            <HubEmpty
+              title="No shifts posted yet"
+              detail={
+                canManage
+                  ? 'Post the first volunteer shift and members can sign up here.'
+                  : 'When your leaders post volunteer shifts, they will show up here.'
+              }
+              action={
+                canManage ? (
+                  <Button
+                    size="sm"
+                    variant="accent"
+                    icon={<Plus />}
+                    onClick={() => {
+                      setNewSlotDraft(d => ({ ...d, driveId: bundle.shiftDrives[0]?.id || '' }));
+                      setShowNewSlotModal(true);
+                    }}
+                  >
+                    Add Shift Slot
+                  </Button>
+                ) : undefined
+              }
+            />
+          )}
+          {bundle.shiftDrives.filter(drive => drive.slots.length > 0).map(drive => (
             <div
               key={drive.id}
               className="rounded-3xl p-5 sm:p-6 border border-white/12 bg-[#18141F]/90 space-y-5"
@@ -864,17 +934,19 @@ export const ElevateMobilizeHub: React.FC<ElevateMobilizeHubProps> = ({
                     </span>
                   </div>
                   <h3 className="text-xl font-black text-white mt-1">{drive.title}</h3>
-                  <p className="text-xs text-white/65 mt-0.5">{drive.subtitle}</p>
+                  {drive.subtitle && <p className="text-xs text-white/65 mt-0.5">{drive.subtitle}</p>}
                 </div>
 
-                <div className="text-xs text-white/60 shrink-0">
-                  <div>
-                    Coordinator: <b className="text-white">{drive.coordinatorName}</b>
+                {drive.coordinatorName && (
+                  <div className="text-xs text-white/60 shrink-0">
+                    <div>
+                      Coordinator: <b className="text-white">{drive.coordinatorName}</b>
+                    </div>
+                    {drive.coordinatorRole && (
+                      <div className="text-[10.5px] text-[#E2C27E]">{drive.coordinatorRole}</div>
+                    )}
                   </div>
-                  {drive.coordinatorRole && (
-                    <div className="text-[10.5px] text-[#E2C27E]">{drive.coordinatorRole}</div>
-                  )}
-                </div>
+                )}
               </div>
 
               {/* Shift Slots Grid */}
@@ -925,10 +997,12 @@ export const ElevateMobilizeHub: React.FC<ElevateMobilizeHubProps> = ({
                           <p className="text-xs text-white/65 leading-relaxed">{slot.description}</p>
                         )}
 
-                        <div className="flex items-center gap-1.5 text-[11px] text-white/55">
-                          <MapPin size={11} className="text-[#E2C27E] shrink-0" />
-                          <span className="truncate">{slot.locationLabel}</span>
-                        </div>
+                        {slot.locationLabel && (
+                          <div className="flex items-center gap-1.5 text-[11px] text-white/55">
+                            <MapPin size={11} className="text-[#E2C27E] shrink-0" />
+                            <span className="truncate">{slot.locationLabel}</span>
+                          </div>
+                        )}
 
                         {/* Capacity Progress Bar */}
                         <div className="space-y-1">
@@ -953,21 +1027,6 @@ export const ElevateMobilizeHub: React.FC<ElevateMobilizeHubProps> = ({
                             />
                           </div>
                         </div>
-
-                        {/* Plajah-Exclusive "Volunteer-to-Unlock" Reward Card */}
-                        {slot.rewardUnlock && (
-                          <div className="p-2.5 rounded-xl bg-[#7A1FC0]/25 border border-[#E2C27E]/35 space-y-1">
-                            <div className="flex items-center justify-between text-[9.5px] font-black uppercase tracking-wider text-[#E2C27E]">
-                              <span className="flex items-center gap-1">
-                                <Sparkles size={10} /> Volunteer-to-Unlock Reward
-                              </span>
-                              <span>+{slot.rewardUnlock.plajahPoints} Pts</span>
-                            </div>
-                            <p className="text-[11px] font-semibold text-white leading-snug">
-                              {slot.rewardUnlock.sanctuaryUnlockTitle || slot.rewardUnlock.badgeTitle}
-                            </p>
-                          </div>
-                        )}
 
                         {/* Active Roster Chips (allows testing Waitlist Auto-Promotion & Leader Check-In) */}
                         {slotSignups.length > 0 && (
@@ -1099,6 +1158,12 @@ export const ElevateMobilizeHub: React.FC<ElevateMobilizeHubProps> = ({
           ═════════════════════════════════════════════════════════════════════════ */}
       {activeTab === 'PETITIONS' && (
         <div className="space-y-6">
+          {bundle.petitions.length === 0 && (
+            <HubEmpty
+              title="No petitions yet"
+              detail="Covenants, petitions and open letters your organization starts will appear here for members to sign."
+            />
+          )}
           {bundle.petitions.map(pet => {
             const pct = Math.min(
               100,
@@ -1178,7 +1243,7 @@ export const ElevateMobilizeHub: React.FC<ElevateMobilizeHubProps> = ({
                       </span>
                     </div>
 
-                    {pet.milestones.some(m => !m.unlocked) && (
+                    {isDemo && pet.milestones.some(m => !m.unlocked) && (
                       <button
                         onClick={() => handleSimulateMilestoneUnlock(pet)}
                         className="px-3 py-1 rounded-lg bg-[#7A1FC0]/60 hover:bg-[#7A1FC0] border border-[#E2C27E]/40 text-[10.5px] font-bold text-[#F0D9A6]"
@@ -1220,7 +1285,7 @@ export const ElevateMobilizeHub: React.FC<ElevateMobilizeHubProps> = ({
                                 : 'bg-white/10 text-white/60'
                             }`}
                           >
-                            {ms.unlocked ? 'UNLOCKED ✓' : 'LOCKED'}
+                            {ms.unlocked ? 'Reached ✓' : 'In progress'}
                           </span>
                         </div>
                         <div className="font-bold text-white">{ms.title}</div>
@@ -1308,7 +1373,7 @@ export const ElevateMobilizeHub: React.FC<ElevateMobilizeHubProps> = ({
                         className="px-5 py-2.5 rounded-xl bg-[#E2C27E] text-black text-xs font-black flex items-center gap-1.5"
                       >
                         <CheckCircle2 size={14} />
-                        <span>Sign &amp; Stamp Verified Signature (+50 Plajah Pts)</span>
+                        <span>Sign &amp; Stamp Verified Signature</span>
                       </button>
                     </div>
                   </div>
@@ -1319,6 +1384,9 @@ export const ElevateMobilizeHub: React.FC<ElevateMobilizeHubProps> = ({
                   <div className="text-[10px] font-extrabold uppercase tracking-widest text-white/50">
                     Living Testimony Wall ({petSigs.length} Featured Signers)
                   </div>
+                  {petSigs.length === 0 && (
+                    <p className="m-0 text-xs text-[#A49CB2]">No signatures yet. Be the first to sign.</p>
+                  )}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     {petSigs.slice(0, 6).map(sig => (
                       <div
@@ -1339,7 +1407,7 @@ export const ElevateMobilizeHub: React.FC<ElevateMobilizeHubProps> = ({
                           )}
                         </div>
                         <div className="text-[10px] text-[#E2C27E] font-semibold">
-                          {sig.signerRoleBadge} · {sig.signerCity}
+                          {[sig.signerRoleBadge, sig.signerCity].filter(Boolean).join(' · ')}
                         </div>
                         {sig.comment && (
                           <p className="text-[11px] text-white/75 italic leading-snug">
@@ -1366,6 +1434,12 @@ export const ElevateMobilizeHub: React.FC<ElevateMobilizeHubProps> = ({
           ═════════════════════════════════════════════════════════════════════════ */}
       {activeTab === 'SPOKES' && (
         <div className="space-y-6">
+          {bundle.spokeCampaigns.length === 0 && (
+            <HubEmpty
+              title="No host chapters yet"
+              detail="Home groups, watch parties and local chapters your organization opens for hosting will be listed here."
+            />
+          )}
           {bundle.spokeCampaigns.map(camp => {
             const rollup = computeSpokeCampaignRollup(camp);
             return (
@@ -1411,7 +1485,7 @@ export const ElevateMobilizeHub: React.FC<ElevateMobilizeHubProps> = ({
                         <code className="px-1.5 py-0.5 rounded bg-black/50 text-[#F0D9A6] font-mono">
                           {camp.screeningLicense.licenseCode}
                         </code>{' '}
-                        · Includes Synchronized Ambo Follow-Along Slide Deck + Tela Discussion Guide
+                        · Includes Synchronized Stage Follow-Along Slide Deck + Tela Discussion Guide
                       </div>
                     </div>
 
@@ -1437,6 +1511,9 @@ export const ElevateMobilizeHub: React.FC<ElevateMobilizeHubProps> = ({
                 )}
 
                 {/* Spoke Host Cards */}
+                {camp.spokes.length === 0 && (
+                  <p className="m-0 text-xs text-[#A49CB2]">No hosts yet. Apply above to host the first one.</p>
+                )}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {camp.spokes.map(spoke => (
                     <div
@@ -1474,7 +1551,7 @@ export const ElevateMobilizeHub: React.FC<ElevateMobilizeHubProps> = ({
                           <div className="flex items-center gap-1.5">
                             <MapPin size={11} className="text-[#E2C27E]" />
                             <span>
-                              {spoke.neighborhood} · {spoke.city}
+                              {[spoke.neighborhood, spoke.city].filter(Boolean).join(' · ') || 'Location to be announced'}
                             </span>
                           </div>
                           <div className="flex items-center gap-1.5">
@@ -1513,7 +1590,7 @@ export const ElevateMobilizeHub: React.FC<ElevateMobilizeHubProps> = ({
                           </button>
                         )}
 
-                        {spoke.status === 'PENDING_VETTING' && (
+                        {spoke.status === 'PENDING_VETTING' && (canManage || isDemo) && (
                           <div className="flex gap-2">
                             <button
                               onClick={() => handleReviewSpoke(spoke.id, 'APPROVE')}
@@ -1540,98 +1617,49 @@ export const ElevateMobilizeHub: React.FC<ElevateMobilizeHubProps> = ({
       )}
 
       {/* ═════════════════════════════════════════════════════════════════════════
-          TAB 4: MY ELEVATE IMPACT PASSPORT & SANCTUARY UNLOCKS
+          TAB 4: MY IMPACT PASSPORT (computed only from this org's real shifts & signatures)
           ═════════════════════════════════════════════════════════════════════════ */}
       {activeTab === 'PASSPORT' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <div className="lg:col-span-7 rounded-3xl p-6 border border-[#E2C27E]/35 bg-[#18141F]/90 space-y-5">
+          <div className="lg:col-span-12 rounded-3xl p-6 border border-[#E2C27E]/35 bg-[#18141F]/90 space-y-5">
             <div>
-              <div className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-[#E2C27E]">
-                Verified Member Service Record · Synced with ChmsPerson &amp; Ora Goals
-              </div>
+              <EvLabel>Service record · {org.name}</EvLabel>
               <h3 className="text-2xl font-black text-white mt-1">
-                {currentUserName}’s Elevate Impact Passport
+                {currentUserNameProp || isDemo ? `${currentUserName}’s impact passport` : 'Your impact passport'}
               </h3>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div className="p-4 rounded-2xl bg-black/45 border border-white/10">
-                <div className="text-[10px] uppercase text-white/50 font-bold">
-                  Verified Hours
-                </div>
-                <div className="text-2xl font-black text-emerald-400 mt-1">
-                  {passport.verifiedVolunteerHours}h
-                </div>
-                <div className="text-[10px] text-white/50">QR &amp; Geofence verified</div>
+                <div className="text-[10px] uppercase text-white/50 font-bold">Verified Hours</div>
+                <div className="text-2xl font-black text-emerald-400 mt-1">{passport.verifiedVolunteerHours}h</div>
+                <div className="text-[10px] text-white/50">From checked-in shifts</div>
               </div>
               <div className="p-4 rounded-2xl bg-black/45 border border-white/10">
-                <div className="text-[10px] uppercase text-white/50 font-bold">
-                  Plajah Points
-                </div>
-                <div className="text-2xl font-black text-[#E2C27E] mt-1">
-                  {passport.plajahPointsEarned.toLocaleString()}
-                </div>
-                <div className="text-[10px] text-white/50">From shifts &amp; covenants</div>
+                <div className="text-[10px] uppercase text-white/50 font-bold">Completed Shifts</div>
+                <div className="text-2xl font-black text-white mt-1">{passport.completedShiftsCount}</div>
+                <div className="text-[10px] text-white/50">{passport.upcomingShiftsCount} upcoming</div>
               </div>
               <div className="p-4 rounded-2xl bg-black/45 border border-white/10">
-                <div className="text-[10px] uppercase text-white/50 font-bold">
-                  Completed Shifts
-                </div>
-                <div className="text-2xl font-black text-white mt-1">
-                  {passport.completedShiftsCount}
-                </div>
-                <div className="text-[10px] text-white/50">
-                  {passport.upcomingShiftsCount} upcoming
-                </div>
+                <div className="text-[10px] uppercase text-white/50 font-bold">Petitions Signed</div>
+                <div className="text-2xl font-black text-white mt-1">{passport.petitionsSignedCount}</div>
+                <div className="text-[10px] text-white/50">Covenants, letters &amp; pledges</div>
+              </div>
+              <div className="p-4 rounded-2xl bg-black/45 border border-white/10">
+                <div className="text-[10px] uppercase text-white/50 font-bold">Gatherings Hosted</div>
+                <div className="text-2xl font-black text-white mt-1">{passport.spokesHostedCount}</div>
+                <div className="text-[10px] text-white/50">Home groups &amp; watch parties</div>
               </div>
             </div>
 
-            <div className="space-y-2.5">
-              <div className="text-xs font-extrabold uppercase tracking-wider text-[#E2C27E]">
-                Earned Sanctuary &amp; Ministry Badges
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {passport.badges.map(b => (
-                  <span
-                    key={b}
-                    className="px-3 py-1.5 rounded-xl bg-[#7A1FC0]/40 border border-[#E2C27E]/40 text-xs font-bold text-[#F0D9A6] flex items-center gap-1.5"
-                  >
-                    <Award size={13} className="text-[#E2C27E]" />
-                    <span>{b}</span>
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="lg:col-span-5 rounded-3xl p-6 border border-white/12 bg-[#18141F]/90 space-y-4">
-            <div className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-[#06D6A0]">
-              Volunteer-to-Unlock Vault
-            </div>
-            <h3 className="text-xl font-black text-white">
-              Unlocked Sanctuary Media &amp; Stems
-            </h3>
-            <p className="text-xs text-white/65 leading-relaxed">
-              Only on Plajah: completing verified volunteer shifts unlocks exclusive Chora rehearsal
-              stems, Taleo documentary screening passes, and Lorea Living Books.
-            </p>
-
-            <div className="space-y-2.5">
-              {passport.unlockedRewards.map(r => (
-                <div
-                  key={r}
-                  className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-400/35 flex items-center justify-between gap-3"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <Sparkles size={15} className="text-emerald-400 shrink-0" />
-                    <span className="text-xs font-bold text-white">{r}</span>
-                  </div>
-                  <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase bg-emerald-400 text-black shrink-0">
-                    Unlocked
-                  </span>
-                </div>
-              ))}
-            </div>
+            {passport.verifiedVolunteerHours === 0 &&
+              passport.upcomingShiftsCount === 0 &&
+              passport.petitionsSignedCount === 0 &&
+              passport.spokesHostedCount === 0 && (
+                <p className="m-0 text-xs text-[#A49CB2] leading-relaxed">
+                  Nothing recorded yet. Sign up for a shift and check in when you serve; your hours are added here.
+                </p>
+              )}
           </div>
         </div>
       )}
@@ -1687,6 +1715,11 @@ export const ElevateMobilizeHub: React.FC<ElevateMobilizeHubProps> = ({
 
           {/* Right 7 Cols: Interactive Preview of In-App Quick Actions + Post Man Email + ARIA Job */}
           <div className="lg:col-span-7 rounded-3xl p-6 border border-[#E2C27E]/35 bg-[#18141F]/90 space-y-5">
+            {!liveReminderPreview && (
+              <p className="m-0 text-xs text-[#A49CB2] leading-relaxed">
+                Reminder previews appear here once a shift is posted.
+              </p>
+            )}
             {liveReminderPreview && (
               <>
                 <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -1790,6 +1823,11 @@ export const ElevateMobilizeHub: React.FC<ElevateMobilizeHubProps> = ({
             </div>
 
             <div className="space-y-3">
+              {bundle.crmProfiles.length === 0 && (
+                <p className="m-0 text-xs text-[#A49CB2] leading-relaxed">
+                  No CRM connections yet. Use the CSV bridge to import or export people, shifts and signatures.
+                </p>
+              )}
               {bundle.crmProfiles.map(prof => (
                 <div
                   key={prof.id}
@@ -2088,7 +2126,7 @@ export const ElevateMobilizeHub: React.FC<ElevateMobilizeHubProps> = ({
                   <input
                     value={civicCompliance.candidateName || ''}
                     onChange={e => updateCivicCompliance({ candidateName: e.target.value })}
-                    placeholder="e.g. Jordan Vance · District 4"
+                    placeholder="e.g. Candidate name · Office"
                     className="w-full rounded-xl bg-black/50 border border-white/15 px-3 py-2 text-xs text-white"
                   />
                 </div>
@@ -2309,6 +2347,9 @@ export const ElevateMobilizeHub: React.FC<ElevateMobilizeHubProps> = ({
                   Itemized Campaign Contribution Ledger ({campaignContributions.length} Records)
                 </div>
                 <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                  {campaignContributions.length === 0 && (
+                    <p className="m-0 text-xs text-[#A49CB2]">No contributions recorded.</p>
+                  )}
                   {campaignContributions.map(c => (
                     <div
                       key={c.id}
@@ -2365,7 +2406,7 @@ export const ElevateMobilizeHub: React.FC<ElevateMobilizeHubProps> = ({
             </div>
             <p className="text-xs text-white/70">
               Approved hosts receive our <b>Plajah Community Screening License</b> (Reello Stream +
-              Ambo Follow-Along Slide Deck + Discussion Guide) and appear on our congregation map.
+              Stage Follow-Along Slide Deck + Discussion Guide) and appear on our congregation map.
             </p>
             <div className="space-y-3">
               <input
@@ -2461,7 +2502,7 @@ export const ElevateMobilizeHub: React.FC<ElevateMobilizeHubProps> = ({
               <input
                 value={newSlotDraft.roleTitle}
                 onChange={e => setNewSlotDraft({ ...newSlotDraft, roleTitle: e.target.value })}
-                placeholder="Shift Role Title (e.g. Sanctuary Youth Check-In Lead)"
+                placeholder="Shift Role Title (e.g. Youth Check-In Lead)"
                 className="w-full rounded-xl bg-black/50 border border-white/15 px-3.5 py-2.5 text-xs text-white"
               />
               <div className="grid grid-cols-3 gap-2">
@@ -2504,23 +2545,12 @@ export const ElevateMobilizeHub: React.FC<ElevateMobilizeHubProps> = ({
                   className="rounded-xl bg-black/50 border border-white/15 px-3 py-2 text-xs text-white"
                 />
                 <input
-                  type="number"
-                  value={newSlotDraft.plajahPoints}
-                  onChange={e =>
-                    setNewSlotDraft({ ...newSlotDraft, plajahPoints: Number(e.target.value) })
-                  }
-                  placeholder="Plajah Points"
+                  value={newSlotDraft.locationLabel}
+                  onChange={e => setNewSlotDraft({ ...newSlotDraft, locationLabel: e.target.value })}
+                  placeholder="Location"
                   className="rounded-xl bg-black/50 border border-white/15 px-3 py-2 text-xs text-white"
                 />
               </div>
-              <input
-                value={newSlotDraft.sanctuaryUnlockTitle}
-                onChange={e =>
-                  setNewSlotDraft({ ...newSlotDraft, sanctuaryUnlockTitle: e.target.value })
-                }
-                placeholder="Volunteer-to-Unlock Sanctuary Reward Title"
-                className="w-full rounded-xl bg-black/50 border border-white/15 px-3.5 py-2.5 text-xs text-white"
-              />
             </div>
             <div className="flex justify-end gap-2">
               <button

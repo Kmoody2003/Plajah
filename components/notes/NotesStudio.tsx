@@ -232,7 +232,7 @@ const NotesStudio: React.FC<Props> = ({ user, profile, onNavigate, onBack }) => 
               <button key={p.id} type="button" onClick={() => void openPage(p)} className={`text-left rounded-xl px-3 py-2 ${page?.id === p.id ? 'bg-white/12' : 'hover:bg-white/[0.06]'}`}>
                 <p className="text-[13px] font-black truncate flex items-center gap-1.5">{p.pinned && <Pin size={11} className="text-amber-300 shrink-0" />}{p.title}</p>
                 <p className="text-[11px] text-white/45 truncate">{strip(p.text).slice(0, 70) || 'Empty page'}</p>
-                <p className="text-[10px] text-white/30">{p.reader ? `${p.reader.items.length} ${p.reader.kind === 'research' ? 'research entr' + (p.reader.items.length === 1 ? 'y' : 'ies') : 'note' + (p.reader.items.length === 1 ? '' : 's')} · ${p.reader.kind === 'verse' ? 'Lectio' : p.reader.kind === 'sacred' ? 'Sacred Library' : 'Research notebook'}` : <>{new Date(p.updatedAt || p.createdAt).toLocaleDateString()}{p.legacy ? ' · older note' : ''}</>}</p>
+                <p className="text-[10px] text-white/30">{p.reader ? `${p.reader.items.length} ${p.reader.kind === 'research' ? 'research entr' + (p.reader.items.length === 1 ? 'y' : 'ies') : 'note' + (p.reader.items.length === 1 ? '' : 's')} · ${p.reader.kind === 'verse' ? 'Verse' : p.reader.kind === 'sacred' ? 'Sacred Library' : 'Research notebook'}` : <>{new Date(p.updatedAt || p.createdAt).toLocaleDateString()}{p.legacy ? ' · older note' : ''}</>}</p>
               </button>
             ))}
           </div>

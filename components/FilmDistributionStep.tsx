@@ -37,7 +37,7 @@ const MODELS: { id: FilmDistribution['model']; label: string; desc: string; icon
 ];
 
 const RELEASES: { id: FilmDistribution['release']; label: string; desc: string; icon: any }[] = [
-  { id: 'NOW',          label: 'Release now',  desc: 'Live on Taleo immediately', icon: Tv },
+  { id: 'NOW',          label: 'Release now',  desc: 'Live on Cinema immediately', icon: Tv },
   { id: 'SCHEDULED',    label: 'Schedule',     desc: 'Pick a premiere date', icon: Calendar },
   { id: 'EARLY_ACCESS', label: 'Early access', desc: 'Press/festival codes first', icon: Lock },
   { id: 'PRIVATE',      label: 'Private',      desc: 'Members / unlisted only', icon: Lock },
@@ -58,7 +58,7 @@ const FilmDistributionStep: React.FC<{ value: FilmDistribution; onChange: (v: Fi
       <div className="flex items-center gap-2">
         <Clapperboard size={15} className="text-small-orange" />
         <h3 className="text-[11px] font-black uppercase tracking-[0.3em] text-small-orange">Distribution &amp; Release</h3>
-        <span className="text-[9px] text-white/30">· goes live on Taleo</span>
+        <span className="text-[9px] text-white/30">· goes live on Cinema</span>
       </div>
       <p className="text-[10px] text-white/35 -mt-3">All optional — sensible defaults are set. Refine any of this now, or anytime later in the Film Distribution Hub.</p>
 

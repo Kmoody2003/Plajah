@@ -173,7 +173,7 @@ const AuthoringModal: React.FC<{
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-lg font-black text-white">Add History Moment</h2>
-            <p className="text-xs text-white/40">{category === 'MUSIC' ? 'Chora' : 'Taleo'} — published to the platform's daily cycle</p>
+            <p className="text-xs text-white/40">{category === 'MUSIC' ? 'Chora' : 'Cinema'} — published to the platform's daily cycle</p>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center"><X size={14} /></button>
         </div>
@@ -301,7 +301,7 @@ const HistoryMomentsView: React.FC<HistoryMomentsViewProps> = ({ category, onBac
     }
   };
 
-  const categoryLabel = category === 'MUSIC' ? 'Chora' : 'Taleo';
+  const categoryLabel = category === 'MUSIC' ? 'Chora' : 'Cinema';
   const CategoryIcon = category === 'MUSIC' ? Music2 : Film;
 
   return (

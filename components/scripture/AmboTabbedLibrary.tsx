@@ -660,7 +660,7 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
           _cache.taleo = { data: taleo, ts: Date.now() };
         }
       } catch (err) {
-        console.warn('[AmboTabbedLibrary] Failed loading Taleo series', err);
+        console.warn('[AmboTabbedLibrary] Failed loading Cinema series', err);
       } finally {
         if (active) setIsLoadingTaleo(false);
       }
@@ -710,7 +710,7 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
     // Edits to a Chora playlist go back to the Chora service, so the same
     // playlist is current in the Chora app.
     if (target?.source === 'chora' && patch.trackIds) {
-      void updatePlaylist(id, { trackIds: patch.trackIds }).catch(err => console.warn('[Ambo] Chora playlist sync failed', err));
+      void updatePlaylist(id, { trackIds: patch.trackIds }).catch(err => console.warn('[Stage] Chora playlist sync failed', err));
     }
   };
 
@@ -969,7 +969,7 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
   };
 
   const handleNewSubfolder = async (folder: PinnedFolder) => {
-    if (folder.kind !== 'handle') { setFolderNotice('Creating subfolders from Ambo works with browser-linked folders; use Explorer for Windows folders.'); return; }
+    if (folder.kind !== 'handle') { setFolderNotice('Creating subfolders from Stage works with browser-linked folders; use Explorer for Windows folders.'); return; }
     const name = window.prompt('New subfolder name:')?.trim();
     if (!name) return;
     try {
@@ -1677,7 +1677,7 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
       ...t,
       coverImage: undefined,
       videoSrc: 'https://assets.mixkit.co/videos/preview/mixkit-clouds-and-blue-sky-2408-large.mp4',
-      artist: 'Taleo Original',
+      artist: 'Cinema Original',
       description: 'Platform narrative production',
     }));
   }, [taleoReleases]);
@@ -1769,7 +1769,7 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
     { id: 'lyrics', label: 'Song Lyrics', icon: <Mic2 size={13} />, count: songCount },
     { id: 'chora', label: 'Chora', icon: <Music size={13} />, count: CHORA_TRACKS.length + CHORA_PADS.length },
     { id: 'reello', label: 'Reello', icon: <Video size={13} />, count: activeReelloClips.length },
-    { id: 'taleo', label: 'Taleo', icon: <Film size={13} />, count: activeTaleoSeries.length },
+    { id: 'taleo', label: 'Cinema', icon: <Film size={13} />, count: activeTaleoSeries.length },
     { id: 'visualizers', label: 'Visualizers', icon: <Sparkles size={13} />, count: visualizerItems.length },
     { id: 'assets', label: 'Assets', icon: <FileText size={13} />, count: FABULA_LOTTIE_PRESETS.length + FABULA_TRANSITIONS.length },
     { id: 'live', label: 'Live Feeds', icon: <Radio size={13} />, count: liveFeedItems.length },
@@ -2892,7 +2892,7 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
         {activeTab === 'taleo' && (
           <div className="flex-1 flex min-h-0 overflow-hidden">
             <div className="w-56 border-r p-2 flex flex-col gap-1 flex-none" style={{ borderColor: line, background: 'rgba(0,0,0,0.2)' }}>
-              <div className="text-[9.5px] font-extrabold uppercase tracking-wider text-white/40 mb-1">Taleo Releases</div>
+              <div className="text-[9.5px] font-extrabold uppercase tracking-wider text-white/40 mb-1">Cinema Releases</div>
               {['All Series', 'Narrative Films', 'Documentaries', 'Kids & Family'].map(cat => (
                 <button
                   key={cat}
@@ -2984,7 +2984,7 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                       </SquareFrame>
                       <div className="p-2 flex-1 flex flex-col justify-between">
                         <div className="text-[12px] font-bold text-white truncate" title={t.title}>{t.title}</div>
-                        <div className="text-[9px] text-white/40">{t.episodes} Episodes · {t.artist || 'Taleo Production'}</div>
+                        <div className="text-[9px] text-white/40">{t.episodes} Episodes · {t.artist || 'Cinema Production'}</div>
                       </div>
                     </div>
                   );

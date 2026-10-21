@@ -70,7 +70,7 @@ const CAPABILITIES: Pane[] = [
 ];
 
 const TYPE_KICKER: Record<string, string> = {
-  MUSIC: 'New on Chora', VIDEO: 'New on Taleo & Reello', BOOK: 'New on Lorea',
+  MUSIC: 'New on Chora', VIDEO: 'New on Cinema & Reello', BOOK: 'New on Lorea',
   PHOTO: 'New in Photos', GAME: 'New in Games',
 };
 
@@ -182,7 +182,7 @@ const PanoramaColumn: React.FC<{
       case 'RELEASE': {
         const a = pane.album;
         const kicker = a.type === 'VIDEO'
-          ? (a.subType === 'UGC' ? 'New on Reello' : 'New on Taleo')
+          ? (a.subType === 'UGC' ? 'New on Reello' : 'New on Cinema')
           : TYPE_KICKER[a.type || 'MUSIC'] || 'New release';
         return { kicker, title: a.title, by: a.artist, desc: cleanDescription(a.description), cta: 'Open' };
       }
@@ -805,7 +805,7 @@ export const ArchiveRails: React.FC<{
       if (!auth.currentUser) throw new Error('Sign in required');
     }
     await createPost({
-      text: `🎃 Exploring the Halloween Curation — headlined by Brian James Gage’s "Pumpkin Patch" alongside ${CURATED_HALLOWEEN_FILMS.length} restored horror, Korean gothic & silent classics on Taleo Cinema!`,
+      text: `🎃 Exploring the Halloween Curation — headlined by Brian James Gage’s "Pumpkin Patch" alongside ${CURATED_HALLOWEEN_FILMS.length} restored horror, Korean gothic & silent classics on Cinema!`,
       isPublic: true,
       tags: ['HalloweenCuration', 'Taleo', 'PumpkinPatch', 'HorrorCinema'],
       assetEmbed: {
@@ -838,7 +838,7 @@ export const ArchiveRails: React.FC<{
     const byType = (types: string[]) => albums.filter(a => types.includes(a.type || 'MUSIC') && a.coverImage && !a.isDraft).slice(0, 12);
     return [
       { title: 'Fresh on Chora', sub: 'Music', items: byType(['MUSIC']) },
-      { title: 'New on Taleo & Reello', sub: 'Film · TV · Video', items: byType(['VIDEO']) },
+      { title: 'New on Cinema & Reello', sub: 'Film · TV · Video', items: byType(['VIDEO']) },
       { title: 'Just published on Lorea', sub: 'Books · Comics', items: byType(['BOOK']) },
     ].filter(r => r.items.length > 0);
   }, [albums]);
@@ -857,7 +857,7 @@ export const ArchiveRails: React.FC<{
           <div>
             <div className="flex flex-wrap items-center gap-2 mb-1.5">
               <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-orange-500/20 border border-orange-400/35 text-[9px] font-black uppercase tracking-[0.22em] text-orange-300">
-                <Ghost size={11} className="text-orange-400" /> Seasonal Curation · Taleo Cinema
+                <Ghost size={11} className="text-orange-400" /> Seasonal Curation · Cinema
               </span>
               <span className="px-2.5 py-0.5 rounded-full bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-[0.2em] text-white/55">
                 Hero Feature + {CURATED_HALLOWEEN_FILMS.length} Classics

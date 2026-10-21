@@ -154,7 +154,7 @@ export function deserializeAmboProject(jsonStr: string): AmboProject {
   const parsed = JSON.parse(jsonStr);
   const result = validateAmboProject(parsed);
   if (!result.valid || !result.project) {
-    throw new Error(result.error || 'Failed to parse Ambo project');
+    throw new Error(result.error || 'Failed to parse Stage project');
   }
   return result.project;
 }

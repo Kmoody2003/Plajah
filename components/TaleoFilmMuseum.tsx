@@ -33,7 +33,7 @@ const TaleoFilmMuseum: React.FC<Props> = ({ onBack }) => {
           <div>
             <h1 className="text-base font-black text-white leading-none">The Film Museum</h1>
             <p className="text-[9px] text-white/40 font-black uppercase tracking-widest mt-1">
-              Taleo — Masters of Cinema
+              Cinema — Masters of Cinema
             </p>
           </div>
         </div>

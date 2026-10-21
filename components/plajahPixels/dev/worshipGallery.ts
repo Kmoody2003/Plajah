@@ -640,9 +640,9 @@ function setAsrStatus(status: string, badge?: string, progress?: number) {
 subscribeExtract(() => {
   const ext = getExtractState();
   if (ext.status === 'isolating' || ext.status === 'transcribing') {
-    setAsrStatus(ext.message || 'Ambo vocalLyricExtractor processing…', 'Ambo Extractor', ext.progress);
+    setAsrStatus(ext.message || 'Stage vocalLyricExtractor processing…', 'Stage Extractor', ext.progress);
   } else if (ext.status === 'done' && ext.lines > 0) {
-    setAsrStatus(ext.message || `Ambo lyrics ready (${ext.lines} lines)`, 'Ambo Synced');
+    setAsrStatus(ext.message || `Stage lyrics ready (${ext.lines} lines)`, 'Stage Synced');
   }
   if (currentAmboTrack) {
     const extracted = getExtractedLyrics(currentAmboTrack);
@@ -668,7 +668,7 @@ subscribeSongFollow(() => {
   if (sf.running && sf.status && audioMode !== 'file') {
     setAsrStatus(
       sf.songTitle ? `[SongFollow: ${sf.songTitle}] ${sf.status}` : sf.status,
-      sf.engine === 'whisper' ? 'Ambo Whisper/Chora' : 'Ambo Speech',
+      sf.engine === 'whisper' ? 'Stage Whisper/Chora' : 'Stage Speech',
       sf.loadProgress ?? undefined,
     );
   }
@@ -678,8 +678,8 @@ subscribeLiveLyrics(() => {
   const ll = getLiveLyricsState();
   if (ll.running && activeAmboClock === 'live') {
     setAsrStatus(
-      ll.status || 'Ambo Live Lyrics active',
-      ll.engine === 'whisper' ? 'Ambo Live ASR' : 'Ambo Speech',
+      ll.status || 'Stage Live Lyrics active',
+      ll.engine === 'whisper' ? 'Stage Live ASR' : 'Stage Speech',
       ll.loadProgress ?? undefined,
     );
   }
@@ -1691,8 +1691,8 @@ function buildStageRenderContext(
     if (chosenFeed && chosenFeed.lines.length > 0) {
       const feedPos = chosenFeed.currentTime + manualStepOffset * 3.5;
       const frame = buildWorshipLyricFrame(chosenFeed.lines, feedPos, w, h, {
-        title: chosenFeed.title || detectedSongTitle || 'Ambo Signal Chain',
-        artist: chosenFeed.artist || detectedSongArtist || `Ambo ${activeAmboClock.toUpperCase()} Clock`,
+        title: chosenFeed.title || detectedSongTitle || 'Stage Signal Chain',
+        artist: chosenFeed.artist || detectedSongArtist || `Stage ${activeAmboClock.toUpperCase()} Clock`,
         bpm: vis.category === 'uptempo-lyric' ? 122 : 68,
       });
       if (typeof chosenFeed.activeIdx === 'number' && chosenFeed.activeIdx >= 0 && chosenFeed.activeIdx < frame.lines.length) {
@@ -1703,7 +1703,7 @@ function buildStageRenderContext(
         const nextText = frame.lines[frame.idx + 1]?.text || '';
         const adlibSuffix = chosenFeed.adlib ? `  ✦ [Adlib: ${chosenFeed.adlib}]` : '';
         if (activeText) {
-          liveTranscriptReadout.textContent = `[Ambo ${activeAmboClock.toUpperCase()}] ❝ ${activeText} ❞${nextText ? `  →  ${nextText}` : ''}${adlibSuffix}`;
+          liveTranscriptReadout.textContent = `[Stage ${activeAmboClock.toUpperCase()}] ❝ ${activeText} ❞${nextText ? `  →  ${nextText}` : ''}${adlibSuffix}`;
         }
       }
       return {
@@ -1726,14 +1726,14 @@ function buildStageRenderContext(
     const filePos = baseClock + manualStepOffset * 3.5;
     const frame = buildWorshipLyricFrame(fileTimedLyrics, filePos, w, h, {
       title: detectedSongTitle || 'Playing Worship Track',
-      artist: detectedSongArtist || 'Ambo Bus + Chora Gemini Sync',
+      artist: detectedSongArtist || 'Stage Bus + Chora Gemini Sync',
       bpm: vis.category === 'uptempo-lyric' ? 122 : 68,
     });
     if (liveTranscriptReadout && w > 600) {
       const activeText = frame.lines[frame.idx]?.text || '';
       const nextText = frame.lines[frame.idx + 1]?.text || '';
       if (activeText) {
-        liveTranscriptReadout.textContent = `[Ambo BUS] ❝ ${activeText} ❞${nextText ? `  →  ${nextText}` : ''}`;
+        liveTranscriptReadout.textContent = `[Stage BUS] ❝ ${activeText} ❞${nextText ? `  →  ${nextText}` : ''}`;
       }
     }
     return {
@@ -1762,7 +1762,7 @@ function buildStageRenderContext(
       visualizer: vis,
       lyricFrame: buildWorshipLyricFrame(liveTranscribedLines, livePos, w, h, {
         title: detectedSongTitle || 'Live Auto-Transcription',
-        artist: 'Ambo Live Lyrics',
+        artist: 'Stage Live Lyrics',
         bpm: vis.category === 'uptempo-lyric' ? 122 : 68,
       }),
     };
@@ -1780,8 +1780,8 @@ function buildStageRenderContext(
       sf.adlib ||
       sf.lastHeard ||
       (audioMode === 'file'
-        ? ext.message || `Ambo Signal Chain extracting vocals · ${detectedSongTitle || 'Audio Track'}…`
-        : sf.status || `Ambo ${activeAmboClock.toUpperCase()} listening for sung or spoken vocals…`);
+        ? ext.message || `Stage Signal Chain extracting vocals · ${detectedSongTitle || 'Audio Track'}…`
+        : sf.status || `Stage ${activeAmboClock.toUpperCase()} listening for sung or spoken vocals…`);
     const waitingLines: LyricLine[] = [{ time: 0, text: waitingText }];
     return {
       ctx,
@@ -1792,8 +1792,8 @@ function buildStageRenderContext(
       params,
       visualizer: vis,
       lyricFrame: buildWorshipLyricFrame(waitingLines, 0.5, w, h, {
-        title: detectedSongTitle || 'Ambo Vocal Signal Chain',
-        artist: detectedSongArtist || `Ambo ${activeAmboClock.toUpperCase()} · ${activeAmboTap.toUpperCase()} Tap`,
+        title: detectedSongTitle || 'Stage Vocal Signal Chain',
+        artist: detectedSongArtist || `Stage ${activeAmboClock.toUpperCase()} · ${activeAmboTap.toUpperCase()} Tap`,
         bpm: vis.category === 'uptempo-lyric' ? 122 : 68,
       }),
     };
@@ -2051,7 +2051,7 @@ micBtn?.addEventListener('click', async () => {
     if (autoTranscribeEnabled) {
       void startSongFollow();
       if (activeAmboClock === 'live') void startLiveLyrics();
-      await attachAutoTranscriber({ kind: 'mic' }, 'Microphone (Ambo Signal Chain)');
+      await attachAutoTranscriber({ kind: 'mic' }, 'Microphone (Stage Signal Chain)');
     }
   } catch {
     setAsrStatus('Microphone permission was not granted', 'Error');
@@ -2086,7 +2086,7 @@ sysAudioBtn?.addEventListener('click', async () => {
     syncTapButtonUI('system');
 
     setTypoTextDemand(true);
-    await attachAutoTranscriber({ kind: 'stream', stream: displayStream }, 'System / Tab Audio (Ambo Chain)');
+    await attachAutoTranscriber({ kind: 'stream', stream: displayStream }, 'System / Tab Audio (Stage Chain)');
   } catch {
     setAsrStatus('System/tab audio capture cancelled', '');
   }
@@ -2158,7 +2158,7 @@ document.getElementById('audioFileInput')?.addEventListener('change', async e =>
       void extractLyricsForTrack(currentAmboTrack, decoded);
     }
   } catch (err) {
-    console.warn('[SanctuaryGallery] Ambo extractLyricsForTrack decode error:', err);
+    console.warn('[SanctuaryGallery] Stage extractLyricsForTrack decode error:', err);
   }
 
   // 4. Also run parallel playhead-first Chora Gemini / UVR / Whisper sync into `fileTimedLyrics`
@@ -2206,8 +2206,8 @@ document.querySelectorAll('#amboClockBtns .btn').forEach(btn => {
       void startSongFollow();
     }
     setAsrStatus(
-      `Switched to Ambo '${clock.toUpperCase()}' Lyric Clock`,
-      `Ambo ${clock.toUpperCase()}`,
+      `Switched to Stage '${clock.toUpperCase()}' Lyric Clock`,
+      `Stage ${clock.toUpperCase()}`,
     );
   });
 });
@@ -2233,8 +2233,8 @@ document.querySelectorAll('#amboTapBtns .btn').forEach(btn => {
       if (activeAmboClock === 'live') void startLiveLyrics();
     }
     setAsrStatus(
-      `Listening on Ambo '${tap}' tap (${tap === 'program' ? 'amboAudio.programStream()' : "amboAudio.channelStream('playlist')"})`,
-      `Ambo ${tap.toUpperCase()}`,
+      `Listening on Stage '${tap}' tap (${tap === 'program' ? 'amboAudio.programStream()' : "amboAudio.channelStream('playlist')"})`,
+      `Stage ${tap.toUpperCase()}`,
     );
   });
 });
@@ -2246,9 +2246,9 @@ document.getElementById('amboCaptureSongBtn')?.addEventListener('click', async (
     const saved = stopCapture(true);
     setAsrStatus(
       saved
-        ? `Saved "${saved.title}" (${saved.lines.length} lines) to Ambo SongLibrary & locked SongFollower!`
+        ? `Saved "${saved.title}" (${saved.lines.length} lines) to Stage SongLibrary & locked SongFollower!`
         : 'Capture stopped (no vocal lines heard yet)',
-      saved ? 'Saved Song' : 'Ambo Chain',
+      saved ? 'Saved Song' : 'Stage Chain',
     );
   } else {
     amboAudio.ensure();
@@ -2262,8 +2262,8 @@ document.getElementById('amboCaptureSongBtn')?.addEventListener('click', async (
         : { kind: 'playlist' };
     await startCapture(detectedSongTitle || 'Captured Worship Song', tapSource);
     setAsrStatus(
-      `Capturing live vocals on '${activeAmboTap}' tap into new Ambo SongLibrary entry…`,
-      'Ambo Capture',
+      `Capturing live vocals on '${activeAmboTap}' tap into new Stage SongLibrary entry…`,
+      'Stage Capture',
     );
   }
 });
@@ -2281,19 +2281,19 @@ amboAdlibBtn?.addEventListener('click', () => {
 const autoTranscribeBtn = document.getElementById('autoTranscribeBtn') as HTMLButtonElement;
 autoTranscribeBtn?.addEventListener('click', () => {
   autoTranscribeEnabled = !autoTranscribeEnabled;
-  autoTranscribeBtn.textContent = `Ambo Chain: ${autoTranscribeEnabled ? 'ON' : 'OFF'}`;
+  autoTranscribeBtn.textContent = `Stage Chain: ${autoTranscribeEnabled ? 'ON' : 'OFF'}`;
   autoTranscribeBtn.classList.toggle('active-toggle', autoTranscribeEnabled);
   if (!autoTranscribeEnabled) {
     stopLiveTranscriber();
     stopSongFollow();
     stopLiveLyrics();
     setTypoTextDemand(false);
-    setAsrStatus('Ambo Chain paused (using built-in lyric progression)', '');
+    setAsrStatus('Stage Chain paused (using built-in lyric progression)', '');
   } else {
     setTypoTextDemand(true);
     void startSongFollow();
     if (activeAmboClock === 'live') void startLiveLyrics();
-    setAsrStatus(`Ambo Chain active (${activeAmboClock.toUpperCase()} clock · ${activeAmboTap} tap)`, 'Ambo Chain');
+    setAsrStatus(`Stage Chain active (${activeAmboClock.toUpperCase()} clock · ${activeAmboTap} tap)`, 'Stage Chain');
   }
 });
 

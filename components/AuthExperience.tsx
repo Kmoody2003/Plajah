@@ -33,11 +33,11 @@ interface Props {
 
 const FEATURES = [
   { icon: Music2, name: 'Chora', tag: 'Music', color: '#8B5CF6', desc: 'Stream and release music, keep a private library, and connect straight to the artists.' },
-  { icon: Clapperboard, name: 'Taleo', tag: 'Film & TV', color: '#D40055', desc: 'Watch and distribute movies, series and films — cinema-grade and creator-first.' },
+  { icon: Clapperboard, name: 'Cinema', tag: 'Film & TV', color: '#D40055', desc: 'Watch and distribute movies, series and films — cinema-grade and creator-first.' },
   { icon: BookOpen, name: 'Lorea', tag: 'Books & Comics', color: '#FF8C00', desc: 'Read and publish novels, comics and manga in a best-in-class reader.' },
   { icon: Video, name: 'Reello', tag: 'Video', color: '#0070FF', desc: 'Post videos and shorts, build a channel, and grow a real audience.' },
   { icon: Globe, name: 'Creator Worlds', tag: 'Your IP', color: '#00C878', desc: 'Build universes and characters — your work follows you everywhere you go.' },
-  { icon: Heart, name: 'Get Paid', tag: 'Monetize', color: '#FF4D8D', desc: 'Sanctuary support, stores and direct fan connection — keep more of what you earn.' },
+  { icon: Heart, name: 'Get Paid', tag: 'Monetize', color: '#FF4D8D', desc: 'Backstage support, stores and direct fan connection — keep more of what you earn.' },
 ];
 
 // Keyed by Firebase providerId so a "you signed up with Google" error can offer the exact

@@ -491,7 +491,7 @@ export function getDemoHouseholdKinshipGraph(orgId: string) {
         relationship: 'BROTHER' as ChmsExtendedKinshipRole,
         relationshipLabel: 'Brother of Marcus · Uncle to Micah & Noelle',
         householdName: 'David & Sarah Sterling Household',
-        department: 'Media & Ambo Production Team',
+        department: 'Media & Stage Production Team',
         relativeOptedIn: true,
       },
       {

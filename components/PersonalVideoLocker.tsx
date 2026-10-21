@@ -90,7 +90,7 @@ const PersonalVideoLocker: React.FC<{ onPlay: (video: Video) => void }> = ({ onP
         <Lock size={16} className="text-[#D0BCFF] mt-0.5 shrink-0" />
         <div className="flex-1">
           <p className="text-[11px] font-black uppercase tracking-widest text-white">Your private movie & TV locker</p>
-          <p className="text-[10px] text-white/40 mt-1 leading-relaxed">Bring your own movie and TV collection — upload a folder and stream it in Taleo from any device you sign in on. These titles are <span className="text-white/70 font-bold">private to you and are never shared, posted, or discoverable</span>.</p>
+          <p className="text-[10px] text-white/40 mt-1 leading-relaxed">Bring your own movie and TV collection — upload a folder and stream it in Cinema from any device you sign in on. These titles are <span className="text-white/70 font-bold">private to you and are never shared, posted, or discoverable</span>.</p>
         </div>
         <label className="flex items-center gap-2 px-5 py-2.5 bg-white text-black rounded-full text-[10px] font-black uppercase tracking-widest cursor-pointer hover:bg-[#D0BCFF] transition-all shrink-0">
           <FolderUp size={14} /> Upload

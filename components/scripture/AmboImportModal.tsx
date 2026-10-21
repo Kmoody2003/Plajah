@@ -47,7 +47,7 @@ export const AmboImportModal: React.FC<AmboImportModalProps> = ({
       try {
         const project = await importProjectFile(file, file.name);
         setParsedProject(project);
-        setImportFormat(name.endsWith('.amboz') ? 'Ambo Asset Bundle (.amboz)' : 'Ambo Project (.amboprj)');
+        setImportFormat(name.endsWith('.amboz') ? 'Stage Asset Bundle (.amboz)' : 'Stage Project (.amboprj)');
         setIsProcessing(false);
         return;
       } catch (err: any) {
@@ -100,7 +100,7 @@ export const AmboImportModal: React.FC<AmboImportModalProps> = ({
             </div>
             <div>
               <h2 className="text-[15px] font-bold text-white tracking-wide">Import Presentation or Project</h2>
-              <p className="text-[11px] text-white/50">PowerPoint, Google Slides, PDF, Keynote, FreeShow & Ambo</p>
+              <p className="text-[11px] text-white/50">PowerPoint, Google Slides, PDF, Keynote, FreeShow & Stage</p>
             </div>
           </div>
           <button
@@ -152,7 +152,7 @@ export const AmboImportModal: React.FC<AmboImportModalProps> = ({
                   Drag & Drop Presentation File Here
                 </div>
                 <div className="text-xs text-white/40 max-w-sm mb-4">
-                  Supports PowerPoint (<span className="text-white/70">.pptx</span>), Google Slides, PDF (<span className="text-white/70">.pdf</span>), Apple Keynote (<span className="text-white/70">.key</span>), FreeShow (<span className="text-white/70">.show</span>), and Ambo Bundles (<span className="text-white/70">.amboz</span>).
+                  Supports PowerPoint (<span className="text-white/70">.pptx</span>), Google Slides, PDF (<span className="text-white/70">.pdf</span>), Apple Keynote (<span className="text-white/70">.key</span>), FreeShow (<span className="text-white/70">.show</span>), and Stage Bundles (<span className="text-white/70">.amboz</span>).
                 </div>
                 <button
                   type="button"

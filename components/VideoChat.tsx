@@ -269,7 +269,7 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
         {!room.isIntimate && <label className="flex items-center gap-2"><input type="checkbox" checked={productionConsent} onChange={e => setProductionConsent(e.target.checked)} /> Allow my audio/video in live production</label>}
         {!room.isIntimate && isProducer && <>
           <button onClick={() => setProductionEnabled(v => !v)} className={`flex items-center gap-2 rounded-lg px-3 py-2 ${productionEnabled ? 'bg-red-500/20 text-red-300' : 'bg-white/10'}`}><Clapperboard size={14} /> {productionEnabled ? 'Stop production feeds' : 'Route call to production'}</button>
-          {productionEnabled && <button onClick={() => { const show = producer.current?.show(); if (show && selfId) { queueCallShow(selfId, show); setProductionNotice('Group and single shots sent to Ambo. They load when you open the presenter. Keep the call running for live media.'); } }} className="rounded-lg px-3 py-2 bg-white/10">Send group + singles to Ambo</button>}
+          {productionEnabled && <button onClick={() => { const show = producer.current?.show(); if (show && selfId) { queueCallShow(selfId, show); setProductionNotice('Group and single shots sent to Stage. They load when you open the presenter. Keep the call running for live media.'); } }} className="rounded-lg px-3 py-2 bg-white/10">Send group + singles to Stage</button>}
           {productionEnabled && <span className="text-white/50">Moderators excluded · consenting guests only</span>}
         </>}
         {productionNotice && <span role="status" className="text-white/60">{productionNotice}</span>}

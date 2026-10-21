@@ -55,7 +55,7 @@ const SanctuaryInside: React.FC<Props> = ({
     <div className="space-y-10">
       {/* Latest from inside — the real gated feed */}
       <section>
-        <SectionHeading hint={membership || isOwner ? 'You have access' : 'Preview'}>Inside the Sanctuary</SectionHeading>
+        <SectionHeading hint={membership || isOwner ? 'You have access' : 'Preview'}>Inside Backstage</SectionHeading>
         <SanctuaryFeed
           sanctuaryId={sanctuaryId} isOwner={isOwner} membership={membership}
           tiers={tiers} purchasedIds={purchasedIds} onPurchased={onPurchased}

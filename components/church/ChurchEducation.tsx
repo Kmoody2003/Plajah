@@ -320,7 +320,7 @@ const ChurchEducation: React.FC<{
                   : 'bg-white/5 text-white/70 hover:bg-white/10'
               }`}
             >
-              <BookOpen size={13} /> Weekly Lectio Syllabus ({p.weeks.length})
+              <BookOpen size={13} /> Weekly Verse Syllabus ({p.weeks.length})
             </button>
             <button
               type="button"
@@ -388,7 +388,7 @@ const ChurchEducation: React.FC<{
                       />
                       {w.passage && !ok && (
                         <p className="text-[11px] text-amber-300">
-                          Lectio can&apos;t read this passage yet. Check the book name and chapter:verse.
+                          Verse can&apos;t read this passage yet. Check the book name and chapter:verse.
                         </p>
                       )}
                       <textarea
@@ -425,7 +425,7 @@ const ChurchEducation: React.FC<{
                         onClick={() => openScripture(parseRef(w.passage.trim())!)}
                         className="rounded-full bg-white text-black px-3.5 py-1.5 text-[11px] font-black inline-flex items-center gap-1.5"
                       >
-                        <BookOpen size={12} /> Read {w.passage} in Lectio
+                        <BookOpen size={12} /> Read {w.passage} in Verse
                       </button>
                     )}
                     {w.library && (
@@ -484,6 +484,9 @@ const ChurchEducation: React.FC<{
             </div>
 
             <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+              {(p.chatMessages || []).length === 0 && (
+                <p className="text-xs text-white/45">No messages yet.</p>
+              )}
               {(p.chatMessages || []).map(m => (
                 <div
                   key={m.id}
@@ -743,13 +746,13 @@ const ChurchEducation: React.FC<{
       <div className="rounded-2xl border border-amber-400/20 bg-gradient-to-r from-amber-500/10 via-indigo-500/10 to-transparent p-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-[10px] font-black uppercase tracking-widest text-amber-300">
-            Christian Education · Powered by Academia &amp; Lectio
+            Christian Education · Powered by Academia &amp; Verse
           </p>
           <h3 className="text-lg font-black mt-0.5" style={{ fontFamily: "'Outfit', sans-serif" }}>
             {church.name} — Templated Classrooms &amp; Catechism Hub
           </h3>
           <p className="text-xs text-white/65 mt-0.5">
-            Every classroom comes pre-configured with a weekly Lectio Scripture syllabus, its own governed Classroom Chat room, and the Academia Ed-Tech stack (Roster, Paper Worksheet Scanner &amp; Tela Lesson Builder).
+            Every classroom comes pre-configured with a weekly Verse Scripture syllabus, its own governed Classroom Chat room, and the Academia Ed-Tech stack (Roster, Paper Worksheet Scanner &amp; Tela Lesson Builder).
           </p>
         </div>
         <button
@@ -761,7 +764,20 @@ const ChurchEducation: React.FC<{
         </button>
       </div>
 
-      {programs === null && <p className="text-sm text-white/40">Loading templated classrooms...</p>}
+      {programs === null && <p className="text-sm text-white/40">Loading classrooms...</p>}
+
+      {programs !== null && programs.length === 0 && (
+        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-center space-y-1.5">
+          <p className="font-black text-sm text-white" style={{ fontFamily: "'Outfit', sans-serif" }}>
+            No classes yet
+          </p>
+          <p className="text-xs text-white/55 max-w-md mx-auto leading-relaxed">
+            {canEdit
+              ? 'Start your first Sunday school, Bible study or discipleship class from a template below, or create a blank one.'
+              : 'When your church opens Christian Education classes, they will be listed here.'}
+          </p>
+        </div>
+      )}
 
       <div className="grid sm:grid-cols-2 gap-3">
         {programs?.map(p => (
@@ -829,7 +845,7 @@ const ChurchEducation: React.FC<{
       {canEdit && (
         <div className="space-y-3 pt-2 border-t border-white/10">
           <p className="text-[11px] font-black uppercase tracking-widest text-white/45 flex items-center gap-1.5">
-            <GraduationCap size={13} /> Add or Restore a Default Templated Classroom
+            <GraduationCap size={13} /> Start a Classroom from a Template
           </p>
           <div className="grid sm:grid-cols-3 gap-2">
             {STARTERS.map(s => (
