@@ -24,6 +24,43 @@ export const DEFAULT_BLOCKED_THEMES: BlockedMatureTheme[] = [
   'gambling',
 ];
 
+/** Parent-facing description of each maturity ceiling (Parental Controls picker). */
+export const MATURITY_LABELS: Record<MaturityRating, string> = {
+  G: 'All ages — gentle content only',
+  PG: 'Kids — mild themes, parental guidance',
+  PG13: 'Tweens — some intensity, no explicit content',
+  TEEN: 'Teens — mature topics handled responsibly',
+  MATURE: 'Adults — no ceiling',
+};
+
+export const MATURE_THEME_META: { id: BlockedMatureTheme; label: string; desc: string }[] = [
+  { id: 'violence', label: 'Violence', desc: 'Combat, weapons and fighting' },
+  { id: 'horror', label: 'Horror', desc: 'Scary content, thrillers and jump-scares' },
+  { id: 'profanity', label: 'Strong language', desc: 'Cursing and insults' },
+  { id: 'romance', label: 'Romance', desc: 'Dating and suggestive themes' },
+  { id: 'substances', label: 'Substances', desc: 'Alcohol, tobacco, drugs and vaping' },
+  { id: 'gambling', label: 'Gambling', desc: 'Casino, betting and loot boxes' },
+  { id: 'unratedUgc', label: 'Unrated uploads', desc: 'Community uploads nobody has rated yet' },
+];
+
+export const CONTROLLABLE_SURFACES_META: { id: ControllableSurfaceGroup; label: string; desc: string }[] = [
+  { id: 'GAMES', label: 'Arcade & Games', desc: 'Games and the arcade' },
+  { id: 'VIDEOS', label: 'Reello & Videos', desc: 'Short videos and the video hub' },
+  { id: 'MOVIES_TV', label: 'Movies & Live TV', desc: 'Taleo movies, shows and channels' },
+  { id: 'MUSIC', label: 'Music & Radio', desc: 'Chora music and radio' },
+  { id: 'BOOKS', label: 'Books & Comics', desc: 'Lorea books and comics' },
+  { id: 'FEED', label: 'Social Feed', desc: 'Feed posts and discussions' },
+  { id: 'CHAT', label: 'Messaging', desc: 'Direct messages and live rooms' },
+  { id: 'LIVE_HUB', label: 'Live Streams', desc: 'Live streams and events' },
+  { id: 'CREATOR', label: 'Creation Studios', desc: 'Studios and creative labs' },
+];
+
+/** SHA-256 hex of a guardian passcode — the same digest KidsSessionGuard / KidsModeBar compare against. */
+export async function hashPasscode(passcode: string): Promise<string> {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(passcode));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 /** Safe defaults applied to a CHILD account (and used as the floor — a child can never
  *  be less restricted than this on adultFilter, regardless of what's stored). */
 export const CHILD_DEFAULTS: ParentalControls = {
