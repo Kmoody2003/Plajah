@@ -1839,7 +1839,7 @@ export default function BookAuthoringStudio({ onBack, initialBook }: Props) {
               {canSeePumpkinPatch ? (
                 <div className="mb-4 rounded-2xl bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-black border border-amber-500/50 p-4 flex flex-col md:flex-row gap-4 items-center justify-between shadow-xl">
                   <div className="w-full md:w-56 aspect-[16/9] rounded-xl overflow-hidden bg-black relative border border-amber-500/40 shrink-0">
-                    <img src="/generated/comics/pumpkin_patch_v4/panel_001.jpg" alt="Pumpkin Patch (Oct 2025)" className="w-full h-full object-cover"/>
+                    <img src="/covers/halloween/pumpkin-patch-still.jpg" alt="Pumpkin Patch (Oct 2025)" className="w-full h-full object-cover"/>
                     <div className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-amber-500 text-black text-[9px] font-black uppercase tracking-wider">
                       Creator & Owner Exclusive
                     </div>

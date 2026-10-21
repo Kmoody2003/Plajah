@@ -785,7 +785,15 @@ export const ArchiveRails: React.FC<{
   const pumpkinPatchHero = useMemo<Album>(() => {
     const found = albums.find(a => a.id === PUMPKIN_PATCH_HERO_ALBUM.id || /pumpkin\s*patch/i.test(a.title || ''));
     return found
-      ? ({ ...PUMPKIN_PATCH_HERO_ALBUM, ...found, subType: found.subType || 'MOVIE', category: 'MOVIE' } as Album)
+      ? ({
+          ...PUMPKIN_PATCH_HERO_ALBUM,
+          ...found,
+          // Showcase art always features Pumpkin Patch, whatever the stored album header holds.
+          coverImage: found.coverImage || PUMPKIN_PATCH_HERO_ALBUM.coverImage,
+          headerImage: PUMPKIN_PATCH_HERO_ALBUM.headerImage,
+          subType: found.subType || 'MOVIE',
+          category: 'MOVIE',
+        } as Album)
       : (PUMPKIN_PATCH_HERO_ALBUM as Album);
   }, [albums]);
 

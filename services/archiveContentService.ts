@@ -482,7 +482,8 @@ export const PUMPKIN_PATCH_HERO_ALBUM: any = {
   subType: 'MOVIE',
   genre: 'Action · Horror · Satire',
   coverImage: 'https://firebasestorage.googleapis.com/v0/b/gen-lang-client-0665118474.firebasestorage.app/o/albums%2Falbum_1787881859314_mlt23%2Fcover.webp?alt=media&token=efd247d5-2f2f-4cf3-aab6-def0bfbc07e3',
-  headerImage: 'https://image.mux.com/D1A4FF6AJXRbfbPjzvzQCkj5srRk99uXpnDn00gTKDts/thumbnail.webp?width=1600&time=42',
+  // Wide art must always feature Pumpkin Patch himself (12:12 close-up), never the opening pilots.
+  headerImage: '/covers/halloween/pumpkin-patch-still.jpg',
   thumbnailUrl: 'https://firebasestorage.googleapis.com/v0/b/gen-lang-client-0665118474.firebasestorage.app/o/albums%2Falbum_1787881859314_mlt23%2Fcover.webp?alt=media&token=efd247d5-2f2f-4cf3-aab6-def0bfbc07e3',
   description:
     'When the West Hallow — one of the Four Guardians of Planet Ween — attacks Scare Force One, President Tepes crash-lands inside the dreaded prison colony District 13 carrying a mysterious hexagonal case she’ll kill to reclaim.\n\nWith the President of Halloween trapped and the planet on edge, Commander Ichabod Crane, Special Agent Katrina Van Tassle, and their cybernetic security officer Robo Bones of the Monster Intelligence Agency (MIA) enlist an unlikely ally — a pool-hall-roaming, bar-fighting vigilante with a pumpkin for a head and nothing left to lose.\n\nHis mission: break into District 13, recover the President and the mysterious case, and somehow make it out alive before Halloween is lost.\n\nA deranged mash-up of The Nightmare Before Christmas, Escape from New York, The Warriors, and The Punisher, Pumpkin Patch is a solo-created Halloween opus—equal parts chaos and satire.',
@@ -564,6 +565,14 @@ export const PUMPKIN_PATCH_HERO_ALBUM: any = {
   ],
 };
 
+// Self-hosted poster art (public/covers/halloween) for the shared KOFA/Europeana
+// entries, whose YouTube thumbnails are video frames rather than cover art.
+const HALLOWEEN_POSTER_OVERRIDES: Record<string, string> = {
+  'kofa-the-housemaid-1960': '/covers/halloween/the-housemaid-1960.jpg',
+  'europeana-nosferatu-1922': '/covers/halloween/nosferatu-1922.jpg',
+  'europeana-caligari-1920': '/covers/halloween/cabinet-of-dr-caligari-1920.jpg',
+};
+
 // ── Curated Taleo Halloween Cinema Showcase ("31 Nights of Cinema Terror") ──
 // Every Internet Archive identifier and direct .mp4 stream URL below has been
 // HTTP-verified against archive.org/metadata/<id> for instant 0-hop playback.
@@ -575,7 +584,7 @@ export const CURATED_HALLOWEEN_FILMS: ArchiveVideo[] = [
     mediatype: 'movies',
     collection: ['Cinema Halloween Showcase', 'feature_films'],
     genre: 'Horror',
-    thumbnailUrl: 'https://archive.org/services/img/Night.Of.The.Living.Dead_1080p',
+    thumbnailUrl: '/covers/halloween/night-of-the-living-dead-1968.jpg',
     year: '1968',
     runtime: '96 min',
     source: 'INTERNET_ARCHIVE',
@@ -597,7 +606,7 @@ export const CURATED_HALLOWEEN_FILMS: ArchiveVideo[] = [
     mediatype: 'movies',
     collection: ['Cinema Halloween Showcase', 'feature_films'],
     genre: 'Horror',
-    thumbnailUrl: 'https://archive.org/services/img/house_on_haunted_hill_ipod',
+    thumbnailUrl: '/covers/halloween/house-on-haunted-hill-1959.jpg',
     year: '1959',
     runtime: '75 min',
     source: 'INTERNET_ARCHIVE',
@@ -619,7 +628,7 @@ export const CURATED_HALLOWEEN_FILMS: ArchiveVideo[] = [
     mediatype: 'movies',
     collection: ['Cinema Halloween Showcase', 'feature_films'],
     genre: 'Horror',
-    thumbnailUrl: 'https://archive.org/services/img/CarnivalofSouls',
+    thumbnailUrl: '/covers/halloween/carnival-of-souls-1962.jpg',
     year: '1962',
     runtime: '83 min',
     source: 'INTERNET_ARCHIVE',
@@ -641,7 +650,7 @@ export const CURATED_HALLOWEEN_FILMS: ArchiveVideo[] = [
     mediatype: 'movies',
     collection: ['Cinema Halloween Showcase', 'feature_films'],
     genre: 'Horror',
-    thumbnailUrl: 'https://archive.org/services/img/ThePhantomoftheOpera',
+    thumbnailUrl: '/covers/halloween/phantom-of-the-opera-1925.jpg',
     year: '1925',
     runtime: '106 min',
     source: 'INTERNET_ARCHIVE',
@@ -663,7 +672,7 @@ export const CURATED_HALLOWEEN_FILMS: ArchiveVideo[] = [
     mediatype: 'movies',
     collection: ['Cinema Halloween Showcase', 'feature_films'],
     genre: 'Horror',
-    thumbnailUrl: 'https://archive.org/services/img/Haxan_tinted_and_subtitled',
+    thumbnailUrl: '/covers/halloween/haxan-1922.jpg',
     year: '1922',
     runtime: '105 min',
     source: 'INTERNET_ARCHIVE',
@@ -685,7 +694,7 @@ export const CURATED_HALLOWEEN_FILMS: ArchiveVideo[] = [
     mediatype: 'movies',
     collection: ['Cinema Halloween Showcase', 'feature_films'],
     genre: 'Horror',
-    thumbnailUrl: 'https://archive.org/services/img/Horror_Express',
+    thumbnailUrl: '/covers/halloween/horror-express-1972.jpg',
     year: '1972',
     runtime: '87 min',
     source: 'INTERNET_ARCHIVE',
@@ -707,7 +716,7 @@ export const CURATED_HALLOWEEN_FILMS: ArchiveVideo[] = [
     mediatype: 'movies',
     collection: ['Cinema Halloween Showcase', 'feature_films'],
     genre: 'Horror',
-    thumbnailUrl: 'https://archive.org/services/img/white_zombie',
+    thumbnailUrl: '/covers/halloween/white-zombie-1932.jpg',
     year: '1932',
     runtime: '67 min',
     source: 'INTERNET_ARCHIVE',
@@ -729,7 +738,7 @@ export const CURATED_HALLOWEEN_FILMS: ArchiveVideo[] = [
     mediatype: 'movies',
     collection: ['Cinema Halloween Showcase', 'feature_films'],
     genre: 'Horror',
-    thumbnailUrl: 'https://archive.org/services/img/TheTerror1963',
+    thumbnailUrl: '/covers/halloween/the-terror-1963.jpg',
     year: '1963',
     runtime: '79 min',
     source: 'INTERNET_ARCHIVE',
@@ -751,7 +760,7 @@ export const CURATED_HALLOWEEN_FILMS: ArchiveVideo[] = [
     mediatype: 'movies',
     collection: ['Cinema Halloween Showcase', 'feature_films'],
     genre: 'Horror',
-    thumbnailUrl: 'https://archive.org/services/img/TheGhoul',
+    thumbnailUrl: '/covers/halloween/the-ghoul-1933.jpg',
     year: '1933',
     runtime: '68 min',
     source: 'INTERNET_ARCHIVE',
@@ -773,7 +782,7 @@ export const CURATED_HALLOWEEN_FILMS: ArchiveVideo[] = [
     mediatype: 'movies',
     collection: ['Cinema Halloween Showcase', 'Silent Cinema'],
     genre: 'Horror',
-    thumbnailUrl: 'https://archive.org/services/img/FrankensteinfullMovie',
+    thumbnailUrl: '/covers/halloween/frankenstein-1910.jpg',
     year: '1910',
     runtime: '14 min',
     source: 'INTERNET_ARCHIVE',
@@ -790,7 +799,7 @@ export const CURATED_HALLOWEEN_FILMS: ArchiveVideo[] = [
   },
   ...CURATED_KOFA_FILMS.filter(f => f.identifier === 'kofa-the-housemaid-1960'),
   ...CURATED_EUROPEANA_FILMS.filter(f => f.identifier === 'europeana-nosferatu-1922' || f.identifier === 'europeana-caligari-1920'),
-];
+].map(f => ({ ...f, thumbnailUrl: HALLOWEEN_POSTER_OVERRIDES[f.identifier] ?? f.thumbnailUrl }));
 
 export interface HalloweenCuratedShelf {
   id: string;

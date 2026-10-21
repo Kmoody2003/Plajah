@@ -521,7 +521,7 @@ export const HauntedCastleExhibition: React.FC<HauntedCastleExhibitionProps> = (
         ppIntel?.report?.logline ||
         ppIntel?.logline ||
         'Framed into District 13, Melvin Lester awakens dual plasma blades and his armored tank to rescue President Tepes before Wicked Witch Miriam breaches the human realm.',
-      posterUrl: '/generated/comics/pumpkin_patch_v4/frame_0030s.jpg',
+      posterUrl: '/covers/halloween/pumpkin-patch-cover.jpg',
       directionLabel: 'CASTLE FOYER & RIFT RIDGE',
       distanceMiles: '0.4 MI N',
       compass: 'NORTH',

@@ -337,6 +337,9 @@ const HomeView: React.FC<{
     return {
       ...PUMPKIN_PATCH_HERO_ALBUM,
       ...found,
+      // Showcase art always features Pumpkin Patch, whatever the stored album header holds.
+      coverImage: found.coverImage || PUMPKIN_PATCH_HERO_ALBUM.coverImage,
+      headerImage: PUMPKIN_PATCH_HERO_ALBUM.headerImage,
       year: '2025',
       movieMetadata: {
         ...PUMPKIN_PATCH_HERO_ALBUM.movieMetadata,
@@ -1753,6 +1756,9 @@ const HalloweenShowcaseView: React.FC<{
     return {
       ...PUMPKIN_PATCH_HERO_ALBUM,
       ...found,
+      // Showcase art always features Pumpkin Patch, whatever the stored album header holds.
+      coverImage: found.coverImage || PUMPKIN_PATCH_HERO_ALBUM.coverImage,
+      headerImage: PUMPKIN_PATCH_HERO_ALBUM.headerImage,
       year: '2025',
       movieMetadata: {
         ...PUMPKIN_PATCH_HERO_ALBUM.movieMetadata,
@@ -2076,7 +2082,7 @@ const HalloweenShowcaseView: React.FC<{
                 className="rounded-xl overflow-hidden border border-orange-500/50 bg-black/60 cursor-pointer group relative h-36"
               >
                 <img
-                  src="/generated/comics/pumpkin_patch_v4/frame_2310s.jpg"
+                  src="/covers/halloween/pumpkin-patch-still.jpg"
                   alt="Pumpkin Patch Dual Plasma Blades"
                   className="w-full h-full object-cover group-hover:scale-110 transition"
                 />

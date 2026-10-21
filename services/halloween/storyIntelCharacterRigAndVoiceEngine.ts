@@ -180,7 +180,7 @@ export const STORY_INTEL_VTUBER_CHARACTERS: CharacterVTuberRigSpec[] = [
     roleLabel: 'Main Protagonist',
     creatorName: 'Brian James Gage',
     portraitUrl: '/generated/comics/pumpkin_patch_v4/char_1_portrait.jpg',
-    stillUrl: '/generated/comics/pumpkin_patch_v4/frame_2310s.jpg',
+    stillUrl: '/covers/halloween/pumpkin-patch-still.jpg',
     movieSampleUrl: '/audio/halloween/voices/char_1_movie_sample.wav',
     vocalTractIrUrl: '/audio/halloween/voices/char_1_vocal_ir.wav',
     glbModelUrl: '/models/halloween/pumpkin_patch_cast.glb',

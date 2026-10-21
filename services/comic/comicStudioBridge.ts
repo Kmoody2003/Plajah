@@ -919,7 +919,7 @@ export function getAvailableShowcaseComics(): {
         leadWriter: 'Brian James Gage · Story Intelligence On-Device Adaptation Engine',
         pageCount: 26,
         isManga: false,
-        coverImage: '/generated/comics/pumpkin_patch_v4/panel_001.jpg',
+        coverImage: '/covers/halloween/pumpkin-patch-cover.jpg',
       },
       ...baseList,
     ];
