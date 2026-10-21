@@ -436,12 +436,17 @@ const BookReaderInner: React.FC<BookReaderProps> = ({ book, onBack, currentUser,
   const [aiNarrationProgress, setAiNarrationProgress] = useState(0);
   const aiAudioRef = useRef<HTMLAudioElement>(null);
   const [isAiPlaying, setIsAiPlaying] = useState(false);
+  // Started and not yet stopped/ended — distinguishes "paused" from "ready"
+  const [aiNarrationActive, setAiNarrationActive] = useState(false);
   
   // Read-along narration: browser speech synthesis with word-boundary events
   // drives a live highlight of the word being spoken. Works fully on-device.
   const [readAlongPos, setReadAlongPos] = useState<{ para: number; word: number } | null>(null);
   const [readAlongAutoNext, setReadAlongAutoNext] = useState(false);
+  const [readAlongPaused, setReadAlongPaused] = useState(false);
   const readAlongSession = useRef<{ stop: boolean }>({ stop: true });
+  // Last spoken character, so Pause → Resume picks up mid-paragraph
+  const readAlongCharRef = useRef<{ para: number; char: number }>({ para: 0, char: 0 });
   const readAlongWordRef = useRef<HTMLSpanElement | null>(null);
 
   // PDF State
@@ -917,8 +922,18 @@ const BookReaderInner: React.FC<BookReaderProps> = ({ book, onBack, currentUser,
   const stopReadAlong = useCallback(() => {
     readAlongSession.current.stop = true;
     setReadAlongAutoNext(false);
+    setReadAlongPaused(false);
     try { window.speechSynthesis?.cancel(); } catch {}
     setReadAlongPos(null);
+  }, []);
+
+  // Pause cancels the utterance and keeps the highlight; resume re-speaks from
+  // the last word boundary. speechSynthesis.pause() is unreliable with online
+  // voices (Chrome drops the queue after ~15s), so we don't use it.
+  const pauseReadAlong = useCallback(() => {
+    readAlongSession.current.stop = true;
+    try { window.speechSynthesis?.cancel(); } catch {}
+    setReadAlongPaused(true);
   }, []);
 
   const pickNarrationVoice = (): SpeechSynthesisVoice | undefined => {
@@ -932,13 +947,14 @@ const BookReaderInner: React.FC<BookReaderProps> = ({ book, onBack, currentUser,
     );
   };
 
-  const startReadAlong = useCallback((startPara = 0) => {
+  const startReadAlong = useCallback((startPara = 0, startChar = 0) => {
     if (!('speechSynthesis' in window)) {
       setReaderError('Read-along narration is not supported on this device.');
       return;
     }
     readAlongSession.current.stop = true;
     try { window.speechSynthesis.cancel(); } catch {}
+    setReadAlongPaused(false);
     const session = { stop: false };
     readAlongSession.current = session;
 
@@ -946,7 +962,7 @@ const BookReaderInner: React.FC<BookReaderProps> = ({ book, onBack, currentUser,
     const paras = activeCh?.pages[activeParsedPage] || [];
     if (!paras.length) return;
 
-    const speakFrom = (idx: number) => {
+    const speakFrom = (idx: number, charOffset = 0) => {
       if (session.stop) return;
       if (idx >= paras.length) {
         // Page finished — turn it and keep narrating (effect below restarts)
@@ -962,29 +978,42 @@ const BookReaderInner: React.FC<BookReaderProps> = ({ book, onBack, currentUser,
         return;
       }
       const text = paras[idx];
-      const utterance = new SpeechSynthesisUtterance(text);
+      const utterance = new SpeechSynthesisUtterance(text.slice(charOffset));
       utterance.rate = narrationRate;
       const voice = pickNarrationVoice();
       if (voice) utterance.voice = voice;
+      const wordAt = (char: number) => {
+        const before = text.slice(0, char).trim();
+        return before ? before.split(/\s+/).length : 0;
+      };
       utterance.onboundary = (e: SpeechSynthesisEvent) => {
         if (session.stop) return;
-        const before = text.slice(0, e.charIndex);
-        const word = before.trim() ? before.trim().split(/\s+/).length : 0;
-        setReadAlongPos({ para: idx, word });
+        const char = charOffset + e.charIndex;
+        readAlongCharRef.current = { para: idx, char };
+        setReadAlongPos({ para: idx, word: wordAt(char) });
       };
       utterance.onend = () => { if (!session.stop) speakFrom(idx + 1); };
       utterance.onerror = () => { if (!session.stop) speakFrom(idx + 1); };
-      setReadAlongPos({ para: idx, word: 0 });
+      readAlongCharRef.current = { para: idx, char: charOffset };
+      setReadAlongPos({ para: idx, word: wordAt(charOffset) });
       window.speechSynthesis.speak(utterance);
     };
-    speakFrom(startPara);
+    speakFrom(Math.min(startPara, paras.length - 1), startChar);
   }, [parsedChapters, activeParsedChapter, activeParsedPage, narrationRate, nextPage]);
+
+  const resumeReadAlong = useCallback(() => {
+    const { para, char } = readAlongCharRef.current;
+    startReadAlong(para, char);
+  }, [startReadAlong]);
 
   // Continue narration on the new page after an automatic page turn
   useEffect(() => {
     if (readAlongAutoNext) {
       setReadAlongAutoNext(false);
       startReadAlong(0);
+    } else if (readAlongPaused) {
+      // A paused position belongs to the old page
+      stopReadAlong();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeParsedPage, activeParsedChapter]);
@@ -1213,6 +1242,20 @@ const BookReaderInner: React.FC<BookReaderProps> = ({ book, onBack, currentUser,
 
   // PartyBar ends the party for the host before calling this.
   const leaveReadAlongParty = useCallback(() => { setActivePartyId(null); }, []);
+
+  // Discarding the generated audio unmounts its <audio>, which fires no events
+  useEffect(() => {
+    if (!aiNarrationUrl) { setIsAiPlaying(false); setAiNarrationActive(false); }
+  }, [aiNarrationUrl]);
+
+  const stopAiNarration = () => {
+    const a = aiAudioRef.current;
+    if (!a) return;
+    a.pause();
+    a.currentTime = 0;
+    setIsAiPlaying(false);
+    setAiNarrationActive(false);
+  };
 
   // Generate AI narration for current chapter using MAI Voice 2
   const generateAINarration = async () => {
@@ -2476,6 +2519,56 @@ const BookReaderInner: React.FC<BookReaderProps> = ({ book, onBack, currentUser,
           )}
         </AnimatePresence>
 
+        {/* Hidden AI audio element — lives outside the panel so closing the
+            panel doesn't cut the narrator off mid-sentence */}
+        {aiNarrationUrl && (
+          <audio ref={aiAudioRef} src={aiNarrationUrl}
+            onEnded={() => { setIsAiPlaying(false); setAiNarrationActive(false); }}
+            onPlay={() => { setIsAiPlaying(true); setAiNarrationActive(true); }}
+            onPause={() => setIsAiPlaying(false)}
+          />
+        )}
+
+        {/* Mini narrator transport while the panel is closed */}
+        <AnimatePresence>
+          {!showNarrationPanel && (readAlongPos || aiNarrationActive) && (
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 12 }}
+              className="fixed left-1/2 -translate-x-1/2 z-[150] flex items-center gap-1.5 pl-3 pr-1.5 py-1.5 rounded-full bg-black/85 backdrop-blur-xl border border-white/10 shadow-2xl"
+              style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 84px)' }}
+            >
+              <button
+                onClick={() => setShowNarrationPanel(true)}
+                className="flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest text-white/60 hover:text-white pr-1"
+                title="Open narration panel"
+              >
+                <Headphones size={12} className="text-purple-400" />
+                {readAlongPos ? (readAlongPaused ? 'Read Along paused' : 'Reading along') : (isAiPlaying ? 'Narrating' : 'Narration paused')}
+              </button>
+              <button
+                onClick={() => {
+                  if (readAlongPos) { readAlongPaused ? resumeReadAlong() : pauseReadAlong(); return; }
+                  const a = aiAudioRef.current;
+                  if (a) { if (isAiPlaying) a.pause(); else a.play(); }
+                }}
+                className="w-8 h-8 rounded-full bg-purple-600 hover:bg-purple-500 flex items-center justify-center transition-all"
+                aria-label={(readAlongPos ? !readAlongPaused : isAiPlaying) ? 'Pause narration' : 'Resume narration'}
+              >
+                {(readAlongPos ? !readAlongPaused : isAiPlaying) ? <Pause size={13} /> : <Play size={13} fill="white" />}
+              </button>
+              <button
+                onClick={() => { if (readAlongPos) stopReadAlong(); else stopAiNarration(); }}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all"
+                aria-label="Stop narration"
+              >
+                <Square size={11} fill="currentColor" />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* ── MAI Voice 2 Narration Panel ── */}
         <AnimatePresence>
           {showNarrationPanel && (
@@ -2486,15 +2579,6 @@ const BookReaderInner: React.FC<BookReaderProps> = ({ book, onBack, currentUser,
               className="fixed bottom-0 left-0 right-0 z-[150] bg-black/90 backdrop-blur-xl border-t border-white/10 px-4 py-4"
               style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)' }}
             >
-              {/* Hidden AI audio element */}
-              {aiNarrationUrl && (
-                <audio ref={aiAudioRef} src={aiNarrationUrl}
-                  onEnded={() => setIsAiPlaying(false)}
-                  onPlay={() => setIsAiPlaying(true)}
-                  onPause={() => setIsAiPlaying(false)}
-                />
-              )}
-
               <div className="max-w-2xl mx-auto">
                 <div className="flex items-center gap-3 mb-3">
                   <Headphones size={14} className="text-purple-400" />
@@ -2532,12 +2616,31 @@ const BookReaderInner: React.FC<BookReaderProps> = ({ book, onBack, currentUser,
                     <span className="text-[8px] font-black uppercase tracking-widest text-white/50">Read Along — follows the narrator word by word</span>
                   </div>
                   {parsedChapters.length > 0 ? (
-                    <button
-                      onClick={() => (readAlongPos ? stopReadAlong() : startReadAlong(0))}
-                      className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${readAlongPos ? 'bg-orange-600 hover:bg-orange-500 text-white' : 'bg-orange-500/20 hover:bg-orange-500/30 text-orange-300 border border-orange-500/30'}`}
-                    >
-                      {readAlongPos ? (<><Pause size={12} /> Stop Read Along</>) : (<><Play size={12} /> Start Read Along</>)}
-                    </button>
+                    readAlongPos ? (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => (readAlongPaused ? resumeReadAlong() : pauseReadAlong())}
+                          className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all bg-orange-600 hover:bg-orange-500 text-white"
+                          aria-label={readAlongPaused ? 'Resume Read Along' : 'Pause Read Along'}
+                        >
+                          {readAlongPaused ? (<><Play size={12} /> Resume</>) : (<><Pause size={12} /> Pause</>)}
+                        </button>
+                        <button
+                          onClick={stopReadAlong}
+                          className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all bg-white/5 hover:bg-white/10 text-white/70 border border-white/10"
+                          aria-label="Stop Read Along"
+                        >
+                          <Square size={11} fill="currentColor" /> Stop
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => startReadAlong(0)}
+                        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all bg-orange-500/20 hover:bg-orange-500/30 text-orange-300 border border-orange-500/30"
+                      >
+                        <Play size={12} /> Start Read Along
+                      </button>
+                    )
                   ) : isEpub && currentChapter?.fallbackUrl ? (
                     <button
                       onClick={() => setForceTxtFallback(true)}
@@ -2580,9 +2683,17 @@ const BookReaderInner: React.FC<BookReaderProps> = ({ book, onBack, currentUser,
                       >
                         {isAiPlaying ? <Pause size={18} /> : <Play size={18} fill="white" />}
                       </button>
+                      <button
+                        onClick={stopAiNarration}
+                        className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all"
+                        aria-label="Stop narration"
+                        title="Stop"
+                      >
+                        <Square size={13} fill="currentColor" />
+                      </button>
                       <div className="flex-1">
                         <p className="text-[9px] font-black text-white/60">{MAI_VOICES.find(v => v.id === selectedNarrationVoice)?.name}</p>
-                        <p className="text-[8px] text-white/30">{isAiPlaying ? 'Playing…' : 'Ready to play'}</p>
+                        <p className="text-[8px] text-white/30">{isAiPlaying ? 'Playing…' : aiNarrationActive ? 'Paused' : 'Ready to play'}</p>
                       </div>
                       <button onClick={() => setAiNarrationUrl(null)} className="p-2 rounded-full bg-white/5 hover:bg-white/10 transition-all">
                         <RefreshCw size={12} className="text-white/40" />
