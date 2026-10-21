@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import {
   ChevronLeft, Users, Image as ImageIcon, Calendar, Play, Heart, MessageSquare,
   MapPin, Clock, Ticket, ShoppingBag, ArrowRight, Home, HandHeart, Church, MessageCircle,
-  BookOpen, Gift, Check, ExternalLink, Radio, NotebookPen,
+  BookOpen, Gift, Check, ExternalLink, Radio, NotebookPen, Sparkles,
 } from 'lucide-react';
 import DemoRibbon from './DemoRibbon';
 import ChurchAdminDemoView from './ChurchAdminDemoView';
 import ChurchMemberHub from './elevate/ChurchMemberHub';
 import RelloChurchViewer from './elevate/RelloChurchViewer';
+import ElevateMobilizeHub from './elevate/ElevateMobilizeHub';
 import {
   DEMO_CHURCH, DEMO_CHURCH_STAFF, DEMO_CHURCH_ALBUMS, DEMO_CHURCH_EVENTS,
   DEMO_CHURCH_VIDEOS, DEMO_CHURCH_FEED, DEMO_MINISTRY_DETAIL,
@@ -15,18 +16,18 @@ import {
   type DemoPost, type DemoEvent, type DemoStaff,
 } from '../data/demoShowcase';
 import { AdaptiveGrid, TYPE } from '../src/lib/designSystem';
+import { EV, EvScope, EvModeBar, EvHero, EvTabs, EvSundaySheet, EvIndexList, EvSectionHead, openLectio, heroImage } from './elevate/vellum';
 
 // A fully-populated, static tour of a church on Plajah — the ministry hierarchy,
 // each ministry a space with feed / photos / staff+DM / events / merch, plus
 // church-level photos, events, video archive, staff and giving. A sales demo:
 // buttons that would move money or send a message show a friendly nudge instead.
 
-const V = '#8B5CF6';          // spiritual violet
-const VS = '#B79BF5';
-const sheen = 'linear-gradient(135deg, rgba(139,92,246,0.18), rgba(0,0,0,0.4))';
+const V = EV.violet;
+const VS = EV.violetText;
 const demoAction = () => alert('This is a live demo. Create your own church space to make this real — tickets, giving, messaging and merch all run for you.');
 
-type Tab = 'HOME' | 'MINISTRIES' | 'PHOTOS' | 'EVENTS' | 'WATCH' | 'PRAYER' | 'LIBRARY' | 'STAFF' | 'GIVE';
+type Tab = 'HOME' | 'MINISTRIES' | 'MOBILIZE' | 'PHOTOS' | 'EVENTS' | 'WATCH' | 'PRAYER' | 'LIBRARY' | 'STAFF' | 'GIVE';
 
 const PostCard: React.FC<{ p: DemoPost }> = ({ p }) => (
   <div className="rounded-2xl p-4 bg-white/[0.03] border border-white/10">
@@ -71,7 +72,7 @@ const StaffCard: React.FC<{ s: DemoStaff; onVisit: () => void }> = ({ s, onVisit
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
           <p className="text-sm font-black text-white truncate group-hover:text-violet-200">{s.name}</p>
-          <span className={`shrink-0 ${TYPE.labelSm} px-1.5 py-0.5 rounded`} style={{ color: VS, background: 'rgba(139,92,246,0.14)' }}>Demo user</span>
+          <span className={`shrink-0 ${TYPE.labelSm} px-1.5 py-0.5 rounded`} style={{ color: VS, background: 'rgba(122, 31, 192,0.14)' }}>Demo user</span>
         </div>
         <p className={`${TYPE.labelMd} mb-1`} style={{ color: VS }}>{s.role}</p>
         {s.bio && <p className="type-body-sm text-white/45 leading-snug line-clamp-2">{s.bio}</p>}
@@ -87,102 +88,77 @@ const ChurchDemoView: React.FC<{ onBack?: () => void; onCreate: () => void; onVi
   const [mode, setMode] = useState<'hub' | 'member' | 'admin'>('member');
   const c = DEMO_CHURCH;
 
-  // Segmented control to flip between the Grace Chapel Church Page, Edition I Member Hub, and Admin Backend.
-  const modeToggle = (
-    <div className="sticky top-0 z-40 flex justify-center gap-1 p-1.5 bg-[#0d0b12]/95 backdrop-blur-xl border-b border-white/8">
-      <div className="inline-flex rounded-full bg-white/5 border border-white/10 p-0.5">
-        {(['member', 'hub', 'admin'] as const).map(m => (
-          <button key={m} onClick={() => setMode(m)}
-            className={`px-4 py-1.5 rounded-full ${TYPE.labelSm} transition-all ${mode === m ? 'text-white' : 'text-white/45 hover:text-white'}`}
-            style={mode === m ? { background: m === 'hub' ? 'linear-gradient(135deg,#6B0099,#D40055)' : V } : undefined}>
-            {m === 'member' ? 'Public Church Page' : m === 'hub' ? 'Edition I Member Hub' : 'Admin Backend'}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
+  // Public page · Member home · Staff — the same three views every Elevate org page carries.
+  const MODES = [
+    { k: 'member', label: 'Public page' },
+    { k: 'hub', label: 'Member home' },
+    { k: 'admin', label: 'Staff' },
+  ];
+  const modeToggle = <EvModeBar modes={MODES} value={mode} onChange={k => setMode(k as typeof mode)} onBack={onBack} />;
 
   if (mode === 'admin') {
     return (
-      <div className="h-full flex flex-col bg-[#0d0b12]">
+      <EvScope className="h-full flex flex-col">
         {modeToggle}
         <div className="flex-1 min-h-0"><ChurchAdminDemoView onCreate={onCreate} /></div>
-      </div>
+      </EvScope>
     );
   }
 
   if (mode === 'hub') {
     return (
-      <div className="h-full overflow-y-auto scrollbar-hide bg-[#05030A]">
+      <EvScope className="h-full overflow-y-auto scrollbar-hide">
         <DemoRibbon label="church" accent={V} ctaText="Create your church" onCreate={onCreate} />
         {modeToggle}
-        <div className="max-w-[1440px] mx-auto px-4 sm:px-8 py-6">
+        <div className="max-w-[1280px] mx-auto px-4 sm:px-8 py-6">
           <ChurchMemberHub
             org={c}
             onOpenGive={() => { setMode('member'); setTab('GIVE'); }}
             onOpenMinistry={id => { setMode('member'); setMinistryId(id); }}
           />
         </div>
-      </div>
+      </EvScope>
     );
   }
   // Members are real Plajah accounts → open their profile/feed. Demo accounts
   // have no real uid, so they show a preview nudge instead.
   const visitStaff = (s: DemoStaff) => (s.uid && onVisitUser ? onVisitUser(s.uid) : demoUserNudge());
 
-  const TABS: { k: Tab; label: string; icon: React.ComponentType<{ size?: number; className?: string }> }[] = [
-    { k: 'HOME', label: 'Home', icon: Home }, { k: 'MINISTRIES', label: 'Ministries', icon: Users },
-    { k: 'PHOTOS', label: 'Photos', icon: ImageIcon }, { k: 'EVENTS', label: 'Events', icon: Calendar },
-    { k: 'WATCH', label: 'Watch', icon: Play }, { k: 'PRAYER', label: 'Prayer', icon: HandHeart },
-    { k: 'LIBRARY', label: 'Library', icon: BookOpen }, { k: 'STAFF', label: 'Staff', icon: Users },
-    { k: 'GIVE', label: 'Give', icon: Gift },
+  const TABS: { k: Tab; label: string }[] = [
+    { k: 'HOME', label: 'This Sunday' }, { k: 'MINISTRIES', label: 'Ministries' },
+    { k: 'MOBILIZE', label: 'Serve' }, { k: 'EVENTS', label: 'Events' },
+    { k: 'WATCH', label: 'Watch' }, { k: 'LIBRARY', label: 'Read' },
+    { k: 'PRAYER', label: 'Prayer' }, { k: 'PHOTOS', label: 'Photos' },
+    { k: 'STAFF', label: 'Our team' }, { k: 'GIVE', label: 'Give' },
   ];
 
   const ministry = ministryId ? (c.ministries || []).find(m => m.id === ministryId) : null;
   const md = ministryId ? DEMO_MINISTRY_DETAIL[ministryId] : undefined;
+  const [latest, ...earlier] = DEMO_CHURCH_VIDEOS;
+  const splitTitle = (t: string) => { const [title, ref] = t.split(' — '); return { title, ref }; };
 
   return (
-    <div className="h-full overflow-y-auto scrollbar-hide bg-[#0d0b12]">
+    <EvScope className="h-full overflow-y-auto scrollbar-hide">
       <DemoRibbon label="church" accent={V} ctaText="Create your church" onCreate={onCreate} />
       {modeToggle}
 
-      {/* Hero */}
-      <div className="relative h-52 md:h-64 max-h-[45vh] overflow-hidden">
-        <img src={c.coverUrl} className="absolute inset-0 w-full h-full object-cover opacity-45" alt="" />
-        <div className="absolute inset-0" style={{ background: sheen }} />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0d0b12] via-transparent to-transparent" />
-        {onBack && <button onClick={onBack} className={`absolute top-4 flex items-center gap-1.5 text-white/60 hover:text-white ${TYPE.labelMd}`} style={{ left: 'max(1.5rem, env(safe-area-inset-left))' }}><ChevronLeft size={16} /> Back</button>}
-        <div className="absolute bottom-4 flex items-end gap-4" style={{ left: 'max(1.5rem, env(safe-area-inset-left))', right: 'max(1.5rem, env(safe-area-inset-right))' }}>
-          <div className="w-20 h-20 rounded-2xl overflow-hidden border-2 shrink-0" style={{ borderColor: V }}>
-            <img src={c.logoUrl} className="w-full h-full object-cover" alt="" />
-          </div>
-          <div className="min-w-0 pb-1">
-            <div className="flex items-center gap-2">
-              <Church size={16} style={{ color: VS }} />
-              <h1 className="font-black tracking-tight text-white truncate" style={{ fontSize: 'clamp(1.75rem,6vw,2.5rem)' }}>{c.name}</h1>
-            </div>
-            <p className="type-body-md text-white/55 truncate">{c.tagline}</p>
-          </div>
-        </div>
-      </div>
+      <EvHero
+        name={c.name}
+        logoUrl={c.logoUrl}
+        meta={`${c.denomination} · ${(c.campuses || []).map(x => x.name.replace(' Campus', '')).join(', ')}`}
+        tagline={c.tagline || c.name}
+        intro="A non-denominational church in Anytown learning to love God and neighbor — reading through the Gospel of John together this season."
+        times={(c.serviceTimes || []).map(s => ({ id: s.id, label: `${s.label}${s.isOnline ? ' · also online' : ''}`, day: s.day === 'Sunday' ? 'Sun' : s.day?.slice(0, 3), time: s.time }))}
+        actions={<>
+          <button onClick={demoAction} className="ev-btn ev-btn-primary">Join {c.name}</button>
+          <button onClick={() => setTab('HOME')} className="ev-btn ev-btn-ghost">Plan your first Sunday</button>
+        </>}
+        coverUrl={heroImage(c.coverUrl)}
+      />
 
-      {/* Tabs */}
-      <div className="sticky top-0 z-30 bg-[#0d0b12]/90 backdrop-blur-xl border-b border-white/8">
-        <div className="flex items-center gap-1 px-4 overflow-x-auto scrollbar-hide max-w-5xl mx-auto">
-          {TABS.map(({ k, label, icon: Icon }) => {
-            const active = tab === k && !ministryId;
-            return (
-              <button key={k} onClick={() => { setTab(k); setMinistryId(null); }}
-                className={`shrink-0 flex items-center gap-1.5 px-3.5 py-3 ${TYPE.labelMd} border-b-2 transition-all`}
-                style={active ? { color: '#fff', borderColor: V } : { color: 'rgba(255,255,255,0.35)', borderColor: 'transparent' }}>
-                <Icon size={13} /> {label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      <EvTabs tabs={TABS} value={ministryId ? null : tab} onChange={k => { setTab(k as Tab); setMinistryId(null); }} top={52} />
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+      <div className="max-w-[1240px] mx-auto px-4 sm:px-8 py-10 space-y-10">
         {/* Persistent Live Stream & Ministry TV Channel Thumbnail Carousel right under the tabs */}
         <RelloChurchViewer org={c} defaultPlayerExpanded={false} />
 
@@ -248,52 +224,64 @@ const ChurchDemoView: React.FC<{ onBack?: () => void; onCreate: () => void; onVi
           </div>
         ) : (
           <>
-            {/* ── HOME ── */}
-            {tab === 'HOME' && (
-              <AdaptiveGrid phone={1} tablet={1} desktop={3} gap="1.5rem">
-                <div className="lg:col-span-2 space-y-4">
-                  <p className={TYPE.labelSm} style={{ color: VS }}>Latest from the church</p>
-                  {DEMO_CHURCH_FEED.map(p => <PostCard key={p.id} p={p} />)}
-                </div>
-                <div className="space-y-4">
-                  <div className="rounded-2xl p-4 bg-white/[0.03] border border-white/10">
-                    <p className={`${TYPE.labelMd} text-white/40 mb-3`}>Service times</p>
-                    {(c.serviceTimes || []).map(s => (
-                      <div key={s.id} className="flex items-center justify-between py-1.5 border-b border-white/6 last:border-0">
-                        <span className="type-body-md text-white/70">{s.label}</span>
-                        <span className="type-body-sm font-black text-white tabular-nums">{s.day} · {s.time}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="rounded-2xl p-4 bg-white/[0.03] border border-white/10">
-                    <p className={`${TYPE.labelMd} text-white/40 mb-3`}>Coming up</p>
-                    <div className="space-y-2">
-                      {DEMO_CHURCH_EVENTS.slice(0, 2).map(e => (
-                        <button key={e.id} onClick={() => setTab('EVENTS')} className="w-full text-left flex items-center gap-2 group">
-                          <img src={e.image} className="w-12 h-12 rounded-lg object-cover" alt="" />
-                          <div className="min-w-0"><p className="type-body-md font-bold text-white truncate group-hover:text-violet-300">{e.title}</p><p className="text-[10px] text-white/40">{e.date}</p></div>
+            {/* ── HOME · This Sunday ── */}
+            {tab === 'HOME' && latest && (
+              <div className="space-y-16">
+                <EvSundaySheet
+                  eyebrow={`This Sunday · ${latest.series}`}
+                  title={splitTitle(latest.title).title}
+                  byline={`Pastor Daniel Reyes · ${splitTitle(latest.title).ref || latest.series} · ${latest.duration}`}
+                  verse={{ n: 12, text: 'I am the light of the world. He who follows me will not walk in the darkness, but will have the light of life.', ref: 'John 8:12' }}
+                  onWatch={() => setTab('WATCH')}
+                  onRead={() => openLectio('43.8.12')}
+                  readLabel="Read John 8 in Lectio"
+                  earlier={earlier.map((v, i) => ({ id: v.id, n: v.series === latest.series ? String(7 - i).padStart(2, '0') : undefined, title: splitTitle(v.title).title, meta: `${splitTitle(v.title).ref ? `${splitTitle(v.title).ref} · ` : ''}${v.date}`, len: v.duration, onClick: () => setTab('WATCH') }))}
+                />
+
+                <section>
+                  <EvSectionHead title="Find your people" action={<button onClick={() => setTab('MINISTRIES')} className="text-sm" style={{ color: VS }}>All ministries</button>} />
+                  <EvIndexList items={(c.ministries || []).map(m => ({ id: m.id, name: m.name, when: m.meetingTime, onClick: () => setMinistryId(m.id) }))} />
+                </section>
+
+                <div className="flex flex-wrap gap-5 items-start">
+                  <section className="space-y-3" style={{ flex: '999 1 560px', minWidth: 0 }}>
+                    <EvSectionHead title="From the church" size="md" />
+                    {DEMO_CHURCH_FEED.map(p => <PostCard key={p.id} p={p} />)}
+                  </section>
+                  <aside className="ev-panel p-7 flex flex-col" style={{ flex: '1 1 320px', minWidth: 0 }}>
+                    <h2 className="m-0 mb-3 ev-title text-2xl text-white">Coming up</h2>
+                    <div className="ev-rule">
+                      {DEMO_CHURCH_EVENTS.slice(0, 3).map(e => (
+                        <button key={e.id} onClick={() => setTab('EVENTS')} className="ev-row-link w-full text-left py-3.5 px-1 flex flex-col gap-0.5">
+                          <span className="ev-num text-sm text-[#A49CB2]">{e.date}</span>
+                          <span className="text-[15px] font-medium text-white">{e.title}</span>
+                          <span className="text-[13px] text-[#A49CB2]">{e.location}</span>
                         </button>
                       ))}
                     </div>
-                  </div>
+                  </aside>
                 </div>
-              </AdaptiveGrid>
+              </div>
             )}
 
             {/* ── MINISTRIES ── */}
             {tab === 'MINISTRIES' && (
-              <AdaptiveGrid phone={1} tablet={2} desktop={3} gap="0.75rem">
-                {(c.ministries || []).map(m => (
-                  <button key={m.id} onClick={() => setMinistryId(m.id)}
-                    className="text-left rounded-2xl p-5 bg-white/[0.03] border border-white/10 hover:border-white/25 hover:bg-white/[0.06] transition-all group">
-                    <div className="flex items-center justify-between mb-2"><span className="text-3xl">{m.iconEmoji}</span>{DEMO_MINISTRY_DETAIL[m.id] && <span className={`${TYPE.labelSm} px-2 py-0.5 rounded-full`} style={{ color: VS, background: 'rgba(139,92,246,0.12)' }}>Live space</span>}</div>
-                    <h4 className="text-base font-black text-white mb-0.5 group-hover:text-violet-200">{m.name}</h4>
-                    <p className="type-body-sm text-white/45 leading-snug mb-2">{m.description}</p>
-                    <span className={`flex items-center gap-1 ${TYPE.labelMd} text-white/35`}><Clock size={10} /> {m.meetingTime}</span>
-                    <span className={`flex items-center gap-1 ${TYPE.labelMd} mt-3`} style={{ color: VS }}>Open space <ArrowRight size={11} /></span>
-                  </button>
-                ))}
-              </AdaptiveGrid>
+              <section>
+                <EvSectionHead title="Find your people" />
+                <EvIndexList items={(c.ministries || []).map(m => ({ id: m.id, name: m.name, when: m.meetingTime, onClick: () => setMinistryId(m.id) }))} />
+              </section>
+            )}
+
+            {/* ── MOBILIZE & SERVE ── */}
+            {tab === 'MOBILIZE' && (
+              <ElevateMobilizeHub
+                org={c}
+                currentUserId="demo-member-elena"
+                currentUserName="Elena Sterling"
+                currentUserEmail="elena.sterling@example.org"
+                canManage={false}
+                initialContext="public"
+              />
             )}
 
             {/* ── PHOTOS ── */}
@@ -305,7 +293,7 @@ const ChurchDemoView: React.FC<{ onBack?: () => void; onCreate: () => void; onVi
                     <AdaptiveGrid phone={2} tablet={3} desktop={3} gap="0.5rem">{a.photos.map((ph, i) => <img key={i} src={ph} onClick={demoAction} className="aspect-square object-cover rounded-xl border border-white/10 cursor-zoom-in hover:opacity-90" alt="" loading="lazy" />)}</AdaptiveGrid>
                   </div>
                 ))}
-                <button onClick={demoAction} className={`w-full py-3 rounded-2xl ${TYPE.labelMd} text-white`} style={{ background: 'rgba(139,92,246,0.15)', border: `1px solid rgba(139,92,246,0.3)` }}>+ New album (demo)</button>
+                <button onClick={demoAction} className={`w-full py-3 rounded-2xl ${TYPE.labelMd} text-white`} style={{ background: 'rgba(122, 31, 192,0.15)', border: `1px solid rgba(122, 31, 192,0.3)` }}>+ New album (demo)</button>
               </div>
             )}
 
@@ -319,11 +307,11 @@ const ChurchDemoView: React.FC<{ onBack?: () => void; onCreate: () => void; onVi
               <button
                 onClick={() => window.dispatchEvent(new CustomEvent('OPEN_FOLLOW_ALONG', { detail: {} }))}
                 className="w-full text-left mb-4 p-4 rounded-2xl border transition-all hover:brightness-110"
-                style={{ borderColor: 'rgba(212,175,55,0.35)', background: 'linear-gradient(135deg, rgba(212,175,55,0.12), rgba(139,92,246,0.08))' }}>
+                style={{ borderColor: 'rgba(226, 194, 126,0.35)', background: 'linear-gradient(135deg, rgba(226, 194, 126,0.12), rgba(122, 31, 192,0.08))' }}>
                 <div className="flex items-center gap-2 mb-1">
-                  <Radio size={14} style={{ color: '#d4af37' }} />
+                  <Radio size={14} style={{ color: '#E2C27E' }} />
                   <span className={`${TYPE.labelMd} text-white`}>Follow along with the service</span>
-                  <span className="ml-auto px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest" style={{ background: 'rgba(212,175,55,0.2)', color: '#d4af37' }}>Live</span>
+                  <span className="ml-auto px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest" style={{ background: 'rgba(226, 194, 126,0.2)', color: '#E2C27E' }}>Live</span>
                 </div>
                 <p className="type-body-sm text-white/50 leading-relaxed">
                   Whether you’re in the room or watching from home, your phone turns to each passage
@@ -360,7 +348,7 @@ const ChurchDemoView: React.FC<{ onBack?: () => void; onCreate: () => void; onVi
                       {pr.answered && <span className={`flex items-center gap-1 ${TYPE.labelSm} text-emerald-400`}><Check size={10} /> Answered</span>}
                     </div>
                     <p className="text-sm text-white/75 leading-relaxed mb-3">{pr.request}</p>
-                    <button onClick={demoAction} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full ${TYPE.labelMd} text-white`} style={{ background: pr.answered ? 'rgba(63,190,133,0.15)' : 'rgba(139,92,246,0.15)', border: `1px solid ${pr.answered ? 'rgba(63,190,133,0.3)' : 'rgba(139,92,246,0.3)'}` }}>
+                    <button onClick={demoAction} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full ${TYPE.labelMd} text-white`} style={{ background: pr.answered ? 'rgba(63,190,133,0.15)' : 'rgba(122, 31, 192,0.15)', border: `1px solid ${pr.answered ? 'rgba(63,190,133,0.3)' : 'rgba(122, 31, 192,0.3)'}` }}>
                       <HandHeart size={11} style={{ color: pr.answered ? '#3FBE85' : VS }} /> {pr.praying} praying
                     </button>
                   </div>
@@ -382,9 +370,9 @@ const ChurchDemoView: React.FC<{ onBack?: () => void; onCreate: () => void; onVi
                     <button key={title}
                       onClick={() => window.dispatchEvent(new CustomEvent(ev, { detail: {} }))}
                       className="text-left p-3.5 rounded-2xl border transition-all hover:brightness-125"
-                      style={{ borderColor: 'rgba(212,175,55,0.28)', background: 'rgba(212,175,55,0.05)' }}>
+                      style={{ borderColor: 'rgba(226, 194, 126,0.28)', background: 'rgba(226, 194, 126,0.05)' }}>
                       <div className="flex items-center gap-2 mb-1">
-                        <Icon size={14} style={{ color: '#d4af37' }} />
+                        <Icon size={14} style={{ color: '#E2C27E' }} />
                         <span className={`${TYPE.labelMd} text-white`}>{title}</span>
                       </div>
                       <p className="type-body-sm text-white/45 leading-snug">{sub}</p>
@@ -394,7 +382,7 @@ const ChurchDemoView: React.FC<{ onBack?: () => void; onCreate: () => void; onVi
 
                 <div className="flex items-center justify-between mb-4">
                   <p className="type-title-sm text-white/55 max-w-md">A reading list curated by our teaching team, powered by Lorea.</p>
-                  <button onClick={() => window.dispatchEvent(new CustomEvent('OPEN_BIBLE', { detail: {} }))} className={`shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-full ${TYPE.labelMd} text-white`} style={{ background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)' }}>
+                  <button onClick={() => window.dispatchEvent(new CustomEvent('OPEN_BIBLE', { detail: {} }))} className={`shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-full ${TYPE.labelMd} text-white`} style={{ background: 'rgba(122, 31, 192,0.15)', border: '1px solid rgba(122, 31, 192,0.3)' }}>
                     <BookOpen size={12} style={{ color: VS }} /> Sacred Library <ExternalLink size={11} />
                   </button>
                 </div>
@@ -426,7 +414,7 @@ const ChurchDemoView: React.FC<{ onBack?: () => void; onCreate: () => void; onVi
                       <div className="flex items-center justify-between mb-1"><h4 className="text-sm font-black text-white">{f.name}</h4><button onClick={demoAction} className={`px-4 py-1.5 rounded-full ${TYPE.labelMd} text-white`} style={{ background: V }}>Give</button></div>
                       <p className="type-body-sm text-white/45 mb-3">{f.description}</p>
                       {f.goal ? (<>
-                        <div className="h-2 rounded-full bg-black/40 overflow-hidden"><div className="h-full rounded-full" style={{ width: `${pct}%`, background: V }} /></div>
+                        <div className="h-2 rounded-full bg-black/40 overflow-hidden"><div className="h-full rounded-full" style={{ width: `${pct}%`, background: EV.brand }} /></div>
                         <div className={`flex justify-between mt-1.5 ${TYPE.labelMd} text-white/40 tabular-nums`}><span style={{ color: VS }}>${(f.raised || 0).toLocaleString()} raised</span><span>of ${f.goal.toLocaleString()}</span></div>
                       </>) : null}
                     </div>
@@ -437,7 +425,7 @@ const ChurchDemoView: React.FC<{ onBack?: () => void; onCreate: () => void; onVi
           </>
         )}
       </div>
-    </div>
+    </EvScope>
   );
 };
 

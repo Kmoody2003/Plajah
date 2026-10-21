@@ -35,9 +35,9 @@ export interface ElevateGatewayProps {
   onCreate: () => void;
 }
 
-export const ELEVATE_PURPLE = '#8B5CF6';
-const field = 'w-full bg-white/[0.06] border border-white/12 rounded-2xl px-4 py-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-[#8B5CF6]/70 transition-colors';
-const primary = 'w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#6B0099] to-[#8B5CF6] text-white text-[11px] font-black uppercase tracking-widest shadow-[0_10px_30px_rgba(139,92,246,0.35)] hover:brightness-110 disabled:opacity-40 flex items-center justify-center gap-2';
+export const ELEVATE_PURPLE = '#7A1FC0';
+const field = 'w-full bg-white/[0.06] border border-white/12 rounded-2xl px-4 py-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-[#7A1FC0]/70 transition-colors';
+const primary = 'w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#7A1FC0] to-[#7A1FC0] text-white text-[11px] font-black uppercase tracking-widest shadow-[0_10px_30px_rgba(122,31,192,0.35)] hover:brightness-110 disabled:opacity-40 flex items-center justify-center gap-2';
 const ghost = 'px-4 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 flex items-center gap-1.5';
 
 const ElevateGateway: React.FC<ElevateGatewayProps> = ({ orgKey, initialMode, initialMemberNumber, signedIn, onClose, onOpenOrg, onCreate }) => {
@@ -350,8 +350,8 @@ const ElevateGateway: React.FC<ElevateGatewayProps> = ({ orgKey, initialMode, in
 
   return (
     <div className="fixed inset-0 z-[320] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="relative w-full max-w-lg bg-[#0b0712] border border-[#8B5CF6]/30 rounded-[2rem] p-6 sm:p-8 text-white shadow-[0_30px_80px_rgba(107,0,153,0.35)] my-auto max-h-[92vh] overflow-y-auto">
-        <div className="absolute -inset-px rounded-[2rem] bg-gradient-to-br from-[#8B5CF6]/25 via-transparent to-[#6B0099]/20 pointer-events-none" />
+      <div className="relative w-full max-w-lg bg-[#0b0712] border border-[#7A1FC0]/30 rounded-[2rem] p-6 sm:p-8 text-white shadow-[0_30px_80px_rgba(122,31,192,0.35)] my-auto max-h-[92vh] overflow-y-auto">
+        <div className="absolute -inset-px rounded-[2rem] bg-gradient-to-br from-[#7A1FC0]/25 via-transparent to-[#7A1FC0]/20 pointer-events-none" />
         <button onClick={onClose} className="absolute top-4 right-4 p-2 text-white/40 hover:text-white z-10" aria-label="Close"><X size={18} /></button>
         <div className="relative">
           {orgLoading ? <div className="py-14 grid place-items-center"><Loader2 className="animate-spin text-white/40" /></div> : (
@@ -363,7 +363,7 @@ const ElevateGateway: React.FC<ElevateGatewayProps> = ({ orgKey, initialMode, in
                     {target.logoUrl ? (
                       <img src={target.logoUrl} alt="" className="w-11 h-11 rounded-xl object-cover shrink-0 border border-white/10" />
                     ) : (
-                      <div className="w-11 h-11 rounded-xl bg-[#8B5CF6]/20 border border-[#8B5CF6]/30 grid place-items-center shrink-0">
+                      <div className="w-11 h-11 rounded-xl bg-[#7A1FC0]/20 border border-[#7A1FC0]/30 grid place-items-center shrink-0">
                         <HeartHandshake size={18} className="text-[#C4B5FD]" />
                       </div>
                     )}
@@ -394,7 +394,7 @@ const ElevateGateway: React.FC<ElevateGatewayProps> = ({ orgKey, initialMode, in
                       type="button"
                       onClick={() => { setMode('claim'); setErr(''); }}
                       className={`py-2 px-3 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 transition-all ${
-                        mode === 'claim' ? 'bg-[#8B5CF6] text-white shadow' : 'text-white/50 hover:text-white'
+                        mode === 'claim' ? 'bg-[#7A1FC0] text-white shadow' : 'text-white/50 hover:text-white'
                       }`}
                     >
                       <KeyRound size={12} /> Claim Account
@@ -403,7 +403,7 @@ const ElevateGateway: React.FC<ElevateGatewayProps> = ({ orgKey, initialMode, in
                       type="button"
                       onClick={() => { setMode('join'); setErr(''); }}
                       className={`py-2 px-3 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 transition-all ${
-                        mode === 'join' ? 'bg-[#8B5CF6] text-white shadow' : 'text-white/50 hover:text-white'
+                        mode === 'join' ? 'bg-[#7A1FC0] text-white shadow' : 'text-white/50 hover:text-white'
                       }`}
                     >
                       <UserCheck size={12} /> Join &amp; Onboard
@@ -417,7 +417,7 @@ const ElevateGateway: React.FC<ElevateGatewayProps> = ({ orgKey, initialMode, in
                 <>
                   <Head title="Welcome to Plajah Elevate" sub="For churches, religious communities, charities, cultural institutions & nonprofits — where staff, leaders, volunteers & participants making a difference sign in." />
                   <div className="space-y-2.5">
-                    <button onClick={() => setMode('claim')} className="w-full text-left p-4 rounded-2xl bg-[#8B5CF6]/15 border border-[#8B5CF6]/40 hover:bg-[#8B5CF6]/25 transition-all flex items-center gap-4">
+                    <button onClick={() => setMode('claim')} className="w-full text-left p-4 rounded-2xl bg-[#7A1FC0]/15 border border-[#7A1FC0]/40 hover:bg-[#7A1FC0]/25 transition-all flex items-center gap-4">
                       <KeyRound className="text-[#C4B5FD] shrink-0" size={20} />
                       <span className="flex-1"><span className="block text-sm font-black">Claim my organization account</span><span className="block text-[11px] text-white/50">Already on the roster as staff, member, or participant? Claim your pre-set account with your ID or email.</span></span>
                       <ArrowRight size={16} className="text-white/40" />
@@ -446,7 +446,7 @@ const ElevateGateway: React.FC<ElevateGatewayProps> = ({ orgKey, initialMode, in
                   />
                   {claimed ? (
                     <div className="text-center py-4 space-y-3">
-                      <div className="w-14 h-14 rounded-full bg-[#8B5CF6]/25 grid place-items-center mx-auto"><Check className="text-[#C4B5FD]" /></div>
+                      <div className="w-14 h-14 rounded-full bg-[#7A1FC0]/25 grid place-items-center mx-auto"><Check className="text-[#C4B5FD]" /></div>
                       <h3 className="text-xl font-black">Welcome to {claimed.orgName}</h3>
                       <p className="text-sm text-white/55">Your membership is claimed and active as <span className="text-white font-bold">{claimed.roleLabel}</span>. Your department feeds, chat rooms and profile are ready.</p>
                       {(claimed.memberNumber || claimed.employeeNumber) && (
@@ -457,7 +457,7 @@ const ElevateGateway: React.FC<ElevateGatewayProps> = ({ orgKey, initialMode, in
                             </span>
                           )}
                           {claimed.employeeNumber && (
-                            <span className="px-3 py-1 rounded-full bg-[#8B5CF6]/20 border border-[#8B5CF6]/40 text-xs font-mono text-[#E0CEFF]">
+                            <span className="px-3 py-1 rounded-full bg-[#7A1FC0]/20 border border-[#7A1FC0]/40 text-xs font-mono text-[#D8D2E2]">
                               Employment #: <strong>{claimed.employeeNumber}</strong>
                             </span>
                           )}
@@ -511,7 +511,7 @@ const ElevateGateway: React.FC<ElevateGatewayProps> = ({ orgKey, initialMode, in
                       )}
 
                       {lookup && !lookup.found && (
-                        <div className="p-3.5 rounded-2xl bg-[#8B5CF6]/12 border border-[#8B5CF6]/35 space-y-2.5">
+                        <div className="p-3.5 rounded-2xl bg-[#7A1FC0]/12 border border-[#7A1FC0]/35 space-y-2.5">
                           <p className="text-xs text-white/85 leading-relaxed">
                             We didn't find a pre-created roster seat under that exact entry yet — you can submit your claim right now and your <strong>Member ID &amp; Employment #</strong> will auto-populate on the backend once approved:
                           </p>
@@ -534,7 +534,7 @@ const ElevateGateway: React.FC<ElevateGatewayProps> = ({ orgKey, initialMode, in
                         </div>
                       )}
                       {lookup?.found && (
-                        <div className="p-4 rounded-2xl bg-[#8B5CF6]/10 border border-[#8B5CF6]/30 space-y-1">
+                        <div className="p-4 rounded-2xl bg-[#7A1FC0]/10 border border-[#7A1FC0]/30 space-y-1">
                           <p className="text-[10px] font-black uppercase tracking-widest text-[#C4B5FD]">We found your membership record</p>
                           <p className="text-sm font-bold">{lookup.maskedName} · {lookup.roleLabel}</p>
                           {!!lookup.departments?.length && <p className="text-[11px] text-white/50">{lookup.departments.join(' · ')}</p>}
@@ -560,7 +560,7 @@ const ElevateGateway: React.FC<ElevateGatewayProps> = ({ orgKey, initialMode, in
                               type="button"
                               onClick={() => doRequestMembership(target)}
                               disabled={busy}
-                              className="w-full py-2.5 rounded-2xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/15 text-[10px] font-black uppercase tracking-widest text-[#E0CEFF] flex items-center justify-center gap-1.5"
+                              className="w-full py-2.5 rounded-2xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/15 text-[10px] font-black uppercase tracking-widest text-[#D8D2E2] flex items-center justify-center gap-1.5"
                             >
                               <UserCheck size={13} /> Claim Without ID (Auto-Assigns on Approval)
                             </button>
@@ -752,7 +752,7 @@ const ElevateGateway: React.FC<ElevateGatewayProps> = ({ orgKey, initialMode, in
                           <button
                             type="button"
                             onClick={addFamilyMember}
-                            className="px-3 py-2 rounded-xl bg-[#8B5CF6]/30 border border-[#8B5CF6]/50 text-xs font-black text-white hover:bg-[#8B5CF6]/50"
+                            className="px-3 py-2 rounded-xl bg-[#7A1FC0]/30 border border-[#7A1FC0]/50 text-xs font-black text-white hover:bg-[#7A1FC0]/50"
                           >
                             + Add
                           </button>
@@ -798,7 +798,7 @@ const ElevateGateway: React.FC<ElevateGatewayProps> = ({ orgKey, initialMode, in
                             type="checkbox"
                             checked={isExistingCongregant}
                             onChange={e => setIsExistingCongregant(e.target.checked)}
-                            className="accent-[#8B5CF6]"
+                            className="accent-[#7A1FC0]"
                           />
                           <span className="text-xs font-bold text-white/85">I am already a member, volunteer, or staff at {target.name}</span>
                         </label>
@@ -836,7 +836,7 @@ const ElevateGateway: React.FC<ElevateGatewayProps> = ({ orgKey, initialMode, in
                                 onClick={() => toggleSkill(skill)}
                                 className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all ${
                                   active
-                                    ? 'bg-[#8B5CF6]/30 border-[#8B5CF6] text-white'
+                                    ? 'bg-[#7A1FC0]/30 border-[#7A1FC0] text-white'
                                     : 'bg-white/5 border-white/10 text-white/55 hover:text-white'
                                 }`}
                               >
@@ -860,7 +860,7 @@ const ElevateGateway: React.FC<ElevateGatewayProps> = ({ orgKey, initialMode, in
                                   onClick={() => toggleMinistry(m.id)}
                                   className={`px-3 py-1 rounded-full text-[10px] font-bold border transition-all ${
                                     active
-                                      ? 'bg-[#8B5CF6]/30 border-[#8B5CF6] text-white'
+                                      ? 'bg-[#7A1FC0]/30 border-[#7A1FC0] text-white'
                                       : 'bg-white/5 border-white/10 text-white/55 hover:text-white'
                                   }`}
                                 >

@@ -129,7 +129,7 @@ const ProfileOrgBanner: React.FC<ProfileOrgBannerProps> = ({
           return (
             <div
               key={item.orgId}
-              className="rounded-2xl border border-[#8B5CF6]/30 bg-gradient-to-r from-[#6B0099]/15 via-white/[0.03] to-[#8B5CF6]/10 p-3.5 transition-all"
+              className="rounded-2xl border border-[#7A1FC0]/30 bg-gradient-to-r from-[#7A1FC0]/15 via-white/[0.03] to-[#7A1FC0]/10 p-3.5 transition-all"
             >
               <div className="flex flex-wrap items-center gap-3">
                 <button
@@ -203,7 +203,7 @@ const ProfileOrgBanner: React.FC<ProfileOrgBannerProps> = ({
                         type="button"
                         onClick={() => openElevateGatewayModal({ orgKey: item.orgId, mode: 'claim' })}
                         title="Already a member of this organization? Claim your pre-provisioned membership seat or create your account."
-                        className="px-3 py-1.5 rounded-full bg-gradient-to-r from-[#6B0099] to-[#8B5CF6] text-white text-[9px] font-black uppercase tracking-widest hover:brightness-110 flex items-center gap-1 shadow-[0_4px_14px_rgba(139,92,246,0.3)] transition-all"
+                        className="px-3 py-1.5 rounded-full bg-gradient-to-r from-[#7A1FC0] to-[#7A1FC0] text-white text-[9px] font-black uppercase tracking-widest hover:brightness-110 flex items-center gap-1 shadow-[0_4px_14px_rgba(122,31,192,0.3)] transition-all"
                       >
                         <KeyRound size={10} /> Claim My Org Membership
                       </button>
@@ -211,7 +211,7 @@ const ProfileOrgBanner: React.FC<ProfileOrgBannerProps> = ({
                         type="button"
                         onClick={() => openElevateGatewayModal({ orgKey: item.orgId, mode: 'join' })}
                         title="Request organization membership (doubles as member onboarding + Plajah account creation; requires org approval)."
-                        className="px-3 py-1.5 rounded-full bg-[#8B5CF6]/15 hover:bg-[#8B5CF6]/25 border border-[#8B5CF6]/40 text-[#C4B5FD] text-[9px] font-black uppercase tracking-widest flex items-center gap-1 transition-all"
+                        className="px-3 py-1.5 rounded-full bg-[#7A1FC0]/15 hover:bg-[#7A1FC0]/25 border border-[#7A1FC0]/40 text-[#C4B5FD] text-[9px] font-black uppercase tracking-widest flex items-center gap-1 transition-all"
                       >
                         <UserCheck size={10} /> Request Membership
                       </button>

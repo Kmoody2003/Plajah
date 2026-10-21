@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "allowJs": false, "noEmit": true },
+  "include": [
+    "components/elevate/vellum.tsx", "components/ChurchDemoView.tsx", "components/OrgHub.tsx",
+    "components/elevate/ChurchMemberHub.tsx", "components/ChurchAdminDemoView.tsx", "components/elevate/ElevateOps.tsx",
+    "components/elevate/ElevateMobilizeHub.tsx", "components/elevate/RelloChurchViewer.tsx", "components/elevate/OrgOnAirPlayer.tsx", "services/orgMedia.ts"
+  ]
+}

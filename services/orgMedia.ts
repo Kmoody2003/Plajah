@@ -103,6 +103,18 @@ export function useOrgLive(org: Organization | null | undefined, viewerIsOrgMemb
 }
 
 // ── On-air TV channels ───────────────────────────────────────────────────────────
+/** How an on-air item plays inline: HLS (Mux or other), a plain file at an offset (FAST), or an embed. */
+export interface OnAirPlayback { kind: 'hls' | 'file' | 'embed'; url: string; offsetSec?: number; poster?: string }
+
+const isEmbedUrl = (u: string) => /youtube\.com|youtu\.be|twitch\.tv/i.test(u);
+export function playbackFor(url?: string, muxPlaybackId?: string, offsetSec?: number): OnAirPlayback | undefined {
+  if (muxPlaybackId) return { kind: 'hls', url: `https://stream.mux.com/${muxPlaybackId}.m3u8`, offsetSec, poster: `https://image.mux.com/${muxPlaybackId}/thumbnail.jpg?time=0` };
+  if (!url) return undefined;
+  if (/\.m3u8($|[?#])/i.test(url)) return { kind: 'hls', url, offsetSec };
+  if (isEmbedUrl(url)) return { kind: 'embed', url, offsetSec };
+  return { kind: 'file', url, offsetSec };
+}
+
 export interface OrgChannel {
   key: string;
   ownerId: string;
@@ -113,6 +125,8 @@ export interface OrgChannel {
   sourceId?: string;
   nowPlaying?: string;
   membersOnly?: boolean;
+  /** What is on air right now, for an inline (muted) player. */
+  playback?: OnAirPlayback;
 }
 
 interface OwnerChannelData { meta: FastChannel | null; sources: ChannelSource[]; schedule: FastChannelSchedule | null }
@@ -159,22 +173,44 @@ export function useOrgChannels(org: Organization | null | undefined, viewerIsOrg
       if (d.meta?.isPublished && d.schedule) {
         const slots = activeDaySlots(d.schedule, now).filter(slotIsPlayable);
         if (slots.length && hasPlayableProgramme(slots)) {
-          const { index } = dayAnchoredPosition(slots, now, (d.schedule as any).timezone);
+          const { index, offsetSec } = dayAnchoredPosition(slots, now, (d.schedule as any).timezone);
           let nowPlaying: string | undefined;
-          try { nowPlaying = resolveSlotMedia(slots[index])?.title || undefined; } catch { /* */ }
-          out.push({ key: `fast:${uid}`, ownerId: uid, kind: 'FAST', name: d.meta.name || 'TV', number: d.meta.number, logoUrl: d.meta.logoUrl, nowPlaying });
+          let playback: OnAirPlayback | undefined;
+          try {
+            const media = resolveSlotMedia(slots[index]);
+            nowPlaying = media?.title || undefined;
+            if (media && !media.generative) playback = playbackFor(media.url, media.muxPlaybackId, offsetSec);
+            if (playback && media?.thumbnail) playback.poster = media.thumbnail;
+          } catch { /* */ }
+          out.push({ key: `fast:${uid}`, ownerId: uid, kind: 'FAST', name: d.meta.name || 'TV', number: d.meta.number, logoUrl: d.meta.logoUrl, nowPlaying, playback });
         }
       }
       d.sources.forEach(s => {
         if (!s.isActive || (s.type !== 'EXTERNAL_LIVE' && s.type !== 'REELLO_LIVE')) return;
         if (!s.url && !s.muxPlaybackId) return;
         if (s.membersOnly && !gate(uid)) return;     // Sanctuary gate — non-members never see it
-        out.push({ key: `src:${uid}:${s.id}`, ownerId: uid, kind: s.type, name: s.name || d.meta?.name || 'Live', number: d.meta?.number, logoUrl: s.logoUrl || d.meta?.logoUrl, sourceId: s.id, membersOnly: s.membersOnly });
+        out.push({ key: `src:${uid}:${s.id}`, ownerId: uid, kind: s.type, name: s.name || d.meta?.name || 'Live', number: d.meta?.number, logoUrl: s.logoUrl || d.meta?.logoUrl, sourceId: s.id, membersOnly: s.membersOnly, playback: playbackFor(s.url, s.muxPlaybackId) });
       });
     });
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, tick, gate, key]);
+}
+
+/** One thing on air for the org page's inline player: a live stream first, then its TV channels. */
+export interface OnAirItem { key: string; title: string; subtitle?: string; playback: OnAirPlayback; feed?: LiveFeed; channel?: OrgChannel }
+
+export function onAirItems(live: LiveFeed[], channels: OrgChannel[]): OnAirItem[] {
+  const out: OnAirItem[] = [];
+  live.forEach(f => {
+    const playback = playbackFor(f.url, f.muxPlaybackId);
+    if (playback) out.push({ key: `live:${f.id}`, title: f.title || 'Live now', subtitle: 'Live', playback, feed: f });
+  });
+  channels.forEach(c => {
+    const subtitle = c.nowPlaying ? `Now playing · ${c.nowPlaying}` : typeof c.number === 'number' ? `Channel ${c.number}` : 'On air';
+    if (c.playback) out.push({ key: c.key, title: c.name, subtitle, playback: c.playback, channel: c });
+  });
+  return out;
 }
 
 // ── Videos + releases ────────────────────────────────────────────────────────────

@@ -75,9 +75,12 @@ import ChurchEducation from '../church/ChurchEducation';
 import LectioReader from '../scripture/LectioReader';
 import VespersRecap from '../scripture/VespersRecap';
 import { sessionIdFor } from '../../services/kairosService';
+import ElevateMobilizeHub from './ElevateMobilizeHub';
+import { EV, EvLabel, EvLectioSheet } from './vellum';
 
 type HubStudioSection =
   | 'SANCTUARY_STUDIO'
+  | 'MOBILIZE_AND_SHIFTS'
   | 'DEVOTIONAL_AND_BIBLE_365'
   | 'RECENT_LESSONS_AND_VESPERS'
   | 'HYMNS_PRAYERS_AND_SCORES'
@@ -101,6 +104,7 @@ function getStudioNavItems(orgType?: Organization['orgType']): Array<{
   if (orgType === 'CULTURAL') {
     return [
       { id: 'SANCTUARY_STUDIO', label: 'Institution Hub & Live TV', badge: 'LIVE', icon: Sparkles },
+      { id: 'MOBILIZE_AND_SHIFTS', label: 'Docent Shifts, Spokes & Impact', badge: 'SHIFTS', icon: Calendar },
       { id: 'DEVOTIONAL_AND_BIBLE_365', label: 'Daily Reflection & Reading 365', badge: 'DAY 289', icon: Flame },
       { id: 'RECENT_LESSONS_AND_VESPERS', label: 'Lectures & Exhibition Briefs', icon: GraduationCap },
       { id: 'HYMNS_PRAYERS_AND_SCORES', label: 'Repertoire, Scores & Archives', badge: 'LOREA', icon: Music },
@@ -111,6 +115,7 @@ function getStudioNavItems(orgType?: Organization['orgType']): Array<{
   if (orgType === 'NONPROFIT') {
     return [
       { id: 'SANCTUARY_STUDIO', label: 'Mission Hub & Live TV', badge: 'LIVE', icon: Sparkles },
+      { id: 'MOBILIZE_AND_SHIFTS', label: 'Action, Shifts & Petitions', badge: 'ACTION', icon: Calendar },
       { id: 'DEVOTIONAL_AND_BIBLE_365', label: 'Daily Mission & Reading 365', badge: 'DAY 289', icon: Flame },
       { id: 'RECENT_LESSONS_AND_VESPERS', label: 'Trainings & Field Briefs', icon: GraduationCap },
       { id: 'HYMNS_PRAYERS_AND_SCORES', label: 'Anthems, Media & Stories', badge: 'LOREA', icon: Music },
@@ -120,6 +125,7 @@ function getStudioNavItems(orgType?: Organization['orgType']): Array<{
   }
   return [
     { id: 'SANCTUARY_STUDIO', label: 'Sanctuary & Rello Live', badge: 'LIVE', icon: Sparkles },
+    { id: 'MOBILIZE_AND_SHIFTS', label: 'Serve, Shifts & Impact Passport', badge: 'SERVE', icon: Calendar },
     { id: 'DEVOTIONAL_AND_BIBLE_365', label: 'Devotional & Bible 365', badge: 'DAY 289', icon: Flame },
     { id: 'RECENT_LESSONS_AND_VESPERS', label: 'Lessons & Service Briefs', icon: GraduationCap },
     { id: 'HYMNS_PRAYERS_AND_SCORES', label: 'Hymns, Scores & Prayers', badge: 'LOREA', icon: Music },
@@ -291,7 +297,7 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
         id: 'brief-1',
         dateLabel: 'Last Sunday · 11:00 AM Choral Eucharist',
         title: 'Beholding the Uncreated Light in Earthen Vessels',
-        speaker: 'Rev. Dr. Elias Vance',
+        speaker: 'Pastor Daniel Reyes',
         keyScriptures: [
           { label: '2 Corinthians 4:6', ref: { book: 47, bookName: '2 Corinthians', chapter: 4, verse: 6 } },
           { label: 'Isaiah 6:1-3', ref: { book: 23, bookName: 'Isaiah', chapter: 6, verse: 1 } },
@@ -349,141 +355,52 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
   }, [org.ministries]);
 
   const displayName =
-    membership?.displayName || user?.displayName || 'Marcus Sterling';
+    membership?.displayName || user?.displayName || 'Elena Sterling';
   const memberRoleTitle =
-    membership?.title || membership?.role || 'Covenant Member · Head of Household';
+    membership?.title || membership?.role || 'Covenant member';
+  const firstName = String(displayName).split(' ')[0];
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Morning' : hour < 17 ? 'Afternoon' : 'Evening';
 
   return (
-    <div
-      className="rounded-[2rem] border overflow-hidden shadow-2xl my-6"
-      style={{
-        background:
-          'radial-gradient(120% 90% at 15% 0%, rgba(107, 0, 153, 0.28) 0%, rgba(212, 0, 85, 0.12) 32%, #0B0516 70%, #06020C 100%)',
-        borderColor: 'rgba(232, 193, 112, 0.32)',
-      }}
-    >
-      {/* ── EDITION I: ROYAL SANCTUARY STUDIO HEADER BAR ── */}
-      <div
-        className="px-6 py-5 border-b flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4"
-        style={{
-          borderColor: 'rgba(224, 206, 255, 0.14)',
-          background:
-            'linear-gradient(90deg, rgba(107,0,153,0.32) 0%, rgba(20,9,38,0.92) 55%, rgba(212,0,85,0.22) 100%)',
-        }}
-      >
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="px-2.5 py-0.5 rounded-full text-[9.5px] font-black uppercase tracking-[0.22em] bg-[#E8C170] text-black">
-              Edition I · Royal Sanctuary Studio
-            </span>
-            <span className="px-2.5 py-0.5 rounded-full text-[9.5px] font-bold uppercase tracking-widest bg-[#6B0099]/60 border border-[#E0CEFF]/30 text-[#E0CEFF]">
-              Plajah Elevate · Congregant Member Hub
-            </span>
-          </div>
-          <h2
-            className="text-2xl sm:text-3xl font-bold text-white tracking-tight"
-            style={{ fontFamily: 'var(--font-display, "Outfit", "Space Grotesk", "Inter", sans-serif)', letterSpacing: '-0.02em' }}
-          >
-            Welcome home to {org.name}, <span className="text-[#E8C170]">{displayName}</span>
-          </h2>
-          <p className="text-xs text-[#E0CEFF]/75 flex items-center gap-2 flex-wrap">
-            <span>{memberRoleTitle}</span>
-            <span>·</span>
-            <span>The Sterling Household (Head + Spouse + 2 Children)</span>
-          </p>
+    <div className="my-2 space-y-8">
+      {/* ── Greeting + in-service presence (schedule + GPS auto-engage drives Lectio follow-along) ── */}
+      <div className="flex flex-wrap justify-between items-end gap-4">
+        <div className="min-w-0">
+          <EvLabel>{memberRoleTitle} · {org.name}</EvLabel>
+          <h1 className="m-0 mt-2 ev-display text-white" style={{ fontSize: 'clamp(2.5rem, 5vw, 3.75rem)' }}>
+            {greeting}, {firstName}.
+          </h1>
         </div>
-
-        {/* In-Service Schedule + GPS Sanctuary Auto-Engage Pill */}
-        <div
-          className="rounded-2xl p-3.5 border flex flex-col sm:flex-row sm:items-center gap-3"
-          style={{
-            background: autoEngageStatus.autoEngaged
-              ? 'rgba(16, 185, 129, 0.12)'
-              : 'rgba(255, 255, 255, 0.04)',
-            borderColor: autoEngageStatus.autoEngaged
-              ? 'rgba(52, 211, 153, 0.45)'
-              : 'rgba(255, 255, 255, 0.15)',
-          }}
+        <button
+          onClick={() => setSimulateInSanctuary(v => !v)}
+          className="ev-btn ev-btn-ghost"
+          title={`${autoEngageStatus.activeServiceLabel} · ${autoEngageStatus.coordinatesLabel}`}
         >
-          <div className="space-y-0.5">
-            <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-emerald-300">
-              <Navigation size={11} />
-              <span>
-                {autoEngageStatus.autoEngaged
-                  ? 'In-Service Schedule + GPS Auto-Engage: ACTIVE'
-                  : 'Schedule + GPS Auto-Engage: Standby'}
-              </span>
-            </div>
-            <div className="text-[11px] text-white/85 font-medium">
-              {autoEngageStatus.activeServiceLabel}
-            </div>
-            <div className="text-[10px] font-mono text-[#E0CEFF]/65 flex items-center gap-1">
-              <MapPin size={10} className="text-[#E8C170]" />
-              <span>{autoEngageStatus.coordinatesLabel}</span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setSimulateInSanctuary(v => !v)}
-              className="px-2.5 py-1.5 rounded-xl text-[10px] font-bold border border-white/15 bg-black/40 text-white/80 hover:text-white"
-              title="Toggle simulated physical presence inside the Sanctuary geofence"
-            >
-              {simulateInSanctuary ? 'In-Sanctuary GPS' : 'Remote GPS'}
-            </button>
-            <button
-              onClick={() =>
-                setFullLectioRef({ book: 47, bookName: '2 Corinthians', chapter: 4, verse: 6 })
-              }
-              className="px-3 py-1.5 rounded-xl text-[10.5px] font-black text-black flex items-center gap-1.5 whitespace-nowrap"
-              style={{ background: '#E8C170' }}
-            >
-              <BookOpen size={12} />
-              <span>Open Lectio Sanctuary View</span>
-            </button>
-          </div>
-        </div>
+          {autoEngageStatus.autoEngaged
+            ? <><span className="ev-live-dot" /> In the sanctuary · Lectio follows the service</>
+            : <><Navigation size={14} className="text-[#A49CB2]" /> Away · Lectio on standby</>}
+        </button>
       </div>
 
-      {/* ── STUDIO NAVIGATION RIBBON ── */}
-      <div className="px-6 py-3 border-b border-white/10 bg-black/40 flex items-center gap-2 overflow-x-auto custom-scrollbar">
-        {studioNavItems.map(item => {
-          const Icon = item.icon;
-          const active = section === item.id;
-          return (
-            <button
-              key={item.id}
-              onClick={() => setSection(item.id)}
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 whitespace-nowrap border transition-all ${
-                active
-                  ? 'bg-[#6B0099] text-white border-[#E8C170]/60 shadow-[0_0_20px_rgba(107,0,153,0.5)]'
-                  : 'bg-white/[0.04] text-[#E0CEFF]/70 border-white/10 hover:text-white hover:bg-white/[0.08]'
-              }`}
-            >
-              <Icon size={14} className={active ? 'text-[#E8C170]' : 'text-[#E0CEFF]/60'} />
-              <span>{item.label}</span>
-              {item.badge && (
-                <span
-                  className={`px-1.5 py-0.5 rounded text-[8.5px] font-black uppercase ${
-                    active ? 'bg-[#E8C170] text-black' : 'bg-white/10 text-[#E0CEFF]'
-                  }`}
-                >
-                  {item.badge}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
+      {/* ── Member home navigation ── */}
+      <nav aria-label="Member home" className="flex gap-6 overflow-x-auto scrollbar-hide border-b" style={{ borderColor: EV.line }}>
+        {studioNavItems.map(item => (
+          <button key={item.id} onClick={() => setSection(item.id)} className="ev-tab" aria-current={section === item.id ? 'page' : undefined}>
+            {item.label}
+          </button>
+        ))}
+      </nav>
 
       {/* ── MAIN STUDIO BODY ── */}
-      <div className="p-6 space-y-8">
+      <div className="space-y-8">
         {/* PERSISTENT LIVE STREAM & MINISTRY TV CHANNEL CAROUSEL (Always mounted under the tabs so switching tabs never interrupts watching) */}
         <RelloChurchViewer
           org={org}
           inSanctuaryAutoEngaged={autoEngageStatus.autoEngaged}
           onOpenFullLectio={ref => setFullLectioRef(ref)}
-          defaultPlayerExpanded={true}
+          defaultPlayerExpanded={false}
+          viewerIsOrgMember={membership?.status === 'ACTIVE'}
         />
 
         {/* ═══════════════════════════════════════════════════════════════════════
@@ -491,19 +408,39 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
             ═══════════════════════════════════════════════════════════════════════ */}
         {section === 'SANCTUARY_STUDIO' && (
           <div className="space-y-8">
+            {/* Lectio · today's reading on Vellum, with Sunday's Ambo cues in the margin */}
+            <EvLectioSheet
+              planLabel="Lectio · Through John with the church"
+              progressLabel="Gospel of John · 38%"
+              reference="John 8:12–14"
+              verses={[
+                { n: 12, text: 'Again, therefore, Jesus spoke to them, saying, “I am the light of the world. He who follows me will not walk in the darkness, but will have the light of life.”', highlight: true },
+                { n: 13, text: 'The Pharisees therefore said to him, “You testify about yourself. Your testimony is not valid.”' },
+                { n: 14, text: 'Jesus answered them, “Even if I testify about myself, my testimony is true, for I know where I came from, and where I am going…”' },
+              ]}
+              notes={[
+                { src: 'Ambo · Sunday 14:20', text: 'Light isn’t a lamp we carry — it’s a Person we follow.' },
+                { src: 'Cross-reference', text: 'Isaiah 9:2 — “the people who walked in darkness have seen a great light.”' },
+                { src: 'Your note', text: 'Where am I still walking in the dark this week?' },
+              ]}
+              onContinue={() => setFullLectioRef({ book: 43, bookName: 'John', chapter: 8, verse: 12 })}
+              onAddNote={() => setFullLectioRef({ book: 43, bookName: 'John', chapter: 8, verse: 12 })}
+              footnote={org.isDemo ? 'Day 23 of 60 · 212 of the church read this today' : undefined}
+            />
+
             {/* Assigned Departments, Ministry Activities & Quick Actions Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               {/* My Assigned Departments & Ministry Activities (7 cols) */}
               <div
                 className="lg:col-span-7 rounded-3xl p-5 border space-y-4"
                 style={{
-                  background: 'rgba(18, 9, 36, 0.78)',
-                  borderColor: 'rgba(224, 206, 255, 0.18)',
+                  background: 'rgba(24, 20, 31, 0.78)',
+                  borderColor: 'rgba(216, 210, 226, 0.18)',
                 }}
               >
                 <div className="flex items-center justify-between gap-2">
                   <div>
-                    <div className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-[#E8C170]">
+                    <div className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-[#E2C27E]">
                       My Covenant Departments & Ministry Roster
                     </div>
                     <h3 className="text-lg font-bold text-white mt-0.5">
@@ -514,7 +451,7 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
                     <button
                       onClick={onOpenGive}
                       className="px-3.5 py-1.5 rounded-xl text-xs font-black text-black flex items-center gap-1.5"
-                      style={{ background: '#E8C170' }}
+                      style={{ background: '#E2C27E' }}
                     >
                       <HeartHandshake size={13} />
                       <span>Sanctuary Giving</span>
@@ -535,7 +472,7 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
                             {m.iconEmoji ? `${m.iconEmoji} ` : ''}
                             {m.name}
                           </span>
-                          <span className="px-2 py-0.5 rounded-full text-[8.5px] font-black uppercase bg-[#6B0099]/60 text-[#E0CEFF] border border-[#E0CEFF]/25">
+                          <span className="px-2 py-0.5 rounded-full text-[8.5px] font-black uppercase bg-[#7A1FC0]/60 text-[#D8D2E2] border border-[#D8D2E2]/25">
                             Active Member
                           </span>
                         </div>
@@ -544,13 +481,26 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
                         )}
                       </div>
                       {m.meetingTime && (
-                        <div className="text-[10px] font-mono text-[#E8C170] flex items-center gap-1 pt-1 border-t border-white/10">
+                        <div className="text-[10px] font-mono text-[#E2C27E] flex items-center gap-1 pt-1 border-t border-white/10">
                           <Clock size={10} />
                           <span>{m.meetingTime}</span>
                         </div>
                       )}
                     </div>
                   ))}
+                </div>
+
+                <div className="pt-2 border-t border-white/10 flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-xs text-white/65">
+                    Multi-shift volunteer scheduling, automatic waitlists, covenants &amp; spoke watch parties:
+                  </span>
+                  <button
+                    onClick={() => setSection('MOBILIZE_AND_SHIFTS')}
+                    className="px-3.5 py-2 rounded-xl text-xs font-black text-white bg-[#7A1FC0] hover:bg-[#7A1FC0] border border-[#E2C27E]/50 flex items-center gap-1.5"
+                  >
+                    <Calendar size={13} className="text-[#E2C27E]" />
+                    <span>Open Shifts, Covenants &amp; Impact Passport →</span>
+                  </button>
                 </div>
               </div>
 
@@ -559,16 +509,16 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
                 className="lg:col-span-5 rounded-3xl p-5 border flex flex-col justify-between gap-4"
                 style={{
                   background:
-                    'linear-gradient(155deg, rgba(107,0,153,0.28) 0%, rgba(16,8,32,0.92) 100%)',
-                  borderColor: 'rgba(232, 193, 112, 0.3)',
+                    'linear-gradient(155deg, rgba(122, 31, 192,0.28) 0%, rgba(16,8,32,0.92) 100%)',
+                  borderColor: 'rgba(226, 194, 126, 0.3)',
                 }}
               >
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-[#E8C170]">
+                    <span className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-[#E2C27E]">
                       {activeDevo.liturgicalHour}
                     </span>
-                    <span className="px-2 py-0.5 rounded-full text-[9.5px] font-bold bg-[#E8C170]/15 text-[#FFE399] border border-[#E8C170]/35">
+                    <span className="px-2 py-0.5 rounded-full text-[9.5px] font-bold bg-[#E2C27E]/15 text-[#F0D9A6] border border-[#E2C27E]/35">
                       Bible in a Year · Day {todayDayNum} / 365
                     </span>
                   </div>
@@ -578,9 +528,9 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
                   >
                     {activeDevo.title}
                   </h3>
-                  <blockquote className="p-3 rounded-xl bg-black/40 border-l-2 border-[#E8C170] text-xs italic text-[#E0CEFF]/90 font-serif">
+                  <blockquote className="p-3 rounded-xl bg-black/40 border-l-2 border-[#E2C27E] text-xs italic text-[#D8D2E2]/90 font-serif">
                     “{activeDevo.scriptureQuote}” —{' '}
-                    <b className="not-italic text-[#E8C170]">{activeDevo.scriptureDisplay}</b>
+                    <b className="not-italic text-[#E2C27E]">{activeDevo.scriptureDisplay}</b>
                   </blockquote>
                   <p className="text-xs text-white/75 leading-relaxed line-clamp-3">
                     {activeDevo.reflectionParagraphs[0]}
@@ -591,14 +541,14 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
                   <button
                     onClick={() => setSection('DEVOTIONAL_AND_BIBLE_365')}
                     className="px-3.5 py-2 rounded-xl text-xs font-black text-black flex items-center gap-1.5"
-                    style={{ background: '#E8C170' }}
+                    style={{ background: '#E2C27E' }}
                   >
                     <Flame size={13} />
                     <span>Open Devotional & 365-Day Plan</span>
                   </button>
                   <button
                     onClick={() => setSection('COUNCIL_12_PLATES')}
-                    className="px-3 py-2 rounded-xl text-xs font-bold text-[#E0CEFF] bg-white/5 hover:bg-white/10 border border-white/15"
+                    className="px-3 py-2 rounded-xl text-xs font-bold text-[#D8D2E2] bg-white/5 hover:bg-white/10 border border-white/15"
                   >
                     12 Sacred Plates →
                   </button>
@@ -606,6 +556,20 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
               </div>
             </div>
           </div>
+        )}
+
+        {/* ═══════════════════════════════════════════════════════════════════════
+            TAB 1B: MOBILIZE, VOLUNTEER SHIFTS, SPOKE HOSTING & IMPACT PASSPORT
+            ═══════════════════════════════════════════════════════════════════════ */}
+        {section === 'MOBILIZE_AND_SHIFTS' && (
+          <ElevateMobilizeHub
+            org={org}
+            currentUserId={user?.uid || 'demo-member-elena'}
+            currentUserName={displayName}
+            currentUserEmail={user?.email || 'elena.sterling@example.org'}
+            canManage={false}
+            initialContext="member"
+          />
         )}
 
         {/* ═══════════════════════════════════════════════════════════════════════
@@ -617,13 +581,13 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
             <div
               className="lg:col-span-6 rounded-3xl p-6 border space-y-5"
               style={{
-                background: 'rgba(18, 9, 36, 0.85)',
-                borderColor: 'rgba(232, 193, 112, 0.3)',
+                background: 'rgba(24, 20, 31, 0.85)',
+                borderColor: 'rgba(226, 194, 126, 0.3)',
               }}
             >
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <div>
-                  <div className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-[#E8C170]">
+                  <div className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-[#E2C27E]">
                     Sanctuary Daily Office & Devotional System
                   </div>
                   <h3
@@ -640,7 +604,7 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
                       onClick={() => setSelectedDevoId(d.id)}
                       className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all ${
                         d.id === activeDevo.id
-                          ? 'bg-[#E8C170] text-black border-[#E8C170]'
+                          ? 'bg-[#E2C27E] text-black border-[#E2C27E]'
                           : 'bg-white/5 text-white/65 border-white/10 hover:text-white'
                       }`}
                     >
@@ -650,12 +614,12 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
                 </div>
               </div>
 
-              <div className="p-4 rounded-2xl bg-black/45 border border-[#E8C170]/35 space-y-2">
+              <div className="p-4 rounded-2xl bg-black/45 border border-[#E2C27E]/35 space-y-2">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="font-bold text-[#E8C170]">{activeDevo.scriptureDisplay}</span>
+                  <span className="font-bold text-[#E2C27E]">{activeDevo.scriptureDisplay}</span>
                   <button
                     onClick={() => setFullLectioRef(activeDevo.scriptureRef)}
-                    className="text-[10.5px] font-bold text-[#E0CEFF] hover:underline flex items-center gap-1"
+                    className="text-[10.5px] font-bold text-[#D8D2E2] hover:underline flex items-center gap-1"
                   >
                     <BookOpen size={11} />
                     <span>Read Chapter in Lectio</span>
@@ -672,18 +636,18 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
                 ))}
               </div>
 
-              <div className="p-4 rounded-2xl bg-[#6B0099]/20 border border-[#E0CEFF]/25 space-y-1">
-                <div className="text-[10px] font-extrabold uppercase tracking-widest text-[#E8C170]">
+              <div className="p-4 rounded-2xl bg-[#7A1FC0]/20 border border-[#D8D2E2]/25 space-y-1">
+                <div className="text-[10px] font-extrabold uppercase tracking-widest text-[#E2C27E]">
                   Collect Prayer of the Day
                 </div>
-                <p className="text-xs font-serif italic text-[#E0CEFF] leading-relaxed">
+                <p className="text-xs font-serif italic text-[#D8D2E2] leading-relaxed">
                   {activeDevo.collectPrayer}
                 </p>
               </div>
 
               {/* Personal Devotional Reflection Note */}
               <div className="space-y-2 pt-2 border-t border-white/10">
-                <label className="text-[10.5px] font-bold uppercase tracking-wider text-[#E0CEFF]/80 block">
+                <label className="text-[10.5px] font-bold uppercase tracking-wider text-[#D8D2E2]/80 block">
                   My Sanctuary Examen & Prayer Journal (Saved Locally)
                 </label>
                 <textarea
@@ -694,7 +658,7 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
                     saveDevotionalReflectionNote(activeDevo.id, e.target.value);
                   }}
                   placeholder="Write your prayer reflection or response to today’s devotional…"
-                  className="w-full rounded-xl bg-black/40 border border-white/15 p-3 text-xs text-white placeholder:text-white/35 outline-none focus:border-[#E8C170]"
+                  className="w-full rounded-xl bg-black/40 border border-white/15 p-3 text-xs text-white placeholder:text-white/35 outline-none focus:border-[#E2C27E]"
                 />
               </div>
             </div>
@@ -703,13 +667,13 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
             <div
               className="lg:col-span-6 rounded-3xl p-6 border space-y-5"
               style={{
-                background: 'rgba(18, 9, 36, 0.85)',
-                borderColor: 'rgba(224, 206, 255, 0.22)',
+                background: 'rgba(24, 20, 31, 0.85)',
+                borderColor: 'rgba(216, 210, 226, 0.22)',
               }}
             >
               <div className="flex items-center justify-between gap-3 flex-wrap">
                 <div>
-                  <div className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-[#E8C170]">
+                  <div className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-[#E2C27E]">
                     365-Day Canonical Reading Plan · OT · NT · Psalms · Proverbs
                   </div>
                   <h3
@@ -728,7 +692,7 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
                   >
                     <ChevronLeft size={14} />
                   </button>
-                  <span className="px-3 py-1 rounded-lg bg-[#6B0099]/50 border border-[#E0CEFF]/30 text-xs font-mono font-bold text-white">
+                  <span className="px-3 py-1 rounded-lg bg-[#7A1FC0]/50 border border-[#D8D2E2]/30 text-xs font-mono font-bold text-white">
                     Day {activeBibleYearDay.dayNumber} / 365 ({activeBibleYearDay.dateLabel})
                   </span>
                   <button
@@ -745,9 +709,9 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
               <div className="p-4 rounded-2xl bg-black/40 border border-white/10 space-y-2">
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-white/80 font-semibold">
-                    Theme: <b className="text-[#E8C170]">{activeBibleYearDay.canonicalTheme}</b>
+                    Theme: <b className="text-[#E2C27E]">{activeBibleYearDay.canonicalTheme}</b>
                   </span>
-                  <span className="font-mono text-[#E8C170] font-bold">
+                  <span className="font-mono text-[#E2C27E] font-bold">
                     {completedDays.length} / 365 Days Completed (
                     {Math.round((completedDays.length / 365) * 100)}%)
                   </span>
@@ -757,7 +721,7 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
                     className="h-full rounded-full"
                     style={{
                       width: `${Math.min(100, Math.max(4, (completedDays.length / 365) * 100))}%`,
-                      background: 'linear-gradient(90deg, #6B0099, #D40055, #E8C170)',
+                      background: 'linear-gradient(90deg, #7A1FC0, #D40055, #E2C27E)',
                     }}
                   />
                 </div>
@@ -771,14 +735,14 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
                     className="p-3.5 rounded-2xl bg-white/[0.04] border border-white/10 flex items-center justify-between gap-3"
                   >
                     <div>
-                      <span className="text-[9.5px] font-extrabold uppercase tracking-widest text-[#E8C170] block">
+                      <span className="text-[9.5px] font-extrabold uppercase tracking-widest text-[#E2C27E] block">
                         {p.category.replace('_', ' ')}
                       </span>
                       <span className="text-sm font-bold text-white">{p.label}</span>
                     </div>
                     <button
                       onClick={() => setFullLectioRef(p.ref)}
-                      className="px-3 py-1.5 rounded-xl bg-[#E8C170]/15 hover:bg-[#E8C170]/25 border border-[#E8C170]/40 text-[#FFE399] text-xs font-bold flex items-center gap-1.5"
+                      className="px-3 py-1.5 rounded-xl bg-[#E2C27E]/15 hover:bg-[#E2C27E]/25 border border-[#E2C27E]/40 text-[#F0D9A6] text-xs font-bold flex items-center gap-1.5"
                     >
                       <BookOpen size={12} />
                       <span>Read in Lectio</span>
@@ -790,7 +754,7 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
               <div className="flex items-center justify-between pt-2 border-t border-white/10">
                 <button
                   onClick={() => setSelectedDayNum(todayDayNum)}
-                  className="text-xs text-[#E0CEFF]/75 hover:text-white underline"
+                  className="text-xs text-[#D8D2E2]/75 hover:text-white underline"
                 >
                   Jump to Today (Day {todayDayNum})
                 </button>
@@ -807,7 +771,7 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
                   style={
                     completedDays.includes(activeBibleYearDay.dayNumber)
                       ? { background: '#10B981', color: '#000' }
-                      : { background: '#E8C170', color: '#000' }
+                      : { background: '#E2C27E', color: '#000' }
                   }
                 >
                   <CheckCircle2 size={14} />
@@ -829,7 +793,7 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
           <div className="space-y-8">
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <div>
-                <div className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-[#E8C170]">
+                <div className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-[#E2C27E]">
                   Previous Sanctuary Visits · Vespers & ARIA Service Review Briefs
                 </div>
                 <h3
@@ -842,7 +806,7 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
               <button
                 onClick={() => setVespersOpen(v => !v)}
                 className="px-4 py-2 rounded-xl text-xs font-black text-black flex items-center gap-1.5"
-                style={{ background: '#E8C170' }}
+                style={{ background: '#E2C27E' }}
               >
                 <ScrollText size={13} />
                 <span>{vespersOpen ? 'Hide Live Vespers Recap' : 'Open Live Vespers Service Recap'}</span>
@@ -850,7 +814,7 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
             </div>
 
             {vespersOpen && (
-              <div className="rounded-3xl p-5 bg-black/50 border border-[#E8C170]/35">
+              <div className="rounded-3xl p-5 bg-black/50 border border-[#E2C27E]/35">
                 <VespersRecap
                   recapId={sessionIdFor(org.id)}
                   onBack={() => setVespersOpen(false)}
@@ -862,10 +826,10 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
               {previousServiceBriefs.map(b => (
                 <div
                   key={b.id}
-                  className="rounded-3xl p-5 border border-[#E0CEFF]/20 bg-[#140A28]/85 flex flex-col justify-between gap-4"
+                  className="rounded-3xl p-5 border border-[#D8D2E2]/20 bg-[#18141F]/85 flex flex-col justify-between gap-4"
                 >
                   <div className="space-y-2">
-                    <div className="text-[10px] font-mono text-[#E8C170] uppercase tracking-wider">
+                    <div className="text-[10px] font-mono text-[#E2C27E] uppercase tracking-wider">
                       {b.dateLabel} · {b.speaker}
                     </div>
                     <h4 className="text-lg font-bold text-white">{b.title}</h4>
@@ -875,7 +839,7 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
                         <button
                           key={ks.label}
                           onClick={() => setFullLectioRef(ks.ref)}
-                          className="px-2.5 py-1 rounded-lg bg-[#6B0099]/40 border border-[#E0CEFF]/25 text-[10.5px] font-bold text-[#E0CEFF] hover:bg-[#6B0099]"
+                          className="px-2.5 py-1 rounded-lg bg-[#7A1FC0]/40 border border-[#D8D2E2]/25 text-[10.5px] font-bold text-[#D8D2E2] hover:bg-[#7A1FC0]"
                         >
                           {ks.label}
                         </button>
@@ -888,7 +852,7 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
 
             {/* Church Education / Recent Lessons */}
             <div className="rounded-3xl p-6 border border-white/10 bg-black/35">
-              <div className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-[#E8C170] mb-3">
+              <div className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-[#E2C27E] mb-3">
                 Christian Education · 7 Default Templated Classrooms, Dedicated Class Chat &amp; Academia Ed-Tech Stack
               </div>
               <ChurchEducation church={org} canEdit={true} />
@@ -904,7 +868,7 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
             <ChurchMusicDepartmentHub church={org} canEdit={true} />
 
             <div>
-              <div className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-[#E8C170]">
+              <div className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-[#E2C27E]">
                 Ambo &amp; Lorea Sacred Music &amp; Prayer Database
               </div>
               <h3
@@ -920,10 +884,10 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
               {[...PUBLIC_DOMAIN_HYMNS, ...PUBLIC_DOMAIN_GOSPEL_SONGS].map(hymn => (
                 <div
                   key={hymn.id}
-                  className="rounded-3xl p-5 border border-[#E8C170]/30 bg-[#140926]/90 flex flex-col justify-between gap-4"
+                  className="rounded-3xl p-5 border border-[#E2C27E]/30 bg-[#18141F]/90 flex flex-col justify-between gap-4"
                 >
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between text-[10px] font-mono text-[#E8C170]">
+                    <div className="flex items-center justify-between text-[10px] font-mono text-[#E2C27E]">
                       <span>{hymn.year}</span>
                       {hymn.score && (
                         <span>
@@ -932,14 +896,14 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
                       )}
                     </div>
                     <h4 className="text-lg font-bold text-white">{hymn.title}</h4>
-                    <div className="text-xs text-[#E0CEFF]/75">{hymn.author}</div>
+                    <div className="text-xs text-[#D8D2E2]/75">{hymn.author}</div>
 
                     <div className="p-3 rounded-xl bg-black/40 border border-white/10 text-xs font-serif text-white/90 whitespace-pre-line">
                       {hymn.stanzas[0]}
                     </div>
 
                     <div className="space-y-1 pt-1">
-                      <div className="text-[10px] font-extrabold uppercase tracking-wider text-[#E8C170]">
+                      <div className="text-[10px] font-extrabold uppercase tracking-wider text-[#E2C27E]">
                         Provenance · {hymn.historyTitle}
                       </div>
                       <p className="text-[11px] text-white/75 leading-relaxed line-clamp-3">
@@ -948,7 +912,7 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
                     </div>
 
                     {hymn.score && (
-                      <div className="p-2.5 rounded-xl bg-[#E8C170]/10 border border-[#E8C170]/30 text-[10.5px] font-mono text-[#FFE399] space-y-1">
+                      <div className="p-2.5 rounded-xl bg-[#E2C27E]/10 border border-[#E2C27E]/30 text-[10.5px] font-mono text-[#F0D9A6] space-y-1">
                         <div>
                           <b>Accompaniment Score:</b> {hymn.score.arrangement} · Meter {hymn.score.meter} ·{' '}
                           {hymn.score.tempoMarking}
@@ -968,7 +932,7 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
                     <button
                       onClick={() => openHymnOrPrayerInLorea(hymn)}
                       className="px-3.5 py-2 rounded-xl text-xs font-black text-black flex items-center gap-1.5 hover:brightness-110"
-                      style={{ background: '#E8C170' }}
+                      style={{ background: '#E2C27E' }}
                     >
                       <BookOpen size={13} />
                       <span>Open Hymn, History & Score in Lorea</span>
@@ -980,17 +944,17 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
 
             {/* Catholic & Eastern Orthodox Liturgical Prayers */}
             <div className="space-y-4">
-              <h4 className="text-sm font-extrabold uppercase tracking-[0.2em] text-[#E0CEFF]">
+              <h4 className="text-sm font-extrabold uppercase tracking-[0.2em] text-[#D8D2E2]">
                 Catholic & Eastern Orthodox Liturgical Prayers · Parallel Ancient & English
               </h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 {CATHOLIC_AND_ORTHODOX_PRAYERS.map(prayer => (
                   <div
                     key={prayer.id}
-                    className="rounded-3xl p-5 border border-[#E0CEFF]/25 bg-[#140926]/90 flex flex-col justify-between gap-4"
+                    className="rounded-3xl p-5 border border-[#D8D2E2]/25 bg-[#18141F]/90 flex flex-col justify-between gap-4"
                   >
                     <div className="space-y-2">
-                      <div className="flex items-center justify-between text-[10px] font-mono text-[#E0CEFF]">
+                      <div className="flex items-center justify-between text-[10px] font-mono text-[#D8D2E2]">
                         <span>{prayer.tradition}</span>
                         <span>{prayer.year}</span>
                       </div>
@@ -1002,15 +966,15 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
                       </h4>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 p-3 rounded-xl bg-black/40 border border-white/10 text-xs font-serif">
                         {prayer.originalStanzas?.[0] && (
-                          <div className="italic text-[#E0CEFF]/85 border-b sm:border-b-0 sm:border-r border-white/10 pb-2 sm:pb-0 sm:pr-2">
-                            <span className="text-[9px] font-mono uppercase not-italic text-[#E8C170] block mb-0.5">
+                          <div className="italic text-[#D8D2E2]/85 border-b sm:border-b-0 sm:border-r border-white/10 pb-2 sm:pb-0 sm:pr-2">
+                            <span className="text-[9px] font-mono uppercase not-italic text-[#E2C27E] block mb-0.5">
                               {prayer.originalLanguage || 'Ancient'}
                             </span>
                             {prayer.originalStanzas[0]}
                           </div>
                         )}
                         <div className="text-white/90">
-                          <span className="text-[9px] font-mono uppercase text-[#E8C170] block mb-0.5">
+                          <span className="text-[9px] font-mono uppercase text-[#E2C27E] block mb-0.5">
                             English Liturgical
                           </span>
                           {prayer.stanzas[0]}
@@ -1024,7 +988,7 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
                       <button
                         onClick={() => openHymnOrPrayerInLorea(prayer)}
                         className="px-3.5 py-2 rounded-xl text-xs font-black text-black flex items-center gap-1.5"
-                        style={{ background: '#E0CEFF' }}
+                        style={{ background: '#D8D2E2' }}
                       >
                         <BookOpen size={13} />
                         <span>Open Prayer & History in Lorea</span>
@@ -1044,7 +1008,7 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
           <div className="space-y-6">
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <div>
-                <div className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-[#E8C170]">
+                <div className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-[#E2C27E]">
                   Plajah Art Council · 6 Creative Lenses × 12 Distinct Architectural Geometries
                 </div>
                 <h3
@@ -1072,7 +1036,7 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
                     onClick={() => setLensFilter(id)}
                     className={`px-3 py-1 rounded-full text-[10.5px] font-bold transition-all ${
                       lensFilter === id
-                        ? 'bg-[#E8C170] text-black'
+                        ? 'bg-[#E2C27E] text-black'
                         : 'bg-white/5 text-white/70 border border-white/10 hover:text-white'
                     }`}
                   >
@@ -1111,12 +1075,12 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
               <div
                 className="lg:col-span-7 rounded-3xl p-6 border space-y-6"
                 style={{
-                  background: 'rgba(18, 9, 36, 0.85)',
-                  borderColor: 'rgba(224, 206, 255, 0.22)',
+                  background: 'rgba(24, 20, 31, 0.85)',
+                  borderColor: 'rgba(216, 210, 226, 0.22)',
                 }}
               >
                 <div>
-                  <div className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-[#E8C170]">
+                  <div className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-[#E2C27E]">
                     Smart Church Kinship CRM · Nuclear Household & Extended Relatives
                   </div>
                   <h3
@@ -1125,14 +1089,14 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
                   >
                     {kinshipDemo.householdName} — Family & Kinship Graph
                   </h3>
-                  <p className="text-xs text-[#E0CEFF]/70 mt-0.5">
+                  <p className="text-xs text-[#D8D2E2]/70 mt-0.5">
                     {kinshipDemo.filingStatus} · {kinshipDemo.address}
                   </p>
                 </div>
 
                 {/* Nuclear Family Members (Head of Household, Spouse, Dependent Children) */}
                 <div className="space-y-2.5">
-                  <div className="text-xs font-extrabold uppercase tracking-wider text-[#E8C170]">
+                  <div className="text-xs font-extrabold uppercase tracking-wider text-[#E2C27E]">
                     Nuclear Household Roles (Head of Household · Spouse · Dependent Children)
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1146,20 +1110,20 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
                           <span
                             className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
                               m.role === 'HEAD'
-                                ? 'bg-[#E8C170] text-black'
+                                ? 'bg-[#E2C27E] text-black'
                                 : m.role === 'SPOUSE'
                                 ? 'bg-[#D40055] text-white'
-                                : 'bg-[#6B0099] text-[#E0CEFF]'
+                                : 'bg-[#7A1FC0] text-[#D8D2E2]'
                             }`}
                           >
                             {m.roleLabel}
                           </span>
                         </div>
                         <div className="text-[10.5px] text-white/65">{m.maritalStatus}</div>
-                        <div className="text-[10px] text-[#E0CEFF]/80">
+                        <div className="text-[10px] text-[#D8D2E2]/80">
                           Departments: {m.departments.join(' · ')}
                         </div>
-                        <div className="text-[10.5px] font-mono text-[#E8C170] pt-1 border-t border-white/10 flex justify-between">
+                        <div className="text-[10.5px] font-mono text-[#E2C27E] pt-1 border-t border-white/10 flex justify-between">
                           <span>YTD Deductible Gifts ({m.giftCount}):</span>
                           <b>{money(m.ytdGiving)}</b>
                         </div>
@@ -1169,7 +1133,7 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
                 </div>
 
                 {/* Extended Family Kinship Graph + Per-Member Privacy Opt-Out Control */}
-                <div className="p-4 rounded-2xl bg-black/40 border border-[#E0CEFF]/20 space-y-4">
+                <div className="p-4 rounded-2xl bg-black/40 border border-[#D8D2E2]/20 space-y-4">
                   <div className="flex items-start justify-between gap-3 flex-wrap">
                     <div>
                       <div className="flex items-center gap-1.5 text-xs font-bold text-white">
@@ -1226,7 +1190,7 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
                             <span className="text-xs font-bold text-white">
                               {rel.relativeOptedIn ? rel.name : 'Extended Relative (Opted Out)'}
                             </span>
-                            <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase bg-[#6B0099]/50 text-[#E8C170]">
+                            <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase bg-[#7A1FC0]/50 text-[#E2C27E]">
                               {rel.relationship}
                             </span>
                           </div>
@@ -1235,7 +1199,7 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
                               <div className="text-[10.5px] text-white/70">
                                 {rel.relationshipLabel}
                               </div>
-                              <div className="text-[9.5px] text-[#E0CEFF]/60 font-mono">
+                              <div className="text-[9.5px] text-[#D8D2E2]/60 font-mono">
                                 {rel.householdName} · {rel.department}
                               </div>
                             </>
@@ -1258,13 +1222,13 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
               <div
                 className="lg:col-span-5 rounded-3xl p-6 border flex flex-col justify-between gap-5"
                 style={{
-                  background: 'rgba(18, 9, 36, 0.85)',
-                  borderColor: 'rgba(232, 193, 112, 0.3)',
+                  background: 'rgba(24, 20, 31, 0.85)',
+                  borderColor: 'rgba(226, 194, 126, 0.3)',
                 }}
               >
                 <div className="space-y-4">
                   <div>
-                    <div className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-[#E8C170]">
+                    <div className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-[#E2C27E]">
                       Church Finance Department · IRS 501(c)(3) Tax Receipts
                     </div>
                     <h3
@@ -1276,7 +1240,7 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-[10.5px] font-bold uppercase tracking-wider text-[#E0CEFF]/80 block">
+                    <label className="text-[10.5px] font-bold uppercase tracking-wider text-[#D8D2E2]/80 block">
                       Select Statement Scope (Family / Spousal / Individual)
                     </label>
                     {(
@@ -1312,13 +1276,13 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
                         onClick={() => setTaxScope(opt.id)}
                         className={`w-full text-left p-3.5 rounded-2xl border transition-all ${
                           taxScope === opt.id
-                            ? 'bg-[#6B0099]/45 border-[#E8C170] text-white'
+                            ? 'bg-[#7A1FC0]/45 border-[#E2C27E] text-white'
                             : 'bg-white/[0.03] border-white/10 text-white/70 hover:text-white'
                         }`}
                       >
                         <div className="flex items-center justify-between gap-2">
                           <span className="text-xs font-bold text-white">{opt.title}</span>
-                          <span className="text-xs font-mono font-black text-[#E8C170]">
+                          <span className="text-xs font-mono font-black text-[#E2C27E]">
                             {money(opt.amount)}
                           </span>
                         </div>
@@ -1337,7 +1301,7 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
                   <button
                     onClick={handlePrintSampleTaxStatement}
                     className="w-full py-3 rounded-xl text-xs font-black text-black flex items-center justify-center gap-2 hover:brightness-110 transition-all"
-                    style={{ background: '#E8C170' }}
+                    style={{ background: '#E2C27E' }}
                   >
                     <Printer size={14} />
                     <span>
@@ -1353,21 +1317,17 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
 
       {/* Full-Screen Lectio Reader Modal when opened from Mini-Bible or 365-Day Plan */}
       {fullLectioRef && (
-        <div className="fixed inset-0 z-[130] bg-[#07040E] flex flex-col">
-          <div className="px-5 py-2.5 border-b border-white/10 bg-black/60 flex items-center justify-between">
-            <div className="flex items-center gap-2 text-xs font-bold text-[#E8C170]">
-              <BookOpen size={14} />
-              <span>
-                Lectio Sanctuary Reader · {fullLectioRef.bookName} {fullLectioRef.chapter}
+        <div className="fixed inset-0 z-[130] flex flex-col" style={{ background: EV.chrome }}>
+          <div className="px-4 sm:px-8 border-b flex items-center justify-between gap-4" style={{ borderColor: EV.line }}>
+            <div className="flex items-baseline gap-3 py-3.5">
+              <span className="ev-title text-lg text-white" style={{ fontWeight: 700 }}>Lectio</span>
+              <span className="text-sm" style={{ color: EV.gold }}>
+                {fullLectioRef.bookName} {fullLectioRef.chapter}
                 {fullLectioRef.verse ? `:${fullLectioRef.verse}` : ''}
               </span>
             </div>
-            <button
-              onClick={() => setFullLectioRef(null)}
-              className="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-bold text-white flex items-center gap-1"
-            >
-              <X size={13} />
-              <span>Return to Member Hub</span>
+            <button onClick={() => setFullLectioRef(null)} className="ev-btn ev-btn-ghost" style={{ minHeight: 36, fontSize: 13 }}>
+              <X size={14} /> Back to Member home
             </button>
           </div>
           <div className="flex-1 min-h-0">

@@ -12,9 +12,11 @@ import {
   Church, Clock, Gift, Trash2, Sparkles, MonitorPlay, Mail, HardDrive, Briefcase, Megaphone,
   KeyRound, UserCheck, Home, Image as ImageIcon, Calendar, Play, HandHeart, BookOpen,
   Heart, MessageSquare, Ticket, ExternalLink, Radio, NotebookPen, ArrowRight, ChevronLeft,
+  ShoppingBag,
 } from 'lucide-react';
 import type { Organization, OrgMembership, OrgType, OrgRole, UserProfile } from '../types';
 import { AdaptiveGrid, TYPE } from '../src/lib/designSystem';
+import { EV, EvScope, EvModeBar, EvHero, EvTabs, heroImage } from './elevate/vellum';
 import {
   createOrganization, fetchUserOrganizations, fetchOrgMembers, updateOrganization,
   addOrgMember, removeOrgMember, setOrgMemberRole, fetchUnmigratedBrands, migrateLegacyBrands,
@@ -46,14 +48,15 @@ import { isElevateOrg, isFaithOrg, defaultMinistries } from '../services/elevate
 import { followOrg, unfollowOrg, listenFollowedState } from '../services/orgFollowService';
 import MinistryPage from './elevate/MinistryPage';
 import OrgStoreSection from './elevate/OrgStoreSection';
+import HostEventsPublic from './events/HostEventsPublic';
 import OrgThread from './elevate/OrgThread';
-import OrgLiveNow from './elevate/OrgLiveNow';
 import OrgMediaShelves from './elevate/OrgMediaShelves';
 import RelloChurchViewer from './elevate/RelloChurchViewer';
 // Operations side + public rosters + Church Member Hub (lazy so the public page never blocks on them).
 const ElevateOps = lazy(() => import('./elevate/ElevateOps'));
 const ElevateRosters = lazy(() => import('./elevate/ElevateRosters'));
 const ChurchMemberHub = lazy(() => import('./elevate/ChurchMemberHub'));
+const ElevateMobilizeHub = lazy(() => import('./elevate/ElevateMobilizeHub'));
 
 const ORG_TYPES: { type: OrgType; label: string; blurb: string }[] = [
   { type: 'BRAND',        label: 'Brand',        blurb: 'A label, studio, or product brand with a roster + community.' },
@@ -87,6 +90,7 @@ const OrgHub: React.FC<OrgHubProps> = ({ user, onBack, initialCreate, initialOrg
   const [legacyCount, setLegacyCount] = useState(0);
   const [importing, setImporting] = useState(false);
   const [createFlow, setCreateFlow] = useState<null | 'elevate' | 'brand'>(initialCreate && !initialOrgId ? 'elevate' : null);
+  const [deleting, setDeleting] = useState<Organization | null>(null);
 
   const loadOrgs = useCallback(async () => {
     if (!user?.uid) return;
@@ -201,7 +205,8 @@ const OrgHub: React.FC<OrgHubProps> = ({ user, onBack, initialCreate, initialOrg
       ) : (
         <AdaptiveGrid phone={1} tablet={2} desktop={2} gap="1rem">
           {orgs.map(o => (
-            <button key={o.id} onClick={() => { setActive(o); setMode('view'); }} className={`${card} p-5 text-left hover:bg-white/[0.06] transition-all flex items-center gap-4`}>
+            <div key={o.id} className="relative group">
+            <button onClick={() => { setActive(o); setMode('view'); }} className={`${card} w-full p-5 text-left hover:bg-white/[0.06] transition-all flex items-center gap-4`}>
               <div className="w-14 h-14 rounded-2xl overflow-hidden bg-white/5 border border-white/10 shrink-0 grid place-items-center">
                 {o.logoUrl ? <img src={o.logoUrl} alt="" className="w-full h-full object-cover" /> : <Building2 size={20} className="text-white/30" />}
               </div>
@@ -213,11 +218,19 @@ const OrgHub: React.FC<OrgHubProps> = ({ user, onBack, initialCreate, initialOrg
                 <p className={`${TYPE.labelSm} font-black uppercase tracking-widest text-small-orange/70 mt-0.5`}>{o.orgType}</p>
                 <p className="type-body-sm text-white/40 truncate mt-0.5">{o.tagline || o.about || '—'}</p>
               </div>
-              <span className={`${TYPE.labelSm} font-bold text-white/30 flex items-center gap-1 shrink-0`}><Users size={11} /> {o.memberCount ?? 1}</span>
+              <span className={`${TYPE.labelSm} font-bold text-white/30 flex items-center gap-1 shrink-0 ${o.creatorId === user?.uid && !o.isDemo ? 'mr-8' : ''}`}><Users size={11} /> {o.memberCount ?? 1}</span>
             </button>
+            {o.creatorId === user?.uid && !o.isDemo && (
+              <button onClick={() => setDeleting(o)} title={`Delete ${o.name}`} aria-label={`Delete ${o.name}`}
+                className="absolute top-1/2 -translate-y-1/2 right-4 p-2 rounded-full text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-all">
+                <Trash2 size={15} />
+              </button>
+            )}
+            </div>
           ))}
         </AdaptiveGrid>
       )}
+      {deleting && <DeleteOrgDialog org={deleting} onClose={() => setDeleting(null)} onDeleted={() => { setDeleting(null); loadOrgs(); }} />}
     </div>
   );
 };
@@ -308,27 +321,30 @@ const ImagePick: React.FC<{ label: string; file: File | null; onPick: (f: File) 
   </label>
 );
 
-type ElevateOrgTab = 'HOME' | 'MINISTRIES' | 'PHOTOS' | 'EVENTS' | 'WATCH' | 'PRAYER' | 'LIBRARY' | 'STAFF' | 'GIVE';
+type ElevateOrgTab = 'HOME' | 'MINISTRIES' | 'MOBILIZE' | 'PHOTOS' | 'EVENTS' | 'WATCH' | 'PRAYER' | 'LIBRARY' | 'STAFF' | 'GIVE' | 'SHOP';
 
 function getElevateOrgTabs(orgType?: OrgType): { k: ElevateOrgTab; label: string; icon: React.ComponentType<{ size?: number; className?: string }> }[] {
   const faith = isFaithOrg(orgType);
   if (faith) {
     return [
-      { k: 'HOME',       label: 'Home',       icon: Home },
-      { k: 'MINISTRIES', label: 'Ministries', icon: Users },
-      { k: 'PHOTOS',     label: 'Photos',     icon: ImageIcon },
-      { k: 'EVENTS',     label: 'Events',     icon: Calendar },
-      { k: 'WATCH',      label: 'Watch',      icon: Play },
-      { k: 'PRAYER',     label: 'Prayer',     icon: HandHeart },
-      { k: 'LIBRARY',    label: 'Library',    icon: BookOpen },
-      { k: 'STAFF',      label: 'Staff',      icon: Users },
-      { k: 'GIVE',       label: 'Give',       icon: Gift },
+      { k: 'HOME',       label: 'Home',             icon: Home },
+      { k: 'MINISTRIES', label: 'Ministries',       icon: Users },
+      { k: 'MOBILIZE',   label: 'Serve & Action',   icon: Sparkles },
+      { k: 'PHOTOS',     label: 'Photos',           icon: ImageIcon },
+      { k: 'EVENTS',     label: 'Events',           icon: Calendar },
+      { k: 'WATCH',      label: 'Watch',            icon: Play },
+      { k: 'PRAYER',     label: 'Prayer',           icon: HandHeart },
+      { k: 'LIBRARY',    label: 'Library',          icon: BookOpen },
+      { k: 'STAFF',      label: 'Staff',            icon: Users },
+      { k: 'GIVE',       label: 'Give',             icon: Gift },
+      { k: 'SHOP',       label: 'Shop',             icon: ShoppingBag },
     ];
   }
   if (orgType === 'NONPROFIT') {
     return [
       { k: 'HOME',       label: 'Home',               icon: Home },
       { k: 'MINISTRIES', label: 'Programs',           icon: Users },
+      { k: 'MOBILIZE',   label: 'Take Action',        icon: Sparkles },
       { k: 'PHOTOS',     label: 'Photos',             icon: ImageIcon },
       { k: 'EVENTS',     label: 'Events',             icon: Calendar },
       { k: 'WATCH',      label: 'Watch',              icon: Play },
@@ -336,12 +352,14 @@ function getElevateOrgTabs(orgType?: OrgType): { k: ElevateOrgTab; label: string
       { k: 'LIBRARY',    label: 'Resources',          icon: BookOpen },
       { k: 'STAFF',      label: 'Leadership & Staff', icon: Users },
       { k: 'GIVE',       label: 'Donate',             icon: Gift },
+      { k: 'SHOP',       label: 'Shop',               icon: ShoppingBag },
     ];
   }
   if (orgType === 'CULTURAL') {
     return [
       { k: 'HOME',       label: 'Home',                icon: Home },
       { k: 'MINISTRIES', label: 'Exhibits & Programs', icon: Users },
+      { k: 'MOBILIZE',   label: 'Docents & Action',    icon: Sparkles },
       { k: 'PHOTOS',     label: 'Gallery',             icon: ImageIcon },
       { k: 'EVENTS',     label: 'Events',              icon: Calendar },
       { k: 'WATCH',      label: 'Watch',               icon: Play },
@@ -349,27 +367,29 @@ function getElevateOrgTabs(orgType?: OrgType): { k: ElevateOrgTab; label: string
       { k: 'LIBRARY',    label: 'Archives & Library',  icon: BookOpen },
       { k: 'STAFF',      label: 'Curators & Staff',    icon: Users },
       { k: 'GIVE',       label: 'Support',             icon: Gift },
+      { k: 'SHOP',       label: 'Gift Shop',           icon: ShoppingBag },
     ];
   }
   return [
     { k: 'HOME',       label: 'Home',              icon: Home },
     { k: 'MINISTRIES', label: 'Departments',       icon: Users },
+    { k: 'MOBILIZE',   label: 'Action & Shifts',   icon: Sparkles },
     { k: 'PHOTOS',     label: 'Photos',            icon: ImageIcon },
     { k: 'EVENTS',     label: 'Events',            icon: Calendar },
     { k: 'WATCH',      label: 'Watch',             icon: Play },
     { k: 'PRAYER',     label: 'Community',         icon: HandHeart },
     { k: 'LIBRARY',    label: 'Catalog & Library', icon: BookOpen },
     { k: 'STAFF',      label: 'Team & Staff',      icon: Users },
-    { k: 'GIVE',       label: 'Support & Shop',    icon: Gift },
+    { k: 'GIVE',       label: 'Support',           icon: Gift },
+    { k: 'SHOP',       label: 'Shop',              icon: ShoppingBag },
   ];
 }
 
-const VIOLET = '#8B5CF6';
-const VIOLET_SOFT = '#B79BF5';
-const HERO_SHEEN = 'linear-gradient(135deg, rgba(139,92,246,0.18), rgba(0,0,0,0.4))';
+const VIOLET = EV.violet;
+const VIOLET_SOFT = EV.violetText;
 
 // ── Public / owner org profile (Grace Chapel default layout for all Elevate & Org pages) ──
-const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => void; onDeleted?: () => void; initialGive?: boolean; initialContentHq?: boolean; onVisitUser?: (uid: string) => void } & OrgMediaOpeners> = ({ org: initialOrg, isOwner, onBack, onDeleted, initialGive, initialContentHq, onVisitUser, onOpenVideo, onOpenAlbum, onOpenLive, onOpenChannel }) => {
+const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => void; onDeleted?: () => void; initialGive?: boolean; initialContentHq?: boolean; onVisitUser?: (uid: string) => void; ownAccount?: boolean } & OrgMediaOpeners> = ({ org: initialOrg, isOwner, onBack, onDeleted, initialGive, initialContentHq, onVisitUser, onOpenVideo, onOpenAlbum, onOpenLive, onOpenChannel, ownAccount }) => {
   const [org, setOrg] = useState<Organization>(initialOrg);
   const [staff, setStaff] = useState<OrgMembership[]>([]);
   const [managing, setManaging] = useState(false);
@@ -429,64 +449,52 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
     return <CareersView org={org} onBack={() => setShowCareers(false)} />;
   }
 
-  // Segmented control at the top of every Elevate / Org page (identical to Grace Chapel)
+  // Public page · Member home · Staff — identical on every Elevate / Org page (Grace Chapel model).
+  const MODES = [
+    { k: 'public', label: faith ? 'Public page' : `Public ${(org.orgKindLabel || 'page').toLowerCase()}` },
+    { k: 'member', label: 'Member home' },
+    ...(hasOps ? [{ k: 'ops', label: 'Staff' }] : []),
+  ];
   const modeToggle = (
-    <div className="sticky top-0 z-40 flex flex-wrap items-center justify-between gap-2 px-4 py-1.5 bg-[#0d0b12]/95 backdrop-blur-xl border-b border-white/8">
-      <button onClick={onBack} className={`flex items-center gap-1.5 text-white/60 hover:text-white ${TYPE.labelMd}`}>
-        <ChevronLeft size={16} /> Back
-      </button>
-      <div className="inline-flex rounded-full bg-white/5 border border-white/10 p-0.5">
-        <button
-          onClick={() => setView('public')}
-          className={`px-4 py-1.5 rounded-full ${TYPE.labelSm} transition-all ${view === 'public' ? 'text-white' : 'text-white/45 hover:text-white'}`}
-          style={view === 'public' ? { background: VIOLET } : undefined}
-        >
-          {faith ? 'Public Church Page' : `Public ${org.orgKindLabel || org.orgType || 'Org'} Page`}
-        </button>
-        <button
-          onClick={() => setView('member')}
-          className={`px-4 py-1.5 rounded-full ${TYPE.labelSm} transition-all ${view === 'member' ? 'text-white' : 'text-white/45 hover:text-white'}`}
-          style={view === 'member' ? { background: 'linear-gradient(135deg,#6B0099,#D40055)' } : undefined}
-        >
-          Edition I Member Hub
-        </button>
-        {hasOps && (
-          <button
-            onClick={() => setView('ops')}
-            className={`px-4 py-1.5 rounded-full ${TYPE.labelSm} transition-all ${view === 'ops' ? 'text-white' : 'text-white/45 hover:text-white'}`}
-            style={view === 'ops' ? { background: VIOLET } : undefined}
-          >
-            Admin &amp; Operations
-          </button>
-        )}
-      </div>
-      <div className="flex items-center gap-1.5">
+    <EvModeBar
+      modes={MODES}
+      value={view}
+      onChange={k => setView(k as typeof view)}
+      onBack={onBack}
+      trailing={<>
         {hasOps && <CreateEventButton compact host={{ kind: 'org', id: org.id, label: org.name }} />}
-        {isOwner && (
-          <button onClick={() => setManaging(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 border border-white/10 rounded-full text-[9px] font-black uppercase tracking-widest text-white/65 hover:text-white hover:bg-white/10 transition-all">
-            <Pencil size={11} /> Manage
+        {ownAccount && (
+          // This org page is the signed-in account's profile — switching to a non-org type restores the personal profile.
+          <button onClick={() => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'SETTINGS', params: { tab: 'ACCOUNT' } } }))}
+            title="Change account type" className="ev-btn ev-btn-ghost" style={{ minHeight: 36, padding: '0 12px', fontSize: 13 }}>
+            <KeyRound size={13} /> Account type
           </button>
         )}
-      </div>
-    </div>
+        {isOwner && (
+          <button onClick={() => setManaging(true)} className="ev-btn ev-btn-ghost" style={{ minHeight: 36, padding: '0 12px', fontSize: 13 }}>
+            <Pencil size={13} /> Manage
+          </button>
+        )}
+      </>}
+    />
   );
 
   if (view === 'ops' && hasOps) {
     return (
-      <div className="min-h-full bg-[#0d0b12]">
+      <EvScope className="min-h-full">
         {modeToggle}
         <Suspense fallback={<div className="flex justify-center py-20"><Loader2 className="animate-spin text-white/30" size={24} /></div>}>
           <ElevateOps org={org} isOwner={isOwner} onClose={() => setView('public')} onOrgChange={setOrg} onVisitUser={onVisitUser} initialTool={initialContentHq ? 'hq' : undefined} />
         </Suspense>
-      </div>
+      </EvScope>
     );
   }
 
   if (view === 'member') {
     return (
-      <div className="min-h-full bg-[#05030A]">
+      <EvScope className="min-h-full">
         {modeToggle}
-        <div className="max-w-[1440px] mx-auto px-4 sm:px-8 py-6">
+        <div className="max-w-[1280px] mx-auto px-4 sm:px-8 py-6">
           <Suspense fallback={<div className="flex justify-center py-20"><Loader2 className="animate-spin text-white/30" size={24} /></div>}>
             <ChurchMemberHub
               org={org}
@@ -497,113 +505,75 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
             />
           </Suspense>
         </div>
-      </div>
+      </EvScope>
     );
   }
 
   const ministryOpen = openMinistry
     ? (org.ministries?.find(m => m.id === openMinistry) || effectiveMinistries.find(m => m.id === openMinistry))
     : undefined;
+  const pill = { minHeight: 44 };
 
   return (
-    <div className="min-h-full bg-[#0d0b12]">
+    <EvScope className="min-h-full">
       {modeToggle}
 
-      {/* ── Grace Chapel Hero ── */}
-      <div className="relative h-56 md:h-68 max-h-[45vh] overflow-hidden">
-        <img src={org.coverUrl || DEMO_CHURCH.coverUrl} className="absolute inset-0 w-full h-full object-cover opacity-45" alt="" />
-        <div className="absolute inset-0" style={{ background: HERO_SHEEN }} />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0d0b12] via-[#0d0b12]/35 to-transparent" />
-        <div className="absolute bottom-4 flex flex-wrap items-end justify-between gap-4" style={{ left: 'max(1.5rem, env(safe-area-inset-left))', right: 'max(1.5rem, env(safe-area-inset-right))' }}>
-          <div className="flex items-end gap-4 min-w-0">
-            <div className="w-20 h-20 rounded-2xl overflow-hidden border-2 shrink-0 bg-[#111] grid place-items-center" style={{ borderColor: VIOLET }}>
-              {org.logoUrl ? <img src={org.logoUrl} className="w-full h-full object-cover" alt="" /> : <Church size={28} style={{ color: VIOLET_SOFT }} />}
-            </div>
-            <div className="min-w-0 pb-1">
-              <div className="flex items-center gap-2">
-                <Church size={16} style={{ color: VIOLET_SOFT }} />
-                <h1 className="font-black tracking-tight text-white truncate" style={{ fontSize: 'clamp(1.65rem,5vw,2.5rem)' }}>{org.name}</h1>
-                {org.isVerified && <Check size={16} className="text-small-orange shrink-0" />}
-              </div>
-              <p className="type-body-md text-white/65 truncate">{org.tagline || org.about || `${org.denomination || org.orgKindLabel || org.orgType} · Welcome home`}</p>
-              <div className="flex flex-wrap items-center gap-3 mt-1 text-[10px] text-white/45">
-                <span className="flex items-center gap-1"><Users size={11} /> {org.memberCount ?? Math.max(1, staff.length)} members</span>
-                {org.location?.city && <span className="flex items-center gap-1"><MapPin size={11} /> {org.location.city}</span>}
-                {org.socialLinks?.website && <a href={org.socialLinks.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-white"><Globe size={11} /> Website</a>}
-              </div>
-            </div>
-          </div>
-
-          {/* Follow / Claim / Request Membership / Give action pills */}
-          <div className="flex flex-wrap items-center gap-2 pb-1">
-            <button
-              onClick={toggleFollow}
-              title="Follow for public updates and streams (no approval required)"
-              className={`px-3.5 py-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${following ? 'bg-white/10 text-white border border-white/15' : 'bg-small-orange text-black hover:brightness-110'}`}
-            >
-              {following ? 'Following ✓' : 'Follow'}
-            </button>
-            {myMembership?.status === 'ACTIVE' ? (
-              <span className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-emerald-500/15 border border-emerald-500/35 text-emerald-300 text-[9px] font-black uppercase tracking-widest">
-                <UserCheck size={12} /> Member{myMembership.memberNumber ? ` · ${myMembership.memberNumber}` : ''}
-              </span>
-            ) : myMembership?.status === 'PENDING' ? (
-              <span className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-amber-500/15 border border-amber-500/35 text-amber-300 text-[9px] font-black uppercase tracking-widest">
-                <Clock size={12} /> Pending Approval
-              </span>
-            ) : (
-              <>
-                <button
-                  onClick={() => openElevateGatewayModal({ orgKey: org.slug || org.id, mode: 'claim' })}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-gradient-to-r from-[#6B0099] to-[#D40055] text-white text-[9px] font-black uppercase tracking-widest shadow hover:brightness-110 transition-all"
-                >
-                  <KeyRound size={11} /> Claim Account
-                </button>
-                <button
-                  onClick={() => openElevateGatewayModal({ orgKey: org.slug || org.id, mode: 'join' })}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-white/[0.08] hover:bg-white/[0.15] border border-white/15 text-white text-[9px] font-black uppercase tracking-widest transition-all"
-                >
-                  <UserCheck size={11} /> Join &amp; Onboard
-                </button>
-              </>
-            )}
-            <button
-              onClick={() => setGiving(true)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-white text-[9px] font-black uppercase tracking-widest transition-all hover:brightness-110"
-              style={{ background: VIOLET }}
-            >
-              <Gift size={11} /> {orgTabs.find(t => t.k === 'GIVE')?.label || 'Give'}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Sticky Horizontal Tab Bar (Grace Chapel Model — Tab Names Tailored to Org Type) ── */}
-      <div className="sticky top-[45px] z-30 bg-[#0d0b12]/90 backdrop-blur-xl border-b border-white/8">
-        <div className="flex items-center gap-1 px-4 overflow-x-auto scrollbar-hide max-w-5xl mx-auto">
-          {orgTabs.map(({ k, label, icon: Icon }) => {
-            const active = tab === k && !ministryOpen;
-            return (
-              <button
-                key={k}
-                onClick={() => { setTab(k); setOpenMinistry(null); }}
-                className={`shrink-0 flex items-center gap-1.5 px-3.5 py-3 ${TYPE.labelMd} border-b-2 transition-all`}
-                style={active ? { color: '#fff', borderColor: VIOLET } : { color: 'rgba(255,255,255,0.35)', borderColor: 'transparent' }}
-              >
-                <Icon size={13} /> {label}
+      {/* ── Hero: wordmark, display tagline, gatherings, the four relationships (follow · claim · join · give) ── */}
+      <EvHero
+        name={org.name}
+        logoUrl={org.logoUrl}
+        meta={[org.denomination || org.orgKindLabel, org.location?.city, `${org.memberCount ?? Math.max(1, staff.length)} members`].filter(Boolean).join(' · ')}
+        tagline={org.tagline || `${org.name}. Welcome home.`}
+        intro={org.tagline ? org.about : undefined}
+        times={effectiveServiceTimes.map(s => ({ id: s.id, label: `${s.label}${s.isOnline ? ' · also online' : ''}`, day: s.day === 'Sunday' ? 'Sun' : s.day?.slice(0, 3), time: s.time }))}
+        coverUrl={heroImage(org.coverUrl || DEMO_CHURCH.coverUrl)}
+        actions={<>
+          {myMembership?.status === 'ACTIVE' ? (
+            <span className="ev-btn" style={{ ...pill, background: 'rgba(127,216,176,0.12)', color: EV.success }}>
+              <UserCheck size={14} /> Member{myMembership.memberNumber ? ` · ${myMembership.memberNumber}` : ''}
+            </span>
+          ) : myMembership?.status === 'PENDING' ? (
+            <span className="ev-btn" style={{ ...pill, background: 'rgba(255,159,90,0.12)', color: EV.warn }}>
+              <Clock size={14} /> Pending approval
+            </span>
+          ) : (
+            <>
+              <button onClick={() => openElevateGatewayModal({ orgKey: org.slug || org.id, mode: 'join' })} className="ev-btn ev-btn-primary">
+                Join {org.name}
               </button>
-            );
-          })}
-        </div>
-      </div>
+              <button onClick={() => openElevateGatewayModal({ orgKey: org.slug || org.id, mode: 'claim' })} className="ev-btn ev-btn-ghost" title="Your church already added you — claim your seat">
+                <KeyRound size={14} /> Claim my account
+              </button>
+            </>
+          )}
+          <button onClick={toggleFollow} title="Follow for public updates and streams (no approval required)" className="ev-btn ev-btn-ghost">
+            {following ? <><Check size={14} /> Following</> : 'Follow'}
+          </button>
+          <button onClick={() => setGiving(true)} className="ev-btn ev-btn-light">
+            <Gift size={14} /> {orgTabs.find(t => t.k === 'GIVE')?.label || 'Give'}
+          </button>
+          {org.socialLinks?.website && <a href={org.socialLinks.website} target="_blank" rel="noopener noreferrer" className="ev-btn" style={{ color: EV.violetText, paddingLeft: 6, paddingRight: 6, fontWeight: 500 }}><Globe size={14} /> Website</a>}
+        </>}
+      />
+
+      {/* ── Sticky section tabs (names tailored to org type) ── */}
+      <EvTabs tabs={orgTabs.map(t => ({ k: t.k, label: t.label }))} value={ministryOpen ? null : tab} onChange={k => { setTab(k as ElevateOrgTab); setOpenMinistry(null); }} top={52} />
 
       {/* ── Main Content Container with Persistent Live Stream Carousel Under the Tabs ── */}
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+      <div className="max-w-[1240px] mx-auto px-4 sm:px-8 py-10 space-y-8">
         {/* PERSISTENT LIVE STREAM THUMBNAIL CAROUSEL (Always mounted under the tabs so users can hop in and watch from anywhere on the org page without interrupting playback) */}
-        <RelloChurchViewer org={org} defaultPlayerExpanded={false} />
-
-        {/* Also render real live feed banner if broadcasting on Plajah Live */}
-        <OrgLiveNow org={org} viewerIsOrgMember={myMembership?.status === 'ACTIVE'} onOpenLive={onOpenLive} onOpenChannel={onOpenChannel} />
+        {/* Always-on window: a live stream or the org's TV Live Hub+ channel plays here, muted. */}
+        <RelloChurchViewer
+          org={org}
+          defaultPlayerExpanded={false}
+          viewerIsOrgMember={myMembership?.status === 'ACTIVE'}
+          onOpenOnAir={item => {
+            if (item.feed) {
+              if (onOpenLive) onOpenLive(item.feed);
+              else window.dispatchEvent(new CustomEvent('PLAY_LIVE_FEED', { detail: { feed: item.feed } }));
+            } else if (item.channel) onOpenChannel?.(item.channel.ownerId, item.channel.sourceId);
+          }}
+        />
 
         {applyFor && <ApplyModal posting={applyFor} orgName={org.name} onClose={() => setApplyFor(null)} />}
 
@@ -661,6 +631,9 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
 
                   <div className="rounded-2xl p-4 bg-white/[0.03] border border-white/10">
                     <p className={`${TYPE.labelMd} text-white/40 mb-3`}>Coming up</p>
+                    {!org.isDemo ? (
+                      <HostEventsPublic host={{ kind: 'org', id: org.id, name: org.name }} accent={VIOLET} limit={2} emptyText="Nothing on the calendar yet." onOpenEvent={() => setTab('EVENTS')} />
+                    ) : (
                     <div className="space-y-2">
                       {DEMO_CHURCH_EVENTS.slice(0, 2).map(e => (
                         <button key={e.id} onClick={() => setTab('EVENTS')} className="w-full text-left flex items-center gap-2 group">
@@ -672,6 +645,7 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
                         </button>
                       ))}
                     </div>
+                    )}
                   </div>
 
                   {openings.length > 0 && (
@@ -707,7 +681,7 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
                   >
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-3xl">{m.iconEmoji || '✨'}</span>
-                      <span className={`${TYPE.labelSm} px-2 py-0.5 rounded-full`} style={{ color: VIOLET_SOFT, background: 'rgba(139,92,246,0.12)' }}>
+                      <span className={`${TYPE.labelSm} px-2 py-0.5 rounded-full`} style={{ color: VIOLET_SOFT, background: 'rgba(122, 31, 192,0.12)' }}>
                         Live space
                       </span>
                     </div>
@@ -720,6 +694,20 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
                   </button>
                 ))}
               </AdaptiveGrid>
+            )}
+
+            {/* ── TAB 2B: MOBILIZE, VOLUNTEER SHIFTS, SPOKES & COVENANTS ── */}
+            {tab === 'MOBILIZE' && (
+              <Suspense fallback={<div className="flex justify-center py-16"><Loader2 className="animate-spin text-white/30" size={24} /></div>}>
+                <ElevateMobilizeHub
+                  org={org}
+                  currentUserId={auth.currentUser?.uid || 'demo-member-elena'}
+                  currentUserName={myMembership?.displayName || auth.currentUser?.displayName || 'Elena Sterling'}
+                  currentUserEmail={auth.currentUser?.email || undefined}
+                  canManage={hasOps}
+                  initialContext="public"
+                />
+              </Suspense>
             )}
 
             {/* ── TAB 3: PHOTOS / GALLERY ── */}
@@ -747,6 +735,9 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
                     <CreateEventButton host={{ kind: 'org', id: org.id, label: org.name }} />
                   </div>
                 )}
+                {!org.isDemo ? (
+                  <HostEventsPublic host={{ kind: 'org', id: org.id, name: org.name }} accent={VIOLET} emptyText={hasOps ? 'No events yet. Create one, or start from a playbook in Staff → Events.' : 'No upcoming events right now. Check back soon.'} />
+                ) : (
                 <AdaptiveGrid phone={1} tablet={2} desktop={2} gap="1rem">
                   {DEMO_CHURCH_EVENTS.map(e => (
                     <div key={e.id} className="rounded-2xl overflow-hidden bg-white/[0.03] border border-white/10">
@@ -765,6 +756,7 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
                     </div>
                   ))}
                 </AdaptiveGrid>
+                )}
               </div>
             )}
 
@@ -775,12 +767,12 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
                   <button
                     onClick={() => window.dispatchEvent(new CustomEvent('OPEN_FOLLOW_ALONG', { detail: {} }))}
                     className="w-full text-left p-4 rounded-2xl border transition-all hover:brightness-110"
-                    style={{ borderColor: 'rgba(212,175,55,0.35)', background: 'linear-gradient(135deg, rgba(212,175,55,0.12), rgba(139,92,246,0.08))' }}
+                    style={{ borderColor: 'rgba(226, 194, 126,0.35)', background: 'linear-gradient(135deg, rgba(226, 194, 126,0.12), rgba(122, 31, 192,0.08))' }}
                   >
                     <div className="flex items-center gap-2 mb-1">
-                      <Radio size={14} style={{ color: '#d4af37' }} />
+                      <Radio size={14} style={{ color: '#E2C27E' }} />
                       <span className={`${TYPE.labelMd} text-white`}>Follow along with the service</span>
-                      <span className="ml-auto px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest" style={{ background: 'rgba(212,175,55,0.2)', color: '#d4af37' }}>Live</span>
+                      <span className="ml-auto px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest" style={{ background: 'rgba(226, 194, 126,0.2)', color: '#E2C27E' }}>Live</span>
                     </div>
                     <p className="type-body-sm text-white/50 leading-relaxed">
                       Whether you’re in the room or watching from home, your phone turns to each passage as it’s read — and saves it to your notes with the moment it happened.
@@ -826,10 +818,10 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
                         key={title}
                         onClick={() => window.dispatchEvent(new CustomEvent(ev, { detail: {} }))}
                         className="text-left p-3.5 rounded-2xl border transition-all hover:brightness-125"
-                        style={{ borderColor: 'rgba(212,175,55,0.28)', background: 'rgba(212,175,55,0.05)' }}
+                        style={{ borderColor: 'rgba(226, 194, 126,0.28)', background: 'rgba(226, 194, 126,0.05)' }}
                       >
                         <div className="flex items-center gap-2 mb-1">
-                          <Icon size={14} style={{ color: '#d4af37' }} />
+                          <Icon size={14} style={{ color: '#E2C27E' }} />
                           <span className={`${TYPE.labelMd} text-white`}>{title}</span>
                         </div>
                         <p className="type-body-sm text-white/45 leading-snug">{sub}</p>
@@ -851,7 +843,7 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
                     <button
                       onClick={() => window.dispatchEvent(new CustomEvent('OPEN_BIBLE', { detail: {} }))}
                       className={`shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-full ${TYPE.labelMd} text-white`}
-                      style={{ background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)' }}
+                      style={{ background: 'rgba(122, 31, 192,0.15)', border: '1px solid rgba(122, 31, 192,0.3)' }}
                     >
                       <BookOpen size={12} style={{ color: VIOLET_SOFT }} /> Sacred Library <ExternalLink size={11} />
                     </button>
@@ -944,14 +936,18 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
                     );
                   })}
                 </div>
-                <OrgStoreSection org={org} mode="public" onVisitUser={onVisitUser} />
               </div>
+            )}
+
+            {/* ── TAB 10: SHOP (org merch: same live catalog as the org's register, kiosk and screens) ── */}
+            {tab === 'SHOP' && (
+              <OrgStoreSection org={org} mode="public" canManage={can('MANAGE_STORE')} accent={VIOLET} onVisitUser={onVisitUser} onOrgChange={setOrg} />
             )}
           </>
         )}
         <div className="h-16" />
       </div>
-    </div>
+    </EvScope>
   );
 };
 
@@ -1161,6 +1157,21 @@ const OrgManage: React.FC<{ org: Organization; staff: OrgMembership[]; onClose: 
       <div className="h-16" />
     </div>
   );
+};
+
+/** An ORGANIZATION account's profile page IS its org page: same hero, tabs, member hub and admin backend. */
+export const OrgAccountPage: React.FC<{ orgId: string; onBack: () => void; onVisitUser?: (uid: string) => void; ownAccount?: boolean } & OrgMediaOpeners> = ({ orgId, onBack, ...rest }) => {
+  const [org, setOrg] = useState<Organization | null | undefined>(undefined);
+  useEffect(() => {
+    let alive = true;
+    import('../services/organizationService').then(m => m.fetchOrganization(orgId)).then(o => { if (alive) setOrg(o); }).catch(() => { if (alive) setOrg(null); });
+    return () => { alive = false; };
+  }, [orgId]);
+  if (org === undefined) return <div className="flex justify-center py-24"><Loader2 className="animate-spin text-white/30" size={28} /></div>;
+  if (!org) return <div className="p-10 text-center text-white/50 text-sm">This organization page is no longer available.</div>;
+  const uid = auth.currentUser?.uid;
+  const isOwner = !!uid && (org.creatorId === uid || org.accountUid === uid || !!org.admins?.includes(uid));
+  return <OrgProfile key={org.id} org={org} isOwner={isOwner} onBack={onBack} onDeleted={onBack} {...rest} />;
 };
 
 export default OrgHub;

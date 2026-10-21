@@ -1,0 +1,111 @@
+/* Elevate · Vellum — the shared visual language for org pages, the member hub,
+   staff ops and volunteer surfaces (and their Ambo / Lectio / Rello seams).
+   Dark chrome; Vellum paper sheets wherever the Word appears; Bricolage Grotesque
+   for display, Newsreader for Scripture, Inter for interface.
+
+   Scoped to .ev-scope. The overrides below are deliberately unlayered so they win
+   over Tailwind utilities inside the scope: they retire the shouting label stack
+   (font-black + 0.2em tracking + 9px) without rewriting thousands of call sites. */
+
+.ev-scope {
+  --ev-chrome: #0E0C13;
+  --ev-panel: #18141F;
+  --ev-raised: #221D2B;
+  --ev-line: rgba(255, 255, 255, 0.08);
+  --ev-ink: #F2EEF6;
+  --ev-ink-2: #D8D2E2;
+  --ev-muted: #A49CB2;
+  --ev-violet: #7A1FC0;
+  --ev-violet-text: #D0BCFF;
+  --ev-gold: #E2C27E;
+  --ev-ember: #FF8C00;
+  /* Plajah brand — the hints that tie Elevate back to the platform. */
+  --ev-brand: linear-gradient(135deg, #6B0099 0%, #D40055 100%);
+  --ev-brand-warm: linear-gradient(90deg, #6B0099 0%, #D40055 55%, #FF8C00 100%);
+  --ev-vellum: #F4EEE2;
+  --ev-vellum-ink: #221C14;
+  --ev-vellum-muted: #6B5F4E;
+  --ev-vellum-gold: #7A5C22;
+  --ev-display: 'Bricolage Grotesque', Inter, system-ui, sans-serif;
+  --ev-scripture: Newsreader, 'Iowan Old Style', Palatino, Georgia, serif;
+  --ev-ui: Inter, system-ui, sans-serif;
+  font-family: var(--ev-ui);
+  color: var(--ev-ink);
+  background: var(--ev-chrome);
+}
+
+/* ── Voice ─────────────────────────────────────────────────────────────── */
+.ev-scope h1, .ev-scope h2, .ev-scope h3,
+.ev-scope .type-display-lg, .ev-scope .type-display-md, .ev-scope .type-display-sm,
+.ev-scope .type-headline-lg, .ev-scope .type-headline-md, .ev-scope .type-headline-sm {
+  font-family: var(--ev-display);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+.ev-scope h3 { font-weight: 600; letter-spacing: -0.015em; }
+
+/* One label style: 12px Inter 600, modest tracking. */
+.ev-scope .type-label-sm, .ev-scope .type-label-md {
+  font-family: var(--ev-ui);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+.ev-scope .type-title-sm, .ev-scope .type-title-md, .ev-scope .type-title-lg { font-family: var(--ev-ui); }
+.ev-scope .font-black { font-weight: 700; }
+.ev-scope .font-extrabold { font-weight: 600; }
+.ev-scope .tracking-widest, .ev-scope .tracking-wider,
+.ev-scope [class*="tracking-[0."] { letter-spacing: 0.06em; }
+/* Nothing in the suite is set below 11px. */
+.ev-scope [class*="text-[8"], .ev-scope [class*="text-[9px"], .ev-scope [class*="text-[9."],
+.ev-scope [class*="text-[10px"], .ev-scope [class*="text-[10."] { font-size: 11px; }
+.ev-scope .font-serif { font-family: var(--ev-scripture); }
+
+/* ── Primitives ────────────────────────────────────────────────────────── */
+.ev-display { font-family: var(--ev-display); font-weight: 700; letter-spacing: -0.04em; line-height: 0.95; }
+.ev-title { font-family: var(--ev-display); font-weight: 500; letter-spacing: -0.02em; }
+.ev-label { font-family: var(--ev-ui); font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ev-muted); }
+.ev-num { font-family: var(--ev-display); font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.ev-scripture { font-family: var(--ev-scripture); font-weight: 400; }
+.ev-verse { font-family: var(--ev-ui); font-size: 11px; font-weight: 600; color: var(--ev-vellum-gold); padding: 0 4px 0 6px; vertical-align: super; line-height: 0; }
+
+.ev-panel { background: var(--ev-panel); border-radius: 24px; }
+.ev-rule > * + * { border-top: 1px solid var(--ev-line); }
+
+.ev-sheet { background: var(--ev-vellum); color: var(--ev-vellum-ink); border-radius: 28px; }
+.ev-sheet .ev-label { color: var(--ev-vellum-gold); }
+.ev-sheet .ev-muted { color: var(--ev-vellum-muted); }
+.ev-sheet.ev-rule > * + *, .ev-sheet .ev-rule > * + * { border-top-color: rgba(34, 28, 20, 0.12); }
+
+.ev-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 18px; border-radius: 12px; font: 600 14px/1 var(--ev-ui); letter-spacing: 0; text-transform: none; transition: filter .15s ease, background-color .15s ease; white-space: nowrap; }
+.ev-btn:hover { filter: brightness(1.08); }
+.ev-btn-primary { background: var(--ev-brand); color: #fff; }
+.ev-btn-light { background: var(--ev-ink); color: var(--ev-chrome); }
+.ev-btn-ghost { border: 1px solid rgba(255, 255, 255, 0.16); color: var(--ev-ink); font-weight: 500; }
+.ev-btn-ghost:hover { background: rgba(255, 255, 255, 0.05); }
+.ev-btn-ink { background: var(--ev-vellum-ink); color: var(--ev-vellum); }
+.ev-btn-paper { border: 1px solid rgba(34, 28, 20, 0.25); color: var(--ev-vellum-ink); font-weight: 500; }
+.ev-btn-paper:hover { background: rgba(34, 28, 20, 0.05); }
+
+.ev-tab { position: relative; padding: 18px 0 16px; color: var(--ev-muted); font: 500 14px/1 var(--ev-ui); white-space: nowrap; transition: color .15s ease; }
+.ev-tab:hover { color: var(--ev-ink); }
+.ev-tab[aria-current="page"] { color: var(--ev-ink); font-weight: 600; }
+.ev-tab[aria-current="page"]::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; border-radius: 2px; background: var(--ev-brand-warm); }
+
+/* A 2px Plajah gradient along the top edge of the Elevate chrome. */
+.ev-brand-rule { height: 2px; background: var(--ev-brand-warm); }
+.ev-brand-text { background: var(--ev-brand-warm); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+.ev-row-link { transition: background-color .15s ease; border-radius: 12px; }
+.ev-row-link:hover { background: rgba(255, 255, 255, 0.03); }
+.ev-sheet .ev-row-link:hover { background: rgba(34, 28, 20, 0.04); }
+
+.ev-live-dot { width: 8px; height: 8px; border-radius: 999px; background: var(--ev-ember); display: inline-block; box-shadow: 0 0 0 0 rgba(255, 140, 0, .5); animation: ev-pulse 2.4s ease-out infinite; }
+@keyframes ev-pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 140, 0, .45); } 70%, 100% { box-shadow: 0 0 0 8px rgba(255, 140, 0, 0); } }
+
+.ev-rise { animation: ev-rise .5s cubic-bezier(.2, 0, 0, 1) both; }
+@keyframes ev-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .ev-live-dot, .ev-rise { animation: none; }
+}
