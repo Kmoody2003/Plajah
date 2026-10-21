@@ -718,10 +718,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
     return words;
   }, [writerTexts]);
 
-  const comicVariant2Ctrl = useTelaComicVariant2Controller({
-    totalTelaPages: doc?.frames.length || 1,
-    totalWriterWords: totalDocWriterWords,
-  });
+  const comicVariant2Ctrl = useTelaComicVariant2Controller(totalDocWriterWords, comicLayoutMode);
 
   const toggleInlineComicLayoutMode = useCallback(() => {
     setComicLayoutMode(prev => {

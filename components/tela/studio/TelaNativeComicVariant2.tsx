@@ -47,6 +47,61 @@ import {
   renderCinemagraphFrame,
   synthesizePanelVoiceTake,
 } from '../../../services/comic/panelMotionEngine';
+import { sampleKeyframeTrack } from '../../../services/anima/evaluator';
+import type {
+  BalloonSafeDockZone,
+  CameraAngle,
+  ComicPageDocument,
+  ComicPanelNode,
+  ComicProject,
+  ComicProjectFormat,
+  ComicProjectSummary,
+  HalftoneLayerConfig,
+  KanjiSfxItem,
+  NestedPanelTelaDocument,
+  PanelGeometry,
+  PanelKeyframeItem,
+  PanelLayoutPresetId,
+  PanelSubLayer,
+  SpeechBalloonItem,
+} from '../../../services/comicProject/types';
+import { DEFAULT_PAGE_ASPECT } from '../../../services/comicProject/types';
+import { relayoutPanels } from '../../../services/comicProject/layout';
+import {
+  comicProjectToShowcaseBook,
+  showcaseProjectId,
+  SFX_STYLE_INK,
+} from '../../../services/comicProject/showcaseImport';
+import {
+  deleteComicProject,
+  downloadComicProject,
+  getLastComicProjectId,
+  listComicProjects,
+  loadComicProject,
+  readComicProjectFile,
+  saveComicProject,
+  setLastComicProjectId,
+  stashPendingComicProject,
+  takePendingComicProject,
+} from '../../../services/comicProject/store';
+import {
+  listShowcaseCatalog,
+  openShowcaseAsProject,
+  type ShowcaseCatalogEntry,
+} from '../../../services/comicProject/catalog';
+
+export type {
+  BalloonSafeDockZone,
+  ComicPageDocument,
+  ComicPanelNode,
+  HalftoneLayerConfig,
+  KanjiSfxItem,
+  NestedPanelTelaDocument,
+  PanelKeyframeItem,
+  PanelLayoutPresetId,
+  PanelSubLayer,
+  SpeechBalloonItem,
+};
 
 export type ComicActiveToolId =
   | 'select'
@@ -55,132 +110,10 @@ export type ComicActiveToolId =
   | 'balloon'
   | 'sfx'
   | 'screentone'
-  | 'motion';
+  | 'motion'
+  | 'reframe';
 
 export type TimelineSyncMode = 'selected' | 'inview';
-
-export type PanelLayoutPresetId =
-  | 'action-4-grid'
-  | 'manga-5-dynamic'
-  | 'widescreen-3-tier'
-  | 'storybook-2-spread';
-
-export type BalloonSafeDockZone =
-  | 'top-left'
-  | 'top-gutter-flush'
-  | 'top-right'
-  | 'bottom-left'
-  | 'bottom-gutter-flush'
-  | 'bottom-right';
-
-export interface SpeechBalloonItem {
-  id: string;
-  speaker: string;
-  text: string;
-  style: 'SPEECH' | 'THOUGHT' | 'SHOUT' | 'NARRATION_CAPTION';
-  dockZone: BalloonSafeDockZone;
-  xPct: number;
-  yPct: number;
-  widthPct: number;
-  tailTargetXPct: number;
-  tailTargetYPct: number;
-}
-
-export interface KanjiSfxItem {
-  id: string;
-  kanji: string;
-  romaji: string;
-  meaning: string;
-  xPct: number;
-  yPct: number;
-  scale: number;
-  rotationDeg: number;
-  colorHex: string;
-  strokeHex: string;
-}
-
-export interface HalftoneLayerConfig {
-  enabled: boolean;
-  dotsPerInch: number;
-  opacity: number;
-  colorHex: string;
-}
-
-export interface PanelKeyframeItem {
-  id: string;
-  timeSec: number;
-  scale: number;
-  x: number;
-  y: number;
-  rotation: number;
-  opacity: number;
-}
-
-export interface PanelSubLayer {
-  id: string;
-  name: string;
-  kind:
-    | 'BACKGROUND_PLATE'
-    | 'MIDGROUND_DEPTH'
-    | 'CHARACTER_CAST'
-    | 'INK_DRAWING'
-    | 'SCREENTONE_SHADER'
-    | 'KANJI_SFX'
-    | 'SPEECH_BALLOONS';
-  visible: boolean;
-  locked: boolean;
-  keyframes: PanelKeyframeItem[];
-}
-
-export interface NestedPanelTelaDocument {
-  id: string;
-  timelineDurationSec: number;
-  cinemagraphPreset: CinemagraphEffectType;
-  halftone: HalftoneLayerConfig;
-  layers: PanelSubLayer[];
-  inkStrokes: {
-    id: string;
-    brushId: string;
-    colorHex: string;
-    sizePx: number;
-    opacity: number;
-    svgPath: string;
-  }[];
-  balloons: SpeechBalloonItem[];
-  sfxItems: KanjiSfxItem[];
-}
-
-export interface ComicPanelNode {
-  id: string;
-  order: number;
-  cameraShot:
-    | 'ESTABLISHING_WIDE'
-    | 'MEDIUM_ACTION'
-    | 'LOW_ANGLE_HERO'
-    | 'HIGH_ANGLE_TENSION'
-    | 'CLOSE_UP'
-    | 'EXTREME_CLOSE_UP';
-  prompt: string;
-  narrativeCaption?: string;
-  renderedImageUrl?: string;
-  box: {
-    xPct: number;
-    yPct: number;
-    widthPct: number;
-    heightPct: number;
-    clipPolygon?: { xPct: number; yPct: number }[];
-  };
-  nestedDocument: NestedPanelTelaDocument;
-}
-
-export interface ComicPageDocument {
-  id: string;
-  title: string;
-  presetId: PanelLayoutPresetId;
-  gutterPx: number;
-  paperColorHex: string;
-  panels: ComicPanelNode[];
-}
 
 export const PANEL_LAYOUT_PRESETS: { id: PanelLayoutPresetId; name: string }[] = [
   { id: 'action-4-grid', name: '4-Panel Action Grid' },
@@ -194,20 +127,6 @@ export const KANJI_SFX_PRESET_LIBRARY = [
   { id: 'sfx_gogo', kanji: 'ゴゴゴ', romaji: 'GOGOGO', meaning: 'Menacing Rumble', colorHex: '#D0BCFF', strokeHex: '#120d1c' },
   { id: 'sfx_baki', kanji: 'バキッ', romaji: 'BAKI!', meaning: 'Snap / Strike', colorHex: '#00DAF3', strokeHex: '#120d1c' },
   { id: 'sfx_zaza', kanji: 'ザァァ', romaji: 'ZAAA', meaning: 'Downpour Rain', colorHex: '#FF8C00', strokeHex: '#120d1c' },
-];
-
-export const LIVING_SHOWCASE_BOOKS = [
-  { id: 'cyber-ronin-manga', title: 'Neon Ronin: Oberon Protocol', category: 'Cyberpunk Graphic Novel' },
-  { id: 'pumpkin-patch-v4', title: 'The Whispering Pumpkin Patch', category: 'Interactive Living Storybook' },
-  { id: 'starlight-atlas', title: 'Starlight Atlas: Deep Orbit', category: 'Widescreen Sci-Fi Comic' },
-];
-
-const SAMPLE_PANEL_ART = [
-  'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=900&q=80',
-  'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=900&q=80',
-  'https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=900&q=80',
-  'https://images.unsplash.com/photo-1579783902614-a3fb3927b675?auto=format&fit=crop&w=900&q=80',
-  'https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=900&q=80',
 ];
 
 function createDefaultLayersForPanel(order: number): PanelSubLayer[] {
@@ -322,35 +241,20 @@ function createComicPageFromPreset(
     'EXTREME_CLOSE_UP',
   ];
 
-  const sampleDialogues = [
-    { speaker: 'KAEL', text: 'The sun is breaking through the canopy—stay on the trail!' },
-    { speaker: 'ARIA', text: 'Wait—do you hear the hounds ahead?' },
-    { speaker: 'KAEL', text: 'Hold the ridge. They are tracking the lantern glow.' },
-    { speaker: 'NARRATOR', text: 'Beneath the golden pines, four shadows moved as one.' },
-    { speaker: 'ARIA', text: 'Signal locked. Opening the dimensional gate now!' },
-  ];
-
   const panels: ComicPanelNode[] = boxes.map((box, idx) => {
     const order = idx + 1;
     const shot = shots[idx % shots.length];
-    const safe = computeSafeBalloonPlacement(
-      shot === 'CLOSE_UP' ? 'close_up' : shot === 'EXTREME_CLOSE_UP' ? 'extreme_close_up' : 'medium',
-      idx,
-      []
-    );
-    const dlg = sampleDialogues[idx % sampleDialogues.length];
 
     return {
       id: `panel_p${pageNumber}_${order}_${Math.random().toString(36).slice(2, 6)}`,
       order,
       cameraShot: shot,
       prompt: `Scene panel ${order} — ${shot.replace(/_/g, ' ').toLowerCase()}`,
-      renderedImageUrl: SAMPLE_PANEL_ART[(pageNumber + idx) % SAMPLE_PANEL_ART.length],
       box,
       nestedDocument: {
         id: `nested_p${pageNumber}_${order}`,
         timelineDurationSec: 5.0,
-        cinemagraphPreset: idx === 1 ? 'falling_rain' : 'none',
+        cinemagraphPreset: 'none',
         halftone: {
           enabled: presetId === 'manga-5-dynamic' && idx % 2 === 1,
           dotsPerInch: 60,
@@ -359,20 +263,7 @@ function createComicPageFromPreset(
         },
         layers: createDefaultLayersForPanel(order),
         inkStrokes: [],
-        balloons: [
-          {
-            id: `bal_init_${pageNumber}_${order}`,
-            speaker: dlg.speaker,
-            text: dlg.text,
-            style: dlg.speaker === 'NARRATOR' ? 'NARRATION_CAPTION' : 'SPEECH',
-            dockZone: shot === 'CLOSE_UP' ? 'bottom-gutter-flush' : 'top-left',
-            xPct: safe.xPct,
-            yPct: safe.yPct,
-            widthPct: safe.widthPct,
-            tailTargetXPct: 50,
-            tailTargetYPct: 48,
-          },
-        ],
+        balloons: [],
         sfxItems: [],
       },
     };
@@ -388,50 +279,22 @@ function createComicPageFromPreset(
   };
 }
 
-function instantiateLivingShowcaseBook(bookId: string): ComicPageDocument[] {
-  if (bookId === 'pumpkin-patch-v4') {
-    return [
-      createComicPageFromPreset('storybook-2-spread', 1, 'Page 1 — The Whispering Pumpkin Patch'),
-      createComicPageFromPreset('action-4-grid', 2, 'Page 2 — Lanterns in the Briars'),
-    ];
-  }
-  if (bookId === 'starlight-atlas') {
-    return [
-      createComicPageFromPreset('widescreen-3-tier', 1, 'Page 1 — Orbital Approach'),
-      createComicPageFromPreset('action-4-grid', 2, 'Page 2 — Bridge Telemetry'),
-    ];
-  }
-  return [
-    createComicPageFromPreset('action-4-grid', 1, 'Page 1 — Golden Forest Trail'),
-    createComicPageFromPreset('manga-5-dynamic', 2, 'Page 2 — Cyberpunk Rooftop Stand'),
-  ];
-}
+const KF_PROPS = ['x', 'y', 'scale', 'rotation', 'opacity'] as const;
+const KF_DEFAULTS = { x: 0, y: 0, scale: 1, rotation: 0, opacity: 1 };
 
+/** Samples a comic layer's keyframes with Anima's evaluator (so eases match Anima Studio). */
 function evaluateKeyframesAtTime(keyframes: PanelKeyframeItem[], timeSec: number) {
-  if (!keyframes || keyframes.length === 0) {
-    return { x: 0, y: 0, scale: 1, rotation: 0, opacity: 1 };
-  }
+  if (!keyframes || keyframes.length === 0) return { ...KF_DEFAULTS };
   const sorted = [...keyframes].sort((a, b) => a.timeSec - b.timeSec);
-  if (timeSec <= sorted[0].timeSec) return sorted[0];
-  const last = sorted[sorted.length - 1];
-  if (timeSec >= last.timeSec) return last;
-
-  for (let i = 0; i < sorted.length - 1; i++) {
-    const a = sorted[i];
-    const b = sorted[i + 1];
-    if (timeSec >= a.timeSec && timeSec <= b.timeSec) {
-      const span = Math.max(0.001, b.timeSec - a.timeSec);
-      const t = (timeSec - a.timeSec) / span;
-      return {
-        x: a.x + (b.x - a.x) * t,
-        y: a.y + (b.y - a.y) * t,
-        scale: a.scale + (b.scale - a.scale) * t,
-        rotation: a.rotation + (b.rotation - a.rotation) * t,
-        opacity: a.opacity + (b.opacity - a.opacity) * t,
-      };
-    }
+  const out = { ...KF_DEFAULTS };
+  for (const prop of KF_PROPS) {
+    out[prop] = sampleKeyframeTrack(
+      sorted.map((k) => ({ id: k.id, t: k.timeSec, v: k[prop], ease: k.ease ?? 'linear' })),
+      timeSec,
+      KF_DEFAULTS[prop]
+    );
   }
-  return last;
+  return out;
 }
 
 export interface TelaComicVariant2Controller {
@@ -501,6 +364,51 @@ export interface TelaComicVariant2Controller {
     totalBalloons: number;
     estimatedReadTimeStr: string;
   };
+
+  // ── Project: open, autosave, export ──
+  project: ComicProject;
+  saveState: 'idle' | 'saving' | 'saved' | 'error';
+  projectError: string | null;
+  savedProjects: ComicProjectSummary[];
+  showcaseCatalog: ShowcaseCatalogEntry[];
+  openShowcase: (showcaseId: string) => Promise<void>;
+  openSavedProject: (id: string) => Promise<void>;
+  newProject: (format?: ComicProjectFormat) => void;
+  resetProjectToSource: () => Promise<void>;
+  renameProject: (title: string) => void;
+  exportProjectFile: () => void;
+  importProjectFile: (file: File) => Promise<void>;
+  exportShowcaseJson: () => void;
+  deleteSavedProject: (id: string) => Promise<void>;
+
+  // ── Living graphic novel playback + direct edits ──
+  readMode: boolean;
+  setReadMode: React.Dispatch<React.SetStateAction<boolean>>;
+  loopsEnabled: boolean;
+  setLoopsEnabled: React.Dispatch<React.SetStateAction<boolean>>;
+  updateActivePage: (updater: (page: ComicPageDocument) => ComicPageDocument) => void;
+  updatePanelById: (pageId: string, panelId: string, updater: (panel: ComicPanelNode) => ComicPanelNode) => void;
+  relayoutActivePage: () => void;
+}
+
+function blankComicProject(format: ComicProjectFormat = 'comic'): ComicProject {
+  const now = Date.now();
+  return {
+    schema: 'plajah.comicProject',
+    version: 1,
+    id: `comic_${now.toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
+    title: format === 'manga' ? 'Untitled Manga' : format === 'storybook' ? 'Untitled Storybook' : 'Untitled Comic',
+    format,
+    readingDirection: format === 'manga' ? 'rtl' : 'ltr',
+    pages: [
+      createComicPageFromPreset(
+        format === 'manga' ? 'manga-5-dynamic' : format === 'storybook' ? 'storybook-2-spread' : 'action-4-grid',
+        1
+      ),
+    ],
+    createdAt: now,
+    updatedAt: now,
+  };
 }
 
 // ── Shared Tela Native Style Helpers (Matches TelaView.tsx & TelaImage.tsx) ──
@@ -514,13 +422,31 @@ const telaSelectStyle: React.CSSProperties = {
   border: '1px solid rgba(255,255,255,0.14)',
 };
 
-export function useTelaComicVariant2Controller(extraDocWords = 0): TelaComicVariant2Controller {
-  const [selectedShowcaseBookId, setSelectedShowcaseBookId] = useState<string>(
-    LIVING_SHOWCASE_BOOKS[0].id
-  );
-  const [pages, setPages] = useState<ComicPageDocument[]>(() =>
-    instantiateLivingShowcaseBook(LIVING_SHOWCASE_BOOKS[0].id)
-  );
+/**
+ * @param extraDocWords words in the surrounding Tela document (added to read-time stats)
+ * @param active whether comic mode is showing; the project store and showcase catalog
+ *   load the first time it is, so Tela pays nothing for comic mode until it's opened.
+ */
+export function useTelaComicVariant2Controller(extraDocWords = 0, active = true): TelaComicVariant2Controller {
+  const [project, setProject] = useState<ComicProject>(() => blankComicProject());
+  const pages = project.pages;
+  const selectedShowcaseBookId = project.source?.showcaseId ?? '';
+  // Edits mark the project dirty; opening a project doesn't, so it isn't re-saved unchanged.
+  const dirtyRef = useRef(false);
+  const setPages = useCallback((next: React.SetStateAction<ComicPageDocument[]>) => {
+    dirtyRef.current = true;
+    setProject((prev) => ({
+      ...prev,
+      pages: typeof next === 'function' ? (next as (p: ComicPageDocument[]) => ComicPageDocument[])(prev.pages) : next,
+    }));
+  }, []);
+
+  const [saveState, setSaveState] = useState<TelaComicVariant2Controller['saveState']>('idle');
+  const [projectError, setProjectError] = useState<string | null>(null);
+  const [savedProjects, setSavedProjects] = useState<ComicProjectSummary[]>([]);
+  const [showcaseCatalog, setShowcaseCatalog] = useState<ShowcaseCatalogEntry[]>([]);
+  const [readMode, setReadMode] = useState(false);
+  const [loopsEnabled, setLoopsEnabled] = useState(true);
 
   const [activePageId, setActivePageId] = useState<string>(() => pages[0]?.id || '');
   const activePage = useMemo(
@@ -563,10 +489,8 @@ export function useTelaComicVariant2Controller(extraDocWords = 0): TelaComicVari
   const [gpenSize, setGpenSize] = useState<number>(4);
   const [gpenStreamline, setGpenStreamline] = useState<number>(82);
 
-  const [balloonDraftText, setBalloonDraftText] = useState<string>(
-    'We hold the high ground—keep your eyes on the signal!'
-  );
-  const [balloonDraftSpeaker, setBalloonDraftSpeaker] = useState<string>('Kael');
+  const [balloonDraftText, setBalloonDraftText] = useState<string>('');
+  const [balloonDraftSpeaker, setBalloonDraftSpeaker] = useState<string>('');
   const [balloonDraftStyle, setBalloonDraftStyle] = useState<SpeechBalloonItem['style']>('SPEECH');
   const [balloonDraftDock, setBalloonDraftDock] = useState<BalloonSafeDockZone>('bottom-gutter-flush');
 
@@ -600,19 +524,159 @@ export function useTelaComicVariant2Controller(extraDocWords = 0): TelaComicVari
     return () => cancelAnimationFrame(rafId);
   }, [isPlaying, panelDurationSec]);
 
-  const loadShowcaseBook = useCallback((bookId: string) => {
-    setSelectedShowcaseBookId(bookId);
-    const loaded = instantiateLivingShowcaseBook(bookId);
-    if (loaded.length > 0) {
-      setPages(loaded);
-      setActivePageId(loaded[0].id);
-      if (loaded[0].panels[0]) {
-        setActivePanelId(loaded[0].panels[0].id);
-      }
-      setDeepFocusPanelId(null);
-      setCurrentTimeSec(0);
+  // ── Project lifecycle ─────────────────────────────────────────────────────
+
+  const refreshSavedProjects = useCallback(async () => {
+    try {
+      setSavedProjects(await listComicProjects());
+    } catch {
+      setSavedProjects([]);
     }
   }, []);
+
+  const openProject = useCallback((next: ComicProject, markDirty = false) => {
+    dirtyRef.current = markDirty;
+    setProject(next);
+    setProjectError(null);
+    setActivePageId(next.pages[0]?.id || '');
+    setActivePanelId(next.pages[0]?.panels[0]?.id || '');
+    setDeepFocusPanelId(null);
+    setCurrentTimeSec(0);
+    setIsPlaying(false);
+    setSaveState(markDirty ? 'idle' : 'saved');
+    setLastComicProjectId(next.id);
+  }, []);
+
+  const openSavedProject = useCallback(
+    async (id: string) => {
+      const p = await loadComicProject(id);
+      if (p) openProject(p);
+      else setProjectError('That project is no longer saved on this device.');
+    },
+    [openProject]
+  );
+
+  /** Opens a showcase book; reopens the author's saved copy if they've already edited it. */
+  const openShowcase = useCallback(
+    async (showcaseId: string) => {
+      try {
+        const saved = await loadComicProject(showcaseProjectId(showcaseId));
+        openProject(saved ?? (await openShowcaseAsProject(showcaseId)), !saved);
+      } catch (err) {
+        setProjectError(err instanceof Error ? err.message : 'Could not open that book.');
+      }
+    },
+    [openProject]
+  );
+
+  const resetProjectToSource = useCallback(async () => {
+    const showcaseId = project.source?.showcaseId;
+    if (!showcaseId) return;
+    try {
+      openProject(await openShowcaseAsProject(showcaseId), true);
+    } catch (err) {
+      setProjectError(err instanceof Error ? err.message : 'Could not reload the source book.');
+    }
+  }, [project.source?.showcaseId, openProject]);
+
+  const newProject = useCallback(
+    (format: ComicProjectFormat = 'comic') => openProject(blankComicProject(format), true),
+    [openProject]
+  );
+
+  const renameProject = useCallback((title: string) => {
+    dirtyRef.current = true;
+    setProject((prev) => ({ ...prev, title }));
+  }, []);
+
+  const exportProjectFile = useCallback(() => downloadComicProject(project), [project]);
+
+  const exportShowcaseJson = useCallback(() => {
+    const book = comicProjectToShowcaseBook(project);
+    const blob = new Blob([JSON.stringify(book, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${book.id || 'comic'}.showcase.json`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }, [project]);
+
+  const importProjectFile = useCallback(
+    async (file: File) => {
+      try {
+        openProject(await readComicProjectFile(file), true);
+      } catch (err) {
+        setProjectError(err instanceof Error ? err.message : 'Could not read that file.');
+      }
+    },
+    [openProject]
+  );
+
+  const deleteSavedProject = useCallback(
+    async (id: string) => {
+      await deleteComicProject(id);
+      await refreshSavedProjects();
+    },
+    [refreshSavedProjects]
+  );
+
+  // First time comic mode shows: reopen the last project and load the pickers.
+  const bootedRef = useRef(false);
+  useEffect(() => {
+    if (!active || bootedRef.current) return;
+    bootedRef.current = true;
+    void refreshSavedProjects();
+    void listShowcaseCatalog().then(setShowcaseCatalog, () => setShowcaseCatalog([]));
+    // An edit parked at the last page close wins over the saved copy if it's newer.
+    const pending = takePendingComicProject();
+    const lastId = pending?.id ?? getLastComicProjectId();
+    if (lastId)
+      void loadComicProject(lastId).then((saved) => {
+        if (pending && (!saved || pending.updatedAt >= saved.updatedAt)) openProject(pending, true);
+        else if (saved) openProject(saved);
+      });
+  }, [active, openProject, refreshSavedProjects]);
+
+  // Autosave edits (debounced) to this device.
+  useEffect(() => {
+    if (!dirtyRef.current) return;
+    setSaveState('saving');
+    const timer = window.setTimeout(() => {
+      dirtyRef.current = false;
+      saveComicProject(project)
+        .then(() => {
+          setSaveState('saved');
+          return refreshSavedProjects();
+        })
+        .catch(() => setSaveState('error'));
+    }, 900);
+    return () => window.clearTimeout(timer);
+  }, [project, refreshSavedProjects]);
+
+  // Don't lose the last edit inside the debounce window when the tab hides or closes.
+  const projectRef = useRef(project);
+  projectRef.current = project;
+  useEffect(() => {
+    const flush = () => {
+      if (!dirtyRef.current) return;
+      dirtyRef.current = false;
+      stashPendingComicProject(projectRef.current);
+      void saveComicProject(projectRef.current).catch(() => {
+        dirtyRef.current = true;
+      });
+    };
+    const onVisibility = () => document.visibilityState === 'hidden' && flush();
+    window.addEventListener('pagehide', flush);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      document.removeEventListener('visibilitychange', onVisibility);
+      flush();
+    };
+  }, []);
+
+  const loadShowcaseBook = useCallback((bookId: string) => void openShowcase(bookId), [openShowcase]);
 
   const updateActivePage = useCallback(
     (updater: (page: ComicPageDocument) => ComicPageDocument) => {
@@ -650,19 +714,47 @@ export function useTelaComicVariant2Controller(extraDocWords = 0): TelaComicVari
     setPanelImageUrlDraft('');
   }, [panelImageUrlDraft, updateActivePanel]);
 
+  const updatePanelById = useCallback(
+    (pageId: string, panelId: string, updater: (panel: ComicPanelNode) => ComicPanelNode) => {
+      setPages((prev) =>
+        prev.map((page) =>
+          page.id !== pageId
+            ? page
+            : { ...page, panels: page.panels.map((p) => (p.id === panelId ? updater(p) : p)) }
+        )
+      );
+    },
+    [setPages]
+  );
+
+  /** Re-packs the active page's panels into 12-column rows from their flex + geometry. */
+  const relayoutActivePage = useCallback(() => {
+    updateActivePage((page) => {
+      const { panels, aspect } = relayoutPanels(page.panels);
+      return { ...page, presetId: 'flex-rows', panels, aspect };
+    });
+  }, [updateActivePage]);
+
   const applyPageGridPreset = useCallback(
     (presetId: PanelLayoutPresetId) => {
+      if (presetId === 'custom') return;
+      if (presetId === 'flex-rows') {
+        relayoutActivePage();
+        return;
+      }
       const pageNum = pages.findIndex((p) => p.id === activePage?.id) + 1;
       const fresh = createComicPageFromPreset(presetId, pageNum || 1, activePage?.title);
+      // Keep each existing panel's art, lettering and motion; only its frame moves.
       updateActivePage((oldPage) => ({
-        ...fresh,
-        id: oldPage.id,
+        ...oldPage,
+        presetId,
+        aspect: undefined,
+        panels: fresh.panels.map((fp, i) =>
+          oldPage.panels[i] ? { ...oldPage.panels[i], order: i + 1, box: fp.box } : fp
+        ),
       }));
-      if (fresh.panels[0]) {
-        setActivePanelId(fresh.panels[0].id);
-      }
     },
-    [pages, activePage?.id, activePage?.title, updateActivePage]
+    [pages, activePage?.id, activePage?.title, updateActivePage, relayoutActivePage]
   );
 
   const addNewComicPage = useCallback(
@@ -724,6 +816,7 @@ export function useTelaComicVariant2Controller(extraDocWords = 0): TelaComicVari
         next.splice(idx, 1, leftPanel, rightPanel);
         updateActivePage((pg) => ({
           ...pg,
+          presetId: 'custom',
           panels: next.map((p, i) => ({ ...p, order: i + 1 })),
         }));
       } else if (target.box.heightPct >= 16) {
@@ -773,6 +866,7 @@ export function useTelaComicVariant2Controller(extraDocWords = 0): TelaComicVari
         next.splice(idx, 1, topPanel, bottomPanel);
         updateActivePage((pg) => ({
           ...pg,
+          presetId: 'custom',
           panels: next.map((p, i) => ({ ...p, order: i + 1 })),
         }));
       }
@@ -784,7 +878,7 @@ export function useTelaComicVariant2Controller(extraDocWords = 0): TelaComicVari
   const addSafeSpeechBalloon = useCallback(
     (customText?: string, customDock?: BalloonSafeDockZone) => {
       if (!activePanel) return;
-      const textToUse = (customText ?? balloonDraftText).trim() || 'Hold position!';
+      const textToUse = (customText ?? balloonDraftText).trim() || 'New line';
       const preferredZone = customDock ?? balloonDraftDock;
       const existingCount = activePanel.nestedDocument.balloons.length;
       const isCloseUp =
@@ -830,7 +924,7 @@ export function useTelaComicVariant2Controller(extraDocWords = 0): TelaComicVari
 
       const newBalloon: SpeechBalloonItem = {
         id: `balloon_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-        speaker: balloonDraftSpeaker || 'Speaker',
+        speaker: balloonDraftSpeaker,
         text: textToUse,
         style: balloonDraftStyle,
         dockZone: preferredZone,
@@ -1053,6 +1147,27 @@ export function useTelaComicVariant2Controller(extraDocWords = 0): TelaComicVari
     triggerPanelVoiceSynth,
     handlePanelInViewChange,
     telemetry,
+    project,
+    saveState,
+    projectError,
+    savedProjects,
+    showcaseCatalog,
+    openShowcase,
+    openSavedProject,
+    newProject,
+    resetProjectToSource,
+    renameProject,
+    exportProjectFile,
+    importProjectFile,
+    exportShowcaseJson,
+    deleteSavedProject,
+    readMode,
+    setReadMode,
+    loopsEnabled,
+    setLoopsEnabled,
+    updateActivePage,
+    updatePanelById,
+    relayoutActivePage,
   };
 }
 
@@ -1253,7 +1368,8 @@ export const TelaComicPageStreamCanvas: React.FC<{
       {ctrl.pages.map((page, pageIdx) => {
         const isPageActive = page.id === ctrl.activePage?.id;
         const pageW = Math.round(780 * zoom);
-        const pageH = Math.round(1040 * zoom);
+        const pageH = Math.round(pageW * (page.aspect ?? DEFAULT_PAGE_ASPECT));
+        const readMode = ctrl.readMode;
 
         return (
           <div
@@ -1263,7 +1379,13 @@ export const TelaComicPageStreamCanvas: React.FC<{
               if (ctrl.activePageId !== page.id) ctrl.setActivePageId(page.id);
             }}
           >
+            {readMode && page.meta?.slugline && (
+              <div className="mb-2 select-none text-[10px] font-bold tracking-[.18em] uppercase text-white/45" style={{ width: pageW }}>
+                {page.meta.act ? `${page.meta.act} · ` : ''}{page.meta.slugline}
+              </div>
+            )}
             {/* Exact Tela Page Header Strip (Matches TelaView.tsx lines 3300-3340) */}
+            {!readMode && (
             <div
               className="flex items-center justify-between mb-2 select-none"
               style={{ width: pageW }}
@@ -1285,7 +1407,7 @@ export const TelaComicPageStreamCanvas: React.FC<{
                   {page.title}
                 </span>
                 <span className="text-white/40 text-[10px]">
-                  (Comic Page · {page.panels.length} Panels)
+                  ({page.meta?.slugline ? `${page.meta.slugline} · ` : ''}{page.panels.length} Panels)
                 </span>
               </div>
 
@@ -1300,7 +1422,7 @@ export const TelaComicPageStreamCanvas: React.FC<{
                   style={telaSelectStyle}
                   title="Switch Comic Page Panel Grid Template"
                 >
-                  {PANEL_LAYOUT_PRESETS.map((pr) => (
+                  {PAGE_PRESET_OPTIONS(page).map((pr) => (
                     <option key={pr.id} value={pr.id}>
                       {pr.name}
                     </option>
@@ -1355,6 +1477,7 @@ export const TelaComicPageStreamCanvas: React.FC<{
                 )}
               </div>
             </div>
+            )}
 
             {/* Exact Tela Page Surface (Matches TelaView.tsx lines 3343-3357 & TelaImage.tsx lines 849-1033) */}
             <div
@@ -1364,7 +1487,7 @@ export const TelaComicPageStreamCanvas: React.FC<{
                 height: pageH,
                 background: page.paperColorHex || '#FFFFFF',
                 borderRadius: 4,
-                boxShadow: isPageActive
+                boxShadow: isPageActive && !readMode
                   ? '0 0 0 2px var(--pj-magenta, #D40055), 0 20px 50px rgba(0,0,0,0.65)'
                   : '0 10px 30px rgba(0,0,0,0.45)',
                 position: 'relative',
@@ -1372,7 +1495,7 @@ export const TelaComicPageStreamCanvas: React.FC<{
               }}
             >
               {/* On-Page Top-Left Floating Tool Pill (Exact match to TelaImage.tsx line 850 in user's screenshot!) */}
-              {isPageActive && (
+              {isPageActive && !readMode && (
                 <div
                   onPointerDown={(e) => e.stopPropagation()}
                   style={{
@@ -1612,7 +1735,7 @@ export const TelaComicPageStreamCanvas: React.FC<{
               )}
 
               {/* On-Page Top-Right Floating LAYERS Card (Exact match to TelaImage.tsx line 1013 in user's screenshot!) */}
-              {isPageActive && ctrl.showOnCanvasLayersCard && ctrl.activePanel && (
+              {isPageActive && !readMode && ctrl.showOnCanvasLayersCard && ctrl.activePanel && (
                 <div
                   onPointerDown={(e) => e.stopPropagation()}
                   style={{
@@ -1748,7 +1871,8 @@ export const TelaComicPageStreamCanvas: React.FC<{
                 </div>
               )}
 
-              {/* Comic Panels Grid inside the Page Surface */}
+              {/* Comic Panels Grid inside the Page Surface (mounted only near the viewport) */}
+              <LazyMount>
               {page.panels.map((panel) => {
                 const isPanelActive =
                   isPageActive && panel.id === ctrl.activePanel?.id;
@@ -1759,6 +1883,7 @@ export const TelaComicPageStreamCanvas: React.FC<{
                         .join(', ')})`
                     : undefined;
 
+                const bleed = panel.geometry === 'open-bleed';
                 return (
                   <div
                     key={panel.id}
@@ -1768,9 +1893,10 @@ export const TelaComicPageStreamCanvas: React.FC<{
                       top: `${panel.box.yPct}%`,
                       width: `${panel.box.widthPct}%`,
                       height: `${panel.box.heightPct}%`,
-                      padding: `${Math.max(3, page.gutterPx / 2)}px`,
+                      padding: bleed ? 0 : `${Math.max(3, page.gutterPx / 2)}px`,
                       boxSizing: 'border-box',
                       clipPath: clipPoly,
+                      zIndex: panel.geometry === 'floating-inset' || panel.geometry === 'circle-reticle' ? 2 : 1,
                     }}
                   >
                     <SingleComicPanelSurface
@@ -1783,12 +1909,14 @@ export const TelaComicPageStreamCanvas: React.FC<{
                   </div>
                 );
               })}
+              </LazyMount>
             </div>
           </div>
         );
       })}
 
       {/* Exact Tela Bottom "+ Add Page" Strip (Matches TelaView.tsx lines 3388-3410) */}
+      {!ctrl.readMode && (
       <div className="flex items-center gap-2.5 my-6 pb-16 flex-wrap justify-center">
         <button
           onClick={() => ctrl.addSafeSpeechBalloon()}
@@ -1815,7 +1943,182 @@ export const TelaComicPageStreamCanvas: React.FC<{
           <BookOpen size={14} className="text-[#D0BCFF]" /> ＋ Add Storybook Twin Spread
         </button>
       </div>
+      )}
+      <ComicLivingStyles />
     </div>
+  );
+};
+
+// ============================================================================
+// LIVING GRAPHIC NOVEL RENDER HELPERS
+// ============================================================================
+
+const PAGE_PRESET_OPTIONS = (page: ComicPageDocument): { id: PanelLayoutPresetId; name: string }[] => [
+  ...(page.panels.some((p) => p.flex != null) ? [{ id: 'flex-rows' as const, name: 'Graphic Novel Rows (flex)' }] : []),
+  ...(page.presetId === 'custom' ? [{ id: 'custom' as const, name: 'Custom (hand-split)' }] : []),
+  ...PANEL_LAYOUT_PRESETS,
+];
+
+/** Mounts its children only while the page is near the viewport (a 294-panel book stays light). */
+const LazyMount: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [near, setNear] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === 'undefined') {
+      setNear(true);
+      return;
+    }
+    const io = new IntersectionObserver((entries) => setNear(entries.some((e) => e.isIntersecting)), {
+      rootMargin: '1400px 0px',
+    });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  return (
+    <div ref={ref} style={{ position: 'absolute', inset: 0 }}>
+      {near ? children : null}
+    </div>
+  );
+};
+
+/** Plays [start, end] of the source film on loop while the panel is on screen. */
+const PanelLoopVideo: React.FC<{ src: string; start: number; end: number; style: React.CSSProperties }> = ({
+  src,
+  start,
+  end,
+  style,
+}) => {
+  const ref = useRef<HTMLVideoElement | null>(null);
+  const [failed, setFailed] = useState(false);
+  // Stays transparent until frames are actually playing, so the still shows meanwhile.
+  const [playing, setPlaying] = useState(false);
+  useEffect(() => {
+    const v = ref.current;
+    if (!v) return;
+    const toStart = () => {
+      if (Math.abs(v.currentTime - start) > 0.25) v.currentTime = start;
+    };
+    const onTime = () => {
+      if (v.currentTime >= end || v.currentTime < start - 0.5) v.currentTime = start;
+    };
+    v.addEventListener('loadedmetadata', toStart);
+    v.addEventListener('timeupdate', onTime);
+    const io =
+      typeof IntersectionObserver !== 'undefined'
+        ? new IntersectionObserver(
+            ([e]) => {
+              if (e?.isIntersecting) void v.play().catch(() => {});
+              else v.pause();
+            },
+            { threshold: 0.2 }
+          )
+        : null;
+    io?.observe(v);
+    return () => {
+      io?.disconnect();
+      v.removeEventListener('loadedmetadata', toStart);
+      v.removeEventListener('timeupdate', onTime);
+    };
+  }, [start, end]);
+  if (failed) return null;
+  return (
+    <video
+      ref={ref}
+      src={`${src}#t=${start},${end}`}
+      muted
+      playsInline
+      preload="metadata"
+      onError={() => setFailed(true)}
+      onPlaying={() => setPlaying(true)}
+      className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+      style={{ ...style, opacity: playing ? 1 : 0, transition: 'opacity .4s ease' }}
+    />
+  );
+};
+
+const ComicLivingStyles: React.FC = () => (
+  <style>{`
+@keyframes tcv2-shake { 0%,100% { translate: 0 0 } 20% { translate: -2px 1px } 40% { translate: 2px -1px } 60% { translate: -1px -2px } 80% { translate: 1px 2px } }
+@keyframes tcv2-pulse { 0%,100% { scale: 1 } 50% { scale: 1.12 } }
+@keyframes tcv2-glitch { 0%,100% { translate: 0 0; filter: none } 33% { translate: 2px 0; filter: hue-rotate(40deg) } 66% { translate: -2px 0; filter: hue-rotate(-40deg) } }
+@keyframes tcv2-float { 0%,100% { translate: 0 0 } 50% { translate: 0 -4px } }
+@keyframes tcv2-speedline { 0% { letter-spacing: .02em } 50% { letter-spacing: .12em } 100% { letter-spacing: .02em } }
+.tcv2-sfx-shake { animation: tcv2-shake .35s linear infinite }
+.tcv2-sfx-pulse { animation: tcv2-pulse 1.1s ease-in-out infinite }
+.tcv2-sfx-glitch { animation: tcv2-glitch .6s steps(3) infinite }
+.tcv2-sfx-float { animation: tcv2-float 2.4s ease-in-out infinite }
+.tcv2-sfx-speedline { animation: tcv2-speedline .8s ease-in-out infinite }
+@media (prefers-reduced-motion: reduce) { [class^="tcv2-sfx-"] { animation: none } }
+`}</style>
+);
+
+function itemMoved(item: { xPct: number; yPct: number }, src?: { xPct: number; yPct: number }) {
+  return !src || Math.abs(item.xPct - src.xPct) > 0.01 || Math.abs(item.yPct - src.yPct) > 0.01;
+}
+
+/** Imported items keep their exact CSS position until the author moves them. */
+function balloonPlacement(b: SpeechBalloonItem): React.CSSProperties {
+  if (b.source && !itemMoved(b, b.sourceXY)) {
+    const { top, bottom, left, right, maxWidth } = b.source;
+    return { top, bottom, left, right, maxWidth };
+  }
+  return b.source
+    ? { left: `${b.xPct}%`, top: `${b.yPct}%`, maxWidth: `${b.widthPct}%` }
+    : { left: `${b.xPct}%`, top: `${b.yPct}%`, width: `${b.widthPct}%` };
+}
+
+const CAPTION_LOOK: Record<NonNullable<SpeechBalloonItem['captionKind']>, React.CSSProperties> = {
+  'time-location': { background: '#fde68a', color: '#1c1917', textTransform: 'uppercase', letterSpacing: '.04em', fontWeight: 800 },
+  'internal-monologue': { background: 'rgba(10,10,14,0.92)', color: '#f8fafc', fontStyle: 'italic', border: '1px solid rgba(249,115,22,0.55)' },
+  voiceover: { background: '#0f172a', color: '#e2e8f0', border: '1px solid rgba(148,163,184,0.5)' },
+  'technical-hud': { background: 'rgba(3,7,18,0.75)', color: '#67e8f9', border: '1px solid #22d3ee' },
+};
+
+function balloonLook(b: SpeechBalloonItem, captionFont?: string): React.CSSProperties {
+  switch (b.style) {
+    case 'NARRATION_CAPTION':
+      return {
+        borderRadius: 3,
+        fontFamily: captionFont,
+        border: '1px solid rgba(0,0,0,0.6)',
+        ...(CAPTION_LOOK[b.captionKind ?? 'internal-monologue'] ?? CAPTION_LOOK['internal-monologue']),
+      };
+    case 'THOUGHT':
+      return { background: '#fff', color: '#120d1c', border: '1.5px dotted #120d1c', borderRadius: 999 };
+    case 'SHOUT':
+      return { background: '#fff', color: '#120d1c', border: '2.5px solid #120d1c', borderRadius: 6, fontWeight: 900, textTransform: 'uppercase' };
+    case 'WHISPER':
+      return { background: '#fff', color: '#334155', border: '1.5px dashed #475569', borderRadius: 14, fontStyle: 'italic' };
+    case 'COMMS':
+      return { background: '#06131a', color: '#a5f3fc', border: '1.5px solid #22d3ee', borderRadius: 4, fontFamily: 'ui-monospace, Menlo, monospace' };
+    case 'MONSTER':
+      return { background: '#fef2f2', color: '#450a0a', border: '2.5px solid #7f1d1d', borderRadius: 3, fontWeight: 900 };
+    default:
+      return { background: '#fff', color: '#120d1c', border: '1.5px solid #120d1c', borderRadius: 14 };
+  }
+}
+
+/** Small CSS tail on the corner a showcase balloon points from. */
+const BalloonTail: React.FC<{ dir: SpeechBalloonItem['tailDirection']; look: React.CSSProperties }> = ({ dir, look }) => {
+  if (!dir || dir === 'none') return null;
+  const up = dir.startsWith('top');
+  const left = dir.endsWith('left');
+  const border = (look.border as string) || '1.5px solid #120d1c';
+  return (
+    <span
+      aria-hidden
+      style={{
+        position: 'absolute',
+        width: 10,
+        height: 10,
+        background: look.background as string,
+        [up ? 'top' : 'bottom']: -6,
+        [left ? 'left' : 'right']: 14,
+        transform: 'rotate(45deg)',
+        ...(up ? { borderLeft: border, borderTop: border } : { borderRight: border, borderBottom: border }),
+      }}
+    />
   );
 };
 
@@ -1833,6 +2136,12 @@ const SingleComicPanelSurface: React.FC<{
   const weatherCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const isDrawingRef = useRef(false);
   const currentPtsRef = useRef<{ x: number; y: number }[]>([]);
+  const reframeDragRef = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
+  const [imgFailed, setImgFailed] = useState(false);
+  const readMode = ctrl.readMode;
+  const typography = ctrl.project.book?.visualGrammar.typography;
+
+  useEffect(() => setImgFailed(false), [panel.renderedImageUrl]);
 
   // In-View Scroll Auto-Switch observer
   useEffect(() => {
@@ -1888,19 +2197,79 @@ const SingleComicPanelSurface: React.FC<{
   }, [cinemagraphPreset]);
 
   // Layer motion evaluation at current playhead
-  const bgLayer = panel.nestedDocument.layers.find((l) => l.kind === 'BACKGROUND_PLATE');
-  const bgTransform = useMemo(() => {
-    if (!bgLayer || !bgLayer.keyframes.length) {
-      return { x: 0, y: 0, scale: 1, rotation: 0, opacity: 1 };
-    }
+  const layerAt = (kind: PanelSubLayer['kind']) => {
+    const layer = panel.nestedDocument.layers.find((l) => l.kind === kind);
     const timeToEval = isActive ? ctrl.currentTimeSec : 0;
-    return evaluateKeyframesAtTime(bgLayer.keyframes, timeToEval);
-  }, [bgLayer, isActive, ctrl.currentTimeSec]);
+    return { layer, t: layer?.keyframes.length ? evaluateKeyframesAtTime(layer.keyframes, timeToEval) : null };
+  };
+  const bg = layerAt('BACKGROUND_PLATE');
+  const lettering = layerAt('SPEECH_BALLOONS');
+  const sfxLayer = layerAt('KANJI_SFX');
+  const bgLayer = bg.layer;
+  const bgTransform = bg.t ?? { x: 0, y: 0, scale: 1, rotation: 0, opacity: 1 };
+  const layerStyle = (t: typeof lettering.t): React.CSSProperties | undefined =>
+    t ? { transform: `translate(${t.x}px, ${t.y}px) scale(${t.scale}) rotate(${t.rotation}deg)`, opacity: t.opacity } : undefined;
+
+  const reframe = panel.reframe ?? { panXPct: 0, panYPct: 0, zoom: 1 };
+  const artTransform = `translate(${reframe.panXPct}%, ${reframe.panYPct}%) scale(${reframe.zoom}) translate(${bgTransform.x}px, ${bgTransform.y}px) scale(${bgTransform.scale}) rotate(${bgTransform.rotation}deg)`;
+  const artSrc = imgFailed && panel.imageFallback ? panel.imageFallback : panel.renderedImageUrl;
+  const loop = panel.video?.loop;
+  const showLoop = !!(ctrl.loopsEnabled && loop?.enabled && panel.video?.sourceVideoUrl);
+
+  /** Drags a balloon or SFX inside this panel (positions are % of the panel). */
+  const startItemDrag = (
+    e: React.PointerEvent<HTMLElement>,
+    kind: 'balloon' | 'sfx',
+    itemId: string,
+    centered: boolean
+  ) => {
+    if (readMode || ctrl.activeTool !== 'select') return;
+    const box = containerRef.current?.getBoundingClientRect();
+    const el = e.currentTarget.getBoundingClientRect();
+    if (!box) return;
+    e.stopPropagation();
+    ctrl.setActivePageId(page.id);
+    ctrl.setActivePanelId(panel.id);
+    const grabX = e.clientX - (centered ? el.left + el.width / 2 : el.left);
+    const grabY = e.clientY - (centered ? el.top + el.height / 2 : el.top);
+    const move = (ev: PointerEvent) => {
+      const xPct = Math.round(((ev.clientX - grabX - box.left) / Math.max(1, box.width)) * 1000) / 10;
+      const yPct = Math.round(((ev.clientY - grabY - box.top) / Math.max(1, box.height)) * 1000) / 10;
+      ctrl.updatePanelById(page.id, panel.id, (p) => ({
+        ...p,
+        nestedDocument: {
+          ...p.nestedDocument,
+          balloons:
+            kind === 'balloon'
+              ? p.nestedDocument.balloons.map((b) => (b.id === itemId ? { ...b, xPct, yPct } : b))
+              : p.nestedDocument.balloons,
+          sfxItems:
+            kind === 'sfx'
+              ? p.nestedDocument.sfxItems.map((s) => (s.id === itemId ? { ...s, xPct, yPct } : s))
+              : p.nestedDocument.sfxItems,
+        },
+      }));
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
 
   // Freehand G-Pen Sketchbook pointer handlers
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (readMode) return;
     ctrl.setActivePageId(page.id);
     ctrl.setActivePanelId(panel.id);
+
+    if (ctrl.activeTool === 'reframe') {
+      e.stopPropagation();
+      e.currentTarget.setPointerCapture(e.pointerId);
+      reframeDragRef.current = { x: e.clientX, y: e.clientY, panX: reframe.panXPct, panY: reframe.panYPct };
+      return;
+    }
 
     if (ctrl.activeTool === 'knife' && !isDeepFocus) {
       e.stopPropagation();
@@ -1927,7 +2296,7 @@ const SingleComicPanelSurface: React.FC<{
 
     if (ctrl.activeTool === 'sfx') {
       e.stopPropagation();
-      ctrl.addKanjiSfxStamp(Math.floor(Math.random() * KANJI_SFX_PRESET_LIBRARY.length));
+      ctrl.addKanjiSfxStamp();
       return;
     }
 
@@ -1946,6 +2315,17 @@ const SingleComicPanelSurface: React.FC<{
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const drag = reframeDragRef.current;
+    if (drag) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const panXPct = drag.panX + ((e.clientX - drag.x) / Math.max(1, rect.width)) * 100;
+      const panYPct = drag.panY + ((e.clientY - drag.y) / Math.max(1, rect.height)) * 100;
+      ctrl.updatePanelById(page.id, panel.id, (p) => ({
+        ...p,
+        reframe: { zoom: p.reframe?.zoom ?? 1, panXPct: Math.round(panXPct * 10) / 10, panYPct: Math.round(panYPct * 10) / 10 },
+      }));
+      return;
+    }
     if (!isDrawingRef.current || ctrl.activeTool !== 'gpen') return;
     const rect = e.currentTarget.getBoundingClientRect();
     currentPtsRef.current.push({
@@ -1955,6 +2335,7 @@ const SingleComicPanelSurface: React.FC<{
   };
 
   const handlePointerUp = () => {
+    reframeDragRef.current = null;
     if (!isDrawingRef.current) return;
     isDrawingRef.current = false;
     const pts = currentPtsRef.current;
@@ -1978,6 +2359,8 @@ const SingleComicPanelSurface: React.FC<{
   };
 
   const halftone = panel.nestedDocument.halftone;
+  const subject = panel.subject?.enabled ? panel.subject : null;
+  const showChrome = isActive && !readMode;
 
   return (
     <div
@@ -1987,36 +2370,81 @@ const SingleComicPanelSurface: React.FC<{
       onPointerUp={handlePointerUp}
       onDoubleClick={(e) => {
         e.stopPropagation();
-        if (!isDeepFocus) ctrl.setDeepFocusPanelId(panel.id);
+        if (!isDeepFocus && !readMode) ctrl.setDeepFocusPanelId(panel.id);
       }}
       className="w-full h-full relative overflow-hidden select-none transition-shadow"
       style={{
         background: '#120e1a',
-        border: isActive
+        border: showChrome
           ? '2.5px solid var(--pj-magenta, #D40055)'
+          : panel.geometry === 'open-bleed'
+          ? 'none'
+          : panel.geometry === 'floating-inset'
+          ? '3px solid #f8fafc'
           : '2px solid #09080d',
-        boxShadow: isActive
+        boxShadow: showChrome
           ? '0 0 0 1px rgba(212,0,85,0.4), inset 0 0 18px rgba(212,0,85,0.16)'
+          : panel.geometry === 'floating-inset'
+          ? '0 10px 30px rgba(0,0,0,0.6)'
           : 'none',
-        cursor:
-          ctrl.activeTool === 'gpen'
-            ? 'crosshair'
-            : ctrl.activeTool === 'knife'
-            ? 'col-resize'
-            : 'pointer',
+        cursor: readMode
+          ? 'default'
+          : ctrl.activeTool === 'gpen'
+          ? 'crosshair'
+          : ctrl.activeTool === 'knife'
+          ? 'col-resize'
+          : ctrl.activeTool === 'reframe'
+          ? 'grab'
+          : 'pointer',
       }}
     >
-      {/* 1. Background Art Plate with Motion Keyframe Transform */}
-      {panel.renderedImageUrl && bgLayer?.visible !== false && (
+      {/* 1. Art Plate (Hand Reframe pan/zoom × background keyframes) */}
+      {artSrc && bgLayer?.visible !== false && (
         <img
-          src={panel.renderedImageUrl}
-          alt={panel.prompt}
+          src={artSrc}
+          alt={panel.artBrief || panel.prompt}
+          draggable={false}
+          loading="lazy"
+          onError={() => setImgFailed(true)}
+          className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+          style={{
+            transform: artTransform,
+            opacity: bgTransform.opacity,
+            transition: ctrl.isPlaying ? 'none' : 'transform 0.15s ease-out',
+          }}
+        />
+      )}
+      {!artSrc && !readMode && (
+        <div className="absolute inset-0 grid place-items-center p-3 text-center text-[10px] text-white/35 pointer-events-none">
+          {panel.artBrief || panel.prompt || 'Paste art or generate this panel'}
+        </div>
+      )}
+
+      {/* 1b. Living loop of the source film over the still */}
+      {showLoop && loop && (
+        <PanelLoopVideo
+          src={panel.video!.sourceVideoUrl!}
+          start={loop.timeRange[0]}
+          end={loop.timeRange[1]}
+          style={{ transform: artTransform }}
+        />
+      )}
+
+      {/* 1c. SAM subject lifted off the plate (2.5D) */}
+      {subject && artSrc && bgLayer?.visible !== false && (
+        <img
+          src={artSrc}
+          alt=""
+          aria-hidden
           draggable={false}
           className="absolute inset-0 w-full h-full object-cover pointer-events-none"
           style={{
-            transform: `translate(${bgTransform.x}px, ${bgTransform.y}px) scale(${bgTransform.scale}) rotate(${bgTransform.rotation}deg)`,
-            opacity: bgTransform.opacity,
-            transition: ctrl.isPlaying ? 'none' : 'transform 0.15s ease-out',
+            transform: `${artTransform} scale(1.035) translateY(-1%)`,
+            clipPath: `inset(${Math.max(0, subject.box.y * 100)}% ${Math.max(0, (1 - subject.box.x - subject.box.w) * 100)}% ${Math.max(
+              0,
+              (1 - subject.box.y - subject.box.h) * 100
+            )}% ${Math.max(0, subject.box.x * 100)}%)`,
+            filter: `drop-shadow(0 ${Math.round(subject.breakoutPixels / 4)}px ${Math.round(subject.breakoutPixels / 2)}px rgba(0,0,0,0.7))`,
           }}
         />
       )}
@@ -2067,120 +2495,131 @@ const SingleComicPanelSurface: React.FC<{
         />
       )}
 
-      {/* 5. Kanji & Manga Action SFX Stamps */}
-      {panel.nestedDocument.sfxItems.map((sfx) => (
-        <div
-          key={sfx.id}
-          className="absolute pointer-events-none select-none font-black"
-          style={{
-            left: `${sfx.xPct}%`,
-            top: `${sfx.yPct}%`,
-            transform: `translate(-50%, -50%) scale(${sfx.scale}) rotate(${sfx.rotationDeg}deg)`,
-            color: sfx.colorHex,
-            WebkitTextStroke: `1.5px ${sfx.strokeHex}`,
-            textShadow: '0 4px 14px rgba(0,0,0,0.65)',
-            fontSize: isDeepFocus ? '2.2rem' : '1.35rem',
-            lineHeight: 1,
-          }}
-        >
-          <div>{sfx.kanji}</div>
-          <div className="text-[9px] tracking-widest uppercase text-center text-white/90">
-            {sfx.romaji}
-          </div>
-        </div>
-      ))}
-
-      {/* 6. Safe-Zone Speech Balloons & Directional Tails (5 Non-Negotiable Rules) */}
-      <svg
-        viewBox="0 0 100 100"
-        preserveAspectRatio="none"
-        className="absolute inset-0 w-full h-full pointer-events-none"
-        style={{ zIndex: 18 }}
-      >
-        {panel.nestedDocument.balloons.map((b) => {
-          if (b.style === 'NARRATION_CAPTION') return null;
-          const bx = b.xPct + b.widthPct / 2;
-          const by = b.yPct + 8;
-          return (
-            <polygon
-              key={`tail_${b.id}`}
-              points={`${bx - 2.4},${by} ${bx + 2.4},${by} ${b.tailTargetXPct},${b.tailTargetYPct}`}
-              fill="#ffffff"
-              stroke="#120d1c"
-              strokeWidth="0.6"
-            />
-          );
-        })}
-      </svg>
-
-      {panel.nestedDocument.balloons.map((b) => {
-        const isCaption = b.style === 'NARRATION_CAPTION';
-        const isShout = b.style === 'SHOUT';
-        const isThought = b.style === 'THOUGHT';
-        return (
-          <div
-            key={b.id}
-            onClick={(e) => {
-              e.stopPropagation();
-              ctrl.setActivePageId(page.id);
-              ctrl.setActivePanelId(panel.id);
-              ctrl.setInspectorSection('balloon');
-            }}
-            style={{
-              position: 'absolute',
-              left: `${b.xPct}%`,
-              top: `${b.yPct}%`,
-              width: `${b.widthPct}%`,
-              zIndex: 20,
-              background: isCaption ? 'rgba(18, 13, 28, 0.94)' : '#ffffff',
-              color: isCaption ? '#f8fafc' : '#120d1c',
-              border: isShout
-                ? '2px solid #D40055'
-                : isCaption
-                ? '1px solid rgba(208, 188, 255, 0.45)'
-                : '1.5px solid #120d1c',
-              borderRadius: isCaption ? 4 : isThought ? 999 : 12,
-              padding: isDeepFocus ? '8px 12px' : '6px 9px',
-              fontSize: isDeepFocus ? '12px' : '10.5px',
-              fontWeight: 600,
-              lineHeight: 1.3,
-              boxShadow: '0 8px 20px rgba(0,0,0,0.38)',
-            }}
-          >
-            {b.speaker && !isCaption && (
+      {/* 5. SFX: western kinetic onomatopoeia and kanji stamps */}
+      {sfxLayer.layer?.visible !== false && (
+        <div className="absolute inset-0 pointer-events-none" style={{ ...layerStyle(sfxLayer.t), zIndex: 16 }}>
+          {panel.nestedDocument.sfxItems.map((sfx) => {
+            const fromSource = !!sfx.source && !itemMoved(sfx, sfx.sourceXY);
+            const western = !!sfx.fxStyle;
+            return (
               <div
+                key={sfx.id}
+                onPointerDown={(e) => startItemDrag(e, 'sfx', sfx.id, !fromSource)}
+                className="absolute select-none font-black"
                 style={{
-                  fontSize: '8.5px',
-                  fontWeight: 800,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.06em',
-                  color: '#D40055',
-                  marginBottom: 2,
+                  ...(fromSource
+                    ? { top: sfx.source!.top, bottom: sfx.source!.bottom, left: sfx.source!.left, right: sfx.source!.right }
+                    : { left: `${sfx.xPct}%`, top: `${sfx.yPct}%` }),
+                  transform: `${fromSource ? '' : 'translate(-50%, -50%) '}scale(${sfx.scale}) rotate(${sfx.rotationDeg}deg)`,
+                  color: sfx.colorHex,
+                  WebkitTextStroke: `1.5px ${sfx.strokeHex}`,
+                  textShadow: '0 4px 14px rgba(0,0,0,0.65)',
+                  fontFamily: western ? typography?.sfxFont || 'Impact, "Arial Black", sans-serif' : undefined,
+                  fontSize: sfx.fontSize || (isDeepFocus ? '2.2rem' : western ? '1.15rem' : '1.35rem'),
+                  lineHeight: 1,
+                  pointerEvents: readMode ? 'none' : 'auto',
+                  cursor: ctrl.activeTool === 'select' && !readMode ? 'move' : undefined,
                 }}
               >
-                {b.speaker}
+                <div className={sfx.animation ? `tcv2-sfx-${sfx.animation}` : undefined}>{sfx.kanji}</div>
+                {sfx.romaji && (
+                  <div className="text-[9px] tracking-widest uppercase text-center text-white/90">
+                    {sfx.romaji}
+                  </div>
+                )}
               </div>
-            )}
-            <div>{b.text}</div>
-          </div>
-        );
-      })}
+            );
+          })}
+        </div>
+      )}
+
+      {/* 6. Lettering: balloons + captions */}
+      {lettering.layer?.visible !== false && (
+        <div className="absolute inset-0 pointer-events-none" style={{ ...layerStyle(lettering.t), zIndex: 18 }}>
+          <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 w-full h-full pointer-events-none">
+            {panel.nestedDocument.balloons.map((b) => {
+              if (b.style === 'NARRATION_CAPTION' || b.tailDirection) return null;
+              const bx = b.xPct + b.widthPct / 2;
+              const by = b.yPct + 8;
+              return (
+                <polygon
+                  key={`tail_${b.id}`}
+                  points={`${bx - 2.4},${by} ${bx + 2.4},${by} ${b.tailTargetXPct},${b.tailTargetYPct}`}
+                  fill="#ffffff"
+                  stroke="#120d1c"
+                  strokeWidth="0.6"
+                />
+              );
+            })}
+          </svg>
+
+          {panel.nestedDocument.balloons.map((b) => {
+            const isCaption = b.style === 'NARRATION_CAPTION';
+            const look = balloonLook(b, typography?.captionFont);
+            return (
+              <div
+                key={b.id}
+                onPointerDown={(e) => startItemDrag(e, 'balloon', b.id, false)}
+                onClick={(e) => {
+                  if (readMode) return;
+                  e.stopPropagation();
+                  ctrl.setActivePageId(page.id);
+                  ctrl.setActivePanelId(panel.id);
+                  ctrl.setInspectorSection('balloon');
+                }}
+                style={{
+                  position: 'absolute',
+                  ...balloonPlacement(b),
+                  padding: isDeepFocus ? '8px 12px' : '5px 8px',
+                  fontSize: isDeepFocus ? '12px' : '10px',
+                  fontWeight: 600,
+                  lineHeight: 1.3,
+                  boxShadow: '0 8px 20px rgba(0,0,0,0.38)',
+                  fontFamily: typography?.bodyFont,
+                  ...look,
+                  pointerEvents: readMode ? 'none' : 'auto',
+                  cursor: ctrl.activeTool === 'select' && !readMode ? 'move' : undefined,
+                }}
+              >
+                {b.speaker && !isCaption && (
+                  <div
+                    style={{
+                      fontSize: '8px',
+                      fontWeight: 800,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.06em',
+                      color: b.style === 'COMMS' ? '#22d3ee' : '#D40055',
+                      marginBottom: 2,
+                    }}
+                  >
+                    {b.speaker}
+                  </div>
+                )}
+                <div>{b.text}</div>
+                {!isCaption && <BalloonTail dir={b.tailDirection} look={look} />}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* 7. Bottom-Left Subtle Panel Number Pill (When Unselected) */}
-      {!isActive && (
+      {!isActive && !readMode && (
         <div
           className="absolute bottom-2 left-2 px-1.5 py-0.5 rounded text-[9px] font-extrabold text-white/75 pointer-events-none"
           style={{
             background: 'rgba(14,10,22,0.82)',
             border: '1px solid rgba(255,255,255,0.12)',
+            zIndex: 20,
           }}
         >
-          P{panel.order}
+          P{panel.globalPanelNumber ?? panel.order}
+          {loop?.enabled ? ' · loop' : ''}
         </div>
       )}
 
       {/* 8. Variant 2 Magnetic Panel HUD (Only shown on the Active Panel, styled like Tela dark glass pills) */}
-      {isActive && (
+      {showChrome && (
         <div
           onPointerDown={(e) => e.stopPropagation()}
           className="absolute bottom-2 left-2 right-2 z-30 flex items-center justify-between gap-1 px-2 py-1 rounded-[9px]"
@@ -2198,10 +2637,10 @@ const SingleComicPanelSurface: React.FC<{
                 background: 'var(--pj-grad-brand, linear-gradient(135deg,#6B0099,#D40055))',
               }}
             >
-              P{panel.order}
+              P{panel.globalPanelNumber ?? panel.order}
             </span>
             <span className="text-[9.5px] font-bold text-white/90 truncate">
-              {panel.cameraShot.replace(/_/g, ' ')}
+              {panel.framingCode || panel.cameraShot.replace(/_/g, ' ')}
             </span>
             <span className="text-[9px] font-mono text-[#00DAF3] shrink-0">
               {panel.nestedDocument.timelineDurationSec.toFixed(1)}s
@@ -2270,6 +2709,450 @@ const SingleComicPanelSurface: React.FC<{
 };
 
 // ============================================================================
+// PROJECT CARD + GRAPHIC NOVEL FIELDS (inspector)
+// ============================================================================
+
+const GEOMETRY_OPTIONS: { id: PanelGeometry; name: string }[] = [
+  { id: 'standard-rect', name: 'Standard' },
+  { id: 'open-bleed', name: 'Open bleed splash' },
+  { id: 'widescreen-letterbox', name: 'Widescreen letterbox' },
+  { id: 'slanted-slash-left', name: 'Slash ╲ (left)' },
+  { id: 'slanted-slash-right', name: 'Slash ╲ (right)' },
+  { id: 'wrap-around-l', name: 'L-wrap' },
+  { id: 'circle-reticle', name: 'Circle reticle' },
+  { id: 'vertical-monolith', name: 'Vertical monolith' },
+  { id: 'floating-inset', name: 'Floating inset (PiP)' },
+];
+
+const CAMERA_OPTIONS: CameraAngle[] = [
+  'extreme-wide',
+  'wide',
+  'medium',
+  'close-up',
+  'extreme-close-up',
+  'low-angle-heroic',
+  'high-angle-dutch',
+  'over-the-shoulder',
+  'bird-eye',
+  'worm-eye',
+];
+
+const fieldCls = 'w-full px-2 rounded-[8px] text-[.68rem] text-white/85 outline-none';
+
+const ComicProjectCard: React.FC<{ ctrl: TelaComicVariant2Controller }> = ({ ctrl }) => {
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const [open, setOpen] = useState(false);
+  const p = ctrl.project;
+  const panelCount = p.pages.reduce((n, pg) => n + pg.panels.length, 0);
+  const saveLabel =
+    ctrl.saveState === 'saving' ? 'Saving…' : ctrl.saveState === 'saved' ? 'Saved on this device' : ctrl.saveState === 'error' ? 'Save failed' : 'Not saved yet';
+
+  return (
+    <div className="px-3 py-2.5 flex flex-col gap-2 shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+      <div className="flex items-center justify-between gap-2">
+        <span className={panelLbl}>Project</span>
+        <span
+          className="text-[9px] font-bold"
+          style={{ color: ctrl.saveState === 'error' ? '#f87171' : ctrl.saveState === 'saved' ? '#34d399' : 'rgba(255,255,255,0.45)' }}
+        >
+          {saveLabel}
+        </span>
+      </div>
+      <input
+        value={p.title}
+        onChange={(e) => ctrl.renameProject(e.target.value)}
+        className={`${fieldCls} h-8 font-bold`}
+        style={telaInputStyle}
+        aria-label="Project title"
+      />
+      <div className="text-[9.5px] text-white/45">
+        {p.format.replace('-', ' ')} · {p.pages.length} pages · {panelCount} panels
+        {p.source ? ' · from showcase' : ''}
+      </div>
+      <div className="grid grid-cols-2 gap-1.5">
+        <button
+          onClick={() => setOpen((v) => !v)}
+          className="h-7 rounded-[8px] text-[.64rem] font-bold text-white flex items-center justify-center gap-1"
+          style={{ background: 'var(--pj-grad-brand, linear-gradient(135deg,#6B0099,#D40055))' }}
+        >
+          <BookOpen size={11} /> Open…
+        </button>
+        <button
+          onClick={() => ctrl.setReadMode((v) => !v)}
+          className="h-7 rounded-[8px] text-[.64rem] font-bold flex items-center justify-center gap-1 border"
+          style={{
+            background: ctrl.readMode ? 'rgba(0,218,243,0.18)' : 'rgba(255,255,255,0.05)',
+            borderColor: ctrl.readMode ? 'rgba(0,218,243,0.5)' : 'rgba(255,255,255,0.1)',
+            color: ctrl.readMode ? '#8ff5ff' : 'rgba(255,255,255,0.8)',
+          }}
+          title="Preview as the reader sees it"
+        >
+          {ctrl.readMode ? <PenLine size={11} /> : <Eye size={11} />} {ctrl.readMode ? 'Back to edit' : 'Read'}
+        </button>
+      </div>
+      <label className="flex items-center gap-2 text-[.64rem] text-white/70 cursor-pointer">
+        <input type="checkbox" checked={ctrl.loopsEnabled} onChange={(e) => ctrl.setLoopsEnabled(e.target.checked)} />
+        Play living panel loops
+      </label>
+      {ctrl.projectError && <div className="text-[10px] text-red-300">{ctrl.projectError}</div>}
+
+      {open && (
+        <div className="flex flex-col gap-1.5 rounded-[10px] p-2" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <div className={panelLbl}>Showcase books</div>
+          {ctrl.showcaseCatalog.length === 0 && <div className="text-[10px] text-white/40">Loading…</div>}
+          {ctrl.showcaseCatalog.map((b) => (
+            <button
+              key={b.id}
+              onClick={() => {
+                void ctrl.openShowcase(b.id);
+                setOpen(false);
+              }}
+              className="text-left px-2 py-1.5 rounded-[8px] hover:bg-white/[0.06]"
+              style={{ background: p.source?.showcaseId === b.id ? 'rgba(212,0,85,0.16)' : 'transparent' }}
+            >
+              <div className="text-[.68rem] font-bold text-white truncate">{b.title}</div>
+              <div className="text-[9px] text-white/40">
+                {b.pageCount} pages · {b.panelCount} panels{b.hasArt ? ' · art' : ' · script only'}
+              </div>
+            </button>
+          ))}
+
+          {ctrl.savedProjects.length > 0 && <div className={`${panelLbl} mt-1`}>Saved on this device</div>}
+          {ctrl.savedProjects.map((s) => (
+            <div key={s.id} className="flex items-center gap-1">
+              <button
+                onClick={() => {
+                  void ctrl.openSavedProject(s.id);
+                  setOpen(false);
+                }}
+                className="flex-1 min-w-0 text-left px-2 py-1.5 rounded-[8px] hover:bg-white/[0.06]"
+                style={{ background: p.id === s.id ? 'rgba(212,0,85,0.16)' : 'transparent' }}
+              >
+                <div className="text-[.68rem] font-bold text-white truncate">{s.title}</div>
+                <div className="text-[9px] text-white/40">
+                  {s.pageCount} pages · {new Date(s.updatedAt).toLocaleString()}
+                </div>
+              </button>
+              {p.id !== s.id && (
+                <button
+                  onClick={() => {
+                    if (window.confirm(`Delete "${s.title}" from this device?`)) void ctrl.deleteSavedProject(s.id);
+                  }}
+                  className="p-1 rounded-[7px] hover:bg-red-500/20 text-white/40 hover:text-red-400"
+                  title="Delete saved project"
+                >
+                  <Trash2 size={12} />
+                </button>
+              )}
+            </div>
+          ))}
+
+          <div className={`${panelLbl} mt-1`}>New</div>
+          <div className="grid grid-cols-2 gap-1">
+            {(['comic', 'manga', 'graphic-novel', 'storybook'] as ComicProjectFormat[]).map((f) => (
+              <button
+                key={f}
+                onClick={() => {
+                  ctrl.newProject(f);
+                  setOpen(false);
+                }}
+                className="h-7 rounded-[7px] text-[.62rem] font-bold text-white/80 bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 capitalize"
+              >
+                {f.replace('-', ' ')}
+              </button>
+            ))}
+          </div>
+
+          <div className={`${panelLbl} mt-1`}>File</div>
+          <div className="grid grid-cols-2 gap-1">
+            <button onClick={() => fileRef.current?.click()} className="h-7 rounded-[7px] text-[.62rem] font-bold text-white/80 bg-white/[0.05] hover:bg-white/[0.1] border border-white/10">
+              Import project
+            </button>
+            <button onClick={ctrl.exportProjectFile} className="h-7 rounded-[7px] text-[.62rem] font-bold text-white/80 bg-white/[0.05] hover:bg-white/[0.1] border border-white/10">
+              Export project
+            </button>
+            <button onClick={ctrl.exportShowcaseJson} className="h-7 rounded-[7px] text-[.62rem] font-bold text-white/80 bg-white/[0.05] hover:bg-white/[0.1] border border-white/10" title="Showcase format, for Lorea and the Council V4 reader">
+              Export showcase
+            </button>
+            {p.source && (
+              <button
+                onClick={() => {
+                  if (window.confirm('Discard your edits and reload this book from its source?')) void ctrl.resetProjectToSource();
+                }}
+                className="h-7 rounded-[7px] text-[.62rem] font-bold text-red-300/90 bg-white/[0.05] hover:bg-red-500/15 border border-white/10"
+              >
+                Reset to source
+              </button>
+            )}
+          </div>
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".json,application/json"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) void ctrl.importProjectFile(f);
+              e.target.value = '';
+              setOpen(false);
+            }}
+          />
+        </div>
+      )}
+    </div>
+  );
+};
+
+/** Showcase-grade panel fields: geometry, framing, briefs, source timecode, loop, SAM, reframe. */
+const PanelGraphicNovelFields: React.FC<{ ctrl: TelaComicVariant2Controller }> = ({ ctrl }) => {
+  const panel = ctrl.activePanel;
+  const page = ctrl.activePage;
+  if (!panel || !page) return null;
+  const set = (patch: Partial<ComicPanelNode>) => ctrl.updateActivePanel((p) => ({ ...p, ...patch }));
+  const relayoutWith = (patch: Partial<ComicPanelNode>) =>
+    ctrl.updateActivePage((pg) => {
+      const panels = pg.panels.map((p) => (p.id === panel.id ? { ...p, ...patch } : p));
+      if (pg.presetId !== 'flex-rows') return { ...pg, panels };
+      const laid = relayoutPanels(panels);
+      return { ...pg, panels: laid.panels, aspect: laid.aspect };
+    });
+  const video = panel.video;
+  const loop = video?.loop;
+  const reframe = panel.reframe ?? { panXPct: 0, panYPct: 0, zoom: 1 };
+  const anchor = video?.anchorTimecodeSeconds ?? video?.timecodeSeconds;
+
+  /** Pulls a new still from the source film (Mux thumbnail) — the ±1 min timecode scrub. */
+  const scrubTo = (t: number) => {
+    if (!video?.muxPlaybackId) return;
+    set({
+      renderedImageUrl: `https://image.mux.com/${video.muxPlaybackId}/thumbnail.jpg?time=${t.toFixed(1)}&width=960`,
+      video: { ...video, anchorTimecodeSeconds: Math.round(t * 10) / 10 },
+    });
+  };
+
+  return (
+    <>
+      <div>
+        <div className={panelLbl}>Panel P{panel.globalPanelNumber ?? panel.order} · Frame</div>
+        <div className="grid grid-cols-2 gap-1.5 mt-1.5">
+          <select
+            value={panel.geometry ?? 'standard-rect'}
+            onChange={(e) => relayoutWith({ geometry: e.target.value as PanelGeometry })}
+            className={`${fieldCls} h-7`}
+            style={telaSelectStyle}
+            aria-label="Panel geometry"
+          >
+            {GEOMETRY_OPTIONS.map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.name}
+              </option>
+            ))}
+          </select>
+          <select
+            value={panel.cameraAngle ?? 'medium'}
+            onChange={(e) => set({ cameraAngle: e.target.value as CameraAngle })}
+            className={`${fieldCls} h-7`}
+            style={telaSelectStyle}
+            aria-label="Camera angle"
+          >
+            {CAMERA_OPTIONS.map((c) => (
+              <option key={c} value={c}>
+                {c.replace(/-/g, ' ')}
+              </option>
+            ))}
+          </select>
+        </div>
+        {page.presetId === 'flex-rows' && (
+          <label className="flex items-center justify-between gap-2 mt-1.5 text-[.64rem] text-white/60">
+            Width in row (of 12)
+            <input
+              type="number"
+              min={1}
+              max={12}
+              value={panel.flex ?? 12}
+              onChange={(e) => relayoutWith({ flex: Math.max(1, Math.min(12, Number(e.target.value) || 12)) })}
+              className={`${fieldCls} h-7 w-16`}
+              style={telaInputStyle}
+            />
+          </label>
+        )}
+      </div>
+
+      <div>
+        <div className={panelLbl}>Art brief</div>
+        <textarea
+          value={panel.artBrief ?? panel.prompt}
+          onChange={(e) => set({ artBrief: e.target.value, prompt: e.target.value })}
+          rows={3}
+          className={`${fieldCls} py-1.5 mt-1.5 resize-y`}
+          style={telaInputStyle}
+        />
+        <div className={`${panelLbl} mt-2`}>Generation prompt</div>
+        <textarea
+          value={panel.generationPrompt ?? ''}
+          onChange={(e) => set({ generationPrompt: e.target.value })}
+          rows={3}
+          className={`${fieldCls} py-1.5 mt-1.5 resize-y`}
+          style={telaInputStyle}
+        />
+      </div>
+
+      {video && (
+        <div>
+          <div className={panelLbl}>Source film · living loop</div>
+          {video.muxPlaybackId && anchor != null && (
+            <label className="block mt-1.5 text-[.62rem] text-white/60">
+              Still at {anchor.toFixed(1)}s (±60s)
+              <input
+                type="range"
+                min={Math.max(0, (video.timecodeSeconds ?? anchor) - 60)}
+                max={(video.timecodeSeconds ?? anchor) + 60}
+                step={0.5}
+                value={anchor}
+                onChange={(e) => scrubTo(Number(e.target.value))}
+                className="w-full"
+              />
+            </label>
+          )}
+          <label className="flex items-center gap-2 mt-1.5 text-[.64rem] text-white/70 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={!!loop?.enabled}
+              disabled={!video.sourceVideoUrl}
+              onChange={(e) => {
+                const start = loop?.timeRange[0] ?? anchor ?? 0;
+                set({
+                  video: {
+                    ...video,
+                    loop: {
+                      enabled: e.target.checked,
+                      motionType: loop?.motionType ?? 'cinemagraph',
+                      timeRange: loop?.timeRange ?? [start, start + 4.5],
+                      fps: loop?.fps ?? 24,
+                    },
+                  },
+                });
+              }}
+            />
+            Loop the source film in this panel
+          </label>
+          {loop?.enabled && (
+            <div className="grid grid-cols-2 gap-1.5 mt-1.5">
+              {([0, 1] as const).map((i) => (
+                <label key={i} className="text-[.6rem] text-white/50">
+                  {i === 0 ? 'Start (s)' : 'End (s)'}
+                  <input
+                    type="number"
+                    step={0.5}
+                    value={loop.timeRange[i]}
+                    onChange={(e) => {
+                      const tr: [number, number] = [...loop.timeRange] as [number, number];
+                      tr[i] = Number(e.target.value) || 0;
+                      if (tr[1] - tr[0] > 15) tr[1] = tr[0] + 15;
+                      set({ video: { ...video, loop: { ...loop, timeRange: tr } } });
+                    }}
+                    className={`${fieldCls} h-7 mt-0.5`}
+                    style={telaInputStyle}
+                  />
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      <div>
+        <div className="flex items-center justify-between">
+          <span className={panelLbl}>Hand reframe</span>
+          <button
+            onClick={() => ctrl.setActiveTool(ctrl.activeTool === 'reframe' ? 'select' : 'reframe')}
+            className="text-[.6rem] font-bold px-2 h-6 rounded-[7px]"
+            style={{
+              background: ctrl.activeTool === 'reframe' ? 'rgba(0,218,243,0.18)' : 'rgba(255,255,255,0.05)',
+              color: ctrl.activeTool === 'reframe' ? '#8ff5ff' : 'rgba(255,255,255,0.7)',
+            }}
+          >
+            {ctrl.activeTool === 'reframe' ? 'Dragging pans art' : 'Drag to pan'}
+          </button>
+        </div>
+        <label className="block mt-1.5 text-[.62rem] text-white/60">
+          Zoom {reframe.zoom.toFixed(2)}×
+          <input
+            type="range"
+            min={1}
+            max={3}
+            step={0.01}
+            value={reframe.zoom}
+            onChange={(e) => set({ reframe: { ...reframe, zoom: Number(e.target.value) } })}
+            className="w-full"
+          />
+        </label>
+        {(reframe.zoom !== 1 || reframe.panXPct !== 0 || reframe.panYPct !== 0) && (
+          <button onClick={() => set({ reframe: undefined })} className="text-[.6rem] font-bold text-[#D0BCFF] hover:underline">
+            Reset framing
+          </button>
+        )}
+      </div>
+
+      {panel.subject && (
+        <label className="flex items-center gap-2 text-[.64rem] text-white/70 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={panel.subject.enabled}
+            onChange={(e) => set({ subject: { ...panel.subject!, enabled: e.target.checked } })}
+          />
+          2.5D subject lift · {panel.subject.subjectName}
+        </label>
+      )}
+    </>
+  );
+};
+
+const PageMetaFields: React.FC<{ ctrl: TelaComicVariant2Controller }> = ({ ctrl }) => {
+  const page = ctrl.activePage;
+  if (!page) return null;
+  const meta = page.meta ?? {};
+  const setMeta = (patch: Partial<NonNullable<ComicPageDocument['meta']>>) =>
+    ctrl.updateActivePage((pg) => ({ ...pg, meta: { ...pg.meta, ...patch } }));
+  return (
+    <div>
+      <div className={panelLbl}>Page</div>
+      <input
+        value={page.title}
+        onChange={(e) => ctrl.updateActivePage((pg) => ({ ...pg, title: e.target.value }))}
+        className={`${fieldCls} h-7 mt-1.5 font-bold`}
+        style={telaInputStyle}
+        aria-label="Page title"
+      />
+      <div className="grid grid-cols-[64px_1fr] gap-1.5 mt-1.5">
+        <input
+          value={meta.act ?? ''}
+          onChange={(e) => setMeta({ act: e.target.value })}
+          placeholder="Act"
+          className={`${fieldCls} h-7`}
+          style={telaInputStyle}
+        />
+        <input
+          value={meta.slugline ?? ''}
+          onChange={(e) => setMeta({ slugline: e.target.value })}
+          placeholder="INT. LOCATION - NIGHT"
+          className={`${fieldCls} h-7`}
+          style={telaInputStyle}
+        />
+      </div>
+      <textarea
+        value={meta.sequenceBeat ?? ''}
+        onChange={(e) => setMeta({ sequenceBeat: e.target.value })}
+        placeholder="What happens on this page"
+        rows={2}
+        className={`${fieldCls} py-1.5 mt-1.5 resize-y`}
+        style={telaInputStyle}
+      />
+    </div>
+  );
+};
+
+// ============================================================================
 // 3. SPLIT RIGHT INSPECTOR (100% Real Tela Right Sidebar Design Language)
 // ============================================================================
 export const TelaComicSplitRightInspector: React.FC<{
@@ -2280,6 +3163,7 @@ export const TelaComicSplitRightInspector: React.FC<{
 
   return (
     <div className="flex-1 min-h-0 flex flex-col overflow-hidden select-none text-white">
+      <ComicProjectCard ctrl={ctrl} />
       {/* Top Action Stack (Matches exact 3 gradient buttons + URL input in TelaView.tsx lines 3720-3740!) */}
       <div
         className="px-3 py-2.5 flex flex-col gap-2 shrink-0"
@@ -2347,7 +3231,7 @@ export const TelaComicSplitRightInspector: React.FC<{
             style={telaInputStyle}
             title="Switch Active Page Panel Grid Layout"
           >
-            {PANEL_LAYOUT_PRESETS.map((pr) => (
+            {PAGE_PRESET_OPTIONS(ctrl.activePage).map((pr) => (
               <option key={pr.id} value={pr.id} style={{ background: '#17131d' }}>
                 {pr.name}
               </option>
@@ -2468,21 +3352,8 @@ export const TelaComicSplitRightInspector: React.FC<{
               </div>
             </div>
 
-            <div>
-              <div className={panelLbl}>Editable Living Book Template</div>
-              <select
-                value={ctrl.selectedShowcaseBookId}
-                onChange={(e) => ctrl.loadShowcaseBook(e.target.value)}
-                className="mt-1.5 w-full h-8 px-2.5 rounded-[8px] text-[.68rem] text-white/85 outline-none"
-                style={telaSelectStyle}
-              >
-                {LIVING_SHOWCASE_BOOKS.map((bk) => (
-                  <option key={bk.id} value={bk.id}>
-                    {bk.title} ({bk.category})
-                  </option>
-                ))}
-              </select>
-            </div>
+            <PageMetaFields ctrl={ctrl} />
+            <PanelGraphicNovelFields ctrl={ctrl} />
           </>
         )}
 
@@ -2654,6 +3525,9 @@ export const TelaComicSplitRightInspector: React.FC<{
                 >
                   <option value="SPEECH">Speech Oval</option>
                   <option value="THOUGHT">Thought Cloud</option>
+                  <option value="WHISPER">Whisper</option>
+                  <option value="COMMS">Comms / Radio</option>
+                  <option value="MONSTER">Monster</option>
                   <option value="SHOUT">Spiky Shout</option>
                   <option value="NARRATION_CAPTION">Caption Box</option>
                 </select>
