@@ -263,25 +263,9 @@ const PadRoom: React.FC = () => {
     setPasteModalOpen(true);
   }, []);
 
-  if (!selectedSong) {
-    return (
-      <div className="h-full flex items-center justify-center p-10 text-center">
-        <div>
-          <p className="text-sm m-0" style={{ color: 'var(--mel-dim)' }}>Nothing here yet.</p>
-          <button
-            onClick={addSong}
-            className="mt-4 px-4 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-[0.16em]"
-            style={{ background: 'var(--mel-accent)', color: '#12101A', border: 0 }}
-          >Start the first song</button>
-        </div>
-      </div>
-    );
-  }
+  const blocks = selectedSong?.lyrics || [];
 
-  const song = selectedSong;
-  const blocks = song.lyrics || [];
-
-  // Build rhyme color map across current song lines
+  // Build rhyme color map across current song lines (must run unconditionally before early return)
   const rhymeColorMap = useMemo(() => {
     const counts = new Map<string, number>();
     blocks.forEach(b => b.lines.forEach(l => {
@@ -298,6 +282,69 @@ const PadRoom: React.FC = () => {
     });
     return map;
   }, [blocks]);
+
+  const sheetNotes: SongSheetNote[] = useMemo(() => {
+    if (!selectedSong) return [];
+    if (selectedSong.sheetNotes && selectedSong.sheetNotes.length > 0) return selectedSong.sheetNotes;
+    return autoBuildSheetNotesFromSong(blocks, selectedSong.keySig || selectedSong.feel?.keySig);
+  }, [selectedSong, blocks]);
+
+  const notation = useMemo(() => {
+    const keyInfo = KEY_FIFTHS_MAP[selectedSong?.keySig || selectedSong?.feel?.keySig || 'C'] || KEY_FIFTHS_MAP['C'];
+    const [beatsNum, beatDen] = (selectedSong?.timeSig || '4/4').split('/').map(Number);
+    const maxBeat = sheetNotes.reduce((m, n) => Math.max(m, n.startBeat + n.durBeats), 16);
+    const bpm = selectedSong?.tempo || selectedSong?.feel?.bpm || 96;
+    const t: Transcription = {
+      bpm,
+      firstBeatSec: 0,
+      key: keyInfo.key,
+      mode: keyInfo.mode,
+      keyFifths: keyInfo.fifths,
+      beatsPerMeasure: beatsNum || 4,
+      beatUnit: beatDen || 4,
+      durationSec: (maxBeat * 60) / bpm,
+      confidence: 1,
+      backend: 'poly-dsp',
+      polyphonic: true,
+      notes: sheetNotes.map(n => ({
+        midi: n.midi,
+        startBeat: n.startBeat,
+        durBeats: n.durBeats,
+        startSec: (n.startBeat * 60) / bpm,
+        durSec: (n.durBeats * 60) / bpm,
+        velocity: 0.82,
+        voice: n.voice || 'melody',
+      })),
+    };
+    const inputNotes: NInputNote[] = sheetNotes.map(n => ({
+      midi: n.midi,
+      startBeat: n.startBeat,
+      durBeats: n.durBeats,
+      voice: n.voice || 'melody',
+      lyric: n.lyric,
+    }));
+    return buildNotation(t, [
+      { label: 'Vocal / Lead', clef: 'treble', voice: 'melody', notes: inputNotes.filter(x => x.voice === 'melody') },
+      { label: 'Harmony / Bass', clef: 'bass', voice: 'bass', notes: inputNotes.filter(x => x.voice === 'bass') },
+    ]);
+  }, [sheetNotes, selectedSong?.keySig, selectedSong?.feel?.keySig, selectedSong?.timeSig, selectedSong?.tempo, selectedSong?.feel?.bpm]);
+
+  if (!selectedSong) {
+    return (
+      <div className="h-full flex items-center justify-center p-10 text-center">
+        <div>
+          <p className="text-sm m-0" style={{ color: 'var(--mel-dim)' }}>Nothing here yet.</p>
+          <button
+            onClick={addSong}
+            className="mt-4 px-4 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-[0.16em]"
+            style={{ background: 'var(--mel-accent)', color: '#12101A', border: 0 }}
+          >Start the first song</button>
+        </div>
+      </div>
+    );
+  }
+
+  const song = selectedSong;
 
   const writeBlocks = (next: LyricBlock[]) => {
     draftRef.current = {};
@@ -385,51 +432,6 @@ const PadRoom: React.FC = () => {
   };
 
   // ── Sheet Music Notation Builder & Playback ────────────────────────────────
-  const sheetNotes: SongSheetNote[] = useMemo(() => {
-    if (song.sheetNotes && song.sheetNotes.length > 0) return song.sheetNotes;
-    return autoBuildSheetNotesFromSong(blocks, song.keySig || song.feel?.keySig);
-  }, [song.sheetNotes, blocks, song.keySig, song.feel?.keySig]);
-
-  const notation = useMemo(() => {
-    const keyInfo = KEY_FIFTHS_MAP[song.keySig || song.feel?.keySig || 'C'] || KEY_FIFTHS_MAP['C'];
-    const [beatsNum, beatDen] = (song.timeSig || '4/4').split('/').map(Number);
-    const maxBeat = sheetNotes.reduce((m, n) => Math.max(m, n.startBeat + n.durBeats), 16);
-    const bpm = song.tempo || song.feel?.bpm || 96;
-    const t: Transcription = {
-      bpm,
-      firstBeatSec: 0,
-      key: keyInfo.key,
-      mode: keyInfo.mode,
-      keyFifths: keyInfo.fifths,
-      beatsPerMeasure: beatsNum || 4,
-      beatUnit: beatDen || 4,
-      durationSec: (maxBeat * 60) / bpm,
-      confidence: 1,
-      backend: 'poly-dsp',
-      polyphonic: true,
-      notes: sheetNotes.map(n => ({
-        midi: n.midi,
-        startBeat: n.startBeat,
-        durBeats: n.durBeats,
-        startSec: (n.startBeat * 60) / bpm,
-        durSec: (n.durBeats * 60) / bpm,
-        velocity: 0.82,
-        voice: n.voice || 'melody',
-      })),
-    };
-    const inputNotes: NInputNote[] = sheetNotes.map(n => ({
-      midi: n.midi,
-      startBeat: n.startBeat,
-      durBeats: n.durBeats,
-      voice: n.voice || 'melody',
-      lyric: n.lyric,
-    }));
-    return buildNotation(t, [
-      { label: 'Vocal / Lead', clef: 'treble', voice: 'melody', notes: inputNotes.filter(x => x.voice === 'melody') },
-      { label: 'Harmony / Bass', clef: 'bass', voice: 'bass', notes: inputNotes.filter(x => x.voice === 'bass') },
-    ]);
-  }, [sheetNotes, song.keySig, song.feel?.keySig, song.timeSig, song.tempo, song.feel?.bpm]);
-
   const appendSheetNote = () => {
     const voiceNotes = sheetNotes.filter(n => n.voice === noteVoice);
     const nextStartBeat = voiceNotes.reduce((m, n) => Math.max(m, n.startBeat + n.durBeats), 0);

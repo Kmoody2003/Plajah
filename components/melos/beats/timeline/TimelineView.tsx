@@ -6,11 +6,13 @@
 // right-edge grip = trim (beat snap) · click = select · Delete = remove · drop audio = clip.
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ChevronDown, ChevronUp, Plus, Music2, AudioWaveform, Piano, Circle, MousePointer2, Pencil, Scissors, Combine, Eraser, Scan, LocateFixed, FolderPlus } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, Music2, AudioWaveform, Piano, Circle, MousePointer2, Pencil, Scissors, Combine, Eraser, Scan, LocateFixed, FolderPlus, Sparkles, Layers, Loader2 } from 'lucide-react';
 import { unzipSync } from 'fflate';
-import type { GrooveDoc, Pattern, TimelineClip } from '../../../../services/melos/beats/grooveDoc';
+import type { GrooveDoc, Pattern, TimelineClip, InstrumentType } from '../../../../services/melos/beats/grooveDoc';
 import { grooveUid } from '../../../../services/melos/beats/grooveDoc';
-import { sendInstrumentTrackToPad } from '../../../../services/melos/beats/instrumentFactory';
+import { sendInstrumentTrackToPad, addInstrument } from '../../../../services/melos/beats/instrumentFactory';
+import { runHolisticEnsemblePipeline } from '../../../../services/melos/generation/holisticEnsemblePipeline';
+import { ensembleVoicePatch } from '../../../../services/melos/generation/instrumentKnowledge';
 import ProgressionBrowser from '../composer/ProgressionBrowser';
 import HumRecorder from '../composer/HumRecorder';
 import PromptComposer from '../composer/PromptComposer';
@@ -705,6 +707,200 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
   // Draggable loop/cycle region on the ruler — move the body, drag either edge to resize; snaps
   // to the bar grid, and turns the loop on the moment you touch it.
   const loop = p.doc.loop ?? { on: false, startBeats: 0, endBeats: BEATS_PER_BAR * 4 };
+  const [regionGenMode, setRegionGenMode] = useState<'stems' | 'holistic' | 'idea' | 'full_song'>('stems');
+  const [regionPrompt, setRegionPrompt] = useState('');
+  const [partInstrument, setPartInstrument] = useState<InstrumentType>('onda');
+  const [regionGenerating, setRegionGenerating] = useState(false);
+  const [regionStatus, setRegionStatus] = useState('');
+  const wholeGeneration = regionGenMode === 'holistic' || regionGenMode === 'full_song';
+  const generationBeats = wholeGeneration ? Math.max(32 * BEATS_PER_BAR, loop.endBeats - loop.startBeats)
+    : loop.endBeats - loop.startBeats;
+  const regionOperation = useRef<AbortController | null>(null);
+  useEffect(() => () => { regionOperation.current?.abort(); }, [p.doc.id]);
+
+  const setRegionBarsSpan = (barsCount: number) => {
+    const startBarBeat = Math.max(0, Math.floor((loop.startBeats || 0) / BEATS_PER_BAR) * BEATS_PER_BAR);
+    p.onMutate((d) => {
+      d.loop = {
+        on: true,
+        startBeats: startBarBeat,
+        endBeats: startBarBeat + Math.max(1, barsCount) * BEATS_PER_BAR,
+      };
+    });
+  };
+
+  const generateInTimelineRegion = async () => {
+    if (regionGenerating) return;
+    const effectivePrompt = (regionPrompt.trim() || "a cinematic hip hop instrumental 90's vibe and jazz sample running in reverse");
+    setRegionGenerating(true);
+    const operation = new AbortController();
+    regionOperation.current = operation;
+    setRegionStatus('Connecting local music engines…');
+    try {
+      const wholeProject = regionGenMode === 'full_song' || regionGenMode === 'holistic';
+      const startBeat = wholeProject ? 0 : Math.max(0, Math.floor(loop.startBeats / BEATS_PER_BAR) * BEATS_PER_BAR);
+      const regionBeats = wholeProject
+        ? Math.max(32 * BEATS_PER_BAR, loop.endBeats - loop.startBeats)
+        : Math.max(BEATS_PER_BAR, loop.endBeats - loop.startBeats);
+      const regionBars = Math.max(1, Math.round(regionBeats / BEATS_PER_BAR));
+      const spb = 60 / p.doc.bpm;
+      const exactDurationSec = Math.max(2, Math.min(360, regionBeats * spb));
+
+      const ensembleOut = await runHolisticEnsemblePipeline({
+        prompt: effectivePrompt,
+        lyrics: '',
+        bpm: p.doc.bpm,
+        keySignature: p.doc.showcaseMetadata?.keySignature || 'D Minor',
+        startBeats: startBeat,
+        regionBeats,
+        seed: 42,
+        includeMidi: regionGenMode === 'holistic' || regionGenMode === 'idea',
+        includeAudio: regionGenMode !== 'idea',
+        midiInstrument: regionGenMode === 'idea' ? partInstrument : undefined,
+        signal: operation.signal,
+        onProgress: (stage) => setRegionStatus(stage),
+      });
+      const genOut = { stems: ensembleOut.audioStems, audioBlob: ensembleOut.masterAudioBlob };
+      operation.signal.throwIfAborted();
+
+      const engine = BeatsEngine.get();
+      await engine.init();
+      const ctx = engine.getContext();
+      if (!ctx) throw new Error('Audio engine unavailable');
+
+      if (genOut.stems.length || ensembleOut.midiTracks.length) {
+        const ingestedStems: { name: string; color: string; key: string; dur: number; peaks: number[] }[] = [];
+        for (const stem of genOut.stems) {
+          const sampleRes = await ingestSample(stem.blob, stem.name, ctx);
+          if (!sampleRes) throw new Error('Could not decode the generated audio; no tracks were inserted.');
+          engine.setSampleBuffer(sampleRes.ref.key, sampleRes.buffer);
+          ingestedStems.push({
+            name: stem.name,
+            color: stem.color,
+            key: sampleRes.ref.key,
+            dur: sampleRes.buffer.duration,
+            peaks: audioPeaks(sampleRes.buffer),
+          });
+        }
+        operation.signal.throwIfAborted();
+        p.onMutate((d) => {
+          d.loop = { on: true, startBeats: startBeat, endBeats: startBeat + regionBeats };
+          d.sectionMarkers = [
+            ...(d.sectionMarkers || []),
+            ...ensembleOut.sectionCues.map((cue, index) => ({ ...cue, id: grooveUid(),
+              romanNumeral: ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'][index] || String(index + 1) })),
+          ];
+          for (const st of ingestedStems) {
+            let track = d.arrangement.find((t) => t.kind === 'audio' && !t.foreign && t.name === st.name);
+            if (!track) {
+              track = {
+                id: grooveUid(),
+                kind: 'audio',
+                name: st.name,
+                color: st.color,
+                mute: false,
+                solo: false,
+                gainDb: ensembleOut.midiTracks.length ? -6 : 0,
+                pan: 0,
+                clips: [],
+              };
+              d.arrangement.push(track);
+            }
+            track.clips.push({
+              id: grooveUid(),
+              startBeats: startBeat,
+              lengthBeats: Math.min(regionBeats, st.dur / spb),
+              color: st.color,
+              audio: {
+                sampleKey: st.key,
+                name: `${st.name} (${regionBars} bars)`,
+                offsetSec: 0,
+                gainDb: 0,
+                durationSec: st.dur,
+                peaks: st.peaks,
+              },
+            });
+          }
+          if (ensembleOut.midiTracks.length) {
+            for (const midiSpec of ensembleOut.midiTracks) {
+              let mTrack = d.arrangement.find((t) => t.kind === 'instrument' && !t.padOwned && !t.foreign && t.name === midiSpec.name);
+              if (!mTrack) {
+                const newTrackId = addInstrument(d, midiSpec.instrument, ensembleVoicePatch(midiSpec), midiSpec.presetName);
+                mTrack = d.arrangement.find((t) => t.id === newTrackId);
+                if (mTrack) {
+                  mTrack.name = midiSpec.name;
+                  mTrack.color = midiSpec.color;
+                  mTrack.gainDb = midiSpec.gainDb;
+                  mTrack.pan = midiSpec.pan;
+                }
+              }
+              if (mTrack) {
+                mTrack.clips.push({
+                  id: grooveUid(),
+                  startBeats: startBeat,
+                  lengthBeats: regionBeats,
+                  color: midiSpec.color,
+                  notes: midiSpec.notes.map((n) => ({ ...n, id: grooveUid() })),
+                });
+              }
+            }
+          }
+        });
+        engine.syncInstruments();
+        setRegionStatus(
+          ensembleOut.midiTracks.length
+            ? `Inserted ${genOut.stems.length ? 'complementary audio + ' : ''}${ensembleOut.midiTracks.length} active synth parts. Models: ${ensembleOut.modelsUsed.join(', ')}. Audition the blend; audio timing and harmony can vary.`
+            : `Inserted local music track (${exactDurationSec.toFixed(1)}s requested).`
+        );
+      } else if (genOut.audioBlob) {
+        const clipName = `${effectivePrompt.slice(0, 28)} (${regionBars} bars)`;
+        const sampleRes = await ingestSample(genOut.audioBlob, clipName, ctx);
+        if (sampleRes) {
+          engine.setSampleBuffer(sampleRes.ref.key, sampleRes.buffer);
+          const peaks = audioPeaks(sampleRes.buffer);
+          p.onMutate((d) => {
+            d.loop = { on: true, startBeats: startBeat, endBeats: startBeat + regionBeats };
+            let track = d.arrangement.find((t) => t.kind === 'audio' && !t.foreign && t.id === selectedTrack)
+              || d.arrangement.find((t) => t.kind === 'audio' && !t.foreign);
+            if (!track) {
+              track = {
+                id: grooveUid(),
+                kind: 'audio',
+                name: 'Region Idea Stem',
+                color: '#00DAF3',
+                mute: false,
+                solo: false,
+                gainDb: 0,
+                pan: 0,
+                clips: [],
+              };
+              d.arrangement.push(track);
+            }
+            track.clips.push({
+              id: grooveUid(),
+              startBeats: startBeat,
+              lengthBeats: regionBeats,
+              color: '#00DAF3',
+              audio: {
+                sampleKey: sampleRes.ref.key,
+                name: clipName,
+                offsetSec: 0,
+                gainDb: 0,
+                durationSec: sampleRes.buffer.duration,
+                peaks,
+              },
+            });
+          });
+          setRegionStatus(`Inserted region idea across Bars ${Math.floor(startBeat / BEATS_PER_BAR) + 1}–${Math.floor((startBeat + regionBeats) / BEATS_PER_BAR)}`);
+        }
+      }
+    } catch (err) {
+      setRegionStatus(operation.signal.aborted ? 'Generation cancelled.' : err instanceof Error ? err.message : 'Could not generate in region');
+    } finally {
+      if (regionOperation.current === operation) regionOperation.current = null;
+      setRegionGenerating(false);
+    }
+  };
   const dragLoop = (mode: 'move' | 'l' | 'r') => (e: React.PointerEvent) => {
     e.stopPropagation();
     const rect = (e.currentTarget as HTMLElement).parentElement!.getBoundingClientRect();
@@ -727,7 +923,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
   };
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col p-4 pt-3 gap-0">
+    <div className="flex-1 min-w-0 min-h-0 flex flex-col p-4 pt-3 gap-0">
       {marqueeSelection.marquee && <div className="fixed pointer-events-none z-[9998] border border-[#00DAF3] bg-[#00DAF3]/10" style={marqueeSelection.marquee} />}
       {clipMenu.node}
       {instrumentAddMenu.node}
@@ -878,6 +1074,81 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
         </div>
       )}
       <div className={`${glassPanel} flex-1 min-h-0 overflow-hidden flex flex-col`}>
+        {/* Inline Timeline Region Generator Bar (Defaults to Stems in Timeline DAW workflow) */}
+        <div className="flex flex-wrap items-center gap-2 px-3 py-2 border-b border-white/10 bg-[#120C1C]/95 text-[11px]">
+          <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-[#00DAF3]/10 border border-[#00DAF3]/35 text-[#00DAF3] font-mono text-[10px] shrink-0" title="Drag the cyan region handles on the bar ruler below or click a bar preset">
+            <Layers size={12} />
+            {wholeGeneration ? <span>Project: {Math.round(generationBeats / BEATS_PER_BAR)} bars · {(generationBeats * 60 / p.doc.bpm).toFixed(1)}s</span> : <span>
+              Region: Bar {Math.floor(loop.startBeats / BEATS_PER_BAR) + 1}–{Math.floor(loop.endBeats / BEATS_PER_BAR)} ({Math.max(1, Math.round((loop.endBeats - loop.startBeats) / BEATS_PER_BAR))} bars · {((loop.endBeats - loop.startBeats) * (60 / p.doc.bpm)).toFixed(1)}s)
+            </span>}
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            {[4, 8, 16, 32, 64].map((bCount) => {
+              const activeBars = Math.round((loop.endBeats - loop.startBeats) / BEATS_PER_BAR);
+              return (
+                <button
+                  key={bCount}
+                  onClick={() => setRegionBarsSpan(bCount)}
+                  className={`px-1.5 py-0.5 rounded text-[9.5px] font-mono border transition-colors ${
+                    activeBars === bCount
+                      ? 'bg-[#00DAF3]/20 border-[#00DAF3] text-[#00DAF3] font-bold'
+                      : 'bg-white/[0.04] border-white/10 text-white/50 hover:text-white'
+                  }`}
+                  title={`Set selected region length to ${bCount} bars`}
+                >
+                  {bCount}b
+                </button>
+              );
+            })}
+          </div>
+          <div className="flex flex-wrap rounded-lg border border-white/15 bg-black/30 p-0.5 max-w-full" role="group" aria-label="Timeline generation mode">
+            {([
+              ['stems', 'Timeline Part · Audio'],
+              ['idea', 'Timeline Part · MIDI'],
+              ['holistic', 'Full DAW Project'],
+              ['full_song', 'Music Track'],
+            ] as const).map(([modeId, label]) => (
+              <button
+                key={modeId}
+                disabled={regionGenerating}
+                aria-pressed={regionGenMode === modeId}
+                onClick={() => setRegionGenMode(modeId)}
+                className={`px-2.5 py-1 rounded-md text-[10px] font-bold transition-colors ${
+                  regionGenMode === modeId
+                    ? 'bg-[#8B5CFF] text-white shadow-sm'
+                    : 'text-white/55 hover:text-white'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {regionGenMode === 'idea' && <select aria-label="MIDI part instrument" value={partInstrument}
+            onChange={e => setPartInstrument(e.target.value as InstrumentType)} disabled={regionGenerating}
+            className="h-7 rounded-lg bg-[#171020] text-xs text-white border border-white/15 px-2">
+            {(['onda', 'aura', 'soma', 'bajo', 'vela', 'cantus', 'ison', 'pneuma'] as const).map(id =>
+              <option key={id} value={id}>{id.toUpperCase()}</option>)}
+          </select>}
+          <input
+            type="text"
+            value={regionPrompt}
+            maxLength={4000}
+            onChange={(e) => setRegionPrompt(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') void generateInTimelineRegion(); }}
+            placeholder="Describe your part, full DAW arrangement, or music track…"
+            className="flex-1 min-w-[200px] h-7 rounded-lg border border-white/15 bg-[#171020] px-2.5 text-[11px] text-white placeholder:text-white/35 outline-none focus:border-[#00DAF3]/70"
+          />
+          <button
+            onClick={() => void generateInTimelineRegion()}
+            disabled={regionGenerating}
+            className="h-7 px-3 rounded-lg bg-gradient-to-r from-[#8B5CFF] to-[#00DAF3] text-white text-[10.5px] font-bold tracking-wide flex items-center gap-1.5 disabled:opacity-50 shrink-0 shadow-[0_0_12px_rgba(139,92,255,0.35)]"
+          >
+            {regionGenerating ? <><Loader2 size={12} className="animate-spin" /> Generating…</> : <><Sparkles size={12} /> Generate {regionGenMode === 'holistic' ? 'DAW Project' : regionGenMode === 'full_song' ? 'Music Track' : regionGenMode === 'idea' ? 'MIDI Part' : 'Audio Part'}</>}
+          </button>
+          {regionGenerating && <button onClick={() => regionOperation.current?.abort()}
+            className="h-7 px-2 rounded-lg border border-white/20 text-xs text-white">Cancel</button>}
+          {regionStatus && <span className="text-[10px] text-emerald-300 font-medium truncate max-w-[320px]">{regionStatus}</span>}
+        </div>
         <div className="flex-1 min-h-0 flex">
         {showLauncher && (
           <ClipLauncher

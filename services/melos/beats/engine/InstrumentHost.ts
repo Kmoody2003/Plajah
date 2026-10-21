@@ -17,7 +17,7 @@ function secToNorm(sec: number): number {
 
 /** 11 adds AURA (param block 1700+): 1960s & 1970s analogue synthesis circuitry. Bumping this
  *  is what stops a stale committed .wasm from loading against a host that expects the new parameters. */
-export const DSP_ABI_VERSION = 11;
+export const DSP_ABI_VERSION = 12;
 
 /** Output layouts — must mirror `spatial::Layout` in the Rust crate. */
 export enum SpatialLayout {
@@ -45,7 +45,8 @@ const workletLoaded = new WeakSet<BaseAudioContext>();
 
 async function getModule(): Promise<WebAssembly.Module> {
   if (!modulePromise) {
-    modulePromise = fetch(wasmUrl)
+    const bustUrl = `${wasmUrl}${wasmUrl.includes('?') ? '&' : '?'}abi=${DSP_ABI_VERSION}`;
+    modulePromise = fetch(bustUrl, { cache: 'no-cache' })
       .then((r) => {
         if (!r.ok) throw new Error(`DSP core fetch failed: ${r.status}`);
         return r.arrayBuffer();

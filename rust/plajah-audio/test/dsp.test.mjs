@@ -110,7 +110,7 @@ function magAt(sig, freq, sr) {
 
 test('ABI version matches the host contract', async () => {
   const { x } = await boot();
-  assert.equal(x.pa_abi_version(), 11);
+  assert.equal(x.pa_abi_version(), 12);
 });
 
 /** Stage a mono sample into the upload buffer and load it into a slot. Returns the frame count. */
@@ -1262,6 +1262,149 @@ test('AURA: Pulse Gate Chopper (A_GATE_ON) and Analog Flux Randomness (A_FLUX_ON
   let diff = 0;
   for (let i = 0; i < steady.length; i++) diff += Math.abs(steady[i] - modulated[i]);
   assert.ok(diff / steady.length > 0.04, 'Pulse Gate & Analog Flux must significantly modulate sustained notes');
+
+  // ── SOMA: Real-Time Multi-Physics Acoustic Percussion & Chamber Simulator (1800+) ──
+  const SM = {
+    ENABLE: 1800,
+    STRIKER_TYPE: 1801,
+    STRIKER_HARDNESS: 1802,
+    STRIKER_MASS: 1803,
+    STRIKE_POS: 1804,
+    STRIKE_ANGLE: 1805,
+    VEL_HARDNESS: 1806,
+    HAND_BRUSH: 1807,
+    HEAD_DIAMETER: 1810,
+    SKIN_MATERIAL: 1811,
+    MEMBRANE_DECAY: 1812,
+    MEMBRANE_DAMP_HF: 1813,
+    AIR_LOAD: 1814,
+    TENSION_NONLIN: 1815,
+    TENSION_PEDAL: 1816,
+    BUZZ_AMOUNT: 1817,
+    KEYTRACK: 1818,
+    CAVITY_TYPE: 1820,
+    CAVITY_VOLUME: 1821,
+    CAVITY_COUPLING: 1822,
+    PORT_TUNING: 1823,
+    SHELL_MATERIAL: 1824,
+    SHELL_RESONANCE: 1825,
+    SHELL_WARMTH: 1826,
+    MIC_PERSPECTIVE: 1827,
+    ROOM_EARLY: 1828,
+  };
+
+  // 1. 2D Bessel radial strike position: dead center (r/a=0) nulls (1,1) dipole mode; normal spot (r/a=0.65) excites it
+  const strikeAt = async (pos) => {
+    const ctx = await boot();
+    const { x, eng } = ctx;
+    x.pa_set_param(eng, SM.ENABLE, 1.0);
+    x.pa_set_param(eng, SM.STRIKER_TYPE, 0);
+    x.pa_set_param(eng, SM.STRIKE_POS, pos);
+    x.pa_set_param(eng, SM.CAVITY_TYPE, 0);
+    x.pa_set_param(eng, SM.AIR_LOAD, 1.0);
+    x.pa_set_param(eng, SM.TENSION_NONLIN, 0.0);
+    x.pa_set_param(eng, SM.HAND_BRUSH, 0.0);
+    x.pa_set_param(eng, SM.HEAD_DIAMETER, 0.65);
+    x.pa_set_param(eng, SM.KEYTRACK, 1.0);
+    x.pa_note_on(eng, 48, 0.9, 1, 0);
+    renderMono(ctx, 1024);
+    return renderMono(ctx, 16384);
+  };
+
+  const centerHit = await strikeAt(0.0);
+  const normalHit = await strikeAt(0.65);
+  const f11 = mtof(48);
+  const f01 = f11 * 0.845;
+  const centerRatio = magAt(centerHit, f11, SR) / (magAt(centerHit, f01, SR) + 1e-6);
+  const normalRatio = magAt(normalHit, f11, SR) / (magAt(normalHit, f01, SR) + 1e-6);
+  assert.ok(
+    normalRatio > centerRatio * 3.5,
+    `normal playing spot (r/a=0.65) must excite (1,1) dipole pitch mode far more strongly than dead center (normal=${normalRatio.toFixed(2)}, center=${centerRatio.toFixed(2)})`,
+  );
+
+  // 2. Coupled Air Cavity (Kettle, Goblet Helmholtz, Stave Barrel, Hourglass, Taiko) & Wood/Copper Shell
+  const renderCavity = async (cavityType, shellMat) => {
+    const ctx = await boot();
+    const { x, eng } = ctx;
+    x.pa_set_param(eng, SM.ENABLE, 1.0);
+    x.pa_set_param(eng, SM.STRIKER_TYPE, 1);
+    x.pa_set_param(eng, SM.STRIKE_POS, 0.58);
+    x.pa_set_param(eng, SM.CAVITY_TYPE, cavityType);
+    x.pa_set_param(eng, SM.CAVITY_VOLUME, 0.72);
+    x.pa_set_param(eng, SM.CAVITY_COUPLING, 0.85);
+    x.pa_set_param(eng, SM.SHELL_MATERIAL, shellMat);
+    x.pa_set_param(eng, SM.SHELL_RESONANCE, 0.75);
+    x.pa_set_param(eng, SM.MIC_PERSPECTIVE, 0.65);
+    x.pa_note_on(eng, 50, 0.92, 1, 0);
+    return renderMono(ctx, 16384);
+  };
+
+  const timpaniKettle = await renderCavity(0, 1);
+  const djembeGoblet = await renderCavity(1, 0);
+  const congaBarrel = await renderCavity(2, 2);
+  const talkingDrum = await renderCavity(3, 0);
+  const taikoBarrel = await renderCavity(4, 2);
+
+  for (const [name, sig] of [
+    ['timpani', timpaniKettle],
+    ['djembe', djembeGoblet],
+    ['conga', congaBarrel],
+    ['talkingDrum', talkingDrum],
+    ['taiko', taikoBarrel],
+  ]) {
+    assert.ok(sig.every(Number.isFinite), `${name} must be 100% finite`);
+    const r = rms(sig);
+    assert.ok(r > 0.01 && r < 1.2, `${name} RMS (${r.toFixed(4)}) must be audible and bounded`);
+  }
+
+  let diffDjembeTimpani = 0;
+  for (let i = 0; i < timpaniKettle.length; i++) {
+    diffDjembeTimpani += Math.abs(timpaniKettle[i] - djembeGoblet[i]);
+  }
+  assert.ok(diffDjembeTimpani / timpaniKettle.length > 0.01, 'Djembe Goblet Helmholtz and Copper Kettle must produce distinct acoustic signatures');
+
+  // 3. Live Tension Pedal / Talking-Drum Cord Squeeze (SM_TENSION_PEDAL) retunes ringing membrane modes
+  {
+    const ctx = await boot();
+    const { x, eng } = ctx;
+    x.pa_set_param(eng, SM.ENABLE, 1.0);
+    x.pa_set_param(eng, SM.STRIKER_TYPE, 4);
+    x.pa_set_param(eng, SM.CAVITY_TYPE, 3);
+    x.pa_set_param(eng, SM.MEMBRANE_DECAY, 0.85);
+    x.pa_set_param(eng, SM.TENSION_NONLIN, 0.0);
+    x.pa_set_param(eng, SM.TENSION_PEDAL, 0.5);
+    x.pa_note_on(eng, 55, 0.95, 1, 0);
+    renderMono(ctx, 1024);
+    const lowTension = renderMono(ctx, 8192);
+
+    x.pa_set_param(eng, SM.TENSION_PEDAL, 0.5 + 5 / 24);
+    renderMono(ctx, 2048);
+    const highTension = renderMono(ctx, 8192);
+
+    const fLow = mtof(55);
+    const fHigh = mtof(60);
+    assert.ok(magAt(lowTension, fLow, SR) > magAt(lowTension, fHigh, SR) * 2.5, 'before cord squeeze, membrane fundamental peaks at G3');
+    assert.ok(magAt(highTension, fHigh, SR) > magAt(highTension, fLow, SR) * 2.0, 'after cord squeeze on ringing skin, membrane fundamental shifts up to C4 (+5 st)');
+  }
+
+  // 4. Open Hand vs Muted Hand post-strike palm damping
+  {
+    const renderArtic = async (strikerType) => {
+      const ctx = await boot();
+      const { x, eng } = ctx;
+      x.pa_set_param(eng, SM.ENABLE, 1.0);
+      x.pa_set_param(eng, SM.STRIKER_TYPE, strikerType);
+      x.pa_set_param(eng, SM.CAVITY_TYPE, 1);
+      x.pa_set_param(eng, SM.MEMBRANE_DECAY, 0.7);
+      x.pa_note_on(eng, 52, 0.9, 1, 0);
+      return renderMono(ctx, 16384);
+    };
+    const openHand = await renderArtic(1);
+    const mutedHand = await renderArtic(3);
+    const openTail = rms(openHand, 4096, 16384);
+    const mutedTail = rms(mutedHand, 4096, 16384);
+    assert.ok(openTail > mutedTail * 2.2, `Open Hand tail (${openTail.toFixed(4)}) must ring longer than Muted Hand (${mutedTail.toFixed(4)})`);
+  }
 });
 
 

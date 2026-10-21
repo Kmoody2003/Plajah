@@ -53,7 +53,7 @@ export default function GenerationPanel({ doc, engines, startBeats, initialDesti
   const notesMode = kind === 'midi' || kind === 'transcribe';
   const choices = engines.filter(engine => engine.kinds.includes(kind));
   const selected = choices.find(engine => engine.id === engineId) || choices[0];
-  const allowed = selected?.id === 'basic-pitch' || selected?.id === 'ace-step-2.5' || selected?.access.allowed;
+  const allowed = Boolean(selected && (selected.id === 'basic-pitch' || selected.access.allowed));
   useEffect(() => { setTrackId(''); }, [kind, destination]);
   useEffect(() => {
     mounted.current = true;
@@ -95,6 +95,8 @@ export default function GenerationPanel({ doc, engines, startBeats, initialDesti
           const notes = await transcribeWithBasicPitch(url, { signal, onProgress: (stage, amount) => { if (mounted.current) setStatus(`${stage} · ${Math.round(amount * 100)}%`); } });
           result = { notes: validateGeneratedNotes(notes.map(note => ({ startBeats: note.startSec * request.bpm / 60, lengthBeats: note.durSec * request.bpm / 60, key: note.midi, vel: Math.max(1, Math.round(note.velocity * 127)) }))) };
         } finally { URL.revokeObjectURL(url); }
+      } else if (!selected.runtimeConnected) {
+        throw new Error('Connect this local engine in Music Lab before generating.');
       } else {
         if (kind === 'transcribe') {
           if (!file || file.size > 20000000) throw new Error('Choose a recording smaller than 20 MB');
@@ -103,21 +105,25 @@ export default function GenerationPanel({ doc, engines, startBeats, initialDesti
           request.inputAudio = btoa(binary);
         }
         signal.throwIfAborted();
-        let job = await startMusicGeneration(request); operation.id = job.id;
-        if (signal.aborted) { await cancelMusicGeneration(job.id); signal.throwIfAborted(); }
-        while (job.status === 'running') {
-          if (mounted.current) setStatus(job.message);
-          await new Promise<void>((resolve, reject) => {
-            const stop = () => { clearTimeout(timer); reject(new Error('Cancelled')); };
-            const timer = setTimeout(() => { signal.removeEventListener('abort', stop); resolve(); }, 1200);
-            signal.addEventListener('abort', stop, { once: true });
-          });
-          signal.throwIfAborted();
-          job = await getMusicGeneration(job.id, signal);
+        try {
+          let job = await startMusicGeneration(request); operation.id = job.id;
+          if (signal.aborted) { await cancelMusicGeneration(job.id); signal.throwIfAborted(); }
+          while (job.status === 'running') {
+            if (mounted.current) setStatus(job.message);
+            await new Promise<void>((resolve, reject) => {
+              const stop = () => { clearTimeout(timer); reject(new Error('Cancelled')); };
+              const timer = setTimeout(() => { signal.removeEventListener('abort', stop); resolve(); }, 1200);
+              signal.addEventListener('abort', stop, { once: true });
+            });
+            signal.throwIfAborted();
+            job = await getMusicGeneration(job.id, signal);
+          }
+          if (job.status !== 'succeeded' || !job.result) throw new Error(job.message);
+          result = job.result;
+          if (result.audioAvailable) audio = await getGeneratedAudio(job.id, signal);
+        } catch (backendErr) {
+          throw backendErr;
         }
-        if (job.status !== 'succeeded' || !job.result) throw new Error(job.message);
-        result = job.result;
-        if (result.audioAvailable) audio = await getGeneratedAudio(job.id, signal);
       }
       signal.throwIfAborted();
       const value: GenerationInsertion = { result, audio, target, kind, projectId, bpm: request.bpm, sampleStart: 0, sampleLength };
@@ -148,12 +154,12 @@ export default function GenerationPanel({ doc, engines, startBeats, initialDesti
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
   return <aside aria-label="Generate music" className="w-[340px] max-w-full shrink-0 border-l border-white/10 bg-[#100b19] overflow-y-auto p-4 space-y-3 text-white">
-    <div className="flex items-center justify-between"><h2 className="font-semibold flex items-center gap-2"><Sparkles size={16} /> Generate (ACE-Step 2.5 + Synths)</h2><button aria-label="Close generation panel" onClick={onClose}><X size={16} /></button></div>
-    <p className="text-[11px] text-white/50">Hybrid AI Symphonic Stems + Melos MPE Instruments</p>
+    <div className="flex items-center justify-between"><h2 className="font-semibold flex items-center gap-2"><Sparkles size={16} /> Generate</h2><button aria-label="Close generation panel" onClick={onClose}><X size={16} /></button></div>
+    <p className="text-[11px] text-white/50">Create a music track or an editable part. Use Full DAW Project in the timeline for an arrangement with platform synths.</p>
     {!engines.some(engine => engine.runtimeConnected) && <p role="status" className="rounded-lg border border-amber-300/20 bg-amber-300/10 p-2 text-[11px] leading-relaxed text-amber-100">The interface is available for preview. Connect the Melos music-lab backend or run it locally to generate audio and scores.</p>}
     <fieldset disabled={running || inserting} className="space-y-3 disabled:opacity-60">
       <label className="block text-xs">Create<select className={field} value={kind} onChange={event => { setKind(event.target.value as GenerationKind); setReady(null); }}>
-        <option value="audio">Audio clip (Orchestral / Hybrid Stem)</option><option value="midi">MIDI notes (MPE Expressive Score)</option><option value="sample">Sample for a pad</option><option value="transcribe">Notes from a recording</option>
+        <option value="audio">Music track / audio part</option><option value="midi">Editable MIDI part</option><option value="sample">Sample for a pad</option><option value="transcribe">Notes from a recording</option>
       </select></label>
       <label className="block text-xs">Engine<select className={field} value={selected?.id || ''} onChange={event => { setEngineId(event.target.value); setReady(null); }}>{choices.map(engine => <option key={engine.id} value={engine.id}>{engine.name}</option>)}</select></label>
       {!allowed && <p className="text-xs text-amber-200">{selected?.access.reason || 'No engine available'}. Configure this engine in the local server environment.</p>}
@@ -163,7 +169,7 @@ export default function GenerationPanel({ doc, engines, startBeats, initialDesti
       <div className="grid grid-cols-2 gap-2"><label className="text-xs">Key<input className={field} value={key} maxLength={40} onChange={event => setKey(event.target.value)} /></label>
         {notesMode ? <label className="text-xs">Bars (up to 128)<input className={field} type="number" min={1} max={destination === 'timeline' ? 128 : 16} value={bars} onChange={event => setBars(Number(event.target.value))} /></label> : <label className="text-xs">Score Length (10–360s)<input className={field} type="number" min={10} max={360} value={seconds} onChange={event => setSeconds(Number(event.target.value))} /></label>}</div>
       <label className="block text-xs">Seed<input className={field} type="number" min={0} max={2147483647} value={seed} onChange={event => setSeed(Number(event.target.value))} /></label>
-      {notesMode && <><label className="block text-xs">Destination<select className={field} value={destination} onChange={event => setDestination(event.target.value as InsertTarget['destination'])}><option value="timeline">Timeline MIDI track</option><option value="meka">MEKA pattern</option><option value="glass">Glass pattern</option></select></label><label className="block text-xs">Instrument<select className={field} value={instrument} onChange={event => setInstrument(event.target.value as InstrumentType)}><option value="aura">AURA vintage & orchestral synth</option><option value="bajo">BAJO physical contrabass & cello</option><option value="vela">VELA modal harp & strings</option><option value="cantus">CANTUS vocal & Gothic choir</option><option value="ison">ISON pipe organ & drone</option><option value="pneuma">PNEUMA breath flute & woodwind</option><option value="onda">ONDA wavetable synth</option></select></label></>}
+      {notesMode && <><label className="block text-xs">Destination<select className={field} value={destination} onChange={event => setDestination(event.target.value as InsertTarget['destination'])}><option value="timeline">Timeline MIDI track</option><option value="meka">MEKA pattern</option><option value="glass">Glass pattern</option></select></label><label className="block text-xs">Instrument<select className={field} value={instrument} onChange={event => setInstrument(event.target.value as InstrumentType)}><option value="aura">AURA vintage & orchestral synth</option><option value="soma">SOMA physical acoustic percussion</option><option value="bajo">BAJO physical contrabass & cello</option><option value="vela">VELA modal harp & strings</option><option value="cantus">CANTUS vocal & Gothic choir</option><option value="ison">ISON pipe organ & drone</option><option value="pneuma">PNEUMA breath flute & woodwind</option><option value="onda">ONDA wavetable synth</option></select></label></>}
       {kind !== 'sample' && (!notesMode || destination === 'timeline') && <><label className="block text-xs">Track<select className={field} value={trackId} onChange={event => setTrackId(event.target.value)}><option value="">New {notesMode ? 'MIDI' : 'audio'} track</option>{doc.arrangement.filter(track => track.kind === (notesMode ? 'instrument' : 'audio') && !track.padOwned).map(track => <option key={track.id} value={track.id}>{track.name}</option>)}</select></label><label className="block text-xs">Start beat (0 = beginning)<input className={field} type="number" min={0} max={100000} step={0.25} value={atBeat} onChange={event => setAtBeat(Number(event.target.value))} /></label></>}
       {selected?.id === 'yue2' && <label className="block text-xs">ABC score (optional)<textarea className={field} rows={3} maxLength={100000} value={abc} onChange={event => setAbc(event.target.value)} /></label>}
       {kind !== 'sample' && <label className="flex gap-2 items-center text-xs"><input type="checkbox" checked={autoInsert} onChange={event => setAutoInsert(event.target.checked)} /> Insert when ready</label>}

@@ -50,6 +50,7 @@ import { KeraPanel } from './instrument/KeraPanel';
 import { VelaPanel } from './instrument/VelaPanel';
 import { BajoPanel } from './instrument/BajoPanel';
 import { AuraPanel } from './instrument/AuraPanel';
+import { SomaPanel } from './instrument/SomaPanel';
 import { isSuite, instrumentLabel, instrumentColor, addPadInstrument, addInstrumentToNextPad, detachPadInstrument, addInstrument } from '../../../services/melos/beats/instrumentFactory';
 import { SpectraPanel } from './mixer/SpectraPanel';
 import { MuseLibrary } from './muse/MuseLibrary';
@@ -431,6 +432,13 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
               if (t?.instrument?.type === 'aura' && rawPatch.macros && !Array.isArray(rawPatch.macros)) {
                 const auraMacroKeys = ['warmth', 'cutoff', 'resonance', 'aura', 'ensemble', 'space'] as const;
                 const key = auraMacroKeys[action.index];
+                if (key) {
+                  (rawPatch.macros as Record<string, number>)[key] = action.value;
+                  void engine.reloadPatch(t);
+                }
+              } else if (t?.instrument?.type === 'soma' && rawPatch.macros && !Array.isArray(rawPatch.macros)) {
+                const somaMacroKeys = ['strikePos', 'malletHardness', 'tension', 'chamberDepth', 'shellWood', 'roomSpace'] as const;
+                const key = somaMacroKeys[action.index];
                 if (key) {
                   (rawPatch.macros as Record<string, number>)[key] = action.value;
                   void engine.reloadPatch(t);
@@ -880,6 +888,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           if (t.instrument?.type === 'kera') return <KeraPanel doc={doc} track={t} onMutate={mutate} onClose={close} />;
           if (t.instrument?.type === 'bajo') return <BajoPanel doc={doc} track={t} onMutate={mutate} onClose={close} />;
           if (t.instrument?.type === 'aura') return <AuraPanel doc={doc} track={t} onMutate={mutate} onClose={close} />;
+          if (t.instrument?.type === 'soma') return <SomaPanel doc={doc} track={t} onMutate={mutate} onClose={close} />;
           if (isSuite(t.instrument?.type as InstrumentType)) return <VelaPanel doc={doc} track={t} onMutate={mutate} onClose={close} />;
           return <InstrumentPanel doc={doc} track={t} onMutate={mutate} onClose={close} />;
         })()}
@@ -1454,6 +1463,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
         const body = t.instrument?.type === 'kera' ? <KeraPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />
           : t.instrument?.type === 'bajo' ? <BajoPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />
           : t.instrument?.type === 'aura' ? <AuraPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />
+          : t.instrument?.type === 'soma' ? <SomaPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />
           : isSuite(t.instrument?.type as InstrumentType) ? <VelaPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />
           : <InstrumentPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />;
         return (

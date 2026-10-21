@@ -491,6 +491,11 @@ export class BeatsEngine {
           await import('../../instruments/aura/patch');
         const patch = deserializeAuraPatch(track.instrument.patch);
         if (patch) applyAuraPatch(inst, patch);
+      } else if (track.instrument?.type === 'soma' && track.instrument?.patch) {
+        const { deserializeSomaPatch, applySomaPatch } =
+          await import('../../instruments/soma/patch');
+        const patch = deserializeSomaPatch(track.instrument.patch);
+        if (patch) applySomaPatch(inst, patch);
       } else if (track.instrument?.patch) {
         const [{ deserializePatch, applyPatch }] = await Promise.all([
           import('../../instruments/onda/patch'),
@@ -704,6 +709,12 @@ export class BeatsEngine {
       const { deserializeAuraPatch, applyAuraPatch } = await import('../../instruments/aura/patch');
       const patch = deserializeAuraPatch(track.instrument.patch);
       if (patch) applyAuraPatch(inst, patch);
+      return;
+    }
+    if (track.instrument.type === 'soma') {
+      const { deserializeSomaPatch, applySomaPatch } = await import('../../instruments/soma/patch');
+      const patch = deserializeSomaPatch(track.instrument.patch);
+      if (patch) applySomaPatch(inst, patch);
       return;
     }
     if (track.instrument.type === 'kera') {

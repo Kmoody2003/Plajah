@@ -17,6 +17,10 @@ import {
 } from '../instruments/vela/patch';
 import { presetsFor } from '../instruments/vela/suite';
 import { AURA_PRESETS, AURA_CATEGORY_LABELS } from '../instruments/aura/presets';
+import { SOMA_PRESETS, SOMA_CATEGORY_LABELS } from '../instruments/soma/presets';
+import {
+  newSomaPatch, deserializeSomaPatch, applySomaPreset, serializeSomaPatch,
+} from '../instruments/soma/patch';
 import {
   newAuraPatch, deserializeAuraPatch, applyAuraPreset, serializeAuraPatch,
 } from '../instruments/aura/patch';
@@ -91,6 +95,14 @@ export function listPresets(type: InstrumentType): PresetEntry[] {
   let factory: PresetEntry[] = [];
   if (type === 'onda') factory = FACTORY_PRESETS.map((p) => ({ id: `f_${p.name}`, name: p.name, category: p.category }));
   else if (type === 'bajo') factory = BAJO_PRESETS.map((p) => ({ id: `f_${p.id}`, name: p.name, category: p.genre }));
+  else if (type === 'soma') {
+    factory = SOMA_PRESETS.map((p) => ({
+      id: `f_${p.id}`,
+      name: p.name,
+      category: SOMA_CATEGORY_LABELS[p.category],
+      description: `${p.origin} · ${p.acoustics} — ${p.description}`,
+    }));
+  }
   else if (type === 'aura') {
     factory = AURA_PRESETS.map((p) => ({
       id: `f_${p.id}`,
@@ -152,6 +164,14 @@ export function applyPresetToDoc(d: GrooveDoc, trackId: string, presetId: string
     const current = deserializeAuraPatch(t.instrument.patch);
     const next = current ? applyAuraPreset(current, preset) : newAuraPatch(preset);
     t.instrument.patch = serializeAuraPatch(next) as Record<string, unknown>;
+    t.instrument.presetName = preset.name;
+    t.name = preset.name;
+  } else if (type === 'soma') {
+    const preset = SOMA_PRESETS.find((p) => p.id === fid);
+    if (!preset) return false;
+    const current = deserializeSomaPatch(t.instrument.patch);
+    const next = current ? applySomaPreset(current, preset) : newSomaPatch(preset);
+    t.instrument.patch = serializeSomaPatch(next) as Record<string, unknown>;
     t.instrument.presetName = preset.name;
     t.name = preset.name;
   } else if (isSuite(type)) {

@@ -16,6 +16,7 @@ use crate::bajo::{wob_eval, WobbleFrame};
 use crate::string::StringVoice;
 use crate::sample::{SampleBank, SampleVoice};
 use crate::shaper::{ShapeMode, Shaper};
+use crate::soma::SomaVoice;
 use crate::spatial::{pan_gains, Layout, Position, MAX_CHANNELS};
 use crate::tables::WaveTable;
 
@@ -105,6 +106,10 @@ pub struct Voice {
     sh_phase: f32,
     sh_target: [f32; 3],
     sh_slew: [f32; 3],
+    /// SOMA physical-modeling acoustic percussion & chamber voice.
+    soma: SomaVoice,
+    soma_rng: Rng,
+    soma_active: bool,
 }
 
 impl Voice {
@@ -127,6 +132,9 @@ impl Voice {
             sh_phase: 0.0,
             sh_target: [0.0; 3],
             sh_slew: [0.0; 3],
+            soma: SomaVoice::new(48000.0),
+            soma_rng: Rng((seed ^ 0x504D_4131) | 1),
+            soma_active: false,
             active: false,
             note: 60.0,
             velocity: 0.8,
@@ -172,6 +180,7 @@ impl Voice {
     /// construction — never on the audio thread.
     pub fn init_sr(&mut self, sr: f32, seed: u32) {
         self.string = StringVoice::new(sr, seed ^ 0x5F35_63AD);
+        self.soma.set_sample_rate(sr);
     }
 
     pub fn set_sample(&mut self, slot: i32, start_frame: f64, detune_cents: f32) {
@@ -243,6 +252,12 @@ impl Voice {
         // computed once per note rather than per block — 64 partials across 32 voices every
         // 2.7 ms is not affordable, and the body does not change while a note rings.
         self.modal_active = p.get(MODAL_BASE + M_ENABLE) > 0.5;
+        self.soma_active = p.get(SOMA_BASE + SM_ENABLE) > 0.5;
+        if self.soma_active {
+            self.soma.set_sample_rate(sr_hint);
+            self.soma.trigger(midi_to_hz(note), self.velocity, p, &mut self.soma_rng);
+        }
+
         if self.modal_active {
             self.modal.reset();
             let spec = modal_spec_for(note, p);
@@ -277,10 +292,15 @@ impl Voice {
             e.hard_reset();
         }
         self.string.reset();
+        self.soma.reset();
     }
 
     #[inline]
     pub fn is_finished(&self) -> bool {
+        if self.soma_active {
+            return self.soma.is_quiet();
+        }
+
         if self.modal_active {
             // A modal voice outlives its amp envelope by design: energy is still leaving the
             // bank long after the exciter stopped. Freeing it on the envelope would chop a
@@ -310,6 +330,52 @@ impl Voice {
     /// the envelope, and running the note through a VCA afterwards would flatten exactly the
     /// behaviour the instrument exists to produce.
     #[allow(clippy::too_many_arguments)]
+    #[allow(clippy::too_many_arguments)]
+    fn render_soma(
+        &mut self,
+        out: &mut [[f32; crate::engine::MAX_BLOCK]; MAX_CHANNELS],
+        frames: usize,
+        p: &Params,
+        globals: &ModValues,
+        layout: Layout,
+        base_pos: Position,
+    ) {
+        let nch = layout.channels();
+        let mut gains = [0.0f32; MAX_CHANNELS];
+        pan_gains(base_pos, layout, 0.0, &mut gains);
+
+        let bend_range = (p.get(P_BEND_RANGE) * 24.0).max(2.0);
+        let total_bend = (globals.pitch_bend + self.expr.pitch_bend).clamp(-1.0, 1.0);
+        let pitch_bend_ratio = (2.0f32).powf((total_bend * bend_range) / 12.0);
+        let mod_wheel = (globals.mod_wheel + self.expr.pressure + self.expr.timbre * 0.5).clamp(0.0, 1.0);
+        let level = p.get(P_MASTER_GAIN).max(0.0);
+
+        for f in 0..frames {
+            if self.start_delay > 0 {
+                self.start_delay -= 1;
+                continue;
+            }
+            let (yl, yr) = self.soma.render_sample(p, pitch_bend_ratio, mod_wheel, &mut self.soma_rng);
+            if !yl.is_finite() || !yr.is_finite() {
+                continue;
+            }
+            if nch >= 2 {
+                out[0][f] += yl * level * gains[0] * 1.4142;
+                out[1][f] += yr * level * gains[1] * 1.4142;
+                for c in 2..nch {
+                    out[c][f] += 0.5 * (yl + yr) * level * gains[c];
+                }
+            } else if nch == 1 {
+                out[0][f] += 0.5 * (yl + yr) * level;
+            }
+        }
+
+        self.age += frames as u64;
+        if self.is_finished() {
+            self.active = false;
+        }
+    }
+
     fn render_modal(
         &mut self,
         out: &mut [[f32; crate::engine::MAX_BLOCK]; MAX_CHANNELS],
@@ -384,6 +450,14 @@ impl Voice {
         if !self.active {
             return;
         }
+        if self.soma_active {
+            self.render_soma(out, frames, p, globals, layout, base_pos);
+            return;
+        }
+        if !self.active {
+            return;
+        }
+
         if self.modal_active {
             self.render_modal(out, frames, p, sr, layout, base_pos);
             return;

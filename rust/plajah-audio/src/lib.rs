@@ -19,6 +19,7 @@ mod modmatrix;
 mod osc;
 mod params;
 mod shaper;
+mod soma;
 mod string;
 mod sample;
 mod spatial;
@@ -46,7 +47,10 @@ use spatial::{IamfRole, Layout, Position};
 /// v11 adds AURA (param block 1700+): 1960s & 1970s analogue synthesis circuitry (hard sync,
 /// audio-rate cross-mod, balanced ring modulator, per-voice trimpot tolerance & thermal drift,
 /// 3-phase BBD string ensemble, 6-stage analog phaser, 15 IPS tape saturation & mains floor).
-pub const ABI_VERSION: u32 = 11;
+/// v12 adds SOMA (param block 1800+): real-time physical-modeling acoustic percussion & chamber
+/// simulator (Hunt-Crossley striker/hand contact, 16-mode 2D Bessel circular membrane, nonlinear
+/// tension deflection, live pedal/talking-drum tension modulation, coupled air cavity & shell).
+pub const ABI_VERSION: u32 = 12;
 
 #[unsafe(no_mangle)]
 pub extern "C" fn pa_abi_version() -> u32 {

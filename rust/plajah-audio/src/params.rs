@@ -352,7 +352,45 @@ pub const A_FLUX_RATE: u32 = 52; // 0..1 S&H / random clock rate during sustain
 pub const A_FLUX_MODE: u32 = 53; // 0 = S&H Filter, 1 = Buchla Drift, 2 = Cosmic Glitch
 
 /// 1800 rather than 1664: VELA runs to 1207, BAJO to 1650, and AURA to 1753.
-pub const MAX_PARAM_ID: usize = 1800;
+// ── SOMA (instrument 06): Physical-Modeling Acoustic Percussion & Chamber Simulator ───
+// Block 1800 upward. Models striker/hand contact mechanics, 2D Bessel circular membrane
+// vibration, nonlinear deflection tension, and coupled air cavity + wood/copper shell acoustics.
+// Defaults to SM_ENABLE = 0.0 (bypass) so all existing instruments remain bit-identical.
+pub const SOMA_BASE: u32 = 1800;
+pub const SM_ENABLE: u32 = 0;
+
+/// Striker & Hand Articulation (1801..1807)
+pub const SM_STRIKER_TYPE: u32 = 1;     // 0=Felt Mallet, 1=Open Hand, 2=Hand Slap, 3=Muted Hand, 4=Stick/Bachi, 5=Finger/Rim
+pub const SM_STRIKER_HARDNESS: u32 = 2; // 0..1 felt/flesh stiffness & Hertzian exponent
+pub const SM_STRIKER_MASS: u32 = 3;     // 0..1 striker mass & contact duration
+pub const SM_STRIKE_POS: u32 = 4;       // 0..1 radial strike position r/a (0 = center, 1 = rim edge)
+pub const SM_STRIKE_ANGLE: u32 = 5;     // 0..1 azimuthal angle / dipole stereo projection
+pub const SM_VEL_HARDNESS: u32 = 6;     // 0..1 velocity-to-stiffness compression coupling
+pub const SM_HAND_BRUSH: u32 = 7;       // 0..1 skin friction / slap air pocket / brush transient
+
+/// 2D Circular Membrane Physics (1810..1818)
+pub const SM_HEAD_DIAMETER: u32 = 10;    // 0..1 head diameter (6" to 36")
+pub const SM_SKIN_MATERIAL: u32 = 11;    // 0=Calfskin, 1=Thick Goat, 2=Thin Goat, 3=Rawhide/Mule, 4=Cowhide Taiko, 5=Mylar
+pub const SM_MEMBRANE_DECAY: u32 = 12;   // 0..1 intrinsic skin sustain
+pub const SM_MEMBRANE_DAMP_HF: u32 = 13; // 0..1 high-frequency viscoelastic skin damping
+pub const SM_AIR_LOAD: u32 = 14;         // 0..1 external & kettle air-mass modal ratio loading
+pub const SM_TENSION_NONLIN: u32 = 15;   // 0..1 nonlinear deflection pitch glissando / bloom
+pub const SM_TENSION_PEDAL: u32 = 16;    // 0..1 live tension pedal / talking-drum cord squeeze (0.5 = neutral)
+pub const SM_BUZZ_AMOUNT: u32 = 17;      // 0..1 sympathetic snare wire / Sega ring / gut buzz
+pub const SM_KEYTRACK: u32 = 18;         // 0..1 keyboard pitch tracking
+
+/// Coupled Air Cavity & Wood/Metal Shell Chamber (1820..1828)
+pub const SM_CAVITY_TYPE: u32 = 20;      // 0=Kettle Bowl, 1=Goblet Helmholtz, 2=Stave Barrel, 3=Hourglass Dual-Head, 4=Taiko Barrel, 5=Open Hoop
+pub const SM_CAVITY_VOLUME: u32 = 21;    // 0..1 internal air chamber depth & volume
+pub const SM_CAVITY_COUPLING: u32 = 22;  // 0..1 bidirectional air-to-membrane pressure coupling
+pub const SM_PORT_TUNING: u32 = 23;      // 0..1 Helmholtz neck aperture / resonant head tuning
+pub const SM_SHELL_MATERIAL: u32 = 24;   // 0=Carved Hardwood, 1=Hammered Copper, 2=Oak Staves, 3=Clay/Ceramic, 4=Birch/Maple Hoop
+pub const SM_SHELL_RESONANCE: u32 = 25;  // 0..1 structural shell wall vibration level
+pub const SM_SHELL_WARMTH: u32 = 26;     // 0..1 high-SPL chamber air compression & wood saturation
+pub const SM_MIC_PERSPECTIVE: u32 = 27;  // 0..1 top batter skin vs. bottom air port & shell radiation mix
+pub const SM_ROOM_EARLY: u32 = 28;       // 0..1 early studio/stage boundary reflections
+
+pub const MAX_PARAM_ID: usize = 1900;
 
 /// Flat store. A plain array keeps `set_param` and the mod matrix's destination lookup O(1)
 /// with no hashing on the audio thread.
@@ -587,6 +625,37 @@ impl Params {
         self.set(AURA_BASE + A_FLUX_AMT, 0.45);
         self.set(AURA_BASE + A_FLUX_RATE, 0.42);
         self.set(AURA_BASE + A_FLUX_MODE, 0.0);
+
+        // ── SOMA ─────────────────────────────────────────────────────────────
+        // SM_ENABLE defaults to 0.0 (bypass) so all existing patches are bit-identical.
+        self.set(SOMA_BASE + SM_ENABLE, 0.0);
+        self.set(SOMA_BASE + SM_STRIKER_TYPE, 0.0);
+        self.set(SOMA_BASE + SM_STRIKER_HARDNESS, 0.45);
+        self.set(SOMA_BASE + SM_STRIKER_MASS, 0.55);
+        self.set(SOMA_BASE + SM_STRIKE_POS, 0.62);
+        self.set(SOMA_BASE + SM_STRIKE_ANGLE, 0.5);
+        self.set(SOMA_BASE + SM_VEL_HARDNESS, 0.65);
+        self.set(SOMA_BASE + SM_HAND_BRUSH, 0.25);
+
+        self.set(SOMA_BASE + SM_HEAD_DIAMETER, 0.62);
+        self.set(SOMA_BASE + SM_SKIN_MATERIAL, 0.0);
+        self.set(SOMA_BASE + SM_MEMBRANE_DECAY, 0.58);
+        self.set(SOMA_BASE + SM_MEMBRANE_DAMP_HF, 0.42);
+        self.set(SOMA_BASE + SM_AIR_LOAD, 0.68);
+        self.set(SOMA_BASE + SM_TENSION_NONLIN, 0.28);
+        self.set(SOMA_BASE + SM_TENSION_PEDAL, 0.5);
+        self.set(SOMA_BASE + SM_BUZZ_AMOUNT, 0.0);
+        self.set(SOMA_BASE + SM_KEYTRACK, 1.0);
+
+        self.set(SOMA_BASE + SM_CAVITY_TYPE, 0.0);
+        self.set(SOMA_BASE + SM_CAVITY_VOLUME, 0.65);
+        self.set(SOMA_BASE + SM_CAVITY_COUPLING, 0.62);
+        self.set(SOMA_BASE + SM_PORT_TUNING, 0.45);
+        self.set(SOMA_BASE + SM_SHELL_MATERIAL, 1.0);
+        self.set(SOMA_BASE + SM_SHELL_RESONANCE, 0.45);
+        self.set(SOMA_BASE + SM_SHELL_WARMTH, 0.35);
+        self.set(SOMA_BASE + SM_MIC_PERSPECTIVE, 0.45);
+        self.set(SOMA_BASE + SM_ROOM_EARLY, 0.28);
     }
 }
 
