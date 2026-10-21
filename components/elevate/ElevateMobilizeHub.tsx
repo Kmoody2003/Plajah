@@ -43,6 +43,7 @@ import type {
   ElevateCivicCampaignComplianceConfig,
   ElevateExternalCrmProvider,
   ElevatePetitionDrive,
+  ElevateSpokeCampaign,
   ElevateShiftDrive,
   ElevateShiftSignup,
   ElevateShiftSlot,
@@ -90,6 +91,48 @@ const HubEmpty: React.FC<{ title: string; detail?: string; action?: React.ReactN
     {action && <div className="pt-2 flex justify-center">{action}</div>}
   </div>
 );
+
+const field = 'w-full rounded-xl bg-black/40 border border-white/15 px-3.5 py-2.5 text-sm text-white placeholder:text-white/35';
+
+const QuickCreate: React.FC<{
+  label: string;
+  fields: { key: string; label: string; placeholder?: string; multiline?: boolean; type?: 'text' | 'number'; options?: { value: string; label: string }[] }[];
+  submitLabel: string;
+  onSubmit: (values: Record<string, string>) => void;
+}> = ({ label, fields, submitLabel, onSubmit }) => {
+  const [open, setOpen] = React.useState(false);
+  const [values, setValues] = React.useState<Record<string, string>>({});
+  const set = (k: string, v: string) => setValues(prev => ({ ...prev, [k]: v }));
+  if (!open) {
+    return <button type="button" onClick={() => setOpen(true)} className="ev-btn ev-btn-primary" style={{ minHeight: 40, fontSize: 13 }}>{label}</button>;
+  }
+  const ready = !!(values[fields[0].key] || '').trim();
+  return (
+    <form
+      className="ev-panel rounded-3xl p-5 space-y-3 text-left"
+      onSubmit={e => { e.preventDefault(); if (!ready) return; onSubmit(values); setValues({}); setOpen(false); }}
+    >
+      {fields.map(fd => (
+        <label key={fd.key} className="block space-y-1">
+          <span className="text-xs text-[#A49CB2]">{fd.label}</span>
+          {fd.options ? (
+            <select className={field} value={values[fd.key] ?? fd.options[0].value} onChange={e => set(fd.key, e.target.value)}>
+              {fd.options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          ) : fd.multiline ? (
+            <textarea className={field} rows={3} placeholder={fd.placeholder} value={values[fd.key] || ''} onChange={e => set(fd.key, e.target.value)} />
+          ) : (
+            <input className={field} type={fd.type || 'text'} placeholder={fd.placeholder} value={values[fd.key] || ''} onChange={e => set(fd.key, e.target.value)} />
+          )}
+        </label>
+      ))}
+      <div className="flex justify-end gap-2 pt-1">
+        <button type="button" onClick={() => setOpen(false)} className="ev-btn ev-btn-ghost" style={{ minHeight: 40, fontSize: 13 }}>Cancel</button>
+        <button type="submit" disabled={!ready} className="ev-btn ev-btn-primary disabled:opacity-40" style={{ minHeight: 40, fontSize: 13 }}>{submitLabel}</button>
+      </div>
+    </form>
+  );
+};
 
 export interface ElevateMobilizeHubProps {
   org: Organization;
@@ -252,6 +295,46 @@ export const ElevateMobilizeHub: React.FC<ElevateMobilizeHubProps> = ({
   const updateBundle = (next: ElevateMobilizeBundle) => {
     setBundle(next);
     void syncElevateMobilizeBundleToFirestore(next);
+  };
+
+  const handleCreatePetition = (v: Record<string, string>) => {
+    const now = Date.now();
+    const petition: ElevatePetitionDrive = {
+      id: `${org.id}_petition_${now}`,
+      orgId: org.id,
+      kind: (v.kind as ElevatePetitionDrive['kind']) || 'PETITION',
+      title: v.title.trim(),
+      summary: (v.summary || '').trim(),
+      bodyMarkdown: (v.summary || '').trim(),
+      recipientTarget: (v.recipient || '').trim() || undefined,
+      goalSignatures: Math.max(1, Number(v.goal) || 100),
+      signatureCount: 0,
+      verifiedMemberCount: 0,
+      voiceTestimonyCount: 0,
+      totalPledgedHours: 0,
+      milestones: [],
+      createdAt: now,
+      updatedAt: now,
+    };
+    updateBundle({ ...bundle, petitions: [petition, ...bundle.petitions] });
+    showToast('Published', `"${petition.title}" is open for members to sign.`, 'emerald');
+  };
+
+  const handleCreateChapterCampaign = (v: Record<string, string>) => {
+    const now = Date.now();
+    const campaign: ElevateSpokeCampaign = {
+      id: `${org.id}_chapters_${now}`,
+      orgId: org.id,
+      title: v.title.trim(),
+      subtitle: (v.subtitle || '').trim(),
+      description: (v.description || '').trim(),
+      toolkitSummary: [],
+      requireHostVetting: v.vetting !== 'OPEN',
+      spokes: [],
+      createdAt: now,
+    };
+    updateBundle({ ...bundle, spokeCampaigns: [campaign, ...bundle.spokeCampaigns] });
+    showToast('Open for hosts', `Members can now apply to host "${campaign.title}".`, 'emerald');
   };
 
   const updateCivicCompliance = (patch: Partial<ElevateCivicCampaignComplianceConfig>) => {
@@ -520,7 +603,7 @@ export const ElevateMobilizeHub: React.FC<ElevateMobilizeHubProps> = ({
       res.createdSpoke.status === 'APPROVED_LIVE'
         ? 'Spoke Event Live + Screening License Issued!'
         : 'Host Application Submitted for Vetting',
-      `Your spoke "${res.createdSpoke.title}" is now in the Elevate Spoke Directory with Community Screening License ${campaign.screeningLicense?.licenseCode || 'INCLUDED'}.`,
+      campaign.screeningLicense ? `Your spoke "${res.createdSpoke.title}" is listed, with screening license ${campaign.screeningLicense.licenseCode}.` : `Your spoke "${res.createdSpoke.title}" is listed.`,
       'emerald'
     );
   };
@@ -887,7 +970,7 @@ export const ElevateMobilizeHub: React.FC<ElevateMobilizeHubProps> = ({
           TAB 1: MULTI-SHIFT VOLUNTEER SCHEDULING, WAITLISTS & CHECK-IN
           ═════════════════════════════════════════════════════════════════════════ */}
       {activeTab === 'SHIFTS' && (
-        <div className="space-y-6">
+        <div className="ev-fade space-y-6">
           {summaryStats.totalSlots === 0 && (
             <HubEmpty
               title="No shifts posted yet"
@@ -1157,7 +1240,28 @@ export const ElevateMobilizeHub: React.FC<ElevateMobilizeHubProps> = ({
           TAB 2: PETITIONS, OPEN LETTERS, COVENANTS & ACTION PLEDGES
           ═════════════════════════════════════════════════════════════════════════ */}
       {activeTab === 'PETITIONS' && (
-        <div className="space-y-6">
+        <div className="ev-fade space-y-6">
+          {canManage && (
+            <div className="flex justify-end">
+              <QuickCreate
+                label="Start a petition or covenant"
+                submitLabel="Publish"
+                onSubmit={handleCreatePetition}
+                fields={[
+                  { key: 'title', label: 'Title', placeholder: 'e.g. Neighborhood food pantry covenant' },
+                  { key: 'kind', label: 'Type', options: [
+                    { value: 'PETITION', label: 'Petition' },
+                    { value: 'COVENANT', label: 'Covenant' },
+                    { value: 'OPEN_LETTER', label: 'Open letter' },
+                    { value: 'ACTION_PLEDGE', label: 'Action pledge' },
+                  ] },
+                  { key: 'summary', label: 'What members are signing', multiline: true },
+                  { key: 'recipient', label: 'Addressed to (optional)' },
+                  { key: 'goal', label: 'Signature goal', type: 'number', placeholder: '100' },
+                ]}
+              />
+            </div>
+          )}
           {bundle.petitions.length === 0 && (
             <HubEmpty
               title="No petitions yet"
@@ -1433,7 +1537,25 @@ export const ElevateMobilizeHub: React.FC<ElevateMobilizeHubProps> = ({
           TAB 3: DISTRIBUTED PEER-TO-PEER SPOKE HOSTING & COMMUNITY SCREENINGS
           ═════════════════════════════════════════════════════════════════════════ */}
       {activeTab === 'SPOKES' && (
-        <div className="space-y-6">
+        <div className="ev-fade space-y-6">
+          {canManage && (
+            <div className="flex justify-end">
+              <QuickCreate
+                label="Open a host chapter"
+                submitLabel="Open for hosts"
+                onSubmit={handleCreateChapterCampaign}
+                fields={[
+                  { key: 'title', label: 'Name', placeholder: 'e.g. Home groups this fall' },
+                  { key: 'subtitle', label: 'One-line summary (optional)' },
+                  { key: 'description', label: 'What hosts will do', multiline: true },
+                  { key: 'vetting', label: 'Hosts', options: [
+                    { value: 'VETTED', label: 'Staff approve each host' },
+                    { value: 'OPEN', label: 'Any member can host' },
+                  ] },
+                ]}
+              />
+            </div>
+          )}
           {bundle.spokeCampaigns.length === 0 && (
             <HubEmpty
               title="No host chapters yet"
@@ -1620,7 +1742,7 @@ export const ElevateMobilizeHub: React.FC<ElevateMobilizeHubProps> = ({
           TAB 4: MY IMPACT PASSPORT (computed only from this org's real shifts & signatures)
           ═════════════════════════════════════════════════════════════════════════ */}
       {activeTab === 'PASSPORT' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="ev-fade grid grid-cols-1 lg:grid-cols-12 gap-6">
           <div className="lg:col-span-12 rounded-3xl p-6 border border-[#E2C27E]/35 bg-[#18141F]/90 space-y-5">
             <div>
               <EvLabel>Service record · {org.name}</EvLabel>
@@ -1668,7 +1790,7 @@ export const ElevateMobilizeHub: React.FC<ElevateMobilizeHubProps> = ({
           TAB 5: NON-SMS REMINDER CADENCE & POST-EVENT ARIA SYNERGY STUDIO
           ═════════════════════════════════════════════════════════════════════════ */}
       {activeTab === 'REMINDERS_SYNERGY' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="ev-fade grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Left 5 Cols: Cadence Controls */}
           <div className="lg:col-span-5 rounded-3xl p-6 border border-white/12 bg-[#18141F]/90 space-y-5">
             <div>
@@ -1810,7 +1932,7 @@ export const ElevateMobilizeHub: React.FC<ElevateMobilizeHubProps> = ({
           TAB 6: COALITION CO-HOSTING & EXTERNAL CRM SYNC BRIDGE (ADMIN)
           ═════════════════════════════════════════════════════════════════════════ */}
       {activeTab === 'CRM_COALITION' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="ev-fade grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Left 6 Cols: Connected CRM Profiles */}
           <div className="lg:col-span-6 rounded-3xl p-6 border border-white/12 bg-[#18141F]/90 space-y-4">
             <div>
@@ -1959,7 +2081,7 @@ export const ElevateMobilizeHub: React.FC<ElevateMobilizeHubProps> = ({
           TAB 7: GRASSROOTS & LOCAL CIVIC CAMPAIGN COMPLIANCE MODE (OPT-IN)
       ═════════════════════════════════════════════════════════════════════════ */}
       {activeTab === 'CIVIC_COMPLIANCE' && (
-        <div className="space-y-6">
+        <div className="ev-fade space-y-6">
           {/* Header & Opt-In Mode Switch */}
           <Surface level={3} shape="sheet" brand>
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">

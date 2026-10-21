@@ -103,9 +103,41 @@
 .ev-live-dot { width: 8px; height: 8px; border-radius: 999px; background: var(--ev-ember); display: inline-block; box-shadow: 0 0 0 0 rgba(255, 140, 0, .5); animation: ev-pulse 2.4s ease-out infinite; }
 @keyframes ev-pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 140, 0, .45); } 70%, 100% { box-shadow: 0 0 0 8px rgba(255, 140, 0, 0); } }
 
-.ev-rise { animation: ev-rise .5s cubic-bezier(.2, 0, 0, 1) both; }
-@keyframes ev-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+/* ── Motion ──────────────────────────────────────────────────────────────
+   One easing (emphasized decelerate), short distances, nothing that bounces.
+   Entrances: hero settles, sections rise as they scroll in (staggered via --ev-delay),
+   tab content crossfades, the active tab draws its underline, cards lift on hover. */
+:root, .ev-scope { --ev-ease: cubic-bezier(.2, 0, 0, 1); }
+
+.ev-rise { animation: ev-rise .7s var(--ev-ease, cubic-bezier(.2, 0, 0, 1)) both; animation-delay: var(--ev-delay, 0ms); }
+@keyframes ev-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+
+.ev-reveal { opacity: 0; transform: translateY(18px); transition: opacity .8s var(--ev-ease), transform .8s var(--ev-ease); transition-delay: var(--ev-delay, 0ms); will-change: opacity, transform; }
+.ev-reveal.ev-in { opacity: 1; transform: none; }
+
+.ev-fade { animation: ev-fade .45s var(--ev-ease) both; }
+@keyframes ev-fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+.ev-hero-photo { animation: ev-settle 1.6s var(--ev-ease) both; }
+@keyframes ev-settle { from { opacity: 0; transform: scale(1.045); } to { opacity: 1; transform: none; } }
+
+.ev-tab[aria-current="page"]::after { transform-origin: left center; animation: ev-draw .5s var(--ev-ease) both; }
+@keyframes ev-draw { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+.ev-lift { transition: transform .45s var(--ev-ease), box-shadow .45s var(--ev-ease), background-color .2s ease; }
+.ev-lift:hover { transform: translateY(-3px); box-shadow: 0 22px 44px -22px rgba(0, 0, 0, .7); }
+.ev-zoom { overflow: hidden; }
+.ev-zoom img { transition: transform 1.4s var(--ev-ease), opacity .6s ease; }
+.ev-zoom:hover img { transform: scale(1.035); }
+.ev-img-in { animation: ev-fade-only .9s ease both; }
+@keyframes ev-fade-only { from { opacity: 0; } to { opacity: 1; } }
+
+.ev-btn { transition: filter .15s ease, background-color .15s ease, transform .2s var(--ev-ease); }
+.ev-btn:active { transform: scale(.98); }
 
 @media (prefers-reduced-motion: reduce) {
-  .ev-live-dot, .ev-rise { animation: none; }
+  .ev-live-dot, .ev-rise, .ev-fade, .ev-hero-photo, .ev-img-in,
+  .ev-tab[aria-current="page"]::after { animation: none; }
+  .ev-reveal { opacity: 1; transform: none; transition: none; }
+  .ev-lift, .ev-lift:hover, .ev-zoom img, .ev-zoom:hover img, .ev-btn:active { transition: none; transform: none; }
 }

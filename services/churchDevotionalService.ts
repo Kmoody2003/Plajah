@@ -40,7 +40,8 @@ export interface SanctuaryAutoEngageStatus {
   activeServiceLabel: string;
   nextServiceWindowLabel: string;
   gpsMatched: boolean;
-  distanceMeters: number;
+  /** null when either location is unknown. */
+  distanceMeters: number | null;
   sanctuaryName: string;
   coordinatesLabel: string;
   autoEngaged: boolean;
@@ -259,49 +260,69 @@ export function computeDistanceMeters(
  * GPS Sanctuary Geofence proximity (`distanceMeters <= 250`) to determine
  * whether Lectio should auto-engage into In-Service Scripture View synced with Ambo.
  */
+const DAY_INDEX: Record<string, number> = { sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6 };
+
+/** Minutes after midnight for "10:00 AM" / "6:30 pm" / "18:00"; null if unreadable. */
+function parseClock(t?: string): number | null {
+  const m = (t || '').trim().match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/i);
+  if (!m) return null;
+  let h = Number(m[1]) % 24;
+  const min = Number(m[2] || 0);
+  const ap = m[3]?.toLowerCase();
+  if (ap === 'pm' && h < 12) h += 12;
+  if (ap === 'am' && h === 12) h = 0;
+  return h * 60 + min;
+}
+
+/** True when `now` is between 15 minutes before and 2 hours after one of the church's posted service times. */
+export function isWithinServiceWindow(serviceTimes: Organization['serviceTimes'], now: Date = new Date()): boolean {
+  const today = now.getDay();
+  const mins = now.getHours() * 60 + now.getMinutes();
+  return (serviceTimes || []).some(st => {
+    const day = DAY_INDEX[String(st.day || '').trim().toLowerCase()];
+    const start = parseClock(st.time);
+    return day === today && start !== null && mins >= start - 15 && mins <= start + 120;
+  });
+}
+
 export function evaluateSanctuaryAutoEngage(
   org: Organization,
   opts?: {
     userCoords?: { lat: number; lng: number } | null;
+    /** Demo tour only: pretend the viewer is inside the sanctuary during a service. */
     simulateInSanctuary?: boolean;
+    now?: Date;
   }
 ): SanctuaryAutoEngageStatus {
-  const sanctuaryCoords = { lat: 33.749, lng: -84.388 }; // Default Sanctuary Campus Anchor
-  const simulate = opts?.simulateInSanctuary ?? true;
+  // The church's own saved location, if it has one. No location → no geofence (never a borrowed default).
+  const anchor = (org as { geo?: { lat: number; lng: number } }).geo ?? null;
+  const simulate = opts?.simulateInSanctuary ?? false;
 
-  const distanceMeters =
-    opts?.userCoords && !simulate
-      ? computeDistanceMeters(
-          opts.userCoords.lat,
-          opts.userCoords.lng,
-          sanctuaryCoords.lat,
-          sanctuaryCoords.lng
-        )
-      : 18; // 18m inside main nave when in-sanctuary mode is active
+  const distanceMeters = simulate
+    ? 18
+    : anchor && opts?.userCoords
+    ? Math.round(computeDistanceMeters(opts.userCoords.lat, opts.userCoords.lng, anchor.lat, anchor.lng))
+    : null;
+  const gpsMatched = distanceMeters !== null && distanceMeters <= 250;
 
-  const gpsMatched = distanceMeters <= 250;
-  const formattedServiceTimes = (org.serviceTimes || []).map(
-    st => `${st.label || 'Service'} (${st.day} ${st.time})`
-  );
-  const primaryService =
-    formattedServiceTimes[0] || 'Sunday Morning Sanctuary Service · 9:00 AM & 11:00 AM';
-
-  // Schedule check: matches active service window or simulated live service window
-  const now = new Date();
-  const isSundayOrWednesday = now.getDay() === 0 || now.getDay() === 3;
-  const scheduleMatched = simulate || isSundayOrWednesday || formattedServiceTimes.length > 0;
-
+  const formattedServiceTimes = (org.serviceTimes || []).map(st => `${st.label || 'Service'} (${st.day} ${st.time})`);
+  const scheduleMatched = simulate || isWithinServiceWindow(org.serviceTimes, opts?.now);
   const autoEngaged = scheduleMatched && gpsMatched;
 
   return {
     scheduleMatched,
-    activeServiceLabel: primaryService,
-    nextServiceWindowLabel:
-      formattedServiceTimes.join(' · ') || 'Sundays 9:00 AM & 11:00 AM · Wednesdays 7:00 PM',
+    activeServiceLabel: formattedServiceTimes[0] || 'No service times posted',
+    nextServiceWindowLabel: formattedServiceTimes.join(' · '),
     gpsMatched,
     distanceMeters,
-    sanctuaryName: `${org.name} · Main Sanctuary Nave`,
-    coordinatesLabel: `${sanctuaryCoords.lat.toFixed(4)}° N, ${Math.abs(sanctuaryCoords.lng).toFixed(4)}° W (${distanceMeters}m from Stage Pulpit)`,
+    sanctuaryName: org.name,
+    coordinatesLabel: simulate
+      ? 'Demo · inside the sanctuary'
+      : !anchor
+      ? 'Church location not set'
+      : distanceMeters === null
+      ? 'Your location is off'
+      : `${distanceMeters}m from the church`,
     autoEngaged,
     syncSource: autoEngaged ? 'AMBO_ROOM_DICTATION_AND_KAIROS' : 'STANDBY',
   };

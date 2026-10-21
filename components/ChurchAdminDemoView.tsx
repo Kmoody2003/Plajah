@@ -130,7 +130,7 @@ const ChurchAdminDemoView: React.FC<{ onCreate: () => void }> = ({ onCreate }) =
         {/* Content */}
         <div className="flex-1 min-w-0 overflow-y-auto scrollbar-hide p-4 sm:p-5 lg:p-8">
           {sec === 'OVERVIEW' && (
-            <div className="max-w-[1100px] space-y-8">
+            <div className="ev-fade max-w-[1100px] space-y-8">
               <div>
                 <div className="text-[13px] text-[#A49CB2] pb-1.5">Angela Brooks · Executive Pastor</div>
                 <h2 className="m-0 ev-display text-white" style={{ fontSize: 'clamp(2.25rem, 4vw, 3rem)', lineHeight: 1 }}>Week of Oct 19</h2>
@@ -195,7 +195,7 @@ const ChurchAdminDemoView: React.FC<{ onCreate: () => void }> = ({ onCreate }) =
           )}
 
           {sec === 'MESSAGES' && (
-            <div className="max-w-2xl">
+            <div className="ev-fade max-w-2xl">
               <H sub="Broadcast to every member — in-app, push and email.">Messages · Console</H>
               <div className="space-y-3 mb-8">
                 <input placeholder="Subject" className={field} />
@@ -219,7 +219,7 @@ const ChurchAdminDemoView: React.FC<{ onCreate: () => void }> = ({ onCreate }) =
           )}
 
           {sec === 'PEOPLE' && (
-            <div className="max-w-3xl">
+            <div className="ev-fade max-w-3xl">
               <H sub="Your directory — import from Servant Keeper, export anytime.">People</H>
               <div className="flex flex-wrap items-center gap-2 mb-5">
                 <Btn primary onClick={nudge}><Upload size={12} /> Import CSV (Servant Keeper)</Btn>
@@ -245,7 +245,7 @@ const ChurchAdminDemoView: React.FC<{ onCreate: () => void }> = ({ onCreate }) =
           )}
 
           {sec === 'GIVING' && (
-            <div className="max-w-3xl">
+            <div className="ev-fade max-w-3xl">
               <H sub="Funds, recurring gifts and payouts — on your own Stripe account.">Giving Dashboard</H>
               <AdaptiveGrid phone={2} tablet={2} desktop={4} gap="0.75rem" className="mb-6">
                 <KPI label="This week" value={money(weekGiving)} sub="+12%" icon={TrendingUp} />
@@ -286,7 +286,7 @@ const ChurchAdminDemoView: React.FC<{ onCreate: () => void }> = ({ onCreate }) =
           )}
 
           {sec === 'EVENTS' && (
-            <div className="max-w-3xl">
+            <div className="ev-fade max-w-3xl">
               <H sub="Ticketing, RSVPs and check-in — built in.">Events</H>
               <div className="mb-5"><Btn primary onClick={nudge}><Plus size={12} /> New event</Btn></div>
               <AdaptiveGrid phone={1} tablet={2} desktop={2} gap="0.75rem">
@@ -309,7 +309,7 @@ const ChurchAdminDemoView: React.FC<{ onCreate: () => void }> = ({ onCreate }) =
           )}
 
           {sec === 'PRAYER' && (
-            <div className="max-w-2xl">
+            <div className="ev-fade max-w-2xl">
               <H sub="Moderate requests, mark answered, keep private ones private.">Prayer Wall · Moderation</H>
               <div className="space-y-3">
                 {DEMO_CHURCH_PRAYERS.map(pr => (
@@ -331,7 +331,7 @@ const ChurchAdminDemoView: React.FC<{ onCreate: () => void }> = ({ onCreate }) =
           )}
 
           {sec === 'TEAM' && (
-            <div className="max-w-2xl">
+            <div className="ev-fade max-w-2xl">
               <H sub="Staff, volunteers and roles — grant access to the tools each needs.">Team & Roles</H>
               <div className="mb-5"><Btn primary onClick={nudge}><Plus size={12} /> Invite team member</Btn></div>
               <div className="space-y-2">
@@ -349,7 +349,7 @@ const ChurchAdminDemoView: React.FC<{ onCreate: () => void }> = ({ onCreate }) =
           )}
 
           {sec === 'MULTISITE' && (
-            <div className="max-w-3xl">
+            <div className="ev-fade max-w-3xl">
               <H sub="Broadcast one campus's program feed to the others — live master control.">Multi-site Master Control</H>
               <div className="aspect-video max-h-[50vh] md:max-h-none rounded-3xl overflow-hidden bg-black border border-white/10 relative mb-5 grid place-items-center">
                 <img src={DEMO_CHURCH_EVENTS[1]?.image} className="absolute inset-0 w-full h-full object-cover opacity-40" alt="" />
@@ -369,7 +369,7 @@ const ChurchAdminDemoView: React.FC<{ onCreate: () => void }> = ({ onCreate }) =
           )}
 
           {sec === 'CLASSES' && (
-            <div className="max-w-2xl">
+            <div className="ev-fade max-w-2xl">
               <H sub="Sunday school, Bible study & discipleship on the education stack.">Classes</H>
               <div className="mb-5"><Btn primary onClick={nudge}><Plus size={12} /> New class</Btn></div>
               <div className="space-y-2">

@@ -467,6 +467,14 @@ export async function ensureDefaultTemplatedClassrooms(church: Organization): Pr
   const demo = isDemoOrg(church);
   const listed = await listPrograms(church.id);
   const existing = demo ? listed : stripSeededStarterPrograms(church, listed);
+  if (!demo) {
+    // Delete untouched sample classrooms that older builds saved for this church (staff only; rules
+    // refuse anyone else, and the copies are already hidden for them).
+    const kept = new Set(existing.map(p => p.id));
+    for (const p of listed) {
+      if (!kept.has(p.id)) deleteDoc(doc(db, 'churchPrograms', p.id)).catch(() => { /* not permitted / offline */ });
+    }
+  }
   if (existing.length > 0 || !demo) {
     // Ensure every existing program has a chatRoomId and classroomId
     const upgraded = existing.map(p => ({

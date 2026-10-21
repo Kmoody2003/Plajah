@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useEvRevealAll } from './elevate/vellum';
 import {
   Landmark, Church, HeartHandshake, Sparkles, Search, MapPin, BadgeCheck, Users,
   Plus, ArrowRight, ChevronRight, ChevronLeft, MonitorPlay, Gift, HandHeart,
@@ -308,6 +309,8 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
   const [elevateTheme, setElevateTheme] = useState<'plajah' | 'dark' | 'pastel'>('plajah');
   const [showOneSheetModal, setShowOneSheetModal] = useState(false);
   const [visualConfig, setVisualConfig] = useState<PageVisualConfig | null>(null);
+  // Sections rise in as they scroll into view.
+  useEvRevealAll();
   const [editMode, setEditMode] = useState<boolean>(() => isGlobalEditModeEnabled());
   const [showAddCarouselCard, setShowAddCarouselCard] = useState(false);
   const [newCardDraft, setNewCardDraft] = useState<{
@@ -765,7 +768,7 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
           </header>
 
           {/* ── LOREA-STYLE HORIZONTAL CAROUSEL OF INSTITUTIONS + ADMIN CURATED CARDS ── */}
-          <section className="max-w-6xl mx-auto px-6 py-12 border-b border-white/[0.08]">
+          <section className="ev-reveal max-w-6xl mx-auto px-6 py-12 border-b border-white/[0.08]">
             <div className="flex items-end justify-between gap-4 mb-5 flex-wrap">
               <div>
                 <div
@@ -1020,7 +1023,7 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
           </section>
 
           {/* ── SIX PILLARS OF ELEVATE ("Six ways to gather, one sanctuary") ── */}
-          <section id="elevate-caps" className="max-w-6xl mx-auto px-6 py-14 border-b border-white/[0.08]">
+          <section id="elevate-caps" className="ev-reveal max-w-6xl mx-auto px-6 py-14 border-b border-white/[0.08]">
             <div
               data-pj-edit="elevate_pillars_eyebrow"
               data-pj-label="Six Pillars Eyebrow"
@@ -1110,7 +1113,7 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
       {/* =====================================================================
           SHARED LIVE DIRECTORY + GRACE CHAPEL SPOTLIGHT BANNER
           ===================================================================== */}
-      <section id="elevate-dir" className="max-w-6xl mx-auto px-6 py-14">
+      <section id="elevate-dir" className="ev-reveal max-w-6xl mx-auto px-6 py-14">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6">
           <div>
             <div className="text-[10px] font-black uppercase tracking-[0.35em] text-[#8B5CF6] mb-2" style={{ fontFamily: 'Outfit, sans-serif' }}>
@@ -1296,7 +1299,7 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
       {/* =====================================================================
           EVERY WAY INTO ELEVATE — LOREA "NOTHING HIDDEN, EVERY DOOR" DIRECTORY
           ===================================================================== */}
-      <section id="elevate-doors" className="max-w-6xl mx-auto px-6 py-14 border-t border-white/[0.08]">
+      <section id="elevate-doors" className="ev-reveal max-w-6xl mx-auto px-6 py-14 border-t border-white/[0.08]">
         <div className="text-[10px] font-black uppercase tracking-[0.45em] text-[#FF8C00]" style={{ fontFamily: 'Outfit, sans-serif' }}>
           Every way into Plajah Elevate
         </div>
@@ -1392,7 +1395,7 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
       {/* =====================================================================
           FOUNDER / PASTOR CTA BANNER (Matches Small Business + Aria Prompt)
           ===================================================================== */}
-      <section className="max-w-6xl mx-auto px-6 pb-20">
+      <section className="ev-reveal max-w-6xl mx-auto px-6 pb-20">
         <div
           className="relative overflow-hidden rounded-[36px] border border-white/15 px-8 sm:px-10 py-14 text-center text-white"
           style={{ background: 'linear-gradient(135deg,rgba(107,0,153,.36),rgba(212,0,85,.20) 55%,rgba(255,140,0,.14))' }}

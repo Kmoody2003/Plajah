@@ -496,7 +496,7 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
             TAB 1: SANCTUARY STUDIO OVERVIEW
             ═══════════════════════════════════════════════════════════════════════ */}
         {section === 'SANCTUARY_STUDIO' && (
-          <div className="space-y-8">
+          <div className="ev-fade space-y-8">
             {/* Verse · today's reading on Vellum. Demo: sample church plan with Sunday's Stage cues in the
                 margin. Real church: today's devotional passage only — no invented notes, plan or progress. */}
             {!demo ? (
@@ -928,7 +928,7 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
             TAB 3: RECENT LESSONS, ARTICLES & VESPERS SERVICE REVIEW BRIEFS
             ═══════════════════════════════════════════════════════════════════════ */}
         {section === 'RECENT_LESSONS_AND_VESPERS' && (
-          <div className="space-y-8">
+          <div className="ev-fade space-y-8">
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <div>
                 <div className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-[#E2C27E]">
@@ -1010,7 +1010,7 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
             TAB 4: MUSIC DEPARTMENT (CHORA SCRATCHPAD, SETLISTS, GLOBAL SCORES) + HYMNS, GOSPEL & PRAYERS
             ═══════════════════════════════════════════════════════════════════════ */}
         {section === 'HYMNS_PRAYERS_AND_SCORES' && (
-          <div className="space-y-8">
+          <div className="ev-fade space-y-8">
             <ChurchMusicDepartmentHub church={org} canEdit={canEditContent} />
 
             <div>

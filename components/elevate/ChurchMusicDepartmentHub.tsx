@@ -433,7 +433,9 @@ export const ChurchMusicDepartmentHub: React.FC<ChurchMusicDepartmentHubProps> =
       if (isDemo) return parsed;
       // Earlier builds saved the sample setlists for every church; drop those leftovers.
       const sampleIds = new Set(INITIAL_SETLISTS.map(sl => sl.id));
-      return parsed.filter(sl => !sampleIds.has(sl.id));
+      const own = parsed.filter(sl => !sampleIds.has(sl.id));
+      if (own.length !== parsed.length) localStorage.setItem(STORAGE_SETLISTS_KEY(church.id), JSON.stringify(own));
+      return own;
     } catch {
       return fallback;
     }

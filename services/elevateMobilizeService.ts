@@ -939,7 +939,13 @@ export function loadElevateMobilizeBundleLocal(org: MobilizeOrgPick): ElevateMob
       if (raw) {
         const parsed = JSON.parse(raw) as ElevateMobilizeBundle;
         if (parsed && Array.isArray(parsed.shiftDrives)) {
-          if (!demo) return stripSeededElevateMobilizeItems(org, parsed);
+          if (!demo) {
+            const cleaned = stripSeededElevateMobilizeItems(org, parsed);
+            // Delete leftover sample items for good, not just hide them.
+            const json = JSON.stringify(cleaned);
+            if (json !== raw) window.localStorage.setItem(key, json);
+            return cleaned;
+          }
           const fallback = getDefaultElevateMobilizeBundle(org);
           return {
             ...parsed,

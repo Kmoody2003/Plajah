@@ -16,7 +16,7 @@ import {
   type DemoPost, type DemoEvent, type DemoStaff,
 } from '../data/demoShowcase';
 import { AdaptiveGrid, TYPE } from '../src/lib/designSystem';
-import { EV, EvScope, EvModeBar, EvHero, EvTabs, EvSundaySheet, EvIndexList, EvSectionHead, openLectio, heroImage } from './elevate/vellum';
+import { EV, EvScope, EvModeBar, EvHero, EvTabs, EvSundaySheet, EvIndexList, EvSectionHead, EvReveal, EvGallery, openLectio, heroImage } from './elevate/vellum';
 
 // A fully-populated, static tour of a church on Plajah — the ministry hierarchy,
 // each ministry a space with feed / photos / staff+DM / events / merch, plus
@@ -100,7 +100,7 @@ const ChurchDemoView: React.FC<{ onBack?: () => void; onCreate: () => void; onVi
     return (
       <EvScope className="h-full flex flex-col">
         {modeToggle}
-        <div className="flex-1 min-h-0"><ChurchAdminDemoView onCreate={onCreate} /></div>
+        <div key="admin" className="flex-1 min-h-0 ev-fade"><ChurchAdminDemoView onCreate={onCreate} /></div>
       </EvScope>
     );
   }
@@ -110,7 +110,7 @@ const ChurchDemoView: React.FC<{ onBack?: () => void; onCreate: () => void; onVi
       <EvScope className="h-full overflow-y-auto scrollbar-hide">
         <DemoRibbon label="church" accent={V} ctaText="Create your church" onCreate={onCreate} />
         {modeToggle}
-        <div className="max-w-[1280px] mx-auto px-4 sm:px-8 py-6">
+        <div key="hub" className="max-w-[1280px] mx-auto px-4 sm:px-8 py-6 ev-fade">
           <ChurchMemberHub
             org={c}
             onOpenGive={() => { setMode('member'); setTab('GIVE'); }}
@@ -162,6 +162,7 @@ const ChurchDemoView: React.FC<{ onBack?: () => void; onCreate: () => void; onVi
         {/* Persistent Live Stream & Ministry TV Channel Thumbnail Carousel right under the tabs */}
         <RelloChurchViewer org={c} defaultPlayerExpanded={false} />
 
+        <div key={ministryId || tab} className="ev-fade space-y-10">
         {/* ── Ministry detail (drill-down) ── */}
         {ministry ? (
           <div className="space-y-6">
@@ -238,12 +239,17 @@ const ChurchDemoView: React.FC<{ onBack?: () => void; onCreate: () => void; onVi
                   earlier={earlier.map((v, i) => ({ id: v.id, n: v.series === latest.series ? String(7 - i).padStart(2, '0') : undefined, title: splitTitle(v.title).title, meta: `${splitTitle(v.title).ref ? `${splitTitle(v.title).ref} · ` : ''}${v.date}`, len: v.duration, onClick: () => setTab('WATCH') }))}
                 />
 
-                <section>
+                <EvReveal as="section">
                   <EvSectionHead title="Find your people" action={<button onClick={() => setTab('MINISTRIES')} className="text-sm" style={{ color: VS }}>All ministries</button>} />
                   <EvIndexList items={(c.ministries || []).map(m => ({ id: m.id, name: m.name, when: m.meetingTime, onClick: () => setMinistryId(m.id) }))} />
-                </section>
+                </EvReveal>
 
-                <div className="flex flex-wrap gap-5 items-start">
+                <EvReveal as="section">
+                  <EvSectionHead title="Life together" action={<button onClick={() => setTab('PHOTOS')} className="text-sm" style={{ color: VS }}>All photos</button>} />
+                  <EvGallery albums={DEMO_CHURCH_ALBUMS.slice(0, 2)} onOpen={() => setTab('PHOTOS')} />
+                </EvReveal>
+
+                <EvReveal className="flex flex-wrap gap-5 items-start">
                   <section className="space-y-3" style={{ flex: '999 1 560px', minWidth: 0 }}>
                     <EvSectionHead title="From the church" size="md" />
                     {DEMO_CHURCH_FEED.map(p => <PostCard key={p.id} p={p} />)}
@@ -260,7 +266,7 @@ const ChurchDemoView: React.FC<{ onBack?: () => void; onCreate: () => void; onVi
                       ))}
                     </div>
                   </aside>
-                </div>
+                </EvReveal>
               </div>
             )}
 
@@ -287,12 +293,8 @@ const ChurchDemoView: React.FC<{ onBack?: () => void; onCreate: () => void; onVi
             {/* ── PHOTOS ── */}
             {tab === 'PHOTOS' && (
               <div className="space-y-8">
-                {DEMO_CHURCH_ALBUMS.map(a => (
-                  <div key={a.id}>
-                    <p className="text-sm font-black uppercase tracking-widest text-white mb-3">{a.title} <span className="text-white/30 text-[11px]">· {a.photos.length}</span></p>
-                    <AdaptiveGrid phone={2} tablet={3} desktop={3} gap="0.5rem">{a.photos.map((ph, i) => <img key={i} src={ph} onClick={demoAction} className="aspect-square object-cover rounded-xl border border-white/10 cursor-zoom-in hover:opacity-90" alt="" loading="lazy" />)}</AdaptiveGrid>
-                  </div>
-                ))}
+                <EvSectionHead title="Photos" />
+                <EvGallery albums={DEMO_CHURCH_ALBUMS} perAlbum={9} onOpen={demoAction} />
                 <button onClick={demoAction} className={`w-full py-3 rounded-2xl ${TYPE.labelMd} text-white`} style={{ background: 'rgba(122, 31, 192,0.15)', border: `1px solid rgba(122, 31, 192,0.3)` }}>+ New album (demo)</button>
               </div>
             )}
@@ -424,6 +426,7 @@ const ChurchDemoView: React.FC<{ onBack?: () => void; onCreate: () => void; onVi
             )}
           </>
         )}
+        </div>
       </div>
     </EvScope>
   );

@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import type { Organization, OrgMembership, OrgType, OrgRole, UserProfile } from '../types';
 import { AdaptiveGrid, TYPE } from '../src/lib/designSystem';
-import { EV, EvScope, EvModeBar, EvHero, EvTabs, heroImage } from './elevate/vellum';
+import { EV, EvScope, EvModeBar, EvHero, EvTabs, EvGallery, heroImage } from './elevate/vellum';
 import {
   createOrganization, fetchUserOrganizations, fetchOrgMembers, updateOrganization,
   addOrgMember, removeOrgMember, setOrgMemberRole, fetchUnmigratedBrands, migrateLegacyBrands,
@@ -483,7 +483,9 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
       <EvScope className="min-h-full">
         {modeToggle}
         <Suspense fallback={<div className="flex justify-center py-20"><Loader2 className="animate-spin text-white/30" size={24} /></div>}>
+          <div key="ops" className="ev-fade">
           <ElevateOps org={org} isOwner={isOwner} onClose={() => setView('public')} onOrgChange={setOrg} onVisitUser={onVisitUser} initialTool={initialContentHq ? 'hq' : undefined} />
+          </div>
         </Suspense>
       </EvScope>
     );
@@ -493,7 +495,7 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
     return (
       <EvScope className="min-h-full">
         {modeToggle}
-        <div className="max-w-[1280px] mx-auto px-4 sm:px-8 py-6">
+        <div key="member" className="max-w-[1280px] mx-auto px-4 sm:px-8 py-6 ev-fade">
           <Suspense fallback={<div className="flex justify-center py-20"><Loader2 className="animate-spin text-white/30" size={24} /></div>}>
             <ChurchMemberHub
               org={org}
@@ -576,6 +578,7 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
 
         {applyFor && <ApplyModal posting={applyFor} orgName={org.name} onClose={() => setApplyFor(null)} />}
 
+        <div key={openMinistry || tab} className="ev-fade space-y-8">
         {/* ── Ministry / Department Drill-Down (inline below the persistent stream carousel!) ── */}
         {ministryOpen ? (
           <div className="space-y-4">
@@ -719,16 +722,7 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
             {tab === 'PHOTOS' && (
               <div className="space-y-8">
                 <OrgMediaShelves org={org} isOwner={isOwner} canManage={can('MANAGE_CONTENT')} onOrgChange={setOrg} onVisitUser={onVisitUser} onOpenVideo={onOpenVideo} onOpenAlbum={onOpenAlbum} />
-                {demo && DEMO_CHURCH_ALBUMS.map(a => (
-                  <div key={a.id}>
-                    <p className="text-sm font-black uppercase tracking-widest text-white mb-3">{a.title} <span className="text-white/30 text-[11px]">· {a.photos.length}</span></p>
-                    <AdaptiveGrid phone={2} tablet={3} desktop={3} gap="0.5rem">
-                      {a.photos.map((ph, i) => (
-                        <img key={i} src={ph} className="aspect-square object-cover rounded-xl border border-white/10 hover:opacity-90" alt="" loading="lazy" />
-                      ))}
-                    </AdaptiveGrid>
-                  </div>
-                ))}
+                {demo && <EvGallery albums={DEMO_CHURCH_ALBUMS} perAlbum={9} />}
               </div>
             )}
 
@@ -955,6 +949,7 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
             )}
           </>
         )}
+        </div>
         <div className="h-16" />
       </div>
     </EvScope>

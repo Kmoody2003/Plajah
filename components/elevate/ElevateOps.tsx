@@ -238,7 +238,7 @@ const ElevateOps: React.FC<Props> = ({ org: initialOrg, isOwner, onClose, onOrgC
             )}
             <Suspense fallback={<Fallback />}>
               {section === 'overview' && (
-                <div className="space-y-8 max-w-[1100px]">
+                <div className="ev-fade space-y-8 max-w-[1100px]">
                   <div>
                     <div className="text-[13px] text-[#A49CB2] pb-1.5">{roleLine} · {org.name}</div>
                     <h2 className="m-0 ev-display text-white" style={{ fontSize: 'clamp(2.25rem, 4vw, 3rem)', lineHeight: 1 }}>{faith ? 'This week' : 'Overview'}</h2>
@@ -368,7 +368,7 @@ const ElevateOps: React.FC<Props> = ({ org: initialOrg, isOwner, onClose, onOrgC
               )}
 
               {section === 'media' && (
-                <div className="grid sm:grid-cols-2 gap-3">
+                <div className="ev-fade grid sm:grid-cols-2 gap-3">
                   {toolBtn('sermons', 'Sermon Studio', Sparkles, can('MANAGE_SERMONS') && faith, 'Record, auto-transcribe → article / book')}
                   {toolBtn('master', 'Master Control', MonitorPlay, can('MANAGE_MEDIA') && faith, 'Livestream + service run-of-show')}
                   {toolBtn('console', 'Console', Mail, can('MANAGE_MEDIA') && faith, 'Messages & communications')}
@@ -377,7 +377,7 @@ const ElevateOps: React.FC<Props> = ({ org: initialOrg, isOwner, onClose, onOrgC
               )}
 
               {section === 'social' && (
-                <div className="space-y-12">
+                <div className="ev-fade space-y-12">
                   {(can('POST_AS_ORG') || isOwner) && growth('social')}
                   <SocialPanel org={org} myMembership={myMembership} onOrgChange={setOrg} onVisitUser={onVisitUser} />
                 </div>
@@ -386,7 +386,7 @@ const ElevateOps: React.FC<Props> = ({ org: initialOrg, isOwner, onClose, onOrgC
               {section === 'store' && <OrgStoreSection org={org} mode="manage" canManage accent={EV.violet} onVisitUser={onVisitUser} onOrgChange={setOrg} />}
 
               {section === 'team' && (
-                <div className="space-y-5">
+                <div className="ev-fade space-y-5">
                   <div className="grid sm:grid-cols-2 gap-3">
                     {toolBtn('employees', 'Employees', UserCog, can('MANAGE_EMPLOYEES'), 'Staff records, roles, schedules')}
                     {toolBtn('hiring', faith ? 'Volunteers' : 'Hiring', Mic2, can('MANAGE_EMPLOYEES'), 'Open roles, applicants, sign-ups')}

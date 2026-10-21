@@ -4,7 +4,7 @@
 // ember only for "live"; Vellum paper sheets wherever Scripture or the Sunday
 // order of service appears, so Lectio and Ambo read as the same material.
 
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ChevronLeft } from 'lucide-react';
 import '../../styles/elevate-vellum.css';
 
@@ -49,6 +49,91 @@ export const heroImage = (url?: string) =>
 /** Root of every Elevate surface: sets tokens, voice and the label/size floor. */
 export const EvScope: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ className = '', ...rest }) => (
   <div className={`ev-scope ${className}`} {...rest} />
+);
+
+/**
+ * Calls `onShow` once `el` scrolls into view. IntersectionObserver first; a capture-phase scroll check
+ * covers environments where observer callbacks are throttled; and a timer guarantees the content is
+ * revealed regardless — motion is decoration, never a condition for seeing the page.
+ */
+function watchReveal(el: HTMLElement, onShow: () => void, fallbackMs = 1800): () => void {
+  let done = false;
+  const show = () => { if (done) return; done = true; cleanup(); onShow(); };
+  const inView = () => {
+    const r = el.getBoundingClientRect();
+    const h = window.innerHeight || document.documentElement.clientHeight;
+    return r.top < h * 0.94 && r.bottom > 0;
+  };
+  const onScroll = () => { if (inView()) show(); };
+  const io = typeof IntersectionObserver !== 'undefined'
+    ? new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) show(); }, { rootMargin: '0px 0px -6% 0px', threshold: 0.06 })
+    : null;
+  const timer = window.setTimeout(show, fallbackMs);
+  function cleanup() {
+    io?.disconnect();
+    window.removeEventListener('scroll', onScroll, true);
+    window.clearTimeout(timer);
+  }
+  if (inView()) { show(); return cleanup; }
+  io?.observe(el);
+  window.addEventListener('scroll', onScroll, { capture: true, passive: true });
+  return cleanup;
+}
+
+/** Rises into view the first time it scrolls on screen (staggered with `delay`). Respects reduced motion via CSS. */
+export const EvReveal: React.FC<{ children: React.ReactNode; delay?: number; className?: string; style?: React.CSSProperties; as?: 'div' | 'section' }> = ({ children, delay = 0, className = '', style, as = 'div' }) => {
+  const ref = useRef<HTMLElement | null>(null);
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    return watchReveal(el, () => setShown(true));
+  }, []);
+  const Tag = as as any;
+  return (
+    <Tag ref={ref} className={`ev-reveal ${shown ? 'ev-in' : ''} ${className}`} style={{ ...style, ['--ev-delay' as any]: `${delay}ms` }}>
+      {children}
+    </Tag>
+  );
+};
+
+/** For pages that mark sections with the `ev-reveal` class directly: reveal each once it scrolls in. */
+export function useEvRevealAll(deps: React.DependencyList = []) {
+  useEffect(() => {
+    const els = Array.from(document.querySelectorAll<HTMLElement>('.ev-reveal:not(.ev-in)'));
+    const stops = els.map(el => watchReveal(el, () => el.classList.add('ev-in'), 2400));
+    return () => stops.forEach(stop => stop());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps);
+}
+
+export interface EvAlbum { id: string; title: string; photos: string[] }
+
+/** Photo albums: a feature image beside a tight grid, per album; tiles lift and slowly zoom on hover. */
+export const EvGallery: React.FC<{ albums: EvAlbum[]; onOpen?: (album: EvAlbum, index: number) => void; perAlbum?: number }> = ({ albums, onOpen, perAlbum = 5 }) => (
+  <div className="space-y-12">
+    {albums.filter(a => a.photos.length > 0).map((a, ai) => {
+      const [feature, ...rest] = a.photos.slice(0, perAlbum);
+      return (
+        <EvReveal key={a.id} delay={ai * 80} as="section">
+          <div className="flex items-baseline justify-between gap-3 mb-4">
+            <h3 className="m-0 ev-title text-[22px] text-white">{a.title}</h3>
+            <span className="ev-num text-sm text-[#A49CB2]">{a.photos.length} photos</span>
+          </div>
+          <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))' }}>
+            <button type="button" onClick={() => onOpen?.(a, 0)} aria-label={`Open ${a.title}`} className="ev-zoom ev-lift rounded-[18px] block" style={{ gridRow: 'span 2', background: EV.panel, minHeight: 300 }}>
+              <img src={feature} alt="" loading="lazy" className="ev-img-in w-full h-full object-cover" />
+            </button>
+            {rest.map((ph, i) => (
+              <button key={i} type="button" onClick={() => onOpen?.(a, i + 1)} aria-label={`Open photo ${i + 2} of ${a.title}`} className="ev-zoom ev-lift rounded-[14px] block aspect-[4/3]" style={{ background: EV.panel }}>
+                <img src={ph} alt="" loading="lazy" className="ev-img-in w-full h-full object-cover" />
+              </button>
+            ))}
+          </div>
+        </EvReveal>
+      );
+    })}
+  </div>
 );
 
 export const EvLabel: React.FC<{ children: React.ReactNode; className?: string; style?: React.CSSProperties }> = ({ children, className = '', style }) => (
@@ -115,7 +200,7 @@ export const EvHero: React.FC<{
   coverUrl?: string;
 }> = ({ name, logoUrl, tagline, intro, meta, times, actions, coverUrl }) => (
   <section className="max-w-[1240px] mx-auto px-4 sm:px-8 pt-10 sm:pt-14">
-    <div className="flex items-center gap-3 mb-8">
+    <div className="flex items-center gap-3 mb-8 ev-rise">
       {logoUrl
         ? <img src={logoUrl} alt="" className="w-10 h-10 rounded-xl object-cover" />
         : <span className="w-10 h-10 rounded-xl grid place-items-center ev-title text-lg" style={{ background: EV.panel, color: EV.gold }}>{name.slice(0, 1)}</span>}
@@ -123,8 +208,8 @@ export const EvHero: React.FC<{
       {meta && <span className="text-sm text-[#A49CB2] hidden sm:inline">{meta}</span>}
     </div>
     <div className="flex flex-wrap items-end gap-x-12 gap-y-8">
-      <h1 className="ev-display text-white m-0 ev-rise" style={{ flex: '999 1 560px', minWidth: 0, fontSize: 'clamp(3rem, 8vw, 7.5rem)' }}>{tagline}</h1>
-      <div className="flex flex-col gap-5 pb-2" style={{ flex: '1 1 300px', minWidth: 0 }}>
+      <h1 className="ev-display text-white m-0 ev-rise" style={{ flex: '999 1 560px', minWidth: 0, fontSize: 'clamp(3rem, 8vw, 7.5rem)', ['--ev-delay' as any]: '80ms' }}>{tagline}</h1>
+      <div className="flex flex-col gap-5 pb-2 ev-rise" style={{ flex: '1 1 300px', minWidth: 0, ['--ev-delay' as any]: '220ms' }}>
         {intro && <p className="m-0 text-[17px] leading-relaxed text-[#D8D2E2]">{intro}</p>}
         {times && times.length > 0 && (
           <div className="grid gap-x-5 gap-y-2 items-baseline" style={{ gridTemplateColumns: 'auto minmax(0,1fr)' }}>
@@ -140,8 +225,8 @@ export const EvHero: React.FC<{
       </div>
     </div>
     {coverUrl && (
-      <div className="mt-12 rounded-[20px] overflow-hidden" style={{ background: EV.panel }}>
-        <img src={coverUrl} alt="" className="w-full h-[260px] sm:h-[420px] object-cover" />
+      <div className="mt-12 rounded-[20px] overflow-hidden ev-zoom" style={{ background: EV.panel }}>
+        <img src={coverUrl} alt="" className="ev-hero-photo w-full h-[260px] sm:h-[420px] object-cover" />
       </div>
     )}
   </section>
@@ -176,7 +261,7 @@ export const EvSundaySheet: React.FC<{
   readLabel?: string;
   earlier?: EvSermon[];
 }> = ({ eyebrow, title, byline, verse, onWatch, onRead, readLabel = 'Read along in Verse', earlier }) => (
-  <section className="ev-sheet p-7 sm:p-14 flex flex-wrap gap-12">
+  <section className="ev-sheet p-7 sm:p-14 flex flex-wrap gap-12 ev-rise">
     <div className="flex flex-col gap-4" style={{ flex: '1 1 420px', minWidth: 0 }}>
       <EvLabel>{eyebrow}</EvLabel>
       <h2 className="m-0 ev-display" style={{ fontSize: 'clamp(2.25rem, 4.5vw, 3.25rem)', lineHeight: 1 }}>{title}</h2>
@@ -213,7 +298,7 @@ export const EvSundaySheet: React.FC<{
 export const EvIndexList: React.FC<{ items: { id: string; name: string; when?: string; onClick?: () => void }[] }> = ({ items }) => (
   <div className="grid gap-x-10" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))' }}>
     {items.map((m, i) => (
-      <button key={m.id} onClick={m.onClick} className="ev-row-link text-left grid gap-3 items-baseline py-5 px-1" style={{ gridTemplateColumns: '44px minmax(0,1fr) auto', borderTop: `1px solid ${EV.line}` }}>
+      <button key={m.id} onClick={m.onClick} className="ev-row-link ev-rise text-left grid gap-3 items-baseline py-5 px-1" style={{ gridTemplateColumns: '44px minmax(0,1fr) auto', borderTop: `1px solid ${EV.line}`, ['--ev-delay' as any]: `${Math.min(i, 10) * 45}ms` }}>
         <span className="ev-num text-[15px] text-[#A49CB2]">{String(i + 1).padStart(2, '0')}</span>
         <span className="ev-title text-[22px] sm:text-2xl text-white truncate">{m.name}</span>
         {m.when && <span className="text-[13px] text-[#A49CB2] text-right">{m.when}</span>}
@@ -243,7 +328,7 @@ export const EvLectioSheet: React.FC<{
   onAddNote?: () => void;
   footnote?: string;
 }> = ({ planLabel, progressLabel, reference, verses, notes, onContinue, onAddNote, footnote }) => (
-  <section aria-label="Verse — today's reading" className="ev-sheet p-7 sm:p-12 flex flex-col gap-5">
+  <section aria-label="Verse — today's reading" className="ev-sheet ev-rise p-7 sm:p-12 flex flex-col gap-5">
     <div className="flex flex-wrap justify-between gap-2">
       <EvLabel>{planLabel}</EvLabel>
       {progressLabel && <EvLabel style={{ color: EV.vellumMuted }}>{progressLabel}</EvLabel>}
@@ -286,7 +371,7 @@ export interface EvCue { t: string; what: string; ref?: string; owner: string; s
 export const EvRunSheet: React.FC<{ title: string; subtitle?: string; cues: EvCue[]; action?: React.ReactNode }> = ({ title, subtitle, cues, action }) => {
   const toneColor = { ready: '#2E7D5B', due: '#A6501A', idle: EV.vellumMuted } as const;
   return (
-    <section aria-label={title} className="ev-sheet p-6 sm:p-9 flex flex-col">
+    <section aria-label={title} className="ev-sheet ev-rise p-6 sm:p-9 flex flex-col">
       <div className="flex flex-wrap justify-between items-baseline gap-2 pb-3.5">
         <h2 className="m-0 ev-display text-[28px]" style={{ letterSpacing: '-0.03em' }}>{title}</h2>
         <div className="flex items-center gap-3">

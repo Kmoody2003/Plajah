@@ -169,7 +169,7 @@ export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
         speaker: 'Pastor Daniel Reyes',
         kind: 'LIVE_SANCTUARY',
         viewerCount: 418,
-        badgeText: 'LIVE NOW · AMBO SYNC',
+        badgeText: 'LIVE NOW · STAGE SYNC',
         thumbnailGradient:
           'radial-gradient(circle at 25% 20%, rgba(212, 0, 85,0.55), rgba(122, 31, 192,0.45) 48%, #090414 100%)',
         durationSec: 4500,
@@ -405,7 +405,7 @@ export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
           verse: liveReading.verse,
         } satisfies ScriptureRef,
         label: liveReading.reference,
-        sourceBadge: 'AMBO LIVE SPEECH ASR',
+        sourceBadge: 'STAGE LIVE SPEECH',
         spokenExcerpt: autoScripture.heard || 'Live speech scripture recognition active…',
         programTC: playheadSec,
       };
@@ -423,7 +423,7 @@ export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
             verse: parts[2] || 1,
           } satisfies ScriptureRef,
           label: kCue.label,
-          sourceBadge: isLiveStream ? 'AMBO PRODUCTION TEAM CUE' : 'KAIROS REPLAY TIMECODE',
+          sourceBadge: isLiveStream ? 'STAGE PRODUCTION CUE' : 'KAIROS REPLAY TIMECODE',
           spokenExcerpt: kCue.lines.join(' '),
           programTC: kCue.programTC || playheadSec,
         };
@@ -436,14 +436,24 @@ export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
     for (const c of cues) {
       if (c.programTC <= playheadSec) activeMarker = c;
     }
+    // No cues yet (a real stream before anything is read, or nothing on air): a neutral opening passage.
+    if (!activeMarker) {
+      return {
+        ref: { book: 43, bookName: 'John', chapter: 1, verse: 1 } satisfies ScriptureRef,
+        label: 'John 1',
+        sourceBadge: 'WAITING FOR THE FIRST READING',
+        spokenExcerpt: '',
+        programTC: playheadSec,
+      };
+    }
     return {
       ref: activeMarker.ref,
       label: activeMarker.label,
       sourceBadge:
         activeMarker.sourceLabel === 'AMBO_PRODUCTION_CUE'
           ? isLiveStream
-            ? 'AMBO SERVICE PRODUCTION TEAM'
-            : 'RECORDED AMBO CUE'
+            ? 'STAGE PRODUCTION TEAM'
+            : 'RECORDED STAGE CUE'
           : 'STREAM SPEECH DETECTION',
       spokenExcerpt: activeMarker.spokenExcerpt,
       programTC: activeMarker.programTC,
