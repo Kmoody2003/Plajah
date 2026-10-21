@@ -11,7 +11,20 @@ import SocialPlaybookPanel from '../components/growth/SocialPlaybookPanel';
 import MarketingPlaysPanel from '../components/growth/MarketingPlaysPanel';
 import PackPicker from '../components/business/PackPicker';
 import { LiveSlide } from '../components/business/SignageStudio';
-import type { StoreProduct, DigitalSignageSlide } from '../types';
+import StaffSeatsPanel from '../components/business/StaffSeatsPanel';
+import StaffJoinGateway, { openStaffJoin } from '../components/business/StaffJoinGateway';
+import { DEFAULT_PERMS } from '../services/businessStaffCore';
+import type { StoreProduct, DigitalSignageSlide, BusinessPage } from '../types';
+
+const demoPage = {
+  id: 'demo-page', ownerId: 'owner', businessName: 'Demo Car Dealership', businessType: 'RETAIL', subtype: 'car_dealership', description: '',
+  isVerified: false, isAcceptingOrders: true, radioServiceEnabled: false, digitalSignageEnabled: true, crmEnabled: true, rewardsEnabled: false, createdAt: 0, updatedAt: 0,
+  staffUids: ['u1', 'u2'],
+  staffSeats: {
+    u1: { uid: 'u1', name: 'Maya Ortiz', role: 'MANAGER', roleKey: 'MANAGER', roleLabel: 'Sales Manager', perms: DEFAULT_PERMS.MANAGER, addedAt: Date.now() - 86400000 * 40, addedBy: 'owner' },
+    u2: { uid: 'u2', name: 'Dre Collins', role: 'STAFF', roleLabel: 'Salesperson', perms: ['REGISTER', 'ORDERS', 'CRM', 'EVENTS'], addedAt: Date.now() - 86400000 * 3, addedBy: 'owner' },
+  },
+} as unknown as BusinessPage;
 
 const q = new URLSearchParams(location.search);
 const ALL = [...ALL_BUSINESS_PRESETS, ...Object.values(ALL_ORG_PRESETS).filter((p, i, a) => a.findIndex(x => x.id === p.id) === i)];
@@ -34,7 +47,7 @@ const App: React.FC = () => {
   return (
     <BoScope accent={preset.accent} className="min-h-screen">
       <BoModeBar
-        modes={[{ k: 'marketing', label: 'Marketing' }, { k: 'social', label: 'Social' }, { k: 'packs', label: 'Business types' }, { k: 'signage', label: 'Live signage' }]}
+        modes={[{ k: 'marketing', label: 'Marketing' }, { k: 'social', label: 'Social' }, { k: 'packs', label: 'Business types' }, { k: 'signage', label: 'Live signage' }, { k: 'team', label: 'Team accounts' }, { k: 'join', label: 'Staff join' }]}
         value={screen} onChange={setScreen}
         trailing={<select className="bo-input" style={{ minHeight: 36, width: 'auto' }} value={presetId} onChange={e => setPresetId(e.target.value)}>
           {ALL.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
@@ -47,6 +60,8 @@ const App: React.FC = () => {
         )}
         {screen === 'social' && <SocialPlaybookPanel playbook={preset.social} scope={scope} />}
         {screen === 'packs' && <PackPicker onApply={async () => {}} />}
+        {screen === 'team' && <StaffSeatsPanel page={demoPage} currentUid="owner" canManage accent={preset.accent} />}
+        {screen === 'join' && <><button className="bo-btn bo-btn-primary" onClick={() => openStaffJoin('')}>Open the staff join sheet</button><StaffJoinGateway /></>}
         {screen === 'signage' && (
           <div className="grid gap-6" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))' }}>
             {[slide('MENU', { sellerUid: 'demo', category: 'Kitchen' }), slide('PRODUCT', { sellerUid: 'demo', productIds: ['p0', 'p2', 'p4'] })].map(s => (

@@ -42,6 +42,9 @@ export async function saveBusinessPage(page: Partial<BusinessPage>): Promise<Bus
     const ref = doc(db, 'businessPages', page.id);
     const updates: any = { ...page, ownerId: uid, updatedAt: now };
     delete updates.id;
+    // Staff seats are server-owned (routes/businessStaff.ts); a stale copy must never be written back.
+    delete updates.staffUids;
+    delete updates.staffSeats;
     Object.keys(updates).forEach(k => { if (updates[k] === undefined) delete updates[k]; });
     await updateDoc(ref, updates);
     return { ...page, ownerId: uid, updatedAt: now } as BusinessPage;

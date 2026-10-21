@@ -1,0 +1,6 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "allowJs": false, "noEmit": true },
+  "include": ["services/businessStaffCore.ts", "services/businessStaffService.ts", "contexts/ActiveIdentityContext.tsx", "components/AccountSwitcher.tsx",
+    "components/business/StaffJoinGateway.tsx", "components/business/StaffSeatsPanel.tsx", "components/BusinessDashboard.tsx"]
+}

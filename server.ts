@@ -51,6 +51,9 @@ import { createAdminFilmIngestRouter, handleMuxAssetReadyForPublicDomain, startP
 import { learnerAuthRouter } from './routes/learnerAuth';
 import { schoolsRouter } from './routes/schools';
 import { elevateAccountsRouter } from './routes/elevateAccounts';
+import { createBusinessStaffRouter } from './routes/businessStaff';
+import { registerPermsFor as bizRegisterPermsFor, normalizePerms as normalizeBizPerms, type BizPerm } from './services/businessStaffCore';
+import { staffActorInfo as bizStaffActorInfo } from './services/businessStaffServerCore';
 import { payrollConnectRouter } from './routes/payrollConnect';
 import { postmanRouter } from './routes/postman';
 import { articleFeedsRouter } from './routes/articleFeeds';
@@ -3662,7 +3665,8 @@ async function startServer() {
     if (kind === 'business') {
       const page = await firestoreRead('businessPages', hid);
       if (!page) return { ok: false, exists: false };
-      return { ok: !!uid && page.ownerId === uid, exists: true, name: String(page.businessName || page.name || '') || undefined };
+      const staffOk = !!uid && page.ownerId !== uid && !!(await businessStaffPerms(uid, String(page.ownerId || '')))?.includes('EVENTS');
+      return { ok: !!uid && (page.ownerId === uid || staffOk), exists: true, name: String(page.businessName || page.name || '') || undefined };
     }
     const org = await firestoreGetDeep('organizations', hid);
     if (!org) return { ok: false, exists: false };
@@ -4517,6 +4521,44 @@ async function startServer() {
     } catch (err: any) { res.status(500).json({ error: err.message }); }
   });
 
+  // Events run by an org or business. Public: PUBLISHED / ON_SALE / SOLD_OUT / COMPLETED. The host's own team
+  // (eventHostAccess) also gets DRAFT + CANCELLED. Single-equality query on hostKey (no composite index); sorted here:
+  // upcoming soonest-first, then past most-recent-first, 50 max.
+  app.get('/api/events/host/:kind/:id', apiLimiter, async (req: any, res) => {
+    const kind = String(req.params.kind || '');
+    const id = String(req.params.id || '');
+    if ((kind !== 'org' && kind !== 'business') || !id || id.length > 128) return res.status(400).json({ error: 'Bad host' });
+    try {
+      // ?public=1 → the public view even for the host's own team (public page widgets).
+      const uid = req.query.public === '1' ? undefined : await optionalUidFromReq(req);
+      const access = uid ? await eventHostAccess(uid, kind, id) : { ok: false };
+      const PUBLIC =['PUBLISHED', 'ON_SALE', 'SOLD_OUT', 'COMPLETED'];
+      const rows = await queryFirebase('plajahEvents', [{ field: 'hostKey', value: `${kind}:${id}` }], 300);
+      const now = Date.now();
+      const events = rows
+        .filter((f: any) => access.ok || PUBLIC.includes(String(f.status)))
+        .map((f: any) => {
+          const tiers: any[] = parseEventJsonField(f.tiers, []);
+          const visible = Array.isArray(tiers) ? tiers.filter(t => t && t.isVisible !== false) : [];
+          const prices = visible.map(t => Number(t.priceCents) || 0);
+          return {
+            id: String(f.id || ''), title: f.title || 'Untitled event', subtitle: f.subtitle || undefined, status: f.status || 'DRAFT', type: f.type,
+            startDate: Number(f.startDate) || 0, endDate: Number(f.endDate) || undefined, coverImage: f.coverImage || undefined,
+            venueName: f.venueName || undefined, city: f.city || undefined, state: f.state || undefined,
+            totalSold: Number(f.totalSold) || 0, totalCapacity: Number(f.totalCapacity) || 0,
+            priceFromCents: prices.length ? Math.min(...prices) : undefined,
+            playbookKey: f.playbookKey || undefined, host: parseEventJsonField(f.host, undefined) || undefined,
+            photoPoolId: f.photoPoolId || undefined, kioskEnabled: f.kioskEnabled === true,
+          };
+        })
+        .filter(e => e.id);
+      const upcoming = events.filter(e => (e.endDate || e.startDate) >= now).sort((a, b) => a.startDate - b.startDate);
+      const past = events.filter(e => (e.endDate || e.startDate) < now).sort((a, b) => b.startDate - a.startDate);
+      res.set('Vary', 'Authorization'); res.set('Cache-Control', access.ok ? 'private, no-store' : 'public, max-age=60');
+      res.json({ events: [...upcoming, ...past].slice(0, 50), canManage: access.ok });
+    } catch (err: any) { res.status(500).json({ error: err?.message || 'Could not load events' }); }
+  });
+
   app.get('/api/events/:eventId', async (req, res) => {
     try {
       const doc = await fetchFirebaseDoc('plajahEvents', req.params.eventId);
@@ -4589,44 +4631,6 @@ async function startServer() {
             },
             quantity: 1,
           });
-  // Events run by an org or business. Public: PUBLISHED / ON_SALE / SOLD_OUT / COMPLETED. The host's own team
-  // (eventHostAccess) also gets DRAFT + CANCELLED. Single-equality query on hostKey (no composite index); sorted here:
-  // upcoming soonest-first, then past most-recent-first, 50 max.
-  app.get('/api/events/host/:kind/:id', apiLimiter, async (req: any, res) => {
-    const kind = String(req.params.kind || '');
-    const id = String(req.params.id || '');
-    if ((kind !== 'org' && kind !== 'business') || !id || id.length > 128) return res.status(400).json({ error: 'Bad host' });
-    try {
-      // ?public=1 → the public view even for the host's own team (public page widgets).
-      const uid = req.query.public === '1' ? undefined : await optionalUidFromReq(req);
-      const access = uid ? await eventHostAccess(uid, kind, id) : { ok: false };
-      const PUBLIC =['PUBLISHED', 'ON_SALE', 'SOLD_OUT', 'COMPLETED'];
-      const rows = await queryFirebase('plajahEvents', [{ field: 'hostKey', value: `${kind}:${id}` }], 300);
-      const now = Date.now();
-      const events = rows
-        .filter((f: any) => access.ok || PUBLIC.includes(String(f.status)))
-        .map((f: any) => {
-          const tiers: any[] = parseEventJsonField(f.tiers, []);
-          const visible = Array.isArray(tiers) ? tiers.filter(t => t && t.isVisible !== false) : [];
-          const prices = visible.map(t => Number(t.priceCents) || 0);
-          return {
-            id: String(f.id || ''), title: f.title || 'Untitled event', subtitle: f.subtitle || undefined, status: f.status || 'DRAFT', type: f.type,
-            startDate: Number(f.startDate) || 0, endDate: Number(f.endDate) || undefined, coverImage: f.coverImage || undefined,
-            venueName: f.venueName || undefined, city: f.city || undefined, state: f.state || undefined,
-            totalSold: Number(f.totalSold) || 0, totalCapacity: Number(f.totalCapacity) || 0,
-            priceFromCents: prices.length ? Math.min(...prices) : undefined,
-            playbookKey: f.playbookKey || undefined, host: parseEventJsonField(f.host, undefined) || undefined,
-            photoPoolId: f.photoPoolId || undefined, kioskEnabled: f.kioskEnabled === true,
-          };
-        })
-        .filter(e => e.id);
-      const upcoming = events.filter(e => (e.endDate || e.startDate) >= now).sort((a, b) => a.startDate - b.startDate);
-      const past = events.filter(e => (e.endDate || e.startDate) < now).sort((a, b) => b.startDate - a.startDate);
-      res.set('Vary', 'Authorization'); res.set('Cache-Control', access.ok ? 'private, no-store' : 'public, max-age=60');
-      res.json({ events: [...upcoming, ...past].slice(0, 50), canManage: access.ok });
-    } catch (err: any) { res.status(500).json({ error: err?.message || 'Could not load events' }); }
-  });
-
         }
       }
 
@@ -10534,11 +10538,43 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     }
     return null;
   };
+  // ── Business staff seats (routes/businessStaff.ts) ── a team member signed in with their OWN account.
+  // businessStaffIndex/{ownerUid}.staffPerms[uid] (private, server-written) is the union of their seat perms across the owner's pages.
+  const bizStaffCache = new Map<string, { at: number; v: any }>();
+  const bizStaffCached = async <T,>(key: string, load: () => Promise<T>): Promise<T> => {
+    const hit = bizStaffCache.get(key);
+    if (hit && Date.now() - hit.at < 30_000) return hit.v as T;
+    const v = await load();
+    if (bizStaffCache.size > 2000) bizStaffCache.clear();
+    bizStaffCache.set(key, { at: Date.now(), v });
+    return v;
+  };
+  const bizStaffForget = (ownerUid: string) => { for (const k of [...bizStaffCache.keys()]) if (k.endsWith(`|${ownerUid}`)) bizStaffCache.delete(k); };
+  /** A seated staff account's perms on an owner's business; null when uid is not staff there. */
+  const businessStaffPerms = async (uid: string | undefined, ownerUid: string): Promise<BizPerm[] | null> => {
+    if (!uid || !ownerUid || uid === ownerUid || ownerUid.includes('/')) return null;
+    return bizStaffCached(`perms|${uid}|${ownerUid}`, async () => {
+      const biz = await firestoreGetDeep('businessStaffIndex', ownerUid);
+      const raw = biz?.staffPerms?.[uid];
+      const uids: string[] = Array.isArray(biz?.staffUids) ? biz!.staffUids : [];
+      return Array.isArray(raw) && uids.includes(uid) ? normalizeBizPerms(raw) : null;
+    });
+  };
   type Actor = { ok: true; staffId: string; staffName: string; role: string; perms: Set<RegisterPermission> } | { ok: false; status: number; error: string; code?: string };
   const resolveRegisterActor = async (req: any, businessUid: string, perm: RegisterPermission): Promise<Actor> => {
     // A valid PIN session wins even on the owner's device, so a cashier signed in by PIN is attributed and restricted as themselves.
     const sess = verifySession(String(req.headers?.['x-register-session'] || ''));
     if (req.uid === businessUid && !(sess && sess.b === businessUid)) return { ok: true, staffId: businessUid, staffName: 'Owner', role: 'OWNER', perms: registerPermissionsFor('OWNER') };
+    // Staff on their own account (no shared-tablet PIN session): perms come from their seat, never the role default.
+    if (req.uid && !(sess && sess.b === businessUid)) {
+      const staffPerms = await businessStaffPerms(req.uid, businessUid);
+      const regPerms = staffPerms ? new Set(bizRegisterPermsFor(staffPerms) as RegisterPermission[]) : null;
+      if (regPerms && regPerms.has(perm)) {
+        const info = await bizStaffCached(`actor|${req.uid}|${businessUid}`, async () =>
+          bizStaffActorInfo(await queryFirebase('businessPages', [{ field: 'ownerId', value: businessUid }], 50), req.uid));
+        if (info) return { ok: true, staffId: info.staffMemberId || req.uid, staffName: info.name, role: info.role, perms: regPerms };
+      }
+    }
     if (!sess || sess.b !== businessUid) return { ok: false, status: 403, error: 'Enter your register PIN to continue.', code: 'PIN_REQUIRED' };
     const perms = registerPermissionsFor(sess.role, sess.perms);
     if (!perms.has(perm)) return { ok: false, status: 403, error: 'Your role cannot do that at the register.', code: 'FORBIDDEN' };
@@ -10584,6 +10620,8 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     firestoreRead, firestoreWrite, firestoreCreateOnce, firestoreDeleteDoc: firestoreDeleteDoc, fsQueryDocs, getStripe, trustedRequestOrigin,
     mayUseTemplate: (uid: string, t: string) => themeMayUse(eviteThemeDeps, uid, t),
     resolveArt: (t: string) => themeArt(eviteThemeDeps, t),
+    canManageHost: (uid: string | undefined, kind: 'org' | 'business', id: string) => eventHostAccess(uid, kind, id),
+    optionalUid: (req: any) => optionalUidFromReq(req),
     readIndexHtml: async () => { try { return await fs.readFile(path.join(__dirname, 'dist', 'index.html'), 'utf-8'); } catch { return null; } },
     cronAuthorized: (req: any) => { const key = req.headers['x-cron-key']; return secretsEqual(key, process.env.ADMIN_SEED_KEY) || secretsEqual(key, process.env.CRON_SECRET); },
     sendEmail: process.env.RESEND_API_KEY ? async (to: string, subject: string, text: string) => {
@@ -10656,8 +10694,6 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
   // Time clock by PIN, verified server-side against the hash with the SAME lockout as the register login.
   app.post('/api/register/clock', authMiddleware, express.json(), async (req: any, res) => {
     try {
-    canManageHost: (uid: string | undefined, kind: 'org' | 'business', id: string) => eventHostAccess(uid, kind, id),
-    optionalUid: (req: any) => optionalUidFromReq(req),
       const { businessUid, pin, direction } = req.body || {};
       if (!businessUid || !isValidPin(String(pin || '')) || !['IN', 'OUT'].includes(String(direction))) return res.status(400).json({ error: 'Enter your PIN.' });
       const b = String(businessUid);
@@ -12985,6 +13021,10 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   // Elevate: claim a pre-provisioned member / staff account (member ID + last name, or own email). Rate-limited.
   app.use('/api/elevate/claim', authLimiter);
   app.use('/api/elevate/claim', express.json({ limit: '8kb' }), elevateAccountsRouter);
+  // Business staff seats: invite → lookup → redeem on the member's own account (routes/businessStaff.ts).
+  app.use('/api/business/staff/lookup', authLimiter);
+  app.use('/api/business/staff/redeem', authLimiter);
+  app.use('/api/business/staff', express.json({ limit: '8kb' }), createBusinessStaffRouter({ cas: restCas, onStaffChanged: bizStaffForget }));
   // Elevate: read-only staff directory from payroll (Paychex Flex API; file exports are handled client-side).
   app.use('/api/payroll', express.json({ limit: '8kb' }), payrollConnectRouter);
 

@@ -50,6 +50,9 @@ import type { MailRecipient } from '../services/marketing/handoff';
 import SignageStudio from './business/SignageStudio';
 import GrowthHub from './growth/GrowthHub';
 const BizCrm = lazy(() => import('./crm/BizCrm'));
+import StaffSeatsPanel from './business/StaffSeatsPanel';
+import { accessFor, can as canDo, tabAllowed } from '../services/businessStaffCore';
+import { fetchStaffBusinessPages, takeRequestedBusinessPage, removeStaffSeat } from '../services/businessStaffService';
 
 type BizTab = 'OVERVIEW' | 'TODAY' | 'APPOINTMENTS' | 'ORDERS' | 'INVENTORY' | 'TEAM' | 'MESSAGING' | 'CRM' | 'SIGNAGE' | 'SEEDRAISER' | 'RADIO' | 'MARKETING' | 'SETTINGS' | 'LISTINGS' | 'COMPLIANCE' | 'BILLING' | 'TICKETS' | 'EVENTS' | 'SOCIAL';
 type BizMode = 'owner' | 'staff';
@@ -128,6 +131,23 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
   const [editingPage, setEditingPage] = useState<Partial<BusinessPage> | null>(null);
   const [editingCampaign, setEditingCampaign] = useState<Partial<SeedRaiserCampaign> | null>(null);
   const [mode, setMode] = useState<BizMode>('owner');
+
+  // Who am I on this page? Owners run everything; staff seats work the owner's data with their own sign-in.
+  const access = accessFor(activePage, currentUser.uid);
+  const isSeat = access.kind === 'staff';
+  const effMode: BizMode = isSeat ? 'staff' : mode;
+  /** The owner uid all business data is keyed by (catalog, orders, offers, register, signage). */
+  const bizUid = activePage?.ownerId || currentUser.uid;
+
+  // The account / posting menus can ask for a specific business while the dashboard is open.
+  useEffect(() => {
+    const on = (e: Event) => {
+      const id = (e as CustomEvent).detail?.pageId;
+      setPages(prev => { const hit = prev.find(p => p.id === id); if (hit) setActivePage(hit); return prev; });
+    };
+    window.addEventListener('plajah:openBusinessPage', on);
+    return () => window.removeEventListener('plajah:openBusinessPage', on);
+  }, []);
   const [showSuite, setShowSuite] = useState(false);
   // Live commerce: one catalog + order stream shared with the register, kiosk, store and screens.
   const [catalog, setCatalog] = useState<StoreProduct[]>([]);
@@ -136,9 +156,15 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
   useEffect(() => {
     const load = async () => {
       try {
-        const biz = await fetchMyBusinessPages();
+        const [owned, staffed] = await Promise.all([
+          fetchMyBusinessPages(),
+          fetchStaffBusinessPages(currentUser.uid).catch(() => [] as BusinessPage[]),
+        ]);
+        const biz = [...owned, ...staffed.filter(s => !owned.some(o => o.id === s.id))];
         setPages(biz);
-        if (biz.length > 0) setActivePage(biz[0]);
+        const want = takeRequestedBusinessPage();
+        const first = biz.find(p => p.id === want) || owned[0] || biz[0];
+        if (first) setActivePage(first);
       } catch (e) {
         console.error('BusinessDashboard: failed to load business pages', e);
       } finally {
@@ -160,10 +186,10 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
 
   useEffect(() => {
     if (!activePage) return;
-    const offCat = subscribeCatalog(currentUser.uid, setCatalog, { onError: () => {} });
-    const offOrd = subscribeOrders(currentUser.uid, setStoreOrders, { limit: 200, onError: () => {} });
+    const offCat = subscribeCatalog(bizUid, setCatalog, { onError: () => {} });
+    const offOrd = subscribeOrders(bizUid, setStoreOrders, { limit: 200, onError: () => {} });
     return () => { offCat(); offOrd(); };
-  }, [activePage?.id, currentUser.uid]);
+  }, [activePage?.id, bizUid]);
 
   const handleSeedFullDemo = async () => {
     if (seedingDemo) return;
@@ -209,7 +235,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
 
   const cap = (w: string) => w.charAt(0).toUpperCase() + w.slice(1);
   const ticketPackId = packForPage(activePage)?.ticket ? packForPage(activePage)!.id : '';
-  const ticketApi = useMemo(() => (ticketPackId ? serverTicketApi(currentUser.uid, ticketPackId) : null), [ticketPackId, currentUser.uid]);
+  const ticketApi = useMemo(() => (ticketPackId ? serverTicketApi(bizUid, ticketPackId) : null), [ticketPackId, bizUid]);
   const ALL_TABS: { id: BizTab; label: string; icon: React.ComponentType<{ size?: number; className?: string }> }[] = [
     { id: 'OVERVIEW',     label: 'Overview',     icon: Store },
     { id: 'TODAY',        label: 'Today',        icon: Clock },
@@ -238,13 +264,15 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
   const ownerIds: BizTab[] = Array.from(new Set<BizTab>([
     'OVERVIEW', 'TODAY', ...(tabsFor(activePage) as BizTab[]), 'CRM', 'EVENTS', 'SOCIAL', 'MARKETING', 'BILLING',
   ]));
-  const visibleIds = mode === 'staff' ? ownerIds.filter(id => STAFF_TABS.includes(id)) : ownerIds;
+  const visibleIds = isSeat
+    ? ownerIds.filter(id => tabAllowed(id, access))
+    : mode === 'staff' ? ownerIds.filter(id => STAFF_TABS.includes(id)) : ownerIds;
   const tabs = visibleIds.map(pick).filter((t): t is typeof ALL_TABS[number] => Boolean(t));
 
   // Keep the selected tab valid when the mode or page changes.
   useEffect(() => {
-    if (!visibleIds.includes(activeTab)) setActiveTab(mode === 'staff' ? 'TODAY' : 'OVERVIEW');
-  }, [mode, activePage?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!visibleIds.includes(activeTab)) setActiveTab(effMode === 'staff' ? 'TODAY' : 'OVERVIEW');
+  }, [effMode, activePage?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const preset = useMemo(() => opsPresetForPage(activePage), [activePage?.subtype, activePage?.packId, activePage?.businessType]);
   const accent = packForPage(activePage)?.color || preset.accent || BO.orange;
@@ -300,11 +328,13 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
     <BoScope accent={accent} className="pb-16 -mx-4 sm:mx-0 rounded-none sm:rounded-[28px] overflow-hidden">
       {/* ── Mode bar: Owner / Staff / Public page ── */}
       <BoModeBar
-        modes={activePage ? [{ k: 'owner', label: 'Owner' }, { k: 'staff', label: 'Staff view' }, { k: 'public', label: 'Public page' }] : [{ k: 'owner', label: 'Owner' }]}
-        value={mode}
+        modes={!activePage ? [{ k: 'owner', label: 'Owner' }]
+          : isSeat ? [{ k: 'staff', label: 'Work' }, { k: 'public', label: 'Public page' }]
+          : [{ k: 'owner', label: 'Owner' }, { k: 'staff', label: 'Staff view' }, { k: 'public', label: 'Public page' }]}
+        value={effMode}
         onChange={k => {
           if (k === 'public') { if (activePage && onNavigate) onNavigate('BUSINESS_PUBLIC', { businessPage: activePage }); return; }
-          setMode(k as BizMode);
+          if (!isSeat) setMode(k as BizMode);
         }}
         leading={
           <div className="flex items-center gap-2.5 py-2 pr-2">
@@ -324,7 +354,20 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
                 {pages.map(p => <option key={p.id} value={p.id}>{p.businessName}</option>)}
               </select>
             )}
-            {mode === 'owner' && <button onClick={newPage} className="bo-btn bo-btn-ghost bo-btn-sm"><Plus size={14} /> New business</button>}
+            {effMode === 'owner' && <button onClick={newPage} className="bo-btn bo-btn-ghost bo-btn-sm"><Plus size={14} /> New business</button>}
+            {isSeat && activePage && (
+              <button
+                className="bo-btn bo-btn-ghost bo-btn-sm"
+                onClick={async () => {
+                  if (!window.confirm(`Leave ${activePage.businessName}? You'll lose access until the owner invites you again.`)) return;
+                  try {
+                    await removeStaffSeat(activePage.id, currentUser.uid);
+                    const rest = pages.filter(p => p.id !== activePage.id);
+                    setPages(rest); setActivePage(rest[0] || null);
+                  } catch (e: any) { alert(e?.message || 'Could not leave.'); }
+                }}
+              >Leave team</button>
+            )}
           </>
         }
       />
@@ -353,10 +396,10 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
                 : <span className="w-10 h-10 rounded-xl grid place-items-center text-[#160A00] text-base font-bold shrink-0" style={{ background: accent }}>{(activePage.businessName || 'B').charAt(0).toUpperCase()}</span>}
               <div className="min-w-0">
                 <div className="bo-title text-[16px] text-white truncate leading-tight">{activePage.businessName}</div>
-                <div className="text-[13px] text-[#A39BAE] truncate">{mode === 'staff' ? 'Staff view' : (packForPage(activePage)?.label || vertical.label)}</div>
+                <div className="text-[13px] text-[#A39BAE] truncate">{isSeat ? (access.seat.roleLabel || (access.seat.role === 'MANAGER' ? 'Manager' : 'Team member')) : mode === 'staff' ? 'Staff view' : (packForPage(activePage)?.label || vertical.label)}</div>
               </div>
             </div>
-            {mode === 'owner' && <div className="pb-4"><CreateEventButton compact host={{ kind: 'business', id: activePage.id, label: activePage.businessName }} /></div>}
+            {(effMode === 'owner' || canDo(access, 'EVENTS')) && <div className="pb-4"><CreateEventButton compact host={{ kind: 'business', id: activePage.id, label: activePage.businessName }} /></div>}
             <nav aria-label="Business sections" className="flex md:flex-col gap-5 overflow-x-auto md:overflow-visible pb-1 -mx-1 px-1">
               {TAB_GROUPS.map(g => {
                 const items = g.ids.map(id => tabs.find(t => t.id === id)).filter((t): t is typeof tabs[number] => Boolean(t));
@@ -421,7 +464,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
                 { label: 'Live products', value: String(catalog.filter(p => p.isActive !== false).length), note: 'Register · store · screens', onClick: () => setActiveTab('INVENTORY') },
               ]} />
 
-              {activePage && (
+              {activePage && !isSeat && (
                 <PackOnboarding
                   page={activePage}
                   orderCount={orders.length + storeOrders.length}
@@ -479,7 +522,8 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
                 </div>
               </section>
 
-              {/* Feature switches */}
+              {/* Feature switches (owner only: staff seats can't edit the page) */}
+              {!isSeat && (
               <section className="grid gap-8" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))' }}>
                 <div>
                   <BoLabel className="mb-2">Features</BoLabel>
@@ -525,6 +569,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
                   </div>
                 </div>
               </section>
+              )}
             </div>
           )}
 
@@ -604,7 +649,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
           {activeTab === 'ORDERS' && (
             <div className="space-y-6">
               {/* Store/kiosk/POS orders (the order spine) — advance status + notify the customer. */}
-              <BusinessOrdersPanel businessUid={currentUser.uid} businessName={activePage?.businessName || currentUser.displayName || 'My Business'} businessPhoto={currentUser.photoURL} />
+              <BusinessOrdersPanel businessUid={bizUid} businessName={activePage?.businessName || currentUser.displayName || 'My Business'} businessPhoto={currentUser.photoURL} />
               {orders.length === 0 ? (
                 <Card><p className="text-white/30 text-sm text-center py-8">No orders yet</p></Card>
               ) : (
@@ -658,16 +703,16 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
                   <ShoppingBag size={13} /> Launch in-store kiosk
                 </button>
               </div>
-              <InventoryHub sellerId={currentUser.uid} sellerName={activePage?.businessName || currentUser.displayName || 'My Store'} sellerType="ORG" sellerPhoto={activePage?.logoUrl || currentUser.photoURL || undefined} audience="business" />
-              <RegisterBackOffice businessUid={currentUser.uid} />
-              <OffersManager businessUid={currentUser.uid} />
+              <InventoryHub sellerId={bizUid} sellerName={activePage?.businessName || currentUser.displayName || 'My Store'} sellerType="ORG" sellerPhoto={activePage?.logoUrl || currentUser.photoURL || undefined} audience="business" />
+              <RegisterBackOffice businessUid={bizUid} />
+              <OffersManager businessUid={bizUid} />
             </div>
           )}
 
           {/* In-store ordering kiosk — full-screen overlay (BYO tablet), orders via the store spine. */}
           {showKiosk && (
             <StoreKioskMode
-              businessUid={currentUser.uid}
+              businessUid={bizUid}
               businessName={activePage?.businessName || currentUser.displayName || 'My Store'}
               onExit={() => setShowKiosk(false)}
             />
@@ -676,7 +721,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
           {/* Staff-facing POS register — cash sales on the order spine + inventory + loyalty. */}
           {showRegister && (
             <PosRegister
-              businessUid={currentUser.uid}
+              businessUid={bizUid}
               businessName={activePage?.businessName || currentUser.displayName || 'My Store'}
               onExit={() => setShowRegister(false)}
             />
@@ -685,7 +730,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
           {/* Turn any screen into a purpose-built display (now-playing / menu / signage / kiosk / register). */}
           {showDisplays && (
             <DisplayModeLauncher
-              businessUid={currentUser.uid}
+              businessUid={bizUid}
               businessName={activePage?.businessName || currentUser.displayName || 'My Store'}
               pageId={activePage?.id}
               menuItems={activePage?.menuItems || []}
@@ -694,14 +739,18 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
           )}
 
           {activeTab === 'TEAM' && (
-            <StaffHRManager businessUid={currentUser.uid} businessName={activePage?.businessName || currentUser.displayName || 'My Business'} />
+            <div className="space-y-10">
+            <StaffSeatsPanel page={activePage} currentUid={currentUser.uid} canManage={!isSeat} accent={accent}
+              onChanged={updated => { setActivePage(updated); setPages(prev => prev.map(x => x.id === updated.id ? updated : x)); }} />
+            {!isSeat && <StaffHRManager businessUid={bizUid} businessName={activePage?.businessName || currentUser.displayName || 'My Business'} />}
+            </div>
           )}
 
           {activeTab === 'MESSAGING' && (
             <div className="space-y-8">
-              <BusinessBroadcastComposer business={{ uid: currentUser.uid, name: activePage?.businessName || currentUser.displayName || 'My Business', photo: currentUser.photoURL }} />
+              <BusinessBroadcastComposer business={{ uid: bizUid, name: activePage?.businessName || currentUser.displayName || 'My Business', photo: currentUser.photoURL }} />
               <div className="pt-6 border-t border-white/10">
-                <ArtistPromoDirectory business={{ uid: currentUser.uid, name: activePage?.businessName || currentUser.displayName || 'My Business' }} />
+                <ArtistPromoDirectory business={{ uid: bizUid, name: activePage?.businessName || currentUser.displayName || 'My Business' }} />
               </div>
             </div>
           )}
@@ -716,7 +765,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
 
           {activeTab === 'CRM' && (
             <Suspense fallback={<div className="py-16 text-center text-sm text-[#A39BAE]">Loading CRM…</div>}>
-              <BizCrm businessPage={activePage} currentUser={{ uid: currentUser.uid, displayName: currentUser.displayName }} preset={preset} accent={accent} mode={mode} />
+              <BizCrm businessPage={activePage} currentUser={{ uid: currentUser.uid, displayName: currentUser.displayName }} preset={preset} accent={accent} mode={isSeat && !canDo(access, 'CRM_ADMIN') ? 'staff' : effMode} />
             </Suspense>
           )}
 
@@ -726,7 +775,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
               <div className="flex justify-end">
                 <button onClick={() => setShowDisplays(true)} className="bo-btn bo-btn-ghost bo-btn-sm"><Monitor size={14} /> Display modes</button>
               </div>
-              <SignageStudio businessPage={activePage} sellerUid={activePage.ownerId || currentUser.uid} accent={accent} />
+              <SignageStudio businessPage={activePage} sellerUid={bizUid} accent={accent} />
             </div>
           )}
 
@@ -737,7 +786,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
               host={{ kind: 'business', id: activePage.id, name: activePage.businessName }}
               currentUser={currentUser}
               identity={identity}
-              canManage={mode === 'owner'}
+              canManage={effMode === 'owner' || canDo(access, 'EVENTS') || canDo(access, 'MARKETING')}
               loadRecipients={loadRecipients}
               onOpenSuite={() => { setActiveTab('MARKETING'); setShowSuite(true); }}
               only={activeTab === 'EVENTS' ? 'events' : 'social'}
@@ -849,7 +898,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
             </Card>
           )}
           {activeTab === 'RADIO' && (
-            <NowPlayingPublisher businessUid={currentUser.uid} businessName={activePage?.businessName || currentUser.displayName || 'My Business'} />
+            <NowPlayingPublisher businessUid={bizUid} businessName={activePage?.businessName || currentUser.displayName || 'My Business'} />
           )}
 
           {/* ── MARKETING: preset plays + billboard / mail hand-offs, then the full Organic ⇄ Paid suite ── */}
@@ -867,7 +916,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
                 host={{ kind: 'business', id: activePage.id, name: activePage.businessName }}
                 currentUser={currentUser}
                 identity={identity}
-                canManage={mode === 'owner'}
+                canManage={effMode === 'owner' || canDo(access, 'EVENTS') || canDo(access, 'MARKETING')}
                 loadRecipients={loadRecipients}
                 onOpenSuite={() => setShowSuite(true)}
                 only="marketing"

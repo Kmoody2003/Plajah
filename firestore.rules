@@ -2124,14 +2124,16 @@ service cloud.firestore {
     // touch stock/soldCount/reviewCount (checkout + reviews).
     match /storeProducts/{productId} {
       allow read: if true;
-      allow create: if isAuthenticated() && request.resource.data.sellerId == request.auth.uid;
+      allow create: if isAuthenticated() && (request.resource.data.sellerId == request.auth.uid
+                    || ownerStaffCan(request.resource.data.sellerId, 'INVENTORY'));
       // Stock and soldCount are written by the SELLER (dashboard) or the server order spine (admin
       // credentials) — never by shoppers. (A previous rule let ANY signed-in user rewrite any product's
       // stock.) Shoppers may only bump review aggregates.
       allow update: if isAdmin()
                     || (isAuthenticated() && resource.data.sellerId == request.auth.uid)
+                    || (request.resource.data.sellerId == resource.data.sellerId && ownerStaffCan(resource.data.sellerId, 'INVENTORY'))
                     || (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reviewCount', 'rating', 'updatedAt']));
-      allow delete: if isAuthenticated() && (resource.data.sellerId == request.auth.uid || isAdmin());
+      allow delete: if isAuthenticated() && (resource.data.sellerId == request.auth.uid || isAdmin() || ownerStaffCan(resource.data.sellerId, 'INVENTORY'));
 
       // Back-in-stock waitlist: a shopper adds/removes themselves; the seller reads it to notify.
       match /waitlist/{shopperUid} {
@@ -2145,24 +2147,24 @@ service cloud.firestore {
     // Stock ledger — every receive/sale/adjust/damage, so "where did my inventory go" has an answer.
     // The seller reads + appends their own entries; the server writes sale entries; nobody edits history.
     match /stockMoves/{moveId} {
-      allow read: if isAuthenticated() && (resource.data.sellerId == request.auth.uid || isAdmin());
-      allow create: if isAuthenticated() && request.resource.data.sellerId == request.auth.uid;
+      allow read: if isAuthenticated() && (resource.data.sellerId == request.auth.uid || isAdmin() || ownerStaffCan(resource.data.sellerId, 'INVENTORY'));
+      allow create: if isAuthenticated() && (request.resource.data.sellerId == request.auth.uid || ownerStaffCan(request.resource.data.sellerId, 'INVENTORY'));
       allow update, delete: if false;
     }
 
     // Orders are created ONLY by the server order spine (Stripe-paid / POS), which prices + stock-checks
     // every line. The seller may advance status / add tracking; the buyer reads.
     match /storeOrders/{orderId} {
-      allow read: if isAuthenticated() && (resource.data.buyerId == request.auth.uid || resource.data.sellerId == request.auth.uid || isAdmin());
+      allow read: if isAuthenticated() && (resource.data.buyerId == request.auth.uid || resource.data.sellerId == request.auth.uid || isAdmin() || ownerStaffCan(resource.data.sellerId, 'ORDERS'));
       allow create: if false;
-      allow update: if isAuthenticated() && (resource.data.sellerId == request.auth.uid || isAdmin())
+      allow update: if isAuthenticated() && (resource.data.sellerId == request.auth.uid || isAdmin() || ownerStaffCan(resource.data.sellerId, 'ORDERS'))
                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt', 'trackingNumber', 'trackingCarrier', 'shippedAt', 'oversold', 'sellerNote']);
     }
 
     // POS refunds: written ONLY by the server (/api/store/pos-refund: validates qty/amount, restocks through the
     // ledger, idempotent by id). The seller reads them for reports and the returns picker.
     match /storeRefunds/{refundId} {
-      allow read: if isAuthenticated() && (resource.data.sellerId == request.auth.uid || isAdmin());
+      allow read: if isAuthenticated() && (resource.data.sellerId == request.auth.uid || isAdmin() || ownerStaffCan(resource.data.sellerId, 'REPORTS'));
       allow write: if false;
     }
 
@@ -2182,37 +2184,60 @@ service cloud.firestore {
     // Public business directory. Anyone may browse (the Business hub lists all businesses); the owner
     // manages their own page. (Without this rule, client reads were permission-denied, which threw and
     // left the Business dashboard's loading gate spinning forever.)
-    match /businessPages/{id} {
-      allow read: if true;
-      allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid;
-      allow update, delete: if isAuthenticated() && (resource.data.ownerId == request.auth.uid || isAdmin());
+    // Business staff seats (services/businessStaffCore.ts). Seats are written ONLY by the server
+    // (routes/businessStaff.ts, service-account REST): businessPages/{id}.staffUids/staffSeats and the owner index
+    // businessStaffIndex/{ownerUid} = {staffUids, staffPerms, updatedAt} (private). Clients may never write those;
+    // these helpers read them (get() is not subject to the target's read rule).
+    function ownerStaffCan(ownerUid, perm) {
+      return isAuthenticated() && ownerUid is string
+        && perm in get(/databases/$(database)/documents/businessStaffIndex/$(ownerUid)).data.get('staffPerms', {}).get(request.auth.uid, []);
+    }
+    function pageStaffCan(pageId, perm) {
+      let p = get(/databases/$(database)/documents/businessPages/$(pageId)).data;
+      return isAuthenticated() && request.auth.uid in p.get('staffUids', [])
+        && perm in p.get('staffSeats', {}).get(request.auth.uid, {}).get('perms', []);
+    }
+    // Invite codes (hashed) are server-only.
+    match /businessStaffInvites/{id} { allow read, write: if false; }
+    // Owner-level staff index: the owner and the listed staff may read it; only the server writes it.
+    match /businessStaffIndex/{ownerUid} {
+      allow read: if isAuthenticated() && (request.auth.uid == ownerUid || request.auth.uid in resource.data.get('staffUids', []));
+      allow write: if false;
     }
 
-    // Business-ops namespace: businesses/{ownerUid} holds a business's subcollections (the doc id IS
-    // the owner's uid). Separate from the businessPages collection. Covers messaging opt-in/broadcasts
-    // and the Team/HR module (staff, shifts, time-off). (Without this, those writes were denied.)
-    match /businesses/{businessUid} {
+    match /businessPages/{id} {
       allow read: if true;
-      allow write: if isAuthenticated() && request.auth.uid == businessUid;
+      allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid
+                    && !request.resource.data.keys().hasAny(['staffUids', 'staffSeats']);
+      allow update: if isAdmin() || (isAuthenticated() && resource.data.ownerId == request.auth.uid
+                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['staffUids', 'staffSeats']));
+      allow delete: if isAuthenticated() && (resource.data.ownerId == request.auth.uid || isAdmin());
+    }
 
-      // A customer opts into a business's updates (writes their own doc); the business reads its list.
-      match /subscribers/{customerUid} {
     // Business CRM (services/crm): contacts + an append-only activity timeline, keyed by businessId = the
     // businessPages doc id. Only that page's owner (or an admin) can read or write; a contact can't be moved
     // onto another business. Queries must filter where('businessId', '==', id) for the get() to resolve.
     match /crmContacts/{id} {
-      allow read, delete: if isAuthenticated() && (
-        get(/databases/$(database)/documents/businessPages/$(resource.data.businessId)).data.ownerId == request.auth.uid || isAdmin());
+      allow read: if isAuthenticated() && (
+        get(/databases/$(database)/documents/businessPages/$(resource.data.businessId)).data.ownerId == request.auth.uid || isAdmin()
+        || pageStaffCan(resource.data.businessId, 'CRM'));
+      allow delete: if isAuthenticated() && (
+        get(/databases/$(database)/documents/businessPages/$(resource.data.businessId)).data.ownerId == request.auth.uid || isAdmin()
+        || pageStaffCan(resource.data.businessId, 'CRM_ADMIN'));
       allow create: if isAuthenticated() && (
-        get(/databases/$(database)/documents/businessPages/$(request.resource.data.businessId)).data.ownerId == request.auth.uid || isAdmin());
+        get(/databases/$(database)/documents/businessPages/$(request.resource.data.businessId)).data.ownerId == request.auth.uid || isAdmin()
+        || pageStaffCan(request.resource.data.businessId, 'CRM'));
       allow update: if isAuthenticated() && request.resource.data.businessId == resource.data.businessId && (
-        get(/databases/$(database)/documents/businessPages/$(resource.data.businessId)).data.ownerId == request.auth.uid || isAdmin());
+        get(/databases/$(database)/documents/businessPages/$(resource.data.businessId)).data.ownerId == request.auth.uid || isAdmin()
+        || pageStaffCan(resource.data.businessId, 'CRM'));
     }
     match /crmActivities/{id} {
       allow read: if isAuthenticated() && (
-        get(/databases/$(database)/documents/businessPages/$(resource.data.businessId)).data.ownerId == request.auth.uid || isAdmin());
+        get(/databases/$(database)/documents/businessPages/$(resource.data.businessId)).data.ownerId == request.auth.uid || isAdmin()
+        || pageStaffCan(resource.data.businessId, 'CRM'));
       allow create: if isAuthenticated() && request.resource.data.byUid == request.auth.uid && (
-        get(/databases/$(database)/documents/businessPages/$(request.resource.data.businessId)).data.ownerId == request.auth.uid || isAdmin());
+        get(/databases/$(database)/documents/businessPages/$(request.resource.data.businessId)).data.ownerId == request.auth.uid || isAdmin()
+        || pageStaffCan(request.resource.data.businessId, 'CRM'));
       allow update, delete: if isAdmin();
     }
 
@@ -2224,20 +2249,32 @@ service cloud.firestore {
         return get(/databases/$(database)/documents/businessPages/$(bizId)).data.ownerId == request.auth.uid;
       }
       allow read: if true;
-      allow create: if isAuthenticated() && (signageOwner(request.resource.data.businessId) || isAdmin());
-      allow update: if isAuthenticated() && ((signageOwner(resource.data.businessId) && signageOwner(request.resource.data.businessId)) || isAdmin());
-      allow delete: if isAuthenticated() && (signageOwner(resource.data.businessId) || isAdmin());
+      allow create: if isAuthenticated() && (signageOwner(request.resource.data.businessId) || isAdmin()
+                    || pageStaffCan(request.resource.data.businessId, 'SIGNAGE'));
+      allow update: if isAuthenticated() && ((signageOwner(resource.data.businessId) && signageOwner(request.resource.data.businessId)) || isAdmin()
+                    || (pageStaffCan(resource.data.businessId, 'SIGNAGE') && pageStaffCan(request.resource.data.businessId, 'SIGNAGE')));
+      allow delete: if isAuthenticated() && (signageOwner(resource.data.businessId) || isAdmin()
+                    || pageStaffCan(resource.data.businessId, 'SIGNAGE'));
     }
 
-        allow read: if isAuthenticated() && (request.auth.uid == businessUid || request.auth.uid == customerUid);
+    // Business-ops namespace: businesses/{ownerUid} holds a business's subcollections (the doc id IS
+    // the owner's uid). Separate from the businessPages collection. Covers messaging opt-in/broadcasts
+    // and the Team/HR module (staff, shifts, time-off). (Without this, those writes were denied.)
+    match /businesses/{businessUid} {
+      allow read: if true;
+      allow write: if isAuthenticated() && request.auth.uid == businessUid;
+
+      // A customer opts into a business's updates (writes their own doc); the business reads its list.
+      match /subscribers/{customerUid} {
+        allow read: if isAuthenticated() && (request.auth.uid == businessUid || request.auth.uid == customerUid || ownerStaffCan(businessUid, 'CRM'));
         allow write: if isAuthenticated() && (request.auth.uid == customerUid || request.auth.uid == businessUid);
       }
       // Owner-managed: broadcast log + the Team/HR module.
-      match /broadcasts/{id} { allow read, write: if isAuthenticated() && request.auth.uid == businessUid; }
+      match /broadcasts/{id} { allow read, write: if isAuthenticated() && (request.auth.uid == businessUid || ownerStaffCan(businessUid, 'MARKETING')); }
       // Staff roster. PINs are NEVER client-readable/writable: the only PIN material is a salted hash in
       // staffSecrets (below), written by the server. Writes that carry pin/pinHash/pinSalt are rejected.
       match /staff/{id} {
-        allow read, delete: if isAuthenticated() && request.auth.uid == businessUid;
+        allow read, delete: if isAuthenticated() && request.auth.uid == businessUid;   // owner only: staff docs hold payRate
         allow create, update: if isAuthenticated() && request.auth.uid == businessUid
                               && !request.resource.data.keys().hasAny(['pin', 'pinHash', 'pinSalt']);
       }
@@ -2246,10 +2283,10 @@ service cloud.firestore {
       match /shiftOpen/{id}    { allow read, write: if false; }
       match /drawerState/{id}  { allow read, write: if false; }
       // Shifts are written by the server (PIN-verified clock in/out); the owner may read and correct them.
-      match /shifts/{id}     { allow read, write: if isAuthenticated() && request.auth.uid == businessUid; }   // owner may seed/correct; PIN clock events are server-written
-      match /timeOff/{id}    { allow read, write: if isAuthenticated() && request.auth.uid == businessUid; }
+      match /shifts/{id}     { allow read, write: if isAuthenticated() && request.auth.uid == businessUid; allow read: if ownerStaffCan(businessUid, 'TEAM'); }   // owner may seed/correct; PIN clock events are server-written
+      match /timeOff/{id}    { allow read, write: if isAuthenticated() && request.auth.uid == businessUid; allow read: if ownerStaffCan(businessUid, 'TEAM'); }
       // Cash drawer sessions + Z reports: server-written (staff sign in by PIN, not Firestore); the owner reads.
-      match /drawerSessions/{id} { allow read: if isAuthenticated() && request.auth.uid == businessUid; allow write: if false; }
+      match /drawerSessions/{id} { allow read: if isAuthenticated() && (request.auth.uid == businessUid || ownerStaffCan(businessUid, 'REPORTS')); allow write: if false; }
       // Stored value (gift cards / store credit / wallets): SERVER-WRITE-ONLY. Owner reads; a customer reads only their own
       // customer-tied card (wallet / credit) and its ledger. The code-hash index (storedValueIndex) has NO client rule at all.
       match /storedValue/{cardId} { allow read: if isAuthenticated() && (request.auth.uid == businessUid || resource.data.get('customerUid', '') == request.auth.uid); allow write: if false; }
@@ -2257,12 +2294,12 @@ service cloud.firestore {
       // Loyalty balances are written server-side (POS sale); the business and the customer can read.
       match /loyalty/{customerUid} { allow read: if isAuthenticated() && (request.auth.uid == businessUid || request.auth.uid == customerUid); }
       // In-store deals: the business writes, anyone may read (register + storefront evaluate them).
-      match /offers/{id} { allow read: if true; allow write: if isAuthenticated() && request.auth.uid == businessUid; }
+      match /offers/{id} { allow read: if true; allow write: if isAuthenticated() && (request.auth.uid == businessUid || ownerStaffCan(businessUid, 'INVENTORY')); }
       // Now Playing — the business publishes the current in-store track; checked-in customers read it.
-      match /nowPlaying/{id} { allow read: if true; allow write: if isAuthenticated() && request.auth.uid == businessUid; }
+      match /nowPlaying/{id} { allow read: if true; allow write: if isAuthenticated() && (request.auth.uid == businessUid || ownerStaffCan(businessUid, 'SIGNAGE')); }
       // Presence — a customer checks in (writes their own doc); the business sees who's in-store.
       match /presence/{customerUid} {
-        allow read: if isAuthenticated() && (request.auth.uid == businessUid || request.auth.uid == customerUid);
+        allow read: if isAuthenticated() && (request.auth.uid == businessUid || request.auth.uid == customerUid || ownerStaffCan(businessUid, 'CRM'));
         allow write: if isAuthenticated() && (request.auth.uid == customerUid || request.auth.uid == businessUid);
       }
     }
@@ -2272,15 +2309,15 @@ service cloud.firestore {
     // read this collection: they use the HMAC link page (/t/:token), which strips internal notes, costs and audit.
     // Counters are server-only. There are no token docs: link tokens are HMACs, nothing is stored to leak.
     match /tickets/{ticketId} {
-      allow read: if isAuthenticated() && resource.data.businessUid == request.auth.uid;
+      allow read: if isAuthenticated() && (resource.data.businessUid == request.auth.uid || ownerStaffCan(resource.data.businessUid, 'ORDERS'));
       allow write: if false;
     }
     match /ticketCounters/{id} { allow read, write: if false; }
 
     // Auto repair layer (services/autoServer.ts). Every write is SERVER-ONLY (Admin/REST, CAS-guarded).
     // vehicles / inspections: the owning business may read its own; staff PIN sessions read through the server.
-    match /vehicles/{id} { allow read: if isAuthenticated() && resource.data.businessUid == request.auth.uid; allow write: if false; }
-    match /inspections/{id} { allow read: if isAuthenticated() && resource.data.businessUid == request.auth.uid; allow write: if false; }
+    match /vehicles/{id} { allow read: if isAuthenticated() && (resource.data.businessUid == request.auth.uid || ownerStaffCan(resource.data.businessUid, 'ORDERS')); allow write: if false; }
+    match /inspections/{id} { allow read: if isAuthenticated() && (resource.data.businessUid == request.auth.uid || ownerStaffCan(resource.data.businessUid, 'ORDERS')); allow write: if false; }
     // Vehicle Passport: the customer reads their OWN passports/entries (ownerUid); shops never read these directly -
     // a shop sees other shops' entries only through the server with an owner-issued, 48h share token.
     match /passports/{id} { allow read: if isAuthenticated() && resource.data.ownerUid == request.auth.uid; allow write: if false; }

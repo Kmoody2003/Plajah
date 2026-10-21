@@ -62,6 +62,7 @@
     "test:packs": "npx tsx --test tests/verticalPacks.test.ts",
     "test:presets": "npx tsx --test tests/opsPresets.test.ts",
     "test:crm": "npx tsx --test tests/crmCore.test.ts",
+    "test:bizstaff": "npx tsx --test tests/businessStaff.test.ts",
     "test:tickets": "npx tsx --test tests/ticketCore.test.ts",
     "test:events": "npx tsx --test tests/hostEvents.test.ts",
     "test:laundry": "npx tsx --test tests/laundryCore.test.ts",

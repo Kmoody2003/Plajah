@@ -6,9 +6,11 @@
 // OWNED by the user's uid (rules/permissions) but presented as the org.
 
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import type { Organization, OrgMembership } from '../types';
+import type { Organization, OrgMembership, BusinessPage } from '../types';
 import { auth } from '../services/firebase';
 import { fetchUserOrganizations, fetchUserMemberships } from '../services/organizationService';
+import { fetchStaffBusinessPages, openBusinessWorkspace } from '../services/businessStaffService';
+import StaffJoinGateway from '../components/business/StaffJoinGateway';
 
 interface ActiveIdentityContextType {
   /** The orgs the signed-in user runs OR is an active employee of. */
@@ -19,6 +21,8 @@ interface ActiveIdentityContextType {
   activeOrg: Organization | null;
   setActiveOrg: (org: Organization | null) => void;
   refreshOrgs: () => void;
+  /** Businesses the user works at with their own account (staff seats on business pages they don't own). */
+  myWorkplaces: BusinessPage[];
 }
 
 const ActiveIdentityContext = createContext<ActiveIdentityContextType | undefined>(undefined);
@@ -28,11 +32,13 @@ export const ActiveIdentityProvider: React.FC<{ children: React.ReactNode }> = (
   const [myOrgs, setMyOrgs] = useState<Organization[]>([]);
   const [myMemberships, setMyMemberships] = useState<OrgMembership[]>([]);
   const [activeOrg, setActiveOrgState] = useState<Organization | null>(null);
+  const [myWorkplaces, setMyWorkplaces] = useState<BusinessPage[]>([]);
   const uid = auth.currentUser?.uid;
 
   const refreshOrgs = useCallback(() => {
     const u = auth.currentUser?.uid;
-    if (!u) { setMyOrgs([]); setMyMemberships([]); return; }
+    if (!u) { setMyOrgs([]); setMyMemberships([]); setMyWorkplaces([]); return; }
+    fetchStaffBusinessPages(u).then(setMyWorkplaces).catch(() => setMyWorkplaces([]));
     // Orgs the user runs OR is an active employee of, plus the membership rows (for role/badge).
     Promise.all([
       fetchUserOrganizations(u).catch(() => [] as Organization[]),
@@ -57,8 +63,10 @@ export const ActiveIdentityProvider: React.FC<{ children: React.ReactNode }> = (
   }, []);
 
   return (
-    <ActiveIdentityContext.Provider value={{ myOrgs, myMemberships, activeOrg, setActiveOrg, refreshOrgs }}>
+    <ActiveIdentityContext.Provider value={{ myOrgs, myMemberships, activeOrg, setActiveOrg, refreshOrgs, myWorkplaces }}>
       {children}
+      {/* ?bizJoin=CODE — a team member accepting a staff seat with their own account. */}
+      <StaffJoinGateway onJoined={refreshOrgs} />
     </ActiveIdentityContext.Provider>
   );
 };
@@ -69,12 +77,42 @@ export function useActiveIdentity(): ActiveIdentityContextType {
   return ctx;
 }
 
+/** "Work" rows for the businesses you staff: one tap opens that business's dashboard in Staff view. */
+export const WorkplacesMenuSection: React.FC<{ onPicked?: () => void; className?: string }> = ({ onPicked, className = '' }) => {
+  const ctx = useContext(ActiveIdentityContext);
+  const places = ctx?.myWorkplaces ?? [];
+  const uid = auth.currentUser?.uid;
+  if (!places.length) return null;
+  return (
+    <div className={className}>
+      <div className="px-2.5 pt-2 pb-1 text-[11px] font-semibold text-white/40">Work</div>
+      {places.map(p => {
+        const seat = uid ? p.staffSeats?.[uid] : undefined;
+        return (
+          <button key={p.id} onClick={() => { onPicked?.(); openBusinessWorkspace(p.id); }}
+            className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-left hover:bg-white/5">
+            <span className="w-6 h-7 rounded-md overflow-hidden bg-white/10 grid place-items-center text-[11px] font-bold shrink-0"
+              style={{ boxShadow: '0 0 0 1.5px #FF8C00, 0 0 0 3px rgba(212,0,85,0.35)' }}>
+              {p.logoUrl ? <img src={p.logoUrl} alt="" className="w-full h-full object-cover" /> : (p.businessName || 'B')[0]}
+            </span>
+            <span className="min-w-0">
+              <span className="block text-[13px] font-semibold text-white truncate">{p.businessName}</span>
+              <span className="block text-[11px] text-white/50 truncate">{seat?.roleLabel || (seat?.role === 'MANAGER' ? 'Manager' : 'Team member')}</span>
+            </span>
+            <span className="ml-auto text-[11px] font-semibold text-[#FF8C00] shrink-0">Work</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+};
+
 /** Compact "Posting as …" control. Renders nothing if the user runs no orgs. */
 export const IdentitySwitcher: React.FC<{ selfName?: string; selfPhoto?: string }> = ({ selfName, selfPhoto }) => {
-  const { myOrgs, myMemberships, activeOrg, setActiveOrg } = useActiveIdentity();
+  const { myOrgs, myMemberships, activeOrg, setActiveOrg, myWorkplaces } = useActiveIdentity();
   const [open, setOpen] = useState(false);
   const uid = auth.currentUser?.uid;
-  if (myOrgs.length === 0) return null;
+  if (myOrgs.length === 0 && myWorkplaces.length === 0) return null;
 
   const membershipFor = (orgId: string) => myMemberships.find(m => m.orgId === orgId);
   // An "employee identity" = an org you belong to but don't own (you act under a role/badge).
@@ -132,6 +170,7 @@ export const IdentitySwitcher: React.FC<{ selfName?: string; selfPhoto?: string 
                 </button>
               );
             })}
+            <WorkplacesMenuSection onPicked={() => setOpen(false)} className="mt-1 pt-1 border-t border-white/10" />
           </div>
         </>
       )}
