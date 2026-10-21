@@ -2,19 +2,23 @@
 // each tick schedules every event whose time falls inside [cursor, tick + LOOKAHEAD) via
 // sample-accurate start(when) calls. Late events (a jammed main thread longer than the
 // lookahead) are scheduled immediately — catch up, never skip. All positions are in BEATS;
-// `toTime(beats)` is owned by the transport so a live BPM change only moves the anchor.
+// `toTime(beats)` is owned by the transport so a live BPM change only moves the anchor, and it
+// follows the tempo track — durations are measured with `secBetween`, never beats × a constant.
+// Bars (metronome accents, launch quantum) come from the doc's meter map, not a fixed 4/4.
 
 import type { ArrangeTrack, GrooveDoc, NoteEvent, Pattern, TimelineClip } from '../grooveDoc';
+import { songTime } from '../tempoMap';
 
 export const LOOKAHEAD_SEC = 0.15;
-const STEP_BEATS = 0.25; // 16th notes on a 4/4 grid
+const STEP_BEATS = 0.25; // 16th notes — the step grid is meter-independent
 
 export type PlayMode = 'pattern' | 'song';
 
 export interface SchedulerDeps {
   doc(): GrooveDoc;
   toTime(beats: number): number;         // absolute AudioContext time for a beat position
-  secPerBeat(): number;
+  /** Seconds between two beat positions — follows tempo changes and ramps. */
+  secBetween(fromBeat: number, toBeat: number): number;
   // rng is injectable so offline renders are deterministic (seeded) while live stays random —
   // the render-twice-byte-identical quality gate depends on this.
   rng(): number;
@@ -109,7 +113,11 @@ export class StepScheduler {
       if (baseTime >= horizonSec) break;
       // Metronome: a click every beat, accented on the bar. Live transport only — offline
       // renders build their own deps without these, so a bounce never prints the click.
-      if (d.metronome?.() && d.click && this.nextStep % 4 === 0) d.click(baseTime, this.nextStep % 16 === 0);
+      if (d.metronome?.() && d.click) {
+        const bar = songTime(doc).meter.at(beat);
+        const units = bar.beatInBar / bar.unitBeats;
+        if (Math.abs(units - Math.round(units)) < 1e-6) d.click(baseTime, Math.abs(bar.beatInBar) < 1e-6);
+      }
       if (this.mode === 'pattern') this.schedulePatternStep(doc, beat);
       else this.scheduleSongStep(doc, beat, horizonSec);
       // Arps run in BOTH modes — an armed instrument responds to held keys whether you're
@@ -132,13 +140,13 @@ export class StepScheduler {
    * Legato gate for sustaining pads: a step holds until the NEXT active step on the same pad
    * (wrapping the pattern), 303/mono-bass style — a lone sub step sustains the whole loop.
    */
-  private legatoGateSec(doc: GrooveDoc, pattern: Pattern, padIdx: number, localStep: number, lenOverride?: number): number {
+  private legatoGateSec(doc: GrooveDoc, pattern: Pattern, padIdx: number, localStep: number, beat: number, lenOverride?: number): number {
     const row = pattern.steps[padIdx] || {};
     const len = Math.max(1, Math.min(pattern.length, Math.round(lenOverride ?? pattern.length)));
     for (let i = 1; i <= len; i++) {
-      if (row[(localStep + i) % len]) return i * STEP_BEATS * this.deps.secPerBeat();
+      if (row[(localStep + i) % len]) return this.deps.secBetween(beat, beat + i * STEP_BEATS);
     }
-    return len * STEP_BEATS * this.deps.secPerBeat();
+    return this.deps.secBetween(beat, beat + len * STEP_BEATS);
   }
 
   /**
@@ -159,7 +167,7 @@ export class StepScheduler {
       if (step.p !== undefined && step.p < 1 && d.rng() > step.p) continue;
       const when = this.eventTime(beat, localStep, doc, step.micro);
       const sustaining = (doc.kit[padIdx]?.env.sustain || 0) > 0.001;
-      d.trigger(padIdx, step.v, when, sustaining ? this.legatoGateSec(doc, pattern, padIdx, localStep, len) : undefined, step.pitch ?? 0, step.pan, step.fx);
+      d.trigger(padIdx, step.v, when, sustaining ? this.legatoGateSec(doc, pattern, padIdx, localStep, beat, len) : undefined, step.pitch ?? 0, step.pan, step.fx);
     }
     if (pattern.melo) {
       for (const padKey of Object.keys(pattern.melo)) {
@@ -169,8 +177,7 @@ export class StepScheduler {
         const notes = pattern.melo[padIdx]?.[localStep];
         if (!notes?.length) continue;
         const when = this.eventTime(beat, localStep, doc);
-        const stepSec = STEP_BEATS * d.secPerBeat();
-        for (const n of notes) d.trigger(padIdx, n.v, when, Math.max(1, n.len) * stepSec, n.semi, undefined, undefined, true);
+        for (const n of notes) d.trigger(padIdx, n.v, when, d.secBetween(beat, beat + Math.max(1, n.len) * STEP_BEATS), n.semi, undefined, undefined, true);
       }
     }
   }
@@ -185,7 +192,7 @@ export class StepScheduler {
       const when = this.eventTime(beat, localStep, doc, step.micro);
       const sustaining = (doc.kit[padIdx]?.env.sustain || 0) > 0.001;
       // Per-step pitch + pan (Glass graph editor) + Step-FX slot ride the trigger.
-      d.trigger(padIdx, step.v, when, sustaining ? this.legatoGateSec(doc, pattern, padIdx, localStep) : undefined, step.pitch ?? 0, step.pan, step.fx);
+      d.trigger(padIdx, step.v, when, sustaining ? this.legatoGateSec(doc, pattern, padIdx, localStep, beat) : undefined, step.pitch ?? 0, step.pan, step.fx);
     }
     // Pitch-roll notes: explicit gate from the drawn length, per-note pitch offset.
     if (pattern.melo) {
@@ -194,9 +201,8 @@ export class StepScheduler {
         const notes = pattern.melo[padIdx]?.[localStep];
         if (!notes?.length) continue;
         const when = this.eventTime(beat, localStep, doc);
-        const stepSec = STEP_BEATS * d.secPerBeat();
         // Pitched notes are polyphonic — skip the choke group so a chord/overlap doesn't self-cut.
-        for (const n of notes) d.trigger(padIdx, n.v, when, Math.max(1, n.len) * stepSec, n.semi, undefined, undefined, true);
+        for (const n of notes) d.trigger(padIdx, n.v, when, d.secBetween(beat, beat + Math.max(1, n.len) * STEP_BEATS), n.semi, undefined, undefined, true);
       }
     }
   }
@@ -214,7 +220,7 @@ export class StepScheduler {
 
   private schedulePatternStep(doc: GrooveDoc, beat: number) {
     // A queued launcher pattern takes over on the bar line — the Bitwig launch quantum.
-    if (this.queuedPatternId && this.nextStep % 16 === 0) {
+    if (this.queuedPatternId && songTime(doc).meter.isBarLine(beat)) {
       this.patternId = this.queuedPatternId;
       this.queuedPatternId = null;
     }
@@ -259,7 +265,8 @@ export class StepScheduler {
           // Clamp the note to the clip end so a long note never outlives its clip.
           const maxLen = clip.lengthBeats - note.startBeats;
           const lenBeats = Math.max(0.05, Math.min(note.lengthBeats, maxLen));
-          d.startInstrumentNote(track, note, when, lenBeats * d.secPerBeat());
+          const at = clip.startBeats + note.startBeats;
+          d.startInstrumentNote(track, note, when, d.secBetween(at, at + lenBeats));
         }
       }
     }
@@ -290,7 +297,7 @@ export class StepScheduler {
         if (!clip.audio) continue;
         if (fromBeats > clip.startBeats + 1e-9 && fromBeats < clip.startBeats + clip.lengthBeats) {
           this.startedAudioClips.add(clip.id);
-          const intoClipSec = (fromBeats - clip.startBeats) * d.secPerBeat();
+          const intoClipSec = d.secBetween(clip.startBeats, fromBeats);
           d.startAudioClip(track, clip, d.toTime(fromBeats), intoClipSec);
         }
       }

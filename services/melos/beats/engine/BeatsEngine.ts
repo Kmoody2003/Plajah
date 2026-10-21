@@ -12,6 +12,7 @@ import { buildGraph, type BeatsGraph } from './graph';
 import { VoiceBank } from './voices';
 import { StepScheduler, type PlayMode, LOOKAHEAD_SEC } from './scheduler';
 import { startAudioClipSource } from './clips';
+import { MeterMap, TempoMap } from '../tempoMap';
 import { Instrument } from './InstrumentHost';
 import type { ArrangeTrack as ATrack, NoteEvent } from '../grooveDoc';
 import { arpStep, defaultArpPatch, type ArpPatch } from '../../arp';
@@ -79,14 +80,19 @@ export class BeatsEngine {
   private arpPrevFired = new Map<string, boolean>();
   private arpFill = false;
 
-  // Transport: beats↔time anchoring. A live BPM change re-anchors at the current position, so
-  // posBeats is continuous and only events beyond the lookahead window feel the new tempo.
+  // Transport: beats↔time anchoring through the doc's tempo map. A live tempo edit re-anchors at
+  // the current position, so posBeats is continuous and only events beyond the lookahead window
+  // feel the new tempo. `prevAnchor` covers the lookahead gap after a loop wrap: the wrap is
+  // re-anchored AHEAD of the audio clock (at the exact loop-end time), and until the clock gets
+  // there the playhead still reads from the outgoing pass.
   private running = false;
   private mode: PlayMode = 'pattern';
   private currentPatternId: string | undefined;
   private anchorBeats = 0;
   private anchorTime = 0;
-  private secPerBeat = 0.5;
+  private prevAnchor: { beats: number; time: number } | null = null;
+  private tempo: TempoMap = TempoMap.constant(120);
+  private lastInstrumentBpm = 120;
 
   // Diagnostics: worklet ticks should arrive every postEvery/sampleRate seconds of audio time;
   // jitter is how late the MESSAGE was relative to audio progress (main-thread health metric).
@@ -147,7 +153,7 @@ export class BeatsEngine {
     this.scheduler = new StepScheduler({
       doc: () => this.doc,
       toTime: (beats) => this.toTime(beats),
-      secPerBeat: () => this.secPerBeat,
+      secBetween: (a, b) => this.tempo.secBetween(a, b),
       rng: Math.random, // offline renders inject a seeded rng in render.ts instead
       // Forward pan + stepFx too — the scheduler passes step.pan/step.fx, and dropping them here
       // is why per-step Step Effects (and per-step pan) applied on Audition but were dry on playback.
@@ -274,7 +280,7 @@ export class BeatsEngine {
 
   loadDoc(doc: GrooveDoc): void {
     this.doc = doc;
-    this.secPerBeat = 60 / (doc.bpm || 120);
+    this.tempo = TempoMap.fromDoc(doc);
     this.graph?.applyDoc(doc);
     if (this.ctx) { this.syncInstruments(); this.syncMasterEq(); this.syncMastering(); }
   }
@@ -282,17 +288,19 @@ export class BeatsEngine {
   /**
    * Re-apply live edits (mixer moves, pad tweaks, bpm/swing) without stopping playback.
    * The UI mutates the shared doc object in place and calls this with {} — so BPM change is
-   * detected by comparing the doc against the cached secPerBeat, not against the patch.
+   * detected by comparing the doc's tempo map against the compiled one, not against the patch.
    */
   applyDocPatch(patch: Partial<GrooveDoc>): void {
     Object.assign(this.doc, patch);
-    const wantSpb = 60 / (this.doc.bpm || 120);
-    if (Math.abs(wantSpb - this.secPerBeat) > 1e-9) {
-      // Re-anchor at the current position so the playhead is continuous across a tempo change.
-      if (this.running && this.ctx) { this.anchorBeats = this.posBeats(); this.anchorTime = this.ctx.currentTime; }
-      this.secPerBeat = wantSpb;
-      const bps = 1 / this.secPerBeat;
-      for (const inst of this.instruments.values()) inst.setTempo(bps);
+    const next = TempoMap.fromDoc(this.doc);
+    if (next.signature !== this.tempo.signature) {
+      // Re-anchor at the current position (read through the OLD map) so the playhead is
+      // continuous across a tempo edit.
+      if (this.running && this.ctx) {
+        this.anchorBeats = this.posBeats(); this.anchorTime = this.ctx.currentTime; this.prevAnchor = null;
+      }
+      this.tempo = next;
+      this.syncInstrumentTempo(true);
     }
     this.graph?.applyDoc(this.doc);
     if (this.ctx) { this.syncInstruments(); this.syncMixerFx(); }
@@ -311,6 +319,9 @@ export class BeatsEngine {
     if (!this.voices || !this.ctx) return;
     const pad = this.doc.kit[padIdx];
     if (pad?.empty) return; // greyed placeholder pad — no sound
+    // Channel mute covers instrument pads too (VoiceBank checks it for one-shots, but instrument
+    // pads never reach VoiceBank — a muted ONDA pad used to keep playing).
+    if (pad?.mute) return;
     // An instrument pad plays a full ONDA/KERA voice at its base note instead of a one-shot.
     if (pad?.source === 'instrument' && pad.instrumentTrackId) {
       this.triggerPadInstrument(pad, padIdx, vel127, when, gateSec, semiOffset ?? 0);
@@ -463,7 +474,7 @@ export class BeatsEngine {
         onError: (m) => console.warn('[beats] instrument error', track.name, m),
       });
       inst.output.connect(this.graph.trackDestination(track));
-      inst.setTempo((this.doc.bpm || 120) / 60);
+      inst.setTempo(this.tempo.bpmAt(this.running ? this.posBeats() : 0) / 60);
       if (track.position) inst.setSpatial({ position: track.position });
       // Load the track's saved patch. Imported lazily so the ONDA preset bank and its wavetable
       // generators aren't pulled into the engine chunk for users who never open an instrument.
@@ -863,7 +874,8 @@ export class BeatsEngine {
       // Parameter locks hold for the step: set on the way in, restored after it passes.
       for (const lock of n.locks) inst.setParam(lock.paramId, lock.value);
       const voiceId = inst.noteOn(n.key, Math.max(0.05, n.velocity / 127), when, this.ctx.currentTime, this.ctx.sampleRate);
-      const offIn = Math.max(0, (when - this.ctx.currentTime) + n.durationBeats * this.secPerBeat) * 1000;
+      const offAt = this.toTime(beat + n.offsetBeats + n.durationBeats);
+      const offIn = Math.max(0, offAt - this.ctx.currentTime) * 1000;
       setTimeout(() => inst.noteOff(voiceId, true), offIn);
       if (n.locks.length) {
         const patch = track.instrument?.patch as { params?: Record<number, number> } | undefined;
@@ -984,15 +996,24 @@ export class BeatsEngine {
     this.resume();
     const from = opts.fromBeats ?? 0;
     this.mode = mode;
-    this.secPerBeat = 60 / (this.doc.bpm || 120);
+    this.tempo = TempoMap.fromDoc(this.doc);
+    this.prevAnchor = null;
     // Anchor slightly ahead so the first step is scheduled inside the lookahead, never late.
-    // A count-in (pre-roll) pushes the anchor further out and fills the gap with clicks.
+    // A count-in (pre-roll) pushes the anchor further out and fills the gap with clicks — at the
+    // tempo and in the meter where playback starts (a 6/8 count-in clicks eighths, accents bars).
     const countIn = Math.max(0, opts.countInBeats ?? 0);
+    const spb = 60 / this.tempo.bpmAt(from);
     this.anchorBeats = from;
-    this.anchorTime = this.ctx.currentTime + 0.1 + countIn * this.secPerBeat;
+    this.anchorTime = this.ctx.currentTime + 0.1 + countIn * spb;
     if (countIn > 0) {
-      for (let b = 0; b < countIn; b++) this.clickAt(this.ctx.currentTime + 0.1 + b * this.secPerBeat, b % 4 === 0);
+      const bar = MeterMap.fromDoc(this.doc).at(from);
+      const unitsPerBar = Math.max(1, bar.num);
+      const units = Math.round(countIn / bar.unitBeats);
+      for (let u = 0; u < units; u++) {
+        this.clickAt(this.ctx.currentTime + 0.1 + u * bar.unitBeats * spb, u % unitsPerBar === 0);
+      }
     }
+    this.syncInstrumentTempo(true);
     this.running = true;
     this.jitterWindow.length = 0;
     this.lastTickAudio = 0;
@@ -1021,7 +1042,10 @@ export class BeatsEngine {
 
   posBeats(): number {
     if (!this.ctx || !this.running) return this.anchorBeats;
-    return this.anchorBeats + (this.ctx.currentTime - this.anchorTime) / this.secPerBeat;
+    const now = this.ctx.currentTime;
+    // Between a loop wrap being scheduled and the clock reaching it, read the outgoing pass.
+    const a = this.prevAnchor && now < this.anchorTime ? this.prevAnchor : { beats: this.anchorBeats, time: this.anchorTime };
+    return this.tempo.secToBeat(this.tempo.beatToSec(a.beats) + (now - a.time));
   }
 
   meters() { return this.graph ? this.graph.meters() : { groups: [0, 0, 0, 0], master: 0, sends: [0, 0] }; }
@@ -1074,7 +1098,15 @@ export class BeatsEngine {
   // ---- internals ----
 
   private toTime(beats: number): number {
-    return this.anchorTime + (beats - this.anchorBeats) * this.secPerBeat;
+    return this.anchorTime + this.tempo.secBetween(this.anchorBeats, beats);
+  }
+
+  /** Keep tempo-synced instrument LFOs/arps on the tempo at the playhead (tempo track). */
+  private syncInstrumentTempo(force = false): void {
+    const bpm = this.tempo.bpmAt(this.running ? Math.max(0, this.posBeats()) : 0);
+    if (!force && Math.abs(bpm - this.lastInstrumentBpm) < 0.05) return;
+    this.lastInstrumentBpm = bpm;
+    for (const inst of this.instruments.values()) inst.setTempo(bpm / 60);
   }
 
   private onTick(tick: { t: number; f: number }): void {
@@ -1089,21 +1121,42 @@ export class BeatsEngine {
     this.lastTickAudio = tick.t;
     this.lastTickPerf = perfNow;
 
-    // Song-mode cycle: when the playhead reaches the loop end, jump back to the start. The
-    // scheduler already stopped queuing at loopEnd, so this just restarts the window from the top.
+    // Song-mode cycle. The scheduler never queues past loopEnd; as soon as the loop end enters the
+    // lookahead window we re-anchor so loopStart lands EXACTLY on loopEnd's audio time — the
+    // seam is sample-accurate instead of "whenever the next tick noticed" (up to a tick late).
     const loop = this.doc.loop;
-    if (this.mode === 'song' && loop?.on && loop.endBeats > loop.startBeats && this.posBeats() >= loop.endBeats - 1e-6) {
-      this.seekTo(loop.startBeats);
-      return;
+    if (this.mode === 'song' && loop?.on && loop.endBeats > loop.startBeats && this.ctx && this.scheduler) {
+      const anchorBeats = this.prevAnchor && this.ctx.currentTime < this.anchorTime ? null : this.anchorBeats;
+      // Only wrap from the live pass (not while a wrap is still pending) and only once the pass
+      // is inside the loop — a playhead parked after the loop end plays straight on.
+      if (anchorBeats !== null && this.posBeats() < loop.endBeats - 1e-6) {
+        const wrapAt = this.toTime(loop.endBeats);
+        if (wrapAt < tick.t + LOOKAHEAD_SEC) {
+          this.scheduler.onTick(tick.t); // flush everything up to the loop end first
+          this.wrapAt(loop.startBeats, Math.max(wrapAt, this.ctx.currentTime));
+          return;
+        }
+      }
     }
     this.scheduler?.onTick(tick.t);
+    if (!this.tempo.isConstant) this.syncInstrumentTempo();
   }
 
-  /** Re-anchor the transport to a beat and restart scheduling there (loop wrap / click-to-play). */
-  private seekTo(beats: number): void {
+  /** Loop wrap: restart scheduling at `beats`, anchored at the future audio time `atTime`. */
+  private wrapAt(beats: number, atTime: number): void {
     if (!this.ctx || !this.scheduler) return;
+    this.prevAnchor = { beats: this.anchorBeats, time: this.anchorTime };
     this.anchorBeats = beats;
-    this.anchorTime = this.ctx.currentTime;
+    this.anchorTime = atTime;
+    // Audio clips that ring across the loop end are cut AT the seam, not left doubling the restart.
+    for (const c of this.liveClipSources) {
+      try {
+        c.gain.gain.setValueAtTime(c.gain.gain.value, atTime);
+        c.gain.gain.linearRampToValueAtTime(0.0001, atTime + 0.004);
+        c.src.stop(atTime + 0.01);
+      } catch { /* already stopped */ }
+    }
+    this.liveClipSources = [];
     // A queued launcher switch may have landed since play() — keep playing what's actually playing.
     this.scheduler.start(this.mode, beats, this.scheduler.currentPatternId() ?? this.currentPatternId);
     this.scheduler.onTick(this.ctx.currentTime);
@@ -1130,7 +1183,8 @@ export class BeatsEngine {
   private startAudioClip(track: ArrangeTrack, clip: TimelineClip, when: number, offsetIntoClipSec: number): void {
     if (!this.ctx || !this.graph || !this.voices) return;
     const started = startAudioClipSource(
-      this.ctx, this.graph, (k) => this.voices!.getBuffer(k), track, clip, when, offsetIntoClipSec, this.secPerBeat,
+      this.ctx, this.graph, (k) => this.voices!.getBuffer(k), track, clip, when, offsetIntoClipSec,
+      this.tempo.secBetween(clip.startBeats, clip.startBeats + clip.lengthBeats),
     );
     if (!started) return;
     this.liveClipSources.push(started);

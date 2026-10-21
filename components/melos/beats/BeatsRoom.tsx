@@ -6,6 +6,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Plus, Sparkles, AlignStartVertical, FolderOpen, FilePlus2, Trash2, Download } from 'lucide-react';
 import { auth } from '../../../services/firebase';
 import { BeatsEngine } from '../../../services/melos/beats/engine/BeatsEngine';
+import { MeterMap } from '../../../services/melos/beats/tempoMap';
 import { defaultPattern, grooveUid, type GrooveDoc, type InstrumentType, type ArrangeTrack } from '../../../services/melos/beats/grooveDoc';
 import { useContextMenu, type MenuNode } from '../../ui/ContextMenu';
 import { autoFill, quantizePattern } from '../../../services/melos/beats/grooveTools';
@@ -281,8 +282,10 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
 
   const handlePlay = useCallback(() => {
     const engine = BeatsEngine.get();
-    // Recording with a pre-roll: count the metronome in for N bars before beat 1.
-    const countInBeats = recordingRef.current ? preRollBars * 4 : 0;
+    // Recording with a pre-roll: count the metronome in for N bars (of the meter where playback
+    // starts — two bars of 6/8 is 6 beats, not 8) before the downbeat.
+    const from = view === 'timeline' ? songStartBeats : 0;
+    const countInBeats = recordingRef.current ? preRollBars * MeterMap.fromDoc(doc).at(from).lenBeats : 0;
     // In the timeline (arrangement) view, Play means play the SONG from the playhead — which defaults
     // to bar 1 — not audition the loose pattern. Every other view auditions the current pattern.
     if (view === 'timeline') {
@@ -291,7 +294,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
     } else {
       void engine.init().then(() => engine.play(playMode, { patternId: pattern?.id, countInBeats }));
     }
-  }, [view, playMode, pattern?.id, preRollBars, songStartBeats]);
+  }, [view, playMode, pattern?.id, preRollBars, songStartBeats, doc]);
 
   const handleStop = useCallback(() => { BeatsEngine.get().stop(); }, []);
 
@@ -303,11 +306,11 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
       recordingRef.current = next;
       if (next && !BeatsEngine.get().isRunning()) {
         const engine = BeatsEngine.get();
-        void engine.init().then(() => engine.play(playMode, { patternId: pattern?.id, countInBeats: preRollBars * 4 }));
+        void engine.init().then(() => engine.play(playMode, { patternId: pattern?.id, countInBeats: preRollBars * MeterMap.fromDoc(doc).at(0).lenBeats }));
       }
       return next;
     });
-  }, [playMode, pattern?.id, preRollBars]);
+  }, [playMode, pattern?.id, preRollBars, doc]);
 
   // Space = play/stop, the one shortcut every DAW agrees on.
   useEffect(() => {
@@ -983,6 +986,12 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
         onPanic={() => BeatsEngine.get().panic()}
         onSetBpm={(bpm) => mutate((d) => { d.bpm = bpm; })}
         onSetSwing={(s) => mutate((d) => { d.swing = s; })}
+        onSetKey={(k) => mutate((d) => { if (k) d.key = k; else delete d.key; })}
+        onSetTimeSig={(num, den) => mutate((d) => {
+          const rest = (d.meter ?? []).filter((m) => m.bar !== 0);
+          d.meter = num === 4 && den === 4 && !rest.length ? undefined : [{ bar: 0, num, den }, ...rest];
+          if (!d.meter) delete d.meter;
+        })}
         beats={snap.beats}
         onSetLoop={(loop) => mutate((d) => { d.loop = loop; })}
         onSetPlayMode={setPlayMode}

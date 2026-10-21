@@ -27,6 +27,11 @@ import { TimelineEditPanel } from './TimelineEditPanel';
 import { InstrumentPanel } from '../instrument/InstrumentPanel';
 import { ClipLauncher } from './ClipLauncher';
 import { useUniversalMarquee, useUniversalMultiSelect } from '../../../../hooks/useUniversalMultiSelect';
+import { songTime } from '../../../../services/melos/beats/tempoMap';
+import { DEFAULT_GRID, GRID_DIVS, gridCellBeats, gridLabel, snapBeat, type GridSettings } from '../../../../services/melos/beats/snapGrid';
+import { audioLengthBeats, splitClipAt } from '../../../../services/melos/beats/clipEdit';
+import { docKey, keyLabel, parseKey } from '../../../../services/melos/beats/songKey';
+import { TempoLane, TimelineGrid } from './TempoLane';
 
 import { PLAYHEAD, SELECT, glassPanel } from '../theme';
 import {
@@ -35,10 +40,40 @@ import {
   seekRealtimeSympPlayback,
 } from '../../../../services/melos/melosRealtimeSympPlayer';
 
-const BEATS_PER_BAR = 4;
 const LANE_H = 44;
 const PAD_LANE_H = 28;
 const STEPS_PER_BEAT = 4;
+
+// Bars come from the doc's meter map (time-signature changes), never a fixed 4 beats. Each helper
+// takes the doc so callbacks read the CURRENT meter (the doc passed to a mutate), not a stale one.
+/** Start of the bar containing `beat`. */
+const barFloorOf = (doc: GrooveDoc, beat: number) => songTime(doc).meter.at(Math.max(0, beat)).startBeat;
+/** Beats spanned by `bars` whole bars starting at the bar line `fromBeat`. */
+const barsSpan = (doc: GrooveDoc, fromBeat: number, bars: number) => {
+  const m = songTime(doc).meter;
+  return m.barToBeat(m.at(Math.max(0, fromBeat)).bar + bars) - fromBeat;
+};
+/** Length from `startBeats` that covers `relEnd` beats, rounded up to a whole bar (min one bar). */
+const barCeilSpan = (doc: GrooveDoc, startBeats: number, relEnd: number) => {
+  const m = songTime(doc).meter;
+  const end = startBeats + relEnd;
+  const b = m.at(end);
+  const ceil = b.beatInBar < 1e-6 ? end : b.startBeat + b.lenBeats;
+  return Math.max(ceil, startBeats + m.at(startBeats).lenBeats) - startBeats;
+};
+/** Bars between two beats (fractional), for readouts. */
+const barsBetween = (doc: GrooveDoc, a: number, b: number) => {
+  const m = songTime(doc).meter;
+  return m.beatToBar(b) - m.beatToBar(a);
+};
+const RULER_SIGS: [number, number][] = [
+  [4, 4], [3, 4], [2, 4], [5, 4], [6, 4], [7, 4], [3, 8], [5, 8], [6, 8], [7, 8], [9, 8], [12, 8],
+];
+const GRID_KEY = 'melos:timeline:grid';
+const loadGrid = (): GridSettings => {
+  try { const g = JSON.parse(localStorage.getItem(GRID_KEY) || 'null'); if (g && g.mode && g.div) return { ...DEFAULT_GRID, ...g }; } catch { /* */ }
+  return DEFAULT_GRID;
+};
 const TRACK_COLORS = ['#00DAF3', '#FF8C00', '#B84DFF', '#06D6A0', '#FF4D8D', '#FFD166', '#5B8CFF', '#F78C6C'];
 const CLIP_SWATCHES = ['#00DAF3', '#FF8C00', '#B84DFF', '#06D6A0', '#FF4D8D', '#FFD166', '#5B8CFF', '#F78C6C', '#EAEAEA', '#6B7280'];
 
@@ -305,11 +340,61 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
     targetTrackId?: string;
   } | null>(null);
 
+  // The time axis: tempo + meter maps (memoised on the doc's signature) and the snap grid.
+  const { tempo, meter } = songTime(p.doc);
+  const [grid, setGridState] = useState<GridSettings>(loadGrid);
+  const setGrid = (g: GridSettings) => { setGridState(g); try { localStorage.setItem(GRID_KEY, JSON.stringify(g)); } catch { /* */ } };
+  const [showTempo, setShowTempo] = useState(() => localStorage.getItem('melos:timeline:tempo') === '1' || !!p.doc.tempoMap?.length);
+  /** Snap a beat to the grid; Shift or Alt held during the gesture bypasses it. */
+  const snapAt = (beat: number, e?: { shiftKey?: boolean; altKey?: boolean }, how?: 'nearest' | 'floor' | 'ceil') =>
+    snapBeat(beat, grid, meter, pxPerBeat, { bypass: !!(e?.shiftKey || e?.altKey), how });
+  const gridMenu = useContextMenu<void>(() => [
+    { kind: 'header', label: 'Snap grid' },
+    { id: 'adaptive', label: 'Adaptive (follows zoom)', checked: grid.mode === 'adaptive', onSelect: () => setGrid({ ...grid, mode: 'adaptive' }) },
+    { id: 'fixed', label: 'Fixed', checked: grid.mode === 'fixed', onSelect: () => setGrid({ ...grid, mode: 'fixed' }) },
+    { id: 'off', label: 'Off', checked: grid.mode === 'off', onSelect: () => setGrid({ ...grid, mode: 'off' }) },
+    { kind: 'separator' },
+    { kind: 'header', label: grid.mode === 'adaptive' ? 'Coarsest division' : 'Division' },
+    ...GRID_DIVS.map((div) => ({
+      id: `div-${div}`, label: div === 'bar' ? 'Bar' : div, checked: grid.div === div, disabled: grid.mode === 'off',
+      onSelect: () => setGrid({ ...grid, div, mode: grid.mode === 'off' ? 'fixed' : grid.mode }),
+    })),
+    { kind: 'separator' },
+    { id: 'triplet', label: 'Triplet', checked: grid.triplet, disabled: grid.mode === 'off', onSelect: () => setGrid({ ...grid, triplet: !grid.triplet }) },
+  ]);
+  // Ruler right-click: a time-signature change starting at that bar (bar 1 edits the song meter).
+  const rulerMenu = useContextMenu<number>((bar) => {
+    const cur = meter.signatureAtBar(bar);
+    const hasChange = (p.doc.meter ?? []).some((m) => m.bar === bar);
+    const setSig = (num: number, den: number) => p.onMutate((d) => {
+      const rest = (d.meter ?? []).filter((m) => m.bar !== bar);
+      d.meter = [...rest, { bar, num, den }].sort((a, b) => a.bar - b.bar);
+      // Drop changes that restate the signature already in force (keeps the list honest).
+      d.meter = d.meter.filter((m, i, a) => {
+        const prev = i === 0 ? { num: 4, den: 4 } : a[i - 1];
+        return !(m.num === prev.num && m.den === prev.den);
+      });
+      if (!d.meter.length) delete d.meter;
+    });
+    return [
+      { kind: 'header', label: `Bar ${bar + 1} · ${cur.num}/${cur.den}` },
+      {
+        id: 'sig', label: bar === 0 ? 'Time signature' : 'Change time signature here', submenu: RULER_SIGS.map(([n, dd]) => ({
+          id: `${n}/${dd}`, label: `${n}/${dd}`, checked: cur.num === n && cur.den === dd, onSelect: () => setSig(n, dd),
+        })),
+      },
+      {
+        id: 'rm', label: 'Remove time-signature change', danger: true, disabled: !hasChange || bar === 0,
+        onSelect: () => p.onMutate((d) => { d.meter = (d.meter ?? []).filter((m) => m.bar !== bar); if (!d.meter.length) delete d.meter; }),
+      },
+      { kind: 'separator' },
+      { id: 'play', label: `Play from bar ${bar + 1}`, onSelect: () => p.onPlayFrom(meter.barToBeat(bar)) },
+    ];
+  });
   const contentBeats = Math.max(
-    32 * BEATS_PER_BAR,
-    ...p.doc.arrangement.flatMap((t) => t.clips.map((c) => c.startBeats + c.lengthBeats + 8 * BEATS_PER_BAR)),
+    meter.barToBeat(32),
+    ...p.doc.arrangement.flatMap((t) => t.clips.map((c) => { const end = c.startBeats + c.lengthBeats; return end + barsSpan(p.doc, barFloorOf(p.doc, end), 8); })),
   );
-  const totalBars = Math.ceil(contentBeats / BEATS_PER_BAR);
   const contentW = contentBeats * pxPerBeat;
   const fitToView = useCallback(() => {
     const width = Math.max(180, (viewportRef.current?.clientWidth || window.innerWidth) - headerW - 24);
@@ -393,7 +478,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
             const f = input.files?.[0]; if (!f) return;
             try {
               const buf = await f.arrayBuffer();
-              const startBeats = Math.floor((p.beats || 0) / BEATS_PER_BAR) * BEATS_PER_BAR;
+              const startBeats = barFloorOf(p.doc, p.beats || 0);
               const clip = midiFileToClip(buf, startBeats);
               if (clip) p.onMutate((d) => { const t = d.arrangement.find((x) => x.id === trackId); if (t && t.kind === 'instrument') t.clips.push(clip); });
             } catch { /* not a readable MIDI file */ }
@@ -436,14 +521,15 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
   const [promptTrack, setPromptTrack] = useState<string | null>(null); // instrument track receiving an AI-composed part
   // Shared: drop a set of NoteEvents as a bar-snapped MIDI clip at the playhead on an instrument track
   // (used by Hum, the Virtual Composer prompt, etc.).
-  const insertNotesOnTrack = (trackId: string, notes: TimelineClip['notes']) => {
+  const insertNotesOnTrack = (trackId: string, notes: TimelineClip['notes'], also?: (d: GrooveDoc) => void) => {
     if (!notes || !notes.length) return;
-    const startBeats = Math.floor((p.beats || 0) / BEATS_PER_BAR) * BEATS_PER_BAR;
+    const startBeats = barFloorOf(p.doc, p.beats || 0);
     const end = notes.reduce((m, n) => Math.max(m, n.startBeats + n.lengthBeats), 0);
-    const lengthBeats = Math.max(BEATS_PER_BAR, Math.ceil(end / BEATS_PER_BAR) * BEATS_PER_BAR);
+    const lengthBeats = barCeilSpan(p.doc, startBeats, end);
     p.onMutate((d) => {
       const t = d.arrangement.find((x) => x.id === trackId);
       if (t && t.kind === 'instrument') t.clips.push({ id: grooveUid(), startBeats, lengthBeats, notes });
+      also?.(d);
     });
   };
   // "Add instrument" destination chooser (anchored, in-view via the shared menu primitive).
@@ -535,9 +621,10 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
     p.onMutate((d) => {
       const track = d.arrangement.find((t) => t.id === trackId);
       if (!track || track.kind !== 'pattern' || track.foreign) return;
-      const startBeats = Math.floor(atBeats / BEATS_PER_BAR) * BEATS_PER_BAR;
+      const startBeats = barFloorOf(d, atBeats);
       if (track.clips.some((c) => startBeats < c.startBeats + c.lengthBeats && startBeats + 1 > c.startBeats)) return;
-      const lengthBeats = Math.max(BEATS_PER_BAR, (p.activePattern.length / 16) * BEATS_PER_BAR);
+      // A pattern clip is as long as its pattern (16ths), whatever the meter.
+      const lengthBeats = Math.max(1, p.activePattern.length / STEPS_PER_BEAT);
       track.clips.push({ id: grooveUid(), startBeats, lengthBeats, patternId: p.activePattern.id });
     });
   }, [p.onMutate, p.activePattern]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -551,14 +638,14 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
     const result = await ingestSample(file, name, ctx);
     if (!result) return;
     engine.setSampleBuffer(result.ref.key, result.buffer);
-    const spb = 60 / p.doc.bpm;
     p.onMutate((d) => {
       const track = d.arrangement.find((t) => t.id === trackId);
       if (!track || track.kind !== 'audio' || track.foreign) return;
+      const startBeats = barFloorOf(d, atBeats);
       track.clips.push({
         id: grooveUid(),
-        startBeats: Math.floor(atBeats / BEATS_PER_BAR) * BEATS_PER_BAR,
-        lengthBeats: Math.max(1, Math.round((result.buffer.duration / spb) * 4) / 4),
+        startBeats,
+        lengthBeats: Math.max(1 / 16, audioLengthBeats(d, startBeats, result.buffer.duration)),
         audio: { sampleKey: result.ref.key, name, offsetSec: 0, gainDb: 0, durationSec: result.buffer.duration },
       });
     });
@@ -580,8 +667,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
     await engine.init();
     const ctx = engine.getContext();
     if (!ctx) return;
-    const spb = 60 / p.doc.bpm;
-    const startBar = Math.max(0, Math.floor(atBeats / BEATS_PER_BAR) * BEATS_PER_BAR);
+    const startBar = barFloorOf(p.doc, atBeats);
     const made: { name: string; key: string; dur: number; peaks: number[]; bpm: number | null }[] = [];
     for (let fileIdx = 0; fileIdx < audio.length; fileIdx++) {
       const file = audio[fileIdx]; setIngest({ done: fileIdx, total: audio.length, name: file.name });
@@ -600,7 +686,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
           mute: false, solo: false, gainDb: 0, pan: 0,
           clips: [{
             id: grooveUid(), startBeats: startBar,
-            lengthBeats: Math.max(1, Math.round((m.dur / spb) * 4) / 4),
+            lengthBeats: Math.max(1 / 16, audioLengthBeats(d, startBar, m.dur)),
             audio: { sampleKey: m.key, name: m.name, offsetSec: 0, gainDb: 0, durationSec: m.dur, peaks: m.peaks, detectedBpm: m.bpm ?? undefined },
           }],
         });
@@ -632,34 +718,15 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
     p.onMutate((d) => {
       const track = d.arrangement.find((t) => t.id === trackId);
       if (!track || track.kind !== 'instrument') return;
-      const startBeats = Math.floor(atBeats / BEATS_PER_BAR) * BEATS_PER_BAR;
+      const startBeats = barFloorOf(d, atBeats);
       if (track.clips.some((c) => startBeats < c.startBeats + c.lengthBeats && startBeats + 1 > c.startBeats)) return;
-      track.clips.push({ id: grooveUid(), startBeats, lengthBeats: BEATS_PER_BAR * 2, notes: [] });
+      track.clips.push({ id: grooveUid(), startBeats, lengthBeats: barsSpan(d, startBeats, 2), notes: [] });
     });
   }, [p.onMutate]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /** Knife: split a clip at a beat (1-beat snap), moving/clamping notes and audio offsets. */
+  /** Knife: split a clip at a (grid-snapped) beat, moving/clamping notes and audio offsets. */
   const splitClip = useCallback((trackId: string, clipId: string, atBeats: number) => {
-    p.onMutate((d) => {
-      const t = d.arrangement.find((x) => x.id === trackId);
-      const c = t?.clips.find((x) => x.id === clipId);
-      if (!t || !c) return;
-      const rel = Math.round(atBeats - c.startBeats);
-      if (rel <= 0 || rel >= c.lengthBeats) return;
-      const right = JSON.parse(JSON.stringify(c)) as TimelineClip;
-      right.id = grooveUid() + grooveUid();
-      right.startBeats = c.startBeats + rel;
-      right.lengthBeats = c.lengthBeats - rel;
-      c.lengthBeats = rel;
-      if (c.notes) {
-        right.notes = (right.notes ?? []).filter((n) => n.startBeats >= rel - 1e-6)
-          .map((n) => ({ ...n, id: grooveUid(), startBeats: n.startBeats - rel }));
-        c.notes = c.notes.filter((n) => n.startBeats < rel - 1e-6);
-        for (const n of c.notes) if (n.startBeats + n.lengthBeats > rel) n.lengthBeats = rel - n.startBeats;
-      }
-      if (c.audio && right.audio) right.audio.offsetSec = (c.audio.offsetSec || 0) + rel * (60 / d.bpm);
-      t.clips.push(right);
-    });
+    p.onMutate((d) => { splitClipAt(d, trackId, clipId, atBeats); });
   }, [p.onMutate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** Glue: merge a clip with the NEXT clip on its track (notes fold in; audio only if it's the
@@ -706,25 +773,25 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
 
   // Draggable loop/cycle region on the ruler — move the body, drag either edge to resize; snaps
   // to the bar grid, and turns the loop on the moment you touch it.
-  const loop = p.doc.loop ?? { on: false, startBeats: 0, endBeats: BEATS_PER_BAR * 4 };
+  const loop = p.doc.loop ?? { on: false, startBeats: 0, endBeats: meter.barToBeat(4) };
   const [regionGenMode, setRegionGenMode] = useState<'stems' | 'holistic' | 'idea' | 'full_song'>('stems');
   const [regionPrompt, setRegionPrompt] = useState('');
   const [partInstrument, setPartInstrument] = useState<InstrumentType>('onda');
   const [regionGenerating, setRegionGenerating] = useState(false);
   const [regionStatus, setRegionStatus] = useState('');
   const wholeGeneration = regionGenMode === 'holistic' || regionGenMode === 'full_song';
-  const generationBeats = wholeGeneration ? Math.max(32 * BEATS_PER_BAR, loop.endBeats - loop.startBeats)
+  const generationBeats = wholeGeneration ? Math.max(meter.barToBeat(32), loop.endBeats - loop.startBeats)
     : loop.endBeats - loop.startBeats;
   const regionOperation = useRef<AbortController | null>(null);
   useEffect(() => () => { regionOperation.current?.abort(); }, [p.doc.id]);
 
   const setRegionBarsSpan = (barsCount: number) => {
-    const startBarBeat = Math.max(0, Math.floor((loop.startBeats || 0) / BEATS_PER_BAR) * BEATS_PER_BAR);
+    const startBarBeat = barFloorOf(p.doc, loop.startBeats || 0);
     p.onMutate((d) => {
       d.loop = {
         on: true,
         startBeats: startBarBeat,
-        endBeats: startBarBeat + Math.max(1, barsCount) * BEATS_PER_BAR,
+        endBeats: startBarBeat + barsSpan(d, startBarBeat, Math.max(1, barsCount)),
       };
     });
   };
@@ -738,19 +805,21 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
     setRegionStatus('Connecting local music engines…');
     try {
       const wholeProject = regionGenMode === 'full_song' || regionGenMode === 'holistic';
-      const startBeat = wholeProject ? 0 : Math.max(0, Math.floor(loop.startBeats / BEATS_PER_BAR) * BEATS_PER_BAR);
+      const startBeat = wholeProject ? 0 : barFloorOf(p.doc, loop.startBeats);
       const regionBeats = wholeProject
-        ? Math.max(32 * BEATS_PER_BAR, loop.endBeats - loop.startBeats)
-        : Math.max(BEATS_PER_BAR, loop.endBeats - loop.startBeats);
-      const regionBars = Math.max(1, Math.round(regionBeats / BEATS_PER_BAR));
-      const spb = 60 / p.doc.bpm;
-      const exactDurationSec = Math.max(2, Math.min(360, regionBeats * spb));
+        ? Math.max(meter.barToBeat(32), loop.endBeats - loop.startBeats)
+        : Math.max(barsSpan(p.doc, startBeat, 1), loop.endBeats - loop.startBeats);
+      const regionBars = Math.max(1, Math.round(barsBetween(p.doc, startBeat, startBeat + regionBeats)));
+      // Through the tempo track: the region's real duration, and its average seconds-per-beat.
+      const exactDurationSec = Math.max(2, Math.min(360, tempo.secBetween(startBeat, startBeat + regionBeats)));
+      const spb = tempo.secBetween(startBeat, startBeat + regionBeats) / Math.max(1e-6, regionBeats);
 
       const ensembleOut = await runHolisticEnsemblePipeline({
         prompt: effectivePrompt,
         lyrics: '',
         bpm: p.doc.bpm,
-        keySignature: p.doc.showcaseMetadata?.keySignature || 'D Minor',
+        // The project key when set; the template's key text; only then the old default.
+        keySignature: (() => { const k = docKey(p.doc); return k ? keyLabel(k) : 'D Minor'; })(),
         startBeats: startBeat,
         regionBeats,
         seed: 42,
@@ -891,7 +960,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
               },
             });
           });
-          setRegionStatus(`Inserted region idea across Bars ${Math.floor(startBeat / BEATS_PER_BAR) + 1}–${Math.floor((startBeat + regionBeats) / BEATS_PER_BAR)}`);
+          setRegionStatus(`Inserted region idea across Bars ${meter.at(startBeat).bar + 1}–${Math.ceil(meter.beatToBar(startBeat + regionBeats) - 1e-6)}`);
         }
       }
     } catch (err) {
@@ -906,14 +975,15 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
     const rect = (e.currentTarget as HTMLElement).parentElement!.getBoundingClientRect();
     const start = { ...loop };
     const startX = e.clientX;
-    const snap = (beats: number) => Math.round(beats / BEATS_PER_BAR) * BEATS_PER_BAR;
     const move = (ev: PointerEvent) => {
       const dBeats = (ev.clientX - startX) / pxPerBeat;
+      const snap = (beats: number) => snapAt(beats, ev);
+      const minLen = gridCellBeats(start.startBeats, grid, meter, pxPerBeat);
       p.onMutate((d) => {
         const l = d.loop ?? { on: true, startBeats: start.startBeats, endBeats: start.endBeats };
         if (mode === 'move') { const span = start.endBeats - start.startBeats; const s = Math.max(0, snap(start.startBeats + dBeats)); l.startBeats = s; l.endBeats = s + span; }
-        else if (mode === 'l') l.startBeats = Math.max(0, Math.min(l.endBeats - BEATS_PER_BAR, snap(start.startBeats + dBeats)));
-        else l.endBeats = Math.max(l.startBeats + BEATS_PER_BAR, snap(start.endBeats + dBeats));
+        else if (mode === 'l') l.startBeats = Math.max(0, Math.min(l.endBeats - minLen, snap(start.startBeats + dBeats)));
+        else l.endBeats = Math.max(l.startBeats + minLen, snap(start.endBeats + dBeats));
         l.on = true;
         d.loop = l;
       });
@@ -926,13 +996,15 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
     <div className="flex-1 min-w-0 min-h-0 flex flex-col p-4 pt-3 gap-0">
       {marqueeSelection.marquee && <div className="fixed pointer-events-none z-[9998] border border-[#00DAF3] bg-[#00DAF3]/10" style={marqueeSelection.marquee} />}
       {clipMenu.node}
+      {gridMenu.node}
+      {rulerMenu.node}
       {instrumentAddMenu.node}
       {progBrowserTrack && (
         <ProgressionBrowser
           target={p.doc.arrangement.find((t) => t.id === progBrowserTrack)?.name}
           onClose={() => setProgBrowserTrack(null)}
           onInsert={(progId, rootPc, seventh) => {
-            const startBeats = Math.floor((p.beats || 0) / BEATS_PER_BAR) * BEATS_PER_BAR;
+            const startBeats = barFloorOf(p.doc, p.beats || 0);
             const clip = progressionToClip(progId, rootPc, { seventh, startBeats });
             if (!clip) return;
             p.onMutate((d) => {
@@ -946,7 +1018,11 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
         <HumRecorder
           target={p.doc.arrangement.find((t) => t.id === humTrack)?.name}
           onClose={() => setHumTrack(null)}
-          onInsert={(notes) => insertNotesOnTrack(humTrack, notes)}
+          projectKey={docKey(p.doc)}
+          onInsert={(notes, meta) => insertNotesOnTrack(humTrack, notes, (d) => {
+            // No project key yet: the hum's detected key becomes it (same undo step as the notes).
+            if (!docKey(d)) { const k = parseKey(`${meta.key} ${meta.mode}`); if (k) d.key = k; }
+          })}
         />
       )}
       {promptTrack && (
@@ -1078,13 +1154,13 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
         <div className="flex flex-wrap items-center gap-2 px-3 py-2 border-b border-white/10 bg-[#120C1C]/95 text-[11px]">
           <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-[#00DAF3]/10 border border-[#00DAF3]/35 text-[#00DAF3] font-mono text-[10px] shrink-0" title="Drag the cyan region handles on the bar ruler below or click a bar preset">
             <Layers size={12} />
-            {wholeGeneration ? <span>Project: {Math.round(generationBeats / BEATS_PER_BAR)} bars · {(generationBeats * 60 / p.doc.bpm).toFixed(1)}s</span> : <span>
-              Region: Bar {Math.floor(loop.startBeats / BEATS_PER_BAR) + 1}–{Math.floor(loop.endBeats / BEATS_PER_BAR)} ({Math.max(1, Math.round((loop.endBeats - loop.startBeats) / BEATS_PER_BAR))} bars · {((loop.endBeats - loop.startBeats) * (60 / p.doc.bpm)).toFixed(1)}s)
+            {wholeGeneration ? <span>Project: {Math.round(barsBetween(p.doc, 0, generationBeats))} bars · {tempo.secBetween(0, generationBeats).toFixed(1)}s</span> : <span>
+              Region: Bar {meter.at(loop.startBeats).bar + 1}–{Math.round(meter.beatToBar(loop.endBeats))} ({Math.max(1, Math.round(barsBetween(p.doc, loop.startBeats, loop.endBeats)))} bars · {tempo.secBetween(loop.startBeats, loop.endBeats).toFixed(1)}s)
             </span>}
           </div>
           <div className="flex items-center gap-1 shrink-0">
             {[4, 8, 16, 32, 64].map((bCount) => {
-              const activeBars = Math.round((loop.endBeats - loop.startBeats) / BEATS_PER_BAR);
+              const activeBars = Math.round(barsBetween(p.doc, loop.startBeats, loop.endBeats));
               return (
                 <button
                   key={bCount}
@@ -1181,18 +1257,36 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
               </div>
               <div
                 className="relative flex-1 cursor-pointer"
-                title="Click to play the song from this bar"
+                title="Click to play from here (grid-snapped; Shift = exact) · right-click for the time signature at this bar"
                 onClick={(e) => {
                   const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                  const beat = Math.floor(((e.clientX - rect.left) / pxPerBeat) / BEATS_PER_BAR) * BEATS_PER_BAR;
-                  p.onPlayFrom(Math.max(0, beat));
+                  p.onPlayFrom(snapAt((e.clientX - rect.left) / pxPerBeat, e, 'floor'));
+                }}
+                onContextMenu={(e) => {
+                  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                  const bar = meter.at(Math.max(0, (e.clientX - rect.left) / pxPerBeat)).bar;
+                  rulerMenu.bind(bar).onContextMenu(e);
                 }}
               >
-                {Array.from({ length: totalBars }, (_, b) => (
-                  <span key={b} className="absolute top-1.5 text-[9px] font-mono text-white/30 select-none" style={{ left: b * BEATS_PER_BAR * pxPerBeat + 4 }}>
-                    {b % 4 === 0 ? b + 1 : ''}
-                  </span>
-                ))}
+                {(() => {
+                  // Label every bar when there's room, else every 2/4/8/16 — counted in real bars.
+                  const bars = meter.bars(0, contentBeats);
+                  const avgPx = (contentBeats * pxPerBeat) / Math.max(1, bars.length);
+                  const every = [1, 2, 4, 8, 16, 32].find((n) => n * avgPx >= 28) ?? 64;
+                  let prevSig = '';
+                  return bars.map((b) => {
+                    const sig = `${b.num}/${b.den}`;
+                    const sigChange = sig !== prevSig && (b.bar > 0 || sig !== '4/4');
+                    prevSig = sig;
+                    if (b.bar % every !== 0 && !sigChange) return null;
+                    return (
+                      <span key={b.bar} className="absolute top-1.5 text-[9px] font-mono select-none whitespace-nowrap" style={{ left: b.startBeat * pxPerBeat + 4 }}>
+                        {b.bar % every === 0 && <span className="text-white/30">{b.bar + 1}</span>}
+                        {sigChange && <span className="ml-1 text-[#D0BCFF]/80">{sig}</span>}
+                      </span>
+                    );
+                  });
+                })()}
                 {p.doc.sectionMarkers?.map((sec, idx) => {
                   const secStart = sec.startBeats ?? (sec as unknown as { startBeat?: number }).startBeat ?? 0;
                   const secLabel = sec.title || (sec as unknown as { label?: string }).label || '';
@@ -1223,6 +1317,10 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
 
             {/* lanes */}
             <div ref={marqueeSurfaceRef} {...marqueeSelection.bind} className="relative">
+              <TimelineGrid meter={meter} grid={grid} pxPerBeat={pxPerBeat} contentBeats={contentBeats} left={headerW} />
+              {showTempo && (
+                <TempoLane doc={p.doc} meter={meter} grid={grid} pxPerBeat={pxPerBeat} contentBeats={contentBeats} headerW={headerW} onMutate={p.onMutate} />
+              )}
               {playheadX >= 0 && (
                 <div className="absolute top-0 bottom-0 w-[2px] z-20 pointer-events-none" style={{ left: headerW + playheadX, background: PLAYHEAD, opacity: playheadLive ? 1 : 0.5, boxShadow: playheadLive ? `0 0 12px ${PLAYHEAD}88` : 'none' }} />
               )}
@@ -1275,7 +1373,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
                       <span className="text-[7px] font-mono text-white/25 flex-none" title="Bus group">{'ABCD'[pad.group]}</span>
                       <button onClick={() => p.onMutate((d) => { const x = d.kit[padIdx]; if (x) x.mute = !x.mute; })} className="w-[15px] h-[15px] rounded-[4px] border text-[7px] grid place-items-center flex-none" style={mstyle(!!pad.mute, '#fff')} aria-label={`Mute ${pad.name}`}>M</button>
                     </div>
-                    <div className="relative flex-1" style={{ background: `repeating-linear-gradient(90deg, rgba(255,255,255,0.04) 0 1px, transparent 1px ${BEATS_PER_BAR * pxPerBeat}px)` }}>
+                    <div className="relative flex-1">
                       <PadLane
                         padIdx={padIdx}
                         color={pad.color}
@@ -1402,7 +1500,6 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
                       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
                       void dropAudio(track.id, (e.clientX - rect.left) / pxPerBeat, f);
                     }}
-                    style={{ background: `repeating-linear-gradient(90deg, rgba(255,255,255,0.045) 0 1px, transparent 1px ${BEATS_PER_BAR * pxPerBeat}px)` }}
                   >
                     {track.clips.map((clip) => {
                       const pat = p.doc.patterns.find((x) => x.id === clip.patternId);
@@ -1418,7 +1515,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
                             e.stopPropagation();
                             const el = e.currentTarget as HTMLElement;
                             // The Bitwig tools act on the click, before any drag begins.
-                            if (tool === 'knife') { splitClip(track.id, clip.id, clip.startBeats + (e.clientX - el.getBoundingClientRect().left) / pxPerBeat); return; }
+                            if (tool === 'knife') { splitClip(track.id, clip.id, snapAt(clip.startBeats + (e.clientX - el.getBoundingClientRect().left) / pxPerBeat, e)); return; }
                             if (tool === 'glue') { glueClip(track.id, clip.id); return; }
                             if (tool === 'eraser') { eraseClip(track.id, clip.id); return; }
                              const wasSelected = clipSelection.isSelected(clip.id);
@@ -1437,12 +1534,16 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
                              const dr = drag.current;
                              if (!dr || dr.clipId !== clip.id) return;
                              const dBeats = (e.clientX - dr.startX) / pxPerBeat;
+                             // Grid snap on the edge being moved; Shift/Alt mid-drag = free.
+                             const trimEnd = dr.mode === 'trim' ? snapAt(dr.orig.startBeats + dr.orig.lengthBeats + dBeats, e) : 0;
+                             const minLen = gridCellBeats(dr.orig.startBeats, grid, meter, pxPerBeat);
+                             const snappedStart = dr.mode === 'move' ? snapAt(dr.orig.startBeats + dBeats, e) : 0;
                              p.onMutate((d) => {
                                if (dr.mode === 'trim') {
                                  const t = d.arrangement.find((x) => x.id === dr.trackId);
                                  const c = t?.clips.find((x) => x.id === dr.clipId);
                                  if (!c) return;
-                                 c.lengthBeats = Math.max(1, Math.round(dr.orig.lengthBeats + dBeats));
+                                 c.lengthBeats = Math.max(e.shiftKey || e.altKey ? 1 / 64 : minLen, trimEnd - dr.orig.startBeats);
                                  return;
                                }
 
@@ -1450,7 +1551,8 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
                                // preserves relative timing. The vertical lane transfer is committed
                                // on pointer-up so pointer capture is not lost when React reparents clips.
                                const minStart = Math.min(...dr.members.map(member => member.clip.startBeats));
-                               const beatDelta = Math.max(-minStart, Math.round(dBeats / BEATS_PER_BAR) * BEATS_PER_BAR);
+                               // The grabbed clip lands on the grid; the rest keep their offsets to it.
+                               const beatDelta = Math.max(-minStart, snappedStart - dr.orig.startBeats);
                                const hovered = (document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null)?.closest<HTMLElement>('[data-timeline-track-id]')?.dataset.timelineTrackId;
                                if (hovered) dr.targetTrackId = hovered;
                                for (const member of dr.members) {
@@ -1510,7 +1612,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
                               : tool === 'glue' ? 'cell'
                               : tool === 'pencil' ? 'crosshair' : 'grab',
                           }}
-                          title={track.foreign ? 'Preserved for re-export — not played in browser' : `${pat?.name || clip.audio?.name || 'Clip'} · drag to move (bar snap), right edge to trim, Delete to remove`}
+                          title={track.foreign ? 'Preserved for re-export — not played in browser' : `${pat?.name || clip.audio?.name || 'Clip'} · drag to move, right edge to trim (grid snap; hold Shift for free) · Delete to remove`}
                         >
                           {clip.audio && !track.foreign && <svg viewBox="0 0 100 100" className="absolute inset-0 w-full h-full pointer-events-none" preserveAspectRatio="none" aria-hidden="true"><path d={(clip.audio.peaks?.length ? clip.audio.peaks : [0.2,0.5,0.3,0.7,0.4]).map((v, i, a) => `${i ? 'L' : 'M'} ${(i / Math.max(1, a.length - 1)) * 100} ${50 - v * 42}`).join(' ') + ' ' + (clip.audio.peaks?.length ? [...clip.audio.peaks].reverse() : [0.4,0.7,0.3,0.5,0.2]).map((v, i, a) => `L ${100 - (i / Math.max(1, a.length - 1)) * 100} ${50 + v * 42}`).join(' ') + ' Z'} fill={`${clipColor}70`} stroke={clipColor} strokeWidth="1" vectorEffect="non-scaling-stroke" /></svg>}
                           {/* MIDI clips draw their notes, so the arrangement shows the music. */}
@@ -1557,8 +1659,8 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
                       if (asset.context === 'melos' && asset.sampleKey) {
                         const source = p.doc.arrangement.flatMap((t) => t.clips).find((c) => c.audio?.sampleKey === asset.sampleKey)?.audio;
                         const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                        const at = Math.max(0, Math.floor(((e.clientX - rect.left - headerW + (e.currentTarget.parentElement?.parentElement?.scrollLeft || 0)) / pxPerBeat) / BEATS_PER_BAR) * BEATS_PER_BAR);
-                        if (source) p.onMutate((d) => d.arrangement.push({ id: grooveUid(), kind: 'audio', name: asset.name || source.name, color: TRACK_COLORS[d.arrangement.length % TRACK_COLORS.length], mute: false, solo: false, gainDb: 0, pan: 0, clips: [{ id: grooveUid(), startBeats: at, lengthBeats: Math.max(1, source.durationSec / (60 / d.bpm)), audio: JSON.parse(JSON.stringify(source)) }] }));
+                        const at = barFloorOf(p.doc, (e.clientX - rect.left - headerW + (e.currentTarget.parentElement?.parentElement?.scrollLeft || 0)) / pxPerBeat);
+                        if (source) p.onMutate((d) => d.arrangement.push({ id: grooveUid(), kind: 'audio', name: asset.name || source.name, color: TRACK_COLORS[d.arrangement.length % TRACK_COLORS.length], mute: false, solo: false, gainDb: 0, pan: 0, clips: [{ id: grooveUid(), startBeats: at, lengthBeats: Math.max(1 / 16, audioLengthBeats(d, at, source.durationSec, source.stretch || 1)), audio: JSON.parse(JSON.stringify(source)) }] }));
                       }
                     } catch { /* malformed external drag */ }
                     return;
@@ -1613,7 +1715,18 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
           {clipSelection.selectedIds.length > 1 && (
             <span className="font-semibold" style={{ color: PLAYHEAD }}>{clipSelection.selectedIds.length} clips selected</span>
           )}
-          <span>Snap: <b className="text-white/60">1 bar</b> (trim: 1 beat)</span>
+          <button
+            onClick={(e) => gridMenu.openFrom(e.currentTarget, undefined)}
+            className="flex items-center gap-1 hover:text-white"
+            title="Snap grid — adaptive follows the zoom · hold Shift (or Alt) while dragging to place freely"
+          >Grid: <b className="text-white/60">{gridLabel(grid, pxPerBeat, meter.at(0).lenBeats)}</b></button>
+          <button
+            onClick={() => setShowTempo((v) => { const next = !v; try { localStorage.setItem('melos:timeline:tempo', next ? '1' : '0'); } catch { /* */ } return next; })}
+            aria-pressed={showTempo}
+            className="flex items-center gap-1 hover:text-white"
+            style={{ color: showTempo ? '#FFD166' : 'rgba(255,255,255,0.45)' }}
+            title="Show the tempo track"
+          >Tempo</button>
           <label className="flex items-center gap-1.5">Zoom
             <input type="range" min={1} max={48} step="0.5" value={pxPerBeat} onChange={(e) => setPxPerBeat(Number(e.target.value))} className="w-28 accent-[#D0BCFF]" />
           </label>

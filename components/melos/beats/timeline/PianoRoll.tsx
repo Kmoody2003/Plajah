@@ -20,6 +20,9 @@ import type {
 } from '../../../../services/melos/beats/grooveDoc';
 import { grooveUid } from '../../../../services/melos/beats/grooveDoc';
 import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine';
+import { songTime } from '../../../../services/melos/beats/tempoMap';
+import { gridCellBeats, snapBeat, type GridDiv, type GridSettings } from '../../../../services/melos/beats/snapGrid';
+import { docKey, keyLabel, keyPitchClasses } from '../../../../services/melos/beats/songKey';
 import { PLAYHEAD, SELECT } from '../theme';
 
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -29,6 +32,23 @@ const KEY_W = 46;
 const LOW = 24;  // C1
 const HIGH = 96; // C7
 const ROWS = HIGH - LOW + 1;
+
+// The roll's snap menu → the shared grid model (fixed division, optional triplet, or off).
+const SNAP_OPTIONS: { id: string; label: string; div: GridDiv; triplet: boolean; off?: boolean }[] = [
+  { id: 'bar', label: 'Bar', div: 'bar', triplet: false },
+  { id: '1/4', label: '1/4', div: '1/4', triplet: false },
+  { id: '1/8', label: '1/8', div: '1/8', triplet: false },
+  { id: '1/16', label: '1/16', div: '1/16', triplet: false },
+  { id: '1/32', label: '1/32', div: '1/32', triplet: false },
+  { id: '1/4T', label: '1/4 T', div: '1/4', triplet: true },
+  { id: '1/8T', label: '1/8 T', div: '1/8', triplet: true },
+  { id: '1/16T', label: '1/16 T', div: '1/16', triplet: true },
+  { id: 'off', label: 'off (Rubato)', div: '1/16', triplet: false, off: true },
+];
+const snapGridOf = (id: string): GridSettings => {
+  const o = SNAP_OPTIONS.find((x) => x.id === id) || SNAP_OPTIONS[3];
+  return { mode: o.off ? 'off' : 'fixed', div: o.div, triplet: o.triplet };
+};
 
 const noteName = (k: number) => `${NOTE_NAMES[((k % 12) + 12) % 12]}${Math.floor(k / 12) - 1}`;
 
@@ -70,7 +90,15 @@ interface PianoRollProps {
 export const PianoRoll: React.FC<PianoRollProps> = ({ doc, trackId, clip, beats, running, playMode, onMutate, onClose }) => {
   const [mode, setMode] = useState<EditMode>('roll');
   const [pxPerBeat, setPxPerBeat] = useState(64);
-  const [snap, setSnap] = useState(0.25);
+  const [snapId, setSnapId] = useState('1/16');
+  const snapGrid = snapGridOf(snapId);
+  const { meter } = songTime(doc);
+  // Notes are clip-relative; the grid is the SONG's (bars from the meter map), so snapping goes
+  // through absolute beats. Shift/Alt held = free placement.
+  const snapRel = (rel: number, e?: { shiftKey?: boolean; altKey?: boolean }) =>
+    snapBeat(clip.startBeats + rel, snapGrid, meter, pxPerBeat, { bypass: !!(e?.shiftKey || e?.altKey) }) - clip.startBeats;
+  const songKey = docKey(doc);
+  const inKey = songKey ? keyPitchClasses(songKey) : null;
   const [selected, setSelected] = useState<string | null>(null);
   const [lastLen, setLastLen] = useState(0.5);
   const [defaultArticulation, setDefaultArticulation] = useState<OrchestralArticulation>('legato');
@@ -114,8 +142,8 @@ export const PianoRoll: React.FC<PianoRollProps> = ({ doc, trackId, clip, beats,
     });
   }, [track]);
 
-  const addNote = useCallback((key: number, startBeats: number) => {
-    const snapped = Math.max(0, snap > 0 ? Math.round(startBeats / snap) * snap : startBeats);
+  const addNote = useCallback((key: number, startBeats: number, free = false) => {
+    const snapped = Math.max(0, free ? startBeats : snapRel(startBeats));
     const id = grooveUid();
     editNotes((list) => {
       list.push({
@@ -137,7 +165,7 @@ export const PianoRoll: React.FC<PianoRollProps> = ({ doc, trackId, clip, beats,
     });
     setSelected(id);
     audition(key);
-  }, [editNotes, snap, lastLen, defaultArticulation, defaultSwell, audition]);
+  }, [editNotes, snapId, meter, clip.startBeats, pxPerBeat, lastLen, defaultArticulation, defaultSwell, audition]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const removeNote = useCallback((id: string) => {
     editNotes((list) => {
@@ -268,12 +296,15 @@ export const PianoRoll: React.FC<PianoRollProps> = ({ doc, trackId, clip, beats,
         </div>
 
         <label className="flex items-center gap-1 text-[10px] text-white/35 whitespace-nowrap">Snap
-          <select value={snap} onChange={(e) => setSnap(Number(e.target.value))} className="bg-black/40 border border-white/10 rounded px-1 h-6 text-[10px] text-white/75 outline-none">
-            <option value={1}>1/4</option><option value={0.5}>1/8</option>
-            <option value={0.25}>1/16</option><option value={0.125}>1/32</option>
-            <option value={0}>off (Rubato)</option>
+          <select value={snapId} onChange={(e) => setSnapId(e.target.value)} title="Snap grid · hold Shift (or Alt) while placing or dragging for free timing" className="bg-black/40 border border-white/10 rounded px-1 h-6 text-[10px] text-white/75 outline-none">
+            {SNAP_OPTIONS.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
           </select>
         </label>
+        {songKey && (
+          <span className="text-[10px] text-white/35 whitespace-nowrap" title="Project key — in-key rows are lit (set it from the transport bar)">
+            Key <b className="text-[#D0BCFF]/80 font-semibold">{keyLabel(songKey)}</b>
+          </span>
+        )}
 
         {/* Orchestral Articulation Selector */}
         <label className="flex items-center gap-1 text-[10px] text-white/40 whitespace-nowrap">Articulation
@@ -358,7 +389,10 @@ export const PianoRoll: React.FC<PianoRollProps> = ({ doc, trackId, clip, beats,
             {/* keyboard + rows */}
             {Array.from({ length: ROWS }, (_, r) => {
               const key = HIGH - r;
-              const black = BLACK.has(((key % 12) + 12) % 12);
+              const pc = ((key % 12) + 12) % 12;
+              const black = BLACK.has(pc);
+              const outOfKey = inKey ? !inKey[pc] : false;
+              const tonicRow = songKey ? pc === songKey.tonic : false;
               return (
                 <div key={r} className="absolute left-0 right-0 flex" style={{ top: r * ROW_H, height: ROW_H }}>
                   <button
@@ -375,23 +409,39 @@ export const PianoRoll: React.FC<PianoRollProps> = ({ doc, trackId, clip, beats,
                     className="flex-1 border-b cursor-crosshair"
                     style={{
                       borderColor: 'rgba(255,255,255,0.045)',
-                      background: black ? 'rgba(0,0,0,0.30)' : 'transparent',
+                      // With a project key the rows read the SCALE (out-of-key rows dim, the tonic
+                      // row is tinted); without one they read the keyboard, black keys shaded.
+                      background: inKey
+                        ? (tonicRow ? 'rgba(208,188,255,0.07)' : outOfKey ? 'rgba(0,0,0,0.38)' : 'transparent')
+                        : (black ? 'rgba(0,0,0,0.30)' : 'transparent'),
                     }}
                     onDoubleClick={(e) => {
                       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                      addNote(key, (e.clientX - rect.left) / pxPerBeat);
+                      const raw = (e.clientX - rect.left) / pxPerBeat;
+                      addNote(key, raw, e.shiftKey || e.altKey);
                     }}
                   />
                 </div>
               );
             })}
-            {/* bar lines */}
-            {Array.from({ length: Math.ceil(clip.lengthBeats) + 1 }, (_, b) => (
-              <div key={`b${b}`} className="absolute top-0 bottom-0 pointer-events-none" style={{
-                left: KEY_W + b * pxPerBeat, width: 1,
-                background: b % 4 === 0 ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.06)',
-              }} />
-            ))}
+            {/* bar + count lines from the song's meter (clip-relative) */}
+            {meter.bars(clip.startBeats - 1e-6, clip.startBeats + clip.lengthBeats + 1e-6).flatMap((bar) => {
+              const lines: { at: number; strong: boolean }[] = [{ at: bar.startBeat, strong: true }];
+              for (let u = 1; u < bar.num; u++) lines.push({ at: bar.startBeat + u * bar.unitBeats, strong: false });
+              return lines;
+            }).concat(meter.at(clip.startBeats).beatInBar > 1e-6
+              // A clip starting mid-bar still shows the counts before its first bar line.
+              ? (() => { const b0 = meter.at(clip.startBeats); const out: { at: number; strong: boolean }[] = [];
+                  for (let u = 1; u < b0.num; u++) { const at = b0.startBeat + u * b0.unitBeats; if (at > clip.startBeats) out.push({ at, strong: false }); }
+                  return out; })()
+              : [])
+              .filter((l) => l.at - clip.startBeats <= clip.lengthBeats + 1e-6)
+              .map((l) => (
+                <div key={`b${l.at}`} className="absolute top-0 bottom-0 pointer-events-none" style={{
+                  left: KEY_W + (l.at - clip.startBeats) * pxPerBeat, width: 1,
+                  background: l.strong ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.06)',
+                }} />
+              ))}
             {playheadBeats >= 0 && playheadBeats <= clip.lengthBeats && (
               <div className="absolute top-0 bottom-0 w-[2px] z-20 pointer-events-none" style={{ left: KEY_W + playheadBeats * pxPerBeat, background: PLAYHEAD, boxShadow: `0 0 10px ${PLAYHEAD}` }} />
             )}
@@ -425,11 +475,14 @@ export const PianoRoll: React.FC<PianoRollProps> = ({ doc, trackId, clip, beats,
                       if (!t) return;
                       if (dr.mode === 'move') {
                         const raw = Math.max(0, dr.start + dBeats);
-                        t.startBeats = snap > 0 ? Math.round(raw / snap) * snap : raw;
+                        t.startBeats = Math.max(0, snapRel(raw, e));
                         t.key = Math.max(LOW, Math.min(HIGH, dr.key - dRows));
                       } else {
+                        // Snap the note END to the grid, never shorter than one grid cell.
                         const raw = Math.max(0.05, dr.len + dBeats);
-                        t.lengthBeats = snap > 0 ? Math.max(snap, Math.round(raw / snap) * snap) : raw;
+                        const end = snapRel(dr.start + raw, e);
+                        const minCell = gridCellBeats(clip.startBeats + dr.start, snapGrid, meter, pxPerBeat);
+                        t.lengthBeats = e.shiftKey || e.altKey || snapGrid.mode === 'off' ? raw : Math.max(minCell, end - dr.start);
                       }
                     });
                   }}

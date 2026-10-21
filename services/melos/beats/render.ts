@@ -5,6 +5,7 @@
 // Pattern: components/spatialMixer/useSpatialAudioEngine.ts:185 renderMixToBlob.
 
 import type { GrooveDoc } from './grooveDoc';
+import { songTime } from './tempoMap';
 import { buildGraph } from './engine/graph';
 import { MasteringChain, type MasteringState } from './fx/mastering';
 import { FxChainHost } from './fx/devices';
@@ -40,6 +41,8 @@ export async function renderGroove(
   opts: { range: 'pattern' | 'song'; patternId?: string; loops?: number; bitDepth?: 16 | 24 } = { range: 'song' },
 ): Promise<RenderResult | null> {
   const spb = 60 / (doc.bpm || 120);
+  // The bounce walks the same tempo track the transport does — a ritardando prints as one.
+  const { tempo } = songTime(doc);
   let endBeats: number;
   if (opts.range === 'pattern') {
     const pattern = doc.patterns.find((p) => p.id === opts.patternId) || doc.patterns[0];
@@ -48,7 +51,7 @@ export async function renderGroove(
   } else {
     endBeats = Math.max(4, ...doc.arrangement.flatMap((t) => t.clips.map((c) => c.startBeats + c.lengthBeats)));
   }
-  const seconds = endBeats * spb + TAIL_SEC;
+  const seconds = tempo.beatToSec(endBeats) + TAIL_SEC;
   const offline = new OfflineAudioContext(2, Math.ceil(seconds * SAMPLE_RATE), SAMPLE_RATE);
   const anchor = 0.05; // tiny lead-in so t=0 events get their attack ramp
 
@@ -162,8 +165,8 @@ export async function renderGroove(
           const maxLen = clip.lengthBeats - note.startBeats;
           const lenBeats = Math.max(0.05, Math.min(note.lengthBeats, maxLen));
           // anchor mirrors the drum scheduler's lead-in so both land on the same grid.
-          const onFrame = Math.round((anchor + startBeats * spb) * SAMPLE_RATE);
-          const offFrame = Math.round((anchor + (startBeats + lenBeats) * spb) * SAMPLE_RATE);
+          const onFrame = Math.round((anchor + tempo.beatToSec(startBeats)) * SAMPLE_RATE);
+          const offFrame = Math.round((anchor + tempo.beatToSec(startBeats + lenBeats)) * SAMPLE_RATE);
           const voiceId = inst.scheduleNoteOn(note.key, Math.max(0.05, note.vel / 127), onFrame);
           inst.scheduleNoteOff(voiceId, offFrame);
         }
@@ -185,12 +188,12 @@ export async function renderGroove(
 
   const scheduler = new StepScheduler({
     doc: () => doc,
-    toTime: (beats) => anchor + beats * spb,
-    secPerBeat: () => spb,
+    toTime: (beats) => anchor + tempo.beatToSec(beats),
+    secBetween: (a, b) => tempo.secBetween(a, b),
     rng: seededRng(hashSeed(doc.id || 'groove')),
     trigger: (padIdx, vel, when, gateSec, semiOffset, pan) => {
       const pad = doc.kit[padIdx];
-      if (pad?.empty) return; // placeholder pad prints nothing
+      if (pad?.empty || pad?.mute) return; // placeholder / muted pad prints nothing
       if (pad?.source === 'instrument' && pad.instrumentTrackId) {
         // ONDA pad: pre-schedule at absolute frames, the same path clip notes use.
         if (keraPadTrackIds.has(pad.instrumentTrackId)) return; // KERA offline: see above
@@ -208,7 +211,8 @@ export async function renderGroove(
       voices.trigger(doc, padIdx, vel, when, gateSec, semiOffset, pan);
     },
     startAudioClip: (track, clip, when, offset) =>
-      void startAudioClipSource(offline, graph, (k) => voices.getBuffer(k), track, clip, when, offset, spb),
+      void startAudioClipSource(offline, graph, (k) => voices.getBuffer(k), track, clip, when, offset,
+        tempo.secBetween(clip.startBeats, clip.startBeats + clip.lengthBeats)),
     startInstrumentNote: () => { /* see RenderResult.skippedInstruments */ },
   });
   if (opts.range === 'pattern') {

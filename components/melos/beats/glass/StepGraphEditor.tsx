@@ -5,7 +5,7 @@
 // are the new per-step fields (grooveDoc Step.pitch / Step.pan), wired through the scheduler and
 // voice so they actually sound. Dragging a bar on an empty step turns that step on.
 
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { GrooveDoc, Pattern, Step } from '../../../../services/melos/beats/grooveDoc';
 import { PLAYHEAD } from '../theme';
 
@@ -47,7 +47,12 @@ export const StepGraphEditor: React.FC<Props> = ({ doc, pattern, padIdx, onMutat
   const [mode, setMode] = useState<Mode>('vel');
   const [selStep, setSelStep] = useState(0);
   const graphRef = useRef<HTMLDivElement>(null);
-  const cols = Math.min(pattern.length, 16);
+  // Patterns longer than 16 steps page in 16-step bars, the same chips the channel rack uses.
+  const pages = Math.max(1, Math.ceil(pattern.length / 16));
+  const [page, setPage] = useState(0);
+  useEffect(() => { if (page >= pages) setPage(0); }, [pages, page]);
+  const colBase = Math.min(page, pages - 1) * 16;
+  const cols = Math.min(16, pattern.length - colBase);
   const pad = doc.kit[padIdx];
   const row = pattern.steps[padIdx] || {};
   const modeColor = MODES.find((m) => m.id === mode)!.color;
@@ -89,6 +94,21 @@ export const StepGraphEditor: React.FC<Props> = ({ doc, pattern, padIdx, onMutat
             >{m.label}</button>
           ))}
         </div>
+        {pages > 1 && (
+          <div className="flex gap-1">
+            {Array.from({ length: pages }, (_, i) => (
+              <button
+                key={i}
+                onClick={() => setPage(i)}
+                className="h-[18px] px-1.5 rounded text-[9px] font-mono border transition-colors"
+                style={i === Math.min(page, pages - 1)
+                  ? { borderColor: `${PLAYHEAD}66`, color: PLAYHEAD, background: 'rgba(0,218,243,0.08)' }
+                  : { borderColor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.35)' }}
+                title={`Steps ${i * 16 + 1}–${Math.min((i + 1) * 16, pattern.length)}`}
+              >{i * 16 + 1}–{Math.min((i + 1) * 16, pattern.length)}</button>
+            ))}
+          </div>
+        )}
         <span className="ml-auto text-[10px] font-mono" style={{ color: modeColor }}>
           Step {selStep + 1}: {fmt(mode, sel)}
         </span>
@@ -97,7 +117,8 @@ export const StepGraphEditor: React.FC<Props> = ({ doc, pattern, padIdx, onMutat
       <div ref={graphRef} className="relative rounded-[12px] border border-white/10 bg-black/30 p-2.5" style={{ height: 128 }}>
         {mode !== 'vel' && <div className="absolute left-2.5 right-2.5 top-1/2 h-px bg-white/12" />}
         <div className="grid gap-[4px] h-full items-end" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
-          {Array.from({ length: cols }, (_, c) => {
+          {Array.from({ length: cols }, (_, ci) => {
+            const c = colBase + ci;
             const s = row[c];
             const frac = toFrac(mode, s);
             const on = !!s;

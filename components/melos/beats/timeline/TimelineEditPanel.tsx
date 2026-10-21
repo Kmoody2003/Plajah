@@ -13,6 +13,7 @@ import type { FxInstance } from '../../../../services/melos/beats/fx/devices';
 import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine';
 import { ingestSample } from '../../../../services/melos/beats/sampleStore';
 import * as edit from '../../../../services/melos/beats/audio/audioEdit';
+import { audioLengthBeats, audioSourceSecToBeat, splitClipAt } from '../../../../services/melos/beats/clipEdit';
 import { timeStretchBuffer, type StretchAlgo } from '../../../../services/melos/beats/audio/timeStretch';
 import { FxRack } from '../project/FxRack';
 import { PLAYHEAD } from '../theme';
@@ -69,7 +70,7 @@ export const TimelineEditPanel: React.FC<Props> = ({ doc, selected, onMutate, he
         {!clip && <div className="h-full grid place-items-center text-[12px] text-white/25">Select a clip on the timeline to edit it here.</div>}
         {clip && tab === 'device' && track && <DeviceTab track={track} onMutate={onMutate} />}
         {clip && tab === 'note' && <NoteTab clip={clip} trackId={selected!.trackId} onMutate={onMutate} />}
-        {clip && tab === 'audio' && <AudioTab clip={clip} trackId={selected!.trackId} onMutate={onMutate} />}
+        {clip && tab === 'audio' && <AudioTab doc={doc} clip={clip} trackId={selected!.trackId} onMutate={onMutate} />}
       </div>
     </div>
   );
@@ -136,7 +137,7 @@ const NoteTab: React.FC<{ clip: TimelineClip; trackId: string; onMutate: Props['
 };
 
 // ── Audio tab: waveform + edit toolbar + time-stretch ──
-const AudioTab: React.FC<{ clip: TimelineClip; trackId: string; onMutate: Props['onMutate'] }> = ({ clip, trackId, onMutate }) => {
+const AudioTab: React.FC<{ doc: GrooveDoc; clip: TimelineClip; trackId: string; onMutate: Props['onMutate'] }> = ({ doc, clip, trackId, onMutate }) => {
   const [buf, setBuf] = useState<AudioBuffer | null>(null);
   const [sel, setSel] = useState<{ a: number; b: number } | null>(null); // fraction 0..1
   const [busy, setBusy] = useState<string | null>(null);
@@ -199,7 +200,11 @@ const AudioTab: React.FC<{ clip: TimelineClip; trackId: string; onMutate: Props[
       BeatsEngine.get().setSampleBuffer(ingested.ref.key, next);
       onMutate((d) => {
         const t = d.arrangement.find((x) => x.id === trackId); const c = t?.clips.find((x) => x.id === clip.id);
-        if (c?.audio) { c.audio.sampleKey = ingested.ref.key; c.audio.durationSec = next.duration; c.lengthBeats = next.duration / (60 / d.bpm); }
+        if (c?.audio) {
+          c.audio.sampleKey = ingested.ref.key; c.audio.durationSec = next.duration;
+          const rate = c.audio.stretch && c.audio.stretch > 0 ? c.audio.stretch : 1;
+          c.lengthBeats = audioLengthBeats(d, c.startBeats, Math.max(0, next.duration - (c.audio.offsetSec || 0)), rate);
+        }
       });
       setBuf(next); setSel(null);
     } finally { setBusy(null); }
@@ -210,7 +215,15 @@ const AudioTab: React.FC<{ clip: TimelineClip; trackId: string; onMutate: Props[
   return (
     <div className="flex flex-col gap-2 h-full">
       <div className="flex flex-wrap gap-1.5 items-center">
-        <button disabled={!!busy} onClick={() => { const r = range(); if (!buf) return; const at = r ? r.start : Math.floor((sel?.a ?? 0.5) * buf.length); void apply('split', (b) => edit.split(b, at)[0]); }} className="h-7 px-2.5 rounded-lg text-[10.5px] font-bold border border-white/15 text-white/70 hover:text-white hover:bg-white/10 disabled:opacity-40 flex items-center gap-1"><Scissors size={11} /> Split</button>
+        <button disabled={!!busy} title="Split the clip in two at the selection start (non-destructive)" onClick={() => {
+          if (!buf) return;
+          const r = range();
+          const atSec = (r ? r.start : Math.floor((sel?.a ?? 0.5) * buf.length)) / buf.sampleRate;
+          const atBeat = audioSourceSecToBeat(doc, clip, atSec);
+          if (atBeat === null) return; // that part of the file isn't inside this clip's window
+          onMutate((d) => { splitClipAt(d, trackId, clip.id, atBeat); });
+          setSel(null);
+        }} className="h-7 px-2.5 rounded-lg text-[10.5px] font-bold border border-white/15 text-white/70 hover:text-white hover:bg-white/10 disabled:opacity-40 flex items-center gap-1"><Scissors size={11} /> Split</button>
         <button disabled={!!busy} onClick={() => void apply('normalize', (b) => edit.normalize(b, range()))} className="h-7 px-2.5 rounded-lg text-[10.5px] font-bold border border-white/15 text-white/70 hover:text-white hover:bg-white/10 disabled:opacity-40">Normalize</button>
         <button disabled={!!busy} onClick={() => void apply('reverse', (b) => edit.reverse(b, range()))} className="h-7 px-2.5 rounded-lg text-[10.5px] font-bold border border-white/15 text-white/70 hover:text-white hover:bg-white/10 disabled:opacity-40">Reverse</button>
         <button disabled={!!busy} onClick={() => void apply('fade-in', (b) => edit.fadeIn(b, range()))} className="h-7 px-2.5 rounded-lg text-[10.5px] font-bold border border-white/15 text-white/70 hover:text-white hover:bg-white/10 disabled:opacity-40">Fade in</button>

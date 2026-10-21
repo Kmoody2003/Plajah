@@ -3,8 +3,16 @@
 
 import React, { useCallback, useRef, useState } from 'react';
 import { Play, Square, Activity, X, Circle, UploadCloud, OctagonX, Repeat, SlidersHorizontal, Timer } from 'lucide-react';
-import type { GrooveDoc } from '../../../../services/melos/beats/grooveDoc';
+import type { GrooveDoc, SongKey } from '../../../../services/melos/beats/grooveDoc';
 import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine';
+import { songTime } from '../../../../services/melos/beats/tempoMap';
+import { docKey, keyLabel } from '../../../../services/melos/beats/songKey';
+import { NOTE_NAMES_SHARP, SCALES } from '../../../../services/melos/theory';
+import { useContextMenu } from '../../../ui/ContextMenu';
+
+const TIME_SIGS: [number, number][] = [
+  [4, 4], [3, 4], [2, 4], [5, 4], [6, 4], [7, 4], [3, 8], [5, 8], [6, 8], [7, 8], [9, 8], [12, 8],
+];
 import { PLAYHEAD } from '../theme';
 import { MidiActivityLight } from './MidiActivityLight';
 
@@ -32,6 +40,10 @@ interface TransportBarProps {
   onPanic: () => void;
   onSetBpm: (bpm: number) => void;
   onSetSwing: (swing: number) => void;
+  /** Project key (null clears it). */
+  onSetKey?: (key: SongKey | null) => void;
+  /** Time signature at bar 1 (later changes live on the timeline's meter lane). */
+  onSetTimeSig?: (num: number, den: number) => void;
   onSetPlayMode: (m: 'pattern' | 'song') => void;
   /** Live playhead position in beats (already loop-wrapped for display). */
   beats: number;
@@ -61,6 +73,37 @@ export const TransportBar: React.FC<TransportBarProps> = (p) => {
   const taps = useRef<number[]>([]);
   const [editingBpm, setEditingBpm] = useState(false);
   const [bpmText, setBpmText] = useState('');
+  const { tempo, meter } = songTime(p.doc);
+  const sig0 = meter.signatureAtBar(0);
+  const key = docKey(p.doc);
+  const sigMenu = useContextMenu<void>(() => [
+    { kind: 'header', label: 'Time signature · bar 1' },
+    ...TIME_SIGS.map(([n, d]) => ({
+      id: `${n}/${d}`, label: `${n}/${d}`, checked: sig0.num === n && sig0.den === d,
+      onSelect: () => p.onSetTimeSig?.(n, d),
+    })),
+    { kind: 'separator' },
+    { kind: 'header', label: 'Later changes: right-click the Timeline ruler' },
+  ]);
+  const keyMenu = useContextMenu<void>(() => [
+    { kind: 'header', label: key ? `Project key · ${keyLabel(key)}` : 'Project key' },
+    {
+      id: 'tonic', label: 'Tonic', submenu: NOTE_NAMES_SHARP.map((n, pc) => ({
+        id: n, label: n, checked: key?.tonic === pc, keepOpen: true,
+        onSelect: () => p.onSetKey?.({ tonic: pc, scale: key?.scale ?? 'major' }),
+      })),
+    },
+    {
+      id: 'scale', label: 'Scale', submenu: SCALES.map((s) => ({
+        id: s.id, label: s.name, checked: (key?.scale ?? '') === s.id, keepOpen: true,
+        onSelect: () => p.onSetKey?.({ tonic: key?.tonic ?? 0, scale: s.id }),
+      })),
+    },
+    { kind: 'separator' },
+    { id: 'clear', label: 'Clear key', disabled: !key, onSelect: () => p.onSetKey?.(null) },
+  ]);
+  // With a tempo track the readout follows the playhead; dragging still edits the start tempo.
+  const shownBpm = !tempo.isConstant && p.running ? tempo.bpmAt(Math.max(0, p.beats)) : p.doc.bpm;
 
   const tapTempo = useCallback(() => {
     const now = performance.now();
@@ -131,12 +174,31 @@ export const TransportBar: React.FC<TransportBarProps> = (p) => {
           onPointerUp={() => { bpmDrag.current = null; }}
           onDoubleClick={() => { setBpmText(String(p.doc.bpm)); setEditingBpm(true); }}
           className="font-mono text-[15px] font-semibold text-white cursor-ns-resize select-none shrink-0 whitespace-nowrap"
-          title="Drag to change · double-click to type"
+          title={tempo.isConstant ? 'Drag to change · double-click to type' : 'Tempo at the playhead (tempo track) · drag to change the start tempo · double-click to type'}
         >
-          {p.doc.bpm.toFixed(1)}<span className="text-[9px] text-white/40 ml-1 tracking-widest">BPM</span>
+          {shownBpm.toFixed(1)}<span className="text-[9px] text-white/40 ml-1 tracking-widest">{tempo.isConstant ? 'BPM' : 'BPM·TRK'}</span>
         </button>
       )}
       <button onClick={tapTempo} className="h-8 px-2.5 rounded-lg text-[11px] border border-white/10 text-white/50 hover:text-white hover:bg-white/10 shrink-0 whitespace-nowrap">TAP</button>
+
+      {/* Song settings: time signature (bar 1) + project key, as chips opening the shared menu.
+          Meter changes later in the song and tempo points live on the timeline ruler. */}
+      {p.onSetTimeSig && (
+        <button
+          onClick={(e) => sigMenu.openFrom(e.currentTarget, undefined)}
+          title="Time signature (bar 1)"
+          className="h-8 px-2.5 rounded-lg text-[12px] font-mono border border-white/10 text-white/70 hover:text-white hover:bg-white/10 shrink-0 whitespace-nowrap"
+        >{sig0.num}/{sig0.den}{(p.doc.meter ?? []).some((m) => m.bar > 0) ? '*' : ''}</button>
+      )}
+      {p.onSetKey && (
+        <button
+          onClick={(e) => keyMenu.openFrom(e.currentTarget, undefined)}
+          title="Project key — the piano roll, hum-to-MIDI and the composers write in it"
+          className={`h-8 px-2.5 rounded-lg text-[11px] border shrink-0 whitespace-nowrap transition-colors ${key ? 'border-white/10 text-white/80 hover:bg-white/10' : 'border-dashed border-white/15 text-white/40 hover:text-white'}`}
+        >{key ? keyLabel(key) : 'Key'}</button>
+      )}
+      {sigMenu.node}
+      {keyMenu.node}
 
       <label className="flex items-center gap-1.5 text-[10px] text-white/40 uppercase tracking-wide shrink-0 whitespace-nowrap" title="Swing on offbeat 16ths">
         Swing
@@ -149,23 +211,18 @@ export const TransportBar: React.FC<TransportBarProps> = (p) => {
       </label>
 
       {/* Position readout — bar.beat.16th, the clock every DAW shows. */}
-      {(() => {
-        const b = Math.max(0, p.beats);
-        const bar = Math.floor(b / 4) + 1;
-        const beat = Math.floor(b % 4) + 1;
-        const six = Math.floor((b % 1) * 4) + 1;
-        return (
-          <span className="font-mono text-[13px] text-white/80 tabular-nums select-none w-[64px] text-center shrink-0 whitespace-nowrap" title="Bar . beat . 16th">
-            {bar}.{beat}.{six}
-          </span>
-        );
-      })()}
+      {/* Counts follow the meter: in 6/8 the middle number counts eighths. */}
+      <span className="font-mono text-[13px] text-white/80 tabular-nums select-none w-[64px] text-center shrink-0 whitespace-nowrap" title="Bar . beat . 16th">
+        {meter.formatPosition(Math.max(0, p.beats))}
+      </span>
 
       {/* Loop / cycle: toggle + the in–out range in bars, draggable on the timeline ruler too. */}
       {(() => {
         const loop = p.doc.loop ?? { on: false, startBeats: 0, endBeats: 16 };
-        const inBar = Math.floor(loop.startBeats / 4) + 1;
-        const outBar = Math.floor(loop.endBeats / 4) + 1;
+        const inBar = meter.at(loop.startBeats).bar + 1;
+        const outBar = Math.round(meter.beatToBar(loop.endBeats)) + 1;
+        const prevBarStart = (beat: number) => { const b = meter.at(beat); return meter.barToBeat(Math.max(0, b.bar - (b.beatInBar > 1e-6 ? 0 : 1))); };
+        const nextBarStart = (beat: number) => { const b = meter.at(beat); return b.startBeat + b.lenBeats; };
         const set = (patch: Partial<typeof loop>) => p.onSetLoop({ ...loop, ...patch });
         return (
           <div className="flex items-center gap-1 rounded-[10px] border border-white/10 bg-white/[0.06] p-0.5 shrink-0" title="Cycle: loop the arrangement between the in and out bars (Song mode)">
@@ -174,9 +231,9 @@ export const TransportBar: React.FC<TransportBarProps> = (p) => {
               aria-label="Toggle loop"
               className={`h-7 px-2 rounded-lg flex items-center gap-1 text-[11px] shrink-0 ${loop.on ? 'text-[#00DAF3] bg-[#00DAF3]/12' : 'text-white/45 hover:text-white'}`}
             ><Repeat size={13} /></button>
-            <button onClick={() => set({ startBeats: Math.max(0, loop.startBeats - 4) })} className="w-5 h-6 text-white/40 hover:text-white text-[12px] leading-none shrink-0" aria-label="Loop in earlier">‹</button>
+            <button onClick={() => set({ startBeats: prevBarStart(loop.startBeats) })} className="w-5 h-6 text-white/40 hover:text-white text-[12px] leading-none shrink-0" aria-label="Loop in earlier">‹</button>
             <span className="font-mono text-[11px] text-white/70 tabular-nums min-w-[44px] px-1 text-center whitespace-nowrap">{inBar}–{outBar}</span>
-            <button onClick={() => set({ endBeats: loop.endBeats + 4 })} className="w-5 h-6 text-white/40 hover:text-white text-[12px] leading-none shrink-0" aria-label="Loop out later">›</button>
+            <button onClick={() => set({ endBeats: nextBarStart(loop.endBeats) })} className="w-5 h-6 text-white/40 hover:text-white text-[12px] leading-none shrink-0" aria-label="Loop out later">›</button>
           </div>
         );
       })()}

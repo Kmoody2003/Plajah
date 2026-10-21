@@ -421,6 +421,13 @@ export interface ArrangeTrack {
 }
 
 import type { FxInstance } from './fx/devices';
+import type { MeterChange, TempoPoint } from './tempoMap';
+
+/** Project key: tonic pitch class (C=0) + a theory.ts SCALES id ('major', 'minor', 'dorian'…). */
+export interface SongKey {
+  tonic: number;
+  scale: string;
+}
 
 /** A console channel with a real insert chain + aux sends — the mixer's slot architecture. */
 export interface MixerChannel {
@@ -459,8 +466,14 @@ export interface GrooveDoc {
   id: string;
   name: string;
   ownerId: string;
-  bpm: number;      // 20–300
+  bpm: number;      // 20–300 — the tempo at beat 0 (and everywhere, when tempoMap is empty)
   swing: number;    // 0..1 on offbeat 16ths
+  /** Tempo track: changes after beat 0, optionally ramping (tempoMap.ts). Absent = constant bpm. */
+  tempoMap?: TempoPoint[];
+  /** Time-signature changes keyed by bar (tempoMap.ts MeterMap). Absent = 4/4 throughout. */
+  meter?: MeterChange[];
+  /** The project key — read by the piano roll, hum transcription, generators and the council. */
+  key?: SongKey;
   // Song-mode loop/cycle region (beats). Optional for back-compat with docs saved before it
   // existed — consumers default it off. Pattern mode loops the pattern itself, independently.
   loop?: { on: boolean; startBeats: number; endBeats: number };

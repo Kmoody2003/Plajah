@@ -27,12 +27,13 @@ export interface HumResult {
  */
 export function transcriptionToNotes(
   tr: Transcription,
-  opts: { voice?: 'melody' | 'bass'; snapToKey?: boolean } = {},
+  opts: { voice?: 'melody' | 'bass'; snapToKey?: boolean; key?: { tonic: number; scale: string } } = {},
 ): NoteEvent[] {
   const voice = opts.voice ?? 'melody';
   const snap = opts.snapToKey ?? true;
-  const rootPc = nameToPc(tr.key);
-  const scaleId = tr.mode === 'minor' ? 'minor' : 'major';
+  // A project key wins over the detected one: the hum is snapped into the SONG's scale.
+  const rootPc = opts.key ? opts.key.tonic : nameToPc(tr.key);
+  const scaleId = opts.key ? opts.key.scale : tr.mode === 'minor' ? 'minor' : 'major';
   return tr.notes
     .filter((t) => t.voice === voice)
     .map((t) => ({
@@ -52,11 +53,11 @@ export function transcriptionToNotes(
  */
 export async function humToNotes(
   url: string,
-  opts: { voice?: 'melody' | 'bass'; snapToKey?: boolean; onProgress?: (stage: string, pct: number) => void } = {},
+  opts: { voice?: 'melody' | 'bass'; snapToKey?: boolean; key?: { tonic: number; scale: string }; onProgress?: (stage: string, pct: number) => void } = {},
 ): Promise<HumResult> {
   const tr = await transcribeTrack(url, { onProgress: opts.onProgress });
   return {
-    notes: transcriptionToNotes(tr, { voice: opts.voice, snapToKey: opts.snapToKey }),
+    notes: transcriptionToNotes(tr, { voice: opts.voice, snapToKey: opts.snapToKey, key: opts.key }),
     key: tr.key,
     mode: tr.mode,
     bpm: tr.bpm,

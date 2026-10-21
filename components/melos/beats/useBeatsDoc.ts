@@ -62,6 +62,25 @@ export function useBeatsDoc(launchGrooveId?: string, launchProdId?: string): Bea
   const prodIdRef = useRef<string | null>(launchProdId || null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const historyRef = useRef<{ past: GrooveDoc[]; future: GrooveDoc[] }>({ past: [], future: [] });
+  // Gesture transactions: every mutate while a pointer is held (a clip drag, a trim, a knob turn,
+  // a step-paint stroke) folds into ONE undo step — the snapshot is taken on the gesture's first
+  // mutate only. Without this a single drag pushed a full doc clone per pointermove and could
+  // flush the whole 100-step history. Views need no plumbing: the window owns the gesture.
+  const gestureRef = useRef({ active: false, snapped: false });
+  useEffect(() => {
+    const down = () => { gestureRef.current = { active: true, snapped: false }; };
+    const up = () => { gestureRef.current.active = false; };
+    window.addEventListener('pointerdown', down, true);
+    window.addEventListener('pointerup', up, true);
+    window.addEventListener('pointercancel', up, true);
+    window.addEventListener('blur', up);
+    return () => {
+      window.removeEventListener('pointerdown', down, true);
+      window.removeEventListener('pointerup', up, true);
+      window.removeEventListener('pointercancel', up, true);
+      window.removeEventListener('blur', up);
+    };
+  }, []);
   const cloneDoc = (doc: GrooveDoc): GrooveDoc => JSON.parse(JSON.stringify(doc));
   const bump = () => setRev((r) => r + 1);
 
@@ -83,9 +102,13 @@ export function useBeatsDoc(launchGrooveId?: string, launchProdId?: string): Bea
 
   const mutate = useCallback((fn: (d: GrooveDoc) => void) => {
     const d = docRef.current!;
-    historyRef.current.past.push(cloneDoc(d));
-    if (historyRef.current.past.length > 100) historyRef.current.past.shift();
-    historyRef.current.future = [];
+    const g = gestureRef.current;
+    if (!g.active || !g.snapped) {
+      historyRef.current.past.push(cloneDoc(d));
+      if (historyRef.current.past.length > 100) historyRef.current.past.shift();
+      historyRef.current.future = [];
+      g.snapped = g.active;
+    }
     fn(d);
     d.updatedAt = Date.now();
     BeatsEngine.get().applyDocPatch({}); // re-apply node params (gains, routing, mutes)
@@ -102,6 +125,7 @@ export function useBeatsDoc(launchGrooveId?: string, launchProdId?: string): Bea
   }, []);
 
   const restoreHistory = useCallback((doc: GrooveDoc) => {
+    gestureRef.current.snapped = false; // undo mid-drag: the rest of the drag is a fresh step
     docRef.current = doc;
     BeatsEngine.get().loadDoc(doc);
     bump();

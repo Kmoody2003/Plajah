@@ -12,7 +12,8 @@ export function startAudioClipSource(
   clip: TimelineClip,
   when: number,
   offsetIntoClipSec: number,
-  secPerBeat: number,
+  /** The clip's full length in seconds at its place in the song (tempo-map aware). */
+  clipSeconds: number,
 ): { src: AudioBufferSourceNode; gain: GainNode } | null {
   if (!clip.audio) return null;
   const buf = getBuffer(clip.audio.sampleKey);
@@ -24,7 +25,6 @@ export function startAudioClipSource(
   const gain = ctx.createGain();
   const level = dbToGain(clip.audio.gainDb);
   src.connect(gain).connect(graph.trackDestination(track));
-  const clipSeconds = clip.lengthBeats * secPerBeat;
   const bufferOffset = (clip.audio.offsetSec || 0) + offsetIntoClipSec * rate;
   const playSeconds = Math.max(0, Math.min(clipSeconds - offsetIntoClipSec, (buf.duration - bufferOffset) / rate));
   if (playSeconds <= 0) return null;

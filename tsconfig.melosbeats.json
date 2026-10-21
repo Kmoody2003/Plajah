@@ -1,0 +1,22 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": true },
+  "include": [
+    "services/melos/beats/tempoMap.ts",
+    "services/melos/beats/songKey.ts",
+    "services/melos/beats/snapGrid.ts",
+    "services/melos/beats/clipEdit.ts",
+    "services/melos/beats/engine/scheduler.ts",
+    "services/melos/beats/engine/BeatsEngine.ts",
+    "services/melos/beats/render.ts",
+    "components/melos/beats/useBeatsDoc.ts",
+    "components/melos/beats/BeatsRoom.tsx",
+    "components/melos/beats/shared/TransportBar.tsx",
+    "components/melos/beats/timeline/TimelineView.tsx",
+    "components/melos/beats/timeline/TempoLane.tsx",
+    "components/melos/beats/timeline/TimelineEditPanel.tsx",
+    "components/melos/beats/timeline/PianoRoll.tsx",
+    "components/melos/beats/glass/StepGraphEditor.tsx",
+    "components/melos/beats/composer/HumRecorder.tsx"
+  ]
+}

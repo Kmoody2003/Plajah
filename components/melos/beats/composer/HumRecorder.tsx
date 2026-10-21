@@ -5,15 +5,17 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Mic, Square, Loader2 } from 'lucide-react';
 import { humToNotes } from '../../../../services/melos/composition/humToMidi';
-import type { NoteEvent } from '../../../../services/melos/beats/grooveDoc';
+import type { NoteEvent, SongKey } from '../../../../services/melos/beats/grooveDoc';
 
 interface Props {
   onInsert: (notes: NoteEvent[], meta: { key: string; mode: 'major' | 'minor'; bpm: number }) => void;
   onClose: () => void;
   target?: string;
+  /** The project key. Set → the hum snaps into it; unset → it snaps to the key it detects. */
+  projectKey?: SongKey | null;
 }
 
-export default function HumRecorder({ onInsert, onClose, target }: Props) {
+export default function HumRecorder({ onInsert, onClose, target, projectKey }: Props) {
   const [phase, setPhase] = useState<'idle' | 'recording' | 'working' | 'error'>('idle');
   const [err, setErr] = useState('');
   const [secs, setSecs] = useState(0);
@@ -42,7 +44,7 @@ export default function HumRecorder({ onInsert, onClose, target }: Props) {
         const url = URL.createObjectURL(blob);
         setPhase('working'); setStage('Listening…');
         try {
-          const r = await humToNotes(url, { onProgress: (s, p) => setStage(`${s} · ${Math.round(p * 100)}%`) });
+          const r = await humToNotes(url, { key: projectKey ?? undefined, onProgress: (s, p) => setStage(`${s} · ${Math.round(p * 100)}%`) });
           URL.revokeObjectURL(url);
           if (!r.notes.length) { setErr('No clear pitch detected — hum a single steady line, a bit louder or closer to the mic.'); setPhase('error'); return; }
           onInsert(r.notes, { key: r.key, mode: r.mode, bpm: r.bpm });
