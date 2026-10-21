@@ -37,6 +37,37 @@ Deferred:
 - `.dawproject` export still writes one tempo and 4/4.
 - Docked NoteTab vs PianoRoll duplication is a product decision.
 
+## Phase 5 status (2026-10-21)
+
+Done (notation as a native lens):
+- **Score model** (`notation/scoreModel.ts`):
+  - Bars come from the song meter, including compound meters, which group in dotted quarters.
+  - Each beat, per staff, is quantized to a straight 16th or 8th-triplet grid.
+  - Same-onset notes become chords; rests fill the gaps; values are dotted where they fit; notes split and tie at bar lines and off-beat beat boundaries.
+  - Pitches are spelled from `doc.key` (modes use their relative major's signature); accidentals carry through the bar and are cancelled with naturals.
+  - Automatic treble, bass or grand staff, split at middle C.
+- **Score lens** (`ScoreView.tsx`) in the piano roll: **Roll | Score | Split | Steps**.
+  - Proportional, beat-aligned spacing, so Split lines up with the roll.
+  - Engraving: sticky clef and key-signature gutter, beams per beat (with 16th beams), flags, ties, triplet brackets, ledger lines, rests, dots, accidentals, the playhead and the clip window's dimming.
+- **Score editing**:
+  - Click/Shift/Ctrl to select; drag to move in time (grid) and pitch (staff steps, in key).
+  - Double-click the staff to add (Shift = ♯, Alt = ♭).
+  - Note values 3–7 plus `.` dot, and a triplet toggle; changing the value retimes the selected notes.
+  - **N** for note input: A–G at the caret (octave nearest the last note), 0 = rest, click to move the caret.
+  - The roll's keys still apply: transpose, nudge, clipboard, quantize, Delete.
+- **MusicXML** (`notation/musicXml.ts`):
+  - Export from the roll (one clip), File → Export score (every instrument track as a part) and the clip menu. It covers divisions, key, time, clefs, grand staff with `<backup>`, ties, tuplets, accidentals and tempo.
+  - Import via File → Import score (`.musicxml`/`.xml`/`.mxl`): parts become instrument tracks. An empty song adopts the score's tempo and meter, and the key is adopted when unset. Handles chords, voices (`<backup>`/`<forward>`), merged ties and pickup bars.
+  - A built-in XML parser keeps it dependency-free.
+- Tests: `tests/melosNotation.test.ts`, including an export→import round-trip and `.mxl` (41 total via `npm run test:melostime`).
+
+Not done:
+- One voice per staff: polyphony within a staff is shown as chords truncated at the next onset.
+- No articulation, dynamics or lyric engraving.
+- No 32nds or quintuplets.
+- Clef glyphs use the system font (Segoe UI Symbol / Noto Music).
+- No PDF/print engraving: Verovio from our MusicXML is the follow-up for publication-quality output.
+
 ## Phase 4 status (2026-10-21)
 
 Done (Glass ≈ FL Studio's channel rack):

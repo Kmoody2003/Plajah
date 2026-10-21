@@ -47,6 +47,10 @@
     "services/melos/beats/engine/voices.ts",
     "services/melos/beats/instrumentFactory.ts",
     "components/melos/beats/glass/GlassView.tsx",
-    "tests/melosGlass.test.ts"
+    "tests/melosGlass.test.ts",
+    "services/melos/beats/notation/scoreModel.ts",
+    "services/melos/beats/notation/musicXml.ts",
+    "components/melos/beats/timeline/ScoreView.tsx",
+    "tests/melosNotation.test.ts"
   ]
 }

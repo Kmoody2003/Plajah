@@ -15,7 +15,7 @@
 // clip's MIDI CC lanes (mod wheel, expression, sustain, pitch bend) share the bottom drawer.
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Grid3x3, Music4, Repeat, Sparkles, Sliders, Trash2, Wand2 } from 'lucide-react';
+import { Columns2, FileMusic, Grid3x3, Music4, Repeat, Sparkles, Sliders, Trash2, Wand2 } from 'lucide-react';
 import type {
   AutomationPoint,
   AutomationTarget,
@@ -38,6 +38,10 @@ import {
 } from '../../../../services/melos/beats/noteEdit';
 import { useContextMenu } from '../../../ui/ContextMenu';
 import { AutomationLaneEditor } from './AutomationLaneEditor';
+import { ScoreView, scoreHeight, type ScoreHit } from './ScoreView';
+import { buildScore, keyAlters, midiFromStep, spell, TPB } from '../../../../services/melos/beats/notation/scoreModel';
+import { downloadMusicXml, exportMusicXml } from '../../../../services/melos/beats/notation/musicXml';
+import { flattenClipNotes } from '../../../../services/melos/beats/clipEdit';
 import { PLAYHEAD, SELECT } from '../theme';
 
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -68,7 +72,14 @@ const snapGridOf = (id: string): GridSettings => {
 
 const noteName = (k: number) => `${NOTE_NAMES[((k % 12) + 12) % 12]}${Math.floor(k / 12) - 1}`;
 
-type EditMode = 'roll' | 'steps';
+type EditMode = 'roll' | 'score' | 'split' | 'steps';
+const SCORE_STEP_PX = 4;                 // one staff step (half a line gap) in the Score lens
+const STEPS7 = 'CDEFGAB';
+// Note values for the Score palette (ticks at 12 per beat): whole … 16th, MuseScore's 7…3 keys.
+const NOTE_VALUES: { t: number; label: string; key: string }[] = [
+  { t: 48, label: '1/1', key: '7' }, { t: 24, label: '1/2', key: '6' }, { t: 12, label: '♩', key: '5' },
+  { t: 6, label: '♪', key: '4' }, { t: 3, label: '♬', key: '3' },
+];
 type MpeLaneKind = 'velocity' | 'pressure' | 'timbre' | 'bend' | 'vibrato';
 type DrawerLane = MpeLaneKind | `cc:${'mod-wheel' | 'expression' | 'sustain' | 'pitch-bend'}`;
 
@@ -171,6 +182,34 @@ export const PianoRoll: React.FC<PianoRollProps> = ({ doc, trackId, clip, beats,
     return out;
   }, [JSON.stringify(played), extent]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Score lens: the same notes engraved (scoreModel), edited in place ─────────
+  const scoreOn = mode === 'score' || mode === 'split';
+  const score = useMemo(
+    () => (scoreOn ? buildScore(notes, { meter, songOffset: clip.startBeats - offset, fromContent: 0, toContent: extent + 1, key: songKey }) : null),
+    [scoreOn, notes, meter, clip.startBeats, offset, extent, songKey?.tonic, songKey?.scale], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+  const [durTicks, setDurTicks] = useState(12);
+  const [durDot, setDurDot] = useState(false);
+  const [durTriplet, setDurTriplet] = useState(false);
+  const [noteInput, setNoteInput] = useState(false);
+  const [inputCursor, setInputCursor] = useState(0);
+  const lastInputKey = useRef(60);
+  const durBeats = (durTicks / TPB) * (durDot ? 1.5 : 1) * (durTriplet ? 2 / 3 : 1);
+  const keyAlt = keyAlters(score?.fifths ?? 0);
+  /** A staff position → sounding pitch in the key (Shift = sharp, Alt = flat). */
+  const pitchAt = (di: number, e: { shiftKey?: boolean; altKey?: boolean }) => {
+    const step = STEPS7[((di % 7) + 7) % 7];
+    return Math.max(0, Math.min(127, midiFromStep(step, Math.floor(di / 7), keyAlt[step] + (e.shiftKey ? 1 : 0) - (e.altKey ? 1 : 0))));
+  };
+  /** Pick a note value; with notes selected (outside note input) they take it too. */
+  const setDuration = (ticks?: number, dot?: boolean, trip?: boolean) => {
+    const t = ticks ?? durTicks, d = dot ?? durDot, tr = trip ?? durTriplet;
+    setDurTicks(t); setDurDot(d); setDurTriplet(tr);
+    const len = (t / TPB) * (d ? 1.5 : 1) * (tr ? 2 / 3 : 1);
+    setLastLen(len);
+    if (selSet.size && !noteInput) editNotes((list) => { for (const n of list) if (selSet.has(n.id)) n.lengthBeats = len; });
+  };
+
   // Centre on the notes (or middle C) the first time this clip opens.
   const centred = useRef<string | null>(null);
   useEffect(() => {
@@ -200,7 +239,7 @@ export const PianoRoll: React.FC<PianoRollProps> = ({ doc, trackId, clip, beats,
     });
   }, [track]);
 
-  const addNote = (rawKey: number, startBeats: number, free = false) => {
+  const addNote = (rawKey: number, startBeats: number, free = false, len?: number) => {
     const key = lockPitch(rawKey, lock);
     const snapped = Math.max(0, free ? startBeats : snapRel(startBeats));
     const id = grooveUid();
@@ -208,7 +247,7 @@ export const PianoRoll: React.FC<PianoRollProps> = ({ doc, trackId, clip, beats,
       list.push({
         id,
         startBeats: snapped,
-        lengthBeats: lastLen,
+        lengthBeats: len ?? lastLen,
         key,
         vel: 100,
         articulation: defaultArticulation,
@@ -258,6 +297,43 @@ export const PianoRoll: React.FC<PianoRollProps> = ({ doc, trackId, clip, beats,
         if (running && playMode === 'song') { const c = contentPosAt(clip, beats); if (c !== null) return c; }
         return null;
       };
+      // Score lens: note values, note input (A–G at the caret, 0 = rest), N toggles input.
+      if (scoreOn && !mod) {
+        const dur = NOTE_VALUES.find((v) => v.key === e.key);
+        if (dur) { setDuration(dur.t); done(); return; }
+        if (e.key === '.') { setDuration(undefined, !durDot); done(); return; }
+        if (k === 'n') {
+          setNoteInput((v) => {
+            if (!v) {
+              const end = notes.length ? Math.max(...notes.map((x) => x.startBeats + x.lengthBeats)) : offset;
+              setInputCursor(snapRel(cursorContent() ?? (selSet.size ? Math.max(...notes.filter((x) => selSet.has(x.id)).map((x) => x.startBeats + x.lengthBeats)) : end)));
+            }
+            return !v;
+          });
+          done(); return;
+        }
+        if (noteInput && e.key === 'Escape') { setNoteInput(false); done(); return; }
+        if (noteInput && /^[a-g]$/.test(k)) {
+          const step = k.toUpperCase();
+          const alter = keyAlt[step] + (e.shiftKey ? 1 : 0) - (e.altKey ? 1 : 0);
+          // The octave closest to the previous note — melodies move by small steps.
+          let best = 60, bestD = Infinity;
+          for (let oct = 1; oct <= 7; oct++) {
+            const m = midiFromStep(step, oct, alter);
+            const dd = Math.abs(m - lastInputKey.current);
+            if (dd < bestD) { bestD = dd; best = m; }
+          }
+          lastInputKey.current = best;
+          const id = grooveUid();
+          const at = inputCursor;
+          editNotes((list) => { list.push({ id, startBeats: at, lengthBeats: durBeats, key: best, vel: 100, articulation: defaultArticulation }); });
+          setSel([id]);
+          setInputCursor(at + durBeats);
+          audition(best);
+          done(); return;
+        }
+        if (noteInput && e.key === '0') { setInputCursor((c) => c + durBeats); done(); return; }
+      }
       if ((e.key === 'Delete' || e.key === 'Backspace') && selSet.size) { removeNotes(selSet); done(); return; }
       if (e.key === 'Escape' && selSet.size) { setSel([]); done(); return; }
       if (mod && k === 'a') { setSel(notes.map((n) => n.id)); done(); return; }
@@ -494,6 +570,64 @@ export const PianoRoll: React.FC<PianoRollProps> = ({ doc, trackId, clip, beats,
     window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
   };
 
+  // Score pointer editing: select / drag (time on the grid, pitch by staff steps in the key).
+  const scoreNoteDown = (id: string, e: React.PointerEvent) => {
+    if (e.ctrlKey || e.metaKey) { setSel((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id])); return; }
+    const nextSel = e.shiftKey ? [...new Set([...sel, id])] : selSet.has(id) ? sel : [id];
+    setSel(nextSel.filter((x) => x !== id).concat(id));
+    const orig = new Map(notes.filter((x) => nextSel.includes(x.id)).map((x) => [x.id, { start: x.startBeats, key: x.key }]));
+    const p0 = orig.get(id);
+    if (!p0) return;
+    const grabbed = notes.find((x) => x.id === id);
+    if (grabbed) audition(grabbed.key, grabbed.vel);
+    const fifths = score?.fifths ?? 0;
+    const x0 = e.clientX, y0 = e.clientY;
+    let moved = false;
+    const move = (ev: PointerEvent) => {
+      if (!moved && Math.abs(ev.clientX - x0) + Math.abs(ev.clientY - y0) < 3) return;
+      moved = true;
+      const steps = Math.round(-(ev.clientY - y0) / SCORE_STEP_PX);
+      const minStart = Math.min(...[...orig.values()].map((o) => o.start));
+      const delta = Math.max(-minStart, snapRel(p0.start + (ev.clientX - x0) / pxPerBeat, ev) - p0.start);
+      editNotes((list) => {
+        for (const t of list) {
+          const o = orig.get(t.id);
+          if (!o) continue;
+          t.startBeats = o.start + delta;
+          if (!steps) { t.key = o.key; continue; }
+          const sp = spell(o.key, fifths);
+          const di = sp.octave * 7 + STEPS7.indexOf(sp.step) + steps;
+          const st = STEPS7[((di % 7) + 7) % 7];
+          t.key = Math.max(0, Math.min(127, midiFromStep(st, Math.floor(di / 7), keyAlt[st])));
+        }
+      });
+    };
+    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+  };
+  const renderScore = () => score && (
+    <ScoreView
+      score={score}
+      pxPerBeat={pxPerBeat}
+      gutter={KEY_W}
+      width={width}
+      selected={selSet}
+      playheadBeat={playheadContent}
+      cursorBeat={noteInput ? inputCursor : null}
+      dimmed={dimmed}
+      onNoteDown={scoreNoteDown}
+      onEmptyDown={(hit: ScoreHit, e) => {
+        if (noteInput) { setInputCursor(Math.max(0, snapRel(hit.beat))); return; }
+        if (!e.shiftKey && !e.ctrlKey && !e.metaKey) setSel([]);
+      }}
+      onEmptyDouble={(hit: ScoreHit, e) => {
+        const key = pitchAt(hit.diatonic, e);
+        lastInputKey.current = key;
+        addNote(key, Math.max(0, hit.beat), false, durBeats);
+      }}
+    />
+  );
+
   return (
     <div className="absolute inset-x-0 bottom-0 z-30 border-t border-white/15 bg-[#0A0A0D] flex flex-col" style={{ height: showExprDrawer ? '58%' : '46%' }}>
       {/* Top Toolbar: Mode, Snap, Key/Scale, Quantize, Transpose, Loop, Articulation, Swell, Macros */}
@@ -505,8 +639,41 @@ export const PianoRoll: React.FC<PianoRollProps> = ({ doc, trackId, clip, beats,
 
         <div className="flex gap-0.5 bg-white/[0.06] border border-white/10 rounded-lg p-0.5 ml-1">
           <button onClick={() => setMode('roll')} className={`h-6 px-2 rounded-md text-[10px] flex items-center gap-1 ${mode === 'roll' ? 'bg-white/15 text-white font-semibold' : 'text-white/40'}`}><Music4 size={10} /> MPE Roll</button>
+          <button onClick={() => setMode('score')} title="Score — the same notes as notation" className={`h-6 px-2 rounded-md text-[10px] flex items-center gap-1 ${mode === 'score' ? 'bg-white/15 text-white font-semibold' : 'text-white/40'}`}><FileMusic size={10} /> Score</button>
+          <button onClick={() => setMode('split')} title="Split — roll and score together, beat-aligned" className={`h-6 px-2 rounded-md text-[10px] flex items-center gap-1 ${mode === 'split' ? 'bg-white/15 text-white font-semibold' : 'text-white/40'}`}><Columns2 size={10} /> Split</button>
           <button onClick={() => setMode('steps')} className={`h-6 px-2 rounded-md text-[10px] flex items-center gap-1 ${mode === 'steps' ? 'bg-white/15 text-white font-semibold' : 'text-white/40'}`}><Grid3x3 size={10} /> Steps</button>
         </div>
+        {scoreOn && (
+          <>
+            <div className="flex items-center rounded-md border border-white/10 overflow-hidden" title="Note value — keys 7 whole · 6 half · 5 quarter · 4 eighth · 3 sixteenth · . dot (applies to selected notes too)">
+              {NOTE_VALUES.map((v) => (
+                <button key={v.t} onClick={() => setDuration(v.t)} className="h-6 px-1.5 text-[11px]"
+                  style={durTicks === v.t ? { background: 'rgba(208,188,255,0.18)', color: '#D0BCFF' } : { color: 'rgba(255,255,255,0.55)' }}>{v.label}</button>
+              ))}
+              <button onClick={() => setDuration(undefined, !durDot)} className="h-6 px-1.5 text-[12px] font-bold" title="Dotted (.)"
+                style={durDot ? { background: 'rgba(208,188,255,0.18)', color: '#D0BCFF' } : { color: 'rgba(255,255,255,0.45)' }}>·</button>
+              <button onClick={() => setDuration(undefined, undefined, !durTriplet)} className="h-6 px-1.5 text-[10px]" title="Triplet"
+                style={durTriplet ? { background: 'rgba(208,188,255,0.18)', color: '#D0BCFF' } : { color: 'rgba(255,255,255,0.45)' }}>3</button>
+            </div>
+            <button
+              onClick={() => { setNoteInput((v) => { if (!v) setInputCursor(snapRel(playheadContent ?? (notes.length ? Math.max(...notes.map((x) => x.startBeats + x.lengthBeats)) : offset))); return !v; }); }}
+              aria-pressed={noteInput}
+              title="Note input (N) — type A–G to write at the caret (Shift = ♯, Alt = ♭), 0 = rest, click the staff to move the caret"
+              className={`h-6 px-2 rounded-md border text-[10px] whitespace-nowrap ${noteInput ? 'border-[#FF4D8C]/60 text-[#FF4D8C] bg-[#FF4D8C]/10' : 'border-white/10 text-white/50 hover:text-white'}`}
+            >Input</button>
+          </>
+        )}
+        <button
+          onClick={() => {
+            const xml = exportMusicXml([{ name: track?.name || 'Part', notes: flattenClipNotes(clip) }], {
+              title: clip.name || `${track?.name ?? 'Clip'}`, composer: undefined, bpm: doc.bpm, meter, key: songKey,
+              songStart: clip.startBeats, lengthBeats: clip.lengthBeats,
+            });
+            downloadMusicXml(xml, clip.name || track?.name || 'clip');
+          }}
+          title="Export this clip as MusicXML (opens in MuseScore, Dorico, Sibelius, Finale)"
+          className="h-6 px-2 rounded-md border border-white/10 text-white/50 hover:text-white text-[10px] whitespace-nowrap"
+        >MusicXML</button>
 
         <label className="flex items-center gap-1 text-[10px] text-white/35 whitespace-nowrap">Snap
           <select value={snapId} onChange={(e) => setSnapId(e.target.value)} title="Snap grid · hold Shift while placing or dragging for free timing" className="bg-black/40 border border-white/10 rounded px-1 h-6 text-[10px] text-white/75 outline-none">
@@ -614,7 +781,7 @@ export const PianoRoll: React.FC<PianoRollProps> = ({ doc, trackId, clip, beats,
       </div>
       {quantMenu.node}
 
-      {mode === 'roll' ? (
+      {mode === 'roll' || mode === 'split' ? (
         <div ref={scrollRef} className="flex-1 min-h-0 overflow-auto flex flex-col">
           {/* Note Grid Area */}
           <div ref={gridRef} className="relative flex-none" style={{ width: KEY_W + width, height: STRIP_H + ROWS * ROW_H }}>
@@ -810,6 +977,13 @@ export const PianoRoll: React.FC<PianoRollProps> = ({ doc, trackId, clip, beats,
             })}
           </div>
 
+          {/* Split: the score docks under the roll, beat-aligned, above the lane drawer. */}
+          {mode === 'split' && score && (
+            <div className="sticky left-0 z-20 border-t border-white/15" style={{ bottom: showExprDrawer ? 108 : 0, width: KEY_W + width }}>
+              {renderScore()}
+            </div>
+          )}
+
           {/* Bottom drawer: per-note MPE lanes and the clip's MIDI CC lanes */}
           {showExprDrawer && (
             <div className="sticky bottom-0 left-0 z-20 border-t border-white/15 bg-[#0D0E14]/95 backdrop-blur-md" style={{ width: KEY_W + width, height: 108 }}>
@@ -917,6 +1091,14 @@ export const PianoRoll: React.FC<PianoRollProps> = ({ doc, trackId, clip, beats,
               )}
             </div>
           )}
+        </div>
+      ) : mode === 'score' && score ? (
+        <div ref={scrollRef} className="flex-1 min-h-0 overflow-auto">
+          {renderScore()}
+          <p className="px-3 py-2 text-[9.5px] text-white/30">
+            Click a note to select · drag to move (staff steps, in key) · double-click the staff to add ({'Shift = ♯, Alt = ♭'}) ·
+            N = note input (A–G at the caret, 0 = rest) · 3–7 note values, . dot · ↑↓ transpose · Delete
+          </p>
         </div>
       ) : (
         // ── step grid over the same notes ──

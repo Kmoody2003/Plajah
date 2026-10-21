@@ -8,6 +8,10 @@ import { auth } from '../../../services/firebase';
 import { BeatsEngine } from '../../../services/melos/beats/engine/BeatsEngine';
 import { MeterMap } from '../../../services/melos/beats/tempoMap';
 import { downloadMidi, exportProjectMidi } from '../../../services/melos/beats/midiExport';
+import { downloadMusicXml, exportMusicXml, importMusicXml, musicXmlText } from '../../../services/melos/beats/notation/musicXml';
+import { flattenClipNotes } from '../../../services/melos/beats/clipEdit';
+import { songTime } from '../../../services/melos/beats/tempoMap';
+import { docKey } from '../../../services/melos/beats/songKey';
 import { defaultPattern, grooveUid, type GrooveDoc, type InstrumentType, type ArrangeTrack } from '../../../services/melos/beats/grooveDoc';
 import { useContextMenu, type MenuNode } from '../../ui/ContextMenu';
 import { autoFill, quantizePattern } from '../../../services/melos/beats/grooveTools';
@@ -286,7 +290,58 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
   const [importReport, setImportReport] = useState<string[] | null>(null);
   const dawFileRef = React.useRef<HTMLInputElement>(null);
   const melosFileRef = React.useRef<HTMLInputElement>(null);
+  const musicXmlRef = React.useRef<HTMLInputElement>(null);
+
   const flash = useCallback((msg: string) => { setNotice(msg); setTimeout(() => setNotice(null), 3200); }, []);
+
+  // MusicXML out: every instrument track as a part, with what its clips PLAY (slip/loop baked in).
+  const handleExportMusicXml = useCallback(() => {
+    const tracks = doc.arrangement.filter((t) => t.kind === 'instrument' && !t.foreign && !t.padOwned && t.clips.some((c) => c.notes?.length));
+    if (!tracks.length) { flash('No instrument parts to engrave yet'); return; }
+    const parts = tracks.map((t) => ({
+      name: t.name,
+      notes: t.clips.flatMap((c) => flattenClipNotes(c).map((n) => ({ ...n, startBeats: n.startBeats + c.startBeats }))),
+    }));
+    const end = Math.max(4, ...tracks.flatMap((t) => t.clips.map((c) => c.startBeats + c.lengthBeats)));
+    const { meter } = songTime(doc);
+    const xml = exportMusicXml(parts, { title: doc.name || 'Melos', bpm: doc.bpm, meter, key: docKey(doc), lengthBeats: end });
+    downloadMusicXml(xml, doc.name || 'Melos');
+    flash(`Score exported — ${parts.length} part${parts.length > 1 ? 's' : ''}`);
+  }, [doc, flash]);
+
+  // MusicXML in: each part becomes an instrument track with one clip from bar 1. Into an empty
+  // song the score's tempo and time signatures come along; the key is adopted when none is set.
+  const handleImportMusicXml = useCallback(async (file: File) => {
+    try {
+      const imp = importMusicXml(musicXmlText(new Uint8Array(await file.arrayBuffer())));
+      const parts = imp.parts.filter((pt) => pt.notes.length);
+      if (!parts.length) { flash('That score has no notes to import'); return; }
+      mutate((d) => {
+        const fresh = !d.arrangement.some((t) => t.kind === 'instrument' && !t.padOwned && t.clips.some((c) => c.notes?.length));
+        if (fresh) {
+          if (imp.bpm) d.bpm = Math.max(20, Math.min(300, imp.bpm));
+          const meter = imp.meter.filter((m, i) => !(i === 0 && m.num === 4 && m.den === 4));
+          if (meter.length) d.meter = imp.meter; else delete d.meter;
+        }
+        if (!docKey(d) && imp.key) d.key = imp.key;
+        const { meter } = songTime(d);
+        for (const pt of parts) {
+          const trackId = addInstrument(d, 'onda');
+          const t = d.arrangement.find((x) => x.id === trackId);
+          if (!t) continue;
+          t.name = pt.name.slice(0, 32);
+          t.armed = false;
+          const end = Math.max(...pt.notes.map((n) => n.startBeats + n.lengthBeats));
+          const b = meter.at(end);
+          t.clips.push({ id: grooveUid(), startBeats: 0, lengthBeats: b.beatInBar < 1e-6 ? end : b.startBeat + b.lenBeats, notes: pt.notes, name: imp.title });
+        }
+      });
+      BeatsEngine.get().syncInstruments();
+      flash(`Imported “${imp.title}” — ${parts.length} part${parts.length > 1 ? 's' : ''}`);
+    } catch (e) {
+      flash(e instanceof Error ? e.message : 'Could not read that MusicXML file');
+    }
+  }, [mutate, flash]);
   const handleOpenMelosFile = useCallback(async (file: File) => {
     const opened = await importGrooveFile(file);
     if (opened) { replace(opened); setShowGrooves(false); flash(`Opened ${opened.name}`); }
@@ -978,6 +1033,8 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
         { id: 'import-song', label: 'Import Melos Song…', hint: '.dawproject', onSelect: () => dawFileRef.current?.click() },
         { id: 'export-song', label: 'Export Melos Song', hint: '.dawproject', disabled: !!busy, onSelect: () => { void handleExportDawproject(); } },
         { id: 'export-midi', label: 'Export MIDI', hint: '.mid', onSelect: () => downloadMidi(exportProjectMidi(doc), doc.name || 'Melos') },
+        { id: 'import-xml', label: 'Import score…', hint: 'MusicXML / .mxl', onSelect: () => musicXmlRef.current?.click() },
+        { id: 'export-xml', label: 'Export score', hint: 'MusicXML', onSelect: handleExportMusicXml },
         'sep',
         { id: 'bounce', label: onRenderTake ? `Bounce to take${takeTargetName ? ` — ${takeTargetName}` : ''}` : 'Bounce to WAV', hint: '24-bit', disabled: !!busy, onSelect: () => { void handleBounce(); } },
         { id: 'fabula', label: 'Send to Fabula', disabled: !!busy, onSelect: () => { void handleSendToFabula(); } },
@@ -1077,6 +1134,13 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
         accept=".dawproject,application/zip"
         className="hidden"
         onChange={(e) => { const f = e.target.files?.[0]; if (f) void handleImportDawproject(f); e.target.value = ''; }}
+      />
+      <input
+        ref={musicXmlRef}
+        type="file"
+        accept=".musicxml,.mxl,.xml,application/vnd.recordare.musicxml+xml,application/vnd.recordare.musicxml"
+        className="hidden"
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) void handleImportMusicXml(f); e.target.value = ''; }}
       />
       <input
         ref={melosFileRef}
