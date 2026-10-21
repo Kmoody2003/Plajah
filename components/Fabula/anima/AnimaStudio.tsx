@@ -11,10 +11,10 @@
  */
 
 import React, { useCallback, useEffect, useReducer, useRef, useState } from 'react';
-import { ArrowLeft, ChevronDown, Download, FilePlus2, FolderOpen, Hand, MousePointer2, PenTool, Redo2, Sparkles, Trash2, Undo2, Upload } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Clapperboard, Download, FilePlus2, FolderOpen, Hand, MousePointer2, PenTool, Redo2, Share, Sparkles, Trash2, Undo2, Upload } from 'lucide-react';
 import type { AnimaProject, DrawingCel } from '../../../services/anima/types';
 import { animaHistoryReducer, copyKeys, initHistory, type AnimaAction, type ClipboardKey, type KeyRef } from '../../../services/anima/document';
-import { ANIMA_TEMPLATES, blankAnimaProject, newAnimaId } from '../../../services/anima/templates';
+import { ANIMA_TEMPLATES, blankAnimaProject, newAnimaId, type NewAnimaOptions } from '../../../services/anima/templates';
 import {
   ANIMA_CLOUD_KIND,
   deleteAnimaProject,
@@ -37,6 +37,7 @@ import { AnimaLayersPanel } from './AnimaLayersPanel';
 import { AnimaInspector } from './AnimaInspector';
 import { AnimaTimeline } from './AnimaTimeline';
 import { btn, iconBtn, lbl, panelBg } from './ui';
+import { AnimaExportDialog, type SendToFabulaPayload } from './AnimaExportDialog';
 
 type SaveState = 'idle' | 'dirty' | 'saving' | 'saved' | 'error';
 
@@ -52,7 +53,15 @@ const TOOLS: { id: AnimaTool; label: string; key: string; icon: React.ReactNode 
   { id: 'brush', label: 'FX brush', key: 'F', icon: <Sparkles size={15} /> },
 ];
 
-export const AnimaStudio: React.FC<{ onBackToEdit?: () => void }> = ({ onBackToEdit }) => {
+/** What Fabula hands Anima when it opens it: the production, its media, and the timeline drop. */
+export interface AnimaFabulaLink {
+  project: { id: string; title: string; fps: number; width: number; height: number };
+  media: { id: string; name: string; type: 'image' | 'video'; url: string }[];
+  /** Adds a rendered video to the production and places it on the timeline at the playhead. */
+  sendToTimeline: (payload: SendToFabulaPayload) => Promise<string | void>;
+}
+
+export const AnimaStudio: React.FC<{ onBackToEdit?: () => void; fabula?: AnimaFabulaLink }> = ({ onBackToEdit, fabula }) => {
   const [history, dispatchHistory] = useReducer(animaHistoryReducer, undefined, () => initHistory(blankAnimaProject()));
   const project = history.present;
   const framesRef = useRef(createFrameStore(1));
@@ -75,6 +84,9 @@ export const AnimaStudio: React.FC<{ onBackToEdit?: () => void }> = ({ onBackToE
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [menu, setMenu] = useState<'project' | 'history' | null>(null);
   const [startScreen, setStartScreen] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const fabulaProdId = fabula?.project.id;
+  const newOpts: NewAnimaOptions = fabula ? { fps: fabula.project.fps, fabulaProdId } : {};
   const [recent, setRecent] = useState<AnimaProjectSummary[]>([]);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const cameraVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -104,7 +116,7 @@ export const AnimaStudio: React.FC<{ onBackToEdit?: () => void }> = ({ onBackToE
     setPlaying(false);
     setSelectedLayerId(p.layers[0]?.id ?? null);
     setSaveState(dirty ? 'dirty' : 'saved');
-    setLastAnimaProjectId(p.id);
+    setLastAnimaProjectId(p.id, p.fabulaProdId);
     setStartScreen(false);
     setMenu(null);
   }, [frames]);
@@ -116,7 +128,8 @@ export const AnimaStudio: React.FC<{ onBackToEdit?: () => void }> = ({ onBackToE
     let alive = true;
     (async () => {
       const pending = takePendingAnimaProject();
-      const lastId = pending?.id ?? getLastAnimaProjectId();
+      // Inside Fabula: reopen this production's animation, not whatever was open last elsewhere.
+      const lastId = pending?.id ?? getLastAnimaProjectId(fabulaProdId);
       const saved = lastId ? await loadAnimaProject(lastId).catch(() => null) : null;
       if (!alive) return;
       if (pending && (!saved || (pending.updatedAt ?? 0) >= (saved.updatedAt ?? 0))) open(pending, true);
@@ -130,7 +143,8 @@ export const AnimaStudio: React.FC<{ onBackToEdit?: () => void }> = ({ onBackToE
     return () => {
       alive = false;
     };
-  }, [open, refreshRecent]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, refreshRecent, fabulaProdId]);
 
   // Autosave (debounced) — local first, then the cloud copy with version history.
   useEffect(() => {
@@ -275,6 +289,19 @@ export const AnimaStudio: React.FC<{ onBackToEdit?: () => void }> = ({ onBackToE
   }, [frames, dispatch, say]);
 
   const selectedLayer = project.layers.find((l) => l.id === selectedLayerId) ?? null;
+  // Plates that use Fabula media get this session's URL for that asset (Fabula's URLs are per session).
+  const renderProject = React.useMemo(() => {
+    if (!fabula?.media.length || !project.layers.some((l) => l.plate?.fabulaAssetId)) return project;
+    const byId = new Map(fabula.media.map((m) => [m.id, m]));
+    return {
+      ...project,
+      layers: project.layers.map((l) => {
+        const m = l.plate?.fabulaAssetId ? byId.get(l.plate.fabulaAssetId) : undefined;
+        return m && l.plate ? { ...l, plate: { ...l.plate, url: m.url } } : l;
+      }),
+    };
+  }, [project, fabula?.media]);
+  const recentSorted = fabulaProdId ? [...recent].sort((a, b) => Number(b.fabulaProdId === fabulaProdId) - Number(a.fabulaProdId === fabulaProdId)) : recent;
   selectedLayerRef.current = selectedLayerId;
   const hasCamera = project.layers.some((l) => l.type === 'camera' && l.visible);
 
@@ -326,17 +353,17 @@ export const AnimaStudio: React.FC<{ onBackToEdit?: () => void }> = ({ onBackToE
             <div className="absolute left-0 top-[110%] z-50 w-80 p-2 rounded-[12px] flex flex-col gap-1 max-h-[70vh] overflow-y-auto custom-scrollbar" style={{ background: '#17131d', border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 20px 50px rgba(0,0,0,0.6)' }}>
               <div className={`${lbl} px-2 pt-1`}>New</div>
               {ANIMA_TEMPLATES.map((t) => (
-                <button key={t.id} className="text-left px-2 py-1.5 rounded-lg hover:bg-white/[0.06]" onClick={() => open(t.build(), true)}>
+                <button key={t.id} className="text-left px-2 py-1.5 rounded-lg hover:bg-white/[0.06]" onClick={() => open(t.build(newOpts), true)}>
                   <div className="text-[12px] font-semibold flex items-center gap-1.5"><FilePlus2 size={12} className="text-[#00DAF3]" /> {t.name}</div>
                   <div className="text-[11px] text-white/45">{t.blurb}</div>
                 </button>
               ))}
               {recent.length > 0 && <div className={`${lbl} px-2 pt-2`}>Open</div>}
-              {recent.map((r) => (
+              {recentSorted.map((r) => (
                 <div key={r.id} className="flex items-center gap-1">
                   <button className="flex-1 min-w-0 text-left px-2 py-1.5 rounded-lg hover:bg-white/[0.06]" style={{ background: r.id === project.id ? 'rgba(212,0,85,0.14)' : undefined }} onClick={() => void loadAnimaProject(r.id).then((p) => (p ? open(p) : say('That project could not be opened.')))}>
                     <div className="text-[12px] font-semibold truncate">{r.name}</div>
-                    <div className="text-[10px] text-white/40">{r.inCloudOnly ? 'From another device' : `${r.layerCount} layers · ${r.durationFrames} frames`} · {new Date(r.updatedAt).toLocaleString()}</div>
+                    <div className="text-[10px] text-white/40">{fabulaProdId && r.fabulaProdId === fabulaProdId ? 'This Fabula project · ' : ''}{r.inCloudOnly ? 'From another device' : `${r.layerCount} layers · ${r.durationFrames} frames`} · {new Date(r.updatedAt).toLocaleString()}</div>
                   </button>
                   {r.id !== project.id && (
                     <button className={iconBtn} title="Delete project" aria-label={`Delete ${r.name}`} onClick={() => window.confirm(`Delete "${r.name}" and its version history?`) && void deleteAnimaProject(r.id).then(refreshRecent)}>
@@ -356,7 +383,15 @@ export const AnimaStudio: React.FC<{ onBackToEdit?: () => void }> = ({ onBackToE
         <button className={iconBtn} disabled={!history.past.length} onClick={() => { dirtyRef.current = true; dispatchHistory({ type: 'undo' }); }} aria-label="Undo" title="Undo (Ctrl+Z)"><Undo2 size={15} /></button>
         <button className={iconBtn} disabled={!history.future.length} onClick={() => { dirtyRef.current = true; dispatchHistory({ type: 'redo' }); }} aria-label="Redo" title="Redo (Ctrl+Shift+Z)"><Redo2 size={15} /></button>
 
-        <div className="relative ml-auto">
+        {fabula && (
+          <span className="ml-2 inline-flex items-center gap-1.5 h-7 px-2.5 rounded-full text-[11px] font-semibold text-[#ffd166]" style={{ background: 'rgba(255,209,102,0.10)', border: '1px solid rgba(255,209,102,0.3)' }} title="Opened from this Fabula production">
+            <Clapperboard size={12} /> {fabula.project.title || 'Fabula project'}
+          </span>
+        )}
+        <div className="relative ml-auto flex items-center gap-2">
+          <button className={btn} onClick={() => setExporting(true)} title={fabula ? 'Export a file, or send to the Fabula timeline' : 'Export video or PNG sequence'}>
+            <Share size={14} /> {fabula ? 'Export / Send' : 'Export'}
+          </button>
           <button
             className="h-8 px-2.5 rounded-[9px] text-[12px] font-semibold inline-flex items-center gap-1 border border-white/10 bg-white/[0.04]"
             style={{ color: saveState === 'error' ? '#fca5a5' : syncState === 'synced' ? '#6ee7b7' : 'rgba(255,255,255,0.6)' }}
@@ -425,7 +460,7 @@ export const AnimaStudio: React.FC<{ onBackToEdit?: () => void }> = ({ onBackToE
             )}
           </div>
           <AnimaStage
-            project={project}
+            project={renderProject}
             frames={frames}
             playing={playing}
             tool={tool}
@@ -451,6 +486,7 @@ export const AnimaStudio: React.FC<{ onBackToEdit?: () => void }> = ({ onBackToE
         <aside className="min-h-0" style={{ background: panelBg, borderLeft: '1px solid rgba(255,255,255,0.08)' }}>
           <AnimaInspector
             project={project}
+            fabulaMedia={fabula?.media}
             layer={selectedLayer}
             frames={frames}
             autoKey={autoKey}
@@ -487,17 +523,35 @@ export const AnimaStudio: React.FC<{ onBackToEdit?: () => void }> = ({ onBackToE
         />
       </section>
 
+      {exporting && (
+        <AnimaExportDialog
+          project={renderProject}
+          onClose={() => setExporting(false)}
+          onNotice={say}
+          fabulaScale={fabula ? fabula.project.width / project.width : undefined}
+          onSendToFabula={
+            fabula
+              ? async (payload) => {
+                  // Link this animation to the production it was sent to.
+                  if (projectRef.current.fabulaProdId !== fabula.project.id) dispatch({ type: 'replace', project: { ...projectRef.current, fabulaProdId: fabula.project.id } });
+                  return fabula.sendToTimeline(payload);
+                }
+              : undefined
+          }
+        />
+      )}
+
       {/* ── Start screen (no project yet) ── */}
       {startScreen && (
         <div className="fixed inset-0 z-[60] grid place-items-center p-6" style={{ background: 'rgba(5,4,8,0.72)', backdropFilter: 'blur(6px)' }}>
           <div className="w-full max-w-[640px] p-6 rounded-[18px] flex flex-col gap-4" style={{ background: '#15111c', border: '1px solid rgba(255,255,255,0.12)' }}>
             <div>
-              <div className="text-[20px] font-bold">Start an animation</div>
+              <div className="text-[20px] font-bold">{fabula ? `Start an animation for ${fabula.project.title || 'this project'}` : 'Start an animation'}</div>
               <div className="text-[13px] text-white/55">Projects save automatically, keep a version history, and open on any device you sign in on.</div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               {ANIMA_TEMPLATES.map((t) => (
-                <button key={t.id} className="text-left p-3 rounded-[12px] bg-white/[0.04] hover:bg-white/[0.08] border border-white/10" onClick={() => open(t.build(), true)}>
+                <button key={t.id} className="text-left p-3 rounded-[12px] bg-white/[0.04] hover:bg-white/[0.08] border border-white/10" onClick={() => open(t.build(newOpts), true)}>
                   <div className="text-[13px] font-bold">{t.name}</div>
                   <div className="text-[11px] text-white/50 mt-1">{t.blurb}</div>
                 </button>
@@ -506,10 +560,10 @@ export const AnimaStudio: React.FC<{ onBackToEdit?: () => void }> = ({ onBackToE
             {recent.length > 0 && (
               <div className="flex flex-col gap-1">
                 <div className={lbl}>Recent</div>
-                {recent.slice(0, 6).map((r) => (
+                {recentSorted.slice(0, 6).map((r) => (
                   <button key={r.id} className="text-left px-3 py-2 rounded-[10px] hover:bg-white/[0.06] flex items-center justify-between gap-2" onClick={() => void loadAnimaProject(r.id).then((p) => (p ? open(p) : say('That project could not be opened.')))}>
                     <span className="text-[13px] font-semibold truncate">{r.name}</span>
-                    <span className="text-[11px] text-white/40 shrink-0">{r.inCloudOnly ? 'From another device · ' : ''}{new Date(r.updatedAt).toLocaleDateString()}</span>
+                    <span className="text-[11px] text-white/40 shrink-0">{fabulaProdId && r.fabulaProdId === fabulaProdId ? 'This Fabula project · ' : ''}{r.inCloudOnly ? 'From another device · ' : ''}{new Date(r.updatedAt).toLocaleDateString()}</span>
                   </button>
                 ))}
               </div>

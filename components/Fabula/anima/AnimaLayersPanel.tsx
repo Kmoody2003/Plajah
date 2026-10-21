@@ -27,7 +27,8 @@ export const AnimaLayersPanel: React.FC<{
   const [renaming, setRenaming] = useState<string | null>(null);
 
   const add = (layer: AnimaLayer) => {
-    const index = selectedId ? Math.max(0, layers.findIndex((l) => l.id === selectedId)) : 0;
+    // Plates are backgrounds: they go to the back. Everything else lands above the selection.
+    const index = layer.type === 'plate' ? layers.length : selectedId ? Math.max(0, layers.findIndex((l) => l.id === selectedId)) : 0;
     dispatch({ type: 'addLayer', layer, index });
     onSelect(layer.id);
     setAdding(false);

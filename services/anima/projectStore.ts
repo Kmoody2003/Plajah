@@ -35,6 +35,7 @@ export interface AnimaProjectSummary {
   fps: number;
   updatedAt: number;
   inCloudOnly?: boolean;
+  fabulaProdId?: string;
 }
 
 const summarize = (p: AnimaProject): AnimaProjectSummary => ({
@@ -44,6 +45,7 @@ const summarize = (p: AnimaProject): AnimaProjectSummary => ({
   durationFrames: p.durationFrames,
   fps: p.fps,
   updatedAt: p.updatedAt ?? Date.now(),
+  ...(p.fabulaProdId ? { fabulaProdId: p.fabulaProdId } : {}),
 });
 
 function withTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
@@ -69,7 +71,7 @@ async function cacheLocally(p: AnimaProject) {
 export async function saveAnimaProject(project: AnimaProject): Promise<AnimaProject> {
   const saved = { ...project, schema: ANIMA_SCHEMA, updatedAt: Date.now() };
   await cacheLocally(saved);
-  setLastAnimaProjectId(saved.id);
+  setLastAnimaProjectId(saved.id, saved.fabulaProdId);
   scheduleCreativeSync({ kind: ANIMA_CLOUD_KIND, localId: saved.id, title: saved.name, json: JSON.stringify(saved) });
   return saved;
 }
@@ -112,18 +114,21 @@ export async function deleteAnimaProject(id: string) {
   await deleteCloudProject(ANIMA_CLOUD_KIND, id).catch(() => {});
 }
 
-export function getLastAnimaProjectId(): string | null {
+/** The last project opened overall, or for one Fabula production. */
+export function getLastAnimaProjectId(fabulaProdId?: string): string | null {
   try {
-    return localStorage.getItem(LAST_KEY);
+    return localStorage.getItem(fabulaProdId ? `${LAST_KEY}.${fabulaProdId}` : LAST_KEY);
   } catch {
     return null;
   }
 }
 
-export function setLastAnimaProjectId(id: string | null) {
+export function setLastAnimaProjectId(id: string | null, fabulaProdId?: string) {
   try {
-    if (id) localStorage.setItem(LAST_KEY, id);
-    else localStorage.removeItem(LAST_KEY);
+    if (id) {
+      localStorage.setItem(LAST_KEY, id);
+      if (fabulaProdId) localStorage.setItem(`${LAST_KEY}.${fabulaProdId}`, id);
+    } else localStorage.removeItem(LAST_KEY);
   } catch {
     /* blocked storage: reopening starts blank */
   }

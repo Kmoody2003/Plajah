@@ -90,6 +90,37 @@ export class AnimaRenderRuntime {
     return sim;
   }
 
+  /** Resolves when an image is decoded (or failed), for offline export. */
+  async loadImage(url: string): Promise<void> {
+    const img = this.images.get(url) ?? (this.image(url), this.images.get(url)!);
+    if (img.complete) return;
+    await new Promise<void>((r) => {
+      img.addEventListener('load', () => r(), { once: true });
+      img.addEventListener('error', () => r(), { once: true });
+    });
+  }
+
+  /** Seeks a video plate to exactly `t` (looping) and waits for the frame, for offline export. */
+  async seekVideo(url: string, t: number): Promise<void> {
+    const v = this.video(url);
+    if (v.readyState < 1) {
+      await new Promise<void>((r) => {
+        v.addEventListener('loadedmetadata', () => r(), { once: true });
+        v.addEventListener('error', () => r(), { once: true });
+      });
+    }
+    v.pause();
+    const dur = Number.isFinite(v.duration) && v.duration > 0 ? v.duration : 0;
+    const target = dur ? t % dur : t;
+    if (Math.abs(v.currentTime - target) < 1e-3 && v.readyState >= 2) return;
+    await new Promise<void>((r) => {
+      const done = () => r();
+      v.addEventListener('seeked', done, { once: true });
+      setTimeout(done, 3000);
+      v.currentTime = target;
+    });
+  }
+
   /** Drop sims and media no layer uses any more. */
   prune(project: AnimaProject) {
     const ids = new Set(project.layers.map((l) => l.id));
@@ -298,6 +329,10 @@ export interface RenderOptions {
   editor?: { selectedLayerId: string | null };
   /** 'camera': show what the camera sees (default). 'overview': the whole frame, camera outlined. */
   cameraMode?: 'camera' | 'overview';
+  /** Advance effect simulations by `dt` even when not playing (offline export). */
+  simulate?: boolean;
+  /** Leave the background transparent (PNG export) instead of the dark stage fill. */
+  transparent?: boolean;
 }
 
 export interface RenderResult {
@@ -380,11 +415,14 @@ export function renderAnimaFrame(ctx: CanvasRenderingContext2D, project: AnimaPr
   const toCanvas: Affine = [ctx.canvas.width / W, 0, 0, ctx.canvas.height / H, 0, 0];
   ctx.save();
   ctx.setTransform(...toCanvas);
-  const bg = ctx.createLinearGradient(0, 0, 0, H);
-  bg.addColorStop(0, '#15121d');
-  bg.addColorStop(1, '#0a090d');
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, W, H);
+  if (opt.transparent) ctx.clearRect(0, 0, W, H);
+  else {
+    const bg = ctx.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, '#15121d');
+    bg.addColorStop(1, '#0a090d');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+  }
 
   const evaluated = evaluateProjectAtFrame(project, frame);
   const byId = new Map(project.layers.map((l) => [l.id, l]));
@@ -453,7 +491,7 @@ export function renderAnimaFrame(ctx: CanvasRenderingContext2D, project: AnimaPr
       } else {
         const sim = rt.effect(layer, W, H);
         if (sim) {
-          if (opt.playing) stepSim(sim, opt.dt, opt.now, W, H, o, fx.color);
+          if (opt.playing || opt.simulate) stepSim(sim, opt.dt, opt.now, W, H, o, fx.color);
           drawSim(ctx, sim, W, H);
         }
       }

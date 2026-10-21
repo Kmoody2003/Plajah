@@ -7,7 +7,8 @@ import tailwindcss from '@tailwindcss/vite';
 export default defineConfig({
   cacheDir: 'node_modules/.vite-tela-comic-lab',
   plugins: [react(), tailwindcss()],
-  optimizeDeps: { entries: ['tela-comic-lab.html'] },
+  // Export libraries load lazily; pre-bundle them so the first export doesn't reload the page.
+  optimizeDeps: { entries: ['tela-comic-lab.html', 'anima-lab.html'], include: ['mediabunny', 'fflate'] },
   // Only watch what the lab renders, so other sessions' edits elsewhere don't reload it.
   server: {
     host: '127.0.0.1',

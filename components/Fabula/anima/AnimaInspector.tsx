@@ -34,6 +34,8 @@ export interface AnimaInspectorProps {
   onToggleCamera: () => void;
   onCapture: () => void;
   onNotice: (msg: string) => void;
+  /** Image and video media in the linked Fabula production (when opened from Fabula). */
+  fabulaMedia?: { id: string; name: string; type: 'image' | 'video'; url: string }[];
 }
 
 const EASES: { id: InterpolationEase; name: string }[] = [
@@ -110,7 +112,7 @@ const NeedsLayer: React.FC<{ what: string }> = ({ what }) => <div className="tex
 
 // ── Properties ──────────────────────────────────────────────────────────────
 
-const PropertiesTab: React.FC<AnimaInspectorProps> = ({ project, layer, frames, autoKey, dispatch, ink, setInk, cameraOn, onToggleCamera, onCapture, onNotice }) => {
+const PropertiesTab: React.FC<AnimaInspectorProps> = ({ project, layer, frames, autoKey, dispatch, ink, setInk, cameraOn, onToggleCamera, onCapture, onNotice, fabulaMedia }) => {
   const frame = useFrame(frames);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -158,6 +160,23 @@ const PropertiesTab: React.FC<AnimaInspectorProps> = ({ project, layer, frames, 
           <button className={btn} disabled={uploading} onClick={() => fileRef.current?.click()}>
             {uploading ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />} {layer.plate ? 'Replace media' : 'Import still or video'}
           </button>
+          {!!fabulaMedia?.length && (
+            <select
+              className={field}
+              aria-label="Use media from this Fabula project"
+              value={layer.plate?.fabulaAssetId ?? ''}
+              onChange={(e) => {
+                const m = fabulaMedia.find((x) => x.id === e.target.value);
+                if (!m) return;
+                dispatch({ type: 'updateLayer', id: layer.id, patch: { plate: { kind: m.type, name: m.name, url: m.url, fabulaAssetId: m.id }, name: layer.name === 'Plate' ? m.name.replace(/\.[^.]+$/, '') : layer.name } });
+              }}
+            >
+              <option value="" style={{ background: '#17131d' }}>Use media from this Fabula project…</option>
+              {fabulaMedia.map((m) => (
+                <option key={m.id} value={m.id} style={{ background: '#17131d' }}>{m.type === 'video' ? 'Video' : 'Image'} · {m.name}</option>
+              ))}
+            </select>
+          )}
           <input ref={fileRef} type="file" accept="image/*,video/*" className="hidden" onChange={(e) => {
             const f = e.target.files?.[0];
             if (f) void importPlate(f);

@@ -69,14 +69,23 @@ export const makeEffectLayer = (kind: AnimaEffect['kind']) => {
   });
 };
 
-export function blankAnimaProject(name = 'Untitled animation'): AnimaProject {
+/** Options when starting a project (e.g. from a Fabula production: its frame rate and id). */
+export interface NewAnimaOptions {
+  name?: string;
+  fps?: number;
+  fabulaProdId?: string;
+}
+
+export function blankAnimaProject(name = 'Untitled animation', o: NewAnimaOptions = {}): AnimaProject {
   const now = Date.now();
+  const fps = Math.max(1, Math.round(o.fps ?? 24));
   return {
     schema: ANIMA_SCHEMA,
     id: newAnimaId(),
-    name,
-    fps: 24,
-    durationFrames: 72,
+    name: o.name ?? name,
+    fps,
+    durationFrames: fps * 3,
+    ...(o.fabulaProdId ? { fabulaProdId: o.fabulaProdId } : {}),
     width: ANIMA_W,
     height: ANIMA_H,
     currentFrame: 1,
@@ -115,17 +124,17 @@ export interface AnimaTemplate {
   id: string;
   name: string;
   blurb: string;
-  build: () => AnimaProject;
+  build: (o?: NewAnimaOptions) => AnimaProject;
 }
 
 export const ANIMA_TEMPLATES: AnimaTemplate[] = [
-  { id: 'blank', name: 'Blank', blurb: 'One drawing layer, 3 seconds at 24 fps.', build: () => blankAnimaProject() },
+  { id: 'blank', name: 'Blank', blurb: 'One drawing layer, 3 seconds.', build: (o) => blankAnimaProject('Untitled animation', o) },
   {
     id: 'kaiju-walk',
     name: 'Kaiju walk',
     blurb: 'Reello walking across the frame, with a drawing layer on top.',
-    build: () => {
-      const p = blankAnimaProject('Kaiju walk');
+    build: (o) => {
+      const p = blankAnimaProject('Kaiju walk', o);
       const rig = makeCharacterLayer('rello');
       // Motion ends on the last frame (frame 72 at 24 fps is t = 71/24).
       rig.channels = SmartMotionPresets.generateAutoWalk({ durationSeconds: frameToTime(p.durationFrames, p.fps), intensity: 1 });
@@ -136,12 +145,12 @@ export const ANIMA_TEMPLATES: AnimaTemplate[] = [
     id: 'living-plate',
     name: 'Living plate',
     blurb: 'Import a still or video, add rain and a slow push-in.',
-    build: () => {
-      const p = blankAnimaProject('Living plate');
+    build: (o) => {
+      const p = blankAnimaProject('Living plate', o);
       const plate = makePlateLayer();
       const end = frameToTime(p.durationFrames, p.fps);
       plate.channels = { 'transform.scaleX': scaleKeys(1, 1.08, end), 'transform.scaleY': { ...scaleKeys(1, 1.08, end), id: 'ch_push_in_y', path: 'transform.scaleY' } };
-      return { ...p, durationFrames: 72, layers: [makeEffectLayer('rain'), plate] };
+      return { ...p, layers: [makeEffectLayer('rain'), plate] };
     },
   },
 ];

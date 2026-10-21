@@ -163,6 +163,8 @@ export interface AnimaPlate {
   /** Cloud Storage path when uploaded; blob: URLs only last this session. */
   storagePath?: string;
   sessionOnly?: boolean;
+  /** Media from the linked Fabula production: resolved to a fresh URL by asset id when Anima runs inside Fabula. */
+  fabulaAssetId?: string;
 }
 
 export type AnimaEffectKind = 'rain' | 'snow' | 'fireflies' | 'sparkles' | 'hair' | 'smoke' | 'speed_lines' | 'balloon';
@@ -227,6 +229,8 @@ export interface AnimaProject {
   name: string;
   createdAt?: number;
   updatedAt?: number;
+  /** The Fabula production this animation belongs to (opened from / sent to). */
+  fabulaProdId?: string;
   fps: number;          // 24 (anime standard), 25 (PAL), 30, 60
   durationFrames: number;
   width: number;

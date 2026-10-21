@@ -2246,6 +2246,56 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
     }
     return null;
   };
+  // Anima → timeline: a rendered animation becomes a video asset (bin "anima") and a picture clip on the
+  // first free video track at the playhead (top track first, so it overlays). Sending the same Anima
+  // project again swaps the asset's media instead of piling up copies. No linked audio: renders are silent.
+  const sendAnimaToTimeline = async (r) => {
+    const ext = (r.blob.type || "").includes("mp4") ? "mp4" : "webm";
+    const name = `${r.name}.${ext}`;
+    const q = (t) => Math.round(t * (vfmt.fps || 24)) / (vfmt.fps || 24);
+    const existing = (prod?.mediaPool || []).find((a) => a.animaProjectId === r.animaProjectId);
+    if (existing) {
+      const url = URL.createObjectURL(r.blob);
+      updateProd((p) => {
+        const a = p.mediaPool.find((x) => x.id === existing.id);
+        if (a) Object.assign(a, { name, url, duration: r.durationSec, width: r.width, height: r.height, fps: r.fps });
+      });
+      await stSet("studio:blob:" + existing.id, r.blob);
+      scheduleAutoSync([existing.id]);
+      ping("Anima render updated in the media pool");
+      return `Updated "${r.name}" in the Fabula media pool. Its clips now show the new render.`;
+    }
+    const id = uid();
+    addAssetToPool({ id, name, type: "video", url: URL.createObjectURL(r.blob), duration: r.durationSec, width: r.width, height: r.height, fps: r.fps, session: true, bin: "anima", animaProjectId: r.animaProjectId });
+    await stSet("studio:blob:" + id, r.blob);
+    scheduleAutoSync([id]);
+    const start = q(playhead);
+    const duration = Math.max(1 / (vfmt.fps || 24), q(r.durationSec));
+    const curTracks = (prod?.tracks && prod.tracks.length) ? prod.tracks : TRACKS;
+    const free = (tid) => !clips.some((x) => x.trackId === tid && !(x.start + x.duration <= start + 1e-4 || x.start >= start + duration - 1e-4));
+    let trackId = curTracks.filter((t) => t.type === "video").map((t) => t.id).find(free);
+    const clip = { id: uid(), trackId: trackId || "", start, duration, srcIn: 0, kind: "media", assetId: id, label: r.name, av: true };
+    const next = [...clips, clip];
+    if (!trackId) {
+      // Every video track is busy here: add a new top video track for the animation.
+      const nums = curTracks.filter((t) => t.type === "video").map((t) => parseInt(t.id.slice(1), 10) || 0);
+      const n = (nums.length ? Math.max(...nums) : 0) + 1;
+      trackId = "v" + n;
+      clip.trackId = trackId;
+      updateProd((p) => {
+        p.tracks = (p.tracks && p.tracks.length) ? p.tracks : TRACKS.map((t) => ({ ...t }));
+        if (!p.tracks.some((x) => x.id === trackId)) p.tracks.unshift({ id: trackId, name: "V" + n + " · ANIMA", type: "video" });
+        writeTimelineClips(p, next);
+      });
+    }
+    setClips(next); commitClips(next); setSelClipId(clip.id);
+    ping("Anima render placed on " + trackId.toUpperCase());
+    return `Placed "${r.name}" on ${trackId.toUpperCase()} at ${start.toFixed(2)} s.`;
+  };
+  // Anima keeps one stable callback; the ref always points at this render's state (playhead, clips).
+  const sendAnimaRef = useRef(sendAnimaToTimeline);
+  sendAnimaRef.current = sendAnimaToTimeline;
+
   // Load an asset into the source viewer; `play` = double-click behaviour (start playing).
   const openInViewer = async (a, play) => {
     activeViewerRef.current="source";
@@ -8719,7 +8769,14 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
                 {editWs === "anima" && (
                   <div style={{ flex: 1, minHeight: 0, display: "flex", width: "100%", height: "100%" }}>
                     <Suspense fallback={<div className="p-8 text-center text-xs opacity-50">Loading Anima 2D/3D Studio…</div>}>
-                      <AnimaStudio onBackToEdit={() => setEditWs("edit")} />
+                      <AnimaStudio
+                        onBackToEdit={() => setEditWs("edit")}
+                        fabula={prod ? {
+                          project: { id: prod.id, title: prod.title || "", fps: vfmt.fps || 24, width: vfmt.w || 1920, height: vfmt.h || 1080 },
+                          media: (prod.mediaPool || []).filter((a) => (a.type === "image" || a.type === "video") && a.url).map((a) => ({ id: a.id, name: a.name, type: a.type, url: a.url })),
+                          sendToTimeline: (payload) => sendAnimaRef.current(payload),
+                        } : undefined}
+                      />
                     </Suspense>
                   </div>
                 )}
