@@ -5635,6 +5635,25 @@ service cloud.firestore {
       allow update, delete: if isAuthenticated() && resource.data.teacherUid == request.auth.uid;
     }
 
+    // Attendance — one doc per student per class per day (services/attendanceService.ts).
+    // The student, their guardians and the class teacher read it; only the classroom's owner
+    // writes, only for a student enrolled in that class, and only with a known status.
+    match /attendance/{recordId} {
+      allow read: if isAuthenticated() && (
+        resource.data.studentId == request.auth.uid ||
+        resource.data.teacherUid == request.auth.uid ||
+        request.auth.uid in resource.data.get('guardianUids', [])
+      );
+      allow create, update: if isAuthenticated() &&
+        request.resource.data.teacherUid == request.auth.uid &&
+        request.resource.data.status in ['present', 'tardy', 'absent', 'excused'] &&
+        recordId == request.resource.data.classId + '_' + request.resource.data.date + '_' + request.resource.data.studentId &&
+        get(/databases/$(database)/documents/classrooms/$(request.resource.data.classId)).data.ownerId == request.auth.uid &&
+        request.resource.data.studentId in get(/databases/$(database)/documents/classrooms/$(request.resource.data.classId)).data.get('enrolledStudents', []) &&
+        (resource == null || resource.data.teacherUid == request.auth.uid);
+      allow delete: if isAuthenticated() && resource.data.teacherUid == request.auth.uid;
+    }
+
     // A student's turned-in work. The student owns the submission; the teacher owns the grade.
     match /templateSubmissions/{submissionId} {
       allow read: if isAuthenticated() && (

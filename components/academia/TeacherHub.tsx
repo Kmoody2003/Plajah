@@ -2,12 +2,13 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import CreateEventButton from '../events/CreateEventButton';
 import {
   PenTool, ScanLine, Library, Wand2, ClipboardCheck, BarChart3, Users, Plus, AlertTriangle, LayoutGrid, FileText,
-  FileBarChart, ShieldCheck, Plug, MessageCircle, Search, Notebook, Microscope, Star,
+  FileBarChart, ShieldCheck, Plug, MessageCircle, Search, Notebook, Microscope, Star, CalendarCheck,
 } from 'lucide-react';
 import TodayDueFirst from './TodayDueFirst';
 import EduFeedPanel from './EduFeedPanel';
 import WellbeingPanel from './WellbeingPanel';
 import StudentDossier from './StudentDossier';
+import AttendanceSheet from './AttendanceSheet';
 import { DidYouKnow, ExhibitsRow, StudiosRow, LoreaShelf, CurriculumShowcase, AcademiaResponsiveStyles } from './AcademiaShowcase';
 import { fetchClassrooms, enrollInClassroom } from '../../services/backendService';
 import { loadTeacherMetrics, type TeacherMetrics } from '../../services/academiaStats';
@@ -17,7 +18,7 @@ import type { AssignmentTemplate } from '../../data/assignmentTemplates';
 
 /**
  * Teacher hub (ACADEMIA_HOME for teachers), top to bottom:
- *   1. Profile band + toolbox row — every tool one tap away
+ *   1. Profile band + toolbox row — every tool one tap away, attendance first
  *   2. Recent work — what you last built and what's waiting to grade
  *   3. Search, dead center — type a student's name, their Student Dossier opens in place
  *   4. Lesson hooks, Ora class weather, class performance
@@ -31,7 +32,7 @@ const go = (onNavigate: (v: string) => void, tab: string) => {
   onNavigate('TEACHER_TOOLS');
 };
 
-interface ToolDef { label: string; meta?: string; icon: React.ComponentType<{ size?: number }>; color: string; tab?: string; view?: string }
+interface ToolDef { label: string; meta?: string; icon: React.ComponentType<{ size?: number }>; color: string; tab?: string; view?: string; onClick?: () => void }
 
 const Eyebrow: React.FC<{ id?: string; children: React.ReactNode }> = ({ id, children }) => (
   <h2 id={id} className="text-[11px] font-black uppercase tracking-[0.25em] text-white/60 mb-3">{children}</h2>
@@ -51,6 +52,9 @@ const TeacherHub: React.FC<Props> = ({ user, profile, onNavigate, isAdminLens })
   const [q, setQ] = useState('');
   const [sel, setSel] = useState<RosterStudent | null>(null);
   const [msg, setMsg] = useState('');
+  /** Open attendance sheet: undefined = closed, '' = default class, id = that class. */
+  const [attFor, setAttFor] = useState<string | undefined>(undefined);
+  const [attVersion, setAttVersion] = useState(0);
   const searchRef = useRef<HTMLInputElement>(null);
   const dossierRef = useRef<HTMLDivElement>(null);
 
@@ -89,6 +93,7 @@ const TeacherHub: React.FC<Props> = ({ user, profile, onNavigate, isAdminLens })
 
   const t = m?.totals;
   const tools: ToolDef[] = [
+    { label: 'Take attendance', meta: 'Today', icon: CalendarCheck, color: '#60A5FA', onClick: () => ((classes || []).length ? setAttFor(sel?.classIds[0] || '') : onNavigate('CLASSROOMS')) },
     { label: 'Build a lesson', meta: templates ? `${templates.length} saved` : undefined, icon: PenTool, color: '#FF8C00', tab: 'templates' },
     { label: 'Scan worksheet', meta: 'Paper to digital', icon: ScanLine, color: '#06D6A0', tab: 'worksheet' },
     { label: 'Plan from mastery', meta: 'Find the gaps', icon: Wand2, color: '#FF6FA8', tab: 'plan' },
@@ -150,7 +155,7 @@ const TeacherHub: React.FC<Props> = ({ user, profile, onNavigate, isAdminLens })
           <Eyebrow id="tools-h">Your toolbox</Eyebrow>
           <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1">
             {tools.map(tl => (
-              <button key={tl.label} type="button" onClick={() => (tl.tab ? go(onNavigate, tl.tab) : onNavigate(tl.view!))}
+              <button key={tl.label} type="button" onClick={() => (tl.onClick ? tl.onClick() : tl.tab ? go(onNavigate, tl.tab) : onNavigate(tl.view!))}
                 className={`shrink-0 w-[132px] h-[132px] rounded-[20px] bg-white/[0.04] border border-white/10 p-3.5 text-left flex flex-col justify-between ${lift}`}>
                 <span className="w-10 h-10 rounded-xl grid place-items-center" style={{ background: `${tl.color}24`, color: tl.color }}><tl.icon size={21} /></span>
                 <span><span className="block text-[14px] font-bold leading-tight">{tl.label}</span>{tl.meta && <span className="block text-[12px] mt-0.5" style={{ color: tl.color }}>{tl.meta}</span>}</span>
@@ -216,7 +221,7 @@ const TeacherHub: React.FC<Props> = ({ user, profile, onNavigate, isAdminLens })
         </section>
 
         <div ref={dossierRef} className="scroll-mt-6">
-          {sel && uid && <StudentDossier key={sel.uid} teacherUid={uid} student={sel} onNavigate={onNavigate} onClose={() => setSel(null)} />}
+          {sel && uid && <StudentDossier key={sel.uid} teacherUid={uid} student={sel} onNavigate={onNavigate} onClose={() => setSel(null)} onTakeAttendance={() => setAttFor(sel.classIds[0] || '')} attendanceVersion={attVersion} />}
         </div>
 
         <div className="mt-14 acad-fold-gap">
@@ -249,6 +254,7 @@ const TeacherHub: React.FC<Props> = ({ user, profile, onNavigate, isAdminLens })
                     <div className="h-2 rounded-full bg-white/10 overflow-hidden"><div className="h-full bg-[#06D6A0]" style={{ width: `${c.avgMastery ?? 0}%` }} /></div>
                     <p className="text-[11px] text-white/55 mt-1 text-right">{c.avgMastery == null ? 'nothing graded' : `${c.avgMastery}% mastery`}</p>
                   </div>
+                  <button type="button" onClick={() => setAttFor(c.classId)} className="min-h-[36px] px-3 rounded-full border border-[#60A5FA]/40 text-[#93C5FD] text-[12px] font-bold inline-flex items-center gap-1.5 shrink-0"><CalendarCheck size={13} /> <span className="hidden sm:inline">Attendance</span></button>
                   {c.atRisk > 0 && <span className="inline-flex items-center gap-1 text-[11px] font-black text-[#ff8aa3] bg-[#ff6b8a]/10 border border-[#ff6b8a]/30 rounded-full px-2 py-1"><AlertTriangle size={11} />{c.atRisk}</span>}
                   {isAdminLens && !enrolledSelf && (
                     <button type="button" onClick={() => joinOwn(c.classId)} className="text-[10px] font-black uppercase tracking-wider text-white/60 border border-white/15 rounded-full px-2.5 py-1 hover:bg-white/10" title="Enroll yourself so you can test the student side of this class">Test as student</button>
@@ -271,6 +277,10 @@ const TeacherHub: React.FC<Props> = ({ user, profile, onNavigate, isAdminLens })
 
         <EduFeedPanel currentUser={user} profile={profile} eduRole="TEACHER" onOpenFeed={() => onNavigate('EDU_SOCIAL')} />
       </div>
+      {attFor !== undefined && uid && (classes || []).length > 0 && (
+        <AttendanceSheet teacherUid={uid} classes={classes || []} roster={roster || []} initialClassId={attFor || undefined}
+          onClose={() => setAttFor(undefined)} onSaved={() => setAttVersion(v => v + 1)} />
+      )}
     </div>
   );
 };

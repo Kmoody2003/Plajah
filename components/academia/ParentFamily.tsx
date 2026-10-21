@@ -1,7 +1,10 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import type { ChildWork } from '../../services/assignmentTemplateService';
 import type { LearnerStats } from '../../services/academiaStats';
 import { letterFor, scoreTone } from '../../services/academiaDossier';
+import { loadStudentAttendance, summarizeAttendance, type AttendanceSummary } from '../../services/attendanceService';
+import { auth } from '../../services/firebase';
+import AttendanceStrip from './AttendanceStrip';
 import { ageBandFor } from '../../data/ageScaling';
 import { bandForAge } from '../../data/academiaShowcase';
 import { DidYouKnow, ExhibitsRow, StudiosRow, LoreaShelf, CurriculumShowcase, AcademiaResponsiveStyles } from './AcademiaShowcase';
@@ -15,6 +18,13 @@ type Nav = (view: string) => void;
 
 export const ChildSnapshot: React.FC<{ child: any; work: ChildWork | null; stats: LearnerStats | null; onNavigate: Nav }> = ({ child, work, stats, onNavigate }) => {
   const first = (child?.displayName || 'Your child').split(' ')[0];
+  const [att, setAtt] = useState<AttendanceSummary | null>(null);
+  useEffect(() => {
+    const me = auth.currentUser?.uid; let alive = true; setAtt(null);
+    if (me && child?.uid) loadStudentAttendance(child.uid, { role: 'guardian', uid: me }).then(r => alive && setAtt(summarizeAttendance(r)));
+    else setAtt(summarizeAttendance([]));
+    return () => { alive = false; };
+  }, [child?.uid]);
   const graded = (work?.submissions || []).filter(s => s.grade).sort((a, b) => a.grade!.gradedAt - b.grade!.gradedAt);
   const pct = graded.length ? Math.round(graded.reduce((a, s) => a + s.grade!.masteryPercent, 0) / graded.length) : null;
   const missing = (work?.assigned || []).filter(a => a.overdue).length;
@@ -36,7 +46,7 @@ export const ChildSnapshot: React.FC<{ child: any; work: ChildWork | null; stats
     { label: 'Handed in', value: String(work?.submissions.length ?? '…'), sub: `${waiting} awaiting a grade`, color: '#00DAF3' },
     { label: 'Missing', value: work ? String(missing) : '…', sub: missing ? 'past due' : 'all caught up', color: missing ? '#ff8aa3' : '#06D6A0' },
     { label: 'Still to do', value: work ? String((work.assigned.length || 0) - missing) : '…', sub: 'coming up', color: '#F5B83D' },
-    { label: 'Attendance', value: '—', sub: 'school hasn’t connected it yet', color: '#60A5FA' },
+    { label: 'Attendance', value: att?.rate == null ? '—' : `${att.rate}%`, sub: att?.days ? `${att.counts.absent} absent · ${att.counts.tardy} tardy` : 'not taken yet', color: '#60A5FA' },
   ];
   const last = graded.slice(-8);
   return (
@@ -72,6 +82,12 @@ export const ChildSnapshot: React.FC<{ child: any; work: ChildWork | null; stats
               ))}
             </div>
             <style>{'@keyframes pfGrow{from{transform:scaleY(0)}to{transform:scaleY(1)}}'}</style>
+          </div>
+        )}
+        {!!att?.days && (
+          <div className="mt-4 rounded-[20px] bg-white/[0.03] border border-white/[0.08] p-4">
+            <p className="text-[15px] font-bold mb-3">Attendance</p>
+            <AttendanceStrip summary={att} />
           </div>
         )}
       </div>

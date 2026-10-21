@@ -1,15 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { MessageCircle, X, CalendarCheck, FileDown, Plug } from 'lucide-react';
+import { MessageCircle, X, CalendarCheck, FileDown } from 'lucide-react';
 import { createChatRoom } from '../../services/backendService';
 import { loadStudentDossier, letterFor, scoreTone, type RosterStudent, type StudentDossier as Dossier, type WorkStatus } from '../../services/academiaDossier';
 import type { AppStat } from '../../services/academiaStats';
+import { loadStudentAttendance, summarizeAttendance, type AttendanceSummary } from '../../services/attendanceService';
+import AttendanceStrip from './AttendanceStrip';
 
 /**
  * The teacher's overview of one student, opened in place from the Teacher Studio search.
  * Color-coded tiles, an 8-assignment grade trend against the class, the work ledger, ledger mastery
  * by subject, learning-app progress and the latest parent/student messages. All live data.
  */
-interface Props { teacherUid: string; student: RosterStudent; onNavigate: (view: string) => void; onClose: () => void }
+interface Props { teacherUid: string; student: RosterStudent; onNavigate: (view: string) => void; onClose: () => void; onTakeAttendance?: () => void; attendanceVersion?: number }
 
 const STATUS: Record<WorkStatus, { label: string; color: string }> = {
   'on-time': { label: 'On time', color: '#06D6A0' }, late: { label: 'Late', color: '#F5B83D' },
@@ -83,8 +85,14 @@ const AppRow: React.FC<{ name: string; stat?: AppStat; color: string }> = ({ nam
   </div>
 );
 
-const StudentDossier: React.FC<Props> = ({ teacherUid, student, onNavigate, onClose }) => {
+const StudentDossier: React.FC<Props> = ({ teacherUid, student, onNavigate, onClose, onTakeAttendance, attendanceVersion = 0 }) => {
   const [d, setD] = useState<Dossier | null>(null);
+  const [att, setAtt] = useState<AttendanceSummary | null>(null);
+  useEffect(() => {
+    let alive = true; setAtt(null);
+    loadStudentAttendance(student.uid, { role: 'teacher', uid: teacherUid }).then(r => alive && setAtt(summarizeAttendance(r)));
+    return () => { alive = false; };
+  }, [teacherUid, student.uid, attendanceVersion]);
   const [err, setErr] = useState('');
   useEffect(() => {
     let alive = true; setD(null);
@@ -139,6 +147,7 @@ const StudentDossier: React.FC<Props> = ({ teacherUid, student, onNavigate, onCl
             <Tile label="Turned in" value={`${d.counts.turnedIn}/${d.counts.assigned}`} sub={`${d.counts.late} late`} color="#06D6A0" />
             <Tile label="Missing" value={String(d.counts.missing)} sub={d.counts.missing > 2 ? 'needs a follow-up' : 'past due, not handed in'} color={d.counts.missing > 2 ? '#ff8aa3' : '#F5B83D'} />
             <Tile label="Waiting on you" value={String(d.counts.toGrade)} sub="submitted, not graded" color="#c4b5fd" />
+            <Tile label="Attendance" value={att?.rate == null ? '—' : `${att.rate}%`} sub={att?.days ? `${att.counts.absent} absent · ${att.counts.tardy} tardy` : 'not taken yet'} color="#60A5FA" />
             <Tile label="Ledger mastery" value={d.ledgerOverall == null ? '—' : `${d.ledgerOverall}%`} sub="across every standard" color="#93C5FD" />
             <Tile label="Voca reading" value={d.apps?.voca.started ? d.apps.voca.headline : '—'} sub={d.apps?.voca.started ? d.apps.voca.detail.split(' · ')[0] : 'not started'} color="#00DAF3" />
           </div>
@@ -178,11 +187,8 @@ const StudentDossier: React.FC<Props> = ({ teacherUid, student, onNavigate, onCl
               </div>
             </Panel>
             <Panel title="Attendance" className="flex-[1_1_260px]">
-              <div className="flex gap-3 items-start text-[13px] text-white/70 leading-relaxed">
-                <CalendarCheck size={22} className="text-[#60A5FA] shrink-0 mt-0.5" />
-                <span>Attendance isn’t connected to Academia yet. Link your school’s SIS to see days present, tardies and absences here.</span>
-              </div>
-              <button type="button" onClick={() => goTool(onNavigate, 'connect')} className="mt-3 min-h-[40px] px-3.5 rounded-[10px] border border-[#60A5FA]/50 text-[#93C5FD] text-[13px] font-bold inline-flex items-center gap-2"><Plug size={15} /> Open Integrations</button>
+              <AttendanceStrip summary={att} empty={`No attendance taken for ${first} yet.`} />
+              {onTakeAttendance && <button type="button" onClick={onTakeAttendance} className="mt-3 min-h-[40px] px-3.5 rounded-[10px] border border-[#60A5FA]/50 text-[#93C5FD] text-[13px] font-bold inline-flex items-center gap-2"><CalendarCheck size={15} /> Take attendance</button>}
             </Panel>
           </div>
 

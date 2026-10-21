@@ -19,6 +19,8 @@ export interface RosterStudent {
   photo?: string;
   username?: string;
   guardianUid?: string;
+  /** Every linked grown-up (guardianUid + coGuardianUids) — attendance rows are shared with all of them. */
+  guardianUids: string[];
   classIds: string[];
   classTitles: string[];
 }
@@ -28,7 +30,7 @@ export async function loadTeacherRoster(classes: Array<{ id: string; title?: str
   const byUid = new Map<string, RosterStudent>();
   for (const c of classes) {
     for (const s of c.enrolledStudents || []) {
-      const row = byUid.get(s) || { uid: s, name: '', classIds: [], classTitles: [] };
+      const row = byUid.get(s) || { uid: s, name: '', guardianUids: [], classIds: [], classTitles: [] };
       row.classIds.push(c.id); row.classTitles.push(c.title || c.name || 'Class');
       byUid.set(s, row);
     }
@@ -42,6 +44,7 @@ export async function loadTeacherRoster(classes: Array<{ id: string; title?: str
     row.photo = (p as any).photoURL || undefined;
     row.username = (p as any).username || undefined;
     row.guardianUid = (p as any).guardianUid || undefined;
+    row.guardianUids = [...new Set([(p as any).guardianUid, ...((p as any).coGuardianUids || [])].filter(Boolean))] as string[];
   }
   return [...byUid.values()].map(r => ({ ...r, name: r.name || 'Student' })).sort((a, b) => a.name.localeCompare(b.name));
 }

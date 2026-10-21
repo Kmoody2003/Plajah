@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { loadStudentScoreboard, letterFor, scoreTone, type StudentScoreboard as Board, type WorkStatus } from '../../services/academiaDossier';
 import { lessonLink } from '../../services/assignmentTemplateService';
+import { loadStudentAttendance, summarizeAttendance, type AttendanceSummary } from '../../services/attendanceService';
 
 /**
  * The student's metric board and assignment ledger: current grade, turned in, missing, and every
@@ -19,13 +20,15 @@ const fmt = (t: number | null) => (t ? new Date(t).toLocaleDateString(undefined,
 const StudentScoreboard: React.FC<Props> = ({ uid, onNavigate }) => {
   const [b, setB] = useState<Board | null>(null);
   const [f, setF] = useState<Filter>('All');
+  const [att, setAtt] = useState<AttendanceSummary | null>(null);
+  useEffect(() => { let alive = true; if (uid) loadStudentAttendance(uid, { role: 'student', uid }).then(r => alive && setAtt(summarizeAttendance(r))); return () => { alive = false; }; }, [uid]);
   useEffect(() => { let alive = true; if (uid) loadStudentScoreboard(uid).then(x => alive && setB(x)).catch(() => alive && setB({ gradePct: null, turnedIn: 0, missing: 0, graded: 0, rows: [] })); return () => { alive = false; }; }, [uid]);
 
   const tiles = [
     { label: 'Current grade', value: b?.gradePct == null ? '—' : letterFor(b.gradePct), sub: b?.gradePct == null ? 'nothing graded yet' : `${b.gradePct}% overall`, color: scoreTone(b?.gradePct ?? null) },
     { label: 'Turned in', value: b ? String(b.turnedIn) : '…', sub: b ? `${b.graded} graded` : '', color: '#00DAF3' },
     { label: 'Missing', value: b ? String(b.missing) : '…', sub: b?.missing ? 'you can still hand it in' : 'all caught up', color: b?.missing ? '#ff8aa3' : '#06D6A0' },
-    { label: 'Attendance', value: '—', sub: 'not connected yet', color: '#60A5FA' },
+    { label: 'Attendance', value: att?.rate == null ? '—' : `${att.rate}%`, sub: att?.days ? `${att.counts.absent} absent · ${att.counts.tardy} tardy` : 'not taken yet', color: '#60A5FA' },
   ];
   const rows = (b?.rows || []).filter(r => f === 'All' || (f === 'Due' && r.status === 'due') || (f === 'Missing' && (r.status === 'missing' || r.status === 'late')) || (f === 'Graded' && (r.status === 'on-time' || r.status === 'late')));
   const openRow = (id: string, status: WorkStatus) => {
