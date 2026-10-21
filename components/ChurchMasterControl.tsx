@@ -11,6 +11,7 @@ import { ArrowLeft, Radio, MonitorPlay, Loader2, Building2, Dot } from 'lucide-r
 import type { Organization, Campus, ProgramFeed } from '../types';
 import { useRtcSession } from '../hooks/useRtcSession';
 import { registerProgramFeed, endProgramFeed, listenToProgramFeeds, campusProgramSessionId } from '../services/multiSiteService';
+import ElevateLivePanel from './ElevateLivePanel';
 
 const Video: React.FC<{ stream: MediaStream | null; muted?: boolean }> = ({ stream, muted }) => {
   const ref = useRef<HTMLVideoElement>(null);
@@ -18,9 +19,9 @@ const Video: React.FC<{ stream: MediaStream | null; muted?: boolean }> = ({ stre
   return <video ref={ref} autoPlay playsInline muted={muted} className="w-full h-full object-cover" />;
 };
 
-const ChurchMasterControl: React.FC<{ church: Organization; onClose: () => void }> = ({ church, onClose }) => {
+const ChurchMasterControl: React.FC<{ church: Organization; onClose: () => void; defaultMode?: 'monitor' | 'broadcast' | 'elevate' }> = ({ church, onClose, defaultMode }) => {
   const campuses: Campus[] = church.campuses && church.campuses.length ? church.campuses : [{ id: 'main', name: church.name, isPrimary: true }];
-  const [mode, setMode] = useState<'monitor' | 'broadcast'>('monitor');
+  const [mode, setMode] = useState<'monitor' | 'broadcast' | 'elevate'>(defaultMode || 'monitor');
 
   // Broadcast (this campus goes live)
   const [liveCampusId, setLiveCampusId] = useState<string | null>(null);
@@ -73,15 +74,17 @@ const ChurchMasterControl: React.FC<{ church: Organization; onClose: () => void 
       </div>
 
       <div className="flex gap-1 p-1 bg-white/5 rounded-2xl w-fit mb-8">
-        {(['monitor', 'broadcast'] as const).map(m => (
+        {(['monitor', 'broadcast', 'elevate'] as const).map(m => (
           <button key={m} onClick={() => { if (m !== 'broadcast') stopBroadcast(); setWatch(null); setMode(m); }}
             className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${mode === m ? 'bg-white text-black' : 'text-white/40 hover:text-white'}`}>
-            {m === 'monitor' ? 'Master Monitor' : 'This Campus Live'}
+            {m === 'monitor' ? 'Master Monitor' : m === 'broadcast' ? 'This Campus Live' : 'Elevate Live'}
           </button>
         ))}
       </div>
 
-      {mode === 'broadcast' ? (
+      {mode === 'elevate' ? (
+        <ElevateLivePanel church={church} />
+      ) : mode === 'broadcast' ? (
         <div className="space-y-5">
           <p className="text-[10px] font-black uppercase tracking-widest text-white/40">Broadcast this campus's program feed</p>
           <div className="grid sm:grid-cols-2 gap-2">

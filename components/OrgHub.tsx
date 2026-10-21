@@ -33,6 +33,7 @@ import ElevateSetupWizard from './elevate/ElevateSetupWizard';
 import DeleteOrgDialog from './elevate/DeleteOrgDialog';
 import IdentityEditor from './elevate/IdentityEditor';
 import ChurchGive from './ChurchGive';
+import ChurchMasterControl from './ChurchMasterControl';
 import ChurchDemoView from './ChurchDemoView';
 import BusinessDemoView from './BusinessDemoView';
 import { DEMO_BUSINESS_ORG, DEMO_BUSINESS_ID } from '../data/demoBusiness';
@@ -394,6 +395,7 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
   const [org, setOrg] = useState<Organization>(initialOrg);
   const [staff, setStaff] = useState<OrgMembership[]>([]);
   const [managing, setManaging] = useState(false);
+  const [elevateLive, setElevateLive] = useState(false);
   const [giving, setGiving] = useState(!!initialGive);
   const [openings, setOpenings] = useState<JobPosting[]>([]);
   const [applyFor, setApplyFor] = useState<JobPosting | null>(null);
@@ -441,6 +443,9 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
   if (managing && isOwner) {
     return <OrgManage org={org} staff={staff} onClose={() => setManaging(false)} onSaved={setOrg} reloadStaff={reloadStaff} onDeleted={onDeleted} />;
   }
+  if (elevateLive && isOwner) {
+    return <ChurchMasterControl church={org} onClose={() => setElevateLive(false)} defaultMode="elevate" />;
+  }
   if (giving) {
     return <ChurchGive org={org} fundGiven={fundGiven} onClose={() => setGiving(false)} />;
   }
@@ -467,6 +472,11 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
           <button onClick={() => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'SETTINGS', params: { tab: 'ACCOUNT' } } }))}
             title="Change account type" className="ev-btn ev-btn-ghost" style={{ minHeight: 36, padding: '0 12px', fontSize: 13 }}>
             <KeyRound size={13} /> Account type
+          </button>
+        )}
+        {isOwner && (
+          <button onClick={() => setElevateLive(true)} className="ev-btn ev-btn-ghost" style={{ minHeight: 36, padding: '0 12px', fontSize: 13 }}>
+            <Radio size={13} /> Elevate Live
           </button>
         )}
         {isOwner && (

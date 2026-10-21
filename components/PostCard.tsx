@@ -9,6 +9,7 @@ import Portal from './Portal';
 import MiniMusicPlayer from './MiniMusicPlayer';
 import ThreeDImage from './ThreeDImage';
 import ShareButton from './ShareButton';
+import ElevateBriefingDoc from './ElevateBriefingDoc';
 import { formatDistanceToNow } from 'date-fns';
 import { auth, updatePost, deletePost, togglePostLike, processDonation, fetchUserClubs, createClubPost } from '../services/backendService';
 import { searchUsersSafe as searchUsers } from '../services/searchUsersSafe';
@@ -914,6 +915,11 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser: onVisitUserProp,
               <p className={`${TYPE.bodyMd} leading-normal text-white/80 whitespace-pre-wrap`}>
                 <RenderTextWithMentions text={displayText} onVisitUser={onVisitUser} />
               </p>
+            )}
+
+            {/* Elevate Live briefing — the full document renders inline in the post */}
+            {(post as any).documentKind === 'ELEVATE_BRIEFING' && (
+              <ElevateBriefingDoc post={post as any} />
             )}
 
             {/* Live Room — time-boxed room attached to this post */}
