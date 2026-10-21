@@ -83,6 +83,8 @@ export const CHILD_DEFAULTS: ParentalControls = {
   schoolHoursLearningOnly: false,
   kidsMode: true,
 };
+/** Name the Family / Parent Hub flows use when seeding a new child's controls. */
+export const DEFAULT_CHILD_CONTROLS = CHILD_DEFAULTS;
 
 /** Defaults for a normal adult account (no restrictions). */
 export const ADULT_DEFAULTS: ParentalControls = {
