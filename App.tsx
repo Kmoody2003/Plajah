@@ -58,6 +58,7 @@ const ShowModeView = retryLazy(() => import('./components/ShowModeView')); // Sh
 const CellAtlasView = retryLazy(() => import('./components/anatomy/CellAtlasView')); // Cell + Brain Atlas (Human Body module)
 const ArtistSupportSheet = retryLazy(() => import('./components/ArtistSupportSheet')); // gift / buy / Plajah+ sheet
 const SupportReturnModal = retryLazy(() => import('./components/SupportReturnModal')); // thank-you after gift / purchase
+const SponsorCopiesHost = retryLazy(() => import('./components/lorea/SponsorCopies')); // gift/sponsored book copies: claim links, sponsor dialog, My gifts
 const SearchView = retryLazy(() => import('./components/SearchView'));
 const FeedView = retryLazy(() => import('./components/FeedView'));
 const LiveHubView = retryLazy(() => import('./components/LiveHubView'));
@@ -3886,6 +3887,13 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     const link = notif.link as string | undefined;
     const targetId = notif.targetId as string | undefined;
     if (!link) return;
+
+    // A gifted book (routes/sponsorCopies.ts): `claim-copy:<code>` opens the claim screen.
+    if (link.startsWith('claim-copy:')) {
+      const { openClaim } = await import('./services/sponsorCopies/client');
+      openClaim({ code: link.slice('claim-copy:'.length) });
+      return;
+    }
 
     // Content HQ review-request deep link (`content-hq:<assetId>`, see hqCollaboration.requestHqReview).
     // Resolve the asset's scope, open the right Content HQ surface, then focus its review panel.
@@ -7817,6 +7825,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 <SupportReturnModal info={returnInfo} uid={user?.uid} onClose={() => setReturnInfo(null)} />
               </React.Suspense>
             )}
+            {/* Always mounted: handles ?claim= / ?gift= / ?copies_purchased= and the gift events. */}
+            <React.Suspense fallback={null}><SponsorCopiesHost /></React.Suspense>
             {view === 'MIX_PLAYER' && selectedAlbum && (
               <MixPlayerView
                 album={selectedAlbum}

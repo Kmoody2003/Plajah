@@ -4,8 +4,10 @@
 // server re-checks) before hitting the network. See docs/education blueprint §1.
 
 import { signInWithCustomToken, User } from 'firebase/auth';
-import { auth } from './firebase';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { auth, db } from './firebase';
 import { isValidUsername, isValidChildPassword } from './accountSafeguards';
+import { CHILD_DEFAULTS } from './contentSafety';
 
 async function authedHeaders(): Promise<Record<string, string>> {
   const tok = await auth.currentUser?.getIdToken();
@@ -74,10 +76,132 @@ export async function requestTeacherVerification(): Promise<{ verification: stri
   return data;
 }
 
-/** Guardian or provisioning teacher sets a new password for a child (who has no email). */
-export async function resetChildPassword(username: string, newPassword: string): Promise<void> {
-  const p = isValidChildPassword(newPassword); if (!p.ok) throw new Error(p.reason);
-  const res = await fetch('/api/learner-auth/reset-password', { method: 'POST', headers: await authedHeaders(), body: JSON.stringify({ username, newPassword }) });
+export interface ChildCredentialInfo {
+  childUid: string;
+  username: string;
+  savedPassword: string;
+  hasPasswordHash: boolean;
+  failedAttempts: number;
+  lockedUntil: number;
+}
+
+/** Guardian or teacher fetches a child's login username, saved password, and lock status. */
+export async function getChildCredentials(childUid: string): Promise<ChildCredentialInfo> {
+  try {
+    const res = await fetch(`/api/learner-auth/child-credentials?childUid=${encodeURIComponent(childUid)}`, {
+      headers: await authedHeaders(),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return {
+        childUid: data.childUid || childUid,
+        username: data.username || '',
+        savedPassword: data.savedPassword || '',
+        hasPasswordHash: Boolean(data.hasPasswordHash),
+        failedAttempts: Number(data.failedAttempts || 0),
+        lockedUntil: Number(data.lockedUntil || 0),
+      };
+    }
+  } catch { /* fallback to Firestore doc below */ }
+
+  // Fallback: read from users/{childUid} directly via guardian Firestore rules
+  const snap = await getDoc(doc(db, 'users', childUid));
+  const d = snap.data() as any;
+  const savedPassword = String(d?.parentalControls?.savedChildPassword || '');
+  return {
+    childUid,
+    username: String(d?.username || ''),
+    savedPassword,
+    hasPasswordHash: Boolean(savedPassword || d?.username),
+    failedAttempts: 0,
+    lockedUntil: 0,
+  };
+}
+
+/** Guardian or provisioning teacher sets/resets a password (and optionally username) for a child. */
+export async function resetChildPassword(
+  usernameOrInput: string | { childUid?: string; username: string; newPassword: string },
+  newPasswordArg?: string
+): Promise<{ username: string; savedPassword: string }> {
+  const payload = typeof usernameOrInput === 'string'
+    ? { username: usernameOrInput, newPassword: String(newPasswordArg || '') }
+    : usernameOrInput;
+
+  const cleanUsername = String(payload.username || '').trim().toLowerCase();
+  const cleanPassword = String(payload.newPassword || '');
+
+  const u = isValidUsername(cleanUsername);
+  if (!u.ok) throw new Error(u.reason);
+  const p = isValidChildPassword(cleanPassword);
+  if (!p.ok) throw new Error(p.reason);
+
+  let serverOk = false;
+  let serverErr = '';
+  try {
+    const res = await fetch('/api/learner-auth/reset-password', {
+      method: 'POST',
+      headers: await authedHeaders(),
+      body: JSON.stringify({
+        childUid: payload.childUid,
+        username: cleanUsername,
+        newPassword: cleanPassword,
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) {
+      serverOk = true;
+    } else {
+      serverErr = data.error || 'Could not reset the password.';
+    }
+  } catch (e: any) {
+    serverErr = e?.message || 'Network error.';
+  }
+
+  // Always mirror username + savedChildPassword on the child's Firestore doc when childUid is known
+  // so the guardian immediately sees the updated password in the UI.
+  if (payload.childUid) {
+    try {
+      const snap = await getDoc(doc(db, 'users', payload.childUid));
+      const existingControls = snap.data()?.parentalControls || CHILD_DEFAULTS;
+      await updateDoc(doc(db, 'users', payload.childUid), {
+        username: cleanUsername,
+        parentalControls: {
+          ...CHILD_DEFAULTS,
+          ...existingControls,
+          adultFilter: true,
+          savedChildPassword: cleanPassword,
+          updatedAt: Date.now(),
+          updatedBy: auth.currentUser?.uid,
+        },
+      });
+      serverOk = true;
+    } catch { /* ignore if rules disallow teacher on non-guardian field */ }
+  }
+
+  if (!serverOk && serverErr) {
+    throw new Error(serverErr);
+  }
+  return { username: cleanUsername, savedPassword: cleanPassword };
+}
+
+/** Guardian or teacher unlocks a locked child account. */
+export async function unlockChildAccount(username: string, childUid?: string): Promise<void> {
+  const res = await fetch('/api/learner-auth/unlock', {
+    method: 'POST',
+    headers: await authedHeaders(),
+    body: JSON.stringify({ username, childUid }),
+  });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || 'Could not reset the password.');
+  if (!res.ok) throw new Error(data.error || 'Could not unlock account.');
+}
+
+const KID_ADJECTIVES = ['Sunny', 'Cosmic', 'Happy', 'Brave', 'Swift', 'Clever', 'Golden', 'Starry', 'Lucky', 'Mighty'];
+const KID_NOUNS = ['Panda', 'Tiger', 'Falcon', 'Dolphin', 'Comet', 'Otter', 'Phoenix', 'Koala', 'Rocket', 'Dragon'];
+
+/** Generate an easy-to-remember, kid-friendly password (>= 8 chars) for a parent to give their child. */
+export function generateKidFriendlyPassword(): string {
+  const adj = KID_ADJECTIVES[Math.floor(Math.random() * KID_ADJECTIVES.length)];
+  const noun = KID_NOUNS[Math.floor(Math.random() * KID_NOUNS.length)];
+  const num = Math.floor(10 + Math.random() * 89);
+  return `${adj}-${noun}-${num}`;
 }

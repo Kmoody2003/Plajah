@@ -10,6 +10,7 @@ import { useSchoolProfile } from '../../hooks/useSchoolProfile';
 import SchoolSetupSheet from './SchoolSetupSheet';
 import DailyScripture from './DailyScripture';
 import EduFeedPanel from './EduFeedPanel';
+import ParentalControlsPanel from '../ParentalControlsPanel';
 
 /**
  * Home school hub. For a family where the parent is the teacher: plan the week by child, log hours,
@@ -37,7 +38,7 @@ const HomeschoolHub: React.FC<Props> = ({ user, profile, onNavigate }) => {
   const [kids, setKids] = useState<any[] | null>(null);
   const [sel, setSel] = useState('');
   const [data, setData] = useState<HomeschoolDoc>(emptyDoc());
-  const [tab, setTab] = useState<'plan' | 'log' | 'portfolio' | 'record'>('plan');
+  const [tab, setTab] = useState<'plan' | 'log' | 'portfolio' | 'record' | 'safety'>('plan');
   const [mastery, setMastery] = useState<SkillMap>({});
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState(''); const [newYear, setNewYear] = useState('');
@@ -143,7 +144,7 @@ const HomeschoolHub: React.FC<Props> = ({ user, profile, onNavigate }) => {
           <>
             <div className="flex flex-wrap gap-2 mb-5">
               <Tab on={tab === 'plan'} onClick={() => setTab('plan')}>This week</Tab><Tab on={tab === 'log'} onClick={() => setTab('log')}>Hours</Tab>
-              <Tab on={tab === 'portfolio'} onClick={() => setTab('portfolio')}>Portfolio</Tab><Tab on={tab === 'record'} onClick={() => setTab('record')}>Record</Tab>
+              <Tab on={tab === 'portfolio'} onClick={() => setTab('portfolio')}>Portfolio</Tab><Tab on={tab === 'record'} onClick={() => setTab('record')}>Record</Tab><Tab on={tab === 'safety'} onClick={() => setTab('safety')}>Safety, Password &amp; Activity</Tab>
             </div>
 
             {tab === 'plan' && (
@@ -213,6 +214,23 @@ const HomeschoolHub: React.FC<Props> = ({ user, profile, onNavigate }) => {
                 </div>
                 <button type="button" onClick={printRecord} className="rounded-full bg-white text-black px-5 py-2.5 text-[12px] font-black inline-flex items-center gap-2"><Printer size={14} /> Print the record</button>
                 <p className="text-[11px] text-white/40 mt-3 max-w-xl">This is a summary for your own files. Check your state or country's requirements for what to keep and what to submit; Plajah does not decide that for you.</p>
+              </section>
+            )}
+            {tab === 'safety' && (
+              <section aria-label="Parental controls, password, and activity history">
+                <ParentalControlsPanel
+                  target={child}
+                  actor={profile || ({ uid: uid || '' } as any)}
+                  onSaved={async () => {
+                    if (uid) {
+                      const k = await listChildProfiles(uid).catch(() => []);
+                      setKids(k);
+                    }
+                  }}
+                />
+              </section>
+            )}{false && (
+              <section>
               </section>
             )}
           </>

@@ -26,7 +26,14 @@ const normalizeCode = (c: string) => (c || '').replace(/[^A-Za-z0-9]/g, '').toUp
 const CLAIM = (code: string) => `claimTokens/${normalizeCode(code)}`;
 const newChildUid = (by: string) => `child_${by.slice(0, 6)}_${Math.random().toString(36).slice(2, 9)}`;
 
-const CHILD_CONTROLS = { adultFilter: true, maxMaturity: 'PG', hideAdultPosts: true, kidsMode: true };
+const CHILD_CONTROLS = {
+  adultFilter: true,
+  maxMaturity: 'PG',
+  hideAdultPosts: true,
+  autoHideMatureThemes: true,
+  profanityFilter: true,
+  kidsMode: true,
+};
 
 async function callerUid(req: Request): Promise<string | null> {
   const auth = req.headers.authorization;
@@ -66,20 +73,36 @@ learnerAuthRouter.post('/provision', async (req: Request, res: Response) => {
   const childUid = newChildUid(uid);
   const now = Date.now();
   const childState = asTeacher ? 'SCHOOL_PROVISIONED' : 'PARENT_OWNED';
+  const cleanUsername = String(username).trim().toLowerCase();
+  const cleanPassword = String(password);
 
   const profile: Record<string, unknown> = {
     uid: childUid, displayName, photoURL: '', email: '',
-    isChild: true, accountType: 'CHILD', username: username.toLowerCase(),
+    isChild: true, accountType: 'CHILD', username: cleanUsername,
     childState, role: 'user', tier: 'FREE',
     followerCount: 0, followingCount: 0, createdAt: now,
     // reading-voice consent is decided by the adult creating the account (parent, or school for a teacher-
     // provisioned student) so a child never waits for an absent adult before Chora can listen
-    parentalControls: speechRecognition === true ? { ...CHILD_CONTROLS, speechRecognition: true, updatedAt: now, updatedBy: uid } : CHILD_CONTROLS,
+    parentalControls: {
+      ...CHILD_CONTROLS,
+      ...(speechRecognition === true ? { speechRecognition: true } : {}),
+      savedChildPassword: cleanPassword,
+      updatedAt: now,
+      updatedBy: uid,
+    },
     ...(typeof birthYear === 'number' ? { birthYear } : {}),
     ...(asTeacher ? { provisionedByTeacherUid: uid } : { guardianUid: uid }),
   };
   if (!(await fsSet(USER(childUid), profile))) return res.status(502).json({ error: 'Could not create the account.' });
-  await fsSet(CRED(username), { childUid, hash: hashPassword(password), createdBy: uid, createdAt: now, failedAttempts: 0, lockedUntil: 0 });
+  await fsSet(CRED(cleanUsername), {
+    childUid,
+    hash: hashPassword(cleanPassword),
+    savedPassword: cleanPassword,
+    createdBy: uid,
+    createdAt: now,
+    failedAttempts: 0,
+    lockedUntil: 0,
+  });
 
   let claimCode: string | undefined;
   if (asTeacher) {
@@ -96,7 +119,7 @@ learnerAuthRouter.post('/provision', async (req: Request, res: Response) => {
   if (classroomId && typeof classroomId === 'string') await audit(childUid, uid, 'provision', `class:${classroomId}`);
   else await audit(childUid, uid, 'provision', asTeacher ? 'teacher' : 'parent');
 
-  return res.status(201).json({ childUid, username: username.toLowerCase(), childState, ...(claimCode ? { claimCode } : {}) });
+  return res.status(201).json({ childUid, username: cleanUsername, childState, ...(claimCode ? { claimCode } : {}) });
 });
 
 // ── POST /login ────────────────────────────────────────────────────────────────
@@ -155,22 +178,120 @@ learnerAuthRouter.post('/claim', async (req: Request, res: Response) => {
   return res.json({ childUid: token.childUid });
 });
 
+// ── GET /child-credentials ──────────────────────────────────────────────────────
+// Guardian or provisioning teacher reads their child's login username, saved password, and lock status.
+learnerAuthRouter.get('/child-credentials', async (req: Request, res: Response) => {
+  const uid = await callerUid(req);
+  if (!uid) return res.status(401).json({ error: 'Sign in first.' });
+  const childUid = String(req.query.childUid || '').trim();
+  if (!childUid) return res.status(400).json({ error: 'childUid is required.' });
+
+  const child = await fsGet(USER(childUid));
+  if (!child) return res.status(404).json({ error: 'Child account not found.' });
+  const allowed = child.guardianUid === uid || child.provisionedByTeacherUid === uid;
+  if (!allowed) return res.status(403).json({ error: 'Only this child\'s parent or teacher can view credentials.' });
+
+  const username = String(child.username || '').trim().toLowerCase();
+  const cred = username ? await fsGet(CRED(username)) : null;
+  const savedPassword = String(
+    cred?.savedPassword || (child.parentalControls as any)?.savedChildPassword || ''
+  );
+
+  return res.json({
+    childUid,
+    username,
+    savedPassword,
+    hasPasswordHash: Boolean(cred?.hash),
+    failedAttempts: Number(cred?.failedAttempts || 0),
+    lockedUntil: Number(cred?.lockedUntil || 0),
+  });
+});
+
 // ── POST /reset-password ──────────────────────────────────────────────────────────
-// Guardian or the provisioning teacher sets a new password (child has no email to self-reset).
+// Guardian or the provisioning teacher sets/resets a child's password (and can assign a username
+// if the child profile was created without one). Also stores savedPassword for guardian viewing.
 learnerAuthRouter.post('/reset-password', async (req: Request, res: Response) => {
   const uid = await callerUid(req);
   if (!uid) return res.status(401).json({ error: 'Sign in first.' });
-  const { username, newPassword } = req.body ?? {};
-  const p = isValidChildPassword(newPassword); if (!p.ok) return res.status(400).json({ error: p.reason });
+  const { childUid: bodyChildUid, username: bodyUsername, newPassword } = req.body ?? {};
+  const p = isValidChildPassword(newPassword);
+  if (!p.ok) return res.status(400).json({ error: p.reason });
 
-  const cred = await fsGet(CRED(String(username)));
-  if (!cred) return res.status(404).json({ error: 'No account with that username.' });
-  const child = await fsGet(USER(String(cred.childUid)));
-  const allowed = child && (child.guardianUid === uid || child.provisionedByTeacherUid === uid);
+  let targetUsername = String(bodyUsername || '').trim().toLowerCase();
+  let cred = targetUsername ? await fsGet(CRED(targetUsername)) : null;
+  const targetChildUid = String(bodyChildUid || cred?.childUid || '').trim();
+  if (!targetChildUid) return res.status(400).json({ error: 'Child account or username is required.' });
+
+  const child = await fsGet(USER(targetChildUid));
+  if (!child) return res.status(404).json({ error: 'Child account not found.' });
+  const allowed = child.guardianUid === uid || child.provisionedByTeacherUid === uid;
   if (!allowed) return res.status(403).json({ error: 'Only this child\'s parent or teacher can reset the password.' });
 
-  await fsPatch(CRED(String(username)), { hash: hashPassword(String(newPassword)), failedAttempts: 0, lockedUntil: 0 });
-  await audit(String(cred.childUid), uid, 'access', 'password-reset');
+  if (!targetUsername) {
+    targetUsername = String(child.username || '').trim().toLowerCase();
+  }
+  if (!targetUsername) {
+    return res.status(400).json({ error: 'Please choose a username for this child account.' });
+  }
+  const uCheck = isValidUsername(targetUsername);
+  if (!uCheck.ok) return res.status(400).json({ error: uCheck.reason });
+
+  // If the username is new or changed, verify it isn't owned by a different child
+  cred = await fsGet(CRED(targetUsername));
+  if (cred && cred.childUid && String(cred.childUid) !== targetChildUid) {
+    return res.status(409).json({ error: 'That username is already taken by another learner.' });
+  }
+
+  const now = Date.now();
+  const cleanPw = String(newPassword);
+  await fsSet(CRED(targetUsername), {
+    childUid: targetChildUid,
+    hash: hashPassword(cleanPw),
+    savedPassword: cleanPw,
+    createdBy: cred?.createdBy || uid,
+    createdAt: cred?.createdAt || now,
+    updatedAt: now,
+    failedAttempts: 0,
+    lockedUntil: 0,
+  });
+
+  const existingControls = (child.parentalControls && typeof child.parentalControls === 'object')
+    ? child.parentalControls
+    : CHILD_CONTROLS;
+  await fsPatch(USER(targetChildUid), {
+    username: targetUsername,
+    parentalControls: {
+      ...existingControls,
+      savedChildPassword: cleanPw,
+      updatedAt: now,
+      updatedBy: uid,
+    },
+  });
+
+  await audit(targetChildUid, uid, 'access', 'password-reset');
+  return res.json({ ok: true, username: targetUsername, savedPassword: cleanPw });
+});
+
+// ── POST /unlock ────────────────────────────────────────────────────────────────
+// Guardian or provisioning teacher unlocks a child account after failed login attempts.
+learnerAuthRouter.post('/unlock', async (req: Request, res: Response) => {
+  const uid = await callerUid(req);
+  if (!uid) return res.status(401).json({ error: 'Sign in first.' });
+  const { username, childUid } = req.body ?? {};
+  const targetUsername = String(username || '').trim().toLowerCase();
+  if (!targetUsername) return res.status(400).json({ error: 'Username is required.' });
+
+  const cred = await fsGet(CRED(targetUsername));
+  const resolvedChildUid = String(childUid || cred?.childUid || '');
+  if (!resolvedChildUid) return res.status(404).json({ error: 'Account not found.' });
+  const child = await fsGet(USER(resolvedChildUid));
+  const allowed = child && (child.guardianUid === uid || child.provisionedByTeacherUid === uid);
+  if (!allowed) return res.status(403).json({ error: 'Only this child\'s parent or teacher can unlock the account.' });
+
+  if (cred) {
+    await fsPatch(CRED(targetUsername), { failedAttempts: 0, lockedUntil: 0 });
+  }
+  await audit(resolvedChildUid, uid, 'access', 'account-unlock');
   return res.json({ ok: true });
 });
 
