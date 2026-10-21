@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { UserProfile, ArtistAdCampaign as AdCampaign, ArtistAdCreative as AdCreative, ArtistAdPlatform as AdPlatform, ArtistAdObjective as AdObjective, ArtistAdStatus as AdStatus, ArtistServicesSubscription } from '../types';
 import CreatorPromoInbox from './CreatorPromoInbox';
+import { auth } from '../services/firebase';
 
 interface Props {
   currentUser: UserProfile;
@@ -435,6 +436,19 @@ const ArtistServicesTab: React.FC<Props> = ({ currentUser, onNavigate }) => {
       const sub = localStorage.getItem(subKey);
       if (sub) setSubscription(JSON.parse(sub));
     } catch {}
+    // The paid plan lives server-side (written by the Stripe webhook); it wins over the local cache.
+    (async () => {
+      try {
+        const token = await auth.currentUser?.getIdToken();
+        if (!token) return;
+        const res = await fetch('/api/stripe/artist-services-status', { headers: { Authorization: `Bearer ${token}` } });
+        const data = await res.json();
+        if (data?.subscription) {
+          setSubscription(data.subscription);
+          try { localStorage.setItem(subKey, JSON.stringify(data.subscription)); } catch {}
+        }
+      } catch {}
+    })();
   }, [storageKey, subKey]);
 
   const saveCampaigns = (updated: AdCampaign[]) => {
@@ -461,14 +475,17 @@ const ArtistServicesTab: React.FC<Props> = ({ currentUser, onNavigate }) => {
   const handleSubscribe = async (plan: 'PER_EVENT' | 'MONTHLY') => {
     setCheckoutLoading(plan);
     try {
+      const token = await auth.currentUser?.getIdToken();
+      if (!token) { alert('Sign in to continue'); return; }
       const res = await fetch('/api/stripe/artist-services-checkout', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uid: currentUser.uid, plan }),
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ plan }),
       });
       const data = await res.json();
-      if (data.checkoutUrl) window.open(data.checkoutUrl, '_blank');
-    } catch {} finally { setCheckoutLoading(null); }
+      if (data.checkoutUrl) window.location.href = data.checkoutUrl;
+      else alert(data.error || 'Could not start checkout.');
+    } catch { alert('Could not start checkout.'); } finally { setCheckoutLoading(null); }
   };
 
   const activeCampaigns = campaigns.filter(c => c.status === 'ACTIVE').length;

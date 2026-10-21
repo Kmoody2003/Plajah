@@ -35,7 +35,7 @@ export default function ClubMembershipPaywall({ club, onJoined }: Props) {
     setError('');
     try {
       const token = await auth.currentUser.getIdToken();
-      await startClubMembershipCheckout(club.id, club.name, isYearly ? yearly / 12 : monthly, token);
+      await startClubMembershipCheckout(club.id, isYearly ? 'year' : 'month', token);
     } catch (e: any) {
       setError(e?.message ?? 'Checkout failed — please try again');
       setLoading(false);

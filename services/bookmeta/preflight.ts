@@ -211,6 +211,8 @@ export function runPreflight(inp: PreflightInput): PreflightResult {
   if (p.model === 'PAID') {
     const entries = Object.entries(p.prices).filter(([, v]) => v != null);
     if (!entries.length) add(f('price.none', 'error', 'pricing', 'Paid book with no price set.', 'Enter a list price, or switch to Free.'));
+    // Plajah checkout charges in USD, so the USD price is the one readers actually pay here.
+    else if (!(p.prices.USD > 0)) add(f('price.no_usd', 'error', 'pricing', 'Set a USD price: Plajah checkout charges in US dollars.', 'Add a USD price. Prices in other currencies are kept for retailer exports.'));
     for (const [cur, v] of entries) {
       if (!(v > 0)) add(f('price.zero', 'error', 'pricing', `Price in ${cur} is zero or negative.`, 'Set a positive price, or switch the book to Free.'));
       else if (cur === 'USD' && v < PRICE_FLOOR) add(f('price.floor', 'error', 'pricing', `$${v.toFixed(2)} is below the $${PRICE_FLOOR} minimum — card fees would exceed the sale.`, `Price at $${PRICE_FLOOR} or higher, or make the book free.`, 'Stripe minimum economics'));

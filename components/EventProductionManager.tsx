@@ -697,8 +697,6 @@ const PAYROLL_CATEGORY_COLORS: Record<string, string> = {
 };
 
 const PayrollTab: React.FC<{ project: EventProductionProject; onUpdateProject: (p: EventProductionProject) => void }> = ({ project, onUpdateProject }) => {
-  const [payingId, setPayingId] = useState<string | null>(null);
-
   const vendorPayroll = project.vendors.filter(v => (v.quoteCents || v.finalCents) && v.status !== 'CANCELLED');
   const totalPayable = vendorPayroll.reduce((s, v) => s + (v.finalCents ?? v.quoteCents ?? 0), 0);
   const totalDeposits = vendorPayroll.reduce((s, v) => s + (v.depositPaidCents ?? 0), 0);
@@ -710,31 +708,6 @@ const PayrollTab: React.FC<{ project: EventProductionProject; onUpdateProject: (
     onUpdateProject({ ...project, vendors, updatedAt: Date.now() });
   };
 
-  const handleStripePayVendor = async (vendor: EventVendor) => {
-    if (!vendor.email || !(vendor.finalCents || vendor.quoteCents)) return;
-    setPayingId(vendor.id);
-    try {
-      const res = await fetch('/api/stripe/vendor-payment', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          vendorEmail: vendor.email,
-          vendorName: vendor.name,
-          amountCents: vendor.finalCents ?? vendor.quoteCents,
-          eventTitle: project.title,
-          vendorId: vendor.id,
-          projectId: project.id,
-        }),
-      });
-      const data = await res.json();
-      if (data.checkoutUrl) {
-        window.open(data.checkoutUrl, '_blank');
-      } else if (data.success) {
-        handleMarkPaid(vendor.id);
-      }
-    } catch {
-    } finally { setPayingId(null); }
-  };
 
   const budgetByCategory = project.budgetItems.reduce<Record<string, number>>((acc, b) => {
     acc[b.category] = (acc[b.category] ?? 0) + (b.actualCents ?? b.estimatedCents);
@@ -812,16 +785,8 @@ const PayrollTab: React.FC<{ project: EventProductionProject; onUpdateProject: (
                       )}
                     </div>
                     <div className="flex flex-col gap-1.5 shrink-0">
-                      {v.email ? (
-                        <button
-                          onClick={() => handleStripePayVendor(v)}
-                          disabled={payingId === v.id}
-                          className="flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-[#6B0099] to-[#D40055] text-white rounded-xl text-[10px] font-black uppercase hover:brightness-110 transition-all disabled:opacity-50"
-                        >
-                          {payingId === v.id ? <RefreshCw size={10} className="animate-spin" /> : <CreditCard size={10} />}
-                          Pay via Stripe
-                        </button>
-                      ) : null}
+                      {/* "Pay via Stripe" was removed: it called a route that never existed, and paying an
+                          outside vendor needs that vendor onboarded to Stripe Connect first. */}
                       <button
                         onClick={() => handleMarkPaid(v.id)}
                         className="flex items-center gap-1.5 px-3 py-2 bg-white/6 border border-white/10 text-white/50 rounded-xl text-[10px] font-black uppercase hover:text-white transition-all"

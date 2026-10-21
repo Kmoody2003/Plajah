@@ -6,7 +6,8 @@ import {
   Sparkles, Globe, Play, Clapperboard, Tag, AlarmClock, Shield,
   Zap, ShoppingBag, Star,
 } from 'lucide-react';
-import type { Album } from '../types';
+import type { Album, FilmDistribution } from '../types';
+import { legacyFilmFields } from '../services/filmPricing';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -416,9 +417,21 @@ export default function FilmOnboardingWizard({ onLaunchCreator, onCancel }: Prop
 
   const handleLaunch = () => {
     const fmt      = FORMAT_OPTIONS.find(f => f.id === format);
-    const isFAST   = monetize === 'FREE_FAST';
-    const isRental = monetize === 'RENTAL' || monetize === 'HYBRID';
-    const isBuy    = monetize === 'PURCHASE' || monetize === 'HYBRID';
+    // filmDistribution is what AlbumCreator edits and checkout charges (services/filmPricing);
+    // without it the uploader fell back to its free default and the prices set here were lost.
+    const filmDistribution: FilmDistribution = {
+      model: monetize === 'PPV_PREMIERE' ? 'PPV' : (monetize || 'FREE_FAST') as FilmDistribution['model'],
+      rentalPrice: parseFloat(rentalPrice) || 0,
+      purchasePrice: parseFloat(purchasePrice) || 0,
+      rentalWindowHrs: Number(rentalPeriod) as 24 | 48 | 72,
+      release: releaseStrategy || 'NOW',
+      ...(releaseStrategy === 'SCHEDULED' && scheduledDate ? { releaseAt: new Date(scheduledDate).getTime() } : {}),
+      fastChannel: monetize === 'FREE_FAST' || enableFAST,
+      watchParty: enableWatchParty,
+      contentRating: 'NR',
+      delivery: 'DOWNLOAD_OPEN',
+      watermark: true,
+    };
 
     const albumPartial: Partial<Album> = {
       type: 'VIDEO',
@@ -427,9 +440,8 @@ export default function FilmOnboardingWizard({ onLaunchCreator, onCancel }: Prop
       artist: director,
       genre,
       description: synopsis,
-      isPaywalled: !isFAST,
-      isAdSupported: isFAST || enableFAST,
-      price: isBuy ? parseFloat(purchasePrice) || 9.99 : isRental ? parseFloat(rentalPrice) || 4.99 : 0,
+      ...legacyFilmFields(filmDistribution),
+      filmDistribution,
       isScheduled: releaseStrategy === 'SCHEDULED',
       releaseDate: releaseStrategy === 'SCHEDULED' && scheduledDate
         ? new Date(scheduledDate).getTime() : undefined,

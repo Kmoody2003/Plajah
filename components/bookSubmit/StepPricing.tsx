@@ -41,12 +41,18 @@ export default function StepPricing({ draft, updatePricing }: Props) {
                 <div key={cur} className="flex items-center gap-2">
                   <span className="w-14 text-xs font-black text-white/50">{cur}</span>
                   <input aria-label={`Price in ${cur}`} type="number" min={0} step={cur === 'JPY' ? 1 : 0.01} className={`${inputCls} !w-36`} value={p.prices[cur] || ''} onChange={e => setPrice(cur, e.target.value)} />
-                  {currencies.length > 1 && <button type="button" aria-label={`Remove ${cur}`} onClick={() => { const n = { ...p.prices }; delete n[cur]; updatePricing({ prices: n }); }} className="p-2 text-white/30 hover:text-red-300"><X size={15} /></button>}
+                  {currencies.length > 1 && cur !== 'USD' && <button type="button" aria-label={`Remove ${cur}`} onClick={() => { const n = { ...p.prices }; delete n[cur]; updatePricing({ prices: n }); }} className="p-2 text-white/30 hover:text-red-300"><X size={15} /></button>}
                 </div>))}
               {addable.length > 0 && (
                 <select aria-label="Add currency" className={`${inputCls} !w-44 appearance-none`} value="" onChange={e => e.target.value && updatePricing({ prices: { ...p.prices, [e.target.value]: p.prices.USD ?? 0 } })}>
                   <option value="">+ Add a currency</option>{addable.map(c => <option key={c}>{c}</option>)}
                 </select>)}
+              {!currencies.includes('USD') && (
+                <div className="flex items-center gap-2">
+                  <span className="w-14 text-xs font-black text-white/50">USD</span>
+                  <input aria-label="Price in USD" type="number" min={0} step={0.01} className={`${inputCls} !w-36`} value="" onChange={e => setPrice('USD', e.target.value)} />
+                </div>)}
+              <p className={hintCls}>Readers on Plajah pay the USD price. Other currencies are used for retailer exports.</p>
             </div>
           </Card>
 

@@ -42,11 +42,24 @@ env:
     value: "15"
     availability:
       - RUNTIME
-  # Stripe webhook secret for /api/merch/stripe-webhook
-  # Create a separate webhook endpoint in Stripe dashboard pointing to:
-  # https://plajah.com/api/merch/stripe-webhook
+  # Stripe webhook signing secrets (Cloud Secret Manager). Endpoints, in Stripe → Developers → Webhooks:
+  #   https://plajah.com/api/merch/stripe-webhook    (checkout.session.completed)
+  #   https://plajah.com/api/stripe/connect-webhook  (connected accounts: payouts, account.updated, refunds, disputes)
+  - variable: STRIPE_SECRET_KEY
+    secret: STRIPE_SECRET_KEY
+    availability:
+      - RUNTIME
+  # https://plajah.com/api/stripe/webhook (checkout, subscriptions, invoices, refunds, disputes)
+  - variable: STRIPE_WEBHOOK_SECRET
+    secret: STRIPE_WEBHOOK_SECRET
+    availability:
+      - RUNTIME
   - variable: STRIPE_MERCH_WEBHOOK_SECRET
-    value: YOUR_STRIPE_MERCH_WEBHOOK_SECRET_HERE
+    secret: STRIPE_MERCH_WEBHOOK_SECRET
+    availability:
+      - RUNTIME
+  - variable: STRIPE_CONNECT_WEBHOOK_SECRET
+    secret: STRIPE_CONNECT_WEBHOOK_SECRET
     availability:
       - RUNTIME
 

@@ -65,7 +65,6 @@ import { blueskyClientRouter } from './routes/blueskyClient';
 import { bookSubmissionsRouter } from './routes/bookSubmissions';
 import { campaignsRouter } from './routes/campaigns';
 import { createPodRouter, fulfillPodOrderFromStripe } from './routes/pod';
-import { createMusicDownloadRouter } from './routes/musicDownload';
 import { academiaIntegrityRouter } from './routes/academiaIntegrity';
 import { kithSightingsRouter } from './routes/kithSightings';
 import { createAriaSpeakRouter, decideAriaVoiceAccess } from './routes/ariaSpeak';
@@ -145,6 +144,7 @@ import { grossUpCents, giftCentsFromGross, applicationFeePercent } from './servi
 import { createBilling } from './routes/billing';
 import { deriveAlerts as pulseDeriveAlerts, alertAudience as pulseAudience, prefAllows as pulsePrefAllows } from './services/acctPulse';
 import { isFutureRelease } from './services/releases/visibility';
+import { filmDistributionOf, resolveFilmCharge } from './services/filmPricing';
 
 // Load .env.local (development) or .env (production) — no dotenv dependency needed
 for (const envFile of ['.env.local', '.env']) {
@@ -1903,6 +1903,21 @@ async function firestoreCreateOnce(collection: string, id: string, data: Record<
     return 'error';
   } catch { return 'error'; }
 }
+/** Mirror a Stripe subscription's status onto its Plajah+ row(s) (found by stripeSubscriptionId). */
+async function syncPlajahPlusSubscription(sub: any, deleted: boolean): Promise<void> {
+  try {
+    const rows = await fsQueryDocs('plajahPlusSubscriptions', [{ field: 'stripeSubscriptionId', op: 'EQUAL', value: String(sub?.id || '') }], 5);
+    for (const r of rows) {
+      await firestoreWrite('plajahPlusSubscriptions', r.id, {
+        status: deleted ? 'cancelled' : String(sub.status || 'active'),
+        cancelAtPeriodEnd: !!sub.cancel_at_period_end,
+        ...(subPeriodEnd(sub) ? { currentPeriodEnd: subPeriodEnd(sub)! * 1000 } : {}),
+        updatedAt: Date.now(),
+      });
+    }
+  } catch (e: any) { console.error('[Plajah+] subscription sync failed:', e?.message); }
+}
+
 /**
  * The one-time unlock price of a Sanctuary item, read from where the creator published it:
  * sanctuaryPosts (feed posts), sanctuaryContent (vault), sanctuaryGallery (gallery), or a gated
@@ -1941,7 +1956,7 @@ async function syncSanctuarySubscription(sub: any, deleted: boolean): Promise<vo
     : 'ACTIVE';
   await firestorePatchDeep('sanctuaryMemberships', id, {
     status,
-    renewsAt: sub.current_period_end ? sub.current_period_end * 1000 : (m.renewsAt || 0),
+    renewsAt: subPeriodEnd(sub) ? subPeriodEnd(sub)! * 1000 : (m.renewsAt || 0),
     cancelAtPeriodEnd: !!sub.cancel_at_period_end,
     ...(status === 'CANCELLED' ? { cancelledAt: Date.now() } : {}),
   });
@@ -1970,6 +1985,15 @@ const usd = (cents: number) => Math.round(cents || 0) / 100;
 const round2c = (n: number) => Math.round(n * 100) / 100;
 const deepClean = <T,>(o: T): T => JSON.parse(JSON.stringify(o));   // drops undefined (Firestore rejects it)
 const idOf = (x: any): string | undefined => (typeof x === 'string' ? x : x?.id) || undefined;
+// Webhook payloads follow each endpoint's API version. Since 2025-03-31.basil the invoice's subscription
+// and its metadata live under invoice.parent.subscription_details, and current_period_end moved onto
+// the subscription items. These read both shapes so every endpoint version works.
+const invoiceSubscriptionId = (inv: any): string | undefined =>
+  idOf(inv?.subscription) || idOf(inv?.parent?.subscription_details?.subscription);
+const invoiceSubscriptionMeta = (inv: any): Record<string, string> =>
+  inv?.subscription_details?.metadata || inv?.parent?.subscription_details?.metadata || {};
+const subPeriodEnd = (sub: any): number | undefined =>
+  Number(sub?.current_period_end || sub?.items?.data?.[0]?.current_period_end) || undefined;
 
 const _chartCache = new Map<string, { sys: SysAccounts; exp: number }>();
 /** Seed DEFAULT_CHART into acctAccounts (deterministic ids, NEVER overwrites) and return systemKey → accountId. */
@@ -2100,9 +2124,9 @@ async function handleChurchSessionPaid(session: any) {
 
 /** Recurring renewals (and the first monthly payment): one contribution per paid invoice. */
 async function handleChurchInvoicePaid(invoice: any) {
-  const subId = idOf(invoice.subscription);
+  const subId = invoiceSubscriptionId(invoice);
   if (!subId || !(invoice.amount_paid > 0)) return;
-  let meta: Record<string, string> = invoice.subscription_details?.metadata || {};
+  let meta: Record<string, string> = invoiceSubscriptionMeta(invoice);
   if (meta.type !== 'church_donation') {
     try { meta = (await getStripe().subscriptions.retrieve(subId)).metadata || {}; } catch { meta = {}; }
   }
@@ -2113,6 +2137,10 @@ async function handleChurchInvoicePaid(invoice: any) {
     orgId = d.data.churchId; uid = d.data.fromId; fund = d.data.fund;
   }
   if (!orgId) return;
+  // Newer webhook payloads drop invoice.payment_intent/charge; re-read through our pinned-version client.
+  if (!invoice.payment_intent && !invoice.charge && invoice.id) {
+    try { invoice = { ...invoice, ...(await getStripe().invoices.retrieve(invoice.id) as any) }; } catch { /* keep payload */ }
+  }
   await recordOnlineGift({
     orgId, paymentId: idOf(invoice.payment_intent) || invoice.id, chargeId: idOf(invoice.charge),
     amountCents: invoice.amount_paid, createdSec: invoice.status_transitions?.paid_at || invoice.created,
@@ -2659,6 +2687,34 @@ async function startServer() {
             });
           }
 
+          // Off-platform promotion: paid, so queue it for the team to schedule (was charged, never recorded).
+          if (mode === 'payment' && meta.type === 'offplatform') {
+            await firestoreCreateOnce('offPlatformPromotions', `cs_${session.id}`, {
+              userId: meta.uid, tier: meta.tier || 'STANDARD', price: parseFloat(meta.price || '0'),
+              stripePaymentIntentId: (session.payment_intent as string) || '',
+              status: 'PAID_AWAITING_SCHEDULING', createdAt: now,
+            });
+          }
+
+          // Artist Services plan paid: activate it server-side (the tab reads it back on load).
+          if (meta.type === 'artist_services' && meta.uid) {
+            const monthly = meta.plan === 'MONTHLY';
+            await firestoreWrite('artistServicesSubscriptions', meta.uid, {
+              uid: meta.uid, plan: monthly ? 'MONTHLY' : 'PER_EVENT', status: 'ACTIVE',
+              stripeSubscriptionId: monthly ? String(session.subscription || '') : '',
+              monthlyFeeCents: 499, perEventFeeCents: 2999,
+              currentPeriodEnd: monthly ? now + 30 * 86_400_000 : 0,
+              paidAt: now,
+            });
+          }
+
+          // Plajah+ rebind fee paid: move the subscription to the new creator.
+          if (mode === 'payment' && meta.type === 'rebind' && meta.uid && meta.subscriptionId && meta.newCreatorId) {
+            await firestoreWrite('plajahPlusSubscriptions', `${meta.uid}_${meta.subscriptionId}`, {
+              boundCreatorId: meta.newCreatorId, isMorph: false, updatedAt: now,
+            });
+          }
+
           if (mode === 'payment' && meta.type === 'seedraiser_pledge') {
             await firestoreCreate('seedRaiserPledges', {
               campaignId: meta.campaignId,
@@ -2990,23 +3046,43 @@ async function startServer() {
             }
           }
 
+          // ── Fan club: a paid subscription grants the membership (deterministic id = idempotent) ──
+          if (mode === 'subscription' && meta.type === 'club_membership' && meta.clubId && meta.uid) {
+            const memId = `${meta.clubId}_${meta.uid}`;
+            const fresh = await firestoreCreateOnce('clubMemberships', memId, {
+              id: memId, clubId: meta.clubId, userId: meta.uid, role: 'MEMBER', status: 'ACTIVE',
+              displayName: 'Member', photoUrl: '', joinedAt: now, paid: true,
+              stripeSubscriptionId: (session.subscription as string) || '', billingInterval: meta.interval || 'month',
+            });
+            if (fresh === 'created') {
+              const club = await firestoreRead('clubs', meta.clubId);
+              if (club) await firestoreWrite('clubs', meta.clubId, { memberCount: (Number(club.memberCount) || 0) + 1 });
+            }
+          }
+
           // ── Record earnings + process splits for all creator-facing payments ──
+          // Only charges the PLATFORM collects on a creator's behalf belong here. Left out on purpose:
+          //  • destination charges (sanctuary_pledge, store_order, artist_gift, …) already settled to
+          //    the creator, so re-entering this path would pay splits a second time from Plajah;
+          // Plajah+ is a creator earning only when bound to one creator; it used to be logged to the
+          // subscriber. live_tip is a destination charge too: it is logged as paid with no transfers.
           const CREATOR_PAYMENT_TYPES: Record<string, string> = {
+            plajahplus: 'plajahplus',
             live_tip: 'tip',
             digital_sale: 'digital_sale',
             sanctuary_membership: 'sanctuary',
             sanctuary_unlock: 'sanctuary',
-            // sanctuary_pledge is intentionally omitted: it is a Connect Direct
-            // destination charge (money already settled to the creator), so it must
-            // NOT re-enter the platform-collect 90/10 path or it would double-transfer.
-            plajahplus: 'plajahplus',
-            store_order: 'store_order',
             club_membership: 'club',
             seedraiser_pledge: 'seedraiser',
             content_purchase: 'content_purchase',
           };
+          const DESTINATION_CHARGE_TYPES = new Set(['live_tip']);
+          const isDirect = DESTINATION_CHARGE_TYPES.has(meta.type);
           const earningCategory = CREATOR_PAYMENT_TYPES[meta.type];
-          const recipientUid = meta.creatorUid || meta.artistId || meta.uid;
+          // Never fall back to meta.uid — that is the buyer, not the creator.
+          const recipientUid = meta.type === 'plajahplus'
+            ? (meta.isMorph === 'true' ? '' : meta.boundCreatorId || '')
+            : meta.creatorUid || meta.artistId || '';
 
           if (earningCategory && recipientUid && session.amount_total) {
             const grossCents       = session.amount_total;
@@ -3058,12 +3134,13 @@ async function startServer() {
               splits:                JSON.stringify(splitDetails),
               title:                 earningTitle,
               stripePaymentIntentId: session.payment_intent || '',
-              status:                'pending',
+              status:                isDirect ? 'paid_direct' : 'pending',
+              payeeVerified:         true,
               timestamp:             now,
             });
 
             // Fire split transfers if recipients have Connect accounts
-            if (splitDetails.length > 0) {
+            if (!isDirect && splitDetails.length > 0) {
               const stripe = getStripe();
               for (const split of splitDetails) {
                 try {
@@ -3090,22 +3167,21 @@ async function startServer() {
         case 'customer.subscription.updated': {
           const sub = event.data.object;
           await syncSanctuarySubscription(sub, false).catch((e: any) => console.error('[Sanctuary] sub.updated failed:', e?.message));
-          const snap = await fetch(`https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/plajah-prod/documents/plajahPlusSubscriptions?pageSize=5`);
-          // Update status in Firestore based on stripeSubscriptionId
-          // (full query not available via REST easily — rely on client-side sync)
+          await syncPlajahPlusSubscription(sub, false);
           break;
         }
 
         case 'customer.subscription.deleted': {
           const sub = event.data.object;
           await syncSanctuarySubscription(sub, true).catch((e: any) => console.error('[Sanctuary] sub.deleted failed:', e?.message));
+          await syncPlajahPlusSubscription(sub, true);
           console.log('Subscription cancelled:', sub.id);
           break;
         }
 
         case 'invoice.payment_failed': {
           const invoice = event.data.object;
-          console.warn('Payment failed for subscription:', invoice.subscription);
+          console.warn('Payment failed for subscription:', invoiceSubscriptionId(invoice));
           break;
         }
 
@@ -3282,8 +3358,11 @@ async function startServer() {
   const LARGE_BODY_ROUTES = new Set(['/api/ai/anthropic', '/api/ai/gemini', '/api/ai/pokee',
     // Veo/Pixels proxy: /content carries base64 inlineData audio, /generate can carry an image.
     '/api/ai/veo/content', '/api/ai/veo/generate']);
+  // Signed webhooks registered further down verify an HMAC over the exact bytes, so their
+  // own express.raw must see the untouched body — parsing it here broke every signature.
+  const RAW_BODY_ROUTES = new Set(['/api/merch/stripe-webhook', '/api/mux/webhook']);
   app.use((req, res, next) => {
-    if (LARGE_BODY_ROUTES.has(req.path)) return next();
+    if (LARGE_BODY_ROUTES.has(req.path) || RAW_BODY_ROUTES.has(req.path)) return next();
     return tightJson(req, res, next);
   });
   app.use(cookieParser());
@@ -3566,8 +3645,10 @@ async function startServer() {
           limit: 200,
         },
       };
-      const qRes = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      // Service-account auth: creatorEarnings has no client rule, so an unauthenticated query saw nothing.
+      const qRes = await fetch(url, { method: 'POST', headers: { ...(await firestoreAuthHeaders()), 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const docs: any[] = await qRes.json();
+      if (!Array.isArray(docs)) throw new Error('Earnings query failed');
 
       const transactions = docs
         .filter((d: any) => d.document)
@@ -3590,7 +3671,7 @@ async function startServer() {
         });
 
       // Compute summary
-      const CATEGORIES = ['tip','digital_sale','sanctuary','plajahplus','store_order','club','seedraiser','other'];
+      const CATEGORIES = ['content_purchase','sync_license','tip','digital_sale','sanctuary','plajahplus','store_order','club','seedraiser','other'];
       const byCategory: any = {};
       for (const cat of CATEGORIES) byCategory[cat] = { grossCents: 0, netCents: 0, count: 0 };
 
@@ -3600,7 +3681,7 @@ async function startServer() {
         totalFee   += t.platformFeeCents;
         totalNet   += t.creatorNetCents;
         if (t.status === 'pending')    pending  += t.creatorNetCents;
-        if (t.status === 'paid_out')   paidOut  += t.creatorNetCents;
+        if (t.status === 'paid_out' || t.status === 'paid_direct') paidOut += t.creatorNetCents;
         const cat = byCategory[t.category] ?? byCategory.other;
         cat.grossCents += t.grossCents;
         cat.netCents   += t.creatorNetCents;
@@ -4903,19 +4984,15 @@ async function startServer() {
     try {
       const stripe = getStripe();
       const uid: string = req.uid;
-      const { returnUrl } = req.body;
-
-      // Look up customer ID from Firestore
-      const subSnap = await fetch(`https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/plajah-prod/documents/plajahPlusSubscriptions?pageSize=1`);
-      // We'll use the customer ID stored in metadata — but we need to find it.
-      // For now, search Stripe for the customer by metadata.uid
-      const customers = await stripe.customers.search({ query: `metadata['uid']:'${uid}'`, limit: 1 });
-      const customerId = customers.data[0]?.id;
+      // The webhook stores the Stripe customer on the subscriber's Plajah+ row; Checkout never sets
+      // customer metadata, so the old metadata search always came back empty.
+      const subs = await fsQueryDocs('plajahPlusSubscriptions', [{ field: 'subscriberId', op: 'EQUAL', value: uid }], 10);
+      const customerId = subs.map(s => s.data.stripeCustomerId).find((c: any) => typeof c === 'string' && c.startsWith('cus_'));
       if (!customerId) return res.status(404).json({ error: 'No subscription found' });
 
       const session = await stripe.billingPortal.sessions.create({
         customer: customerId,
-        return_url: returnUrl || 'https://gen-lang-client-0665118474.web.app',
+        return_url: trustedRequestOrigin(req),   // never a client-supplied URL
       });
 
       res.json({ url: session.url });
@@ -4935,6 +5012,9 @@ async function startServer() {
       if (!subscriptionId || !newCreatorId) {
         return res.status(400).json({ error: 'subscriptionId and newCreatorId required' });
       }
+      // Only the subscriber can move their own subscription.
+      const subDoc = await firestoreRead('plajahPlusSubscriptions', `${uid}_${subscriptionId}`);
+      if (!subDoc || subDoc.status !== 'active') return res.status(404).json({ error: 'Active Plajah+ subscription not found' });
 
       const successUrl = `${trustedRequestOrigin(req)}/?rebind=success`;
       const cancelUrl  = `${trustedRequestOrigin(req)}/?rebind=cancelled`;
@@ -5133,6 +5213,10 @@ async function startServer() {
       if (!campaignId || !amount || amount < 1) {
         return res.status(400).json({ error: 'campaignId and amount (min $1) required' });
       }
+      // The pledge is the campaign creator's earning — read who that is, never the backer.
+      const campaign = await firestoreGetDeep('seedRaiserCampaigns', String(campaignId));
+      const campaignOwner = String(campaign?.creatorId || '');
+      if (!campaignOwner) return res.status(404).json({ error: 'Campaign not found' });
 
       const session = await stripe.checkout.sessions.create({
         mode: 'payment',
@@ -5150,6 +5234,7 @@ async function startServer() {
         metadata: {
           type: 'seedraiser_pledge',
           uid,
+          creatorUid: campaignOwner,
           campaignId,
           amount: String(amount),
           rewardId: rewardId ?? '',
@@ -5464,35 +5549,48 @@ async function startServer() {
   });
 
   // ── Stripe: Business Order Payment ────────────────────────────────────────
-  app.post('/api/stripe/business-order', authMiddleware, async (req: any, res) => {
+  // (/api/stripe/business-order was removed: it charged client-sent prices to the platform and was
+  // never fulfilled. Business checkout is /api/store/create-order, priced server-side.)
+
+  // ── Artist Services: promo plan (per-event or monthly). Prices are fixed here, never sent by the client.
+  const ARTIST_SERVICE_PLANS = {
+    PER_EVENT: { cents: 2999, label: 'Artist Services — Per Event', mode: 'payment' as const },
+    MONTHLY:   { cents: 499,  label: 'Artist Services — Monthly',   mode: 'subscription' as const },
+  };
+  app.post('/api/stripe/artist-services-checkout', authMiddleware, express.json(), async (req: any, res) => {
     try {
+      const plan = req.body?.plan === 'MONTHLY' ? 'MONTHLY' : req.body?.plan === 'PER_EVENT' ? 'PER_EVENT' : null;
+      if (!plan) return res.status(400).json({ error: 'plan must be PER_EVENT or MONTHLY' });
+      const p = ARTIST_SERVICE_PLANS[plan];
       const stripe = getStripe();
-      const uid: string = req.uid;
-      const { businessId, items } = req.body;
-
-      if (!businessId || !Array.isArray(items) || items.length === 0) {
-        return res.status(400).json({ error: 'businessId and items required' });
-      }
-
-      const lineItems = items.map((item: { name: string; price: number; quantity: number }) => ({
-        price_data: {
-          currency: 'usd',
-          product_data: { name: item.name },
-          unit_amount: Math.round(item.price * 100),
-        },
-        quantity: item.quantity,
-      }));
-
+      const origin = trustedRequestOrigin(req);
       const session = await stripe.checkout.sessions.create({
-        mode: 'payment',
+        mode: p.mode,
         payment_method_types: ['card'],
-        line_items: lineItems,
-        success_url: `${trustedRequestOrigin(req)}/?order=success`,
-        cancel_url:  `${trustedRequestOrigin(req)}/?order=cancelled`,
-        metadata: { type: 'business_order', uid, businessId },
+        line_items: [{
+          price_data: {
+            currency: 'usd',
+            product_data: { name: p.label },
+            unit_amount: p.cents,
+            ...(p.mode === 'subscription' ? { recurring: { interval: 'month' as const } } : {}),
+          },
+          quantity: 1,
+        }],
+        success_url: `${origin}/?artist_services=success`,
+        cancel_url:  `${origin}/?artist_services=cancelled`,
+        metadata: { type: 'artist_services', uid: req.uid, plan },
+        client_reference_id: req.uid,
       });
+      res.json({ checkoutUrl: session.url });
+    } catch (err: any) {
+      console.error('[Stripe] artist-services-checkout error:', err.message);
+      res.status(500).json({ error: err.message || 'Failed to create checkout session' });
+    }
+  });
 
-      res.json({ url: session.url });
+  app.get('/api/stripe/artist-services-status', authMiddleware, async (req: any, res) => {
+    try {
+      res.json({ subscription: await firestoreRead('artistServicesSubscriptions', req.uid) });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
@@ -10230,10 +10328,14 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
   // ── Live Stream Tip — instant one-time payment to creator ────────────────────
   app.post('/api/stripe/live-tip', authMiddleware, express.json(), async (req: any, res) => {
     try {
-      const { creatorUid, creatorStripeAccountId, amount, title } = req.body;
-      if (!creatorUid || !creatorStripeAccountId || typeof amount !== 'number' || amount < 100) {
-        return res.status(400).json({ error: 'amount must be at least $1.00 (100 cents)' });
+      const { creatorUid, amount, title } = req.body;
+      if (!creatorUid || typeof amount !== 'number' || !Number.isInteger(amount) || amount < 100 || amount > 50000) {
+        return res.status(400).json({ error: 'Tip must be between $1.00 and $500.00' });
       }
+      // Pay the creator's OWN connected account (looked up here), never an account id the client sent.
+      const creator = await firestoreRead('users', String(creatorUid));
+      const creatorStripeAccountId = creator?.stripeConnectAccountId as string | undefined;
+      if (!creatorStripeAccountId) return res.status(400).json({ error: 'This creator has not set up payouts yet' });
       const platformFee = Math.round(amount * 0.10); // 10% platform fee
       const stripe = getStripe();
       const session = await stripe.checkout.sessions.create({
@@ -10252,6 +10354,8 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
           transfer_data: { destination: creatorStripeAccountId },
           metadata: { type: 'live_tip', creatorUid, senderUid: req.uid ?? '' },
         },
+        // The webhook reads session.metadata — without this the tip was never recorded.
+        metadata: { type: 'live_tip', creatorUid, uid: req.uid ?? '', title: String(title || '').slice(0, 120) },
         success_url: `${process.env.VITE_APP_URL ?? 'https://plajah.com'}?tip=success`,
         cancel_url: `${process.env.VITE_APP_URL ?? 'https://plajah.com'}?tip=cancelled`,
       });
@@ -10267,12 +10371,18 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
   // seam calls this once it has a paired reader; without hardware it's simply never invoked.
   app.post('/api/stripe/terminal/connection-token', authMiddleware, express.json(), async (req: any, res) => {
     try {
-      const connectedAccountId: string | undefined = req.body?.connectedAccountId;
+      // Only register staff of a business may mint a token, and only on that business's own
+      // connected account (resolved here, like /api/store/create-order) — never an id from the body.
+      const businessUid = String(req.body?.businessUid || '');
+      if (!businessUid) return res.status(400).json({ error: 'businessUid is required' });
+      const actor = await resolveRegisterActor(req, businessUid, 'RING_SALES');
+      if (actor.ok === false) return res.status(actor.status).json({ error: actor.error, code: actor.code });
+      const org = await firestoreRead('organizations', businessUid);
+      let connectedAccountId: string | undefined = org?.stripeAccountId;
+      if (!connectedAccountId) { const u = await firestoreRead('users', businessUid); connectedAccountId = u?.stripeConnectAccountId; }
+      if (!connectedAccountId) return res.status(400).json({ error: 'This shop has not connected Stripe payouts yet.' });
       const stripe = getStripe();
-      const token = await stripe.terminal.connectionTokens.create(
-        {},
-        connectedAccountId ? { stripeAccount: connectedAccountId } : undefined,
-      );
+      const token = await stripe.terminal.connectionTokens.create({}, { stripeAccount: connectedAccountId });
       res.json({ secret: token.secret });
     } catch (err: any) {
       console.error('/api/stripe/terminal/connection-token', err.message);
@@ -11576,10 +11686,17 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
 
   app.post('/api/stripe/club-membership', authMiddleware, express.json(), async (req: any, res) => {
     try {
-      const { clubId, clubName, monthlyPrice } = req.body;
-      if (!clubId || !clubName || typeof monthlyPrice !== 'number' || monthlyPrice <= 0) {
-        return res.status(400).json({ error: 'Missing or invalid club membership parameters' });
-      }
+      // Price, name and owner come from the club the creator published, never the request body.
+      const clubId = String(req.body?.clubId || '');
+      const interval: 'month' | 'year' = req.body?.interval === 'year' ? 'year' : 'month';
+      const club = clubId ? await firestoreGetDeep('clubs', clubId) : null;
+      if (!club) return res.status(404).json({ error: 'Club not found' });
+      const creatorUid = String(club.creatorId || '');
+      const monthly = Number(club.monthlyPrice) || 0;
+      const amount = interval === 'year' ? (Number(club.yearlyPrice) || Math.round(monthly * 10)) : monthly;
+      if (!creatorUid || !(amount > 0)) return res.status(400).json({ error: 'This club is free to join' });
+      if (creatorUid === req.uid) return res.status(400).json({ error: 'You own this club' });
+      const clubName = String(club.name || 'Fan Club');
       const stripe = getStripe();
       const session = await stripe.checkout.sessions.create({
         mode: 'subscription',
@@ -11587,15 +11704,15 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
         line_items: [{
           price_data: {
             currency: 'usd',
-            recurring: { interval: 'month' },
+            recurring: { interval },
             product_data: { name: `${clubName} — Fan Club Membership` },
-            unit_amount: Math.round(monthlyPrice * 100),
+            unit_amount: Math.round(amount * 100),
           },
           quantity: 1,
         }],
         success_url: `${trustedRequestOrigin(req)}/?club_join=${clubId}&session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${trustedRequestOrigin(req)}/?club=${clubId}`,
-        metadata: { type: 'club_membership', clubId, uid: req.uid },
+        metadata: { type: 'club_membership', clubId, uid: req.uid, creatorUid, interval },
         client_reference_id: req.uid,
       });
       res.json({ url: session.url });
@@ -11770,14 +11887,40 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
           resolved = num(f.price);
         } else {
           const tr = (f.tracks?.arrayValue?.values || []).map((v: any) => v.mapValue?.fields).find((t: any) => t?.id?.stringValue === trackId);
-          if (!tr) return res.status(404).json({ error: 'Track not found' });
-          resolved = num(tr.price);
-          resolvedTitle = tr.title?.stringValue || resolvedTitle;
+          if (tr) {
+            resolved = num(tr.price);
+            resolvedTitle = tr.title?.stringValue || resolvedTitle;
+          } else if (f.tracks?.stringValue) {
+            // Some releases store tracks as a JSON string (same fallback as purchase-sync-license).
+            let arr: any[] = [];
+            try { arr = JSON.parse(f.tracks.stringValue) || []; } catch { /* fall through */ }
+            const t = arr.find((x: any) => x?.id === trackId);
+            if (!t) return res.status(404).json({ error: 'Track not found' });
+            resolved = Number(t.price) || 0;
+            resolvedTitle = t.title || resolvedTitle;
+          } else {
+            return res.status(404).json({ error: 'Track not found' });
+          }
         }
         if (!(resolved > 0)) return res.status(400).json({ error: 'This release is not for sale' });
         creatorUid = owner; price = resolved; title = title || resolvedTitle; grant = 'PURCHASE';
         if (kind === 'track') contentId = `${albumId}__${trackId}`;
         delivery = 'PLAJAH_ONLY';
+      }
+      // Films (Taleo): price, grant (rent/buy/PPV), payee, delivery and rental window all come
+      // from the album's filmDistribution — the client only says whether it wants to rent or buy.
+      if (kind === 'film') {
+        const filmId = String(contentId || '');
+        const fdoc = filmId ? await firestoreGetDeep('albums', filmId) : null;
+        if (!fdoc || fdoc.type !== 'VIDEO') return res.status(404).json({ error: 'Film not found' });
+        const owner = String(fdoc.ownerId || fdoc.ownerUid || fdoc.creatorUid || '');
+        if (!owner) return res.status(400).json({ error: 'This film has no owner to pay' });
+        if (owner === req.uid) return res.status(400).json({ error: 'You already own this film — it’s yours' });
+        const charge = resolveFilmCharge(filmDistributionOf(fdoc), grant);
+        if (charge.ok === false) return res.status(400).json({ error: charge.error });
+        creatorUid = owner; price = charge.price; title = String(fdoc.title || title || '');
+        grant = charge.grant; delivery = charge.delivery; watermark = charge.watermark;
+        rentalWindowHrs = charge.rentalWindowHrs;
       }
       if ((kind !== 'film' && kind !== 'book' && kind !== 'album' && kind !== 'track') || !contentId || !creatorUid || typeof price !== 'number' || price <= 0) {
         return res.status(400).json({ error: 'kind (film|book|album|track), contentId, creatorUid and a positive price are required' });
@@ -12074,13 +12217,26 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
   // Calculates platform fee, creates Stripe session, stores order intent in Firestore
   app.post('/api/merch/checkout', authMiddleware, express.json(), async (req: any, res) => {
     try {
-      const { items, artistId, fulfillmentSource } = req.body as {
-        items: { title: string; imageUrl: string; price: number; quantity: number; printfulVariantId?: number; printfulSyncProductId?: number }[];
-        artistId: string;
-        fulfillmentSource: 'printful' | 'gelato';
-      };
+      const { artistId, fulfillmentSource } = req.body as { artistId: string; fulfillmentSource: 'printful' | 'gelato' };
+      const reqItems: { merchId: string; quantity: number }[] = Array.isArray(req.body?.items) ? req.body.items : [];
+      if (!reqItems.length || !artistId) return res.status(400).json({ error: 'Missing items or artistId' });
 
-      if (!items?.length || !artistId) return res.status(400).json({ error: 'Missing items or artistId' });
+      // Every line is re-read from merch/{id}: price, title, image and Printful ids come from what the
+      // artist published, and every item must belong to artistId. The client only picks items + qty.
+      const items: { merchId: string; title: string; imageUrl: string; price: number; quantity: number; printfulVariantId?: number; printfulSyncProductId?: number }[] = [];
+      for (const ri of reqItems.slice(0, 50)) {
+        const qty = Math.floor(Number(ri?.quantity) || 0);
+        if (!ri?.merchId || qty < 1 || qty > 20) return res.status(400).json({ error: 'Each item needs a merchId and a quantity of 1–20' });
+        const m = await firestoreGetDeep('merch', String(ri.merchId));
+        if (!m || String(m.ownerId || m.artistId || '') !== String(artistId)) return res.status(404).json({ error: 'Item not found in this store' });
+        const list = Number(m.price) || 0, sale = Number(m.salePrice) || 0;
+        const price = sale > 0 && sale < list ? sale : list;
+        if (!(price > 0)) return res.status(400).json({ error: `${m.title || 'An item'} is not for sale` });
+        items.push({
+          merchId: String(ri.merchId), title: String(m.title || 'Merch'), imageUrl: String(m.imageUrl || ''), price, quantity: qty,
+          printfulVariantId: m.printfulVariantId, printfulSyncProductId: m.printfulSyncProductId,
+        });
+      }
 
       const stripe = getStripe();
       const origin = trustedRequestOrigin(req);
@@ -13194,5 +13350,3 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
 }
 
 startServer();
-  // Purchased music: server-rendered MP3/AAC/FLAC/WAV with tags + cover art, zipped for albums (licence-checked).
-  app.use('/api/music', express.json({ limit: '4kb' }), createMusicDownloadRouter({ authMiddleware }));

@@ -5,7 +5,8 @@ import {
   Loader2, Film, Zap, Lock, Radio,
 } from 'lucide-react';
 import { fetchUserAlbums, updateAlbum, auth } from '../services/backendService';
-import type { Album } from '../types';
+import type { Album, FilmDistribution } from '../types';
+import { filmDistributionOf, filmOffers, legacyFilmFields } from '../services/filmPricing';
 
 // ── Territory data ────────────────────────────────────────────────────────────
 
@@ -52,13 +53,50 @@ function defaultConfig(): PricingConfig {
   };
 }
 
+// Reads and writes the same `filmDistribution` the uploader and the Taleo Buy/Rent buttons use
+// (services/filmPricing), so a price saved here is the price checkout charges.
 function configFromAlbum(album: Album): PricingConfig {
   const cfg = defaultConfig();
-  if (album.isAdSupported && !album.isPaywalled) cfg.model = 'FAST';
-  else if (album.isPaywalled && album.price) cfg.model = 'PURCHASE';
-  else cfg.model = 'FREE';
-  if (album.price) cfg.purchasePrice = String(album.price);
+  const d = filmDistributionOf(album);
+  if (!d) {
+    cfg.model = album.isAdSupported ? 'FAST' : 'FREE';
+    return cfg;
+  }
+  cfg.model = d.model === 'FREE_FAST' ? (d.fastChannel === false ? 'FREE' : 'FAST')
+    : d.model === 'PPV' ? 'PURCHASE' : d.model;
+  if (d.rentalPrice) cfg.rentalPrice = String(d.rentalPrice);
+  if (d.purchasePrice) cfg.purchasePrice = String(d.purchasePrice);
+  if (d.rentalWindowHrs) cfg.rentalWindow = String(d.rentalWindowHrs) as PricingConfig['rentalWindow'];
+  if (d.promo) {
+    cfg.promoEnabled = true;
+    cfg.promoPrice = String(d.promo.price);
+    cfg.promoStart = d.promo.startsAt ? new Date(d.promo.startsAt).toISOString().slice(0, 10) : '';
+    cfg.promoEnd = d.promo.endsAt ? new Date(d.promo.endsAt).toISOString().slice(0, 10) : '';
+  }
+  cfg.territories = d.territories || [];
+  cfg.membershipGated = !!d.membershipGated;
   return cfg;
+}
+
+function distributionFromConfig(cfg: PricingConfig, prev: FilmDistribution | undefined): FilmDistribution {
+  const num = (s: string) => { const n = parseFloat(s); return Number.isFinite(n) && n > 0 ? n : 0; };
+  const day = (s: string, end = false) => s ? new Date(`${s}T${end ? '23:59:59' : '00:00:00'}`).getTime() : null;
+  const free = cfg.model === 'FREE' || cfg.model === 'FAST';
+  const promoPrice = num(cfg.promoPrice);
+  return {
+    release: 'NOW', delivery: 'DOWNLOAD_OPEN', watermark: true,
+    ...prev,
+    model: free ? 'FREE_FAST' : cfg.model as FilmDistribution['model'],
+    fastChannel: cfg.model === 'FAST' || (!free && !!prev?.fastChannel),
+    rentalPrice: num(cfg.rentalPrice),
+    purchasePrice: num(cfg.purchasePrice),
+    rentalWindowHrs: Number(cfg.rentalWindow) as 24 | 48 | 72,
+    promo: !free && cfg.promoEnabled && promoPrice > 0
+      ? { price: promoPrice, startsAt: day(cfg.promoStart), endsAt: day(cfg.promoEnd, true) }
+      : null,   // null, not undefined: the merge write must clear a removed promo
+    territories: cfg.territories,
+    membershipGated: cfg.membershipGated,
+  };
 }
 
 // ── Model option card ─────────────────────────────────────────────────────────
@@ -118,16 +156,22 @@ export default function FilmPricingManager() {
 
   const handleSave = async () => {
     if (!album || saving) return;
+    const dist = distributionFromConfig(config, album.filmDistribution);
+    const offers = filmOffers(dist);
+    if (dist.model !== 'FREE_FAST' && !offers.buy && !offers.rent) {
+      alert('Enter a price above $0 for the access model you picked.');
+      return;
+    }
     setSaving(true);
-    const isFAST = config.model === 'FAST';
-    const isFree = config.model === 'FREE';
-    const updates: Partial<Album> = {
-      isPaywalled:  !isFAST && !isFree,
-      isAdSupported: isFAST,
-      price: config.model === 'PURCHASE' || config.model === 'HYBRID'
-        ? parseFloat(config.purchasePrice) || 0 : 0,
-    };
-    await updateAlbum(album.id, updates);
+    const updates: Partial<Album> = { ...legacyFilmFields(dist), filmDistribution: dist };
+    try {
+      await updateAlbum(album.id, updates);
+      setAlbums(prev => prev.map(a => a.id === album.id ? { ...a, ...updates } : a));
+    } catch {
+      setSaving(false);
+      alert('Could not save pricing. Check your connection and try again.');
+      return;
+    }
     setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);

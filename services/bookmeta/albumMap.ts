@@ -41,7 +41,8 @@ export function toAlbumPartial(d: BookDraft, submissionId?: string): Partial<Alb
     genre: m.genre,
     description: stripTags(m.description),
     isPaywalled: paid,
-    price: paid ? (p.prices.USD ?? Object.values(p.prices)[0] ?? 0) : 0,
+    // Checkout charges USD; never reuse a EUR/JPY number as dollars.
+    price: paid ? (p.prices.USD ?? 0) : 0,
     isScheduled: future,
     releaseDate: future ? release : undefined,
     ...(future && m.releaseAnnouncement ? { releaseAnnouncement: m.releaseAnnouncement } : {}),

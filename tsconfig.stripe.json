@@ -1,0 +1,21 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "services/filmPricing.ts",
+    "components/FilmPricingManager.tsx",
+    "components/FilmOnboardingWizard.tsx",
+    "components/MovieUXView.tsx",
+    "components/AlbumCreator.tsx",
+    "components/ClubMembershipPaywall.tsx",
+    "components/ArtistServicesTab.tsx",
+    "components/EventProductionManager.tsx",
+    "components/PlajahLivePlayer.tsx",
+    "components/bookSubmit/StepPricing.tsx",
+    "services/bookmeta/albumMap.ts",
+    "services/bookmeta/preflight.ts",
+    "services/patronageAdService.ts",
+    "services/printfulService.ts",
+    "services/stripeService.ts",
+    "server.ts"
+  ]
+}

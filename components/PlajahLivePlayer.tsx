@@ -190,6 +190,7 @@ const PlajahLivePlayer: React.FC<PlajahLivePlayerProps> = ({
       });
       const data = await res.json();
       if (data.url) window.open(data.url, '_blank');
+      else alert(data.error || 'Could not start the tip.');
     } finally {
       setTipping(false);
       setShowTipModal(false);

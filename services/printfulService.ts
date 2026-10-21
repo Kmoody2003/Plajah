@@ -159,13 +159,10 @@ export const createSyncProduct = async (input: CreateSyncProductInput): Promise<
 
 // ─── Checkout ─────────────────────────────────────────────────────────────────
 
+/** The server prices each line from merch/{merchId}; the client only sends what and how many. */
 export interface MerchCheckoutItem {
-  title: string;
-  imageUrl: string;
-  price: number;
+  merchId: string;
   quantity: number;
-  printfulSyncProductId?: number;
-  printfulVariantId?: number;
 }
 
 /** Initiates a Stripe checkout session for merch — redirects to Stripe hosted page */
@@ -181,7 +178,7 @@ export const startMerchCheckout = async (
     body: JSON.stringify({ items, artistId, fulfillmentSource }),
   });
   const data = await res.json();
-  if (!data.url) throw new Error('Checkout session creation failed');
+  if (!data.url) throw new Error(data.error || 'Checkout session creation failed');
   window.location.href = data.url; // redirect to Stripe
 };
 
