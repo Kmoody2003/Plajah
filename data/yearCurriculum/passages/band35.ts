@@ -95,7 +95,7 @@ One worker bee makes only about one-twelfth of a teaspoon of honey in her whole 
 
 But Anansi worried that someone might steal his treasure. He decided to hide the pot at the very top of the tallest tree in the forest. He tied the pot to his belly with a vine and began to climb.
 
-The pot bumped against the trunk. It swung against his legs. Anansi slipped and slid, again and again, but he could not climb higher than his own height.
+The pot bumped against the trunk. It swung against his legs. Anansi slipped and slid, again and again, but he could not climb any higher.
 
 His young son, Ntikuma, had been watching from below. "Father," he called, "why don't you tie the pot on your back? Then you could hold the tree with all your legs."
 
@@ -376,12 +376,12 @@ In 2004, Wangari Maathai won the Nobel Peace Prize. She was the first African wo
     band: '35',
     genre: 'folktale',
     title: 'The Stonecutter',
-    origin: 'Folktale retold — Japan',
-    text: `Long ago in Japan, a stonecutter named Tasaku worked at the foot of a great mountain. Every day he chipped away at the rock with his hammer and chisel. He was strong, but he was not content.
+    origin: 'Folktale retold — told in Japan and Java',
+    text: `Long ago, a stonecutter worked at the foot of a great mountain. Every day he chipped away at the rock with his hammer and chisel. He was strong, but he was not content.
 
-One day, he watched a rich merchant pass by. "If only I were rich," Tasaku sighed. A spirit who lived in the mountain heard him. "Your wish is granted," it whispered. Suddenly Tasaku was a wealthy man living in a fine house.
+One day, he watched a rich merchant pass by. "If only I were rich," the stonecutter sighed. A spirit who lived in the mountain heard him. "Your wish is granted," it whispered. Suddenly the stonecutter was a wealthy man living in a fine house.
 
-He was happy until a prince rode by under a silk umbrella, with servants all around him. "A prince is more powerful than I am," Tasaku grumbled. "I wish to be a prince." And so he was.
+He was happy until a prince rode by under a silk umbrella, with servants all around him. "A prince is more powerful than I am," he grumbled. "I wish to be a prince." And so he was.
 
 But the hot sun beat down on him, even under the umbrella. "The sun is more powerful than a prince," he said. "I wish to be the sun." At once, he blazed in the sky. Then a dark cloud floated in front of him and blocked his light. "I wish to be a cloud!"
 
@@ -389,7 +389,7 @@ As a cloud, he poured rain on the land, but the great mountain stood firm and di
 
 Now he was the mountain, tall and proud. Then he felt a tap, tap, tap at his feet. A tiny stonecutter was chipping away at his rock!
 
-"I wish to be a stonecutter again," Tasaku said softly. The spirit granted his last wish, and from that day on, Tasaku worked happily with his hammer, content at last.`,
+"I wish to be a stonecutter again," he said softly. The spirit granted his last wish, and from that day on, the stonecutter worked happily with his hammer, content at last.`,
     focus: ['theme', 'plot', 'text-structure'],
     vocab: [
       ['chisel', 'a metal tool with a sharp edge for cutting stone or wood'],
@@ -399,13 +399,13 @@ Now he was the mountain, tall and proud. Then he felt a tap, tap, tap at his fee
       ['declared', 'said something firmly and clearly'],
     ],
     questions: [
-      Q("Who granted Tasaku's wishes?", ['A spirit who lived in the mountain', 'The prince', 'The sun', 'A rich merchant'], 'detail', 1),
-      Q('What did Tasaku wish to become right after being the sun?', ['A cloud', 'A prince', 'A mountain', 'A rich man'], 'sequence', 2),
-      Q("At the start, Tasaku 'was not content.' What does content mean?", ['Happy with what you have', 'Strong and powerful', 'Tired from working', 'Rich and famous'], 'vocab', 2),
-      Q('Why does the story repeat the pattern of Tasaku seeing something stronger and wishing to be it?', ['To show that Tasaku is never satisfied, no matter what he becomes', 'To teach facts about the weather', 'To make the story shorter', 'To show that the spirit is getting tired'], 'craft', 3),
+      Q("Who granted the stonecutter's wishes?", ['A spirit who lived in the mountain', 'The prince', 'The sun', 'A rich merchant'], 'detail', 1),
+      Q('What did the stonecutter wish to become right after being the sun?', ['A cloud', 'A prince', 'A mountain', 'A rich man'], 'sequence', 2),
+      Q("At the start, the stonecutter 'was not content.' What does content mean?", ['Happy with what you have', 'Strong and powerful', 'Tired from working', 'Rich and famous'], 'vocab', 2),
+      Q('Why does the story repeat the pattern of the stonecutter seeing something stronger and wishing to be it?', ['To show that the stonecutter is never satisfied, no matter what he becomes', 'To teach facts about the weather', 'To make the story shorter', 'To show that the spirit is getting tired'], 'craft', 3),
       Q('What is the theme of this folktale?', ['Being content with who you are brings more happiness than always wanting more', 'The sun is the most powerful thing of all', 'Hard work always makes you rich', 'Mountains can be broken easily'], 'theme', 3),
     ],
-    writePrompt: 'Was Tasaku happier at the beginning or at the end of the story? Write your opinion, using details from the text to support it.',
+    writePrompt: 'Was the stonecutter happier at the beginning or at the end of the story? Write your opinion, using details from the text to support it.',
   },
   {
     id: '35-11',
@@ -492,9 +492,9 @@ If you added up all its sections, the Great Wall would stretch for thousands of 
     origin: ORIG,
     text: `Priya had practiced "Autumn Song" on her violin every day for two months. She knew every note. She could play it with her eyes closed. But as she stood backstage at the community center in Toronto, peeking through the curtain at rows and rows of folding chairs, her fingers felt like frozen fish sticks.
 
-"I can't do it," she whispered to her grandmother, Nani. "What if I mess up in front of everyone?"
+"I can't do it," she whispered to her grandmother, Paati. "What if I mess up in front of everyone?"
 
-Nani had flown all the way from Chennai to hear her play. She took Priya's cold hands in her warm ones. "When I was your age, I sang at the temple festival," Nani said. "I was so nervous that my knees knocked together like coconuts. Do you know what my teacher told me?"
+Paati had flown all the way from Chennai to hear her play. She took Priya's cold hands in her warm ones. "When I was your age, I sang at the temple festival," Paati said. "I was so nervous that my knees knocked together like coconuts. Do you know what my teacher told me?"
 
 Priya shook her head.
 
@@ -502,13 +502,13 @@ Priya shook her head.
 
 Before Priya could answer, the announcer called her name. Her heart thumped as she walked onto the stage. The lights were bright and hot. She lifted her violin, placed the bow on the string, and searched the audience.
 
-There, in the third row, was Nani, wearing her bright orange shawl. Nani gave a tiny nod.
+There, in the third row, was Paati, wearing her bright orange shawl. Paati gave a tiny nod.
 
 Priya began to play. The first notes were wobbly, but she kept her eyes on the orange shawl. Slowly, her fingers loosened. The music grew stronger, rising and falling like leaves drifting in the wind. When the last note faded, there was a moment of silence. Then the room burst into applause.
 
-Backstage, Priya threw her arms around Nani. "I played for you," she said.
+Backstage, Priya threw her arms around Paati. "I played for you," she said.
 
-Nani laughed. "Next time," she said, "you may have to share."`,
+Paati laughed. "Next time," she said, "you may have to share."`,
     focus: ['character', 'figurative-language', 'theme'],
     vocab: [
       ['backstage', 'the area behind a stage, out of the audience\'s view'],
@@ -518,13 +518,13 @@ Nani laughed. "Next time," she said, "you may have to share."`,
       ['applause', 'clapping to show you liked something'],
     ],
     questions: [
-      Q('Where had Nani traveled from to hear Priya play?', ['Chennai', 'Toronto', 'London', 'The temple festival'], 'detail', 1),
+      Q('Where had Paati traveled from to hear Priya play?', ['Chennai', 'Toronto', 'London', 'The temple festival'], 'detail', 1),
       Q("Priya's fingers 'felt like frozen fish sticks.' What does this simile show?", ['Her fingers felt stiff and cold from nerves', 'She was hungry before the recital', 'She had been playing in the snow', 'Her fingers smelled like fish'], 'craft', 2),
       Q("When the room 'burst into applause,' what did the audience do?", ['Clapped to show they liked the music', 'Left their seats quickly', 'Sat in silence', 'Sang along with the violin'], 'vocab', 2),
-      Q('Why did Priya look for the orange shawl while she played?', ["She was following Nani's advice to play for one person", 'She liked the color orange best', 'She wanted to see if Nani had fallen asleep', 'The shawl was part of the stage lights'], 'inference', 3),
+      Q('Why did Priya look for the orange shawl while she played?', ["She was following Paati's advice to play for one person", 'She liked the color orange best', 'She wanted to see if Paati had fallen asleep', 'The shawl was part of the stage lights'], 'inference', 3),
       Q('Which theme does the story show best?', ['Advice from someone who loves you can help you face your fears', 'Practice is a waste of time', 'Only grown-ups get nervous', 'It is better never to perform in public'], 'theme', 3),
     ],
-    writePrompt: "Nani's advice helped Priya. Write a narrative about Priya's next performance, showing how she uses what she learned in this story. Include her thoughts and feelings.",
+    writePrompt: "Paati's advice helped Priya. Write a narrative about Priya's next performance, showing how she uses what she learned in this story. Include her thoughts and feelings.",
   },
   {
     id: '35-14',
@@ -542,7 +542,7 @@ The sun drives the water cycle. When sunlight warms oceans, lakes and rivers, so
 High in the sky, the air is cooler. As water vapor rises and cools, it turns back into tiny droplets of liquid water. This change is called condensation. Billions of droplets gather around specks of dust, and together they form clouds. You can see condensation at home, too, when drops form on the outside of a cold glass on a hot day.
 
 ## Precipitation: Falling Back Down
-Inside a cloud, droplets bump into each other and join together. When they grow too heavy to float, they fall to the ground as precipitation. Precipitation can be rain, snow, sleet or hail, depending on how cold the air is.
+Inside a cloud, droplets bump into each other and join together. When they grow too heavy to float, they fall to the ground as precipitation. Precipitation can be rain, snow or sleet, depending on how cold the air is. Strong thunderstorms can also make hail.
 
 ## Collection: Back to the Start
 When precipitation reaches the ground, it collects in oceans, lakes and rivers. Some soaks into the soil and becomes groundwater, which can stay underground for a long time. Some freezes into ice and snow on mountaintops. Sooner or later, the sun warms the water again, and the cycle starts over.`,
@@ -846,7 +846,7 @@ with flip-flops barely on.
 My father laughed and joined right in.
 He told about the day
 he chased a neighbor's runaway goat
-through half the town one day.
+through half the town that May.
 
 Then Mom picked up the old guitar
 and strummed a gentle song,
@@ -1109,28 +1109,28 @@ Scientists called volcanologists study volcanoes to help keep people safe. They 
     band: '35',
     genre: 'folktale',
     title: 'The Six Friends and the Elephant',
-    origin: 'Folktale retold — India',
+    origin: 'Parable retold — India (Buddhist and Jain tradition)',
     text: `Long ago, in a village in India, there lived six friends who were blind. They were known throughout the land for their wisdom, and they loved nothing more than a good discussion about the nature of things.
 
 One day, news spread through the village that a traveling merchant had arrived with an elephant. None of the six friends had ever met an elephant. "We must learn what this creature is like," said the eldest. So they asked a boy to lead them to the market square.
 
-The first friend stepped forward, and his hands met the elephant's broad, sturdy side. "Why, an elephant is like a wall!" he announced.
+The first friend stepped forward and wrapped his arms around one of the elephant's legs. It was round, rough and sturdy. "Why, an elephant is like a pillar that holds up a temple roof!" he announced.
 
-The second friend touched one of the elephant's tusks. It was smooth, cool and pointed. "Nonsense," he said. "An elephant is like a spear."
+The second friend caught hold of the elephant's tail as it swished past. "Nonsense," he said. "An elephant is like a broom for sweeping the floor."
 
-The third friend took hold of the elephant's trunk as it swung and curled. "You are both mistaken," he laughed. "An elephant is like a great snake."
+The third friend reached up and felt the elephant's wide, flat ear flapping back and forth. "You are both mistaken," he laughed. "An elephant is like a big basket for sifting rice."
 
-The fourth friend wrapped his arms around one of the elephant's legs. "It is round and thick and rough," he said. "Clearly, an elephant is like a tree trunk."
+The fourth friend touched one of the elephant's tusks. It was smooth, hard and curved. "Clearly," he said, "an elephant is like the blade of a plow."
 
-The fifth friend reached up and felt the elephant's ear flapping back and forth. "An elephant is like a fan," he declared.
+The fifth friend took hold of the trunk as it swung and curled. "An elephant is like a thick, wriggling snake," he declared.
 
-The sixth friend grabbed the elephant's swishing tail. "You are all wrong. An elephant is like a rope!"
+The sixth friend patted the elephant's broad forehead. "You are all wrong. An elephant is like a giant clay pot!"
 
 The six friends began to argue. Their voices grew louder and louder. Each was certain that he alone was right and that the others were foolish.
 
 The merchant, who had been watching, finally spoke. "Friends," he said kindly, "each of you is right, and each of you is wrong. You have each touched only one part of the elephant. If you put together what all of you know, you will understand the whole animal."
 
-The six friends fell quiet. Then, one by one, they began to share. The wall, the spear, the snake, the tree, the fan and the rope came together in their minds, and at last they understood.
+The six friends fell quiet. Then, one by one, they began to share. The pillar, the broom, the basket, the plow, the snake and the pot came together in their minds, and at last they understood.
 
 Since that day, people in India and around the world have told this story to remind us that each person may hold only part of the truth, and that we see more clearly when we listen to one another.`,
     focus: ['theme', 'compare', 'text-structure'],
@@ -1142,7 +1142,7 @@ Since that day, people in India and around the world have told this story to rem
       ['foolish', 'silly or not wise'],
     ],
     questions: [
-      Q('What did the friend who touched the tusk think an elephant was like?', ['A spear', 'A wall', 'A rope', 'A fan'], 'detail', 1),
+      Q('What did the friend who touched the tusk think an elephant was like?', ['The blade of a plow', 'A pillar', 'A broom', 'A clay pot'], 'detail', 1),
       Q("Each friend 'was certain that he alone was right.' What does certain mean?", ['Completely sure', 'Very confused', 'A little worried', 'Quite angry'], 'vocab', 2),
       Q('How does the author organize the middle of the story?', ['Each friend touches a different part and makes a comparison, one after another', 'The story jumps back and forth in time', 'The merchant tells his life story', 'The friends travel to six different villages'], 'craft', 2),
       Q('Why did each friend believe he alone was right?', ['Each trusted only the part he had touched himself', 'The merchant tricked them', 'They could not hear each other', 'The elephant kept changing shape'], 'inference', 3),
@@ -1370,7 +1370,7 @@ When she stepped back into the alley, the cat was waiting, and the green door ha
     band: '35',
     genre: 'folktale',
     title: 'Ma Liang and the Magic Paintbrush',
-    origin: 'Folktale retold — China',
+    origin: 'Retold from a modern Chinese tale (Hong Xuntao, 1955), based on folk motifs',
     text: `Long ago in China, there lived a poor boy named Ma Liang who loved to draw more than anything. He drew with a stick in the dirt, with charcoal on rocks and with his finger in the river sand. But he had no money to buy a brush.
 
 One night, an old man with a long white beard appeared in his dream and handed him a paintbrush that shimmered like moonlight. "Use it to help others," the old man said. When Ma Liang awoke, the brush was in his hand.

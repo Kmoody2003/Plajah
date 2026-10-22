@@ -103,10 +103,10 @@ And its day is done.`,
     band: 'k2',
     genre: 'folktale',
     title: 'Why the Sun and Moon Live in the Sky',
-    origin: 'Folktale retold — Nigeria (West Africa)',
+    origin: 'Folktale retold — Efik-Ibibio (southeastern Nigeria)',
     text: `Long ago, Sun and Moon lived on the land. Their friend was Water.
 
-"Come to our house, Water!" said Sun. Water came in. Fish and frogs came too. Water got up to the top of the house.
+"Come to our house, Water!" said Sun. Water came in. Fish and frogs came too. Water rose up to the top of the house.
 
 Sun and Moon had to go up, up, up. Now they live in the sky.`,
     focus: ['retell', 'cause-effect'],
@@ -272,9 +272,9 @@ And that is that!`,
     origin: 'Folktale retold — Mexico (Aztec)',
     text: `Long ago, a god named Quetzalcoatl walked a long way. He was tired and hungry.
 
-A rabbit had only grass. "You may have my grass," said Rabbit. "I will help you."
+Rabbit had only grass. "You cannot eat grass," said Rabbit. "So I give you all I have — myself!"
 
-The god was glad. He held Rabbit up to the moon so all could see how kind Rabbit was. Look up! Can you see the rabbit?`,
+The god was glad. He did not hurt Rabbit. He put Rabbit up on the moon so all could see how kind Rabbit was. Look up!`,
     focus: ['character', 'lesson'],
     vocab: [
       ['tired', 'needing rest'],
@@ -283,10 +283,10 @@ The god was glad. He held Rabbit up to the moon so all could see how kind Rabbit
       ['moon', 'the bright round light in the night sky'],
     ],
     questions: [
-      { q: 'What did Rabbit offer to share?', choices: ['His grass', 'A cake', 'A hat'], type: 'detail', level: 1 },
+      { q: 'What did Rabbit offer the god?', choices: ['Himself', 'A cake', 'A hat'], type: 'detail', level: 1 },
       { q: 'Where did the god put Rabbit?', choices: ['Up on the moon', 'In a tree', 'In a hole'], type: 'detail', level: 1 },
       { q: 'In the story, "hungry" means…', choices: ['wanting food', 'wanting sleep', 'wanting to play'], type: 'vocab', level: 2 },
-      { q: 'Why did the god hold Rabbit up to the moon?', choices: ['To show how kind Rabbit was', 'Because Rabbit was bad', 'To keep Rabbit cold'], type: 'inference', level: 2 },
+      { q: 'Why did the god put Rabbit up on the moon?', choices: ['To show how kind Rabbit was', 'Because Rabbit was bad', 'To keep Rabbit cold'], type: 'inference', level: 2 },
       { q: 'What is the lesson of the story?', choices: ['Kindness is remembered', 'Grass is yummy', 'Rabbits can fly'], type: 'theme', level: 3 },
     ],
     writePrompt: 'Draw the moon with a rabbit in it. Write one kind thing you can do.',
@@ -910,13 +910,13 @@ On Monday, she told the class the whole story. "Peanut didn't run away," she sai
     genre: 'informational',
     title: 'The Water Cycle',
     origin: ORIGINAL,
-    text: `The water you drink today might once have been part of a cloud, an ocean, or even a dinosaur's puddle! That is because Earth's water moves in a never-ending loop called the water cycle.
+    text: `Have you ever splashed in a puddle? That water is very, very old! Earth's water moves in a never-ending loop called the water cycle, so a dinosaur may have splashed in the same water long ago.
 
 It starts with the sun. The sun warms water in oceans, lakes, and rivers. Some of the water turns into a gas called water vapor and rises into the air. This step is called evaporation.
 
 High in the sky, the air is cool. The water vapor cools and turns back into tiny drops. The drops gather together to make clouds. This step is called condensation.
 
-When the drops in a cloud grow too big and heavy, they fall back to Earth as rain. If the air is very cold, they fall as snow, sleet, or hail. This step is called precipitation.
+When the drops in a cloud grow too big and heavy, they fall back to Earth as rain. If the air is cold, they may fall as snow or sleet. Big thunderstorms can even make hail. This step is called precipitation.
 
 The water lands on the ground and flows into rivers, lakes, and oceans. Then the sun warms it again, and the cycle starts over.
 

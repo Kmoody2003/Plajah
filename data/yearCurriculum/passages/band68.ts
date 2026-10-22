@@ -274,29 +274,27 @@ that couldn't mend.`,
     id: '68-04',
     band: '68',
     genre: 'folktale',
-    title: 'Anansi and the Pot of Wisdom',
-    origin: 'Myth retold — Akan (Ghana, West Africa)',
-    text: `Long ago, when the world was young, Kwaku Anansi the spider believed he was the cleverest creature alive. Some tellers say the sky god Nyame gave him a clay pot holding all the wisdom in the world; others say Anansi gathered it himself, scraping up every clever thought he heard. Either way, one morning Anansi found himself holding a pot so full of wisdom that it hummed.
+    title: 'Anansi Sells Wisdom',
+    origin: 'Folktale retold — Akan (Ghana)',
+    text: `Kwaku Anansi had never doubted that he was the cleverest being in creation, but cleverness, he had noticed, was a slippery thing. Others had it too, in small and irritating amounts. The tortoise could untangle riddles. Even the hare occasionally managed to outwit him. Anansi resolved to put an end to this. Some tellers say the sky god Nyame handed him a clay pot of wisdom; others insist Anansi crept from village to village by night, skimming off every clever thought he overheard. However it happened, he ended up crouched in his web beside a pot so heavy with knowledge that it seemed to glow.
 
-"If I keep this," Anansi said to himself, "no one will ever outwit me again. Every animal will have to come to me for advice, and they will have to pay."
+"When the farmers need to know when to plant, they will come to me," he mused. "When the chief must settle a quarrel, he will come to me. And every one of them will pay."
 
-But a pot is hard to hide. Anansi worried that the squirrel might find it, or the clever tortoise, or even his own children. He decided to hide it where no one could reach: at the very top of the tallest silk-cotton tree in the forest.
+First, though, the pot had to disappear. He considered burying it, but the aardvark dug everywhere. He considered sinking it in the river, but the crocodile never slept. At last he chose the silk-cotton tree that towered over the forest, a crown no animal had ever reached.
 
-He tied the pot to his belly with a vine and began to climb. Yet the pot bumped against the trunk with every step. His legs scrabbled. He slipped down, climbed again, and slipped again. The sun rose higher, and Anansi grew hot, tired, and furious.
+He waited for darkness, knotted a cord around his middle, and slung the pot in front of him. The climb was a disaster from the first stride. The pot wedged itself between his chest and the bark, jammed under his chin, and knocked his knees loose. His legs scrabbled for a grip. Three times he gained a body's length; three times he slid back to the roots. By the time the eastern sky paled, he was scraped, sweating, and furious.
 
-His youngest son, Ntikuma, had been watching from the grass below.
+From the ferns came a small voice. Ntikuma, his youngest, had followed him out.
 
-"Father," Ntikuma called politely, "if you tie the pot on your back instead, it won't get in your way. Then you could hold the tree with all your legs."
+"Father," the boy said, "wouldn't it be easier if the pot were behind you? Then nothing would be between you and the tree."
 
-Anansi stopped. He hung there, astonished. Here he was, carrying every bit of wisdom in the world, and a small boy had solved the problem he could not. His pride burned hotter than the sun.
+Anansi froze, astonished. He, the keeper of all wisdom, had been beaten for an entire night by a problem a child had solved at a glance. His pride burned hotter than the sun now lifting over the hills.
 
-In his anger, Anansi let go of the pot. It tumbled through the branches and shattered on a rock. Wisdom splashed out in every direction. The wind caught it and carried it across the forest, over the rivers, into villages and fields. A little landed on the farmer, a little on the fisher, a little on the grandmother telling stories at night, and a little on every child.
+With a shriek he flung the pot away. It dropped through the leaves and shattered against a root. The dawn wind scooped up what spilled and scattered it over fields and markets, cooking fires and sleeping children, so that everyone woke with a share.
 
-Anansi climbed down slowly. He looked at the broken pieces and then at his son. At last he laughed, because even a spider who has lost a treasure can recognize a good lesson.
+For a while Anansi sulked among the shards. Then, being Anansi, he began to laugh, for even a proud spider can recognize when he has been taught something.
 
-"So," he said, "no one creature can own all the wisdom. Some is always waiting in someone else, even the smallest."
-
-That is why, the Akan people say, when you have a problem, it is worth asking others. Each of us holds only a piece of what is wise. To see the whole, we must share.`,
+The Akan still tell this story when someone believes they hold every answer. Wisdom, they say, is like water spilled on the ground: everyone has a little, and no one can gather it all back.`,
     focus: ['theme', 'character', 'plot'],
     vocab: [
       ['outwit', 'to beat someone by being more clever'],
@@ -313,7 +311,7 @@ That is why, the Akan people say, when you have a problem, it is worth asking ot
         "Nyame ordered him to return it to the sky.",
         "He plans to share it with the tortoise later."),
       Q("What happens immediately after Ntikuma gives his advice?", 'sequence', 2,
-        "Anansi, angry and embarrassed, lets go of the pot.",
+        "Anansi, angry and embarrassed, flings the pot away.",
         "Anansi ties the pot to his back and reaches the top.",
         "The tortoise steals the pot.",
         "Nyame takes the wisdom back to the sky."),
@@ -744,29 +742,29 @@ The United States is not the only country to separate powers, and not every demo
     id: '68-11',
     band: '68',
     genre: 'folktale',
-    title: 'The Stonecutter',
-    origin: 'Myth retold — Japan',
-    text: `In a village at the foot of a great mountain, there once lived a stonecutter named Tasaku. Every day he climbed the slope with his hammer and chisel and cut blocks of stone for houses and temples. The work was hard, but Tasaku sang while he worked, and he was content. People said a spirit lived in the mountain, one that sometimes granted wishes, but Tasaku never thought about it.
+    title: 'The Quarry Wish',
+    origin: 'Folktale retold — told in Japan and Java',
+    text: `High on a mountainside, where the quarries rang from dawn to dusk, there once worked a stonecutter. He split granite for temple steps and garden walls, guiding his chisel along the grain until each block broke clean. The labor was punishing, yet he whistled through it, and most evenings he was content. The old women of the valley claimed a spirit dwelt deep in the rock and now and then answered a wish. He had never asked it for anything.
 
-One day he carried stones to the house of a rich merchant. Through the gate he saw silk cushions, painted screens, and servants carrying trays of food. As he trudged home with an aching back, he sighed, "If only I were rich, I could rest on silk all day."
+That changed the afternoon he delivered a cartload of paving stones to a merchant's estate. Beyond the gate he glimpsed lacquered furniture, a pond of golden carp, and servants gliding past with steaming dishes. He trudged back up the path, his shoulders burning. "What would it be like," he said aloud, "never to lift another stone?"
 
-A voice answered from the mountain: "Your wish is granted."
+Out of the cliff came an answer like grinding gravel: "Find out."
 
-When Tasaku reached home, his hut had become a mansion. For a while he was delighted. Then a prince rode by in a golden carriage, shaded by a servant holding a parasol, and every person in the street bowed low. "Being rich is nothing," Tasaku muttered. "I wish I were a prince."
+His hut was gone. In its place stood a mansion, and he was its master. The novelty lasted a season. Then a prince passed through the valley in a gold-trimmed carriage, a servant holding a parasol above his head, and merchants knelt in the dust as he went by. The stonecutter felt suddenly small. "Wealth bows to rank," he said bitterly. "Let me be a prince."
 
-And he was a prince. But one summer day the sun beat down so fiercely that even his parasol could not keep him cool, and the flowers in his garden wilted. "The sun is mightier than any prince," Tasaku said. "I wish I were the sun."
+So he became one. But that summer brought a drought, and no parasol could shield him from the glare. The lotus blossoms in his courtyard wilted on their stems. "Even princes sweat under the sun," he complained. "Make me the sun."
 
-And he was the sun. He blazed over the land, scorching fields and drying rivers, until a dark cloud drifted in front of him and blocked his rays. "A cloud is stronger than the sun! I wish I were a cloud."
+Now he was the sun, scorching the rice paddies and cracking the riverbeds, delighted by his own fierceness, until a bank of storm clouds rolled beneath him and smothered his light. "Then I will be the cloud," he demanded.
 
-And he was a cloud. He poured rain until rivers flooded and villages washed away. Yet one thing did not move: the mountain stood firm while the water rushed around it. "The mountain is the strongest of all," Tasaku thundered. "I wish I were the mountain."
+As a cloud he hurled down rain for days. Rivers jumped their banks; bridges and huts washed away. Yet through all the flooding, one shape refused to budge. The mountain shrugged off the water as if it were mist. "That," he said, "is real strength."
 
-And he was the mountain, vast and unshakable. Nothing could move him. For the first time he felt truly powerful.
+He became the mountain: vast, silent, unshakable. Storms broke against him and passed. Nothing in the world, he thought, could touch him now.
 
-Then he felt a sharp tapping at his feet. Tap. Tap. Crack. Far below, a small man with a hammer and chisel was cutting stone from his side, block by block, and the mountain could do nothing to stop him.
+Then came a small, steady sound at his base. Clink. Clink. Crack. A man no bigger than an ant was working a chisel into his flank, prying loose block after block, and the mountain could not so much as twitch to stop him.
 
-"What could be mightier than a mountain?" Tasaku whispered. "A stonecutter. I wish I were a stonecutter."
+The stonecutter understood at last what he had traded away. "Give me back my hammer," he said.
 
-The spirit granted his last wish. Tasaku woke in his old hut, his hammer beside him. He climbed the slope, cut his stones, and sang while he worked. And never again did he wish to be anything but himself.`,
+The spirit did. He woke on his straw mat in the old hut, sore-handed and poor, and walked up to the quarry whistling. He never made another wish.`,
     focus: ['theme', 'text-structure', 'plot'],
     vocab: [
       ['chisel', 'a tool with a sharp edge used to cut stone or wood'],
@@ -778,22 +776,22 @@ The spirit granted his last wish. Tasaku woke in his old hut, his hammer beside 
       ['unshakable', 'impossible to move or weaken'],
     ],
     questions: [
-      Q("Which list shows the order of Tasaku's transformations?", 'sequence', 2,
+      Q("Which list shows the order of the stonecutter's transformations?", 'sequence', 2,
         "rich man, prince, sun, cloud, mountain, stonecutter",
         "prince, rich man, cloud, sun, mountain, stonecutter",
         "rich man, sun, prince, mountain, cloud, stonecutter",
         "prince, sun, mountain, cloud, rich man, stonecutter"),
-      Q("At the beginning, Tasaku is described as content. Content means—", 'vocab', 2,
+      Q("At the beginning, the stonecutter is described as content. Content means—", 'vocab', 2,
         "satisfied and at peace",
         "angry and jealous",
         "tired and weak",
         "proud and boastful"),
-      Q("Why does the storyteller repeat the pattern of Tasaku seeing something stronger and wishing to become it?", 'craft', 3,
+      Q("Why does the storyteller repeat the pattern of the stonecutter seeing something stronger and wishing to become it?", 'craft', 3,
         "To build toward the surprising realization that the stonecutter was powerful all along",
         "To show that the spirit grows tired of granting wishes",
         "To teach readers how weather works",
         "To prove that the sun is the strongest force in nature"),
-      Q("Why is Tasaku never satisfied after each wish?", 'inference', 3,
+      Q("Why is the stonecutter never satisfied after each wish?", 'inference', 3,
         "He keeps comparing himself to whatever seems more powerful.",
         "The spirit tricks him by granting the wrong wishes.",
         "His neighbors make fun of each new form.",
@@ -804,7 +802,7 @@ The spirit granted his last wish. Tasaku woke in his old hut, his hammer beside 
         "Nature is more powerful than people.",
         "Wishes should never be spoken aloud."),
     ],
-    writePrompt: "Explain how the story's circular structure, beginning and ending with Tasaku as a stonecutter, helps develop its theme. Use at least two specific moments from the tale.",
+    writePrompt: "Explain how the story's circular structure, beginning and ending with the hero as a stonecutter, helps develop its theme. Use at least two specific moments from the tale.",
   },
   {
     id: '68-12',
@@ -1151,7 +1149,7 @@ Then they set out, traveling only by night so the sun would not see them coming.
 
 As dawn came, the sun lifted his head from the pit. His blazing head passed through the noose, then his shoulders. "Now!" shouted Māui. The brothers hauled on the ropes. The noose snapped tight around the sun, and he roared and thrashed, sending out waves of heat so fierce that the brothers' skin blistered behind their clay walls. Still they held.
 
-Māui leapt forward with the jawbone and struck the sun, again and again. The sun cried out, "Why are you doing this? Do you want to kill Tama-nui-te-rā?" This was the first time anyone had heard the sun's great name.
+Māui leapt forward with the jawbone and struck the sun, again and again. The sun cried out, "Why are you doing this? Do you want to kill Tama-nui-te-rā?" This was the first time anyone had heard the sun's great name. To speak his true name was to admit defeat.
 
 "We do not want to kill you," Māui answered. "We want you to travel slowly, so that people have time to live."
 
@@ -1185,7 +1183,7 @@ And that is why the days are long enough for people to fish, to plant, to cook, 
         "He wants to hurt the sun out of anger.",
         "He prefers to work alone."),
       Q("Why is it significant that the sun reveals his name, Tama-nui-te-rā?", 'craft', 3,
-        "It shows Māui has gained power over the sun and marks a turning point in the struggle.",
+        "It shows the sun has been forced to give in, a turning point in the struggle.",
         "It shows the sun wants to become Māui's brother.",
         "It explains why the sun lives in a pit.",
         "It proves the brothers were wrong to help."),
@@ -1268,7 +1266,7 @@ Minh looked at her, startled. She smiled a little.
         "Mr. Hallworth speaks too quickly.",
         "His mother refuses to listen to him."),
       Q("How does the final line change the reader's understanding of the story?", 'craft', 3,
-        "It reveals that his mother might have caught a partial translation, which makes his honesty even more meaningful.",
+        "It reveals that his mother understood the English all along, so she would have known if he left out the bad news, which makes his honesty even more meaningful.",
         "It shows that his mother is angry about his grade.",
         "It reveals that Mr. Hallworth speaks Vietnamese.",
         "It suggests Minh will stop translating for his family."),
@@ -1459,7 +1457,7 @@ END OF SCENE`,
     id: '68-20',
     band: '68',
     genre: 'biography',
-    title: 'Srinivasa Ramanujan: The Man Who Knew Numbers',
+    title: "Ramanujan's Notebooks",
     origin: ORIG,
     text: `In 1913, a mathematician at Cambridge University named G. H. Hardy opened a letter from India. It came from a 25-year-old clerk he had never heard of, and it was crammed with pages of formulas. Some were already known. Others looked impossible. Hardy's first thought was that the letter might be a hoax. By the end of the evening, he and his colleague J. E. Littlewood had reached a different conclusion: the writer was a genius.
 
@@ -2170,7 +2168,7 @@ In China and in other parts of East Asia, people celebrate this reunion with the
     genre: 'fiction',
     title: 'Undertow',
     origin: ORIG,
-    text: `Dani hadn't been in the ocean since she was nine.
+    text: `Dani hadn't been deeper than her knees in the ocean since she was nine.
 
 Five summers ago, at this same beach, a wave had knocked her down and the water had dragged her away from the shore so fast that the beach seemed to slide away like a picture pulled across a table. She remembered the burn of salt in her throat, her father's arm locking around her chest, and afterward, the way everyone on the sand had stared. She had not gone past her knees since.
 
@@ -2333,7 +2331,7 @@ Scientists caution that neuroplasticity is not magic. The brain does not change 
 
 Katherine Coleman was born in 1918 in White Sulphur Springs, West Virginia. She loved to count: steps, dishes, stars, anything. She was so far ahead of her classmates that she started high school at age ten. But her county, like much of the American South at the time, was segregated, and the local schools for Black students did not go beyond eighth grade. Her father moved the family more than a hundred miles each school year so the children could attend high school on the campus of West Virginia State College, a historically Black college.
 
-Katherine graduated from that college at eighteen with degrees in mathematics and French. One of her professors, W. W. Schieffelin Claytor, among the first African Americans to earn a doctorate in mathematics, encouraged her to become a research mathematician. At the time, few such jobs were open to women, and even fewer to Black women. For years, she worked as a teacher.
+Katherine graduated from that college at eighteen with degrees in mathematics and French. One of her professors, W. W. Schieffelin Claytor, among the first African Americans to earn a doctorate in mathematics, encouraged her to become a research mathematician. At the time, few such jobs were open to women, and even fewer to Black women. For years, she worked as a teacher. Through marriage, she later took the last name Johnson, and she is known today as Katherine Johnson.
 
 ## The Computers of Langley
 
@@ -2704,7 +2702,7 @@ Second, service develops skills that matter in school, work, and life. Volunteer
 
 ## Strengthening Communities
 
-Third, a requirement multiplies the good that students can do. If every eighth grader in a district of five thousand students completes twenty hours, that is one hundred thousand hours of help for local organizations. Research on volunteering suggests that young people who volunteer are more likely to stay involved in their communities as adults. A requirement can be the first step toward a lifelong habit.
+Third, a requirement multiplies the good that students can do. If five thousand eighth graders in a large district each complete twenty hours, that is one hundred thousand hours of help for local organizations. Research on volunteering suggests that young people who volunteer are more likely to stay involved in their communities as adults. A requirement can be the first step toward a lifelong habit.
 
 Requirements like this are not new. The state of Maryland, for example, has required public high school students to complete service learning hours to graduate since the 1990s, and many school districts across the country have similar policies.
 
@@ -2739,7 +2737,7 @@ A community service requirement asks for a small amount of time and offers a lar
         "a long list of rules",
         "a proven fact"),
       Q("Which detail best supports the idea that a requirement can greatly benefit communities?", 'evidence', 3,
-        "Twenty hours from five thousand students equals one hundred thousand hours of help.",
+        "If five thousand eighth graders each complete twenty hours, that is one hundred thousand hours of help.",
         "For a shy student, introducing herself can build confidence.",
         "Teachers may face extra paperwork.",
         "Students read about hunger in a social studies chapter."),
