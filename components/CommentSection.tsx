@@ -60,7 +60,7 @@ interface CommentSectionProps {
   postId?: string;
   postAuthorId?: string;
   /** Collection holding the post + its comments subcollection. Defaults to 'posts'. */
-  postCollection?: 'posts' | 'private_posts';
+  postCollection?: 'posts' | 'private_posts' | 'circle_posts';
   initialCount?: number;
   // Legacy pass-through mode (albums, articles, videos)
   comments?: any[];

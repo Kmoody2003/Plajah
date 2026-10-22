@@ -53,7 +53,8 @@ import { isWindowsApp } from './windowsBridgeService';
 import { followNeedsApproval, requestFollow } from './socialSafetyService';
 // Social perf pass (docs/SOCIAL_MIGRATION_AND_PERF.md): paged chat, throttled typing subdoc, index fallbacks, shared room list.
 import { setTypingStatus as setTypingStatusPerf, snapshotWithIndexFallback, listenToRecentMessages, MESSAGE_PAGE_SIZE, type MessageWindowMeta } from './socialPerf';
-import { resolveAudience, recordStoryView, type StoryAudience } from './storyAudience';
+import { resolveStoryAudience, recordStoryView } from './storyAudience';
+import type { AudienceSpec } from './audienceCore';
 import { sharedSubscription } from './sharedSubscription';
 import { chunkArray, mergeByTimestamp, uniqueIds } from './followGraphUtils';
 import { tryConsume } from './socialRateLimit';
@@ -1562,9 +1563,22 @@ export const resolveEduRole = async (uid: string): Promise<Post['eduRole'] | nul
 
 export const createPost = async (post: Partial<Post>, opts?: { postId?: string }) => {
   if (!auth.currentUser) return;
-  // Private accounts write to `private_posts` (followers-only, rules-enforced) — see services/privatePostsService.ts.
-  const path: 'posts' | 'private_posts' = await import('./privatePostsService')
-    .then(m => m.resolvePostCollectionForMe(post)).catch(() => 'posts' as const);
+  // Audience (services/audienceCore): Public → posts; plain Followers → private_posts (live
+  // follow check); lists / custom / only me → circle_posts readable by audienceUids only.
+  // With no explicit audience, private accounts write to `private_posts` as before.
+  let path: 'posts' | 'private_posts' | 'circle_posts';
+  let audienceFields: Record<string, unknown> = {};
+  if (post.audienceSpec && post.orgAudience !== 'DEPARTMENT') {
+    const r = await import('./audienceService').then(m => m.resolveForMe(post.audienceSpec!));
+    path = r.collection;
+    audienceFields = {
+      audience: r.spec.preset, audienceSpec: r.spec,
+      ...(r.collection === 'circle_posts' ? { audienceUids: r.audienceUids || [], audienceLists: r.audienceLists || [] } : {}),
+    };
+  } else {
+    path = await import('./privatePostsService')
+      .then(m => m.resolvePostCollectionForMe(post)).catch(() => 'posts' as const);
+  }
   const feedPath = 'feed';
   try {
     // "Operate as org": a caller may present the post as an organization the user
@@ -1578,6 +1592,7 @@ export const createPost = async (post: Partial<Post>, opts?: { postId?: string }
     const eduFields = eduRole ? { isEduPost: true, eduRole } : {};
     const postData = removeUndefined({
       ...post,
+      ...audienceFields,
       text: post.text || '',
       authorId: auth.currentUser.uid,
       authorName,
@@ -1588,7 +1603,7 @@ export const createPost = async (post: Partial<Post>, opts?: { postId?: string }
       commentsCount: 0,
       timestamp: Date.now(),
       // Elevate DEPARTMENT-thread posts are private to that department (rules grant read via orgInDepartment).
-      isPublic: post.orgAudience === 'DEPARTMENT' ? false : true,
+      isPublic: post.orgAudience === 'DEPARTMENT' ? false : path === 'posts',
       targetUserId: post.targetUserId || null,
       targetUserName: post.targetUserName || null
     });
@@ -1597,12 +1612,9 @@ export const createPost = async (post: Partial<Post>, opts?: { postId?: string }
     // id already exists (in either collection) it was already published — return it untouched.
     let docRef: { id: string };
     if (opts?.postId) {
-      const sibling = path === 'posts' ? 'private_posts' : 'posts';
-      const [a, b] = await Promise.all([
-        getDoc(doc(db, path, opts.postId)).catch(() => null),
-        getDoc(doc(db, sibling, opts.postId)).catch(() => null),
-      ]);
-      if (a?.exists() || b?.exists()) return opts.postId;
+      const siblings = (['posts', 'private_posts', 'circle_posts'] as const).filter(c => c !== path);
+      const found = await Promise.all([path, ...siblings].map(c => getDoc(doc(db, c, opts.postId!)).catch(() => null)));
+      if (found.some(s => s?.exists())) return opts.postId;
       const ref = doc(db, path, opts.postId);
       await setDoc(ref, postData);
       docRef = ref;
@@ -1614,6 +1626,8 @@ export const createPost = async (post: Partial<Post>, opts?: { postId?: string }
 
     // Department-private posts never mirror to the global feed or notify followers.
     if (post.orgAudience === 'DEPARTMENT') return docRef.id;
+    // List / custom posts: no feed mirror, no follower blast (only the chosen people can open them).
+    if (path === 'circle_posts') return docRef.id;
     // Followers-only posts never mirror to the world-readable `feed` collection.
     if (path === 'private_posts') {
       notifyFollowers(auth.currentUser.uid, 'CONTENT', 'New Post', `${auth.currentUser.displayName} shared a new post`, 'FEED', docRef.id);
@@ -1699,7 +1713,7 @@ export const postFieldsForAssetEmbed = async (
   return fields;
 };
 
-export const updatePost = async (postId: string, updates: Partial<Post>, col: 'posts' | 'private_posts' = 'posts') => {
+export const updatePost = async (postId: string, updates: Partial<Post>, col: 'posts' | 'private_posts' | 'circle_posts' = 'posts') => {
   if (!auth.currentUser) return;
   const path = `${col}/${postId}`;
   try {
@@ -1713,12 +1727,12 @@ export const updatePost = async (postId: string, updates: Partial<Post>, col: 'p
   }
 };
 
-export const deletePost = async (postId: string, col: 'posts' | 'private_posts' = 'posts') => {
+export const deletePost = async (postId: string, col: 'posts' | 'private_posts' | 'circle_posts' = 'posts') => {
   if (!auth.currentUser) return;
   const path = `${col}/${postId}`;
   try {
     await deleteDoc(doc(db, col, postId));
-    if (col === 'private_posts') return; // no feed mirror for private posts
+    if (col !== 'posts') return; // no feed mirror for private / list posts
     // Cascade delete the corresponding feed mirror (created by createPost)
     const feedQuery = query(collection(db, 'feed'), where('originalPostId', '==', postId));
     const feedSnap = await getDocs(feedQuery);
@@ -1761,7 +1775,7 @@ export const togglePostLike = async (postId: string): Promise<{ liked: boolean; 
 };
 
 // --- POST COMMENTS (clean, dedicated functions) ---
-export const subscribeToPostComments = (postId: string, callback: (comments: any[]) => void, col: 'posts' | 'private_posts' = 'posts') => {
+export const subscribeToPostComments = (postId: string, callback: (comments: any[]) => void, col: 'posts' | 'private_posts' | 'circle_posts' = 'posts') => {
   const q = query(
     collection(db, col, postId, 'comments'),
     orderBy('timestamp', 'asc')
@@ -1774,7 +1788,7 @@ export const subscribeToPostComments = (postId: string, callback: (comments: any
 export const addPostComment = async (
   postId: string, text: string, parentId?: string | null,
   videoUrl?: string, audioUrl?: string, gifUrl?: string, imageUrl?: string,
-  col: 'posts' | 'private_posts' = 'posts',
+  col: 'posts' | 'private_posts' | 'circle_posts' = 'posts',
 ) => {
   if (!auth.currentUser) throw new Error('Not authenticated');
   const displayName = auth.currentUser.displayName || 'Anonymous';
@@ -1799,13 +1813,13 @@ export const addPostComment = async (
   return { id: docRef.id, ...commentData };
 };
 
-export const deletePostComment = async (postId: string, commentId: string, col: 'posts' | 'private_posts' = 'posts') => {
+export const deletePostComment = async (postId: string, commentId: string, col: 'posts' | 'private_posts' | 'circle_posts' = 'posts') => {
   if (!auth.currentUser) return;
   await deleteDoc(doc(db, col, postId, 'comments', commentId));
   updateDoc(doc(db, col, postId), { commentsCount: increment(-1) }).catch(() => {});
 };
 
-export const toggleCommentLike = async (postId: string, commentId: string, col: 'posts' | 'private_posts' = 'posts'): Promise<boolean | undefined> => {
+export const toggleCommentLike = async (postId: string, commentId: string, col: 'posts' | 'private_posts' | 'circle_posts' = 'posts'): Promise<boolean | undefined> => {
   if (!auth.currentUser) return;
   const uid = auth.currentUser.uid;
   const ref = doc(db, col, postId, 'comments', commentId);
@@ -11050,17 +11064,19 @@ const STORIES_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 export const createStory = async (
   ownerId: string,
-  data: Omit<Story, 'id' | 'ownerId' | 'timestamp' | 'expiresAt' | 'audience' | 'audienceUids'>,
-  wantedAudience: StoryAudience = 'PUBLIC',
+  data: Omit<Story, 'id' | 'ownerId' | 'timestamp' | 'expiresAt' | 'audience' | 'audienceUids' | 'audienceSpec' | 'audienceLists'>,
+  wantedAudience: AudienceSpec = { preset: 'PUBLIC' },
 ): Promise<string | null> => {
   try {
     const now = Date.now();
     const ref = doc(collection(db, 'stories'));
-    // Private accounts can't post PUBLIC; "Hide story from" narrows PUBLIC to followers.
-    const { audience, audienceUids } = await resolveAudience(ownerId, wantedAudience);
+    // Private accounts can't post PUBLIC; "Hidden from" narrows PUBLIC to followers.
+    const r = await resolveStoryAudience(wantedAudience);
     const story: Story = {
       ...data, id: ref.id, ownerId, timestamp: now, expiresAt: now + STORIES_TTL_MS,
-      audience, ...(audienceUids ? { audienceUids } : {}), isPublic: audience === 'PUBLIC',
+      audience: r.audience, audienceSpec: r.audienceSpec,
+      ...(r.audienceUids ? { audienceUids: r.audienceUids, audienceLists: r.audienceLists || [] } : {}),
+      isPublic: r.audience === 'PUBLIC',
     };
     // No caption / link / background → those keys are undefined, which Firestore rejects.
     await setDoc(ref, removeUndefined(story));

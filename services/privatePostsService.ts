@@ -137,11 +137,11 @@ export function listenPrivatePostsForAuthors(
   return () => unsubs.forEach(u => u());
 }
 
-/** Like toggle for private posts (rules mirror `posts`: likedBy +/- self and likesCount +/-1). */
-export async function togglePrivatePostLike(postId: string): Promise<{ liked: boolean } | undefined> {
+/** Like toggle for private / list posts (rules mirror `posts`: likedBy +/- self and likesCount +/-1). */
+export async function togglePrivatePostLike(postId: string, col: 'private_posts' | 'circle_posts' = 'private_posts'): Promise<{ liked: boolean } | undefined> {
   const u = auth.currentUser;
   if (!u) return;
-  const ref = doc(db, 'private_posts', postId);
+  const ref = doc(db, col, postId);
   const snap = await getDoc(ref);
   if (!snap.exists()) return;
   const liked = ((snap.data().likedBy as string[] | undefined) ?? []).includes(u.uid);
@@ -153,7 +153,7 @@ export async function togglePrivatePostLike(postId: string): Promise<{ liked: bo
 
 /** Comments path for a post doc: `private_posts/{id}/comments` when sourceCollection says so. */
 export const commentsCollectionPath = (postId: string, sourceCollection?: string) =>
-  `${sourceCollection === 'private_posts' ? 'private_posts' : 'posts'}/${postId}/comments`;
+  `${sourceCollection === 'private_posts' || sourceCollection === 'circle_posts' ? sourceCollection : 'posts'}/${postId}/comments`;
 
 // ─── Public <-> private migration ────────────────────────────────────────────
 

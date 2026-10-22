@@ -1741,6 +1741,8 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
         ...embedFields,
         ...(activeOrg ? { authorName: activeOrg.name, authorPhoto: activeOrg.logoUrl || '', authorOrgId: activeOrg.id, orgAudience: orgPostAudience } : {}),
         ...(userProfile?.isPrivate ? { authorIsPrivate: true } : {}),
+        // Facebook-style audience — personal posts only (org posts keep the org's own audience).
+        ...(!activeOrg && data.audienceSpec && data.audienceSpec.preset !== 'PUBLIC' ? { audienceSpec: data.audienceSpec } : {}),
         ...todayFields(),
       } as any,
     );

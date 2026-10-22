@@ -49,8 +49,9 @@ export function readableAuthors(
 }
 
 /** Decide, for one source doc during migration, whether it must move. Department threads never move. */
-export function shouldMovePost(post: { orgAudience?: string | null } | null | undefined): boolean {
-  return post?.orgAudience !== 'DEPARTMENT';
+export function shouldMovePost(post: { orgAudience?: string | null; audience?: string | null } | null | undefined): boolean {
+  // Department threads never move; a post the author explicitly shared with Followers stays put.
+  return post?.orgAudience !== 'DEPARTMENT' && post?.audience !== 'FOLLOWERS';
 }
 
 /** Split post ids into commit-sized batches. */

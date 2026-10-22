@@ -10,10 +10,13 @@ export interface Story {
   photoDisplayDuration?: number; // seconds (default 5)
   timestamp: number;
   expiresAt: number; // timestamp + 24h
-  /** Who it's shared with (services/storyAudience). Missing on stories made before audiences. */
-  audience?: 'PUBLIC' | 'FOLLOWERS' | 'CLOSE_FRIENDS';
+  /** Who it's shared with (services/audienceCore preset). Missing on stories made before audiences. */
+  audience?: 'PUBLIC' | 'FOLLOWERS' | 'CLOSE_FRIENDS' | 'FAMILY' | 'COLLEAGUES' | 'ONLY_ME' | 'CUSTOM';
+  audienceSpec?: import('./services/audienceCore').AudienceSpec;
   /** Viewers a non-public story is shared with — rules read this; never shown in the UI. */
   audienceUids?: string[];
+  /** Lists the audience depends on (owner re-syncs when they change). */
+  audienceLists?: string[];
   /** Legacy (pre-audience) view list. Views now live in stories/{id}/views, owner-only. */
   viewerIds?: string[];
   isPublic?: boolean;
@@ -2320,7 +2323,13 @@ export interface Post {
   commentsCount: number;
   timestamp: number;
   isPublic: boolean;
-  sourceCollection?: 'feed' | 'posts' | 'private_posts';
+  sourceCollection?: 'feed' | 'posts' | 'private_posts' | 'circle_posts';
+  /** Facebook-style audience (services/audienceCore). Absent = account default (public / followers). */
+  audience?: 'PUBLIC' | 'FOLLOWERS' | 'CLOSE_FRIENDS' | 'FAMILY' | 'COLLEAGUES' | 'ONLY_ME' | 'CUSTOM';
+  audienceSpec?: import('./services/audienceCore').AudienceSpec;
+  /** circle_posts only: who can open it (rules read this). */
+  audienceUids?: string[];
+  audienceLists?: string[];
   /** Stamped by the composer for private accounts so PostCard can soft-gate. */
   authorIsPrivate?: boolean;
   albumEmbed?: Album; // For the mini player

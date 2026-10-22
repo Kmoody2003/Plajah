@@ -2136,7 +2136,7 @@ service cloud.firestore {
       allow read: if canReadPrivateAuthor(resource.data.authorId);
       allow create: if isRegisteredUser() && isValidPost(request.resource.data)
                     && request.resource.data.authorId == request.auth.uid
-                    && isPrivateAccount(request.auth.uid);
+                    && (isPrivateAccount(request.auth.uid) || request.resource.data.get('audience', '') == 'FOLLOWERS');
       allow update: if (isAuthenticated() && resource.data.authorId == request.auth.uid && isValidPost(request.resource.data))
                     // like toggles by a viewer who can see the post
                     || (canReadPrivateAuthor(resource.data.authorId)
@@ -2158,6 +2158,48 @@ service cloud.firestore {
                       && canReadPrivateAuthor(get(/databases/$(database)/documents/private_posts/$(postId)).data.authorId);
         allow update, delete: if isAdmin() || (isAuthenticated() && resource.data.get('uid', '') == request.auth.uid)
                       || (isAuthenticated() && get(/databases/$(database)/documents/private_posts/$(postId)).data.authorId == request.auth.uid);
+      }
+    }
+
+    // Facebook-style list / custom audience posts (services/audienceService). Readable only by the
+    // author and the uids in audienceUids — Close Friends, Family, Colleagues, Custom combinations,
+    // Only me. The author's client keeps audienceUids in step with their lists (syncMyAudiences).
+    match /circle_posts/{postId} {
+      function cpLikeToggle() {
+        let before = resource.data.get('likedBy', []);
+        let after = request.resource.data.get('likedBy', []);
+        return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likedBy', 'likesCount']) &&
+          ((request.auth.uid in after && !(request.auth.uid in before) && request.resource.data.likesCount == resource.data.get('likesCount', 0) + 1) ||
+           (!(request.auth.uid in after) && request.auth.uid in before && request.resource.data.likesCount == resource.data.get('likesCount', 0) - 1));
+      }
+      function cpAudienceOk(d) {
+        return d.audienceUids is list && d.audienceUids.size() <= 5000 &&
+          d.audience in ['FOLLOWERS', 'CLOSE_FRIENDS', 'FAMILY', 'COLLEAGUES', 'ONLY_ME', 'CUSTOM'] &&
+          d.get('isPublic', false) == false;
+      }
+      allow read: if isAuthenticated() && (resource.data.authorId == request.auth.uid
+                    || request.auth.uid in resource.data.audienceUids || isAdmin());
+      allow create: if isRegisteredUser() && isValidPost(request.resource.data)
+                    && request.resource.data.authorId == request.auth.uid
+                    && cpAudienceOk(request.resource.data);
+      allow update: if (isAuthenticated() && resource.data.authorId == request.auth.uid
+                        && request.resource.data.authorId == resource.data.authorId
+                        && isValidPost(request.resource.data) && cpAudienceOk(request.resource.data))
+                    || (isAuthenticated() && request.auth.uid in resource.data.audienceUids && (cpLikeToggle() ||
+                        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['commentsCount'])
+                         && (request.resource.data.commentsCount == resource.data.get('commentsCount', 0) + 1
+                             || request.resource.data.commentsCount == resource.data.get('commentsCount', 0) - 1))));
+      allow delete: if isAuthenticated() && (resource.data.authorId == request.auth.uid || isAdmin());
+
+      match /comments/{commentId} {
+        function cpParent() { return get(/databases/$(database)/documents/circle_posts/$(postId)).data; }
+        function cpSees() { return cpParent().authorId == request.auth.uid || request.auth.uid in cpParent().audienceUids; }
+        allow read: if isAuthenticated() && cpSees();
+        allow create: if isRegisteredUser() && isValidPostComment(request.resource.data) && cpSees();
+        allow update: if isAdmin() || (isAuthenticated() && resource.data.get('uid', '') == request.auth.uid)
+                      || (isRegisteredUser() && cpSees() && commentLikeToggleOk());
+        allow delete: if isAdmin() || (isAuthenticated() && resource.data.get('uid', '') == request.auth.uid)
+                      || (isAuthenticated() && cpParent().authorId == request.auth.uid);
       }
     }
 
@@ -4433,7 +4475,7 @@ service cloud.firestore {
     match /stories/{storyId} {
       function storyAudienceOk(d) {
         return (d.audience == 'PUBLIC' && !('audienceUids' in d) && !isPrivateAccount(request.auth.uid)) ||
-          (d.audience in ['FOLLOWERS', 'CLOSE_FRIENDS'] && d.audienceUids is list && d.audienceUids.size() <= 5000);
+          (d.audience in ['FOLLOWERS', 'CLOSE_FRIENDS', 'FAMILY', 'COLLEAGUES', 'CUSTOM'] && d.audienceUids is list && d.audienceUids.size() <= 5000);
       }
       allow read: if isAuthenticated() && (resource.data.ownerId == request.auth.uid ||
         resource.data.audience == 'PUBLIC' || request.auth.uid in resource.data.audienceUids);

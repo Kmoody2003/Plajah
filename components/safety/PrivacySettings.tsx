@@ -7,6 +7,7 @@ import { resumePendingMigration } from '../../services/privatePostsService';
 import { setShareAchievements } from '../../services/publicAchievementsService';
 import FollowRequestsInbox from './FollowRequestsInbox';
 import BlockedAccountsView from './BlockedAccountsView';
+import AudienceSettings from './AudienceSettings';
 
 /**
  * Account privacy: private-account toggle, pending follow requests, and blocked/muted accounts.
@@ -74,6 +75,7 @@ const PrivacySettings: React.FC = () => {
           <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${isPrivate ? 'right-1' : 'left-1'}`} />
         </button>
       </div>
+      <AudienceSettings />
       <div className="flex items-start gap-4 p-5 bg-white/[0.03] border border-white/8 rounded-[1.5rem]">
         <div className="w-9 h-9 rounded-xl bg-[#FF8C00]/10 border border-[#FF8C00]/25 flex items-center justify-center shrink-0">
           <Trophy size={15} className="text-[#FF8C00]" />

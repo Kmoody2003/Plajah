@@ -46,6 +46,8 @@ import { useImpressionTracker } from './feed/posting/useImpressionTracker';
 import { canReply, replyRestrictionLabel, extractMentionUids } from '../services/postingLogic';
 import { editPostText } from '../services/postingService';
 import { togglePrivatePostLike } from '../services/privatePostsService';
+import { AudienceIcon } from './audience/AudienceIcon';
+import { describeAudience } from '../services/audienceCore';
 import { recordPostStat } from '../services/postAnalyticsService';
 import { LoreaExhibitEmbed } from './lorea/exhibits/LoreaNugget';
 
@@ -299,7 +301,10 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser: onVisitUserProp,
   // soft-gate followers-only posts of private accounts (rules cannot enforce this — see
   // services/socialSafetyService.ts). `authorIsPrivate` is stamped on the post by the composer.
   const { hidden: hiddenUids } = useSocialSafety();
-  const authorIsPrivate = !!post.authorIsPrivate;
+  // circle_posts (list / custom audiences) are already rule-gated to their audience — no soft gate.
+  const authorIsPrivate = !!post.authorIsPrivate && post.sourceCollection !== 'circle_posts';
+  const postCol: 'posts' | 'private_posts' | 'circle_posts' =
+    post.sourceCollection === 'private_posts' || post.sourceCollection === 'circle_posts' ? post.sourceCollection : 'posts';
   const viewerFollowsAuthor = useViewerFollows(post.authorId, authorIsPrivate && !isAuthor);
 
   // Impressions + dwell for the author's insights (no-op for own posts / signed-out viewers).
@@ -396,8 +401,8 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser: onVisitUserProp,
     const optimisticLiked = !isLiked;
     setIsLiked(optimisticLiked);
     setLikes(prev => optimisticLiked ? prev + 1 : prev - 1);
-    const result = post.sourceCollection === 'private_posts'
-      ? await togglePrivatePostLike(post.id).then(r => r ? { liked: r.liked, likesCount: Math.max(0, likes + (r.liked === optimisticLiked ? (optimisticLiked ? 1 : -1) : 0)) } : undefined)
+    const result = postCol !== 'posts'
+      ? await togglePrivatePostLike(post.id, postCol).then(r => r ? { liked: r.liked, likesCount: Math.max(0, likes + (r.liked === optimisticLiked ? (optimisticLiked ? 1 : -1) : 0)) } : undefined)
       : await togglePostLike(post.id);
     if (result) {
       setIsLiked(result.liked);
@@ -410,7 +415,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser: onVisitUserProp,
     setIsSaving(true);
     try {
       // editPostText keeps the last 5 revisions + re-derives #hashtags; private_posts docs fall back to a plain update.
-      if (post.sourceCollection === 'private_posts') await updatePost(post.id, { text: editedText }, 'private_posts');
+      if (postCol !== 'posts') await updatePost(post.id, { text: editedText }, postCol);
       else await editPostText(post, editedText);
       setIsEditing(false);
     } catch (error) {
@@ -424,7 +429,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser: onVisitUserProp,
     if (!window.confirm("Are you sure you want to delete this post?")) return;
     setIsDeleting(true);
     try {
-      await deletePost(post.id, post.sourceCollection === 'private_posts' ? 'private_posts' : 'posts');
+      await deletePost(post.id, postCol);
       // The feed should update automatically via onSnapshot
     } catch (error) {
       console.error("Failed to delete post:", error);
@@ -736,8 +741,11 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser: onVisitUserProp,
                   </button>
                 </>
               )}
-              <span className="text-[13px] text-white/30 leading-tight flex-shrink-0">
+              <span className="text-[13px] text-white/30 leading-tight flex-shrink-0 inline-flex items-center gap-1">
                 · {formatDistanceToNow(post.timestamp)}ago
+                {post.audience && post.audience !== 'PUBLIC' && (
+                  <AudienceIcon preset={post.audience} size={11} className="text-white/35" title={isAuthor && post.audienceSpec ? `Shared with: ${describeAudience(post.audienceSpec)}` : undefined} />
+                )}
               </span>
               {todayLive && (
                 <span
@@ -1270,7 +1278,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser: onVisitUserProp,
                 postId={post.id}
                 postAuthorId={post.authorId}
                 readOnly={replyRestricted}
-                postCollection={post.sourceCollection === 'private_posts' ? 'private_posts' : 'posts'}
+                postCollection={postCol}
                 onVisitUser={onVisitUser}
                 onClose={() => setShowComments(false)}
               />
@@ -1292,7 +1300,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser: onVisitUserProp,
                 postId={post.id}
                 postAuthorId={post.authorId}
                 readOnly={replyRestricted}
-                postCollection={post.sourceCollection === 'private_posts' ? 'private_posts' : 'posts'}
+                postCollection={postCol}
                 onVisitUser={onVisitUser}
                 layout="inline"
               />

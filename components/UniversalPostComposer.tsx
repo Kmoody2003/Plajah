@@ -8,6 +8,9 @@ import VoiceRecorder from './VoiceRecorder';
 import { Album, IPWorld, UserProfile, Post } from '../types';
 import { QuotedSnapshotCard } from './feed/posting/QuotedPostEmbed';
 import { ReplyAudiencePicker, AltTextPanel, DraftsAndScheduledPanel } from './feed/posting/ComposerPanels';
+import AudiencePicker from './audience/AudiencePicker';
+import { AudienceIcon } from './audience/AudienceIcon';
+import { describeAudience, getAudienceDefaults, type AudienceSpec } from '../services/audienceService';
 import {
   activeHashtagQuery, buildQuoteSnapshot, resolveQuoteTarget, isDraftMeaningful, validateSchedule,
   extractHashtags, composerPostExtras, linkPreviewMedia,
@@ -89,6 +92,8 @@ export interface ComposerPostData {
   /** When set, the post's media is locked behind the author's Sanctuary. */
   sanctuaryGate?: import('../types').SanctuaryGate;
   // ── postingPower fields (all optional; undefined when the mode is off) ──
+  /** Who can see the post (Facebook-style). Absent = Public / the account's default routing. */
+  audienceSpec?: AudienceSpec;
   /** Who may reply. Absent/'everyone' = unrestricted. */
   replyAudience?: ReplyAudience;
   /** Normalised tags parsed from `text`. */
@@ -299,6 +304,15 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
   // ── postingPower state (inert unless the `postingPower` prop is set) ───────
   const uid = currentUser?.uid;
   const [replyAudience, setReplyAudience] = useState<ReplyAudience>('everyone');
+  // Who can see it — starts at the account default (Settings → Privacy → Who sees what).
+  const [audience, setAudience] = useState<AudienceSpec>({ preset: 'PUBLIC' });
+  const [showAudience, setShowAudience] = useState(false);
+  useEffect(() => {
+    if (!postingPower || !uid) return;
+    let live = true;
+    getAudienceDefaults(uid).then(d => { if (live) setAudience(d.posts); }).catch(() => {});
+    return () => { live = false; };
+  }, [uid, postingPower]);
   const [showLater, setShowLater]         = useState(false);
   const [showSchedule, setShowSchedule]   = useState(false);
   const [scheduleAt, setScheduleAt]       = useState('');
@@ -770,6 +784,10 @@ Post it anyway?`)) return;
         const when = new Date(scheduleAt).getTime();
         const v = validateSchedule(when, Date.now());
         if (!v.ok) { setNotice(v.reason || 'Pick a valid time'); return; }
+        if (audience.preset !== 'PUBLIC') {
+          setNotice('Scheduled posts go out to your usual audience. Post now to share with a list or custom audience.');
+          return;
+        }
         if (poll || dataViz || assetEmbed || exclusive || sanctuaryGate || isLong) {
           setNotice('Scheduling supports text, photos and GIFs only (no polls, embeds, exclusive or gated posts, or long threads).');
           return;
@@ -798,6 +816,7 @@ Post it anyway?`)) return;
         ...(handlesFediverse && crossPost && hasFediverse && fediIds.length ? { fediverse: { accountIds: fediIds, ...(bskyOverride !== undefined && bskyOverride.trim() ? { override: bskyOverride } : {}) } } : {}),
         ...(postingPower ? {
           ...(replyAudience !== 'everyone' ? { replyAudience } : {}),
+          audienceSpec: audience,
           ...(extractHashtags(text).length ? { hashtags: extractHashtags(text) } : {}),
           ...(linkPreview ? { linkPreview } : {}),
         } : {}),
@@ -1686,7 +1705,19 @@ Post it anyway?`)) return;
               title="Drafts and scheduled posts"
               className={`p-2 rounded-xl transition-all ${showLater ? 'text-small-orange bg-white/10' : 'text-white/40 hover:text-white hover:bg-white/8'}`}
             ><FileText size={16} /></button>
+            <button
+              type="button"
+              onClick={() => setShowAudience(true)}
+              title={`Who can see this: ${describeAudience(audience)}`}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest text-white/50 hover:text-white hover:bg-white/8 max-w-[150px]"
+            >
+              <AudienceIcon preset={audience.preset} size={13} />
+              <span className="truncate">{describeAudience(audience)}</span>
+            </button>
             <ReplyAudiencePicker value={replyAudience} onChange={setReplyAudience} />
+            {showAudience && uid && (
+              <AudiencePicker ownerId={uid} kind="post" value={audience} onChange={setAudience} onClose={() => setShowAudience(false)} />
+            )}
           </>
         )}
 

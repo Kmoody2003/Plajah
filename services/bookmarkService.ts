@@ -35,7 +35,7 @@ export interface BookmarkablePost {
   authorName?: string;
   authorPhoto?: string;
   text?: string;
-  sourceCollection?: 'feed' | 'posts' | 'private_posts';
+  sourceCollection?: 'feed' | 'posts' | 'private_posts' | 'circle_posts';
   media?: { type?: string; url?: string; thumbnail?: string }[];
 }
 

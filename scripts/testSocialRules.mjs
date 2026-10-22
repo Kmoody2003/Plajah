@@ -30,6 +30,7 @@ function mocks() {
     m.push({ function: 'exists', args: [{ exactValue: `${DB}/users/${u}` }], result: { value: true } });
     m.push({ function: 'get', args: [{ exactValue: `${DB}/users/${u}` }], result: { value: { data: { isPrivate: u === PRIV } } } });
   }
+  m.push({ function: 'get', args: [{ exactValue: `${DB}/circle_posts/cp1` }], result: { value: { data: { authorId: ME, audience: 'FAMILY', audienceUids: [OTHER] } } } });
   m.push({ function: 'get', args: [{ exactValue: `${DB}/stories/s1` }], result: { value: { data: { ownerId: ME, audience: 'PUBLIC' } } } });
   m.push({ function: 'get', args: [{ exactValue: `${DB}/stories/s2` }], result: { value: { data: { ownerId: ME, audience: 'FOLLOWERS', audienceUids: [OTHER] } } } });
   return m;
@@ -138,6 +139,34 @@ t('owner reads viewers', 'ALLOW', ME, 'get', V(AUTHOR), { existing: { viewerId: 
 t('stranger reads viewers', 'DENY', OTHER, 'get', V(AUTHOR), { existing: { viewerId: AUTHOR, at: now } });
 t('edit my close friends', 'ALLOW', ME, 'create', `${DB}/users/${ME}/storyCircle/lists`, { data: { closeFriends: [OTHER], hiddenFrom: [] } });
 t('read someone elses close friends', 'DENY', OTHER, 'get', `${DB}/users/${ME}/storyCircle/lists`, { existing: { closeFriends: [OTHER], hiddenFrom: [] } });
+
+// Facebook-style audiences: circle_posts (lists / custom / only me) + Followers-only posts
+const cp = (o = {}) => ({ authorId: ME, authorName: 'Me', authorPhoto: '', text: 'family bbq', timestamp: now, likesCount: 0, commentsCount: 0, isPublic: false,
+  audience: 'FAMILY', audienceSpec: { preset: 'FAMILY' }, audienceUids: [OTHER], audienceLists: ['family', 'hiddenFrom'], ...o });
+const CP = `${DB}/circle_posts/cp1`;
+t('post to Family', 'ALLOW', ME, 'create', CP, { data: cp() });
+t('post Only me', 'ALLOW', ME, 'create', CP, { data: cp({ audience: 'ONLY_ME', audienceSpec: { preset: 'ONLY_ME' }, audienceUids: [] }) });
+t('custom combo post', 'ALLOW', ME, 'create', CP, { data: cp({ audience: 'CUSTOM', audienceUids: [OTHER, AUTHOR] }) });
+t('list post marked public', 'DENY', ME, 'create', CP, { data: cp({ isPublic: true }) });
+t('list post as someone else', 'DENY', ME, 'create', CP, { data: cp({ authorId: OTHER }) });
+t('family member reads', 'ALLOW', OTHER, 'get', CP, { existing: cp() });
+t('outsider reads family post', 'DENY', AUTHOR, 'get', CP, { existing: cp() });
+t('signed-out reads family post', 'DENY', null, 'get', CP, { existing: cp() });
+t('author reads own Only me', 'ALLOW', ME, 'get', CP, { existing: cp({ audience: 'ONLY_ME', audienceUids: [] }) });
+t('author re-syncs audience', 'ALLOW', ME, 'update', CP, { existing: cp(), data: cp({ audienceUids: [OTHER, AUTHOR] }) });
+t('viewer adds self to audience', 'DENY', AUTHOR, 'update', CP, { existing: cp(), data: cp({ audienceUids: [OTHER, AUTHOR] }) });
+t('family member likes', 'ALLOW', OTHER, 'update', CP, { existing: cp(), data: cp({ likedBy: [OTHER], likesCount: 1 }) });
+t('outsider likes', 'DENY', AUTHOR, 'update', CP, { existing: cp(), data: cp({ likedBy: [AUTHOR], likesCount: 1 }) });
+t('family member comments', 'ALLOW', OTHER, 'create', `${CP}/comments/c1`, { data: pc({ uid: OTHER, authorId: OTHER }) });
+t('outsider comments', 'DENY', AUTHOR, 'create', `${CP}/comments/c1`, { data: pc({ uid: AUTHOR, authorId: AUTHOR }) });
+t('outsider reads comments', 'DENY', AUTHOR, 'get', `${CP}/comments/c1`, { existing: pc({ uid: OTHER }) });
+const pp = (o = {}) => ({ authorId: ME, authorName: 'Me', authorPhoto: '', text: 'followers only', timestamp: now, isPublic: false, ...o });
+t('public account posts Followers-only', 'ALLOW', ME, 'create', `${DB}/private_posts/pp1`, { data: pp({ audience: 'FOLLOWERS' }) });
+t('public account private post w/o audience', 'DENY', ME, 'create', `${DB}/private_posts/pp1`, { data: pp() });
+t('family story', 'ALLOW', ME, 'create', S, { data: fs_({ audience: 'FAMILY' }) });
+t('custom story', 'ALLOW', ME, 'create', S, { data: fs_({ audience: 'CUSTOM' }) });
+t('my audience defaults', 'ALLOW', ME, 'create', `${DB}/users/${ME}/prefs/audience`, { data: { posts: { preset: 'FAMILY' } } });
+t('read others audience defaults', 'DENY', OTHER, 'get', `${DB}/users/${ME}/prefs/audience`, { existing: { posts: { preset: 'FAMILY' } } });
 
 // live_streams chat + signalling (was: any signed-in user, any sender)
 t('stream chat as me', 'ALLOW', ME, 'create', `${DB}/live_streams/ls1/chat/c1`, { data: { uid: ME, text: 'hi' } });

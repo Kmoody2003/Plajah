@@ -45,6 +45,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { fetchPrivatePostsForAuthors } from './privatePostsService';
+import { fetchCirclePostsForMe } from './audienceService';
 import { onSnapshot } from './safeSnapshot';
 import { filterPostsForViewer } from './contentSafety';
 import type { Post, UserProfile } from '../types';
@@ -263,8 +264,12 @@ export function useFeedPages(opts: UseFeedPagesOptions): UseFeedPagesResult {
     if (!enabled || kind !== 'following' || !authorsKey) return;
     let live = true;
     const authors = authorsKey.split(',');
-    fetchPrivatePostsForAuthors(authors, authors, null, 30)
-      .then(ps => { if (live) setPrivRaw(ps); })
+    // Followers-only posts of followed private accounts + anything shared with me via lists / custom.
+    Promise.all([
+      fetchPrivatePostsForAuthors(authors, authors, null, 30).catch(() => [] as Post[]),
+      fetchCirclePostsForMe(30),
+    ])
+      .then(([ps, cs]) => { if (live) setPrivRaw([...ps, ...cs]); })
       .catch(() => { /* optional layer */ });
     return () => { live = false; };
   }, [kind, authorsKey, enabled, nonce]);

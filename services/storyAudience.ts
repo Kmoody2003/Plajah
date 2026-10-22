@@ -1,120 +1,58 @@
-// storyAudience — who can see a story, Instagram/YouTube-style.
+// storyAudience — who can see a story. Uses the same audiences as posts (services/audienceCore):
+// Public · Followers · Close Friends · Family · Colleagues · Custom, plus the account-wide
+// "Hidden from" list. A private account can't post Public.
 //
-//   PUBLIC         anyone signed in (public accounts only)
-//   FOLLOWERS      your followers — the only "wide" option for a private account
-//   CLOSE_FRIENDS  your Close Friends list (green ring)
-//
-// Plus "Hide story from": people on that list never get your stories, whatever the audience.
-//
-// Firestore rules can't check "does the viewer follow the owner" on a list query, so a
-// non-public story carries `audienceUids` — the viewers it was shared with — and the tray
+// Firestore rules can't check "does the viewer follow the owner" on a list query, so every
+// non-public story carries `audienceUids` — the viewers it is shared with — and the tray
 // queries `array-contains me`. The owner's client keeps that list current while the story
-// lives: approving a follow request adds the new follower, blocking someone removes them,
-// and switching the account to private narrows PUBLIC stories to followers.
+// lives (services/audienceService syncMyAudiences: list edits, follow approvals, blocks,
+// sign-in). Going private narrows live Public stories to followers.
 //
 // Views are private to the owner: stories/{id}/views/{viewerUid} (owner + that viewer read),
 // and each viewer's own "seen" marks live in users/{me}/storySeen/{storyId} for the ring.
-//
-// Lists: users/{uid}/storyCircle/lists { closeFriends: string[], hiddenFrom: string[] } (owner-only).
 
 import { db, auth } from './firebase';
-import {
-  collection, doc, getDoc, getDocs, query, where, orderBy, setDoc, writeBatch, arrayUnion, arrayRemove,
-} from 'firebase/firestore';
+import { collection, doc, getDocs, query, where, orderBy, writeBatch } from 'firebase/firestore';
 import { onSnapshot } from './safeSnapshot';
+import { resolveForMe, syncMyAudiences, getAudienceLists, saveAudienceLists, FOLLOWERS_SPEC, type AudienceSpec } from './audienceService';
 
-export type StoryAudience = 'PUBLIC' | 'FOLLOWERS' | 'CLOSE_FRIENDS';
-export interface StoryCircle { closeFriends: string[]; hiddenFrom: string[] }
+/** Stored on the story doc: the preset that was applied (CUSTOM covers combinations). */
+export type StoryAudience = AudienceSpec['preset'];
 
-/** Rules cap the list so a story doc stays well under Firestore's 1 MiB limit. */
-export const MAX_AUDIENCE = 5000;
+export interface ResolvedStoryAudience { audience: StoryAudience; audienceSpec: AudienceSpec; audienceUids?: string[]; audienceLists?: string[] }
 
-const circleRef = (uid: string) => doc(db, 'users', uid, 'storyCircle', 'lists');
-
-export async function getStoryCircle(uid: string): Promise<StoryCircle> {
-  try {
-    const s = await getDoc(circleRef(uid));
-    const d = (s.data() || {}) as Partial<StoryCircle>;
-    return { closeFriends: d.closeFriends || [], hiddenFrom: d.hiddenFrom || [] };
-  } catch {
-    return { closeFriends: [], hiddenFrom: [] };
-  }
+/** Resolve the audience for a new story by the signed-in user. */
+export async function resolveStoryAudience(spec: AudienceSpec): Promise<ResolvedStoryAudience> {
+  const r = await resolveForMe(spec, { story: true });
+  if (r.collection === 'posts') return { audience: 'PUBLIC', audienceSpec: r.spec };
+  return { audience: r.spec.preset, audienceSpec: r.spec, audienceUids: r.audienceUids || [], audienceLists: r.audienceLists };
 }
 
-export async function saveStoryCircle(uid: string, circle: StoryCircle): Promise<void> {
-  await setDoc(circleRef(uid), {
-    closeFriends: [...new Set(circle.closeFriends)].slice(0, MAX_AUDIENCE),
-    hiddenFrom: [...new Set(circle.hiddenFrom)].slice(0, MAX_AUDIENCE),
-  });
-}
-
-export async function isPrivateAccount(uid: string): Promise<boolean> {
-  try { return (await getDoc(doc(db, 'users', uid))).data()?.isPrivate === true; } catch { return false; }
-}
-
-async function followerUids(uid: string): Promise<string[]> {
-  const snap = await getDocs(query(collection(db, 'follows'), where('followingId', '==', uid)));
-  return snap.docs.map(d => d.data().followerId as string).filter(Boolean);
-}
-
-export interface ResolvedAudience { audience: StoryAudience; audienceUids?: string[]; narrowed?: 'private' | 'hidden' }
-
-/** Resolve what a new story is shared with. A private account can't post PUBLIC, and a
- *  "Hide story from" list narrows PUBLIC to followers (a public story can't exclude anyone). */
-export async function resolveAudience(ownerId: string, wanted: StoryAudience): Promise<ResolvedAudience> {
-  const [priv, circle] = await Promise.all([isPrivateAccount(ownerId), getStoryCircle(ownerId)]);
-  const hidden = new Set(circle.hiddenFrom);
-  let audience = wanted;
-  let narrowed: ResolvedAudience['narrowed'];
-  if (audience === 'PUBLIC' && priv) { audience = 'FOLLOWERS'; narrowed = 'private'; }
-  if (audience === 'PUBLIC' && hidden.size) { audience = 'FOLLOWERS'; narrowed = 'hidden'; }
-  if (audience === 'PUBLIC') return { audience };
-  const base = audience === 'CLOSE_FRIENDS' ? circle.closeFriends : await followerUids(ownerId);
-  const audienceUids = [...new Set(base)].filter(u => u && u !== ownerId && !hidden.has(u)).slice(0, MAX_AUDIENCE);
-  return { audience, audienceUids, ...(narrowed ? { narrowed } : {}) };
-}
-
-/** The signed-in owner's stories that are still live. */
-async function myLiveStories(ownerId: string) {
-  // Same shape as the own-stories listener, so it rides the (ownerId, expiresAt, timestamp) index.
-  const snap = await getDocs(query(collection(db, 'stories'), where('ownerId', '==', ownerId), where('expiresAt', '>', Date.now()),
-    orderBy('expiresAt'), orderBy('timestamp', 'desc')));
-  return snap.docs;
-}
-
-/** Follow request approved → the new follower sees my live FOLLOWERS stories (as on Instagram). */
-export async function addFollowerToLiveStories(followerUid: string): Promise<void> {
-  const me = auth.currentUser?.uid;
-  if (!me) return;
-  const circle = await getStoryCircle(me);
-  if (circle.hiddenFrom.includes(followerUid)) return;
-  const docs = (await myLiveStories(me)).filter(d => d.data().audience === 'FOLLOWERS');
-  if (!docs.length) return;
-  const b = writeBatch(db);
-  docs.forEach(d => b.update(d.ref, { audienceUids: arrayUnion(followerUid) }));
-  await b.commit();
-}
-
-/** Blocked, removed, or hidden → drop them from every live story's audience. */
+/** Blocked → off every list, and out of every live story / list post (as on Instagram). */
 export async function removeFromLiveStories(uid: string): Promise<void> {
   const me = auth.currentUser?.uid;
   if (!me) return;
-  const docs = (await myLiveStories(me)).filter(d => Array.isArray(d.data().audienceUids));
-  if (!docs.length) return;
-  const b = writeBatch(db);
-  docs.forEach(d => b.update(d.ref, { audienceUids: arrayRemove(uid) }));
-  await b.commit();
+  const lists = await getAudienceLists(me);
+  const strip = (a: string[]) => a.filter(u => u !== uid);
+  await saveAudienceLists(me, { closeFriends: strip(lists.closeFriends), family: strip(lists.family), colleagues: strip(lists.colleagues), hiddenFrom: lists.hiddenFrom });
+}
+
+/** Follow request approved → the new follower sees my live Followers stories and posts. */
+export async function addFollowerToLiveStories(_followerUid: string): Promise<void> {
+  await syncMyAudiences();
 }
 
 /** Account switched to private → live PUBLIC stories narrow to followers. */
 export async function narrowPublicStoriesToFollowers(): Promise<void> {
   const me = auth.currentUser?.uid;
   if (!me) return;
-  const docs = (await myLiveStories(me)).filter(d => (d.data().audience || 'PUBLIC') === 'PUBLIC');
+  const snap = await getDocs(query(collection(db, 'stories'), where('ownerId', '==', me), where('expiresAt', '>', Date.now()),
+    orderBy('expiresAt'), orderBy('timestamp', 'desc')));
+  const docs = snap.docs.filter(d => (d.data().audience || 'PUBLIC') === 'PUBLIC');
   if (!docs.length) return;
-  const { audienceUids } = await resolveAudience(me, 'FOLLOWERS');
+  const r = await resolveStoryAudience(FOLLOWERS_SPEC);
   const b = writeBatch(db);
-  docs.forEach(d => b.update(d.ref, { audience: 'FOLLOWERS', audienceUids: audienceUids || [] }));
+  docs.forEach(d => b.update(d.ref, { audience: r.audience, audienceSpec: r.audienceSpec, audienceUids: r.audienceUids || [], audienceLists: r.audienceLists || [], isPublic: false }));
   await b.commit();
 }
 

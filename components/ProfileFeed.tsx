@@ -322,13 +322,16 @@ const ProfileFeed: React.FC<ProfileFeedProps> = ({
   useEffect(() => {
     let unsubscribe: () => void;
     let unsubPrivate: (() => void) | undefined;
+    let unsubCircle: (() => void) | undefined;
     let cancelled = false;
 
     if (feedType === 'PERSONAL') {
-      // Public posts + (owner, or approved follower of a private account) private_posts, merged newest-first.
+      // Public posts + (owner, or approved follower) private_posts + posts shared with me through
+      // lists / custom audiences (all of them on my own profile), merged newest-first.
       let pub: Post[] = [];
       let priv: Post[] = [];
-      const emit = () => setPosts([...pub, ...priv].sort((a, b) => b.timestamp - a.timestamp));
+      let circle: Post[] = [];
+      const emit = () => setPosts([...pub, ...priv, ...circle].sort((a, b) => b.timestamp - a.timestamp));
       unsubscribe = listenToUserPosts(uid, (items) => { pub = items; emit(); });
       if (auth.currentUser) {
         (async () => {
@@ -338,6 +341,10 @@ const ProfileFeed: React.FC<ProfileFeedProps> = ({
           if (cancelled) return;
           unsubPrivate = m.listenPrivatePostsForAuthors([uid], [uid], (items) => { priv = items; emit(); });
         })().catch(() => {});
+        import('../services/audienceService').then(m => {
+          if (cancelled) return;
+          unsubCircle = m.listenCirclePostsByAuthor(uid, (items) => { circle = items; emit(); });
+        }).catch(() => {});
       }
     } else {
       unsubscribe = listenToGlobalPosts((items) => {
@@ -345,7 +352,7 @@ const ProfileFeed: React.FC<ProfileFeedProps> = ({
       });
     }
 
-    return () => { cancelled = true; unsubscribe?.(); unsubPrivate?.(); };
+    return () => { cancelled = true; unsubscribe?.(); unsubPrivate?.(); unsubCircle?.(); };
   }, [uid, feedType]);
 
   useEffect(() => {

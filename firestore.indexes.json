@@ -1,6 +1,52 @@
 {
   "indexes": [
     {
+      "collectionGroup": "circle_posts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "audienceUids",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "timestamp",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "circle_posts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "authorId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "timestamp",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "circle_posts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "audienceUids",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "authorId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "timestamp",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "stories",
       "queryScope": "COLLECTION",
       "fields": [

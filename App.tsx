@@ -1989,6 +1989,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     // Finish an interrupted public<->private post migration, and sync public achievements (opt-out aware).
     import('./services/privatePostsService').then(m => m.resumePendingMigration()).catch(() => {});
     import('./services/publicAchievementsService').then(m => m.maybeSyncPublicAchievements(uid)).catch(() => {});
+    // Keep list / custom audiences current (new followers on "Followers except…" posts and live stories).
+    import('./services/audienceService').then(m => m.syncAudiencesOnSignIn()).catch(() => {});
   }, [user?.uid]);
 
   useEffect(() => {
