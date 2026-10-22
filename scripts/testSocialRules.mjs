@@ -11,8 +11,8 @@ const file = process.argv[2] || new URL('../firestore.rules.min', import.meta.ur
 const src = fs.readFileSync(file, 'utf8');
 
 const DB = '/databases/(default)/documents';
-const ME = 'me', OTHER = 'other', AUTHOR = 'author';
-const users = [ME, OTHER, AUTHOR];
+const ME = 'me', OTHER = 'other', AUTHOR = 'author', PRIV = 'priv';
+const users = [ME, OTHER, AUTHOR, PRIV];
 const post = { authorId: AUTHOR, orgAudience: 'PUBLIC' };
 const room = { participants: [ME, AUTHOR], type: 'GROUP' };
 function mocks() {
@@ -25,6 +25,13 @@ function mocks() {
   m.push({ function: 'get', args: [{ exactValue: `${DB}/chat_rooms/r1` }], result: { value: { data: room } } });
   m.push({ function: 'get', args: [{ exactValue: `${DB}/live_streams/ls1` }], result: { value: { data: { ownerId: AUTHOR } } } });
   m.push({ function: 'get', args: [{ exactValue: `${DB}/rooms/rm1` }], result: { value: { data: { hostId: AUTHOR } } } });
+  // Private-account lookups (isPrivateAccount): PRIV is private, everyone else public.
+  for (const u of users) {
+    m.push({ function: 'exists', args: [{ exactValue: `${DB}/users/${u}` }], result: { value: true } });
+    m.push({ function: 'get', args: [{ exactValue: `${DB}/users/${u}` }], result: { value: { data: { isPrivate: u === PRIV } } } });
+  }
+  m.push({ function: 'get', args: [{ exactValue: `${DB}/stories/s1` }], result: { value: { data: { ownerId: ME, audience: 'PUBLIC' } } } });
+  m.push({ function: 'get', args: [{ exactValue: `${DB}/stories/s2` }], result: { value: { data: { ownerId: ME, audience: 'FOLLOWERS', audienceUids: [OTHER] } } } });
   return m;
 }
 const tokenFor = (uid, anon) => ({ uid, token: { email: `${uid}@example.test`, email_verified: true, firebase: { sign_in_provider: anon ? 'anonymous' : 'google.com' } } });
@@ -102,18 +109,35 @@ const hv = { uid: ME, displayName: 'Me', photoURL: null, factionId: 'f', activeF
 t('vault chat', 'ALLOW', ME, 'create', `${DB}/halloweenVaultRooms/main_vault/chat/msg_1`, { data: hv });
 t('vault chat guest', 'DENY', 'anon:' + ME, 'create', `${DB}/halloweenVaultRooms/main_vault/chat/msg_1`, { data: hv });
 
-// stories (had no rule)
-const st = (o = {}) => ({ id: 's1', ownerId: ME, ownerName: 'Me', mediaUrl: 'https://m', mediaType: 'PHOTO', timestamp: now, expiresAt: now + 86400000, isPublic: true, ...o });
+// stories — Instagram-style audiences
+const st = (o = {}) => ({ id: 's1', ownerId: ME, ownerName: 'Me', mediaUrl: 'https://m', mediaType: 'PHOTO', timestamp: now, expiresAt: now + 86400000, audience: 'PUBLIC', isPublic: true, ...o });
+const fs_ = (o = {}) => st({ audience: 'FOLLOWERS', isPublic: false, audienceUids: [OTHER], ...o });
 const S = `${DB}/stories/s1`;
-t('post a story', 'ALLOW', ME, 'create', S, { data: st() });
+t('post a public story', 'ALLOW', ME, 'create', S, { data: st() });
+t('post followers story', 'ALLOW', ME, 'create', S, { data: fs_() });
+t('post close friends story', 'ALLOW', ME, 'create', S, { data: fs_({ audience: 'CLOSE_FRIENDS' }) });
+t('private account posts public', 'DENY', PRIV, 'create', S, { data: st({ ownerId: PRIV }) });
+t('private account posts to followers', 'ALLOW', PRIV, 'create', S, { data: fs_({ ownerId: PRIV }) });
 t('story as someone else', 'DENY', ME, 'create', S, { data: st({ ownerId: OTHER }) });
 t('story that never expires', 'DENY', ME, 'create', S, { data: st({ expiresAt: now + 9e12 }) });
-t('read story signed in', 'ALLOW', OTHER, 'get', S, { existing: st() });
+t('read public story', 'ALLOW', AUTHOR, 'get', S, { existing: st() });
 t('read story signed out', 'DENY', null, 'get', S, { existing: st() });
-t('mark story viewed', 'ALLOW', OTHER, 'update', S, { existing: st(), data: st({ viewerIds: [OTHER] }) });
-t('mark someone else viewed', 'DENY', OTHER, 'update', S, { existing: st(), data: st({ viewerIds: [AUTHOR] }) });
+t('follower reads followers story', 'ALLOW', OTHER, 'get', S, { existing: fs_() });
+t('non-follower reads followers story', 'DENY', AUTHOR, 'get', S, { existing: fs_() });
+t('owner reads own followers story', 'ALLOW', ME, 'get', S, { existing: fs_() });
+t('owner adds approved follower', 'ALLOW', ME, 'update', S, { existing: fs_(), data: fs_({ audienceUids: [OTHER, AUTHOR] }) });
+t('viewer adds self to audience', 'DENY', AUTHOR, 'update', S, { existing: fs_(), data: fs_({ audienceUids: [OTHER, AUTHOR] }) });
+t('owner extends 24h window', 'DENY', ME, 'update', S, { existing: st(), data: st({ expiresAt: now + 9e9 }) });
 t('delete own story', 'ALLOW', ME, 'delete', S, { existing: st() });
 t('delete others story', 'DENY', OTHER, 'delete', S, { existing: st() });
+const V = (u) => `${DB}/stories/s1/views/${u}`;
+t('record my view (public)', 'ALLOW', AUTHOR, 'create', V(AUTHOR), { data: { viewerId: AUTHOR, at: now } });
+t('record view of story not shared with me', 'DENY', AUTHOR, 'create', `${DB}/stories/s2/views/${AUTHOR}`, { data: { viewerId: AUTHOR, at: now } });
+t('fake someone elses view', 'DENY', AUTHOR, 'create', V(OTHER), { data: { viewerId: OTHER, at: now } });
+t('owner reads viewers', 'ALLOW', ME, 'get', V(AUTHOR), { existing: { viewerId: AUTHOR, at: now } });
+t('stranger reads viewers', 'DENY', OTHER, 'get', V(AUTHOR), { existing: { viewerId: AUTHOR, at: now } });
+t('edit my close friends', 'ALLOW', ME, 'create', `${DB}/users/${ME}/storyCircle/lists`, { data: { closeFriends: [OTHER], hiddenFrom: [] } });
+t('read someone elses close friends', 'DENY', OTHER, 'get', `${DB}/users/${ME}/storyCircle/lists`, { existing: { closeFriends: [OTHER], hiddenFrom: [] } });
 
 // live_streams chat + signalling (was: any signed-in user, any sender)
 t('stream chat as me', 'ALLOW', ME, 'create', `${DB}/live_streams/ls1/chat/c1`, { data: { uid: ME, text: 'hi' } });

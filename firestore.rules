@@ -1365,6 +1365,9 @@ service cloud.firestore {
       // muted topics / content types, "show less like this" weights and the default tab.
       // Private to the owner; ranking reads it client-side only (services/feedPreferencesService).
       match /prefs/{docId} { allow read, write: if isOwner(userId); }
+      // Story lists (Close Friends / Hide story from) and my own "seen" marks — owner-only.
+      match /storyCircle/{docId} { allow read, write: if isOwner(userId); }
+      match /storySeen/{storyId} { allow read, write: if isOwner(userId); }
 
       // The Post Man. `postman_prefs` is the only one the CLIENT touches — letter
       // skin and focus mode. `postman_accounts` holds OAuth refresh tokens and is
@@ -4423,24 +4426,39 @@ service cloud.firestore {
       }
     }
 
-    // 24h stories (services/backendService createStory / StoriesBar / StoryViewer). Had no rule,
-    // so creating, listing, marking viewed and deleting all failed.
+    // 24h stories, Instagram-style audiences (services/storyAudience). PUBLIC = any signed-in
+    // user; FOLLOWERS / CLOSE_FRIENDS = only the uids in audienceUids (the owner's client keeps
+    // that list current). Private accounts can't post PUBLIC. Queries must prove visibility:
+    // `audience == 'PUBLIC'`, `audienceUids array-contains me`, or `ownerId == me`.
     match /stories/{storyId} {
-      allow read: if isAuthenticated();
+      function storyAudienceOk(d) {
+        return (d.audience == 'PUBLIC' && !('audienceUids' in d) && !isPrivateAccount(request.auth.uid)) ||
+          (d.audience in ['FOLLOWERS', 'CLOSE_FRIENDS'] && d.audienceUids is list && d.audienceUids.size() <= 5000);
+      }
+      allow read: if isAuthenticated() && (resource.data.ownerId == request.auth.uid ||
+        resource.data.audience == 'PUBLIC' || request.auth.uid in resource.data.audienceUids);
       allow create: if isRegisteredUser()
         && request.resource.data.ownerId == request.auth.uid
         && request.resource.data.id == storyId
         && request.resource.data.mediaUrl is string && request.resource.data.mediaUrl.size() < 4000
         && request.resource.data.mediaType in ['PHOTO', 'VIDEO']
-        && request.resource.data.expiresAt == request.resource.data.timestamp + 86400000;
-      // A viewer may add only themselves to viewerIds.
-      allow update: if isAuthenticated() && (
-        (resource.data.ownerId == request.auth.uid &&
-         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['ownerId', 'expiresAt', 'timestamp'])) ||
-        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['viewerIds']) &&
-         request.resource.data.viewerIds.toSet().difference(resource.data.get('viewerIds', []).toSet()) == [request.auth.uid].toSet() &&
-         resource.data.get('viewerIds', []).toSet().difference(request.resource.data.viewerIds.toSet()).size() == 0));
+        && request.resource.data.expiresAt == request.resource.data.timestamp + 86400000
+        && storyAudienceOk(request.resource.data);
+      // Owner edits (audience upkeep); never the owner, id or 24h window.
+      allow update: if isAuthenticated() && resource.data.ownerId == request.auth.uid
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['ownerId', 'id', 'expiresAt', 'timestamp'])
+        && storyAudienceOk(request.resource.data);
       allow delete: if isAdmin() || (isAuthenticated() && resource.data.ownerId == request.auth.uid);
+
+      // View receipts: only the story's owner (and the viewer themself) can read them.
+      match /views/{viewerId} {
+        function viewedStory() { return get(/databases/$(database)/documents/stories/$(storyId)).data; }
+        allow read: if isAuthenticated() && (viewerId == request.auth.uid || viewedStory().ownerId == request.auth.uid);
+        allow create, update: if isRegisteredUser() && viewerId == request.auth.uid
+          && request.resource.data.keys().hasOnly(['viewerId', 'at'])
+          && request.resource.data.viewerId == request.auth.uid
+          && (viewedStory().get('audience', 'PUBLIC') == 'PUBLIC' || request.auth.uid in viewedStory().get('audienceUids', []));
+      }
     }
 
     // Comment-thread polls (CommentSection PollComposer + composer polls on a post).

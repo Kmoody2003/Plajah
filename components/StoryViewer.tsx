@@ -1,8 +1,10 @@
 ﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, ChevronLeft, ChevronRight, ExternalLink, Trash2, Eye } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, ExternalLink, Trash2, Eye, Star, Users } from 'lucide-react';
 import { Story } from '../types';
 import { markStoryViewed, deleteStory } from '../services/backendService';
+import { fetchStoryViewers } from '../services/storyAudience';
+import { fetchProfilesLite } from '../services/socialSafetyService';
 
 interface StoryGroup {
   uid: string;
@@ -36,12 +38,24 @@ const StoryViewer: React.FC<Props> = ({ group, currentUserId, onClose, onVisitUs
     else onClose();
   }, [idx, group.stories.length, onClose]);
 
-  // Mark viewed
+  // Mark viewed (owner-private receipt — other viewers never see who watched)
   useEffect(() => {
-    if (story && !story.viewerIds?.includes(currentUserId)) {
-      markStoryViewed(story.id, currentUserId);
-    }
+    if (story && !isOwner) markStoryViewed(story);
   }, [story?.id]);
+
+  // Owner: who watched this story
+  const [viewers, setViewers] = useState<Array<{ uid: string; displayName: string; photoURL: string }> | null>(null);
+  const [showViewers, setShowViewers] = useState(false);
+  useEffect(() => {
+    setViewers(null); setShowViewers(false);
+    if (!story || !isOwner) return;
+    let alive = true;
+    fetchStoryViewers(story.id)
+      .then(v => fetchProfilesLite(v.map(x => x.uid)))
+      .then(p => { if (alive) setViewers(p); })
+      .catch(() => { if (alive) setViewers([]); });
+    return () => { alive = false; };
+  }, [story?.id, isOwner]);
 
   // Progress timer for photos
   useEffect(() => {
@@ -94,8 +108,10 @@ const StoryViewer: React.FC<Props> = ({ group, currentUserId, onClose, onVisitUs
             }
             <div>
               <p className="text-white font-black text-xs uppercase tracking-wide drop-shadow">{group.name}</p>
-              <p className="text-white/50 text-[9px] font-bold">
+              <p className="text-white/50 text-[9px] font-bold flex items-center gap-1.5">
                 {new Date(story.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                {story.audience === 'CLOSE_FRIENDS' && <span className="inline-flex items-center gap-0.5 px-1.5 py-[1px] rounded-full bg-green-500 text-black"><Star size={8} fill="currentColor" /> Close Friends</span>}
+                {isOwner && story.audience === 'FOLLOWERS' && <span className="inline-flex items-center gap-0.5 px-1.5 py-[1px] rounded-full bg-white/15 text-white/80"><Users size={8} /> Followers</span>}
               </p>
             </div>
           </div>
@@ -155,10 +171,22 @@ const StoryViewer: React.FC<Props> = ({ group, currentUserId, onClose, onVisitUs
           </div>
         )}
 
-        {/* Viewer count for owner */}
+        {/* Viewers — owner only */}
         {isOwner && (
-          <div className="absolute bottom-4 right-4 flex items-center gap-1 text-white/40 text-[10px] font-black">
-            <Eye size={12} /> {story.viewerIds?.length ?? 0}
+          <div className="absolute bottom-4 right-4 z-20 flex flex-col items-end gap-2" onPointerDown={e => e.stopPropagation()} onPointerUp={e => e.stopPropagation()}>
+            {showViewers && viewers && viewers.length > 0 && (
+              <div className="max-h-56 w-56 overflow-y-auto rounded-2xl bg-black/80 backdrop-blur border border-white/10 p-2 space-y-1">
+                {viewers.map(v => (
+                  <div key={v.uid} className="flex items-center gap-2 px-2 py-1.5">
+                    {v.photoURL ? <img src={v.photoURL} alt="" className="w-6 h-6 rounded-full object-cover" /> : <div className="w-6 h-6 rounded-full bg-white/15 flex items-center justify-center text-[10px] font-black">{(v.displayName || '?')[0]}</div>}
+                    <span className="text-white text-xs truncate">{v.displayName || 'Someone'}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <button onClick={() => { setShowViewers(s => !s); setPaused(p => !p); }} className="flex items-center gap-1 text-white/60 hover:text-white text-[10px] font-black" aria-label="Who viewed this story">
+              <Eye size={12} /> {viewers ? viewers.length : '…'}
+            </button>
           </div>
         )}
       </div>

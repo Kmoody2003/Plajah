@@ -161,6 +161,7 @@ export async function blockUser(targetUid: string): Promise<void> {
     step(deleteDoc(doc(db, 'follow_requests', followRequestId(uid, targetUid)))),
     step(deleteDoc(doc(db, 'follow_requests', followRequestId(targetUid, uid)))),
     step(deleteDoc(doc(db, 'users', uid, 'mutes', targetUid))), // a block supersedes a mute
+    step(import('./storyAudience').then(m => m.removeFromLiveStories(targetUid))), // and my live stories
   ]);
   void reconcileMyCounts(); // counters drift on block cleanup; recount (daily-guarded)
 }
@@ -230,6 +231,8 @@ export async function setAccountPrivate(isPrivate: boolean): Promise<{ moved: nu
   const uid = me();
   if (!uid) return { moved: 0, done: true };
   await updateDoc(doc(db, 'users', uid), { isPrivate });
+  // Going private: live PUBLIC stories narrow to followers right away (Instagram behaviour).
+  if (isPrivate) void import('./storyAudience').then(m => m.narrowPublicStoriesToFollowers()).catch(() => {});
   try {
     const r = await migrateAccountPostsVisibility(uid, isPrivate);
     return { moved: r.moved, done: r.done };
@@ -365,6 +368,8 @@ export async function approveFollowRequest(requesterUid: string): Promise<void> 
   });
   await batch.commit();
   updateDoc(doc(db, 'users', u.uid), { followerCount: increment(1) }).catch(() => {});
+  // The new follower can see my live followers-only stories, as on Instagram.
+  void import('./storyAudience').then(m => m.addFollowerToLiveStories(requesterUid)).catch(() => {});
   void reconcileMyCounts(); // requester's followingCount is theirs; the server recount corrects both sides over time
   void sendNotification({ userId: requesterUid, title: 'Follow request approved', message: `${u.displayName || 'Someone'} accepted your follow request` });
 }

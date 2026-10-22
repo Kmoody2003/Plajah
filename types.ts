@@ -10,6 +10,11 @@ export interface Story {
   photoDisplayDuration?: number; // seconds (default 5)
   timestamp: number;
   expiresAt: number; // timestamp + 24h
+  /** Who it's shared with (services/storyAudience). Missing on stories made before audiences. */
+  audience?: 'PUBLIC' | 'FOLLOWERS' | 'CLOSE_FRIENDS';
+  /** Viewers a non-public story is shared with — rules read this; never shown in the UI. */
+  audienceUids?: string[];
+  /** Legacy (pre-audience) view list. Views now live in stories/{id}/views, owner-only. */
   viewerIds?: string[];
   isPublic?: boolean;
   link?: string;

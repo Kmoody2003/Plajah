@@ -53,6 +53,7 @@ import { isWindowsApp } from './windowsBridgeService';
 import { followNeedsApproval, requestFollow } from './socialSafetyService';
 // Social perf pass (docs/SOCIAL_MIGRATION_AND_PERF.md): paged chat, throttled typing subdoc, index fallbacks, shared room list.
 import { setTypingStatus as setTypingStatusPerf, snapshotWithIndexFallback, listenToRecentMessages, MESSAGE_PAGE_SIZE, type MessageWindowMeta } from './socialPerf';
+import { resolveAudience, recordStoryView, type StoryAudience } from './storyAudience';
 import { sharedSubscription } from './sharedSubscription';
 import { chunkArray, mergeByTimestamp, uniqueIds } from './followGraphUtils';
 import { tryConsume } from './socialRateLimit';
@@ -11047,11 +11048,20 @@ export const denyEarlyAccessRequest = async (requestId: string): Promise<void> =
 // ─── Stories ─────────────────────────────────────────────────────────────────
 const STORIES_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
-export const createStory = async (ownerId: string, data: Omit<Story, 'id' | 'ownerId' | 'timestamp' | 'expiresAt'>): Promise<string | null> => {
+export const createStory = async (
+  ownerId: string,
+  data: Omit<Story, 'id' | 'ownerId' | 'timestamp' | 'expiresAt' | 'audience' | 'audienceUids'>,
+  wantedAudience: StoryAudience = 'PUBLIC',
+): Promise<string | null> => {
   try {
     const now = Date.now();
     const ref = doc(collection(db, 'stories'));
-    const story: Story = { ...data, id: ref.id, ownerId, timestamp: now, expiresAt: now + STORIES_TTL_MS };
+    // Private accounts can't post PUBLIC; "Hide story from" narrows PUBLIC to followers.
+    const { audience, audienceUids } = await resolveAudience(ownerId, wantedAudience);
+    const story: Story = {
+      ...data, id: ref.id, ownerId, timestamp: now, expiresAt: now + STORIES_TTL_MS,
+      audience, ...(audienceUids ? { audienceUids } : {}), isPublic: audience === 'PUBLIC',
+    };
     // No caption / link / background → those keys are undefined, which Firestore rejects.
     await setDoc(ref, removeUndefined(story));
     return ref.id;
@@ -11074,10 +11084,17 @@ export const listenToFollowedStories = (followedUids: string[], callback: (stori
     merged.sort((a, b) => b.timestamp - a.timestamp);
     callback(merged);
   };
+  // Followers / Close Friends stories reach me through audienceUids, so the rules can prove
+  // every story in the result is one I'm allowed to see (they can't look up follows per doc).
+  const me = auth.currentUser?.uid;
+  const followed = new Set(ids);
+  results.push([]); ready.push(false);
+  const sharedIdx = results.length - 1;
   const unsubs = chunks.map((chunk, i) => onSnapshot(
     query(
       collection(db, 'stories'),
       where('ownerId', 'in', chunk),
+      where('audience', '==', 'PUBLIC'),
       where('expiresAt', '>', now),
       orderBy('expiresAt'),
       orderBy('timestamp', 'desc'),
@@ -11085,25 +11102,45 @@ export const listenToFollowedStories = (followedUids: string[], callback: (stori
     snap => { results[i] = snap.docs.map(d => d.data() as Story); ready[i] = true; emit(); },
     () => { ready[i] = true; emit(); },
   ));
+  if (me) {
+    unsubs.push(onSnapshot(
+      query(
+        collection(db, 'stories'),
+        where('audienceUids', 'array-contains', me),
+        where('expiresAt', '>', now),
+        orderBy('expiresAt'),
+        orderBy('timestamp', 'desc'),
+      ),
+      // Only people I still follow show in my tray (unfollowing hides them right away).
+      snap => { results[sharedIdx] = snap.docs.map(d => d.data() as Story).filter(st => followed.has(st.ownerId)); ready[sharedIdx] = true; emit(); },
+      () => { ready[sharedIdx] = true; emit(); },
+    ));
+  } else { ready[sharedIdx] = true; }
   return () => unsubs.forEach(u => u());
 };
 
+/** One account's live stories. Your own: everything. Someone else's: their PUBLIC stories plus
+ *  any they shared with you (rules only allow queries that prove the viewer may see each story). */
 export const listenToUserStories = (uid: string, callback: (stories: Story[]) => void) => {
   const now = Date.now();
-  const q = query(
-    collection(db, 'stories'),
-    where('ownerId', '==', uid),
-    where('expiresAt', '>', now),
-    orderBy('expiresAt'),
-    orderBy('timestamp', 'desc'),
-  );
-  return onSnapshot(q, snap => callback(snap.docs.map(d => d.data() as Story)));
+  const me = auth.currentUser?.uid;
+  const live = (...filters: any[]) => query(collection(db, 'stories'), where('ownerId', '==', uid), ...filters,
+    where('expiresAt', '>', now), orderBy('expiresAt'), orderBy('timestamp', 'desc'));
+  if (me === uid) return onSnapshot(live(), snap => callback(snap.docs.map(d => d.data() as Story)), () => callback([]));
+  let pub: Story[] = [], shared: Story[] = [];
+  const emit = () => {
+    const byId = new Map<string, Story>();
+    [...pub, ...shared].forEach(st => byId.set(st.id, st));
+    callback([...byId.values()].sort((a, b) => b.timestamp - a.timestamp));
+  };
+  const unsubs = [onSnapshot(live(where('audience', '==', 'PUBLIC')), snap => { pub = snap.docs.map(d => d.data() as Story); emit(); }, () => { pub = []; emit(); })];
+  if (me) unsubs.push(onSnapshot(live(where('audienceUids', 'array-contains', me)), snap => { shared = snap.docs.map(d => d.data() as Story); emit(); }, () => { shared = []; emit(); }));
+  return () => unsubs.forEach(u => u());
 };
 
-export const markStoryViewed = async (storyId: string, viewerId: string) => {
-  try {
-    await updateDoc(doc(db, 'stories', storyId), { viewerIds: arrayUnion(viewerId) });
-  } catch (_) {}
+/** Views are owner-private (stories/{id}/views) — see services/storyAudience. */
+export const markStoryViewed = async (story: Pick<Story, 'id' | 'ownerId' | 'expiresAt'>) => {
+  try { await recordStoryView(story); } catch (_) {}
 };
 
 export const deleteStory = async (storyId: string) => {

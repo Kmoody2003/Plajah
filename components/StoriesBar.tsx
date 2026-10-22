@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Plus, Camera } from 'lucide-react';
 import { Story } from '../types';
 import { listenToFollowedStories, listenToUserStories } from '../services/backendService';
+import { listenToSeenStories } from '../services/storyAudience';
 import StoryViewer from './StoryViewer';
 import StoryCreator from './StoryCreator';
 
@@ -20,6 +21,8 @@ interface StoryGroup {
   photo?: string;
   stories: Story[];
   hasUnviewed: boolean;
+  /** An unseen story was shared to Close Friends — green ring, as on Instagram. */
+  closeFriends?: boolean;
 }
 
 const StoriesBar: React.FC<Props> = ({ currentUserId, currentUserName, currentUserPhoto, followedUids, onVisitUser }) => {
@@ -31,6 +34,8 @@ const StoriesBar: React.FC<Props> = ({ currentUserId, currentUserName, currentUs
 
   useEffect(() => listenToUserStories(currentUserId, setMyStories), [currentUserId]);
   useEffect(() => listenToFollowedStories(followedUids, setFeedStories), [followedUids.join(',')]);
+  const [seen, setSeen] = useState<Set<string>>(new Set());
+  useEffect(() => listenToSeenStories(setSeen), [currentUserId]);
 
   const groups: StoryGroup[] = React.useMemo(() => {
     const map = new Map<string, Story[]>();
@@ -44,9 +49,10 @@ const StoriesBar: React.FC<Props> = ({ currentUserId, currentUserName, currentUs
       name: stories[0].ownerName,
       photo: stories[0].ownerPhoto,
       stories: stories.sort((a, b) => a.timestamp - b.timestamp),
-      hasUnviewed: stories.some(s => !s.viewerIds?.includes(currentUserId)),
+      hasUnviewed: stories.some(s => !seen.has(s.id) && !s.viewerIds?.includes(currentUserId)),
+      closeFriends: stories.some(s => s.audience === 'CLOSE_FRIENDS' && !seen.has(s.id)),
     }));
-  }, [feedStories, currentUserId]);
+  }, [feedStories, currentUserId, seen]);
 
   return (
     <>
@@ -63,7 +69,7 @@ const StoriesBar: React.FC<Props> = ({ currentUserId, currentUserName, currentUs
                   }
                 </div>
               </div>
-              <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-small-orange rounded-full border-2 border-black flex items-center justify-center">
+              <div role="button" aria-label="Add to your story" onClick={e => { e.stopPropagation(); setCreating(true); }} className="absolute -bottom-1 -right-1 w-5 h-5 bg-small-orange rounded-full border-2 border-black flex items-center justify-center">
                 <Plus size={10} className="text-white" strokeWidth={3} />
               </div>
             </div>
@@ -75,7 +81,7 @@ const StoriesBar: React.FC<Props> = ({ currentUserId, currentUserName, currentUs
           {/* Followed story bubbles */}
           {groups.map(g => (
             <div key={g.uid} className="flex flex-col items-center gap-1.5 shrink-0 cursor-pointer" onClick={() => setViewingGroup(g)}>
-              <motion.div whileTap={{ scale: 0.92 }} className={`w-16 h-16 rounded-full p-[2.5px] ${g.hasUnviewed ? 'bg-gradient-to-tr from-small-orange via-pink-500 to-purple-600' : 'bg-white/20'}`}>
+              <motion.div whileTap={{ scale: 0.92 }} className={`w-16 h-16 rounded-full p-[2.5px] ${g.closeFriends ? 'bg-green-500' : g.hasUnviewed ? 'bg-gradient-to-tr from-small-orange via-pink-500 to-purple-600' : 'bg-white/20'}`}>
                 <div className="w-full h-full rounded-full overflow-hidden bg-[#111] border-[2px] border-black">
                   {g.photo
                     ? <img loading="lazy" decoding="async" src={g.photo} className="w-full h-full object-cover" alt={g.name} />

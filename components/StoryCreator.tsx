@@ -1,7 +1,9 @@
-import React, { useState, useRef } from 'react';
-import { motion } from 'motion/react';
-import { X, Camera, Video, Type, Link as LinkIcon, Send, Loader2, Image as ImageIcon } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { X, Camera, Video, Type, Link as LinkIcon, Send, Loader2, Image as ImageIcon, Globe, Users, Star, EyeOff, ChevronRight } from 'lucide-react';
 import { createStory, uploadStoryMedia } from '../services/backendService';
+import { getStoryCircle, isPrivateAccount, type StoryAudience, type StoryCircle } from '../services/storyAudience';
+import StoryAudienceSheet from './StoryAudienceSheet';
 
 interface Props {
   currentUserId: string;
@@ -31,6 +33,21 @@ const StoryCreator: React.FC<Props> = ({ currentUserId, currentUserName, current
   const [uploading, setUploading]   = useState(false);
   const [duration, setDuration]     = useState(5);
   const [failed, setFailed]         = useState(false);
+  // Audience — like Instagram: Public (public accounts), Followers, or Close Friends.
+  const [audience, setAudience]     = useState<StoryAudience>('PUBLIC');
+  const [isPrivate, setIsPrivate]   = useState(false);
+  const [circle, setCircle]         = useState<StoryCircle>({ closeFriends: [], hiddenFrom: [] });
+  const [editing, setEditing]       = useState<null | 'closeFriends' | 'hiddenFrom'>(null);
+  useEffect(() => {
+    let alive = true;
+    Promise.all([isPrivateAccount(currentUserId), getStoryCircle(currentUserId)]).then(([priv, c]) => {
+      if (!alive) return;
+      setIsPrivate(priv);
+      setCircle(c);
+      if (priv) setAudience(a => (a === 'PUBLIC' ? 'FOLLOWERS' : a));
+    }).catch(() => {});
+    return () => { alive = false; };
+  }, [currentUserId]);
   const fileRef                      = useRef<HTMLInputElement>(null);
 
   const pickFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -41,6 +58,8 @@ const StoryCreator: React.FC<Props> = ({ currentUserId, currentUserName, current
   };
 
   const publish = async () => {
+    // Close Friends with nobody on the list: build the list first (before uploading anything).
+    if (audience === 'CLOSE_FRIENDS' && circle.closeFriends.length === 0) { setEditing('closeFriends'); return; }
     setUploading(true);
     try {
       let mediaUrl = '';
@@ -68,9 +87,8 @@ const StoryCreator: React.FC<Props> = ({ currentUserId, currentUserName, current
         caption: caption.trim() || undefined,
         link: link.trim() || undefined,
         photoDisplayDuration: duration,
-        isPublic: true,
         backgroundColor: mode === 'TEXT' ? bgPreset : undefined,
-      });
+      }, audience);
       if (!id) throw new Error('Story was not saved');
       onClose();
     } catch (e) {
@@ -185,6 +203,42 @@ const StoryCreator: React.FC<Props> = ({ currentUserId, currentUserName, current
             </div>
           )}
 
+          {/* Audience */}
+          <div className="space-y-2">
+            <span className="text-[10px] font-black uppercase tracking-widest text-white/40">Share to</span>
+            <div className="grid grid-cols-3 gap-2">
+              {([
+                ['PUBLIC', 'Public', Globe],
+                ['FOLLOWERS', 'Followers', Users],
+                ['CLOSE_FRIENDS', 'Close Friends', Star],
+              ] as const).map(([key, label, Icon]) => {
+                const off = key === 'PUBLIC' && isPrivate;
+                const on = audience === key;
+                return (
+                  <button key={key} disabled={off} onClick={() => setAudience(key)}
+                    title={off ? 'Your account is private, so stories go to your followers.' : undefined}
+                    className={`flex flex-col items-center gap-1 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all disabled:opacity-30 ${on ? (key === 'CLOSE_FRIENDS' ? 'bg-green-500 text-black' : 'bg-small-orange text-white') : 'bg-white/5 text-white/45 hover:bg-white/10'}`}>
+                    <Icon size={14} /> {label}
+                  </button>
+                );
+              })}
+            </div>
+            {audience === 'PUBLIC' && circle.hiddenFrom.length > 0 && (
+              <p className="text-[11px] text-white/45">You’ve hidden your story from {circle.hiddenFrom.length} {circle.hiddenFrom.length === 1 ? 'person' : 'people'}, so this one goes to your followers.</p>
+            )}
+            {isPrivate && <p className="text-[11px] text-white/45">Your account is private — only approved followers see your stories.</p>}
+            <div className="flex flex-col divide-y divide-white/5 rounded-xl bg-white/[0.03] border border-white/5">
+              <button onClick={() => setEditing('closeFriends')} className="flex items-center gap-2 px-3 py-2.5 text-left text-xs text-white/70 hover:text-white">
+                <Star size={13} className="text-green-400" /> <span className="flex-1">Close Friends</span>
+                <span className="text-white/35">{circle.closeFriends.length}</span><ChevronRight size={13} className="text-white/30" />
+              </button>
+              <button onClick={() => setEditing('hiddenFrom')} className="flex items-center gap-2 px-3 py-2.5 text-left text-xs text-white/70 hover:text-white">
+                <EyeOff size={13} className="text-white/50" /> <span className="flex-1">Hide story from</span>
+                <span className="text-white/35">{circle.hiddenFrom.length}</span><ChevronRight size={13} className="text-white/30" />
+              </button>
+            </div>
+          </div>
+
           {/* Publish */}
           {failed && <p className="text-xs text-red-400 text-center">Your story didn't post. Try again.</p>}
           <button
@@ -193,10 +247,15 @@ const StoryCreator: React.FC<Props> = ({ currentUserId, currentUserName, current
             className="w-full py-4 rounded-2xl bg-small-orange text-white font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:brightness-110 transition-all disabled:opacity-40 disabled:pointer-events-none"
           >
             {uploading ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-            {uploading ? 'Publishing...' : 'Share Story'}
+            {uploading ? 'Publishing...' : audience === 'CLOSE_FRIENDS' ? 'Share to Close Friends' : 'Share Story'}
           </button>
         </div>
       </div>
+      <AnimatePresence>
+        {editing && (
+          <StoryAudienceSheet ownerId={currentUserId} list={editing} onClose={c => { setCircle(c); setEditing(null); }} />
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };
