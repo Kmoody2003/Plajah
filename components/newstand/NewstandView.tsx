@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+const PeriodicalShelf = React.lazy(() => import('../publication/PeriodicalShelf'));
 import { motion, AnimatePresence } from 'motion/react';
 import { Newspaper, Globe, Zap, Radio, TrendingUp, ExternalLink, RefreshCw, Mic, Pen, Search, Heart, Share2, X, Plus } from 'lucide-react';
 import { fetchNewsFromRSS, prefetchNewsCategories } from '../../services/rssService';
@@ -330,6 +331,7 @@ export const NewstandView: React.FC<NewstandViewProps> = ({ onVisitUser, onSelec
         })}
       </div>
 
+      {activeCategory === 'COMMUNITY_ARTICLES' && <React.Suspense fallback={null}><PeriodicalShelf title="Plajah periodicals — issues from newsrooms and student presses" /></React.Suspense>}
       {activeCategory === 'COMMUNITY_ARTICLES' ? (
         <ArticlesFeed 
           onVisitUser={onVisitUser} 

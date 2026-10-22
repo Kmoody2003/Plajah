@@ -29,6 +29,8 @@ export type CreativeKind =
   | 'podcast'
   | 'melos'
   | 'fabula'
+  | 'newsroom'
+  | 'merch'
   | 'other';
 
 export type QuotaClass = 'counted' | 'exempt';
@@ -50,6 +52,8 @@ export const KIND_QUOTA_CLASS: Record<CreativeKind, QuotaClass> = {
   podcast: 'counted',
   melos: 'counted',
   fabula: 'counted',
+  newsroom: 'counted',
+  merch: 'counted',
   other: 'counted',
 };
 

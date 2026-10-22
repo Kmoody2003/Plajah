@@ -303,6 +303,109 @@ export const TEMPLATE_SEEDS: TemplateSeed[] = [
       estimatedMinutes: 40,
     },
   },
+  // ── School of Journalism (data/journalismCurriculum.ts). Students draft in the Student Newsroom.
+  {
+    id: 'seed-ela-35-interview',
+    subject: 'ela',
+    gradeBand: '3-5',
+    taskType: 'projectBrief',
+    structure: {
+      title: 'Cub Reporter Interview Profile',
+      objective: 'Students prepare, conduct and write up an interview built on exact, read-back quotes.',
+      standardsAlignment: [
+        { framework: 'CCSS', code: 'CCSS.ELA-LITERACY.SL.4.1', label: 'Collaborative discussion' },
+        { framework: 'CCSS', code: 'CCSS.ELA-LITERACY.W.4.2', label: 'Informative writing' },
+      ],
+      materials: [],
+      steps: [
+        'Lesson: Your First Interview (School of Journalism, Cub Reporters)',
+        'Write five open questions and circle the top two',
+        'Interview a classmate, teacher or family member; read every quote back',
+        'Draft the profile in the Student Newsroom Interview kit',
+        'Peer edit with the kit checklist, then send for teacher sign-off',
+      ],
+      differentiation: {
+        support: 'Question starters (What… / How… / Tell me about…); a partner scribes quotes.',
+        extension: 'Add a second source who sees the subject differently.',
+      },
+      rubric: {
+        criteria: [
+          criterion('Questions', 'Closed questions only', 'Some open questions', 'Open questions that draw out a story', 'Follow-up questions that build on answers'),
+          criterion('Quotes', 'No exact quotes', 'Quotes not read back', 'Exact, read-back quotes', 'Quotes chosen for what only that person could say'),
+          criterion('Care for the subject', 'No permission asked', 'Permission asked', 'Permission and first-names rules followed', 'Subject told when and where it will appear'),
+        ],
+      },
+      estimatedMinutes: 90,
+    },
+  },
+  {
+    id: 'seed-ela-68-news-story',
+    subject: 'ela',
+    gradeBand: '6-8',
+    taskType: 'projectBrief',
+    structure: {
+      title: 'School Newsroom: Inverted-Pyramid News Story',
+      objective: 'Students report and write a school news story with attributed sources and an accurate headline.',
+      standardsAlignment: [
+        { framework: 'CCSS', code: 'CCSS.ELA-LITERACY.W.7.2', label: 'Informative writing' },
+        { framework: 'CCSS', code: 'CCSS.ELA-LITERACY.W.7.8', label: 'Gather relevant information from multiple sources' },
+      ],
+      materials: [],
+      steps: [
+        'Lessons: The Inverted Pyramid; Sources and Attribution; Headlines and Captions',
+        'Report: two independent primary sources, quotes read back',
+        'Draft in the Student Newsroom Hard News kit; act on the desk coach',
+        'Peer edit against the checklist',
+        'Teacher sign-off, then publish to the class paper from the Press Room',
+      ],
+      differentiation: {
+        support: 'A 5W organizer and a lede frame; a shorter word target.',
+        extension: 'Add a sourced number reported as a rate, with a comparison.',
+      },
+      rubric: {
+        criteria: [
+          criterion('Accuracy & verification', 'Facts unchecked', 'Some facts unsourced', 'Every fact checked with a named source', 'Independent primary sources; numbers and names double-checked'),
+          criterion('Structure', 'No clear order', 'Lede buried', 'Clear lede, inverted pyramid', 'Every paragraph earns its place'),
+          criterion('Headline', 'Missing or misleading', 'Vague', 'Accurate with a strong verb', 'Accurate, specific, search-friendly'),
+        ],
+      },
+      estimatedMinutes: 180,
+    },
+  },
+  {
+    id: 'seed-ela-912-editorial',
+    subject: 'ela',
+    gradeBand: '9-12',
+    taskType: 'essay',
+    structure: {
+      title: 'High School Press: Reported Editorial',
+      objective: 'Students write a clearly labelled, reported opinion piece that answers the strongest counterargument.',
+      standardsAlignment: [
+        { framework: 'CCSS', code: 'CCSS.ELA-LITERACY.W.11-12.1', label: 'Write arguments' },
+        { framework: 'CCSS', code: 'CCSS.ELA-LITERACY.W.11-12.7', label: 'Conduct research projects' },
+      ],
+      materials: [],
+      steps: [
+        'Lessons: The Ethics Code; Opinion, Editorials and Reviews',
+        'Report the issue: at least two sourced facts',
+        'Draft in the Student Newsroom Opinion kit, including the counterargument',
+        'Editorial-board discussion, then revise',
+        'Publish from the Press Room; file corrections if readers find errors',
+      ],
+      differentiation: {
+        support: 'Position/evidence/counter/answer paragraph frame.',
+        extension: 'Write the opposing editorial too, then a note on which is stronger and why.',
+      },
+      rubric: {
+        criteria: [
+          criterion('Position & evidence', 'No clear position', 'Weakly supported', 'Clear position with sourced evidence', 'Compelling, sourced, precise'),
+          criterion('Counterargument', 'Ignored', 'Stated weakly', 'Stated fairly and answered', 'Strongest version stated and convincingly answered'),
+          criterion('Ethics', 'Unlabelled or unfair', 'Labelled, some unfairness', 'Labelled opinion, fair to opponents', 'Discloses conflicts, models fairness'),
+        ],
+      },
+      estimatedMinutes: 150,
+    },
+  },
 ];
 
 export const seedById = (id: string): TemplateSeed | undefined => TEMPLATE_SEEDS.find(t => t.id === id);

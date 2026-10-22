@@ -1,0 +1,1 @@
+{ "extends": "./tsconfig.json", "compilerOptions": { "noEmit": true, "skipLibCheck": true, "incremental": false }, "include": ["services/print/**/*.ts", "components/tela/print/**/*.tsx", "components/tela/TelaView.tsx", "components/tela/telaOps.ts"] }

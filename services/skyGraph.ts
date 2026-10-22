@@ -66,6 +66,7 @@ const SUBJECT_ANCHOR: Partial<Record<Subject, { x: number; y: number }>> = {
   FINLIT:     { x: 0.20, y: 0.50 },
   REALESTATE: { x: 0.80, y: 0.86 },
   PHILOSOPHY: { x: 0.10, y: 0.16 },
+  JOURNALISM: { x: 0.48, y: 0.30 },
 };
 
 /** Longest path to each domain through the prerequisite DAG. Cycles are tolerated rather than
@@ -285,4 +286,5 @@ export function suggestNext(graph: SkyGraph): SkyNode | null {
 export const SUBJECT_HUE: Record<string, string> = {
   MATH: '#00DAF3', ELA: '#D40055', SCIENCE: '#6B0099',
   SOCIAL: '#FF8C00', ARTS: '#D0BCFF', LANGUAGE: '#06D6A0', CS: '#3B82F6',
+  CIVICS: '#FF9EC4', ECON: '#60A5FA', FINLIT: '#F5B83D', REALESTATE: '#FFB266', PHILOSOPHY: '#A78BFA', JOURNALISM: '#E8553E',
 };

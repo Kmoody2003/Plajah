@@ -16,7 +16,11 @@ import { createPortal } from 'react-dom';
 import {
   BarChart3, BookHeart, BookOpen, Brush, CheckCircle2, ChevronDown, ChevronLeft, Circle, CircleHelp, Clipboard, Copy, CopyPlus, Database, Eye, EyeOff, Feather, FileDown, FilePlus2, FileText, FileUp, FlipHorizontal, Folder, FormInput,
   Grid3X3, Hand, Hexagon, Image as ImageIcon, ImagePlus, Lasso, Layers, LayoutPanelTop, Link as LinkIcon, Link2, Loader2, Maximize2, Minimize2,
-  Minus, Monitor, MousePointer2, MousePointerClick, Music2, Paintbrush, Eraser, Palette, Pencil, PenLine, PenTool, Pipette, Plus, Redo2, Scan, Shapes, Sliders, Sparkles, Spline, Square, Star, TextQuote, Trash2, Type, Undo2, Wand2, X, ZoomIn, History as HistoryIcon } from 'lucide-react';
+  Minus, Monitor, MousePointer2, MousePointerClick, Music2, Paintbrush, Eraser, Palette, Pencil, PenLine, PenTool, Pipette, Plus, Redo2, Scan, Shapes, Sliders, Sparkles, Spline, Square, Star, TextQuote, Trash2, Type, Undo2, Wand2, X, ZoomIn, History as HistoryIcon, Printer } from 'lucide-react';
+import { NON_PRINTING_LABEL, isNonPrinting, type SpotColor } from '../../services/print/types';
+import { defaultSpecFor } from '../../services/print/products';
+import { vehiclePlacements, type WrapJob } from '../../services/print/wrap';
+import { translatePath } from '../../services/print/paths';
 import type {
   TelaAssignmentAudienceRole, TelaBaseDevice, TelaBinding, TelaBlock, TelaDevice, TelaDoc, TelaDocMeta, TelaField,
   TelaFormDevice, TelaFrame, TelaFramePreset, TelaGridDevice, TelaImageDevice, TelaImageLayer, TelaMediaDevice, TelaMediaKind, TelaNotesDevice,
@@ -106,6 +110,7 @@ const ComicDrawCanvas = React.lazy(() => import('../ComicDrawCanvas'));
 const ComposeWithCouncil = React.lazy(() => import('../living/ComposeWithCouncil'));   // Composer Council panel (services/living/composer)
 const TelaBehaviorsPanel = React.lazy(() => import('./TelaBehaviorsPanel'));   // Live authoring: behaviours, sounds, music (services/living)
 const TelaComicStudio = React.lazy(() => import('./TelaComicStudio').then(m => ({ default: m.TelaComicStudio })));
+const PrepressPanel = React.lazy(() => import('./print/PrepressPanel'));
 const LocalCreativeStudio = React.lazy(() => import('../Fabula/LocalCreativeStudio').then(m => ({ default: m.LocalCreativeStudio })));
 const TelaWritingStudio = React.lazy(() => import('./TelaWritingStudio').then(m => ({ default: m.TelaWritingStudio })));
 import {
@@ -418,6 +423,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
   const [autoFormatUndo, setAutoFormatUndo] = useState<TelaDoc | null>(null);
   const [autoFormatReport, setAutoFormatReport] = useState<TelaAutoFormatReport | null>(null);
   const [comicStudioOpen, setComicStudioOpen] = useState(false);
+  const [prepressOpen, setPrepressOpen] = useState(false);
   const [localStudioOpen, setLocalStudioOpen] = useState(false);
   const [localStudioMinimized, setLocalStudioMinimized] = useState(false);
   const [localStudioProgress, setLocalStudioProgress] = useState<{ loading: boolean; pct: number; msg: string }>({ loading: false, pct: 0, msg: '' });
@@ -2391,6 +2397,54 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
   }, [printFrameId]);
 
   const printFrame = doc?.frames.find(f => f.id === printFrameId) || null;
+
+  // One page at natural size (96 px = 1 in) — the print portal and Prepress both render through this.
+  // Non-printing guides (wrap templates, dielines) are dropped here so they never reach paper.
+  const renderFrameForPrint = (frame: TelaFrame): React.ReactNode => (
+    <div style={{ width: frame.w, minHeight: frame.h, background: '#fff', position: 'relative' }}>
+      {frame.deviceIds.map((id, devIdx) => {
+        const raw = doc?.devices[id];
+        if (!raw) return null;
+        const dev = raw.type === 'VECTOR' && raw.objects.some(isNonPrinting) ? { ...raw, objects: raw.objects.filter(o => !isNonPrinting(o)) } : raw;
+        const isOverlay = devIdx > 0 && dev.type === 'VECTOR';
+        return (
+          <div key={id} style={isOverlay ? { position: 'absolute', inset: 0, zIndex: 10 + devIdx } : { position: 'relative', zIndex: 1 }}>
+            {renderDevice(dev, true, isOverlay)}
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  const addBlankPrintPages = (count: number, trimIn: [number, number]) => {
+    const w = Math.round(trimIn[0] * 96), h = Math.round(trimIn[1] * 96);
+    for (let i = 0; i < count; i++) {
+      const cur = docRef.current; const last = cur?.frames[cur.frames.length - 1];
+      const dev: TelaVectorDevice = { id: uid('dev'), type: 'VECTOR', name: 'Blank page', width: w, height: h, objects: [] };
+      addFrame('PAPER', 'FREE', dev, `Page ${(cur?.frames.filter(f => f.kind === 'PAPER').length || 0) + 1}`, { pos: last ? { x: last.x, y: last.y + last.h + 54 } : { x: 0, y: 0 }, size: { w, h } });
+    }
+  };
+
+  /** Wrap designer → a design board at the job's scale with the template as a locked non-printing guide. */
+  const createWrapBoard = (board: { label: string; widthIn: number; heightIn: number; scale: number; guideSvg: string; job: WrapJob | null; dielineSpot?: SpotColor[] }) => {
+    const w = Math.round(board.widthIn * board.scale * 96), h = Math.round(board.heightIn * board.scale * 96);
+    const cur = docRef.current; const last = cur?.frames[cur.frames.length - 1];
+    const guideSrc = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(board.guideSvg)}`;
+    const guide: TelaVectorObject = { id: uid('obj'), kind: 'IMAGE', x: 0, y: 0, w, h, fill: 'none', stroke: 'none', strokeWidth: 0, rotation: 0, opacity: 0.85, sourceImageSrc: guideSrc, sourceCrop: { x: 0, y: 0, width: w, height: h, sourceWidth: w, sourceHeight: h }, objectLabel: `${NON_PRINTING_LABEL}: ${board.label}`, locked: true };
+    const dev: TelaVectorDevice = { id: uid('dev'), type: 'VECTOR', name: board.label, width: w, height: h, objects: [guide] };
+    const frame = addFrame('PAPER', 'FREE', dev, board.scale === 1 ? board.label : `${board.label} (1:${Math.round(1 / board.scale)})`, { pos: last ? { x: 0, y: last.y + last.h + 80 } : { x: 0, y: 0 }, size: { w, h } });
+    const wrapProduct = board.scale === 1 ? 'object-wrap' : 'vehicle-wrap';
+    // Vehicles: where every print panel sits on the board, so Prepress can export each at full size.
+    const wrap = board.job && !board.job.dieline
+      ? { scale: board.scale, panels: vehiclePlacements(board.job).flatMap(({ surface, ox, oy, tile }) => tile.panels.map((p, i) => ({ label: `${surface.label} P${i + 1}`, rectIn: { x: ox + p.rect.x, y: oy + p.rect.y, w: p.rect.w, h: p.rect.h }, printW: p.printW, printH: p.printH }))) }
+      : undefined;
+    // Labels, sleeves, cartons: the flat sits at (pad, pad) on the guide, so shift its die lines onto the board.
+    const dl = board.job?.dieline || null;
+    const pad = dl ? (board.widthIn - dl.flatIn[0]) / 2 : 0;
+    const dieline = dl ? { cut: dl.cut.map(d => translatePath(d, pad, pad)), crease: dl.crease.map(d => translatePath(d, pad, pad)) } : undefined;
+    dispatchOp({ type: 'SET_PRINT_SPEC', spec: defaultSpecFor(wrapProduct, { trimIn: [w / 96, h / 96], bleedIn: wrapProduct === 'vehicle-wrap' ? 3 * board.scale : 0.0625, safeIn: wrapProduct === 'vehicle-wrap' ? 4 * board.scale : 0.125, spotColors: board.dielineSpot || [], pageFrameIds: [frame.id], ...(wrap ? { wrap } : {}), ...(dieline ? { dieline } : {}) }) });
+    setPrepressOpen(false); setPosture('STUDIO');
+  };
   const printPageSize = printFrame
     ? (printFrame.kind === 'PAPER' ? `${printFrame.w / 96}in ${printFrame.h / 96}in` : `${printFrame.w}px ${printFrame.h}px`)
     : '8.5in 11in';
@@ -2792,6 +2846,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
               <button className={menuBarItem} onClick={() => { downloadTelaBoard(doc); setAppMenuOpen(null); }}><FileDown size={14}/>Download Tela board<span className="ml-auto text-[9px] text-white/25">.tela</span></button>
               <div className="h-px my-1 bg-white/[.07]"/>
               <button className={menuBarItem} onClick={() => { exportPdf(); setAppMenuOpen(null); }} disabled={!activeFrame}><FileDown size={14}/>Print / save active page as PDF<span className="ml-auto text-[9px] text-white/25">Ctrl+P</span></button>
+              <button className={menuBarItem} onClick={() => { setPrepressOpen(true); setAppMenuOpen(null); }} data-testid="open-prepress"><Printer size={14} color="#8FF5FF"/>Prepress &amp; print production…<span className="ml-auto text-[9px] text-white/25">Press · home · wraps</span></button>
               <button className={menuBarItem} onClick={() => { void refreshList(); setShowHome(true); setAppMenuOpen(null); }}><X size={14}/>Close to Tela Home</button>
             </>}
             {menu === 'INSERT' && <>
@@ -4402,6 +4457,18 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
         </div>
       )}
 
+      {prepressOpen && doc && (
+        <React.Suspense fallback={null}>
+          <PrepressPanel
+            doc={doc}
+            renderFrame={renderFrameForPrint}
+            onSetSpec={(spec, resizeFrameIds) => dispatchOp({ type: 'SET_PRINT_SPEC', spec, resizeFrameIds })}
+            onAddBlankPages={addBlankPrintPages}
+            onCreateWrapBoard={createWrapBoard}
+            onClose={() => setPrepressOpen(false)}
+          />
+        </React.Suspense>
+      )}
       {comicStudioOpen && createPortal(
         <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', backdropFilter: 'blur(6px)' }}>
           <div style={{ width: '1150px', height: '840px', maxWidth: '96vw', maxHeight: '94vh', borderRadius: '10px', overflow: 'hidden', boxShadow: '0 25px 80px rgba(0,0,0,0.9)' }}>
@@ -4656,28 +4723,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
             }
             @page { size: ${printPageSize}; margin: 0; }
           `}</style>
-          <div style={{ width: printFrame.w, minHeight: printFrame.h, background: '#fff', position: 'relative' }}>
-            {printFrame.deviceIds.map((id, devIdx) => {
-              const dev = doc.devices[id];
-              if (!dev) return null;
-              const isOverlay = devIdx > 0 && dev.type === 'VECTOR';
-              return (
-                <div
-                  key={id}
-                  style={isOverlay ? {
-                    position: 'absolute',
-                    inset: 0,
-                    zIndex: 10 + devIdx,
-                  } : {
-                    position: 'relative',
-                    zIndex: 1,
-                  }}
-                >
-                  {renderDevice(dev, true, isOverlay)}
-                </div>
-              );
-            })}
-          </div>
+          {renderFrameForPrint(printFrame)}
         </div>,
         document.body,
       )}

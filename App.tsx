@@ -268,6 +268,9 @@ const CivicsHallView = retryLazy(() => import('./components/CivicsHallView'));
 const RealEstateSchoolView = retryLazy(() => import('./components/RealEstateSchoolView'));
 const EconSchoolView = retryLazy(() => import('./components/EconSchoolView'));
 const PhilosophySchoolView = retryLazy(() => import('./components/PhilosophySchoolView'));
+const JournalismSchoolView = retryLazy(() => import('./components/JournalismSchoolView'));
+const PublicationStudio = retryLazy(() => import('./components/publication/PublicationStudio'));
+const IssueReader = retryLazy(() => import('./components/publication/IssueReader'));
 const PaperTradingView = retryLazy(() => import('./components/PaperTradingView'));
 const PaperTradingClassView = retryLazy(() => import('./components/PaperTradingClassView'));
 const AcademiaHubView = retryLazy(() => import('./components/AcademiaHubView'));
@@ -987,6 +990,17 @@ const App: React.FC = () => {
     };
     window.addEventListener('plajah:openTela', h as EventListener);
     return () => window.removeEventListener('plajah:openTela', h as EventListener);
+  }, [setView]);
+
+  // Periodicals: the Publication Studio (student or pro tier) and the Lorea issue reader.
+  const [publicationTier, setPublicationTier] = useState<'student' | 'pro'>('pro');
+  const [openIssueId, setOpenIssueId] = useState<string | null>(null);
+  useEffect(() => {
+    const openStudio = (e: Event) => { setPublicationTier((e as CustomEvent)?.detail?.tier === 'student' ? 'student' : 'pro'); setView('PUBLICATION_STUDIO'); };
+    const openIssue = (e: Event) => { const id = (e as CustomEvent)?.detail?.issueId; if (id) { setOpenIssueId(id); setView('ISSUE_READER'); } };
+    window.addEventListener('plajah:openPublicationStudio', openStudio);
+    window.addEventListener('plajah:openIssue', openIssue);
+    return () => { window.removeEventListener('plajah:openPublicationStudio', openStudio); window.removeEventListener('plajah:openIssue', openIssue); };
   }, [setView]);
 
   // Create an event from anywhere: profile, org, business, school, teacher (components/events/CreateEventButton.tsx)
@@ -2777,6 +2791,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       setView('ECON_SCHOOL');
     } else if (target === 'PHILOSOPHY_SCHOOL') {
       setView('PHILOSOPHY_SCHOOL');
+    } else if (target === 'JOURNALISM_SCHOOL') {
+      setView('JOURNALISM_SCHOOL');
     } else if (target === 'PAPER_TRADING') {
       setView('PAPER_TRADING');
     } else if (target === 'PAPER_TRADING_CLASS') {
@@ -7563,6 +7579,31 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {view === 'PHILOSOPHY_SCHOOL' && (
               <Suspense fallback={null}>
                 <PhilosophySchoolView
+                  onBack={() => goBack('ACADEMIA_LANDING')}
+                  onNavigate={(v) => setView(v as AppView)}
+                  user={user}
+                  profile={userProfile}
+                />
+              </Suspense>
+            )}
+            {view === 'PUBLICATION_STUDIO' && (
+              <Suspense fallback={null}>
+                <div className="min-h-full bg-[#0b0908] px-4 py-6 text-white sm:px-8">
+                  <button onClick={() => goBack(publicationTier === 'student' ? 'JOURNALISM_SCHOOL' : 'JOURNALIST_DESK')} className="mb-4 rounded-full border border-white/10 px-4 py-2 text-xs font-black uppercase tracking-widest text-white/60">← Back</button>
+                  <h1 className="mb-1 font-serif text-3xl font-black">Publication Studio</h1>
+                  <p className="mb-6 text-sm text-white/50">{publicationTier === 'student' ? 'Run your class newspaper or magazine — adviser-approved issues, printed and on Lorea.' : 'Run a periodical: masthead, issues, layout in Tela, print-ready files and Lorea distribution.'}</p>
+                  <PublicationStudio tier={publicationTier} user={user} isTeacher={(userProfile as any)?.accountType === 'TEACHER' || !!(userProfile as any)?.isTeacher || roleLens === 'teacher'} />
+                </div>
+              </Suspense>
+            )}
+            {view === 'ISSUE_READER' && openIssueId && (
+              <Suspense fallback={null}>
+                <IssueReader issueId={openIssueId} onBack={() => goBack('BOOKS')} />
+              </Suspense>
+            )}
+            {view === 'JOURNALISM_SCHOOL' && (
+              <Suspense fallback={null}>
+                <JournalismSchoolView
                   onBack={() => goBack('ACADEMIA_LANDING')}
                   onNavigate={(v) => setView(v as AppView)}
                   user={user}

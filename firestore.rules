@@ -3033,6 +3033,37 @@ service cloud.firestore {
       allow update: if (nrOwner(resource.data) || nrOrgStaff(resource.data)) && request.resource.data.ownerId == resource.data.ownerId;
       allow delete: if nrOwner(resource.data) || nrOrgStaff(resource.data);
     }
+    // Periodical issues (services/publication/periodicalStore.ts). Staff (staffUids) edit; the faculty
+    // adviser's account alone writes adviserApproval; a student issue cannot become 'published' unless the
+    // adviser on the issue approved it. Published public issues are readable by everyone.
+    function piStaff(d) { return isAuthenticated() && (d.ownerId == request.auth.uid || request.auth.uid in d.get('staffUids', [])); }
+    function piAdviserOk(d) { return d.get('tier', 'pro') != 'student' || (d.get('adviserApproval', null) != null && d.adviserApproval.uid == d.get('adviserUid', '')); }
+    match /periodicalIssues/{id} {
+      allow read: if (resource.data.status == 'published' && resource.data.get('isPublic', false) == true)
+        || piStaff(resource.data)
+        || (isAuthenticated() && resource.data.get('adviserUid', '') == request.auth.uid);
+      allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.get('adviserApproval', null) == null
+        && request.resource.data.status != 'published';
+      allow update: if (
+          piStaff(resource.data)
+          && request.resource.data.ownerId == resource.data.ownerId
+          && request.resource.data.get('adviserApproval', null) == resource.data.get('adviserApproval', null)
+          && request.resource.data.get('adviserUid', '') == resource.data.get('adviserUid', '')
+          && request.resource.data.get('tier', 'pro') == resource.data.get('tier', 'pro')
+          && (request.resource.data.status != 'published' || piAdviserOk(resource.data))
+        ) || (
+          isAuthenticated() && resource.data.get('adviserUid', '') == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['adviserApproval', 'updatedAt'])
+          && (request.resource.data.adviserApproval == null || request.resource.data.adviserApproval.uid == request.auth.uid)
+        );
+      allow delete: if isAuthenticated() && resource.data.ownerId == request.auth.uid && resource.data.status != 'published';
+    }
+    match /publicationFollows/{id} {
+      allow read: if isAuthenticated() && resource.data.uid == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.uid == request.auth.uid && id == request.auth.uid + '_' + request.resource.data.publicationId;
+      allow delete: if isAuthenticated() && resource.data.uid == request.auth.uid;
+    }
     // Press credentials: the owner submits them SELF_ASSERTED; only platform staff may approve or reject.
     match /press_credentials/{id} {
       allow read: if nrOwner(resource.data) || isAdmin();
@@ -5780,14 +5811,18 @@ service cloud.firestore {
       allow create: if isAuthenticated() &&
         request.resource.data.studentId == request.auth.uid &&
         request.resource.data.status == 'submitted' &&
-        request.resource.data.grade == null;
+        request.resource.data.grade == null &&
+        // A Student Newsroom story's editorial decision (`review`) is the teacher's alone:
+        // it is what lets a young reporter's story leave the classroom.
+        request.resource.data.get('review', null) == null;
       // Only the teacher grades. A student may still edit their own work, but may never
-      // touch the grade field — hence the two separate, non-overlapping update paths.
+      // touch the grade or review fields — hence the two separate, non-overlapping update paths.
       allow update: if isAuthenticated() && (
         (resource.data.teacherUid == request.auth.uid) ||
         (resource.data.studentId == request.auth.uid &&
          resource.data.status != 'graded' &&
          request.resource.data.grade == resource.data.grade &&
+         request.resource.data.get('review', null) == resource.data.get('review', null) &&
          request.resource.data.status == resource.data.status)
       );
       allow delete: if isAuthenticated() && resource.data.teacherUid == request.auth.uid;

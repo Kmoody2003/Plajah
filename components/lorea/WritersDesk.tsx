@@ -14,6 +14,9 @@ import {
 import { UserProfile } from '../../types';
 import { listWritingProjects, type WritingProject, type WritingChapter } from '../../services/loreaProjectsService';
 import { isDemoMode } from '../../services/demoMode';
+import { BAND_LABEL, KIT_FOR_DESK_TYPE, STORY_KITS } from '../../services/journalismSchool/storyKits';
+import { openJournalismSchool, useStories } from '../../services/journalismSchool/newsroomStore';
+import { STAGE_LABEL } from '../../services/journalismSchool/studentDesk';
 
 // ─── Storage & Types ─────────────────────────────────────────────────────────
 
@@ -134,7 +137,7 @@ const EmptyState: React.FC<{ icon: React.ReactNode; title: string; body: string;
 
 // ─── Desk Tabs ───────────────────────────────────────────────────────────────
 
-export type DeskTab = 'overview' | 'projects' | 'manuscripts' | 'research' | 'submissions' | 'events' | 'press';
+export type DeskTab = 'overview' | 'projects' | 'manuscripts' | 'research' | 'submissions' | 'events' | 'press' | 'jschool';
 
 const DESK_TABS: { id: DeskTab; label: string; icon: React.ReactNode }[] = [
   { id: 'overview',     label: 'Overview',     icon: <BookMarked size={13} /> },
@@ -144,6 +147,7 @@ const DESK_TABS: { id: DeskTab; label: string; icon: React.ReactNode }[] = [
   { id: 'submissions',  label: 'Submissions',  icon: <Send size={13} /> },
   { id: 'events',       label: 'Events',       icon: <Calendar size={13} /> },
   { id: 'press',        label: 'Press & Media',icon: <Newspaper size={13} /> },
+  { id: 'jschool',      label: 'Journalism School', icon: <PenLine size={13} /> },
 ];
 
 export const WritersDesk: React.FC<{
@@ -221,6 +225,7 @@ export const WritersDesk: React.FC<{
         {activeTab === 'submissions' && <WriterSubmissionsTab />}
         {activeTab === 'events' && <WriterEventsTab />}
         {activeTab === 'press' && <WriterPressTab />}
+        {activeTab === 'jschool' && <WriterJournalismSchoolTab currentUser={currentUser} />}
       </main>
     </div>
   );
@@ -358,6 +363,14 @@ const WriterProjectsTab: React.FC<{ currentUser?: UserProfile | null }> = ({ cur
                     <div className="h-1.5 bg-white/10 rounded-full overflow-hidden mb-1.5"><div className="h-full rounded-full bg-cyan-500" style={{ width: `${pct}%` }} /></div>
                     <p className="text-[10px] text-white/30">{p.wordCountCurrent.toLocaleString()} / {p.wordCountTarget.toLocaleString()} words · {pct.toFixed(0)}% complete</p>
                   </>
+                )}
+                {KIT_FOR_DESK_TYPE[p.type] && (
+                  <button
+                    onClick={() => openJournalismSchool({ tab: 'NEWSROOM', kitId: KIT_FOR_DESK_TYPE[p.type] })}
+                    className="mt-3 inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-[#ff8a73] hover:text-white transition"
+                  >
+                    <Newspaper size={11} /> Draft it in the Student Newsroom
+                  </button>
                 )}
               </div>
             );
@@ -704,5 +717,54 @@ const WriterPressTab: React.FC = () => (
     </div>
   </motion.div>
 );
+
+// The Writers Desk's door into Plajah Academia's School of Journalism: the same reporter's stories,
+// the kits for each form, and the curriculum, without leaving Lorea.
+const WriterJournalismSchoolTab: React.FC<{ currentUser?: UserProfile | null }> = ({ currentUser }) => {
+  const uid = (currentUser as any)?.uid || 'guest';
+  const { stories } = useStories(uid);
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+      <div className="rounded-2xl border border-[#E8553E]/30 bg-gradient-to-br from-[#E8553E]/15 to-transparent p-6">
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#ff8a73]">Plajah Academia</p>
+        <h2 className="mt-1 text-xl font-black text-white">School of Journalism — Notice, Ask, Verify, Publish</h2>
+        <p className="mt-2 max-w-2xl text-[12px] leading-relaxed text-white/55">
+          A PreK → university curriculum with a Student Newsroom: story kits for every form, a desk coach built on the professional newsroom’s checkers,
+          teacher sign-off for young reporters, and distribution by print, newsletter, the student wall and broadcast.
+        </p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button onClick={() => openJournalismSchool({ tab: 'NEWSROOM' })} className="px-4 py-2 rounded-xl bg-[#E8553E] text-[#1a0d08] text-xs font-black uppercase tracking-wider">Open the newsroom</button>
+          <button onClick={() => openJournalismSchool({ tab: 'STRANDS' })} className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white/80 text-xs font-bold">Lessons</button>
+          <button onClick={() => openJournalismSchool({ tab: 'PRESS' })} className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white/80 text-xs font-bold">Press Room</button>
+        </div>
+      </div>
+      <div>
+        <p className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-3">Start from a kit</p>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          {STORY_KITS.map(k => (
+            <button key={k.id} onClick={() => openJournalismSchool({ tab: 'NEWSROOM', kitId: k.id })}
+              className="p-3 text-left bg-white/[0.03] border border-white/[0.06] rounded-xl hover:border-[#E8553E]/40 transition">
+              <span className="text-lg">{k.emoji}</span>
+              <p className="mt-1 text-xs font-black text-white">{k.title}</p>
+              <p className="text-[10px] text-white/35">{k.bands.map(b => BAND_LABEL[b]).join(' · ')}</p>
+            </button>
+          ))}
+        </div>
+      </div>
+      <div>
+        <p className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-3">My newsroom stories ({stories.length})</p>
+        {stories.length === 0
+          ? <p className="text-[12px] text-white/35">No stories yet.</p>
+          : <div className="space-y-2">{stories.slice(0, 8).map(s => (
+              <button key={s.id} onClick={() => openJournalismSchool({ tab: 'NEWSROOM', storyId: s.id })}
+                className="w-full flex items-center justify-between gap-3 p-3 bg-white/[0.03] border border-white/[0.06] rounded-xl hover:border-white/15 text-left">
+                <span className="text-xs font-bold text-white truncate">{s.headline || s.caption || 'Untitled story'}</span>
+                <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-white/5 text-white/50 shrink-0">{STAGE_LABEL[s.stage]}</span>
+              </button>
+            ))}</div>}
+      </div>
+    </motion.div>
+  );
+};
 
 export default WritersDesk;

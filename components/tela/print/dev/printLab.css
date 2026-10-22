@@ -1,0 +1,4 @@
+/* Lab-only Tailwind entry: scans just the print and publication surfaces. */
+@import "tailwindcss" source(none);
+@source "../";
+@source "../../../publication";

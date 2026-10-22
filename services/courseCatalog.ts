@@ -147,6 +147,7 @@ export const COURSES: Course[] = [
   // Literacy
   { id: 'classic-literature', subject: 'literacy', title: 'Classic Literature', blurb: '42 classics free in Lorea, with study guides, practice and Chora Vault recordings to hear their world.', emoji: '📚', accent: '#D40055', kind: 'curriculum', view: 'LANGUAGE_ARTS_SCHOOL', curriculumId: 'classic-literature' },
   { id: 'history-sentences', subject: 'literacy', title: 'Grammar Through History', blurb: 'Fix, finish and polish sentences about real music, film, art and money history.', emoji: '✍️', accent: '#7a2bd6', kind: 'curriculum', view: 'LANGUAGE_ARTS_SCHOOL', curriculumId: 'history-sentences' },
+  { id: 'journalism-school', subject: 'literacy', title: 'School of Journalism', blurb: 'Notice, ask, verify, publish: picture news in PreK to public-records investigations in college, with a real student newsroom.', emoji: '📰', accent: '#E8553E', kind: 'curriculum', view: 'JOURNALISM_SCHOOL', curriculumId: 'journalism-school' },
   { id: 'voca', subject: 'literacy', title: 'Voca', blurb: 'Read aloud with Chora, who listens and coaches.', emoji: '🎙️', accent: '#D40055', kind: 'link', view: 'VOCA' },
   { id: 'reading-quest', subject: 'literacy', title: 'Reading Quest', blurb: 'Phonics to comprehension, gamified.', emoji: '📖', accent: '#2bd67a', kind: 'link', view: 'READING_QUEST' },
   { id: 'language-arts', subject: 'literacy', title: 'Language Arts', blurb: 'Reading, writing, grammar and vocabulary.', emoji: '✏️', accent: '#D40055', kind: 'link', view: 'LANGUAGE_ARTS_SCHOOL' },
@@ -178,6 +179,7 @@ const CURRICULUM_LOADERS: Record<string, () => Promise<Curriculum>> = {
   'econ-school': () => import('../data/econCurriculum').then(m => m.ECON_SCHOOL),
   'money-school': () => import('../data/finlitCurriculum').then(m => m.MONEY_SCHOOL),
   'philosophy-school': () => import('../data/philosophyCurriculum').then(m => m.PHILOSOPHY_SCHOOL),
+  'journalism-school': () => import('../data/journalismCurriculum').then(m => m.JOURNALISM_SCHOOL),
   'real-estate-school': () => import('../data/realEstateCurriculum').then(m => m.REAL_ESTATE_SCHOOL),
   'film-school': () => import('../data/filmSchoolCurriculum').then(m => m.FILM_SCHOOL),
   'photo-art-school': () => import('../data/photoArtCurriculum').then(m => m.PHOTO_ART_SCHOOL),

@@ -15,11 +15,14 @@ import {
   type Curriculum, type Track, type Lesson,
 } from '../../services/schoolChassis';
 import { auth } from '../../services/backendService';
+import { kitForLesson, PRESS_LESSONS } from '../../services/journalismSchool/storyKits';
+import { openJournalismSchool } from '../../services/journalismSchool/newsroomStore';
 
 const TOOL_EVENT: Record<string, string> = {
   FABULA: 'OPEN_FABULA', PHOTO: 'OPEN_MEDIA_CONVERTER', CHORA: 'NAVIGATE', LOREA: 'NAVIGATE', PIXELS: 'OPEN_PLAJAH_PIXELS',
   PRAXIS: 'NAVIGATE',
   TERRA: 'NAVIGATE',
+  NEWSROOM: 'JOURNALISM',
 };
 
 const Bar: React.FC<{ pct: number; accent: string }> = ({ pct, accent }) => (
@@ -90,7 +93,11 @@ const LessonReader: React.FC<{
               <button
                 onClick={() => {
                   const evt = TOOL_EVENT[lesson.assignment!.tool!];
-                  if (evt === 'NAVIGATE') {
+                  if (evt === 'JOURNALISM') {
+                    const kit = kitForLesson(lesson.id);
+                    openJournalismSchool(PRESS_LESSONS.has(lesson.id) ? { tab: 'PRESS', lessonId: lesson.id } : { tab: 'NEWSROOM', kitId: kit?.id, lessonId: lesson.id });
+                  }
+                  else if (evt === 'NAVIGATE') {
                     const t = lesson.assignment!.tool;
                     window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: t === 'CHORA' ? 'MUSIC' : t === 'PRAXIS' ? 'PRAXIS' : t === 'TERRA' ? 'TERRA' : 'BOOKS' } }));
                   }
@@ -99,7 +106,7 @@ const LessonReader: React.FC<{
                 className="mt-3 inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest"
                 style={{ background: accent, color: '#000' }}
               >
-                Open {lesson.assignment.tool === 'FABULA' ? 'Fabula' : lesson.assignment.tool === 'PHOTO' ? 'the photo editor' : lesson.assignment.tool === 'CHORA' ? 'Chora' : lesson.assignment.tool === 'PIXELS' ? 'Pixels' : lesson.assignment.tool === 'PRAXIS' ? 'Praxis' : lesson.assignment.tool === 'TERRA' ? 'Terra' : 'Lorea'} <ChevronRight size={12} />
+                Open {lesson.assignment.tool === 'FABULA' ? 'Fabula' : lesson.assignment.tool === 'PHOTO' ? 'the photo editor' : lesson.assignment.tool === 'CHORA' ? 'Chora' : lesson.assignment.tool === 'PIXELS' ? 'Pixels' : lesson.assignment.tool === 'PRAXIS' ? 'Praxis' : lesson.assignment.tool === 'TERRA' ? 'Terra' : lesson.assignment.tool === 'NEWSROOM' ? 'the Student Newsroom' : 'Lorea'} <ChevronRight size={12} />
               </button>
             )}
             {lesson.assignment.postTag && (

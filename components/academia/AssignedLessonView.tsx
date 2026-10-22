@@ -15,12 +15,15 @@ import {
   BookOpen, Scale, Lightbulb, CircleCheck,
 } from 'lucide-react';
 import {
-  fetchAssignment, submitLesson, fetchMySubmission, resolveHostedBooks, bookLink,
+  fetchAssignment, submitLesson, fetchMySubmission, resolveHostedBooks, bookLink, loadTemplate,
   type TemplateAssignment, type TemplateSubmission, type RubricScores,
 } from '../../services/assignmentTemplateService';
 import { libraryItemById, describeStandard } from '../../data/oerLibrary';
 import { LICENSE_LABEL } from '../../services/oerLicenseGate';
 import { T, cardStyle, btn, badge } from './integrityTheme';
+import type { AssignmentTemplate } from '../../data/assignmentTemplates';
+import LessonGradingPanel from './LessonGradingPanel';
+import { openJournalismSchool } from '../../services/journalismSchool/newsroomStore';
 
 const Section: React.FC<{ icon: React.ElementType; title: string; children: React.ReactNode }> =
   ({ icon: Icon, title, children }) => (
@@ -56,6 +59,7 @@ const AssignedLessonView: React.FC<Props> = ({ assignmentId, assignment: preload
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
   const [hostedBooks, setHostedBooks] = useState<Set<string>>(new Set());
+  const [template, setTemplate] = useState<AssignmentTemplate | null>(null);
 
   const studentId = user?.uid ?? '';
   const studentName = user?.displayName || 'Student';
@@ -67,7 +71,11 @@ const AssignedLessonView: React.FC<Props> = ({ assignmentId, assignment: preload
       const a = preloaded ?? await fetchAssignment(assignmentId!);
       if (!alive) return;
       setAssignment(a);
-      if (a && studentId) {
+      // The assigning teacher gets the grading side of the same lesson.
+      if (a && studentId && a.teacherUid === studentId) {
+        const t = await loadTemplate(a.templateId);
+        if (alive) setTemplate(t);
+      } else if (a && studentId) {
         const mine = await fetchMySubmission(a.id, studentId);
         if (alive && mine) {
           setExisting(mine);
@@ -115,6 +123,19 @@ const AssignedLessonView: React.FC<Props> = ({ assignmentId, assignment: preload
         <div style={{ ...cardStyle, padding: 20, color: T.muted, fontSize: 13.5, lineHeight: 1.6 }}>
           We couldn't find that assignment. The link may have expired, or it may have been
           assigned to a different class.
+        </div>
+      </div>
+    );
+  }
+
+  if (template && assignment.teacherUid === studentId) {
+    return (
+      <div style={{ background: T.bg, minHeight: '100vh', padding: 24, fontFamily: T.font, color: T.ink }}>
+        <div style={{ maxWidth: 820, margin: '0 auto' }}>
+          {onBack && <button onClick={onBack} style={{ ...btn('ghost', T.muted), marginBottom: 14 }}><ArrowLeft size={14} /> Back</button>}
+          <h1 style={{ margin: '0 0 6px', fontSize: 23, fontWeight: 900 }}>{assignment.title}</h1>
+          <p style={{ margin: '0 0 18px', color: T.muted, fontSize: 13.5 }}>{assignment.className} · {assignment.studentIds.length} students</p>
+          <LessonGradingPanel assignment={assignment} template={template} gradedBy={studentId} gradedByName={user?.displayName || 'Your teacher'} />
         </div>
       </div>
     );
@@ -311,8 +332,24 @@ const AssignedLessonView: React.FC<Props> = ({ assignmentId, assignment: preload
           </p>
         </Section>
 
+        {/* ── Newsroom lessons are drafted and turned in from the Student Newsroom ── */}
+        {assignment.newsroomKitId && !graded && (
+          <Section icon={Send} title="Report it in the Student Newsroom">
+            <p style={{ margin: '0 0 12px', fontSize: 13, color: T.muted, lineHeight: 1.65 }}>
+              Draft your story in the newsroom kit for this assignment, take it through peer edit, then turn it in from there.
+              Your teacher reviews it from their account and either approves it for publication or sends it back with a note.
+            </p>
+            <button onClick={() => openJournalismSchool({ tab: 'NEWSROOM', kitId: assignment.newsroomKitId!, assignmentId: assignment.id })} style={btn('solid', T.orange)}>
+              <Send size={14} /> Open the Student Newsroom
+            </button>
+            {existing?.status === 'returned' && existing.review?.note && (
+              <p style={{ margin: '12px 0 0', fontSize: 12.5, color: T.warning }}>Your editor asked for changes: {existing.review.note}</p>
+            )}
+          </Section>
+        )}
+
         {/* ── Turn in ── */}
-        {!alreadyIn && (
+        {!alreadyIn && !assignment.newsroomKitId && (
           <Section icon={Send} title="Turn it in">
             <label style={{ fontSize: 11.5, color: T.muted, display: 'grid', gap: 6, marginBottom: 14 }}>
               What did you find hard, or figure out? (optional)
@@ -339,7 +376,7 @@ const AssignedLessonView: React.FC<Props> = ({ assignmentId, assignment: preload
           </Section>
         )}
 
-        {alreadyIn && !graded && (
+        {alreadyIn && !graded && existing?.status !== 'returned' && (
           <div style={{ ...cardStyle, padding: 18, display: 'flex', gap: 9, alignItems: 'center' }}>
             <Check size={16} color={T.success} />
             <span style={{ fontSize: 13.5, color: T.muted }}>

@@ -62,7 +62,15 @@ export const JournalistHub: React.FC<Props> = ({ user, onBack, onNewArticle, onO
           {tab === 'interviews' && <InterviewNotes />}
           {tab === 'facts' && <FactCheckBench />}
           {tab === 'style' && <StyleHeadlinePanel />}
-          {tab === 'publications' && <PublicationManager orgId={orgId || undefined} />}
+          {tab === 'publications' && (
+            <>
+              <button onClick={() => window.dispatchEvent(new CustomEvent('plajah:openPublicationStudio', { detail: { tier: 'pro' } }))}
+                className="mb-4 inline-flex items-center gap-2 rounded-xl bg-[#E8553E] px-4 py-2.5 text-[12px] font-black uppercase tracking-wider text-[#1a0d08]">
+                Run issues: Publication Studio — layout, print, Lorea distribution
+              </button>
+              <PublicationManager orgId={orgId || undefined} />
+            </>
+          )}
         </Suspense>
       </div>
     </div>

@@ -1,0 +1,7 @@
+/* Lab-only Tailwind entry: scans just the School of Journalism surfaces, so the lab doesn't wait on
+   a whole-repo scan (index.css walks every non-ignored file, including other sessions' worktrees). */
+@import "tailwindcss" source(none);
+@source "../";
+@source "../../JournalismSchoolView.tsx";
+@source "../../school/SchoolView.tsx";
+@source "../../academia/NewsroomStoryReview.tsx";

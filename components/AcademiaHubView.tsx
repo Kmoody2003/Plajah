@@ -60,7 +60,7 @@ const SUBJECTS = [
 // Each subject routes into a real functional discipline landing page.
 const SUBJECT_NAV: Record<string, string> = {
   math: 'MATH_SCHOOL', science: 'SCIENCE_SCHOOL', reading: 'LANGUAGE_ARTS_SCHOOL',
-  business: 'BUSINESS_SCHOOL', money: 'MONEY_SCHOOL', history: 'CIVICS_HALL',
+  business: 'BUSINESS_SCHOOL', money: 'MONEY_SCHOOL', history: 'CIVICS_HALL', journalism: 'JOURNALISM_SCHOOL',
   language: 'LANGUAGE_ARTS_SCHOOL', music: 'CHORA_CONSERVATORY', art: 'ART_GALLERY',
 };
 

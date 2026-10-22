@@ -17,6 +17,8 @@ import { appendRecord, loadProficiency } from './learningLedgerService';
 import { gateForCommercialUse, mostRestrictive, type GateResult, type License } from './oerLicenseGate';
 import { libraryItemById, ledgerFrameworkFor } from '../data/oerLibrary';
 import type { AssignmentTemplate, TemplateSeed, TemplateStructure, Rubric } from '../data/assignmentTemplates';
+import { SEED_KIT } from './journalismSchool/storyKits';
+import type { NewsroomReview, NewsroomSnapshot } from './journalismSchool/newsroomReview';
 
 const TEMPLATES = 'assignmentTemplates';
 const templateDoc = (id: string) => doc(db, TEMPLATES, id);
@@ -204,6 +206,8 @@ export async function assignTemplate(input: AssignInput): Promise<AssignResult> 
       standardCodes: ledgerStandards,
       studentIds: students.map(s => s.id),
       guardianUids,
+      // School of Journalism lessons are drafted in the Student Newsroom and turned in from there.
+      newsroomKitId: SEED_KIT[template.remixOf ?? ''] ?? null,
       dueDate: dueDate ?? null,
       createdAt: Date.now(),
     });
@@ -302,6 +306,8 @@ export interface TemplateAssignment {
   studentIds: string[];
   /** Guardians of the assigned students — lets a parent read their child's work under the rules. */
   guardianUids?: string[];
+  /** Set when the template came from a School of Journalism seed: the Student Newsroom kit to draft in. */
+  newsroomKitId?: string | null;
   dueDate: number | null;
   createdAt: number;
 }
@@ -335,7 +341,12 @@ export interface TemplateSubmission {
   /** The student's own read of their work — visible to the teacher, never graded from. */
   selfScores: RubricScores;
   submittedAt: number;
-  status: 'submitted' | 'graded';
+  /** 'returned' = the teacher asked for changes; the student turns in a fresh submission. */
+  status: 'submitted' | 'graded' | 'returned';
+  /** A Student Newsroom story, frozen at turn-in (services/journalismSchool/newsroomReview). */
+  newsroom?: NewsroomSnapshot | null;
+  /** The teacher's editorial decision on a newsroom story. Only the teacher may write it. */
+  review?: NewsroomReview | null;
   grade: {
     scores: RubricScores;
     total: number;
@@ -446,7 +457,8 @@ export async function fetchStudentDueWork(studentId: string, max = 20): Promise<
       getDocs(query(collection(db, 'templateSubmissions'), where('studentId', '==', studentId), limit(200))),
     ]);
 
-    const handedIn = new Set(mineSnap.docs.map(d => (d.data() as TemplateSubmission).assignmentId));
+    // Work sent back for changes is still owed.
+    const handedIn = new Set(mineSnap.docs.map(d => d.data() as TemplateSubmission).filter(s => s.status !== 'returned').map(s => s.assignmentId));
     const now = Date.now();
 
     return assignedSnap.docs
@@ -489,7 +501,7 @@ export async function fetchTeacherReviewQueue(teacherUid: string, max = 50): Pro
     ));
     return snap.docs
       .map(d => ({ ...(d.data() as TemplateSubmission), id: d.id }))
-      .filter(s => s.status !== 'graded')
+      .filter(s => s.status === 'submitted')
       .sort((a, b) => a.submittedAt - b.submittedAt) // oldest first — longest wait gets seen
       .slice(0, max)
       .map(s => ({

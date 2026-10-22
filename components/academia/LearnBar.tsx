@@ -8,7 +8,7 @@ import { ArrowLeft, Compass, Home } from 'lucide-react';
  * It never replaces a screen's own content, so nothing inside the schools changed.
  */
 export const LEARN_VIEW_TITLES: Record<string, string> = {
-  CIVICS_HALL: 'Civics Hall', MONEY_SCHOOL: 'School of Money', ECON_SCHOOL: 'Economics', PHILOSOPHY_SCHOOL: 'Philosophy',
+  CIVICS_HALL: 'Civics Hall', MONEY_SCHOOL: 'School of Money', ECON_SCHOOL: 'Economics', PHILOSOPHY_SCHOOL: 'Philosophy', JOURNALISM_SCHOOL: 'Journalism',
   REAL_ESTATE_SCHOOL: 'Real Estate', BUSINESS_SCHOOL: 'Business School', FILM_SCHOOL: 'Film School', MATH_SCHOOL: 'Math',
   MATH_CLASSROOM: 'Math practice', SCIENCE_SCHOOL: 'Science', SCIENCE_QUEST: 'Science Quest', HISTORY_QUEST: 'History Quest',
   LANGUAGE_ARTS_SCHOOL: 'Language Arts', READING_QUEST: 'Reading Quest', LANGUAGE_QUEST: 'Languages', VOCA: 'Voca',

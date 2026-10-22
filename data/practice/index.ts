@@ -7,6 +7,7 @@ const LOADERS: Record<string, () => Promise<QuestionBank>> = {
   'econ-school': () => import('./econ-school').then(m => m.ECON_BANK),
   'money-school': () => import('./money-school').then(m => m.MONEY_BANK),
   'philosophy-school': () => import('./philosophy-school').then(m => m.PHILOSOPHY_BANK),
+  'journalism-school': () => import('./journalism-school').then(m => m.JOURNALISM_BANK),
   'real-estate-school': () => import('./real-estate-school').then(m => m.REAL_ESTATE_BANK),
   'film-school': () => import('./film-school').then(m => m.FILM_BANK),
   'photo-art-school': () => import('./photo-art-school').then(m => m.PHOTO_ART_BANK),

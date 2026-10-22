@@ -16,12 +16,15 @@ import {
 } from '../../services/assignmentTemplateService';
 import type { AssignmentTemplate } from '../../data/assignmentTemplates';
 import { T, cardStyle, btn, badge } from './integrityTheme';
+import NewsroomStoryReview from './NewsroomStoryReview';
 
 const LessonGradingPanel: React.FC<{
   assignment: TemplateAssignment;
   template: AssignmentTemplate;
   gradedBy: string;
-}> = ({ assignment, template, gradedBy }) => {
+  /** The teacher's display name — recorded on newsroom approvals and send-backs. */
+  gradedByName?: string;
+}> = ({ assignment, template, gradedBy, gradedByName = 'Your teacher' }) => {
   const [submissions, setSubmissions] = useState<TemplateSubmission[] | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
 
@@ -36,7 +39,7 @@ const LessonGradingPanel: React.FC<{
     );
   }
 
-  const ungraded = submissions.filter(s => s.status !== 'graded').length;
+  const ungraded = submissions.filter(s => s.status === 'submitted').length;
 
   return (
     <section style={{ ...cardStyle, padding: 20 }}>
@@ -63,8 +66,10 @@ const LessonGradingPanel: React.FC<{
               <span style={badge(T.success)}>
                 <Check size={11} /> {sub.grade.total}/{sub.grade.max} · {sub.grade.masteryPercent}%
               </span>
+            ) : sub.status === 'returned' ? (
+              <span style={badge(T.faint)}>Sent back for changes</span>
             ) : (
-              <span style={badge(T.warning)}>Needs grading</span>
+              <span style={badge(T.warning)}>{sub.newsroom ? 'Needs editorial review' : 'Needs grading'}</span>
             )}
             <span style={{ fontSize: 11.5, color: T.faint }}>
               {new Date(sub.submittedAt).toLocaleDateString()} · {sub.stepsDone.length}/{assignment.steps.length} steps
@@ -73,17 +78,27 @@ const LessonGradingPanel: React.FC<{
               onClick={() => setOpenId(openId === sub.id ? null : sub.id)}
               style={{ ...btn('outline', T.cyan), marginLeft: 'auto', padding: '6px 12px', fontSize: 12 }}
             >
-              {openId === sub.id ? 'Close' : sub.status === 'graded' ? 'Review' : 'Grade'}
+              {openId === sub.id ? 'Close' : sub.status === 'submitted' ? (sub.newsroom ? 'Review story' : 'Grade') : 'Review'}
             </button>
           </div>
 
           {openId === sub.id && (
-            <GradeForm
-              submission={sub}
-              template={template}
-              gradedBy={gradedBy}
-              onGraded={async () => { await reload(); setOpenId(null); }}
-            />
+            <>
+              {sub.newsroom && (
+                <div style={{ marginTop: 14 }}>
+                  <NewsroomStoryReview submission={sub} teacher={{ uid: gradedBy, name: gradedByName }} onReturned={async () => { await reload(); setOpenId(null); }} />
+                </div>
+              )}
+              {sub.status !== 'returned' && (
+                <GradeForm
+                  submission={sub}
+                  template={template}
+                  gradedBy={gradedBy}
+                  gradedByName={gradedByName}
+                  onGraded={async () => { await reload(); setOpenId(null); }}
+                />
+              )}
+            </>
           )}
         </div>
       ))}
@@ -95,8 +110,9 @@ const GradeForm: React.FC<{
   submission: TemplateSubmission;
   template: AssignmentTemplate;
   gradedBy: string;
+  gradedByName: string;
   onGraded: () => Promise<void>;
-}> = ({ submission, template, gradedBy, onGraded }) => {
+}> = ({ submission, template, gradedBy, gradedByName, onGraded }) => {
   const [scores, setScores] = useState<RubricScores>(submission.grade?.scores ?? {});
   const [feedback, setFeedback] = useState(submission.grade?.feedback ?? '');
   const [busy, setBusy] = useState(false);
@@ -108,7 +124,11 @@ const GradeForm: React.FC<{
 
   const save = async () => {
     setBusy(true);
-    const out = await gradeSubmission({ submission, template, scores, feedback, gradedBy });
+    // A newsroom story's grade is also its editorial approval: it records the teacher's uid,
+    // which is what lets a young reporter's story leave the classroom.
+    const out = submission.newsroom
+      ? await (await import('../../services/journalismSchool/newsroomReview')).approveStory({ submission, template, scores, feedback, teacher: { uid: gradedBy, name: gradedByName } })
+      : await gradeSubmission({ submission, template, scores, feedback, gradedBy });
     setBusy(false);
     if (out.ok) {
       setResult({ mastery: out.masteryPercent, standards: out.standardsWritten });
@@ -181,7 +201,7 @@ const GradeForm: React.FC<{
           style={{ ...btn('solid', T.orange), opacity: busy || !complete ? 0.5 : 1 }}
         >
           {busy ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-          Save grade
+          {submission.newsroom ? 'Approve & grade' : 'Save grade'}
         </button>
         <span style={{ fontSize: 12.5, color: T.muted }}>
           {total}/{max} · {masteryPercent}% mastery

@@ -104,6 +104,18 @@ const SCHOOLS: School[] = [
     },
   },
   {
+    t: 'School of Journalism', ic: '📰', a: '#E8553E', b: '#3a1209', badge: 'Notice · Ask · Verify · Publish · LIVE NOW', live: true,
+    tags: ['PreK → J-School', 'Student Newsroom'], ladder: ['Notice', 'Cub', 'Newsroom', 'Press', 'J-School', 'Distribute'], nav: 'JOURNALISM_SCHOOL',
+    d: {
+      prek: 'Picture News: draw what happened, say who and what — and “how do you know?”',
+      el: 'News vs opinion vs ad, the 5 Ws, a first interview, and issue one of the class paper.',
+      ms: 'Inverted pyramid, exact quotes, honest headlines, and lateral reading like a fact-checker.',
+      hs: 'Beats, the SPJ code, student press law, data stories, broadcast and editorials.',
+      col: 'Public records, investigations, libel law and press history from primary sources.',
+      pro: 'Graduate to the Journalist Desk: publish under your byline with full syndication.',
+    },
+  },
+  {
     t: 'Music Conservatory', ic: '🎼', a: '#00DAF3', b: '#04324a', badge: 'Chora Conservatory · LIVE NOW', live: true,
     tags: ['6 curriculum tracks', 'Ear training'], ladder: ['Hall', 'History', 'Theory', 'Instruments', 'Repertoire', 'Produce'], nav: 'CHORA_CONSERVATORY',
     d: {

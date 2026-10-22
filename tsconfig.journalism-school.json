@@ -1,0 +1,28 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": true, "skipLibCheck": true, "incremental": false },
+  "include": [
+    "data/journalismCurriculum.ts",
+    "data/practice/journalism-school.ts",
+    "data/practice/index.ts",
+    "data/assignmentTemplates.ts",
+    "data/educationStandards.ts",
+    "services/journalismSchool/**/*.ts",
+    "services/schoolChassis.ts",
+    "services/courseCatalog.ts",
+    "services/studentWall.ts",
+    "services/creativeCloud/policy.ts",
+    "components/JournalismSchoolView.tsx",
+    "components/journalism/**/*.tsx",
+    "components/school/SchoolView.tsx",
+    "components/lorea/WritersDesk.tsx",
+    "components/AcademiaLandingView.tsx",
+    "components/AcademiaDirectory.tsx",
+    "components/academia/LearnBar.tsx",
+    "data/loreaExhibits/journalism.ts",
+    "services/assignmentTemplateService.ts",
+    "components/academia/AssignedLessonView.tsx",
+    "components/academia/LessonGradingPanel.tsx",
+    "components/academia/NewsroomStoryReview.tsx"
+  ]
+}

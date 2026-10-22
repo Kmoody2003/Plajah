@@ -21,7 +21,7 @@ import { db } from './firebase';
 import type { Post } from '../types';
 
 /** The curriculum tags the schools publish under. */
-export const SCHOOL_WALL_TAGS = ['filmschool', 'photoschool', 'artschool', 'choraschool'] as const;
+export const SCHOOL_WALL_TAGS = ['filmschool', 'photoschool', 'artschool', 'choraschool', 'journalismschool'] as const;
 export type SchoolWallTag = typeof SCHOOL_WALL_TAGS[number];
 
 /** Display metadata for the known school tags. Unknown tags degrade to a generic label. */
@@ -30,6 +30,7 @@ export const SCHOOL_WALL_META: Record<string, { label: string; blurb: string }> 
   photoschool: { label: 'Photography School', blurb: 'Assignments from the Photography track' },
   artschool:   { label: 'Art School',         blurb: 'Assignments from the Art track' },
   choraschool: { label: 'Chora School',       blurb: 'Assignments from the Chora music school' },
+  journalismschool: { label: 'Journalism School', blurb: 'Reporting from the School of Journalism newsroom' },
 };
 
 export function wallLabelFor(tag: string): string {

@@ -4100,6 +4100,11 @@ export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW'
   | 'REAL_ESTATE_SCHOOL'
   | 'ECON_SCHOOL'
   | 'PHILOSOPHY_SCHOOL'
+  // School of Journalism — PreK → J-School curriculum, Student Newsroom and Press Room
+  | 'JOURNALISM_SCHOOL'
+  // Periodicals — Publication Studio (student / pro) and the Lorea issue reader (services/publication)
+  | 'PUBLICATION_STUDIO'
+  | 'ISSUE_READER'
   // Practice portfolio — virtual cash, real prices, reasoned journal
   | 'PAPER_TRADING'
   | 'PAPER_TRADING_CLASS'
@@ -8275,6 +8280,10 @@ export interface TelaDoc {
   living?: import('./services/living/contracts').LivingBook;
   /** Self-description of a published picture book, comic, or graphic novel: who wrote it, under what licence, for what ages, and how it was made. */
   publication?: { kind: 'picture-book' | 'comic-book' | 'manga' | 'graphic-novel'; bookId: string; templateId: string; author: string; license: string; licenseId?: string; ageMin: number; ageMax: number; language: string; aiDisclosure: string; pageCount: number };
+  /** Print production spec (trim, bleed, press condition, binding, marks, spots). See services/print. */
+  print?: import('./services/print/types').DocPrintSpec;
+  /** Periodical issue this doc lays out (services/publication). */
+  issue?: { publicationId: string; issueId: string; volume?: number; number: number; date: string };
   createdAt: number;
   updatedAt: number;
   /** Last structural assignment formatting pass. Source content remains editable. */

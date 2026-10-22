@@ -1,0 +1,2 @@
+{ "extends": "./tsconfig.json", "compilerOptions": { "noEmit": true, "skipLibCheck": true, "incremental": false },
+  "include": ["services/publication/**/*.ts", "components/publication/**/*.tsx", "services/print/**/*.ts", "components/tela/print/**/*.tsx", "components/JournalismSchoolView.tsx", "components/journalist/JournalistHub.tsx", "components/newstand/NewstandView.tsx", "tests/publicationIssue.test.ts", "tests/print*.test.ts"] }

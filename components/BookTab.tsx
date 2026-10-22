@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+// Newspapers and magazines published through Plajah's Publication Studio (services/publication).
+const PeriodicalShelf = React.lazy(() => import('./publication/PeriodicalShelf'));
 import { Book, Album, BookChapter } from '../types';
 import PageHeader from './PageHeader';
 import {
@@ -1403,6 +1405,8 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
             ))}
           </div>
         </nav>
+
+        {loreaMode !== 'WRITERS_DESK' && <React.Suspense fallback={null}><PeriodicalShelf /></React.Suspense>}
 
         {/* Dedicated Full Lorea Catalog & Search View when loreaMode === 'CATALOG' */}
         {loreaMode === 'CATALOG' ? (

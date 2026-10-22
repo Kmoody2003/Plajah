@@ -42,6 +42,8 @@ export type TelaOp =
   | { type: 'RENAME_FRAME'; frameId: string; label: string }
   | { type: 'SET_FRAME_PRESET'; frameId: string; preset: TelaFramePreset }
   | { type: 'SET_FRAME_ORIENTATION'; frameId: string; orientation: 'PORTRAIT' | 'LANDSCAPE' }
+  /** Print production (services/print): the job spec; `resizeFrameIds` snaps those pages to the trim size. */
+  | { type: 'SET_PRINT_SPEC'; spec: import('../../services/print/types').DocPrintSpec | null; resizeFrameIds?: string[] }
   | { type: 'DELETE_FRAME'; frameId: string }
   | { type: 'SET_WRITER_BLOCKS'; deviceId: string; blocks: TelaBlock[] }
   /** Writer document edit (text engine): serialisable WriterOps on the story / document parts.
@@ -148,6 +150,19 @@ export function applyTelaOp(doc: TelaDoc, op: TelaOp): TelaDoc {
       const devices = { ...doc.devices };
       for (const id of frame.deviceIds) { const device = devices[id]; if (device?.type === 'VECTOR' || device?.type === 'IMAGE' || device?.type === 'CHART') devices[id] = { ...device, width: w, height: h }; }
       return { ...doc, frames: doc.frames.map(item => item.id === op.frameId ? { ...item, orientation: op.orientation, w, h } : item), devices, updatedAt: now };
+    }
+    case 'SET_PRINT_SPEC': {
+      if (!op.spec) { const { print: _drop, ...rest } = doc; return { ...rest, updatedAt: now }; }
+      const ids = new Set(op.resizeFrameIds || []);
+      if (!ids.size) return { ...doc, print: op.spec, updatedAt: now };
+      const w = Math.round(op.spec.trimIn[0] * 96), h = Math.round(op.spec.trimIn[1] * 96);
+      const devices = { ...doc.devices };
+      const frames = doc.frames.map(frame => {
+        if (!ids.has(frame.id)) return frame;
+        for (const id of frame.deviceIds) { const device = devices[id]; if (device?.type === 'VECTOR' || device?.type === 'IMAGE' || device?.type === 'CHART') devices[id] = { ...device, width: w, height: h }; }
+        return { ...frame, kind: 'PAPER' as const, preset: 'FREE' as const, w, h, orientation: w > h ? 'LANDSCAPE' as const : 'PORTRAIT' as const };
+      });
+      return { ...doc, print: op.spec, frames, devices, updatedAt: now };
     }
     case 'DELETE_FRAME': {
       const frame = doc.frames.find(f => f.id === op.frameId);

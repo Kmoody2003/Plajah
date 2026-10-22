@@ -13,7 +13,7 @@
 export type Subject =
   | 'ELA' | 'MATH' | 'SCIENCE' | 'SOCIAL' | 'LANGUAGE' | 'ARTS' | 'CS'
   // Flagship-program subjects (see docs/ACADEMIA_FLAGSHIP_CURRICULUM_BLUEPRINT.md).
-  | 'FINLIT' | 'ECON' | 'CIVICS' | 'PHILOSOPHY' | 'REALESTATE';
+  | 'FINLIT' | 'ECON' | 'CIVICS' | 'PHILOSOPHY' | 'REALESTATE' | 'JOURNALISM';
 
 export type GradeId =
   | 'prek' | 'k' | 'g1' | 'g2' | 'g3' | 'g4' | 'g5' | 'g6'
@@ -55,7 +55,7 @@ export type FrameworkId =
   | 'CEE_FINLIT'                                   // CEE + Jump$tart Personal Financial Education (2021)
   | 'CEE_ECON'                                     // CEE Voluntary National Content Standards in Economics
   | 'NCAS_MUSIC' | 'NCAS_MEDIA'                    // National Core Arts Standards (music / media arts)
-  | 'PLAJAH_RE' | 'PLAJAH_PHIL'                    // Plajah-authored (no open national standard exists)
+  | 'PLAJAH_RE' | 'PLAJAH_PHIL' | 'PLAJAH_JOUR'    // Plajah-authored (no open national standard exists)
   | 'CEFR';                                        // Common European Framework of Reference for Languages                   // Plajah-authored (no open national standard exists)
 
 export interface StandardsFramework {
@@ -84,6 +84,7 @@ export const FRAMEWORKS: StandardsFramework[] = [
   { id: 'NCAS_MEDIA', name: 'National Core Arts Standards — Media Arts', authority: 'NCCAS', region: 'US', subjects: ['ARTS'] },
   { id: 'PLAJAH_RE', name: 'Plajah Real Estate Progression', authority: 'Plajah Academia', region: 'US', subjects: ['REALESTATE'] },
   { id: 'PLAJAH_PHIL', name: 'Plajah Philosophy Progression', authority: 'Plajah Academia', region: 'International', subjects: ['PHILOSOPHY'] },
+  { id: 'PLAJAH_JOUR', name: 'Plajah Journalism Progression', authority: 'Plajah Academia', region: 'International', subjects: ['JOURNALISM', 'ELA'] },
   { id: 'CEFR', name: 'Common European Framework of Reference for Languages', authority: 'Council of Europe', region: 'International', subjects: ['LANGUAGE'] },
 ];
 
@@ -453,6 +454,34 @@ export const STANDARDS: LearningStandard[] = [
   { id: 'PJPH.ETH.HS', framework: 'PLAJAH_PHIL', subject: 'PHILOSOPHY', grade: 'g12', domain: 'Ethics', code: 'PJPH.ETH', statement: 'Apply consequentialist, deontological, and virtue frameworks to a contested case and defend a position.', pillar: 'Ethics', prerequisites: ['PJPH.ARG.68'] },
   { id: 'PJPH.HIST.COL', framework: 'PLAJAH_PHIL', subject: 'PHILOSOPHY', grade: 'university', domain: 'History of Philosophy', code: 'PJPH.HIST', statement: 'Trace a philosophical problem across ancient, early modern, and nineteenth-century primary texts.', pillar: 'History of Philosophy', prerequisites: ['PJPH.ETH.HS'] },
   { id: 'PJPH.POL.COL', framework: 'PLAJAH_PHIL', subject: 'PHILOSOPHY', grade: 'university', domain: 'Political Philosophy', code: 'PJPH.POL', statement: 'Analyze consent, liberty, and legitimacy in primary texts and connect them to constitutional practice.', pillar: 'Political Philosophy', prerequisites: ['PJPH.HIST.COL'] },
+  // ── Plajah Journalism Progression (data/journalismCurriculum.ts). Crosswalks cite CCSS ELA by code only.
+  { id: 'PJJR.NOTICE.K2', framework: 'PLAJAH_JOUR', subject: 'JOURNALISM', grade: 'g2', domain: 'Noticing', code: 'PJJR.NOTICE', statement: 'Report what happened, who was there and where, in a full sentence or a captioned picture.', pillar: 'Noticing', crosswalk: ['CCSS.ELA-LITERACY.W.K.2'] },
+  { id: 'PJJR.ASK.K2', framework: 'PLAJAH_JOUR', subject: 'JOURNALISM', grade: 'g2', domain: 'Interviewing', code: 'PJJR.ASK', statement: 'Ask an open question and listen to the whole answer before speaking.', pillar: 'Interviewing', crosswalk: ['CCSS.ELA-LITERACY.SL.1.1'] },
+  { id: 'PJJR.VERIFY.K2', framework: 'PLAJAH_JOUR', subject: 'JOURNALISM', grade: 'g2', domain: 'Verification', code: 'PJJR.VERIFY', statement: 'Say how you know something: saw it, were told it, or are guessing.', pillar: 'Verification' },
+  { id: 'PJJR.ETHICS.K2', framework: 'PLAJAH_JOUR', subject: 'JOURNALISM', grade: 'g2', domain: 'Ethics', code: 'PJJR.ETHICS', statement: 'Report about others kindly and truthfully, with first names and permission.', pillar: 'Ethics' },
+  { id: 'PJJR.LITERACY.35', framework: 'PLAJAH_JOUR', subject: 'JOURNALISM', grade: 'g5', domain: 'News Literacy', code: 'PJJR.LITERACY', statement: 'Tell news, opinion and advertising apart and name the job each message is doing.', pillar: 'News Literacy', prerequisites: ['PJJR.VERIFY.K2'], crosswalk: ['CCSS.ELA-LITERACY.RI.5.6'] },
+  { id: 'PJJR.STORY.35', framework: 'PLAJAH_JOUR', subject: 'JOURNALISM', grade: 'g5', domain: 'Story Craft', code: 'PJJR.STORY', statement: 'Gather the 5 Ws and How and write a lede that puts the most important one first.', pillar: 'Story Craft', prerequisites: ['PJJR.NOTICE.K2'], crosswalk: ['CCSS.ELA-LITERACY.W.4.2'] },
+  { id: 'PJJR.ASK.35', framework: 'PLAJAH_JOUR', subject: 'JOURNALISM', grade: 'g5', domain: 'Interviewing', code: 'PJJR.ASK', statement: 'Prepare, conduct and write up an interview with at least one exact, read-back quote.', pillar: 'Interviewing', prerequisites: ['PJJR.ASK.K2'], crosswalk: ['CCSS.ELA-LITERACY.SL.4.1'] },
+  { id: 'PJJR.VERIFY.35', framework: 'PLAJAH_JOUR', subject: 'JOURNALISM', grade: 'g5', domain: 'Verification', code: 'PJJR.VERIFY', statement: 'Separate checkable facts from opinions and name who could check each fact.', pillar: 'Verification', prerequisites: ['PJJR.VERIFY.K2'], crosswalk: ['CCSS.ELA-LITERACY.W.5.8'] },
+  { id: 'PJJR.PUBLISH.35', framework: 'PLAJAH_JOUR', subject: 'JOURNALISM', grade: 'g5', domain: 'Publishing', code: 'PJJR.PUBLISH', statement: 'Work in an editorial team to publish an issue to a named audience, and correct errors.', pillar: 'Publishing', prerequisites: ['PJJR.STORY.35'], crosswalk: ['CCSS.ELA-LITERACY.W.5.6'] },
+  { id: 'PJJR.STORY.68', framework: 'PLAJAH_JOUR', subject: 'JOURNALISM', grade: 'g8', domain: 'Story Craft', code: 'PJJR.STORY', statement: 'Structure a news story as an inverted pyramid with an accurate headline and captions.', pillar: 'Story Craft', prerequisites: ['PJJR.STORY.35'], crosswalk: ['CCSS.ELA-LITERACY.W.7.2'] },
+  { id: 'PJJR.SOURCE.68', framework: 'PLAJAH_JOUR', subject: 'JOURNALISM', grade: 'g8', domain: 'Sourcing', code: 'PJJR.SOURCE', statement: 'Attribute every unwitnessed fact, prefer independent primary sources, and quote exactly in context.', pillar: 'Sourcing', prerequisites: ['PJJR.ASK.35'], crosswalk: ['CCSS.ELA-LITERACY.W.7.8'] },
+  { id: 'PJJR.VERIFY.68', framework: 'PLAJAH_JOUR', subject: 'JOURNALISM', grade: 'g8', domain: 'Verification', code: 'PJJR.VERIFY', statement: 'Evaluate online information by reading laterally: who is behind it, what is the evidence, what do others say.', pillar: 'Verification', prerequisites: ['PJJR.VERIFY.35'], crosswalk: ['CCSS.ELA-LITERACY.RI.8.8'] },
+  { id: 'PJJR.MEDIA.68', framework: 'PLAJAH_JOUR', subject: 'JOURNALISM', grade: 'g8', domain: 'Visual Reporting', code: 'PJJR.MEDIA', statement: 'Shoot and caption news photos without staging or misleading alteration, declaring any edits.', pillar: 'Visual Reporting', prerequisites: ['PJJR.STORY.68'] },
+  { id: 'PJJR.REPORT.HS', framework: 'PLAJAH_JOUR', subject: 'JOURNALISM', grade: 'g12', domain: 'Reporting', code: 'PJJR.REPORT', statement: 'Cover a beat continuously, maintaining sources, calendars and documents.', pillar: 'Reporting', prerequisites: ['PJJR.SOURCE.68'], crosswalk: ['CCSS.ELA-LITERACY.W.11-12.7'] },
+  { id: 'PJJR.ETHICS.HS', framework: 'PLAJAH_JOUR', subject: 'JOURNALISM', grade: 'g12', domain: 'Ethics', code: 'PJJR.ETHICS', statement: 'Apply the four principles of the SPJ code to a case where they conflict and defend the choice, including corrections.', pillar: 'Ethics', prerequisites: ['PJJR.ETHICS.K2'] },
+  { id: 'PJJR.LAW.HS', framework: 'PLAJAH_JOUR', subject: 'JOURNALISM', grade: 'g12', domain: 'Press Law', code: 'PJJR.LAW', statement: 'Explain student press rights under Tinker, Hazelwood and state New Voices laws.', pillar: 'Press Law', prerequisites: ['PJJR.ETHICS.HS'] },
+  { id: 'PJJR.DATA.HS', framework: 'PLAJAH_JOUR', subject: 'JOURNALISM', grade: 'g12', domain: 'Data', code: 'PJJR.DATA', statement: 'Report a number as a sourced rate with a fair comparison and an honest chart.', pillar: 'Data', prerequisites: ['PJJR.SOURCE.68'] },
+  { id: 'PJJR.MEDIA.HS', framework: 'PLAJAH_JOUR', subject: 'JOURNALISM', grade: 'g12', domain: 'Broadcast', code: 'PJJR.MEDIA', statement: 'Write and produce a timed broadcast or podcast script written for the ear.', pillar: 'Broadcast', prerequisites: ['PJJR.MEDIA.68'], crosswalk: ['CCSS.ELA-LITERACY.SL.11-12.5'] },
+  { id: 'PJJR.OPINION.HS', framework: 'PLAJAH_JOUR', subject: 'JOURNALISM', grade: 'g12', domain: 'Opinion', code: 'PJJR.OPINION', statement: 'Write a reported, clearly labelled opinion piece that answers the strongest counterargument.', pillar: 'Opinion', prerequisites: ['PJJR.STORY.68'], crosswalk: ['CCSS.ELA-LITERACY.W.11-12.1'] },
+  { id: 'PJJR.PUBLISH.HS', framework: 'PLAJAH_JOUR', subject: 'JOURNALISM', grade: 'g12', domain: 'Publishing', code: 'PJJR.PUBLISH', statement: 'Produce a lawful, consent-based newsletter issue for a defined audience.', pillar: 'Publishing', prerequisites: ['PJJR.PUBLISH.35'] },
+  { id: 'PJJR.RECORDS.COL', framework: 'PLAJAH_JOUR', subject: 'JOURNALISM', grade: 'university', domain: 'Investigation', code: 'PJJR.RECORDS', statement: 'Draft and pursue a public-records request under the governing statute.', pillar: 'Investigation', prerequisites: ['PJJR.REPORT.HS'] },
+  { id: 'PJJR.INVESTIGATE.COL', framework: 'PLAJAH_JOUR', subject: 'JOURNALISM', grade: 'university', domain: 'Investigation', code: 'PJJR.INVESTIGATE', statement: 'Plan an investigation from hypothesis to no-surprises letter and full fact-check.', pillar: 'Investigation', prerequisites: ['PJJR.RECORDS.COL'] },
+  { id: 'PJJR.LAW.COL', framework: 'PLAJAH_JOUR', subject: 'JOURNALISM', grade: 'university', domain: 'Press Law', code: 'PJJR.LAW', statement: 'Assess a story’s defamation and privacy risk under Sullivan, Gertz and state law.', pillar: 'Press Law', prerequisites: ['PJJR.LAW.HS'] },
+  { id: 'PJJR.HISTORY.COL', framework: 'PLAJAH_JOUR', subject: 'JOURNALISM', grade: 'university', domain: 'History', code: 'PJJR.HISTORY', statement: 'Analyze the history of the free press from primary newspaper sources.', pillar: 'History', prerequisites: ['PJJR.ETHICS.HS'] },
+  { id: 'PJJR.VERIFY.COL', framework: 'PLAJAH_JOUR', subject: 'JOURNALISM', grade: 'university', domain: 'Verification', code: 'PJJR.VERIFY', statement: 'Establish the provenance of synthetic or viral media and disclose one’s own AI use.', pillar: 'Verification', prerequisites: ['PJJR.VERIFY.68'] },
+  { id: 'PJJR.BUSINESS.COL', framework: 'PLAJAH_JOUR', subject: 'JOURNALISM', grade: 'university', domain: 'Business of News', code: 'PJJR.BUSINESS', statement: 'Design a sustainable revenue model with published independence safeguards.', pillar: 'Business of News', prerequisites: ['PJJR.PUBLISH.HS'] },
+  { id: 'PJJR.PUBLISH.COL', framework: 'PLAJAH_JOUR', subject: 'JOURNALISM', grade: 'university', domain: 'Publishing', code: 'PJJR.PUBLISH', statement: 'Distribute across open and platform channels, weighing reach against control.', pillar: 'Publishing', prerequisites: ['PJJR.PUBLISH.HS'] },
 ];
 
 export const SCIENCE_PILLARS = ['Observe & Question', 'Investigate', 'Analyze Data', 'Explain', 'Model & Design'] as const;
