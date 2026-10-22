@@ -4085,6 +4085,9 @@ export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW'
   | 'TEACHER_TOOLS'
   // Learning Support: IEP / 504 / neurodiversity plans, supports, resources and community
   | 'ACADEMIA_SUPPORT'
+  // Year Curriculum (K–8 Math + ELA, 180 days, Tela worksheets) and the global Education Council
+  | 'ACADEMIA_YEAR'
+  | 'EDUCATION_COUNCIL'
   // Business School — entrepreneurship, venture stages, P&L, entity formation, GTM
   | 'BUSINESS_SCHOOL'
   | 'BIZ_SIM'

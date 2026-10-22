@@ -1569,6 +1569,24 @@ service cloud.firestore {
     // Learning support (IEP / 504 / neurodiversity) plans — sensitive. Readable only by the learner, their guardian and
     // the team the family chose (teamUids). The learner and guardian write; a child learner cannot change the team.
     // Team members may only log goal progress and edit the shared notes. Never listable by anyone else.
+    // Education Commons (services/educationCouncil/commons.ts): members self-register unverified; proposals are
+    // public to signed-in users; a member may only write their own ballot.
+    match /educationCouncilMembers/{uid} {
+      allow read: if isAuthenticated();
+      allow create: if isOwner(uid) && request.resource.data.uid == uid && request.resource.data.verified == false;
+      allow update: if isOwner(uid) && request.resource.data.verified == resource.data.verified && request.resource.data.uid == uid;
+    }
+    match /educationCommons/{proposalId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.authorUid == request.auth.uid
+                    && exists(/databases/$(database)/documents/educationCouncilMembers/$(request.auth.uid))
+                    && request.resource.data.ballots.size() == 0 && request.resource.data.status == 'open';
+      allow update: if isAuthenticated()
+                    && exists(/databases/$(database)/documents/educationCouncilMembers/$(request.auth.uid))
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ballots', 'status', 'updatedAt'])
+                    && request.resource.data.ballots.diff(resource.data.ballots).affectedKeys().hasOnly([request.auth.uid]);
+    }
+
     match /supportPlans/{learnerUid} {
       allow read: if isOwner(learnerUid) || isGuardianOf(learnerUid)
                   || (isAuthenticated() && request.auth.uid in resource.data.get('teamUids', []));

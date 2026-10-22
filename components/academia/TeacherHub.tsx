@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import CreateEventButton from '../events/CreateEventButton';
 import {
   PenTool, ScanLine, Library, Wand2, ClipboardCheck, BarChart3, Users, Plus, AlertTriangle, LayoutGrid, FileText,
-  FileBarChart, ShieldCheck, Plug, MessageCircle, Search, Notebook, Microscope, Star, CalendarCheck, Accessibility,
+  FileBarChart, ShieldCheck, Plug, MessageCircle, Search, Notebook, Microscope, Star, CalendarCheck, Accessibility, CalendarRange, Landmark,
 } from 'lucide-react';
 import TodayDueFirst from './TodayDueFirst';
 import EduFeedPanel from './EduFeedPanel';
@@ -96,6 +96,8 @@ const TeacherHub: React.FC<Props> = ({ user, profile, onNavigate, isAdminLens })
   const t = m?.totals;
   const tools: ToolDef[] = [
     { label: 'Take attendance', meta: 'Today', icon: CalendarCheck, color: '#60A5FA', onClick: () => ((classes || []).length ? setAttFor(sel?.classIds[0] || '') : onNavigate('CLASSROOMS')) },
+    { label: 'Year curriculum', meta: '180 days · Math & ELA', icon: CalendarRange, color: '#F5B83D', view: 'ACADEMIA_YEAR' },
+    { label: 'Education Council', meta: 'Global educators', icon: Landmark, color: '#c4b5fd', view: 'EDUCATION_COUNCIL' },
     { label: 'Build a lesson', meta: templates ? `${templates.length} saved` : undefined, icon: PenTool, color: '#FF8C00', tab: 'templates' },
     { label: 'Scan worksheet', meta: 'Paper to digital', icon: ScanLine, color: '#06D6A0', tab: 'worksheet' },
     { label: 'Plan from mastery', meta: 'Find the gaps', icon: Wand2, color: '#FF6FA8', tab: 'plan' },
