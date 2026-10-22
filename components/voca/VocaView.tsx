@@ -315,7 +315,7 @@ const MicCheck: React.FC<{ onPass: () => void; onListener: () => void }> = ({ on
     rec.onWords = ws => alive && setHeard(h => [...h, ...ws.map(w => w.text)].slice(-20));
     (async () => {
       // native engines meter themselves; opening a second mic stream would compete with them
-      if (!rec.providesLevel) { const e = await meter.start(); if (!alive) return; if (e) { setErr(e); return; } if (rec instanceof WebSpeechRecognizer) rec.inputTrack = meter.boostedTrack; }
+      if (!rec.providesLevel) { const e = await meter.start(); if (!alive) return; if (e) { setErr(e); return; } if (rec instanceof WebSpeechRecognizer) { rec.inputTrack = meter.boostedTrack; rec.onReleaseMic = () => meter.stop(); } }
       await speak('Say: ' + CHECK_LINE + '!'); if (!alive) return;
       rec.start();
     })();
@@ -463,7 +463,7 @@ const Reader: React.FC<{ passage: VocaPassage; mode: Mode; warmup: boolean; sess
     const level = (l: number, sp: boolean) => { if (!alive) return; setLvl(l); if (sp && !speaking.current) { rec.noteVoiceActivity(); lastVoiceAt.current = Date.now(); if (align.current.startedAt === null) align.current.startedAt = Date.now(); } };
     meter.onLevel = level; rec.onLevel = level;
     (async () => {
-      if (!rec.providesLevel) { const e = await meter.start(); if (!alive) return; if (e) { setRecErr(e); setLine(e.message); return; } if (rec instanceof WebSpeechRecognizer) rec.inputTrack = meter.boostedTrack; }
+      if (!rec.providesLevel) { const e = await meter.start(); if (!alive) return; if (e) { setRecErr(e); setLine(e.message); return; } if (rec instanceof WebSpeechRecognizer) { rec.inputTrack = meter.boostedTrack; rec.onReleaseMic = () => meter.stop(); } }
       rec.start();
     })();
     const onVis = () => { if (document.hidden) rec.suspend(); else if (!pauseStart.current && !speaking.current) rec.resume(); };

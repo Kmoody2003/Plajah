@@ -42,6 +42,10 @@ export const speechSupported = () => !!getSR();
 export const isEmbeddedWebView = () => typeof navigator !== 'undefined' && /; wv\)|Capacitor|Plajah-Android/i.test(navigator.userAgent);
 
 const split = (t: string) => t.trim().split(/\s+/).filter(Boolean);
+const ua = () => typeof navigator !== 'undefined' ? navigator.userAgent : '';
+/** Phones/tablets: one mic capture at a time, and `continuous` recognition is unreliable. */
+export const isMobileDevice = () => /Android|iPhone|iPad|iPod/i.test(ua()) || (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 1 && /Macintosh/.test(ua()));
+const isAndroidBrowser = () => /Android/i.test(ua());
 
 export class WebSpeechRecognizer implements Recognizer {
   readonly kind = 'web-speech' as const;
@@ -62,6 +66,15 @@ export class WebSpeechRecognizer implements Recognizer {
   /** Boosted, filtered mic track from MicMeter. Chrome versions that accept an audio track in start() listen to this
    *  (soft / hoarse voices become clearly audible); older engines ignore the argument and use the raw mic. */
   inputTrack: MediaStreamTrack | null = null;
+  /** Called when the recogniser needs the microphone to itself (phones allow one capture at a time): the page must
+   *  stop its MicMeter. From then on the level is synthesised from the recogniser's own sound/result events. */
+  onReleaseMic?: () => void;
+  onLevel?: (level: number, speaking: boolean) => void;
+  /** Feeding the boosted track can leave some engines deaf; cleared the first time the watchdog catches that. */
+  private trackOk = !isMobileDevice();
+  private micReleased = false;
+  private levelDecay: ReturnType<typeof setInterval> | null = null;
+  private synthLevel = 0;
   private watchdog: ReturnType<typeof setInterval> | null = null;
   private restartTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -72,6 +85,8 @@ export class WebSpeechRecognizer implements Recognizer {
   start() {
     if (!getSR()) { this.set('error', { code: 'unsupported', message: 'This browser cannot listen. Try Chrome, Edge or Safari, or use Listener mode.' }); return; }
     this.active = true; this.suspended = false; this.netFails = 0;
+    // Android Chrome's recogniser cannot share the mic with getUserMedia: hand it over up front
+    if (isAndroidBrowser() && this.onReleaseMic) this.releaseMic();
     this.spawn();
     if (!this.watchdog) this.watchdog = setInterval(() => this.checkWatchdog(), 1000);
   }
@@ -80,6 +95,7 @@ export class WebSpeechRecognizer implements Recognizer {
     this.active = false; this.suspended = false;
     if (this.restartTimer) clearTimeout(this.restartTimer);
     if (this.watchdog) { clearInterval(this.watchdog); this.watchdog = null; }
+    if (this.levelDecay) { clearInterval(this.levelDecay); this.levelDecay = null; }
     this.kill();
     this.set('idle');
   }
@@ -90,7 +106,23 @@ export class WebSpeechRecognizer implements Recognizer {
 
   private kill() {
     const r = this.rec; this.rec = null;
-    if (r) { r.onend = r.onresult = r.onerror = r.onstart = null; try { r.abort(); } catch { /* already stopped */ } }
+    if (r) { r.onend = r.onresult = r.onerror = r.onstart = r.onsoundstart = r.onsoundend = null; try { r.abort(); } catch { /* already stopped */ } }
+  }
+
+  private releaseMic() {
+    if (this.micReleased) return;
+    this.micReleased = true; this.trackOk = false; this.inputTrack = null;
+    try { this.onReleaseMic?.(); } catch { /* page already tore the meter down */ }
+    if (!this.levelDecay) this.levelDecay = setInterval(() => {
+      if (this.synthLevel <= 0.001) return;
+      this.synthLevel *= 0.75; this.onLevel?.(this.synthLevel, this.synthLevel > 0.04);
+    }, 80);
+  }
+
+  /** Without our own meter, the recogniser's events are the only sign of a voice. */
+  private pulse(v: number) {
+    if (!this.micReleased) return;
+    this.synthLevel = Math.max(this.synthLevel, v); this.onLevel?.(this.synthLevel, v > 0.04);
   }
 
   private spawn() {
@@ -98,17 +130,20 @@ export class WebSpeechRecognizer implements Recognizer {
     this.kill();
     const SR = getSR(); if (!SR) return;
     const r = new SR();
-    r.lang = this.lang; r.continuous = true; r.interimResults = true; r.maxAlternatives = 5;
+    // continuous mode on phones repeats/duplicates results and stalls; single-utterance + fast restart is reliable
+    r.lang = this.lang; r.continuous = !isMobileDevice(); r.interimResults = true; r.maxAlternatives = 5;
     const seq = ++this.seq;
     this.emitted.clear(); this.lastInterim.clear();
     r.onstart = () => { this.listeningSince = Date.now(); this.lastResultAt = Date.now(); this.set('listening'); };
-    r.onresult = (e: any) => this.handleResult(e, seq);
+    r.onresult = (e: any) => { this.pulse(0.12 + Math.random() * 0.06); this.handleResult(e, seq); };
+    r.onsoundstart = () => this.pulse(0.1);
+    r.onsoundend = () => { this.synthLevel = Math.min(this.synthLevel, 0.03); };
     r.onerror = (e: any) => this.handleError(e?.error);
     r.onend = () => { if (this.rec === r) this.rec = null; this.scheduleRestart(); };
     this.rec = r;
     this.set('starting');
     try {
-      if (this.inputTrack && this.inputTrack.readyState === 'live') { try { r.start(this.inputTrack); } catch { r.start(); } } else r.start();
+      if (this.trackOk && this.inputTrack && this.inputTrack.readyState === 'live') { try { r.start(this.inputTrack); } catch { r.start(); } } else r.start();
     } catch { this.scheduleRestart(); }
   }
 
@@ -125,7 +160,8 @@ export class WebSpeechRecognizer implements Recognizer {
   private handleError(code: string) {
     switch (code) {
       case 'no-speech': case 'aborted': return;              // normal: `end` follows and we restart
-      case 'audio-capture': this.active = false; this.set('error', { code: 'no-mic', message: 'No microphone was found. Plug one in or check that another app is not using it.' }); return;
+      // usually our own meter holding the mic (phones): give it to the recogniser and carry on
+      case 'audio-capture': if (!this.micReleased && this.onReleaseMic) { this.releaseMic(); return; } this.active = false; this.set('error', { code: 'no-mic', message: 'No microphone was found. Plug one in or check that another app is not using it.' }); return;
       case 'not-allowed': case 'service-not-allowed': this.active = false; this.set('error', { code: 'not-allowed', message: 'Microphone permission is blocked. Allow the microphone for this site, then try again.' }); return;
       case 'network':
         if (++this.netFails >= 3) { this.active = false; this.set('error', { code: 'network', message: 'Listening needs an internet connection right now. Check the connection or switch to Listener mode.' }); }
@@ -165,6 +201,9 @@ export class WebSpeechRecognizer implements Recognizer {
     // voice heard recently, nothing recognised for 4 s, and we have been listening for a while → restart
     // (a child who says a word again clearly should never be left talking to a deaf engine)
     if (now - this.lastVoiceAt < 2500 && now - this.lastResultAt > 4000 && now - this.listeningSince > 4000) {
+      // escalate what we let the engine hear: boosted track → raw mic alongside the meter → the mic to itself
+      if (this.trackOk && this.inputTrack) this.trackOk = false;
+      else if (this.onReleaseMic) this.releaseMic();
       this.lastResultAt = now; this.kill(); this.scheduleRestart();
     }
   }
