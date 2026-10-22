@@ -14,6 +14,7 @@ import {
 import { UserProfile } from '../../types';
 import { listWritingProjects, type WritingProject, type WritingChapter } from '../../services/loreaProjectsService';
 import { isDemoMode } from '../../services/demoMode';
+import { LoreaNuggetSpot } from './exhibits/LoreaNugget';
 import { BAND_LABEL, KIT_FOR_DESK_TYPE, STORY_KITS } from '../../services/journalismSchool/storyKits';
 import { openJournalismSchool, useStories } from '../../services/journalismSchool/newsroomStore';
 import { STAGE_LABEL } from '../../services/journalismSchool/studentDesk';
@@ -219,6 +220,16 @@ export const WritersDesk: React.FC<{
       {/* Main Content Area */}
       <main className="flex-1 p-6 max-w-7xl w-full mx-auto">
         {activeTab === 'overview' && <WriterOverviewTab />}
+        {activeTab === 'overview' && (
+          <div className="flex justify-end mt-8">
+            <LoreaNuggetSpot spot="lorea/writers-desk" chance={0.8} variant="scrap" />
+          </div>
+        )}
+        {activeTab === 'manuscripts' && (
+          <div className="flex justify-end mt-8">
+            <LoreaNuggetSpot spot="lorea/manuscripts" chance={0.5} variant="margin" />
+          </div>
+        )}
         {activeTab === 'projects' && <WriterProjectsTab currentUser={currentUser} />}
         {activeTab === 'manuscripts' && <WriterManuscriptsTab currentUser={currentUser} />}
         {activeTab === 'research' && <WriterResearchTab />}

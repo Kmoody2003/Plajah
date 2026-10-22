@@ -1,0 +1,78 @@
+{
+  "id": "poetry",
+  "tagline": "A poem is language under pressure. Let a few words settle like indigo ink.",
+  "epigraph": {
+    "text": "Hope is the thing with feathers / That perches in the soul",
+    "cite": "Emily Dickinson (1891)"
+  },
+  "materials": {
+    "paper": "rag",
+    "ink": "indigo",
+    "wash": [
+      "#e9e1d1",
+      "#55648a"
+    ],
+    "accent": "#2f3b57",
+    "hand": "script",
+    "motif": "quill"
+  },
+  "council": {
+    "source": "council",
+    "art": {
+      "lead": "WORLD_ECLECTIC",
+      "counterpoint": "REBEL",
+      "note": "The council decided the page should behave like a field notebook, with indigo ink settling for four seconds on rag and leaving a human trace rather than a responsive system."
+    },
+    "writers": {
+      "note": "Field-notebook voice: indigo ink settles on rag, asking the reader to trace how pressure turns words into a poem."
+    }
+  },
+  "nuggets": [
+    {
+      "id": "poetry-wc-1",
+      "exhibitId": "poetry",
+      "roomId": "image",
+      "hook": "A poem can make you smell rain without naming it.",
+      "body": "Look for the concrete noun doing the work: a leaf, a window, a stone. It can carry more than an adjective.",
+      "depths": [
+        "elementary",
+        "middle"
+      ]
+    },
+    {
+      "id": "poetry-wc-2",
+      "exhibitId": "poetry",
+      "roomId": "line",
+      "hook": "Break the line at the hinge and the poem turns.",
+      "body": "Line breaks decide when the reader pauses, so the same words can mean two different things. Try moving the break to the hinge.",
+      "depths": [
+        "middle",
+        "high"
+      ]
+    },
+    {
+      "id": "poetry-wc-3",
+      "exhibitId": "poetry",
+      "roomId": "sound",
+      "hook": "Some words hum because their consonants knock.",
+      "body": "Say the line aloud and listen for hard stops, hisses, and repeating vowels. Sound can make meaning land before the brain catches up.",
+      "depths": [
+        "elementary",
+        "middle",
+        "high"
+      ]
+    },
+    {
+      "id": "poetry-wc-4",
+      "exhibitId": "poetry",
+      "roomId": "forms",
+      "hook": "A sonnet can argue, confess, and turn in 14 lines.",
+      "body": "Form is a constraint that gives the poem a shape to push against. Find the turn - the place where the argument changes.",
+      "depths": [
+        "high",
+        "university"
+      ]
+    }
+  ],
+  "sessionId": "mviyrgkkhq67eo"
+}

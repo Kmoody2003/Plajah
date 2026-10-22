@@ -1,0 +1,221 @@
+{
+  "id": "mviz50rshsre9d",
+  "uid": "lorea-exhibit-story",
+  "createdAt": 1792639274536,
+  "depth": "FULL",
+  "status": "DONE",
+  "brief": {
+    "ask": "Art-direct the Lorea exhibit \"Around the Fire\" — a walk-through exhibition about story in the craft of writing. You have creative freedom: choose the paper, the ink, the washes, the one saturated accent, the lettering and the motif, and say what makes this exhibit look unlike the other seven. It must feel handmade — written, inked, pressed, pasted on real paper — and still carry colour. It must be easy to learn from and gorgeous at every reading level.",
+    "surface": "Lorea Exhibition Hall: entrance sheet, room sheets, pasted library clippings, hands-on station cards, torn-paper teaser nuggets in the feed",
+    "domain": "literary craft education",
+    "audience": "Readers from Pre-K to university; Academia classrooms and university seminars",
+    "feeling": "Handmade, inky, tactile, curious, warm",
+    "constraints": [
+      "Materials must map to: paper (laid|cotton|kraft|vellum|newsprint|rag|parchment|washi), ink (iron-gall|sepia|indigo|vermilion|carbon|verdigris), two wash colours, one accent hex, hand (script|print|type), motif (quill|press|lyre|lantern|mask|arc|metronome|type-case).",
+      "The other seven exhibits exist; differ from them. Their current choices are listed in references; do not repeat a paper or motif already taken unless you argue for it.",
+      "Washes are translucent watercolour tints bled behind ink text and must stay light to mid (the ink must read through them). The accent is one saturated colour for stamps and underlines, never near-black or near-grey.",
+      "Interactive stations stay as they are; you direct their look, not their mechanics."
+    ],
+    "references": [
+      "Rooms:\nAround the Fire: What Makes a Story / The First Line Is a Door / Build a Story Spine\nWhose Eyes?: Turn the Lantern / Talking Narrators / Can You Trust the Teller?\nThe Weather of a World: Where and When / Senses Hunt\nStories Inside Stories: Frame Tales and the Oral Tradition / Unpack the Nest / The Breath of an Opening",
+      "Current authored materials: {\"paper\":\"rag\",\"ink\":\"indigo\",\"wash\":[\"#f2c879\",\"#a9cdbf\"],\"accent\":\"#d1495b\",\"hand\":\"script\",\"motif\":\"lantern\"}",
+      "Other exhibits' choices so far:\n- The Gallery of Faces: rag paper, iron-gall ink, washes #7a6a58 #d7cfc4, accent #2f2b28, type hand, mask motif\n- The Clockwork Room: rag paper, indigo ink, washes #1b2a5e #384a86, accent #1b2a5e, type hand, press motif\n- The Workshop of Sentences: rag paper, iron-gall ink, washes #0f0d0b #3a2f26, accent #7a2e20, type hand, quill motif\n- The House of Small Lightnings: rag paper, indigo ink, washes #e9e1d1 #55648a, accent #2f3b57, script hand, quill motif\n- Rhythm: cotton paper, iron-gall ink, washes #F4EFE6 #E7DCCB, accent #C2492F, script hand, metronome motif\n- Grammar: rag paper, iron-gall ink, washes #F2ECDF #C9B89B, accent #22303B, script hand, metronome motif\n- The First Draft: rag paper, iron-gall ink, washes #1c1a17 #d9d2c5, accent #c8102e, script hand, metronome motif"
+    ]
+  },
+  "directors": [
+    "CLASSICAL",
+    "REBEL",
+    "FUTURIST",
+    "WORLD_ECLECTIC",
+    "BAROQUE",
+    "RADICAL_MINIMAL"
+  ],
+  "proposals": [
+    {
+      "directorId": "CLASSICAL",
+      "title": "Ink Holds the Fire",
+      "idea": "The story is a structural spine of iron-gall ink that stabilizes the page, allowing the vermilion accent to act as the only heat and the washi surface to hold the breath of the reader.",
+      "geometry": "A strict 1:1.618 vertical grid on 300gsm cotton rag, where the 38.2% upper margin is the structural rest; the layout is hierarchical, with the eye resting only where the ink has fully settled.",
+      "typography": "Libre Caslon for headers to assert authority, Source Sans 3 for body text to ensure legibility, and Caveat confined strictly to marginal after-images; no display script, only functional hierarchy.",
+      "imageLogic": "No photographs; all imagery is procedural iron-gall diffusion rendered to look like ink bleeding into 300gsm laid lines, with the mask motif appearing only as negative space at the 38.2% structural rest.",
+      "texture": "300gsm cotton rag paper with visible laid lines, simulated iron-gall ink with a four-second, 60 BPM diffusion, and a single saturated vermilion accent (#c8102e) appearing only at the wet edge.",
+      "motion": "Static composition; the only motion is the four-second, 60 BPM settle of the iron-gall diffusion following the laid lines before the text asserts authority.",
+      "productionMethod": "Generative rendering of iron-gall diffusion on a procedural 300gsm cotton rag texture, with Libre Caslon and Source Sans 3 typeset on a strict 1:1.618 grid and Caveat added as marginal after-images.",
+      "humanTrace": "The four-second, 60 BPM diffusion of the iron-gall ink, which simulates the physical time of ink settling into paper fibers, and the visible laid lines of the 300gsm cotton rag.",
+      "risk": "It risks feeling too static for a Pre-K audience, but the four-second settle pace is slow enough to be observed as a tactile event, not a passive view.",
+      "arguesWith": {
+        "directorId": "REBEL",
+        "why": "The Rebel calls my hierarchy a cage; I think a mark with no structure behind it is noise with confidence, and the 1:1.618 grid is the only way to ensure the story's spine is legible across all reading levels."
+      }
+    },
+    {
+      "directorId": "REBEL",
+      "title": "Torn Newsprint Fire Story",
+      "idea": "The exhibit is a physical archive of failed first drafts, where the 'fire' is represented by the jagged, torn edges of newsprint that bleed indigo ink into the white space, creating a sense of urgency and human error that survives reproduction.",
+      "geometry": "Non-uniform grid; content blocks are irregular polygons cut from larger sheets, overlapping at 15-degree angles to mimic a pile of scattered manuscripts; margins are intentionally uneven to suggest hand-tearing.",
+      "typography": "Primary text in 'Special Elite' (monospaced, typewriter aesthetic) for body copy; headers in 'Caveat' (handwritten script) for annotations; all text set with high tracking to allow ink bleed into the gaps.",
+      "imageLogic": "No photography; images are procedural renders of paper fibers and ink bleed patterns, treated as high-contrast textures that sit behind the text, allowing the 'fire' to be felt as a visual disturbance rather than a depicted flame.",
+      "texture": "Newsprint base with visible laid lines and slight tooth; ink is indigo with a 4-second settle time to create ragged, feathered edges; washes are light sepia and pale indigo to suggest age and smoke.",
+      "motion": "Static in print; in digital feed, torn edges 'jitter' slightly at 60 BPM to simulate the heat of the fire; ink blots expand and contract slowly.",
+      "productionMethod": "Generative image models create the newsprint texture and ink bleed patterns; procedural code handles the tearing and overlapping of sheets; all assets are rendered at high resolution for print and digital use.",
+      "humanTrace": "The ragged edges of the torn paper and the slight misalignment of the text blocks are the human trace; the ink bleed is simulated to look like it was done by hand, with pressure variations visible in the darker areas.",
+      "risk": "Risks being seen as 'messy' or 'unpolished' by institutional standards; the jagged edges and irregular layout may challenge the expectation of clean, curated exhibition design. This risk is worth it because it embodies the 'handmade' and 'tactile' feeling requested, and the 'fire' motif is better represented by destruction and urgency than by clean lines.",
+      "arguesWith": {
+        "directorId": "RADICAL_MINIMAL",
+        "why": "The Radical Minimalist would remove the torn edges and the overlapping sheets to create a clean, uniform grid. I argue that the 'evidence' of the tearing and the 'pressure' of the overlapping is what makes the exhibit feel alive and handmade; removing it would make it sterile and indistinguishable from a standard digital display."
+      }
+    },
+    {
+      "directorId": "FUTURIST",
+      "title": "The Arc of Breath",
+      "idea": "The story spine is not a static diagram but a rhythmic pulse, visualized as a continuous, hand-drawn arc that expands and contracts with the reader’s gaze, binding the three rooms into a single breathing instrument.",
+      "geometry": "A strict 1:1.618 vertical grid on 300gsm unbleached cotton rag, where the arc motif occupies the 38.2% structural rest point as negative space, creating a responsive visual anchor that shifts slightly with the viewer's position.",
+      "typography": "Libre Caslon caps for headers to establish monumental structure, paired with Source Sans 3 body for clarity, and Caveat marginalia for the human, hand-drawn trace that simulates the writer's hesitation and correction.",
+      "imageLogic": "No photographs; instead, procedural ink bleeds and simulated paper tooth textures are generated to create depth, with the arc motif appearing as a void where the ink refuses the laid lines of the paper.",
+      "texture": "300gsm unbleached cotton rag with a distinct laid line pattern, allowing the simulated ink to interact with the paper's friction and create a visible, tactile state that changes under light.",
+      "motion": "A 4-second, 60 BPM iron-gall settle at the 38.2% rest point, where the ink bleeds into the paper's texture, creating a matte, feathered state that feels like a living, breathing document.",
+      "productionMethod": "Generative image models to simulate the ink bleed and paper texture, combined with procedural code to create the responsive arc motif, ensuring the human trace is preserved in the simulation of material interaction.",
+      "humanTrace": "The Caveat marginalia and the simulated ink bleed create a perceptible sign of making, as if the text was just written and the ink is still settling into the paper, inviting the viewer to touch the surface.",
+      "risk": "The risk is that the simulated texture may feel sterile if not carefully directed to include the imperfections of real paper and ink, but this risk is worth it because it allows for a high-end result at a fraction of the cost while preserving the handmade feel.",
+      "arguesWith": {
+        "directorId": "BAROQUE",
+        "why": "The Baroque Dramatist wants a reveal, but I want a behavior; spectacle without a rule behind it is a screensaver, and the arc's motion is a system, not a trick."
+      }
+    },
+    {
+      "directorId": "WORLD_ECLECTIC",
+      "title": "Untitled direction",
+      "idea": "To ground the story in the physical act of gathering, we reject the floating abstraction of 'Around the Fire' by anchoring it to the specific, named materiality of the storyteller’s hearth: the soot, the stone, and the specific weight of the voice in a specific place.",
+      "geometry": "A 12-column asymmetric grid with a 2:1 ratio of negative space to ink, utilizing a 38.2% upper breath tied to a named laid-line source on 300gsm cotton rag.",
+      "typography": "Libre Caslon for structural headers, Source Sans 3 for body text, and Caveat strictly in the margins for maker notes; no gold, no ornament, just the weight of the letter.",
+      "imageLogic": "High-resolution generative renders of specific, named materials (unbleached cotton rag, iron-gall ink pools, specific stone textures) with physically-plausible light, avoiding generic 'global' textures.",
+      "texture": "300gsm unbleached cotton rag with a visible laid line; iron-gall ink diffusion at 60 BPM treated as a maker’s pressure mark, not a neutral monument.",
+      "motion": "A 4-second 60 BPM iron-gall settle that lands on a visible laid line; the wet-to-matte pause is honest only if it lands on a named laid line.",
+      "productionMethod": "Generative only: procedural code for the laid lines, shader-based simulation of ink diffusion on cotton rag, and render of the specific material provenance.",
+      "humanTrace": "The 4-second 60 BPM iron-gall settle landing on a visible laid line; the Inter labels carry a maker credit, so the 300gsm cotton rag keeps a traceable provenance.",
+      "risk": "The risk is that the specific, named materiality might feel too academic for Pre-K readers, but it is worth it because it grounds the abstract concept of 'story' in the tangible, trustworthy reality of the maker’s hand.",
+      "arguesWith": {
+        "directorId": "BAROQUE",
+        "why": "The Baroque Dramatist reaches for gold before asking whose gold. Grandeur borrowed is grandeur stolen. I refuse to let the 'Around the Fire' exhibit become a generic, borrowed aesthetic of 'fire and gold' without specific, named, and permissioned provenance."
+      }
+    },
+    {
+      "directorId": "BAROQUE",
+      "title": "Untitled direction",
+      "idea": "Story is the heat of the gathering: a slow, four-second iron-gall settle where the light of the 'fire' is the negative space held in the paper's breath.",
+      "geometry": "1:1.618 vertical axis with a 38.2% upper negative-space mask; the 'fire' is the empty space where the ink refuses to flow, not a drawn object.",
+      "typography": "Caveat (script) for the narrative voice, set at 60 BPM rhythm; Source Sans (type) for structural labels; the accent is a single #c8102e underline that appears only after the ink has dried.",
+      "imageLogic": "No photographs. The 'image' is the simulated feathered edge where the Source Sans structure meets the Caveat breath, rendered as a physical light-and-shadow map on the paper surface.",
+      "texture": "300gsm cotton-rag with visible laid lines; the texture is the primary subject, with the iron-gall ink settling into the fiber valleys to create a tactile depth map.",
+      "motion": "Static for 4 seconds at 60 BPM; the only movement is the 'settle' of the ink in the optical center, followed by the reveal of the #c8102e wet edge. No added animation.",
+      "productionMethod": "Generative render of the cotton-rag fiber map; procedural simulation of iron-gall ink absorption; the 'fire' is generated by masking the negative space in the 38.2% upper region.",
+      "humanTrace": "The pressure mark left by the 'fiber compression' in the 38.2% upper breath, and the visible, irregular feathering of the ink edge that no algorithm would create without a physical simulation of paper tooth.",
+      "risk": "It risks being perceived as 'too quiet' for a baroque style, but I argue that the silence of the held pause is the most dramatic possible choice against the noise of the other seven exhibits.",
+      "arguesWith": {
+        "directorId": "RADICAL_MINIMAL",
+        "why": "I disagree with the Minimalist's idea that restraint is a virtue; I believe the restraint here is an alibi for not deciding what the work feels like. The 'fire' must be felt as a lack, not just an absence."
+      }
+    },
+    {
+      "directorId": "RADICAL_MINIMAL",
+      "title": "Untitled direction",
+      "idea": "Story is the negative space between the ink and the silence of the paper.",
+      "geometry": "1:1.618 grid with 38.2% upper breath as a pressure line, not an offset.",
+      "typography": "Libre Caslon for headlines; Source Sans 3 for structure; Caveat as sole handwritten exception in 1/10 margin.",
+      "imageLogic": "Procedural fiber compression and iron-gall settle; no photography, only simulated material light.",
+      "texture": "300gsm cotton rag paper; laid lines visible under light; matte finish after ink dry.",
+      "motion": "4-second 60 BPM iron-gall settle at optical center; silence after stop is the authority.",
+      "productionMethod": "Generative shader simulating ink bleed on laid paper; procedural fiber mapping; no physical build.",
+      "humanTrace": "Simulated pressure marks in the paper tooth; ink feathering at edges; timing of the settle.",
+      "risk": "Risks feeling sterile if the settle is too fast; worth it because silence is the only honest container for story.",
+      "arguesWith": {
+        "directorId": "BAROQUE",
+        "why": "The Dramatist adds until something happens; I remove until only the thing that matters can."
+      }
+    }
+  ],
+  "disputes": [
+    {
+      "from": "CLASSICAL",
+      "against": "REBEL",
+      "objection": "As in the Pantheon’s oculus, a disturbance must be given a place before it can be read; here the irregular polygons and uneven margins give the eye no stable rest. The 60 BPM jitter of torn edges is not a resolution, but a performance of error that will not survive a second reading. That does not resolve.",
+      "concession": "What is right is the pressure visible in the indigo bleed, because it preserves a perceptible trace of making without requiring the page to become noise."
+    },
+    {
+      "from": "REBEL",
+      "against": "CLASSICAL",
+      "objection": "You turn the iron-gall settle into a calming ritual, then let the hierarchy take over the page. The 38.2% rest stops being pressure and starts being a quiet, institutional no-entry sign. I can’t see a human hand because the layout is telling the reader where to sit.",
+      "concession": "The 4-second, 60 BPM settle is worth keeping if it leaves a ragged, photocopiable feather instead of a resolved border."
+    },
+    {
+      "from": "FUTURIST",
+      "against": "REBEL",
+      "objection": "Torn newsprint, 15-degree overlaps, and 60 BPM jitter are a costume of accident, not a behavior. The direction mistakes decorative noise for a system: nothing responds to input, so the 'human error' is nostalgia wearing a typewriter.",
+      "concession": "The instinct that ragged edges can carry a human pressure trace is right, if the tear becomes a calculated displacement field tied to the story’s data."
+    },
+    {
+      "from": "WORLD_ECLECTIC",
+      "against": "CLASSICAL",
+      "objection": "I would stop this direction at the “mask motif,” because an unnamed mask is a borrowed shrine object until a named maker, place, year, and fee are on the record. A page that says “washi” and “vermilion” without naming the maker, village, or workshop is not a place; it is a stock shelf. As written, it flattens specific papermakers and ritual contexts into a polite global accent.",
+      "concession": "The 38.2% upper rest is the right structural silence, provided the laid line is named and the four-second settle is credited as maker pressure."
+    },
+    {
+      "from": "BAROQUE",
+      "against": "RADICAL_MINIMAL",
+      "objection": "That optical-center settle is not silence; it is a held breath with nowhere to go, because you have not given it a light source, a depth, or a frame before the pause. Calling the silence after stop an authority is minimalism avoiding the decision of what the story does in the next beat. I concede the four-second 60 BPM settle is the right pause: it can become the curtain held before the reveal, if we let it earn the next move.",
+      "concession": "The held settle at the optical center is a true structural breath, and that timing is the one thing the direction gets dramatically right."
+    },
+    {
+      "from": "RADICAL_MINIMAL",
+      "against": "BAROQUE",
+      "objection": "BAROQUE makes the paper tooth the subject, and lets Caveat carry narrative voice at 60 BPM. That turns the 38.2% breath into a performance, not silence. Remove the script, the light-and-shadow map, and the underline; keep only the settle and the one wet edge.",
+      "concession": "Its fire as withheld ink in the upper breath is the one contrast that carries meaning."
+    }
+  ],
+  "reflections": [
+    {
+      "directorId": "RADICAL_MINIMAL",
+      "note": "I now hold that the torn newsprint is not added until the 300gsm laid lines and iron-gall spine can prove the silence it interrupts. The #c8102e underline may appear only after the Caveat pressure and wash have stopped moving, as the single saturated mark that turns layered drafts into an authoritative archive."
+    },
+    {
+      "directorId": "FUTURIST",
+      "note": "I now hold that the non-uniform archive can be a system if its torn newsprint fire is generated from pressure thresholds, letting indigo bleed follow the cotton-rag laid lines while Source Sans 3 holds the polygon edges and Caveat writes only in the wet margin. The #c8102e underline is a state change, not decoration: it appears when the iron-gall spine crosses the 38.2% settle."
+    },
+    {
+      "directorId": "BAROQUE",
+      "note": "I now hold that on this 300gsm cotton-rag spine, the baroque peak is the iron-gall’s four-second, 60 BPM settle at the optical center, not the #c8102e stamp, because the torn newsprint’s ragged edge already gives the polygon its violence. The #f2c879 and #a9cdbf washes must wait until that pressure mark has dried, letting the 38.2% upper breath hold as the curtain before the margin bleeds."
+    },
+    {
+      "directorId": "WORLD_ECLECTIC",
+      "note": "This brief moved me to accept Caveat as a pressure trace rather than borrowed warmth, but only if the Source Sans 3 polygons carry a named maker credit and the #f2c879/#a9cdbf wash stops on a visible laid line of the 300gsm rag. I now hold that the #c8102e stamp is honest only as a credited archive mark, not a universal fire symbol."
+    },
+    {
+      "directorId": "REBEL",
+      "note": "The brief moved me to stop treating the 300gsm laid lines as decoration; I now hold that they are the only grid strong enough to arrest the torn newsprint washes and let Caveat’s pressure, iron-gall spine, and #c8102e stamp read as evidence, not polish."
+    },
+    {
+      "directorId": "CLASSICAL",
+      "note": "I now hold that the torn newsprint is legitimate only as a marginal fire against the 300gsm laid lines, its indigo washes stopped before the iron-gall spine, so the irregular polygon drafts remain readable under Source Sans 3, with Caveat kept as pressure and the single vermilion stamp resolving the page."
+    }
+  ],
+  "synthesis": {
+    "lead": "REBEL",
+    "counterpoint": "CLASSICAL",
+    "editor": "RADICAL_MINIMAL",
+    "direction": "Use 300gsm cotton rag with visible laid lines, inked in iron-gall to anchor the 'spine' of the story, while the 'fire' is represented by jagged, torn newsprint overlays that bleed indigo washes (#f2c879, #a9cdbf) into the margins. Set the narrative voice in Caveat script to simulate handwritten pressure, paired with Source Sans 3 for structural clarity, using a single saturated vermilion (#c8102e) accent for underlines and stamps. The layout is a non-uniform grid where text blocks are irregular polygons, creating a tactile, layered archive of drafts rather than a static page.",
+    "keepFromCounterpoint": "The 4-second, 60 BPM iron-gall settle timing, which provides a rhythmic, structural breath that stabilizes the visual chaos and ensures legibility across reading levels.",
+    "editorCut": "Removed the strict 1:1.618 vertical grid and the 'mask' motif, as they impose an institutional rigidity that kills the handmade, tactile urgency required for the Pre-K to university audience. Also removed the 'fire as negative space' concept, replacing it with active ink bleed to make the warmth visible and tactile.",
+    "openDecision": "Do we allow the torn newsprint edges to physically overlap the core text blocks (creating a risk of reduced legibility) to maximize the 'archive' feel, or do we keep the text within clean, calculated margins to ensure accessibility for early readers?",
+    "ariaSummary": "The council split sharply on how to balance the 'handmade' brief with the need for legibility. The Classical Mind wanted a strict grid and a 'mask' motif to create a calm, structural spine, arguing that without it, the exhibit becomes noise. The Rebellious Hand rejected this as sterile, insisting that the 'fire' must be felt through the jagged, torn edges of newsprint and the pressure of ink bleed.\n\nI took the side of the Rebellious Hand, but I did not let the page become a mess. We kept the cotton rag base for its tactile quality and the iron-gall ink for its depth, but we applied the Classical Mind’s 4-second settle timing to the digital and print assets. This ensures that even though the layout is irregular, the 'settle' of the ink gives the eye a moment to rest, preventing the visual disturbance from becoming overwhelming.\n\nThe Radical Minimalist cut the excess ornamentation, ensuring that the vermilion accent is used only for stamps and underlines, never as a decorative wash. This keeps the focus on the ink and the paper, making the exhibit feel genuinely written and pressed, rather than digitally decorated.",
+    "quotes": [
+      {
+        "directorId": "REBEL",
+        "line": "The 'fire' is better represented by destruction and urgency than by clean lines."
+      },
+      {
+        "directorId": "CLASSICAL",
+        "line": "A mark with no structure behind it is noise with confidence."
+      }
+    ]
+  }
+}

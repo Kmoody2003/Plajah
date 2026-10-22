@@ -4148,6 +4148,8 @@ export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW'
   | 'TELA_EMBED_DEMO'
   // Dossier — museum/biography/documentary experiences (Douglass first)
   | 'DOSSIER'
+  // Lorea Exhibition Hall — craft of writing (story, character, plot, prose, poetry, rhythm, grammar, journalism)
+  | 'LOREA_EXHIBITS'
   // Chora Mixes — the dedicated long-form DJ-set player (waveform + Pixels auto-show)
   | 'MIX_PLAYER'
   | 'CELL_ATLAS'

@@ -1,0 +1,219 @@
+{
+  "id": "mviyrgkkhq67eo",
+  "uid": "lorea-exhibit-poetry",
+  "createdAt": 1792638641828,
+  "depth": "FULL",
+  "status": "DONE",
+  "brief": {
+    "ask": "Art-direct the Lorea exhibit \"The House of Small Lightnings\" — a walk-through exhibition about poetry in the craft of writing. You have creative freedom: choose the paper, the ink, the washes, the one saturated accent, the lettering and the motif, and say what makes this exhibit look unlike the other seven. It must feel handmade — written, inked, pressed, pasted on real paper — and still carry colour. It must be easy to learn from and gorgeous at every reading level.",
+    "surface": "Lorea Exhibition Hall: entrance sheet, room sheets, pasted library clippings, hands-on station cards, torn-paper teaser nuggets in the feed",
+    "domain": "literary craft education",
+    "audience": "Readers from Pre-K to university; Academia classrooms and university seminars",
+    "feeling": "Handmade, inky, tactile, curious, warm",
+    "constraints": [
+      "Materials must map to: paper (laid|cotton|kraft|vellum|newsprint|rag|parchment|washi), ink (iron-gall|sepia|indigo|vermilion|carbon|verdigris), two wash colours, one accent hex, hand (script|print|type), motif (quill|press|lyre|lantern|mask|arc|metronome|type-case).",
+      "The other seven exhibits exist; differ from them.",
+      "Interactive stations stay as they are; you direct their look, not their mechanics."
+    ],
+    "references": [
+      "Rooms:\nThe Image Room: Pictures made of words / Hunt the comparisons\nThe Line Break: Same words, different poem / Put the poem back together\nThe Sound Garden: Hear the echoes / A heartbeat in the line\nThe Gallery of Forms: Sonnet, ballad, free verse / Name that form / What only a poem can do",
+      "Current authored materials: {\"paper\":\"washi\",\"ink\":\"indigo\",\"wash\":[\"#f4c6d0\",\"#c9dfc0\"],\"accent\":\"#d1495b\",\"hand\":\"script\",\"motif\":\"lyre\"}"
+    ]
+  },
+  "directors": [
+    "CLASSICAL",
+    "REBEL",
+    "FUTURIST",
+    "WORLD_ECLECTIC",
+    "BAROQUE",
+    "RADICAL_MINIMAL"
+  ],
+  "proposals": [
+    {
+      "directorId": "CLASSICAL",
+      "title": "Lanterns of Iron Gall",
+      "idea": "The exhibit is a single, unbroken vertical column of light that descends from the ceiling to the floor, mapping the anatomy of a poem onto the physical layers of 300gsm cotton rag paper.",
+      "geometry": "Strict 1:1.618 vertical grid with a single central axis; the 38.2% upper section is the structural rest where the eye lands before the content begins, ensuring legibility across the Pre-K to university spectrum.",
+      "typography": "Libre Caslon Text for headers and critical definitions, set in small caps with wide tracking to assert authority; Source Sans 3 for body copy and interactive labels, kept quiet and neutral to allow the poetry to speak; no script faces, as they compromise legibility at distance.",
+      "imageLogic": "No photographs; instead, generative simulations of iron-gall ink diffusion along the laid lines of the paper, creating capillary feathering that looks like handwriting but is structurally consistent. Images are negative space, not positive marks.",
+      "texture": "300gsm cotton rag paper with visible laid lines; simulated iron-gall ink that darkens at the edges and fades in the center, mimicking the chemical aging of historical manuscripts; the texture is the primary visual element, not a background.",
+      "motion": "A 4-second, 60 BPM settle where the iron-gall ink diffuses along the laid lines before the text appears; the motion is slow, deliberate, and lands exactly on the structural rest, never on the motion itself.",
+      "productionMethod": "Generative image models to simulate ink diffusion on cotton rag; procedural code to align the diffusion with the 300gsm laid lines; print on actual 300gsm cotton rag to preserve the physical tooth and weight.",
+      "humanTrace": "The simulated iron-gall ink refuses the laid lines for four seconds before settling, creating a perceptible pause that mirrors the hand's hesitation; the paper's physical weight and tooth are preserved in the final print, not simulated.",
+      "risk": "The strict vertical grid and single axis may feel rigid to younger audiences, but the 4-second settle and the tactile paper weight provide enough sensory engagement to maintain curiosity; the risk is worth it because it ensures the exhibit remains legible and structurally sound for decades.",
+      "arguesWith": {
+        "directorId": "REBEL",
+        "why": "The Rebel will call the single vertical axis a cage and the 4-second settle a constraint; I argue that without this structure, the ink diffusion becomes noise, and the poem loses its hierarchy. A mark with no structure behind it is noise with confidence."
+      }
+    },
+    {
+      "directorId": "REBEL",
+      "title": "Iron Gall Static",
+      "idea": "The exhibit is a series of fixed, high-contrast indigo stamps that bleed into the tooth of 300gsm cotton paper, refusing the washes and softness of the current draft.",
+      "geometry": "Strict 1:1.618 vertical axis per sheet; the upper 38.2% is a negative space mask, not empty, but defined by the ragged edge of a 4-second iron-gall settle.",
+      "typography": "Space Grotesk (OFL) for structural headers, set in all caps with tight tracking; hand-lettered serif for body text, mimicking broad-nib pressure; no italics, only weight shifts.",
+      "imageLogic": "No photographs. Images are generated as high-contrast indigo duotones of type cases and paper tears, treated to look like failed photocopies: high grain, lost blacks, sharp white highlights.",
+      "texture": "300gsm cotton rag paper with visible laid lines; ink is simulated iron-gall with capillary feathering that fights the paper grain; no gloss, no varnish, matte and dry.",
+      "motion": "Static. The only movement is the visual 'settle' of the ink bleed at the optical center, creating a subtle tension in the eye that feels like pressure rather than animation.",
+      "productionMethod": "Generative AI renders of ink on cotton paper texture, composited with procedurally generated indigo stamps; printed on uncoated stock to preserve the tactile friction.",
+      "humanTrace": "The ragged, unvectorized edge of the ink bleed where it meets the paper's laid lines; the visible pressure points where the 'stamp' hit the paper hardest.",
+      "risk": "It risks feeling cold or aggressive to the Pre-K audience by rejecting the warm washes; worth it because it proves that poetry can be structural and urgent, not just soft and pretty.",
+      "arguesWith": {
+        "directorId": "CLASSICAL",
+        "why": "The Classical Mind wants the indigo to resolve into a clean, balanced wash; I argue that the stain must remain unresolved and ragged to be evidence of the mark, not just decoration."
+      }
+    },
+    {
+      "directorId": "FUTURIST",
+      "title": "Latent Ink State Logic",
+      "idea": "The exhibit is a computational instrument where static layout responds to a single 4-second iron-gall diffusion rule, making the act of drying a visible state change rather than a decorative effect.",
+      "geometry": "Strict 1:1.618 vertical grid; 1/10 margins; central axis acts as the fixed condition for the 38.2% structural rest point where the mask motif appears as negative space.",
+      "typography": "Libre Caslon caps (tracked, 0.1em) for structural headers; Caveat for marginalia; scale hierarchy driven by optical density rather than size alone; no italic, only weight shift.",
+      "imageLogic": "No photographs. All 'images' are simulated ink feathering against 300gsm cotton-rag laid lines; visual data is generated by procedural code calculating capillary action at 60 BPM.",
+      "texture": "300gsm cotton rag with visible laid lines; surface tooth converts simulated pressure into visible state; matte finish that accepts iron-gall ink simulation.",
+      "motion": "4-second, 60 BPM wet-to-matte settle; indigo diffusion resolves into fixed cotton-rag states; no looping, only discrete state changes triggered by user proximity or time.",
+      "productionMethod": "Procedural shader rendering of ink diffusion on high-res paper texture maps; generative code simulates capillary feathering; printed on 300gsm cotton rag; no physical ink, only digital simulation of drying.",
+      "humanTrace": "The simulated feathering is calibrated to match the physical behavior of iron-gall ink on cotton rag, preserving the perceptible sign of drying pressure and time.",
+      "risk": "Risks feeling sterile or overly technical to Pre-K audience; worth it because it transforms passive reading into active observation of a system, aligning with the 'instrument' philosophy.",
+      "arguesWith": {
+        "directorId": "REBEL",
+        "why": "The Rebel prefers accidental imperfection; I argue that a system producing honest imperfection on purpose, every time, is more serious and consistent for an educational exhibit."
+      }
+    },
+    {
+      "directorId": "WORLD_ECLECTIC",
+      "title": "Ink on Unbleached Cotton",
+      "idea": "A walk-through of poetry as a physical act of pressure, where the page is a field notebook made of 300gsm unbleached cotton rag, and every visual element is a trace of a hand that has just finished writing.",
+      "geometry": "A 1/10 margin field-note grid, not a centered monument; the optical center is left empty or occupied by a single, irregular indigo knot of ink, allowing the eye to rest on the negative space of the paper's laid lines.",
+      "typography": "Source Sans 3 in all caps with 200% tracking for labels, paired with Caveat (script) used strictly in the margins for annotations; no serif display faces to avoid academic stiffness, ensuring the text feels like a note, not a textbook.",
+      "imageLogic": "Generative renders of high-resolution paper texture and ink bleed, treated as if shot through a macro lens with a shallow depth of field; no photographs of people, only the results of their actions (a wet stain, a pressed indent).",
+      "texture": "300gsm unbleached cotton rag with visible laid lines; the surface is not smooth but toothy, requiring the ink to be simulated with a wet-to-matte transition that settles over 4 seconds.",
+      "motion": "A 4-second loop where a drop of indigo ink hits the paper, spreads along the laid lines, and settles into a fixed, feathered edge; the motion is slow, 60 BPM, mimicking the pace of a deliberate hand.",
+      "productionMethod": "Generative video models trained on macro photography of wet ink on cotton; procedural code to simulate the capillary action of the ink; no physical props, only the digital simulation of physical pressure.",
+      "humanTrace": "The visible feathered edge of the ink and the slight irregularity of the laid lines; the viewer sees the moment the ink stopped moving, a pause that implies a hand was there.",
+      "risk": "It risks feeling static or too quiet for a Pre-K audience, but the 4-second settle creates a moment of suspense and focus that teaches patience and observation, which is a core part of reading poetry.",
+      "arguesWith": {
+        "directorId": "BAROQUE",
+        "why": "The Dramatist wants gold leaf and dramatic lighting, but I argue that grandeur borrowed is grandeur stolen; the power of poetry is in the quiet pressure of the pen on the paper, not in the flash of gold."
+      }
+    },
+    {
+      "directorId": "BAROQUE",
+      "title": "Ink Settle, Held Breath",
+      "idea": "The exhibit is a study in the four-second pause where iron-gall ink refuses to flow, settling into the cotton-rag fiber to reveal the poem's structure through pressure and light rather than added motion.",
+      "geometry": "Strict 1:1.618 vertical grid with a 38.2% upper mask offset; the optical center is fixed at the intersection of the golden section and the laid paper lines, creating a stable axis for the 'held' visual weight.",
+      "typography": "Cormorant Garamond (OFL) for headings in large, tight leading; EB Garamond (OFL) for body text; the lettering is set in a rigid, static column that mimics the verticality of the paper fiber, with no italicization to preserve the 'settled' feel.",
+      "imageLogic": "No photographs; instead, macro-rendered textures of ink bleed and paper tooth are treated as the primary imagery, with light raking across the surface at a low angle to emphasize the relief of the pressed fiber.",
+      "texture": "Heavy 300gsm cotton rag paper with visible laid lines; iron-gall ink that appears to have dried into the fibers, leaving a tactile, slightly recessed path; the surface is matte, absorbing light rather than reflecting it.",
+      "motion": "Static; the only movement is the slow, four-second 'settle' of the ink in the entrance animation, where a drop of ink is simulated as it presses into the paper and stops, marking the time at 60 BPM.",
+      "productionMethod": "Generative rendering of ink-on-cotton-rag textures using procedural shaders to simulate capillary action; the 'hand' is simulated through the pressure mapping of the ink bleed, not actual handwriting; all assets are generated and composited in a static, high-resolution layout.",
+      "humanTrace": "The pressure mark of the ink on the paper; the visible laid lines of the cotton rag that the ink has settled into; the slight feathering at the edge of the ink where the fiber resisted the flow.",
+      "risk": "The risk is that the static nature may be perceived as dead or boring; however, this risk is worth it because the 'held' moment creates a more profound, meditative engagement with the text, allowing the viewer to feel the weight of the words rather than just reading them.",
+      "arguesWith": {
+        "directorId": "RADICAL_MINIMAL",
+        "why": "The Radical Minimalist argues for restraint, but I believe that in this context, restraint is an alibi for not deciding what the work feels like; the baroque peak here is not in the addition of elements, but in the precise, timed settle of the ink, which is a decision of scale and depth, not a lack of it."
+      }
+    },
+    {
+      "directorId": "RADICAL_MINIMAL",
+      "title": "The Pressure Line of Silence",
+      "idea": "The exhibit is a single, unbroken 300gsm cotton rag sheet where the poem is not printed but pressed into existence by the absence of ink.",
+      "geometry": "1:1.618 vertical grid; 38.2% reserved negative space at the optical center acts as the pressure line, not empty space but structural authority.",
+      "typography": "Inter (All-caps, 200% tracking) for labels; Space Grotesk for body; no italics; hierarchy defined solely by weight and tracking, not size.",
+      "imageLogic": "No photographs; visual evidence is procedural fiber compression and capillary ink bleed, rendered as high-res texture maps to simulate physical material stress.",
+      "texture": "300gsm unbleached cotton rag with visible laid lines; iron-gall ink diffusion following the paper’s tooth; matte wash finish to prevent glare.",
+      "motion": "One 4-second 60 BPM settle at the entrance; the indigo feathering stops at the feathered edge; no fade, no loop, just the silence after the ink stops.",
+      "productionMethod": "Generative texture synthesis for paper tooth and ink bleed; procedural code for the 1:1.618 grid; single 4-second video render for the entrance settle; no physical printing or scanning.",
+      "humanTrace": "The 4-second settle simulates the physical weight of the letterpress plate; the ink bleed follows the laid lines, making the digital render feel like capillary proof of a hand-pressed sheet.",
+      "risk": "Risks feeling sterile or cold to the Pre-K audience; worth it because it forces the viewer to look closer, turning the silence into a tactile curiosity rather than a decorative afterthought.",
+      "arguesWith": {
+        "directorId": "BAROQUE",
+        "why": "The Dramatist adds until something happens; I remove until only the thing that matters can. The Baroque will want a second event, a flash, a shadow play. I hold that the 4-second settle is the only event; any other motion is decoration that erases the pressure line."
+      }
+    }
+  ],
+  "disputes": [
+    {
+      "from": "CLASSICAL",
+      "against": "FUTURIST",
+      "objection": "Making the exhibit a computational instrument that changes state with proximity turns the page into a device rather than a held proposition. A four-second diffusion rule is only a rest if it lands once, at the 38.2% measure; if it re-triggers, the reading cannot be read twice the same way. That does not resolve: the poem becomes subordinate to the mechanism, like a fugue that changes key at the listener's elbow.",
+      "concession": "Its strict 1:1.618 grid and fixed 38.2% rest point correctly locate the structural pause where the mask may appear as negative space."
+    },
+    {
+      "from": "REBEL",
+      "against": "CLASSICAL",
+      "objection": "The 38.2% upper rest is a clean hole, not a held breath, and the ink becomes negative space instead of a mark a hand made. It polishes the poem into a museum object for everyone and against no one. I need the cotton to fight back at the optical center, not just look historical.",
+      "concession": "I take your 300gsm laid lines and your four-second settle, because that is where the paper can leave a ragged, photocopiable edge."
+    },
+    {
+      "from": "FUTURIST",
+      "against": "REBEL",
+      "objection": "This is a photograph of pressure, not a pressure instrument: the 4-second settle is frozen into a ragged edge and then the system stops responding to input. I disagree with the failed-photocopy duotone because it mistakes accident for behavior; the feathering should be computed from tooth, capillary resistance, and the 38.2% rest point so the same rule can be re-run at every state. If the sheet cannot change when the viewer changes position, pressure, or time, it is an old surface with a stain on it.",
+      "concession": "The hard pressure points are the right place to expose the strongest input, because they make the material response readable before any text arrives."
+    },
+    {
+      "from": "WORLD_ECLECTIC",
+      "against": "RADICAL_MINIMAL",
+      "objection": "The Pressure Line of Silence calls its 38.2% silence universal, but a 300gsm unbleached cotton rag sheet, Inter caps at 200% tracking, and no second script are not silence; they are a European letterpress convention wearing a neutral mask. Where is this from, exactly, and who made it? If the pressure line is to carry weight, it needs a named maker, a fee, and a conversation—not a generic absence of ink.",
+      "concession": "I concede its single 4-second 60 BPM settle is the strongest pause in the room, but only if it lands on a named laid line and the labels carry maker credit."
+    },
+    {
+      "from": "BAROQUE",
+      "against": "RADICAL_MINIMAL",
+      "objection": "You have made the silence so pure that the poem loses its body; a cotton-rag sheet with only pressure and absence is a stage after the actors have left, not a moment of drama. Where is the light that turns the indent into a valley, and where is the breath before the mark, if the reveal is only the absence of the mark? I challenge the work for mistaking restraint for a decision, and for flattening the emotion into a single quiet plane.",
+      "concession": "The 38.2% pressure line is a genuinely theatrical rest, and I would hold it as the curtain before the ink arrives."
+    },
+    {
+      "from": "RADICAL_MINIMAL",
+      "against": "FUTURIST",
+      "objection": "It makes the settle into a system, and systems need proof. The proximity trigger is a second pulse that does not settle; it asks the eye to watch the mechanism instead of the ink. Remove the trigger, keep the four seconds.",
+      "concession": "The procedural capillary calibration is the right proof that the feathering is behavior, not ornament."
+    }
+  ],
+  "reflections": [
+    {
+      "directorId": "BAROQUE",
+      "note": "I now hold that on this 1/10 cotton-rag margin, the baroque peak is not added ornament but the indigo’s four-second, 60 BPM fiber-settle: the spectacle is the feathered edge where Source Sans structure meets Caveat breath."
+    },
+    {
+      "directorId": "FUTURIST",
+      "note": "I now hold that a 1/10 margin grid on 300gsm unbleached cotton rag can behave as an instrument when its only motion is a 4-second, 60 BPM indigo spread along the laid lines, settling into a matte, feathered state. That move made me see Source Sans 3 and Caveat not as style choices, but as fixed conditions that let the paper’s friction become readable."
+    },
+    {
+      "directorId": "REBEL",
+      "note": "I now hold that the 1/10 grid is not sterile if the 300gsm cotton’s laid lines are the only thing stopping the four-second, 60 BPM indigo bleed from eating the Caveat margin. I keep the ragged, photocopiable feathering as the proof that the grid was made, not just imposed."
+    },
+    {
+      "directorId": "CLASSICAL",
+      "note": "I now hold that in this field notebook the 1/10 margin grid is the measure, and Caveat may live only in the margins as a quiet after-image of the hand, not as display, once the indigo’s four-second, 60 BPM settle has stopped moving along the 300gsm laid lines."
+    },
+    {
+      "directorId": "RADICAL_MINIMAL",
+      "note": "I now hold that Source Sans 3 can be the structure only if Caveat remains the sole handwritten exception in the 1/10 margin; the indigo must settle for four seconds at 60 BPM against the 300gsm tooth, so the paper is the argument, not a texture."
+    },
+    {
+      "directorId": "WORLD_ECLECTIC",
+      "note": "I now hold that the four-second indigo settle is honest only when it lands on a visible laid line of the 1/10 margin, feathers through 300gsm unbleached cotton rag at 60 BPM, and stops before Caveat is allowed to write over Source Sans 3 structure."
+    }
+  ],
+  "synthesis": {
+    "lead": "WORLD_ECLECTIC",
+    "counterpoint": "REBEL",
+    "editor": "BAROQUE",
+    "direction": "We are building a field notebook on 300gsm unbleached cotton rag, where the geometry is a 1/10 margin grid that lets the laid lines breathe. The type is Source Sans 3 for structure, but the soul is Caveat in the margins, mimicking the hand that just wrote it. The image is a generative simulation of indigo ink hitting the paper, spreading along the fiber for four seconds at 60 BPM before settling into a matte, feathered state. We keep the tactile friction of the paper as the primary visual element, not a background.",
+    "keepFromCounterpoint": "The hard, ragged pressure points where the 'stamp' hits the paper hardest, ensuring the ink looks like evidence of a mark, not just decoration.",
+    "editorCut": "I removed the proximity-triggered state changes from the Futurist and the strict vertical monument of the Classical Mind. The poem must be a held proposition, not a computational instrument that changes key at the viewer's elbow. I also cut the 'failed photocopy' aesthetic, as it mistakes accident for behavior; the feathering must be computed from the paper's tooth to be honest.",
+    "openDecision": "Do we let the indigo ink bleed slightly into the negative space of the 38.2% structural rest, or does it stop sharply at the laid line?",
+    "ariaSummary": "The council argued over whether the ink should be a system or a stain. The Futurist wanted the page to be a computational instrument that responds to proximity, but the Classical Mind argued that a poem subordinate to a mechanism is just noise with confidence. I took the side of the World-Eclectic Traveler: the page is a field notebook, and the ink is a trace of a hand that has just finished writing.\n\nWe rejected the Baroque Dramatist’s call for dramatic lighting and gold, agreeing that grandeur borrowed is grandeur stolen. We also held back the Radical Minimalist’s pure silence, because a 300gsm sheet with only pressure and absence is a stage after the actors have left. We need the body of the poem, not just its shadow.\n\nThe result is a warm, tactile experience where the 4-second settle is the only motion. It is a pause that teaches patience, mirroring the pace of a deliberate hand. The ink refuses the laid lines for a moment before settling, creating a perceptible hesitation that is the human trace in a generative world.",
+    "quotes": [
+      {
+        "directorId": "WORLD_ECLECTIC",
+        "line": "The power of poetry is in the quiet pressure of the pen on the paper, not in the flash of gold."
+      },
+      {
+        "directorId": "REBEL",
+        "line": "I need the cotton to fight back at the optical center, not just look historical."
+      }
+    ]
+  }
+}

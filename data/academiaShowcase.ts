@@ -72,6 +72,8 @@ export interface Exhibit { id: string; kind: string; name: string; img?: string;
 export const ACADEMIA_EXHIBITS: Exhibit[] = [
   { id: 'hall', kind: 'Exhibition Hall', name: 'The Exhibition Hall', img: '/dossier/founding/archival/a-declaration-trumbull.jpg', color: '#F5C987', to: { view: 'DOSSIER' }, isNew: true,
     teach: 'Five immersive history exhibits with archival art and films. Each one is a ready-made unit.', hook: 'Walk through history, room by room', family: 'Five history exhibits with films and archival art' },
+  { id: 'lorea-craft', kind: 'Writing exhibits', name: 'The Writer’s Craft', bg: '#2a1d33', color: '#F0B37A', to: { event: 'plajah:openLoreaExhibit', detail: {} }, isNew: true,
+    teach: 'Eight hands-on exhibits: story, character, plot, prose, poetry, rhythm, grammar and journalism, each written at five levels from Pre-K to university.', hook: 'Tap the beat, sort the pyramid, build a sentence', family: 'Play with words together, room by room' },
   { id: 'founding', kind: 'Exhibit', name: 'The Founding Era', img: '/dossier/founding/archival/a-declaration-trumbull.jpg', color: '#93C5FD', to: dossier('founding-era'), isNew: true,
     teach: 'From thirteen colonies to the first presidents. Pairs with Civics Hall.', hook: 'From colonies to a country', family: 'How the United States began' },
   { id: 'douglass', kind: 'Exhibit', name: 'Frederick Douglass', img: '/dossier/douglass/archival/ref-1847-miller-hero.jpg', color: '#FF9EC4', to: dossier('frederick-douglass'), isNew: true,

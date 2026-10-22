@@ -1693,6 +1693,7 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
       case 'LABS_DATAVIZ': onVisitUser(item.data.authorId); break;
       case 'EVENT_SOON': nav('EVENT_DETAIL', { eventId: item.data.eventId }); break;
       case 'HISTORY_MOMENT': nav('CHORA_HISTORY'); break;
+      case 'LOREA_NUGGET': window.dispatchEvent(new CustomEvent('plajah:openLoreaExhibit', { detail: {} })); break;
     }
   }, [onVisitUser]);
 

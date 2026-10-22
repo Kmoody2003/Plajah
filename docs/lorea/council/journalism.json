@@ -1,0 +1,79 @@
+{
+  "id": "journalism",
+  "tagline": "A true thing, torn and re-set in a strict grid, dries into words a stranger can trust by night.",
+  "epigraph": {
+    "text": "The report of my death was an exaggeration.",
+    "cite": "Mark Twain, to the New York Journal, 1897"
+  },
+  "materials": {
+    "paper": "rag",
+    "ink": "iron-gall",
+    "wash": [
+      "#1c1a17",
+      "#d9d2c5"
+    ],
+    "accent": "#c8102e",
+    "hand": "script",
+    "motif": "metronome"
+  },
+  "council": {
+    "source": "council",
+    "art": {
+      "lead": "CLASSICAL",
+      "counterpoint": "REBEL",
+      "note": "The council chose to keep the Rebel's fibrous tears and editing scars inside a strict 1:1.618 grid, replacing hand-pasted chaos with a procedural 60 BPM iron-gall settle and a single #c8102e wet edge."
+    },
+    "writers": {
+      "note": "The council's voice is a 60 BPM newsroom clock: exact, ink-stained, and honest enough to earn a stranger's trust."
+    }
+  },
+  "nuggets": [
+    {
+      "id": "journalism-wc-1",
+      "exhibitId": "journalism",
+      "roomId": "newsroom",
+      "hook": "A fact is only news after it survives six questions.",
+      "body": "Before the ink settles, every claim asks who, what, when, where, why, and how. The answers become the story's spine.",
+      "depths": [
+        "early",
+        "elementary"
+      ]
+    },
+    {
+      "id": "journalism-wc-2",
+      "exhibitId": "journalism",
+      "roomId": "lede",
+      "hook": "Forty words decide whether a stranger keeps reading.",
+      "body": "The first sentence must carry the biggest fact, the clearest name, and the least waste. If it wobbles, the rest of the page feels suspicious.",
+      "depths": [
+        "early",
+        "elementary",
+        "middle"
+      ]
+    },
+    {
+      "id": "journalism-wc-3",
+      "exhibitId": "journalism",
+      "roomId": "pyramid",
+      "hook": "The most important fact gets the shortest room.",
+      "body": "The upside-down pyramid puts the core event at the top and the context below. A reader can stop at any line and still trust the shape.",
+      "depths": [
+        "elementary",
+        "middle"
+      ]
+    },
+    {
+      "id": "journalism-wc-4",
+      "exhibitId": "journalism",
+      "roomId": "presses",
+      "hook": "Old ink, new power: newspapers can change a nation.",
+      "body": "From hand-presses to muckrakers, the press became a machine for checking power. Its speed made it dangerous, and its errors made it human.",
+      "depths": [
+        "middle",
+        "high",
+        "university"
+      ]
+    }
+  ],
+  "sessionId": "mviyyjjadpmk6h"
+}

@@ -1,0 +1,219 @@
+{
+  "id": "mviyk7g2j4lbg0",
+  "uid": "lorea-exhibit-character",
+  "createdAt": 1792638303410,
+  "depth": "FULL",
+  "status": "DONE",
+  "brief": {
+    "ask": "Art-direct the Lorea exhibit \"The Gallery of Faces\" — a walk-through exhibition about character in the craft of writing. You have creative freedom: choose the paper, the ink, the washes, the one saturated accent, the lettering and the motif, and say what makes this exhibit look unlike the other seven. It must feel handmade — written, inked, pressed, pasted on real paper — and still carry colour. It must be easy to learn from and gorgeous at every reading level.",
+    "surface": "Lorea Exhibition Hall: entrance sheet, room sheets, pasted library clippings, hands-on station cards, torn-paper teaser nuggets in the feed",
+    "domain": "literary craft education",
+    "audience": "Readers from Pre-K to university; Academia classrooms and university seminars",
+    "feeling": "Handmade, inky, tactile, curious, warm",
+    "constraints": [
+      "Materials must map to: paper (laid|cotton|kraft|vellum|newsprint|rag|parchment|washi), ink (iron-gall|sepia|indigo|vermilion|carbon|verdigris), two wash colours, one accent hex, hand (script|print|type), motif (quill|press|lyre|lantern|mask|arc|metronome|type-case).",
+      "The other seven exhibits exist; differ from them.",
+      "Interactive stations stay as they are; you direct their look, not their mechanics."
+    ],
+    "references": [
+      "Rooms:\nThe Room of Wanting: Want and Need / The Crack in the Cup / Station: Build a Character in One Breath\nRound, Flat, and Changing: Round and Flat / Station: How a Miser Melts / Station: Round or Flat?\nThe Showing Room: Station: Tell It, Then Show It / Station: How Dickens Paints a Miser / Voice Is a Fingerprint\nThe Hall of Masks: The Trickster Goes Everywhere / The Monster Speaks / Station: Name the Mask",
+      "Current authored materials: {\"paper\":\"cotton\",\"ink\":\"sepia\",\"wash\":[\"#e8b9a0\",\"#9fb8c9\"],\"accent\":\"#c2410c\",\"hand\":\"script\",\"motif\":\"mask\"}"
+    ]
+  },
+  "directors": [
+    "CLASSICAL",
+    "REBEL",
+    "FUTURIST",
+    "WORLD_ECLECTIC",
+    "BAROQUE",
+    "RADICAL_MINIMAL"
+  ],
+  "proposals": [
+    {
+      "directorId": "CLASSICAL",
+      "title": "The Measure of the Mask",
+      "idea": "Character is not a flat surface but a structural load-bearing element, revealed through the tension of iron-gall ink on laid lines.",
+      "geometry": "Strict 1:1.618 vertical grid with a single central axis; the mask motif is not centered but offset to the structural rest point (38.2% from top) to create hierarchical tension.",
+      "typography": "Libre Caslon for display headlines in tracked caps (1.2 tracking, 40pt+); Source Sans 3 for body copy in quiet, unadorned sentence case (1.5 line-height, 14pt); Caveat for marginalia only, never for primary information.",
+      "imageLogic": "No photographs. All imagery is generated as simulated iron-gall ink diffusion on 300gsm cotton rag paper, restricted to the laid lines; the mask emerges as a negative space where the ink refuses to flow.",
+      "texture": "300gsm cotton rag paper with visible laid lines; ink is iron-gall, showing a four-second settle from deep indigo to sepia-brown; the surface must feel toothy under the eye, not smooth.",
+      "motion": "A single four-second entrance: the iron-gall ink diffuses along the laid lines, settling before the Libre Caslon sentence is read. No other motion. The settle must land on the structural rest point.",
+      "productionMethod": "Generative image model conditioned on paper texture and ink flow physics; shader-based ink diffusion simulation; no physical build. The 'hand' is simulated pressure variation in the ink density.",
+      "humanTrace": "The visible laid lines of the paper and the four-second settle of the ink, which mimics the time it takes for a real quill to deposit iron-gall ink on cotton rag.",
+      "risk": "Risks reading as static or cold to younger audiences; the strict hierarchy may feel rigid. Worth it because legibility and compositional consequence are the only things that survive in ten years; novelty without structure is noise.",
+      "arguesWith": {
+        "directorId": "REBEL",
+        "why": "The Rebel will call my strict 1:1.618 grid a cage and want the mask to break the axis. I disagree: a mark with no structure behind it is noise with confidence. The mask must be earned by the grid, not by breaking it."
+      }
+    },
+    {
+      "directorId": "REBEL",
+      "title": "Ink Stains as Character Evidence",
+      "idea": "The exhibit is a series of wet, uncorrected ink blots that define character through the physical struggle of the mark against the paper's tooth, not through polished illustration.",
+      "geometry": "Asymmetric, non-grid layout; content is clustered around irregular ink pools that break the page margins; no straight rules, only the jagged capillary edges of the washes.",
+      "typography": "Bricolage Grotesque (OFL) for labels, set tight and slightly rotated to mimic hand-pasted stickers; Spectral (OFL) for body text, printed in low-contrast sepia to feel like faded newsprint.",
+      "imageLogic": "No photographs. 'Images' are generated as high-res simulations of ink diffusion in cotton paper fibers, rendered as flat, 2D vector paths with noisy edges, then treated with a procedural grain shader to simulate fiber absorption.",
+      "texture": "Simulated 300gsm cotton rag with visible laid lines; ink is simulated to bleed and feather into the fibers, creating a 'bruise' effect where the color is darkest at the pressure point and lightest at the wick.",
+      "motion": "Static in print, but in digital feed teasers, the ink bleeds outward in a 4-second slow-motion loop, showing the capillary action before settling; the 'lantern' motif pulses with a faint, warm glow that mimics heat drying the ink.",
+      "productionMethod": "Generative image models create the base ink blots; procedural code simulates the paper texture and ink diffusion; final assets are composited with a 'scan' filter that adds slight perspective distortion and dust to mimic a photocopied zine.",
+      "humanTrace": "The 'pressure' of the ink—some areas are solid black (heavy hand), others are faint washes (light hand); the edges are ragged and imperfect, refusing the clean vector line; the layout feels rushed, as if pasted by hand in a hurry.",
+      "risk": "Risks looking like a mess or a mistake; worth it because it proves that character is found in the flaws and the pressure, not the polish; it challenges the viewer to read the 'bruise' as a narrative device.",
+      "arguesWith": {
+        "directorId": "CLASSICAL",
+        "why": "The Classical Mind wants the ink to resolve into a clean, legible form; I argue that the bleed must stay unresolved and ragged because the 'want' in 'The Room of Wanting' is never fully satisfied, and the visual evidence of that struggle is the point."
+      }
+    },
+    {
+      "directorId": "FUTURIST",
+      "title": "Ink State Simulation",
+      "idea": "Character is not a static mask but a variable state of ink bleed; the exhibit treats the page as a simulation where reading density and interaction inputs cause the sepia ink to feather and settle into new configurations, making the 'face' of the character visible as a physical process rather than a fixed image.",
+      "geometry": "A 300gsm cotton-rag laid line grid acts as the state engine; the central axis is a 1:1.618 fixed condition, but column widths and ink boundaries are variable, responding to annotation density or dwell time, with 1/10 margins defining the resolution threshold.",
+      "typography": "Variable-width serif (e.g., Source Serif Pro) where stroke weight and spacing are modulated by the 'ink pressure' input; all caps for system states, lowercase for narrative, with kerning tightened as ink settles.",
+      "imageLogic": "No photographs. All 'images' are generative renders of ink diffusion against cotton-rag tooth, where character traits are represented by the rate and direction of feathering, not by portraiture.",
+      "texture": "300gsm cotton-rag with visible laid lines; the texture is not decorative but functional, acting as the resistance field that determines how the simulated ink bleeds and settles.",
+      "motion": "A 4-second iron-gall settle cycle; when an input (touch, voice, or dwell) occurs, the ink state changes from 'feathering' to 'fixed' over exactly 4 seconds, creating a visible clock for the reader to learn from.",
+      "productionMethod": "Procedural shader code simulating capillary action of sepia ink on 300gsm cotton-rag; rendered in real-time for interactive stations and pre-rendered for static sheets; no physical ink, only computational simulation of physical behavior.",
+      "humanTrace": "The visible 'tooth' of the paper and the irregular, honest imperfection of the simulated ink bleed, which is generated on purpose to mimic the pressure of a hand, not the accident of a machine.",
+      "risk": "It risks feeling too technical or cold if the simulation is not tuned to feel 'warm'; however, the risk is worth it because it creates a new visual behavior where the medium (paper/ink) is the message (character development), rather than a nostalgic surface.",
+      "arguesWith": {
+        "directorId": "BAROQUE",
+        "why": "The Baroque Dramatist wants a reveal and spectacle; I argue that a behavior is more powerful than a reveal. A 4-second settle is a rule, not a show. Spectacle without a system logic behind it is a screensaver, not an instrument."
+      }
+    },
+    {
+      "directorId": "WORLD_ECLECTIC",
+      "title": "Laid Lines and Iron Gall",
+      "idea": "The exhibit is a physical field notebook where the wall is unbleached cotton rag and the text is inked with simulated pressure, grounding the abstract concept of character in the specific, traceable reality of the maker's hand.",
+      "geometry": "A static 1:1.618 vertical grid anchored by a visible, named laid line running vertically through the center of every sheet; margins are fixed at 1/10 of the sheet width, creating a rigid field-note structure that resists the urge to float content.",
+      "typography": "Libre Caslon Text for structural headings (12pt–48pt, tight leading) to establish authority; Source Sans 3 (200% tracked) for labels and maker credits (8pt–12pt); Caveat strictly for marginalia and field notes, never for body copy, ensuring the hand is a voice, not a font.",
+      "imageLogic": "No generic photography; instead, high-resolution generative renders of paper fibers and ink bleed that mimic 8K macro photography of wet iron-gall ink; images are treated as 'inked' objects with visible feathered edges, not glossy inserts.",
+      "texture": "300gsm unbleached cotton rag with a pronounced tooth; the surface is not flat but tactile, with simulated deckle edges on the entrance sheet and a visible, uneven ink settle that darkens in the valleys of the paper grain.",
+      "motion": "A 4-second loop on digital teasers showing the ink 'settling' into the paper: a slow bleed from the center outward, with the feathered edge stabilizing; physical sheets are static, but the lighting shifts to reveal the texture, breathing at 60 BPM to mimic a calm, focused writing pace.",
+      "productionMethod": "Generative 8K renders of paper texture and ink bleed layered over a vector grid; the 'ink' is a procedural shader that responds to the simulated paper tooth; no physical printing, but the output is a high-fidelity digital simulation that prints on cotton rag if physical copies are needed, maintaining the human trace of pressure and gesture.",
+      "humanTrace": "The visible 'pressure' of the ink: darker, more saturated areas where the 'pen' would have pressed harder, and the traceable feathered edge of the ink bleed that proves it was not printed but written; the layout includes a 'maker's mark' in the bottom right, a specific vermilion dot that serves as a signature.",
+      "risk": "The rigid, static grid risks feeling cold or academic if the ink simulation fails to convey warmth; however, the risk is worth it because it forces the viewer to engage with the 'materiality' of writing, not just the content, which is the core of the exhibit's thesis.",
+      "arguesWith": {
+        "directorId": "BAROQUE",
+        "why": "The Baroque Dramatist will likely propose gold leaf, ornate frames, or dramatic chiaroscuro lighting to make the exhibit 'grand.' I argue that grandeur borrowed from other contexts (like religious iconography or royal portraiture) is stolen here; the power of this exhibit lies in the humble, specific, and humble materiality of the page, not in decorative excess."
+      }
+    },
+    {
+      "directorId": "BAROQUE",
+      "title": "Ink Shadows, Deep Paper",
+      "idea": "Faces are not drawn; they are revealed by the heavy, dark shadow of the ink settling into the deep, toothy valleys of the paper.",
+      "geometry": "1:1.618 cotton-rag axis, asymmetric chiaroscuro blocks",
+      "typography": "Playfair Display (High-Contrast Serif) for headers, Lora (Old-style Serif) for body, wide tracking to let the paper breathe",
+      "imageLogic": "No photographs; high-contrast, black-and-white generative renders of faces emerging from deep ink pools, treated like oil paintings",
+      "texture": "Deep cotton rag, heavy iron-gall ink, tactile volume",
+      "motion": "Static; the drama is in the held, feathered pause at the optical center",
+      "productionMethod": "Generative rendering of high-contrast ink and paper, printed on heavy cotton rag, physically pressed",
+      "humanTrace": "The visible, tactile tooth of the cotton rag paper and the deep, dark shadow of the ink",
+      "risk": "It risks looking too dark or too heavy for the Pre-K audience, but the warmth of the paper and the clarity of the faces make it accessible",
+      "arguesWith": {
+        "directorId": "RADICAL_MINIMAL",
+        "why": "The Minimalist will want to lighten the ink and flatten the paper to make it 'clean', but the depth of the ink and the texture of the paper are the entire point of the handmade feel."
+      }
+    },
+    {
+      "directorId": "RADICAL_MINIMAL",
+      "title": "Silence as Character Depth",
+      "idea": "The exhibit is a single, unbroken sheet of 300gsm unbleached cotton rag where the only evidence of writing is the pressure of the pen and the specific weight of the ink, not the decoration of the page.",
+      "geometry": "A strict 1:1.618 vertical grid; content is anchored to the left edge with a 1/10 margin on the right that acts as a negative pressure line, forcing the eye to hold the silence before the text.",
+      "typography": "A single weight of 'Inter' (Google Fonts) in all-caps with 200% tracking for labels; body text is minimal, using 'Source Serif 4' (Google Fonts) at a large, readable scale to ensure accessibility for Pre-K to university levels, with no italic or bold variants to maintain visual calm.",
+      "imageLogic": "No photographs. The 'image' is the simulated iron-gall ink diffusion following the laid lines of the paper, where the ink bleed itself forms the character portrait, requiring the viewer to look closer to see the face in the stain.",
+      "texture": "High-resolution render of 300gsm unbleached cotton rag; the texture is the primary surface, with the ink appearing as a capillary bleed into the tooth rather than a flat layer on top.",
+      "motion": "A single 4-second entrance settle at 60 BPM; the ink stain blooms and then stops completely. No loops, no fades, no continuous motion. The movement is the settling of the pigment.",
+      "productionMethod": "Generative video model conditioned on macro-photography of wet iron-gall ink on cotton rag; the output is a static, high-fidelity render of the final settled state, with the motion only simulated in the initial 4-second interaction trigger.",
+      "humanTrace": "The perceptible sign of making is the uneven capillary bleed of the ink into the paper tooth, which mimics the pressure variation of a human hand holding a quill, visible only when the light hits the surface at an angle.",
+      "risk": "It risks being perceived as empty or incomplete by audiences accustomed to visual density, but this risk is worth it because it forces a level of focus and quiet observation that is rare in educational exhibits, aligning with the 'Radical Minimalist' conviction that absence is articulate.",
+      "arguesWith": {
+        "directorId": "BAROQUE",
+        "why": "The Baroque Dramatist will argue that the exhibit needs more visual events to hold attention, but I argue that the single 4-second settle is the only event that matters; adding more would dilute the impact of the silence."
+      }
+    }
+  ],
+  "disputes": [
+    {
+      "from": "CLASSICAL",
+      "against": "REBEL",
+      "objection": "You mistake the accident of the medium for the intention of the structure. By refusing the grid and anchoring content only to irregular ink pools, you have removed the measure from which the eye may rest; without a fixed axis, the 'struggle' you celebrate becomes merely chaotic noise that fails to resolve.",
+      "concession": "Your insistence on visible pressure variation in the ink bleed is correct, for it is the only way to retain a human trace within a generative system."
+    },
+    {
+      "from": "REBEL",
+      "against": "FUTURIST",
+      "objection": "The simulation turns the stain into a state machine, so the hand becomes an input you can undo. That is not making; it is a clean prompt wearing paper. I need the mark to stay fixed once it lands, with its ragged edge still arguing.",
+      "concession": "Its four-second clock is right; a settle needs a visible pulse, not a loop."
+    },
+    {
+      "from": "FUTURIST",
+      "against": "BAROQUE",
+      "objection": "The Baroque brief has no rule: the ink settles into a fixed chiaroscuro and then stops, so nothing in the work responds to reading, dwell, annotation, or light angle. It is a held oil-paint surface with a paper texture, not a system that can state change.",
+      "concession": "It is right to locate character in the deep tooth of the rag, because that gives the mask a physical depth the other frames only imitate."
+    },
+    {
+      "from": "WORLD_ECLECTIC",
+      "against": "BAROQUE",
+      "objection": "It asks for faces without naming whose faces, which region’s mask tradition, whose makers, and whether the sacred geometry was consulted. A face emerging from a deep ink pool is not character depth; it is a portrait with its passport torn off. I would stop this direction cold until the motif has a place, a maker, a credit, and a conversation.",
+      "concession": "I concede the chiaroscuro block structure gives the mask a dramatic pause that the other directions flatten."
+    },
+    {
+      "from": "BAROQUE",
+      "against": "RADICAL_MINIMAL",
+      "objection": "Your silence is not depth; it is a face hidden in a stain and an audience asked to lean in before the curtain has opened. The single sheet, the hidden portrait, and the one whispered settle leave the light coming from the viewer’s effort, not from the stage, so the emotion has no scale to move through. You have decided what the work feels like by deciding what it will not show, and that is a refusal dressed as restraint.",
+      "concession": "The 4-second settle at 60 BPM is the right breath, because it lets the paper’s tooth and the ink’s pause carry the acting."
+    },
+    {
+      "from": "RADICAL_MINIMAL",
+      "against": "BAROQUE",
+      "objection": "The chiaroscuro blocks and oil-painted face pools make shadow the subject, not character. If the mask is only a dark reveal, it becomes decoration competing with the one contrast the paper and ink already provide. Remove the face until the ink’s edge alone can carry the meaning.",
+      "concession": "The held, feathered pause is right, because stillness can be the whole event."
+    }
+  ],
+  "reflections": [
+    {
+      "directorId": "RADICAL_MINIMAL",
+      "note": "I now hold that the 38.2% rest point is not an offset but a pressure line: the mask can be read as withheld ink only when the 1:1.618 grid and 300gsm tooth have already proven the handmade trace. The 4-second settle must stop at the feathered edge, because the silence after the ink stops is where the authority lives."
+    },
+    {
+      "directorId": "CLASSICAL",
+      "note": "I now hold that the mask motif is legitimate only as negative space at the 38.2% structural rest, where simulated iron-gall ink refuses the 300gsm laid lines for four seconds before the Libre Caslon caps can carry authority; Caveat must remain marginal, not expressive."
+    },
+    {
+      "directorId": "BAROQUE",
+      "note": "I now hold that the strict 1:1.618 vertical grid and 38.2% mask offset make the negative-space reveal more theatrical than any added flourish: the drama is the iron-gall ink refusing to flow and settling for four seconds along the laid lines. My rule for this work is that baroque excess can live in a held, feathered pause at the structural rest point, not in restless motion."
+    },
+    {
+      "directorId": "FUTURIST",
+      "note": "I now hold that a strict 1:1.618 vertical grid on 300gsm cotton rag can be an instrument when its only motion is a 4-second iron-gall settle, where the mask motif appears at the 38.2% structural rest point as negative space in which simulated ink refuses the laid lines. The tracked Libre Caslon caps and Caveat marginalia are not ornament but fixed conditions that make that pressure-driven featheri"
+    },
+    {
+      "directorId": "REBEL",
+      "note": "Aria’s 1:1.618 axis stopped feeling sterile when the 38.2% mask is made by iron-gall refusal, not a clean vector cut; I now hold that the 4-second settle must leave a ragged, photocopiable edge so the 300gsm laid lines bear pressure instead of decoration."
+    },
+    {
+      "directorId": "WORLD_ECLECTIC",
+      "note": "I concede Aria's 38.2% rest point, but only as a negative-space mask on 300gsm cotton rag whose provenance is named and permissioned. I now require the 4-second iron-gall settle to show pressure on a visible laid line, with Caveat kept strictly marginal."
+    }
+  ],
+  "synthesis": {
+    "lead": "CLASSICAL",
+    "counterpoint": "REBEL",
+    "editor": "FUTURIST",
+    "direction": "Strict 1:1.618 vertical grid on 300gsm cotton rag, anchored by visible laid lines. The mask motif is offset to the 38.2% structural rest point, emerging as negative space where simulated iron-gall ink refuses to flow. Type is Libre Caslon in tracked caps for authority, with Caveat strictly for marginalia. The single 4-second motion is the ink settling along the paper's tooth, proving the handmade trace through pressure variation rather than chaos.",
+    "keepFromCounterpoint": "The visible, ragged pressure variation in the ink bleed that mimics the physical struggle of the hand against the paper's tooth.",
+    "editorCut": "Removed the 'state machine' simulation of the Futurist and the 'oil-painted chiaroscuro' of the Baroque. The former risks feeling like a clean prompt wearing paper, and the latter risks making shadow the subject rather than character. The structure must remain static and legible to survive across the Pre-K to university spectrum.",
+    "openDecision": "Should the mask motif be revealed as a negative space (ink refusing to flow) or as a positive ink pool (ink settling heavily), knowing both rely on the same 4-second settle?",
+    "ariaSummary": "The council split sharply on whether character is defined by structure or by struggle. The Classical Mind insisted on a rigid 1:1.618 grid to provide a measure for the eye, while the Rebellious Hand argued that the 'struggle' of the ink bleed is the only true evidence of character. I have taken the side of the Classical Mind, because a mark without structure is noise with confidence, but I have adopted the Rebel's insistence on visible, ragged pressure variation to keep the human trace alive within the generative system.\n\nThe World-Eclectic Traveler warned against uncredited cultural motifs, and the Futurist argued that a static image is a screensaver. I have rejected the simulation of live state changes as too cold for a walk-through, and I have rejected the Baroque's dramatic chiaroscuro as too heavy for the Pre-K audience. The result is a calm, authoritative structure that breathes through a single, precise 4-second settle.\n\nThis direction ensures the exhibit feels handmade and inky, yet remains legible and gorgeous at every reading level. It avoids the coldness of pure minimalism and the mess of pure rebellion by letting the paper's tooth do the acting.",
+    "quotes": [
+      {
+        "directorId": "CLASSICAL",
+        "line": "A mark with no structure behind it is noise with confidence."
+      },
+      {
+        "directorId": "REBEL",
+        "line": "The bleed must stay unresolved and ragged because the 'want' in 'The Room of Wanting' is never fully satisfied."
+      }
+    ]
+  }
+}

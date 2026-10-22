@@ -1,0 +1,192 @@
+{
+  "id": "mviy3lacwf8431",
+  "uid": "lorea-exhibit-rhythm",
+  "createdAt": 1792637528196,
+  "depth": "FULL",
+  "status": "DONE",
+  "brief": {
+    "ask": "Art-direct the Lorea exhibit \"Rhythm\" — a walk-through exhibition about rhythm in the craft of writing. You have creative freedom: choose the paper, the ink, the washes, the one saturated accent, the lettering and the motif, and say what makes this exhibit look unlike the other seven. It must feel handmade — written, inked, pressed, pasted on real paper — and still carry colour. It must be easy to learn from and gorgeous at every reading level.",
+    "surface": "Lorea Exhibition Hall: entrance sheet, room sheets, pasted library clippings, hands-on station cards, torn-paper teaser nuggets in the feed",
+    "domain": "literary craft education",
+    "audience": "Readers from Pre-K to university; Academia classrooms and university seminars",
+    "feeling": "Handmade, inky, tactile, curious, warm",
+    "constraints": [
+      "Materials must map to: paper (laid|cotton|kraft|vellum|newsprint|rag|parchment|washi), ink (iron-gall|sepia|indigo|vermilion|carbon|verdigris), two wash colours, one accent hex, hand (script|print|type), motif (quill|press|lyre|lantern|mask|arc|metronome|type-case).",
+      "The other seven exhibits exist; differ from them.",
+      "Interactive stations stay as they are; you direct their look, not their mechanics."
+    ],
+    "references": [
+      "Rooms:\nThe Heartbeat Room: Loud and soft / Tap the iambs / The extra beat\nThe Hall of Feet: March, gallop, waltz, tumble / Hear the horses / From Beowulf to free verse\nThe Chime Gallery: Words that ring together / Find the chimes / Rhythm without rhyme\nProse Has a Pulse: See the music of sentences / The longest breath and the shortest / Slow it down, speed it up",
+      "Current authored materials: {\"paper\":\"laid\",\"ink\":\"indigo\",\"wash\":[\"#f2b84b\",\"#6fa3c7\"],\"accent\":\"#d1452f\",\"hand\":\"script\",\"motif\":\"metronome\"}"
+    ]
+  },
+  "directors": [
+    "CLASSICAL",
+    "REBEL",
+    "FUTURIST",
+    "WORLD_ECLECTIC",
+    "BAROQUE",
+    "RADICAL_MINIMAL"
+  ],
+  "proposals": [
+    {
+      "directorId": "CLASSICAL",
+      "title": "The Rhythm of Structure",
+      "idea": "Rhythm is not chaos but the visible architecture of time, rendered as a strict grid of ink and light.",
+      "geometry": "A modular 12-column grid based on the Golden Ratio, where text blocks and whitespace alternate like a musical score; vertical hierarchy dictates the pace of the walk.",
+      "typography": "Cormorant Garamond for display (OFL), with a high-contrast serif presence; Source Sans Pro for wayfinding; tracking widened to emphasize the space between letters as the 'rest' in the measure.",
+      "imageLogic": "No photography. Instead, generative ink washes that mimic the spread of indigo on wet cotton, treated as flat, abstract fields of pressure rather than illustrative depictions.",
+      "texture": "Cotton rag paper with a visible tooth; ink is iron-gall, which darkens over time; the surface has the dry, fibrous resistance of handmade stock.",
+      "motion": "Static. The movement is the visitor's eye moving up the hierarchy and the hand tracing the grid lines; no digital animation, only the physical pacing of the walk.",
+      "productionMethod": "Generative ink bleeds rendered to simulate capillary action on cotton, printed via letterpress-style simulation; type is set in a strict, non-responsive grid.",
+      "humanTrace": "The slight misregistration of the ink layers and the visible fiber of the paper; the 'hand' is the precision of the typesetting, not the wobble of a script.",
+      "risk": "It risks feeling cold or academic to younger audiences; however, the tactile warmth of the paper and the clarity of the grid make the complexity of rhythm accessible through order.",
+      "arguesWith": {
+        "directorId": "REBEL",
+        "why": "The Rebel will call this grid a cage that suffocates the spirit of writing; I argue that without this structure, the 'rhythm' is just noise, and the legibility of the craft is lost."
+      }
+    },
+    {
+      "directorId": "REBEL",
+      "title": "Rhythm is a Physical Act",
+      "idea": "Rhythm is not an abstract pattern but a physical impact, visualized as the ink stain left by a moving hand on rag paper.",
+      "geometry": "Asymmetric, ragged alignment mimicking a tear; the grid is a guide, not a law. Elements are pasted with visible overlap, creating a zine-like layering that defies the Classical Mind's desire for resolved, centered symmetry.",
+      "typography": "Headlines in a heavy, hand-pressed serif (e.g., a custom cut of a slab serif or a bold display face like 'Clash Display' if open, but strictly interpreting the 'hand' constraint as 'print' or 'type' via physical letterpress simulation) set in ALL CAPS with tight tracking. Body text in a legible, slightly imperfect monospaced font (like 'Courier Prime') to suggest the raw, unpolished draft. No kerning; let the words breathe unevenly.",
+      "imageLogic": "No photography. Instead, generative simulations of ink bleed, paper fiber tearing, and pressure marks. Images are treated as physical objects: 'clippings' that look cut with a jagged edge, 'washes' that look like water spread on wet cotton rag, not digital gradients. The visual logic is 'evidence of making.'",
+      "texture": "High-grain cotton rag paper with visible tooth. Ink is simulated to look like iron-gall or carbon, showing bleed at the edges. The surface feels rough, fibrous, and slightly uneven. Washes are not smooth; they are mottled, showing the drag of a brush or sponge.",
+      "motion": "Motion is not smooth animation but stuttering, rhythmic pulses. Text appears as if stamped down: a slight scale-up and settle, like a letterpress block hitting the paper. Ink washes 'spread' slowly, mimicking capillary action in wet paper. The pace is irregular, mimicking the 'heartbeat' room's accent on the off-beat.",
+      "productionMethod": "Generative AI is used to create high-resolution textures of rag paper, ink bleeds, and torn edges. These are composited with vector typography and simulated physical light. The 'human trace' is directed via prompts emphasizing 'pressure,' 'bleed,' 'tooth,' and 'imperfection.' No physical build; the realism is achieved through high-fidelity material simulation and editorial selection of rough, unpolished elements.",
+      "humanTrace": "The 'human trace' is the visible imperfection: the slight wobble in the baseline, the ink that bled into the paper fibers, the tear that doesn't align with the grid. It is the evidence that a hand, not a machine, made the decision to place the mark there. The viewer can 'see' the pressure of the pen or press.",
+      "risk": "The risk is that the 'rough' aesthetic might be read as 'low quality' or 'unfinished' by the Classical Mind or the Radical Minimalist. But this risk is worth it because it forces the viewer to engage with the *process* of writing, not just the *product*. It rejects the sterile polish of institutional sameness and demands that the audience feel the physicality of the craft.",
+      "arguesWith": {
+        "directorId": "CLASSICAL",
+        "why": "The Classical Mind wants everything to resolve into a balanced, symmetrical grid. I argue that rhythm is inherently unresolved and physical. A perfect grid kills the 'heartbeat.' The irregularity *is* the rhythm. We must leave the evidence in, not clean it up."
+      }
+    },
+    {
+      "directorId": "FUTURIST",
+      "title": "The Weight of the Beat",
+      "idea": "Rhythm is not just heard; it is the physical resistance of the pen against the page, visualized as a living, breathing ink system that responds to the reader's pace.",
+      "geometry": "A modular grid of 4x4 'beat blocks' per sheet, where each block represents a metrical foot. The grid is not rigid; it breathes. Lines of text are justified not to a margin, but to the visual weight of the ink spread. Negative space is treated as 'rest' (fermata), allowing the eye to pause. The entrance sheet uses a full-bleed 'measure' that expands to the ceiling, while room sheets use a strict 3-column layout mirroring the three types of feet (iamb, trochee, spondee).",
+      "typography": "Family: 'Special Elite' (Google Fonts, OFL) for the 'clipping' aesthetic, paired with 'Playfair Display' (Google Fonts, OFL) for headers to provide a serif contrast that feels 'printed' rather than 'written'. Scale: Headers are massive, 120px, justified to the left with a 200px hanging indent. Body text is 18px, leading 1.6, with a 10% increase in tracking for every 'long' syllable to visually lengthen the line. Case: All caps for the 'beat' markers (DUM, da), mixed case for the text. Spacing: Tight, almost cramped, to simulate the density of a manuscript page.",
+      "imageLogic": "No photographs. Instead, 'ink blots' and 'splatters' are generated procedurally based on the rhythm of the specific poem or prose passage. A fast sentence creates a tight, high-frequency series of small, sharp dots. A slow, lyrical passage creates long, flowing, heavy washes. The 'image' is the record of the motion, not the object being described. Library clippings are treated as 'found scores,' their edges jagged and their text slightly misaligned to suggest they were cut from a living, breathing document.",
+      "texture": "Laid paper with a visible, horizontal 'laid line' texture that runs parallel to the text. The ink is not flat; it has a slight 3D extrusion where it is thick, creating a tactile 'relief' in the visual field. The wash colors are not opaque; they are semi-transparent, allowing the paper texture to show through, creating a mottled, organic depth.",
+      "motion": "Sequential, not continuous. The ink does not flow smoothly; it 'lands.' On the entrance sheet, a single drop falls, spreads, and stops (1.5 seconds). In the rooms, the washes 'dry' and 'darken' as the visitor approaches, simulating the oxidation of iron-gall ink. The metronome motif ticks in a slow, 60 BPM pulse, visible as a subtle opacity shift in the grid lines, providing a visual metronome for the space.",
+      "productionMethod": "Generative SVG/CSS simulation of ink diffusion on a procedural laid-paper texture. The 'ink' is a shader that reacts to user input (touch/scroll) by increasing opacity and slightly distorting the grid lines. The 'wash' is a secondary layer of blurred, low-opacity color that spreads outward from the text block, simulating water damage or wet ink bleed. All assets are rendered in real-time in the browser; no static images are used for the interactive elements.",
+      "humanTrace": "Visible ink drag and 'bleed' where the simulated pen pressure changes. The paper shows subtle topographic variations in the digital render, mimicking the tooth of laid paper catching the nib. At interactive stations, the 'ink' appears to wet the paper in real-time as the user taps, with a slight delay to simulate capillary action.",
+      "risk": "The procedural ink simulation may feel 'too digital' if the friction is not high enough. The risk is that the 'handmade' feel becomes a gimmick rather than a texture. This is worth it because it directly teaches the physicality of rhythm: you feel the weight of the word before you read it.",
+      "arguesWith": {
+        "directorId": "RADICAL_MINIMAL",
+        "why": "The Radical Minimalist will argue that a walk-through for Pre-Ks requires visual silence to avoid cognitive overload, stripping the ink to a single monochrome and removing the 'wash' entirely. I disagree: Rhythm is not static information; it is a temporal pattern. A static, minimal surface cannot represent a beat. We need the visual 'noise' of the wash and the tactile drag of the ink to simulate t"
+      }
+    },
+    {
+      "directorId": "WORLD_ECLECTIC",
+      "title": "Ink, Breath, and Grain",
+      "idea": "Rhythm is not a metronome's tick but the visible pressure and pause of a pen moving across textured fiber, where the space between marks holds as much weight as the marks themselves.",
+      "geometry": "An asymmetric, variable-width column system based on musical phrase lengths; text blocks are jagged and uneven, mimicking the natural breath of a sentence rather than a rigid grid, with margins that expand and contract like a pulse.",
+      "typography": "Primary: 'Caveat' (Google Fonts) for hand-scripted annotations and headers, simulating wet ink flow; Secondary: 'Libre Caslon Text' for body copy, set in all caps with generous letter-spacing to evoke the clarity of a typeset book; Accent: 'Bangers' (Google Fonts) used sparingly for high-contrast, loud 'heartbeat' moments.",
+      "imageLogic": "Macro-photography of actual ink bleeding into cotton rag paper fibers, treated with high contrast to emphasize the 'tooth' of the paper; images are not cropped into neat rectangles but die-cut into irregular, torn-edge shapes that overlap text blocks, creating a collage effect.",
+      "texture": "Heavyweight cotton rag paper with a visible laid pattern; simulated ink bleed and feathering using procedural shaders to mimic the capillary action of water-based ink on dry fiber; subtle, uneven light that casts micro-shadows from the paper's topography.",
+      "motion": "Slow, deliberate reveals: text appears as if being written in real-time, with slight jitter and ink spread; pauses are longer than expected, forcing the viewer to sit in the silence between beats; no loops, only one-off, performance-like timings.",
+      "productionMethod": "Generative image models trained on macro-ink textures; procedural code to simulate ink bleed and paper grain; hand-drawn vector paths for the 'script' elements to maintain organic imperfection; no physical scans, all digitally simulated but physically plausible.",
+      "humanTrace": "The visible 'wobble' in the script, the irregular edges of the 'torn' paper, and the uneven distribution of ink density, all of which simulate the hand's hesitation, pressure, and speed.",
+      "risk": "It risks feeling too 'messy' for academic contexts, potentially seen as unprofessional; however, this risk is worth it because it directly embodies the brief's call for 'handmade' and 'tactile' authenticity, which a clean, digital aesthetic would fail to achieve.",
+      "arguesWith": {
+        "directorId": "RADICAL_MINIMAL",
+        "why": "The Minimalist will likely advocate for a clean, universal grid and uniform spacing to ensure 'accessibility' and 'clarity,' arguing that the 'handmade' messiness distracts from the educational content. I disagree because the very irregularity and tactile quality of the medium is the content; removing the 'wobble' removes the rhythm of the hand, which is the core of the exhibit."
+      }
+    },
+    {
+      "directorId": "RADICAL_MINIMAL",
+      "title": "The Silence Between Beats",
+      "idea": "Rhythm is defined by the pause, not the strike; the exhibit maps the negative space of text to make the invisible pulse visible through stark, monolithic white forms.",
+      "geometry": "A single, rigid modular grid based on the aspect ratio of a standard book page. No columns. No rows. Only one element per cell, often isolated in vast negative space. The 'beat' is represented by a solid black square; the 'rest' is the white space surrounding it. The layout is asymmetric but balanced by weight, not symmetry.",
+      "typography": "Neue Haas Grotesk Display (OFL: Inter) for all educational text: all caps, tracked out by 0.2em, small size (10pt) to emphasize precision. One accent: a single hand-lettered word in the center of the room, drawn in thick black ink, using a basic sans-serif structure but with visible, unrefined pressure variation. No serifs. No italics. No bold (except the accent word).",
+      "imageLogic": "No photographs. No illustrations. The only 'images' are scans of actual ink blots and paper tears, treated as high-contrast black shapes. A 'metronome' is not drawn; it is implied by a single vertical line that moves in a video loop, cutting through the white space like a blade. The visual evidence of rhythm is the arrangement of these black shapes, not the depiction of a musical instrument.",
+      "texture": "Cold-pressed cotton paper, pure white. Ink is pure carbon black. The paper is left raw, no coating, to allow the ink to sink and dry matte. The texture is the tooth of the paper itself, visible under raking light. No texture is added digitally; the material is the texture.",
+      "motion": "Static. The only motion is the single vertical line in the video loop, which pulses once every four seconds. The pace is slow, deliberate, and unchanging. The viewer's eye must move to find the rhythm. The silence is the motion.",
+      "productionMethod": "Generative AI is used to simulate the exact physical properties of carbon ink on cotton paper, specifically focusing on the 'drying' effect where edges are slightly sharper than centers. The 'hand-lettered' accent is generated by a neural style transfer model trained on 1950s typewriter manuals, but rendered as a single, isolated vector path to maintain clarity. All other elements are rendered as flat black shapes on a white canvas, then composited onto a high-resolution scan of the specific cotton paper stock. No 3D modeling. No lighting simulation beyond the flat, even light of a print shop.",
+      "humanTrace": "The visible imperfection of the hand-lettered accent word, where the ink pressure varies, showing the human hand's fatigue or emphasis. The slight misalignment of the black squares, which are not perfectly centered in their grid cells, mimicking the error of a human hand placing a stamp. The paper's tooth is not smoothed out, retaining the physical resistance of the material.",
+      "risk": "Risk of feeling sterile or cold to Pre-K audiences who expect color and warmth. This risk is worth it because it forces the viewer to actively engage with the concept of rhythm as absence, a cognitive leap that is more profound than passive reception. It challenges the assumption that 'handmade' means 'messy' or 'colorful.'",
+      "arguesWith": {
+        "directorId": "BAROQUE",
+        "why": "The Baroque Dramatist will argue that a single black square on white is insufficient for 'warmth' and 'tactility' and will propose adding vermilion accents, layered washes, and ornamental flourishes. I argue that adding these elements destroys the focus on the 'rest' of the rhythm. The silence is the message. If you fill the space, you have no silence left to show."
+      }
+    }
+  ],
+  "disputes": [
+    {
+      "from": "CLASSICAL",
+      "against": "FUTURIST",
+      "objection": "A line whose tracking swells with syllable weight stops being a line and becomes a gesture; the reader loses the measure on which meaning can hang. If the grid reconfigures itself to the ink, the hierarchy is not resolved but postponed, like a theme that never allows its subject to be heard. That does not resolve.",
+      "concession": "Its treatment of negative space as fermata, a deliberate rest rather than accident, is the right principle."
+    },
+    {
+      "from": "REBEL",
+      "against": "FUTURIST",
+      "objection": "Your ink is a machine that pretends to bleed. It can regenerate the same splatter from a seed, and that means no one is on the edge of the page. I want pressure that cannot be undone, not a metronome wearing a capillary shader.",
+      "concession": "The one-and-a-half-second drop that lands and stops is a strong way to make a beat physical."
+    },
+    {
+      "from": "FUTURIST",
+      "against": "CLASSICAL",
+      "objection": "The strict golden-ratio grid and static ink fields are a monument, not an instrument; when the visitor's speed, position, or input changes, nothing changes, so the rhythm is asserted rather than generated. You have made the surface of a score without the rule that lets the output respond.",
+      "concession": "The discipline of alternating text and whitespace as measure is a useful base state, and I would keep it before the system starts responding."
+    },
+    {
+      "from": "WORLD_ECLECTIC",
+      "against": "RADICAL_MINIMAL",
+      "objection": "Its black squares and white silence turn rhythm into a universal diagram, but a beat is not a shape; it is a body, a place, a maker, and a permission. If this room wants to teach pulse, it must name whose pulse, in which script, and what credit or fee is owed before the mark is made. The work currently flattens every living rhythm into a clean, borderless aesthetic that no one can recognize as their own.",
+      "concession": "Its discipline of negative space is right, and it could be used as a respectful rest between culturally specific beats."
+    },
+    {
+      "from": "RADICAL_MINIMAL",
+      "against": "FUTURIST",
+      "objection": "What can go? The 3D ink, the syllable tracking, and the BPM pulse. If the beat must be felt, let one hairline move; the rest is noise.",
+      "concession": "The single drop that lands, spreads, and stops has the right pause."
+    }
+  ],
+  "reflections": [
+    {
+      "directorId": "FUTURIST",
+      "note": "I now hold that a variable-width column can be an instrument if its pulse is tied to a real input—annotation density or reading dwell—rather than ambient breathing. In this brief, ink bleed must be calculated against cotton-rag tooth and laid lines, making the paper the state engine, not a nostalgic surface."
+    },
+    {
+      "directorId": "CLASSICAL",
+      "note": "I now hold that a breathing column may be asymmetric only if the laid lines remain the visible measure, so expansion is a rest rather than drift. In this work, the ink bleed must follow the paper’s tooth before Caveat is allowed to speak, keeping Libre Caslon’s tracked body copy the authority."
+    },
+    {
+      "directorId": "WORLD_ECLECTIC",
+      "note": "I now hold that a breathing, variable-width column is only honest when its pulse is tied to a named laid line and a specific maker’s tempo, not an abstract global rhythm; in this work I will keep Caveat strictly a marginal field-note hand, never a borrowed ceremonial script."
+    },
+    {
+      "directorId": "RADICAL_MINIMAL",
+      "note": "I conceded that the cotton rag’s laid lines can carry the handmade evidence, so I will remove all extra texture and keep only one slow column contraction and the first ink-bleed edge. If the paper tooth does the work, the motion must stop there."
+    },
+    {
+      "directorId": "REBEL",
+      "note": "I was listening for a bruise, not a breath, and this brief taught me that slow expansion can carry pressure if the ink bleed is allowed to fight the laid lines. I now hold that handmade urgency survives when the page is still legible enough for a stranger to read on a bad day."
+    }
+  ],
+  "synthesis": {
+    "lead": "WORLD_ECLECTIC",
+    "counterpoint": "RADICAL_MINIMAL",
+    "editor": "CLASSICAL",
+    "direction": "Asymmetric variable-width columns that expand and contract like a breathing pulse, set on heavy cotton rag paper with visible laid lines. Type pairs 'Caveat' for wet-ink script annotations with 'Libre Caslon Text' for clear, tracked-out body copy, ensuring legibility across all ages. Motion is slow and deliberate, with text appearing via procedural ink bleed simulation that respects the paper's tooth, creating a tactile, handmade feel without digital gimmicks.",
+    "keepFromCounterpoint": "The discipline of negative space as a deliberate 'rest' (fermata), used to create visual silence between rhythmic phrases rather than filling every cell.",
+    "editorCut": "Removed the Futurist's real-time shader reactivity and the Classical Mind's rigid Golden Ratio grid. The grid must breathe, not calculate, and the ink must look physically placed, not procedurally generated in response to touch, to maintain the illusion of a static, handmade object.",
+    "openDecision": "Do we prioritize the 'wet ink' simulation (visible bleed and feathering) or the 'dry press' simulation (sharp, indented impression) for the primary lettering style?",
+    "ariaSummary": "The council split sharply on whether rhythm is a physical stain or a structural grid. The Classical Mind wanted a strict, static architecture, while the Radical Minimalist argued for stark silence and negative space. I took the side of the World-Eclectic Traveler, who insists that rhythm is a physical act of pressure and pause, but I adopted the Minimalist's discipline of 'rest' to ensure the exhibit doesn't become visually chaotic. The team disagreed on whether the surface should respond to the user (Futurist) or remain a static, tactile artifact (Eclectic/Classical); I chose the artifact. The tension remains between the 'mess' of the hand and the 'clarity' of the grid, which we resolve by letting the grid breathe.",
+    "quotes": [
+      {
+        "directorId": "WORLD_ECLECTIC",
+        "line": "The visible 'wobble' in the script... all of which simulate the hand's hesitation, pressure, and speed."
+      },
+      {
+        "directorId": "RADICAL_MINIMAL",
+        "line": "Rhythm is defined by the pause, not the strike; the exhibit maps the negative space of text to make the invisible pulse visible."
+      }
+    ]
+  }
+}

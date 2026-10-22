@@ -1,0 +1,77 @@
+{
+  "id": "rhythm",
+  "tagline": "Every sentence has a heartbeat. Tap it, hear it, let it rest.",
+  "epigraph": {
+    "text": "'Tis not enough no harshness gives offence, / The sound must seem an echo to the sense.",
+    "cite": "Alexander Pope, An Essay on Criticism (1711)"
+  },
+  "materials": {
+    "paper": "cotton",
+    "ink": "iron-gall",
+    "wash": [
+      "#F4EFE6",
+      "#E7DCCB"
+    ],
+    "accent": "#C2492F",
+    "hand": "script",
+    "motif": "metronome"
+  },
+  "council": {
+    "source": "council",
+    "art": {
+      "lead": "WORLD_ECLECTIC",
+      "counterpoint": "RADICAL_MINIMAL",
+      "note": "The council decided to keep the exhibit a static, tactile artifact with a breathing asymmetric grid, using negative space as rhythmic rest and wet-ink script for the primary handmade feel."
+    },
+    "writers": {
+      "note": "Wet-ink whispers and open rests that let the reader tap, step, and breathe with the line."
+    }
+  },
+  "nuggets": [
+    {
+      "id": "rhythm-wc-1",
+      "exhibitId": "rhythm",
+      "roomId": "heartbeat",
+      "hook": "A line can whisper, shout, or skip a beat.",
+      "body": "Tap along with the strong syllables. When the pattern breaks, your ear knows before your mind does.",
+      "depths": [
+        "early",
+        "elementary"
+      ]
+    },
+    {
+      "id": "rhythm-wc-2",
+      "exhibitId": "rhythm",
+      "roomId": "feet",
+      "hook": "Your feet know the rhythm before your eyes do.",
+      "body": "Marches, waltzes, and gallops hide in stressed syllables. Try walking a line of verse to feel its speed.",
+      "depths": [
+        "elementary",
+        "middle"
+      ]
+    },
+    {
+      "id": "rhythm-wc-3",
+      "exhibitId": "rhythm",
+      "roomId": "chimes",
+      "hook": "Some words chime even when they don't rhyme.",
+      "body": "Repeated vowels and consonants make a line hum. Listen for echoes that are not rhymes.",
+      "depths": [
+        "middle",
+        "high"
+      ]
+    },
+    {
+      "id": "rhythm-wc-4",
+      "exhibitId": "rhythm",
+      "roomId": "pulse",
+      "hook": "A sentence can hold its breath for one page.",
+      "body": "Long clauses stretch the pulse; short ones land like drums. Slow a line down to hear its hidden tempo.",
+      "depths": [
+        "high",
+        "university"
+      ]
+    }
+  ],
+  "sessionId": "mviy3lacwf8431"
+}

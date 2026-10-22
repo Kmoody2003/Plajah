@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": true, "skipLibCheck": true, "incremental": false },
+  "include": [
+    "services/loreaExhibits/**/*.ts",
+    "data/loreaExhibits/**/*.ts",
+    "components/lorea/exhibits/**/*.tsx",
+    "components/feed/cards/FeedCards.tsx",
+    "services/feedCardsCore.ts",
+    "services/feedCardsService.ts",
+    "data/academiaShowcase.ts",
+    "scripts/council/runLoreaExhibitCouncil.ts",
+    "scripts/council/applyLoreaExhibitCouncil.ts"
+  ]
+}

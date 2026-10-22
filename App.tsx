@@ -223,6 +223,8 @@ const DesktopLauncherOverlay = retryLazy(() => import('./components/DesktopLaunc
 const TelaEmbedDemo = retryLazy(() => import('./components/tela/TelaEmbedDemo'));
 const DossierHall = retryLazy(() => import('./components/dossier/DossierHall'));
 import { requestDossier } from './data/dossier/registry';
+const LoreaExhibitHall = retryLazy(() => import('./components/lorea/exhibits/LoreaExhibitHall'));
+import { requestLoreaExhibit } from './services/loreaExhibits/loreaExhibitStore';
 // Photo pool v2 (components/eventPool): geofenced check-in, public/private curation, photos + videos + live.
 const EventPhotoPoolView = retryLazy(() => import('./components/eventPool/EventPoolView'));
 import LandingPage from './components/LandingPage';
@@ -1050,6 +1052,14 @@ const App: React.FC = () => {
     const h = (e: Event) => { requestDossier((e as CustomEvent)?.detail?.id); setView('DOSSIER'); };
     window.addEventListener('plajah:openDossier', h as EventListener);
     return () => window.removeEventListener('plajah:openDossier', h as EventListener);
+  }, [setView]);
+
+  // Open a Lorea craft exhibit (or the hall's lobby) from anywhere: nuggets, feed cards, posts.
+  const [loreaExhibitNonce, setLoreaExhibitNonce] = useState(0);
+  useEffect(() => {
+    const h = (e: Event) => { const d = (e as CustomEvent)?.detail || {}; requestLoreaExhibit(d.id, d.roomId); setLoreaExhibitNonce(n => n + 1); setView('LOREA_EXHIBITS'); };
+    window.addEventListener('plajah:openLoreaExhibit', h as EventListener);
+    return () => window.removeEventListener('plajah:openLoreaExhibit', h as EventListener);
   }, [setView]);
 
   // Open the Tela reference-embed demo (P2b) from anywhere.
@@ -7777,6 +7787,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {view === 'MACHINE_ATLAS' && (
               <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-sm">Opening Machine Atlas…</div>}>
                 <MachineAtlasView onBack={() => goBack('DASHBOARD')} />
+              </Suspense>
+            )}
+            {view === 'LOREA_EXHIBITS' && (
+              <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-sm">Unrolling the paper…</div>}>
+                <LoreaExhibitHall key={loreaExhibitNonce} onBack={() => goBack('BOOKS')} />
               </Suspense>
             )}
             {view === 'DOSSIER' && (

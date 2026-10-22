@@ -1,0 +1,219 @@
+{
+  "id": "mviycdbyyn8wg5",
+  "uid": "lorea-exhibit-plot",
+  "createdAt": 1792637937790,
+  "depth": "FULL",
+  "status": "DONE",
+  "brief": {
+    "ask": "Art-direct the Lorea exhibit \"The Clockwork Room\" — a walk-through exhibition about plot in the craft of writing. You have creative freedom: choose the paper, the ink, the washes, the one saturated accent, the lettering and the motif, and say what makes this exhibit look unlike the other seven. It must feel handmade — written, inked, pressed, pasted on real paper — and still carry colour. It must be easy to learn from and gorgeous at every reading level.",
+    "surface": "Lorea Exhibition Hall: entrance sheet, room sheets, pasted library clippings, hands-on station cards, torn-paper teaser nuggets in the feed",
+    "domain": "literary craft education",
+    "audience": "Readers from Pre-K to university; Academia classrooms and university seminars",
+    "feeling": "Handmade, inky, tactile, curious, warm",
+    "constraints": [
+      "Materials must map to: paper (laid|cotton|kraft|vellum|newsprint|rag|parchment|washi), ink (iron-gall|sepia|indigo|vermilion|carbon|verdigris), two wash colours, one accent hex, hand (script|print|type), motif (quill|press|lyre|lantern|mask|arc|metronome|type-case).",
+      "The other seven exhibits exist; differ from them.",
+      "Interactive stations stay as they are; you direct their look, not their mechanics."
+    ],
+    "references": [
+      "Rooms:\nThe Knot: Every Plot Is a Knot / Station: Name the Knot\nBecause, Not And Then: The King, the Queen, and the Word \"Because\" / Station: Build the Chain\nThe Shapes of Stories: Station: Climb the Mountain / Station: Where Do You Start? / Station: A Story Without a Fight\nThe Planted Gun: Station: The Ending in the First Lines / Twists and Last Lines",
+      "Current authored materials: {\"paper\":\"kraft\",\"ink\":\"indigo\",\"wash\":[\"#f2c14e\",\"#7aa6a1\"],\"accent\":\"#b4232a\",\"hand\":\"print\",\"motif\":\"arc\"}"
+    ]
+  },
+  "directors": [
+    "CLASSICAL",
+    "REBEL",
+    "FUTURIST",
+    "WORLD_ECLECTIC",
+    "BAROQUE",
+    "RADICAL_MINIMAL"
+  ],
+  "proposals": [
+    {
+      "directorId": "CLASSICAL",
+      "title": "The Ink-Bound Plot Structure",
+      "idea": "Plot is not a line but a tension of ink on paper, where the story’s logic is physically pressed into the surface.",
+      "geometry": "Strict 8-column grid with 1:2:3 proportional spacing, anchored by a central vertical axis that mimics the spine of a book; margins are generous to allow the eye to rest.",
+      "typography": "Libre Caslon Text for body copy (serif, tracked 5% for readability), paired with Caveat for marginalia and station headers; all text is set in a single column to maintain hierarchy.",
+      "imageLogic": "No photographs; instead, generative renders of ink bleeds on laid paper, where the 'images' are actually the washes of color spreading like capillaries, simulating the physical act of writing.",
+      "texture": "High-resolution render of cotton laid paper with visible tooth and deckle edges; ink is rendered with iron-gall darkness and slight bleed, not sharp digital lines.",
+      "motion": "Static composition; the only motion is a subtle 60 BPM 'breathing' of the ink bleed at the edges of the page, lasting 4 seconds on loop, simulating the slow absorption of ink into fiber.",
+      "productionMethod": "Generative image models prompted with 'cotton paper texture, iron-gall ink bleed, laid lines visible', followed by manual layering of typography in a vector editor to ensure crispness against the soft texture.",
+      "humanTrace": "The visible tooth of the paper and the irregular, organic bleed of the ink edges, which cannot be perfectly replicated by pure vector graphics, forcing a simulation of physical imperfection.",
+      "risk": "The risk is that the 'breathing' motion may be interpreted as a technical glitch rather than a deliberate artistic choice; this risk is worth it because it is the only way to convey the 'alive' quality of ink without video.",
+      "arguesWith": {
+        "directorId": "REBEL",
+        "why": "The Rebel will argue that the strict grid and single-column layout are too rigid and suppress the chaotic energy of the creative process; I counter that without the grid, the 'ink bleed' becomes noise, and the hierarchy of the plot structure is lost, making the exhibit unreadable for the Pre-K audience."
+      }
+    },
+    {
+      "directorId": "REBEL",
+      "title": "Ink Bleed and Iron Knots",
+      "idea": "The exhibit is a physical record of pressure, where plot structure is visualized through the resistance of wet iron-gall ink against the laid lines of heavy cotton rag paper, refusing to resolve the narrative until the visitor’s hand presses the tool.",
+      "geometry": "Asymmetrical, off-kilter grid that mimics the slant of handwritten notes; elements are pinned, not aligned, with negative space left raw and un-inked to represent the 'knot' that hasn't been tied yet.",
+      "typography": "UnifrakturMaguntia for the primary headers (simulating blackletter weight and pressure), paired with Special Elite for body text (typewriter urgency); all text is set with slight baseline drift to suggest hand-inking over type.",
+      "imageLogic": "No photography. All imagery is generated via procedural ink-wash algorithms that simulate capillary action and fiber absorption; images appear as 'leaks' or 'bruises' on the paper surface, not distinct objects.",
+      "texture": "Heavy 300gsm cotton rag with visible laid lines; surface treatment simulates wet-on-dry iron-gall ink with visible feathering at the edges; texture is rough, toothy, and resistant.",
+      "motion": "Static in the physical print, but the digital feed 'teasers' pulse with a 4-second cycle that mimics the settling of ink; the motion is not movement, but the transition from fluid bleed to fixed stain.",
+      "productionMethod": "Generative AI models are prompted to simulate the specific physical interaction of iron-gall ink on cotton rag, including fiber direction and drying speed; assets are printed on actual heavy stock to preserve the tactile weight; no digital smoothing is applied.",
+      "humanTrace": "The visible 'feathering' of the ink where it meets the paper's laid lines; the deliberate misalignment of the 'pinned' elements; the imperfections in the type simulation that look like hand-pressed errors.",
+      "risk": "It risks being perceived as messy or unfinished by audiences expecting clean, institutional polish; this is worth it because the mess is the evidence of the craft, and the resistance of the material mirrors the difficulty of plotting.",
+      "arguesWith": {
+        "directorId": "RADICAL_MINIMAL",
+        "why": "The Minimalist would remove the feathering and the off-kilter alignment to create a 'clean' grid. I argue that removing the evidence of the ink's struggle removes the physical proof of the 'knot'; the imperfection is the content."
+      }
+    },
+    {
+      "directorId": "FUTURIST",
+      "title": "Ink State Machine",
+      "idea": "The plot is not a static shape but a fluid state; the paper’s tooth and laid lines act as the simulation engine where indigo ink visibly settles from chaotic bleed into fixed narrative structure.",
+      "geometry": "A variable-width column grid that pulses based on annotation density and reading dwell time, rejecting the static 60 BPM metronome for a responsive 4-second settling rule that mirrors the tension of a knot tightening.",
+      "typography": "Space Grotesk (OFL) for system labels in all caps, tight tracking, and JetBrains Mono (OFL) for the 'input' data, creating a clear hierarchy between the mechanical rule and the human content.",
+      "imageLogic": "Generative renders of ink spreading on high-resolution cotton-rag textures; images are treated as live simulations where the 'bleed' is calculated against the paper’s physical tooth, not a flat overlay.",
+      "texture": "Cotton-rag paper with visible laid lines and a rough tooth; the texture is not decorative but functional, dictating how the indigo ink behaves and resolves.",
+      "motion": "The indigo ink begins as a chaotic, high-entropy bleed (The Knot) and, over a 4-second cycle, resolves into a fixed, readable state (The Chain); this is a behavior, not a loop.",
+      "productionMethod": "Generative image models trained on macro photography of ink on cotton rag, combined with procedural shaders that simulate the capillary action of ink against paper fibers; no physical scans or commissioned painting.",
+      "humanTrace": "The 'imperfection' is the system’s output; the ink bleed is an honest, calculated response to the paper's resistance, preserving the tactile feel of a hand-inked page while maintaining dimensional coherence.",
+      "risk": "Risk of appearing too 'techy' or cold for a literary exhibit; however, the use of warm cotton rag and the focus on 'settling' rather than 'glowing' keeps it tactile and warm, proving that new tools can create new visual behavior without losing the handmade soul.",
+      "arguesWith": {
+        "directorId": "REBEL",
+        "why": "The Rebel wants to fetishize the accident of the ink bleed; I argue that a system can produce an honest imperfection on purpose, every time, and that this controlled chaos is a more serious and repeatable craft for an educational exhibit."
+      }
+    },
+    {
+      "directorId": "WORLD_ECLECTIC",
+      "title": "Ink-Stained Field Notes",
+      "idea": "The exhibit is a giant, breathing field notebook where plot is traced in indigo ink on cotton rag, with the metronome as the only mechanical heartbeat.",
+      "geometry": "A loose, irregular 12-column grid based on the natural width of a hand-drawn line; margins are uneven like a field notebook, with 'torn edges' where the paper meets the wall.",
+      "typography": "Source Serif 4 for body text (18pt, leading 24pt, unbleached cream) and Caveat for marginalia and 'hand-written' annotations (24pt, vermilion #b4232a). No sans-serifs.",
+      "imageLogic": "Generative 'photographic' sketches of hands writing, ink wells, and clocks, treated with heavy paper grain and sepia washes; images look like faded, pressed botanical plates but are actually ink drawings.",
+      "texture": "Unbleached cotton rag paper with visible laid lines; ink has a wet-bleed effect at the edges; the metronome motif is stamped in blind (no ink, just indent).",
+      "motion": "Static, but the lighting is a warm, static lantern gradient that breathes at 60 BPM, simulating a candle or oil lamp; the 'ink' appears to settle as the light pulses.",
+      "productionMethod": "Generative AI creates the 'ink' textures and hand-drawn motifs; procedural code simulates the paper tooth and ink bleed; everything is rendered as a high-res print on cotton rag stock.",
+      "humanTrace": "The uneven margins, the 'hand-written' Caveat annotations, and the blind-stamped metronome all signal human making, even though they are generated.",
+      "risk": "It risks looking like a generic 'vintage' aesthetic if the indigo isn't deep enough; worth it because it directly contrasts with the Futurist's digital sterility and the Baroque's gold.",
+      "arguesWith": {
+        "directorId": "FUTURIST",
+        "why": "The Futurist wants interactive digital overlays; I argue that the 'handmade' feel is lost if the paper is covered in screens. The warmth comes from the material, not the interface."
+      }
+    },
+    {
+      "directorId": "BAROQUE",
+      "title": "The Ink’s Breathe",
+      "idea": "Plot is not a mechanical sequence but a tidal rhythm, visualized as a static lantern where the drama lives in the four-second pause of the ink’s edge, not in restless flicker.",
+      "geometry": "A 1:1 square lantern form centered on a golden-ratio vertical axis; the layout is a fixed, heavy block of text anchored to the bottom third, leaving the upper two-thirds as negative space for the 'breath' of the wash.",
+      "typography": "Cormorant Garamond (OFL) for headers in 72pt all-caps with generous tracking to create a sculptural weight; Lora (OFL) for body text in 14pt sentence case, set in narrow columns that mimic the density of a manuscript page.",
+      "imageLogic": "No photography. The visual is a generative render of a lantern shape where the light is simulated by a feathered ink bleed. The 'light' is a void in the wash, created by subtractive masking, making the absence of ink the source of illumination.",
+      "texture": "Cotton rag paper with a visible tooth, printed with carbon black ink and two washes of indigo and vermilion. The surface is matte, with a tactile relief where the ink has pooled at the feathered edges of the lantern.",
+      "motion": "Static in the feed. The 'movement' is a temporal pause: the viewer’s eye is drawn to the center, holds for four seconds, and then the visual weight shifts to the text below. No animation; the drama is in the stillness.",
+      "productionMethod": "Generative AI creates the base lantern mask; procedural code simulates the ink bleed and feathered edges; final render is printed on cotton rag paper with high-contrast matte finish.",
+      "humanTrace": "The imperfection of the feathered ink edge, which is generated to mimic the capillary action of real ink on cotton rag, showing the hand of the maker in the irregularity of the boundary.",
+      "risk": "Risking a lack of immediate dynamism, which might be mistaken for minimalism; but this risk is worth it because it forces the viewer to engage with the time of the plot, not just the space.",
+      "arguesWith": {
+        "directorId": "RADICAL_MINIMAL",
+        "why": "The Radical Minimalist will call this 'too heavy' and 'overly decorated,' but I argue that the weight of the cotton rag and the density of the ink are necessary to convey the 'scale' of the emotion; restraint without substance is just emptiness."
+      }
+    },
+    {
+      "directorId": "RADICAL_MINIMAL",
+      "title": "Silent Ink, Single Knot",
+      "idea": "Plot is not a line but a tension held in silence; we reduce the room to a single, unresolved indigo knot on raw cotton, letting the paper's tooth do the speaking.",
+      "geometry": "Strict 1/10 margin; one vertical axis; the knot is the only off-center element, placed at the optical center of negative space.",
+      "typography": "Cormorant Garamond (OFL) for headers in 96pt light; Source Sans 3 (OFL) for body in 12pt regular; all-caps for labels with 200% tracking; no italics, no bold.",
+      "imageLogic": "No photographs. Only generative renders of ink bleeding into cotton fibers at 60fps, slowed to 4 seconds; the image is not a picture of a knot, but the physics of the ink settling.",
+      "texture": "Unbleached cotton rag, 300gsm, visible laid lines; no varnish; the paper's natural tooth is the primary texture.",
+      "motion": "One 4-second loop: indigo ink bleeds outward from a single point, then stops. No other motion. The silence after the bleed is as long as the bleed itself.",
+      "productionMethod": "Generative image model simulates ink-on-cotton diffusion; rendered at 8K; printed on cotton rag with letterpress; the paper is not coated, allowing the ink to sink.",
+      "humanTrace": "The irregular edge of the ink bleed, which cannot be perfectly replicated by vector graphics; the slight unevenness of the cotton rag's weave.",
+      "risk": "It may feel too empty for a Pre-K audience; but the tactile paper and the visible ink bleed provide a sensory anchor that words cannot.",
+      "arguesWith": {
+        "directorId": "BAROQUE",
+        "why": "The Baroque wants to fill the room with drama; I argue that the knot only makes sense if the room is quiet enough to feel the tension."
+      }
+    }
+  ],
+  "disputes": [
+    {
+      "from": "CLASSICAL",
+      "against": "FUTURIST",
+      "objection": "The variable-width column grid asks the frame to behave according to dwell time, and a column that widens with the reader’s attention cannot be read twice the same way; like a fugue subject that changes its tactus under the ear, it gives up the measure that makes the phrase legible. The Pantheon does not alter its coffered geometry for the visitor’s pause, and this brief needs a held proportion, not a responsive pulse. That does not resolve.",
+      "concession": "Its four-second settling rule is sound, because it gives the indigo bleed a fixed pause in which the mark may stop moving and become a structural rest."
+    },
+    {
+      "from": "REBEL",
+      "against": "FUTURIST",
+      "objection": "The dwell-time grid turns the ink into a polite variable, not a mark. The tooth is rendered, but the hand is outsourced to a behavior rule that the reader can trigger and the machine can erase. If the bleed is calculated, it was never risked, and the page becomes a system wearing paper.",
+      "concession": "The four-second settling is right, because it lets the feathering fight the laid lines before the page becomes readable for a stranger on a bad day."
+    },
+    {
+      "from": "FUTURIST",
+      "against": "CLASSICAL",
+      "objection": "CLASSICAL turns the ink bleed into a 60 BPM pulse, which is a decorative heartbeat, not a state change; the page breathes, but nothing in the system has been read. If the grid cannot respond to annotation density, pressure, or dwell time, the settle is a screensaver wearing a Caslon.",
+      "concession": "The 1:2:3 margin structure is a legitimate resting state, and it gives the eye a clear place to park before any behaviour is introduced."
+    },
+    {
+      "from": "WORLD_ECLECTIC",
+      "against": "FUTURIST",
+      "objection": "That variable column listens to dwell time and annotation density as if the paper were a sensor, but a pulse without a named laid line or maker's tempo is an abstract global rhythm wearing a cotton rag. I would want the column to breathe at the tempo of a specific indigo vat, a named workshop, a year I can credit, not the average of every reader's hesitation. The newness here does not erase provenance; it hides it behind responsiveness.",
+      "concession": "The 4-second settling from chaotic bleed to fixed structure is right, because it treats the ink's resolution as a behavior, not a decorative loop."
+    },
+    {
+      "from": "BAROQUE",
+      "against": "RADICAL_MINIMAL",
+      "objection": "It is a beautiful idea of a knot, but it is not a scene; it has no light source, no depth, no scale, and no moment before the tension lands. The silence after the bleed is not a reveal, it is a delay, and the flat raw cotton gives the eye no place to fall into. The work has not decided what it feels like; it has only removed everything that might make that decision.",
+      "concession": "I concede that the four-second bleed and the equal silence after it are the right breath, and the fixed feathered edge is where the hand should remain visible."
+    },
+    {
+      "from": "RADICAL_MINIMAL",
+      "against": "WORLD_ECLECTIC",
+      "objection": "This brief adds too many voices: torn edges, botanical plates, blind stamps, lantern light, and vermilion marginalia all ask to be read at once. The field notebook becomes a souvenir, not a plot, and the emptiness is filled with props instead of letting the rag carry the hand. Remove the plates, the stamp, and the lamp; keep one indigo edge and one slow settle.",
+      "concession": "The blind-stamped metronome is the only gesture that survives because it leaves an indent without adding color."
+    }
+  ],
+  "reflections": [
+    {
+      "directorId": "CLASSICAL",
+      "note": "I now hold that the strict 1/10 margins and single vertical axis are the measure, and the indigo knot is earned only if its four-second diffusion settle lands on the structural rest before the letterpress tooth is read; Cormorant Garamond may lead, but Source Sans 3’s tracked caps remain the quiet authority."
+    },
+    {
+      "directorId": "BAROQUE",
+      "note": "I concede that the 1/10 cotton-rag margins and single vertical axis make the indigo knot’s four-second settle more theatrical than any added motion. My rule now is that a baroque reveal can be a held, feathered pause at the optical center."
+    },
+    {
+      "directorId": "REBEL",
+      "note": "I expected the single vertical axis to flatten the mark. The 4-second indigo knot taught me that a static warm lantern can still carry dissent if its capillary feathering is allowed to fight the cotton's laid lines and then settle."
+    },
+    {
+      "directorId": "FUTURIST",
+      "note": "I now hold that the 4-second indigo diffusion is not an effect but the instrument’s clock: its settling against 300gsm cotton-rag tooth, 1/10 margins, and letterpress pressure turns the feathered edge into a visible state. The single vertical axis is not emptiness; it is the condition that lets one knot behave."
+    },
+    {
+      "directorId": "RADICAL_MINIMAL",
+      "note": "I now hold that the 1/10 margin is not empty space but the letterpress plate’s pressure line; the indigo knot may only settle where the 300gsm cotton rag tooth catches its feathered edge. The 4-second loop must stop there, not fade, so the 200% tracked all-caps labels can carry the second contrast without becoming decoration."
+    },
+    {
+      "directorId": "WORLD_ECLECTIC",
+      "note": "I now hold that the 1/10 margin is a field-note rule on 300gsm unbleached cotton rag, not a universal border, and that the single indigo knot at the optical center must read as a made ink mark with a traceable feathered edge. Even when the letterpress tooth is only simulated in the generative 8K pass, the 4-second loop must show pressure and settled ink, while the 200%-tracked Source Sans 3 labels"
+    }
+  ],
+  "synthesis": {
+    "lead": "RADICAL_MINIMAL",
+    "counterpoint": "BAROQUE",
+    "editor": "CLASSICAL",
+    "direction": "Strict 1/10 margins on unbleached cotton rag (300gsm) with a single vertical axis; one indigo ink bleed knot at the optical center, resolved via a 4-second generative diffusion loop. Type is Cormorant Garamond (headers) and Source Sans 3 (body), all-caps labels with 200% tracking; no other color, no motifs, no decoration. Production uses generative AI to simulate ink-on-cotton physics at 8K, printed letterpress to preserve the paper's natural tooth and the irregular feathered edge.",
+    "keepFromCounterpoint": "The Baroque's insistence on a 'moment before the tension lands'—the equal silence after the 4-second bleed is retained to give the eye a place to fall into, transforming the delay into a deliberate structural rest.",
+    "editorCut": "Removed the Futurist's responsive dwell-time grid and the World-Eclectic's blind-stamped metronome; the editor argues that the paper's tooth and the single indigo bleed are sufficient evidence of craft, and that adding mechanical stamps or variable columns distracts from the tactile proof of the 'knot'.",
+    "openDecision": "Do you accept the single indigo knot as the sole visual element, or do you require a second, fainter wash of color to provide a background depth for the Pre-K audience?",
+    "ariaSummary": "The council fractured on whether the exhibit's 'handmade' feel should be proven by physical resistance or digital responsiveness. The Futurist wanted the grid to breathe with the reader's attention, but the Radical Minimalist and I agreed that the paper itself must do the speaking; a responsive screen is a system wearing paper, not the paper's hand. \n\nI sided with the Radical Minimalist's 'Silent Ink' direction, taking the strict geometry and single indigo knot. However, the Baroque Dramatist correctly noted that silence without a 'fall' is just emptiness, so I kept their concession: the four-second bleed is matched by an equal four-second silence, creating a tidal rhythm rather than a flat stop. \n\nThe team rejected the World-Eclectic's lantern and the Classical's 60 BPM pulse as decorative noise. The result is a high-end, tactile simulation of ink settling into cotton, where the 'imperfection' of the feathered edge is the primary content.",
+    "quotes": [
+      {
+        "directorId": "RADICAL_MINIMAL",
+        "line": "The knot only makes sense if the room is quiet enough to feel the tension."
+      },
+      {
+        "directorId": "BAROQUE",
+        "line": "The silence after the bleed is not a reveal, it is a delay... I concede that the four-second bleed and the equal silence after it are the right breath."
+      }
+    ]
+  }
+}

@@ -1,0 +1,77 @@
+{
+  "id": "grammar",
+  "tagline": "Not a rulebook. A machine for meaning, and you already know how to run it.",
+  "epigraph": {
+    "text": "'When I use a word,' Humpty Dumpty said, in rather a scornful tone, 'it means just what I choose it to mean—neither more nor less.'",
+    "cite": "Lewis Carroll, Through the Looking-Glass (1871)"
+  },
+  "materials": {
+    "paper": "rag",
+    "ink": "iron-gall",
+    "wash": [
+      "#F2ECDF",
+      "#C9B89B"
+    ],
+    "accent": "#22303B",
+    "hand": "script",
+    "motif": "metronome"
+  },
+  "council": {
+    "source": "council",
+    "art": {
+      "lead": "CLASSICAL",
+      "counterpoint": "REBEL",
+      "note": "The council decided to keep the strict grid and iron-gall marginalia, using capillary feathering to make the hand feel pressed into the paper."
+    },
+    "writers": {
+      "note": "The voice is iron-gall and capillary: precise, handmade, and argumentative, entering through the reader's own grammar instincts."
+    }
+  },
+  "nuggets": [
+    {
+      "id": "grammar-wc-1",
+      "exhibitId": "grammar",
+      "roomId": "workshop",
+      "hook": "One verb can turn a list into a sentence.",
+      "body": "Nouns, verbs, and adjectives are not labels; they are workers. Put the verb in charge and the sentence gets a direction.",
+      "depths": [
+        "early",
+        "elementary"
+      ]
+    },
+    {
+      "id": "grammar-wc-2",
+      "exhibitId": "grammar",
+      "roomId": "logic",
+      "hook": "Rules are bridges, not fences.",
+      "body": "Grammar rules keep clauses from colliding. When two ideas snap together, the reader knows who is doing what to whom.",
+      "depths": [
+        "middle",
+        "high"
+      ]
+    },
+    {
+      "id": "grammar-wc-3",
+      "exhibitId": "grammar",
+      "roomId": "machine",
+      "hook": "A dash can make a sentence hold its breath.",
+      "body": "Punctuation is the traffic control of the page. A dash can pause, a comma can turn, and a semicolon can wait politely for the next thought.",
+      "depths": [
+        "elementary",
+        "middle"
+      ]
+    },
+    {
+      "id": "grammar-wc-4",
+      "exhibitId": "grammar",
+      "roomId": "trial",
+      "hook": "Can a rule be guilty if everyone already breaks it?",
+      "body": "Descriptive grammar records what speakers already do. Prescriptive grammar asks what speakers should do, and the courtroom is where the two meet.",
+      "depths": [
+        "high",
+        "university"
+      ]
+    }
+  ],
+  "sessionId": "mviyuywh7s00ym"
+}

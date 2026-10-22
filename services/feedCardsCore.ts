@@ -14,17 +14,18 @@ import { scoreText } from '../src/lib/scoreText';
 
 export type FeedCardKind =
   | 'LIVE_NOW' | 'NEW_RELEASE' | 'NEW_VIDEO' | 'CLUB_HIGHLIGHT' | 'LABS_DATAVIZ' | 'HISTORY_MOMENT' | 'EVENT_SOON'
-  | 'DEBATE' | 'ACHIEVEMENT' | 'SPORTS_MOMENT';
+  | 'DEBATE' | 'ACHIEVEMENT' | 'SPORTS_MOMENT' | 'LOREA_NUGGET';
 
 export const FEED_CARD_KINDS: FeedCardKind[] = [
   'LIVE_NOW', 'NEW_RELEASE', 'NEW_VIDEO', 'CLUB_HIGHLIGHT', 'LABS_DATAVIZ', 'HISTORY_MOMENT', 'EVENT_SOON',
-  'DEBATE', 'ACHIEVEMENT', 'SPORTS_MOMENT',
+  'DEBATE', 'ACHIEVEMENT', 'SPORTS_MOMENT', 'LOREA_NUGGET',
 ];
 
 export const FEED_CARD_LABELS: Record<FeedCardKind, string> = {
   LIVE_NOW: 'Live now', NEW_RELEASE: 'New music', NEW_VIDEO: 'New videos', CLUB_HIGHLIGHT: 'Club highlights',
   LABS_DATAVIZ: 'Labs data stories', HISTORY_MOMENT: 'History moments', EVENT_SOON: 'Upcoming events',
   DEBATE: 'Debates', ACHIEVEMENT: 'Friends\' achievements', SPORTS_MOMENT: 'Your teams',
+  LOREA_NUGGET: 'Writer\'s craft notes',
 };
 
 export interface LiveNowData {
@@ -75,7 +76,11 @@ export interface FeedCardDataMap {
   LIVE_NOW: LiveNowData; NEW_RELEASE: NewReleaseData; NEW_VIDEO: NewVideoData; CLUB_HIGHLIGHT: ClubHighlightData;
   LABS_DATAVIZ: DataVizData; HISTORY_MOMENT: HistoryMomentData; EVENT_SOON: EventSoonData;
   DEBATE: DebateCardData; ACHIEVEMENT: AchievementCardData; SPORTS_MOMENT: SportsMomentData;
+  LOREA_NUGGET: LoreaNuggetData;
 }
+
+/** A Lorea exhibit teaser; the renderer picks the nugget for (day, slot) at the reader's depth. */
+export interface LoreaNuggetData { day: number; slot: number }
 
 /** A timeline card. `score` is 0..1 (higher = more worth showing); `timestamp` is the event time (ms). */
 export type FeedCardItem = {
@@ -364,6 +369,15 @@ export function historyMomentCard(uid: string | undefined, now: number): FeedCar
     kind: 'HISTORY_MOMENT', id: `history-${day}`, timestamp: now, score: 0.2,
     data: { uid, startOffset: day % 7 },
   };
+}
+
+/** Two writer's-craft teasers a day from the Lorea Exhibition Hall; the interleaver keeps them apart. */
+export function loreaNuggetCards(now: number): FeedCardItem[] {
+  const day = Math.floor(now / (24 * HOUR));
+  return [0, 1].map(slot => ({
+    kind: 'LOREA_NUGGET' as const, id: `lorea-nugget-${day}-${slot}`, timestamp: now, score: 0.22 - slot * 0.04,
+    data: { day, slot },
+  }));
 }
 
 // ─── Author prioritisation ────────────────────────────────────────────────────

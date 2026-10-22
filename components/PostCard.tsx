@@ -47,6 +47,7 @@ import { canReply, replyRestrictionLabel, extractMentionUids } from '../services
 import { editPostText } from '../services/postingService';
 import { togglePrivatePostLike } from '../services/privatePostsService';
 import { recordPostStat } from '../services/postAnalyticsService';
+import { LoreaExhibitEmbed } from './lorea/exhibits/LoreaNugget';
 
 interface PostCardProps {
   post: Post;
@@ -954,6 +955,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser: onVisitUserProp,
               player above, and Reello videos render inline via PostVideo below. */}
           {(post as any).assetEmbed && !post.albumEmbed && (post as any).assetEmbed.type !== 'VIDEO' && (() => {
             const ae = (post as any).assetEmbed as { type: string; id: string; trackId?: string; title?: string; imageUrl?: string; image?: string; url?: string; subtitle?: string; sourceId?: string; channelNumber?: string; shelf?: string };
+            if (ae.type === 'LOREA_EXHIBIT') return <div className="mt-3"><LoreaExhibitEmbed embed={ae as any} /></div>;
             const linkFor: Record<string, string> = {
               VIDEO: 'video',
               ARTICLE: 'article',

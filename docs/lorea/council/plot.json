@@ -1,0 +1,81 @@
+{
+  "id": "plot",
+  "tagline": "Plot is not what happens. It is why the next thing must.",
+  "epigraph": {
+    "text": "It was the best of times, it was the worst of times.",
+    "cite": "Charles Dickens, A Tale of Two Cities (1859)"
+  },
+  "materials": {
+    "paper": "rag",
+    "ink": "indigo",
+    "wash": [
+      "#1b2a5e",
+      "#384a86"
+    ],
+    "accent": "#1b2a5e",
+    "hand": "type",
+    "motif": "press"
+  },
+  "council": {
+    "source": "council",
+    "art": {
+      "lead": "RADICAL_MINIMAL",
+      "counterpoint": "BAROQUE",
+      "note": "The council approved a single indigo knot on unbleached rag cotton with an equal four-second silence, rejecting additional color or decoration."
+    },
+    "writers": {
+      "note": "One indigo knot and a four-second pause: the room follows cause, not spectacle."
+    }
+  },
+  "nuggets": [
+    {
+      "id": "plot-wc-1",
+      "exhibitId": "plot",
+      "roomId": "knot",
+      "hook": "A knot can hide a whole story in one pull.",
+      "body": "Pull one thread and the whole pattern tightens. A plot begins when something has to follow.",
+      "depths": [
+        "early",
+        "elementary",
+        "middle"
+      ]
+    },
+    {
+      "id": "plot-wc-2",
+      "exhibitId": "plot",
+      "roomId": "because",
+      "hook": "The queen died of a broken heart. The king died of the why.",
+      "body": "A plot is a chain of causes, not a line of events. The word because turns a sequence into a story.",
+      "depths": [
+        "elementary",
+        "middle",
+        "high"
+      ]
+    },
+    {
+      "id": "plot-wc-3",
+      "exhibitId": "plot",
+      "roomId": "shapes",
+      "hook": "A story can start at the top of the mountain.",
+      "body": "Some plots begin after the climb, on the long way down. The shape decides what the struggle means.",
+      "depths": [
+        "middle",
+        "high",
+        "university"
+      ]
+    },
+    {
+      "id": "plot-wc-4",
+      "exhibitId": "plot",
+      "roomId": "clues",
+      "hook": "Four seconds of silence can hold the whole twist.",
+      "body": "Before the reveal, the room waits. A twist is a promise kept in the first lines.",
+      "depths": [
+        "elementary",
+        "middle",
+        "high"
+      ]
+    }
+  ],
+  "sessionId": "mviycdbyyn8wg5"
+}

@@ -45,6 +45,9 @@ import { frameObjects, frameSize, livingPageFor } from '../services/living/runti
 import { loadBookAudio } from '../services/living/runtime/audioProvider';
 import type { BookAudioApi } from '../services/living/contracts';
 import { buildLoreaWritingSvg, loreaWritingBoard } from '../services/loreaWritingArt';
+import LoreaCraftBand from './lorea/exhibits/LoreaCraftBand';
+import { LoreaNuggetSpot } from './lorea/exhibits/LoreaNugget';
+import { openLoreaExhibit } from '../services/loreaExhibits/loreaExhibitStore';
 import { chalkBoard } from '../services/creatorArt';
 import { launchClassicBookInChoraDaw } from '../services/melos/classicBookChoraProjects';
 import {
@@ -1521,6 +1524,10 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
                 </div>
               </div>
 
+              <div className="flex justify-end">
+                <LoreaNuggetSpot spot="lorea/catalog" chance={0.5} variant="margin" />
+              </div>
+
               {/* Quick Library Wings Strip */}
               <div className="flex items-center gap-2 pt-2 border-t border-white/10 overflow-x-auto no-scrollbar sm:flex-wrap pb-1">
                 <span className="text-[10px] font-mono uppercase tracking-widest opacity-60 mr-1 shrink-0">Library Wings:</span>
@@ -2200,6 +2207,10 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
           </div>
         </header>
 
+        <div className="wrap" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: -24, marginBottom: 8 }}>
+          <LoreaNuggetSpot spot="lorea/after-hero" chance={0.55} variant="margin" />
+        </div>
+
         {/* Browse Section: Chip Rail + Genre Pills + Live Carousels + Full Live Shelf */}
         <section className="browse" id="browse">
           <div className="bhead">
@@ -2683,6 +2694,10 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
                 </button>
               );
             })}
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'center', margin: '28px 0 8px' }}>
+            <LoreaNuggetSpot spot="lorea/pantheon" chance={0.65} variant="scrap" />
           </div>
 
           {/* Deep Master Biography & Craft Teaching Conservatory Card */}
@@ -3180,7 +3195,12 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
               })}
             </div>
           </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-start', marginTop: 26 }}>
+            <LoreaNuggetSpot spot="lorea/comics" chance={0.45} variant="margin" />
+          </div>
         </section>
+
+        <LoreaCraftBand />
 
         {/* Six Ways to Read, One Shelf */}
         <section className="s" id="shelf">
@@ -3349,6 +3369,18 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
                 <div>
                   <b>Classics</b>
                   <span>Public-domain archive, with genre and source filters</span>
+                </div>
+              </button>
+              <button
+                type="button"
+                className="glass door"
+                style={{ '--dc': '#F0B37A' } as React.CSSProperties}
+                onClick={() => openLoreaExhibit(null)}
+              >
+                <i className="dot" />
+                <div>
+                  <b>Exhibition Hall</b>
+                  <span>The writer’s craft, hands-on: story, poetry, rhythm, grammar and more</span>
                 </div>
               </button>
               <button
@@ -3542,6 +3574,10 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
             </div>
           </div>
         </section>
+
+        <div className="wrap" style={{ display: 'flex', justifyContent: 'flex-end', margin: '8px auto 28px' }}>
+          <LoreaNuggetSpot spot="lorea/before-footer" chance={0.75} variant="scrap" />
+        </div>
 
         {/* Footer */}
         <footer className="f">

@@ -455,6 +455,13 @@ const CLASSIC_INSTANT_OPENINGS: Record<number, { title: string; pages: string[][
   }
 };
 
+/** Every bundled opening as plain paragraphs, for tools that read across the shelf (Lorea's Story Intelligence lens). */
+export const listInstantClassicOpenings = (): Array<{ gutenbergId: string; title: string; authors: string[]; chapter: string; paragraphs: string[] }> =>
+  Object.entries(CLASSIC_INSTANT_OPENINGS).map(([gid, entry]) => {
+    const meta = CLASSIC_BOOKS.find(b => Number(b.id) === Number(gid));
+    return { gutenbergId: gid, title: meta?.title || entry.title, authors: meta?.authors || [], chapter: entry.title, paragraphs: entry.pages.flat() };
+  });
+
 export const getInstantClassicOpeningChapters = (
   title?: string,
   id?: string

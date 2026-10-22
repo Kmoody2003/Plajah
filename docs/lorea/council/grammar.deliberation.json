@@ -1,0 +1,219 @@
+{
+  "id": "mviyuywh7s00ym",
+  "uid": "lorea-exhibit-grammar",
+  "createdAt": 1792638805553,
+  "depth": "FULL",
+  "status": "DONE",
+  "brief": {
+    "ask": "Art-direct the Lorea exhibit \"Grammar\" — a walk-through exhibition about grammar in the craft of writing. You have creative freedom: choose the paper, the ink, the washes, the one saturated accent, the lettering and the motif, and say what makes this exhibit look unlike the other seven. It must feel handmade — written, inked, pressed, pasted on real paper — and still carry colour. It must be easy to learn from and gorgeous at every reading level.",
+    "surface": "Lorea Exhibition Hall: entrance sheet, room sheets, pasted library clippings, hands-on station cards, torn-paper teaser nuggets in the feed",
+    "domain": "literary craft education",
+    "audience": "Readers from Pre-K to university; Academia classrooms and university seminars",
+    "feeling": "Handmade, inky, tactile, curious, warm",
+    "constraints": [
+      "Materials must map to: paper (laid|cotton|kraft|vellum|newsprint|rag|parchment|washi), ink (iron-gall|sepia|indigo|vermilion|carbon|verdigris), two wash colours, one accent hex, hand (script|print|type), motif (quill|press|lyre|lantern|mask|arc|metronome|type-case).",
+      "The other seven exhibits exist; differ from them.",
+      "Interactive stations stay as they are; you direct their look, not their mechanics."
+    ],
+    "references": [
+      "Rooms:\nThe Workshop of Words: Parts of speech are jobs / Build the most famous small sentence / Hunt the verbs\nThe Logic Engine: Why rules exist / Is or are? / Snap two clauses together\nThe Punctuation Machine: Who did it? / A comma can save a life / Hunt the prepositional phrases\nThe Courtroom of Rules: Describing versus prescribing / Put a rule on trial\nThe Long Table of Grammarians: A history of grammar / Seat the grammarians",
+      "Current authored materials: {\"paper\":\"kraft\",\"ink\":\"carbon\",\"wash\":[\"#e8c97a\",\"#8fb39a\"],\"accent\":\"#c2410c\",\"hand\":\"type\",\"motif\":\"type-case\"}"
+    ]
+  },
+  "directors": [
+    "CLASSICAL",
+    "REBEL",
+    "FUTURIST",
+    "WORLD_ECLECTIC",
+    "BAROQUE",
+    "RADICAL_MINIMAL"
+  ],
+  "proposals": [
+    {
+      "directorId": "CLASSICAL",
+      "title": "Untitled direction",
+      "idea": "Grammar as the structural rest of the sentence, where the eye pauses to find its measure before the meaning resolves.",
+      "geometry": "A strict 1:1.618 vertical grid with a single central axis; the 38.2% upper breath is the structural rest, and the 1/10 margin grid defines the measure from which all content hangs.",
+      "typography": "Libre Caslon for headers in tracked caps, Source Sans 3 for quiet body copy and labels, and Caveat only in the margins as a quiet after-image of the hand.",
+      "imageLogic": "No photographs; instead, simulated iron-gall ink diffusion that animates only along the laid lines of the paper, creating a visual rhythm that mirrors the pacing of reading.",
+      "texture": "300gsm cotton rag paper with visible laid lines, pressed with a letterpress tooth to give a tactile, inky surface that resists the flatness of digital screens.",
+      "motion": "A four-second, 60 BPM settle where the iron-gall ink diffuses along the laid lines before the Libre Caslon headers assert, creating a slow, deliberate pacing that earns the viewer's rest.",
+      "productionMethod": "Generative rendering of the 300gsm cotton rag texture, procedural simulation of iron-gall ink diffusion, and high-resolution print of the letterpress tooth to ensure a high-end result at a fraction of the cost.",
+      "humanTrace": "The simulated pressure of the letterpress tooth and the slow, deliberate diffusion of the iron-gall ink, which mimic the physical act of writing and pressing, creating a perceptible sign of making.",
+      "risk": "This direction risks feeling too slow or static for a digital audience, but that risk is worth it because it forces the viewer to engage with the structure of the sentence, making the learning process more profound and memorable.",
+      "arguesWith": {
+        "directorId": "FUTURIST",
+        "why": "The Futurist wants the frame to behave and reconfigure, but I hold that a system that reconfigures cannot be read twice the same way; I want the frame to hold, so that the structure of the grammar is clear and legible."
+      }
+    },
+    {
+      "directorId": "REBEL",
+      "title": "Ink Stains and Broken Rules",
+      "idea": "Grammar is not a cage but a bruise; the exhibit maps the physical resistance of language on 300gsm cotton where iron-gall ink bleeds into the laid lines, treating syntax errors as visible, photocopiable evidence of human pressure rather than sterile corrections.",
+      "geometry": "A strict 1:1.618 vertical axis on every sheet, but the 38.2% upper breath zone is never empty; it is filled with the ragged, capillary feathering of a 4-second 60 BPM iron-gall settle, creating a tension between the monumental grid and the chaotic edge of the stain.",
+      "typography": "Caveat (script) for marginalia and 'errors' in heavy indigo; IBM Plex Mono (print) for the structural rules in carbon black; the script is never digital, always simulating the pressure of a felt-tip pen on wet paper, with deliberate kerning breaks where the ink pools.",
+      "imageLogic": "No photographs of people; instead, generative renders of paper fibers under extreme macro light, treating the paper's laid lines as the primary image, with the 'grammar' appearing as dark stains that disrupt the fiber pattern, visible even after four photocopies.",
+      "texture": "300gsm cotton rag with heavy tooth; the surface is not smooth but resistant, designed to catch the ink and create a 4-second settle that leaves a permanent, ragged edge; the texture is the proof that the grid was made, not just imposed.",
+      "motion": "The exhibit is static in form but dynamic in reading; the viewer’s eye is forced to move from the sharp IBM Plex Mono rule down to the bleeding Caveat stain, a 4-second visual rhythm that mimics the time it takes for iron-gall to set, creating a physical pause in the reading flow.",
+      "productionMethod": "Generative image models trained on high-res paper fiber scans to simulate the 4-second 60 BPM indigo bleed; procedural code to map the 1:1.618 axis and place the IBM Plex Mono text; the 'bleed' is not a gradient but a procedural simulation of capillary action, ensuring every print has a unique, photocopiable feathering pattern.",
+      "humanTrace": "The ragged, photocopiable edge of the iron-gall stain; the visible pressure of the Caveat script where the 'pen' hesitated; the cotton’s laid lines bearing the weight of the ink instead of decorating it; the 4-second settle leaving a permanent mark that cannot be undone with one key.",
+      "risk": "The risk is that the bleed looks like a mistake rather than a feature; the risk is worth it because if the stain is allowed to fight the cotton's laid lines and then settle, the error becomes evidence of the hand, not a flaw to be polished away, preserving urgency in a monumental page.",
+      "arguesWith": {
+        "directorId": "RADICAL_MINIMAL",
+        "why": "The Minimalist removes the bleed as noise, leaving only the clean grid and text; I leave the evidence in because the ragged edge is the only thing that proves a human actually wrote this, and without it, the design is just a sterile vector that a machine can undo with one key."
+      }
+    },
+    {
+      "directorId": "FUTURIST",
+      "title": "Grammar as Responsive System",
+      "idea": "A static exhibit is a photograph; a responsive exhibit is an instrument where the paper's tooth and ink's diffusion act as the input/output interface for grammatical logic.",
+      "geometry": "1/10 margin grid on 300gsm cotton rag; single vertical axis at 38.2% rest point; strict 1:1.618 vertical proportions.",
+      "typography": "Source Sans 3 (tracked caps for labels) and Caveat (marginalia); fixed conditions that make paper friction readable.",
+      "imageLogic": "No photographs; image logic is procedural simulation of ink capillary action and iron-gall settle against laid lines.",
+      "texture": "300gsm unbleached cotton rag with visible laid lines; matte, feathered edges from simulated ink pressure.",
+      "motion": "4-second, 60 BPM indigo spread along laid lines; settling into a matte, feathered state at the 38.2% rest point.",
+      "productionMethod": "Generative shader simulation of ink diffusion on procedural paper texture; rendered to high-res assets for print and digital station interfaces.",
+      "humanTrace": "Simulated letterpress pressure and ink bleed; the feathered edge is the visible state of the 'hand' as a system parameter.",
+      "risk": "Risks being perceived as cold or technical rather than warm; worth it because it proves that 'handmade' feeling can be derived from system responsiveness rather than just material choice.",
+      "arguesWith": {
+        "directorId": "REBEL",
+        "why": "The Rebel fetishises the accident; I argue that a system can produce an honest imperfection on purpose, every time, and that is the more serious craft for an educational exhibit that must be repeatable and legible."
+      }
+    },
+    {
+      "directorId": "WORLD_ECLECTIC",
+      "title": "Iron-Gall Field Notes",
+      "idea": "The exhibit is a single, continuous 300gsm unbleached cotton rag ledger where every grammatical rule is a field note pinned to a visible laid line, not a universal law.",
+      "geometry": "1:1.618 vertical grid anchored to the physical laid lines of the paper; 1/10 margin acts as a field-note rule, not a border; optical center holds a single indigo knot.",
+      "typography": "Libre Caslon Text for structural authority tied to named laid lines; Source Sans 3 labels with 200% tracking and mandatory maker credits; Caveat kept strictly marginal for annotations.",
+      "imageLogic": "Documentary photography of living makers (typesetters, printers) treated as high-res scans pasted directly onto the rag, retaining paper tooth and ink bleed; no digital smoothing.",
+      "texture": "300gsm unbleached cotton rag with visible laid lines; simulated letterpress tooth in the generative 8K pass; iron-gall ink bleed that darkens over time; wet-to-matte surface finish.",
+      "motion": "4-second iron-gall settle at 60 BPM showing pressure on a visible laid line; feathers through the rag; stops before Caveat is allowed to write over Source Sans 3 structure; 38.2% breath point as a negative-space mask.",
+      "productionMethod": "Generative 8K render of 300gsm cotton rag with simulated letterpress pressure; procedural ink bleed shader; open-licensed typefaces (Libre Caslon Text, Source Sans 3, Caveat) embedded with metadata credits; no physical build.",
+      "humanTrace": "Visible pressure marks on laid lines; traceable feathered edges of the indigo knot; maker credits in every Source Sans 3 label; 4-second settle timing that feels like hand-inking.",
+      "risk": "The static grid may feel too academic for Pre-K audiences; worth it because the laid lines provide a tactile anchor that teaches structure through physicality, not abstraction.",
+      "arguesWith": {
+        "directorId": "RADICAL_MINIMAL",
+        "why": "The Minimalist calls the grid universal; I argue there is no universal, only whose specifics were kept, and the laid lines must be named and permissioned to retain provenance."
+      }
+    },
+    {
+      "directorId": "BAROQUE",
+      "title": "The Breath of Iron-Gall",
+      "idea": "Grammar is not a static cage but a four-second held breath where the iron-gall ink settles into the cotton fiber, marking the pause before the next word.",
+      "geometry": "A strict 1:1.618 vertical axis with a 38.2% upper margin; the optical center is the only point of saturation, creating a vertical tension line that mimics the spine of a book.",
+      "typography": "Source Sans Pro for the structural rules (tight tracking, all caps, 12pt) and Caveat for the human breath (loose tracking, sentence case, 72pt); the contrast is the drama.",
+      "imageLogic": "No photographs; instead, generative macro-scans of cotton-rag paper tooth where the ink bleed is simulated as a dark, feathered halo around the type, making the words look like they are sinking into the page.",
+      "texture": "High-relief cotton rag with visible laid lines; the surface is dry to the touch but the ink appears wet, creating a tactile-cognitive dissonance that demands a second look.",
+      "motion": "Static in the print, but the digital feed teasers use a 60 BPM pulse; the ink does not splash, it settles over four seconds, a slow, heavy exhalation.",
+      "productionMethod": "Generative texture synthesis for the paper tooth; procedural ink-bleed simulation for the type; the accent color is a single, deep indigo (#2a3b4c) used only on the 'pause' marks (commas, periods) to show where the breath is held.",
+      "humanTrace": "The irregularity of the Caveat script and the specific, non-repeating pattern of the cotton fiber compression under the type, which looks like a physical pressure mark.",
+      "risk": "It risks being perceived as 'slow' by the Futurist, but this slowness is the point: it forces the viewer to stop and feel the weight of the rule.",
+      "arguesWith": {
+        "directorId": "FUTURIST",
+        "why": "The Futurist wants a rule-based parameter for the drama, but I argue that drama is the four-second settle, a decision of timing, not a variable to be optimized."
+      }
+    },
+    {
+      "directorId": "RADICAL_MINIMAL",
+      "title": "Untitled direction",
+      "idea": "Grammar is not a cage but the pressure line on a plate; we show the silence that makes the letter legible by removing everything that does not carry weight, leaving only the ink that has settled.",
+      "geometry": "1:1.618 vertical grid with 38.2% reserved negative space as a structural pressure line, not empty void; margins are 1/10 width to define the plate’s edge.",
+      "typography": "Source Sans 3 for all structural labels and body text (200% tracked all-caps for headers, 12pt body), with Caveat as the sole handwritten exception restricted to the 1/10 margin annotations; no other scripts permitted.",
+      "imageLogic": "No photography. Only procedural simulations of iron-gall ink diffusion on 300gsm cotton rag tooth, rendered via generative shader to show capillary action following laid lines; image is the proof of the handmade trace, not decoration.",
+      "texture": "300gsm cotton rag paper with visible laid lines; ink is iron-gall with matte finish after 4-second settle; no gloss, no foil, no texture overlays—only the paper’s tooth and ink’s feathered edge.",
+      "motion": "Single 4-second entrance settle at 60 BPM where indigo wash settles at optical center, stopping abruptly at feathered edge; no loop, no fade, no continuous motion—only one event, then silence.",
+      "productionMethod": "Generative shader renders iron-gall diffusion on simulated 300gsm cotton rag; Source Sans 3 and Caveat typeset in open-source tools; no physical printing, no scans, no commissioned art—only code-directed material simulation.",
+      "humanTrace": "The 4-second settle timing and the feathered edge where ink stops are perceptible signs of making; the paper’s tooth catching the ink’s edge is the proof of the hand, not the gesture itself.",
+      "risk": "Risks feeling sterile or overly controlled; but this risk is worth it because the exhibit’s power lies in the contrast between the precise grid and the organic ink settle, which teaches that grammar is structure, not chaos.",
+      "arguesWith": {
+        "directorId": "BAROQUE",
+        "why": "The Baroque Dramatist will want to add until something happens; I remove until only the thing that matters can. Their clutter will drown the silence that makes the ink legible. I concede nothing on the 38.2% reserved space—it is the plate’s pressure line, not decoration."
+      }
+    }
+  ],
+  "disputes": [
+    {
+      "from": "CLASSICAL",
+      "against": "BAROQUE",
+      "objection": "The 72-point Caveat does not breathe; it performs, and the dark halo around the type turns the pause into an announcement rather than a structural rest. A fermata in a Bach prelude, or the stillness under the Pantheon dome, is earned only after measure has been established; here the optical center saturates before the reader can find the line. That does not resolve.",
+      "concession": "I concede that its four-second, 60 BPM settle gives the ink a real duration, and that duration should be kept as the exhibit’s pacing."
+    },
+    {
+      "from": "REBEL",
+      "against": "CLASSICAL",
+      "objection": "You put the hand in the margin like a footnote and let the Caslon caps settle the argument. I want ink to cross the axis, stain the laid line, and refuse the tidy resolve. If it photocopies flat and neat, it has not risked anything.",
+      "concession": "Your 38.2% upper breath is right when it is pressed by cotton tooth and iron-gall settle instead of left as empty white space."
+    },
+    {
+      "from": "FUTURIST",
+      "against": "BAROQUE",
+      "objection": "The held breath is a reveal, not a rule: the direction names a four-second settle and a dry-to-wet dissonance, but nothing in the system changes when the input changes. If the optical center is always the only saturation point and the ink always settles at 60 BPM, the cotton-rag tooth is being used as a screen for drama rather than as a state machine. I would need pressure, word length, or margin violation to alter where the feather stops, otherwise it is an old ink surface with a pulse.",
+      "concession": "The 38.2% optical center as the sole saturation point is a clean fixed condition that makes the settle legible."
+    },
+    {
+      "from": "WORLD_ECLECTIC",
+      "against": "CLASSICAL",
+      "objection": "Its 1:1.618 axis and 38.2% breath read as a universal measure, but a laid line is not a neutral law; it is a maker's mark from a particular papermill, a particular iron-gall recipe, and a named hand. If the piece does not say where the cotton rag, the ink, and the margin come from, the simulation is a polite erasure rather than a provenance. The hand appears as a quiet after-image in Caveat, yet no one is asked, credited, or paid for the grammar it borrows.",
+      "concession": "Its four-second, 60 BPM settle is the correct rest when it lands on a visible laid line and the Source Sans 3 labels carry a maker credit."
+    },
+    {
+      "from": "BAROQUE",
+      "against": "RADICAL_MINIMAL",
+      "objection": "I disagree with Radical Minimalist because it mistakes the held curtain for the whole theater: the work is a stage, not a proof sheet, and without scale, contrast, or a second beat the meaning never arrives. Its one abrupt 4-second settle is lovely, but by refusing any reveal after the ink stops it turns a breathtaking pause into a museum label. I would give that same 38.2% rest point a shaft of physical light and a cut that opens just after the feathered edge, so the silence has something to break against.",
+      "concession": "I concede that its single 4-second, 60 BPM settle and the feathered edge where the ink stops are the exact theatrical rest the work needs."
+    },
+    {
+      "from": "RADICAL_MINIMAL",
+      "against": "WORLD_ECLECTIC",
+      "objection": "The ledger becomes a pinboard. Documentary maker scans and mandatory credits are not field notes; they are decoration wearing the clothes of specificity. Remove the paste, keep the one laid line that carries the rule.",
+      "concession": "The 38.2% breath as a negative-space mask is right, because it makes the empty place do structural work."
+    }
+  ],
+  "reflections": [
+    {
+      "directorId": "CLASSICAL",
+      "note": "I now hold that the 38.2% upper breath is the structural rest of the 1:1.618 vertical measure, and the iron-gall diffusion is legitimate only if its four-second, 60 BPM settle follows the 300gsm laid lines before Libre Caslon asserts authority, with Caveat confined to the margin as an after-image."
+    },
+    {
+      "directorId": "FUTURIST",
+      "note": "I now hold that the strict 1:1.618 vertical grid can behave as an instrument when its only motion is the 4-second, 60 BPM iron-gall settle at the 38.2% rest point, where 300gsm cotton-rag laid lines convert simulated pressure into a visible state. The tracked Libre Caslon caps and Source Sans 3 body are not merely hierarchy; they are fixed conditions that make Caveat’s marginal after-image read as"
+    },
+    {
+      "directorId": "BAROQUE",
+      "note": "I now hold that on this 1:1.618 cotton-rag axis, the baroque peak is the four-second, 60 BPM iron-gall settle at the optical center, not added motion; the 38.2% upper breath is the curtain held while fiber compression leaves its pressure mark."
+    },
+    {
+      "directorId": "RADICAL_MINIMAL",
+      "note": "I now hold that the 38.2% upper breath is not silence to fill but the grid’s pressure line: the only permitted event is the 4-second 60 BPM iron-gall settle along the laid lines, and only after it stops may Caveat appear as the single margin after-image."
+    },
+    {
+      "directorId": "WORLD_ECLECTIC",
+      "note": "I now hold that the 1:1.618 vertical grid on 300gsm cotton rag is honest only when the 38.2% upper breath is tied to a named laid-line source, and the 4-second iron-gall diffusion at 60 BPM is treated as a maker’s pressure mark, not a neutral monument."
+    },
+    {
+      "directorId": "REBEL",
+      "note": "I expected the strict 1:1.618 vertical to flatten the hand, but the brief moved me: the 38.2% upper breath becomes structural only if the 4-second 60 BPM iron-gall bleed is arrested against the 300gsm laid lines. Caveat earns its margin only as the after-mark that settle cannot clean."
+    }
+  ],
+  "synthesis": {
+    "lead": "CLASSICAL",
+    "counterpoint": "REBEL",
+    "editor": "RADICAL_MINIMAL",
+    "direction": "The exhibit is anchored by a strict 1:1.618 vertical grid on 300gsm cotton rag, where the 38.2% upper breath is not empty space but the structural rest earned by the paper's laid lines. We use Libre Caslon for headers and Source Sans 3 for body, with Caveat appearing only in the margins as a quiet, handwritten after-image. The visual rhythm is driven by a 4-second, 60 BPM generative simulation of iron-gall ink diffusing along the laid lines, creating a tactile, inky surface that resists digital flatness.",
+    "keepFromCounterpoint": "The procedural simulation of capillary feathering at the ink's edge, ensuring the 'hand' is visible as evidence of pressure rather than a sterile vector.",
+    "editorCut": "Removed the World-Eclectic Traveler's documentary maker scans and mandatory provenance credits, as they clutter the structural silence and distract from the core lesson of grammar as a measure. Also stripped the Baroque Dramatist's 72pt dramatic Caveat overlays, which turned the structural rest into a performance rather than a pause.",
+    "openDecision": "Should the Caveat marginalia be rendered in a distinct, heavy indigo to signal 'human error' (as the Rebel suggests) or kept in the same iron-gall tone as a quiet whisper (as the Classical prefers)?",
+    "ariaSummary": "The council fractured on whether the exhibit should feel like a polished museum piece or a raw, bleeding manuscript. The Classical Mind argued for a strict grid where the ink diffuses only along the paper's laid lines, treating the 38.2% upper space as a structural rest. The Rebellious Hand pushed back, insisting that without visible, ragged feathering and 'errors,' the design is just a sterile vector that a machine can undo.\n\nI sided with the Classical Mind because the audience spans Pre-K to university; a stable grid is essential for legibility at every level. However, I took the Rebel's point that the ink must feel physical. We will use the Rebel's procedural capillary simulation to ensure the edges of the ink look like they were pressed into cotton, not printed on a screen.\n\nThe Radical Minimalist acted as our editor, cutting out the Baroque's dramatic 72pt overlays and the Traveler's pasted maker scans. This leaves a clean, tactile surface where the paper's tooth and the ink's settle are the only two elements fighting for your attention.",
+    "quotes": [
+      {
+        "directorId": "CLASSICAL",
+        "line": "I want the frame to hold, so that the structure of the grammar is clear and legible."
+      },
+      {
+        "directorId": "REBEL",
+        "line": "The ragged edge is the only thing that proves a human actually wrote this."
+      }
+    ]
+  }
+}

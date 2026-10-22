@@ -78,6 +78,7 @@ export const NAV_SECTIONS: NavSection[] = [
     { id: 'CLASSROOMS', label: 'Plajah Academia', icon: GraduationCap },
     { id: 'PLAJAH_LABS', label: 'Museion', icon: FlaskConical },
     { id: 'DOSSIER', label: 'Exhibition Hall', icon: Landmark },
+    { id: 'LOREA_EXHIBITS', label: 'Writer’s Craft', icon: BookOpen },
     { id: 'TELA', label: 'Tela', icon: LayoutPanelTop },
   ]},
   { key: 'Community', icon: UsersRound, items: [

@@ -51,7 +51,7 @@ import { filterReleased } from './releases/visibility';
 import type { UserProfile } from '../types';
 import { chunk, IN_QUERY_LIMIT } from './feedPaginationCore';
 import {
-  liveFeedToCard, albumToCard, videoToCard, clubPostToCard, eventToCard, dataVizPostToCard, historyMomentCard, filterCards,
+  liveFeedToCard, albumToCard, videoToCard, clubPostToCard, eventToCard, dataVizPostToCard, historyMomentCard, loreaNuggetCards, filterCards,
   debateToCard, achievementToCard, pickAchievementCards, sportsGameToCard, prioritizeAuthors,
   type FeedCardItem, type LiveFeedDoc, type AlbumDoc, type VideoDoc, type ClubPostDoc, type EventDoc, type PostWithDataViz,
   type DebateDoc, type PublicAchievementDoc,
@@ -276,7 +276,7 @@ export function useFeedCards(
     const c = new Set(clubKey ? clubKey.split(',') : []);
     const live = liveDocs.map(d => liveFeedToCard(d, now, { followingIds: f, clubIds: c, viewerId, clubNames })).filter((x): x is FeedCardItem => !!x);
     const viz = (candidatePosts ?? []).map(p => dataVizPostToCard(p, now)).filter((x): x is FeedCardItem => !!x).slice(0, 2);
-    return filterCards([...live, ...stat, ...viz, historyMomentCard(viewerId, now)], { hiddenUids, mutedKinds, viewerId });
+    return filterCards([...live, ...stat, ...viz, historyMomentCard(viewerId, now), ...loreaNuggetCards(now)], { hiddenUids, mutedKinds, viewerId });
     // tick re-evaluates liveness without new data
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, viewerId, liveDocs, stat, candidatePosts, hiddenUids, mutedKinds, followKey, clubKey, clubNames, tick]);

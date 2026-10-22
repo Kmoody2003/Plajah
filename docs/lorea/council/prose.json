@@ -1,0 +1,77 @@
+{
+  "id": "prose",
+  "tagline": "Every story you love is made of sentences. Come see how they are built, tuned and set loose.",
+  "epigraph": {
+    "text": "It was the best of times, it was the worst of times…",
+    "cite": "Charles Dickens, A Tale of Two Cities (1859)"
+  },
+  "materials": {
+    "paper": "rag",
+    "ink": "iron-gall",
+    "wash": [
+      "#0f0d0b",
+      "#3a2f26"
+    ],
+    "accent": "#7a2e20",
+    "hand": "type",
+    "motif": "quill"
+  },
+  "council": {
+    "source": "council",
+    "art": {
+      "lead": "BAROQUE",
+      "counterpoint": "REBEL",
+      "note": "The council decided to keep the Baroque structural grid and iron-gall settle while allowing visible capillary feathering as the only imperfection."
+    },
+    "writers": {
+      "note": "We kept the grid but let the ink bleed where the reader breathes; the workshop is a place of controlled imperfection."
+    }
+  },
+  "nuggets": [
+    {
+      "id": "prose-wc-1",
+      "exhibitId": "prose",
+      "roomId": "sentence",
+      "hook": "A sentence with no subject is like a house with no door.",
+      "body": "Sometimes the who is hidden, but the action still happens. Try writing a sentence where the person is the secret.",
+      "depths": [
+        "early",
+        "elementary"
+      ]
+    },
+    {
+      "id": "prose-wc-2",
+      "exhibitId": "prose",
+      "roomId": "voice",
+      "hook": "Can you hear the grumpy cat in this paragraph?",
+      "body": "Voice is the personality behind the words. Swap one word and watch the character change from shy to sassy.",
+      "depths": [
+        "elementary",
+        "middle"
+      ]
+    },
+    {
+      "id": "prose-wc-3",
+      "exhibitId": "prose",
+      "roomId": "lantern",
+      "hook": "Don’t tell me the moon is bright. Show me the silver dust.",
+      "body": "Telling is a summary; showing is a photograph. Your job is to let the reader see the dust before they read the word bright.",
+      "depths": [
+        "middle",
+        "high"
+      ]
+    },
+    {
+      "id": "prose-wc-4",
+      "exhibitId": "prose",
+      "roomId": "music",
+      "hook": "Short sentences hit hard. Long sentences flow like a river.",
+      "body": "Rhythm is the heartbeat of prose. Read this line aloud and feel where your breath wants to pause.",
+      "depths": [
+        "high",
+        "university"
+      ]
+    }
+  ],
+  "sessionId": "mviyo4ut664mcd"
+}

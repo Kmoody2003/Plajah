@@ -1,0 +1,86 @@
+{
+  "id": "character",
+  "tagline": "Everyone in a story wants something. The good ones want the wrong thing first.",
+  "epigraph": {
+    "text": "I am no bird; and no net ensnares me: I am a free human being with an independent will.",
+    "cite": "Charlotte Brontë, Jane Eyre (1847)"
+  },
+  "materials": {
+    "paper": "rag",
+    "ink": "iron-gall",
+    "wash": [
+      "#7a6a58",
+      "#d7cfc4"
+    ],
+    "accent": "#2f2b28",
+    "hand": "type",
+    "motif": "mask"
+  },
+  "council": {
+    "source": "council",
+    "art": {
+      "lead": "CLASSICAL",
+      "counterpoint": "REBEL",
+      "note": "The council chose a rigid 1:1.618 structure with the mask as negative space, preserving ragged iron-gall pressure in a single 4-second settle."
+    },
+    "writers": {
+      "note": "Iron-gall mask: a 1:1.618 settle that lets the face breathe before the want cracks."
+    }
+  },
+  "nuggets": [
+    {
+      "id": "character-wc-1",
+      "exhibitId": "character",
+      "roomId": "want",
+      "hook": "A cup cracks at the exact moment it becomes honest.",
+      "body": "Want is not the same as need; the crack is where the character stops performing.",
+      "depths": [
+        "early",
+        "elementary",
+        "middle",
+        "high",
+        "university"
+      ]
+    },
+    {
+      "id": "character-wc-2",
+      "exhibitId": "character",
+      "roomId": "shape",
+      "hook": "A flat face can be a door if it refuses to turn.",
+      "body": "Roundness isn't realism; it's the reader's invitation to follow a choice.",
+      "depths": [
+        "elementary",
+        "middle",
+        "high",
+        "university"
+      ]
+    },
+    {
+      "id": "character-wc-3",
+      "exhibitId": "character",
+      "roomId": "reveal",
+      "hook": "Tell the wound once, then show the hand that hides it.",
+      "body": "Voice leaves fingerprints: diction, rhythm, and what the character won't say.",
+      "depths": [
+        "middle",
+        "high",
+        "university"
+      ]
+    },
+    {
+      "id": "character-wc-4",
+      "exhibitId": "character",
+      "roomId": "masks",
+      "hook": "Every mask is a costume, but one is the face underneath.",
+      "body": "Name the mask first, then ask what it protects; the trickster, the monster, and the saint all borrow it.",
+      "depths": [
+        "early",
+        "elementary",
+        "middle",
+        "high",
+        "university"
+      ]
+    }
+  ],
+  "sessionId": "mviyk7g2j4lbg0"
+}

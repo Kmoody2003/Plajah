@@ -20,6 +20,9 @@ import React from 'react';
 import { Radio, Disc3, Play, Users, BarChart3, CalendarClock, Swords, Trophy, Activity } from 'lucide-react';
 import FeedCardFrame from './FeedCardFrame';
 import HistoryMomentPulseCard from '../../HistoryMomentPulseCard';
+import { LoreaNuggetView } from '../../lorea/exhibits/LoreaNugget';
+import { dailyNuggets, useLoreaDepth, useLoreaExhibits } from '../../../services/loreaExhibits/loreaExhibitStore';
+import type { LoreaNuggetData } from '../../../services/feedCardsCore';
 import type {
   FeedCardItem, LiveNowData, NewReleaseData, NewVideoData, ClubHighlightData, DataVizData, EventSoonData, HistoryMomentData,
   DebateCardData, AchievementCardData, SportsMomentData,
@@ -212,6 +215,19 @@ export const HistoryMomentCard: React.FC<CardProps<HistoryMomentData>> = ({ item
   </div>
 );
 
+/** A torn-paper teaser from the Lorea Exhibition Hall; tapping it walks into the exhibit room. */
+export const LoreaNuggetFeedCard: React.FC<{ item: Extract<FeedCardItem, { data: LoreaNuggetData }> }> = ({ item }) => {
+  const exhibits = useLoreaExhibits();
+  const [depth] = useLoreaDepth();
+  const picked = React.useMemo(() => {
+    if (!exhibits) return null;
+    const all = dailyNuggets(exhibits, depth, item.data.day);
+    return all.length ? all[(item.data.slot * 7) % all.length] : null;
+  }, [exhibits, depth, item.data.day, item.data.slot]);
+  if (!picked) return null;
+  return <div style={{ padding: '10px 4px 4px' }}><LoreaNuggetView picked={picked} variant="card" /></div>;
+};
+
 /** Dispatcher — renders the right card for `item.kind`. */
 export const FeedCard: React.FC<{
   item: FeedCardItem;
@@ -229,6 +245,7 @@ export const FeedCard: React.FC<{
     case 'ACHIEVEMENT': return <AchievementCard item={item} onOpen={onOpen} onDismiss={onDismiss} />;
     case 'SPORTS_MOMENT': return <SportsMomentCard item={item} onOpen={onOpen} onDismiss={onDismiss} />;
     case 'HISTORY_MOMENT': return <HistoryMomentCard item={item} onOpen={onOpen} />;
+    case 'LOREA_NUGGET': return <LoreaNuggetFeedCard item={item} />;
     default: return null;
   }
 };

@@ -1,0 +1,80 @@
+{
+  "id": "story",
+  "tagline": "Somebody wants, something resists, and we lean closer to hear what happens.",
+  "epigraph": {
+    "text": "Marley was dead: to begin with. There is no doubt whatever about that.",
+    "cite": "Charles Dickens, A Christmas Carol, 1843"
+  },
+  "materials": {
+    "paper": "cotton",
+    "ink": "iron-gall",
+    "wash": [
+      "#f2c879",
+      "#a9cdbf"
+    ],
+    "accent": "#c8102e",
+    "hand": "script",
+    "motif": "arc"
+  },
+  "council": {
+    "source": "council",
+    "art": {
+      "lead": "REBEL",
+      "counterpoint": "CLASSICAL",
+      "note": "The council balanced the tactile urgency of the Rebellious Hand with the rhythmic stability of the Classical Mind by adopting a non-uniform grid on cotton rag with iron-gall ink, using a metronome motif to ensure the 4-second settle timing provides structural breath amidst the visual chaos."
+    },
+    "writers": {
+      "note": "The voice is a circle of listeners: plain, warm, and slightly conspiratorial, inviting every age to lean in."
+    }
+  },
+  "nuggets": [
+    {
+      "id": "story-wc-1",
+      "exhibitId": "story",
+      "roomId": "fire",
+      "hook": "The first line is a door, not a map.",
+      "body": "It can open straight into a voice, a place, or a strange detail. Once it clicks, the room changes and the story starts breathing.",
+      "depths": [
+        "early",
+        "elementary",
+        "middle"
+      ]
+    },
+    {
+      "id": "story-wc-2",
+      "exhibitId": "story",
+      "roomId": "eyes",
+      "hook": "Turn the lantern: whose shadow is on the wall?",
+      "body": "A narrator chooses what we see first and what stays dark. Ask what the teller wants us to believe, and what they cannot stop repeating.",
+      "depths": [
+        "elementary",
+        "middle",
+        "high"
+      ]
+    },
+    {
+      "id": "story-wc-3",
+      "exhibitId": "story",
+      "roomId": "worlds",
+      "hook": "A world can be a kitchen table or a whole planet.",
+      "body": "Where and when matter because they set the rules, the smells, and the stakes. Let the details do the work before the plot rushes in.",
+      "depths": [
+        "elementary",
+        "middle"
+      ]
+    },
+    {
+      "id": "story-wc-4",
+      "exhibitId": "story",
+      "roomId": "shapes",
+      "hook": "Stories can wear stories like rings in a tree.",
+      "body": "A frame tale opens a smaller tale inside, then closes it with a breath. Unpack the layers and you can hear the oldest voice at the center.",
+      "depths": [
+        "middle",
+        "high",
+        "university"
+      ]
+    }
+  ],
+  "sessionId": "mviz50rshsre9d"
+}
