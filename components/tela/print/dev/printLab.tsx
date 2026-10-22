@@ -31,8 +31,16 @@ function renderFrame(f: TelaFrame) {
   return (
     <div style={{ width: f.w, height: f.h, position: 'relative', fontFamily: 'Georgia, serif', color: '#000' }}>
       {n === 0 && <div style={{ position: 'absolute', left: 0, top: 0, width: f.w, height: 120, background: '#c0262d' }} />}
-      <h1 style={{ position: 'absolute', left: 6, top: 140, margin: 0, fontSize: 40 }}>Robotics team takes second</h1>
-      <p style={{ position: 'absolute', left: 72, top: 210, width: 600, fontSize: 13, color: '#151515' }}>Our robotics team placed second of 14 schools at Saturday’s regional tournament, the best finish in school history.</p>
+      <h1 style={{ position: 'absolute', left: 6, top: 140, margin: 0, fontSize: 40, fontFamily: '"Playfair Display", Georgia, serif', fontWeight: 800 }}>Robotics team takes second</h1>
+      <p style={{ position: 'absolute', left: 72, top: 210, width: 600, fontSize: 13, color: '#151515', fontFamily: 'Inter, system-ui, sans-serif' }}>Our robotics team placed second of 14 schools at Saturday’s regional tournament, the best finish in school history.</p>
+      <p style={{ position: 'absolute', left: 72, top: 262, width: 600, fontSize: 12, color: '#000' }}>Set in Georgia, a system font: the press PDF substitutes an open serif.</p>
+      {n === 0 && (
+        <svg style={{ position: 'absolute', left: 480, top: 300 }} width="260" height="200" viewBox="0 0 130 100">
+          <rect x="5" y="5" width="120" height="60" rx="8" fill="#6B0099" stroke="#000" strokeWidth="1" />
+          <circle cx="100" cy="80" r="14" fill="#D40055" />
+          <text x="12" y="40" fontFamily="Inter, sans-serif" fontWeight="700" fontSize="14" fill="#ffffff"><tspan x="12" dy="0">SVG headline</tspan></text>
+        </svg>
+      )}
       {n === 0 && <img src={lowRes} alt="team photo" style={{ position: 'absolute', left: 72, top: 300, width: 384, height: 288 }} />}
       <svg style={{ position: 'absolute', left: 72, top: 640 }} width="600" height="10"><line x1="0" y1="5" x2="600" y2="5" stroke="#000" strokeWidth="0.2" /></svg>
       <p style={{ position: 'absolute', left: 72, bottom: 60, fontSize: 9 }}>Page {n + 1}</p>

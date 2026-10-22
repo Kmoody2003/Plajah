@@ -11,6 +11,7 @@
 import type { DocPrintSpec, JobItem, JobPage, PreflightFinding, PrintJob, RectIn } from './types';
 import { conditionById } from './conditions';
 import { productById } from './products';
+import { SUBSTITUTE, classifyFamily, isSystemFamily } from './fontSource';
 
 const EDGE_EPS = 0.02; // inches: "touching the trim"
 
@@ -115,6 +116,14 @@ export function preflight(job: PrintJob): PreflightFinding[] {
     if (cond.intent === 'home' && page.items.some(i => touchedEdges(i.rect, trim).length)) {
       out.push({ level: 'info', code: 'HOME_MARGIN', pageId: page.id, message: `${page.label}: most home printers leave a ~0.25 in unprinted border.`, fix: 'Keep important content 0.25 in from the edge, or use a printer with borderless printing.' });
     }
+  }
+  // System fonts have no file that may be embedded: vector export swaps in an open family of the same class.
+  const systemFaces = new Set(job.pages.flatMap(p => p.items).filter((i): i is Extract<JobItem, { kind: 'text' }> => i.kind === 'text' && isSystemFamily(i.fontFamily)).map(i => i.fontFamily));
+  for (const fam of systemFaces) {
+    out.push({
+      level: 'info', code: 'FONT_SUBSTITUTE', message: `“${fam}” is a system font that can’t be embedded.`,
+      fix: `Vector export sets it in ${SUBSTITUTE[classifyFamily(fam)]} at the same positions. Choose a Google font in Tela to print exactly what you see.`,
+    });
   }
   return out.sort((a, b) => rank(a.level) - rank(b.level));
 }

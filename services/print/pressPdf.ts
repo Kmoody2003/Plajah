@@ -18,12 +18,15 @@
 // name, which PDF/X-1a permits for registered characterisations; no profile is embedded.
 
 import {
-  PDFArray, PDFDict, PDFDocument, PDFHexString, PDFName, PDFNumber, PDFOperator, PDFPageLeaf, PDFString,
-  appendBezierCurve, closePath, concatTransformationMatrix, drawObject, fill, lineTo, moveTo,
-  popGraphicsState, pushGraphicsState, rectangle, setFillingCmykColor, setGraphicsState, setLineWidth,
-  setStrokingCmykColor, stroke,
+  LineCapStyle, LineJoinStyle, PDFArray, PDFDict, PDFDocument, PDFFont, PDFHexString, PDFName, PDFNumber,
+  PDFOperator, PDFPage, PDFPageLeaf, PDFRawStream, PDFString, appendBezierCurve, decodePDFRawStream, beginText, closePath,
+  concatTransformationMatrix, drawObject, endText, fill, lineTo, moveTo, popGraphicsState, pushGraphicsState,
+  rectangle, setCharacterSpacing, setDashPattern, setFillingCmykColor, setFillingRgbColor, setFontAndSize,
+  setGraphicsState, setLineCap, setLineJoin, setLineWidth, setStrokingCmykColor, setStrokingRgbColor,
+  setTextMatrix, showText, stroke,
 } from 'pdf-lib';
-import { separateCmyk } from '../tela/raster/color';
+import { separateCmyk, srgbToCmyk } from '../tela/raster/color';
+import type { ResolvedFont, VectorPage } from './vector';
 import { conditionById } from './conditions';
 import { printerMarks } from './marks';
 import { saddleStitchSpreads } from './imposition';
@@ -38,6 +41,8 @@ export interface RasterPage {
   data: Uint8ClampedArray;
   /** True when the raster already contains the bleed area around the trim. */
   includesBleed: boolean;
+  /** Text and shapes drawn as real vector on top of the raster (which then holds only images/effects). */
+  vector?: VectorPage;
 }
 
 export interface Dieline {
@@ -59,6 +64,8 @@ export interface PressPdfOptions {
   impose?: 'none' | 'home-booklet';
   /** Draw printer's marks (ignored for home jobs). Defaults to spec.marks. */
   marks?: boolean;
+  /** Fonts for vector text, by fontKey (vector.ts). Embedded and subset; required for any VectorText. */
+  fonts?: Record<string, ResolvedFont>;
   now?: Date;
 }
 
@@ -169,6 +176,75 @@ export async function buildPressPdf(o: PressPdfOptions): Promise<PressPdfResult>
     spotRefs.set(d.spot.name, pdf.context.register(cs));
   }
 
+  // ── Vector layer: embedded fonts, ink, shapes, words ──
+  const usedFonts = new Set(o.pages.flatMap(pg => pg.vector?.texts.map(t => t.fontKey) || []));
+  const embedded = new Map<string, PDFFont>();
+  if (usedFonts.size) {
+    const { default: fontkit } = await import('@pdf-lib/fontkit');
+    pdf.registerFontkit(fontkit);
+    for (const key of usedFonts) {
+      const f = o.fonts?.[key];
+      if (!f) throw new Error(`No font bytes for ${key}; leave that text in the raster or supply the font.`);
+      const strings = o.pages.flatMap(pg => pg.vector?.texts.filter(t => t.fontKey === key).map(t => t.text) || []);
+      const subset = await subsetKeepsGlyphs(f.bytes, strings, fontkit);
+      if (!subset) notes.push(`${f.family}${f.weight !== 400 ? ` ${f.weight}` : ''} embedded in full: subsetting this font would drop glyph outlines.`);
+      embedded.set(key, await pdf.embedFont(f.bytes, { subset }));
+    }
+  }
+  const ink = (rgb: [number, number, number]) => {
+    if (!cmyk) return { fill: setFillingRgbColor(rgb[0] / 255, rgb[1] / 255, rgb[2] / 255), stroke: setStrokingRgbColor(rgb[0] / 255, rgb[1] / 255, rgb[2] / 255) };
+    // Pure black prints in black ink only, like the raster path; everything else is separated with the
+    // condition's GCR and ink limit.
+    const [c, m, y, k] = rgb[0] <= 10 && rgb[1] <= 10 && rgb[2] <= 10 ? [0, 0, 0, 1] : srgbToCmyk(rgb[0] / 255, rgb[1] / 255, rgb[2] / 255, { gcr: cond.gcr, inkLimit: cond.tac / 100 });
+    return { fill: setFillingCmykColor(c, m, y, k), stroke: setStrokingCmykColor(c, m, y, k) };
+  };
+  let vecWords = 0, vecShapes = 0, scaledOff = 0;
+  const fontNames = new Map<string, PDFName>();
+  const drawVector = (page: PDFPage, vec: VectorPage, ox: number, oy: number, toPdfY: (y: number) => number) => {
+    const P = (x: number, y: number) => [(ox + x) * PT_PER_IN, toPdfY(oy + y)] as const;
+    // Clip the vector layer to this page's bleed box so nothing reaches the marks or the next page.
+    page.pushOperators(pushGraphicsState(), rectangle((ox - bleedIn) * PT_PER_IN, toPdfY(oy + trimH + bleedIn), (trimW + 2 * bleedIn) * PT_PER_IN, (trimH + 2 * bleedIn) * PT_PER_IN), PDFOperator.of('W' as any), PDFOperator.of('n' as any));
+    for (const s of vec.shapes) {
+      if (!s.fill && !s.stroke) continue;
+      page.pushOperators(pushGraphicsState());
+      if (s.fill) page.pushOperators(ink(s.fill).fill);
+      if (s.stroke) {
+        page.pushOperators(ink(s.stroke).stroke, setLineWidth(s.strokePt ?? 1));
+        if (s.cap) page.pushOperators(setLineCap(s.cap === 'round' ? LineCapStyle.Round : s.cap === 'square' ? LineCapStyle.Projecting : LineCapStyle.Butt));
+        if (s.join) page.pushOperators(setLineJoin(s.join === 'round' ? LineJoinStyle.Round : s.join === 'bevel' ? LineJoinStyle.Bevel : LineJoinStyle.Miter));
+        if (s.dashPt?.length) page.pushOperators(setDashPattern(s.dashPt, 0));
+      }
+      for (const c of parsePath(s.d)) {
+        if (c.op === 'M') page.pushOperators(moveTo(...P(c.pts[0], c.pts[1])));
+        else if (c.op === 'L') page.pushOperators(lineTo(...P(c.pts[0], c.pts[1])));
+        else if (c.op === 'C') page.pushOperators(appendBezierCurve(...P(c.pts[0], c.pts[1]), ...P(c.pts[2], c.pts[3]), ...P(c.pts[4], c.pts[5])));
+        else page.pushOperators(closePath());
+      }
+      const paint = s.fill && s.stroke ? (s.evenOdd ? 'B*' : 'B') : s.fill ? (s.evenOdd ? 'f*' : 'f') : 'S';
+      page.pushOperators(PDFOperator.of(paint as any), popGraphicsState());
+      vecShapes++;
+    }
+    for (const t of vec.texts) {
+      const font = embedded.get(t.fontKey); if (!font) continue;
+      const nameKey = `${t.fontKey}@${page.ref.toString()}`;
+      let name = fontNames.get(nameKey);
+      if (!name) { name = page.node.newFontDictionary('F', font.ref); fontNames.set(nameKey, name); }
+      // Match the browser's word width: PDF glyph advance + letter spacing, scaled with Tz. A big
+      // mismatch means a different face was measured (e.g. a fallback): draw unscaled and count it.
+      const natural = font.widthOfTextAtSize(t.text, t.sizePt) + t.letterSpacingPt * [...t.text].length;
+      let tz = natural > 0 ? (t.widthIn * PT_PER_IN) / natural : 1;
+      if (tz < 0.85 || tz > 1.15) { tz = 1; scaledOff++; }
+      const [x, y] = P(t.xIn, t.baselineIn);
+      page.pushOperators(
+        pushGraphicsState(), ink(t.color).fill, beginText(), setFontAndSize(name, t.sizePt),
+        setCharacterSpacing(t.letterSpacingPt), PDFOperator.of('Tz' as any, [PDFNumber.of(Math.round(tz * 10000) / 100)]),
+        setTextMatrix(1, 0, 0, 1, x, y), showText(font.encodeText(t.text)), endText(), popGraphicsState(),
+      );
+      vecWords++;
+    }
+    page.pushOperators(popGraphicsState());
+  };
+
   const slots: Array<Array<number | null>> = o.impose === 'home-booklet'
     ? saddleStitchSpreads(o.pages.length).flatMap(s => [s.front, s.back]).map(side => side.map(n => (n === null ? null : n - 1)))
     : o.pages.map((_, i) => [i]);
@@ -201,6 +277,8 @@ export async function buildPressPdf(o: PressPdfOptions): Promise<PressPdfResult>
         drawObject(name),
         popGraphicsState(),
       );
+      const vec = o.pages[pageIdx].vector;
+      if (vec) drawVector(page, vec, x + bleedIn, y + bleedIn, toPdfY);
     });
 
     // Dielines: Separation stroke with overprint so the cut line never knocks out the art.
@@ -251,6 +329,17 @@ export async function buildPressPdf(o: PressPdfOptions): Promise<PressPdfResult>
     }
   }
 
+  if (vecWords || vecShapes) {
+    notes.push(`Vector: ${vecWords} words as live text in ${embedded.size} embedded font${embedded.size === 1 ? '' : 's'}, ${vecShapes} shapes as paths.`);
+    for (const f of [...usedFonts].map(k => o.fonts?.[k]).filter((f): f is ResolvedFont => !!f?.substitutedFor)) {
+      notes.push(`Font substituted: ${f.substitutedFor} → ${f.family} (no embeddable file for ${f.substitutedFor}).`);
+    }
+    if (scaledOff) notes.push(`${scaledOff} words measured in a different face than the one embedded; drawn at natural width.`);
+    const raster: Record<string, number> = {};
+    for (const pg of o.pages) for (const [r, n] of Object.entries(pg.vector?.rasterized || {})) raster[r] = (raster[r] || 0) + n;
+    const rs = Object.entries(raster).filter(([, n]) => n > 0);
+    if (rs.length) notes.push(`Kept as raster: ${rs.map(([r, n]) => `${n} ${r}`).join(', ')}.`);
+  }
   let conformance = 'PDF (RGB)';
   if (cmyk && cond.outputConditionIdentifier) {
     const intent = pdf.context.obj({
@@ -271,6 +360,22 @@ export async function buildPressPdf(o: PressPdfOptions): Promise<PressPdfResult>
   const id = PDFHexString.of(Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join(''));
   pdf.context.trailerInfo.ID = pdf.context.obj([id, id]);
 
+  // Subset fonts must be named TAG+Name (ISO 32000 §9.6.4); pdf-lib writes Name-NNNN. Flush the
+  // embedded fonts, then rename the Type0 font, its descendant and the descriptor.
+  if (embedded.size) {
+    await pdf.flush();
+    for (const [key, font] of embedded) {
+      const type0 = pdf.context.lookup(font.ref, PDFDict);
+      const base = type0.lookup(PDFName.of('BaseFont'), PDFName).decodeText().replace(/^[A-Z]{6}\+/, '');
+      let h = 0; for (const ch of key) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+      const tag = Array.from({ length: 6 }, (_, i) => String.fromCharCode(65 + ((h >>> (i * 5)) % 26))).join('');
+      const named = PDFName.of(`${tag}+${base}`);
+      type0.set(PDFName.of('BaseFont'), named);
+      const cid = type0.lookup(PDFName.of('DescendantFonts'), PDFArray).lookup(0, PDFDict);
+      cid.set(PDFName.of('BaseFont'), named);
+      cid.lookup(PDFName.of('FontDescriptor'), PDFDict).set(PDFName.of('FontName'), named);
+    }
+  }
   const bytes = await pdf.save({ useObjectStreams: false });
   // pdf-lib's writer always emits %PDF-1.7; PDF/X-1a:2003 requires 1.4. Same length, so no offsets move.
   // Nothing written above uses a post-1.4 feature (no object streams, no transparency, no layers).
@@ -298,6 +403,32 @@ export async function buildPanelPdf(title: string, panels: Array<{ label: string
     page.node.set(PDFName.of('TrimBox'), pdf.context.obj([0, 0, W, H]));
   }
   return pdf.save({ useObjectStreams: false });
+}
+
+/**
+ * fontkit's TrueType subsetter loses the outlines of some glyphs in some fonts (seen with Inter: o, b,
+ * t, i, c, s, e, p, l came out empty). Dry-run the subset in a scratch document and check every glyph
+ * the text needs still has an outline; if not, the caller embeds the whole font instead.
+ */
+export async function subsetKeepsGlyphs(bytes: Uint8Array, strings: string[], fontkit: any): Promise<boolean> {
+  try {
+    const scratch = await PDFDocument.create();
+    scratch.registerFontkit(fontkit);
+    const font = await scratch.embedFont(bytes, { subset: true });
+    const ids = new Set<number>();
+    const visible = strings.map(s => s.replace(/\s+/g, '')).filter(Boolean);
+    for (const s of visible) for (const h of font.encodeText(s).asString().replace(/[<>]/g, '').match(/.{4}/g) || []) ids.add(parseInt(h, 16));
+    await scratch.flush();
+    const type0 = scratch.context.lookup(font.ref, PDFDict);
+    const cid = type0.lookup(PDFName.of('DescendantFonts'), PDFArray).lookup(0, PDFDict);
+    const file = cid.lookup(PDFName.of('FontDescriptor'), PDFDict).lookup(PDFName.of('FontFile2'));
+    if (!(file instanceof PDFRawStream)) return false;
+    const program = fontkit.create(decodePDFRawStream(file).decode());
+    for (const id of ids) if (!program.getGlyph(id)?.path?.commands?.length) return false;
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function setBox(node: PDFPageLeaf, key: 'TrimBox' | 'BleedBox', r: { x: number; y: number; w: number; h: number }, toPdfY: (y: number) => number) {

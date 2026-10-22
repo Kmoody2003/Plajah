@@ -23,6 +23,8 @@ import { coverSpread, pageCountRule, spineTextAllowed, spineWidthFromStock } fro
 import { creepOffsets, nUp, saddleStitchSpreads } from '../../../services/print/imposition';
 import { measurePage, rasterizePage, rasterizeRegion, sampleMaxTac, settle, softProof } from '../../../services/print/domPrintJob';
 import WrapDesigner from './WrapDesigner';
+import type { RasterPage } from '../../../services/print/pressPdf';
+import type { ResolvedFont } from '../../../services/print/vector';
 
 interface Props {
   doc: TelaDoc;
@@ -109,6 +111,7 @@ const PrepressPanel: React.FC<Props> = ({ doc, renderFrame, onSetSpec, onAddBlan
 
   // ── Export ──
   const [busy, setBusy] = useState<string | null>(null);
+  const [vectorOn, setVectorOn] = useState(true);
   const [result, setResult] = useState<{ name: string; notes: string[]; conformance: string } | null>(null);
   const exportPdf = async (mode: 'press' | 'digital' | 'home-pages' | 'home-booklet', dpi: number) => {
     setBusy(mode); setResult(null);
@@ -117,11 +120,20 @@ const PrepressPanel: React.FC<Props> = ({ doc, renderFrame, onSetSpec, onAddBlan
       const outSpec: DocPrintSpec = mode === 'press' ? spec
         : mode === 'digital' ? { ...spec, conditionId: 'WIDE_FORMAT', intent: 'digital', marks: { ...spec.marks, crop: false, registration: false, colorBar: false } }
         : { ...spec, conditionId: 'HOME_RGB', intent: 'home', bleedIn: 0 };
-      const pages = [];
+      const pages: RasterPage[] = [];
+      const fonts: Record<string, ResolvedFont> = {};
+      const { buildVectorPage } = vectorOn ? await import('../../../services/print/vectorPage') : { buildVectorPage: null };
       for (const f of pageFrames) {
         const el = pageEls.current.get(f.id); if (!el) continue;
         setBusy(`${mode}: rendering ${f.label || 'page'}…`);
-        pages.push({ label: f.label || `Page ${pages.length + 1}`, ...(await rasterizePage(el, dpi)), includesBleed: false });
+        if (buildVectorPage) {
+          // Text and shapes become real vector; the raster keeps only images and effects.
+          const vb = await buildVectorPage(el, fonts);
+          try { pages.push({ label: f.label || `Page ${pages.length + 1}`, ...(await rasterizePage(vb.clone, dpi)), includesBleed: false, vector: vb.vector }); }
+          finally { vb.dispose(); }
+        } else {
+          pages.push({ label: f.label || `Page ${pages.length + 1}`, ...(await rasterizePage(el, dpi)), includesBleed: false });
+        }
       }
       setBusy(`${mode}: writing PDF…`);
       const res = await buildPressPdf({
@@ -134,6 +146,7 @@ const PrepressPanel: React.FC<Props> = ({ doc, renderFrame, onSetSpec, onAddBlan
           ...(spec.dieline.crease.length ? [{ pageIndex: 0, paths: spec.dieline.crease, spot: spec.spotColors.find(s => s.technical === 'crease') || CREASE }] : []),
         ] : undefined,
         marks: mode === 'press' ? undefined : false,
+        fonts,
       });
       const name = `${(doc.title || 'tela').replace(/[^\w-]+/g, '-')}-${mode}-${cond.id.toLowerCase()}.pdf`;
       const url = URL.createObjectURL(new Blob([res.bytes], { type: 'application/pdf' }));
@@ -327,6 +340,10 @@ const PrepressPanel: React.FC<Props> = ({ doc, renderFrame, onSetSpec, onAddBlan
 
               <section className="space-y-2">
                 <h3 className={lbl}>Export</h3>
+                <label className="flex items-start gap-2 text-[12px] text-white/70">
+                  <input type="checkbox" checked={vectorOn} onChange={e => setVectorOn(e.target.checked)} className="mt-0.5" data-testid="vector-toggle" />
+                  <span>Vector text &amp; shapes <span className="block text-[10.5px] text-white/40">Live type with embedded fonts and sharp paths; images stay raster. Off = whole pages as images.</span></span>
+                </label>
                 <button disabled={!!busy || !pages} onClick={() => void exportPdf('press', cond.intent === 'newsprint' ? 200 : 300)} className="flex w-full items-center gap-2 rounded-xl bg-[#8FF5FF] px-3 py-2.5 text-[12px] font-black text-[#061418] disabled:opacity-40" data-testid="export-press">
                   <Download size={14} /> Press PDF — {cond.colorModel}, bleed, marks
                 </button>
@@ -348,7 +365,7 @@ const PrepressPanel: React.FC<Props> = ({ doc, renderFrame, onSetSpec, onAddBlan
                 )}
                 {!summary.ready && <p className="text-[11px] text-red-300/80">Errors above will show in print. You can still export a proof.</p>}
                 {busy && <p className="text-[12px] text-white/60"><Loader2 size={12} className="mr-1 inline animate-spin" />{busy}</p>}
-                {result && <div className="rounded-lg bg-white/[0.04] p-2.5 text-[11px] text-white/60"><p className="font-bold text-white/85">{result.name}</p>{result.conformance && <p>{result.conformance}</p>}{result.notes.slice(0, 6).map(n => <p key={n}>• {n}</p>)}</div>}
+                {result && <div className="rounded-lg bg-white/[0.04] p-2.5 text-[11px] text-white/60"><p className="font-bold text-white/85">{result.name}</p>{result.conformance && <p>{result.conformance}</p>}{result.notes.slice(0, 14).map(n => <p key={n}>• {n}</p>)}</div>}
               </section>
             </aside>
           </div>
