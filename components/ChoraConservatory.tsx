@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ChevronLeft, Music, Landmark, BookOpen, Ear, Sparkles, GraduationCap, AudioLines, Library, Disc3 } from 'lucide-react';
+import { ChevronLeft, Music, Landmark, BookOpen, Ear, Sparkles, GraduationCap, AudioLines, Library, Disc3, Headphones, Music2, Compass } from 'lucide-react';
 import MuseumHall from './MuseumHall';
 import { CONSERVATORY_HALLS, CONSERVATORY_FIGURES } from '../data/musicFigures';
 import { MUSIC_HISTORY_ERAS } from '../data/musicHistory';
@@ -10,6 +10,11 @@ import { CHORA_CURRICULUM } from '../data/choraCurriculum';
 import InstrumentPrimers from './chora/InstrumentPrimers';
 import RepertoireLibrary from './chora/RepertoireLibrary';
 import PublicDomainLibrary from './chora/PublicDomainLibrary';
+import EarGym from './conservatory/EarGym';
+import StaffSprint from './conservatory/StaffSprint';
+import MusicSchoolCompass from './conservatory/MusicSchoolCompass';
+import type { Curriculum } from '../services/schoolChassis';
+import type { SpineLink } from '../services/musicPedagogy/musicSpine';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ChoraConservatory — the humanities half of Plajah Chora.
@@ -19,13 +24,50 @@ import PublicDomainLibrary from './chora/PublicDomainLibrary';
 //     the shared <MuseumHall> engine, seeded from data/musicFigures.ts.
 //   • Music History — a curated era-by-era reading list from data/musicHistory.ts,
 //     rendered as elegant cards. No external dependencies.
+//   • Ear Gym / Staff Sprint — the ear-training and note-reading workflows
+//     (components/conservatory, services/musicPedagogy).
+//   • Scope & Sequence — the Pre-K→lifelong music spine, its standards crosswalk into
+//     math and ELA, and the research philosophy behind it.
+//   • Curriculum — every music course on the shared School chassis, switchable.
 //
 // Chora's warm-brass accent.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const ACCENT = '#E0A458';
 
-type ConservatoryTab = 'HALL' | 'HISTORY' | 'CURRICULUM' | 'INSTRUMENTS' | 'REPERTOIRE' | 'PUBLIC_DOMAIN';
+type ConservatoryTab = 'HALL' | 'HISTORY' | 'CURRICULUM' | 'INSTRUMENTS' | 'REPERTOIRE' | 'PUBLIC_DOMAIN' | 'EAR_GYM' | 'NOTATION' | 'COMPASS';
+
+/** Music courses the Curriculum tab can switch between (lazy, so the tab stays light). */
+const COURSES: { id: string; label: string; load?: () => Promise<Curriculum> }[] = [
+  { id: 'chora-history', label: 'History of Music' },
+  { id: 'music-language-arts', label: 'Music as Language', load: () => import('../data/practice/courses/music-language-arts').then(m => m.COURSE_MODULE.curriculum) },
+  { id: 'music-theory-early', label: 'Foundations · Pre-K–2', load: () => import('../data/practice/courses/music-theory-early').then(m => m.COURSE_MODULE.curriculum) },
+  { id: 'music-theory-elementary', label: 'Theory · 3–5', load: () => import('../data/practice/courses/music-theory-elementary').then(m => m.COURSE_MODULE.curriculum) },
+  { id: 'music-theory-secondary', label: 'Theory · 6–12', load: () => import('../data/practice/courses/music-theory-secondary').then(m => m.COURSE_MODULE.curriculum) },
+  { id: 'music-theory-college', label: 'Theory · College', load: () => import('../data/practice/courses/music-theory-college').then(m => m.COURSE_MODULE.curriculum) },
+];
+
+const CurriculumShelf: React.FC<{ courseId: string; onPick: (id: string) => void }> = ({ courseId, onPick }) => {
+  const [loaded, setLoaded] = useState<Record<string, Curriculum>>({ 'chora-history': CHORA_CURRICULUM });
+  useEffect(() => {
+    const c = COURSES.find(x => x.id === courseId);
+    if (c?.load && !loaded[courseId]) void c.load().then(cur => setLoaded(l => ({ ...l, [courseId]: cur })));
+  }, [courseId, loaded]);
+  const cur = loaded[courseId];
+  return (
+    <div>
+      <div className="flex gap-1.5 flex-wrap px-4 sm:px-6 lg:px-10 mb-2">
+        {COURSES.map(c => (
+          <button key={c.id} onClick={() => onPick(c.id)} className="px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border transition-colors"
+            style={c.id === courseId ? { background: `${ACCENT}22`, borderColor: ACCENT, color: ACCENT } : { borderColor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)' }}>
+            {c.label}
+          </button>
+        ))}
+      </div>
+      {cur ? <SchoolView key={cur.id} curriculum={cur} embedded /> : <p className="px-10 py-16 text-center text-white/30 text-sm">Loading course…</p>}
+    </div>
+  );
+};
 
 const HistoryCard: React.FC<{ era: typeof MUSIC_HISTORY_ERAS[number]; index: number }> = ({ era, index }) => (
   <motion.article
@@ -85,8 +127,21 @@ const HistoryCard: React.FC<{ era: typeof MUSIC_HISTORY_ERAS[number]; index: num
   </motion.article>
 );
 
-const ChoraConservatory: React.FC<{ onBack: () => void }> = ({ onBack }) => {
-  const [tab, setTab] = useState<ConservatoryTab>('HALL');
+const ChoraConservatory: React.FC<{ onBack: () => void; onNavigate?: (view: string) => void; initialTab?: ConservatoryTab }> = ({ onBack, onNavigate, initialTab }) => {
+  const [tab, setTab] = useState<ConservatoryTab>(initialTab ?? 'HALL');
+  const [courseId, setCourseId] = useState('chora-history');
+  const [sprintLevel, setSprintLevel] = useState<number | undefined>(undefined);
+
+  // Scope & Sequence links: open the drill / course here, or hand off to the Math Quest.
+  const followLink = (l: SpineLink) => {
+    if (l.kind === 'gym') setTab('EAR_GYM');
+    else if (l.kind === 'sprint') { setSprintLevel(l.level); setTab('NOTATION'); }
+    else if (l.kind === 'course') { setCourseId(l.courseId); setTab('CURRICULUM'); }
+    else if (l.kind === 'mathQuest') {
+      try { sessionStorage.setItem('mathClassroom.preset', JSON.stringify({ grade: l.grade, topic: 'Music Math' })); } catch { /* */ }
+      onNavigate?.('MATH_CLASSROOM');
+    } else onNavigate?.(l.view);
+  };
 
   return (
     <div className="flex-1 bg-transparent text-white overflow-y-auto custom-scrollbar pb-40">
@@ -109,7 +164,10 @@ const ChoraConservatory: React.FC<{ onBack: () => void }> = ({ onBack }) => {
         <div className="flex gap-2 mb-6 flex-wrap">
           {([
             { id: 'HALL' as const, label: 'Conservatory Hall', icon: Music },
+            { id: 'EAR_GYM' as const, label: 'Ear Gym', icon: Headphones },
+            { id: 'NOTATION' as const, label: 'Staff Sprint', icon: Music2 },
             { id: 'CURRICULUM' as const, label: 'Curriculum', icon: GraduationCap },
+            { id: 'COMPASS' as const, label: 'Scope & Sequence', icon: Compass },
             { id: 'HISTORY' as const, label: 'Music History', icon: BookOpen },
             { id: 'INSTRUMENTS' as const, label: 'Instruments', icon: AudioLines },
             { id: 'REPERTOIRE' as const, label: 'Repertoire', icon: Library },
@@ -149,7 +207,19 @@ const ChoraConservatory: React.FC<{ onBack: () => void }> = ({ onBack }) => {
             </motion.div>
           ) : tab === 'CURRICULUM' ? (
             <motion.div key="curriculum" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="-mx-4 sm:-mx-6 lg:-mx-10">
-              <SchoolView curriculum={CHORA_CURRICULUM} embedded />
+              <CurriculumShelf courseId={courseId} onPick={setCourseId} />
+            </motion.div>
+          ) : tab === 'EAR_GYM' ? (
+            <motion.div key="ear-gym" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <EarGym />
+            </motion.div>
+          ) : tab === 'NOTATION' ? (
+            <motion.div key="notation" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <StaffSprint key={sprintLevel ?? 'auto'} startLevel={sprintLevel} />
+            </motion.div>
+          ) : tab === 'COMPASS' ? (
+            <motion.div key="compass" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <MusicSchoolCompass onLink={followLink} />
             </motion.div>
           ) : tab === 'INSTRUMENTS' ? (
             <motion.div key="instruments" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>

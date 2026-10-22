@@ -12,6 +12,7 @@ import { addPoints } from '../services/pointsService';
 import { mathStandardForGrade, bandFor } from '../data/educationStandards';
 import { fetchClassLeaderboard, recordTimeAttackResult, createChallenge, type LeaderRow } from '../services/mathChallengeService';
 import { DEMO_CLASS } from '../data/demoClassroom';
+import { MUSIC_MATH_TOPIC, generateMusicMathProblem, musicMathStandardsForGrade } from '../services/musicPedagogy/musicMath';
 
 interface Props {
   onBack: () => void;
@@ -43,14 +44,14 @@ interface QuizResult {
 
 // ── Grade curriculum structure ────────────────────────────────────────────────
 export const GRADE_TOPICS: Record<number, string[]> = {
-  1: ['Counting & Numbers', 'Addition (0–10)', 'Subtraction (0–10)', 'Shapes'],
-  2: ['Addition (0–100)', 'Subtraction (0–100)', 'Place Value', 'Measurement', 'Clocks & Time'],
-  3: ['Multiplication (1–10)', 'Division Intro', 'Fractions Intro', 'Area & Perimeter'],
-  4: ['Multi-digit Multiplication', 'Long Division', 'Fractions', 'Decimals Intro', 'Angles'],
-  5: ['Fraction Operations', 'Decimal Operations', 'Percentages Intro', 'Coordinate Grid', 'Volume'],
-  6: ['Ratios & Rates', 'Percent Problems', 'Intro to Variables', 'Statistics', 'Area of Polygons'],
-  7: ['Linear Equations', 'Inequalities', 'Probability', 'Scale & Proportion', 'Geometry Proofs'],
-  8: ['Systems of Equations', 'Pythagorean Theorem', 'Linear Functions', 'Exponents & Roots', 'Statistics & Scatter Plots'],
+  1: ['Counting & Numbers', 'Addition (0–10)', 'Subtraction (0–10)', 'Shapes', MUSIC_MATH_TOPIC],
+  2: ['Addition (0–100)', 'Subtraction (0–100)', 'Place Value', 'Measurement', 'Clocks & Time', MUSIC_MATH_TOPIC],
+  3: ['Multiplication (1–10)', 'Division Intro', 'Fractions Intro', 'Area & Perimeter', MUSIC_MATH_TOPIC],
+  4: ['Multi-digit Multiplication', 'Long Division', 'Fractions', 'Decimals Intro', 'Angles', MUSIC_MATH_TOPIC],
+  5: ['Fraction Operations', 'Decimal Operations', 'Percentages Intro', 'Coordinate Grid', 'Volume', MUSIC_MATH_TOPIC],
+  6: ['Ratios & Rates', 'Percent Problems', 'Intro to Variables', 'Statistics', 'Area of Polygons', MUSIC_MATH_TOPIC],
+  7: ['Linear Equations', 'Inequalities', 'Probability', 'Scale & Proportion', 'Geometry Proofs', MUSIC_MATH_TOPIC],
+  8: ['Systems of Equations', 'Pythagorean Theorem', 'Linear Functions', 'Exponents & Roots', 'Statistics & Scatter Plots', MUSIC_MATH_TOPIC],
 };
 
 // ── Procedural problem generators ─────────────────────────────────────────────
@@ -72,6 +73,12 @@ export function generateProblem(grade: number, topic: string): Omit<MathProblem,
     while (pool.size < 4) pool.add((parseInt(correct) + pool.size).toString());
     return shuffle([...pool]).slice(0, 4);
   };
+
+  // Music Math has its own generator (rhythm fractions, tempo rates, tuning exponents) for every grade.
+  if (topic === MUSIC_MATH_TOPIC) {
+    const { standardIds: _ids, explanation: _why, ...p } = generateMusicMathProblem(grade);
+    return p;
+  }
 
   if (grade === 1) {
     if (topic.includes('Addition') || topic.includes('Counting')) {
@@ -624,6 +631,28 @@ const MathClassroom: React.FC<Props> = ({ onBack, user }) => {
     return () => { alive = false; };
   }, [user?.uid]);
 
+  // Deep link (e.g. from the Conservatory): sessionStorage 'mathClassroom.preset' = { grade, topic }, consumed once.
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem('mathClassroom.preset');
+      if (!raw) return;
+      sessionStorage.removeItem('mathClassroom.preset');
+      const { grade: g, topic: t } = JSON.parse(raw) || {};
+      if (GRADE_TOPICS[g]?.includes(t)) { setGrade(g); setTopic(t); }
+    } catch { /* storage blocked or bad JSON — keep defaults */ }
+  }, []);
+
+  // Music Math sessions also move the music + cross-topic standards the set exercises (rhythm, harmony, ear).
+  const recordMusicStandards = (grade: number, topic: string, pct: number, primaryId?: string) => {
+    if (topic !== MUSIC_MATH_TOPIC || !user?.uid) return;
+    musicMathStandardsForGrade(grade).filter(id => id !== primaryId).forEach(id => {
+      const before = mathProf[id] ?? 0;
+      const after = mathProf[id] == null ? pct : Math.round(before * 0.4 + pct * 0.6);
+      setMathProf(m => ({ ...m, [id]: after }));
+      appendRecord({ studentId: user.uid, standardId: id, framework: id.startsWith('MUSIC.') ? 'NCAS_MUSIC' : 'CCSS_MATH', source: 'math-classroom', masteryBefore: before, masteryAfter: after }).catch(() => {});
+    });
+  };
+
   // Quiz finished → show result + write the standards-aligned Learner Ledger + award real points.
   const handleQuizComplete = (r: QuizResult) => {
     setQuizResult(r); setQuizActive(false); setShowShare(true);
@@ -636,6 +665,7 @@ const MathClassroom: React.FC<Props> = ({ onBack, user }) => {
       appendRecord({ studentId: user.uid, standardId: std.id, framework: 'CCSS_MATH', source: 'math-classroom', masteryBefore: before, masteryAfter: after });
       if (r.correct > 0) addPoints(user.uid, r.correct * 2, 'DAILY_ACTIVITY', 'math-classroom', `${r.grade}-${r.topic}`).catch(() => {});
     }
+    recordMusicStandards(r.grade, r.topic, score, std?.id);
   };
   const [showShare, setShowShare] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
@@ -668,6 +698,7 @@ const MathClassroom: React.FC<Props> = ({ onBack, user }) => {
         setMathProf(m => ({ ...m, [std.id]: after }));
         appendRecord({ studentId: user.uid, standardId: std.id, framework: 'CCSS_MATH', source: 'math-classroom', masteryBefore: before, masteryAfter: after }).catch(() => {});
       }
+      recordMusicStandards(r.grade, r.topic, pct, std?.id);
       recordTimeAttackResult(user.uid, r).catch(() => {});
     }
     // Class-scoped leaderboard for the result screen.

@@ -7330,7 +7330,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {/* ── Chora Conservatory — music museum + history ── */}
             {view === 'CHORA_CONSERVATORY' && (
               <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-sm">Loading…</div>}>
-                <ChoraConservatory onBack={() => setView('MUSIC')} />
+                <ChoraConservatory onBack={() => setView('MUSIC')} onNavigate={v => setView(v as any)} />
               </Suspense>
             )}
 

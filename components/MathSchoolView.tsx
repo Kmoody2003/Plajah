@@ -277,6 +277,15 @@ const MATH_QUESTS = [
     route: 'MONEY_SCHOOL',
     points: '150 pts',
   },
+  {
+    id: 'music-math',
+    title: 'Music Math Quest',
+    desc: 'Fractions in rhythm, ratios in harmony, exponents in tuning. Pick "Music Math" in any grade to learn the math by ear.',
+    accent: '#00DAF3',
+    emoji: '🎼',
+    route: 'MATH_CLASSROOM',
+    points: '150 pts',
+  },
 ];
 
 const MathSchoolView: React.FC<Props> = ({ onBack, onNavigate, user, profile }) => {
@@ -588,7 +597,7 @@ const MathSchoolView: React.FC<Props> = ({ onBack, onNavigate, user, profile }) 
                 <h2 className="text-xl font-black uppercase tracking-wider text-white">Math Quests & Challenges</h2>
                 <p className="text-xs text-white/50">Rapid-fire drills, applied challenges, and leaderboard competitions</p>
               </div>
-              <span className="text-xs text-white/40">4 Featured Quests</span>
+              <span className="text-xs text-white/40">{MATH_QUESTS.length} Featured Quests</span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -716,6 +725,12 @@ const MathSchoolView: React.FC<Props> = ({ onBack, onNavigate, user, profile }) 
                   desc: 'Explore frequency ratios, equal temperament tuning, and wave interference inside the Chora Conservatory.',
                   accent: '#00DAF3',
                   action: () => onNavigate('CHORA_CONSERVATORY'),
+                },
+                {
+                  title: 'Music: Rhythm, Tempo & Tuning Math',
+                  desc: 'A dotted quarter is 3/8 of a whole note, 120 BPM is 0.5 s per beat, and each piano key is 440 · 2^(n/12) Hz. Practice it in the Music Math quest.',
+                  accent: '#EC4899',
+                  action: () => onNavigate('MATH_CLASSROOM'),
                 },
                 {
                   title: 'Financial Unit Economics & Valuation',

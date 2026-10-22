@@ -6,6 +6,7 @@
  * Pure + dependency-free so it can be unit-tested.
  */
 import type { PracticeItem } from '../components/learn/PracticeView';
+import { MUSIC_MATH_TOPIC, generateMusicMathProblem } from './musicPedagogy/musicMath';
 
 type Rng = () => number;
 const ri = (r: Rng, a: number, b: number) => a + Math.floor(r() * (b - a + 1));
@@ -94,6 +95,11 @@ export const ADVANCED_SKILLS: AdvSkill[] = [
     return mc(r, `adv12b.${n}`, `Evaluate:  lim (x→${x0}) of (${a}x ${sgn(b)})`, `${v}`, [`${v + a}`, `${a * x0}`, `does not exist`],
       `A polynomial is continuous, so just substitute x = ${x0}: ${a}(${x0}) ${sgn(b)} = ${v}.`, 'For a continuous function, the limit equals the value.', 2);
   } },
+  // Music Math for high school: sine-wave period/frequency (HSF-TF), exponential vs linear pitch and log₂ octaves (HSF-LE).
+  ...[9, 10, 11, 12].map((grade): AdvSkill => ({ grade, topic: MUSIC_MATH_TOPIC, gen: (r, n) => {
+    const p = generateMusicMathProblem(grade, r);
+    return mc(r, `adv${grade}m.${n}`, p.question, p.answer, p.choices.filter(c => c !== p.answer), p.explanation, p.hint || '', 2);
+  } })),
 ];
 
 export const ADVANCED_TOPICS_BY_GRADE: Record<number, string[]> = ADVANCED_SKILLS.reduce((m, s) => { (m[s.grade] ||= []).push(s.topic); return m; }, {} as Record<number, string[]>);

@@ -63,6 +63,7 @@ const LOADERS: Record<string, () => Promise<QuestionBank>> = {
   'music-theory-secondary': () => import('./courses/music-theory-secondary').then(m => m.COURSE_MODULE.bank),
   'music-theory-college': () => import('./courses/music-theory-college').then(m => m.COURSE_MODULE.bank),
   'music-history-eras': () => import('./courses/music-history-eras').then(m => m.COURSE_MODULE.bank),
+  'music-language-arts': () => import('./courses/music-language-arts').then(m => m.COURSE_MODULE.bank),
   'theatre-scripts': () => import('./courses/theatre-scripts').then(m => m.COURSE_MODULE.bank),
   'thinking-methods': () => import('./courses/thinking-methods').then(m => m.COURSE_MODULE.bank),
   'world-religions': () => import('./courses/world-religions').then(m => m.COURSE_MODULE.bank),

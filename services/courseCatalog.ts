@@ -59,7 +59,7 @@ const SCIENCE_IDS: Array<[string, string, string]> = [
 ];
 
 /** Course modules authored from the Labs / museum data (data/practice/courses). */
-const mods: string[] = ['art-masters', 'art-movements-classical', 'art-movements-modern', 'audio-engineering', 'botany-forest', 'color-theory', 'comic-history', 'design-movements', 'entertainment-finance', 'film-business', 'film-directing', 'film-genres', 'film-history', 'film-producing', 'founding-documents', 'graphic-design', 'history-arab-world', 'history-asia', 'history-europe', 'history-north-america', 'history-south-america', 'hq-quest', 'ip-protection', 'lab-archaeology', 'lab-architecture', 'lab-astronomy', 'lab-biology', 'lab-chemistry', 'lab-combat', 'lab-cs', 'lab-data', 'lab-earth', 'lab-engineering', 'lab-environment', 'lab-history', 'lab-mathematics', 'lab-networks', 'lab-neuroscience', 'lab-physics', 'lighting-design', 'lit-studies-early', 'lit-studies-modern', 'music-business', 'music-figures', 'music-genres', 'music-history-eras', 'music-theory', 'music-theory-college', 'music-theory-early', 'music-theory-elementary', 'music-theory-secondary', 'publishing-business', 'sports-history', 'theatre-scripts', 'thinking-methods', 'world-mythology', 'world-religions'];
+const mods: string[] = ['art-masters', 'art-movements-classical', 'art-movements-modern', 'audio-engineering', 'botany-forest', 'color-theory', 'comic-history', 'design-movements', 'entertainment-finance', 'film-business', 'film-directing', 'film-genres', 'film-history', 'film-producing', 'founding-documents', 'graphic-design', 'history-arab-world', 'history-asia', 'history-europe', 'history-north-america', 'history-south-america', 'hq-quest', 'ip-protection', 'lab-archaeology', 'lab-architecture', 'lab-astronomy', 'lab-biology', 'lab-chemistry', 'lab-combat', 'lab-cs', 'lab-data', 'lab-earth', 'lab-engineering', 'lab-environment', 'lab-history', 'lab-mathematics', 'lab-networks', 'lab-neuroscience', 'lab-physics', 'lighting-design', 'lit-studies-early', 'lit-studies-modern', 'music-business', 'music-figures', 'music-genres', 'music-history-eras', 'music-language-arts', 'music-theory', 'music-theory-college', 'music-theory-early', 'music-theory-elementary', 'music-theory-secondary', 'publishing-business', 'sports-history', 'theatre-scripts', 'thinking-methods', 'world-mythology', 'world-religions'];
 
 const rosterEmoji = (r: (typeof ROSTER)[number]): string =>
   r.stage === 'prek2' ? '🧸' : r.stage === 'g35' ? '📘' : r.stage === 'g68' ? '🔎' : r.stage === 'g912' ? '🎓'
@@ -133,6 +133,7 @@ export const COURSES: Course[] = [
   { id: 'music-theory-secondary', subject: 'arts', title: 'Music Theory (Grades 6-12)', blurb: 'Scales, chords, voice leading, form and the jazz and pop progressions.', emoji: '🎹', accent: '#FFD24A', kind: 'curriculum', view: 'MUSIC', curriculumId: 'music-theory-secondary' },
   { id: 'music-theory-college', subject: 'arts', title: 'Music Theory (College)', blurb: 'Counterpoint, chromatic harmony, form, set theory, serialism and jazz.', emoji: '🎓', accent: '#FFD24A', kind: 'curriculum', view: 'MUSIC', curriculumId: 'music-theory-college' },
   { id: 'music-history-eras', subject: 'arts', title: 'The Story of Music', blurb: 'From ancient song to hip-hop: the composers, instruments and ideas that shaped music.', emoji: '🏛️', accent: '#FFD24A', kind: 'curriculum', view: 'MUSIC', curriculumId: 'music-history-eras' },
+  { id: 'music-language-arts', subject: 'arts', title: 'Music as Language', blurb: 'Songwriting as literature: rhythm and meter, melody as sentence, form as story, a lyric workshop, and the math of music.', emoji: '✍️', accent: '#E0A458', kind: 'curriculum', view: 'MUSIC', curriculumId: 'music-language-arts' },
   { id: 'theatre-scripts', subject: 'arts', title: 'Theatre and Scripts', blurb: 'How plays work, with great public-domain scripts.', emoji: '🎭', accent: '#e23b6d', kind: 'curriculum', view: 'BOOKS', curriculumId: 'theatre-scripts' },
   { id: 'comic-history', subject: 'arts', title: 'Comics and Manga: A History', blurb: 'Sequential art, from early picture stories to graphic novels.', emoji: '💥', accent: '#FF6FA8', kind: 'curriculum', view: 'COMIC_MUSEUM', curriculumId: 'comic-history' },
   { id: 'world-religions', subject: 'humanities', title: 'World Religions: A Study Guide', blurb: 'What the world\u2019s traditions teach and practise, in their own terms.', emoji: '🕊️', accent: '#7a2bd6', kind: 'curriculum', view: 'SACRED_LIBRARY', curriculumId: 'world-religions' },
@@ -233,6 +234,7 @@ const CURRICULUM_LOADERS: Record<string, () => Promise<Curriculum>> = {
   'music-theory-secondary': () => import('../data/practice/courses/music-theory-secondary').then(m => m.COURSE_MODULE.curriculum),
   'music-theory-college': () => import('../data/practice/courses/music-theory-college').then(m => m.COURSE_MODULE.curriculum),
   'music-history-eras': () => import('../data/practice/courses/music-history-eras').then(m => m.COURSE_MODULE.curriculum),
+  'music-language-arts': () => import('../data/practice/courses/music-language-arts').then(m => m.COURSE_MODULE.curriculum),
   'theatre-scripts': () => import('../data/practice/courses/theatre-scripts').then(m => m.COURSE_MODULE.curriculum),
   'thinking-methods': () => import('../data/practice/courses/thinking-methods').then(m => m.COURSE_MODULE.curriculum),
   'world-religions': () => import('../data/practice/courses/world-religions').then(m => m.COURSE_MODULE.curriculum),
@@ -339,6 +341,7 @@ export const THREADS: Thread[] = [
     { label: 'Music Theory, grades 3-5', why: 'Reading notes, rhythms and scales.', courseId: 'music-theory-elementary' },
     { label: 'Music Theory and Instruments', why: 'How instruments make sound, and the forms that organise it.', courseId: 'music-theory' },
     { label: 'Music Theory, grades 6-12', why: 'Chords, voice leading and form.', courseId: 'music-theory-secondary' },
+    { label: 'Music as Language', why: 'Write songs the way writers write: meter, phrasing, form and revision.', courseId: 'music-language-arts' },
     { label: 'Music Theory, college', why: 'Counterpoint, chromatic harmony, set theory and jazz.', courseId: 'music-theory-college' },
     { label: 'The Story of Music', why: 'The history behind everything you just learned.', courseId: 'music-history-eras' } ] },
   { id: 'music-business', title: 'The business of music', emoji: '🎤', accent: '#FFD24A', blurb: 'From the first recordings to a band that pays its way.', steps: [

@@ -1,0 +1,20 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": true, "skipLibCheck": true, "incremental": false },
+  "include": [
+    "services/musicPedagogy/**/*.ts",
+    "components/conservatory/**/*.tsx",
+    "components/ChoraConservatory.tsx",
+    "components/MathClassroom.tsx",
+    "components/MathSchoolView.tsx",
+    "services/mathAdvanced.ts",
+    "services/mathPractice.ts",
+    "services/learningLedgerService.ts",
+    "data/educationStandards.ts",
+    "data/practice/courses/music-language-arts.ts",
+    "data/practice/index.ts",
+    "services/courseCatalog.ts",
+    "scripts/checkMusicMath.ts",
+    "scripts/checkEarGym.ts"
+  ]
+}

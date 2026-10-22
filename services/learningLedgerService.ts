@@ -29,7 +29,8 @@ export type LearningRecordSource =
   | 'reading-quest' | 'science-quest' | 'math-classroom' | 'teacher-assessment' | 'creative-artifact' | 'import'
   | 'school-lesson'    // any curriculum built on the shared School chassis (Film, Photo/Art, Chora, Academia)
   | 'praxis'           // the Praxis venture school — building a real business IS the assessment
-  | 'voca';            // Voca read-aloud: accuracy + rate + comprehension on a leveled passage
+  | 'voca'             // Voca read-aloud: accuracy + rate + comprehension on a leveled passage
+  | 'conservatory';    // Conservatory Ear Gym / Staff Sprint drills (services/musicPedagogy)
 
 export interface LearningRecord {
   id: string;
