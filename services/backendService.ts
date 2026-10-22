@@ -1835,6 +1835,7 @@ export const subscribeToClubPostComments = (postId: string, callback: (comments:
 
 export const addClubPostComment = async (
   postId: string, text: string, parentId?: string | null, gifUrl?: string,
+  media?: { imageUrl?: string; videoUrl?: string; audioUrl?: string },
 ) => {
   if (!auth.currentUser) throw new Error('Not authenticated');
   const displayName = auth.currentUser.displayName || 'Anonymous';
@@ -1851,6 +1852,9 @@ export const addClubPostComment = async (
     likesCount: 0,
   };
   if (gifUrl) commentData.gifUrl = gifUrl;
+  if (media?.imageUrl) commentData.imageUrl = media.imageUrl;
+  if (media?.videoUrl) commentData.videoUrl = media.videoUrl;
+  if (media?.audioUrl) commentData.audioUrl = media.audioUrl;
   const docRef = await addDoc(collection(db, 'clubPosts', postId, 'comments'), commentData);
   updateDoc(doc(db, 'clubPosts', postId), { commentCount: increment(1) }).catch(() => {});
   return { id: docRef.id, ...commentData };
@@ -4405,20 +4409,22 @@ export const subscribeToComments = (parentId: string, trackId: string | null, vi
 
 export const postComment = async (parentId: string, comment: Omit<Comment, 'id'>, parentCollection: string = 'albums') => {
   const path = `${parentCollection}/${parentId}/comments`;
+  if (!auth.currentUser) throw new Error('Sign in to comment');
+  const commentWithUid: Record<string, any> = {
+    ...comment,
+    uid: auth.currentUser.uid,
+    parentId: comment.parentId || null
+  };
+  Object.keys(commentWithUid).forEach(k => { if (commentWithUid[k] === undefined) delete commentWithUid[k]; });
+  // The comment write must surface failure; notifications / counters below are best-effort.
+  await addDoc(collection(db, parentCollection, parentId, "comments"), commentWithUid);
   try {
-    const commentWithUid: Record<string, any> = {
-      ...comment,
-      uid: auth.currentUser?.uid || null,
-      parentId: comment.parentId || null
-    };
     // Firestore is initialized without `ignoreUndefinedProperties`, so writing an
     // `undefined` value (e.g. videoId on a track comment, or trackId on a video
     // comment) THROWS "Unsupported field value: undefined" — the comment never
     // persists and appears to "vanish" after posting. Strip undefined fields so
     // the write always succeeds and satisfies isValidComment (which also forbids
-    // a `videoId`/`trackId` key that isn't a string).
-    Object.keys(commentWithUid).forEach(k => { if (commentWithUid[k] === undefined) delete commentWithUid[k]; });
-    await addDoc(collection(db, parentCollection, parentId, "comments"), commentWithUid);
+    // a `videoId`/`trackId` key that isn't a string). (Stripped above, before the write.)
     
     // Notify parent owner (content owner gets COMMENT notification)
     const parentRef = doc(db, parentCollection, parentId);
@@ -4477,10 +4483,10 @@ export const postComment = async (parentId: string, comment: Omit<Comment, 'id'>
       });
     }
 
-    // Update comment count
+    // Update comment count (only some parents allow non-owners to bump it — best-effort).
     await updateDoc(parentRef, {
       commentsCount: increment(1)
-    });
+    }).catch(() => {});
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, path);
   }
@@ -7324,11 +7330,14 @@ export const sendMessage = async (roomId: string, message: Omit<ChatMessage, 'id
   // Fair Process: messaging is never removed, only limited under the strictest tiers (throws StandingDMError).
   await (await import('./enforcement/dmGuard')).assertCanSendMessage(roomId, message);
   const path = `chat_rooms/${roomId}/messages`;
+  if (!auth.currentUser || auth.currentUser.isAnonymous) throw new Error('Sign in to chat');
+  // The message write itself must surface failure so the composer can restore the draft;
+  // notifications and room metadata below are best-effort.
+  await addDoc(collection(db, 'chat_rooms', roomId, 'messages'), {
+    ...message,
+    timestamp: Date.now()
+  });
   try {
-    const docRef = await addDoc(collection(db, 'chat_rooms', roomId, 'messages'), {
-      ...message,
-      timestamp: Date.now()
-    });
 
     // Notify other participants in room
     const roomRef = doc(db, 'chat_rooms', roomId);
@@ -8182,9 +8191,13 @@ export const getLikedVideos = async (uid?: string): Promise<Video[]> => {
   }
 };
 
-export const postVideoComment = async (videoId: string, text: string, parentId?: string, gifUrl?: string, mediaTimestamp?: number) => {
-  if (!auth.currentUser) return;
-  const id = `vcom_${Date.now()}`;
+export const postVideoComment = async (
+  videoId: string, text: string, parentId?: string, gifUrl?: string, mediaTimestamp?: number,
+  media?: { imageUrl?: string; videoUrl?: string; audioUrl?: string; gifUrl?: string },
+) => {
+  if (!auth.currentUser) throw new Error('Sign in to comment');
+  // Random suffix: two sends in the same millisecond must not overwrite each other.
+  const id = `vcom_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const path = `videos/${videoId}/comments/${id}`;
   const comment: VideoComment = removeUndefined({
     id,
@@ -8195,11 +8208,15 @@ export const postVideoComment = async (videoId: string, text: string, parentId?:
     text: text || '',
     timestamp: Date.now(),
     parentId: parentId || undefined,
-    gifUrl: gifUrl || undefined,
+    gifUrl: gifUrl || media?.gifUrl || undefined,
+    imageUrl: media?.imageUrl || undefined,
+    videoUrl: media?.videoUrl || undefined,
+    audioUrl: media?.audioUrl || undefined,
     mediaTimestamp: typeof mediaTimestamp === 'number' && !isNaN(mediaTimestamp) ? mediaTimestamp : undefined,
   });
+  // The comment write itself must surface failure, or the UI shows a comment that never saved.
+  await setDoc(doc(db, 'videos', videoId, 'comments', id), comment);
   try {
-    await setDoc(doc(db, 'videos', videoId, 'comments', id), comment);
     await updateDoc(doc(db, 'videos', videoId), { commentsCount: increment(1) });
 
     // Notify video owner

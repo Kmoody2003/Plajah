@@ -1746,7 +1746,7 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
               </div>
               <CommentSection
                 comments={commentsList}
-                onPostComment={(text, parentId, mediaTimestamp) => postVideoComment(activeVideo.id, text, parentId, undefined, mediaTimestamp)}
+                onPostComment={(text, parentId, mediaTimestamp, media) => postVideoComment(activeVideo.id, text, parentId, undefined, mediaTimestamp, media)}
                 onPostGif={(gifUrl, parentId) => postVideoComment(activeVideo.id, '', parentId, gifUrl)}
                 currentUser={currentUser}
                 title=""
@@ -1771,7 +1771,7 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
           <div className="flex-1 min-h-0 p-3 [&>div]:h-full [&>div]:max-h-none">
             <CommentSection
               comments={commentsList}
-              onPostComment={(text, parentId, mediaTimestamp) => postVideoComment(activeVideo.id, text, parentId, undefined, mediaTimestamp)}
+              onPostComment={(text, parentId, mediaTimestamp, media) => postVideoComment(activeVideo.id, text, parentId, undefined, mediaTimestamp, media)}
               onPostGif={(gifUrl, parentId) => postVideoComment(activeVideo.id, '', parentId, gifUrl)}
               currentUser={currentUser}
               title=""
@@ -1815,7 +1815,7 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
               <div className="flex-1 min-h-0 overflow-hidden">
                 <CommentSection
                   comments={commentsList}
-                  onPostComment={(text, parentId, mediaTimestamp) => postVideoComment(activeVideo.id, text, parentId, undefined, mediaTimestamp)}
+                  onPostComment={(text, parentId, mediaTimestamp, media) => postVideoComment(activeVideo.id, text, parentId, undefined, mediaTimestamp, media)}
                   onPostGif={(gifUrl, parentId) => postVideoComment(activeVideo.id, '', parentId, gifUrl)}
                   currentUser={currentUser}
                   title=""

@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { db, followUser, ensureGuestAuth, loginWithGoogle, auth } from '../services/backendService';
 import { saveSessionRecording } from '../services/liveStreamService';
-import { doc, collection, setDoc, deleteDoc, runTransaction, arrayUnion, increment, getDoc, updateDoc, addDoc, query, orderBy, limit } from 'firebase/firestore';
+import { doc, collection, setDoc, deleteDoc, runTransaction, arrayUnion, increment, getDoc, updateDoc, addDoc, query, orderBy, limit, limitToLast } from 'firebase/firestore';
 import { onSnapshot } from '../services/safeSnapshot';
 import type { WC26Team } from '../data/worldCup2026';
 import { useRtcSession } from '../hooks/useRtcSession';
@@ -284,7 +284,7 @@ const WCVideoChatRoomInner: React.FC<WCVideoChatRoomProps> = ({ team, currentUse
       );
     }, () => {});
 
-    const chatQ = query(collection(db, 'wcVideoRooms', clubId, 'chat'), orderBy('at', 'asc'), limit(CHAT_LIMIT));
+    const chatQ = query(collection(db, 'wcVideoRooms', clubId, 'chat'), orderBy('at', 'asc'), limitToLast(CHAT_LIMIT)) // newest N, not the oldest N;
     const unsubChat = onSnapshot(chatQ, snap => {
       if (!mountedRef.current) return;
       setChat(snap.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as ChatMessage[]);

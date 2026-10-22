@@ -1663,7 +1663,7 @@ const VideoPlayerInner: React.FC<VideoPlayerProps> = ({ video: initialVideo, onB
                   <div className="mt-2 bg-white/[0.03] rounded-2xl border border-white/5 overflow-hidden" style={{ maxHeight: 500 }}>
                     <CommentSection
                       comments={comments}
-                      onPostComment={(text, parentId, _mediaTimestamp, gifUrl) => postVideoComment(video.id, text, parentId, gifUrl)}
+                      onPostComment={(text, parentId, mediaTimestamp, media) => postVideoComment(video.id, text, parentId, undefined, mediaTimestamp, media)}
                       onPostGif={(gifUrl, parentId) => postVideoComment(video.id, '', parentId, gifUrl)}
                       currentUser={currentUser}
                       title="Comments"
@@ -1689,7 +1689,7 @@ const VideoPlayerInner: React.FC<VideoPlayerProps> = ({ video: initialVideo, onB
         <div className="flex-1 overflow-hidden">
           <CommentSection
             comments={comments}
-            onPostComment={(text, parentId, _mediaTimestamp, gifUrl) => postVideoComment(video.id, text, parentId, gifUrl)}
+            onPostComment={(text, parentId, mediaTimestamp, media) => postVideoComment(video.id, text, parentId, undefined, mediaTimestamp, media)}
             onPostGif={(gifUrl, parentId) => postVideoComment(video.id, '', parentId, gifUrl)}
             currentUser={currentUser}
             title=""

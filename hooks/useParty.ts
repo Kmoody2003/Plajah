@@ -98,6 +98,8 @@ export function useParty(partyId: string | null): UseParty {
   useEffect(() => {
     if (!partyId) { setParty(null); setLoading(false); return; }
     setLoading(true);
+    setParty(null); // don't drive playback from the previous party while the new one loads
+    partyRef.current = null;
     lastSeqRef.current = -1;
     hbSeenRef.current = { ms: -1, localMs: 0 };
     const unsub = listenToParty(partyId, (p) => {

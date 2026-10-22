@@ -7,7 +7,7 @@
 import { db } from './firebase';
 import {
   collection, doc, setDoc, deleteDoc, addDoc, updateDoc, onSnapshot, query, orderBy, limit,
-  arrayUnion, getDocs, serverTimestamp,
+  arrayUnion, getDocs, serverTimestamp, runTransaction,
 } from 'firebase/firestore';
 import { getPlayersByTeam, getKeyPlayers, getCaptain, WC26Player } from '../data/worldCupPlayers';
 import { getTeam, WC26Team, WC26_TEAMS } from '../data/worldCup2026';
@@ -76,6 +76,25 @@ export function subscribeMembers(matchId: string, cb: (m: RoomMember[]) => void)
 export async function sendMatchMessage(matchId: string, msg: Omit<RoomMessage, 'id' | 'at'>): Promise<void> {
   await addDoc(chatCol(matchId), { ...msg, at: Date.now() });
 }
+/** Post a room event (e.g. a goal) exactly once, however many fans' clients notice it.
+ *  The doc id is the event key, created in a transaction so only the first writer lands. */
+export async function postMatchEventOnce(matchId: string, eventKey: string, text: string): Promise<void> {
+  const ref = doc(db, roomCol, matchId, 'chat', `evt_${eventKey.replace(/[^A-Za-z0-9_-]/g, '_')}`);
+  await runTransaction(db, async tx => {
+    if ((await tx.get(ref)).exists()) return;
+    tx.set(ref, { uid: 'system', displayName: 'Match', text, side: null, at: Date.now() });
+  });
+}
+const pollDocId = (key: string) => `p_${key.replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 120)}`;
+/** Create a poll keyed by its template key — concurrent seeders can't duplicate it. */
+async function createPollOnce(matchId: string, seed: Omit<MatchPoll, 'id' | 'votes' | 'voterSides' | 'createdAt'>): Promise<boolean> {
+  const ref = doc(db, roomCol, matchId, 'polls', pollDocId(seed.key));
+  return runTransaction(db, async tx => {
+    if ((await tx.get(ref)).exists()) return false;
+    tx.set(ref, { ...seed, votes: {}, voterSides: {}, createdAt: Date.now() });
+    return true;
+  });
+}
 export function subscribeMatchChat(matchId: string, cb: (m: RoomMessage[]) => void): () => void {
   const q = query(chatCol(matchId), orderBy('at', 'desc'), limit(80));
   return onSnapshot(q, snap => cb(snap.docs.map(d => ({ id: d.id, ...(d.data() as any) })).reverse()), () => cb([]));
@@ -102,8 +121,7 @@ export async function ensureMatchPolls(matchId: string, home: TeamCtx, away: Tea
   let added = 0;
   for (const s of seeds) {
     if (existing.size + added >= minPolls) break;
-    await addDoc(pollCol(matchId), { ...s, votes: {}, voterSides: {}, createdAt: Date.now() });
-    added++;
+    if (await createPollOnce(matchId, s as any)) added++;
   }
   return added;
 }
@@ -114,8 +132,7 @@ export async function addNextPoll(matchId: string, home: TeamCtx, away: TeamCtx,
   const haveKeys = new Set(existing.docs.map(d => (d.data() as any).key));
   const seed = generateMatchPolls(home, away, phase).find(s => !haveKeys.has(s.key));
   if (!seed) return false;
-  await addDoc(pollCol(matchId), { ...seed, votes: {}, voterSides: {}, createdAt: Date.now() });
-  return true;
+  return createPollOnce(matchId, seed as any);
 }
 
 // ── Team resolution + intelligent poll generation ────────────────────────────

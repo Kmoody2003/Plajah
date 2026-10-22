@@ -48,6 +48,13 @@ export interface PostComment {
   mediaTimestamp?: number;
 }
 
+export interface CommentMedia {
+  imageUrl?: string;
+  videoUrl?: string;
+  audioUrl?: string;
+  gifUrl?: string;
+}
+
 interface CommentSectionProps {
   // Self-contained mode (for posts)
   postId?: string;
@@ -57,7 +64,8 @@ interface CommentSectionProps {
   initialCount?: number;
   // Legacy pass-through mode (albums, articles, videos)
   comments?: any[];
-  onPostComment?: (text: string, parentId?: string, mediaTimestamp?: number) => Promise<void>;
+  /** `media` carries composer uploads (photo / video / voice note / GIF) so legacy surfaces persist them too. */
+  onPostComment?: (text: string, parentId?: string, mediaTimestamp?: number, media?: CommentMedia) => Promise<void>;
   onPostGif?: (gifUrl: string, parentId?: string) => Promise<void>;
   currentUser?: any;
   title?: string;
@@ -70,6 +78,8 @@ interface CommentSectionProps {
   playbackTime?: number;
   /** Jump the media to a pinned comment's moment. */
   onSeek?: (seconds: number) => void;
+  /** Read the thread but don't offer the composer (e.g. the author limited who can reply). */
+  readOnly?: boolean;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -106,7 +116,8 @@ interface BubbleProps {
   allComments: PostComment[];
   postId: string;
   onReply: (id: string, name: string) => void;
-  onDelete: (id: string) => void;
+  /** Omitted where the surface can't delete (legacy pass-through) — the trash icon is hidden then. */
+  onDelete?: (id: string) => void;
   onLikeToggle: (id: string) => void;
   onVisitUser?: (uid: string) => void;
   depth: number;
@@ -292,7 +303,7 @@ const CommentBubble: React.FC<BubbleProps> = ({
             )}
 
             {/* Delete (own only) */}
-            {isOwn && !comment.isPending && (
+            {isOwn && !comment.isPending && onDelete && (
               <button
                 onClick={() => onDelete(comment.id)}
                 className={`tap opacity-0 group-hover/bubble:opacity-100 transition-all hover:text-red-500
@@ -833,6 +844,9 @@ const mapLegacyComment = (c: any): PostComment => ({
   likedBy: c.likedBy || [],
   likesCount: c.likesCount || 0,
   ...(c.gifUrl ? { gifUrl: c.gifUrl } : {}),
+  ...(c.imageUrl ? { imageUrl: c.imageUrl } : {}),
+  ...(c.videoUrl ? { videoUrl: c.videoUrl } : {}),
+  ...(c.audioUrl ? { audioUrl: c.audioUrl } : {}),
   ...(typeof c.mediaTimestamp === 'number' ? { mediaTimestamp: c.mediaTimestamp } : {}),
 });
 
@@ -840,6 +854,11 @@ const isMatchingComment = (pending: PostComment, real: PostComment): boolean => 
   if (pending.id === real.id) return true;
   if (pending.text.trim() !== real.text.trim()) return false;
   if ((pending.parentId ?? null) !== (real.parentId ?? null)) return false;
+  // Media-only comments all share empty text — tell them apart by their GIF so two
+  // quick GIF sends don't collapse into one.
+  if (pending.gifUrl && real.gifUrl && pending.gifUrl !== real.gifUrl) return false;
+  // Never let an optimistic pair with a comment written before it was sent.
+  if (real.timestamp && pending.timestamp && real.timestamp < pending.timestamp - 5000) return false;
   if (pending.authorId && real.authorId && pending.authorId === real.authorId) return true;
   if (pending.authorName && real.authorName && pending.authorName.toLowerCase() === real.authorName.toLowerCase()) return true;
   const currentUid = auth.currentUser?.uid;
@@ -863,6 +882,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({
   layout = 'inline',
   playbackTime,
   onSeek,
+  readOnly = false,
 }) => {
   const isLegacy = externalComments !== undefined;
   const { theme } = useGlobalPlayerState();
@@ -883,10 +903,13 @@ const CommentSection: React.FC<CommentSectionProps> = ({
   // Fetch polls for this post
   useEffect(() => {
     if (!postId || isLegacy) return;
-    const q = query(collection(db, 'polls'), where('postId', '==', postId), orderBy('createdAt', 'asc'));
+    // Equality-only query (auto index) + client sort — `where` + `orderBy` on another
+    // field needs a composite index we don't ship, which left the listener dead.
+    const q = query(collection(db, 'polls'), where('postId', '==', postId));
     const unsub = onSnapshot(q, snap => {
-      setPolls(snap.docs.map(d => ({ id: d.id, ...d.data() } as PollData)));
-    });
+      setPolls(snap.docs.map(d => ({ id: d.id, ...d.data() } as PollData))
+        .sort((a: any, b: any) => (a.createdAt || 0) - (b.createdAt || 0)));
+    }, () => setPolls([]));
     return unsub;
   }, [postId, isLegacy]);
 
@@ -896,8 +919,9 @@ const CommentSection: React.FC<CommentSectionProps> = ({
     setIsLoading(true);
     const unsub = subscribeToPostComments(postId, (fetched) => {
       setInternalComments(prev => {
-        const fetchedIds = new Set(fetched.map((c: PostComment) => c.id));
-        const stillPending = prev.filter(c => c.isPending && !fetchedIds.has(c.id));
+        // Keep an optimistic bubble until its real doc arrives (matched by author/text),
+        // so a snapshot that lands before the write never blinks the comment out.
+        const stillPending = prev.filter(c => c.isPending && !fetched.some((real: PostComment) => isMatchingComment(c, real)));
         return [...fetched, ...stillPending].sort((a, b) => a.timestamp - b.timestamp);
       });
       setPendingIds(new Set());
@@ -924,7 +948,8 @@ const CommentSection: React.FC<CommentSectionProps> = ({
     }
   }, [comments.length]);
 
-  const handleCommentPosted = useCallback((optimistic: PostComment) => {
+  const handleCommentPosted = useCallback((posted: PostComment) => {
+    const optimistic: PostComment = { ...posted, isPending: true };
     if (isLegacy) {
       setPendingLegacy(prev => [...prev, optimistic]);
       // Safety net only — the render dedupe + prune effect remove it once the
@@ -935,6 +960,12 @@ const CommentSection: React.FC<CommentSectionProps> = ({
     }
     setPendingIds(prev => new Set([...prev, optimistic.id]));
   }, [isLegacy]);
+
+  // A write that failed (rules, network, upload) must not leave a ghost bubble behind.
+  const dropOptimistic = useCallback((id: string) => {
+    setPendingLegacy(prev => prev.filter(c => c.id !== id));
+    setInternalComments(prev => prev.filter(c => c.id !== id));
+  }, []);
 
   // Once the parent's subscription delivers the real comment, drop the optimistic.
   useEffect(() => {
@@ -951,7 +982,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({
     } catch {
       // If delete fails, snapshot will restore it
     }
-  }, [postId, postCollection]);
+  }, [postId, postCollection, isLegacy]);
 
   const handleLikeToggle = useCallback(async (commentId: string) => {
     if (isLegacy || !postId) return;
@@ -979,6 +1010,8 @@ const CommentSection: React.FC<CommentSectionProps> = ({
   const rootComments = visibleComments.filter(c => !c.parentId);
   const count = visibleComments.filter(c => !c.isPending).length;
   const safePostId = postId || '';
+  // Guest (anonymous) sessions can read but not post: rules require a registered account.
+  const signedIn = !!auth.currentUser && !auth.currentUser.isAnonymous;
 
   // ── Theme tokens ───────────────────────────────────────────────────────────
   const card = isDark
@@ -1066,7 +1099,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({
                 allComments={visibleComments}
                 postId={safePostId}
                 onReply={(id, name) => setReplyTo({ id, name })}
-                onDelete={handleDelete}
+                onDelete={isLegacy ? undefined : handleDelete}
                 onLikeToggle={handleLikeToggle}
                 onVisitUser={onVisitUser}
                 depth={0}
@@ -1079,9 +1112,9 @@ const CommentSection: React.FC<CommentSectionProps> = ({
       </div>
 
       {/* ── Input footer ── */}
-      <div className={`px-5 sm:px-8 py-4 sm:py-5 border-t ${headerBorder} shrink-0 ${isDark ? 'bg-black/30' : 'bg-white/50'} space-y-3`}>
+      {!readOnly && <div className={`px-5 sm:px-8 py-4 sm:py-5 border-t ${headerBorder} shrink-0 ${isDark ? 'bg-black/30' : 'bg-white/50'} space-y-3`}>
         {/* Poll composer toggle */}
-        {auth.currentUser && postId && !isLegacy && (
+        {signedIn && postId && !isLegacy && (
           <AnimatePresence>
             {showPollComposer ? (
               <PollComposer
@@ -1094,7 +1127,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({
           </AnimatePresence>
         )}
 
-        {auth.currentUser ? (
+        {signedIn ? (
           <div className="space-y-2">
             {/* Reply-to indicator */}
             <AnimatePresence>
@@ -1121,34 +1154,70 @@ const CommentSection: React.FC<CommentSectionProps> = ({
               placeholder={replyTo ? `Reply to ${replyTo.name}…` : 'Write a comment…'}
               avatarUrl={auth.currentUser.photoURL || undefined}
               onPost={async (data: ComposerPostData) => {
-                if (!data.text.trim() && data.attachments.length === 0) return;
                 const user = auth.currentUser!;
                 const now = Date.now();
+                const text = data.text.trim();
 
-                // Upload any video/audio attachments to Firebase Storage
+                // A composer poll on a post becomes a comment-thread poll (same doc PollComposer writes).
+                if (data.poll && postId && !isLegacy) {
+                  const options = data.poll.options.filter(o => o.trim());
+                  const votes: Record<string, string[]> = {};
+                  options.forEach((_, i) => { votes[i] = []; });
+                  await addDoc(collection(db, 'polls'), {
+                    postId,
+                    creatorId: user.uid,
+                    creatorName: user.displayName || 'Anonymous',
+                    creatorPhoto: user.photoURL || '',
+                    question: data.poll.question,
+                    options,
+                    votes,
+                    allowMultiple: !!data.poll.multiSelect,
+                    isAnonymous: false,
+                    endsAt: now + (data.poll.durationHours || 24) * 3600_000,
+                    createdAt: now,
+                  });
+                }
+                if (!text && data.attachments.length === 0) {
+                  if (data.poll && postId && !isLegacy) return;
+                  // Nothing a comment can carry (e.g. a data-viz or embed alone): say so rather
+                  // than clearing the composer as if it had posted.
+                  throw new Error('Comments can carry text, photos, video, voice notes and GIFs.');
+                }
+
+                // Upload photo / video / audio attachments to Firebase Storage
                 let imageUrl: string | undefined;
                 let videoUrl: string | undefined;
                 let audioUrl: string | undefined;
                 let gifUrl: string | undefined;
                 for (const att of data.attachments) {
                   if ((att.type === 'PHOTO' || att.type === 'VIDEO' || att.type === 'AUDIO') && att.file) {
-                    try {
-                      const path = `comments/${safePostId}/${now}_${att.file.name}`;
-                      const url = await uploadFile(path, att.file);
-                      if (url) {
-                        if (att.type === 'VIDEO') videoUrl = url;
-                        else if (att.type === 'AUDIO') audioUrl = url;
-                        else imageUrl = url; // PHOTO — was silently dropped before
-                      }
-                    } catch { /* skip failed upload */ }
+                    const path = `comments/${safePostId || 'media'}/${now}_${att.file.name}`;
+                    const url = await uploadFile(path, att.file);
+                    if (!url) throw new Error(`Upload failed for ${att.file.name}. Try again.`);
+                    if (att.type === 'VIDEO') videoUrl = url;
+                    else if (att.type === 'AUDIO') audioUrl = url;
+                    else imageUrl = url;
+                  } else if ((att.type === 'PHOTO' || att.type === 'VIDEO' || att.type === 'AUDIO') && att.url && /^https?:/.test(att.url)) {
+                    if (att.type === 'VIDEO') videoUrl = att.url;
+                    else if (att.type === 'AUDIO') audioUrl = att.url;
+                    else imageUrl = att.url;
                   } else if (att.type === 'GIF' && att.url) {
                     gifUrl = att.url;
                   }
                 }
+                if (!text && !imageUrl && !videoUrl && !audioUrl && !gifUrl) {
+                  throw new Error('Comments can carry text, photos, video, voice notes and GIFs.');
+                }
+                const media: CommentMedia = {
+                  ...(imageUrl ? { imageUrl } : {}),
+                  ...(videoUrl ? { videoUrl } : {}),
+                  ...(audioUrl ? { audioUrl } : {}),
+                  ...(gifUrl   ? { gifUrl   } : {}),
+                };
 
                 const optimistic: PostComment = {
                   id: `pending-${now}`,
-                  text: data.text.trim(),
+                  text,
                   authorId: user.uid,
                   authorName: user.displayName || 'User',
                   authorPhoto: user.photoURL || '',
@@ -1156,19 +1225,27 @@ const CommentSection: React.FC<CommentSectionProps> = ({
                   parentId: replyTo?.id ?? null,
                   likedBy: [],
                   likesCount: 0,
-                  ...(imageUrl ? { imageUrl } : {}),
-                  ...(videoUrl ? { videoUrl } : {}),
-                  ...(audioUrl ? { audioUrl } : {}),
-                  ...(gifUrl   ? { gifUrl   } : {}),
+                  ...media,
                 };
                 handleCommentPosted(optimistic);
                 const parentId = replyTo?.id;
+                const prevReplyTo = replyTo;
                 setReplyTo(null);
-                if (isLegacy && onPostComment) {
-                  await onPostComment(data.text.trim(), parentId, pinTime && typeof playbackTime === 'number' ? Math.floor(playbackTime) : undefined);
-                  if (gifUrl && onPostGif) await onPostGif(gifUrl, parentId);
-                } else {
-                  await addPostComment(safePostId, data.text.trim(), parentId, videoUrl, audioUrl, gifUrl, imageUrl, postCollection);
+                try {
+                  if (isLegacy) {
+                    const pinned = pinTime && typeof playbackTime === 'number' ? Math.floor(playbackTime) : undefined;
+                    // One comment per send: a GIF-only send goes through onPostGif, everything else
+                    // (text and/or media) through onPostComment with the media attached.
+                    if (!text && gifUrl && !imageUrl && !videoUrl && !audioUrl && onPostGif) await onPostGif(gifUrl, parentId);
+                    else if (onPostComment) await onPostComment(text, parentId, pinned, media);
+                    else throw new Error('Comments are unavailable here.');
+                  } else {
+                    await addPostComment(safePostId, text, parentId, videoUrl, audioUrl, gifUrl, imageUrl, postCollection);
+                  }
+                } catch (err) {
+                  dropOptimistic(optimistic.id);
+                  setReplyTo(prevReplyTo);
+                  throw err;
                 }
               }}
             />
@@ -1215,7 +1292,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({
                         onSelect={async (url, type) => {
                           setShowGifPicker(false);
                           const user = auth.currentUser;
-                          if (!user) return;
+                          if (!user || user.isAnonymous) return;
                           const now = Date.now();
                           const optimistic: PostComment = {
                             id: `pending-${now}`,
@@ -1232,10 +1309,16 @@ const CommentSection: React.FC<CommentSectionProps> = ({
                           handleCommentPosted(optimistic);
                           const parentId = replyTo?.id;
                           setReplyTo(null);
-                          if (isLegacy) {
-                            if (onPostGif) await onPostGif(url, parentId);
-                          } else {
-                            await addPostComment(safePostId, '', parentId, undefined, undefined, url, undefined, postCollection);
+                          try {
+                            if (isLegacy) {
+                              if (onPostGif) await onPostGif(url, parentId);
+                              else if (onPostComment) await onPostComment('', parentId, undefined, { gifUrl: url });
+                            } else {
+                              await addPostComment(safePostId, '', parentId, undefined, undefined, url, undefined, postCollection);
+                            }
+                          } catch (err) {
+                            console.warn('[comments] GIF comment failed', err);
+                            dropOptimistic(optimistic.id);
                           }
                         }}
                       />
@@ -1257,7 +1340,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({
             Sign in to join the conversation
           </button>
         )}
-      </div>
+      </div>}
 
       <AnimatePresence>
         {showSignIn && (

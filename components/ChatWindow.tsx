@@ -758,7 +758,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     if (!msg) return;
     const current = (msg.reactions?.[emoji] || []) as string[];
     const hasReacted = current.includes(uid);
-    const msgRef = doc(db, 'chatRooms', room.id, 'messages', msgId);
+    const msgRef = doc(db, 'chat_rooms', room.id, 'messages', msgId);
     const field = `reactions.${emoji}`;
     if (hasReacted) {
       await updateDoc(msgRef, { [field]: arrayRemove(uid) });
@@ -769,7 +769,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   };
 
   const handlePinMessage = async (msgId: string, currentPinned: boolean) => {
-    const msgRef = doc(db, 'chatRooms', room.id, 'messages', msgId);
+    const msgRef = doc(db, 'chat_rooms', room.id, 'messages', msgId);
     await updateDoc(msgRef, { isPinned: !currentPinned });
   };
 

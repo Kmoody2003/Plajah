@@ -12,7 +12,7 @@ import {
   Crown, Link2, Radio, Megaphone,
 } from 'lucide-react';
 import { ChoraPromoModal } from './music/ChoraPromoModal';
-import CommentSection from './CommentSection';
+import CommentSection, { type CommentMedia } from './CommentSection';
 import PlatformBumperPlayer from './tv/PlatformBumperPlayer';
 import { pickCinemaIdent } from '../services/cinemaIdents';
 import WorldBadge from './WorldBadge';
@@ -1000,7 +1000,6 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({
   const [worldTimeline, setWorldTimeline] = useState<TimelineEvent[]>([]);
   const [openLore, setOpenLore] = useState<LoreEntry | null>(null);
   const [comments, setComments] = useState<any[]>([]);
-  const [localComments, setLocalComments] = useState<any[]>([]);
   const [partyChatMessages, setPartyChatMessages] = useState<PartyChatMessage[]>([]);
   const [floatingReactions, setFloatingReactions] = useState<Array<{ id: string; emoji: string; x: number }>>([]);
   const seenReactionIdsRef = useRef<Set<string>>(new Set());
@@ -1067,6 +1066,7 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({
       return;
     }
     seenReactionIdsRef.current = new Set();
+    setPartyChatMessages([]); // never show the previous party's chat while the new one loads
     let initialReactionsBatch = true;
     const unsubChat = listenPartyChat(activePartyId, setPartyChatMessages);
     const unsubReactions = listenPartyReactions(activePartyId, (list: PartyReaction[]) => {
@@ -1092,7 +1092,12 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({
 
   // Combine Watch Party chat messages + persistent film comments for CommentSection beneath the player
   const combinedComments = useMemo(() => {
-    const partyMapped = partyChatMessages.map((m) => {
+    // Party ids are reused when a host re-hosts the same film; only this session's chat shows.
+    const partySince = (party?.party?.createdAt || 0) - 60_000;
+    const partyMapped = partyChatMessages.filter((m) => {
+      const ts = typeof m.at?.toMillis === 'function' ? m.at.toMillis() : (typeof m.at === 'number' ? m.at : 0);
+      return !ts || ts >= partySince;
+    }).map((m) => {
       const ts = typeof m.at?.toMillis === 'function' ? m.at.toMillis() : (typeof m.at === 'number' ? m.at : Date.now());
       return {
         id: `party_${m.id}`,
@@ -1106,39 +1111,25 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({
       };
     });
     const byId = new Map<string, any>();
-    for (const c of [...partyMapped, ...localComments, ...comments]) {
+    for (const c of [...partyMapped, ...comments]) {
       if (!c?.id) continue;
       byId.set(String(c.id), c);
     }
     return Array.from(byId.values()).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-  }, [partyChatMessages, localComments, comments]);
+  }, [partyChatMessages, comments, party?.party?.createdAt]);
 
-  const handlePostComment = async (text: string) => {
+  // One write per send. CommentSection shows its own optimistic bubble and drops it when the
+  // real doc arrives, so no local copy here. The film comment is visible to everyone in the
+  // party too (they all listen to the same film), so it is NOT also echoed into party chat,
+  // which used to show every comment two or three times.
+  const handlePostComment = async (text: string, parentId?: string, mediaTimestamp?: number, media?: CommentMedia) => {
     const clean = (text || '').trim();
-    if (!clean) return;
-    const optimistic = {
-      id: `local_${Date.now()}`,
-      userId: currentUser?.uid || auth.currentUser?.uid || 'anon',
-      userName: currentUser?.displayName || auth.currentUser?.displayName || 'Guest Viewer',
-      userPhoto: currentUser?.photoURL || auth.currentUser?.photoURL || '',
-      rating: 5,
-      text: clean,
-      comment: clean,
-      timestamp: Date.now(),
-    };
-    setLocalComments(prev => [optimistic, ...prev]);
-    if (activePartyId && auth.currentUser) {
-      sendPartyChat(activePartyId, clean).catch(() => {});
-    }
-    if (effectiveItemId && auth.currentUser) {
-      postVideoComment(effectiveItemId, {
-        userId: auth.currentUser.uid,
-        userName: auth.currentUser.displayName || 'Viewer',
-        userPhoto: auth.currentUser.photoURL || '',
-        rating: 5,
-        text: clean,
-        timestamp: Date.now(),
-      } as any).catch(() => {});
+    if (!clean && !media?.imageUrl && !media?.videoUrl && !media?.audioUrl && !media?.gifUrl) return;
+    if (!auth.currentUser || auth.currentUser.isAnonymous) throw new Error('Sign in to comment');
+    if (effectiveItemId) {
+      await postVideoComment(effectiveItemId, clean, parentId, undefined, mediaTimestamp, media);
+    } else if (activePartyId && clean) {
+      await sendPartyChat(activePartyId, clean.slice(0, 300));
     }
   };
 

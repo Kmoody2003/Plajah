@@ -9,7 +9,7 @@ import { fetchWorldCupWindow, fetchSoccerSummary } from '../services/sportsServi
 import { fetchFollowedSchedule } from '../services/followedTeamSchedule';
 import { scoreText } from '../src/lib/scoreText';
 import {
-  joinMatchRoom, setSupportedSide, subscribeMembers, sendMatchMessage, subscribeMatchChat,
+  joinMatchRoom, setSupportedSide, subscribeMembers, sendMatchMessage, postMatchEventOnce, subscribeMatchChat,
   subscribeMatchPolls, voteMatchPoll, ensureMatchPolls, addNextPoll, resolveTeamCtx,
   RoomMember, RoomMessage, MatchPoll, TeamCtx, Side, MatchPhase,
 } from '../services/matchFanRoom';
@@ -105,7 +105,8 @@ const MatchFanRoom: React.FC<Props> = ({ match, currentUser, onBack }) => {
             const scored = next.homeScore + next.awayScore > m0.homeScore + m0.awayScore;
             prevScore.current = score;
             if (scored && !league) {
-              sendMatchMessage(roomKey, { uid: 'system', displayName: 'Match', text: `⚽ GOAL! ${next.home?.team?.displayName || home.name} ${next.homeScore} – ${next.awayScore} ${next.away?.team?.displayName || away.name}`, side: null }).catch(() => {});
+              // Every fan's client sees the goal; the score-keyed event doc lands it once.
+              postMatchEventOnce(roomKey, `goal_${score}`, `⚽ GOAL! ${next.home?.team?.displayName || home.name} ${next.homeScore} – ${next.awayScore} ${next.away?.team?.displayName || away.name}`).catch(() => {});
               addNextPoll(roomKey, home, away, next.phase).catch(() => {});
             }
           }
@@ -127,7 +128,7 @@ const MatchFanRoom: React.FC<Props> = ({ match, currentUser, onBack }) => {
   const declare = (side: Side) => { if (currentUser?.uid) setSupportedSide(roomKey, currentUser.uid, side).catch(() => {}); };
   const send = () => {
     const t = draft.trim(); if (!t || !currentUser?.uid) return;
-    sendMatchMessage(roomKey, { uid: currentUser.uid, displayName: currentUser.displayName || 'Fan', photoURL: currentUser.photoURL || null, text: t, side: mySide }).catch(() => {});
+    sendMatchMessage(roomKey, { uid: currentUser.uid, displayName: currentUser.displayName || 'Fan', photoURL: currentUser.photoURL || null, text: t, side: mySide }).catch(() => setDraft(t));
     setDraft('');
   };
   const vote = (poll: MatchPoll, idx: number) => { if (currentUser?.uid) voteMatchPoll(roomKey, poll.id, idx, currentUser.uid, mySide).catch(() => {}); };

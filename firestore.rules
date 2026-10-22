@@ -404,30 +404,45 @@ service cloud.firestore {
              data.type in ['PICTURE', 'SONG', 'COMMENT', 'VIDEO', 'BOOK', 'NEWS', 'GAME', 'WATCH_ALONG', 'LIVE_FEED', 'RESEARCH_PAPER'];
     }
 
+    // A comment must carry SOMETHING: text, or media from the composer (GIF/sticker, photo,
+    // video/camera note, voice note). Every media-only comment used to be denied, so the
+    // optimistic bubble showed and then vanished on the next snapshot.
+    function commentHasBody(data) {
+      return data.text.size() > 0 || data.get('gifUrl', '') != '' || data.get('imageUrl', '') != ''
+        || data.get('videoUrl', '') != '' || data.get('audioUrl', '') != '';
+    }
+
+    // Like toggle: only the caller's own uid enters/leaves likedBy, and the count follows it.
+    function commentLikeToggleOk() {
+      let before = resource.data.get('likedBy', []).toSet();
+      let after = request.resource.data.likedBy.toSet();
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likedBy', 'likesCount']) &&
+        after.difference(before).union(before.difference(after)) == [request.auth.uid].toSet() &&
+        request.resource.data.likesCount - resource.data.get('likesCount', 0) == after.size() - before.size();
+    }
+
     function isValidPostComment(data) {
       return hasRequiredFields(['author', 'text', 'timestamp']) &&
              data.author is string && data.author.size() > 0 && data.author.size() < 100 &&
-             data.text is string && data.text.size() > 0 && data.text.size() < 1000 &&
+             data.text is string && data.text.size() < 10000 &&
+             commentHasBody(data) &&
              data.timestamp is number &&
              (!('uid' in data) || data.uid == request.auth.uid) &&
+             (!('authorId' in data) || data.authorId == request.auth.uid) &&
              (!('parentId' in data) || data.parentId is string || data.parentId == null);
     }
 
+    // Album / article / book comments. trackId or videoId is optional — articles and books
+    // carry neither, and requiring one silently dropped every article/book comment.
     function isValidComment(data) {
       return hasRequiredFields(['author', 'text', 'timestamp']) &&
-             (hasRequiredFields(['trackId']) || hasRequiredFields(['videoId'])) &&
              data.author is string && data.author.size() > 0 && data.author.size() < 100 &&
-             data.text is string && data.text.size() < 1000 &&
-             // Allow an empty-text comment when it carries media (e.g. a GIF-only
-             // reply) — otherwise the GIF write is rejected and the comment vanishes.
-             (data.text.size() > 0
-               || ('gifUrl' in data && data.gifUrl is string && data.gifUrl.size() > 0)
-               || ('imageUrl' in data && data.imageUrl is string && data.imageUrl.size() > 0)) &&
+             data.text is string && data.text.size() < 10000 &&
+             commentHasBody(data) &&
              data.timestamp is number &&
+             (!('uid' in data) || data.uid == request.auth.uid) &&
              (!('trackId' in data) || data.trackId is string) &&
-             (!('videoId' in data) || data.videoId is string) &&
-             (!('gifUrl' in data) || (data.gifUrl is string && data.gifUrl.size() < 2000)) &&
-             (!('imageUrl' in data) || (data.imageUrl is string && data.imageUrl.size() < 2000));
+             (!('videoId' in data) || data.videoId is string);
     }
 
     function isValidPhoto(data) {
@@ -526,9 +541,8 @@ service cloud.firestore {
 
     function isValidVideoComment(data) {
       return hasRequiredFields(['id', 'videoId', 'userId', 'userName', 'userPhoto', 'text', 'timestamp']) &&
-             data.text is string && data.text.size() < 2000 &&
-             (data.text.size() > 0 || (('gifUrl' in data) && data.gifUrl is string && data.gifUrl.size() > 0)) &&
-             (!('gifUrl' in data) || (data.gifUrl is string && data.gifUrl.size() < 2000)) &&
+             data.text is string && data.text.size() < 10000 &&
+             commentHasBody(data) &&
              (!('parentId' in data) || (data.parentId is string)) &&
              (!('mediaTimestamp' in data) || (data.mediaTimestamp is number));
     }
@@ -1117,7 +1131,7 @@ service cloud.firestore {
         allow create: if isRegisteredUser() && isValidPostComment(request.resource.data) && orgThreadCommentOk(postId);
         allow update: if isAdmin() ||
                         (isAuthenticated() && resource.data.uid == request.auth.uid) ||
-                        (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likedBy', 'likesCount']));
+                        (isRegisteredUser() && commentLikeToggleOk());
         // The post's author may also clear comments on their own post (used when a post moves to private_posts).
         allow delete: if isAdmin() || (isAuthenticated() && resource.data.uid == request.auth.uid)
                       || (isAuthenticated() && get(/databases/$(database)/documents/posts/$(postId)).data.authorId == request.auth.uid);
@@ -2152,7 +2166,7 @@ service cloud.firestore {
       
       match /comments/{commentId} {
         allow read: if true;
-        allow create: if isAuthenticated() && isValidPostComment(request.resource.data);
+        allow create: if isRegisteredUser() && isValidPostComment(request.resource.data);
         allow update, delete: if isAdmin() || (isAuthenticated() && resource.data.uid == request.auth.uid);
       }
     }
@@ -2189,8 +2203,10 @@ service cloud.firestore {
 
       match /comments/{commentId} {
         allow read: if true;
-        allow create: if isAuthenticated() && isValidComment(request.resource.data);
-        allow update, delete: if isAdmin();
+        allow create: if isRegisteredUser() && isValidComment(request.resource.data);
+        // Authors may remove their own comment; admins moderate.
+        allow update: if isAdmin();
+        allow delete: if isAdmin() || (isAuthenticated() && resource.data.get('uid', '') == request.auth.uid);
       }
     }
 
@@ -2674,7 +2690,14 @@ service cloud.firestore {
           // Arm the ephemeral countdown (burn-after-read + intimate "gift" open) — a room participant.
           (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seenBy', 'burnAfter', 'giftOpenedAt']) &&
            exists(/databases/$(database)/documents/chat_rooms/$(roomId)) &&
-           request.auth.uid in get(/databases/$(database)/documents/chat_rooms/$(roomId)).data.participants)
+           request.auth.uid in get(/databases/$(database)/documents/chat_rooms/$(roomId)).data.participants) ||
+          // Emoji reactions + pinning (ChatWindow) — room members only, and only those keys.
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions', 'isPinned']) &&
+           request.resource.data.get('reactions', {}) is map &&
+           request.resource.data.get('isPinned', false) is bool &&
+           (roomId.matches('^live_chat_.*') ||
+            (exists(/databases/$(database)/documents/chat_rooms/$(roomId)) &&
+             request.auth.uid in get(/databases/$(database)/documents/chat_rooms/$(roomId)).data.participants)))
         );
         allow delete: if isAdmin()
           || (isAuthenticated() && resource.data.senderId == request.auth.uid)
@@ -2980,8 +3003,10 @@ service cloud.firestore {
 
       match /comments/{commentId} {
         allow read: if true;
-        allow create: if isAuthenticated() && isValidComment(request.resource.data);
-        allow update, delete: if isAdmin();
+        allow create: if isRegisteredUser() && isValidComment(request.resource.data);
+        // Authors may remove their own comment; admins moderate.
+        allow update: if isAdmin();
+        allow delete: if isAdmin() || (isAuthenticated() && resource.data.get('uid', '') == request.auth.uid);
       }
 
       // Frozen Tela bundles, one per publish. Write-once: a correction creates a NEW version, it never rewrites an old one.
@@ -4359,12 +4384,55 @@ service cloud.firestore {
         (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes']) &&
          (request.resource.data.likes.hasAll(resource.data.likes) || resource.data.likes.hasAll(request.resource.data.likes))) ||
         (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'likeCount'])) ||
+        // Comment counter: ±1 only (addClubPostComment / deleteClubPostComment).
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['commentCount']) &&
+         request.resource.data.commentCount is number &&
+         (request.resource.data.commentCount == resource.data.get('commentCount', 0) + 1 ||
+          request.resource.data.commentCount == resource.data.get('commentCount', 0) - 1)) ||
         // Admins can pin/unpin posts
         (request.auth.uid in get(/databases/$(database)/documents/clubs/$(resource.data.clubId)).data.admins &&
          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isPinned'])) ||
         isAdmin()
       );
       allow delete: if isAuthenticated() && (resource.data.authorId == request.auth.uid || isAdmin());
+
+      match /comments/{commentId} {
+        allow read: if isAuthenticated();
+        allow create: if isRegisteredUser() && isValidPostComment(request.resource.data)
+                      && request.resource.data.get('uid', '') == request.auth.uid
+                      && exists(/databases/$(database)/documents/clubPosts/$(postId));
+        allow update: if isAdmin() ||
+                        (isAuthenticated() && resource.data.uid == request.auth.uid) ||
+                        (isRegisteredUser() && commentLikeToggleOk());
+        allow delete: if isAdmin() || (isAuthenticated() && resource.data.uid == request.auth.uid)
+                      || (isAuthenticated() && get(/databases/$(database)/documents/clubPosts/$(postId)).data.authorId == request.auth.uid);
+      }
+    }
+
+    // Comment-thread polls (CommentSection PollComposer + composer polls on a post).
+    // Had no rule, so creating a poll and listening for them both failed.
+    match /polls/{pollId} {
+      allow read: if true;
+      allow create: if isRegisteredUser() && request.resource.data.creatorId == request.auth.uid
+        && request.resource.data.options.size() <= 10;
+      // Voting moves only the vote map, and the set of options can't change.
+      allow update: if isAdmin() || (isAuthenticated() && resource.data.creatorId == request.auth.uid) ||
+        (isRegisteredUser() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['votes']) &&
+         request.resource.data.votes.keys().size() == resource.data.votes.keys().size());
+      allow delete: if isAdmin() || (isAuthenticated() && resource.data.creatorId == request.auth.uid);
+    }
+
+    // Halloween Vault fan room chat (taleo/HalloweenVaultChatAndFanRoom). Had no rule.
+    match /halloweenVaultRooms/{roomId}/chat/{msgId} {
+      allow read: if true;
+      allow create: if isRegisteredUser()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 1000
+        && request.resource.data.at is number
+        && (!('snapshotDataUrl' in request.resource.data) ||
+            (request.resource.data.snapshotDataUrl is string && request.resource.data.snapshotDataUrl.size() < 700000));
+      allow delete: if isAdmin() || (isAuthenticated() && resource.data.uid == request.auth.uid);
     }
 
     match /clubGallery/{itemId} {
@@ -4750,13 +4818,36 @@ service cloud.firestore {
     // ── WC Video Chat Rooms ──────────────────────────────────────────────────────
     // Per-match World Cup fan rooms: room doc + members / chat / polls subcollections.
     // Publicly readable; any signed-in fan can join (members), chat, seed/vote polls.
+    // Per-match fan rooms (services/matchFanRoom). Was "any signed-in user writes anything
+    // anywhere under the room" — now each subcollection is scoped to its own writer.
     match /wcMatchRooms/{matchId} {
       allow read: if true;
-      allow create, update: if isAuthenticated();
+      allow create, update: if isRegisteredUser()
+        && request.resource.data.keys().hasOnly(['matchId', 'updatedAt']);
       allow delete: if isAdmin();
-      match /{document=**} {
+      match /members/{uid} {
         allow read: if true;
-        allow write: if isAuthenticated();
+        allow create, update, delete: if isRegisteredUser() && uid == request.auth.uid;
+      }
+      match /chat/{msgId} {
+        allow read: if true;
+        allow create: if isRegisteredUser()
+          && request.resource.data.keys().hasOnly(['uid', 'displayName', 'photoURL', 'text', 'side', 'at'])
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 500
+          && request.resource.data.at is number
+          && (request.resource.data.uid == request.auth.uid
+              // Score events posted once by whichever fan's client sees them first.
+              || (request.resource.data.uid == 'system' && msgId.matches('^evt_.*')));
+        allow delete: if isAdmin() || (isAuthenticated() && resource.data.uid == request.auth.uid);
+      }
+      match /polls/{pollId} {
+        allow read: if true;
+        allow create: if isRegisteredUser();
+        // Voting: only the vote maps move.
+        allow update: if isRegisteredUser()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['votes', 'voterSides']);
+        allow delete: if isAdmin();
       }
     }
 

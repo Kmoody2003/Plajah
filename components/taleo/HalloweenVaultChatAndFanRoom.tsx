@@ -349,6 +349,8 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
   }, []);
 
   const myDisplayName = auth.currentUser?.displayName || 'NightVaultFan';
+  // Only signed-in (non-guest) accounts can post; guests read along.
+  const canChat = !!auth.currentUser && !auth.currentUser.isAnonymous;
   const myFaction = useMemo(
     () => HALLOWEEN_FACTIONS.find((f) => f.id === myFactionId) || HALLOWEEN_FACTIONS[0],
     [myFactionId]
@@ -595,6 +597,7 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
   const handleSendMessage = async (opts?: { snapshotDataUrl?: string; customText?: string; fxTrigger?: 'BATS' | 'GHOST' | 'JACK' }) => {
     const text = (opts?.customText ?? chatDraft).trim();
     if (!text && !opts?.snapshotDataUrl) return;
+    if (!canChat) return;
 
     const newMsg: HalloweenVaultChatMessage = {
       id: `msg_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
@@ -623,7 +626,9 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
     }, 60);
 
     try {
-      await addDoc(collection(db, 'halloweenVaultRooms', 'main_vault', 'chat'), {
+      // Same id locally and in Firestore, so the snapshot replaces the optimistic copy
+      // instead of showing the message twice.
+      await setDoc(doc(db, 'halloweenVaultRooms', 'main_vault', 'chat', newMsg.id), {
         uid: newMsg.uid,
         displayName: newMsg.displayName,
         photoURL: newMsg.photoURL || null,
@@ -636,7 +641,9 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
         at: newMsg.at,
       });
     } catch {
-      /* persisted locally via localStorage */
+      // Not saved: take it back off the screen and give the draft back.
+      setMessages((prev) => prev.filter((m) => m.id !== newMsg.id));
+      if (!opts?.customText && text) setChatDraft(text);
     }
   };
 
@@ -1142,12 +1149,13 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') void handleSendMessage();
                       }}
-                      placeholder={`Chat as ${myFaction.emoji} ${myFaction.shortName} (${activeFilterMeta.icon} ${activeFilterMeta.shortLabel} active)…`}
+                      disabled={!canChat}
+                      placeholder={canChat ? `Chat as ${myFaction.emoji} ${myFaction.shortName} (${activeFilterMeta.icon} ${activeFilterMeta.shortLabel} active)…` : 'Sign in to chat'}
                       className="flex-1 h-10 px-3.5 rounded-xl bg-white/5 border border-white/15 focus:border-orange-400 text-xs text-white placeholder-white/35 outline-none"
                     />
                     <button
                       onClick={() => void handleSendMessage()}
-                      disabled={!chatDraft.trim()}
+                      disabled={!canChat || !chatDraft.trim()}
                       className="h-10 px-4 rounded-xl bg-orange-500 hover:bg-orange-400 disabled:opacity-40 text-black font-black text-xs uppercase tracking-widest flex items-center gap-1.5 cursor-pointer"
                     >
                       <Send size={13} /> Send
@@ -1392,7 +1400,8 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') void handleSendMessage();
                   }}
-                  placeholder="Send message to Vault Room…"
+                  disabled={!canChat}
+                  placeholder={canChat ? 'Send message to Vault Room…' : 'Sign in to chat'}
                   className="flex-1 h-8 px-2.5 rounded-lg bg-white/5 border border-white/10 text-[11px] text-white outline-none"
                 />
                 <button

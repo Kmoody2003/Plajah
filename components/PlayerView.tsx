@@ -58,7 +58,7 @@ import DonationModal from './DonationModal';
 import DJModeView from './DJModeView';
 import SmartLightingPanel from './SmartLightingPanel';
 import GlobalPhotosView from './GlobalPhotosView';
-import CommentSection from './CommentSection';
+import CommentSection, { type CommentMedia } from './CommentSection';
 import The411 from './The411';
 import { LyricItem, TimeCodedLyrics } from './LyricItem';
 import { translateLyrics, LYRIC_LANGS } from '../services/lyricTranslator';
@@ -193,11 +193,13 @@ const HUDCommentModule: React.FC<{ album: Album; trackId: string | null; videoId
     return () => unsubscribe();
   }, [album.id, trackId, videoId]);
 
-  const handlePost = async (text: string, parentId?: string) => {
-    if (!text.trim()) return;
+  const handlePost = async (text: string, parentId?: string, mediaTimestamp?: number, media?: CommentMedia) => {
+    if (!text.trim() && !media?.imageUrl && !media?.videoUrl && !media?.audioUrl && !media?.gifUrl) return;
     await postComment(album.id, {
       author: user?.displayName || 'LISTENER',
       text,
+      ...media,
+      ...(typeof mediaTimestamp === 'number' ? { mediaTimestamp } : {}),
       timestamp: Date.now(),
       trackId: videoId ? undefined : (trackId || 'album'),
       videoId: videoId || undefined,

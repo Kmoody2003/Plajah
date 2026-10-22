@@ -85,6 +85,7 @@ const PartyBar: React.FC<PartyBarProps> = ({ partyId, party, verb, noun, title, 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const seenChatRef = useRef<number>(0);
   useEffect(() => {
+    setChat([]); setDraft(''); seenChatRef.current = 0; setUnread(0);
     if (!me) return;
     return listenPartyChat(partyId, msgs => setChat(msgs));
   }, [partyId, me]);
@@ -100,7 +101,7 @@ const PartyBar: React.FC<PartyBarProps> = ({ partyId, party, verb, noun, title, 
     const t = draft.trim();
     if (!t) return;
     setDraft('');
-    sendPartyChat(partyId, t).catch(() => partyToast('Message not sent', 'warn'));
+    sendPartyChat(partyId, t).catch(() => { setDraft(t); partyToast('Message not sent', 'warn'); });
   };
 
   // ── reactions overlay ──

@@ -1262,13 +1262,14 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser: onVisitUserProp,
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
-            <div className={`px-4 py-3 border-b border-white/[0.06] ${replyRestricted ? '[&_form]:hidden' : ''}`}>
+            <div className="px-4 py-3 border-b border-white/[0.06]">
               {replyRestricted && (
                 <p className="mb-2 text-[11px] text-white/45">{replyRestrictionLabel(post.replyAudience)}</p>
               )}
               <CommentSection
                 postId={post.id}
                 postAuthorId={post.authorId}
+                readOnly={replyRestricted}
                 postCollection={post.sourceCollection === 'private_posts' ? 'private_posts' : 'posts'}
                 onVisitUser={onVisitUser}
                 onClose={() => setShowComments(false)}
@@ -1286,10 +1287,11 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser: onVisitUserProp,
           items={waterfallItems}
           onClose={() => setShowWaterfall(false)}
           commentNode={
-            <div className={replyRestricted ? '[&_form]:hidden' : undefined}>
+            <div>
               <CommentSection
                 postId={post.id}
                 postAuthorId={post.authorId}
+                readOnly={replyRestricted}
                 postCollection={post.sourceCollection === 'private_posts' ? 'private_posts' : 'posts'}
                 onVisitUser={onVisitUser}
                 layout="inline"

@@ -19,7 +19,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import { subscribeToComments, postComment, auth } from '../services/backendService';
-import CommentSection from './CommentSection';
+import CommentSection, { type CommentMedia } from './CommentSection';
 import The411 from './The411';
 import PlajahPlusPill from './PlajahPlusPill';
 import { ArticleNotices, ArticleTelaBody, useLiveArticle } from './journalist/ArticleTelaBody';
@@ -65,11 +65,12 @@ const ArticleView: React.FC<ArticleViewProps> = ({ article: articleProp, onBack,
     return () => unsubscribe();
   }, [article.id]);
 
-  const handlePostComment = async (text: string, parentId?: string) => {
+  const handlePostComment = async (text: string, parentId?: string, _mediaTimestamp?: number, media?: CommentMedia) => {
     if (!currentUser) return;
     await postComment(article.id, {
       author: currentUser.displayName || 'Reader',
       text,
+      ...media,
       timestamp: Date.now(),
       parentId: parentId || undefined
     }, 'articles');

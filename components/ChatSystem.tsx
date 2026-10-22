@@ -680,10 +680,16 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ onBack, initialRoomId, currentU
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Auto-open room from URL/prop ────────────────────────────────────────────
+  // Open the linked room ONCE per link. `rooms` re-emits whenever any room's updatedAt moves
+  // (every message sent), and re-running this used to yank the user back to the linked room
+  // after they'd picked another one — so their next message landed in the wrong chat.
+  const openedInitialRoomRef = useRef<string | null>(null);
   useEffect(() => {
-    if (initialRoomId && rooms.length) {
-      const room = rooms.find(r => r.id === initialRoomId);
-      if (room) setActiveRoom(room);
+    if (!initialRoomId || openedInitialRoomRef.current === initialRoomId || !rooms.length) return;
+    const room = rooms.find(r => r.id === initialRoomId);
+    if (room) {
+      openedInitialRoomRef.current = initialRoomId;
+      setActiveRoom(room);
     }
   }, [initialRoomId, rooms]);
 
@@ -1045,6 +1051,7 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ onBack, initialRoomId, currentU
               </div>
             )}
             <ChatWindow
+              key={activeRoom.id}
               room={activeRoom}
               profiles={profiles}
               currentUserProfile={currentUserProfile}

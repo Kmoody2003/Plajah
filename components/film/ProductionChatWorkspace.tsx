@@ -67,7 +67,7 @@ const ProductionChatWorkspace: React.FC = () => {
         </div>
       </aside>
       <main className={`${workspaceView === 'WORK' || activeRoom ? 'flex' : 'hidden md:flex'} min-w-0 min-h-0 flex-col`}>
-        {workspaceView === 'WORK' ? <ProductionOperationsInbox onShowChannels={() => setWorkspaceView('CHANNELS')} /> : activeRoom ? <ChatWindow room={activeRoom} profiles={profiles} readOnly={readOnly} onBack={() => setActiveRoom(null)} onOpenCollab={() => {}} onStartAudio={readOnly ? undefined : () => placeCall(activeRoom, 'AUDIO')} onStartVideo={readOnly ? undefined : () => placeCall(activeRoom, 'VIDEO')} /> : <div className="flex-1 grid place-items-center"><Surface level={1} className="p-8 text-center"><MessageSquare className="mx-auto text-brand-orange" /><p className="type-title-lg mt-3">Choose a production channel</p></Surface></div>}
+        {workspaceView === 'WORK' ? <ProductionOperationsInbox onShowChannels={() => setWorkspaceView('CHANNELS')} /> : activeRoom ? <ChatWindow key={activeRoom.id} room={activeRoom} profiles={profiles} readOnly={readOnly} onBack={() => setActiveRoom(null)} onOpenCollab={() => {}} onStartAudio={readOnly ? undefined : () => placeCall(activeRoom, 'AUDIO')} onStartVideo={readOnly ? undefined : () => placeCall(activeRoom, 'VIDEO')} /> : <div className="flex-1 grid place-items-center"><Surface level={1} className="p-8 text-center"><MessageSquare className="mx-auto text-brand-orange" /><p className="type-title-lg mt-3">Choose a production channel</p></Surface></div>}
       </main>
     </div>
   );

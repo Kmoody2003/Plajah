@@ -816,6 +816,12 @@ Post it anyway?`)) return;
       }
       if (quoteOf) onClearQuote?.();
       setExpanded(false);
+    } catch (err: any) {
+      // The draft stays in the box; tell the user instead of failing silently.
+      console.warn('[composer] post failed', err);
+      setNotice(err?.code === 'permission-denied'
+        ? "This couldn't be posted here. Check you're signed in and allowed to reply."
+        : (err?.message || "Couldn't post. Try again."));
     } finally { setPosting(false); }
   };
 

@@ -32,7 +32,7 @@ import { usePageTurn } from './lorea/usePageTurn';
 import { runEpubTurn } from './lorea/epubTurn';
 import { dirForArrowKey, dirForTapSide, inferBookKind, sanitizeAuthorPageTurn } from '../services/lorea/pageTransitions';
 import { adaptEpub, adaptPdf, toParsedChapters, type FolioDoc, type PageExtras } from '../services/bookPageAdapters';
-import CommentSection from './CommentSection';
+import CommentSection, { type CommentMedia } from './CommentSection';
 import ShareButton from './ShareButton';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import PlajahPlusButton from './PlajahPlusButton';
@@ -746,11 +746,13 @@ const BookReaderInner: React.FC<BookReaderProps> = ({ book, onBack, currentUser,
     return () => clearTimeout(timer);
   }, [book.id, currentUser?.uid, showOpeningScene, isEpub, isPdf, pdfPageNumber, currentChapterIndex, currentPageIndex]);
 
-  const handlePostComment = async (text: string, parentId?: string) => {
+  const handlePostComment = async (text: string, parentId?: string, _mediaTimestamp?: number, media?: CommentMedia) => {
     if (!currentUser) return;
     await postComment(book.id, {
       author: currentUser.displayName || 'READER',
       text,
+      trackId: 'album',
+      ...media,
       timestamp: Date.now(),
       parentId: parentId || undefined
     });

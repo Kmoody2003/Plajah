@@ -635,6 +635,7 @@ const ChatSpaces: React.FC<ChatSpacesProps> = ({
             </div>
           )}
           <ChatWindow
+            key={activeRoom.id}
             room={activeRoom}
             profiles={profiles}
             currentUserProfile={currentUserProfile}

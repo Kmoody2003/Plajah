@@ -122,6 +122,10 @@ export const ReelloComments: React.FC<ReelloCommentsProps> = ({
       await postVideoComment(video.id, body, undefined, gifToSend || undefined, timeToSend || undefined);
     } catch (err) {
       console.error('[ReelloComments] Failed to post comment:', err);
+      // Not saved: drop the optimistic copy and hand the draft back.
+      setComments(prev => prev.filter(c => c.id !== optimisticId));
+      setText(body);
+      setPendingGif(gifToSend);
     } finally {
       setPosting(false);
     }

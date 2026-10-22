@@ -9,7 +9,7 @@ import ThreeDImage from './ThreeDImage';
 import Portal from './Portal';
 import { ClubPost, ClubRole } from '../types';
 import { formatDistanceToNow } from 'date-fns';
-import CommentSection from './CommentSection';
+import CommentSection, { type CommentMedia } from './CommentSection';
 import { subscribeToClubPostComments, addClubPostComment, auth } from '../services/backendService';
 
 // ─── Role colours ─────────────────────────────────────────────────────────────
@@ -204,8 +204,8 @@ const ClubRichPostCard: React.FC<ClubRichPostCardProps> = ({
     return unsub;
   }, [showComments, post.id]);
 
-  const handlePostClubComment = async (text: string, parentId?: string) => {
-    await addClubPostComment(post.id, text, parentId || null);
+  const handlePostClubComment = async (text: string, parentId?: string, _mediaTimestamp?: number, media?: CommentMedia) => {
+    await addClubPostComment(post.id, text, parentId || null, media?.gifUrl, media);
   };
   const handlePostClubGif = async (gifUrl: string, parentId?: string) => {
     await addClubPostComment(post.id, '', parentId || null, gifUrl);

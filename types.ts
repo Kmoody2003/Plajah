@@ -1297,6 +1297,10 @@ export interface VideoComment {
   /** Creator reply-with-video — this comment is answered by a short, threading the two. */
   replyVideoId?: string;
   gifUrl?: string;
+  /** Composer media (photo / video / voice note). */
+  imageUrl?: string;
+  videoUrl?: string;
+  audioUrl?: string;
   mediaTimestamp?: number;
 }
 
@@ -1332,6 +1336,10 @@ export interface Comment {
   parentId?: string;
   mediaTimestamp?: number;
   gifUrl?: string;
+  /** Composer media (photo / video / voice note). */
+  imageUrl?: string;
+  videoUrl?: string;
+  audioUrl?: string;
 }
 
 export interface Review {
