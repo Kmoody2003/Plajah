@@ -12,6 +12,9 @@
 //               code wraps onto objects; contours carry hotter streams.
 //   silent / grindhouse / vhs / foundfootage — film & tape looks (lensShadersFilm.ts); Found Footage's
 //               handheld rig reacts to the mouse, clicks and the action on screen.
+//   colorize — believable colour for black-and-white film (lensShadersColor.ts): the grey is kept as the
+//               film's measurement, chroma is chosen per region (sky, foliage, skin, wardrobe…) at low res,
+//               held frame to frame, and edge-aware upsampled.
 //   pixel / ascii — the frame redrawn as palette pixel art / a terminal, with the subject (selfie matte,
 //               or Segment Anything when there's no person) and Depth Anything layering the scene.
 //
@@ -38,6 +41,10 @@ import { AuraOrbs, type Collect } from './auraOrbs';
 import { LENS_VERT, BIGFACE_FRAG, NIGHT_FRAG, HEAT_FRAG, AURA_FRAG } from './lensShaders';
 import { MATRIX_FRAG, COMIC_FRAG, SOUTHPARK_FRAG, PIXEL_FRAG, ASCII_FRAG } from './lensShadersArt';
 import { SILENT_FRAG, GRINDHOUSE_FRAG, VHS_FRAG, FOUND_FRAG } from './lensShadersFilm';
+import { COLORIZE_ANALYZE_FRAG, COLORIZE_FRAG } from './lensShadersColor';
+import { SceneSegment } from './sceneSegment';
+import { ColorScriptPlayer, type ColorScript } from './colorScript';
+import type { FilmLookahead, FilmKey } from './filmLookahead';
 import { MotionMeter, PointerShake, SceneDepth, ObjectMatte } from './lensAux';
 import { drawPuppet, paperTone, css, type PuppetPose, type PuppetColours } from './cutoutPuppet';
 import { PoseTracker, POSE } from '../vtuber/poseTracker';
@@ -57,6 +64,7 @@ export type LensId =
   | 'grindhouse'
   | 'vhs'
   | 'foundfootage'
+  | 'colorize'
   | 'pixel'
   | 'ascii'
   | 'jackolantern'
@@ -91,6 +99,7 @@ export const LENSES: { id: LensId; label: string; icon: string; blurb: string }[
   { id: 'cardboard', label: 'South Park', icon: '✂️', blurb: 'Jointed paper cut-out puppet of you' },
   { id: 'comic', label: 'Comic book', icon: '💥', blurb: 'Ink, Ben-Day dots, speed lines' },
   { id: 'matrix', label: 'The Matrix', icon: '🟩', blurb: 'The world rebuilt from falling code' },
+  { id: 'colorize', label: 'Colorize', icon: '🎨', blurb: 'Believable colour for black & white film' },
   { id: 'silent', label: 'Silent film', icon: '🎩', blurb: '1910s hand-cranked nitrate' },
   { id: 'grindhouse', label: 'Grindhouse', icon: '🎞️', blurb: 'Burns, splices, reel changes' },
   { id: 'vhs', label: 'VHS camcorder', icon: '📼', blurb: '80s/90s home tape + date stamp' },
@@ -103,18 +112,33 @@ export const LENSES: { id: LensId; label: string; icon: string; blurb: string }[
 ];
 
 type Fit = 'cover' | 'contain';
-type ShaderLens = 'matrix' | 'comic' | 'southpark' | 'bigface' | 'night' | 'heat' | 'aura' | 'silent' | 'grindhouse' | 'vhs' | 'found' | 'pixel' | 'ascii';
+type ShaderLens = 'matrix' | 'comic' | 'southpark' | 'bigface' | 'night' | 'heat' | 'aura' | 'silent' | 'grindhouse' | 'vhs' | 'found' | 'pixel' | 'ascii'
+  | 'colorize' | 'colorizeA';
 const FRAGS: Record<ShaderLens, string> = {
   matrix: MATRIX_FRAG, comic: COMIC_FRAG, southpark: SOUTHPARK_FRAG, bigface: BIGFACE_FRAG, night: NIGHT_FRAG, heat: HEAT_FRAG, aura: AURA_FRAG,
   silent: SILENT_FRAG, grindhouse: GRINDHOUSE_FRAG, vhs: VHS_FRAG, found: FOUND_FRAG, pixel: PIXEL_FRAG, ascii: ASCII_FRAG,
+  colorize: COLORIZE_FRAG, colorizeA: COLORIZE_ANALYZE_FRAG,
 };
 const UNIFORMS = ['uTex', 'uGlyph', 'uMask', 'uRes', 'uT', 'uCell', 'uBoil', 'uHasMask', 'uMapA', 'uMapB', 'uBulge', 'uN', 'uAuraA', 'uAuraB', 'uAuraAmt',
-  'uSeed', 'uEvt', 'uReel', 'uCam', 'uVel', 'uFocus', 'uExpo', 'uGlitch', 'uDepth', 'uHasDepth', 'uPlate', 'uHasPlate', 'uMotion', 'uPal', 'uPalN', 'uGrid'];
-const MIP_KINDS: ShaderLens[] = ['southpark', 'matrix', 'comic', 'night', 'heat', 'aura', 'silent', 'grindhouse', 'vhs', 'found', 'pixel', 'ascii'];
+  'uSeed', 'uEvt', 'uReel', 'uCam', 'uVel', 'uFocus', 'uExpo', 'uGlitch', 'uDepth', 'uHasDepth', 'uPlate', 'uHasPlate', 'uMotion', 'uPal', 'uPalN', 'uGrid',
+  'uPrev', 'uCut', 'uStock', 'uFace', 'uLip', 'uNF', 'uChroma', 'uCRes', 'uAmt',
+  'uSeg', 'uMatPal', 'uHasSeg', 'uSegRect', 'uSegOff', 'uSegTrust', 'uWard', 'uLook', 'uGrade'];
+const MIP_KINDS: ShaderLens[] = ['southpark', 'matrix', 'comic', 'night', 'heat', 'aura', 'silent', 'grindhouse', 'vhs', 'found', 'pixel', 'ascii', 'colorize'];
 /** Art lenses: subject mask on unit 2, depth on unit 3 (unit 1 = glyph atlas / plate / palette). */
 const LAYERED: ShaderLens[] = ['matrix', 'comic', 'southpark', 'pixel', 'ascii'];
-const DEPTH_LENSES = new Set<LensId>(['matrix', 'comic', 'pixel', 'ascii']);
-const MATTE_LENSES = new Set<LensId>(['cardboard', 'comic', 'matrix', 'heat', 'aura', 'pixel', 'ascii']);
+const DEPTH_LENSES = new Set<LensId>(['matrix', 'comic', 'pixel', 'ascii', 'colorize']);
+const MATTE_LENSES = new Set<LensId>(['cardboard', 'comic', 'matrix', 'heat', 'aura', 'pixel', 'ascii', 'colorize']);
+/** Spectral sensitivity of the b&w stock the footage was shot on (linear RGB weights, sum 1). */
+export const FILM_STOCKS: Record<'panchromatic' | 'orthochromatic', [number, number, number]> = {
+  panchromatic: [0.2126, 0.7152, 0.0722],     // 1930s on: close to the eye's luminance
+  orthochromatic: [0.06, 0.5, 0.44],          // silent era: blind to red, so reds photographed dark
+};
+export type FilmStock = keyof typeof FILM_STOCKS;
+const STOCK_KEY = 'plajah.lens.filmStock';
+let filmStock: FilmStock = (() => { try { return localStorage.getItem(STOCK_KEY) === 'orthochromatic' ? 'orthochromatic' : 'panchromatic'; } catch { return 'panchromatic'; } })();
+/** The viewer's "shot on" choice for Colorize — shared by every engine (picker and players need no wiring). */
+export function getFilmStock(): FilmStock { return filmStock; }
+export function setFilmStock(s: FilmStock) { filmStock = s; try { localStorage.setItem(STOCK_KEY, s); } catch { /* */ } }
 /** Lenses that re-render at a film/animation frame rate and hold the frame in between. */
 const HOLD_FPS: Partial<Record<LensId, number>> = { cardboard: 12, silent: 16, grindhouse: 24 };
 const PIXEL_PALETTE = [   // pixel-art palette: 32 hand-picked colours, darkest first (index 0 = outline ink)
@@ -235,12 +259,49 @@ export class LensEngine {
   // found footage handheld rig
   private rig = { x: 0, y: 0, r: 0, z: 1.12, vx: 0, vy: 0, vr: 0, vz: 0, px: 0, py: 0, panic: 0, focus: 0, expo: 1, glitch: 0, punch: 0 };
 
+  // ── colorize: low-res chroma accumulator (ping-pong RGBA8 targets) ──
+  private cz: { tex: [WebGLTexture, WebGLTexture]; fbo: [WebGLFramebuffer, WebGLFramebuffer]; w: number; h: number; cur: number; fresh: boolean } | null = null;
+  private stock: FilmStock = filmStock;
+  private seg = new SceneSegment();
+  private segTex: WebGLTexture | null = null;
+  private matPalTex: WebGLTexture | null = null;
+  private matPalStamp = -1;
+  private colorScript = new ColorScriptPlayer();
+  /** The film's colour bible (colorScript.ts): per-shot set colours, wardrobe, cast, stock, print look. */
+  setColorScript(s: ColorScript | null) {
+    this.colorScript.set(s); if (this.cz) this.cz.fresh = true;
+    // a known film is a fixed experience: worth the heavier scene model (desktop / WebGPU only) — unless the
+    // lookahead is already running it ahead of the playhead, in which case live stays the light fallback
+    if (s && this.segment && hasWebGPU() && !isAndroid() && !this.lookahead) this.seg.setTier('remaster');
+  }
+  /** Ahead-of-playhead analysis for this film (filmLookahead.ts): its cached labels replace the live model. */
+  setLookahead(la: FilmLookahead | null) {
+    this.lookahead = la; this.laShot = -1; this.driftKey = null;
+    this.seg.setTier(la ? 'live' : this.colorScript.get() && hasWebGPU() && !isAndroid() ? 'remaster' : 'live');
+  }
+  private lookahead: FilmLookahead | null = null;
+  private laShot = -1;
+  private driftKey: FilmKey | null = null;
+  private driftAt = 0;
+  private drift = { dx: 0, dy: 0, agree: 1 };
+  private segObj: object | null = null;
+  /** 0 natural … 1 Technicolor 3-strip print; null = whatever the colour script says. */
+  setColorGrade(g: number | null) { this.gradeOverride = g; }
+  private gradeOverride: number | null = null;
+  /** Pin the colour script's clock (seconds) — previews and stills; null = follow the video's currentTime. */
+  setFilmTime(t: number | null) { this.filmTime = t; }
+  private filmTime: number | null = null;
+
   // ── Halloween Face & Camera Filter Engine ──
   private halloweenEngine: HalloweenFilterEngine | null = null;
 
   /** `models: false` = shaders only (no face/pose/matte/depth/SAM downloads) — the lab's still-frame review uses it. */
   private models: boolean;
-  constructor(opts: { models?: boolean } = {}) { this.models = opts.models !== false; this.initGL(); }
+  /** scene segmentation reads the frame being shaded (no <video> needed) — the lab turns it on alone for still review */
+  private segment: boolean;
+  constructor(opts: { models?: boolean; segment?: boolean } = {}) {
+    this.models = opts.models !== false; this.segment = opts.segment ?? this.models; this.initGL();
+  }
 
   getLens() { return this.lens; }
   /** Short human-readable state for diagnostics / a status pill ('' when all is well). */
@@ -255,6 +316,7 @@ export class LensEngine {
     }
     if (MATTE_LENSES.has(this.lens) && this.lens !== 'heat' && this.lens !== 'aura' && this.matte.state === 'loading') return 'loading cut-out model…';
     if (DEPTH_LENSES.has(this.lens) && this.depth.state() === 'loading') return 'loading depth model…';
+    if (this.lens === 'colorize' && this.lookahead) { const st = this.lookahead.status(); if (st) return st; }
     if (this.lens === 'cardboard' && this.poseState === 'loading') return 'loading body tracker…';
     return this.note;
   }
@@ -274,13 +336,15 @@ export class LensEngine {
       }
       return;
     }
-    if (this.models && (id === 'googly' || id === 'cardboard' || id === 'bigface' || id === 'aura')) this.startFace(id === 'aura');   // all need eyes/mouth; aura also expressions
+    if (this.models && (id === 'googly' || id === 'cardboard' || id === 'bigface' || id === 'aura' || id === 'colorize')) this.startFace(id === 'aura');   // all need eyes/mouth; aura also expressions
     if (this.models && MATTE_LENSES.has(id)) void this.matte.init();
     // depth + Segment Anything are transformer models: only where WebGPU can carry them (wasm would stall the frame)
     if (this.models && DEPTH_LENSES.has(id) && hasWebGPU() && !isAndroid()) this.depth.init();
+    if (this.segment && id === 'colorize' && hasWebGPU() && !isAndroid()) this.seg.init();
     if (this.models && id === 'cardboard') this.startPose();
     if (id === 'foundfootage') this.pointer.start(); else this.pointer.stop();
-    if (id !== 'googly' && id !== 'cardboard' && id !== 'bigface' && id !== 'aura') this.tracks = [];
+    if (id !== 'googly' && id !== 'cardboard' && id !== 'bigface' && id !== 'aura' && id !== 'colorize') this.tracks = [];
+    if (this.cz) this.cz.fresh = true;
     if (id !== 'aura') this.orbs.reset();
     this.holdAt = 0; this.frameNo = 0; this.startedAt = 0;
     this.evt.type = 0; this.nextEvtAt = 0; this.plateReady = false; this.plateStamp = -1;
@@ -293,7 +357,7 @@ export class LensEngine {
     try {
       const gl = this.glc.getContext('webgl2', { alpha: false, preserveDrawingBuffer: false, premultipliedAlpha: false, antialias: false });
       if (!gl) throw new Error('no webgl2');
-      this.glc.addEventListener('webglcontextlost', e => { e.preventDefault(); this.gl = null; this.progs = {}; }, false);
+      this.glc.addEventListener('webglcontextlost', e => { e.preventDefault(); this.gl = null; this.progs = {}; this.cz = null; this.segTex = null; this.matPalTex = null; }, false);
       this.glc.addEventListener('webglcontextrestored', () => { this.initGL(); }, false);
       const buf = gl.createBuffer(); this.quad = buf; gl.bindBuffer(gl.ARRAY_BUFFER, buf);
       gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
@@ -557,12 +621,146 @@ export class LensEngine {
         b.set([m.x, m.y, Math.max(8, m.w * (0.95 + m.open * 0.5)), (0.5 + Math.min(0.2, m.open * 0.6)) * k], 4 * n++);
       }
       gl.uniform4fv(P.u.uBulge, b); gl.uniform1i(P.u.uN, n);
+    } else if (kind === 'colorize') {
+      const cz = this.analyzeColour(src, canvas, W, H, nowMs, fit);
+      if (!cz) return;
+      gl.useProgram(P.prog); gl.viewport(0, 0, W, H);
+      gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, cz.tex[cz.cur]);
+      gl.uniform1i(P.u.uChroma, 1);
+      gl.uniform2f(P.u.uCRes, cz.w, cz.h);
+      gl.uniform3f(P.u.uStock, ...FILM_STOCKS[this.stock]);
+      gl.uniform1f(P.u.uAmt, 1);
+      gl.uniform1f(P.u.uGrade, this.gradeOverride ?? this.colorScript.grade());
+      gl.activeTexture(gl.TEXTURE0);
     } else if (kind === 'heat' || kind === 'aura') {
       this.bindMatte(P, src, W, H, nowMs, fit, 1);
       if (kind === 'aura') this.setAuraUniforms(P);
     }
     gl.drawArrays(gl.TRIANGLES, 0, 3);
     ctx.drawImage(this.glc, 0, 0, W, H);            // same-task blit: spec-guaranteed to see this frame
+  }
+
+  /** Colorize, pass 1: decide each ~8px region's colour into the chroma accumulator (reads the previous one).
+   *  Expects the frame already on TEXTURE0 with mips; leaves the default framebuffer bound. */
+  /** Scene materials (unit 4, canvas space) + the shot's material palette (unit 5). */
+  private bindScene(A: Prog, canvas: HTMLCanvasElement, src: HTMLVideoElement, nowMs: number): boolean {
+    const gl = this.gl!;
+    const mkNearest = () => {
+      const t = gl.createTexture()!; gl.bindTexture(gl.TEXTURE_2D, t);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      return t;
+    };
+    const t = this.filmTime ?? (Number.isFinite(src.currentTime) ? src.currentTime : 0);
+    // the film's own analysis, done ahead of the playhead, before any live model
+    let m = null as import('./sceneSegment').SegMap | null, cut = false, off = [0, 0], trust = 1;
+    if (this.lookahead) {
+      this.lookahead.follow(t);
+      const hit = this.lookahead.mapAt(t);
+      if (hit) {
+        m = hit.map;
+        if (hit.key !== this.driftKey || nowMs - this.driftAt > 100) {        // follow pans; distrust a changed picture
+          try { this.drift = this.lookahead.drift(canvas, hit.key); } catch { this.drift = { dx: 0, dy: 0, agree: 0.5 }; }
+          this.driftKey = hit.key; this.driftAt = nowMs;
+        }
+        off = [this.drift.dx, this.drift.dy]; trust = this.drift.agree;
+        if (hit.shot !== this.laShot) { cut = this.laShot >= 0; this.laShot = hit.shot; }   // the cached cut, to the frame
+        // the picture no longer matches the key (a cut the reader missed, or a new set-up): live labels instead
+        if (this.drift.agree < 0.3) { m = null; trust = 1; off = [0, 0]; }
+      }
+    }
+    if (!m && this.segment) m = this.seg.update(canvas, nowMs);
+    gl.activeTexture(gl.TEXTURE4);
+    if (!this.segTex) { this.segTex = mkNearest(); this.segObj = null; }
+    gl.bindTexture(gl.TEXTURE_2D, this.segTex);
+    if (m && m !== this.segObj) {
+      gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RG8, m.w, m.h, 0, gl.RG, gl.UNSIGNED_BYTE, m.data);
+      gl.pixelStorei(gl.UNPACK_ALIGNMENT, 4);
+      this.segObj = m;
+    }
+    gl.uniform1i(A.u.uSeg, 4);
+    gl.uniform1f(A.u.uHasSeg, m ? 1 : 0);
+    if (m) gl.uniform4f(A.u.uSegRect, ...m.rect);
+    gl.uniform2f(A.u.uSegOff, off[0], off[1]);
+    gl.uniform1f(A.u.uSegTrust, trust);
+    // the shot's palette follows the film's clock (a still or a live feed just keeps the defaults)
+    this.colorScript.update(t);
+    gl.activeTexture(gl.TEXTURE5);
+    if (!this.matPalTex) { this.matPalTex = mkNearest(); this.matPalStamp = -1; }
+    gl.bindTexture(gl.TEXTURE_2D, this.matPalTex);
+    if (this.matPalStamp !== this.colorScript.stamp) {
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, 32, 2, 0, gl.RGBA, gl.UNSIGNED_BYTE, this.colorScript.palettePixels());
+      this.matPalStamp = this.colorScript.stamp;
+    }
+    gl.uniform1i(A.u.uMatPal, 5);
+    gl.activeTexture(gl.TEXTURE0);
+    return cut;
+  }
+
+  private analyzeColour(src: HTMLVideoElement, canvas: HTMLCanvasElement, W: number, H: number, nowMs: number, fit: Fit) {
+    const gl = this.gl!;
+    const A = this.program('colorizeA'); if (!A || !this.gl) return null;
+    const w = Math.max(8, Math.round(W / 8)), h = Math.max(8, Math.round(H / 8));
+    let cz = this.cz;
+    if (!cz || cz.w !== w || cz.h !== h) {
+      if (cz) { cz.tex.forEach(t => gl.deleteTexture(t)); cz.fbo.forEach(f => gl.deleteFramebuffer(f)); }
+      const mk = () => {
+        const t = gl.createTexture()!; gl.bindTexture(gl.TEXTURE_2D, t);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        const f = gl.createFramebuffer()!; gl.bindFramebuffer(gl.FRAMEBUFFER, f);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0);
+        return [t, f] as const;
+      };
+      const a = mk(), b = mk();
+      cz = this.cz = { tex: [a[0], b[0]], fbo: [a[1], b[1]], w, h, cur: 0, fresh: true };
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.srcTex);
+    }
+    const prev = cz.cur; cz.cur ^= 1;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, cz.fbo[cz.cur]);
+    gl.viewport(0, 0, w, h);
+    gl.useProgram(A.prog);
+    gl.uniform1i(A.u.uTex, 0);
+    gl.uniform2f(A.u.uRes, W, H);
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, cz.tex[prev]);
+    gl.uniform1i(A.u.uPrev, 1);
+    // a cut (or a fresh start) throws the old colours away; otherwise regions keep theirs
+    const want = this.colorScript.stock() ?? filmStock;
+    if (this.stock !== want) { this.stock = want; cz.fresh = true; }   // re-read the greys through the new stock
+    gl.uniform1f(A.u.uCut, cz.fresh || this.motion.burst > 0.45 ? 1 : 0);
+    cz.fresh = false;
+    gl.uniform3f(A.u.uStock, ...FILM_STOCKS[this.stock]);
+    this.bindMatte(A, src, W, H, nowMs, fit, 2);
+    this.bindDepth(A, src, nowMs, 3);
+    // faces (canvas uv): head oval + mouth, from the tracker
+    // faces left to right, so the colour script's "people in this shot" line up with them
+    const face = new Float32Array(12), lip = new Float32Array(12), ward = new Float32Array(12), look = new Float32Array(12); let n = 0;
+    const shown = this.tracks.filter(t => t.alpha >= 0.3).sort((a, b) => a.head.x - b.head.x).slice(0, 3);
+    // one described person = the shot's focal character: the biggest face, whoever stands left of them
+    const focal = this.colorScript.peopleCount() === 1 && shown.length > 1
+      ? shown.reduce((bi, t, i) => (t.head.rx > shown[bi].head.rx ? i : bi), 0) : -1;
+    for (const t of shown) {
+      const k = Math.min(1, t.alpha);
+      face.set([t.head.x / W, t.head.y / H, t.head.rx / W, t.head.ry / H], 4 * n);
+      lip.set([t.mouth.x / W, t.mouth.y / H, t.mouth.w / W, k], 4 * n);
+      const who = focal < 0 ? n : n === focal ? 0 : -1;
+      ward.set(this.colorScript.wardrobe(who), 4 * n);
+      look.set(this.colorScript.look(who), 4 * n);
+      n++;
+    }
+    gl.uniform4fv(A.u.uFace, face); gl.uniform4fv(A.u.uLip, lip); gl.uniform1i(A.u.uNF, n);
+    gl.uniform4fv(A.u.uWard, ward); gl.uniform4fv(A.u.uLook, look);
+    if (this.bindScene(A, canvas, src, nowMs)) gl.uniform1f(A.u.uCut, 1);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.activeTexture(gl.TEXTURE0);
+    return cz;
   }
 
   // ───────────────────────────── South Park: plate, pose, colours ─────────────────────────────
@@ -1033,6 +1231,11 @@ export class LensEngine {
       this.stepVhs(nowMs, dt);
       this.drawVhsStamp(ctx, W, H, nowMs);
       this.shade('vhs', ctx, canvas, src, nowMs, fit);
+    } else if (this.lens === 'colorize') {
+      this.motion.update(canvas);                         // its burst marks the cuts
+      this.feedFaces(src, nowMs, W, H, fit);
+      this.stepTracks(dt, nowMs);
+      this.shade('colorize', ctx, canvas, src, nowMs, fit);
     } else if (this.lens === 'foundfootage') {
       if (!this.startedAt) this.startedAt = nowMs;
       this.frameNo++;
@@ -1083,8 +1286,10 @@ export class LensEngine {
     if (gl) {
       for (const t of [this.srcTex, this.maskTex, this.glyphTex, this.depthTex, this.plateTex, this.palTex, this.asciiTex]) if (t) gl.deleteTexture(t);
       for (const p of Object.values(this.progs)) if (p) gl.deleteProgram(p.prog);
+      if (this.cz) { this.cz.tex.forEach(t => gl.deleteTexture(t)); this.cz.fbo.forEach(f => gl.deleteFramebuffer(f)); }
+      for (const t of [this.segTex, this.matPalTex]) if (t) gl.deleteTexture(t);
       gl.getExtension('WEBGL_lose_context')?.loseContext();
     }
-    this.gl = null; this.progs = {}; this.tracks = [];
+    this.gl = null; this.progs = {}; this.tracks = []; this.cz = null; this.segTex = null; this.matPalTex = null;
   }
 }

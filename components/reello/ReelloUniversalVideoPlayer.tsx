@@ -155,8 +155,12 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
 }) => {
   const [showUpNext, setShowUpNext] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
-  // Live lenses (viewer-local). Only for Mux sources: they send CORS headers, so the overlay can read pixels.
+  // Live lenses (viewer-local). The overlay reads pixels on the GPU, so the source must be CORS-clean:
+  // Mux / same-origin play as they are; a plain cross-origin MP4 (archive.org films) is re-routed through
+  // the same-origin range proxy once a lens is picked (lensProxy), resuming at the same moment.
   const [lensId, setLensId] = useState<LensId>('none');
+  const [lensProxy, setLensProxy] = useState(false);
+  const resumeAtRef = useRef(0);
   const [lensStatus, setLensStatus] = useState('');
   const [lensOpen, setLensOpen] = useState(false);
   const [showLocalShare, setShowLocalShare] = useState(false);
@@ -474,6 +478,13 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
     isEmbedOnlyUrl,
   ]);
 
+  // What the <video> actually loads: resolvedUrl, or (lens on a cross-origin MP4) the same URL via /api/proxy.
+  const playUrl = useMemo(() => {
+    if (!lensProxy || !/^https?:/i.test(resolvedUrl) || resolvedUrl.includes('.m3u8') || resolvedUrl.includes('stream.mux.com')) return resolvedUrl;
+    if (typeof window !== 'undefined' && resolvedUrl.startsWith(window.location.origin)) return resolvedUrl;
+    return `/api/proxy?url=${encodeURIComponent(resolvedUrl)}`;
+  }, [lensProxy, resolvedUrl]);
+
   const activeEmbedUrl = useMemo(() => {
     const raw =
       currentVideo?.embedUrl ||
@@ -497,18 +508,18 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
   // Archive.org redirects across storage cluster nodes that do not always emit CORS headers on redirect hops,
   // which caused <video crossOrigin="anonymous"> to fail loading public-domain MP4s.
   const needsAnonymousCors = useMemo(() => {
-    if (!resolvedUrl) return false;
-    if (resolvedUrl.startsWith('/') || resolvedUrl.startsWith('blob:') || resolvedUrl.startsWith('data:') || resolvedUrl.startsWith('file:')) {
+    if (!playUrl) return false;
+    if (playUrl.startsWith('/') || playUrl.startsWith('blob:') || playUrl.startsWith('data:') || playUrl.startsWith('file:')) {
       return true;
     }
-    if (resolvedUrl.includes('stream.mux.com') || resolvedUrl.includes('firebasestorage.googleapis.com')) {
+    if (playUrl.includes('stream.mux.com') || playUrl.includes('firebasestorage.googleapis.com')) {
       return true;
     }
-    if (typeof window !== 'undefined' && resolvedUrl.startsWith(window.location.origin)) {
+    if (typeof window !== 'undefined' && playUrl.startsWith(window.location.origin)) {
       return true;
     }
     return false;
-  }, [resolvedUrl]);
+  }, [playUrl]);
 
   const activeTitle = useMemo(() => {
     if (playlist[playlistIndex]?.title) return playlist[playlistIndex].title;
@@ -521,10 +532,10 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
 
   useEffect(() => {
     const el = videoRef.current;
-    if (!el || !resolvedUrl) return;
+    if (!el || !playUrl) return;
 
     let isCancelled = false;
-    const isM3u8 = resolvedUrl.includes('.m3u8') || resolvedUrl.includes('stream.mux.com');
+    const isM3u8 = playUrl.includes('.m3u8') || playUrl.includes('stream.mux.com');
 
     if (isM3u8) {
       (async () => {
@@ -540,7 +551,7 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
             const hls = new Hls(hlsTuning());
             hlsRef.current = hls;
 
-            hls.loadSource(resolvedUrl);
+            hls.loadSource(playUrl);
             hls.attachMedia(el);
 
             hls.on(Hls.Events.MANIFEST_PARSED, () => {
@@ -575,12 +586,12 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
               }
             });
           } else if (el.canPlayType('application/vnd.apple.mpegurl')) {
-            el.src = resolvedUrl;
+            el.src = playUrl;
             el.play().catch(() => {});
           }
         } catch (e) {
           console.error('[UniversalVideoPlayer] Error initializing HLS', e);
-          el.src = resolvedUrl;
+          el.src = playUrl;
           el.play().catch(() => {});
         }
       })();
@@ -589,7 +600,10 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
         hlsRef.current.destroy();
         hlsRef.current = null;
       }
-      el.src = resolvedUrl;
+      el.src = playUrl;
+      const resumeAt = resumeAtRef.current;
+      resumeAtRef.current = 0;
+      if (resumeAt > 0) el.addEventListener('loadedmetadata', () => { el.currentTime = resumeAt; }, { once: true });
       el.play().catch(() => {
         el.muted = true;
         el.play().catch(() => {});
@@ -603,7 +617,7 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
         hlsRef.current = null;
       }
     };
-  }, [resolvedUrl]);
+  }, [playUrl]);
 
   const initAudioDsp = useCallback(() => {
     const el = videoRef.current;
@@ -805,7 +819,12 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
 
   // The video actually on screen (the playlist can advance past the one we were opened with).
   const activeVideo = playlist[playlistIndex]?.video ?? currentVideo;
-  const canLens = !!(effectiveMuxPlaybackId || activeVideo?.muxPlaybackId || needsAnonymousCors);
+  // what Colorize needs to look the film's colour script up (archive identifier first: story intel is keyed by it)
+  const lensFilm = useMemo(() => {
+    const id = cleanArchiveId || activeVideo?.id || currentVideo?.id;
+    return id ? { id: String(id), title: activeTitle, year: (activeVideo as any)?.year ?? (album as any)?.year } : null;
+  }, [cleanArchiveId, activeVideo, currentVideo?.id, activeTitle, album]);
+  const canLens = !!playUrl;   // any real <video>: cross-origin MP4s switch to the proxy when a lens is picked
   const showEmbedIframe = (useEmbedFallback || (!resolvedUrl && !!activeEmbedUrl)) && !!activeEmbedUrl;
 
   // Watch party (synchronized viewing): the host broadcasts, followers are slaved to the host.
@@ -1092,12 +1111,17 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
             }`}
           />
         )}
-        {!showEmbedIframe && canLens && lensId !== 'none' && (
-          <LensVideoOverlay videoRef={videoRef} lens={lensId} fit="contain" onStatus={setLensStatus} />
+        {/* mount only once the source is CORS-clean: one cross-origin frame would taint the overlay for good */}
+        {!showEmbedIframe && canLens && needsAnonymousCors && lensId !== 'none' && (
+          <LensVideoOverlay videoRef={videoRef} lens={lensId} fit="contain" onStatus={setLensStatus} film={lensFilm} sourceUrl={playUrl} />
         )}
         {!showEmbedIframe && canLens && lensOpen && (
           <div className="absolute right-3 bottom-24 z-40 w-72 max-w-[90%] rounded-xl bg-[#0F131C]/95 border border-white/15 p-2 shadow-2xl backdrop-blur-xl">
-            <LensPicker value={lensId} onChange={id => { setLensId(id); if (id === 'none') setLensStatus(''); }} status={lensStatus} />
+            <LensPicker value={lensId} onChange={id => {
+              setLensId(id);
+              if (id === 'none') setLensStatus('');
+              else if (!needsAnonymousCors && !lensProxy) { resumeAtRef.current = videoRef.current?.currentTime || 0; setLensProxy(true); }
+            }} status={lensStatus} />
           </div>
         )}
 

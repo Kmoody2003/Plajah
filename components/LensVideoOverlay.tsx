@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { LENSES, type LensId } from '../services/lenses/lensEngine';
+import { LENSES, getFilmStock, setFilmStock, type FilmStock, type LensId } from '../services/lenses/lensEngine';
 
 /**
  * Real-time lens over any <video> — viewers of a live stream, library players, anything with a ref.
@@ -19,7 +19,11 @@ export const LensVideoOverlay: React.FC<{
   /** Called with a short human-readable state ('' = fine) whenever it changes. */
   onStatus?: (s: string) => void;
   className?: string;
-}> = ({ videoRef, lens, fit = 'cover', onStatus, className = '' }) => {
+  /** The film playing, so Colorize can follow its colour script (story, dialogue, cast, stock). */
+  film?: { id: string; title?: string; year?: number | string } | null;
+  /** The URL the video plays (CORS-clean). With `film`, Colorize reads the film ahead of the playhead from it. */
+  sourceUrl?: string;
+}> = ({ videoRef, lens, fit = 'cover', onStatus, className = '', film, sourceUrl }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [blocked, setBlocked] = useState(false);
   const statusRef = useRef('');
@@ -35,6 +39,7 @@ export const LensVideoOverlay: React.FC<{
     if (!ctx) return;
 
     let engine: import('../services/lenses/lensEngine').LensEngine | null = null;
+    let lookahead: import('../services/lenses/filmLookahead').FilmLookahead | null = null;
     let raf = 0, last = 0, dead = false, hidden = document.hidden;
     const onVis = () => { hidden = document.hidden; };
     document.addEventListener('visibilitychange', onVis);
@@ -45,6 +50,21 @@ export const LensVideoOverlay: React.FC<{
       if (dead) return;
       engine = new m.LensEngine();
       engine.setLens(lens);
+      if (lens === 'colorize' && film?.id) {
+        import('../services/lenses/colorScriptSources')
+          .then(cs => cs.buildColorScriptForFilm(film))
+          .then(script => { if (!dead) engine?.setColorScript(script); })
+          .catch(() => { /* no script: the lens colours from the frame alone */ });
+        // a fixed film: analyse it ahead of the playhead (desktop-class GPU only; phones stay on the live model)
+        const gpu = typeof navigator !== 'undefined' && !!(navigator as any).gpu && !/Android/i.test(navigator.userAgent);
+        if (gpu && sourceUrl) {
+          import('../services/lenses/filmLookahead').then(la => {
+            if (dead) return;
+            lookahead = new la.FilmLookahead(film.id, sourceUrl);
+            engine?.setLookahead(lookahead);
+          }).catch(() => { /* live model only */ });
+        }
+      }
       const tick = () => {
         raf = requestAnimationFrame(tick);
         const t = performance.now();
@@ -69,10 +89,11 @@ export const LensVideoOverlay: React.FC<{
     return () => {
       dead = true; cancelAnimationFrame(raf);
       document.removeEventListener('visibilitychange', onVis);
+      lookahead?.dispose();
       engine?.dispose();
       statusRef.current = '';
     };
-  }, [lens, videoRef]);
+  }, [lens, videoRef, film?.id, sourceUrl]);
 
   if (lens === 'none' || blocked) return null;
   return (
@@ -100,6 +121,28 @@ export const LensPicker: React.FC<{
         </button>
       ))}
     </div>
+    {value === 'colorize' && <FilmStockToggle />}
     {status && <p className="text-[9px] text-amber-300/80 pt-1.5 px-0.5">{status}</p>}
   </div>
 );
+
+/** Colorize: which b&w stock the film was shot on, so the greys are read back through the right sensitivity. */
+const FilmStockToggle: React.FC = () => {
+  const [stock, setStock] = useState<FilmStock>(getFilmStock);
+  const pick = (s: FilmStock) => { setFilmStock(s); setStock(s); };
+  const opts: { id: FilmStock; label: string; hint: string }[] = [
+    { id: 'panchromatic', label: 'Talkie era', hint: '1930s on' },
+    { id: 'orthochromatic', label: 'Silent era', hint: 'before ~1927, red-blind stock' },
+  ];
+  return (
+    <div className="flex items-center gap-1.5 pt-1.5">
+      <span className="text-[9px] text-white/45 font-bold uppercase tracking-wide">Shot on</span>
+      {opts.map(o => (
+        <button key={o.id} title={o.hint} onClick={() => pick(o.id)}
+          className={`rounded-lg px-2 py-1 text-[10px] font-bold ${stock === o.id ? 'bg-orange-500 text-black' : 'bg-white/[0.06] text-white/75'}`}>
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+};
