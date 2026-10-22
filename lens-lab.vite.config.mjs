@@ -5,6 +5,7 @@
 import fs from 'fs';
 import path from 'path';
 import { defineConfig } from 'vite';
+import { watchIgnored } from './vite.watch-ignore.mjs';
 
 const shots = () => ({
   name: 'lens-shots',
@@ -29,5 +30,5 @@ export default defineConfig({
   plugins: [shots()],
   // the lens chain's only bare import is transformers.js (depth / Segment Anything): pre-bundle it, discover nothing else
   optimizeDeps: { entries: ['dev/lens-lab.html'], noDiscovery: true, include: ['@huggingface/transformers'] },
-  server: { host: '127.0.0.1', port: 3143, strictPort: true, watch: { ignored: ['**/dist*/**', '**/docs/**', '**/.tela-proofs/**', '**/.lens-shots/**', '**/public/**', '**/.claude/**', '**/tests/**', '**/scripts/**'] } },
+  server: { host: '127.0.0.1', port: 3143, strictPort: true, watch: { ignored: [watchIgnored, '**/dist*/**', '**/docs/**', '**/.tela-proofs/**', '**/.lens-shots/**', '**/public/**', '**/.claude/**', '**/tests/**', '**/scripts/**'] } },
 });

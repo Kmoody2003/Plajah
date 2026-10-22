@@ -5,6 +5,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { watchIgnored } from './vite.watch-ignore.mjs';
 const root = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
@@ -19,5 +20,5 @@ export default defineConfig({
     { find: /^.*services\/backendService$/, replacement: path.join(root, 'src/mocks/backendServiceMock.ts') },
     { find: /^\.\.\/LiveEventsGallery$/, replacement: path.join(root, 'src/mocks/LiveEventsGalleryStub.tsx') },
   ] },
-  server: { host: '127.0.0.1', port: 3120, strictPort: true, hmr: { overlay: false }, watch: { ignored: ['**/dist*/**', '**/docs/**', '**/scratchpad/**'] } },
+  server: { host: '127.0.0.1', port: 3120, strictPort: true, hmr: { overlay: false }, watch: { ignored: [watchIgnored, '**/dist*/**', '**/docs/**', '**/scratchpad/**'] } },
 });

@@ -3,10 +3,11 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath } from 'node:url';
+import { watchIgnored } from './vite.watch-ignore.mjs';
 export default defineConfig({
   root: fileURLToPath(new URL('.', import.meta.url)),
   cacheDir: 'node_modules/.vite-emotes',
   plugins: [react()],
   optimizeDeps: { entries: ['emotes.html'] },
-  server: { host: '127.0.0.1', port: 3111, strictPort: true },
+  server: { watch: { ignored: [watchIgnored] },  host: '127.0.0.1', port: 3111, strictPort: true },
 });

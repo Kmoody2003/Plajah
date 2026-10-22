@@ -4,10 +4,11 @@
 //   ?perf=1                                       turns through a 240-page book and reports frame times
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { watchIgnored } from './vite.watch-ignore.mjs';
 
 export default defineConfig({
   cacheDir: 'node_modules/.vite-page-turn-lab',
   plugins: [react()],
   optimizeDeps: { entries: ['page-turn-lab.html'] },
-  server: { host: '127.0.0.1', port: 3140, strictPort: true, watch: { ignored: ['**/dist*/**', '**/docs/**', '**/.tela-proofs/**', '**/public/**', '**/.claude/**', '**/tests/**', '**/scripts/**'] } },
+  server: { host: '127.0.0.1', port: 3140, strictPort: true, watch: { ignored: [watchIgnored, '**/dist*/**', '**/docs/**', '**/.tela-proofs/**', '**/public/**', '**/.claude/**', '**/tests/**', '**/scripts/**'] } },
 });

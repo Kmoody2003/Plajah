@@ -4,10 +4,11 @@
 // You must click "Unlock sound" first (browsers keep audio locked until a gesture). The render panel measures sounds offline.
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { watchIgnored } from './vite.watch-ignore.mjs';
 
 export default defineConfig({
   cacheDir: 'node_modules/.vite-living-audio-lab',
   plugins: [react()],
   optimizeDeps: { entries: ['living-audio-lab.html'] },
-  server: { host: '127.0.0.1', port: 3141, strictPort: true, watch: { ignored: ['**/dist*/**', '**/docs/**', '**/.tela-proofs/**', '**/public/**', '**/.claude/**', '**/tests/**', '**/scripts/**'] } },
+  server: { host: '127.0.0.1', port: 3141, strictPort: true, watch: { ignored: [watchIgnored, '**/dist*/**', '**/docs/**', '**/.tela-proofs/**', '**/public/**', '**/.claude/**', '**/tests/**', '**/scripts/**'] } },
 });

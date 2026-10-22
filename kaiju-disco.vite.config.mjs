@@ -5,6 +5,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import fs from 'node:fs';
 import path from 'node:path';
+import { watchIgnored } from './vite.watch-ignore.mjs';
 
 // Dev-only: the face lab POSTs tuned anchors here → public/models/mascots/v2/face/{who}_anchors.json
 const saveAnchors = {
@@ -29,5 +30,5 @@ export default defineConfig({
   cacheDir: 'node_modules/.vite-kaiju-disco',
   plugins: [react(), saveAnchors],
   optimizeDeps: { entries: ['kaiju-disco.html', 'kaiju-2d.html', 'face-lab.html'] },
-  server: { host: '127.0.0.1', port: 3110, strictPort: true, watch: { ignored: ['**/dist*/**', '**/docs/**'] } },
+  server: { host: '127.0.0.1', port: 3110, strictPort: true, watch: { ignored: [watchIgnored, '**/dist*/**', '**/docs/**'] } },
 });

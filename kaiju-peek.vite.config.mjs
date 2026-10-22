@@ -4,6 +4,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { fileURLToPath } from 'node:url';
+import { watchIgnored } from './vite.watch-ignore.mjs';
 export default defineConfig({
   root: fileURLToPath(new URL('.', import.meta.url)),
   cacheDir: 'node_modules/.vite-kaiju-peek',
@@ -21,5 +22,5 @@ export default defineConfig({
     noDiscovery: true,
     include: ['react', 'react-dom', 'react-dom/client', 'react/jsx-runtime', 'react/jsx-dev-runtime', 'three', '@react-three/fiber', '@react-three/drei', 'three/examples/jsm/utils/SkeletonUtils.js'],
   },
-  server: { host: '127.0.0.1', port: 3112, strictPort: true, watch: { ignored: ['**/scripts/**', '**/docs/**', '**/.claude/**', '**/data/**'] } },
+  server: { host: '127.0.0.1', port: 3112, strictPort: true, watch: { ignored: [watchIgnored, '**/scripts/**', '**/docs/**', '**/.claude/**', '**/data/**'] } },
 });

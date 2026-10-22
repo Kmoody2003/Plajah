@@ -5,6 +5,7 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { watchIgnored } from './vite.watch-ignore.mjs';
 const root = fileURLToPath(new URL('.', import.meta.url));
 export default defineConfig({
   root,
@@ -19,5 +20,5 @@ export default defineConfig({
   // `vite build --config show-mode-lab.vite.config.mjs --outDir <dir>` builds ONLY the lab page
   // (the dev server's dep pre-scan of this graph can wedge on Windows; a static build is reliable).
   build: { rollupOptions: { input: path.resolve(root, 'show-mode-lab.html') }, sourcemap: false, reportCompressedSize: false },
-  server: { host: '127.0.0.1', port: 3114, strictPort: true },
+  server: { watch: { ignored: [watchIgnored] },  host: '127.0.0.1', port: 3114, strictPort: true },
 });

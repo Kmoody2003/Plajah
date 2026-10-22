@@ -5,10 +5,11 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
+import { watchIgnored } from './vite.watch-ignore.mjs';
 
 export default defineConfig({
   cacheDir: 'node_modules/.vite-living-lab',
   plugins: [react(), tailwindcss()],
   optimizeDeps: { entries: ['living-lab.html'] },
-  server: { host: '127.0.0.1', port: 3155, strictPort: true, watch: { ignored: ['**/dist*/**', '**/docs/**', '**/.tela-proofs/**', '**/public/**', '**/.claude/**', '**/tests/**', '**/scripts/**'] } },
+  server: { host: '127.0.0.1', port: 3155, strictPort: true, watch: { ignored: [watchIgnored, '**/dist*/**', '**/docs/**', '**/.tela-proofs/**', '**/public/**', '**/.claude/**', '**/tests/**', '**/scripts/**'] } },
 });

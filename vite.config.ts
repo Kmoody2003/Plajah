@@ -6,6 +6,7 @@ import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import { watchIgnored } from './vite.watch-ignore.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -32,7 +33,9 @@ export default defineConfig(({ mode }) => {
         // can run alongside one already holding 3000; defaults to 3000 otherwise.
         port: Number(process.env.PORT) || 3000,
         host: '0.0.0.0',
-        hmr: false
+        hmr: false,
+        // Don't watch non-source trees (see vite.watch-ignore.mjs — a full-root watch leaked ~120k handles).
+        watch: { ignored: [watchIgnored] },
       },
       plugins: [
         { name: 'pj-boot-version', transformIndexHtml: (html: string) => html.replace('__PJ_VERSION__', pjBootVersion()) },

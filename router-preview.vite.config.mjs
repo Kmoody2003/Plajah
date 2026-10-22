@@ -4,6 +4,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { fileURLToPath } from 'url';
+import { watchIgnored } from './vite.watch-ignore.mjs';
 export default defineConfig({
   root: fileURLToPath(new URL('.', import.meta.url)),
   cacheDir: 'node_modules/.vite-router-preview',
@@ -14,7 +15,7 @@ export default defineConfig({
   server: {
     host: '127.0.0.1', port: 3120, strictPort: true,
     watch: {
-      ignored: ['**/node_modules/**', '**/.git/**', '**/dist/**', '**/android/**', '**/ios/**', '**/windows-native/**',
+      ignored: [watchIgnored, '**/node_modules/**', '**/.git/**', '**/dist/**', '**/android/**', '**/ios/**', '**/windows-native/**',
         '**/tizen/**', '**/rust/**', '**/cap-shell/**', '**/public/**', '**/docs/**', '**/data/**', '**/.tela-proofs/**'],
     },
   },
