@@ -1716,10 +1716,13 @@ service cloud.firestore {
       }
       match /chat/{msgId} {
         allow read: if true;
-        allow create: if isAuthenticated()
+        allow create: if isRegisteredUser()
                       && request.resource.data.uid == request.auth.uid
                       && request.resource.data.text is string
-                      && request.resource.data.text.size() <= 500;
+                      && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 500;
+        // Moderation: the sender, the room's host, or an admin may remove a message.
+        allow delete: if isAdmin() || (isAuthenticated() && (resource.data.uid == request.auth.uid
+                      || get(/databases/$(database)/documents/rooms/$(roomId)).data.get('hostId', '') == request.auth.uid));
       }
       // Polls: the poll doc holds the question/options only (no shared vote map). Creator,
       // room host or admin may edit/delete it. Votes are one doc per voter (self-write only),
@@ -2908,10 +2911,21 @@ service cloud.firestore {
     }
 
     match /video_chats/{chatId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && isValidVideoChatSession(request.resource.data);
-      allow update: if isAuthenticated() && (
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['participants', 'isActive'])
+      function vcRoomMember(rid) {
+        return request.auth.uid in get(/databases/$(database)/documents/chat_rooms/$(rid)).data.get('participants', []);
+      }
+      allow read: if isAuthenticated() && vcRoomMember(resource.data.roomId);
+      allow create: if isRegisteredUser() && isValidVideoChatSession(request.resource.data)
+        && chatId == 'vchat_' + request.resource.data.roomId
+        && vcRoomMember(request.resource.data.roomId)
+        && request.resource.data.participants.size() == 1
+        && request.resource.data.participants[0].uid == request.auth.uid;
+      // Join = add yourself (participants grows by one entry, yours); members may also end it.
+      allow update: if isRegisteredUser() && vcRoomMember(resource.data.roomId) && (
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['participants']) &&
+         request.resource.data.participants.size() == resource.data.participants.size() + 1 &&
+         request.resource.data.participants[resource.data.participants.size()].uid == request.auth.uid) ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isActive'])
       );
     }
 
@@ -4409,6 +4423,26 @@ service cloud.firestore {
       }
     }
 
+    // 24h stories (services/backendService createStory / StoriesBar / StoryViewer). Had no rule,
+    // so creating, listing, marking viewed and deleting all failed.
+    match /stories/{storyId} {
+      allow read: if isAuthenticated();
+      allow create: if isRegisteredUser()
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.id == storyId
+        && request.resource.data.mediaUrl is string && request.resource.data.mediaUrl.size() < 4000
+        && request.resource.data.mediaType in ['PHOTO', 'VIDEO']
+        && request.resource.data.expiresAt == request.resource.data.timestamp + 86400000;
+      // A viewer may add only themselves to viewerIds.
+      allow update: if isAuthenticated() && (
+        (resource.data.ownerId == request.auth.uid &&
+         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['ownerId', 'expiresAt', 'timestamp'])) ||
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['viewerIds']) &&
+         request.resource.data.viewerIds.toSet().difference(resource.data.get('viewerIds', []).toSet()) == [request.auth.uid].toSet() &&
+         resource.data.get('viewerIds', []).toSet().difference(request.resource.data.viewerIds.toSet()).size() == 0));
+      allow delete: if isAdmin() || (isAuthenticated() && resource.data.ownerId == request.auth.uid);
+    }
+
     // Comment-thread polls (CommentSection PollComposer + composer polls on a post).
     // Had no rule, so creating a poll and listening for them both failed.
     match /polls/{pollId} {
@@ -4657,32 +4691,39 @@ service cloud.firestore {
       allow update: if isAuthenticated() && (resource.data.ownerId == request.auth.uid || isAdmin());
       allow delete: if isAuthenticated() && (resource.data.ownerId == request.auth.uid || isAdmin());
 
-      // Chat messages — public read, authenticated write
+      // Chat: the sender must be the signed-in account (was: anyone could post as anyone).
       match /chat/{msgId} {
         allow read: if true;
-        allow create: if isAuthenticated();
+        allow create: if isRegisteredUser()
+          && request.resource.data.get('uid', request.resource.data.get('senderId', '')) == request.auth.uid
+          && request.resource.data.get('text', '') is string && request.resource.data.get('text', '').size() <= 1000;
+        allow delete: if isAdmin() || (isAuthenticated() && (
+          request.auth.uid == resource.data.get('uid', resource.data.get('senderId', '')) ||
+          get(/databases/$(database)/documents/live_streams/$(streamId)).data.ownerId == request.auth.uid));
       }
 
-      // Viewer signaling docs — authenticated users can join as a viewer
+      // Viewer signaling: a viewer owns viewers/{their uid}; the broadcaster answers.
+      // Offer + viewer candidates come from the viewer, answer + broadcaster candidates from the owner.
       match /viewers/{viewerId} {
+        function lsOwner() { return get(/databases/$(database)/documents/live_streams/$(streamId)).data.ownerId == request.auth.uid; }
         allow read: if true;
-        allow create, update, delete: if isAuthenticated();
+        allow create, update, delete: if isAuthenticated() && (viewerId == request.auth.uid || lsOwner());
 
         match /offer/{docId} {
           allow read: if true;
-          allow write: if isAuthenticated();
+          allow write: if isAuthenticated() && viewerId == request.auth.uid;
         }
         match /answer/{docId} {
           allow read: if true;
-          allow write: if isAuthenticated();
+          allow write: if isAuthenticated() && lsOwner();
         }
         match /broadcaster_candidates/{candidateId} {
           allow read: if true;
-          allow create: if isAuthenticated();
+          allow create: if isAuthenticated() && lsOwner();
         }
         match /viewer_candidates/{candidateId} {
           allow read: if true;
-          allow create: if isAuthenticated();
+          allow create: if isAuthenticated() && viewerId == request.auth.uid;
         }
       }
     }
@@ -5138,13 +5179,16 @@ service cloud.firestore {
       function rtcTalkMember(u) {
         return exists(/databases/$(database)/documents/liveTalks/$(sessionId.split('_')[1])/members/$(u));
       }
+      // Stamped by rtcCore on non-talk docs. Legacy docs without a stamp stay writable.
+      function rtcMine() { return resource.data.get('owner', request.auth.uid) == request.auth.uid; }
+      function rtcStamped() { return request.resource.data.get('owner', '') == request.auth.uid; }
       allow read: if true;
-      allow create, update, delete: if isAuthenticated() && !rtcIsTalk();
-      match /{document=**} {
-        allow read: if true;
-        allow write: if isAuthenticated() && !rtcIsTalk();
-      }
+      allow create, update, delete: if isAdmin();
       match /participants/{pid} {
+        allow read: if true;
+        allow create: if isAuthenticated() && !rtcIsTalk() && rtcStamped();
+        allow update: if isAuthenticated() && !rtcIsTalk() && rtcMine() && request.resource.data.get('owner', request.auth.uid) == request.auth.uid;
+        allow delete: if isAuthenticated() && !rtcIsTalk() && rtcMine();
         allow create, update: if isAuthenticated() && rtcIsTalk() && pid == request.auth.uid && rtcTalkMember(pid) &&
           request.resource.data.keys().hasOnly(['role', 'name', 'joinedAt', 'nonce', 'lastSeen']) &&
           request.resource.data.role in ['host', 'participant', 'viewer'] &&
@@ -5154,8 +5198,16 @@ service cloud.firestore {
       }
       match /signals/{edge} {
         function rtcEdgeFromMe() { return edge.split('__').size() == 2 && edge.split('__')[0] == request.auth.uid; }
+        allow read: if true;
+        allow create: if isAuthenticated() && !rtcIsTalk() && rtcStamped();
+        allow update: if isAuthenticated() && !rtcIsTalk() && rtcMine() && rtcStamped();
+        // Either end of an edge may clear it when leaving.
+        allow delete: if isAuthenticated() && !rtcIsTalk() && (rtcMine() || edge.split('__')[1] == request.auth.uid);
         allow create, update, delete: if isAuthenticated() && rtcIsTalk() && rtcEdgeFromMe() && rtcTalkMember(request.auth.uid);
         match /candidates/{cid} {
+          allow read: if true;
+          allow create: if isAuthenticated() && !rtcIsTalk() && rtcStamped();
+          allow delete: if isAuthenticated() && !rtcIsTalk() && rtcMine();
           allow create, delete: if isAuthenticated() && rtcIsTalk() && rtcEdgeFromMe();
         }
       }

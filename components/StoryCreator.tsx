@@ -30,6 +30,7 @@ const StoryCreator: React.FC<Props> = ({ currentUserId, currentUserName, current
   const [bgPreset, setBgPreset]     = useState(BG_PRESETS[0]);
   const [uploading, setUploading]   = useState(false);
   const [duration, setDuration]     = useState(5);
+  const [failed, setFailed]         = useState(false);
   const fileRef                      = useRef<HTMLInputElement>(null);
 
   const pickFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -58,7 +59,8 @@ const StoryCreator: React.FC<Props> = ({ currentUserId, currentUserName, current
         return;
       }
 
-      await createStory(currentUserId, {
+      setFailed(false);
+      const id = await createStory(currentUserId, {
         ownerName: currentUserName,
         ownerPhoto: currentUserPhoto,
         mediaUrl,
@@ -69,9 +71,11 @@ const StoryCreator: React.FC<Props> = ({ currentUserId, currentUserName, current
         isPublic: true,
         backgroundColor: mode === 'TEXT' ? bgPreset : undefined,
       });
+      if (!id) throw new Error('Story was not saved');
       onClose();
     } catch (e) {
       console.error('publish story', e);
+      setFailed(true);
     } finally {
       setUploading(false);
     }
@@ -182,6 +186,7 @@ const StoryCreator: React.FC<Props> = ({ currentUserId, currentUserName, current
           )}
 
           {/* Publish */}
+          {failed && <p className="text-xs text-red-400 text-center">Your story didn't post. Try again.</p>}
           <button
             onClick={publish}
             disabled={!canPublish || uploading}

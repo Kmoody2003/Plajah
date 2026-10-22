@@ -1,5 +1,5 @@
 // Social rules: comments (every composer feature), chat reactions, comment polls, club comments,
-// fan-room chat. Evaluated with the Firebase Rules REST `:test` API — read-only, deploys nothing.
+// fan-room chat, stories, stream/room chat, call signalling. Evaluated with the Firebase Rules REST `:test` API — read-only, deploys nothing.
 // Runs against the compacted deploy artifact so what's tested is what ships.
 //   node scripts/minifyRules.mjs firestore.rules <tmp>/firestore.rules.min && node scripts/testSocialRules.mjs <tmp>/firestore.rules.min
 import fs from 'node:fs';
@@ -23,6 +23,8 @@ function mocks() {
   m.push({ function: 'get', args: [{ exactValue: `${DB}/clubPosts/cp1` }], result: { value: { data: { authorId: AUTHOR } } } });
   m.push({ function: 'exists', args: [{ exactValue: `${DB}/chat_rooms/r1` }], result: { value: true } });
   m.push({ function: 'get', args: [{ exactValue: `${DB}/chat_rooms/r1` }], result: { value: { data: room } } });
+  m.push({ function: 'get', args: [{ exactValue: `${DB}/live_streams/ls1` }], result: { value: { data: { ownerId: AUTHOR } } } });
+  m.push({ function: 'get', args: [{ exactValue: `${DB}/rooms/rm1` }], result: { value: { data: { hostId: AUTHOR } } } });
   return m;
 }
 const tokenFor = (uid, anon) => ({ uid, token: { email: `${uid}@example.test`, email_verified: true, firebase: { sign_in_provider: anon ? 'anonymous' : 'google.com' } } });
@@ -99,6 +101,52 @@ t('write other member', 'DENY', ME, 'create', `${DB}/wcMatchRooms/x/members/${OT
 const hv = { uid: ME, displayName: 'Me', photoURL: null, factionId: 'f', activeFilter: 'x', dimLightsOn: false, text: 'boo', at: now };
 t('vault chat', 'ALLOW', ME, 'create', `${DB}/halloweenVaultRooms/main_vault/chat/msg_1`, { data: hv });
 t('vault chat guest', 'DENY', 'anon:' + ME, 'create', `${DB}/halloweenVaultRooms/main_vault/chat/msg_1`, { data: hv });
+
+// stories (had no rule)
+const st = (o = {}) => ({ id: 's1', ownerId: ME, ownerName: 'Me', mediaUrl: 'https://m', mediaType: 'PHOTO', timestamp: now, expiresAt: now + 86400000, isPublic: true, ...o });
+const S = `${DB}/stories/s1`;
+t('post a story', 'ALLOW', ME, 'create', S, { data: st() });
+t('story as someone else', 'DENY', ME, 'create', S, { data: st({ ownerId: OTHER }) });
+t('story that never expires', 'DENY', ME, 'create', S, { data: st({ expiresAt: now + 9e12 }) });
+t('read story signed in', 'ALLOW', OTHER, 'get', S, { existing: st() });
+t('read story signed out', 'DENY', null, 'get', S, { existing: st() });
+t('mark story viewed', 'ALLOW', OTHER, 'update', S, { existing: st(), data: st({ viewerIds: [OTHER] }) });
+t('mark someone else viewed', 'DENY', OTHER, 'update', S, { existing: st(), data: st({ viewerIds: [AUTHOR] }) });
+t('delete own story', 'ALLOW', ME, 'delete', S, { existing: st() });
+t('delete others story', 'DENY', OTHER, 'delete', S, { existing: st() });
+
+// live_streams chat + signalling (was: any signed-in user, any sender)
+t('stream chat as me', 'ALLOW', ME, 'create', `${DB}/live_streams/ls1/chat/c1`, { data: { uid: ME, text: 'hi' } });
+t('stream chat impersonation', 'DENY', ME, 'create', `${DB}/live_streams/ls1/chat/c1`, { data: { uid: OTHER, text: 'hi' } });
+t('join stream as viewer', 'ALLOW', ME, 'create', `${DB}/live_streams/ls1/viewers/${ME}`, { data: { uid: ME } });
+t('write another viewer', 'DENY', ME, 'create', `${DB}/live_streams/ls1/viewers/${OTHER}`, { data: { uid: OTHER } });
+t('viewer forges answer', 'DENY', ME, 'create', `${DB}/live_streams/ls1/viewers/${ME}/answer/a`, { data: { sdp: 'x' } });
+t('broadcaster answers', 'ALLOW', AUTHOR, 'create', `${DB}/live_streams/ls1/viewers/${ME}/answer/a`, { data: { sdp: 'x' } });
+
+// video_chats (was: anyone could create / rewrite participants)
+const vp = (uid) => ({ uid, displayName: uid, photoURL: '', isMuted: false, isVideoOff: false });
+const vs = (parts) => ({ id: 'vchat_r1', roomId: 'r1', participants: parts, startTime: now, isActive: true });
+t('start room video call', 'ALLOW', ME, 'create', `${DB}/video_chats/vchat_r1`, { data: vs([vp(ME)]) });
+t('start call in a room I am not in', 'DENY', OTHER, 'create', `${DB}/video_chats/vchat_r1`, { data: vs([vp(OTHER)]) });
+t('join call as myself', 'ALLOW', AUTHOR, 'update', `${DB}/video_chats/vchat_r1`, { existing: vs([vp(ME)]), data: vs([vp(ME), vp(AUTHOR)]) });
+t('remove others from call', 'DENY', AUTHOR, 'update', `${DB}/video_chats/vchat_r1`, { existing: vs([vp(ME)]), data: vs([vp(AUTHOR)]) });
+
+// rtc_sessions (non-talk) — owner-stamped
+const R = `${DB}/rtc_sessions/wcroom_x`;
+t('join rtc session', 'ALLOW', ME, 'create', `${R}/participants/tv_1`, { data: { role: 'viewer', name: 'TV', owner: ME } });
+t('overwrite another peer', 'DENY', ME, 'update', `${R}/participants/p2`, { existing: { role: 'participant', owner: OTHER }, data: { role: 'host', owner: ME } });
+t('kick another peer', 'DENY', ME, 'delete', `${R}/participants/p2`, { existing: { role: 'participant', owner: OTHER } });
+t('send my offer', 'ALLOW', ME, 'create', `${R}/signals/${ME}__${OTHER}`, { data: { description: { type: 'offer' }, owner: ME } });
+t('hijack an edge', 'DENY', ME, 'update', `${R}/signals/${OTHER}__${AUTHOR}`, { existing: { owner: OTHER }, data: { description: {}, owner: ME } });
+t('clear inbound edge on leave', 'ALLOW', ME, 'delete', `${R}/signals/${OTHER}__${ME}`, { existing: { owner: OTHER } });
+t('write session root', 'DENY', ME, 'create', R, { data: { x: 1 } });
+
+// rooms/{id}/chat moderation
+t('room chat', 'ALLOW', ME, 'create', `${DB}/rooms/rm1/chat/m1`, { data: { uid: ME, displayName: 'Me', text: 'yo', at: now } });
+t('empty room chat', 'DENY', ME, 'create', `${DB}/rooms/rm1/chat/m1`, { data: { uid: ME, displayName: 'Me', text: '', at: now } });
+t('host removes message', 'ALLOW', AUTHOR, 'delete', `${DB}/rooms/rm1/chat/m1`, { existing: { uid: ME, text: 'yo' } });
+t('sender removes message', 'ALLOW', ME, 'delete', `${DB}/rooms/rm1/chat/m1`, { existing: { uid: ME, text: 'yo' } });
+t('stranger removes message', 'DENY', OTHER, 'delete', `${DB}/rooms/rm1/chat/m1`, { existing: { uid: ME, text: 'yo' } });
 
 const body = {
   source: { files: [{ name: 'firestore.rules', content: src }] },

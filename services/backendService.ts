@@ -11052,7 +11052,8 @@ export const createStory = async (ownerId: string, data: Omit<Story, 'id' | 'own
     const now = Date.now();
     const ref = doc(collection(db, 'stories'));
     const story: Story = { ...data, id: ref.id, ownerId, timestamp: now, expiresAt: now + STORIES_TTL_MS };
-    await setDoc(ref, story);
+    // No caption / link / background → those keys are undefined, which Firestore rejects.
+    await setDoc(ref, removeUndefined(story));
     return ref.id;
   } catch (e) { console.error('createStory', e); return null; }
 };

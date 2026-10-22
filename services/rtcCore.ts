@@ -312,6 +312,12 @@ export class RtcSession {
   /** `${collectionName}/${sessionId}` — identifies the signaling space (used to serialize leave→join). */
   get path(): string { return `${this.cfg.collectionName}/${this.cfg.sessionId}`; }
   private get root() { return doc(db, this.cfg.collectionName, this.cfg.sessionId); }
+  /** Generic rtc_sessions docs carry the writer's uid so rules can stop anyone else
+   *  overwriting or deleting them. Talk + meeting paths have strict key lists — no stamp there. */
+  private get ownerStamp(): { owner?: string } {
+    const uid = auth.currentUser?.uid;
+    return uid && this.cfg.collectionName === 'rtc_sessions' && !this.cfg.sessionId.startsWith('talk_') ? { owner: uid } : {};
+  }
   private participantDoc(id: string) { return doc(db, this.cfg.collectionName, this.cfg.sessionId, 'participants', id); }
   private participantsCol() { return collection(db, this.cfg.collectionName, this.cfg.sessionId, 'participants'); }
   private edgeDoc(from: string, to: string) { return doc(db, this.cfg.collectionName, this.cfg.sessionId, 'signals', edgeId(from, to)); }
@@ -356,6 +362,7 @@ export class RtcSession {
       name: this.cfg.displayName || auth.currentUser?.displayName || 'Guest',
       joinedAt: serverTimestamp(),
       ...(live ? { nonce: this.nonce, lastSeen: serverTimestamp() } : {}),
+      ...this.ownerStamp,
     });
     if (this.closed) { await deleteDoc(this.participantDoc(this.selfId)).catch(() => {}); return; }
 
@@ -503,7 +510,7 @@ export class RtcSession {
     };
 
     pc.onicecandidate = e => {
-      if (e.candidate) addDoc(this.edgeCandidates(this.selfId, peerId), defined({ ...e.candidate.toJSON(), ...stamp })).catch(() => {});
+      if (e.candidate) addDoc(this.edgeCandidates(this.selfId, peerId), defined({ ...e.candidate.toJSON(), ...stamp, ...this.ownerStamp })).catch(() => {});
     };
 
     // Perfect negotiation: (re)offer whenever tracks change.
@@ -512,7 +519,7 @@ export class RtcSession {
         peer.makingOffer = true;
         await pc.setLocalDescription();
         if (this.closed) return;
-        await setDoc(this.edgeDoc(this.selfId, peerId), defined({ description: pc.localDescription?.toJSON(), ...stamp }), { merge: true });
+        await setDoc(this.edgeDoc(this.selfId, peerId), defined({ description: pc.localDescription?.toJSON(), ...stamp, ...this.ownerStamp }), { merge: true });
       } catch (e: any) {
         this.events.onSignalWarning?.(peerId, new Error(e?.message || 'negotiation failed'));
       } finally {
@@ -540,7 +547,7 @@ export class RtcSession {
         flushCandidates();
         if (description.type === 'offer') {
           await pc.setLocalDescription();
-          await setDoc(this.edgeDoc(this.selfId, peerId), defined({ description: pc.localDescription?.toJSON(), ...stamp }), { merge: true });
+          await setDoc(this.edgeDoc(this.selfId, peerId), defined({ description: pc.localDescription?.toJSON(), ...stamp, ...this.ownerStamp }), { merge: true });
         }
       } catch (e: any) {
         this.events.onSignalWarning?.(peerId, new Error(e?.message || 'signaling failed'));

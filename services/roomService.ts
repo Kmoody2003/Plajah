@@ -312,6 +312,10 @@ export function subscribeMembers(roomId: string, cb: (m: RoomMember[]) => void):
 export async function sendRoomMessage(roomId: string, msg: Omit<RoomMessage, 'id' | 'at'>): Promise<void> {
   await addDoc(chatCol(roomId), { ...msg, at: Date.now() });
 }
+/** Remove a chat message — its sender, the room host, or an admin (enforced in rules). */
+export async function deleteRoomMessage(roomId: string, msgId: string): Promise<void> {
+  await deleteDoc(doc(db, ROOM_COL, roomId, 'chat', msgId));
+}
 export function subscribeRoomChat(roomId: string, cb: (m: RoomMessage[]) => void): () => void {
   const q = query(chatCol(roomId), orderBy('at', 'desc'), limit(80));
   return onSnapshot(q, snap => cb(snap.docs.map(d => ({ id: d.id, ...(d.data() as any) })).reverse()), () => cb([]));

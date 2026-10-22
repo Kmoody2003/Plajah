@@ -5,7 +5,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Radio, Users, Share2, Send, Clock, X, Check, Megaphone } from 'lucide-react';
 import {
-  subscribeRoom, subscribeMembers, subscribeRoomChat, joinRoom, leaveRoom, sendRoomMessage, endRoom,
+  subscribeRoom, subscribeMembers, subscribeRoomChat, joinRoom, leaveRoom, sendRoomMessage, deleteRoomMessage, endRoom,
   isLive, minsLeft, roomShareUrl, type LiveRoom, type RoomMember, type RoomMessage,
   subscribeRoomPolls, subscribeRoomPollVotes, castRoomPollVote, addRoomPoll, isSharedKind, MAX_POLL_OPTIONS,
   type RoomPoll,
@@ -48,7 +48,8 @@ const RoomView: React.FC<{ roomId: string; user?: any; onBack?: () => void }> = 
     const body = text.trim();
     if (!body || !user?.uid || !live) return;
     setText('');
-    await sendRoomMessage(roomId, { uid: user.uid, displayName: user.displayName || 'Guest', photoURL: user.photoURL || null, text: body }).catch(() => {});
+    await sendRoomMessage(roomId, { uid: user.uid, displayName: user.displayName || 'Guest', photoURL: user.photoURL || null, text: body })
+      .catch(() => setText(prev => prev || body)); // not sent — give the draft back
   };
 
   const share = async () => {
@@ -138,6 +139,10 @@ const RoomView: React.FC<{ roomId: string; user?: any; onBack?: () => void }> = 
                   <div style={{ fontSize: 10, color: T.muted, marginBottom: 2, textAlign: mine ? 'right' : 'left' }}>{mine ? 'You' : m.displayName}</div>
                   <div style={{ background: mine ? 'rgba(255,140,0,0.16)' : T.cardAlt, border: `1px solid ${mine ? 'rgba(255,140,0,0.3)' : T.border}`, borderRadius: 12, padding: '8px 11px', fontSize: 14, lineHeight: 1.35, wordBreak: 'break-word' }}>{m.text}</div>
                 </div>
+                {(mine || isHost) && (
+                  <button onClick={() => { deleteRoomMessage(roomId, m.id).catch(() => {}); }} title="Remove message" aria-label="Remove message"
+                    style={{ alignSelf: 'center', background: 'transparent', border: 'none', color: T.muted, cursor: 'pointer', padding: 2 }}><X size={12} /></button>
+                )}
               </div>
             );
           })}
