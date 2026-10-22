@@ -421,6 +421,13 @@ export async function buildArrival(A: ArtAnchor, renderer: THREE.WebGPURenderer)
       ['square', 772, 745, 800, 180, 172, 226], // left wing block
       ['square', 895, 790, 1000, 165, 160, 225],// connecting mass
       ['square', 1030, 1013, 1062, 205, 198, 250],
+      // Smaller pinnacle turrets visible in the art crop (roofline clutter that sells the scale).
+      ['spire', 790, 786, 795, 150, 136, 176],
+      ['spire', 905, 902, 909, 128, 116, 150],
+      ['spire', 946, 943, 950, 126, 113, 150],
+      ['spire', 1012, 1008, 1016, 158, 146, 182],
+      ['spire', 1088, 1085, 1091, 214, 205, 236],
+      ['spire', 742, 739, 746, 190, 178, 212],
     ];
     const castle = new THREE.Group();
     const windows: THREE.Vector3[] = [];
@@ -457,17 +464,46 @@ export async function buildArrival(A: ArtAnchor, renderer: THREE.WebGPURenderer)
       obj.position.copy(base);
       obj.lookAt(A.camera.position.x, base.y, A.camera.position.z);
       castle.add(obj);
-      // Lit windows on the faces toward the viewer.
-      const nWin = Math.floor((w * bodyH) / 90);
-      for (let i = 0; i < nWin; i++) {
-        const p = base.clone()
-          .add(new THREE.Vector3(0, bodyH * (0.15 + R() * 0.7), 0))
-          .addScaledVector(new THREE.Vector3().subVectors(A.camera.position, base).setY(0).normalize(), w * 0.32)
-          .addScaledVector(new THREE.Vector3().subVectors(A.camera.position, base).setY(0).normalize().cross(new THREE.Vector3(0, 1, 0)), (R() - 0.5) * w * 0.8);
+      // Lancet windows in storeys and bays on the face toward the viewer; ~45% lit (art).
+      const toEye = new THREE.Vector3().subVectors(A.camera.position, base).setY(0).normalize();
+      const side = toEye.clone().cross(new THREE.Vector3(0, 1, 0));
+      const faceOff = kind === 'spire' ? w * 0.5 : kind === 'hall' ? w * 0.3 : Math.min(w, 30) / 2;
+      const cols = Math.max(1, Math.floor(w / 4.6)), rows = Math.max(1, Math.floor(bodyH / 7.5));
+      for (let ry = 0; ry < rows; ry++) for (let cx2 = 0; cx2 < cols; cx2++) {
+        if (R() > 0.45) continue;
+        const u = cols === 1 ? 0 : (cx2 / (cols - 1) - 0.5) * w * 0.72;
+        const p = base.clone().add(new THREE.Vector3(0, bodyH * ((ry + 0.55) / (rows + 0.3)), 0)).addScaledVector(toEye, faceOff + 0.2).addScaledVector(side, u);
         windows.push(p);
       }
+      // Roofline clutter: ridge pinnacles on the hall, corner turrets on square masses.
+      if (kind === 'hall') {
+        for (let k = -2; k <= 2; k++) {
+          const pin = new THREE.Mesh(new THREE.ConeGeometry(0.9, 5.5, 6), roof);
+          pin.position.copy(base).add(new THREE.Vector3(0, bodyH + roofH + 1.5, 0)).addScaledVector(side, k * w * 0.18);
+          castle.add(pin);
+        }
+      } else if (kind === 'square' && w > 15) {
+        for (const sgn of [-1, 1]) {
+          const t = spireTurret(Kd, 1.6, 4, 6, 6);
+          t.position.copy(base).add(new THREE.Vector3(0, bodyH, 0)).addScaledVector(side, sgn * (w / 2 - 1.6)).addScaledVector(toEye, Math.min(w, 30) / 2 - 1.6);
+          castle.add(t);
+        }
+      }
     }
-    const winGeo = new THREE.PlaneGeometry(1.1, 2.0);
+    // Base curtain wall ringing the crag top (art: crenellated outer ward below the castle).
+    {
+      const ring: [number, number][] = [[735, 228], [800, 232], [880, 230], [960, 234], [1030, 244], [1095, 256]];
+      for (let k = 0; k < ring.length - 1; k++) {
+        const a = A.atDistance(ring[k][0], ring[k][1], D - 25), b = A.atDistance(ring[k + 1][0], ring[k + 1][1], D - 25);
+        const len = a.distanceTo(b);
+        const wall = new THREE.Mesh(crenellatedWall(len, 10, 3, 2.2, 1.6, 2.2), distantStone);
+        wall.position.copy(a.clone().lerp(b, 0.5)).setY(Math.min(a.y, b.y) - 2);
+        wall.lookAt(A.camera.position.x, wall.position.y, A.camera.position.z); // distant: segments just face the viewer
+        castle.add(wall);
+        if (k % 2 === 0) windows.push(wall.position.clone().add(new THREE.Vector3(0, 5, 0)).addScaledVector(new THREE.Vector3().subVectors(A.camera.position, wall.position).setY(0).normalize(), 1.7));
+      }
+    }
+    const winGeo = new THREE.PlaneGeometry(1.0, 2.4);
     const win = new THREE.InstancedMesh(winGeo, windowGlow, windows.length);
     const mm = new THREE.Matrix4();
     windows.forEach((p, i) => {

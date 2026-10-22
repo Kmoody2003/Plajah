@@ -7,6 +7,7 @@ import { triplanarMaterial } from './materials';
 import { crenellatedWall } from './kit';
 import { collide } from './collision';
 import { flameMaterial } from './fx';
+import { loadModel, fitSize, groundTo } from './assets';
 
 export interface Viaduct {
   group: THREE.Group;
@@ -14,6 +15,8 @@ export interface Viaduct {
   torches: THREE.PointLight[];
   sealedGate: { position: THREE.Vector3; radius: number };
   terrace: THREE.Vector3;
+  /** Async CC0 props (statues, benches); rebuild collision when settled. */
+  props: Promise<unknown>;
 }
 
 const WATER_LOCAL = -1.35;   // moat surface in fortress-local y (deck level = 0)
@@ -79,6 +82,12 @@ export function buildViaduct(frame: { origin: THREE.Vector3; yaw: number }, post
     deck.position.y = -0.3;
     deck.receiveShadow = true;
     piece.add(deck);
+    // Moulded cornice under each deck edge — reads as a real bridge, not a slab.
+    for (const s of [-1, 1]) {
+      const cornice = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.32, len), stone);
+      cornice.position.set(s * (DECK_W / 2 + 0.12), -0.55, 0);
+      piece.add(cornice);
+    }
     for (const s of [-1, 1]) {
       const wall = new THREE.Mesh(crenellatedWall(len, 0.95, 0.45, 0.7, 0.55, 0.45), stone);
       wall.rotation.y = s * Math.PI / 2;
@@ -86,6 +95,18 @@ export function buildViaduct(frame: { origin: THREE.Vector3; yaw: number }, post
       piece.add(wall);
     }
     add(piece);
+    if (withPier) {
+      // Parapet piers with pyramid caps above each support pier.
+      for (const s of [-1, 1]) {
+        const pp = new THREE.Mesh(new THREE.BoxGeometry(0.75, 1.5, 0.75), stone);
+        pp.position.set(a.x + s * (DECK_W / 2 - 0.2), a.y + 0.75, a.z);
+        add(pp);
+        const cap = new THREE.Mesh(new THREE.ConeGeometry(0.56, 0.6, 4), stone);
+        cap.rotation.y = Math.PI / 4;
+        cap.position.set(a.x + s * (DECK_W / 2 - 0.2), a.y + 1.8, a.z);
+        add(cap, false);
+      }
+    }
     if (withPier) {
       const top = Math.min(a.y, b.y) - 0.6;
       const h = top - WATER_LOCAL + 2;
@@ -191,7 +212,27 @@ export function buildViaduct(frame: { origin: THREE.Vector3; yaw: number }, post
 
   g.updateMatrixWorld(true);
   const toWorld = (v: THREE.Vector3) => v.clone().applyMatrix4(g.matrixWorld);
+  // Terrace dressing: statues flanking the sealed gate, raven banners on the arch, benches.
+  const bannerTex = new THREE.TextureLoader().load('/models/halloween/ravencrest/banner_raven_navy.png');
+  bannerTex.colorSpace = THREE.SRGBColorSpace;
+  for (const s of [-1, 1]) {
+    const b = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 3.2), new THREE.MeshStandardNodeMaterial({ map: bannerTex, roughness: 0.9, side: THREE.DoubleSide }));
+    b.position.set(T.x + s * 2.55, T.y + 3.6, T.z - 16.85);
+    add(b, false);
+  }
+  const place = async (id: string, size: number, x: number, y: number, z: number, ry: number) => {
+    const m = await loadModel(id); fitSize(m, size, id === 'gothic_statue' ? 'y' : 'max');
+    m.position.set(x, y, z); m.rotation.y = ry; add(m); groundTo(m, y); return m;
+  };
+  const props = Promise.allSettled([
+    place('gothic_statue', 3.0, T.x - 6.4, T.y, T.z - 14.6, 0.3),
+    place('gothic_statue', 3.0, T.x + 6.4, T.y, T.z - 14.6, -0.3),
+    place('painted_wooden_bench', 1.9, T.x - 8.6, T.y, T.z - 6, Math.PI / 2),
+    place('painted_wooden_bench', 1.9, T.x + 8.6, T.y, T.z - 6, -Math.PI / 2),
+  ]);
+
   return {
+    props,
     group: g, flames, torches,
     sealedGate: { position: toWorld(new THREE.Vector3(T.x, T.y, T.z - 15)), radius: 3.2 },
     terrace: toWorld(new THREE.Vector3(T.x, T.y, T.z - 6)),

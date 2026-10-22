@@ -6,6 +6,11 @@ import {
 } from 'three/tsl';
 
 const PH = '/games/ravencrest/assets/polyhaven/textures';
+// Texture tier: '1k' for browsers / integrated GPUs (¼ the memory + bandwidth), '2k' for the
+// desktop app on a discrete GPU. Set once by main.ts before any material is built.
+let TIER: '1k' | '2k' = '1k';
+export function setTextureTier(t: '1k' | '2k') { TIER = t; }
+const sfx = () => (TIER === '1k' ? '_1k' : '');
 const loader = new THREE.TextureLoader();
 const cache = new Map<string, THREE.Texture>();
 
@@ -22,21 +27,26 @@ function tex(path: string, srgb: boolean): THREE.Texture {
   return t;
 }
 
-export interface PbrSet { diff: THREE.Texture; nor: THREE.Texture; rough: THREE.Texture; ao: THREE.Texture; disp: THREE.Texture; ard: THREE.Texture }
+// Only the maps shaders actually sample are loaded (diffuse, packed AO/rough/disp, normal).
+export interface PbrSet { diff: THREE.Texture; nor: THREE.Texture; ard: THREE.Texture }
 
 export function pbr(id: string): PbrSet {
   return {
-    diff: tex(`${PH}/${id}/diff.jpg`, true),
-    nor: tex(`${PH}/${id}/nor_gl.jpg`, false),
-    rough: tex(`${PH}/${id}/rough.jpg`, false),
-    ao: tex(`${PH}/${id}/ao.jpg`, false),
-    disp: tex(`${PH}/${id}/disp.jpg`, false),
-    ard: tex(`${PH}/${id}/ard.jpg`, false), // AO/rough/disp packed by scripts/ravencrest/pack_textures.py
+    diff: tex(`${PH}/${id}/diff${sfx()}.jpg`, true),
+    nor: tex(`${PH}/${id}/nor_gl${sfx()}.jpg`, false),
+    ard: tex(`${PH}/${id}/ard${sfx()}.jpg`, false), // AO/rough/disp packed by scripts/ravencrest/pack_textures.py
   };
 }
 
-/** SSR reads `metalrough` from the MRT. x = reflectivity, y = roughness. */
+/**
+ * SSR reads `metalrough` from the MRT (x = reflectivity, y = roughness). Only attach it when
+ * the level's scene pass actually has that target — with SSR off there's no 'metalrough'
+ * MRT, and a material writing to it fails to build (renders flat/untextured).
+ */
+let reflectMRT = true;
+export function setReflectEnabled(on: boolean) { reflectMRT = on; }
 export function setReflect(mat: THREE.NodeMaterial, reflectivity: THREE.Node | number, rough: THREE.Node | number) {
+  if (!reflectMRT) return;
   mat.mrtNode = mrt({ metalrough: vec2(reflectivity as never, rough as never) });
 }
 
@@ -65,7 +75,18 @@ const bumpFromHeight: N = Fn(([h, scale]: N) => {
  * World-space triplanar PBR for procedural architecture and terrain.
  * 6 texture fetches per pixel: diffuse ×3 + packed AO/rough/disp ×3.
  */
+const matCache = new Map<string, THREE.MeshStandardNodeMaterial>();
 export function triplanarMaterial(id: string, o: StoneOpts = {}): THREE.MeshStandardNodeMaterial {
+  // Identical requests share one instance so static batching can merge across modules.
+  const key = id + JSON.stringify(o, Object.keys(o).sort());
+  const hit = matCache.get(key);
+  if (hit) return hit;
+  const m = buildTriplanar(id, o);
+  matCache.set(key, m);
+  return m;
+}
+
+function buildTriplanar(id: string, o: StoneOpts): THREE.MeshStandardNodeMaterial {
   const s = pbr(id);
   const scale = float(1 / (o.metresPerTile ?? 3));
   const tri = (t: THREE.Texture) => triplanarTexture(texture(t), null, null, scale, positionWorld, normalWorld);
@@ -123,7 +144,7 @@ export function wetAsphalt(repeat: [number, number], markings: THREE.Texture): T
   const base = texture(s.diff, u).rgb.mul(0.2);
   const painted = mix(base, paint.rgb.mul(0.8), paint.a);
   m.colorNode = mix(painted, painted.mul(0.85), puddle);
-  const r = mix(texture(s.rough, u).r.mul(0.7).add(0.12), float(0.14), puddle);
+  const r = mix(texture(s.ard, u).g.mul(0.7).add(0.12), float(0.14), puddle);
   m.roughnessNode = r;
   m.normalNode = normalMap(texture(s.nor, u), vec2(mix(float(1), float(0.08), puddle)));
   m.metalness = 0;

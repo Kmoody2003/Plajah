@@ -25,12 +25,15 @@ const capturePlugin = {
   },
 };
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   plugins: [capturePlugin],
   root: here,
-  publicDir: path.resolve(here, '../../public'),
+  // Production: served by the main Plajah host at /games/ravencrest/play/ (assets stay at
+  // their absolute /games/ravencrest/assets/... and /models/... paths), so don't copy public/.
+  base: command === 'build' ? '/games/ravencrest/play/' : '/',
+  publicDir: command === 'build' ? false : path.resolve(here, '../../public'),
   cacheDir: path.resolve(here, '../../node_modules/.vite-ravencrest-engine'),
   optimizeDeps: { entries: [path.resolve(here, 'index.html')], include: ['three', 'three/webgpu', 'three/tsl', 'three-mesh-bvh'] },
   server: { host: '127.0.0.1', port: 4330, fs: { allow: [path.resolve(here, '../..')] } },
-  build: { outDir: path.resolve(here, '../../dist-ravencrest'), target: 'es2022' },
-});
+  build: { outDir: path.resolve(here, '../../public/games/ravencrest/play'), emptyOutDir: true, target: 'es2022', chunkSizeWarningLimit: 4000 },
+}));

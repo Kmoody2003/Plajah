@@ -68,6 +68,7 @@ import {
 } from '../data/halloweenStoryIntel';
 import { HalloweenVaultChatAndFanRoom } from './taleo/HalloweenVaultChatAndFanRoom';
 import { HauntedCastleExhibition } from './taleo/HauntedCastleExhibition';
+import { RavencrestGameFrame } from './taleo/RavencrestGameFrame';
 
 interface MoviesTVViewProps {
   onBack: () => void;
@@ -3417,11 +3418,16 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
           {currentSubView === 'HAUNTED_EXHIBIT' && (
             <div className="pt-16">
               {tabNavEl}
-              <HauntedCastleExhibition
-                onBackToVault={() => setCurrentSubView('HALLOWEEN')}
-                onPlayPumpkinPatch={() => onSelectMovie(PUMPKIN_PATCH_HERO_ALBUM)}
-                onSelectArchiveFilm={handleSelectArchiveItem}
-                onOpenChatRoom={() => setCurrentSubView('HALLOWEEN')}
+              <RavencrestGameFrame
+                onBack={() => setCurrentSubView('HALLOWEEN')}
+                classic={
+                  <HauntedCastleExhibition
+                    onBackToVault={() => setCurrentSubView('HALLOWEEN')}
+                    onPlayPumpkinPatch={() => onSelectMovie(PUMPKIN_PATCH_HERO_ALBUM)}
+                    onSelectArchiveFilm={handleSelectArchiveItem}
+                    onOpenChatRoom={() => setCurrentSubView('HALLOWEEN')}
+                  />
+                }
               />
             </div>
           )}

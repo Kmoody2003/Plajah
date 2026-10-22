@@ -10,10 +10,12 @@ import { moonSky } from './sky';
 import { buildPost } from './post';
 import { loadJack, Character } from './character';
 import { CollisionWorld } from './collision';
+import { setTextureTier, setReflectEnabled } from './materials';
 import { PlayerController } from './player';
 import { LightPool } from './lights';
 import { mergeStatic } from './optimize';
 import { GameAudio } from './audio';
+import { batchFlames } from './fx';
 
 const params = new URLSearchParams(location.search);
 if (params.has('debug')) (THREE.Node as unknown as { captureStackTrace: boolean }).captureStackTrace = true;
@@ -21,14 +23,30 @@ if (params.has('debug')) (THREE.Node as unknown as { captureStackTrace: boolean 
 // iGPU) get 'medium'; discrete GPUs get 'high'. Override with ?q=low|medium|high.
 const adapterInfo = await navigator.gpu?.requestAdapter({ powerPreference: 'high-performance' }).then((a) => (a as unknown as { info?: { vendor?: string; architecture?: string } } | null)?.info).catch(() => undefined);
 const integrated = !adapterInfo || /intel|qualcomm|apple|arm/i.test(adapterInfo.vendor ?? '') || /xe-|gen-|integrated/i.test(adapterInfo.architecture ?? '');
-const quality = (params.get('q') ?? (integrated ? 'medium' : 'high')) as 'low' | 'medium' | 'high';
+// Plajah's Windows app hosts the web build in WebView2 launched with --force_high_performance_gpu,
+// so there the game gets the discrete GPU and the full-fat 'ultra' tier.
+// WebView2 exposes chrome.webview on the top frame only; the game runs in a same-origin iframe
+// inside Plajah, so check the top window too.
+const inDesktopApp = (() => {
+  const has = (w: Window | null) => { try { return !!(w as unknown as { chrome?: { webview?: unknown } })?.chrome?.webview; } catch { return false; } };
+  return has(window) || has(window.top);
+})();
+const quality = (params.get('q') ?? (integrated ? 'medium' : inDesktopApp ? 'ultra' : 'high')) as 'low' | 'medium' | 'high' | 'ultra';
 const Q = {
   // res: internal render height (FSR1 upscales to the display). Intel Arc iGPU = 'medium' = the 60 fps baseline.
-  low:    { pr: 1.0, res: 540, resMin: 400, ssr: false, ssrScale: 0.5, shadow: 1024, pool: 4 },
-  medium: { pr: 1.0, res: 720, resMin: 480, ssr: false, ssrScale: 0.5, shadow: 1024, pool: 5 },
+  low:    { pr: 1.0, res: 540, resMin: 400, ssr: false, ssrScale: 0.5, shadow: 0, pool: 4 },
+  // Moon shadow map costs ~6 ms CPU/frame in r184 for little visible gain in this backlit
+  // night scene, so the iGPU baseline uses a contact shadow under Jack instead.
+  medium: { pr: 1.0, res: 720, resMin: 480, ssr: false, ssrScale: 0.5, shadow: 0, pool: 5 },
   high:   { pr: Math.min(devicePixelRatio, 1.5), res: 1080, resMin: 720, ssr: true, ssrScale: 0.5, shadow: 2048, pool: 10 },
+  // Desktop app on a discrete GPU: native-res internal render, SSR, 4k shadows, big light pool.
+  ultra:  { pr: Math.min(devicePixelRatio, 2), res: 2160, resMin: 900, ssr: true, ssrScale: 0.75, shadow: 4096, pool: 14 },
 }[quality];
-console.info(`[ravencrest] GPU ${adapterInfo?.vendor ?? '?'} ${adapterInfo?.architecture ?? ''} → quality ${quality}`);
+console.info(`[ravencrest] GPU ${adapterInfo?.vendor ?? '?'} ${adapterInfo?.architecture ?? ''} · ${inDesktopApp ? 'desktop app' : 'browser'} → quality ${quality}`);
+setTextureTier(quality === 'high' || quality === 'ultra' ? '2k' : '1k');
+// Exterior + courtyard materials only get SSR outputs when the exterior pass runs SSR.
+const exteriorSSR = (params.get('ssr') === '1' || Q.ssr) && params.get('ssr') !== '0';
+setReflectEnabled(exteriorSSR);
 const view = document.getElementById('view')!;
 const refImg = document.getElementById('ref') as HTMLImageElement;
 const review = document.getElementById('review')!;
@@ -46,7 +64,7 @@ let internalH = targetRes;
 renderer.setPixelRatio(Q.pr);
 renderer.toneMapping = THREE.AgXToneMapping;
 renderer.toneMappingExposure = 0.8;
-renderer.shadowMap.enabled = true;
+renderer.shadowMap.enabled = Q.shadow > 0 && params.get('shadows') !== '0';
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 view.appendChild(renderer.domElement);
 
@@ -54,7 +72,7 @@ const camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 0.1, 60
 camera.rotation.order = 'YXZ';
 const postOpts = {
   ssr: (params.get('ssr') === '1' || Q.ssr) && params.get('ssr') !== '0', ssrScale: Q.ssrScale,
-  bloom: params.get('bloom') !== '0', taa: params.get('taa') === '1', smaa: params.get('aa') !== '0', upscale: params.get('fsr') !== '0',
+  bloom: (params.get('bloom') === '0' ? false : (quality === 'low' || quality === 'medium') ? 'lean' : 'full') as 'full' | 'lean' | false, taa: params.get('taa') === '1', smaa: params.get('aa') !== '0', upscale: params.get('fsr') !== '0',
 };
 
 // ── Level 1: arrival road, moat, gatehouse and the outer bailey ───────────────
@@ -86,8 +104,8 @@ outside.backgroundNode = sky.node;
 const moon = new THREE.DirectionalLight(0x8fa8d4, 1.4);
 moon.position.copy(world.moonDir).multiplyScalar(300).add(world.gateCentre);
 moon.target.position.copy(world.gateCentre).lerp(new THREE.Vector3(), 0.5);
-moon.castShadow = true;
-moon.shadow.mapSize.set(Q.shadow, Q.shadow);
+moon.castShadow = renderer.shadowMap.enabled;
+if (moon.castShadow) moon.shadow.mapSize.set(Q.shadow, Q.shadow);
 const sc = moon.shadow.camera as THREE.OrthographicCamera;
 sc.left = -90; sc.right = 90; sc.top = 90; sc.bottom = -90; sc.near = 50; sc.far = 800;
 moon.shadow.bias = -0.0004;
@@ -125,7 +143,9 @@ outside.fogNode = fog(color(0x262f3d), max(densityFogFactor(float(0.0013)), (exp
 
 // ── Level 2: the Grand Hall ──────────────────────────────────────────────────
 const hallScene = new THREE.Scene();
+setReflectEnabled(quality !== 'low' && params.get('ssr') !== '0');
 const hall = buildGrandHall();
+setReflectEnabled(exteriorSSR);
 hallScene.add(hall.group);
 hallScene.backgroundNode = sky.node; // night sky through the open doors
 hallScene.fogNode = fog(color(0x1a1612), densityFogFactor(float(0.01)));
@@ -140,13 +160,26 @@ interface Level {
   anchor: ArtAnchor; torches: THREE.PointLight[]; flames: THREE.Mesh[];
 }
 const reviewKey = new THREE.DirectionalLight(0xfff4e8, 0);
+// Soft contact shadow under Jack (radial gradient quad), used with or without shadow maps.
+const contactShadow = (() => {
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const g = c.getContext('2d')!;
+  const grad = g.createRadialGradient(64, 64, 4, 64, 64, 62);
+  grad.addColorStop(0, 'rgba(0,0,0,0.75)'); grad.addColorStop(0.5, 'rgba(0,0,0,0.38)'); grad.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = grad; g.fillRect(0, 0, 128, 128);
+  const tex = new THREE.CanvasTexture(c);
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 1.4), new THREE.MeshBasicNodeMaterial({ map: tex, transparent: true, depthWrite: false }));
+  m.rotation.x = -Math.PI / 2;
+  m.renderOrder = 2;
+  return m;
+})();
 const mkLevel = (name: string, scene: THREE.Scene, a: ArtAnchor, torches: THREE.PointLight[], flames: THREE.Mesh[], opts = postOpts): Level => ({
   name, scene, anchor: a, torches, flames, post: buildPost(renderer, scene, camera, opts), collision: new CollisionWorld(scene),
 });
 const levels = {
   outside: mkLevel('outside', outside, anchor, [...world.torches, ...yard.torches, ...viaduct.torches], [...world.flames, ...yard.flames, ...viaduct.flames]),
   // The hall's polished floor is a signature of the art: SSR on everywhere but 'low'.
-  hall: mkLevel('hall', hallScene, hall.anchor, hall.torches, hall.flames, { ...postOpts, ssr: quality !== 'low' && params.get('ssr') !== '0' }),
+  hall: mkLevel('hall', hallScene, hall.anchor, hall.torches, hall.flames, { ...postOpts, ssr: quality !== 'low' && params.get('ssr') !== '0', ssrScale: quality === 'medium' ? 0.35 : postOpts.ssrScale }),
 };
 levels.outside.collision.rebuild();
 levels.hall.collision.rebuild();
@@ -156,11 +189,15 @@ const pools = {
   outside: new LightPool(outside, outside, Q.pool, new Set(levels.outside.torches)),
   hall: new LightPool(hallScene, hallScene, Q.pool + 2, new Set(levels.hall.torches)),
 };
-// Static batching (see optimize.ts). Flames re-orient every frame, so they stay separate.
-const noMerge = new Set<THREE.Object3D>([...levels.outside.flames, ...levels.hall.flames]);
+// All flames → one draw per level (fx.ts batchFlames), then static batching (optimize.ts).
+for (const l of [levels.outside, levels.hall]) {
+  const fb = batchFlames(l.flames);
+  if (fb) l.scene.add(fb);
+}
+const noMerge = new Set<THREE.Object3D>();
 const batchStats = { outside: mergeStatic(outside, noMerge), hall: mergeStatic(hallScene, noMerge) };
 console.info('[ravencrest] static batching', batchStats);
-yard.props.then(() => {
+Promise.all([yard.props, viaduct.props]).then(() => {
   yard.group.traverse((o) => { if ((o as THREE.PointLight).isPointLight && !o.name.startsWith('pool')) pools.outside.add(o as THREE.PointLight); });
   noMerge.add(player.object);
   mergeStatic(outside, noMerge);
@@ -193,7 +230,7 @@ loadJack().then((c) => { jack = c; player.character = c; player.object.add(c.roo
 
 function enterLevel(next: Level, pos: THREE.Vector3, yaw: number) {
   level = next;
-  next.scene.add(player.object, reviewKey, reviewKey.target);
+  next.scene.add(player.object, reviewKey, reviewKey.target, contactShadow);
   player.world = next.collision;
   player.teleport(pos, yaw);
 }
@@ -288,11 +325,7 @@ function tick(dt: number) {
   const t = simTime;
   void t;
   (level === levels.hall ? pools.hall : pools.outside).update(dt, camera.position);
-  level.flames.forEach((f) => {
-    f.parent?.updateMatrixWorld();
-    const local = f.parent ? f.parent.worldToLocal(camera.position.clone()) : camera.position;
-    f.lookAt(f.parent ? f.parent.localToWorld(new THREE.Vector3(local.x, f.position.y, local.z)) : camera.position);
-  });
+  // Flames billboard in their vertex shader (fx.ts).
 
   if (mode !== 'ref') {
     camera.clearViewOffset();
@@ -338,6 +371,14 @@ function tick(dt: number) {
     player.character?.setLocomotion(0, 1.6, 4.8);
   }
   player.object.visible = mode !== 'ref';
+  {
+    const p = player.object.position;
+    const g = level.collision.groundAt(p.x, p.z, p.y + 0.4, 3);
+    const h = g === null ? 3 : p.y - g;
+    contactShadow.visible = player.object.visible && g !== null && h < 2.5;
+    if (g !== null) contactShadow.position.set(p.x, g + 0.025, p.z);
+    (contactShadow.material as THREE.MeshBasicNodeMaterial).opacity = THREE.MathUtils.clamp(1 - h / 2.5, 0, 1);
+  }
   reviewKey.intensity = mode === 'portrait' ? 2.2 : 0;
   jack?.mixer.update(dt);
 }
@@ -422,10 +463,12 @@ async function bench(n = 30) {
   for (let i = 0; i < 5; i++) { nodeFrame.update(); level.post.pipeline.render(); }
   await device.queue.onSubmittedWorkDone();
   if (prof) await renderer.resolveTimestampsAsync('render');
-  const wall: number[] = [], gpu: number[] = [], cpu: number[] = [];
+  const wall: number[] = [], gpu: number[] = [], cpu: number[] = [], sim: number[] = [];
   for (let i = 0; i < n; i++) {
     const t0 = performance.now();
-    tick(1 / 60); nodeFrame.update(); level.post.pipeline.render();
+    tick(1 / 60);
+    sim.push(performance.now() - t0);
+    nodeFrame.update(); level.post.pipeline.render();
     cpu.push(performance.now() - t0);
     await device.queue.onSubmittedWorkDone();
     wall.push(performance.now() - t0);
@@ -435,7 +478,7 @@ async function bench(n = 30) {
   return {
     level: level.name, px: renderer.getDrawingBufferSize(new THREE.Vector2()).toArray(),
     internal: internalSize(),
-    gpuMs: med(gpu), cpuMs: med(cpu), wallMs: med(wall), drawCalls: renderer.info.render.drawCalls,
+    gpuMs: med(gpu), cpuMs: med(cpu), simMs: med(sim), wallMs: med(wall), drawCalls: renderer.info.render.drawCalls,
   };
 }
 

@@ -1,0 +1,299 @@
+<!doctype html>
+<!--
+  Halloween Vault release posts (dev only). Two 1080×1350 (4:5) post cards drawn as SVG + their captions.
+  Open the file directly in a browser; "Save PNG" rasterises the live SVG at full size.
+  Facts mirror the app: services/archiveContentService.ts (CURATED_HALLOWEEN_FILMS, Pumpkin Patch hero)
+  and components/taleo/HalloweenVaultChatAndFanRoom.tsx (factions, cam filters, polls).
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Halloween Vault Posts</title>
+<style>
+  :root { --bg:#0b0710; --panel:#150e1c; --ink:#f3e9dc; --muted:#a99bb5; --line:#2b2036; --accent:#ff8a1f; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.55 system-ui, Segoe UI, sans-serif; }
+  header { padding:28px 16px 8px; max-width:1240px; margin:0 auto; }
+  header h1 { margin:0; font:700 22px Georgia, serif; }
+  header p { margin:4px 0 0; color:var(--muted); }
+  main { display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 520px), 1fr)); gap:28px; padding:16px; max-width:1240px; margin:0 auto; }
+  .post { background:var(--panel); border:1px solid var(--line); border-radius:14px; overflow:hidden; }
+  .post svg { display:block; width:100%; height:auto; }
+  .body { padding:16px 18px 20px; }
+  .bar { display:flex; gap:8px; align-items:center; justify-content:space-between; flex-wrap:wrap; }
+  .bar h2 { margin:0; font:700 16px Georgia, serif; }
+  button { background:var(--accent); color:#1a0d00; border:0; border-radius:999px; padding:8px 14px; font-weight:700; cursor:pointer; }
+  button.ghost { background:transparent; color:var(--ink); border:1px solid var(--line); }
+  pre { white-space:pre-wrap; font:14px/1.6 system-ui, Segoe UI, sans-serif; background:#0f0a14; border:1px solid var(--line); border-radius:10px; padding:14px; margin:12px 0 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Halloween Vault — release posts</h1>
+  <p>Two drafts, 1080 × 1350. Art is live SVG; Save PNG exports at full size.</p>
+</header>
+<main>
+
+<!-- ═════════════ POST 1 — The Vault Is Open ═════════════ -->
+<section class="post">
+<svg id="post-vault" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1350" width="1080" height="1350">
+  <defs>
+    <linearGradient id="v-sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#241040"/><stop offset=".55" stop-color="#0e0718"/><stop offset="1" stop-color="#040205"/>
+    </linearGradient>
+    <radialGradient id="v-moon" cx=".42" cy=".4" r=".7">
+      <stop offset="0" stop-color="#fff7df"/><stop offset=".7" stop-color="#f6d48a"/><stop offset="1" stop-color="#d9a24a"/>
+    </radialGradient>
+    <radialGradient id="v-moonglow"><stop offset="0" stop-color="#f6c46a" stop-opacity=".45"/><stop offset="1" stop-color="#f6c46a" stop-opacity="0"/></radialGradient>
+    <radialGradient id="v-pump" cx=".5" cy=".45" r=".6">
+      <stop offset="0" stop-color="#ffe08a"/><stop offset=".45" stop-color="#ff9a1f"/><stop offset="1" stop-color="#b8420a"/>
+    </radialGradient>
+    <radialGradient id="v-doorglow"><stop offset="0" stop-color="#ff8a1f" stop-opacity=".55"/><stop offset=".6" stop-color="#ff5a00" stop-opacity=".12"/><stop offset="1" stop-color="#ff5a00" stop-opacity="0"/></radialGradient>
+    <linearGradient id="v-steel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4a4152"/><stop offset=".5" stop-color="#231c2a"/><stop offset="1" stop-color="#14101a"/>
+    </linearGradient>
+    <linearGradient id="v-title" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffd27a"/><stop offset="1" stop-color="#ff6a12"/>
+    </linearGradient>
+    <filter id="v-blur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="18"/></filter>
+    <filter id="v-soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4"/></filter>
+  </defs>
+
+  <rect width="1080" height="1350" fill="url(#v-sky)"/>
+  <g id="v-stars"></g>
+
+  <!-- moon -->
+  <circle cx="800" cy="520" r="330" fill="url(#v-moonglow)"/>
+  <circle cx="800" cy="520" r="170" fill="url(#v-moon)"/>
+  <g fill="#c98f3f" opacity=".35"><circle cx="750" cy="470" r="26"/><circle cx="842" cy="560" r="18"/><circle cx="790" cy="590" r="11"/><circle cx="860" cy="455" r="9"/></g>
+
+  <!-- bats crossing the moon -->
+  <g id="v-bats" fill="#07040b"></g>
+
+  <!-- far hill + castle -->
+  <path d="M0 760 C180 700 320 640 520 690 C700 735 860 700 1080 740 L1080 1350 L0 1350Z" fill="#120a1b"/>
+  <g fill="#07040b">
+    <rect x="130" y="470" width="70" height="250"/><polygon points="122,470 165,385 208,470"/>
+    <rect x="200" y="560" width="190" height="160"/>
+    <rect x="270" y="420" width="64" height="200"/><polygon points="262,420 302,330 342,420"/>
+    <rect x="390" y="520" width="58" height="200"/><polygon points="383,520 419,450 455,520"/>
+    <g id="v-crenels"></g>
+  </g>
+  <g fill="#ffb347">
+    <rect x="156" y="520" width="12" height="20" rx="6"/><rect x="295" y="470" width="12" height="20" rx="6"/>
+    <rect x="410" y="565" width="10" height="16" rx="5"/><rect x="240" y="610" width="14" height="22" rx="7" opacity=".8"/>
+  </g>
+  <!-- dead trees -->
+  <g stroke="#07040b" stroke-linecap="round" fill="none">
+    <path d="M960 790 L955 640 M955 700 L905 650 M956 670 L1010 615 M955 640 L935 590 M1010 615 L1035 600" stroke-width="10"/>
+    <path d="M60 820 L66 700 M64 740 L20 700 M66 715 L110 680" stroke-width="8"/>
+  </g>
+
+  <!-- near ground -->
+  <path d="M0 860 C240 820 420 850 540 845 C700 840 860 815 1080 850 L1080 1350 L0 1350Z" fill="#08050c"/>
+
+  <!-- vault door -->
+  <circle cx="540" cy="975" r="330" fill="url(#v-doorglow)"/>
+  <circle cx="540" cy="975" r="232" fill="#0a070d"/>
+  <circle cx="540" cy="975" r="222" fill="url(#v-steel)" stroke="#5c5166" stroke-width="3"/>
+  <circle cx="540" cy="975" r="188" fill="none" stroke="#0c090f" stroke-width="10"/>
+  <g id="v-bolts" fill="#7a6f84"></g>
+  <!-- wheel -->
+  <g stroke="#8b7f96" stroke-width="12" stroke-linecap="round">
+    <line x1="540" y1="835" x2="540" y2="1115"/><line x1="400" y1="975" x2="680" y2="975"/>
+    <line x1="441" y1="876" x2="639" y2="1074"/><line x1="639" y1="876" x2="441" y2="1074"/>
+  </g>
+  <g fill="#a99cb4"><circle cx="540" cy="835" r="14"/><circle cx="540" cy="1115" r="14"/><circle cx="400" cy="975" r="14"/><circle cx="680" cy="975" r="14"/>
+    <circle cx="441" cy="876" r="12"/><circle cx="639" cy="1074" r="12"/><circle cx="639" cy="876" r="12"/><circle cx="441" cy="1074" r="12"/></g>
+  <!-- jack-o'-lantern hub -->
+  <ellipse cx="540" cy="975" rx="104" ry="92" fill="url(#v-pump)" stroke="#6b2606" stroke-width="5"/>
+  <g fill="none" stroke="#9b3a08" stroke-width="3" opacity=".7">
+    <path d="M500 890 C480 940 480 1010 500 1062"/><path d="M580 890 C600 940 600 1010 580 1062"/><path d="M540 884 L540 1066"/>
+  </g>
+  <path d="M533 884 C530 866 538 852 552 846" stroke="#3d5a1c" stroke-width="10" fill="none" stroke-linecap="round"/>
+  <g fill="#2a0d02">
+    <polygon points="488,950 518,950 503,918"/><polygon points="562,950 592,950 577,918"/>
+    <polygon points="530,980 550,980 540,962"/>
+    <path d="M478 1000 L496 1012 L510 1000 L526 1016 L540 1002 L554 1016 L570 1000 L584 1012 L602 1000 C590 1040 490 1040 478 1000Z"/>
+  </g>
+  <g fill="#fff1b8" opacity=".55" filter="url(#v-soft)">
+    <polygon points="492,946 514,946 503,924"/><polygon points="566,946 588,946 577,924"/>
+  </g>
+
+  <!-- ground fog -->
+  <g fill="#cfc2e0" filter="url(#v-blur)">
+    <ellipse cx="200" cy="1160" rx="320" ry="44" opacity=".18"/>
+    <ellipse cx="820" cy="1150" rx="340" ry="40" opacity=".16"/>
+    <ellipse cx="540" cy="1195" rx="520" ry="50" opacity=".22"/>
+  </g>
+
+  <!-- type -->
+  <text x="540" y="104" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="26" letter-spacing="12" fill="#cbb8de">PLAJAH CINEMA PRESENTS</text>
+  <text x="540" y="205" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="92" letter-spacing="6" fill="#f3e9dc">THE HALLOWEEN</text>
+  <text x="540" y="350" text-anchor="middle" font-family="'Arial Black', Impact, sans-serif" font-size="170" letter-spacing="18" fill="url(#v-title)" stroke="#3a1300" stroke-width="3">VAULT</text>
+  <text x="540" y="410" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-style="italic" font-size="34" fill="#ffb760">is open.</text>
+
+  <rect x="0" y="1218" width="1080" height="132" fill="#040205" opacity=".72"/>
+  <text x="540" y="1270" text-anchor="middle" font-family="'Arial Black', Impact, sans-serif" font-size="42" letter-spacing="7" fill="#ff9a2e">31 NIGHTS OF CINEMA TERROR</text>
+  <text x="540" y="1318" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="27" fill="#e7dbef">Pumpkin Patch + 10 restored horror classics · streaming free</text>
+</svg>
+<div class="body">
+  <div class="bar"><h2>Post 1 · “The Vault Is Open” (launch)</h2>
+    <span><button class="ghost" data-copy="cap-vault">Copy caption</button> <button data-save="post-vault">Save PNG</button></span></div>
+<pre id="cap-vault">🎃 THE HALLOWEEN VAULT IS OPEN.
+
+31 nights of cinema terror, now streaming free on Plajah Cinema.
+
+Headlining: Brian James Gage’s “Pumpkin Patch” — joined by 10 restored horror classics, from Romero’s Night of the Living Dead and William Castle’s House on Haunted Hill to Carnival of Souls, Häxan, White Zombie and the 1910 Edison Frankenstein.
+
+Every film hand-picked. Every night a new door to open.
+
+Lights off. Volume up. Step inside. 🦇
+
+#HalloweenVault #31NightsOfTerror #PlajahCinema #PumpkinPatch #ClassicHorror</pre>
+</div>
+</section>
+
+<!-- ═════════════ POST 2 — Now Showing / Pick Your Side ═════════════ -->
+<section class="post">
+<svg id="post-marquee" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1350" width="1080" height="1350">
+  <defs>
+    <linearGradient id="m-bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2c0609"/><stop offset=".6" stop-color="#120305"/><stop offset="1" stop-color="#060102"/>
+    </linearGradient>
+    <radialGradient id="m-spot" cx=".5" cy="0" r=".9"><stop offset="0" stop-color="#ff7a2a" stop-opacity=".28"/><stop offset="1" stop-color="#ff7a2a" stop-opacity="0"/></radialGradient>
+    <linearGradient id="m-gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe2a0"/><stop offset="1" stop-color="#c8862e"/></linearGradient>
+    <linearGradient id="m-head" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd27a"/><stop offset="1" stop-color="#ff5e0e"/></linearGradient>
+    <filter id="m-glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <filter id="m-haze" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="22"/></filter>
+  </defs>
+
+  <rect width="1080" height="1350" fill="url(#m-bg)"/>
+  <rect width="1080" height="900" fill="url(#m-spot)"/>
+  <!-- velvet curtain folds -->
+  <g opacity=".35">
+    <path d="M0 0 H70 C60 300 90 600 60 1350 H0Z" fill="#4a0a10"/>
+    <path d="M1080 0 H1010 C1020 300 990 600 1020 1350 H1080Z" fill="#4a0a10"/>
+  </g>
+
+  <text x="540" y="92" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="26" letter-spacing="12" fill="#e0b98a">THE HALLOWEEN VAULT</text>
+
+  <!-- marquee -->
+  <rect x="96" y="128" width="888" height="640" rx="22" fill="url(#m-gold)"/>
+  <rect x="116" y="148" width="848" height="600" rx="14" fill="#140507"/>
+  <g id="m-bulbs" filter="url(#m-glow)"></g>
+  <rect x="150" y="182" width="780" height="532" rx="8" fill="#0b0203" stroke="#5a1a14" stroke-width="2"/>
+
+  <text x="540" y="240" text-anchor="middle" font-family="'Arial Black', Impact, sans-serif" font-size="26" letter-spacing="14" fill="#e0b98a">NOW SHOWING</text>
+  <text x="540" y="330" text-anchor="middle" font-family="'Arial Black', Impact, sans-serif" font-size="84" letter-spacing="6" fill="url(#m-head)" filter="url(#m-glow)">PUMPKIN PATCH</text>
+  <text x="540" y="374" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-style="italic" font-size="28" fill="#f0d9b8">a Brian James Gage film</text>
+  <g stroke="#7a2a18" stroke-width="2"><line x1="210" y1="410" x2="470" y2="410"/><line x1="610" y1="410" x2="870" y2="410"/></g>
+  <text x="540" y="418" text-anchor="middle" font-family="Georgia, serif" font-size="24" fill="#ff9a2e">✦ with ✦</text>
+  <g id="m-titles" font-family="Georgia, 'Times New Roman', serif" font-size="22" letter-spacing="1.5" fill="#f3e4cc"></g>
+
+  <!-- pick your side -->
+  <text x="540" y="860" text-anchor="middle" font-family="'Arial Black', Impact, sans-serif" font-size="64" letter-spacing="8" fill="#f3e9dc">PICK YOUR SIDE</text>
+  <text x="540" y="902" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-size="26" fill="#d9bfa0">five factions · one Fan Room · every night until the 31st</text>
+  <g id="m-factions"></g>
+
+  <g fill="#cfa8a0" filter="url(#m-haze)"><ellipse cx="540" cy="1240" rx="560" ry="46" opacity=".12"/></g>
+  <rect x="0" y="1210" width="1080" height="140" fill="#050102" opacity=".75"/>
+  <text x="540" y="1262" text-anchor="middle" font-family="Georgia, serif" font-size="27" fill="#ecdccb">Live chat · faction polls · spooky cam filters</text>
+  <text x="540" y="1314" text-anchor="middle" font-family="'Arial Black', Impact, sans-serif" font-size="36" letter-spacing="6" fill="#ff9a2e">FREE ON PLAJAH CINEMA</text>
+</svg>
+<div class="body">
+  <div class="bar"><h2>Post 2 · “Now Showing / Pick Your Side” (lineup + fan room)</h2>
+    <span><button class="ghost" data-copy="cap-marquee">Copy caption</button> <button data-save="post-marquee">Save PNG</button></span></div>
+<pre id="cap-marquee">🍿 NOW SHOWING IN THE HALLOWEEN VAULT
+
+Top of the bill: “Pumpkin Patch” by Brian James Gage.
+On the undercard: Night of the Living Dead · House on Haunted Hill · Carnival of Souls · The Phantom of the Opera · Häxan · Horror Express · White Zombie · The Terror · The Ghoul · Frankenstein (1910).
+
+But you don’t just watch — you pick a side. 🎃 Pumpkin Patch · 🧙‍♀️ Miriam’s Coven · 🧛 Vampire Court · 🧟 Night Crew · 👻 Lil’ Boo Ghost Club.
+
+Join the Fan Room for live chat, faction polls and cam filters that turn you into a phantom, a zombie or a full-moon werewolf mid-movie.
+
+31 nights. Free on Plajah Cinema. Which side are you on? 👇
+
+#HalloweenVault #PickYourSide #PlajahCinema #HorrorMovieNight #ClassicHorror</pre>
+</div>
+</section>
+
+</main>
+<script>
+  const NS = 'http://www.w3.org/2000/svg';
+  const el = (tag, attrs, parent, text) => {
+    const n = document.createElementNS(NS, tag);
+    for (const k in attrs) n.setAttribute(k, attrs[k]);
+    if (text != null) n.textContent = text;
+    parent.appendChild(n);
+    return n;
+  };
+  // seeded so every export of a post is identical
+  let seed = 31;
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+
+  // ── Post 1 ──
+  const stars = document.getElementById('v-stars');
+  for (let i = 0; i < 140; i++) {
+    el('circle', { cx: (rnd() * 1080).toFixed(1), cy: (rnd() * 720).toFixed(1), r: (rnd() * 1.8 + .4).toFixed(2), fill: '#fff', opacity: (rnd() * .6 + .2).toFixed(2) }, stars);
+  }
+  const bats = document.getElementById('v-bats');
+  const BAT = 'M0 0 C-6 -8 -14 -10 -24 -6 C-18 -2 -16 4 -18 8 C-12 4 -6 4 -4 8 C-2 4 2 4 4 8 C6 4 12 4 18 8 C16 4 18 -2 24 -6 C14 -10 6 -8 0 0Z';
+  [[700, 430, 1.6, -8], [770, 470, 1.1, 6], [880, 560, 1.3, -4], [640, 560, .8, 10], [930, 420, .7, -12], [560, 470, .6, 4]]
+    .forEach(([x, y, s, r]) => el('path', { d: BAT, transform: `translate(${x} ${y}) rotate(${r}) scale(${s})` }, bats));
+  const cren = document.getElementById('v-crenels');
+  for (let x = 200; x < 390; x += 24) el('rect', { x, y: 542, width: 14, height: 20 }, cren);
+  const bolts = document.getElementById('v-bolts');
+  for (let i = 0; i < 24; i++) {
+    const a = i / 24 * Math.PI * 2;
+    el('circle', { cx: (540 + Math.cos(a) * 205).toFixed(1), cy: (975 + Math.sin(a) * 205).toFixed(1), r: 7 }, bolts);
+  }
+
+  // ── Post 2 ──
+  const bulbs = document.getElementById('m-bulbs');
+  const bulb = (cx, cy, i) => el('circle', { cx, cy, r: 7, fill: i % 2 ? '#ffd27a' : '#fff3d0' }, bulbs);
+  let bi = 0;
+  for (let x = 140; x <= 940; x += 40) { bulb(x, 165, bi++); bulb(x, 731, bi++); }
+  for (let y = 205; y <= 695; y += 40) { bulb(133, y, bi++); bulb(947, y, bi++); }
+  const titles = ['NIGHT OF THE LIVING DEAD', 'HOUSE ON HAUNTED HILL', 'CARNIVAL OF SOULS', 'THE PHANTOM OF THE OPERA', 'HÄXAN',
+    'HORROR EXPRESS', 'WHITE ZOMBIE', 'THE TERROR', 'THE GHOUL', 'FRANKENSTEIN (1910)'];
+  const tg = document.getElementById('m-titles');
+  titles.forEach((t, i) => el('text', { x: i < 5 ? 345 : 735, y: 480 + (i % 5) * 50, 'text-anchor': 'middle' }, tg, t));
+  // HalloweenVaultChatAndFanRoom.tsx HALLOWEEN_FACTIONS
+  const factions = [['🎃', 'PUMPKIN PATCH', '#F97316'], ['🧙‍♀️', 'MIRIAM’S COVEN', '#10B981'], ['🧛', 'VAMPIRE COURT', '#EF4444'],
+    ['🧟', 'NIGHT CREW', '#84CC16'], ['👻', 'LIL’ BOO CLUB', '#A855F7']];
+  const fg = document.getElementById('m-factions');
+  factions.forEach(([emoji, name, color], i) => {
+    const cx = 140 + i * 200, cy = 1040;
+    el('circle', { cx, cy, r: 78, fill: color, opacity: .16 }, fg);
+    el('circle', { cx, cy, r: 70, fill: '#0b0204', stroke: color, 'stroke-width': 5 }, fg);
+    el('text', { x: cx, y: cy + 24, 'text-anchor': 'middle', 'font-size': 66 }, fg, emoji);
+    el('text', { x: cx, y: cy + 116, 'text-anchor': 'middle', 'font-family': "'Arial Black', Impact, sans-serif", 'font-size': 15, 'letter-spacing': 1, fill: color }, fg, name);
+  });
+
+  // ── export / copy ──
+  document.querySelectorAll('[data-save]').forEach(b => b.addEventListener('click', () => {
+    const svg = document.getElementById(b.dataset.save);
+    const src = new XMLSerializer().serializeToString(svg);
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas'); c.width = 1080; c.height = 1350;
+      c.getContext('2d').drawImage(img, 0, 0, 1080, 1350);
+      c.toBlob(blob => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob); a.download = `halloween-vault-${b.dataset.save.replace('post-', '')}.png`; a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+      }, 'image/png');
+    };
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(src);
+  }));
+  document.querySelectorAll('[data-copy]').forEach(b => b.addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(document.getElementById(b.dataset.copy).textContent); b.textContent = 'Copied'; }
+    catch { b.textContent = 'Copy failed'; }
+    setTimeout(() => (b.textContent = 'Copy caption'), 1400);
+  }));
+</script>
+</body>
+</html>

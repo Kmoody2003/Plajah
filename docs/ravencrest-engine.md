@@ -119,6 +119,51 @@ Known engine limits in r184:
 - SMAA breaks once two pipelines exist.
 - An offscreen output target occasionally never allocates. `capture()` falls back to copying the canvas.
 
+## Round 4: two targets from one codebase
+
+### Browser (first impression): Intel Arc iGPU at 60 fps is the baseline
+
+Verified on the Arc iGPU (`xe-lpg`), production build, 1080p window, 720p internal render:
+
+| | GPU (timestamps) | CPU (render + sim) |
+|---|---|---|
+| Exterior | 10.4 ms | 6.9 ms |
+| Courtyard | 7.4 ms | 4.2 ms |
+| Hall (SSR at 0.35) | 14.8 ms (measured at 0.5) | 4.3 ms |
+
+What it took:
+
+- **720p internal render with FSR1** (EASU upscale + RCAS sharpen) to the display. XeSS isn't reachable from browsers; FSR1 is the vendor-neutral equivalent. Dynamic resolution moves between 480p and 720p. Flags: `?res=`, `?fsr=0`, `?prof=1` (GPU timestamps).
+- **CPU was the real bottleneck**, at about 0.1 ms per draw in r184:
+  - The moon shadow map is off on the baseline (about 6 ms); a contact shadow sits under Jack.
+  - All flames are one draw: GPU-billboarded quads with per-flame seeds (`fx.batchFlames`).
+  - Identical triplanar materials are shared (cached), so batching merges across modules.
+  - FXAA is dropped under FSR.
+  - **Lean glow** replaces the 12-pass UnrealBloom on low/medium: threshold plus one quarter-res Gaussian, 3 passes.
+  - Result: exterior CPU went from 26 to 6.9 ms.
+- **G-buffer:** the extra targets are only allocated when SSR or TAA need them. **Gotcha:** materials using `setReflect` must not write `metalrough` when the pass has no such target, or they render flat. `setReflectEnabled()` handles this per level.
+- **SSR is composited additively,** so reflections only add light. Replace-blending punched black blobs into wet roads.
+- **Textures:** the 1k tier (`*_1k.jpg`, made by `pack_textures.py`) is for browser and iGPU tiers. Only diffuse, ARD and normal are loaded; the unpacked rough/ao/disp maps no longer upload.
+
+### Windows desktop: `windows-native/Plajah.WinUI` (the only live Windows project)
+
+- WebView2 is launched with `--force_high_performance_gpu` and WebGPU, so the game gets the discrete RTX GPU.
+- The game detects the desktop app via `chrome.webview` on its own or the top frame, plus a discrete adapter, and selects **ultra**:
+  - native-res internal render (cap 2160p), SSR at 0.75, 4096 shadows, 14-light pool, full bloom, 2k textures.
+  - Smoke-tested with `?q=ultra`: no errors.
+- `windows/PlajahApp.csproj` ("Plajah.App") is a stale older shell, superseded. Retiring it is pending the user's go-ahead.
+
+### Shipping
+
+- `node node_modules/vite/bin/vite.js build --config games/ravencrest/vite.config.mjs` → `public/games/ravencrest/play/` (about 1.1 MB JS, 320 KB gzipped).
+- The main app mounts it in `components/taleo/RavencrestGameFrame.tsx` as a same-origin iframe in the Halloween "Haunted Exhibit". It defaults to the game when WebGPU exists, with one click to the classic exhibition.
+- **Open:** the CC0 asset cache is gitignored. Production needs:
+  - 1k textures (17 MB) and/or 2k textures (127 MB);
+  - the used props;
+  - `jack_thorne.glb` (6 MB).
+
+  Deploy decision pending: commit vs. Storage/CDN. The desktop app could also bundle the 2k assets via WebView2 `SetVirtualHostNameToFolderMapping` for offline/instant loads.
+
 ## Round 3 additions
 
 - **Hall:**
