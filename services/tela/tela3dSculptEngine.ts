@@ -94,6 +94,14 @@ export class Tela3DSculptSession {
     }
   }
 
+  public canUndo(): boolean {
+    return this.historyIndex > 0;
+  }
+
+  public canRedo(): boolean {
+    return this.historyIndex < this.historyStack.length - 1;
+  }
+
   public undo(): boolean {
     if (this.historyIndex > 0) {
       this.historyIndex--;

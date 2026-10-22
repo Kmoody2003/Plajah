@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": true, "skipLibCheck": true },
+  "include": ["services/merchStudio/*.ts", "components/tela/merch/*.tsx", "components/tela/Tela3DCanvas.tsx", "services/tela/tela3dSculptEngine.ts", "src/merchStudioLab.tsx", "tests/merchStudio.test.ts"]
+}

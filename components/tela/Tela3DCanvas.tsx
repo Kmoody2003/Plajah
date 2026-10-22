@@ -5,9 +5,11 @@
  * surface directly on the document canvas:
  * - Dynamic vertex manipulation via Tela3DSculptSession
  * - Full desktop brush suite: Clay, Grab/Move, Standard Draw, Smooth, Inflate, Pinch, Flatten, Paint 3D
- * - Desktop shortcuts: Shift to smooth, Alt to invert (carve), Ctrl+Z / Ctrl+Y for mesh undo/redo
+ * - Desktop shortcuts: Shift to smooth, Alt to invert (carve), Ctrl+Z / Ctrl+Shift+Z or Ctrl+Y for mesh undo/redo
  * - MatCap rendering (ZBrush Red Wax, Grey Clay, Pearl, Chrome)
  * - X-Axis Symmetry
+ * - Camera: drag off the mesh (or right/middle drag anywhere) to orbit, wheel to zoom
+ * - Save: exports the sculpt as a GLB (painted vertex colours included) through onSaveMesh
  */
 
 import * as React from 'react';
@@ -20,7 +22,7 @@ import {
   SculptBrushType,
   MatCapPreset,
 } from '../../services/tela/tela3dSculptEngine';
-import { RotateCcw, Download, Sparkles, Undo2, Redo2, Box } from 'lucide-react';
+import { Undo2, Redo2, Box, Save } from 'lucide-react';
 
 export interface Tela3DCanvasProps {
   width: number;
@@ -32,8 +34,25 @@ export interface Tela3DCanvasProps {
   matcap: MatCapPreset;
   symmetryX: boolean;
   wireframe?: boolean;
+  /** Colour laid down by the Paint 3D brush. */
+  paintColor?: string;
   onSaveMesh?: (blob: Blob) => void;
+  saveLabel?: string;
   className?: string;
+}
+
+/** The sculpt as a binary glTF. Vertex colours are kept only if something was painted. */
+export async function exportSculptGLB(mesh: THREE.Mesh): Promise<Blob> {
+  const { GLTFExporter } = await import('three/examples/jsm/exporters/GLTFExporter.js');
+  const geo = mesh.geometry.clone();
+  const colors = geo.getAttribute('color') as THREE.BufferAttribute | undefined;
+  const painted = !!colors && Array.from(colors.array as Float32Array).some((v) => Math.abs(v - 0.92) > 1e-3);
+  if (!painted) geo.deleteAttribute('color');
+  const out = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.5, vertexColors: painted }));
+  out.name = 'sculpt';
+  const result = await new GLTFExporter().parseAsync(out, { binary: true });
+  geo.dispose();
+  return new Blob([result as ArrayBuffer], { type: 'model/gltf-binary' });
 }
 
 export const Tela3DCanvas: React.FC<Tela3DCanvasProps> = ({
@@ -46,9 +65,14 @@ export const Tela3DCanvas: React.FC<Tela3DCanvasProps> = ({
   matcap,
   symmetryX,
   wireframe = false,
+  paintColor = '#6B0099',
   onSaveMesh,
+  saveLabel = 'Save mesh',
   className = '',
 }) => {
+  const [saving, setSaving] = useState(false);
+  // Orbit camera around the sculpt (yaw/pitch in radians).
+  const orbit = useRef({ yaw: 0, pitch: 0, dist: 3.2 });
   const mountRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [canUndo, setCanUndo] = useState(false);
@@ -64,6 +88,7 @@ export const Tela3DCanvas: React.FC<Tela3DCanvasProps> = ({
     raycaster: THREE.Raycaster;
     cursorMesh: THREE.Mesh;
     isPointerDown: boolean;
+    isOrbiting: boolean;
     lastPointerPos: { x: number; y: number };
     shiftDown: boolean;
     altDown: boolean;
@@ -127,6 +152,7 @@ export const Tela3DCanvas: React.FC<Tela3DCanvasProps> = ({
       raycaster,
       cursorMesh,
       isPointerDown: false,
+      isOrbiting: false,
       lastPointerPos: { x: 0, y: 0 },
       shiftDown: false,
       altDown: false,
@@ -145,16 +171,47 @@ export const Tela3DCanvas: React.FC<Tela3DCanvasProps> = ({
       cancelAnimationFrame(state.reqId);
       renderer.dispose();
       geometry.dispose();
+      session.geometry.dispose();
       cursorGeo.dispose();
+      sceneState.current = null;
     };
+    // The scene is built once; size and material changes are applied by the effects below so a
+    // resize never throws away the sculpt.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const s = sceneState.current;
+    if (!s) return;
+    s.renderer.setSize(width, height);
+    s.camera.aspect = width / height;
+    s.camera.updateProjectionMatrix();
   }, [width, height]);
 
   // Update MatCap material on change
   useEffect(() => {
-    if (sceneState.current) {
-      sceneState.current.mesh.material = Tela3DSculptSession.getMatCapMaterial(matcap, wireframe);
+    const s = sceneState.current;
+    if (s) {
+      const old = s.mesh.material as THREE.Material;
+      s.mesh.material = Tela3DSculptSession.getMatCapMaterial(matcap, wireframe);
+      old.dispose();
     }
   }, [matcap, wireframe]);
+
+  const applyOrbit = () => {
+    const s = sceneState.current;
+    if (!s) return;
+    const o = orbit.current;
+    s.camera.position.set(o.dist * Math.cos(o.pitch) * Math.sin(o.yaw), o.dist * Math.sin(o.pitch), o.dist * Math.cos(o.pitch) * Math.cos(o.yaw));
+    s.camera.lookAt(0, 0, 0);
+  };
+
+  const syncHistory = () => {
+    const s = sceneState.current;
+    if (!s) return;
+    setCanUndo(s.session.canUndo());
+    setCanRedo(s.session.canRedo());
+  };
 
   // Pointer event handlers for sculpting
   const getSculptHit = useCallback((clientX: number, clientY: number): SculptHit | null => {
@@ -181,11 +238,15 @@ export const Tela3DCanvas: React.FC<Tela3DCanvasProps> = ({
     const s = sceneState.current;
     if (!s) return;
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    s.isPointerDown = true;
     s.lastPointerPos = { x: e.clientX, y: e.clientY };
 
-    const hit = getSculptHit(e.clientX, e.clientY);
-    if (hit) {
+    const hit = e.button === 0 ? getSculptHit(e.clientX, e.clientY) : null;
+    if (!hit) {
+      s.isOrbiting = true;
+      return;
+    }
+    s.isPointerDown = true;
+    {
       const effectiveBrush = s.shiftDown ? 'SMOOTH' : brushType;
       const settings: SculptBrushSettings = {
         type: effectiveBrush,
@@ -195,7 +256,7 @@ export const Tela3DCanvas: React.FC<Tela3DCanvasProps> = ({
         symmetryX,
         wireframe,
         matcap,
-        paintColor: '#6B0099',
+        paintColor,
         paintRoughness: 0.5,
       };
       s.session.startStroke(hit, settings);
@@ -206,6 +267,15 @@ export const Tela3DCanvas: React.FC<Tela3DCanvasProps> = ({
   const handlePointerMove = (e: React.PointerEvent) => {
     const s = sceneState.current;
     if (!s) return;
+
+    if (s.isOrbiting) {
+      const o = orbit.current;
+      o.yaw -= (e.clientX - s.lastPointerPos.x) * 0.008;
+      o.pitch = Math.max(-1.45, Math.min(1.45, o.pitch + (e.clientY - s.lastPointerPos.y) * 0.008));
+      s.lastPointerPos = { x: e.clientX, y: e.clientY };
+      applyOrbit();
+      return;
+    }
 
     const hit = getSculptHit(e.clientX, e.clientY);
     if (hit) {
@@ -228,7 +298,7 @@ export const Tela3DCanvas: React.FC<Tela3DCanvasProps> = ({
           symmetryX,
           wireframe,
           matcap,
-          paintColor: '#6B0099',
+          paintColor,
           paintRoughness: 0.5,
         };
         s.session.applyStroke(hit, settings, { x: deltaX, y: deltaY }, s.camera);
@@ -240,10 +310,29 @@ export const Tela3DCanvas: React.FC<Tela3DCanvasProps> = ({
 
   const handlePointerUp = () => {
     const s = sceneState.current;
-    if (!s || !s.isPointerDown) return;
+    if (!s) return;
+    s.isOrbiting = false;
+    if (!s.isPointerDown) return;
     s.isPointerDown = false;
     s.session.endStroke();
-    setCanUndo(true);
+    syncHistory();
+  };
+
+  const handleWheel = (e: React.WheelEvent) => {
+    const o = orbit.current;
+    o.dist = Math.max(1.4, Math.min(9, o.dist * (e.deltaY > 0 ? 1.08 : 1 / 1.08)));
+    applyOrbit();
+  };
+
+  const handleSave = async () => {
+    const s = sceneState.current;
+    if (!s || !onSaveMesh) return;
+    setSaving(true);
+    try {
+      onSaveMesh(await exportSculptGLB(s.mesh));
+    } finally {
+      setSaving(false);
+    }
   };
 
   // Keyboard modifiers for desktop workflow (Shift = smooth, Alt = invert carve)
@@ -251,13 +340,15 @@ export const Tela3DCanvas: React.FC<Tela3DCanvasProps> = ({
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Shift' && sceneState.current) sceneState.current.shiftDown = true;
       if (e.key === 'Alt' && sceneState.current) sceneState.current.altDown = true;
-      if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+      const key = e.key.toLowerCase();
+      if ((e.ctrlKey || e.metaKey) && (key === 'z' || key === 'y')) {
         e.preventDefault();
-        if (e.shiftKey) {
+        if (e.shiftKey || key === 'y') {
           sceneState.current?.session.redo();
         } else {
           sceneState.current?.session.undo();
         }
+        syncHistory();
       }
     };
     const onKeyUp = (e: KeyboardEvent) => {
@@ -273,15 +364,13 @@ export const Tela3DCanvas: React.FC<Tela3DCanvasProps> = ({
   }, []);
 
   const triggerUndo = () => {
-    if (sceneState.current?.session.undo()) {
-      setCanUndo(true);
-    }
+    sceneState.current?.session.undo();
+    syncHistory();
   };
 
   const triggerRedo = () => {
-    if (sceneState.current?.session.redo()) {
-      setCanRedo(true);
-    }
+    sceneState.current?.session.redo();
+    syncHistory();
   };
 
   return (
@@ -295,6 +384,9 @@ export const Tela3DCanvas: React.FC<Tela3DCanvasProps> = ({
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        onWheel={handleWheel}
+        onContextMenu={(e) => e.preventDefault()}
         className="w-full h-full cursor-crosshair touch-none"
       />
 
@@ -305,24 +397,36 @@ export const Tela3DCanvas: React.FC<Tela3DCanvasProps> = ({
         <span className="text-white/30">|</span>
         <span>{vertexCount.toLocaleString()} vertices</span>
         <span className="text-white/30">|</span>
-        <span className="text-white/50 italic">Shift=Smooth · Alt=Carve</span>
+        <span className="text-white/50 italic">Shift=Smooth · Alt=Carve · drag off-mesh to orbit</span>
       </div>
 
       <div className="absolute top-3 right-3 flex items-center gap-1.5 bg-[#0c0a10]/80 backdrop-blur-md px-2 py-1 rounded-[10px] border border-white/10">
         <button
           onClick={triggerUndo}
+          disabled={!canUndo}
           title="Undo Mesh Stroke (Ctrl+Z)"
-          className="p-1 rounded text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+          className="p-1 rounded text-white/60 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-30"
         >
           <Undo2 size={15} />
         </button>
         <button
           onClick={triggerRedo}
+          disabled={!canRedo}
           title="Redo Mesh Stroke (Ctrl+Shift+Z)"
-          className="p-1 rounded text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+          className="p-1 rounded text-white/60 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-30"
         >
           <Redo2 size={15} />
         </button>
+        {onSaveMesh && (
+          <button
+            onClick={() => void handleSave()}
+            disabled={saving}
+            title="Export the sculpt as GLB"
+            className="ml-1 flex items-center gap-1 px-2 py-1 rounded text-[.7rem] font-bold text-white bg-orange-500/80 hover:bg-orange-500 transition-colors disabled:opacity-50"
+          >
+            <Save size={13} /> {saving ? 'Saving…' : saveLabel}
+          </button>
+        )}
       </div>
     </div>
   );

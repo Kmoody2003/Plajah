@@ -6,7 +6,7 @@ import {
   Layers, Cpu, Zap, Radio, Search, CheckCircle2, SlidersHorizontal, Plus,
   Volume2, VolumeX, Activity, Compass, Flame, Play, Pause, Grid, Clapperboard,
   Tv, Mail, Film, Printer, Store, Share2, Receipt, QrCode, MonitorPlay,
-  RotateCcw, Sliders, Waves, Eye, Mic
+  RotateCcw, Sliders, Waves, Eye, Mic, Shirt,
 } from 'lucide-react';
 import type { TelaDocMeta, TelaVectorObject } from '../../types';
 import type { TelaStyleEra } from '../../services/telaStyleEraLibrary';
@@ -248,6 +248,7 @@ export default function TelaHome({
   onChoosePublication,
   onChooseTemplate,
   onImport,
+  onOpenMerch,
   onBack,
 }: {
   recent: TelaDocMeta[];
@@ -257,6 +258,8 @@ export default function TelaHome({
   onChoosePublication: (template: TelaPublicationTemplate) => void;
   onChooseTemplate: (template: TelaDesignTemplate) => void;
   onImport: () => void;
+  /** Opens the Merch Designer (product design + 3D product photography). */
+  onOpenMerch?: () => void;
   onBack?: () => void;
 }) {
   const [promptText, setPromptText] = useState('');
@@ -713,6 +716,16 @@ export default function TelaHome({
         </div>
 
         <div className="ml-auto flex items-center gap-2 sm:gap-3">
+          {onOpenMerch && (
+            <button
+              onClick={onOpenMerch}
+              className="h-9 px-3.5 flex items-center gap-2 rounded-[10px] text-[.72rem] font-bold text-white/85 bg-white/[.05] border border-[#ff5a8a]/40 hover:bg-[#ff5a8a]/15 hover:text-white transition-all font-sans"
+              title="Design merch, stage it in 3D and shoot product photos"
+            >
+              <Shirt size={13} className="text-[#ff5a8a]" />
+              <span className="hidden sm:inline">Merch Designer</span>
+            </button>
+          )}
           <button 
             onClick={onImport} 
             className="h-9 px-3.5 flex items-center gap-2 rounded-[10px] text-[.72rem] font-bold text-white/75 bg-white/[.05] border border-white/[0.09] hover:bg-white/[.09] hover:text-white transition-all font-sans"
