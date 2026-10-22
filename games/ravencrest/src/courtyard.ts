@@ -9,6 +9,9 @@ import { crenellatedWall, roundTower, rng, type KitMaterials } from './kit';
 import { collide } from './collision';
 import { loadModel, fitSize, groundTo } from './assets';
 import { flameMaterial } from './fx';
+import { VerletCloth, RopeChain, type DynOpts } from './physics';
+import { foliagedTree, grassTufts, ivyPatch } from './foliage';
+import { HeightfieldWater } from './water';
 
 export interface Courtyard {
   group: THREE.Group;
@@ -19,6 +22,16 @@ export interface Courtyard {
   /** World-space trigger in front of the Great Hall doors. */
   hallDoor: { position: THREE.Vector3; radius: number; exitPos: THREE.Vector3; exitYaw: number };
   props: Promise<unknown>;
+  /** Simulated cloth (portal + gate banners), updated by the main loop. */
+  cloth: VerletCloth[];
+  /** Interactive well water. */
+  well: HeightfieldWater;
+  /** Verlet ropes (well rope; meshes are world-space — main adds them to the scene). */
+  ropes: RopeChain[];
+  /** Loose props to register as dynamic bodies once loaded (userData.dyn holds DynOpts). */
+  loose: THREE.Object3D[];
+  /** Dynamic/animated objects the static batcher must leave alone. */
+  fxObjects: THREE.Object3D[];
 }
 
 const HALF_W = 30, DEPTH = 56, GATE_DEPTH = 12, POSTERN_Z = -33;
@@ -83,6 +96,11 @@ export function buildCourtyard(frame: { origin: THREE.Vector3; yaw: number; gate
   const torches: THREE.PointLight[] = [];
   const flames: THREE.Mesh[] = [];
   const flameMat = flameMaterial();
+  const cloths: VerletCloth[] = [];
+  const fxObjects: THREE.Object3D[] = [];
+  const loose: THREE.Object3D[] = [];
+  let well!: HeightfieldWater;
+  let wellBeam: THREE.Object3D | null = null;
   const addTorch = (x: number, y: number, z: number, intensity = 9, size = 0.45) => {
     const bracket = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.05, 0.35, 8), iron);
     bracket.position.set(x, y, z);
@@ -90,7 +108,7 @@ export function buildCourtyard(frame: { origin: THREE.Vector3; yaw: number; gate
     const f = new THREE.Mesh(new THREE.PlaneGeometry(size * 0.6, size), flameMat);
     f.position.set(x, y + 0.18 + size / 2, z);
     g.add(f); flames.push(f);
-    const l = new THREE.PointLight(0xff8a3c, intensity, 0, 2);
+    const l = new THREE.PointLight(0xff8a3c, intensity, 11, 2);
     l.position.set(x, y + 0.5, z);
     g.add(l); torches.push(l);
   };
@@ -244,15 +262,17 @@ export function buildCourtyard(frame: { origin: THREE.Vector3; yaw: number; gate
       bowl.position.set(s * (aw / 2 + 2.6), 3.2, portalZ + 1.4); g.add(bowl);
       const f = new THREE.Mesh(new THREE.PlaneGeometry(0.55, 0.9), flameMat);
       f.position.set(s * (aw / 2 + 2.6), 3.75, portalZ + 1.4); g.add(f); flames.push(f);
-      const l = new THREE.PointLight(0xff8a3c, 15, 0, 2); l.position.set(s * (aw / 2 + 2.6), 4.1, portalZ + 1.4); g.add(l); torches.push(l);
+      const l = new THREE.PointLight(0xff8a3c, 15, 12, 2); l.position.set(s * (aw / 2 + 2.6), 4.1, portalZ + 1.4); g.add(l); torches.push(l);
     }
     const bannerTex = new THREE.TextureLoader().load('/models/halloween/ravencrest/banner_raven_navy.png');
     bannerTex.colorSpace = THREE.SRGBColorSpace;
     const bm = new THREE.MeshStandardNodeMaterial({ map: bannerTex, roughness: 0.9, side: THREE.DoubleSide });
     for (const s of [-1, 1]) {
-      const b = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 5.2), bm);
-      b.position.set(s * 7.4, 6.2, portalZ + 0.05);
-      g.add(b);
+      // Verlet cloth now — the banner hangs from its top edge and moves.
+      const c = new VerletCloth(2.2, 5.2, 8, 14, bm);
+      c.mesh.position.set(s * 7.4, 8.8, portalZ + 0.05);
+      g.add(c.mesh);
+      cloths.push(c); fxObjects.push(c.mesh);
     }
   }
 
@@ -323,10 +343,11 @@ export function buildCourtyard(frame: { origin: THREE.Vector3; yaw: number; gate
     bt.colorSpace = THREE.SRGBColorSpace;
     const bm = new THREE.MeshStandardNodeMaterial({ map: bt, roughness: 0.9, side: THREE.DoubleSide, transparent: true, alphaTest: 0.2 });
     for (const s of [-1, 1]) {
-      const b = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 4.2), bm);
-      b.rotation.y = Math.PI;
-      b.position.set(s * (frame.gateWidth / 2 + 3.2), 4.6, -GATE_DEPTH + 2.95);
-      g.add(b);
+      const c = new VerletCloth(1.8, 4.2, 8, 12, bm);
+      c.mesh.rotation.y = Math.PI;
+      c.mesh.position.set(s * (frame.gateWidth / 2 + 3.2), 6.7, -GATE_DEPTH + 2.95);
+      g.add(c.mesh);
+      cloths.push(c); fxObjects.push(c.mesh);
     }
   }
 
@@ -336,11 +357,49 @@ export function buildCourtyard(frame: { origin: THREE.Vector3; yaw: number; gate
     ring.position.set(0, 0.45, -33); g.add(collide(ring));
     const cap = new THREE.Mesh(new THREE.TorusGeometry(1.55, 0.18, 8, 24), stone);
     cap.rotation.x = Math.PI / 2; cap.position.set(0, 0.92, -33); g.add(cap);
-    const water = new THREE.Mesh(new THREE.CircleGeometry(1.45, 24), new THREE.MeshStandardNodeMaterial({ color: 0x020305, roughness: 0.05 }));
-    water.rotation.x = -Math.PI / 2; water.position.set(0, 0.35, -33); g.add(water);
+    // Interactive heightfield water — ripples from drips, wind and disturbances.
+    well = new HeightfieldWater(2.9, 44);
+    well.mesh.position.set(0, 0.35, -33); g.add(well.mesh); fxObjects.push(well.mesh);
     for (const s of [-1, 1]) box(0.18, 2.6, 0.18, timber, s * 1.5, 1.3, -33, false);
     const beam = new THREE.Mesh(new THREE.BoxGeometry(3.3, 0.18, 0.18), timber); beam.position.set(0, 2.6, -33); g.add(beam);
+    wellBeam = beam;
     const wroof = new THREE.Mesh(new THREE.ConeGeometry(2.2, 1.3, 4), roof); wroof.rotation.y = Math.PI / 4; wroof.position.set(0, 3.3, -33); g.add(wroof);
+  }
+
+  // ── Living greenery: full-foliage oaks, grass tufts, wall ivy ────────────
+  // (Wind-swayed leaf cards — see foliage.ts. Trunks collide; cards don't.)
+  for (const [tx, tz, th, seed] of [[-8, -38, 8.5, 11], [10, -42, 9.5, 23], [-11, -24, 7.5, 37]] as const) {
+    const t = foliagedTree(seed, th);
+    t.group.position.set(tx, 0, tz);
+    g.add(t.group);
+    collide(t.trunk);
+    fxObjects.push(t.foliage);
+  }
+  {
+    const R3 = rng(5150);
+    const tufts: THREE.Vector3[] = [];
+    let guard = 0;
+    while (tufts.length < 150 && guard++ < 3000) {
+      const x = (R3() - 0.5) * 56, z = -2 - R3() * 52;
+      if (Math.abs(x) < 5.5) continue;                          // main walk
+      if (Math.hypot(x, z + 33) < 3.4) continue;                // well
+      if (Math.abs(x) > 14 && z < -13 && z > -33) continue;     // stable / carriage house
+      if (Math.abs(x) > 14 && z <= -33) continue;              // guard room / chapel
+      tufts.push(new THREE.Vector3(x, 0.02, z));
+    }
+    const grass = grassTufts(tufts);
+    g.add(grass); fxObjects.push(grass);
+  }
+  for (const s of [-1, 1]) {
+    const ivy = ivyPatch(5.5, 7.5, 90, s < 0 ? 41 : 43);
+    ivy.position.set(s * 8.8, 0.5, portalZ + 0.08);
+    g.add(ivy); fxObjects.push(ivy);
+  }
+  {
+    const ivy = ivyPatch(7, 5.5, 80, 47);
+    ivy.rotation.y = Math.PI / 2;
+    ivy.position.set(-14.9, 0.4, -43.5);
+    g.add(ivy); fxObjects.push(ivy);
   }
 
   // Wall torches around the bailey.
@@ -359,13 +418,21 @@ export function buildCourtyard(frame: { origin: THREE.Vector3; yaw: number; gate
     groundTo(m, 0);
     return m;
   };
+  // Barrels and crates are LOOSE: no static collider — the DynWorld owns them,
+  // so they roll, bounce, get shoved and settle like real props.
+  const placeLoose = async (id: string, size: number, x: number, z: number, ry: number, dyn: DynOpts) => {
+    const m = await place(id, size, x, z, ry, false);
+    m.userData.dyn = dyn;
+    loose.push(m);
+    return m;
+  };
   const props = Promise.allSettled([
-    place('wine_barrel_01', 0.9, -13.5, -15.5),
-    place('wine_barrel_01', 0.9, -12.6, -16.4, 1),
-    place('wooden_barrels_01', 1.8, -13, -28.5, 0.4),
-    place('wooden_crate_01', 1.0, 13, -14.5, 0.2),
-    place('wooden_crate_01', 0.9, 13.4, -15.6, 0.9),
-    place('wooden_crate_01', 0.8, 12.4, -15.2, 0.5),
+    placeLoose('wine_barrel_01', 0.9, -13.5, -15.5, 0, { radius: 0.42, restitution: 0.35, roll: true, friction: 3.5 }),
+    placeLoose('wine_barrel_01', 0.9, -12.6, -16.4, 1, { radius: 0.42, restitution: 0.35, roll: true, friction: 3.5 }),
+    placeLoose('wooden_barrels_01', 1.8, -13, -28.5, 0.4, { radius: 0.85, restitution: 0.2, roll: false, friction: 6 }),
+    placeLoose('wooden_crate_01', 1.0, 13, -14.5, 0.2, { radius: 0.55, restitution: 0.22, roll: false, friction: 6.5 }),
+    placeLoose('wooden_crate_01', 0.9, 13.4, -15.6, 0.9, { radius: 0.55, restitution: 0.22, roll: false, friction: 6.5 }),
+    placeLoose('wooden_crate_01', 0.8, 12.4, -15.2, 0.5, { radius: 0.55, restitution: 0.22, roll: false, friction: 6.5 }),
     place('treasure_chest', 1.0, 3.5, -50, -0.3),
     place('stone_fire_pit', 2.2, 8, -24, 0),
     place('wooden_lantern_01', 0.45, -14.6, -34.5, 0, false),
@@ -373,14 +440,23 @@ export function buildCourtyard(frame: { origin: THREE.Vector3; yaw: number; gate
     // Fire pit flame + light.
     const f = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 1.4), flameMat);
     f.position.set(8, 0.95, -24); g.add(f); flames.push(f);
-    const l = new THREE.PointLight(0xff7a30, 30, 0, 2); l.position.set(8, 1.4, -24); g.add(l); torches.push(l);
+    const l = new THREE.PointLight(0xff7a30, 26, 14, 2); l.position.set(8, 1.4, -24); g.add(l); torches.push(l);
   });
   void R;
 
   g.updateMatrixWorld(true);
+  // Cloth pins bake from world transforms; the well rope anchors to the beam.
+  cloths.forEach((c) => c.init());
+  const ropes: RopeChain[] = [];
+  if (wellBeam) {
+    const hemp = new THREE.MeshStandardNodeMaterial({ color: 0x4a3b28, roughness: 1 });
+    ropes.push(new RopeChain(wellBeam, new THREE.Vector3(0, -0.1, 0), {
+      segments: 10, length: 2.05, radius: 0.02, material: hemp,
+    }));
+  }
   const toWorld = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z).applyMatrix4(g.matrixWorld);
   return {
-    group: g, torches, flames, props,
+    group: g, torches, flames, props, cloth: cloths, well, ropes, loose, fxObjects,
     postern: { position: toWorld(HALF_W + 3, 0, POSTERN_Z), local: new THREE.Vector3(HALF_W + 3, 0, POSTERN_Z) },
     hallDoor: {
       position: toWorld(0, 0, portalZ - 2.2),
