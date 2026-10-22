@@ -250,6 +250,9 @@ const PodcastListen = retryLazy(() => import('./components/PodcastListen'));
 const ClassPointsView = retryLazy(() => import('./components/ClassPointsView'));
 const AcademiaTourView = retryLazy(() => import('./components/AcademiaTourView'));
 const AcademiaHomeView = retryLazy(() => import('./components/AcademiaHomeView'));
+const SupportCenterView = retryLazy(() => import('./components/academia/support/SupportCenterView'));
+/** Screens where the learning-support layer shows its dock, ruler and break reminders (calm visuals apply everywhere). */
+const SUPPORT_LAYER_VIEWS = new Set(['ACADEMIA_HOME', 'ACADEMIA_LANDING', 'ACADEMIA_COURSES', 'ACADEMIA_DIRECTORY', 'ACADEMIA_SUPPORT', 'CLASSROOMS', 'CLASSROOM_DETAIL', 'LEARN', 'HOMESCHOOL', 'STUDENT_HOME', 'STUDENT_LESSON', 'STUDENT_ASSIGNMENT', 'CREATOR_COURSES', 'NOTES']);
 const AcademiaDirectory = retryLazy(() => import('./components/AcademiaDirectory'));
 const LearnMapView = retryLazy(() => import('./components/learn/LearnMapView'));
 const InvestigationStudio = retryLazy(() => import('./components/inquiry/InvestigationStudio'));
@@ -287,6 +290,7 @@ import KidsSessionGuard from './components/KidsSessionGuard';
 import KidsModeBar from './components/KidsModeBar';
 import RoleLensBar from './components/academia/RoleLensBar';
 import LearnBar, { LEARN_VIEW_TITLES } from './components/academia/LearnBar';
+import SupportLayer from './components/academia/support/SupportLayer';
 import { getRoleLens, onRoleLensChange, applyRoleLens, isPlatformAdmin, type LensRole } from './services/roleLens';
 import PersonaSwitcherModal from './components/PersonaSwitcherModal';
 import {
@@ -6149,9 +6153,17 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               </Suspense>
             )}
 
+            <SupportLayer uid={user?.uid} learning={!!LEARN_VIEW_TITLES[view as string] || SUPPORT_LAYER_VIEWS.has(view as string)} onOpenCenter={() => setView('ACADEMIA_SUPPORT')} />
+
             {LEARN_VIEW_TITLES[view as string] && (
               <LearnBar view={view as string} onBack={() => goBack('LEARN')} onNavigate={(v) => setView(v as AppView)}
                 homeView={(isEducationAccount(effectiveProfile) || (effectiveProfile as any)?.accountType === 'PARENT') ? 'ACADEMIA_HOME' : 'ACADEMIA_LANDING'} />
+            )}
+
+            {view === 'ACADEMIA_SUPPORT' && (
+              <Suspense fallback={null}>
+                <SupportCenterView user={user} profile={effectiveProfile || userProfile} onNavigate={(v) => setView(v as AppView)} />
+              </Suspense>
             )}
 
             {view === 'NOTES' && (

@@ -13,6 +13,7 @@ export const LEARN_VIEW_TITLES: Record<string, string> = {
   MATH_CLASSROOM: 'Math practice', SCIENCE_SCHOOL: 'Science', SCIENCE_QUEST: 'Science Quest', HISTORY_QUEST: 'History Quest',
   LANGUAGE_ARTS_SCHOOL: 'Language Arts', READING_QUEST: 'Reading Quest', LANGUAGE_QUEST: 'Languages', VOCA: 'Voca',
   HANDWRITING_WORKSHOP: 'Penna', KIDS_LIBRARY: 'Kids Library', COMIC_MUSEUM: 'Comic & Manga Museum', LEARNER_LEDGER: 'Learning record',
+  ACADEMIA_SUPPORT: 'Learning Support',
 };
 
 const LearnBar: React.FC<{ view: string; onBack: () => void; onNavigate: (v: string) => void; homeView: string }> = ({ view, onBack, onNavigate, homeView }) => (

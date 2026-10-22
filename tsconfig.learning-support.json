@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": true, "skipLibCheck": true, "incremental": false },
+  "include": [
+    "services/learningSupport.ts",
+    "services/readAloud.ts",
+    "hooks/useLearningSupport.ts",
+    "data/supportResources.ts",
+    "components/academia/support/**/*.tsx",
+    "components/learn/lesson/LessonFolio.tsx",
+    "components/learn/lesson/LessonCheck.tsx",
+    "components/academia/creator/LessonPlayer.tsx",
+    "components/academia/TeacherHub.tsx",
+    "components/academia/ParentHub.tsx",
+    "components/homeroom/HomeroomView.tsx",
+    "components/academia/LearnBar.tsx"
+  ]
+}

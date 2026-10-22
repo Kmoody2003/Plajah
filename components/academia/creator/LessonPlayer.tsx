@@ -5,12 +5,16 @@
  * Plays official YouTube/Vimeo embeds and direct video files, shows text lessons inline, and falls
  * back to an "open link" for anything else (see lessonMedia: never embeds arbitrary URLs).
  * "Mark complete" is the only progress signal; the parent persists it.
+ * Learning supports: Listen reads text lessons aloud paragraph by paragraph with the paragraph highlighted, and
+ * Easier to read switches text lessons to Atkinson Hyperlegible with wider spacing.
  */
-import React from 'react';
+import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowLeft, ArrowRight, CheckCircle2, ExternalLink, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CheckCircle2, ExternalLink, Headphones, Square, X } from 'lucide-react';
 import type { Lesson } from '../../../types';
 import { lessonMedia } from '../../../services/creatorCourses';
+import { useActiveSupports } from '../../../hooks/useLearningSupport';
+import { canReadAloud, readPassages, stopReading, useReading } from '../../../services/readAloud';
 
 interface Props {
   lesson: Lesson;
@@ -27,6 +31,13 @@ interface Props {
 
 export default function LessonPlayer({ lesson, index, total, completed, onComplete, onPrev, onNext, onClose, saving }: Props) {
   const media = lessonMedia(lesson.contentUrl);
+  const sup = useActiveSupports();
+  const key = `player:${lesson.id}`;
+  const reading = useReading(key);
+  const paras = (lesson.textContent || '').split(/\n{2,}/).map(t => t.trim()).filter(Boolean);
+  useEffect(() => () => stopReading(), [lesson.id]);
+  const listen = () => (reading >= 0 ? stopReading() : void readPassages(key, [lesson.title, lesson.description || '', ...paras], { rate: sup.readRate }));
+  const hl = (on: boolean) => (on ? ' bg-[#00DAF3]/15 ring-4 ring-[#00DAF3]/15 rounded' : '');
   return createPortal(
     <div className="fixed inset-0 z-[2100] flex flex-col bg-[#07070c] text-white" role="dialog" aria-modal="true" aria-label={lesson.title}>
       <header className="flex items-center gap-3 px-4 sm:px-8 py-3 border-b border-white/10">
@@ -61,10 +72,21 @@ export default function LessonPlayer({ lesson, index, total, completed, onComple
           )}
 
           <div>
-            <h2 className="text-2xl sm:text-3xl font-black tracking-tight">{lesson.title}</h2>
-            {lesson.description && <p className="text-white/60 mt-2">{lesson.description}</p>}
+            <div className="flex items-start gap-3">
+              <h2 className={`text-2xl sm:text-3xl font-black tracking-tight flex-1${hl(reading === 0)}`}>{lesson.title}</h2>
+              {canReadAloud() && (lesson.textContent || lesson.description) && (
+                <button type="button" onClick={listen} aria-pressed={reading >= 0} className={`shrink-0 min-h-[44px] px-4 rounded-full border text-sm font-bold inline-flex items-center gap-2 ${reading >= 0 ? 'border-[#00DAF3] text-[#00DAF3]' : 'border-white/20 hover:bg-white/10'}`}>
+                  {reading >= 0 ? <><Square size={14} /> Stop</> : <><Headphones size={15} /> Listen</>}
+                </button>
+              )}
+            </div>
+            {lesson.description && <p className={`text-white/60 mt-2${hl(reading === 1)}`}>{lesson.description}</p>}
           </div>
-          {lesson.textContent && <div className="text-white/80 whitespace-pre-wrap leading-relaxed text-[15px]">{lesson.textContent}</div>}
+          {paras.length > 0 && (
+            <div className="text-white/80 leading-relaxed text-[15px] space-y-4" style={sup.easyRead ? { fontFamily: '"Atkinson Hyperlegible", Verdana, sans-serif', lineHeight: 1.8, letterSpacing: '0.02em', fontSize: 17 } : undefined}>
+              {paras.map((t, i) => <p key={i} className={`whitespace-pre-wrap${hl(reading === i + 2)}`}>{t}</p>)}
+            </div>
+          )}
         </div>
       </div>
 

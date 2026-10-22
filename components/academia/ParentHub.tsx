@@ -13,6 +13,7 @@ import { doc, setDoc } from 'firebase/firestore';
 import { relativeDue } from './TodayDueFirst';
 import EduFeedPanel from './EduFeedPanel';
 import WellbeingPanel from './WellbeingPanel';
+import SupportHubCard from './support/SupportHubCard';
 import { ChildSnapshot, ParentFamilySections } from './ParentFamily';
 import ParentalControlsPanel, { ParentalControlTabId } from '../ParentalControlsPanel';
 
@@ -480,6 +481,7 @@ const ParentHub: React.FC<Props> = ({ user, profile, onNavigate }) => {
             {/* How they're doing, then Ora, before anything else */}
             <ChildSnapshot child={child} work={work} stats={stats} onNavigate={onNavigate} />
             <WellbeingPanel role="parent" user={user} profile={profile} onNavigate={onNavigate} />
+            <SupportHubCard role="parent" uid={uid} learnerUid={child.uid} learnerName={child.displayName} onNavigate={onNavigate} />
 
             {/* 1 — Communication */}
             <section className="mb-9">

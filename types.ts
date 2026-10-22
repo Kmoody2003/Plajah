@@ -4083,6 +4083,8 @@ export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW'
   | 'LEARNER_LEDGER'
   // Teacher Tools — gradebook, plan-from-mastery, creative assessment
   | 'TEACHER_TOOLS'
+  // Learning Support: IEP / 504 / neurodiversity plans, supports, resources and community
+  | 'ACADEMIA_SUPPORT'
   // Business School — entrepreneurship, venture stages, P&L, entity formation, GTM
   | 'BUSINESS_SCHOOL'
   | 'BIZ_SIM'

@@ -1,11 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Check, Type } from 'lucide-react';
+import { Check, Headphones, Square, Type } from 'lucide-react';
 import { parseFolio, seedOf, wobblyRule, SCALE, type Band, type Block, type BulletMarker } from './folioParse';
 import { placeFigures, type Figure } from './figures';
 import LessonCheck from './LessonCheck';
 import { lessonToTelaDoc } from '../../../services/tela/lessonDoc';
 import { renderDevice, buildRenderMaps } from '../../tela/renderDevice';
 import { TelaReveal, TELA_MOTION_CSS, useTelaPointerGlow } from '../../tela/telaMotion';
+import { useActiveSupports } from '../../../hooks/useLearningSupport';
+import { canReadAloud, readPassages, stopReading, useReading } from '../../../services/readAloud';
 
 /**
  * The lesson page. One structure, three themes the learner can switch between:
@@ -15,6 +17,9 @@ import { TelaReveal, TELA_MOTION_CSS, useTelaPointerGlow } from '../../tela/tela
  * Themes only change look and rhythm; the text, the order and the figures never change. Figures (plates, audio, video,
  * charts, graphs, diagrams, timelines) sit between paragraphs and take their colours from the theme.
  * Controls: text size, theme, Easier to read (Atkinson Hyperlegible, no drop cap), Calm (no motion or glow).
+ * Learning supports (services/learningSupport) layer on top: Easier to read and Calm follow the learner's plan, Listen
+ * reads the page aloud and highlights the passage being read, Chunk shows one part at a time, and Schedule puts a
+ * "first this, then that" plan at the top.
  */
 export type FolioThemeId = 'default' | 'baroque' | 'eclectic';
 export const FOLIO_THEMES: Array<{ id: FolioThemeId; label: string }> = [{ id: 'default', label: 'Classic' }, { id: 'baroque', label: 'Lit stage' }, { id: 'eclectic', label: 'Field notebook' }];
@@ -171,6 +176,18 @@ const CSS = TELA_MOTION_CSS + `
 .folio .fchg{box-shadow:inset 3px 0 0 -1px rgba(255,255,255,.55);padding-left:10px;margin-left:-10px;border-radius:2px}
 .folio.t-eclectic .fcust{background:#f4efe0;color:#1c1a24;border-color:#d6c9a4}
 .folio.t-eclectic .fcust b{color:#7a5a00}
+.folio .freading{background:color-mix(in srgb,var(--acc) 16%,transparent);box-shadow:0 0 0 6px color-mix(in srgb,var(--acc) 16%,transparent);border-radius:3px}
+.folio .fplan{margin:0 0 1.4em;padding:12px 14px;border-radius:10px;border:1px dashed color-mix(in srgb,var(--acc) 55%,transparent);font-family:system-ui,sans-serif;font-size:.86em}
+.folio .fplan ol{margin:.4em 0 0;padding:0;list-style:none;display:grid;gap:4px}
+.folio .fplan li{display:flex;gap:8px;align-items:baseline}
+.folio .fplan li b{display:inline-grid;place-items:center;min-width:1.6em;height:1.6em;border-radius:50%;border:1px solid var(--acc);font-size:.8em}
+.folio .fplan li.done{opacity:.55}
+.folio .fplan li.done b{background:var(--acc);color:#0b0b10}
+.folio .fplan li.now{font-weight:600}
+.folio .fnext{display:flex;align-items:center;gap:12px;margin:1.6em 0;font-family:system-ui,sans-serif}
+.folio .fnext button{font:inherit;font-size:.9em;font-weight:600;padding:10px 18px;border-radius:99px;border:0;background:var(--acc);color:#0b0b10;cursor:pointer;min-height:44px}
+.folio .fnext span{font-size:.8em;opacity:.7}
+.folio.t-eclectic .fplan{background:#f4efe0;color:#1c1a24}
 @media print{.folio-controls{display:none}}
 `;
 
@@ -191,6 +208,10 @@ const LessonFolio: React.FC<{ lessonId: string; title: string; courseTitle: stri
   const [open, setOpen] = useState(false);
   const [understood, setUnderstood] = useState(() => { try { return localStorage.getItem(understoodKey(lessonId)) === '1'; } catch { return false; } });
   const [progress, setProgress] = useState(0);
+  const sup = useActiveSupports();
+  const [part, setPart] = useState(0);
+  useEffect(() => { setPart(0); }, [lessonId]);
+  useEffect(() => () => stopReading(), [lessonId]);
   useEffect(() => { ensureFonts(); }, []);
   useEffect(() => { try { setUnderstood(localStorage.getItem(understoodKey(lessonId)) === '1'); } catch { setUnderstood(false); } }, [lessonId]);
   const set = (p: Partial<Prefs>) => setPrefs(cur => { const n = { ...cur, ...p }; savePrefs(n); return n; });
@@ -225,13 +246,14 @@ const LessonFolio: React.FC<{ lessonId: string; title: string; courseTitle: stri
   const seed = useMemo(() => seedOf(lessonId), [lessonId]);
   const rule = useMemo(() => wobblyRule(seed), [seed]);
   const sysReduced = reducedMotion();
-  const calm = prefs.motion === 'off' || (prefs.motion === 'auto' && sysReduced);
+  const calm = sup.calm || prefs.motion === 'off' || (prefs.motion === 'auto' && sysReduced);
+  const easy = prefs.easy || sup.easyRead;
   const forced = prefs.motion === 'on';
   const sc = SCALE[band];
   const px = sc.px * SIZE_MUL[prefs.size];
   const th = THEMES[prefs.theme] || THEMES.default;
   const acc = th.acc || accent;
-  const bodyFont = prefs.easy ? '"Atkinson Hyperlegible", Verdana, sans-serif' : th.body;
+  const bodyFont = easy ? '"Atkinson Hyperlegible", Verdana, sans-serif' : th.body;
 
   const rootRef = useRef<HTMLDivElement>(null);
   const pointRef = useRef<HTMLDivElement>(null);
@@ -246,10 +268,25 @@ const LessonFolio: React.FC<{ lessonId: string; title: string; courseTitle: stri
   const mark = () => { const v = !understood; setUnderstood(v); try { localStorage.setItem(understoodKey(lessonId), v ? '1' : '0'); } catch { /* */ } if (v) onUnderstood?.(lessonId); };
   const roman = ((n: number) => { const r: Array<[number, string]> = [[10, 'x'], [9, 'ix'], [5, 'v'], [4, 'iv'], [1, 'i']]; let o = ''; for (const [v, s] of r) while (n >= v) { o += s; n -= v; } return o; })(parseInt(lessonId.slice(lessonId.lastIndexOf('.l') + 2), 10) || 0);
 
+  // Learning supports: chunking, the plan at the top, and read-aloud with the passage highlighted.
+  const parts = useMemo(() => (blocks.length ? blocks[blocks.length - 1].section + 1 : 1), [blocks]);
+  const shownParts = sup.chunk ? Math.min(part + 1, parts) : parts;
+  const shown = useMemo(() => blocks.filter(b => b.section < shownParts), [blocks, shownParts]);
+  const allShown = shownParts >= parts;
+  const reading = useReading(lessonId);
+  const listen = () => (reading >= 0 ? stopReading() : void readPassages(lessonId, [title, ...shown.map(b => (b.kind === 'callout' && b.label ? `${b.label}. ${b.text}` : b.text))], { rate: sup.readRate }));
+  useEffect(() => {
+    if (reading < 1) return;
+    const el = rootRef.current?.querySelector(`[data-rb="${reading - 1}"]`);
+    el?.scrollIntoView({ block: 'center', behavior: calm ? 'auto' : 'smooth' });
+  }, [reading, calm]);
+  const partLabel = (n: number) => { const first = blocks.find(b => b.section === n && b.kind !== 'callout'); const w = (first?.text || '').split(/\s+/).slice(0, 6).join(' '); return w ? `${w}…` : `Part ${n + 1}`; };
+  const hl = (i: number) => (reading - 1 === i ? ' freading' : '');
+
   let textIdx = -1;
   const pill = (on: boolean) => `px-3 py-1 rounded-full border ${on ? 'bg-white text-black border-white' : 'border-white/20 text-white/70'}`;
   return (
-    <div className={`folio t-${prefs.theme}${calm ? ' calm' : ''}${forced ? ' force-motion' : ''}${prefs.motion === 'off' ? ' nomo' : ''} relative`} ref={rootRef} style={{ ['--acc' as any]: acc, ['--acc2' as any]: th.acc2, ['--acc3' as any]: th.acc3, ['--paper' as any]: th.paper, ['--tm-glow' as any]: acc, ['--disp' as any]: th.display, fontFamily: bodyFont, fontSize: px, lineHeight: prefs.easy ? sc.lead + 0.15 : sc.lead, letterSpacing: prefs.easy ? '0.02em' : undefined, color: 'rgba(240,236,228,.92)' }}>
+    <div className={`folio t-${prefs.theme}${calm ? ' calm' : ''}${forced ? ' force-motion' : ''}${prefs.motion === 'off' ? ' nomo' : ''} relative`} ref={rootRef} style={{ ['--acc' as any]: acc, ['--acc2' as any]: th.acc2, ['--acc3' as any]: th.acc3, ['--paper' as any]: th.paper, ['--tm-glow' as any]: acc, ['--disp' as any]: th.display, fontFamily: bodyFont, fontSize: px, lineHeight: easy ? sc.lead + 0.15 : sc.lead, letterSpacing: easy ? '0.02em' : undefined, color: 'rgba(240,236,228,.92)' }}>
       <style>{CSS}</style>
       <div className="fglow" aria-hidden="true" />
       <div className="tm-glow fpoint" ref={pointRef} aria-hidden="true" />
@@ -261,16 +298,17 @@ const LessonFolio: React.FC<{ lessonId: string; title: string; courseTitle: stri
         <div className="flex items-baseline gap-3">
           <span className="fl" style={{ color: acc }}>{courseTitle}</span>
           <span className="fl opacity-60">{roman ? `Lesson ${roman}` : ''} · {minutes} min</span>
-          <button type="button" aria-label="Reading settings" aria-expanded={open} onClick={() => setOpen(o => !o)} className="folio-controls ml-auto text-white/50 hover:text-white p-1 rounded"><Type size={15} /></button>
+          {canReadAloud() && <button type="button" onClick={listen} aria-pressed={reading >= 0} className={`folio-controls ml-auto inline-flex items-center gap-1.5 text-[12px] rounded-full border px-3 py-1 ${reading >= 0 ? 'border-current' : sup.readAloud ? 'border-white/40 text-white' : 'border-white/15 text-white/60 hover:text-white'}`} style={{ fontFamily: 'system-ui, sans-serif', color: reading >= 0 ? acc : undefined }}>{reading >= 0 ? <><Square size={12} /> Stop</> : <><Headphones size={13} /> Listen</>}</button>}
+          <button type="button" aria-label="Reading settings" aria-expanded={open} onClick={() => setOpen(o => !o)} className={`folio-controls ${canReadAloud() ? '' : 'ml-auto '}text-white/50 hover:text-white p-1 rounded`}><Type size={15} /></button>
         </div>
-        <h2 className="ft mt-1" style={{ fontFamily: th.display, fontSize: '1.9em' }}>{title}</h2>
+        <h2 className={`ft mt-1${reading === 0 ? ' freading' : ''}`} style={{ fontFamily: th.display, fontSize: '1.9em' }}>{title}</h2>
         <svg aria-hidden="true" viewBox="0 0 600 4" preserveAspectRatio="none" className="w-full h-[4px] mt-2 frule"><path pathLength={1} d={rule} fill="none" stroke={acc} strokeWidth="1.4" strokeLinecap="round" /></svg>
         {open && (
           <div role="group" aria-label="Reading settings" className="folio-controls mt-3 grid gap-2 text-[12px]" style={{ fontFamily: 'system-ui, sans-serif' }}>
             <div className="flex flex-wrap gap-2" role="group" aria-label="Look">{FOLIO_THEMES.map(t => <button key={t.id} type="button" aria-pressed={prefs.theme === t.id} onClick={() => set({ theme: t.id })} className={pill(prefs.theme === t.id)}>{t.label}</button>)}</div>
             <div className="flex flex-wrap gap-2">
               {(['Smaller', 'Normal', 'Larger'] as const).map((l, i) => <button key={l} type="button" aria-pressed={prefs.size === i} onClick={() => set({ size: i as 0 | 1 | 2 })} className={pill(prefs.size === i)}>{l}</button>)}
-              <button type="button" aria-pressed={prefs.easy} onClick={() => set({ easy: !prefs.easy })} className={pill(prefs.easy)}>Easier to read</button>
+              <button type="button" aria-pressed={easy} disabled={sup.easyRead} title={sup.easyRead ? 'On in your learning supports' : undefined} onClick={() => set({ easy: !prefs.easy })} className={pill(easy)}>Easier to read</button>
               <label className="inline-flex items-center gap-1 text-white/70">Bullets <select aria-label="Bullet style" value={prefs.bullets} onChange={e => set({ bullets: e.target.value as BulletMarker })} className="bg-transparent border border-white/20 rounded-full px-2 py-1">{(['auto', 'dot', 'dash', 'arrow', 'check', 'star', 'number'] as const).map(m => <option key={m} value={m} style={{ color: '#000' }}>{m === 'auto' ? 'As written' : m[0].toUpperCase() + m.slice(1)}</option>)}</select></label>
               {(['auto', 'on', 'off'] as const).map(m => <button key={m} type="button" aria-pressed={prefs.motion === m} onClick={() => set({ motion: m })} className={pill(prefs.motion === m)}>{m === 'auto' ? 'Motion: auto' : m === 'on' ? 'Motion: on' : 'Motion: off'}</button>)}
             </div>
@@ -282,6 +320,14 @@ const LessonFolio: React.FC<{ lessonId: string; title: string; courseTitle: stri
           <div className="fcust folio-controls" role="note" style={{ fontFamily: 'system-ui, sans-serif' }}>
             Your device asks apps to reduce motion, so this lesson is holding still. <button type="button" onClick={() => set({ motion: 'on' })}>Turn gentle motion on</button>
           </div>)}
+        {sup.schedule && (
+          <nav className="fplan folio-controls" aria-label="Plan for this lesson">
+            <span className="fl" style={{ color: acc }}>First, then</span> <span style={{ opacity: .7 }}>· about {minutes} min</span>
+            <ol>
+              {Array.from({ length: parts }, (_, n) => <li key={n} className={sup.chunk ? (n < part ? 'done' : n === part ? 'now' : '') : ''}><b>{n + 1}</b>{n === 0 ? 'Read: ' : 'Then read: '}{partLabel(n)}</li>)}
+              <li className={sup.chunk && !allShown ? '' : 'now'}><b>{parts + 1}</b>Check your thinking, then mark it understood</li>
+            </ol>
+          </nav>)}
         {customization && (
           <div className="fcust fa" role="note" style={{ ['--i' as any]: 1 }}>
             <b>{customization.showingOriginal ? 'Original lesson' : customization.credit}</b>
@@ -291,23 +337,23 @@ const LessonFolio: React.FC<{ lessonId: string; title: string; courseTitle: stri
             {customization.stale && !customization.showingOriginal && <div style={{ marginTop: '.3em' }}>The original lesson has been updated since this version was made. Compare the two before you rely on it.</div>}
             {customization.onToggleOriginal && <button type="button" onClick={customization.onToggleOriginal}>{customization.showingOriginal ? 'Show the teacher version' : 'Show the original'}</button>}
           </div>)}
-        {blocks.map((b, i) => {
-          const prev = blocks[i - 1];
+        {shown.map((b, i) => {
+          const prev = shown[i - 1];
           const gap = prev && prev.section !== b.section && b.kind !== 'callout';
           const anim = Math.min(i + 2, 12);
           const chg = !!customization && !customization.showingOriginal && customization.changed.has(b.index);
           if (b.kind === 'list') {
             const m: BulletMarker = prefs.bullets !== 'auto' ? prefs.bullets : (b.marker && b.marker !== 'auto' ? b.marker : 'auto');
             const Tag = m === 'number' ? 'ol' : 'ul';
-            return <TelaReveal key={i} enabled={!calm} className="fa" style={{ ['--i' as any]: anim }}><Tag className={`fl-list fb-${m}${chg ? ' fchg' : ''}`}>{(b.items || []).map((it, k) => <li key={k}>{it}</li>)}</Tag></TelaReveal>;
+            return <TelaReveal key={i} enabled={!calm} className="fa" style={{ ['--i' as any]: anim }}><Tag data-rb={i} className={`fl-list fb-${m}${chg ? ' fchg' : ''}${hl(i)}`}>{(b.items || []).map((it, k) => <li key={k}>{it}</li>)}</Tag></TelaReveal>;
           }
-          if (b.kind === 'callout') return <Callout key={i} b={b} light={!calm} anim={anim} chg={chg} />;
+          if (b.kind === 'callout') return <div key={i} data-rb={i} className={hl(i)}><Callout b={b} light={!calm} anim={anim} chg={chg} /></div>;
           textIdx++;
           const figs = placed.get(textIdx) || [];
           return (
             <React.Fragment key={i}>
               {gap && <div aria-hidden="true" className="my-7 text-center opacity-40" style={{ color: acc, letterSpacing: '0.6em' }}>· · ·</div>}
-              <p className={`${b.kind === 'lede' && !prefs.easy && band !== 'early' ? 'fp ' : ''}fa${chg ? ' fchg' : ''} mb-[1.1em]`} title={chg ? 'Changed by the teacher' : undefined} style={{ fontSize: b.kind === 'lede' ? '1.1em' : undefined, ['--i' as any]: anim }}>{b.text}</p>
+              <p data-rb={i} className={`${b.kind === 'lede' && !easy && band !== 'early' ? 'fp ' : ''}fa${chg ? ' fchg' : ''}${hl(i)} mb-[1.1em]`} title={chg ? 'Changed by the teacher' : undefined} style={{ fontSize: b.kind === 'lede' ? '1.1em' : undefined, ['--i' as any]: anim }}>{b.text}</p>
               {figs.map(f => { const dev = doc.devices[f.deviceId]; if (!dev) return null; return (
                 <TelaReveal key={f.deviceId} enabled={!calm} className="fa" style={{ ['--i' as any]: Math.min(anim + 1, 13) }}>
                   {dev.type === 'CHART'
@@ -316,7 +362,12 @@ const LessonFolio: React.FC<{ lessonId: string; title: string; courseTitle: stri
                 </TelaReveal>); })}
             </React.Fragment>);
         })}
-        {!(customization && !customization.showingOriginal) && <LessonCheck lessonId={lessonId} />}
+        {!allShown && (
+          <div className="fnext folio-controls">
+            <button type="button" onClick={() => { stopReading(); setPart(p => p + 1); }}>Next part</button>
+            <span>Part {shownParts} of {parts} done. Take your time.</span>
+          </div>)}
+        {allShown && !(customization && !customization.showingOriginal) && <LessonCheck lessonId={lessonId} />}
         <div className="folio-controls mt-8 pt-5 border-t border-white/10 flex items-center gap-3 flex-wrap">
           <button type="button" aria-pressed={understood} onClick={mark} className="inline-flex items-center gap-2 text-[13px] px-4 py-2 rounded-full border" style={{ fontFamily: 'system-ui, sans-serif', borderColor: understood ? acc : 'rgba(255,255,255,.25)', background: understood ? acc : 'transparent', color: understood ? '#0b0b10' : 'rgba(255,255,255,.8)' }}>
             {understood ? <Check size={14} /> : <span aria-hidden="true" className="w-3.5 h-3.5 rounded-full border border-current inline-block" />} {understood ? 'Understood' : 'Mark as understood'}

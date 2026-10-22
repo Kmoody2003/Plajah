@@ -2,11 +2,13 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import CreateEventButton from '../events/CreateEventButton';
 import {
   PenTool, ScanLine, Library, Wand2, ClipboardCheck, BarChart3, Users, Plus, AlertTriangle, LayoutGrid, FileText,
-  FileBarChart, ShieldCheck, Plug, MessageCircle, Search, Notebook, Microscope, Star, CalendarCheck,
+  FileBarChart, ShieldCheck, Plug, MessageCircle, Search, Notebook, Microscope, Star, CalendarCheck, Accessibility,
 } from 'lucide-react';
 import TodayDueFirst from './TodayDueFirst';
 import EduFeedPanel from './EduFeedPanel';
 import WellbeingPanel from './WellbeingPanel';
+import SupportHubCard from './support/SupportHubCard';
+import { openSupportCenter } from '../../services/learningSupport';
 import StudentDossier from './StudentDossier';
 import AttendanceSheet from './AttendanceSheet';
 import { DidYouKnow, ExhibitsRow, StudiosRow, LoreaShelf, CurriculumShowcase, AcademiaResponsiveStyles } from './AcademiaShowcase';
@@ -104,6 +106,7 @@ const TeacherHub: React.FC<Props> = ({ user, profile, onNavigate, isAdminLens })
     { label: 'Content library', meta: 'Rights-cleared', icon: Library, color: '#a78bfa', tab: 'library' },
     { label: 'Reports', meta: 'Progress', icon: FileBarChart, color: '#06D6A0', tab: 'reports' },
     { label: 'Integrity', meta: 'Original work', icon: ShieldCheck, color: '#60A5FA', tab: 'integrity' },
+    { label: 'Learning support', meta: 'IEP · 504 plans', icon: Accessibility, color: '#00DAF3', onClick: () => openSupportCenter(onNavigate, { tab: 'plan' }) },
     { label: 'Integrations', meta: 'Google · Clever', icon: Plug, color: '#FFB266', tab: 'connect' },
     { label: 'Investigate', meta: 'Inquiry studio', icon: Microscope, color: '#06D6A0', view: 'INQUIRY' },
     { label: 'Class Points', meta: 'Celebrate', icon: Star, color: '#F5B83D', view: 'CLASS_POINTS' },
@@ -227,6 +230,7 @@ const TeacherHub: React.FC<Props> = ({ user, profile, onNavigate, isAdminLens })
         <div className="mt-14 acad-fold-gap">
           <DidYouKnow role="teacher" onNavigate={onNavigate} />
           <WellbeingPanel role="teacher" user={user} profile={profile} classes={classes || []} onNavigate={onNavigate} />
+          <SupportHubCard role="teacher" uid={uid} onNavigate={onNavigate} />
         </div>
 
         {/* Class performance */}

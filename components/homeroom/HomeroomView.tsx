@@ -10,6 +10,7 @@ import { lessonLink } from '../../services/assignmentTemplateService';
 import { requestTextChat, proposeClub } from '../../services/homeroomService';
 import EduFeedPanel from '../academia/EduFeedPanel';
 import WellbeingPanel from '../academia/WellbeingPanel';
+import SupportHubCard from '../academia/support/SupportHubCard';
 import DailyScripture from '../academia/DailyScripture';
 import { useSchoolProfile } from '../../hooks/useSchoolProfile';
 import { loadLearnerStats, type LearnerStats, type AppStat } from '../../services/academiaStats';
@@ -254,6 +255,7 @@ const HomeroomView: React.FC<Props> = ({ user, profile, onNavigate }) => {
         </section>
 
         <WellbeingPanel role="student" user={user} profile={profile} classes={classes || []} onNavigate={onNavigate} />
+        <SupportHubCard role="student" onNavigate={onNavigate} />
 
         <div className="grid acad-split">
           <div className="col">

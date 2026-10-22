@@ -1566,6 +1566,24 @@ service cloud.firestore {
     match /homeschool/{parentUid} {
       allow read, write: if isOwner(parentUid);
     }
+    // Learning support (IEP / 504 / neurodiversity) plans — sensitive. Readable only by the learner, their guardian and
+    // the team the family chose (teamUids). The learner and guardian write; a child learner cannot change the team.
+    // Team members may only log goal progress and edit the shared notes. Never listable by anyone else.
+    match /supportPlans/{learnerUid} {
+      allow read: if isOwner(learnerUid) || isGuardianOf(learnerUid)
+                  || (isAuthenticated() && request.auth.uid in resource.data.get('teamUids', []));
+      allow create: if request.resource.data.learnerUid == learnerUid
+                    && (isGuardianOf(learnerUid)
+                        || (isOwner(learnerUid) && (!get(/databases/$(database)/documents/users/$(learnerUid)).data.get('isChild', false)
+                                                    || request.resource.data.get('teamUids', []).size() == 0)));
+      allow update: if (isGuardianOf(learnerUid) && request.resource.data.learnerUid == learnerUid)
+                    || (isOwner(learnerUid) && request.resource.data.learnerUid == learnerUid
+                        && (!get(/databases/$(database)/documents/users/$(learnerUid)).data.get('isChild', false)
+                            || request.resource.data.get('teamUids', []) == resource.data.get('teamUids', [])))
+                    || (isAuthenticated() && request.auth.uid in resource.data.get('teamUids', [])
+                        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['goals', 'teamNotes', 'updatedAt', 'updatedBy']));
+      allow delete: if isOwner(learnerUid) || isGuardianOf(learnerUid);
+    }
     match /readingProgress/{userId} {
       allow read: if isOwner(userId) || isGuardianOf(userId);
       allow write: if isOwner(userId);
