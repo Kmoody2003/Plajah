@@ -11,11 +11,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { register } from 'node:module';
 import { buildPrideAndPrejudiceOverture } from '../../data/bookScores/prideAndPrejudice';
+import { buildDraculaOverture } from '../../data/bookScores/dracula';
 import { compileScore, type Score } from '../../services/melos/score/scoreEngine';
 import { scoreToChoraRequest, scoreToMidi, scoreToMusicXml } from '../../services/melos/score/scoreExport';
 
-const BOOKS: Record<string, () => Score> = {
-  'pride-and-prejudice': buildPrideAndPrejudiceOverture,
+const BOOKS: Record<string, { build: () => Score; hall: { hallReverbDecaySec: number; wetReverbMix: number } }> = {
+  'pride-and-prejudice': { build: buildPrideAndPrejudiceOverture, hall: { hallReverbDecaySec: 2.2, wetReverbMix: 0.26 } },
+  // stone hall: longer, wetter
+  dracula: { build: buildDraculaOverture, hall: { hallReverbDecaySec: 3.2, wetReverbMix: 0.34 } },
 };
 
 async function engrave(musicXml: string, outDir: string): Promise<number> {
@@ -23,7 +26,7 @@ async function engrave(musicXml: string, outDir: string): Promise<number> {
   const { VerovioToolkit } = await import('verovio/esm');
   const vrv = new VerovioToolkit(await createVerovioModule());
   vrv.setOptions({
-    pageWidth: 2100, pageHeight: 2970, scale: 30, adjustPageHeight: false,
+    pageWidth: 2100, pageHeight: 2970, scale: 30, adjustPageHeight: true,
     breaks: 'auto', footer: 'none', header: 'auto', condense: 'auto', condenseFirstPage: false, justifyVertically: true,
   });
   if (!vrv.loadData(musicXml)) throw new Error('Verovio could not load the MusicXML');
@@ -36,12 +39,12 @@ async function engrave(musicXml: string, outDir: string): Promise<number> {
 
 async function main() {
   const book = process.argv[2] ?? 'pride-and-prejudice';
-  const build = BOOKS[book];
-  if (!build) throw new Error(`no score for "${book}" (have: ${Object.keys(BOOKS).join(', ')})`);
+  const entry = BOOKS[book];
+  if (!entry) throw new Error(`no score for "${book}" (have: ${Object.keys(BOOKS).join(', ')})`);
   const outDir = path.resolve('docs/scores', book);
   fs.mkdirSync(outDir, { recursive: true });
 
-  const score = build();
+  const score = entry.build();
   const notes = compileScore(score);
   const counts = Object.fromEntries(Object.entries(notes).map(([k, v]) => [k, v.length]));
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
@@ -59,7 +62,7 @@ async function main() {
     // the Chora engine's import graph uses Vite asset imports (`plajah_audio.wasm?url`)
     register('./viteAssetLoader.mjs', import.meta.url);
     const { renderSongWithMelosWasm } = await import('../../services/melos/melosWasmSongEngine');
-    const req = scoreToChoraRequest(score, { sampleRate: 32000 });
+    const req = scoreToChoraRequest(score, { sampleRate: 32000, ...entry.hall });
     console.log(`rendering ${req.tracks.length} Chora tracks…`);
     const t0 = Date.now();
     const out = await renderSongWithMelosWasm(req);

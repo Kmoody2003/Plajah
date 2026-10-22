@@ -55,7 +55,7 @@ function placeNear(step: Step, alter: number, targetMidi: number): Pitch {
 type Interval = [number, number];
 const I: Record<string, Interval> = {
   '1': [0, 0], b3: [2, 3], '3': [2, 4], '4': [3, 5], b5: [4, 6], '5': [4, 7], '#5': [4, 8],
-  '6': [5, 9], bb7: [6, 9], b7: [6, 10], '7': [6, 11], '9': [1, 2], '2': [1, 2],
+  '6': [5, 9], bb7: [6, 9], b7: [6, 10], '7': [6, 11], '9': [1, 2], '2': [1, 2], b9: [1, 1],
 };
 const QUALITIES: Array<[string, string[]]> = [
   // longest suffixes first
@@ -64,6 +64,7 @@ const QUALITIES: Array<[string, string[]]> = [
   ['sus4', ['1', '4', '5']], ['sus2', ['1', '2', '5']], ['add9', ['1', '3', '5', '9']], ['m7', ['1', 'b3', '5', 'b7']],
   ['m6', ['1', 'b3', '5', '6']], ['dim', ['1', 'b3', 'b5']], ['°', ['1', 'b3', 'b5']], ['aug', ['1', '3', '#5']],
   ['m', ['1', 'b3', '5']], ['7', ['1', '3', '5', 'b7']], ['6', ['1', '3', '5', '6']], ['', ['1', '3', '5']],
+  ['7b9', ['1', '3', '5', 'b7', 'b9']], ['mM7', ['1', 'b3', '5', '7']], ['+', ['1', '3', '#5']], ['5', ['1', '5']],
 ];
 
 export interface ChordTone { step: Step; alter: number; pc: number; degree: string }
@@ -142,8 +143,8 @@ export interface ScorePart {
   octaveTranspose?: number;
   /** General MIDI program (0-based). */
   gmProgram: number;
-  /** Bracket group in the engraved score. */
-  group: 'woodwinds' | 'brass' | 'harp' | 'piano' | 'strings';
+  /** Bracket group in the engraved score (parts of one group must be adjacent). */
+  group: 'woodwinds' | 'brass' | 'percussion' | 'harp' | 'piano' | 'keyboard' | 'choir' | 'strings';
   chora: ChoraVoice;
 }
 
@@ -161,6 +162,8 @@ export interface Score {
   keyMode: 'major' | 'minor';
   parts: ScorePart[];
   sections: ScoreSection[];
+  /** Key signature changes after bar 1. */
+  keyChanges?: Array<{ bar: number; fifths: number; mode: 'major' | 'minor' }>;
   /** Chord symbols per bar (index 0 = bar 1). */
   harmony: string[];
   /** bars[partId][barIndex] */
@@ -173,7 +176,7 @@ const DUR: Record<string, number> = { w: 4, h: 2, q: 1, e: 0.5, s: 0.25, t: 0.12
 
 /**
  * One bar per `|`. Tokens:
- *   F#5q  Bb4e.  D5h~ (tie)  A4q' (staccato)  A4q> (accent)  A4q_ (tenuto)
+ *   F#5q  Bb4e.  D5h~ (tie)  A4q' (staccato)  A4q> (accent)  A4q_ (tenuto)  D3w* (tremolo)
  *   [D4 F#4 A4]h.   chord
  *   rq rh. re       rests;  rm  full-measure rest
  *   !p !mf ...      dynamic for the next note (also sets velocity)
@@ -214,7 +217,7 @@ export function parseBars(dsl: string, beatsPerBar: number, startVel: number, wh
         pitchPart = m[1];
         tail = m[2];
       }
-      const dm = /^([whqest])(\.?)([~'>_]*)$/.exec(tail);
+      const dm = /^([whqest])(\.?)([~'>_*]*)$/.exec(tail);
       if (!dm) throw new Error(`${where} bar+${bi}: bad duration in "${tok}"`);
       const dur = DUR[dm[1]] * (dm[2] ? 1.5 : 1);
       const pitches = pitchPart
@@ -228,6 +231,7 @@ export function parseBars(dsl: string, beatsPerBar: number, startVel: number, wh
       if (dm[3].includes("'")) artics.push('staccato');
       if (dm[3].includes('>')) artics.push('accent');
       if (dm[3].includes('_')) artics.push('tenuto');
+      if (dm[3].includes('*')) artics.push('tremolo');
       events.push({
         pitches, dur, vel,
         tieToNext: dm[3].includes('~') || undefined,
@@ -443,7 +447,7 @@ export function sustainVoices(sb: ScoreBuilder, partIds: string[], ranges: Voice
 }
 
 /** The harmonic bass line, one note per chord segment (optionally doubled at the octave below). */
-export function bassLine(sb: ScoreBuilder, partId: string, range: VoiceRange, from: number, to: number, opts: TextureOpts & { octaves?: boolean; pattern?: 'held' | 'beat1' } = {}) {
+export function bassLine(sb: ScoreBuilder, partId: string, range: VoiceRange, from: number, to: number, opts: TextureOpts & { octaves?: boolean; pattern?: 'held' | 'beat1' | 'pulse8' } = {}) {
   let prev = Math.round((range.lo + range.hi) / 2);
   const n = to - from + 1;
   for (let b = from; b <= to; b++) {
@@ -453,7 +457,9 @@ export function bassLine(sb: ScoreBuilder, partId: string, range: VoiceRange, fr
       const p = toneInRange(seg.chord.bass, prev, range);
       prev = pitchMidi(p);
       const pitches = opts.octaves && pitchMidi(p) - 12 >= range.lo - 5 ? [{ ...p, octave: p.octave - 1 }, p] : [p];
-      if (opts.pattern === 'beat1') {
+      if (opts.pattern === 'pulse8') {
+        for (let k = 0; k < seg.dur / 0.5 - 1e-6; k++) ev.push({ pitches, dur: 0.5, vel: k % 2 ? vel - 8 : vel, artics: opts.artics });
+      } else if (opts.pattern === 'beat1') {
         ev.push({ pitches, dur: 1, vel, artics: opts.artics });
         notatable(seg.dur - 1).forEach((d) => d > 0 && ev.push({ pitches: [], dur: d, vel }));
       } else {
@@ -489,7 +495,7 @@ export function afterbeats(sb: ScoreBuilder, partId: string, ranges: VoiceRange[
  * Broken-chord eighths built up from the bass: `alberti` (low-high-mid-high, piano LH), `rising`
  * (harp sweep), `wave` (up then back down).
  */
-export function brokenChord(sb: ScoreBuilder, partId: string, startNear: number, from: number, to: number, opts: TextureOpts & { shape: 'rising' | 'wave' | 'alberti'; fromBass?: boolean; step?: number } ) {
+export function brokenChord(sb: ScoreBuilder, partId: string, startNear: number, from: number, to: number, opts: TextureOpts & { shape: 'rising' | 'wave' | 'alberti'; fromBass?: boolean; step?: number; pattern?: number[] } ) {
   const n = to - from + 1;
   const step = opts.step ?? 0.5;
   let anchor = startNear;
@@ -530,10 +536,28 @@ export function brokenChord(sb: ScoreBuilder, partId: string, startNear: number,
         }
       }
       let idx: number[];
-      if (opts.shape === 'rising') idx = Array.from({ length: count }, (_, i) => i % ladder.length);
+      if (opts.pattern) idx = Array.from({ length: count }, (_, i) => opts.pattern![i % opts.pattern!.length]);
+      else if (opts.shape === 'rising') idx = Array.from({ length: count }, (_, i) => i % ladder.length);
       else if (opts.shape === 'alberti') idx = Array.from({ length: count }, (_, i) => [0, 1, 3, 1, 2, 1][i % 6]);
       else idx = Array.from({ length: count }, (_, i) => [0, 1, 2, 3, 2, 1][i % 6]);
       idx.forEach((k) => ev.push({ pitches: [ladder[Math.min(k, ladder.length - 1)]], dur: step, vel, artics: opts.artics }));
+    }
+    markFirst(ev, opts, b === from);
+    sb.put(partId, b, ev);
+  }
+}
+
+/** Held voice-led chords within one part (organ manual, choir, cimbalom), one chord per harmony segment. */
+export function chordPad(sb: ScoreBuilder, partId: string, ranges: VoiceRange[], from: number, to: number, opts: TextureOpts = {}) {
+  const vl = new VoiceLeader(ranges);
+  const n = to - from + 1;
+  for (let b = from; b <= to; b++) {
+    const vel = rampVel(opts, b - from, n);
+    const ev: ScoreEvent[] = [];
+    for (const seg of sb.segments(b)) {
+      const pitches = vl.voice(seg.chord);
+      const durs = notatable(seg.dur);
+      durs.forEach((d, k) => ev.push({ pitches: [...pitches], dur: d, vel, tieToNext: k < durs.length - 1 || undefined, artics: opts.artics }));
     }
     markFirst(ev, opts, b === from);
     sb.put(partId, b, ev);
@@ -563,8 +587,11 @@ const ARTIC_TO_ORCH: Partial<Record<Articulation, OrchestralArticulation>> = {
   staccato: 'staccato', pizz: 'pizzicato', tremolo: 'tremolo', accent: 'marcato',
 };
 
-/** Sounding notes per part in beats from the top of the score (ties merged). */
-export function compileScore(score: Score): Record<string, NoteEvent[]> {
+/**
+ * Sounding notes per part in beats from the top of the score (ties merged). With `expandTremolo`,
+ * notes marked tremolo are re-bowed as repeated 32nds, the way the player actually plays them.
+ */
+export function compileScore(score: Score, opts: { expandTremolo?: boolean } = {}): Record<string, NoteEvent[]> {
   const out: Record<string, NoteEvent[]> = {};
   let seq = 1;
   for (const part of score.parts) {
@@ -574,6 +601,20 @@ export function compileScore(score: Score): Record<string, NoteEvent[]> {
     score.bars[part.id].forEach((bar, bi) => {
       let t = bi * score.beatsPerBar;
       for (const e of bar) {
+        if (opts.expandTremolo && e.artics?.includes('tremolo') && e.pitches.length) {
+          const stroke = 0.125;
+          for (let s = 0; s < e.dur - 1e-6; s += stroke) {
+            for (const p of e.pitches) {
+              notes.push({
+                id: `sc_${seq++}`, startBeats: t + s, lengthBeats: stroke, key: pitchMidi(p) + shift,
+                vel: Math.max(1, Math.min(127, Math.round(e.vel * (s === 0 ? 1 : 0.82 + 0.12 * ((s / stroke) % 2))))),
+                articulation: 'tremolo',
+              });
+            }
+          }
+          t += e.dur;
+          continue;
+        }
         for (const p of e.pitches) {
           const key = pitchMidi(p) + shift;
           const tied = open.get(key);

@@ -36,14 +36,17 @@ function clefXml(clef: Clef): string {
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 export function scoreToMusicXml(score: Score): string {
-  const groups: Array<[string, string]> = [
-    ['woodwinds', 'bracket'], ['brass', 'bracket'], ['harp', 'brace'], ['piano', 'brace'], ['strings', 'bracket'],
-  ];
+  // one bracket (or brace, for two-staff instruments) per run of adjacent parts in the same group
+  const runs: Array<typeof score.parts> = [];
+  for (const p of score.parts) {
+    const last = runs[runs.length - 1];
+    if (last && last[0].group === p.group) last.push(p);
+    else runs.push([p]);
+  }
   let partList = '';
   let gi = 1;
-  for (const [g, symbol] of groups) {
-    const members = score.parts.filter((p) => p.group === g);
-    if (!members.length) continue;
+  for (const members of runs) {
+    const symbol = ['harp', 'piano', 'keyboard'].includes(members[0].group) ? 'brace' : 'bracket';
     const grouped = members.length > 1;
     if (grouped) partList += `<part-group type="start" number="${gi}"><group-symbol>${symbol}</group-symbol><group-barline>yes</group-barline></part-group>`;
     for (const p of members) {
@@ -61,9 +64,15 @@ export function scoreToMusicXml(score: Score): string {
 
   const partsXml = score.parts.map((part) => {
     const bars = score.bars[part.id];
+    let keyFifths = score.keyFifths;
     const measures = bars.map((events, bi) => {
       const barNo = bi + 1;
       let xml = `<measure number="${barNo}">`;
+      const keyChange = score.keyChanges?.find((k) => k.bar === barNo);
+      if (keyChange) {
+        keyFifths = keyChange.fifths;
+        xml += `<attributes><key><fifths>${keyChange.fifths}</fifths><mode>${keyChange.mode}</mode></key></attributes>`;
+      }
       if (bi === 0) {
         xml += `<attributes><divisions>${DIVISIONS}</divisions><key><fifths>${score.keyFifths}</fifths><mode>${score.keyMode}</mode></key>`
           + `<time><beats>${score.beatsPerBar}</beats><beat-type>${score.beatUnit}</beat-type></time>${clefXml(part.clef)}`
@@ -120,7 +129,7 @@ export function scoreToMusicXml(score: Score): string {
         const sorted = [...e.pitches].sort((a, c) => pitchMidi(a) - pitchMidi(c));
         sorted.forEach((p, k) => {
           const keyName = `${p.step}${p.octave}`;
-          const current = accState.has(keyName) ? accState.get(keyName)! : keyAlter(score.keyFifths, p.step);
+          const current = accState.has(keyName) ? accState.get(keyName)! : keyAlter(keyFifths, p.step);
           const stop = tiedFromPrev(p);
           const showAcc = p.alter !== current && !stop;
           accState.set(keyName, p.alter);
@@ -177,7 +186,7 @@ const textMeta = (type: number, s: string) => { const b = [...new TextEncoder().
 
 export function scoreToMidi(score: Score): Uint8Array {
   const PPQ = 480;
-  const notes = compileScore(score);
+  const notes = compileScore(score, { expandTremolo: true });
   const usPerQ = Math.round(60_000_000 / score.bpm);
   const tracks: number[][] = [];
   tracks.push(trackBytes([
@@ -190,8 +199,8 @@ export function scoreToMidi(score: Score): Uint8Array {
   let ch = 0;
   const chanByProgram = new Map<string, number>();
   for (const part of score.parts) {
-    const groupKey = part.id.replace(/(R|L)$/, ''); // piano/harp hands share a channel
-    if (!chanByProgram.has(groupKey)) { chanByProgram.set(groupKey, ch); ch = ch === 8 ? 10 : ch + 1; }
+    const groupKey = part.id.replace(/(R|L|M|P)$/, ''); // two-staff instruments (hands, manual/pedal) share a channel
+    if (!chanByProgram.has(groupKey)) { chanByProgram.set(groupKey, ch); ch = ch === 8 ? 10 : (ch + 1) % 16; }
     const c = chanByProgram.get(groupKey)!;
     const ev: Array<{ tick: number; bytes: number[] }> = [
       { tick: 0, bytes: textMeta(0x03, part.name) },
@@ -217,7 +226,7 @@ export function scoreToMidi(score: Score): Uint8Array {
  * chord layer (lowest note, next, …) before rendering — otherwise held chords steal each other.
  */
 export function scoreToChoraRequest(score: Score, opts: { hallReverbDecaySec?: number; wetReverbMix?: number; sampleRate?: number } = {}): MelosSongRenderRequest {
-  const notes = compileScore(score);
+  const notes = compileScore(score, { expandTremolo: true });
   const tracks: MelosSongTrackSpec[] = [];
   for (const part of score.parts) {
     const all = notes[part.id];
