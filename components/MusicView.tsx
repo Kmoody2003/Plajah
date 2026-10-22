@@ -2018,6 +2018,44 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
               onPlayAudius={handlePlayVaultTrack}
             />
 
+            {/* ── The Conservatory — Chora's marquee room, billed right under the sky ── */}
+            <div className="px-4 sm:px-6 lg:px-12 pt-9 normal-case">
+              <section aria-label="The Conservatory" className="relative overflow-hidden rounded-[28px] border" style={{ borderColor: 'rgba(224,164,88,0.32)', background: 'linear-gradient(120deg, #1A120A 0%, #140D18 55%, #0B0710 100%)' }}>
+                <div aria-hidden="true" className="absolute inset-0 grid pointer-events-none" style={{ gridTemplateColumns: 'repeat(8, minmax(0, 1fr))' }}>
+                  {[0, 1, 2, 3, 4, 5, 6, 7].map(i => <div key={i} style={[1, 4, 5].includes(i) ? { background: 'linear-gradient(180deg, rgba(224,164,88,0.14), rgba(224,164,88,0) 80%)' } : undefined} />)}
+                </div>
+                <div className="relative flex flex-col md:flex-row md:items-stretch">
+                  <div className="flex-1 min-w-0 p-6 sm:p-9 lg:p-11 flex flex-col justify-center">
+                    <p style={{ fontFamily: 'Newsreader, Georgia, serif', fontStyle: 'italic', fontSize: 19, color: '#E0A458' }}>Chora's museum of music</p>
+                    <h2 className="mt-2 text-white uppercase" style={{ fontFamily: "'Bricolage Grotesque', var(--font-display), sans-serif", fontWeight: 800, fontSize: 'clamp(2.4rem, 5vw, 4.2rem)', lineHeight: 0.92, letterSpacing: '-0.02em' }}>The Conservatory</h2>
+                    <p className="mt-4 max-w-xl text-white/80" style={{ fontFamily: 'Newsreader, Georgia, serif', fontSize: 18, lineHeight: 1.55 }}>
+                      Bach to Coltrane to Aretha — the masters, the recordings, and the story of how music was made.
+                    </p>
+                    <div className="mt-6 flex flex-wrap items-center gap-3">
+                      <button type="button" onClick={() => setShowConservatory(true)} className="h-12 px-6 rounded-full text-sm font-extrabold text-[#1A120A] hover:brightness-110 transition" style={{ background: '#E0A458', boxShadow: '0 0 0 6px rgba(224,164,88,0.16)' }}>
+                        Enter the Conservatory
+                      </button>
+                      {onNavigate && (
+                        <button type="button" onClick={() => onNavigate('CHORA_HISTORY')} className="h-12 px-5 rounded-full border text-sm font-bold text-white hover:bg-white/10 transition-colors" style={{ borderColor: 'rgba(224,164,88,0.45)' }}>
+                          Today in music history
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <button type="button" onClick={() => setShowConservatory(true)} aria-label="Enter the Conservatory" className="relative md:w-[38%] h-56 md:h-auto shrink-0 overflow-hidden group">
+                    <img
+                      src="https://upload.wikimedia.org/wikipedia/commons/thumb/6/6a/Johann_Sebastian_Bach.jpg/480px-Johann_Sebastian_Bach.jpg"
+                      alt="Portrait of Johann Sebastian Bach"
+                      loading="lazy"
+                      className="absolute inset-0 w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-700"
+                      style={{ filter: 'sepia(0.25) brightness(0.8) saturate(0.95)' }}
+                    />
+                    <span aria-hidden="true" className="absolute inset-0" style={{ background: 'linear-gradient(90deg, #140D18 0%, rgba(20,13,24,0.35) 35%, rgba(20,13,24,0) 70%)' }} />
+                  </button>
+                </div>
+              </section>
+            </div>
+
             <div className="px-4 sm:px-6 lg:px-12 normal-case">
               {audiusEnabled && (
                 <section className="pt-9" aria-label="On Audius now">
@@ -2613,13 +2651,10 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
               </div>
               </AdaptiveGrid>
             </div>
-            {/* The rooms — Chora's studios and museum, as slim doors at the foot of the page */}
+            {/* The rooms — Chora's studios, as slim doors at the foot of the page (the Conservatory is billed near the top) */}
             <section className="px-4 sm:px-6 lg:px-12 pt-6 pb-4 normal-case" aria-label="The rooms">
               <h2 className="text-[15px] font-semibold text-white/60">The rooms</h2>
               <div className="mt-3 grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(240px, 100%), 1fr))' }}>
-                <button type="button" onClick={() => setShowConservatory(true)} className="h-[72px] px-5 rounded-[18px] text-left flex flex-col justify-center border hover:brightness-125 transition" style={{ background: 'rgba(224,164,88,0.12)', borderColor: 'rgba(224,164,88,0.3)' }}>
-                  <b className="text-[15px] text-white">The Conservatory</b><span className="text-xs text-white/70">Masters and a history of music</span>
-                </button>
                 {onNavigate && (
                   <button type="button" onClick={() => onNavigate('MELOS')} className="h-[72px] px-5 rounded-[18px] text-left flex flex-col justify-center border hover:brightness-125 transition" style={{ background: 'linear-gradient(120deg, rgba(107,0,153,0.5), rgba(212,0,85,0.4))', borderColor: 'rgba(212,0,85,0.35)' }}>
                     <b className="text-[15px] text-white">Melos</b><span className="text-xs text-white/75">Where your record gets made</span>

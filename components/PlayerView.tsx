@@ -420,42 +420,6 @@ const AmplitudeBar: React.FC<{ analyser: AnalyserNode | null; isPlaying: boolean
   );
 };
 
-// Caption ticker that scrolls through lyric chunks like a rolodex
-const CaptionTicker: React.FC<{ caption: string }> = ({ caption }) => {
-  const words = caption.split(' ').filter(Boolean);
-  const CHUNK = 4;
-  const chunks = useMemo(() => {
-    const out: string[] = [];
-    for (let i = 0; i < words.length; i += CHUNK) out.push(words.slice(i, i + CHUNK).join(' '));
-    return out.length ? out : [caption];
-  }, [caption]);
-
-  const [idx, setIdx] = useState(0);
-  useEffect(() => { setIdx(0); }, [caption]);
-  useEffect(() => {
-    if (chunks.length <= 1) return;
-    const t = setInterval(() => setIdx(p => (p + 1) % chunks.length), 1600);
-    return () => clearInterval(t);
-  }, [chunks]);
-
-  return (
-    <div className="h-4 overflow-hidden relative w-full">
-      <AnimatePresence mode="wait">
-        <motion.span
-          key={`${caption}-${idx}`}
-          initial={{ y: 10, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={{ y: -10, opacity: 0 }}
-          transition={{ duration: 0.22, ease: 'easeOut' }}
-          className="absolute inset-0 text-[9px] font-bold uppercase tracking-widest text-white/30 truncate leading-4"
-        >
-          {chunks[idx]}
-        </motion.span>
-      </AnimatePresence>
-    </div>
-  );
-};
-
 const PlayerView: React.FC<PlayerViewProps> = ({
   album,
   onBack,
@@ -1402,6 +1366,19 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   const getCurrentCaption = () => getActiveCaption(currentTrack, globalCurrentTime, globalDuration);
 
   const isCurrentTrackGlobal = globalTrack?.id === currentTrack?.id;
+  // Live lyric lane — the current line in its own full-width strip (never layered over the list).
+  const liveLyric = showCaptions && activeHUD !== 'LYRICS' && isCurrentTrackGlobal && currentTrack && (currentTrack.lyrics || currentTrack.timeCodedLyrics) ? getCurrentCaption() : '';
+  const lyricLaneEl = (sticky: boolean) => liveLyric && liveLyric !== '...' ? (
+    <div
+      className={`${sticky ? 'sticky top-0 z-30' : 'shrink-0 z-40'} w-full h-11 px-4 flex items-center gap-3 normal-case border-y border-white/10`}
+      style={{ background: 'rgba(20,12,28,0.92)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)' }}
+      aria-live="polite"
+    >
+      <Music2 size={13} className="shrink-0 text-[#FFB86B]" />
+      <span className="flex-1 min-w-0 truncate text-white" style={{ fontFamily: 'Newsreader, Georgia, serif', fontSize: 16 }}>{liveLyric}</span>
+      {globalDuration > 0 && <span className="shrink-0 font-mono text-[11px] text-white/60 tabular-nums">{formatTime(globalCurrentTime)}</span>}
+    </div>
+  ) : null;
   // ── Active-track timing for the track bar (countdown + end-approach visuals) ──
   const trackRemaining = Math.max(0, (globalDuration || 0) - (globalCurrentTime || 0));
   const trackProgress = globalDuration > 0 ? Math.min(1, (globalCurrentTime || 0) / globalDuration) : 0;
@@ -1576,6 +1553,10 @@ const PlayerView: React.FC<PlayerViewProps> = ({
           </div>
         </header>
 
+        {/* One touch-scroll surface for everything below the header: the stage keeps a real
+            height instead of splitting the screen with the list, and the tabs stick on scroll. */}
+        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain custom-scrollbar relative z-10" style={{ WebkitOverflowScrolling: 'touch' }}>
+
         {/* Up Next radio — when the album nears its end, preview the cross-catalog pick
             (native Chora artists first, Audius filling behind) + a radio on/off toggle. */}
         {upNext && (
@@ -1600,7 +1581,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
         )}
 
         {/* Top Media Section (Shared Placement for Cover Art & Video) */}
-        <div id="mobile-video-container" className="relative w-full flex-1 bg-transparent overflow-hidden border-b border-white/5 z-10">
+        <div id="mobile-video-container" className="relative w-full shrink-0 bg-transparent overflow-hidden border-b border-white/5 z-10" style={{ height: 'min(100vw, 58dvh)', minHeight: 280 }}>
           {/* ── Mobile / tablet FX Stage — audio-reactive visualizers, no parameters ── */}
           {isVisualizerLayout && (
             <div className="absolute inset-0 z-30 bg-black">
@@ -1866,29 +1847,6 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                 )}
               </div>
 
-              {/* Share & Promote icons overlaid on cover art */}
-              <div
-                className="absolute top-4 right-4 z-20 flex items-center gap-2"
-                style={{ top: 'max(1rem, env(safe-area-inset-top))', right: 'max(1rem, env(safe-area-inset-right))' }}
-              >
-                <button
-                  onClick={(e) => { e.stopPropagation(); setShowShareModal(true); }}
-                  title="Share"
-                  className="w-10 h-10 rounded-xl bg-black/50 backdrop-blur-md border border-white/20 flex items-center justify-center text-white/60 hover:text-white hover:bg-black/70 hover:border-white/40 transition-all"
-                >
-                  <Share2 size={16} />
-                </button>
-                {isOwner && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setShowPromoModal(true); }}
-                    title="Promote Project"
-                    className="h-10 px-3.5 rounded-xl bg-gradient-to-r from-[#d40055] to-[#ff8c00] text-white text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 shadow-lg active:scale-95 transition-all"
-                  >
-                    <Megaphone size={13} />
-                    <span>Promote</span>
-                  </button>
-                )}
-              </div>
               {/* Floating Track Info on Cover — Plajah all-caps display typography */}
               <div className="absolute bottom-6 left-6 right-6" style={{bottom:'max(1.5rem, env(safe-area-inset-bottom))'}}>
                 {(
@@ -2009,7 +1967,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
         )}
 
         {/* Content Area */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-6 z-10 relative">
+        <div className="p-6 pb-10 z-10 relative">
           {activeHUD === 'TRACKS' && (
             <div className="space-y-2 animate-in slide-in-from-bottom-4 duration-500">
 
@@ -2192,10 +2150,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                         <div className="min-w-0 flex-1">
                           {/* Track-list titles stay a single line (the full title is the big header above) */}
                           <p className="text-xs font-display font-black uppercase tracking-widest truncate">{t.title}</p>
-                          {/* Lyrics get the full-width title column (timing moved to the right) */}
-                          {isActive && isCurrentTrackGlobal
-                            ? <CaptionTicker caption={getCurrentCaption()} />
-                            : <p className="text-[8px] font-display font-bold text-white/20 uppercase tracking-widest break-words">{t.artist || album.artist}</p>}
+                          <p className="text-[8px] font-display font-bold text-white/20 uppercase tracking-widest break-words">{t.artist || album.artist}</p>
                           {(t.isEclipsa || t.isAtmos) && <ImmersiveBadge isEclipsa={t.isEclipsa} isAtmos={t.isAtmos} size="sm" className="mt-1" />}
                         </div>
                       </button>
@@ -2573,16 +2528,10 @@ const PlayerView: React.FC<PlayerViewProps> = ({
             </div>
           )}
         </div>
+        </div>
 
-        {/* B1 live lyric bar — the current line, floating over the list (captions on); sits above the Gatefold dock */}
-        {showCaptions && activeHUD !== 'LYRICS' && currentTrack && (currentTrack.lyrics || currentTrack.timeCodedLyrics) && getCurrentCaption() !== '...' && (
-          <div className="absolute inset-x-3 z-40 pointer-events-none normal-case" style={{ bottom: gatefoldOn ? 'calc(max(0.5rem, env(safe-area-inset-bottom)) + 4.5rem)' : 'max(0.75rem, env(safe-area-inset-bottom))' }}>
-            <div className="h-[52px] px-4 rounded-2xl flex items-center gap-3 border border-white/10" style={{ background: 'rgba(28,18,38,0.94)', backdropFilter: 'blur(16px)' }}>
-              <span className="flex-1 min-w-0 truncate text-white" style={{ fontFamily: 'Newsreader, Georgia, serif', fontSize: 16 }}>{getCurrentCaption()}</span>
-              {isCurrentTrackGlobal && globalDuration > 0 && <span className="shrink-0 font-mono text-[11px] text-white/60 tabular-nums">{formatTime(globalCurrentTime)}</span>}
-            </div>
-          </div>
-        )}
+        {/* B1 live lyric lane — its own strip between the list and the dock, never over the list */}
+        {lyricLaneEl(false)}
 
         {/* ── Gatefold mobile dock — the HUD tabs as chips + the day/night toggle,
               at the bottom of the flex column so nothing can overlap content. ── */}
@@ -3389,8 +3338,6 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                                           {isOwner && <Pen size={10} className="inline-block ml-2 opacity-0 group-hover:opacity-40 transition-opacity" />}
                                         </span>
                                       )}
-                                      {/* Live lyrics — only when there's a real caption (getActiveCaption returns '...' when none) */}
-                                      {isActive && isCurrentTrackGlobal && getCurrentCaption() !== '...' && <CaptionTicker caption={getCurrentCaption()} />}
                                     </button>
 
                                     {hasTrackCredits && (
@@ -4329,6 +4276,8 @@ const PlayerView: React.FC<PlayerViewProps> = ({
             topRight={cinemaStageNow === 'VISUALIZER' ? <div className="uppercase font-display">{fxSelectorEl}</div> : <ChoraQualityButton className="p-2" />}
           />
 
+          {lyricLaneEl(true)}
+
           <div className="grid gap-12 px-12 pt-3 pb-16" style={{ gridTemplateColumns: 'minmax(0, 1fr) 400px' }}>
             <div className="min-w-0">
               <nav aria-label="Album sections" className="flex items-center gap-7 h-12 border-b border-white/10 text-sm font-semibold overflow-x-auto no-scrollbar">
@@ -4390,9 +4339,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                       <span className="shrink-0 font-mono text-xs tabular-nums" style={{ color: isEndingSoon ? '#F87171' : 'rgba(255,255,255,0.6)' }}>{formatTime(globalCurrentTime)} / {formatTime(globalDuration)}</span>
                     )}
                   </div>
-                  {caption && caption !== '...' ? (
-                    <p className="mt-3 text-white" style={{ fontFamily: 'Newsreader, Georgia, serif', fontSize: 26, lineHeight: 1.25 }}>{caption}</p>
-                  ) : (
+                  {liveLyric && liveLyric !== '...' ? null : (
                     <p className="mt-3 text-white/55" style={{ fontFamily: 'Newsreader, Georgia, serif', fontStyle: 'italic', fontSize: 17 }}>{currentTrack?.lyrics || currentTrack?.timeCodedLyrics ? 'Lyrics follow along as it plays.' : 'No lyrics for this song yet.'}</p>
                   )}
                   {(currentTrack?.lyrics || currentTrack?.timeCodedLyrics) && (
