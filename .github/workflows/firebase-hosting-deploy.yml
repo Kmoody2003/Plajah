@@ -113,7 +113,13 @@ jobs:
           node scripts/testOpsRules.mjs firestore.ops.rules.min
 
       - name: Deploy Firestore + Storage rules
-        run: npx firebase-tools@13.35.1 deploy --only firestore,storage --project gen-lang-client-0665118474 --non-interactive --force
+        # The Rules API 503s intermittently; retry the whole deploy (the verify steps below check what landed).
+        run: |
+          for attempt in 1 2 3 4; do
+            npx firebase-tools@13.35.1 deploy --only firestore,storage --project gen-lang-client-0665118474 --non-interactive --force && exit 0
+            echo "rules deploy attempt $attempt failed; retrying"; sleep $((20 * attempt))
+          done
+          exit 1
 
       # Prove the Firestore deploy landed: each database's live ruleset must be exactly the file we built
       # (plajah-prod = firestore.rules.min, plajah-ops = firestore.ops.rules.min — see services/opsCollections.ts).

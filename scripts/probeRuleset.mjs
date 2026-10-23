@@ -39,6 +39,8 @@ const name = `projects/${PROJECT}/releases/cloud.firestore/zzprobe-${Date.now() 
 let r;
 for (let attempt = 1; ; attempt++) {
   r = await fetch(API + `projects/${PROJECT}/releases`, { method: 'POST', headers: H, body: JSON.stringify({ name, rulesetName: mj.name }) });
+  // A 503 can still land server-side: the retry then 409s on our own just-created probe release.
+  if (r.status === 409 && attempt > 1) { r = { ok: true, status: 200 }; break; }
   if (r.status !== 503 || attempt === 6) break;
   console.log(`releases 503, retry ${attempt}/5`);
   await new Promise((res) => setTimeout(res, 5000 * attempt));
