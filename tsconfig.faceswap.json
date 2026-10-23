@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": true, "skipLibCheck": true },
+  "include": ["services/faceswap/**/*.ts", "components/taleo/HalloweenVaultChatAndFanRoom.tsx", "vite-env.d.ts", "*.d.ts"]
+}

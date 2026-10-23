@@ -45,6 +45,11 @@ import {
 } from '../../services/halloween/halloweenFilterEngine';
 import { halloweenAudio } from '../../services/halloween/halloweenAudioSfx';
 import { StoryIntelVTuberVoiceStudio } from './StoryIntelVTuberVoiceStudio';
+import { FaceSwapLink } from '../../services/faceswap/faceSwapLink';
+import {
+  STORY_INTEL_VTUBER_CHARACTERS,
+  loadCreatorCharacterPolicy,
+} from '../../services/halloween/storyIntelCharacterRigAndVoiceEngine';
 
 export interface HalloweenFaction {
   id: string;
@@ -331,6 +336,26 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const engineRef = useRef<HalloweenFilterEngine | null>(null);
+  // The 30fps render loop below is mounted once, so it reads camera state through refs.
+  const cameraSourceRef = useRef(cameraSource);
+  cameraSourceRef.current = cameraSource;
+  const talkingBurstRef = useRef(simulatedTalkingBurst);
+  talkingBurstRef.current = simulatedTalkingBurst;
+
+  // ── Character face swap (internal: only appears when the local facelab sidecar is running) ──
+  const swapLinkRef = useRef<FaceSwapLink | null>(null);
+  const [swapAvailable, setSwapAvailable] = useState(false);
+  const [swapFaces, setSwapFaces] = useState<Record<string, number>>({});
+  const [swapCharacterId, setSwapCharacterId] = useState<string | null>(null);
+  const swapActiveRef = useRef(false);
+  swapActiveRef.current = !!swapCharacterId;
+  const [swapError, setSwapError] = useState<string | null>(null);
+  const swapCharacters = useMemo(() => {
+    const policy = loadCreatorCharacterPolicy();
+    return STORY_INTEL_VTUBER_CHARACTERS.filter(
+      (c) => policy.characters[c.id]?.allowVTuberFaceMapping !== false
+    );
+  }, []);
   const chatBottomRef = useRef<HTMLDivElement | null>(null);
   const portraitImgRef = useRef<HTMLImageElement | null>(null);
 
@@ -451,28 +476,42 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
       const tSec = nowMs / 1000;
       const videoEl = videoRef.current;
       const hasLiveWebcam =
-        cameraSource === 'WEBCAM' &&
+        cameraSourceRef.current === 'WEBCAM' &&
         videoEl &&
         videoEl.readyState >= 2 &&
         videoEl.videoWidth > 0;
 
       if (hasLiveWebcam && videoEl) {
+        // Character swap: send this frame to the GPU sidecar, draw the newest swapped frame
+        // (falls back to the raw camera if the sidecar stalls for more than half a second).
+        const link = swapLinkRef.current;
+        let frame: CanvasImageSource = videoEl;
+        let fw = videoEl.videoWidth;
+        let fh = videoEl.videoHeight;
+        if (swapActiveRef.current && link?.connected) {
+          link.pushFrame(videoEl);
+          if (link.latest && nowMs - link.latestAt < 500) {
+            frame = link.latest;
+            fw = link.latest.width;
+            fh = link.latest.height;
+          }
+        }
         // Draw mirrored webcam feed
         ctx.save();
         ctx.translate(W, 0);
         ctx.scale(-1, 1);
-        const s = Math.max(W / videoEl.videoWidth, H / videoEl.videoHeight);
-        const dw = videoEl.videoWidth * s;
-        const dh = videoEl.videoHeight * s;
-        ctx.drawImage(videoEl, (W - dw) / 2, (H - dh) / 2, dw, dh);
+        const s = Math.max(W / fw, H / fh);
+        const dw = fw * s;
+        const dh = fh * s;
+        ctx.drawImage(frame, (W - dw) / 2, (H - dh) / 2, dw, dh);
         ctx.restore();
       } else {
         // Draw atmospheric simulated studio talking-head feed so any user can test all filters immediately
-        drawSimulatedStudioTalkingHead(ctx, W, H, tSec, simulatedTalkingBurst);
+        drawSimulatedStudioTalkingHead(ctx, W, H, tSec, talkingBurstRef.current);
       }
 
       // Drive synthetic audio level when simulated talking burst is active
-      if (!hasLiveWebcam && simulatedTalkingBurst) {
+      if (!hasLiveWebcam && talkingBurstRef.current) {
         const wave =
           0.35 +
           0.55 *
@@ -578,6 +617,48 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
     setCameraSource('SIMULATED');
+  };
+
+  // Probe for the local face-swap sidecar once; without it the swap panel never renders.
+  useEffect(() => {
+    let cancelled = false;
+    const link = new FaceSwapLink();
+    void link.connect().then(async (ok) => {
+      if (cancelled || !ok) {
+        link.close();
+        return;
+      }
+      swapLinkRef.current = link;
+      setSwapAvailable(true);
+      const faces = await link.scan(swapCharacters.map((c) => c.portraitUrl));
+      if (!cancelled) setSwapFaces(faces);
+    });
+    return () => {
+      cancelled = true;
+      link.close();
+      swapLinkRef.current = null;
+    };
+  }, [swapCharacters]);
+
+  const chooseSwapCharacter = async (characterId: string | null) => {
+    const link = swapLinkRef.current;
+    if (!link) return;
+    setSwapError(null);
+    if (!characterId) {
+      await link.clearSource();
+      setSwapCharacterId(null);
+      return;
+    }
+    const character = swapCharacters.find((c) => c.id === characterId);
+    if (!character) return;
+    const r = await link.setSource(character.portraitUrl);
+    if (!r.ok) {
+      setSwapError(r.error || 'Could not load that character face');
+      return;
+    }
+    setSwapCharacterId(characterId);
+    // The swapped face is the costume; the drawn Halloween masks would cover it.
+    setSelectedFilter('none');
   };
 
   useEffect(() => {
@@ -900,6 +981,55 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
             {webcamError && (
               <div className="px-3.5 py-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-200 font-semibold">
                 {webcamError}
+              </div>
+            )}
+
+            {swapAvailable && (
+              <div className="rounded-2xl bg-black/50 border border-fuchsia-500/30 p-4 space-y-3">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <span className="text-[10px] font-black uppercase tracking-[0.22em] text-fuchsia-300">
+                    🎭 Character Face Swap · Internal
+                  </span>
+                  <span className="text-[10px] text-white/45">
+                    Local GPU sidecar{cameraSource === 'WEBCAM' ? '' : ' · start your webcam to see it'}
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                  <button
+                    onClick={() => void chooseSwapCharacter(null)}
+                    className={`p-2 rounded-xl border text-[10px] font-black uppercase cursor-pointer ${
+                      !swapCharacterId
+                        ? 'bg-fuchsia-500 text-black border-fuchsia-300'
+                        : 'bg-white/[0.04] hover:bg-white/[0.08] border-white/10 text-white'
+                    }`}
+                  >
+                    Off
+                  </button>
+                  {swapCharacters.map((c) => {
+                    const faces = swapFaces[c.portraitUrl];
+                    const noFace = faces === 0;
+                    const active = swapCharacterId === c.id;
+                    return (
+                      <button
+                        key={c.id}
+                        disabled={noFace}
+                        title={noFace ? 'No human face the swap model can read' : c.name}
+                        onClick={() => void chooseSwapCharacter(c.id)}
+                        className={`rounded-xl border overflow-hidden text-left transition-all ${
+                          active
+                            ? 'border-fuchsia-300 shadow-[0_0_18px_rgba(217,70,239,0.4)]'
+                            : 'border-white/10 hover:border-white/30'
+                        } ${noFace ? 'opacity-35 cursor-not-allowed' : 'cursor-pointer'}`}
+                      >
+                        <img src={c.portraitUrl} alt="" className="w-full aspect-video object-cover" />
+                        <p className="px-1.5 py-1 text-[9px] font-black uppercase truncate text-white">
+                          {c.shortName}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+                {swapError && <p className="text-[11px] text-rose-300 font-semibold">{swapError}</p>}
               </div>
             )}
 
