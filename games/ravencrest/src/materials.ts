@@ -1,8 +1,8 @@
 import * as THREE from 'three/webgpu';
 import {
-  texture, triplanarTexture, vec2, vec3, float, mrt, uv, positionWorld, normalWorld, normalMap, mix,
+  texture, triplanarTexture, vec2, vec3, vec4, float, mrt, uv, positionWorld, normalWorld, normalMap, mix,
   mx_fractal_noise_float, smoothstep, time, color, transformNormalToView, luminance, Fn,
-  positionView, normalView, faceDirection, dFdx, dFdy,
+  positionView, normalView, faceDirection, dFdx, dFdy, uniform,
 } from 'three/tsl';
 
 const PH = '/games/ravencrest/assets/polyhaven/textures';
@@ -131,18 +131,71 @@ export function wetAsphalt(repeat: [number, number], markings: THREE.Texture): T
   return m;
 }
 
-/** Still, inky moat water with slow wind ripples. */
+/** Live inputs for the moat: wind (xz = direction × strength) and ripple rings. */
+export const moatUniforms = {
+  wind: uniform(new THREE.Vector3(0.8, 0, 0.55)),
+  ripples: [
+    uniform(new THREE.Vector4(0, 0, -100, 0)),
+    uniform(new THREE.Vector4(0, 0, -100, 0)),
+    uniform(new THREE.Vector4(0, 0, -100, 0)),
+  ],
+};
+const moatClock0 = performance.now() / 1000;
+let moatSlot = 0;
+/** Start an expanding ripple ring at a world position (splashes, drips, gusts). */
+export function addMoatRipple(x: number, z: number, amp = 1) {
+  const u = moatUniforms.ripples[moatSlot++ % moatUniforms.ripples.length];
+  (u as unknown as { value: THREE.Vector4 }).value.set(x, z, performance.now() / 1000 - moatClock0, amp);
+}
+
+/** Inky moat water: wind-drifted ripple normals + interactive splash rings. */
 export function moatWater(): THREE.MeshStandardNodeMaterial {
   const m = new THREE.MeshStandardNodeMaterial();
-  const p = positionWorld.xz;
+  // The ripple field drifts downwind; gusts (wind vector length) roughen it.
+  const drift = moatUniforms.wind.xz.mul(time.mul(0.045));
+  const p = positionWorld.xz.add(drift);
   const t = time.mul(0.05);
   const n1 = mx_fractal_noise_float(vec3(p.mul(0.12), t), 3, 2, 0.5, 1);
   const n2 = mx_fractal_noise_float(vec3(p.mul(0.12).add(0.37), t), 3, 2, 0.5, 1);
+  // Splash rings: each is an expanding, decaying wavefront that tilts the normal.
+  let rx = float(0);
+  let rz = float(0);
+  for (const u of moatUniforms.ripples) {
+    const age = time.sub(u.z).max(0);
+    const rel = positionWorld.xz.sub(u.xy);
+    const d = rel.length().max(0.001);
+    const front = age.mul(1.15);
+    const band = smoothstep(float(0.55), float(0.0), d.sub(front).abs());
+    const decay = float(1).div(float(1).add(age.mul(0.75)));
+    const wave = d.mul(26).sub(age.mul(8)).sin().mul(band).mul(decay).mul(u.w).mul(0.14);
+    rx = rx.add(rel.x.div(d).mul(wave));
+    rz = rz.add(rel.y.div(d).mul(wave));
+  }
   m.colorNode = vec3(0.006, 0.009, 0.013);
   m.roughnessNode = float(0.03);
   m.metalness = 0;
-  m.normalNode = transformNormalToView(vec3(n1.mul(0.05), 1, n2.mul(0.05)).normalize());
+  m.normalNode = transformNormalToView(vec3(n1.mul(0.05).add(rx), 1, n2.mul(0.05).add(rz)).normalize());
   setReflect(m, 1, 0.03);
+  return m;
+}
+
+/**
+ * Real window glass: transmits and diffuses (roughness blurs what passes),
+ * bends light by IOR, tints by absorption over thickness, and still returns
+ * a moonlight glint to SSR. Frosted enough that interiors glow, not glare.
+ */
+export function glassMaterial(tint = 0x9db8c6): THREE.MeshPhysicalNodeMaterial {
+  const m = new THREE.MeshPhysicalNodeMaterial();
+  m.color = new THREE.Color(tint);
+  m.metalness = 0;
+  m.roughness = 0.34;
+  m.transmission = 1;
+  m.thickness = 0.06;
+  m.ior = 1.5;
+  m.attenuationColor = new THREE.Color(0x86a892);
+  m.attenuationDistance = 1.6;
+  m.specularIntensity = 1.0;
+  setReflect(m, 0.85, 0.3);
   return m;
 }
 

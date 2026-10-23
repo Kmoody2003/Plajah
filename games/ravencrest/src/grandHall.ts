@@ -4,9 +4,10 @@
 import * as THREE from 'three/webgpu';
 import { color, float, mix, smoothstep, texture, uv, vec2, length, mx_fractal_noise_float, positionWorld } from 'three/tsl';
 import { ArtAnchor, HALL_SHOT } from './artAnchor';
-import { triplanarMaterial, setReflect } from './materials';
+import { triplanarMaterial, setReflect, glassMaterial } from './materials';
 import { collide } from './collision';
-import { flameMaterial } from './fx';
+import { flameMaterial, lightShaft } from './fx';
+import { VerletCloth } from './physics';
 import { knight } from './knight';
 import { loadModel, fitSize, groundTo } from './assets';
 import { crenellatedWall } from './kit';
@@ -19,6 +20,8 @@ export interface GrandHall {
   spawn: { position: THREE.Vector3; yaw: number };
   exitTrigger: { position: THREE.Vector3; radius: number };
   props: Promise<unknown>;
+  /** Simulated cloth (the raven tapestry), updated by the main loop. */
+  cloth: VerletCloth[];
 }
 
 export function buildGrandHall(): GrandHall {
@@ -40,6 +43,7 @@ export function buildGrandHall(): GrandHall {
   const candleFlame = new THREE.MeshBasicNodeMaterial({ color: new THREE.Color(0xffb35a).multiplyScalar(6) });
 
   const torches: THREE.PointLight[] = [];
+  const cloths: VerletCloth[] = [];
   const flames: THREE.Mesh[] = [];
   const add = (o: THREE.Object3D, solid = false) => { g.add(solid ? collide(o) : o); return o; };
   const box = (w: number, h: number, d: number, m: THREE.Material, x: number, y: number, z: number, solid = true) => {
@@ -160,31 +164,46 @@ export function buildGrandHall(): GrandHall {
     const fire = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.2), flameMat);
     fire.position.set(0, landH + 0.65, backZ + 1.1);
     add(fire); flames.push(fire);
-    const fl = new THREE.PointLight(0xff8a3a, 32, 0, 2); fl.position.set(0, landH + 1.2, backZ + 2); add(fl); torches.push(fl);
-    // Tapestry with the house raven.
+    const fl = new THREE.PointLight(0xff8a3a, 32, 15, 2); fl.position.set(0, landH + 1.2, backZ + 2); add(fl); torches.push(fl);
+    // Tapestry with the house raven — verlet cloth now, stirring in the
+    // hearth's air currents (the main loop updates it at indoor wind scale).
     const tex = new THREE.TextureLoader().load('/models/halloween/ravencrest/banner_raven_navy.png');
     tex.colorSpace = THREE.SRGBColorSpace;
-    const tap = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 8.2), new THREE.MeshStandardNodeMaterial({ map: tex, roughness: 0.95 }));
-    tap.position.set(0, landH + hh + 1.2 + 4.1, backZ + 0.05);
-    add(tap);
-    // Twin lancet windows, moonlit.
+    const tap = new VerletCloth(4.2, 8.2, 10, 16, new THREE.MeshStandardNodeMaterial({ map: tex, roughness: 0.95, side: THREE.DoubleSide }));
+    tap.mesh.position.set(0, landH + hh + 1.2 + 8.2, backZ + 0.05);
+    add(tap.mesh);
+    tap.init();
+    cloths.push(tap);
+    // Twin lancet windows: a moonlit tracery glow BEHIND real glass. The
+    // physical glass (transmission + roughness) bends and diffuses the glow,
+    // so the window reads as frosted, light-scattering glass, not a poster.
     const lancet = new THREE.Shape();
     lancet.moveTo(-1.1, 0); lancet.lineTo(-1.1, 5.2); lancet.quadraticCurveTo(-1.1, 6.8, 0, 7.3); lancet.quadraticCurveTo(1.1, 6.8, 1.1, 5.2); lancet.lineTo(1.1, 0); lancet.closePath();
-    const glassMat = new THREE.MeshBasicNodeMaterial();
+    const glowMat = new THREE.MeshBasicNodeMaterial();
     const gu = uv();
     const mull = smoothstep(float(0.03), float(0.0), gu.x.sub(0.5).abs().sub(0.003)).add(smoothstep(float(0.02), float(0.0), gu.y.mul(8).fract().sub(0.5).abs().sub(0.47)));
-    glassMat.colorNode = mix(color(0x3d5f8f).mul(2.4), color(0x050608), mull.clamp());
+    glowMat.colorNode = mix(color(0x3d5f8f).mul(0.85), color(0x050608), mull.clamp());
+    const realGlass = glassMaterial();
     for (const s of [-1, 1]) {
-      const w = new THREE.Mesh(new THREE.ShapeGeometry(lancet), glassMat);
+      const w = new THREE.Mesh(new THREE.ShapeGeometry(lancet), glowMat);
       const wg = w.geometry; wg.computeBoundingBox();
       const bb = wg.boundingBox!; const uvA = wg.attributes.uv as THREE.BufferAttribute; const pA = wg.attributes.position as THREE.BufferAttribute;
       for (let i = 0; i < uvA.count; i++) uvA.setXY(i, (pA.getX(i) - bb.min.x) / (bb.max.x - bb.min.x), (pA.getY(i) - bb.min.y) / (bb.max.y - bb.min.y));
       w.position.set(s * 4.6, landH + 4.4, backZ + 0.02);
       add(w);
+      const pane = new THREE.Mesh(new THREE.ShapeGeometry(lancet), realGlass);
+      pane.position.set(s * 4.6, landH + 4.4, backZ + 0.09);
+      add(pane);
       const moon = new THREE.SpotLight(0x7f9cd0, 30, 45, 0.5, 0.6, 1.5);
       moon.position.set(s * 4.6, landH + 7, backZ + 0.5);
       moon.target.position.set(s * 2, 0, backZ + 18);
       add(moon); add(moon.target);
+      // Dusty moonlight shaft falling along the spot's direction.
+      const shaft = lightShaft(2.4, 17, 0.10);
+      shaft.position.set(s * 4.6, landH + 5.6, backZ + 0.3);
+      const dir = new THREE.Vector3(-s * 2.6, -(landH + 7), 17.5).normalize();
+      shaft.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), dir);
+      add(shaft);
     }
   }
 
@@ -330,7 +349,7 @@ export function buildGrandHall(): GrandHall {
     add(stand, true);
     const f = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 1.1), flameMat);
     f.position.set(p.x, 3.4, p.z); add(f); flames.push(f);
-    const l = new THREE.PointLight(0xff9a50, 34, 0, 2); l.position.set(p.x, 3.5, p.z); add(l); torches.push(l);
+    const l = new THREE.PointLight(0xff9a50, 22, 11, 2); l.position.set(p.x, 3.5, p.z); add(l); torches.push(l);
   }
 
   // ── Hanging banners on the clerestory (art: tall raven banners) ─────────
@@ -394,7 +413,7 @@ export function buildGrandHall(): GrandHall {
     chain.position.y = 1.6 + chainLen / 2; ch.add(chain);
     ch.position.copy(p);
     add(ch);
-    const l = new THREE.PointLight(0xffc27a, 45, 0, 2); l.position.copy(p); add(l); torches.push(l);
+    const l = new THREE.PointLight(0xffc27a, 45, 16, 2); l.position.copy(p); add(l); torches.push(l);
   }
 
   // ── Candelabra stands, side tables, benches (art: warm points along the aisles) ──
@@ -411,7 +430,7 @@ export function buildGrandHall(): GrandHall {
       box(1.0, 2.2, 1.0, stone, s * 4.2, 1.1, frontZ + 4.5);
       const f = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.8), flameMat);
       f.position.set(s * 4.2, 2.6, frontZ + 4.5); add(f); flames.push(f);
-      const l = new THREE.PointLight(0xff8a3c, 18, 0, 2); l.position.set(s * 4.2, 2.9, frontZ + 4.5); add(l); torches.push(l);
+      const l = new THREE.PointLight(0xff8a3c, 18, 11, 2); l.position.set(s * 4.2, 2.9, frontZ + 4.5); add(l); torches.push(l);
     }
     // Low parapet so the porch reads as a terrace over the bailey.
     const wall = new THREE.Mesh(crenellatedWall(12, 0.9, 0.6, 0.8, 0.6, 0.5), stone);
@@ -497,7 +516,7 @@ export function buildGrandHall(): GrandHall {
   void vec2;
 
   return {
-    group: g, anchor: A, torches, flames, props,
+    group: g, anchor: A, torches, flames, props, cloth: cloths,
     spawn: { position: new THREE.Vector3(0, 0.02, DOOR_Z - 2.5), yaw: Math.PI },  // just inside, facing the nave (−Z)
     exitTrigger: { position: new THREE.Vector3(0, 0, frontZ + 1.5), radius: 2.0 },
   };

@@ -238,7 +238,7 @@ export async function buildArrival(A: ArtAnchor, renderer: THREE.WebGPURenderer)
     f.position.copy(p).add(new THREE.Vector3(0, size / 2, 0));
     flames.push(f);
     group.add(f);
-    const l = new THREE.PointLight(0xff8a3c, intensity, 0, 2);
+    const l = new THREE.PointLight(0xff8a3c, intensity, 16, 2);
     l.position.copy(p).add(new THREE.Vector3(0, size * 0.9, 0));
     torches.push(l);
     group.add(l);
