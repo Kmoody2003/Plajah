@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { measureAudio, estimateKey } from '../services/musicIntel/dsp.ts';
 import { runMusicIntel, type MusicIntelDeps, type IntelAlbum } from '../services/musicIntel/worker.ts';
-import { normalizeTrackIntel, looksLikeSoundtrack, filmTitleTokens } from '../services/musicIntel/prompts.ts';
+import { normalizeTrackIntel, looksLikeSoundtrack, filmTitleTokens, matchFilmByTitle } from '../services/musicIntel/prompts.ts';
 import type { MusicIntelJob, TrackIntel } from '../services/musicIntel/types.ts';
 
 const FS = 22050;
@@ -183,4 +183,19 @@ test('route: analyze needs sign-in; bad ids are rejected', async () => {
     const cron = await fetch(`${base}/cron`, { method: 'POST' });
     assert.equal(cron.status, 401);
   } finally { server.close(); }
+});
+
+test('film match: a sequel soundtrack never links to the first film', () => {
+  const first = { id: 'pp1', title: 'Pumpkin Patch (Oct 2025)' };
+  const st = 'Pumpkin Patch: Moonbreaker (The Official Motion Picture Soundtrack)';
+  assert.equal(matchFilmByTitle(st, [first]), null);
+  assert.equal(matchFilmByTitle('Pumpkin Patch 2 (Original Score)', [first]), null);
+  assert.equal(matchFilmByTitle('Pumpkin Patch Part II Soundtrack', [first]), null);
+  // When the sequel lands, it links — and beats the first film.
+  const sequel = { id: 'pp2', title: 'Pumpkin Patch: Moonbreaker' };
+  assert.equal(matchFilmByTitle(st, [first, sequel])?.id, 'pp2');
+  assert.equal(matchFilmByTitle('Pumpkin Patch 2 (Original Score)', [first, { id: 'pp2b', title: 'Pumpkin Patch II' }])?.id, 'pp2b');
+  // The original film's own soundtrack still links to it, closest title first.
+  assert.equal(matchFilmByTitle('Pumpkin Patch (Original Motion Picture Soundtrack)', [sequel, first])?.id, 'pp1');
+  assert.deepEqual(filmTitleTokens('Love Shack Vol. 3 (2026)'), ['love', 'shack']);
 });

@@ -26,8 +26,8 @@ import os from 'os';
 import path from 'path';
 import { fsGet, fsPatch, fsSet, fsList, fsQuery, verifyIdToken, adminConfig, getAccessToken } from '../services/firebaseAdminRest';
 import { runMusicIntel, pendingTracks, type IntelAlbum, type IntelTrack, type MusicIntelDeps } from '../services/musicIntel/worker';
-import { filmTitleTokens } from '../services/musicIntel/prompts';
-import type { FilmContext, MusicIntelBundle, MusicIntelJob, TrackIntel } from '../services/musicIntel/types';
+import { matchFilmByTitle } from '../services/musicIntel/prompts';
+import { applyIntelCorrections, type FilmContext, type MusicIntelBundle, type MusicIntelJob, type TrackIntel, type TrackIntelCorrections } from '../services/musicIntel/types';
 
 const JOBS = 'musicIntel';
 const ID_RE = /^[\w-]{1,128}$/;
@@ -142,18 +142,9 @@ export async function findFilmFor(album: IntelAlbum, store: IntelStore = adminSt
   const own = await store.query('albums', [{ field: 'ownerId', value: album.ownerId }], 200);
   const films = own.filter(a => a.data?.type === 'VIDEO' && ['MOVIE', 'TV_SERIES'].includes(String(a.data?.subType)) && a.id !== album.id);
   if (!films.length) return { status: 'NONE' };
-  const want = new Set(filmTitleTokens(album.title || ''));
-  let best: { id: string; data: any } | null = films.find(f => (album.relatedProjectIds || []).includes(f.id)) || null;
-  if (!best && want.size) {
-    let bestScore = 0;
-    for (const f of films) {
-      const have = filmTitleTokens(String(f.data?.title || ''));
-      const hit = have.filter(w => want.has(w)).length;
-      const score = have.length ? hit / Math.max(have.length, want.size) : 0;
-      if (score > bestScore) { bestScore = score; best = f; }
-    }
-    if (bestScore < 0.5) best = null;
-  }
+  // An explicit link the creator set wins; otherwise a strict title match (see matchFilmByTitle).
+  const best = films.find(f => (album.relatedProjectIds || []).includes(f.id))
+    || matchFilmByTitle(album.title || '', films.map(f => ({ ...f, title: String(f.data?.title || '') })));
   if (!best) return { status: 'NONE' };
   const filmTitle = String(best.data?.title || '');
   const job = await store.get(`taleoAnalysis/${best.id}`);
@@ -325,6 +316,42 @@ export function createMusicIntelRouter(extra: MusicIntelRouterDeps = {}): Router
     res.json({ ok: true, ran: out });
   });
 
+  // The creator's corrections — owner-only, kept beside the read so a re-analysis keeps them.
+  r.post('/corrections', async (req: Request, res: Response) => {
+    if (!adminConfig.hasCredentials()) return res.status(503).json({ error: 'Server not configured.' });
+    const uid = await callerUid(req);
+    if (!uid) return res.status(401).json({ error: 'Sign in required.' });
+    const albumId = String(req.body?.albumId || '').trim();
+    const trackId = String(req.body?.trackId || '').trim();
+    if (!ID_RE.test(albumId) || !trackId || trackId.length > 128) return res.status(400).json({ error: 'albumId and trackId are required.' });
+    const album = await fsGet(`albums/${albumId}`);
+    if (!album) return res.status(404).json({ error: 'No such album.' });
+    if (album.ownerId !== uid && !(await isAdmin(uid))) return res.status(403).json({ error: 'Not your album.' });
+    const raw = (req.body?.corrections ?? {}) as Record<string, unknown>;
+    const str = (v: unknown, max: number) => (typeof v === 'string' ? v.slice(0, max) : undefined);
+    const list = (v: unknown) => (Array.isArray(v) ? v.filter((x) => typeof x === 'string').slice(0, 12).map((x) => String(x).slice(0, 60)) : undefined);
+    const labels = raw.sectionLabels && typeof raw.sectionLabels === 'object'
+      ? Object.fromEntries(Object.entries(raw.sectionLabels as Record<string, unknown>).filter(([k, v]) => /^\d{1,3}$/.test(k) && typeof v === 'string').slice(0, 64).map(([k, v]) => [k, String(v).slice(0, 60)]))
+      : undefined;
+    const bpm = Number(raw.tempoBpm);
+    const clean: TrackIntelCorrections = {
+      summary: str(raw.summary, 1200),
+      genreTags: list(raw.genreTags),
+      moodPrimary: str(raw.moodPrimary, 60),
+      moodSecondary: list(raw.moodSecondary),
+      key: str(raw.key, 24),
+      tempoBpm: Number.isFinite(bpm) && bpm > 20 && bpm < 400 ? Math.round(bpm * 10) / 10 : undefined,
+      timeSignature: typeof raw.timeSignature === 'string' && /^\d{1,2}\/\d{1,2}$/.test(raw.timeSignature) ? raw.timeSignature : undefined,
+      themes: list(raw.themes),
+      linerNote: str(raw.linerNote, 2000),
+      sectionLabels: labels,
+      updatedAt: Date.now(),
+    };
+    const doc = JSON.parse(JSON.stringify({ ...clean, trackId, ownerId: String(album.ownerId) }));
+    await fsSet(`${JOBS}/${albumId}/corrections/${encodeURIComponent(trackId)}`, doc);
+    res.json({ ok: true, corrections: clean });
+  });
+
   r.get('/:albumId', async (req: Request, res: Response) => {
     const albumId = String(req.params.albumId || '');
     if (!ID_RE.test(albumId)) return res.status(400).json({ error: 'bad id' });
@@ -345,7 +372,12 @@ export function createMusicIntelRouter(extra: MusicIntelRouterDeps = {}): Router
         job = { ...job, ...patch } as any;
       }
     }
-    const tracks = job ? Object.fromEntries((await fsList(`${JOBS}/${albumId}/tracks`, { maxDocs: 200 })).map(t => [t.data.trackId || decodeURIComponent(t.id), t.data as TrackIntel])) : {};
+    const correctionDocs = job ? await fsList(`${JOBS}/${albumId}/corrections`, { maxDocs: 200 }).catch(() => [] as Array<{ id: string; data: Record<string, any> }>) : [];
+    const corrections = new Map<string, TrackIntelCorrections>(correctionDocs.map(c => [String(c.data.trackId || decodeURIComponent(c.id)), c.data as TrackIntelCorrections]));
+    const tracks = job ? Object.fromEntries((await fsList(`${JOBS}/${albumId}/tracks`, { maxDocs: 200 })).map(t => {
+      const id = t.data.trackId || decodeURIComponent(t.id);
+      return [id, applyIntelCorrections(t.data as TrackIntel, corrections.get(id))];
+    })) : {};
     if (job) { delete (job as any).leaseUntil; delete (job as any).attempts; }
     const body: MusicIntelBundle & { stalled?: boolean } = {
       job: job as MusicIntelJob | null,

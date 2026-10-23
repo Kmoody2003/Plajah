@@ -209,10 +209,36 @@ export function looksLikeSoundtrack(album: { title?: string; genre?: string; tag
   return /\b(soundtrack|original score|film score|motion picture|o\.?s\.?t\.?|music from (the )?(film|movie)|score)\b/.test(hay);
 }
 
-/** Title words that identify the film ("Moonbreaker (Original Soundtrack)" → moonbreaker). */
+/** Title words that identify the film ("Moonbreaker (Original Soundtrack)" → moonbreaker). Sequel
+ *  markers survive and are normalised ("Part II", "2", "Two" → 2) so a sequel's soundtrack can never
+ *  collapse onto the first film; years and volume numbers don't identify a film and are dropped. */
+const SEQUEL_WORDS: Record<string, string> = { ii: '2', iii: '3', iv: '4', v: '5', vi: '6', two: '2', three: '3', four: '4', five: '5', six: '6' };
 export function filmTitleTokens(title: string): string[] {
   return title.toLowerCase()
     .replace(/\(.*?\)|\[.*?\]/g, ' ')
-    .replace(/\b(original|motion|picture|soundtrack|score|ost|music|from|the|film|movie|deluxe|edition|vol\.?|volume|\d+)\b/g, ' ')
-    .split(/[^a-z0-9']+/).filter(w => w.length > 1);
+    .replace(/\b(vol\.?|volume)\s*\d+\b/g, ' ')
+    .replace(/\b(19|20)\d\d\b/g, ' ')
+    .replace(/\b(original|motion|picture|soundtrack|score|ost|music|from|the|film|movie|deluxe|edition|official|part|chapter)\b/g, ' ')
+    .split(/[^a-z0-9']+/)
+    .map(w => SEQUEL_WORDS[w] || w)
+    .filter(w => w.length > 1 || /^\d$/.test(w));
+}
+
+/**
+ * Which of the creator's films a soundtrack belongs to, by title. Every distinctive word of the
+ * soundtrack's title must appear in the film's — "Pumpkin Patch: Moonbreaker" is NOT "Pumpkin Patch",
+ * and "Pumpkin Patch 2" is not the first film either. Among full matches, the closest title wins.
+ * Null when no film fully matches (the sequel isn't on the platform yet).
+ */
+export function matchFilmByTitle<T extends { id: string; title: string }>(soundtrackTitle: string, films: T[]): T | null {
+  const want = filmTitleTokens(soundtrackTitle);
+  if (!want.length) return null;
+  let best: T | null = null, bestExtra = Infinity;
+  for (const f of films) {
+    const have = new Set(filmTitleTokens(f.title));
+    if (!want.every(w => have.has(w))) continue;
+    const extra = have.size - want.length;
+    if (extra < bestExtra) { bestExtra = extra; best = f; }
+  }
+  return best;
 }
