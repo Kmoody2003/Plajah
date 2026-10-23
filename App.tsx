@@ -254,9 +254,10 @@ const AcademiaTourView = retryLazy(() => import('./components/AcademiaTourView')
 const AcademiaHomeView = retryLazy(() => import('./components/AcademiaHomeView'));
 const SupportCenterView = retryLazy(() => import('./components/academia/support/SupportCenterView'));
 const YearCurriculumView = retryLazy(() => import('./components/academia/year/YearCurriculumView'));
+const ScanAnythingView = retryLazy(() => import('./components/academia/scan/ScanAnythingView'));
 const EducationCouncilView = retryLazy(() => import('./components/academia/year/EducationCouncilView'));
 /** Screens where the learning-support layer shows its dock, ruler and break reminders (calm visuals apply everywhere). */
-const SUPPORT_LAYER_VIEWS = new Set(['ACADEMIA_HOME', 'ACADEMIA_LANDING', 'ACADEMIA_COURSES', 'ACADEMIA_DIRECTORY', 'ACADEMIA_SUPPORT', 'CLASSROOMS', 'CLASSROOM_DETAIL', 'LEARN', 'HOMESCHOOL', 'STUDENT_HOME', 'STUDENT_LESSON', 'STUDENT_ASSIGNMENT', 'CREATOR_COURSES', 'NOTES']);
+const SUPPORT_LAYER_VIEWS = new Set(['ACADEMIA_SCAN', 'STUDENT_ASSIGNMENT', 'ACADEMIA_HOME', 'ACADEMIA_LANDING', 'ACADEMIA_COURSES', 'ACADEMIA_DIRECTORY', 'ACADEMIA_SUPPORT', 'CLASSROOMS', 'CLASSROOM_DETAIL', 'LEARN', 'HOMESCHOOL', 'STUDENT_HOME', 'STUDENT_LESSON', 'STUDENT_ASSIGNMENT', 'CREATOR_COURSES', 'NOTES']);
 const AcademiaDirectory = retryLazy(() => import('./components/AcademiaDirectory'));
 const LearnMapView = retryLazy(() => import('./components/learn/LearnMapView'));
 const InvestigationStudio = retryLazy(() => import('./components/inquiry/InvestigationStudio'));
@@ -6198,6 +6199,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {view === 'ACADEMIA_SUPPORT' && (
               <Suspense fallback={null}>
                 <SupportCenterView user={user} profile={effectiveProfile || userProfile} onNavigate={(v) => setView(v as AppView)} />
+              </Suspense>
+            )}
+
+            {view === 'ACADEMIA_SCAN' && (
+              <Suspense fallback={null}>
+                <ScanAnythingView user={user} profile={effectiveProfile || userProfile} onBack={() => goBack('ACADEMIA_HOME')} />
               </Suspense>
             )}
 

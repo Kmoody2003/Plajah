@@ -1,0 +1,24 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": true, "skipLibCheck": true, "incremental": false },
+  "include": [
+    "services/worksheetScanCore.ts",
+    "services/worksheetDigitizer.ts",
+    "services/worksheetLocalVision.ts",
+    "services/worksheetAssignmentService.ts",
+    "services/worksheetOpen.ts",
+    "services/teacherClasses.ts",
+    "services/flyerCalendar.ts",
+    "services/postman/calendarService.ts",
+    "components/WorksheetFillable.tsx",
+    "components/StudentAssignmentView.tsx",
+    "components/TeacherToolsView.tsx",
+    "components/academia/scan/**/*.tsx",
+    "components/postman/calendar/CalendarRoom.tsx",
+    "components/academia/TeacherHub.tsx",
+    "components/academia/ParentHub.tsx",
+    "components/homeroom/HomeroomView.tsx",
+    "components/academia/scan/dev/scanLab.tsx",
+    "tests/worksheetScanCore.test.ts"
+  ]
+}

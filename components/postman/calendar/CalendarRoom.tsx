@@ -705,6 +705,7 @@ const EventDetail: React.FC<{
     if (!t) return;
     if (t.kind === 'url') window.open(t.href, '_blank', 'noopener');
     else if (t.kind === 'profile') window.dispatchEvent(new CustomEvent('plajah:visit-user', { detail: { uid: t.uid } }));
+    else if (t.kind === 'navigate' && t.target === 'STUDENT_ASSIGNMENT' && t.params?.worksheetId) void import('../../../services/worksheetOpen').then(m => m.openWorksheetAssignment({ worksheetId: String(t.params!.worksheetId), assignmentId: t.params!.assignmentId ? String(t.params!.assignmentId) : undefined }));
     else if (t.kind === 'navigate') window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: t.target, params: t.params } }));
     else if (t.kind === 'letter') window.dispatchEvent(new CustomEvent('postman:intent', { detail: { room: 'LETTERS', roomId: t.correspondenceId } }));
     onClose();

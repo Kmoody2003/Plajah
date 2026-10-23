@@ -518,6 +518,13 @@ const ParentHub: React.FC<Props> = ({ user, profile, onNavigate }) => {
               <div className="flex flex-wrap gap-2 mt-3">
                 <button
                   type="button"
+                  onClick={() => onNavigate('ACADEMIA_SCAN')}
+                  className="text-[12px] font-black uppercase tracking-wider rounded-full border border-orange-400/50 text-orange-200 px-4 min-h-[44px] hover:bg-orange-400/10"
+                >
+                  📷 Scan a school flyer
+                </button>
+                <button
+                  type="button"
                   onClick={() => onNavigate('CHAT')}
                   className="text-[11px] font-black uppercase tracking-wider rounded-full border border-white/15 px-3.5 py-2 hover:bg-white/10"
                 >

@@ -42,6 +42,8 @@ export interface PublishInput {
   simulate?: boolean;
   /** Untouched camera/file original. Stored beside the digitized Tela form for audit/re-edit. */
   originalFile?: File;
+  /** The straightened page (data URL) the answer boxes were measured on — what students see. */
+  pageImageDataUrl?: string;
 }
 
 export interface WireResult {
@@ -73,7 +75,7 @@ export async function fetchWorksheet(id: string): Promise<DigitalWorksheet | nul
 }
 
 /** Save a DigitalWorksheet to Firestore. Returns the new id, or null on failure (non-fatal). */
-export async function saveWorksheet(sheet: DigitalWorksheet, originalFile?: File): Promise<string | null> {
+export async function saveWorksheet(sheet: DigitalWorksheet, originalFile?: File, pageImageDataUrl?: string): Promise<string | null> {
   try {
     const { id: _drop, ...rest } = sheet;
     const signedInUid = auth.currentUser?.uid;
@@ -96,6 +98,16 @@ export async function saveWorksheet(sheet: DigitalWorksheet, originalFile?: File
         console.warn('[worksheetAssignment] original scan upload failed; worksheet draft remains saved', uploadError);
       }
     }
+    if (pageImageDataUrl?.startsWith('data:') && auth.currentUser) {
+      try {
+        const blob = await (await fetch(pageImageDataUrl)).blob();
+        const path = `users/${auth.currentUser.uid}/academia/worksheets/${worksheetRef.id}/page.jpg`;
+        const snap = await uploadBytes(ref(storage, path), blob, { contentType: blob.type || 'image/jpeg' });
+        await updateDoc(worksheetRef, { cleanedImageUrl: await getDownloadURL(snap.ref), cleanedStoragePath: path });
+      } catch (uploadError) {
+        console.warn('[worksheetAssignment] straightened page upload failed; students see the original photo', uploadError);
+      }
+    }
     return worksheetRef.id;
   } catch (e) {
     console.error('[worksheetAssignment] saveWorksheet failed:', e);
@@ -110,7 +122,7 @@ export async function saveWorksheet(sheet: DigitalWorksheet, originalFile?: File
  * student, and CC their guardians with a copy. All notification fan-out honors simulate.
  */
 export async function publishWorksheet(input: PublishInput): Promise<WireResult> {
-  const { sheet, classId, className, students, teacher, dueDate, simulate, originalFile } = input;
+  const { sheet, classId, className, students, teacher, dueDate, simulate, originalFile, pageImageDataUrl } = input;
   const result: WireResult = {
     ok: false, worksheetId: null, assignmentId: null,
     studentsNotified: 0, parentsNotified: 0,
@@ -122,7 +134,7 @@ export async function publishWorksheet(input: PublishInput): Promise<WireResult>
     ...sheet,
     createdBy: auth.currentUser?.uid || teacher.uid,
     accessUids: Array.from(new Set([...(sheet.accessUids || []), ...students.map(student => student.id)])),
-  }, originalFile);
+  }, originalFile, pageImageDataUrl);
   result.worksheetId = worksheetId;
 
   // 2. Assignment record — the class-scoped link that carries the tutor + auto-grade flags.
@@ -145,6 +157,9 @@ export async function publishWorksheet(input: PublishInput): Promise<WireResult>
       if (!simulate) {
         await Promise.all(students.map(student => setDoc(doc(db, 'worksheet_submissions', `${worksheetId}_${student.id}`), {
           worksheetId, assignmentId: ref.id, studentId: student.id, studentName: student.name,
+          // Title + due ride on each submission so a guardian's calendar can show it without
+          // reading the class-wide assignment (which they are never given).
+          title: sheet.title, subject: sheet.subject, className, teacherUid: teacher.uid, dueDate: dueDate || null,
           status: 'assigned', assignedAt,
           timeline: arrayUnion({ status: 'ASSIGNED', at: assignedAt, actorId: teacher.uid, actorName: teacher.name }),
         }, { merge: true })));
@@ -161,17 +176,15 @@ export async function publishWorksheet(input: PublishInput): Promise<WireResult>
   if (simulate) {
     result.studentsNotified = students.length;
   } else {
-    for (const st of students) {
-      const id = await createNotification({
-        userId: st.id,
-        senderId: teacher.uid, senderName: teacher.name, senderPhoto: teacher.photo || '',
-        type: 'CONTENT',
-        title: `New homework: ${sheet.title}`,
-        message: `${sheet.subject}${dueDate ? ` · due ${new Date(dueDate).toLocaleDateString()}` : ''} — tap to start. Plajah can help.`,
-        link, targetId: worksheetId || classId,
-      }).catch(() => null);
-      if (id) result.studentsNotified++;
-    }
+    const sent = await Promise.all(students.map(st => createNotification({
+      userId: st.id,
+      senderId: teacher.uid, senderName: teacher.name, senderPhoto: teacher.photo || '',
+      type: 'CONTENT',
+      title: `New homework: ${sheet.title}`,
+      message: `${sheet.subject}${dueDate ? ` · due ${new Date(dueDate).toLocaleDateString()}` : ''} — tap to start. Plajah can help.`,
+      link, targetId: worksheetId || classId,
+    }).catch(() => null)));
+    result.studentsNotified = sent.filter(Boolean).length;
   }
 
   // 4. CC guardians with a copy + "homework available" alert.
@@ -198,17 +211,15 @@ export async function publishWorksheet(input: PublishInput): Promise<WireResult>
         }
       }
     }
-    for (const { guardianUid, childName } of guardianMap.pairs) {
-      const id = await createNotification({
-        userId: guardianUid,
-        senderId: teacher.uid, senderName: teacher.name, senderPhoto: teacher.photo || '',
-        type: 'CONTENT',
-        title: `Homework assigned to ${childName}`,
-        message: `${className}: ${sheet.title} (${sheet.subject}). You'll see progress as ${childName} works.`,
-        link, targetId: worksheetId || classId,
-      }).catch(() => null);
-      if (id) result.parentsNotified++;
-    }
+    const sentToGuardians = await Promise.all(guardianMap.pairs.map(({ guardianUid, childName }) => createNotification({
+      userId: guardianUid,
+      senderId: teacher.uid, senderName: teacher.name, senderPhoto: teacher.photo || '',
+      type: 'CONTENT',
+      title: `Homework assigned to ${childName}`,
+      message: `${className}: ${sheet.title} (${sheet.subject})${dueDate ? ` · due ${new Date(dueDate).toLocaleDateString()}` : ''}. It's on your calendar; you'll see progress as ${childName} works.`,
+      link, targetId: worksheetId || classId,
+    }).catch(() => null)));
+    result.parentsNotified = sentToGuardians.filter(Boolean).length;
   }
 
   result.ok = !!worksheetId;
@@ -228,6 +239,10 @@ export interface TurnInInput {
   simulate?: boolean;
   /** Optional untouched photo of a completed paper worksheet. */
   completedScanFile?: File;
+  /** How many times the student ran "Check my work" before turning in (shown to the teacher). */
+  selfChecks?: number;
+  /** Answers that came off the paper scan and the student confirmed, with read confidence. */
+  readConfidence?: Record<string, number>;
 }
 
 export interface TurnInResult {
@@ -343,7 +358,7 @@ export async function markWorksheetOpened(input: {
  * alert the teacher (needs-review when open-response fields exist).
  */
 export async function turnInWorksheet(input: TurnInInput): Promise<TurnInResult> {
-  const { worksheetId, assignmentId, sheet, studentId, studentName, answers, teacher, simulate, completedScanFile } = input;
+  const { worksheetId, assignmentId, sheet, studentId, studentName, answers, teacher, simulate, completedScanFile, selfChecks, readConfidence } = input;
   const submittedAt = Date.now();
   const grade = autoGradeWorksheet(sheet, answers);
   let standardsRecorded = 0;
@@ -371,7 +386,11 @@ export async function turnInWorksheet(input: TurnInInput): Promise<TurnInResult>
       // answers. Never fatal — a failure just leaves the submission without a pre-assessment.
       let preAssessment: WorksheetPreAssessment | null = null;
       try {
-        if (completedScanFile) {
+        if (completedScanFile && readConfidence && Object.keys(answers).length) {
+          // The student already reviewed and confirmed what the scan read; assess THOSE answers,
+          // carrying the read confidence so shaky handwriting still routes to the teacher.
+          preAssessment = preAssessWorksheet(sheet, { answers, confidence: { ...Object.fromEntries(Object.keys(answers).map(id => [id, 1])), ...readConfidence } }, { id: studentId, name: studentName }, turnedInAt);
+        } else if (completedScanFile) {
           const b64 = await fileToBase64(completedScanFile);
           preAssessment = await preAssessCompletedScan(sheet, b64, completedScanFile.type || 'image/jpeg', { id: studentId, name: studentName }, { now: turnedInAt });
         } else {
@@ -389,6 +408,7 @@ export async function turnInWorksheet(input: TurnInInput): Promise<TurnInResult>
           { status: 'TURNED_IN', at: turnedInAt, actorId: studentId, actorName: studentName },
         ),
         completedScanUrl, completedScanStoragePath,
+        selfChecks: selfChecks || 0,
         ...(preAssessment ? { preAssessment } : {}),
       }, { merge: true });
     } catch (e) {

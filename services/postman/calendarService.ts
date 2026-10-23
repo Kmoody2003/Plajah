@@ -257,6 +257,11 @@ export async function fetchPlatformFeed(from: number, to: number, force = false)
   const inRange = (t: number) => t >= wFrom && t <= wTo;
   const now = Date.now();
 
+  // Scanned/digitized worksheets: assigned to me (student), my child (guardian), or by me (teacher).
+  const worksheetDuePromise = safe('worksheetDue', fetchWorksheetDue(uid), [] as WorksheetDueItem[]);
+  // School flyers a family member scanned and shared with me.
+  const familySharesPromise = safe('familyShares', getDocs(query(collection(db, 'family_calendar_shares'), where('recipientUids', 'array-contains', uid), limit(40)))
+    .then((s) => s.docs.map((d) => ({ id: d.id, ...(d.data() as Record<string, any>) }))), [] as Record<string, any>[]);
   const [releases, premieres, ppv, clubEvents, sanctuary, tickets, publicEvents, classes, due, worship, sports] = await Promise.all([
     // Releases from followed creators — albums carry music, books and films alike.
     safe('releases', Promise.all(authorChunks.map((a) =>
@@ -437,6 +442,28 @@ export async function fetchPlatformFeed(from: number, to: number, force = false)
       kindLabel: `Live class · ${s.className}`, open: { kind: 'navigate', target: 'ACADEMIA_COURSES' },
     });
   }
+  for (const share of await familySharesPromise) {
+    (Array.isArray(share.events) ? share.events : []).forEach((e: any, i: number) => {
+      if (typeof e?.start !== 'number') return;
+      push({
+        id: `p:flyer:${share.id}:${i}`, sourceKey: `flyer:${share.id}:${i}`, title: String(e.title || share.title || 'School event'),
+        start: e.start, end: typeof e.end === 'number' ? e.end : e.start + HOUR, allDay: !!e.allDay, location: e.location || undefined,
+        layer: 'events', source: 'platform', readOnly: true, reminders: Array.isArray(e.reminders) ? e.reminders : [1440],
+        notes: e.sourceLine ? `From “${share.title}”: ${e.sourceLine}` : undefined,
+        kindLabel: `${e.kind === 'deadline' ? 'Deadline' : 'School flyer'} · from ${share.ownerName || 'family'}`,
+        byUid: share.ownerUid, byName: share.ownerName,
+      });
+    });
+  }
+  for (const w of await worksheetDuePromise) {
+    if (!w.dueDate) continue;
+    push({
+      id: `p:wsdue:${w.key}`, sourceKey: `wsdue:${w.key}`, title: w.who ? `Due: ${w.title} · ${w.who}` : `Due: ${w.title}`,
+      start: w.dueDate, end: w.dueDate + 30 * MIN, allDay: false, layer: 'learning', source: 'platform', readOnly: true, reminders: [1080, 60],
+      kindLabel: w.done ? `Turned in · ${w.className}` : w.dueDate < now ? `Overdue · ${w.className}` : `Homework · ${w.className}`,
+      open: { kind: 'navigate', target: w.role === 'teacher' ? 'TEACHER_TOOLS' : 'STUDENT_ASSIGNMENT', params: { worksheetId: w.worksheetId, assignmentId: w.assignmentId } },
+    });
+  }
   for (const d of due) {
     if (!d?.dueDate) continue;
     push({
@@ -479,6 +506,22 @@ export async function fetchPlatformFeed(from: number, to: number, force = false)
 }
 
 export function invalidatePlatformFeed(): void { feedCache = null; }
+
+interface WorksheetDueItem { key: string; worksheetId: string; assignmentId?: string; title: string; className: string; dueDate: number; role: 'student' | 'guardian' | 'teacher'; who?: string; done?: boolean }
+
+/** Worksheet homework with a due date, from the three vantage points rules allow each person to read. */
+async function fetchWorksheetDue(uid: string): Promise<WorksheetDueItem[]> {
+  const [mine, kids, taught] = await Promise.all([
+    getDocs(query(collection(db, 'worksheet_assignments'), where('studentIds', 'array-contains', uid), limit(60))).catch(() => null),
+    getDocs(query(collection(db, 'worksheet_submissions'), where('guardianUids', 'array-contains', uid), limit(80))).catch(() => null),
+    getDocs(query(collection(db, 'worksheet_assignments'), where('teacherUid', '==', uid), limit(60))).catch(() => null),
+  ]);
+  const out: WorksheetDueItem[] = [];
+  mine?.docs.forEach(d => { const a: any = d.data(); if (a.dueDate) out.push({ key: `s:${d.id}`, worksheetId: a.worksheetId, assignmentId: d.id, title: String(a.title || 'Worksheet'), className: String(a.className || 'Class'), dueDate: Number(a.dueDate), role: 'student' }); });
+  kids?.docs.forEach(d => { const s: any = d.data(); if (s.dueDate) out.push({ key: `g:${d.id}`, worksheetId: s.worksheetId, assignmentId: s.assignmentId, title: String(s.title || 'Homework'), className: String(s.className || 'Class'), dueDate: Number(s.dueDate), role: 'guardian', who: String(s.studentName || '').split(' ')[0] || undefined, done: s.status === 'turned-in' }); });
+  taught?.docs.forEach(d => { const a: any = d.data(); if (a.dueDate) out.push({ key: `t:${d.id}`, worksheetId: a.worksheetId, assignmentId: d.id, title: String(a.title || 'Worksheet'), className: String(a.className || 'Class'), dueDate: Number(a.dueDate), role: 'teacher' }); });
+  return out;
+}
 
 /* ── Google layer ──────────────────────────────────────────────────────────── */
 

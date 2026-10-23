@@ -4130,6 +4130,8 @@ export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW'
   // Year Curriculum (K–8 Math + ELA, 180 days, Tela worksheets) and the global Education Council
   | 'ACADEMIA_YEAR'
   | 'EDUCATION_COUNCIL'
+  // Scan school paper: worksheets → matched assignments, flyers → calendar + family + notes
+  | 'ACADEMIA_SCAN'
   // Business School — entrepreneurship, venture stages, P&L, entity formation, GTM
   | 'BUSINESS_SCHOOL'
   | 'BIZ_SIM'

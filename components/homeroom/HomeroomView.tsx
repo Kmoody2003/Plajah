@@ -222,6 +222,10 @@ const HomeroomView: React.FC<Props> = ({ user, profile, onNavigate }) => {
             <h2 className="h2">Your learning tools</h2>
             <span className="note">Your progress shows on every card</span>
           </div>
+          <button type="button" onClick={() => onNavigate('ACADEMIA_SCAN')} aria-label="Scan school paper" style={{ width: '100%', minHeight: 64, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderRadius: 16, border: '1px solid rgba(255,140,0,.45)', background: 'linear-gradient(135deg,rgba(255,140,0,.16),rgba(129,102,230,.12))', color: '#fff', textAlign: 'left', cursor: 'pointer', font: 'inherit' }}>
+            <span aria-hidden="true" style={{ fontSize: 26 }}>📷</span>
+            <span style={{ flex: 1, minWidth: 0 }}><b style={{ display: 'block', fontSize: '1rem' }}>Scan your paper</b><span style={{ fontSize: '.85rem', color: '#d6d0e4' }}>Finished a worksheet? Snap it to check and turn in. Got a flyer? It goes on your calendar.</span></span>
+          </button>
           <div className="heroes">
             <button type="button" className="hero" onClick={() => onNavigate('VOCA')} style={{ background: '#062a31', borderColor: 'rgba(0,218,243,.35)' }}>
               <svg className="art" width="240" height="120" viewBox="0 0 240 120" aria-hidden="true"><g fill="#00DAF3">{[20, 48, 80, 36, 100, 60, 28, 72, 44, 92, 52, 24, 64, 32, 16].map((h, i) => <rect key={i} x={i * 16} y={60 - h / 2} width="8" height={h} rx="4" />)}</g></svg>

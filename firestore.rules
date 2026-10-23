@@ -5264,6 +5264,28 @@ service cloud.firestore {
       allow delete: if isAuthenticated() && (resource.data.createdBy == request.auth.uid || isAdmin());
     }
 
+    // A family member's scanned school flyer, shared onto the linked family's calendars. The owner
+    // writes once; recipients only read (the calendar's Plajah layer). Recipients are capped so a
+    // share can never become a broadcast.
+    match /family_calendar_shares/{shareId} {
+      allow read: if isAuthenticated() && (
+        resource.data.ownerUid == request.auth.uid ||
+        request.auth.uid in resource.data.get('recipientUids', []) ||
+        isAdmin()
+      );
+      allow create: if isAuthenticated() &&
+        request.resource.data.ownerUid == request.auth.uid &&
+        request.resource.data.recipientUids is list &&
+        request.resource.data.recipientUids.size() >= 1 &&
+        request.resource.data.recipientUids.size() <= 12 &&
+        !(request.auth.uid in request.resource.data.recipientUids) &&
+        request.resource.data.events is list &&
+        request.resource.data.events.size() <= 20 &&
+        request.resource.data.title is string && request.resource.data.title.size() <= 200;
+      allow update: if false;
+      allow delete: if isAuthenticated() && (resource.data.ownerUid == request.auth.uid || isAdmin());
+    }
+
     match /worksheet_assignments/{assignmentId} {
       allow read: if canAccessWorksheetAssignment(resource.data);
       allow create: if isAuthenticated() &&

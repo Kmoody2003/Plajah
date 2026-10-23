@@ -18,6 +18,7 @@
 import { Type } from '@google/genai';
 import type { GeminiCallResult } from './geminiService';
 import { digitizeWorksheetOnDevice, readCompletedWorksheetOnDevice } from './worksheetLocalVision';
+import { answerMatches, autoKeyWorksheet } from './worksheetScanCore';
 
 // ── Model ───────────────────────────────────────────────────────────────────────
 
@@ -52,6 +53,8 @@ export interface WorksheetField {
   confidence?: number;
   /** Printed question number/label, when present. */
   ordinal?: string;
+  /** Where the key came from: solved from the printed problem, read off the teacher's key copy, or typed. */
+  keySource?: 'solved' | 'key-scan' | 'teacher';
 }
 
 export interface WorksheetSegment {
@@ -240,10 +243,16 @@ export async function digitizeWorksheetDetailed(
   imageBase64: string,
   mimeType: string,
   createdBy: string,
+  onProgress?: (message: string) => void,
 ): Promise<WorksheetDigitizeResult> {
   try {
-    const local = await digitizeWorksheetOnDevice(`data:${mimeType};base64,${imageBase64}`, createdBy);
-    return { ok: true, sheet: local.sheet };
+    const local = await digitizeWorksheetOnDevice(`data:${mimeType};base64,${imageBase64}`, createdBy, onProgress);
+    // Printed arithmetic keys itself, so a scanned math sheet is gradable before the teacher types anything.
+    const keyed = autoKeyWorksheet(local.sheet);
+    const sheet = keyed.keyed
+      ? { ...keyed.sheet, reviewIssues: [...(keyed.sheet.reviewIssues || []).filter(issue => !/^Confirm answer keys/.test(issue)), `Plajah solved ${keyed.keyed} answer key${keyed.keyed === 1 ? '' : 's'} from the printed problems — spot-check them.`, ...(keyed.sheet.hasManualFields ? ['Key the remaining questions, or scan your answer-key copy.'] : [])] }
+      : keyed.sheet;
+    return { ok: true, sheet };
   } catch (err) {
     console.error('[worksheetDigitizer] on-device OCR failed:', err);
     return { ok: false, sheet: null, error: { ok: false, text: '', code: 'NETWORK_ERROR', message: (err as Error)?.message || 'On-device worksheet OCR failed. The scan was not uploaded.' } };
@@ -335,18 +344,9 @@ export function completionPercent(
 // ── internals ─────────────────────────────────────────────────────────────────────
 
 function matchesAnswer(field: WorksheetField, given: string | undefined): boolean {
-  if (given === undefined || given === null) return false;
-  const key = String(field.correctAnswer);
-  if (field.type === 'numeric') {
-    const g = parseFloat(String(given).replace(/[^0-9.\-]/g, ''));
-    const k = parseFloat(key.replace(/[^0-9.\-]/g, ''));
-    if (Number.isNaN(g) || Number.isNaN(k)) return false;
-    return Math.abs(g - k) <= (field.tolerance || 0);
-  }
-  return norm(given) === norm(key);
+  return answerMatches(field, given);
 }
 
-const norm = (s: string) => String(s).trim().toLowerCase().replace(/\s+/g, ' ');
 
 /** Normalize one raw field from the model into a WorksheetField with safe defaults. */
 function normalizeField(f: any, i: number): WorksheetField {
@@ -375,13 +375,26 @@ function normalizeField(f: any, i: number): WorksheetField {
   return field;
 }
 
+export interface CompletedWorksheetRead {
+  ok: boolean;
+  answers: Record<string, string>;
+  confidence: Record<string, number>;
+  answered?: Record<string, boolean>;
+  /** How many printed prompts anchored the answer boxes onto this photo. */
+  registration?: { matched: number; total: number; quality: number };
+  /** OCR text of the whole page (assignment matching) and the straightened page image. */
+  pageText?: string;
+  pageImage?: string;
+  message?: string;
+}
+
 /** Read handwriting/marks from a completed paper copy into the existing field ids. */
 export async function readCompletedWorksheet(
   imageBase64: string,
   mimeType: string,
   sheet: DigitalWorksheet,
-  options?: { handwriting?: 'auto' | 'require' | 'skip'; onProgress?: (message: string) => void },
-): Promise<{ ok: boolean; answers: Record<string, string>; confidence: Record<string, number>; answered?: Record<string, boolean>; message?: string }> {
+  options?: { handwriting?: 'auto' | 'require' | 'skip'; onProgress?: (message: string) => void; page?: import('./worksheetLocalVision').PageRead },
+): Promise<CompletedWorksheetRead> {
   return readCompletedWorksheetOnDevice(`data:${mimeType};base64,${imageBase64}`, sheet, options);
 }
 

@@ -2,8 +2,50 @@
 // Runs entirely in the browser with Tesseract.js. The trained language data is cached by the
 // browser after first use; scans are never uploaded by this lane.
 
-import { createWorker, PSM } from 'tesseract.js';
+import { createWorker, PSM, type Worker } from 'tesseract.js';
 import type { DigitalWorksheet, WorksheetField, WorksheetSegment } from './worksheetDigitizer';
+import { registerFieldsToScan, classifyPlusOrDivide, findAnswerBlank, splitOrdinals, type ScanLine, type GrayImage, type PxBox } from './worksheetScanCore';
+
+// ── One warm OCR worker ─────────────────────────────────────────────────────────
+// Booting Tesseract (WASM + language data) costs seconds; every pass used to boot and tear down its
+// own worker, so a single student scan paid that 2–3×. One worker is kept warm, jobs are serialised
+// (parameters are per-worker state), and it is released after a quiet minute to give memory back.
+let workerPromise: Promise<Worker> | null = null;
+let releaseTimer: ReturnType<typeof setTimeout> | null = null;
+let ocrQueue: Promise<unknown> = Promise.resolve();
+let progressSink: ((progress: number) => void) | null = null;
+
+function getWorker(): Promise<Worker> {
+  if (!workerPromise) {
+    workerPromise = createWorker('eng', 1, {
+      logger: event => { if (event.status === 'recognizing text') progressSink?.(event.progress || 0); },
+    }).catch(error => { workerPromise = null; throw error; });
+  }
+  return workerPromise;
+}
+
+/** Run one OCR job on the shared worker. `onProgress` receives 0..1 recognition progress. */
+export function withOcrWorker<T>(job: (worker: Worker) => Promise<T>, onProgress?: (progress: number) => void): Promise<T> {
+  const run = async () => {
+    if (releaseTimer) { clearTimeout(releaseTimer); releaseTimer = null; }
+    const worker = await getWorker();
+    progressSink = onProgress || null;
+    try { return await job(worker); }
+    finally {
+      progressSink = null;
+      releaseTimer = setTimeout(() => {
+        const pending = workerPromise; workerPromise = null; releaseTimer = null;
+        void pending?.then(w => w.terminate()).catch(() => {});
+      }, 60_000);
+    }
+  };
+  const next = ocrQueue.then(run, run);
+  ocrQueue = next.catch(() => undefined);
+  return next;
+}
+
+/** Start loading OCR in the background (call when a scanner opens, before the photo arrives). */
+export function warmOcr(): void { void withOcrWorker(async () => undefined).catch(() => {}); }
 
 export interface LocalWord {
   text: string;
@@ -14,6 +56,10 @@ export interface LocalWord {
 export interface LocalVisionResult {
   sheet: DigitalWorksheet;
   words: LocalWord[];
+  /** Every OCR'd line with its 0–100% box — anchors for registration and assignment matching. */
+  lines: ScanLine[];
+  /** Plain text, top to bottom. */
+  text: string;
   engine: 'tesseract-js';
 }
 
@@ -54,13 +100,13 @@ async function rotatedProbe(dataUrl: string, degrees: number, maxEdge: number): 
 export async function detectPageOrientation(
   imageDataUrl: string,
   onProgress?: (message: string) => void,
+  degreesToTry: Array<0 | 90 | 180 | 270> = [0, 90, 180, 270],
 ): Promise<{ degrees: 0 | 90 | 180 | 270; scores: Record<number, number> }> {
   onProgress?.('Checking page orientation…');
-  const worker = await createWorker('eng', 1, {});
   const scores: Record<number, number> = { 0: 0, 90: 0, 180: 0, 270: 0 };
-  try {
+  await withOcrWorker(async worker => {
     await worker.setParameters({ tessedit_pageseg_mode: PSM.SPARSE_TEXT });
-    for (const deg of [0, 90, 180, 270]) {
+    for (const deg of degreesToTry) {
       const probe = await rotatedProbe(imageDataUrl, deg, 1100);
       const result: any = await worker.recognize(probe, {}, { text: true, blocks: true });
       let score = 0;
@@ -73,9 +119,9 @@ export async function detectPageOrientation(
       scores[deg] = score;
       onProgress?.(`Orientation ${deg}° · score ${Math.round(score)}`);
     }
-  } finally { await worker.terminate(); }
+  });
   let best: 0 | 90 | 180 | 270 = 0, bestScore = scores[0];
-  for (const deg of [90, 180, 270] as const) if (scores[deg] > bestScore) { bestScore = scores[deg]; best = deg; }
+  for (const deg of degreesToTry) if (deg && scores[deg] > bestScore) { bestScore = scores[deg]; best = deg as 90 | 180 | 270; }
   // Require a decisive win over upright to actually rotate.
   if (best !== 0 && scores[best] < scores[0] * 1.35 + 40) best = 0;
   return { degrees: best, scores };
@@ -91,12 +137,7 @@ export async function recognizeWorksheetLines(
   onProgress?: (message: string) => void,
 ): Promise<{ lines: LocalOcrLine[]; words: LocalOcrLine[]; width: number; height: number }> {
   onProgress?.('Loading private on-device OCR…');
-  const worker = await createWorker('eng', 1, {
-    logger: event => {
-      if (event.status === 'recognizing text') onProgress?.(`Reading text locally · ${Math.round((event.progress || 0) * 100)}%`);
-    },
-  });
-  try {
+  return withOcrWorker(async worker => {
     await worker.setParameters({ tessedit_pageseg_mode: PSM.AUTO, preserve_interword_spaces: '1', user_defined_dpi: '300' });
     // tesseract.js v5+ only emits the block/line/word tree when explicitly requested,
     // and v7 no longer reports imageWidth/imageHeight — measure the input directly.
@@ -127,7 +168,7 @@ export async function recognizeWorksheetLines(
       for (const word of line.words || []) { const wordEntry = toEntry(word); if (wordEntry) words.push(wordEntry); }
     }
     return { lines: lines.sort((a, b) => a.y - b.y || a.x - b.x), words, width, height };
-  } finally { await worker.terminate(); }
+  }, p => onProgress?.(`Reading text locally · ${Math.round(p * 100)}%`));
 }
 
 /** OCR and rebuild a usable teacher-editable draft without a paid API call. */
@@ -137,12 +178,7 @@ export async function digitizeWorksheetOnDevice(
   onProgress?: (message: string) => void,
 ): Promise<LocalVisionResult> {
   onProgress?.('Loading private on-device OCR…');
-  const worker = await createWorker('eng', 1, {
-    logger: event => {
-      if (event.status === 'recognizing text') onProgress?.(`Reading locally · ${Math.round((event.progress || 0) * 100)}%`);
-    },
-  });
-  try {
+  return withOcrWorker(async worker => {
     await worker.setParameters({
       tessedit_pageseg_mode: PSM.AUTO,
       preserve_interword_spaces: '1',
@@ -168,13 +204,30 @@ export async function digitizeWorksheetOnDevice(
     const words: LocalWord[] = rawWords
       .filter(word => String(word.text || '').trim())
       .map(word => ({ text: String(word.text).trim(), confidence: clamp(Number(word.confidence || 0) / 100), box: pctBox(word.bbox, width, height) }));
-    const lines = collectLines(data.blocks || [], width, height);
+    // Pixels: Tesseract drops underscore blanks and reads "÷" as "+", so both come back from the page.
+    const gray = await loadGray(imageDataUrl, width, height).catch(() => null);
+    const pxLines = collectPxLines(data.blocks || [], gray);
+    const lines = pxLines.map(l => ({ text: l.text, box: pctBox(l.bbox, width, height), confidence: l.confidence }));
     if (!lines.length && String(data.text || '').trim()) {
       String(data.text).split(/\r?\n/).map((text, index, all) => ({ text: text.trim(), box: { x: 6, y: 8 + index * (84 / Math.max(1, all.length)), width: 88, height: 4 }, confidence: .45 })).filter(x => x.text).forEach(x => lines.push(x));
     }
-    const questionLines = lines.filter(line => /(^|\s)(\d{1,3}[.)]|[A-Z][.)])\s|\?|_{2,}|\b(true|false)\b/i.test(line.text));
+    const split = splitOrdinals(lines.map(line => line.text));
+    const isQuestion = (text: string, i: number) => !!split[i]?.ordinal || /\?|_{2,}|\b(true|false)\b/i.test(text) || (/=/.test(text) && /\d/.test(text));
+    const questionLines = lines.filter((line, i) => i > 0 && isQuestion(line.text, i) && !/^\s*(name|date|class|period)\b/i.test(line.text));
     const source = questionLines.length ? questionLines : lines.filter((_, index) => index > 0).slice(0, 30);
-    const fields: WorksheetField[] = source.map((line, index) => inferField(line, index));
+    const fields: WorksheetField[] = source.map((line, index) => {
+      const i = lines.indexOf(line);
+      const px = pxLines[i];
+      const field = inferField({ ...line, text: split[i]?.text || line.text }, index, split[i]?.ordinal);
+      if (gray && px) {
+        // The answer box is the printed blank (plus the writing space above it) when there is one,
+        // stopping before the next column's question on the same row.
+        const nextX = pxLines.filter(o => o !== px && o.bbox.x0 > px.bbox.x1 && Math.min(o.bbox.y1, px.bbox.y1) - Math.max(o.bbox.y0, px.bbox.y0) > (px.bbox.y1 - px.bbox.y0) * .5).reduce((m, o) => Math.min(m, o.bbox.x0 - 4), width * .97);
+        const blank = findAnswerBlank(gray, px.bbox, px.words, nextX);
+        if (blank) field.box = pctBox(blank, width, height);
+      }
+      return field;
+    });
     const segments: WorksheetSegment[] = lines.map((line, index) => ({
       id: `text_${index + 1}`,
       kind: index === 0 ? 'heading' : questionLines.includes(line) ? 'question' : 'instructions',
@@ -200,8 +253,9 @@ export async function digitizeWorksheetOnDevice(
       intelligence: { primary: 'on-device', ocr: 'tesseract-js', segmentation: 'local-layout', cloudCalls: 0 },
       scanAssessment: { score, textConfidence: Math.round(confidence * 100), layoutFidelity: Math.round(layoutFidelity * 100), fieldCoverage: Math.round(Math.min(1, fieldCoverage * 2) * 100), understandingConfidence: Math.round(understandingConfidence * 100) },
     };
-    return { sheet, words, engine: 'tesseract-js' };
-  } finally { await worker.terminate(); }
+    const scanLines: ScanLine[] = lines.map(line => ({ text: line.text, box: line.box, confidence: line.confidence }));
+    return { sheet, words, lines: scanLines, text: lines.map(line => line.text).join('\n'), engine: 'tesseract-js' as const };
+  }, p => onProgress?.(`Reading locally · ${Math.round(p * 100)}%`));
 }
 
 /** Extract recognized marks inside the already-known answer boxes of a completed paper copy. */
@@ -210,6 +264,13 @@ export interface CompletedReadOptions {
    *  stays on Tesseract + ink-density. The reader always degrades honestly. */
   handwriting?: 'auto' | 'require' | 'skip';
   onProgress?: (message: string) => void;
+  /** A page already straightened + OCR'd (readPageOnDevice) — skips doing both again. */
+  page?: PageRead;
+}
+
+export interface PageRead {
+  flat: import('./worksheetReprint').FlattenedWorksheet;
+  local: LocalVisionResult;
 }
 
 /**
@@ -226,8 +287,8 @@ export async function readCompletedWorksheetOnDevice(imageDataUrl: string, sheet
   let cleaned = imageDataUrl;
   let density: ((box: { x: number; y: number; width: number; height: number }) => number) | null = null;
   try {
-    const { flattenWorksheet } = await import('./worksheetReprint');
-    flat = await flattenWorksheet(imageDataUrl);
+    if (options.page) flat = options.page.flat;
+    else { options.onProgress?.('Straightening the page…'); flat = await normalizeWorksheetPage(imageDataUrl); }
     cleaned = flat.dataUrl;
     const { data } = flat.imageData; const W = flat.width, H = flat.height;
     density = (box) => {
@@ -243,34 +304,39 @@ export async function readCompletedWorksheetOnDevice(imageDataUrl: string, sheet
     };
   } catch (error) { console.warn('[worksheetLocalVision] completed-scan flatten skipped.', error); }
 
-  const local = await digitizeWorksheetOnDevice(cleaned, sheet.createdBy);
+  const local = options.page?.local || await digitizeWorksheetOnDevice(cleaned, sheet.createdBy, options.onProgress);
+  // The student's photo is never framed like the teacher's: anchor on the printed prompts and move
+  // every answer box onto THIS photo before reading ink inside it.
+  const registration = registerFieldsToScan(sheet, local.lines);
+  const placed = registration.sheet;
   const answers: Record<string, string> = {};
   const confidence: Record<string, number> = {};
   const answered: Record<string, boolean> = {};
-  for (const field of sheet.fields) {
+  for (const field of placed.fields) {
     const inBox = local.words.filter(word => {
       const cx = word.box.x + word.box.width / 2, cy = word.box.y + word.box.height / 2;
       return cx >= field.box.x && cx <= field.box.x + field.box.width && cy >= field.box.y && cy <= field.box.y + field.box.height;
-    });
+    }).filter(word => !/^_+$/.test(word.text));
     const inkDensity = density ? density(field.box) : 0;
     const hasInk = inkDensity > .018;
     answered[field.id] = inBox.length > 0 || hasInk;
     if (inBox.length) {
-      answers[field.id] = inBox.sort((a, b) => a.box.y - b.box.y || a.box.x - b.box.x).map(word => word.text).join(' ');
-      confidence[field.id] = inBox.reduce((sum, word) => sum + word.confidence, 0) / inBox.length;
+      answers[field.id] = inBox.sort((a, b) => a.box.y - b.box.y || a.box.x - b.box.x).map(word => word.text.replace(/_+/g, '')).join(' ').trim();
+      // A read off an unregistered photo is a guess about where the box is — trust it less.
+      const placementTrust = registration.matched >= 2 ? 1 : .7;
+      confidence[field.id] = placementTrust * inBox.reduce((sum, word) => sum + word.confidence, 0) / inBox.length;
     } else if (hasInk) {
       answers[field.id] = '';
       confidence[field.id] = 0.2;
     }
   }
-
   // Handwriting lane: transcribe each answered field's writing area with TrOCR when available.
   if (flat && wantHandwriting !== 'skip') {
     try {
       const { isHandwritingModelInstalled, transcribeHandwritingCrops } = await import('./handwritingTranscription');
       if (wantHandwriting === 'require' || (wantHandwriting === 'auto' && isHandwritingModelInstalled())) {
         const { cropHandwriting } = await import('./worksheetReprint');
-        const targets = sheet.fields.filter(f => answered[f.id]);
+        const targets = placed.fields.filter(f => answered[f.id]);
         if (targets.length) {
           options.onProgress?.('Reading handwriting on this device…');
           const crops = targets.map(f => ({ id: f.id, dataUrl: cropHandwriting(flat, f.box) }));
@@ -287,21 +353,104 @@ export async function readCompletedWorksheetOnDevice(imageDataUrl: string, sheet
   const anyAnswered = Object.values(answered).some(Boolean);
   return {
     ok: anyAnswered, answers, confidence, answered,
+    registration: { matched: registration.matched, total: registration.total, quality: registration.quality },
+    pageText: local.text, pageImage: cleaned,
     message: anyAnswered ? undefined : 'No writing was detected inside the answer regions. You can still enter answers manually.',
   };
 }
 
-function collectLines(blocks: any[], width: number, height: number) {
-  const lines: { text: string; box: LocalWord['box']; confidence: number }[] = [];
-  for (const block of blocks) for (const paragraph of block.paragraphs || []) for (const line of paragraph.lines || []) {
-    const text = String(line.text || '').trim(); if (!text) continue;
-    lines.push({ text, box: pctBox(line.bbox, width, height), confidence: clamp(Number(line.confidence || 0) / 100, .55) });
+/**
+ * Turn any phone photo into an upright, flat, paper-only page: lighting flattened, perspective
+ * corrected (or cropped to paper), sideways shots rotated, and fine skew removed. Teacher scans and
+ * student scans both pass through this, so they share one page coordinate space.
+ * Orientation voting (several OCR passes) only runs for landscape captures — worksheets and flyers
+ * are portrait, so an upright portrait photo never pays for it.
+ */
+export async function normalizeWorksheetPage(src: string, onProgress?: (message: string) => void) {
+  const { flattenWorksheet, cropToPaper, warpToPage, rotateWorksheet } = await import('./worksheetReprint');
+  const { estimateDeskewAngle, buildInkMap } = await import('./worksheetReprintCore');
+  // Find the paper on the RAW photo first: lighting flattening brightens the desk around the page
+  // until paper and desk look alike, so isolating after flattening silently kept the desk.
+  let pageSrc = src;
+  try {
+    const image: HTMLImageElement = await new Promise((res, rej) => { const el = new Image(); el.onload = () => res(el); el.onerror = () => rej(new Error('page load failed')); el.src = src; });
+    const scale = Math.min(1, 1700 / Math.max(image.naturalWidth, image.naturalHeight));
+    const W = Math.max(2, Math.round(image.naturalWidth * scale)), H = Math.max(2, Math.round(image.naturalHeight * scale));
+    const canvas = document.createElement('canvas'); canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
+    ctx.drawImage(image, 0, 0, W, H);
+    const imageData = ctx.getImageData(0, 0, W, H);
+    const raw = { canvas, ctx, width: W, height: H, dataUrl: src, imageData, ink: buildInkMap(imageData.data, W, H) };
+    const isolated = warpToPage(raw);
+    if (isolated) pageSrc = isolated.dataUrl;
+  } catch (error) { console.warn('[worksheetLocalVision] raw paper isolation skipped.', error); }
+  let flat = await flattenWorksheet(pageSrc);
+  if (pageSrc === src) {
+    try { flat = warpToPage(flat) || cropToPaper(flat); } catch (error) { console.warn('[worksheetLocalVision] paper isolation skipped.', error); }
   }
-  return lines.sort((a, b) => a.box.y - b.box.y || a.box.x - b.box.x);
+  if (flat.width > flat.height * 1.12) {
+    try {
+      const orient = await detectPageOrientation(flat.dataUrl, onProgress, [0, 90, 270]);
+      if (orient.degrees) flat = rotateWorksheet(flat, orient.degrees);
+    } catch (error) { console.warn('[worksheetLocalVision] orientation skipped.', error); }
+  }
+  try {
+    const skew = estimateDeskewAngle(flat.ink, flat.width, flat.height);
+    if (skew) flat = rotateWorksheet(flat, -skew);
+  } catch (error) { console.warn('[worksheetLocalVision] deskew skipped.', error); }
+  return flat;
 }
 
-function inferField(line: { text: string; box: LocalWord['box']; confidence: number }, index: number): WorksheetField {
-  const ordinal = line.text.match(/^\s*([\dA-Z]+[.)])/i)?.[1];
+/** OCR any page (worksheet, flyer, note) on device: normalized image + lines + plain text. */
+export async function readPageOnDevice(src: string, onProgress?: (message: string) => void): Promise<PageRead & { pageImage: string; text: string }> {
+  onProgress?.('Straightening the page…');
+  const flat = await normalizeWorksheetPage(src, onProgress);
+  const local = await digitizeWorksheetOnDevice(flat.dataUrl, 'scanner', onProgress);
+  return { flat, local, pageImage: flat.dataUrl, text: local.text };
+}
+
+async function loadGray(src: string, width: number, height: number): Promise<GrayImage> {
+  const image: HTMLImageElement = await new Promise((res, rej) => { const el = new Image(); el.onload = () => res(el); el.onerror = () => rej(new Error('gray load failed')); el.src = src; });
+  const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
+  ctx.drawImage(image, 0, 0, width, height);
+  const rgba = ctx.getImageData(0, 0, width, height).data;
+  const data = new Uint8Array(width * height);
+  for (let i = 0, j = 0; j < data.length; i += 4, j++) data[j] = (rgba[i] * 54 + rgba[i + 1] * 183 + rgba[i + 2] * 19) >> 8;
+  return { data, width, height };
+}
+
+/** OCR lines in pixels, with word boxes, and "+" glyphs re-checked against the ink for "÷". */
+function collectPxLines(blocks: any[], gray: GrayImage | null) {
+  const out: Array<{ text: string; bbox: PxBox; confidence: number; words: PxBox[] }> = [];
+  for (const block of blocks) for (const paragraph of block.paragraphs || []) for (const line of paragraph.lines || []) {
+    const lb = line.bbox || {};
+    const bbox: PxBox = { x0: Number(lb.x0), y0: Number(lb.y0), x1: Number(lb.x1), y1: Number(lb.y1) };
+    const wordTexts: string[] = [];
+    const wordBoxes: PxBox[] = [];
+    for (const word of line.words || []) {
+      let text = String(word.text || '').trim();
+      if (!text) continue;
+      if (gray && text.includes('+') && Array.isArray(word.symbols)) {
+        text = word.symbols.map((sym: any) => {
+          if (sym.text !== '+') return String(sym.text || '');
+          const b = sym.bbox || {};
+          return classifyPlusOrDivide(gray, { x0: b.x0, y0: b.y0, x1: b.x1, y1: b.y1 }, bbox.y0, bbox.y1) === '÷' ? '÷' : '+';
+        }).join('') || text;
+      }
+      wordTexts.push(text);
+      const wb = word.bbox || {};
+      wordBoxes.push({ x0: Number(wb.x0), y0: Number(wb.y0), x1: Number(wb.x1), y1: Number(wb.y1) });
+    }
+    const text = (wordTexts.length ? wordTexts.join(' ') : String(line.text || '')).replace(/\s+/g, ' ').trim();
+    if (!text || !(bbox.x1 - bbox.x0 > 1)) continue;
+    out.push({ text, bbox, confidence: clamp(Number(line.confidence || 0) / 100, .55), words: wordBoxes });
+  }
+  return out.sort((a, b) => a.bbox.y0 - b.bbox.y0 || a.bbox.x0 - b.bbox.x0);
+}
+
+function inferField(line: { text: string; box: LocalWord['box']; confidence: number }, index: number, splitOrdinal?: string): WorksheetField {
+  const ordinal = splitOrdinal || line.text.match(/^\s*([\dA-Z]+[.)])\s/i)?.[1];
   const choices = Array.from(line.text.matchAll(/(?:^|\s)([A-D])[.)]\s*([^A-D]+?)(?=\s[A-D][.)]|$)/gi)).map(match => match[2].trim());
   const numeric = /[+\-×÷=]|\b(calculate|solve|sum|difference|product|quotient)\b/i.test(line.text);
   const type: WorksheetField['type'] = choices.length > 1 ? 'multiple-choice' : /\btrue\s*(?:or|\/)\s*false\b/i.test(line.text) ? 'true-false' : numeric ? 'numeric' : line.box.height > 8 ? 'long-text' : 'short-text';

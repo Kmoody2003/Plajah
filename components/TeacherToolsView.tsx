@@ -39,6 +39,9 @@ import WorksheetFillable from './WorksheetFillable';
 import IntegrityWallPanel from './academia/IntegrityWallPanel';
 import AssignmentTemplateStudio from './academia/AssignmentTemplateStudio';
 import TurnInBriefView from './academia/TurnInBriefView';
+import WorksheetAssignSetup, { type AssignTarget } from './academia/scan/WorksheetAssignSetup';
+import { normalizeWorksheetPage, warmOcr } from '../services/worksheetLocalVision';
+import { takeTeacherWorksheetScan } from '../services/worksheetOpen';
 
 export interface LessonPlan {
   id: string; title: string; subject: Subject; band: string; standardCode: string;
@@ -72,7 +75,7 @@ const cellMastery = (studentId: string, standardId: string) => 38 + (hash(studen
 
 const cardStyle: React.CSSProperties = { background: T.card, border: `1px solid ${T.border}`, borderRadius: 14 };
 const Eyebrow: React.FC<{ children: React.ReactNode; color?: string }> = ({ children, color }) => (
-  <div style={{ fontSize: 9.5, letterSpacing: '0.16em', textTransform: 'uppercase', fontWeight: 800, color: color || T.muted, marginBottom: 8 }}>{children}</div>
+  <div style={{ fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 800, color: color || T.muted, marginBottom: 8 }}>{children}</div>
 );
 const chip = (on: boolean, color = T.orange): React.CSSProperties => ({ cursor: 'pointer', padding: '7px 12px', borderRadius: 8, fontSize: 12.5, fontWeight: 700, border: `1px solid ${on ? color : T.border}`, background: on ? `${color}22` : 'transparent', color: on ? color : T.ink });
 const Bar: React.FC<{ value: number; color: string }> = ({ value, color }) => (
@@ -105,7 +108,7 @@ const TeacherToolsView: React.FC<{ onBack?: () => void; user?: any }> = ({ onBac
   const standards = useMemo(() => STANDARDS.filter(s => s.subject === subject && grades.includes(s.grade)), [subject, band]);
 
   return (
-    <div style={{ minHeight: '100%', background: T.bg, color: T.ink, padding: '20px 16px 70px', fontFamily: T.font }}>
+    <div className="teacher-tools-view" style={{ minHeight: '100%', background: T.bg, color: T.ink, padding: '20px 16px calc(70px + env(safe-area-inset-bottom))', fontFamily: T.font }}>
       <div style={{ maxWidth: tab === 'worksheet' ? 1500 : 1000, margin: '0 auto' }}>
         {onBack && <button onClick={onBack} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 8, border: `1px solid ${T.border}`, background: 'transparent', color: '#bbb', fontSize: 12.5, cursor: 'pointer', fontWeight: 600 }}><ArrowLeft size={16} /> Back</button>}
 
@@ -119,12 +122,13 @@ const TeacherToolsView: React.FC<{ onBack?: () => void; user?: any }> = ({ onBac
 
         {/* subject + band */}
         <div style={{ display: 'flex', gap: 16, marginTop: 16, flexWrap: 'wrap' }}>
-          <div><Eyebrow>Subject</Eyebrow><div style={{ display: 'flex', gap: 6 }}>{SUBJECTS.map(s => <button key={s.id} onClick={() => setSubject(s.id)} style={chip(subject === s.id, s.color)}>{s.label}</button>)}</div></div>
-          <div><Eyebrow>Level</Eyebrow><div style={{ display: 'flex', gap: 6 }}>{BANDS.map(b => <button key={b.id} onClick={() => setBand(b.id)} style={chip(band === b.id)}>{b.label}</button>)}</div></div>
+          <div><Eyebrow>Subject</Eyebrow><div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{SUBJECTS.map(s => <button key={s.id} onClick={() => setSubject(s.id)} style={chip(subject === s.id, s.color)}>{s.label}</button>)}</div></div>
+          <div><Eyebrow>Level</Eyebrow><div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{BANDS.map(b => <button key={b.id} onClick={() => setBand(b.id)} style={chip(band === b.id)}>{b.label}</button>)}</div></div>
         </div>
 
         {/* tabs */}
-        <div style={{ display: 'flex', gap: 8, margin: '18px 0 20px', flexWrap: 'wrap' }}>
+        <div className="teacher-tools-tabs" style={{ display: 'flex', gap: 8, margin: '18px 0 20px', flexWrap: 'wrap' }}>
+          <style>{`@media(max-width:720px){.teacher-tools-tabs{flex-wrap:nowrap!important;overflow-x:auto;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;margin-left:-16px!important;margin-right:-16px!important;padding:0 16px 4px}.teacher-tools-tabs>button{flex:0 0 auto;scroll-snap-align:start;min-height:44px}.teacher-tools-view input,.teacher-tools-view select,.teacher-tools-view textarea{font-size:16px!important}}`}</style>
           {([['worksheet', 'Scan Worksheet', ScanLine], ['plan', 'Plan from Mastery', Wand2], ['library', 'Content Library', Library], ['planner', `Planner${plans.length ? ` (${plans.length})` : ''}`, CalendarDays], ['checks', `Checks${assignments.length ? ` (${assignments.length})` : ''}`, ListChecks], ['grade', 'Gradebook', LayoutGrid], ['assess', 'Assess Work', ClipboardCheck], ['reports', 'Reports', Printer], ['templates', 'Assignment Templates', BookOpen], ['integrity', 'Integrity Wall', ShieldCheck], ['connect', 'Integrations', Plug], ['context', 'Context', Globe]] as [Tab, string, any][]).map(([v, l, Icon]) => (
             <button key={v} onClick={() => setTab(v)} style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 15px', borderRadius: 10, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 800, border: `1px solid ${tab === v ? T.orange : T.border}`, background: tab === v ? T.orange : 'transparent', color: tab === v ? '#1a1a1a' : T.muted }}>
               <Icon size={13} /> {l}
@@ -218,6 +222,18 @@ const ScanWorksheet: React.FC<{ user?: any }> = ({ user }) => {
   const [authored, setAuthored] = useState(false);
   const [authorSyncing, setAuthorSyncing] = useState(false);
   const fileRef = React.useRef<HTMLInputElement>(null);
+  const galleryRef = React.useRef<HTMLInputElement>(null);
+  const [scanProgress, setScanProgress] = useState('');
+  const [target, setTarget] = useState<AssignTarget | null>(null);
+  const rosterFor = () => target?.students || DEMO_CLASS.students.map(s => ({ id: s.id, name: s.name }));
+  // Load OCR while the teacher is still framing the photo, so the first read doesn't pay for it.
+  React.useEffect(() => {
+    warmOcr();
+    // A worksheet photographed from "Scan school paper" arrives here ready to digitize.
+    const handed = takeTeacherWorksheetScan();
+    if (handed) void onFile({ target: { files: [handed], value: '' } } as unknown as React.ChangeEvent<HTMLInputElement>);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const scanSessionId = React.useRef(`scan_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`);
 
   const runLayeredRebuild = async (source = prepared?.cleanedDataUrl, options?: { semanticNaming?: 'auto' | 'require' | 'skip' }) => {
@@ -245,17 +261,23 @@ const ScanWorksheet: React.FC<{ user?: any }> = ({ user }) => {
     if (!file) return;
     setErr(''); setAnswers({}); setThemed(false); setPublished(false); setLayeredRebuild(null); setLayeredError(''); setLayeredProgress(null); setReviewSurface('FILLABLE'); setFormatUndo(null);
     try {
+      setStage('digitizing'); setScanProgress('Cleaning the photo…');
       const image = await prepareWorksheetImage(file);
       setPrepared(image);
       setPreview(image.originalDataUrl);
-      setStage('digitizing');
-      const result = await digitizeWorksheetDetailed(image.cleanedBase64, image.mimeType, user?.uid || 'demo-teacher');
+      // Straighten to a flat, upright page first: answer boxes then live in the same page space a
+      // student's photo is registered into, and the overlay sits exactly on the printed blanks.
+      let page = image.cleanedDataUrl;
+      try { setScanProgress('Straightening the page…'); page = (await normalizeWorksheetPage(image.cleanedDataUrl, setScanProgress)).dataUrl; }
+      catch (error) { console.warn('[ScanWorksheet] page normalization skipped', error); }
+      setPreview(page);
+      const result = await digitizeWorksheetDetailed(page.split(',')[1] || image.cleanedBase64, 'image/jpeg', user?.uid || 'demo-teacher', setScanProgress);
       if (!result.ok || !result.sheet) { setErr(result.error?.message || 'Could not read that worksheet. Try a clearer, well-lit photo.'); setStage('error'); return; }
       setSheet({ ...result.sheet, reviewIssues: [...(result.sheet.reviewIssues || []), ...image.warnings] });
       setStage('ready');
       // The reprint reconstruction is deterministic and fully local — always build it.
       // Florence naming joins automatically when its pack is already installed.
-      void runLayeredRebuild(image.cleanedDataUrl);
+      void runLayeredRebuild(page);
     } catch (e: any) {
       setErr(e?.message || 'Something went wrong reading the image.');
       setStage('error');
@@ -325,12 +347,15 @@ const ScanWorksheet: React.FC<{ user?: any }> = ({ user }) => {
       setSheet(publishable);
       const res = await publishWorksheet({
         sheet: publishable,
-        classId: DEMO_CLASS.id || 'demo-4b',
-        className: DEMO_CLASS.name,
-        students: DEMO_CLASS.students.map(s => ({ id: s.id, name: s.name })),
+        classId: target?.classId || DEMO_CLASS.id || 'demo-4b',
+        className: target?.className || DEMO_CLASS.name,
+        students: rosterFor(),
         teacher: { uid: user?.uid || 'demo-teacher', name: user?.displayName || DEMO_CLASS.teacherName, photo: user?.photoURL || '' },
-        simulate: true,
+        dueDate: target?.dueDate || undefined,
+        // A real class with a signed-in teacher notifies live students + guardians.
+        simulate: !user?.uid || target?.simulate !== false,
         originalFile: prepared?.originalFile,
+        pageImageDataUrl: preview.startsWith('data:') ? preview : undefined,
       });
       setWire(res);
     } catch (error) {
@@ -346,17 +371,21 @@ const ScanWorksheet: React.FC<{ user?: any }> = ({ user }) => {
   return (
     <div>
       <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={onFile} style={{ display: 'none' }} />
+      <input ref={galleryRef} type="file" accept="image/*" onChange={onFile} style={{ display: 'none' }} />
       <style>{`
         @keyframes spin{to{transform:rotate(360deg)}}
-        .worksheet-review-grid{display:grid;grid-template-columns:repeat(2,minmax(440px,1fr));gap:12px;overflow-x:auto;min-height:620px}
+        .worksheet-review-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;min-height:620px}
         .worksheet-review-pane{height:580px;overflow:auto;border-radius:10px;background:#08080c;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
-        .worksheet-review-toolbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-        @media(max-width:720px){
+        .worksheet-review-toolbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;min-width:0;max-width:100%}
+        @media(max-width:960px){
           .worksheet-review-grid{grid-template-columns:minmax(0,1fr);min-height:0;overflow-x:hidden}
-          .worksheet-review-pane{height:62vh;min-height:430px}
+          .worksheet-review-pane{height:62dvh;min-height:min(430px,60dvh)}
+        }
+        @media(max-width:720px){
           .worksheet-review-toolbar{width:100%;overflow-x:auto;flex-wrap:nowrap;padding-bottom:4px}
           .worksheet-review-toolbar button{flex:0 0 auto;min-width:40px;min-height:40px}
-          .worksheet-inspection{inset:0!important;border-radius:0!important;padding:10px!important}
+          .worksheet-inspection{inset:0!important;border-radius:0!important;padding:calc(10px + env(safe-area-inset-top)) 10px calc(10px + env(safe-area-inset-bottom))!important}
+          .worksheet-review-grid button{min-height:40px}
         }
       `}</style>
 
@@ -368,11 +397,18 @@ const ScanWorksheet: React.FC<{ user?: any }> = ({ user }) => {
           <div style={{ fontSize: 12.5, color: T.muted, lineHeight: 1.5, maxWidth: 460, marginBottom: 16 }}>
             Plajah reads it, builds a fillable graded version, and wires it to your class, parents, and tutor automatically. Theme it if you want — otherwise it's live.
           </div>
-          <button onClick={() => fileRef.current?.click()} style={{ width: '100%', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '30px 16px', borderRadius: 14, border: `2px dashed ${T.border}`, background: T.cardAlt, color: T.ink }}>
-            <div style={{ display: 'flex', gap: 14 }}><Camera size={30} color={T.orange} /><UploadCloud size={30} color={T.muted} /></div>
-            <div style={{ fontSize: 14, fontWeight: 800 }}>Capture worksheet</div>
-            <div style={{ fontSize: 11, color: T.faint }}>Camera on mobile · image upload on desktop</div>
-          </button>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: 10 }}>
+            <button onClick={() => fileRef.current?.click()} style={{ width: '100%', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '26px 16px', borderRadius: 14, border: `2px dashed ${T.orange}66`, background: T.cardAlt, color: T.ink }}>
+              <Camera size={30} color={T.orange} />
+              <div style={{ fontSize: 14, fontWeight: 800 }}>Take a photo</div>
+              <div style={{ fontSize: 11.5, color: T.faint }}>Lay it flat, fill the frame</div>
+            </button>
+            <button onClick={() => galleryRef.current?.click()} style={{ width: '100%', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '26px 16px', borderRadius: 14, border: `2px dashed ${T.border}`, background: T.cardAlt, color: T.ink }}>
+              <UploadCloud size={30} color={T.muted} />
+              <div style={{ fontSize: 14, fontWeight: 800 }}>Choose an image</div>
+              <div style={{ fontSize: 11.5, color: T.faint }}>Photo library or a saved scan</div>
+            </button>
+          </div>
           <div style={{ marginTop: 14, fontSize: 11, color: T.faint, display: 'flex', alignItems: 'center', gap: 6 }}>
             <Sparkles size={12} /> Phase 1: math, science, and fact-based questions auto-grade. Open-response is captured for you to grade.
           </div>
@@ -386,7 +422,7 @@ const ScanWorksheet: React.FC<{ user?: any }> = ({ user }) => {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: T.ink, fontWeight: 700 }}>
             <Loader2 size={18} className="spin" style={{ animation: 'spin 1s linear infinite' }} /> Digitizing worksheet…
           </div>
-            <div style={{ fontSize: 12, color: T.muted }}>Cleaning page · OCR · separating diagrams · rebuilding Tela form · checking answers</div>
+            <div style={{ fontSize: 12, color: T.muted, textAlign: 'center' }} aria-live="polite">{scanProgress || 'Cleaning page · OCR · separating diagrams · rebuilding Tela form · checking answers'}</div>
           <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
         </div>
       )}
@@ -403,7 +439,7 @@ const ScanWorksheet: React.FC<{ user?: any }> = ({ user }) => {
       {/* Ready — digitized, fillable, auto-wired */}
       {stage === 'ready' && sheet && (
         <>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 14 }}>
           {/* Left: the fillable overlay on the scan */}
           <div className={inspectionOpen ? 'worksheet-inspection' : undefined} style={{ ...cardStyle, padding: 16, ...(inspectionOpen ? { position: 'fixed', inset: 12, zIndex: 9999, background: '#0c0c12', overflow: 'auto' } : {}) }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
@@ -472,10 +508,12 @@ const ScanWorksheet: React.FC<{ user?: any }> = ({ user }) => {
               <div style={{ marginTop: 8, fontSize: 10.5, color: T.faint, lineHeight: 1.5 }}>The Tela document is saved as the worksheet's editable source. Publishing syncs your authored questions &amp; answer key back into the graded version.</div>
             </div>
 
+            <WorksheetAssignSetup sheet={sheet} onSheet={setSheet} uid={user?.uid} locked={published} onTarget={setTarget} />
+
             <div style={{ ...cardStyle, padding: 16 }}>
               <Eyebrow>Auto-wired on publish</Eyebrow>
-              <WireStep icon={Users} label={`Assign to ${DEMO_CLASS.name.split('—')[0].trim()}${published && wire ? ` · ${wire.studentsNotified} notified` : ''}`} done={published} />
-              <WireStep icon={Bell} label={`Notify ${published && wire ? wire.parentsNotified : DEMO_CLASS.students.length} parents · homework available`} done={published} />
+              <WireStep icon={Users} label={`Assign to ${(target?.className || DEMO_CLASS.name).split('—')[0].trim()}${published && wire ? ` · ${wire.studentsNotified} notified` : ` · ${rosterFor().length} students`}`} done={published} />
+              <WireStep icon={Bell} label={`Notify ${published && wire ? wire.parentsNotified : 'linked'} parents · homework available${target?.dueDate ? ` · due ${new Date(target.dueDate).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}` : ''}`} done={published} />
               <WireStep icon={MessageSquare} label="Attach Plajah tutor (knows the answer key)" done={published} />
               <WireStep icon={Hand} label="Enable live progress + digital hand-raise" done={published} />
               <WireStep icon={Check} label="Arm auto-grade on turn-in" done={published} />
@@ -484,8 +522,8 @@ const ScanWorksheet: React.FC<{ user?: any }> = ({ user }) => {
               </button>
               <div style={{ marginTop: 8, fontSize: 10.5, color: T.faint, lineHeight: 1.5 }}>
                 {published
-                  ? `Worksheet persisted${wire?.worksheetId ? ` (${wire.worksheetId.slice(0, 6)}…)` : ''}. Demo roster runs in simulate mode — a real class notifies live students + guardians.`
-                  : 'Persists the worksheet, creates the assignment, and notifies students + guardians. Demo roster is simulated.'}
+                  ? `Worksheet persisted${wire?.worksheetId ? ` (${wire.worksheetId.slice(0, 6)}…)` : ''}.${wire?.simulated ? ' Demo roster: notifications were counted, not sent.' : ' Students and guardians were notified.'}`
+                  : target?.simulate === false ? `Persists the worksheet, assigns it to ${target.className}, and notifies ${target.students.length} students + their guardians.` : 'Persists the worksheet and creates the assignment. Demo roster is simulated.'}
               </div>
             </div>
           </div>
@@ -502,7 +540,7 @@ const ScanWorksheet: React.FC<{ user?: any }> = ({ user }) => {
               </div>
             </div>
             <div style={{ borderRadius: 10, overflow: 'auto', maxHeight: 700, border: `1px solid ${T.border}`, background: '#0d0d12' }}>
-              <TelaEmbed docId={telaDocId} frameId={`${telaDocId}_reconstructed`} mode="pinned" editable canEdit width={900} className="worksheet-tela-embed" />
+              <TelaEmbed docId={telaDocId} frameId={`${telaDocId}_reconstructed`} mode="pinned" editable canEdit width={Math.min(900, typeof window !== 'undefined' ? window.innerWidth - 48 : 900)} className="worksheet-tela-embed" />
             </div>
             <div style={{ marginTop: 8, fontSize: 10.5, color: T.faint, lineHeight: 1.5 }}>Move &amp; add content, edit or add questions with the flying menu. When you're done, <b style={{ color: T.muted }}>Apply edits</b> pulls your questions &amp; answer key back into the graded worksheet — then Publish below.</div>
           </div>
@@ -514,9 +552,9 @@ const ScanWorksheet: React.FC<{ user?: any }> = ({ user }) => {
               <div style={{ marginTop: 12 }}>
                 <TurnInBriefView
                   sheet={sheet}
-                  roster={DEMO_CLASS.students.map(st => ({ id: st.id, name: st.name }))}
+                  roster={rosterFor()}
                   {...(wire && !wire.simulated && wire.worksheetId
-                    ? { loadBrief: () => fetchAssignmentBrief(wire.worksheetId!, sheet, DEMO_CLASS.students.map(st => ({ id: st.id, name: st.name }))), onConfirmField: (sid: string, fid: string, c: boolean) => { void confirmSubmissionField(wire.worksheetId!, sid, fid, c, { uid: user?.uid || 'demo', name: user?.displayName || DEMO_CLASS.teacherName }); } }
+                    ? { loadBrief: () => fetchAssignmentBrief(wire.worksheetId!, sheet, rosterFor()), onConfirmField: (sid: string, fid: string, c: boolean) => { void confirmSubmissionField(wire.worksheetId!, sid, fid, c, { uid: user?.uid || 'demo', name: user?.displayName || DEMO_CLASS.teacherName }); } }
                     : { simulate: true })}
                 />
               </div>
