@@ -748,7 +748,19 @@ export class BeatsEngine {
    * override (the album pressing is restored when it ends or is stopped). This is how the
    * Project view's proof sheet lets you HEAR each track through its own decade.
    */
-  async playAudition(id: string, buffer: AudioBuffer, pressing: MasteringState | null, trackFx?: FxInstance[]): Promise<void> {
+  async playAudition(
+    id: string,
+    buffer: AudioBuffer,
+    pressing: MasteringState | null,
+    trackFx?: FxInstance[],
+    /**
+     * Where to play from. `fileOffsetSec` is the track's in-point in the file, `offsetSec` how far
+     * into the PLAYED region to start (a seek), `durationSec` the played length (the out-point).
+     * auditionPosSec() then reads in played-region time, which is what lyric stamps and the
+     * album clock both use. `onEnded` fires only on a natural end, never on stop.
+     */
+    opts: { fileOffsetSec?: number; offsetSec?: number; durationSec?: number; onEnded?: () => void } = {},
+  ): Promise<void> {
     await this.init();
     if (!this.ctx || !this.graph) return;
     this.stopAudition();
@@ -771,9 +783,14 @@ export class BeatsEngine {
       this.auditionState = null;
       if (pressing) this.updateMastering(prior);
       try { src.disconnect(); gain.disconnect(); fx?.dispose(); } catch { /* */ }
+      opts.onEnded?.();
     };
-    src.start();
-    this.auditionState = { src, gain, fx, prior, id, startedAt: this.ctx.currentTime };
+    const fileOffset = Math.max(0, opts.fileOffsetSec ?? 0);
+    const seek = Math.max(0, opts.offsetSec ?? 0);
+    const played = opts.durationSec ?? Math.max(0, buffer.duration - fileOffset);
+    const remaining = Math.max(0.01, played - seek);
+    src.start(0, Math.min(buffer.duration, fileOffset + seek), remaining);
+    this.auditionState = { src, gain, fx, prior, id, startedAt: this.ctx.currentTime - seek };
     this.resetLoudness(); // the meters should measure THIS track
   }
 

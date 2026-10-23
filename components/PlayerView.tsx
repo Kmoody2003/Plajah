@@ -22,7 +22,8 @@ import { useChoraNext } from '../hooks/useChoraNext';
 import OrreryStage from './OrreryStage';
 import AlbumTvView from './tv/AlbumTvView';
 import PaintPoolVisualizer from './PaintPoolVisualizer';
-import FxStageVisualizers, { type FxEngine, fxPresetName, FX_ENGINE_PRESETS, loadMilkdropNames, loadShaderNames } from './FxStageVisualizers';
+import { AlbumFace, albumHasFace } from './chora/AlbumFace';
+import FxStageVisualizers, { type FxEngine, type ArtistVisual, fxPresetName, FX_ENGINE_PRESETS, loadMilkdropNames, loadShaderNames } from './FxStageVisualizers';
 import Logo from './Logo';
 import { probeShaderGpu } from '../services/shaders/shaderGate';
 import LookedCover from './chora/looks/LookedCover';
@@ -679,7 +680,24 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   const [isVisualizerFullscreen, setIsVisualizerFullscreen] = useState(false);
   // FX Stage engine: 'FLOW'/'PAINT' are the built-in reactors; the rest pull the
   // three Plajah Pixels engines (MilkDrops / Shaders / Generators) as no-param reactors.
-  const [fxEngine, setFxEngine] = useState<'FLOW' | 'PAINT' | FxEngine>('FLUX');
+  const [fxEngine, setFxEngine] = useState<'FLOW' | 'PAINT' | 'ARTIST' | FxEngine>('FLUX');
+  // The artist's own visual for this song (Mastering Desk → album.albumVisuals): a per-song pick,
+  // else the album default; 'CUSTOM:<id>' resolves to one of the album's uploaded shaders.
+  const artistVisual = useMemo<ArtistVisual | null>(() => {
+    const vis = album.albumVisuals;
+    if (!vis) return null;
+    const songId = album.tracks?.[currentTrackIndex]?.id;
+    const raw = (songId && vis.perTrack?.[songId]) || vis.defaultVisual;
+    if (!raw) return null;
+    if (raw.startsWith('CUSTOM:')) {
+      const sh = vis.customShaders?.find((x) => x.id === raw.slice(7));
+      return sh ? { shaderSource: sh.source } : null;
+    }
+    return { value: raw };
+  }, [album.albumVisuals, album.tracks, currentTrackIndex]);
+  const artistLocked = !!album.albumVisuals?.lockToArtist && !!artistVisual;
+  // An album with the artist's visuals opens on them.
+  useEffect(() => { if (artistVisual) setFxEngine('ARTIST'); }, [album.id, !!artistVisual]); // eslint-disable-line react-hooks/exhaustive-deps
   const [fxPresetIndex, setFxPresetIndex] = useState(0);
   const [fxMenuOpen, setFxMenuOpen] = useState(false);
   // Looks engine = open-source WebGPU library; only offered where WebGPU actually works (hidden on TVs / older browsers).
@@ -704,7 +722,9 @@ const PlayerView: React.FC<PlayerViewProps> = ({
       const current = available.indexOf(gatefoldStageMode);
       const next = available[(current + 1) % available.length];
       // When auto-cycling lands on FX, pick a random FLUX preset for variety
-      if (next === 'FX') {
+      if (next === 'FX' && artistVisual) {
+        setFxEngine('ARTIST');
+      } else if (next === 'FX') {
         setFxEngine('FLUX');
         const fluxCount = FX_ENGINE_PRESETS.FLUX?.length || 1;
         setFxPresetIndex(Math.floor(Math.random() * fluxCount));
@@ -713,12 +733,14 @@ const PlayerView: React.FC<PlayerViewProps> = ({
       setStageCycleStarted(true);
     }, delay);
     return () => window.clearTimeout(timer);
-  }, [gatefoldOn, gatefoldStageMode, isStageCycling, stageCycleStarted, selectGatefoldStage]);
+  }, [gatefoldOn, gatefoldStageMode, isStageCycling, stageCycleStarted, selectGatefoldStage, artistVisual]);
   const [milkdropNames, setMilkdropNames] = useState<string[]>([]);
   const [shaderNames, setShaderNames] = useState<string[]>([]);
   const [fxSearch, setFxSearch] = useState('');
-  const isPixelsEngine = fxEngine === 'MILKDROP' || fxEngine === 'SHADER' || fxEngine === 'GENERATOR' || fxEngine === 'FLUX' || fxEngine === 'TYPO' || fxEngine === 'KAIJU' || fxEngine === 'LOOKS';
-  const FX_OPTIONS = [
+  // 'ARTIST' renders through the Pixels stage too (FxStageVisualizers' artist prop).
+  const isPixelsEngine = fxEngine === 'MILKDROP' || fxEngine === 'SHADER' || fxEngine === 'GENERATOR' || fxEngine === 'FLUX' || fxEngine === 'TYPO' || fxEngine === 'KAIJU' || fxEngine === 'LOOKS' || fxEngine === 'ARTIST';
+  const FX_OPTIONS = artistLocked ? [{ id: 'ARTIST' as const, label: 'Artist' }] : [
+    ...(artistVisual ? [{ id: 'ARTIST' as const, label: 'Artist' }] : []),
     { id: 'FLOW' as const, label: 'Flow' }, { id: 'PAINT' as const, label: 'Paint' },
     { id: 'FLUX' as const, label: 'Flux 3D' }, { id: 'TYPO' as const, label: 'Typo' }, { id: 'KAIJU' as const, label: 'Kaiju' },
     { id: 'SHADER' as const, label: 'Shaders' }, { id: 'GENERATOR' as const, label: 'Generators' }, { id: 'MILKDROP' as const, label: 'MilkDrops' },
@@ -738,7 +760,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   React.useEffect(() => {
     if (needsFxAnalyser && !globalAnalyser) getAudioContext?.();
   }, [needsFxAnalyser, globalAnalyser, getAudioContext]);
-  const selectFxEngine = React.useCallback((id: 'FLOW' | 'PAINT' | FxEngine) => {
+  const selectFxEngine = React.useCallback((id: 'FLOW' | 'PAINT' | 'ARTIST' | FxEngine) => {
     setFxEngine(id); setFxPresetIndex(0); setFxMenuOpen(false); setFxSearch('');
     if (id === 'FLOW' || id === 'PAINT') setVisualizerType(id);
   }, [setVisualizerType]);
@@ -746,7 +768,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   // The active pixels engine's full preset list (MilkDrops + Shaders loaded async).
   const fxPresetList = fxEngine === 'MILKDROP' ? milkdropNames
     : fxEngine === 'SHADER' ? shaderNames
-    : (isPixelsEngine ? FX_ENGINE_PRESETS[fxEngine as FxEngine] : []);
+    : (isPixelsEngine && fxEngine !== 'ARTIST' ? FX_ENGINE_PRESETS[fxEngine as FxEngine] : []);
   const fxCurrentPreset = fxPresetList.length ? fxPresetList[((fxPresetIndex % fxPresetList.length) + fxPresetList.length) % fxPresetList.length] : '';
 
   // Selector: the three types stay separate (pills); the active pixels type gets its own
@@ -763,8 +785,8 @@ const PlayerView: React.FC<PlayerViewProps> = ({
         ))}
       </div>
 
-      {/* Per-type preset dropdown (only for the pixels engines) */}
-      {isPixelsEngine && (
+      {/* Per-type preset dropdown (only for the pixels engines; the artist's visual has no presets) */}
+      {isPixelsEngine && fxEngine !== 'ARTIST' && (
         <div className="relative flex items-center gap-1 shrink-0">
           <button onClick={() => cycleFxPreset(-1)} aria-label="Previous preset"
             className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full bg-black/50 border border-white/10 text-white/60 hover:text-white transition-all cursor-pointer"><ChevronLeft size={14} /></button>
@@ -1623,7 +1645,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
             <div className="absolute inset-0 z-30 bg-black">
               <div className="absolute inset-0">
                 {isPixelsEngine ? (
-                  <FxStageVisualizers engine={fxEngine as FxEngine} presetIndex={fxPresetIndex} analyser={globalAnalyser} isPlaying={true} />
+                  <FxStageVisualizers engine={(fxEngine === 'ARTIST' ? 'GENERATOR' : fxEngine) as FxEngine} artist={fxEngine === 'ARTIST' ? artistVisual : null} presetIndex={fxPresetIndex} analyser={globalAnalyser} isPlaying={true} />
                 ) : (
                   <>
                     <div className="absolute inset-0" style={{ opacity: fxEngine === 'PAINT' ? 0.35 : 1 }}>
@@ -1780,7 +1802,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                 <div className="w-full h-full animate-in fade-in duration-500 relative bg-black">
                   <div className="absolute inset-0">
                     {isPixelsEngine ? (
-                      <FxStageVisualizers engine={fxEngine as FxEngine} presetIndex={fxPresetIndex} analyser={globalAnalyser} isPlaying={globalIsPlaying && isCurrentTrackGlobal} />
+                      <FxStageVisualizers engine={(fxEngine === 'ARTIST' ? 'GENERATOR' : fxEngine) as FxEngine} artist={fxEngine === 'ARTIST' ? artistVisual : null} presetIndex={fxPresetIndex} analyser={globalAnalyser} isPlaying={globalIsPlaying && isCurrentTrackGlobal} />
                     ) : (
                       <>
                         <Visualizer analyser={globalAnalyser} themeColor={album.themeColor} trackTitle={currentTrack?.title || album.title} artist={album.artist} isPlaying={globalIsPlaying && isCurrentTrackGlobal} scrollingText={scrollingText} />
@@ -1790,7 +1812,8 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                   </div>
                 </div>
               ) : (
-                /* Cover Art */
+                /* Cover Art — the artist's animated / Tela face when set and the song has no own art */
+                !currentTrack?.images?.[0] && albumHasFace(album) ? <AlbumFace album={album} className="w-full h-full object-cover opacity-80" fallback={null} /> :
                 <LookedCover
                   src={thumb((currentTrack?.images?.[0]) || album.coverImage, THUMB.large) || undefined}
                   textureSrc={(currentTrack?.images?.[0]) || album.coverImage}
@@ -4236,7 +4259,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
       ],
     ];
     const visualizerStageEl = isPixelsEngine ? (
-      <FxStageVisualizers engine={fxEngine as FxEngine} presetIndex={fxPresetIndex} analyser={globalAnalyser} isPlaying={true} />
+      <FxStageVisualizers engine={(fxEngine === 'ARTIST' ? 'GENERATOR' : fxEngine) as FxEngine} artist={fxEngine === 'ARTIST' ? artistVisual : null} presetIndex={fxPresetIndex} analyser={globalAnalyser} isPlaying={true} />
     ) : (
       <>
         <div className="absolute inset-0" style={{ opacity: fxEngine === 'PAINT' ? 0.35 : 1, transition: 'opacity 0.8s ease' }}>
@@ -4292,7 +4315,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
               />
             }
             medallion={
-              <LookedCover src={thumb(album.coverImage, THUMB.large) || undefined} textureSrc={album.coverImage} trackId={currentTrack?.id} analyser={globalAnalyser} isPlaying={playingHere} alt={album.title} loading="lazy" decoding="async" onError={onThumbError(album.coverImage)} className="w-full h-full object-cover" />
+              <AlbumFace album={album} width={216} fallback={<LookedCover src={thumb(album.coverImage, THUMB.large) || undefined} textureSrc={album.coverImage} trackId={currentTrack?.id} analyser={globalAnalyser} isPlaying={playingHere} alt={album.title} loading="lazy" decoding="async" onError={onThumbError(album.coverImage)} className="w-full h-full object-cover" />} />
             }
             eyebrow={eyebrow}
             title={album.title}

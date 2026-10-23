@@ -25,6 +25,13 @@ const LooksStage = React.lazy(() => import('./chora/looks/LooksStage'));
 export type FxEngine = 'MILKDROP' | 'SHADER' | 'GENERATOR' | 'FLUX' | 'TYPO' | 'KAIJU' | 'LOOKS';
 
 /**
+ * An album's own visual, set by the artist in the Mastering Desk (releaseDesk.ts VisualsState):
+ * an uploaded shader's source, or a catalog value in AmboTemplateVisualizerPicker's format —
+ * 'SHADER:<name>', 'MILKDROP:<preset>', 'TYPO:<key>', or a generator mode.
+ */
+export type ArtistVisual = { shaderSource: string; value?: undefined } | { value: string; shaderSource?: undefined };
+
+/**
  * Frames per second the Pixels engines should target on this device. 0 = uncapped.
  *
  * A TV box is a fraction of a desktop GPU and these visuals are fill-rate bound, so chasing 60
@@ -201,10 +208,12 @@ const Loading = () => (
 );
 
 export default function FxStageVisualizers({
-  engine, presetIndex, analyser, isPlaying, onVisualError,
+  engine, presetIndex, analyser, isPlaying, onVisualError, artist,
 }: {
   engine: FxEngine;
   presetIndex: number;
+  /** When set, the artist's visual plays instead of the engine/preset pair. */
+  artist?: ArtistVisual | null;
   analyser: AnalyserNode | null;
   isPlaying: boolean;
   /** A visual that cannot run on this device (shader compile/link error, no WebGL2). Hosts that
@@ -230,12 +239,20 @@ export default function FxStageVisualizers({
 
   const startTimeMs = useMemo(() => (typeof performance !== 'undefined' ? performance.now() : 0), [engine, presetIndex]);
   const [shaders, setShaders] = useState<FxShader[]>(() => _shaders || []);
+  const wantsShaders = engine === 'SHADER' || !!artist?.value?.startsWith('SHADER:');
   useEffect(() => {
-    if (engine !== 'SHADER' || shaders.length) return;
+    if (!wantsShaders || shaders.length) return;
     let alive = true;
     loadSignatureShaders().then(s => { if (alive) setShaders(s); });
     return () => { alive = false; };
-  }, [engine, shaders.length]);
+  }, [wantsShaders, shaders.length]);
+  const [milkNames, setMilkNames] = useState<string[]>(() => _milkdropNames || []);
+  useEffect(() => {
+    if (!artist?.value?.startsWith('MILKDROP:') || milkNames.length) return;
+    let alive = true;
+    loadMilkdropNames().then(n => { if (alive) setMilkNames(n); });
+    return () => { alive = false; };
+  }, [artist?.value, milkNames.length]);
   const shader = shaders.length
     ? shaders[((presetIndex % shaders.length) + shaders.length) % shaders.length]
     : null;
@@ -255,6 +272,29 @@ export default function FxStageVisualizers({
   );
 
   if (!analyser) return <Loading />;
+
+  if (artist) {
+    const v = artist.value ?? '';
+    const sigShader = v.startsWith('SHADER:') ? shaders.find(x => x.name === v.slice(7)) : null;
+    const artistGen: VisualizationConfig = { ...BASE_CONFIG, mode: v as VisualizationConfig['mode'], targetFrameRate: fps || BASE_CONFIG.targetFrameRate };
+    return (
+      <Suspense fallback={<Loading />}>
+        {artist.shaderSource != null ? (
+          <ShaderLayer analyser={analyser} source={artist.shaderSource} startTimeMs={startTimeMs} fpsCap={fps} renderScale={renderScale} onError={msg => { if (msg) onVisualError?.(msg); }} />
+        ) : v.startsWith('SHADER:') ? (
+          sigShader ? <ShaderLayer analyser={analyser} source={sigShader.source} startTimeMs={startTimeMs} params={sigShader.params} fpsCap={fps} renderScale={renderScale} onError={msg => { if (msg) onVisualError?.(msg); }} /> : <Loading />
+        ) : v.startsWith('MILKDROP:') ? (
+          milkNames.length ? <ButterchurnLayer analyser={analyser} presetIndex={Math.max(0, milkNames.indexOf(v.slice(9)))} fpsCap={fps} renderScale={renderScale} /> : <Loading />
+        ) : v.startsWith('TYPO:') ? (
+          <TypoStage preset={v.slice(5) as import('./ChoraTypoVisualizer').TypoVolumePreset} analyser={analyser} isPlaying={isPlaying} fpsCap={fps} renderScale={renderScale} />
+        ) : isStudioMode(artistGen.mode) ? (
+          <StudioStage analyser={analyser} config={artistGen} isPlaying={isPlaying} />
+        ) : (
+          <AudioVisualizer analyser={analyser} config={artistGen} isPlaying={isPlaying} hasBackground={false} renderScale={renderScale} />
+        )}
+      </Suspense>
+    );
+  }
 
   return (
     <Suspense fallback={<Loading />}>

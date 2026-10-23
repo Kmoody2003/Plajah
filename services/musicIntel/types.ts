@@ -138,3 +138,48 @@ export interface MusicIntelBundle {
 }
 
 export const MUSIC_INTEL_VERSION = 1;
+
+/**
+ * The creator's corrections to a song's read — stored beside the analysis, never inside it, so
+ * a re-run can't overwrite what the artist fixed. Applied on every read (applyIntelCorrections).
+ */
+export interface TrackIntelCorrections {
+  summary?: string;
+  genreTags?: string[];
+  moodPrimary?: string;
+  moodSecondary?: string[];
+  key?: string;
+  tempoBpm?: number;
+  timeSignature?: string;
+  themes?: string[];
+  linerNote?: string;
+  /** Section relabels by index (the boundaries are measured, the names are the artist's call). */
+  sectionLabels?: Record<string, string>;
+  updatedAt?: number;
+}
+
+/** Overlay the creator's corrections on a measured/listened read. Pure — returns a new object. */
+export function applyIntelCorrections(t: TrackIntel, c: TrackIntelCorrections | null | undefined): TrackIntel {
+  if (!c) return t;
+  const out: TrackIntel = {
+    ...t,
+    mood: { ...t.mood },
+    composition: { ...t.composition },
+    lyrics: { ...t.lyrics },
+    sections: t.sections.map((s) => ({ ...s })),
+  };
+  if (c.summary != null) out.summary = c.summary;
+  if (c.genreTags) out.genreTags = c.genreTags;
+  if (c.moodPrimary != null) out.mood.primary = c.moodPrimary;
+  if (c.moodSecondary) out.mood.secondary = c.moodSecondary;
+  if (c.key != null) out.composition.key = c.key;
+  if (c.tempoBpm != null && Number.isFinite(c.tempoBpm)) out.composition.tempoBpm = c.tempoBpm;
+  if (c.timeSignature != null) out.composition.timeSignature = c.timeSignature;
+  if (c.themes) out.lyrics.themes = c.themes;
+  if (c.linerNote != null) out.linerNote = c.linerNote;
+  for (const [i, label] of Object.entries(c.sectionLabels ?? {})) {
+    const s = out.sections[Number(i)];
+    if (s) s.label = label;
+  }
+  return out;
+}

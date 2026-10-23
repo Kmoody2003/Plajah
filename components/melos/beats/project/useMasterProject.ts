@@ -40,19 +40,21 @@ export function useMasterProject(productionId?: string) {
     return () => { cancelled = true; };
   }, [productionId, reloadKey]);
 
+  /** Write the project now — the Save button / Ctrl+S, and what the autosave debounce calls. */
+  const saveNow = useCallback(async () => {
+    if (saveTimer.current) { clearTimeout(saveTimer.current); saveTimer.current = null; }
+    const prodId = prodIdRef.current || (await ensureScratchProduction());
+    prodIdRef.current = prodId;
+    if (!prodId) { setSaveState('local'); return; }
+    setSaveState('saving');
+    const ok = await saveMasterProject(prodId, projectRef.current);
+    setSaveState(ok ? 'saved' : 'local');
+  }, []);
+
   const scheduleSave = useCallback(() => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => {
-      void (async () => {
-        const prodId = prodIdRef.current || (await ensureScratchProduction());
-        prodIdRef.current = prodId;
-        if (!prodId) { setSaveState('local'); return; }
-        setSaveState('saving');
-        const ok = await saveMasterProject(prodId, projectRef.current);
-        setSaveState(ok ? 'saved' : 'local');
-      })();
-    }, 2500);
-  }, []);
+    saveTimer.current = setTimeout(() => { void saveNow(); }, 2500);
+  }, [saveNow]);
 
   /** Mutate the shared project object in place — the useBeatsDoc contract. */
   const mutateProject = useCallback((fn: (p: MasterProjectDoc) => void) => {
@@ -64,5 +66,5 @@ export function useMasterProject(productionId?: string) {
 
   useEffect(() => () => { if (saveTimer.current) clearTimeout(saveTimer.current); }, []);
 
-  return { project, mutateProject, saveState, reload };
+  return { project, mutateProject, saveState, saveNow, reload };
 }

@@ -44,6 +44,8 @@ import { useViewport } from '../../hooks/useViewport';
 import { toMelosSampleRefs } from './beats/melosSamples';
 import { ingestMelosAudioFile, isAudioFile } from './melosAudioImport';
 import { useBeatsDoc } from './beats/useBeatsDoc';
+import { StudioMenuProvider, StudioMenuBar } from './StudioMenus';
+import type { MenuGroup } from './beats/shared/MenuBar';
 import { useEngineBridge } from './beats/useEngineBridge';
 
 import PadRoom from './PadRoom';
@@ -798,8 +800,37 @@ const MelosWorkspace: React.FC<Props> = ({ currentUser, initialProductionId, ini
 
   const activeRoom = ROOMS.find(r => r.id === room) || ROOMS[0];
 
+  // The shell's half of the studio menu bar — what's true in every environment. The room on
+  // screen merges its own File / Edit / View items (and any menus of its own) underneath.
+  const shellMenus: MenuGroup[] = [
+    {
+      label: 'File',
+      items: [
+        { id: 'shell-new-production', label: 'New production', disabled: seeding, onSelect: () => { void startBlank(); } },
+        { id: 'shell-new-song', label: 'New song', onSelect: addSong },
+        ...(productions.length > 1 ? ['sep' as const, ...productions.map(p => ({
+          id: `shell-prod-${p.id}`, label: p.title || 'Untitled production', checked: p.id === prodId, onSelect: () => setProdId(p.id),
+        }))] : []),
+        ...(onBack ? ['sep' as const, { id: 'shell-back', label: 'Back to Chora', onSelect: onBack }] : []),
+      ],
+    },
+    {
+      label: 'View',
+      items: [
+        ...ROOMS.filter(r => r.stage !== 'concert').map(r => ({ id: `shell-room-${r.id}`, label: r.label, checked: r.id === room, onSelect: () => setRoom(r.id) })),
+        'sep' as const,
+        ...PAD_SKINS.map(s => ({ id: `shell-skin-${s.key}`, label: `Skin · ${s.label}`, checked: skin === s.key, onSelect: () => setSkin(s.key) })),
+      ],
+    },
+    {
+      label: 'Window',
+      items: ROOMS.filter(r => r.stage === 'concert').map(r => ({ id: `shell-room-${r.id}`, label: r.label, checked: r.id === room, onSelect: () => setRoom(r.id) })),
+    },
+  ];
+
   return (
     <Ctx.Provider value={ctx}>
+     <StudioMenuProvider>
       <div className={`melos flex flex-col ${vp.isPhone ? 'fixed inset-0 z-[90]' : 'min-h-screen'}`} data-skin={skin}>
 
         {/* ── Top bar ─────────────────────────────────────────────────────── */}
@@ -825,6 +856,11 @@ const MelosWorkspace: React.FC<Props> = ({ currentUser, initialProductionId, ini
             {production.workingTitle && !vp.isPhone && (
               <span className="melos-hand text-[13px] hidden md:inline shrink-0">— {production.workingTitle}</span>
             )}
+          </div>
+
+          {/* The studio menu bar — the environment below decides most of what's in it. */}
+          <div className="order-last w-full sm:order-none sm:w-auto min-w-0 overflow-x-auto no-scrollbar">
+            <StudioMenuBar base={shellMenus} />
           </div>
 
           {statusMeta && !vp.isPhone && (
@@ -1042,6 +1078,7 @@ const MelosWorkspace: React.FC<Props> = ({ currentUser, initialProductionId, ini
           </nav>
         )}
       </div>
+     </StudioMenuProvider>
     </Ctx.Provider>
   );
 };

@@ -8120,6 +8120,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             <AlbumCreator
               onCreated={(alb, opts) => {
                 handleCreateAlbum(alb);
+                // A release pressed in the Mastering Desk reports back, so the desk can follow it
+                // (Music Intelligence, Audius, re-publish) without the artist hunting for it.
+                if (alb && (alb as any).melosSource) {
+                  window.dispatchEvent(new CustomEvent('CHORA_ALBUM_PUBLISHED', { detail: { album: alb, keepOpen: !!opts?.keepOpen } }));
+                }
                 // If we were editing the film that's open in the detail page, refresh it.
                 if (editingAlbum && alb && (alb as any).id === editingAlbum.id) {
                   setSelectedMovieItem((prev: any) => (prev && prev.id === (alb as any).id ? { ...prev, ...alb } : prev));

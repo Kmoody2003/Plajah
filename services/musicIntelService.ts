@@ -6,7 +6,7 @@
 // and must never break publishing or the album page.
 
 import { auth } from './firebase';
-import type { MusicIntelBundle } from './musicIntel/types';
+import type { MusicIntelBundle, TrackIntelCorrections } from './musicIntel/types';
 
 export type { MusicIntelBundle, TrackIntel, AlbumIntel, HostCard, HostCardKind, MusicIntelJob, FilmContext } from './musicIntel/types';
 
@@ -56,6 +56,18 @@ export async function fetchMusicIntel(albumId: string): Promise<(MusicIntelBundl
     if (!res.ok) return null;
     return await res.json();
   } catch { return null; }
+}
+
+/** Save the creator's corrections to one song's read. They overlay the analysis on every read. */
+export async function saveMusicIntelCorrections(albumId: string, trackId: string, corrections: TrackIntelCorrections): Promise<boolean> {
+  try {
+    const res = await fetch(`${base()}/corrections`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
+      body: JSON.stringify({ albumId, trackId, corrections }),
+    });
+    return res.ok;
+  } catch { return false; }
 }
 
 /** Lead sheet: key, tempo, meter and the chord chart as MusicXML (chord symbols over slashes). */

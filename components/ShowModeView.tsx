@@ -87,7 +87,9 @@ const ShowLyrics: React.FC<{ lines: Line[]; lifted: boolean }> = ({ lines, lifte
 
 const ShowModeView: React.FC<ShowModeViewProps> = ({ album, trackId, mode: initialMode = 'DEFAULT', user, onExit, onSignUp }) => {
   const gp = useGlobalPlayer();
-  const [mode, setMode] = useState<ShowMode>(initialMode);
+  // The artist's Show Mode setup (Mastering Desk) applies when the link didn't ask for a mode.
+  const setup = album.showSetup;
+  const [mode, setMode] = useState<ShowMode>(initialMode === 'DEFAULT' && setup?.mode ? setup.mode : initialMode);
   const [phase, setPhase] = useState<'gate' | 'countdown' | 'show'>('gate');
   const [count, setCount] = useState(COUNT_FROM);
   const [chromeVisible, setChromeVisible] = useState(true);
@@ -97,8 +99,10 @@ const ShowModeView: React.FC<ShowModeViewProps> = ({ album, trackId, mode: initi
   const kit = album.promoKit;
   const backdrop = useMemo(() => pickPromoBackdrop(kit, cover), [kit, cover]);
   const startTrack = useMemo(
-    () => (trackId ? album.tracks?.find(t => t.id === trackId) : undefined) || album.tracks?.[0],
-    [album.tracks, trackId],
+    () => (trackId ? album.tracks?.find(t => t.id === trackId) : undefined)
+      || (setup?.openingTrackId ? album.tracks?.find(t => t.id === setup.openingTrackId) : undefined)
+      || album.tracks?.[0],
+    [album.tracks, trackId, setup?.openingTrackId],
   );
   const signedIn = !!user?.uid;
   const focusTrack = (gp.currentTrack && album.tracks?.find(t => t.id === gp.currentTrack?.id)) || startTrack;
@@ -114,7 +118,7 @@ const ShowModeView: React.FC<ShowModeViewProps> = ({ album, trackId, mode: initi
   }, [album, kit, cover, gp.currentTrack]);
 
   // ── Lyrics: use what the album carries; sync anything missing server-side, current track first ──
-  const [showLyrics, setShowLyrics] = useState(true);
+  const [showLyrics, setShowLyrics] = useState(setup?.showLyrics !== false);
   const [synced, setSynced] = useState<Record<string, Line[]>>({});
   const [syncing, setSyncing] = useState<string | null>(null);
   const focusId = focusTrack?.id;
@@ -159,9 +163,10 @@ const ShowModeView: React.FC<ShowModeViewProps> = ({ album, trackId, mode: initi
 
   // ── Gate → countdown → play ──
   const enter = useCallback(() => {
-    setCount(COUNT_FROM);
+    // The artist can skip the 3-2-1: a zero count plays on the next tick.
+    setCount(setup?.countdown === false ? 0 : COUNT_FROM);
     setPhase('countdown');
-  }, []);
+  }, [setup?.countdown]);
 
   useEffect(() => {
     if (phase !== 'countdown') return;
@@ -287,6 +292,7 @@ const ShowModeView: React.FC<ShowModeViewProps> = ({ album, trackId, mode: initi
           <Eyebrow>Now showing</Eyebrow>
           <h1 className="text-4xl sm:text-6xl font-black leading-tight max-w-3xl">{album.title}</h1>
           <p className="mt-2 text-lg text-white/70">{album.artist}</p>
+          {setup?.welcome && <p className="mt-3 text-base text-white/80 italic max-w-xl">{setup.welcome}</p>}
           <Button variant="primary" size="xl" className="mt-8" onClick={enter}>▶ Start the show</Button>
           <p className="mt-4 text-[10px] uppercase tracking-widest text-white/40">Sound on · best in fullscreen</p>
         </div>
@@ -323,6 +329,9 @@ const ShowModeView: React.FC<ShowModeViewProps> = ({ album, trackId, mode: initi
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
+              {setup?.ctaLabel && /^https?:\/\//i.test(setup.ctaUrl || '') && (
+                <Button variant="accent" size="sm" onClick={() => window.open(setup.ctaUrl, '_blank', 'noopener,noreferrer')}>{setup.ctaLabel}</Button>
+              )}
               {album.ownerId && <Button variant="primary" size="sm" onClick={() => setSheet('gift')}>Gift this artist</Button>}
               {offers.any && <Button variant="accent" size="sm" onClick={() => setSheet('buy')}>Buy from ${lowestPrice % 1 === 0 ? lowestPrice.toFixed(0) : lowestPrice.toFixed(2)}</Button>}
               <Button variant="secondary" size="sm" onClick={() => setSheet('plus')}>Plajah+ · Invite</Button>

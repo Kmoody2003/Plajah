@@ -46,6 +46,7 @@ import { useInstrumentKeyboard, commitRecordedNote, type RecordedNote } from './
 import { TransportBar, type BeatsViewId } from './shared/TransportBar';
 import { VoicePanel } from './voice/VoicePanel';
 import { MenuBar, type MenuGroup } from './shared/MenuBar';
+import { useHasStudioMenuBar, StudioMenuPublisher } from '../StudioMenus';
 import { InstrumentWindow } from './instrument/InstrumentWindow';
 import { DiagnosticsReadout } from './shared/DiagnosticsReadout';
 import { MidiLearnPanel } from './shared/MidiLearnPanel';
@@ -117,6 +118,9 @@ const AVAILABLE_VIEWS: BeatsViewId[] = ['machine', 'glass', 'timeline', 'mixer']
 const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, embedded, melosSamples, onRenderTake, takeTargetName, musicLabAdmin = false }) => {
   const { doc, saveState, grooves, mutate, undo, redo, canUndo, canRedo, replace, saveNow, openGroove, newGroove, removeGroove } =
     useBeatsDoc(payload?.grooveId, production?.prodId || payload?.productionId);
+  // Under the Chora Studio shell the menu bar lives at the top of the workspace; standalone,
+  // the transport bar keeps drawing its own.
+  const shellMenuBar = useHasStudioMenuBar();
   const snap = useEngineBridge();
   const vp = useViewport();
   const hid = useBeatsHid(doc, true);
@@ -1089,6 +1093,9 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
       className={`${embedded ? 'absolute inset-0' : 'fixed inset-0 z-[100]'} flex flex-col text-white`}
       style={{ background: `radial-gradient(1000px 460px at 12% -12%, rgba(107,0,153,0.30), transparent 60%), ${WASH_BG}` }}
     >
+      {shellMenuBar && (
+        <StudioMenuPublisher owner="beats" menus={menus} save={{ state: saveState, onSave: () => { void saveNow(); }, what: 'groove' }} />
+      )}
       <TransportBar
         doc={doc}
         running={snap.running}
@@ -1127,7 +1134,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
         onToggleMetronome={() => setMetronomeOn((v) => !v)}
         preRollBars={preRollBars}
         onCyclePreRoll={() => setPreRollBars((v) => (v + 1) % 3)}
-        menuSlot={<MenuBar menus={menus} />}
+        menuSlot={shellMenuBar ? undefined : <MenuBar menus={menus} />}
         hideClose={embedded}
         onClose={onClose}
       />

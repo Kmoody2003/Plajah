@@ -20,6 +20,10 @@ import { hydrateSample } from './sampleStore';
 import { MasteringChain, type MasteringState } from './fx/mastering';
 import { FxChainHost, type FxInstance } from './fx/devices';
 import { encodeWav } from '../../audio/wavEncode';
+import {
+  presetById, planSides, buildCueSheet, buildPqLog, ditherTpdf, toFrame, allCredits, creditsToText,
+  type ReleaseDeskState, type TrackMeta, type CueTrack,
+} from './releaseDesk';
 
 /** One synced lyric line — the shape Chora's player reads (src/lib/captions.ts). Seconds. */
 export interface TimedLyric { time: number; text: string }
@@ -48,10 +52,24 @@ export interface ProjectTrack {
   images?: string[];                     // per-track artwork (data/locker URLs)
   videoUrl?: string;                     // linked music video
   sourceSongId?: string;                 // the MelosSong this came from (auto-populate provenance)
+  /**
+   * The CD track-start (index 01) relative to the clip's head on the album clock. Negative pulls
+   * the track start back into the previous song's tail (a crossfaded album's index point);
+   * positive hides a count-in. Absent = the clip head. Studio One's movable track marker.
+   */
+  indexOffsetSec?: number;
+  /** Credits, identifiers and the rest of the song's metadata (releaseDesk.ts). */
+  meta?: TrackMeta;
 }
 
 /** A named point on the album clock — index points, side breaks, notes to self. */
-export interface AlbumMarker { id: string; timeSec: number; label: string }
+export interface AlbumMarker {
+  id: string;
+  timeSec: number;
+  label: string;
+  /** 'note' = a note to self; 'index' = a CD sub-index (index 02+); 'side' = a vinyl/tape side break. */
+  kind?: 'note' | 'index' | 'side';
+}
 
 export interface PublishingInfo {
   title: string;
@@ -77,6 +95,13 @@ export interface MasterProjectDoc {
   arrangementId?: string;
   /** Target release format — sets the duration budget the authoring warnings check. */
   discFormat?: string;
+  /** The project's In / Out locators on the album clock (Studio One's L/R) — loop + export range. */
+  inSec?: number;
+  outSec?: number;
+  /** Loop playback between the locators. */
+  loopOn?: boolean;
+  /** The release desk — metadata, artwork, release options, media, visuals, mixes, show, physical. */
+  desk?: ReleaseDeskState;
   version: 1;
   createdAt: number;
   updatedAt: number;
@@ -216,6 +241,17 @@ export const crossfadeAt = (project: MasterProjectDoc, index: number): number =>
   const g = project.tracks[index]?.gapSec ?? 0;
   return g < 0 ? -g : 0;
 };
+
+/** Where a laid track's CD index 01 lands on the album clock (its movable track marker). */
+export const trackIndexSec = (laid: LaidTrack): number =>
+  Math.max(0, laid.startSec + (laid.track.indexOffsetSec ?? 0));
+
+/** Move the track at `from` to `to` in the running order (gaps/fades travel with the track). */
+export function moveTrack(project: MasterProjectDoc, from: number, to: number): void {
+  if (from === to || from < 0 || from >= project.tracks.length) return;
+  const [t] = project.tracks.splice(from, 1);
+  project.tracks.splice(Math.max(0, Math.min(project.tracks.length, to)), 0, t);
+}
 
 // ── Persistence ───────────────────────────────────────────────────────────────
 
@@ -378,14 +414,32 @@ export async function renderProjectTrack(
 export async function renderAlbumContinuous(
   project: MasterProjectDoc,
   albumPressing: MasteringState | null,
-  opts: { bitDepth?: 16 | 24; startSec?: number; endSec?: number } = {},
+  opts: {
+    bitDepth?: 16 | 24; startSec?: number; endSec?: number;
+    /** Print rate — 44.1 kHz for Red Book. Default 48 kHz (the desk's working rate). */
+    sampleRate?: number;
+    /** Silence before the programme (a CD pre-gap, a tape leader). */
+    leadSec?: number;
+    /** Pad the file with trailing silence to at least this length (matched tape sides). */
+    minSec?: number;
+    /** Only these running-order indices (a vinyl/tape side). */
+    indices?: number[];
+    dither?: boolean;
+  } = {},
 ): Promise<{ blob: Blob; buffer: AudioBuffer; seconds: number } | null> {
   const layout = albumLayout(project);
   if (!layout.tracks.length) return null;
-  const windowStart = Math.max(0, opts.startSec ?? 0);
-  const windowEnd = Math.min(layout.totalSec + TAIL_SEC, opts.endSec ?? layout.totalSec + TAIL_SEC);
-  const seconds = Math.max(0.2, windowEnd - windowStart);
-  const offline = new OfflineAudioContext(2, Math.ceil(seconds * SAMPLE_RATE), SAMPLE_RATE);
+  const rate = opts.sampleRate ?? SAMPLE_RATE;
+  const only = opts.indices ? new Set(opts.indices) : null;
+  const chosen = only ? layout.tracks.filter((l) => only.has(l.index)) : layout.tracks;
+  if (!chosen.length) return null;
+  const lead = Math.max(0, opts.leadSec ?? 0);
+  const firstStart = only ? chosen[0].startSec : 0;
+  const lastEnd = only ? Math.max(...chosen.map((l) => l.endSec)) : layout.totalSec;
+  const windowStart = Math.max(0, opts.startSec ?? firstStart) - lead;
+  const windowEnd = Math.min(lastEnd + TAIL_SEC, opts.endSec ?? lastEnd + TAIL_SEC);
+  const seconds = Math.max(0.2, windowEnd - windowStart, opts.minSec ?? 0);
+  const offline = new OfflineAudioContext(2, Math.ceil(seconds * rate), rate);
   const bus = albumLimiter(offline);
   // The album Suite sits on the bus, before the limiter — every track's voice runs through it.
   const suite = buildMasterFx(offline, project.masterFx);
@@ -393,7 +447,7 @@ export async function renderAlbumContinuous(
   if (suite) suite.output.connect(bus);
 
   let placed = 0;
-  for (const laid of layout.tracks) {
+  for (const laid of chosen) {
     if (laid.endSec <= windowStart || laid.startSec >= windowEnd) continue; // outside the window
     const buffer = await hydrateSample(laid.track.sample, decodeCtx());
     if (!buffer) { console.warn('[pressing] track audio unavailable', laid.track.title); continue; }
@@ -404,6 +458,7 @@ export async function renderAlbumContinuous(
   }
   if (!placed) return null;
   const rendered = await offline.startRendering();
+  if (opts.dither && (opts.bitDepth ?? 24) === 16) ditherTpdf(rendered, 16);
   return { blob: encodeWav(rendered, opts.bitDepth ?? 24), buffer: rendered, seconds };
 }
 
@@ -439,39 +494,104 @@ export async function renderAlbum(
  * same OPEN_ALBUM_CREATOR bridge every other Melos surface uses. The Creator owns upload,
  * cover art, pricing and the actual Chora release — this hands it a finished master.
  */
-export function seedAlbumCreator(project: MasterProjectDoc, rendered: RenderedAlbum): void {
+export function seedAlbumCreator(
+  project: MasterProjectDoc,
+  rendered: RenderedAlbum,
+  opts: { prodId?: string; mix?: { name: string; cueSheet: { id: string; time: number; title: string; artist?: string }[]; durationSec: number } } = {},
+): void {
   const p = project.publishing;
+  const desk = project.desk ?? {};
+  const meta = desk.album ?? {};
+  const rel = desk.release ?? {};
+  const art = desk.artwork ?? {};
   const artist = p.artist || auth.currentUser?.displayName || '';
+  const credits = allCredits(project);
+  // Credits read as prose on the album page; the structured list rides in releaseMeta.
+  const linerNotes = [meta.linerNotes, credits.length ? `Credits\n${creditsToText(credits)}` : ''].filter(Boolean).join('\n\n') || undefined;
+  const releaseDate = rel.scheduled && rel.releaseDate ? new Date(rel.releaseDate).getTime() : undefined;
+  const isMix = !!opts.mix;
+  const subType = isMix ? 'MIX' : meta.releaseType === 'SINGLE' || rendered.files.length === 1 ? 'SINGLE' : meta.releaseType === 'EP' ? 'EP' : 'ALBUM';
+  // Chora track ids are minted here; anything the desk keyed by a project track id is re-keyed.
+  const seedIds = rendered.files.map(() => `t_${Math.random().toString(36).slice(2, 9)}`);
+  const idFor = new Map(rendered.files.map(({ track }, i) => [track.id, seedIds[i]]));
+  const visuals = desk.visuals
+    ? { ...desk.visuals, perTrack: Object.fromEntries(Object.entries(desk.visuals.perTrack ?? {}).filter(([k]) => idFor.has(k)).map(([k, v]) => [idFor.get(k)!, v])) }
+    : undefined;
+  const show = desk.show ? { ...desk.show, openingTrackId: desk.show.openingTrackId ? idFor.get(desk.show.openingTrackId) : undefined } : undefined;
+  const social = Object.fromEntries((rel.socialLinks ?? []).filter((l) => l.url).map((l) => [l.platform, l.url]));
+  const videos = (desk.videos ?? []).map((v) => ({
+    id: v.reelloVideoId || v.id,
+    title: v.title,
+    url: v.url,
+    thumbnail: v.thumbnail || project.coverImage || '',
+    duration: v.durationSec,
+    isRello: v.toReello,
+    // publishToCloud's Reello mirror spreads each video as-is, so privacy has to ride on it.
+    isPrivate: rel.visibility === 'private' || rel.visibility === 'intimate' || undefined,
+  }));
   const seed = {
-    id: `album_${Math.random().toString(36).slice(2, 11)}`,
-    title: p.title || 'Untitled Album',
+    // Re-publishing edits the release this desk already put out; a Mix is always its own album.
+    id: (!isMix && desk.publish?.choraAlbumId) || `album_${Math.random().toString(36).slice(2, 11)}`,
+    title: isMix ? `${p.title || 'Untitled Album'} — ${opts.mix!.name}` : p.title || 'Untitled Album',
     artist,
     type: 'MUSIC',
-    subType: rendered.files.length > 1 ? 'ALBUM' : 'SINGLE',
-    genre: p.genre || 'Beats',
-    coverImage: project.coverImage || '',
-    description: p.description || 'Mastered in the Melos Pressing room.',
+    subType,
+    genre: meta.primaryGenre || p.genre || 'Beats',
+    coverImage: project.coverImage || art.tela?.stillUrl || '',
+    description: p.description || 'Mastered in the Chora Mastering Desk.',
+    linerNotes,
+    artistBio: meta.artistBio || undefined,
     recordLabel: p.label || undefined,
-    copyrightLine: p.copyright || undefined,
+    copyrightLine: p.copyright || meta.cLine || undefined,
     releaseYear: p.year || undefined,
+    tags: meta.tags?.length ? meta.tags : undefined,
+    // Release options set on the desk — the Creator opens with them already chosen.
+    isPrivate: rel.visibility === 'private' || rel.visibility === 'intimate' || undefined,
+    isIntimateOnly: rel.visibility === 'intimate' || undefined,
+    isDraft: rel.draft || undefined,
+    price: rel.price ?? undefined,
+    isPaywalled: rel.isPaywalled || undefined,
+    previewOnly: rel.previewOnly || undefined,
+    isScheduled: rel.scheduled || undefined,
+    releaseDate,
+    publishVideosToGallery: rel.publishVideosToGallery ?? (videos.some((v) => v.isRello) || undefined),
+    publishToAudius: rel.publishToAudius || undefined,
+    liveFeedUrl: rel.liveFeedUrl || undefined,
+    donationGoal: rel.donationGoal || undefined,
+    earlyAccessEnabled: rel.earlyAccessEnabled || undefined,
+    slideshow: desk.slideshow?.length ? desk.slideshow.map((s) => s.url) : undefined,
+    isSlideshowEnabled: rel.slideshowEnabled || undefined,
+    musicVideos: videos.length ? videos : undefined,
+    releaseMeta: Object.keys(meta).length || credits.length ? { ...meta, credits } : undefined,
+    animatedCover: art.animated || undefined,
+    telaCover: art.tela || undefined,
+    coverFace: art.primary || undefined,
+    albumVisuals: visuals,
+    showSetup: show,
+    socialLinks: Object.keys(social).length ? social : undefined,
+    melosSource: { prodId: opts.prodId, projectId: project.id },
+    mixMeta: isMix ? { visualMode: 'AUTO', source: 'UPLOAD', allowComments: rel.allowComments ?? true, cueSheet: opts.mix!.cueSheet, durationSec: Math.round(opts.mix!.durationSec) } : undefined,
     createdAt: Date.now(),
     // Assets ride ALONG so nothing orphans on publish: lyrics + synced lyrics reach Chora,
     // where getActiveCaption(track) reads timeCodedLyrics for the karaoke feature.
     tracks: rendered.files.map(({ track, blob, filename }, i) => ({
-      id: `t_${Math.random().toString(36).slice(2, 9)}`,
+      id: seedIds[i],
       title: track.title || filename,
-      artist,
+      artist: track.meta?.featuring ? `${artist} feat. ${track.meta.featuring}` : artist,
       trackNo: i + 1,
       file: new File([blob], filename, { type: 'audio/wav' }),
       url: URL.createObjectURL(blob),
       price: 0,
       isPaywalled: false,
-      genre: p.genre || 'Beats',
+      genre: track.meta?.genre || meta.primaryGenre || p.genre || 'Beats',
       mediaKind: 'AUDIO',
       lyrics: track.lyrics || undefined,
       timeCodedLyrics: track.timeCodedLyrics?.length ? track.timeCodedLyrics : undefined,
       images: track.images?.length ? track.images : undefined,
       videoUrl: track.videoUrl || undefined,
+      trackMeta: track.meta && Object.keys(track.meta).length ? track.meta : undefined,
+      pixelsProjectId: desk.pixels?.[track.id]?.projectId || undefined,
+      tags: track.meta?.moods?.length ? track.meta.moods : undefined,
     })),
   };
   window.dispatchEvent(new CustomEvent('OPEN_ALBUM_CREATOR', { detail: { album: seed } }));
@@ -523,4 +643,108 @@ export async function exportAlbumZip(
   entries['release.json'] = [strToU8(JSON.stringify(manifest, null, 2)), { level: 0 }];
   const zipped = zipSync(entries);
   return new Blob([zipped], { type: 'application/zip' });
+}
+
+// ── Physical media packages ─────────────────────────────────────────────────
+
+export interface PhysicalPackage { blob: Blob; filename: string; summary: string }
+
+/**
+ * Print the record for its physical medium (releaseDesk.ts presets):
+ *  • CD  — one frame-aligned 44.1 kHz / 16-bit TPDF-dithered programme with the Red Book
+ *          pre-gap, a CUE sheet (CATALOG, ISRC, CD-Text, INDEX 00/01/02+) and a PQ log.
+ *  • Vinyl — one file per side at the cutting rate + a lacquer cutting sheet.
+ *  • Tape  — one file per side with leader silence, padded to equal length + a J-card list.
+ *  • Digital — the per-track masters at the preset's rate, plus the continuous programme.
+ */
+export async function exportPhysicalPackage(
+  project: MasterProjectDoc,
+  albumPressing: MasteringState | null,
+  onProgress?: (msg: string) => void,
+): Promise<PhysicalPackage | null> {
+  const plan = project.desk?.physical;
+  const preset = presetById(plan?.presetId);
+  const layout = albumLayout(project);
+  if (!layout.tracks.length) return null;
+  const pub = project.publishing;
+  const album = safeName(pub.title || 'Album');
+  const performer = pub.artist || auth.currentUser?.displayName || '';
+  const entries: Record<string, [Uint8Array, { level: 0 | 6 }]> = {};
+  const text = (name: string, body: string) => { entries[name] = [strToU8(body), { level: 6 }]; };
+  const audio = async (name: string, blob: Blob) => { entries[name] = [new Uint8Array(await blob.arrayBuffer()), { level: 0 }]; };
+  const fmt = (sec: number) => `${Math.floor(sec / 60)}:${String(Math.round(sec % 60)).padStart(2, '0')}`;
+
+  if (preset.medium === 'cd') {
+    const pregap = Math.max(2, plan?.pregapSec ?? 2);
+    onProgress?.('Printing the 44.1 kHz / 16-bit programme…');
+    const res = await renderAlbumContinuous(project, albumPressing, { sampleRate: 44100, bitDepth: 16, leadSec: pregap, dither: (plan?.dither ?? 'tpdf') === 'tpdf' });
+    if (!res) return null;
+    const wavName = `${album}.wav`;
+    await audio(wavName, res.blob);
+    const subIdx = (project.markers ?? []).filter((m) => m.kind === 'index');
+    const credits = (t: ProjectTrack) => (t.meta?.credits ?? []).filter((c) => c.category === 'writer').map((c) => c.name).join(', ');
+    const tracks: (CueTrack & { durationSec: number })[] = layout.tracks.map((l, i) => {
+      const t = l.track;
+      const index01 = toFrame(pregap + Math.max(0, l.startSec + (t.indexOffsetSec ?? 0)));
+      const prevEnd = i > 0 ? pregap + layout.tracks[i - 1].endSec : 0;
+      const nextStart = i < layout.tracks.length - 1 ? pregap + layout.tracks[i + 1].startSec : pregap + layout.totalSec;
+      return {
+        title: t.meta?.cdText?.title || t.title,
+        performer: t.meta?.cdText?.performer || performer,
+        songwriter: t.meta?.cdText?.songwriter || credits(t) || undefined,
+        isrc: t.meta?.isrc,
+        // Track 1's index 00 is the disc pre-gap; later tracks get one only across a real gap.
+        index00: i === 0 ? 0 : prevEnd < index01 - 0.5 ? toFrame(prevEnd) : undefined,
+        index01,
+        subIndexes: subIdx.filter((m) => m.timeSec > l.startSec && m.timeSec < l.endSec).map((m) => toFrame(pregap + m.timeSec)),
+        durationSec: Math.max(0, nextStart - index01),
+      };
+    });
+    const cdText = plan?.cdText !== false;
+    text(`${album}.cue`, buildCueSheet({ file: wavName, title: pub.title || album, performer, upc: project.desk?.album?.upc, tracks, cdText }));
+    text('PQ log.txt', buildPqLog({ title: pub.title || album, performer, upc: project.desk?.album?.upc, tracks, totalSec: res.seconds }));
+  } else if (preset.medium === 'vinyl' || preset.medium === 'tape') {
+    const sides = planSides(layout.tracks, preset, plan?.sideBreaks);
+    const lead = preset.medium === 'tape' ? Math.max(0, plan?.leaderSec ?? preset.leaderSec ?? 5) : 0;
+    const longest = Math.max(...sides.map((s) => s.seconds)) + lead + TAIL_SEC;
+    const sheet: string[] = [`${preset.medium === 'vinyl' ? 'CUTTING SHEET' : 'J-CARD / DUPLICATION SHEET'} — ${pub.title || album} — ${performer}`, `Format: ${preset.label}`, ''];
+    for (const side of sides) {
+      onProgress?.(`Printing side ${side.label}…`);
+      const res = await renderAlbumContinuous(project, albumPressing, {
+        sampleRate: preset.sampleRate, bitDepth: preset.bitDepth, indices: side.trackIndices, leadSec: lead,
+        minSec: preset.medium === 'tape' && plan?.matchSides !== false ? longest : undefined,
+      });
+      if (!res) continue;
+      await audio(`Side ${side.label}.wav`, res.blob);
+      sheet.push(`SIDE ${side.label} — ${fmt(side.seconds)}${lead ? ` (+${lead}s leader)` : ''}`);
+      const first = layout.tracks[side.trackIndices[0]];
+      for (const i of side.trackIndices) {
+        const l = layout.tracks[i];
+        sheet.push(`  ${side.label}${i - side.trackIndices[0] + 1}  ${fmt(lead + l.startSec - first.startSec)}  ${fmt(l.endSec - l.startSec)}  ${l.track.title}`);
+      }
+      sheet.push('');
+    }
+    if (preset.monoBelowHz) sheet.push(`Bass folded to mono below ${preset.monoBelowHz} Hz in the pressing.`);
+    sheet.push(...preset.notes.map((n) => `· ${n}`));
+    text(preset.medium === 'vinyl' ? 'Cutting sheet.txt' : 'J-card.txt', sheet.join('\r\n'));
+  } else {
+    const rendered = await renderAlbum(project, albumPressing, (done, total, title) => onProgress?.(title ? `Printing ${title} (${done + 1}/${total})…` : ''));
+    for (const f of rendered.files) await audio(f.filename, f.blob);
+    if (layout.tracks.length > 1) {
+      onProgress?.('Printing the continuous programme…');
+      const res = await renderAlbumContinuous(project, albumPressing, { sampleRate: preset.sampleRate, bitDepth: preset.bitDepth });
+      if (res) await audio(`00 ${album} (continuous).wav`, res.blob);
+    }
+  }
+
+  const credits = allCredits(project);
+  if (credits.length) text('Credits.txt', creditsToText(credits));
+  text('release.json', JSON.stringify({
+    ...pub, ...(project.desk?.album ?? {}), preset: preset.id, medium: preset.medium,
+    tracks: layout.tracks.map((l) => ({ no: l.index + 1, title: l.track.title, startSec: +l.startSec.toFixed(3), durationSec: +(l.endSec - l.startSec).toFixed(3), ...(l.track.meta ?? {}) })),
+    exportedAt: new Date().toISOString(),
+  }, null, 2));
+  onProgress?.('Zipping…');
+  const blob = new Blob([zipSync(entries)], { type: 'application/zip' });
+  return { blob, filename: `${album} — ${preset.label.replace(/[^a-zA-Z0-9 .-]/g, ' ').replace(/\s+/g, ' ').trim()}.zip`, summary: `${preset.label} package ready` };
 }

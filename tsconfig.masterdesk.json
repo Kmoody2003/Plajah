@@ -1,0 +1,38 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": [
+    "services/melos/beats/releaseDesk.ts",
+    "services/melos/beats/masterProject.ts",
+    "services/musicIntel/types.ts",
+    "services/musicIntelService.ts",
+    "routes/musicIntel.ts",
+    "components/melos/StudioMenus.tsx",
+    "components/melos/MelosWorkspace.tsx",
+    "components/melos/beats/BeatsRoom.tsx",
+    "components/melos/beats/project/ProjectView.tsx",
+    "components/melos/beats/project/AlbumTimeline.tsx",
+    "components/melos/beats/project/useDeskTransport.ts",
+    "components/melos/beats/project/useMasterProject.ts",
+    "components/melos/beats/project/desk/ui.tsx",
+    "components/melos/beats/project/desk/coverMotion.ts",
+    "components/melos/beats/project/desk/PhysicalMediaBay.tsx",
+    "components/melos/beats/project/desk/CreditsBay.tsx",
+    "components/melos/beats/project/desk/ArtworkBay.tsx",
+    "components/melos/beats/project/desk/ReleaseBay.tsx",
+    "components/melos/beats/project/desk/MediaBay.tsx",
+    "components/melos/beats/project/desk/VisualsBay.tsx",
+    "components/melos/beats/project/desk/MixesShowBay.tsx",
+    "components/melos/beats/project/desk/PixelsBay.tsx",
+    "components/melos/beats/project/desk/IntelBay.tsx",
+    "components/melos/beats/project/desk/PublishBay.tsx",
+    "components/melos/beats/project/desk/TrackDeck.tsx",
+    "tests/releaseDesk.test.ts",
+    "components/chora/AlbumFace.tsx",
+    "components/FxStageVisualizers.tsx",
+    "components/ShowModeView.tsx",
+    "components/PlayerView.tsx"
+  ]
+}

@@ -12,7 +12,7 @@
 // state and pushes edits through the doc + BeatsEngine, the SpectraPanel two-writer pattern.
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ChevronUp, ChevronDown, Volume2, VolumeX, Plus, Trash2, Package, UploadCloud, Disc3, Play, Square, MapPin, X } from 'lucide-react';
+import { ChevronUp, ChevronDown, Volume2, VolumeX, Plus, Trash2, Package, UploadCloud, Disc3, Play, Square, MapPin, X, ArrowRight } from 'lucide-react';
 import type { GrooveDoc, SampleRef } from '../../../../services/melos/beats/grooveDoc';
 import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine';
 import {
@@ -20,9 +20,11 @@ import {
 } from '../../../../services/melos/beats/fx/mastering';
 import {
   decodeCtx, renderAlbum, renderAlbumContinuous, seedAlbumCreator, exportAlbumZip, projectUid,
-  albumLayout, setCrossfade, crossfadeAt, DISC_FORMATS, discFormatById, checkFormatFit,
+  albumLayout, setCrossfade, crossfadeAt, DISC_FORMATS, discFormatById, checkFormatFit, effectiveDur, moveTrack,
+  exportPhysicalPackage,
   type ProjectTrack,
 } from '../../../../services/melos/beats/masterProject';
+import { deskOf, presetById } from '../../../../services/melos/beats/releaseDesk';
 import type { FxInstance } from '../../../../services/melos/beats/fx/devices';
 import { ingestSample, backupToLocker, hydrateSample } from '../../../../services/melos/beats/sampleStore';
 import { renderGroove, downloadBlob } from '../../../../services/melos/beats/render';
@@ -35,10 +37,40 @@ import { FxRack } from './FxRack';
 import { TrackAssets } from './TrackAssets';
 import { ReleasePicker } from './ReleasePicker';
 import { AlbumTimeline } from './AlbumTimeline';
+import { useDeskTransport } from './useDeskTransport';
+import { StudioMenuPublisher } from '../../StudioMenus';
+import type { MenuGroup } from '../shared/MenuBar';
+import { PhysicalMediaBay } from './desk/PhysicalMediaBay';
+import { CreditsBay } from './desk/CreditsBay';
+import { ArtworkBay } from './desk/ArtworkBay';
+import { ReleaseBay } from './desk/ReleaseBay';
+import { MediaBay } from './desk/MediaBay';
+import { VisualsBay } from './desk/VisualsBay';
+import { MixesShowBay } from './desk/MixesShowBay';
+import { PixelsBay } from './desk/PixelsBay';
+import { IntelBay } from './desk/IntelBay';
+import { PublishBay } from './desk/PublishBay';
+import { TrackDeck } from './desk/TrackDeck';
 import { Knob } from '../shared/Knob';
 import { ARMED, PLAYHEAD, SELECT, slabPanel } from '../theme';
 
 const SERIF = 'Georgia, "Times New Roman", serif';
+
+/** The desk's bays — the environments the menu bar's View menu switches between. */
+const BAYS = [
+  { id: 'pressing', label: 'Pressing' },
+  { id: 'physical', label: 'Physical Media' },
+  { id: 'credits', label: 'Credits & Metadata' },
+  { id: 'artwork', label: 'Artwork' },
+  { id: 'release', label: 'Release' },
+  { id: 'media', label: 'Videos & Slideshow' },
+  { id: 'visuals', label: 'Visuals & Shaders' },
+  { id: 'mixes', label: 'Mixes & Show' },
+  { id: 'pixels', label: 'Pixels' },
+  { id: 'intel', label: 'Intelligence' },
+  { id: 'publish', label: 'Publish' },
+] as const;
+type BayId = typeof BAYS[number]['id'];
 
 /** Synthesize a musical reference stem when an arrangement song has no bounced audio file yet. */
 function synthesizeSongReferenceWav(song: MelosSong): Blob {
@@ -98,7 +130,6 @@ const readState = (doc: GrooveDoc): MasteringState => {
 const fmtLufs = (v: number | undefined) => (v === undefined || !Number.isFinite(v) ? '—' : v.toFixed(1));
 const fmtDur = (sec: number) => `${Math.floor(sec / 60)}:${String(Math.round(sec % 60)).padStart(2, '0')}`;
 
-const inputCls = 'w-full h-8 px-2.5 rounded-[8px] bg-black/35 border border-white/10 text-[11.5px] text-white placeholder-white/25 outline-none focus:border-[#FF8C00]/60';
 
 // Decoded buffers + waveform peaks, cached per content hash for the session — decode once,
 // use for the album strip AND audition. Module-level so tab switches don't re-decode.
@@ -145,7 +176,9 @@ export const ProjectView: React.FC<ProjectViewProps> = ({
   const loud = snap.loudness;
   /** The album's pressing, or null when it's switched off — what a track inherits. */
   const albumPressing = state.on ? state : null;
-  const { project, mutateProject, saveState, reload: reloadProject } = useMasterProject(productionId);
+  const { project, mutateProject, saveState, saveNow, reload: reloadProject } = useMasterProject(productionId);
+  const [bay, setBay] = useState<BayId>('pressing');
+  const [deckTrackId, setDeckTrackId] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [progress, setProgress] = useState<string | null>(null);
   const [fxTrackId, setFxTrackId] = useState<string | null>(null); // which row's insert rack is open
@@ -302,8 +335,34 @@ export const ProjectView: React.FC<ProjectViewProps> = ({
     if (snap.auditionId === t.id) { e.stopAudition(); return; }
     const buf = await ensureBuffer(t.sample);
     if (!buf) { setProgress(`Couldn't load ${t.title}`); setTimeout(() => setProgress(null), 4000); return; }
-    await e.playAudition(t.id, buf, t.mastering ?? null, t.insertFx);
+    await e.playAudition(t.id, buf, t.mastering ?? null, t.insertFx, { fileOffsetSec: t.startOffsetSec ?? 0, durationSec: effectiveDur(t) });
   }, [snap.auditionId]);
+
+  // ── The desk transport: a cursor, play-from-cursor rolling through the album, loop In→Out ──
+  const ensureTrackBuffer = useCallback((t: ProjectTrack) => ensureBuffer(t.sample), []);
+  const transportError = useCallback((m: string) => { setProgress(m); setTimeout(() => setProgress(null), 4000); }, []);
+  const transport = useDeskTransport(project, ensureTrackBuffer, transportError);
+
+  // Whatever song starts playing loads into the deck.
+  useEffect(() => {
+    if (snap.auditionId && project.tracks.some((t) => t.id === snap.auditionId)) setDeckTrackId(snap.auditionId);
+  }, [snap.auditionId, project.tracks]);
+
+  // A release pressed here reports back from the Album Creator — the desk follows it from then on.
+  useEffect(() => {
+    const onPublished = (e: Event) => {
+      const alb = (e as CustomEvent).detail?.album as { id?: string; melosSource?: { prodId?: string; projectId?: string } } | undefined;
+      if (!alb?.id || !alb.melosSource) return;
+      if ((alb.melosSource.prodId ?? null) !== (productionId ?? null)) return;
+      mutateProject((p) => { const d = deskOf(p); d.publish = { ...(d.publish ?? {}), choraAlbumId: alb.id, choraPublishedAt: Date.now() }; });
+    };
+    window.addEventListener('CHORA_ALBUM_PUBLISHED', onPublished);
+    return () => window.removeEventListener('CHORA_ALBUM_PUBLISHED', onPublished);
+  }, [productionId, mutateProject]);
+
+  const linkAlbum = useCallback((id: string) => {
+    mutateProject((p) => { const d = deskOf(p); d.publish = { ...(d.publish ?? {}), choraAlbumId: id }; });
+  }, [mutateProject]);
 
   // A live audition clock — the lyric tap-sync stamps against this, so it must tick, not
   // re-read on render. Only runs while an asset panel is open and something is playing.
@@ -331,8 +390,13 @@ export const ProjectView: React.FC<ProjectViewProps> = ({
   const stripRef = useRef<HTMLCanvasElement>(null);
   const bakeRef = useRef<HTMLCanvasElement | null>(null);
   const [peaksRev, setPeaksRev] = useState(0);
-  const [range, setRange] = useState<{ a: number; b: number } | null>(null);
-  const auditionOrigin = useRef(0);
+  // The strip's drag range IS the project's In/Out locators — one range, shared with the timeline.
+  const range = project.inSec != null && project.outSec != null ? { a: project.inSec, b: project.outSec } : null;
+  const setRange = useCallback((r: { a: number; b: number } | null) => mutateProject((p) => {
+    if (!r) { p.inSec = undefined; p.outSec = undefined; return; }
+    p.inSec = Math.min(r.a, r.b); p.outSec = Math.max(r.a, r.b);
+  }), [mutateProject]);
+  const auditionOrigin = transport.originRef;
 
   // Peak access for the multitrack timeline (shares the module-level cache with the strip).
   const getPeaks = useCallback((key: string) => { void peaksRev; return peakCache.get(key); }, [peaksRev]);
@@ -346,6 +410,8 @@ export const ProjectView: React.FC<ProjectViewProps> = ({
   const layout = albumLayout(project);
   const totalSec = Math.max(0.001, layout.totalSec);
   const totalRef = useRef(totalSec); totalRef.current = totalSec;
+  const cursorRef = useRef(transport.cursorSec); cursorRef.current = transport.cursorSec;
+  const getPlayPosRef = useRef(transport.getPlayPos); getPlayPosRef.current = transport.getPlayPos;
   const rangeRef = useRef(range); rangeRef.current = range;
   // Any edit that changes the drawing changes this string — the bake's only dependency.
   const trackSig = project.tracks
@@ -492,9 +558,13 @@ export const ProjectView: React.FC<ProjectViewProps> = ({
         }
       }
 
+      // The cursor (where Play starts), then the playhead.
+      g.fillStyle = 'rgba(255,255,255,0.6)';
+      g.fillRect(x(cursorRef.current), 0, 1, h - 12);
       const e = BeatsEngine.get();
       if (e.auditionId()) {
-        const px = x(auditionOrigin.current + e.auditionPosSec());
+        const live = getPlayPosRef.current();
+        const px = x(live ?? (auditionOrigin.current + e.auditionPosSec()));
         g.fillStyle = PLAYHEAD;
         g.fillRect(px, 0, 1.5, h - 12);
         g.beginPath(); g.moveTo(px - 3, 0); g.lineTo(px + 3, 0); g.lineTo(px, 5); g.closePath(); g.fill();
@@ -530,10 +600,10 @@ export const ProjectView: React.FC<ProjectViewProps> = ({
     const d = dragRef.current;
     dragRef.current = null;
     if (!d || d.moved) return;
-    setRange(null);
-    const laid = layout.tracks.find((l) => d.startT >= l.startSec && d.startT < l.endSec);
-    if (laid) { auditionOrigin.current = laid.startSec; void toggleAudition(laid.track); }
-  }, [layout.tracks, toggleAudition]);
+    // A click places the cursor and plays from there — the whole record rolls on from it.
+    transport.setCursor(d.startT);
+    void transport.play(d.startT);
+  }, [transport]);
 
   /** Render just the selected span of the continuous album and play it — hear the transition. */
   const auditionRange = useCallback(async () => {
@@ -554,14 +624,12 @@ export const ProjectView: React.FC<ProjectViewProps> = ({
   }, [range, project, albumPressing, snap.auditionId]);
 
   const addMarker = useCallback(() => {
-    const e = BeatsEngine.get();
-    const at = range ? Math.min(range.a, range.b)
-      : e.auditionId() ? auditionOrigin.current + e.auditionPosSec() : 0;
+    const at = range ? Math.min(range.a, range.b) : transport.getPlayPos() ?? transport.cursorSec;
     mutateProject((p) => {
       const next = [...(p.markers ?? []), { id: projectUid(), timeSec: at, label: `Mark ${(p.markers?.length ?? 0) + 1}` }];
       p.markers = next.sort((m, n) => m.timeSec - n.timeSec);
     });
-  }, [range, mutateProject]);
+  }, [range, mutateProject, transport]);
 
   // Goniometer — persistence-faded Lissajous off the worklet's decimated L/R feed.
   const gonioRef = useRef<HTMLCanvasElement>(null);
@@ -616,9 +684,9 @@ export const ProjectView: React.FC<ProjectViewProps> = ({
     setBusy('publish');
     try {
       const rendered = await runRender();
-      if (rendered.files.length) { seedAlbumCreator(project, rendered); setProgress(null); }
+      if (rendered.files.length) { seedAlbumCreator(project, rendered, { prodId: productionId }); setProgress(null); }
     } finally { setBusy(null); }
-  }, [project, runRender]);
+  }, [project, runRender, productionId]);
 
   const exportZip = useCallback(async () => {
     if (!project.tracks.length) return;
@@ -689,10 +757,73 @@ export const ProjectView: React.FC<ProjectViewProps> = ({
   const psr = loud && Number.isFinite(loud.tp) && Number.isFinite(loud.s) ? loud.tp - loud.s : undefined;
   const plr = loud && Number.isFinite(loud.tp) && Number.isFinite(loud.i) ? loud.tp - loud.i : undefined;
   const pub = project.publishing;
-  const setPub = (patch: Partial<typeof pub>) => mutateProject((p) => { Object.assign(p.publishing, patch); });
+
+  const selectedIdx = project.tracks.findIndex((t) => t.id === selectedTrackId);
+  const printPhysical = async () => {
+    setBusy('physical');
+    try {
+      const pkg = await exportPhysicalPackage(project, albumPressing, (m) => setProgress(m || null));
+      if (pkg) downloadBlob(pkg.blob, pkg.filename);
+    } finally { setBusy(null); setProgress(null); }
+  };
+
+  // ── The Mastering Desk's half of the studio menu bar ──
+  const menus: MenuGroup[] = [
+    {
+      label: 'File',
+      items: [
+        { id: 'desk-save', label: 'Save mastering project', hint: 'Ctrl+S', onSelect: () => { void saveNow(); } },
+        'sep',
+        { id: 'desk-import', label: 'Import tracks…', disabled: !!busy, onSelect: () => fileRef.current?.click() },
+        { id: 'desk-groove', label: 'Add this groove as a track', disabled: !!busy, onSelect: () => { void addGrooveAsTrack(); } },
+        { id: 'desk-release', label: 'Open a Chora release…', disabled: !!busy, onSelect: () => setPickingRelease(true) },
+        'sep',
+        { id: 'desk-zip', label: 'Export master ZIP', hint: 'WAV + release.json', disabled: !!busy || !project.tracks.length, onSelect: () => { void exportZip(); } },
+        { id: 'desk-physical', label: `Print ${presetById(project.desk?.physical?.presetId).label} package`, disabled: !!busy || !project.tracks.length, onSelect: () => { void printPhysical(); } },
+        { id: 'desk-publish', label: 'Publish to Chora…', disabled: !!busy || !project.tracks.length, onSelect: () => { void publishToChora(); } },
+      ],
+    },
+    {
+      label: 'Edit',
+      items: [
+        { id: 'desk-marker', label: 'Add marker at cursor', hint: 'M', onSelect: addMarker },
+        { id: 'desk-in', label: 'Set In at cursor', hint: 'I', onSelect: () => mutateProject((p) => { p.inSec = transport.getPlayPos() ?? transport.cursorSec; }) },
+        { id: 'desk-out', label: 'Set Out at cursor', hint: 'O', onSelect: () => mutateProject((p) => { p.outSec = transport.getPlayPos() ?? transport.cursorSec; }) },
+        { id: 'desk-clear-range', label: 'Clear In / Out', disabled: !range, onSelect: () => setRange(null) },
+        'sep',
+        { id: 'desk-up', label: 'Move selected track earlier', disabled: selectedIdx <= 0, onSelect: () => mutateProject((p) => moveTrack(p, selectedIdx, selectedIdx - 1)) },
+        { id: 'desk-down', label: 'Move selected track later', disabled: selectedIdx < 0 || selectedIdx >= project.tracks.length - 1, onSelect: () => mutateProject((p) => moveTrack(p, selectedIdx, selectedIdx + 1)) },
+        { id: 'desk-remove', label: 'Remove selected track', danger: true, disabled: selectedIdx < 0, onSelect: () => mutateProject((p) => { p.tracks = p.tracks.filter((t) => t.id !== selectedTrackId); }) },
+      ],
+    },
+    {
+      label: 'View',
+      items: [
+        ...BAYS.map((b) => ({ id: `desk-bay-${b.id}`, label: b.label, checked: bay === b.id, onSelect: () => setBay(b.id) })),
+        'sep' as const,
+        { id: 'desk-deck', label: 'Track deck', checked: !!deckTrackId, disabled: !project.tracks.length, onSelect: () => setDeckTrackId(deckTrackId ? null : (selectedTrackId ?? project.tracks[0]?.id ?? null)) },
+      ],
+    },
+    {
+      label: 'Transport',
+      items: [
+        { id: 'desk-play', label: transport.playing ? 'Stop' : 'Play from cursor', hint: 'Space', disabled: !project.tracks.length, onSelect: () => { if (transport.playing) transport.stop(); else void transport.play(); } },
+        { id: 'desk-start', label: 'Return to start', hint: 'Home', onSelect: () => transport.setCursor(0) },
+        { id: 'desk-loop', label: 'Loop In → Out', hint: 'L', checked: !!project.loopOn, onSelect: () => mutateProject((p) => { p.loopOn = !p.loopOn; }) },
+        { id: 'desk-range', label: 'Play In → Out (rendered)', disabled: !range, onSelect: () => { void auditionRange(); } },
+        'sep',
+        { id: 'desk-pressing', label: state.on ? 'Pressing on' : 'Pressing off', checked: state.on, onSelect: () => apply({ ...state, on: !state.on }) },
+      ],
+    },
+  ];
+
+  const deckTrack = project.tracks.find((t) => t.id === deckTrackId) ?? null;
+  const deckLaid = deckTrack ? layout.tracks.find((l) => l.track.id === deckTrack.id) : undefined;
+  const bayProps = { project, mutate: mutateProject, productionId };
 
   return (
     <div className="flex-1 min-h-0 flex flex-col">
+      <StudioMenuPublisher owner="mastering" menus={menus} save={{ state: saveState, onSave: () => { void saveNow(); }, what: 'mastering project' }} />
       <div className="flex-1 min-h-0 overflow-auto p-4">
       <div className={`${slabPanel} p-5`}>
 
@@ -792,6 +923,69 @@ export const ProjectView: React.FC<ProjectViewProps> = ({
           </div>
         </div>
 
+        {/* ── The desk's bays ── */}
+        <nav className="flex gap-1 mt-4 overflow-x-auto no-scrollbar border-b border-white/[0.08] pb-2" aria-label="Mastering desk sections">
+          {BAYS.map((b) => (
+            <button
+              key={b.id}
+              onClick={() => setBay(b.id)}
+              aria-current={bay === b.id ? 'page' : undefined}
+              className="h-8 px-3 rounded-lg text-[10.5px] font-bold uppercase tracking-[0.12em] whitespace-nowrap border transition-colors"
+              style={bay === b.id
+                ? { color: '#fff', borderColor: 'rgba(212,0,85,0.55)', background: 'rgba(212,0,85,0.14)' }
+                : { color: 'rgba(255,255,255,0.45)', borderColor: 'transparent' }}
+            >{b.label}</button>
+          ))}
+        </nav>
+
+        {/* ── The deck — whatever's playing, with its lyric sync ── */}
+        {deckTrack && (
+          <div className="mt-4">
+            <TrackDeck
+              track={deckTrack}
+              index={deckLaid?.index ?? 0}
+              artist={pub.artist}
+              cover={deckTrack.images?.[0] || project.coverImage}
+              color={(deckTrack.mastering ? eraById(deckTrack.mastering.eraId)?.discColor : era?.discColor) || '#D0BCFF'}
+              peaks={getPeaks(deckTrack.sample.key)}
+              getPos={() => {
+                const live = transport.getPlayPos();
+                if (live != null && snap.auditionId === deckTrack.id) return live - (deckLaid?.startSec ?? 0);
+                if (snap.auditionId === deckTrack.id) return BeatsEngine.get().auditionPosSec();
+                return null;
+              }}
+              playing={snap.auditionId === deckTrack.id}
+              onPlayFrom={(sec) => { void transport.play((deckLaid?.startSec ?? 0) + sec); }}
+              onStop={() => transport.stop()}
+              onPatch={(fn) => mutateProject((p) => { const x = p.tracks.find((a) => a.id === deckTrack.id); if (x) fn(x); })}
+              onClose={() => setDeckTrackId(null)}
+            />
+          </div>
+        )}
+
+        {bay === 'physical' && <div className="mt-4"><PhysicalMediaBay {...bayProps} albumPressing={albumPressing} onApplyPressing={(patch) => apply({ ...state, ...patch })} /></div>}
+        {bay === 'credits' && <div className="mt-4"><CreditsBay {...bayProps} /></div>}
+        {bay === 'artwork' && <div className="mt-4"><ArtworkBay {...bayProps} /></div>}
+        {bay === 'release' && <div className="mt-4"><ReleaseBay {...bayProps} /></div>}
+        {bay === 'media' && <div className="mt-4"><MediaBay {...bayProps} /></div>}
+        {bay === 'visuals' && <div className="mt-4"><VisualsBay {...bayProps} /></div>}
+        {bay === 'mixes' && <div className="mt-4"><MixesShowBay {...bayProps} albumPressing={albumPressing} /></div>}
+        {bay === 'pixels' && <div className="mt-4"><PixelsBay {...bayProps} albumPressing={albumPressing} /></div>}
+        {bay === 'intel' && <div className="mt-4"><IntelBay {...bayProps} onLinkAlbum={linkAlbum} /></div>}
+        {bay === 'publish' && (
+          <div className="mt-4">
+            <PublishBay
+              {...bayProps}
+              busy={busy}
+              onPublishChora={() => { void publishToChora(); }}
+              onExportZip={() => { void exportZip(); }}
+              onGoBay={(b) => setBay(b as BayId)}
+              onLinkAlbum={linkAlbum}
+            />
+          </div>
+        )}
+
+        {bay === 'pressing' && (<>
         {/* ── The era shelf ── */}
         <div className="flex gap-2.5 mt-4 overflow-x-auto pb-2">
           {ERA_PROFILES.map((p) => {
@@ -936,13 +1130,18 @@ export const ProjectView: React.FC<ProjectViewProps> = ({
                 const playing = snap.auditionId === t.id;
                 return (
                   <React.Fragment key={t.id}>
-                  <div className="grid grid-cols-[24px_26px_1fr_auto_auto_auto_auto_auto_auto] items-center gap-2.5 py-2 border-b border-white/[0.06]">
-                    <span className="text-[15px] text-white/30 text-center" style={{ fontFamily: SERIF }}>{i + 1}</span>
+                  <div
+                    className="grid grid-cols-[26px_24px_1fr_auto_auto_auto_auto_auto_auto] items-center gap-2.5 py-2 border-b border-white/[0.06]"
+                    style={selectedTrackId === t.id ? { background: 'rgba(212,0,85,0.06)' } : undefined}
+                    onClick={(e) => { if ((e.target as HTMLElement).closest('input,select,button')) return; setSelectedTrackId(t.id); }}
+                  >
+                    {/* Play sits at the far left of the row, where a hand expects it. */}
                     <button
                       onClick={() => {
+                        if (playing) { transport.stop(); return; }
                         const laid = layout.tracks.find((l) => l.track.id === t.id);
-                        auditionOrigin.current = laid?.startSec ?? 0; // so the strip playhead lands right
-                        void toggleAudition(t);
+                        setSelectedTrackId(t.id);
+                        void transport.play(laid?.startSec ?? 0); // rolls on into the next song, like a record
                       }}
                       className="w-6 h-6 grid place-items-center rounded-full border"
                       style={playing
@@ -951,6 +1150,7 @@ export const ProjectView: React.FC<ProjectViewProps> = ({
                       aria-label={playing ? `Stop ${t.title}` : `Play ${t.title} through its pressing`}
                       title={playing ? 'Stop' : 'Hear this track through its pressing'}
                     >{playing ? <Square size={9} fill="currentColor" /> : <Play size={9} fill="currentColor" />}</button>
+                    <span className="text-[15px] text-white/30 text-center" style={{ fontFamily: SERIF }}>{i + 1}</span>
                     <div className="min-w-0">
                       <input
                         value={t.title}
@@ -1027,7 +1227,7 @@ export const ProjectView: React.FC<ProjectViewProps> = ({
                   </div>
                   {/* Lyrics + media — the assets that must never orphan. */}
                   {assetTrackId === t.id && (
-                    <div className="pl-[50px] pr-2 py-2 border-b border-white/[0.04] bg-black/20">
+                    <div className="pl-[52px] pr-2 py-2 border-b border-white/[0.04] bg-black/20">
                       <TrackAssets
                         track={t}
                         onPatch={(fn) => mutateProject((p) => { const x = p.tracks.find((a) => a.id === t.id); if (x) fn(x); })}
@@ -1182,25 +1382,25 @@ export const ProjectView: React.FC<ProjectViewProps> = ({
           {/* ── Right: publishing, engineers, pressing notes, the meter wall ── */}
           <div className="min-w-0 flex flex-col gap-4">
 
-            {/* ── Publishing — what goes on the sleeve and into the release. ── */}
+            {/* ── The record at a glance — the full sheet lives in Credits & Metadata. ── */}
             <div className="rounded-[12px] border border-white/[0.1] bg-white/[0.03] p-3">
-              <span className="text-[10px] font-extrabold tracking-[0.18em] uppercase text-white/35">Publishing</span>
-              <div className="grid grid-cols-2 gap-2 mt-2">
-                <input className={inputCls} placeholder="Album title" value={pub.title} onChange={(e) => setPub({ title: e.target.value })} aria-label="Album title" />
-                <input className={inputCls} placeholder="Artist" value={pub.artist} onChange={(e) => setPub({ artist: e.target.value })} aria-label="Artist" />
-                <input className={inputCls} placeholder="Genre" value={pub.genre} onChange={(e) => setPub({ genre: e.target.value })} aria-label="Genre" />
-                <input className={inputCls} placeholder="Year" value={pub.year} onChange={(e) => setPub({ year: e.target.value })} aria-label="Release year" />
-                <input className={inputCls} placeholder="Label" value={pub.label} onChange={(e) => setPub({ label: e.target.value })} aria-label="Record label" />
-                <input className={inputCls} placeholder="© line" value={pub.copyright} onChange={(e) => setPub({ copyright: e.target.value })} aria-label="Copyright line" />
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-extrabold tracking-[0.18em] uppercase text-white/35">The Record</span>
+                <button onClick={() => setBay('credits')} className="text-[9.5px] text-white/45 hover:text-white flex items-center gap-1">Credits & metadata <ArrowRight size={10} /></button>
               </div>
-              <textarea
-                className={`${inputCls} h-auto min-h-[54px] py-2 mt-2 resize-y`}
-                placeholder="Liner notes / description"
-                value={pub.description}
-                onChange={(e) => setPub({ description: e.target.value })}
-                aria-label="Album description"
-              />
-              <p className="mt-1.5 text-[9px] text-white/25">Cover art, pricing and rights finish in the Album Creator when you publish.</p>
+              <div className="mt-1.5 text-[15px] text-white" style={{ fontFamily: SERIF }}>{pub.title || <span className="text-white/30 italic">Untitled</span>}</div>
+              <div className="text-[11px] text-white/50">{[pub.artist, pub.label, pub.year].filter(Boolean).join(' · ') || 'Add the artist, label and year'}</div>
+              <div className="flex flex-wrap gap-1 mt-2">
+                {[
+                  ['Artwork', 'artwork', !!(project.coverImage || project.desk?.artwork?.animated)],
+                  ['Release', 'release', !!project.desk?.release],
+                  ['Physical', 'physical', !!project.desk?.physical],
+                  ['Publish', 'publish', !!project.desk?.publish?.choraAlbumId],
+                ].map(([label, id, done]) => (
+                  <button key={id as string} onClick={() => setBay(id as BayId)} className="h-6 px-2 rounded-full border text-[9.5px]"
+                    style={done ? { color: '#06D6A0', borderColor: 'rgba(6,214,160,0.35)' } : { color: 'rgba(255,255,255,0.45)', borderColor: 'rgba(255,255,255,0.12)' }}>{done ? '✓ ' : ''}{label as string}</button>
+                ))}
+              </div>
             </div>
 
             {/* ── Release format — the authoring budget for CD / vinyl / streaming ── */}
@@ -1230,6 +1430,7 @@ export const ProjectView: React.FC<ProjectViewProps> = ({
                 </div>
               )}
               <p className="mt-1.5 text-[9px] text-white/25">{discFormat.note}</p>
+              <button onClick={() => setBay('physical')} className="mt-1.5 text-[9.5px] text-[#D0BCFF] hover:text-white flex items-center gap-1">Prepare for CD, vinyl or tape <ArrowRight size={10} /></button>
             </div>
 
             <div>
@@ -1320,6 +1521,7 @@ export const ProjectView: React.FC<ProjectViewProps> = ({
             </div>
           </div>
         </div>
+        </>)}
       </div>
       </div>
 
@@ -1342,13 +1544,19 @@ export const ProjectView: React.FC<ProjectViewProps> = ({
           selectedId={selectedTrackId}
           onSelect={setSelectedTrackId}
           onMutate={mutateProject}
-          auditionOrigin={auditionOrigin.current}
-          auditionId={snap.auditionId}
           albumEraColor={era?.discColor ?? '#D0BCFF'}
           getPeaks={getPeaks}
           ensurePeaks={ensurePeaks}
           height={timelineH}
           onResize={setTimelineH}
+          cursorSec={transport.cursorSec}
+          onSeek={transport.setCursor}
+          getPlayPos={transport.getPlayPos}
+          playing={transport.playing}
+          onPlay={() => { void transport.play(); }}
+          onStop={transport.stop}
+          onPlayRange={() => { void auditionRange(); }}
+          rangeBusy={busy === 'range'}
         />
       )}
     </div>

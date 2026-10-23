@@ -1,3 +1,5 @@
+import type { AlbumMeta as ChoraAlbumMeta, TrackMeta as ChoraTrackMeta, AnimatedCover, TelaCoverLink, VisualsState as AlbumVisuals, ShowSetup } from './services/melos/beats/releaseDesk';
+
 
 export interface Story {
   id: string;
@@ -188,6 +190,10 @@ export interface Track {
   eclipsaProjectJson?: string;  // IAMF authoring descriptor (from the Spatial Mixer) preserved with the release
   isAtmos?: boolean;    // Dolby Atmos / EC-3 JOC source — enables passthrough badge
   characterIds?: string[];                      // Characters featured in this song
+  /** Credits, ISRC/ISWC, explicit flag, moods… set in the Mastering Desk (releaseDesk.ts TrackMeta). */
+  trackMeta?: ChoraTrackMeta;
+  /** The song's authored Pixels show (users/{uid}/plajahProjects/{id}). */
+  pixelsProjectId?: string;
   trackCharacterImages?: Record<string, string>; // Per-song image override (characterId → imageUrl)
   originalUrl?: string; // Preserved original URL when track has been auto-converted for browser compatibility
   browserCompatUrl?: string; // Browser-optimized WAV URL (16-bit PCM, plays natively without decode fallback)
@@ -718,6 +724,20 @@ export interface Album {
     type: 'IMAGE' | 'VIDEO';
   };
   relatedProjectIds?: string[]; // IDs of other albums/projects connected to the same IP
+  /** Release metadata from the Mastering Desk: UPC, credits, explicit, moods, ℗/© lines. */
+  releaseMeta?: ChoraAlbumMeta;
+  /** A square GIF / ≤10 s loop that plays as the cover on the album page. */
+  animatedCover?: AnimatedCover;
+  /** A Tela document as the cover — interactive when `interactive` is set. */
+  telaCover?: TelaCoverLink;
+  /** Which face the album page shows: the still, the animated cover, or the Tela doc. */
+  coverFace?: 'still' | 'animated' | 'tela';
+  /** The artist's own visualizers + uploaded shaders for this album. */
+  albumVisuals?: AlbumVisuals;
+  /** How the album opens in Show Mode. */
+  showSetup?: ShowSetup;
+  /** The Melos production + mastering project this release was pressed from. */
+  melosSource?: { prodId?: string; projectId: string };
   worldId?: string;
   timelineId?: string;
   characterIds?: string[];
