@@ -7,7 +7,7 @@
 // service recaps & lessons · music, hymns & (tradition-gated) prayers · sacred text plates ·
 // household & giving statements.
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import {
   Sparkles,
   BookOpen,
@@ -153,6 +153,9 @@ function getStudioNavItems(orgType: Organization['orgType'] | undefined, vocab: 
     { id: 'FAMILY_CRM_AND_TAX_STATEMENTS', label: 'Household & giving statements', icon: Users },
   ];
 }
+
+// A member's own gifts + statement PDF (reads only rows linked to their uid — Firestore rules enforce it).
+const MyGivingPanel = lazy(() => import('./chms/finance/MyGivingPanel'));
 
 export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
   org,
@@ -1231,7 +1234,13 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
             ═══════════════════════════════════════════════════════════════════════ */}
         {section === 'FAMILY_CRM_AND_TAX_STATEMENTS' && !demo && (
           <div className="ev-panel p-6 text-[15px] text-[#A49CB2] space-y-4">
-            <div>Household and giving statements appear here once your church records them.</div>
+            {user?.uid ? (
+              <Suspense fallback={<div>Loading your giving…</div>}>
+                <MyGivingPanel orgId={org.id} uid={user.uid} />
+              </Suspense>
+            ) : (
+              <div>Sign in to see your giving and download your statements.</div>
+            )}
             {onOpenGive && (
               <button onClick={onOpenGive} className="ev-btn ev-btn-ghost" style={{ minHeight: 36, fontSize: 13 }}>
                 <HeartHandshake size={14} /> Give

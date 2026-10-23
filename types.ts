@@ -2649,6 +2649,8 @@ export interface GivingFund {
 export interface ChmsFinanceSettings {
   /** Online giving: charge donors the processing fee on top so the church receives 100% of the gift (default ON; donors may untick). Set false to stop offering it. */
   donorCoversFees?: boolean;
+  /** Email a receipt (with PDF) for every online gift — the $250+ written acknowledgment (default ON; false turns it off). */
+  emailReceipts?: boolean;
   /** Voids and batch-balance overrides at/above this dollar amount need a second authorised approver. 0 = always, undefined = never. */
   approvalThreshold?: number;
   /** Anomaly detector: flag a gift this many times larger than the giver's median. */

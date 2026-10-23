@@ -450,10 +450,13 @@ service cloud.firestore {
       allow create, update: if acctWrite(request.resource.data.orgId);
       allow delete: if false;
     }
-    // Stripe-synced payouts + lines are written by the server (admin token); clients read only.
+    // Stripe-synced payouts + lines are written by the server (admin token). Clients only mark a payout
+    // matched/unmatched during bank reconciliation (acctService.acceptMatches / unmatch) — amounts are server truth.
     match /chmsPayouts/{id} {
       allow read: if chmsGivingRead(resource.data.orgId) || acctRead(resource.data.orgId);
-      allow create, update: if chmsFinance(request.resource.data.orgId) || acctWrite(request.resource.data.orgId);
+      allow create: if false;
+      allow update: if acctWrite(resource.data.orgId) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reconciled', 'bankTxnId']);
       allow delete: if false;
     }
     match /chmsPayoutLines/{id} {

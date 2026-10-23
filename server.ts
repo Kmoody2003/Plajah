@@ -85,7 +85,7 @@ import { socialServerRouter } from './routes/socialServer';
 import { createTrustSafetyRouter } from './routes/trustSafety';
 import { createEnforcementRouter, requireCapability } from './routes/enforcement';
 import { notifyEmailRouter } from './routes/notifyEmail';
-import { dispatchEmailNotification, createServerNotification, listAllUserIds } from './services/notify/emailNotifyServer';
+import { dispatchEmailNotification, createServerNotification, listAllUserIds, sendViaResend, lookupAuthUser } from './services/notify/emailNotifyServer';
 import { veoRouter } from './routes/veo';
 import { taleoRouter, enqueueIfReady as taleoEnqueueIfReady } from './routes/taleo';
 import { createMusicIntelRouter } from './routes/musicIntel';
@@ -150,6 +150,8 @@ import {
   type DraftJournal, type SysAccounts,
 } from './services/acctPosting';
 import { grossUpCents, giftCentsFromGross, applicationFeePercent } from './services/giftFees';
+import { receiptPdf, bytesToBase64 } from './services/givingPdf';
+import { receiptEmail, statementEmail, receiptNoOf, statementOrgOf, EMAIL_RE } from './services/givingEmailCore';
 import { createBilling } from './routes/billing';
 import { deriveAlerts as pulseDeriveAlerts, alertAudience as pulseAudience, prefAllows as pulsePrefAllows } from './services/acctPulse';
 import { isFutureRelease } from './services/releases/visibility';
@@ -2171,6 +2173,8 @@ async function recordOnlineGift(a: {
   uid?: string; giverName?: string; subscriptionId?: string; invoiceId?: string;
   /** Extra the donor paid on top to cover processing; the ledger gift is amountCents - feeCoveredCents. */
   feeCoveredCents?: number;
+  /** Donor email from Stripe (checkout customer_details / invoice) for the gift receipt. */
+  email?: string;
 }): Promise<{ id: string; created: boolean }> {
   const id = onlineGiftDocId(a.orgId, a.paymentId);
   const existing = await firestoreRead('chmsContributions', id);
@@ -2201,7 +2205,38 @@ async function recordOnlineGift(a: {
   }
   await autoPost(a.orgId, sys => onlineGiftEntry(sys, { id, date, amount, fundId, fundName, giver, stripePaymentId: a.paymentId }));
   if (a.chargeId && existing?.stripeFee === undefined) await attachGiftFinancials(a.orgId, id, a.chargeId, feeCovered).catch((e: any) => console.error('[Elevate] fee attach failed:', e?.message));
+  if (!existing?.receiptSentAt) await sendGiftReceipt(a.orgId, id, { email: a.email, uid: a.uid, createdSec: a.createdSec, recurring: !!a.subscriptionId }).catch((e: any) => console.error('[Elevate] receipt failed:', e?.message));
   return { id, created: !existing };
+}
+
+/** Per-gift donation receipt (email + PDF) — the donor's contemporaneous written acknowledgment for the
+ *  $250+ rule, sent for every gift so nobody has to work out which ones qualify. Once per gift
+ *  (receiptSentAt is claimed before sending), only for gifts made in the last 3 days so a historical
+ *  backfill (/api/elevate/stripe/sync) never mails old receipts, and only when the org hasn't turned it off. */
+async function sendGiftReceipt(orgId: string, giftId: string, o: { email?: string; uid?: string; createdSec: number; recurring?: boolean }): Promise<void> {
+  if (!process.env.RESEND_API_KEY) return;
+  if (Date.now() / 1000 - o.createdSec > 3 * 86400) return;
+  const [org, gift] = await Promise.all([firestoreGetDeep('organizations', orgId), firestoreRead('chmsContributions', giftId)]);
+  if (!org || !gift || gift.receiptSentAt || gift.status === 'VOID') return;
+  if (org.financeSettings?.emailReceipts === false) return;
+  let to = o.email && EMAIL_RE.test(o.email) ? o.email : '';
+  if (!to && o.uid) { const u = await lookupAuthUser(o.uid); if (u?.email && u.emailVerified) to = u.email; }
+  if (!to) return;
+  let donorName = gift.giverName || 'Friend';
+  if (gift.personId) {
+    const p = await firestoreRead('chmsPeople', gift.personId);
+    const n = [p?.preferredName || p?.firstName, p?.lastName].filter(Boolean).join(' ');
+    if (n) donorName = n;
+  }
+  if (!(await firestorePatchDeep('chmsContributions', giftId, { receiptSentAt: Date.now(), receiptTo: to }))) return;
+  const so = statementOrgOf(org as any);
+  const r = {
+    receiptNo: receiptNoOf(giftId), date: gift.date, donorName, amount: Number(gift.amount) || 0, fundName: gift.fundName || 'General',
+    method: 'Online (card/bank)', note: o.recurring ? 'Recurring gift' : undefined, feeCovered: Number(gift.feeCoveredByDonor) || undefined,
+  };
+  const pdf = bytesToBase64(await receiptPdf(r, so));
+  const ok = await sendViaResend(to, receiptEmail(so, r), undefined, [{ filename: `receipt-${r.receiptNo}.pdf`, content: pdf }], EMAIL_RE.test(org.location?.email || '') ? org.location.email : undefined);
+  if (!ok) await firestorePatchDeep('chmsContributions', giftId, { receiptSentAt: null, receiptError: 'send_failed' });
 }
 
 /** Attach Stripe fee/net (via balance_transaction) to the contribution; post the fee journal only if the ORG bears it. */
@@ -2231,7 +2266,7 @@ async function handleChurchSessionPaid(session: any) {
   try { chargeId = idOf((await getStripe().paymentIntents.retrieve(pi)).latest_charge); } catch { /* fee attach is best-effort */ }
   await recordOnlineGift({
     orgId, paymentId: pi, chargeId, amountCents: session.amount_total ?? Math.round(parseFloat(meta.amount || '0') * 100),
-    createdSec: session.created || Math.floor(Date.now() / 1000), fundName: meta.fund, uid: meta.uid, giverName: session.customer_details?.name || undefined,
+    createdSec: session.created || Math.floor(Date.now() / 1000), fundName: meta.fund, uid: meta.uid, giverName: session.customer_details?.name || undefined, email: session.customer_details?.email || undefined,
     feeCoveredCents: parseInt(meta.feeCoveredCents || '0', 10) || 0,
   });
 }
@@ -2258,7 +2293,7 @@ async function handleChurchInvoicePaid(invoice: any) {
   await recordOnlineGift({
     orgId, paymentId: idOf(invoice.payment_intent) || invoice.id, chargeId: idOf(invoice.charge),
     amountCents: invoice.amount_paid, createdSec: invoice.status_transitions?.paid_at || invoice.created,
-    fundName: fund, uid, giverName: invoice.customer_name || undefined, subscriptionId: subId, invoiceId: invoice.id,
+    fundName: fund, uid, giverName: invoice.customer_name || undefined, email: invoice.customer_email || undefined, subscriptionId: subId, invoiceId: invoice.id,
     feeCoveredCents: parseInt(meta.feeCoveredCents || '0', 10) || 0,
   });
 }
@@ -2366,7 +2401,7 @@ async function processPayout(orgId: string, acct: string, po: any, withLines: bo
             paymentId = idOf(pc?.payment_intent); chargeId = pc?.id;
             // Webhook missed it but the PaymentIntent carried the gift metadata → backfill from the charge.
             if (pc && paymentId && pc.metadata?.churchId === orgId && !(await firestoreRead('chmsContributions', onlineGiftDocId(orgId, paymentId)))) {
-              await recordOnlineGift({ orgId, paymentId, chargeId: pc.id, amountCents: pc.amount, createdSec: pc.created, fundName: pc.metadata.fund, uid: pc.metadata.uid });
+              await recordOnlineGift({ orgId, paymentId, chargeId: pc.id, amountCents: pc.amount, createdSec: pc.created, fundName: pc.metadata.fund, uid: pc.metadata.uid, email: pc.billing_details?.email || pc.receipt_email || undefined });
             }
           } else if (src.payment_intent) { paymentId = idOf(src.payment_intent); chargeId = src.id; }
         } else if (src && REFUND_TYPES.has(bt.type)) {
@@ -2431,7 +2466,7 @@ async function backfillChurchGifts(orgId: string, sinceSec: number): Promise<num
     if (!pi) continue;
     let chargeId: string | undefined;
     try { chargeId = idOf((await stripe.paymentIntents.retrieve(pi)).latest_charge); } catch { /* best-effort */ }
-    const r = await recordOnlineGift({ orgId, paymentId: pi, chargeId, amountCents: s.amount_total || 0, createdSec: s.created, fundName: meta.fund, uid: meta.uid, giverName: s.customer_details?.name || undefined, feeCoveredCents: parseInt(meta.feeCoveredCents || '0', 10) || 0 });
+    const r = await recordOnlineGift({ orgId, paymentId: pi, chargeId, amountCents: s.amount_total || 0, createdSec: s.created, fundName: meta.fund, uid: meta.uid, giverName: s.customer_details?.name || undefined, email: s.customer_details?.email || undefined, feeCoveredCents: parseInt(meta.feeCoveredCents || '0', 10) || 0 });
     if (r.created) added++;
   }
   for (const subId of subs) {
@@ -3516,7 +3551,9 @@ async function startServer() {
   const tightJson = express.json({ limit: '10kb' });
   const LARGE_BODY_ROUTES = new Set(['/api/ai/anthropic', '/api/ai/gemini', '/api/ai/pokee',
     // Veo/Pixels proxy: /content carries base64 inlineData audio, /generate can carry an image.
-    '/api/ai/veo/content', '/api/ai/veo/generate']);
+    '/api/ai/veo/content', '/api/ai/veo/generate',
+    // Elevate: a chunk of contribution-statement PDFs (base64) to email.
+    '/api/elevate/statements/email']);
   // Signed webhooks registered further down verify an HMAC over the exact bytes, so their
   // own express.raw must see the untouched body — parsing it here broke every signature.
   const RAW_BODY_ROUTES = new Set(['/api/merch/stripe-webhook', '/api/mux/webhook']);
@@ -5674,6 +5711,53 @@ async function startServer() {
       res.json({ url: link.url });
     } catch (err: any) {
       res.status(500).json({ error: err?.message || 'Could not create Stripe link' });
+    }
+  });
+
+  // POST /api/elevate/statements/email {orgId, rangeLabel, items:[{key, personIds, name, total, pdfBase64}]}
+  // Finance staff email year-end/quarterly statements as PDF attachments. The client renders the PDFs
+  // (services/givingPdf — the same builder as Download PDF); the SERVER picks each recipient address from the
+  // org's own chmsPeople records (never a client-supplied address), so this can't be used as a mail relay.
+  // Max 25 per call (the client chunks); Resend's 2 req/s limit is respected with a short gap between sends.
+  const statementEmailLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000, max: 200, standardHeaders: true, legacyHeaders: false,
+    keyGenerator: (req: any) => `stmtmail:${req.uid || req.ip}`,
+    message: { error: 'Statement email limit reached — try again in an hour' },
+  });
+  app.post('/api/elevate/statements/email', authMiddleware, statementEmailLimiter, express.json({ limit: '12mb' }), async (req: any, res) => {
+    const { orgId, rangeLabel, items } = req.body || {};
+    if (typeof orgId !== 'string' || !orgId || typeof rangeLabel !== 'string' || !Array.isArray(items)) return res.status(400).json({ error: 'orgId, rangeLabel and items required' });
+    if (items.length > 25) return res.status(400).json({ error: 'At most 25 statements per request' });
+    try {
+      const gate = await assertOrgFinanceAccess(req.uid, orgId);
+      if ('error' in gate) return res.status(gate.status).json({ error: gate.error });
+      if (!process.env.RESEND_API_KEY) return res.json({ configured: false, sent: [], skipped: items.map((i: any) => ({ key: String(i?.key || ''), reason: 'email_not_configured' })) });
+      const so = statementOrgOf(gate.org as any);
+      const replyTo = EMAIL_RE.test(gate.org.location?.email || '') ? gate.org.location.email : undefined;
+      const label = rangeLabel.slice(0, 60);
+      const sent: string[] = []; const skipped: Array<{ key: string; reason: string }> = [];
+      for (const it of items) {
+        const key = String(it?.key || '').slice(0, 120);
+        const pdf = typeof it?.pdfBase64 === 'string' ? it.pdfBase64 : '';
+        if (!pdf.startsWith('JVBER') || pdf.length > 2_800_000) { skipped.push({ key, reason: 'bad_pdf' }); continue; }
+        const ids: string[] = (Array.isArray(it?.personIds) ? it.personIds : []).filter((x: any) => typeof x === 'string' && x).slice(0, 12);
+        let to = '';
+        for (const pid of ids) {
+          const p = await firestoreRead('chmsPeople', pid);
+          if (!p || p.orgId !== orgId) continue;
+          if (typeof p.email === 'string' && EMAIL_RE.test(p.email.trim())) { to = p.email.trim(); break; }
+        }
+        if (!to) { skipped.push({ key, reason: 'no_email' }); continue; }
+        const name = String(it?.name || 'Friend').slice(0, 120);
+        const total = Number(it?.total) || 0;
+        const file = `${label.replace(/[^A-Za-z0-9]+/g, '-')}-giving-statement.pdf`;
+        const ok = await sendViaResend(to, statementEmail(so, name, label, total), undefined, [{ filename: file, content: pdf }], replyTo);
+        if (ok) sent.push(key); else skipped.push({ key, reason: 'send_failed' });
+        await new Promise(r => setTimeout(r, 550));
+      }
+      res.json({ configured: true, sent, skipped });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Could not email statements' });
     }
   });
 

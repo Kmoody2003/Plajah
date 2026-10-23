@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "allowJs": false, "noEmit": true },
+  "include": [
+    "services/givingPdf.ts", "services/givingEmailCore.ts", "services/restrictedFunds.ts", "services/chmsFinance.ts",
+    "services/acctService.ts", "services/acctSpending.ts", "services/acctPosting.ts",
+    "components/elevate/chms/finance/StatementsTab.tsx", "components/elevate/chms/finance/MyGivingPanel.tsx",
+    "components/elevate/chms/finance/FundsTab.tsx", "components/elevate/chms/finance/SettingsTab.tsx",
+    "components/elevate/chms/finance/SpendingHub.tsx", "components/elevate/chms/accounting/SetupTab.tsx",
+    "components/elevate/ChurchMemberHub.tsx", "components/elevate/ElevateOps.tsx", "components/OrgHub.tsx",
+    "tests/givingFinance.test.ts"
+  ]
+}

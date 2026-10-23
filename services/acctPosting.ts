@@ -125,6 +125,16 @@ export function invoicePaymentEntry(sys: SysAccounts, p: { id: string; date: str
 }
 
 /** Exact mirror entry used to reverse a posted journal (journals are never deleted). */
+/** Fund transfer / release between funds: moves net assets from one fund to another (and between the
+ *  "with" / "without donor restrictions" classes when the funds differ). Revenue and expense are untouched. */
+export function fundTransferEntry(netAssets: { restricted: string; unrestricted: string }, t: { pairId: string; date: string; amount: number; from: { id: string; restricted?: boolean }; to: { id: string; restricted?: boolean }; memo: string }): DraftJournal {
+  const acct = (r?: boolean) => (r ? netAssets.restricted : netAssets.unrestricted);
+  return mk(t.date, t.memo, [
+    { accountId: acct(t.from.restricted), debit: t.amount, credit: 0, fundId: t.from.id },
+    { accountId: acct(t.to.restricted), debit: 0, credit: t.amount, fundId: t.to.id },
+  ], { kind: 'TRANSFER', id: t.pairId }, `transfer:${t.pairId}`);
+}
+
 export function reversalOf(j: Pick<AcctJournal, 'id' | 'date' | 'memo' | 'lines'>, date: string): DraftJournal {
   return {
     date, period: periodOf(date), memo: `Reversal: ${j.memo}`,

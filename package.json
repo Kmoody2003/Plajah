@@ -69,6 +69,7 @@
     "test:events": "npx tsx --test tests/hostEvents.test.ts",
     "test:laundry": "npx tsx --test tests/laundryCore.test.ts",
     "test:auto": "npx tsx --test tests/vehicleCore.test.ts tests/nhtsaCore.test.ts tests/inspectionCore.test.ts tests/serviceReminderCore.test.ts tests/autoServer.test.ts",
+    "test:giving": "npx tsx --test tests/givingFinance.test.ts",
     "test:tax": "npx tsx --test tests/taxCore.test.ts tests/drawerCore.test.ts tests/registerHardening.test.ts tests/storedValueCore.test.ts",
     "test:stored": "npx tsx --test tests/storedValueCore.test.ts",
     "test:kairos": "npx tsx --test tests/kairosService.test.ts",

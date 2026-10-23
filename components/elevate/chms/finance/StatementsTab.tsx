@@ -2,13 +2,14 @@
 // "no goods or services" language, print/PDF, batch generate, Plajah-notify, mailing labels, duplicate log,
 // and 4-Scope Family & Household Tax Statement generation (Joint Household, Head & Spouse, Individual, Family Packet).
 import React, { useMemo, useState } from 'react';
-import { Bell, FileText, Mail, MapPin, Printer, Users } from 'lucide-react';
+import { Bell, Download, FileText, Mail, MapPin, Printer, Send, Users } from 'lucide-react';
 import type { ChmsTaxStatementScope } from '../../../../types';
-import { alreadySent, logStatementRun, notifyStatements, statementMailto } from '../../../../services/chmsFinance';
+import { alreadySent, emailStatements, logStatementRun, notifyStatements } from '../../../../services/chmsFinance';
 import { curQuarter, downloadText, mailingLabelsCsv, money, quarterRange, statementsHtml, yearRange, type DateRange } from '../../../../services/chmsFinanceReports';
 import { buildScopedTaxStatements, type ScopedStatementData } from '../../../../services/chmsKinshipAndStatements';
 import { finAudit } from '../../../../services/chmsFinance';
-import { isFaithOrg } from '../../../../services/elevateTemplates';
+import { statementOrgOf } from '../../../../services/givingEmailCore';
+import { downloadPdf, statementsPdf } from '../../../../services/givingPdf';
 import { card, fieldSm, btnPrimary, btnGhost, heading, label, Pill, Empty, RangePicker, useAction, Busy, printHtml, type TabProps } from './shared';
 
 const STATEMENT_SCOPES: Array<{ id: ChmsTaxStatementScope; label: string; desc: string }> = [
@@ -61,7 +62,9 @@ const StatementsTab: React.FC<TabProps> = ({ org, snap, reload, canManage }) => 
   const sent = useMemo(() => alreadySent(snap.statementLogs, range), [snap.statementLogs, range]);
   const list = all.filter(s => (!filter || s.name.toLowerCase().includes(filter.toLowerCase())) && (!skipSent || !sent.has(s.key)));
   const noAddr = all.filter(s => !s.address?.line1).length;
-  const orgInfo = { name: org.name, legalName: org.legalName, ein: org.ein, statementFooter: org.statementFooter, intro: org.financeSettings?.statementIntro, address: org.location?.address ? `${org.location.address}${org.location.city ? ', ' + org.location.city : ''}` : undefined, faith: isFaithOrg(org.orgType) };
+  const orgInfo = statementOrgOf(org);
+  const emailed = useMemo(() => alreadySent(snap.statementLogs, range, 'EMAIL'), [snap.statementLogs, range]);
+  const fileBase = `${range.label.replace(/\W+/g, '-')}-giving-statement`;
   const totalAmt = list.reduce((a, s) => a + s.total, 0);
 
   if (!canManage) return <Empty>Statements are limited to finance roles.</Empty>;
@@ -83,7 +86,28 @@ const StatementsTab: React.FC<TabProps> = ({ org, snap, reload, canManage }) => 
   const emailList = () => act.run(async () => {
     const withMail = list.filter(s => s.email);
     downloadText(`statement-email-list-${range.label.replace(/\W+/g, '-')}.csv`, 'Name,Email,Scope,Total\r\n' + withMail.map(s => `"${s.name.replace(/"/g, '""')}",${s.email},${s.scope},${s.total.toFixed(2)}`).join('\r\n'));
-    await finAudit(org.id, 'FIN_EXPORT', 'statement email list', { count: withMail.length, scope }); setMsg(`Exported ${withMail.length} emails. Use Print → Save as PDF, then attach per giver or mail-merge.`);
+    await finAudit(org.id, 'FIN_EXPORT', 'statement email list', { count: withMail.length, scope }); setMsg(`Exported ${withMail.length} emails. Use these for a mail-merge, or Email PDFs to send them from Plajah.`);
+  });
+  const pdfSome = (stmts = list) => act.run(async () => {
+    if (!stmts.length) { alert('No statements to download.'); return; }
+    const dupes = stmts.filter(s => sent.has(s.key)).length;
+    if (dupes && !confirm(`${dupes} of these statements were already generated for ${range.label}. Download duplicates anyway?`)) return;
+    downloadPdf(stmts.length === 1 ? `${stmts[0].name.replace(/\W+/g, '-')}-${fileBase}.pdf` : `${fileBase}s.pdf`, await statementsPdf(stmts, orgInfo));
+    await logStatementRun(org, range, 'PDF', byHousehold, stmts); await reload();
+  });
+  const emailSome = (stmts = list.filter(s => s.email)) => act.run(async () => {
+    if (!stmts.length) { alert('None of these statements has an email address on file.'); return; }
+    const dupes = stmts.filter(s => emailed.has(s.key)).length;
+    if (!confirm(`Email ${stmts.length} PDF statement(s) for ${range.label}?${dupes ? `
+
+${dupes} were already emailed for this range and will be sent again.` : ''}`)) return;
+    setMsg(`Emailing 0 of ${stmts.length}…`);
+    const r = await emailStatements(org, range, stmts, (d, t) => setMsg(`Emailing ${d} of ${t}…`));
+    if (!r.configured) { setMsg('Email isn’t set up on this server yet (RESEND_API_KEY). Use Download PDF and attach the statements instead.'); return; }
+    if (r.sent.length) await logStatementRun(org, range, 'EMAIL', byHousehold, r.sent);
+    const noMail = r.skipped.filter(x => x.reason === 'no_email').length, failed = r.skipped.length - noMail;
+    setMsg(`Emailed ${r.sent.length} statement(s).${noMail ? ` ${noMail} had no usable email on their record.` : ''}${failed ? ` ${failed} failed — try those again.` : ''}`);
+    await reload();
   });
   const one = (s: typeof all[number]) => act.run(async () => { printHtml(statementsHtml([s], orgInfo)); await logStatementRun(org, range, 'PRINT', byHousehold, [s]); await reload(); });
 
@@ -131,7 +155,9 @@ const StatementsTab: React.FC<TabProps> = ({ org, snap, reload, canManage }) => 
           <div><p className={label}>No address</p><p className={`text-xl font-black ${noAddr ? 'text-amber-300' : 'text-white'}`}>{noAddr}</p></div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button onClick={() => printSome()} disabled={act.busy || !list.length} className={btnPrimary}><Busy on={act.busy}><Printer size={12} /> Print / PDF all ({list.length})</Busy></button>
+          <button onClick={() => pdfSome()} disabled={act.busy || !list.length} className={btnPrimary}><Busy on={act.busy}><Download size={12} /> Download PDF ({list.length})</Busy></button>
+          <button onClick={() => emailSome()} disabled={act.busy || !list.some(s => s.email)} className={btnGhost}><Send size={12} /> Email PDFs ({list.filter(s => s.email).length})</button>
+          <button onClick={() => printSome()} disabled={act.busy || !list.length} className={btnGhost}><Printer size={12} /> Print</button>
           <button onClick={notify} disabled={act.busy || !list.length} className={btnGhost}><Bell size={12} /> Notify in Plajah</button>
           <button onClick={emailList} disabled={!list.length} className={btnGhost}><Mail size={12} /> Email list (CSV)</button>
           <button onClick={labels} disabled={!list.length} className={btnGhost}><MapPin size={12} /> Mailing labels (CSV)</button>
@@ -155,7 +181,9 @@ const StatementsTab: React.FC<TabProps> = ({ org, snap, reload, canManage }) => 
                   {!s.address?.line1 && <Pill tone="warn">no address</Pill>}
                   {s.linkedUids.length > 0 && <Pill>plajah</Pill>}
                   <span className="tabular-nums font-bold text-white">{money(s.total)}</span>
-                  {s.email && <a href={statementMailto(s, org)} className="text-white/40 hover:text-white" title="Email (attach the PDF)"><Mail size={13} /></a>}
+                  {emailed.has(s.key) && <Pill tone="ok">emailed</Pill>}
+                  <button onClick={() => pdfSome([s])} className="text-white/40 hover:text-white" title="Download this statement as PDF"><Download size={13} /></button>
+                  {s.email && <button onClick={() => emailSome([s])} className="text-white/40 hover:text-white" title={`Email the PDF to ${s.email}`}><Mail size={13} /></button>}
                   <button onClick={() => one(s)} className="text-white/40 hover:text-white" title="Print this statement"><FileText size={13} /></button>
                 </div>
                 {s.memberSubtotals.length > 1 && (

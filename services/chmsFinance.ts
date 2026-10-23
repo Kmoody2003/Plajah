@@ -13,7 +13,8 @@ import {
 } from 'firebase/firestore';
 import { opsDb, auth } from './firebase';
 import { logOrgAction, type OrgAuditAction } from './orgAudit';
-import { updateOrganization } from './organizationService';
+import { fetchOrganization, updateOrganization } from './organizationService';
+import { checkFundListChange, checkTransfer, mergeFundLists } from './restrictedFunds';
 import { callGemini, callGeminiDetailed } from './geminiService';
 import { createNotification } from './backendService';
 import type {
@@ -277,24 +278,37 @@ export async function attachMatchingGifts(org: Organization, pledge: ChmsPledge,
 }
 
 // ── Funds, transfers, settings ─────────────────────────────────────────────────
-export async function saveFunds(org: Organization, funds: GivingFund[]): Promise<void> {
+/** Save the fund list. Merges onto the latest saved list (never drops a fund someone else just added) and refuses
+ *  changes that would hide donor-restricted money (`balanceOf` = the fund's current balance). Returns the saved list. */
+export async function saveFunds(org: Organization, funds: GivingFund[], balanceOf?: (fundId: string) => number): Promise<GivingFund[]> {
   uidOrThrow();
-  await updateOrganization(org.id, { givingFunds: strip(funds) });
-  await finAudit(org.id, 'FIN_SETTINGS', 'funds', { count: funds.length });
+  const latest = (await fetchOrganization(org.id).catch(() => null))?.givingFunds || org.givingFunds || [];
+  const merged = mergeFundLists(org.givingFunds || [], funds, latest);
+  if (balanceOf) { const err = checkFundListChange(latest, merged, balanceOf); if (err) throw new Error(err); }
+  await updateOrganization(org.id, { givingFunds: strip(merged) });
+  await finAudit(org.id, 'FIN_SETTINGS', 'funds', { count: merged.length });
+  return merged;
 }
-export async function recordTransfer(org: Organization, from: GivingFund, to: GivingFund, amount: number, date: string, reason: string): Promise<void> {
+/** Paired out/in transfer between funds, also posted to the books. Out of a donor-restricted fund it's a RELEASE:
+ *  only with `purposeMet` confirmed and never above `fromBalance` (see services/restrictedFunds). */
+export async function recordTransfer(org: Organization, from: GivingFund, to: GivingFund, amount: number, date: string, reason: string, opts: { fromBalance?: number; purposeMet?: boolean } = {}): Promise<void> {
   uidOrThrow();
   if (!(amount > 0)) throw new Error('Amount must be above zero.');
   if (from.id === to.id) throw new Error('Choose two different funds.');
   if (!reason.trim()) throw new Error('A reason is required for a fund transfer.');
+  const blocked = checkTransfer({ from, to, amount: round2(amount), fromBalance: opts.fromBalance ?? 0, purposeMet: !!opts.purposeMet });
+  if (blocked) throw new Error(blocked);
   const pairId = doc(collection(opsDb, 'chmsFinanceMeta')).id;
+  // Books first: a closed period stops the transfer before anything is written. No accounting access → giving-side only.
+  try { await (await import('./acctService')).postFundTransfer(org.id, { pairId, date, amount: round2(amount), from, to, reason: reason.trim() }); }
+  catch (e: any) { if (e?.code !== 'permission-denied') throw e; }
   const wb = writeBatch(opsDb);
   for (const [f, signed] of [[from, -round2(amount)], [to, round2(amount)]] as [GivingFund, number][]) {
     const ref = doc(collection(opsDb, 'chmsFinanceMeta'));
-    wb.set(ref, { id: ref.id, orgId: org.id, kind: 'TRANSFER', pairId, fundId: f.id, fundName: f.name, amount: signed, date, reason: reason.trim(), createdAt: Date.now(), createdBy: auth.currentUser!.uid });
+    wb.set(ref, clean({ id: ref.id, orgId: org.id, kind: 'TRANSFER', pairId, fundId: f.id, fundName: f.name, amount: signed, date, reason: reason.trim(), release: from.restricted ? true : undefined, createdAt: Date.now(), createdBy: auth.currentUser!.uid }));
   }
   await wb.commit();
-  await finAudit(org.id, 'FIN_TRANSFER', `${from.name} → ${to.name}`, { amount, date, reason, pairId });
+  await finAudit(org.id, 'FIN_TRANSFER', `${from.restricted ? 'Release ' : ''}${from.name} → ${to.name}`, { amount, date, reason, pairId, release: !!from.restricted });
 }
 export async function saveFinanceSettings(org: Organization, patch: { legalName?: string; ein?: string; statementFooter?: string; financeSettings?: ChmsFinanceSettings }): Promise<Partial<Organization>> {
   uidOrThrow();
@@ -330,11 +344,36 @@ export async function notifyStatements(org: Organization, stmts: StatementData[]
   for (const s of stmts) {
     if (!s.linkedUids.length) { skipped++; continue; }
     for (const uid of s.linkedUids) {
-      await createNotification({ userId: uid, senderId: me.uid, senderName: org.name, senderPhoto: org.logoUrl || '', type: 'SYSTEM', title: `Your ${s.range.label} giving statement is ready`, message: `${org.legalName || org.name} has published your giving statement. Open ${org.name} › My Giving to view or print it.`, targetId: org.id });
+      await createNotification({ userId: uid, senderId: me.uid, senderName: org.name, senderPhoto: org.logoUrl || '', type: 'SYSTEM', title: `Your ${s.range.label} giving statement is ready`, message: `${org.legalName || org.name} has published your giving statement. Open ${org.name} › Household & giving statements to view or download it.`, targetId: org.id });
     }
     sent++;
   }
   return { sent, skipped };
+}
+/** Email statements as PDF attachments (server: POST /api/elevate/statements/email). The PDFs are rendered here by
+ *  services/givingPdf — the same document as Download PDF; the server chooses each recipient from the org's own
+ *  people records. Sent in chunks of 10; returns the statements actually sent (for the duplicate log). */
+export async function emailStatements(org: Organization, range: DateRange, stmts: StatementData[], onProgress?: (done: number, total: number) => void): Promise<{ configured: boolean; sent: StatementData[]; skipped: { key: string; name: string; reason: string }[] }> {
+  const token = await auth.currentUser?.getIdToken(); if (!token) throw new Error('Sign in required');
+  const { statementsPdf, bytesToBase64 } = await import('./givingPdf');
+  const { statementOrgOf } = await import('./givingEmailCore');
+  const so = statementOrgOf(org);
+  const sent: StatementData[] = []; const skipped: { key: string; name: string; reason: string }[] = [];
+  const byKey = new Map(stmts.map(s => [s.key, s]));
+  let configured = true;
+  for (let i = 0; i < stmts.length; i += 10) {
+    const chunk = stmts.slice(i, i + 10);
+    const items = await Promise.all(chunk.map(async s => ({ key: s.key, personIds: s.personIds, name: s.name, total: s.total, pdfBase64: bytesToBase64(await statementsPdf([s], so)) })));
+    const res = await fetch('/api/elevate/statements/email', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ orgId: org.id, rangeLabel: range.label, items }) });
+    const json: any = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json?.error || `Email failed (${res.status})`);
+    if (json.configured === false) { configured = false; break; }
+    (json.sent as string[] || []).forEach(k => { const s = byKey.get(k); if (s) sent.push(s); });
+    (json.skipped as { key: string; reason: string }[] || []).forEach(x => skipped.push({ ...x, name: byKey.get(x.key)?.name || x.key }));
+    onProgress?.(Math.min(i + 10, stmts.length), stmts.length);
+  }
+  if (sent.length) await finAudit(org.id, 'FIN_STATEMENT', `${range.label} · emailed`, { count: sent.length, skipped: skipped.length });
+  return { configured, sent, skipped };
 }
 export const statementMailto = (s: StatementData, org: Organization): string =>
   s.email ? `mailto:${encodeURIComponent(s.email)}?subject=${encodeURIComponent(`${s.range.label} giving statement — ${org.legalName || org.name}`)}&body=${encodeURIComponent(`Dear ${s.name},\n\nThank you for your generous support of ${org.name}. Your ${s.range.label} contribution statement is attached.\n\n${org.statementFooter || ''}`)}` : '';

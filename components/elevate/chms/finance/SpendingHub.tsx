@@ -123,6 +123,8 @@ const PayQueue: React.FC<{ org: Organization; perms: SpendingPerms; bundle: Spen
   const toggle = (id: string) => setSel(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const ctxRef = useRef<Awaited<ReturnType<typeof payContext>> | null>(null);
   const ctx = async () => ctxRef.current || (ctxRef.current = await payContext(org, bundle));
+  // Fresh books (fund balances, expenses) after every reload so the restricted-fund guardrail never runs on stale numbers.
+  useEffect(() => { ctxRef.current = null; }, [bundle.loadedAt, org.givingFunds]);
 
   const book = (e: AcctExpense) => act.run(async () => { await bookBill(org, e, await ctx()); }, `Booked ${usd(e.amount)} to Accounts Payable`);
   const doVoid = (e: AcctExpense) => act.run(async () => { await voidExpense(org, e, vr, perms); setVoiding(null); setVr(''); }, `Voided ${usd(e.amount)}`);

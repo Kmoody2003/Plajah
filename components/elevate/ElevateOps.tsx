@@ -426,7 +426,6 @@ const SocialPanel: React.FC<{ org: Organization; myMembership: OrgMembership | n
 // ── Giving: funds, Stripe connect, external link. MANAGE_GIVING edits; VIEW_GIVING sees totals. ──
 const GivingPanel: React.FC<{ org: Organization; canManage: boolean; totals: Record<string, number>; onSaved: (o: Organization) => void }> = ({ org, canManage, totals, onSaved }) => {
   const [funds, setFunds] = useState<GivingFund[]>(org.givingFunds || []);
-  const [stripeAcct, setStripeAcct] = useState(org.stripeAccountId || '');
   const [givingUrl, setGivingUrl] = useState(org.givingUrl || '');
   const [newFund, setNewFund] = useState({ name: '', goal: '' });
   const [busy, setBusy] = useState(false);
@@ -435,14 +434,19 @@ const GivingPanel: React.FC<{ org: Organization; canManage: boolean; totals: Rec
   const save = async () => {
     setBusy(true);
     try {
-      // Only fields finance roles may write (see organizations update rule).
+      // Funds go through saveFunds: merged onto the latest list and blocked from dropping/unrestricting
+      // a restricted fund that still holds money. stripeAccountId is server-written only (Connect onboarding).
+      const [{ saveFunds }, { loadFundBalances }] = await Promise.all([import('../../services/chmsFinance'), import('../../services/acctService')]);
+      const bal = await loadFundBalances(org.id, org.givingFunds || []);
+      const saved = await saveFunds(org, funds, id => bal?.get(id) ?? totals[(org.givingFunds || []).find(f => f.id === id)?.name || ''] ?? 0);
       const patch: Partial<Organization> = {
-        givingFunds: funds, givingUrl: givingUrl.trim() || undefined, stripeAccountId: stripeAcct.trim() || undefined,
-        setupState: { ...(org.setupState || {}), givingReady: !!(stripeAcct.trim() || givingUrl.trim()) },
+        givingUrl: givingUrl.trim() || undefined,
+        setupState: { ...(org.setupState || {}), givingReady: !!(org.stripeAccountId || givingUrl.trim()) },
       };
       await updateOrganization(org.id, patch);
-      onSaved({ ...org, ...patch } as Organization);
-    } catch { alert('Could not save giving settings.'); }
+      setFunds(saved);
+      onSaved({ ...org, ...patch, givingFunds: saved } as Organization);
+    } catch (e: any) { alert(e?.message || 'Could not save giving settings.'); }
     setBusy(false);
   };
 
@@ -477,11 +481,11 @@ const GivingPanel: React.FC<{ org: Organization; canManage: boolean; totals: Rec
           </div>
           <h3 className="text-[10px] font-semibold text-small-orange mb-3">Payouts</h3>
           <div className="flex items-center gap-2 mb-3">
-            <input value={stripeAcct} onChange={e => setStripeAcct(e.target.value.trim())} placeholder="Stripe payout account (acct_…)" className={field} />
+            <p className="flex-1 text-[11px] text-white/50">{org.stripeAccountId ? 'Stripe is connected. Payout details are managed in Stripe.' : 'Connect Stripe to accept card and bank gifts. Stripe verifies the account; nobody types an account number here.'}</p>
             <button type="button" onClick={async () => { const t = await auth.currentUser?.getIdToken(); if (t) connectStripe({ orgId: org.id, userIdToken: t }).catch(e => alert(e?.message || 'Could not start Stripe onboarding')); }}
               className="px-4 py-3 rounded-2xl bg-[#635bff] text-white text-[10px] font-semibold hover:brightness-110 shrink-0 whitespace-nowrap">Connect Stripe</button>
           </div>
-          {stripeAcct && <p className="text-[9px] font-semibold text-green-400 mb-3 flex items-center gap-1.5"><Check size={11} /> Payouts connected</p>}
+          {org.stripeAccountId && <p className="text-[9px] font-semibold text-green-400 mb-3 flex items-center gap-1.5"><Check size={11} /> Payouts connected</p>}
           <input value={givingUrl} onChange={e => setGivingUrl(e.target.value)} placeholder="External giving link (optional — overrides native Stripe giving)" className={`${field} mb-5`} />
           <button onClick={save} disabled={busy} className="w-full py-4 bg-small-orange text-black rounded-full font-black text-xs uppercase tracking-widest hover:brightness-110 disabled:opacity-30 flex items-center justify-center gap-2">
             {busy ? <><Loader2 size={16} className="animate-spin" /> Saving…</> : 'Save giving settings'}

@@ -4,7 +4,7 @@ import { CheckCircle2, Circle, Plus } from 'lucide-react';
 import { money, round2, todayStr } from '../../../../services/chmsFinanceReports';
 import { saveFinanceSettings, saveFunds, settingsOf } from '../../../../services/chmsFinance';
 import { backfillGiftJournals, ensureChart, postOpeningBalances } from '../../../../services/acctService';
-import { planGiftJournals } from '../../../../services/acctReports';
+import { fundBalanceData, planGiftJournals } from '../../../../services/acctReports';
 import { BankAccountForm } from './BankTab';
 import { Help, Pill, btnGhost, btnPrimary, card, fieldSm, heading, label, useBooks, useDo } from './shared';
 
@@ -27,6 +27,7 @@ const SetupTab: React.FC = () => {
   const bsAccts = useMemo(() => books.accounts.filter(a => a.active && (a.type === 'ASSET' || a.type === 'LIABILITY' || (a.type === 'NET_ASSET' && !a.systemKey))).sort((a, b) => a.code.localeCompare(b.code)), [books.accounts]);
   const [bal, setBal] = useState<Record<string, string>>({});
   const openingPosted = books.journals.some(j => j.source.kind === 'OPENING');
+  const fundBal = useMemo(() => new Map(fundBalanceData({ accounts: books.accounts, journals: books.journals, funds: org.givingFunds || [], ministries: [] }, { from: '0000-01-01', to: '9999-12-31', label: 'All time' }).map(f => [f.fundId, f.end])), [books, org.givingFunds]);
   const plan = useMemo(() => planGiftJournals({ contributions: facts.contributions, batches: facts.batches, journals: books.journals, sys: books.sys }), [facts, books]);
   const funds = org.givingFunds || [];
   // plug preview: assets − liabilities − net assets
@@ -78,7 +79,7 @@ const SetupTab: React.FC = () => {
           <div className="mt-3 space-y-1">{funds.map(f => (
             <label key={f.id} className="flex items-center gap-3 text-xs text-white/80 bg-white/[0.03] border border-white/10 rounded-xl px-3 py-2"><span className="flex-1">{f.name}</span>
               <span className="text-[10px] text-white/40">{f.restricted ? 'with donor restrictions' : 'without donor restrictions'}</span>
-              <input type="checkbox" checked={!!f.restricted} disabled={busy} onChange={() => run(async () => { const next = funds.map(x => x.id === f.id ? { ...x, restricted: !x.restricted } : x); await saveFunds(org, next); setOrg({ ...org, givingFunds: next }); }, `${f.name} is now ${f.restricted ? 'unrestricted' : 'donor-restricted'}.`)} aria-label={`${f.name} restricted`} /></label>))}</div>
+              <input type="checkbox" checked={!!f.restricted} disabled={busy} onChange={() => run(async () => { const next = funds.map(x => x.id === f.id ? { ...x, restricted: !x.restricted } : x); const saved = await saveFunds(org, next, id => fundBal.get(id) ?? 0); setOrg({ ...org, givingFunds: saved }); }, `${f.name} is now ${f.restricted ? 'unrestricted' : 'donor-restricted'}.`)} aria-label={`${f.name} restricted`} /></label>))}</div>
         )}
       </Step>
 

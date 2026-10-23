@@ -1,9 +1,10 @@
 // Funds — goals, YTD / lifetime / period totals, restricted vs unrestricted, budget vs actual,
 // paired fund transfers. Extends org.givingFunds additively (restricted, budget, accountCode, inactive).
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowRightLeft, Lock, Plus } from 'lucide-react';
 import type { GivingFund } from '../../../../types';
 import { recordTransfer, saveFunds } from '../../../../services/chmsFinance';
+import { loadFundBalances } from '../../../../services/acctService';
 import { fundSummaries, money, todayStr } from '../../../../services/chmsFinanceReports';
 import { card, field, fieldSm, btnPrimary, btnGhost, heading, label, Pill, RangePicker, useAction, Busy, type TabProps } from './shared';
 
@@ -16,16 +17,21 @@ const FundsTab: React.FC<TabProps> = ({ org, snap, reload, canManage, setOrg }) 
   const [from, setFrom] = useState(`${year}-01-01`); const [to, setTo] = useState(todayStr());
   const [edit, setEdit] = useState<GivingFund[] | null>(null);
   const [nf, setNf] = useState({ name: '', goal: '', budget: '', restricted: false, code: '' });
-  const [tr, setTr] = useState({ from: '', to: '', amount: '', date: todayStr(), reason: '' });
+  const [tr, setTr] = useState({ from: '', to: '', amount: '', date: todayStr(), reason: '', purposeMet: false });
+  const [booksBal, setBooksBal] = useState<Map<string, number> | null>(null);
   const act = useAction();
 
   const sums = useMemo(() => fundSummaries(org.givingFunds || [], snap.ledger, snap.transfers, { from, to, label: 'Selected' }, year), [org.givingFunds, snap.ledger, snap.transfers, from, to, year]);
   const funds = edit || org.givingFunds || [];
+  // Books balances include spending; giving-side balances (gifts ± transfers) are the fallback for finance users without books access.
+  useEffect(() => { let on = true; loadFundBalances(org.id, org.givingFunds || []).then(m => on && setBooksBal(m)); return () => { on = false; }; }, [org.id, org.givingFunds, snap]);
+  const balanceOf = (id: string) => booksBal?.get(id) ?? sums.find(s => s.fund.id === id)?.balance ?? 0;
+  const fromFund = (org.givingFunds || []).find(f => f.id === tr.from);
   const totalBal = sums.reduce((a, s) => a + s.balance, 0);
   const restrictedBal = sums.filter(s => s.restricted).reduce((a, s) => a + s.balance, 0);
 
   const patch = (id: string, p: Partial<GivingFund>) => setEdit((edit || org.givingFunds || []).map(f => f.id === id ? { ...f, ...p } : f));
-  const save = () => edit && act.run(async () => { await saveFunds(org, edit); setOrg({ ...org, givingFunds: edit }); setEdit(null); await reload(); });
+  const save = () => edit && act.run(async () => { const saved = await saveFunds(org, edit, balanceOf); setOrg({ ...org, givingFunds: saved }); setEdit(null); await reload(); });
   const addFund = () => {
     if (!nf.name.trim()) return;
     const f: GivingFund = { id: Math.random().toString(36).slice(2, 9), name: nf.name.trim(), goal: nf.goal ? Number(nf.goal) : undefined, budget: nf.budget ? Number(nf.budget) : undefined, restricted: nf.restricted || undefined, accountCode: nf.code.trim() || undefined, raised: 0 };
@@ -34,8 +40,8 @@ const FundsTab: React.FC<TabProps> = ({ org, snap, reload, canManage, setOrg }) 
   const doTransfer = () => act.run(async () => {
     const a = (org.givingFunds || []).find(f => f.id === tr.from), b = (org.givingFunds || []).find(f => f.id === tr.to);
     if (!a || !b) { alert('Choose both funds.'); return; }
-    await recordTransfer(org, a, b, Number(tr.amount), tr.date, tr.reason);
-    setTr(v => ({ ...v, amount: '', reason: '' })); await reload();
+    await recordTransfer(org, a, b, Number(tr.amount), tr.date, tr.reason, { fromBalance: balanceOf(a.id), purposeMet: tr.purposeMet });
+    setTr(v => ({ ...v, amount: '', reason: '', purposeMet: false })); await reload();
   });
   const pairs = useMemo(() => { const m = new Map<string, typeof snap.transfers>(); snap.transfers.forEach(t => (m.get(t.pairId) || m.set(t.pairId, []).get(t.pairId)!).push(t)); return [...m.values()].sort((a, b) => b[0].date.localeCompare(a[0].date)); }, [snap.transfers]);
 
@@ -64,7 +70,7 @@ const FundsTab: React.FC<TabProps> = ({ org, snap, reload, canManage, setOrg }) 
                   <div><p className={label}>Period</p><p className="font-black text-white tabular-nums">{money(s.period)}</p></div>
                   <div><p className={label}>Lifetime</p><p className="font-black text-white tabular-nums">{money(s.lifetime)}</p></div>
                   <div><p className={label}>Transfers</p><p className={`font-black tabular-nums ${s.transfersNet < 0 ? 'text-red-400' : 'text-white'}`}>{money(s.transfersNet)}</p></div>
-                  <div><p className={label}>Balance</p><p className="font-black text-white tabular-nums">{money(s.balance)}</p></div>
+                  <div><p className={label}>Balance</p><p className={`font-black tabular-nums ${balanceOf(f.id) < 0 ? 'text-red-400' : 'text-white'}`}>{money(booksBal?.has(f.id) ? balanceOf(f.id) : s.balance)}</p>{booksBal?.has(f.id) && <p className="text-[9px] text-white/35">after spending</p>}</div>
                 </div>
                 {f.budget != null && f.budget > 0 && <div className="mt-3"><div className="flex justify-between text-[10px] text-white/50 mb-1"><span>Budget vs actual</span><span>{money(s.ytd)} of {money(f.budget)} ({s.budgetPct}%)</span></div><Bar pct={s.budgetPct || 0} over={(s.budgetPct || 0) >= 100} /></div>}
                 {f.goal != null && f.goal > 0 && <div className="mt-2"><div className="flex justify-between text-[10px] text-white/50 mb-1"><span>Goal</span><span>{money(s.lifetime)} of {money(f.goal)} ({s.goalPct}%)</span></div><Bar pct={s.goalPct || 0} over={(s.goalPct || 0) >= 100} /></div>}
@@ -106,7 +112,13 @@ const FundsTab: React.FC<TabProps> = ({ org, snap, reload, canManage, setOrg }) 
             <input value={tr.amount} onChange={e => setTr(v => ({ ...v, amount: e.target.value.replace(/[^0-9.]/g, '') }))} placeholder="$" className={`${fieldSm} w-24`} />
             <input type="date" value={tr.date} onChange={e => setTr(v => ({ ...v, date: e.target.value }))} className={fieldSm} />
             <input value={tr.reason} onChange={e => setTr(v => ({ ...v, reason: e.target.value }))} placeholder="Reason / board authority (required)" className={`${fieldSm} flex-1 min-w-[180px]`} />
-            <button onClick={doTransfer} disabled={act.busy} className={btnPrimary}><Busy on={act.busy}>Record transfer</Busy></button>
+            <button onClick={doTransfer} disabled={act.busy || (!!fromFund?.restricted && !tr.purposeMet)} className={btnPrimary}><Busy on={act.busy}>{fromFund?.restricted ? 'Record release' : 'Record transfer'}</Busy></button>
+            {fromFund?.restricted && (
+              <div className="w-full rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 text-[11px] text-amber-200 space-y-2">
+                <p><Lock size={10} className="inline mr-1" />{fromFund.name} is donor-restricted and holds {money(Math.max(0, balanceOf(fromFund.id)))}. Moving money out releases the restriction. It’s only allowed once the donor’s purpose has been met, and never as a loan for other costs.</p>
+                <label className="flex items-center gap-2 text-white/80"><input type="checkbox" checked={tr.purposeMet} onChange={e => setTr(v => ({ ...v, purposeMet: e.target.checked }))} /> The donor’s purpose for this money has been met</label>
+              </div>
+            )}
           </div>
         )}
         {pairs.length === 0 ? <p className="text-[11px] text-white/40">No transfers recorded. Each transfer is stored as a paired out/in entry and is audited.</p> : (

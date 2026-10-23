@@ -17,12 +17,12 @@ import { opsDb, auth } from './firebase';
 import { logOrgAction, type OrgAuditAction } from './orgAudit';
 import { callGemini } from './geminiService';
 import type {
-  AcctAccount, AcctBankAccount, AcctBankTxn, AcctBudget, AcctExpense, AcctJournal, AcctPeriod, AcctVendor, ChmsBatch, ChmsContribution, ChmsPayout, Organization,
+  AcctAccount, AcctBankAccount, AcctBankTxn, AcctBudget, AcctExpense, AcctJournal, AcctPeriod, AcctVendor, ChmsBatch, ChmsContribution, ChmsPayout, Organization, GivingFund,
 } from '../types';
 import {
-  DEFAULT_CHART, accountDocId, journalDocId, isBalanced, reversalOf, periodOf, sysAccountsOf, type DraftJournal, type SysAccounts,
+  DEFAULT_CHART, accountDocId, journalDocId, isBalanced, reversalOf, periodOf, sysAccountsOf, fundTransferEntry, type DraftJournal, type SysAccounts,
 } from './acctPosting';
-import { buildManualDraft, buildOpeningDraft, planGiftJournals, periodRange, type ManualLineInput, type OpeningInput } from './acctReports';
+import { buildManualDraft, buildOpeningDraft, planGiftJournals, periodRange, fundBalanceData, type ManualLineInput, type OpeningInput } from './acctReports';
 import { bankTxnDocId, detectColumns, parseCsv, toBankLines, type CategoryGuess, type MatchCandidate } from './acctBank';
 import { todayStr } from './chmsFinanceReports';
 
@@ -61,6 +61,26 @@ export async function loadBooks(orgId: string): Promise<Books> {
     accounts, journals: journals.sort((a, b) => a.date.localeCompare(b.date) || a.createdAt - b.createdAt), vendors, bankAccounts, bankTxns, budgets, periods, expenses, payouts,
     sys: sysAccountsOf(accounts), closed: new Set(periods.filter(p => p.status === 'CLOSED').map(p => p.period)), loadedAt: Date.now(), errors,
   };
+}
+/** Every fund's balance in the books (all-time: gifts − spending ± transfers), for the restricted-fund guardrail.
+ *  Null when the viewer can't read the books (the caller then falls back to giving-side balances). */
+export async function loadFundBalances(orgId: string, funds: GivingFund[]): Promise<Map<string, number> | null> {
+  try {
+    const [accounts, journals] = await Promise.all([listBy<AcctAccount>('acctAccounts', orgId, 2000), listBy<AcctJournal>('acctJournals', orgId)]);
+    if (!accounts.length) return null;
+    const data = fundBalanceData({ accounts, journals, funds, ministries: [] }, { from: '0000-01-01', to: '9999-12-31', label: 'All time' });
+    return new Map(data.map(f => [f.fundId, f.end]));
+  } catch { return null; }
+}
+/** Post a fund transfer / restriction release to the books (idempotent on pairId). Skips quietly when the
+ *  chart has no net-asset accounts yet; throws on a closed period like any other posting. */
+export async function postFundTransfer(orgId: string, t: { pairId: string; date: string; amount: number; from: GivingFund; to: GivingFund; reason: string }): Promise<string | null> {
+  const { accounts } = await ensureChart(orgId);
+  const na = accounts.filter(a => a.type === 'NET_ASSET' && !a.systemKey);
+  const restricted = na.find(a => a.subtype === 'restricted')?.id, unrestricted = na.find(a => a.subtype === 'unrestricted')?.id;
+  if (!restricted || !unrestricted) return null;
+  const memo = `${t.from.restricted ? 'Release' : 'Transfer'}: ${t.from.name} → ${t.to.name} — ${t.reason}`;
+  return (await postJournal(orgId, fundTransferEntry({ restricted, unrestricted }, { pairId: t.pairId, date: t.date, amount: t.amount, from: t.from, to: t.to, memo }))).id;
 }
 /** Giving facts the checklist/overview need (gifts + batches). Empty when the viewer cannot read giving data. */
 export async function loadGivingFacts(orgId: string): Promise<{ contributions: ChmsContribution[]; batches: ChmsBatch[]; restricted: boolean }> {

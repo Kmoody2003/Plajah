@@ -46,7 +46,8 @@ function unsubUrl(uid: string, scope: string): string {
   return `${appUrl()}/api/notify/email/unsubscribe?t=${encodeURIComponent(signUnsub(uid, scope, unsubSecret()))}`;
 }
 
-export async function sendViaResend(to: string, mail: RenderedEmail, unsubscribe?: string): Promise<boolean> {
+/** `attachments[].content` is base64 (Resend's format). */
+export async function sendViaResend(to: string, mail: RenderedEmail, unsubscribe?: string, attachments?: Array<{ filename: string; content: string }>, replyTo?: string): Promise<boolean> {
   const key = process.env.RESEND_API_KEY;
   if (!key) return false;
   const headers: Record<string, string> = {};
@@ -60,6 +61,7 @@ export async function sendViaResend(to: string, mail: RenderedEmail, unsubscribe
       body: JSON.stringify({
         from: process.env.RESEND_FROM || 'Plajah <onboarding@resend.dev>',
         to, subject: mail.subject, text: mail.text, html: mail.html, headers,
+        ...(attachments?.length ? { attachments } : {}), ...(replyTo ? { reply_to: replyTo } : {}),
       }),
     });
     if (!r.ok) console.warn('[emailNotify] resend', r.status, (await r.text().catch(() => '')).slice(0, 200));

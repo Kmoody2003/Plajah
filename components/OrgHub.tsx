@@ -984,7 +984,6 @@ const OrgManage: React.FC<{ org: Organization; staff: OrgMembership[]; onClose: 
   const [services, setServices] = useState(org.serviceTimes || []);
   const [funds, setFunds] = useState(org.givingFunds || []);
   const [campuses, setCampuses] = useState(org.campuses || []);
-  const [stripeAcct, setStripeAcct] = useState(org.stripeAccountId || '');
   const [newMin, setNewMin] = useState({ name: '', meetingTime: '' });
   const [newSvc, setNewSvc] = useState({ label: '', day: '', time: '' });
   const [newFund, setNewFund] = useState({ name: '', goal: '' });
@@ -1005,7 +1004,7 @@ const OrgManage: React.FC<{ org: Organization; staff: OrgMembership[]; onClose: 
         category: category.trim() || undefined, isPrivate,
         socialLinks: { ...(org.socialLinks || {}), website: website.trim() || undefined },
         monthlyPrice: monthly ? Number(monthly) : undefined,
-        ...(isChurch ? { ministries, serviceTimes: services, givingFunds: funds, campuses, givingUrl: givingUrl.trim() || undefined, stripeAccountId: stripeAcct.trim() || undefined } : {}),
+        ...(isChurch ? { ministries, serviceTimes: services, givingFunds: funds, campuses, givingUrl: givingUrl.trim() || undefined } : {}),
       };
       await updateOrganization(org.id, patch);
       onSaved({ ...org, ...patch } as Organization);
@@ -1069,11 +1068,11 @@ const OrgManage: React.FC<{ org: Organization; staff: OrgMembership[]; onClose: 
               className="px-4 rounded-2xl bg-white/10 text-white text-[10px] font-black uppercase tracking-widest hover:bg-white/20 shrink-0">Add</button>
           </div>
           <div className="flex items-center gap-2 mb-3">
-            <input value={stripeAcct} onChange={e => setStripeAcct(e.target.value.trim())} placeholder="Stripe payout account (acct_…)" className={field} />
+            <p className="flex-1 text-[11px] text-white/50">{org.stripeAccountId ? 'Stripe is connected. Payout details are managed in Stripe.' : 'Connect Stripe to accept card and bank gifts. Stripe verifies the account; nobody types an account number here.'}</p>
             <button type="button" onClick={async () => { const t = await auth.currentUser?.getIdToken(); if (t) connectStripe({ orgId: org.id, userIdToken: t }).catch(e => alert(e?.message || 'Could not start Stripe onboarding')); }}
               className="px-4 py-3 rounded-2xl bg-[#635bff] text-white text-[10px] font-black uppercase tracking-widest hover:brightness-110 shrink-0 whitespace-nowrap">Connect Stripe</button>
           </div>
-          {stripeAcct && <p className="text-[9px] font-black uppercase tracking-widest text-green-400 mb-3 flex items-center gap-1.5"><Check size={11} /> Payouts connected — giving routes to this account</p>}
+          {org.stripeAccountId && <p className="text-[9px] font-black uppercase tracking-widest text-green-400 mb-3 flex items-center gap-1.5"><Check size={11} /> Payouts connected — giving routes to this account</p>}
           <input value={givingUrl} onChange={e => setGivingUrl(e.target.value)} placeholder="External giving link (optional — overrides native Stripe giving)" className={`${field} mb-5`} />
 
           <p className="text-[9px] font-black uppercase tracking-widest text-white/40 mb-2 flex items-center gap-2"><Church size={11} /> Ministries</p>

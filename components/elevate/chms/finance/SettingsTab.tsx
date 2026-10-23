@@ -18,6 +18,7 @@ const SettingsTab: React.FC<TabProps & { myMembership: OrgMembership | null }> =
     qbDep: org.financeSettings?.qbDepositAccount || '', qbPre: org.financeSettings?.qbIncomeAccountPrefix ?? 'Contributions:',
   });
   const [donorFees, setDonorFees] = useState(org.financeSettings?.donorCoversFees !== false);
+  const [receipts, setReceipts] = useState(org.financeSettings?.emailReceipts !== false);
   const [showImport, setShowImport] = useState(false);
   const [msg, setMsg] = useState('');
   const act = useAction();
@@ -31,7 +32,7 @@ const SettingsTab: React.FC<TabProps & { myMembership: OrgMembership | null }> =
     if (ein && !/^\d{2}-?\d{7}$/.test(ein)) { alert('EIN should look like 12-3456789.'); return; }
     const patch = await saveFinanceSettings(org, {
       legalName: f.legalName, ein, statementFooter: f.footer,
-      financeSettings: { ...(org.financeSettings || {}), approvalThreshold: f.threshold === '' ? undefined : Number(f.threshold), anomalyMultiple: Number(f.mult) || 5, lapsedDays: Number(f.lapsed) || 60, fiscalYearStartMonth: Math.min(12, Math.max(1, Number(f.fy) || 1)), donorCoversFees: donorFees, statementIntro: f.intro.trim() || undefined, qbDepositAccount: f.qbDep.trim() || undefined, qbIncomeAccountPrefix: f.qbPre },
+      financeSettings: { ...(org.financeSettings || {}), approvalThreshold: f.threshold === '' ? undefined : Number(f.threshold), anomalyMultiple: Number(f.mult) || 5, lapsedDays: Number(f.lapsed) || 60, fiscalYearStartMonth: Math.min(12, Math.max(1, Number(f.fy) || 1)), donorCoversFees: donorFees, emailReceipts: receipts, statementIntro: f.intro.trim() || undefined, qbDepositAccount: f.qbDep.trim() || undefined, qbIncomeAccountPrefix: f.qbPre },
     });
     setOrg({ ...org, ...patch }); setMsg('Saved.'); setTimeout(() => setMsg(''), 2000);
   });
@@ -58,6 +59,11 @@ const SettingsTab: React.FC<TabProps & { myMembership: OrgMembership | null }> =
           <span className={`mt-0.5 w-5 h-5 shrink-0 rounded-md border grid place-items-center text-[11px] font-black ${donorFees ? 'bg-small-orange border-small-orange text-black' : 'border-white/30 text-transparent'}`}>✓</span>
           <span><span className="block text-sm font-bold text-white">Donors cover the processing fee</span>
             <span className="block text-[11px] text-white/50 mt-0.5 leading-snug">At checkout the donor sees a pre-ticked option to add the card fee so {org.name} receives 100% of the gift. The church always receives the full gift amount and payouts match gifts to the cent. Donors can untick it. Turn this off to stop offering it (the platform then absorbs the fee).</span></span>
+        </button>
+        <button type="button" onClick={() => setReceipts(v => !v)} aria-pressed={receipts} className="flex items-start gap-3 text-left w-full mt-4">
+          <span className={`mt-0.5 w-5 h-5 shrink-0 rounded-md border grid place-items-center text-[11px] font-black ${receipts ? 'bg-small-orange border-small-orange text-black' : 'border-white/30 text-transparent'}`}>✓</span>
+          <span><span className="block text-sm font-bold text-white">Email a receipt for every online gift</span>
+            <span className="block text-[11px] text-white/50 mt-0.5 leading-snug">Each online gift gets an emailed receipt with a PDF copy: amount, date, fund and the “no goods or services” wording. This is the written acknowledgment the IRS requires for any single gift of $250 or more. It uses your legal name, EIN and statement footer from this page. Replies go to your organization’s contact email.</span></span>
         </button>
       </div>
 

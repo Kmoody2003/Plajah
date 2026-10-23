@@ -19,7 +19,8 @@ import { logOrgAction, type OrgAuditAction } from './orgAudit';
 import { createNotification, uploadFile } from './backendService';
 import { callGeminiDetailed } from './geminiService';
 import { fetchOrganization, updateOrganization } from './organizationService';
-import { ensureChart as svcEnsureChart, postJournal as svcPost, reverseJournal as svcReverse, sysAccounts } from './acctService';
+import { ensureChart as svcEnsureChart, postJournal as svcPost, reverseJournal as svcReverse, sysAccounts, loadFundBalances } from './acctService';
+import { overdrawMessage, restrictedOverdraw } from './restrictedFunds';
 import { elevateCan } from './elevateRoles';
 import { isOrgOwner } from './orgPermissions';
 import {
@@ -441,11 +442,19 @@ export type PayMethod = NonNullable<AcctExpense['paymentMethod']>;
 export interface PayOpts { method: PayMethod; date?: string; bankAccountId?: string; checkNumber?: string }
 export const PAY_METHODS: { key: PayMethod; label: string }[] = [{ key: 'CHECK', label: 'Check' }, { key: 'ACH', label: 'ACH / bank transfer' }, { key: 'CARD', label: 'Card' }, { key: 'CASH', label: 'Cash' }, { key: 'ONLINE', label: 'Online' }];
 
-interface Ctx { sys: SysAccounts; banks: AcctBankAccount[]; vendors: AcctVendor[]; all: AcctExpense[] }
+/** `fundBal` = each fund's balance in the books (null if unreadable); payments decrement it as they post so a
+ *  batch can't overspend a donor-restricted fund one check at a time. */
+interface Ctx { sys: SysAccounts; banks: AcctBankAccount[]; vendors: AcctVendor[]; all: AcctExpense[]; fundBal: Map<string, number> | null; org: Organization }
 export async function payContext(org: Organization, b: SpendingBundle): Promise<Ctx> {
-  const accounts = await ensureChart(org);
-  return { sys: sysAccountsOf(accounts), banks: b.bankAccounts, vendors: b.vendors, all: b.expenses };
+  const [accounts, fundBal] = await Promise.all([ensureChart(org), loadFundBalances(org.id, org.givingFunds || [])]);
+  return { sys: sysAccountsOf(accounts), banks: b.bankAccounts, vendors: b.vendors, all: b.expenses, fundBal, org };
 }
+/** Restricted-fund guardrail: throws before posting spending a donor-restricted fund can't cover. */
+function assertRestrictedCovered(ctx: Ctx, e: AcctExpense): void {
+  const o = restrictedOverdraw(ctx.org.givingFunds || [], ctx.fundBal ?? undefined, e.fundId, e.amount);
+  if (o) throw new Error(overdrawMessage(o));
+}
+const spendFromFund = (ctx: Ctx, e: AcctExpense) => { if (ctx.fundBal && e.fundId) ctx.fundBal.set(e.fundId, r2((ctx.fundBal.get(e.fundId) ?? 0) - e.amount)); };
 const paidFrom = (ctx: Ctx, bankAccountId?: string, method?: PayMethod): string | undefined => {
   const pick = bankAccountId ? ctx.banks.find(x => x.id === bankAccountId) : method === 'CARD' ? ctx.banks.find(x => x.kind === 'CREDIT_CARD' && x.active) : undefined;
   return pick?.accountId;
@@ -458,8 +467,10 @@ async function assertAccountExists(e: AcctExpense) {
 export async function bookBill(org: Organization, e: AcctExpense, ctx: Ctx): Promise<string> {
   if (e.kind !== 'BILL') throw new Error('Only vendor bills go to Accounts Payable.');
   await assertAccountExists(e);
+  if (!e.journalId) assertRestrictedCovered(ctx, e);
   const id = await postJournal(org.id, billEntry(ctx.sys, { id: e.id, date: e.date, amount: e.amount, accountId: e.accountId, fundId: e.fundId, deptId: e.deptId, memo: `${e.vendorName || 'Bill'}${e.invoiceNumber ? ' #' + e.invoiceNumber : ''} — ${e.description}` }));
   await updateDoc(doc(opsDb, 'acctExpenses', e.id), strip({ journalId: id, status: 'APPROVED', approvedBy: e.approvedBy || uid_(), approvedAt: e.approvedAt || Date.now(), vendorId: await ensureVendorFor(org, e, ctx.vendors) }));
+  if (!e.journalId) spendFromFund(ctx, e);
   audit(org.id, 'FIN_EXP_BOOKED', `${usd(e.amount)} ${e.vendorName || e.description}`, { id: e.id });
   emitFinanceChanged();
   return id;
@@ -473,6 +484,8 @@ export async function payExpense(org: Organization, e: AcctExpense, opts: PayOpt
   if (opts.method === 'CHECK' && !opts.checkNumber?.trim()) throw new Error('Enter the check number.');
   const date = opts.date || todayISO();
   await assertPeriodOpen(org.id, date); await assertAccountExists(e);
+  const alreadyBooked = e.kind === 'BILL' && !!e.journalId;   // a booked bill already hit the fund when it was booked
+  if (!alreadyBooked) assertRestrictedCovered(ctx, e);
   const from = paidFrom(ctx, opts.bankAccountId, opts.method);
   const memo = `${e.vendorName || e.submittedByName || 'Expense'}${e.invoiceNumber ? ' #' + e.invoiceNumber : ''} — ${e.description}`;
   let journalId = e.journalId; let paymentJournalId: string | undefined;
@@ -488,6 +501,7 @@ export async function payExpense(org: Organization, e: AcctExpense, opts: PayOpt
     journalId, paymentJournalId, vendorId, approvedBy: e.approvedBy || (r === 'READY_AUTO' ? 'auto' : uid), approvedAt: e.approvedAt || Date.now(), payBatchId: extra?.payBatchId,
   }));
   if (e.requestId) { try { await updateDoc(doc(opsDb, 'acctExpenses', e.requestId), { status: 'PAID', memo: `Fulfilled by ${e.id}` }); } catch { /* best effort */ } }
+  if (!alreadyBooked) spendFromFund(ctx, e);
   audit(org.id, 'FIN_EXP_PAID', `${usd(e.amount)} ${e.vendorName || e.description}`, { id: e.id, method: opts.method, check: opts.checkNumber, journalId, paymentJournalId });
   notify(org, [e.submittedBy], e.kind === 'REIMBURSEMENT' ? 'You’ve been reimbursed' : 'Your expense was recorded as paid', `${usd(e.amount)} — ${e.description}${opts.checkNumber ? ` (check #${opts.checkNumber})` : ''}`);
   emitFinanceChanged();

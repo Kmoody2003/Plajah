@@ -54,6 +54,14 @@ const gift = { orgId: 'o1', amount: 50, linkedUid: MEMBER, enteredBy: OWNER };
 t('giver reads their own gift', 'ALLOW', MEMBER, 'get', G, { existing: gift });
 t('stranger cannot read a gift', 'DENY', OTHER, 'get', G, { existing: gift });
 
+// Stripe payouts are server truth; clients only flip the reconciliation match.
+const PO = `${DB}/chmsPayouts/po1`;
+const payout = { orgId: 'o1', amount: 970, fees: 30, reconciled: false };
+t('accounting writer marks a payout reconciled', 'ALLOW', OWNER, 'update', PO, { existing: payout, data: { ...payout, reconciled: true, bankTxnId: 't1' } });
+t('accounting writer cannot change a payout amount', 'DENY', OWNER, 'update', PO, { existing: payout, data: { ...payout, amount: 1 } });
+t('no client can create a payout', 'DENY', OWNER, 'create', PO, { data: payout });
+t('accounting viewer cannot mark a payout reconciled', 'DENY', BOOKS, 'update', PO, { existing: payout, data: { ...payout, reconciled: true } });
+
 const V = `${DB}/orgOnboardingVault/m1`;
 t('member reads their own onboarding vault', 'ALLOW', MEMBER, 'get', V, { existing: { orgId: 'o1', userId: MEMBER } });
 t('stranger cannot read an onboarding vault', 'DENY', OTHER, 'get', V, { existing: { orgId: 'o1', userId: MEMBER } });
