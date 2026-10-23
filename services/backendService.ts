@@ -5788,6 +5788,38 @@ export const listenToUserProfile = (uid: string, callback: (profile: UserProfile
   });
 };
 
+/** Live profile for the profile page. Unlike a one-shot getDoc it can't strand the page: the
+ *  listener delivers as soon as the connection recovers. `onMissing` fires only when the SERVER
+ *  confirms the doc doesn't exist — an offline cache miss is not "user not found". The signed-in
+ *  owner's missing/clobbered doc is re-synced and arrives through the same listener. */
+export const watchUserProfile = (
+  uid: string,
+  handlers: { onProfile: (p: UserProfile) => void; onMissing: () => void; onError: (e: unknown) => void }
+): (() => void) => {
+  let healed = false;
+  const heal = () => {
+    if (healed || auth.currentUser?.uid !== uid) return false;
+    healed = true;
+    syncUserProfile(auth.currentUser).catch(() => {});
+    return true;
+  };
+  return onSnapshot(
+    doc(db, 'users', uid),
+    { includeMetadataChanges: true },
+    (snap) => {
+      const fromCache = snap.metadata.fromCache;
+      if (snap.exists()) {
+        const data = snap.data();
+        if (!data.uid || !data.displayName || data.photoURL === undefined || data.email === undefined) heal();
+        handlers.onProfile({ uid: snap.id, ...data } as UserProfile);
+      } else if (!fromCache) {
+        if (!heal()) handlers.onMissing();
+      }
+    },
+    handlers.onError
+  );
+};
+
 export const fetchUserProfile = async (uid: string): Promise<UserProfile | null> => {
   const d = await getDoc(doc(db, 'users', uid));
   if (d.exists()) {

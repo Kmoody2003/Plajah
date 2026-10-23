@@ -67,7 +67,8 @@ import {
 } from '../types';
 import { 
   fetchUserProfile,
-  fetchUserContent, 
+  watchUserProfile,
+  fetchUserContent,
   fetchFollowedArtists, 
   followUser, 
   unfollowUser, 
@@ -345,35 +346,76 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
     return subscribePodcastLibrary(() => setFollowedPodcasts(getFollowedPodcasts()));
   }, []);
 
+  // ── The profile itself: a live listener, never a one-shot read. A stalled or failed getDoc
+  // used to strand the page on the spinner (or on "User not found") until the app restarted.
+  // The listener delivers the moment the connection recovers; a watchdog surfaces a Retry if
+  // nothing has arrived, and coming back online / to the tab re-subscribes on its own.
+  const [profileStatus, setProfileStatus] = useState<'loading' | 'ready' | 'missing' | 'stalled'>('loading');
+  const [profileAttempt, setProfileAttempt] = useState(0);
+  const firstProfileRef = useRef<string | null>(null);   // uid whose first-delivery side effects already ran
+  useEffect(() => {
+    let done = false;
+    setProfileStatus(s => (s === 'ready' && profile?.uid === uid ? s : 'loading'));
+    if (profile?.uid !== uid) setLoading(true);
+    const watchdog = setTimeout(() => { if (!done) setProfileStatus('stalled'); }, 10000);
+    const unsub = watchUserProfile(uid, {
+      onProfile: (p) => {
+        done = true;
+        clearTimeout(watchdog);
+        setProfile(p);
+        setProfileStatus('ready');
+        setLoading(false);
+        if (firstProfileRef.current === uid) return;
+        firstProfileRef.current = uid;
+        if (p.defaultProfileTab && !initialTab) setActiveTab(p.defaultProfileTab as any);
+        // Show Artist Mode landing for visitors (not own profile); on by default for non-FAN accounts unless explicitly disabled
+        if (p.accountType !== 'FAN' && p.artistModeEnabled !== false && uid !== auth.currentUser?.uid && !artistModeDismissedRef.current) {
+          artistModeDismissedRef.current = true;
+          setShowArtistMode(true);
+        }
+        if (uid === auth.currentUser?.uid && p.accountType === 'ARTIST') seedDemoWorlds().catch(console.error);
+        const subIds = (p as any).subscribedPodcastIds || [];
+        if (subIds.length > 0) fetchAlbumsByIds(subIds).then(setSubscribedPodcasts).catch(() => {});
+      },
+      onMissing: () => {
+        done = true;
+        clearTimeout(watchdog);
+        setProfile(null);
+        setProfileStatus('missing');
+        setLoading(false);
+      },
+      onError: (err) => {
+        console.warn('[profile] listener error, retrying', err);
+        setProfileStatus(s => (s === 'ready' ? s : 'stalled'));
+        // A listener that errors is dead — re-subscribe after a short pause.
+        setTimeout(() => setProfileAttempt(a => a + 1), 3000);
+      },
+    });
+    return () => { clearTimeout(watchdog); unsub(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uid, initialTab, profileAttempt]);
+
+  useEffect(() => {
+    if (profileStatus === 'ready' || profileStatus === 'missing') return;
+    const retry = () => setProfileAttempt(a => a + 1);
+    const onVisible = () => { if (document.visibilityState === 'visible') retry(); };
+    window.addEventListener('online', retry);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { window.removeEventListener('online', retry); document.removeEventListener('visibilitychange', onVisible); };
+  }, [profileStatus]);
+
   useEffect(() => {
     let cancelled = false;
     let unsubArticles: (() => void) | undefined;
 
     const loadData = async () => {
-      setLoading(true);
+      // None of this gates the page — the profile renders as soon as the listener above delivers.
+      const contentP = fetchUserContent(uid).catch(() => [] as Album[]);
+      contentP.then(c => { if (!cancelled) setContent(c); });
+      isFollowing(uid).then(v => { if (!cancelled) setFollowing(v); }).catch(() => {});
+      isSubscribedToMailingList(uid).then(v => { if (!cancelled) setIsSubscribed(v); }).catch(() => {});
+      fetchSystemSettingsConfig().then(s => { if (!cancelled) setSystemSettings(s); }).catch(() => {});
 
-      // ── Phase 1: critical data — profile + content. Clears the spinner fast. ──
-      const [p, c, isF, isS, settings] = await Promise.all([
-        fetchUserProfile(uid).catch(() => null),
-        fetchUserContent(uid).catch(() => []),
-        isFollowing(uid).catch(() => false),
-        isSubscribedToMailingList(uid).catch(() => false),
-        fetchSystemSettingsConfig().catch(() => null),
-      ]);
-
-      if (cancelled) return;
-
-      setProfile(p as any);
-      setContent(c as any);
-      setFollowing(isF as boolean);
-      setIsSubscribed(isS as boolean);
-      setSystemSettings(settings as any);
-
-      if (p && p.defaultProfileTab && !initialTab) {
-        setActiveTab(p.defaultProfileTab as any);
-      }
-
-      // Articles listener — non-blocking
       unsubArticles = listenToUserArticles(uid, (userArticles) => {
         if (cancelled) return;
         setArticles(userArticles);
@@ -382,20 +424,9 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
         }
       });
 
-      setLoading(false);  // ← spinner clears here, profile renders
-
-      // Show Artist Mode landing for visitors (not own profile); on by default for non-FAN accounts unless explicitly disabled
-      if (p && p.accountType !== 'FAN' && p.artistModeEnabled !== false && uid !== auth.currentUser?.uid && !artistModeDismissedRef.current) {
-        artistModeDismissedRef.current = true;
-        setShowArtistMode(true);
-      }
-
-      if (uid === auth.currentUser?.uid && p && p.accountType === 'ARTIST') {
-        seedDemoWorlds().catch(console.error);
-      }
-
-      // ── Phase 2: secondary data — loaded after the profile is already visible ──
-      const [f, fr, m, apps, upcoming, shop] = await Promise.all([
+      // ── Secondary data — loaded while/after the profile is visible ──
+      const [c, f, fr, m, apps, upcoming, shop] = await Promise.all([
+        contentP,
         fetchFollowedArtists(uid).catch(() => []),
         fetchFriends(uid).catch(() => []),
         fetchArtistMerch(uid).catch(() => []),
@@ -429,23 +460,8 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
         setActiveTab('FRIENDS');
       }
 
-      // Non-critical: worlds, themes, podcasts
+      // Non-critical: worlds, podcasts (themes need the profile — see the effect below)
       fetchUserWorlds(uid).then(w => { if (!cancelled) setWorlds(w); }).catch(() => {});
-      fetchUserThemePresets(uid).then(t => {
-        if (cancelled) return;
-        if (p && p.savedThemePresets && p.savedThemePresets.length > 0) {
-          fetchThemePresetsByIds(p.savedThemePresets).then(saved => {
-            if (!cancelled) setThemes([...t, ...saved.filter(st => !t.some(a => a.id === st.id))]);
-          }).catch(() => { if (!cancelled) setThemes(t); });
-        } else {
-          setThemes(t);
-        }
-      }).catch(() => {});
-
-      const subIds = (p as any)?.subscribedPodcastIds || [];
-      if (subIds.length > 0) {
-        fetchAlbumsByIds(subIds).then(pods => { if (!cancelled) setSubscribedPodcasts(pods); }).catch(() => {});
-      }
       if (auth.currentUser?.uid) {
         fetchUserProfile(auth.currentUser.uid).then(cu => {
           if (!cancelled && cu) setPodcastSubscribedIds(new Set((cu as any).subscribedPodcastIds || []));
@@ -453,10 +469,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
       }
     };
 
-    loadData().catch(err => {
-      console.error('Error loading user profile:', err);
-      setLoading(false);
-    });
+    loadData().catch(err => console.error('Error loading user profile extras:', err));
 
     return () => {
       cancelled = true;
@@ -464,7 +477,26 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
     };
   }, [uid, initialTab]);
 
+  const savedThemeKey = profile?.uid === uid ? (profile.savedThemePresets || []).join(',') : null;
   useEffect(() => {
+    if (savedThemeKey === null) return;
+    let cancelled = false;
+    const savedIds = savedThemeKey ? savedThemeKey.split(',') : [];
+    fetchUserThemePresets(uid).then(t => {
+      if (cancelled) return;
+      if (savedIds.length > 0) {
+        fetchThemePresetsByIds(savedIds).then(saved => {
+          if (!cancelled) setThemes([...t, ...saved.filter(st => !t.some(a => a.id === st.id))]);
+        }).catch(() => { if (!cancelled) setThemes(t); });
+      } else {
+        setThemes(t);
+      }
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [uid, savedThemeKey]);
+
+  useEffect(() => {
+    firstProfileRef.current = null;
     const own = auth.currentUser?.uid === uid;
     setFeedInitialType(own ? 'GLOBAL' : 'PERSONAL');
     setFeedKey(k => k + 1);
@@ -667,10 +699,16 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
     }).catch(() => {});
   }, [uid]);
 
-  if (loading) {
+  if (loading || (!profile && profileStatus !== 'missing')) {
     return (
-      <div className="flex items-center justify-center h-screen bg-transparent">
+      <div className="flex flex-col items-center justify-center gap-5 h-screen bg-transparent">
         <div className="w-12 h-12 border-4 border-small-orange border-t-transparent rounded-full animate-spin" />
+        {profileStatus === 'stalled' && (
+          <div className="text-center">
+            <p className="text-white/50 text-sm">Still connecting — this profile will appear as soon as the connection catches up.</p>
+            <button onClick={() => setProfileAttempt(a => a + 1)} className="mt-3 text-small-orange uppercase font-black text-xs tracking-widest">Retry now</button>
+          </div>
+        )}
       </div>
     );
   }
@@ -3354,7 +3392,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                 className="space-y-8"
               >
                 {/* Universal Gaming Identity & Cross-Platform GamerScore */}
-                <UniversalPassportShowcase userId={profile.id} username={profile.displayName} />
+                <UniversalPassportShowcase userId={profile.uid}username={profile.displayName} />
 
                 {isOwnProfile && (
                   <div className="flex justify-end gap-3">

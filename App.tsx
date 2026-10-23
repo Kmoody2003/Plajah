@@ -623,7 +623,12 @@ class ErrorBlock extends React.Component<{ componentName: string, children: Reac
     console.error(`Error in ${this.props.componentName}:`, error, info);
   }
   render() {
-    if (this.state.hasError) return <div className="text-red-500 p-8 z-50 relative bg-black/80">Error in {this.props.componentName}</div>;
+    if (this.state.hasError) return (
+      <div className="text-red-500 p-8 z-50 relative bg-black/80">
+        Error in {this.props.componentName}
+        <button onClick={() => this.setState({ hasError: false })} className="ml-4 text-small-orange uppercase font-black text-xs tracking-widest">Try again</button>
+      </div>
+    );
     return this.props.children;
   }
 }
@@ -7824,7 +7829,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               <PrivateBoardsView currentUser={userProfile} />
             )}
             {view === 'USER_PROFILE' && viewedUserId && (
-              <ErrorBlock componentName="UserProfileView">
+              <ErrorBlock key={viewedUserId} componentName="UserProfileView">
                 <UserProfileView
                   uid={viewedUserId}
                   onBack={() => { handleBackToDashboard(); setInitialProfileTab(undefined); }}
