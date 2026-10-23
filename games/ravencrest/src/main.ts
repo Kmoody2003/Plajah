@@ -32,6 +32,7 @@ import { Forest, uLeafDay } from './forest';
 import { Flock } from './birds';
 import { GroundFog } from './fog';
 import { buildRoadObstacles } from './roadObstacles';
+import { preloadAngel } from './angel';
 import { buildFlowers } from './flowers';
 import { ExtraInput } from './input';
 import { ComboComic } from './comic';
@@ -257,6 +258,7 @@ const obstacles = buildRoadObstacles(world, Number(params.get('obstacles')) || M
 outside.add(obstacles.group);
 console.info('[ravencrest] road obstacles', obstacles.placed.join(', ') || 'none');
 const obstacleFires = obstacles.fires.map((f) => ({ ...f, light: null as ReturnType<typeof pools.outside.addTransient> | null }));
+noMerge.add(obstacles.group);           // pieces stay separate: the tank sends them flying
 Promise.all([yard.props, viaduct.props, obstacles.props]).then(() => {
   for (const f of obstacleFires) f.light = pools.outside.addTransient(f.pos.clone().setY(f.pos.y + 1.4), 0xff7a2a, 70, 16);
   yard.group.traverse((o) => { if ((o as THREE.PointLight).isPointLight && !o.name.startsWith('pool')) pools.outside.add(o as THREE.PointLight); });
@@ -286,7 +288,12 @@ function place(): { where: 'road' | 'yard' | 'hall' | 'gallery'; surface: 'ASPHA
 // ── Player ───────────────────────────────────────────────────────────────────
 const player = new PlayerController(renderer.domElement);
 let jack: Character | null = null;
+/** The HUD name card (the Game is created further down; startHero can run before it exists). */
+let heroName = 'Jack Thorne';
+let gameRef: Game | null = null;
 function startHero(hero: Hero) {
+  heroName = hero === 'elise' ? 'Elise Carter' : 'Jack Thorne';
+  gameRef?.setHeroName(heroName);
   loadJack(hero).then((c) => { jack = c; player.character = c; player.object.add(c.root); })
     .catch((e) => console.error(`[ravencrest] ${hero} failed to load`, e));
 }
@@ -536,6 +543,9 @@ const game = new Game({
   lens,
   eventActive: (): boolean => (nightmare.phase !== 'wait' && nightmare.phase !== 'done') || bridgeBattle.active,
 });
+gameRef = game;
+setTimeout(preloadAngel, 20000);   // fetched quietly after start-up, long before any halo
+game.setHeroName(heroName);
 const nightmareEnv = [{ scene: outside, base: outside.environmentIntensity }, { scene: hallScene, base: hallScene.environmentIntensity }];
 const nightmare = new Nightmare({
   game, player, camera, weather, sfx, audio,
@@ -675,6 +685,7 @@ bridgeBattle.onDefeated = () => {
 };
 if (params.get('troll') === 'done') bridgeBattle.defeated = true;   // debug: skip to the castle
 game.onTrollSlam = (m) => bridgeBattle.trollSlam(m);
+game.onTankMove = (pos, dir, speed) => obstacles.smash(pos, dir, speed);   // the tank bursts through the road wreckage
 // ── Controller + touch play (input.ts) ─────────────────────────────────────────
 const extraInput = new ExtraInput({
   player, game, interact,
@@ -899,6 +910,8 @@ function tick(dt: number) {
   if (filmZoom) updateFilmZoom(dt);
   if (victoryCut) updateVictoryCut(dt);
   flock.update(dt);
+  // Wreckage the tank hurled: once it all comes to rest off the road, the road's collision is rebuilt.
+  if (obstacles.update(dt, (x, z, y) => levels.outside.collision.groundAt(x, z, y, 6))) levels.outside.collision.rebuild();
   if (level === levels.outside) {
     groundFog.update(dt, camera);
     // The burning wreck: firelight flickers; land in it and it burns.
@@ -1113,6 +1126,7 @@ function simulate(seconds: number, held: string[] = [], mouseYaw = 0) {
   get perf() { return { frameMs: +frameEma.toFixed(1), internal: internalSize() }; },
   setRes: (h: number) => { internalH = h; applyInternalRes(); },
   get level() { return level; }, get jack() { return jack; },
+  obstacles,
   /** Debug: play the Dracula victory (daybreak cutscene) where the player stands. */
   victory: () => nightmare.onVictory?.(player.object.position.clone()),
   get cut() { return victoryCut ? { t: +victoryCut.t.toFixed(2), melvin: victoryCut.melvin, line: victoryCut.line } : null; },

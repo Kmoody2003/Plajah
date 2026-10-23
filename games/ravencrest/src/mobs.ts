@@ -115,20 +115,20 @@ interface KindSpec {
   guard?: { deflect: number; evade: number };
 }
 export const KINDS: Record<MobKind, KindSpec> = {
-  zombie:   { url: `${CHARS}zombie.glb`, rig: '', src: '', baked: true, skel: 'mixamo', label: 'Zombie', death: 'apart', fx: 0x3d5a2a, hp: 85,  walk: 0.9, run: 2.6, dmg: 11,  reach: 1.5, xp: 20, aggro: 13, height: 1.95 , mocap: { walk: '104_41', run: '120_22' }, strikes: '143_23' },
-  werewolf: { url: `${CHARS}werewolf.glb`, rig: '', src: '', baked: true, skel: 'mixamo', label: 'Werewolf', death: 'behead', fx: 0x6a0a08, hp: 170, walk: 1.4, run: 5.4, dmg: 19, reach: 2.2, xp: 50, aggro: 22, height: 2.37 , guard: { deflect: 0.1, evade: 0.3 } , mocap: { walk: '139_29' }, strikes: '144_20' },
-  vampire:  { url: `${CHARS}vampire.glb`, rig: '', src: '', baked: true, skel: 'mixamo', label: 'Vampire', death: 'ash', fx: 0x8a1010, hp: 130, walk: 1.3, run: 4.8, dmg: 16, reach: 1.7, xp: 40, aggro: 16, height: 1.99 , guard: { deflect: 0.15, evade: 0.3 }, strikes: '144_21' },
+  zombie:   { url: `${CHARS}zombie.glb`, rig: '', src: '', baked: true, skel: 'mixamo', label: 'Zombie', death: 'apart', fx: 0x3d5a2a, hp: 85,  walk: 0.9, run: 2.6, dmg: 11,  reach: 1.5, xp: 20, aggro: 13, height: 1.95 , mocap: { walk: '104_41', run: '120_22', idle: '137_15' }, strikes: '143_23' },
+  werewolf: { url: `${CHARS}werewolf.glb`, rig: '', src: '', baked: true, skel: 'mixamo', label: 'Werewolf', death: 'behead', fx: 0x6a0a08, hp: 170, walk: 1.4, run: 5.4, dmg: 19, reach: 2.2, xp: 50, aggro: 22, height: 2.37 , guard: { deflect: 0.1, evade: 0.3 } , mocap: { walk: '139_29', idle: '137_41' }, strikes: '144_20' },
+  vampire:  { url: `${CHARS}vampire.glb`, rig: '', src: '', baked: true, skel: 'mixamo', label: 'Vampire', death: 'ash', fx: 0x8a1010, hp: 130, walk: 1.3, run: 4.8, dmg: 16, reach: 1.7, xp: 40, aggro: 16, height: 1.99 , guard: { deflect: 0.15, evade: 0.3 }, mocap: { idle: '137_23' }, strikes: '144_21' },
   wolf:     { url: `${CHARS}wolf.glb`, rig: '', src: '', baked: true, skel: 'quad', label: 'Wolf', death: 'sink', fx: 0x5a0808, hp: 55, walk: 1.6, run: 6.4, dmg: 9, reach: 1.5, xp: 15, aggro: 20, height: 1.09 , guard: { deflect: 0, evade: 0.3 } },
   // The nightmare's boss (nightmare.ts): Muse's Dracula (characters/bases/dracula.glb), rigged onto the
   // vampire's contract skeleton + clips by scripts/ravencrest/autoRig.py.
   dracula:  { url: `${CHARS}dracula.glb`, rig: '', src: '', baked: true, skel: 'mixamo', label: 'Count Dracula', death: 'ash', fx: 0x8a1010, hp: 9600, walk: 1.5, run: 5.6, dmg: 26, reach: 2.2, xp: 1000, aggro: 60, height: 2.25 , guard: { deflect: 0.25, evade: 0.25 } },
-  unknown:  { url: `${CHARS}unknown.glb`, rig: '', src: '', baked: true, skel: 'mixamo', label: 'The Unknown', death: 'ash', fx: 0x6a5a8a, hp: 600, walk: 1.1, run: 3.4, dmg: 28, reach: 2.4, xp: 300, aggro: 18, height: 2.79 , guard: { deflect: 0.3, evade: 0.05 } , mocap: { walk: '104_03' }, strikes: '02_05' },
+  unknown:  { url: `${CHARS}unknown.glb`, rig: '', src: '', baked: true, skel: 'mixamo', label: 'The Unknown', death: 'ash', fx: 0x6a5a8a, hp: 600, walk: 1.1, run: 3.4, dmg: 28, reach: 2.4, xp: 300, aggro: 18, height: 2.79 , guard: { deflect: 0.3, evade: 0.05 } , mocap: { walk: '104_03', idle: '137_41' }, strikes: '02_05' },
   // The bridge battle's troll (bridgeBattle.ts): Muse's bridge_troll (characters/bases), rigged onto the
   // werewolf's contract skeleton + clips by scripts/ravencrest/autoRig.py.
-  troll:    { url: `${CHARS}bridge_troll.glb`, rig: '', src: '', baked: true, skel: 'mixamo', label: 'Bridge Troll', death: 'sink', fx: 0x3a4a30, hp: 3200, walk: 1.9, run: 4.6, dmg: 22, reach: 2.9, xp: 400, aggro: 40, height: 3.2, guard: { deflect: 0.3, evade: 0 } , mocap: { walk: '120_02' }, strikes: '02_05' },
+  troll:    { url: `${CHARS}bridge_troll.glb`, rig: '', src: '', baked: true, skel: 'mixamo', label: 'Bridge Troll', death: 'sink', fx: 0x3a4a30, hp: 3200, walk: 1.9, run: 4.6, dmg: 22, reach: 2.9, xp: 400, aggro: 40, height: 3.2, guard: { deflect: 0.3, evade: 0 } , mocap: { walk: '120_02', idle: '137_41' }, strikes: '02_05' },
   ghost:    { url: `${CHARS}ghost.glb`, rig: '', src: '', baked: true, skel: 'mixamo', label: 'Ghost', death: 'ecto', fx: 0x7dffc8, hp: 65,  walk: 1.0, run: 3.6, dmg: 10, reach: 1.7, xp: 30, aggro: 15, height: 1.9, ghostly: true, guard: { deflect: 0, evade: 0.35 } },
   pumpkin:  { url: `${CHARS}melvin.glb`, rig: '', src: '', baked: true, skel: 'mixamo', label: 'Pumpkin Patch', hp: 999, walk: 1.6, run: 5.2, dmg: 40, reach: 2.0, xp: 0, aggro: 22, height: 1.95 , mocap: { walk: '35_01', run: '02_03' } },
-  stitch:   { url: `${CHARS}stitch.glb`, rig: '', src: '', baked: true, skel: 'mixamo', label: 'Stitch the Scarecrow', death: 'apart', fx: 0xc9a24a, hp: 400, walk: 1.2, run: 3.8, dmg: 23, reach: 2.0, xp: 200, aggro: 16, height: 2.1 , guard: { deflect: 0.2, evade: 0.1 } , mocap: { walk: '02_01', run: '02_03' }, strikes: '143_23' },
+  stitch:   { url: `${CHARS}stitch.glb`, rig: '', src: '', baked: true, skel: 'mixamo', label: 'Stitch the Scarecrow', death: 'apart', fx: 0xc9a24a, hp: 400, walk: 1.2, run: 3.8, dmg: 23, reach: 2.0, xp: 200, aggro: 16, height: 2.1 , guard: { deflect: 0.2, evade: 0.1 } , mocap: { walk: '02_01', run: '02_03', idle: '137_19' }, strikes: '143_23' },
   miriam:   { url: `${CHARS}miriam.glb`, rig: '', src: '', baked: true, skel: 'mixamo', label: 'Wicked Witch Miriam', hp: 999, walk: 1.2, run: 3.0, dmg: 0, reach: 1, xp: 0, aggro: 0, height: 1.8 , mocap: { walk: '02_01', run: '02_03', idle: '137_23' } },
   robobones:{ url: `${CHARS}crane.glb`, rig: '', src: '', baked: true, skel: 'mixamo', label: 'Commander Crane', hp: 999, walk: 1.4, run: 4, dmg: 0, reach: 1, xp: 0, aggro: 0, height: 1.95 , mocap: { walk: '02_01', run: '02_03' } },
 };
@@ -422,7 +422,8 @@ export class Mob {
       case 'wander':
         if (dFoe < k.aggro * this.aggroMul && this.team !== 'npc') { this.go('chase'); break; }
         if (this.team === 'ally' && leader) { this.go('follow'); break; }
-        if (this.state === 'idle' && this.st > 3 + Math.random() * 3 && this.team === 'enemy') {
+        const hunter = this.kind === 'werewolf' || this.kind === 'wolf' || this.kind === 'vampire';
+        if (this.state === 'idle' && this.st > (hunter ? 0.8 + Math.random() * 1.2 : 3 + Math.random() * 3) && this.team === 'enemy') {
           this.wanderTarget.copy(this.home).add(new THREE.Vector3((Math.random() - 0.5) * 8, 0, (Math.random() - 0.5) * 8));
           this.go('wander');
         }

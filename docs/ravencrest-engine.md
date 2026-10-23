@@ -625,6 +625,34 @@ Still missing: hit and death clips (death is a sink-and-fade), hand poses, the s
   - The host calls `requestAutoplay()` (`services/filmAutoplay.ts`); `MovieUXView` consumes it and presses Watch Now (studio ident → film). Exiting the player lands on the film page.
   - Not verified end-to-end in the host app.
 
+## Round 20: angel model, wing rig, fog puffs, lens blood, road wreckage, voices, idles (2026-10-23)
+
+- **Halo angel model:** built from Muse's sheet (`Ravencrest Assets/halo_angel_sheet.webp`) with `buildCast.py halo_angel`. The armor is lit from within (emissive from its own texture) and plays the idle clip; preloaded 20 s after start.
+  - **Wing rig** (`angel.ts rigWings`): root + mid bones per wing on Spine2. Wing vertices (behind z −0.14·H/1.99, between 0.47 H and 0.86 H) are re-weighted along the chain.
+  - **Pose families** (`pose(t, strike, wing, dt)`): `closed` (folded, as in the turnaround), `spread` (rolled out and up with a slow beat, as in the front/back flight views), `swept` (pitched back, the side speed pose).
+  - The halo dives swept, hovers spread while healing, and leaves swept. The light-feather wings show only if the rig fails.
+- **Orbs:** the angel's heal also restores every orb to full (no more coming home drained).
+- **Fog** (`fog.ts GroundFog`): camera-facing noise puffs along the road and over the bridge deck, fading at the base and near the eye. They replace the flat road mist sheets, which sliced characters at the ankle. The gorge sheets stay.
+- **Lens blood** (`lensSplatter.ts`):
+  - Painted on a persistent half-res film: radial core/film/rim, a wet highlight, satellite spray, gravity drips with beads.
+  - The film smears (blur + downward creep), browns and wipes away.
+  - Drops stay in the outer fifth of the frame; most are small, one in four large.
+- **Road wreckage** (`roadObstacles.ts`):
+  - Random per load: each kind appears ~55% of the time, and ~12% of loads are clear. `?obstacles=<seed>` pins a layout.
+  - Kinds: a log (standing jump), a barrel/sandbag barricade and a burning debris pile (2.4 m deep, running jump; the fire hurts), and the Poly Haven covered car in one lane.
+  - Running jumps: vy 7.7 when ground speed > 4.2 (else 6.4).
+  - **Tank:** it smashes everything within 4.2 m of its hull. Pieces fly by mass (forward, out to the nearer verge, up, with spin), bounce and settle; fires go out; outdoor collision rebuilds when the wreckage settles.
+  - School bus / crashed plane: waiting on model sheets.
+- **Voices:** `retimeVoices.py` (faster-whisper word match ±45 s around the comic times) re-cut every line; `melvin_name`, `crane_monkeys` and `crane_assault` were dropped (not found).
+  - Ravencrest sets `halloweenAudio.movieVoices = false`: the shared stingers no longer play random film clips over the game's own lines (the "Seriously" over the tank).
+  - The combo comic strip never shows during a horde or game event.
+- **Monsters:**
+  - CMU "wait" idles: zombie Drunk 137_15, werewolf/Unknown/troll Strong Man 137_41, Stitch Gangly Teen 137_19, vampire Graceful Lady 137_23 (Dinosaur and Old Man contorted the rigs).
+  - Hunters (werewolf, wolf, vampire) idle under 2 s before prowling.
+  - The troll strikes with 02_05.
+  - Culling: per-kind bounds, 64 m, and the frustum decides (no near override).
+- **HUD** shows the chosen hero's name.
+
 ## Known gaps (next passes)
 
 - **Arrival art match:**

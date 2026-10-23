@@ -1,9 +1,76 @@
-// The orbs' halo summons an angel: a tall figure of white-gold light in a flowing robe, great
-// swept wings, a halo, and a long sword of lightning. Built from simple shapes and drawn almost
-// entirely in emissive light (with bloom it reads as radiance, not geometry); it is on screen for a
-// few seconds at a time, moving faster than the eye can follow.
+// The orbs' halo summons an angel: the armored warrior-angel from Muse's sheet (built and rigged
+// locally, assets/characters/halo_angel.glb: helm with a crown of spikes, white-gold plate over
+// ragged robes, folded wings, the sunburst sword in his right hand), lit from within so the armor
+// reads as holy light in the storm, with great spread wings of radiant feathers and a halo above.
+// Until the model has loaded a figure of light stands in. On screen for a few seconds at a time,
+// moving faster than the eye can follow.
 import * as THREE from 'three/webgpu';
 import { color, float, mix, positionLocal, smoothstep, time, uv, sin } from 'three/tsl';
+import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
+import { loadGLB } from './character';
+
+const MODEL = '/games/ravencrest/assets/characters/halo_angel.glb';
+const HEIGHT = 2.4;
+let modelP: ReturnType<typeof loadGLB> | null = null;
+/** Start fetching the angel early (the halo can't wait for a 13 MB download). */
+export function preloadAngel() { modelP ??= loadGLB(MODEL); }
+
+export type WingPose = 'closed' | 'spread' | 'swept';
+/**
+ * Wing bones for the model's folded wings (they were skinned to the back as plain body). Each wing
+ * gets a root at the shoulder blade and a mid bone two-thirds down, parented to Spine2; the wing's
+ * vertices (behind the back plate, between mid-body and the shoulders) are re-weighted along that
+ * chain. Poses are rotations in body space: closed = the turnaround's folded rest; spread = out and
+ * up, as in the front/back flight views; swept = back and up, the side-on speed pose.
+ */
+function rigWings(root: THREE.Object3D) {
+  const sm = root.getObjectByProperty('isSkinnedMesh', true) as THREE.SkinnedMesh | undefined;
+  const spine = sm?.skeleton.bones.find((b) => b.name === 'Spine2');
+  if (!sm || !spine) return null;
+  root.updateMatrixWorld(true);
+  const pos = sm.geometry.getAttribute('position') as THREE.BufferAttribute;
+  const si = sm.geometry.getAttribute('skinIndex') as THREE.BufferAttribute, sw = sm.geometry.getAttribute('skinWeight') as THREE.BufferAttribute;
+  const box = new THREE.Box3().setFromBufferAttribute(pos);
+  const H = box.max.y - box.min.y, y0 = box.min.y;
+  const yTop = y0 + 0.86 * H, yMid = y0 + 0.68 * H, yTip = y0 + 0.47 * H, zBack = -0.14 * (H / 1.99);
+  const toWorld = (v: THREE.Vector3) => v.applyMatrix4(sm.bindMatrix);
+  const bones: { side: number; root: THREE.Bone; mid: THREE.Bone }[] = [];
+  const all = [...sm.skeleton.bones];
+  for (const side of [-1, 1]) {
+    const r = new THREE.Bone(), m = new THREE.Bone();
+    r.name = side < 0 ? 'WingRoot_L' : 'WingRoot_R'; m.name = side < 0 ? 'WingMid_L' : 'WingMid_R';
+    spine.add(r);
+    r.position.copy(spine.worldToLocal(toWorld(new THREE.Vector3(side * 0.11 * (H / 1.99), yTop, zBack - 0.02))));
+    r.add(m);
+    r.updateMatrixWorld(true);
+    m.position.copy(r.worldToLocal(toWorld(new THREE.Vector3(side * 0.16 * (H / 1.99), yMid, zBack - 0.06))));
+    bones.push({ side, root: r, mid: m });
+    all.push(r, m);
+  }
+  const spineIdx = sm.skeleton.bones.indexOf(spine);
+  const v = new THREE.Vector3();
+  let n = 0;
+  for (let i = 0; i < pos.count; i++) {
+    v.fromBufferAttribute(pos, i);
+    if (v.z > zBack || v.y < yTip - 0.04 * H || v.y > yTop + 0.03 * H) continue;
+    const b = bones[v.x < 0 ? 0 : 1];
+    const rootIdx = all.indexOf(b.root), midIdx = all.indexOf(b.mid);
+    const t = THREE.MathUtils.clamp((yTop - v.y) / (yTop - yTip), 0, 1);
+    // Near the shoulder the wing stays partly with the back; down the wing it follows root → mid.
+    const wSpine = THREE.MathUtils.clamp(1 - t * 5, 0, 1) * 0.6;
+    const wMid = THREE.MathUtils.smoothstep(t, 0.35, 0.8) * (1 - wSpine);
+    const wRoot = 1 - wSpine - wMid;
+    si.setXYZW(i, rootIdx, midIdx, spineIdx, 0);
+    sw.setXYZW(i, wRoot, wMid, wSpine, 0);
+    n++;
+  }
+  si.needsUpdate = sw.needsUpdate = true;
+  root.updateMatrixWorld(true);
+  const skel = new THREE.Skeleton(all);
+  skel.calculateInverses();
+  sm.bind(skel, sm.bindMatrix);
+  return n > 200 ? bones : null;
+}
 
 export function buildAngel() {
   const g = new THREE.Group();
@@ -64,10 +131,64 @@ export function buildAngel() {
   sword.position.set(0.42, 1.3, 0.35);
   sword.rotation.x = -0.9;
   g.add(sword);
+  // The armored angel replaces the stand-in figure (robe, head, light-sword) once loaded.
+  const standIn = [robe, head, sword];
+  let wingBones: ReturnType<typeof rigWings> = null;
+  const wingK = { spread: 0, swept: 0 };
+  let mixer: THREE.AnimationMixer | null = null;
+  modelP ??= loadGLB(MODEL);
+  modelP.then((file) => {
+    const body = cloneSkinned(file.scene);
+    wingBones = rigWings(body);
+    const idle = file.animations.find((a) => a.name === 'idle');
+    if (idle) { mixer = new THREE.AnimationMixer(body); mixer.clipAction(idle).play(); }
+    const box = new THREE.Box3().setFromObject(body);
+    const k = HEIGHT / Math.max(0.1, box.max.y - box.min.y);
+    body.scale.setScalar(k);
+    body.position.y = -box.min.y * k;
+    body.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh) return;
+      m.frustumCulled = false;
+      const src = m.material as THREE.MeshStandardMaterial;
+      // Lit from within: the painted armor glows warm white-gold (bloom carries it), still shaded.
+      const mat = new THREE.MeshStandardNodeMaterial({ map: src.map ?? null, roughness: 0.35, metalness: 0.55 });
+      mat.emissive = new THREE.Color(0xfff0d0);
+      mat.emissiveMap = src.map ?? null;
+      mat.emissiveIntensity = 1.3;
+      m.material = mat;
+    });
+    g.add(body);
+    for (const o of standIn) o.visible = false;
+    halo.position.y = HEIGHT + 0.12;
+    // The model's own wings carry it now; the light-feather wings only stand in if the rig failed.
+    for (const w of wings) { w.position.y = HEIGHT * 0.68; w.position.z = -0.22; w.scale.multiplyScalar(1.15); w.visible = !wingBones; }
+  }).catch(() => { /* keep the figure of light */ });
   return {
     group: g,
-    /** Beat the wings and swing the sword (`strike` 0 → 1 raises then cuts). */
-    pose(t: number, strike = 0) {
+    /** Beat the wings and swing the sword (`strike` 0 → 1 raises then cuts); `wing` picks the wing
+     *  pose family (blended over ~0.3 s), with a slow beat while spread. */
+    pose(t: number, strike = 0, wing: WingPose = 'spread', dt = 1 / 60) {
+      mixer?.update(dt);
+      if (wingBones) {
+        wingK.spread += ((wing === 'spread' ? 1 : 0) - wingK.spread) * Math.min(1, dt * 7);
+        wingK.swept += ((wing === 'swept' ? 1 : 0) - wingK.swept) * Math.min(1, dt * 7);
+        const beat = Math.sin(t * 4.5) * 0.18 * wingK.spread;
+        const gq = g.getWorldQuaternion(new THREE.Quaternion());
+        for (const b of wingBones) {
+          // Body-space rotations: spread = roll out and up about the forward axis, opened a little;
+          // swept = pitched back and up, tucked slightly out.
+          const sd = b.side;
+          const qSpread = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.15, -sd * 0.35, sd * (2.0 + beat), 'ZYX'));
+          const qSwept = new THREE.Quaternion().setFromEuler(new THREE.Euler(1.75, 0, sd * 0.45, 'ZYX'));
+          const body = new THREE.Quaternion().slerp(qSpread, wingK.spread).slerp(qSwept, wingK.swept);
+          const parentQ = b.root.parent!.getWorldQuaternion(new THREE.Quaternion());
+          const world = gq.clone().multiply(body).multiply(gq.clone().invert());
+          b.root.quaternion.copy(parentQ.clone().invert().multiply(world).multiply(parentQ));
+          // The outer wing follows a little further (a soft curl on the spread, flat when swept).
+          b.mid.quaternion.setFromEuler(new THREE.Euler(0, 0, sd * 0.25 * wingK.spread));
+        }
+      }
       const beat = Math.sin(t * 5) * 0.35;
       wings[0].rotation.y = -(0.35 + beat); wings[1].rotation.y = 0.35 + beat;
       sword.rotation.x = -0.9 - 1.6 * Math.sin(Math.PI * Math.min(1, strike)) + 2.2 * Math.max(0, strike - 0.5);

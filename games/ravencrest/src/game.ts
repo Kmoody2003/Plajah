@@ -256,6 +256,10 @@ export class Game {
     this.call('Pumpkin Patch joins the fight!', 2.2, '#fb923c');
     setTimeout(() => this.bark('pumpkin'), 2400);
   }
+  /** Whose story it is (the HUD name card). */
+  setHeroName(name: string) { const el = this.ui.querySelector('.g-name'); if (el?.firstChild) el.firstChild.textContent = `${name.toUpperCase()} `; }
+  /** The tank's hull this frame (roadObstacles.ts smashes the wreckage); true when it hit something. */
+  onTankMove?: (pos: THREE.Vector3, dir: THREE.Vector3, speed: number) => boolean;
   /** A troll's blow landed on the deck (bridgeBattle.ts splinters the planks there). */
   onTrollSlam?: (m: Mob) => void;
   /** Move a mob to another level (Dracula follows Jack out of the castle). */
@@ -1279,7 +1283,7 @@ export class Game {
     }
     const A = H.angel;
     if (A) {
-      A.pose(H.t, THREE.MathUtils.clamp((H.t - 1.9) / 0.5, 0, 1));
+      A.pose(H.t, THREE.MathUtils.clamp((H.t - 1.9) / 0.5, 0, 1), H.t < 2.45 ? 'swept' : H.t < 4.4 ? 'spread' : 'swept', dt);
       const past = bp.clone().add(bp.clone().sub(H.from).setY(0).normalize().multiplyScalar(4)).setY(bp.y + 0.4);
       if (H.t < 2.4) {
         const k = THREE.MathUtils.clamp((H.t - 1.9) / 0.5, 0, 1), e = k * k * k;   // accelerating dive
@@ -1566,6 +1570,8 @@ export class Game {
     T.obj.position.copy(pos);
     const dir = T.to.clone().sub(T.from);
     T.obj.rotation.y = Math.atan2(dir.x, dir.z);
+    // Wreckage on the road: the hull bursts straight through it.
+    if (this.onTankMove?.(pos, dir.clone().setY(0).normalize(), T.speed)) { this.d.player.shake = Math.max(this.d.player.shake, 0.6); this.d.sfx.woodCrack(0, pos.distanceTo(this.d.camera.position)); }
     // The hull flattens anything in its path.
     for (const m of this.mobs) if (m.team === 'enemy' && m.alive && m.level === 'outside' && m.object.position.distanceTo(pos) < 4.2) { if (m.damage(999, pos)) { this.onKill(m); this.d.player.shake = Math.max(this.d.player.shake, 0.25); if (pos.distanceTo(this.d.camera.position) < 9) this.d.lens.hit('blood', 0.7); } }
     // Turret salvo: every shot clears the nearest monster on the road.
