@@ -1399,6 +1399,12 @@ export async function ingestFilmIntoMux(
   const filmDir = path.join(vaultDir, cleanId);
   const muxFile = path.join(filmDir, 'mux.json');
 
+  // 0. Already in the committed Mux registry (or registered this process) — never create a duplicate asset
+  const registered = getSelfHostedFilm(cleanId);
+  if (registered?.muxPlaybackId) {
+    return { muxAssetId: registered.muxAssetId, muxPlaybackId: registered.muxPlaybackId };
+  }
+
   await fsp.mkdir(filmDir, { recursive: true });
 
   // 1. Check local mux.json cache first
@@ -2237,6 +2243,8 @@ export function createAdminFilmIngestRouter(deps?: {
           if (!muxPlaybackId && directMp4Url) {
             await ingestFilmIntoMux(film, directMp4Url);
           }
+          // A Mux stream already serves this film; don't pull gigabytes onto the server's disk.
+          if (muxPlaybackId) return;
           const currentStat = inMemoryStatuses[cleanId];
           if (!localVideoExists && (!currentStat || (currentStat.status !== 'DOWNLOADING' && currentStat.status !== 'COMPLETED'))) {
             await startOrResumeDownload(cleanId);

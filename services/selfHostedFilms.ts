@@ -6,6 +6,8 @@
  * the Admin Film Ingest Vault, its stream is instantly unlocked here.
  */
 
+import { MUX_FILM_REGISTRY } from '../data/muxFilmRegistry';
+
 export interface SelfHostedFilmEntry {
   identifier: string;
   videoUrl: string;
@@ -18,8 +20,19 @@ export interface SelfHostedFilmEntry {
   sizeBytes?: number;
 }
 
-// In-memory or locally overridden self-hosted films map
-export const SELF_HOSTED_FILMS: Record<string, SelfHostedFilmEntry> = {};
+// In-memory or locally overridden self-hosted films map, seeded with the committed
+// Mux registry so every curated film resolves to HLS on first click (and on servers
+// with no film vault on disk).
+export const SELF_HOSTED_FILMS: Record<string, SelfHostedFilmEntry> = Object.fromEntries(
+  Object.entries(MUX_FILM_REGISTRY).map(([identifier, mux]) => [identifier, {
+    identifier,
+    videoUrl: `https://stream.mux.com/${mux.muxPlaybackId}.m3u8`,
+    muxPlaybackId: mux.muxPlaybackId,
+    muxAssetId: mux.muxAssetId,
+    sourceType: 'MUX' as const,
+    isAvailable: true,
+  }]),
+);
 
 /**
  * Register a downloaded or Mux-ingested film into the self-hosted registry
