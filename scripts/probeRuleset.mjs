@@ -36,7 +36,13 @@ for (let attempt = 1; ; attempt++) {
 }
 if (!mk.ok) { console.log('ruleset does not even compile:', mk.status, JSON.stringify(mj).slice(0, 400)); process.exit(1); }
 const name = `projects/${PROJECT}/releases/cloud.firestore/zzprobe-${Date.now() % 1000000}`;
-const r = await fetch(API + `projects/${PROJECT}/releases`, { method: 'POST', headers: H, body: JSON.stringify({ name, rulesetName: mj.name }) });
+let r;
+for (let attempt = 1; ; attempt++) {
+  r = await fetch(API + `projects/${PROJECT}/releases`, { method: 'POST', headers: H, body: JSON.stringify({ name, rulesetName: mj.name }) });
+  if (r.status !== 503 || attempt === 6) break;
+  console.log(`releases 503, retry ${attempt}/5`);
+  await new Promise((res) => setTimeout(res, 5000 * attempt));
+}
 const why = r.ok ? '' : ((await r.json().catch(() => ({})))?.error?.message || '');
 console.log(file, src.length, 'bytes ->', r.ok ? 'RELEASABLE' : `NOT releasable (HTTP ${r.status}) ${why}`);
 if (r.ok) await fetch(API + name, { method: 'DELETE', headers: H });
