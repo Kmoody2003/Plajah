@@ -164,9 +164,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Node 20, same as build_and_deploy: the SPA build OOMs under Node 24 at the same
+      # 8 GB heap (2026-10-23), while Node 20 builds the identical tree. The image itself is
+      # built by Cloud Run from the Dockerfile, so the runner's Node only drives the build.
       - uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: '20'
           cache: 'npm'
 
       - name: Install dependencies
