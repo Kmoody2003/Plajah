@@ -83,6 +83,18 @@ export class XRPlay {
     };
     document.body.appendChild(b);
     this.button = b;
+    // On the title screen it's an explicit choice: play flat, or step inside.
+    const start = document.getElementById('menuStart');
+    if (start?.parentElement) {
+      const vr = document.createElement('button');
+      vr.id = 'menuStartVR';
+      vr.textContent = 'ENTER IN VR';
+      vr.style.marginLeft = '14px';
+      vr.onclick = () => b.click();
+      start.parentElement.insertBefore(vr, start.nextSibling);
+      b.style.display = 'none';            // the menu carries the choice; the corner button returns in play
+      start.addEventListener('click', () => { b.style.display = ''; });
+    }
   }
 
   private begin() {

@@ -924,7 +924,10 @@ export class Game {
     // ~4 draws per mob is real CPU on the iGPU baseline.
     const cam = this.d.camera;
     cam.updateMatrixWorld();
-    this.frustum.setFromProjectionMatrix(this.projView.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse));
+    // The renderer uses WebGPU clip space and a reversed depth buffer: the frustum must be built
+    // the same way, or its near/far planes come out swapped and close monsters (the ones attacking
+    // you) get culled as "out of view".
+    this.frustum.setFromProjectionMatrix(this.projView.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse), cam.coordinateSystem, cam.reversedDepth);
     for (const m of this.mobs) {
       let vis = mode !== 'ref' && m.level === lvl && (m.alive || m.fading);
       if (vis) {
