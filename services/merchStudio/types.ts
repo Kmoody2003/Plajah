@@ -57,7 +57,7 @@ export interface MerchDecalPlacement {
 
 export type MerchProductRef =
   | { kind: 'template'; templateId: string }
-  | { kind: 'model'; assetId: string; name: string; source: 'import' | 'sculpt'; decal?: MerchDecalPlacement };
+  | { kind: 'model'; assetId: string; name: string; source: 'import' | 'sculpt' | 'generated'; decal?: MerchDecalPlacement };
 
 export interface MerchCameraSetup {
   /** Degrees around the product (0 = front). */

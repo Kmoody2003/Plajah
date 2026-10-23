@@ -403,6 +403,12 @@ export function downloadNativeLlmModel(key: string, onProgress?: (done: number, 
     .finally(() => webview?.removeEventListener('message', onMsg));
 }
 
+/** Start the Tela 3D runtime (image → GLB on this PC's GPU); the app answers with the port it listens on. */
+export function ensureNativeTela3d(): Promise<{ success: boolean; port: number; booting?: boolean; error?: string }> {
+  if (!isWindowsApp()) return Promise.reject(new Error('Tela 3D runs in the Plajah desktop app'));
+  return requestNativeResponse<{ success: boolean; port: number; booting?: boolean; error?: string }>('TELA3D_ENSURE', 'TELA3D_ENSURE_RESULT');
+}
+
 export interface WindowsVstPlugin {
   name: string;
   path: string;

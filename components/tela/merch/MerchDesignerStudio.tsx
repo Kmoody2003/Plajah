@@ -131,6 +131,7 @@ export default function MerchDesignerStudio({ onClose, initialProjectId }: Merch
   const [notice, setNotice] = useState<{ tone: 'ok' | 'warn' | 'err'; text: string } | null>(null);
   const [viewShot, setViewShot] = useState<string | null>(null);
   const [sculptOpen, setSculptOpen] = useState(false);
+  const [gen3dBackend, setGen3dBackend] = useState<'auto' | 'sf3d' | 'triposr' | 'hunyuan_mini'>('auto');
   const [publishOpen, setPublishOpen] = useState(false);
   const [projectsOpen, setProjectsOpen] = useState(false);
   const [projects, setProjects] = useState<MerchProjectSummary[]>([]);
@@ -316,7 +317,7 @@ export default function MerchDesignerStudio({ onClose, initialProjectId }: Merch
     setSelectedLayer(null);
   };
 
-  const adoptModelBlob = async (blob: Blob, name: string, source: 'import' | 'sculpt') => {
+  const adoptModelBlob = async (blob: Blob, name: string, source: 'import' | 'sculpt' | 'generated') => {
     const asset = await putMerchAsset(blob, name);
     stageDecalKey.current = '';
     update((p) => ({
@@ -327,7 +328,24 @@ export default function MerchDesignerStudio({ onClose, initialProjectId }: Merch
       title: p.title.startsWith('Untitled') ? `Untitled ${name.replace(/\.\w+$/, '')}` : p.title,
     }));
     setActiveArea('decal');
-    flash('ok', source === 'sculpt' ? 'Sculpt is now the product — place your print on it in Design.' : `Imported ${name}. Place your print on it in Design.`);
+    flash('ok', source === 'sculpt' ? 'Sculpt is now the product — place your print on it in Design.'
+      : source === 'generated' ? `Generated ${name}. Place your print on it in Design.`
+      : `Imported ${name}. Place your print on it in Design.`);
+  };
+
+  /** Photo or render of an object → a 3D product, on this PC's GPU (services/tela/tela3dService). */
+  const generateModelFromImage = async (file: File) => {
+    setBusy(`Building a 3D model from ${file.name}…`);
+    try {
+      const { imageToModel } = await import('../../../services/tela/tela3dService');
+      const r = await imageToModel(file, gen3dBackend, { quality: gen3dBackend === 'hunyuan_mini' ? 'detail' : 'fast' });
+      await adoptModelBlob(r.glb, `${file.name.replace(/\.\w+$/, '')}.glb`, 'generated');
+      flash('ok', `${r.backendLabel} built it in ${(r.ms / 1000).toFixed(1)} s (${r.faces.toLocaleString()} faces${r.textured ? '' : ', untextured'}).`);
+    } catch (e) {
+      flash('err', (e as Error)?.message || '3D generation failed');
+    } finally {
+      setBusy(null);
+    }
   };
 
   const importModel = async (file: File) => {
@@ -535,8 +553,21 @@ export default function MerchDesignerStudio({ onClose, initialProjectId }: Merch
                 <input type="file" accept=".glb,.gltf,.obj,.stl,.fbx" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void importModel(f); e.target.value = ''; }} />
               </label>
               <button onClick={() => setSculptOpen(true)} className={`${btn} w-full mb-2`}><Move3d size={14} /> Sculpt a product</button>
+              <div className="flex gap-2 mb-2">
+                <label className={`${btn} flex-1 cursor-pointer ${busy ? 'opacity-50 pointer-events-none' : ''}`} title="Runs on this PC's GPU — no credits">
+                  <Wand2 size={14} /> 3D from an image
+                  <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void generateModelFromImage(f); e.target.value = ''; }} />
+                </label>
+                <select value={gen3dBackend} onChange={(e) => setGen3dBackend(e.target.value as typeof gen3dBackend)}
+                  className="bg-white/[0.05] border border-white/10 rounded-[10px] text-[11.5px] px-2" title="3D engine">
+                  <option value="auto">Auto</option>
+                  <option value="sf3d">Stable Fast 3D</option>
+                  <option value="triposr">TripoSR</option>
+                  <option value="hunyuan_mini">Hunyuan (detail)</option>
+                </select>
+              </div>
               {project.product.kind === 'model' && (
-                <div className="text-[11px] text-white/55 mb-4 px-1">Current: <b className="text-white/85">{project.product.name}</b> ({project.product.source === 'sculpt' ? 'sculpted' : 'imported'})</div>
+                <div className="text-[11px] text-white/55 mb-4 px-1">Current: <b className="text-white/85">{project.product.name}</b> ({project.product.source === 'sculpt' ? 'sculpted' : project.product.source === 'generated' ? 'generated' : 'imported'})</div>
               )}
               <div className={`${panelTitle} mt-4`}>Colour</div>
               <div className="flex flex-wrap gap-2 items-center">

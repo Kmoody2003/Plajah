@@ -68,9 +68,48 @@ function ensureTelaRuntimeRunning(): void {
   }
 }
 
+// Tela 3D Runtime (engines/tela-3d): image → GLB with Stable Fast 3D / TripoSR / Hunyuan3D-2mini on the local GPU.
+// Its own env on D: (tela3d-py) — the 3D repos pin different torch extras than the diffusion env. Started on demand,
+// not on router load: it holds up to ~7 GB of VRAM once a model is resident.
+const TELA3D_PORT = 51124;
+let tela3dProcess: any = null;
+
+function ensureTela3dRunning(): boolean {
+  if (tela3dProcess && !tela3dProcess.killed && tela3dProcess.exitCode === null) return true;
+  const pythonExe = path.join(TELA_RUNTIME_ROOT, 'tela3d-py', 'Scripts', 'python.exe');
+  const scriptPath = path.resolve('engines/tela-3d/tela3d_runtime.py');
+  if (!fs.existsSync(pythonExe) || !fs.existsSync(scriptPath)) return false;
+  try {
+    tela3dProcess = spawn(pythonExe, ['-u', '-W', 'ignore', scriptPath, '--port', String(TELA3D_PORT)], {
+      cwd: path.dirname(scriptPath),
+      detached: false,
+      stdio: 'ignore',
+      env: {
+        ...process.env,
+        HF_HOME: path.join(TELA_RUNTIME_ROOT, 'cache', 'hf'),
+        TMP: path.join(TELA_RUNTIME_ROOT, 'tmp'),
+        TEMP: path.join(TELA_RUNTIME_ROOT, 'tmp'),
+        PYTHONIOENCODING: 'utf-8',
+      },
+    });
+    tela3dProcess.on('error', () => { tela3dProcess = null; });
+    tela3dProcess.unref();
+    console.log(`[Local AI] Started Tela 3D Runtime on port ${TELA3D_PORT}`);
+    return true;
+  } catch (err) {
+    console.warn('[Local AI] Failed to start Tela 3D Runtime:', err);
+    return false;
+  }
+}
+
 // Ensure sidecar is active on router load
 ensureSidecarRunning();
 ensureTelaRuntimeRunning();
+
+localAiRouter.post('/tela3d/ensure', (_req: Request, res: Response) => {
+  const started = ensureTela3dRunning();
+  res.json({ success: started, port: TELA3D_PORT, error: started ? undefined : 'tela3d-py env or engines/tela-3d missing on this machine' });
+});
 
 localAiRouter.get('/health', async (_req: Request, res: Response) => {
   try {

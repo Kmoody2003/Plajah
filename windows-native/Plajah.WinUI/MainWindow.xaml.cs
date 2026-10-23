@@ -995,6 +995,10 @@ public sealed partial class MainWindow : Window
             {
                 PostNativeMessage("LOCAL_LLM_STATUS_RESULT", NativeLlmService.Status());
             }
+            else if (type == "TELA3D_ENSURE")
+            {
+                PostNativeMessage("TELA3D_ENSURE_RESULT", await Tela3dRuntimeService.EnsureAsync());
+            }
             else if (type == "LOCAL_LLM_DOWNLOAD")
             {
                 var key = root.TryGetProperty("key", out var k) ? k.GetString() ?? string.Empty : string.Empty;
