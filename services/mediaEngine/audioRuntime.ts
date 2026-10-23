@@ -22,7 +22,11 @@ export class PlatformAudioRuntime {
     }
     const Ctx = window.AudioContext || (window as any).webkitAudioContext;
     if (!Ctx) throw new Error('Web Audio unavailable');
-    try { return new Ctx({ sampleRate: 48000, latencyHint: 'interactive' }); }
+    // 'balanced', not 'interactive': this device carries Chora's music playback, and the ~10 ms
+    // buffers of 'interactive' underrun (audible crackle/chop) whenever the main thread or GPU is
+    // busy — a visualizer, a feed scroll, a phone under thermal load. 'balanced' keeps latency low
+    // enough for DJ/FX use while giving the render thread room to breathe.
+    try { return new Ctx({ sampleRate: 48000, latencyHint: 'balanced' }); }
     catch { return new Ctx(); }
   }) {}
 

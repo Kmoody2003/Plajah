@@ -26,6 +26,9 @@ export interface ChoraStream {
  *  so a genuinely running transcode is never interrupted by a competing retry. */
 const PROCESSING_STALE_MS = 15 * 60 * 1000;
 
+/** A ready stream's URLs don't change, so its doc can be trusted for a long listening session. */
+const READY_TTL_MS = 30 * 60 * 1000;
+
 /** Did this 'processing' job die without ever writing its result? */
 export function isStaleProcessing(s: ChoraStream | null | undefined): boolean {
   if (!s || s.status !== 'processing') return false;
@@ -47,9 +50,8 @@ function checkCacheOwner() {
 export async function getTrackStream(trackId: string): Promise<ChoraStream | null> {
   checkCacheOwner();
   const owner = cacheOwner;
-  if ((expires.get(trackId) || 0) <= Date.now()) cache.delete(trackId);
   if (!trackId) return null;
-  if (cache.has(trackId)) return cache.get(trackId)!;
+  if (cache.has(trackId) && (expires.get(trackId) || 0) > Date.now()) return cache.get(trackId)!;
   if (inflight.has(trackId)) return inflight.get(trackId)!;
   const p = (async () => {
     try {
@@ -58,32 +60,46 @@ export async function getTrackStream(trackId: string): Promise<ChoraStream | nul
       const data = snap.exists() ? (snap.data() as ChoraStream) : null;
       if (owner !== (auth.currentUser?.uid || '')) return null;
       cache.set(trackId, data && data.status ? data : null);
-      expires.set(trackId, Date.now() + (data?.status === 'ready' ? 300000 : 10000));
+      expires.set(trackId, Date.now() + (data?.status === 'ready' ? READY_TTL_MS : 10000));
       return cache.get(trackId)!;
-    } catch { if (owner === (auth.currentUser?.uid || '')) { cache.set(trackId, null); expires.set(trackId, Date.now() + 10000); } return null; }
+    } catch {
+      if (owner !== (auth.currentUser?.uid || '')) return null;
+      // A failed read on a flaky mobile link says nothing about the track. Keep a known-ready
+      // stream rather than overwriting it with null — null sends the next play to the raw master,
+      // which is several times the bitrate and is exactly what a weak connection can't sustain.
+      const prev = cache.get(trackId);
+      if (prev?.status === 'ready') { expires.set(trackId, Date.now() + 10000); return prev; }
+      cache.set(trackId, null); expires.set(trackId, Date.now() + 10000);
+      return null;
+    }
     finally { inflight.delete(trackId); }
   })();
   inflight.set(trackId, p);
   return p;
 }
 
-/** Synchronous cache peek — the player uses this to stay inside the autoplay gesture. */
+/** Synchronous cache peek — the player uses this to stay inside the autoplay gesture.
+ *  Stale-while-revalidate: an expired entry is still returned (and refreshed in the background).
+ *  Returning undefined once the TTL lapsed made every track that started more than a few minutes
+ *  after the album loaded play the raw master instead of the HLS stream. */
 export function peekTrackStream(trackId: string): ChoraStream | null | undefined {
   checkCacheOwner();
-  if ((expires.get(trackId) || 0) <= Date.now()) { cache.delete(trackId); return undefined; }
+  if (!cache.has(trackId)) return undefined;
+  if ((expires.get(trackId) || 0) <= Date.now() && !inflight.has(trackId)) getTrackStream(trackId).catch(() => {});
   return cache.get(trackId);
 }
 
 /** Force a fresh read (busts the cache) — the admin backfill UI uses this to poll live status. */
 export async function refreshTrackStream(trackId: string): Promise<ChoraStream | null> {
-  cache.delete(trackId);
+  cache.delete(trackId); expires.delete(trackId);
   return getTrackStream(trackId);
 }
 
 /** Warm the cache for a set of track ids (e.g. when an album loads), so play is instant-HLS. */
 export function prefetchTrackStreams(trackIds: string[]): void {
   checkCacheOwner();
-  for (const id of trackIds) if (id && peekTrackStream(id) === undefined && !inflight.has(id)) getTrackStream(id).catch(() => {});
+  const now = Date.now();
+  for (const id of trackIds) if (id && (expires.get(id) || 0) <= now && !inflight.has(id)) getTrackStream(id).catch(() => {});
 }
 
 /** Re-home a stored media URL onto the current secure origin.
@@ -135,6 +151,13 @@ export function pickStreamUrl(s: ChoraStream | null | undefined, quality: ChoraQ
 /** User's audio-quality tier, persisted. Default 'high' (AAC-LC 256 HLS). */
 export function getQuality(): ChoraQuality {
   try { const q = localStorage.getItem('chora:quality'); if (q === 'data' || q === 'high' || q === 'lossless') return q; } catch { /* */ }
+  // No explicit choice: follow the connection. The HLS stream has a single 256k rendition, so it
+  // can't step down on its own — on a link the browser itself reports as slow (or with Data
+  // Saver on) start on the data-saver file instead of stalling through the 'high' one.
+  try {
+    const c: any = (navigator as any).connection;
+    if (c && (c.saveData || ['slow-2g', '2g', '3g'].includes(c.effectiveType))) return 'data';
+  } catch { /* */ }
   return 'high';
 }
 export function setQuality(q: ChoraQuality): void {

@@ -869,7 +869,15 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
             return;
           }
           try {
-            if (hlsRef.current && w.recoveries === 1) {
+            if (hlsRef.current && !neverStarted && audio.readyState < 3 && navigator.onLine !== false) {
+              // Mid-song HLS underrun: hls.js is still fetching on a slow link. Nudge the loader
+              // only — recoverMediaError() would flush the buffer we are waiting to fill, and
+              // bailing to the original file swaps a 256k stream for a multi-megabit master on
+              // the very connection that just failed to keep up. Don't spend the escalation
+              // budget either; hls.js's own error handler decides when the stream is dead.
+              w.recoveries--;
+              hlsRef.current.startLoad();
+            } else if (hlsRef.current && w.recoveries === 1) {
               hlsRef.current.startLoad();
               if (!neverStarted) hlsRef.current.recoverMediaError();
             } else if (hlsRef.current && bailHlsRef.current) {
@@ -1246,9 +1254,11 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
               } else if (Hls.isSupported()) {
                 audio.removeAttribute('src');
                 // Buffer generously so a brief congestion/roam blip is ridden out of the buffer
-                // instead of surfacing as a stall. backBufferLength keeps a little behind us for
-                // instant scrub-back without re-fetching.
-                const hls = new Hls({ maxBufferLength: 60, backBufferLength: 30, enableWorker: true });
+                // instead of surfacing as a stall: two minutes of 256k AAC is under 4 MB, and on a
+                // phone moving between cells that headroom is the difference between a seamless
+                // song and a dropout. backBufferLength keeps a little behind us for instant
+                // scrub-back without re-fetching.
+                const hls = new Hls({ maxBufferLength: 120, maxMaxBufferLength: 180, backBufferLength: 30, enableWorker: true });
                 // A "fatal" hls.js error is usually NOT terminal. A dropped segment request or a
                 // buffer-append hiccup — a lift, a Wi-Fi roam, a moment of congestion — arrives
                 // here as fatal, and tearing the player down on the first one is why music
@@ -1288,7 +1298,12 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
                     bailToOriginal();
                     return;
                   }
-                  if (data.type === Hls.ErrorTypes.NETWORK_ERROR && netRetries < 6) {
+                  // Once the stream HAS delivered, a network error means the connection is struggling,
+                  // not that the stream is bad. Bailing to the original master then is the worst
+                  // move available — it's a WAV/FLAC at several times the bitrate, so a weak link
+                  // that hiccuped on 256k AAC goes choppy and then drops out entirely. Keep
+                  // retrying the stream (FRAG_BUFFERED resets the budget when it recovers).
+                  if (data.type === Hls.ErrorTypes.NETWORK_ERROR && netRetries < (everBuffered ? 30 : 6)) {
                     netRetries++;
                     // Back OFF before resuming (mirrors the live-stream path): a network that just
                     // dropped a segment needs a beat, and hammering startLoad() in a tight loop
@@ -2042,7 +2057,9 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   useEffect(() => {
     const ids = currentAlbum?.tracks?.map(t => t.id).filter(Boolean) as string[] | undefined;
     if (ids?.length) prefetchTrackStreams(ids);
-  }, [currentAlbum?.id]); // eslint-disable-line
+    // Re-run on every track change too: it only re-reads entries that have expired, and a long
+    // session would otherwise outlive the cache and quietly fall back to the raw masters.
+  }, [currentAlbum?.id, currentTrack?.id]); // eslint-disable-line
 
   // Honor the creator's "Slideshow" toggle. `isSlideshowEnabled` is set in the uploader but was
   // read by nothing, so turning it on had no effect anywhere — the nano player stayed on its cover
