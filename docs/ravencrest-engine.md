@@ -673,6 +673,23 @@ Still missing: hit and death clips (death is a sink-and-fade), hand poses, the s
   - Prop plane: nose-down and slewed, a torn wing low across the other lane.
   - Each turns up about half the time; the tank shoves them aside (mass 20 / 10).
 
+## Round 22: headset play, menu accents + loading, troll freeze fix (2026-10-23)
+
+- **Frozen monsters:** one-shot attack clips clamp on their last frame and report an effective speed of 0. Swing length was `duration / effectiveTimeScale`, which became infinite, so the troll stood in "attack" forever.
+  - Swing length now uses the set `timeScale`, with exits after 3 s or once the clip has stopped.
+  - The troll watchdog re-hunts, and leaps (with a landing slam) when stuck. The troll is back on its own baked attacks (the boxing mocap looked goofy).
+- **Kraken cutscene:** triggers at 25% troll life lost or 40 s; every beat ×1.35. Cutscenes render at resMax with FxBudget 1. Fog puffs fade beyond 22–42 m; the gorge mist is softer and two-octave.
+- **Menu:**
+  - Accent tokens (`--ac…`): Plajah orange for Jack, purple for Elise (`#menu.elise`).
+  - An inline script in index.html makes hero picking work before the module loads (`window.__heroPick`).
+  - A still of the road dolly (`menu/road_bg.jpg`) shows until `#menu.live`; the Enter button reads "SUMMONING RAVENCREST…" until then. (Dev startup is ~45 s: clicks before that did nothing.)
+- **Headsets** (`xr.ts XRPlay`, not yet tried on a device):
+  - Quest, Android XR, Pico and Wolvic UAs (or `?xr`) boot WebGPURenderer with `forceWebGL` and `xr.enabled`. An "ENTER VR" button appears where `immersive-vr` is supported. In XR the scene renders directly (no post or LUT); foveation is 1.
+  - **Rig:** third person, 3.4 m behind and 1.15 m above the hero, eased; 30° snap turns on the right stick.
+  - **Controls:** left stick moves relative to the head; A jumps, B rolls, triggers attack, left grip uses, right grip throws a molotov.
+  - **Gestures:** a hand thrust (> 2.6 m/s along the head's forward) is a jab (left) or hook (right); a right-hand sweep (> 3.4 m/s) cuts (down = cleave, up = backhand, across = combo), via `game.playMove`.
+  - **HUD:** an in-world canvas panel (health + `game.callText`) and glowing gauntlet markers on the grips. `player.xrMode` hands the camera to the rig.
+
 ## Known gaps (next passes)
 
 - **Arrival art match:**

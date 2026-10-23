@@ -33,6 +33,7 @@ import { Flock } from './birds';
 import { GroundFog } from './fog';
 import { buildRoadObstacles } from './roadObstacles';
 import { preloadAngel } from './angel';
+import { XRPlay } from './xr';
 import { buildFlowers } from './flowers';
 import { ExtraInput } from './input';
 import { ComboComic } from './comic';
@@ -95,7 +96,10 @@ const prompt = document.getElementById('prompt')!;
 // Reversed float depth: near-uniform precision out to the far plane. With the old 0.1 m-6 km
 // 24-bit range, close layers (road over terrain, puddles, trim, banners and frames on walls)
 // z-fought and flickered at a distance.
-const renderer = new THREE.WebGPURenderer({ antialias: false, powerPreference: 'high-performance', trackTimestamp: params.has('prof'), reversedDepthBuffer: params.get('rdepth') !== '0' });
+// Headsets (Meta Quest browser, Android XR, Pico, Wolvic): WebXR runs on the renderer's WebGL backend.
+const xrDevice = params.has('xr') || /OculusBrowser|Quest|Pico|Wolvic|Android XR|XR Browser/i.test(navigator.userAgent);
+const renderer = new THREE.WebGPURenderer({ antialias: false, powerPreference: 'high-performance', trackTimestamp: params.has('prof'), reversedDepthBuffer: params.get('rdepth') !== '0' && !xrDevice, forceWebGL: xrDevice });
+if (xrDevice) renderer.xr.enabled = true;
 await renderer.init();
 // Display buffer at native (capped) density; the scene renders at `internalH` and FSR1
 // upscales. Dynamic resolution moves internalH between resMin and the preset height.
@@ -300,7 +304,7 @@ function startHero(hero: Hero) {
 // ── Start menu: pick Jack or Elise, read the brief, enter. (?hero=jack|elise skips it.) ──
 const menuEl = document.getElementById('menu')!;
 let menuOpen = !params.has('hero') && !params.has('ref');
-let heroPick: Hero = 'jack';
+let heroPick: Hero = ((window as unknown as { __heroPick?: Hero }).__heroPick) ?? 'jack';   // picked before the game loaded (index.html)
 // A repeat run after beating Dracula: say so on the title.
 if (Difficulty.level > 0) { const sub = menuEl.querySelector('.sub'); if (sub) sub.textContent = `NIGHTMARE +${Difficulty.level} · The night remembers you. Every fight is harder.`; }
 if (menuOpen) player.enabled = false;
@@ -311,6 +315,7 @@ else {
     h.addEventListener('click', () => {
       heroPick = h.dataset.hero as Hero;
       menuEl.querySelectorAll('.hero').forEach((x) => x.classList.toggle('on', x === h));
+      menuEl.classList.toggle('elise', heroPick === 'elise');   // accent: Plajah orange for Jack, purple for Elise
       sfx.uiSelect();
     });
   });
@@ -907,6 +912,7 @@ let camYaw = 0, camPitch = -0.1;
 /** One simulation step (input, physics, animation, camera). Captures drive it directly. */
 function tick(dt: number) {
   simTime += dt;
+  xrPlay.update(dt);
   if (filmZoom) updateFilmZoom(dt);
   if (victoryCut) updateVictoryCut(dt);
   flock.update(dt);
@@ -1041,6 +1047,7 @@ renderer.setAnimationLoop(() => {
   if (menuOpen) menuCamera(raw);
   tick(Math.min(raw, 0.05));
 
+  if (renderer.xr.isPresenting) { renderer.render(level.scene, camera); return; }
   level.post.pipeline.render();
   looks.render();
   comboComic.afterRender(renderer.domElement, performance.now());
@@ -1126,6 +1133,18 @@ function simulate(seconds: number, held: string[] = [], mouseYaw = 0) {
   held.forEach((k) => keys.delete(k));
   return { pos: player.object.position.toArray().map((v) => +v.toFixed(2)), level: level.name, yaw: +player.yaw.toFixed(2) };
 }
+
+// ── Headset play (xr.ts) ──────────────────────────────────────────────────────────
+const xrPlay = new XRPlay({
+  renderer, camera, player, game, interact,
+  scene: () => level.scene,
+  startFromMenu: () => { if (menuOpen) document.getElementById('menuStart')?.click(); },
+});
+void xrPlay.offerButton();
+
+// The world is live: the menu's still dissolves into the road dolly and Enter wakes up.
+menuEl.classList.add('live');
+{ const sb = document.getElementById('menuStart'); if (sb) sb.textContent = 'ENTER RAVENCREST'; }
 
 (window as unknown as Record<string, unknown>).ravencrest = {
   renderer, camera, anchor, world, yard, viaduct, hall, levels, pools, batchStats, setMode, capture, simulate, bench, player, quality, game, films, showings, card, weather, nightmare, audio, sfx, daybreak, bridgeBattle, looks, THREE,

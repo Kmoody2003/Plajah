@@ -377,6 +377,15 @@ export class Game {
   private lastHitKind: MobKind = 'zombie';
   private comboHits = 0;
 
+  /** The line on screen right now (the headset HUD mirrors it). */
+  get callText() { return this.callEl.style.opacity === '0' ? '' : this.callEl.textContent ?? ''; }
+  /** A specific move now (headset gestures: a thrust is a punch, a sweep a cut). */
+  playMove(move: CombatMove) {
+    const jack = this.d.jack();
+    if (!jack || this.dead > 0 || this.pendingThrow !== null) return;
+    if (this.swing && this.swing.t < this.swing.dur * 0.55) return;
+    this.startSwing(move);
+  }
   attack() {
     const jack = this.d.jack();
     if (!jack || this.dead > 0 || this.pendingThrow !== null) return;
@@ -386,10 +395,10 @@ export class Game {
     this.startSwing();
   }
 
-  private startSwing() {
+  private startSwing(forced?: CombatMove) {
     const jack = this.d.jack()!;
     const str = HERO_STRING[jack.hero] ?? STRING;
-    const move = this.chainStep === 0 ? OPENER[this.stance] : str[(this.chainStep - 1) % str.length];
+    const move = forced ?? (this.chainStep === 0 ? OPENER[this.stance] : str[(this.chainStep - 1) % str.length]);
     const dur = jack.act(move, move === 'kata' ? SWING_SPEED * 1.1 : SWING_SPEED);
     if (move === 'flipCleave' || move === 'flipKick') this.d.player.impulse(this.facing(), move === 'flipCleave' ? 4.5 : -2.5, dur * 0.6, false);
     this.swing = { move, t: 0, dur, hits: 0 };

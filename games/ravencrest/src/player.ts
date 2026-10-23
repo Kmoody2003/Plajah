@@ -78,6 +78,8 @@ export class PlayerController {
   followCam = (() => { try { return localStorage.getItem(CAM_KEY) === 'tank'; } catch { return false; } })();
   /** Scripted camera (cutscenes): when set, update() moves Jack but leaves the camera alone. */
   cinematic = false;
+  /** In a headset (xr.ts): the XR rig owns the camera; everything else plays as normal. */
+  xrMode = false;
   private lean = 0;
   private framing = 0;
   /** Hit kick (FOV punch + tiny roll), decays fast. */
@@ -342,7 +344,7 @@ export class PlayerController {
 
     this.character?.setLocomotion(speed, WALK, RUN);
 
-    if (this.cinematic) return;
+    if (this.cinematic || this.xrMode) return;
     if (this.followCam) {
       // Centred behind Jack, a touch of lag so turns feel smooth, not rigid.
       const behind = this.yaw + Math.PI;

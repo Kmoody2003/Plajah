@@ -142,10 +142,17 @@
     @keyframes mnFlicker { 0%, 100% { opacity: 1 } 46% { opacity: 1 } 47% { opacity: .55 } 48% { opacity: 1 } 73% { opacity: .85 } 74% { opacity: 1 } }
     @keyframes mnPulse { 0%, 100% { opacity: .45 } 50% { opacity: 1 } }
     #menu .mn { position: relative; z-index: 1; }
+    #menu { --ac: #f97316; --ac-deep: #7c2d0a; --ac-glow: #f9731688; --ac-dark: #3a1404; transition: opacity .9s; }
+    /* Until the world is live: a still from the road dolly behind the menu, the Enter button resting. */
+    #menu .still { position: absolute; inset: 0; background: url(/games/ravencrest/menu/road_bg.jpg) center / cover no-repeat; opacity: .85; transition: opacity 2.2s; pointer-events: none; }
+    #menu.live .still { opacity: 0; }
+    #menu:not(.live) #menuStart { opacity: .55; cursor: progress; }
+    #menu.elise { --ac: #a855f7; --ac-deep: #4c1d95; --ac-glow: #a855f788; --ac-dark: #1e0b3a; }
+    #menu h1, #menu .hero, #menu button { transition: text-shadow .5s, border-color .5s, box-shadow .5s, background .5s; }
     #menu .awaken { margin-top: 14px; font-size: 12px; letter-spacing: .45em; color: #c9a25a; animation: mnPulse 2.4s ease-in-out infinite; }
     #menu.gone { opacity: 0; pointer-events: none; }
     #menu .mn { width: min(980px, 92vw); text-align: center; }
-    #menu h1 { margin: 0; font-size: clamp(38px, 8vw, 104px); letter-spacing: .28em; font-weight: normal; color: #e9dcc6; text-shadow: 0 0 22px #b01010, 0 0 60px #5a0606, 0 8px 26px #000; animation: mnFlicker 7s infinite; }
+    #menu h1 { margin: 0; font-size: clamp(38px, 8vw, 104px); letter-spacing: .28em; font-weight: normal; color: #e9dcc6; text-shadow: 0 0 22px var(--ac), 0 0 60px var(--ac-deep), 0 8px 26px #000; animation: mnFlicker 7s infinite; }
     #menu .sub { margin: 6px 0 26px; letter-spacing: .5em; font-size: clamp(11px, 1.4vw, 14px); color: #b9a487; text-transform: uppercase; }
     #menu .brief { max-width: 640px; margin: 0 auto 26px; font-family: Georgia, serif; font-size: clamp(14px, 1.7vw, 17px); line-height: 1.6; color: #d7cab5; }
     #menu .brief b { color: #ffd9a0; font-weight: normal; }
@@ -156,8 +163,8 @@
     #menu .hero span { display: block; margin-top: 10px; letter-spacing: .3em; font-size: 14px; }
     #menu .hero em { display: block; font-style: normal; font-size: 11px; letter-spacing: .25em; color: #8d7c63; margin-top: 4px; }
     #menu .hero:hover { transform: translateY(-3px); }
-    #menu .hero.on { border-color: #8a1a12; box-shadow: 0 0 28px #8a1a1288, inset 0 0 30px #5a060655; }
-    #menu button { font: inherit; letter-spacing: .4em; font-size: 15px; padding: 13px 44px; color: #f1e2c8; background: linear-gradient(#5a0a08, #2a0404); border: 1px solid #a8261a; cursor: pointer; box-shadow: 0 0 30px #8a1a1266, inset 0 0 18px #00000088; text-shadow: 0 0 10px #ff3a2a88; }
+    #menu .hero.on { border-color: var(--ac); box-shadow: 0 0 28px var(--ac-glow), inset 0 0 30px var(--ac-dark); }
+    #menu button { font: inherit; letter-spacing: .4em; font-size: 15px; padding: 13px 44px; color: #f1e2c8; background: linear-gradient(var(--ac-deep), var(--ac-dark)); border: 1px solid var(--ac); cursor: pointer; box-shadow: 0 0 30px var(--ac-glow), inset 0 0 18px #00000088; text-shadow: 0 0 10px var(--ac-glow); }
     #menu button:hover { filter: brightness(1.1); }
     #menu .keys { margin-top: 18px; font-family: Georgia, serif; font-size: 12px; color: #7f7362; }
   </style>
@@ -173,6 +180,7 @@
   <div id="hud">Click to capture mouse (or drag) · mouse/<b>A D</b> turn · <b>W S</b> move · <b>double-tap &amp; hold</b> to sprint · <b>Left click</b> attack (mash for combos) · <b>Space</b> jump · <b>Right click</b> / <b>C</b> roll · <b>1 2 3</b> stance · <b>G</b> molotov · <b>E</b> doors / film card · look at a poster + <b>Enter</b> to watch · wheel zoom · Esc release · <b>O</b> follow/orbit camera · <b>V</b> lens · <b>B</b> LUT · <b>R</b> art overlay</div>
   <div id="prompt"></div>
   <div id="menu">
+    <div class="still"></div>
     <div class="mn">
       <h1>RAVENCREST</h1>
       <div class="sub">Night falls. The mist rises. Ravencrest is not empty.</div>
@@ -183,7 +191,7 @@
         <div class="hero on" data-hero="jack"><img src="/games/ravencrest/menu/jack.jpg" alt="Jack Thorne"><span>JACK THORNE</span><em>Former ranger · monster slayer</em></div>
         <div class="hero" data-hero="elise"><img src="/games/ravencrest/menu/elise.jpg" alt="Elise Carter"><span>ELISE CARTER</span><em>Survivor · monster slayer</em></div>
       </div>
-      <button id="menuStart">ENTER RAVENCREST</button>
+      <button id="menuStart">SUMMONING RAVENCREST…</button>
       <div class="keys">WASD / left stick move · mouse / right stick look · click / X attack · Space / A jump · C / B roll · E / RB use</div>
       <div class="awaken">CLICK ANYWHERE TO AWAKEN RAVENCREST</div>
     </div>
@@ -191,5 +199,21 @@
   <div id="fade"></div>
   <div id="loading">RAVENCREST</div>
   <script type="module" src="./src/main.ts"></script>
+  <script>
+    // The menu is usable before the game module finishes loading: picking a hero (and its accent)
+    // works at once; main.ts reads window.__heroPick when it takes over.
+    (function () {
+      var menu = document.getElementById('menu');
+      if (!menu) return;
+      window.__heroPick = 'jack';
+      menu.querySelectorAll('.hero').forEach(function (h) {
+        h.addEventListener('click', function () {
+          window.__heroPick = h.getAttribute('data-hero');
+          menu.querySelectorAll('.hero').forEach(function (x) { x.classList.toggle('on', x === h); });
+          menu.classList.toggle('elise', window.__heroPick === 'elise');
+        });
+      });
+    })();
+  </script>
 </body>
 </html>
