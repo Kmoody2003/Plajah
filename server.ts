@@ -88,6 +88,7 @@ import { notifyEmailRouter } from './routes/notifyEmail';
 import { dispatchEmailNotification, createServerNotification, listAllUserIds } from './services/notify/emailNotifyServer';
 import { veoRouter } from './routes/veo';
 import { taleoRouter, enqueueIfReady as taleoEnqueueIfReady } from './routes/taleo';
+import { createMusicIntelRouter } from './routes/musicIntel';
 import { authMethodsRouter } from './routes/authMethods';
 // Anti-bot layer (docs/ANTI_BOT_PLAYBOOK.md): App Check monitor, signup-check, shared limits.
 import { antiAbuseRouter } from './routes/antiAbuse';
@@ -9575,6 +9576,24 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
       res.status(500).json({ error: String(err?.message || err) });
     }
   });
+
+  // ── Chora Music Intelligence ─────────────────────────────────────────────────
+  // The music sibling of Taleo Story Intelligence (routes/musicIntel.ts). Every song is heard
+  // with synced lyrics, so the analysis drives the SAME lyric claim/record path as above.
+  app.use('/api/music-intel', apiLimiter, express.json({ limit: '16kb' }), createMusicIntelRouter({
+    ensureLyrics: async (albumId, track, artist) => {
+      const c: LyricCandidate = { albumId, collection: 'albums', trackId: track.id, srcUrl: String(track.url), title: track.title, artist, hasTimedLyrics: false };
+      const id = lyricJobId(albumId, track.id);
+      const job = await lyricDeps.readJob(id);
+      if (needsLyricSync(c, job, Date.now())) {
+        let p = lyricInflight.get(id);
+        if (!p) { p = syncAndRecord(lyricDeps, c, job).finally(() => lyricInflight.delete(id)); lyricInflight.set(id, p); }
+        await p;
+      }
+      const fresh = await firestoreGetDeep('albums', albumId);
+      return ((fresh?.tracks || []).find((x: any) => x?.id === track.id)?.timeCodedLyrics || []) as { time: number; text: string }[];
+    },
+  }));
 
   app.get('/api/lyrics/status', apiLimiter, async (_req: any, res: any) => {
     try {

@@ -11,6 +11,9 @@ import { resolveSlideshowImages } from '../services/slideshow';
 import ScrollingWaveform from './ScrollingWaveform';
 import CinemaProsceniumHero, { type CinemaStage, type CinemaMenuItem } from './chora/CinemaProsceniumHero';
 import TrackReactionButton from './TrackReactionButton';
+import MusicIntelRail from './chora/musicIntel/MusicIntelRail';
+import MusicIntelPanel from './chora/musicIntel/MusicIntelPanel';
+import { useMusicIntel } from './chora/musicIntel/useMusicIntel';
 import { getCachedAnalysis, getOrComputeAnalysis } from '../services/djAnalysis';
 import { getTrackStream } from '../services/choraStreamService';
 import { canUseFxStage } from '../services/tvCapabilities';
@@ -489,6 +492,8 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   const { currentTime: globalCurrentTime, duration: globalDuration, seek } = useGlobalPlayerProgress();
 
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
+  // Music Intelligence: the album's listened-to read (Chora music only; Audius has no audio of ours).
+  const musicIntel = useMusicIntel(album.type === 'MUSIC' && (album as any).source !== 'AUDIUS' ? album.id : undefined);
 
   // ── Listening party (synchronized premiere) ───────────────────────────────
   // The host premieres an album/track; every listener's own player follows the host's track +
@@ -1507,6 +1512,35 @@ const PlayerView: React.FC<PlayerViewProps> = ({
     }
   };
 
+  /** Play a song from this album at a moment the Music Intelligence read points to. */
+  const playIntelAt = (trackId: string, sec?: number) => {
+    const i = album.tracks.findIndex(t => t.id === trackId);
+    if (i < 0) return;
+    if (isCurrentTrackGlobal && currentTrack?.id === trackId) { if (typeof sec === 'number') seek(sec); return; }
+    setCurrentTrackIndex(i);
+    playTrack(album.tracks[i], album, 'LIBRARY', typeof sec === 'number' && sec > 0 ? sec : undefined);
+  };
+  const openIntelScore = (trackId: string) => {
+    const track = album.tracks.find(t => t.id === trackId);
+    if (track) window.dispatchEvent(new CustomEvent('OPEN_BREAKDOWN', { detail: { track, album } }));
+  };
+  const musicIntelPanelEl = album.type === 'MUSIC' && (album as any).source !== 'AUDIUS' ? (
+    <MusicIntelPanel
+      bundle={musicIntel.bundle}
+      loading={musicIntel.loading}
+      albumTitle={album.title}
+      artist={album.artist}
+      creatorLinerNotes={album.linerNotes}
+      tracks={album.tracks || []}
+      currentTrackId={currentTrack?.id}
+      isOwner={isOwner}
+      onRun={isOwner ? musicIntel.run : undefined}
+      onEditNotes={isOwner ? handleOpenEdit : undefined}
+      onPlayAt={playIntelAt}
+      onOpenScore={openIntelScore}
+    />
+  ) : null;
+
   if (isMobile && !isTVMode) {
     return (
       <div className={`h-[100dvh] bg-transparent text-primary overflow-hidden relative selection:bg-white selection:text-black font-display uppercase flex flex-col${gatefoldOn ? (choraNext.isNight ? ' chora-next chora-night' : ' chora-next') : ''}`}>
@@ -2455,6 +2489,8 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                 {album.artistBio || cleanDescription(album.description)}
               </p>
 
+              {musicIntelPanelEl}
+
               {album.worldId && (
                 <WorldBadge
                   worldId={album.worldId}
@@ -2845,7 +2881,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                     )}
                     {activeHUD === 'INFO' && (
                       <div className="space-y-6">
-                        <p className="text-sm font-display font-bold uppercase tracking-wide leading-relaxed text-white/60">{album.linerNotes || "Operational data compilation in progress."}</p>
+                        {musicIntelPanelEl || (album.linerNotes ? <p className="text-sm font-display font-bold uppercase tracking-wide leading-relaxed text-white/60">{album.linerNotes}</p> : null)}
                         {album.worldId && (
                           <WorldBadge worldId={album.worldId} contentTitle={album.title} contentType="album" onNavigate={onNavigateToWorld} />
                         )}
@@ -3673,19 +3709,17 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                     )}
                     {activeHUD === 'INFO' && (
                       <div className="flex-1 overflow-y-auto pr-4 custom-scrollbar space-y-10 animate-in fade-in duration-700">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[11px] font-display font-black uppercase tracking-[0.4em] text-small-orange">Operational Overview</span>
-                          {isOwner && (
-                            <button onClick={handleOpenEdit} className="text-[10px] font-display font-bold text-white/20 hover:text-white uppercase tracking-widest flex items-center gap-2">
-                              <Pen size={12} /> Edit Notes
-                            </button>
-                          )}
-                        </div>
-                        
                         <div className="space-y-8">
-                          <p className="text-xl lg:text-2xl font-display font-bold uppercase tracking-wide leading-relaxed text-white/80">
-                            {album.linerNotes || `This transmission represents a curated soundscape by ${album.artist}. Each signal has been captured and compiled under the ${album.title} directive, exploring themes of digital resonance and sonic architecture within the Plajah ecosytem.`}
-                          </p>
+                          {musicIntelPanelEl || (
+                            <>
+                              {isOwner && (
+                                <button onClick={handleOpenEdit} className="text-[10px] font-display font-bold text-white/30 hover:text-white uppercase tracking-widest flex items-center gap-2">
+                                  <Pen size={12} /> Edit Notes
+                                </button>
+                              )}
+                              {album.linerNotes && <p className="text-xl lg:text-2xl font-display font-bold uppercase tracking-wide leading-relaxed text-white/80">{album.linerNotes}</p>}
+                            </>
+                          )}
 
                           <The411 itemId={album.id} itemType="MUSIC" title={album.title} author={album.artist} />
 
@@ -4271,6 +4305,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
             onShuffle={trackCount > 1 ? cinemaShuffle : undefined}
             onAddToPlaylist={currentTrack ? () => setPlaylistPickerTrack(currentTrack) : undefined}
             reaction={currentTrack ? <TrackReactionButton track={currentTrack} album={album} size={19} box={44} trayAt="top" /> : undefined}
+            onShare={() => setShowShareModal(true)}
             menu={menu}
             onBack={onBack}
             fxHot={!!(isFxActive || activeLiveFx)}
@@ -4348,6 +4383,20 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                     <button type="button" onClick={() => setActiveHUD('LYRICS')} className={`${railLink} mt-1`}>Full lyrics →</button>
                   )}
                 </div>
+              )}
+
+              {album.type === 'MUSIC' && (album as any).source !== 'AUDIUS' && (
+                <MusicIntelRail
+                  bundle={musicIntel.bundle}
+                  trackId={currentTrack?.id}
+                  trackTitle={currentTrack?.title}
+                  currentTime={isCurrentTrackGlobal ? globalCurrentTime : 0}
+                  playingHere={!!playingHere}
+                  onSeek={currentTrack ? sec => playIntelAt(currentTrack.id, sec) : undefined}
+                  isOwner={isOwner}
+                  onRun={isOwner ? () => musicIntel.run(false) : undefined}
+                  onOpenBreakdown={() => setActiveHUD('INFO')}
+                />
               )}
 
               {deckPartyEl}

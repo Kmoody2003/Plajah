@@ -3599,6 +3599,16 @@ export const publishToCloud = async (album: Album, onProgress?: (status: string,
       }
     }
 
+    // Chora Music Intelligence (fire-and-forget — never blocks publish). Server-side and
+    // incremental: only songs that are new or re-uploaded get heard again, so re-saves are cheap.
+    if (cloudAlbum.type === 'MUSIC' && cloudAlbum.tracks?.length && !cloudAlbum.isDraft && !saveOnly) {
+      void import('./musicIntelService').then(m => m.driveMusicIntel(album.id)).catch(() => {});
+    }
+    // A new film can give the creator's soundtrack albums their story context.
+    if (cloudAlbum.type === 'VIDEO' && (cloudAlbum.subType === 'MOVIE' || cloudAlbum.subType === 'TV_SERIES') && !cloudAlbum.isDraft) {
+      void import('./musicIntelService').then(m => m.linkFilmToSoundtracks(cloudAlbum.id)).catch(() => {});
+    }
+
     // Trigger Cora beat analysis for MUSIC albums (fire-and-forget — never blocks publish)
     if (cloudAlbum.type === 'MUSIC' && cloudAlbum.tracks?.length) {
       (async () => {

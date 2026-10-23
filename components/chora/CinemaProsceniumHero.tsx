@@ -3,7 +3,7 @@
 // medallion, a serif eyebrow and one orange Play (Classical, from the Art Council's Cinema session).
 // Presentational only: PlayerView owns playback, the stage engines and every action in the More menu.
 import React, { useEffect, useRef, useState } from 'react';
-import { ChevronLeft, ListPlus, Maximize2, MoreHorizontal, Pause, Play, Shuffle, ZapOff, type LucideIcon } from 'lucide-react';
+import { ChevronLeft, ListPlus, Maximize2, MoreHorizontal, Pause, Play, Share2, Shuffle, ZapOff, type LucideIcon } from 'lucide-react';
 
 export type CinemaStage = 'ART' | 'VISUALIZER' | 'SLIDESHOW' | 'ORRERY' | 'VIDEO';
 
@@ -38,6 +38,8 @@ interface Props {
   onAddToPlaylist?: () => void;
   /** The current song's like / love / dislike control. */
   reaction?: React.ReactNode;
+  /** Share this album — sits beside the like control. */
+  onShare?: () => void;
   menu: CinemaMenuItem[][];
   onBack: () => void;
   fxHot?: boolean;
@@ -55,7 +57,7 @@ const roundBtn = 'w-12 h-12 rounded-full grid place-items-center text-white bord
 
 const CinemaProsceniumHero: React.FC<Props> = ({
   backdropSrc, stage, stages, onStage, onFullscreen, stageContent, floor, medallion, eyebrow, title, artist, onArtist,
-  meta, badges, isPlaying, onPlay, onShuffle, onAddToPlaylist, reaction, menu, onBack, fxHot, onKillFx, topRight,
+  meta, badges, isPlaying, onPlay, onShuffle, onAddToPlaylist, reaction, onShare, menu, onBack, fxHot, onKillFx, topRight,
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -176,6 +178,7 @@ const CinemaProsceniumHero: React.FC<Props> = ({
         </div>
         <div className="flex items-center gap-3 pb-1.5 pointer-events-auto">
           {reaction && <div className="w-12 h-12 rounded-full grid place-items-center border border-white/25 bg-[#06040A]/55">{reaction}</div>}
+          {onShare && <button type="button" onClick={onShare} aria-label="Share this album" title="Share this album" className={roundBtn}><Share2 size={19} /></button>}
           {onAddToPlaylist && <button type="button" onClick={onAddToPlaylist} aria-label="Add to playlist" title="Add this song to a playlist" className={roundBtn}><ListPlus size={19} /></button>}
           {onShuffle && <button type="button" onClick={onShuffle} aria-label="Shuffle" title="Shuffle this album" className={roundBtn}><Shuffle size={19} /></button>}
           <div className="relative" ref={menuRef}>

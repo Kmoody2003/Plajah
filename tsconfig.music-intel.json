@@ -1,0 +1,8 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "services/musicIntel/*.ts", "services/musicIntelService.ts", "routes/musicIntel.ts",
+    "components/chora/musicIntel/*.tsx", "components/chora/musicIntel/*.ts", "components/chora/CinemaProsceniumHero.tsx",
+    "tests/musicIntel*.test.ts", "components/chora/musicIntel/dev/*.tsx"
+  ]
+}
