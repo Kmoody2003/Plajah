@@ -171,6 +171,7 @@ import AdminSportsAgentsPanel from './AdminSportsAgentsPanel';
 import AdminPushBroadcast from './AdminPushBroadcast';
 import AdminChoraStreams from './AdminChoraStreams';
 import AdminMusicLab from './admin/AdminMusicLab';
+import AdminPublishForUser from './admin/AdminPublishForUser';
 import AdminMediaHealth from './admin/AdminMediaHealth';
 import AdminExperiences from './admin/AdminExperiences';
 import BillingFlagsAdmin from './billing/BillingFlagsAdmin';
@@ -209,7 +210,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
     }
   };
 
-  const [activeTab, setActiveTab] = useState<'STATS' | 'ASSETS' | 'LIBRARY' | 'ADS' | 'STAFF' | 'THEMES' | 'MAINTENANCE' | 'FEATURES' | 'UNIVERSE' | 'CURATED' | 'LIVE_FEEDS' | 'LANDING_BG' | 'CLUB_COVER_MEDIA' | 'SPORTS_HERO' | 'ACHIEVEMENTS' | 'ANALYTICS' | 'SPORTS_AGENTS' | 'SITE_HEALTH' | 'USER_HEALTH' | 'ERRORS' | 'UPLOAD_REPORTS' | 'NOTIFY' | 'CHORA_STREAMS' | 'MEDIA_HEALTH' | 'EXPERIENCES' | 'BILLING_FLAGS' | 'POD_FLAGS' | 'PLATFORM_MEDIA' | 'CHANNEL_NUMBERS' | 'ENDLESS_HOUR' | 'FILM_INGEST' | 'MUSIC_LAB' | 'THREAT_PROTECTION' | 'CONTENT_REPORTS'>('STATS');
+  const [activeTab, setActiveTab] = useState<'STATS' | 'ASSETS' | 'LIBRARY' | 'ADS' | 'STAFF' | 'THEMES' | 'MAINTENANCE' | 'FEATURES' | 'UNIVERSE' | 'CURATED' | 'LIVE_FEEDS' | 'LANDING_BG' | 'CLUB_COVER_MEDIA' | 'SPORTS_HERO' | 'ACHIEVEMENTS' | 'ANALYTICS' | 'SPORTS_AGENTS' | 'SITE_HEALTH' | 'USER_HEALTH' | 'ERRORS' | 'UPLOAD_REPORTS' | 'NOTIFY' | 'CHORA_STREAMS' | 'MEDIA_HEALTH' | 'EXPERIENCES' | 'BILLING_FLAGS' | 'POD_FLAGS' | 'PLATFORM_MEDIA' | 'CHANNEL_NUMBERS' | 'ENDLESS_HOUR' | 'FILM_INGEST' | 'MUSIC_LAB' | 'THREAT_PROTECTION' | 'CONTENT_REPORTS' | 'PUBLISH_AS'>('STATS');
+  // The user the "Publish for User" tab opens on (set from the User Assets "Publish for this user" button).
+  const [publishFor, setPublishFor] = useState<UserProfile | null>(null);
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [systemSettings, setSystemSettings] = useState<SystemSettingsConfig | null>(null);
   const [contentLicensingOn, setContentLicensingOn] = useState(false);
@@ -672,6 +675,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
             { id: 'BILLING_FLAGS', label: 'Billing flags', icon: BarChart3 },
             { id: 'POD_FLAGS', label: 'Print launch', icon: BookOpen },
             { id: 'ASSETS', label: 'User Assets', icon: FolderTree },
+            { id: 'PUBLISH_AS', label: 'Publish for User', icon: UploadCloud },
             { id: 'ADS', label: 'Ad Platform', icon: Megaphone },
             { id: 'THEMES', label: 'Theme Manager', icon: Palette },
             { id: 'ACHIEVEMENTS', label: 'Achievements & Points', icon: Trophy },
@@ -937,6 +941,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
                           <div className="px-4 py-2 bg-white/5 rounded-xl text-[9px] font-black uppercase tracking-widest">
                             {userAssets?.photos.length || 0} Photos
                           </div>
+                          <button
+                            onClick={() => { setPublishFor(selectedUser); setActiveTab('PUBLISH_AS'); }}
+                            className="flex items-center gap-2 px-4 py-2 bg-white text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-white/90"
+                          >
+                            <UploadCloud size={12} /> Publish for this user
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -1457,6 +1467,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
 
             {activeTab === 'FILM_INGEST' && <AdminFilmIngestVault key="filmIngest" />}
             {activeTab === 'MUSIC_LAB' && <AdminMusicLab key="musicLab" />}
+            {activeTab === 'PUBLISH_AS' && <AdminPublishForUser key="publishAs" users={users} initialUser={publishFor} />}
             {activeTab === 'CHORA_STREAMS' && (
               <AdminChoraStreams key="choraStreams" />
             )}

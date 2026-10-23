@@ -48,6 +48,7 @@ import Stripe from 'stripe';
 import { coraRouter } from './routes/cora';
 import { createMusicLabRouter } from './routes/musicLab';
 import { createAdminFilmIngestRouter, handleMuxAssetReadyForPublicDomain, startPublicDomainAutoIngestScheduler } from './routes/adminFilmIngest';
+import { createAdminPublishAsRouter } from './routes/adminPublishAs';
 import { learnerAuthRouter } from './routes/learnerAuth';
 import { schoolsRouter } from './routes/schools';
 import { elevateAccountsRouter } from './routes/elevateAccounts';
@@ -13486,6 +13487,7 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
     authenticate: authMiddleware,
     isAdmin: async uid => !!await fetchFirebaseDoc('admins', uid),
   }));
+  app.use('/api/admin/publish-as', apiLimiter, createAdminPublishAsRouter({ authenticate: authMiddleware, isAdmin: isPlatformAdminReq }));
   app.use('/api/cora', express.json({ limit: '1mb' }), coraRouter);
 
   // ── Learner identity (child username/password → custom token; provision; claim) ──
