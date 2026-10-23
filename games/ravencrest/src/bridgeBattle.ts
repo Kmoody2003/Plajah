@@ -184,6 +184,8 @@ export class BridgeBattle {
 
   /** The battle owns the bridge (no hordes, the nightmare waits). */
   get active() { return this.phase !== 'idle'; }
+  /** A directed cutscene owns the camera (quality locks to full). */
+  get inCutscene() { return this.phase === 'kraken' || this.phase === 'rumble' || this.phase === 'flip' || this.phase === 'roar'; }
   /** Start it now (debug / ?bridge=1 makes every crossing a battle). */
   trigger() { if (this.phase === 'idle' && this.onBridge()) this.go('rumble'); }
 
@@ -238,7 +240,7 @@ export class BridgeBattle {
     }
     if (p === 'kraken') {
       player.enabled = false; player.cinematic = true;
-      game.shield(16);
+      game.shield(21);
       this.cutShake = 0; this.cutStage = -1;
       if (this.troll) { this.troll.scripted = true; this.troll.pose('attack'); }
       this.bar.classList.remove('on');
@@ -407,6 +409,7 @@ export class BridgeBattle {
   }
 
   // ── The kraken cutscene ─────────────────────────────────────────────────────────────
+  //  (times below ×1.35 in the code: each beat holds a little longer)
   //  0 – 1.1   the troll lunges and swats the hero: thrown back, landing flat (side-on wide, heavy shake)
   //  1.1 – 3.2 tight on the hero, stunned on the stones, the shake settling: "What is that?"
   //  3.2 – 5.2 low over the water: the first giant tentacle erupts at the lens, the others after it
@@ -422,7 +425,7 @@ export class BridgeBattle {
     const t = this.t, B = this.d.bridge, tr = this.troll;
     const p = player.object.position;
     const hero = player.character?.root;
-    const stage = t < 1.1 ? 0 : t < 3.2 ? 1 : t < 5.2 ? 2 : t < 7.2 ? 3 : t < 9.6 ? 4 : t < 12.4 ? 5 : 6;
+    const stage = t < 1.49 ? 0 : t < 4.32 ? 1 : t < 7.02 ? 2 : t < 9.72 ? 3 : t < 12.96 ? 4 : t < 16.74 ? 5 : 6;
     const enter = stage !== this.cutStage;
     this.cutStage = stage;
     const toTroll = tr ? tr.object.position.clone().sub(p).setY(0).normalize() : B.dir.clone();
@@ -435,7 +438,7 @@ export class BridgeBattle {
       camera.fov = fov; camera.updateProjectionMatrix();
     };
     // The hero's body: knocked flat, lying, then getting up (the character root tips onto its back).
-    const down = t < 0.5 ? 0 : t < 1.0 ? (t - 0.5) / 0.5 : t < 7.9 ? 1 : Math.max(0, 1 - (t - 7.9) / 0.9);
+    const down = t < 0.68 ? 0 : t < 1.35 ? (t - 0.68) / 0.67 : t < 10.67 ? 1 : Math.max(0, 1 - (t - 10.67) / 1.2);
     this.cutDown = down;
     if (hero) { hero.rotation.x = -1.42 * down * down * (3 - 2 * down); hero.position.y = 0.12 * down; }
 
@@ -446,7 +449,7 @@ export class BridgeBattle {
         tr.object.position.lerp(want.setY(tr.object.position.y), 1 - Math.exp(-dt * 10));
         tr.yaw = Math.atan2(-toTroll.x, -toTroll.z); tr.object.rotation.y = tr.yaw;
       }
-      if (t > 0.42 && !this.cutHit) {
+      if (t > 0.57 && !this.cutHit) {
         this.cutHit = true;
         player.launch(toTroll.clone().negate(), 11, 5.5);
         sfx.hit('troll', true, 3); sfx.roar(0, 3); sfx.hurt(true);
@@ -459,7 +462,7 @@ export class BridgeBattle {
       shot(mid.clone().addScaledVector(side, 10).setY(p.y + 2.6), mid.clone().setY(p.y + 1.6), 56);
     } else if (stage === 1) {
       if (enter) { this.cutShake = 0.9; tr?.pose('idle'); }
-      if (t > 1.8 && !this.cutLine1) { this.cutLine1 = true; game.call('“What is that?”', 2.2, '#f4ead8'); sfx.heartbeat(1); }
+      if (t > 2.43 && !this.cutLine1) { this.cutLine1 = true; game.call('“What is that?”', 2.2, '#f4ead8'); sfx.heartbeat(1); }
       // Low, close on the hero's face and chest as they lie on the stones (the body tips back along
       // the hero's own facing, so the head lies behind the feet).
       const fwd = new THREE.Vector3(Math.sin(player.yaw), 0, Math.cos(player.yaw));
@@ -482,46 +485,95 @@ export class BridgeBattle {
       const a = this.arms[0];
       const water = a.base.clone().setY(B.waterY + 0.6);
       const out = a.base.clone().sub(this.at(this.fightAlong, 0, B.waterY)).setY(0).normalize();
-      const k = (t - 3.2) / 2;
+      const k = (t - 4.32) / 2.7;
       shot(water.clone().addScaledVector(out, 7 - 1.5 * k).addScaledVector(new THREE.Vector3(out.z, 0, -out.x), 2.5).setY(B.waterY + 1.5),
         a.base.clone().setY(B.waterY + 1.5 + 8 * Math.min(1, k * 1.2)), 50);
     } else if (stage === 3) {
       if (enter) this.showTitle('THE RIVER KRAKEN', 'It wakes beneath Ravencrest', 3);
       const c = this.at(this.fightAlong, 0, B.deckY);
-      const k = (t - 5.2) / 2;
+      const k = (t - 7.02) / 2.7;
       shot(c.clone().addScaledVector(B.right, 46 - 6 * k).addScaledVector(B.dir, -22).setY(B.deckY + 16 - 3 * k), c.clone().setY(B.deckY + 8), 52);
     } else if (stage === 4) {
       // From the wide, pull in behind the hero as they get up.
-      const k = THREE.MathUtils.smoothstep((t - 7.2) / 2.4, 0, 1);
+      const k = THREE.MathUtils.smoothstep((t - 9.72) / 3.24, 0, 1);
       const c = this.at(this.fightAlong, 0, B.deckY);
       const wide = c.clone().addScaledVector(B.right, 40).addScaledVector(B.dir, -22).setY(B.deckY + 13);
       const close = p.clone().addScaledVector(toTroll, -3.2).addScaledVector(side, 1.0).setY(p.y + 1.7);
       shot(wide.lerp(close, k), c.clone().setY(B.deckY + 7).lerp(p.clone().setY(p.y + 1.2 + 0.4 * (1 - down)), k), 52 - 8 * k);
-      if (t > 8.7 && !this.cutLine2) { this.cutLine2 = true; game.call('“I could really use some backup.”', 2.6, '#f4ead8'); }
+      if (t > 11.74 && !this.cutLine2) { this.cutLine2 = true; game.call('“I could really use some backup.”', 2.6, '#f4ead8'); }
     } else if (stage === 5) {
       if (enter) { sfx.laugh(0, 6, 2.4); this.callSquad(); }
       // Tracking Miriam as she streams in from the castle, her squadron around her.
       const w = this.witch.pos.lengthSq() > 1 ? this.witch.pos.clone() : this.at(B.len + 20, 0, 25);
       const toBridge = this.at(this.fightAlong, 0, B.deckY).sub(w).normalize();
-      shot(w.clone().addScaledVector(toBridge, 9).addScaledVector(B.right, 3).add(new THREE.Vector3(0, 1.5, 0)), w.clone().addScaledVector(toBridge, -2), 50);
+      if (this.witchLight) { this.witchLight.intensity = 9; this.witchLight.distance = 14; }
+      shot(w.clone().addScaledVector(toBridge, 6).addScaledVector(B.right, 2.2).add(new THREE.Vector3(0, 1.0, 0)), w.clone().add(new THREE.Vector3(0, 0.6, 0)), 38);
     } else {
       if (enter) {
         this.showTitle('THE WEST HALLOW WITCH', 'Miriam and her flying monkeys come to your aid', 3.5);
         game.call('Miriam is on your side — let her army work the kraken while you take the troll', 5, '#7ad08a');
       }
       shot(p.clone().addScaledVector(toTroll, -3.4).addScaledVector(side, 0.9).setY(p.y + 1.8), p.clone().addScaledVector(toTroll, 4).setY(p.y + 1.4), 50);
-      if (t > 14) {
+      if (t > 18.9) {
         // Back to the fight, picking up where it was.
         if (hero) { hero.rotation.x = 0; hero.position.y = 0; }
         player.enabled = true; player.cinematic = false;
         if (tr?.alive) tr.scripted = false;
         this.bar.classList.add('on');
-        this.phase = 'fight'; this.t = 12;
+        this.phase = 'fight'; this.t = 45;
         this.slamCd = 3; this.ripCd = 6; this.swatCd = 2; this.slapCd = 1.5;
       }
     }
   }
   private cutHit = false; private cutLine1 = false; private cutLine2 = false;
+
+  /** The troll must never just stand there: if it hasn't swung for a while with the hero in range,
+   *  it's pushed back into the hunt; if it's stuck (holes, wreckage, the balustrade), it leaps. */
+  private sinceSwing = 0;
+  private stuckFrom = new THREE.Vector3();
+  private stuckT = 0;
+  private leap: { from: THREE.Vector3; to: THREE.Vector3; t: number } | null = null;
+  private trollWatchdog(dt: number, tr: Mob, p: THREE.Vector3) {
+    if (!tr.alive) return;
+    if (this.leap) { this.updateLeap(dt, tr, p); return; }
+    if (tr.scripted) return;                                   // a slam wind-up / stagger owns it
+    if (tr.state === 'attack') this.sinceSwing = 0; else this.sinceSwing += dt;
+    if (tr.state !== 'chase' && tr.state !== 'attack' && tr.state !== 'hurt') tr.makeEnemy(p);
+    const d = tr.object.position.distanceTo(p);
+    this.stuckT += dt;
+    if (this.stuckT > 2.5) { if (tr.object.position.distanceTo(this.stuckFrom) < 0.6 && d > 3.5) this.sinceSwing = Math.max(this.sinceSwing, 9); this.stuckFrom.copy(tr.object.position); this.stuckT = 0; }
+    if (this.sinceSwing > 5 && d < 22) {
+      if (d > 3.2) {
+        // Leap: up and over whatever's in the way, landing beside the hero with a slam.
+        const to = p.clone().add(tr.object.position.clone().sub(p).setY(0).normalize().multiplyScalar(2.4));
+        to.y = this.d.bridge.deckY;
+        this.leap = { from: tr.object.position.clone(), to, t: 0 };
+        tr.scripted = true; tr.pose('run');
+        this.d.sfx.roar(this.pan(tr.object.position), this.dist(tr.object.position));
+        this.d.game.call('The troll leaps!', 0.9, '#ffb36b');
+      } else tr.strikeNow();
+      this.sinceSwing = 0;
+    }
+  }
+  private updateLeap(dt: number, tr: Mob, p: THREE.Vector3) {
+    const L = this.leap!;
+    L.t += dt;
+    const k = Math.min(1, L.t / 0.95), e = k * k * (3 - 2 * k);
+    tr.object.position.lerpVectors(L.from, L.to, e).add(new THREE.Vector3(0, Math.sin(Math.PI * k) * 4.5, 0));
+    const to = p.clone().sub(tr.object.position);
+    tr.yaw = Math.atan2(to.x, to.z); tr.object.rotation.y = tr.yaw;
+    if (k >= 1) {
+      this.leap = null;
+      tr.scripted = false;
+      this.d.player.shake = 0.8;
+      this.d.sfx.woodCrack(this.pan(L.to), this.dist(L.to));
+      this.crack(L.to, 0.9);
+      this.d.game.lensHit('dirt', 0.5);
+      const airborne = p.y > this.d.bridge.deckY + 0.35;
+      if (!airborne && Math.hypot(p.x - L.to.x, p.z - L.to.z) < 3.6) this.d.game.hurtPlayer(16, L.to);
+      tr.strikeNow();
+    }
+  }
 
   /** The entrance, framed over Jack's shoulder toward where the troll comes up. */
   private introCam(dt: number, k: number) {
@@ -567,7 +619,9 @@ export class BridgeBattle {
     this.groundSlam(dt, tr, p);
 
     // The kraken wakes: the troll knocks the hero flat and the cutscene takes over (krakenCut).
-    if (this.phase === 'fight' && this.t > 4 && !this.surfaced) { this.go('kraken'); return; }
+    // Once the hero has properly fought it (a quarter of its life gone, or 40 s), the kraken wakes.
+    if (this.phase === 'fight' && !this.surfaced && (life < 0.75 || this.t > 40)) { this.go('kraken'); return; }
+    this.trollWatchdog(dt, tr, p);
     // (Miriam and the monkeys arrive in that cutscene.)
     if (this.phase === 'fight' && this.surfaced && !this.squad) this.callSquad();
     void sfx;

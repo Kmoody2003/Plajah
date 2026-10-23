@@ -11,12 +11,13 @@ function mistMaterial(strength: number, scale: number, drift: [number, number], 
   const m = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide });
   const p = positionWorld.xz;
   const n = mx_fractal_noise_float(vec3(p.mul(scale).add(vec2(drift[0], drift[1]).mul(time)), time.mul(0.025)), 4, 2, 0.5, 1).mul(0.5).add(0.5);
-  const wisps = smoothstep(float(0.35), float(0.85), n);
+  const fine = mx_fractal_noise_float(vec3(p.mul(scale * 3.1).add(vec2(drift[1], drift[0]).mul(time.mul(1.6))), time.mul(0.04)), 3, 2, 0.5, 1).mul(0.5).add(0.5);
+  const wisps = smoothstep(float(0.18), float(1.0), n.mul(0.7).add(fine.mul(0.3)));
   const d = positionWorld.distance(cameraPosition);
   const near = smoothstep(float(1.5), float(9), d);
   const far = smoothstep(float(320), float(140), d);
   m.colorNode = vec3(new THREE.Color(tint).r, new THREE.Color(tint).g, new THREE.Color(tint).b);
-  m.opacityNode = wisps.mul(near).mul(far).mul(strength).mul(mistAmount);
+  m.opacityNode = wisps.mul(near).mul(far).mul(strength * 0.8).mul(mistAmount);
   m.fog = true;
   return m;
 }

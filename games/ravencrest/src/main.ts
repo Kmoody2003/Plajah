@@ -1022,9 +1022,15 @@ renderer.setAnimationLoop(() => {
   const raw = clock.getDelta();
   frameEma += (raw * 1000 - frameEma) * 0.1;
   // Long frames thin the particles and flashes first (fights), before resolution has to drop.
-  FxBudget.scale += (THREE.MathUtils.clamp((frameTarget * 1.15) / frameEma, 0.35, 1) - FxBudget.scale) * 0.05;
+  // Cutscenes are shot at full quality: resolution locks to its top, effects aren't thinned (the frame
+  // rate gives instead; nothing is being played).
+  const inCut = mode === 'play' && !menuOpen && (bridgeBattle.inCutscene || !!victoryCut || !!filmZoom || player.cinematic);
+  if (inCut) {
+    FxBudget.scale = 1;
+    if (internalH !== resMax) { internalH = resMax; applyInternalRes(); }
+  } else FxBudget.scale += (THREE.MathUtils.clamp((frameTarget * 1.15) / frameEma, 0.35, 1) - FxBudget.scale) * 0.05;
   scaleTimer += raw;
-  if (dynRes && scaleTimer > 0.5 && mode === 'play') {
+  if (dynRes && scaleTimer > 0.5 && mode === 'play' && !inCut) {
     scaleTimer = 0;
     // Hold 60 fps: drop 8% of internal height when slow, recover 4% when there's headroom.
     const next = frameEma > frameTarget * 1.08 ? internalH * 0.92 : frameEma < frameTarget * 0.84 ? internalH * 1.04 : internalH;

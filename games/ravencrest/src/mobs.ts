@@ -125,7 +125,7 @@ export const KINDS: Record<MobKind, KindSpec> = {
   unknown:  { url: `${CHARS}unknown.glb`, rig: '', src: '', baked: true, skel: 'mixamo', label: 'The Unknown', death: 'ash', fx: 0x6a5a8a, hp: 600, walk: 1.1, run: 3.4, dmg: 28, reach: 2.4, xp: 300, aggro: 18, height: 2.79 , guard: { deflect: 0.3, evade: 0.05 } , mocap: { walk: '104_03', idle: '137_41' }, strikes: '02_05' },
   // The bridge battle's troll (bridgeBattle.ts): Muse's bridge_troll (characters/bases), rigged onto the
   // werewolf's contract skeleton + clips by scripts/ravencrest/autoRig.py.
-  troll:    { url: `${CHARS}bridge_troll.glb`, rig: '', src: '', baked: true, skel: 'mixamo', label: 'Bridge Troll', death: 'sink', fx: 0x3a4a30, hp: 3200, walk: 1.9, run: 4.6, dmg: 22, reach: 2.9, xp: 400, aggro: 40, height: 3.2, guard: { deflect: 0.3, evade: 0 } , mocap: { walk: '120_02', idle: '137_41' }, strikes: '02_05' },
+  troll:    { url: `${CHARS}bridge_troll.glb`, rig: '', src: '', baked: true, skel: 'mixamo', label: 'Bridge Troll', death: 'sink', fx: 0x3a4a30, hp: 3200, walk: 1.9, run: 4.6, dmg: 22, reach: 2.9, xp: 400, aggro: 40, height: 3.2, guard: { deflect: 0.3, evade: 0 } , mocap: { walk: '120_02', idle: '137_41' } },
   ghost:    { url: `${CHARS}ghost.glb`, rig: '', src: '', baked: true, skel: 'mixamo', label: 'Ghost', death: 'ecto', fx: 0x7dffc8, hp: 65,  walk: 1.0, run: 3.6, dmg: 10, reach: 1.7, xp: 30, aggro: 15, height: 1.9, ghostly: true, guard: { deflect: 0, evade: 0.35 } },
   pumpkin:  { url: `${CHARS}melvin.glb`, rig: '', src: '', baked: true, skel: 'mixamo', label: 'Pumpkin Patch', hp: 999, walk: 1.6, run: 5.2, dmg: 40, reach: 2.0, xp: 0, aggro: 22, height: 1.95 , mocap: { walk: '35_01', run: '02_03' } },
   stitch:   { url: `${CHARS}stitch.glb`, rig: '', src: '', baked: true, skel: 'mixamo', label: 'Stitch the Scarecrow', death: 'apart', fx: 0xc9a24a, hp: 400, walk: 1.2, run: 3.8, dmg: 23, reach: 2.0, xp: 200, aggro: 16, height: 2.1 , guard: { deflect: 0.2, evade: 0.1 } , mocap: { walk: '02_01', run: '02_03', idle: '137_19' }, strikes: '143_23' },
@@ -482,10 +482,12 @@ export class Mob {
         break;
       case 'attack': {
         if (toFoe) want = toFoe.clone().multiplyScalar(0.001); // keep facing the foe
-        const cur = this.actions[this.current]!;
-        const dur = cur.getClip().duration / cur.getEffectiveTimeScale();
+        const cur = this.actions[this.current];
+        // The swing's length from its *set* speed: a one-shot that has clamped on its last frame
+        // reports an effective speed of 0, and dividing by that froze monsters mid-attack forever.
+        const dur = cur ? cur.getClip().duration / Math.max(0.05, Math.abs(cur.timeScale)) : 0.8;
         if (!this.hitThisSwing && this.st > dur * 0.45) { this.hitThisSwing = true; strike(this); }
-        if (this.st >= dur) {
+        if (this.st >= dur || this.st > 3 || (cur && !cur.isRunning() && this.st > 0.25)) {
           this.cooldown = (this.kind === 'zombie' ? 1.1 : this.kind === 'troll' ? 0.55 : this.kind === 'werewolf' ? 0.45 : 0.7) * (0.6 + Math.random() * 0.7);
           // Mid-combo: straight into the next blow.
           if (this.comboLeft > 0 && toFoe && toFoe.length() < k.reach * 1.3) this.cooldown = 0.04;

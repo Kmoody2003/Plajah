@@ -40,9 +40,13 @@ export class GroundFog {
     const n = mx_fractal_noise_float(vec3(u.mul(vec2(2.2, 1.6)).add(vec2(time.mul(0.03), 0)), seed.add(time.mul(0.04))), 3, 2, 0.5, 1).mul(0.5).add(0.5);
     const wisps = smoothstep(float(0.32), float(0.8), n);
     const base = smoothstep(float(0.0), float(0.28), u.y);                       // no hard line where it meets the ground
-    const near = smoothstep(float(1.2), float(6.5), positionWorld.distance(cameraPosition));   // walk through, not into
+    const dist = positionWorld.distance(cameraPosition);
+    const near = smoothstep(float(1.2), float(6.5), dist);   // walk through, not into
+    // Beyond ~30 m the puffs would read as discrete grey blobs on wide shots: they melt into the
+    // scene fog instead, which carries the haze at range.
+    const far = smoothstep(float(42), float(22), dist);
     m.colorNode = vec3(0.47, 0.52, 0.6);
-    m.opacityNode = blob.mul(wisps).mul(base).mul(near).mul(0.32).mul(mistAmount);
+    m.opacityNode = blob.mul(wisps).mul(base).mul(near).mul(far).mul(0.3).mul(mistAmount);
     this.mesh = new THREE.InstancedMesh(geo, m, this.puffs.length);
     this.mesh.frustumCulled = false;
     this.mesh.renderOrder = 6;
