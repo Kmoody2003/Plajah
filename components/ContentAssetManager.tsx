@@ -2,13 +2,13 @@ import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { motion } from 'motion/react';
 import {
   Search, LayoutGrid, List, Music2, Clapperboard, BookOpen, Film, FolderKanban,
-  Pencil, Play, Globe, Lock, FileText, Clock, CheckSquare, Square, Download,
+  Pencil, Play, Globe, Lock, FileText, Clock, CheckSquare, Square, Download, Trash2,
   Loader2, Sparkles, Layers, Tv, Mic2, Filter, ArrowUpDown, X, ShoppingBag, Crown, Repeat, Save,
   Camera, Image as ImageIcon,
 } from 'lucide-react';
 import { Album, Video, StoreProduct, Photo } from '../types';
-import { fetchUserAlbums, fetchUserVideos, fetchUserPhotos, updateAlbum, updateVideo, updatePhoto, addVideoToFastChannel, auth } from '../services/backendService';
-import { fetchUnifiedSellerProducts } from '../services/storeService';
+import { fetchUserAlbums, fetchUserVideos, fetchUserPhotos, updateAlbum, updateVideo, updatePhoto, addVideoToFastChannel, deleteCloudAlbum, deleteVideo, deletePhoto, deleteMerchItem, auth } from '../services/backendService';
+import { fetchUnifiedSellerProducts, deleteProduct } from '../services/storeService';
 import { crossover, type MediaKind, type Recipe, type ConvertResult } from '../services/crossover';
 
 // ── Unified asset model — one normalized record across every Plajah service ──────
@@ -243,6 +243,44 @@ const ContentAssetManager: React.FC<{
 
   const edit = (a: Asset) => { if (a.album) onEditAlbum(a.album); else if (a.product) onManageStore?.(); };
 
+  // Delete one asset from its home service. These are permanent deletes (the
+  // manager has no trash of its own), so every caller confirms first.
+  const deleteOne = async (a: Asset) => {
+    if (a.album) return deleteCloudAlbum(a.id);
+    if (a.video) return deleteVideo(a.id);
+    if (a.photo) return deletePhoto(a.id);
+    if (a.product) {
+      const legacyId = (a.product as any).legacyMerchId;
+      return legacyId ? deleteMerchItem(legacyId) : deleteProduct(a.id);
+    }
+  };
+
+  const deleteSingle = async (a: Asset) => {
+    if (!confirm(`Delete "${a.title}"? This permanently deletes it and cannot be undone.`)) return;
+    setBusy(true);
+    try {
+      await deleteOne(a);
+      if (detail?.id === a.id) setDetail(null);
+      setSelected(s => { const n = new Set(s); n.delete(a.id); return n; });
+      await load();
+    } finally { setBusy(false); }
+  };
+
+  const bulkDelete = async () => {
+    const items = [...selected].map(id => assets.find(x => x.id === id)).filter(Boolean) as Asset[];
+    if (!items.length) return;
+    if (!confirm(`Delete ${items.length} item${items.length > 1 ? 's' : ''}? This permanently deletes them and cannot be undone.`)) return;
+    setBusy(true);
+    try {
+      const results = await Promise.allSettled(items.map(a => deleteOne(a)));
+      const failed = results.filter(r => r.status === 'rejected').length;
+      if (detail && items.some(a => a.id === detail.id)) setDetail(null);
+      clearSel();
+      await load();
+      if (failed) alert(`${failed} item${failed > 1 ? 's' : ''} could not be deleted.`);
+    } finally { setBusy(false); }
+  };
+
   // Save edits to a Reello video's settings (title / description / visibility) right here in
   // the asset manager — no need to open a separate editor.
   const saveVideoAsset = async (id: string, patch: { title?: string; description?: string; isPrivate?: boolean; genre?: string }) => {
@@ -334,6 +372,7 @@ const ContentAssetManager: React.FC<{
           <button disabled={busy} onClick={() => bulkSetPublic(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 text-[9px] font-black uppercase tracking-widest text-white hover:bg-white/20"><Globe size={11} /> Publish</button>
           <button disabled={busy} onClick={() => bulkSetPublic(false)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 text-[9px] font-black uppercase tracking-widest text-white hover:bg-white/20"><Lock size={11} /> Make private</button>
           <button disabled={busy} onClick={bulkAddToFast} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#FF8C00] text-black text-[9px] font-black uppercase tracking-widest hover:opacity-90"><Tv size={11} /> Add to FAST</button>
+          <button disabled={busy} onClick={bulkDelete} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-500/15 border border-red-500/30 text-[9px] font-black uppercase tracking-widest text-red-300 hover:bg-red-500/25"><Trash2 size={11} /> Delete</button>
           {busy && <Loader2 size={13} className="animate-spin text-white/50" />}
           <button onClick={clearSel} className="ml-auto text-white/40 hover:text-white"><X size={15} /></button>
         </div>
@@ -353,7 +392,7 @@ const ContentAssetManager: React.FC<{
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-7">
           {filtered.map(a => (
             <React.Fragment key={a.id}>
-              <AssetCard asset={a} selected={selected.has(a.id)} open={detail?.id === a.id} onToggle={() => toggleSel(a.id)} onEdit={() => edit(a)} onOpen={() => setDetail(detail?.id === a.id ? null : a)} />
+              <AssetCard asset={a} selected={selected.has(a.id)} open={detail?.id === a.id} onToggle={() => toggleSel(a.id)} onEdit={() => edit(a)} onOpen={() => setDetail(detail?.id === a.id ? null : a)} onDelete={() => deleteSingle(a)} />
               {detail?.id === a.id && (
                 <div className="col-span-full">
                   <AssetDetail asset={a} busy={busy} onClose={() => setDetail(null)}
@@ -361,7 +400,7 @@ const ContentAssetManager: React.FC<{
                     onToggleGate={a.album ? () => toggleGate(a) : undefined}
                     onManageSanctuary={onManageSanctuary}
                     onSaveVideo={a.video ? (patch) => saveVideoAsset(a.id, patch) : undefined}
-                    onSavePhoto={a.photo ? (patch) => savePhotoAsset(a.id, patch) : undefined} />
+                    onSavePhoto={a.photo ? (patch) => savePhotoAsset(a.id, patch) : undefined} onDelete={() => deleteSingle(a)} />
                 </div>
               )}
             </React.Fragment>
@@ -371,14 +410,14 @@ const ContentAssetManager: React.FC<{
         <div className="space-y-2">
           {filtered.map(a => (
             <React.Fragment key={a.id}>
-              <AssetRow asset={a} selected={selected.has(a.id)} open={detail?.id === a.id} onToggle={() => toggleSel(a.id)} onEdit={() => edit(a)} onOpen={() => setDetail(detail?.id === a.id ? null : a)} />
+              <AssetRow asset={a} selected={selected.has(a.id)} open={detail?.id === a.id} onToggle={() => toggleSel(a.id)} onEdit={() => edit(a)} onOpen={() => setDetail(detail?.id === a.id ? null : a)} onDelete={() => deleteSingle(a)} />
               {detail?.id === a.id && (
                 <AssetDetail asset={a} busy={busy} onClose={() => setDetail(null)}
                   onEdit={() => { setDetail(null); edit(a); }}
                   onToggleGate={a.album ? () => toggleGate(a) : undefined}
                   onManageSanctuary={onManageSanctuary}
                   onSaveVideo={a.video ? (patch) => saveVideoAsset(a.id, patch) : undefined}
-                    onSavePhoto={a.photo ? (patch) => savePhotoAsset(a.id, patch) : undefined} />
+                    onSavePhoto={a.photo ? (patch) => savePhotoAsset(a.id, patch) : undefined} onDelete={() => deleteSingle(a)} />
               )}
             </React.Fragment>
           ))}
@@ -391,7 +430,7 @@ const ContentAssetManager: React.FC<{
 // ── Cards / rows ────────────────────────────────────────────────────────────────
 const svcAccent = (s: ServiceKey) => SERVICES.find(x => x.key === s)?.accent || '#FF8C00';
 
-const AssetCard: React.FC<{ asset: Asset; selected: boolean; open?: boolean; onToggle: () => void; onEdit: () => void; onOpen: () => void }> = ({ asset, selected, open, onToggle, onEdit, onOpen }) => (
+const AssetCard: React.FC<{ asset: Asset; selected: boolean; open?: boolean; onToggle: () => void; onEdit: () => void; onOpen: () => void; onDelete: () => void }> = ({ asset, selected, open, onToggle, onEdit, onOpen, onDelete }) => (
   <div className="group">
     <div className={`relative aspect-video rounded-2xl overflow-hidden bg-white/[0.04] border transition-all cursor-pointer ${open ? 'border-[#FF8C00] ring-2 ring-[#FF8C00]/40' : selected ? 'border-[#FF8C00]' : 'border-white/10 group-hover:border-white/20'}`} onClick={onOpen}>
       {asset.cover ? <img src={asset.cover} alt="" loading="lazy" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center"><Film size={26} className="text-white/15" /></div>}
@@ -404,6 +443,7 @@ const AssetCard: React.FC<{ asset: Asset; selected: boolean; open?: boolean; onT
       <div className="absolute inset-0 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/30">
         {asset.editable && <button onClick={e => { e.stopPropagation(); onEdit(); }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#FF8C00] text-black text-[9px] font-black uppercase tracking-widest"><Pencil size={11} /> Edit</button>}
         <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/90 text-black text-[9px] font-black uppercase tracking-widest">{open ? <X size={11} /> : <Layers size={11} />} {open ? 'Close' : 'Details'}</span>
+        <button onClick={e => { e.stopPropagation(); onDelete(); }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-500 text-white text-[9px] font-black uppercase tracking-widest" title="Delete"><Trash2 size={11} /> Delete</button>
       </div>
     </div>
     <div className="flex items-center justify-between gap-2 mt-2">
@@ -413,7 +453,7 @@ const AssetCard: React.FC<{ asset: Asset; selected: boolean; open?: boolean; onT
   </div>
 );
 
-const AssetRow: React.FC<{ asset: Asset; selected: boolean; open?: boolean; onToggle: () => void; onEdit: () => void; onOpen: () => void }> = ({ asset, selected, open, onToggle, onEdit, onOpen }) => (
+const AssetRow: React.FC<{ asset: Asset; selected: boolean; open?: boolean; onToggle: () => void; onEdit: () => void; onOpen: () => void; onDelete: () => void }> = ({ asset, selected, open, onToggle, onEdit, onOpen, onDelete }) => (
   <div onClick={onOpen} className={`flex items-center gap-4 p-2.5 rounded-xl border transition-all cursor-pointer ${open ? 'border-[#FF8C00] bg-[#FF8C00]/5 ring-1 ring-[#FF8C00]/30' : selected ? 'border-[#FF8C00]/50 bg-[#FF8C00]/5' : 'border-white/8 bg-white/[0.02] hover:bg-white/[0.05]'}`}>
     <button onClick={e => { e.stopPropagation(); onToggle(); }} className="text-white/50 hover:text-white shrink-0">{selected ? <CheckSquare size={17} className="text-[#FF8C00]" /> : <Square size={17} />}</button>
     <div className="w-16 aspect-video rounded-lg overflow-hidden bg-white/5 shrink-0">
@@ -425,6 +465,7 @@ const AssetRow: React.FC<{ asset: Asset; selected: boolean; open?: boolean; onTo
     </div>
     <span className="hidden sm:block px-1.5 py-0.5 rounded text-[7px] font-black uppercase tracking-widest shrink-0" style={{ background: `${svcAccent(asset.service)}22`, color: svcAccent(asset.service) }}>{SERVICES.find(s => s.key === asset.service)?.label}</span>
     {asset.editable && <button onClick={e => { e.stopPropagation(); onEdit(); }} className="p-2 rounded-full text-white/40 hover:text-[#FF8C00] shrink-0" title="Edit"><Pencil size={15} /></button>}
+    <button onClick={e => { e.stopPropagation(); onDelete(); }} className="p-2 rounded-full text-white/40 hover:text-red-300 shrink-0" title="Delete"><Trash2 size={15} /></button>
     <span className="p-2 rounded-full text-white/40 shrink-0" title="Details">{open ? <X size={15} /> : <Layers size={15} />}</span>
   </div>
 );
@@ -513,7 +554,8 @@ const AssetDetail: React.FC<{
   onManageSanctuary?: () => void;
   onSaveVideo?: (patch: { title?: string; description?: string; isPrivate?: boolean; genre?: string }) => void;
   onSavePhoto?: (patch: { title?: string; description?: string; isPublic?: boolean }) => void;
-}> = ({ asset, busy, onClose, onEdit, onToggleGate, onManageSanctuary, onSaveVideo, onSavePhoto }) => {
+  onDelete?: () => void;
+}> = ({ asset, busy, onClose, onEdit, onToggleGate, onManageSanctuary, onSaveVideo, onSavePhoto, onDelete }) => {
   const v = asset.video;
   const ph = asset.photo;
   const isClip = ph?.mediaType === 'VIDEO';
@@ -659,6 +701,9 @@ const AssetDetail: React.FC<{
             {asset.editable && <button onClick={onEdit} className="flex-1 min-w-[140px] py-3 rounded-full bg-white/10 text-white text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-white/15"><Pencil size={13} /> {asset.product ? 'Edit in Store Manager' : 'Open in studio'}</button>}
             {(asset.album?.tracks?.[0]?.url || asset.video?.url) && (
               <a href={asset.album?.tracks?.[0]?.url || asset.video?.url} target="_blank" rel="noreferrer" download className="px-4 py-3 rounded-full bg-white/10 text-white text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2" title="Download source"><Download size={13} /></a>
+            )}
+            {onDelete && (
+              <button onClick={onDelete} disabled={busy} className="px-4 py-3 rounded-full bg-red-500/10 border border-red-500/30 text-red-300 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-red-500/20 disabled:opacity-40" title="Delete permanently"><Trash2 size={13} /> Delete</button>
             )}
           </div>
           <CrossoverConvertPanel asset={asset} />

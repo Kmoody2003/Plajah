@@ -9,7 +9,7 @@ import {
   listHqAssets, addHqAsset, deleteHqAsset, humanFileSize,
   type OrgAsset, type OwnerScope,
 } from '../services/orgAssets';
-import { restoreHqAsset } from '../services/hqCollaboration';
+import { restoreHqAsset, trashHqAsset } from '../services/hqCollaboration';
 import HqReviewPanel from './HqReviewPanel';
 import { fetchMySubscription } from '../services/subscriptionService';
 import { resolveContentHqEntitlements } from '../services/contentHqEntitlements';
@@ -277,8 +277,8 @@ export const HqFilesTab: React.FC<{ scope: OwnerScope; canEdit: boolean }> = ({ 
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {shown.map((a) => (
-              <button key={a.id} onClick={() => setDetail(a)}
-                className="relative text-left p-4 rounded-2xl bg-white/[0.03] border border-white/8 hover:bg-white/[0.06] transition-colors">
+              <div key={a.id} onClick={() => setDetail(a)}
+                className="relative text-left p-4 rounded-2xl bg-white/[0.03] border border-white/8 hover:bg-white/[0.06] transition-colors cursor-pointer">
                 {a.scanStatus === 'QUARANTINED' && (
                   <span className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-500/15 text-red-300 text-[9px] font-black uppercase tracking-wider"><ShieldAlert className="w-3 h-3" /> Blocked</span>
                 )}
@@ -291,7 +291,14 @@ export const HqFilesTab: React.FC<{ scope: OwnerScope; canEdit: boolean }> = ({ 
                 <div className="text-[13px] font-semibold truncate">{a.name}</div>
                 <div className="text-[11px] text-white/40 mt-0.5">{a.kind} · {humanFileSize(a.sizeBytes)}</div>
                 {a.folder && <div className="text-[10px] text-white/30 mt-1">{a.folder}</div>}
-              </button>
+                {canEdit && (
+                  <button onClick={async (e) => { e.stopPropagation(); if (confirm('Move this file to Trash? It stays recoverable for 30 days, then is permanently deleted.')) { await trashHqAsset(a); await load(); } }}
+                    className="absolute bottom-3 right-3 p-1.5 rounded-lg bg-white/5 text-white/40 hover:text-red-300 hover:bg-red-500/10 transition-colors"
+                    title="Move to Trash">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
             ))}
           </div>
         )}

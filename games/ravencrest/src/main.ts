@@ -38,6 +38,9 @@ import { buildFlowers } from './flowers';
 import { ExtraInput } from './input';
 import { ComboComic } from './comic';
 import { buildGrass } from './grass';
+import { wind, DynWorld, type DynOpts } from './physics';
+import { gustUniform } from './foliage';
+import { moatUniforms, addMoatRipple } from './materials';
 
 const params = new URLSearchParams(location.search);
 if (params.has('debug')) (THREE.Node as unknown as { captureStackTrace: boolean }).captureStackTrace = true;
@@ -254,7 +257,21 @@ for (const l of [levels.outside, levels.hall]) {
   const fb = batchFlames(l.flames);
   if (fb) l.scene.add(fb);
 }
-const noMerge = new Set<THREE.Object3D>();
+// Dynamic physics: loose-prop worlds per level. The well rope's mesh is built
+// in world space, so it joins the scene directly rather than the yard group.
+const dynOutside = new DynWorld(levels.outside.collision);
+const dynHall = new DynWorld(levels.hall.collision);
+yard.ropes.forEach((r) => outside.add(r.mesh));
+dynOutside.onImpact = (pos, speed) => {
+  const wc = yard.well.mesh.getWorldPosition(new THREE.Vector3());
+  if (pos.distanceTo(wc) < 2.1) yard.well.ripple(pos, Math.min(1.4, speed * 0.25));
+};
+let moatTimer = 3;
+// Moving things stay out of static batching: cloth, the well and its rope, effects.
+const noMerge = new Set<THREE.Object3D>([
+  ...yard.cloth.map((c) => c.mesh), ...hall.cloth.map((c) => c.mesh),
+  yard.well.mesh, ...yard.fxObjects, ...yard.ropes.map((r) => r.mesh),
+]);
 const batchStats = { outside: mergeStatic(outside, noMerge), hall: mergeStatic(hallScene, noMerge) };
 console.info('[ravencrest] static batching', batchStats);
 // Wreckage on the road: a different spread every load (some, all, or none).
@@ -264,6 +281,8 @@ console.info('[ravencrest] road obstacles', obstacles.placed.join(', ') || 'none
 const obstacleFires = obstacles.fires.map((f) => ({ ...f, light: null as ReturnType<typeof pools.outside.addTransient> | null }));
 noMerge.add(obstacles.group);           // pieces stay separate: the tank sends them flying
 Promise.all([yard.props, viaduct.props, obstacles.props]).then(() => {
+  // Loose props leave the yard group (world transform kept) and become bodies.
+  yard.loose.forEach((m) => { outside.attach(m); dynOutside.add(m, m.userData.dyn as DynOpts); noMerge.add(m); });
   for (const f of obstacleFires) f.light = pools.outside.addTransient(f.pos.clone().setY(f.pos.y + 1.4), 0xff7a2a, 70, 16);
   yard.group.traverse((o) => { if ((o as THREE.PointLight).isPointLight && !o.name.startsWith('pool')) pools.outside.add(o as THREE.PointLight); });
   noMerge.add(player.object);
@@ -930,7 +949,10 @@ function tick(dt: number) {
   if (grass.uGrow.value > 0) flowers.update(flowerCentre.set(grass.uCenter.value.x, 0, grass.uCenter.value.y), grass.uGrow.value);
   const t = simTime;
   void t;
-  (level === levels.hall ? pools.hall : pools.outside).update(dt, camera.position);
+  wind.update(dt);
+  gustUniform.value = wind.gust;
+  (moatUniforms.wind as unknown as { value: THREE.Vector3 }).value.copy(wind.dir).multiplyScalar(0.5 + wind.strength * 0.5);
+  (level === levels.hall ? pools.hall : pools.outside).update(dt, camera.position, wind.gust);
   // Flames billboard in their vertex shader (fx.ts).
 
   if (mode !== 'ref') {
@@ -1009,6 +1031,31 @@ function tick(dt: number) {
   daybreak.update(dt);
   reviewKey.intensity = mode === 'portrait' ? 2.2 : 0;
   jack?.mixer.update(dt * (mode === 'play' ? game.timeScale : 1));
+
+  // ── Living systems: cloth, ropes, interactive water, loose props ──
+  const pVel = mode === 'play'
+    ? player.object.position.clone().sub(lastStepPos).divideScalar(Math.max(dt, 1e-3))
+    : new THREE.Vector3();
+  if (level === levels.outside) {
+    const wc = yard.well.mesh.getWorldPosition(new THREE.Vector3());
+    const ps = { c: player.object.position.clone().add(new THREE.Vector3(0, 1.1, 0)), r: 0.55 };
+    yard.cloth.forEach((c) => c.update(dt, wind, { world: levels.outside.collision, spheres: [ps] }));
+    yard.ropes.forEach((r) => r.update(dt, wind));
+    yard.well.update(dt, wind.gust);
+    const tip = yard.ropes[0]?.tip();
+    if (tip && Math.hypot(tip.x - wc.x, tip.z - wc.z) < 1.4 && Math.random() < dt * 0.8) yard.well.ripple(tip, 0.3);
+    if (player.object.position.distanceTo(wc) < 2.3 && Math.random() < dt * 1.4) yard.well.ripple(player.object.position, 0.3);
+    moatTimer -= dt;
+    if (moatTimer <= 0) {
+      moatTimer = 2.5 + Math.random() * 5;
+      addMoatRipple(world.gateCentre.x + (Math.random() - 0.5) * 36, world.gateCentre.z + 16 + Math.random() * 22, 0.4 + wind.gust * 0.7);
+    }
+    dynOutside.update(dt, player.object.position, pVel);
+  } else {
+    const ps = { c: player.object.position.clone().add(new THREE.Vector3(0, 1.1, 0)), r: 0.55 };
+    hall.cloth.forEach((c) => c.update(dt, wind, { world: levels.hall.collision, spheres: [ps] }, 0.12));
+    dynHall.update(dt, player.object.position, pVel);
+  }
 }
 
 // Dynamic resolution: hold ~60 fps by trading render scale (checked twice a second).

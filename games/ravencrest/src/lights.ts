@@ -6,6 +6,22 @@ import * as THREE from 'three/webgpu';
 
 export interface Virtual { pos: THREE.Vector3; color: THREE.Color; intensity: number; distance: number; decay: number; flicker: number; keepLit?: boolean }
 
+/**
+ * Light discipline. In three.js a PointLight distance of 0 means INFINITE
+ * range — several authored flames used it, so a candle could wash a whole
+ * hall. Finite authored distances are respected; infinite ones get a class
+ * radius by source size, so small sources stay small:
+ * candle cluster ≈ 6 m, wall torch ≈ 10 m, brazier/fire pit ≈ 13 m,
+ * fireplace/chandelier ≈ 17 m. Decay stays physical (2).
+ */
+function disciplined(intensity: number, distance: number): { intensity: number; distance: number } {
+  if (distance > 0) return { intensity, distance };
+  if (intensity <= 8) return { intensity, distance: 6 };
+  if (intensity <= 16) return { intensity, distance: 10 };
+  if (intensity <= 30) return { intensity, distance: 13 };
+  return { intensity, distance: 17 };
+}
+
 export class LightPool {
   private virtuals: Virtual[] = [];
   private pool: THREE.PointLight[] = [];
@@ -19,9 +35,10 @@ export class LightPool {
     const found: THREE.PointLight[] = [];
     root.traverse((o) => { if ((o as THREE.PointLight).isPointLight) found.push(o as THREE.PointLight); });
     found.forEach((l, i) => {
+      const d = disciplined(l.intensity, l.distance);
       this.virtuals.push({
-        pos: l.getWorldPosition(new THREE.Vector3()), color: l.color.clone(), intensity: l.intensity,
-        distance: l.distance, decay: l.decay, flicker: flickering.has(l) ? i * 1.7 + 0.3 : -1,
+        pos: l.getWorldPosition(new THREE.Vector3()), color: l.color.clone(), intensity: d.intensity,
+        distance: d.distance, decay: l.decay, flicker: flickering.has(l) ? i * 1.7 + 0.3 : -1,
       });
       l.removeFromParent();
     });
@@ -36,7 +53,8 @@ export class LightPool {
   /** Register a light that appears later (e.g. after async props load). */
   add(l: THREE.PointLight, flicker = true) {
     l.updateMatrixWorld(true);
-    this.virtuals.push({ pos: l.getWorldPosition(new THREE.Vector3()), color: l.color.clone(), intensity: l.intensity, distance: l.distance, decay: l.decay, flicker: flicker ? this.virtuals.length * 1.7 : -1 });
+    const d = disciplined(l.intensity, l.distance);
+    this.virtuals.push({ pos: l.getWorldPosition(new THREE.Vector3()), color: l.color.clone(), intensity: d.intensity, distance: d.distance, decay: l.decay, flicker: flicker ? this.virtuals.length * 1.7 : -1 });
     l.removeFromParent();
   }
 
@@ -50,7 +68,7 @@ export class LightPool {
 
   get count() { return this.virtuals.length; }
 
-  update(dt: number, viewer: THREE.Vector3) {
+  update(dt: number, viewer: THREE.Vector3, gust = 0.5) {
     this.time += dt;
     const t = this.time;
     // Relevance: brightness over distance². Ranked cut-off fades smoothly at the boundary.
@@ -67,7 +85,9 @@ export class LightPool {
       const v = s.v;
       // Fade lights near the cut so swaps aren't visible pops.
       const fade = edge > 0 ? THREE.MathUtils.smoothstep(s.score / edge, 1, 1.6) : 1;
-      const flick = v.flicker >= 0 ? 0.82 + 0.18 * Math.sin(t * 13 + v.flicker) * Math.sin(t * 7.3 + v.flicker * 0.7) : 1;
+      // Flames gutter harder when the wind gusts: the dips deepen, peaks stay.
+      const prod = Math.sin(t * 13 + v.flicker) * Math.sin(t * 7.3 + v.flicker * 0.7);
+      const flick = v.flicker >= 0 ? 0.86 + 0.14 * prod - gust * 0.09 * (1 - prod) : 1;
       l.position.copy(v.pos);
       l.color.copy(v.color);
       l.distance = v.distance;
