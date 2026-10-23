@@ -11,7 +11,7 @@
 import {
   collection, doc, setDoc, updateDoc, getDoc, getDocs, query, where, runTransaction, deleteDoc,
 } from 'firebase/firestore';
-import { db, auth } from './firebase';
+import { db, opsDb, dbFor, auth } from './firebase';
 import { createOrganization, updateOrganization, fetchOrganization, fetchOrgMembers, syncMemberIndex } from './organizationService';
 import { elevatePermissions, getElevateRole, canAssignRole } from './elevateRoles';
 import { defaultMinistries, leadTitleFor } from './elevateTemplates';
@@ -371,7 +371,7 @@ export interface OrgDeletionPreview { members: number; invites: number; follower
 /** What deleting would remove / seal. Counts are best-effort (a viewer without access to a collection sees 0). */
 export async function previewOrgDeletion(orgId: string): Promise<OrgDeletionPreview> {
   const n = async (col: string) => {
-    try { return (await getDocs(query(collection(db, col), where('orgId', '==', orgId)))).size; } catch { return 0; }
+    try { return (await getDocs(query(collection(dbFor(col), col), where('orgId', '==', orgId)))).size; } catch { return 0; }
   };
   const [members, invites, followers, prayers, people, gifts, journals] = await Promise.all([
     n('orgMemberships'), n('orgInvites'), n('orgFollowers'), n('churchPrayers'), n('chmsPeople'), n('chmsContributions'), n('acctJournals'),
@@ -396,7 +396,7 @@ export async function deleteElevateOrg(org: Organization): Promise<{ removed: Re
   const sweep = async (col: string) => {
     let count = 0;
     try {
-      const snap = await getDocs(query(collection(db, col), where('orgId', '==', org.id)));
+      const snap = await getDocs(query(collection(dbFor(col), col), where('orgId', '==', org.id)));
       for (const d of snap.docs) { try { await deleteDoc(d.ref); count++; } catch { /* rules may forbid (e.g. others' notes) — leave sealed */ } }
     } catch { /* collection not readable by this user — nothing to sweep */ }
     removed[col] = count;

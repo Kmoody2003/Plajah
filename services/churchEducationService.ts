@@ -2,7 +2,7 @@
 // A program is a week-by-week plan whose weeks point at Verse passages and Sacred Library readings,
 // plus Academia courses, a dedicated Classroom Chat Room, and an Academia Classroom (roster, assignments,
 // paper worksheet scanner, and Tela lesson builder).
-import { db, auth } from './firebase';
+import { opsDb, auth } from './firebase';
 import { doc, collection, setDoc, getDocs, query, where, deleteDoc } from 'firebase/firestore';
 import { parseRef, refId, formatRef } from './scriptureRef';
 import { createChurchClass } from './churchConsoleService';
@@ -300,7 +300,7 @@ function writeLocalPrograms(orgId: string, list: ChurchProgram[]): void {
   }
 }
 
-const col = () => collection(db, 'churchPrograms');
+const col = () => collection(opsDb, 'churchPrograms');
 
 export async function listPrograms(orgId: string): Promise<ChurchProgram[]> {
   const local = readLocalPrograms(orgId);
@@ -340,7 +340,7 @@ export async function saveProgram(p: ChurchProgram): Promise<void> {
   writeLocalPrograms(p.orgId, [...current, normalized]);
 
   try {
-    await setDoc(doc(db, 'churchPrograms', normalized.id), normalized);
+    await setDoc(doc(opsDb, 'churchPrograms', normalized.id), normalized);
   } catch {
     // Offline or demo org fallback already saved in localStorage
   }
@@ -352,7 +352,7 @@ export async function deleteProgram(id: string, orgId?: string): Promise<void> {
     writeLocalPrograms(orgId, remaining);
   }
   try {
-    await deleteDoc(doc(db, 'churchPrograms', id));
+    await deleteDoc(doc(opsDb, 'churchPrograms', id));
   } catch {
     // ignore
   }
@@ -472,7 +472,7 @@ export async function ensureDefaultTemplatedClassrooms(church: Organization): Pr
     // refuse anyone else, and the copies are already hidden for them).
     const kept = new Set(existing.map(p => p.id));
     for (const p of listed) {
-      if (!kept.has(p.id)) deleteDoc(doc(db, 'churchPrograms', p.id)).catch(() => { /* not permitted / offline */ });
+      if (!kept.has(p.id)) deleteDoc(doc(opsDb, 'churchPrograms', p.id)).catch(() => { /* not permitted / offline */ });
     }
   }
   if (existing.length > 0 || !demo) {
@@ -490,7 +490,7 @@ export async function ensureDefaultTemplatedClassrooms(church: Organization): Pr
   writeLocalPrograms(church.id, seeded);
   for (const prog of seeded) {
     try {
-      await setDoc(doc(db, 'churchPrograms', prog.id), prog);
+      await setDoc(doc(opsDb, 'churchPrograms', prog.id), prog);
     } catch {
       // ignore if offline / demo church
     }

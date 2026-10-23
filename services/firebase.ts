@@ -4,6 +4,7 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import firebaseConfig from '../firebase-applet-config.json';
+import { OPS_COLLECTIONS, OPS_DATABASE_ID } from './opsCollections';
 
 const app = initializeApp(firebaseConfig);
 
@@ -47,6 +48,11 @@ if (isBrowser && (appCheckEnterpriseKey || appCheckSiteKey)) {
 
 export { app };
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+/** The org back-office database (services/opsCollections.ts). A batch or transaction can't span
+ *  databases, so writes touching both go as two commits. */
+export const opsDb = getFirestore(app, OPS_DATABASE_ID);
+/** The database a collection (or 'collection/doc/…' path) lives in. */
+export const dbFor = (collectionOrPath: string) => (OPS_COLLECTIONS.has(collectionOrPath.split('/')[0]) ? opsDb : db);
 export const storage = getStorage(app);
 export const auth = getAuth(app);
 

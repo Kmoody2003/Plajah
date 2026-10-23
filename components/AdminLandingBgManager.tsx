@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { LandingBgAsset, LandingBgConfig, LandingBgMode } from '../types';
-import { fetchLandingBgConfig, saveLandingBgConfig, uploadLandingBgAsset } from '../services/backendService';
+import { fetchLandingBgConfig, saveLandingBgConfig, uploadLandingBgAsset, createMuxAssetFromUrl } from '../services/backendService';
 
 const DEFAULT_CONFIG: LandingBgConfig = {
   mode: 'EARTH',
@@ -39,7 +39,21 @@ const AdminLandingBgManager: React.FC = () => {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await saveLandingBgConfig(config);
+      // Every video goes to Mux before it's saved, so the landing page can start on a low HLS
+      // rendition with a poster instead of waiting on the raw upload. Best-effort: a video Mux
+      // can't take keeps playing from its Storage MP4.
+      const assets = await Promise.all(config.assets.map(async a => {
+        if (a.type !== 'video' || a.muxPlaybackId) return a;
+        try {
+          const { playbackId } = await createMuxAssetFromUrl(a.url);
+          return playbackId
+            ? { ...a, muxPlaybackId: playbackId, thumbnailUrl: a.thumbnailUrl || `https://image.mux.com/${playbackId}/thumbnail.webp?time=0&width=1920` }
+            : a;
+        } catch { return a; }
+      }));
+      const next = { ...config, assets };
+      setConfig(next);
+      await saveLandingBgConfig(next);
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
     } finally {

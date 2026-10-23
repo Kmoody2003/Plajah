@@ -18,6 +18,7 @@ import rateLimit from 'express-rate-limit';
 import nodeCrypto from 'node:crypto';
 import { invoiceIssuedEntry, invoicePaymentEntry, reversalOf, journalDocId, type DraftJournal, type SysAccounts } from '../services/acctPosting';
 import type { BillingEntityKind, BillingEntityRef, BillingFlagKey, InvoiceStatus } from '../types';
+import { dbIdFor } from '../services/opsCollections';
 
 export interface BillingDeps {
   getStripe: () => any;
@@ -38,7 +39,8 @@ export interface BillingDeps {
 }
 
 const PROJECT = 'gen-lang-client-0665118474';
-const DB = 'plajah-prod';
+// billingCounters lives in plajah-ops with the rest of billing (services/opsCollections.ts).
+const DB = dbIdFor('billingCounters');
 const TZ = process.env.ELEVATE_TZ || 'America/Detroit';
 
 class BillingError extends Error {

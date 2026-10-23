@@ -11,7 +11,7 @@
 // (server.ts POST /api/cron/publish-due-posts): flip status first, then work,
 // so two workers can never run the same window twice.
 
-import { db, auth } from './firebase';
+import { db, opsDb, auth } from './firebase';
 import { collection, doc, getDoc, getDocs, setDoc, updateDoc, query, where, limit as qlimit } from 'firebase/firestore';
 import { createPost } from './backendService';
 import type { Organization } from '../types';
@@ -31,23 +31,23 @@ const strip = (o: Record<string, any>): Record<string, any> => {
 // ─── Config (org turns the feature on, per source) ────────────────────────────
 
 export async function saveElevateLiveConfig(cfg: ElevateLiveConfig): Promise<void> {
-  await setDoc(doc(db, ELEVATE_CONFIGS, cfg.orgId), strip({ ...cfg, updatedAt: Date.now() }));
+  await setDoc(doc(opsDb, ELEVATE_CONFIGS, cfg.orgId), strip({ ...cfg, updatedAt: Date.now() }));
 }
 
 export async function getElevateLiveConfig(orgId: string): Promise<ElevateLiveConfig | null> {
-  const snap = await getDoc(doc(db, ELEVATE_CONFIGS, orgId));
+  const snap = await getDoc(doc(opsDb, ELEVATE_CONFIGS, orgId));
   return snap.exists() ? (snap.data() as ElevateLiveConfig) : null;
 }
 
 // ─── Runs ─────────────────────────────────────────────────────────────────────
 
 export async function createElevateLiveRun(run: ElevateLiveRun): Promise<string> {
-  await setDoc(doc(db, ELEVATE_RUNS, run.id), strip({ ...run }));
+  await setDoc(doc(opsDb, ELEVATE_RUNS, run.id), strip({ ...run }));
   return run.id;
 }
 
 export async function updateElevateLiveRun(id: string, patch: Partial<ElevateLiveRun>): Promise<void> {
-  await updateDoc(doc(db, ELEVATE_RUNS, id), strip({ ...patch }));
+  await updateDoc(doc(opsDb, ELEVATE_RUNS, id), strip({ ...patch }));
 }
 
 /**
@@ -61,7 +61,7 @@ export async function claimDueElevateRuns(now = Date.now(), archiveBufferMs = 5 
   // query is denied from a client session.
   const constraints: any[] = [where('status', 'in', ['SCHEDULED', 'MONITORING']), qlimit(50)];
   if (orgId) constraints.unshift(where('orgId', '==', orgId));
-  const snap = await getDocs(query(collection(db, ELEVATE_RUNS), ...constraints));
+  const snap = await getDocs(query(collection(opsDb, ELEVATE_RUNS), ...constraints));
   const due = snap.docs
     .map(d => d.data() as ElevateLiveRun)
     .filter(r => r.windowEnd + archiveBufferMs <= now)
@@ -69,7 +69,7 @@ export async function claimDueElevateRuns(now = Date.now(), archiveBufferMs = 5 
   const claimed: ElevateLiveRun[] = [];
   for (const run of due) {
     try {
-      await updateDoc(doc(db, ELEVATE_RUNS, run.id), { status: 'PROCESSING' });
+      await updateDoc(doc(opsDb, ELEVATE_RUNS, run.id), { status: 'PROCESSING' });
       claimed.push({ ...run, status: 'PROCESSING' });
     } catch { /* another worker claimed it — skip */ }
   }
@@ -79,7 +79,7 @@ export async function claimDueElevateRuns(now = Date.now(), archiveBufferMs = 5 
 // ─── Output savers (injected into runElevateLivePipeline) ─────────────────────
 
 export async function saveElevateBriefing(b: ServiceBriefing): Promise<void> {
-  await setDoc(doc(db, ELEVATE_BRIEFINGS, b.id), strip({
+  await setDoc(doc(opsDb, ELEVATE_BRIEFINGS, b.id), strip({
     ...b,
     // The full timecoded transcript is the substrate for repurposing; keep it
     // on the briefing doc so "repurpose this" never re-transcribes.
@@ -112,7 +112,7 @@ export async function saveElevateArticle(org: Organization, title: string, block
 }
 
 export async function saveRepurposeJob(job: Record<string, any>): Promise<void> {
-  await setDoc(doc(db, REPURPOSE_JOBS, job.id), strip({ ...job }));
+  await setDoc(doc(opsDb, REPURPOSE_JOBS, job.id), strip({ ...job }));
 }
 
 // ─── Reads for the Master Control panel ───────────────────────────────────────
@@ -121,7 +121,7 @@ export async function listElevateRunsForOrg(orgId: string, orgName: string): Pro
   const byId = new Map<string, ElevateLiveRun>();
   const grab = async (field: string, value: string) => {
     if (!value) return;
-    const snap = await getDocs(query(collection(db, ELEVATE_RUNS), where(field, '==', value), qlimit(50)));
+    const snap = await getDocs(query(collection(opsDb, ELEVATE_RUNS), where(field, '==', value), qlimit(50)));
     snap.docs.forEach(d => byId.set(d.id, d.data() as ElevateLiveRun));
   };
   await grab('orgId', orgId);
@@ -130,12 +130,12 @@ export async function listElevateRunsForOrg(orgId: string, orgName: string): Pro
 }
 
 export async function listElevateBriefingsForOrg(orgId: string): Promise<ServiceBriefing[]> {
-  const snap = await getDocs(query(collection(db, ELEVATE_BRIEFINGS), where('orgId', '==', orgId), qlimit(50)));
+  const snap = await getDocs(query(collection(opsDb, ELEVATE_BRIEFINGS), where('orgId', '==', orgId), qlimit(50)));
   return snap.docs.map(d => d.data() as ServiceBriefing).sort((a, b) => b.createdAt - a.createdAt);
 }
 
 export async function setElevateBriefingStatus(id: string, status: ServiceBriefing['status']): Promise<void> {
-  await updateDoc(doc(db, ELEVATE_BRIEFINGS, id), { status });
+  await updateDoc(doc(opsDb, ELEVATE_BRIEFINGS, id), { status });
 }
 
 /** Publish the generated Article draft (it was saved as a private draft). */
@@ -204,7 +204,7 @@ export async function updateElevateDocument(params: {
   blocks: ElevateArticleBlock[];
 }): Promise<void> {
   const revisedAt = Date.now();
-  await updateDoc(doc(db, ELEVATE_BRIEFINGS, params.briefingId), {
+  await updateDoc(doc(opsDb, ELEVATE_BRIEFINGS, params.briefingId), {
     title: params.title, summary: params.summary, revisedAt, revised: true,
   }).catch(() => undefined);
   for (const coll of ['posts', 'feed']) {

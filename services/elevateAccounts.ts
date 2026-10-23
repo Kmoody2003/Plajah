@@ -18,7 +18,7 @@
 //   importRoleToKey                           — "Youth Pastor" → PASTOR, "Treasurer" → TREASURER …
 import QRCode from 'qrcode';
 import { collection, doc, getDocs, query, where, writeBatch, updateDoc, setDoc } from 'firebase/firestore';
-import { db, auth } from './firebase';
+import { db, opsDb, auth } from './firebase';
 import type { Organization, OrgMembership, ChmsPerson, Ministry, RosterGroup, UserProfile } from '../types';
 import { getElevateRole, elevateCan } from './elevateRoles';
 import { addOrgMember, fetchOrgMembers, fetchOrganization, syncMemberIndex, updateOrganization } from './organizationService';
@@ -167,15 +167,29 @@ export function buildProvisionDocs(org: Organization, person: ChmsPerson, opts: 
   return { person: updatedPerson, membership, profileUid: uid, profile };
 }
 
+/** Stamp the provisioned uid + numbers onto the ChMS people (plajah-ops), after their accounts landed in
+ *  plajah-prod. Retried once: a person left unstamped would look unprovisioned and get a second account. */
+async function linkProvisionedPeople(results: ProvisionResult[]): Promise<void> {
+  const write = async () => {
+    const b = writeBatch(opsDb);
+    for (const r of results) {
+      b.set(doc(opsDb, 'chmsPeople', r.person.id), { provisionedUid: r.profileUid, memberNumber: r.person.memberNumber, employeeNumber: r.person.employeeNumber, ministryIds: r.person.ministryIds || [], updatedAt: r.person.updatedAt }, { merge: true });
+    }
+    await b.commit();
+  };
+  try { await write(); } catch { await write(); }
+}
+
 /** Pre-provision ONE account. Skips (returns null) when the person is already linked or provisioned. */
 export async function provisionAccount(org: Organization, person: ChmsPerson, opts: ProvisionOptions = {}): Promise<ProvisionResult | null> {
   if (person.linkedUid || person.provisionedUid) return null;
   const built = buildProvisionDocs(org, person, opts);
+  // users + orgMemberships live in plajah-prod, chmsPeople in plajah-ops: two commits (account first).
   const b = writeBatch(db);
   b.set(doc(db, 'users', built.profileUid), built.profile);
   b.set(doc(db, 'orgMemberships', built.membership.id), built.membership);
-  b.set(doc(db, 'chmsPeople', person.id), { provisionedUid: built.profileUid, memberNumber: built.person.memberNumber, employeeNumber: built.person.employeeNumber, ministryIds: built.person.ministryIds || [], updatedAt: built.person.updatedAt }, { merge: true });
   await b.commit();
+  await linkProvisionedPeople([built]);
   afterProvision(org, [built.membership]).catch(() => {});
   logOrgAction(org.id, 'ELEVATE_ACCOUNT_PROVISIONED', { targetId: person.id, targetName: built.membership.displayName, meta: { roleKey: built.membership.roleKey } });
   return built;
@@ -194,14 +208,16 @@ export async function provisionAccountsBulk(
   for (let i = 0; i < todo.length; i += 150) {
     const slice = todo.slice(i, i + 150);
     const b = writeBatch(db);
+    const built: ProvisionResult[] = [];
     for (const person of slice) {
-      const built = buildProvisionDocs(org, person, typeof opts === 'function' ? opts(person) : opts, taken);
-      b.set(doc(db, 'users', built.profileUid), built.profile);
-      b.set(doc(db, 'orgMemberships', built.membership.id), built.membership);
-      b.set(doc(db, 'chmsPeople', person.id), { provisionedUid: built.profileUid, memberNumber: built.person.memberNumber, employeeNumber: built.person.employeeNumber, ministryIds: built.person.ministryIds || [], updatedAt: built.person.updatedAt }, { merge: true });
-      out.push(built);
+      const r = buildProvisionDocs(org, person, typeof opts === 'function' ? opts(person) : opts, taken);
+      b.set(doc(db, 'users', r.profileUid), r.profile);
+      b.set(doc(db, 'orgMemberships', r.membership.id), r.membership);
+      built.push(r);
     }
     await b.commit();
+    await linkProvisionedPeople(built);
+    out.push(...built);
     onProgress?.({ done: Math.min(i + 150, todo.length), total: todo.length, skipped });
   }
   if (out.length) {
@@ -228,7 +244,7 @@ export async function updateProvisionedSeat(org: Organization, membership: OrgMe
     role: def ? (def.baseRole === 'OWNER' || def.baseRole === 'ADMIN' ? 'STAFF' : def.baseRole) : undefined,
     ministryIds, ministryRoles: ministryIds ? ministryIds.map(ministryId => ({ ministryId, roleKey: patch.roleKey === 'DEPARTMENT_HEAD' ? 'DEPARTMENT_HEAD' : 'VOLUNTEER' })) : undefined,
   }));
-  if (membership.provisionedPersonId && ministryIds) await updateDoc(doc(db, 'chmsPeople', membership.provisionedPersonId), { ministryIds, updatedAt: Date.now() }).catch(() => {});
+  if (membership.provisionedPersonId && ministryIds) await updateDoc(doc(opsDb, 'chmsPeople', membership.provisionedPersonId), { ministryIds, updatedAt: Date.now() }).catch(() => {});
   if (patch.roleKey && membership.userId.startsWith('prov_')) await updateDoc(doc(db, 'users', membership.userId), { provisionedRoleKey: patch.roleKey }).catch(() => {});
   await recomputeOrgRoleIndex(org.id);
 }
@@ -238,7 +254,7 @@ export async function linkPersonToUser(org: Organization, person: ChmsPerson, us
   const now = Date.now();
   const memberNumber = person.memberNumber || memberNumberFor(org, person);
   const employeeNumber = person.employeeNumber || employeeNumberFor(org, person);
-  await setDoc(doc(db, 'chmsPeople', person.id), { linkedUid: user.uid, memberNumber, employeeNumber, updatedAt: now }, { merge: true });
+  await setDoc(doc(opsDb, 'chmsPeople', person.id), { linkedUid: user.uid, memberNumber, employeeNumber, updatedAt: now }, { merge: true });
   const existing = (await fetchOrgMembers(org.id)).find(m => m.userId === user.uid);
   let membership: OrgMembership | null = existing || null;
   if (!existing) {

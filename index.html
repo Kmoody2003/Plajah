@@ -84,6 +84,24 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://picsum.photos">
     <link rel="preconnect" href="https://upload.wikimedia.org">
+    <link rel="preconnect" href="https://stream.mux.com">
+    <link rel="preconnect" href="https://image.mux.com">
+    <script>
+      // Landing background: preload the cached poster (written by LandingPage) so the first paint
+      // is the video's own frame, not a blank backdrop waiting on the bundle and Firestore.
+      try {
+        if (location.pathname === '/') {
+          var bg = JSON.parse(localStorage.getItem('plajah.landingBg.v1') || 'null');
+          var a = bg && bg.assets && bg.assets.filter(function (x) { return x.isSelected; })[0];
+          var poster = a && (a.type === 'photo' ? a.url : a.thumbnailUrl || (a.muxPlaybackId && 'https://image.mux.com/' + a.muxPlaybackId + '/thumbnail.webp?time=0&width=1920'));
+          if (poster && bg.mode !== 'EARTH') {
+            var l = document.createElement('link');
+            l.rel = 'preload'; l.as = 'image'; l.href = poster; l.fetchPriority = 'high';
+            document.head.appendChild(l);
+          }
+        }
+      } catch (e) {}
+    </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@300;500;700&family=JetBrains+Mono:wght@300;500;800&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Archivo:wght@400;500;600&display=swap" rel="stylesheet">
     
     <link rel="stylesheet" href="/styles/boot.css">

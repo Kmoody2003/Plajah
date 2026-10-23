@@ -5,6 +5,12 @@
       "rules": "firestore.rules.min",
       "indexes": "firestore.indexes.json",
       "predeploy": ["node scripts/minifyRules.mjs firestore.rules firestore.rules.min"]
+    },
+    {
+      "database": "plajah-ops",
+      "rules": "firestore.ops.rules.min",
+      "indexes": "firestore.ops.indexes.json",
+      "predeploy": ["node scripts/minifyRules.mjs firestore.ops.rules firestore.ops.rules.min"]
     }
   ],
   "storage": [

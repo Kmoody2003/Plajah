@@ -11,7 +11,7 @@ import {
   arrayUnion, arrayRemove,
 } from 'firebase/firestore';
 import { onSnapshot } from './safeSnapshot';
-import { db, auth } from './firebase';
+import { db, opsDb, auth } from './firebase';
 import { permissionsForMember } from './orgPermissions';
 import type { ChurchPrayer, UserProfile } from '../types';
 import type { Organization, OrgMembership, OrgMembershipOnboarding, OrgRole, OrgType, Ministry, ServiceTime, GivingFund, RosterGroup } from '../types';
@@ -90,6 +90,18 @@ export function openElevateGatewayModal(opts: {
   }
 }
 
+/** plajah-ops rules (back office) authorize against a server-kept copy of the org doc. Refresh it right
+ *  after a change instead of waiting on the write trigger, so e.g. a brand-new org's onboarding vault
+ *  works at once. Best-effort: the trigger and the periodic reconcile catch up regardless. */
+async function refreshOpsMirror(orgId: string): Promise<void> {
+  try {
+    await fetch('/api/ops-mirror/sync', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ collection: 'organizations', id: orgId }), signal: AbortSignal.timeout(4000),
+    });
+  } catch { /* trigger / reconcile will catch up */ }
+}
+
 export async function createOrganization(data: Partial<Organization> & { orgType: OrgType }): Promise<Organization | null> {
   if (!auth.currentUser) return null;
   const now = Date.now();
@@ -150,6 +162,7 @@ export async function createOrganization(data: Partial<Organization> & { orgType
     joinedAt: now,
   };
   await setDoc(memberRef, stripUndefined(owner));
+  await refreshOpsMirror(org.id);
   return org;
 }
 
@@ -160,10 +173,12 @@ export async function fetchOrganization(orgId: string): Promise<Organization | n
 
 export async function updateOrganization(orgId: string, updates: Partial<Organization>): Promise<void> {
   await updateDoc(doc(db, 'organizations', orgId), { ...stripUndefined(updates), updatedAt: Date.now() });
+  await refreshOpsMirror(orgId);
 }
 
 export async function deleteOrganization(orgId: string): Promise<void> {
   await deleteDoc(doc(db, 'organizations', orgId));
+  await refreshOpsMirror(orgId);
 }
 
 /** Public org directory (optionally by type), newest-active first. */
@@ -213,6 +228,7 @@ export async function recomputeOrgStaffUids(orgId: string): Promise<void> {
       members.filter(m => m.status === 'ACTIVE' && permissionsForMember(m).has('MANAGE_CONTENT')).map(m => m.userId),
     ));
     await updateDoc(doc(db, 'organizations', orgId), { staffUids, updatedAt: Date.now() });
+    await refreshOpsMirror(orgId);
   } catch { /* non-fatal: HQ access falls back to owners/admins until the next staff change */ }
 }
 
@@ -325,7 +341,7 @@ export async function joinOrganization(
   if (opts?.onboarding) {
     try {
       await setDoc(
-        doc(db, 'orgOnboardingVault', ref.id),
+        doc(opsDb, 'orgOnboardingVault', ref.id),
         stripUndefined({
           id: ref.id,
           membershipId: ref.id,
@@ -373,7 +389,7 @@ export async function joinOrganization(
 /** Fetch the restricted private onboarding vault record (accessible only to the member themselves or authorized org staff). */
 export async function fetchOnboardingVault(membershipId: string): Promise<OrgMembershipOnboarding | null> {
   try {
-    const snap = await getDoc(doc(db, 'orgOnboardingVault', membershipId));
+    const snap = await getDoc(doc(opsDb, 'orgOnboardingVault', membershipId));
     return snap.exists() ? (snap.data() as OrgMembershipOnboarding) : null;
   } catch {
     return null;
@@ -636,7 +652,7 @@ export async function acceptOrgMember(membershipId: string, role?: OrgRole, role
   let matched: any = null;
   if (orgId && uid) {
     try {
-      const peopleSnap = await getDocs(query(collection(db, 'chmsPeople'), where('orgId', '==', orgId))).catch(() => null);
+      const peopleSnap = await getDocs(query(collection(opsDb, 'chmsPeople'), where('orgId', '==', orgId))).catch(() => null);
       existingPeople = (peopleSnap?.docs || []).map(d => ({ id: d.id, ...d.data() } as any));
       const fullTarget = `${ob.firstName || ''} ${ob.lastName || ''}`.trim().toLowerCase() || (memData?.displayName || '').trim().toLowerCase();
       matched = existingPeople.find(p =>
@@ -698,7 +714,7 @@ export async function acceptOrgMember(membershipId: string, role?: OrgRole, role
       let householdId = matched?.householdId as string | undefined;
       if (!householdId && (hasAddress || ob.familyMembers?.trim() || ob.householdNote?.trim())) {
         try {
-          const hRef = doc(collection(db, 'chmsHouseholds'));
+          const hRef = doc(collection(opsDb, 'chmsHouseholds'));
           householdId = hRef.id;
           await setDoc(hRef, stripUndefined({
             id: hRef.id,
@@ -713,7 +729,7 @@ export async function acceptOrgMember(membershipId: string, role?: OrgRole, role
       }
 
       if (matched) {
-        await updateDoc(doc(db, 'chmsPeople', matched.id), stripUndefined({
+        await updateDoc(doc(opsDb, 'chmsPeople', matched.id), stripUndefined({
           linkedUid: uid,
           status: 'MEMBER',
           preferredName: ob.preferredName || matched.preferredName,
@@ -731,7 +747,7 @@ export async function acceptOrgMember(membershipId: string, role?: OrgRole, role
           updatedAt: now,
         }));
       } else {
-        const pRef = doc(collection(db, 'chmsPeople'));
+        const pRef = doc(collection(opsDb, 'chmsPeople'));
         await setDoc(pRef, stripUndefined({
           id: pRef.id,
           orgId,
@@ -784,7 +800,7 @@ export async function acceptOrgMember(membershipId: string, role?: OrgRole, role
 /** Owner/admin declines a PENDING applicant (removes the request and any private onboarding vault entry). */
 export async function declineOrgMember(membershipId: string): Promise<void> {
   await deleteDoc(doc(db, 'orgMemberships', membershipId));
-  await deleteDoc(doc(db, 'orgOnboardingVault', membershipId)).catch(() => {});
+  await deleteDoc(doc(opsDb, 'orgOnboardingVault', membershipId)).catch(() => {});
 }
 
 /**
@@ -802,7 +818,7 @@ export async function claimEmployeeProfile(employeeUid: string, personalUid: str
 /** Recorded gifts for a church (from the `donations` collection). */
 export async function fetchChurchDonations(churchId: string): Promise<Array<{ fund?: string; amount: number }>> {
   try {
-    const snap = await getDocs(query(collection(db, 'donations'), where('churchId', '==', churchId)));
+    const snap = await getDocs(query(collection(opsDb, 'donations'), where('churchId', '==', churchId)));
     return snap.docs.map(d => d.data() as any).map(x => ({ fund: x.fund, amount: Number(x.amount) || 0 }));
   } catch { return []; }
 }
@@ -817,7 +833,7 @@ export function sumDonationsByFund(donations: Array<{ fund?: string; amount: num
 // ── Prayer wall (church/org community feature) ──────────────────────────────────
 export async function submitChurchPrayer(orgId: string, request: string, isPrivate = false): Promise<string | null> {
   if (!auth.currentUser || !request.trim()) return null;
-  const ref = doc(collection(db, 'churchPrayers'));
+  const ref = doc(collection(opsDb, 'churchPrayers'));
   const prayer: ChurchPrayer = {
     id: ref.id, orgId,
     authorId: auth.currentUser.uid,
@@ -835,8 +851,8 @@ export async function submitChurchPrayer(orgId: string, request: string, isPriva
 /** `canSeePrivate` = pastor / minister / prayer warrior / admin. Everyone else only queries the public wall (rules enforce this). */
 export function listenToChurchPrayers(orgId: string, callback: (prayers: ChurchPrayer[]) => void, canSeePrivate = true) {
   const q = canSeePrivate
-    ? query(collection(db, 'churchPrayers'), where('orgId', '==', orgId), limit(100))
-    : query(collection(db, 'churchPrayers'), where('orgId', '==', orgId), where('isPrivate', '==', false), limit(100));
+    ? query(collection(opsDb, 'churchPrayers'), where('orgId', '==', orgId), limit(100))
+    : query(collection(opsDb, 'churchPrayers'), where('orgId', '==', orgId), where('isPrivate', '==', false), limit(100));
   return onSnapshot(q,
     snap => callback(snap.docs.map(d => ({ id: d.id, ...d.data() } as ChurchPrayer)).sort((a, b) => b.timestamp - a.timestamp)),
     err => console.warn('[church] prayers listener:', err.message),
@@ -845,17 +861,17 @@ export function listenToChurchPrayers(orgId: string, callback: (prayers: ChurchP
 
 export async function toggleChurchPraying(prayerId: string, praying: boolean): Promise<void> {
   if (!auth.currentUser) return;
-  await updateDoc(doc(db, 'churchPrayers', prayerId), {
+  await updateDoc(doc(opsDb, 'churchPrayers', prayerId), {
     prayingIds: praying ? arrayUnion(auth.currentUser.uid) : arrayRemove(auth.currentUser.uid),
   });
 }
 
 export async function markChurchPrayerAnswered(prayerId: string, answered: boolean, answeredNote?: string): Promise<void> {
-  await updateDoc(doc(db, 'churchPrayers', prayerId), { answered, ...(answeredNote ? { answeredNote } : {}) });
+  await updateDoc(doc(opsDb, 'churchPrayers', prayerId), { answered, ...(answeredNote ? { answeredNote } : {}) });
 }
 
 export async function deleteChurchPrayer(prayerId: string): Promise<void> {
-  await deleteDoc(doc(db, 'churchPrayers', prayerId));
+  await deleteDoc(doc(opsDb, 'churchPrayers', prayerId));
 }
 
 // ── Legacy brand migration (slice 5) ────────────────────────────────────────

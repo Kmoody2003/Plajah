@@ -8,11 +8,13 @@
 // (full SA key JSON) and FIREBASE_API_KEY in the environment, exactly like server.ts.
 
 import * as nodeCrypto from 'node:crypto';
+import { OPS_COLLECTIONS, OPS_DATABASE_ID } from './opsCollections';
 
 const PROJECT_ID = process.env.FIREBASE_PROJECT_ID || 'gen-lang-client-0665118474';
 const DB_ID = process.env.FIREBASE_DB_ID || 'plajah-prod';
-const FS_DOC_ROOT = `projects/${PROJECT_ID}/databases/${DB_ID}/documents`;
-const FS_BASE = `https://firestore.googleapis.com/v1/${FS_DOC_ROOT}`;
+// The org back office lives in plajah-ops (services/opsCollections.ts); everything else in DB_ID.
+const docRootFor = (pathOrCollection: string) => `projects/${PROJECT_ID}/databases/${OPS_COLLECTIONS.has(pathOrCollection.split('/')[0]) ? OPS_DATABASE_ID : DB_ID}/documents`;
+const baseFor = (pathOrCollection: string) => `https://firestore.googleapis.com/v1/${docRootFor(pathOrCollection)}`;
 
 function serviceAccount(): { client_email: string; private_key: string } | null {
   const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
@@ -223,7 +225,7 @@ async function authHeaders(): Promise<Record<string, string>> {
 /** Get a document by path (e.g. 'learnerCredentials/maya.r'); null if missing. */
 export async function fsGet(path: string): Promise<Record<string, any> | null> {
   try {
-    const res = await fetch(`${FS_BASE}/${path}`, { headers: await authHeaders() });
+    const res = await fetch(`${baseFor(path)}/${path}`, { headers: await authHeaders() });
     if (res.status === 404) return null;
     if (!res.ok) return null;
     const data = await res.json() as any;
@@ -234,7 +236,7 @@ export async function fsGet(path: string): Promise<Record<string, any> | null> {
 /** Create-or-replace a document at a known id. Returns success. */
 export async function fsSet(path: string, data: Record<string, unknown>): Promise<boolean> {
   try {
-    const res = await fetch(`${FS_BASE}/${path}`, { method: 'PATCH', headers: await authHeaders(), body: JSON.stringify({ fields: toFields(data) }) });
+    const res = await fetch(`${baseFor(path)}/${path}`, { method: 'PATCH', headers: await authHeaders(), body: JSON.stringify({ fields: toFields(data) }) });
     return res.ok;
   } catch { return false; }
 }
@@ -243,7 +245,7 @@ export async function fsSet(path: string, data: Record<string, unknown>): Promis
 export async function fsPatch(path: string, data: Record<string, unknown>): Promise<boolean> {
   try {
     const mask = Object.keys(data).map(k => `updateMask.fieldPaths=${encodeURIComponent(k)}`).join('&');
-    const res = await fetch(`${FS_BASE}/${path}?${mask}`, { method: 'PATCH', headers: await authHeaders(), body: JSON.stringify({ fields: toFields(data) }) });
+    const res = await fetch(`${baseFor(path)}/${path}?${mask}`, { method: 'PATCH', headers: await authHeaders(), body: JSON.stringify({ fields: toFields(data) }) });
     return res.ok;
   } catch { return false; }
 }
@@ -251,7 +253,7 @@ export async function fsPatch(path: string, data: Record<string, unknown>): Prom
 /** Append a doc with an auto id to a collection. Returns new id or null. */
 export async function fsCreate(collection: string, data: Record<string, unknown>): Promise<string | null> {
   try {
-    const res = await fetch(`${FS_BASE}/${collection}`, { method: 'POST', headers: await authHeaders(), body: JSON.stringify({ fields: toFields(data) }) });
+    const res = await fetch(`${baseFor(collection)}/${collection}`, { method: 'POST', headers: await authHeaders(), body: JSON.stringify({ fields: toFields(data) }) });
     if (!res.ok) return null;
     const json = await res.json() as any;
     return json.name?.split('/').pop() ?? null;
@@ -260,7 +262,7 @@ export async function fsCreate(collection: string, data: Record<string, unknown>
 
 export async function fsDelete(path: string): Promise<boolean> {
   try {
-    const res = await fetch(`${FS_BASE}/${path}`, { method: 'DELETE', headers: await authHeaders() });
+    const res = await fetch(`${baseFor(path)}/${path}`, { method: 'DELETE', headers: await authHeaders() });
     return res.ok;
   } catch { return false; }
 }
@@ -282,14 +284,17 @@ export async function fsBatchWrite(docs: { path: string; data: Record<string, un
     if (byPath.size !== docs.length) docs = [...byPath.values()];
   }
   let ok = 0;
-  for (let start = 0; start < docs.length; start += 500) {
-    const chunk = docs.slice(start, start + 500);
+  // A batchWrite targets one database, so group by database first.
+  const byDb = new Map<string, typeof docs>();
+  for (const d of docs) { const k = docRootFor(d.path); byDb.set(k, [...(byDb.get(k) || []), d]); }
+  for (const [root, group] of byDb) for (let start = 0; start < group.length; start += 500) {
+    const chunk = group.slice(start, start + 500);
     try {
-      const res = await fetch(`${FS_BASE}:batchWrite`, {
+      const res = await fetch(`https://firestore.googleapis.com/v1/${root}:batchWrite`, {
         method: 'POST',
         headers: await authHeaders(),
         body: JSON.stringify({
-          writes: chunk.map(d => ({ update: { name: `${FS_DOC_ROOT}/${d.path}`, fields: toFields(d.data) } })),
+          writes: chunk.map(d => ({ update: { name: `${root}/${d.path}`, fields: toFields(d.data) } })),
         }),
       });
       if (!res.ok) {
@@ -322,7 +327,7 @@ export async function fsList(
   try {
     do {
       const qs = `pageSize=${pageSize}${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ''}`;
-      const res = await fetch(`${FS_BASE}/${collection}?${qs}`, { headers: await authHeaders() });
+      const res = await fetch(`${baseFor(collection)}/${collection}?${qs}`, { headers: await authHeaders() });
       if (!res.ok) break;
       const json = await res.json() as any;
       for (const d of json.documents ?? []) {
@@ -352,7 +357,7 @@ export async function fsQuery(
   const where = filters.length === 1 ? fieldFilter(filters[0]) : { compositeFilter: { op: 'AND', filters: filters.map(fieldFilter) } };
   const body = { structuredQuery: { from: [{ collectionId: collection }], where, limit } };
   try {
-    const res = await fetch(`${FS_BASE}:runQuery`, { method: 'POST', headers: await authHeaders(), body: JSON.stringify(body) });
+    const res = await fetch(`${baseFor(collection)}:runQuery`, { method: 'POST', headers: await authHeaders(), body: JSON.stringify(body) });
     if (!res.ok) return [];
     const rows = await res.json() as any[];
     return rows.filter(r => r.document).map(r => ({ id: String(r.document.name).split('/').pop()!, data: r.document.fields ? fromFields(r.document.fields) : {} }));

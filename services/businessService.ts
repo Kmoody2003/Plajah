@@ -1,6 +1,6 @@
 import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, deleteField, query, where, orderBy, limit, addDoc, runTransaction } from 'firebase/firestore';
 import { onSnapshot } from './safeSnapshot';
-import { db, auth } from './firebase';
+import { db, opsDb, auth } from './firebase';
 import {
   BusinessPage, BusinessOrder, BusinessReward, DigitalSignageSlide,
   SeedRaiserCampaign, SeedRaiserPledge, SeedRaiserReward, CrmContact
@@ -119,7 +119,7 @@ export async function updateOrderStatus(
 
 export async function fetchCrmContacts(businessId: string): Promise<CrmContact[]> {
   const q = query(
-    collection(db, 'crmContacts'),
+    collection(opsDb, 'crmContacts'),
     where('businessId', '==', businessId),
     orderBy('name', 'asc')
   );
@@ -133,12 +133,12 @@ export async function saveCrmContact(contact: Partial<CrmContact>): Promise<CrmC
   const now = Date.now();
 
   if (contact.id) {
-    const ref = doc(db, 'crmContacts', contact.id);
+    const ref = doc(opsDb, 'crmContacts', contact.id);
     await updateDoc(ref, { ...contact, updatedAt: now });
     return contact as CrmContact;
   }
 
-  const ref = doc(collection(db, 'crmContacts'));
+  const ref = doc(collection(opsDb, 'crmContacts'));
   const newContact: CrmContact = {
     id: ref.id,
     businessId: contact.businessId!,
@@ -156,7 +156,7 @@ export async function saveCrmContact(contact: Partial<CrmContact>): Promise<CrmC
 }
 
 export async function deleteCrmContact(id: string): Promise<void> {
-  await deleteDoc(doc(db, 'crmContacts', id));
+  await deleteDoc(doc(opsDb, 'crmContacts', id));
 }
 
 // ── Business Rewards ──────────────────────────────────────────────────────────

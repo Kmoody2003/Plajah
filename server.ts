@@ -153,6 +153,8 @@ import { createBilling } from './routes/billing';
 import { deriveAlerts as pulseDeriveAlerts, alertAudience as pulseAudience, prefAllows as pulsePrefAllows } from './services/acctPulse';
 import { isFutureRelease } from './services/releases/visibility';
 import { filmDistributionOf, resolveFilmCharge } from './services/filmPricing';
+import { dbIdFor } from './services/opsCollections';
+import { mirrorDoc, reconcileMirrors, isMirroredPath, subjectToDoc } from './services/opsMirror';
 
 // Load .env.local (development) or .env (production) — no dotenv dependency needed
 for (const envFile of ['.env.local', '.env']) {
@@ -966,7 +968,7 @@ function pickSocialTrack(fields: any, track?: string): { cover: string; audio: s
 // Simple REST fetch for Firebase DB without needing admin SDK initialized
 const fetchFirebaseDoc = async (collection: string, id: string) => {
   const projectId = 'gen-lang-client-0665118474';
-  const dbId = 'plajah-prod';
+  const dbId = dbIdFor(collection);
   const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${dbId}/documents/${collection}/${id}`;
   try {
     const res = await fetch(url, { headers: await firestoreAuthHeaders() });
@@ -1009,7 +1011,7 @@ const decodeFirestoreFields = (f: any = {}): any => {
 // media-federation API (media-library API Phase 1).
 const queryFirebase = async (collectionId: string, filters: Array<{ field: string; value: any }>, limitN = 100) => {
   const projectId = 'gen-lang-client-0665118474';
-  const dbId = 'plajah-prod';
+  const dbId = dbIdFor(collectionId);
   const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${dbId}/documents:runQuery`;
   const toVal = (v: any) => typeof v === 'number' ? { integerValue: String(v) } : typeof v === 'boolean' ? { booleanValue: v } : { stringValue: String(v) };
   const fieldFilters = filters.map(f => ({ fieldFilter: { field: { fieldPath: f.field }, op: 'EQUAL', value: toVal(f.value) } }));
@@ -1034,7 +1036,7 @@ const fsQueryDocs = async (
   limitN = 200,
 ): Promise<Array<{ id: string; data: Record<string, any> }>> => {
   const projectId = 'gen-lang-client-0665118474';
-  const dbId = 'plajah-prod';
+  const dbId = dbIdFor(collectionId);
   const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${dbId}/documents:runQuery`;
   const toVal = (v: any) => typeof v === 'number' ? { doubleValue: v } : typeof v === 'boolean' ? { booleanValue: v } : { stringValue: String(v) };
   const fieldFilters = filters.map(f => ({ fieldFilter: { field: { fieldPath: f.field }, op: f.op, value: toVal(f.value) } }));
@@ -1657,7 +1659,7 @@ function secretsEqual(provided: unknown, expected: unknown): boolean {
 // Firestore REST helper (reuses existing fetchFirebaseDoc pattern)
 async function firestoreWrite(collection: string, id: string, data: object, requireSuccess = false) {
   const projectId = 'gen-lang-client-0665118474';
-  const dbId = 'plajah-prod';
+  const dbId = dbIdFor(collection);
   // updateMask makes this a MERGE (upsert): only the provided fields are written,
   // every other field on the doc is preserved. Without it, a PATCH replaces the
   // whole document — which was silently wiping user profiles (and deleting
@@ -1699,7 +1701,7 @@ async function firestoreIncrement(
   set: Record<string, string | number> = {},
 ): Promise<boolean> {
   const projectId = 'gen-lang-client-0665118474';
-  const dbId = 'plajah-prod';
+  const dbId = dbIdFor(path);
   const docName = `projects/${projectId}/databases/${dbId}/documents/${path}`;
   const fieldTransforms = Object.entries(increments).map(([field, by]) => ({
     fieldPath: field,
@@ -1743,10 +1745,10 @@ async function firestoreIncrement(
  * and a retry after a half-failed first attempt still completes the enrollment.
  */
 async function firestoreArrayUnion(path: string, field: string, values: string[]): Promise<boolean> {
-  const docName = `projects/gen-lang-client-0665118474/databases/plajah-prod/documents/${path}`;
+  const docName = `projects/gen-lang-client-0665118474/databases/${dbIdFor(path)}/documents/${path}`;
   try {
     const res = await fetch(
-      'https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/plajah-prod/documents:commit',
+      `https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/${dbIdFor(path)}/documents:commit`,
       {
         method: 'POST',
         headers: await firestoreAuthHeaders(),
@@ -1783,7 +1785,7 @@ async function enrollPaidLearner(courseId: string, uid: string, now = Date.now()
 
 async function firestoreCreate(collection: string, data: object) {
   const projectId = 'gen-lang-client-0665118474';
-  const dbId = 'plajah-prod';
+  const dbId = dbIdFor(collection);
   const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${dbId}/documents/${collection}`;
   const fields: any = {};
   for (const [k, v] of Object.entries(data)) {
@@ -1807,7 +1809,7 @@ async function firestoreCreate(collection: string, data: object) {
 /** Read a single doc's scalar fields (Firestore REST GET). Returns null if absent. */
 async function firestoreRead(collection: string, id: string): Promise<Record<string, any> | null> {
   const projectId = 'gen-lang-client-0665118474';
-  const dbId = 'plajah-prod';
+  const dbId = dbIdFor(collection);
   const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${dbId}/documents/${collection}/${id}`;
   try {
     const res = await fetch(url, { headers: await firestoreAuthHeaders() });
@@ -1871,7 +1873,7 @@ function jsToFsValue(x: any): any {
 }
 /** GET a doc and deep-parse ALL fields (including nested maps/arrays). */
 async function firestoreGetDeep(collection: string, id: string): Promise<Record<string, any> | null> {
-  const url = `https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/plajah-prod/documents/${collection}/${id}`;
+  const url = `https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/${dbIdFor(collection)}/documents/${collection}/${id}`;
   try {
     const res = await fetch(url, { headers: await firestoreAuthHeaders() });
     if (!res.ok) return null;
@@ -1884,7 +1886,7 @@ async function firestoreGetDeep(collection: string, id: string): Promise<Record<
 /** PATCH specific fields with deep conversion (preserves everything not named in updateMask). */
 async function firestorePatchDeep(collection: string, id: string, fieldsJs: Record<string, any>): Promise<boolean> {
   const mask = Object.keys(fieldsJs).map(k => `updateMask.fieldPaths=${encodeURIComponent(k)}`).join('&');
-  const url = `https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/plajah-prod/documents/${collection}/${id}?${mask}`;
+  const url = `https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/${dbIdFor(collection)}/documents/${collection}/${id}?${mask}`;
   const fields: Record<string, any> = {};
   for (const [k, v] of Object.entries(fieldsJs)) fields[k] = jsToFsValue(v);
   try {
@@ -1900,7 +1902,7 @@ async function firestorePatchDeep(collection: string, id: string, fieldsJs: Reco
  * same webhook can never both apply it.
  */
 async function firestoreCreateOnce(collection: string, id: string, data: Record<string, any>): Promise<'created' | 'exists' | 'error'> {
-  const url = `https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/plajah-prod/documents/${collection}?documentId=${encodeURIComponent(id)}`;
+  const url = `https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/${dbIdFor(collection)}/documents/${collection}?documentId=${encodeURIComponent(id)}`;
   const fields: Record<string, any> = {};
   for (const [k, v] of Object.entries(data)) if (v !== undefined) fields[k] = jsToFsValue(v);
   try {
@@ -2077,7 +2079,7 @@ async function syncSanctuarySubscription(sub: any, deleted: boolean): Promise<vo
 }
 
 async function firestoreDeleteDoc(collection: string, id: string): Promise<void> {
-  const url = `https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/plajah-prod/documents/${collection}/${id}`;
+  const url = `https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/${dbIdFor(collection)}/documents/${collection}/${id}`;
   try { await fetch(url, { method: 'DELETE', headers: await firestoreAuthHeaders() }); } catch { /* best-effort rollback */ }
 }
 
@@ -5877,6 +5879,36 @@ async function startServer() {
     }
   });
 
+  // ─── plajah-ops mirrors (services/opsMirror.ts) ─────────────────────────────────────────────────
+  // The ops database's rules authorize against copies of organizations / productions / businessPages /
+  // admins. Both routes only re-copy the CURRENT plajah-prod doc and ignore any body, so they need no
+  // auth: a forged call can only cause a redundant copy (rate-limited).
+  const opsMirrorLimit = rateLimit({ windowMs: 60_000, max: 120, standardHeaders: true, legacyHeaders: false });
+  // Eventarc Firestore "document.written" trigger on plajah-prod (scripts/provisionOpsDatabase.mjs).
+  app.post('/api/ops-mirror/event', opsMirrorLimit, async (req, res) => {
+    const target = subjectToDoc(String(req.headers['ce-subject'] || ''));
+    if (!target) return res.status(204).end();
+    const r = await mirrorDoc(firestoreAuthHeaders, target.collection, target.id);
+    // A non-2xx makes Eventarc retry, which is what an 'error' should get.
+    res.status(r === 'error' ? 503 : 204).end();
+  });
+  // The client calls this right after it creates or edits an org, so ops access (e.g. the onboarding
+  // vault) doesn't wait on the trigger.
+  app.post('/api/ops-mirror/sync', opsMirrorLimit, express.json({ limit: '2kb' }), async (req, res) => {
+    const collection = String(req.body?.collection || ''), id = String(req.body?.id || '');
+    if (!isMirroredPath(collection, id)) return res.status(400).json({ error: 'Not a mirrored document' });
+    const r = await mirrorDoc(firestoreAuthHeaders, collection, id);
+    res.status(r === 'error' ? 503 : 200).json({ result: r });
+  });
+  // Safety net for missed events: full reconcile shortly after boot and every 15 minutes.
+  const runOpsReconcile = () => reconcileMirrors(firestoreAuthHeaders)
+    .then(t => { const bad = Object.entries(t).filter(([, v]) => v.errors); if (bad.length) console.warn('[opsMirror] reconcile errors', JSON.stringify(t)); })
+    .catch(e => console.warn('[opsMirror] reconcile failed:', e?.message));
+  if (process.env.NODE_ENV === 'production') {
+    setTimeout(runOpsReconcile, 30_000).unref?.();
+    setInterval(runOpsReconcile, 15 * 60_000).unref?.();
+  }
+
   // POST /api/live/finalize — assemble a real-time cloud recording (segments uploaded live to
   // liveRecordings/{streamId}/seg_*) and hand it to Mux, so ending a stream needs NO device upload.
   // Concatenates the segments (a valid WebM in order) and PUTs the result straight into a Mux
@@ -8278,7 +8310,7 @@ async function startServer() {
           limit: PAGE,
         },
       };
-      const qRes = await fetch(`${FS}:runQuery`, { method: 'POST', headers: authHeaders, body: JSON.stringify(queryBody) });
+      const qRes = await fetch(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/${dbIdFor(col)}/documents:runQuery`, { method: 'POST', headers: authHeaders, body: JSON.stringify(queryBody) });
       if (!qRes.ok) throw new Error(`${col} query ${qRes.status}: ${(await qRes.text()).slice(0, 160)}`);
       const rows: any[] = await qRes.json();
       const docs = rows.filter(r => r.document).map(r => r.document);
@@ -10769,10 +10801,10 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
   // services/casCore.casUpdate does read -> decide -> guarded write -> retry. That gives refunds and drawer
   // edits compare-and-swap semantics on a single document without REST beginTransaction/commit plumbing,
   // and works on any number of Cloud Run instances (unlike the in-process mutex it replaces).
-  const FS_DOCS = 'https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/plajah-prod/documents';
+  const FS_DOCS_FOR = (collectionPath: string) => `https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/${dbIdFor(collectionPath)}/documents`;
   const restCas = (collectionPath: string): CasStore => ({
     async get(id) {
-      const r = await fetch(`${FS_DOCS}/${collectionPath}/${encodeURIComponent(id)}`, { headers: await firestoreAuthHeaders() });
+      const r = await fetch(`${FS_DOCS_FOR(collectionPath)}/${collectionPath}/${encodeURIComponent(id)}`, { headers: await firestoreAuthHeaders() });
       if (r.status === 404) return null;
       if (!r.ok) throw new Error(`cas read ${collectionPath}/${id} failed: HTTP ${r.status}`);
       const j = await r.json() as any;
@@ -10785,7 +10817,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
       const fields: Record<string, any> = {};
       for (const k of keys) fields[k] = jsToFsValue(patch[k]);
       try {
-        const r = await fetch(`${FS_DOCS}/${collectionPath}/${encodeURIComponent(id)}?${mask}&${pre}`, { method: 'PATCH', headers: await firestoreAuthHeaders(), body: JSON.stringify({ fields }) });
+        const r = await fetch(`${FS_DOCS_FOR(collectionPath)}/${collectionPath}/${encodeURIComponent(id)}?${mask}&${pre}`, { method: 'PATCH', headers: await firestoreAuthHeaders(), body: JSON.stringify({ fields }) });
         if (r.ok) return 'ok';
         const body = await r.text().catch(() => '');
         if (r.status === 409 || r.status === 412 || (r.status === 400 && /FAILED_PRECONDITION|ALREADY_EXISTS/.test(body))) return 'conflict';
@@ -10797,7 +10829,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
   /** Delete specific fields from a doc (PATCH with a mask naming them and no value removes them). */
   const firestoreDeleteFields = async (collectionPath: string, id: string, fieldNames: string[]): Promise<boolean> => {
     const mask = fieldNames.map(k => `updateMask.fieldPaths=${encodeURIComponent(k)}`).join('&');
-    try { const r = await fetch(`${FS_DOCS}/${collectionPath}/${encodeURIComponent(id)}?${mask}`, { method: 'PATCH', headers: await firestoreAuthHeaders(), body: JSON.stringify({ fields: {} }) }); return r.ok; } catch { return false; }
+    try { const r = await fetch(`${FS_DOCS_FOR(collectionPath)}/${collectionPath}/${encodeURIComponent(id)}?${mask}`, { method: 'PATCH', headers: await firestoreAuthHeaders(), body: JSON.stringify({ fields: {} }) }); return r.ok; } catch { return false; }
   };
   const pinAttempts = new Map<string, AttemptState>();
   const pinGuard = (key: string) => isLocked(pinAttempts.get(key), Date.now());

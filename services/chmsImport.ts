@@ -4,7 +4,7 @@
 // Bad rows never throw: they become issues in the plan. Re-importing the same file updates, never duplicates
 // (new docs get deterministic ids; existing docs are matched by source id, email, name+birthdate/phone…).
 
-import { db } from './firebase';
+import { opsDb } from './firebase';
 import { collection, doc, getDocs, query, where, writeBatch, setDoc, updateDoc } from 'firebase/firestore';
 import { elevateCan } from './elevateRoles';
 import { updateOrganization } from './organizationService';
@@ -139,7 +139,7 @@ const same = (a: any, b: any) => JSON.stringify(a) === JSON.stringify(b);
 
 async function loadColl<T>(coll: string, orgId: string, warnings: string[], label: string): Promise<T[]> {
   try {
-    const snap = await getDocs(query(collection(db, coll), where('orgId', '==', orgId)));
+    const snap = await getDocs(query(collection(opsDb, coll), where('orgId', '==', orgId)));
     return snap.docs.map(d => ({ ...(d.data() as any), id: d.id }) as T);
   } catch (e: any) {
     warnings.push(`Could not read existing ${label} (${e?.code || e?.message || 'error'}) - duplicates against them cannot be detected.`);
@@ -777,7 +777,7 @@ export async function commitPlan(
   const { org } = ctx;
   const rt = plan.runtime;
   const total = plan.ops.length;
-  const ledgerRef = doc(db, CHMS_COLL.imports, plan.importId);
+  const ledgerRef = doc(opsDb, CHMS_COLL.imports, plan.importId);
   const baseLedger = (status: ChmsImport['status']): ChmsImport & Record<string, any> => ({
     id: plan.importId, orgId: plan.orgId, sourceSystem: plan.sourceSystem, startedBy: plan.uid, startedAt: plan.builtAt,
     counts: adjustedCounts(plan), status, fileNames: plan.fileNames,
@@ -813,8 +813,8 @@ export async function commitPlan(
     let ok = false;
     for (let attempt = 0; attempt < 2 && !ok; attempt++) {
       try {
-        const b = writeBatch(db);
-        for (const op of slice) { const r = doc(db, op.coll, op.id); op.merge ? b.set(r, op.data, { merge: true }) : b.set(r, op.data); }
+        const b = writeBatch(opsDb);
+        for (const op of slice) { const r = doc(opsDb, op.coll, op.id); op.merge ? b.set(r, op.data, { merge: true }) : b.set(r, op.data); }
         await b.commit();
         ok = true;
       } catch { /* retry, then isolate */ }
@@ -822,7 +822,7 @@ export async function commitPlan(
     if (!ok) {
       let succeeded = 0;
       for (const op of slice) {
-        try { await setDoc(doc(db, op.coll, op.id), op.data, op.merge ? { merge: true } : {}); succeeded++; }
+        try { await setDoc(doc(opsDb, op.coll, op.id), op.data, op.merge ? { merge: true } : {}); succeeded++; }
         catch (e: any) {
           const message = e?.code === 'permission-denied' ? 'Permission denied' : (e?.message || 'Write failed');
           rt.failed.push({ op, message }); failures.push({ kind: op.kind, id: op.id, message });
@@ -867,7 +867,7 @@ export function buildIssuesCsv(plan: ImportPlan): string {
 
 // ── History + rollback ───────────────────────────────────────────────────────
 export async function fetchImports(orgId: string): Promise<(ChmsImport & { rollbackAllowed?: boolean; rolledBackAt?: number; totals?: { gifts: number; amount: number } })[]> {
-  const snap = await getDocs(query(collection(db, CHMS_COLL.imports), where('orgId', '==', orgId)));
+  const snap = await getDocs(query(collection(opsDb, CHMS_COLL.imports), where('orgId', '==', orgId)));
   return snap.docs.map(d => ({ ...(d.data() as any), id: d.id })).sort((a, b) => (b.startedAt || 0) - (a.startedAt || 0));
 }
 
@@ -885,7 +885,7 @@ export async function rollbackImport(
   onProgress?: (msg: string) => void,
 ): Promise<RollbackResult> {
   const res: RollbackResult = { deleted: 0, voided: 0, failed: 0, skipped: [], message: '' };
-  const q = (coll: string) => getDocs(query(collection(db, coll), where('orgId', '==', orgId), where('source.importId', '==', importId)));
+  const q = (coll: string) => getDocs(query(collection(opsDb, coll), where('orgId', '==', orgId), where('source.importId', '==', importId)));
   const now = Date.now();
 
   const run = async (coll: string, mode: 'delete' | 'void') => {
@@ -896,12 +896,12 @@ export async function rollbackImport(
       const slice = docs.slice(i, i + CHUNK).filter(d => mode === 'delete' || (d.data() as any).status !== 'VOID');
       const apply = (b: ReturnType<typeof writeBatch>, d: any) => mode === 'delete' ? b.delete(d.ref) : b.update(d.ref, { status: 'VOID', voidedBy: uid, voidReason: 'import rolled back', voidedAt: now });
       try {
-        const b = writeBatch(db); slice.forEach(d => apply(b, d)); await b.commit();
+        const b = writeBatch(opsDb); slice.forEach(d => apply(b, d)); await b.commit();
         mode === 'delete' ? (res.deleted += slice.length) : (res.voided += slice.length);
       } catch {
         for (const d of slice) {
           try {
-            if (mode === 'delete') { const b = writeBatch(db); b.delete(d.ref); await b.commit(); res.deleted++; }
+            if (mode === 'delete') { const b = writeBatch(opsDb); b.delete(d.ref); await b.commit(); res.deleted++; }
             else { await updateDoc(d.ref, { status: 'VOID', voidedBy: uid, voidReason: 'import rolled back', voidedAt: now }); res.voided++; }
           } catch { res.failed++; }
         }
@@ -914,7 +914,7 @@ export async function rollbackImport(
 
   const complete = res.failed === 0 && res.skipped.length === 0;
   try {
-    await setDoc(doc(db, CHMS_COLL.imports, importId), complete
+    await setDoc(doc(opsDb, CHMS_COLL.imports, importId), complete
       ? { status: 'ROLLED_BACK', rolledBackAt: now, rolledBackBy: uid, rollbackAllowed: false }
       : { rollbackNote: `Partial rollback ${new Date(now).toISOString()}: ${res.deleted} deleted, ${res.voided} voided, ${res.failed} failed`, lastRollbackAt: now }, { merge: true });
   } catch { /* ledger update is best-effort */ }
@@ -925,7 +925,7 @@ export async function rollbackImport(
 // ── Match-givers queue ───────────────────────────────────────────────────────
 /** Gifts that kept only a giver name (no personId), grouped by name. Finance-only (reads chmsContributions). */
 export async function fetchUnmatchedGivers(orgId: string): Promise<UnmatchedGiver[]> {
-  const snap = await getDocs(query(collection(db, CHMS_COLL.contributions), where('orgId', '==', orgId)));
+  const snap = await getDocs(query(collection(opsDb, CHMS_COLL.contributions), where('orgId', '==', orgId)));
   const m = new Map<string, UnmatchedGiver>();
   snap.docs.forEach(d => {
     const c = d.data() as ChmsContribution;
@@ -938,10 +938,10 @@ export async function fetchUnmatchedGivers(orgId: string): Promise<UnmatchedGive
 
 /** Link every unmatched gift with this exact giverName to a person (and their household). Returns gifts updated. */
 export async function linkGiverToPerson(orgId: string, giverName: string, person: { id: string; householdId?: string }): Promise<number> {
-  const snap = await getDocs(query(collection(db, CHMS_COLL.contributions), where('orgId', '==', orgId), where('giverName', '==', giverName)));
+  const snap = await getDocs(query(collection(opsDb, CHMS_COLL.contributions), where('orgId', '==', orgId), where('giverName', '==', giverName)));
   const targets = snap.docs.filter(d => !(d.data() as any).personId);
   for (let i = 0; i < targets.length; i += CHUNK) {
-    const b = writeBatch(db);
+    const b = writeBatch(opsDb);
     targets.slice(i, i + CHUNK).forEach(d => b.update(d.ref, clean({ personId: person.id, householdId: person.householdId })));
     await b.commit();
   }

@@ -2,7 +2,7 @@ import {
   collection, doc, getDoc, getDocs, limit, orderBy, query, setDoc, updateDoc, where,
 } from 'firebase/firestore';
 import { ref, uploadBytesResumable } from 'firebase/storage';
-import { auth, db, storage } from './firebase';
+import { auth, opsDb, storage } from './firebase';
 import { createNotification } from './backendService';
 import type {
   HqActivityEvent, HqAssetStatus, HqAssetVersion, HqComment, HqReviewDecision,
@@ -28,13 +28,13 @@ export async function recordHqActivity(
   meta?: HqActivityEvent['meta'],
 ): Promise<void> {
   const a = await actor();
-  const out = doc(collection(db, 'hqActivity'));
+  const out = doc(collection(opsDb, 'hqActivity'));
   await setDoc(out, clean({ id: out.id, assetId: asset.id, scopeKind: asset.scopeKind, scopeId: asset.scopeId,
     actorUid: a.uid, actorName: a.name, action, meta, createdAt: now() }));
 }
 
 export async function listHqVersions(assetId: string): Promise<HqAssetVersion[]> {
-  const snap = await getDocs(query(collection(db, 'hqAssetVersions'), where('assetId', '==', assetId), orderBy('version', 'desc')));
+  const snap = await getDocs(query(collection(opsDb, 'hqAssetVersions'), where('assetId', '==', assetId), orderBy('version', 'desc')));
   return snap.docs.map(d => d.data() as HqAssetVersion);
 }
 
@@ -42,7 +42,7 @@ export async function addHqVersion(asset: OrgAsset, file: File, changeNote?: str
   const a = await actor();
   const versions = await listHqVersions(asset.id);
   const number = (versions[0]?.version || asset.versionCount || 0) + 1;
-  const versionRef = doc(collection(db, 'hqAssetVersions'));
+  const versionRef = doc(collection(opsDb, 'hqAssetVersions'));
   const safe = file.name.replace(/[^\w.\-]+/g, '_');
   const storagePath = `protected-hq/${asset.scopeKind}/${asset.scopeId}/${asset.id}/v${number}_${safe}`;
   await new Promise<void>((resolve, reject) => {
@@ -55,7 +55,7 @@ export async function addHqVersion(asset: OrgAsset, file: File, changeNote?: str
   await setDoc(versionRef, version);
   // A replacement version is fresh bytes — re-quarantine to PENDING and rescan so a
   // clean-then-swap-in-malware path can't slip past the gate.
-  await updateDoc(doc(db, 'orgAssets', asset.id), { currentVersionId: version.id, versionCount: number,
+  await updateDoc(doc(opsDb, 'orgAssets', asset.id), { currentVersionId: version.id, versionCount: number,
     status: 'DRAFT', sizeBytes: file.size, mimeType: version.mimeType, name: file.name, scanStatus: 'PENDING', scanReason: '' });
   await recordHqActivity(asset, 'NEW_VERSION', { version: number, name: file.name });
   requestHqScan(asset.id).catch(() => { /* best-effort; asset stays PENDING until rescanned */ });
@@ -63,14 +63,14 @@ export async function addHqVersion(asset: OrgAsset, file: File, changeNote?: str
 }
 
 export async function listHqComments(assetId: string): Promise<HqComment[]> {
-  const snap = await getDocs(query(collection(db, 'hqComments'), where('assetId', '==', assetId), orderBy('createdAt', 'asc')));
+  const snap = await getDocs(query(collection(opsDb, 'hqComments'), where('assetId', '==', assetId), orderBy('createdAt', 'asc')));
   return snap.docs.map(d => d.data() as HqComment);
 }
 
 export async function addHqComment(input: Omit<HqComment, 'id' | 'authorUid' | 'authorName' | 'authorPhoto' | 'resolved' | 'createdAt'>, asset: OrgAsset): Promise<HqComment> {
   const a = await actor();
   if (!input.body.trim()) throw new Error('Write a comment first.');
-  const out = doc(collection(db, 'hqComments'));
+  const out = doc(collection(opsDb, 'hqComments'));
   const comment = clean({ ...input, id: out.id, authorUid: a.uid, authorName: a.name, authorPhoto: a.photo,
     body: input.body.trim().slice(0, 4000), resolved: false, createdAt: now() }) as HqComment;
   await setDoc(out, comment);
@@ -80,12 +80,12 @@ export async function addHqComment(input: Omit<HqComment, 'id' | 'authorUid' | '
 
 export async function resolveHqComment(comment: HqComment, asset: OrgAsset): Promise<void> {
   const a = await actor();
-  await updateDoc(doc(db, 'hqComments', comment.id), { resolved: true, resolvedAt: now(), resolvedByUid: a.uid });
+  await updateDoc(doc(opsDb, 'hqComments', comment.id), { resolved: true, resolvedAt: now(), resolvedByUid: a.uid });
   await recordHqActivity(asset, 'COMMENT_RESOLVED', { commentId: comment.id });
 }
 
 export async function listHqReviews(assetId: string): Promise<HqReviewRequest[]> {
-  const snap = await getDocs(query(collection(db, 'hqReviewRequests'), where('assetId', '==', assetId), orderBy('createdAt', 'desc'), limit(25)));
+  const snap = await getDocs(query(collection(opsDb, 'hqReviewRequests'), where('assetId', '==', assetId), orderBy('createdAt', 'desc'), limit(25)));
   return snap.docs.map(d => d.data() as HqReviewRequest);
 }
 
@@ -94,12 +94,12 @@ export async function requestHqReview(asset: OrgAsset, reviewerUids: string[], d
   if (!asset.currentVersionId) throw new Error('This asset has no reviewable version.');
   const ids = [...new Set(reviewerUids.map(x => x.trim()).filter(Boolean))];
   if (!ids.length) throw new Error('Add at least one reviewer.');
-  const out = doc(collection(db, 'hqReviewRequests'));
+  const out = doc(collection(opsDb, 'hqReviewRequests'));
   const decisions = Object.fromEntries(ids.map(id => [id, 'PENDING' as HqReviewDecision]));
   const review = clean({ id: out.id, assetId: asset.id, versionId: asset.currentVersionId,
     requestedByUid: a.uid, reviewerUids: ids, decisions, deadlineAt, message, status: 'OPEN', createdAt: now() }) as HqReviewRequest;
   await setDoc(out, review);
-  await updateDoc(doc(db, 'orgAssets', asset.id), { status: 'IN_REVIEW' satisfies HqAssetStatus });
+  await updateDoc(doc(opsDb, 'orgAssets', asset.id), { status: 'IN_REVIEW' satisfies HqAssetStatus });
   await recordHqActivity(asset, 'REVIEW_REQUESTED', { reviewId: out.id, reviewerCount: ids.length });
   await Promise.all(ids.filter(id => id !== a.uid).map(userId => createNotification({ userId, senderId: a.uid,
     senderName: a.name, senderPhoto: a.photo, type: 'CONTENT', title: 'Review requested',
@@ -114,37 +114,37 @@ export async function decideHqReview(review: HqReviewRequest, asset: OrgAsset, d
   const values = Object.values(decisions);
   const status = values.includes('CHANGES_REQUESTED') ? 'CHANGES_REQUESTED'
     : values.every(x => x === 'APPROVED') ? 'APPROVED' : 'OPEN';
-  await updateDoc(doc(db, 'hqReviewRequests', review.id), clean({ decisions, status,
+  await updateDoc(doc(opsDb, 'hqReviewRequests', review.id), clean({ decisions, status,
     completedAt: status === 'OPEN' ? undefined : now() }));
-  if (status !== 'OPEN') await updateDoc(doc(db, 'orgAssets', asset.id), clean({ status,
+  if (status !== 'OPEN') await updateDoc(doc(opsDb, 'orgAssets', asset.id), clean({ status,
     approvedAt: status === 'APPROVED' ? now() : undefined, approvedByUid: status === 'APPROVED' ? a.uid : undefined }));
   await recordHqActivity(asset, decision === 'APPROVED' ? 'APPROVED' : 'CHANGES_REQUESTED', { reviewId: review.id });
 }
 
 export async function setHqAssetStatus(asset: OrgAsset, status: HqAssetStatus): Promise<void> {
-  await updateDoc(doc(db, 'orgAssets', asset.id), { status });
+  await updateDoc(doc(opsDb, 'orgAssets', asset.id), { status });
   if (status === 'DELIVERED') await recordHqActivity(asset, 'DELIVERED');
 }
 
 export async function trashHqAsset(asset: OrgAsset): Promise<void> {
   const a = await actor();
-  await updateDoc(doc(db, 'orgAssets', asset.id), { deletedAt: now(), deletedByUid: a.uid,
+  await updateDoc(doc(opsDb, 'orgAssets', asset.id), { deletedAt: now(), deletedByUid: a.uid,
     retentionDeleteAt: now() + 30 * 24 * 60 * 60 * 1000 });
   await recordHqActivity(asset, 'TRASHED');
 }
 
 export async function restoreHqAsset(asset: OrgAsset): Promise<void> {
-  await updateDoc(doc(db, 'orgAssets', asset.id), { deletedAt: null, deletedByUid: null, retentionDeleteAt: null });
+  await updateDoc(doc(opsDb, 'orgAssets', asset.id), { deletedAt: null, deletedByUid: null, retentionDeleteAt: null });
   await recordHqActivity(asset, 'RESTORED');
 }
 
 export async function listHqActivity(assetId: string): Promise<HqActivityEvent[]> {
-  const snap = await getDocs(query(collection(db, 'hqActivity'), where('assetId', '==', assetId), orderBy('createdAt', 'desc'), limit(100)));
+  const snap = await getDocs(query(collection(opsDb, 'hqActivity'), where('assetId', '==', assetId), orderBy('createdAt', 'desc'), limit(100)));
   return snap.docs.map(d => d.data() as HqActivityEvent);
 }
 
 export async function updateHqRights(asset: OrgAsset, rights: OrgAsset['rights']): Promise<void> {
-  await updateDoc(doc(db, 'orgAssets', asset.id), { rights: clean(rights || {}) });
+  await updateDoc(doc(opsDb, 'orgAssets', asset.id), { rights: clean(rights || {}) });
   await recordHqActivity(asset, 'RIGHTS_UPDATED');
 }
 
@@ -154,7 +154,7 @@ export async function createHqShareLink(asset: OrgAsset, options?: Partial<Pick<
   const token = Array.from(raw, b => b.toString(16).padStart(2, '0')).join('');
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token));
   const tokenHash = Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join('');
-  const out = doc(collection(db, 'hqShareLinks'));
+  const out = doc(collection(opsDb, 'hqShareLinks'));
   const share: HqShareLink = clean({ id: out.id, assetId: asset.id, scopeKind: asset.scopeKind, scopeId: asset.scopeId,
     tokenHash, createdByUid: a.uid, allowComments: options?.allowComments ?? true,
     allowApproval: options?.allowApproval ?? true,
@@ -167,18 +167,18 @@ export async function createHqShareLink(asset: OrgAsset, options?: Partial<Pick<
 
 /** Owner-only: revoke a share/review link. Every guest endpoint re-checks `revokedAt` server-side. */
 export async function revokeHqShareLink(asset: OrgAsset, shareId: string): Promise<void> {
-  await updateDoc(doc(db, 'hqShareLinks', shareId), { revokedAt: now() });
+  await updateDoc(doc(opsDb, 'hqShareLinks', shareId), { revokedAt: now() });
   await recordHqActivity(asset, 'SHARED', { shareId, revoked: true });
 }
 
 /** List a scope's share links so the owner can copy or revoke them. */
 export async function listHqShareLinks(assetId: string): Promise<HqShareLink[]> {
-  const snap = await getDocs(query(collection(db, 'hqShareLinks'), where('assetId', '==', assetId), orderBy('createdAt', 'desc'), limit(25)));
+  const snap = await getDocs(query(collection(opsDb, 'hqShareLinks'), where('assetId', '==', assetId), orderBy('createdAt', 'desc'), limit(25)));
   return snap.docs.map(d => d.data() as HqShareLink);
 }
 
 export async function fetchHqAsset(assetId: string): Promise<OrgAsset | null> {
-  const snap = await getDoc(doc(db, 'orgAssets', assetId));
+  const snap = await getDoc(doc(opsDb, 'orgAssets', assetId));
   return snap.exists() ? snap.data() as OrgAsset : null;
 }
 

@@ -4,7 +4,7 @@
 // Money on the wire and in docs is DOLLARS (see types.ts); all arithmetic here goes through integer cents.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { collection, deleteDoc, doc, query, setDoc, where } from 'firebase/firestore';
-import { auth, db } from './firebase';
+import { auth, opsDb } from './firebase';
 import { onSnapshot } from './safeSnapshot';
 import type {
   BillingBalance, BillingConnection, BillingCustomer, BillingEntityRef, BillingItem, BillingSettings,
@@ -97,24 +97,24 @@ export const billingApi = {
 
 // ── Firestore writes (customers / price book / settings are client-writable) ───
 const strip = <T extends object>(o: T): T => JSON.parse(JSON.stringify(o)); // drops undefined (Firestore throws on it)
-export const newId = (coll: string) => doc(collection(db, coll)).id;
+export const newId = (coll: string) => doc(collection(opsDb, coll)).id;
 
 export async function saveCustomer(entity: BillingEntityRef, c: Partial<BillingCustomer> & { name: string }): Promise<BillingCustomer> {
   const id = c.id || newId('billingCustomers');
   const full = strip({ ...c, id, entityKey: entityKey(entity), createdAt: c.createdAt || Date.now() }) as BillingCustomer;
-  await setDoc(doc(db, 'billingCustomers', id), full);
+  await setDoc(doc(opsDb, 'billingCustomers', id), full);
   return full;
 }
 export async function saveItem(entity: BillingEntityRef, it: Partial<BillingItem> & { name: string; unitAmount: number }): Promise<BillingItem> {
   const id = it.id || newId('billingItems');
   const full = strip({ ...it, id, entityKey: entityKey(entity), active: it.active ?? true, createdAt: it.createdAt || Date.now() }) as BillingItem;
-  await setDoc(doc(db, 'billingItems', id), full);
+  await setDoc(doc(opsDb, 'billingItems', id), full);
   return full;
 }
-export const deleteItem = (id: string) => deleteDoc(doc(db, 'billingItems', id));
+export const deleteItem = (id: string) => deleteDoc(doc(opsDb, 'billingItems', id));
 export async function saveSettings(entity: BillingEntityRef, s: Partial<BillingSettings>) {
   const key = entityKey(entity);
-  await setDoc(doc(db, 'billingSettings', key.replace(/[/]/g, '_')), strip({ ...s, entityKey: key, entity, updatedAt: Date.now() }), { merge: true });
+  await setDoc(doc(opsDb, 'billingSettings', key.replace(/[/]/g, '_')), strip({ ...s, entityKey: key, entity, updatedAt: Date.now() }), { merge: true });
 }
 
 // ── live lists ─────────────────────────────────────────────────────────────────
@@ -124,7 +124,7 @@ function useEntityList<T extends { id: string; createdAt?: number }>(coll: strin
   useEffect(() => {
     if (!enabled) { setLoading(false); return; }
     setLoading(true);
-    const unsub = onSnapshot(query(collection(db, coll), where('entityKey', '==', key)),
+    const unsub = onSnapshot(query(collection(opsDb, coll), where('entityKey', '==', key)),
       s => { setRows(s.docs.map(d => ({ ...(d.data() as any), id: d.id } as T)).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))); setError(null); setLoading(false); },
       e => { setError(e?.message || 'Could not load.'); setLoading(false); });
     return () => { try { (unsub as any)?.(); } catch { /* */ } };
@@ -141,7 +141,7 @@ export function useBillingSettings(entity: BillingEntityRef) {
   const key = entityKey(entity);
   const [settings, setSettings] = useState<BillingSettings | null>(null); const [loading, setLoading] = useState(true);
   useEffect(() => {
-    const unsub = onSnapshot(doc(db, 'billingSettings', key.replace(/[/]/g, '_')),
+    const unsub = onSnapshot(doc(opsDb, 'billingSettings', key.replace(/[/]/g, '_')),
       s => { setSettings(s.exists() ? (s.data() as BillingSettings) : null); setLoading(false); }, () => setLoading(false));
     return () => { try { (unsub as any)?.(); } catch { /* */ } };
   }, [key]);

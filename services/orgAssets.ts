@@ -1,6 +1,6 @@
 import { collection, doc, setDoc, deleteDoc, getDocs, query, where } from 'firebase/firestore';
 import { ref, uploadBytesResumable, deleteObject } from 'firebase/storage';
-import { db, auth, storage } from './firebase';
+import { opsDb, auth, storage } from './firebase';
 
 // ─────────────────────────────────────────────────────────────────────────
 // Org / per-account private Digital Asset Manager (Content HQ).
@@ -110,7 +110,7 @@ async function assertUnderHqCap(scope: OwnerScope, incomingBytes: number): Promi
 
 /** All Content HQ assets for a scope (client-sorted newest-first to avoid a composite index). */
 export async function listHqAssets(scope: OwnerScope, includeTrash = false): Promise<OrgAsset[]> {
-  const snap = await getDocs(query(collection(db, COLLECTION), where('scopeId', '==', scope.id)));
+  const snap = await getDocs(query(collection(opsDb, COLLECTION), where('scopeId', '==', scope.id)));
   const rows = snap.docs.map((d) => d.data() as OrgAsset).filter(a => includeTrash || !a.deletedAt);
   return rows.sort((a, b) => (b.uploadedAt || 0) - (a.uploadedAt || 0));
 }
@@ -124,7 +124,7 @@ export async function addHqAsset(
 ): Promise<OrgAsset> {
   const uid = await ensureAuthUid();
   await assertUnderHqCap(scope, file.size);
-  const id = doc(collection(db, COLLECTION)).id;
+  const id = doc(collection(opsDb, COLLECTION)).id;
   const safe = file.name.replace(/[^\w.\-]+/g, '_');
   const storagePath = `protected-hq/${scope.kind}/${scope.id}/${id}/${safe}`;
   const storageRef = ref(storage, storagePath);
@@ -158,9 +158,9 @@ export async function addHqAsset(
     versionCount: 1,
     uploadedAt: Date.now(),
   };
-  const versionRef = doc(collection(db, 'hqAssetVersions'));
+  const versionRef = doc(collection(opsDb, 'hqAssetVersions'));
   asset.currentVersionId = versionRef.id;
-  await setDoc(doc(db, COLLECTION, id), asset);
+  await setDoc(doc(opsDb, COLLECTION, id), asset);
   await setDoc(versionRef, {
     id: versionRef.id, assetId: id, version: 1, storagePath, name: file.name,
     mimeType, sizeBytes: file.size, uploadedByUid: uid, createdAt: Date.now(),
@@ -193,12 +193,12 @@ export async function requestHqScan(assetId: string): Promise<{ scanStatus: 'PEN
 
 /** Move an asset to a different folder (or clear it). */
 export async function setHqAssetFolder(asset: OrgAsset, folder: string | undefined): Promise<void> {
-  await setDoc(doc(db, COLLECTION, asset.id), { folder: folder || null }, { merge: true });
+  await setDoc(doc(opsDb, COLLECTION, asset.id), { folder: folder || null }, { merge: true });
 }
 
 /** Delete an asset's Firestore record + its Storage object (best-effort). */
 export async function deleteHqAsset(asset: OrgAsset): Promise<void> {
-  await deleteDoc(doc(db, COLLECTION, asset.id));
+  await deleteDoc(doc(opsDb, COLLECTION, asset.id));
   try { await deleteObject(ref(storage, asset.storagePath)); } catch { /* object may already be gone */ }
 }
 

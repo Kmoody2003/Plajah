@@ -9,7 +9,7 @@
 // 3. Immutable Security Telemetry: Logs blocked screenshot/print attempts and sensitive vault access.
 
 import { collection, doc, getDocs, limit, orderBy, query, setDoc, where } from 'firebase/firestore';
-import { db, auth } from './firebase';
+import { opsDb, auth } from './firebase';
 import { updateOrganization } from './organizationService';
 import { logOrgAction } from './orgAudit';
 import type { Organization, OrgMembership, OrgSecuritySettings } from '../types';
@@ -80,7 +80,7 @@ export async function logOrgSecurityEvent(
   if (!u || !orgId) return;
   const now = Date.now();
   try {
-    const ref = doc(collection(db, 'orgSecurityEvents'));
+    const ref = doc(collection(opsDb, 'orgSecurityEvents'));
     const ev: OrgSecurityEvent = {
       id: ref.id,
       orgId,
@@ -101,7 +101,7 @@ export async function logOrgSecurityEvent(
 export async function fetchOrgSecurityEvents(orgId: string, max = 40): Promise<OrgSecurityEvent[]> {
   try {
     const snap = await getDocs(
-      query(collection(db, 'orgSecurityEvents'), where('orgId', '==', orgId), limit(max)),
+      query(collection(opsDb, 'orgSecurityEvents'), where('orgId', '==', orgId), limit(max)),
     );
     return snap.docs
       .map(d => ({ id: d.id, ...d.data() } as OrgSecurityEvent))

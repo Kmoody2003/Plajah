@@ -14,7 +14,7 @@
 import {
   collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, query, setDoc, where, writeBatch,
 } from 'firebase/firestore';
-import { db } from '../firebase';
+import { opsDb } from '../firebase';
 import type { CrmActivity, CrmContact } from '../../types';
 import { planImport, type ImportPlan } from './crmCore';
 
@@ -41,7 +41,7 @@ export function subscribeContacts(
   cb: (contacts: CrmContact[]) => void,
   onError?: (e: Error) => void,
 ): () => void {
-  const q = query(collection(db, CONTACTS), where('businessId', '==', businessId));
+  const q = query(collection(opsDb, CONTACTS), where('businessId', '==', businessId));
   return onSnapshot(q, snap => {
     const rows = snap.docs.map(d => ({ ...(d.data() as CrmContact), id: d.id }));
     rows.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
@@ -66,7 +66,7 @@ export async function saveContact(
 ): Promise<CrmContact> {
   const now = Date.now();
   const isNew = !input.id;
-  const ref = isNew ? doc(collection(db, CONTACTS)) : doc(db, CONTACTS, input.id!);
+  const ref = isNew ? doc(collection(opsDb, CONTACTS)) : doc(opsDb, CONTACTS, input.id!);
   let before: CrmContact | null = prev ?? null;
   if (!isNew && !before) {
     const snap = await getDoc(ref);
@@ -97,7 +97,7 @@ export async function saveContact(
 }
 
 export async function deleteContact(id: string): Promise<void> {
-  await deleteDoc(doc(db, CONTACTS, id));
+  await deleteDoc(doc(opsDb, CONTACTS, id));
 }
 
 /** Patch many contacts at once (bulk tag / bulk stage). Stage changes get their own activity rows. */
@@ -109,15 +109,15 @@ export async function bulkUpdate(
   const now = Date.now();
   let n = 0;
   for (let i = 0; i < contacts.length; i += 200) {
-    const batch = writeBatch(db);
+    const batch = writeBatch(opsDb);
     for (const c of contacts.slice(i, i + 200)) {
       const patch = patchFor(c);
       if (!patch) continue;
       const stageChanged = !!patch.stageId && (patch.stageId !== c.stageId || (patch.pipelineId ?? c.pipelineId) !== c.pipelineId);
       const upd = clean({ ...patch, updatedAt: now, ...(stageChanged ? { stageEnteredAt: now } : {}) });
-      batch.set(doc(db, CONTACTS, c.id), upd, { merge: true });
+      batch.set(doc(opsDb, CONTACTS, c.id), upd, { merge: true });
       if (stageChanged) {
-        const a = doc(collection(db, ACTIVITIES));
+        const a = doc(collection(opsDb, ACTIVITIES));
         batch.set(a, clean<CrmActivity>({
           id: a.id, businessId: c.businessId, contactId: c.id, kind: 'stage', summary: 'Moved stage (bulk)',
           fromStageId: c.stageId, toStageId: patch.stageId, byUid: actor.uid, byName: actor.displayName, at: now,
@@ -139,8 +139,8 @@ export function subscribeActivities(
   onError?: (e: Error) => void,
 ): () => void {
   const q = contactId
-    ? query(collection(db, ACTIVITIES), where('businessId', '==', businessId), where('contactId', '==', contactId))
-    : query(collection(db, ACTIVITIES), where('businessId', '==', businessId));
+    ? query(collection(opsDb, ACTIVITIES), where('businessId', '==', businessId), where('contactId', '==', contactId))
+    : query(collection(opsDb, ACTIVITIES), where('businessId', '==', businessId));
   return onSnapshot(q, snap => {
     const rows = snap.docs.map(d => ({ ...(d.data() as CrmActivity), id: d.id }));
     rows.sort((a, b) => b.at - a.at);
@@ -149,7 +149,7 @@ export function subscribeActivities(
 }
 
 export async function logActivity(a: Omit<CrmActivity, 'id' | 'at'> & { at?: number }): Promise<CrmActivity> {
-  const ref = doc(collection(db, ACTIVITIES));
+  const ref = doc(collection(opsDb, ACTIVITIES));
   const row: CrmActivity = { ...a, id: ref.id, at: a.at ?? Date.now() };
   await setDoc(ref, clean(row));
   return row;
@@ -166,15 +166,15 @@ export async function recordCorrespondence(
 ): Promise<void> {
   const now = Date.now();
   for (let i = 0; i < contacts.length; i += 200) {
-    const batch = writeBatch(db);
+    const batch = writeBatch(opsDb);
     for (const c of contacts.slice(i, i + 200)) {
-      const a = doc(collection(db, ACTIVITIES));
+      const a = doc(collection(opsDb, ACTIVITIES));
       batch.set(a, clean<CrmActivity>({
         id: a.id, businessId: c.businessId, contactId: c.id, kind: info.kind, summary: info.summary,
         body: info.body ? info.body.slice(0, 4000) : undefined, templateId: info.templateId,
         byUid: actor.uid, byName: actor.displayName, at: now,
       }));
-      batch.set(doc(db, CONTACTS, c.id), { lastContactAt: now, updatedAt: now }, { merge: true });
+      batch.set(doc(opsDb, CONTACTS, c.id), { lastContactAt: now, updatedAt: now }, { merge: true });
     }
     await batch.commit();
   }
@@ -193,7 +193,7 @@ export async function importContacts(
 ): Promise<ImportResult> {
   let current = existing;
   if (!current) {
-    const snap = await getDocs(query(collection(db, CONTACTS), where('businessId', '==', businessId)));
+    const snap = await getDocs(query(collection(opsDb, CONTACTS), where('businessId', '==', businessId)));
     current = snap.docs.map(d => ({ ...(d.data() as CrmContact), id: d.id }));
   }
   const plan: ImportPlan = planImport(current, rows);
@@ -201,15 +201,15 @@ export async function importContacts(
   const ops: ((b: ReturnType<typeof writeBatch>) => void)[] = [];
   for (const r of plan.creates) {
     ops.push(b => {
-      const ref = doc(collection(db, CONTACTS));
+      const ref = doc(collection(opsDb, CONTACTS));
       b.set(ref, clean({ ...blankContact(businessId, ref.id, now), ...r, id: ref.id, businessId, source: r.source || 'import', updatedAt: now }));
     });
   }
   for (const u of plan.updates) {
-    ops.push(b => b.set(doc(db, CONTACTS, u.id), clean({ ...u.patch, updatedAt: now }), { merge: true }));
+    ops.push(b => b.set(doc(opsDb, CONTACTS, u.id), clean({ ...u.patch, updatedAt: now }), { merge: true }));
   }
   for (let i = 0; i < ops.length; i += 400) {
-    const batch = writeBatch(db);
+    const batch = writeBatch(opsDb);
     ops.slice(i, i + 400).forEach(op => op(batch));
     await batch.commit();
   }

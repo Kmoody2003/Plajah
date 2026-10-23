@@ -11,7 +11,7 @@
 import {
   collection, doc, getDocs, query, where, writeBatch, setDoc, updateDoc, limit as fbLimit,
 } from 'firebase/firestore';
-import { db, auth } from './firebase';
+import { opsDb, auth } from './firebase';
 import { logOrgAction, type OrgAuditAction } from './orgAudit';
 import { updateOrganization } from './organizationService';
 import { callGemini, callGeminiDetailed } from './geminiService';
@@ -55,7 +55,7 @@ export interface FinanceSnapshot {
 }
 
 async function listBy<T>(col: string, orgId: string, max = 50000): Promise<T[]> {
-  const snap = await getDocs(query(collection(db, col), where('orgId', '==', orgId), fbLimit(max)));
+  const snap = await getDocs(query(collection(opsDb, col), where('orgId', '==', orgId), fbLimit(max)));
   return snap.docs.map(d => ({ id: d.id, ...d.data() } as unknown as T));
 }
 
@@ -74,7 +74,7 @@ export async function fetchFinanceSnapshot(org: Organization, canSeeGivers = tru
     safe('households', listBy<ChmsHousehold>('chmsHouseholds', org.id), []),
     safe('meta', listBy<MetaDoc>('chmsFinanceMeta', org.id), []),
     safe('careFlags', listBy<CareFlag>('chmsCareFlags', org.id, 2000), []),
-    safe('online gifts', getDocs(query(collection(db, 'donations'), where('churchId', '==', org.id), fbLimit(20000))).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }) as any)), [] as any[]),
+    safe('online gifts', getDocs(query(collection(opsDb, 'donations'), where('churchId', '==', org.id), fbLimit(20000))).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }) as any)), [] as any[]),
   ]);
   const donations: NativeDonation[] = rawDon.map((x: any) => ({ id: x.id, fromId: x.fromId, fromName: x.fromName, churchId: x.churchId, fund: x.fund, amount: Number(x.amount) || 0, recurring: !!x.recurring, stripePaymentIntentId: x.stripePaymentIntentId || undefined, stripeSubscriptionId: x.stripeSubscriptionId || undefined, timestamp: toMillis(x.timestamp) }));
   const funds = org.givingFunds || [];
@@ -98,7 +98,7 @@ export async function finAudit(orgId: string, action: OrgAuditAction, target?: s
   const m = meta ? strip(meta) : undefined;
   logOrgAction(orgId, action, { targetName: target, meta: m }).catch(() => {});
   try {
-    const ref = doc(collection(db, 'chmsAudit'));
+    const ref = doc(collection(opsDb, 'chmsAudit'));
     await setDoc(ref, clean({ id: ref.id, orgId, actorUid: u.uid, actorName: actorName(), action, target, meta: m, timestamp: Date.now() }));
   } catch { /* audit is best-effort and must never block the money action */ }
 }
@@ -127,14 +127,14 @@ export async function enterGifts(org: Organization, drafts: GiftDraft[], people:
   const created: ChmsContribution[] = [];
   const byId = new Map(people.map(p => [p.id, p]));
   for (let i = 0; i < drafts.length; i += 150) {
-    const wb = writeBatch(db);
+    const wb = writeBatch(opsDb);
     for (const d of drafts.slice(i, i + 150)) {
       const err = validateDraft(d); if (err) throw new Error(err);
       if (d.batchId) { const b = batches.find(x => x.id === d.batchId); if (b && (b.status === 'POSTED' || b.status === 'DEPOSITED')) throw new Error(`Batch "${b.name}" is already posted — it is immutable. Open a new batch.`); }
       const p = d.personId ? byId.get(d.personId) : undefined;
-      const group = d.splits.length > 1 ? doc(collection(db, 'chmsContributions')).id : undefined;
+      const group = d.splits.length > 1 ? doc(collection(opsDb, 'chmsContributions')).id : undefined;
       for (const s of d.splits) {
-        const ref = doc(collection(db, 'chmsContributions'));
+        const ref = doc(collection(opsDb, 'chmsContributions'));
         const pledge = d.pledgeId ? pledges.find(x => x.id === d.pledgeId) : findPledgeFor(pledges, { personId: d.personId, householdId: p?.householdId, fundId: s.fundId, date: d.date });
         const row = clean({
           id: ref.id, orgId: org.id, personId: d.personId, householdId: p?.householdId, giverName: d.anonymous ? undefined : (p ? undefined : d.giverName?.trim()),
@@ -156,7 +156,7 @@ export async function enterGifts(org: Organization, drafts: GiftDraft[], people:
 // ── Batches ────────────────────────────────────────────────────────────────────
 export async function createBatch(org: Organization, name: string, date: string, expectedTotal?: number, expectedCount?: number): Promise<ChmsBatch> {
   const uid = uidOrThrow();
-  const ref = doc(collection(db, 'chmsBatches'));
+  const ref = doc(collection(opsDb, 'chmsBatches'));
   const b = clean({ id: ref.id, orgId: org.id, name: name.trim() || `Batch ${date}`, date, expectedTotal, expectedCount, status: 'OPEN', openedBy: uid, createdAt: Date.now() }) as ChmsBatch;
   await setDoc(ref, b);
   await finAudit(org.id, 'FIN_BATCH_OPENED', b.name, { batchId: b.id, expectedTotal, expectedCount });
@@ -168,7 +168,7 @@ export async function updateBatchControl(org: Organization, batch: ChmsBatch, pa
   if (patch.name !== undefined) u.name = patch.name; if (patch.date !== undefined) u.date = patch.date;
   if (patch.expectedTotal !== undefined) u.expectedTotal = patch.expectedTotal === null ? null : round2(patch.expectedTotal);
   if (patch.expectedCount !== undefined) u.expectedCount = patch.expectedCount;
-  await updateDoc(doc(db, 'chmsBatches', batch.id), u);
+  await updateDoc(doc(opsDb, 'chmsBatches', batch.id), u);
 }
 export type PostResult = 'POSTED' | 'PENDING_APPROVAL';
 export interface BatchStats { total: number; count: number; variance: number; countVariance: number; balanced: boolean; hasControl: boolean }
@@ -178,7 +178,7 @@ export async function postBatch(org: Organization, batch: ChmsBatch, stats: Batc
   if (stats.count === 0) throw new Error('Cannot post an empty batch.');
   const clearBalance = stats.hasControl && stats.balanced;
   if (clearBalance) {
-    await updateDoc(doc(db, 'chmsBatches', batch.id), { status: 'POSTED', postedAt: Date.now(), closedBy: uid });
+    await updateDoc(doc(opsDb, 'chmsBatches', batch.id), { status: 'POSTED', postedAt: Date.now(), closedBy: uid });
     await finAudit(org.id, 'FIN_BATCH_POSTED', batch.name, { batchId: batch.id, total: stats.total, count: stats.count });
     acctSync(org.id); return 'POSTED';
   }
@@ -186,11 +186,11 @@ export async function postBatch(org: Organization, batch: ChmsBatch, stats: Batc
   if (!reason) throw new Error(stats.hasControl ? 'This batch is out of balance — record an override reason to post it.' : 'No control total was set — enter the deposit-slip total, or record a reason to post without one.');
   const exposure = Math.max(Math.abs(stats.variance), stats.hasControl ? 0 : stats.total);
   if (needsApproval(org, exposure)) {
-    await updateDoc(doc(db, 'chmsBatches', batch.id), { overrideRequest: { by: uid, byName: actorName(), reason, variance: stats.variance, at: Date.now() } });
+    await updateDoc(doc(opsDb, 'chmsBatches', batch.id), { overrideRequest: { by: uid, byName: actorName(), reason, variance: stats.variance, at: Date.now() } });
     await finAudit(org.id, 'FIN_BATCH_OVERRIDE', batch.name, { batchId: batch.id, variance: stats.variance, reason, pending: true });
     return 'PENDING_APPROVAL';
   }
-  await updateDoc(doc(db, 'chmsBatches', batch.id), { status: 'POSTED', postedAt: Date.now(), closedBy: uid, overrideReason: reason, overrideVariance: stats.variance });
+  await updateDoc(doc(opsDb, 'chmsBatches', batch.id), { status: 'POSTED', postedAt: Date.now(), closedBy: uid, overrideReason: reason, overrideVariance: stats.variance });
   await finAudit(org.id, 'FIN_BATCH_OVERRIDE', batch.name, { batchId: batch.id, variance: stats.variance, reason, pending: false });
   await finAudit(org.id, 'FIN_BATCH_POSTED', batch.name, { batchId: batch.id, total: stats.total, override: true });
   acctSync(org.id); return 'POSTED';
@@ -199,20 +199,20 @@ export async function approveBatchOverride(org: Organization, batch: ChmsBatch):
   const uid = uidOrThrow();
   const req = batch.overrideRequest; if (!req) throw new Error('Nothing to approve.');
   if (req.by === uid) throw new Error('Two-person integrity: a different authorised user must approve this.');
-  await updateDoc(doc(db, 'chmsBatches', batch.id), { status: 'POSTED', postedAt: Date.now(), closedBy: req.by, approvedBy: uid, overrideReason: req.reason, overrideVariance: req.variance, overrideRequest: null });
+  await updateDoc(doc(opsDb, 'chmsBatches', batch.id), { status: 'POSTED', postedAt: Date.now(), closedBy: req.by, approvedBy: uid, overrideReason: req.reason, overrideVariance: req.variance, overrideRequest: null });
   await finAudit(org.id, 'FIN_APPROVED', batch.name, { batchId: batch.id, kind: 'BATCH_OVERRIDE', requestedBy: req.by });
   await finAudit(org.id, 'FIN_BATCH_POSTED', batch.name, { batchId: batch.id, override: true, approvedBy: uid });
   acctSync(org.id);
 }
 export async function rejectBatchOverride(org: Organization, batch: ChmsBatch): Promise<void> {
   uidOrThrow();
-  await updateDoc(doc(db, 'chmsBatches', batch.id), { overrideRequest: null });
+  await updateDoc(doc(opsDb, 'chmsBatches', batch.id), { overrideRequest: null });
   await finAudit(org.id, 'FIN_VOID_REJECTED', batch.name, { batchId: batch.id, kind: 'BATCH_OVERRIDE' });
 }
 export async function depositBatch(org: Organization, batch: ChmsBatch, ref?: string): Promise<void> {
   uidOrThrow();
   if (batch.status !== 'POSTED') throw new Error('Post the batch before marking it deposited.');
-  await updateDoc(doc(db, 'chmsBatches', batch.id), clean({ status: 'DEPOSITED', depositedAt: Date.now(), depositRef: ref?.trim() || undefined }));
+  await updateDoc(doc(opsDb, 'chmsBatches', batch.id), clean({ status: 'DEPOSITED', depositedAt: Date.now(), depositRef: ref?.trim() || undefined }));
   await finAudit(org.id, 'FIN_BATCH_DEPOSITED', batch.name, { batchId: batch.id, ref });
   acctSync(org.id);
 }
@@ -226,14 +226,14 @@ export async function voidGift(org: Organization, row: LedgerRow, all: LedgerRow
   if (!reason.trim()) throw new Error('A reason is required to void a gift.');
   const rows = groupRows(row, all);
   const total = sum(rows);
-  const wb = writeBatch(db);
+  const wb = writeBatch(opsDb);
   if (needsApproval(org, total)) {
-    rows.forEach(r => wb.update(doc(db, 'chmsContributions', r.id), { voidRequest: { by: uid, byName: actorName(), reason: reason.trim(), at: Date.now() } }));
+    rows.forEach(r => wb.update(doc(opsDb, 'chmsContributions', r.id), { voidRequest: { by: uid, byName: actorName(), reason: reason.trim(), at: Date.now() } }));
     await wb.commit();
     await finAudit(org.id, 'FIN_VOID_REQUESTED', `${money(total)} ${row.fundName}`, { ids: rows.map(r => r.id), total, reason, date: row.date });
     return 'PENDING_APPROVAL';
   }
-  rows.forEach(r => wb.update(doc(db, 'chmsContributions', r.id), { status: 'VOID', voidedBy: uid, voidReason: reason.trim(), voidedAt: Date.now() }));
+  rows.forEach(r => wb.update(doc(opsDb, 'chmsContributions', r.id), { status: 'VOID', voidedBy: uid, voidReason: reason.trim(), voidedAt: Date.now() }));
   await wb.commit();
   await finAudit(org.id, 'FIN_VOID', `${money(total)} ${row.fundName}`, { ids: rows.map(r => r.id), total, reason, date: row.date });
   acctSync(org.id); return 'VOIDED';
@@ -243,8 +243,8 @@ export async function approveVoid(org: Organization, row: LedgerRow, all: Ledger
   const req = row.voidRequest; if (!req) throw new Error('No pending void.');
   if (req.by === uid) throw new Error('Two-person integrity: a different authorised user must approve this void.');
   const rows = groupRows(row, all);
-  const wb = writeBatch(db);
-  rows.forEach(r => wb.update(doc(db, 'chmsContributions', r.id), { status: 'VOID', voidedBy: req.by, voidReason: req.reason, voidedAt: Date.now(), voidRequest: null }));
+  const wb = writeBatch(opsDb);
+  rows.forEach(r => wb.update(doc(opsDb, 'chmsContributions', r.id), { status: 'VOID', voidedBy: req.by, voidReason: req.reason, voidedAt: Date.now(), voidRequest: null }));
   await wb.commit();
   await finAudit(org.id, 'FIN_APPROVED', `${money(sum(rows))} ${row.fundName}`, { kind: 'VOID', ids: rows.map(r => r.id), requestedBy: req.by, reason: req.reason });
   await finAudit(org.id, 'FIN_VOID', `${money(sum(rows))} ${row.fundName}`, { ids: rows.map(r => r.id), reason: req.reason, approvedBy: uid });
@@ -253,8 +253,8 @@ export async function approveVoid(org: Organization, row: LedgerRow, all: Ledger
 export async function rejectVoid(org: Organization, row: LedgerRow, all: LedgerRow[]): Promise<void> {
   uidOrThrow();
   const rows = groupRows(row, all);
-  const wb = writeBatch(db);
-  rows.forEach(r => wb.update(doc(db, 'chmsContributions', r.id), { voidRequest: null }));
+  const wb = writeBatch(opsDb);
+  rows.forEach(r => wb.update(doc(opsDb, 'chmsContributions', r.id), { voidRequest: null }));
   await wb.commit();
   await finAudit(org.id, 'FIN_VOID_REJECTED', row.fundName, { ids: rows.map(r => r.id) });
 }
@@ -263,7 +263,7 @@ export async function rejectVoid(org: Organization, row: LedgerRow, all: LedgerR
 export async function savePledge(org: Organization, p: Omit<ChmsPledge, 'id' | 'createdAt' | 'orgId'> & { id?: string }): Promise<void> {
   uidOrThrow();
   if (!(p.amount > 0)) throw new Error('Pledge amount must be above zero.');
-  const ref = p.id ? doc(db, 'chmsPledges', p.id) : doc(collection(db, 'chmsPledges'));
+  const ref = p.id ? doc(opsDb, 'chmsPledges', p.id) : doc(collection(opsDb, 'chmsPledges'));
   if (p.id) await updateDoc(ref, clean({ ...p, orgId: org.id }));
   else await setDoc(ref, clean({ ...p, id: ref.id, orgId: org.id, createdAt: Date.now() }));
   await finAudit(org.id, 'FIN_PLEDGE', p.giverName || p.personId, { pledgeId: ref.id, amount: p.amount, fund: p.fundName, status: p.status });
@@ -271,7 +271,7 @@ export async function savePledge(org: Organization, p: Omit<ChmsPledge, 'id' | '
 /** Attach existing unattached matching gifts to a pledge (auto-match backfill). */
 export async function attachMatchingGifts(org: Organization, pledge: ChmsPledge, rows: LedgerRow[]): Promise<number> {
   const mine = rows.filter(r => r.origin === 'LEDGER' && r.status !== 'VOID' && !r.pledgeId && r.fundId === pledge.fundId && r.date >= pledge.startDate && r.date <= (pledge.endDate || addDays(pledge.startDate, 365)) && ((pledge.personId && r.personId === pledge.personId) || (pledge.householdId && r.householdId === pledge.householdId)));
-  for (let i = 0; i < mine.length; i += 400) { const wb = writeBatch(db); mine.slice(i, i + 400).forEach(r => wb.update(doc(db, 'chmsContributions', r.id), { pledgeId: pledge.id })); await wb.commit(); }
+  for (let i = 0; i < mine.length; i += 400) { const wb = writeBatch(opsDb); mine.slice(i, i + 400).forEach(r => wb.update(doc(opsDb, 'chmsContributions', r.id), { pledgeId: pledge.id })); await wb.commit(); }
   if (mine.length) await finAudit(org.id, 'FIN_PLEDGE', pledge.giverName || pledge.personId, { pledgeId: pledge.id, attached: mine.length });
   return mine.length;
 }
@@ -287,10 +287,10 @@ export async function recordTransfer(org: Organization, from: GivingFund, to: Gi
   if (!(amount > 0)) throw new Error('Amount must be above zero.');
   if (from.id === to.id) throw new Error('Choose two different funds.');
   if (!reason.trim()) throw new Error('A reason is required for a fund transfer.');
-  const pairId = doc(collection(db, 'chmsFinanceMeta')).id;
-  const wb = writeBatch(db);
+  const pairId = doc(collection(opsDb, 'chmsFinanceMeta')).id;
+  const wb = writeBatch(opsDb);
   for (const [f, signed] of [[from, -round2(amount)], [to, round2(amount)]] as [GivingFund, number][]) {
-    const ref = doc(collection(db, 'chmsFinanceMeta'));
+    const ref = doc(collection(opsDb, 'chmsFinanceMeta'));
     wb.set(ref, { id: ref.id, orgId: org.id, kind: 'TRANSFER', pairId, fundId: f.id, fundName: f.name, amount: signed, date, reason: reason.trim(), createdAt: Date.now(), createdBy: auth.currentUser!.uid });
   }
   await wb.commit();
@@ -307,13 +307,13 @@ export async function saveFinanceSettings(org: Organization, patch: { legalName?
 // ── Payouts + statements log + recurring ───────────────────────────────────────
 export async function savePayout(org: Organization, p: Omit<PayoutRec, 'id'>): Promise<void> {
   uidOrThrow();
-  const ref = doc(collection(db, 'chmsFinanceMeta'));
+  const ref = doc(collection(opsDb, 'chmsFinanceMeta'));
   await setDoc(ref, clean({ ...p, id: ref.id, orgId: org.id, kind: 'PAYOUT', createdAt: Date.now(), createdBy: auth.currentUser!.uid }));
   await finAudit(org.id, 'FIN_PAYOUT', p.ref || p.payoutDate, { gross: p.gross, fees: p.fees, net: p.net });
 }
 export async function logStatementRun(org: Organization, range: DateRange, mode: StatementLog['mode'], byHousehold: boolean, stmts: StatementData[]): Promise<void> {
   const uid = uidOrThrow();
-  const ref = doc(collection(db, 'chmsFinanceMeta'));
+  const ref = doc(collection(opsDb, 'chmsFinanceMeta'));
   await setDoc(ref, { id: ref.id, orgId: org.id, kind: 'STATEMENT_LOG', rangeLabel: range.label, from: range.from, to: range.to, mode, byHousehold, keys: stmts.map(s => s.key), count: stmts.length, at: Date.now(), by: uid, createdAt: Date.now(), createdBy: uid });
   await finAudit(org.id, 'FIN_STATEMENT', `${range.label} · ${mode}`, { count: stmts.length, mode, from: range.from, to: range.to });
 }
@@ -341,7 +341,7 @@ export const statementMailto = (s: StatementData, org: Organization): string =>
 
 export async function saveRecurring(org: Organization, r: Omit<RecurringSpec, 'id' | 'orgId'> & { id?: string }): Promise<void> {
   uidOrThrow();
-  const ref = r.id ? doc(db, 'chmsFinanceMeta', r.id) : doc(collection(db, 'chmsFinanceMeta'));
+  const ref = r.id ? doc(opsDb, 'chmsFinanceMeta', r.id) : doc(collection(opsDb, 'chmsFinanceMeta'));
   await setDoc(ref, clean({ ...r, id: ref.id, orgId: org.id, kind: 'RECURRING', createdAt: Date.now(), createdBy: auth.currentUser!.uid }), { merge: true });
   await finAudit(org.id, 'FIN_SETTINGS', 'recurring gift', { amount: r.amount, frequency: r.frequency });
 }
@@ -355,7 +355,7 @@ export async function runRecurring(org: Organization, specs: RecurringSpec[], pe
   }
   if (!drafts.length) return 0;
   await enterGifts(org, drafts, people, pledges, batches);
-  const wb = writeBatch(db); updates.forEach(u => wb.update(doc(db, 'chmsFinanceMeta', u.id), { lastGenerated: u.last })); await wb.commit();
+  const wb = writeBatch(opsDb); updates.forEach(u => wb.update(doc(opsDb, 'chmsFinanceMeta', u.id), { lastGenerated: u.last })); await wb.commit();
   return drafts.length;
 }
 
@@ -375,18 +375,18 @@ export async function syncCareFlags(org: Organization, rows: LedgerRow[], idx: P
   // Never re-open something a pastor already resolved within the last 90 days.
   const recentDone = new Set(existing.filter(f => f.status === 'DONE' && Date.now() - (f.resolvedAt || 0) < 90 * 86400000).map(f => `${f.kind}_${f.personId}`));
   const fresh = flags.filter(f => !recentDone.has(`${f.kind}_${f.personId}`));
-  for (let i = 0; i < fresh.length; i += 400) { const wb = writeBatch(db); fresh.slice(i, i + 400).forEach(f => wb.set(doc(db, 'chmsCareFlags', f.id), f)); await wb.commit(); }
+  for (let i = 0; i < fresh.length; i += 400) { const wb = writeBatch(opsDb); fresh.slice(i, i + 400).forEach(f => wb.set(doc(opsDb, 'chmsCareFlags', f.id), f)); await wb.commit(); }
   if (fresh.length) await finAudit(org.id, 'FIN_CARE_FLAG', `${fresh.length} care prompt(s) created`, { count: fresh.length });
   return fresh.length;
 }
 export async function fetchCareFlags(orgId: string): Promise<CareFlag[]> { try { return (await listBy<CareFlag>('chmsCareFlags', orgId, 2000)).sort((a, b) => b.createdAt - a.createdAt); } catch { return []; } }
-export async function resolveCareFlag(flag: CareFlag): Promise<void> { await updateDoc(doc(db, 'chmsCareFlags', flag.id), { status: 'DONE', resolvedBy: uidOrThrow(), resolvedAt: Date.now() }); }
+export async function resolveCareFlag(flag: CareFlag): Promise<void> { await updateDoc(doc(opsDb, 'chmsCareFlags', flag.id), { status: 'DONE', resolvedBy: uidOrThrow(), resolvedAt: Date.now() }); }
 
 // ── Linked-uid backfill (so givers can read their own gifts) ───────────────────
 export async function backfillLinkedUid(org: Organization, rows: LedgerRow[], people: ChmsPerson[]): Promise<number> {
   const byId = new Map(people.map(p => [p.id, p]));
   const todo = rows.filter(r => r.origin === 'LEDGER' && r.personId && byId.get(r.personId)?.linkedUid && r.linkedUid !== byId.get(r.personId)!.linkedUid);
-  for (let i = 0; i < todo.length; i += 400) { const wb = writeBatch(db); todo.slice(i, i + 400).forEach(r => wb.update(doc(db, 'chmsContributions', r.id), { linkedUid: byId.get(r.personId!)!.linkedUid })); await wb.commit(); }
+  for (let i = 0; i < todo.length; i += 400) { const wb = writeBatch(opsDb); todo.slice(i, i + 400).forEach(r => wb.update(doc(opsDb, 'chmsContributions', r.id), { linkedUid: byId.get(r.personId!)!.linkedUid })); await wb.commit(); }
   if (todo.length) await finAudit(org.id, 'FIN_SETTINGS', 'linkedUid backfill', { updated: todo.length });
   return todo.length;
 }
@@ -395,9 +395,9 @@ export async function backfillLinkedUid(org: Organization, rows: LedgerRow[], pe
 export interface MyGiving { person: ChmsPerson | null; rows: LedgerRow[]; org: Organization | null }
 export async function fetchMyGiving(orgId: string, uid: string): Promise<MyGiving> {
   const [contribSnap, personSnap, donSnap] = await Promise.all([
-    getDocs(query(collection(db, 'chmsContributions'), where('linkedUid', '==', uid), where('orgId', '==', orgId), fbLimit(5000))).catch(() => null),
-    getDocs(query(collection(db, 'chmsPeople'), where('linkedUid', '==', uid), where('orgId', '==', orgId), fbLimit(1))).catch(() => null),
-    getDocs(query(collection(db, 'donations'), where('fromId', '==', uid), where('churchId', '==', orgId), fbLimit(2000))).catch(() => null),
+    getDocs(query(collection(opsDb, 'chmsContributions'), where('linkedUid', '==', uid), where('orgId', '==', orgId), fbLimit(5000))).catch(() => null),
+    getDocs(query(collection(opsDb, 'chmsPeople'), where('linkedUid', '==', uid), where('orgId', '==', orgId), fbLimit(1))).catch(() => null),
+    getDocs(query(collection(opsDb, 'donations'), where('fromId', '==', uid), where('churchId', '==', orgId), fbLimit(2000))).catch(() => null),
   ]);
   const contribs = (contribSnap?.docs || []).map(d => ({ id: d.id, ...d.data() }) as ChmsContribution);
   const person = personSnap && personSnap.docs[0] ? ({ id: personSnap.docs[0].id, ...personSnap.docs[0].data() } as ChmsPerson) : null;

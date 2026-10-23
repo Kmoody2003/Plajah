@@ -97,24 +97,42 @@ jobs:
       # failed every rules deploy with "HTTP 400 invalid argument". Deploy the comment-stripped build
       # (firebase.json → firestore.rules.min). Fails here if it's ever over the limit again.
       - name: Build minified Firestore rules
-        run: node scripts/minifyRules.mjs firestore.rules firestore.rules.min
+        run: |
+          node scripts/minifyRules.mjs firestore.rules firestore.rules.min
+          node scripts/minifyRules.mjs firestore.ops.rules firestore.ops.rules.min
+
+      # Firebase caps the COMPILED ruleset at 256,000 bytes, separate from the source limit the minifier
+      # checks, and over it `firebase deploy` reports a misleading 409. Probe a throwaway release first
+      # so an oversized ruleset fails here with the real byte count.
+      - name: Probe compiled Firestore rules size
+        run: |
+          export RULES_ACCESS_TOKEN=$(gcloud auth print-access-token)
+          node scripts/probeRuleset.mjs firestore.rules.min
+          node scripts/probeRuleset.mjs firestore.ops.rules.min
+          # Back-office access must resolve through the mirrors, and the mirrors must stay closed to clients.
+          node scripts/testOpsRules.mjs firestore.ops.rules.min
 
       - name: Deploy Firestore + Storage rules
         run: npx firebase-tools@13.35.1 deploy --only firestore,storage --project gen-lang-client-0665118474 --non-interactive --force
 
-      # Prove the Firestore deploy landed: the live plajah-prod ruleset must be exactly the file we built.
+      # Prove the Firestore deploy landed: each database's live ruleset must be exactly the file we built
+      # (plajah-prod = firestore.rules.min, plajah-ops = firestore.ops.rules.min — see services/opsCollections.ts).
       - name: Verify live Firestore rules are current
         run: |
           set -euo pipefail
           PROJECT=gen-lang-client-0665118474
           TOKEN=$(gcloud auth print-access-token)
-          RULESET=$(curl -sf -H "Authorization: Bearer $TOKEN" -H "x-goog-user-project: $PROJECT"             "https://firebaserules.googleapis.com/v1/projects/$PROJECT/releases"             | python3 -c "import sys,json;d=json.load(sys.stdin);print(next(r['rulesetName'] for r in d['releases'] if r['name'].endswith('/cloud.firestore/plajah-prod')))")
-          curl -sf -H "Authorization: Bearer $TOKEN" -H "x-goog-user-project: $PROJECT"             "https://firebaserules.googleapis.com/v1/$RULESET"             | python3 -c "import sys,json;sys.stdout.write(json.load(sys.stdin)['source']['files'][0]['content'])" > live.rules
-          if ! cmp -s live.rules firestore.rules.min; then
-            echo "::error::Live Firestore rules (plajah-prod) differ from firestore.rules.min — the deploy did not land."
-            exit 1
-          fi
-          echo "Live Firestore rules verified: identical to firestore.rules.min."
+          RELEASES=$(curl -sf -H "Authorization: Bearer $TOKEN" -H "x-goog-user-project: $PROJECT" "https://firebaserules.googleapis.com/v1/projects/$PROJECT/releases")
+          for pair in plajah-prod:firestore.rules.min plajah-ops:firestore.ops.rules.min; do
+            DB=${pair%%:*}; FILE=${pair#*:}
+            RULESET=$(echo "$RELEASES" | python3 -c "import sys,json;d=json.load(sys.stdin);print(next(r['rulesetName'] for r in d['releases'] if r['name'].endswith('/cloud.firestore/$DB')))")
+            curl -sf -H "Authorization: Bearer $TOKEN" -H "x-goog-user-project: $PROJECT" "https://firebaserules.googleapis.com/v1/$RULESET"               | python3 -c "import sys,json;sys.stdout.write(json.load(sys.stdin)['source']['files'][0]['content'])" > live.rules
+            if ! cmp -s live.rules "$FILE"; then
+              echo "::error::Live Firestore rules ($DB) differ from $FILE — the deploy did not land."
+              exit 1
+            fi
+            echo "Live Firestore rules verified: $DB identical to $FILE."
+          done
 
       # Read the live Storage ruleset back and assert the uploads/** rule is present.
       # This is the guard the old setup lacked: it proves the deploy actually landed,

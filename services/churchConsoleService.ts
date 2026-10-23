@@ -3,7 +3,7 @@
 //   • people:    Servant-Keeper-style CSV import/export of congregants,
 //   • classes:   spin up a church class on the EdTech stack.
 
-import { db, auth } from './firebase';
+import { opsDb, auth } from './firebase';
 import { doc, collection, setDoc, getDocs, query, where } from 'firebase/firestore';
 import { createNotification, createClassroom } from './backendService';
 import { fetchOrgMembers } from './organizationService';
@@ -85,7 +85,7 @@ export async function importCongregantsCSV(churchId: string, csv: string): Promi
     const name = (iName >= 0 ? r[iName] : [r[iFirst] || '', r[iLast] || ''].join(' ')).trim();
     if (!name) continue;
     const id = `cong_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-    await setDoc(doc(db, 'congregants', id), {
+    await setDoc(doc(opsDb, 'congregants', id), {
       id, churchId, name,
       email: iEmail >= 0 ? r[iEmail] : '',
       phone: iPhone >= 0 ? r[iPhone] : '',
@@ -100,7 +100,7 @@ export async function importCongregantsCSV(churchId: string, csv: string): Promi
 
 export async function fetchCongregants(churchId: string): Promise<Congregant[]> {
   try {
-    const snap = await getDocs(query(collection(db, 'congregants'), where('churchId', '==', churchId)));
+    const snap = await getDocs(query(collection(opsDb, 'congregants'), where('churchId', '==', churchId)));
     return snap.docs.map(d => ({ id: d.id, ...d.data() } as Congregant)).sort((a, b) => a.name.localeCompare(b.name));
   } catch { return []; }
 }
@@ -118,7 +118,7 @@ export function exportCongregantsCSV(people: Congregant[]): string {
 export async function exportGivingCSV(churchId: string): Promise<string> {
   let donations: any[] = [];
   try {
-    const snap = await getDocs(query(collection(db, 'donations'), where('churchId', '==', churchId)));
+    const snap = await getDocs(query(collection(opsDb, 'donations'), where('churchId', '==', churchId)));
     donations = snap.docs.map(d => d.data());
   } catch { /* */ }
   const header = ['Date', 'Fund', 'Amount', 'Recurring'];

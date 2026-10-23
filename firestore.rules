@@ -127,27 +127,8 @@ service cloud.firestore {
       return request.resource.data.keys().hasAll(fields);
     }
 
-    function hasOnlyAllowedFields(fields) {
-      return request.resource.data.keys().hasOnly(fields);
-    }
 
-    function canAccessHqScope(data) {
-      return isAuthenticated() && (
-        (data.scopeKind == 'user' && data.scopeId == request.auth.uid) ||
-        (data.scopeKind == 'org' && exists(/databases/$(database)/documents/organizations/$(data.scopeId)) && (
-          request.auth.uid in get(/databases/$(database)/documents/organizations/$(data.scopeId)).data.admins ||
-          get(/databases/$(database)/documents/organizations/$(data.scopeId)).data.creatorId == request.auth.uid ||
-          // Staff/moderators holding MANAGE_CONTENT (denormalized on the org by
-          // organizationService.recomputeOrgStaffUids). Only owners/admins can write that array.
-          request.auth.uid in get(/databases/$(database)/documents/organizations/$(data.scopeId)).data.get('staffUids', [])
-        )) || isAdmin()
-      );
-    }
 
-    function canAccessHqAsset(assetId) {
-      return exists(/databases/$(database)/documents/orgAssets/$(assetId)) &&
-        canAccessHqScope(get(/databases/$(database)/documents/orgAssets/$(assetId)).data);
-    }
 
     match /sports_ingestion_runs/{docId} {
       allow read, write: if isAdmin();
@@ -370,13 +351,6 @@ service cloud.firestore {
              data.timestamp is number;
     }
 
-    function isValidPayItForwardWinner(data) {
-      return hasRequiredFields(['uid', 'amount', 'timestamp', 'status']) &&
-             data.uid is string &&
-             data.amount is number &&
-             data.timestamp is number &&
-             data.status in ['PENDING', 'CLAIMED', 'PASSED'];
-    }
 
     function isValidMerchItem(data) {
       return hasRequiredFields(['artistId', 'title', 'description', 'price', 'imageUrl', 'category']) &&
@@ -389,15 +363,6 @@ service cloud.firestore {
              (!('stock' in data) || (data.stock is number));
     }
 
-    function isValidDonation(data) {
-      return hasRequiredFields(['fromId', 'fromName', 'toId', 'amount', 'timestamp']) &&
-             data.fromId is string &&
-             data.fromName is string &&
-             data.toId is string &&
-             data.amount is number && data.amount > 0 &&
-             (!('albumId' in data) || (data.albumId is string)) &&
-             (!('message' in data) || (data.message is string && data.message.size() < 500));
-    }
 
     function isValidFeedItem(data) {
       return hasRequiredFields(['authorId', 'authorName', 'authorPhoto', 'type', 'content', 'timestamp']) &&
@@ -583,12 +548,6 @@ service cloud.firestore {
              (!('members' in data) || data.members is list);
     }
 
-    function isValidAdConfig(data) {
-      return hasRequiredFields(['id', 'title', 'imageUrl', 'linkUrl', 'placement', 'isActive', 'impressions', 'clicks']) &&
-             data.id is string && data.title is string && data.imageUrl is string && data.linkUrl is string &&
-             data.placement in ['SIDEBAR', 'FEED', 'PLAYER', 'BANNER'] &&
-             data.isActive is bool && data.impressions is number && data.clicks is number;
-    }
 
     function isValidAdCampaign(data) {
       return hasRequiredFields(['id', 'ownerId', 'title', 'type', 'targetType', 'imageUrl', 'budget', 'frequency', 'probability', 'isActive', 'timestamp']) &&
@@ -979,75 +938,6 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // ===============================================================
-    // Plajah Billing — invoices / estimates / payment links / customers / price book.
-    // Every doc carries entityKey = "KIND:id" (USER|ORG|BUSINESS|PRODUCTION). billingAdminOf mirrors
-    // the server's resolveBillingEntity(): USER id==uid; BUSINESS id==owner uid; ORG creator/admins/
-    // financeUids/accountingUids/pastorUids; PRODUCTION owner or an authority entry holding MANAGE_BUDGET.
-    // Platform flags live in config/billingFlags (readable by everyone via the config rule above — they
-    // are non-sensitive switches; writes are admin-only by the same rule).
-    // billingInvoices are SERVER-WRITE ONLY: numbers, totals and Stripe ids are server-computed
-    // (drafts are saved via POST /api/billing/invoices/save).
-    // ===============================================================
-    function billKind(k) { return k.split(':')[0]; }
-    function billId(k) { return k.split(':')[1]; }
-    function billProdAdmin(prodId) {
-      let p = get(/databases/$(database)/documents/productions/$(prodId)).data;
-      return p.ownerUid == request.auth.uid ||
-        ('MANAGE_BUDGET' in p.get('authority', {}).get(request.auth.uid, {}).get('permissions', []));
-    }
-    function billingAdminOf(k) {
-      return isAuthenticated() && (
-        (billKind(k) == 'USER' && billId(k) == request.auth.uid) ||
-        (billKind(k) == 'BUSINESS' && billId(k) == request.auth.uid) ||
-        (billKind(k) == 'ORG' && (chmsFinance(billId(k)) ||
-            request.auth.uid in orgDoc(billId(k)).get('accountingUids', []))) ||
-        (billKind(k) == 'PRODUCTION' && billProdAdmin(billId(k)))
-      );
-    }
-    // Read-only accounting viewers may read ORG invoices.
-    function billingReadOf(k) {
-      return billingAdminOf(k) || (isAuthenticated() && billKind(k) == 'ORG' &&
-        request.auth.uid in orgDoc(billId(k)).get('accountingViewUids', []));
-    }
-    match /billingCustomers/{id} {
-      allow read: if billingAdminOf(resource.data.entityKey);
-      allow create: if billingAdminOf(request.resource.data.entityKey);
-      allow update: if billingAdminOf(resource.data.entityKey) && request.resource.data.entityKey == resource.data.entityKey;
-      allow delete: if billingAdminOf(resource.data.entityKey);
-    }
-    match /billingItems/{id} {
-      allow read: if billingAdminOf(resource.data.entityKey);
-      allow create: if billingAdminOf(request.resource.data.entityKey);
-      allow update: if billingAdminOf(resource.data.entityKey) && request.resource.data.entityKey == resource.data.entityKey;
-      allow delete: if billingAdminOf(resource.data.entityKey);
-    }
-    match /billingEstimates/{id} {
-      allow read: if billingAdminOf(resource.data.entityKey);
-      allow create: if billingAdminOf(request.resource.data.entityKey);
-      allow update: if billingAdminOf(resource.data.entityKey) && request.resource.data.entityKey == resource.data.entityKey;
-      allow delete: if billingAdminOf(resource.data.entityKey);
-    }
-    match /billingPaymentLinks/{id} {
-      allow read: if billingAdminOf(resource.data.entityKey);
-      allow create: if billingAdminOf(request.resource.data.entityKey);
-      allow update: if billingAdminOf(resource.data.entityKey) && request.resource.data.entityKey == resource.data.entityKey;
-      allow delete: if billingAdminOf(resource.data.entityKey);
-    }
-    match /billingInvoices/{id} {
-      // Entity staff (incl. read-only accounting viewers) + the customer it was addressed to (never drafts).
-      allow read: if billingReadOf(resource.data.entityKey) ||
-        (isAuthenticated() && resource.data.get('customerUid', '') == request.auth.uid && resource.data.status != 'DRAFT');
-      allow write: if false;   // server-only (service account bypasses rules)
-    }
-    // Server-only counters (sequential invoice/estimate numbers).
-    match /billingCounters/{id} { allow read, write: if false; }
-    // Per-entity billing preferences (default terms/footer/numbering prefix). Doc id IS the entityKey ("ORG:abc").
-    match /billingSettings/{entityKey} {
-      allow read: if billingReadOf(entityKey);
-      allow create, update: if billingAdminOf(entityKey);
-      allow delete: if false;
-    }
 
     match /photo_albums/{albumId} {
       allow read: if (!('isPublic' in resource.data) || resource.data.isPublic == true) || (isAuthenticated() && resource.data.ownerId == request.auth.uid) || isAdmin();
@@ -2320,10 +2210,6 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // Public receipt tokens (GET /r/:token is served by the server). Never client-readable: the token IS the secret.
-    match /posReceipts/{token} {
-      allow read, write: if false;
-    }
 
     // Artist↔business cross-promo bookings: the business creates; both parties read; the creator
     // (or business) updates status (accept/decline). Queried by creatorUid / businessUid.
@@ -2366,32 +2252,6 @@ service cloud.firestore {
       allow delete: if isAuthenticated() && (resource.data.ownerId == request.auth.uid || isAdmin());
     }
 
-    // Business CRM (services/crm): contacts + an append-only activity timeline, keyed by businessId = the
-    // businessPages doc id. Only that page's owner (or an admin) can read or write; a contact can't be moved
-    // onto another business. Queries must filter where('businessId', '==', id) for the get() to resolve.
-    match /crmContacts/{id} {
-      allow read: if isAuthenticated() && (
-        get(/databases/$(database)/documents/businessPages/$(resource.data.businessId)).data.ownerId == request.auth.uid || isAdmin()
-        || pageStaffCan(resource.data.businessId, 'CRM'));
-      allow delete: if isAuthenticated() && (
-        get(/databases/$(database)/documents/businessPages/$(resource.data.businessId)).data.ownerId == request.auth.uid || isAdmin()
-        || pageStaffCan(resource.data.businessId, 'CRM_ADMIN'));
-      allow create: if isAuthenticated() && (
-        get(/databases/$(database)/documents/businessPages/$(request.resource.data.businessId)).data.ownerId == request.auth.uid || isAdmin()
-        || pageStaffCan(request.resource.data.businessId, 'CRM'));
-      allow update: if isAuthenticated() && request.resource.data.businessId == resource.data.businessId && (
-        get(/databases/$(database)/documents/businessPages/$(resource.data.businessId)).data.ownerId == request.auth.uid || isAdmin()
-        || pageStaffCan(resource.data.businessId, 'CRM'));
-    }
-    match /crmActivities/{id} {
-      allow read: if isAuthenticated() && (
-        get(/databases/$(database)/documents/businessPages/$(resource.data.businessId)).data.ownerId == request.auth.uid || isAdmin()
-        || pageStaffCan(resource.data.businessId, 'CRM'));
-      allow create: if isAuthenticated() && request.resource.data.byUid == request.auth.uid && (
-        get(/databases/$(database)/documents/businessPages/$(request.resource.data.businessId)).data.ownerId == request.auth.uid || isAdmin()
-        || pageStaffCan(request.resource.data.businessId, 'CRM'));
-      allow update, delete: if isAdmin();
-    }
 
     // Digital signage slides, keyed by businessId = the businessPages doc id. Public read: in-store
     // screens are often unauthenticated TVs. Writes only by that page's owner (or an admin); an update
@@ -2479,14 +2339,6 @@ service cloud.firestore {
     match /recallCache/{id} { allow read, write: if false; }
     match /serviceReminders/{id} { allow read, write: if false; }
 
-    // Laundromat layer (services/laundryServer.ts). SERVER-ONLY writes: money, accounts and invoices never come from clients.
-    // The owner may read their own settings / commercial accounts / invoices; staff read through the server.
-    match /laundrySettings/{businessUid} { allow read: if isAuthenticated() && request.auth.uid == businessUid; allow write: if false; }
-    match /laundryAccounts/{id} { allow read: if isAuthenticated() && resource.data.businessUid == request.auth.uid; allow write: if false; }
-    match /laundryInvoices/{id} { allow read: if isAuthenticated() && resource.data.businessUid == request.auth.uid; allow write: if false; }
-    match /laundryInvoiced/{id} { allow read, write: if false; }
-    match /laundryCounters/{id} { allow read, write: if false; }
-    match /laundryReminders/{id} { allow read, write: if false; }
 
     match /storeReviews/{reviewId} {
       allow read: if true;
@@ -2514,12 +2366,6 @@ service cloud.firestore {
       }
     }
 
-    match /donations/{donationId} {
-      allow read: if isAuthenticated() && (resource.data.fromId == request.auth.uid || resource.data.toId == request.auth.uid || isAdmin() ||
-        // Elevate Finance Hub: the church's finance/trustee roles read native online gifts (churchId = org id).
-        (resource.data.get('churchId', '') != '' && chmsGivingRead(resource.data.churchId)));
-      allow create: if isAuthenticated() && isValidDonation(request.resource.data) && request.resource.data.fromId == request.auth.uid;
-    }
 
     match /purchases/{purchaseId} {
       allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
@@ -3862,15 +3708,6 @@ service cloud.firestore {
       allow update, delete: if isAuthenticated();
     }
 
-    // Church congregant records (Servant Keeper import/export). Church staff only.
-    match /congregants/{personId} {
-      allow read: if isAuthenticated() &&
-        request.auth.uid in get(/databases/$(database)/documents/organizations/$(resource.data.churchId)).data.admins;
-      allow create: if isAuthenticated() &&
-        request.auth.uid in get(/databases/$(database)/documents/organizations/$(request.resource.data.churchId)).data.admins;
-      allow update, delete: if isAuthenticated() &&
-        request.auth.uid in get(/databases/$(database)/documents/organizations/$(resource.data.churchId)).data.admins;
-    }
 
     function orgDoc(orgId) { return get(/databases/$(database)/documents/organizations/$(orgId)).data; }
     function orgPastorOrAdmin(orgId) {
@@ -3975,273 +3812,15 @@ service cloud.firestore {
       );
     }
 
-    // Private Onboarding PII Vault: stores member phone, email, home address, birthDate, family/household details
-    // submitted during membership onboarding so they NEVER sit on public-readable documents.
-    // Strictly readable ONLY by the member themselves or authorized org pastors/staff/admins.
-    match /orgOnboardingVault/{membershipId} {
-      allow read: if isAuthenticated() && (
-        resource.data.userId == request.auth.uid ||
-        chmsPeopleStaff(resource.data.orgId) ||
-        orgPastorOrAdmin(resource.data.orgId) ||
-        isAdmin()
-      );
-      allow create, update: if isAuthenticated() && (
-        request.resource.data.userId == request.auth.uid ||
-        chmsPeopleStaff(request.resource.data.orgId) ||
-        orgPastorOrAdmin(request.resource.data.orgId) ||
-        isAdmin()
-      );
-      allow delete: if isAuthenticated() && (
-        resource.data.userId == request.auth.uid ||
-        orgPastorOrAdmin(resource.data.orgId) ||
-        isAdmin()
-      );
-    }
 
-    // Immutable Organization Security Events (screenshot attempts on financials, unauthorized export blocks, etc.).
-    match /orgSecurityEvents/{eventId} {
-      allow read: if isAuthenticated() && (
-        orgPastorOrAdmin(resource.data.orgId) ||
-        chmsFinance(resource.data.orgId) ||
-        isAdmin()
-      );
-      allow create: if isAuthenticated() && request.resource.data.actorUid == request.auth.uid;
-      allow update, delete: if false;
-    }
 
-    // ── Elevate ChMS (people / finance / attendance) ─────────────────────────────
-    function chmsFinance(orgId) {
-      return isAuthenticated() && (orgAdminOf(orgId) ||
-        request.auth.uid in orgDoc(orgId).get('financeUids', []) ||
-        request.auth.uid in orgDoc(orgId).get('pastorUids', []));
-    }
-    function chmsGivingRead(orgId) {
-      return chmsFinance(orgId) || (isAuthenticated() && request.auth.uid in orgDoc(orgId).get('givingViewUids', []));
-    }
     function chmsPeopleStaff(orgId) {
       return isAuthenticated() && (orgAdminOf(orgId) ||
         request.auth.uid in orgDoc(orgId).get('pastorUids', []) ||
         request.auth.uid in orgDoc(orgId).get('staffUids', []) ||
         request.auth.uid in orgDoc(orgId).get('leaderUids', []));
     }
-    // Giving: finance/pastors write, trustees read. Gifts are never deleted — void instead.
-    match /chmsContributions/{id} {
-      // A giver may read ONLY their own gifts (linkedUid denormalized from their ChmsPerson at write time).
-      allow read: if chmsGivingRead(resource.data.orgId) ||
-        (isAuthenticated() && resource.data.get('linkedUid', '') == request.auth.uid);
-      allow create: if chmsFinance(request.resource.data.orgId) && request.resource.data.enteredBy == request.auth.uid && request.resource.data.amount > 0;
-      allow update: if chmsFinance(resource.data.orgId);
-      allow delete: if false;
-    }
-    match /chmsBatches/{id} {
-      allow read: if chmsGivingRead(resource.data.orgId);
-      allow create: if chmsFinance(request.resource.data.orgId);
-      allow update: if chmsFinance(resource.data.orgId);
-      allow delete: if false;
-    }
-    match /chmsPledges/{id} {
-      allow read: if chmsGivingRead(resource.data.orgId);
-      allow create: if chmsFinance(request.resource.data.orgId);
-      allow update, delete: if chmsFinance(resource.data.orgId);
-    }
-    // Finance Hub misc ledger docs (kind: PAYOUT | TRANSFER | STATEMENT_LOG | RECURRING). Never deleted.
-    match /chmsFinanceMeta/{id} {
-      allow read: if chmsGivingRead(resource.data.orgId);
-      allow create: if chmsFinance(request.resource.data.orgId);
-      allow update: if chmsFinance(resource.data.orgId);
-      allow delete: if false;
-    }
-    // Immutable finance audit trail (who entered/voided/approved/exported what).
-    match /chmsAudit/{id} {
-      allow read: if chmsGivingRead(resource.data.orgId);
-      allow create: if chmsFinance(request.resource.data.orgId) && request.resource.data.actorUid == request.auth.uid;
-      allow update, delete: if false;
-    }
-    // Pastoral-care bridge: "reach out" flags created by finance WITHOUT amounts; pastors/staff read + resolve.
-    match /chmsCareFlags/{id} {
-      allow read: if chmsPeopleStaff(resource.data.orgId) || chmsFinance(resource.data.orgId);
-      allow create: if chmsFinance(request.resource.data.orgId) && !('amount' in request.resource.data);
-      allow update: if chmsPeopleStaff(resource.data.orgId) || chmsFinance(resource.data.orgId);
-      allow delete: if false;
-    }
-    match /chmsImports/{id} {
-      allow read: if chmsPeopleStaff(resource.data.orgId) || chmsFinance(resource.data.orgId);
-      allow create: if chmsFinance(request.resource.data.orgId) || chmsPeopleStaff(request.resource.data.orgId);
-      allow update: if chmsFinance(resource.data.orgId) || chmsPeopleStaff(resource.data.orgId);
-      allow delete: if false;
-    }
-    // People directory: staff/leaders read+write; finance reads/writes (to match givers); a person can read their own linked record.
-    match /chmsPeople/{id} {
-      allow read: if chmsPeopleStaff(resource.data.orgId) || chmsFinance(resource.data.orgId) ||
-        (isAuthenticated() && resource.data.get('linkedUid', '') == request.auth.uid);
-      allow create: if chmsPeopleStaff(request.resource.data.orgId) || chmsFinance(request.resource.data.orgId);
-      allow update: if chmsPeopleStaff(resource.data.orgId) || chmsFinance(resource.data.orgId) ||
-        // Self-service: a linked congregant may change ONLY contact + directory-privacy fields on their own record.
-        (isAuthenticated() && resource.data.get('linkedUid', '') == request.auth.uid &&
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['email', 'phone', 'address', 'preferredName', 'photoUrl', 'directoryVisible', 'updatedAt'])) ||
-        // Claim: link an unlinked record to the caller's account using a valid, unused, unexpired claim token for THIS person.
-        (isAuthenticated() && resource.data.get('linkedUid', '') == '' &&
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['linkedUid', 'claimToken', 'updatedAt']) &&
-          request.resource.data.linkedUid == request.auth.uid &&
-          get(/databases/$(database)/documents/chmsClaims/$(request.resource.data.claimToken)).data.personId == id &&
-          get(/databases/$(database)/documents/chmsClaims/$(request.resource.data.claimToken)).data.orgId == resource.data.orgId &&
-          !('usedBy' in get(/databases/$(database)/documents/chmsClaims/$(request.resource.data.claimToken)).data) &&
-          get(/databases/$(database)/documents/chmsClaims/$(request.resource.data.claimToken)).data.expiresAt > request.time.toMillis());
-      allow delete: if orgAdminOf(resource.data.orgId) || (isAuthenticated() && request.auth.uid in orgDoc(resource.data.orgId).get('pastorUids', []));
-    }
-    // Claim tokens (doc id = unguessable token): staff mint them; the claimant reads by id and marks used.
-    match /chmsClaims/{token} {
-      allow get: if isAuthenticated();
-      allow list: if chmsPeopleStaff(resource.data.orgId);
-      allow create: if chmsPeopleStaff(request.resource.data.orgId) && request.resource.data.createdBy == request.auth.uid;
-      allow update: if isAuthenticated() && !('usedBy' in resource.data) &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['usedBy', 'usedAt']) && request.resource.data.usedBy == request.auth.uid;
-      allow delete: if chmsPeopleStaff(resource.data.orgId);
-    }
-    // Care/follow-up tasks (no private note content — staff only).
-    match /chmsTasks/{id} {
-      allow read: if chmsPeopleStaff(resource.data.orgId);
-      allow create: if chmsPeopleStaff(request.resource.data.orgId);
-      allow update, delete: if chmsPeopleStaff(resource.data.orgId);
-    }
-    // Volunteer schedule: staff manage; an assignee may read their shift and respond (confirm / decline / swap).
-    match /chmsShifts/{id} {
-      allow read: if chmsPeopleStaff(resource.data.orgId) || (isAuthenticated() && request.auth.uid in resource.data.get('assignedUids', []));
-      allow create: if chmsPeopleStaff(request.resource.data.orgId);
-      allow update: if chmsPeopleStaff(resource.data.orgId) || (isAuthenticated() && request.auth.uid in resource.data.get('assignedUids', []) &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['assignments', 'updatedAt']));
-      allow delete: if chmsPeopleStaff(resource.data.orgId);
-    }
-    // Outbound message log.
-    match /chmsMessages/{id} {
-      allow read: if chmsPeopleStaff(resource.data.orgId);
-      allow create: if chmsPeopleStaff(request.resource.data.orgId) && request.resource.data.sentBy == request.auth.uid;
-      allow update, delete: if false;
-    }
-    match /chmsHouseholds/{id} {
-      allow read: if chmsPeopleStaff(resource.data.orgId) || chmsFinance(resource.data.orgId);
-      allow create: if chmsPeopleStaff(request.resource.data.orgId) || chmsFinance(request.resource.data.orgId);
-      allow update, delete: if chmsPeopleStaff(resource.data.orgId) || chmsFinance(resource.data.orgId);
-    }
-    match /chmsAttendance/{id} {
-      allow read: if chmsPeopleStaff(resource.data.orgId);
-      allow create: if chmsPeopleStaff(request.resource.data.orgId) ||
-        // Self check-in: a linked congregant may check THEMSELVES in.
-        (isAuthenticated() && request.resource.data.personId is string &&
-          get(/databases/$(database)/documents/chmsPeople/$(request.resource.data.personId)).data.get('linkedUid', '') == request.auth.uid &&
-          get(/databases/$(database)/documents/chmsPeople/$(request.resource.data.personId)).data.orgId == request.resource.data.orgId);
-      allow update, delete: if chmsPeopleStaff(resource.data.orgId);
-    }
-    // Pastoral care notes: PASTORAL = pastors/admins only; STAFF = staff; finance can never read notes.
-    match /chmsNotes/{id} {
-      allow read: if isAuthenticated() && (orgAdminOf(resource.data.orgId) ||
-        request.auth.uid in orgDoc(resource.data.orgId).get('pastorUids', []) ||
-        (resource.data.visibility == 'STAFF' && chmsPeopleStaff(resource.data.orgId)));
-      allow create: if isAuthenticated() && request.resource.data.authorUid == request.auth.uid && chmsPeopleStaff(request.resource.data.orgId);
-      allow update, delete: if isAuthenticated() && resource.data.authorUid == request.auth.uid;
-    }
 
-    // ── Elevate Accounting (double-entry) ────────────────────────────────────────
-    function acctWrite(orgId) {
-      return isAuthenticated() && (orgAdminOf(orgId) ||
-        request.auth.uid in orgDoc(orgId).get('accountingUids', []) ||
-        request.auth.uid in orgDoc(orgId).get('financeUids', []));
-    }
-    function acctRead(orgId) {
-      return acctWrite(orgId) || (isAuthenticated() && (
-        request.auth.uid in orgDoc(orgId).get('accountingViewUids', []) ||
-        request.auth.uid in orgDoc(orgId).get('pastorUids', [])));
-    }
-    match /acctAccounts/{id} {
-      // Department heads read the chart so their budget view can show account names (the chart is not sensitive).
-      allow read: if acctRead(resource.data.orgId) || (isAuthenticated() && request.auth.uid in orgDoc(resource.data.orgId).get('leaderUids', []));
-      allow create: if acctWrite(request.resource.data.orgId);
-      allow update: if acctWrite(resource.data.orgId);
-      allow delete: if false;
-    }
-    // Journals are append-only: corrections are reversal entries. Only status/reversedBy may change.
-    match /acctJournals/{id} {
-      allow read: if acctRead(resource.data.orgId);
-      allow create: if acctWrite(request.resource.data.orgId);
-      allow update: if acctWrite(resource.data.orgId) &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'reversedBy']);
-      allow delete: if false;
-    }
-    match /acctVendors/{id} {
-      allow read: if acctRead(resource.data.orgId);
-      allow create: if acctWrite(request.resource.data.orgId);
-      allow update: if acctWrite(resource.data.orgId);
-      allow delete: if false;
-    }
-    // Expenses/bills/reimbursements: any staff/leader/accounting member may SUBMIT; approvers (dept heads,
-    // pastors, accounting) read and decide; the submitter sees their own. Money state is accounting-only.
-    match /acctExpenses/{id} {
-      allow read: if isAuthenticated() && (
-        resource.data.submittedBy == request.auth.uid ||
-        acctRead(resource.data.orgId) ||
-        request.auth.uid in orgDoc(resource.data.orgId).get('leaderUids', []));
-      allow create: if isAuthenticated() && request.resource.data.submittedBy == request.auth.uid &&
-        request.resource.data.status in ['DRAFT', 'SUBMITTED'] && request.resource.data.amount > 0 && (
-          acctWrite(request.resource.data.orgId) ||
-          request.auth.uid in orgDoc(request.resource.data.orgId).get('staffUids', []) ||
-          request.auth.uid in orgDoc(request.resource.data.orgId).get('leaderUids', []) ||
-          request.auth.uid in orgDoc(request.resource.data.orgId).get('pastorUids', []));
-      allow update: if isAuthenticated() && (
-        acctWrite(resource.data.orgId) ||
-        // submitter edits/withdraws their own before approval
-        (resource.data.submittedBy == request.auth.uid && resource.data.status in ['DRAFT', 'SUBMITTED'] &&
-          request.resource.data.status in ['DRAFT', 'SUBMITTED', 'VOID']) ||
-        // department heads / pastors approve or reject (never mark paid)
-        ((request.auth.uid in orgDoc(resource.data.orgId).get('leaderUids', []) || request.auth.uid in orgDoc(resource.data.orgId).get('pastorUids', [])) &&
-          resource.data.status == 'SUBMITTED' && request.resource.data.status in ['APPROVED', 'REJECTED'] &&
-          request.resource.data.submittedBy == resource.data.submittedBy && request.resource.data.amount == resource.data.amount));
-      allow delete: if false;
-    }
-    match /acctBankAccounts/{id} {
-      allow read: if acctRead(resource.data.orgId);
-      allow create, update: if acctWrite(request.resource.data.orgId);
-      allow delete: if false;
-    }
-    match /acctBankTxns/{id} {
-      allow read: if acctRead(resource.data.orgId);
-      allow create, update: if acctWrite(request.resource.data.orgId);
-      allow delete: if acctWrite(resource.data.orgId);
-    }
-    match /acctBudgets/{id} {
-      allow read: if acctRead(resource.data.orgId) || (isAuthenticated() && request.auth.uid in orgDoc(resource.data.orgId).get('leaderUids', []));
-      allow create, update: if acctWrite(request.resource.data.orgId);
-      allow delete: if false;
-    }
-    // Budget Pulse: budgeted projects/campaigns (spend is tagged via projectId / fundId on journal lines + expenses).
-    match /acctProjects/{id} {
-      allow read: if acctRead(resource.data.orgId) || (isAuthenticated() && request.auth.uid in orgDoc(resource.data.orgId).get('leaderUids', []));
-      allow create, update: if acctWrite(request.resource.data.orgId);
-      allow delete: if false;
-    }
-    // Budget Pulse alerts: created by the server sweep (admin token) or finance clients; readers may only acknowledge/snooze.
-    // Department heads read the alerts addressed to them via audienceUids (denormalised at creation).
-    match /acctAlerts/{id} {
-      allow read: if isAuthenticated() && (acctRead(resource.data.orgId) || request.auth.uid in resource.data.get('audienceUids', []));
-      allow create: if acctWrite(request.resource.data.orgId);
-      allow update: if isAuthenticated() && (acctRead(resource.data.orgId) || request.auth.uid in resource.data.get('audienceUids', [])) &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['acknowledgedBy', 'snoozedUntil']);
-      allow delete: if false;
-    }
-    match /acctPeriods/{id} {
-      allow read: if acctRead(resource.data.orgId);
-      allow create, update: if acctWrite(request.resource.data.orgId);
-      allow delete: if false;
-    }
-    // Stripe-synced payouts + lines are written by the server (admin token); clients read only.
-    match /chmsPayouts/{id} {
-      allow read: if chmsGivingRead(resource.data.orgId) || acctRead(resource.data.orgId);
-      allow create, update: if chmsFinance(request.resource.data.orgId) || acctWrite(request.resource.data.orgId);
-      allow delete: if false;
-    }
-    match /chmsPayoutLines/{id} {
-      allow read: if chmsGivingRead(resource.data.orgId) || acctRead(resource.data.orgId);
-      allow write: if false;
-    }
 
     // ── Elevate role-setup invites (link / QR / email). Doc id = unguessable token. ──
     match /orgInvites/{token} {
@@ -4264,90 +3843,13 @@ service cloud.firestore {
       allow delete: if isAuthenticated() && (resource.data.createdBy == request.auth.uid || orgPastorOrAdmin(resource.data.orgId));
     }
 
-    // ── Content HQ — private DAM assets (files/docs/brand specs) ──────────────
-    // scopeKind 'user' → the account owner; scopeKind 'org' → the org's admins/creator.
-    match /orgAssets/{assetId} {
-      function cxScopeOk(data) {
-        return isAuthenticated() && (
-          (data.scopeKind == 'user' && data.scopeId == request.auth.uid) ||
-          (data.scopeKind == 'org' && (
-            request.auth.uid in get(/databases/$(database)/documents/organizations/$(data.scopeId)).data.admins ||
-            get(/databases/$(database)/documents/organizations/$(data.scopeId)).data.creatorId == request.auth.uid ||
-            // Staff/moderators with MANAGE_CONTENT (denormalized staffUids; owner/admin-writable only).
-            request.auth.uid in get(/databases/$(database)/documents/organizations/$(data.scopeId)).data.get('staffUids', [])
-          )) ||
-          isAdmin()
-        );
-      }
-      allow read: if cxScopeOk(resource.data);
-      allow create: if cxScopeOk(request.resource.data) && request.resource.data.uploadedByUid == request.auth.uid;
-      allow update: if cxScopeOk(resource.data) && cxScopeOk(request.resource.data);
-      allow delete: if cxScopeOk(resource.data);
-    }
 
-    // Immutable revision records. Replacing a file creates a new version; it never
-    // overwrites the version a reviewer approved.
-    match /hqAssetVersions/{versionId} {
-      allow read: if canAccessHqAsset(resource.data.assetId);
-      allow create: if canAccessHqAsset(request.resource.data.assetId) &&
-        request.resource.data.uploadedByUid == request.auth.uid;
-      allow update, delete: if false;
-    }
 
-    match /hqComments/{commentId} {
-      allow read: if canAccessHqAsset(resource.data.assetId);
-      allow create: if canAccessHqAsset(request.resource.data.assetId) &&
-        request.resource.data.authorUid == request.auth.uid &&
-        request.resource.data.body is string && request.resource.data.body.size() > 0 &&
-        request.resource.data.body.size() <= 4000;
-      allow update: if canAccessHqAsset(resource.data.assetId) &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['resolved', 'resolvedAt', 'resolvedByUid']);
-      allow delete: if false;
-    }
 
-    match /hqReviewRequests/{reviewId} {
-      allow read: if canAccessHqAsset(resource.data.assetId) ||
-        (isAuthenticated() && request.auth.uid in resource.data.reviewerUids);
-      allow create: if canAccessHqAsset(request.resource.data.assetId) &&
-        request.resource.data.requestedByUid == request.auth.uid;
-      allow update: if canAccessHqAsset(resource.data.assetId) ||
-        (isAuthenticated() && request.auth.uid in resource.data.reviewerUids &&
-         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['decisions', 'status', 'completedAt']));
-      allow delete: if false;
-    }
 
-    // Append-only asset audit. This is separate from the general org audit so an
-    // asset can carry its complete evidence trail when delivered or exported.
-    match /hqActivity/{eventId} {
-      allow read: if canAccessHqAsset(resource.data.assetId);
-      allow create: if canAccessHqAsset(request.resource.data.assetId) &&
-        request.resource.data.actorUid == request.auth.uid;
-      allow update, delete: if false;
-    }
 
-    match /hqShareLinks/{shareId} {
-      allow read: if canAccessHqAsset(resource.data.assetId);
-      allow create: if canAccessHqAsset(request.resource.data.assetId) &&
-        request.resource.data.createdByUid == request.auth.uid;
-      allow update: if canAccessHqAsset(resource.data.assetId) &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['revokedAt', 'expiresAt', 'allowComments', 'allowApproval', 'allowDownload', 'requireEmail']);
-      allow delete: if false;
-    }
 
-    // Account-free reviewer decisions. Written ONLY by the server (Admin creds) through the
-    // tokenized share endpoints — guests never authenticate — so client writes stay closed.
-    // The asset's owning scope can read them to see who approved / requested changes.
-    match /hqGuestDecisions/{decisionId} {
-      allow read: if canAccessHqAsset(resource.data.assetId);
-      allow write: if false;
-    }
 
-    // Durable security audit (Wave 3): retention purges + quota rejections. Written ONLY
-    // by the server (Admin creds, which bypass rules) and it must outlive the assets it
-    // records, so clients get no access at all.
-    match /hqAuditLog/{entryId} {
-      allow read, write: if false;
-    }
 
     // ── Music sync-license grants — created only by the Stripe webhook (Admin SDK) ──
     // The buyer and the rights owner can READ their grants; clients never write.
@@ -4387,15 +3889,6 @@ service cloud.firestore {
       allow delete: if isAuthenticated() && resource.data.authorUid == request.auth.uid;
     }
 
-    // Church education programs (Sunday school / Bible study plans). Anyone signed in can read; only the church's admins write.
-    match /churchPrograms/{programId} {
-      allow read: if isAuthenticated();
-      allow create, update: if isAuthenticated() && request.resource.data.createdBy == request.auth.uid
-        && (request.auth.uid in get(/databases/$(database)/documents/organizations/$(request.resource.data.orgId)).data.admins
-            || request.auth.uid == get(/databases/$(database)/documents/organizations/$(request.resource.data.orgId)).data.creatorId);
-      allow delete: if isAuthenticated() && (resource.data.createdBy == request.auth.uid
-        || request.auth.uid in get(/databases/$(database)/documents/organizations/$(resource.data.orgId)).data.admins);
-    }
 
     // Ora wellbeing in education. classWeather holds anonymous counters only (no user ids).
     match /classWeather/{wid} {
@@ -4409,30 +3902,6 @@ service cloud.firestore {
       allow update: if isAuthenticated() && request.auth.uid in resource.data.toUids && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seenBy']);
     }
 
-    match /churchPrayers/{prayerId} {
-      // Public wall prayers: any signed-in user. Private requests: author, pastors/ministers, prayer warriors, admins.
-      allow read: if isAuthenticated() && (
-        resource.data.get('isPrivate', false) == false ||
-        resource.data.authorId == request.auth.uid ||
-        orgPastorOrAdmin(resource.data.orgId) ||
-        request.auth.uid in orgDoc(resource.data.orgId).get('prayerUids', []) ||
-        isAdmin()
-      );
-      allow create: if isAuthenticated() && request.resource.data.authorId == request.auth.uid;
-      allow update: if isAuthenticated() && (
-        resource.data.authorId == request.auth.uid ||
-        // Anyone may add/remove themselves from the praying list.
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['prayingIds']) ||
-        // Org admins + pastors/ministers may mark answered.
-        orgPastorOrAdmin(resource.data.orgId) ||
-        isAdmin()
-      );
-      allow delete: if isAuthenticated() && (
-        resource.data.authorId == request.auth.uid ||
-        orgPastorOrAdmin(resource.data.orgId) ||
-        isAdmin()
-      );
-    }
 
     match /clubPosts/{postId} {
       allow read: if isAuthenticated();
@@ -4998,33 +4467,6 @@ service cloud.firestore {
       }
     }
 
-    // ── Plajah Elevate Live (auto article + briefing from live streams) ──────
-    // Master Control → Elevate Live surface: per-org config, scheduled runs,
-    // generated briefings and repurpose jobs. Org admins (creatorId/admins)
-    // manage their own org's docs; platform admins manage all.
-    match /elevateLiveConfigs/{orgId} {
-      allow read: if orgAdminOf(orgId) || isAdmin();
-      allow create, update: if orgAdminOf(orgId) || isAdmin();
-      allow delete: if isAdmin();
-    }
-    match /elevateLiveRuns/{runId} {
-      allow read: if orgAdminOf(resource.data.orgId) || isAdmin();
-      allow create: if orgAdminOf(request.resource.data.orgId) || isAdmin();
-      allow update: if orgAdminOf(resource.data.orgId) || isAdmin();
-      allow delete: if isAdmin();
-    }
-    match /elevateBriefings/{briefingId} {
-      allow read: if orgAdminOf(resource.data.orgId) || isAdmin();
-      allow create: if orgAdminOf(request.resource.data.orgId) || isAdmin();
-      allow update: if orgAdminOf(resource.data.orgId) || isAdmin();
-      allow delete: if isAdmin();
-    }
-    match /contentRepurposeJobs/{jobId} {
-      allow read: if orgAdminOf(resource.data.orgId) || isAdmin();
-      allow create: if orgAdminOf(request.resource.data.orgId) || isAdmin();
-      allow update: if orgAdminOf(resource.data.orgId) || isAdmin();
-      allow delete: if isAdmin();
-    }
 
     // ===============================================================
     // COMMUNITY PLAYLISTS — public playlist sharing across the platform

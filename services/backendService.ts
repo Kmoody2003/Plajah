@@ -48,7 +48,7 @@ import {
   onAuthStateChanged,
   User
 } from 'firebase/auth';
-import { db, storage, auth as firebaseAuth } from './firebase';
+import { db, opsDb, dbFor, storage, auth as firebaseAuth } from './firebase';
 import { isWindowsApp } from './windowsBridgeService';
 import { followNeedsApproval, requestFollow } from './socialSafetyService';
 // Social perf pass (docs/SOCIAL_MIGRATION_AND_PERF.md): paged chat, throttled typing subdoc, index fallbacks, shared room list.
@@ -5992,8 +5992,10 @@ export const propagateDisplayName = async (
   // 3) Fan out to denormalized copies, one collection at a time (independently guarded).
   for (const target of DISPLAY_NAME_SYNC_TARGETS) {
     try {
-      const snap = await getDocs(query(collection(db, target.collection), where(target.uidField, '==', uid)));
-      let batch = writeBatch(db);
+      // churchPrayers lives in plajah-ops: query and batch in the target's own database.
+      const tdb = dbFor(target.collection);
+      const snap = await getDocs(query(collection(tdb, target.collection), where(target.uidField, '==', uid)));
+      let batch = writeBatch(tdb);
       let ops = 0, updatedHere = 0;
       for (const d of snap.docs) {
         const data = d.data() as any;
@@ -6005,7 +6007,7 @@ export const propagateDisplayName = async (
         if (Object.keys(changes).length === 0) continue;
         batch.update(d.ref, changes);
         ops++; updatedHere++;
-        if (ops >= 400) { await batch.commit(); batch = writeBatch(db); ops = 0; }
+        if (ops >= 400) { await batch.commit(); batch = writeBatch(tdb); ops = 0; }
       }
       if (ops > 0) await batch.commit();
       if (updatedHere > 0) { result.updated[target.collection] = updatedHere; result.total += updatedHere; }
@@ -6434,7 +6436,7 @@ export const createDemoStoreContent = async (artistId: string) => {
 
 export const processDonation = async (donation: Omit<Donation, 'id' | 'timestamp'>): Promise<string> => {
   try {
-    const docRef = await addDoc(collection(db, 'donations'), {
+    const docRef = await addDoc(collection(opsDb, 'donations'), {
       ...donation,
       timestamp: serverTimestamp()
     });

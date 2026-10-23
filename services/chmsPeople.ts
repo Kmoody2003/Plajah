@@ -7,7 +7,7 @@
 //
 // Ministry membership: stored as `ChmsPerson.ministryIds` (org.ministries[].id) — additive field in types.ts.
 // Volunteer availability: `person.custom.availability` = comma list of weekdays ("Sun,Wed").
-import { db, auth } from './firebase';
+import { opsDb, auth } from './firebase';
 import {
   collection, doc, getDoc, getDocs, setDoc, updateDoc, query, where, writeBatch,
 } from 'firebase/firestore';
@@ -43,7 +43,7 @@ export function downloadText(filename: string, text: string, mime = 'text/csv') 
 }
 async function chunked<T>(items: T[], fn: (b: ReturnType<typeof writeBatch>, item: T) => void) {
   for (let i = 0; i < items.length; i += 400) {
-    const b = writeBatch(db);
+    const b = writeBatch(opsDb);
     items.slice(i, i + 400).forEach(it => fn(b, it));
     await b.commit();
   }
@@ -97,7 +97,7 @@ export const auditSensitive = (orgId: string, what: string, p?: ChmsPerson) =>
 
 // ── People ───────────────────────────────────────────────────────────────────
 export async function fetchPeople(orgId: string, includeArchived = false): Promise<ChmsPerson[]> {
-  const snap = await getDocs(query(collection(db, 'chmsPeople'), where('orgId', '==', orgId)));
+  const snap = await getDocs(query(collection(opsDb, 'chmsPeople'), where('orgId', '==', orgId)));
   const all = snap.docs.map(d => ({ ...d.data(), id: d.id } as ChmsPerson));
   return (includeArchived ? all : all.filter(p => !p.archived && !p.mergedInto))
     .sort((a, b) => (a.lastName || '').localeCompare(b.lastName || '') || (a.firstName || '').localeCompare(b.firstName || ''));
@@ -111,17 +111,17 @@ export async function savePerson(orgId: string, p: Partial<ChmsPerson> & { first
     statusHistory: p.statusHistory || [{ status, at: now, by: auth.currentUser?.uid }],
     createdAt: p.createdAt || now, updatedAt: now,
   }) as ChmsPerson;
-  await setDoc(doc(db, 'chmsPeople', id), rec, { merge: true });
+  await setDoc(doc(opsDb, 'chmsPeople', id), rec, { merge: true });
   return rec;
 }
 export async function changeStatus(p: ChmsPerson, status: ChmsMemberStatus, note?: string): Promise<ChmsPerson> {
   if (p.status === status) return p;
   const hist = [...(p.statusHistory || []), strip({ status, at: Date.now(), by: auth.currentUser?.uid, note })];
   const patch = strip({ status, statusHistory: hist, memberSince: status === 'MEMBER' && !p.memberSince ? todayISO() : p.memberSince, updatedAt: Date.now() });
-  await updateDoc(doc(db, 'chmsPeople', p.id), patch);
+  await updateDoc(doc(opsDb, 'chmsPeople', p.id), patch);
   return { ...p, ...patch } as ChmsPerson;
 }
-export const archivePerson = (id: string, archived = true) => updateDoc(doc(db, 'chmsPeople', id), { archived, updatedAt: Date.now() });
+export const archivePerson = (id: string, archived = true) => updateDoc(doc(opsDb, 'chmsPeople', id), { archived, updatedAt: Date.now() });
 
 /** Bulk edit: set status, add/remove tags, add/remove ministry, archive. */
 export interface BulkPatch { status?: ChmsMemberStatus; addTags?: string[]; removeTags?: string[]; addMinistry?: string; removeMinistry?: string; archive?: boolean }
@@ -133,30 +133,30 @@ export async function bulkEditPeople(people: ChmsPerson[], patch: BulkPatch): Pr
     if (patch.addTags || patch.removeTags) next.tags = Array.from(new Set([...(p.tags || []), ...(patch.addTags || [])])).filter(t => !(patch.removeTags || []).includes(t));
     if (patch.addMinistry || patch.removeMinistry) next.ministryIds = Array.from(new Set([...(p.ministryIds || []), ...(patch.addMinistry ? [patch.addMinistry] : [])])).filter(m => m !== patch.removeMinistry);
     if (patch.archive !== undefined) next.archived = patch.archive;
-    b.update(doc(db, 'chmsPeople', p.id), next);
+    b.update(doc(opsDb, 'chmsPeople', p.id), next);
   });
 }
 
 // ── Households ───────────────────────────────────────────────────────────────
 export async function fetchHouseholds(orgId: string): Promise<ChmsHousehold[]> {
-  const snap = await getDocs(query(collection(db, 'chmsHouseholds'), where('orgId', '==', orgId)));
+  const snap = await getDocs(query(collection(opsDb, 'chmsHouseholds'), where('orgId', '==', orgId)));
   return snap.docs.map(d => ({ ...d.data(), id: d.id } as ChmsHousehold)).sort((a, b) => a.name.localeCompare(b.name));
 }
 export async function saveHousehold(orgId: string, h: Partial<ChmsHousehold> & { name: string }): Promise<ChmsHousehold> {
   const id = h.id || newId('hh');
   const rec = strip({ ...h, id, orgId, createdAt: h.createdAt || Date.now() }) as ChmsHousehold;
-  await setDoc(doc(db, 'chmsHouseholds', id), rec, { merge: true });
+  await setDoc(doc(opsDb, 'chmsHouseholds', id), rec, { merge: true });
   return rec;
 }
 export async function moveToHousehold(person: ChmsPerson, householdId: string | null, role?: ChmsPerson['householdRole'], adoptAddress?: ChmsHousehold['address']) {
   const patch: Record<string, any> = { householdId: householdId || null, householdRole: role || null, updatedAt: Date.now() };
   if (adoptAddress) patch.address = adoptAddress;
-  await updateDoc(doc(db, 'chmsPeople', person.id), patch);
+  await updateDoc(doc(opsDb, 'chmsPeople', person.id), patch);
 }
 /** Set household address and propagate to every member (shared address). */
 export async function setHouseholdAddress(h: ChmsHousehold, members: ChmsPerson[], address: ChmsHousehold['address']) {
-  await updateDoc(doc(db, 'chmsHouseholds', h.id), { address: address || null });
-  await chunked(members, (b, p) => b.update(doc(db, 'chmsPeople', p.id), { address: address || null, updatedAt: Date.now() }));
+  await updateDoc(doc(opsDb, 'chmsHouseholds', h.id), { address: address || null });
+  await chunked(members, (b, p) => b.update(doc(opsDb, 'chmsPeople', p.id), { address: address || null, updatedAt: Date.now() }));
 }
 export const householdMembers = (people: ChmsPerson[], hid: string) => people.filter(p => p.householdId === hid);
 
@@ -166,7 +166,7 @@ export const householdMembers = (people: ChmsPerson[], hid: string) => people.fi
  */
 export async function getGivingFlags(orgId: string): Promise<{ people: Set<string>; households: Set<string> } | null> {
   try {
-    const snap = await getDocs(query(collection(db, 'chmsContributions'), where('orgId', '==', orgId)));
+    const snap = await getDocs(query(collection(opsDb, 'chmsContributions'), where('orgId', '==', orgId)));
     const cutoff = todayISO(new Date(Date.now() - 365 * DAY));
     const people = new Set<string>(), households = new Set<string>();
     snap.docs.forEach(d => { const c = d.data() as any; if (c.status === 'POSTED' && (c.date || '') >= cutoff) { if (c.personId) people.add(c.personId); if (c.householdId) households.add(c.householdId); } });
@@ -202,7 +202,7 @@ export interface MergeResult { merged: ChmsPerson; repointed: Record<string, num
  */
 export async function mergePeople(orgId: string, keepId: string, dropId: string, prefer: Partial<Record<keyof ChmsPerson, 'keep' | 'drop'>> = {}): Promise<MergeResult> {
   if (keepId === dropId) throw new Error('Pick two different people.');
-  const [ks, ds] = await Promise.all([getDoc(doc(db, 'chmsPeople', keepId)), getDoc(doc(db, 'chmsPeople', dropId))]);
+  const [ks, ds] = await Promise.all([getDoc(doc(opsDb, 'chmsPeople', keepId)), getDoc(doc(opsDb, 'chmsPeople', dropId))]);
   if (!ks.exists() || !ds.exists()) throw new Error('Person not found.');
   const keep = { ...ks.data(), id: keepId } as ChmsPerson, drop = { ...ds.data(), id: dropId } as ChmsPerson;
   if (keep.orgId !== orgId || drop.orgId !== orgId) throw new Error('Both people must belong to this organization.');
@@ -217,21 +217,21 @@ export async function mergePeople(orgId: string, keepId: string, dropId: string,
   patch.custom = { ...(drop.custom || {}), ...(keep.custom || {}) };
   patch.statusHistory = [...(keep.statusHistory || []), ...(drop.statusHistory || [])].sort((a, b) => a.at - b.at);
   patch.updatedAt = Date.now();
-  await updateDoc(doc(db, 'chmsPeople', keepId), strip(patch));
+  await updateDoc(doc(opsDb, 'chmsPeople', keepId), strip(patch));
 
   const repointed: Record<string, number> = {}; const skipped: string[] = [];
   for (const col of ['chmsAttendance', 'chmsContributions', 'chmsPledges', 'chmsNotes', 'chmsTasks']) {
     try {
-      const snap = await getDocs(query(collection(db, col), where('orgId', '==', orgId), where('personId', '==', dropId)));
+      const snap = await getDocs(query(collection(opsDb, col), where('orgId', '==', orgId), where('personId', '==', dropId)));
       await chunked(snap.docs, (b, d) => b.update(d.ref, { personId: keepId }));
       repointed[col] = snap.size;
     } catch { skipped.push(col); }
   }
   try {
-    const hs = await getDocs(query(collection(db, 'chmsHouseholds'), where('orgId', '==', orgId), where('headPersonId', '==', dropId)));
+    const hs = await getDocs(query(collection(opsDb, 'chmsHouseholds'), where('orgId', '==', orgId), where('headPersonId', '==', dropId)));
     await chunked(hs.docs, (b, d) => b.update(d.ref, { headPersonId: keepId }));
   } catch { skipped.push('chmsHouseholds'); }
-  await updateDoc(doc(db, 'chmsPeople', dropId), { archived: true, mergedInto: keepId, linkedUid: null, updatedAt: Date.now() });
+  await updateDoc(doc(opsDb, 'chmsPeople', dropId), { archived: true, mergedInto: keepId, linkedUid: null, updatedAt: Date.now() });
   logOrgAction(orgId, 'CHMS_MERGE', { targetId: keepId, targetName: fullName(keep), meta: { dropId, dropName: fullName(drop), repointed, skipped } });
   return { merged: { ...keep, ...patch } as ChmsPerson, repointed, skipped };
 }
@@ -242,17 +242,17 @@ export const groupKey = (ministryId: string, date: string) => `group:${ministryI
 export interface AttEvent { eventKey: string; eventLabel: string; date: string; ministryId?: string }
 
 export async function fetchAttendance(orgId: string): Promise<ChmsAttendance[]> {
-  const snap = await getDocs(query(collection(db, 'chmsAttendance'), where('orgId', '==', orgId)));
+  const snap = await getDocs(query(collection(opsDb, 'chmsAttendance'), where('orgId', '==', orgId)));
   return snap.docs.map(d => ({ ...d.data(), id: d.id } as ChmsAttendance));
 }
 /** Idempotent per (event, person): re-checking someone in never double-counts. */
 export async function recordAttendance(orgId: string, ev: AttEvent, who: { personId?: string; guestName?: string; householdId?: string; securityCode?: string; visitor?: ChmsAttendance['visitor'] }): Promise<ChmsAttendance> {
   const id = who.personId ? `${orgId}__${ev.eventKey}__${who.personId}`.replace(/[\/]/g, '_') : newId('att');
   const rec = strip({ id, orgId, ...ev, ...who, checkedInBy: auth.currentUser?.uid, checkedInAt: Date.now() }) as ChmsAttendance;
-  await setDoc(doc(db, 'chmsAttendance', id), rec);
+  await setDoc(doc(opsDb, 'chmsAttendance', id), rec);
   return rec;
 }
-export async function removeAttendance(id: string) { const { deleteDoc } = await import('firebase/firestore'); await deleteDoc(doc(db, 'chmsAttendance', id)); }
+export async function removeAttendance(id: string) { const { deleteDoc } = await import('firebase/firestore'); await deleteDoc(doc(opsDb, 'chmsAttendance', id)); }
 /** A congregant checks THEMSELVES in (rules: attendance create allowed when person.linkedUid == auth.uid). */
 export const selfCheckIn = (orgId: string, ev: AttEvent, person: ChmsPerson) => recordAttendance(orgId, ev, { personId: person.id, householdId: person.householdId });
 
@@ -320,7 +320,7 @@ export function engagementScore(p: ChmsPerson, att: ChmsAttendance[], opts: { se
 
 // ── Notes (visibility tiers) ─────────────────────────────────────────────────
 export async function fetchNotes(orgId: string, personId: string, pastoral: boolean): Promise<ChmsNote[]> {
-  const col = collection(db, 'chmsNotes');
+  const col = collection(opsDb, 'chmsNotes');
   const run = async (staffOnly: boolean) => (await getDocs(staffOnly
     ? query(col, where('orgId', '==', orgId), where('personId', '==', personId), where('visibility', '==', 'STAFF'))
     : query(col, where('orgId', '==', orgId), where('personId', '==', personId)))).docs.map(d => ({ ...d.data(), id: d.id } as ChmsNote));
@@ -331,7 +331,7 @@ export async function fetchNotes(orgId: string, personId: string, pastoral: bool
 export async function addNote(orgId: string, personId: string, text: string, kind: ChmsNote['kind'], visibility: ChmsNote['visibility'], authorName: string) {
   const u = auth.currentUser; if (!u) throw new Error('Sign in first.');
   const id = newId('note');
-  await setDoc(doc(db, 'chmsNotes', id), { id, orgId, personId, authorUid: u.uid, authorName, text, kind, visibility, createdAt: Date.now() });
+  await setDoc(doc(opsDb, 'chmsNotes', id), { id, orgId, personId, authorUid: u.uid, authorName, text, kind, visibility, createdAt: Date.now() });
   if (visibility === 'PASTORAL') logOrgAction(orgId, 'CHMS_VIEW_SENSITIVE', { targetId: personId, meta: { what: 'pastoral-note-added' } });
 }
 
@@ -343,19 +343,19 @@ export interface ChmsTask {
   status: 'OPEN' | 'DONE'; createdBy: string; createdAt: number; doneAt?: number;
 }
 export async function fetchTasks(orgId: string): Promise<ChmsTask[]> {
-  const snap = await getDocs(query(collection(db, 'chmsTasks'), where('orgId', '==', orgId)));
+  const snap = await getDocs(query(collection(opsDb, 'chmsTasks'), where('orgId', '==', orgId)));
   return snap.docs.map(d => ({ ...d.data(), id: d.id } as ChmsTask)).sort((a, b) => a.dueDate.localeCompare(b.dueDate));
 }
 export async function saveTask(orgId: string, t: Partial<ChmsTask> & { title: string; personName: string; dueDate: string; kind: ChmsTask['kind'] }) {
   const id = t.id || newId('task');
   const rec = strip({ status: 'OPEN' as const, ...t, id, orgId, createdBy: t.createdBy || auth.currentUser?.uid || '', createdAt: t.createdAt || Date.now() }) as ChmsTask;
-  await setDoc(doc(db, 'chmsTasks', id), rec, { merge: true });
+  await setDoc(doc(opsDb, 'chmsTasks', id), rec, { merge: true });
   if (!t.id && rec.assignedUid && rec.assignedUid !== auth.currentUser?.uid) {
     createNotification({ userId: rec.assignedUid, senderId: auth.currentUser?.uid || orgId, senderName: 'Care queue', senderPhoto: '', type: 'SYSTEM', title: 'New care task', message: `${rec.title} — ${rec.personName} (due ${rec.dueDate})`, targetId: orgId } as any).catch(() => {});
   }
   return rec;
 }
-export const completeTask = (id: string, done = true) => updateDoc(doc(db, 'chmsTasks', id), { status: done ? 'DONE' : 'OPEN', doneAt: done ? Date.now() : null });
+export const completeTask = (id: string, done = true) => updateDoc(doc(opsDb, 'chmsTasks', id), { status: done ? 'DONE' : 'OPEN', doneAt: done ? Date.now() : null });
 
 // ── Milestones / follow-up candidates (deterministic) ────────────────────────
 /** Days until the next occurrence (month/day) of an annual date; 0 = today. */
@@ -423,16 +423,16 @@ export interface ChmsShift {
   createdBy: string; createdAt: number; updatedAt: number; remindedAt?: number;
 }
 export async function fetchShifts(orgId: string): Promise<ChmsShift[]> {
-  const snap = await getDocs(query(collection(db, 'chmsShifts'), where('orgId', '==', orgId)));
+  const snap = await getDocs(query(collection(opsDb, 'chmsShifts'), where('orgId', '==', orgId)));
   return snap.docs.map(d => ({ ...d.data(), id: d.id } as ChmsShift)).sort((a, b) => a.date.localeCompare(b.date));
 }
 export async function saveShift(orgId: string, s: Partial<ChmsShift> & { title: string; date: string; positions: ShiftPosition[] }) {
   const id = s.id || newId('shift'); const assignments = s.assignments || [];
   const rec = strip({ ...s, id, orgId, assignments, assignedUids: Array.from(new Set(assignments.map(a => a.uid).filter(Boolean) as string[])), createdBy: s.createdBy || auth.currentUser?.uid || '', createdAt: s.createdAt || Date.now(), updatedAt: Date.now() }) as ChmsShift;
-  await setDoc(doc(db, 'chmsShifts', id), rec, { merge: true });
+  await setDoc(doc(opsDb, 'chmsShifts', id), rec, { merge: true });
   return rec;
 }
-export const deleteShift = async (id: string) => { const { deleteDoc } = await import('firebase/firestore'); await deleteDoc(doc(db, 'chmsShifts', id)); };
+export const deleteShift = async (id: string) => { const { deleteDoc } = await import('firebase/firestore'); await deleteDoc(doc(opsDb, 'chmsShifts', id)); };
 const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 /** Ranked volunteer suggestions for a position: skill match, ministry membership, availability, not double-booked. */
 export function matchVolunteers(people: ChmsPerson[], shift: ChmsShift, pos: ShiftPosition, allShifts: ChmsShift[]) {
@@ -456,7 +456,7 @@ export async function assignVolunteer(shift: ChmsShift, positionId: string, pers
 }
 export async function respondToShift(shift: ChmsShift, personId: string, patch: { status?: ShiftAssignment['status']; swapRequested?: boolean; swapNote?: string }) {
   const assignments = shift.assignments.map(a => a.personId === personId ? strip({ ...a, ...patch }) : a);
-  await updateDoc(doc(db, 'chmsShifts', shift.id), { assignments, updatedAt: Date.now() });
+  await updateDoc(doc(opsDb, 'chmsShifts', shift.id), { assignments, updatedAt: Date.now() });
   return { ...shift, assignments };
 }
 export async function sendShiftReminders(shifts: ChmsShift[], withinDays = 3): Promise<number> {
@@ -465,7 +465,7 @@ export async function sendShiftReminders(shifts: ChmsShift[], withinDays = 3): P
     for (const a of s.assignments.filter(x => x.uid && x.status !== 'DECLINED')) {
       await createNotification({ userId: a.uid!, senderId: auth.currentUser?.uid || s.orgId, senderName: 'Volunteer scheduling', senderPhoto: '', type: 'SYSTEM', title: `Reminder: ${s.title}`, message: `${s.date}${s.time ? ' ' + s.time : ''}`, targetId: s.orgId } as any).catch(() => {}); n++;
     }
-    await updateDoc(doc(db, 'chmsShifts', s.id), { remindedAt: Date.now() }).catch(() => {});
+    await updateDoc(doc(opsDb, 'chmsShifts', s.id), { remindedAt: Date.now() }).catch(() => {});
   }
   return n;
 }
@@ -525,7 +525,7 @@ export const mailingLabelsCSV = (l: ReturnType<typeof mailingLabels>) => toCSV([
 
 export interface ChmsMessageLog { id: string; orgId: string; channels: string[]; subject: string; body: string; segmentLabel: string; recipientCount: number; sentBy: string; sentByName: string; sentAt: number; results: Record<string, number | string> }
 export async function fetchMessageLog(orgId: string): Promise<ChmsMessageLog[]> {
-  const snap = await getDocs(query(collection(db, 'chmsMessages'), where('orgId', '==', orgId)));
+  const snap = await getDocs(query(collection(opsDb, 'chmsMessages'), where('orgId', '==', orgId)));
   return snap.docs.map(d => ({ ...d.data(), id: d.id } as ChmsMessageLog)).sort((a, b) => b.sentAt - a.sentAt);
 }
 /** SMS hook: no provider is wired yet — returns configured:false so the UI can say so honestly. */
@@ -548,7 +548,7 @@ export async function sendSegmentMessage(org: Organization, recipients: ChmsPers
     results.sms = s.sent; if (!s.configured) results.smsNote = 'No SMS provider connected';
   }
   const id = newId('msg');
-  await setDoc(doc(db, 'chmsMessages', id), { id, orgId: org.id, channels: Object.entries(msg.channels).filter(([, v]) => v).map(([k]) => k), subject: msg.subject, body: msg.body, segmentLabel: msg.segmentLabel, recipientCount: adults.length, sentBy: u.uid, sentByName: senderName, sentAt: Date.now(), results });
+  await setDoc(doc(opsDb, 'chmsMessages', id), { id, orgId: org.id, channels: Object.entries(msg.channels).filter(([, v]) => v).map(([k]) => k), subject: msg.subject, body: msg.body, segmentLabel: msg.segmentLabel, recipientCount: adults.length, sentBy: u.uid, sentByName: senderName, sentAt: Date.now(), results });
   logOrgAction(org.id, 'CHMS_BROADCAST', { meta: { segment: msg.segmentLabel, recipients: adults.length } });
   return results;
 }
@@ -560,11 +560,11 @@ export async function createClaim(org: Organization, person: ChmsPerson, days = 
   const u = auth.currentUser; if (!u) throw new Error('Sign in first.');
   const id = newId('clm') + Math.random().toString(36).slice(2, 10);
   const rec: ChmsClaim = { id, orgId: org.id, orgName: org.name, personId: person.id, personName: fullName(person), createdBy: u.uid, createdAt: Date.now(), expiresAt: Date.now() + days * DAY };
-  await setDoc(doc(db, 'chmsClaims', id), rec);
+  await setDoc(doc(opsDb, 'chmsClaims', id), rec);
   return rec;
 }
 export async function fetchClaim(token: string): Promise<ChmsClaim | null> {
-  try { const s = await getDoc(doc(db, 'chmsClaims', token)); return s.exists() ? ({ ...s.data(), id: s.id } as ChmsClaim) : null; } catch { return null; }
+  try { const s = await getDoc(doc(opsDb, 'chmsClaims', token)); return s.exists() ? ({ ...s.data(), id: s.id } as ChmsClaim) : null; } catch { return null; }
 }
 /** Signed-in congregant redeems a claim → ChmsPerson.linkedUid = uid. Rules verify the claim (unused, unexpired, same person). */
 export async function redeemClaim(token: string): Promise<ChmsClaim> {
@@ -573,17 +573,17 @@ export async function redeemClaim(token: string): Promise<ChmsClaim> {
   if (!c) throw new Error('This link is invalid.');
   if (c.usedBy) throw new Error('This link was already used.');
   if (c.expiresAt < Date.now()) throw new Error('This link has expired.');
-  await updateDoc(doc(db, 'chmsPeople', c.personId), { linkedUid: u.uid, claimToken: token, updatedAt: Date.now() });
-  await updateDoc(doc(db, 'chmsClaims', token), { usedBy: u.uid, usedAt: Date.now() }).catch(() => {});
+  await updateDoc(doc(opsDb, 'chmsPeople', c.personId), { linkedUid: u.uid, claimToken: token, updatedAt: Date.now() });
+  await updateDoc(doc(opsDb, 'chmsClaims', token), { usedBy: u.uid, usedAt: Date.now() }).catch(() => {});
   return c;
 }
 export async function fetchMyPerson(orgId: string, uid: string): Promise<ChmsPerson | null> {
-  const snap = await getDocs(query(collection(db, 'chmsPeople'), where('orgId', '==', orgId), where('linkedUid', '==', uid)));
+  const snap = await getDocs(query(collection(opsDb, 'chmsPeople'), where('orgId', '==', orgId), where('linkedUid', '==', uid)));
   const d = snap.docs[0]; return d ? ({ ...d.data(), id: d.id } as ChmsPerson) : null;
 }
 /** Self-service update — limited to the fields firestore.rules allow a linked person to change. */
 export async function updateMyContact(personId: string, patch: Partial<Pick<ChmsPerson, 'email' | 'phone' | 'address' | 'preferredName' | 'photoUrl' | 'directoryVisible'>>) {
-  await updateDoc(doc(db, 'chmsPeople', personId), { ...strip(patch as any), updatedAt: Date.now() });
+  await updateDoc(doc(opsDb, 'chmsPeople', personId), { ...strip(patch as any), updatedAt: Date.now() });
 }
 
 // ── Reports ──────────────────────────────────────────────────────────────────

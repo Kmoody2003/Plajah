@@ -4,7 +4,7 @@
 import React, { useEffect, useState } from 'react';
 import { Loader2, Check, Link2 } from 'lucide-react';
 import { collection, getDocs, query, where } from 'firebase/firestore';
-import { db } from '../../../services/firebase';
+import { db, opsDb } from '../../../services/firebase';
 import type { ChmsPerson } from '../../../types';
 import type { ChmsShift, ChmsClaim } from '../../../services/chmsPeople';
 import { fetchMyPerson, updateMyContact, selfCheckIn, serviceKey, todayISO, respondToShift, redeemClaim, fetchClaim, fullName } from '../../../services/chmsPeople';
@@ -34,7 +34,7 @@ export const MyProfileCard: React.FC<{ orgId: string; uid: string; eventKey?: st
         allowExtendedRelationships: me.allowExtendedRelationships !== undefined ? me.allowExtendedRelationships : getLocalExtendedKinshipOptIn(me.id),
       });
     }).catch(() => live && setP(null));
-    getDocs(query(collection(db, 'chmsShifts'), where('orgId', '==', orgId), where('assignedUids', 'array-contains', uid)))
+    getDocs(query(collection(opsDb, 'chmsShifts'), where('orgId', '==', orgId), where('assignedUids', 'array-contains', uid)))
       .then(s => live && setShifts(s.docs.map(d => ({ ...d.data(), id: d.id } as ChmsShift)).filter(x => x.date >= todayISO()).sort((a, b) => a.date.localeCompare(b.date)))).catch(() => {});
     return () => { live = false; };
   }, [orgId, uid]);

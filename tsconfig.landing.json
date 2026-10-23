@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "allowJs": false, "noEmit": true },
+  "include": ["components/LandingPage.tsx", "components/AdminLandingBgManager.tsx"]
+}

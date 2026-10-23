@@ -5072,6 +5072,9 @@ export interface LandingBgAsset {
   type: 'photo' | 'video';
   url: string;
   thumbnailUrl?: string;
+  /** Mux public playback id for video assets — the landing page streams HLS from it and uses its
+   *  thumbnail as the poster; `url` (the Storage MP4) stays as the fallback. */
+  muxPlaybackId?: string;
   name: string;
   size?: number;
   uploadedAt: number;

@@ -14,7 +14,7 @@
 // Ledger IO goes through services/acctService.ts (idempotent journal ids, period locks, reversals).
 
 import { collection, doc, getDoc, getDocs, query, setDoc, updateDoc, where } from 'firebase/firestore';
-import { db, auth } from './firebase';
+import { opsDb, auth } from './firebase';
 import { logOrgAction, type OrgAuditAction } from './orgAudit';
 import { createNotification, uploadFile } from './backendService';
 import { callGeminiDetailed } from './geminiService';
@@ -158,7 +158,7 @@ export interface SpendingBundle {
 export const EMPTY_BUNDLE: SpendingBundle = { expenses: [], vendors: [], accounts: [], bankAccounts: [], budgets: [], bankTxns: [], payouts: [], scope: 'MINE', errors: [], loadedAt: 0 };
 
 async function listBy<T>(col: string, orgId: string, extra?: [string, any]): Promise<T[]> {
-  const q = extra ? query(collection(db, col), where('orgId', '==', orgId), where(extra[0], '==', extra[1])) : query(collection(db, col), where('orgId', '==', orgId));
+  const q = extra ? query(collection(opsDb, col), where('orgId', '==', orgId), where(extra[0], '==', extra[1])) : query(collection(opsDb, col), where('orgId', '==', orgId));
   return (await getDocs(q)).docs.map(d => ({ id: d.id, ...d.data() } as unknown as T));
 }
 
@@ -338,7 +338,7 @@ export async function submitExpense(org: Organization, input: SubmitInput, exist
   if (!input.allowDuplicate && input.kind !== 'REQUEST') {
     const dup = findDuplicate(input, existing); if (dup) throw new Error(`Possible duplicate: ${dup.reason}.`);
   }
-  const ref = doc(collection(db, 'acctExpenses'));
+  const ref = doc(collection(opsDb, 'acctExpenses'));
   const exp: AcctExpense = strip({
     id: ref.id, orgId: org.id, kind: input.kind === 'REQUEST' ? 'EXPENSE' : input.kind, isRequest: input.kind === 'REQUEST' ? true : undefined,
     vendorId: input.vendorId, vendorName: input.vendorName?.trim() || undefined, description: input.description.trim(),
@@ -360,13 +360,13 @@ export async function submitExpense(org: Organization, input: SubmitInput, exist
 /** Submitter withdraws (or finance voids an unpaid) request. Rules allow the submitter DRAFT/SUBMITTED → VOID. */
 export async function withdrawExpense(org: Organization, e: AcctExpense, reason = 'Withdrawn by submitter'): Promise<void> {
   const uid = uid_();
-  await updateDoc(doc(db, 'acctExpenses', e.id), { status: 'VOID', voidReason: reason, voidedBy: uid, voidedAt: Date.now() });
+  await updateDoc(doc(opsDb, 'acctExpenses', e.id), { status: 'VOID', voidReason: reason, voidedBy: uid, voidedAt: Date.now() });
   audit(org.id, 'FIN_EXP_VOID', `${usd(e.amount)} ${e.description}`, { id: e.id, reason });
   emitFinanceChanged();
 }
 /** Undo a withdraw (submitter, VOID → SUBMITTED isn't allowed by rules, so we only offer undo to accounting writers). */
 export async function restoreExpense(org: Organization, e: AcctExpense): Promise<void> {
-  await updateDoc(doc(db, 'acctExpenses', e.id), { status: 'SUBMITTED', voidReason: null, voidedBy: null, voidedAt: null });
+  await updateDoc(doc(opsDb, 'acctExpenses', e.id), { status: 'SUBMITTED', voidReason: null, voidedBy: null, voidedAt: null });
   audit(org.id, 'FIN_EXP_VOID', `Restored ${usd(e.amount)} ${e.description}`, { id: e.id, restored: true });
   emitFinanceChanged();
 }
@@ -379,7 +379,7 @@ export async function approveExpense(org: Organization, member: OrgMembership | 
   const approvals = [...(e.approvals || []), strip({ uid, name: actorName(), at: Date.now(), note: note?.trim() || undefined })];
   const complete = new Set(approvals.map(a => a.uid)).size >= required;
   try {
-    await updateDoc(doc(db, 'acctExpenses', e.id), strip({ status: 'APPROVED', approvals, requiredApprovals: required, approvedBy: complete ? uid : e.approvedBy, approvedAt: complete ? Date.now() : e.approvedAt }));
+    await updateDoc(doc(opsDb, 'acctExpenses', e.id), strip({ status: 'APPROVED', approvals, requiredApprovals: required, approvedBy: complete ? uid : e.approvedBy, approvedAt: complete ? Date.now() : e.approvedAt }));
   } catch (err: any) {
     if (err?.code === 'permission-denied') throw new Error('Plajah couldn’t record your approval — ask a pastor or finance to approve this one.');
     throw err;
@@ -394,7 +394,7 @@ export async function rejectExpense(org: Organization, member: OrgMembership | n
   const uid = uid_();
   if (!reason.trim()) throw new Error('Add a short reason so they know what to fix.');
   const g = canApproveExpense(org, member, e); if (!g.ok && !(g.reason || '').includes('already')) throw new Error(g.reason);
-  await updateDoc(doc(db, 'acctExpenses', e.id), { status: 'REJECTED', rejectedReason: reason.trim(), rejectedBy: uid, rejectedAt: Date.now() });
+  await updateDoc(doc(opsDb, 'acctExpenses', e.id), { status: 'REJECTED', rejectedReason: reason.trim(), rejectedBy: uid, rejectedAt: Date.now() });
   audit(org.id, 'FIN_EXP_REJECTED', `${usd(e.amount)} ${e.description}`, { id: e.id, reason });
   notify(org, [e.submittedBy], 'Your request needs changes', `${usd(e.amount)} — ${e.description}. Reason: ${reason.trim()}`);
   emitFinanceChanged();
@@ -403,7 +403,7 @@ export async function rejectExpense(org: Organization, member: OrgMembership | n
 // ── ledger plumbing (thin wrappers over acctService) ──────────────────────────
 export async function assertPeriodOpen(orgId: string, date: string): Promise<void> {
   try {
-    const s = await getDocs(query(collection(db, 'acctPeriods'), where('orgId', '==', orgId), where('period', '==', periodOf(date))));
+    const s = await getDocs(query(collection(opsDb, 'acctPeriods'), where('orgId', '==', orgId), where('period', '==', periodOf(date))));
     if (s.docs.some(d => (d.data() as AcctPeriod).status === 'CLOSED')) throw new Error(`${periodOf(date)} is closed. Pick a date in an open month or ask your bookkeeper to reopen it.`);
   } catch (e: any) { if (/is closed/.test(e?.message || '')) throw e; /* no read access / no periods yet → fine */ }
 }
@@ -412,7 +412,7 @@ export const loadSysAccounts = (orgId: string): Promise<SysAccounts> => sysAccou
 /** Idempotent (deterministic key) and period-locked via acctService. Returns the journal id. */
 export async function postJournal(orgId: string, draft: DraftJournal): Promise<string> { return (await svcPost(orgId, draft, uid_())).id; }
 async function reverseJournal(orgId: string, journalId: string): Promise<void> {
-  const snap = await getDoc(doc(db, 'acctJournals', journalId)); if (!snap.exists()) return;
+  const snap = await getDoc(doc(opsDb, 'acctJournals', journalId)); if (!snap.exists()) return;
   const j = { id: snap.id, ...snap.data() } as AcctJournal; if (j.status === 'REVERSED') return;
   await svcReverse(orgId, j, 'expense voided');
 }
@@ -422,9 +422,9 @@ export const vendorDocId = (orgId: string, name: string) => `v_${orgId.replace(/
 export async function saveVendor(org: Organization, v: Partial<AcctVendor> & { name: string }): Promise<AcctVendor> {
   uid_();
   const id = v.id || vendorDocId(org.id, v.name);
-  const prev = await getDoc(doc(db, 'acctVendors', id));
+  const prev = await getDoc(doc(opsDb, 'acctVendors', id));
   const merged: AcctVendor = strip({ ...(prev.exists() ? prev.data() : {}), ...v, id, orgId: org.id, name: v.name.trim(), active: v.active ?? true, createdAt: (prev.data() as any)?.createdAt || Date.now() }) as AcctVendor;
-  await setDoc(doc(db, 'acctVendors', id), merged);
+  await setDoc(doc(opsDb, 'acctVendors', id), merged);
   audit(org.id, 'FIN_VENDOR', merged.name, { id, is1099: !!merged.is1099 });
   emitFinanceChanged();
   return merged;
@@ -451,7 +451,7 @@ const paidFrom = (ctx: Ctx, bankAccountId?: string, method?: PayMethod): string 
   return pick?.accountId;
 };
 async function assertAccountExists(e: AcctExpense) {
-  if (!(await getDoc(doc(db, 'acctAccounts', e.accountId))).exists()) throw new Error(`The category on “${e.description}” isn’t in your chart of accounts — recode it first.`);
+  if (!(await getDoc(doc(opsDb, 'acctAccounts', e.accountId))).exists()) throw new Error(`The category on “${e.description}” isn’t in your chart of accounts — recode it first.`);
 }
 
 /** Book a bill to Accounts Payable now (so AP/reports are right) without paying it yet. */
@@ -459,7 +459,7 @@ export async function bookBill(org: Organization, e: AcctExpense, ctx: Ctx): Pro
   if (e.kind !== 'BILL') throw new Error('Only vendor bills go to Accounts Payable.');
   await assertAccountExists(e);
   const id = await postJournal(org.id, billEntry(ctx.sys, { id: e.id, date: e.date, amount: e.amount, accountId: e.accountId, fundId: e.fundId, deptId: e.deptId, memo: `${e.vendorName || 'Bill'}${e.invoiceNumber ? ' #' + e.invoiceNumber : ''} — ${e.description}` }));
-  await updateDoc(doc(db, 'acctExpenses', e.id), strip({ journalId: id, status: 'APPROVED', approvedBy: e.approvedBy || uid_(), approvedAt: e.approvedAt || Date.now(), vendorId: await ensureVendorFor(org, e, ctx.vendors) }));
+  await updateDoc(doc(opsDb, 'acctExpenses', e.id), strip({ journalId: id, status: 'APPROVED', approvedBy: e.approvedBy || uid_(), approvedAt: e.approvedAt || Date.now(), vendorId: await ensureVendorFor(org, e, ctx.vendors) }));
   audit(org.id, 'FIN_EXP_BOOKED', `${usd(e.amount)} ${e.vendorName || e.description}`, { id: e.id });
   emitFinanceChanged();
   return id;
@@ -483,11 +483,11 @@ export async function payExpense(org: Organization, e: AcctExpense, opts: PayOpt
     journalId = await postJournal(org.id, expenseEntry(ctx.sys, { id: e.id, date: e.kind === 'REIMBURSEMENT' ? date : e.date, amount: e.amount, accountId: e.accountId, fundId: e.fundId, deptId: e.deptId, memo: e.kind === 'REIMBURSEMENT' ? `Reimbursement to ${e.payee || e.submittedByName || 'staff'} — ${e.description}` : memo, paidFromAccountId: from }));
   }
   const vendorId = await ensureVendorFor(org, e, ctx.vendors);
-  await updateDoc(doc(db, 'acctExpenses', e.id), strip({
+  await updateDoc(doc(opsDb, 'acctExpenses', e.id), strip({
     status: 'PAID', paidAt: Date.now(), paymentMethod: opts.method, checkNumber: opts.checkNumber?.trim() || undefined, bankAccountId: opts.bankAccountId || undefined,
     journalId, paymentJournalId, vendorId, approvedBy: e.approvedBy || (r === 'READY_AUTO' ? 'auto' : uid), approvedAt: e.approvedAt || Date.now(), payBatchId: extra?.payBatchId,
   }));
-  if (e.requestId) { try { await updateDoc(doc(db, 'acctExpenses', e.requestId), { status: 'PAID', memo: `Fulfilled by ${e.id}` }); } catch { /* best effort */ } }
+  if (e.requestId) { try { await updateDoc(doc(opsDb, 'acctExpenses', e.requestId), { status: 'PAID', memo: `Fulfilled by ${e.id}` }); } catch { /* best effort */ } }
   audit(org.id, 'FIN_EXP_PAID', `${usd(e.amount)} ${e.vendorName || e.description}`, { id: e.id, method: opts.method, check: opts.checkNumber, journalId, paymentJournalId });
   notify(org, [e.submittedBy], e.kind === 'REIMBURSEMENT' ? 'You’ve been reimbursed' : 'Your expense was recorded as paid', `${usd(e.amount)} — ${e.description}${opts.checkNumber ? ` (check #${opts.checkNumber})` : ''}`);
   emitFinanceChanged();
@@ -517,7 +517,7 @@ export async function voidExpense(org: Organization, e: AcctExpense, reason: str
   if (hadBooks) await assertPeriodOpen(org.id, date);
   if (e.paymentJournalId) await reverseJournal(org.id, e.paymentJournalId);
   if (e.journalId) await reverseJournal(org.id, e.journalId);
-  await updateDoc(doc(db, 'acctExpenses', e.id), { status: 'VOID', voidReason: reason.trim(), voidedBy: uid, voidedAt: Date.now() });
+  await updateDoc(doc(opsDb, 'acctExpenses', e.id), { status: 'VOID', voidReason: reason.trim(), voidedBy: uid, voidedAt: Date.now() });
   audit(org.id, 'FIN_EXP_VOID', `${usd(e.amount)} ${e.description}`, { id: e.id, reason: reason.trim(), reversed: hadBooks });
   emitFinanceChanged();
 }
@@ -525,7 +525,7 @@ export async function voidExpense(org: Organization, e: AcctExpense, reason: str
 /** Finance-side edit of coding before paying (category/fund/dept/vendor). */
 export async function recodeExpense(org: Organization, e: AcctExpense, patch: Partial<Pick<AcctExpense, 'accountId' | 'fundId' | 'deptId' | 'vendorName' | 'vendorId' | 'dueDate' | 'invoiceNumber' | 'description'>>): Promise<void> {
   if (e.journalId) throw new Error('Already posted — void and re-enter to change the coding.');
-  await updateDoc(doc(db, 'acctExpenses', e.id), strip({ ...patch, deptName: patch.deptId ? deptNameOf(org, patch.deptId) : undefined }));
+  await updateDoc(doc(opsDb, 'acctExpenses', e.id), strip({ ...patch, deptName: patch.deptId ? deptNameOf(org, patch.deptId) : undefined }));
   emitFinanceChanged();
 }
 
@@ -548,7 +548,7 @@ export async function draftRecurringBills(org: Organization): Promise<number> {
     let cur = r; let guard = 0;
     while (cur.active && cur.nextDate <= today && guard++ < 4) {
       const id = `rec_${org.id.replace(/[^A-Za-z0-9_-]/g, '_')}_${r.id}_${cur.nextDate}`;
-      const ref = doc(db, 'acctExpenses', id);
+      const ref = doc(opsDb, 'acctExpenses', id);
       if (!(await getDoc(ref)).exists()) {
         const e: AcctExpense = strip({
           id, orgId: org.id, kind: 'BILL', vendorId: r.vendorId, vendorName: r.vendorName, description: r.description, date: cur.nextDate, dueDate: addDaysISO(cur.nextDate, r.dueInDays ?? 0),

@@ -2,7 +2,7 @@
 // per-user alert preferences and the "run the sweep now" call. All maths lives in services/acctPulse.ts.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { collection, doc, getDoc, query, setDoc, updateDoc, where } from 'firebase/firestore';
-import { db, auth } from './firebase';
+import { db, opsDb, dbFor, auth } from './firebase';
 import { onSnapshot } from './safeSnapshot';
 import { callGemini } from './geminiService';
 import type { AcctAccount, AcctAlert, AcctBudget, AcctExpense, AcctJournal, AcctProject, Organization } from '../types';
@@ -49,7 +49,7 @@ export function useBudgetPulse(org: Organization, fiscalYear?: number, scope: Pu
     const flush = () => { timer.current = null; const b = buf.current; buf.current = {}; setData(prev => ({ ...prev, ...b })); setUpdatedAt(Date.now()); };
     const sched = () => { if (!timer.current) timer.current = setTimeout(flush, 350); };
     const sub = (name: keyof LivePulse['data'], col: string, map?: (x: any) => any) => onSnapshot(
-      query(collection(db, col), where('orgId', '==', org.id)),
+      query(collection(dbFor(col), col), where('orgId', '==', org.id)),
       s => { (buf.current as any)[name] = s.docs.map(d => ({ id: d.id, ...d.data() })).map(map || (x => x)); setLoaded(p => ({ ...p, [name]: true })); setErrors(p => { if (!p[name]) return p; const n = { ...p }; delete n[name]; return n; }); sched(); },
       e => { setLoaded(p => ({ ...p, [name]: true })); setErrors(p => ({ ...p, [name]: (e as any)?.code || 'error' })); },
     );
@@ -86,7 +86,7 @@ export async function saveProject(orgId: string, p: Partial<AcctProject> & { nam
   if (!(p.budget >= 0) || p.endDate < p.startDate) throw new Error('Check the budget and dates.');
   const id = p.id || projectDocId(orgId, p.name);
   const now = Date.now();
-  await setDoc(doc(db, 'acctProjects', id), strip({ status: 'ACTIVE', createdBy: uid, createdAt: now, ...p, id, orgId, updatedAt: now }), { merge: true });
+  await setDoc(doc(opsDb, 'acctProjects', id), strip({ status: 'ACTIVE', createdBy: uid, createdAt: now, ...p, id, orgId, updatedAt: now }), { merge: true });
   return id;
 }
 
@@ -101,9 +101,9 @@ export function useAlertAcks(orgId: string): { acks: AckMap; stored: AcctAlert[]
   useEffect(() => {
     setAcks(readLs(uid, orgId));
     // Server-created alerts (readable by finance via acctRead and by heads via audienceUids). Merge their per-user ack state.
-    const u1 = onSnapshot(query(collection(db, 'acctAlerts'), where('orgId', '==', orgId)), s => setStored(s.docs.map(d => ({ id: d.id, ...d.data() } as AcctAlert))), () => {
+    const u1 = onSnapshot(query(collection(opsDb, 'acctAlerts'), where('orgId', '==', orgId)), s => setStored(s.docs.map(d => ({ id: d.id, ...d.data() } as AcctAlert))), () => {
       // Not a finance reader: fall back to alerts addressed to me.
-      onSnapshot(query(collection(db, 'acctAlerts'), where('orgId', '==', orgId), where('audienceUids', 'array-contains', uid)), s => setStored(s.docs.map(d => ({ id: d.id, ...d.data() } as AcctAlert))), () => {});
+      onSnapshot(query(collection(opsDb, 'acctAlerts'), where('orgId', '==', orgId), where('audienceUids', 'array-contains', uid)), s => setStored(s.docs.map(d => ({ id: d.id, ...d.data() } as AcctAlert))), () => {});
     });
     return () => u1();
   }, [orgId, uid]);
@@ -118,7 +118,7 @@ export function useAlertAcks(orgId: string): { acks: AckMap; stored: AcctAlert[]
     try { localStorage.setItem(lsKey(uid, orgId), JSON.stringify(next)); } catch { /* private mode */ }
     setAcks(next);
     if (stored.some(a => a.id === id)) {
-      try { await updateDoc(doc(db, 'acctAlerts', id), snoozeUntil ? { [`snoozedUntil.${uid}`]: snoozeUntil } : { [`acknowledgedBy.${uid}`]: now }); } catch { /* local copy is enough */ }
+      try { await updateDoc(doc(opsDb, 'acctAlerts', id), snoozeUntil ? { [`snoozedUntil.${uid}`]: snoozeUntil } : { [`acknowledgedBy.${uid}`]: now }); } catch { /* local copy is enough */ }
     }
   };
   return { acks: merged, stored, ack };

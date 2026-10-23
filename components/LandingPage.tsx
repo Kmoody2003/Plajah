@@ -20,10 +20,72 @@ interface LandingPageProps {
 
 // ── Dynamic Background ──────────────────────────────────────────────────────────
 
+// The background config is cached so a returning visitor's video starts before Firebase has even
+// booted; index.html reads the same key to preload the poster. First visits wait on one doc read.
+const BG_CACHE_KEY = 'plajah.landingBg.v1';
+
+const readCachedBg = (): LandingBgConfig | null => {
+  try {
+    const raw = localStorage.getItem(BG_CACHE_KEY);
+    return raw ? JSON.parse(raw) as LandingBgConfig : null;
+  } catch { return null; }
+};
+
+const writeCachedBg = (config: LandingBgConfig) => {
+  try { localStorage.setItem(BG_CACHE_KEY, JSON.stringify(config)); } catch { /* private mode */ }
+};
+
+const posterFor = (asset: LandingBgAsset) =>
+  asset.thumbnailUrl || (asset.muxPlaybackId ? `https://image.mux.com/${asset.muxPlaybackId}/thumbnail.webp?time=0&width=1920` : undefined);
+
+/** Mux HLS when the asset has a playback id (native on Safari, hls.js elsewhere — loaded only
+ *  then), the Storage MP4 otherwise or if the stream fails. Starts on the lowest rendition so the
+ *  first frame is quick, then climbs. The poster covers the gap. */
+const BgVideo: React.FC<{ asset: LandingBgAsset }> = ({ asset }) => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [useMp4, setUseMp4] = useState(!asset.muxPlaybackId);
+
+  useEffect(() => { setUseMp4(!asset.muxPlaybackId); }, [asset.muxPlaybackId]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || useMp4 || !asset.muxPlaybackId) return;
+    const src = `https://stream.mux.com/${asset.muxPlaybackId}.m3u8`;
+    if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      video.src = src;
+      return;
+    }
+    let hls: any;
+    let cancelled = false;
+    import('hls.js').then(({ default: Hls }) => {
+      if (cancelled) return;
+      if (!Hls.isSupported()) { setUseMp4(true); return; }
+      hls = new Hls({ startLevel: 0, capLevelToPlayerSize: true, maxBufferLength: 10 });
+      hls.on(Hls.Events.ERROR, (_e: unknown, data: any) => { if (data?.fatal) setUseMp4(true); });
+      hls.loadSource(src);
+      hls.attachMedia(video);
+    }).catch(() => setUseMp4(true));
+    return () => { cancelled = true; hls?.destroy(); };
+  }, [asset.muxPlaybackId, useMp4]);
+
+  return (
+    <video
+      ref={videoRef}
+      key={useMp4 ? 'mp4' : 'hls'}
+      src={useMp4 ? asset.url : undefined}
+      poster={posterFor(asset)}
+      autoPlay muted loop playsInline
+      preload="auto"
+      className="absolute inset-0 w-full h-full object-cover"
+      onCanPlay={e => { (e.target as HTMLVideoElement).play().catch(() => {}); }}
+      onError={() => { if (!useMp4) setUseMp4(true); }}
+    />
+  );
+};
+
 const LandingBackground: React.FC<{ config: LandingBgConfig }> = ({ config }) => {
   const selected = config.assets.filter(a => a.isSelected);
   const [slideIdx, setSlideIdx] = useState(0);
-  const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     if (config.mode !== 'SLIDESHOW' || selected.length < 2) return;
@@ -61,13 +123,7 @@ const LandingBackground: React.FC<{ config: LandingBgConfig }> = ({ config }) =>
     const asset = selected.find(a => a.type === 'video') ?? selected[0];
     return (
       <>
-        <video
-          ref={videoRef}
-          src={asset.url}
-          autoPlay muted loop playsInline
-          className="absolute inset-0 w-full h-full object-cover"
-          onCanPlay={e => { (e.target as HTMLVideoElement).play().catch(() => {}); }}
-        />
+        <BgVideo asset={asset} />
         <div className="absolute inset-0" style={overlayStyle} />
       </>
     );
@@ -87,12 +143,7 @@ const LandingBackground: React.FC<{ config: LandingBgConfig }> = ({ config }) =>
           transition={{ duration: 1.2, ease: 'easeInOut' }}
         >
           {current.type === 'video' ? (
-            <video
-              src={current.url}
-              autoPlay muted loop playsInline
-              className="absolute inset-0 w-full h-full object-cover"
-              onCanPlay={e => { (e.target as HTMLVideoElement).play().catch(() => {}); }}
-            />
+            <BgVideo asset={current} />
           ) : (
             <img src={current.url} alt="" className="absolute inset-0 w-full h-full object-cover" />
           )}
@@ -161,22 +212,21 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter, onVisitUser }) => {
   const [signedIn, setSignedIn] = useState<{ name: string; photo: string; providers: string[] } | null>(null);
   const [busyProvider, setBusyProvider] = useState<string | null>(null);
   const [authError, setAuthError] = useState('');
-  const [bgConfig, setBgConfig] = useState<LandingBgConfig>({
-    mode: 'EARTH', slideshowIntervalMs: 5000, overlayOpacity: 40, assets: []
-  });
+  // null = not known yet (first visit, doc still loading): render the plain backdrop rather than
+  // booting the globe only to swap it out for a video a moment later.
+  const [bgConfig, setBgConfig] = useState<LandingBgConfig | null>(readCachedBg);
 
   useEffect(() => {
-    const load = async () => {
-      const [u1, u2, bg] = await Promise.all([
-        fetchRandomActiveUser(),
-        fetchRandomActiveUser(),
-        fetchLandingBgConfig(),
-      ]);
+    // The background doesn't wait on the featured-user queries.
+    fetchLandingBgConfig().then(bg => {
+      const next = bg ?? { mode: 'EARTH' as const, slideshowIntervalMs: 5000, overlayOpacity: 40, assets: [] };
+      writeCachedBg(next);
+      setBgConfig(prev => JSON.stringify(prev) === JSON.stringify(next) ? prev : next);
+    });
+    Promise.all([fetchRandomActiveUser(), fetchRandomActiveUser()]).then(([u1, u2]) => {
       setLeftAdUser(u1);
       setRightAdUser(u2);
-      if (bg) setBgConfig(bg);
-    };
-    load();
+    });
   }, []);
 
   // auth.onAuthStateChanged, not the app's onAuthUpdate wrapper: the wrapper re-syncs the
@@ -272,7 +322,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter, onVisitUser }) => {
       <AdSquare user={rightAdUser} side="right" />
       {/* Dynamic background */}
       <div className="absolute inset-0 z-0" style={{ width: '100%', height: '100%' }}>
-        <LandingBackground config={bgConfig} />
+        {bgConfig
+          ? <LandingBackground config={bgConfig} />
+          : <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-[#1a0026]/30 to-[#020202]" />}
       </div>
 
       {/* Content */}

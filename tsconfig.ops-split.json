@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "allowJs": false, "noEmit": true },
+  "include": [
+    "services/opsCollections.ts", "services/opsMirror.ts", "services/firebase.ts", "services/firebaseAdminRest.ts",
+    "services/acctPulseLive.ts", "services/acctService.ts", "services/acctSpending.ts", "services/backendService.ts",
+    "services/billingService.ts", "services/businessService.ts", "services/chmsFinance.ts", "services/chmsImport.ts",
+    "services/chmsPeople.ts", "services/churchConsoleService.ts", "services/churchEducationService.ts",
+    "services/crm/crmService.ts", "services/elevateAccounts.ts", "services/elevateLiveStore.ts", "services/elevateService.ts",
+    "services/hqCollaboration.ts", "services/orgAssets.ts", "services/orgSecurityService.ts", "services/organizationService.ts",
+    "components/ChurchPrayerWall.tsx", "components/elevate/chms/PeopleMyProfileCard.tsx",
+    "routes/billing.ts", "routes/elevateAccounts.ts", "server.ts"
+  ]
+}

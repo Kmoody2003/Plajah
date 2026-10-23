@@ -5,7 +5,7 @@ import {
   submitChurchPrayer, listenToChurchPrayers, toggleChurchPraying,
   markChurchPrayerAnswered, deleteChurchPrayer,
 } from '../services/organizationService';
-import { auth, db } from '../services/firebase';
+import { auth, db, opsDb } from '../services/firebase';
 import { collection, query, where } from 'firebase/firestore';
 import { onSnapshot } from '../services/safeSnapshot';
 import { TYPE } from '../src/lib/designSystem';
@@ -33,7 +33,7 @@ const ChurchPrayerWall: React.FC<{ orgId: string; isOwner?: boolean; canSeePriva
   // Non-staff still see their own private requests (rules allow the author).
   useEffect(() => {
     if (seePrivate || !uid) { setMine([]); return; }
-    return onSnapshot(query(collection(db, 'churchPrayers'), where('orgId', '==', orgId), where('authorId', '==', uid)),
+    return onSnapshot(query(collection(opsDb, 'churchPrayers'), where('orgId', '==', orgId), where('authorId', '==', uid)),
       snap => setMine(snap.docs.map(d => ({ id: d.id, ...d.data() } as ChurchPrayer))), () => {});
   }, [orgId, seePrivate, uid]);
 
