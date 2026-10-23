@@ -1,0 +1,6 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": true, "skipLibCheck": true },
+  "include": [],
+  "files": ["components/taleo/RavencrestGameFrame.tsx", "services/achievementService.ts", "services/halloween/halloweenAudioSfx.ts"]
+}

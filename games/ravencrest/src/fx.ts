@@ -72,3 +72,18 @@ export function batchFlames(flames: THREE.Mesh[]): THREE.Mesh | null {
   mesh.name = 'flameBatch';
   return mesh;
 }
+
+
+/** Miriam's hover broom: a dark shaft, a straw tail and a green levitation ring under it. */
+export function buildBroom() {
+  const broom = new THREE.Group();
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.05, 2.1, 8), new THREE.MeshStandardNodeMaterial({ color: 0x2a1c12, roughness: 0.6 }));
+  shaft.rotation.x = Math.PI / 2;
+  const bristles = new THREE.Mesh(new THREE.ConeGeometry(0.24, 0.75, 12, 1, true), new THREE.MeshStandardNodeMaterial({ color: 0x4a3a1e, roughness: 0.9, side: THREE.DoubleSide }));
+  bristles.rotation.x = Math.PI / 2; bristles.position.z = -1.25;
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.045, 8, 32), new THREE.MeshBasicNodeMaterial({ color: new THREE.Color(0x43ff6a).multiplyScalar(3), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
+  ring.rotation.x = Math.PI / 2; ring.position.y = -0.15;
+  broom.add(shaft, bristles, ring);
+  broom.userData.dynamic = true;
+  return broom;
+}

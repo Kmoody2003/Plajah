@@ -27,6 +27,8 @@ export const MANIFEST = {
     'wine_barrel_01', 'wooden_crate_01', 'wooden_barrels_01', 'wooden_lantern_01', 'lantern_chandelier_01',
     'wooden_candlestick', 'brass_candleholders', 'gothic_coffee_table', 'kite_shield', 'wooden_bookshelf_worn',
     'treasure_chest', 'gothic_statue', 'vintage_cabinet_01', 'painted_wooden_bench', 'stone_fire_pit',
+    // Road obstacles (abandoned car, barricades, debris piles): roadObstacles.ts.
+    'covered_car', 'Barrel_01', 'barrel_03', 'cement_bag',
   ],
   hdri: ['narrow_moonlit_road', 'rogland_moonlit_night'],
 };

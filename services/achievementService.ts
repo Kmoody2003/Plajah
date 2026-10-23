@@ -26,7 +26,7 @@ const USER_ACHIEVEMENTS_COLLECTION = 'userAchievements';
 
 // ── BASE ACHIEVEMENTS (SYSTEM) ───────────────────────────────────────────────
 
-const BASE_ACHIEVEMENTS: Omit<Achievement, 'id' | 'createdAt' | 'updatedAt'>[] = [
+export const BASE_ACHIEVEMENTS: Omit<Achievement, 'id' | 'createdAt' | 'updatedAt'>[] = [
   // KITH SIGHTINGS
   // Minted server-side (routes/kithSightings.ts) — the client never unlocks these.
   // Registered here so they render with a title and icon wherever achievements
@@ -255,6 +255,46 @@ const BASE_ACHIEVEMENTS: Omit<Achievement, 'id' | 'createdAt' | 'updatedAt'>[] =
     isActive: true,
   },
 
+  // GAMES — Ravencrest (Cinema's Halloween collection)
+  {
+    title: 'Troll Slayer',
+    description: 'Defeated the Bridge Troll on the crossing to Ravencrest',
+    category: 'USER',
+    triggerType: 'RAVENCREST_TROLL_SLAYER',
+    icon: 'Swords',
+    backgroundColor: '#3a4a30',
+    pointsValue: 50,
+    requirements: { type: 'ACTION', actionTrigger: 'RAVENCREST_TROLL_SLAYER' },
+    rewards: { pointsBonus: 50 },
+    createdBy: 'SYSTEM',
+    isActive: true,
+  },
+  {
+    title: 'Dracula Slain',
+    description: 'Defeated Count Dracula, Lord of Ravencrest',
+    category: 'USER',
+    triggerType: 'RAVENCREST_DRACULA_SLAIN',
+    icon: 'Skull',
+    backgroundColor: '#5a0606',
+    pointsValue: 100,
+    requirements: { type: 'ACTION', actionTrigger: 'RAVENCREST_DRACULA_SLAIN' },
+    rewards: { pointsBonus: 100 },
+    createdBy: 'SYSTEM',
+    isActive: true,
+  },
+  {
+    title: 'Curse Breaker',
+    description: 'Broke the curse over Ravencrest — dawn returns to the land',
+    category: 'USER',
+    triggerType: 'RAVENCREST_CURSE_BREAKER',
+    icon: 'Sunrise',
+    backgroundColor: '#c9a25a',
+    pointsValue: 150,
+    requirements: { type: 'ACTION', actionTrigger: 'RAVENCREST_CURSE_BREAKER' },
+    rewards: { pointsBonus: 150 },
+    createdBy: 'SYSTEM',
+    isActive: true,
+  },
   // ACADEMIA — gamified learning achievements
   {
     title: 'First Steps',

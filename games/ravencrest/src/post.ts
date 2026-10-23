@@ -3,7 +3,8 @@
 // Intel's XeSS isn't reachable from the browser; FSR1 is the vendor-neutral equivalent
 // that runs well on Arc iGPUs.
 import * as THREE from 'three/webgpu';
-import { pass, mrt, output, normalView, metalness, roughness, velocity, vec2, vec4, float, max, directionToColor, colorToDirection, sample } from 'three/tsl';
+import { pass, mrt, output, normalView, metalness, roughness, velocity, vec2, vec4, float, max, directionToColor, colorToDirection, sample, renderOutput, texture3D, uniform } from 'three/tsl';
+import { lut3D } from 'three/addons/tsl/display/Lut3DNode.js';
 import { ssr } from 'three/addons/tsl/display/SSRNode.js';
 import { bloom } from 'three/addons/tsl/display/BloomNode.js';
 import { traa } from 'three/addons/tsl/display/TRAANode.js';
@@ -17,16 +18,33 @@ export interface PostQuality { ssr: boolean; ssrScale: number; bloom: 'full' | '
 
 type V4 = THREE.Node<'vec4'>;
 
+// Shared colour grade (looks.ts): one 3D LUT + strength for every level's pipeline, applied in
+// display space after tone mapping. Identity (strength 0) until a LUT is picked.
+const LUT_SIZE = 33;
+const identity = (() => {
+  const n = 2, d = new Uint8Array(n * n * n * 4);
+  for (let b = 0; b < n; b++) for (let g = 0; g < n; g++) for (let r = 0; r < n; r++) d.set([r * 255, g * 255, b * 255, 255], ((b * n + g) * n + r) * 4);
+  const t = new THREE.Data3DTexture(d, n, n, n);
+  t.minFilter = t.magFilter = THREE.LinearFilter; t.needsUpdate = true;
+  return t;
+})();
+const lutTex = texture3D(identity);
+const lutAmount = uniform(0);
+export function setLut(tex: THREE.Data3DTexture | null, amount: number) {
+  lutTex.value = tex ?? identity;
+  lutAmount.value = tex ? amount : 0;
+}
+
 export function buildPost(renderer: THREE.WebGPURenderer, scene: THREE.Scene, camera: THREE.PerspectiveCamera, q: PostQuality) {
   const pipeline = new THREE.RenderPipeline(renderer);
   const scenePass = pass(scene, camera, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter });
   // Extra G-buffer targets only when an effect reads them: on an iGPU every additional
   // render target is pure bandwidth.
   if (q.ssr || q.taa) {
+    // Normals + metal/roughness only feed SSR; TAA alone needs just velocity (two fewer targets).
     scenePass.setMRT(mrt({
       output,
-      normal: directionToColor(normalView),
-      metalrough: vec2(metalness, roughness),
+      ...(q.ssr ? { normal: directionToColor(normalView), metalrough: vec2(metalness, roughness) } : {}),
       ...(q.taa ? { velocity } : {}),
     }));
   }
@@ -62,12 +80,21 @@ export function buildPost(renderer: THREE.WebGPURenderer, scene: THREE.Scene, ca
     const glow = gaussianBlur(bright as never, float(2.2) as never, 6, { resolutionScale: 0.25 });
     composed = c.add(vec4(glow.rgb.mul(0.32), 0)) as V4;
   }
-  // TRAA renders black into offscreen targets; SMAA breaks with two pipelines (r184).
+  // Temporal AA (default in play): accumulates jittered frames, so edges stop crawling and
+  // shimmering when the camera turns. (It renders black into offscreen targets; captures use the
+  // canvas copy.)
   if (q.taa) composed = traa(composed, depthTex, scenePass.getTextureNode('velocity'), camera) as unknown as V4;
-  // FSR's edge-adaptive upscale covers edges; FXAA only when rendering at native size.
-  else if (q.smaa && !q.upscale) composed = fxaa(composed) as unknown as V4;
-  // FSR1: edge-adaptive upscale to the drawing buffer + contrast-adaptive sharpening.
-  if (q.upscale) composed = fsr1(composed, 0.25) as unknown as V4;
+  // Anti-alias at the internal resolution first: FSR1 expects AA'd input, and upscaling raw
+  // aliased edges (then sharpening them) made thin geometry and textures shimmer.
+  else if (q.smaa) composed = fxaa(composed) as unknown as V4;
+  // FSR1: edge-adaptive upscale + gentle RCAS (0 = sharpest, 2 = none) with denoise, so
+  // sharpening doesn't re-amplify texture sparkle.
+  if (q.upscale) composed = fsr1(composed, 0.6, true) as unknown as V4;
+  // Tone map + sRGB here (not implicitly) so the LUT grades display-referred colour.
+  pipeline.outputColorTransform = false;
+  composed = renderOutput(composed) as unknown as V4;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  composed = lut3D(composed as any, lutTex as any, LUT_SIZE, lutAmount as any) as unknown as V4;
   pipeline.outputNode = composed;
 
   return {

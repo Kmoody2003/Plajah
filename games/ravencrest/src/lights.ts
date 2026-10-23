@@ -4,12 +4,14 @@
 // lights. The light count never changes, so shaders never recompile.
 import * as THREE from 'three/webgpu';
 
-interface Virtual { pos: THREE.Vector3; color: THREE.Color; intensity: number; distance: number; decay: number; flicker: number }
+export interface Virtual { pos: THREE.Vector3; color: THREE.Color; intensity: number; distance: number; decay: number; flicker: number; keepLit?: boolean }
 
 export class LightPool {
   private virtuals: Virtual[] = [];
   private pool: THREE.PointLight[] = [];
   private time = 0;
+  /** Global multiplier (the nightmare dims torches and candles toward silhouettes). */
+  scale = 1;
 
   /** Convert every PointLight under `root` into a virtual light; add K real lights to `scene`. */
   constructor(root: THREE.Object3D, scene: THREE.Scene, k: number, flickering: Set<THREE.Light>) {
@@ -38,6 +40,14 @@ export class LightPool {
     l.removeFromParent();
   }
 
+  /** A short-lived light (molotov fire, plasma flash); returns a handle for `remove`. */
+  addTransient(pos: THREE.Vector3, color: THREE.ColorRepresentation, intensity: number, distance: number): Virtual {
+    const v: Virtual = { pos: pos.clone(), color: new THREE.Color(color), intensity, distance, decay: 2, flicker: this.virtuals.length * 1.7, keepLit: true };
+    this.virtuals.push(v);
+    return v;
+  }
+  remove(v: Virtual) { const i = this.virtuals.indexOf(v); if (i >= 0) this.virtuals.splice(i, 1); }
+
   get count() { return this.virtuals.length; }
 
   update(dt: number, viewer: THREE.Vector3) {
@@ -62,7 +72,8 @@ export class LightPool {
       l.color.copy(v.color);
       l.distance = v.distance;
       l.decay = v.decay;
-      l.intensity = v.intensity * flick * fade;
+      // Transient lights (orbs, fire, flashes) ignore the dim: in the dark they are the light.
+      l.intensity = v.intensity * flick * fade * (v.keepLit ? 1 : this.scale);
     }
   }
 }

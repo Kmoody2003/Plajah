@@ -1,0 +1,125 @@
+{
+ "voices": [
+  {
+   "id": "melvin_victory",
+   "kind": "pumpkin",
+   "text": "Sorry Penny, they started it. I did not scratch. Come on, little Boo, let's go.",
+   "url": "/games/ravencrest/audio/voices/melvin_victory.mp3",
+   "source": {
+    "film": "Pumpkin Patch (Brian James Gage, 2025)",
+    "t0": 727.23,
+    "t1": 733.65
+   }
+  },
+  {
+   "id": "melvin_trick",
+   "kind": "pumpkin",
+   "text": "How's this trick?",
+   "url": "/games/ravencrest/audio/voices/melvin_trick.mp3",
+   "source": {
+    "film": "Pumpkin Patch (Brian James Gage, 2025)",
+    "t0": 2891.01,
+    "t1": 2892.95
+   }
+  },
+  {
+   "id": "melvin_all_the_way",
+   "kind": "pumpkin",
+   "text": "We take this all the way. Almost there.",
+   "url": "/games/ravencrest/audio/voices/melvin_all_the_way.mp3",
+   "source": {
+    "film": "Pumpkin Patch (Brian James Gage, 2025)",
+    "t0": 2532.77,
+    "t1": 2535.99
+   }
+  },
+  {
+   "id": "melvin_lock",
+   "kind": "pumpkin",
+   "text": "Close enough. I got a lock on the Hexagon beacon.",
+   "url": "/games/ravencrest/audio/voices/melvin_lock.mp3",
+   "source": {
+    "film": "Pumpkin Patch (Brian James Gage, 2025)",
+    "t0": 2400.93,
+    "t1": 2405.19
+   }
+  },
+  {
+   "id": "miriam_darling",
+   "kind": "miriam",
+   "text": "Hello, darling. Might we have a word?",
+   "url": "/games/ravencrest/audio/voices/miriam_darling.mp3",
+   "source": {
+    "film": "Pumpkin Patch (Brian James Gage, 2025)",
+    "t0": 3092.11,
+    "t1": 3096.33
+   }
+  },
+  {
+   "id": "miriam_horseman",
+   "kind": "miriam",
+   "text": "Come out wherever you are, horseman. I sense you're near.",
+   "url": "/games/ravencrest/audio/voices/miriam_horseman.mp3",
+   "source": {
+    "film": "Pumpkin Patch (Brian James Gage, 2025)",
+    "t0": 2288.25,
+    "t1": 2294.29
+   }
+  },
+  {
+   "id": "miriam_impossible",
+   "kind": "miriam",
+   "text": "Impossible. Pipe it through.",
+   "url": "/games/ravencrest/audio/voices/miriam_impossible.mp3",
+   "source": {
+    "film": "Pumpkin Patch (Brian James Gage, 2025)",
+    "t0": 951.49,
+    "t1": 954.17
+   }
+  },
+  {
+   "id": "stitch_gorgeous",
+   "kind": "stitch",
+   "text": "Well, hello there, gorgeous. Remember me? It's been a while.",
+   "url": "/games/ravencrest/audio/voices/stitch_gorgeous.mp3",
+   "source": {
+    "film": "Pumpkin Patch (Brian James Gage, 2025)",
+    "t0": 985.72,
+    "t1": 993.35
+   }
+  },
+  {
+   "id": "stitch_planet",
+   "kind": "stitch",
+   "text": "I know. Where I'm going, I don't need this planet.",
+   "url": "/games/ravencrest/audio/voices/stitch_planet.mp3",
+   "source": {
+    "film": "Pumpkin Patch (Brian James Gage, 2025)",
+    "t0": 2864.67,
+    "t1": 2871.55
+   }
+  },
+  {
+   "id": "crane_name",
+   "kind": "robobones",
+   "text": "The name's Commander Crane. Never did like that guy.",
+   "url": "/games/ravencrest/audio/voices/crane_name.mp3",
+   "source": {
+    "film": "Pumpkin Patch (Brian James Gage, 2025)",
+    "t0": 2841.61,
+    "t1": 2846.61
+   }
+  },
+  {
+   "id": "crane_terminated",
+   "kind": "robobones",
+   "text": "You're interfering with the MIA operation, further resistance will be terminated.",
+   "url": "/games/ravencrest/audio/voices/crane_terminated.mp3",
+   "source": {
+    "film": "Pumpkin Patch (Brian James Gage, 2025)",
+    "t0": 3117.84,
+    "t1": 3124.0
+   }
+  }
+ ]
+}

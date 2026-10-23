@@ -21,6 +21,18 @@ export type CastleMusicZone = 'CROSSROADS' | 'BASEMENT_CRYPT' | 'GROUND_HALLS' |
 
 class HalloweenAudioEngine {
   private ctx: AudioContext | null = null;
+  /** Output trim (1 = unchanged); Ravencrest sets it to sit its stingers under its own mix. */
+  private outGain: GainNode | null = null;
+  private outLevel = 1;
+  private out(ctx: AudioContext): AudioNode {
+    if (!this.outGain || this.outGain.context !== ctx) {
+      this.outGain = ctx.createGain();
+      this.outGain.gain.value = this.outLevel;
+      this.outGain.connect(ctx.destination);
+    }
+    return this.outGain;
+  }
+  setOutputLevel(v: number) { this.outLevel = v; if (this.outGain) this.outGain.gain.value = v; }
   private muted = false;
   private musicEnabled = true;
   private musicPlaying = false;
@@ -140,7 +152,7 @@ class HalloweenAudioEngine {
       d1.connect(lpf);
       d2.connect(lpf);
       lpf.connect(dg);
-      dg.connect(ctx.destination);
+      dg.connect(this.out(ctx));
 
       d1.start(now);
       d2.start(now);
@@ -216,7 +228,7 @@ class HalloweenAudioEngine {
         osc.connect(filter);
         subOct.connect(filter);
         filter.connect(g);
-        g.connect(c.destination);
+        g.connect(this.out(c));
 
         osc.start(t0);
         subOct.start(t0);
@@ -250,7 +262,7 @@ class HalloweenAudioEngine {
 
         chime.connect(cg);
         overtone.connect(cg);
-        cg.connect(c.destination);
+        cg.connect(this.out(c));
 
         chime.start(nt);
         overtone.start(nt);
@@ -308,7 +320,7 @@ class HalloweenAudioEngine {
     g.gain.setValueAtTime(0.04, startTime);
     g.gain.exponentialRampToValueAtTime(0.0005, startTime + 0.09);
     osc.connect(g);
-    g.connect(ctx.destination);
+    g.connect(this.out(ctx));
     osc.start(startTime);
     osc.stop(startTime + 0.1);
   }
@@ -344,7 +356,7 @@ class HalloweenAudioEngine {
       g.gain.setValueAtTime(vol, now);
       g.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
       thump.connect(g);
-      g.connect(ctx.destination);
+      g.connect(this.out(ctx));
       thump.start(now);
       thump.stop(now + 0.075);
     } else if (surface === 'SPIRAL_STAIR' || surface === 'STONE') {
@@ -357,7 +369,7 @@ class HalloweenAudioEngine {
       g.gain.setValueAtTime(vol * 0.85, now);
       g.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
       heel.connect(g);
-      g.connect(ctx.destination);
+      g.connect(this.out(ctx));
       heel.start(now);
       heel.stop(now + 0.065);
     } else {
@@ -385,7 +397,7 @@ class HalloweenAudioEngine {
     rg.gain.setValueAtTime(0.11, now);
     rg.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
     ring.connect(rg);
-    rg.connect(ctx.destination);
+    rg.connect(this.out(ctx));
     ring.start(now);
     ring.stop(now + 0.25);
 
@@ -399,7 +411,7 @@ class HalloweenAudioEngine {
       cg.gain.setValueAtTime(0.28, now + 0.03);
       cg.gain.exponentialRampToValueAtTime(0.001, now + 0.21);
       cut.connect(cg);
-      cg.connect(ctx.destination);
+      cg.connect(this.out(ctx));
       cut.start(now + 0.03);
       cut.stop(now + 0.22);
     }
@@ -422,7 +434,7 @@ class HalloweenAudioEngine {
       g.gain.setValueAtTime(0.12, now);
       g.gain.exponentialRampToValueAtTime(0.001, now + 0.36);
       osc.connect(g);
-      g.connect(ctx.destination);
+      g.connect(this.out(ctx));
       osc.start(now);
       osc.stop(now + 0.38);
     });
@@ -432,6 +444,7 @@ class HalloweenAudioEngine {
    * Play a character's real extracted dialogue line from the *Pumpkin Patch* movie!
    */
   async playRealCharacterMovieVoice(charId: string, maxDurationSec = 6.5, gainLevel = 0.72) {
+    if (!this.movieVoices) return;
     const ctx = this.getCtx();
     if (!ctx) return;
     try {
@@ -455,7 +468,7 @@ class HalloweenAudioEngine {
       const gain = ctx.createGain();
       gain.gain.setValueAtTime(gainLevel, ctx.currentTime);
       src.connect(gain);
-      gain.connect(ctx.destination);
+      gain.connect(this.out(ctx));
       src.start(0, 0, Math.min(buf.duration, maxDurationSec));
       this.activeVoiceSource = src;
     } catch {
@@ -466,6 +479,10 @@ class HalloweenAudioEngine {
   /**
    * Wicked Witch Miriam's Laughing Witch Cackle + Flying Monkey Wing Flaps + Real Movie Voice!
    */
+  /** Random film dialogue under the stingers (tank, blades, witch). Ravencrest turns it off: it plays
+   *  its own matched voice lines, and a random clip talks over them. */
+  movieVoices = true;
+
   playWitchLaughAndMonkeys() {
     const ctx = this.getCtx();
     if (!ctx) return;
@@ -504,7 +521,7 @@ class HalloweenAudioEngine {
 
       osc.connect(formant);
       formant.connect(gain);
-      gain.connect(ctx.destination);
+      gain.connect(this.out(ctx));
 
       osc.start(t0);
       osc.stop(t0 + dur + 0.02);
@@ -546,7 +563,7 @@ class HalloweenAudioEngine {
 
     hum.connect(humGain);
     sub.connect(humGain);
-    humGain.connect(ctx.destination);
+    humGain.connect(this.out(ctx));
 
     hum.start(now);
     sub.start(now);
@@ -577,7 +594,7 @@ class HalloweenAudioEngine {
     wg.gain.setValueAtTime(0.14, now);
     wg.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
     whoosh.connect(wg);
-    wg.connect(ctx.destination);
+    wg.connect(this.out(ctx));
     whoosh.start(now);
     whoosh.stop(now + 0.17);
 
@@ -591,7 +608,7 @@ class HalloweenAudioEngine {
       tg.gain.setValueAtTime(0.32, now + 0.04);
       tg.gain.exponentialRampToValueAtTime(0.001, now + 0.26);
       thud.connect(tg);
-      tg.connect(ctx.destination);
+      tg.connect(this.out(ctx));
       thud.start(now + 0.04);
       thud.stop(now + 0.27);
 
@@ -620,7 +637,7 @@ class HalloweenAudioEngine {
     bg.gain.setValueAtTime(0.36, now + 0.02);
     bg.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
     boom.connect(bg);
-    bg.connect(ctx.destination);
+    bg.connect(this.out(ctx));
     boom.start(now + 0.02);
     boom.stop(now + 0.82);
 
@@ -650,7 +667,7 @@ class HalloweenAudioEngine {
     eg.gain.linearRampToValueAtTime(0.18, now + 0.25);
     eg.gain.exponentialRampToValueAtTime(0.001, now + 2.8);
     eng.connect(eg);
-    eg.connect(ctx.destination);
+    eg.connect(this.out(ctx));
     eng.start(now);
     eng.stop(now + 2.85);
   }
@@ -671,7 +688,7 @@ class HalloweenAudioEngine {
     cg.gain.setValueAtTime(0.32, now);
     cg.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
     cannon.connect(cg);
-    cg.connect(ctx.destination);
+    cg.connect(this.out(ctx));
     cannon.start(now);
     cannon.stop(now + 0.46);
 
@@ -698,7 +715,7 @@ class HalloweenAudioEngine {
       cg.gain.setValueAtTime(0.04, t);
       cg.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
       chirp.connect(cg);
-      cg.connect(ctx.destination);
+      cg.connect(this.out(ctx));
       chirp.start(t);
       chirp.stop(t + 0.055);
     }
@@ -732,7 +749,7 @@ class HalloweenAudioEngine {
 
     osc1.connect(gain);
     osc2.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(this.out(ctx));
     osc1.start(now);
     osc2.start(now);
     osc1.stop(now + 1.45);
@@ -756,7 +773,7 @@ class HalloweenAudioEngine {
     g.gain.setValueAtTime(0.04, now + 0.02);
     g.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
     whine.connect(g);
-    g.connect(ctx.destination);
+    g.connect(this.out(ctx));
     whine.start(now + 0.02);
     whine.stop(now + 0.4);
   }
@@ -792,7 +809,7 @@ class HalloweenAudioEngine {
 
     noise.connect(filter);
     filter.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(this.out(ctx));
     noise.start(startTime);
     noise.stop(startTime + duration + 0.01);
   }

@@ -19,6 +19,25 @@ export interface GrandHall {
   spawn: { position: THREE.Vector3; yaw: number };
   exitTrigger: { position: THREE.Vector3; radius: number };
   props: Promise<unknown>;
+  /** Gilt frames awaiting film posters (cinema.ts fills them; slot 0 is the hero frame). */
+  paintingSlots: PaintingSlot[];
+  /** The great doors: set 0 (shut) … 1 (wide open, as in the art). */
+  setDoors(open: number): void;
+  /** Far end of the hall (back wall z) and the landing height, for cutscene cameras. */
+  farZ: number;
+  landH: number;
+  /** The upper wing behind the landing: room centres for monsters and staging. */
+  wing: { corridor: THREE.Vector3; library: THREE.Vector3; cinema: THREE.Vector3; banquet: THREE.Vector3 };
+}
+
+export interface PaintingSlot {
+  canvas: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshStandardNodeMaterial>;
+  /** Centre of the canvas and the direction it faces (into the room). */
+  position: THREE.Vector3;
+  normal: THREE.Vector3;
+  hero: boolean;
+  /** 'screen' = wide 2:1 cinema screen (billboard layout) instead of a 2:3 canvas. */
+  kind?: 'canvas' | 'screen';
 }
 
 export function buildGrandHall(): GrandHall {
@@ -150,7 +169,26 @@ export function buildGrandHall(): GrandHall {
 
   // ── Back wall: hearth arch, raven tapestry, twin lancets ────────────────
   {
-    box(outer * 2, clerestory + vaultRise, 1.2, stone, 0, (clerestory + vaultRise) / 2, backZ - 0.6);
+    // Back wall, with two doorways at landing level into the upper wing (built below).
+    const WH = clerestory + vaultRise, DX = 9.5, DW = 2.6, DH = 3.8;
+    const seg = (x0: number, x1: number, y0: number, y1: number) => box(x1 - x0, y1 - y0, 1.2, stone, (x0 + x1) / 2, (y0 + y1) / 2, backZ - 0.6);
+    seg(-outer, -DX - DW / 2, 0, WH);
+    seg(-DX + DW / 2, DX - DW / 2, 0, WH);
+    seg(DX + DW / 2, outer, 0, WH);
+    for (const s of [-1, 1]) {
+      seg(s * DX - DW / 2, s * DX + DW / 2, 0, landH);
+      seg(s * DX - DW / 2, s * DX + DW / 2, landH + DH, WH);
+      // Pointed-arch trim and a torch either side of each doorway.
+      const trim = new THREE.Mesh(new THREE.BoxGeometry(DW + 0.5, 0.35, 0.3), pierStone);
+      trim.position.set(s * DX, landH + DH + 0.1, backZ + 0.12); add(trim);
+      for (const side of [-1, 1]) {
+        const jamb = new THREE.Mesh(new THREE.BoxGeometry(0.28, DH, 0.3), pierStone);
+        jamb.position.set(s * DX + side * (DW / 2 + 0.1), landH + DH / 2, backZ + 0.12); add(jamb);
+      }
+      const tf = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.6), flameMat);
+      tf.position.set(s * DX + (DW / 2 + 0.6), landH + 2.9, backZ + 0.35); add(tf); flames.push(tf);
+      const tl = new THREE.PointLight(0xff9a4a, 9, 9, 2); tl.position.set(s * DX + (DW / 2 + 0.6), landH + 2.9, backZ + 0.9); add(tl); torches.push(tl);
+    }
     // Hearth on the landing.
     const hw = 2.6, hh = 2.8;
     box(hw + 1.2, hh + 1.0, 1.0, pierStone, 0, landH + (hh + 1) / 2, backZ + 0.5);
@@ -258,43 +296,58 @@ export function buildGrandHall(): GrandHall {
     add(ewm, true);
   }
 
-  // ── Aisles: candle sconces every bay, gilt-framed paintings (art: framed canvases) ──
+  // ── Aisles + galleries: gilt frames hung with the collection's film posters ──
+  // (the art's framed canvases). Lower aisle frames get candle sconces; the gallery level
+  // above repeats the hang. Frames are 2:3 like the Cinema cover art; cinema.ts letterboxes
+  // covers of other shapes onto a painted ground.
+  const paintingSlots: PaintingSlot[] = [];
   {
-    const paintings = ['castle_exterior_moon.jpg', 'castle_moat_bridge.jpg', 'portrait_lord.png', 'forest_fork_bridge.jpg', 'castle_drawbridge_up.jpg', 'road_approach_plate.jpg'];
-    const loaderP = new THREE.TextureLoader();
-    let pi = 0;
+    const gz0 = (bayZs[1] ?? bayZs[0]) + 1.2, gz1 = stairTopZ;
+    const hang = (wx: number, s: number, y: number, zc: number, w: number, h: number, hero: boolean) => {
+      const mat = new THREE.MeshStandardNodeMaterial({ color: 0x1a1612, roughness: 0.62 });
+      const canvas = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+      canvas.rotation.y = -s * Math.PI / 2;
+      canvas.position.set(wx - s * 0.05, y, zc);
+      canvas.userData.dynamic = true; // texture swaps in later: keep it out of static batching
+      add(canvas);
+      const fr = hero ? 0.24 : 0.15;
+      for (const [fw, fh, fx, fy] of [[w + fr * 2, fr, 0, h / 2 + fr / 2], [w + fr * 2, fr, 0, -h / 2 - fr / 2], [fr, h, -w / 2 - fr / 2, 0], [fr, h, w / 2 + fr / 2, 0]] as const) {
+        const bar = new THREE.Mesh(new THREE.BoxGeometry(fw, fh, 0.1), brass);
+        bar.rotation.y = -s * Math.PI / 2;
+        bar.position.set(wx - s * 0.06, y + fy, zc + s * -fx);
+        add(bar);
+      }
+      paintingSlots.push({ canvas, position: canvas.position.clone(), normal: new THREE.Vector3(-s, 0, 0), hero });
+    };
     for (const s of [-1, 1]) {
       const wx = s * (outer - 0.06);
       for (let i = 0; i < bayZs.length - 1; i++) {
         const zc = (bayZs[i] + bayZs[i + 1]) / 2;
-        // Sconces either side of each painting.
         for (const dz of [-2.6, 2.6]) {
           const arm = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.06, 0.06), iron);
           arm.position.set(wx - s * 0.2, 2.75, zc + dz); add(arm);
           candleCluster(wx - s * 0.38, 2.78, zc + dz, 2, 0.8);
         }
-        const file = paintings[pi++ % paintings.length];
-        const tex = loaderP.load(`/models/halloween/ravencrest/${file}`);
-        tex.colorSpace = THREE.SRGBColorSpace;
-        const portrait = file.startsWith('portrait');
-        const w = portrait ? 1.5 : 2.6, h = portrait ? 2.0 : 1.6;
-        const canvas = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardNodeMaterial({ map: tex, roughness: 0.6 }));
-        canvas.rotation.y = -s * Math.PI / 2;
-        canvas.position.set(wx - s * 0.05, 2.9, zc);
-        add(canvas);
-        for (const [fw, fh, fx, fy] of [[w + 0.3, 0.15, 0, h / 2 + 0.07], [w + 0.3, 0.15, 0, -h / 2 - 0.07], [0.15, h, -w / 2 - 0.07, 0], [0.15, h, w / 2 + 0.07, 0]] as const) {
-          const bar = new THREE.Mesh(new THREE.BoxGeometry(fw, fh, 0.08), brass);
-          bar.rotation.y = -s * Math.PI / 2;
-          bar.position.set(wx - s * 0.06, 2.9 + fy, zc + s * -fx);
-          add(bar);
-        }
+        // First bay on the left (nearest the doors) holds the hero: Pumpkin Patch.
+        const hero = s === -1 && i === 0;
+        hang(wx, s, hero ? 2.75 : 2.6, zc, hero ? 2.2 : 1.8, hero ? 3.3 : 2.7, hero);
+      }
+      // Gallery hang (only where the gallery floor runs).
+      for (let i = 0; i < bayZs.length - 1; i++) {
+        const zc = (bayZs[i] + bayZs[i + 1]) / 2;
+        if (zc > gz0 - 1.5 || zc < gz1 + 1.5) continue;
+        hang(wx, s, landH + 2.3, zc, 2.0, 3.0, false);
       }
     }
   }
 
-  // ── Door leaves swung inward (frame edges of the art) ───────────────────
+  // ── Door leaves swung inward (frame edges of the art); they animate for the entrance
+  // cutscene and on approach, so they stay out of batching and the collision BVH.
+  const leaves: { leaf: THREE.Group; s: number }[] = [];
   for (const s of [-1, 1]) {
     const leaf = new THREE.Group();
+    leaf.userData.dynamic = true;
+    leaves.push({ leaf, s });
     const slab = new THREE.Mesh(new THREE.BoxGeometry(3.0, 8.6, 0.3), timber);
     slab.position.set(-s * 1.5, 4.3, 0);
     leaf.add(slab);
@@ -306,7 +359,7 @@ export function buildGrandHall(): GrandHall {
     ring.position.set(-s * 2.4, 3.4, 0.2); leaf.add(ring);
     leaf.position.set(s * 3.1, 0, DOOR_Z - 1.25); // hinge placement sets the ~150 px door slivers in the art
     leaf.rotation.y = -s * 1.5; // swung wide open: thin carved slivers at the frame edges, as in the art
-    add(leaf, true);
+    add(leaf);
   }
 
   // ── Knights flanking the nave, floor braziers by the doors ──────────────
@@ -422,6 +475,82 @@ export function buildGrandHall(): GrandHall {
   // Ambient candle warmth so the aisles aren't pure black.
   add(new THREE.HemisphereLight(0x34363c, 0x050505, 0.18));
 
+  // ── Upper wing (behind the back wall, at landing height) ──────────────────
+  // Cross corridor → library (west), projection room (centre), banquet hall (east).
+  const W0 = backZ - 1.2, Y0 = landH, CH = 5.2, XW = 17;
+  const zC = W0 - 4, zR = W0 - 16.5;                   // corridor back wall, rooms' far wall
+  const plank = triplanarMaterial('dark_wooden_planks', { metresPerTile: 1.4, tint: 0x4a3a2c, roughnessScale: 0.6 });
+  setReflect(plank, 0.5, 0.2);
+  const wingWall = triplanarMaterial('marble_01', { metresPerTile: 2.2, tint: 0x5e5850, desat: 0.6, bump: 1.4 });
+  {
+    box(XW * 2, 0.4, W0 - zR, plank, 0, Y0 - 0.2, (W0 + zR) / 2);                 // floor
+    box(XW * 2, 0.4, W0 - zR, wingWall, 0, Y0 + CH + 0.2, (W0 + zR) / 2);         // ceiling
+    box(0.6, CH, W0 - zR, wingWall, -XW, Y0 + CH / 2, (W0 + zR) / 2);              // end walls
+    box(0.6, CH, W0 - zR, wingWall, XW, Y0 + CH / 2, (W0 + zR) / 2);
+    box(XW * 2, CH, 0.6, wingWall, 0, Y0 + CH / 2, zR - 0.3);                      // far wall
+    // Corridor's back wall with three room doorways.
+    const doors = [-10.5, 0, 10.5], dW = 2.4, dH = 3.4;
+    let x = -XW;
+    for (const dx of doors) {
+      box(dx - dW / 2 - x, CH, 0.5, wingWall, (x + dx - dW / 2) / 2, Y0 + CH / 2, zC - 0.25);
+      box(dW, CH - dH, 0.5, wingWall, dx, Y0 + dH + (CH - dH) / 2, zC - 0.25);
+      x = dx + dW / 2;
+    }
+    box(XW - x, CH, 0.5, wingWall, (x + XW) / 2, Y0 + CH / 2, zC - 0.25);
+    // Room dividers.
+    for (const dx of [-4.2, 4.2]) box(0.5, CH, zC - 0.5 - zR, wingWall, dx, Y0 + CH / 2, (zC - 0.5 + zR) / 2);
+    // Ceiling beams.
+    for (let bz = W0 - 2; bz > zR; bz -= 3.2) box(XW * 2, 0.35, 0.35, timber, 0, Y0 + CH - 0.2, bz, false);
+    // Corridor sconces.
+    for (const sx of [-14, -6, 6, 14]) {
+      const f = new THREE.Mesh(new THREE.PlaneGeometry(0.35, 0.55), flameMat);
+      f.position.set(sx, Y0 + 2.8, zC + 0.3); add(f); flames.push(f);
+      const l = new THREE.PointLight(0xff9a4a, 8, 8, 2); l.position.set(sx, Y0 + 2.8, zC + 0.9); add(l); torches.push(l);
+      const arm = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.4), iron); arm.position.set(sx, Y0 + 2.6, zC + 0.15); add(arm);
+    }
+    // Runner carpet down the corridor.
+    const run = new THREE.Mesh(new THREE.PlaneGeometry(XW * 2 - 2, 1.6), new THREE.MeshStandardNodeMaterial({ color: 0x4a0d0d, roughness: 0.95 }));
+    run.rotation.x = -Math.PI / 2; run.position.set(0, Y0 + 0.01, (W0 + zC) / 2); add(run);
+    // Library: shelves, reading table, candles.
+    for (const [cx, cz] of [[-13, zR + 3.5], [-8, zR + 6.5]] as const) candleCluster(cx, Y0 + 0.8, cz, 3, 1.1);
+    const libLight = new THREE.PointLight(0xffb070, 14, 12, 2); libLight.position.set(-10.5, Y0 + 3.8, (zC + zR) / 2); add(libLight); torches.push(libLight);
+    // Banquet: long table with settings.
+    box(2.0, 0.12, 8.5, timber, 10.5, Y0 + 0.82, (zC + zR) / 2 - 0.5);
+    for (const lx of [9.7, 11.3]) for (const lz of [zC - 2, zR + 2.2]) box(0.14, 0.8, 0.14, timber, lx, Y0 + 0.4, lz);
+    for (let tz = zC - 2.3; tz > zR + 2; tz -= 1.4) {
+      for (const sx of [-1, 1]) {
+        const plate = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.13, 0.02, 14), brass);
+        plate.position.set(10.5 + sx * 0.6, Y0 + 0.89, tz); add(plate);
+        box(0.5, 0.06, 0.5, timber, 10.5 + sx * 1.5, Y0 + 0.48, tz, false); // bench seats
+      }
+    }
+    const banqLight = new THREE.PointLight(0xffb070, 16, 13, 2); banqLight.position.set(10.5, Y0 + 3.9, (zC + zR) / 2); add(banqLight); torches.push(banqLight);
+    // Projection room: a faint beam from the booth to the screen.
+    const beam = new THREE.Mesh(new THREE.ConeGeometry(2.6, zC - zR - 1.5, 24, 1, true), new THREE.MeshBasicNodeMaterial({ color: new THREE.Color(0xfff2d0).multiplyScalar(0.018), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false }));
+    beam.rotation.x = -Math.PI / 2; beam.position.set(0, Y0 + 2.9, (zC + zR) / 2); add(beam);
+    const cinLight = new THREE.PointLight(0x9ab0ff, 6, 10, 2); cinLight.position.set(0, Y0 + 2.5, zR + 2.5); add(cinLight); torches.push(cinLight);
+  }
+  // Frames in the wing: corridor (facing the hall side) and the library; plus the cinema screen.
+  const hangZ = (x: number, y: number, z: number, facing: number, w: number, h: number, kind: 'canvas' | 'screen', hero = false) => {
+    const mat = new THREE.MeshStandardNodeMaterial({ color: 0x1a1612, roughness: 0.62 });
+    const canvas = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+    canvas.rotation.y = facing > 0 ? 0 : Math.PI;
+    canvas.position.set(x, y, z);
+    canvas.userData.dynamic = true;
+    add(canvas);
+    const fr = kind === 'screen' ? 0.12 : 0.15;
+    const fm = kind === 'screen' ? iron : brass;
+    for (const [fw, fh, fx, fy] of [[w + fr * 2, fr, 0, h / 2 + fr / 2], [w + fr * 2, fr, 0, -h / 2 - fr / 2], [fr, h, -w / 2 - fr / 2, 0], [fr, h, w / 2 + fr / 2, 0]] as const) {
+      const bar = new THREE.Mesh(new THREE.BoxGeometry(fw, fh, 0.1), fm);
+      bar.position.set(x + fx, y + fy, z - facing * 0.03);
+      add(bar);
+    }
+    paintingSlots.push({ canvas, position: canvas.position.clone(), normal: new THREE.Vector3(0, 0, facing), hero, kind });
+  };
+  for (const sx of [-14.5, -6.2, 6.2, 14.5]) hangZ(sx, Y0 + 2.3, zC + 0.02, 1, 1.5, 2.2, 'canvas');
+  hangZ(-13.5, Y0 + 2.4, zR + 0.02, 1, 1.6, 2.4, 'canvas');
+  hangZ(0, Y0 + 2.6, zR + 0.02, 1, 6.4, 3.2, 'screen', true);
+
   // ── CC0 props ───────────────────────────────────────────────────────────
   const place = async (id: string, size: number, x: number, y: number, z: number, ry = 0, solid = true) => {
     const m = await loadModel(id);
@@ -443,6 +572,21 @@ export function buildGrandHall(): GrandHall {
     place('kite_shield', 0.9, outer - 0.1, 3.2, bayZs[1], -Math.PI / 2, false),
     place('wooden_bookshelf_worn', 2.0, -(outer - 0.4), 0, bayZs[2] ?? bayZs[1] - 8, Math.PI / 2),
     place('treasure_chest', 0.9, outer - 0.8, landH, stairTopZ - 2, -Math.PI / 2),
+    // Upper wing furniture.
+    ...[-16.2, -16.2, -16.2].map((_, i) => place('wooden_bookshelf_worn', 2.2, -16.4, landH, zR + 2.5 + i * 2.6, Math.PI / 2)),
+    ...[-12.5, -9.5, -6.8].map((x) => place('wooden_bookshelf_worn', 2.2, x, landH, zR + 0.6, 0)),
+    place('gothic_coffee_table', 1.8, -10.5, landH, (zC + zR) / 2, 0),
+    place('wooden_candlestick', 0.45, -10.2, landH + 0.75, (zC + zR) / 2, 0, false),
+    place('lantern_chandelier_01', 1.4, -10.5, landH + 3.6, (zC + zR) / 2, 0, false),
+    place('lantern_chandelier_01', 1.6, 10.5, landH + 3.4, (zC + zR) / 2, 0, false),
+    ...[zC - 2.6, zC - 5.4, zR + 2.2].flatMap((z) => [place('brass_candleholders', 0.45, 10.5, landH + 0.88, z, 0, false)]),
+    place('wine_barrel_01', 1.0, 15.6, landH, zC - 1.5, 0),
+    place('wooden_barrels_01', 1.6, 15.4, landH, zR + 1.6, 0),
+    place('treasure_chest', 0.9, 6.0, landH, zR + 1.2, 0.3),
+    place('kite_shield', 0.9, 16.6, landH + 2.6, (zC + zR) / 2, -Math.PI / 2, false),
+    ...[[-2.2, zR + 6], [2.2, zR + 6], [-2.2, zR + 8.6], [2.2, zR + 8.6]].map(([x, z]) => place('painted_wooden_bench', 1.8, x, landH, z, Math.PI)),
+    place('gothic_statue', 1.9, -15.5, landH, zC + 2, Math.PI / 2),
+    place('vintage_cabinet_01', 1.6, 15.8, landH, zC + 2, -Math.PI / 2),
   ]);
 
   /** Round compound pier: drum core, eight attached shafts, moulded base, capitals. */
@@ -497,8 +641,15 @@ export function buildGrandHall(): GrandHall {
   void vec2;
 
   return {
-    group: g, anchor: A, torches, flames, props,
-    spawn: { position: new THREE.Vector3(0, 0.02, DOOR_Z - 2.5), yaw: Math.PI },  // just inside, facing the nave (−Z)
+    group: g, anchor: A, torches, flames, props, paintingSlots, farZ: backZ, landH,
+    wing: {
+      corridor: new THREE.Vector3(0, landH, (W0 + zC) / 2),
+      library: new THREE.Vector3(-10.5, landH, (zC + zR) / 2 + 2),
+      cinema: new THREE.Vector3(0, landH, zR + 10),
+      banquet: new THREE.Vector3(10.5, landH, (zC + zR) / 2 + 1),
+    },
+    setDoors: (open: number) => { for (const { leaf, s } of leaves) leaf.rotation.y = -s * 1.5 * THREE.MathUtils.clamp(open, 0, 1); },
+    spawn: { position: new THREE.Vector3(0, 0.02, DOOR_Z - 6.5), yaw: Math.PI },  // inside, clear of the door leaves, facing the nave (−Z)
     exitTrigger: { position: new THREE.Vector3(0, 0, frontZ + 1.5), radius: 2.0 },
   };
 }

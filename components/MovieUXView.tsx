@@ -66,6 +66,7 @@ import {
   findPlayableFilmById,
 } from './taleo/ClassicCinemaDossier';
 import { getHalloweenStoryIntelBundle } from '../data/halloweenStoryIntel';
+import { consumeAutoplay } from '../services/filmAutoplay';
 import { filmDistributionOf, filmOffers } from '../services/filmPricing';
 
 // Universal Video Player (Pixels & CrossOver DSP)
@@ -1598,6 +1599,16 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({
       setActiveVideo(updated);
     }
   }, [resolvedArchiveUrl, resolvedMuxId, activeVideo, buildPlaybackPayload]);
+
+  // Opened from somewhere that asked to play on arrival (a Ravencrest billboard): press Watch Now
+  // for the viewer as soon as there is something to play.
+  const autoplayPending = useRef(consumeAutoplay());
+  useEffect(() => {
+    if (!autoplayPending.current || !hasFilmAccess || activeVideo || prerollFor) return;
+    if (!buildPlaybackPayload()) return;
+    autoplayPending.current = false;
+    handlePlay();
+  }); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handlePlay = () => {
     if (!hasFilmAccess) { setIsUIVisible(true); return; }

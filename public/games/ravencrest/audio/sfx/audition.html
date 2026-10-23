@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ravencrest Sound Bank</title>
+<style>
+  :root { --bg: #0b0c10; --card: #15171d; --ink: #e8dcc8; --dim: #8d8578; --accent: #b0241a; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.4 Georgia, serif; padding: 24px 16px; }
+  h1 { font-weight: normal; letter-spacing: .2em; margin: 0 0 4px; }
+  p { color: var(--dim); margin: 0 0 20px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+  .bank { background: var(--card); border: 1px solid #262a33; padding: 10px 12px; }
+  .bank b { display: block; letter-spacing: .08em; margin-bottom: 6px; }
+  button { font: inherit; font-size: 12px; margin: 0 4px 4px 0; padding: 4px 9px; background: #22252d; color: var(--ink); border: 1px solid #333844; cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  button.on { background: var(--accent); }
+</style>
+</head>
+<body>
+<h1>RAVENCREST · SOUND BANK</h1>
+<p>Every recorded take the game uses (all CC0 — sources in CREDITS.md). Click to play; tell Claude the bank and take number of any to swap.</p>
+<div class="grid" id="g"></div>
+<script>
+  let cur = null;
+  fetch('sfx.json').then((r) => r.json()).then((m) => {
+    const g = document.getElementById('g');
+    for (const [name, e] of Object.entries(m)) {
+      const d = document.createElement('div'); d.className = 'bank';
+      d.innerHTML = `<b>${name}</b>`;
+      e.files.forEach((f, i) => {
+        const b = document.createElement('button'); b.textContent = `take ${i}`;
+        b.onclick = () => {
+          if (cur) { cur.a.pause(); cur.b.classList.remove('on'); }
+          const a = new Audio(f); a.play(); b.classList.add('on');
+          a.onended = () => b.classList.remove('on');
+          cur = { a, b };
+        };
+        d.appendChild(b);
+      });
+      g.appendChild(d);
+    }
+  });
+</script>
+</body>
+</html>

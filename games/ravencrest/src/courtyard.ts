@@ -225,7 +225,16 @@ export function buildCourtyard(frame: { origin: THREE.Vector3; yaw: number; gate
     crown.position.set(0, ph + 0.6, portalZ);
     g.add(crown);
     // Steps up to the doors.
-    for (let i = 0; i < 3; i++) box(aw + 4 - i * 0.6, 0.2, 1.2, ashlar, 0, 0.1 + i * 0.2, portalZ + 2.4 - i * 1.0);
+    // Solid steps, with a hidden ramp over their noses so Jack walks straight up (no snagging).
+    for (let i = 0; i < 3; i++) box(aw + 4 - i * 0.6, 0.2 * (i + 1), 1.2, ashlar, 0, 0.1 * (i + 1), portalZ + 2.4 - i * 1.0);
+    {
+      const z0 = portalZ + 4.0, z1 = portalZ + 1.0, rise = 0.6, len = Math.hypot(z0 - z1, rise);
+      const ramp = new THREE.Mesh(new THREE.BoxGeometry(aw + 4, 0.04, len), ashlar);
+      ramp.position.set(0, rise / 2 - 0.02, (z0 + z1) / 2);
+      ramp.rotation.x = Math.atan2(rise, z0 - z1);
+      ramp.visible = false;
+      g.add(collide(ramp));
+    }
     // Doorway: deep, warm-lit vestibule glimpsed through half-open raven doors.
     box(aw, ah, 0.3, voidMat, 0, 0.6 + ah / 2, portalZ - 6, true);
     const warm = new THREE.PointLight(0xffa25a, 9, 14, 2);

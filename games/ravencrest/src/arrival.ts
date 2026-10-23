@@ -8,9 +8,12 @@ import { flameMaterial } from './fx';
 import { color, float, mix, smoothstep, positionWorld, normalWorld, mx_fractal_noise_float, time, vec3, uv } from 'three/tsl';
 import { ArtAnchor } from './artAnchor';
 import { triplanarMaterial, uvMaterial, wetAsphalt, moatWater, setReflect } from './materials';
-import { KitMaterials, crenellatedWall, roundTower, gatehouse, spireTurret, bareTree, coniferForest, rng } from './kit';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { Forest, type TreeSpot } from './forest';
+import { KitMaterials, crenellatedWall, roundTower, gatehouse, spireTurret, bareTree, rng } from './kit';
 
-const WATER_Y = -1.2;
+// The moat lies deep in a rock gorge; the stone bridge spans high above it.
+const WATER_Y = -12;
 
 export interface ArrivalWorld {
   group: THREE.Group;
@@ -22,6 +25,25 @@ export interface ArrivalWorld {
   gateCentre: THREE.Vector3;
   /** Fortress frame: origin = gate face centre at deck level; local −Z runs into the castle. */
   fortress: { origin: THREE.Vector3; yaw: number; gateDepth: number; gateWidth: number; wallTop: number };
+  /**
+   * Road frame (u across, +v toward the bridge; v=0 at the art's near edge). Everything at
+   * v < 0 is behind the reference camera — the "Cinema Mile" where the movie billboards stand.
+   */
+  road: { fromLocal(u: number, v: number, y?: number): THREE.Vector3; heightAt(u: number, v: number): number; uL: number; uR: number; vStart: number; yawAlong: number };
+  /**
+   * The drawbridge over the moat (the bridge battle breaks it up). Frame: `start` = near-end
+   * centre at deck level, `dir` runs toward the gate, `right` across; deck top at `deckY`.
+   * `spans` are the rail sections between posts, `posts` the posts, by side (-1 left, +1 right)
+   * and by distance along the deck.
+   */
+  /** The woods (forest.ts): call `forest.bake(renderer)` once the renderer is up (impostors). */
+  forest: Forest;
+  bridge: {
+    start: THREE.Vector3; dir: THREE.Vector3; right: THREE.Vector3; len: number; width: number; deckY: number; waterY: number;
+    deck: THREE.Group;
+    spans: { mesh: THREE.Mesh; side: number; along: number }[];
+    posts: { mesh: THREE.Mesh; side: number; along: number; fixed?: boolean }[];
+  };
 }
 
 /** Road markings: double yellow centre line, white edge lines, worn by noise. */
@@ -105,7 +127,8 @@ export async function buildArrival(A: ArtAnchor, renderer: THREE.WebGPURenderer)
   const uL = toLocal(A.onY(-200, 724, 0)).u;
   const uR = toLocal(A.onY(1180, 724, 0)).u;
   const vEnd = toLocal(P1).v;
-  const vStart = -40;
+  // Extended 110 m behind the art's frame: the Cinema Mile approach (billboards, cinema.ts).
+  const vStart = -150;
   const roadW = uR - uL;
   const roadLen = vEnd - vStart;
   {
@@ -120,12 +143,16 @@ export async function buildArrival(A: ArtAnchor, renderer: THREE.WebGPURenderer)
     group.add(collide(road));
   }
 
+  const forest = new Forest();
+  group.add(forest.group);
+
   // ── Bridge / apron anchors ──────────────────────────────────────────────
   const bridgeStartL = A.onY(662, 491, 0.15);
   const bridgeStartR = A.onY(838, 491, 0.15);
   const gateBase = A.onY(770, 437, 0.15);
   const bridgeStart = bridgeStartL.clone().lerp(bridgeStartR, 0.5);
-  const bridgeW = bridgeStartL.distanceTo(bridgeStartR);
+  // Grander than the art's narrow plank deck: a stone bridge fit for a castle entrance.
+  const bridgeW = Math.max(8.5, bridgeStartL.distanceTo(bridgeStartR));
 
   // ── Terrain (road-local shaping: left bank, right drop to the moat) ────
   const heightLocal = (u: number, v: number) => {
@@ -134,16 +161,17 @@ export async function buildArrival(A: ArtAnchor, renderer: THREE.WebGPURenderer)
     if (offL > 0) h += smooth(0, 11, offL) * 6.5 * (1 - smooth(vEnd - 6, vEnd + 4, v));
     const offR = u - (uR + 0.6);
     let drop = 0;
-    if (offR > 0) drop = Math.min(drop, -smooth(0, 3, offR) * 4);
-    if (v > vEnd + 0.5 && offL < 0) drop = Math.min(drop, -smooth(0, 3, v - vEnd - 0.5) * 4);
+    const gorge = (x: number) => -(smooth(0, 3, x) * 4 + smooth(2, 10, x) * (-WATER_Y - 3));
+    if (offR > 0) drop = Math.min(drop, gorge(offR));
+    if (v > vEnd + 0.5 && offL < 0) drop = Math.min(drop, gorge(v - vEnd - 0.5));
     h += drop;
     const off = Math.max(offL, offR, v - vEnd);
     if (off > 0) h += (fbm2(u * 0.18, v * 0.18) - 0.5) * 1.6 * smooth(0, 3, off);
     return h;
   };
   {
-    const uMin = -60, uMax = 50, v0 = -40, v1 = vEnd + 40;
-    const geo = new THREE.PlaneGeometry(uMax - uMin, v1 - v0, 220, 160);
+    const uMin = -60, uMax = 50, v0 = vStart - 70, v1 = vEnd + 40;
+    const geo = new THREE.PlaneGeometry(uMax - uMin, v1 - v0, 220, 280);
     const pos = geo.attributes.position as THREE.BufferAttribute;
     for (let i = 0; i < pos.count; i++) {
       const u = uMin + (pos.getX(i) + (uMax - uMin) / 2);
@@ -158,7 +186,13 @@ export async function buildArrival(A: ArtAnchor, renderer: THREE.WebGPURenderer)
     const slope = smoothstep(float(0.85), float(0.6), normalWorld.y);
     type V3 = ReturnType<typeof vec3>;
     type F1 = ReturnType<typeof float>;
-    m.colorNode = mix(ground.colorNode as V3, rocky.colorNode as V3, slope).mul(0.22);
+    // Forest floor: moss patches on the flats, leaf-litter drifts, rock on the steeps.
+    const moss = triplanarMaterial('mossy_rock', { metresPerTile: 3, tint: 0x7a8a66 });
+    const pw = positionWorld.xz;
+    const mossMask = smoothstep(float(0.5), float(0.72), mx_fractal_noise_float(pw.mul(0.07), 3, 2, 0.5, 1).mul(0.5).add(0.5)).mul(float(1).sub(slope));
+    const litter = smoothstep(float(0.55), float(0.75), mx_fractal_noise_float(pw.mul(0.33), 2, 2, 0.5, 1).mul(0.5).add(0.5));
+    const floor = mix(mix(ground.colorNode as V3, moss.colorNode as V3, mossMask), vec3(0.22, 0.12, 0.05), litter.mul(0.45));
+    m.colorNode = mix(floor, rocky.colorNode as V3, slope).mul(0.3);
     m.roughnessNode = mix(ground.roughnessNode as F1, rocky.roughnessNode as F1, slope);
     m.normalNode = rocky.normalNode;
     const mesh = new THREE.Mesh(geo, m);
@@ -168,61 +202,167 @@ export async function buildArrival(A: ArtAnchor, renderer: THREE.WebGPURenderer)
 
   // ── Moat ────────────────────────────────────────────────────────────────
   {
-    const water = new THREE.Mesh(new THREE.PlaneGeometry(1600, 900), moatWater());
+    // Big enough that its edge is always lost in the fog (no hard horizon line).
+    const water = new THREE.Mesh(new THREE.PlaneGeometry(9000, 9000), moatWater());
     water.rotation.x = -Math.PI / 2;
-    water.position.set(gateBase.x, WATER_Y, gateBase.z + 200);
+    water.position.set(gateBase.x, WATER_Y, gateBase.z);
     group.add(water);
   }
 
   // ── Apron between road end and drawbridge ──────────────────────────────
   {
     const apronFar = toLocal(bridgeStart).v + 0.4;
-    const uA = Math.min(uL, toLocal(bridgeStartL).u - 3.5);
-    const uB = Math.max(uR, toLocal(bridgeStartR).u + 3.5);
-    const geo = new THREE.BoxGeometry(uB - uA, 5, apronFar - vEnd + 0.5);
+    const uMidB = toLocal(bridgeStart).u;
+    const uA = Math.min(uL, uMidB - bridgeW / 2 - 3.5);
+    const uB = Math.max(uR, uMidB + bridgeW / 2 + 3.5);
+    const geo = new THREE.BoxGeometry(uB - uA, 5 - WATER_Y, apronFar - vEnd + 0.5);
     const m = triplanarMaterial('cobblestone_floor_04', { metresPerTile: 2.5, tint: 0x5d6067, roughnessScale: 0.45 });
     setReflect(m, 0.6, 0.15);
-    const apron = new THREE.Mesh(geo, m);
-    apron.position.copy(fromLocal((uA + uB) / 2, (vEnd - 0.5 + apronFar) / 2, -2.49));
+    // Paved on top, a dressed-stone bastion down its sides into the gorge.
+    const apron = new THREE.Mesh(geo, [stone, stone, m, stone, stone, stone]);
+    apron.position.copy(fromLocal((uA + uB) / 2, (vEnd - 0.5 + apronFar) / 2, 0.01 - (5 - WATER_Y) / 2));
     apron.rotation.y = Math.atan2(-fwd.x, -fwd.z);
     apron.receiveShadow = true;
     group.add(collide(apron));
+    // Parapet walls wherever the bastion's edge drops into the gorge (nobody falls off).
+    const yaw = Math.atan2(-fwd.x, -fwd.z);
+    const wall = (u0: number, v0: number, u1: number, v1: number) => {
+      const len = Math.hypot(u1 - u0, v1 - v0);
+      if (len < 0.3) return;
+      const w = new THREE.Mesh(new THREE.BoxGeometry(0.55, 1.0, len), stone);
+      w.position.copy(fromLocal((u0 + u1) / 2, (v0 + v1) / 2, 0.5));
+      w.rotation.y = yaw + Math.atan2(u1 - u0, v1 - v0);
+      group.add(collide(w));
+      const cap = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.14, len + 0.2), stone);
+      cap.position.copy(fromLocal((u0 + u1) / 2, (v0 + v1) / 2, 1.07));
+      cap.rotation.y = w.rotation.y;
+      group.add(cap);
+    };
+    const bl = uMidB - bridgeW / 2, br = uMidB + bridgeW / 2;
+    wall(uB - 0.3, vEnd - 0.5, uB - 0.3, apronFar - 0.3);               // right flank over the gorge
+    wall(Math.max(uA, uL) + 0.3, apronFar - 0.3, bl - 0.1, apronFar - 0.3);  // far edge, left of the bridge
+    wall(br + 0.1, apronFar - 0.3, uB - 0.3, apronFar - 0.3);           // far edge, right of the bridge
   }
 
-  // ── Drawbridge deck, rails, chains ──────────────────────────────────────
+  // ── The stone bridge: arched viaduct, balustrade, lantern columns ────────
   const bridgeDir = new THREE.Vector3().subVectors(gateBase, bridgeStart).setY(0);
   const bridgeLen = bridgeDir.length();
   bridgeDir.normalize();
   const bridgeYaw = Math.atan2(-bridgeDir.x, -bridgeDir.z);
+  const deck = new THREE.Group();
+  const spans: ArrivalWorld['bridge']['spans'] = [], posts: ArrivalWorld['bridge']['posts'] = [];
+  const lanterns: THREE.Vector3[] = [];      // deck-local; the flames are added once addFlame exists
   {
-    const deck = new THREE.Group();
-    const planks = uvMaterial('weathered_planks', [1, bridgeLen / 2.4], { tint: 0x7a6d60, roughnessScale: 0.55 });
-    setReflect(planks, 0.45, 0.25);
-    const d = new THREE.Mesh(new THREE.BoxGeometry(bridgeW, 0.35, bridgeLen), planks);
-    d.position.set(0, 0, -bridgeLen / 2);
-    d.receiveShadow = true;
-    deck.add(d);
-    const beamMat = uvMaterial('weathered_planks', [0.3, 4], { tint: 0x4f463e });
-    for (const side of [-1, 1]) {
-      const rail = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.16, bridgeLen), beamMat);
-      rail.position.set(side * (bridgeW / 2 - 0.1), 1.05, -bridgeLen / 2);
-      deck.add(rail);
-      for (let s = 0; s <= bridgeLen; s += 2.2) {
-        const post = new THREE.Mesh(new THREE.BoxGeometry(0.2, 1.1, 0.2), beamMat);
-        post.position.set(side * (bridgeW / 2 - 0.1), 0.55, -s);
-        deck.add(post);
-      }
-      // Drawbridge chain: from the deck's outer edge up into the gate towers.
-      const a = new THREE.Vector3(side * (bridgeW / 2 - 0.1), 1.1, -bridgeLen * 0.12);
-      const b = new THREE.Vector3(side * (bridgeW / 2 + 0.4), A.heightAt(side < 0 ? 713 : 803, 327, gateBase), -bridgeLen + 0.5);
-      const links = new THREE.TubeGeometry(new THREE.CatmullRomCurve3([a, a.clone().lerp(b, 0.5).add(new THREE.Vector3(0, -0.8, 0)), b]), 64, 0.07, 6);
-      deck.add(new THREE.Mesh(links, iron));
+    const L = bridgeLen, Wd = bridgeW, top = 0.175, slabT = 0.9, yUnder = top - slabT;
+    const strip = (parts: THREE.BufferGeometry[]) => mergeGeometries(parts.map((g) => {
+      const n = g.index ? g.toNonIndexed() : g;
+      if (n.attributes.uv) n.deleteAttribute('uv');
+      return n;
+    }), false)!;
+    const paving = triplanarMaterial('cobblestone_floor_04', { metresPerTile: 2.2, tint: 0x666a70, roughnessScale: 0.5 });
+    setReflect(paving, 0.55, 0.15);
+    const ashlar = triplanarMaterial('castle_wall_slates', { metresPerTile: 2.4, tint: 0xa4a8ad, desat: 0.5, roughnessScale: 0.95, wetBase: WATER_Y });
+    // Deck slab (local −Z runs toward the gate).
+    const slab = new THREE.Mesh(new THREE.BoxGeometry(Wd, slabT, L), paving);
+    slab.position.set(0, top - slabT / 2, -L / 2);
+    slab.receiveShadow = true;
+    deck.add(slab);
+    // Viaduct: the side elevation with four round arches, extruded across the bridge.
+    const nA = 4, pier = 3.4, abut = 2.6;
+    const span = (L - 2 * abut - (nA - 1) * pier) / nA, r = span / 2;
+    const spring = yUnder - 1.6 - r, yb = WATER_Y - 2.5;
+    const shape = new THREE.Shape();
+    shape.moveTo(0, yb); shape.lineTo(L, yb); shape.lineTo(L, yUnder); shape.lineTo(0, yUnder); shape.lineTo(0, yb);
+    const pierCentres: number[] = [];
+    for (let k = 0; k < nA; k++) {
+      const s0 = abut + k * (span + pier);
+      const h = new THREE.Path();
+      h.moveTo(s0, WATER_Y - 1); h.lineTo(s0 + span, WATER_Y - 1); h.lineTo(s0 + span, spring);
+      h.absarc(s0 + r, spring, r, 0, Math.PI, false);
+      h.lineTo(s0, WATER_Y - 1);
+      shape.holes.push(h);
+      if (k < nA - 1) pierCentres.push(s0 + span + pier / 2);
     }
-    // Support piers into the water.
-    for (let s = 6; s < bridgeLen - 2; s += 9) {
-      const pier = new THREE.Mesh(new THREE.BoxGeometry(bridgeW * 0.9, 4, 1.2), stone);
-      pier.position.set(0, -2.2, -s);
-      deck.add(pier);
+    const bodyW = Wd * 0.84;
+    const body = new THREE.ExtrudeGeometry(shape, { depth: bodyW, bevelEnabled: false, curveSegments: 18 });
+    body.rotateY(Math.PI / 2);
+    body.translate(-bodyW / 2, 0, 0);
+    const bodyMesh = new THREE.Mesh(body, stone);
+    bodyMesh.receiveShadow = true;
+    deck.add(bodyMesh);
+    // Arch rings proud of the face, a cornice band, a corbel table, and cutwater buttresses.
+    const trim: THREE.BufferGeometry[] = [];
+    for (let k = 0; k < nA; k++) {
+      const cx = abut + k * (span + pier) + r;
+      for (const side of [-1, 1]) {
+        const ring = new THREE.TorusGeometry(r + 0.35, 0.38, 6, 24, Math.PI);
+        ring.scale(1, 1, 0.8);
+        ring.rotateY(Math.PI / 2);
+        ring.translate(side * (bodyW / 2 + 0.05), spring, -cx);
+        trim.push(ring);
+      }
+    }
+    for (const side of [-1, 1]) {
+      const cornice = new THREE.BoxGeometry(0.5, 0.32, L);
+      cornice.translate(side * (Wd / 2 + 0.05), yUnder + 0.2, -L / 2);
+      trim.push(cornice);
+      for (let s = 0.6; s < L - 0.3; s += 1.15) {
+        const c = new THREE.BoxGeometry(0.42, 0.42, 0.34);
+        c.translate(side * (Wd / 2 - 0.12), yUnder - 0.18, -s);
+        trim.push(c);
+      }
+      for (const sc of pierCentres) {
+        const h = top - 0.3 - yb;
+        const b = new THREE.BoxGeometry(1.6, h, pier * 0.72);
+        b.translate(side * (bodyW / 2 + 0.8), yb + h / 2, -sc);
+        const cap = new THREE.ConeGeometry(1.25, 1.6, 4);
+        cap.rotateY(Math.PI / 4);
+        cap.scale(1, 1, (pier * 0.72) / 1.6);
+        cap.translate(side * (bodyW / 2 + 0.8), WATER_Y + 6, -sc);
+        trim.push(b, cap);
+      }
+    }
+    deck.add(new THREE.Mesh(strip(trim), ashlar));
+    // Balustrade in 4.4 m sections between newel posts (the kraken can tear sections away).
+    const profile = [[0.06, 0], [0.09, 0.05], [0.06, 0.12], [0.1, 0.3], [0.12, 0.42], [0.06, 0.56], [0.05, 0.62], [0.08, 0.68], [0.08, 0.7]].map(([x, y]) => new THREE.Vector2(x, y));
+    const baluster = new THREE.LatheGeometry(profile, 8);
+    const secLen = 4.4, railH = 1.1;
+    for (const side of [-1, 1]) {
+      const x = side * (Wd / 2 - 0.28);
+      for (let s = 0; s < L - 0.1; s += secLen) {
+        const l = Math.min(secLen, L - s);
+        const parts: THREE.BufferGeometry[] = [];
+        const plinth = new THREE.BoxGeometry(0.5, 0.24, l); plinth.translate(x, top + 0.12, -(s + l / 2)); parts.push(plinth);
+        const rail = new THREE.BoxGeometry(0.46, 0.18, l); rail.translate(x, top + railH - 0.09, -(s + l / 2)); parts.push(rail);
+        for (let q = 0.45; q < l - 0.3; q += 0.32) { const bl = baluster.clone(); bl.translate(x, top + 0.24, -(s + q)); parts.push(bl); }
+        const mesh = new THREE.Mesh(strip(parts), ashlar);
+        deck.add(mesh);
+        spans.push({ mesh, side, along: s + l / 2 });
+      }
+      // Newel posts; every other one carries a lantern column.
+      for (let s = 0, i = 0; s <= L + 0.01; s += secLen, i++) {
+        const lantern = i % 2 === 0 && s > 1 && s < L - 1;
+        const parts: THREE.BufferGeometry[] = [];
+        const post = new THREE.BoxGeometry(0.7, railH + 0.25, 0.7); post.translate(x, top + (railH + 0.25) / 2, -s); parts.push(post);
+        const cap = new THREE.BoxGeometry(0.86, 0.16, 0.86); cap.translate(x, top + railH + 0.33, -s); parts.push(cap);
+        if (lantern) {
+          const shaft = new THREE.CylinderGeometry(0.2, 0.24, 2.4, 10); shaft.translate(x, top + railH + 1.6, -s); parts.push(shaft);
+          const capital = new THREE.CylinderGeometry(0.34, 0.22, 0.28, 10); capital.translate(x, top + railH + 2.9, -s); parts.push(capital);
+        }
+        const mesh = new THREE.Mesh(strip(parts), ashlar);
+        deck.add(mesh);
+        posts.push({ mesh, side, along: s, fixed: lantern });
+        if (lantern) {
+          // Iron lantern cage on the column.
+          const cy = top + railH + 3.35;
+          const cage: THREE.BufferGeometry[] = [];
+          for (const [dx, dz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { const bar = new THREE.BoxGeometry(0.04, 0.6, 0.04); bar.translate(x + dx * 0.2, cy, -s + dz * 0.2); cage.push(bar); }
+          const roofG = new THREE.ConeGeometry(0.36, 0.4, 4); roofG.rotateY(Math.PI / 4); roofG.translate(x, cy + 0.5, -s); cage.push(roofG);
+          const base = new THREE.BoxGeometry(0.5, 0.06, 0.5); base.translate(x, cy - 0.3, -s); cage.push(base);
+          deck.add(new THREE.Mesh(strip(cage), iron));
+          lanterns.push(new THREE.Vector3(x, cy - 0.25, -s));
+        }
+      }
     }
     deck.position.copy(bridgeStart).setY(0.0);
     deck.rotation.y = bridgeYaw;
@@ -243,6 +383,8 @@ export async function buildArrival(A: ArtAnchor, renderer: THREE.WebGPURenderer)
     torches.push(l);
     group.add(l);
   };
+  deck.updateMatrixWorld(true);
+  for (const l of lanterns) addFlame(l.clone().applyMatrix4(deck.matrixWorld), 0.32, 3.2);
   for (const [cx, lx, rx, topY] of [[626, 600, 653, 430], [883, 851, 915, 432]] as const) {
     const base = A.onY(cx, 494, 0);
     const w = A.widthAt(lx, rx, 494, base);
@@ -398,7 +540,7 @@ export async function buildArrival(A: ArtAnchor, renderer: THREE.WebGPURenderer)
       const b = new THREE.Vector3(verts[((c + 1) * rows + j) * 3], verts[((c + 1) * rows + j) * 3 + 1], verts[((c + 1) * rows + j) * 3 + 2]);
       pines.push({ p: a.lerp(b, R()), h: 7 + R() * 6 });
     }
-    group.add(coniferForest(pines, new THREE.MeshStandardNodeMaterial({ color: 0x0b1012, roughness: 1 })));
+    forest.plantFar(pines.map(({ p, h }) => ({ p, h: h * 1.25 })), ['pine', 'pine', 'pine', 'dead']);
   }
   {
     // Castle pieces: [kind, centre px, left px, right px, body-top py, tip py, base py]
@@ -575,6 +717,48 @@ export async function buildArrival(A: ArtAnchor, renderer: THREE.WebGPURenderer)
     }
   }
 
+  // ── Cinema Mile woods: dark firs either side of the extended approach ──────
+  {
+    const R2 = rng(77);
+    const near: TreeSpot[] = [], far: TreeSpot[] = [];
+    const spot = (u: number, v: number, h: number) => ({ p: fromLocal(u, v, heightLocal(u, v) - 0.25), h });
+    // Full 3D trees in a band along both verges (behind the billboards).
+    for (let i = 0; i < 110; i++) {
+      const left = R2() < 0.55;
+      const u = left ? uL - 3.5 - R2() * 14 : uR + 3.5 + R2() * 9;
+      near.push(spot(u, vStart + 2 + R2() * (-vStart - 6), 10 + R2() * 8));
+    }
+    // Overgrown: trees on both verges leaning in over the lanes, their canopies arching the road.
+    const across = new THREE.Vector3(-fwd.z, 0, fwd.x);   // toward +u
+    for (let v = vStart + 6; v < -8; v += 9 + R2() * 7) {
+      for (const side of [-1, 1]) {
+        if (R2() < 0.35) continue;
+        const u = side < 0 ? uL - 1.8 - R2() * 1.5 : uR + 2.2 + R2() * 1.5;
+        const t = spot(u, v + R2() * 4, 9 + R2() * 6);
+        near.push({ ...t, species: R2() < 0.55 ? (R2() < 0.5 ? 'oak' : 'dead') : 'ash', lean: across.clone().multiplyScalar(-side), leanAngle: 0.18 + R2() * 0.22 });
+      }
+    }
+    // The dense forest beyond: impostors.
+    for (let i = 0; i < 950; i++) {
+      const left = R2() < 0.6;
+      const u = left ? uL - 25 - R2() * 75 : uR + 17 + R2() * 50;
+      far.push(spot(u, vStart - 50 + R2() * (-vStart + 70), 12 + R2() * 10));
+    }
+    // Woods close over the road behind the spawn: the way back is gone.
+    for (let i = 0; i < 45; i++) { const u = uL - 6 + R2() * (uR - uL + 12), v = vStart - 6 - R2() * 18; near.push(spot(u, v, 11 + R2() * 8)); }
+    for (let i = 0; i < 260; i++) { const u = uL - 40 + R2() * (uR - uL + 80), v = vStart - 24 - R2() * 55; far.push(spot(u, v, 12 + R2() * 9)); }
+    forest.plant(near, { pine: 5, oak: 1.2, ash: 0.8, aspen: 0.6, dead: 1.4 }, 77);
+    forest.plantFar(far, ['pine', 'pine', 'pine', 'oak', 'ash', 'dead']);
+    // Fallen trunk across the road end (also the boundary).
+    const bark = triplanarMaterial('rock_face', { metresPerTile: 1.2, tint: 0x1d1a17, roughnessScale: 1 });
+    const log = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.55, uR - uL + 9, 14), bark);
+    log.position.copy(fromLocal((uL + uR) / 2, vStart + 2.5, 0.45));
+    log.rotation.set(0, Math.atan2(-fwd.x, -fwd.z), Math.PI / 2 + 0.04);
+    log.rotation.order = 'YXZ';
+    log.castShadow = true;
+    group.add(collide(log));
+  }
+
   // ── Guardrail along the right edge to the bridge ────────────────────────
   {
     const pts = [[1400, 655], [1280, 620], [1150, 570], [1000, 538], [880, 520], [795, 508]].map(([px, py]) => A.onY(px, py, 0.72));
@@ -610,7 +794,13 @@ export async function buildArrival(A: ArtAnchor, renderer: THREE.WebGPURenderer)
   void renderer;
   return {
     group, torches, flames, moonDir,
-    spawn: { position: fromLocal(0.5 * uR, 6, 0.05), yaw: Math.atan2(fwd.x, fwd.z) },
+    spawn: { position: fromLocal(0.5 * uR, vStart + 9, 0.05), yaw: Math.atan2(fwd.x, fwd.z) },
+    road: { fromLocal, heightAt: heightLocal, uL, uR, vStart, yawAlong: Math.atan2(fwd.x, fwd.z) },
+    forest,
+    bridge: {
+      start: bridgeStart.clone().setY(0), dir: bridgeDir.clone(), right: new THREE.Vector3(-bridgeDir.z, 0, bridgeDir.x),
+      len: bridgeLen, width: bridgeW, deckY: 0.175, waterY: WATER_Y, deck, spans, posts,
+    },
     gateCentre: gateBase,
     fortress: {
       origin: onFacade(772).setY(0.15),

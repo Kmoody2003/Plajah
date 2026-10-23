@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { requestAutoplay } from '../services/filmAutoplay';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Play, Info, ChevronRight, ChevronLeft, Star,
@@ -3420,6 +3421,14 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
               {tabNavEl}
               <RavencrestGameFrame
                 onBack={() => setCurrentSubView('HALLOWEEN')}
+                onWatch={(filmId) => {
+                  // Chosen in the game: the film page opens straight into playback (ident first);
+                  // backing out of the player lands on that film's page.
+                  requestAutoplay();
+                  if (filmId === PUMPKIN_PATCH_HERO_ALBUM.id) { onSelectMovie(PUMPKIN_PATCH_HERO_ALBUM); return; }
+                  const film = CURATED_HALLOWEEN_FILMS.find((f) => f.identifier === filmId);
+                  if (film) handleSelectArchiveItem(film);
+                }}
                 classic={
                   <HauntedCastleExhibition
                     onBackToVault={() => setCurrentSubView('HALLOWEEN')}

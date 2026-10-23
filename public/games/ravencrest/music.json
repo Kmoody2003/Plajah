@@ -1,0 +1,33 @@
+{
+  "tracks": [
+    {
+      "id": "dracula-overture",
+      "title": "Dracula — Overture (Lorea book score)",
+      "mood": "explore",
+      "lead": true,
+      "gain": 0.89,
+      "url": "/games/ravencrest/audio/dracula-overture.ogg"
+    },
+    {
+      "id": "ombra-di-trombone",
+      "title": "Ombra di Trombone",
+      "mood": "explore",
+      "gain": 0.88,
+      "url": "/games/ravencrest/audio/ombra-di-trombone.mp3"
+    },
+    {
+      "id": "ombra-di-trombone-alt",
+      "title": "Ombra di Trombone (Alt)",
+      "mood": "explore",
+      "gain": 0.79,
+      "url": "/games/ravencrest/audio/ombra-di-trombone-alt.mp3"
+    },
+    {
+      "id": "dracula-is-here",
+      "title": "Ombra di Trombone — Dracula Is Here",
+      "mood": "dread",
+      "gain": 0.93,
+      "url": "/games/ravencrest/audio/dracula-is-here.mp3"
+    }
+  ]
+}

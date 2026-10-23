@@ -2,7 +2,7 @@ import * as THREE from 'three/webgpu';
 import {
   texture, triplanarTexture, vec2, vec3, float, mrt, uv, positionWorld, normalWorld, normalMap, mix,
   mx_fractal_noise_float, smoothstep, time, color, transformNormalToView, luminance, Fn,
-  positionView, normalView, faceDirection, dFdx, dFdy,
+  positionView, normalView, faceDirection, dFdx, dFdy, uniform,
 } from 'three/tsl';
 
 const PH = '/games/ravencrest/assets/polyhaven/textures';
@@ -125,28 +125,49 @@ export function uvMaterial(id: string, repeat: [number, number], o: StoneOpts = 
   return m;
 }
 
+/** Rain on the world (0…1): weather.ts sets it; puddles ripple while it falls. */
+export const rainAmount = uniform(0);
+
 /**
- * Rain-soaked asphalt matching the art: near-black, mirror-like sheen with
- * broken puddles. Puddle mask is world-space noise so it never tiles visibly.
+ * Rain-soaked country asphalt: near-black, mirror-sheened, with real wear — patched and cracked
+ * sections (the damaged-road scan blended in by world-space noise), muddy verges with leaf litter,
+ * fallen leaves across the lanes, glossy wheel tracks and broken puddles that ripple in the rain.
  */
 export function wetAsphalt(repeat: [number, number], markings: THREE.Texture): THREE.MeshStandardNodeMaterial {
   const s = pbr('asphalt_02');
+  const d = pbr('road_damaged');
   const m = new THREE.MeshStandardNodeMaterial();
   const u = uv().mul(vec2(...repeat));
-  // Sparse puddle patches (world-space, so they never tile) + glossier wheel-track bands
-  // in each lane — how the art's road catches the torchlight.
-  // Stretched along the road (≈ −Z) so puddles read as long sheets, not round holes.
-  const patches = smoothstep(float(0.25), float(0.5), mx_fractal_noise_float(positionWorld.xz.mul(vec2(0.3, 0.07)), 3, 2, 0.5, 1));
+  const wp = positionWorld.xz;
+  // Patched / broken sections: large world-space blobs of the cracked-road scan.
+  const damage = smoothstep(float(0.18), float(0.42), mx_fractal_noise_float(wp.mul(0.045), 3, 2, 0.5, 1));
+  // Macro tone: resurfaced strips and weathered areas so the asphalt never reads as one tile.
+  const macro = mx_fractal_noise_float(wp.mul(vec2(0.02, 0.006)), 2, 2, 0.5, 1).mul(0.25).add(1);
+  // Verges: the outer 7% each side — mud, needles and leaf litter, rough and dull.
   const lane = uv().x.sub(0.5).abs();
+  const verge = smoothstep(float(0.43), float(0.5), lane);
+  // Fallen leaves: sparse rust/ochre specks, thicker toward the verges.
+  // Leaf-sized specks (~10 cm), clustered by a slower noise so they drift in patches.
+  const leafN = mx_fractal_noise_float(wp.mul(9), 1, 2, 0.5, 1).add(mx_fractal_noise_float(wp.mul(0.6), 1, 2, 0.5, 1).mul(0.35));
+  const leaves = smoothstep(float(0.62).sub(verge.mul(0.3)), float(0.7).sub(verge.mul(0.3)), leafN).mul(0.75);
+  const leafCol = mix(vec3(0.16, 0.07, 0.03), vec3(0.24, 0.15, 0.04), mx_fractal_noise_float(wp.mul(7.3), 1, 2, 0.5, 1).mul(0.5).add(0.5));
+  // Puddles (stretched along the road) + glossy wheel tracks in each lane.
+  const patches = smoothstep(float(0.25), float(0.5), mx_fractal_noise_float(wp.mul(vec2(0.3, 0.07)), 3, 2, 0.5, 1));
   const tracks = smoothstep(float(0.07), float(0.0), lane.sub(0.12).abs()).add(smoothstep(float(0.07), float(0.0), lane.sub(0.36).abs())).clamp();
-  const puddle = patches.mul(0.9).max(tracks.mul(0.45));
+  const puddle = patches.mul(0.9).max(tracks.mul(0.45)).mul(float(1).sub(verge.mul(0.6)));
   const paint = texture(markings, uv());
-  const base = texture(s.diff, u).rgb.mul(0.2);
-  const painted = mix(base, paint.rgb.mul(0.8), paint.a);
-  m.colorNode = mix(painted, painted.mul(0.85), puddle);
-  const r = mix(texture(s.ard, u).g.mul(0.7).add(0.12), float(0.14), puddle);
+  const asphalt = mix(texture(s.diff, u).rgb.mul(0.2), texture(d.diff, u.mul(0.7)).rgb.mul(0.24), damage).mul(macro);
+  const mud = mix(asphalt, vec3(0.05, 0.04, 0.03), verge.mul(0.85));
+  const littered = mix(mud, leafCol, leaves.mul(0.85));
+  const painted = mix(littered, paint.rgb.mul(0.8), paint.a.mul(float(1).sub(leaves.mul(0.7))));
+  m.colorNode = mix(painted, painted.mul(0.82), puddle);
+  const baseRough = mix(texture(s.ard, u).g.mul(0.7).add(0.12), texture(d.ard, u.mul(0.7)).g.mul(0.75).add(0.1), damage);
+  const r = mix(mix(baseRough, float(0.85), verge.max(leaves).mul(0.8)), float(0.12), puddle);
   m.roughnessNode = r;
-  m.normalNode = normalMap(texture(s.nor, u), vec2(mix(float(1), float(0.08), puddle)));
+  // Rain ripples: fine animated noise in the puddles while it rains.
+  const rip = mx_fractal_noise_float(vec3(wp.mul(6), time.mul(3.5)), 2, 2, 0.5, 1).mul(rainAmount).mul(puddle).mul(0.35);
+  const nTex = mix(texture(s.nor, u), texture(d.nor, u.mul(0.7)), damage);
+  m.normalNode = normalMap(nTex, vec2(mix(float(1), float(0.08), puddle).add(rip)));
   m.metalness = 0;
   setReflect(m, mix(float(0.0), float(0.35), puddle), r);
   return m;

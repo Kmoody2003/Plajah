@@ -16,6 +16,150 @@
     #loading { position: fixed; inset: 0; display: grid; place-items: center; font-size: 15px; letter-spacing: .3em; color: #8a97a8; }
     #fade { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity .42s ease; }
     #prompt { position: fixed; left: 50%; bottom: 18%; transform: translateX(-50%); font-size: 18px; letter-spacing: .25em; text-transform: uppercase; color: #e8c79a; text-shadow: 0 2px 8px #000; pointer-events: none; }
+    #prompt.film { pointer-events: auto; cursor: pointer; color: #ffcf8a; }
+    /* Film card (cinema.ts) */
+    #filmCard { position: fixed; right: 18px; top: 50%; transform: translateY(-50%); display: none; z-index: 20; pointer-events: none; }
+    #filmCard.on { display: block; animation: cardin .18s ease-out; }
+    @keyframes cardin { from { opacity: 0; transform: translate(14px, -50%); } }
+    .fc-panel { display: flex; gap: 14px; width: min(460px, 86vw); background: #0d0b09e6; border: 1px solid #6b4d2a; box-shadow: 0 10px 40px #000; padding: 14px; pointer-events: auto; }
+    .fc-poster { width: 120px; aspect-ratio: 2 / 3; object-fit: cover; background: #111; flex: none; }
+    .fc-body { display: flex; flex-direction: column; min-width: 0; }
+    .fc-kicker { font-size: 11px; letter-spacing: .28em; text-transform: uppercase; color: #e8a24a; }
+    .fc-title { margin: 6px 0 4px; font-size: 22px; font-weight: normal; color: #f4ead8; line-height: 1.1; }
+    .fc-meta { font-style: italic; color: #9aa6b6; font-size: 14px; }
+    .fc-tag { color: #d6d0c4; font-size: 12.5px; line-height: 1.45; max-height: 5.8em; overflow: hidden; margin: 6px 0 10px; }
+    .fc-actions { margin-top: auto; display: flex; gap: 12px; flex-wrap: wrap; }
+    .fc-actions button, .cm-actions button { font: inherit; font-size: 12px; letter-spacing: .08em; padding: 6px 10px; border: 1px solid #6b4d2a; background: #1b140e; color: #e8d6b8; cursor: pointer; }
+    .fc-actions .fc-watch, .cm-actions .cm-watch { background: #c2561a; border-color: #ff9a4a; color: #fff; }
+    .fc-actions span, .cm-actions span { opacity: .5; font-size: 11px; margin-left: 6px; }
+    @media (max-width: 640px) { #filmCard { top: auto; bottom: 12px; transform: none; } .fc-poster { width: 80px; } }
+    /* Gameplay HUD (game.ts) */
+    #game .g-card { position: fixed; left: 16px; top: 52px; width: 240px; font-size: 12px; letter-spacing: .12em; text-shadow: 0 1px 2px #000; }
+    #game .g-name { color: #e8d6b8; margin-bottom: 6px; } #game .g-lvl { color: #ffb15a; margin-left: 6px; }
+    #game .g-bar { height: 7px; background: #0009; border: 1px solid #3a2a1a; margin-bottom: 4px; }
+    #game .g-bar div { height: 100%; transition: width .2s; }
+    #game .hp div { background: linear-gradient(90deg, #8a1a12, #e0452a); } #game .xp { height: 4px; } #game .xp div { background: #e8b26a; }
+    #game .g-row { display: flex; gap: 6px; margin-top: 6px; align-items: center; flex-wrap: wrap; }
+    #game .g-st { padding: 2px 6px; border: 1px solid #3a3a3a; color: #8a8f98; cursor: pointer; font-size: 10px; }
+    #game .g-st.on { border-color: #e8b26a; color: #ffd8a0; background: #2a1a0a99; }
+    #game .g-mol { color: #ff9a4a; font-size: 10px; margin-left: 4px; }
+    #game .g-call { position: fixed; left: 50%; top: 18%; transform: translateX(-50%); font-size: 30px; letter-spacing: .2em; text-transform: uppercase; opacity: 0; transition: opacity .3s; text-shadow: 0 3px 12px #000; pointer-events: none; white-space: nowrap; }
+    #game .g-feed { position: fixed; right: 18px; top: 52px; display: flex; flex-direction: column; gap: 6px; align-items: flex-end; pointer-events: none; }
+    #game .g-feed div { font-size: 13px; color: #ffd8a0; background: #0009; padding: 4px 10px; border-left: 2px solid #e8b26a; transition: opacity .8s, transform .8s; }
+    #game .g-feed div.out { opacity: 0; transform: translateY(-8px); }
+    #game .g-vig { position: fixed; inset: 0; pointer-events: none; opacity: 0; background: radial-gradient(ellipse at center, transparent 45%, #a0100a 120%); }
+    #game .g-mobbar { position: fixed; left: 0; top: 0; width: 80px; pointer-events: none; font-size: 10px; color: #e8d6b8; text-align: center; text-shadow: 0 1px 2px #000; }
+    #game .g-mobbar div { height: 4px; background: #0009; border: 1px solid #4a1a1a; } #game .g-mobbar i { display: block; height: 100%; background: #d03a24; }
+    #game .g-comic { position: fixed; right: 18px; bottom: 48px; width: min(420px, 86vw); display: none; gap: 10px; background: #0b0a0cd9; border-left: 3px solid var(--accent, #f97316); box-shadow: 0 8px 30px #000; padding: 10px; z-index: 15; pointer-events: none; }
+    #game .g-comic.on { display: flex; animation: cardin2 .2s ease-out; }
+    @keyframes cardin2 { from { opacity: 0; transform: translateX(14px); } }
+    #game .g-comic button { pointer-events: auto; }
+    #game .cm-panel { width: 40%; object-fit: cover; border: 1px solid #000; }
+    #game .cm-side { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+    #game .cm-portrait { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent, #f97316); }
+    #game .cm-sfx { font: bold 16px Impact, 'Arial Black', sans-serif; color: var(--accent, #f97316); letter-spacing: .04em; }
+    #game .cm-title { margin: 2px 0 0; font-size: 14px; font-weight: normal; color: #f4ead8; }
+    #game .cm-sub { font-size: 12px; color: #9aa6b6; font-style: italic; }
+    #game .cm-quote { font-size: 12px; color: #e8d6b8; margin: 4px 0; line-height: 1.4; }
+    #game .cm-scene { font-size: 10px; letter-spacing: .12em; color: #8a8f98; text-transform: uppercase; }
+    #game .cm-actions { display: flex; gap: 8px; margin-top: auto; flex-wrap: wrap; }
+    #game .cm-actions button { padding: 6px 10px; font-size: 12px; }
+    @media (max-width: 640px) { #game .g-comic { flex-direction: column; } #game .cm-panel { width: 100%; max-height: 30vh; } #game .g-call { font-size: 20px; } }
+    /* Look-at lock-on (main.ts) */
+    #lock { position: fixed; display: none; pointer-events: none; transition: opacity .15s; z-index: 5; }
+    #lock.on { display: block; }
+    #lock i { position: absolute; width: 22px; height: 22px; border: 0 solid #ffcf8a; filter: drop-shadow(0 0 4px #ff9a3a); }
+    #lock .tl { left: -6px; top: -6px; border-left-width: 3px; border-top-width: 3px; }
+    #lock .tr { right: -6px; top: -6px; border-right-width: 3px; border-top-width: 3px; }
+    #lock .bl { left: -6px; bottom: -6px; border-left-width: 3px; border-bottom-width: 3px; }
+    #lock .br { right: -6px; bottom: -6px; border-right-width: 3px; border-bottom-width: 3px; }
+    #lock span { position: absolute; left: 50%; top: calc(100% + 14px); transform: translateX(-50%); white-space: nowrap; font-size: 14px; letter-spacing: .16em; text-transform: uppercase; color: #ffe2b8; background: #000a; padding: 6px 12px; border: 1px solid #6b4d2a; }
+    #lock.locked i { border-color: #ff9a3a; animation: lockpulse 1s ease-in-out infinite; }
+    #lock.locked span { color: #fff; border-color: #ff9a3a; background: #3a1606cc; }
+    @keyframes lockpulse { 50% { filter: drop-shadow(0 0 10px #ff7a2a); } }
+    #game .g-power { position: fixed; left: 16px; top: 132px; font-size: 12px; letter-spacing: .14em; color: #ffb15a; text-shadow: 0 0 8px #ff5a1a, 0 1px 2px #000; }
+    /* Looks (looks.ts) */
+    #lensOverlay { position: fixed; inset: 0; width: 100%; height: 100%; display: none; pointer-events: none; z-index: 1; }
+    #lensOverlay.on { display: block; }
+    #looks { position: fixed; right: 16px; top: 14px; font-size: 11px; letter-spacing: .14em; color: #c9d2de; background: #0009; border: 1px solid #3a2a1a; padding: 5px 10px; cursor: pointer; z-index: 6; }
+    #looks span { color: #e8b26a; } #looks b { font-weight: normal; }
+    #looks.toast::after { content: attr(data-toast); position: absolute; right: 0; top: calc(100% + 6px); white-space: nowrap; background: #000c; color: #ffe2b8; padding: 4px 10px; border-left: 2px solid #e8b26a; }
+    #looksPanel { position: fixed; right: 16px; top: 46px; display: none; flex-direction: column; gap: 8px; background: #0d0b09ee; border: 1px solid #6b4d2a; padding: 12px; font-size: 12px; z-index: 6; width: 260px; }
+    #looksPanel.on { display: flex; }
+    #looksPanel label { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+    #looksPanel select { background: #1b140e; color: #e8d6b8; border: 1px solid #6b4d2a; font: inherit; max-width: 170px; }
+    #looksPanel small { color: #8a8f98; }
+    /* Nightmare (nightmare.ts) */
+    :is(#nightmare, #bridgeBattle) .nm-title { position: fixed; left: 50%; top: 30%; transform: translate(-50%, -50%); text-align: center; opacity: 0; transition: opacity 1.2s; pointer-events: none; z-index: 12; }
+    :is(#nightmare, #bridgeBattle) .nm-title.on { opacity: 1; }
+    :is(#nightmare, #bridgeBattle) h1 { margin: 0; font-size: clamp(34px, 6vw, 76px); letter-spacing: .32em; font-weight: normal; color: #e8d8c8; text-shadow: 0 0 30px #a0100a, 0 4px 20px #000; }
+    :is(#nightmare, #bridgeBattle) h2 { margin: 10px 0 0; font-size: clamp(13px, 1.6vw, 18px); letter-spacing: .4em; font-weight: normal; color: #c04a3a; text-transform: uppercase; text-shadow: 0 2px 10px #000; }
+    :is(#nightmare, #bridgeBattle) .nm-boss { position: fixed; left: 50%; top: 18px; transform: translateX(-50%); width: min(560px, 80vw); display: none; text-align: center; z-index: 8; }
+    :is(#nightmare, #bridgeBattle) .nm-boss.on { display: block; }
+    :is(#nightmare, #bridgeBattle) .nm-boss span { font-size: 13px; letter-spacing: .4em; color: #e8c8b8; text-shadow: 0 0 10px #a0100a; }
+    :is(#nightmare, #bridgeBattle) .nm-boss div { margin-top: 6px; height: 10px; background: #000a; border: 1px solid #5a1010; }
+    :is(#nightmare, #bridgeBattle) .nm-boss i { display: block; height: 100%; width: 100%; background: linear-gradient(90deg, #5a0606, #d0201a); box-shadow: 0 0 12px #a0100a; transition: width .25s; }
+    #bridgeBattle h1 { text-shadow: 0 0 30px #1f8a4a, 0 4px 20px #000; }
+    #bridgeBattle h2 { color: #7ad08a; }
+    #bridgeBattle .nm-boss span { text-shadow: 0 0 10px #2a6a3a; }
+    #bridgeBattle .nm-boss div { border-color: #2a4a2a; }
+    #bridgeBattle .nm-boss i { background: linear-gradient(90deg, #2a3a1a, #7a9a3a); box-shadow: 0 0 12px #4a7a2a; }
+    /* Combo comic strip (comic.ts) */
+    #comboComic { position: fixed; left: 50%; top: 9%; transform: translateX(-50%); width: min(980px, 94vw); display: flex; gap: 10px; pointer-events: none; z-index: 9; visibility: hidden; }
+    #comboComic.on { visibility: visible; animation: ccfade 1.7s ease-in forwards; }
+    @keyframes ccfade { 0%, 80% { opacity: 1; } 100% { opacity: 0; } }
+    #comboComic .cc-panel { position: relative; flex: 1; aspect-ratio: 16 / 9; background: #000; border: 4px solid #0b0b0b; box-shadow: 0 0 0 3px #f4ead8, 6px 8px 0 #000; overflow: hidden; opacity: 0; }
+    #comboComic .p0 { transform: rotate(-3deg); clip-path: polygon(0 0, 100% 4%, 96% 100%, 2% 96%); }
+    #comboComic .p1 { transform: rotate(1.5deg) translateY(10px); clip-path: polygon(3% 2%, 100% 0, 98% 97%, 0 100%); }
+    #comboComic .p2 { transform: rotate(-1deg) scale(1.08); clip-path: polygon(0 3%, 97% 0, 100% 100%, 4% 98%); }
+    #comboComic.on .cc-panel { animation: ccslam .22s cubic-bezier(.2, 1.6, .4, 1) forwards; }
+    #comboComic.on .p1 { animation-delay: .12s; } #comboComic.on .p2 { animation-delay: .24s; }
+    @keyframes ccslam { from { opacity: 0; scale: 1.35; } to { opacity: 1; scale: 1; } }
+    #comboComic canvas { width: 100%; height: 100%; display: block; filter: contrast(1.45) saturate(1.35) brightness(1.15); }
+    #comboComic .cc-dots { position: absolute; inset: 0; background: radial-gradient(circle, #000 28%, transparent 30%) 0 0 / 7px 7px; mix-blend-mode: multiply; opacity: .32; }
+    #comboComic b { position: absolute; right: 6%; bottom: 8%; font: 900 clamp(18px, 3vw, 38px) Impact, 'Arial Black', sans-serif; color: #ffd23a; -webkit-text-stroke: 2px #000; text-shadow: 4px 4px 0 #b3200a; transform: rotate(-8deg); letter-spacing: .02em; }
+    #comboComic .p2 b { color: #ff5a2a; font-size: clamp(22px, 3.8vw, 48px); }
+    /* Touch controls (input.ts) */
+    #touchUI { position: fixed; inset: 0; z-index: 20; pointer-events: none; -webkit-user-select: none; user-select: none; }
+    #touchUI.off { display: none; }
+    #touchUI .t-move { position: absolute; left: 0; top: 30%; bottom: 0; width: 45%; pointer-events: auto; touch-action: none; }
+    #touchUI .t-look { position: absolute; right: 0; top: 0; bottom: 0; width: 55%; pointer-events: auto; touch-action: none; }
+    #touchUI .t-base { position: absolute; left: 40px; bottom: 60px; width: 112px; height: 112px; border-radius: 50%; border: 2px solid #ffffff55; background: #0006; opacity: .35; transition: opacity .2s; }
+    #touchUI .t-move .t-base { top: auto; }
+    #touchUI .t-knob { position: absolute; left: 32px; top: 32px; width: 48px; height: 48px; border-radius: 50%; background: #e8dcc8cc; box-shadow: 0 0 12px #000; }
+    #touchUI .t-btn { position: absolute; pointer-events: auto; touch-action: none; border-radius: 50%; border: 2px solid #e8c27a99; background: #0b0d12b3; color: #f2e4c8; font-size: 22px; display: flex; align-items: center; justify-content: center; }
+    #touchUI .t-btn.on { background: #e8c27a; color: #120c06; }
+    #touchUI .t-attack { right: 28px; bottom: 40px; width: 92px; height: 92px; font-size: 34px; }
+    #touchUI .t-roll { right: 132px; bottom: 30px; width: 64px; height: 64px; }
+    #touchUI .t-jump { right: 40px; bottom: 146px; width: 64px; height: 64px; }
+    #touchUI .t-use { right: 128px; bottom: 112px; width: 54px; height: 54px; font-size: 18px; }
+    #touchUI .t-fire { right: 186px; bottom: 96px; width: 46px; height: 46px; font-size: 18px; }
+    /* Start menu (main.ts) */
+    #menu { position: fixed; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; background: radial-gradient(ellipse at 50% 42%, #05080e33 0%, #03050a99 55%, #000000ee 100%); color: #e8dcc8; font-family: 'Cinzel', Georgia, serif; transition: opacity .9s; overflow: hidden; }
+    #menu::before { content: ''; position: absolute; inset: -20%; background: radial-gradient(ellipse at 30% 80%, #8a96a822, transparent 40%), radial-gradient(ellipse at 75% 85%, #8a96a81c, transparent 45%); animation: mnFog 26s ease-in-out infinite alternate; pointer-events: none; }
+    #menu::after { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(0deg, #0000 0 2px, #00000014 2px 3px); pointer-events: none; mix-blend-mode: multiply; }
+    @keyframes mnFog { from { transform: translateX(-4%) } to { transform: translateX(4%) } }
+    @keyframes mnFlicker { 0%, 100% { opacity: 1 } 46% { opacity: 1 } 47% { opacity: .55 } 48% { opacity: 1 } 73% { opacity: .85 } 74% { opacity: 1 } }
+    @keyframes mnPulse { 0%, 100% { opacity: .45 } 50% { opacity: 1 } }
+    #menu .mn { position: relative; z-index: 1; }
+    #menu .awaken { margin-top: 14px; font-size: 12px; letter-spacing: .45em; color: #c9a25a; animation: mnPulse 2.4s ease-in-out infinite; }
+    #menu.gone { opacity: 0; pointer-events: none; }
+    #menu .mn { width: min(980px, 92vw); text-align: center; }
+    #menu h1 { margin: 0; font-size: clamp(38px, 8vw, 104px); letter-spacing: .28em; font-weight: normal; color: #e9dcc6; text-shadow: 0 0 22px #b01010, 0 0 60px #5a0606, 0 8px 26px #000; animation: mnFlicker 7s infinite; }
+    #menu .sub { margin: 6px 0 26px; letter-spacing: .5em; font-size: clamp(11px, 1.4vw, 14px); color: #b9a487; text-transform: uppercase; }
+    #menu .brief { max-width: 640px; margin: 0 auto 26px; font-family: Georgia, serif; font-size: clamp(14px, 1.7vw, 17px); line-height: 1.6; color: #d7cab5; }
+    #menu .brief b { color: #ffd9a0; font-weight: normal; }
+    #menu .heroes { display: flex; gap: 22px; justify-content: center; flex-wrap: wrap; margin-bottom: 26px; }
+    #menu .hero { width: 200px; cursor: pointer; border: 1px solid #2a2219; background: #07080bdd; padding: 0 0 12px; transition: transform .25s, border-color .25s, box-shadow .25s; }
+    #menu .hero img { width: 100%; height: 260px; object-fit: cover; display: block; filter: saturate(.55) contrast(1.1) brightness(.75); transition: filter .25s; -webkit-mask-image: linear-gradient(#000 70%, transparent); mask-image: linear-gradient(#000 70%, transparent); }
+    #menu .hero:hover img, #menu .hero.on img { filter: saturate(.85) contrast(1.1) brightness(.95); }
+    #menu .hero span { display: block; margin-top: 10px; letter-spacing: .3em; font-size: 14px; }
+    #menu .hero em { display: block; font-style: normal; font-size: 11px; letter-spacing: .25em; color: #8d7c63; margin-top: 4px; }
+    #menu .hero:hover { transform: translateY(-3px); }
+    #menu .hero.on { border-color: #8a1a12; box-shadow: 0 0 28px #8a1a1288, inset 0 0 30px #5a060655; }
+    #menu button { font: inherit; letter-spacing: .4em; font-size: 15px; padding: 13px 44px; color: #f1e2c8; background: linear-gradient(#5a0a08, #2a0404); border: 1px solid #a8261a; cursor: pointer; box-shadow: 0 0 30px #8a1a1266, inset 0 0 18px #00000088; text-shadow: 0 0 10px #ff3a2a88; }
+    #menu button:hover { filter: brightness(1.1); }
+    #menu .keys { margin-top: 18px; font-family: Georgia, serif; font-size: 12px; color: #7f7362; }
   </style>
 </head>
 <body>
@@ -26,8 +170,24 @@
     <label>art overlay <input id="refOpacity" type="range" min="0" max="1" step="0.05" value="0.5" /></label>
     <label><input id="refSplit" type="checkbox" /> split</label>
   </div>
-  <div id="hud">Click to capture mouse (or drag) · mouse steers camera &amp; direction · WASD move · Shift run · wheel zoom · Esc release · <b>R</b> art overlay · <b>F</b> free cam · <b>C</b> collision</div>
+  <div id="hud">Click to capture mouse (or drag) · mouse/<b>A D</b> turn · <b>W S</b> move · <b>double-tap &amp; hold</b> to sprint · <b>Left click</b> attack (mash for combos) · <b>Space</b> jump · <b>Right click</b> / <b>C</b> roll · <b>1 2 3</b> stance · <b>G</b> molotov · <b>E</b> doors / film card · look at a poster + <b>Enter</b> to watch · wheel zoom · Esc release · <b>O</b> follow/orbit camera · <b>V</b> lens · <b>B</b> LUT · <b>R</b> art overlay</div>
   <div id="prompt"></div>
+  <div id="menu">
+    <div class="mn">
+      <h1>RAVENCREST</h1>
+      <div class="sub">Night falls. The mist rises. Ravencrest is not empty.</div>
+      <div class="brief">The films of the collection are everywhere — on the billboards along the road and in the gilt frames of the castle's Grand Hall.
+        Walk up to any of them to <b>watch a movie</b>.
+        Or make your way across the bridge to the castle, <b>defeat Dracula</b>, and <b>break the curse</b> over the land.</div>
+      <div class="heroes">
+        <div class="hero on" data-hero="jack"><img src="/games/ravencrest/menu/jack.jpg" alt="Jack Thorne"><span>JACK THORNE</span><em>Former ranger · monster slayer</em></div>
+        <div class="hero" data-hero="elise"><img src="/games/ravencrest/menu/elise.jpg" alt="Elise Carter"><span>ELISE CARTER</span><em>Survivor · monster slayer</em></div>
+      </div>
+      <button id="menuStart">ENTER RAVENCREST</button>
+      <div class="keys">WASD / left stick move · mouse / right stick look · click / X attack · Space / A jump · C / B roll · E / RB use</div>
+      <div class="awaken">CLICK ANYWHERE TO AWAKEN RAVENCREST</div>
+    </div>
+  </div>
   <div id="fade"></div>
   <div id="loading">RAVENCREST</div>
   <script type="module" src="./src/main.ts"></script>

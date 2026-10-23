@@ -1,0 +1,412 @@
+{
+ "thunder_near": {
+  "kind": "shot",
+  "files": [
+   "thunder_near_0.mp3",
+   "thunder_near_1.mp3",
+   "thunder_near_2.mp3",
+   "thunder_near_3.mp3",
+   "thunder_near_4.mp3",
+   "thunder_near_5.mp3"
+  ]
+ },
+ "thunder_far": {
+  "kind": "shot",
+  "files": [
+   "thunder_far_0.mp3",
+   "thunder_far_1.mp3",
+   "thunder_far_2.mp3",
+   "thunder_far_3.mp3"
+  ]
+ },
+ "rain_loop": {
+  "kind": "loop",
+  "files": [
+   "rain_loop_0.mp3"
+  ]
+ },
+ "wind_loop": {
+  "kind": "loop",
+  "files": [
+   "wind_loop_0.mp3"
+  ]
+ },
+ "night_loop": {
+  "kind": "loop",
+  "files": [
+   "night_loop_0.mp3"
+  ]
+ },
+ "owl": {
+  "kind": "shot",
+  "files": [
+   "owl_0.mp3",
+   "owl_1.mp3",
+   "owl_2.mp3"
+  ]
+ },
+ "raven": {
+  "kind": "shot",
+  "files": [
+   "raven_0.mp3",
+   "raven_1.mp3",
+   "raven_2.mp3",
+   "raven_3.mp3"
+  ]
+ },
+ "wolf_howl": {
+  "kind": "shot",
+  "files": [
+   "wolf_howl_0.mp3",
+   "wolf_howl_1.mp3",
+   "wolf_howl_2.mp3"
+  ]
+ },
+ "bats": {
+  "kind": "shot",
+  "files": [
+   "bats_0.mp3",
+   "bats_1.mp3"
+  ]
+ },
+ "zombie": {
+  "kind": "shot",
+  "files": [
+   "zombie_0.mp3",
+   "zombie_1.mp3",
+   "zombie_2.mp3",
+   "zombie_3.mp3",
+   "zombie_4.mp3"
+  ]
+ },
+ "zombie_hurt": {
+  "kind": "shot",
+  "files": [
+   "zombie_hurt_0.mp3",
+   "zombie_hurt_1.mp3",
+   "zombie_hurt_2.mp3"
+  ]
+ },
+ "growl": {
+  "kind": "shot",
+  "files": [
+   "growl_0.mp3",
+   "growl_1.mp3",
+   "growl_2.mp3",
+   "growl_3.mp3",
+   "growl_4.mp3"
+  ]
+ },
+ "roar": {
+  "kind": "shot",
+  "files": [
+   "roar_0.mp3",
+   "roar_1.mp3",
+   "roar_2.mp3",
+   "roar_3.mp3",
+   "roar_4.mp3"
+  ]
+ },
+ "troll": {
+  "kind": "shot",
+  "files": [
+   "troll_0.mp3",
+   "troll_1.mp3",
+   "troll_2.mp3",
+   "troll_3.mp3",
+   "troll_4.mp3"
+  ]
+ },
+ "werewolf": {
+  "kind": "shot",
+  "files": [
+   "werewolf_0.mp3",
+   "werewolf_1.mp3",
+   "werewolf_2.mp3"
+  ]
+ },
+ "hiss": {
+  "kind": "shot",
+  "files": [
+   "hiss_0.mp3",
+   "hiss_1.mp3",
+   "hiss_2.mp3"
+  ]
+ },
+ "ghost": {
+  "kind": "shot",
+  "files": [
+   "ghost_0.mp3",
+   "ghost_1.mp3",
+   "ghost_2.mp3",
+   "ghost_3.mp3"
+  ]
+ },
+ "ghost_scream": {
+  "kind": "shot",
+  "files": [
+   "ghost_scream_0.mp3"
+  ]
+ },
+ "cackle": {
+  "kind": "shot",
+  "files": [
+   "cackle_0.mp3",
+   "cackle_1.mp3",
+   "cackle_2.mp3"
+  ]
+ },
+ "evil_laugh": {
+  "kind": "shot",
+  "files": [
+   "evil_laugh_0.mp3",
+   "evil_laugh_1.mp3",
+   "evil_laugh_2.mp3"
+  ]
+ },
+ "giant_step": {
+  "kind": "shot",
+  "files": [
+   "giant_step_0.mp3",
+   "giant_step_1.mp3",
+   "giant_step_2.mp3"
+  ]
+ },
+ "swing": {
+  "kind": "shot",
+  "files": [
+   "swing_0.mp3",
+   "swing_1.mp3",
+   "swing_2.mp3",
+   "swing_3.mp3"
+  ]
+ },
+ "slash": {
+  "kind": "shot",
+  "files": [
+   "slash_0.mp3",
+   "slash_1.mp3",
+   "slash_2.mp3",
+   "slash_3.mp3",
+   "slash_4.mp3"
+  ]
+ },
+ "stab": {
+  "kind": "shot",
+  "files": [
+   "stab_0.mp3",
+   "stab_1.mp3"
+  ]
+ },
+ "clash": {
+  "kind": "shot",
+  "files": [
+   "clash_0.mp3",
+   "clash_1.mp3",
+   "clash_2.mp3",
+   "clash_3.mp3"
+  ]
+ },
+ "punch": {
+  "kind": "shot",
+  "files": [
+   "punch_0.mp3",
+   "punch_1.mp3",
+   "punch_2.mp3",
+   "punch_3.mp3",
+   "punch_4.mp3"
+  ]
+ },
+ "bone": {
+  "kind": "shot",
+  "files": [
+   "bone_0.mp3",
+   "bone_1.mp3",
+   "bone_2.mp3"
+  ]
+ },
+ "gore": {
+  "kind": "shot",
+  "files": [
+   "gore_0.mp3",
+   "gore_1.mp3",
+   "gore_2.mp3",
+   "gore_3.mp3"
+  ]
+ },
+ "body_fall": {
+  "kind": "shot",
+  "files": [
+   "body_fall_0.mp3",
+   "body_fall_1.mp3",
+   "body_fall_2.mp3"
+  ]
+ },
+ "hurt_grunt": {
+  "kind": "shot",
+  "files": [
+   "hurt_grunt_0.mp3",
+   "hurt_grunt_1.mp3",
+   "hurt_grunt_2.mp3"
+  ]
+ },
+ "glass_break": {
+  "kind": "shot",
+  "files": [
+   "glass_break_0.mp3",
+   "glass_break_1.mp3",
+   "glass_break_2.mp3",
+   "glass_break_3.mp3"
+  ]
+ },
+ "fire_whoosh": {
+  "kind": "shot",
+  "files": [
+   "fire_whoosh_0.mp3",
+   "fire_whoosh_1.mp3",
+   "fire_whoosh_2.mp3"
+  ]
+ },
+ "explosion": {
+  "kind": "shot",
+  "files": [
+   "explosion_0.mp3"
+  ]
+ },
+ "splash_big": {
+  "kind": "shot",
+  "files": [
+   "splash_big_0.mp3",
+   "splash_big_1.mp3"
+  ]
+ },
+ "splash": {
+  "kind": "shot",
+  "files": [
+   "splash_0.mp3"
+  ]
+ },
+ "wood_break": {
+  "kind": "shot",
+  "files": [
+   "wood_break_0.mp3",
+   "wood_break_1.mp3",
+   "wood_break_2.mp3",
+   "wood_break_3.mp3",
+   "wood_break_4.mp3"
+  ]
+ },
+ "rock_break": {
+  "kind": "shot",
+  "files": [
+   "rock_break_0.mp3",
+   "rock_break_1.mp3",
+   "rock_break_2.mp3",
+   "rock_break_3.mp3",
+   "rock_break_4.mp3"
+  ]
+ },
+ "gunshot": {
+  "kind": "shot",
+  "files": [
+   "gunshot_0.mp3",
+   "gunshot_1.mp3",
+   "gunshot_2.mp3"
+  ]
+ },
+ "zap": {
+  "kind": "shot",
+  "files": [
+   "zap_0.mp3",
+   "zap_1.mp3",
+   "zap_2.mp3",
+   "zap_3.mp3"
+  ]
+ },
+ "bell": {
+  "kind": "shot",
+  "files": [
+   "bell_0.mp3",
+   "bell_1.mp3"
+  ]
+ },
+ "door_creak": {
+  "kind": "shot",
+  "files": [
+   "door_creak_0.mp3",
+   "door_creak_1.mp3",
+   "door_creak_2.mp3"
+  ]
+ },
+ "chains": {
+  "kind": "shot",
+  "files": [
+   "chains_0.mp3",
+   "chains_1.mp3"
+  ]
+ },
+ "heartbeat": {
+  "kind": "shot",
+  "files": [
+   "heartbeat_0.mp3"
+  ]
+ },
+ "sting": {
+  "kind": "shot",
+  "files": [
+   "sting_0.mp3",
+   "sting_1.mp3",
+   "sting_2.mp3"
+  ]
+ },
+ "riser": {
+  "kind": "shot",
+  "files": [
+   "riser_0.mp3"
+  ]
+ },
+ "step_stone": {
+  "kind": "shot",
+  "files": [
+   "step_stone_0.mp3",
+   "step_stone_1.mp3",
+   "step_stone_2.mp3",
+   "step_stone_3.mp3",
+   "step_stone_4.mp3"
+  ]
+ },
+ "step_grass": {
+  "kind": "shot",
+  "files": [
+   "step_grass_0.mp3",
+   "step_grass_1.mp3",
+   "step_grass_2.mp3",
+   "step_grass_3.mp3",
+   "step_grass_4.mp3"
+  ]
+ },
+ "step_wood": {
+  "kind": "shot",
+  "files": [
+   "step_wood_0.mp3",
+   "step_wood_1.mp3",
+   "step_wood_2.mp3",
+   "step_wood_3.mp3",
+   "step_wood_4.mp3"
+  ]
+ },
+ "ui_hover": {
+  "kind": "shot",
+  "files": [
+   "ui_hover_0.mp3",
+   "ui_hover_1.mp3"
+  ]
+ },
+ "ui_select": {
+  "kind": "shot",
+  "files": [
+   "ui_select_0.mp3",
+   "ui_select_1.mp3"
+  ]
+ }
+}

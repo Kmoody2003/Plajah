@@ -1,0 +1,133 @@
+[
+  {
+    "id": "album_1787881859314_mlt23",
+    "hero": true,
+    "title": "Pumpkin Patch",
+    "year": "2025",
+    "director": "Brian James Gage",
+    "runtime": "",
+    "tagline": "When Scare Force One crashes inside maximum-security prison colony District 13, a bar-fighting pumpkin-headed vigilante is sent in by the Monster Intelligence Agency to extract President Tepes and her classified hexagonal case before Halloween collapses.",
+    "poster": "https://firebasestorage.googleapis.com/v0/b/gen-lang-client-0665118474.firebasestorage.app/o/albums%2Falbum_1787881859314_mlt23%2Fcover.webp?alt=media&token=efd247d5-2f2f-4cf3-aab6-def0bfbc07e3",
+    "posterFallback": "/covers/halloween/pumpkin-patch-cover.jpg"
+  },
+  {
+    "id": "Night.Of.The.Living.Dead_1080p",
+    "hero": false,
+    "title": "Night of the Living Dead",
+    "year": "1968",
+    "director": "George A. Romero",
+    "runtime": "96 min",
+    "tagline": "Seven strangers trapped in an isolated Pennsylvania farmhouse must overcome internal paranoia and external terror as radiation from a Venus space probe reanimates the newly dead into flesh-eating ghouls.",
+    "poster": "/covers/halloween/night-of-the-living-dead-1968.jpg"
+  },
+  {
+    "id": "house_on_haunted_hill_ipod",
+    "hero": false,
+    "title": "House on Haunted Hill",
+    "year": "1959",
+    "director": "William Castle",
+    "runtime": "75 min",
+    "tagline": "Five cash-strapped strangers accept eccentric millionaire Frederick Loren’s challenge to spend a locked night inside a murderous mansion for $10,000 apiece—unaware they are pawns in a lethal marital chess game between Loren and his unfaithful wife.",
+    "poster": "/covers/halloween/house-on-haunted-hill-1959.jpg"
+  },
+  {
+    "id": "CarnivalofSouls",
+    "hero": false,
+    "title": "Carnival of Souls",
+    "year": "1962",
+    "director": "Herk Harvey",
+    "runtime": "83 min",
+    "tagline": "After emerging unscathed from a fatal bridge crash, a detached church organist relocates to Utah, where a spectral figure and an abandoned lakeside pavilion pull her out of the world of the living.",
+    "poster": "/covers/halloween/carnival-of-souls-1962.jpg"
+  },
+  {
+    "id": "ThePhantomoftheOpera",
+    "hero": false,
+    "title": "The Phantom of the Opera",
+    "year": "1925",
+    "director": "Rupert Julian",
+    "runtime": "106 min",
+    "tagline": "Beneath the gilded grandeur of the Paris Opera House, a disfigured musical genius haunts the subterranean catacombs—crashing the great chandelier and abducting soprano Christine Daaé into his underground lair.",
+    "poster": "/covers/halloween/phantom-of-the-opera-1925.jpg"
+  },
+  {
+    "id": "Haxan_tinted_and_subtitled",
+    "hero": false,
+    "title": "Häxan: Witchcraft Through the Ages",
+    "year": "1922",
+    "director": "Benjamin Christensen",
+    "runtime": "105 min",
+    "tagline": "Structured in seven chapters from ancient cosmology to modern psychiatry, Benjamin Christensen’s silent visual essay brings medieval woodcuts, witch-trial torture chambers, and nocturnal sabbaths vividly to life.",
+    "poster": "/covers/halloween/haxan-1922.jpg"
+  },
+  {
+    "id": "Horror_Express",
+    "hero": false,
+    "title": "Horror Express",
+    "year": "1972",
+    "director": "Eugenio Martín",
+    "runtime": "87 min",
+    "tagline": "Aboard the 1906 Trans-Siberian Express, British scientists Christopher Lee and Peter Cushing discover that the frozen Manchurian hominid in the baggage car hosts a primordial alien consciousness that drains passengers’ brains and raises the dead.",
+    "poster": "/covers/halloween/horror-express-1972.jpg"
+  },
+  {
+    "id": "white_zombie",
+    "hero": false,
+    "title": "White Zombie",
+    "year": "1932",
+    "director": "Victor Halperin",
+    "runtime": "67 min",
+    "tagline": "In 1932 Haiti, wealthy plantation owner Charles Beaumont enlists sinister voodoo master \"Murder\" Legendre (Bela Lugosi) to turn young bride Madeline into a soulless zombie on her wedding night.",
+    "poster": "/covers/halloween/white-zombie-1932.jpg"
+  },
+  {
+    "id": "TheTerror1963",
+    "hero": false,
+    "title": "The Terror",
+    "year": "1963",
+    "director": "Roger Corman",
+    "runtime": "79 min",
+    "tagline": "Separated from his regiment on the 1806 Baltic coast, young French cavalry officer André Duvalier (Jack Nicholson) follows a spectral woman into the sea-lashed castle of Baron von Leppe (Boris Karloff), uncovering a twenty-year web of murder, impersonation, and witchcraft.",
+    "poster": "/covers/halloween/the-terror-1963.jpg"
+  },
+  {
+    "id": "TheGhoul",
+    "hero": false,
+    "title": "The Ghoul",
+    "year": "1933",
+    "director": "T. Hayes Hunter",
+    "runtime": "68 min",
+    "tagline": "Dying Egyptologist Professor Morlant (Boris Karloff) is entombed with the sacred \"Eternal Light\" jewel to offer Anubis at the full moon—only to rise from his crypt when grave robbers steal the stone.",
+    "poster": "/covers/halloween/the-ghoul-1933.jpg"
+  },
+  {
+    "id": "FrankensteinfullMovie",
+    "hero": false,
+    "title": "Frankenstein (1910 Edison Film)",
+    "year": "1910",
+    "director": "J. Searle Dawley",
+    "runtime": "14 min",
+    "tagline": "In cinema’s first-ever adaptation of Mary Shelley’s novel (1910), medical student Frankenstein brews a living Creature inside a blazing chemical cauldron—only for the monster to haunt his wedding night before vanishing inside a mirror.",
+    "poster": "/covers/halloween/frankenstein-1910.jpg"
+  },
+  {
+    "id": "kofa-the-housemaid-1960",
+    "hero": false,
+    "title": "The Housemaid (하녀)",
+    "year": "1960",
+    "director": "Kim Ki-young",
+    "runtime": "111 min",
+    "tagline": "When a middle-class Korean composer hires a volatile young factory worker as a live-in maid for his newly built two-story home, a thunderstorm seduction ignites a claustrophobic war of blackmail, rat poison, and domestic terror.",
+    "poster": "/covers/halloween/the-housemaid-1960.jpg"
+  },
+  {
+    "id": "europeana-nosferatu-1922",
+    "hero": false,
+    "title": "Nosferatu: Eine Symphonie des Grauens",
+    "year": "1922",
+    "director": "F.W. Murnau",
+    "runtime": "94 min",
+    "tagline": "In 1838 Wisborg, young estate clerk Thomas Hutter travels to the Carpathian Mountains to close a property purchase with the reclusive Count Orlok—only to discover his client is an ancient vampire bringing the Black Plague to his wife’s doorstep.",
+    "poster": "/covers/halloween/nosferatu-1922.jpg"
+  }
+]
