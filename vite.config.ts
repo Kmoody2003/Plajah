@@ -217,6 +217,9 @@ export default defineConfig(({ mode }) => {
         'process.env.API_KEY': JSON.stringify(''),
         'process.env.GEMINI_API_KEY': JSON.stringify('')
       },
+      // Module workers (e.g. the Melos composer council) code-split their imports; Vite's default
+      // 'iife' worker output can't, and fails the whole production build.
+      worker: { format: 'es' },
       build: {
         // AudioWorklet processors must stay REAL FILES. Small assets are inlined as data: URLs
         // by default, which changes addModule()'s behaviour between dev (a served URL) and prod
