@@ -143,6 +143,11 @@ export class PlayerController {
     this.coyote = 0;
     return true;
   }
+  /** Thrown: off the feet along `dir` at `speed`, `up` m/s into the air. */
+  launch(dir: THREE.Vector3, speed: number, up: number) {
+    this.impulse(dir, speed, 0.45, false);
+    this.vy = up; this.onGround = false; this.coyote = 0;
+  }
   /** Took a hit: the body snaps back and recovers (0.3 s). */
   flinch() { this.flinchT = 0.3; }
   private flinchT = 0;

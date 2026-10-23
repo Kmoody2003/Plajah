@@ -653,6 +653,26 @@ Still missing: hit and death clips (death is a sink-and-fade), hand poses, the s
   - Culling: per-kind bounds, 64 m, and the frustum decides (no near override).
 - **HUD** shows the chosen hero's name.
 
+## Round 21: kraken cutscene, tank sound, bus + plane wrecks (2026-10-23)
+
+- **Kraken cutscene** (`bridgeBattle.ts` phase `kraken`, `krakenCut`): it replaces the in-fight surfacing at 4 s.
+  - The troll lunges and swats the hero (`player.launch`); the character root tips flat; side-on wide shot with shake.
+  - Tight on the stunned hero: "What is that?" plus a heartbeat.
+  - Low over the water as the first arm erupts at the lens (the others staggered).
+  - A wide shot of all eight; then a pull back in as the hero gets up: "I could really use some backup."
+  - Miriam's cackle and `callSquad`, framed on the witch streaking in from the castle.
+  - Back behind the hero: the title "THE WEST HALLOW WITCH — Miriam and her flying monkeys come to your aid".
+  - The fight resumes at t = 12 with the attack cooldowns reset. `game.shield(16)` keeps the hero safe throughout.
+  - The lines are subtitles: Jack and Elise have no recorded voice.
+- **Tank sound** (`sfx.tankEngine / tankCannon / tankCrush`):
+  - A diesel engine bed (detuned saws, a chugging firing-rate LFO, exhaust rasp, track clatter) follows the camera distance and speed.
+  - The cannon uses the explosion + gunshot samples plus a sub boom; crushed wreckage uses rock/wood/glass breaks.
+  - These replace the shared Halloween synth stingers on their separate (often silent) audio context.
+- **Bus + plane:** Muse sheets built with `buildCast.py crashed_plane school_bus` (static props, `assets/vehicles/`).
+  - School bus: crashed on its side across a lane and the verge.
+  - Prop plane: nose-down and slewed, a torn wing low across the other lane.
+  - Each turns up about half the time; the tank shoves them aside (mass 20 / 10).
+
 ## Known gaps (next passes)
 
 - **Arrival art match:**

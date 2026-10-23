@@ -50,6 +50,12 @@ CAST = {
                      {'flank': True, 'static': True, 'length': 6.45, 'yaw': 90}),
     'vampire':    (os.path.join(RC, 'monsters_outbreak.jpg'), {'front': (1808, 249, 2318, 840), 'back': (2150, 860, 2305, 1149)}, 'vampire', 28000, 1),
     'unknown':    (os.path.join(RC, 'monsters_unknown.jpg'), {'front': (2023, 249, 2379, 948), 'back': (2480, 558, 2574, 907), 'right': (2574, 558, 2675, 907)}, 'unknown', 30000, 2),
+    # Road wreckage (Muse sheets, 2026-10-23): side profiles with the nose to the left (-X), so the
+    # 'left' camera sees the front view and 'right' the back.
+    'crashed_plane': (os.path.join(SHEETS, 'crashed_plane_sheet.jpg'), {'front': (753, 180, 1843, 770), 'left': (41, 120, 767, 770), 'right': (1945, 120, 2706, 770)}, None, 40000, 1,
+                      {'flank': True, 'static': True, 'length': 6.6, 'yaw': 90}),
+    'school_bus': (os.path.join(SHEETS, 'school_bus_sheet.jpg'), {'front': (505, 335, 1318, 1065), 'left': (30, 300, 500, 1065), 'right': (1440, 300, 1875, 1065)}, None, 40000, 1,
+                   {'flank': True, 'static': True, 'length': 6.8, 'yaw': 90}),
     # The orbs' halo angel (Muse sheet, 2026-10-23): armored, robed, folded wings, sword in the right hand.
     'halo_angel': (os.path.join(SHEETS, 'halo_angel_sheet.jpg'), {'front': (20, 10, 500, 1275), 'right': (530, 10, 990, 1275), 'back': (985, 10, 1465, 1275)}, 'vampire', 40000, 1),
     'elise':      (os.path.join(RC, 'survivors_jack_elise.jpg'), {'front': (1906, 255, 2012, 621), 'back': (2056, 255, 2164, 621)}, 'vampire', 36000, 3),

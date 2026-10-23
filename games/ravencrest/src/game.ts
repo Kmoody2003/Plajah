@@ -258,6 +258,8 @@ export class Game {
   }
   /** Whose story it is (the HUD name card). */
   setHeroName(name: string) { const el = this.ui.querySelector('.g-name'); if (el?.firstChild) el.firstChild.textContent = `${name.toUpperCase()} `; }
+  /** No damage for `secs` (cutscenes). */
+  shield(secs: number) { this.invuln = Math.max(this.invuln, secs); }
   /** The tank's hull this frame (roadObstacles.ts smashes the wreckage); true when it hit something. */
   onTankMove?: (pos: THREE.Vector3, dir: THREE.Vector3, speed: number) => boolean;
   /** A troll's blow landed on the deck (bridgeBattle.ts splinters the planks there). */
@@ -779,7 +781,7 @@ export class Game {
     }
   }
   private runTank(from: THREE.Vector3, to: THREE.Vector3, speed = 9) {
-    halloweenAudio.playTankArrivalSfx();
+    // (Engine, treads and turret are the game's own mix: sfx.tankEngine / tankCannon / tankCrush.)
     // The war-rig built from the tank sheet (buildCast.py); the old primitive tank if it's missing.
     loadGLB(TANK_URL).catch(() => loadGLB('/models/halloween/pumpkin_patch_tank.glb').then((o) => { o.scene.userData.oldTank = true; return o; })).then((g) => {
       const obj = g.scene.clone(true);
@@ -1571,7 +1573,9 @@ export class Game {
     const dir = T.to.clone().sub(T.from);
     T.obj.rotation.y = Math.atan2(dir.x, dir.z);
     // Wreckage on the road: the hull bursts straight through it.
-    if (this.onTankMove?.(pos, dir.clone().setY(0).normalize(), T.speed)) { this.d.player.shake = Math.max(this.d.player.shake, 0.6); this.d.sfx.woodCrack(0, pos.distanceTo(this.d.camera.position)); }
+    const camD = pos.distanceTo(this.d.camera.position);
+    this.d.sfx.tankEngine(true, camD, T.speed);
+    if (this.onTankMove?.(pos, dir.clone().setY(0).normalize(), T.speed)) { this.d.player.shake = Math.max(this.d.player.shake, 0.6); this.d.sfx.tankCrush(camD); }
     // The hull flattens anything in its path.
     for (const m of this.mobs) if (m.team === 'enemy' && m.alive && m.level === 'outside' && m.object.position.distanceTo(pos) < 4.2) { if (m.damage(999, pos)) { this.onKill(m); this.d.player.shake = Math.max(this.d.player.shake, 0.25); if (pos.distanceTo(this.d.camera.position) < 9) this.d.lens.hit('blood', 0.7); } }
     // Turret salvo: every shot clears the nearest monster on the road.
@@ -1580,9 +1584,9 @@ export class Game {
       T.shot = this.horde ? 0.45 : 1.1;
       let best: Mob | null = null, bd = 32;
       for (const m of this.mobs) if (m.team === 'enemy' && m.alive && m.level === 'outside' && m.kind !== 'stitch') { const d = m.object.position.distanceTo(pos); if (d < bd) { bd = d; best = m; } }
-      if (best) { halloweenAudio.playTankCannonShotSfx(); const at = best.object.position.clone(); if (best.damage(999, pos)) this.onKill(best); this.ignite(at, 'outside'); }
+      if (best) { this.d.sfx.tankCannon(0, camD); const at = best.object.position.clone(); if (best.damage(999, pos)) this.onKill(best); this.ignite(at, 'outside'); }
     }
-    if (s >= 1) { T.obj.removeFromParent(); this.tank = null; }
+    if (s >= 1) { T.obj.removeFromParent(); this.tank = null; this.d.sfx.tankEngine(false); }
   }
 
   // ── HUD ───────────────────────────────────────────────────────────────────

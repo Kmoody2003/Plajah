@@ -6,15 +6,19 @@
 //   barricade barrels and sandbags across the road, 2.5 m deep: only a running jump carries over
 //   fire      a burning debris pile (barrels, crates, planks), deep and alight: run and jump, or burn
 //   car       an abandoned car under a tarp, slewed across one lane: go around it
-// The school bus and the crashed prop plane slot in here once their models exist (Muse sheets →
-// buildCast.py, like the war-rig tank).
+//   bus       a short school bus crashed onto its side across a lane and the verge: go around
+//   plane     a crashed prop plane, nose-down and slewed, a torn wing low over the other lane: jump it
+// (The bus and plane are Muse sheets built locally like the war-rig tank: buildCast.py.)
 import * as THREE from 'three/webgpu';
 import type { ArrivalWorld } from './arrival';
 import { loadModel, fitSize } from './assets';
 import { collide } from './collision';
 import { flameMaterial } from './fx';
+import { loadGLB } from './character';
 
-type Kind = 'log' | 'barricade' | 'fire' | 'car';
+const VEHICLES = '/games/ravencrest/assets/vehicles/';
+
+type Kind = 'log' | 'barricade' | 'fire' | 'car' | 'bus' | 'plane';
 export interface RoadObstacles {
   group: THREE.Group;
   /** Resolves once every placed obstacle (and its colliders) is in the scene. */
@@ -36,7 +40,7 @@ export function buildRoadObstacles(world: ArrivalWorld, seed = Math.random()): R
   group.name = 'roadObstacles';
   const width = R.uR - R.uL, mid = (R.uL + R.uR) / 2;
   // Each kind shows up about half the time; about one load in eight the road is clear.
-  const kinds: Kind[] = rnd() < 0.12 ? [] : (['log', 'barricade', 'fire', 'car'] as Kind[]).filter(() => rnd() < 0.55);
+  const kinds: Kind[] = rnd() < 0.12 ? [] : (['log', 'barricade', 'fire', 'car', 'bus', 'plane'] as Kind[]).filter(() => rnd() < 0.5);
   // Spread along the road between the spawn and the bridge, never on top of each other.
   const span = -R.vStart - 30, slots = kinds.map((_, i) => R.vStart + 18 + (span / Math.max(1, kinds.length)) * (i + 0.2 + rnd() * 0.6));
   for (let i = slots.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [slots[i], slots[j]] = [slots[j], slots[i]]; }
@@ -56,6 +60,20 @@ export function buildRoadObstacles(world: ArrivalWorld, seed = Math.random()): R
   const MASS: Record<string, number> = { covered_car: 12, dead_tree_trunk: 6, cement_bag: 1.2, Barrel_01: 1.5, barrel_03: 1.5, wooden_crate_01: 1, wine_barrel_01: 1.4 };
   const model = (id: string, size: number, axis: 'x' | 'y' | 'z' | 'max', u: number, v: number, turn: number, solid = true) =>
     loadModel(id).then((g) => { fitSize(g, size, axis); place(g, u, v, turn, solid, MASS[id] ?? 1); return g; }).catch(() => null);
+
+  // A wreck: the vehicle model posed inside a holder (roll/pitch), lifted to rest on the road.
+  const wreck = (file: string, mass: number, u: number, v: number, turn: number, pose: (o: THREE.Object3D) => void) =>
+    loadGLB(VEHICLES + file).then((g) => {
+      const body = g.scene;
+      body.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } });
+      const holder = new THREE.Group();
+      holder.add(body);
+      pose(body);
+      body.updateMatrixWorld(true);
+      const box = new THREE.Box3().setFromObject(body);
+      body.position.y -= box.min.y + 0.05;
+      place(holder, u, v, turn, true, mass);
+    }).catch(() => null);
 
   kinds.forEach((k, i) => {
     const v = slots[i], tilt = (rnd() - 0.5) * 0.5;
@@ -101,6 +119,14 @@ export function buildRoadObstacles(world: ArrivalWorld, seed = Math.random()): R
         flamesHere.push(f);
       }
       fires.push({ pos: c, r: Math.max(2.2, width * 0.5) });
+    } else if (k === 'bus') {
+      // On its side (roof toward the near verge), across a lane and the shoulder.
+      const lane = rnd() < 0.5 ? R.uL + width * 0.2 : R.uR - width * 0.2;
+      // (The sheet draws a stubby bus; real short-bus proportions: ~2.6 m wide, ~3.6 m tall.)
+      jobs.push(wreck('school_bus.glb', 20, lane, v, Math.PI / 2 + (rnd() - 0.5) * 0.7, (b) => { b.scale.set(0.64, 0.6, 1); b.rotation.z = (lane < mid ? 1 : -1) * Math.PI / 2; }));
+    } else if (k === 'plane') {
+      // Nose-down into the asphalt, slewed; the broken wing lies low across the far lane.
+      jobs.push(wreck('crashed_plane.glb', 10, mid + (rnd() - 0.5) * width * 0.4, v, (rnd() < 0.5 ? 1 : -1) * (0.6 + rnd() * 0.5), (b) => { b.rotation.x = 0.2; b.rotation.z = (rnd() - 0.5) * 0.35; }));
     } else if (k === 'car') {
       // Abandoned, slewed across one lane; the other lane is open.
       const lane = rnd() < 0.5 ? R.uL + width * 0.28 : R.uR - width * 0.28;

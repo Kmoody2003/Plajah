@@ -37,7 +37,7 @@ export interface BridgeBattleDeps {
   live(): boolean;
 }
 
-type Phase = 'idle' | 'rumble' | 'flip' | 'roar' | 'fight' | 'finale' | 'victory';
+type Phase = 'idle' | 'rumble' | 'flip' | 'roar' | 'fight' | 'kraken' | 'finale' | 'victory';
 const UP = new THREE.Vector3(0, 1, 0);
 const rnd = (a: number, b: number) => a + Math.random() * (b - a);
 
@@ -218,6 +218,7 @@ export class BridgeBattle {
     this.phase = p; this.t = 0;
     const { player, sfx, game } = this.d;
     if (p === 'rumble') {
+      this.cutHit = this.cutLine1 = this.cutLine2 = false;
       player.enabled = false; player.cinematic = true;
       this.spawnTroll();
       sfx.roar(0, 18);
@@ -234,6 +235,13 @@ export class BridgeBattle {
       this.later(1.5, () => game.call('Its hide turns your blade — dodge its slam and strike while its fists are stuck, hit it from behind, burn it, or lure the kraken onto it', 7, '#ffd9a0'));
       this.bar.classList.add('on');
       this.slamCd = 4; this.ripCd = 7; this.swatCd = 3; this.slapCd = 1;
+    }
+    if (p === 'kraken') {
+      player.enabled = false; player.cinematic = true;
+      game.shield(16);
+      this.cutShake = 0; this.cutStage = -1;
+      if (this.troll) { this.troll.scripted = true; this.troll.pose('attack'); }
+      this.bar.classList.remove('on');
     }
     if (p === 'finale') {
       game.call('The monkeys open fire!', 2, '#9ad86a');
@@ -389,11 +397,131 @@ export class BridgeBattle {
       case 'finale':
         this.fight(dt);
         break;
+      case 'kraken':
+        this.krakenCut(dt);
+        break;
       case 'victory':
         if (this.t > 8) { this.go('idle'); }
         break;
     }
   }
+
+  // ── The kraken cutscene ─────────────────────────────────────────────────────────────
+  //  0 – 1.1   the troll lunges and swats the hero: thrown back, landing flat (side-on wide, heavy shake)
+  //  1.1 – 3.2 tight on the hero, stunned on the stones, the shake settling: "What is that?"
+  //  3.2 – 5.2 low over the water: the first giant tentacle erupts at the lens, the others after it
+  //  5.2 – 7.2 wide: all eight arms risen around the bridge
+  //  7.2 – 9.6 pull back in to the hero getting up: "I could really use some backup."
+  //  9.6 – 12.4 Miriam's cackle; cut to her and the monkey squadron streaking in from the castle
+  //  12.4 – 14 back behind the hero: "The West Hallow Witch comes to your aid" — and the fight resumes
+  private cutShake = 0;
+  private cutStage = -1;
+  private cutDown = 0;
+  private krakenCut(dt: number) {
+    const { player, camera, sfx, game } = this.d;
+    const t = this.t, B = this.d.bridge, tr = this.troll;
+    const p = player.object.position;
+    const hero = player.character?.root;
+    const stage = t < 1.1 ? 0 : t < 3.2 ? 1 : t < 5.2 ? 2 : t < 7.2 ? 3 : t < 9.6 ? 4 : t < 12.4 ? 5 : 6;
+    const enter = stage !== this.cutStage;
+    this.cutStage = stage;
+    const toTroll = tr ? tr.object.position.clone().sub(p).setY(0).normalize() : B.dir.clone();
+    const side = new THREE.Vector3(toTroll.z, 0, -toTroll.x);
+    const shot = (pos: THREE.Vector3, look: THREE.Vector3, fov: number) => {
+      const s = this.cutShake;
+      this.cutShake = Math.max(0, s - dt * 0.9);
+      camera.position.copy(pos).add(new THREE.Vector3(Math.sin(t * 41) * s * 0.12, Math.sin(t * 37 + 1) * s * 0.1, Math.sin(t * 29 + 2) * s * 0.08));
+      camera.lookAt(look);
+      camera.fov = fov; camera.updateProjectionMatrix();
+    };
+    // The hero's body: knocked flat, lying, then getting up (the character root tips onto its back).
+    const down = t < 0.5 ? 0 : t < 1.0 ? (t - 0.5) / 0.5 : t < 7.9 ? 1 : Math.max(0, 1 - (t - 7.9) / 0.9);
+    this.cutDown = down;
+    if (hero) { hero.rotation.x = -1.42 * down * down * (3 - 2 * down); hero.position.y = 0.12 * down; }
+
+    if (stage === 0) {
+      if (tr) {
+        // The lunge: closing to arm's length, swinging.
+        const want = p.clone().addScaledVector(toTroll, 2.3);
+        tr.object.position.lerp(want.setY(tr.object.position.y), 1 - Math.exp(-dt * 10));
+        tr.yaw = Math.atan2(-toTroll.x, -toTroll.z); tr.object.rotation.y = tr.yaw;
+      }
+      if (t > 0.42 && !this.cutHit) {
+        this.cutHit = true;
+        player.launch(toTroll.clone().negate(), 11, 5.5);
+        sfx.hit('troll', true, 3); sfx.roar(0, 3); sfx.hurt(true);
+        this.cutShake = 1.6;
+        game.lensHit('dirt', 0.8);
+        game.flashAt(p.clone().setY(p.y + 1.3), 0xffffff, 25);
+      }
+      // Side-on, wide enough for the troll and the hero both: between them, and back.
+      const mid = tr ? p.clone().lerp(tr.object.position, 0.5) : p.clone().addScaledVector(toTroll, 1.4);
+      shot(mid.clone().addScaledVector(side, 10).setY(p.y + 2.6), mid.clone().setY(p.y + 1.6), 56);
+    } else if (stage === 1) {
+      if (enter) { this.cutShake = 0.9; tr?.pose('idle'); }
+      if (t > 1.8 && !this.cutLine1) { this.cutLine1 = true; game.call('“What is that?”', 2.2, '#f4ead8'); sfx.heartbeat(1); }
+      // Low, close on the hero's face and chest as they lie on the stones (the body tips back along
+      // the hero's own facing, so the head lies behind the feet).
+      const fwd = new THREE.Vector3(Math.sin(player.yaw), 0, Math.cos(player.yaw));
+      const across = new THREE.Vector3(fwd.z, 0, -fwd.x);
+      const head = p.clone().addScaledVector(fwd, -1.35).setY(p.y + 0.22);
+      const chest = p.clone().addScaledVector(fwd, -0.9).setY(p.y + 0.25);
+      shot(head.clone().addScaledVector(across, 1.15).addScaledVector(fwd, 0.5).setY(p.y + 0.95), chest, 40);
+      // The deep groan under the bridge.
+      if (enter) { sfx.thunder(80); this.d.weather.strike(60, p); }
+    } else if (stage === 2) {
+      // Arms begin to erupt: the first right at the lens.
+      if (enter) {
+        this.surfaced = true;
+        this.placeArms();
+        this.arms.forEach((a, i) => this.later(i === 0 ? 0.25 : 0.7 + i * 0.32, () => {
+          a.emerge(); this.splash(a.base, true); sfx.splash(this.pan(a.base), true, this.dist(a.base));
+          this.cutShake = Math.max(this.cutShake, 0.6);
+        }));
+      }
+      const a = this.arms[0];
+      const water = a.base.clone().setY(B.waterY + 0.6);
+      const out = a.base.clone().sub(this.at(this.fightAlong, 0, B.waterY)).setY(0).normalize();
+      const k = (t - 3.2) / 2;
+      shot(water.clone().addScaledVector(out, 7 - 1.5 * k).addScaledVector(new THREE.Vector3(out.z, 0, -out.x), 2.5).setY(B.waterY + 1.5),
+        a.base.clone().setY(B.waterY + 1.5 + 8 * Math.min(1, k * 1.2)), 50);
+    } else if (stage === 3) {
+      if (enter) this.showTitle('THE RIVER KRAKEN', 'It wakes beneath Ravencrest', 3);
+      const c = this.at(this.fightAlong, 0, B.deckY);
+      const k = (t - 5.2) / 2;
+      shot(c.clone().addScaledVector(B.right, 46 - 6 * k).addScaledVector(B.dir, -22).setY(B.deckY + 16 - 3 * k), c.clone().setY(B.deckY + 8), 52);
+    } else if (stage === 4) {
+      // From the wide, pull in behind the hero as they get up.
+      const k = THREE.MathUtils.smoothstep((t - 7.2) / 2.4, 0, 1);
+      const c = this.at(this.fightAlong, 0, B.deckY);
+      const wide = c.clone().addScaledVector(B.right, 40).addScaledVector(B.dir, -22).setY(B.deckY + 13);
+      const close = p.clone().addScaledVector(toTroll, -3.2).addScaledVector(side, 1.0).setY(p.y + 1.7);
+      shot(wide.lerp(close, k), c.clone().setY(B.deckY + 7).lerp(p.clone().setY(p.y + 1.2 + 0.4 * (1 - down)), k), 52 - 8 * k);
+      if (t > 8.7 && !this.cutLine2) { this.cutLine2 = true; game.call('“I could really use some backup.”', 2.6, '#f4ead8'); }
+    } else if (stage === 5) {
+      if (enter) { sfx.laugh(0, 6, 2.4); this.callSquad(); }
+      // Tracking Miriam as she streams in from the castle, her squadron around her.
+      const w = this.witch.pos.lengthSq() > 1 ? this.witch.pos.clone() : this.at(B.len + 20, 0, 25);
+      const toBridge = this.at(this.fightAlong, 0, B.deckY).sub(w).normalize();
+      shot(w.clone().addScaledVector(toBridge, 9).addScaledVector(B.right, 3).add(new THREE.Vector3(0, 1.5, 0)), w.clone().addScaledVector(toBridge, -2), 50);
+    } else {
+      if (enter) {
+        this.showTitle('THE WEST HALLOW WITCH', 'Miriam and her flying monkeys come to your aid', 3.5);
+        game.call('Miriam is on your side — let her army work the kraken while you take the troll', 5, '#7ad08a');
+      }
+      shot(p.clone().addScaledVector(toTroll, -3.4).addScaledVector(side, 0.9).setY(p.y + 1.8), p.clone().addScaledVector(toTroll, 4).setY(p.y + 1.4), 50);
+      if (t > 14) {
+        // Back to the fight, picking up where it was.
+        if (hero) { hero.rotation.x = 0; hero.position.y = 0; }
+        player.enabled = true; player.cinematic = false;
+        if (tr?.alive) tr.scripted = false;
+        this.bar.classList.add('on');
+        this.phase = 'fight'; this.t = 12;
+        this.slamCd = 3; this.ripCd = 6; this.swatCd = 2; this.slapCd = 1.5;
+      }
+    }
+  }
+  private cutHit = false; private cutLine1 = false; private cutLine2 = false;
 
   /** The entrance, framed over Jack's shoulder toward where the troll comes up. */
   private introCam(dt: number, k: number) {
@@ -438,19 +566,11 @@ export class BridgeBattle {
     if (this.phase === 'fight' && life < 0.25 && this.squad) this.go('finale');
     this.groundSlam(dt, tr, p);
 
-    // The kraken surfaces.
-    if (this.phase === 'fight' && this.t > 4 && !this.surfaced) {
-      this.surfaced = true;
-      this.placeArms();
-      this.showTitle('THE RIVER KRAKEN', 'It wakes beneath Ravencrest', 3);
-      this.d.weather.strike(40, p);
-      this.arms.forEach((a, i) => this.later(i * 0.42, () => {
-        a.emerge(); this.splash(a.base, true); sfx.splash(this.pan(a.base), true, this.dist(a.base));
-        player.shake = Math.max(player.shake, 0.5);
-      }));
-    }
-    // Miriam and the monkeys arrive.
-    if (this.phase === 'fight' && this.t > 11 && !this.squad) this.callSquad();
+    // The kraken wakes: the troll knocks the hero flat and the cutscene takes over (krakenCut).
+    if (this.phase === 'fight' && this.t > 4 && !this.surfaced) { this.go('kraken'); return; }
+    // (Miriam and the monkeys arrive in that cutscene.)
+    if (this.phase === 'fight' && this.surfaced && !this.squad) this.callSquad();
+    void sfx;
 
     // The arms attack.
     const up = this.arms.filter((a) => a.up && !a.busy);

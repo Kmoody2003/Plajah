@@ -74,6 +74,63 @@ export class Sfx {
     return { k: Math.max(floor, 1 - dist / range), lp: dist > 12 ? Math.max(900, 14000 - dist * 260) : undefined };
   }
 
+  // ── the Pumpkin Patch war-rig ────────────────────────────────────────────────
+  // A big diesel: two detuned saws through a low-pass with a chugging firing-rate LFO, an exhaust
+  // rasp, and the track clatter, all riding one gain the game sets from the tank's distance.
+  private engine: { g: GainNode; lp: BiquadFilterNode; oscs: OscillatorNode[]; src: AudioBufferSourceNode; clank: number } | null = null;
+  tankEngine(on: boolean, dist = 20, speed = 1) {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    if (!on) {
+      if (this.engine) { const e = this.engine; e.g.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.4); setTimeout(() => { e.oscs.forEach((o) => o.stop()); e.src.stop(); }, 2000); this.engine = null; }
+      return;
+    }
+    if (!this.engine) {
+      const g = ctx.createGain(); g.gain.value = 0.0001;
+      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 420; lp.Q.value = 2;
+      const shaper = ctx.createWaveShaper(); shaper.curve = this.curve(3);
+      const chug = ctx.createGain(); chug.gain.value = 0.6;
+      const lfo = ctx.createOscillator(); lfo.frequency.value = 13; const lfoG = ctx.createGain(); lfoG.gain.value = 0.4; lfo.connect(lfoG).connect(chug.gain);
+      const oscs = [38, 38.7, 76.5].map((f) => { const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f; o.connect(shaper); o.start(); return o; });
+      shaper.connect(chug).connect(lp).connect(g);
+      // Exhaust rasp: band-passed noise riding the same chug.
+      const src = ctx.createBufferSource(); src.buffer = this.a.noiseBuffer; src.loop = true; src.start();
+      const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 180; bp.Q.value = 1.2;
+      const ng = ctx.createGain(); ng.gain.value = 0.35;
+      src.connect(bp).connect(ng).connect(chug);
+      lfo.start(); oscs.push(lfo);
+      this.out(g, 0.15, 0);
+      this.engine = { g, lp, oscs, src, clank: 0 };
+    }
+    const e = this.engine, now = ctx.currentTime, k = Math.max(0.06, 1 - dist / 70);
+    e.g.gain.setTargetAtTime(0.32 * k, now, 0.15);
+    e.lp.frequency.setTargetAtTime(260 + 380 * Math.min(1, speed / 12) + 300 * k, now, 0.2);
+    // Track clatter: steel links slapping the road, faster with speed.
+    e.clank -= 1 / 60;
+    if (e.clank <= 0) {
+      e.clank = 0.07 + 0.1 / Math.max(0.5, speed / 6);
+      const t = this.now();
+      this.noise(t, 0.035, 'bandpass', rnd(1500, 2600), 3, 0.05 * k, { wet: 0.1 });
+      this.osc(t, 'square', rnd(140, 190), 90, 0.04, 0.012 * k, { wet: 0.05 });
+    }
+  }
+  /** The turret: a huge muzzle crack and boom, the shell's report rolling off the hills. */
+  tankCannon(pan = 0, dist = 10) {
+    const t = this.now(); if (t < 0) return;
+    const { k, lp } = this.far(dist, 90, 0.3);
+    this.rec('explosion', { pan, gain: 1.0 * k, rate: [0.85, 1.0], lowpass: lp, wet: 0.5 });
+    this.rec('gunshot', { pan, gain: 0.9 * k, rate: [0.5, 0.6], wet: 0.6 });
+    this.osc(t, 'sine', 70, 26, 0.9, 0.5 * k, { drive: 3, wet: 0.5, pan });
+    this.noise(t, 0.08, 'highpass', 1500, 0.7, 0.4 * k, { pan, wet: 0.4 });
+  }
+  /** Something big crushed under the treads (wreckage, bodies). */
+  tankCrush(dist = 10) {
+    const { k } = this.far(dist, 60, 0.3);
+    this.rec('rock_break', { gain: 0.9 * k, rate: [0.7, 0.85] });
+    this.rec('wood_break', { gain: 0.7 * k, rate: [0.7, 0.9], delay: 0.05 });
+    this.rec('glass_break', { gain: 0.5 * k, rate: [0.8, 1], delay: 0.1 });
+  }
+
   // ── creatures ──────────────────────────────────────────────────────────────
   /** A monster's voice: idle snarls while hunting, a bark on the attack, a cry when cut. */
   vocal(kind: Kind, mood: 'idle' | 'attack' | 'hurt', pan = 0, dist = 6) {
