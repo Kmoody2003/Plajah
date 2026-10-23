@@ -25,8 +25,15 @@ if (!tok?.access_token || tok.expires_at < Date.now() + 60000) { console.error('
 const H = { Authorization: 'Bearer ' + tok.access_token, 'Content-Type': 'application/json', 'x-goog-user-project': PROJECT };
 
 const src = fs.readFileSync(file, 'utf8');
-const mk = await fetch(API + `projects/${PROJECT}/rulesets`, { method: 'POST', headers: H, body: JSON.stringify({ source: { files: [{ name: 'firestore.rules', content: src }] } }) });
-const mj = await mk.json();
+// The Rules API 503s intermittently on large rulesets; back off and retry before calling it a failure.
+let mk, mj;
+for (let attempt = 1; ; attempt++) {
+  mk = await fetch(API + `projects/${PROJECT}/rulesets`, { method: 'POST', headers: H, body: JSON.stringify({ source: { files: [{ name: 'firestore.rules', content: src }] } }) });
+  mj = await mk.json();
+  if (mk.status !== 503 || attempt === 6) break;
+  console.log(`rulesets 503, retry ${attempt}/5`);
+  await new Promise((res) => setTimeout(res, 5000 * attempt));
+}
 if (!mk.ok) { console.log('ruleset does not even compile:', mk.status, JSON.stringify(mj).slice(0, 400)); process.exit(1); }
 const name = `projects/${PROJECT}/releases/cloud.firestore/zzprobe-${Date.now() % 1000000}`;
 const r = await fetch(API + `projects/${PROJECT}/releases`, { method: 'POST', headers: H, body: JSON.stringify({ name, rulesetName: mj.name }) });
