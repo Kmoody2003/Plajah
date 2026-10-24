@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "components/PlajahElevate.tsx",
+    "components/elevate/ElevateTypeTabs.tsx",
+    "components/dev/elevateLandingLab.tsx"
+  ],
+  "compilerOptions": {
+    "allowJs": false,
+    "noEmit": true
+  }
+}

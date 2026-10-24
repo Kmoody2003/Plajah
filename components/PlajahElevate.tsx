@@ -16,6 +16,7 @@ import { TYPE } from '../src/lib/designSystem';
 import { Button } from './ui';
 import ElevateOneSheetModal from './elevate/ElevateOneSheetModal';
 import AriaMark from './aria/AriaMark';
+import { ElevateTabBar, ElevateOverview, ElevateTypePanel, ElevateTabCta, ElevateTabKey, ELEVATE_TABS, tabDef } from './elevate/ElevateTypeTabs';
 import PlajahPlusBanner from './PlajahPlusBanner';
 import {
   PageVisualConfig,
@@ -269,7 +270,7 @@ const ElevateOrgCard: React.FC<{
         {/* Feature pills */}
         <div className="flex flex-wrap gap-1 mb-3 mt-auto">
           <span className="flex items-center gap-1 px-2 py-0.5 bg-white/5 border border-white/10 rounded-full text-[8px] font-black uppercase tracking-widest text-white/55">
-            <MonitorPlay size={8} /> Sanctuary
+            <MonitorPlay size={8} /> {org.orgType === 'CHURCH' || org.orgType === 'RELIGIOUS' ? 'Sanctuary' : 'Live'}
           </span>
           <span className="flex items-center gap-1 px-2 py-0.5 bg-white/5 border border-white/10 rounded-full text-[8px] font-black uppercase tracking-widest text-white/55">
             <Gift size={8} /> Giving
@@ -309,8 +310,6 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
   const [elevateTheme, setElevateTheme] = useState<'plajah' | 'dark' | 'pastel'>('plajah');
   const [showOneSheetModal, setShowOneSheetModal] = useState(false);
   const [visualConfig, setVisualConfig] = useState<PageVisualConfig | null>(null);
-  // Sections rise in as they scroll into view.
-  useEvRevealAll();
   const [editMode, setEditMode] = useState<boolean>(() => isGlobalEditModeEnabled());
   const [showAddCarouselCard, setShowAddCarouselCard] = useState(false);
   const [newCardDraft, setNewCardDraft] = useState<{
@@ -345,6 +344,27 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
   const [activeSection, setActiveSection] = useState<string>('all');
+  // One tab per kind of organization; ?elevateTab=<key> deep-links straight to one.
+  const [tab, setTabState] = useState<ElevateTabKey>(() => {
+    try {
+      const k = new URLSearchParams(window.location.search).get('elevateTab') as ElevateTabKey | null;
+      if (k && ELEVATE_TABS.some(t => t.key === k)) return k;
+    } catch {}
+    return 'overview';
+  });
+  useEffect(() => { setActiveSection(tabDef(tab).directoryKey); }, [tab]);
+  // Sections rise in as they scroll into view; each tab mounts its own, so re-watch on switch.
+  useEvRevealAll([tab]);
+  const setTab = (k: ElevateTabKey) => {
+    setTabState(k);
+    try {
+      const u = new URL(window.location.href);
+      if (k === 'overview') u.searchParams.delete('elevateTab'); else u.searchParams.set('elevateTab', k);
+      window.history.replaceState(window.history.state, '', u.toString());
+    } catch {}
+    // The app scrolls an inner container, not the window — bring the landing's top back into view.
+    rootRef.current?.scrollIntoView({ block: 'start' });
+  };
   const [liveUids, setLiveUids] = useState<Set<string>>(new Set());
 
   // Interactive states for The Living Sanctuary (Lorea Interactive Sanctuary Stage)
@@ -352,6 +372,7 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
   const [autoCycleStage, setAutoCycleStage] = useState(false);
 
   const carRef1 = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
 
   const load = async () => {
     const results = await Promise.all(
@@ -432,27 +453,24 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
       : 'bg-[#0b0214] text-white';
 
   return (
-    <div className={`w-full min-h-full overflow-x-clip custom-scrollbar transition-colors duration-500 ${elevateTheme === 'pastel' ? '' : 'ev-scope'} ${rootBg}`}>
+    <div ref={rootRef} className={`w-full min-h-full overflow-x-clip custom-scrollbar transition-colors duration-500 ${elevateTheme === 'pastel' ? '' : 'ev-scope'} ${rootBg}`}>
       {/* ── STICKY TOP NAV ── */}
       <div className="sticky top-0 z-40 bg-[#0a0612]/90 backdrop-blur-xl border-b border-white/[0.08] text-white">
         {/* Main Elevate Sticky Nav */}
         <div className="max-w-6xl mx-auto px-3.5 sm:px-6 h-14 sm:h-16 flex items-center gap-2 sm:gap-4">
-          <div className="flex items-center gap-2.5 sm:gap-3 mr-1 sm:mr-2 min-w-0">
+          <div className="flex items-center gap-2.5 sm:gap-3 mr-1 sm:mr-2 min-w-0 shrink-0">
             <div
               className="w-8 h-8 rounded-[10px] grid place-items-center text-white shadow-lg shrink-0"
               style={{ background: 'linear-gradient(135deg,#6B0099,#D40055 55%,#FF8C00)', boxShadow: '0 8px 24px rgba(212,0,85,.34)' }}
             >
-              <Church size={16} />
+              <Landmark size={16} />
             </div>
             <div className="leading-none min-w-0">
               <div className="text-[14px] sm:text-[16px] font-black tracking-tight truncate" style={{ fontFamily: 'Outfit, sans-serif' }}>Plajah Elevate</div>
-              <div className="text-[11px] font-semibold text-white/45 mt-0.5 truncate">Faith · Culture · Causes</div>
+              <div className="text-[11px] font-semibold text-white/45 mt-0.5 truncate">Faith · Causes · Culture</div>
             </div>
           </div>
 
-          <button onClick={() => scrollTo('elevate-dir')} className="hidden md:block px-3 py-2 rounded-full text-[12.5px] font-bold text-white/55 hover:text-white hover:bg-white/5 transition-all">Directory</button>
-          <button onClick={() => scrollTo('elevate-caps')} className="hidden md:block px-3 py-2 rounded-full text-[12.5px] font-bold text-white/55 hover:text-white hover:bg-white/5 transition-all">For Leaders</button>
-          <button onClick={() => scrollTo('elevate-doors')} className="hidden md:block px-3 py-2 rounded-full text-[12.5px] font-bold text-white/55 hover:text-white hover:bg-white/5 transition-all">All Doors</button>
           <button
             onClick={() => openElevateGatewayModal({ mode: 'claim' })}
             className="inline-flex items-center justify-center gap-1.5 h-9 px-2.5 lg:px-3 rounded-full text-[10px] lg:text-[11px] font-black uppercase tracking-wider text-[#D0BCFF] bg-[#8B5CF6]/15 border border-[#8B5CF6]/30 hover:bg-[#8B5CF6]/25 transition-all shrink-0"
@@ -471,6 +489,7 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
               icon={<FileText />}
               onClick={() => setShowOneSheetModal(true)}
               title="Open Shareable Executive One-Sheet for Colleagues"
+              className="shrink-0 whitespace-nowrap"
             >
               <span className="hidden md:inline">Executive One-Sheet</span>
               <span className="md:hidden">One-Sheet</span>
@@ -517,7 +536,9 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
           </div>
         </div>
       </div>
-      {/* Phone: search + section chips scroll away; only the brand bar stays pinned. */}
+      <ElevateTabBar active={tab} onChange={setTab} />
+
+      {/* Phone: search scrolls away; the brand bar and tab strip stay pinned. */}
       <div className="sm:hidden px-3.5 pt-2.5 pb-1 space-y-2">
           <div className="relative">
             <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40" />
@@ -528,11 +549,6 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
               onChange={e => { setQuery(e.target.value); if (e.target.value) scrollTo('elevate-dir'); }}
               className="w-full bg-white/[0.06] border border-white/10 rounded-full h-10 pl-10 pr-4 text-[14px] text-white outline-none focus:border-white/30 placeholder:text-white/35"
             />
-          </div>
-          <div className="flex gap-1.5 overflow-x-auto no-scrollbar -mx-0.5 px-0.5">
-            {[['elevate-dir', 'Directory'], ['elevate-caps', 'For leaders'], ['elevate-doors', 'All doors']].map(([id, label]) => (
-              <button key={id} onClick={() => scrollTo(id)} className="shrink-0 h-8 px-3.5 rounded-full bg-white/[0.06] border border-white/10 text-[12px] font-semibold text-white/75 active:bg-white/15">{label}</button>
-            ))}
           </div>
       </div>
 
@@ -557,6 +573,29 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
       {/* =====================================================================
           THE LIVING SANCTUARY STAGE (LOREA STYLE ELEVATE LANDING PAGE)
           ===================================================================== */}
+      {tab === 'overview' && (
+        <ElevateOverview
+          onPickTab={setTab}
+          onCreate={onCreate}
+          onClaim={() => openElevateGatewayModal({ mode: 'claim' })}
+          counts={Object.fromEntries(Object.entries(orgsByType).map(([k, v]) => [k, v.length]))}
+          isSignedIn={isSignedIn}
+        />
+      )}
+      {tab !== 'overview' && tab !== 'church' && (
+        <ElevateTypePanel
+          tab={tabDef(tab)}
+          onCreate={onCreate}
+          onClaim={() => openElevateGatewayModal({ mode: 'claim' })}
+          extraAction={
+            tab === 'faith' ? { label: 'Open the Sacred Library', onClick: () => triggerNavigate('SACRED_LIBRARY') }
+            : tab === 'charity' ? { label: 'Browse the Charity hub', onClick: () => triggerNavigate('CHARITY') }
+            : undefined
+          }
+          isSignedIn={isSignedIn}
+        />
+      )}
+      {tab === 'church' && (
       <div>
         {/* ── SPLIT INTERACTIVE HERO (Lorea 2-Column Stage + Interactive Ambo Sanctuary) ── */}
         <header className="relative overflow-hidden border-b border-white/[0.08]">
@@ -1149,6 +1188,7 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
             </div>
           </section>
       </div>
+      )}
 
       {/* =====================================================================
           SHARED LIVE DIRECTORY + GRACE CHAPEL SPOTLIGHT BANNER
@@ -1165,7 +1205,7 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
                 : SECTIONS.find(s => s.key === activeSection)?.title || 'Organizations'}
             </h2>
             <p className="text-white/45 text-sm mt-1.5">
-              Churches, ministries, cultural institutions and nonprofits — open their sanctuary hub, follow updates, or claim your member seat.
+              Churches, faith communities, nonprofits, charities and cultural institutions — open an organization’s hub, follow updates, or claim your member seat.
             </p>
           </div>
 
@@ -1201,7 +1241,7 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
         </div>
 
         {/* Grace Chapel Interactive Spotlight Banner (mirrors Small Business Demo Spotlight) */}
-        {!query && (activeSection === 'all' || activeSection === 'spiritual') && (
+        {!query && tab === 'church' && (
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
@@ -1323,13 +1363,13 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
                 <Plus size={22} className="text-white" />
               </span>
               <span className="mt-3.5 font-black text-[15px] text-white" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                Your church or org here
+                Your organization here
               </span>
               <span className="text-[9.5px] font-black uppercase tracking-widest text-[#FF8C00] mt-1.5">
                 Free to launch · 2-min setup
               </span>
               <span className="text-[11px] text-white/45 mt-2 max-w-[24ch]">
-                Pre-seeded ministries, giving funds, Stage &amp; member claim cards.
+                Departments, giving funds, Stage &amp; member claim cards — set up for you.
               </span>
             </button>
           </div>
@@ -1339,6 +1379,7 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
       {/* =====================================================================
           EVERY WAY INTO ELEVATE — LOREA "NOTHING HIDDEN, EVERY DOOR" DIRECTORY
           ===================================================================== */}
+      {tab === 'church' && (<>
       <section id="elevate-doors" className="ev-reveal max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-14 border-t border-white/[0.08]">
         <div className="text-[10px] font-black uppercase tracking-[0.45em] text-[#FF8C00]" style={{ fontFamily: 'Outfit, sans-serif' }}>
           Every way into Plajah Elevate
@@ -1486,6 +1527,17 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
           </div>
         </div>
       </section>
+      </>)}
+
+      {tab !== 'church' && (
+        <ElevateTabCta
+          tab={tab === 'overview'
+            ? { ...tabDef('overview'), ctaTitle: 'Bring your organization onto Plajah Elevate', ctaSub: 'Free to launch. Pick your type, import your people, connect Stripe, and open your doors this week.' }
+            : tabDef(tab)}
+          onCreate={onCreate}
+          secondary={tab === 'overview' ? { label: 'See a church example', onClick: () => setTab('church') } : { label: 'Back to overview', onClick: () => setTab('overview') }}
+        />
+      )}
 
       <ElevateOneSheetModal
         isOpen={showOneSheetModal}
