@@ -5,9 +5,9 @@ import * as THREE from 'three/webgpu';
 import { loadModel } from './assets';
 import { collide } from './collision';
 import { flameMaterial } from './fx';
-import { color, float, mix, smoothstep, positionWorld, normalWorld, mx_fractal_noise_float, time, vec3, uv } from 'three/tsl';
+import { color, float, mix, smoothstep, positionWorld, normalWorld, mx_fractal_noise_float, time, vec3, vec4, uv } from 'three/tsl';
 import { ArtAnchor } from './artAnchor';
-import { triplanarMaterial, uvMaterial, wetAsphalt, moatWater, setReflect } from './materials';
+import { triplanarMaterial, uvMaterial, wetAsphalt, moatWater, setReflect, bakedMasks } from './materials';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { Forest, type TreeSpot } from './forest';
 import { KitMaterials, crenellatedWall, roundTower, gatehouse, spireTurret, bareTree, rng } from './kit';
@@ -193,9 +193,15 @@ export async function buildArrival(A: ArtAnchor, renderer: THREE.WebGPURenderer)
     type F1 = ReturnType<typeof float>;
     // Forest floor: moss patches on the flats, leaf-litter drifts, rock on the steeps.
     const moss = triplanarMaterial('mossy_rock', { metresPerTile: 3, tint: 0x7a8a66 });
-    const pw = positionWorld.xz;
-    const mossMask = smoothstep(float(0.5), float(0.72), mx_fractal_noise_float(pw.mul(0.07), 3, 2, 0.5, 1).mul(0.5).add(0.5)).mul(float(1).sub(slope));
-    const litter = smoothstep(float(0.55), float(0.75), mx_fractal_noise_float(pw.mul(0.33), 2, 2, 0.5, 1).mul(0.5).add(0.5));
+    // Moss / litter fbm is static: baked once over the ground's uv (world xz is linear in it) at ~4 px/m.
+    const g0 = fromLocal(uMin, v0);
+    const mk = bakedMasks({ origin: g0, u: fromLocal(uMax, v0).sub(g0), v: fromLocal(uMin, v1).sub(g0) }, 4, (bw) => vec4(
+      mx_fractal_noise_float(bw.mul(0.07), 3, 2, 0.5, 1).mul(0.5).add(0.5),
+      mx_fractal_noise_float(bw.mul(0.33), 2, 2, 0.5, 1).mul(0.5).add(0.5),
+      0, 1,
+    ));
+    const mossMask = smoothstep(float(0.5), float(0.72), mk.r).mul(float(1).sub(slope));
+    const litter = smoothstep(float(0.55), float(0.75), mk.g);
     const floor = mix(mix(ground.colorNode as V3, moss.colorNode as V3, mossMask), vec3(0.22, 0.12, 0.05), litter.mul(0.45));
     m.colorNode = mix(floor, rocky.colorNode as V3, slope).mul(0.3);
     m.roughnessNode = mix(ground.roughnessNode as F1, rocky.roughnessNode as F1, slope);

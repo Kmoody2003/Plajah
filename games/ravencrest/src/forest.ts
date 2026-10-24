@@ -6,7 +6,7 @@
 // ez-tree only supplies geometry; materials are the game's own node materials (its Phong materials
 // and WebGL shader patches don't run on the WebGPU renderer).
 import * as THREE from 'three/webgpu';
-import { texture, uv, positionLocal, time, sin, cos, vec2, vec3, float, instanceIndex, attribute, mix, color, uniform } from 'three/tsl';
+import { texture, uv, positionLocal, time, sin, cos, vec2, vec3, float, attribute, mix, color, uniform } from 'three/tsl';
 import { Tree } from '@dgreenheck/ez-tree';
 import { rng } from './kit';
 
@@ -45,9 +45,12 @@ function copyGeo(src: { attributes: Record<string, { array: ArrayLike<number>; i
   return g;
 }
 
-/** Wind: tops sway more than trunks; each instance on its own phase. */
+/**
+ * Wind: tops sway more than trunks; each instance on its own phase. The phase is a per-instance
+ * attribute, not instanceIndex: culling repacks the visible instances every frame.
+ */
 function sway(amount: number) {
-  const ph = float(instanceIndex).mul(1.37);
+  const ph = attribute<'float'>('treePhase', 'float');
   const y = positionLocal.y;
   return positionLocal.add(vec3(sin(time.mul(1.4).add(ph).add(y.mul(2.1))).mul(amount), 0, cos(time.mul(1.1).add(ph.mul(0.7)).add(y.mul(1.6))).mul(amount)).mul(y.mul(y)));
 }
@@ -98,9 +101,21 @@ function depthPrepass(im: THREE.InstancedMesh) {
   return pre;
 }
 
+const _frustum = new THREE.Frustum(), _vp = new THREE.Matrix4(), _sphere = new THREE.Sphere();
+
+/** One set of instanced meshes sharing instance order (bark + leaves + prepass of a variant). */
+interface CullSet { meshes: THREE.InstancedMesh[]; attrs: THREE.InstancedBufferAttribute[]; phaseAttrs: THREE.InstancedBufferAttribute[]; mats: THREE.Matrix4[]; phases: Float32Array; sphere: THREE.Sphere }
+
 export class Forest {
   /** Fraction of trees actually planted (main.ts lowers it on phones). */
   static density = 1;
+  /**
+   * Per-instance frustum culling (main.ts turns it off when shadow maps are on: off-screen trees
+   * still cast shadows into view). Each variant/species is one InstancedMesh spread along the whole
+   * road, so without it every tree — behind the camera too — was drawn every frame.
+   */
+  static cull = true;
+  private cullSets: CullSet[] = [];
   readonly group = new THREE.Group();
   private variants: Variant[] = [];
   private far: { spots: TreeSpot[]; species: Species[] }[] = [];
@@ -185,8 +200,13 @@ export class Forest {
         this.group.add(im);
         return im;
       };
-      add(v.bark, barkMaterial(v.barkType));
-      if (v.leaves && v.leafType) this.group.add(depthPrepass(add(v.leaves, leafMaterial(v.leafType))));
+      const set = [add(v.bark, barkMaterial(v.barkType))];
+      if (v.leaves && v.leafType) {
+        const leaves = add(v.leaves, leafMaterial(v.leafType)), pre = depthPrepass(leaves);
+        this.group.add(pre);
+        set.push(leaves, pre);
+      }
+      this.track(set, ms);
       this.stats.nearTris += v.tris * ms.length;
       this.stats.nearInstances += ms.length;
     }
@@ -281,11 +301,61 @@ export class Forest {
         const im = new THREE.InstancedMesh(geo, mat, ms.length);
         ms.forEach((m, i) => im.setMatrixAt(i, m));
         im.computeBoundingSphere();
-        im.frustumCulled = false;
-        this.group.add(im, depthPrepass(im));
+        const pre = depthPrepass(im);
+        this.group.add(im, pre);
+        this.track([im, pre], ms);
         this.stats.farInstances += ms.length;
       }
     }
     console.info('[ravencrest] forest', this.stats);
+  }
+
+  /** Give meshes (same instance order) a stable sway phase per tree and register them for culling. */
+  private track(meshes: THREE.InstancedMesh[], mats: THREE.Matrix4[]) {
+    const phases = Float32Array.from(mats, (_, i) => i * 1.37);
+    const attrs = [...new Set(meshes.map((m) => m.instanceMatrix))];
+    const phaseAttrs: THREE.InstancedBufferAttribute[] = [];
+    for (const geo of new Set(meshes.map((m) => m.geometry))) {
+      const a = new THREE.InstancedBufferAttribute(phases.slice(), 1);
+      geo.setAttribute('treePhase', a);
+      phaseAttrs.push(a);
+    }
+    const geo = meshes[0].geometry;
+    if (!geo.boundingSphere) geo.computeBoundingSphere();
+    for (const m of meshes) m.frustumCulled = false;   // culled per instance in cull()
+    this.cullSets.push({ meshes, attrs, phaseAttrs, mats, phases, sphere: geo.boundingSphere!.clone() });
+  }
+
+  private packed = false;
+  /** Every instance back in its original slot (culling switched off at runtime). */
+  private unpack() {
+    this.packed = false;
+    for (const s of this.cullSets) {
+      s.mats.forEach((m, i) => { for (const a of s.attrs) (a.array as Float32Array).set(m.elements, i * 16); });
+      for (const a of s.phaseAttrs) (a.array as Float32Array).set(s.phases);
+      for (const a of [...s.attrs, ...s.phaseAttrs]) a.needsUpdate = true;
+      for (const m of s.meshes) { m.count = s.mats.length; m.visible = true; }
+    }
+  }
+
+  /** Pack only the instances inside the camera frustum to the front; call once per frame before rendering. */
+  cull(camera: THREE.Camera) {
+    if (!Forest.cull) { if (this.packed) this.unpack(); return; }
+    this.packed = true;
+    camera.updateMatrixWorld();
+    _vp.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+    _frustum.setFromProjectionMatrix(_vp, camera.coordinateSystem, camera.reversedDepth);
+    for (const s of this.cullSets) {
+      let n = 0;
+      for (let i = 0; i < s.mats.length; i++) {
+        if (!_frustum.intersectsSphere(_sphere.copy(s.sphere).applyMatrix4(s.mats[i]))) continue;
+        for (const a of s.attrs) (a.array as Float32Array).set(s.mats[i].elements, n * 16);
+        for (const a of s.phaseAttrs) (a.array as Float32Array)[n] = s.phases[i];
+        n++;
+      }
+      for (const a of s.attrs) a.needsUpdate = true;
+      for (const a of s.phaseAttrs) a.needsUpdate = true;
+      for (const m of s.meshes) { m.count = n; m.visible = n > 0; }
+    }
   }
 }

@@ -161,29 +161,40 @@ export const rainAmount = uniform(0);
  * fallen leaves across the lanes, glossy wheel tracks and broken puddles that ripple in the rain.
  */
 /**
- * The road strip in world space: `origin` = its uv (0,0) corner, `u`/`v` = the world vectors to the
- * uv (1,0) and (0,1) corners. wetAsphalt bakes its static noise masks in that frame once.
+ * A flat, uv-mapped surface in world space: `origin` = its uv (0,0) corner, `u`/`v` = the world
+ * vectors to the uv (1,0) and (0,1) corners (world xz must be linear in uv).
  */
-export interface RoadFrame { origin: THREE.Vector3; u: THREE.Vector3; v: THREE.Vector3 }
+export interface SurfaceFrame { origin: THREE.Vector3; u: THREE.Vector3; v: THREE.Vector3 }
 
-export function wetAsphalt(repeat: [number, number], markings: THREE.Texture, frame: RoadFrame): THREE.MeshStandardNodeMaterial {
+/**
+ * Static world-space masks (fbm noise etc.) baked once, on first use, into a texture laid over a
+ * surface (`build` gets the world xz of each texel) and read back at the surface's uv(). Turns
+ * per-pixel fbm octaves into one fetch — fbm was the costliest part of the road/ground on the Arc iGPU.
+ */
+export function bakedMasks(frame: SurfaceFrame, pxPerMetre: number, build: (wp: THREE.Node<'vec2'>) => THREE.Node<'vec4'>): THREE.Node<'vec4'> {
+  const { origin: o, u: fu, v: fv } = frame;
+  const wp = vec2(o.x, o.z).add(vec2(fu.x, fu.z).mul(uv().x)).add(vec2(fv.x, fv.z).mul(uv().y));
+  const size = (len: number) => Math.min(4096, Math.max(16, Math.round(len * pxPerMetre)));
+  const t = rtt(build(wp) as never, size(fu.length()), size(fv.length()), { type: THREE.HalfFloatType });
+  t.autoUpdate = false;
+  // Render targets are stored top-down under WebGPU: flip V back.
+  return t.sample(vec2(uv().x, float(1).sub(uv().y))) as unknown as THREE.Node<'vec4'>;
+}
+
+export function wetAsphalt(repeat: [number, number], markings: THREE.Texture, frame: SurfaceFrame): THREE.MeshStandardNodeMaterial {
   const s = pbr('asphalt_02');
   const d = pbr('road_damaged');
   const m = new THREE.MeshStandardNodeMaterial();
   const u = uv().mul(vec2(...repeat));
   const wp = positionWorld.xz;
-  // The low-frequency masks (8 of the road's ~12 noise octaves per pixel) never change: bake them
-  // once into a road-space texture (~8 px/m) instead of evaluating fbm on every road pixel.
-  const bakeWp = vec2(frame.origin.x, frame.origin.z).add(vec2(frame.u.x, frame.u.z).mul(uv().x)).add(vec2(frame.v.x, frame.v.z).mul(uv().y));
-  const masks = rtt(vec4(
-    smoothstep(float(0.18), float(0.42), mx_fractal_noise_float(bakeWp.mul(0.045), 3, 2, 0.5, 1)),
-    mx_fractal_noise_float(bakeWp.mul(vec2(0.02, 0.006)), 2, 2, 0.5, 1).mul(0.5).add(0.5),
-    mx_fractal_noise_float(bakeWp.mul(0.6), 1, 2, 0.5, 1).mul(0.5).add(0.5),
-    smoothstep(float(0.25), float(0.5), mx_fractal_noise_float(bakeWp.mul(vec2(0.3, 0.07)), 3, 2, 0.5, 1)),
-  ) as never, Math.max(16, Math.round(frame.u.length() * 8)), Math.min(4096, Math.round(frame.v.length() * 8)), { type: THREE.HalfFloatType });
-  masks.autoUpdate = false;   // rendered once, on first use
-  // Render targets are stored top-down under WebGPU: flip V back.
-  const mk = masks.sample(vec2(uv().x, float(1).sub(uv().y)));
+  // The low-frequency masks (8 of the road's ~12 noise octaves per pixel) never change: baked once
+  // at ~8 px/m instead of evaluating fbm on every road pixel.
+  const mk = bakedMasks(frame, 8, (bw) => vec4(
+    smoothstep(float(0.18), float(0.42), mx_fractal_noise_float(bw.mul(0.045), 3, 2, 0.5, 1)),
+    mx_fractal_noise_float(bw.mul(vec2(0.02, 0.006)), 2, 2, 0.5, 1).mul(0.5).add(0.5),
+    mx_fractal_noise_float(bw.mul(0.6), 1, 2, 0.5, 1).mul(0.5).add(0.5),
+    smoothstep(float(0.25), float(0.5), mx_fractal_noise_float(bw.mul(vec2(0.3, 0.07)), 3, 2, 0.5, 1)),
+  ));
   // Patched / broken sections: large world-space blobs of the cracked-road scan.
   const damage = mk.r;
   // Macro tone: resurfaced strips and weathered areas so the asphalt never reads as one tile.
@@ -248,8 +259,9 @@ export function moatWater(): THREE.MeshStandardNodeMaterial {
   const drift = moatUniforms.wind.xz.mul(time.mul(0.045));
   const p = positionWorld.xz.add(drift);
   const t = time.mul(0.05);
-  const n1 = mx_fractal_noise_float(vec3(p.mul(0.12), t), 3, 2, 0.5, 1);
-  const n2 = mx_fractal_noise_float(vec3(p.mul(0.12).add(0.37), t), 3, 2, 0.5, 1);
+  // 2 octaves each: the 3rd was sub-pixel ripple detail on the inky water far below the bridge.
+  const n1 = mx_fractal_noise_float(vec3(p.mul(0.12), t), 2, 2, 0.5, 1);
+  const n2 = mx_fractal_noise_float(vec3(p.mul(0.12).add(0.37), t), 2, 2, 0.5, 1);
   // Splash rings: each is an expanding, decaying wavefront that tilts the normal.
   let rx: THREE.Node<"float"> = float(0);
   let rz: THREE.Node<"float"> = float(0);

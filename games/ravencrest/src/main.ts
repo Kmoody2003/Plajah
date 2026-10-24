@@ -158,6 +158,8 @@ renderer.setPixelRatio(Q.pr);
 renderer.toneMapping = THREE.AgXToneMapping;
 renderer.toneMappingExposure = 0.8;
 renderer.shadowMap.enabled = Q.shadow > 0 && params.get('shadows') !== '0';
+// Off-screen trees still cast shadows into view: per-instance forest culling only without shadow maps.
+Forest.cull = !renderer.shadowMap.enabled && params.get('treecull') !== '0';
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 view.appendChild(renderer.domElement);
 
@@ -1209,6 +1211,7 @@ const frameLoop = () => {
   const tRender = performance.now();
 
   if (renderer.xr.isPresenting) { renderer.render(level.scene, camera); return; }
+  if (level === levels.outside) world.forest.cull(camera);
   level.post.pipeline.render();
   looks.render();
   comboComic.afterRender(renderer.domElement, performance.now());
