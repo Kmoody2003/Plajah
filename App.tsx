@@ -1,3 +1,4 @@
+import { UserAvatar } from './components/avatar/UserAvatar';
 import React, { useState, useEffect, lazy, Suspense, useCallback, useRef, useMemo } from 'react';
 import { Album, Track, AppView, ThemeType, Game, IPWorld, LiveFeed, PhotoGallery, Photo } from './types';
 import { fetchGallery } from './services/galleryService';
@@ -5873,7 +5874,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                      >
                      <PioneerGoldFrame active={!!userProfile?.hasSeenWelcomePackage} size="sm">
                        <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center overflow-hidden">
-                         {user?.photoURL ? <img src={user.photoURL} alt={user.displayName || ''} className="w-full h-full object-cover" /> : <User size={20} className="text-white/40" />}
+                         {user?.photoURL ? <UserAvatar uid={user.uid} src={user.photoURL} alt={user.displayName || ''} className="w-full h-full object-cover" /> : <User size={20} className="text-white/40" />}
                        </div>
                      </PioneerGoldFrame>
                      {/* Slot badge */}

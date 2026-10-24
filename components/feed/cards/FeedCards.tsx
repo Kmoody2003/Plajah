@@ -16,6 +16,7 @@
  *   SPORTS_MOMENT   → open the Sports view for item.data.league / item.data.gameId (PlajahSportsView; fall back to the sports tab)
  */
 
+import { UserAvatar } from '../../avatar/UserAvatar';
 import React from 'react';
 import { Radio, Disc3, Play, Users, BarChart3, CalendarClock, Swords, Trophy, Activity } from 'lucide-react';
 import FeedCardFrame from './FeedCardFrame';
@@ -34,9 +35,9 @@ interface CardProps<D> {
   onDismiss?: (item: FeedCardItem) => void;
 }
 
-const Avatar: React.FC<{ src?: string; name: string; size?: number }> = ({ src, name, size = 36 }) => (
+const Avatar: React.FC<{ uid?: string; src?: string; name: string; size?: number }> = ({ uid, src, name, size = 36 }) => (
   src
-    ? <img src={src} alt="" loading="lazy" className="rounded-full object-cover" style={{ width: size, height: size }} />
+    ? <UserAvatar uid={uid} src={src} alt="" loading="lazy" className="rounded-full object-cover" style={{ width: size, height: size }} />
     : <span className="inline-flex items-center justify-center rounded-full text-xs font-black" style={{ width: size, height: size, background: 'var(--pj-glass-3)' }}>{name.slice(0, 1).toUpperCase()}</span>
 );
 
@@ -53,7 +54,7 @@ export const LiveNowCard: React.FC<CardProps<LiveNowData>> = ({ item, onOpen, on
     <FeedCardFrame icon={<Radio size={14} />} kicker={d.viaClub && d.clubName ? `Live in ${d.clubName}` : 'Live now'} accent="magenta" live
       cta="Watch live" onOpen={() => onOpen(item)} onDismiss={onDismiss && (() => onDismiss(item))}>
       <div className="flex items-center gap-3">
-        <Avatar src={d.ownerPhoto} name={d.ownerName} size={44} />
+        <Avatar uid={d.ownerId} src={d.ownerPhoto} name={d.ownerName} size={44} />
         <div className="min-w-0"><Title>{d.title}</Title><Sub>{d.ownerName}</Sub></div>
       </div>
     </FeedCardFrame>
@@ -100,7 +101,7 @@ export const ClubHighlightCard: React.FC<CardProps<ClubHighlightData>> = ({ item
     <FeedCardFrame icon={<Users size={14} />} kicker={`Highlight · ${d.clubName}`} accent="purple" cta="Open club"
       onOpen={() => onOpen(item)} onDismiss={onDismiss && (() => onDismiss(item))}>
       <div className="flex items-start gap-3">
-        <Avatar src={d.authorPhoto} name={d.authorName} />
+        <Avatar uid={d.authorId} src={d.authorPhoto} name={d.authorName} />
         <div className="min-w-0 flex-1">
           <p className="text-xs font-bold opacity-80">{d.authorName}</p>
           {d.text && <p className="mt-1 line-clamp-3 text-sm leading-snug">{d.text}</p>}
@@ -118,7 +119,7 @@ export const DataVizCard: React.FC<CardProps<DataVizData>> = ({ item, onOpen, on
     <FeedCardFrame icon={<BarChart3 size={14} />} kicker="Labs data story" accent="cyan" cta="Explore the data"
       onOpen={() => onOpen(item)} onDismiss={onDismiss && (() => onDismiss(item))}>
       <div className="flex items-center gap-3">
-        <Avatar src={d.authorPhoto} name={d.authorName} />
+        <Avatar uid={d.authorId} src={d.authorPhoto} name={d.authorName} />
         <div className="min-w-0"><Title>{d.text || 'A live data visualisation'}</Title><Sub>by {d.authorName}</Sub></div>
       </div>
     </FeedCardFrame>
@@ -170,7 +171,7 @@ export const AchievementCard: React.FC<CardProps<AchievementCardData>> = ({ item
     <FeedCardFrame icon={<Trophy size={14} />} kicker="Achievement unlocked" accent="orange" cta={`See ${d.userName.split(' ')[0]}'s profile`}
       onOpen={() => onOpen(item)} onDismiss={onDismiss && (() => onDismiss(item))}>
       <div className="flex items-center gap-3">
-        <Avatar src={d.userPhoto} name={d.userName} size={44} />
+        <Avatar uid={d.userId} src={d.userPhoto} name={d.userName} size={44} />
         <div className="min-w-0 flex-1">
           <p className="text-xs font-bold opacity-80">{d.userName} earned</p>
           <Title>{d.title}</Title>

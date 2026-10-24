@@ -1,3 +1,4 @@
+import { UserAvatar } from './avatar/UserAvatar';
 import React, { useState, useEffect, useMemo } from 'react';
 import { UserProfile, Video, Album } from '../types';
 import PageHeader from './PageHeader';
@@ -197,7 +198,7 @@ const SearchView: React.FC<SearchViewProps> = ({ onBack, onVisitUser, currentUse
                 <div className="relative z-10">
                   <div className="flex items-start gap-5 cursor-pointer mb-4" onClick={() => onVisitUser(user.uid)}>
                     <div className="w-16 h-16 rounded-full bg-white/10 overflow-hidden flex items-center justify-center ring-2 ring-white/10 shrink-0">
-                      {user.photoURL ? <img src={thumb(user.photoURL, THUMB.micro) || null} loading="lazy" decoding="async" onError={onThumbError(user.photoURL)} alt={user.displayName} className="w-full h-full object-cover" /> : <User size={24} className="text-white/20" />}
+                      {user.photoURL ? <UserAvatar uid={user.uid} src={thumb(user.photoURL, THUMB.micro) || null} loading="lazy" decoding="async" onError={onThumbError(user.photoURL)} alt={user.displayName} className="w-full h-full object-cover" /> : <User size={24} className="text-white/20" />}
                     </div>
                     <div className="flex-1 min-w-0 pt-1">
                       <h3 className="font-display font-black text-xl uppercase tracking-tight truncate hover:text-small-orange transition-colors">{user.displayName}</h3>

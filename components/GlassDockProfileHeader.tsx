@@ -38,6 +38,7 @@ import { resolveAcademiaHubs, hubsAreSchoolAffiliated } from '../services/academ
 import { isPartneredStatus, statusLabel, canHaveRelationshipStatus } from '../services/relationships';
 import PioneerGoldFrame from './PioneerGoldFrame';
 import SafeAvatarViewer from './SafeAvatarViewer';
+import { CharacterAvatarFlip } from './avatar/CharacterAvatarFlip';
 import ThreeDImage from './ThreeDImage';
 import ShareButton from './ShareButton';
 import PlajahPlusButton from './PlajahPlusButton';
@@ -210,7 +211,15 @@ const GlassDockProfileHeader: React.FC<GlassDockProfileHeaderProps> = ({
                 className={isMobile ? 'w-28 h-28' : 'w-36 h-36 lg:w-48 lg:h-48'}
               >
                 <div className="relative w-full h-full rounded-[2.5rem] lg:rounded-[3rem] overflow-hidden bg-white/5">
-                  {profile.avatar?.isActive ? (
+                  {profile.avatar?.isActive && profile.avatar.type === 'CHARACTER' ? (
+                    // Movie-character avatar: photo ⇄ character portrait with a green lightning flip.
+                    <CharacterAvatarFlip
+                      photoUrl={profile.customPhotoURL || profile.photoURL || null}
+                      characterUrl={profile.avatar.thumbnailUrl}
+                      alt={profile.displayName}
+                      className="w-full h-full"
+                    />
+                  ) : profile.avatar?.isActive ? (
                     <SafeAvatarViewer config={profile.avatar} compact autoRotate className="w-full h-full" />
                   ) : (
                     <ThreeDImage

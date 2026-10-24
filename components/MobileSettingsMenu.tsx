@@ -1,4 +1,6 @@
+import { UserAvatar } from './avatar/UserAvatar';
 import React from 'react';
+import { auth } from '../services/firebase';
 import {
   User, Baby, ShieldCheck, Mail, Share2, Database, Image as ImageIcon, Globe, Notebook,
   LayoutTemplate, LayoutGrid, Send, Tv, Radio, Film, FileText, BarChart2, Music2, Rss,
@@ -91,7 +93,7 @@ const MobileSettingsMenu: React.FC<{
       className="mx-4 mt-4 w-[calc(100%-2rem)] flex items-center gap-4 p-4 rounded-3xl bg-white/[0.04] border border-white/10 active:bg-white/[0.08] text-left"
     >
       {avatarUrl
-        ? <img src={avatarUrl} alt="" className="w-14 h-14 rounded-full object-cover shrink-0" />
+        ? <UserAvatar uid={auth.currentUser?.uid} src={avatarUrl} alt="" className="w-14 h-14 rounded-full object-cover shrink-0" />
         : <div className="w-14 h-14 rounded-full shrink-0 bg-gradient-to-br from-[#6B0099] to-[#FF8C00] flex items-center justify-center text-white font-black text-lg">{initials(displayName)}</div>}
       <div className="min-w-0 flex-1">
         <div className="text-white font-bold text-base truncate">{displayName || 'Your account'}</div>

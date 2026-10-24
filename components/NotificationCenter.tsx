@@ -1,3 +1,4 @@
+import { UserAvatar } from './avatar/UserAvatar';
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Bell, X, MessageCircle, MessageSquare, Plus, Zap, Heart, Inbox, UserPlus, Settings } from 'lucide-react';
@@ -132,7 +133,8 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNavigate, onO
                       >
                         <div className="flex gap-4">
                           <div className="relative shrink-0">
-                            <img
+                            <UserAvatar
+                              uid={n.senderId}
                               src={n.senderPhoto || `https://picsum.photos/seed/${n.senderId}/100/100`}
                               className="w-10 h-10 rounded-full object-cover border border-white/10"
                               alt=""

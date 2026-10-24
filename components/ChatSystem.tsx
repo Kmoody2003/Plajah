@@ -1,3 +1,4 @@
+import { UserAvatar } from './avatar/UserAvatar';
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   MessageSquare, Users, Search, Plus, Settings, ChevronLeft,
@@ -52,7 +53,7 @@ const RoomAvatar: React.FC<{ room: ChatRoom; profiles: Record<string, UserProfil
     return (
       <div className={`${dim} rounded-2xl overflow-hidden border border-white/10 flex-shrink-0 bg-white/5 relative`}>
         {p?.photoURL
-          ? <img src={p.photoURL} alt={p.displayName} className="w-full h-full object-cover" loading="lazy" />
+          ? <UserAvatar uid={otherId} src={p.photoURL} alt={p.displayName} className="w-full h-full object-cover" loading="lazy" />
           : <div className="w-full h-full flex items-center justify-center"><User size={size === 'md' ? 20 : 14} className="text-white/20" /></div>}
         <div className="absolute bottom-0.5 right-0.5 w-2.5 h-2.5 bg-green-500 border-2 border-black rounded-full" />
       </div>
@@ -83,7 +84,7 @@ const RoomAvatar: React.FC<{ room: ChatRoom; profiles: Record<string, UserProfil
         {others.map(id => (
           <div key={id} className="border-[0.5px] border-black/20 overflow-hidden">
             {profiles[id]?.photoURL
-              ? <img src={profiles[id].photoURL!} className="w-full h-full object-cover" alt="" loading="lazy" />
+              ? <UserAvatar uid={id} src={profiles[id].photoURL!} className="w-full h-full object-cover" alt="" loading="lazy" />
               : <div className="w-full h-full bg-white/10" />}
           </div>
         ))}
@@ -418,7 +419,7 @@ const InviteFriendsPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 <div className="space-y-2">
                   {foundOnPlajah.map(u => (
                     <div key={u.uid} className="flex items-center gap-3 p-3 bg-white/[0.03] border border-white/8 rounded-2xl">
-                      <img src={u.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${u.uid}`} className="w-9 h-9 rounded-xl object-cover border border-white/10" alt="" loading="lazy" />
+                      <UserAvatar uid={u.uid} src={u.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${u.uid}`} className="w-9 h-9 rounded-xl object-cover border border-white/10" alt="" loading="lazy" />
                       <div className="flex-1 min-w-0">
                         <p className="text-[10px] font-black text-white truncate">{u.displayName}</p>
                         <p className="text-[8px] text-green-400 font-black uppercase tracking-widest">On Plajah</p>
@@ -525,7 +526,8 @@ const FindContactsPanel: React.FC<{
           <div className="p-3 space-y-1.5">
             {results.map(u => (
               <div key={u.uid} className="flex items-center gap-3 p-3 bg-white/[0.03] border border-white/[0.05] rounded-2xl">
-                <img
+                <UserAvatar
+                  uid={u.uid}
                   src={u.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${u.uid}`}
                   className="w-10 h-10 rounded-xl object-cover border border-white/10 shrink-0"
                   alt=""
@@ -1200,7 +1202,7 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ onBack, initialRoomId, currentU
                     <button key={u.uid} onClick={() => handleStartDM(u)}
                       className="w-full p-3 rounded-2xl bg-white/[0.03] border border-white/[0.05] hover:bg-white/[0.08] hover:border-white/10 transition-all flex items-center gap-3 group"
                     >
-                      <img src={u.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${u.uid}`} className="w-10 h-10 rounded-xl object-cover border border-white/10" alt="" loading="lazy" />
+                      <UserAvatar uid={u.uid} src={u.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${u.uid}`} className="w-10 h-10 rounded-xl object-cover border border-white/10" alt="" loading="lazy" />
                       <div className="flex-1 text-left min-w-0">
                         <p className="text-sm font-black group-hover:text-small-orange transition-colors truncate">{u.displayName}</p>
                         <p className="text-[9px] font-bold text-white/25 truncate">{u.bio || 'Plajah Creator'}</p>

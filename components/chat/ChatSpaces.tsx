@@ -1,3 +1,4 @@
+import { UserAvatar } from '../avatar/UserAvatar';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   MessageSquare, Search, Hash, Users, Radio, Mail, ChevronLeft,
@@ -66,7 +67,7 @@ const Avatar: React.FC<{ room?: ChatRoom; profiles: Record<string, UserProfile>;
     return (
       <div style={dim} className="rounded-xl overflow-hidden border border-white/10 shrink-0 bg-white/5 flex items-center justify-center">
         {p?.photoURL
-          ? <img src={p.photoURL} alt="" className="w-full h-full object-cover" loading="lazy" />
+          ? <UserAvatar uid={otherId} src={p.photoURL} alt="" className="w-full h-full object-cover" loading="lazy" />
           : <User size={size * 0.5} className="text-white/25" />}
       </div>
     );
@@ -241,7 +242,7 @@ const NewDmModal: React.FC<{ onClose: () => void; onStartDM: (u: UserProfile) =>
             <div className="py-10 flex justify-center"><div className="w-6 h-6 border-2 border-small-orange/30 border-t-small-orange rounded-full animate-spin" /></div>
           ) : users.length > 0 ? users.map(u => (
             <button key={u.uid} onClick={() => onStartDM(u)} className="w-full p-3 rounded-2xl bg-white/[0.03] border border-white/[0.05] hover:bg-white/[0.08] flex items-center gap-3 group">
-              <img src={u.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${u.uid}`} className="w-10 h-10 rounded-xl object-cover border border-white/10" alt="" loading="lazy" />
+              <UserAvatar uid={u.uid} src={u.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${u.uid}`} className="w-10 h-10 rounded-xl object-cover border border-white/10" alt="" loading="lazy" />
               <div className="flex-1 text-left min-w-0">
                 <p className="text-sm font-black group-hover:text-small-orange truncate">{u.displayName}</p>
                 <p className="text-[9px] font-bold text-white/25 truncate">{u.bio || 'Plajah Creator'}</p>
@@ -749,7 +750,7 @@ const ChatSpaces: React.FC<ChatSpacesProps> = ({
               <div className="space-y-2">
                 {activeOrgMembers.filter(m => m.status === 'ACTIVE').slice(0, 24).map(m => (
                   <div key={m.id} className="flex items-center gap-2 text-[11px] text-white/60 min-w-0">
-                    <img src={m.photoUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${m.userId}`} className="w-6 h-6 rounded-lg object-cover border border-white/10 shrink-0" alt="" loading="lazy" />
+                    <UserAvatar uid={m.userId} src={m.photoUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${m.userId}`} className="w-6 h-6 rounded-lg object-cover border border-white/10 shrink-0" alt="" loading="lazy" />
                     <div className="min-w-0 flex-1">
                       <p className="truncate leading-tight">{m.displayName}</p>
                       <p className="text-[8px] font-black uppercase tracking-widest text-white/25 truncate">{m.title || m.role}</p>
@@ -758,7 +759,7 @@ const ChatSpaces: React.FC<ChatSpacesProps> = ({
                 ))}
                 {activeOrgMembers.filter(m => m.status === 'ACTIVE').length === 0 && memberProfiles.map(p => (
                   <div key={p.uid} className="flex items-center gap-2 text-[11px] text-white/60">
-                    <img src={p.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.uid}`} className="w-6 h-6 rounded-lg object-cover border border-white/10" alt="" loading="lazy" />
+                    <UserAvatar uid={p.uid} src={p.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.uid}`} className="w-6 h-6 rounded-lg object-cover border border-white/10" alt="" loading="lazy" />
                     <span className="truncate">{p.displayName}</span>
                   </div>
                 ))}
@@ -770,7 +771,7 @@ const ChatSpaces: React.FC<ChatSpacesProps> = ({
               <div className="space-y-2">
                 {memberProfiles.map(p => (
                   <div key={p.uid} className="flex items-center gap-2 text-[11px] text-white/60">
-                    <img src={p.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.uid}`} className="w-6 h-6 rounded-lg object-cover border border-white/10" alt="" loading="lazy" />
+                    <UserAvatar uid={p.uid} src={p.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.uid}`} className="w-6 h-6 rounded-lg object-cover border border-white/10" alt="" loading="lazy" />
                     <span className="truncate">{p.displayName}</span>
                   </div>
                 ))}

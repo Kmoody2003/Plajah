@@ -1,3 +1,4 @@
+import { UserAvatar } from './avatar/UserAvatar';
 import React, { useState, useMemo, useEffect, useRef, Suspense, lazy } from 'react';
 import { Post, Album, Club, UserProfile } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
@@ -697,7 +698,8 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser: onVisitUserProp,
             onClick={() => onVisitUser?.(post.authorId)}
             className="w-10 h-10 rounded-full overflow-hidden border border-white/10 hover:opacity-90 transition-opacity block"
           >
-            <img
+            <UserAvatar
+              uid={post.authorId}
               src={post.authorPhoto || null}
               alt={post.authorName}
               className="w-full h-full object-cover"
@@ -874,7 +876,8 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser: onVisitUserProp,
                             i === editMentionIndex ? 'bg-white/8' : 'hover:bg-white/5'
                           }`}
                         >
-                          <img
+                          <UserAvatar
+                            uid={user.uid}
                             src={user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.uid}`}
                             className="w-8 h-8 rounded-full object-cover border border-white/10 shrink-0"
                             alt=""
@@ -1337,7 +1340,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser: onVisitUserProp,
 
             {/* Post preview chip */}
             <div className="flex items-start gap-3 bg-white/5 border border-white/8 rounded-2xl p-3 mb-5">
-              <img src={post.authorPhoto || ''} className="w-8 h-8 rounded-full shrink-0 object-cover border border-white/10" alt="" />
+              <UserAvatar uid={post.authorId} src={post.authorPhoto || ''} className="w-8 h-8 rounded-full shrink-0 object-cover border border-white/10" alt="" />
               <div className="flex-1 min-w-0">
                 <p className="text-[9px] font-black uppercase tracking-widest text-white/40 mb-0.5">{post.authorName}</p>
                 <p className="text-[11px] text-white/60 line-clamp-2 leading-tight">{post.text || (post.media?.[0]?.title ?? 'Media post')}</p>

@@ -12,7 +12,9 @@
  * no giant prop surface. The ad billboard, nano player, and layout switcher stay
  * where they are in App.tsx.
  */
+import { UserAvatar } from './avatar/UserAvatar';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { auth } from '../services/firebase';
 import {
   User, Settings as SettingsIcon, Music2, Globe, Video as VideoIcon, Film, Zap, Activity,
   Newspaper, BookOpen, Cross, FlaskConical, Radio, AppWindow, Repeat, Gamepad2, Users, UsersRound,
@@ -267,7 +269,7 @@ const CommandSplitNav: React.FC<CommandSplitNavProps> = ({
           aria-label="Switch account"
         >
           <span className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full bg-[var(--glass-3)] ring-2 ring-[var(--pj-orange-soft)]">
-            {avatarUrl ? <img src={avatarUrl} alt="" className="h-full w-full object-cover" /> : <User size={18} className="m-3 text-[var(--on-surface-variant)]" />}
+            {avatarUrl ? <UserAvatar uid={auth.currentUser?.uid} src={avatarUrl} alt="" className="h-full w-full object-cover" /> : <User size={18} className="m-3 text-[var(--on-surface-variant)]" />}
             {!!accountSlot && <span className="absolute bottom-0 right-0 grid h-4 w-4 place-items-center rounded-full bg-[var(--pj-orange)] text-[8px] font-black text-black">{accountSlot}</span>}
           </span>
           <span className="min-w-0 flex-1">
@@ -278,7 +280,7 @@ const CommandSplitNav: React.FC<CommandSplitNavProps> = ({
             <span className="flex -space-x-2" aria-label={`${linkedAccounts.length} linked accounts`}>
               {linkedAccounts.filter(a => a.uid !== linkedAccounts.find(x => x.slot === accountSlot)?.uid).slice(0, 3).map(a => (
                 <span key={a.uid} className="h-6 w-6 overflow-hidden rounded-full border-2 border-[var(--bg-color)] bg-[var(--glass-3)]">
-                  {a.photoURL ? <img src={a.photoURL} alt="" className="h-full w-full object-cover" /> : <User size={10} className="m-1.5" />}
+                  {a.photoURL ? <UserAvatar uid={a.uid} src={a.photoURL} alt="" className="h-full w-full object-cover" /> : <User size={10} className="m-1.5" />}
                 </span>
               ))}
             </span>
@@ -329,7 +331,7 @@ const CommandSplitNav: React.FC<CommandSplitNavProps> = ({
             <button title="Switch account" onClick={onOpenAccountSwitcher}
               className="relative w-10 h-10 rounded-full grid place-items-center font-display italic text-white text-[.8rem] overflow-hidden"
               style={{ background: avatarUrl ? undefined : 'linear-gradient(135deg,#6B0099,#00DAF3)' }}>
-              {avatarUrl ? <img src={avatarUrl} alt="" className="w-full h-full object-cover" /> : (displayName?.[0]?.toUpperCase() || 'P')}
+              {avatarUrl ? <UserAvatar uid={auth.currentUser?.uid} src={avatarUrl} alt="" className="w-full h-full object-cover" /> : (displayName?.[0]?.toUpperCase() || 'P')}
               {!!accountSlot && (
                 <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-[#FF8C00] text-[#2a1500] text-[9px] font-black grid place-items-center border-2 border-[#0E0A16]">{accountSlot}</span>
               )}

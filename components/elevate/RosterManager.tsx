@@ -1,4 +1,5 @@
 // RosterManager — operational roster: Pastoral / Leadership / Staff / Volunteers / Members + Pending approvals.
+import { UserAvatar } from '../avatar/UserAvatar';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Search, ChevronUp, ChevronDown, Pencil, Check, X, Loader2, Camera, UserPlus, Star } from 'lucide-react';
 import type { Organization, OrgMembership, OrgMembershipOnboarding, RosterGroup, UserProfile } from '../../types';
@@ -206,7 +207,7 @@ const RosterManager: React.FC<RosterManagerProps> = ({ org, myMembership, onClos
           </div>}
           {addMode === 'search' && results.map(u => (
             <button key={u.uid} onClick={() => addPerson(u)} disabled={busy === 'add'} className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left hover:bg-white/10">
-              <span className="w-7 h-7 rounded-full overflow-hidden bg-white/10 shrink-0">{u.photoURL && <img src={u.photoURL} alt="" className="w-full h-full object-cover" />}</span>
+              <span className="w-7 h-7 rounded-full overflow-hidden bg-white/10 shrink-0">{u.photoURL && <UserAvatar uid={u.uid} src={u.photoURL} alt="" className="w-full h-full object-cover" />}</span>
               <span className="text-sm text-white flex-1">{u.displayName}</span>
               <span className="text-[10px] font-black uppercase tracking-widest text-small-orange">{busy === 'add' ? '…' : 'Add'}</span>
             </button>
@@ -228,7 +229,7 @@ const RosterManager: React.FC<RosterManagerProps> = ({ org, myMembership, onClos
                 <div key={m.id} className="bg-white/[0.03] border border-white/10 rounded-2xl p-3">
                   <div className="flex items-center gap-3 flex-wrap sm:flex-nowrap">
                     <span className="w-10 h-10 rounded-full overflow-hidden bg-white/10 shrink-0 grid place-items-center text-sm font-black text-white/50">
-                      {photo ? <img src={photo} alt="" className="w-full h-full object-cover" /> : m.displayName.charAt(0)}
+                      {photo ? <UserAvatar uid={m.userId} src={photo} alt="" className="w-full h-full object-cover" /> : m.displayName.charAt(0)}
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-bold text-white truncate flex items-center gap-1.5 flex-wrap">

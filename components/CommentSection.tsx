@@ -1,3 +1,4 @@
+import { UserAvatar } from './avatar/UserAvatar';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -153,7 +154,8 @@ const CommentBubble: React.FC<BubbleProps> = ({
           onClick={() => onVisitUser?.(comment.authorId)}
           className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl sm:rounded-2xl overflow-hidden flex-shrink-0 ring-2 ring-white/5 hover:ring-small-orange/50 transition-all active:scale-90"
         >
-          <img
+          <UserAvatar
+            uid={comment.authorId}
             src={photoSrc}
             alt={comment.authorName}
             className="w-full h-full object-cover"
@@ -518,7 +520,7 @@ const CommentInput: React.FC<InputProps> = ({ postId, replyTo, onClearReply, onC
               >
                 <div className="w-7 h-7 rounded-full overflow-hidden ring-1 ring-white/10 shrink-0">
                   {usr.photoURL
-                    ? <img src={usr.photoURL} className="w-full h-full object-cover" />
+                    ? <UserAvatar uid={usr.uid} src={usr.photoURL} className="w-full h-full object-cover" />
                     : <div className="w-full h-full bg-white/10 flex items-center justify-center text-white/30"><AtSign size={12} /></div>}
                 </div>
                 <span className="text-[11px] font-black uppercase tracking-widest">{usr.displayName}</span>
@@ -532,7 +534,7 @@ const CommentInput: React.FC<InputProps> = ({ postId, replyTo, onClearReply, onC
       <div className="flex items-end gap-3">
         {user?.photoURL && (
           <div className="w-8 h-8 rounded-xl overflow-hidden ring-2 ring-white/5 shrink-0">
-            <img src={user.photoURL} alt="You" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+            <UserAvatar uid={user.uid} src={user.photoURL} alt="You" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
           </div>
         )}
         <div className="flex-1 relative">

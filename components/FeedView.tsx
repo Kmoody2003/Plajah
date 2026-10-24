@@ -1,3 +1,4 @@
+import { UserAvatar } from './avatar/UserAvatar';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { scoreText } from '../src/lib/scoreText';
 import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
@@ -380,7 +381,7 @@ const UserHoverCard: React.FC<{
     <div className="absolute bottom-full left-0 mb-4 w-64 bg-theme-card/95 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-6 shadow-3xl z-[100] animate-in fade-in slide-in-from-bottom-2">
       <div className="flex items-center gap-4 mb-6">
         <div className="w-12 h-12 rounded-full overflow-hidden ring-2 ring-white/5">
-          <img src={thumb(userPhoto, THUMB.micro) || `https://picsum.photos/seed/${userId}/100/100`} onError={onThumbError(userPhoto)} decoding="async" alt={userName} className="w-full h-full object-cover" loading="lazy" />
+          <UserAvatar uid={userId} src={thumb(userPhoto, THUMB.micro) || `https://picsum.photos/seed/${userId}/100/100`} onError={onThumbError(userPhoto)} decoding="async" alt={userName} className="w-full h-full object-cover" loading="lazy" />
         </div>
         <div className="min-w-0">
           <h4 className="font-black text-sm uppercase tracking-tight truncate text-white">{userName}</h4>
@@ -1109,7 +1110,8 @@ const FeedItemComponent: React.FC<{
             onMouseLeave={() => setHoveredUserId(null)}
           >
             {item.authorPhoto ? (
-              <img loading="lazy" decoding="async"
+              <UserAvatar loading="lazy" decoding="async"
+                uid={item.authorId}
                 src={thumb(item.authorPhoto, THUMB.card) || null}
                 onError={onThumbError(item.authorPhoto)}
                 className="w-full h-full object-cover transition-transform duration-700 group-hover/avatar:scale-110"

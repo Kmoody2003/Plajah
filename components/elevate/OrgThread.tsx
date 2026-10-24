@@ -6,6 +6,7 @@
 //   • DEPARTMENT      → readable + commentable by department members only (orgAudience 'DEPARTMENT').
 // Leaders (MODERATE_THREADS) switch the audience and remove posts.
 
+import { UserAvatar } from '../avatar/UserAvatar';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Heart, MessageCircle, Trash2, Send, Lock, Globe, Users, Loader2, UserPlus } from 'lucide-react';
 import type { Organization, OrgMembership, Ministry, Post } from '../../types';
@@ -177,7 +178,7 @@ const OrgThread: React.FC<Props> = ({ org, myMembership, ministry, onVisitUser, 
             return (
               <div key={p.id} className="rounded-2xl p-4 bg-white/[0.03] border border-white/10">
                 <div className="flex items-center gap-2 mb-2">
-                  <img src={p.authorPhoto || org.logoUrl || ''} className="w-8 h-8 rounded-full border border-white/10 object-cover" alt="" />
+                  <UserAvatar uid={p.authorId} src={p.authorPhoto || org.logoUrl || ''} className="w-8 h-8 rounded-full border border-white/10 object-cover" alt="" />
                   <p className="text-sm font-black text-white flex-1 min-w-0 truncate">{p.authorName || org.name}
                     <span className="text-white/30 font-bold text-[9px]"> · {new Date(p.timestamp).toLocaleDateString()}</span></p>
                   {memberOnly && <span className="text-[8px] font-black uppercase tracking-widest text-white/40 flex items-center gap-1"><Users size={9} /> Members</span>}

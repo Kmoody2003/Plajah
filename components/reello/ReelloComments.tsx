@@ -1,3 +1,4 @@
+import { UserAvatar } from '../avatar/UserAvatar';
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { MessageCircle, Send, Loader2, Clock, Sparkles, X, LogIn } from 'lucide-react';
@@ -195,7 +196,7 @@ export const ReelloComments: React.FC<ReelloCommentsProps> = ({
           <div className="flex gap-3 items-start">
             <div className="w-9 h-9 rounded-2xl overflow-hidden bg-white/10 shrink-0 ring-1 ring-white/15">
               {currentUser.photoURL ? (
-                <img src={currentUser.photoURL} alt="" className="w-full h-full object-cover" />
+                <UserAvatar uid={currentUser.uid} src={currentUser.photoURL} alt="" className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-xs font-black text-white/50 bg-gradient-to-tr from-purple-500/30 to-orange-500/30">
                   {(currentUser.displayName || 'U')[0]}
@@ -323,7 +324,7 @@ export const ReelloComments: React.FC<ReelloCommentsProps> = ({
               <div key={c.id} className="flex gap-3.5 items-start group">
                 <div className="w-9 h-9 rounded-2xl overflow-hidden bg-white/10 shrink-0 ring-1 ring-white/10">
                   {photo ? (
-                    <img src={photo} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" />
+                    <UserAvatar uid={c.userId} src={photo} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-xs font-black text-white/50 bg-gradient-to-tr from-purple-500/30 to-orange-500/30">
                       {author[0]}

@@ -1,7 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import { MessageSquare, Calendar, Radio, Mic, Users, Lock, ChevronRight, Clock } from 'lucide-react';
-import { SanctuaryMembership, SanctuaryTier, SanctuaryEvent } from '../../types';
+import { SanctuaryMembership, SanctuaryTier, SanctuaryEvent, Club } from '../../types';
+import { collection, getDocs, query, where } from 'firebase/firestore';
+import { db } from '../../services/backendService';
+import { openClubRoom } from '../../services/halloween/pumpkinPatchClub';
 import { listenToSanctuaryEvents, hasAccess } from '../../services/sanctuaryService';
 import { SANCTUARY_THEME } from './SanctuaryIdentity';
 import SanctuaryFeed from './SanctuaryFeed';
@@ -41,6 +44,17 @@ const SanctuaryInside: React.FC<Props> = ({
   const [loungeOpen, setLoungeOpen] = useState(false);
 
   useEffect(() => listenToSanctuaryEvents(sanctuaryId, setEvents), [sanctuaryId]);
+
+  // Official creator clubs bound to this Sanctuary: their rooms show here and open the same room
+  // in the club (one conversation per room, reachable from both places).
+  const [linkedClubs, setLinkedClubs] = useState<Club[]>([]);
+  useEffect(() => {
+    let live = true;
+    getDocs(query(collection(db, 'clubs'), where('sanctuaryId', '==', sanctuaryId), where('isOfficial', '==', true)))
+      .then(snap => { if (live) setLinkedClubs(snap.docs.map(d => ({ id: d.id, ...(d.data() as Omit<Club, 'id'>) }))); })
+      .catch(() => {});
+    return () => { live = false; };
+  }, [sanctuaryId]);
 
   const canChat = !!isOwner || !!membership;
   const ctx = useMemo(() => ({ isOwner, membership, purchasedItemIds: purchasedIds }), [isOwner, membership, purchasedIds]);
@@ -91,6 +105,30 @@ const SanctuaryInside: React.FC<Props> = ({
           })()}
         </section>
       )}
+
+      {/* Rooms of the official club(s) bound to this Sanctuary */}
+      {linkedClubs.map(club => (
+        <section key={club.id}>
+          <SectionHeading hint="Official club · public">{club.name}</SectionHeading>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {(club.channels ?? []).filter(c => c.type !== 'EVENTS').map(c => (
+              <button
+                key={c.id}
+                onClick={() => openClubRoom(club.id, c.id)}
+                className="text-left rounded-2xl px-4 py-3 flex items-center gap-3 transition-colors hover:brightness-125"
+                style={{ background: SANCTUARY_THEME.panel, border: `1px solid ${SANCTUARY_THEME.line}` }}
+              >
+                <MessageSquare size={16} style={{ color: SANCTUARY_THEME.gold }} className="shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-black text-white truncate">{c.name}</div>
+                  {c.description && <div className="text-[11px] text-white/45 truncate">{c.description}</div>}
+                </div>
+                <ChevronRight size={14} className="text-white/30 shrink-0" />
+              </button>
+            ))}
+          </div>
+        </section>
+      ))}
 
       {/* Members' Lounge teaser */}
       <section>

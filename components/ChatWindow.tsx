@@ -1,3 +1,4 @@
+import { UserAvatar } from './avatar/UserAvatar';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useContextMenu, type MenuNode } from './ui/ContextMenu';
 import {
@@ -166,7 +167,7 @@ const RoomHeaderAvatar: React.FC<{ room: ChatRoom; profiles: Record<string, User
     const p = otherId ? profiles[otherId] : null;
     return (
       <div className="w-9 h-9 rounded-xl overflow-hidden border border-white/10 shrink-0">
-        {p?.photoURL ? <img src={p.photoURL} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-white/10 flex items-center justify-center"><User size={14} className="text-white/20" /></div>}
+        {p?.photoURL ? <UserAvatar uid={otherId} src={p.photoURL} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-white/10 flex items-center justify-center"><User size={14} className="text-white/20" /></div>}
       </div>
     );
   }
@@ -1328,7 +1329,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               {/* Avatar */}
               <div className="w-7 h-7 rounded-lg overflow-hidden border border-white/10 flex-shrink-0 bg-white/5 mb-1">
                 {msg.senderPhoto
-                  ? <img src={msg.senderPhoto} alt="" className="w-full h-full object-cover" />
+                  ? <UserAvatar uid={msg.senderId} src={msg.senderPhoto} alt="" className="w-full h-full object-cover" />
                   : <div className="w-full h-full flex items-center justify-center"><User size={10} className="text-white/20" /></div>}
               </div>
 
@@ -1777,7 +1778,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                   <div key={participantId} className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/[0.05]">
                     <div className="w-9 h-9 rounded-xl overflow-hidden border border-white/10 shrink-0">
                       {p?.photoURL
-                        ? <img src={p.photoURL} alt="" className="w-full h-full object-cover" />
+                        ? <UserAvatar uid={participantId} src={p.photoURL} alt="" className="w-full h-full object-cover" />
                         : <div className="w-full h-full bg-white/10 flex items-center justify-center"><User size={14} className="text-white/20" /></div>}
                     </div>
                     <div className="flex-1 min-w-0">

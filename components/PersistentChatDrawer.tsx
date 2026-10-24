@@ -1,3 +1,4 @@
+import { UserAvatar } from './avatar/UserAvatar';
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
@@ -102,7 +103,7 @@ const RoomFace: React.FC<{ room: ChatRoom; profiles: Record<string, UserProfile>
   if (room.type === 'PRIVATE') {
     const p = others[0] ? profiles[others[0]] : undefined;
     return (
-      <img src={avatarFor(others[0], p?.photoURL)} alt="" referrerPolicy="no-referrer"
+      <UserAvatar uid={others[0]} src={avatarFor(others[0], p?.photoURL)} alt="" referrerPolicy="no-referrer"
         className="rounded-full object-cover border border-white/10 shrink-0" style={{ width: size, height: size }} />
     );
   }
@@ -114,7 +115,7 @@ const RoomFace: React.FC<{ room: ChatRoom; profiles: Record<string, UserProfile>
           <Users size={size * 0.4} className="text-white/30" />
         </div>
       ) : faces.map((id, i) => (
-        <img key={id} src={avatarFor(id, profiles[id]?.photoURL)} alt="" referrerPolicy="no-referrer"
+        <UserAvatar key={id} uid={id} src={avatarFor(id, profiles[id]?.photoURL)} alt="" referrerPolicy="no-referrer"
           className="absolute rounded-full object-cover border-2 border-[#080808]"
           style={{ width: size * 0.7, height: size * 0.7, left: i ? size * 0.3 : 0, top: i ? size * 0.3 : 0 }} />
       ))}
@@ -142,7 +143,8 @@ const MsgBubble: React.FC<MsgBubbleProps> = ({ msg, isMe, onDM }) => {
       onMouseLeave={() => setHovered(false)}
     >
       {!isMe && (
-        <img
+        <UserAvatar
+          uid={msg.senderId}
           src={avatarFor(msg.senderId, msg.senderPhoto)}
           className="w-8 h-8 rounded-xl bg-white/10 border border-white/10 shadow-md shrink-0 mt-1"
           alt=""
@@ -217,7 +219,7 @@ const Composer: React.FC<{ placeholder: string; onSend: (text: string) => Promis
     <form onSubmit={submit} className="px-3 py-3 border-t border-white/5 shrink-0">
       {error && <p className="text-[11px] text-red-400/80 mb-2 px-1">{error}</p>}
       <div className="flex items-center gap-2">
-        <img src={avatarFor(uid, auth.currentUser?.photoURL)} className="w-7 h-7 rounded-full border border-white/10 shrink-0" alt="" />
+        <UserAvatar uid={uid} src={avatarFor(uid, auth.currentUser?.photoURL)} className="w-7 h-7 rounded-full border border-white/10 shrink-0" alt="" />
         <input
           type="text"
           value={text}
@@ -382,7 +384,8 @@ const NotifRow: React.FC<NotifRowProps> = ({ notif, onRead, onNavigate }) => {
       )}
 
       <div className="relative shrink-0">
-        <img
+        <UserAvatar
+          uid={notif.senderId}
           src={avatarFor(notif.senderId, notif.senderPhoto)}
           className="w-10 h-10 rounded-full object-cover border border-white/10"
           alt=""
@@ -730,7 +733,7 @@ const PersistentChatDrawer: React.FC<PersistentChatDrawerProps> = ({
                           className="flex flex-col items-center gap-1 w-14 shrink-0 group"
                         >
                           <div className="relative">
-                            <img src={avatarFor(p.uid, p.photoURL)} alt="" referrerPolicy="no-referrer"
+                            <UserAvatar uid={p.uid} src={avatarFor(p.uid, p.photoURL)} alt="" referrerPolicy="no-referrer"
                               className="w-11 h-11 rounded-full object-cover border-2 border-emerald-500/40 group-hover:border-emerald-400 transition-colors" />
                             <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-400 rounded-full border-2 border-[#080808]" />
                             {startingDm === p.uid && (
@@ -819,7 +822,7 @@ const PersistentChatDrawer: React.FC<PersistentChatDrawerProps> = ({
                           className="flex items-center gap-2 p-1.5 pr-2.5 bg-white/[0.04] hover:bg-white/[0.08] border border-red-500/30 hover:border-red-500/60 rounded-xl shrink-0 transition-all"
                         >
                           <div className="relative">
-                            <img src={avatarFor(feed.ownerId, feed.ownerPhoto)} alt="" className="w-7 h-7 rounded-full object-cover border border-red-500/50" />
+                            <UserAvatar uid={feed.ownerId} src={avatarFor(feed.ownerId, feed.ownerPhoto)} alt="" className="w-7 h-7 rounded-full object-cover border border-red-500/50" />
                             <div className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full border border-black animate-pulse" />
                           </div>
                           <div className="max-w-[110px]">

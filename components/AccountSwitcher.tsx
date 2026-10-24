@@ -1,3 +1,4 @@
+import { UserAvatar } from './avatar/UserAvatar';
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { User, Plus, LogOut, ChevronRight, Zap, X, Check, Keyboard, Car, Package } from 'lucide-react';
@@ -32,14 +33,14 @@ const SLOT_COLORS = {
   4: { bg: 'rgba(0,200,120,0.2)', border: 'rgba(0,200,120,0.5)', glow: '#00C878' },
 };
 
-function Avatar({ user, size = 40 }: { user: { photoURL?: string; displayName?: string } | null; size?: number }) {
+function Avatar({ user, size = 40 }: { user: { uid?: string; photoURL?: string; displayName?: string } | null; size?: number }) {
   return (
     <div
       className="rounded-full overflow-hidden bg-white/10 flex items-center justify-center shrink-0"
       style={{ width: size, height: size }}
     >
       {user?.photoURL
-        ? <img src={user.photoURL} alt={user.displayName || ''} className="w-full h-full object-cover" />
+        ? <UserAvatar uid={user.uid} src={user.photoURL} alt={user.displayName || ''} className="w-full h-full object-cover" />
         : <User size={size * 0.4} className="text-white/40" />
       }
     </div>
@@ -320,7 +321,7 @@ export function HotSwitchOverlay({ slot, account, active }: { slot: number; acco
               style={{ background: colors.bg, border: `2px solid ${colors.border}` }}
             >
               {account?.photoURL
-                ? <img src={account.photoURL} alt="" className="w-full h-full object-cover" />
+                ? <UserAvatar uid={account.uid} src={account.photoURL} alt="" className="w-full h-full object-cover" />
                 : <User size={28} className="text-white/50" />
               }
             </motion.div>

@@ -1,3 +1,4 @@
+import { UserAvatar } from './avatar/UserAvatar';
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { MapPin, TrendingUp, Music, Video, Newspaper, Zap, Clock, MessageSquare, Heart, UserPlus, Plus, Bell, Trophy, ChevronRight, Shield, CalendarDays, ListChecks, Brain, Sparkles, BriefcaseBusiness } from 'lucide-react';
@@ -575,7 +576,8 @@ const ProfileSmartCard: React.FC<ProfileSmartCardProps> = ({
                         className={`flex items-center gap-3 bg-black/20 rounded-xl p-3 transition-all ${navigable ? 'cursor-pointer hover:bg-black/40 active:scale-[0.98]' : ''}`}
                       >
                         <div className="relative shrink-0">
-                          <img
+                          <UserAvatar
+                            uid={n.senderId}
                             src={n.senderPhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${n.senderId}`}
                             className="w-8 h-8 rounded-full object-cover border border-white/10"
                             alt=""
@@ -606,7 +608,8 @@ const ProfileSmartCard: React.FC<ProfileSmartCardProps> = ({
                         role={navigable ? 'button' : undefined}
                         className={`flex items-center gap-3 bg-black/20 rounded-xl p-3 transition-all ${navigable ? 'cursor-pointer hover:bg-black/40 active:scale-[0.98]' : ''}`}
                       >
-                        <img
+                        <UserAvatar
+                          uid={p.authorId}
                           src={p.authorPhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.authorId}`}
                           className="w-8 h-8 rounded-full object-cover border border-white/10 shrink-0"
                           alt=""
@@ -739,7 +742,8 @@ const ProfileSmartCard: React.FC<ProfileSmartCardProps> = ({
                         transition={{ delay: i * 0.04 }}
                         className="flex items-center gap-3 bg-black/20 hover:bg-black/30 transition-colors rounded-xl p-3 cursor-pointer"
                       >
-                        <img
+                        <UserAvatar
+                          uid={item.authorId}
                           src={item.authorPhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${item.authorId}`}
                           className="w-8 h-8 rounded-full shrink-0 border border-white/10 object-cover"
                           alt=""

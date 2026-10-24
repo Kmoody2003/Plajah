@@ -120,6 +120,7 @@ import ThreeDImage from './ThreeDImage';
 import PioneerGoldFrame from './PioneerGoldFrame';
 import DebatesProfileTab from './DebatesProfileTab';
 import SafeAvatarViewer from './SafeAvatarViewer';
+import { CharacterAvatarFlip } from './avatar/CharacterAvatarFlip';
 import PhotoManager from './PhotoManager';
 import MyLibraryView from './MyLibraryView';
 import ArtistMembersArea from './ArtistMembersArea';
@@ -986,7 +987,15 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
             <div className="absolute -inset-3 bg-gradient-to-r from-small-orange via-[#D40055] to-[#6B0099] rounded-[3rem] blur-xl opacity-20 group-hover/avatar:opacity-50 transition-all duration-[1200ms]" />
             <PioneerGoldFrame active={!!(profile.hasSeenWelcomePackage || profile.isPioneer)} size="lg" className={isMobile ? 'w-32 h-32' : 'w-40 h-40 lg:w-56 lg:h-56'}>
             <div className={`relative w-full h-full rounded-[2.5rem] lg:rounded-[3rem] overflow-hidden bg-white/5`}>
-              {profile.avatar?.isActive ? (
+              {profile.avatar?.isActive && profile.avatar.type === 'CHARACTER' ? (
+                // Movie-character avatar: photo ⇄ character portrait with a green lightning flip.
+                <CharacterAvatarFlip
+                  photoUrl={profile.customPhotoURL || profile.photoURL || null}
+                  characterUrl={profile.avatar.thumbnailUrl}
+                  alt={profile.displayName}
+                  className="w-full h-full"
+                />
+              ) : profile.avatar?.isActive ? (
                 <SafeAvatarViewer config={profile.avatar} compact autoRotate className="w-full h-full" />
               ) : (
                 <ThreeDImage

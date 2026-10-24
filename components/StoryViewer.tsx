@@ -1,4 +1,5 @@
 ﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { UserAvatar } from './avatar/UserAvatar';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, ChevronLeft, ChevronRight, ExternalLink, Trash2, Eye, Star, Users } from 'lucide-react';
 import { Story } from '../types';
@@ -103,7 +104,7 @@ const StoryViewer: React.FC<Props> = ({ group, currentUserId, onClose, onVisitUs
         <div className="absolute top-6 inset-x-0 z-10 flex items-center justify-between px-4 pt-2">
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => { onVisitUser?.(group.uid); onClose(); }}>
             {group.photo
-              ? <img loading="lazy" decoding="async" src={group.photo} className="w-8 h-8 rounded-full object-cover ring-1 ring-white/30" alt="" />
+              ? <UserAvatar uid={group.uid} loading="lazy" decoding="async" src={group.photo} className="w-8 h-8 rounded-full object-cover ring-1 ring-white/30" alt="" />
               : <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center font-black text-sm">{group.name[0]}</div>
             }
             <div>
@@ -178,7 +179,7 @@ const StoryViewer: React.FC<Props> = ({ group, currentUserId, onClose, onVisitUs
               <div className="max-h-56 w-56 overflow-y-auto rounded-2xl bg-black/80 backdrop-blur border border-white/10 p-2 space-y-1">
                 {viewers.map(v => (
                   <div key={v.uid} className="flex items-center gap-2 px-2 py-1.5">
-                    {v.photoURL ? <img src={v.photoURL} alt="" className="w-6 h-6 rounded-full object-cover" /> : <div className="w-6 h-6 rounded-full bg-white/15 flex items-center justify-center text-[10px] font-black">{(v.displayName || '?')[0]}</div>}
+                    {v.photoURL ? <UserAvatar uid={v.uid} src={v.photoURL} alt="" className="w-6 h-6 rounded-full object-cover" /> : <div className="w-6 h-6 rounded-full bg-white/15 flex items-center justify-center text-[10px] font-black">{(v.displayName || '?')[0]}</div>}
                     <span className="text-white text-xs truncate">{v.displayName || 'Someone'}</span>
                   </div>
                 ))}

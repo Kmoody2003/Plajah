@@ -1,3 +1,4 @@
+import { UserAvatar } from '../avatar/UserAvatar';
 import React, { useEffect, useRef, useState } from 'react';
 import { Send, Lock } from 'lucide-react';
 import { SanctuaryChatMessage } from '../../types';
@@ -60,7 +61,7 @@ const SanctuaryChat: React.FC<{
           const mine = m.senderId === uid;
           return (
             <div key={m.id} className={`flex items-end gap-2 ${mine ? 'flex-row-reverse' : ''}`}>
-              <img src={m.senderPhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${m.senderId}`} className="w-6 h-6 rounded-full border border-white/10 shrink-0" alt="" />
+              <UserAvatar uid={m.senderId} src={m.senderPhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${m.senderId}`} className="w-6 h-6 rounded-full border border-white/10 shrink-0" alt="" />
               <div className={`max-w-[75%] ${mine ? 'items-end' : 'items-start'} flex flex-col`}>
                 <span className="text-[8px] text-white/25 uppercase tracking-widest px-1 mb-0.5">{mine ? 'You' : m.senderName}</span>
                 <div className="px-3 py-2 rounded-2xl text-[13px] leading-snug"
