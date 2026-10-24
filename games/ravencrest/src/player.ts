@@ -9,7 +9,9 @@ const WALK = 2.0, RUN = 5.6;            // m/s
 const ACCEL = 20, DECEL = 26;           // m/s² toward target speed (snappy, nimble starts/stops)
 const TURN = 16;                        // rad/s body turn rate
 const RADIUS = 0.32, HEIGHT = 1.8, GRAVITY = 24, STEP = 0.4;
-const MOUSE = 0.003;
+const MOUSE = 0.0017;                   // rad per mouse pixel at sensitivity 1 (- / = keys scale it, remembered)
+const SENS_KEY = 'ravencrest.mouseSens';
+const MOUSE_SPIKE = 90;                 // px: larger single-event jumps are Chromium/Edge pointer-lock glitches
 const DOUBLE_TAP_MS = 300;
 const KEY_TURN = 2.7;                   // rad/s: A/D turn Jack in the follow camera
 const CAM_KEY = 'ravencrest.camera2';
@@ -92,8 +94,19 @@ export class PlayerController {
   private histT = 0;
   private noProgress = 0;
 
+  /** Mouse-look sensitivity multiplier (0.3–2.5), changed with - and =. */
+  mouseSens = (() => { try { const v = Number(localStorage.getItem(SENS_KEY)); return v >= 0.3 && v <= 2.5 ? v : 1; } catch { return 1; } })();
+  /** Called when the sensitivity changes (main.ts shows it on screen). */
+  onSens?: (v: number) => void;
+
   constructor(private dom: HTMLElement) {
     addEventListener('keydown', (e) => {
+      if ((e.code === 'Minus' || e.code === 'Equal' || e.code === 'NumpadSubtract' || e.code === 'NumpadAdd') && !e.repeat) {
+        const up = e.code === 'Equal' || e.code === 'NumpadAdd';
+        this.mouseSens = +THREE.MathUtils.clamp(this.mouseSens * (up ? 1.2 : 1 / 1.2), 0.3, 2.5).toFixed(2);
+        try { localStorage.setItem(SENS_KEY, String(this.mouseSens)); } catch { /* */ }
+        this.onSens?.(this.mouseSens);
+      }
       if (e.code === 'KeyO' && !e.repeat) {
         this.followCam = !this.followCam;
         try { localStorage.setItem(CAM_KEY, this.followCam ? 'tank' : 'action'); } catch { /* */ }
@@ -122,8 +135,10 @@ export class PlayerController {
     addEventListener('mousemove', (e) => {
       if (!this.enabled) return;
       if (document.pointerLockElement !== dom && !this.dragging) return;
-      if (this.followCam) this.yaw -= e.movementX * MOUSE; else this.camYaw -= e.movementX * MOUSE;
-      this.camPitch = THREE.MathUtils.clamp(this.camPitch - e.movementY * MOUSE, -1.1, 0.55);
+      if (Math.abs(e.movementX) > MOUSE_SPIKE || Math.abs(e.movementY) > MOUSE_SPIKE) return;
+      const k = MOUSE * this.mouseSens;
+      if (this.followCam) this.yaw -= e.movementX * k; else this.camYaw -= e.movementX * k;
+      this.camPitch = THREE.MathUtils.clamp(this.camPitch - e.movementY * k * 0.75, -1.1, 0.55);
       this.lastMouse = this.time;
     });
     dom.addEventListener('wheel', (e) => { this.camDist = THREE.MathUtils.clamp(this.camDist + e.deltaY * 0.003, 1.6, 7); }, { passive: true });

@@ -92,7 +92,7 @@ const TaleoTabNav: React.FC<{
       items={[
         { id: 'HOME',            icon: <Home size={13} />,        label: 'Home'         },
         { id: 'HALLOWEEN',       icon: <Ghost size={13} className="text-orange-400" />, label: '🎃 Halloween Vault' },
-        { id: 'HAUNTED_EXHIBIT', icon: <Flame size={13} className="text-amber-400" />,  label: '🏰 Haunted Crossroads' },
+        { id: 'HAUNTED_EXHIBIT', icon: <Flame size={13} className="text-amber-400" />,  label: '🏰 Explore Ravencrest' },
         { id: 'MOVIES',          icon: <Film size={13} />,        label: 'Movies'       },
         { id: 'TV',              icon: <Monitor size={13} />,     label: 'TV'           },
         { id: 'CURATOR',         icon: <Sparkles size={13} />,    label: 'Curator'      },
@@ -855,7 +855,7 @@ const HomeView: React.FC<{
                   onClick={() => setCurrentSubView('HAUNTED_EXHIBIT')}
                   className="h-11 px-5 bg-gradient-to-r from-purple-950/90 via-stone-900 to-orange-950/90 hover:from-purple-900 hover:to-orange-900 border border-amber-400/45 text-amber-200 font-black text-[10px] uppercase tracking-widest rounded-full flex items-center gap-2 transition-all hover:scale-105 shadow-lg cursor-pointer"
                 >
-                  <Flame size={14} className="text-orange-400" /> 🏰 Enter Haunted Castle &amp; Crossroads 3D Exhibit
+                  <Flame size={14} className="text-orange-400" /> 🏰 Explore Ravencrest
                 </button>
                 <ShareButton
                   title={`Halloween Curation · Pumpkin Patch & ${CURATED_HALLOWEEN_FILMS.length} Classics`}
@@ -1857,7 +1857,7 @@ const HalloweenShowcaseView: React.FC<{
               Halloween Curation Vault · Midnight Coven Edition
             </span>
             <span className="hidden md:inline text-[11px] text-amber-200/70">
-              Live Persistent Chat &amp; Fan Room · 6 Realistic Monster Face Filters · Found-Footage Night Beam · 3D Haunted Castle Crossroads
+              Live Persistent Chat &amp; Fan Room · 6 Realistic Monster Face Filters · Found-Footage Night Beam · Ravencrest, the playable 3D castle
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -1871,7 +1871,7 @@ const HalloweenShowcaseView: React.FC<{
               onClick={onOpenHauntedExhibition}
               className="px-3 py-1 rounded-full bg-emerald-500/20 hover:bg-emerald-500/35 border border-emerald-400/50 text-emerald-200 text-[10px] font-black uppercase tracking-wider transition cursor-pointer"
             >
-              🏰 Enter Haunted Castle &amp; Crossroads 3D Exhibit →
+              🏰 Explore Ravencrest →
             </button>
           </div>
         </div>
@@ -1929,7 +1929,7 @@ const HalloweenShowcaseView: React.FC<{
                 onClick={onOpenHauntedExhibition}
                 className="h-12 px-6 bg-gradient-to-r from-emerald-600 via-teal-600 to-orange-600 hover:from-emerald-500 hover:to-orange-500 text-white font-black text-xs uppercase tracking-widest rounded-full flex items-center gap-2 transition-all hover:scale-105 shadow-[0_0_25px_rgba(16,185,129,0.35)] cursor-pointer"
               >
-                <span>🏰</span> Enter Haunted Castle &amp; Crossroads 3D Exhibit
+                <span>🏰</span> Explore Ravencrest
               </button>
               <button
                 onClick={() => onToggleWatchlist(pumpkinPatchHero)}
@@ -2035,30 +2035,30 @@ const HalloweenShowcaseView: React.FC<{
       </section>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-12 pt-10 space-y-16">
-        {/* ── OPTIONAL INTERACTIVE 3D EXHIBITION PORTAL: HAUNTED CASTLE & LONESOME CROSSROADS ── */}
+        {/* ── RAVENCREST: THE PLAYABLE 3D CASTLE ── */}
         <section className="relative rounded-3xl overflow-hidden border-2 border-orange-500/40 bg-gradient-to-r from-[#1a0b25] via-[#0e171f] to-[#240e08] p-6 sm:p-8 shadow-[0_0_60px_rgba(249,115,22,0.18)]">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
             <div className="lg:col-span-7 space-y-3">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/50 text-emerald-300 text-[10px] font-black uppercase tracking-widest">
-                  ✨ Optional Live Interactive 3D Exhibition
+                  ✨ Playable 3D Adventure
                 </span>
                 <span className="px-2.5 py-0.5 rounded-full bg-orange-500/20 border border-orange-400/40 text-orange-300 text-[10px] font-mono">
                   Powered by Story Intelligence + 26-Page Graphic Novel + Stills
                 </span>
               </div>
               <h2 className="text-2xl sm:text-4xl font-black uppercase tracking-tight text-white">
-                🏰 Virtual Haunted Castle &amp; <span className="text-orange-400">Lonesome Road Intersection</span>
+                🏰 Explore <span className="text-orange-400">Ravencrest</span>
               </h2>
               <p className="text-xs sm:text-sm text-stone-300 leading-relaxed">
-                Step into a live spooky night landscape where the <span className="text-orange-300 font-semibold">curated Halloween movies are the directional road signs</span> at a lonesome highway intersection and appear on <span className="text-amber-300 font-semibold">dilapidated roadside billboards</span> down each road. Watch as <span className="text-emerald-300 font-semibold">Wicked Witch Miriam flies across the full moon with her laughing witch cackle and army of winged monkeys</span>, and <span className="text-orange-400 font-semibold">Pumpkin Patch himself materializes in the road igniting his dual plasma blades</span> before vanishing into the mist.
+                Play as <span className="text-orange-300 font-semibold">Jack or Elise</span> down the haunted road to Castle Ravencrest: fight through the horde, survive the <span className="text-amber-300 font-semibold">troll on the bridge</span> with Miriam and her flying monkeys at your back, and take on <span className="text-orange-400 font-semibold">Dracula</span> alongside Pumpkin Patch. The curated Halloween films hang on the billboards and castle paintings; click one to watch it.
               </p>
               <div className="flex flex-wrap items-center gap-3 pt-2">
                 <button
                   onClick={onOpenHauntedExhibition}
                   className="px-6 py-3 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-black font-black text-xs uppercase tracking-widest shadow-xl flex items-center gap-2 transition transform hover:scale-105 cursor-pointer"
                 >
-                  <span>🏰</span> Enter Haunted Castle &amp; Crossroads Exhibition
+                  <span>🏰</span> Explore Ravencrest
                 </button>
                 <a
                   href="#halloween-vault-live-room"
@@ -3219,7 +3219,7 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
               onClick={() => setCurrentSubView('HAUNTED_EXHIBIT')}
               className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-emerald-300 text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer"
             >
-              <Flame size={12} className="text-orange-400" /> 🏰 Haunted Crossroads 3D
+              <Flame size={12} className="text-orange-400" /> 🏰 Explore Ravencrest
             </button>
             <button className="text-white/60 hover:text-white transition-colors p-2 rounded-xl hover:bg-white/5" onClick={() => setShowSearch(true)}>
               <Search size={20} />

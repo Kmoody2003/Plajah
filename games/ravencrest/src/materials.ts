@@ -18,7 +18,12 @@ function tex(path: string, srgb: boolean): THREE.Texture {
   const key = `${path}|${srgb}`;
   let t = cache.get(key);
   if (!t) {
-    t = loader.load(path);
+    // A 2k map missing from this deployment (the web build ships the 1k tier) falls back to its 1k file.
+    const t0: THREE.Texture = loader.load(path, undefined, undefined, () => {
+      if (/_1k\.jpg$/.test(path)) return;
+      loader.load(path.replace(/\.jpg$/, '_1k.jpg'), (lo) => { t0.image = lo.image; t0.needsUpdate = true; });
+    });
+    t = t0;
     t.wrapS = t.wrapT = THREE.RepeatWrapping;
     t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
     t.anisotropy = 8;

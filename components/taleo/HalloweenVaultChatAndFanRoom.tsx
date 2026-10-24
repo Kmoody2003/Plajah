@@ -857,7 +857,7 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
               onClick={onOpenHauntedExhibition}
               className="h-11 px-5 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-400 to-orange-400 hover:brightness-110 text-black font-black text-[10px] uppercase tracking-widest flex items-center gap-2 shadow-[0_0_25px_rgba(16,185,129,0.35)] transition-all cursor-pointer"
             >
-              <Compass size={15} /> 🏰 Enter Haunted Castle &amp; Crossroads 3D Exhibit
+              <Compass size={15} /> 🏰 Explore Ravencrest
             </button>
             <button
               onClick={() => {

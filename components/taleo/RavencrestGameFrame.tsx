@@ -37,6 +37,23 @@ export const RavencrestGameFrame: React.FC<{ classic: React.ReactNode; onBack: (
     return () => window.removeEventListener('message', onMessage);
   }, [registerAndUnlock]);
 
+  // The game's pause screen has "Exit to Plajah": it posts ravencrest:exit.
+  useEffect(() => {
+    const onMessage = (e: MessageEvent) => {
+      if (e.origin === window.location.origin && (e.data as { type?: string } | null)?.type === 'ravencrest:exit') onBack();
+    };
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, [onBack]);
+
+  // Full window while playing: the game covers Plajah's chrome and the page stops scrolling underneath.
+  useEffect(() => {
+    if (mode !== 'game') return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, [mode]);
+
   useEffect(() => {
     if (!onWatch) return;
     const onMessage = (e: MessageEvent) => {
@@ -64,18 +81,23 @@ export const RavencrestGameFrame: React.FC<{ classic: React.ReactNode; onBack: (
   }
 
   return (
-    <div className="relative w-full" style={{ height: 'calc(100vh - 4rem)' }}>
+    <div className="fixed inset-0 z-[10000] bg-black">
       <iframe
         title="Ravencrest"
         src="/games/ravencrest/play/index.html"
         className="absolute inset-0 w-full h-full border-0 bg-black"
-        allow="fullscreen; autoplay; gamepad"
+        allow="fullscreen; autoplay; gamepad; xr-spatial-tracking"
         allowFullScreen
+        ref={(el) => { el?.focus(); }}
       />
-      <div className="absolute top-3 left-3 flex gap-3 text-xs tracking-widest uppercase">
-        <button onClick={onBack} className="px-3 py-1.5 bg-black/60 text-slate-200 hover:bg-black/80 rounded">← Vault</button>
-        <button onClick={() => setMode('classic')} className="px-3 py-1.5 bg-black/60 text-slate-300 hover:bg-black/80 rounded">Classic exhibition</button>
-      </div>
+      {/* Pause and exit live in the game (Esc / P); this is the always-visible way out. */}
+      <button
+        onClick={onBack}
+        title="Exit Ravencrest"
+        className="absolute top-3 right-3 px-3 py-1.5 text-xs tracking-widest uppercase bg-black/50 text-slate-300 hover:bg-black/80 hover:text-white rounded"
+      >
+        Exit ✕
+      </button>
     </div>
   );
 };

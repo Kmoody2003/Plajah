@@ -155,7 +155,8 @@ export class BridgeBattle {
 
     // Muse's sculpted arms (creatures/bases): skinned onto the same procedural chains.
     const T = '/games/ravencrest/assets/creatures/bases/';
-    Promise.all([loadGLB(`${T}kraken_tentacle_a.glb`), loadGLB(`${T}kraken_tentacle_b.glb`)]).then(([ga, gb]) => {
+    // Only seen at the bridge: fetched after start-up so they don't compete with the opening road.
+    new Promise((res) => setTimeout(res, 25000)).then(() => Promise.all([loadGLB(`${T}kraken_tentacle_a.glb`), loadGLB(`${T}kraken_tentacle_b.glb`)])).then(([ga, gb]) => {
       const first = (g: { scene: THREE.Object3D }) => { let m: THREE.Mesh | null = null; g.scene.traverse((o) => { if (!m && (o as THREE.Mesh).isMesh) m = o as THREE.Mesh; }); return m as THREE.Mesh | null; };
       const a = first(ga), b = first(gb);
       for (const arm of this.arms) { const src = arm.variant === 'B' ? b ?? a : a ?? b; if (src) arm.useModel(src); }

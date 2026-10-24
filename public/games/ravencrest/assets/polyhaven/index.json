@@ -1,0 +1,167 @@
+{
+  "res": "2k",
+  "license": "CC0 (polyhaven.com)",
+  "textures": {
+    "asphalt_02": {
+      "diff": "textures/asphalt_02/diff.jpg",
+      "nor_gl": "textures/asphalt_02/nor_gl.jpg",
+      "rough": "textures/asphalt_02/rough.jpg",
+      "ao": "textures/asphalt_02/ao.jpg",
+      "disp": "textures/asphalt_02/disp.jpg"
+    },
+    "road_damaged": {
+      "diff": "textures/road_damaged/diff.jpg",
+      "nor_gl": "textures/road_damaged/nor_gl.jpg",
+      "rough": "textures/road_damaged/rough.jpg",
+      "ao": "textures/road_damaged/ao.jpg",
+      "disp": "textures/road_damaged/disp.jpg"
+    },
+    "castle_brick_07": {
+      "diff": "textures/castle_brick_07/diff.jpg",
+      "nor_gl": "textures/castle_brick_07/nor_gl.jpg",
+      "rough": "textures/castle_brick_07/rough.jpg",
+      "ao": "textures/castle_brick_07/ao.jpg",
+      "disp": "textures/castle_brick_07/disp.jpg"
+    },
+    "castle_wall_slates": {
+      "diff": "textures/castle_wall_slates/diff.jpg",
+      "nor_gl": "textures/castle_wall_slates/nor_gl.jpg",
+      "rough": "textures/castle_wall_slates/rough.jpg",
+      "ao": "textures/castle_wall_slates/ao.jpg",
+      "disp": "textures/castle_wall_slates/disp.jpg"
+    },
+    "medieval_wall_02": {
+      "diff": "textures/medieval_wall_02/diff.jpg",
+      "nor_gl": "textures/medieval_wall_02/nor_gl.jpg",
+      "rough": "textures/medieval_wall_02/rough.jpg",
+      "ao": "textures/medieval_wall_02/ao.jpg",
+      "disp": "textures/medieval_wall_02/disp.jpg"
+    },
+    "roof_slates_02": {
+      "diff": "textures/roof_slates_02/diff.jpg",
+      "nor_gl": "textures/roof_slates_02/nor_gl.jpg",
+      "rough": "textures/roof_slates_02/rough.jpg",
+      "ao": "textures/roof_slates_02/ao.jpg",
+      "disp": "textures/roof_slates_02/disp.jpg"
+    },
+    "cliff_side": {
+      "diff": "textures/cliff_side/diff.jpg",
+      "nor_gl": "textures/cliff_side/nor_gl.jpg",
+      "rough": "textures/cliff_side/rough.jpg",
+      "ao": "textures/cliff_side/ao.jpg",
+      "disp": "textures/cliff_side/disp.jpg"
+    },
+    "rock_face": {
+      "diff": "textures/rock_face/diff.jpg",
+      "nor_gl": "textures/rock_face/nor_gl.jpg",
+      "rough": "textures/rock_face/rough.jpg",
+      "ao": "textures/rock_face/ao.jpg",
+      "disp": "textures/rock_face/disp.jpg"
+    },
+    "forest_ground_04": {
+      "diff": "textures/forest_ground_04/diff.jpg",
+      "nor_gl": "textures/forest_ground_04/nor_gl.jpg",
+      "rough": "textures/forest_ground_04/rough.jpg",
+      "ao": "textures/forest_ground_04/ao.jpg",
+      "disp": "textures/forest_ground_04/disp.jpg"
+    },
+    "mossy_rock": {
+      "diff": "textures/mossy_rock/diff.jpg",
+      "nor_gl": "textures/mossy_rock/nor_gl.jpg",
+      "rough": "textures/mossy_rock/rough.jpg",
+      "ao": "textures/mossy_rock/ao.jpg",
+      "disp": "textures/mossy_rock/disp.jpg"
+    },
+    "rusty_metal_02": {
+      "diff": "textures/rusty_metal_02/diff.jpg",
+      "nor_gl": "textures/rusty_metal_02/nor_gl.jpg",
+      "rough": "textures/rusty_metal_02/rough.jpg",
+      "ao": "textures/rusty_metal_02/ao.jpg",
+      "disp": "textures/rusty_metal_02/disp.jpg"
+    },
+    "weathered_planks": {
+      "diff": "textures/weathered_planks/diff.jpg",
+      "nor_gl": "textures/weathered_planks/nor_gl.jpg",
+      "rough": "textures/weathered_planks/rough.jpg",
+      "ao": "textures/weathered_planks/ao.jpg",
+      "disp": "textures/weathered_planks/disp.jpg"
+    },
+    "cobblestone_floor_04": {
+      "diff": "textures/cobblestone_floor_04/diff.jpg",
+      "nor_gl": "textures/cobblestone_floor_04/nor_gl.jpg",
+      "rough": "textures/cobblestone_floor_04/rough.jpg",
+      "ao": "textures/cobblestone_floor_04/ao.jpg",
+      "disp": "textures/cobblestone_floor_04/disp.jpg"
+    },
+    "marble_01": {
+      "diff": "textures/marble_01/diff.jpg",
+      "nor_gl": "textures/marble_01/nor_gl.jpg",
+      "rough": "textures/marble_01/rough.jpg",
+      "ao": "textures/marble_01/ao.jpg",
+      "disp": "textures/marble_01/disp.jpg"
+    },
+    "large_floor_tiles_02": {
+      "diff": "textures/large_floor_tiles_02/diff.jpg",
+      "nor_gl": "textures/large_floor_tiles_02/nor_gl.jpg",
+      "rough": "textures/large_floor_tiles_02/rough.jpg",
+      "ao": "textures/large_floor_tiles_02/ao.jpg",
+      "disp": "textures/large_floor_tiles_02/disp.jpg"
+    },
+    "medieval_blocks_02": {
+      "diff": "textures/medieval_blocks_02/diff.jpg",
+      "nor_gl": "textures/medieval_blocks_02/nor_gl.jpg",
+      "rough": "textures/medieval_blocks_02/rough.jpg",
+      "ao": "textures/medieval_blocks_02/ao.jpg",
+      "disp": "textures/medieval_blocks_02/disp.jpg"
+    },
+    "dark_wooden_planks": {
+      "diff": "textures/dark_wooden_planks/diff.jpg",
+      "nor_gl": "textures/dark_wooden_planks/nor_gl.jpg",
+      "rough": "textures/dark_wooden_planks/rough.jpg",
+      "ao": "textures/dark_wooden_planks/ao.jpg",
+      "disp": "textures/dark_wooden_planks/disp.jpg"
+    },
+    "stone_tiles_02": {
+      "diff": "textures/stone_tiles_02/diff.jpg",
+      "nor_gl": "textures/stone_tiles_02/nor_gl.jpg",
+      "rough": "textures/stone_tiles_02/rough.jpg",
+      "ao": "textures/stone_tiles_02/ao.jpg",
+      "disp": "textures/stone_tiles_02/disp.jpg"
+    }
+  },
+  "models": {
+    "dead_tree_trunk": "models/dead_tree_trunk/dead_tree_trunk_2k.gltf",
+    "dead_tree_trunk_02": "models/dead_tree_trunk_02/dead_tree_trunk_02_2k.gltf",
+    "rock_face_01": "models/rock_face_01/rock_face_01_2k.gltf",
+    "rock_face_02": "models/rock_face_02/rock_face_02_2k.gltf",
+    "boulder_01": "models/boulder_01/boulder_01_2k.gltf",
+    "large_iron_gate": "models/large_iron_gate/large_iron_gate_2k.gltf",
+    "large_castle_door": "models/large_castle_door/large_castle_door_2k.gltf",
+    "street_lamp_02": "models/street_lamp_02/street_lamp_02_2k.gltf",
+    "shrub_01": "models/shrub_01/shrub_01_2k.gltf",
+    "tree_stump_01": "models/tree_stump_01/tree_stump_01_2k.gltf",
+    "wine_barrel_01": "models/wine_barrel_01/wine_barrel_01_1k.gltf",
+    "wooden_crate_01": "models/wooden_crate_01/wooden_crate_01_1k.gltf",
+    "wooden_barrels_01": "models/wooden_barrels_01/wooden_barrels_01_1k.gltf",
+    "wooden_lantern_01": "models/wooden_lantern_01/wooden_lantern_01_1k.gltf",
+    "lantern_chandelier_01": "models/lantern_chandelier_01/lantern_chandelier_01_1k.gltf",
+    "wooden_candlestick": "models/wooden_candlestick/wooden_candlestick_1k.gltf",
+    "brass_candleholders": "models/brass_candleholders/brass_candleholders_1k.gltf",
+    "gothic_coffee_table": "models/gothic_coffee_table/gothic_coffee_table_1k.gltf",
+    "kite_shield": "models/kite_shield/kite_shield_1k.gltf",
+    "wooden_bookshelf_worn": "models/wooden_bookshelf_worn/wooden_bookshelf_worn_1k.gltf",
+    "treasure_chest": "models/treasure_chest/treasure_chest_1k.gltf",
+    "gothic_statue": "models/gothic_statue/gothic_statue_1k.gltf",
+    "vintage_cabinet_01": "models/vintage_cabinet_01/vintage_cabinet_01_1k.gltf",
+    "painted_wooden_bench": "models/painted_wooden_bench/painted_wooden_bench_1k.gltf",
+    "stone_fire_pit": "models/stone_fire_pit/stone_fire_pit_1k.gltf",
+    "covered_car": "models/covered_car/covered_car_1k.gltf",
+    "Barrel_01": "models/Barrel_01/Barrel_01_1k.gltf",
+    "barrel_03": "models/barrel_03/barrel_03_1k.gltf",
+    "cement_bag": "models/cement_bag/cement_bag_1k.gltf"
+  },
+  "hdri": {
+    "narrow_moonlit_road": "hdri/narrow_moonlit_road_2k.hdr",
+    "rogland_moonlit_night": "hdri/rogland_moonlit_night_2k.hdr"
+  }
+}

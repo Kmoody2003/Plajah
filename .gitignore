@@ -142,8 +142,17 @@ public/ort/
 # Built worship-gallery bundle — generated, and it inlines model/API config (GitHub push protection flagged a key)
 public/sanctuary-plates/worshipGallery.bundle.js
 
-# Ravencrest CC0 cache (re-create with: node scripts/ravencrest/fetchPolyhaven.mjs)
-public/games/ravencrest/assets/polyhaven/
+# Ravencrest CC0 Poly Haven assets (node scripts/ravencrest/fetchPolyhaven.mjs, then
+# scripts/ravencrest/slimTextures.py). What the game loads in browsers ships with the site: the
+# models and the 1k texture tier. Kept local: the 2k tier (the desktop app falls back to 1k on the
+# web build, materials.ts), the raw unpacked ao/rough/disp maps, and the unused HDRIs.
+public/games/ravencrest/assets/polyhaven/hdri/
+public/games/ravencrest/assets/polyhaven/textures/*/ao.jpg
+public/games/ravencrest/assets/polyhaven/textures/*/rough.jpg
+public/games/ravencrest/assets/polyhaven/textures/*/disp.jpg
+public/games/ravencrest/assets/polyhaven/textures/*/diff.jpg
+public/games/ravencrest/assets/polyhaven/textures/*/nor_gl.jpg
+public/games/ravencrest/assets/polyhaven/textures/*/ard.jpg
 .lens-shots/
 
 # Raw/source media kept local (too large for git; not loaded by the app)

@@ -141,6 +141,8 @@ function prototype(kind: MobKind): Promise<Prototype> {
   if (!protos.has(kind)) protos.set(kind, (async () => {
     const k = KINDS[kind];
     if (k.baked) {
+      // Start every capture downloading alongside the model (each awaited in turn below).
+      for (const f of [...Object.values(k.mocap ?? {}), k.strikes]) if (f) loadFBX(`${MOCAP}${f}.fbx`).catch(() => {});
       const file = await loadGLB(k.url);
       const by = (n: string) => file.animations.find((a) => a.name === n);
       const clips: Partial<Record<ClipName, THREE.AnimationClip>> = {

@@ -8,7 +8,7 @@ import { buildGrandHall } from './grandHall';
 import { buildViaduct } from './viaduct';
 import { moonSky } from './sky';
 import { buildPost } from './post';
-import { loadJack, Character, type Hero } from './character';
+import { loadJack, prefetchHero, Character, type Hero } from './character';
 import { Difficulty } from './mobs';
 import { FxBudget } from './vfx';
 import { CollisionWorld } from './collision';
@@ -43,6 +43,29 @@ import { gustUniform } from './foliage';
 import { moatUniforms, addMoatRipple } from './materials';
 
 const params = new URLSearchParams(location.search);
+// ── Loading screen (index.html #menuLoad): a phase line plus a bar fed by every three.js loader ──
+const loadEl = document.getElementById('menuLoad');
+const loadMsg = loadEl?.querySelector('span') ?? null;
+const loadBar = loadEl?.querySelector('i') as HTMLElement | null;
+let loadPhase = 0;   // 0..1 of the start-up steps before assets stream
+function loadStep(msg: string, frac: number) { if (loadMsg) loadMsg.textContent = msg; loadPhase = frac; paintLoad(); }
+let assetsDone = 0, assetsTotal = 0, worldLive = false;
+function paintLoad() {
+  if (!loadBar) return;
+  const assets = assetsTotal ? assetsDone / assetsTotal : 0;
+  // The world being playable is the first 60%; monsters and props streaming in fill the rest.
+  const f = worldLive ? 0.6 + 0.4 * assets : 0.6 * Math.max(loadPhase, loadPhase * 0.7 + assets * 0.3);
+  loadBar.style.width = `${Math.round(Math.min(1, f) * 100)}%`;
+  if (worldLive && loadMsg) loadMsg.textContent = assetsDone >= assetsTotal ? 'Ravencrest is ready' : `The night is still gathering · ${assetsDone} / ${assetsTotal}`;
+  // Hide once everything queued has landed and nothing new started for a moment.
+  if (worldLive && assetsDone >= assetsTotal) { const n = assetsTotal; setTimeout(() => { if (assetsDone >= assetsTotal && assetsTotal === n) loadEl?.classList.add('done'); }, 2500); }
+  else loadEl?.classList.remove('done');
+}
+THREE.DefaultLoadingManager.onStart = (_u, done, total) => { assetsDone = done; assetsTotal = total; paintLoad(); };
+THREE.DefaultLoadingManager.onProgress = (_u, done, total) => { assetsDone = done; assetsTotal = total; paintLoad(); };
+// The chosen hero downloads first, ahead of the world (index.html already knows the pick).
+prefetchHero(((window as unknown as { __heroPick?: Hero }).__heroPick) === 'elise' ? 'elise' : 'jack');
+loadStep('Waking the graphics card', 0.1);
 if (params.has('debug')) (THREE.Node as unknown as { captureStackTrace: boolean }).captureStackTrace = true;
 // Quality preset: integrated GPUs (Windows WebGPU ignores powerPreference and often picks the
 // iGPU) get 'medium'; discrete GPUs get 'high'. Override with ?q=low|medium|high.
@@ -70,7 +93,9 @@ const gpuArch = `${adapterInfo?.vendor ?? ''} ${adapterInfo?.architecture ?? ''}
 const strongMobile = /adreno-[78]|adreno-[78]\d\d|apple|immortalis|mali-g7/.test(gpuArch);
 // Desktop: Plajah's Windows app → the RTX 4070 ('ultra'); browsers on the Intel Arc iGPU →
 // 'medium' (the main target); discrete Nvidia/AMD in a browser → 'high'.
-const quality = (params.get('q') ?? (isMobile ? (strongMobile ? 'medium' : 'low') : inDesktopApp ? 'ultra' : integrated ? 'medium' : 'high')) as 'low' | 'medium' | 'high' | 'ultra';
+// After a graphics-card reset (device lost, usually out of video memory) the game reloads once a tier lower.
+const lostTier = (() => { try { return sessionStorage.getItem('ravencrest.lostTier'); } catch { return null; } })();
+const quality = (params.get('q') ?? lostTier ?? (isMobile ? (strongMobile ? 'medium' : 'low') : inDesktopApp ? 'ultra' : integrated ? 'medium' : 'high')) as 'low' | 'medium' | 'high' | 'ultra';
 /** Frame-time target for the dynamic resolution (ms): 30 fps on phones, 60 elsewhere. */
 const frameTarget = isMobile ? 33.3 : 16.7;
 const Q = {
@@ -104,6 +129,22 @@ const xrDevice = params.has('xr') || /OculusBrowser|Quest|Pico|Wolvic|Android XR
 const renderer = new THREE.WebGPURenderer({ antialias: false, powerPreference: 'high-performance', trackTimestamp: params.has('prof'), reversedDepthBuffer: params.get('rdepth') !== '0' && !xrDevice, forceWebGL: xrDevice });
 if (xrDevice) renderer.xr.enabled = true;
 await renderer.init();
+const TIER_DOWN: Record<string, string> = { ultra: 'high', high: 'medium', medium: 'low', low: 'low' };
+(renderer as unknown as { onDeviceLost: (info: { message?: string; reason?: string }) => void }).onDeviceLost = (info) => {
+  console.error('[ravencrest] graphics device lost', info);
+  let retried = false;
+  try { retried = sessionStorage.getItem('ravencrest.lostRetried') === '1'; } catch { /* */ }
+  const msg = document.createElement('div');
+  msg.style.cssText = 'position:fixed;inset:0;z-index:99;display:grid;place-items:center;background:#000d;color:#e8c690;font:14px Georgia,serif;letter-spacing:.2em;text-align:center;padding:24px';
+  msg.textContent = retried
+    ? 'The graphics card reset again. Close other tabs or games and reload to try once more.'
+    : 'The graphics card ran out of memory — restarting Ravencrest at lighter settings…';
+  document.body.appendChild(msg);
+  if (retried) return;
+  try { sessionStorage.setItem('ravencrest.lostRetried', '1'); sessionStorage.setItem('ravencrest.lostTier', TIER_DOWN[quality] ?? 'low'); } catch { /* */ }
+  setTimeout(() => location.reload(), 1800);
+};
+loadStep('Raising the road and the castle', 0.3);
 // Display buffer at native (capped) density; the scene renders at `internalH` and FSR1
 // upscales. Dynamic resolution moves internalH between resMin and the preset height.
 const targetRes = Number(params.get('res')) || Q.res;
@@ -131,6 +172,7 @@ const outside = new THREE.Scene();
 Forest.density = isMobile ? (strongMobile ? 0.65 : 0.45) : quality === 'low' ? 0.65 : 1;
 if (isMobile) tuning.cullDist = 32;
 const world = await buildArrival(anchor, renderer);
+loadStep('Lighting the torches', 0.6);
 // The deep forest's impostors are baked from the real tree variants once (forest.ts).
 world.forest.bake(renderer).catch((e) => console.warn('[ravencrest] forest impostors failed', e));
 outside.add(world.group);
@@ -154,6 +196,7 @@ world.group.traverse((o) => {
 
 // ── The Halloween collection: Cinema Mile billboards + hall paintings (cinema.ts) ──
 const films = await loadFilms();
+loadStep('Hanging the films', 0.85);
 const mile = buildBillboards(world.road, films);
 outside.add(mile.group);
 
@@ -333,8 +376,10 @@ else {
     h.addEventListener('pointerenter', () => sfx.uiHover());
     h.addEventListener('click', () => {
       heroPick = h.dataset.hero as Hero;
+      prefetchHero(heroPick);
       menuEl.querySelectorAll('.hero').forEach((x) => x.classList.toggle('on', x === h));
       menuEl.classList.toggle('elise', heroPick === 'elise');   // accent: Plajah orange for Jack, purple for Elise
+      loadEl?.classList.toggle('elise', heroPick === 'elise');
       sfx.uiSelect();
     });
   });
@@ -567,6 +612,7 @@ const game = new Game({
   lens,
   eventActive: (): boolean => (nightmare.phase !== 'wait' && nightmare.phase !== 'done') || bridgeBattle.active,
 });
+player.onSens = (v) => game.call(`Mouse sensitivity ${Math.round(v * 100)}%  ( -  / = )`, 1.6, '#ffd9a0');
 gameRef = game;
 setTimeout(preloadAngel, 20000);   // fetched quietly after start-up, long before any halo
 game.setHeroName(heroName);
@@ -929,8 +975,22 @@ let simTime = 0;
 let camYaw = 0, camPitch = -0.1;
 
 /** One simulation step (input, physics, animation, camera). Captures drive it directly. */
+// Road checkpoints: a death outside respawns at the furthest calm spot reached, not the very start.
+let cpTimer = 0;
+function updateRoadCheckpoint(dt: number) {
+  if ((cpTimer += dt) < 3) return;
+  cpTimer = 0;
+  if (level !== levels.outside || checkpoint.level !== levels.outside || mode !== 'play' || menuOpen || game.hp < game.maxHp * 0.4) return;
+  if (bridgeBattle.active || player.cinematic) return;
+  const p = player.object.position;
+  if (game.mobs.some((m) => m.alive && m.object.position.distanceToSquared(p) < 18 * 18)) return;
+  const from = world.spawn.position;
+  if (p.distanceTo(from) > checkpoint.pos.distanceTo(from) + 15) checkpoint = { level: levels.outside, pos: p.clone(), yaw: player.yaw };
+}
+
 function tick(dt: number) {
   simTime += dt;
+  updateRoadCheckpoint(dt);
   xrPlay.update(dt);
   if (filmZoom) updateFilmZoom(dt);
   if (victoryCut) updateVictoryCut(dt);
@@ -1072,6 +1132,7 @@ function applyInternalRes() {
   for (const l of [levels.outside, levels.hall]) l.post.setInternalScale(sc);
 }
 renderer.setAnimationLoop(() => {
+  if (paused) { clock.getDelta(); return; }   // the last frame stays on screen; nothing simulates
   const raw = clock.getDelta();
   frameEma += (raw * 1000 - frameEma) * 0.1;
   // Long frames thin the particles and flashes first (fights), before resolution has to drop.
@@ -1181,6 +1242,47 @@ function simulate(seconds: number, held: string[] = [], mouseYaw = 0) {
   return { pos: player.object.position.toArray().map((v) => +v.toFixed(2)), level: level.name, yaw: +player.yaw.toFixed(2) };
 }
 
+// ── Pause (Esc / P / leaving the tab) and exit ───────────────────────────────────
+let paused = false;
+const pauseEl = document.getElementById('pause')!;
+const canPause = () => mode === 'play' && !menuOpen && !renderer.xr.isPresenting;
+function setPaused(on: boolean) {
+  if (on === paused || (on && !canPause())) return;
+  paused = on;
+  pauseEl.classList.toggle('on', on);
+  pauseEl.classList.toggle('elise', heroPick === 'elise');
+  const ctx = audio.context;
+  if (ctx) void (on ? ctx.suspend() : ctx.resume()).catch(() => {});
+  player.keys.clear();
+  if (on && document.pointerLockElement) document.exitPointerLock();
+  if (!on) { clock.getDelta(); try { (renderer.domElement.requestPointerLock?.() as unknown as Promise<void> | undefined)?.catch?.(() => {}); } catch { /* */ } }
+}
+function exitGame() {
+  setPaused(false);
+  // Inside Plajah the host closes the game; standalone, go back to where the player came from.
+  if (window.parent !== window) window.parent.postMessage({ type: 'ravencrest:exit' }, location.origin);
+  else if (history.length > 1) history.back();
+  else location.href = '/';
+}
+document.getElementById('pauseResume')!.addEventListener('click', () => setPaused(false));
+document.getElementById('pauseExit')!.addEventListener('click', exitGame);
+// Esc while the mouse is captured only releases it (the browser eats that key), so losing the
+// capture during play is the pause signal; the looks panel releases it on purpose and is exempt.
+let releasedOnPurpose = false;
+document.addEventListener('click', (e) => { if ((e.target as HTMLElement | null)?.closest?.('#looks, #looksPanel')) releasedOnPurpose = true; }, true);
+document.addEventListener('pointerlockchange', () => {
+  if (document.pointerLockElement) return;
+  if (releasedOnPurpose) { releasedOnPurpose = false; return; }
+  if (canPause() && !bridgeBattle.inCutscene && !victoryCut && !filmZoom) setPaused(true);
+});
+addEventListener('keydown', (e) => {
+  if (e.code === 'KeyP' && !e.repeat) { setPaused(!paused); return; }
+  if (e.code === 'Escape' && !e.repeat && !document.pointerLockElement && mode === 'play') setPaused(!paused);
+  else if (paused && (e.code === 'Enter' || e.code === 'NumpadEnter')) setPaused(false);
+});
+document.addEventListener('visibilitychange', () => { if (document.hidden) setPaused(true); });
+addEventListener('message', (e) => { if (e.origin === location.origin && (e.data as { type?: string } | null)?.type === 'ravencrest:pause') setPaused(true); });
+
 // ── Headset play (xr.ts) ──────────────────────────────────────────────────────────
 const xrPlay = new XRPlay({
   renderer, camera, player, game, interact,
@@ -1192,6 +1294,7 @@ void xrPlay.offerButton();
 // The world is live: the menu's still dissolves into the road dolly and Enter wakes up.
 menuEl.classList.add('live');
 { const sb = document.getElementById('menuStart'); if (sb) sb.textContent = 'ENTER RAVENCREST'; }
+worldLive = true; paintLoad();
 
 (window as unknown as Record<string, unknown>).ravencrest = {
   renderer, camera, anchor, world, yard, viaduct, hall, levels, pools, batchStats, setMode, capture, simulate, bench, player, quality, game, films, showings, card, weather, nightmare, audio, sfx, daybreak, bridgeBattle, looks, THREE,

@@ -166,6 +166,25 @@
     #menu .hero.on { border-color: var(--ac); box-shadow: 0 0 28px var(--ac-glow), inset 0 0 30px var(--ac-dark); }
     #menu button { font: inherit; letter-spacing: .4em; font-size: 15px; padding: 13px 44px; color: #f1e2c8; background: linear-gradient(var(--ac-deep), var(--ac-dark)); border: 1px solid var(--ac); cursor: pointer; box-shadow: 0 0 30px var(--ac-glow), inset 0 0 18px #00000088; text-shadow: 0 0 10px var(--ac-glow); }
     #menu button:hover { filter: brightness(1.1); }
+    /* Loading: a phase line and bar along the bottom; it stays up into play while monsters stream in. */
+    #menuLoad { position: fixed; left: 50%; bottom: 34px; transform: translateX(-50%); z-index: 31; width: min(520px, 80vw); text-align: center; font-family: 'Cinzel', Georgia, serif; pointer-events: none; transition: opacity 1.2s; }
+    #menuLoad span { display: block; margin-bottom: 9px; font-size: 12px; letter-spacing: .38em; text-transform: uppercase; color: #e8c690; text-shadow: 0 0 12px #000; }
+    #menuLoad b { display: block; height: 4px; background: #ffffff1a; border-radius: 2px; overflow: hidden; box-shadow: 0 0 14px #000a; }
+    #menuLoad i { display: block; height: 100%; width: 3%; background: linear-gradient(90deg, #7c2d0a, #f97316, #ffd9a0); box-shadow: 0 0 12px #f97316aa; transition: width .4s ease-out; }
+    #menuLoad.elise i { background: linear-gradient(90deg, #3b0a5c, #a855f7, #e9d5ff); box-shadow: 0 0 12px #a855f7aa; }
+    #menuLoad.done { opacity: 0; }
+    /* Pause (Esc / P / tab hidden): the world freezes behind a dark veil. */
+    #pause { position: fixed; inset: 0; z-index: 40; display: none; align-items: center; justify-content: center; background: radial-gradient(ellipse at center, #05080ecc, #000000f0); color: #e8dcc8; font-family: 'Cinzel', Georgia, serif; text-align: center; }
+    #pause.on { display: flex; }
+    #pause h1 { margin: 0 0 6px; font-size: clamp(30px, 5vw, 54px); letter-spacing: .3em; font-weight: normal; text-shadow: 0 0 24px #f9731666; }
+    #pause .sub { margin-bottom: 28px; font-size: 12px; letter-spacing: .4em; color: #b9a487; text-transform: uppercase; }
+    #pause button { display: block; width: 280px; margin: 10px auto; font: inherit; letter-spacing: .35em; font-size: 14px; padding: 13px 0; color: #f1e2c8; background: linear-gradient(#7c2d0a, #3a1404); border: 1px solid #f97316; cursor: pointer; box-shadow: 0 0 22px #f9731655; }
+    #pause button.ghost { background: #0b0d12cc; border-color: #5a4a36; box-shadow: none; }
+    #pause button:hover { filter: brightness(1.15); }
+    #pause.elise button:not(.ghost) { background: linear-gradient(#4c1d95, #1e0b3a); border-color: #a855f7; box-shadow: 0 0 22px #a855f755; }
+    #pause .keys { margin-top: 22px; font-size: 11px; letter-spacing: .25em; color: #8d7c63; }
+    #menu:not(.live) #menuStart::after { content: ''; display: inline-block; width: .9em; height: .9em; margin-left: .8em; vertical-align: -.1em; border: 2px solid #f1e2c866; border-top-color: #f1e2c8; border-radius: 50%; animation: mnSpin .9s linear infinite; }
+    @keyframes mnSpin { to { transform: rotate(360deg); } }
     #menu .keys { margin-top: 18px; font-family: Georgia, serif; font-size: 12px; color: #7f7362; }
   </style>
 </head>
@@ -192,10 +211,17 @@
         <div class="hero" data-hero="elise"><img src="/games/ravencrest/menu/elise.jpg" alt="Elise Carter"><span>ELISE CARTER</span><em>Survivor · monster slayer</em></div>
       </div>
       <button id="menuStart">SUMMONING RAVENCREST…</button>
-      <div class="keys">WASD / left stick move · mouse / right stick look · click / X attack · Space / A jump · C / B roll · E / RB use</div>
+      <div class="keys">WASD / left stick move · mouse / right stick look · click / X attack · Space / A jump · C / B roll · E / RB use · - / = mouse sensitivity</div>
       <div class="awaken">CLICK ANYWHERE TO AWAKEN RAVENCREST</div>
     </div>
   </div>
+  <div id="menuLoad"><span>Opening the gates</span><b><i></i></b></div>
+  <div id="pause"><div>
+    <h1>PAUSED</h1><div class="sub">The night waits for you</div>
+    <button id="pauseResume">RESUME</button>
+    <button id="pauseExit" class="ghost">EXIT TO PLAJAH</button>
+    <div class="keys">Esc or P to pause · click Resume or press Enter to return</div>
+  </div></div>
   <div id="fade"></div>
   <div id="loading">RAVENCREST</div>
   <script type="module" src="./src/main.ts"></script>
@@ -211,6 +237,7 @@
           window.__heroPick = h.getAttribute('data-hero');
           menu.querySelectorAll('.hero').forEach(function (x) { x.classList.toggle('on', x === h); });
           menu.classList.toggle('elise', window.__heroPick === 'elise');
+          var ld = document.getElementById('menuLoad'); if (ld) ld.classList.toggle('elise', window.__heroPick === 'elise');
         });
       });
     })();

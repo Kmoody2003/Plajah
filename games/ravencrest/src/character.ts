@@ -304,6 +304,9 @@ const HEROES: Record<Hero, { url: string; height: number; name: string; mocap?: 
   elise: { url: '/games/ravencrest/assets/characters/elise.glb', height: 1.72, name: 'EliseCarter', mocap: { walk: '02_01', run: '02_03' } },
 };
 
+/** Start downloading a hero's model (and the shared locomotion rig) early; loadJack reuses the fetch. */
+export function prefetchHero(hero: Hero) { loadGLB(HEROES[hero].url).catch(() => {}); loadGLB(ANIM_SOURCE_URL).catch(() => {}); }
+
 export async function loadJack(hero: Hero = 'jack'): Promise<Character> {
   const H = HEROES[hero];
   const [jack, soldier] = await Promise.all([loadGLB(H.url), loadGLB(ANIM_SOURCE_URL)]);
