@@ -1266,15 +1266,8 @@ function exitGame() {
 }
 document.getElementById('pauseResume')!.addEventListener('click', () => setPaused(false));
 document.getElementById('pauseExit')!.addEventListener('click', exitGame);
-// Esc while the mouse is captured only releases it (the browser eats that key), so losing the
-// capture during play is the pause signal; the looks panel releases it on purpose and is exempt.
-let releasedOnPurpose = false;
-document.addEventListener('click', (e) => { if ((e.target as HTMLElement | null)?.closest?.('#looks, #looksPanel')) releasedOnPurpose = true; }, true);
-document.addEventListener('pointerlockchange', () => {
-  if (document.pointerLockElement) return;
-  if (releasedOnPurpose) { releasedOnPurpose = false; return; }
-  if (canPause() && !bridgeBattle.inCutscene && !victoryCut && !filmZoom) setPaused(true);
-});
+// Losing mouse capture (Esc while captured, clicking another window or panel) never pauses on its
+// own: the browser can't tell those apart. A second Esc, or P, pauses.
 addEventListener('keydown', (e) => {
   if (e.code === 'KeyP' && !e.repeat) { setPaused(!paused); return; }
   if (e.code === 'Escape' && !e.repeat && !document.pointerLockElement && mode === 'play') setPaused(!paused);
