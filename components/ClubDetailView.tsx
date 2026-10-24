@@ -1,3 +1,4 @@
+import { UserAvatar } from './avatar/UserAvatar';
 import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
 import React, { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
 const GoLiveWizard = lazy(() => import('./GoLiveWizard'));
@@ -117,7 +118,15 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
   const [viewingStreamOwner, setViewingStreamOwner] = useState('');
   const [clubStreams, setClubStreams] = useState<{ id: string; title: string; ownerName: string; ownerPhoto: string; viewerCount: number; isPrivate?: boolean }[]>([]);
 
-  const [activeChannelId, setActiveChannelId] = useState<string | null>(null);
+  // A room can be asked for from outside (fan-room team, Sanctuary): ?clubRoom=… or openClubRoom().
+  const [activeChannelId, setActiveChannelId] = useState<string | null>(() => {
+    let want: string | null = null;
+    try {
+      want = new URLSearchParams(window.location.search).get('clubRoom') || sessionStorage.getItem(`plajah:clubRoom:${initialClub.id}`);
+      sessionStorage.removeItem(`plajah:clubRoom:${initialClub.id}`);
+    } catch { /* storage blocked */ }
+    return want && (initialClub.channels ?? []).some(c => c.id === want) ? want : null;
+  });
   const [clubChannels, setClubChannels] = useState<ClubChannel[]>(initialClub.channels ?? []);
 
   // ── Invite / share popover ─────────────────────────────────────────────────
@@ -432,6 +441,11 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
           }
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
+              {club.isOfficial && (
+                <span className="flex items-center gap-1 text-[8px] font-black uppercase tracking-widest text-amber-300 border border-amber-400/50 bg-amber-500/10 rounded px-2 py-0.5">
+                  <Check size={8} /> Official
+                </span>
+              )}
               <span className="text-[8px] font-black uppercase tracking-widest opacity-40 border border-white/20 rounded px-2 py-0.5">{club.category}</span>
               {club.isPrivate
                 ? <span className="flex items-center gap-1 text-[8px] font-black uppercase tracking-widest opacity-40"><Lock size={8} /> Private</span>
@@ -440,6 +454,23 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
             </div>
             <div className="flex items-center gap-3 flex-wrap">
               <h1 className="text-3xl md:text-5xl font-black uppercase tracking-tight">{club.name}</h1>
+              {/* Official creator club: its World and Sanctuary */}
+              {club.isOfficial && club.worldId && (
+                <button
+                  onClick={() => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'WORLDS', params: { worldId: club.worldId, artistId: club.creatorId } } }))}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/18 border border-white/15 rounded-full text-[9px] font-black uppercase tracking-widest transition-all backdrop-blur-sm"
+                >
+                  <Globe size={10} /> World
+                </button>
+              )}
+              {club.isOfficial && club.sanctuaryId && (
+                <button
+                  onClick={() => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'SANCTUARY', params: { artistId: club.sanctuaryId } } }))}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/18 border border-white/15 rounded-full text-[9px] font-black uppercase tracking-widest transition-all backdrop-blur-sm"
+                >
+                  <Lock size={10} /> Sanctuary
+                </button>
+              )}
               {/* ── Inline invite / share pill ── */}
               {(!club.isPrivate || isMember) && (
                 <div className="relative">
@@ -1030,7 +1061,7 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
               <div className="space-y-2">
                 {members.map(mem => (
                   <div key={mem.id} className="flex items-center gap-4 bg-white/5 border border-white/5 rounded-2xl px-5 py-4 hover:bg-white/8 transition-all group">
-                    <img src={mem.photoUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${mem.userId}`} className="w-10 h-10 rounded-full border border-white/10" alt="" />
+                    <UserAvatar uid={mem.userId} src={mem.photoUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${mem.userId}`} className="w-10 h-10 rounded-full border border-white/10" alt="" />
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-black uppercase tracking-wide truncate">{mem.displayName}</p>
                       <div className={`flex items-center gap-1 ${ROLE_COLORS[mem.role]} text-[9px] font-black uppercase tracking-widest`}>
@@ -1071,7 +1102,7 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
                 )}
                 {chatMessages.filter(m => !m.isSticky).map(msg => (
                   <div key={msg.id} className={`flex gap-3 ${msg.senderId === currentUser?.uid ? 'flex-row-reverse' : ''}`}>
-                    <img src={msg.senderPhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${msg.senderId}`} className="w-7 h-7 rounded-full shrink-0 border border-white/10" alt="" />
+                    <UserAvatar uid={msg.senderId} src={msg.senderPhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${msg.senderId}`} className="w-7 h-7 rounded-full shrink-0 border border-white/10" alt="" />
                     <div className={`max-w-[70%] flex flex-col ${msg.senderId === currentUser?.uid ? 'items-end' : 'items-start'}`}>
                       <p className="text-[8px] font-black uppercase tracking-widest opacity-30 mb-1">{msg.senderName}</p>
                       <div className={`px-4 py-2.5 rounded-2xl text-xs ${msg.senderId === currentUser?.uid ? 'bg-white text-black' : 'bg-white/10'}`}>{msg.content}</div>
@@ -1756,7 +1787,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, currentUserId, isMod, onLike,
       {post.isPinned && <div className="flex items-center gap-1 text-[8px] font-black uppercase tracking-widest opacity-30 mb-3"><Pin size={8} /> Pinned</div>}
       {post.type === 'ANNOUNCEMENT' && <div className="text-[8px] font-black uppercase tracking-widest text-amber-400 mb-2">Announcement</div>}
       <div className="flex items-start gap-3">
-        <img src={post.authorPhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${post.authorId}`} className="w-9 h-9 rounded-full border border-white/10 shrink-0" alt="" />
+        <UserAvatar uid={post.authorId} src={post.authorPhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${post.authorId}`} className="w-9 h-9 rounded-full border border-white/10 shrink-0" alt="" />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-2">
             <span className="text-xs font-black uppercase tracking-wide">{post.authorName}</span>

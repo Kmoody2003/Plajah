@@ -1,10 +1,17 @@
-import React, { Suspense, useRef, useEffect, useMemo } from 'react';
+import React, { Suspense, useRef, useEffect, useMemo, useState } from 'react';
 import { Canvas, useFrame, useLoader } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { VRMLoaderPlugin, VRM, VRMHumanBoneName } from '@pixiv/three-vrm';
 import type { AvatarConfig, AvatarStyle } from '../types';
+import {
+  CAST_EMOTES,
+  loadCastRig,
+  playEmote,
+  poseStageRig,
+  type StageRig,
+} from '../services/halloween/ravencrestCastStage';
 
 export interface AvatarViewerProps {
   config: AvatarConfig;
@@ -12,6 +19,36 @@ export interface AvatarViewerProps {
   autoRotate?: boolean;
   wave?: boolean;
   className?: string;
+  /** Emote buttons under a CHARACTER avatar (default: on unless compact). */
+  showEmotes?: boolean;
+}
+
+// ── Movie-character avatar (Ravencrest / Pumpkin Patch cast GLB, idle + emotes) ──────────
+
+function CastCharacterModel({ url, wave, rigRef }: { url: string; wave?: boolean; rigRef: React.MutableRefObject<StageRig | null> }) {
+  const [rig, setRig] = useState<StageRig | null>(null);
+  useEffect(() => {
+    let live = true;
+    loadCastRig(url).then((r) => {
+      if (!live) return;
+      // The viewer frames a ~1.7 m figure around y = 1.
+      r.root.scale.setScalar(0.95);
+      rigRef.current = r;
+      setRig(r);
+    }).catch(() => {});
+    return () => { live = false; rigRef.current = null; };
+  }, [url, rigRef]);
+  const nextWave = useRef(1.5);
+  useFrame((_, dt) => {
+    if (!rig) return;
+    if (wave && rig.time > nextWave.current && !rig.emote) {
+      playEmote(rig, 'wave');
+      nextWave.current = rig.time + 9;
+    }
+    const t = rig.time;
+    poseStageRig(rig, Math.min(0.1, dt), { yaw: Math.sin(t * 0.5) * 0.25, pitch: Math.sin(t * 0.7) * 0.05, roll: 0 }, 0.1);
+  });
+  return rig ? <primitive object={rig.root} /> : null;
 }
 
 // ── Wardrobe accessories rendered as Three.js geometry ────────────────────────
@@ -544,11 +581,13 @@ function AvatarScene({
   compact,
   autoRotate,
   wave,
+  rigRef,
 }: {
   config: AvatarConfig;
   compact?: boolean;
   autoRotate?: boolean;
   wave?: boolean;
+  rigRef: React.MutableRefObject<StageRig | null>;
 }) {
   const accs = config.accessories ?? [];
   return (
@@ -568,7 +607,9 @@ function AvatarScene({
           />
         }
       >
-        {config.type === 'RPM' && config.rpmGlbUrl ? (
+        {config.type === 'CHARACTER' && config.modelUrl ? (
+          <CastCharacterModel url={config.modelUrl} wave={wave} rigRef={rigRef} />
+        ) : config.type === 'RPM' && config.rpmGlbUrl ? (
           <RPMModel url={config.rpmGlbUrl} style={config.style} wave={wave} accessories={accs} />
         ) : config.type === 'VRM' && config.modelUrl ? (
           <VRMModel url={config.modelUrl} style={config.style} wave={wave} accessories={accs} />
@@ -603,11 +644,14 @@ const AvatarViewer: React.FC<AvatarViewerProps> = ({
   autoRotate = false,
   wave = false,
   className = '',
+  showEmotes,
 }) => {
+  const rigRef = useRef<StageRig | null>(null);
+  const emotes = config.type === 'CHARACTER' && (showEmotes ?? !compact);
   const camZ = compact ? 2.5 : 2.2;
   const camY = compact ? 1.0 : 1.2;
   return (
-    <div className={`w-full h-full ${className}`} style={{ minHeight: compact ? 80 : 320, background: 'transparent' }}>
+    <div className={`relative w-full h-full ${className}`} style={{ minHeight: compact ? 80 : 320, background: 'transparent' }}>
       <Canvas
         camera={{ position: [0, camY, camZ], fov: compact ? 50 : 46 }}
         gl={{ antialias: true, alpha: true, premultipliedAlpha: false }}
@@ -622,8 +666,23 @@ const AvatarViewer: React.FC<AvatarViewerProps> = ({
           compact={compact}
           autoRotate={autoRotate}
           wave={wave}
+          rigRef={rigRef}
         />
       </Canvas>
+      {emotes && (
+        <div className="absolute bottom-2 inset-x-2 flex flex-wrap justify-center gap-1.5 pointer-events-auto">
+          {CAST_EMOTES.map((e) => (
+            <button
+              key={e.id}
+              onClick={() => rigRef.current && playEmote(rigRef.current, e.id)}
+              title={e.label}
+              className="px-2 py-1 rounded-lg bg-black/60 hover:bg-orange-500 hover:text-black border border-white/15 text-white text-[10px] font-black uppercase tracking-wide backdrop-blur-sm cursor-pointer"
+            >
+              {e.emoji} {e.label}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

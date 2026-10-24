@@ -4,7 +4,13 @@
 // never on the artwork (see puppet2D.ts for why).
 
 export interface PosePoint { x: number; y: number; v: number } // v = visibility 0..1
-export interface PoseFrame { pts: PosePoint[] }                // MediaPipe's 33 pose landmarks
+export interface PoseFrame {
+  pts: PosePoint[];                                            // MediaPipe's 33 pose landmarks
+  /** Same 33 points in metres, hip-centred, with real depth (z: smaller = nearer the camera). */
+  world?: Array<{ x: number; y: number; z: number; v: number }>;
+  /** Person mask (0..1 per pixel, row-major, mask.w × mask.h) when segmentation was requested. */
+  mask?: { data: Float32Array; w: number; h: number };
+}
 
 // Landmark indices we drive the puppet with.
 export const POSE = {
@@ -15,13 +21,18 @@ export const POSE = {
 
 const CDN = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
 const MODEL = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task';
+/** More accurate arms/torso (heavier); used by the 3D character puppets. */
+const MODEL_FULL = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task';
 
 export class PoseTracker {
   private pl: any = null;
   private ready = false;
   private loading = false;
 
-  async init(): Promise<boolean> {
+  private wantMask = false;
+
+  /** `full` = the heavier, more accurate model; `segmentation` = also return a person mask. */
+  async init(opts: { full?: boolean; segmentation?: boolean } = {}): Promise<boolean> {
     if (this.ready) return true;
     if (this.loading) return false;
     this.loading = true;
@@ -34,9 +45,10 @@ export class PoseTracker {
       for (const delegate of ['GPU', 'CPU'] as const) {
         try {
           this.pl = await vision.PoseLandmarker.createFromOptions(fileset, {
-            baseOptions: { modelAssetPath: MODEL, delegate },
+            baseOptions: { modelAssetPath: opts.full ? MODEL_FULL : MODEL, delegate },
             runningMode: 'VIDEO',
             numPoses: 1,
+            outputSegmentationMasks: !!opts.segmentation,
           });
           break;
         } catch (e) {
@@ -44,6 +56,7 @@ export class PoseTracker {
         }
       }
       this.ready = !!this.pl;
+      this.wantMask = !!opts.segmentation;
     } catch (e) {
       console.warn('[vtuber] PoseLandmarker init failed:', e);
     } finally {
@@ -59,8 +72,22 @@ export class PoseTracker {
     try {
       const res = this.pl.detectForVideo(video, tsMs);
       const lm = res?.landmarks?.[0];
+      const masks = res?.segmentationMasks;
+      let mask: PoseFrame['mask'];
+      if (this.wantMask && masks?.[0]) {
+        try {
+          const m = masks[0];
+          mask = { data: new Float32Array(m.getAsFloat32Array()), w: m.width, h: m.height };
+        } catch { /* mask readback failed this frame */ }
+        for (const m of masks) { try { m.close(); } catch { /* */ } }
+      }
       if (!lm || !lm.length) return null;
-      return { pts: lm.map((p: any) => ({ x: p.x, y: p.y, v: p.visibility ?? 1 })) };
+      const wl = res?.worldLandmarks?.[0];
+      return {
+        pts: lm.map((p: any) => ({ x: p.x, y: p.y, v: p.visibility ?? 1 })),
+        world: wl?.map((p: any, i: number) => ({ x: p.x, y: p.y, z: p.z, v: lm[i]?.visibility ?? 1 })),
+        mask,
+      };
     } catch {
       return null;
     }

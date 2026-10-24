@@ -2566,6 +2566,13 @@ export interface Club {
   linkedBookId?: string;    // links club to a specific book (Album type: BOOK)
   inviteToken?: string;     // shareable invite token for join links
   channels?: ClubChannel[]; // sub-channels (optional; default = single general channel)
+  /** Official creator club: always owned by the creator and bound to their World/Sanctuary. */
+  isOfficial?: boolean;
+  worldId?: string;
+  sanctuaryId?: string;     // == the creator's uid (sanctuaries/{ownerId})
+  linkedFilmId?: string;
+  /** Fan-room team id → the channel that is that team's room. */
+  teamRooms?: Record<string, string>;
   timestamp: number;
   updatedAt: number;
 }
@@ -2580,6 +2587,8 @@ export interface ClubMembership {
   photoUrl?: string;
   questionnaireAnswers?: string[];
   joinedAt: number;
+  /** Team picked in a creator's fan room (official clubs): their room is club.teamRooms[teamId]. */
+  teamId?: string;
 }
 
 // ─── CHURCH VERTICAL (Part 3) ───────────────────────────────────────────────
@@ -4554,7 +4563,10 @@ export interface NowListeningPresence {
 export type AvatarStyle = 'ANIME' | 'CHIBI' | 'REALISTIC' | 'URBAN' | 'STREETWEAR' | 'CLAY';
 
 export interface AvatarConfig {
-  type: 'RPM' | 'VRM' | 'NONE';
+  /** CHARACTER = a Ravencrest / Pumpkin Patch cast member (modelUrl = its GLB, thumbnailUrl = its portrait). */
+  type: 'RPM' | 'VRM' | 'NONE' | 'CHARACTER';
+  characterId?: string;
+  characterName?: string;
   style: AvatarStyle;
   modelUrl?: string;
   rpmGlbUrl?: string;
@@ -6232,6 +6244,8 @@ export interface Sanctuary {
   memberCount: number;
   contentCount?: number;
   isEnabled: boolean;
+  /** Clubs bound to this Sanctuary (official creator clubs); their rooms are listed inside. */
+  linkedClubIds?: string[];
   createdAt: number;
   updatedAt: number;
 }

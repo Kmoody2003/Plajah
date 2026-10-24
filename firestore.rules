@@ -3549,7 +3549,9 @@ service cloud.firestore {
 
     match /clubs/{clubId} {
       allow read: if true;
-      allow create: if isAuthenticated() && request.resource.data.creatorId == request.auth.uid;
+      // "Official" is granted by a platform admin only (official creator clubs, e.g. the Pumpkin Patch Club).
+      allow create: if isAuthenticated() && request.resource.data.creatorId == request.auth.uid
+        && (!request.resource.data.get('isOfficial', false) || isAdmin());
       // allow unclaimed demo club to be claimed by any authenticated user
       allow update: if isAuthenticated() && (
         request.auth.uid in resource.data.admins ||
@@ -3557,7 +3559,11 @@ service cloud.firestore {
         (resource.data.creatorId == '' && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['creatorId', 'admins', 'isDemo', 'updatedAt']) && request.resource.data.creatorId == request.auth.uid) ||
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberCount', 'updatedAt']) ||
         isAdmin()
-      );
+      )
+        // An official club stays bound to its creator's account, World and Sanctuary; only platform admins change that.
+        && (isAdmin() || !request.resource.data.diff(resource.data).affectedKeys().hasAny(['isOfficial']))
+        && (isAdmin() || !resource.data.get('isOfficial', false) ||
+            !request.resource.data.diff(resource.data).affectedKeys().hasAny(['creatorId', 'worldId', 'sanctuaryId']));
       allow delete: if isAuthenticated() && (resource.data.creatorId == request.auth.uid || isAdmin());
 
       match /clubPosts/{postId} {
@@ -3603,9 +3609,17 @@ service cloud.firestore {
 
     match /clubMemberships/{membershipId} {
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      // Joining makes you a MEMBER; only the club's creator gets an OWNER/staff row for themselves
+      // (createClub / claimClubAsFounder / the club creators write it after setting creatorId).
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid && (
+        request.resource.data.get('role', 'MEMBER') == 'MEMBER' ||
+        get(/databases/$(database)/documents/clubs/$(request.resource.data.clubId)).data.creatorId == request.auth.uid ||
+        isAdmin()
+      );
       allow update: if isAuthenticated() && (
-        resource.data.userId == request.auth.uid ||
+        // Members edit their own row (team, display name…) but never promote themselves.
+        (resource.data.userId == request.auth.uid &&
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'clubId', 'userId'])) ||
         request.auth.uid in get(/databases/$(database)/documents/clubs/$(resource.data.clubId)).data.admins ||
         isAdmin()
       );
@@ -3997,7 +4011,11 @@ service cloud.firestore {
         && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 1000
         && request.resource.data.at is number
         && (!('snapshotDataUrl' in request.resource.data) ||
-            (request.resource.data.snapshotDataUrl is string && request.resource.data.snapshotDataUrl.size() < 700000));
+            (request.resource.data.snapshotDataUrl is string && request.resource.data.snapshotDataUrl.size() < 700000))
+        // Recorded clips: a download URL from our own Storage bucket only.
+        && (!('videoUrl' in request.resource.data) ||
+            (request.resource.data.videoUrl is string && request.resource.data.videoUrl.size() < 2000 &&
+             request.resource.data.videoUrl.matches('https://firebasestorage[.]googleapis[.]com/.*')));
       allow delete: if isAdmin() || (isAuthenticated() && resource.data.uid == request.auth.uid);
     }
 

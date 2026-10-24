@@ -113,6 +113,27 @@ export const HALLOWEEN_FILTERS: HalloweenFilterMeta[] = [
   },
 ];
 
+/** Where the tracked head is on the canvas, for layers that draw their own face (3D characters). */
+export interface FilterFacePose {
+  cx: number;
+  cy: number;
+  rx: number;
+  ry: number;
+  /** In-picture tilt, radians. */
+  roll: number;
+  /** Head turn (-1..1-ish radians), negative = toward the canvas's left. */
+  yaw: number;
+  /** Nod, positive = looking down. */
+  pitch: number;
+  mouthOpen: number;
+  /** MediaPipe expression scores for a real tracked face (engine built with expressions on). */
+  blendshapes: Record<string, number> | null;
+  /** MediaPipe facial transformation matrix (4×4, column-major) of the UNMIRRORED camera frame. */
+  headMatrix: ArrayLike<number> | null;
+}
+
+export type FaceLayer = (ctx: CanvasRenderingContext2D, face: FilterFacePose, W: number, H: number, nowMs: number) => void;
+
 interface TrackedFace {
   cx: number;
   cy: number;
@@ -166,6 +187,13 @@ export class HalloweenFilterEngine {
   private dimLights = false;
   private batSwarm = false;
   private audioMouthBoost = 0;
+  private mirrored = false;
+  private faceLayer: FaceLayer | null = null;
+  /** Ask the tracker for blendshapes too (3D characters copy the performer's expressions). */
+  private readonly expressions: boolean;
+  private blendshapes: Record<string, number> | null = null;
+  private headMatrix: ArrayLike<number> | null = null;
+  private blendAt = -1e9;
 
   private worker = new AsyncFaceTracker();
   private sync: FaceTracker | null = null;
@@ -184,7 +212,8 @@ export class HalloweenFilterEngine {
   private beamX = 0.5;
   private beamY = 0.46;
 
-  constructor() {
+  constructor(opts: { expressions?: boolean } = {}) {
+    this.expressions = !!opts.expressions;
     this.initBats();
     this.initDust();
     this.ensureFaceTracker();
@@ -223,7 +252,7 @@ export class HalloweenFilterEngine {
   private ensureFaceTracker() {
     if (this.faceState !== 'idle') return;
     this.faceState = 'loading';
-    const opts = { numFaces: 2, blendshapes: false };
+    const opts = this.expressions ? { numFaces: 1, blendshapes: true } : { numFaces: 2, blendshapes: false };
     this.worker.init(opts).then(async (ok) => {
       if (ok) {
         this.faceState = 'worker';
@@ -246,6 +275,25 @@ export class HalloweenFilterEngine {
 
   getFilter(): HalloweenFilterId {
     return this.filter;
+  }
+
+  /** Tracker state + whether a real face is locked (for the room's status pill and dev checks). */
+  getTrackingStatus(nowMs = performance.now()) {
+    return {
+      state: this.faceState,
+      locked: this.tracks.some((t) => nowMs - t.seenAt < 650),
+    };
+  }
+
+  /** Draw this instead of the selected filter on the tracked face (null = back to filters). */
+  setFaceLayer(layer: FaceLayer | null) {
+    this.faceLayer = layer;
+    if (layer) this.ensureFaceTracker();
+  }
+
+  /** Set when the caller draws the video flipped horizontally (selfie view). */
+  setMirrored(on: boolean) {
+    this.mirrored = on;
   }
 
   setDimLights(on: boolean) {
@@ -291,6 +339,11 @@ export class HalloweenFilterEngine {
       fresh = true;
     }
 
+    if (fresh && frame?.blendshapes && Object.keys(frame.blendshapes).length) {
+      this.blendshapes = frame.blendshapes;
+      this.headMatrix = frame.matrix ?? null;
+      this.blendAt = nowMs;
+    }
     if (fresh && frame?.faces && frame.faces.length > 0) {
       this.ingestDetectedFaces(frame.faces, src.videoWidth, src.videoHeight, W, H, nowMs);
     }
@@ -307,21 +360,25 @@ export class HalloweenFilterEngine {
     const s = Math.max(W / vw, H / vh);
     const ox = (W - vw * s) / 2;
     const oy = (H - vh * s) / 2;
+    // A selfie view draws the webcam mirrored, so landmarks must be mirrored too or every mask
+    // lands on the opposite side of the face.
+    const mx = (nx: number) => (this.mirrored ? W - (nx * vw * s + ox) : nx * vw * s + ox);
+    const gs = this.mirrored ? -1 : 1;
 
     for (const f of faces) {
       const e0 = {
-        x: f.eyes[0].cx * vw * s + ox,
+        x: mx(f.eyes[0].cx),
         y: f.eyes[0].cy * vh * s + oy,
         r: Math.hypot(f.eyes[0].dx * vw, f.eyes[0].dy * vh) * s * 0.65,
-        gx: f.eyes[0].gx,
+        gx: gs * f.eyes[0].gx,
         gy: f.eyes[0].gy,
         open: f.eyes[0].open,
       };
       const e1 = {
-        x: f.eyes[1].cx * vw * s + ox,
+        x: mx(f.eyes[1].cx),
         y: f.eyes[1].cy * vh * s + oy,
         r: Math.hypot(f.eyes[1].dx * vw, f.eyes[1].dy * vh) * s * 0.65,
-        gx: f.eyes[1].gx,
+        gx: gs * f.eyes[1].gx,
         gy: f.eyes[1].gy,
         open: f.eyes[1].open,
       };
@@ -330,14 +387,14 @@ export class HalloweenFilterEngine {
       const roll = Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x);
 
       const m = {
-        x: f.mouth.cx * vw * s + ox,
+        x: mx(f.mouth.cx),
         y: f.mouth.cy * vh * s + oy,
         w: Math.hypot(f.mouth.dx * vw, f.mouth.dy * vh) * s,
         open: Math.max(f.mouth.open, this.audioMouthBoost * 0.55),
       };
 
       const bb = f.bbox;
-      const cx = (bb.x + bb.w / 2) * vw * s + ox;
+      const cx = mx(bb.x + bb.w / 2);
       const cy = (bb.y + bb.h / 2) * vh * s + oy;
       const rx = (bb.w * vw * s * 0.5) * 1.12;
       const ry = (bb.h * vh * s * 0.5) * 1.18;
@@ -520,8 +577,14 @@ export class HalloweenFilterEngine {
       this.drawBatsLayer(ctx, W, H, tSec, 0, 0.85);
     }
 
-    // 2. Primary Halloween Face Filter
-    if (face) {
+    // 2. Primary Halloween Face Filter (or the caller's own face layer)
+    if (face && this.faceLayer) {
+      const pose = poseOf(face);
+      const live = nowMs - face.seenAt < 650 && nowMs - this.blendAt < 650;
+      pose.blendshapes = live ? this.blendshapes : null;
+      pose.headMatrix = live ? this.headMatrix : null;
+      this.faceLayer(ctx, pose, W, H, nowMs);
+    } else if (face) {
       switch (this.filter) {
         case 'jackolantern':
           this.drawJackOLantern(ctx, face, W, H, tSec);
@@ -1722,4 +1785,24 @@ export class HalloweenFilterEngine {
     this.sync = null;
     this.tracks = [];
   }
+}
+
+/** Head turn/nod read from where the eyes sit inside the face box (no 3D head matrix needed). */
+function poseOf(f: TrackedFace): FilterFacePose {
+  const ex = (f.eyes[0].x + f.eyes[1].x) / 2;
+  const ey = (f.eyes[0].y + f.eyes[1].y) / 2;
+  const clamp = (v: number) => Math.max(-0.7, Math.min(0.7, v));
+  return {
+    cx: f.cx,
+    cy: f.cy,
+    rx: f.rx,
+    ry: f.ry,
+    roll: f.roll,
+    yaw: clamp(((ex - f.cx) / Math.max(1, f.rx)) * 1.6),
+    // Eyes sit ~0.12 face-heights above the box centre when looking straight ahead.
+    pitch: clamp(((ey - f.cy) / Math.max(1, f.ry) + 0.12) * 1.5),
+    mouthOpen: f.mouth.open,
+    blendshapes: null,
+    headMatrix: null,
+  };
 }

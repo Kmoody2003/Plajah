@@ -21,6 +21,7 @@ export interface WorkerFaceFrame {
   faces: FaceEyes[];
 }
 
+import './workerImportScripts'; // MediaPipe needs importScripts, which module workers lack
 import { facesFromLandmarks, type FaceEyes } from './eyeGeometry';
 
 const CDN = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';

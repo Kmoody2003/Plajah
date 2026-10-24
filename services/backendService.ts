@@ -11596,6 +11596,19 @@ export const joinClub = async (clubId: string, role: ClubRole = 'MEMBER', answer
   return mem;
 };
 
+/**
+ * Official creator clubs: picking a fan-room team joins the club (if needed) and records the team,
+ * whose room is club.teamRooms[teamId].
+ */
+export const joinClubTeam = async (clubId: string, teamId: string): Promise<ClubMembership | null> => {
+  const mem = await joinClub(clubId);
+  if (mem && mem.teamId !== teamId) {
+    await updateDoc(doc(db, 'clubMemberships', mem.id), { teamId });
+    mem.teamId = teamId;
+  }
+  return mem;
+};
+
 export const leaveClub = async (clubId: string) => {
   if (!auth.currentUser) return;
   const mem = await getUserClubMembership(clubId, auth.currentUser.uid);
@@ -11638,6 +11651,8 @@ export const createClubPost = async (post: Partial<ClubPost>): Promise<ClubPost 
   const newPost: ClubPost = {
     id: docRef.id,
     clubId: post.clubId!,
+    // Sub-room posts must keep their room, or the room filter hides them (they land in "general").
+    channelId: post.channelId,
     authorId: auth.currentUser.uid,
     authorName: auth.currentUser.displayName || 'Member',
     authorPhoto: auth.currentUser.photoURL || '',

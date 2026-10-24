@@ -1,0 +1,36 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "skipLibCheck": true
+  },
+  "include": [],
+  "files": [
+    "components/taleo/HalloweenVaultChatAndFanRoom.tsx",
+    "components/taleo/StoryIntelVTuberVoiceStudio.tsx",
+    "components/taleo/ClipRecorder.tsx",
+    "components/taleo/dev/fanRoomLab.tsx",
+    "services/halloween/halloweenFilterEngine.ts",
+    "services/halloween/storyIntelCharacterRigAndVoiceEngine.ts",
+    "services/halloween/ravencrestCastStage.ts",
+    "services/halloween/castFaceOverlay.ts",
+    "services/halloween/castFaceRig.ts",
+    "components/avatar/CharacterAvatarFlip.tsx",
+    "services/halloween/pumpkinPatchClub.ts",
+    "scripts/seedPumpkinPatchClub.ts",
+    "components/sanctuary/SanctuaryInside.tsx",
+    "components/ClubDetailView.tsx",
+    "components/AvatarViewer.tsx",
+    "components/AvatarStudio.tsx",
+    "components/UserProfileView.tsx",
+    "components/GlassDockProfileHeader.tsx",
+    "services/vtuber/liveTrackers.ts",
+    "services/vtuber/poseTrackerAsync.ts",
+    "services/vtuber/poseWorker.worker.ts",
+    "services/vtuber/faceWorker.worker.ts",
+    "services/vtuber/workerImportScripts.ts",
+    "services/vtuber/rigBuilder/castRigSpecs.ts",
+    "services/vtuber/rigBuilder/buildVtuberRig.ts",
+    "components/taleo/dev/vtuberRigLab.ts"
+  ]
+}

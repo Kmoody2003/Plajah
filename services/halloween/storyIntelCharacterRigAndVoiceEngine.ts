@@ -8,12 +8,27 @@
  *      + Learned F0 & F1–F4 Formant Envelopes from the *Pumpkin Patch* (2025) feature film.
  *   2. Zero-Robot-Noise Web Audio Vocal-Tract Convolution (`ConvolverNode`) + 4-Formant Filter Bank
  *      + 4096-Sample Anti-Aliased Dual-Grain Pitch Shifter + Studio Dynamics Compressor.
- *   3. 3D Blender Rigged Character Metadata (`glbModelUrl`, `glbNodeName`) for `/models/halloween/pumpkin_patch_cast.glb`.
+ *   3. 3D rigged character models (`glbModelUrl`) — the same Ravencrest cast GLBs the game uses.
  *   4. Creator Upload & Character Licensing Controls (`DISABLED`, `WORLD_SANCTUARY_ONLY`,
  *      `SANCTUARY_SUBSCRIBER_UNLOCK`, `PLATFORM_PUBLIC`).
  */
 
-import { FaceEyes } from '../vtuber/eyeGeometry';
+import type { FaceEyes } from '../vtuber/eyeGeometry';
+
+/** Head pose the VTuber rigs read: eye centres in normalized (selfie-mirrored) video coords + roll. */
+export interface TrackedHeadEyes {
+  left: { cx: number; cy: number };
+  right: { cx: number; cy: number };
+  roll: number;
+}
+
+/** Adapts a tracker face (unmirrored video coords) to the selfie-view head pose the rigs expect. */
+export function headEyesFromFace(face: FaceEyes): TrackedHeadEyes {
+  const a = { cx: 1 - face.eyes[0].cx, cy: face.eyes[0].cy };
+  const b = { cx: 1 - face.eyes[1].cx, cy: face.eyes[1].cy };
+  const [left, right] = a.cx <= b.cx ? [a, b] : [b, a];
+  return { left, right, roll: Math.atan2(right.cy - left.cy, right.cx - left.cx) };
+}
 
 // ============================================================================
 // 1. CREATOR CHARACTER LICENSING & PERMISSIONS MODEL
@@ -129,8 +144,10 @@ export interface CharacterVTuberRigSpec {
   movieSampleUrl: string;
   /** Learned 256-tap minimum-phase FIR vocal-tract impulse response from the movie */
   vocalTractIrUrl: string;
-  /** High-detail Blender 3D rigged character asset pack & node name */
+  /** The character's Ravencrest game model (public/games/ravencrest/assets/characters) */
   glbModelUrl: string;
+  /** VTuber build of the model (VRM 1.0 with a full face rig, services/vtuber/rigBuilder), if made. */
+  vtuberModelUrl?: string;
   glbNodeName: string;
   learnedFormants: LearnedCharacterFormantProfile;
   accentColor: string;
@@ -183,7 +200,8 @@ export const STORY_INTEL_VTUBER_CHARACTERS: CharacterVTuberRigSpec[] = [
     stillUrl: '/covers/halloween/pumpkin-patch-still.jpg',
     movieSampleUrl: '/audio/halloween/voices/char_1_movie_sample.wav',
     vocalTractIrUrl: '/audio/halloween/voices/char_1_vocal_ir.wav',
-    glbModelUrl: '/models/halloween/pumpkin_patch_cast.glb',
+    glbModelUrl: '/games/ravencrest/assets/characters/melvin.glb',
+    vtuberModelUrl: '/games/ravencrest/assets/vtuber/melvin.vrm',
     glbNodeName: 'Char_PumpkinPatch',
     learnedFormants: {
       f0MedianHz: 324.3,
@@ -244,7 +262,8 @@ export const STORY_INTEL_VTUBER_CHARACTERS: CharacterVTuberRigSpec[] = [
     stillUrl: '/generated/comics/pumpkin_patch_v4/frame_0120s.jpg',
     movieSampleUrl: '/audio/halloween/voices/char_3_movie_sample.wav',
     vocalTractIrUrl: '/audio/halloween/voices/char_3_vocal_ir.wav',
-    glbModelUrl: '/models/halloween/pumpkin_patch_cast.glb',
+    glbModelUrl: '/games/ravencrest/assets/characters/miriam.glb',
+    vtuberModelUrl: '/games/ravencrest/assets/vtuber/miriam.vrm',
     glbNodeName: 'Char_Miriam',
     learnedFormants: {
       f0MedianHz: 421.1,
@@ -305,7 +324,8 @@ export const STORY_INTEL_VTUBER_CHARACTERS: CharacterVTuberRigSpec[] = [
     stillUrl: '/generated/comics/pumpkin_patch_v4/frame_0510s.jpg',
     movieSampleUrl: '/audio/halloween/voices/char_4_movie_sample.wav',
     vocalTractIrUrl: '/audio/halloween/voices/char_4_vocal_ir.wav',
-    glbModelUrl: '/models/halloween/pumpkin_patch_cast.glb',
+    glbModelUrl: '/games/ravencrest/assets/characters/stitch.glb',
+    vtuberModelUrl: '/games/ravencrest/assets/vtuber/stitch.vrm',
     glbNodeName: 'Char_Stitch',
     learnedFormants: {
       f0MedianHz: 229.7,
@@ -355,19 +375,20 @@ export const STORY_INTEL_VTUBER_CHARACTERS: CharacterVTuberRigSpec[] = [
   {
     id: 'char_8',
     filmId: PUMPKIN_PATCH_FILM_ID,
-    filmTitle: 'Pumpkin Patch (2025)',
-    name: 'Ichabod Crane (Director Jack)',
-    shortName: 'Ichabod',
-    actorName: 'Director Jack / Ichabod Crane',
-    alias: 'M.I.A. Intelligence Director',
-    roleLabel: 'Pentagram Mastermind',
+    filmTitle: 'Ravencrest',
+    name: 'Jack Thorne',
+    shortName: 'Jack',
+    actorName: 'Jack Thorne (Ravencrest)',
+    alias: 'Former ranger · monster slayer',
+    roleLabel: 'Ravencrest Hero',
     creatorName: 'Brian James Gage',
-    portraitUrl: '/generated/comics/pumpkin_patch_v4/char_8_portrait.jpg',
-    stillUrl: '/generated/comics/pumpkin_patch_v4/frame_1920s.jpg',
+    portraitUrl: '/games/ravencrest/menu/jack.jpg',
+    stillUrl: '/games/ravencrest/menu/jack.jpg',
     movieSampleUrl: '/audio/halloween/voices/char_8_movie_sample.wav',
     vocalTractIrUrl: '/audio/halloween/voices/char_8_vocal_ir.wav',
-    glbModelUrl: '/models/halloween/pumpkin_patch_cast.glb',
-    glbNodeName: 'Char_Ichabod',
+    glbModelUrl: '/games/ravencrest/assets/characters/jack_thorne.glb',
+    vtuberModelUrl: '/games/ravencrest/assets/vtuber/jack_thorne.vrm',
+    glbNodeName: 'Char_JackThorne',
     learnedFormants: {
       f0MedianHz: 230.8,
       f0StdHz: 136.9,
@@ -383,18 +404,16 @@ export const STORY_INTEL_VTUBER_CHARACTERS: CharacterVTuberRigSpec[] = [
     },
     accentColor: '#fb923c',
     secondaryColor: '#f59e0b',
-    emoji: '🎩',
-    storyIntelSummary:
-      'Suave executive director of the Monster Intelligence Agency in a tailored tuxedo and bow tie who secretly orchestrates the Hexagon conspiracy.',
+    emoji: '🗡️',
+    storyIntelSummary: 'Former ranger turned monster slayer who walks the misty road to Ravencrest to defeat Dracula and break the curse over the land.',
     voiceDescription:
       'Learned from 1,220 movie dialogue frames (07:24): authoritative Pentagram war-room baritone with crisp F2=1102Hz articulation.',
-    sampleQuote:
-      '"District 13? Dracula, dammit! Nobody walks out of District 13. Not even our best operatives."',
+    sampleQuote: '"Night falls. The mist rises. Ravencrest is not empty."',
     jawRegion: { centerX: 0.5, topY: 0.59, bottomY: 0.8, width: 0.4 },
     eyeRegions: { left: { x: 0.4, y: 0.43 }, right: { x: 0.6, y: 0.43 } },
     fxStyle: 'pentagram_director',
     voicePreset: {
-      presetLabel: 'Learned Ichabod Director (1,220 frames)',
+      presetLabel: 'Jack Thorne baritone',
       pitchSemitones: -1.6,
       formantShiftHz: -50,
       throatFormantHz: 258,
@@ -427,7 +446,8 @@ export const STORY_INTEL_VTUBER_CHARACTERS: CharacterVTuberRigSpec[] = [
     stillUrl: '/generated/comics/pumpkin_patch_v4/frame_0750s.jpg',
     movieSampleUrl: '/audio/halloween/voices/char_5_movie_sample.wav',
     vocalTractIrUrl: '/audio/halloween/voices/char_5_vocal_ir.wav',
-    glbModelUrl: '/models/halloween/pumpkin_patch_cast.glb',
+    glbModelUrl: '/games/ravencrest/assets/characters/crane.glb',
+    vtuberModelUrl: '/games/ravencrest/assets/vtuber/crane.vrm',
     glbNodeName: 'Char_RoboBones',
     learnedFormants: {
       f0MedianHz: 205.1,
@@ -477,19 +497,20 @@ export const STORY_INTEL_VTUBER_CHARACTERS: CharacterVTuberRigSpec[] = [
   {
     id: 'char_2',
     filmId: PUMPKIN_PATCH_FILM_ID,
-    filmTitle: 'Pumpkin Patch (2025)',
-    name: 'Agent Katrina Van Tassel',
-    shortName: 'Katrina',
-    actorName: 'Special Agent Katrina Van Tassel',
-    alias: 'MIA Senior Field Investigator',
-    roleLabel: 'Main Deuteragonist',
+    filmTitle: 'Ravencrest',
+    name: 'Elise Carter',
+    shortName: 'Elise',
+    actorName: 'Elise Carter (Ravencrest)',
+    alias: 'Survivor · monster slayer',
+    roleLabel: 'Ravencrest Hero',
     creatorName: 'Brian James Gage',
-    portraitUrl: '/generated/comics/pumpkin_patch_v4/char_2_portrait.jpg',
-    stillUrl: '/generated/comics/pumpkin_patch_v4/frame_0360s.jpg',
+    portraitUrl: '/games/ravencrest/menu/elise.jpg',
+    stillUrl: '/games/ravencrest/menu/elise.jpg',
     movieSampleUrl: '/audio/halloween/voices/char_2_movie_sample.wav',
     vocalTractIrUrl: '/audio/halloween/voices/char_2_vocal_ir.wav',
-    glbModelUrl: '/models/halloween/pumpkin_patch_cast.glb',
-    glbNodeName: 'Char_Katrina',
+    glbModelUrl: '/games/ravencrest/assets/characters/elise.glb',
+    vtuberModelUrl: '/games/ravencrest/assets/vtuber/elise.vrm',
+    glbNodeName: 'Char_EliseCarter',
     learnedFormants: {
       f0MedianHz: 132.6,
       f0StdHz: 112.6,
@@ -505,18 +526,16 @@ export const STORY_INTEL_VTUBER_CHARACTERS: CharacterVTuberRigSpec[] = [
     },
     accentColor: '#c084fc',
     secondaryColor: '#a855f7',
-    emoji: '🕵️‍♀️',
-    storyIntelSummary:
-      'Senior Monster Intelligence Agency (M.I.A.) tactical investigator who uncovers the conspiracy inside the Pentagram and clears Melvin’s name.',
+    emoji: '🏹',
+    storyIntelSummary: 'Quick, acrobatic survivor who fights her way up to Ravencrest with spinning back kicks and a backflip finisher.',
     voiceDescription:
       'Learned from 942 movie dialogue frames (07:49 & 18:25): sleek mezzo-soprano formant envelope with F3=3047Hz forensic clarity.',
-    sampleQuote:
-      '"Scareforce One went down in Hallow Bay. Every camera in New Hallows saw it."',
+    sampleQuote: '"Cross the bridge, defeat Dracula, break the curse."',
     jawRegion: { centerX: 0.5, topY: 0.6, bottomY: 0.8, width: 0.38 },
     eyeRegions: { left: { x: 0.4, y: 0.44 }, right: { x: 0.6, y: 0.44 } },
     fxStyle: 'mia_tactical_hud',
     voicePreset: {
-      presetLabel: 'Learned Agent Katrina (942 frames)',
+      presetLabel: 'Elise Carter mezzo',
       pitchSemitones: 2.8,
       formantShiftHz: 190,
       throatFormantHz: 380,
@@ -538,19 +557,20 @@ export const STORY_INTEL_VTUBER_CHARACTERS: CharacterVTuberRigSpec[] = [
   {
     id: 'char_marv',
     filmId: PUMPKIN_PATCH_FILM_ID,
-    filmTitle: 'Pumpkin Patch (2025)',
-    name: 'Marv (District 13 Tavern Fixer)',
-    shortName: 'Marv',
-    actorName: 'Marv (District 13 Fixer)',
-    alias: 'Neon Pool Hall & Underworld Broker',
-    roleLabel: 'District 13 Informant',
-    creatorName: 'Brian James Gage',
-    portraitUrl: '/generated/comics/pumpkin_patch_v4/frame_0450s.jpg',
-    stillUrl: '/generated/comics/pumpkin_patch_v4/frame_0450s.jpg',
+    filmTitle: 'Ravencrest',
+    name: 'Werewolf',
+    shortName: 'Werewolf',
+    actorName: 'Werewolf (Ravencrest)',
+    alias: 'Full-moon hunter of the forest road',
+    roleLabel: 'Ravencrest Horde',
+    creatorName: 'Plajah · Ravencrest',
+    portraitUrl: '/games/ravencrest/portraits/werewolf.jpg',
+    stillUrl: '/games/ravencrest/portraits/werewolf.jpg',
     movieSampleUrl: '/audio/halloween/voices/char_marv_movie_sample.wav',
     vocalTractIrUrl: '/audio/halloween/voices/char_marv_vocal_ir.wav',
-    glbModelUrl: '/models/halloween/pumpkin_patch_cast.glb',
-    glbNodeName: 'Char_Stitch',
+    glbModelUrl: '/games/ravencrest/assets/characters/werewolf.glb',
+    vtuberModelUrl: '/games/ravencrest/assets/vtuber/werewolf.vrm',
+    glbNodeName: 'Ravencrest_werewolf',
     learnedFormants: {
       f0MedianHz: 375.0,
       f0StdHz: 82.2,
@@ -566,13 +586,11 @@ export const STORY_INTEL_VTUBER_CHARACTERS: CharacterVTuberRigSpec[] = [
     },
     accentColor: '#ef4444',
     secondaryColor: '#f97316',
-    emoji: '🎱',
-    storyIntelSummary:
-      'Heavy-hitting neon pool-hall barkeep and District 13 underworld fixer who trades contraband intel between the Burlap Gang and rogue M.I.A. operatives.',
+    emoji: '🐺',
+    storyIntelSummary: 'A towering lycanthrope that stalks the forest road and leaps from the mist.',
     voiceDescription:
       'Learned from 806 movie dialogue frames (11:50 & 12:12): booming District 13 tavern bass-baritone with warm chest resonance.',
-    sampleQuote:
-      '"You better pray, Pumpkin Patch! Goddamn it, Melvin, what did I say about beheadings?"',
+    sampleQuote: '\"Aaa-woooo!\"',
     jawRegion: { centerX: 0.5, topY: 0.58, bottomY: 0.83, width: 0.46 },
     eyeRegions: { left: { x: 0.39, y: 0.43 }, right: { x: 0.61, y: 0.43 } },
     fxStyle: 'tavern_neon_smoke',
@@ -594,24 +612,25 @@ export const STORY_INTEL_VTUBER_CHARACTERS: CharacterVTuberRigSpec[] = [
       combDelayMs: 18,
       combFeedback: 0.14,
     },
-    defaultAccessTier: 'SANCTUARY_SUBSCRIBER_UNLOCK',
+    defaultAccessTier: 'PLATFORM_PUBLIC',
   },
   {
     id: 'char_6',
     filmId: PUMPKIN_PATCH_FILM_ID,
-    filmTitle: 'Pumpkin Patch (2025)',
-    name: "Lil' Boo",
-    shortName: "Lil' Boo",
-    actorName: "Lil' Boo (Spectral Sidekick)",
-    alias: 'Bioluminescent Spectral Sidekick',
-    roleLabel: 'Supporting Companion',
-    creatorName: 'Brian James Gage',
-    portraitUrl: '/generated/comics/pumpkin_patch_v4/char_6_portrait.jpg',
-    stillUrl: '/generated/comics/pumpkin_patch_v4/frame_1530s.jpg',
+    filmTitle: 'Ravencrest',
+    name: 'Ghost',
+    shortName: 'Ghost',
+    actorName: 'Ghost (Ravencrest)',
+    alias: 'Restless spirit of the Grand Hall',
+    roleLabel: 'Ravencrest Horde',
+    creatorName: 'Plajah · Ravencrest',
+    portraitUrl: '/games/ravencrest/portraits/ghost.jpg',
+    stillUrl: '/games/ravencrest/portraits/ghost.jpg',
     movieSampleUrl: '/audio/halloween/voices/char_6_movie_sample.wav',
     vocalTractIrUrl: '/audio/halloween/voices/char_6_vocal_ir.wav',
-    glbModelUrl: '/models/halloween/pumpkin_patch_tank.glb',
-    glbNodeName: 'Turret_LilBoo',
+    glbModelUrl: '/games/ravencrest/assets/characters/ghost.glb',
+    vtuberModelUrl: '/games/ravencrest/assets/vtuber/ghost.vrm',
+    glbNodeName: 'Ravencrest_ghost',
     learnedFormants: {
       f0MedianHz: 180.5,
       f0StdHz: 125.4,
@@ -628,11 +647,10 @@ export const STORY_INTEL_VTUBER_CHARACTERS: CharacterVTuberRigSpec[] = [
     accentColor: '#a855f7',
     secondaryColor: '#38bdf8',
     emoji: '👻',
-    storyIntelSummary:
-      'Bioluminescent mini-ghost who rides in a glass containment jar on the roof turret of Melvin’s tank and acts as his loyal sidekick.',
+    storyIntelSummary: 'A wailing spirit that drifts through the castle walls and bursts into ectoplasm.',
     voiceDescription:
       'Learned from 890 movie frames (12:17 & 37:21): high-pitched spectral companion voice with crystalline ectoplasmic shimmer.',
-    sampleQuote: '"Boo-oo! Ectoplasmic containment jar charged to 100%!"',
+    sampleQuote: '\"Leeeave this place…\"',
     jawRegion: { centerX: 0.5, topY: 0.55, bottomY: 0.78, width: 0.42 },
     eyeRegions: { left: { x: 0.38, y: 0.42 }, right: { x: 0.62, y: 0.42 } },
     fxStyle: 'ectoplasm_ghost',
@@ -654,24 +672,25 @@ export const STORY_INTEL_VTUBER_CHARACTERS: CharacterVTuberRigSpec[] = [
       combDelayMs: 16,
       combFeedback: 0.18,
     },
-    defaultAccessTier: 'WORLD_SANCTUARY_ONLY',
+    defaultAccessTier: 'PLATFORM_PUBLIC',
   },
   {
     id: 'char_7',
     filmId: PUMPKIN_PATCH_FILM_ID,
-    filmTitle: 'Pumpkin Patch (2025)',
-    name: 'President Tepes',
-    shortName: 'President Tepes',
-    actorName: 'President Tepes (Head of State)',
-    alias: 'Vampire Commander-in-Chief',
-    roleLabel: 'Head of State',
-    creatorName: 'Brian James Gage',
-    portraitUrl: '/generated/comics/pumpkin_patch_v4/char_7_portrait.jpg',
-    stillUrl: '/generated/comics/pumpkin_patch_v4/frame_0270s.jpg',
+    filmTitle: 'Ravencrest',
+    name: 'Count Dracula',
+    shortName: 'Dracula',
+    actorName: 'Count Dracula (Ravencrest)',
+    alias: 'Lord of Ravencrest',
+    roleLabel: 'Ravencrest Final Boss',
+    creatorName: 'Plajah · Ravencrest',
+    portraitUrl: '/games/ravencrest/portraits/dracula.jpg',
+    stillUrl: '/games/ravencrest/portraits/dracula.jpg',
     movieSampleUrl: '/audio/halloween/voices/char_7_movie_sample.wav',
     vocalTractIrUrl: '/audio/halloween/voices/char_7_vocal_ir.wav',
-    glbModelUrl: '/models/halloween/pumpkin_patch_cast.glb',
-    glbNodeName: 'Char_Ichabod',
+    glbModelUrl: '/games/ravencrest/assets/characters/dracula.glb',
+    vtuberModelUrl: '/games/ravencrest/assets/vtuber/dracula.vrm',
+    glbNodeName: 'Ravencrest_dracula',
     learnedFormants: {
       f0MedianHz: 266.7,
       f0StdHz: 116.3,
@@ -688,11 +707,10 @@ export const STORY_INTEL_VTUBER_CHARACTERS: CharacterVTuberRigSpec[] = [
     accentColor: '#f43f5e',
     secondaryColor: '#e11d48',
     emoji: '🧛',
-    storyIntelSummary:
-      'Ancient aristocratic vampire statesman who rides alongside Melvin in the armored tank escape and guards the Hexagon vault.',
+    storyIntelSummary: 'The master of Ravencrest — defeat him in the Grand Hall to break the curse over the land.',
     voiceDescription:
       'Learned from 981 movie dialogue frames (37:21 & 50:52): velvet Old-World vampire baritone with resonant F1=258Hz chest warmth.',
-    sampleQuote: '"That\'s pretty metal, I guess. You think we\'ll make it?"',
+    sampleQuote: '\"Welcome to Ravencrest. I trust you will stay… forever.\"',
     jawRegion: { centerX: 0.5, topY: 0.59, bottomY: 0.81, width: 0.42 },
     eyeRegions: { left: { x: 0.4, y: 0.43 }, right: { x: 0.6, y: 0.43 } },
     fxStyle: 'vampire_lord',
@@ -714,9 +732,55 @@ export const STORY_INTEL_VTUBER_CHARACTERS: CharacterVTuberRigSpec[] = [
       combDelayMs: 14,
       combFeedback: 0.14,
     },
-    defaultAccessTier: 'SANCTUARY_SUBSCRIBER_UNLOCK',
+    defaultAccessTier: 'PLATFORM_PUBLIC',
   },
+  ...ravencrestCreatures(),
 ];
+
+/**
+ * The Ravencrest game's own creatures, puppeteered with the same GLBs the game spawns. They share
+ * one gravelly voice preset (the voice changer is off for now) and portraits rendered from the models.
+ */
+function ravencrestCreatures(): CharacterVTuberRigSpec[] {
+  const base = (
+    o: Pick<
+      CharacterVTuberRigSpec,
+      'id' | 'name' | 'shortName' | 'alias' | 'roleLabel' | 'emoji' | 'accentColor' | 'secondaryColor' | 'storyIntelSummary' | 'sampleQuote' | 'fxStyle'
+    > & { model: string }
+  ): CharacterVTuberRigSpec => ({
+    ...o,
+    filmId: PUMPKIN_PATCH_FILM_ID, // licensed under the same Halloween collection policy
+    filmTitle: 'Ravencrest',
+    actorName: `${o.name} (Ravencrest)`,
+    creatorName: 'Plajah · Ravencrest',
+    portraitUrl: `/games/ravencrest/portraits/${o.model}.jpg`,
+    stillUrl: `/games/ravencrest/portraits/${o.model}.jpg`,
+    movieSampleUrl: '',
+    vocalTractIrUrl: '',
+    glbModelUrl: `/games/ravencrest/assets/characters/${o.model}.glb`,
+    vtuberModelUrl: `/games/ravencrest/assets/vtuber/${o.model}.vrm`,
+    glbNodeName: `Ravencrest_${o.model}`,
+    learnedFormants: {
+      f0MedianHz: 110, f0StdHz: 40, f1Hz: 420, f1GainDb: 4, f2Hz: 1100, f2GainDb: 2,
+      f3Hz: 2400, f3GainDb: 0, f4Hz: 3500, f4GainDb: -2, voicedFramesAnalyzed: 0,
+    },
+    voiceDescription: 'Ravencrest creature growl.',
+    jawRegion: { centerX: 0.5, topY: 0.6, bottomY: 0.8, width: 0.4 },
+    eyeRegions: { left: { x: 0.4, y: 0.42 }, right: { x: 0.6, y: 0.42 } },
+    voicePreset: {
+      presetLabel: 'Ravencrest creature', pitchSemitones: -5, formantShiftHz: -180, throatFormantHz: 220,
+      cavityResonanceHz: 800, cavityQ: 2.2, gritDrive: 0.3, vocalTractIrMix: 0, ringModHz: 30, ringModMix: 0.12,
+      vibratoHz: 0, vibratoDepthCents: 0, trebleBoostDb: -2, bassBoostDb: 5, combDelayMs: 10, combFeedback: 0.2,
+    },
+    defaultAccessTier: 'PLATFORM_PUBLIC',
+  });
+  return [
+    base({ id: 'rc_zombie', model: 'zombie', name: 'Zombie', shortName: 'Zombie', alias: 'Shambling dead of the misty road', roleLabel: 'Ravencrest Horde', emoji: '🧟', accentColor: '#84cc16', secondaryColor: '#3f6212', storyIntelSummary: 'The risen dead that shamble out of the mist along the road to Ravencrest.', sampleQuote: '"Uuuurgh…"', fxStyle: 'scarecrow_burlap' }),
+    base({ id: 'rc_vampire', model: 'vampire', name: 'Vampire', shortName: 'Vampire', alias: 'Thrall of the castle', roleLabel: 'Ravencrest Horde', emoji: '🧛', accentColor: '#ef4444', secondaryColor: '#7f1d1d', storyIntelSummary: 'Dracula’s thralls, quick to strike and quick to turn to ash.', sampleQuote: '"The master is expecting you."', fxStyle: 'vampire_lord' }),
+    base({ id: 'rc_troll', model: 'bridge_troll', name: 'Bridge Troll', shortName: 'Troll', alias: 'Keeper of the drawbridge', roleLabel: 'Ravencrest Boss', emoji: '🪨', accentColor: '#a3a35c', secondaryColor: '#3a4a30', storyIntelSummary: 'The hulking troll that holds the drawbridge — nobody crosses until it falls.', sampleQuote: '"None shall cross!"', fxStyle: 'tavern_neon_smoke' }),
+    base({ id: 'rc_angel', model: 'halo_angel', name: 'Halo Angel', shortName: 'Angel', alias: 'Guardian of the faithful', roleLabel: 'Ravencrest Ally', emoji: '😇', accentColor: '#fde68a', secondaryColor: '#f59e0b', storyIntelSummary: 'A winged guardian who descends to heal heroes in their darkest moment.', sampleQuote: '"Rise. The night is not over."', fxStyle: 'ectoplasm_ghost' }),
+  ];
+}
 
 // ============================================================================
 // 3. CREATOR LICENSING STORAGE & ENTITLEMENT EVALUATION
@@ -1473,7 +1537,7 @@ export function renderStoryIntelVTuberFrame(params: {
   character: CharacterVTuberRigSpec;
   portraitImg: HTMLImageElement | null;
   webcamVideo?: HTMLVideoElement | null;
-  faceEyes?: FaceEyes | null;
+  faceEyes?: TrackedHeadEyes | null;
   voiceAmplitude: number;
   voiceSpectrum: number[];
   mode: 'VTUBER_STAGE' | 'AR_WEBCAM_SWAP';

@@ -1,7 +1,5 @@
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 import {
   STORY_INTEL_VTUBER_CHARACTERS,
   CharacterVTuberRigSpec,
@@ -14,20 +12,36 @@ import {
   evaluateCharacterAccess,
   RealtimeCharacterVoiceChanger,
   renderStoryIntelVTuberFrame,
+  headEyesFromFace,
+  type TrackedHeadEyes,
 } from '../../services/halloween/storyIntelCharacterRigAndVoiceEngine';
-import { AsyncFaceTracker } from '../../services/vtuber/faceTrackerAsync';
-import { FaceEyes } from '../../services/vtuber/eyeGeometry';
+import {
+  STAGE_HEIGHT,
+  loadCastRig,
+  poseStageRig,
+  playEmote,
+  setBodyPose,
+  recenterBody,
+  headTurnFromMatrix,
+  CAST_EMOTES,
+  type BodyPoseInput,
+  type StageRig,
+} from '../../services/halloween/ravencrestCastStage';
+import { expressionFromBlendshapes, NEUTRAL_FACE } from '../../services/halloween/castFaceRig';
+import { LiveFaceTracker, LivePoseTracker } from '../../services/vtuber/liveTrackers';
+import { ClipRecorder } from './ClipRecorder';
 
 const CHARACTER_COUNCIL_SHEET_MAP: Record<string, string> = {
   char_1: '/models/halloween/sheets/pumpkin_patch_sheet.jpg',
   char_3: '/models/halloween/sheets/miriam_sheet.jpg',
   char_4: '/models/halloween/sheets/stitch_and_robobones_sheet.jpg',
   char_5: '/models/halloween/sheets/stitch_and_robobones_sheet.jpg',
-  char_2: '/models/halloween/sheets/miriam_sheet.jpg',
   char_6: '/models/halloween/sheets/tank_sheet.jpg',
   char_7: '/models/halloween/sheets/stitch_and_robobones_sheet.jpg',
-  char_8: '/models/halloween/sheets/pumpkin_patch_sheet.jpg',
 };
+
+// The learned voice changer is switched off for now; the studio runs as a 3D/2.5D character booth.
+const VOICE_CHANGER_ENABLED = false;
 
 interface StoryIntelVTuberVoiceStudioProps {
   onSendVTuberMessageToChat?: (payload: {
@@ -36,10 +50,15 @@ interface StoryIntelVTuberVoiceStudioProps {
     snapshotDataUrl?: string;
     voiceChanged: boolean;
   }) => void;
+  /** Recorded clips (≤30 s) go to the room chat through the host. */
+  canPostClips?: boolean;
+  onPostClipToChat?: (clip: Blob, mimeType: string, seconds: number, character: CharacterVTuberRigSpec) => Promise<void>;
 }
 
 export const StoryIntelVTuberVoiceStudio: React.FC<StoryIntelVTuberVoiceStudioProps> = ({
   onSendVTuberMessageToChat,
+  canPostClips = false,
+  onPostClipToChat,
 }) => {
   const [policy, setPolicy] = useState<CreatorFilmInteractivePolicy>(() =>
     loadCreatorCharacterPolicy()
@@ -90,10 +109,19 @@ export const StoryIntelVTuberVoiceStudio: React.FC<StoryIntelVTuberVoiceStudioPr
   const threeMountRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const webcamStreamRef = useRef<MediaStream | null>(null);
-  const faceTrackerRef = useRef<AsyncFaceTracker | null>(null);
+  // Worker-first trackers (camera rate, off the main thread).
+  const faceTrackerRef = useRef<LiveFaceTracker | null>(null);
+  const poseTrackerRef = useRef<LivePoseTracker | null>(null);
+  /** Latest tracked expression scores and body landmarks, read by the 3D loop. */
+  const blendRef = useRef<Record<string, number> | null>(null);
+  /** Head turn from the tracker's 3D head matrix, and the pose that counts as "facing forward". */
+  const headTurnRef = useRef<{ yaw: number; pitch: number; roll: number } | null>(null);
+  const neutralRef = useRef({ yaw: 0, pitch: 0, roll: 0 });
+  const recenterPendingRef = useRef(true);
+  const bodyRef = useRef<BodyPoseInput | null>(null);
   const voiceChangerRef = useRef<RealtimeCharacterVoiceChanger | null>(null);
   const portraitCacheRef = useRef<Record<string, HTMLImageElement>>({});
-  const trackedEyesRef = useRef<FaceEyes | null>(null);
+  const trackedEyesRef = useRef<TrackedHeadEyes | null>(null);
   const selectedCharRef = useRef<CharacterVTuberRigSpec>(selectedCharacter);
   selectedCharRef.current = selectedCharacter;
   const dimLightsRef = useRef<boolean>(dimLights);
@@ -113,6 +141,7 @@ export const StoryIntelVTuberVoiceStudio: React.FC<StoryIntelVTuberVoiceStudioPr
 
   // Initialize voice changer instance
   useEffect(() => {
+    if (!VOICE_CHANGER_ENABLED) return;
     voiceChangerRef.current = new RealtimeCharacterVoiceChanger();
     return () => {
       voiceChangerRef.current?.stop();
@@ -122,9 +151,10 @@ export const StoryIntelVTuberVoiceStudio: React.FC<StoryIntelVTuberVoiceStudioPr
     };
   }, []);
 
-  // Three.js 3D Blender Rigged Character Stage (`pumpkin_patch_cast.glb` & `pumpkin_patch_tank.glb`)
+  // Three.js stage for the Ravencrest cast: each character is the same GLB the game loads,
+  // playing its baked idle, with the head bone steered by webcam head tracking.
   const active3DGroupRef = useRef<THREE.Group | null>(null);
-  const loadedNodesRef = useRef<Record<string, THREE.Object3D>>({});
+  const stageRef = useRef<StageRig | null>(null);
 
   useEffect(() => {
     const mount = threeMountRef.current;
@@ -137,9 +167,10 @@ export const StoryIntelVTuberVoiceStudio: React.FC<StoryIntelVTuberVoiceStudioPr
     scene.background = new THREE.Color(0x07040d);
     scene.fog = new THREE.FogExp2(0x07040d, 0.08);
 
-    const camera = new THREE.PerspectiveCamera(36, width / height, 0.1, 60);
-    camera.position.set(0, 1.48, 2.75);
-    camera.lookAt(0, 1.32, 0);
+    // Head-and-shoulders framing for a STAGE_HEIGHT-tall character.
+    const camera = new THREE.PerspectiveCamera(32, width / height, 0.1, 60);
+    camera.position.set(0, STAGE_HEIGHT * 0.86, 1.9);
+    camera.lookAt(0, STAGE_HEIGHT * 0.8, 0);
 
     const renderer = new THREE.WebGLRenderer({
       antialias: true,
@@ -171,64 +202,21 @@ export const StoryIntelVTuberVoiceStudio: React.FC<StoryIntelVTuberVoiceStudioPr
     fillLight.position.set(1.8, 1.1, 1.5);
     scene.add(fillLight);
 
-    // Pedestal floor ring
-    const pedGeo = new THREE.CylinderGeometry(1.15, 1.3, 0.08, 32);
-    const pedMat = new THREE.MeshStandardMaterial({
-      color: 0x140d1f,
-      roughness: 0.4,
-      metalness: 0.6,
-    });
-    const pedestal = new THREE.Mesh(pedGeo, pedMat);
-    pedestal.position.y = -0.04;
-    scene.add(pedestal);
-
     const charStageGroup = new THREE.Group();
     scene.add(charStageGroup);
     active3DGroupRef.current = charStageGroup;
-
-    // Load the Blender 5.0 Sheet-Accurate Volumetric 3D Character Cast Rigs (Draco=False)
-    const loader = new GLTFLoader();
-    Promise.all([
-      loader.loadAsync('/models/halloween/pumpkin_patch_cast_rigs.glb'),
-      loader.loadAsync('/models/halloween/survivor_combat_rigs.glb'),
-      loader.loadAsync('/models/halloween/monsters_enemy_rigs.glb'),
-    ])
-      .then(([castGltf, survGltf, monGltf]) => {
-        const nodes: Record<string, THREE.Object3D> = {};
-        const mapping: Record<string, { scene: THREE.Group; nodeName: string }> = {
-          Char_PumpkinPatch: { scene: castGltf.scene, nodeName: 'PumpkinPatch_Rig' },
-          Char_Miriam: { scene: castGltf.scene, nodeName: 'Miriam_Rig' },
-          Char_Stitch: { scene: castGltf.scene, nodeName: 'Stitch_Rig' },
-          Char_RoboBones: { scene: castGltf.scene, nodeName: 'RoboBones_Rig' },
-          Char_Katrina: { scene: survGltf.scene, nodeName: 'FemaleSurvivor_Rig' },
-          Char_Ichabod: { scene: survGltf.scene, nodeName: 'MaleSurvivor_Rig' },
-          Char_Marv: { scene: monGltf.scene, nodeName: 'Werewolf_Rig' },
-          Turret_LilBoo: { scene: monGltf.scene, nodeName: 'Ghost_Rig' },
-        };
-
-        Object.entries(mapping).forEach(([key, spec]) => {
-          const found = spec.scene.getObjectByName(spec.nodeName);
-          if (found) {
-            const clone = SkeletonUtils.clone(found);
-            clone.position.set(0, 0, 0);
-            clone.rotation.set(0, 0, 0);
-            nodes[key] = clone;
-          }
-        });
-        loadedNodesRef.current = nodes;
-        setGlbReady(true);
-      })
-      .catch(() => {
-        // ignore load errors
-      });
+    setGlbReady(true);
 
     let animFrame = 0;
     const startMs = performance.now();
+    let lastMs = startMs;
 
     const animate3D = () => {
       animFrame = requestAnimationFrame(animate3D);
       const nowMs = performance.now();
       const t = (nowMs - startMs) / 1000;
+      const dt = Math.min(0.1, (nowMs - lastMs) / 1000);
+      lastMs = nowMs;
 
       const telemetry = voiceChangerRef.current?.getVoiceTelemetry() || {
         amplitude: 0,
@@ -244,49 +232,37 @@ export const StoryIntelVTuberVoiceStudio: React.FC<StoryIntelVTuberVoiceStudioPr
       keyLight.intensity = dimLightsRef.current ? 1.8 : 4.2;
       ambient.intensity = dimLightsRef.current ? 0.35 : 1.45;
 
-      // Animate 3D Blender Skinned Character Rig (head pose tracking + speaking jaw/head nod + arm/weapon sway)
-      if (charStageGroup.children.length > 0) {
-        const model = charStageGroup.children[0];
+      const rig = stageRef.current;
+      if (rig) {
         const eyes = trackedEyesRef.current;
-
-        let targetYaw = Math.sin(t * 0.85) * 0.22;
+        let targetYaw = Math.sin(t * 0.85) * 0.18;
         let targetRoll = Math.sin(t * 1.3) * 0.04;
         let targetPitch = Math.cos(t * 1.6) * 0.03 + amp * 0.14;
-
-        if (eyes) {
+        const turn = headTurnRef.current;
+        if (turn) {
+          if (recenterPendingRef.current && rig.body.chestRaw) {
+            neutralRef.current = { ...turn };
+            recenterBody(rig);
+            recenterPendingRef.current = false;
+          } else if (recenterPendingRef.current && !bodyRef.current) {
+            neutralRef.current = { ...turn };
+            recenterPendingRef.current = false;
+          }
+          const n = neutralRef.current;
+          targetYaw = turn.yaw - n.yaw;
+          targetPitch = turn.pitch - n.pitch + amp * 0.16;
+          targetRoll = turn.roll - n.roll;
+        } else if (eyes) {
           const midX = (eyes.left.cx + eyes.right.cx) * 0.5;
           const midY = (eyes.left.cy + eyes.right.cy) * 0.5;
-          targetYaw = -(midX - 0.5) * 1.15;
-          targetPitch = (midY - 0.45) * 0.75 + amp * 0.16;
-          targetRoll = Math.max(-0.35, Math.min(0.35, eyes.roll || 0));
+          targetYaw = (midX - 0.5) * 1.6;
+          targetPitch = (midY - 0.45) * 0.9 + amp * 0.16;
+          targetRoll = -Math.max(-0.45, Math.min(0.45, eyes.roll));
         }
-
-        model.rotation.y += (targetYaw - model.rotation.y) * 0.14;
-        model.rotation.z += (targetRoll - model.rotation.z) * 0.14;
-        model.rotation.x += (targetPitch * 0.35 - model.rotation.x) * 0.14;
-
-        // Breathing & speaking bounce
-        model.position.y = Math.sin(t * 2.4) * 0.018 + amp * 0.045;
-
-        // Animate Blender Armature Bones & sub-parts
-        model.traverse(child => {
-          const n = child.name;
-          if (n === 'Head' || n.endsWith('_Head')) {
-            child.rotation.x = Math.sin(t * 20) * amp * 0.24 + targetPitch * 0.65;
-            child.rotation.y = targetYaw * 0.48;
-            const jawPulse = 1 + amp * 0.14 * Math.abs(Math.sin(t * 22));
-            child.scale.set(1, jawPulse, 1);
-          } else if (n === 'Chest' || n === 'Spine') {
-            child.rotation.y = Math.sin(t * 1.6) * 0.06;
-            child.rotation.x = amp * 0.12;
-          } else if (n === 'UpperArm_L' || n.endsWith('_Arm_L')) {
-            child.rotation.x = -0.35 + Math.sin(t * 2.1) * 0.12 - amp * 0.38;
-          } else if (n === 'UpperArm_R' || n.endsWith('_Arm_R')) {
-            child.rotation.x = -0.45 - Math.sin(t * 2.1) * 0.12 - amp * 0.45;
-          } else if (n === 'LowerArm_L' || n === 'LowerArm_R') {
-            child.rotation.x = -0.42 - amp * 0.25;
-          }
-        });
+        rig.expression = blendRef.current ? expressionFromBlendshapes(blendRef.current) : NEUTRAL_FACE;
+        rig.blend = blendRef.current;
+        setBodyPose(rig, bodyRef.current, dt);
+        poseStageRig(rig, dt, { yaw: targetYaw, pitch: targetPitch, roll: targetRoll });
       }
 
       renderer.render(scene, camera);
@@ -307,27 +283,32 @@ export const StoryIntelVTuberVoiceStudio: React.FC<StoryIntelVTuberVoiceStudioPr
     return () => {
       window.removeEventListener('resize', handleResize);
       cancelAnimationFrame(animFrame);
+      stageRef.current?.mixer?.stopAllAction();
+      stageRef.current = null;
       renderer.dispose();
     };
   }, []);
 
-  // Swap the active 3D Blender character rig whenever `selectedCharacter` or `glbReady` changes
+  // Swap in the selected character's Ravencrest model (each GLB is fetched once, then cloned).
   useEffect(() => {
     const group = active3DGroupRef.current;
     if (!group || !glbReady) return;
-
-    while (group.children.length > 0) {
-      group.remove(group.children[0]);
-    }
-
-    const template =
-      loadedNodesRef.current[selectedCharacter.glbNodeName] ||
-      loadedNodesRef.current['Char_PumpkinPatch'];
-    if (template) {
-      const instance = SkeletonUtils.clone(template);
-      instance.position.set(0, 0, 0);
-      group.add(instance);
-    }
+    let cancelled = false;
+    loadCastRig(selectedCharacter.vtuberModelUrl ?? selectedCharacter.glbModelUrl)
+      .then((rig) => {
+        if (cancelled) return;
+        stageRef.current?.mixer?.stopAllAction();
+        while (group.children.length > 0) group.remove(group.children[0]);
+        group.add(rig.root);
+        stageRef.current = rig;
+        if (import.meta.env.DEV) (window as any).__vtuberStage = rig;
+      })
+      .catch(() => {
+        if (!cancelled) setStatusNotice(`⚠️ Could not load ${selectedCharacter.shortName}'s 3D model.`);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [selectedCharacter, glbReady]);
 
   // Toggle Webcam for head-pose & AR face-swap tracking
@@ -355,9 +336,8 @@ export const StoryIntelVTuberVoiceStudio: React.FC<StoryIntelVTuberVoiceStudioPr
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
       }
-      if (!faceTrackerRef.current) {
-        faceTrackerRef.current = new AsyncFaceTracker();
-      }
+      faceTrackerRef.current ??= new LiveFaceTracker({ numFaces: 1, blendshapes: true });
+      poseTrackerRef.current ??= new LivePoseTracker({ full: true });
       setWebcamActive(true);
       setStatusNotice('📷 Live webcam head-pose & 3D character rig tracking active.');
     } catch {
@@ -439,14 +419,24 @@ export const StoryIntelVTuberVoiceStudio: React.FC<StoryIntelVTuberVoiceStudioPr
       const timeSec = (nowMs - startMs) / 1000;
 
       // Track face eyes if webcam is active
-      let trackedEyes: FaceEyes | null = null;
-      if (webcamActive && videoRef.current && faceTrackerRef.current) {
-        const faces = faceTrackerRef.current.Read(videoRef.current, nowMs);
-        if (faces && faces.length > 0) {
-          trackedEyes = faces[0];
+      // Results arrive asynchronously at camera rate; the rigs ease between them.
+      const video = videoRef.current;
+      if (webcamActive && video) {
+        const frame = faceTrackerRef.current?.step(video, nowMs);
+        if (frame !== undefined) {
+          const face = frame?.faces[0];
+          trackedEyesRef.current = face ? headEyesFromFace(face) : null;
+          blendRef.current = face ? frame!.blendshapes : null;
+          headTurnRef.current = face && frame!.matrix ? headTurnFromMatrix(frame!.matrix, true) : null;
         }
+        const body = poseTrackerRef.current?.step(video, nowMs);
+        if (body !== undefined) bodyRef.current = body?.world ? { world: body.world } : null;
+      } else if (!webcamActive) {
+        trackedEyesRef.current = null;
+        blendRef.current = null;
+        bodyRef.current = null;
       }
-      trackedEyesRef.current = trackedEyes;
+      const trackedEyes = trackedEyesRef.current;
 
       const telemetry = voiceChangerRef.current?.getVoiceTelemetry() || {
         amplitude: 0,
@@ -496,13 +486,13 @@ export const StoryIntelVTuberVoiceStudio: React.FC<StoryIntelVTuberVoiceStudioPr
 
     const text =
       chatLineInput.trim() ||
-      `${selectedCharacter.emoji} [3D Rig + Learned Voice: ${selectedCharacter.shortName}] ${selectedCharacter.sampleQuote}`;
+      `${selectedCharacter.emoji} [3D Rig: ${selectedCharacter.shortName}] ${selectedCharacter.sampleQuote}`;
 
     onSendVTuberMessageToChat?.({
       character: selectedCharacter,
       text,
       snapshotDataUrl,
-      voiceChanged: true,
+      voiceChanged: VOICE_CHANGER_ENABLED && micActive,
     });
     setChatLineInput('');
     setStatusNotice(`✅ Posted 3D VTuber message as ${selectedCharacter.name} to the Vault Chat!`);
@@ -545,17 +535,14 @@ export const StoryIntelVTuberVoiceStudio: React.FC<StoryIntelVTuberVoiceStudioPr
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <span className="px-2.5 py-0.5 rounded-full bg-purple-500/20 border border-purple-400/40 text-purple-300 text-[10px] font-black uppercase tracking-widest">
-              🧊 Blender 5.0 Skinned Cast • Art Council Turnaround Sheets • Learned Movie Voice
-            </span>
-            <span className="px-2.5 py-0.5 rounded-full bg-orange-500/20 border border-orange-400/40 text-orange-300 text-[10px] font-mono">
-              Learned from 8,057 Voiced Movie Frames · Zero Robot Noise
+              🧊 Ravencrest Cast Models • Live Head Tracking
             </span>
           </div>
           <h3 className="text-xl sm:text-2xl font-black text-white mt-1">
-            3D Rigged Movie Character Studio &amp; Learned Vocal-Tract Voice Changer
+            3D Movie Character Studio
           </h3>
           <p className="text-xs text-stone-400 mt-0.5">
-            Built with Council-guided turnaround sheets, Blender 5.0 skinned armature rigs textured from actual <em>Pumpkin Patch</em> movie frames, and 256-tap vocal-tract impulse responses learned directly from the film’s dialogue track.
+            Perform as the <em>Pumpkin Patch</em> cast using the same rigged 3D models as the Ravencrest game — turn on your webcam and the character follows your head.
           </p>
         </div>
 
@@ -568,7 +555,7 @@ export const StoryIntelVTuberVoiceStudio: React.FC<StoryIntelVTuberVoiceStudioPr
                 : 'text-stone-400 hover:text-white'
             }`}
           >
-            🧊🎙️ 3D Character Rig &amp; Learned Voice Changer
+            {VOICE_CHANGER_ENABLED ? '🧊🎙️ 3D Character Rig & Learned Voice Changer' : '🧊 3D Character Rig'}
           </button>
           <button
             onClick={() => setActiveTab('CREATOR_LICENSING')}
@@ -635,10 +622,10 @@ export const StoryIntelVTuberVoiceStudio: React.FC<StoryIntelVTuberVoiceStudioPr
           <div className="lg:col-span-4 space-y-2.5">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-black uppercase tracking-widest text-orange-400">
-                🎃 Select 3D Rig &amp; Learned Movie Voice ({STORY_INTEL_VTUBER_CHARACTERS.length})
+                🎃 Select Character ({STORY_INTEL_VTUBER_CHARACTERS.length})
               </span>
               <span className="text-[10px] font-mono text-stone-400">
-                Blender GLB + WAV IR
+                Ravencrest GLB
               </span>
             </div>
 
@@ -691,9 +678,11 @@ export const StoryIntelVTuberVoiceStudio: React.FC<StoryIntelVTuberVoiceStudioPr
                         >
                           {access.badgeText}
                         </span>
-                        <span className="text-[9px] font-mono text-orange-300">
-                          F1:{Math.round(char.learnedFormants.f1Hz)}Hz · {char.learnedFormants.voicedFramesAnalyzed}f
-                        </span>
+                        {VOICE_CHANGER_ENABLED && (
+                          <span className="text-[9px] font-mono text-orange-300">
+                            F1:{Math.round(char.learnedFormants.f1Hz)}Hz · {char.learnedFormants.voicedFramesAnalyzed}f
+                          </span>
+                        )}
                       </div>
                     </div>
                   </button>
@@ -703,7 +692,7 @@ export const StoryIntelVTuberVoiceStudio: React.FC<StoryIntelVTuberVoiceStudioPr
           </div>
 
           {/* CENTER 5 COLS: 3D BLENDER RIG VIEWPORT + COUNCIL SHEET + 2.5D/AR STAGE */}
-          <div className="lg:col-span-5 flex flex-col space-y-3">
+          <div className={`${VOICE_CHANGER_ENABLED ? 'lg:col-span-5' : 'lg:col-span-8'} flex flex-col space-y-3`}>
             <div className="relative rounded-2xl overflow-hidden border-2 border-orange-500/45 bg-black aspect-[4/3] shadow-2xl">
               {/* 3D Blender Rig WebGL Viewport */}
               <div
@@ -716,7 +705,7 @@ export const StoryIntelVTuberVoiceStudio: React.FC<StoryIntelVTuberVoiceStudioPr
                   <img
                     src={
                       CHARACTER_COUNCIL_SHEET_MAP[selectedCharacter.id] ||
-                      '/models/halloween/sheets/pumpkin_patch_sheet.jpg'
+                      selectedCharacter.portraitUrl
                     }
                     alt={`${selectedCharacter.name} Council 3D Turnaround Sheet`}
                     className="w-full h-full object-contain"
@@ -762,7 +751,7 @@ export const StoryIntelVTuberVoiceStudio: React.FC<StoryIntelVTuberVoiceStudioPr
                 </div>
 
                 <span className="px-2 py-0.5 rounded bg-black/75 border border-stone-700 text-[9px] font-mono text-stone-300">
-                  {selectedCharacter.glbNodeName}
+                  {selectedCharacter.glbModelUrl.split('/').pop()}
                 </span>
               </div>
 
@@ -861,6 +850,27 @@ export const StoryIntelVTuberVoiceStudio: React.FC<StoryIntelVTuberVoiceStudioPr
               </button>
             </div>
 
+            {renderMode === 'BLENDER_3D_RIG' && (
+              <div className="flex flex-wrap gap-1.5">
+                <button
+                  onClick={() => { recenterPendingRef.current = true; }}
+                  title="Look at the camera the way you'll perform, then press to make that 'facing forward'"
+                  className="px-2.5 py-1 rounded-lg bg-orange-600 hover:bg-orange-500 text-white text-[11px] font-bold cursor-pointer"
+                >
+                  🎯 Recenter
+                </button>
+                {CAST_EMOTES.map(e => (
+                  <button
+                    key={e.id}
+                    onClick={() => stageRef.current && playEmote(stageRef.current, e.id)}
+                    className="px-2.5 py-1 rounded-lg bg-stone-950 hover:bg-orange-600 border border-stone-800 text-stone-200 hover:text-white text-[11px] font-bold cursor-pointer"
+                  >
+                    {e.emoji} {e.label}
+                  </button>
+                ))}
+              </div>
+            )}
+
             {/* Send VTuber Performance to Chat Room */}
             <div className="flex gap-2">
               <input
@@ -878,9 +888,25 @@ export const StoryIntelVTuberVoiceStudio: React.FC<StoryIntelVTuberVoiceStudioPr
                 📸 Post as {selectedCharacter.shortName}
               </button>
             </div>
+
+            {renderMode !== 'COUNCIL_SHEET' && (
+              <ClipRecorder
+                getCanvas={() =>
+                  renderMode === 'BLENDER_3D_RIG'
+                    ? threeMountRef.current?.querySelector('canvas') ?? null
+                    : canvasRef.current
+                }
+                canPost={canPostClips && !!onPostClipToChat && currentCharAccess.unlocked}
+                filenameBase={`character-studio-${selectedCharacter.shortName.toLowerCase()}`}
+                onPost={(clip, mime, seconds) =>
+                  onPostClipToChat ? onPostClipToChat(clip, mime, seconds, selectedCharacter) : Promise.reject()
+                }
+              />
+            )}
           </div>
 
-          {/* RIGHT 3 COLS: LEARNED MOVIE VOICE CHANGER RACK */}
+          {/* RIGHT 3 COLS: LEARNED MOVIE VOICE CHANGER RACK (off while VOICE_CHANGER_ENABLED is false) */}
+          {VOICE_CHANGER_ENABLED && (
           <div className="lg:col-span-3 bg-stone-950/90 border border-stone-800 rounded-2xl p-4 flex flex-col justify-between space-y-4">
             <div className="space-y-3">
               <div className="flex items-center justify-between">
@@ -1045,6 +1071,7 @@ export const StoryIntelVTuberVoiceStudio: React.FC<StoryIntelVTuberVoiceStudioPr
               />
             </label>
           </div>
+          )}
         </div>
       ) : (
         /* CREATOR UPLOAD & CHARACTER INTERACTIVE LICENSING GOVERNANCE CONSOLE */

@@ -4,6 +4,8 @@ import { ArrowLeft, Upload, User, Sparkles, Check, Loader2, X, Camera, ShoppingB
 import SafeAvatarViewer from './SafeAvatarViewer';
 import { uploadFile, updateUserProfile } from '../services/backendService';
 import type { AvatarConfig, AvatarStyle, UserProfile } from '../types';
+import { setCachedUserAvatar } from './avatar/UserAvatar';
+import { STORY_INTEL_VTUBER_CHARACTERS } from '../services/halloween/storyIntelCharacterRigAndVoiceEngine';
 
 interface AvatarStudioProps {
   userProfile: UserProfile;
@@ -11,7 +13,7 @@ interface AvatarStudioProps {
   onSave: (config: AvatarConfig) => void;
 }
 
-type Tab = 'RPM' | 'VRM' | 'NONE' | 'WARDROBE';
+type Tab = 'CHARACTER' | 'RPM' | 'VRM' | 'NONE' | 'WARDROBE';
 
 const WARDROBE_ITEMS: { id: string; name: string; category: string; emoji: string; desc: string; source: string; sourceUrl?: string }[] = [
   { id: 'hat_cap',      name: 'Baseball Cap',    category: 'Hats',    emoji: '🧢', desc: 'Classic flat-brim cap',       source: 'Built-in Procedural' },
@@ -58,7 +60,7 @@ const AvatarStudio: React.FC<AvatarStudioProps> = ({ userProfile, onBack, onSave
     if (tab === 'WARDROBE') {
       setConfig(prev => ({ ...prev, style }));
     } else {
-      setConfig(prev => ({ ...prev, style, type: tab as 'RPM' | 'VRM' | 'NONE' }));
+      setConfig(prev => ({ ...prev, style, type: tab as AvatarConfig['type'] }));
     }
   }, [style, tab]);
 
@@ -111,6 +113,7 @@ const AvatarStudio: React.FC<AvatarStudioProps> = ({ userProfile, onBack, onSave
     try {
       const final: AvatarConfig = { ...config, isActive: config.type !== 'NONE' };
       await updateUserProfile(userProfile.uid, { avatar: final });
+      setCachedUserAvatar(userProfile.uid, final);
       onSave(final);
     } catch (err) {
       console.error('Save failed', err);
@@ -124,6 +127,7 @@ const AvatarStudio: React.FC<AvatarStudioProps> = ({ userProfile, onBack, onSave
     try {
       const off: AvatarConfig = { ...config, isActive: false };
       await updateUserProfile(userProfile.uid, { avatar: off });
+      setCachedUserAvatar(userProfile.uid, off);
       onSave(off);
     } finally {
       setSaving(false);
@@ -158,7 +162,7 @@ const AvatarStudio: React.FC<AvatarStudioProps> = ({ userProfile, onBack, onSave
           )}
           <button
             onClick={handleSave}
-            disabled={saving || config.type === 'NONE'}
+            disabled={saving || config.type === 'NONE' || (config.type === 'CHARACTER' && !config.characterId)}
             className="flex items-center gap-2 px-5 py-2 rounded-xl bg-[var(--text-secondary)] text-black text-sm font-black uppercase tracking-widest disabled:opacity-50 hover:brightness-110 transition-all"
           >
             {saving ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
@@ -173,7 +177,7 @@ const AvatarStudio: React.FC<AvatarStudioProps> = ({ userProfile, onBack, onSave
           <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/30 pointer-events-none z-10" />
           <div className="flex-1" style={{ minHeight: 400 }}>
             <SafeAvatarViewer
-              key={`${config.type}-${config.style}`}
+              key={`${config.type}-${config.style}-${config.characterId ?? ''}`}
               config={config}
               autoRotate={false}
               fallback={
@@ -194,7 +198,7 @@ const AvatarStudio: React.FC<AvatarStudioProps> = ({ userProfile, onBack, onSave
         <div className="w-80 border-l border-white/10 flex flex-col overflow-y-auto">
           {/* Source tabs */}
           <div className="flex border-b border-white/10 overflow-x-auto no-scrollbar">
-            {(['RPM', 'VRM', 'NONE', 'WARDROBE'] as Tab[]).map((t) => (
+            {(['CHARACTER', 'RPM', 'VRM', 'NONE', 'WARDROBE'] as Tab[]).map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
@@ -204,14 +208,44 @@ const AvatarStudio: React.FC<AvatarStudioProps> = ({ userProfile, onBack, onSave
                     : 'text-white/40 hover:text-white/70'
                 }`}
               >
-                {t === 'RPM' ? 'Ready Player Me' : t === 'VRM' ? 'VRM / VRoid' : t === 'WARDROBE' ? 'Wardrobe' : 'Procedural'}
+                {t === 'CHARACTER' ? 'Movie Characters' : t === 'RPM' ? 'Ready Player Me' : t === 'VRM' ? 'VRM / VRoid' : t === 'WARDROBE' ? 'Wardrobe' : 'Procedural'}
               </button>
             ))}
           </div>
 
           <div className="flex-1 p-5 flex flex-col gap-6">
+            {/* Movie characters: the Ravencrest / Pumpkin Patch cast as your avatar */}
+            {tab === 'CHARACTER' && (
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-widest text-white/50 mb-1">Become a movie character</p>
+                <p className="text-[10px] text-white/40 leading-relaxed mb-3">
+                  Your profile picture flips between your photo and the character with a green lightning strike, and your 3D avatar plays its emotes.
+                </p>
+                <div className="grid grid-cols-3 gap-2">
+                  {STORY_INTEL_VTUBER_CHARACTERS.map((c) => {
+                    const on = config.characterId === c.id;
+                    return (
+                      <button
+                        key={c.id}
+                        onClick={() => setConfig(prev => ({
+                          ...prev, type: 'CHARACTER', characterId: c.id, characterName: c.name,
+                          modelUrl: c.vtuberModelUrl ?? c.glbModelUrl, thumbnailUrl: c.portraitUrl,
+                        }))}
+                        className={`rounded-2xl border overflow-hidden text-left transition-all ${
+                          on ? 'border-[var(--text-secondary)] ring-2 ring-[var(--text-secondary)]/30' : 'border-white/10 hover:border-white/30'
+                        }`}
+                      >
+                        <img src={c.portraitUrl} alt="" className="w-full aspect-[4/5] object-cover object-top" />
+                        <div className="px-1.5 py-1 text-[8px] font-black uppercase tracking-wide text-white truncate">{c.shortName}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Style picker */}
-            <div>
+            {tab !== 'CHARACTER' && <div>
               <p className="text-[9px] font-black uppercase tracking-widest text-white/50 mb-3">Avatar Style</p>
               <div className="grid grid-cols-3 gap-2">
                 {STYLES.map((s) => (
@@ -240,7 +274,7 @@ const AvatarStudio: React.FC<AvatarStudioProps> = ({ userProfile, onBack, onSave
                   </button>
                 ))}
               </div>
-            </div>
+            </div>}
 
             {/* Source-specific panel */}
             <AnimatePresence mode="wait">

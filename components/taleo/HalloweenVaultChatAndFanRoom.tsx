@@ -1,3 +1,4 @@
+import { UserAvatar } from '../avatar/UserAvatar';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -25,7 +26,9 @@ import {
   Eye,
   Compass,
 } from 'lucide-react';
-import { db, auth } from '../../services/backendService';
+import { db, auth, joinClubTeam } from '../../services/backendService';
+import { storage } from '../../services/firebase';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import {
   collection,
   doc,
@@ -46,6 +49,12 @@ import {
 import { halloweenAudio } from '../../services/halloween/halloweenAudioSfx';
 import { StoryIntelVTuberVoiceStudio } from './StoryIntelVTuberVoiceStudio';
 import { FaceSwapLink } from '../../services/faceswap/faceSwapLink';
+import { CastFaceOverlay } from '../../services/halloween/castFaceOverlay';
+import { CAST_EMOTES, type CastEmoteId } from '../../services/halloween/ravencrestCastStage';
+import { PoseTracker, type PoseFrame } from '../../services/vtuber/poseTracker';
+import { AsyncPoseTracker } from '../../services/vtuber/poseTrackerAsync';
+import { ClipRecorder } from './ClipRecorder';
+import { PUMPKIN_PATCH_CLUB_ID, openClubRoom, teamRoomFor } from '../../services/halloween/pumpkinPatchClub';
 import {
   STORY_INTEL_VTUBER_CHARACTERS,
   loadCreatorCharacterPolicy,
@@ -77,8 +86,8 @@ export const HALLOWEEN_FACTIONS: HalloweenFaction[] = [
   },
   {
     id: 'greencastle',
-    name: 'Green Castle Coven',
-    shortName: 'Miriam’s Coven',
+    name: 'Green Castle Army',
+    shortName: 'Miriam’s Army',
     emoji: '🧙‍♀️',
     color: '#10B981',
     leader: 'Wicked Witch Miriam',
@@ -123,9 +132,14 @@ export interface HalloweenVaultChatMessage {
   dimLightsOn?: boolean;
   text: string;
   snapshotDataUrl?: string;
+  /** Recorded clip (Firebase Storage download URL), up to 30 s. */
+  videoUrl?: string;
   fxTrigger?: 'BATS' | 'GHOST' | 'JACK' | 'DIM';
   at: number;
 }
+
+/** Only our own storage bucket's download URLs are played back in chat. */
+const isStorageVideoUrl = (u?: string) => !!u && u.startsWith('https://firebasestorage.googleapis.com/');
 
 export interface HalloweenVaultPoll {
   id: string;
@@ -135,54 +149,62 @@ export interface HalloweenVaultPoll {
   votes: Record<number, string[]>; // optionIndex -> array of uids
 }
 
+const newChatMessageId = () => `msg_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+
+// Segmentation: while a 3D character is on, the performer's real body (MediaPipe person mask) is
+// blurred and darkened so the character replaces them instead of being pasted on top.
+let segMaskCanvas: HTMLCanvasElement | null = null;
+let segTmpCanvas: HTMLCanvasElement | null = null;
+function dimPerson(
+  ctx: CanvasRenderingContext2D,
+  frame: CanvasImageSource,
+  mask: { data: Float32Array; w: number; h: number },
+  place: (c: CanvasRenderingContext2D) => void,
+  W: number,
+  H: number
+) {
+  segMaskCanvas ??= document.createElement('canvas');
+  segTmpCanvas ??= document.createElement('canvas');
+  const mc = segMaskCanvas;
+  if (mc.width !== mask.w || mc.height !== mask.h) {
+    mc.width = mask.w;
+    mc.height = mask.h;
+  }
+  const mctx = mc.getContext('2d')!;
+  const img = mctx.createImageData(mask.w, mask.h);
+  for (let i = 0; i < mask.data.length; i++) {
+    img.data[i * 4] = img.data[i * 4 + 1] = img.data[i * 4 + 2] = 255;
+    img.data[i * 4 + 3] = Math.min(255, mask.data[i] * 320);
+  }
+  mctx.putImageData(img, 0, 0);
+  const tc = segTmpCanvas;
+  if (tc.width !== W || tc.height !== H) {
+    tc.width = W;
+    tc.height = H;
+  }
+  const t = tc.getContext('2d')!;
+  t.globalCompositeOperation = 'source-over';
+  t.clearRect(0, 0, W, H);
+  t.save();
+  t.filter = 'blur(14px) brightness(0.28) saturate(0.5)';
+  place(t);
+  t.drawImage(frame, 0, 0);
+  t.restore();
+  // Keep only the person, softened at the edge.
+  t.save();
+  t.globalCompositeOperation = 'destination-in';
+  t.filter = 'blur(6px)';
+  place(t);
+  // Stretch the mask over the frame (it may be at a different resolution than the frame).
+  t.drawImage(mc, 0, 0, (frame as HTMLVideoElement).videoWidth || (frame as HTMLCanvasElement).width, (frame as HTMLVideoElement).videoHeight || (frame as HTMLCanvasElement).height);
+  t.restore();
+  ctx.drawImage(tc, 0, 0);
+}
+
 const STORAGE_CHAT_KEY = 'plajah:halloween:vaultChat:v1';
 const STORAGE_POLLS_KEY = 'plajah:halloween:vaultPolls:v1';
 const STORAGE_FACTION_KEY = 'plajah:halloween:vaultFaction:v1';
 const STORAGE_FILTER_KEY = 'plajah:halloween:filterState:v1';
-
-const SEEDED_MESSAGES: HalloweenVaultChatMessage[] = [
-  {
-    id: 'seed_1',
-    uid: 'fan_gage_1',
-    displayName: 'MidnightProjectionist',
-    factionId: 'district13',
-    activeFilter: 'jackolantern',
-    dimLightsOn: true,
-    text: '🎃 Just tested the Jack-o’-Lantern filter with Dim the Lights mode on — the carved jaw actually hinges with every word and casts firelight on your collar!',
-    at: Date.now() - 1000 * 60 * 18,
-  },
-  {
-    id: 'seed_2',
-    uid: 'fan_weimar_2',
-    displayName: 'OrlokShadow1922',
-    factionId: 'bloodline',
-    activeFilter: 'vampire',
-    dimLightsOn: false,
-    text: '🧛 Pairing Nosferatu (1922) with President Tepes in Brian James Gage’s Pumpkin Patch is pure cinema gold. Look at those Story Intel 3-act breakdowns below!',
-    at: Date.now() - 1000 * 60 * 12,
-  },
-  {
-    id: 'seed_3',
-    uid: 'fan_coven_3',
-    displayName: 'GreenCastleWitch',
-    factionId: 'greencastle',
-    activeFilter: 'bats',
-    dimLightsOn: true,
-    text: '🧙‍♀️ Have you guys gone into the Haunted Castle & Lonesome Road 3D Exhibition yet?! Miriam flew right across the full moon with her winged monkey army cackling!',
-    fxTrigger: 'BATS',
-    at: Date.now() - 1000 * 60 * 5,
-  },
-  {
-    id: 'seed_4',
-    uid: 'fan_romero_4',
-    displayName: 'EvansCity68',
-    factionId: 'farmhouse',
-    activeFilter: 'zombie',
-    dimLightsOn: true,
-    text: '🧟 Turn on "Dim the Lights" + the Zombie filter — it looks like a real 2:00 AM found-footage camcorder tape from inside the Pennsylvania farmhouse!',
-    at: Date.now() - 1000 * 60 * 2,
-  },
-];
 
 const SEEDED_POLLS: HalloweenVaultPoll[] = [
   {
@@ -304,17 +326,19 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
     }
   });
 
+  // Real messages only. Older builds shipped demo messages (ids `seed_*`) and cached them in each
+  // browser, so those are dropped from the cache on load.
   const [messages, setMessages] = useState<HalloweenVaultChatMessage[]>(() => {
     try {
       const raw = localStorage.getItem(STORAGE_CHAT_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed.filter((m: HalloweenVaultChatMessage) => !String(m?.id).startsWith('seed_'));
       }
     } catch {
       /* ignore */
     }
-    return SEEDED_MESSAGES;
+    return [];
   });
 
   const [polls, setPolls] = useState<HalloweenVaultPoll[]>(() => {
@@ -360,6 +384,22 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
       (c) => policy.characters[c.id]?.allowVTuberFaceMapping !== false
     );
   }, []);
+  // ── Become a Ravencrest character: the 3D model is drawn over your tracked face ──
+  const [castCharacterId, setCastCharacterId] = useState<string | null>(null);
+  const [castLoading, setCastLoading] = useState(false);
+  const castOverlayRef = useRef<CastFaceOverlay | null>(null);
+  const castActiveRef = useRef(false);
+  castActiveRef.current = !!castCharacterId;
+  // Full-body tracking for the 3D characters (MediaPipe pose, loaded on first use).
+  // Worker first (30 Hz, off the main thread); the blocking tracker only if workers can't run it.
+  const poseTrackerRef = useRef<{ state: 'loading' | 'ready' | 'failed'; async?: AsyncPoseTracker; sync?: PoseTracker } | null>(null);
+  /** Latest person mask: the real body is dimmed behind the 3D character (segmentation). */
+  const personMaskRef = useRef<PoseFrame['mask'] | null>(null);
+  const castCharacter = useMemo(
+    () => swapCharacters.find((c) => c.id === castCharacterId) ?? null,
+    [swapCharacters, castCharacterId]
+  );
+
   const chatBottomRef = useRef<HTMLDivElement | null>(null);
   const portraitImgRef = useRef<HTMLImageElement | null>(null);
 
@@ -435,7 +475,7 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
             .reverse();
           setMessages((prev) => {
             const byId = new Map<string, HalloweenVaultChatMessage>();
-            for (const m of [...SEEDED_MESSAGES, ...prev, ...remoteMsgs]) {
+            for (const m of [...prev, ...remoteMsgs]) {
               byId.set(m.id, m);
             }
             return Array.from(byId.values()).sort((a, b) => a.at - b.at).slice(-80);
@@ -451,14 +491,19 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
 
   // Initialize HalloweenFilterEngine and run 30fps live render loop
   useEffect(() => {
-    const engine = new HalloweenFilterEngine();
+    // Expressions on: 3D characters copy the performer's mouth, brows and blinks.
+    const engine = new HalloweenFilterEngine({ expressions: true });
+    engine.setMirrored(true); // the booth draws the webcam as a selfie view
     engine.setFilter(selectedFilter);
     engine.setDimLights(dimLightsMode);
     engine.setBatSwarm(batSwarmOverlay);
     engineRef.current = engine;
+    if (import.meta.env.DEV) (window as any).__halloweenFilterEngine = engine;
 
     let raf = 0;
     let lastFrame = 0;
+    let lastPoseMs = -1e9;
+    let lastPoseTs = -1;
 
     const renderTick = (nowMs: number) => {
       raf = requestAnimationFrame(renderTick);
@@ -509,6 +554,16 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
         const dh = fh * s;
         ctx.drawImage(frame, (W - dw) / 2, (H - dh) / 2, dw, dh);
         ctx.restore();
+        const mask = castActiveRef.current ? personMaskRef.current : null;
+        if (mask) {
+          // Same mirrored cover placement for the frame and its mask (the mask is in video pixels).
+          dimPerson(ctx, frame, mask, (c) => {
+            c.translate(W, 0);
+            c.scale(-1, 1);
+            c.translate((W - dw) / 2, (H - dh) / 2);
+            c.scale(dw / fw, dh / fh);
+          }, W, H);
+        }
       } else {
         // Draw atmospheric simulated studio talking-head feed so any user can test all filters immediately
         drawSimulatedStudioTalkingHead(ctx, W, H, tSec, talkingBurstRef.current);
@@ -521,6 +576,52 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
           0.55 *
             Math.max(0, Math.sin(tSec * 7.8) * Math.cos(tSec * 4.3) + 0.35 * Math.sin(tSec * 13.1));
         engine.setAudioLevel(wave);
+      }
+
+      // Full-body tracking drives the 3D character's arms and torso (full model, 3D world
+      // landmarks + the person mask), in a worker at camera rate; the rig filters between results.
+      const overlay = castOverlayRef.current;
+      if (overlay && castActiveRef.current) {
+        const pt = poseTrackerRef.current;
+        const applyPose = (fr: PoseFrame | null) => {
+          overlay.setBodyPose(fr?.world ? { world: fr.world } : null);
+          if (fr?.mask) personMaskRef.current = fr.mask;
+        };
+        if (!hasLiveWebcam || !videoEl) {
+          overlay.setBodyPose(null);
+          personMaskRef.current = null;
+        } else if (!pt) {
+          const p: NonNullable<typeof poseTrackerRef.current> = { state: 'loading' };
+          poseTrackerRef.current = p;
+          const opts = { full: true, segmentation: true };
+          const a = new AsyncPoseTracker();
+          void a.init(opts).then(async (ok) => {
+            if (ok) {
+              p.async = a;
+              p.state = 'ready';
+              return;
+            }
+            const s = new PoseTracker();
+            if (await s.init(opts)) {
+              p.sync = s;
+              p.state = 'ready';
+            } else p.state = 'failed';
+          });
+        } else if (pt.state === 'ready' && pt.async) {
+          if (nowMs - lastPoseMs >= 30) {
+            lastPoseMs = nowMs;
+            lastPoseTs = Math.max(lastPoseTs + 1, Math.round(nowMs));
+            pt.async.send(videoEl, lastPoseTs);
+          }
+          const r = pt.async.poll();
+          if (r.fresh) applyPose(r.frame);
+        } else if (pt.state === 'ready' && pt.sync && nowMs - lastPoseMs >= 80) {
+          lastPoseMs = nowMs;
+          lastPoseTs = Math.max(lastPoseTs + 1, Math.round(nowMs));
+          applyPose(pt.sync.detect(videoEl, lastPoseTs));
+        }
+      } else {
+        personMaskRef.current = null;
       }
 
       // Apply the realistic Halloween face filter, bat swarm & Dim-the-Lights found-footage beam!
@@ -541,6 +642,9 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
     raf = requestAnimationFrame(renderTick);
     return () => {
       cancelAnimationFrame(raf);
+      poseTrackerRef.current?.async?.dispose();
+      poseTrackerRef.current?.sync?.dispose();
+      poseTrackerRef.current = null;
       engine.dispose();
       engineRef.current = null;
     };
@@ -560,6 +664,24 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
   }, [batSwarmOverlay]);
 
   useEffect(() => {
+    const engine = engineRef.current;
+    if (!castCharacter) {
+      engine?.setFaceLayer(null);
+      void castOverlayRef.current?.setCharacter(null);
+      return;
+    }
+    const overlay = (castOverlayRef.current ??= new CastFaceOverlay());
+    setCastLoading(true);
+    overlay
+      .setCharacter(castCharacter.vtuberModelUrl ?? castCharacter.glbModelUrl)
+      .then(() => engineRef.current?.setFaceLayer(overlay.draw))
+      .catch(() => setCastCharacterId(null))
+      .finally(() => setCastLoading(false));
+  }, [castCharacter]);
+
+  useEffect(() => () => castOverlayRef.current?.dispose(), []);
+
+  useEffect(() => {
     if (!simulatedTalkingBurst && cameraSource === 'SIMULATED') {
       engineRef.current?.setAudioLevel(0);
     }
@@ -569,10 +691,11 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
   const startLiveWebcam = async () => {
     setWebcamError(null);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 640 }, height: { ideal: 360 }, facingMode: 'user' },
-        audio: true,
-      });
+      const video = { width: { ideal: 640 }, height: { ideal: 360 }, facingMode: 'user' };
+      // The mic only drives the talking jaw: a missing or blocked mic must not cost the camera.
+      const stream = await navigator.mediaDevices
+        .getUserMedia({ video, audio: true })
+        .catch(() => navigator.mediaDevices.getUserMedia({ video, audio: false }));
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
@@ -671,6 +794,12 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
     };
   }, []);
 
+  /** Picking a team also puts a signed-in fan in that team's room of the official Pumpkin Patch Club. */
+  const chooseTeam = (teamId: string) => {
+    setMyFactionId(teamId);
+    if (canChat) void joinClubTeam(PUMPKIN_PATCH_CLUB_ID, teamId).catch(() => {});
+  };
+
   const triggerRoomFx = (fx: 'BATS' | 'GHOST' | 'JACK') => {
     setRoomFxOverlay(fx);
     if (fx === 'BATS') halloweenAudio.playBatSwarmSfx();
@@ -679,13 +808,19 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
     setTimeout(() => setRoomFxOverlay((prev) => (prev === fx ? null : prev)), 2800);
   };
 
-  const handleSendMessage = async (opts?: { snapshotDataUrl?: string; customText?: string; fxTrigger?: 'BATS' | 'GHOST' | 'JACK' }) => {
+  const handleSendMessage = async (opts?: {
+    snapshotDataUrl?: string;
+    videoUrl?: string;
+    customText?: string;
+    fxTrigger?: 'BATS' | 'GHOST' | 'JACK';
+    id?: string;
+  }) => {
     const text = (opts?.customText ?? chatDraft).trim();
-    if (!text && !opts?.snapshotDataUrl) return;
+    if (!text && !opts?.snapshotDataUrl && !opts?.videoUrl) return;
     if (!canChat) return;
 
     const newMsg: HalloweenVaultChatMessage = {
-      id: `msg_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      id: opts?.id ?? newChatMessageId(),
       uid: myUid,
       displayName: myDisplayName,
       photoURL: auth.currentUser?.photoURL || null,
@@ -698,6 +833,7 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
           HALLOWEEN_FILTERS.find((f) => f.id === selectedFilter)?.shortLabel || 'Halloween'
         } ${dimLightsMode ? 'Found-Footage Night Beam ' : ''}snapshot!`,
       snapshotDataUrl: opts?.snapshotDataUrl,
+      videoUrl: opts?.videoUrl,
       fxTrigger: opts?.fxTrigger,
       at: Date.now(),
     };
@@ -722,6 +858,7 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
         dimLightsOn: !!newMsg.dimLightsOn,
         text: newMsg.text,
         ...(newMsg.snapshotDataUrl ? { snapshotDataUrl: newMsg.snapshotDataUrl } : {}),
+        ...(newMsg.videoUrl ? { videoUrl: newMsg.videoUrl } : {}),
         ...(newMsg.fxTrigger ? { fxTrigger: newMsg.fxTrigger } : {}),
         at: newMsg.at,
       });
@@ -732,6 +869,25 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
     }
   };
 
+  /** Uploads a recorded clip to the poster's own storage folder and posts it to the room. */
+  const postClipToChat = async (clip: Blob, mimeType: string, seconds: number, caption: string) => {
+    const uid = auth.currentUser?.uid;
+    if (!uid || !canChat) throw new Error('Sign in to post clips');
+    const id = newChatMessageId();
+    const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
+    const file = storageRef(storage, `posts/${uid}/halloween-vault/${id}.${ext}`);
+    await uploadBytes(file, clip, { contentType: mimeType });
+    const videoUrl = await getDownloadURL(file);
+    setActiveRightTab('CHAT');
+    await handleSendMessage({ id, videoUrl, customText: `🎬 ${caption} (${Math.round(seconds)}s)` });
+  };
+
+  const boothLookLabel = castCharacter
+    ? `${castCharacter.emoji} as ${castCharacter.name}`
+    : `${HALLOWEEN_FILTERS.find((f) => f.id === selectedFilter)?.icon || '🎃'} ${
+        HALLOWEEN_FILTERS.find((f) => f.id === selectedFilter)?.label || 'Halloween'
+      }`;
+
   const handleSnapFilteredPhotoToChat = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -741,9 +897,11 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
       halloweenAudio.playFlashlightClick();
       void handleSendMessage({
         snapshotDataUrl: dataUrl,
-        customText: `${filterMeta?.icon || '🎃'} Checked into the Halloween Vault with the ${
-          filterMeta?.label || 'Halloween'
-        } filter${dimLightsMode ? ' + 🔦 Dim the Lights Found-Footage Beam' : ''}!`,
+        customText: castCharacter
+          ? `${castCharacter.emoji} Checked into the Halloween Vault as ${castCharacter.name}!`
+          : `${filterMeta?.icon || '🎃'} Checked into the Halloween Vault with the ${
+              filterMeta?.label || 'Halloween'
+            } filter${dimLightsMode ? ' + 🔦 Dim the Lights Found-Footage Beam' : ''}!`,
       });
     } catch {
       /* ignore */
@@ -878,11 +1036,11 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
           </div>
         </div>
 
-        {/* Coven / Faction Allegiance Strip */}
+        {/* Team / Faction Allegiance Strip */}
         <div className="relative z-10 py-4 border-b border-white/10 flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-2">
             <span className="text-[9px] font-black uppercase tracking-[0.25em] text-orange-300">
-              Your Halloween Coven Allegiance:
+              Your Halloween Team:
             </span>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
@@ -891,7 +1049,7 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
               return (
                 <button
                   key={fac.id}
-                  onClick={() => setMyFactionId(fac.id)}
+                  onClick={() => chooseTeam(fac.id)}
                   className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 border transition-all cursor-pointer ${
                     active
                       ? 'bg-orange-500/25 border-orange-400 text-white shadow-[0_0_15px_rgba(249,115,22,0.3)]'
@@ -904,6 +1062,15 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
                 </button>
               );
             })}
+            {teamRoomFor(myFactionId) && (
+              <button
+                onClick={() => openClubRoom(PUMPKIN_PATCH_CLUB_ID, teamRoomFor(myFactionId)!.channelId)}
+                className="px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 bg-orange-500 hover:bg-orange-400 text-black cursor-pointer"
+                title="Your team's room in the official Pumpkin Patch Club"
+              >
+                <Users size={11} /> Team room
+              </button>
+            )}
           </div>
         </div>
 
@@ -922,8 +1089,17 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
               {/* Top-left Status Pills */}
               <div className="absolute top-3 left-3 flex items-center gap-2 flex-wrap pointer-events-none">
                 <span className="px-2.5 py-1 rounded-lg bg-black/80 backdrop-blur-md border border-orange-500/40 text-[9px] font-black uppercase tracking-widest text-orange-300 flex items-center gap-1.5">
-                  <span>{activeFilterMeta.icon}</span>
-                  <span>{activeFilterMeta.label}</span>
+                  {castCharacter ? (
+                    <>
+                      <span>{castCharacter.emoji}</span>
+                      <span>{castLoading ? `Summoning ${castCharacter.shortName}…` : castCharacter.name}</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>{activeFilterMeta.icon}</span>
+                      <span>{activeFilterMeta.label}</span>
+                    </>
+                  )}
                 </span>
                 {dimLightsMode && (
                   <span className="px-2.5 py-1 rounded-lg bg-emerald-950/90 backdrop-blur-md border border-emerald-400/50 text-[9px] font-black uppercase tracking-widest text-emerald-300 flex items-center gap-1">
@@ -1037,6 +1213,75 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
               </div>
             )}
 
+            {/* ── RAVENCREST 3D CHARACTERS: become one of the cast on camera ── */}
+            <div className="rounded-2xl bg-black/50 border border-orange-500/30 p-4 space-y-3">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <span className="text-[10px] font-black uppercase tracking-[0.22em] text-orange-300">
+                  🧛 Become a 3D Movie Character
+                </span>
+                <span className="text-[10px] text-white/45">
+                  Ravencrest cast · follows your head{cameraSource === 'WEBCAM' ? '' : ' · start your webcam to drive it'}
+                </span>
+              </div>
+              <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
+                <button
+                  onClick={() => setCastCharacterId(null)}
+                  className={`rounded-xl border text-[10px] font-black uppercase cursor-pointer ${
+                    !castCharacter
+                      ? 'bg-orange-500 text-black border-orange-300'
+                      : 'bg-white/[0.04] hover:bg-white/[0.08] border-white/10 text-white'
+                  }`}
+                >
+                  Off
+                </button>
+                {swapCharacters.map((c) => {
+                  const active = castCharacterId === c.id;
+                  return (
+                    <button
+                      key={c.id}
+                      title={c.name}
+                      onClick={() => setCastCharacterId(c.id)}
+                      className={`rounded-xl border overflow-hidden text-left transition-all cursor-pointer ${
+                        active
+                          ? 'border-orange-300 shadow-[0_0_18px_rgba(249,115,22,0.45)]'
+                          : 'border-white/10 hover:border-white/30'
+                      }`}
+                    >
+                      <img src={c.portraitUrl} alt="" className="w-full aspect-[4/5] object-cover object-top" />
+                      <p className="px-1.5 py-1 text-[9px] font-black uppercase truncate text-white">{c.shortName}</p>
+                    </button>
+                  );
+                })}
+              </div>
+              {castCharacter && (
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  <button
+                    onClick={() => castOverlayRef.current?.recenter()}
+                    title="Sit how you'll perform, look at the camera, then press to make that 'facing forward'"
+                    className="px-2.5 py-1 rounded-lg bg-orange-500 hover:bg-orange-400 text-black text-[10px] font-black uppercase tracking-wide cursor-pointer"
+                  >
+                    🎯 Recenter
+                  </button>
+                  {CAST_EMOTES.map((e) => (
+                    <button
+                      key={e.id}
+                      onClick={() => castOverlayRef.current?.playEmote(e.id as CastEmoteId)}
+                      className="px-2.5 py-1 rounded-lg bg-white/[0.06] hover:bg-orange-500 hover:text-black border border-white/10 text-white text-[10px] font-black uppercase tracking-wide cursor-pointer"
+                    >
+                      {e.emoji} {e.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <ClipRecorder
+              getCanvas={() => canvasRef.current}
+              canPost={canChat}
+              filenameBase={`halloween-vault-${castCharacter?.shortName.toLowerCase() || selectedFilter}`}
+              onPost={(clip, mime, seconds) => postClipToChat(clip, mime, seconds, `Video message ${boothLookLabel}`)}
+            />
+
             {/* ── HALLOWEEN FACE FILTER SELECTOR GRID ── */}
             <div className="rounded-2xl bg-black/50 border border-white/10 p-4 space-y-3">
               <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -1050,12 +1295,13 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {HALLOWEEN_FILTERS.map((f) => {
-                  const active = selectedFilter === f.id;
+                  const active = !castCharacter && selectedFilter === f.id;
                   return (
                     <button
                       key={f.id}
                       onClick={() => {
                         setSelectedFilter(f.id);
+                        setCastCharacterId(null);
                         if (f.id === 'bats') halloweenAudio.playBatSwarmSfx();
                         else if (f.id === 'ghostface') halloweenAudio.playGhostScreamSfx();
                         else if (f.id === 'jackolantern') halloweenAudio.playPlasmaBladesAppear();
@@ -1196,7 +1442,7 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
                     : 'border-transparent text-white/50 hover:text-white'
                 }`}
               >
-                <Users size={13} /> Covens (5)
+                <Users size={13} /> Teams (5)
               </button>
             </div>
 
@@ -1204,6 +1450,11 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
             {activeRightTab === 'CHAT' && (
               <>
                 <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                  {messages.length === 0 && (
+                    <p className="text-center text-xs text-white/45 py-10">
+                      No messages yet — be the first to post in the Halloween Vault.
+                    </p>
+                  )}
                   {messages.map((msg) => {
                     const fac =
                       HALLOWEEN_FACTIONS.find((f) => f.id === msg.factionId) ||
@@ -1221,6 +1472,13 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
                       >
                         <div className="flex items-center justify-between gap-2 mb-1">
                           <div className="flex items-center gap-1.5 flex-wrap">
+                            <UserAvatar
+                              uid={msg.uid}
+                              src={msg.photoURL || null}
+                              alt=""
+                              className="w-5 h-5 rounded-full object-cover border border-white/15 shrink-0"
+                              fallback={null}
+                            />
                             <span className="text-xs">{fac.emoji}</span>
                             <span className="text-[11px] font-black text-white">
                               {msg.displayName}
@@ -1257,6 +1515,12 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
                         <p className="text-xs text-white/85 leading-relaxed break-words">
                           {msg.text}
                         </p>
+
+                        {isStorageVideoUrl(msg.videoUrl) && (
+                          <div className="mt-2 rounded-xl overflow-hidden border border-rose-500/30 max-w-xs">
+                            <video src={msg.videoUrl} controls playsInline preload="metadata" className="w-full h-auto bg-black" />
+                          </div>
+                        )}
 
                         {msg.snapshotDataUrl && (
                           <div className="mt-2 rounded-xl overflow-hidden border border-orange-500/30 max-w-xs">
@@ -1358,7 +1622,7 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
               </div>
             )}
 
-            {/* TAB 3: COVEN / FACTION ROSTER & QUICK WATCH */}
+            {/* TAB 3: TEAM / FACTION ROSTER & QUICK WATCH */}
             {activeRightTab === 'FACTIONS' && (
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
                 {HALLOWEEN_FACTIONS.map((fac) => {
@@ -1366,7 +1630,7 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
                   return (
                     <div
                       key={fac.id}
-                      onClick={() => setMyFactionId(fac.id)}
+                      onClick={() => chooseTeam(fac.id)}
                       className={`p-3 rounded-2xl border flex items-center gap-3 cursor-pointer transition-all ${
                         isMine
                           ? 'bg-orange-500/15 border-orange-400'
@@ -1410,6 +1674,10 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
         {FAN_ROOM_CHARACTER_STUDIO && (
         <div className="relative z-10 mt-8 pt-6 border-t border-orange-500/20">
           <StoryIntelVTuberVoiceStudio
+            canPostClips={canChat}
+            onPostClipToChat={(clip, mime, seconds, character) =>
+              postClipToChat(clip, mime, seconds, `${character.emoji} Video message as ${character.name}`)
+            }
             onSendVTuberMessageToChat={({ character, text, snapshotDataUrl, voiceChanged }) => {
               setActiveRightTab('CHAT');
               void handleSendMessage({
