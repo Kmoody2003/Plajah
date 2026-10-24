@@ -83,6 +83,8 @@ export function blitProgramSurface(
   ctx.setTransform?.(1, 0, 0, 1, 0, 0);
   ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = 'copy';
+  ctx.imageSmoothingEnabled = true;
+  try { (ctx as any).imageSmoothingQuality = 'high'; } catch { /* */ }
   try {
     const srcAspect = srcW / srcH;
     const dstAspect = w / h;
@@ -127,7 +129,9 @@ export function registerProgramBusCanvas(canvas: HTMLCanvasElement | null): () =
       const stream: MediaStream = (canvas as any).captureStream(60);
       const track = stream.getVideoTracks?.()[0];
       if (track && 'contentHint' in track) {
-        try { (track as any).contentHint = 'motion'; } catch { /* */ }
+        // 'detail' tells the encoder to hold resolution under pressure — lyric
+        // and scripture text turns to mush first under 'motion'.
+        try { (track as any).contentHint = 'detail'; } catch { /* */ }
       }
       masterStream = stream;
       if (typeof window !== 'undefined') {
@@ -218,6 +222,81 @@ export function readOpenerProgramStream(): MediaStream | null {
 
 // ── Local Loopback WebRTC Bridge (for Native WinUI WebView2 / opener-less windows) ──
 
+// The loopback never leaves the machine, so bandwidth is free — but WebRTC
+// doesn't know that. Left at defaults it starts near 300 kbps, ramps slowly,
+// software-encodes VP8 and drops resolution first: a blocky, choppy projector
+// while the in-app monitors (direct canvas) look perfect.
+const LOOPBACK_KBPS = 40_000;
+
+/** Prefer hardware-encodable H.264, then VP9/VP8, on a video transceiver. */
+function preferLoopbackCodecs(tx: RTCRtpTransceiver | undefined): void {
+  try {
+    const caps = (RTCRtpSender as any).getCapabilities?.('video');
+    if (!tx || !caps?.codecs?.length || typeof tx.setCodecPreferences !== 'function') return;
+    const rank = (mime: string) => {
+      const m = mime.toLowerCase();
+      return m === 'video/h264' ? 0 : m === 'video/vp9' ? 1 : m === 'video/vp8' ? 2 : 3;
+    };
+    const sorted = [...caps.codecs].sort((a: any, b: any) => rank(a.mimeType) - rank(b.mimeType));
+    tx.setCodecPreferences(sorted);
+  } catch { /* unsupported — negotiate defaults */ }
+}
+
+/** Pin start/min/max bitrate in the SDP so the encoder starts at full quality. */
+export function boostLoopbackSdp(sdp: string | undefined, kbps = LOOPBACK_KBPS): string | undefined {
+  if (!sdp) return sdp;
+  const eol = sdp.includes('\r\n') ? '\r\n' : '\n';
+  const lines = sdp.split(eol);
+  const out: string[] = [];
+  let inVideo = false;
+  let videoPts = new Set<string>();
+  const fmtpSeen = new Set<string>();
+  const params = `x-google-start-bitrate=${Math.round(kbps * 0.75)};x-google-min-bitrate=${Math.round(kbps / 4)};x-google-max-bitrate=${kbps}`;
+  // First pass: which payload types are real video codecs (skip rtx/red/ulpfec).
+  for (const l of lines) {
+    if (l.startsWith('m=')) inVideo = l.startsWith('m=video');
+    const m = inVideo && /^a=rtpmap:(\d+) (H264|VP8|VP9|AV1)\//i.exec(l);
+    if (m) videoPts.add(m[1]);
+  }
+  inVideo = false;
+  for (const l of lines) {
+    if (l.startsWith('m=')) inVideo = l.startsWith('m=video');
+    if (inVideo && l.startsWith('b=')) continue; // replaced below
+    const f = inVideo && /^a=fmtp:(\d+) /.exec(l);
+    if (f && videoPts.has(f[1])) {
+      fmtpSeen.add(f[1]);
+      out.push(l.includes('x-google-') ? l : `${l};${params}`);
+      continue;
+    }
+    out.push(l);
+    if (inVideo && l.startsWith('c=')) out.push(`b=AS:${kbps}`);
+    const r = inVideo && /^a=rtpmap:(\d+) /.exec(l);
+    if (r && videoPts.has(r[1]) && !lines.some(x => x.startsWith(`a=fmtp:${r[1]} `))) {
+      out.push(`a=fmtp:${r[1]} ${params}`);
+    }
+  }
+  return out.join(eol);
+}
+
+/** Full-res, full-rate, high-bitrate encoding on the loopback sender. */
+async function tuneLoopbackSender(pc: RTCPeerConnection): Promise<void> {
+  const sender = pc.getSenders().find(s => s.track?.kind === 'video');
+  if (!sender) return;
+  try {
+    const p = sender.getParameters();
+    if (!p.encodings || !p.encodings.length) p.encodings = [{}];
+    for (const e of p.encodings) {
+      e.maxBitrate = LOOPBACK_KBPS * 1000;
+      (e as any).maxFramerate = 60;
+      e.scaleResolutionDownBy = 1;
+      (e as any).priority = 'high';
+      (e as any).networkPriority = 'high';
+    }
+    (p as any).degradationPreference = 'maintain-resolution';
+    await sender.setParameters(p);
+  } catch { /* best effort */ }
+}
+
 const studioPeers = new Map<string, RTCPeerConnection>();
 let studioRtcChannel: BroadcastChannel | null = null;
 
@@ -293,16 +372,19 @@ export function installProgramBusRtcHost(
           };
 
           for (const track of stream.getVideoTracks()) {
-            pc.addTrack(track, stream);
+            const sender = pc.addTrack(track, stream);
+            preferLoopbackCodecs(pc.getTransceivers().find(t => t.sender === sender));
           }
 
           try {
             const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
+            const tuned = { type: offer.type, sdp: boostLoopbackSdp(offer.sdp) };
+            await pc.setLocalDescription(tuned);
+            await tuneLoopbackSender(pc);
             ch.postMessage({
               type: 'RTC_OFFER',
               clientId,
-              sdp: { type: offer.type, sdp: offer.sdp },
+              sdp: tuned,
             } satisfies RtcSignalMessage);
           } catch { /* */ }
           return;
@@ -311,7 +393,10 @@ export function installProgramBusRtcHost(
         if (msg.type === 'RTC_ANSWER') {
           const pc = studioPeers.get(msg.clientId);
           if (pc && pc.signalingState === 'have-local-offer') {
-            try { await pc.setRemoteDescription(new RTCSessionDescription(msg.sdp)); } catch { /* */ }
+            try {
+              await pc.setRemoteDescription(new RTCSessionDescription({ type: msg.sdp.type, sdp: boostLoopbackSdp(msg.sdp.sdp) }));
+              await tuneLoopbackSender(pc);
+            } catch { /* */ }
           }
           return;
         }
@@ -393,11 +478,12 @@ export function connectProgramBusRtcClient(
         try {
           await pc.setRemoteDescription(new RTCSessionDescription(msg.sdp));
           const answer = await pc.createAnswer();
-          await pc.setLocalDescription(answer);
+          const tunedAnswer = { type: answer.type, sdp: boostLoopbackSdp(answer.sdp) };
+          await pc.setLocalDescription(tunedAnswer);
           ch?.postMessage({
             type: 'RTC_ANSWER',
             clientId,
-            sdp: { type: answer.type, sdp: answer.sdp },
+            sdp: tunedAnswer,
           } satisfies RtcSignalMessage);
         } catch { /* */ }
         return;

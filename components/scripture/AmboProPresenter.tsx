@@ -979,8 +979,11 @@ useEffect(() => {
   const masterBusRendererRef = useRef<LayerRenderer | null>(null);
   const masterBusTakeSeqRef = useRef<number | null>(programTake?.seq ?? null);
   const pgmOutConfig = useMemo(() => outputs.find(o => o.kind === 'PROGRAM') || outputs[0], [outputs]);
+  // Full HD: this canvas IS the projector picture. Capping it at 1280 made
+  // every Output Window upscale soft text. Generators keep their own 1280 cap
+  // inside layerSources, so GPU cost only grows for the composite.
   const masterBusSize = useMemo(
-    () => scaleVisualizerSize(pgmOutConfig?.width || 1920, pgmOutConfig?.height || 1080, 1280),
+    () => scaleVisualizerSize(pgmOutConfig?.width || 1920, pgmOutConfig?.height || 1080, 1920),
     [pgmOutConfig?.width, pgmOutConfig?.height],
   );
 
