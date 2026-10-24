@@ -14,7 +14,6 @@ import { orgMediaUids, fetchLiveOwnerSet } from '../services/orgMedia';
 import { Organization, OrgType, AppView } from '../types';
 import { TYPE } from '../src/lib/designSystem';
 import { Button } from './ui';
-import ElevateOneSheetModal from './elevate/ElevateOneSheetModal';
 import AriaMark from './aria/AriaMark';
 import { ElevateTabBar, ElevateOverview, ElevateTypePanel, ElevateTabCta, ElevateTabKey, ELEVATE_TABS, tabDef } from './elevate/ElevateTypeTabs';
 import PlajahPlusBanner from './PlajahPlusBanner';
@@ -308,7 +307,6 @@ const ElevateOrgCard: React.FC<{
 
 const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNavigate, isSignedIn }) => {
   const [elevateTheme, setElevateTheme] = useState<'plajah' | 'dark' | 'pastel'>('plajah');
-  const [showOneSheetModal, setShowOneSheetModal] = useState(false);
   const [visualConfig, setVisualConfig] = useState<PageVisualConfig | null>(null);
   const [editMode, setEditMode] = useState<boolean>(() => isGlobalEditModeEnabled());
   const [showAddCarouselCard, setShowAddCarouselCard] = useState(false);
@@ -480,21 +478,6 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
             <KeyRound size={13} className="shrink-0" />
             <span className="hidden lg:inline">Claim Member ID</span>
           </button>
-
-          {/* One-Sheet is a desktop tool; on a phone the hero's Share button covers it. */}
-          <span className="hidden sm:contents">
-            <Button
-              size="xs"
-              variant="accent"
-              icon={<FileText />}
-              onClick={() => setShowOneSheetModal(true)}
-              title="Open Shareable Executive One-Sheet for Colleagues"
-              className="shrink-0 whitespace-nowrap"
-            >
-              <span className="hidden md:inline">Executive One-Sheet</span>
-              <span className="md:hidden">One-Sheet</span>
-            </Button>
-          </span>
 
           <div className="ml-auto flex items-center gap-1.5 sm:gap-2.5 shrink-0">
             {/* Theme pill switcher (from Lorea) */}
@@ -711,15 +694,6 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
                       {visualConfig?.textOverrides?.['elevate_hero_cta_secondary'] ?? 'Claim Member ID'}
                     </span>
                   </button>
-                  <Button
-                    size="md"
-                    variant="secondary"
-                    icon={<Share2 />}
-                    onClick={() => setShowOneSheetModal(true)}
-                    className="sm:w-auto"
-                  >
-                    <span className="sm:hidden">Share</span><span className="hidden sm:inline">Share Colleague One-Sheet</span>
-                  </Button>
                 </div>
               </div>
 
@@ -1178,9 +1152,6 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
                 </p>
               </div>
               <div className="flex items-center gap-2 flex-wrap shrink-0">
-                <Button size="sm" variant="secondary" icon={<FileText />} onClick={() => setShowOneSheetModal(true)}>
-                  Executive One-Sheet
-                </Button>
                 <Button size="sm" variant="ghost" onClick={() => onOpenOrg(DEMO_CHURCH_ID)}>
                   Explore Action Hub →
                 </Button>
@@ -1454,7 +1425,7 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
               { title: 'Shifts & Auto-Waitlists', sub: 'Multi-shift scheduling, QR check-in & automatic waitlists', color: '#FF8C00', act: () => onOpenOrg(DEMO_CHURCH_ID) },
               { title: 'Licensed Watch Parties', sub: 'Community Screening Licenses for Reello live, Cinema film & Stage slides', color: '#00DAF3', act: () => onOpenOrg(DEMO_CHURCH_ID) },
               { title: '30s Voice Covenants & Tela PDF', sub: 'Spoken testimonies, SeedRaiser matches & bound open-letter dossiers', color: '#D40055', act: () => onOpenOrg(DEMO_CHURCH_ID) },
-              { title: 'Executive One-Sheet & CRM Sync', sub: 'PCO, Servant Keeper & VAN sync + opt-in local civic compliance', color: '#06D6A0', act: () => setShowOneSheetModal(true) },
+              { title: 'ChMS & CRM Sync', sub: 'PCO, Servant Keeper & VAN sync + opt-in local civic compliance', color: '#06D6A0', act: () => onOpenOrg(DEMO_CHURCH_ID) },
             ].map(d => (
               <button
                 key={d.title}
@@ -1539,12 +1510,6 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
         />
       )}
 
-      <ElevateOneSheetModal
-        isOpen={showOneSheetModal}
-        onClose={() => setShowOneSheetModal(false)}
-        onExploreDemo={() => onOpenOrg(DEMO_CHURCH_ID)}
-        onCreateOrg={onCreate}
-      />
     </div>
   );
 };
