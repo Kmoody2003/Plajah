@@ -285,7 +285,7 @@ const AmboOutputWindow: React.FC<{ outputId?: string | null }> = ({ outputId }) 
     >
       <canvas
         ref={canvasRef}
-        style={{ width: '100vw', height: '100dvh', objectFit: 'fill', display: 'block' }}
+        style={{ width: '100vw', height: '100dvh', objectFit: 'contain', display: 'block' }}
       />
 
       {/* Auto-detected display HUD badge */}

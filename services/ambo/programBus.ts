@@ -63,8 +63,8 @@ export function setProgramEpochMs(epochMs: number): void {
 }
 
 /**
- * Draw a source canvas or video onto a destination canvas, filling the full canvas
- * while intelligently fitting if aspect ratios differ slightly.
+ * Draw a source canvas or video onto a destination canvas: a straight fill when
+ * the aspects match (within 2%), otherwise letterboxed so nothing is cut off.
  */
 export function blitProgramSurface(
   src: HTMLCanvasElement | HTMLVideoElement,
@@ -91,8 +91,12 @@ export function blitProgramSurface(
     if (Math.abs(srcAspect - dstAspect) < 0.02) {
       ctx.drawImage(src, 0, 0, w, h);
     } else {
-      // Cover-fill so the full canvas is always used without black bars
-      const scale = Math.max(w / srcW, h / srcH);
+      // Contain, never crop: cover-fill zoomed slides past the edges of the
+      // screen whenever the projector's aspect differed from the bus.
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, w, h);
+      ctx.globalCompositeOperation = 'source-over';
+      const scale = Math.min(w / srcW, h / srcH);
       const dw = srcW * scale;
       const dh = srcH * scale;
       ctx.drawImage(src, (w - dw) / 2, (h - dh) / 2, dw, dh);

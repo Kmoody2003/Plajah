@@ -113,13 +113,20 @@ export class TextSource implements LayerSource {
     const family = s.font ?? '"Palatino Linotype", Palatino, Georgia, serif';
     const text = this.content.blocks.map(b => b.text).join('\n');
 
-    // Use bounding box auto-fit for precise text containment
-    const box: TextBoundingBox = s.boundingBox ?? createSlideBox(this.w, this.h, 0.05);
+    // Authored sizes/boxes live on the 1920×1080 artboard (like freeform slides):
+    // scale them uniformly to this frame so text matches the slide on every output.
+    const k = Math.min(this.w / 1920, this.h / 1080);
+    const ox = (this.w - 1920 * k) / 2, oy = (this.h - 1080 * k) / 2;
+    const b = (s as { boundingBox?: TextBoundingBox }).boundingBox;
+    const box: TextBoundingBox = b
+      ? { ...b, x: b.x * k + ox, y: b.y * k + oy, w: b.w * k, h: b.h * k }
+      : createSlideBox(this.w, this.h, 0.05);
+    const size = s.size != null ? Math.round(s.size * k) : undefined;
     const config: AutoFitConfig = {
       ...DEFAULT_AUTO_FIT,
-      preferredFontSize: s.size ?? Math.round(this.h * 0.09),
+      preferredFontSize: size ?? Math.round(this.h * 0.09),
       minFontSize: Math.round(this.h * 0.028),
-      maxFontSize: s.size ?? Math.round(this.h * 0.12),
+      maxFontSize: size ?? Math.round(this.h * 0.12),
       lineHeight: s.lineHeight ?? 1.32,
       maxLines: s.maxLines ?? 0,
       enabled: s.autoFit !== false,
@@ -135,6 +142,13 @@ export class TextSource implements LayerSource {
 
     this.last = text;
     this.dirty = false;
+  }
+
+  resize(w: number, h: number) {
+    if (w === this.w && h === this.h) return;
+    this.w = w; this.h = h;
+    this.canvas.width = w; this.canvas.height = h;
+    this.dirty = true;
   }
 
   frame() {
@@ -379,6 +393,17 @@ export class ScriptureSource implements LayerSource {
     }
     this.dirty = false;
     return this.canvas;
+  }
+  /** Re-lay the verse out at a new output size without restarting its look. */
+  resize(w: number, h: number) {
+    if (w === this.w && h === this.h) return;
+    this.w = w; this.h = h;
+    this.canvas.width = w; this.canvas.height = h;
+    this.prev = null; this.bgCanvas = null; this.textCanvas = null; this.lastParts = null;
+    if (this.typo) { this.typo.dispose(); this.typo = null; }
+    this.gen?.resize?.(Math.min(960, Math.round(w / 2)), Math.min(540, Math.round(h / 2)));
+    this.syncTypo();
+    this.dirty = true;
   }
   size() { return { w: this.w, h: this.h }; }
   ready() { return !!(this.content.lines?.length); }
@@ -1550,6 +1575,11 @@ export class LyricSource implements LayerSource {
     renderLyricFrame(ctx, lyricStyleById(c.styleId), this.lines, lyricClockPos(c.clock), this.w, this.h,
       { title: c.title, artist: c.artist, bpm: c.bpm, firstBeat: c.firstBeat });
     return this.canvas;
+  }
+  resize(w: number, h: number) {
+    if (w === this.w && h === this.h) return;
+    this.w = w; this.h = h;
+    this.canvas.width = w; this.canvas.height = h;
   }
   size() { return { w: this.w, h: this.h }; }
   ready() { return true; }

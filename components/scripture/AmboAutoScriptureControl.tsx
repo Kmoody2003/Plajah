@@ -14,15 +14,15 @@ import {
 import { AutoScriptureSourcePicker, IntentToggles, HistoryChip } from './AmboScriptureListenBar';
 import AmboLiveInputWaveform from './AmboLiveInputWaveform';
 import { SCRIPTURE_LAYOUTS } from '../../services/ambo/scriptureLayouts';
+import { getScriptureLook, setScriptureLook, subscribeScriptureLook } from '../../services/ambo/scriptureLook';
 import { TRANSLATIONS } from '../../services/bibleService';
 
-const OVERLAYS = SCRIPTURE_LAYOUTS.filter(l => l.background === 'transparent' || l.family === 'Overlay');
-const LOOKS = SCRIPTURE_LAYOUTS;
 
 const useAuto = () => {
   const prefs = useSyncExternalStore(subscribeAutoScripture, getAutoScripturePrefs);
   const state = useSyncExternalStore(subscribeAutoScripture, getAutoScriptureState);
-  return { prefs, state };
+  const look = useSyncExternalStore(subscribeScriptureLook, getScriptureLook);
+  return { prefs, state, look };
 };
 
 const Seg: React.FC<{ value: string; options: Array<[string, string, string?]>; onChange: (v: string) => void }> = ({ value, options, onChange }) => (
@@ -42,7 +42,7 @@ const Row: React.FC<{ label: string; children: React.ReactNode }> = ({ label, ch
 );
 
 const AmboAutoScriptureControl: React.FC = () => {
-  const { prefs, state } = useAuto();
+  const { prefs, state, look } = useAuto();
   const [open, setOpen] = useState(false);
   const btnRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -60,9 +60,9 @@ const AmboAutoScriptureControl: React.FC = () => {
   }, [open]);
 
   const on = state.running;
-  const layouts = prefs.style === 'overlay' ? OVERLAYS : LOOKS;
-  const layoutId = prefs.style === 'overlay' ? prefs.overlayLayoutId : prefs.lookLayoutId;
-  const pick = (id: string) => set(prefs.style === 'overlay' ? { overlayLayoutId: id } : { lookLayoutId: id });
+  // One source of truth: auto scripture uses the look picked in the template chooser.
+  const layouts = SCRIPTURE_LAYOUTS;
+  const layoutId = look.layoutId;
 
   const panel = open ? createPortal(
     <div ref={panelRef} className="fixed z-[10000] w-[440px] max-w-[calc(100vw-24px)] rounded-xl border shadow-2xl flex flex-col"
@@ -105,14 +105,9 @@ const AmboAutoScriptureControl: React.FC = () => {
             ['auto', 'Push to outputs', 'It goes straight to Program and every output'],
           ]} />
         </Row>
-        <Row label="Style">
-          <Seg value={prefs.style} onChange={v => set({ style: v as any })} options={[
-            ['overlay', 'Basic overlay', 'A lower third over whatever is live'],
-            ['look', 'Template', 'Any scripture look, picked below'],
-          ]} />
-        </Row>
-        <Row label={prefs.style === 'overlay' ? 'Overlay' : 'Template'}>
-          <select value={layoutId} onChange={e => pick(e.target.value)}
+        <Row label="Template">
+          <select value={layoutId} onChange={e => setScriptureLook({ layoutId: e.target.value })}
+            title="The same scripture look as the template chooser: verses keep it until you change it"
             className="w-full h-8 rounded-md bg-white/5 border border-white/10 text-[11px] text-white px-2">
             {layouts.map(l => <option key={l.id} value={l.id} className="bg-[#14101e]">{l.family} · {l.name}</option>)}
           </select>

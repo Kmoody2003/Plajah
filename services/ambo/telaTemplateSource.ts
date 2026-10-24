@@ -207,6 +207,15 @@ export class TelaTemplateSource implements LayerSource {
     } catch { return null; }
   }
 
+  /** Re-flow to a new output size in place (the projector reported its real aspect). */
+  resize(w: number, h: number) {
+    const nw = Math.max(1, Math.round(w)), nh = Math.max(1, Math.round(h));
+    if (nw === this.w && nh === this.h) return;
+    this.w = nw; this.h = nh;
+    this.canvas.width = nw; this.canvas.height = nh;
+    this.back = this.front = null; this.bgPart = this.fgPart = null; this.outgoing = null;
+    this.rebuild();
+  }
   size() { return { w: this.w, h: this.h }; }
   ready() { return true; }
   dispose() {

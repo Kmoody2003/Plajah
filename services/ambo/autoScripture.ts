@@ -23,7 +23,6 @@ import { formatRef, refId, expandRef, normalizeSpoken, parseRef, type ScriptureR
 import { createScriptureListener, ScriptureReadingTracker, type ListenerHit } from './scriptureListener';
 import { createGivingListener, tagTokens, type GivingHit, type WordTag } from './speechIntents';
 import { startSpeechTranscription, type TranscribeSource, type TranscriberHandle } from './liveTranscriber';
-import { getScriptureLook, setScriptureLook } from './scriptureLook';
 
 export interface AutoCue { refId: string; reference: string; translation: string; lines: string[]; }
 
@@ -296,7 +295,6 @@ let handle: TranscriberHandle | null = null;
 let operatorHandle: TranscriberHandle | null = null;
 let timer: ReturnType<typeof setInterval> | null = null;
 let clearTimer: ReturnType<typeof setTimeout> | null = null;
-let savedLayout: string | null = null;
 let heardWords: string[] = [];
 let runId = 0;
 let activeListener: ReturnType<typeof createScriptureListener> | null = null;
@@ -344,8 +342,8 @@ async function deliver(
     initialVerseWordIndex,
   );
   if (!first || !sink) return;
-  // The look owns the layout while auto mode runs; the operator's own is restored on stop.
-  setScriptureLook({ layoutId: p.style === 'overlay' ? p.overlayLayoutId : p.lookLayoutId });
+  // No layout is stamped here: the verse wears whatever look the operator chose
+  // in the template chooser, and keeps it until they change it.
   // When auto-advancing to the next verse as the speaker continues reading, transition live on Program (or cue if nothing is on screen and delivery is 'cue')
   if (p.delivery === 'auto' || via === 'auto-advance') sink.fire(first); else sink.cue(first);
   if (clearTimer) clearTimeout(clearTimer);
@@ -440,7 +438,6 @@ export async function startAutoScripture(customSource?: TranscribeSource): Promi
   const opListener = useDevice && prefs.operatorMic
     ? createScriptureListener({ minConfidence: 0.6, requireCue: false, settleMs: 480, cooldownMs: 8000 })
     : null;
-  savedLayout = getScriptureLook().layoutId;
   if (opListener) void startOperatorMic(my, opListener, giving);
   timer = setInterval(() => {
     const now = Date.now();
@@ -541,7 +538,6 @@ export function stopAutoScripture(): void {
   operatorHandle = null;
   room.level = 0; room.analyser = null;
   operatorTap.level = 0; operatorTap.analyser = null;
-  if (savedLayout) { setScriptureLook({ layoutId: savedLayout }); savedLayout = null; }
   setState({ running: false, starting: false, engine: null, status: 'Off', level: 0, hearing: null, hearingGiving: null, operator: OPERATOR_OFF });
 }
 

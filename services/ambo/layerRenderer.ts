@@ -315,7 +315,15 @@ export class LayerRenderer {
       (fitOpts.oy !== undefined && fitOpts.oy !== 0) ||
       (fitOpts.mode !== undefined && fitOpts.mode !== 'auto')
     );
-    if (!explicit && !intrinsic && !hasOutputZoomOrPan) { drawCover(ctx, img, natural, w, h); return; }
+    if (!explicit && !intrinsic && !hasOutputZoomOrPan) {
+      // Words must never be cropped: if a text-like source is still at another
+      // aspect (mid-resize), fit it whole rather than zooming past the edges.
+      if (TEXT_KINDS.has(kind) && natural && Math.abs(natural.w / natural.h - w / h) > 0.01) {
+        const k = Math.min(w / natural.w, h / natural.h);
+        ctx.drawImage(img, (w - natural.w * k) / 2, (h - natural.h * k) / 2, natural.w * k, natural.h * k);
+      } else drawCover(ctx, img, natural, w, h);
+      return;
+    }
 
     // An IMAGE's own fit setting is honoured when nothing more specific is set.
     const legacy = kind === 'IMAGE' ? (content as any).fit : undefined;
@@ -329,6 +337,8 @@ export class LayerRenderer {
   /** The live canvas — captureStream() on this feeds NDI/WebRTC/recording. */
   get element() { return this.canvas; }
 }
+
+const TEXT_KINDS = new Set(['TEXT', 'SCRIPTURE', 'LYRICS', 'TELA_TEMPLATE', 'CLOCK', 'TIMER']);
 
 // ── Drawing helpers ──────────────────────────────────────────────────────────
 
