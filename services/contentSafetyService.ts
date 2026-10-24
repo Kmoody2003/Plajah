@@ -17,6 +17,7 @@
 
 import { doc, getDoc, setDoc, addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { db, auth } from './firebase';
+import { PROFANITY_SET, normalizeForMatch } from './profanityLexicon';
 
 // ─── Content labels ──────────────────────────────────────────────────────────
 
@@ -71,6 +72,11 @@ export interface SafetySettings {
   cleanSpeech: boolean;        // auto-blur profanity in text
   mutedWords: string[];        // viewer-muted words
   mutedTopics: string[];       // viewer-muted topics/phrases
+  /** Stage clean speech: omit profanity from every on-screen transcription (the operator still
+   *  sees the accurate transcript). undefined = account default (on for church / nonprofit orgs). */
+  stageCleanSpeech?: boolean;
+  /** Extra words/phrases Stage always omits from on-screen transcription. */
+  stageCleanWords?: string[];
 }
 
 export const DEFAULT_SAFETY_SETTINGS: SafetySettings = {
@@ -79,9 +85,13 @@ export const DEFAULT_SAFETY_SETTINGS: SafetySettings = {
   cleanSpeech: false,
   mutedWords: [],
   mutedTopics: [],
+  stageCleanWords: [],
 };
 
-const LS_KEY = 'plajah_safety_settings_v1';
+/** Stage reads these synchronously (services/ambo/cleanSpeech.ts) — keep the keys in step. */
+export const SAFETY_SETTINGS_LS_KEY = 'plajah_safety_settings_v1';
+export const STAGE_CLEAN_DEFAULT_LS_KEY = 'plajah_stage_clean_default_v1';
+const LS_KEY = SAFETY_SETTINGS_LS_KEY;
 let _cache: SafetySettings | null = null;
 const _listeners = new Set<(s: SafetySettings) => void>();
 
@@ -109,8 +119,39 @@ export async function loadSafetySettings(): Promise<SafetySettings> {
     } catch { /* offline — local copy stands */ }
   }
   if (!_cache) _cache = { ...DEFAULT_SAFETY_SETTINGS };
+  // mirror the authoritative copy locally so Stage's synchronous filter sees it
+  try { localStorage.setItem(LS_KEY, JSON.stringify(_cache)); } catch { /* quota */ }
   return _cache;
 }
+
+let _stageCleanDefault: boolean | null = null;
+/**
+ * Resolve whether Stage clean speech defaults ON for the signed-in account (church and
+ * nonprofit org accounts) and mirror the verdict to localStorage for the Stage filter.
+ * Waits for auth so a studio opened straight after sign-in still gets the right default.
+ */
+export async function primeStageCleanSpeech(): Promise<boolean> {
+  await loadSafetySettings();
+  try { await (auth as unknown as { authStateReady?: () => Promise<void> }).authStateReady?.(); } catch { /* */ }
+  const uid = auth.currentUser?.uid;
+  let on = false;
+  if (uid) {
+    try {
+      const u = (await getDoc(doc(db, 'users', uid))).data() as { linkedOrgId?: string } | undefined;
+      if (u?.linkedOrgId) {
+        const t = (await getDoc(doc(db, 'organizations', u.linkedOrgId))).data()?.orgType;
+        on = t === 'CHURCH' || t === 'NONPROFIT';
+      }
+    } catch {
+      // offline — keep the last verdict this device saw
+      try { on = localStorage.getItem(STAGE_CLEAN_DEFAULT_LS_KEY) === '1'; } catch { /* */ }
+    }
+  }
+  _stageCleanDefault = on;
+  try { localStorage.setItem(STAGE_CLEAN_DEFAULT_LS_KEY, on ? '1' : '0'); } catch { /* */ }
+  return on;
+}
+export const stageCleanSpeechDefault = () => _stageCleanDefault;
 
 export async function saveSafetySettings(settings: SafetySettings): Promise<void> {
   _cache = settings;
@@ -128,24 +169,8 @@ export function getCachedSafetySettings(): SafetySettings {
 }
 
 // ─── Clean speech filter ─────────────────────────────────────────────────────
-// Wordlist kept intentionally moderate: slurs + strong profanity. Leetspeak
-// and separator-evasion are normalized before matching. Matching is
-// whole-word so "class", "assist", "Scunthorpe" are never flagged.
-
-const PROFANITY = [
-  'fuck', 'fucking', 'fucked', 'fucker', 'motherfucker', 'shit', 'shitty', 'bullshit',
-  'bitch', 'bitches', 'asshole', 'assholes', 'dick', 'dickhead', 'cunt', 'cock',
-  'pussy', 'bastard', 'douchebag', 'whore', 'slut', 'nigger', 'nigga', 'faggot',
-  'fag', 'retard', 'retarded', 'kike', 'spic', 'chink', 'tranny', 'wetback',
-];
-
-const LEET: Record<string, string> = { '0': 'o', '1': 'i', '3': 'e', '4': 'a', '5': 's', '7': 't', '@': 'a', '$': 's', '!': 'i' };
-
-function normalizeForMatch(word: string): string {
-  return word.toLowerCase().split('').map(c => LEET[c] ?? c).join('').replace(/[^a-z]/g, '');
-}
-
-const PROFANITY_SET = new Set(PROFANITY);
+// Word list + normalisation live in ./profanityLexicon (pure, shared with Stage's clean
+// speech filter in services/ambo/cleanSpeech.ts).
 
 export interface ProfanitySpan { start: number; end: number; word: string }
 

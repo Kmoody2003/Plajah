@@ -14,6 +14,8 @@
 // imports this module mirrors the latest state over a BroadcastChannel, so an
 // output window's GeneratorSource can resolve the words locally.
 
+import { cleanTranscript } from './cleanSpeech';
+
 export type TypoTextSource = 'auto' | 'scripture' | 'lyrics' | 'transcript' | 'custom' | 'data';
 
 export const TYPO_TEXT_SOURCES: Array<{ id: TypoTextSource; label: string; hint: string }> = [
@@ -104,6 +106,7 @@ export function setTypoTextPrefs(p: Partial<TypoTextPrefs>): void {
 type ChannelId = 'scripture' | 'lyrics' | 'transcript' | 'data';
 /** Studio side: new words on a channel. Unchanged text is not re-broadcast. */
 export function publishTypoChannel(ch: ChannelId, next: Partial<TypoChannel> & { text: string; error?: string }): void {
+  if (ch === 'transcript' || ch === 'lyrics') next = { ...next, text: cleanTranscript(next.text) };   // Stage clean speech
   const cur = state[ch];
   if (cur.text === next.text && cur.label === next.label && cur.adlib === next.adlib && (cur as any).error === next.error) {
     // keep "freshness" without a broadcast storm: refresh the stamp at most every 5 s

@@ -8,14 +8,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Shield, ShieldAlert, VolumeX, Sparkles, Plus, X, MessageSquareOff, BookOpenCheck } from 'lucide-react';
+import { Shield, ShieldAlert, VolumeX, Sparkles, Plus, X, MessageSquareOff, BookOpenCheck, Captions } from 'lucide-react';
 import PrivacySettings from './PrivacySettings';
 import DiscoverySettings from '../discovery/DiscoverySettings';
 import type { UserProfile } from '../../types';
 import { auth } from '../../services/firebase';
 import {
   type SafetySettings, loadSafetySettings, saveSafetySettings,
-  DEFAULT_SAFETY_SETTINGS, PROHIBITED_CONTENT, GUIDELINES_SUMMARY,
+  DEFAULT_SAFETY_SETTINGS, PROHIBITED_CONTENT, GUIDELINES_SUMMARY, primeStageCleanSpeech,
 } from '../../services/contentSafetyService';
 
 /** People-discovery privacy (suggest me, optional region matching, say-hi opt-out). Loads the viewer's profile itself. */
@@ -65,7 +65,8 @@ const WordChips: React.FC<{
   placeholder: string;
   words: string[];
   onChange: (words: string[]) => void;
-}> = ({ label, placeholder, words, onChange }) => {
+  emptyHint?: string;
+}> = ({ label, placeholder, words, onChange, emptyHint }) => {
   const [draft, setDraft] = useState('');
   const add = () => {
     const w = draft.trim().toLowerCase();
@@ -101,7 +102,7 @@ const WordChips: React.FC<{
         </div>
       )}
       {words.length === 0 && (
-        <p className="text-[9px] text-white/20">Nothing muted. Posts matching muted {label.toLowerCase()} stay in your feed but appear blurred until you choose to view them.</p>
+        <p className="text-[9px] text-white/20">{emptyHint ?? `Nothing muted. Posts matching muted ${label.toLowerCase()} stay in your feed but appear blurred until you choose to view them.`}</p>
       )}
     </div>
   );
@@ -112,8 +113,11 @@ export const ContentSafetySettings: React.FC = () => {
   const [loaded, setLoaded] = useState(false);
   const [saved, setSaved] = useState(false);
 
+  const [stageDefault, setStageDefault] = useState(false);
+
   useEffect(() => {
     loadSafetySettings().then(s => { setSettings(s); setLoaded(true); });
+    primeStageCleanSpeech().then(setStageDefault).catch(() => {});
   }, []);
 
   const update = async (patch: Partial<SafetySettings>) => {
@@ -167,6 +171,31 @@ export const ContentSafetySettings: React.FC = () => {
           description="Automatically blurs profanity in posts, comments, and chat. Tap any filtered word to reveal it."
           on={settings.cleanSpeech}
           onChange={v => update({ cleanSpeech: v })}
+        />
+      </div>
+
+      {/* Stage clean speech — on-screen transcription */}
+      <div className="p-5 bg-white/[0.03] border border-white/8 rounded-[1.5rem] space-y-5">
+        <div className="flex items-start gap-4">
+          <div className="w-9 h-9 rounded-xl bg-[#FF8C00]/10 border border-[#FF8C00]/25 flex items-center justify-center shrink-0">
+            <Captions size={15} className="text-[#FF8C00]" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-black uppercase tracking-widest">Stage clean speech</p>
+            <p className="text-[10px] text-white/40 leading-relaxed mt-1">
+              Profanity never reaches the screen during any Stage transcription — live captions, live lyrics, and typographic visualizers.
+              The word is left out entirely, no blur or stars. You still see the accurate transcript under the waveform as the operator.
+              {settings.stageCleanSpeech === undefined && stageDefault && ' On by default for church and nonprofit accounts.'}
+            </p>
+          </div>
+          <Toggle on={settings.stageCleanSpeech ?? stageDefault} onChange={v => update({ stageCleanSpeech: v })} />
+        </div>
+        <WordChips
+          label="Also leave out"
+          placeholder="Add a word or phrase to keep off screen…"
+          words={settings.stageCleanWords ?? []}
+          onChange={w => update({ stageCleanWords: w })}
+          emptyHint="No extra words. Common profanity and slurs are always filtered when this is on — add anything else your room shouldn't see."
         />
       </div>
 

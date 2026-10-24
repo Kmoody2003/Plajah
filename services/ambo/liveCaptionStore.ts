@@ -3,6 +3,8 @@
 // The studio window owns the microphone/transcriber (liveLyrics); output windows
 // and template thumbnails only need the current words. The studio publishes over
 // a BroadcastChannel; every window that imports this module mirrors the latest.
+import { cleanLines, cleanTranscript } from './cleanSpeech';
+
 export interface CaptionState { lines: string[]; at: number; live: boolean }
 
 const CH = 'ambo-live-caption-v1';
@@ -21,7 +23,8 @@ export const getCaption = () => cur;
 export const subscribeCaption = (fn: () => void) => { subs.add(fn); return () => { subs.delete(fn); }; };
 
 export function publishCaption(lines: string[], live: boolean): void {
-  cur = { lines, at: Date.now(), live };
+  // clean speech: profanity never leaves the studio — output windows only ever receive filtered lines
+  cur = { lines: cleanLines(lines), at: Date.now(), live };
   try { ch?.postMessage(cur); } catch { /* */ }
   subs.forEach(fn => { try { fn(); } catch { /* */ } });
 }
@@ -42,7 +45,8 @@ try {
 } catch { /* */ }
 export const getLyricCue = () => cue;
 export function publishLyricCue(lines: string[], curIdx: number, times: number[] = [], pos = 0, rate = 1, playing = true): void {
-  cue = { lines, cur: curIdx, at: Date.now(), times, pos, rate, playing };
+  // map (not filter) so cur/times stay aligned with the line indices
+  cue = { lines: lines.map(l => cleanTranscript(l)), cur: curIdx, at: Date.now(), times, pos, rate, playing };
   try { cueCh?.postMessage(cue); } catch { /* */ }
 }
 

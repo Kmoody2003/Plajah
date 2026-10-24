@@ -14,6 +14,7 @@ import { claimTypoTextOwner, getTypoTextState, publishTypoChannel, subscribeTypo
 import { subscribeTranscript, startMusicTranscription, type TranscriberHandle } from './liveTranscriber';
 import { getLyricClock, lyricsFor } from './lyricFeed';
 import { followerCurrentLine, getSongFollowState, installSongFollower } from './songFollower';
+import { primeCleanSpeech } from './cleanSpeech';
 
 let demand = false;
 /** ProPresenter: is a typographic visualizer on Program or Preview right now? */
@@ -58,6 +59,7 @@ let started = false;
 export function startTypoTextDriver(): () => void {
   if (started) return () => {};
   started = true;
+  primeCleanSpeech();   // church / nonprofit accounts: clean speech on by default
   claimTypoTextOwner();
   const unFollower = installSongFollower();
 

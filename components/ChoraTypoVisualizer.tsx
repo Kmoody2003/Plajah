@@ -17,6 +17,7 @@ import { TypoAudioAnalyzer } from './chora/typo/typoAudio';
 import { AdaptiveScale } from './plajahPixels/engine/core/adaptiveScale';
 import { getTypoTextState, resolveTypoText, subscribeTypoText } from '../services/ambo/typoText';
 import { subscribeTranscript } from '../services/ambo/liveTranscriber';
+import { cleanTranscript } from '../services/ambo/cleanSpeech';
 
 export type { TypoVolumePreset };
 
@@ -58,7 +59,8 @@ export const ChoraTypoVisualizer: React.FC<Props> = ({
 
   useEffect(() => {
     // 1) Subscribe to live transcription word tap from ANY session (mic, dj, playlist, program, system)
-    const unTap = subscribeTranscript(t => {
+    const unTap = subscribeTranscript(raw => {
+      const t = cleanTranscript(raw);
       if (t && t.trim()) {
         setLiveWords(prev => {
           const arr = prev.split(/\s+/).concat(t.split(/\s+/)).filter(Boolean).slice(-16);
