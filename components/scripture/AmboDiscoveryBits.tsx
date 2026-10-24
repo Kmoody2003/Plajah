@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { useDiscoveredSources } from '../../services/mediaEngine/useDiscoveredSources';
 import type { DiscoveryProtocol, ProtocolStatus } from '../../services/mediaEngine/sourceDiscovery';
+import { parseSrtUrl, validateSrt } from '../../services/ambo/networkOutputs';
 
 const PROTO_COLOR: Record<string, string> = { ndi: '#7c9ce8', omt: '#7be0b5', srt: '#ffb84d' };
 
@@ -54,7 +55,12 @@ export const SrtEndpointPanel: React.FC = () => {
   const [mode, setMode] = useState<'listener' | 'caller'>('listener');
   const [host, setHost] = useState('');
   const [port, setPort] = useState('9000');
+  const [latency, setLatency] = useState('120');
+  const [pass, setPass] = useState('');
+  const [paste, setPaste] = useState('');
+  const [err, setErr] = useState<string | null>(null);
   const [auto, setAuto] = useState(true);
+  const [startPass, setStartPass] = useState<Record<string, string>>({});
   const endpoints = srt.list();
   const noTransport = status.srt.state === 'transport-missing' || status.srt.state === 'unsupported';
   const field = 'bg-black/40 border border-white/10 rounded-lg px-2 py-1 text-[11px] text-white outline-none focus:border-[#ffb84d]/60';
@@ -68,14 +74,37 @@ export const SrtEndpointPanel: React.FC = () => {
         </select>
         {mode === 'caller' && <input value={host} onChange={e => setHost(e.target.value)} placeholder="host or IP" className={`${field} w-36`} />}
         <input value={port} onChange={e => setPort(e.target.value.replace(/\D/g, ''))} placeholder="port" className={`${field} w-20`} />
+        <label className="flex items-center gap-1 text-[10px] text-white/60">latency
+          <input value={latency} onChange={e => setLatency(e.target.value.replace(/\D/g, ''))} className={`${field} w-14`} />ms</label>
+        <input type="password" value={pass} onChange={e => setPass(e.target.value)} autoComplete="new-password" placeholder="passphrase (optional)" className={`${field} w-36`} />
         <label className="flex items-center gap-1 text-[10px] text-white/60"><input type="checkbox" checked={auto} onChange={e => setAuto(e.target.checked)} />{mode === 'listener' ? 'Keep listening' : 'Reconnect on launch'}</label>
         <button
           disabled={!Number(port) || (mode === 'caller' && !host.trim())}
-          onClick={() => { srt.remember({ mode, host: host.trim() || undefined, port: Number(port), autoStart: auto }); if (mode === 'caller') setHost(''); }}
+          onClick={() => {
+            const issues = validateSrt({ mode, host: host.trim(), port: Number(port), latencyMs: Number(latency) }, pass || undefined);
+            if (issues.length) { setErr(issues.join(' ')); return; }
+            setErr(null);
+            srt.remember({ mode, host: host.trim() || undefined, port: Number(port), latencyMs: Number(latency), autoStart: auto, ...(pass ? { passphrase: pass } : {}) });
+            setPass(''); if (mode === 'caller') setHost('');
+          }}
           className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-[#ffb84d]/15 border border-[#ffb84d]/40 text-[#ffb84d] disabled:opacity-40">
           Save endpoint
         </button>
       </div>
+      <div className="flex items-center gap-2">
+        <input value={paste} onChange={e => setPaste(e.target.value)} placeholder="or paste an srt:// URL from the encoder" className={`${field} flex-1`} />
+        <button disabled={!paste.trim()} onClick={() => {
+          const r = parseSrtUrl(paste);
+          if ('error' in r) { setErr(r.error); return; }
+          // The encoder's URL describes ITS side: an encoder that calls means Stage listens, and vice versa.
+          const s = r.settings;
+          setMode(s.mode === 'caller' ? 'listener' : 'caller');
+          setHost(s.mode === 'listener' ? (s.host ?? '') : '');
+          setPort(String(s.port)); setLatency(String(s.latencyMs)); if (r.passphrase) setPass(r.passphrase);
+          setErr(s.mode === 'listener' && !s.host ? 'That encoder listens: enter its host above, then Save.' : null); setPaste('');
+        }} className="px-2.5 py-1 rounded-lg text-[10px] font-bold border border-white/15 text-white/70 disabled:opacity-40">Use URL</button>
+      </div>
+      {err && <div className="text-[10px] text-[#fca5a5]">{err}</div>}
       {noTransport && <div className="text-[10px] text-[#ffd166]">{status.srt.detail}</div>}
       {endpoints.map(e => {
         const live = sources.find(s => s.id === e.id);
@@ -84,8 +113,13 @@ export const SrtEndpointPanel: React.FC = () => {
             <OnlineDot online={live?.online ?? false} />
             <span className="font-semibold text-white/90">{e.name}</span>
             <span className="text-white/40 truncate flex-1">{live?.status}</span>
+            <span className="text-white/35">{e.latencyMs} ms{e.needsPassphrase ? ' · encrypted' : ''}</span>
+            {e.needsPassphrase && !srt.hasPassphrase(e.id) && (
+              <input type="password" value={startPass[e.id] ?? ''} onChange={ev => setStartPass(p => ({ ...p, [e.id]: ev.target.value }))}
+                placeholder="passphrase" autoComplete="new-password" className={`${field} w-28`} />
+            )}
             <label className="flex items-center gap-1 text-white/50"><input type="checkbox" checked={e.autoStart} onChange={ev => srt.setAutoStart(e.id, ev.target.checked)} />auto</label>
-            <button onClick={() => void srt.startNow(e.id)} className="text-white/60 hover:text-white">Start</button>
+            <button onClick={() => { void srt.startNow(e.id, startPass[e.id] || undefined); setStartPass(p => ({ ...p, [e.id]: '' })); }} className="text-white/60 hover:text-white">Start</button>
             <button onClick={() => void srt.forget(e.id)} className="text-white/40 hover:text-red-300">Forget</button>
           </div>
         );

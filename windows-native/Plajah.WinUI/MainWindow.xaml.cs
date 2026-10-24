@@ -26,6 +26,11 @@ public sealed partial class MainWindow : Window
     private AppWindow? _appWindow;
     private readonly PlajahStudioBridgeService _studioBridge;
     private readonly NdiReceiverService _ndiRecv = new();
+    /// <summary>Stage Program out as NDI / OMT / SRT (frames arrive from the page through a shared buffer).</summary>
+    private ProgramOutputHub? _programOutHub;
+    private ProgramOutputHub ProgramOut => _programOutHub ??= new ProgramOutputHub(() => _studioBridge.NdiDllPath);
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer? _programOutTimer;
+    private string _programOutLastStatus = "";
     private Microsoft.UI.Dispatching.DispatcherQueueTimer? _liveLevelTimer;
     private DateTime _lastNavRecovery = DateTime.MinValue;
     private DateTime _lastRendererRecovery = DateTime.MinValue;
@@ -152,6 +157,9 @@ public sealed partial class MainWindow : Window
         try { _studioBridge.CloseAllOutputWindows(); } catch (Exception ex) { CrashLog.Write("Close.Outputs", ex); }
         try { _studioBridge.ShutdownCompositor(); } catch (Exception ex) { CrashLog.Write("Close.Compositor", ex); }
         try { _studioBridge.CloseCleanFeed(); } catch (Exception ex) { CrashLog.Write("Close.CleanFeed", ex); }
+        // Network outputs announce themselves (NDI/OMT) and own ffmpeg children (SRT): close them cleanly.
+        try { _programOutHub?.Dispose(); } catch (Exception ex) { CrashLog.Write("Close.ProgramOut", ex); }
+        try { _ndiRecv.Dispose(); } catch (Exception ex) { CrashLog.Write("Close.LiveInputs", ex); }
     }
 
     private bool _ecoMode;
@@ -832,6 +840,10 @@ public sealed partial class MainWindow : Window
                 ? typeValue.GetString()
                 : null;
 
+            // Stage Program → network outputs (30–60 messages a second; keep this first and cheap).
+            if (type == "PROGRAM_OUT_FRAME") { _programOutHub?.OnFrame(root); return; }
+            if (type == "PROGRAM_OUT_AUDIO") { _programOutHub?.OnAudio(root); return; }
+
             if (type is "SPEECH_START" or "SPEECH_STOP" or "SPEECH_SUSPEND" or "SPEECH_RESUME")
             {
                 await HandleSpeechMessageAsync(type, root);   // Voca read-aloud
@@ -1312,7 +1324,8 @@ public sealed partial class MainWindow : Window
                         brawDecode = true,
                         webgpu = true,
                         nativeOmt = true,
-                        nativeSrt = true,
+                        nativeSrt = FfmpegLocator.SrtAvailable,
+                        programOut = new { ndi = true, omt = true, srt = FfmpegLocator.SrtAvailable },
                         nativeAvb = true,
                         sources = new Dictionary<string, bool>
                         {
@@ -1397,22 +1410,21 @@ public sealed partial class MainWindow : Window
 
                     // 4. Enumerate SRT Streams (Active Listeners / Callers)
                     // Only advertised when a real transport backs them; otherwise they would be fake 1080p60 feeds.
-                    var srtStreams = PlajahStudioBridgeService.SrtTransportAvailable ? _studioBridge.GetActiveSrtStreams() : new List<PlajahStudioBridgeService.SrtStreamSession>();
-                    foreach (var s in srtStreams)
+                    foreach (var s in _ndiRecv.SrtSessions())
                     {
                         sourceList.Add(new
                         {
                             id = s.StreamId,
                             label = s.Name,
                             kind = "srt",
-                            url = $"srt://{s.Host}:{s.Port}?latency={s.LatencyMs}",
-                            formats = new[] { new { width = 1920, height = 1080, fps = 60.0, interlaced = false } },
+                            url = $"srt://{s.Host}:{s.Port}?mode={s.Mode}&latency={s.LatencyMs}",
+                            // Only what the decoder actually reported — nothing before the encoder connects.
+                            formats = s.Width > 0 ? new object[] { new { width = s.Width, height = s.Height, fps = s.Fps, interlaced = false } } : Array.Empty<object>(),
                             latencyMs = s.LatencyMs,
                             clockDomain = "soft-master",
                             status = s.Status,
                             bitrateMbps = s.BitrateMbps,
-                            packetLossRate = s.PacketLossRate,
-                            discoveryMethod = "Native SRT Transport"
+                            discoveryMethod = "Native SRT Transport (ffmpeg + libsrt)"
                         });
                     }
 
@@ -1487,42 +1499,73 @@ public sealed partial class MainWindow : Window
                     bool stopped = _studioBridge.StopOmtBroadcast(sId);
                     result = new { success = stopped };
                 }
-                else if (cmd == "srt_start_listener")
+                else if (cmd == "srt_start_listener" || cmd == "srt_connect_caller")
                 {
-                    string sId = argsObj.TryGetProperty("streamId", out var si) ? si.GetString() ?? "srt_ingest" : "srt_ingest";
-                    string sName = argsObj.TryGetProperty("name", out var sn) ? sn.GetString() ?? "SRT Live Contribution Ingest" : "SRT Live Contribution Ingest";
+                    bool listener = cmd == "srt_start_listener";
+                    string sId = argsObj.TryGetProperty("streamId", out var si) ? si.GetString() ?? "" : "";
                     int port = argsObj.TryGetProperty("port", out var pt) && pt.TryGetInt32(out var pv) ? pv : 9000;
+                    string host = argsObj.TryGetProperty("host", out var ho) ? ho.GetString() ?? "" : "";
+                    if (sId.Length == 0) sId = listener ? $"srt:listen:{port}" : $"srt:call:{host}:{port}";
+                    string sName = argsObj.TryGetProperty("name", out var sn) ? sn.GetString() ?? "" : "";
+                    if (sName.Length == 0) sName = listener ? $"SRT listener :{port}" : $"SRT {host}:{port}";
                     int lat = argsObj.TryGetProperty("latencyMs", out var lt) && lt.TryGetInt32(out var lv) ? lv : 120;
-                    string? pass = argsObj.TryGetProperty("passphrase", out var pp) ? pp.GetString() : null;
-                    var session = _studioBridge.StartSrtListener(sId, sName, port, lat, pass);
-                    result = new { success = PlajahStudioBridgeService.SrtTransportAvailable, session, transportAvailable = PlajahStudioBridgeService.SrtTransportAvailable, reason = PlajahStudioBridgeService.SrtTransportAvailable ? null : PlajahStudioBridgeService.SrtTransportReason };
-                }
-                else if (cmd == "srt_connect_caller")
-                {
-                    string sId = argsObj.TryGetProperty("streamId", out var si) ? si.GetString() ?? "srt_caller" : "srt_caller";
-                    string sName = argsObj.TryGetProperty("name", out var sn) ? sn.GetString() ?? "SRT Remote Feed" : "SRT Remote Feed";
-                    string host = argsObj.TryGetProperty("host", out var ho) ? ho.GetString() ?? "127.0.0.1" : "127.0.0.1";
-                    int port = argsObj.TryGetProperty("port", out var pt) && pt.TryGetInt32(out var pv) ? pv : 9000;
-                    int lat = argsObj.TryGetProperty("latencyMs", out var lt) && lt.TryGetInt32(out var lv) ? lv : 120;
-                    string? pass = argsObj.TryGetProperty("passphrase", out var pp) ? pp.GetString() : null;
-                    var session = _studioBridge.ConnectSrtCaller(sId, sName, host, port, lat, pass);
-                    result = new { success = PlajahStudioBridgeService.SrtTransportAvailable, session, transportAvailable = PlajahStudioBridgeService.SrtTransportAvailable, reason = PlajahStudioBridgeService.SrtTransportAvailable ? null : PlajahStudioBridgeService.SrtTransportReason };
+                    string pass = argsObj.TryGetProperty("passphrase", out var pp) ? pp.GetString() ?? "" : "";
+                    string streamIdOpt = argsObj.TryGetProperty("srtStreamId", out var ss) ? ss.GetString() ?? "" : "";
+                    string? err = null;
+                    if (!FfmpegLocator.SrtAvailable) err = FfmpegLocator.SrtReason;
+                    else if (port < 1 || port > 65535) err = "SRT port must be 1–65535.";
+                    else if (!listener && host.Length == 0) err = "An SRT caller needs the sender's host or IP.";
+                    else if (pass.Length > 0 && (pass.Length < 10 || pass.Length > 79)) err = "An SRT passphrase must be 10–79 characters.";
+                    else err = _ndiRecv.ConnectSrt(sId, sName, new SrtEndpoint(listener ? "listener" : "caller", host, port, Math.Clamp(lat, 20, 8000), pass, streamIdOpt));
+                    if (err == null) EnsureLiveLevelTimer();
+                    result = new { success = err == null, error = err, session = err == null ? _ndiRecv.SrtStats(sId) : null, transportAvailable = FfmpegLocator.SrtAvailable, reason = FfmpegLocator.SrtAvailable ? null : FfmpegLocator.SrtReason };
                 }
                 else if (cmd == "srt_stop")
                 {
                     string sId = argsObj.TryGetProperty("streamId", out var si) ? si.GetString() ?? "" : "";
-                    bool stopped = _studioBridge.StopSrtStream(sId);
-                    result = new { success = stopped };
+                    result = new { success = _ndiRecv.DisconnectSrt(sId) };
                 }
                 else if (cmd == "srt_info")
                 {
-                    result = new { transportAvailable = PlajahStudioBridgeService.SrtTransportAvailable, reason = PlajahStudioBridgeService.SrtTransportAvailable ? null : PlajahStudioBridgeService.SrtTransportReason };
+                    var probe = FfmpegLocator.Current;
+                    result = new { transportAvailable = probe.Srt, reason = probe.Srt ? null : probe.Reason, ffmpeg = probe.Path, version = probe.Version, encoders = probe.H264Encoders };
                 }
                 else if (cmd == "srt_stats")
                 {
                     string sId = argsObj.TryGetProperty("streamId", out var si) ? si.GetString() ?? "" : "";
-                    var stats = _studioBridge.GetSrtStats(sId);
-                    result = new { success = stats != null, stats };
+                    var st = _ndiRecv.SrtStats(sId);
+                    result = new
+                    {
+                        success = st != null,
+                        stats = st == null ? null : new
+                        {
+                            connected = st.Connected, status = st.Status, mode = st.Mode, host = st.Host, port = st.Port, latencyMs = st.LatencyMs,
+                            encrypted = st.Encrypted, width = st.Width, height = st.Height, fps = st.Fps, bitrateMbps = st.BitrateMbps,
+                            reconnects = st.Reconnects, error = st.Error,
+                        }
+                    };
+                }
+                else if (cmd == "program_out_start")
+                {
+                    result = ProgramOut.Start(argsObj);
+                    EnsureProgramOutTimer();
+                }
+                else if (cmd == "program_out_stop")
+                {
+                    string oId = argsObj.TryGetProperty("id", out var oi) ? oi.GetString() ?? "" : "";
+                    result = new { success = _programOutHub?.Stop(oId) ?? false };
+                    PushProgramOutStatus(force: true);
+                }
+                else if (cmd == "program_out_status")
+                {
+                    result = ProgramOut.Status();
+                }
+                else if (cmd == "program_out_buffer")
+                {
+                    int bw = argsObj.TryGetProperty("width", out var bwp) && bwp.TryGetInt32(out var bwv) ? bwv : 1920;
+                    int bh = argsObj.TryGetProperty("height", out var bhp) && bhp.TryGetInt32(out var bhv) ? bhv : 1080;
+                    try { result = Web.CoreWebView2 is { } wcore ? ProgramOut.AttachBuffer(wcore, bw, bh) : new { success = false, error = "WebView not ready." }; }
+                    catch (Exception ex) { result = new { success = false, error = "Shared frame buffer unavailable: " + ex.Message }; }
                 }
                 else if (cmd == "avb_interfaces")
                 {
@@ -1591,6 +1634,14 @@ public sealed partial class MainWindow : Window
                         EnsureLiveLevelTimer();
                         result = new { success = err == null, error = err };
                     }
+                    else if (srcId.StartsWith("srt:"))
+                    {
+                        // SRT inputs are opened by srt_start_listener / srt_connect_caller (SrtSupervisor); a tile just shows it.
+                        var st = _ndiRecv.SrtStats(srcId);
+                        EnsureLiveLevelTimer();
+                        result = st != null ? new { success = true, error = (string?)null }
+                            : new { success = false, error = (string?)(FfmpegLocator.SrtAvailable ? "This SRT input isn't open — start it under SRT endpoints." : FfmpegLocator.SrtReason) };
+                    }
                     else result = new { success = true };
                 }
                 else if (cmd == "disconnect_source")
@@ -1611,6 +1662,12 @@ public sealed partial class MainWindow : Window
                 {
                     // Acknowledged; the browser compositor renders program until the native switcher lands.
                     result = new { success = true };
+                }
+                else if (cmd == "set_output" && argsObj.ValueKind == JsonValueKind.Object && argsObj.TryGetProperty("kind", out var sok) && sok.GetString() is "ndi" or "omt" or "srt")
+                {
+                    var act = argsObj.TryGetProperty("action", out var sa) ? sa.GetString() : "start";
+                    if (act == "stop") result = new { success = _programOutHub?.Stop(argsObj.TryGetProperty("id", out var sid2) ? sid2.GetString() ?? "" : "") ?? false };
+                    else { result = ProgramOut.Start(argsObj); EnsureProgramOutTimer(); }
                 }
                 else if (cmd == "set_output")
                 {
@@ -2382,6 +2439,30 @@ public sealed partial class MainWindow : Window
         using (var writer = new DataWriter(ms.GetOutputStreamAt(0))) { writer.WriteBytes(jpeg); writer.StoreAsync().AsTask().Wait(); writer.DetachStream(); }
         ms.Seek(0);
         args.Response = core.Environment.CreateWebResourceResponse(ms, 200, "OK", "Content-Type: image/jpeg\r\nAccess-Control-Allow-Origin: *\r\nCache-Control: no-store");
+    }
+
+    /// <summary>Once a second while any network output exists: push their status when it changed (and every 5 s).</summary>
+    private void EnsureProgramOutTimer()
+    {
+        if (_programOutTimer != null) { PushProgramOutStatus(force: true); return; }
+        long ticks = 0;
+        _programOutTimer = DispatcherQueue.CreateTimer();
+        _programOutTimer.Interval = TimeSpan.FromMilliseconds(1000);
+        _programOutTimer.Tick += (_, _) => PushProgramOutStatus(force: ++ticks % 5 == 0);
+        _programOutTimer.Start();
+        PushProgramOutStatus(force: true);
+    }
+
+    private void PushProgramOutStatus(bool force)
+    {
+        if (_programOutHub == null) return;
+        var status = _programOutHub.Status();
+        var json = JsonSerializer.Serialize(status);
+        // Frame counters always move; compare the rest so an idle status doesn't spam the page.
+        var key = System.Text.RegularExpressions.Regex.Replace(json, "\"(framesSent|droppedFrames|frames|lastFrameAgeMs|bitrateKbps|fps)\":[-\\d.]+", "");
+        if (!force && key == _programOutLastStatus) return;
+        _programOutLastStatus = key;
+        PostNativeMessage("PROGRAM_OUT_STATUS", status);
     }
 
     /// <summary>~10x a second: every live input's audio levels + status, for the tiles' meters.</summary>

@@ -12,7 +12,8 @@ import { useEffect, useRef, useState, useSyncExternalStore, type RefObject } fro
 import { isWindowsApp, onNativeMessage } from '../windowsBridgeService';
 import { amboAudio } from './amboAudioEngine';
 
-export const isNativeLiveInput = (id?: string | null): boolean => !!id && (id.startsWith('ndi:') || id.startsWith('omt'));
+/** NDI, OMT and SRT feeds are received by the Windows app and served as frames at /__live. */
+export const isNativeLiveInput = (id?: string | null): boolean => !!id && (id.startsWith('ndi:') || id.startsWith('omt') || id.startsWith('srt:'));
 
 type Invoke = (cmd: string, args?: Record<string, unknown>) => Promise<any>;
 const invoke: Invoke | null = typeof window !== 'undefined' && (window as any).__plajahMediaEngine?.invoke

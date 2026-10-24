@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": true, "skipLibCheck": true, "incremental": false },
+  "include": [
+    "services/ambo/networkOutputs.ts",
+    "services/ambo/networkOutputsRuntime.ts",
+    "services/ambo/programFrameFeeder.ts",
+    "services/ambo/liveInputs.ts",
+    "services/mediaEngine/sourceDiscovery.ts",
+    "components/scripture/AmboNetworkOutputsPanel.tsx",
+    "components/scripture/AmboDiscoveryBits.tsx",
+    "tests/amboNetworkTransports.test.ts"
+  ]
+}

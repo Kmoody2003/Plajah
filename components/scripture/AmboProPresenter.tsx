@@ -66,6 +66,7 @@ import AmboSlideEditor from './AmboSlideEditor';
 import AmboScriptureDock, { type ScriptureCue } from './AmboScriptureDock';
 import AmboInspector from './AmboInspector';
 import AmboRouterReceiver from './AmboRouterReceiver';
+import AmboNetworkOutputsPanel from './AmboNetworkOutputsPanel';
 import AmboMediaBin, { type AmboMediaSourceItem } from './AmboMediaBin';
 import AmboHorizontalMultiview from './AmboHorizontalMultiview';
 import AmboTabbedLibrary, { type AmboLibraryTab } from './AmboTabbedLibrary';
@@ -3073,6 +3074,9 @@ useEffect(() => {
                   </p>
                 </div>
               </button>
+
+              {/* Program as NDI / OMT / SRT (Windows app) */}
+              <AmboNetworkOutputsPanel compact />
 
               <div className="w-full h-px bg-white/10" />
 

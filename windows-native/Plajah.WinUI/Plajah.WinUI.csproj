@@ -15,6 +15,7 @@
     <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-x64</RuntimeIdentifier>
     <UseWinUI>true</UseWinUI>
     <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <!-- Single-project MSIX: the modern packaging target — no separate .wapproj needed. -->
     <EnableMsixTooling>true</EnableMsixTooling>
     <WindowsPackageType>MSIX</WindowsPackageType>
@@ -55,6 +56,15 @@
     </Reference>
     <Content Include="..\third_party\omt\win-x64\libvmx.dll">
       <Link>libvmx.dll</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <!-- SRT in/out runs through an ffmpeg child built with libsrt (see FfmpegLocator.cs). Optional:
+       drop an SRT-capable ffmpeg.exe into third_party\ffmpeg\win-x64 and it ships in <app>\ffmpeg\. -->
+  <ItemGroup Condition="Exists('..\third_party\ffmpeg\win-x64\ffmpeg.exe')">
+    <Content Include="..\third_party\ffmpeg\win-x64\ffmpeg.exe">
+      <Link>ffmpeg\ffmpeg.exe</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>

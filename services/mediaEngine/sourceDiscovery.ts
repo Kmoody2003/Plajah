@@ -332,7 +332,9 @@ const BACKOFF = [2000, 4000, 8000, 15000, 30000, 60000];
 
 export class SrtSupervisor {
   private endpoints: SrtEndpoint[] = [];
-  private state = new Map<string, { link: SrtLinkState; attempt: number; nextTryAt: number; detail?: string }>();
+  /** Passphrases typed this session (never persisted); lets an encrypted endpoint reconnect on its own. */
+  private secrets = new Map<string, string>();
+  private state = new Map<string, { link: SrtLinkState; attempt: number; nextTryAt: number; detail?: string; fmt?: { width: number; height: number; fps: number } }>();
   private transport: SrtTransportStatus | null = null;
   private timer: unknown = null;
   private running = false;
@@ -355,7 +357,9 @@ export class SrtSupervisor {
   private save() { try { this.storage?.setItem(SRT_KEY, JSON.stringify(this.endpoints)); } catch { /* quota / private mode */ } }
 
   /** Remember an endpoint. Same mode+host+port is the same endpoint (stable id), so re-adding never duplicates. */
-  remember(e: { mode: 'listener' | 'caller'; host?: string; port: number; name?: string; latencyMs?: number; autoStart?: boolean; needsPassphrase?: boolean }): SrtEndpoint {
+  hasPassphrase(id: string): boolean { return this.secrets.has(id); }
+
+  remember(e: { mode: 'listener' | 'caller'; host?: string; port: number; name?: string; latencyMs?: number; autoStart?: boolean; needsPassphrase?: boolean; passphrase?: string }): SrtEndpoint {
     const host = e.mode === 'caller' ? (e.host || '127.0.0.1') : undefined;
     const id = e.mode === 'listener' ? `srt:listen:${e.port}` : `srt:call:${host}:${e.port}`;
     const prev = this.endpoints.find(x => x.id === id);
@@ -364,9 +368,13 @@ export class SrtSupervisor {
       name: e.name || (e.mode === 'listener' ? `SRT listener :${e.port}` : `SRT ${host}:${e.port}`),
       latencyMs: e.latencyMs ?? prev?.latencyMs ?? 120,
       autoStart: e.autoStart ?? prev?.autoStart ?? false,
-      needsPassphrase: e.needsPassphrase ?? prev?.needsPassphrase ?? false,
+      needsPassphrase: e.passphrase ? true : (e.needsPassphrase ?? prev?.needsPassphrase ?? false),
       lastUsed: this.clock.now(),
     };
+    if (e.passphrase) this.secrets.set(id, e.passphrase);
+    else if (e.needsPassphrase === false) this.secrets.delete(id);
+    // Changed settings on an open endpoint: reopen it with them on the next tick.
+    if (prev && (prev.latencyMs !== next.latencyMs || e.passphrase)) this.state.delete(id);
     this.endpoints = prev ? this.endpoints.map(x => x.id === id ? next : x) : [...this.endpoints, next];
     this.save(); this.render();
     if (this.running) void this.tick();
@@ -374,7 +382,7 @@ export class SrtSupervisor {
   }
   async forget(id: string) {
     this.endpoints = this.endpoints.filter(e => e.id !== id);
-    this.state.delete(id); this.save();
+    this.state.delete(id); this.secrets.delete(id); this.save();
     try { await this.bridge.srtStop(id); } catch { /* already gone */ }
     this.render();
   }
@@ -387,6 +395,12 @@ export class SrtSupervisor {
   async startNow(id: string, passphrase?: string) {
     const e = this.endpoints.find(x => x.id === id);
     if (!e) return;
+    if (passphrase) this.secrets.set(id, passphrase);
+    if (e.needsPassphrase && !this.secrets.has(id)) {
+      this.state.set(id, { link: 'needs-passphrase', attempt: 0, nextTryAt: 0, detail: 'Encrypted: enter the passphrase to start' });
+      this.render();
+      return;
+    }
     this.state.set(id, { link: 'starting', attempt: 0, nextTryAt: 0 });
     await this.open(e, passphrase);
     this.render();
@@ -399,7 +413,7 @@ export class SrtSupervisor {
   }
   stop() { this.running = false; if (this.timer !== null) { this.clock.clearTimeout(this.timer); this.timer = null; } }
 
-  private async open(e: SrtEndpoint, passphrase?: string): Promise<boolean> {
+  private async open(e: SrtEndpoint, passphrase = this.secrets.get(e.id)): Promise<boolean> {
     const s = this.state.get(e.id) ?? { link: 'starting' as SrtLinkState, attempt: 0, nextTryAt: 0 };
     let res: any;
     try {
@@ -445,14 +459,18 @@ export class SrtSupervisor {
             const stats = await this.bridge.srtStats(e.id).catch(() => null);
             const k = srtLinkState(e.mode, stats);
             if (!stats) this.state.set(e.id, { link: 'retrying', attempt: 1, nextTryAt: now + BACKOFF[0], detail: 'Session lost' });
-            else this.state.set(e.id, { link: k === 'up' ? 'connected' : e.mode === 'listener' ? 'listening' : 'starting', attempt: 0, nextTryAt: 0, detail: stats.status });
+            else this.state.set(e.id, {
+              link: k === 'up' ? 'connected' : e.mode === 'listener' ? 'listening' : 'starting', attempt: 0, nextTryAt: 0,
+              detail: stats.error ? `${stats.status} - ${stats.error}` : stats.status,
+              fmt: stats.width > 0 ? { width: stats.width, height: stats.height, fps: Number(stats.fps) || 0 } : undefined,
+            });
             continue;
           }
           // idle / retrying: auto-start endpoints, and probe the last-used caller hosts at the slowest backoff.
           const due = !st || now >= st.nextTryAt;
           if (!due) continue;
           if (e.autoStart) {
-            if (e.needsPassphrase) this.state.set(e.id, { link: 'needs-passphrase', attempt: 0, nextTryAt: 0, detail: 'Encrypted: enter the passphrase to start' });
+            if (e.needsPassphrase && !this.secrets.has(e.id)) this.state.set(e.id, { link: 'needs-passphrase', attempt: 0, nextTryAt: 0, detail: 'Encrypted: enter the passphrase to start' });
             else await this.open(e);
           }
         }
@@ -473,9 +491,11 @@ export class SrtSupervisor {
       const origin: SourceOrigin = e.mode === 'listener' ? 'auto-listen' : 'remembered';
       const note = link === 'connected' ? 'Receiving' : link === 'listening' ? 'Listening, waiting for an encoder'
         : link === 'unavailable' ? (t?.reason || st?.detail || 'SRT transport unavailable')
-        : link === 'retrying' ? `Retrying (attempt ${st?.attempt ?? 1})` : link === 'needs-passphrase' ? 'Passphrase needed' : 'Not started';
+        : link === 'retrying' ? `Retrying (attempt ${st?.attempt ?? 1})${st?.detail ? `: ${st.detail}` : ''}` : link === 'needs-passphrase' ? 'Passphrase needed' : 'Not started';
       return {
-        id: e.id, label: e.name, kind: 'srt' as const, formats: [], online, origin,
+        id: e.id, label: e.name, kind: 'srt' as const, online, origin,
+        // Only the format the decoder reported; nothing is claimed before an encoder connects.
+        formats: online && st?.fmt ? [{ ...st.fmt, interlaced: false }] : [],
         url: e.mode === 'listener' ? `srt://:${e.port}?mode=listener` : `srt://${e.host}:${e.port}?mode=caller`,
         status: `${e.mode === 'listener' ? 'Auto-listen' : 'Remembered'} - ${note}`,
         discoveryMethod: e.mode === 'listener' ? 'SRT auto-listen (not announced)' : 'Remembered SRT endpoint (not announced)',

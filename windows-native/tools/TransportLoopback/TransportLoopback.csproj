@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Headless loopback check for Stage's network transports: compiles the WinUI app's real sink and
+       receiver classes and sends a synthetic Program through NDI, OMT and (when an SRT-capable ffmpeg
+       is found) SRT, receiving each back on this PC. Run:  dotnet run -c Release -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>false</SelfContained>
+    <BaseOutputPath>bin\</BaseOutputPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\..\Plajah.WinUI\ProgramOutputSinks.cs" Link="Shared\ProgramOutputSinks.cs" />
+    <Compile Include="..\..\Plajah.WinUI\NdiReceiverService.cs" Link="Shared\NdiReceiverService.cs" />
+    <Compile Include="..\..\Plajah.WinUI\NdiFinderService.cs" Link="Shared\NdiFinderService.cs" />
+    <Compile Include="..\..\Plajah.WinUI\FfmpegLocator.cs" Link="Shared\FfmpegLocator.cs" />
+    <Reference Include="libomtnet">
+      <HintPath>..\..\third_party\omt\win-x64\libomtnet.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Content Include="..\..\third_party\omt\win-x64\libvmx.dll" Link="libvmx.dll" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\Plajah.WinUI\Processing.NDI.Lib.x64.dll" Link="Processing.NDI.Lib.x64.dll" CopyToOutputDirectory="PreserveNewest" Condition="Exists('..\..\Plajah.WinUI\Processing.NDI.Lib.x64.dll')" />
+  </ItemGroup>
+</Project>

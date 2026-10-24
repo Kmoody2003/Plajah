@@ -119,9 +119,46 @@ internal sealed class NdiReceiverService : IDisposable
         return null;
     }
 
+    /// <summary>
+    /// Start an SRT input (listener or caller) through an ffmpeg+libsrt child. Unlike NDI/OMT tiles this
+    /// receiver is PINNED: it keeps listening / reconnecting while nothing shows it, because an SRT
+    /// encoder can only be noticed by having the port open. It ends with DisconnectSrt.
+    /// </summary>
+    public string? ConnectSrt(string id, string name, SrtEndpoint ep)
+    {
+        if (!FfmpegLocator.SrtAvailable) return FfmpegLocator.SrtReason;
+        if (_receivers.TryRemove(id, out var old)) old.Dispose();   // settings may have changed: reopen
+        var r = new Receiver(this, id, name, null, srt: ep);
+        if (!_receivers.TryAdd(id, r)) { r.Dispose(); return null; }
+        r.Start();
+        return null;
+    }
+
+    public sealed record SrtSession(string StreamId, string Name, string Mode, string Host, int Port, int LatencyMs, bool Encrypted,
+        string Status, bool Connected, int Width, int Height, double Fps, double BitrateMbps, int Reconnects, string? Error);
+
+    public IReadOnlyList<SrtSession> SrtSessions()
+    {
+        var list = new List<SrtSession>();
+        foreach (var (id, r) in _receivers) if (r.Srt is { } ep) list.Add(r.SrtSnapshot(id, ep));
+        return list;
+    }
+
+    public SrtSession? SrtStats(string id) =>
+        _receivers.TryGetValue(id, out var r) && r.Srt is { } ep ? r.SrtSnapshot(id, ep) : null;
+
     public void Disconnect(string id)
     {
-        if (_receivers.TryRemove(id, out var r)) r.Dispose();
+        // A tile letting go of an SRT input must not close the port; only DisconnectSrt does.
+        if (_receivers.TryGetValue(id, out var r) && r.Srt != null) return;
+        if (_receivers.TryRemove(id, out r)) r.Dispose();
+    }
+
+    public bool DisconnectSrt(string id)
+    {
+        if (!_receivers.TryRemove(id, out var r)) return false;
+        r.Dispose();
+        return true;
     }
 
     public void SetAudio(string id, bool enabled)
@@ -155,12 +192,12 @@ internal sealed class NdiReceiverService : IDisposable
     public void Sweep()
     {
         foreach (var (id, r) in _receivers)
-            if (r.IdleMs > 30000) Disconnect(id);
+            if (r.Srt == null && r.IdleMs > 30000) Disconnect(id);
     }
 
     public void Dispose()
     {
-        foreach (var id in _receivers.Keys) Disconnect(id);
+        foreach (var id in _receivers.Keys) if (_receivers.TryRemove(id, out var r)) r.Dispose();
     }
 
     private sealed class Receiver : IDisposable
@@ -168,6 +205,13 @@ internal sealed class NdiReceiverService : IDisposable
         private readonly NdiReceiverService _svc;
         private readonly string _id, _name; private readonly string? _url;
         private readonly bool _omt;
+        public readonly SrtEndpoint? Srt;
+        private System.Diagnostics.Process? _ff;
+        private volatile bool _srtConnected;
+        private int _srtReconnects;
+        private double _srtFps;
+        private long _srtBytes, _srtBytesAt;
+        private double _srtMbps;
         private Thread? _thread;
         private volatile bool _stop;
         private long _touched = Environment.TickCount64;
@@ -187,7 +231,7 @@ internal sealed class NdiReceiverService : IDisposable
         private int _pcmRate = 48000;
         private long _lastPcmPost;
 
-        public Receiver(NdiReceiverService svc, string id, string name, string? url, bool omt = false) { _svc = svc; _id = id; _name = name; _url = url; _omt = omt; }
+        public Receiver(NdiReceiverService svc, string id, string name, string? url, bool omt = false, SrtEndpoint? srt = null) { _svc = svc; _id = id; _name = name; _url = url; _omt = omt; Srt = srt; }
         public void Touch() => Interlocked.Exchange(ref _touched, Environment.TickCount64);
         public long IdleMs => Environment.TickCount64 - Interlocked.Read(ref _touched);
         public void RequestWidth(int w)
@@ -200,7 +244,7 @@ internal sealed class NdiReceiverService : IDisposable
 
         public void Start()
         {
-            _thread = new Thread(_omt ? RunOmt : Run) { IsBackground = true, Name = (_omt ? "OMT recv " : "NDI recv ") + _name };
+            _thread = new Thread(Srt != null ? RunSrt : _omt ? RunOmt : Run) { IsBackground = true, Name = (Srt != null ? "SRT recv " : _omt ? "OMT recv " : "NDI recv ") + _name };
             _thread.Start();
         }
 
@@ -285,6 +329,139 @@ internal sealed class NdiReceiverService : IDisposable
             finally { try { recv?.Dispose(); } catch { } }
         }
 
+        /// <summary>
+        /// SRT: ffmpeg opens the srt:// URL (listening, or calling with retries), decodes whatever the encoder
+        /// sends (H.264/HEVC/MPEG-2 in TS), and writes MJPEG frames to stdout — exactly what /__live serves,
+        /// so there is no second encode — plus 48 kHz stereo float PCM to a named pipe. When the stream ends
+        /// (encoder stopped, network lost) ffmpeg exits and we reopen with backoff.
+        /// </summary>
+        private void RunSrt()
+        {
+            var ep = Srt!;
+            int[] backoff = { 500, 1000, 2000, 4000, 8000 };
+            int attempt = 0;
+            bool withAudio = true;
+            while (!_stop)
+            {
+                var log = new System.Text.StringBuilder();
+                bool sawFrame = false;
+                System.IO.Pipes.NamedPipeServerStream? apipe = null;
+                try
+                {
+                    Status = ep.Mode == "listener" ? "listening" : "connecting";
+                    var pipeName = $"plajah-srt-in-{Environment.ProcessId}-{Guid.NewGuid():N}";
+                    if (withAudio) apipe = new System.IO.Pipes.NamedPipeServerStream(pipeName, System.IO.Pipes.PipeDirection.In, 1, System.IO.Pipes.PipeTransmissionMode.Byte, System.IO.Pipes.PipeOptions.Asynchronous, 1 << 16, 0);
+                    var url = SrtSink.BuildUrl(ep, forInput: true);
+                    var args = "-hide_banner -loglevel info -nostats -fflags nobuffer -flags low_delay " +
+                        $"-i {FfmpegLocator.Q(url)} " +
+                        "-map 0:v:0 -vf \"scale='min(1280,iw)':-2\" -c:v mjpeg -q:v 4 -f image2pipe pipe:1" +
+                        (withAudio ? $" -map 0:a:0 -ac 2 -ar 48000 -f f32le {FfmpegLocator.Q(@"\\.\pipe\" + pipeName)}" : "");
+                    _ff = FfmpegLocator.Start(args, stdin: false, stdout: true);
+                    _ff.ErrorDataReceived += (_, e) =>
+                    {
+                        if (e.Data == null) return;
+                        lock (log) { log.AppendLine(e.Data); if (log.Length > 8000) log.Remove(0, log.Length - 8000); }
+                        // "Stream #0:0[0x100]: Video: h264 (High) ..., 1920x1080 ..., 29.97 fps"
+                        var m = System.Text.RegularExpressions.Regex.Match(e.Data, @"Stream #0:\d+.*Video:.*?(\d{2,5})x(\d{2,5}).*?([\d.]+) fps");
+                        if (m.Success) { SrcW = int.Parse(m.Groups[1].Value); SrcH = int.Parse(m.Groups[2].Value); double.TryParse(m.Groups[3].Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out _srtFps); }
+                    };
+                    _ff.BeginErrorReadLine();
+                    if (apipe != null) { var ap = apipe; new Thread(() => PumpSrtAudio(ap)) { IsBackground = true, Name = "SRT recv audio" }.Start(); }
+
+                    var stdout = _ff.StandardOutput.BaseStream;
+                    var buf = new byte[1 << 20];
+                    var frame = new System.IO.MemoryStream(1 << 18);
+                    int n; byte prev = 0; bool inFrame = false;
+                    _srtBytesAt = Environment.TickCount64; _srtBytes = 0;
+                    while (!_stop && (n = stdout.Read(buf, 0, buf.Length)) > 0)
+                    {
+                        for (int i = 0; i < n; i++)
+                        {
+                            byte b = buf[i];
+                            if (!inFrame) { if (prev == 0xFF && b == 0xD8) { inFrame = true; frame.SetLength(0); frame.WriteByte(0xFF); frame.WriteByte(0xD8); } }
+                            else
+                            {
+                                frame.WriteByte(b);
+                                // Entropy-coded data stuffs 0xFF with 0x00, so FFD9 only ever means end-of-image.
+                                if (prev == 0xFF && b == 0xD9)
+                                {
+                                    inFrame = false;
+                                    Volatile.Write(ref Jpeg, frame.ToArray());
+                                    if (!sawFrame) { sawFrame = true; attempt = 0; }
+                                    _srtConnected = true; Status = "live"; Error = null;
+                                    b = 0;
+                                }
+                            }
+                            prev = b;
+                        }
+                        _srtBytes += n;
+                        var now = Environment.TickCount64;
+                        if (now - _srtBytesAt >= 1000) { _srtMbps = _srtBytes * 8 / 1000.0 / (now - _srtBytesAt) / 1000.0; _srtBytes = 0; _srtBytesAt = now; }
+                    }
+                    try { _ff.WaitForExit(2000); } catch { }
+                }
+                catch (Exception ex) { Error = ex.Message; }
+                finally
+                {
+                    try { if (_ff is { HasExited: false }) _ff.Kill(true); } catch { }
+                    try { _ff?.Dispose(); } catch { }
+                    _ff = null;
+                    try { apipe?.Dispose(); } catch { }
+                }
+                if (_stop) break;
+
+                string text; lock (log) text = log.ToString().ToLowerInvariant();
+                if (withAudio && (text.Contains("does not contain any stream") || text.Contains("matches no streams")))
+                {
+                    // Video-only encoder: reopen without the audio output (a calling encoder reconnects on its own).
+                    withAudio = false; attempt = 0; continue;
+                }
+                bool was = _srtConnected;
+                _srtConnected = false; _srtMbps = 0;
+                if (was || sawFrame) _srtReconnects++;
+                Error = text.Contains("passphrase") || text.Contains("rejected") || text.Contains("bad secret") ? "The SRT sender was rejected — check the passphrase."
+                    : text.Contains("bind") || text.Contains("address already in use") ? $"Port {ep.Port} is already in use on this PC."
+                    : text.Contains("connection setup failure") || text.Contains("timed out") || text.Contains("refused") ? (ep.Mode == "caller" ? $"No SRT sender answered at {ep.Host}:{ep.Port}." : null)
+                    : was ? "The SRT stream ended; waiting for it again." : Error;
+                Status = "retrying";
+                // A listener that just lost its encoder reopens the port at once; failures back off.
+                int wait = sawFrame && ep.Mode == "listener" ? 200 : backoff[Math.Min(attempt++, backoff.Length - 1)];
+                var until = Environment.TickCount64 + wait;
+                while (!_stop && Environment.TickCount64 < until) Thread.Sleep(50);
+                if (sawFrame) withAudio = true;
+            }
+            Status = "stopped";
+        }
+
+        private void PumpSrtAudio(System.IO.Pipes.NamedPipeServerStream pipe)
+        {
+            try
+            {
+                pipe.WaitForConnection();
+                var buf = new byte[960 * 8]; // 20 ms of stereo f32
+                int have = 0;
+                while (!_stop)
+                {
+                    int n = pipe.Read(buf, have, buf.Length - have);
+                    if (n <= 0) break;
+                    have += n;
+                    int frames = have / 8;
+                    if (frames < 240 && have < buf.Length) continue;
+                    var l = new float[frames]; var r = new float[frames];
+                    for (int i = 0; i < frames; i++) { l[i] = BitConverter.ToSingle(buf, i * 8); r[i] = BitConverter.ToSingle(buf, i * 8 + 4); }
+                    int used = frames * 8;
+                    System.Buffer.BlockCopy(buf, used, buf, 0, have - used); have -= used;
+                    OnStereo(l, r, frames, 48000);
+                }
+            }
+            catch { }
+        }
+
+        public SrtSession SrtSnapshot(string id, SrtEndpoint ep) => new(
+            id, _name, ep.Mode, ep.Mode == "listener" ? "0.0.0.0" : ep.Host, ep.Port, ep.LatencyMs, ep.Passphrase.Length > 0,
+            _srtConnected ? "Connected - receiving" : ep.Mode == "listener" ? (Status == "retrying" ? "Listening again" : "Listening - waiting for an encoder") : (Status == "retrying" ? "Retrying" : "Calling"),
+            _srtConnected, SrcW, SrcH, _srtFps, Math.Round(_srtMbps, 2), _srtReconnects, Error);
+
         private void OnVideo(NDIlib_video_frame_v2_t v) => OnBgra(v.p_data, v.xres, v.yres, v.line_stride_in_bytes);
 
         private void OnBgra(IntPtr data, int srcW, int srcH, int srcStride)
@@ -334,11 +511,16 @@ internal sealed class NdiReceiverService : IDisposable
         private void OnPlanarAudio(IntPtr data, int chs, int n, int strideFloats, int sampleRate)
         {
             if (data == IntPtr.Zero || n <= 0 || chs <= 0) return;
-            HasAudio = true;
             var left = new float[n];
             var right = new float[n];
             Marshal.Copy(data, left, 0, n);
             if (chs > 1) Marshal.Copy(IntPtr.Add(data, strideFloats * 4), right, 0, n); else Array.Copy(left, right, n);
+            OnStereo(left, right, n, sampleRate);
+        }
+
+        private void OnStereo(float[] left, float[] right, int n, int sampleRate)
+        {
+            HasAudio = true;
 
             float pl = 0, pr = 0; double sl = 0, sr = 0;
             for (int i = 0; i < n; i++)
@@ -374,6 +556,7 @@ internal sealed class NdiReceiverService : IDisposable
         public void Dispose()
         {
             _stop = true;
+            try { if (_ff is { HasExited: false }) _ff.Kill(true); } catch { }
             try { _thread?.Join(1500); } catch { }
         }
     }
