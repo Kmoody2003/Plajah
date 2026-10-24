@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { auth } from '../../services/firebase';
 import { BASE_ACHIEVEMENTS, unlockAchievementByTrigger } from '../../services/achievementService';
 import { useAchievements } from '../../contexts/AchievementContext';
@@ -47,11 +47,18 @@ export const RavencrestGameFrame: React.FC<{ classic: React.ReactNode; onBack: (
   }, [onBack]);
 
   // Full window while playing: the game covers Plajah's chrome and the page stops scrolling underneath.
+  // Entering also asks for real full screen (the Explore click is still the user gesture); if the
+  // browser says no, the full-window layer stands. Leaving the game leaves full screen.
+  const layer = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (mode !== 'game') return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = prev; };
+    layer.current?.requestFullscreen?.({ navigationUI: 'hide' }).catch(() => {});
+    return () => {
+      document.body.style.overflow = prev;
+      if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    };
   }, [mode]);
 
   useEffect(() => {
@@ -81,7 +88,7 @@ export const RavencrestGameFrame: React.FC<{ classic: React.ReactNode; onBack: (
   }
 
   return (
-    <div className="fixed inset-0 z-[10000] bg-black">
+    <div ref={layer} className="fixed inset-0 z-[10000] bg-black">
       <iframe
         title="Ravencrest"
         src="/games/ravencrest/play/index.html"

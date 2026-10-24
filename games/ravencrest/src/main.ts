@@ -12,7 +12,7 @@ import { loadJack, prefetchHero, Character, type Hero } from './character';
 import { Difficulty } from './mobs';
 import { FxBudget } from './vfx';
 import { CollisionWorld } from './collision';
-import { setTextureTier, setReflectEnabled, rainAmount } from './materials';
+import { setTextureTier, setReflectEnabled, rainAmount, preloadKtxSurfaces } from './materials';
 import { PlayerController } from './player';
 import { LightPool } from './lights';
 import { mergeStatic } from './optimize';
@@ -33,7 +33,7 @@ import { Flock } from './birds';
 import { GroundFog } from './fog';
 import { buildRoadObstacles } from './roadObstacles';
 import { preloadAngel } from './angel';
-import { initKTX2 } from './ktx2';
+import { initKTX2, ktx2Ready } from './ktx2';
 import { XRPlay } from './xr';
 import { buildFlowers } from './flowers';
 import { ExtraInput } from './input';
@@ -173,6 +173,8 @@ const anchor = new ArtAnchor(ARRIVAL_SHOT);
 const outside = new THREE.Scene();
 Forest.density = isMobile ? (strongMobile ? 0.65 : 0.45) : quality === 'low' ? 0.65 : 1;
 if (isMobile) tuning.cullDist = 32;
+// Surface textures come GPU-compressed when packaged (materials.ts); they must be in before the world builds.
+console.info('[ravencrest] KTX2 surface maps', await preloadKtxSurfaces(await ktx2Ready));
 const world = await buildArrival(anchor, renderer);
 loadStep('Lighting the torches', 0.6);
 // The deep forest's impostors are baked from the real tree variants once (forest.ts).
@@ -837,6 +839,12 @@ lockEl.innerHTML = '<i class="tl"></i><i class="tr"></i><i class="bl"></i><i cla
 document.body.appendChild(lockEl);
 const lock = { s: null as Showing | null, dwell: 0, lost: 0 };
 const LOCK_TIME = 0.6;
+/** Holding the left button this long on a locked poster plays it (a plain click only swings). */
+const HOLD_TIME = 0.8;
+let lmbHeld = false, holdT = 0;
+renderer.domElement.addEventListener('mousedown', (e) => { if (e.button === 0) { lmbHeld = true; holdT = 0; } });
+addEventListener('mouseup', (e) => { if (e.button === 0) { lmbHeld = false; holdT = 0; } });
+addEventListener('blur', () => { lmbHeld = false; holdT = 0; });
 const ray = new THREE.Raycaster();
 function faceHit(ndc: THREE.Vector2, maxDist: number): Showing | null {
   ray.setFromCamera(ndc, camera);
@@ -872,7 +880,13 @@ function updateLock(dt: number) {
   Object.assign(lockEl.style, { left: `${x0 - w * grow / 2}px`, top: `${y0 - h * grow / 2}px`, width: `${w * (1 + grow)}px`, height: `${h * (1 + grow)}px`, opacity: String(0.35 + 0.65 * k) });
   lockEl.classList.add('on');
   lockEl.classList.toggle('locked', k >= 1);
-  lockEl.querySelector('span')!.textContent = k >= 1 ? `▶ Enter / Click  ·  Watch ${s.film.title}` : s.film.title;
+  // Hold to watch: the label fills while the button is held on a locked poster.
+  holdT = k >= 1 && lmbHeld && mode === 'play' ? holdT + dt : 0;
+  const hk = Math.min(1, holdT / HOLD_TIME);
+  const label = lockEl.querySelector('span')!;
+  label.textContent = k >= 1 ? `▶ Enter or hold click  ·  Watch ${s.film.title}` : s.film.title;
+  label.style.background = hk > 0 ? `linear-gradient(90deg, #f9731699 ${hk * 100}%, transparent ${hk * 100}%)` : '';
+  if (hk >= 1) { lmbHeld = false; holdT = 0; label.style.background = ''; primaryOnFilm(); }
 }
 /** Primary press (click/Enter): plays the locked-on film, or the poster under the cursor. */
 function primaryOnFilm(clientX?: number, clientY?: number): boolean {
@@ -1268,6 +1282,14 @@ function exitGame() {
 }
 document.getElementById('pauseResume')!.addEventListener('click', () => setPaused(false));
 document.getElementById('pauseExit')!.addEventListener('click', exitGame);
+// Full screen: the game takes over the display (inside Plajah this fullscreens the game's frame).
+const fullBtn = document.getElementById('pauseFull')!;
+const syncFull = () => { fullBtn.textContent = document.fullscreenElement ? 'LEAVE FULL SCREEN' : 'FULL SCREEN'; };
+fullBtn.addEventListener('click', () => {
+  const p = document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen({ navigationUI: 'hide' });
+  void p?.then(() => { syncFull(); if (document.fullscreenElement) setPaused(false); }).catch(() => {});
+});
+document.addEventListener('fullscreenchange', syncFull);
 // Losing mouse capture (Esc while captured, clicking another window or panel) never pauses on its
 // own: the browser can't tell those apart. A second Esc, or P, pauses.
 addEventListener('keydown', (e) => {

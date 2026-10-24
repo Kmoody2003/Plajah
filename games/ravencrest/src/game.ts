@@ -197,20 +197,21 @@ export class Game {
       if (e.code === 'Digit3') this.setStance('LOW');
     });
     // Mouse: left = basic attack, right = roll. With the pointer captured LMB strikes on press;
-    // uncaptured, a quick click strikes and a press-and-drag still looks around.
+    // uncaptured, a quick click strikes and a press-and-drag still looks around. A click never starts a
+    // film (too easy to hit mid-fight): Enter does, or holding the button on a locked poster (main.ts).
     let down: { x: number; y: number; t: number } | null = null;
     d.dom.addEventListener('mousedown', (e) => {
       if (!this.d.live()) return;
       if (e.button === 2) { e.preventDefault(); this.roll(); return; }
       if (e.button !== 0) return;
-      if (document.pointerLockElement === d.dom) { if (!this.d.primary?.()) this.attack(); }
+      if (document.pointerLockElement === d.dom) this.attack();
       else down = { x: e.clientX, y: e.clientY, t: performance.now() };
     });
     addEventListener('mouseup', (e) => {
       if (e.button !== 0 || !down) return;
       const click = Math.hypot(e.clientX - down.x, e.clientY - down.y) < 6 && performance.now() - down.t < 350;
       down = null;
-      if (click && this.d.live() && !this.d.primary?.(e.clientX, e.clientY)) this.attack();
+      if (click && this.d.live()) this.attack();
     });
     d.dom.addEventListener('wheel', () => {}, { passive: true });
   }

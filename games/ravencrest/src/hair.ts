@@ -91,6 +91,7 @@ export function addPonytail(model: THREE.Object3D, head: THREE.Object3D, parent:
   const curve = new THREE.CatmullRomCurve3(p.map((x) => x.clone()));
   const tmp = new THREE.Vector3(), q = new THREE.Quaternion();
   const sk = new THREE.Vector3(), nk = new THREE.Vector3(), bk = new THREE.Vector3();
+  const T1 = new THREE.Vector3(), N1 = new THREE.Vector3(), B1 = new THREE.Vector3();
   let acc = 0, t = 0;
   const tail: Ponytail = { wind: 0, update };
 
@@ -143,13 +144,21 @@ export function addPonytail(model: THREE.Object3D, head: THREE.Object3D, parent:
     const inv = parent.matrixWorld.clone().invert();
     curve.points.forEach((cp, i) => cp.copy(p[i]).applyMatrix4(inv));
     const scale = parent.getWorldScale(tmp).x || 1;
-    const frames = curve.computeFrenetFrames(RINGS - 1, false);
+    // Ring frames by parallel transport from the head's own side axis. Frenet frames pick their start
+    // normal from the tangent alone, so it could jump between frames and twist the whole tail.
+    head.getWorldQuaternion(q);
+    const pq = parent.getWorldQuaternion(new THREE.Quaternion()).invert();
+    N1.set(1, 0, 0).applyQuaternion(q).applyQuaternion(pq);
     const arr = posA.array as Float32Array;
     const c = new THREE.Vector3();
     for (let ri = 0; ri < RINGS; ri++) {
       const u = ri / (RINGS - 1);
       curve.getPointAt(u, c);
-      const N1 = frames.normals[ri], B1 = frames.binormals[ri];
+      curve.getTangentAt(u, T1);
+      N1.addScaledVector(T1, -N1.dot(T1));                    // keep the side axis square to the strand
+      if (N1.lengthSq() < 1e-8) N1.set(1, 0, 0).addScaledVector(T1, -T1.x);
+      N1.normalize();
+      B1.crossVectors(T1, N1);
       // Gathered at the tie, full through the middle, tapering to a point.
       const prof = (u < 0.08 ? 0.55 + u * 5 : 1) * (1 - Math.pow(u, 1.6) * 0.92);
       const R = 0.043 * prof / scale;

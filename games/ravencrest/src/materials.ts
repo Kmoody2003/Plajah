@@ -1,4 +1,5 @@
 import * as THREE from 'three/webgpu';
+import type { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
 import {
   texture, triplanarTexture, vec2, vec3, vec4, float, mrt, uv, positionWorld, normalWorld, normalMap, mix,
   mx_fractal_noise_float, smoothstep, time, color, transformNormalToView, luminance, Fn,
@@ -30,6 +31,27 @@ function tex(path: string, srgb: boolean): THREE.Texture {
     cache.set(key, t);
   }
   return t;
+}
+
+/** GPU-compressed copies of the 1k surface sets (scripts/ravencrest/ktxPolyhaven.py): loaded before the
+ *  world builds, they take the JPEGs' place in the cache; a set without one keeps its JPEG. */
+export async function preloadKtxSurfaces(ktx: KTX2Loader): Promise<number> {
+  if (TIER !== '1k') return 0;
+  const ix = await fetch('/games/ravencrest/assets/polyhaven/index.json').then((r) => r.json()).catch(() => null) as { textures?: Record<string, unknown> } | null;
+  const jobs: Promise<number>[] = [];
+  for (const id of Object.keys(ix?.textures ?? {})) {
+    for (const [map, srgb] of [['diff', true], ['nor_gl', false], ['ard', false]] as const) {
+      const jpg = `${PH}/${id}/${map}_1k.jpg`;
+      jobs.push(ktx.loadAsync(jpg.replace(/\.jpg$/, '.ktx2')).then((t) => {
+        t.wrapS = t.wrapT = THREE.RepeatWrapping;
+        t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+        t.anisotropy = 8;
+        cache.set(`${jpg}|${srgb}`, t as unknown as THREE.Texture);
+        return 1;
+      }, () => 0));
+    }
+  }
+  return (await Promise.all(jobs)).reduce((a, b) => a + b, 0);
 }
 
 // Only the maps shaders actually sample are loaded (diffuse, packed AO/rough/disp, normal).

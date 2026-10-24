@@ -1,6 +1,7 @@
 // Poly Haven model loading via the fetch script's index.json (resolution per asset).
 import * as THREE from 'three/webgpu';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { ktx2Ready } from './ktx2';
 
 const ROOT = '/games/ravencrest/assets/polyhaven/';
 let index: Promise<{ models: Record<string, string> }> | null = null;
@@ -13,7 +14,10 @@ export function loadModel(id: string): Promise<THREE.Group> {
     cache.set(id, index.then((ix) => {
       const rel = ix.models[id];
       if (!rel) throw new Error(`model ${id} not fetched — run scripts/ravencrest/fetchPolyhaven.mjs`);
-      return gltf.loadAsync(ROOT + rel).then((g) => g.scene);
+      // The KTX2 twin (scripts/ravencrest/ktxPolyhaven.py) first, then the JPEG original.
+      const twin = rel.replace(/\.gltf$/, '.ktx2.gltf');
+      return ktx2Ready.then((ktx) => { gltf.setKTX2Loader(ktx); return gltf.loadAsync(ROOT + twin); })
+        .catch(() => gltf.loadAsync(ROOT + rel)).then((g) => g.scene);
     }));
   }
   return cache.get(id)!.then((s) => {

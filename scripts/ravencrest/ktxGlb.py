@@ -24,7 +24,7 @@ from slimGlb import read_glb, write_glb, roles, ASSETS, FULLRES, HEROES  # noqa:
 KTX = os.environ.get('KTX_BIN', r'D:\Plajah Runtime\ktx\bin\ktx.exe')
 
 
-def encode(data, slots, cap, hero, tmp, idx):
+def encode(data, slots, cap, hero, tmp, idx, rdo='2'):
     im = Image.open(io.BytesIO(data))
     im.load()
     alpha = im.mode in ('RGBA', 'LA') or (im.mode == 'P' and 'transparency' in im.info)
@@ -41,7 +41,7 @@ def encode(data, slots, cap, hero, tmp, idx):
     fmt = ('R8G8B8A8' if alpha else 'R8G8B8') + ('_SRGB' if colour else '_UNORM')
     args = [KTX, 'create', '--format', fmt, '--assign-tf', 'srgb' if colour else 'linear', '--generate-mipmap']
     if 'nrm' in slots or (colour and hero):
-        args += ['--encode', 'uastc', '--uastc-quality', '1', '--uastc-rdo', '--uastc-rdo-l', '2', '--zstd', '19']
+        args += ['--encode', 'uastc', '--uastc-quality', '1', '--uastc-rdo', '--uastc-rdo-l', rdo, '--zstd', '19']
     else:
         args += ['--encode', 'basis-lz', '--clevel', '2', '--qlevel', '255' if colour else '220']
     subprocess.run(args + [src, out], check=True, capture_output=True)
