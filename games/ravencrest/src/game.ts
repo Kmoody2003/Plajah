@@ -112,6 +112,11 @@ export class Game {
   private invuln = 0;
   private dashCd = 0;
   private rollT = -1;
+  /** B held: guarding. `blockAt` is when it went up (a block within 0.3 s of the blow is perfect). */
+  private blocking = false;
+  private blockAt = 0;
+  private evadeCd = 0;
+  private orbMendCall = 0;
   private molotovRegen = 0;
   private dead = 0;
   private bottles: { mesh: THREE.Object3D; v: THREE.Vector3; t: number; level: LevelName }[] = [];
@@ -192,10 +197,13 @@ export class Game {
       if (e.code === 'Space') { e.preventDefault(); this.d.player.jump(); }
       if (e.code === 'KeyL' || e.code === 'KeyC') { e.preventDefault(); this.roll(); }
       if (e.code === 'KeyG') this.throwMolotov();
+      if (e.code === 'KeyB' && !this.blocking) { this.blocking = true; this.blockAt = performance.now(); }
       if (e.code === 'Digit1') this.setStance('HIGH');
       if (e.code === 'Digit2') this.setStance('MID');
       if (e.code === 'Digit3') this.setStance('LOW');
     });
+    addEventListener('keyup', (e) => { if (e.code === 'KeyB') this.blocking = false; });
+    addEventListener('blur', () => { this.blocking = false; });
     // Mouse: left = basic attack, right = roll. With the pointer captured LMB strikes on press;
     // uncaptured, a quick click strikes and a press-and-drag still looks around. A click never starts a
     // film (too easy to hit mid-fight): Enter does, or holding the button on a locked poster (main.ts).
@@ -997,7 +1005,20 @@ export class Game {
       this.pendingThrow -= dt;
       if (this.pendingThrow <= 0) { this.pendingThrow = null; this.releaseBottle(); setTimeout(() => { if (!this.swing) player.speedScale = 1; }, 250); }
     }
-    if (!jack?.acting && !this.swing && this.dead <= 0) player.speedScale = 1;
+    if (!jack?.acting && !this.swing && this.dead <= 0) player.speedScale = this.blocking ? 0.45 : 1;
+    this.evadeCd = Math.max(0, this.evadeCd - dt);
+    // The orbs mend the hero when they're low: they spend their own power to heal up to half health.
+    this.orbMendCall = Math.max(0, this.orbMendCall - dt);
+    if (this.dead <= 0 && this.hp < this.maxHp * 0.5 && mode === 'play') {
+      const givers = this.orbs.filter((o) => o.power > 0.2);
+      if (givers.length) {
+        const before = this.hp;
+        this.hp = Math.min(this.maxHp * 0.5, this.hp + dt * (3 + 1.5 * givers.length));
+        for (const o of givers) o.power = Math.max(0, o.power - dt * 0.05);
+        if (this.hp > before && this.orbMendCall <= 0) { this.orbMendCall = 8; this.call('The orbs mend your wounds', 1.4, '#c9b6ff'); }
+        if (Math.floor(this.hp) !== Math.floor(before)) this.updateHud();
+      }
+    }
     this.molotovRegen += dt;
     if (this.molotovRegen > 25) { this.molotovRegen = 0; if (this.molotovs < 3) { this.molotovs++; this.updateHud(); } }
 
@@ -1557,12 +1578,34 @@ export class Game {
     if (m.team === 'enemy') {
       const to = this.d.player.object.position.clone().sub(mp);
       const fwd = new THREE.Vector3(Math.sin(m.yaw), 0, Math.cos(m.yaw));
-      if (to.length() < k.reach + 0.6 && Math.abs(to.y) < 1.5 && to.setY(0).normalize().angleTo(fwd) < 1.1 && this.invuln <= 0 && this.dead <= 0) {
+      const inReach = to.length() < k.reach + 0.6 && Math.abs(to.y) < 1.5 && to.setY(0).normalize().angleTo(fwd) < 1.1 && this.dead <= 0;
+      const back = mp.clone().sub(this.d.player.object.position).setY(0).normalize();
+      const facing = new THREE.Vector3(Math.sin(this.d.player.yaw), 0, Math.cos(this.d.player.yaw));
+      // Rolled clear of a blow that would have landed: a little health back for the evade.
+      if (inReach && this.rollT >= 0 && this.evadeCd <= 0) {
+        this.evadeCd = 1;
+        this.hp = Math.min(this.maxHp, this.hp + 4); this.updateHud();
+        this.call('Evaded  +4', 0.7, '#9fe8b0');
+      } else if (inReach && this.blocking && back.dot(facing) > 0.1 && this.invuln <= 0) {
+        // Guard up and facing the blow: a block soaks most of it; raised just in time it soaks
+        // all of it, heals, and staggers the attacker.
+        const perfect = performance.now() - this.blockAt < 300;
+        this.invuln = 0.35;
+        this.d.player.shake = Math.max(this.d.player.shake, 0.15);
+        this.d.sfx.hit('wolf', false, 0.4);
+        if (perfect) {
+          this.hp = Math.min(this.maxHp, this.hp + 6); this.updateHud();
+          m.damage(1, this.d.player.object.position);   // a chip of damage staggers the attacker
+          this.call('Perfect block  +6', 0.8, '#ffe08a');
+        } else {
+          const n = Math.round(k.dmg * m.power * (0.75 + 0.25 * Difficulty.mul) * 0.25);
+          this.hp = Math.max(1, this.hp - n); this.updateHud();
+          this.call('Blocked', 0.5, '#d7cab5');
+        }
+      } else if (inReach && this.invuln <= 0) {
         this.hurtPlayer(Math.round(k.dmg * m.power * (0.75 + 0.25 * Difficulty.mul)), mp);
-        // Hit from behind or the side: Jack whips round to face the attacker and locks on.
-        const back = mp.clone().sub(this.d.player.object.position).setY(0).normalize();
-        const facing = new THREE.Vector3(Math.sin(this.d.player.yaw), 0, Math.cos(this.d.player.yaw));
-        if (back.dot(facing) < 0.3) { this.d.player.faceThreat(Math.atan2(back.x, back.z)); this.lock = m; }
+        // Hit from anywhere off to the side or behind: turn to face the attacker and lock on.
+        if (back.dot(facing) < 0.75) { this.d.player.faceThreat(Math.atan2(back.x, back.z)); this.lock = m; }
         // The Count feeds on every blow that lands.
         if (m.kind === 'dracula') { m.hp = Math.min(m.maxHp, m.hp + Math.round(m.maxHp * 0.012)); this.call('Life drained', 0.8, '#ff4a3a'); }
       }

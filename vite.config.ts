@@ -156,6 +156,9 @@ export default defineConfig(({ mode }) => {
               '**/ort.bundle*.js',
               '**/on_device_generation_showcase.html',
               '**/full_graphic_novel_production_reader.html',
+              // Ravencrest ships often and is big: precaching it pinned players to the old game until
+              // they accepted the site update prompt. It loads from the network (HTTP cache) instead.
+              'games/**',
             ],
             runtimeCaching: [
               {

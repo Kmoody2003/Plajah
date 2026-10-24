@@ -66,7 +66,7 @@ export class Looks {
     addEventListener('keydown', (e) => {
       if (e.repeat) return;
       if (e.code === 'KeyV') this.cycleLens();
-      if (e.code === 'KeyB') this.cycleLut();
+      if (e.code === 'KeyN') this.cycleLut();
     });
   }
 

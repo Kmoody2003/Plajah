@@ -13,7 +13,7 @@ const MOUSE = 0.0017;                   // rad per mouse pixel at sensitivity 1 
 const SENS_KEY = 'ravencrest.mouseSens';
 const MOUSE_SPIKE = 90;                 // px: larger single-event jumps are Chromium/Edge pointer-lock glitches
 const DOUBLE_TAP_MS = 300;
-const KEY_TURN = 2.7;                   // rad/s: A/D turn Jack in the follow camera
+const KEY_TURN = 3.6;                   // rad/s: A/D turn the hero in the follow camera (a full turn in under 2 s)
 const CAM_KEY = 'ravencrest.camera3';   // camera3: 'behind' (default) | 'free'
 const INV_KEY = 'ravencrest.invert';     // 'x', 'y', 'xy' or ''
 const MOVE_KEYS = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']);
@@ -113,6 +113,8 @@ export class PlayerController {
 
   constructor(private dom: HTMLElement) {
     addEventListener('keydown', (e) => {
+      // Q: turn about (180°), the camera swinging round behind.
+      if (e.code === 'KeyQ' && !e.repeat && this.enabled) this.faceThreat(this.yaw + Math.PI);
       if ((e.code === 'Minus' || e.code === 'Equal' || e.code === 'NumpadSubtract' || e.code === 'NumpadAdd') && !e.repeat) {
         const up = e.code === 'Equal' || e.code === 'NumpadAdd';
         this.mouseSens = +THREE.MathUtils.clamp(this.mouseSens * (up ? 1.2 : 1 / 1.2), 0.3, 2.5).toFixed(2);
@@ -313,13 +315,10 @@ export class PlayerController {
     // Desired horizontal velocity, relative to where the camera looks.
     const want = new THREE.Vector3();
     if (this.followCam && this.enabled) {
-      // With the mouse captured it steers and A/D side-step; keyboard-only, A/D turn.
-      // W/S along the facing; S backs up slowly.
-      const mouseSteer = document.pointerLockElement === this.dom;
-      if (ix && !mouseSteer) this.yaw -= ix * KEY_TURN * (iz ? 0.85 : 1.15) * dt;
+      // A/D turn (the mouse steers too), W/S along the facing; S backs up slowly. Q turns about.
+      if (ix) this.yaw -= ix * KEY_TURN * (iz ? 0.85 : 1.15) * dt;
       const fwd = new THREE.Vector3(Math.sin(this.yaw), 0, Math.cos(this.yaw));
       if (iz) want.copy(fwd).multiplyScalar(iz > 0 ? (running ? RUN : WALK) * this.speedScale : -WALK * 0.55 * this.speedScale);
-      if (ix && mouseSteer) want.add(new THREE.Vector3(-fwd.z, 0, fwd.x).multiplyScalar(ix * WALK * 0.85 * this.speedScale));
     } else if (this.enabled && (ix || iz)) {
       const fwd = new THREE.Vector3(-Math.sin(this.camYaw), 0, -Math.cos(this.camYaw));
       const right = new THREE.Vector3(-fwd.z, 0, fwd.x);
