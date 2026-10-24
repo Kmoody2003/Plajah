@@ -64,10 +64,12 @@ function barkMaterial(type: string) {
   }
   return barkMats.get(type)!;
 }
-const leafMats = new Map<string, THREE.MeshStandardNodeMaterial>();
+// Foliage is lit diffuse-only (Lambert): at roughness ~0.9 GGX specular adds next to nothing, and
+// alpha-cut leaves are the most overdrawn surface in the scene (~3 ms on the Arc iGPU).
+const leafMats = new Map<string, THREE.MeshLambertNodeMaterial>();
 function leafMaterial(type: string) {
   if (!leafMats.has(type)) {
-    const m = new THREE.MeshStandardNodeMaterial({ side: THREE.DoubleSide, alphaTest: 0.45, roughness: 0.9, metalness: 0 });
+    const m = new THREE.MeshLambertNodeMaterial({ side: THREE.DoubleSide, alphaTest: 0.45 });
     const t = texture(tex(`${type}_color.png`, true), uv());
     m.colorNode = t.rgb.mul(mix(color(LEAF_TINT[type] ?? 0x445e44), color(LEAF_GREEN[type] ?? 0x3b7a3c), uLeafDay)).mul(2.1);
     m.opacityNode = t.a;
@@ -75,6 +77,25 @@ function leafMaterial(type: string) {
     leafMats.set(type, m);
   }
   return leafMats.get(type)!;
+}
+
+/**
+ * Depth prepass for alpha-cut foliage: an alpha-test-only clone draws first and writes depth, and
+ * the lit mesh then tests without writing it. Alpha test otherwise defeats early-Z, so every
+ * overlapping leaf layer was fully lit; now only the front one is (~3 ms on the Arc iGPU).
+ */
+function depthPrepass(im: THREE.InstancedMesh) {
+  const lit = im.material as THREE.MeshLambertNodeMaterial;
+  const d = new THREE.MeshBasicNodeMaterial({ side: lit.side, alphaTest: lit.alphaTest, colorWrite: false });
+  d.opacityNode = lit.opacityNode;
+  d.positionNode = lit.positionNode;   // same sway graph → same depth, so the lit pass's LessEqual matches
+  lit.depthWrite = false;
+  const pre = new THREE.InstancedMesh(im.geometry, d, im.count);
+  pre.instanceMatrix = im.instanceMatrix;
+  pre.boundingSphere = im.boundingSphere;
+  pre.frustumCulled = im.frustumCulled;
+  pre.renderOrder = -1;
+  return pre;
 }
 
 export class Forest {
@@ -162,9 +183,10 @@ export class Forest {
         im.castShadow = true; im.receiveShadow = true;
         im.computeBoundingSphere();
         this.group.add(im);
+        return im;
       };
       add(v.bark, barkMaterial(v.barkType));
-      if (v.leaves && v.leafType) add(v.leaves, leafMaterial(v.leafType));
+      if (v.leaves && v.leafType) this.group.add(depthPrepass(add(v.leaves, leafMaterial(v.leafType))));
       this.stats.nearTris += v.tris * ms.length;
       this.stats.nearInstances += ms.length;
     }
@@ -187,6 +209,8 @@ export class Forest {
     const prevTarget = renderer.getRenderTarget();
     const prevClear = new THREE.Color(), prevAlpha = renderer.getClearAlpha();
     renderer.getClearColor(prevClear as never);
+    // The bake has no prepass: leaves must write their own depth or back leaves cover front ones.
+    leafMats.forEach((m) => { m.depthWrite = true; });
     for (const sp of SPECIES) {
       const v = this.variants.find((x) => x.species === sp);
       if (!v) continue;
@@ -211,6 +235,7 @@ export class Forest {
     }
     renderer.setRenderTarget(prevTarget);
     renderer.setClearColor(prevClear, prevAlpha);
+    leafMats.forEach((m) => { m.depthWrite = false; });
 
     for (const { spots, species } of this.far) {
       const R = rng(spots.length);
@@ -244,7 +269,7 @@ export class Forest {
           geo.setIndex(idx);
         };
         merge([qa, qb]);
-        const mat = new THREE.MeshStandardNodeMaterial({ side: THREE.DoubleSide, alphaTest: 0.5, roughness: 0.95, metalness: 0 });
+        const mat = new THREE.MeshLambertNodeMaterial({ side: THREE.DoubleSide, alphaTest: 0.5 });
         // Render targets are stored top-down under WebGPU: flip V or the trees hang upside-down.
         const fuv = vec2(uv().x, float(1).sub(uv().y));
         const ta = texture(vw.a, fuv), tb = texture(vw.b, fuv);
@@ -257,7 +282,7 @@ export class Forest {
         ms.forEach((m, i) => im.setMatrixAt(i, m));
         im.computeBoundingSphere();
         im.frustumCulled = false;
-        this.group.add(im);
+        this.group.add(im, depthPrepass(im));
         this.stats.farInstances += ms.length;
       }
     }

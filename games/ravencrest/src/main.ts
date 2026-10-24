@@ -1293,7 +1293,7 @@ async function bench(n = 30) {
  * timestamp-query pair; the inspector hooks name each one by the node that issued it, its
  * target and size, and time its CPU encode. Returns passes sorted by median GPU ms.
  */
-async function passProfile(n = 40) {
+async function passProfile(n = 40, { sim = true } = {}) {
   if (!params.has('prof')) throw new Error('reload with ?prof=1');
   const nodeFrame = (renderer as unknown as { _nodes: { nodeFrame: { update(): void } } })._nodes.nodeFrame;
   const r = renderer as unknown as { inspector: { beginRender(...a: unknown[]): void; finishRender(uid: string): void }; backend: { timestampQueryPool: Record<string, { timestamps: Map<string, number> } | null> } };
@@ -1326,7 +1326,7 @@ async function passProfile(n = 40) {
     await renderer.resolveTimestampsAsync('render');
     for (const pool of Object.values(r.backend.timestampQueryPool)) pool?.timestamps.clear();   // warm-up/compile frames
     for (let i = 0; i < n; i++) {
-      tick(1 / 60);
+      if (sim) tick(1 / 60);   // sim: false = one frozen frame, for A/B ablations
       nodeFrame.update(); level.post.pipeline.render();
       totals.push(await renderer.resolveTimestampsAsync('render') ?? 0);
       // Render contexts get fresh ids across frames, so sum each frame's passes by label.
@@ -1351,7 +1351,7 @@ async function passProfile(n = 40) {
     }
   } finally { insp.beginRender = begin; insp.finishRender = finish; renderer.setAnimationLoop(frameLoop); }
   const med = (a: number[] = []) => a.length ? +[...a].sort((x, y) => x - y)[a.length >> 1].toFixed(3) : 0;
-  const passes = [...gpu.keys()].map((l) => ({ pass: l, gpuMs: med(gpu.get(l)), cpuMs: med(cpuByLabel.get(l)), calls: callsByLabel.get(l), frames: gpu.get(l)!.length }))
+  const passes = [...gpu.keys()].map((l) => ({ pass: l, gpuMs: med(gpu.get(l)), gpuMin: +Math.min(...gpu.get(l)!).toFixed(3), cpuMs: med(cpuByLabel.get(l)), calls: callsByLabel.get(l), frames: gpu.get(l)!.length }))
     .sort((a, b) => b.gpuMs - a.gpuMs);
   return {
     level: level.name, quality, adapter: adapterInfo, internal: internalSize(),
