@@ -3,7 +3,7 @@ import type { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
 import {
   texture, triplanarTexture, vec2, vec3, vec4, float, mrt, uv, positionWorld, normalWorld, normalMap, mix,
   mx_fractal_noise_float, smoothstep, time, color, transformNormalToView, luminance, Fn,
-  positionView, normalView, faceDirection, dFdx, dFdy, uniform,
+  positionView, normalView, faceDirection, dFdx, dFdy, uniform, rtt, If,
 } from 'three/tsl';
 
 const PH = '/games/ravencrest/assets/polyhaven/textures';
@@ -160,26 +160,44 @@ export const rainAmount = uniform(0);
  * sections (the damaged-road scan blended in by world-space noise), muddy verges with leaf litter,
  * fallen leaves across the lanes, glossy wheel tracks and broken puddles that ripple in the rain.
  */
-export function wetAsphalt(repeat: [number, number], markings: THREE.Texture): THREE.MeshStandardNodeMaterial {
+/**
+ * The road strip in world space: `origin` = its uv (0,0) corner, `u`/`v` = the world vectors to the
+ * uv (1,0) and (0,1) corners. wetAsphalt bakes its static noise masks in that frame once.
+ */
+export interface RoadFrame { origin: THREE.Vector3; u: THREE.Vector3; v: THREE.Vector3 }
+
+export function wetAsphalt(repeat: [number, number], markings: THREE.Texture, frame: RoadFrame): THREE.MeshStandardNodeMaterial {
   const s = pbr('asphalt_02');
   const d = pbr('road_damaged');
   const m = new THREE.MeshStandardNodeMaterial();
   const u = uv().mul(vec2(...repeat));
   const wp = positionWorld.xz;
+  // The low-frequency masks (8 of the road's ~12 noise octaves per pixel) never change: bake them
+  // once into a road-space texture (~8 px/m) instead of evaluating fbm on every road pixel.
+  const bakeWp = vec2(frame.origin.x, frame.origin.z).add(vec2(frame.u.x, frame.u.z).mul(uv().x)).add(vec2(frame.v.x, frame.v.z).mul(uv().y));
+  const masks = rtt(vec4(
+    smoothstep(float(0.18), float(0.42), mx_fractal_noise_float(bakeWp.mul(0.045), 3, 2, 0.5, 1)),
+    mx_fractal_noise_float(bakeWp.mul(vec2(0.02, 0.006)), 2, 2, 0.5, 1).mul(0.5).add(0.5),
+    mx_fractal_noise_float(bakeWp.mul(0.6), 1, 2, 0.5, 1).mul(0.5).add(0.5),
+    smoothstep(float(0.25), float(0.5), mx_fractal_noise_float(bakeWp.mul(vec2(0.3, 0.07)), 3, 2, 0.5, 1)),
+  ) as never, Math.max(16, Math.round(frame.u.length() * 8)), Math.min(4096, Math.round(frame.v.length() * 8)), { type: THREE.HalfFloatType });
+  masks.autoUpdate = false;   // rendered once, on first use
+  // Render targets are stored top-down under WebGPU: flip V back.
+  const mk = masks.sample(vec2(uv().x, float(1).sub(uv().y)));
   // Patched / broken sections: large world-space blobs of the cracked-road scan.
-  const damage = smoothstep(float(0.18), float(0.42), mx_fractal_noise_float(wp.mul(0.045), 3, 2, 0.5, 1));
+  const damage = mk.r;
   // Macro tone: resurfaced strips and weathered areas so the asphalt never reads as one tile.
-  const macro = mx_fractal_noise_float(wp.mul(vec2(0.02, 0.006)), 2, 2, 0.5, 1).mul(0.25).add(1);
+  const macro = mk.g.mul(2).sub(1).mul(0.25).add(1);
   // Verges: the outer 7% each side — mud, needles and leaf litter, rough and dull.
   const lane = uv().x.sub(0.5).abs();
   const verge = smoothstep(float(0.43), float(0.5), lane);
   // Fallen leaves: sparse rust/ochre specks, thicker toward the verges.
   // Leaf-sized specks (~10 cm), clustered by a slower noise so they drift in patches.
-  const leafN = mx_fractal_noise_float(wp.mul(9), 1, 2, 0.5, 1).add(mx_fractal_noise_float(wp.mul(0.6), 1, 2, 0.5, 1).mul(0.35));
+  const leafN = mx_fractal_noise_float(wp.mul(9), 1, 2, 0.5, 1).add(mk.b.mul(2).sub(1).mul(0.35));
   const leaves = smoothstep(float(0.62).sub(verge.mul(0.3)), float(0.7).sub(verge.mul(0.3)), leafN).mul(0.75);
   const leafCol = mix(vec3(0.16, 0.07, 0.03), vec3(0.24, 0.15, 0.04), mx_fractal_noise_float(wp.mul(7.3), 1, 2, 0.5, 1).mul(0.5).add(0.5));
   // Puddles (stretched along the road) + glossy wheel tracks in each lane.
-  const patches = smoothstep(float(0.25), float(0.5), mx_fractal_noise_float(wp.mul(vec2(0.3, 0.07)), 3, 2, 0.5, 1));
+  const patches = mk.a;
   const tracks = smoothstep(float(0.07), float(0.0), lane.sub(0.12).abs()).add(smoothstep(float(0.07), float(0.0), lane.sub(0.36).abs())).clamp();
   const puddle = patches.mul(0.9).max(tracks.mul(0.45)).mul(float(1).sub(verge.mul(0.6)));
   const paint = texture(markings, uv());
@@ -191,8 +209,14 @@ export function wetAsphalt(repeat: [number, number], markings: THREE.Texture): T
   const baseRough = mix(texture(s.ard, u).g.mul(0.7).add(0.12), texture(d.ard, u.mul(0.7)).g.mul(0.75).add(0.1), damage);
   const r = mix(mix(baseRough, float(0.85), verge.max(leaves).mul(0.8)), float(0.12), puddle);
   m.roughnessNode = r;
-  // Rain ripples: fine animated noise in the puddles while it rains.
-  const rip = mx_fractal_noise_float(vec3(wp.mul(6), time.mul(3.5)), 2, 2, 0.5, 1).mul(rainAmount).mul(puddle).mul(0.35);
+  // Rain ripples: fine animated noise in the puddles, only evaluated while it rains (uniform branch).
+  const rip = Fn(() => {
+    const r = float(0).toVar();
+    If(rainAmount.greaterThan(0), () => {
+      r.assign(mx_fractal_noise_float(vec3(wp.mul(6), time.mul(3.5)), 2, 2, 0.5, 1).mul(rainAmount).mul(puddle).mul(0.35));
+    });
+    return r;
+  })();
   const nTex = mix(texture(s.nor, u), texture(d.nor, u.mul(0.7)), damage);
   m.normalNode = normalMap(nTex, vec2(mix(float(1), float(0.08), puddle).add(rip)));
   m.metalness = 0;

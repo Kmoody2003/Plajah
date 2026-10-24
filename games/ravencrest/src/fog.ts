@@ -48,6 +48,7 @@ export class GroundFog {
     m.colorNode = vec3(0.47, 0.52, 0.6);
     m.opacityNode = blob.mul(wisps).mul(base).mul(near).mul(far).mul(0.3).mul(mistAmount);
     this.mesh = new THREE.InstancedMesh(geo, m, this.puffs.length);
+    this.mesh.name = 'groundFog';
     this.mesh.frustumCulled = false;
     this.mesh.renderOrder = 6;
     this.mesh.userData.dynamic = true;

@@ -134,11 +134,16 @@ export async function buildArrival(A: ArtAnchor, renderer: THREE.WebGPURenderer)
   {
     const geo = new THREE.PlaneGeometry(roadW, roadLen, 1, 1);
     geo.rotateX(-Math.PI / 2);
-    const m = wetAsphalt([roadW / 3, roadLen / 3], roadMarkings(roadW, uL));
-    const road = new THREE.Mesh(geo, m);
+    const road = new THREE.Mesh(geo);
+    road.name = 'road';
     const c = fromLocal((uL + uR) / 2, (vStart + vEnd) / 2, 0.02);
     road.position.copy(c);
     road.rotation.y = Math.atan2(-fwd.x, -fwd.z);
+    // uv corners in world space (plane local (x, 0, −y) after rotateX), for the material's mask bake.
+    road.updateMatrix();
+    const at = (u: number, v: number) => new THREE.Vector3((u - 0.5) * roadW, 0, -(v - 0.5) * roadLen).applyMatrix4(road.matrix);
+    const o = at(0, 0);
+    road.material = wetAsphalt([roadW / 3, roadLen / 3], roadMarkings(roadW, uL), { origin: o, u: at(1, 0).sub(o), v: at(0, 1).sub(o) });
     road.receiveShadow = true;
     group.add(collide(road));
   }
@@ -196,6 +201,7 @@ export async function buildArrival(A: ArtAnchor, renderer: THREE.WebGPURenderer)
     m.roughnessNode = mix(ground.roughnessNode as F1, rocky.roughnessNode as F1, slope);
     m.normalNode = rocky.normalNode;
     const mesh = new THREE.Mesh(geo, m);
+    mesh.name = 'ground';
     mesh.receiveShadow = true;
     group.add(collide(mesh));
   }
@@ -204,6 +210,7 @@ export async function buildArrival(A: ArtAnchor, renderer: THREE.WebGPURenderer)
   {
     // Big enough that its edge is always lost in the fog (no hard horizon line).
     const water = new THREE.Mesh(new THREE.PlaneGeometry(9000, 9000), moatWater());
+    water.name = 'moat';
     water.rotation.x = -Math.PI / 2;
     water.position.set(gateBase.x, WATER_Y, gateBase.z);
     group.add(water);

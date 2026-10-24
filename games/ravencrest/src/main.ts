@@ -205,7 +205,8 @@ const mile = buildBillboards(world.road, films);
 outside.add(mile.group);
 
 const moonRadiusDeg = THREE.MathUtils.radToDeg(Math.atan(38 / anchor.focal));
-const sky = moonSky(world.moonDir, moonRadiusDeg);
+// Cloud bake at ⅓ of the drawing buffer (≈ half the 720p internal res) on the iGPU tiers; ½ on high/ultra.
+const sky = moonSky(world.moonDir, moonRadiusDeg, camera, quality === 'high' || quality === 'ultra' ? 0.5 : 1 / 3);
 outside.backgroundNode = sky.node;
 const moon = new THREE.DirectionalLight(0x8fa8d4, 1.4);
 moon.position.copy(world.moonDir).multiplyScalar(300).add(world.gateCentre);
