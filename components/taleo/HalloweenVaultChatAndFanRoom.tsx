@@ -51,6 +51,10 @@ import {
   loadCreatorCharacterPolicy,
 } from '../../services/halloween/storyIntelCharacterRigAndVoiceEngine';
 
+// The fan room is chat, live video and the social side for now: the separate 3D movie character
+// studio is switched off (the live-video character picker stays). Flip to bring it back.
+const FAN_ROOM_CHARACTER_STUDIO = false;
+
 export interface HalloweenFaction {
   id: string;
   name: string;
@@ -1403,6 +1407,7 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
         </div>
 
         {/* ── STORY INTELLIGENCE REALTIME CHARACTER VOICE CHANGER & VTUBER FACE-MAPPING STUDIO ── */}
+        {FAN_ROOM_CHARACTER_STUDIO && (
         <div className="relative z-10 mt-8 pt-6 border-t border-orange-500/20">
           <StoryIntelVTuberVoiceStudio
             onSendVTuberMessageToChat={({ character, text, snapshotDataUrl, voiceChanged }) => {
@@ -1424,6 +1429,7 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
             }}
           />
         </div>
+        )}
       </section>
 
       {/* ── PERSISTENT FLOATING HALLOWEEN VAULT CHAT & FILTER MINI-DRAWER ── */}
