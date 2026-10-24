@@ -3,7 +3,7 @@
 // Intel's XeSS isn't reachable from the browser; FSR1 is the vendor-neutral equivalent
 // that runs well on Arc iGPUs.
 import * as THREE from 'three/webgpu';
-import { pass, mrt, output, normalView, metalness, roughness, velocity, vec2, vec4, float, max, directionToColor, colorToDirection, sample, renderOutput, texture3D, uniform } from 'three/tsl';
+import { pass, rtt, mrt, output, normalView, metalness, roughness, velocity, vec2, vec4, float, max, directionToColor, colorToDirection, sample, renderOutput, texture3D, uniform } from 'three/tsl';
 import { lut3D } from 'three/addons/tsl/display/Lut3DNode.js';
 import { ssr } from 'three/addons/tsl/display/SSRNode.js';
 import { bloom } from 'three/addons/tsl/display/BloomNode.js';
@@ -51,6 +51,23 @@ export function buildPost(renderer: THREE.WebGPURenderer, scene: THREE.Scene, ca
   const colorTex = scenePass.getTextureNode('output');
   const depthTex = scenePass.getTextureNode('depth');
 
+  // three's blur/TRAA/FSR wrap non-texture inputs in an RTT sized to the drawing buffer, so the
+  // whole chain after the scene silently ran at display res (FSR upscaled 1080p → 1080p). Bake
+  // intermediates at the scene pass's internal size (× scale) instead.
+  const sceneRT = scenePass.renderTarget;
+  const displaySize = new THREE.Vector2();
+  const internal = (node: unknown, scale = 1, of: 'scene' | 'display' = 'scene') => {
+    const t = rtt(node as never);
+    const update = t.updateBefore.bind(t);
+    t.updateBefore = (frame) => {
+      const src = of === 'scene' ? sceneRT : frame.renderer!.getDrawingBufferSize(displaySize);
+      const w = Math.max(1, Math.round(src.width * scale)), h = Math.max(1, Math.round(src.height * scale));
+      if (t.width !== w || t.height !== h) t.setSize(w, h);
+      return update(frame);
+    };
+    return t as unknown as V4;
+  };
+
   let composed = colorTex as unknown as V4;
   let ssrNode: ReturnType<typeof ssr> | null = null;
   if (q.ssr) {
@@ -77,16 +94,37 @@ export function buildPost(renderer: THREE.WebGPURenderer, scene: THREE.Scene, ca
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const c = composed as any;
     const bright = (vec4 as any)((max as any)(c.rgb.sub(float(1.4)), float(0)), 1);
-    const glow = gaussianBlur(bright as never, float(2.2) as never, 6, { resolutionScale: 0.25 });
+    // Threshold straight into the quarter-display target the blur used to downsample into
+    // (same 480×270 at 1080p, so the glow looks identical) instead of a full-res RTT.
+    const glow = gaussianBlur(internal(bright, 0.25, 'display') as never, float(2.2) as never, 6);
     composed = c.add(vec4(glow.rgb.mul(0.32), 0)) as V4;
   }
   // Temporal AA (default in play): accumulates jittered frames, so edges stop crawling and
   // shimmering when the camera turns. (It renders black into offscreen targets; captures use the
   // canvas copy.)
-  if (q.taa) composed = traa(composed, depthTex, scenePass.getTextureNode('velocity'), camera) as unknown as V4;
+  if (q.taa) {
+    const t = traa(composed === colorTex ? composed : internal(composed), depthTex, scenePass.getTextureNode('velocity'), camera);
+    // TRAA only copies scene depth into its history when the history matches the drawing buffer;
+    // at internal res it never would (and the old full-res history made that copy invalid every
+    // frame). Copy it whenever the sizes really match.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const tr = t as any, traaUpdate = t.updateBefore.bind(t);
+    t.updateBefore = (frame) => {
+      const r = traaUpdate(frame);
+      const hist = tr._historyRenderTarget, depth = tr.depthNode.value;
+      const dpy = frame.renderer!.getDrawingBufferSize(displaySize);
+      const matches = hist.width === sceneRT.width && hist.height === sceneRT.height;
+      if (matches && (dpy.width !== hist.width || dpy.height !== hist.height)) {
+        frame.renderer!.copyTextureToTexture(depth, hist.depthTexture);
+        tr._previousDepthNode.value = hist.depthTexture;
+      }
+      return r;
+    };
+    composed = tr.getTextureNode() as V4;   // untyped in @types/three; avoids an FSR-input RTT copy
+  }
   // Anti-alias at the internal resolution first: FSR1 expects AA'd input, and upscaling raw
   // aliased edges (then sharpening them) made thin geometry and textures shimmer.
-  else if (q.smaa) composed = fxaa(composed) as unknown as V4;
+  else if (q.smaa) composed = internal(fxaa(composed === colorTex ? composed : internal(composed))) as unknown as V4;
   // FSR1: edge-adaptive upscale + gentle RCAS (0 = sharpest, 2 = none) with denoise, so
   // sharpening doesn't re-amplify texture sparkle.
   if (q.upscale) composed = fsr1(composed, 0.6, true) as unknown as V4;

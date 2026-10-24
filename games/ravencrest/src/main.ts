@@ -1181,7 +1181,7 @@ const perfHud = (() => {
   };
 })();
 
-renderer.setAnimationLoop(() => {
+const frameLoop = () => {
   if (paused) { clock.getDelta(); return; }   // the last frame stays on screen; nothing simulates
   const raw = clock.getDelta();
   frameEma += (raw * 1000 - frameEma) * 0.1;
@@ -1213,7 +1213,8 @@ renderer.setAnimationLoop(() => {
   comboComic.afterRender(renderer.domElement, performance.now());
   lens.update(Math.min(0.1, raw));
   perfHud.frame(raw * 1000, tRender - tSim, performance.now() - tRender);
-});
+};
+renderer.setAnimationLoop(frameLoop);
 
 /** Render a frame now and save it via the dev capture endpoint (see vite.config.mjs). */
 async function capture(name: string, frames = 12, held: string[] = []) {
@@ -1283,6 +1284,79 @@ async function bench(n = 30) {
     level: level.name, px: renderer.getDrawingBufferSize(new THREE.Vector2()).toArray(),
     internal: internalSize(),
     gpuMs: med(gpu), cpuMs: med(cpu), simMs: med(sim), wallMs: med(wall), drawCalls: renderer.info.render.drawCalls,
+  };
+}
+
+/**
+ * Per-pass frame capture (needs ?prof=1 and a visible tab — timestamps never resolve in a
+ * hidden pane). Every renderer.render() call (scene, shadow, blur, FXAA, FSR…) gets its own
+ * timestamp-query pair; the inspector hooks name each one by the node that issued it, its
+ * target and size, and time its CPU encode. Returns passes sorted by median GPU ms.
+ */
+async function passProfile(n = 40) {
+  if (!params.has('prof')) throw new Error('reload with ?prof=1');
+  const nodeFrame = (renderer as unknown as { _nodes: { nodeFrame: { update(): void } } })._nodes.nodeFrame;
+  const r = renderer as unknown as { inspector: { beginRender(...a: unknown[]): void; finishRender(uid: string): void }; backend: { timestampQueryPool: Record<string, { timestamps: Map<string, number> } | null> } };
+  const base = (uid: string) => uid.replace(/:f\d+$/, '');
+  const labels = new Map<string, string>(), cpuStart = new Map<string, number>(), cpu = new Map<string, number[]>();
+  const insp = r.inspector, begin = insp.beginRender.bind(insp), finish = insp.finishRender.bind(insp);
+  insp.beginRender = (uid: unknown, scene: unknown, cam: unknown, rt: unknown) => {
+    const k = base(uid as string);
+    if (!labels.has(k)) {
+      const t = rt as { width: number; height: number; textures?: { name: string }[] } | null;
+      const s = scene as { isScene?: boolean; name?: string; type?: string };
+      const caller = new Error().stack?.split('\n').map((l) => /at (?:new )?(\w*(?:Node|Shadow\w*|Pipeline|Pass)\w*)\.?(\w*)/.exec(l)).find(Boolean);
+      const who = caller ? `${caller[1]}${caller[2] ? '.' + caller[2] : ''}` : '?';
+      const tex = t?.textures?.map((x) => x.name).filter(Boolean).join('+') || (t ? 'rt' : 'canvas');
+      labels.set(k, `${who} | ${s.isScene ? s.name || 'scene' : s.name || s.type} → ${tex} ${t ? `${t.width}x${t.height}` : ''}`.trim());
+    }
+    cpuStart.set(k, performance.now());
+    begin(uid, scene, cam, rt);
+  };
+  insp.finishRender = (uid: string) => {
+    const k = base(uid);
+    (cpu.get(k) ?? cpu.set(k, []).get(k)!).push(performance.now() - (cpuStart.get(k) ?? performance.now()));
+    finish(uid);
+  };
+  // The game loop would interleave its own frames with the measured ones; pause it.
+  renderer.setAnimationLoop(null);
+  const gpu = new Map<string, number[]>(), cpuByLabel = new Map<string, number[]>(), callsByLabel = new Map<string, number>(), totals: number[] = [];
+  try {
+    for (let i = 0; i < 5; i++) { nodeFrame.update(); level.post.pipeline.render(); }
+    await renderer.resolveTimestampsAsync('render');
+    for (const pool of Object.values(r.backend.timestampQueryPool)) pool?.timestamps.clear();   // warm-up/compile frames
+    for (let i = 0; i < n; i++) {
+      tick(1 / 60);
+      nodeFrame.update(); level.post.pipeline.render();
+      totals.push(await renderer.resolveTimestampsAsync('render') ?? 0);
+      // Render contexts get fresh ids across frames, so sum each frame's passes by label.
+      const frameGpu = new Map<string, number>(), frameCpu = new Map<string, number>(), calls = new Map<string, number>();
+      for (const type of ['render', 'compute']) {
+        const pool = r.backend.timestampQueryPool[type];
+        if (!pool) continue;
+        for (const [uid, ms] of pool.timestamps) {
+          const l = labels.get(base(uid)) ?? `${type} ${base(uid)}`;
+          frameGpu.set(l, (frameGpu.get(l) ?? 0) + ms);
+          calls.set(l, (calls.get(l) ?? 0) + 1);
+        }
+        pool.timestamps.clear();
+      }
+      for (const [k, a] of cpu) { const l = labels.get(k) ?? k; frameCpu.set(l, (frameCpu.get(l) ?? 0) + a.reduce((s, v) => s + v, 0)); }
+      cpu.clear();
+      for (const [l, ms] of frameGpu) {
+        (gpu.get(l) ?? gpu.set(l, []).get(l)!).push(ms);
+        (cpuByLabel.get(l) ?? cpuByLabel.set(l, []).get(l)!).push(frameCpu.get(l) ?? 0);
+        callsByLabel.set(l, calls.get(l)!);
+      }
+    }
+  } finally { insp.beginRender = begin; insp.finishRender = finish; renderer.setAnimationLoop(frameLoop); }
+  const med = (a: number[] = []) => a.length ? +[...a].sort((x, y) => x - y)[a.length >> 1].toFixed(3) : 0;
+  const passes = [...gpu.keys()].map((l) => ({ pass: l, gpuMs: med(gpu.get(l)), cpuMs: med(cpuByLabel.get(l)), calls: callsByLabel.get(l), frames: gpu.get(l)!.length }))
+    .sort((a, b) => b.gpuMs - a.gpuMs);
+  return {
+    level: level.name, quality, adapter: adapterInfo, internal: internalSize(),
+    px: renderer.getDrawingBufferSize(new THREE.Vector2()).toArray(), drawCalls: renderer.info.render.drawCalls,
+    frameGpuMs: med(totals), frameGpuP95: +[...totals].sort((x, y) => x - y)[Math.floor(totals.length * 0.95)]?.toFixed(3), passes,
   };
 }
 
@@ -1370,7 +1444,7 @@ menuEl.classList.add('live');
 worldLive = true; paintLoad();
 
 (window as unknown as Record<string, unknown>).ravencrest = {
-  renderer, camera, anchor, world, yard, viaduct, hall, levels, pools, batchStats, setMode, capture, simulate, bench, player, quality, game, films, showings, card, weather, nightmare, audio, sfx, daybreak, bridgeBattle, looks, THREE,
+  renderer, camera, anchor, world, yard, viaduct, hall, levels, pools, batchStats, setMode, capture, simulate, bench, passProfile, player, quality, game, films, showings, card, weather, nightmare, audio, sfx, daybreak, bridgeBattle, looks, THREE,
   get perf() { return { frameMs: +frameEma.toFixed(1), internal: internalSize() }; },
   setRes: (h: number) => { internalH = h; applyInternalRes(); },
   get level() { return level; }, get jack() { return jack; },
