@@ -33,6 +33,7 @@ import { Flock } from './birds';
 import { GroundFog } from './fog';
 import { buildRoadObstacles } from './roadObstacles';
 import { preloadAngel } from './angel';
+import { initKTX2 } from './ktx2';
 import { XRPlay } from './xr';
 import { buildFlowers } from './flowers';
 import { ExtraInput } from './input';
@@ -64,7 +65,7 @@ function paintLoad() {
 THREE.DefaultLoadingManager.onStart = (_u, done, total) => { assetsDone = done; assetsTotal = total; paintLoad(); };
 THREE.DefaultLoadingManager.onProgress = (_u, done, total) => { assetsDone = done; assetsTotal = total; paintLoad(); };
 // The chosen hero downloads first, ahead of the world (index.html already knows the pick).
-prefetchHero(((window as unknown as { __heroPick?: Hero }).__heroPick) === 'elise' ? 'elise' : 'jack');
+prefetchHero((params.get('hero') ?? (window as unknown as { __heroPick?: Hero }).__heroPick) === 'elise' ? 'elise' : 'jack');
 loadStep('Waking the graphics card', 0.1);
 if (params.has('debug')) (THREE.Node as unknown as { captureStackTrace: boolean }).captureStackTrace = true;
 // Quality preset: integrated GPUs (Windows WebGPU ignores powerPreference and often picks the
@@ -129,6 +130,7 @@ const xrDevice = params.has('xr') || /OculusBrowser|Quest|Pico|Wolvic|Android XR
 const renderer = new THREE.WebGPURenderer({ antialias: false, powerPreference: 'high-performance', trackTimestamp: params.has('prof'), reversedDepthBuffer: params.get('rdepth') !== '0' && !xrDevice, forceWebGL: xrDevice });
 if (xrDevice) renderer.xr.enabled = true;
 await renderer.init();
+initKTX2(renderer);
 const TIER_DOWN: Record<string, string> = { ultra: 'high', high: 'medium', medium: 'low', low: 'low' };
 (renderer as unknown as { onDeviceLost: (info: { message?: string; reason?: string }) => void }).onDeviceLost = (info) => {
   console.error('[ravencrest] graphics device lost', info);

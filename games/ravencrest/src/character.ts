@@ -3,6 +3,7 @@
 // and the bushido combat set retargeted from the grindhouse survivor rig.
 import * as THREE from 'three/webgpu';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { ktx2Ready } from './ktx2';
 import { bakeMove, MOVES } from './fightClips';
 import { addPonytail, type Ponytail } from './hair';
 
@@ -262,8 +263,23 @@ export function retarget(dst: THREE.Object3D, src: THREE.Object3D, clip: THREE.A
 
 const glbCache = new Map<string, Promise<{ scene: THREE.Group; animations: THREE.AnimationClip[] }>>();
 /** Shared GLB loads (Jack, the monsters and the cast all draw clips from the grindhouse file). */
+const GPU_PACKED = /^\/games\/ravencrest\/assets\/(characters\/(?!muse\/)|vehicles\/|creatures\/)[^?]*\.glb$/;
 export function loadGLB(url: string) {
-  if (!glbCache.has(url)) glbCache.set(url, new GLTFLoader().loadAsync(url).then((g) => { snapshotRest(g.scene); return g; }));
+  // Starts downloading at once; parsing waits for the KTX2 transcoder (ktx2.ts), which needs the renderer.
+  if (!glbCache.has(url)) {
+    const M = THREE.DefaultLoadingManager;   // keeps the loading bar counting these downloads
+    M.itemStart(url);
+    // The game reads the KTX2-packaged copy (assets/gpu/, scripts/ravencrest/ktxGlb.py) when there is one.
+    const gpu = GPU_PACKED.test(url) ? url.replace('/games/ravencrest/assets/', '/games/ravencrest/assets/gpu/') : null;
+    const get = (u: string) => fetch(u).then((r) => {
+      if (!r.ok || /text\/html/.test(r.headers.get('content-type') ?? '')) throw new Error(`${r.status} ${u}`);
+      return r.arrayBuffer();
+    });
+    const bytes = (gpu ? get(gpu).catch(() => get(url)) : get(url))
+      .then((b) => { M.itemEnd(url); return b; }, (e) => { M.itemError(url); M.itemEnd(url); throw e; });
+    glbCache.set(url, Promise.all([bytes, ktx2Ready]).then(([buf, ktx]) =>
+      new GLTFLoader().setKTX2Loader(ktx).parseAsync(buf, url.slice(0, url.lastIndexOf('/') + 1))).then((g) => { snapshotRest(g.scene); return g; }));
+  }
   return glbCache.get(url)!;
 }
 
