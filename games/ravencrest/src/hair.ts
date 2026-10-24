@@ -109,18 +109,19 @@ export function addPonytail(model: THREE.Object3D, head: THREE.Object3D, parent:
     nk.copy(neckL).applyMatrix4(head.matrixWorld);
     bk.copy(backL).applyMatrix4(head.matrixWorld);
     const restW = rest.clone().applyQuaternion(q);
-    const gust = tail.wind * (0.6 + 0.4 * Math.sin(t * 1.7) * Math.sin(t * 0.63 + 1));
-    const windF = new THREE.Vector3(1.2 * gust + 0.15 * Math.sin(t * 0.9), 0, 0.8 * gust);
+    // Wind is a light push on hair that weighs something, not a flag in a gale.
+    const gust = tail.wind * (0.6 + 0.4 * Math.sin(t * 0.9) * Math.sin(t * 0.37 + 1));
+    const windF = new THREE.Vector3(0.35 * gust + 0.04 * Math.sin(t * 0.6), 0, 0.22 * gust);
     for (let i = 1; i < N; i++) {
       const x = p[i], o = prev[i];
-      tmp.subVectors(x, o).multiplyScalar(0.965);                 // velocity with air drag
+      tmp.subVectors(x, o).multiplyScalar(0.92);                  // velocity with air drag (heavy, settles fast)
       o.copy(x);
       x.add(tmp);
       x.y -= 9.8 * h * h;
       x.addScaledVector(windF, h * h * (i / N));
       // Shape memory: each link leans toward its rest direction (stiff near the tie, loose at the tip).
       const want = p[i - 1].clone().addScaledVector(restW, seg);
-      x.lerp(want, 0.08 * (1 - i / N) + 0.01);
+      x.lerp(want, 0.16 * (1 - i / N) + 0.03);
     }
     for (let it = 0; it < 4; it++) {
       for (let i = 1; i < N; i++) {

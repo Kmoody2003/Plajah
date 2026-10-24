@@ -1147,6 +1147,40 @@ function applyInternalRes() {
   const sc = Math.min(1, internalH / Math.max(1, buf.y));
   for (const l of [levels.outside, levels.hall]) l.post.setInternalScale(sc);
 }
+// ── Performance readout (` key or ?fps): where each frame's time goes ──────────────
+const perfHud = (() => {
+  const el = document.createElement('div');
+  el.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:50;font:11px/1.45 ui-monospace,Consolas,monospace;color:#cfe;background:#000b;padding:6px 8px;border-radius:4px;white-space:pre;pointer-events:none;display:none';
+  document.body.appendChild(el);
+  let on = params.has('fps');
+  el.style.display = on ? 'block' : 'none';
+  addEventListener('keydown', (e) => { if (e.code === 'Backquote') { on = !on; el.style.display = on ? 'block' : 'none'; } });
+  const ft: number[] = [], sim: number[] = [], sub: number[] = [];
+  let t = 0;
+  const med = (a: number[]) => [...a].sort((x, y) => x - y)[a.length >> 1] ?? 0;
+  const p95 = (a: number[]) => [...a].sort((x, y) => x - y)[Math.floor(a.length * 0.95)] ?? 0;
+  return {
+    frame(frameMs: number, simMs: number, submitMs: number) {
+      if (!on) return;
+      ft.push(frameMs); sim.push(simMs); sub.push(submitMs);
+      if (ft.length > 120) { ft.shift(); sim.shift(); sub.shift(); }
+      if ((t += frameMs) < 500) return;
+      t = 0;
+      const [w, h] = internalSize();
+      const i = renderer.info.render;
+      el.textContent = `${(1000 / med(ft)).toFixed(0)} fps   frame ${med(ft).toFixed(1)} ms (p95 ${p95(ft).toFixed(1)})
+`
+        + `game logic ${med(sim).toFixed(1)} ms   render submit ${med(sub).toFixed(1)} ms
+`
+        + `GPU + wait ≈ ${Math.max(0, med(ft) - med(sim) - med(sub)).toFixed(1)} ms
+`
+        + `draws ${i.drawCalls}   tris ${(i.triangles / 1e6).toFixed(2)} M   res ${w}×${h} (${quality})
+`
+        + `monsters drawn ${game.mobs.filter((m) => m.object.visible).length} / ${game.mobs.length}`;
+    },
+  };
+})();
+
 renderer.setAnimationLoop(() => {
   if (paused) { clock.getDelta(); return; }   // the last frame stays on screen; nothing simulates
   const raw = clock.getDelta();
@@ -1167,15 +1201,18 @@ renderer.setAnimationLoop(() => {
     const clamped = Math.round(THREE.MathUtils.clamp(next, Q.resMin, resMax));
     if (Math.abs(clamped - internalH) >= 8) { internalH = clamped; applyInternalRes(); }
   }
+  const tSim = performance.now();
   extraInput.update(Math.min(raw, 0.05));
   if (menuOpen) menuCamera(raw);
   tick(Math.min(raw, 0.05));
+  const tRender = performance.now();
 
   if (renderer.xr.isPresenting) { renderer.render(level.scene, camera); return; }
   level.post.pipeline.render();
   looks.render();
   comboComic.afterRender(renderer.domElement, performance.now());
   lens.update(Math.min(0.1, raw));
+  perfHud.frame(raw * 1000, tRender - tSim, performance.now() - tRender);
 });
 
 /** Render a frame now and save it via the dev capture endpoint (see vite.config.mjs). */
@@ -1266,6 +1303,7 @@ function setPaused(on: boolean) {
   if (on === paused || (on && !canPause())) return;
   paused = on;
   pauseEl.classList.toggle('on', on);
+  if (on) paintOpts();
   pauseEl.classList.toggle('elise', heroPick === 'elise');
   const ctx = audio.context;
   if (ctx) void (on ? ctx.suspend() : ctx.resume()).catch(() => {});
@@ -1281,6 +1319,24 @@ function exitGame() {
   else location.href = '/';
 }
 document.getElementById('pauseResume')!.addEventListener('click', () => setPaused(false));
+// Camera and mouse settings (remembered by player.saveSettings).
+function paintOpts() {
+  const q = (o: string) => pauseEl.querySelector<HTMLElement>(`[data-opt="${o}"]`)!;
+  q('cam').textContent = `CAMERA · ${player.followCam ? 'BEHIND, MOUSE STEERS' : 'FREE ORBIT'}`;
+  q('invx').textContent = `MOUSE LEFT/RIGHT · ${player.invertX ? 'INVERTED' : 'NORMAL'}`;
+  q('invy').textContent = `MOUSE UP/DOWN · ${player.invertY ? 'INVERTED' : 'NORMAL'}`;
+  pauseEl.querySelector('.sens span')!.textContent = `SENSITIVITY ${Math.round(player.mouseSens * 100)}%`;
+}
+pauseEl.querySelector('.opts')!.addEventListener('click', (e) => {
+  const o = (e.target as HTMLElement).dataset.opt;
+  if (o === 'cam') player.followCam = !player.followCam;
+  if (o === 'invx') player.invertX = !player.invertX;
+  if (o === 'invy') player.invertY = !player.invertY;
+  if (o === 'sens-' || o === 'sens+') player.mouseSens = +THREE.MathUtils.clamp(player.mouseSens * (o === 'sens+' ? 1.15 : 1 / 1.15), 0.3, 2.5).toFixed(2);
+  player.saveSettings();
+  paintOpts();
+});
+paintOpts();
 document.getElementById('pauseExit')!.addEventListener('click', exitGame);
 // Full screen: the game takes over the display (inside Plajah this fullscreens the game's frame).
 const fullBtn = document.getElementById('pauseFull')!;

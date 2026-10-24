@@ -413,7 +413,7 @@ export class Mob {
       this.anim('idle', 0.3, 0.3);
       this.respawnIn -= dt;
       if (this.respawnIn <= 0 && (!foe || foe.pos.distanceTo(this.home) > 22)) this.respawn();
-      this.mixer.update(dt);
+      this.animate(dt);
       return;
     }
 
@@ -536,7 +536,17 @@ export class Mob {
     for (const m of this.mats) m.emissiveIntensity = this.flash > 0 ? 2.5 : k.ghostly ? 0.6 : 0;
     if (this.flash > 0) for (const m of this.mats) m.emissive?.setRGB(1, 0.25, 0.1);
     else if (k.ghostly) for (const m of this.mats) m.emissive?.setHex(0x4a7a8a);
-    this.mixer.update(dt);
+    this.animate(dt);
+  }
+
+  /** Off screen (game.ts culls by frustum), poses are only advanced 4× a second: nobody sees them,
+   *  and 30 retargeted mocap mixers every frame is real CPU on the iGPU baseline. */
+  private animLag = 0;
+  private animate(dt: number) {
+    this.animLag += dt;
+    if (!this.object.visible && this.animLag < 0.25) return;
+    this.mixer.update(this.animLag);
+    this.animLag = 0;
   }
 
   respawn() {
@@ -544,7 +554,8 @@ export class Mob {
     this.object.position.copy(this.home);
     this.vel.set(0, 0, 0);
     const body = this.object.children[0];
-    if (body) { body.position.y = this.bodyY; body.scale.setScalar(this.baseScale); body.rotation.set(0, 0, 0); }
+    // A dismembered death hid the body (game.ts); it comes back whole and visible.
+    if (body) { body.position.y = this.bodyY; body.scale.setScalar(this.baseScale); body.rotation.set(0, 0, 0); body.visible = true; }
     this.bodyGone = false;
     for (const m of this.mats) { m.opacity = this.spec.ghostly ? 0.72 : 1; m.transparent = !!this.spec.ghostly; }
     this.go('idle');

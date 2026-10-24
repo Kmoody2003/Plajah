@@ -182,12 +182,17 @@
     #pause button.ghost { background: #0b0d12cc; border-color: #5a4a36; box-shadow: none; }
     #pause button:hover { filter: brightness(1.15); }
     #pause.elise button:not(.ghost) { background: linear-gradient(#4c1d95, #1e0b3a); border-color: #a855f7; box-shadow: 0 0 22px #a855f755; }
+    #pause .opts { margin: 18px auto 8px; width: 280px; }
+    #pause .opts button { margin: 6px auto; padding: 9px 0; font-size: 11px; letter-spacing: .25em; }
+    #pause .sens { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    #pause .sens button { width: 52px; margin: 6px 0; }
+    #pause .sens span { font-size: 11px; letter-spacing: .25em; color: #d7cab5; }
     #pause .keys { margin-top: 22px; font-size: 11px; letter-spacing: .25em; color: #8d7c63; }
     #menu:not(.live) #menuStart::after { content: ''; display: inline-block; width: .9em; height: .9em; margin-left: .8em; vertical-align: -.1em; border: 2px solid #f1e2c866; border-top-color: #f1e2c8; border-radius: 50%; animation: mnSpin .9s linear infinite; }
     @keyframes mnSpin { to { transform: rotate(360deg); } }
     #menu .keys { margin-top: 18px; font-family: Georgia, serif; font-size: 12px; color: #7f7362; }
   </style>
-  <script type="module" crossorigin src="/games/ravencrest/play/assets/index-szdO_PRk.js"></script>
+  <script type="module" crossorigin src="/games/ravencrest/play/assets/index-RrzI9bAG.js"></script>
 </head>
 <body>
   <div id="view"></div>
@@ -221,6 +226,12 @@
     <h1>PAUSED</h1><div class="sub">The night waits for you</div>
     <button id="pauseResume">RESUME</button>
     <button id="pauseFull" class="ghost">FULL SCREEN</button>
+    <div class="opts">
+      <button data-opt="cam" class="ghost"></button>
+      <button data-opt="invx" class="ghost"></button>
+      <button data-opt="invy" class="ghost"></button>
+      <div class="sens"><button data-opt="sens-" class="ghost">−</button><span></span><button data-opt="sens+" class="ghost">+</button></div>
+    </div>
     <button id="pauseExit" class="ghost">EXIT TO PLAJAH</button>
     <div class="keys">P (or Esc once the mouse is free) to pause · Resume or Enter to return</div>
   </div></div>

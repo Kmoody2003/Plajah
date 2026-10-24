@@ -14,7 +14,8 @@ const SENS_KEY = 'ravencrest.mouseSens';
 const MOUSE_SPIKE = 90;                 // px: larger single-event jumps are Chromium/Edge pointer-lock glitches
 const DOUBLE_TAP_MS = 300;
 const KEY_TURN = 2.7;                   // rad/s: A/D turn Jack in the follow camera
-const CAM_KEY = 'ravencrest.camera2';
+const CAM_KEY = 'ravencrest.camera3';   // camera3: 'behind' (default) | 'free'
+const INV_KEY = 'ravencrest.invert';     // 'x', 'y', 'xy' or ''
 const MOVE_KEYS = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']);
 
 export class PlayerController {
@@ -77,7 +78,18 @@ export class PlayerController {
    * the mouse looks, and the camera stays centred and swings in behind him as he runs forward.
    * Tank mode (O toggles): the mouse and A/D turn Jack, W/S move along his facing.
    */
-  followCam = (() => { try { return localStorage.getItem(CAM_KEY) === 'tank'; } catch { return false; } })();
+  /** Camera locked behind the hero, the mouse steering them (default); off = free orbit camera. */
+  followCam = (() => { try { return localStorage.getItem(CAM_KEY) !== 'free'; } catch { return true; } })();
+  invertX = (() => { try { return (localStorage.getItem(INV_KEY) ?? '').includes('x'); } catch { return false; } })();
+  invertY = (() => { try { return (localStorage.getItem(INV_KEY) ?? '').includes('y'); } catch { return false; } })();
+  /** Persist the camera/mouse settings (pause menu). */
+  saveSettings() {
+    try {
+      localStorage.setItem(CAM_KEY, this.followCam ? 'behind' : 'free');
+      localStorage.setItem(INV_KEY, (this.invertX ? 'x' : '') + (this.invertY ? 'y' : ''));
+      localStorage.setItem(SENS_KEY, String(this.mouseSens));
+    } catch { /* */ }
+  }
   /** Scripted camera (cutscenes): when set, update() moves Jack but leaves the camera alone. */
   cinematic = false;
   /** In a headset (xr.ts): the XR rig owns the camera; everything else plays as normal. */
@@ -109,7 +121,7 @@ export class PlayerController {
       }
       if (e.code === 'KeyO' && !e.repeat) {
         this.followCam = !this.followCam;
-        try { localStorage.setItem(CAM_KEY, this.followCam ? 'tank' : 'action'); } catch { /* */ }
+        this.saveSettings();
       }
       // Double-tap a move key and hold it to sprint (Shift still works).
       if (!e.repeat && MOVE_KEYS.has(e.code)) {
@@ -137,8 +149,10 @@ export class PlayerController {
       if (document.pointerLockElement !== dom && !this.dragging) return;
       if (Math.abs(e.movementX) > MOUSE_SPIKE || Math.abs(e.movementY) > MOUSE_SPIKE) return;
       const k = MOUSE * this.mouseSens;
-      if (this.followCam) this.yaw -= e.movementX * k; else this.camYaw -= e.movementX * k;
-      this.camPitch = THREE.MathUtils.clamp(this.camPitch - e.movementY * k * 0.75, -1.1, 0.55);
+      const mx = this.invertX ? -e.movementX : e.movementX, my = this.invertY ? -e.movementY : e.movementY;
+      // Behind-camera: left/right steers the hero (the camera follows); up/down looks.
+      if (this.followCam) this.yaw -= mx * k; else this.camYaw -= mx * k;
+      this.camPitch = THREE.MathUtils.clamp(this.camPitch - my * k * 0.75, -1.1, 0.55);
       this.lastMouse = this.time;
     });
     dom.addEventListener('wheel', (e) => { this.camDist = THREE.MathUtils.clamp(this.camDist + e.deltaY * 0.003, 1.6, 7); }, { passive: true });
@@ -299,12 +313,13 @@ export class PlayerController {
     // Desired horizontal velocity, relative to where the camera looks.
     const want = new THREE.Vector3();
     if (this.followCam && this.enabled) {
-      // A/D turn (a little faster standing still), W/S along the facing; S backs up slowly.
-      if (ix) this.yaw -= ix * KEY_TURN * (iz ? 0.85 : 1.15) * dt;
-      if (iz) {
-        const fwd = new THREE.Vector3(Math.sin(this.yaw), 0, Math.cos(this.yaw));
-        want.copy(fwd).multiplyScalar(iz > 0 ? (running ? RUN : WALK) * this.speedScale : -WALK * 0.55 * this.speedScale);
-      }
+      // With the mouse captured it steers and A/D side-step; keyboard-only, A/D turn.
+      // W/S along the facing; S backs up slowly.
+      const mouseSteer = document.pointerLockElement === this.dom;
+      if (ix && !mouseSteer) this.yaw -= ix * KEY_TURN * (iz ? 0.85 : 1.15) * dt;
+      const fwd = new THREE.Vector3(Math.sin(this.yaw), 0, Math.cos(this.yaw));
+      if (iz) want.copy(fwd).multiplyScalar(iz > 0 ? (running ? RUN : WALK) * this.speedScale : -WALK * 0.55 * this.speedScale);
+      if (ix && mouseSteer) want.add(new THREE.Vector3(-fwd.z, 0, fwd.x).multiplyScalar(ix * WALK * 0.85 * this.speedScale));
     } else if (this.enabled && (ix || iz)) {
       const fwd = new THREE.Vector3(-Math.sin(this.camYaw), 0, -Math.cos(this.camYaw));
       const right = new THREE.Vector3(-fwd.z, 0, fwd.x);
