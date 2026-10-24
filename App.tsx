@@ -307,7 +307,18 @@ import {
   type PersonaKey,
   PERSONA_KEYS,
   DEFAULT_PERSONAS,
+  LEGACY_PERSONA_VIEW_ALIASES,
 } from './services/personaService';
+import {
+  type PortalEntry,
+  peekPortalSignIn,
+  consumePortalSignIn,
+  isElevateHome,
+  markElevateHome,
+  persistElevateHome,
+  resolveElevateHubOrgId,
+  resolveWorkplaceOrgId,
+} from './services/portalEntry';
 
 // ── Mobile bottom nav tab sets ────────────────────────────────────────────────
 // Regular accounts get the media-first bar; SCHOOL accounts (student/teacher/child/
@@ -787,8 +798,12 @@ const App: React.FC = () => {
 
   // A browser reload resumes the screen the person was on (see launchTarget.readResumeView);
   // a shared link and the Windows shell keep their own entry points.
-  const initialView: AppView = (pitchInitialView === 'LANDING' && !hasDeepLink && !getPlatformInfo().isTV && readResumeView()) || pitchInitialView;
+  const resumedView = (pitchInitialView === 'LANDING' && !hasDeepLink && !getPlatformInfo().isTV && readResumeView()) || pitchInitialView;
+  const initialView = (LEGACY_PERSONA_VIEW_ALIASES[resumedView as string] || resumedView) as AppView;
   const [view, setViewInternal] = useState<AppView>(initialView);
+  // The auth listener is registered once; it reads the live view through this.
+  const viewNowRef = useRef<AppView>(initialView);
+  viewNowRef.current = view;
   // Shared links must never flash the globe launch page while the shared item is fetched.
   const [shareResolving, setShareResolving] = useState<boolean>(hasDeepLink);
   const [telaRequestedDocId, setTelaRequestedDocId] = useState<string | null>(null);
@@ -907,6 +922,8 @@ const App: React.FC = () => {
   const setView = useCallback((newView: AppView | ((prev: AppView) => AppView), path?: string) => {
     setViewInternal((prev) => {
       let nextView = typeof newView === 'function' ? newView(prev) : newView;
+      // Older persona tabs / saved resume views named views that never rendered (a blank page).
+      nextView = (LEGACY_PERSONA_VIEW_ALIASES[nextView as string] || nextView) as AppView;
       // One choke point for the whole TV surface. A stray deep link, a recommendation card, a
       // notification tap — anything aimed at a destination a television doesn't serve lands on
       // the TV home instead of mounting a view the remote cannot drive. Doing it HERE rather
@@ -1839,6 +1856,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   // Smart Guide
   const [smartGuideEnabled, setSmartGuideEnabled] = useState(false);
   const [hasSeenSmartGuide, setHasSeenSmartGuide] = useState(false);
+  // Signed-in visit to plajah.com: the landing shows a 5-second door chooser before going home.
+  const [portalChooser, setPortalChooser] = useState(false);
+  const enterPortalRef = useRef<(entry: PortalEntry, profile?: any) => void>(() => {});
   const [orgHubInitial, setOrgHubInitial] = useState<{ orgId?: string; give?: boolean; contentHq?: boolean; create?: boolean; fromElevate?: boolean } | null>(null);
   const [chmsLink, setChmsLink] = useState<{ claim?: string; checkinOrg?: string; eventKey?: string; eventLabel?: string } | null>(() => {
     if (typeof window === 'undefined') return null;
@@ -2483,12 +2503,17 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
   // Where "in" is on this device — the single answer shared by the Enter button and by the
   // Back-out-of-LANDING escape, so the two can never disagree about where home is.
-  const resolveHomeDestination = (): { view: AppView; theme: ThemeType } => {
+  const resolveHomeDestination = (opts?: { personal?: boolean; profile?: any }): { view: AppView; theme: ThemeType } => {
     const isTV = getPlatformInfo().isTV;
     // A television opens on its home destination — Taleo by default, so the app behaves like
     // a streaming service rather than dropping the viewer into a creation hub.
     if (isTV) return { view: getTvHome() as AppView, theme: 'BIG_SCREEN' };
-    const p = effectiveProfile || userProfile;
+    const p = opts?.profile || effectiveProfile || userProfile;
+    // Came in through the Elevate door once → the Elevate landing is home, whichever login they
+    // use now (services/portalEntry). Picking "Personal" on the door chooser skips it.
+    if (!opts?.personal && (isElevateHome() || (p as any)?.elevateHome) && !(p as any)?.isChild && (p as any)?.accountType !== 'CHILD') {
+      return { view: 'PLAJAH_ELEVATE', theme };
+    }
     if (isEducationAccount(p) || (p as any)?.accountType === 'PARENT') {
       const studentLike = (p as any)?.accountType === 'STUDENT' || (p as any)?.accountType === 'CHILD' || (p as any)?.isChild
         || (p as any)?.childState === 'SCHOOL_PROVISIONED' || !!(p as any)?.provisionedByTeacherUid;
@@ -2510,6 +2535,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   };
 
   const handleEnterApp = () => {
+    setPortalChooser(false);
     const { view: home, theme: homeTheme } = resolveHomeDestination();
     setView(home);
     if (homeTheme !== theme) setTheme(homeTheme);
@@ -2521,6 +2547,60 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         .catch(() => {});
     }
   };
+
+  // A landing-page door (Personal / Academia / Elevate / Business & Work / Productions): its
+  // sign-in, a signed-in tap on it, or the 5-second door chooser all land here.
+  const enterPortal = async (entry: PortalEntry, profileArg?: any) => {
+    consumePortalSignIn();
+    setPortalChooser(false);
+    const u = auth.currentUser;
+    if (!u || u.isAnonymous) { handleEnterApp(); return; }
+    const p = profileArg || effectiveProfile || userProfile;
+    const go = (v: AppView, persona: PersonaKey) => {
+      setActivePersonaKey(persona);
+      setActivePersonaKeyLocal(persona);
+      setIsMediaPlajahMode(false);
+      setView(v);
+    };
+    switch (entry.portal) {
+      case 'personal': {
+        const { view: home, theme: homeTheme } = resolveHomeDestination({ personal: true, profile: p });
+        go(home, 'personal');
+        if (homeTheme !== theme) setTheme(homeTheme);
+        return;
+      }
+      case 'academia': {
+        if (!(isEducationAccount(p) || (p as any)?.accountType === 'PARENT')) { go('ACADEMIA_LANDING', 'academic'); return; }
+        const studentLike = (p as any)?.accountType === 'STUDENT' || (p as any)?.accountType === 'CHILD' || (p as any)?.isChild
+          || (p as any)?.childState === 'SCHOOL_PROVISIONED' || !!(p as any)?.provisionedByTeacherUid;
+        go(studentLike ? 'STUDENT_HOME' : 'ACADEMIA_HOME', 'academic');
+        return;
+      }
+      case 'elevate': {
+        persistElevateHome(u.uid, p).catch(() => {});
+        if (entry.intent && entry.intent !== 'hub') {
+          go('PLAJAH_ELEVATE', 'elevate');
+          setElevateGateway({ mode: entry.intent as 'claim' | 'join' | 'create', orgKey: entry.orgKey, memberNumber: entry.memberNumber });
+          return;
+        }
+        const orgId = await resolveElevateHubOrgId(u.uid).catch(() => null);
+        if (orgId) { setOrgHubInitial({ orgId, fromElevate: true }); go('ORG_HUB', 'elevate'); }
+        else go('PLAJAH_ELEVATE', 'elevate');
+        return;
+      }
+      case 'business': {
+        // Employees open their workplace's org hub; owners (and anyone setting up) the Business dashboard.
+        const orgId = entry.intent === 'owner' ? null : await resolveWorkplaceOrgId(u.uid).catch(() => null);
+        if (orgId) { setOrgHubInitial({ orgId }); go('ORG_HUB', 'business'); }
+        else go('BUSINESS_DASHBOARD', 'business');
+        return;
+      }
+      case 'productions':
+        go(entry.intent === 'film' ? 'FABULA' : 'CREATOR_HUB', 'creative');
+        return;
+    }
+  };
+  enterPortalRef.current = enterPortal;
 
   // The Back-out-of-LANDING escape (declared above the popstate listener, which is registered
   // on mount and so can't close over anything defined down here).
@@ -2841,6 +2921,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       setView('HELP_CENTER');
     } else if (target === 'BRAND_DASHBOARD') {
       setView('BRAND_DASHBOARD');
+    } else if (target === 'ELEVATE_HUB') {
+      // "My Hub": the member's own Elevate org (member home / staff ops).
+      if (!user) { loginWithGoogle(); return; }
+      enterPortal({ portal: 'elevate', intent: 'hub' });
+    } else if (target === 'PORTAL') {
+      if (params?.portal) enterPortal(params as PortalEntry);
     } else if (target === 'ORG_HUB') {
       if (params?.orgId || params?.create) setOrgHubInitial({ orgId: params.orgId, create: !!params.create, fromElevate: !!params.fromElevate });
       setView('ORG_HUB');
@@ -2928,7 +3014,13 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       if (params?.videoId) { setRelloInitialVideoId(params.videoId); setView('RELLO'); }
       else setView('VIDEOS');
     } else if (target === 'CLUBS') {
+      // params.clubId opens that club (official creator clubs link here from Worlds/Sanctuaries/fan rooms).
+      if (params?.clubId) setClubInitialId(params.clubId);
       setView('CLUBS');
+    } else if (target === 'WORLDS' && params?.worldId) {
+      setViewedUserId(params.artistId || user?.uid || '');
+      setWorldFocus({ worldId: params.worldId });
+      setView('WORLDS');
     } else if (target === 'LIVE_HUB') {
       // A favorite (or any deep link) can name the exact channel to tune.
       if (params?.focus) setLiveChannelFocus(params.focus);
@@ -2957,10 +3049,18 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       }
 
       if (u) {
+        // A door sign-in (Elevate / Academia / Business / Productions) routes to that door's hub
+        // once the profile is in, below. A plain signed-in visit holds on the landing for the
+        // 5-second door chooser (web/phone only — TV and the Windows shell go straight in).
+        const onLanding = viewNowRef.current === 'LANDING' && !u.isAnonymous;
+        const pendingPortal = onLanding ? peekPortalSignIn() : null;
+        const holdForChooser = onLanding && !pendingPortal && !getPlatformInfo().isTV && !isWindowsApp();
+        if (holdForChooser) setPortalChooser(true);
         // Immediately route away from LANDING — device-aware, with a dedicated
         // profile landing for the enabled New UX shell. Otherwise new users end up
         // on the dashboard and never see their own profile page after login.
         setViewInternal(prev => {
+          if (prev === 'LANDING' && (pendingPortal || holdForChooser)) return prev;
           if (prev === 'LANDING') {
             const ua = navigator.userAgent;
             const isMobileDevice =
@@ -2996,6 +3096,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         // One-time fetch for initialization actions
         const p = await fetchUserProfile(u.uid);
         setUserProfile(p);
+        if ((p as any)?.elevateHome) markElevateHome();
+        if (pendingPortal) enterPortalRef.current(pendingPortal, p);
 
         // Reserve this account a persistent guide CHANNEL NUMBER at login (idempotent). Having a
         // number does NOT list them — their channel only appears when they have live feeds or an
@@ -4362,6 +4464,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           <LandingPage 
             onEnter={handleEnterApp} 
             onVisitUser={handleVisitUser}
+            onEnterPortal={(entry) => enterPortal(entry)}
+            chooser={portalChooser}
+            onDismissChooser={() => setPortalChooser(false)}
+            homeLabel={isElevateHome() || (userProfile as any)?.elevateHome ? 'Elevate' : 'your home'}
           />
         ) : (
           <div className={`h-real-screen w-full flex flex-col relative z-0 overflow-hidden bg-transparent no-select ${((view === 'USER_PROFILE' ? visitedProfile : userProfile)?.frostedBackground || (view === 'USER_PROFILE' ? visitedProfile : userProfile)?.videoBackgroundUrl) ? 'is-custom-bg' : ''}`}>
@@ -5839,7 +5945,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 <div className="flex items-center px-1 pt-1 pb-android-nav gap-0">
                   {getBottomTabsForPersona(activePersonaKey, effectiveProfile).map((tab, idx, arr) => {
                     const Icon = tab.icon;
-                    const isActive = view === tab.id;
+                    const isActive = view === tab.id || (tab.id === 'ELEVATE_HUB' && view === 'ORG_HUB');
                     const isHoldable = tab.id === 'DASHBOARD' || tab.id === 'USER_PROFILE' || idx === 0 || idx === arr.length - 1;
                     return (
                       <button
@@ -5884,6 +5990,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                             }, 280);
                             return;
                           }
+                          if (tab.id === 'ELEVATE_HUB') { handleGlobalNavigate('ELEVATE_HUB'); setIsBottomSectionExpanded(false); return; }
                           setView(tab.id as any); setIsBottomSectionExpanded(false);
                         }}
                         className="flex flex-col items-center gap-0.5 flex-1 py-1.5 android-press"

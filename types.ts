@@ -1645,6 +1645,8 @@ export interface UserProfile {
   choraRecents?: any[];
   /** Private account: following requires approval (follow_requests). See services/socialSafetyService. */
   isPrivate?: boolean;
+  /** Signed in through the Elevate door: the Elevate landing is their default view (services/portalEntry). */
+  elevateHome?: boolean;
   displayName: string;
   photoURL: string;
   email: string;

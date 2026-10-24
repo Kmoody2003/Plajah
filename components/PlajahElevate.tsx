@@ -432,7 +432,7 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
       : 'bg-[#0b0214] text-white';
 
   return (
-    <div className={`w-full min-h-screen overflow-y-auto custom-scrollbar transition-colors duration-500 ${rootBg}`}>
+    <div className={`w-full min-h-full overflow-x-clip custom-scrollbar transition-colors duration-500 ${elevateTheme === 'pastel' ? '' : 'ev-scope'} ${rootBg}`}>
       {/* ── STICKY TOP NAV ── */}
       <div className="sticky top-0 z-40 bg-[#0a0612]/90 backdrop-blur-xl border-b border-white/[0.08] text-white">
         {/* Main Elevate Sticky Nav */}
@@ -446,7 +446,7 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
             </div>
             <div className="leading-none min-w-0">
               <div className="text-[14px] sm:text-[16px] font-black tracking-tight truncate" style={{ fontFamily: 'Outfit, sans-serif' }}>Plajah Elevate</div>
-              <div className="text-[7.5px] sm:text-[8px] font-black uppercase tracking-[0.2em] text-white/40 mt-0.5 truncate">Faith · Culture · Causes</div>
+              <div className="text-[11px] font-semibold text-white/45 mt-0.5 truncate">Faith · Culture · Causes</div>
             </div>
           </div>
 
@@ -463,16 +463,19 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
             <span className="hidden lg:inline">Claim Member ID</span>
           </button>
 
-          <Button
-            size="xs"
-            variant="accent"
-            icon={<FileText />}
-            onClick={() => setShowOneSheetModal(true)}
-            title="Open Shareable Executive One-Sheet for Colleagues"
-          >
-            <span className="hidden md:inline">Executive One-Sheet</span>
-            <span className="md:hidden">One-Sheet</span>
-          </Button>
+          {/* One-Sheet is a desktop tool; on a phone the hero's Share button covers it. */}
+          <span className="hidden sm:contents">
+            <Button
+              size="xs"
+              variant="accent"
+              icon={<FileText />}
+              onClick={() => setShowOneSheetModal(true)}
+              title="Open Shareable Executive One-Sheet for Colleagues"
+            >
+              <span className="hidden md:inline">Executive One-Sheet</span>
+              <span className="md:hidden">One-Sheet</span>
+            </Button>
+          </span>
 
           <div className="ml-auto flex items-center gap-1.5 sm:gap-2.5 shrink-0">
             {/* Theme pill switcher (from Lorea) */}
@@ -514,6 +517,42 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
           </div>
         </div>
       </div>
+      {/* Phone: search + section chips scroll away; only the brand bar stays pinned. */}
+      <div className="sm:hidden px-3.5 pt-2.5 pb-1 space-y-2">
+          <div className="relative">
+            <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40" />
+            <input
+              type="search"
+              placeholder="Search churches, cities, causes…"
+              value={query}
+              onChange={e => { setQuery(e.target.value); if (e.target.value) scrollTo('elevate-dir'); }}
+              className="w-full bg-white/[0.06] border border-white/10 rounded-full h-10 pl-10 pr-4 text-[14px] text-white outline-none focus:border-white/30 placeholder:text-white/35"
+            />
+          </div>
+          <div className="flex gap-1.5 overflow-x-auto no-scrollbar -mx-0.5 px-0.5">
+            {[['elevate-dir', 'Directory'], ['elevate-caps', 'For leaders'], ['elevate-doors', 'All doors']].map(([id, label]) => (
+              <button key={id} onClick={() => scrollTo(id)} className="shrink-0 h-8 px-3.5 rounded-full bg-white/[0.06] border border-white/10 text-[12px] font-semibold text-white/75 active:bg-white/15">{label}</button>
+            ))}
+          </div>
+      </div>
+
+      {/* Signed-in members: one tap to their own org hub (member home / staff ops). */}
+      {isSignedIn && (
+        <div className="max-w-6xl mx-auto px-3.5 sm:px-6 pt-3 sm:pt-4">
+          <button
+            type="button"
+            onClick={() => triggerNavigate('ELEVATE_HUB')}
+            className="w-full flex items-center gap-3 p-3 sm:p-3.5 rounded-2xl border border-[#8B5CF6]/35 bg-[#6D3FD6]/15 hover:bg-[#6D3FD6]/25 active:scale-[0.99] transition-all text-left"
+          >
+            <span className="w-10 h-10 rounded-xl grid place-items-center bg-[#6D3FD6] text-white shrink-0"><Users size={18} /></span>
+            <span className="flex-1 min-w-0">
+              <span className="block text-[14px] font-bold text-white">My Elevate hub</span>
+              <span className="block text-[12px] text-white/55 truncate">Your organization, departments, chat and schedule</span>
+            </span>
+            <ChevronRight size={18} className="text-white/50 shrink-0" />
+          </button>
+        </div>
+      )}
 
       {/* =====================================================================
           THE LIVING SANCTUARY STAGE (LOREA STYLE ELEVATE LANDING PAGE)
@@ -612,11 +651,11 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
                     'Scripture that beams to every phone in the pews. Choirs that rehearse with live stems. Tithes with zero platform fees. One home for Sunday morning and the six days in between.'}
                 </p>
 
-                <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 mt-5 sm:mt-7">
+                <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2.5 sm:gap-3 mt-5 sm:mt-7">
                   <button
                     type="button"
                     onClick={() => onOpenOrg(DEMO_CHURCH_ID)}
-                    className="px-5 sm:px-7 py-3.5 sm:py-4 rounded-full text-[11px] sm:text-[12px] font-black uppercase tracking-[0.16em] sm:tracking-[0.2em] text-white transition-transform hover:-translate-y-0.5 shadow-[0_10px_30px_-6px_rgba(212,0,85,0.5)]"
+                    className="col-span-2 sm:col-span-1 px-5 sm:px-7 py-3.5 sm:py-4 rounded-full text-[11px] sm:text-[12px] font-black uppercase tracking-[0.16em] sm:tracking-[0.2em] text-white transition-transform hover:-translate-y-0.5 shadow-[0_10px_30px_-6px_rgba(212,0,85,0.5)]"
                     style={{ background: '#D40055', fontFamily: 'Outfit, sans-serif' }}
                   >
                     <span data-pj-edit="elevate_hero_cta_primary" data-pj-label="Primary CTA Button">
@@ -638,8 +677,9 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
                     variant="secondary"
                     icon={<Share2 />}
                     onClick={() => setShowOneSheetModal(true)}
+                    className="sm:w-auto"
                   >
-                    Share Colleague One-Sheet
+                    <span className="sm:hidden">Share</span><span className="hidden sm:inline">Share Colleague One-Sheet</span>
                   </Button>
                 </div>
               </div>
@@ -768,7 +808,7 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
           </header>
 
           {/* ── LOREA-STYLE HORIZONTAL CAROUSEL OF INSTITUTIONS + ADMIN CURATED CARDS ── */}
-          <section className="ev-reveal max-w-6xl mx-auto px-6 py-12 border-b border-white/[0.08]">
+          <section className="ev-reveal max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12 border-b border-white/[0.08]">
             <div className="flex items-end justify-between gap-4 mb-5 flex-wrap">
               <div>
                 <div
@@ -1023,7 +1063,7 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
           </section>
 
           {/* ── SIX PILLARS OF ELEVATE ("Six ways to gather, one sanctuary") ── */}
-          <section id="elevate-caps" className="ev-reveal max-w-6xl mx-auto px-6 py-14 border-b border-white/[0.08]">
+          <section id="elevate-caps" className="ev-reveal max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-14 border-b border-white/[0.08]">
             <div
               data-pj-edit="elevate_pillars_eyebrow"
               data-pj-label="Six Pillars Eyebrow"
@@ -1113,7 +1153,7 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
       {/* =====================================================================
           SHARED LIVE DIRECTORY + GRACE CHAPEL SPOTLIGHT BANNER
           ===================================================================== */}
-      <section id="elevate-dir" className="ev-reveal max-w-6xl mx-auto px-6 py-14">
+      <section id="elevate-dir" className="ev-reveal max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6">
           <div>
             <div className="text-[10px] font-black uppercase tracking-[0.35em] text-[#8B5CF6] mb-2" style={{ fontFamily: 'Outfit, sans-serif' }}>
@@ -1299,7 +1339,7 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
       {/* =====================================================================
           EVERY WAY INTO ELEVATE — LOREA "NOTHING HIDDEN, EVERY DOOR" DIRECTORY
           ===================================================================== */}
-      <section id="elevate-doors" className="ev-reveal max-w-6xl mx-auto px-6 py-14 border-t border-white/[0.08]">
+      <section id="elevate-doors" className="ev-reveal max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-14 border-t border-white/[0.08]">
         <div className="text-[10px] font-black uppercase tracking-[0.45em] text-[#FF8C00]" style={{ fontFamily: 'Outfit, sans-serif' }}>
           Every way into Plajah Elevate
         </div>
@@ -1395,7 +1435,7 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
       {/* =====================================================================
           FOUNDER / PASTOR CTA BANNER (Matches Small Business + Aria Prompt)
           ===================================================================== */}
-      <section className="ev-reveal max-w-6xl mx-auto px-6 pb-20">
+      <section className="ev-reveal max-w-6xl mx-auto px-4 sm:px-6 pb-12 sm:pb-20">
         <div
           className="relative overflow-hidden rounded-[36px] border border-white/15 px-8 sm:px-10 py-14 text-center text-white"
           style={{ background: 'linear-gradient(135deg,rgba(107,0,153,.36),rgba(212,0,85,.20) 55%,rgba(255,140,0,.14))' }}

@@ -72,12 +72,12 @@ export const DEFAULT_PERSONAS: Record<PersonaKey, PersonaConfig> = {
     brandColor: '#10B981',
     haloClass: 'shadow-[0_-4px_24px_rgba(16,185,129,0.25)] border-t border-emerald-500/30',
     gradient: 'linear-gradient(135deg, #059669 0%, #10B981 60%, #34D399 100%)',
-    defaultView: 'BUSINESS',
+    defaultView: 'BUSINESS_DASHBOARD',
     notificationCount: 5,
     tabs: [
-      { id: 'BUSINESS', label: 'Store', icon: Store },
-      { id: 'STORE', label: 'Merch', icon: ShoppingBag },
-      { id: 'CONTENT_HQ', label: 'Metrics', icon: BarChart3 },
+      { id: 'BUSINESS_DASHBOARD', label: 'Store', icon: Store },
+      { id: 'STORE_HUB', label: 'Merch', icon: ShoppingBag },
+      { id: 'CREATOR', label: 'Metrics', icon: BarChart3 },
       { id: 'CHAT', label: 'Staff', icon: MessageSquare },
       { id: 'FEED', label: 'Feed', icon: Rss },
     ],
@@ -103,21 +103,22 @@ export const DEFAULT_PERSONAS: Record<PersonaKey, PersonaConfig> = {
   },
   elevate: {
     id: 'elevate',
-    name: 'Elevate & Faith',
-    role: 'Community Member',
-    orgName: 'Sanctuary & Stage',
+    name: 'Elevate',
+    role: 'Member · Staff · Volunteer',
+    orgName: 'Churches, Charities, Cultural & Nonprofits',
     badge: 'Elevate',
-    brandColor: '#F59E0B',
-    haloClass: 'shadow-[0_-4px_24px_rgba(245,158,11,0.25)] border-t border-amber-500/30',
-    gradient: 'linear-gradient(135deg, #D97706 0%, #F59E0B 60%, #FDE68A 100%)',
-    defaultView: 'ELEVATE',
+    brandColor: '#6D3FD6',
+    haloClass: 'shadow-[0_-4px_24px_rgba(109,63,214,0.28)] border-t border-violet-500/30',
+    gradient: 'linear-gradient(135deg, #4C1D95 0%, #6D3FD6 60%, #C4B5FD 100%)',
+    defaultView: 'PLAJAH_ELEVATE',
     notificationCount: 0,
+    // ELEVATE_HUB is not a view: the bottom bar resolves it to the member's own org hub (ORG_HUB).
     tabs: [
-      { id: 'ELEVATE', label: 'Elevate', icon: Heart },
-      { id: 'LECTIO', label: 'Verse', icon: BookOpen },
-      { id: 'AMBO_HOME', label: 'Stage', icon: Flame },
-      { id: 'CHAT', label: 'Prayer', icon: MessageSquare },
-      { id: 'FEED', label: 'Praise', icon: Sparkles },
+      { id: 'PLAJAH_ELEVATE', label: 'Elevate', icon: Heart },
+      { id: 'ELEVATE_HUB', label: 'My Hub', icon: Users },
+      { id: 'BIBLE', label: 'Verse', icon: BookOpen },
+      { id: 'CHAT', label: 'Chat', icon: MessageSquare },
+      { id: 'FEED', label: 'Feed', icon: Sparkles },
     ],
   },
   creative: {
@@ -134,7 +135,7 @@ export const DEFAULT_PERSONAS: Record<PersonaKey, PersonaConfig> = {
     tabs: [
       { id: 'CREATOR_HUB', label: 'Studios', icon: Sparkles },
       { id: 'MUSIC', label: 'Melos', icon: Music2 },
-      { id: 'MOVIES', label: 'Fabula', icon: Film },
+      { id: 'FABULA', label: 'Fabula', icon: Film },
       { id: 'TELA', label: 'Tela', icon: FileText },
       { id: 'FEED', label: 'Network', icon: Users },
     ],
@@ -196,3 +197,16 @@ export function getActivePersonaConfig(userProfile?: any): PersonaConfig {
 
   return config;
 }
+
+/**
+ * View ids older builds wrote for persona tabs that the app never rendered (a blank page).
+ * A saved resume view or a stale tab tap is mapped onto the real view.
+ */
+export const LEGACY_PERSONA_VIEW_ALIASES: Record<string, string> = {
+  ELEVATE: 'PLAJAH_ELEVATE',
+  LECTIO: 'BIBLE',
+  AMBO_HOME: 'AMBO',
+  BUSINESS: 'BUSINESS_DASHBOARD',
+  CONTENT_HQ: 'CREATOR',
+  MOVIES: 'FABULA',
+};

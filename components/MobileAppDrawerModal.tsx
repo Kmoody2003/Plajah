@@ -32,16 +32,16 @@ interface DrawerModule {
 const MODULES: DrawerModule[] = [
   { label: 'Melos DAW', desc: 'Spatial Audio Studio', icon: Music2, color: '#8B5CF6', targetView: 'MUSIC' },
   { label: 'Chora Radio', desc: 'Lossless Streaming', icon: Radio, color: '#A855F7', targetView: 'RADIO' },
-  { label: 'Cine Studio', desc: 'Cinema & Video', icon: Film, color: '#EC4899', targetView: 'MOVIES' },
+  { label: 'Cine Studio', desc: 'Cinema & Video', icon: Film, color: '#EC4899', targetView: 'MOVIES_TV' },
   { label: 'Plajah Photos', desc: 'Visual Signal Archive', icon: Camera, color: '#00DAF3', targetView: 'GLOBAL_PHOTOS' },
   { label: 'Tela Canvas', desc: 'Docs & Whiteboards', icon: FileText, color: '#3B82F6', targetView: 'TELA' },
   { label: 'Horizon 3D', desc: 'Spatial Engine', icon: Box, color: '#06B6D4', targetView: 'WORLDS' },
-  { label: 'Plajah Verse', desc: 'Scripture Study', icon: BookOpen, color: '#F59E0B', targetView: 'LECTIO' },
-  { label: 'POS Terminal', desc: 'Storefront Register', icon: Store, color: '#10B981', targetView: 'BUSINESS' },
+  { label: 'Plajah Verse', desc: 'Scripture Study', icon: BookOpen, color: '#F59E0B', targetView: 'BIBLE' },
+  { label: 'POS Terminal', desc: 'Storefront Register', icon: Store, color: '#10B981', targetView: 'BUSINESS_DASHBOARD' },
   { label: 'Lorea Research', desc: 'Academic Archive', icon: GraduationCap, color: '#6366F1', targetView: 'ACADEMIA_HOME' },
   { label: 'Front Row', desc: 'Marquee Hub', icon: Sparkles, color: '#FF8C00', targetView: 'DASHBOARD' },
-  { label: 'Content HQ', desc: 'Social & Sales Stats', icon: BarChart3, color: '#14B8A6', targetView: 'CONTENT_HQ' },
-  { label: 'Plajah Stage', desc: 'Sanctuary Audio', icon: Flame, color: '#F97316', targetView: 'AMBO_HOME' },
+  { label: 'Content HQ', desc: 'Social & Sales Stats', icon: BarChart3, color: '#14B8A6', targetView: 'CREATOR' },
+  { label: 'Plajah Stage', desc: 'Sanctuary Audio', icon: Flame, color: '#F97316', targetView: 'AMBO' },
   { label: 'Preferences', desc: 'System & Theme', icon: Settings, color: '#94A3B8', targetView: 'SETTINGS' },
 ];
 

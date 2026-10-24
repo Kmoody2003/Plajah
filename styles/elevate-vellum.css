@@ -57,7 +57,7 @@
 .ev-scope .tracking-widest, .ev-scope .tracking-wider,
 .ev-scope [class*="tracking-[0."] { letter-spacing: 0.06em; }
 /* Nothing in the suite is set below 11px. */
-.ev-scope [class*="text-[8"], .ev-scope [class*="text-[9px"], .ev-scope [class*="text-[9."],
+.ev-scope [class*="text-[7"], .ev-scope [class*="text-[8"], .ev-scope [class*="text-[9px"], .ev-scope [class*="text-[9."],
 .ev-scope [class*="text-[10px"], .ev-scope [class*="text-[10."] { font-size: 11px; }
 .ev-scope .font-serif { font-family: var(--ev-scripture); }
 
