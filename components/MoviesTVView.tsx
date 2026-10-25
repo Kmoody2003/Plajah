@@ -820,42 +820,43 @@ const HomeView: React.FC<{
         )}
 
         {/* ── CURATED HALLOWEEN SHOWCASE BANNER & RAIL ───────────────────────── */}
-        <section className="relative rounded-3xl overflow-hidden border border-orange-500/30 bg-gradient-to-br from-[#2B0E0B] via-[#190D24] to-[#131314] p-6 sm:p-10 shadow-[0_25px_70px_rgba(234,88,12,0.14)]">
+        <section className="relative rounded-3xl overflow-hidden border border-orange-500/30 bg-gradient-to-br from-[#2B0E0B] via-[#190D24] to-[#131314] p-4 sm:p-10 shadow-[0_25px_70px_rgba(234,88,12,0.14)]">
           <div className="absolute -right-12 -top-12 w-72 h-72 rounded-full bg-orange-500/10 blur-3xl pointer-events-none" />
-          <div className="flex flex-col lg:flex-row gap-8 items-start lg:items-center justify-between relative z-10">
+          <div className="flex flex-col lg:flex-row gap-5 sm:gap-8 items-start lg:items-center justify-between relative z-10">
             <div className="space-y-3 max-w-2xl">
               <div className="flex items-center gap-2.5 flex-wrap">
                 <span className="px-3 py-1 rounded-full bg-orange-500/20 text-orange-300 text-[9px] font-black uppercase tracking-[0.25em] border border-orange-500/40 flex items-center gap-1.5">
-                  <Ghost size={12} /> Halloween Hero Feature · Featured Selection
+                  <Ghost size={12} /> Halloween Hero Feature<span className="hidden sm:inline"> · Featured Selection</span>
                 </span>
-                <span className="text-[9px] font-black uppercase tracking-widest text-white/45">
+                <span className="hidden sm:inline text-[9px] font-black uppercase tracking-widest text-white/45">
                   Directed by Brian James Gage · Planet Ween Universe + 12 Restored Classics
                 </span>
               </div>
               <h3 className="text-2xl sm:text-4xl md:text-5xl font-black uppercase tracking-tight text-white leading-[0.95]">
                 <span className="text-orange-400">Pumpkin Patch</span> &amp; The Halloween Vault
               </h3>
-              <p className="text-xs sm:text-sm text-white/65 leading-relaxed">
+              <p className="text-[13px] sm:text-sm text-white/65 leading-relaxed line-clamp-3 sm:line-clamp-none">
                 Headlined by Brian James Gage’s Halloween opus <span className="text-white font-semibold">Pumpkin Patch</span>—where a pumpkin-headed vigilante storms prison colony District 13 to rescue the President of Halloween—alongside 12 restored cinema nightmares (<span className="text-white font-semibold">Night of the Living Dead</span>, <span className="text-white font-semibold">House on Haunted Hill</span>, <span className="text-white font-semibold">Nosferatu</span> &amp; more).
               </p>
-              <div className="flex items-center gap-3 pt-2 flex-wrap">
+              {/* Phone: full-width Watch, then Vault + Ravencrest side by side, Share full width */}
+              <div className="grid grid-cols-2 gap-2 [&>div:last-child]:col-span-2 sm:flex items-center sm:gap-3 pt-2 sm:flex-wrap w-full sm:w-auto">
                 <button
                   onClick={() => onSelectMovie(pumpkinPatchHero)}
-                  className="h-11 px-6 bg-orange-500 hover:bg-orange-400 text-[#131314] font-black text-[10px] uppercase tracking-widest rounded-full flex items-center gap-2 transition-all hover:scale-105 shadow-lg cursor-pointer"
+                  className="col-span-2 h-12 sm:h-11 px-6 bg-orange-500 hover:bg-orange-400 text-[#131314] font-black text-[11px] sm:text-[10px] uppercase tracking-widest rounded-full flex items-center justify-center gap-2 transition-all hover:scale-105 shadow-lg cursor-pointer"
                 >
                   <Play size={14} fill="currentColor" /> Watch Pumpkin Patch
                 </button>
                 <button
                   onClick={() => setCurrentSubView('HALLOWEEN')}
-                  className="h-11 px-5 bg-white/10 hover:bg-white/15 border border-orange-400/35 text-orange-200 font-black text-[10px] uppercase tracking-widest rounded-full flex items-center gap-2 transition-all cursor-pointer"
+                  className="h-12 sm:h-11 px-3 sm:px-5 bg-white/10 hover:bg-white/15 border border-orange-400/35 text-orange-200 font-black text-[10px] uppercase tracking-wider sm:tracking-widest rounded-2xl sm:rounded-full flex items-center justify-center gap-2 transition-all cursor-pointer"
                 >
-                  <Ghost size={14} /> Halloween Vault &amp; Live Chat Room
+                  <Ghost size={14} /> <span className="sm:hidden">Vault &amp; Chat</span><span className="hidden sm:inline">Halloween Vault &amp; Live Chat Room</span>
                 </button>
                 <button
                   onClick={() => setCurrentSubView('HAUNTED_EXHIBIT')}
-                  className="h-11 px-5 bg-gradient-to-r from-purple-950/90 via-stone-900 to-orange-950/90 hover:from-purple-900 hover:to-orange-900 border border-amber-400/45 text-amber-200 font-black text-[10px] uppercase tracking-widest rounded-full flex items-center gap-2 transition-all hover:scale-105 shadow-lg cursor-pointer"
+                  className="h-12 sm:h-11 px-3 sm:px-5 bg-gradient-to-r from-purple-950/90 via-stone-900 to-orange-950/90 hover:from-purple-900 hover:to-orange-900 border border-amber-400/45 text-amber-200 font-black text-[10px] uppercase tracking-wider sm:tracking-widest rounded-2xl sm:rounded-full flex items-center justify-center gap-2 transition-all hover:scale-105 shadow-lg cursor-pointer"
                 >
-                  <Flame size={14} className="text-orange-400" /> 🏰 Explore Ravencrest
+                  <Flame size={14} className="hidden sm:block text-orange-400" /> 🏰 <span className="sm:hidden">Ravencrest</span><span className="hidden sm:inline">Explore Ravencrest</span>
                 </button>
                 <ShareButton
                   title={`Halloween Curation · Pumpkin Patch & ${CURATED_HALLOWEEN_FILMS.length} Classics`}
@@ -886,7 +887,7 @@ const HomeView: React.FC<{
                       media: img ? [{ type: 'PHOTO' as any, url: img, title: `🎃 Halloween Curation — Pumpkin Patch & ${CURATED_HALLOWEEN_FILMS.length} Classics` }] : undefined,
                     } as any);
                   }}
-                  className="h-11 px-5 bg-white/5 hover:bg-white/10 border border-white/15 text-white/80 font-black text-[10px] uppercase tracking-widest rounded-full flex items-center gap-2 transition-all cursor-pointer"
+                  className="w-full sm:w-auto h-12 sm:h-11 px-5 bg-white/5 hover:bg-white/10 border border-white/15 text-white/80 font-black text-[10px] uppercase tracking-widest rounded-full flex items-center justify-center gap-2 transition-all cursor-pointer"
                 >
                   <Share2 size={13} /> Share Halloween Selection
                 </ShareButton>
@@ -894,10 +895,11 @@ const HomeView: React.FC<{
             </div>
 
             {/* Highlight poster trio: Pumpkin Patch Hero + 2 Classics */}
-            <div className="flex gap-3 shrink-0 self-center">
+            {/* Phone: an even 3-up poster row above the copy; sm+: the original trio */}
+            <div className="order-first lg:order-none grid grid-cols-3 gap-2.5 w-full sm:flex sm:gap-3 sm:w-auto shrink-0 self-center">
               <div
                 onClick={() => onSelectMovie(pumpkinPatchHero)}
-                className="w-28 sm:w-36 aspect-[2/3] rounded-2xl overflow-hidden border-2 border-orange-400/70 relative group cursor-pointer shadow-2xl hover:scale-105 transition-all"
+                className="w-full sm:w-36 aspect-[2/3] rounded-2xl overflow-hidden border-2 border-orange-400/70 relative group cursor-pointer shadow-2xl hover:scale-105 transition-all"
               >
                 <img src={pumpkinPatchHero.coverImage} alt={pumpkinPatchHero.title} className="w-full h-full object-cover" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
@@ -913,7 +915,7 @@ const HomeView: React.FC<{
                 <div
                   key={`hal-banner-${film.identifier}`}
                   onClick={() => onSelectArchiveItem(film)}
-                  className="w-28 sm:w-36 aspect-[2/3] rounded-2xl overflow-hidden border border-orange-400/25 relative group cursor-pointer shadow-2xl hover:scale-105 transition-all"
+                  className="w-full sm:w-36 aspect-[2/3] rounded-2xl overflow-hidden border border-orange-400/25 relative group cursor-pointer shadow-2xl hover:scale-105 transition-all"
                 >
                   <img src={film.thumbnailUrl} alt={film.title} referrerPolicy="no-referrer" className="w-full h-full object-cover" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
@@ -927,16 +929,16 @@ const HomeView: React.FC<{
           </div>
 
           {/* Horizontal Shareable Halloween Rail inside the showcase */}
-          <div className="mt-8 pt-6 border-t border-white/10 relative z-10">
-            <div className="flex items-center justify-between mb-4">
-              <p className="text-[9px] font-black uppercase tracking-[0.28em] text-orange-300/90">
-                🎃 Curated Halloween Lineup · Headlined by Pumpkin Patch
+          <div className="mt-6 sm:mt-8 pt-5 sm:pt-6 border-t border-white/10 relative z-10">
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <p className="text-[9px] font-black uppercase tracking-[0.2em] sm:tracking-[0.28em] text-orange-300/90 min-w-0">
+                🎃 Curated Halloween Lineup<span className="hidden sm:inline"> · Headlined by Pumpkin Patch</span>
               </p>
               <button
                 onClick={() => setCurrentSubView('HALLOWEEN')}
                 className="text-[9px] font-black uppercase tracking-widest text-orange-300 hover:underline flex items-center gap-1 cursor-pointer"
               >
-                Double Features &amp; Curator Notes <ChevronRight size={12} />
+                <span className="sm:hidden">See all</span><span className="hidden sm:inline">Double Features &amp; Curator Notes</span> <ChevronRight size={12} />
               </button>
             </div>
             <div className="flex gap-5 overflow-x-auto no-scrollbar pb-2">
@@ -1791,6 +1793,7 @@ const HalloweenShowcaseView: React.FC<{
   };
 
   const isHeroInWatchlist = watchlist.some(w => w.id === pumpkinPatchHero.id);
+  const [heroSynopsisOpen, setHeroSynopsisOpen] = useState(false);
 
   const [selectedShelfId, setSelectedShelfId] = useState<string>(() => {
     try {
@@ -1851,34 +1854,35 @@ const HalloweenShowcaseView: React.FC<{
       {/* Spooky Halloween Atmospheric Top Marquee Bar */}
       <div className="border-b border-orange-500/30 bg-gradient-to-r from-orange-950/80 via-[#1a0926] to-orange-950/80 px-4 py-2.5">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2 text-xs">
-          <div className="flex items-center gap-2.5">
-            <span className="text-base">🎃🕸️🦇</span>
-            <span className="font-black uppercase tracking-widest text-orange-300 text-[10px]">
-              Halloween Curation Vault · Midnight Coven Edition
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span className="text-base shrink-0">🎃🕸️🦇</span>
+            <span className="font-black uppercase tracking-widest text-orange-300 text-[10px] truncate">
+              Halloween Curation Vault<span className="hidden sm:inline"> · Midnight Coven Edition</span>
             </span>
             <span className="hidden md:inline text-[11px] text-amber-200/70">
               Live Persistent Chat &amp; Fan Room · 6 Realistic Monster Face Filters · Found-Footage Night Beam · Ravencrest, the playable 3D castle
             </span>
           </div>
-          <div className="flex items-center gap-2">
+          {/* Phone: two equal thumb-sized chips on one row; sm+: the original pills */}
+          <div className="grid grid-cols-2 sm:flex items-center gap-2 w-full sm:w-auto">
             <a
               href="#halloween-vault-live-room"
-              className="px-3 py-1 rounded-full bg-orange-500/20 hover:bg-orange-500/35 border border-orange-400/50 text-orange-200 text-[10px] font-black uppercase tracking-wider transition"
+              className="min-h-[44px] sm:min-h-0 px-3 py-1 rounded-full bg-orange-500/20 hover:bg-orange-500/35 border border-orange-400/50 text-orange-200 text-[10px] font-black uppercase tracking-wider transition flex items-center justify-center text-center"
             >
-              💬 Jump to Vault Chat &amp; Face Filters
+              💬 <span className="sm:hidden ml-1">Chat &amp; Filters</span><span className="hidden sm:inline ml-1">Jump to Vault Chat &amp; Face Filters</span>
             </a>
             <button
               onClick={onOpenHauntedExhibition}
               className="px-3 py-1 rounded-full bg-emerald-500/20 hover:bg-emerald-500/35 border border-emerald-400/50 text-emerald-200 text-[10px] font-black uppercase tracking-wider transition cursor-pointer"
             >
-              🏰 Explore Ravencrest →
+              🏰 <span className="sm:hidden">Ravencrest →</span><span className="hidden sm:inline">Explore Ravencrest →</span>
             </button>
           </div>
         </div>
       </div>
 
       {/* Halloween Hero Feature: Pumpkin Patch */}
-      <section className="relative overflow-hidden border-b border-orange-500/30 bg-[#0d0614] py-14 sm:py-20 px-4 sm:px-8 md:px-14">
+      <section className="relative overflow-hidden border-b border-orange-500/30 bg-[#0d0614] py-6 sm:py-20 px-4 sm:px-8 md:px-14">
         {/* Cinematic backdrop */}
         <div className="absolute inset-0 pointer-events-none">
           <img
@@ -1892,55 +1896,85 @@ const HalloweenShowcaseView: React.FC<{
         <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-orange-500/20 blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 left-1/3 w-80 h-80 rounded-full bg-purple-600/15 blur-3xl pointer-events-none" />
 
-        <div className="max-w-7xl mx-auto relative z-10 flex flex-col lg:flex-row gap-10 items-start lg:items-center justify-between">
-          <div className="space-y-4 max-w-2xl">
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <span className="px-3 py-1 rounded-full bg-orange-500 text-black text-[9px] font-black uppercase tracking-[0.22em] flex items-center gap-1.5 shadow-lg">
-                <Ghost size={12} /> Halloween Hero Feature · Featured Selection
+        <div className="max-w-7xl mx-auto relative z-10 flex flex-col lg:flex-row gap-6 sm:gap-10 items-start lg:items-center justify-between">
+          <div className="space-y-4 max-w-2xl w-full">
+            {/* Phone: one swipeable line of badges; sm+: wraps as before */}
+            <div className="flex items-center gap-2.5 overflow-x-auto no-scrollbar sm:flex-wrap sm:overflow-visible -mx-4 px-4 sm:mx-0 sm:px-0">
+              <span className="shrink-0 px-3 py-1 rounded-full bg-orange-500 text-black text-[9px] font-black uppercase tracking-[0.22em] flex items-center gap-1.5 shadow-lg">
+                <Ghost size={12} /> Halloween Hero Feature<span className="hidden sm:inline"> · Featured Selection</span>
               </span>
-              <span className="px-3 py-1 rounded-full bg-white/10 border border-orange-400/30 text-orange-200 text-[9px] font-black uppercase tracking-widest">
+              <span className="shrink-0 px-3 py-1 rounded-full bg-white/10 border border-orange-400/30 text-orange-200 text-[9px] font-black uppercase tracking-widest">
                 Planet Ween Universe · District 13
               </span>
-              <span className="text-[10px] font-black uppercase tracking-widest text-white/50">
+              <span className="hidden sm:inline text-[10px] font-black uppercase tracking-widest text-white/50">
                 2025 · 58 min · Action / Horror / Satire
               </span>
             </div>
 
-            <h1 className="text-4xl sm:text-6xl md:text-7xl font-black uppercase tracking-tight leading-[0.9] text-white drop-shadow-[0_4px_24px_rgba(249,115,22,0.3)]">
-              Pumpkin <span className="text-orange-400">Patch</span>
-            </h1>
+            {/* Phone: poster beside the title, so the key art shows above the fold */}
+            <div className="flex items-end gap-4 sm:block">
+              <button
+                type="button"
+                onClick={() => onSelectMovie(pumpkinPatchHero)}
+                aria-label="Watch Pumpkin Patch"
+                className="sm:hidden relative w-28 shrink-0 aspect-[2/3] rounded-xl overflow-hidden border-2 border-orange-500/60 shadow-[0_12px_40px_rgba(0,0,0,0.8)]"
+              >
+                <img src={pumpkinPatchHero.coverImage} alt="" className="w-full h-full object-cover" />
+                <span className="absolute bottom-1.5 right-1.5 w-8 h-8 rounded-full bg-orange-500 text-black flex items-center justify-center shadow-lg">
+                  <Play size={14} fill="currentColor" className="ml-0.5" />
+                </span>
+              </button>
+              <div className="min-w-0 space-y-2 sm:space-y-4">
+                <h1 className="text-[2.6rem] sm:text-6xl md:text-7xl font-black uppercase tracking-tight leading-[0.9] text-white drop-shadow-[0_4px_24px_rgba(249,115,22,0.3)]">
+                  Pumpkin <span className="text-orange-400">Patch</span>
+                </h1>
+                <p className="text-[11px] sm:text-xs font-black uppercase tracking-[0.18em] sm:tracking-[0.22em] text-[#FFB68D]">
+                  Written &amp; Directed by Brian James Gage
+                </p>
+                <p className="sm:hidden text-[10px] font-black uppercase tracking-widest text-white/50">
+                  2025 · 58 min · Action / Horror / Satire
+                </p>
+              </div>
+            </div>
 
-            <p className="text-xs font-black uppercase tracking-[0.22em] text-[#FFB68D]">
-              Written &amp; Directed by Brian James Gage
-            </p>
+            <div>
+              <p className={`text-sm sm:text-base text-white/75 leading-relaxed ${heroSynopsisOpen ? '' : 'line-clamp-4 sm:line-clamp-none'}`}>
+                When the West Hallow — one of the Four Guardians of Planet Ween — attacks Scare Force One, President Tepes crash-lands inside the dreaded prison colony District 13 carrying a mysterious hexagonal case. Commander Ichabod Crane, Special Agent Katrina Van Tassle, and cybernetic officer Robo Bones of the Monster Intelligence Agency enlist a bar-fighting vigilante with a pumpkin for a head and nothing left to lose to break in and save Halloween.
+              </p>
+              <button
+                type="button"
+                onClick={() => setHeroSynopsisOpen(v => !v)}
+                className="sm:hidden -my-2 px-0 text-[11px] font-black uppercase tracking-wider text-orange-300"
+              >
+                {heroSynopsisOpen ? 'Less' : 'More'}
+              </button>
+            </div>
 
-            <p className="text-sm sm:text-base text-white/75 leading-relaxed">
-              When the West Hallow — one of the Four Guardians of Planet Ween — attacks Scare Force One, President Tepes crash-lands inside the dreaded prison colony District 13 carrying a mysterious hexagonal case. Commander Ichabod Crane, Special Agent Katrina Van Tassle, and cybernetic officer Robo Bones of the Monster Intelligence Agency enlist a bar-fighting vigilante with a pumpkin for a head and nothing left to lose to break in and save Halloween.
-            </p>
-
-            <div className="flex items-center gap-3 pt-2 flex-wrap">
+            {/* Phone: full-width primary actions, then a 3-up row of secondaries; sm+: one wrapping row */}
+            <div className="grid grid-cols-3 gap-2 sm:flex items-center sm:gap-3 pt-1 sm:pt-2 sm:flex-wrap">
               <button
                 onClick={() => onSelectMovie(pumpkinPatchHero)}
-                className="h-12 px-8 bg-orange-500 hover:bg-orange-400 text-[#131314] font-black text-xs uppercase tracking-widest rounded-full flex items-center gap-2.5 transition-all hover:scale-105 shadow-[0_0_25px_rgba(249,115,22,0.45)] cursor-pointer"
+                className="col-span-3 h-12 px-8 bg-orange-500 hover:bg-orange-400 text-[#131314] font-black text-xs uppercase tracking-widest rounded-full flex items-center justify-center gap-2.5 transition-all hover:scale-105 shadow-[0_0_25px_rgba(249,115,22,0.45)] cursor-pointer"
               >
                 <Play size={16} fill="currentColor" /> Watch Pumpkin Patch
               </button>
               <button
                 onClick={onOpenHauntedExhibition}
-                className="h-12 px-6 bg-gradient-to-r from-emerald-600 via-teal-600 to-orange-600 hover:from-emerald-500 hover:to-orange-500 text-white font-black text-xs uppercase tracking-widest rounded-full flex items-center gap-2 transition-all hover:scale-105 shadow-[0_0_25px_rgba(16,185,129,0.35)] cursor-pointer"
+                className="col-span-3 h-12 px-6 bg-gradient-to-r from-emerald-600 via-teal-600 to-orange-600 hover:from-emerald-500 hover:to-orange-500 text-white font-black text-xs uppercase tracking-widest rounded-full flex items-center justify-center gap-2 transition-all hover:scale-105 shadow-[0_0_25px_rgba(16,185,129,0.35)] cursor-pointer"
               >
                 <span>🏰</span> Explore Ravencrest
               </button>
               <button
                 onClick={() => onToggleWatchlist(pumpkinPatchHero)}
-                className={`h-12 px-5 rounded-full font-black text-xs uppercase tracking-widest flex items-center gap-2 border transition-all cursor-pointer ${
+                className={`h-12 px-2 sm:px-5 rounded-2xl sm:rounded-full font-black text-[10px] sm:text-xs uppercase tracking-wider sm:tracking-widest flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 border transition-all cursor-pointer ${
                   isHeroInWatchlist
                     ? 'bg-[#D0BCFF]/20 border-[#D0BCFF]/50 text-[#D0BCFF]'
                     : 'bg-white/10 hover:bg-white/15 border-white/20 text-white'
                 }`}
               >
                 {isHeroInWatchlist ? <Check size={15} /> : <Bookmark size={15} />}
-                {isHeroInWatchlist ? 'In Watchlist' : '+ Watchlist'}
+                <span className="sm:hidden">{isHeroInWatchlist ? 'Saved' : 'Watchlist'}</span>
+                <span className="hidden sm:inline">{isHeroInWatchlist ? 'In Watchlist' : '+ Watchlist'}</span>
               </button>
               <ShareButton
                 title="Pumpkin Patch · Directed by Brian James Gage"
@@ -1971,15 +2005,15 @@ const HalloweenShowcaseView: React.FC<{
                   } as any);
                   onShareToast('Shared "Pumpkin Patch"!');
                 }}
-                className="h-12 px-5 bg-white/10 hover:bg-white/15 border border-orange-400/35 text-orange-200 font-black text-xs uppercase tracking-widest rounded-full flex items-center gap-2 transition-all cursor-pointer"
+                className="w-full sm:w-auto h-12 px-2 sm:px-5 bg-white/10 hover:bg-white/15 border border-orange-400/35 text-orange-200 font-black text-[10px] sm:text-xs uppercase tracking-wider sm:tracking-widest rounded-2xl sm:rounded-full flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 transition-all cursor-pointer"
               >
-                <Share2 size={14} /> Share Film
+                <Share2 size={14} /> <span className="sm:hidden">Share</span><span className="hidden sm:inline">Share Film</span>
               </ShareButton>
               <button
                 onClick={handleRandomFright}
-                className="h-12 px-5 bg-white/5 hover:bg-white/10 border border-white/15 text-white/75 hover:text-white font-black text-xs uppercase tracking-widest rounded-full flex items-center gap-2 transition-all cursor-pointer"
+                className="h-12 px-2 sm:px-5 bg-white/5 hover:bg-white/10 border border-white/15 text-white/75 hover:text-white font-black text-[10px] sm:text-xs uppercase tracking-wider sm:tracking-widest rounded-2xl sm:rounded-full flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 transition-all cursor-pointer"
               >
-                <Shuffle size={14} /> Surprise Classic
+                <Shuffle size={14} /> <span className="sm:hidden">Surprise</span><span className="hidden sm:inline">Surprise Classic</span>
               </button>
             </div>
           </div>
@@ -1988,7 +2022,7 @@ const HalloweenShowcaseView: React.FC<{
           <div className="flex flex-col sm:flex-row lg:flex-col xl:flex-row items-center gap-6 shrink-0 w-full lg:w-auto">
             <div
               onClick={() => onSelectMovie(pumpkinPatchHero)}
-              className="w-48 sm:w-56 aspect-[2/3] rounded-2xl overflow-hidden border-2 border-orange-500/60 shadow-[0_20px_60px_rgba(0,0,0,0.8)] relative group cursor-pointer shrink-0"
+              className="hidden sm:block w-48 sm:w-56 aspect-[2/3] rounded-2xl overflow-hidden border-2 border-orange-500/60 shadow-[0_20px_60px_rgba(0,0,0,0.8)] relative group cursor-pointer shrink-0"
             >
               <img
                 src={pumpkinPatchHero.coverImage}
@@ -2002,7 +2036,7 @@ const HalloweenShowcaseView: React.FC<{
               </div>
             </div>
 
-            <div className="w-full sm:w-72 rounded-2xl bg-black/55 border border-orange-500/30 p-5 backdrop-blur-md space-y-3">
+            <div className="w-full sm:w-72 rounded-2xl bg-black/55 border border-orange-500/30 p-4 sm:p-5 backdrop-blur-md space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-[9px] font-black uppercase tracking-[0.25em] text-orange-300">Shareable Halloween Vault</span>
                 <Flame size={14} className="text-orange-400" />
@@ -2010,7 +2044,7 @@ const HalloweenShowcaseView: React.FC<{
               <p className="text-xs text-white/60 leading-relaxed">
                 Share the entire Halloween curation — featuring <span className="text-white font-semibold">Pumpkin Patch</span> &amp; {CURATED_HALLOWEEN_FILMS.length} restored horror classics — with a rich preview card.
               </p>
-              <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-2">
+              <div className="hidden sm:flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-2">
                 <span className="text-[10px] font-mono text-white/70 truncate flex-1">
                   {halloweenShareUrl}
                 </span>
@@ -2025,7 +2059,7 @@ const HalloweenShowcaseView: React.FC<{
                 ctaText="🎃 EXPLORE HALLOWEEN CURATION"
                 plajahLabel="Share Halloween Curation"
                 onPostToPlajah={() => handlePostHalloweenCollectionToPlajah()}
-                className="w-full py-2.5 px-4 rounded-xl bg-orange-500 hover:bg-orange-400 text-black font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg shadow-orange-500/20"
+                className="w-full min-h-[44px] py-2.5 px-4 rounded-xl bg-orange-500 hover:bg-orange-400 text-black font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg shadow-orange-500/20"
               >
                 <Share2 size={13} /> Share Halloween Curation
               </ShareButton>
@@ -2034,16 +2068,16 @@ const HalloweenShowcaseView: React.FC<{
         </div>
       </section>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-12 pt-10 space-y-16">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-12 pt-6 sm:pt-10 space-y-12 sm:space-y-16">
         {/* ── RAVENCREST: THE PLAYABLE 3D CASTLE ── */}
-        <section className="relative rounded-3xl overflow-hidden border-2 border-orange-500/40 bg-gradient-to-r from-[#1a0b25] via-[#0e171f] to-[#240e08] p-6 sm:p-8 shadow-[0_0_60px_rgba(249,115,22,0.18)]">
+        <section className="relative rounded-3xl overflow-hidden border-2 border-orange-500/40 bg-gradient-to-r from-[#1a0b25] via-[#0e171f] to-[#240e08] p-4 sm:p-8 shadow-[0_0_60px_rgba(249,115,22,0.18)]">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
             <div className="lg:col-span-7 space-y-3">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/50 text-emerald-300 text-[10px] font-black uppercase tracking-widest">
                   ✨ Playable 3D Adventure
                 </span>
-                <span className="px-2.5 py-0.5 rounded-full bg-orange-500/20 border border-orange-400/40 text-orange-300 text-[10px] font-mono">
+                <span className="hidden sm:inline px-2.5 py-0.5 rounded-full bg-orange-500/20 border border-orange-400/40 text-orange-300 text-[10px] font-mono">
                   Powered by Story Intelligence + 26-Page Graphic Novel + Stills
                 </span>
               </div>
@@ -2053,26 +2087,27 @@ const HalloweenShowcaseView: React.FC<{
               <p className="text-xs sm:text-sm text-stone-300 leading-relaxed">
                 Play as <span className="text-orange-300 font-semibold">Jack or Elise</span> down the haunted road to Castle Ravencrest: fight through the horde, survive the <span className="text-amber-300 font-semibold">troll on the bridge</span> with Miriam and her flying monkeys at your back, and take on <span className="text-orange-400 font-semibold">Dracula</span> alongside Pumpkin Patch. The curated Halloween films hang on the billboards and castle paintings; click one to watch it.
               </p>
-              <div className="flex flex-wrap items-center gap-3 pt-2">
+              <div className="grid grid-cols-1 sm:flex sm:flex-wrap items-center gap-2.5 sm:gap-3 pt-2">
                 <button
                   onClick={onOpenHauntedExhibition}
-                  className="px-6 py-3 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-black font-black text-xs uppercase tracking-widest shadow-xl flex items-center gap-2 transition transform hover:scale-105 cursor-pointer"
+                  className="min-h-[48px] px-6 py-3 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-black font-black text-xs uppercase tracking-widest shadow-xl flex items-center justify-center gap-2 transition transform hover:scale-105 cursor-pointer"
                 >
                   <span>🏰</span> Explore Ravencrest
                 </button>
                 <a
                   href="#halloween-vault-live-room"
-                  className="px-5 py-3 rounded-2xl bg-white/10 hover:bg-white/15 border border-orange-400/40 text-orange-200 font-black text-xs uppercase tracking-widest transition"
+                  className="min-h-[48px] px-5 py-3 rounded-2xl bg-white/10 hover:bg-white/15 border border-orange-400/40 text-orange-200 font-black text-xs uppercase tracking-widest transition flex items-center justify-center text-center"
                 >
-                  🎭 Open Live Chat &amp; Monster Face Filters
+                  🎭 <span className="sm:hidden ml-1">Live Chat &amp; Face Filters</span><span className="hidden sm:inline ml-1">Open Live Chat &amp; Monster Face Filters</span>
                 </a>
               </div>
             </div>
 
-            <div className="lg:col-span-5 grid grid-cols-3 gap-2.5">
+            {/* Phone: a swipeable rail of stills that leads the card; lg: the 3-up grid beside the copy */}
+            <div className="order-first sm:order-none lg:col-span-5 flex overflow-x-auto snap-x snap-mandatory no-scrollbar gap-2.5 -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-3 sm:overflow-visible">
               <div
                 onClick={onOpenHauntedExhibition}
-                className="rounded-xl overflow-hidden border border-emerald-500/40 bg-black/60 cursor-pointer group relative h-36"
+                className="rounded-xl overflow-hidden border border-emerald-500/40 bg-black/60 cursor-pointer group relative w-[62%] shrink-0 snap-start h-44 sm:w-auto sm:h-36"
               >
                 <img
                   src="/generated/comics/pumpkin_patch_v4/char_3_portrait.jpg"
@@ -2080,13 +2115,13 @@ const HalloweenShowcaseView: React.FC<{
                   className="w-full h-full object-cover group-hover:scale-110 transition"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
-                <div className="absolute bottom-1.5 inset-x-1.5 text-[9px] font-bold text-emerald-300 leading-tight">
+                <div className="absolute bottom-2 inset-x-2 sm:bottom-1.5 sm:inset-x-1.5 text-[11px] sm:text-[9px] font-bold text-emerald-300 leading-tight">
                   🧙‍♀️ Miriam + Flying Monkeys Sky Flyover
                 </div>
               </div>
               <div
                 onClick={onOpenHauntedExhibition}
-                className="rounded-xl overflow-hidden border border-orange-500/50 bg-black/60 cursor-pointer group relative h-36"
+                className="rounded-xl overflow-hidden border border-orange-500/50 bg-black/60 cursor-pointer group relative w-[62%] shrink-0 snap-start h-44 sm:w-auto sm:h-36"
               >
                 <img
                   src="/covers/halloween/pumpkin-patch-still.jpg"
@@ -2094,13 +2129,13 @@ const HalloweenShowcaseView: React.FC<{
                   className="w-full h-full object-cover group-hover:scale-110 transition"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
-                <div className="absolute bottom-1.5 inset-x-1.5 text-[9px] font-bold text-orange-300 leading-tight">
+                <div className="absolute bottom-2 inset-x-2 sm:bottom-1.5 sm:inset-x-1.5 text-[11px] sm:text-[9px] font-bold text-orange-300 leading-tight">
                   ⚔️ Pumpkin Patch Dual Blades in the Road
                 </div>
               </div>
               <div
                 onClick={onOpenHauntedExhibition}
-                className="rounded-xl overflow-hidden border border-purple-500/40 bg-black/60 cursor-pointer group relative h-36"
+                className="rounded-xl overflow-hidden border border-purple-500/40 bg-black/60 cursor-pointer group relative w-[62%] shrink-0 snap-start h-44 sm:w-auto sm:h-36"
               >
                 <img
                   src="/generated/comics/pumpkin_patch_v4/panel_014.jpg"
@@ -2108,7 +2143,7 @@ const HalloweenShowcaseView: React.FC<{
                   className="w-full h-full object-cover group-hover:scale-110 transition"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
-                <div className="absolute bottom-1.5 inset-x-1.5 text-[9px] font-bold text-purple-200 leading-tight">
+                <div className="absolute bottom-2 inset-x-2 sm:bottom-1.5 sm:inset-x-1.5 text-[11px] sm:text-[9px] font-bold text-purple-200 leading-tight">
                   🪧 Movie Road Signs &amp; Dilapidated Billboards
                 </div>
               </div>
@@ -2131,14 +2166,15 @@ const HalloweenShowcaseView: React.FC<{
               <p className="text-[9px] font-black uppercase tracking-[0.3em] text-orange-400 mb-1.5">Curator Pairings</p>
               <h2 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-white">Halloween Double Features</h2>
             </div>
-            <p className="text-xs text-white/40">Four themed twin-bills programmed for a full evening of terror</p>
+            <p className="text-xs text-white/40"><span className="md:hidden">Swipe through f</span><span className="hidden md:inline">F</span>our themed twin-bills programmed for a full evening of terror</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Phone: swipe between bills; md+: the 2-up grid */}
+          <div className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar gap-4 -mx-4 px-4 sm:-mx-6 sm:px-6 md:mx-0 md:px-0 md:grid md:overflow-visible md:grid-cols-2 md:gap-6">
             {HALLOWEEN_DOUBLE_FEATURES.map(df => (
               <div
                 key={df.id}
-                className="rounded-2xl border border-white/10 hover:border-orange-500/40 bg-gradient-to-b from-white/[0.04] to-white/[0.01] p-5 flex flex-col justify-between transition-all"
+                className="w-[86%] shrink-0 snap-center md:w-auto rounded-2xl border border-white/10 hover:border-orange-500/40 bg-gradient-to-b from-white/[0.04] to-white/[0.01] p-4 sm:p-5 flex flex-col justify-between transition-all"
               >
                 <div>
                   <div className="flex items-center justify-between gap-2 mb-3">
@@ -2215,10 +2251,11 @@ const HalloweenShowcaseView: React.FC<{
               </h2>
             </div>
 
-            <div className="flex gap-2 flex-wrap">
+            {/* Phone: one swipeable row of shelves instead of four wrapped lines */}
+            <div className="flex gap-2 w-full sm:w-auto overflow-x-auto no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap sm:overflow-visible">
               <button
                 onClick={() => setSelectedShelfId('all')}
-                className={`px-3.5 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all cursor-pointer ${
+                className={`shrink-0 whitespace-nowrap px-3.5 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all cursor-pointer ${
                   selectedShelfId === 'all'
                     ? 'bg-orange-500 text-black border-orange-400'
                     : 'bg-white/5 text-white/60 border-white/10 hover:text-white'
@@ -2230,7 +2267,7 @@ const HalloweenShowcaseView: React.FC<{
                 <button
                   key={sec.id}
                   onClick={() => setSelectedShelfId(sec.id)}
-                  className={`px-3.5 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all cursor-pointer ${
+                  className={`shrink-0 whitespace-nowrap px-3.5 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all cursor-pointer ${
                     selectedShelfId === sec.id
                       ? 'bg-orange-500 text-black border-orange-400'
                       : 'bg-white/5 text-white/60 border-white/10 hover:text-white'
@@ -2242,7 +2279,8 @@ const HalloweenShowcaseView: React.FC<{
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* Phone: a swipeable rail of film cards; md+: the grid */}
+          <div className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar gap-4 -mx-4 px-4 sm:-mx-6 sm:px-6 md:mx-0 md:px-0 md:grid md:overflow-visible md:grid-cols-2 lg:grid-cols-3 md:gap-6">
             {displayedFilms.map(film => {
               const inWl = watchlist.some(w => w.id === film.identifier);
               const dirProfile = getDirectorProfile(film.director, film.identifier);
@@ -2252,7 +2290,7 @@ const HalloweenShowcaseView: React.FC<{
                 <motion.div
                   key={film.identifier}
                   whileHover={{ y: -4 }}
-                  className="rounded-2xl overflow-hidden border border-white/10 hover:border-orange-400/40 bg-white/[0.02] flex flex-col justify-between transition-all group"
+                  className="w-[86%] shrink-0 snap-center md:w-auto rounded-2xl overflow-hidden border border-white/10 hover:border-orange-400/40 bg-white/[0.02] flex flex-col justify-between transition-all group"
                 >
                   <div>
                     <div

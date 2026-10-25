@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Film,
   Sparkles,
@@ -263,31 +264,32 @@ export const ClassicDirectorDossierModal: React.FC<{
   const playableWorks = director.filmography.filter((f) => f.isOnPlatform && f.platformFilmId);
   const otherWorks = director.filmography.filter((f) => !f.isOnPlatform);
 
-  return (
+  // Portalled to <body> so the sheet sits above the app's fixed bottom nav.
+  return createPortal(
     <div
-      className="fixed inset-0 z-[120] bg-black/85 backdrop-blur-xl flex items-center justify-center p-4 md:p-6 overflow-y-auto animate-fade-in"
+      className="fixed inset-0 z-[160] bg-black/85 backdrop-blur-xl flex items-end sm:items-center justify-center p-0 sm:p-4 md:p-6 overflow-y-auto animate-fade-in"
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-4xl bg-zinc-950 border border-amber-500/30 rounded-3xl shadow-2xl overflow-hidden my-auto max-h-[90vh] flex flex-col"
+        className="relative w-full max-w-4xl bg-zinc-950 border border-amber-500/30 rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden sm:my-auto max-h-[92dvh] sm:max-h-[90vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Top Banner */}
-        <div className="relative bg-gradient-to-r from-amber-950/60 via-zinc-900 to-zinc-950 p-6 md:p-8 border-b border-white/10">
+        <div className="relative shrink-0 bg-gradient-to-r from-amber-950/60 via-zinc-900 to-zinc-950 p-5 pr-16 sm:p-6 md:p-8 border-b border-white/10">
           <button
             onClick={onClose}
-            className="absolute top-5 right-5 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition"
+            className="absolute top-3 right-3 sm:top-5 sm:right-5 w-11 h-11 sm:w-10 sm:h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition"
             title="Close Director Dossier"
           >
             <X className="w-5 h-5" />
           </button>
 
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
+          <div className="flex flex-row items-start sm:items-center gap-4 sm:gap-6">
             <EnrichedPortrait
               name={director.name}
               wikiSlug={director.wikiSlug}
               fallbackUrl={director.portraitUrl}
-              className="w-24 h-28 md:w-28 md:h-32 rounded-2xl shadow-2xl ring-2 ring-amber-500/40"
+              className="w-20 h-24 sm:w-24 sm:h-28 md:w-28 md:h-32 shrink-0 rounded-2xl shadow-2xl ring-2 ring-amber-500/40"
             />
             <div className="flex-1 min-w-0">
               <div className="flex flex-wrap items-center gap-2 mb-2">
@@ -330,7 +332,7 @@ export const ClassicDirectorDossierModal: React.FC<{
         </div>
 
         {/* Scrollable Body */}
-        <div className="p-6 md:p-8 overflow-y-auto space-y-8">
+        <div className="p-5 sm:p-6 md:p-8 overflow-y-auto overscroll-contain space-y-6 sm:space-y-8 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
           {/* Biography & Signature Style */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-3">
@@ -446,7 +448,8 @@ export const ClassicDirectorDossierModal: React.FC<{
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
@@ -694,7 +697,7 @@ export const ClassicDirectorsShowcaseSection: React.FC<{
           <p className="text-xs md:text-sm text-zinc-400 max-w-3xl mt-1">{subtitle}</p>
         </div>
 
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-1 md:pb-0 md:flex-wrap md:overflow-visible">
           {(
             [
               { id: 'ALL', label: `All Masters (${allDirectors.length})` },
@@ -707,7 +710,7 @@ export const ClassicDirectorsShowcaseSection: React.FC<{
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+              className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-xl text-xs font-bold transition ${
                 activeTab === tab.id
                   ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20'
                   : 'bg-white/5 hover:bg-white/10 text-zinc-300 border border-white/10'
@@ -719,7 +722,8 @@ export const ClassicDirectorsShowcaseSection: React.FC<{
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+      {/* Phone: swipe between auteurs; md+: the grid */}
+      <div className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar gap-4 pb-2 md:pb-0 md:grid md:grid-cols-2 xl:grid-cols-3 md:gap-5 md:overflow-visible">
         {directors.map((dir) => {
           const onPlatform = dir.filmography.filter((f) => f.isOnPlatform);
           const otherFilms = dir.filmography.filter((f) => !f.isOnPlatform);
@@ -727,7 +731,7 @@ export const ClassicDirectorsShowcaseSection: React.FC<{
             <div
               key={dir.id}
               onClick={() => setSelectedDirector(dir)}
-              className="group rounded-3xl bg-gradient-to-b from-zinc-900/90 to-zinc-950 border border-white/10 hover:border-amber-500/40 p-5 transition-all duration-300 cursor-pointer flex flex-col justify-between shadow-lg hover:shadow-amber-500/10"
+              className="group w-[86%] shrink-0 snap-center md:w-auto rounded-3xl bg-gradient-to-b from-zinc-900/90 to-zinc-950 border border-white/10 hover:border-amber-500/40 p-5 transition-all duration-300 cursor-pointer flex flex-col justify-between shadow-lg hover:shadow-amber-500/10"
             >
               <div>
                 {/* Header: Portrait + Name + Era */}
@@ -1046,7 +1050,7 @@ export const CharacterActorShuffleCard: React.FC<{
                   e.stopPropagation();
                   setActiveFace('CHARACTER');
                 }}
-                className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider transition ${
+                className={`max-sm:!min-h-[36px] px-2.5 sm:px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider transition ${
                   isChar
                     ? 'bg-orange-500 text-black shadow-sm'
                     : 'bg-white/5 text-zinc-400 hover:text-white'
@@ -1060,7 +1064,7 @@ export const CharacterActorShuffleCard: React.FC<{
                   e.stopPropagation();
                   setActiveFace('ACTOR');
                 }}
-                className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider flex items-center gap-1 transition ${
+                className={`max-sm:!min-h-[36px] px-2.5 sm:px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider flex items-center gap-1 transition ${
                   !isChar
                     ? 'bg-emerald-400 text-black shadow-sm'
                     : 'bg-white/5 text-emerald-300/80 hover:text-emerald-200'
@@ -1083,13 +1087,13 @@ export const CharacterActorShuffleCard: React.FC<{
                   <div className="text-[10px] text-orange-300/90 font-bold uppercase tracking-wider truncate">
                     {char.role || char.roleArchetype}
                   </div>
-                  <h4 className="text-base font-black text-white group-hover:text-orange-300 transition truncate">
+                  <h4 className="text-base font-black leading-tight text-white group-hover:text-orange-300 transition line-clamp-2 sm:line-clamp-none sm:truncate">
                     {char.characterName}
                   </h4>
                   <button
                     type="button"
                     onClick={toggleFace}
-                    className="text-xs font-bold text-amber-300/90 hover:text-emerald-300 truncate mt-0.5 flex items-center gap-1 text-left"
+                    className="!min-h-0 text-xs font-bold text-amber-300/90 hover:text-emerald-300 truncate mt-0.5 flex items-center gap-1 text-left"
                   >
                     <span>Played by {char.actorName}</span>
                   </button>
@@ -1105,13 +1109,13 @@ export const CharacterActorShuffleCard: React.FC<{
                   <div className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider truncate">
                     Actor / Voice Cast
                   </div>
-                  <h4 className="text-base font-black text-white group-hover:text-emerald-300 transition truncate">
+                  <h4 className="text-base font-black leading-tight text-white group-hover:text-emerald-300 transition line-clamp-2 sm:line-clamp-none sm:truncate">
                     {char.actorName}
                   </h4>
                   <button
                     type="button"
                     onClick={toggleFace}
-                    className="text-xs font-bold text-orange-300/90 hover:text-orange-200 truncate mt-0.5 flex items-center gap-1 text-left"
+                    className="!min-h-0 text-xs font-bold text-orange-300/90 hover:text-orange-200 truncate mt-0.5 flex items-center gap-1 text-left"
                   >
                     <span>Role: {char.characterName}</span>
                   </button>
@@ -1235,23 +1239,24 @@ export const CharacterActorModal: React.FC<{
 
   if (!character) return null;
 
-  return (
+  // Portalled to <body> so the sheet sits above the app's fixed bottom nav.
+  return createPortal(
     <div
-      className="fixed inset-0 z-[120] bg-black/85 backdrop-blur-xl flex items-center justify-center p-4 md:p-6 overflow-y-auto animate-fade-in"
+      className="fixed inset-0 z-[160] bg-black/85 backdrop-blur-xl flex items-end sm:items-center justify-center p-0 sm:p-4 md:p-6 overflow-y-auto animate-fade-in"
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-3xl bg-zinc-950 border border-orange-500/30 rounded-3xl shadow-2xl overflow-hidden my-auto"
+        className="relative w-full max-w-3xl bg-zinc-950 border border-orange-500/30 rounded-t-3xl sm:rounded-3xl shadow-2xl sm:my-auto max-h-[92dvh] sm:max-h-none overflow-y-auto overscroll-contain sm:overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 z-10 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition"
+          className="absolute top-3 right-3 sm:top-5 sm:right-5 z-10 w-11 h-11 sm:w-10 sm:h-10 rounded-full bg-black/50 sm:bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition"
         >
           <X className="w-5 h-5" />
         </button>
 
-        <div className="p-6 md:p-8 bg-gradient-to-br from-orange-950/50 via-zinc-900 to-zinc-950 border-b border-white/10">
+        <div className="p-5 pt-14 sm:p-6 md:p-8 bg-gradient-to-br from-orange-950/50 via-zinc-900 to-zinc-950 border-b border-white/10">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
             <CharacterActorShuffleDeck
               character={character}
@@ -1310,7 +1315,7 @@ export const CharacterActorModal: React.FC<{
           </div>
         </div>
 
-        <div className="p-6 md:p-8 space-y-6">
+        <div className="p-5 sm:p-6 md:p-8 space-y-6 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
           {/* Character Intelligence */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-2">
@@ -1386,7 +1391,8 @@ export const CharacterActorModal: React.FC<{
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
@@ -1648,7 +1654,7 @@ export const HalloweenCurationStoryIntelSection: React.FC<{
       </div>
 
       {/* Active Film Story Intelligence Workspace */}
-      <div className="rounded-3xl bg-gradient-to-br from-zinc-900/95 via-zinc-950 to-orange-950/20 border border-orange-500/30 p-6 md:p-8 space-y-8 shadow-2xl">
+      <div className="rounded-3xl bg-gradient-to-br from-zinc-900/95 via-zinc-950 to-orange-950/20 border border-orange-500/30 p-4 sm:p-6 md:p-8 space-y-6 sm:space-y-8 shadow-2xl">
         {/* Top Row: Film Overview + Director Mini-Card + Actions */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
           <div className="lg:col-span-2 space-y-3">
@@ -1672,7 +1678,7 @@ export const HalloweenCurationStoryIntelSection: React.FC<{
               “{activeBundle.logline || activeBundle.report.logline}”
             </p>
 
-            <p className="text-xs md:text-sm text-zinc-300 leading-relaxed">
+            <p className="text-xs md:text-sm text-zinc-300 leading-relaxed line-clamp-6 sm:line-clamp-none">
               {activeBundle.synopsis || activeBundle.report.synopsis}
             </p>
 
@@ -1688,11 +1694,11 @@ export const HalloweenCurationStoryIntelSection: React.FC<{
               ))}
             </div>
 
-            <div className="flex flex-wrap gap-3 pt-2">
+            <div className="grid grid-cols-1 sm:flex sm:flex-wrap gap-2.5 sm:gap-3 pt-2">
               {onPlayFilm && (
                 <button
                   onClick={() => onPlayFilm(activeBundle.filmId || activeBundle.identifier)}
-                  className="px-5 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-400 text-black font-black text-xs uppercase tracking-wider flex items-center gap-2 transition shadow-lg shadow-orange-500/25"
+                  className="min-h-[48px] sm:min-h-0 px-5 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-400 text-black font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition shadow-lg shadow-orange-500/25"
                 >
                   <Play className="w-4 h-4 fill-current" />
                   Watch & Inspect {activeBundle.title}
@@ -1701,7 +1707,7 @@ export const HalloweenCurationStoryIntelSection: React.FC<{
               {onOpenFilmStoryIntel && (
                 <button
                   onClick={() => onOpenFilmStoryIntel(activeBundle.filmId || activeBundle.identifier)}
-                  className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white font-bold text-xs flex items-center gap-2 transition"
+                  className="min-h-[48px] sm:min-h-0 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white font-bold text-xs flex items-center justify-center gap-2 transition"
                 >
                   <Sparkles className="w-4 h-4 text-orange-400" />
                   Open Interactive Story Intel & Screenplay
@@ -1765,13 +1771,14 @@ export const HalloweenCurationStoryIntelSection: React.FC<{
         </div>
 
         {/* 3-Act Structure + Key Scenes & Props */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Phone: swipe through the three acts; lg: side by side */}
+        <div className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar gap-3 sm:gap-4 lg:grid lg:grid-cols-3 lg:overflow-visible">
           {activeBundle.report.structure.acts.map((act) => (
             <div
               key={act.number}
-              className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-2"
+              className="w-[86%] sm:w-[60%] shrink-0 snap-center lg:w-auto p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-2"
             >
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-1.5">
                 <span className="px-2.5 py-0.5 rounded-md bg-orange-500/20 text-orange-300 text-[10px] font-black uppercase tracking-widest">
                   Act {act.number}: {act.title}
                 </span>
@@ -1799,16 +1806,15 @@ export const HalloweenCurationStoryIntelSection: React.FC<{
             </h4>
             <span className="text-[11px] text-zinc-400 flex items-center gap-1.5">
               <Shuffle className="w-3.5 h-3.5 text-orange-400" />
-              Click any card stack to swivel & shuffle between Character and Actor
+              <span className="md:hidden">Swipe the cast · tap a card to flip Character and Actor</span>
+              <span className="hidden md:inline">Click any card stack to swivel & shuffle between Character and Actor</span>
             </span>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar gap-3 pb-1 md:pb-0 md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-4 md:overflow-visible">
             {(activeBundle.characters || activeBundle.charactersWithActors || []).map((char) => (
-              <CharacterActorShuffleCard
-                key={char.id || char.characterId}
-                char={char}
-                onSelect={setSelectedChar}
-              />
+              <div key={char.id || char.characterId} className="w-[86%] shrink-0 snap-center md:w-auto md:contents">
+                <CharacterActorShuffleCard char={char} onSelect={setSelectedChar} />
+              </div>
             ))}
           </div>
         </div>
