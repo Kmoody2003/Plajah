@@ -94,6 +94,7 @@ const PlajahEpgGuide: React.FC<Props> = ({ feeds, fastChannels, onTune, onClose,
     PLAJAH_CHANNELS.forEach(pc => out.push({
       id: `plajah_${pc.id}`, number: plajahNumber(pc), name: pc.name,
       logo: undefined, accent: ORANGE, kind: 'fast', plajahId: pc.id,
+      ...(pc.scheduleId ? { ownerId: pc.scheduleId } : {}),
     }));
     // Curated science feeds (the 90x rows). Empty while SCIENCE_BAND_ENABLED is off — the
     // third-party YouTube embeds behind them are broken, so the guide omits the block entirely.
@@ -120,7 +121,8 @@ const PlajahEpgGuide: React.FC<Props> = ({ feeds, fastChannels, onTune, onClose,
   const buildFastRow = useCallback((sched: any): Program[] => {
     const slots = activeDaySlots(sched, windowStart);
     if (!slots.length) return [];
-    const pos = sched?.midnightAnchored ? linearPositionMidnight(slots, windowStart) : dayAnchoredPosition(slots, windowStart);
+    // On the CHANNEL's clock, like playout — a viewer in another zone sees the same programme.
+    const pos = sched?.midnightAnchored ? linearPositionMidnight(slots, windowStart, sched?.timezone) : dayAnchoredPosition(slots, windowStart, sched?.timezone);
     if ('offAir' in pos) return [];
     let cursor = windowStart - pos.offsetSec * 1000;
     let i = pos.index, guard = 0;

@@ -546,6 +546,8 @@ const LiveTvPlus: React.FC<{
         playUrl: '',
         now: pc.onAir ? pc.tagline : 'Not yet on air',
         plajahId: pc.id,
+        // Scheduled first-party channels load their schedule like any FAST channel.
+        ...(pc.scheduleId ? { ownerId: pc.scheduleId, scheduleOwner: pc.scheduleId } : {}),
       });
     });
 

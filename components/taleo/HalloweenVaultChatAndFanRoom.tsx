@@ -50,6 +50,8 @@ import { halloweenAudio } from '../../services/halloween/halloweenAudioSfx';
 import { StoryIntelVTuberVoiceStudio } from './StoryIntelVTuberVoiceStudio';
 import { FaceSwapLink } from '../../services/faceswap/faceSwapLink';
 import { CastFaceOverlay } from '../../services/halloween/castFaceOverlay';
+import { useLivePolls } from '../../services/livePollsClient';
+import { LivePollsPanel } from './LivePollsPanel';
 import { CAST_EMOTES, type CastEmoteId } from '../../services/halloween/ravencrestCastStage';
 import { PoseTracker, type PoseFrame } from '../../services/vtuber/poseTracker';
 import { AsyncPoseTracker } from '../../services/vtuber/poseTrackerAsync';
@@ -141,14 +143,6 @@ export interface HalloweenVaultChatMessage {
 /** Only our own storage bucket's download URLs are played back in chat. */
 const isStorageVideoUrl = (u?: string) => !!u && u.startsWith('https://firebasestorage.googleapis.com/');
 
-export interface HalloweenVaultPoll {
-  id: string;
-  question: string;
-  subtitle: string;
-  options: { label: string; emoji: string; factionTag?: string }[];
-  votes: Record<number, string[]>; // optionIndex -> array of uids
-}
-
 const newChatMessageId = () => `msg_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 
 // Segmentation: while a 3D character is on, the performer's real body (MediaPipe person mask) is
@@ -202,63 +196,8 @@ function dimPerson(
 }
 
 const STORAGE_CHAT_KEY = 'plajah:halloween:vaultChat:v1';
-const STORAGE_POLLS_KEY = 'plajah:halloween:vaultPolls:v1';
 const STORAGE_FACTION_KEY = 'plajah:halloween:vaultFaction:v1';
 const STORAGE_FILTER_KEY = 'plajah:halloween:filterState:v1';
-
-const SEEDED_POLLS: HalloweenVaultPoll[] = [
-  {
-    id: 'poll_pumpkin_mvp',
-    question: 'Who steals the show in "Pumpkin Patch" (2025)?',
-    subtitle: 'Planet Ween Universe · District 13 Showdown',
-    options: [
-      { label: 'Melvin Lester ("Pumpkin Patch") & Dual Plasma Blades', emoji: '🎃', factionTag: 'district13' },
-      { label: 'Wicked Witch Miriam & Flying Monkey Squadron', emoji: '🧙‍♀️', factionTag: 'greencastle' },
-      { label: 'Stitch (The Scarecrow) on the District 13 Rooftops', emoji: '🌾', factionTag: 'farmhouse' },
-      { label: "Lil' Boo (Ectoplasmic Jar Sidekick)", emoji: '👻', factionTag: 'specters' },
-    ],
-    votes: {
-      0: ['u_1', 'u_2', 'u_3', 'u_4', 'u_5'],
-      1: ['u_6', 'u_7', 'u_8'],
-      2: ['u_9', 'u_10'],
-      3: ['u_11', 'u_12', 'u_13', 'u_14'],
-    },
-  },
-  {
-    id: 'poll_double_feature',
-    question: 'Which Halloween Vault Double Feature are we streaming tonight at midnight?',
-    subtitle: 'Vote to lock the Fan Room Watch-Party queue',
-    options: [
-      { label: 'Pumpkin Patch (2025) + Night of the Living Dead (1968)', emoji: '🧟', factionTag: 'district13' },
-      { label: 'The Housemaid (1960) + Carnival of Souls (1962)', emoji: '🎹', factionTag: 'specters' },
-      { label: 'Nosferatu (1922) + The Phantom of the Opera (1925)', emoji: '🧛', factionTag: 'bloodline' },
-      { label: 'House on Haunted Hill (1959) + Häxan (1922)', emoji: '🏰', factionTag: 'greencastle' },
-    ],
-    votes: {
-      0: ['u_1', 'u_3', 'u_5', 'u_8', 'u_11'],
-      1: ['u_2', 'u_6', 'u_12'],
-      2: ['u_4', 'u_7', 'u_9', 'u_13'],
-      3: ['u_10', 'u_14'],
-    },
-  },
-  {
-    id: 'poll_best_filter',
-    question: 'Which Halloween Live Camera Face Filter hits hardest with "Dim the Lights" on?',
-    subtitle: 'Try them live in the Camera Booth on the left!',
-    options: [
-      { label: "Carved Jack-o'-Lantern Talking Head", emoji: '🎃' },
-      { label: 'Ghost Face Elongated Scream Phantom', emoji: '👻' },
-      { label: 'Full-Moon Werewolf + Snapping Fangs', emoji: '🐺' },
-      { label: 'Necrotic Zombie / Count Vampire', emoji: '🧛' },
-    ],
-    votes: {
-      0: ['u_1', 'u_2', 'u_4', 'u_9'],
-      1: ['u_3', 'u_7', 'u_11'],
-      2: ['u_5', 'u_8', 'u_12'],
-      3: ['u_6', 'u_10', 'u_13'],
-    },
-  },
-];
 
 interface HalloweenVaultChatAndFanRoomProps {
   onOpenHauntedExhibition: () => void;
@@ -341,19 +280,6 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
     return [];
   });
 
-  const [polls, setPolls] = useState<HalloweenVaultPoll[]>(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_POLLS_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch {
-      /* ignore */
-    }
-    return SEEDED_POLLS;
-  });
-
   const [activeRightTab, setActiveRightTab] = useState<'CHAT' | 'POLLS' | 'FACTIONS'>('CHAT');
   // Phones show one half of the room at a time (lg+ shows both columns side by side).
   const [phonePane, setPhonePane] = useState<'BOOTH' | 'CHAT'>('BOOTH');
@@ -370,6 +296,10 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
     io.observe(el);
     return () => io.disconnect();
   }, []);
+  const livePolls = useLivePolls('halloween_vault', {
+    active: roomInView,
+    intervalMs: activeRightTab === 'POLLS' ? 5000 : 30000,
+  });
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const miniCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -462,13 +392,6 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
     }
   }, [messages]);
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_POLLS_KEY, JSON.stringify(polls));
-    } catch {
-      /* ignore */
-    }
-  }, [polls]);
 
   // Firestore real-time subscription for persistent multi-user Halloween Vault chat
   useEffect(() => {
@@ -918,20 +841,6 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
     } catch {
       /* ignore */
     }
-  };
-
-  const handleVotePoll = async (pollId: string, optionIdx: number) => {
-    setPolls((prev) =>
-      prev.map((p) => {
-        if (p.id !== pollId) return p;
-        const nextVotes: Record<number, string[]> = {};
-        for (const [k, arr] of Object.entries(p.votes)) {
-          nextVotes[Number(k)] = (arr || []).filter((u) => u !== myUid);
-        }
-        nextVotes[optionIdx] = [...(nextVotes[optionIdx] || []), myUid];
-        return { ...p, votes: nextVotes };
-      })
-    );
   };
 
   const activeFilterMeta =
@@ -1462,7 +1371,7 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
                     : 'border-transparent text-white/50 hover:text-white'
                 }`}
               >
-                <BarChart3 size={13} /> <span className="hidden sm:inline">Fan </span>Polls ({polls.length})
+                <BarChart3 size={13} /> <span className="hidden sm:inline">Fan </span>Polls ({livePolls.polls.length})
               </button>
               <button
                 onClick={() => setActiveRightTab('FACTIONS')}
@@ -1593,62 +1502,18 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
               </>
             )}
 
-            {/* TAB 2: INTERACTIVE HALLOWEEN FAN POLLS */}
+            {/* TAB 2: REAL FAN POLLS — shared results, one vote per account, tonight's 9 PM movie */}
             {activeRightTab === 'POLLS' && (
-              <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {polls.map((poll) => {
-                  const totalVotes = Object.values(poll.votes).reduce(
-                    (acc, arr) => acc + (arr?.length || 0),
-                    0
-                  );
-                  return (
-                    <div
-                      key={poll.id}
-                      className="rounded-2xl bg-white/[0.03] border border-white/10 p-4 space-y-3"
-                    >
-                      <div>
-                        <p className="text-[9px] font-black uppercase tracking-widest text-orange-400">
-                          {poll.subtitle}
-                        </p>
-                        <h4 className="text-xs font-black text-white mt-0.5">{poll.question}</h4>
-                      </div>
-
-                      <div className="space-y-2">
-                        {poll.options.map((opt, idx) => {
-                          const voters = poll.votes[idx] || [];
-                          const pct =
-                            totalVotes > 0 ? Math.round((voters.length / totalVotes) * 100) : 0;
-                          const votedByMe = voters.includes(myUid);
-                          return (
-                            <button
-                              key={idx}
-                              onClick={() => void handleVotePoll(poll.id, idx)}
-                              className={`w-full relative overflow-hidden rounded-xl border p-2.5 text-left transition-all cursor-pointer ${
-                                votedByMe
-                                  ? 'border-orange-400 bg-orange-500/15'
-                                  : 'border-white/10 bg-black/40 hover:border-white/25'
-                              }`}
-                            >
-                              <div
-                                className="absolute inset-y-0 left-0 bg-orange-500/20 transition-all duration-500"
-                                style={{ width: `${pct}%` }}
-                              />
-                              <div className="relative flex items-center justify-between gap-2 text-xs">
-                                <span className="font-bold text-white flex items-center gap-1.5">
-                                  <span>{opt.emoji}</span>
-                                  <span>{opt.label}</span>
-                                </span>
-                                <span className="text-[10px] font-black text-orange-300 shrink-0">
-                                  {pct}% ({voters.length})
-                                </span>
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
+              <div className="flex-1 overflow-y-auto p-4">
+                <LivePollsPanel
+                  polls={livePolls.polls}
+                  myVotes={livePolls.myVotes}
+                  loading={livePolls.loading}
+                  error={livePolls.error}
+                  skewMs={livePolls.skewMs}
+                  canVote={canChat}
+                  onVote={livePolls.vote}
+                />
               </div>
             )}
 
