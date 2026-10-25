@@ -23,7 +23,7 @@
 // capture — the card is only authorised. When voting closes the server captures every hold if the
 // goal was met (the airing then runs without ad breaks) and releases them all if it wasn't. Creator
 // slots pay the creator directly (Connect destination charge): Plajah's fee is 0% when the creator
-// has Plajah+, 5% otherwise. Plajah's own channels are collected by Plajah.
+// has Plajah+, 5% otherwise. It is a creator feature only — Plajah's own channels never take pledges.
 //
 // The tick (POST /api/cron/fast-vote-tick, x-cron-key; also run opportunistically, throttled, when a
 // room is viewed in production) opens ballots, lays out / patches schedules, and locks ballots.
@@ -38,7 +38,7 @@ import {
   type AdPlan, type CreatorVoteSlot, type LivePoll, type VoteAwareSlot, type VoteOption,
 } from '../services/fast/voteSchedule';
 import {
-  HORROR_CLASSICS_ADS, HORROR_CLASSICS_CHANNEL_ID, HORROR_CLASSICS_COMMERCIAL_FREE_GOAL_CENTS, HORROR_CLASSICS_NAME,
+  HORROR_CLASSICS_ADS, HORROR_CLASSICS_CHANNEL_ID, HORROR_CLASSICS_NAME,
   HORROR_CLASSICS_NIGHTLY_SLOT, HORROR_CLASSICS_PD_POOL, HORROR_CLASSICS_ROOM, HORROR_CLASSICS_TIMEZONE,
   MIN_FEATURE_SEC, PUMPKIN_PATCH_ALBUM_ID, PUMPKIN_PATCH_BASE,
 } from '../data/horrorClassicsChannel';
@@ -350,7 +350,6 @@ async function horrorBallot(deps: FastVoteDeps, dateKey: string, features: VoteO
     subtitle: `${HORROR_CLASSICS_NAME} · 8.2 on LiveHub TV+ · airs 9 PM ET`,
     choices, times,
     schedule: { channelId: H_CH, slotId: H_SLOT.id, date: dateKey, timezone: H_TZ, reservedSec: reservedSecFor(choices, H_ADS) },
-    goalCents: HORROR_CLASSICS_COMMERCIAL_FREE_GOAL_CENTS,
   }, now, log);
 }
 
@@ -591,7 +590,8 @@ export function createFastVoteRouter(deps: FastVoteDeps) {
       const id = String(req.params.id || '');
       if (!/^[A-Za-z0-9_\-]{1,200}$/.test(id)) return res.status(400).json({ error: 'bad poll id' });
       const poll = await readPoll(deps, id);
-      if (!poll?.funding?.goalCents) return res.status(404).json({ error: 'This slot has no commercial-free goal' });
+      // Creator slots only: a pledge always goes to the creator who owns the slot.
+      if (!poll?.funding?.goalCents || !poll.ownerUid) return res.status(404).json({ error: 'This slot has no commercial-free goal' });
       if (poll.status !== 'OPEN' || (poll.closesAtMs && Date.now() >= poll.closesAtMs)) return res.status(409).json({ error: 'Voting has closed for this slot' });
       const remaining = poll.funding.goalCents - (poll.funding.pledgedCents || 0);
       if (remaining <= 0) return res.status(409).json({ error: 'The goal is already met — this airing will be commercial-free' });
@@ -602,7 +602,7 @@ export function createFastVoteRouter(deps: FastVoteDeps) {
       const stripe = deps.getStripe();
       let destination: string | undefined;
       let feeCents = 0;
-      if (poll.ownerUid) {
+      {
         if (poll.ownerUid === req.uid) return res.status(400).json({ error: 'You can’t pledge to your own slot' });
         const owner = await deps.read('users', poll.ownerUid);
         destination = owner?.stripeConnectAccountId;

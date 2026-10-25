@@ -179,7 +179,7 @@ export const LivePollsPanel: React.FC<{
               {!locked && mine != null && ' · tap another choice to change your vote'}
             </p>
 
-            {poll.funding && poll.funding.goalCents > 0 && (() => {
+            {poll.funding && poll.funding.goalCents > 0 && poll.ownerUid && (() => {
               const f = poll.funding!;
               const pledged = Math.min(f.pledgedCents || 0, f.goalCents);
               const left = Math.max(0, f.goalCents - (f.pledgedCents || 0));
@@ -238,9 +238,7 @@ export const LivePollsPanel: React.FC<{
                   )}
                   {!locked && !f.unlocked && (
                     <p className="text-[10px] text-white/40 leading-snug">
-                      {poll.ownerUid
-                        ? 'Goes straight to the creator. Plajah takes nothing when the creator has Plajah+, 5% otherwise.'
-                        : 'Supports this Plajah channel.'}
+                      Goes straight to the creator. Plajah takes nothing when the creator has Plajah+, 5% otherwise.
                     </p>
                   )}
                 </div>
