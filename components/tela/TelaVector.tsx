@@ -382,6 +382,10 @@ export const ObjectEl: React.FC<{
       const leading = o.lineHeight ?? 1.5;
       const tracking = o.letterSpacing ? `${o.letterSpacing * size}px` : undefined;
       const textDecor = o.underline ? 'underline' : o.strike ? 'line-through' : undefined;
+      // A text layer is a page-sized sheet: its empty area clicks through to the page
+      // beneath, only the written lines catch the pointer (until it is selected).
+      const sheet = o.textRole === 'LAYER';
+      const sheetIdle = sheet && !isEditing && !isSelected;
 
       const renderedBlocks: TelaBlock[] = o.blocks && o.blocks.length > 0 ? o.blocks : (
         (o.text || '').split('\n').filter(Boolean).length > 0
@@ -485,21 +489,24 @@ export const ObjectEl: React.FC<{
           onPointerCancel={isEditing ? undefined : onPointerCancel}
           onContextMenu={onContextMenu}
           onDoubleClick={onDoubleClick}
-          style={{ cursor: isEditing ? 'text' : (interactive ? 'move' : 'default'), pointerEvents: 'auto', ...blendStyle }}
+          style={{ cursor: isEditing ? 'text' : (interactive ? 'move' : 'default'), pointerEvents: sheetIdle ? 'none' : 'auto', ...blendStyle }}
           opacity={o.opacity}
           {...finish}
-          data-tela-kind="TEXT_BOX"
+          data-tela-kind={sheet ? 'TEXT_LAYER' : 'TEXT_BOX'}
         >
           <foreignObject
             x={o.x}
             y={o.y}
             width={boxW}
             height={boxH}
-            style={{ overflow: 'visible', pointerEvents: 'auto' }}
+            style={{ overflow: 'visible', pointerEvents: sheetIdle ? 'none' : 'auto' }}
           >
+            {sheetIdle && <style>{'.tela-text-sheet-idle>*{pointer-events:auto}'}</style>}
             <div
               onDoubleClick={onDoubleClick}
+              className={sheetIdle ? 'tela-text-sheet-idle' : undefined}
               style={{
+                pointerEvents: sheetIdle ? 'none' : undefined,
                 width: '100%',
                 minHeight: '100%',
                 boxSizing: 'border-box',
@@ -512,8 +519,8 @@ export const ObjectEl: React.FC<{
                 transformStyle: perspectiveTransform ? 'preserve-3d' : undefined,
                 textShadow: text3DShadow,
                 borderRadius: o.rx ? `${o.rx}px` : undefined,
-                border: isEditing ? '2px solid var(--pj-cyan, #00DAF3)' : border,
-                boxShadow: isEditing ? '0 0 0 3px rgba(0, 218, 243, 0.22)' : undefined,
+                border: isEditing ? (sheet ? '1px dashed rgba(0, 218, 243, 0.55)' : '2px solid var(--pj-cyan, #00DAF3)') : border,
+                boxShadow: isEditing && !sheet ? '0 0 0 3px rgba(0, 218, 243, 0.22)' : undefined,
                 padding: `${pad}px`,
                 color: textFillColor === 'transparent' && !isEditing ? undefined : textColor,
                 fontFamily,
@@ -1274,6 +1281,10 @@ interface TelaVectorProps {
   onObjectContextMenu?: (event: React.MouseEvent, object: TelaVectorObject) => void;
   objectContextBindings?: (object: TelaVectorObject) => { onContextMenu: (event: React.MouseEvent) => void; onPointerDown: (event: React.PointerEvent) => void; onPointerMove: (event: React.PointerEvent) => void; onPointerUp: () => void; onPointerCancel: () => void };
   snap?: { enabled: boolean; x: number[]; y: number[]; threshold?: number };
+  /** Type tool: the host creates the text layer (page-sized sheet) instead of a point-text object. */
+  onTypeAt?: (p: { x: number; y: number }) => void;
+  /** Ask this device to select an object and put the caret in it (nonce re-fires the same id). */
+  editTextRequest?: { id: string; nonce: number } | null;
 }
 
 const TOOLS: { id: VectorTool; icon: React.ReactNode; label: string }[] = [
@@ -1319,6 +1330,28 @@ const TelaVector: React.FC<TelaVectorProps> = (props) => {
       setEditingTextId(null);
     }
   }, [selectedId, editingTextId]);
+
+  // Host edit requests (a text layer born from typing) — fire once the object exists here.
+  const handledEditNonce = useRef<number | null>(null);
+  const editReq = props.editTextRequest;
+  useEffect(() => {
+    if (!editReq || readOnly || handledEditNonce.current === editReq.nonce) return;
+    const target = device.objects.find(o => o.id === editReq.id && o.kind === 'TEXT');
+    if (!target) return;
+    handledEditNonce.current = editReq.nonce;
+    const blocks = target.blocks?.length || 1;
+    setEditingTextId(target.id); setActiveBlockIdx(blocks - 1);
+  }, [editReq, device.objects, readOnly]);
+
+  // Leaving an empty text layer discards it (as a click-and-abandon in any type tool would).
+  const lastEditing = useRef<string | null>(null);
+  useEffect(() => {
+    const prev = lastEditing.current;
+    lastEditing.current = editingTextId;
+    if (!prev || prev === editingTextId || readOnly) return;
+    const left = device.objects.find(o => o.id === prev);
+    if (left?.textRole === 'LAYER' && !(left.blocks?.map(b => b.text).join('') ?? left.text ?? '').trim()) onDeleteObject(left.id);
+  }, [editingTextId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const selectMany = (ids: string[]) => {
     const next = [...new Set(ids)].filter(id => device.objects.some(object => object.id === id));
@@ -1368,6 +1401,7 @@ const TelaVector: React.FC<TelaVectorProps> = (props) => {
   // ── Background pointer: create tools + deselect ──
   const onBgPointerDown = (e: React.PointerEvent) => {
     if (readOnly) return;
+    const wasEditing = !!editingTextId;
     setEditingTextId(null);
     const p = svgPoint(e);
     if (tool === 'ink') return; // the ink layer owns pointer input
@@ -1380,6 +1414,11 @@ const TelaVector: React.FC<TelaVectorProps> = (props) => {
     }
     if (tool === 'pen') {
       setPenPts(prev => prev ? [...prev, p.x, p.y] : [p.x, p.y]);
+      return;
+    }
+    if (tool === 'text' && props.onTypeAt) {
+      // A click off the layer being typed just ends that edit; the next click makes a new layer.
+      if (!wasEditing) props.onTypeAt(p);
       return;
     }
     if (tool === 'text') {
@@ -1397,6 +1436,12 @@ const TelaVector: React.FC<TelaVectorProps> = (props) => {
   const onObjectPointerDown = (e: React.PointerEvent, id: string) => {
     if (readOnly) return;
     if (editingTextId === id) return;
+    if (tool === 'text') {
+      // Type tool on existing text: put the caret in it instead of making a new layer.
+      const hit = device.objects.find(x => x.id === id);
+      if (hit?.kind === 'TEXT' && !hit.locked) { e.stopPropagation(); select(id); setEditingTextId(id); setActiveBlockIdx(Math.max(0, (hit.blocks?.length || 1) - 1)); }
+      return;
+    }
     if (tool !== 'select' && tool !== 'direct') return; // let the bg handle creation tools
     e.stopPropagation();
     (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
@@ -1711,7 +1756,8 @@ const TelaVector: React.FC<TelaVectorProps> = (props) => {
       </svg>
 
       {/* Floating typography toolbar above selected text box */}
-      {!readOnly && selected && selected.kind === 'TEXT' && selBounds && (
+      {/* Text layers (page sheets) are styled from the host's tool-options row instead. */}
+      {!readOnly && selected && selected.kind === 'TEXT' && selBounds && !(selected.textRole === 'LAYER' && !chrome) && (
         <TelaTypographyToolbar
           object={selected}
           bounds={selBounds}

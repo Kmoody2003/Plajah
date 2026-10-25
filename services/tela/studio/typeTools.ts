@@ -57,6 +57,70 @@ export function makeTypeObject(story: TextStory, mode: StudioType['mode'], box: 
   };
 }
 
+// ── Text layers + whole-object typography (Tela's Type tool / tool-options row) ──────
+
+/** A whole-object typography change, in the legacy TEXT field names the options row edits. */
+export interface TypeStylePatch {
+  fontFamily?: string; fontSize?: number; fontWeight?: number; fontStyle?: 'normal' | 'italic'; underline?: boolean;
+  fill?: string; textAlign?: 'left' | 'center' | 'right'; lineHeight?: number; letterSpacing?: number;
+  textTransform?: 'none' | 'uppercase' | 'lowercase' | 'capitalize';
+}
+
+/** CSS stack → engine family ('"Inter", system-ui, sans-serif' → 'Inter'). */
+const familyOf = (stack: string) => stack.split(',')[0].replace(/["']/g, '').trim() || 'Inter';
+
+function charAttrsOf(p: TypeStylePatch): CharAttrs {
+  const a: CharAttrs = {};
+  if (p.fontFamily !== undefined) a.fontFamily = familyOf(p.fontFamily);
+  if (p.fontSize !== undefined) a.fontSize = p.fontSize;
+  if (p.fontWeight !== undefined) a.fontWeight = p.fontWeight;
+  if (p.fontStyle !== undefined) a.fontStyle = p.fontStyle;
+  if (p.underline !== undefined) a.underline = p.underline;
+  if (p.fill !== undefined) a.color = p.fill;
+  if (p.letterSpacing !== undefined) a.tracking = Math.round(p.letterSpacing * 1000);
+  // The engine has no title case; it falls back to the text as typed.
+  if (p.textTransform !== undefined) a.caps = p.textTransform === 'uppercase' ? 'all-caps' : p.textTransform === 'lowercase' ? 'lowercase' : 'normal';
+  return a;
+}
+
+/** Apply a whole-object typography change to every run and paragraph of a story. */
+export function restyleStory(story: TextStory, p: TypeStylePatch): TextStory {
+  const char = charAttrsOf(p);
+  return {
+    ...story,
+    paragraphs: story.paragraphs.map(par => ({
+      ...par,
+      attrs: { ...par.attrs, ...(p.textAlign ? { align: p.textAlign } : {}), ...(p.lineHeight ? { leading: { kind: 'multiple' as const, value: p.lineHeight } } : {}) },
+      runs: par.runs.map(r => ({ ...r, attrs: { ...r.attrs, ...char } })),
+    })),
+  };
+}
+
+/** Restyle an engine type object: story + the legacy fields the options row reads back. Needs a rebake. */
+export function restyleTypeObject(o: TelaVectorObject, p: TypeStylePatch): TelaVectorObject {
+  const story = o.studio?.type?.story; if (!story) return { ...o, ...p };
+  return { ...o, ...p, studio: { ...o.studio!, type: { ...o.studio!.type!, story: restyleStory(story, p) } } };
+}
+
+/** Typed text added at the end of a story (keeps the last run's attributes). */
+export function appendText(story: TextStory, text: string): TextStory {
+  const paragraphs = story.paragraphs.slice(); const last = paragraphs[paragraphs.length - 1];
+  const runs = last.runs.length ? last.runs.slice() : [{ text: '', attrs: {} }];
+  runs[runs.length - 1] = { ...runs[runs.length - 1], text: runs[runs.length - 1].text + text };
+  paragraphs[paragraphs.length - 1] = { ...last, runs };
+  return { ...story, paragraphs };
+}
+
+/**
+ * A text layer: area type over the whole page — a sheet lifted off the page whose text flows
+ * inside 1in margins. Born when the Type tool clicks the page or the user just starts typing.
+ */
+export function makeTypeLayer(page: { w: number; h: number }, style: TypeStylePatch, text = '', n = 1): TelaVectorObject {
+  const story = restyleStory(newStory(text, {}), style);
+  const o = makeTypeObject(story, 'area', { x: 0, y: 0, w: page.w, h: page.h }, { inset: Math.min(96, Math.round(page.w * 0.1)) });
+  return { ...restyleTypeObject(o, style), text, textRole: 'LAYER', objectLabel: `Text Layer ${n}` };
+}
+
 // ── Glyph extraction ────────────────────────────────────────────────────────────────
 
 /** {d, fill} per colour run for the lines of one frame, translated into object-local space. */

@@ -50,6 +50,10 @@ export interface RenderDeviceCtx {
   onSelectVectorIds?: (ids: string[]) => void;
   selectedImageLayerId?: string | null;
   onSelectImageLayer?: (id: string | null) => void;
+  /** Type tool click on a vector page/overlay — the host makes a text layer there. */
+  onVectorTypeAt?: (deviceId: string) => void;
+  /** Put the caret in this TEXT object (whichever vector device holds it). */
+  vectorEditRequest?: { id: string; nonce: number } | null;
 }
 
 /**
@@ -122,6 +126,8 @@ export function renderDevice(device: TelaDevice, ctx: RenderDeviceCtx, readOnly 
         onUpdateObject={(objectId, patch) => dispatchOp({ type: 'UPDATE_VECTOR_OBJECT', deviceId: device.id, objectId, patch })}
         onDeleteObject={objectId => dispatchOp({ type: 'DELETE_VECTOR_OBJECT', deviceId: device.id, objectId })}
         onReorder={(objectId, toIndex) => dispatchOp({ type: 'REORDER_VECTOR_OBJECT', deviceId: device.id, objectId, toIndex })}
+        onTypeAt={ctx.onVectorTypeAt ? () => ctx.onVectorTypeAt!(device.id) : undefined}
+        editTextRequest={ctx.vectorEditRequest}
       />
     );
   }

@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": true, "skipLibCheck": true },
+  "include": ["components/tela/TelaView.tsx", "components/tela/TelaToolOptionsBar.tsx", "components/tela/TelaVector.tsx", "components/tela/renderDevice.tsx"]
+}

@@ -7977,6 +7977,13 @@ export interface TelaVectorObject {
   wrap?: boolean;
   /** Rich structured paragraphs inside a text box (headings, body, lists, quotes). */
   blocks?: TelaBlock[];
+  /**
+   * TEXT: what kind of text layer this is. LAYER = a page-sized, transparent sheet of
+   * text lifted off the page (born when you type with the Type tool; text flows inside
+   * the page margins and empty sheet area clicks through). BOX = a framed text box you
+   * size and place. Unset = legacy / template text.
+   */
+  textRole?: 'LAYER' | 'BOX';
   /** Card background fill behind the text box (hex, rgba or css color). */
   backgroundColor?: string;
   /** Internal padding in px (default 0 or 12 for cards). */

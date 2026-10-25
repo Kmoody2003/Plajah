@@ -6,6 +6,7 @@ import type { TelaVectorDevice, TelaVectorObject } from '../../../types';
 import type { TelaStudioDeviceExt } from '../../../services/tela/studio/model';
 import type { AnchorRef } from '../../../services/tela/studio/direct';
 import type { TextSystem } from '../../../services/text';
+import type { TypeStylePatch } from '../../../services/tela/studio/typeTools';
 
 export type StudioTool =
   | 'select' | 'direct' | 'pen' | 'addAnchor' | 'deleteAnchor' | 'convert' | 'pencil' | 'scissors'
@@ -45,6 +46,8 @@ export interface StudioApi {
   text: () => Promise<TextSystem>;
   /** Re-compose a type object (and its thread) after its story or frame changed. */
   rebakeType: (headId: string, label?: string) => void;
+  /** Host typography for new type (the tool-options row); without it the Type tool makes point type. */
+  typeStyle?: TypeStylePatch;
   editingText: string | null; setEditingText: (id: string | null) => void;
   /** Gradient annotator / mesh node focus. */
   paintTarget: { kind: 'gradient' | 'mesh'; node?: number; stop?: number } | null;

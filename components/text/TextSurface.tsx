@@ -33,6 +33,8 @@ export interface TextSurfaceProps {
   className?: string;
   style?: React.CSSProperties;
   onLayout?: (l: StoryLayout) => void;
+  /** Start with the caret after the last character (continue typing) instead of before the first. */
+  caretAtEnd?: boolean;
 }
 
 const LSEP = String.fromCharCode(0x2028);
@@ -40,7 +42,7 @@ const LSEP = String.fromCharCode(0x2028);
 export default function TextSurface(props: TextSurfaceProps) {
   const { system, story, frames, onChange, readOnly } = props;
   const [fontsVersion, setFontsVersion] = useState(0);
-  const [localSel, setLocalSel] = useState<TextRange>(() => ({ anchor: startOf(story), focus: startOf(story) }));
+  const [localSel, setLocalSel] = useState<TextRange>(() => { const at = props.caretAtEnd ? endOf(story) : startOf(story); return { anchor: at, focus: at }; });
   const sel = props.selection ?? localSel;
   const setSel = useCallback((r: TextRange) => { setLocalSel(r); props.onSelectionChange?.(r); }, [props.onSelectionChange]);
   const [affinity, setAffinity] = useState<Affinity>('downstream');
