@@ -7,6 +7,7 @@
 
 import { auth } from './firebase';
 import type { MusicIntelBundle, TrackIntelCorrections } from './musicIntel/types';
+import type { AlbumAudience, AudienceCard, PartyAudienceRecap } from './musicIntel/audience';
 
 export type { MusicIntelBundle, TrackIntel, AlbumIntel, HostCard, HostCardKind, MusicIntelJob, FilmContext } from './musicIntel/types';
 
@@ -55,6 +56,39 @@ export async function fetchMusicIntel(albumId: string): Promise<(MusicIntelBundl
     const res = await fetch(`${base()}/${encodeURIComponent(albumId)}`, { headers: await authHeaders() });
     if (!res.ok) return null;
     return await res.json();
+  } catch { return null; }
+}
+
+/** What listening parties felt, merged across every recorded party: facts, point cards, per-song energy. */
+export interface AudienceSentimentBundle {
+  audience: AlbumAudience;
+  cards: AudienceCard[];
+  energy: { trackId: string; title: string; durationSec: number; series: number[]; bucketSec: number; total: number }[];
+}
+export type { AudienceCard } from './musicIntel/audience';
+
+export async function fetchAudienceSentiment(albumId: string): Promise<AudienceSentimentBundle | null> {
+  try {
+    const res = await fetch(`${base()}/audience/${encodeURIComponent(albumId)}`, { headers: await authHeaders() });
+    if (!res.ok) return null;
+    const b = await res.json() as AudienceSentimentBundle;
+    return b?.audience?.sessions ? b : null;
+  } catch { return null; }
+}
+
+/** The creator's own analytics for one release: every party in full + any party running right now. */
+export interface CreatorAudienceBundle extends AudienceSentimentBundle {
+  album: { id: string; title: string; artist: string; cover: string; tracks: { id: string; title: string; duration: number }[] };
+  sessions: PartyAudienceRecap[];
+  /** party ids whose data is a live read (still running), not a stored recap */
+  liveParties: string[];
+}
+
+/** Owner / admin only (the server checks). Null on any failure — the view shows its own message. */
+export async function fetchCreatorAudience(albumId: string): Promise<CreatorAudienceBundle | null> {
+  try {
+    const res = await fetch(`${base()}/audience/${encodeURIComponent(albumId)}/creator`, { headers: await authHeaders() });
+    return res.ok ? await res.json() as CreatorAudienceBundle : null;
   } catch { return null; }
 }
 

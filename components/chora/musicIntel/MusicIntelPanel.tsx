@@ -5,11 +5,14 @@
 import React, { useMemo, useState } from 'react';
 import { Download, Film, Loader2, Music2, Pen, Play, RefreshCw, Sparkles } from 'lucide-react';
 import { leadSheetMusicXML, type MusicIntelBundle, type TrackIntel } from '../../../services/musicIntelService';
+import { AudienceSentimentAlbum, AudienceSentimentTrack, useAudienceSentiment } from './AudienceSentiment';
 
 const SERIF = 'Newsreader, Georgia, serif';
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
 interface Props {
+  /** Enables Audience sentiment (what listening parties felt) — fetched for everyone, no party needed. */
+  albumId?: string;
   bundle: MusicIntelBundle | null;
   loading?: boolean;
   albumTitle: string;
@@ -37,8 +40,9 @@ const Field = ({ label, text }: { label: string; text?: string }) => text ? (
   <div><div className="text-[12px] font-semibold text-white/50">{label}</div><p className="mt-0.5 text-[15px] text-white/80 leading-relaxed">{text}</p></div>
 ) : null;
 
-const MusicIntelPanel: React.FC<Props> = ({ bundle, loading, albumTitle, artist, creatorLinerNotes, tracks, currentTrackId, isOwner, onRun, onEditNotes, onPlayAt, onOpenScore }) => {
+const MusicIntelPanel: React.FC<Props> = ({ albumId, bundle, loading, albumTitle, artist, creatorLinerNotes, tracks, currentTrackId, isOwner, onRun, onEditNotes, onPlayAt, onOpenScore }) => {
   const job = bundle?.job;
+  const audience = useAudienceSentiment(albumId);
   const reads = bundle?.tracks || {};
   const analysed = tracks.filter(t => reads[t.id]);
   const [pick, setPick] = useState<string | null>(null);
@@ -122,6 +126,8 @@ const MusicIntelPanel: React.FC<Props> = ({ bundle, loading, albumTitle, artist,
         </section>
       )}
 
+      <AudienceSentimentAlbum data={audience} onPlayAt={onPlayAt} currentTrackId={currentTrackId} />
+
       {analysed.length > 0 && (
         <section className="space-y-5">
           <H>Song by song</H>
@@ -134,6 +140,7 @@ const MusicIntelPanel: React.FC<Props> = ({ bundle, loading, albumTitle, artist,
             ))}
           </div>
           {sel && <TrackRead t={sel} artist={artist} albumTitle={albumTitle} onPlayAt={onPlayAt} onOpenScore={onOpenScore} />}
+          {selectedId && <AudienceSentimentTrack data={audience} trackId={selectedId} onPlayAt={onPlayAt} />}
         </section>
       )}
 

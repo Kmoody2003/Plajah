@@ -39,7 +39,8 @@ import { MelosPickerModal } from './MelosPickerModal';
 import LockerEditModal from './LockerEditModal';
 import { useGlobalPlayerState, useGlobalPlayerProgress } from '../contexts/GlobalPlayerContext';
 import { useUniversalMultiSelect } from '../hooks/useUniversalMultiSelect';
-import { createParty, partyShareUrl, planDriftCorrection } from '../services/partyService';
+import { createParty, createPartyPoll, partyShareUrl, planDriftCorrection } from '../services/partyService';
+import { autoPollDue, buildAutoPoll } from '../services/partyEngagement';
 import PartyBar from './party/PartyBar';
 import { canPlayFull, PREVIEW_SECONDS } from '../services/musicAccess';
 import { useParty } from '../hooks/useParty';
@@ -511,6 +512,33 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   listenLocalRef.current = { trackId: globalTrack?.id, isPlaying: globalIsPlaying, time: globalCurrentTime || 0 };
   const hostStateRef = useRef<any>({});
   hostStateRef.current = { isPlaying: globalIsPlaying, positionSec: globalCurrentTime || 0, contentId: globalTrack?.id, trackIndex: currentTrackIndex };
+  // Stamps every chat line / reaction / vote with where this listener is in the album (energy graph + Music Intelligence).
+  const partyMoment = useCallback(() => ({ trackId: listenLocalRef.current.trackId, atSec: listenLocalRef.current.time }), []);
+  const partyTracks = useMemo(() => (album?.tracks || []).map(t => ({ id: t.id, title: t.title, durationSec: t.duration })), [album]);
+  const globalDurationRef = useRef(0);
+  globalDurationRef.current = globalDuration || 0;
+
+  // HOST: near the end of each song, ask the room how it landed. The poll id is the track's, so a reconnect
+  // never doubles it; every listener keeps seeing it into the first seconds of the next song (pollVisible).
+  const autoPolledRef = useRef<Set<string>>(new Set());
+  useEffect(() => { autoPolledRef.current = new Set(); }, [activePartyId]);
+  useEffect(() => {
+    if (!activePartyId || !party.isHost || party.ended) return;
+    const iv = setInterval(() => {
+      const uid = auth.currentUser?.uid;
+      const st = listenLocalRef.current;
+      const tracks = album?.tracks || [];
+      if (!uid || !st.isPlaying || !st.trackId) return;
+      const idx = tracks.findIndex(t => t.id === st.trackId);
+      if (idx < 0 || autoPolledRef.current.has(tracks[idx].id)) return;
+      const dur = tracks[idx].duration || globalDurationRef.current;
+      if (!autoPollDue(st.time, dur)) return;
+      autoPolledRef.current.add(tracks[idx].id);
+      createPartyPoll(activePartyId, buildAutoPoll(tracks[idx], idx, tracks[idx + 1] || null, uid, st.time)).catch(() => {});
+    }, 2000);
+    return () => clearInterval(iv);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activePartyId, party.isHost, party.ended, album]);
 
   // HOST: broadcast on play/pause/track change, plus a 1s watcher that catches seeks — INCLUDING
   // seeks while paused (a paused scrub must move everyone's playhead too) — and refreshes position.
@@ -541,6 +569,8 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   const [partyLockedTrack, setPartyLockedTrack] = useState<Track | null>(null);
   const lastHardSeekRef = useRef(0);
   const nudgedRateRef = useRef(1);
+  const blockedTriesRef = useRef(0);
+  const [partyNeedsTap, setPartyNeedsTap] = useState(false);
   useEffect(() => {
     if (!activePartyId || !party.isFollower) return;
     const setRate = (r: number) => {
@@ -574,8 +604,16 @@ const PlayerView: React.FC<PlayerViewProps> = ({
       const plan = planDriftCorrection(local.time, t.targetPositionSec, { playing: t.shouldPlay, nowMs: now, lastHardSeekMs: lastHardSeekRef.current });
       if (plan.kind === 'seek') { seek(plan.seekTo); setRate(1); lastHardSeekRef.current = now; }
       else setRate(plan.rate);
-      if (t.shouldPlay && !local.isPlaying) resume();
-      else if (!t.shouldPlay && local.isPlaying) pause();
+      if (t.shouldPlay && !local.isPlaying) {
+        resume();
+        // Still silent after a couple of tries → the browser blocked autoplay (shared-link entry has
+        // no gesture). Offer one tap; every other join path starts by itself.
+        if (++blockedTriesRef.current >= 3) setPartyNeedsTap(true);
+      } else {
+        blockedTriesRef.current = 0;
+        setPartyNeedsTap(false);
+        if (!t.shouldPlay && local.isPlaying) pause();
+      }
     };
     apply();
     const iv = setInterval(apply, 1000);
@@ -1548,6 +1586,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   };
   const musicIntelPanelEl = album.type === 'MUSIC' && (album as any).source !== 'AUDIUS' ? (
     <MusicIntelPanel
+      albumId={album.id}
       bundle={musicIntel.bundle}
       loading={musicIntel.loading}
       albumTitle={album.title}
@@ -1639,7 +1678,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
         )}
 
         {/* Top Media Section (Shared Placement for Cover Art & Video) */}
-        <div id="mobile-video-container" className="relative w-full shrink-0 bg-transparent overflow-hidden border-b border-white/5 z-10" style={{ height: 'min(100vw, 58dvh)', minHeight: 280 }}>
+        <div id="mobile-video-container" className="relative w-full shrink-0 bg-transparent overflow-hidden border-b border-white/5 z-10" style={activePartyId ? { height: 'min(72vw, 32dvh)', minHeight: 200 } : { height: 'min(100vw, 58dvh)', minHeight: 280 }}>
           {/* ── Mobile / tablet FX Stage — audio-reactive visualizers, no parameters ── */}
           {isVisualizerLayout && (
             <div className="absolute inset-0 z-30 bg-black">
@@ -1955,6 +1994,40 @@ const PlayerView: React.FC<PlayerViewProps> = ({
               <button type="button" onClick={() => auth.currentUser ? startListeningParty() : alert('Sign in to host a listening party.')} aria-label="Listen together" title="Start a listening party" className="w-[52px] h-[52px] rounded-full grid place-items-center border border-white/25 text-white">
                 <Users size={18} />
               </button>
+            )}
+          </div>
+        )}
+
+        {/* Listening party (phone): the room sits right under the player — status bar, then the chat at a
+            readable size (polls pin to its top, the energy graph above them), always open so it's the
+            first thing a joiner sees. */}
+        {activePartyId && (
+          <div className="relative z-20 px-3 pt-3 pb-1 space-y-2 shrink-0">
+            <PartyBar
+              partyId={activePartyId}
+              party={party}
+              verb="listening"
+              noun="listening party"
+              title={album.title}
+              onLeave={leaveListeningParty}
+              onStartTogether={startListeningTogether}
+              getMoment={partyMoment}
+              tracks={partyTracks}
+              chatLayout="inline"
+              defaultChatOpen
+            />
+            {partyNeedsTap && party.isFollower && !partyLockedTrack && (
+              <button onClick={() => { resume(); setPartyNeedsTap(false); blockedTriesRef.current = 0; }}
+                className="w-full px-4 py-3 rounded-full text-xs font-display font-black uppercase tracking-widest text-white"
+                style={{ background: 'var(--pj-grad-brand)' }}>
+                Tap to join the music
+              </button>
+            )}
+            {partyLockedTrack && party.isFollower && (
+              <div className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-display font-bold uppercase tracking-wider text-white" style={{ background: 'rgba(245,158,11,0.12)', border: '1px solid var(--pj-warning)' }}>
+                <span className="flex-1">“{partyLockedTrack.title}” NEEDS A PURCHASE TO LISTEN ALONG PAST THE PREVIEW.</span>
+                <button onClick={() => setSupportSheet('buy')} className="px-3 py-1.5 rounded-full text-[10px] font-display font-black uppercase tracking-widest text-black" style={{ background: 'var(--pj-orange)' }}>BUY</button>
+              </div>
             )}
           </div>
         )}
@@ -3078,7 +3151,18 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                     title={album.title}
                     onLeave={leaveListeningParty}
                     onStartTogether={startListeningTogether}
+                    getMoment={partyMoment}
+                    tracks={partyTracks}
+                    chatLayout="side"
+                    defaultChatOpen={typeof window !== 'undefined' && window.innerWidth >= 1024}
                   />
+                )}
+                {activePartyId && partyNeedsTap && party.isFollower && !partyLockedTrack && (
+                  <button onClick={() => { resume(); setPartyNeedsTap(false); blockedTriesRef.current = 0; }}
+                    className="w-full px-4 py-2.5 rounded-full text-xs font-display font-black uppercase tracking-widest text-white"
+                    style={{ background: 'var(--pj-grad-brand)' }}>
+                    Tap to join the music
+                  </button>
                 )}
                 {activePartyId && partyLockedTrack && party.isFollower && (
                   <div className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-display font-bold uppercase tracking-wider text-white" style={{ background: 'rgba(245,158,11,0.12)', border: '1px solid var(--pj-warning)' }}>

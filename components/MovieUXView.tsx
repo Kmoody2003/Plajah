@@ -45,6 +45,7 @@ import {
   type Party, type PartyChatMessage, type PartyReaction,
 } from '../services/partyService';
 import { partyToast } from './party/partyToast';
+import PartyChatPanel from './party/PartyChatPanel';
 import The411 from './The411';
 import { shareAsset, shareText } from '../services/deepLinkService';
 import { cleanDescription } from '../utils/description';
@@ -1016,6 +1017,8 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({
   }, [propPartyId]);
   const party = useParty(activePartyId);
   const [resyncSignal, setResyncSignal] = useState(0);
+  // Party chat docks as its own side panel; open by default on desktop so joiners land in it.
+  const [partyChatOpen, setPartyChatOpen] = useState<boolean>(() => typeof window !== 'undefined' && window.innerWidth >= 1024);
   const [startingWatchParty, setStartingWatchParty] = useState(false);
 
   // Watchlist
@@ -2034,7 +2037,18 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({
           tabs and page chrome visible around a playing film. A portal has no such ancestor. */}
       {activeVideo && createPortal(
         activePartyId ? (
-          <div className="fixed inset-0 z-[200] bg-[#06060C] text-white overflow-y-auto custom-scrollbar" data-tv-no-trap>
+          <div className="fixed inset-0 z-[200] bg-[#06060C] text-white overflow-y-auto custom-scrollbar" data-tv-no-trap
+            style={partyChatOpen ? { paddingRight: 'min(340px, 100vw)' } : undefined}>
+            {partyChatOpen && (
+              <PartyChatPanel
+                partyId={activePartyId}
+                party={party}
+                since={party.party?.createdAt || 0}
+                layout="side"
+                getMoment={() => ({ trackId: party.playback?.contentId, atSec: videoRef.current?.currentTime ?? party.getTarget().targetPositionSec })}
+                onClose={() => setPartyChatOpen(false)}
+              />
+            )}
             {/* Top Watch Party Header Bar */}
             <div className="sticky top-0 z-40 bg-[#06060C]/90 backdrop-blur-xl border-b border-white/10 px-4 sm:px-8 py-3 flex items-center justify-between gap-3 flex-wrap">
               <div className="flex items-center gap-3 min-w-0">
@@ -2059,6 +2073,13 @@ const MovieUXViewInner: React.FC<MovieUXViewProps> = ({
               </div>
 
               <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  onClick={() => setPartyChatOpen(o => !o)}
+                  aria-pressed={partyChatOpen}
+                  className={`h-9 px-3.5 rounded-full border text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-all ${partyChatOpen ? 'bg-white/20 border-white/30 text-white' : 'bg-white/[0.08] hover:bg-white/[0.15] border-white/10 text-white/80'}`}
+                >
+                  <MessageCircle size={13} /> Chat
+                </button>
                 <button
                   onClick={() => copyAndSharePartyLink(activePartyId, party.party?.clubName)}
                   className="h-9 px-4 rounded-full bg-[#D0BCFF] hover:bg-[#E8DAFF] text-[#1C1B1F] text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-all shadow-md"

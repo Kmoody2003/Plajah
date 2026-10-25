@@ -421,6 +421,7 @@ const EventCreationWizard = retryLazy(() => import('./components/EventCreationWi
 const EventLandingPage = retryLazy(() => import('./components/EventLandingPage'));
 const EventTicketingDashboard = retryLazy(() => import('./components/EventTicketingDashboard'));
 const TicketView = retryLazy(() => import('./components/TicketView'));
+const ReleaseAnalyticsView = retryLazy(() => import('./components/music/ReleaseAnalyticsView')); // one release's own analytics (listening-party polls, ratings, energy)
 const KioskMode = retryLazy(() => import('./components/KioskMode'));
 const TicketScanner = retryLazy(() => import('./components/TicketScanner'));
 const VideoManager = retryLazy(() => import('./components/VideoManager'));
@@ -1313,6 +1314,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       import('./components/party/partyToast'),
       import('./services/archiveContentService').catch(() => null),
     ]);
+    // Every joiner needs an identity (guest if signed out): viewer + presence docs are auth-gated,
+    // so without one a link-joiner never appears in the party's listener/viewer count.
+    await m.ensureGuestAuth().catch(() => null);
     const p = await ps.fetchParty(partyId).catch(() => null);
     if (!p) { toast.partyToast('That party link is no longer valid', 'warn'); return; }
     if (p.isActive === false) { toast.partyToast(`${p.hostName || 'The host'} already ended this party`, 'info'); return; }
@@ -1772,6 +1776,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   // Shared-track landing: shows the 5s auto-play countdown, then plays that track.
   const [autoPlayShare, setAutoPlayShare] = useState<{ album: any; track: any } | null>(null);
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
+  const [releaseAnalyticsId, setReleaseAnalyticsId] = useState<string | null>(null);
   const [kioskEventId, setKioskEventId] = useState<string | null>(null);
   /** Melos: open straight into a specific production (see the MELOS navigate target). */
   const [melosProductionId, setMelosProductionId] = useState<string | null>(null);
@@ -2962,6 +2967,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     } else if (target === 'EVENT_DASHBOARD') {
       if (!user) { loginWithGoogle(); return; }
       setView('EVENT_DASHBOARD');
+    } else if (target === 'ANALYTICS' && params?.albumId) {
+      // A release's own analytics (the Analytics button on a release / its promo modal). The server only serves it to the owner.
+      if (!user) { loginWithGoogle(); return; }
+      setReleaseAnalyticsId(String(params.albumId));
+      setView('RELEASE_ANALYTICS');
     } else if (target === 'MY_TICKETS') {
       if (!user) { loginWithGoogle(); return; }
       setView('MY_TICKETS');
@@ -7318,6 +7328,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   setView('EVENT_PHOTO_POOL');
                 }}
               />
+            )}
+
+            {view === 'RELEASE_ANALYTICS' && releaseAnalyticsId && (
+              <Suspense fallback={<div className="fixed inset-0 bg-[#06040A]" />}>
+                <ReleaseAnalyticsView albumId={releaseAnalyticsId} onBack={() => setView('DASHBOARD')} />
+              </Suspense>
             )}
 
             {view === 'MY_TICKETS' && selectedTicketId && userProfile && (

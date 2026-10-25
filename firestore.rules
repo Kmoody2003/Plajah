@@ -4859,11 +4859,14 @@ service cloud.firestore {
       match /chat/{msgId} {
         allow read: if isAuthenticated();
         allow create: if isAuthenticated()
-                      && request.resource.data.keys().hasOnly(['uid', 'name', 'photo', 'text', 'at'])
+                      && request.resource.data.keys().hasOnly(['uid', 'name', 'photo', 'text', 'at', 'kind', 'emoteId', 'gifUrl', 'atSec', 'trackId'])
                       && request.resource.data.uid == request.auth.uid
                       && request.resource.data.text is string
                       && request.resource.data.text.size() > 0
                       && request.resource.data.text.size() <= 300
+                      && request.resource.data.get('kind', 'text') in ['text', 'emote', 'gif']
+                      && (!('gifUrl' in request.resource.data) || (request.resource.data.gifUrl is string && request.resource.data.gifUrl.matches('https://.{4,480}')))
+                      && (!('atSec' in request.resource.data) || request.resource.data.atSec is number)
                       && !partyBlocked(request.auth.uid, get(/databases/$(database)/documents/parties/$(partyId)).data.hostId);
         allow delete: if isAuthenticated() && (
           resource.data.uid == request.auth.uid
@@ -4873,10 +4876,33 @@ service cloud.firestore {
       match /reactions/{rid} {
         allow read: if isAuthenticated();
         allow create: if isAuthenticated()
-                      && request.resource.data.keys().hasOnly(['uid', 'emoji', 'at'])
+                      && request.resource.data.keys().hasOnly(['uid', 'emoji', 'at', 'emoteId', 'atSec', 'trackId'])
                       && request.resource.data.uid == request.auth.uid
-                      && request.resource.data.emoji in ['😂', '😍', '🔥', '👏', '😮', '😢', '🎉', '❤️']
+                      && (request.resource.data.emoji in ['😂', '😍', '🔥', '👏', '😮', '😢', '🎉', '❤️']
+                          || (request.resource.data.get('emoteId', '') is string && request.resource.data.get('emoteId', '').size() > 0 && request.resource.data.get('emoteId', '').size() <= 64 && request.resource.data.emoji is string && request.resource.data.emoji.size() <= 40))
+                      && (!('atSec' in request.resource.data) || request.resource.data.atSec is number)
                       && !partyBlocked(request.auth.uid, get(/databases/$(database)/documents/parties/$(partyId)).data.hostId);
+      }
+      // Polls / surveys: the host or a co-host asks (auto song polls are written by the host's client);
+      // everyone signed in answers once (doc id = uid) and may change their answer.
+      match /polls/{pollId} {
+        function partyHost() { return get(/databases/$(database)/documents/parties/$(partyId)).data.hostId == request.auth.uid || request.auth.uid in get(/databases/$(database)/documents/parties/$(partyId)).data.get('coHostIds', []); }
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated() && partyHost()
+                      && request.resource.data.createdBy == request.auth.uid
+                      && request.resource.data.keys().hasOnly(['id', 'kind', 'question', 'options', 'auto', 'trackId', 'trackTitle', 'trackIndex', 'nextTrackId', 'fromSec', 'keepSec', 'createdBy', 'createdAt', 'closed', 'expiresAt'])
+                      && request.resource.data.kind in ['choice', 'rating', 'text']
+                      && request.resource.data.question is string && request.resource.data.question.size() <= 140;
+        allow update: if isAuthenticated() && partyHost() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['closed']);
+        allow delete: if isAuthenticated() && partyHost();
+        match /votes/{uid} {
+          allow read: if isAuthenticated();
+          allow write: if isAuthenticated() && uid == request.auth.uid
+                       && request.resource.data.keys().hasOnly(['uid', 'name', 'value', 'atSec', 'trackId', 'at'])
+                       && request.resource.data.uid == uid
+                       && (request.resource.data.value is number ? (request.resource.data.value >= 1 && request.resource.data.value <= 5) : (request.resource.data.value is string && request.resource.data.value.size() <= 140));
+          allow delete: if isAuthenticated() && uid == request.auth.uid;
+        }
       }
     }
 

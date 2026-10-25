@@ -10,7 +10,10 @@
 //   parties/{partyId}                 Party — identity + content REFERENCE + the host's live `playback`
 //   parties/{partyId}/viewers/{uid}   join time + last-seen (clock probe; "longest-present" for openRemote)
 //   parties/{partyId}/chat/{id}       party chat (signed-in, not blocked with the host)
-//   parties/{partyId}/reactions/{id}  emoji reactions overlay
+//   parties/{partyId}/reactions/{id}  emoji / emote reactions overlay (atSec + trackId = the energy graph)
+//   parties/{partyId}/polls/{id}      host polls / surveys + the auto "how was that song?" poll
+//   parties/{partyId}/polls/{id}/votes/{uid}   one answer per listener
+// A listening party's trail is folded into Music Intelligence's audience sentiment (see requestPartyRecap).
 // Presence (viewer avatars/count) rides usePresence(`party_${id}`).
 //
 // ENTITLEMENT: the party doc is public-read, so it stores ONLY content type+id+title+cover. Every
@@ -26,6 +29,7 @@ import {
 } from 'firebase/firestore';
 import { onSnapshot } from './safeSnapshot';
 import { publicPartyContent } from './partySync';
+import { ENERGY_WEIGHT, POLL_TEXT_ANSWER_MAX, validVote, type EnergyEvent, type PartyPoll, type PartyVote } from './partyEngagement';
 
 export * from './partySync';
 
@@ -227,6 +231,8 @@ export async function endParty(partyId: string): Promise<void> {
       isActive: false, endedAt: Date.now(), 'playback.isPlaying': false, 'playback.countdownEndsAt': 0,
     });
   } catch { /* */ }
+  // Fold the session into the album's audience sentiment (no-op server-side for non-listening parties).
+  void requestPartyRecap(partyId);
 }
 
 /** Host hands the remote to someone present. The old host stays as a co-host so they can take it back. */
@@ -307,18 +313,98 @@ export async function leaveViewers(partyId: string): Promise<void> {
 
 // ── Chat + reactions ─────────────────────────────────────────────────────────────────────────────
 
-export interface PartyChatMessage { id: string; uid: string; name: string; photo?: string; text: string; at?: any }
-export interface PartyReaction { id: string; uid: string; emoji: string; at?: any }
+/** Where in the content a message/reaction/vote happened — the playhead + which track (listening parties). */
+export interface PartyMoment { trackId?: string; atSec?: number }
+export interface PartyChatMessage {
+  id: string; uid: string; name: string; photo?: string; text: string; at?: any;
+  /** 'text' (default) | 'emote' (text is `:code:`, emoteId set) | 'gif' (gifUrl set, text 'GIF'). */
+  kind?: 'text' | 'emote' | 'gif';
+  emoteId?: string;
+  gifUrl?: string;
+  /** playhead when it was sent — chips in the chat, and the energy graph's x-axis. */
+  atSec?: number;
+  trackId?: string;
+}
+export interface PartyReaction { id: string; uid: string; emoji: string; emoteId?: string; atSec?: number; trackId?: string; at?: any }
 export const PARTY_EMOJIS = ['😂', '😍', '🔥', '👏', '😮', '😢', '🎉', '❤️'] as const;
 export const PARTY_CHAT_MAX = 300;
 
-export async function sendPartyChat(partyId: string, text: string): Promise<void> {
+const momentFields = (m?: PartyMoment) => removeUndefined({
+  atSec: typeof m?.atSec === 'number' && Number.isFinite(m.atSec) && m.atSec >= 0 ? Math.round(m.atSec * 10) / 10 : undefined,
+  trackId: m?.trackId ? String(m.trackId).slice(0, 128) : undefined,
+});
+
+export interface SendChatExtra { kind?: 'text' | 'emote' | 'gif'; emoteId?: string; gifUrl?: string; moment?: PartyMoment }
+
+export async function sendPartyChat(partyId: string, text: string, extra: SendChatExtra = {}): Promise<void> {
   const me = auth.currentUser;
   const t = (text || '').trim().slice(0, PARTY_CHAT_MAX);
   if (!me || !t) return;
-  await addDoc(collection(db, 'parties', partyId, 'chat'), {
+  await addDoc(collection(db, 'parties', partyId, 'chat'), removeUndefined({
     uid: me.uid, name: (me.displayName || 'Guest').slice(0, 80), photo: me.photoURL || '', text: t, at: serverTimestamp(),
-  });
+    kind: extra.kind && extra.kind !== 'text' ? extra.kind : undefined,
+    emoteId: extra.kind === 'emote' && extra.emoteId ? String(extra.emoteId).slice(0, 64) : undefined,
+    gifUrl: extra.kind === 'gif' && /^https:\/\//i.test(extra.gifUrl || '') ? String(extra.gifUrl).slice(0, 480) : undefined,
+    ...momentFields(extra.moment),
+  }));
+}
+
+// ── Polls + surveys ───────────────────────────────────────────────────────────────────────────────
+
+export function listenPartyPolls(partyId: string, cb: (polls: PartyPoll[]) => void): () => void {
+  return onSnapshot(
+    query(collection(db, 'parties', partyId, 'polls'), orderBy('createdAt', 'asc'), limitToLast(40)),
+    (snap: any) => cb(snap.docs.map((d: any) => ({ ...(d.data() as any), id: d.id }) as PartyPoll)),
+    () => cb([]),
+  );
+}
+
+/** Host / co-host asks. The doc id is the poll id (auto polls use a deterministic one). */
+export async function createPartyPoll(partyId: string, poll: PartyPoll): Promise<void> {
+  const me = auth.currentUser;
+  if (!me) return;
+  await setDoc(doc(db, 'parties', partyId, 'polls', poll.id), removeUndefined({ ...poll, createdBy: me.uid }) as any);
+}
+
+export async function closePartyPoll(partyId: string, pollId: string): Promise<void> {
+  await updateDoc(doc(db, 'parties', partyId, 'polls', pollId), { closed: true }).catch(() => {});
+}
+
+export function listenPollVotes(partyId: string, pollId: string, cb: (votes: PartyVote[]) => void): () => void {
+  return onSnapshot(
+    query(collection(db, 'parties', partyId, 'polls', pollId, 'votes'), limit(500)),
+    (snap: any) => cb(snap.docs.map((d: any) => d.data() as PartyVote)),
+    () => cb([]),
+  );
+}
+
+/** One vote per listener (doc id = uid); casting again replaces it. */
+export async function castPollVote(partyId: string, poll: PartyPoll, value: string | number, moment?: PartyMoment): Promise<boolean> {
+  const me = auth.currentUser;
+  if (!me || !validVote(poll, value)) return false;
+  try {
+    await setDoc(doc(db, 'parties', partyId, 'polls', poll.id, 'votes', me.uid), removeUndefined({
+      uid: me.uid, name: (me.displayName || 'Guest').slice(0, 80), value: typeof value === 'string' ? value.trim().slice(0, POLL_TEXT_ANSWER_MAX) : value,
+      at: serverTimestamp(), ...momentFields(moment),
+    }) as any);
+    return true;
+  } catch { return false; }
+}
+
+/**
+ * Ask the API to fold this party's trail into Music Intelligence's audience sentiment (listening
+ * parties only). Idempotent and best-effort — call when the party ends / the host leaves.
+ */
+export async function requestPartyRecap(partyId: string): Promise<void> {
+  try {
+    const token = await auth.currentUser?.getIdToken();
+    if (!token) return;
+    const base = (import.meta as any).env?.VITE_APP_URL ?? (typeof window !== 'undefined' ? window.location.origin : '');
+    await fetch(`${base}/api/music-intel/party-recap`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ partyId }), keepalive: true,
+    });
+  } catch { /* the recap is a bonus layer */ }
 }
 
 export function listenPartyChat(partyId: string, cb: (msgs: PartyChatMessage[]) => void, max = 60): () => void {
@@ -329,10 +415,43 @@ export function listenPartyChat(partyId: string, cb: (msgs: PartyChatMessage[]) 
   );
 }
 
-export async function sendPartyReaction(partyId: string, emoji: string): Promise<void> {
+/** A quick-tap emoji (the fixed 8) or any library emote (`emoteId`; `emoji` carries its `:code:` for plain-text fallbacks). */
+export async function sendPartyReaction(partyId: string, emoji: string, extra: { emoteId?: string; moment?: PartyMoment } = {}): Promise<void> {
   const me = auth.currentUser;
-  if (!me || !(PARTY_EMOJIS as readonly string[]).includes(emoji)) return;
-  await addDoc(collection(db, 'parties', partyId, 'reactions'), { uid: me.uid, emoji, at: serverTimestamp() });
+  if (!me) return;
+  if (!extra.emoteId && !(PARTY_EMOJIS as readonly string[]).includes(emoji)) return;
+  await addDoc(collection(db, 'parties', partyId, 'reactions'), removeUndefined({
+    uid: me.uid, emoji: String(emoji).slice(0, 40), at: serverTimestamp(),
+    emoteId: extra.emoteId ? String(extra.emoteId).slice(0, 64) : undefined,
+    ...momentFields(extra.moment),
+  }));
+}
+
+/**
+ * Everything that feeds the energy graph — chat, reactions and every poll's votes — as flat timed
+ * events, live. Bounded (the newest 1000 chat + 1000 reactions); votes ride per-poll listeners.
+ */
+export function listenPartyEnergy(partyId: string, cb: (events: EnergyEvent[]) => void, polls: () => PartyPoll[] = () => []): () => void {
+  let chat: EnergyEvent[] = [], rx: EnergyEvent[] = [], votes: EnergyEvent[] = [];
+  const emit = () => cb([...chat, ...rx, ...votes]);
+  const u1 = onSnapshot(query(collection(db, 'parties', partyId, 'chat'), orderBy('at', 'asc'), limitToLast(1000)),
+    (s: any) => { chat = s.docs.map((d: any) => { const x = d.data() as PartyChatMessage; return { trackId: x.trackId, atSec: x.atSec, w: x.kind === 'gif' ? ENERGY_WEIGHT.gif : x.kind === 'emote' ? ENERGY_WEIGHT.emote : ENERGY_WEIGHT.text }; }); emit(); }, () => {});
+  const u2 = onSnapshot(query(collection(db, 'parties', partyId, 'reactions'), orderBy('at', 'asc'), limitToLast(1000)),
+    (s: any) => { rx = s.docs.map((d: any) => { const x = d.data() as PartyReaction; return { trackId: x.trackId, atSec: x.atSec, w: ENERGY_WEIGHT.reaction }; }); emit(); }, () => {});
+  const voteUnsubs = new Map<string, () => void>();
+  const byPoll = new Map<string, EnergyEvent[]>();
+  const sync = () => {
+    for (const p of polls()) {
+      if (voteUnsubs.has(p.id)) continue;
+      voteUnsubs.set(p.id, listenPollVotes(partyId, p.id, vs => {
+        byPoll.set(p.id, vs.filter(v => !v.trackId || v.trackId === p.trackId).map(v => ({ trackId: v.trackId || p.trackId, atSec: v.atSec, w: ENERGY_WEIGHT.vote })));
+        votes = [...byPoll.values()].flat(); emit();
+      }));
+    }
+  };
+  sync();
+  const iv = setInterval(sync, 4000);
+  return () => { u1(); u2(); clearInterval(iv); voteUnsubs.forEach(u => u()); };
 }
 
 export function listenPartyReactions(partyId: string, cb: (r: PartyReaction[]) => void): () => void {

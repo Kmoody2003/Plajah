@@ -27,6 +27,8 @@ import path from 'path';
 import { fsGet, fsPatch, fsSet, fsList, fsQuery, verifyIdToken, adminConfig, getAccessToken } from '../services/firebaseAdminRest';
 import { runMusicIntel, pendingTracks, type IntelAlbum, type IntelTrack, type MusicIntelDeps } from '../services/musicIntel/worker';
 import { matchFilmByTitle } from '../services/musicIntel/prompts';
+import { summarizeParty, mergeAudience, buildAudienceCards, albumEnergySeries, publicAudience, type PartyAudienceRecap } from '../services/musicIntel/audience';
+import type { PartyPoll, PartyVote } from '../services/partyEngagement';
 import { applyIntelCorrections, type FilmContext, type MusicIntelBundle, type MusicIntelJob, type TrackIntel, type TrackIntelCorrections } from '../services/musicIntel/types';
 
 const JOBS = 'musicIntel';
@@ -161,6 +163,25 @@ export async function findFilmFor(album: IntelAlbum, store: IntelStore = adminSt
   };
 }
 
+
+/** Fold one party's chat / reactions / polls / votes into its audience recap (reads Firestore via the service account). */
+async function buildPartyRecap(partyId: string, party: Record<string, any>, albumId: string, album: Record<string, any>): Promise<PartyAudienceRecap> {
+  const big = { maxDocs: 2000 };
+  const [chat, reactions, pollDocs, viewers] = await Promise.all([
+    fsList(`parties/${partyId}/chat`, big), fsList(`parties/${partyId}/reactions`, big),
+    fsList(`parties/${partyId}/polls`, { maxDocs: 100 }), fsList(`parties/${partyId}/viewers`, { maxDocs: 500 }),
+  ]);
+  const polls = pollDocs.map(p => ({ ...p.data, id: p.id })) as PartyPoll[];
+  const votes: Record<string, PartyVote[]> = {};
+  await Promise.all(polls.map(async p => { votes[p.id] = (await fsList(`parties/${partyId}/polls/${p.id}/votes`, big)).map(v => v.data as PartyVote); }));
+  return summarizeParty({
+    partyId, albumId, hostId: String(party.hostId || ''),
+    startedAt: Number(party.createdAt) || Date.now(), endedAt: Number(party.endedAt) || undefined,
+    tracks: ((album.tracks || []) as any[]).filter(t => t?.id).map(t => ({ id: String(t.id), title: String(t.title || 'Untitled'), durationSec: Number(t.duration) || 0 })),
+    chat: chat.map(c => c.data), reactions: reactions.map(c => c.data), polls, votes, listeners: viewers.length,
+  });
+}
+
 const adminStore: IntelStore = {
   get: fsGet, patch: fsPatch, set: fsSet,
   list: (c) => fsList(c, { maxDocs: 200 }),
@@ -240,6 +261,7 @@ function runOnce(extra: MusicIntelRouterDeps, albumId: string, opts: Parameters<
 
 export function createMusicIntelRouter(extra: MusicIntelRouterDeps = {}): Router {
   const r = Router();
+  const recapAt = new Map<string, number>();
 
   r.post('/analyze', async (req: Request, res: Response) => {
     if (!adminConfig.hasCredentials()) return res.status(503).json({ error: 'Server not configured.' });
@@ -350,6 +372,91 @@ export function createMusicIntelRouter(extra: MusicIntelRouterDeps = {}): Router
     const doc = JSON.parse(JSON.stringify({ ...clean, trackId, ownerId: String(album.ownerId) }));
     await fsSet(`${JOBS}/${albumId}/corrections/${encodeURIComponent(trackId)}`, doc);
     res.json({ ok: true, corrections: clean });
+  });
+
+  // A listening party's trail → this album's audience sentiment. Idempotent (re-running overwrites the
+  // same per-party doc). Allowed once the party ended, for its host / co-hosts any time, and for anyone
+  // when the host has been silent >5 min (tab killed without pressing End).
+  r.post('/party-recap', async (req: Request, res: Response) => {
+    if (!adminConfig.hasCredentials()) return res.status(503).json({ error: 'Server not configured.' });
+    const uid = await callerUid(req);
+    if (!uid) return res.status(401).json({ error: 'Sign in required.' });
+    const partyId = String(req.body?.partyId || '').trim();
+    if (!ID_RE.test(partyId)) return res.status(400).json({ error: 'partyId is required.' });
+    const party = await fsGet(`parties/${partyId}`);
+    if (!party) return res.status(404).json({ error: 'No such party.' });
+    if (party.kind !== 'LISTEN' || party.content?.type !== 'ALBUM' || !ID_RE.test(String(party.content?.id || ''))) return res.json({ ok: true, skipped: 'not a listening party' });
+    const heartbeat = Date.parse(String(party.hostHeartbeat || '')) || 0;
+    const allowed = party.isActive === false || party.hostId === uid || (party.coHostIds || []).includes(uid) || (heartbeat > 0 && Date.now() - heartbeat > 5 * 60_000);
+    if (!allowed) return res.status(403).json({ error: 'The party is still going.' });
+    // Many tabs leave at once when a party ends — one recompute per party per 30 s is plenty.
+    if (Date.now() - (recapAt.get(partyId) || 0) < 30_000) return res.json({ ok: true, skipped: 'recent' });
+    recapAt.set(partyId, Date.now());
+    const albumId = String(party.content.id);
+    const album = await fsGet(`albums/${albumId}`);
+    if (!album || album.type !== 'MUSIC') return res.json({ ok: true, skipped: 'no such album' });
+    // (Private releases are recorded too — the creator's analytics need them; the public read still hides them.)
+    try {
+      const recap = await buildPartyRecap(partyId, party, albumId, album);
+      const doc = JSON.parse(JSON.stringify(recap));
+      // No parent write: musicIntel/{albumId} is the analysis job, and a stub there would read as one.
+      await fsSet(`${JOBS}/${albumId}/parties/${partyId}`, doc);
+      res.json({ ok: true, listeners: recap.listeners });
+    } catch (e: any) {
+      console.error('[music-intel] party-recap failed:', e?.message || e);
+      res.status(502).json({ error: 'Recap hit a snag.' });
+    }
+  });
+
+  // Audience sentiment for an album: every recorded listening party, merged, as data facts + point
+  // cards + the per-song energy series. Anyone who can see the album sees it — no party needed.
+  r.get('/audience/:albumId', async (req: Request, res: Response) => {
+    const albumId = String(req.params.albumId || '');
+    if (!ID_RE.test(albumId)) return res.status(400).json({ error: 'bad id' });
+    const album = await fsGet(`albums/${albumId}`);
+    if (!album) return res.status(404).json({ error: 'No such album.' });
+    if (album.isPrivate === true) {
+      const uid = await callerUid(req);
+      if (uid !== album.ownerId) return res.status(404).json({ error: 'No such album.' });
+    }
+    const rows = await fsList(`${JOBS}/${albumId}/parties`, { maxDocs: 200 }).catch(() => [] as Array<{ id: string; data: Record<string, any> }>);
+    const recaps = rows.map(r => r.data as PartyAudienceRecap).filter(r => r?.tracks);
+    const order = ((album.tracks || []) as any[]).map(t => String(t?.id || '')).filter(Boolean);
+    const audience = mergeAudience(recaps);
+    res.set('Cache-Control', 'public, max-age=30');
+    res.json({ audience: publicAudience(audience), cards: buildAudienceCards(audience, order), energy: albumEnergySeries(audience, order) });
+  });
+
+  // The creator's analytics for ONE release: every recorded listening party in full (open-question
+  // answers, every public-safe comment, per-party poll results), plus a live read of any party for this
+  // release that is running right now. Owner / admin only.
+  r.get('/audience/:albumId/creator', async (req: Request, res: Response) => {
+    if (!adminConfig.hasCredentials()) return res.status(503).json({ error: 'Server not configured.' });
+    const uid = await callerUid(req);
+    if (!uid) return res.status(401).json({ error: 'Sign in required.' });
+    const albumId = String(req.params.albumId || '');
+    if (!ID_RE.test(albumId)) return res.status(400).json({ error: 'bad id' });
+    const album = await fsGet(`albums/${albumId}`);
+    if (!album) return res.status(404).json({ error: 'No such album.' });
+    if (album.ownerId !== uid && !(await isAdmin(uid))) return res.status(403).json({ error: 'Not your release.' });
+    const rows = await fsList(`${JOBS}/${albumId}/parties`, { maxDocs: 200 }).catch(() => [] as Array<{ id: string; data: Record<string, any> }>);
+    const stored = rows.map(r => r.data as PartyAudienceRecap).filter(r => r?.tracks);
+    // Parties still going: computed on the fly (never stored — the recap is written when they end).
+    const running = (await fsQuery('parties', [{ field: 'content.id', value: albumId }], 25).catch(() => []))
+      .filter(p => p.data?.kind === 'LISTEN' && p.data?.isActive === true);
+    const live: PartyAudienceRecap[] = [];
+    for (const p of running.slice(0, 5)) {
+      try { live.push(await buildPartyRecap(p.id, p.data, albumId, album)); } catch { /* skip a party we can't read */ }
+    }
+    const liveIds = new Set(live.map(l => l.partyId));
+    const sessions = [...live, ...stored.filter(s => !liveIds.has(s.partyId))].sort((a, b) => (b.startedAt || 0) - (a.startedAt || 0));
+    const order = ((album.tracks || []) as any[]).map(t => String(t?.id || '')).filter(Boolean);
+    const audience = mergeAudience(sessions);
+    res.set('Cache-Control', 'private, no-store');
+    res.json({
+      album: { id: albumId, title: String(album.title || ''), artist: String(album.artist || ''), cover: String(album.coverImage || ''), tracks: ((album.tracks || []) as any[]).map(t => ({ id: String(t?.id || ''), title: String(t?.title || ''), duration: Number(t?.duration) || 0 })) },
+      sessions, liveParties: [...liveIds], audience, energy: albumEnergySeries(audience, order), cards: buildAudienceCards(audience, order),
+    });
   });
 
   r.get('/:albumId', async (req: Request, res: Response) => {

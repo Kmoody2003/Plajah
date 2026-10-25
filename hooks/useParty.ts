@@ -321,8 +321,12 @@ export function useParty(partyId: string | null): UseParty {
         photo: p.photo || existing?.photo || '',
       });
     }
+    // Viewer docs are only deleted on a clean leave — age out ones that stopped probing (tab killed).
+    const nowServer = Date.now() + (offset?.offsetMs ?? 0);
     for (const v of viewers) {
       if (!v?.uid) continue;
+      const seen = tsToMs(v.seenAt);
+      if (seen && nowServer - seen > VIEWER_FRESH_MS && !byId.has(v.uid)) continue;
       const existing = byId.get(v.uid);
       byId.set(v.uid, {
         uid: v.uid,
@@ -343,7 +347,7 @@ export function useParty(partyId: string | null): UseParty {
       list.sort((a, b) => (a.uid === party.hostId ? -1 : b.uid === party.hostId ? 1 : 0));
     }
     return list;
-  }, [party?.hostId, party?.hostName, party?.hostPhoto, people, viewers, partyId]);
+  }, [party?.hostId, party?.hostName, party?.hostPhoto, people, viewers, partyId, offset, tick]);
 
   const mergedViewerCount = Math.max(count, mergedPeople.length, partyId ? 1 : 0);
 

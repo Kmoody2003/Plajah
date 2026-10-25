@@ -9,17 +9,21 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  Users, MessageCircle, Send, X, Smile, UserPlus, Crown, Link as LinkIcon, Settings, Play, Radio, Check, Loader2,
+  Users, MessageCircle, Smile, UserPlus, Crown, Link as LinkIcon, Settings, Play, Radio, Check, Loader2,
 } from 'lucide-react';
 import type { UseParty } from '../../hooks/useParty';
 import {
   PARTY_EMOJIS, PartyChatMessage, PartyReaction, InviteCandidate, listenPartyChat, listenPartyReactions,
-  sendPartyChat, sendPartyReaction, fetchInviteCandidates, sendPartyInvites, partyShareUrl, tsToMs, PARTY_CHAT_MAX,
+  sendPartyReaction, fetchInviteCandidates, sendPartyInvites, partyShareUrl, tsToMs, listenPartyPolls, type PartyMoment,
 } from '../../services/partyService';
 import { auth } from '../../services/backendService';
 import { useSocialSafety } from '../../hooks/useSocialSafety';
 import { partyToast } from './partyToast';
 import PartyToastHost from './PartyToastHost';
+import PartyChatPanel, { type PartyTrackMeta } from './PartyChatPanel';
+import { EmoteGlyph } from '../emotes/EmoteGlyph';
+import { emoteById } from '../../services/emotes/emoteLibrary';
+import type { PartyPoll } from '../../services/partyEngagement';
 
 export interface PartyBarProps {
   partyId: string;
@@ -36,6 +40,14 @@ export interface PartyBarProps {
   /** Extra follower control (e.g. BookReader's "Read on my own"). */
   followerExtra?: React.ReactNode;
   className?: string;
+  /** Where the content's "now" is (listening parties pass the local player). Stamps chat/reactions/votes. */
+  getMoment?: () => PartyMoment;
+  /** Album tracks — song chips + the energy graph (listening parties). */
+  tracks?: PartyTrackMeta[];
+  /** 'side' = docked right panel (desktop); 'inline' = a block right under the bar (phones). */
+  chatLayout?: 'side' | 'inline';
+  /** Open the chat as soon as the party loads (inline layout keeps it open). */
+  defaultChatOpen?: boolean;
 }
 
 const glass: React.CSSProperties = {
@@ -57,11 +69,13 @@ function Avatar({ name, photo, size = 22 }: { name?: string; photo?: string; siz
   );
 }
 
-const PartyBar: React.FC<PartyBarProps> = ({ partyId, party, verb, noun, title, onLeave, onStartTogether, followerExtra, className }) => {
+const PartyBar: React.FC<PartyBarProps> = ({ partyId, party, verb, noun, title, onLeave, onStartTogether, followerExtra, className, getMoment, tracks, chatLayout = 'side', defaultChatOpen }) => {
   const p = party.party;
   const me = auth.currentUser?.uid || null;
   const safety = useSocialSafety();
-  const [panel, setPanel] = useState<null | 'chat' | 'invite' | 'host' | 'emoji'>(null);
+  const [panel, setPanel] = useState<null | 'invite' | 'host' | 'emoji'>(null);
+  // Chat is its own toggle so the invite / settings dropdowns never close it (it's a panel, not a menu).
+  const [chatOpen, setChatOpen] = useState(!!defaultChatOpen);
 
   // Transition toasts: reconnecting / back / new host / ended.
   const prevRef = useRef<{ status: string; hostId: string; ended: boolean } | null>(null);
@@ -78,34 +92,64 @@ const PartyBar: React.FC<PartyBarProps> = ({ partyId, party, verb, noun, title, 
     else if (prev.status !== 'live' && cur.status === 'live') partyToast(`${p.hostName || 'Host'} is back — resyncing`, 'good');
   }, [p?.hostId, party.hostStatus, party.ended]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── join flash: a visible pulse + "X joined" when someone new arrives (not for the initial roster) ──
+  const [joinFlash, setJoinFlash] = useState<{ key: number; names: string[] } | null>(null);
+  const knownRef = useRef<Set<string> | null>(null);
+  const armedAtRef = useRef(0);
+  useEffect(() => { knownRef.current = null; armedAtRef.current = Date.now() + 2500; setJoinFlash(null); }, [partyId]);
+  useEffect(() => {
+    const now = party.people.filter(x => x.uid);
+    if (!knownRef.current || Date.now() < armedAtRef.current) {
+      knownRef.current = new Set([...(knownRef.current || []), ...now.map(x => x.uid)]);
+      return;
+    }
+    const fresh = now.filter(x => !knownRef.current!.has(x.uid) && x.uid !== me);
+    now.forEach(x => knownRef.current!.add(x.uid));
+    if (!fresh.length || party.ended) return;
+    const names = fresh.map(x => x.name || 'Someone');
+    const key = Date.now();
+    setJoinFlash({ key, names });
+    setTimeout(() => setJoinFlash(f => (f && f.key === key ? null : f)), 3200);
+  }, [party.people]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── chat ──
+  // ── a poll went up while the chat was closed: pulse the Chat button and (for listeners) open it ──
+  const [pollNudge, setPollNudge] = useState(false);
+  const seenPollsRef = useRef<Set<string> | null>(null);
+  const pollsRef = useRef<PartyPoll[]>([]);
+  useEffect(() => {
+    seenPollsRef.current = null; setPollNudge(false);
+    if (!me) return;
+    return listenPartyPolls(partyId, list => {
+      pollsRef.current = list;
+      if (!seenPollsRef.current) { seenPollsRef.current = new Set(list.map(x => x.id)); return; } // history: don't nudge
+      const fresh = list.filter(x => !seenPollsRef.current!.has(x.id));
+      list.forEach(x => seenPollsRef.current!.add(x.id));
+      if (fresh.length) { setPollNudge(true); if (!party.isHost) setChatOpen(true); }
+    });
+  }, [partyId, me]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (chatOpen) setPollNudge(false); }, [chatOpen]);
+
+  // The chat itself lives in PartyChatPanel (docked side panel); the bar only tracks unread.
   const [chat, setChat] = useState<PartyChatMessage[]>([]);
   const [unread, setUnread] = useState(0);
-  const [draft, setDraft] = useState('');
-  const chatEndRef = useRef<HTMLDivElement>(null);
   const seenChatRef = useRef<number>(0);
   useEffect(() => {
-    setChat([]); setDraft(''); seenChatRef.current = 0; setUnread(0);
+    setChat([]); seenChatRef.current = 0; setUnread(0);
     if (!me) return;
     return listenPartyChat(partyId, msgs => setChat(msgs));
   }, [partyId, me]);
-  const visibleChat = useMemo(() => {
+  const visibleChatCount = useMemo(() => {
     const since = p?.createdAt || 0;
-    return chat.filter(m => !safety.isHidden(m.uid) && (!tsToMs(m.at) || tsToMs(m.at) >= since - 60_000));
+    return chat.filter(m => !safety.isHidden(m.uid) && (!tsToMs(m.at) || tsToMs(m.at) >= since - 60_000)).length;
   }, [chat, safety, p?.createdAt]);
   useEffect(() => {
-    if (panel === 'chat') { seenChatRef.current = visibleChat.length; setUnread(0); chatEndRef.current?.scrollIntoView({ block: 'end' }); }
-    else setUnread(Math.max(0, visibleChat.length - seenChatRef.current));
-  }, [visibleChat.length, panel]);
-  const sendChat = () => {
-    const t = draft.trim();
-    if (!t) return;
-    setDraft('');
-    sendPartyChat(partyId, t).catch(() => { setDraft(t); partyToast('Message not sent', 'warn'); });
-  };
+    if (chatOpen) { seenChatRef.current = visibleChatCount; setUnread(0); }
+    else setUnread(Math.max(0, visibleChatCount - seenChatRef.current));
+  }, [visibleChatCount, chatOpen]);
 
   // ── reactions overlay ──
-  const [floaters, setFloaters] = useState<{ id: string; emoji: string; x: number }[]>([]);
+  const [floaters, setFloaters] = useState<{ id: string; emoji: string; emoteId?: string; x: number }[]>([]);
   const seenReactRef = useRef<Set<string> | null>(null);
   useEffect(() => {
     seenReactRef.current = null;
@@ -114,14 +158,14 @@ const PartyBar: React.FC<PartyBarProps> = ({ partyId, party, verb, noun, title, 
       const fresh = rs.filter(r => !seenReactRef.current!.has(r.id) && !safety.isHidden(r.uid));
       rs.forEach(r => seenReactRef.current!.add(r.id));
       if (!fresh.length) return;
-      const add = fresh.map(r => ({ id: r.id, emoji: r.emoji, x: 10 + Math.random() * 70 }));
+      const add = fresh.map(r => ({ id: r.id, emoji: r.emoji, emoteId: r.emoteId, x: 10 + Math.random() * 70 }));
       setFloaters(f => [...f.slice(-24), ...add]);
       add.forEach(a => setTimeout(() => setFloaters(f => f.filter(x => x.id !== a.id)), 2600));
     });
   }, [partyId]); // eslint-disable-line react-hooks/exhaustive-deps
   const react = (emoji: string) => {
     if (!me) { partyToast('Sign in to react', 'info'); return; }
-    sendPartyReaction(partyId, emoji).catch(() => {});
+    sendPartyReaction(partyId, emoji, { moment: getMoment?.() ?? { trackId: p?.playback?.contentId, atSec: party.getTarget().targetPositionSec } }).catch(() => {});
   };
 
   // ── invites ──
@@ -193,13 +237,35 @@ const PartyBar: React.FC<PartyBarProps> = ({ partyId, party, verb, noun, title, 
             <motion.span key={f.id} initial={{ y: 0, opacity: 0, scale: 0.6 }} animate={{ y: -320, opacity: [0, 1, 1, 0], scale: 1.2 }}
               exit={{ opacity: 0 }} transition={{ duration: 2.5, ease: 'easeOut' }}
               className="absolute bottom-24 text-4xl select-none" style={{ right: `${4 + f.x / 5}%` }}>
-              {f.emoji}
+              {f.emoteId && emoteById(f.emoteId) ? <EmoteGlyph def={emoteById(f.emoteId)!} size={44} animate /> : f.emoji}
             </motion.span>
           ))}
         </AnimatePresence>
       </div>
 
       <PartyToastHost />
+
+      {/* Join flash: screen-edge glow + a "joined" banner */}
+      <AnimatePresence>
+        {joinFlash && (
+          <React.Fragment key={joinFlash.key}>
+            <motion.div initial={{ opacity: 0.85 }} animate={{ opacity: 0 }} transition={{ duration: 1.4, ease: 'easeOut' }}
+              className="fixed inset-0 z-[78] pointer-events-none"
+              style={{ boxShadow: 'inset 0 0 120px 24px rgba(212,0,85,0.55), inset 0 0 40px 6px rgba(255,255,255,0.35)' }} aria-hidden />
+            <motion.div initial={{ opacity: 0, y: -16, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -10 }}
+              className="fixed top-5 left-1/2 -translate-x-1/2 z-[84] pointer-events-none px-5 py-2.5 rounded-full text-white text-xs font-black uppercase tracking-widest flex items-center gap-2"
+              style={{ background: 'var(--pj-grad-brand)', boxShadow: '0 0 32px rgba(212,0,85,0.65)' }} role="status">
+              <UserPlus size={14} />
+              {joinFlash.names.length === 1 ? `${joinFlash.names[0]} joined` : `${joinFlash.names.length} people joined`}
+            </motion.div>
+          </React.Fragment>
+        )}
+      </AnimatePresence>
+
+      {chatOpen && me && chatLayout === 'side' && (
+        <PartyChatPanel partyId={partyId} party={party} since={p?.createdAt || 0} layout="side" getMoment={getMoment} tracks={tracks}
+          onClose={() => setChatOpen(false)} />
+      )}
 
       {/* The bar */}
       <div className={`relative flex flex-wrap items-center gap-2 px-3 py-2 rounded-2xl text-white ${className || ''}`} style={glass}>
@@ -239,9 +305,10 @@ const PartyBar: React.FC<PartyBarProps> = ({ partyId, party, verb, noun, title, 
           <Smile size={12} />
         </button>
         {me && (
-          <button onClick={() => setPanel(panel === 'chat' ? null : 'chat')} className={`${pill} bg-white/10 hover:bg-white/20 relative`} aria-label="Party chat">
+          <button onClick={() => setChatOpen(o => !o)} className={`${pill} ${chatOpen ? 'bg-white/25' : 'bg-white/10 hover:bg-white/20'} relative`} aria-label="Party chat" aria-pressed={chatOpen}>
             <MessageCircle size={12} /> Chat
-            {unread > 0 && panel !== 'chat' && (
+            {pollNudge && !chatOpen && <span className="ml-0.5 px-1.5 rounded-full text-[8px] leading-4 text-white animate-pulse" style={{ background: 'var(--pj-orange)' }}>Poll</span>}
+            {unread > 0 && !chatOpen && (
               <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full text-[9px] leading-4 text-center text-white" style={{ background: 'var(--pj-magenta)' }}>{unread > 9 ? '9+' : unread}</span>
             )}
           </button>
@@ -268,36 +335,6 @@ const PartyBar: React.FC<PartyBarProps> = ({ partyId, party, verb, noun, title, 
               {PARTY_EMOJIS.map(e => (
                 <button key={e} onClick={() => react(e)} className="w-9 h-9 rounded-xl hover:bg-white/10 text-xl active:scale-90 transition-transform">{e}</button>
               ))}
-            </motion.div>
-          )}
-
-          {panel === 'chat' && (
-            <motion.div key="chat" initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
-              className="absolute right-2 top-full mt-2 z-[75] w-80 max-w-[calc(100vw-32px)] rounded-2xl flex flex-col overflow-hidden" style={glass}>
-              <div className="flex items-center justify-between px-3 py-2 border-b border-white/10">
-                <span className="text-[10px] font-black uppercase tracking-widest text-white/70">Party chat</span>
-                <button onClick={() => setPanel(null)} aria-label="Close chat" className="text-white/60 hover:text-white"><X size={14} /></button>
-              </div>
-              <div className="max-h-72 overflow-y-auto px-3 py-2 space-y-2">
-                {!visibleChat.length && <p className="text-xs text-white/50 py-6 text-center">Say hi — everyone in the party sees this.</p>}
-                {visibleChat.map(m => (
-                  <div key={m.id} className="flex items-start gap-2">
-                    <Avatar name={m.name} photo={m.photo} size={20} />
-                    <div className="min-w-0">
-                      <span className="text-[10px] font-black text-white/60 mr-1">{m.name}{m.uid === p?.hostId ? ' · host' : ''}</span>
-                      <span className="text-xs text-white break-words">{m.text}</span>
-                    </div>
-                  </div>
-                ))}
-                <div ref={chatEndRef} />
-              </div>
-              <form className="flex items-center gap-2 p-2 border-t border-white/10" onSubmit={e => { e.preventDefault(); sendChat(); }}>
-                <input value={draft} onChange={e => setDraft(e.target.value.slice(0, PARTY_CHAT_MAX))} placeholder="Message the party"
-                  className="flex-1 bg-white/10 rounded-full px-3 py-1.5 text-xs text-white placeholder-white/40 outline-none focus:ring-2 ring-white/20" />
-                <button type="submit" disabled={!draft.trim()} className="p-2 rounded-full disabled:opacity-40" style={{ background: 'var(--pj-magenta)' }} aria-label="Send">
-                  <Send size={12} />
-                </button>
-              </form>
             </motion.div>
           )}
 
@@ -372,6 +409,12 @@ const PartyBar: React.FC<PartyBarProps> = ({ partyId, party, verb, noun, title, 
           )}
         </AnimatePresence>
       </div>
+
+      {chatOpen && me && chatLayout === 'inline' && (
+        <div className="mt-2">
+          <PartyChatPanel partyId={partyId} party={party} since={p?.createdAt || 0} layout="inline" getMoment={getMoment} tracks={tracks} />
+        </div>
+      )}
     </>
   );
 };
