@@ -8,7 +8,7 @@ import React, { Suspense, lazy, useCallback, useEffect, useMemo, useState } from
 import {
   ArrowLeft, LayoutDashboard, Users, Church, Link2, Gift, HandHeart, MonitorPlay, MessagesSquare, ShoppingBag,
   Briefcase, Megaphone, Check, Circle, Loader2, Trash2, Sparkles, Mail, HardDrive, UserCog, Mic2, Wallet, KeyRound, GraduationCap, Music, ShieldCheck,
-  Calendar, Radio, Upload, Send, DollarSign, TrendingUp, BookOpen,
+  Calendar, Radio, Upload, Send, DollarSign, TrendingUp, BookOpen, Landmark,
 } from 'lucide-react';
 import { spendingPerms } from '../../services/acctSpending';
 import { CountBadge, useMoneyInbox } from './chms/finance/SpendingUi';
@@ -47,6 +47,7 @@ const ChurchEducation = lazy(() => import('../church/ChurchEducation'));
 const ChurchMusicDepartmentHub = lazy(() => import('./ChurchMusicDepartmentHub'));
 const ElevateMobilizeHub = lazy(() => import('./ElevateMobilizeHub'));
 const GrowthHub = lazy(() => import('../growth/GrowthHub'));
+const GrantMatcher = lazy(() => import('./GrantMatcher'));
 import { EV, EvLabel, EvKpiStrip } from './vellum';
 import { opsPresetForOrg } from '../../services/opsPresets';
 import type { MailRecipient } from '../../services/marketing/handoff';
@@ -62,10 +63,11 @@ const SECTION_SUB: Partial<Record<SectionKey, string>> = {
   prayer: 'Moderate requests, mark answered, keep private ones private.',
   team: 'Staff, volunteers and roles — grant access to the tools each needs.',
   education: 'Sunday school, Bible study & discipleship on the education stack.',
+  grants: 'Federal grants that fit your mission, live from Grants.gov — plus who is already funded near you.',
 };
 const field = 'w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white outline-none focus:border-small-orange/50 transition-all placeholder:text-white/25';
 
-type SectionKey = 'overview' | 'mobilize' | 'messages' | 'events' | 'multisite' | 'people' | 'ministries' | 'education' | 'music' | 'invites' | 'accounts' | 'security' | 'giving' | 'money' | 'prayer' | 'media' | 'social' | 'store' | 'team' | 'marketing';
+type SectionKey = 'overview' | 'mobilize' | 'messages' | 'events' | 'multisite' | 'people' | 'ministries' | 'education' | 'music' | 'invites' | 'accounts' | 'security' | 'giving' | 'money' | 'prayer' | 'media' | 'social' | 'store' | 'team' | 'marketing' | 'grants';
 type Tool = null | 'sermons' | 'sermonprep' | 'master' | 'console' | 'hq' | 'employees' | 'hiring' | 'marketing';
 
 interface Props {
@@ -123,6 +125,7 @@ const ElevateOps: React.FC<Props> = ({ org: initialOrg, isOwner, onClose, onOrgC
     { key: 'messages' as const, label: 'Messages', icon: Mail, show: can('MANAGE_MEDIA') },
     { key: 'people' as const, label: 'People', icon: Users, show: can('MANAGE_ROSTER') || can('ASSIGN_ROLES') || (!!uid && (org.ministries || []).some(m => m.headUids?.includes(uid))) },
     { key: 'giving' as const, label: 'Giving', icon: Gift, show: can('MANAGE_GIVING') || can('VIEW_GIVING') || can('MANAGE_ACCOUNTING') || can('VIEW_ACCOUNTING') },
+    { key: 'grants' as const, label: 'Grants', icon: Landmark, show: can('MANAGE_GIVING') || can('MANAGE_ACCOUNTING') || isOwner },
     { key: 'events' as const, label: 'Events', icon: Calendar, show: can('POST_AS_ORG') || can('MANAGE_CONTENT') || isOwner },
     { key: 'prayer' as const, label: 'Prayer', icon: HandHeart, show: faith && can('VIEW_PRAYER') },
     { key: 'team' as const, label: 'Team & Roles', icon: UserCog, show: can('MANAGE_EMPLOYEES') || can('ASSIGN_ROLES') },
@@ -402,6 +405,7 @@ const ElevateOps: React.FC<Props> = ({ org: initialOrg, isOwner, onClose, onOrgC
               )}
 
               {section === 'marketing' && growth('marketing')}
+              {section === 'grants' && <GrantMatcher org={org} />}
             </Suspense>
           </div>
         </div>

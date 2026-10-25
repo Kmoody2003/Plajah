@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "allowJs": false, "noEmit": true },
+  "include": [
+    "services/dataCommons/*.ts", "routes/dataCommons.ts", "tests/dataCommons.test.ts",
+    "components/elevate/GrantMatcher.tsx", "components/terra/FederalContext.tsx", "components/terra/PropertyPassport.tsx",
+    "components/elevate/ElevateOps.tsx"
+  ]
+}

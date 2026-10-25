@@ -25,6 +25,7 @@ import {
   ExternalLink, ShieldCheck, Gauge, Store, BadgeCheck, ShieldAlert,
 } from 'lucide-react';
 import type { UserProfile } from '../../types';
+import FederalContext from './FederalContext';
 import type { TerraParcel, TerraCivicRecord, CivicRecordKind, TerraBuildingEnergy, TerraBusinessLicense, TerraRentalCompliance } from '../../services/terra/terraTypes';
 import type { OpenListingRecord, OlrSource } from '../../services/terra/olr';
 import {
@@ -560,6 +561,9 @@ export const PropertyPassport: React.FC<PropertyPassportProps> = ({ parcelId, li
             {/* Only for buildings that report — see the honesty note on EnergyPanel. */}
             {rental && rental.state !== 'UNKNOWN' && <div className="mt-6"><RentalPanel rental={rental} /></div>}
             {energy && <div className="mt-6"><EnergyPanel energy={energy} /></div>}
+            {parcel?.centroidLat != null && parcel?.centroidLng != null && (
+              <div className="mt-6"><FederalContext lat={parcel.centroidLat} lng={parcel.centroidLng} /></div>
+            )}
           </div>
 
           <div>
