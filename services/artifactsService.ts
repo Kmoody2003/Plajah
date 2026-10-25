@@ -68,22 +68,35 @@ export const MET_DEPARTMENTS = {
 
 const cache = new Map<string, Artifact[]>();
 
+/** Museum APIs rate-limit bursts with 403/429 (and no CORS header, which browsers report as a CORS error).
+ *  Retry once after a short pause so a momentary throttle doesn't empty a grid. */
+async function fetchRetry(url: string, init: RequestInit = {}): Promise<Response> {
+  const res = await fetch(url, init);
+  if (res.status !== 403 && res.status !== 429 && res.status < 500) return res;
+  await new Promise(r => setTimeout(r, 700));
+  return fetch(url, init);
+}
+
 // ── The Metropolitan Museum of Art ────────────────────────────────────────────
 async function searchMet(query: string, limit: number, departmentId?: number, signal?: AbortSignal): Promise<Artifact[]> {
   try {
     const dep = departmentId ? `&departmentId=${departmentId}` : '';
     const url = `https://collectionapi.metmuseum.org/public/collection/v1.1/search?hasImages=true&isPublicDomain=true&limit=${limit * 4}&offset=0${dep}&q=${encodeURIComponent(query)}`;
-    const sRes = await fetch(url, { signal: signal ?? AbortSignal.timeout(9000) });
+    const sRes = await fetchRetry(url, { signal: signal ?? AbortSignal.timeout(9000) });
     if (!sRes.ok) return [];
     const sData = await sRes.json();
     const ids: number[] = (sData?.objectIDs ?? []).slice(0, limit * 3);
     const out: Artifact[] = [];
-    for (const id of ids) {
-      if (out.length >= limit) break;
-      try {
-        const oRes = await fetch(`https://collectionapi.metmuseum.org/public/collection/v1/objects/${id}`, { signal: AbortSignal.timeout(7000) });
-        if (!oRes.ok) continue;
-        const o = await oRes.json();
+    // Object records are fetched in small parallel batches (not one by one, not all at once).
+    for (let i = 0; i < ids.length && out.length < limit; i += 5) {
+      const batch = await Promise.all(ids.slice(i, i + 5).map(async id => {
+        try {
+          const oRes = await fetchRetry(`https://collectionapi.metmuseum.org/public/collection/v1/objects/${id}`, { signal: AbortSignal.timeout(7000) });
+          return oRes.ok ? await oRes.json() : null;
+        } catch { return null; }
+      }));
+      for (const o of batch) {
+        if (out.length >= limit) break;
         if (!o?.primaryImageSmall) continue;
         out.push({
           id: `met-${o.objectID}`,
@@ -97,7 +110,7 @@ async function searchMet(query: string, limit: number, departmentId?: number, si
           sourceUrl: o.objectURL || `https://www.metmuseum.org/art/collection/search/${o.objectID}`,
           provenance: [o.geographyType, o.country || o.region || o.excavation].filter(Boolean).join(' ') || undefined,
         });
-      } catch { /* skip */ }
+      }
     }
     return out;
   } catch { return []; }
@@ -109,7 +122,7 @@ async function searchArtic(query: string, limit: number, signal?: AbortSignal): 
   try {
     const fields = 'id,title,artist_display,date_display,medium_display,image_id,place_of_origin,is_public_domain';
     const url = `https://api.artic.edu/api/v1/artworks/search?q=${encodeURIComponent(query)}&query[term][is_public_domain]=true&fields=${fields}&limit=${limit}`;
-    const res = await fetch(url, { signal: signal ?? AbortSignal.timeout(9000) });
+    const res = await fetchRetry(url, { signal: signal ?? AbortSignal.timeout(9000) });
     if (!res.ok) return [];
     const data = await res.json();
     return (data?.data ?? [])
@@ -365,10 +378,10 @@ async function searchEuropeana3D(query: string, limit: number, signal?: AbortSig
 
 // ── Server proxy for keyed sources ────────────────────────────────────────────
 // In the browser without a build-time key, ask the server (which holds the key) instead.
-async function viaProxy(query: string, sources: ArtifactSource[], limit: number, signal?: AbortSignal, only3d = false, region?: MuseumRegion): Promise<Artifact[]> {
+async function viaProxy(query: string, sources: ArtifactSource[], limit: number, signal?: AbortSignal, only3d = false, region?: MuseumRegion, metDept?: number): Promise<Artifact[]> {
   if (!IN_BROWSER || !sources.length) return [];
   try {
-    const url = `/api/museum/artifacts?q=${encodeURIComponent(query)}&sources=${sources.join(',')}&limit=${limit}${only3d ? '&only3d=1' : ''}${region ? `&region=${region}` : ''}`;
+    const url = `/api/museum/artifacts?q=${encodeURIComponent(query)}&sources=${sources.join(',')}&limit=${limit}${only3d ? '&only3d=1' : ''}${region ? `&region=${region}` : ''}${metDept ? `&metDept=${metDept}` : ''}`;
     const res = await fetch(url, { signal: signal ?? AbortSignal.timeout(20000) });
     if (!res.ok) return [];
     const data = await res.json();
@@ -414,8 +427,22 @@ export async function searchArtifacts(query: string, opts: SearchArtifactsOpts =
   const tasks: Promise<Artifact[]>[] = [];
   // Free-text sources can't filter by department, so a region adds a place/culture keyword.
   const rq = (i: number) => (R ? `${query} ${regionKeyword(R, i)}` : query);
-  if (sources.includes('met')) tasks.push(searchMet(R?.met === 5 ? rq(0) : query, per, opts.metDepartmentId ?? R?.met, opts.signal)); // dept 5 spans Africa, Oceania & the Americas, so add the region keyword
-  if (sources.includes('artic')) tasks.push(searchArtic(query, per, opts.signal));
+  const metTask = () => searchMet(R?.met === 5 ? rq(0) : query, per, opts.metDepartmentId ?? R?.met, opts.signal); // dept 5 spans Africa, Oceania & the Americas, so add the region keyword
+  const articTask = () => searchArtic(query, per, opts.signal);
+  // In a browser, the Met and Art Institute go through the server first: one cached, throttle-aware
+  // caller instead of every visitor's burst of per-object requests. If the server route is absent
+  // (labs, static builds) or empty, fall back to calling the museums directly.
+  const serverFirst = IN_BROWSER ? (['met', 'artic'] as ArtifactSource[]).filter(s => sources.includes(s)) : [];
+  if (serverFirst.length) {
+    tasks.push((async () => {
+      const r = await viaProxy(query, serverFirst, per * serverFirst.length, opts.signal, false, opts.region, opts.metDepartmentId);
+      if (r.length) return r;
+      return (await Promise.all([serverFirst.includes('met') ? metTask() : [], serverFirst.includes('artic') ? articTask() : []])).flat();
+    })());
+  } else {
+    if (sources.includes('met')) tasks.push(metTask());
+    if (sources.includes('artic')) tasks.push(articTask());
+  }
   if (sources.includes('cleveland')) {
     const depts = R?.cleveland?.length ? R.cleveland : [undefined];
     for (const d of depts) tasks.push(searchCleveland(query, Math.max(4, Math.ceil(per / depts.length)), opts.signal, d));

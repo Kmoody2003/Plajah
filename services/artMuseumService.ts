@@ -63,6 +63,14 @@ export const MOVEMENTS: MovementDef[] = [
   { id: 'photography',   label: 'Photography',            query: 'Photography',            blurb: 'Light written directly — the machine-made image as art.' },
 ];
 
+/** The museums answer bursts with 403/429 (no CORS header, so browsers report a CORS error): retry once. */
+async function fetchRetry(url: string, init: RequestInit = {}): Promise<Response> {
+  const res = await fetch(url, init);
+  if (res.status !== 403 && res.status !== 429 && res.status < 500) return res;
+  await new Promise(r => setTimeout(r, 700));
+  return fetch(url, init);
+}
+
 // ── Session cache ─────────────────────────────────────────────────────────────
 
 const artCache = new Map<string, ArtWork[]>();
@@ -80,7 +88,7 @@ async function searchArtic(query: string, limit: number, signal?: AbortSignal): 
     const fields = 'id,title,artist_display,date_display,medium_display,image_id,is_public_domain,subject_titles,classification_title,artwork_type_title,category_titles';
     const url = `https://api.artic.edu/api/v1/artworks/search?q=${encodeURIComponent(query)}` +
       `&query[term][is_public_domain]=true&fields=${fields}&limit=${limit}`;
-    const res = await fetch(url, { signal: signal ?? AbortSignal.timeout(9000) });
+    const res = await fetchRetry(url, { signal: signal ?? AbortSignal.timeout(9000) });
     if (!res.ok) return [];
     const data = await res.json();
     const items: any[] = data?.data ?? [];
@@ -112,7 +120,7 @@ async function searchMet(query: string, limit: number, signal?: AbortSignal): Pr
   try {
     const searchUrl = `https://collectionapi.metmuseum.org/public/collection/v1.1/search` +
       `?hasImages=true&isPublicDomain=true&limit=${limit * 4}&offset=0&q=${encodeURIComponent(query)}`;
-    const sRes = await fetch(searchUrl, { signal: signal ?? AbortSignal.timeout(9000) });
+    const sRes = await fetchRetry(searchUrl, { signal: signal ?? AbortSignal.timeout(9000) });
     if (!sRes.ok) return [];
     const sData = await sRes.json();
     const ids: number[] = (sData?.objectIDs ?? []).slice(0, limit * 3); // over-fetch; many lack PD images
@@ -122,7 +130,7 @@ async function searchMet(query: string, limit: number, signal?: AbortSignal): Pr
     for (const id of ids) {
       if (results.length >= limit) break;
       try {
-        const oRes = await fetch(
+        const oRes = await fetchRetry(
           `https://collectionapi.metmuseum.org/public/collection/v1/objects/${id}`,
           { signal: AbortSignal.timeout(7000) }
         );
@@ -188,6 +196,22 @@ export async function searchArtworks(query: string, opts: SearchArtOpts = {}): P
   const cacheKey = `${query.toLowerCase()}|${limit}|${sources.join(',')}|edu:${!!opts.educationSafe}`;
   const cached = artCache.get(cacheKey);
   if (cached) return cached;
+
+  // In a browser, ask our server first: it makes the Met / Art Institute calls from one cached,
+  // throttle-aware origin (the museums 403 bursts and some browser origins, and a 403 has no CORS
+  // header, so the browser reports it as a CORS failure). Falls back to direct calls when the route
+  // is absent (labs, static builds) or returns nothing.
+  if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+    try {
+      const url = `/api/museum/art?q=${encodeURIComponent(query)}&limit=${limit}&sources=${sources.join(',')}${opts.educationSafe ? '&edu=1' : ''}`;
+      const res = await fetch(url, { signal: opts.signal ?? AbortSignal.timeout(20000) });
+      if (res.ok) {
+        const data = await res.json();
+        const works: ArtWork[] = (Array.isArray(data?.works) ? data.works : []).filter((w: ArtWork) => !opts.educationSafe || isEducationSafeArtwork(w));
+        if (works.length) { artCache.set(cacheKey, works); return works; }
+      }
+    } catch { /* fall through to direct */ }
+  }
 
   const perSource = Math.max(6, Math.ceil(limit / sources.length));
   const tasks: Promise<ArtWork[]>[] = [];
