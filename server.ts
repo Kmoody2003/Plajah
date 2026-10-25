@@ -8748,7 +8748,9 @@ async function startServer() {
 
     if (!type || !id) return res.status(404).json({ error: 'not found' });
 
-    let collection = type === 'video' ? 'videos' : type === 'album' ? 'albums' : '';
+    // Reello clips live in `videos` too; movies are video-type docs in `albums` (fall back to `videos`).
+    const isVideoType = type === 'video' || type === 'reello';
+    let collection = isVideoType ? 'videos' : type === 'album' ? 'albums' : '';
     if (!collection) return res.status(404).json({ error: 'not found' });
 
     const dbData = await fetchFirebaseDoc(collection, id);
@@ -8760,7 +8762,9 @@ async function startServer() {
 
     const host = req.get('host') || 'plajah.com';
     const title = dbData.fields?.title?.stringValue || 'Plajah';
-    const cover = dbData.fields?.coverImage?.stringValue || dbData.fields?.coverImageUrl?.stringValue || dbData.fields?.thumbnailUrl?.stringValue || '';
+    const muxId = dbData.fields?.muxPlaybackId?.stringValue || '';
+    const cover = dbData.fields?.coverImage?.stringValue || dbData.fields?.coverImageUrl?.stringValue || dbData.fields?.thumbnailUrl?.stringValue
+      || (muxId ? `https://image.mux.com/${muxId}/thumbnail.jpg?width=1200&height=630&fit_mode=smartcrop&time=5` : '');
     const embedUrl = `https://${host}/embed?type=${type}&id=${id}${track ? `&track=${track}` : ''}`;
     const safeTitle = htmlEscape(title);
     const safeHost = htmlEscape(host);
@@ -8770,10 +8774,11 @@ async function startServer() {
     const response = {
       version: '1.0',
       type: type === 'album' ? 'rich' : 'video',
-      title: safeTitle,
+      title,
+      author_name: dbData.fields?.channelName?.stringValue || dbData.fields?.creatorName?.stringValue || dbData.fields?.artist?.stringValue || undefined,
       provider_name: 'Plajah',
-      provider_url: `https://${safeHost}`,
-      thumbnail_url: safeCover,
+      provider_url: `https://${host}`,
+      thumbnail_url: cover,
       thumbnail_width: 1200,
       thumbnail_height: 630,
       html: `<iframe src="${safeEmbedUrl}" width="560" height="315" style="border:none;border-radius:12px;" allow="autoplay; encrypted-media" allowfullscreen></iframe>`,
@@ -8798,7 +8803,7 @@ async function startServer() {
     if (!type || !id) return res.status(404).send('Not Found');
 
     let collection = '';
-    if (type === 'video') collection = 'videos';
+    if (type === 'video' || type === 'reello') collection = 'videos';
     if (type === 'album') collection = 'albums';
     if (type === 'feed') collection = 'global_posts';
     
@@ -8895,7 +8900,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     let cover = '';
     let isYoutube = false;
 
-    if (type === 'video') {
+    if (type === 'video' || type === 'reello') {
       mediaUrl = dbData.fields?.url?.stringValue || dbData.fields?.embedUrl?.stringValue || '';
       title = dbData.fields?.title?.stringValue || 'Video';
       cover = dbData.fields?.coverImageUrl?.stringValue || dbData.fields?.thumbnailUrl?.stringValue || '';
@@ -8927,7 +8932,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
         playerHtml = `<video id="v" controls playsinline width="100%" height="100%" style="background:black" poster="${safeCover}"></video>
         <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.13/dist/hls.min.js"></script>
         <script>(function(){var v=document.getElementById('v'),src=${JSON.stringify(mediaUrl)};if(v.canPlayType('application/vnd.apple.mpegurl')){v.src=src;}else if(window.Hls&&window.Hls.isSupported()){var h=new window.Hls();h.loadSource(src);h.attachMedia(v);}else{v.src=src;}})();</script>`;
-    } else if (mediaUrl.endsWith('.mp4') || mediaUrl.includes('/videos%2F') || type === 'video' || type === 'feed') {
+    } else if (mediaUrl.endsWith('.mp4') || mediaUrl.includes('/videos%2F') || type === 'video' || type === 'reello' || type === 'feed') {
         playerHtml = `<video src="${safeMediaUrl}" controls width="100%" height="100%" style="background:black" poster="${safeCover}"></video>`;
     } else {
         playerHtml = `
