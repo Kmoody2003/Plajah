@@ -68,6 +68,7 @@ import {
   type HalloweenCharacterWithActor,
 } from '../data/halloweenStoryIntel';
 import { HalloweenVaultChatAndFanRoom } from './taleo/HalloweenVaultChatAndFanRoom';
+import { MoonbreakerSoundtrackSection, HalloweenBookshelf } from './taleo/HalloweenSoundtrackAndBooks';
 import { HauntedCastleExhibition } from './taleo/HauntedCastleExhibition';
 import { RavencrestGameFrame } from './taleo/RavencrestGameFrame';
 
@@ -2151,6 +2152,9 @@ const HalloweenShowcaseView: React.FC<{
           </div>
         </section>
 
+        {/* ── PUMPKIN PATCH: MOONBREAKER — the official soundtrack, playable right here ── */}
+        <MoonbreakerSoundtrackSection />
+
         {/* ── PERSISTENT HALLOWEEN VAULT CHAT ROOM, FAN COVEN ROOM & REALISTIC MONSTER FILTERS ── */}
         <section id="halloween-vault-live-room">
           <HalloweenVaultChatAndFanRoom
@@ -2481,6 +2485,9 @@ const HalloweenShowcaseView: React.FC<{
             })}
           </div>
         </section>
+
+        {/* Gothic & horror classics from the Lorea Library — each opens in the Lorea reader */}
+        <HalloweenBookshelf />
 
         {/* Full Story Intelligence, Character & Actor Dossiers Across All Halloween Films */}
         <HalloweenCurationStoryIntelSection
