@@ -1052,8 +1052,8 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
               </div>
 
               {/* Bottom Controls Overlay */}
-              <div className="sm:absolute sm:bottom-3 sm:inset-x-3 p-2 sm:p-0 grid grid-cols-2 sm:flex items-center justify-between gap-2 sm:flex-wrap bg-black/70 sm:bg-transparent">
-                <div className="contents sm:flex items-center gap-1.5 sm:flex-wrap">
+              <div className="sm:absolute sm:bottom-3 sm:inset-x-3 p-2 sm:p-0 flex flex-wrap items-center justify-between gap-2 bg-black/70 sm:bg-transparent">
+                <div className="contents sm:flex items-center gap-1.5 sm:flex-wrap [&>button]:flex-1 sm:[&>button]:flex-none">
                   {cameraSource === 'SIMULATED' ? (
                     <button
                       onClick={startLiveWebcam}
@@ -1073,7 +1073,7 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
                   {cameraSource === 'SIMULATED' && (
                     <button
                       onClick={() => setSimulatedTalkingBurst((v) => !v)}
-                      className={`px-3 py-2 rounded-xl border text-[10px] font-black uppercase tracking-wider sm:tracking-widest flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      className={`px-3 py-2 rounded-xl border text-[10px] font-black uppercase tracking-wider sm:tracking-widest whitespace-nowrap flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                         simulatedTalkingBurst
                           ? 'bg-amber-500/25 border-amber-400 text-amber-200'
                           : 'bg-black/75 border-white/20 text-white/70'
@@ -1084,9 +1084,21 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
                       <span className="hidden sm:inline">{simulatedTalkingBurst ? 'Talking Jaw: Active' : 'Talking Jaw: Paused'}</span>
                     </button>
                   )}
+
+                  <button
+                    onClick={() => setBatSwarmOverlay((v) => !v)}
+                    aria-pressed={batSwarmOverlay}
+                    className={`px-3 py-2 rounded-xl border text-[10px] font-black uppercase tracking-wider sm:tracking-widest whitespace-nowrap flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      batSwarmOverlay
+                        ? 'bg-purple-500/30 border-purple-400 text-purple-100'
+                        : 'bg-black/75 border-white/20 text-white/70'
+                    }`}
+                  >
+                    🦇 <span className="sm:hidden">Bats {batSwarmOverlay ? 'On' : 'Off'}</span><span className="hidden sm:inline">Bat Overlay {batSwarmOverlay ? 'On' : 'Off'}</span>
+                  </button>
                 </div>
 
-                <div className="col-span-2 sm:col-span-1 flex items-center gap-1.5">
+                <div className="basis-full sm:basis-auto flex items-center gap-1.5">
                   <button
                     onClick={handleSnapFilteredPhotoToChat}
                     className="w-full sm:w-auto px-3.5 py-2 rounded-xl bg-white/15 hover:bg-orange-500 hover:text-black backdrop-blur-md border border-white/25 text-white font-black text-[10px] uppercase tracking-wider sm:tracking-widest flex items-center justify-center gap-1.5 transition-all cursor-pointer"
@@ -1309,43 +1321,6 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
                 </button>
               </div>
 
-              {/* Room-Wide Chat FX Action Bar */}
-              <div className="pt-2 border-t border-white/10 flex items-center justify-between gap-2 flex-wrap">
-                <div className="grid grid-cols-3 w-full sm:w-auto sm:flex items-center gap-2 sm:flex-wrap">
-                  <button
-                    onClick={() => setBatSwarmOverlay((v) => !v)}
-                    className={`px-2 sm:px-3 py-1.5 leading-tight text-center rounded-lg text-[9px] font-black uppercase tracking-wide sm:tracking-widest border transition-all cursor-pointer ${
-                      batSwarmOverlay
-                        ? 'bg-purple-500/25 border-purple-400 text-purple-200'
-                        : 'bg-white/5 border-white/10 text-white/50'
-                    }`}
-                  >
-                    🦇 <span className="sm:hidden">Bats {batSwarmOverlay ? 'On' : 'Off'}</span><span className="hidden sm:inline">Bat Overlay: {batSwarmOverlay ? 'ON' : 'OFF'}</span>
-                  </button>
-                  <button
-                    onClick={() =>
-                      handleSendMessage({
-                        customText: '🦇 Summoned a nocturnal Bat Swarm across the Halloween Vault!',
-                        fxTrigger: 'BATS',
-                      })
-                    }
-                    className="px-2 sm:px-3 py-1.5 leading-tight text-center rounded-lg bg-white/5 hover:bg-purple-500/20 border border-white/10 hover:border-purple-400/40 text-[9px] font-black uppercase tracking-wide sm:tracking-widest text-purple-300 transition-all cursor-pointer"
-                  >
-                    🦇 <span className="sm:hidden">Swarm Chat</span><span className="hidden sm:inline">Send Bat Swarm to Chat</span>
-                  </button>
-                  <button
-                    onClick={() =>
-                      handleSendMessage({
-                        customText: '🎃 Ignited Melvin Lester’s Dual Orange Plasma Blades in the chat!',
-                        fxTrigger: 'JACK',
-                      })
-                    }
-                    className="px-2 sm:px-3 py-1.5 leading-tight text-center rounded-lg bg-white/5 hover:bg-orange-500/20 border border-white/10 hover:border-orange-400/40 text-[9px] font-black uppercase tracking-wide sm:tracking-widest text-orange-300 transition-all cursor-pointer"
-                  >
-                    🎃 <span className="sm:hidden">Slash FX</span><span className="hidden sm:inline">Plasma Slash FX</span>
-                  </button>
-                </div>
-              </div>
             </div>
           </div>
 
@@ -1476,8 +1451,36 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
                   <div ref={chatBottomRef} />
                 </div>
 
-                {/* Chat Composer */}
+                {/* Chat Composer — with the room FX that post into the chat */}
                 <div className="p-3 border-t border-white/10 bg-black/60 space-y-2">
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      disabled={!canChat}
+                      onClick={() =>
+                        handleSendMessage({
+                          customText: '🦇 Summoned a nocturnal Bat Swarm across the Halloween Vault!',
+                          fxTrigger: 'BATS',
+                        })
+                      }
+                      className="flex-1 sm:flex-none whitespace-nowrap px-3 py-1.5 rounded-lg bg-white/5 hover:bg-purple-500/20 border border-white/10 hover:border-purple-400/40 text-[10px] font-black uppercase tracking-wider text-purple-200 disabled:opacity-40 transition-all cursor-pointer"
+                    >
+                      🦇 Bat Swarm
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!canChat}
+                      onClick={() =>
+                        handleSendMessage({
+                          customText: '🎃 Ignited Melvin Lester’s Dual Orange Plasma Blades in the chat!',
+                          fxTrigger: 'JACK',
+                        })
+                      }
+                      className="flex-1 sm:flex-none whitespace-nowrap px-3 py-1.5 rounded-lg bg-white/5 hover:bg-orange-500/20 border border-white/10 hover:border-orange-400/40 text-[10px] font-black uppercase tracking-wider text-orange-200 disabled:opacity-40 transition-all cursor-pointer"
+                    >
+                      🎃 Plasma Slash
+                    </button>
+                  </div>
                   <div className="flex items-center gap-2">
                     <input
                       type="text"
