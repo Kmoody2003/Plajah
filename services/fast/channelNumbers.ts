@@ -65,6 +65,11 @@ export interface PlajahChannel {
   kind: PlajahChannelKind;
   /** False while a channel is announced in the guide but not yet carrying anything. */
   onAir: boolean;
+  /**
+   * A first-party FAST channel's schedule doc id in `fast_channel_schedules`. The channel has no
+   * owner account, so this — not an ownerId — is what the guide and the player load.
+   */
+  scheduleId?: string;
 }
 
 /**
@@ -81,6 +86,15 @@ export const PLAJAH_CHANNELS: readonly PlajahChannel[] = [
     tagline: 'Made as you watch. Some of it only for you.',
     kind: 'generative',
     onAir: false,
+  },
+  {
+    id: 'horror-classics',
+    sub: 2,
+    name: 'Plajah Horror Classics',
+    tagline: 'Restored horror, all day. Fans vote the 9 PM ET movie.',
+    kind: 'fast',
+    onAir: true,
+    scheduleId: 'plajah_horror_classics',
   },
 ];
 

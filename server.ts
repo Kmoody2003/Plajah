@@ -68,6 +68,7 @@ import { campaignsRouter } from './routes/campaigns';
 import { createPodRouter, fulfillPodOrderFromStripe } from './routes/pod';
 import { createBookVaultRouter } from './routes/bookVault';
 import { createMusicDownloadRouter } from './routes/musicDownload';
+import { createFastVoteRouter } from './routes/fastVote';
 import { PLATFORM_CUT_PCT as BOOK_PLATFORM_CUT_PCT } from './services/bookmeta/pricing';
 import { readRegistry as readEditionRegistry, licenceActive, entitledEditions, editionOf, type BookVersionStamp } from './services/bookEditions/policy';
 import { createLedgerRouter, appendLedger } from './routes/ledger';
@@ -13623,6 +13624,17 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
     isAdmin: async uid => !!await fetchFirebaseDoc('admins', uid),
   }));
   app.use('/api/admin/publish-as', apiLimiter, createAdminPublishAsRouter({ authenticate: authMiddleware, isAdmin: isPlatformAdminReq }));
+  // Live polls + vote-to-schedule FAST slots (Plajah Horror Classics' nightly 9 PM fan pick).
+  app.use(createFastVoteRouter({
+    authMiddleware, requireRegisteredUser,
+    verifyToken: (t: string) => verifyFirebaseToken(t),
+    firestoreAuthHeaders: () => firestoreAuthHeaders(),
+    read: (c, id) => firestoreGetDeep(c, id),
+    patch: (c, id, f) => firestorePatchDeep(c, id, f),
+    createOnce: (c, id, d) => firestoreCreateOnce(c, id, d),
+    query: (c, f, n) => fsQueryDocs(c, f, n),
+    cronKeyOk: (req: any) => secretsEqual(req.headers['x-cron-key'], process.env.CRON_SECRET) || secretsEqual(req.headers['x-cron-key'], process.env.ADMIN_SEED_KEY),
+  }));
   app.use('/api/cora', express.json({ limit: '1mb' }), coraRouter);
 
   // ── Learner identity (child username/password → custom token; provision; claim) ──
