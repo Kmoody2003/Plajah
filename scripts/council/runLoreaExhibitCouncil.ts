@@ -2,7 +2,7 @@
 //
 //   npx tsx scripts/council/runLoreaExhibitCouncil.ts [exhibitId ...]
 //
-// Cloud lanes only (Claude by default, COUNCIL_LANE=gemini to switch). Never the local lane: local
+// Cloud lanes only (Gemini by default since 2026-10-25; COUNCIL_LANE=claude or pokee to switch). Never the local lane: local
 // batches overheat the laptop. Each exhibit gets an OPEN brief — the councils decide the look and
 // the voice; the only fixed things are the handmade ink-and-paper world and the playable stations.
 // Output: docs/lorea/council/<id>.json (a LoreaCouncilBuild). Then run
@@ -19,7 +19,7 @@ if (existsSync('.env.local')) for (const line of readFileSync('.env.local', 'utf
   const m = /^(ANTHROPIC_API_KEY|GEMINI_API_KEY|GOOGLE_AI_API_KEY|COUNCIL_GEMINI_MODEL|COUNCIL_CLAUDE_MODEL)=(.*)$/.exec(line);
   if (m && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^"|"$/g, '');
 }
-const lane = process.env.COUNCIL_LANE || 'claude';
+const lane = process.env.COUNCIL_LANE || 'gemini';
 if (!['claude', 'gemini', 'pokee'].includes(lane)) throw new Error('COUNCIL_LANE must be claude, gemini or pokee (no local lane for this run).');
 // Pokee: the cloud Pokee-Isaac API (OpenAI-style). The current key is in Google Secret Manager
 // (plajah-api-pokee-api-key); the .env.local copy is older and rejected, so export POKEE_API_KEY first.

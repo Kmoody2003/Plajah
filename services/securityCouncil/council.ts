@@ -158,7 +158,8 @@ export async function buildBrief(store: CouncilStore, env: CouncilEnv, now: numb
     recommendedActions: findings.slice(0, 6).map(f => f.proposedFix.split(/(?<=\.)\s/)[0].slice(0, 240)),
     perAgent, activeMitigations: mitigations.length, openFindings: findings.length, councilRunsLast24h: runs.length,
   };
-  if (!env.anthropicApiKey || !findings.length) return deterministic;
+  const key = env.llmApiKey ?? env.anthropicApiKey;
+  if (!key || !findings.length) return deterministic;
 
   // Digest for the model: trusted metrics + titles; evidence is code-computed but still redacted.
   const digest = [
@@ -167,7 +168,7 @@ export async function buildBrief(store: CouncilStore, env: CouncilEnv, now: numb
     ...findings.slice(0, 40).map(f => `- [${f.severity}] ${f.agent} · ${redact(f.title)} · seen ${f.occurrences}x · status ${f.status}` +
       `${f.triage?.summary ? ` · triage: ${redact(f.triage.summary).slice(0, 200)}` : ''} · evidence ${redact(JSON.stringify(f.evidence)).slice(0, 400)}`),
   ].join('\n');
-  const llm = await synth(env.anthropicApiKey, env.briefModel, digest, fetchImpl);
+  const llm = await synth(key, env.briefModel, digest, fetchImpl);
   if (!llm) return deterministic;
   return { ...deterministic, engine: llm.model, summary: llm.summary || deterministic.summary, topRisks: llm.topRisks.length ? llm.topRisks : deterministic.topRisks, recommendedActions: llm.recommendedActions.length ? llm.recommendedActions : deterministic.recommendedActions };
 }
@@ -191,7 +192,8 @@ export async function runCouncil(store: CouncilStore, env: CouncilEnv, opts: Run
   if (!ctx.audit) summary.dataGaps.push('security_audit/latest missing (CI ingest not configured)');
 
   const triage = opts.triage || triageFinding;
-  let triageBudget = env.anthropicApiKey ? env.maxTriagePerRun : 0;
+  const llmKey = env.llmApiKey ?? env.anthropicApiKey;
+  let triageBudget = llmKey ? env.maxTriagePerRun : 0;
   let mitigationBudget = MAX_MITIGATIONS_PER_RUN;
 
   for (const agent of COUNCIL_AGENTS) {
@@ -220,9 +222,9 @@ export async function runCouncil(store: CouncilStore, env: CouncilEnv, opts: Run
         if (created === 'created') { summary.recommendations++; extra.recommendationId = recId; }
       }
       const worthTriage = (r.isNew || r.escalated || r.regressed) && SEVERITY_RANK[d.severity] >= SEVERITY_RANK.medium && r.finding.status !== 'false_positive';
-      if (worthTriage && triageBudget > 0 && env.anthropicApiKey) {
+      if (worthTriage && triageBudget > 0 && llmKey) {
         triageBudget--;
-        const t = await triage(env.anthropicApiKey, env.triageModel, d, opts.fetchImpl);
+        const t = await triage(llmKey, env.triageModel, d, opts.fetchImpl);
         if (t) {
           summary.triaged++;
           extra.triage = t;

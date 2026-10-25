@@ -143,6 +143,9 @@ export interface CouncilStore {
 }
 
 export interface CouncilEnv {
+  /** Key for the council's model provider (Gemini by default; see SECURITY_COUNCIL_PROVIDER). */
+  llmApiKey?: string;
+  /** @deprecated Older name for llmApiKey, still honoured. */
   anthropicApiKey?: string;
   /** SECURITY_COUNCIL_AUTO_MITIGATE=true enables the ONLY automatic action (temporary rate tightening). */
   autoMitigate: boolean;
@@ -159,15 +162,18 @@ export interface CouncilEnv {
 export function councilEnvFromProcess(env: NodeJS.ProcessEnv = process.env): CouncilEnv {
   const port = env.PORT || '3000';
   return {
-    anthropicApiKey: env.ANTHROPIC_API_KEY || undefined,
+    // Gemini by default since 2026-10-25 (cost). SECURITY_COUNCIL_PROVIDER=anthropic restores Claude.
+    llmApiKey: (env.SECURITY_COUNCIL_PROVIDER === 'anthropic'
+      ? env.ANTHROPIC_API_KEY
+      : env.GOOGLE_AI_API_KEY || env.GEMINI_API_KEY) || undefined,
     autoMitigate: env.SECURITY_COUNCIL_AUTO_MITIGATE === 'true',
     mitigationAllowlist: String(env.SECURITY_COUNCIL_MITIGATION_ALLOWLIST || '').split(',').map(s => s.trim()).filter(Boolean),
     probeBase: env.SECURITY_COUNCIL_PROBE_BASE || `http://127.0.0.1:${port}`,
     probePaths: String(env.SECURITY_COUNCIL_PROBE_PATHS || '/healthz').split(',').map(s => s.trim()).filter(p => p.startsWith('/')),
     maxTriagePerRun: Math.max(0, Math.min(20, Number(env.SECURITY_COUNCIL_MAX_TRIAGE) || 6)),
     briefHourUtc: Math.max(0, Math.min(23, Number(env.SECURITY_COUNCIL_BRIEF_HOUR_UTC ?? 13))),
-    triageModel: env.SECURITY_COUNCIL_TRIAGE_MODEL || 'claude-haiku-5-5',
-    briefModel: env.SECURITY_COUNCIL_BRIEF_MODEL || 'claude-opus-5-5',
+    triageModel: env.SECURITY_COUNCIL_TRIAGE_MODEL || (env.SECURITY_COUNCIL_PROVIDER === 'anthropic' ? 'claude-haiku-5-5' : 'gemini-3.5-flash-lite'),
+    briefModel: env.SECURITY_COUNCIL_BRIEF_MODEL || (env.SECURITY_COUNCIL_PROVIDER === 'anthropic' ? 'claude-opus-5-5' : 'gemini-3.6-flash'),
   };
 }
 

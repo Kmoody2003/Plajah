@@ -5,6 +5,6 @@
     "services/dataCommons/*.ts", "routes/dataCommons.ts", "tests/dataCommons.test.ts",
     "components/elevate/GrantMatcher.tsx", "components/terra/FederalContext.tsx", "components/terra/PropertyPassport.tsx",
     "components/elevate/ElevateOps.tsx", "components/elevate/GrantHub.tsx", "components/elevate/GrantApply.tsx", "components/elevate/GrantProfile.tsx",
-    "services/grants/*.ts", "routes/grants.ts", "tests/grants.test.ts", "tests/grantsRouter.test.ts", "tests/grantSchool.test.ts", "tests/contracts.test.ts", "components/elevate/GrantContracts.tsx", "data/grantSchoolCurriculum.ts", "data/practice/grant-school.ts"
+    "services/grants/*.ts", "routes/grants.ts", "tests/grants.test.ts", "tests/grantsRouter.test.ts", "tests/grantSchool.test.ts", "tests/contracts.test.ts", "components/elevate/GrantContracts.tsx", "components/admin/AdminKeyRotation.tsx", "routes/adminKeys.ts", "services/keyRotation.ts", "services/ai/*.ts", "tests/aiLanes.test.ts", "services/securityCouncil/*.ts", "services/educationCouncil/modelStack.ts", "components/academia/year/EducationCouncilView.tsx", "components/elevate/GrantAiLane.tsx", "tests/keyRotation.test.ts", "data/grantSchoolCurriculum.ts", "data/practice/grant-school.ts"
   ]
 }

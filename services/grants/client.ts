@@ -1,4 +1,6 @@
 // Browser-side wrappers for /api/grants/* (routes/grants.ts). Types come from the shared modules.
+// draft() and council() run in the CLOUD and send cloudConsent: only call them after the person agreed
+// (components/elevate/GrantAiLane.tsx asks); on the desktop app the same work runs locally instead.
 import { auth } from '../firebase';
 import type { Profile } from './profile';
 import type { ReadinessReport, Question } from './readiness';
@@ -22,7 +24,9 @@ export interface Workspace { kind: ApplicantKind; profile: Profile; applications
 export interface ReadinessResponse {
   notice: NoticeCtx; report: ReadinessReport; next: Question | null; profile: Profile; sf424: CopyRow[]; application: SavedApplication;
 }
-export interface Draft { text: string; placeholders: string[]; unsupportedNumbers: string[] }
+/** What a cloud run actually used (tokens, dollars, seconds). Absent on local runs. */
+export interface Usage { model?: string; calls: number; inTokens: number; outTokens: number; costUsd: number | null; seconds: number }
+export interface Draft { text: string; placeholders: string[]; unsupportedNumbers: string[]; usage?: Usage }
 
 let tokenOverride: (() => Promise<string | null>) | null = null;
 /** Lets a lab or test supply a token without Firebase. */
@@ -54,9 +58,9 @@ export const grantsApi = {
   saveApplication: (orgId: string, oppId: string, app: SavedApplication) =>
     call<{ application: SavedApplication }>(`${base(orgId)}/applications/${encodeURIComponent(oppId)}`, { method: 'PUT', body: JSON.stringify(app) }),
   draft: (orgId: string, opportunityId: string, section: string, facts: string[], instructions?: string) =>
-    call<Draft>(`${base(orgId)}/draft`, { method: 'POST', body: JSON.stringify({ opportunityId, section, facts, instructions }) }),
+    call<Draft>(`${base(orgId)}/draft`, { method: 'POST', body: JSON.stringify({ opportunityId, section, facts, instructions, cloudConsent: true }) }),
   council: (orgId: string, opportunityId: string, sections: Record<string, string>, facts: string[], draft?: string) =>
-    call<CouncilReview>(`${base(orgId)}/council`, { method: 'POST', body: JSON.stringify({ opportunityId, sections, facts, draft }) }),
+    call<CouncilReview & { usage?: Usage }>(`${base(orgId)}/council`, { method: 'POST', body: JSON.stringify({ opportunityId, sections, facts, draft, cloudConsent: true }) }),
 };
 
 export type ContractsResponse = ContractSearchResult & { usedNaics: string[]; usedCerts: CertKey[]; report: ReadinessReport; next: Question | null };

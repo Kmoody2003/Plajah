@@ -25,7 +25,11 @@
  */
 
 export type SeatId = 'PROGRAM_OFFICER' | 'PEER_REVIEWER' | 'BUDGET_AUDITOR' | 'COMPLIANCE' | 'EDITOR';
-export type ModelFn = (system: string, user: string, maxTokens?: number) => Promise<string>;
+/**
+ * A model lane: the cloud (Gemini, server-side) or this PC's own model (desktop app). `json` asks the
+ * lane for strict JSON output where it supports that. The same council code runs on either lane.
+ */
+export type ModelFn = (system: string, user: string, maxTokens?: number, opts?: { json?: boolean }) => Promise<string>;
 
 export interface Seat { id: SeatId; name: string; epithet: string; lens: string; asks: string[] }
 
@@ -152,17 +156,60 @@ export function seatSystem(seat: Seat): string {
     + 'At most 4 items per list. Fixes must be actions the applicant can do this week.';
 }
 
+const SYNTH_SYSTEM = 'You are Aria, chairing the Grant Council. Combine the seats\' reviews into a short, ordered plan. Do not average opinions: where seats disagree, say so and pick the safer path. '
+  + `${INTEGRITY}\nReply with ONLY JSON: {"readiness":"ready|revise|not-yet","headline":"one sentence, warm and direct","topFixes":[{"fix":"…","seat":"PROGRAM_OFFICER|PEER_REVIEWER|BUDGET_AUDITOR|COMPLIANCE|EDITOR"}],"limits":"what the council could not judge"}. Max 5 fixes, most important first. `
+  + '"ready" only if no seat scored below 4 and Compliance found no blocker.';
+
+function reviewText(draft: string, sections?: { title: string; text: string }[]): string {
+  return [draft, ...(sections || []).map(s => `## ${s.title}\n${s.text}`)].filter(Boolean).join('\n\n').slice(0, 14000);
+}
+function reviewUser(notice: NoticeCtx, facts: Facts, text: string): string {
+  return `${noticeBlock(notice)}\n\n${factsBlock(facts)}\n\nAPPLICATION TEXT\n${text || '(nothing drafted yet — review readiness from the facts alone)'}`;
+}
+
+/** Typical output sizes, from the JSON shapes we ask for (well under the caps). */
+const SEAT_OUT = 350, SYNTH_OUT = 400, DRAFT_OUT = 450;
+const tok = (chars: number) => Math.ceil(chars / 4);
+
+/** What a council review will send, for cost and time estimates before anything runs. */
+export function councilWorkload(opts: { notice: NoticeCtx; facts: Facts; draft: string; sections?: { title: string; text: string }[]; seats?: SeatId[] }) {
+  const user = reviewUser(opts.notice, opts.facts, reviewText(opts.draft, opts.sections));
+  const seats = (opts.seats?.length ? opts.seats : SEATS.map(s => s.id)).map(id => SEAT_BY_ID[id]);
+  const calls = seats.map(seat => ({ inTokens: tok(seatSystem(seat).length + user.length), outTokens: SEAT_OUT }));
+  // The synthesis reads the notice plus the seats' JSON.
+  calls.push({ inTokens: tok(SYNTH_SYSTEM.length + noticeBlock(opts.notice).length + seats.length * SEAT_OUT * 4), outTokens: SYNTH_OUT });
+  return { kind: 'council' as const, calls, parallelGroups: [seats.map((_, i) => i)] };
+}
+
+export function draftWorkload(opts: { section: string; notice: NoticeCtx; facts: Facts; instructions?: string }) {
+  const sec = SECTIONS[opts.section];
+  const sys = sec ? draftSystem(sec) : '';
+  return { kind: 'draft' as const, calls: [{ inTokens: tok(sys.length + draftUser(opts).length), outTokens: DRAFT_OUT }], parallelGroups: [] as number[][] };
+}
+
+/** Identifiers and personal contact details never go to any model — cloud or local; the writing does not need them. */
+export const NOT_FOR_MODEL = new Set(['ein', 'uei', 'repName', 'repEmail', 'repPhone', 'contactName', 'contactEmail', 'contactPhone']);
+
+/** Facts for a model call: the profile minus identifiers and personal contacts, plus what the person typed. */
+export function factsFromProfile(profile: Record<string, { value: string }>, typed: unknown, labelOf: (key: string) => string | undefined): Facts {
+  const profileLines = Object.entries(profile)
+    .filter(([k]) => labelOf(k) && !NOT_FOR_MODEL.has(k))
+    .map(([k, v]) => `${labelOf(k)}: ${v.value}`);
+  const userFacts = (Array.isArray(typed) ? typed : []).slice(0, 40).map(f => String(f ?? '').slice(0, 600).trim()).filter(Boolean);
+  return { profileLines, userFacts };
+}
+
 export async function reviewApplication(opts: {
   model: ModelFn; notice: NoticeCtx; facts: Facts; draft: string; sections?: { title: string; text: string }[]; seats?: SeatId[];
 }): Promise<CouncilReview> {
   const { model, notice, facts, draft } = opts;
-  const text = [draft, ...(opts.sections || []).map(s => `## ${s.title}\n${s.text}`)].filter(Boolean).join('\n\n').slice(0, 14000);
-  const user = `${noticeBlock(notice)}\n\n${factsBlock(facts)}\n\nAPPLICATION TEXT\n${text || '(nothing drafted yet — review readiness from the facts alone)'}`;
+  const text = reviewText(draft, opts.sections);
+  const user = reviewUser(notice, facts, text);
   const seats = (opts.seats?.length ? opts.seats : SEATS.map(s => s.id)).map(id => SEAT_BY_ID[id]);
 
   const reviews = (await Promise.all(seats.map(async (seat): Promise<SeatReview | null> => {
     try {
-      const j = parseJson<any>(await model(seatSystem(seat), user, 900));
+      const j = parseJson<any>(await model(seatSystem(seat), user, 900, { json: true }));
       if (!j) return null;
       return { seat: seat.id, score: clampScore(j.score), verdict: String(j.verdict || '').slice(0, 300), strengths: strs(j.strengths, 4), concerns: strs(j.concerns, 4), fixes: strs(j.fixes, 4) };
     } catch { return null; }
@@ -173,10 +220,7 @@ export async function reviewApplication(opts: {
   const synthUser = `${noticeBlock(notice)}\n\nSEAT REVIEWS\n${JSON.stringify(reviews)}`;
   let synth: any = null;
   try {
-    synth = parseJson<any>(await model(
-      'You are Aria, chairing the Grant Council. Combine the seats\' reviews into a short, ordered plan. Do not average opinions: where seats disagree, say so and pick the safer path. '
-      + `${INTEGRITY}\nReply with ONLY JSON: {"readiness":"ready|revise|not-yet","headline":"one sentence, warm and direct","topFixes":[{"fix":"…","seat":"PROGRAM_OFFICER|PEER_REVIEWER|BUDGET_AUDITOR|COMPLIANCE|EDITOR"}],"limits":"what the council could not judge"}. Max 5 fixes, most important first. `
-      + '"ready" only if no seat scored below 4 and Compliance found no blocker.', synthUser, 700));
+    synth = parseJson<any>(await model(SYNTH_SYSTEM, synthUser, 700, { json: true }));
   } catch { /* fall back to a deterministic synthesis below */ }
 
   const avg = reviews.reduce((a, r) => a + r.score, 0) / reviews.length;
@@ -213,13 +257,18 @@ export const SECTIONS: Record<string, { title: string; guide: string }> = {
   title: { title: 'Project title', guide: 'A specific title under 12 words that says what happens and where.' },
 };
 
+function draftSystem(sec: { title: string; guide: string }): string {
+  return `You are a grant writer helping a first-time applicant. Draft the "${sec.title}" section.\n${sec.guide}\n\n${INTEGRITY}\n\n`
+    + 'Write in plain, concrete language in the applicant\'s voice ("we"). Keep it to roughly 250 words unless the notice sets a limit. Output only the draft text.';
+}
+function draftUser(opts: { notice: NoticeCtx; facts: Facts; instructions?: string }): string {
+  return `${noticeBlock(opts.notice)}\n\n${factsBlock(opts.facts)}${opts.instructions ? `\n\nPERSON'S INSTRUCTIONS\n${opts.instructions.slice(0, 600)}` : ''}`;
+}
+
 export async function draftSection(opts: { model: ModelFn; section: string; notice: NoticeCtx; facts: Facts; instructions?: string }): Promise<{ text: string; placeholders: string[]; unsupportedNumbers: string[] }> {
   const sec = SECTIONS[opts.section];
   if (!sec) throw new Error('unknown section');
-  const system = `You are a grant writer helping a first-time applicant. Draft the "${sec.title}" section.\n${sec.guide}\n\n${INTEGRITY}\n\n`
-    + 'Write in plain, concrete language in the applicant\'s voice ("we"). Keep it to roughly 250 words unless the notice sets a limit. Output only the draft text.';
-  const user = `${noticeBlock(opts.notice)}\n\n${factsBlock(opts.facts)}${opts.instructions ? `\n\nPERSON'S INSTRUCTIONS\n${opts.instructions.slice(0, 600)}` : ''}`;
-  const text = (await opts.model(system, user, 900)).trim();
+  const text = (await opts.model(draftSystem(sec), draftUser(opts), 900)).trim();
   return {
     text,
     placeholders: extractPlaceholders(text),

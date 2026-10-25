@@ -5,7 +5,7 @@
 // Cloud Claude lane only (never the local GPU lane). File-backed store: directors' profiles are read from the
 // docs/ambo/council/profiles mirror and the session lands in docs/chora/council — Firestore is not touched.
 //
-// Run: npx tsx scripts/council/runChoraAlbumViewCouncil.ts   (COUNCIL_LANE=gemini for the Gemini cloud lane)
+// Run: npx tsx scripts/council/runChoraAlbumViewCouncil.ts   (Gemini by default since 2026-10-25; COUNCIL_LANE=claude for Claude)
 // Out: docs/chora/council/album-view-cinema.json
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -86,7 +86,7 @@ const brief: CouncilBrief = {
 };
 
 async function main() {
-  const lane = process.env.COUNCIL_LANE === 'gemini' ? geminiLane : claudeLane;
+  const lane = process.env.COUNCIL_LANE === 'claude' ? claudeLane : geminiLane;
   const council = createCouncil({ authMiddleware: null, apiLimiter: null, firestoreAuthHeaders: async () => ({}), store, model: lane } as any);
   const t0 = Date.now();
   const d = await council.deliberate('chora-album-view', brief, { depth: 'FULL' });

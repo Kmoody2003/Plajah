@@ -71,6 +71,9 @@ import { createMusicDownloadRouter } from './routes/musicDownload';
 import { createFastVoteRouter } from './routes/fastVote';
 import { createDataCommonsRouter } from './routes/dataCommons';
 import { createGrantsRouter } from './routes/grants';
+import { createAdminKeysRouter } from './routes/adminKeys';
+import { createGeminiLane, geminiConfigured, geminiGenerate, laneModel } from './services/ai/geminiLane';
+import { systemText, toAnthropicResponse, toGeminiContents } from './services/ai/anthropicCompat';
 import { PLATFORM_CUT_PCT as BOOK_PLATFORM_CUT_PCT } from './services/bookmeta/pricing';
 import { readRegistry as readEditionRegistry, licenceActive, entitledEditions, editionOf, type BookVersionStamp } from './services/bookEditions/policy';
 import { createLedgerRouter, appendLedger } from './routes/ledger';
@@ -6466,37 +6469,30 @@ async function startServer() {
     return broadcastToDecentralizedWeb;
   };
 
-  // ── Anthropic (Claude) proxy for FABULA ─────────────────────────────────────
-  // FABULA is Claude-powered; this keeps the API key server-side. Accepts the
-  // standard Messages-API body and forwards it. Logged-in + rate-limited.
+  // ── Messages-API compatible endpoint, answered by Gemini ────────────────────
+  // Fabula, the lyric translator and the Education council's cloud lane post Anthropic Messages-API
+  // bodies here. As of 2026-10-25 the platform runs these on Gemini (cost): the body is translated,
+  // answered by the shared Gemini lane, and returned in the same `content[0].text` shape, so no client
+  // changed. Text and base64 images both carry over. Logged-in + rate-limited. Override the model with
+  // AI_COMPAT_MODEL (default: the platform's cloud model).
   app.post('/api/ai/anthropic', authMiddleware, aiLimiter, requireRegisteredUser, express.json({ limit: '4mb' }), async (req: any, res) => {
-    const key = process.env.ANTHROPIC_API_KEY;
-    if (!key) return res.status(503).json({ error: 'ANTHROPIC_API_KEY not configured' });
-    const { model, max_tokens, system, messages } = req.body as {
-      model?: string; max_tokens?: number; system?: string; messages?: unknown;
+    if (!geminiConfigured()) return res.status(503).json({ error: 'The cloud assistant is not configured' });
+    const { max_tokens, system, messages, temperature } = req.body as {
+      max_tokens?: number; system?: unknown; messages?: unknown; temperature?: number;
     };
-    if (!Array.isArray(messages) || !messages.length) {
-      return res.status(400).json({ error: 'messages[] required' });
-    }
-    // Constrain to Claude models and a sane token ceiling to prevent abuse.
-    // (claude-sonnet-4-20250514 is deprecated, retires 2026-06-15 — use current Sonnet.)
-    const safeModel = typeof model === 'string' && /^claude-/.test(model) ? model : 'claude-sonnet-4-6';
+    const contents = toGeminiContents(messages);
+    if (!contents.length) return res.status(400).json({ error: 'messages[] required' });
     const safeMax = Math.min(Math.max(Number(max_tokens) || 1000, 1), 4096);
     try {
-      const upstream = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': key,
-          'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify({ model: safeModel, max_tokens: safeMax, ...(system ? { system } : {}), messages }),
+      const model = laneModel('AI_COMPAT_MODEL');
+      const { text, usage } = await geminiGenerate({
+        model, system: systemText(system), contents, maxTokens: safeMax,
+        temperature: typeof temperature === 'number' ? Math.min(Math.max(temperature, 0), 1.5) : 0.7,
       });
-      const data = await upstream.json();
-      res.status(upstream.status).json(data);
+      res.set('x-plajah-ai-provider', 'gemini').json(toAnthropicResponse(text, model, usage));
     } catch (err: any) {
-      console.error('[AI] Anthropic proxy failed:', err?.message || err);
-      res.status(502).json({ error: 'Anthropic request failed' });
+      console.error('[AI] Messages-compat (Gemini) failed:', err?.message || err);
+      res.status(502).json({ error: 'The assistant request failed' });
     }
   });
 
@@ -6608,10 +6604,10 @@ async function startServer() {
   // ── Character chatbot — talk to a living character persona (creator-gated) ───────
   // Phase 1 of the character-avatars system. Fetches the character, verifies its creator turned the
   // chatbot ON, builds a GUARDRAILED persona system prompt SERVER-SIDE (so the safety rules can't be
-  // stripped by the client), and answers via Claude. See docs/PLAJAH_CHARACTER_AVATARS_BLUEPRINT.md.
+  // stripped by the client), and answers via Gemini (moved off Claude 2026-10-25 for cost; override the
+  // model with CHARACTER_CHAT_MODEL). See docs/PLAJAH_CHARACTER_AVATARS_BLUEPRINT.md.
   app.post('/api/character/chat', authMiddleware, aiLimiter, requireRegisteredUser, express.json({ limit: '256kb' }), async (req: any, res) => {
-    const key = process.env.ANTHROPIC_API_KEY;
-    if (!key) return res.status(503).json({ error: 'AI not configured' });
+    if (!geminiConfigured()) return res.status(503).json({ error: 'AI not configured' });
     const { worldId, characterId, messages } = req.body || {};
     if (!worldId || !characterId || !Array.isArray(messages) || !messages.length) {
       return res.status(400).json({ error: 'worldId, characterId, messages[] required' });
@@ -6650,14 +6646,10 @@ async function startServer() {
         .map(m => ({ role: m.role, content: String(m.content).slice(0, 2000) }));
       if (!safeMsgs.length) return res.status(400).json({ error: 'No valid messages' });
 
-      const upstream = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
-        body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 600, system, messages: safeMsgs }),
-      });
-      const data = await upstream.json();
-      if (!upstream.ok) return res.status(upstream.status).json({ error: (data as any)?.error?.message || 'AI error' });
-      res.json({ reply: (data as any)?.content?.[0]?.text || '', name });
+      const contents = toGeminiContents(safeMsgs);
+      if (!contents.length) return res.status(400).json({ error: 'No valid messages' });
+      const { text } = await geminiGenerate({ model: laneModel('CHARACTER_CHAT_MODEL'), system, contents, maxTokens: 600, temperature: 0.8 });
+      res.json({ reply: text, name });
     } catch (err: any) {
       console.error('/api/character/chat', err?.message || err);
       res.status(502).json({ error: 'Character chat failed' });
@@ -13073,10 +13065,12 @@ Never: exclamation-mark spam, emoji walls, fake-excited marketing copy, flattery
 TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a request is genuinely ambiguous, ask ONE sharp clarifying question — otherwise just do the work.`;
 
   // ── The Council of Art Directors — a working team behind Aria ──────────────
-  const council = createCouncil({ authMiddleware, apiLimiter, firestoreAuthHeaders, resolveTier: resolveVerifiedAgentTier, libraries: { packs: FABULA_BROADCAST_PACKS.map(p => ({ id: p.id, name: p.name, councilStyle: p.councilStyle })) } });
+  // Council model lanes run on Gemini (moved off Claude 2026-10-25 for cost). Per-council override:
+  // ART_COUNCIL_MODEL / EDITORIAL_COUNCIL_MODEL; platform default AI_COUNCIL_MODEL.
+  const council = createCouncil({ model: createGeminiLane({ model: laneModel('ART_COUNCIL_MODEL'), temperature: 0.9, timeoutMs: 60_000 }), authMiddleware, apiLimiter, firestoreAuthHeaders, resolveTier: resolveVerifiedAgentTier, libraries: { packs: FABULA_BROADCAST_PACKS.map(p => ({ id: p.id, name: p.name, councilStyle: p.councilStyle })) } });
   council.register(app);
   // The Editorial & Copyright Council: editors who guide an author the way a publisher would (services/editorial/council).
-  createEditorialCouncil({ authMiddleware, apiLimiter, firestoreAuthHeaders, resolveTier: resolveVerifiedAgentTier, jsonParser: express.json({ limit: '8mb' }) }).register(app);
+  createEditorialCouncil({ model: createGeminiLane({ model: laneModel('EDITORIAL_COUNCIL_MODEL'), temperature: 0.6, timeoutMs: 90_000 }), authMiddleware, apiLimiter, firestoreAuthHeaders, resolveTier: resolveVerifiedAgentTier, jsonParser: express.json({ limit: '8mb' }) }).register(app);
 
   // Aria's spoken voice (ElevenLabs proxy) — see routes/ariaSpeak.ts. Dark until ELEVENLABS_API_KEY + ELEVENLABS_ARIA_VOICE_ID are set.
   // Access = verified owner email / admins collection / active Plajah+ subscription (all server-side).
@@ -13700,6 +13694,8 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   app.use(fastVote.router);
   app.use(createDataCommonsRouter({ limiter: apiLimiter }));
   app.use(createGrantsRouter({ limiter: apiLimiter }));
+  // Admin countdown for API keys that expire on a schedule (SAM.gov: 90 days). Dates only, never the key.
+  app.use('/api/admin/key-rotation', createAdminKeysRouter({ authMiddleware, requireAdmin: requireVerifiedAdmin, limiter: apiLimiter }));
   app.use('/api/cora', express.json({ limit: '1mb' }), coraRouter);
 
   // ── Learner identity (child username/password → custom token; provision; claim) ──

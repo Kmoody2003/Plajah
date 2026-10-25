@@ -10,8 +10,12 @@
 // POST /api/grants/orgs/:orgId/readiness  {opportunityId}  what this application needs / what is missing / Aria's next question
 // POST /api/grants/orgs/:orgId/contracts  {naics?, keywords?, certs?, includeIneligible?}  federal contract opportunities near the business + contracting readiness
 // PUT  /api/grants/orgs/:orgId/applications/:oppId         notes, checklist, typed facts, draft sections
-// POST /api/grants/orgs/:orgId/draft      {opportunityId, section, facts?, instructions?}
-// POST /api/grants/orgs/:orgId/council    {opportunityId, draft?, sections?, facts?}
+// GET  /api/grants/ai-info                               the cloud lane (model, price) for the consent prompt
+// POST /api/grants/orgs/:orgId/draft      {opportunityId, section, facts?, instructions?, cloudConsent: true}
+// POST /api/grants/orgs/:orgId/council    {opportunityId, draft?, sections?, facts?, cloudConsent: true}
+//
+// On the desktop app with a local model, drafting and council reviews run on the user's PC instead
+// (components/elevate/GrantAiLane.tsx); these cloud endpoints are the consented fallback.
 //
 // PDF prefill happens in the browser (the uploaded file never reaches us); this router only supplies
 // the profile it fills from.
@@ -20,14 +24,17 @@ import { verifyIdToken, fsGet, fsSet } from '../services/firebaseAdminRest';
 import { geocodeAddress } from '../services/dataCommons/place';
 import { fetchOpportunity, type ApplicantKind } from '../services/dataCommons/grants';
 import { FIELD_BY_KEY, applicantKindForOrg, buildProfile, splitAddress, validateValue, type DerivedGeo, type OrgLike, type Profile, type StoredProfile } from '../services/grants/profile';
+import { recordKeyFailure } from './adminKeys';
 import { buildContractReadiness, buildReadiness, nextQuestion } from '../services/grants/readiness';
 import { CERT_KEYS, parseNaicsList, searchContracts, type CertKey } from '../services/dataCommons/contracts';
 import { sf424CopySheet } from '../services/grants/forms';
-import { draftSection, reviewApplication, SECTIONS, type Facts, type ModelFn, type NoticeCtx } from '../services/grants/council';
+import { draftSection, factsFromProfile, reviewApplication, SECTIONS, type Facts, type ModelFn, type NoticeCtx } from '../services/grants/council';
+import { createGeminiLane, geminiConfigured, laneModel, summarizeUsage, type GeminiUsage } from '../services/ai/geminiLane';
+import { PRICES_ASOF, PRICES_URL, priceFor } from '../services/ai/aiLane';
 
 export interface GrantsDeps {
   limiter?: express.RequestHandler;
-  /** Model lane for the council and drafting. Defaults to Claude via ANTHROPIC_API_KEY. */
+  /** Model lane for the council and drafting. Defaults to Gemini (GOOGLE_AI_API_KEY / GEMINI_API_KEY). */
   model?: ModelFn;
   verify?: (token: string) => Promise<string | null>;
   get?: (path: string) => Promise<Record<string, any> | null>;
@@ -35,22 +42,12 @@ export interface GrantsDeps {
   geocode?: typeof geocodeAddress;
   opportunity?: typeof fetchOpportunity;
   contracts?: typeof searchContracts;
+  /** Called when SAM.gov rejects our key, so the admin dashboard can warn that it may have lapsed. */
+  onKeyProblem?: (id: string) => void;
 }
 
-const CLAUDE_MODEL = 'claude-sonnet-4-6';
-async function claude(system: string, user: string, maxTokens = 1000): Promise<string> {
-  const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) throw new Error('The writing assistant is not configured yet.');
-  const r = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
-    // Low temperature: this is fidelity work, not creative writing.
-    body: JSON.stringify({ model: CLAUDE_MODEL, max_tokens: maxTokens, temperature: 0.3, system, messages: [{ role: 'user', content: user }] }),
-    signal: AbortSignal.timeout(60_000),
-  });
-  const data: any = await r.json();
-  if (!r.ok) throw new Error(data?.error?.message || `model ${r.status}`);
-  return data?.content?.[0]?.text || '';
-}
+/** The cloud lane for grants work: Gemini (services/ai/geminiLane.ts). Override the model with GRANTS_AI_MODEL. */
+const GRANTS_MODEL_ENV = 'GRANTS_AI_MODEL';
 
 /** Per-person daily ceilings on model calls; in-memory is fine — this only guards cost, not correctness. */
 const USAGE = new Map<string, { day: string; n: number }>();
@@ -88,8 +85,33 @@ export function createGrantsRouter(deps: GrantsDeps = {}) {
   const geocode = deps.geocode ?? geocodeAddress;
   const opportunity = deps.opportunity ?? fetchOpportunity;
   const contracts = deps.contracts ?? searchContracts;
-  const model = deps.model ?? claude;
+  const onKeyProblem = deps.onKeyProblem ?? ((id: string) => recordKeyFailure(id));
   const json = express.json({ limit: '200kb' });
+  /**
+   * One lane per request so its usage can be reported back. Tests inject `deps.model` (no usage).
+   * Cloud runs need the person's explicit consent (they were shown cost and time first); the client
+   * sends `cloudConsent: true`, and the server refuses without it rather than trusting the UI alone.
+   */
+  const laneFor = () => {
+    const usage: GeminiUsage[] = [];
+    const model: ModelFn = deps.model ?? createGeminiLane({ model: laneModel(GRANTS_MODEL_ENV), onUsage: u => usage.push(u) });
+    return { model, usage };
+  };
+  const needsConsent = (req: express.Request, res: express.Response) => {
+    if (req.body?.cloudConsent === true) return false;
+    res.status(428).json({ error: 'Running this in the cloud needs your OK first.', code: 'CLOUD_CONSENT_REQUIRED' });
+    return true;
+  };
+
+  /** What the cloud lane is, so the consent prompt can show model, price and whether it is available. */
+  router.get('/api/grants/ai-info', limit, (_req, res) => {
+    const model = laneModel(GRANTS_MODEL_ENV);
+    res.set('Cache-Control', 'public, max-age=600').json({
+      provider: 'Google Gemini', model, configured: !!deps.model || geminiConfigured(),
+      price: priceFor(model), pricesAsOf: PRICES_ASOF, pricesUrl: PRICES_URL,
+      sent: 'Your draft, the facts you typed, the notice, and your organization profile — never your EIN, UEI or personal contact details.',
+    });
+  });
 
   const fail = (res: express.Response, status: number, error: string) => res.status(status).json({ error });
 
@@ -192,6 +214,7 @@ export function createGrantsRouter(deps: GrantsDeps = {}) {
     const keywords = (Array.isArray(b.keywords) ? b.keywords : []).map((k: unknown) => clean(k, 40)).filter(Boolean).slice(0, 5);
     const state = String(b.state || profile.state?.value || '').toUpperCase();
     const result = await contracts(state, { naics, keywords, certs: certs.length ? certs : ['small'], includeIneligible: !!b.includeIneligible });
+    if (result.status === 'key-problem') onKeyProblem('sam_gov');
     const report = buildContractReadiness(profile);
     res.set('Cache-Control', 'no-store').json({ ...result, usedNaics: naics, usedCerts: certs.length ? certs : ['small'], report, next: nextQuestion(report, Array.isArray(b.skipped) ? b.skipped.map(String).slice(0, 60) : []) });
   });
@@ -217,34 +240,29 @@ export function createGrantsRouter(deps: GrantsDeps = {}) {
     res.json({ application: app });
   });
 
-  /** Identifiers and personal contact details never go to a model; the writing does not need them. */
-  const NOT_FOR_MODEL = new Set(['ein', 'uei', 'repName', 'repEmail', 'repPhone', 'contactName', 'contactEmail', 'contactPhone']);
-
-  /** Facts for a model call: the profile minus identifiers and personal contacts, plus what the person typed. */
-  function factsFrom(profile: Profile, typed: unknown): Facts {
-    const profileLines = Object.entries(profile)
-      .filter(([k]) => FIELD_BY_KEY[k] && !NOT_FOR_MODEL.has(k))
-      .map(([k, v]) => `${FIELD_BY_KEY[k].label}: ${v.value}`);
-    const userFacts = (Array.isArray(typed) ? typed : []).slice(0, 40).map(f => clean(f, 600)).filter(Boolean);
-    return { profileLines, userFacts };
-  }
+  const factsFrom = (profile: Profile, typed: unknown): Facts => factsFromProfile(profile, typed, k => FIELD_BY_KEY[k]?.label);
 
   router.post('/api/grants/orgs/:orgId/draft', limit, json, async (req, res) => {
     const g = await guard(req, res); if (!g) return;
     const section = String(req.body?.section || '');
     if (!SECTIONS[section]) return fail(res, 400, 'Unknown section.');
+    if (needsConsent(req, res)) return;
     if (!underCap(g.uid, 'draft')) return fail(res, 429, 'You have reached today\'s drafting limit. It resets tomorrow.');
     try {
       const n = await noticeFor(String(req.body?.opportunityId || ''));
       if (!n) return fail(res, 404, 'Could not find that opportunity.');
       const ws = await loadWorkspace(g.orgId);
       const facts = factsFrom(await profileFor(g.orgId, g.org, ws), req.body?.facts ?? ws.applications[String(req.body.opportunityId)]?.facts);
-      res.json(await draftSection({ model, section, notice: n.notice, facts, instructions: clean(req.body?.instructions, 600) }));
+      const { model, usage } = laneFor();
+      const started = Date.now();
+      const out = await draftSection({ model, section, notice: n.notice, facts, instructions: clean(req.body?.instructions, 600) });
+      res.json({ ...out, usage: summarizeUsage(usage, (Date.now() - started) / 1000) });
     } catch (err: any) { fail(res, 502, String(err?.message || 'The writing assistant is unavailable.').slice(0, 200)); }
   });
 
   router.post('/api/grants/orgs/:orgId/council', limit, json, async (req, res) => {
     const g = await guard(req, res); if (!g) return;
+    if (needsConsent(req, res)) return;
     if (!underCap(g.uid, 'council')) return fail(res, 429, 'You have reached today\'s council limit. It resets tomorrow.');
     try {
       const oppId = String(req.body?.opportunityId || '');
@@ -256,7 +274,10 @@ export function createGrantsRouter(deps: GrantsDeps = {}) {
       const sections = Object.entries(sectionsIn).filter(([k, v]) => SECTIONS[k] && typeof v === 'string' && (v as string).trim())
         .map(([k, v]) => ({ title: SECTIONS[k].title, text: clean(v, 20_000) }));
       const facts = factsFrom(await profileFor(g.orgId, g.org, ws), req.body?.facts ?? saved?.facts);
-      res.json(await reviewApplication({ model, notice: n.notice, facts, draft: clean(req.body?.draft, 20_000), sections }));
+      const { model, usage } = laneFor();
+      const started = Date.now();
+      const review = await reviewApplication({ model, notice: n.notice, facts, draft: clean(req.body?.draft, 20_000), sections });
+      res.json({ ...review, usage: summarizeUsage(usage, (Date.now() - started) / 1000) });
     } catch (err: any) { fail(res, 502, String(err?.message || 'The council is unavailable.').slice(0, 200)); }
   });
 

@@ -7,7 +7,7 @@ const output='docs/kith-party/council';mkdirSync(output,{recursive:true});
 for(const line of readFileSync('.env.local','utf8').split(/\r?\n/)){const m=/^(ANTHROPIC_API_KEY|GEMINI_API_KEY|GOOGLE_AI_API_KEY|COUNCIL_GEMINI_MODEL|COUNCIL_CLAUDE_MODEL)=(.*)$/.exec(line);if(m&&!process.env[m[1]])process.env[m[1]]=m[2].replace(/^"|"$/g,'');}
 // Match the platform's Claude deliberation lane. Gemini is an explicit fallback,
 // never an automatic transfer of private references after a provider failure.
-const lane=process.env.COUNCIL_LANE||'claude';
+const lane=process.env.COUNCIL_LANE||'gemini'; // Gemini by default since 2026-10-25 (cost)
 if(!['claude','gemini'].includes(lane))throw new Error('COUNCIL_LANE must be claude or gemini.');
 const key=lane==='claude'?process.env.ANTHROPIC_API_KEY:process.env.GEMINI_API_KEY||process.env.GOOGLE_AI_API_KEY;
 if(!key)throw new Error(`Council ${lane} credential is not configured.`);

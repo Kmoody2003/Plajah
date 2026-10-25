@@ -158,7 +158,8 @@ export function filterAndScore(all: ContractOpp[], f: ContractFilter, now = Date
 // ─── Upstream ────────────────────────────────────────────────────────────────
 
 export interface ContractSearchResult {
-  status: 'ok' | 'unconfigured' | 'rate-limited' | 'unavailable';
+  /** 'key-problem': SAM.gov rejected our key (invalid or expired) — an admin action, not the user's. */
+  status: 'ok' | 'unconfigured' | 'rate-limited' | 'key-problem' | 'unavailable';
   message?: string;
   opportunities: ScoredOpp[];
   hiddenIneligible: number;
@@ -193,7 +194,9 @@ export async function searchContracts(
     return { status: 'ok', opportunities: opps, hiddenIneligible, pulled: all.length, state, source };
   } catch (err: any) {
     const msg = String(err?.message || '');
-    if (/429|403/.test(msg)) return { ...empty, status: 'rate-limited', message: 'SAM.gov\'s daily request limit was reached. Try again tomorrow, or browse SAM.gov directly.' };
+    // 429 is throttling; 401/403 mean the provider rejected the key itself (invalid, or past its 90-day life).
+    if (/\b429\b/.test(msg)) return { ...empty, status: 'rate-limited', message: 'SAM.gov\'s daily request limit was reached. Try again tomorrow, or browse SAM.gov directly.' };
+    if (/\b(401|403)\b/.test(msg)) return { ...empty, status: 'key-problem', message: 'Contract search is temporarily unavailable while we renew our SAM.gov access. You can browse opportunities on SAM.gov in the meantime.' };
     return { ...empty, status: 'unavailable', message: 'SAM.gov did not respond. Try again in a few minutes.' };
   }
 }

@@ -84,9 +84,9 @@ test("router: readiness returns Aria's next question, the SF-424 sheet and the n
 test('router: the model never sees EIN, UEI or personal contacts', async () => {
   await withRouter(async (base, _db, calls) => {
     await post(base, '/api/grants/orgs/o1/profile', { key: 'repEmail', value: 'boss@secret.example' }, 'PUT');
-    const d: any = await (await post(base, '/api/grants/orgs/o1/draft', { opportunityId: '1', section: 'need', facts: ['We fed 450 families.'] })).json();
+    const d: any = await (await post(base, '/api/grants/orgs/o1/draft', { opportunityId: '1', section: 'need', facts: ['We fed 450 families.'], cloudConsent: true })).json();
     assert.equal(d.placeholders.length, 1);
-    await post(base, '/api/grants/orgs/o1/council', { opportunityId: '1', draft: 'We fed 450 families.' });
+    await post(base, '/api/grants/orgs/o1/council', { opportunityId: '1', draft: 'We fed 450 families.', cloudConsent: true });
     const sent = calls.model.join('\n');
     assert.ok(sent.length > 0);
     assert.ok(!sent.includes('38-1234567'), 'EIN leaked');
@@ -103,7 +103,7 @@ test('router: application state saves and comes back; unknown section is refused
     const w: any = await (await fetch(`${base}/api/grants/orgs/o1/workspace`, { headers: authed })).json();
     assert.equal(w.applications['1'].notes, 'call USDA');
     assert.deepEqual(Object.keys(w.applications['1'].sections), ['need']);
-    assert.equal((await post(base, '/api/grants/orgs/o1/draft', { opportunityId: '1', section: 'bogus' })).status, 400);
+    assert.equal((await post(base, '/api/grants/orgs/o1/draft', { opportunityId: '1', section: 'bogus', cloudConsent: true })).status, 400);
   });
 });
 
@@ -125,5 +125,22 @@ test('router: contracts search falls back to what the business already told us, 
     assert.deepEqual(calls.contracts[1].filter.certs, ['hubzone']);
     assert.equal(calls.contracts[1].state, 'OH');
     assert.equal((await fetch(`${base}/api/grants/orgs/o1/contracts`, { method: 'POST' })).status, 401);
+  });
+});
+
+test('router: cloud model runs need explicit consent; ai-info describes the lane', async () => {
+  await withRouter(async (base, _db, calls) => {
+    const before = calls.model.length;
+    const d = await post(base, '/api/grants/orgs/o1/draft', { opportunityId: '1', section: 'need' });
+    assert.equal(d.status, 428);
+    assert.equal(((await d.json()) as any).code, 'CLOUD_CONSENT_REQUIRED');
+    assert.equal((await post(base, '/api/grants/orgs/o1/council', { opportunityId: '1', draft: 'x' })).status, 428);
+    assert.equal(calls.model.length, before, 'nothing reaches a model without consent');
+    const ok: any = await (await post(base, '/api/grants/orgs/o1/draft', { opportunityId: '1', section: 'need', cloudConsent: true })).json();
+    assert.ok(ok.usage && typeof ok.usage.seconds === 'number');
+    const info: any = await (await fetch(`${base}/api/grants/ai-info`)).json();
+    assert.equal(info.provider, 'Google Gemini');
+    assert.ok(info.price && info.price.in > 0);
+    assert.match(info.sent, /never your EIN/);
   });
 });

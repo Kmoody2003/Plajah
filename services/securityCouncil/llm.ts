@@ -1,7 +1,10 @@
 /**
  * The council's only LLM surface. Two jobs:
- *   triage  — claude-haiku-5-5, one short JSON verdict per NEW/ESCALATED finding (capped per run)
- *   brief   — claude-opus-5-5, once a day, synthesises every agent's open findings
+ *   triage  — a small fast model, one short JSON verdict per NEW/ESCALATED finding (capped per run)
+ *   brief   — a stronger model, once a day, synthesises every agent's open findings
+ *
+ * Provider: Gemini by default since 2026-10-25 (gemini-3.5-flash-lite triage, gemini-3.6-flash brief);
+ * a model id starting with "claude-" still goes to Anthropic (SECURITY_COUNCIL_PROVIDER=anthropic).
  *
  * Everything that came from users or the platform (error messages, report reasons, URLs) is UNTRUSTED.
  * It is redacted, length-capped, and wrapped in delimiters, and the system prompt tells the model to
@@ -62,6 +65,44 @@ export interface ClaudeCallOptions {
 
 export interface ClaudeResult { ok: boolean; text: string; json?: any; model: string; stopReason?: string; error?: string; usage?: { input: number; output: number } }
 
+/**
+ * Gemini over REST (injectable fetch, like the Anthropic path). Structured output: JSON mode plus the
+ * schema stated in the system prompt; the caller already validates and falls back on malformed JSON.
+ * A safety block is reported as a refusal so callers treat it the same way.
+ */
+export async function callGemini(o: ClaudeCallOptions): Promise<ClaudeResult> {
+  const f = o.fetchImpl || fetch;
+  const system = o.schema ? `${o.system}\n\nReturn ONLY JSON matching this JSON Schema:\n${JSON.stringify(o.schema)}` : o.system;
+  const body = {
+    systemInstruction: { parts: [{ text: system }] },
+    contents: [{ role: 'user', parts: [{ text: o.user }] }],
+    generationConfig: { maxOutputTokens: o.maxTokens, ...(o.schema ? { responseMimeType: 'application/json' } : {}) },
+  };
+  try {
+    const res = await f(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(o.model)}:generateContent`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': o.apiKey }, body: JSON.stringify(body),
+      signal: AbortSignal.timeout(o.timeoutMs ?? 90_000),
+    });
+    const data: any = await res.json().catch(() => ({}));
+    if (!res.ok) return { ok: false, text: '', model: o.model, error: `HTTP ${res.status}: ${String(data?.error?.message || '').slice(0, 200)}` };
+    const usage = { input: Number(data?.usageMetadata?.promptTokenCount || 0), output: Number(data?.usageMetadata?.candidatesTokenCount || 0) + Number(data?.usageMetadata?.thoughtsTokenCount || 0) };
+    const cand = data?.candidates?.[0];
+    const blocked = data?.promptFeedback?.blockReason || (cand?.finishReason === 'SAFETY' ? 'safety' : '');
+    if (blocked) return { ok: false, text: '', model: o.model, stopReason: 'refusal', error: `refusal:${String(blocked).toLowerCase()}`, usage };
+    const text = (cand?.content?.parts || []).map((p: any) => (typeof p?.text === 'string' ? p.text : '')).join('');
+    let json: any;
+    if (o.schema) { try { json = JSON.parse(text.replace(/^```(?:json)?\s*|\s*```$/g, '')); } catch { /* malformed — caller falls back */ } }
+    return { ok: true, text, json, model: o.model, stopReason: cand?.finishReason, usage };
+  } catch (e: any) {
+    return { ok: false, text: '', model: o.model, error: String(e?.message || e).slice(0, 200) };
+  }
+}
+
+/** Route by model id: "gemini-…" → Google; anything else → Anthropic (kept for SECURITY_COUNCIL_PROVIDER=anthropic). */
+export function callLlm(o: ClaudeCallOptions): Promise<ClaudeResult> {
+  return /^gemini-/.test(o.model) ? callGemini(o) : callClaude(o);
+}
+
 export async function callClaude(o: ClaudeCallOptions): Promise<ClaudeResult> {
   const f = o.fetchImpl || fetch;
   const body: Record<string, unknown> = {
@@ -117,7 +158,7 @@ export async function triageFinding(apiKey: string, model: string, d: FindingDra
   const user = `Finding (trusted, computed by code):\n${redact(trusted)}\n\n` +
     (d.untrustedSamples?.length ? `Samples:\n${wrapUntrusted('samples', d.untrustedSamples)}\n\n` : '') +
     'Return the JSON verdict.';
-  const r = await callClaude({ apiKey, model, system: TRIAGE_SYSTEM, user, maxTokens: 1200, effort: 'low', schema: TRIAGE_SCHEMA, fetchImpl, timeoutMs: 45_000 });
+  const r = await callLlm({ apiKey, model, system: TRIAGE_SYSTEM, user, maxTokens: 1200, effort: 'low', schema: TRIAGE_SCHEMA, fetchImpl, timeoutMs: 45_000 });
   if (!r.ok || !r.json) return null;
   const j = r.json;
   const sev: FindingSeverity = SEVERITIES.includes(j.severitySuggestion) ? j.severitySuggestion : d.severity;
@@ -153,7 +194,7 @@ const BRIEF_SYSTEM =
   ' summary: at most 150 words. topRisks and recommendedActions: at most 6 items each, one sentence each.';
 
 export async function synthesizeBrief(apiKey: string, model: string, digest: string, fetchImpl?: typeof fetch): Promise<{ summary: string; topRisks: string[]; recommendedActions: string[]; model: string } | null> {
-  const r = await callClaude({
+  const r = await callLlm({
     apiKey, model, system: BRIEF_SYSTEM, user: `${digest}\n\nReturn the brief JSON.`,
     maxTokens: 8000, effort: 'medium', schema: BRIEF_SCHEMA, fallbacks: true, fetchImpl, timeoutMs: 120_000,
   });

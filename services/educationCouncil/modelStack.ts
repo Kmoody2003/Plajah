@@ -1,6 +1,7 @@
 // The Education Council's model stack. One call surface, several lanes, always a fallback:
-//   claude    — the server Claude proxy (/api/ai/anthropic; key stays on the server). Members reason on Sonnet, the chair
-//               synthesises on Opus, quick checks run on Haiku; older ids are tried if the proxy rejects a newer one.
+//   claude    — historical id for the server cloud lane (/api/ai/anthropic). Since 2026-10-25 the server answers it
+//               with Gemini (services/ai/anthropicCompat.ts); the model ids below are ignored there, and the reply's
+//               `model` field names the Gemini model that actually spoke.
 //   gemini    — Gemini through the server proxy (services/geminiService), used for research-flavoured seats.
 //   local     — on-device inference (services/localInferenceService) when a local model is loaded: desktop first.
 //   heuristic — deterministic rule-based reviews (heuristics.ts). Always available, never leaves the device.

@@ -11,8 +11,11 @@ import { AlertTriangle, Check, CheckCircle2, ClipboardCopy, Download, FileUp, Lo
 import {
   grantsApi, type CouncilReview, type Draft, type ReadinessResponse, type SavedApplication,
 } from '../../services/grants/client';
-import { SECTIONS, SEATS } from '../../services/grants/council';
-import { FIELD_BY_KEY, displayValue } from '../../services/grants/profile';
+import { SECTIONS, SEATS, councilWorkload, draftSection, draftWorkload, factsFromProfile, reviewApplication, type NoticeCtx } from '../../services/grants/council';
+import { createLocalLane } from '../../services/ai/localLane';
+import { fmtSeconds, fmtUsd } from '../../services/ai/aiLane';
+import { LaneHint, ProgressNote, useAiRunner, type Lane } from './GrantAiLane';
+import { FIELD_BY_KEY, displayValue, type Profile } from '../../services/grants/profile';
 import type { FieldReport, PrefillResult } from '../../services/grants/forms';
 import { EV, EvLabel } from './vellum';
 
@@ -170,21 +173,42 @@ const CopySheet: React.FC<{ data: ReadinessResponse }> = ({ data }) => (
 
 // ─── Drafting ────────────────────────────────────────────────────────────────
 
+type Runner = ReturnType<typeof useAiRunner>;
+type Ran = { lane: Lane; seconds: number; costUsd?: number | null };
+
+/** "Ran privately on this PC · about 1 minute" / "Ran in the cloud · less than 1¢ · about 5 seconds". */
+const RanNote: React.FC<{ ran: Ran | null }> = ({ ran }) => ran ? (
+  <p className="text-[10px] mt-2" style={{ color: EV.muted }}>
+    {ran.lane === 'local' ? `Ran privately on this PC · ${fmtSeconds(ran.seconds)}` : `Ran in the cloud · ${fmtUsd(ran.costUsd ?? null)} · ${fmtSeconds(ran.seconds)}`}
+  </p>
+) : null;
+
 const Drafting: React.FC<{
   orgId: string; oppId: string; app: SavedApplication; setApp: (fn: (a: SavedApplication) => SavedApplication) => void;
-}> = ({ orgId, oppId, app, setApp }) => {
+  runner: Runner; notice: NoticeCtx; profile: Profile;
+}> = ({ orgId, oppId, app, setApp, runner, notice, profile }) => {
   const [section, setSection] = useState<keyof typeof SECTIONS>('need');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [suggest, setSuggest] = useState<Draft | null>(null);
+  const [ran, setRan] = useState<Ran | null>(null);
   const [ask, setAsk] = useState('');
   const facts = (app.facts || []).join('\n');
   const text = app.sections?.[section] || '';
+  const modelFacts = useMemo(() => factsFromProfile(profile, app.facts, k => FIELD_BY_KEY[k]?.label), [profile, app.facts]);
+  const workload = useMemo(() => draftWorkload({ section, notice, facts: modelFacts, instructions: ask || undefined }), [section, notice, modelFacts, ask]);
 
-  const run = async () => {
-    setBusy(true); setErr(null); setSuggest(null);
-    try { setSuggest(await grantsApi.draft(orgId, oppId, section, app.facts || [], ask || undefined)); }
-    catch (e: any) { setErr(e?.message || 'Could not draft'); } finally { setBusy(false); }
+  const run = async (preferCloud = false) => {
+    setBusy(true); setErr(null); setSuggest(null); setRan(null);
+    try {
+      const r = await runner.run({
+        workload, preferCloud,
+        local: onCall => draftSection({ model: createLocalLane({ onCall }), section, notice, facts: modelFacts, instructions: ask || undefined }),
+        cloud: () => grantsApi.draft(orgId, oppId, section, app.facts || [], ask || undefined),
+      });
+      setSuggest(r.result);
+      setRan({ lane: r.lane, seconds: r.seconds, costUsd: (r.result as Draft).usage?.costUsd });
+    } catch (e: any) { if (e?.message !== 'cancelled') setErr(e?.message || 'Could not draft'); } finally { setBusy(false); }
   };
 
   return (
@@ -208,9 +232,13 @@ const Drafting: React.FC<{
       </div>
       <p className="text-[11px] mt-3" style={{ color: EV.muted }}>{SECTIONS[section].guide}</p>
       <input value={ask} onChange={e => setAsk(e.target.value)} placeholder="Anything to emphasize? (optional)" className="w-full mt-3 rounded-xl px-3 py-2 text-sm" style={input} />
-      <button disabled={busy} onClick={run} className={`${btn} mt-3`} style={primary}>
-        {busy ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />} Draft "{SECTIONS[section].title}"
-      </button>
+      <div className="flex flex-wrap items-center gap-3 mt-3">
+        <button disabled={busy} onClick={() => run(false)} className={btn} style={primary}>
+          {busy ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />} Draft "{SECTIONS[section].title}"
+        </button>
+        {runner.local?.qualifies && !busy && <button onClick={() => run(true)} className="text-[11px] underline underline-offset-2" style={{ color: EV.muted }}>Use the cloud instead (faster)</button>}
+      </div>
+      {busy ? <ProgressNote p={runner.progress} /> : <LaneHint w={workload} info={runner.info} local={runner.local} />}
       {err && <p role="alert" className="text-[12px] mt-2" style={{ color: EV.warn }}>{err}</p>}
 
       {suggest && (
@@ -223,6 +251,7 @@ const Drafting: React.FC<{
               <AlertTriangle size={12} className="shrink-0 mt-0.5" /> These numbers are not in your facts: {suggest.unsupportedNumbers.join(', ')}. Remove them or add the source.
             </p>
           )}
+          <RanNote ran={ran} />
           <button onClick={() => { setApp(a => ({ ...a, sections: { ...(a.sections || {}), [section]: suggest.text } })); setSuggest(null); }} className={`${btn} mt-3`} style={quiet}>Use this draft</button>
         </div>
       )}
@@ -243,14 +272,25 @@ const READY: Record<CouncilReview['readiness'], { label: string; tone: string }>
   ready: { label: 'No blockers seen', tone: EV.success }, revise: { label: 'Revise before submitting', tone: EV.warn }, 'not-yet': { label: 'Not ready yet', tone: '#FF6B6B' },
 };
 
-const Council: React.FC<{ orgId: string; oppId: string; app: SavedApplication }> = ({ orgId, oppId, app }) => {
+const Council: React.FC<{ orgId: string; oppId: string; app: SavedApplication; runner: Runner; notice: NoticeCtx; profile: Profile }> = ({ orgId, oppId, app, runner, notice, profile }) => {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [r, setR] = useState<CouncilReview | null>(null);
-  const run = async () => {
-    setBusy(true); setErr(null);
-    try { setR(await grantsApi.council(orgId, oppId, app.sections || {}, app.facts || [])); }
-    catch (e: any) { setErr(e?.message || 'The council could not be reached'); } finally { setBusy(false); }
+  const [ran, setRan] = useState<Ran | null>(null);
+  const modelFacts = useMemo(() => factsFromProfile(profile, app.facts, k => FIELD_BY_KEY[k]?.label), [profile, app.facts]);
+  const sections = useMemo(() => Object.entries(app.sections || {}).filter(([k, v]) => SECTIONS[k] && v.trim()).map(([k, v]) => ({ title: SECTIONS[k].title, text: v })), [app.sections]);
+  const workload = useMemo(() => councilWorkload({ notice, facts: modelFacts, draft: '', sections }), [notice, modelFacts, sections]);
+  const run = async (preferCloud = false) => {
+    setBusy(true); setErr(null); setRan(null);
+    try {
+      const out = await runner.run({
+        workload, preferCloud,
+        local: onCall => reviewApplication({ model: createLocalLane({ onCall }), notice, facts: modelFacts, draft: '', sections }),
+        cloud: () => grantsApi.council(orgId, oppId, app.sections || {}, app.facts || []),
+      });
+      setR(out.result);
+      setRan({ lane: out.lane, seconds: out.seconds, costUsd: (out.result as any).usage?.costUsd });
+    } catch (e: any) { if (e?.message !== 'cancelled') setErr(e?.message || 'The council could not be reached'); } finally { setBusy(false); }
   };
   return (
     <div className="ev-panel p-5">
@@ -259,13 +299,18 @@ const Council: React.FC<{ orgId: string; oppId: string; app: SavedApplication }>
         A program officer, a peer reviewer, a budget auditor, a compliance officer and an editor read your draft the way the people deciding will.
         They advise; you decide. They never predict an award and never sign or certify anything.
       </p>
-      <button disabled={busy} onClick={run} className={`${btn} mt-3`} style={primary}>
-        {busy ? <Loader2 size={13} className="animate-spin" /> : <Users size={13} />} Ask the Council to review
-      </button>
+      <div className="flex flex-wrap items-center gap-3 mt-3">
+        <button disabled={busy} onClick={() => run(false)} className={btn} style={primary}>
+          {busy ? <Loader2 size={13} className="animate-spin" /> : <Users size={13} />} Ask the Council to review
+        </button>
+        {runner.local?.qualifies && !busy && <button onClick={() => run(true)} className="text-[11px] underline underline-offset-2" style={{ color: EV.muted }}>Use the cloud instead (faster)</button>}
+      </div>
+      {busy ? <ProgressNote p={runner.progress} /> : <LaneHint w={workload} info={runner.info} local={runner.local} />}
       {err && <p role="alert" className="text-[12px] mt-2" style={{ color: EV.warn }}>{err}</p>}
       {r && (
         <div className="mt-4 space-y-4">
           <div>
+            <RanNote ran={ran} />
             <p className="text-[10px] font-black uppercase tracking-widest" style={{ color: READY[r.readiness].tone }}>{READY[r.readiness].label}</p>
             <p className="text-sm mt-1" style={{ color: EV.ink }}>{r.headline}</p>
           </div>
@@ -306,6 +351,7 @@ export const GrantApply: React.FC<{ orgId: string; opp: { id: string; title: str
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const runner = useAiRunner();
   const dirty = useRef(false);
 
   const load = useCallback(async (skip: string[]) => {
@@ -400,8 +446,9 @@ export const GrantApply: React.FC<{ orgId: string; opp: { id: string; title: str
 
       <PdfPrefill data={data} />
       <CopySheet data={data} />
-      <Drafting orgId={orgId} oppId={opp.id} app={app} setApp={setApp} />
-      <Council orgId={orgId} oppId={opp.id} app={app} />
+      <Drafting orgId={orgId} oppId={opp.id} app={app} setApp={setApp} runner={runner} notice={data.notice} profile={data.profile} />
+      <Council orgId={orgId} oppId={opp.id} app={app} runner={runner} notice={data.notice} profile={data.profile} />
+      {runner.dialog}
 
       <div className="ev-panel p-5">
         <EvLabel>Notes</EvLabel>

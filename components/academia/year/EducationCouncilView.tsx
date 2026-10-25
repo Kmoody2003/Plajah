@@ -10,7 +10,8 @@ import { listProposals, loadMember, joinCommons, propose, castVote, tally, QUORU
 
 interface Props { embedded?: boolean; worksheet?: Worksheet; lesson?: DayLesson; onClose?: () => void; onBack?: () => void; onApply?: (s: CouncilSession) => void }
 
-const LANE_LABEL: Record<string, string> = { claude: 'Claude', gemini: 'Gemini', local: 'On-device', heuristic: 'Rules' };
+// The 'claude' lane id is historical: since 2026-10-25 the server answers it with Gemini (see services/ai/anthropicCompat.ts).
+const LANE_LABEL: Record<string, string> = { claude: 'Cloud (Gemini)', gemini: 'Gemini', local: 'On-device', heuristic: 'Rules' };
 const LANE_COLOR: Record<string, string> = { claude: '#D97757', gemini: '#4F8DF5', local: '#06D6A0', heuristic: '#9CA3AF' };
 
 function Monogram({ id, size = 34 }: { id: string; size?: number }) {
@@ -53,7 +54,7 @@ export default function EducationCouncilView({ embedded, worksheet, lesson, onCl
 
         {tab === 'convene' && (
           <div className="space-y-5">
-            <p className="text-[13.5px] text-white/75 max-w-[720px]">Each seat reviews through its own lens on its own model lane — Claude for most seats, Gemini for research-minded ones, on-device for quick feasibility checks — and always starts from a rule-based review, so the council works offline too. The chair synthesises; you decide what to apply.</p>
+            <p className="text-[13.5px] text-white/75 max-w-[720px]">Each seat reviews through its own lens on its own model lane — the cloud model (Gemini) for most seats and research-minded ones, on-device for quick feasibility checks — and always starts from a rule-based review, so the council works offline too. The chair synthesises; you decide what to apply.</p>
             {worksheet && <div className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-[13px]"><span className="text-white/55">On the table:</span> <b>{worksheet.title}</b> · {worksheet.kicker}</div>}
             <div className="flex flex-wrap gap-2">
               {(Object.keys(TASK_LABEL) as CouncilTask[]).filter(t => worksheet || t === 'research' || t === 'design-unit').map(t => (

@@ -2,7 +2,7 @@
 //
 //   npx tsx scripts/council/runWorksheetArtCouncil.ts [themeId ... | new-k2 new-35 new-68]
 //
-// Cloud lanes only (Claude by default, COUNCIL_LANE=gemini to switch) — never the local lane: local batches overheat
+// Cloud lanes only (Gemini by default since 2026-10-25, COUNCIL_LANE=claude to switch) — never the local lane: local batches overheat
 // the laptop. Each seed theme gets an open brief: refine it for a school photocopier, for early/dyslexic readers and for
 // beauty. `new-<band>` asks the council for a brand-new house style for that grade band.
 // Output: docs/academia/worksheet-council/<id>.json, then scripts/council/applyWorksheetArtCouncil.ts folds the builds
@@ -19,7 +19,7 @@ if (existsSync('.env.local')) for (const line of readFileSync('.env.local', 'utf
   const m = /^(ANTHROPIC_API_KEY|GEMINI_API_KEY|GOOGLE_AI_API_KEY|COUNCIL_GEMINI_MODEL|COUNCIL_CLAUDE_MODEL)=(.*)$/.exec(line);
   if (m && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^"|"$/g, '');
 }
-const lane = process.env.COUNCIL_LANE || 'claude';
+const lane = process.env.COUNCIL_LANE || 'gemini';
 if (!['claude', 'gemini'].includes(lane)) throw new Error('COUNCIL_LANE must be claude or gemini (no local lane for this run).');
 const key = lane === 'claude' ? process.env.ANTHROPIC_API_KEY : process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY;
 if (!key) throw new Error(`Council ${lane} credential is not configured.`);

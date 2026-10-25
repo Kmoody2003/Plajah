@@ -11,7 +11,7 @@
 //
 // Run:  npx tsx scripts/council/runWorshipVisualizerCouncil.ts [visualizerId ...]
 //       Resumable: visualizers whose session is DONE are skipped unless COUNCIL_FORCE=1.
-// Lane: Claude (the council's own lane, as councilRoutes) by default; COUNCIL_LANE=gemini is an explicit fallback;
+// Lane: Gemini by default since 2026-10-25 (cost; councilRoutes moved too); COUNCIL_LANE=claude restores Claude;
 // COUNCIL_LANE=local runs the council on-device (scripts/council/localLane.ts → scripts/localAi/council_local_lane.py).
 // Then: npx tsx scripts/council/applyWorshipVisualizerCouncil.ts
 import { execSync } from 'node:child_process';
@@ -115,7 +115,7 @@ type ManifestEntry = { number: number; name: string; category: WorshipCategory; 
 type Manifest = { lane: string; startedAt: number; updatedAt: number; sessions: Record<string, ManifestEntry> };
 
 async function main() {
-  const laneName = process.env.COUNCIL_LANE === 'gemini' ? 'gemini' : process.env.COUNCIL_LANE === 'local' ? 'local' : 'claude';
+  const laneName = process.env.COUNCIL_LANE === 'claude' ? 'claude' : process.env.COUNCIL_LANE === 'local' ? 'local' : 'gemini';
   const lane = laneName === 'gemini' ? geminiLane : laneName === 'local' ? localLane : claudeLane;
   if (laneName === 'claude' && !process.env.ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY is not configured (set COUNCIL_LANE=gemini or COUNCIL_LANE=local).');
   if (laneName === 'local') await ensureLocalLane();

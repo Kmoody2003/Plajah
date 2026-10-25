@@ -41,6 +41,13 @@ const dataCommonsApi = () => ({
       const { opps, hiddenIneligible } = sam.filterAndScore(fixture.map(sam.normalizeOpp).filter(Boolean), filter);
       return { status: 'ok', opportunities: opps, hiddenIneligible, pulled: fixture.length, state, source: { agency: 'LAB FIXTURE (not SAM.gov)', dataset: 'fixture', url: 'https://sam.gov', retrievedAt: Date.now(), license: 'fixture' } };
     };
+    // Admin key-rotation countdown: fake admin gates and an in-memory store; start it 12 days from lapsing so the banner shows.
+    const { createAdminKeysRouter } = await server.ssrLoadModule('/routes/adminKeys.ts');
+    const keyDb = new Map([['adminKeyRotations/sam_gov', { rotatedAt: Date.now() - 78 * 86_400_000, rotatedBy: 'lab' }]]);
+    api.use('/api/admin/key-rotation', createAdminKeysRouter({
+      authMiddleware: (req, _res, next) => { req.uid = 'lab-admin'; next(); }, requireAdmin: (_q, _r, next) => next(),
+      get: async p => keyDb.get(p) ?? null, set: async (p, d) => { keyDb.set(p, d); return true; },
+    }));
     api.use(createGrantsRouter({
       contracts,
       verify: async () => 'lab-user',
