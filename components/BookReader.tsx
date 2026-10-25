@@ -26,6 +26,7 @@ import {
 } from '../data/classicPageThemes';
 import { launchClassicBookInChoraDaw } from '../services/melos/classicBookChoraProjects';
 import BookFolioBody from './lorea/BookFolioBody';
+import FitToPage from './lorea/FitToPage';
 import PageTurn from './lorea/PageTurn';
 import PageTurnSettings from './lorea/PageTurnSettings';
 import { usePageTurn } from './lorea/usePageTurn';
@@ -283,7 +284,13 @@ const BookReaderInner: React.FC<BookReaderProps> = ({ book, onBack, currentUser,
   const livingBook = useLivingPictureBook(book, telaEdition.status === 'tela' ? telaEdition.bundle : null, livingPicture, goToLivePage, currentPageIndex);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [zoom, setZoom] = useState(1);
-  const [showControls, setShowControls] = useState(true);
+  // PDF: render the whole page to fit the box (width AND height) until the reader zooms in themselves.
+  const pdfBoxRef = useRef<HTMLDivElement>(null);
+  const [pdfAspect, setPdfAspect] = useState(0.7727);
+  const [pdfBox, setPdfBox] = useState<{ w: number; h: number } | null>(null);
+  const pdfFitWidth = pdfBox ? Math.max(120, Math.floor(Math.min(pdfBox.w, (pdfBox.h - 76) * pdfAspect))) : 0;
+  // Phones start with the chrome tucked away so the page gets the screen; tap the page (or the handle) to bring it back.
+  const [showControls, setShowControls] = useState(() => typeof window === 'undefined' || window.innerWidth >= 640);
   const [viewMode, setViewMode] = useState<'SINGLE' | 'DOUBLE'>('SINGLE');
   // Parsed chapters/pages for TXT books — synchronously hydrated from memory cache or instant classic opening pages for 0ms first paint
   const [parsedChapters, setParsedChapters] = useState<ParsedChapter[]>(() => {
@@ -557,6 +564,15 @@ const BookReaderInner: React.FC<BookReaderProps> = ({ book, onBack, currentUser,
   // The native EPUB/PDF viewers step aside when the folio page is showing (or building) the same book.
   const isEpubReader = isEpub && !folioActive && !folioPending;
   const isPdfReader = isPdf && !folioActive && !folioPending;
+  useEffect(() => {
+    const el = pdfBoxRef.current;
+    if (!isPdfReader || !el) return;
+    const measure = () => { const r = el.getBoundingClientRect(); setPdfBox({ w: Math.max(0, r.width - 28), h: Math.max(0, r.height - 28) }); };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [isPdfReader, proxiedPdfUrl, showControls]);
 
   // Reset per-chapter state when the chapter changes
   useEffect(() => {
@@ -1330,7 +1346,7 @@ const BookReaderInner: React.FC<BookReaderProps> = ({ book, onBack, currentUser,
     const innerContent = (
       <>
         {book.coverImage && chIdx === 0 && pgIdx === 0 && !activeClassicTheme && (
-          <div className="relative h-32 sm:h-40 overflow-hidden rounded-t-2xl sm:rounded-t-3xl">
+          <div className="relative h-20 sm:h-40 overflow-hidden rounded-t-2xl sm:rounded-t-3xl">
             <img src={book.coverImage} alt="" className="w-full h-full object-cover scale-110" style={{ filter: 'blur(24px) brightness(0.5) saturate(1.3)' }} />
             <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/60" />
             <div className="absolute inset-0 flex items-end p-5 sm:p-8">
@@ -1338,7 +1354,7 @@ const BookReaderInner: React.FC<BookReaderProps> = ({ book, onBack, currentUser,
             </div>
           </div>
         )}
-        <div className="p-4 sm:p-10 lg:p-12 xl:p-16">
+        <div className="p-3 sm:p-10 lg:p-12 xl:p-16">
           {pageStyle === 'FOLIO' ? (
             <BookFolioBody
               paras={activePg}
@@ -1412,7 +1428,7 @@ const BookReaderInner: React.FC<BookReaderProps> = ({ book, onBack, currentUser,
           </>)}
           {/* Page turn hint at bottom */}
           {(pgIdx < activeCh.pages.length - 1 || chIdx < parsedChapters.length - 1) && (
-            <div className="mt-10 sm:mt-12 pt-6 sm:pt-8 border-t border-white/5 text-center">
+            <div className="mt-10 sm:mt-12 pt-6 sm:pt-8 border-t border-white/5 text-center max-sm:hidden">
               <button onClick={nextPage} className={`text-[9px] font-black uppercase tracking-[0.25em] ${s.subtext} hover:text-small-orange transition-colors`}>
                 {pgIdx < activeCh.pages.length - 1
                   ? `Continue · Chapter ${chIdx + 1} · Page ${pgIdx + 2} →`
@@ -1424,6 +1440,13 @@ const BookReaderInner: React.FC<BookReaderProps> = ({ book, onBack, currentUser,
       </>
     );
 
+    // Whole page in view by default; scrolling only starts once the reader zooms or enlarges type themselves.
+    const fitted = (
+      <FitToPage enabled={zoom === 1 && fontSize === 100 && !easyRead} refit={`${chIdx}:${pgIdx}:${viewMode}:${pageStyle}:${modeScale}:${viewportW}:${readingTheme}:${fontFamily}:${showControls}`}>
+        {innerContent}
+      </FitToPage>
+    );
+
     if (activeClassicTheme) {
       return (
         <ClassicPageFlourishFrame
@@ -1431,14 +1454,14 @@ const BookReaderInner: React.FC<BookReaderProps> = ({ book, onBack, currentUser,
           motionState={flourishMotionState}
           pageKey={`${chIdx}:${pgIdx}`}
         >
-          {innerContent}
+          {fitted}
         </ClassicPageFlourishFrame>
       );
     }
 
     return (
       <div className={`${txtCardBg} shadow-2xl rounded-2xl sm:rounded-3xl overflow-y-auto w-full h-full ${s.scrollbar}`}>
-        {innerContent}
+        {fitted}
       </div>
     );
   };
@@ -1770,11 +1793,23 @@ const BookReaderInner: React.FC<BookReaderProps> = ({ book, onBack, currentUser,
         )}
       </AnimatePresence>
 
+      {/* Phones: with the chrome tucked away, a small grip brings it back (tapping the page also does). */}
+      {!showControls && (
+        <button
+          type="button"
+          onClick={() => setShowControls(true)}
+          aria-label="Show reader controls"
+          className="sm:hidden absolute top-0 left-1/2 -translate-x-1/2 z-40 h-5 w-16 flex items-start justify-center"
+        >
+          <span className={`mt-1 block h-1 w-9 rounded-full ${theme === 'LIGHT' ? 'bg-black/25' : 'bg-white/30'}`} />
+        </button>
+      )}
+
       {/* Reader Area — Full Bleed Content First */}
       <div className="flex-1 flex overflow-hidden w-full h-full relative">
         <div 
           ref={readerGestureRef}
-          className={`flex-1 relative flex items-center justify-center overflow-auto p-2 sm:p-4 lg:p-6 pt-20 pb-20 sm:pt-24 sm:pb-24 lg:pt-24 lg:pb-24 no-scrollbar transition-all duration-500 ${(showComments || showNotes || showTOC || showSettings) ? 'lg:mr-[400px]' : ''}`}
+          className={`flex-1 relative flex items-center justify-center overflow-auto p-1 sm:p-4 lg:p-6 ${showControls ? 'pt-20 pb-20' : 'pt-1 pb-1'} sm:pt-24 sm:pb-24 lg:pt-24 lg:pb-24 no-scrollbar transition-all duration-500 ${(showComments || showNotes || showTOC || showSettings) ? 'lg:mr-[400px]' : ''}`}
           onClick={() => setShowControls(!showControls)}
         >
           <div 
@@ -1921,6 +1956,7 @@ const BookReaderInner: React.FC<BookReaderProps> = ({ book, onBack, currentUser,
               </div>
             ) : isPdfReader ? (
               <div 
+                ref={pdfBoxRef}
                 className={`w-full h-full max-w-6xl xl:max-w-7xl rounded-2xl shadow-2xl relative overflow-y-auto no-scrollbar flex flex-col items-center p-3 lg:p-6 ${theme === 'LIGHT' ? 'bg-white' : 'bg-[#1a1a1a]'}`}
               >
                 {proxiedPdfUrl ? (
@@ -1944,7 +1980,8 @@ const BookReaderInner: React.FC<BookReaderProps> = ({ book, onBack, currentUser,
                   >
                     <Page 
                       pageNumber={pdfPageNumber} 
-                      scale={zoom} 
+                      {...(zoom === 1 && pdfFitWidth ? { width: pdfFitWidth } : { scale: zoom })}
+                      onLoadSuccess={(pg: any) => { try { const vp = pg.getViewport({ scale: 1 }); setPdfAspect(vp.width / vp.height); } catch { /* keep last */ } }}
                       renderTextLayer={true}
                       renderAnnotationLayer={true}
                       onRenderError={(error) => {

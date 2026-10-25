@@ -6,6 +6,7 @@ import './index.css';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from './services/firebase';
 import BookReader from './components/BookReader';
+import { classicAlbum } from './services/loreaOpen';
 import { GlobalPlayerProvider } from './contexts/GlobalPlayerContext';
 import { loadShowcaseTelaDoc, makeShowcaseBundle } from './services/showcase/livingDoc';
 
@@ -13,6 +14,9 @@ const Lab: React.FC = () => {
   const id = new URLSearchParams(location.search).get('id') || 'showcase_moon-blanket';
   const [book, setBook] = useState<any>(null); const [err, setErr] = useState('');
   useEffect(() => {
+    // ?gutenberg=84&title=Frankenstein — a free classic through the real reader, no Firestore (add &txt=1 to force the text edition).
+    const gid = new URLSearchParams(location.search).get('gutenberg');
+    if (gid) { const al: any = classicAlbum({ id: gid, title: new URLSearchParams(location.search).get('title') || 'Classic' }); if (al) { setBook({ ...al, skipOpeningScene: true }); return; } }
     getDoc(doc(db, 'albums', id)).then(async s => {
       if (!s.exists()) return setErr('album not found');
       const album: any = { id: s.id, ...s.data(), skipOpeningScene: true };
