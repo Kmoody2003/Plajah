@@ -14,6 +14,7 @@ const LOADERS: Record<string, () => Promise<QuestionBank>> = {
   'chora-history': () => import('./chora-history').then(m => m.CHORA_BANK),
   'history-sentences': () => Promise.all([import('./history-sentences'), import('./history-sentences-sports')]).then(([a, b]) => ({ ...a.HISTORY_SENTENCE_BANK, questions: [...a.HISTORY_SENTENCE_BANK.questions, ...b.HISTORY_SENTENCES_SPORTS] })),
   'young-entrepreneurs': () => import('./young-entrepreneurs').then(m => m.YOUNG_ENT_BANK),
+  'grant-school': () => import('./grant-school').then(m => m.GRANT_BANK),
   'art-masters': () => import('./courses/art-masters').then(m => m.COURSE_MODULE.bank),
   'film-history': () => import('./courses/film-history').then(m => m.COURSE_MODULE.bank),
   'hq-quest': () => import('./courses/hq-quest').then(m => m.COURSE_MODULE.bank),

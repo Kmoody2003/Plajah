@@ -31,6 +31,8 @@ export interface CensusGeography {
   countyFips?: string;
   tractGeoid?: string;
   place?: string;
+  /** SF-424 item 16 format, e.g. "MI-013" ("MI-AL" for at-large states). */
+  congressionalDistrict?: string;
 }
 
 export interface FloodZone {
@@ -118,6 +120,15 @@ export function parseGeography(json: any): CensusGeography | null {
   const tract = g['Census Tracts']?.[0];
   const place = g['Incorporated Places']?.[0] || g['Census Designated Places']?.[0];
   if (!state && !county) return null;
+  // The layer key carries the Congress number ("120th Congressional Districts") and changes every term.
+  const cdKey = Object.keys(g).find(k => /Congressional Districts/i.test(k));
+  const cdRaw = cdKey ? g[cdKey]?.[0] : undefined;
+  const cdNum = cdRaw ? String(cdRaw[Object.keys(cdRaw).find(k => /^CD\d+$/.test(k)) || ''] ?? '') : '';
+  let congressionalDistrict: string | undefined;
+  if (state?.STUSAB && cdNum) {
+    // 00 = at-large, 98 = non-voting delegate; SF-424 wants "XX-AL" for single-district areas.
+    congressionalDistrict = /^(00|98)$/.test(cdNum) ? `${state.STUSAB}-AL` : `${state.STUSAB}-${cdNum.padStart(3, '0')}`;
+  }
   return {
     state: state?.NAME,
     stateAbbr: state?.STUSAB,
@@ -126,6 +137,7 @@ export function parseGeography(json: any): CensusGeography | null {
     countyFips: county?.COUNTY,
     tractGeoid: tract?.GEOID,
     place: place?.NAME,
+    congressionalDistrict,
   };
 }
 

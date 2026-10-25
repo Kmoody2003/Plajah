@@ -41,7 +41,7 @@ test('census geography parse tolerates missing layers', () => {
     States: [{ NAME: 'Michigan', STATE: '26' }], Counties: [{ NAME: 'Wayne County', COUNTY: '163' }],
     'Census Tracts': [{ GEOID: '26163521400' }],
   } } });
-  assert.deepEqual(g, { state: 'Michigan', stateAbbr: undefined, stateFips: '26', county: 'Wayne County', countyFips: '163', tractGeoid: '26163521400', place: undefined });
+  assert.deepEqual(g, { state: 'Michigan', stateAbbr: undefined, stateFips: '26', county: 'Wayne County', countyFips: '163', tractGeoid: '26163521400', place: undefined, congressionalDistrict: undefined });
 });
 
 test('lat/lng guard rejects non-US and garbage', () => {

@@ -20,6 +20,8 @@ const KIND_LABEL: Record<ApplicantKind, string> = {
   'school-district': 'School district', college: 'College / university', 'small-business': 'Small business',
   business: 'Business', city: 'City / township', county: 'County', state: 'State agency', tribal: 'Tribal organization',
   'housing-authority': 'Housing authority',
+  'public-school': 'Public school', 'charter-school': 'Charter school', 'private-school': 'Private school',
+  'homeschool-coop': 'Homeschool co-op', teacher: 'Teacher (individual)',
 };
 
 function defaultKind(org: Organization): ApplicantKind {
@@ -37,7 +39,9 @@ const fmtDate = (iso?: string) => iso
   ? new Date(`${iso}T12:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
   : undefined;
 
-const MatchCard: React.FC<{ m: GrantMatchResult['matches'][number] }> = ({ m }) => {
+export type GrantMatch = GrantMatchResult['matches'][number];
+
+const MatchCard: React.FC<{ m: GrantMatch; onStart?: (m: GrantMatch) => void }> = ({ m, onStart }) => {
   const [open, setOpen] = useState(false);
   const d = m.detail;
   const range = d?.awardFloor || d?.awardCeiling
@@ -83,11 +87,18 @@ const MatchCard: React.FC<{ m: GrantMatchResult['matches'][number] }> = ({ m }) 
           <ExternalLink size={14} />
         </a>
       </div>
+      {onStart && (
+        <div className="mt-3 flex justify-end">
+          <button onClick={() => onStart(m)} className="px-4 py-2 rounded-xl text-[12px] font-bold" style={{ background: EV.brand, color: '#fff' }}>
+            Start application with Aria
+          </button>
+        </div>
+      )}
     </div>
   );
 };
 
-export const GrantMatcher: React.FC<{ org: Organization }> = ({ org }) => {
+export const GrantMatcher: React.FC<{ org: Organization; onStart?: (m: GrantMatch) => void }> = ({ org, onStart }) => {
   const [kinds, setKinds] = useState<{ key: ApplicantKind; note?: string }[]>([]);
   const [topics, setTopics] = useState<{ key: string; label: string }[]>([]);
   const [kind, setKind] = useState<ApplicantKind>(() => defaultKind(org));
@@ -189,7 +200,7 @@ export const GrantMatcher: React.FC<{ org: Organization }> = ({ org }) => {
           {result.matches.length === 0 && (
             <p className="text-sm" style={{ color: EV.ink2 }}>Nothing open fits that combination. Try fewer filters or broader keywords.</p>
           )}
-          {result.matches.map(m => <MatchCard key={m.id} m={m} />)}
+          {result.matches.map(m => <MatchCard key={m.id} m={m} onStart={onStart} />)}
           <p className="text-[10px]" style={{ color: EV.muted }}>
             Source: Grants.gov · retrieved {new Date(result.source.retrievedAt).toLocaleString()} · {result.source.license}
           </p>

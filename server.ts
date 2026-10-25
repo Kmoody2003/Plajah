@@ -70,6 +70,7 @@ import { createBookVaultRouter } from './routes/bookVault';
 import { createMusicDownloadRouter } from './routes/musicDownload';
 import { createFastVoteRouter } from './routes/fastVote';
 import { createDataCommonsRouter } from './routes/dataCommons';
+import { createGrantsRouter } from './routes/grants';
 import { PLATFORM_CUT_PCT as BOOK_PLATFORM_CUT_PCT } from './services/bookmeta/pricing';
 import { readRegistry as readEditionRegistry, licenceActive, entitledEditions, editionOf, type BookVersionStamp } from './services/bookEditions/policy';
 import { createLedgerRouter, appendLedger } from './routes/ledger';
@@ -13698,6 +13699,7 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   fastVotePledgeHook = fastVote.onPledgeCheckoutCompleted;
   app.use(fastVote.router);
   app.use(createDataCommonsRouter({ limiter: apiLimiter }));
+  app.use(createGrantsRouter({ limiter: apiLimiter }));
   app.use('/api/cora', express.json({ limit: '1mb' }), coraRouter);
 
   // ── Learner identity (child username/password → custom token; provision; claim) ──

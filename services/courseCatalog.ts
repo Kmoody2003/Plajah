@@ -98,6 +98,7 @@ export const COURSES: Course[] = [
   { id: 'money-school', subject: 'economics', title: 'School of Money', blurb: 'Earning, saving, credit, risk and investing.', emoji: '💰', accent: '#F59E0B', kind: 'curriculum', view: 'MONEY_SCHOOL', curriculumId: 'money-school' },
   { id: 'econ-school', subject: 'economics', title: 'Economics', blurb: 'Markets, incentives and the economy.', emoji: '📈', accent: '#3FB98E', kind: 'curriculum', view: 'ECON_SCHOOL', curriculumId: 'econ-school' },
   { id: 'business-school', subject: 'economics', title: 'Business School', blurb: 'Build a venture, books, formation and go-to-market.', emoji: '🚀', accent: '#8b5cf6', kind: 'link', view: 'BUSINESS_SCHOOL' },
+  { id: 'grant-school', subject: 'economics', title: 'Grant School', blurb: 'Find a grant, get registered, write it clearly and manage the award, with Aria filling in what she knows.', emoji: '🌱', accent: '#2FBF71', kind: 'curriculum', view: 'LEARN', curriculumId: 'grant-school' },
   { id: 'real-estate-school', subject: 'economics', title: 'Real Estate', blurb: 'Buying, renting, financing and investing in property.', emoji: '🏠', accent: '#0ea5e9', kind: 'curriculum', view: 'REAL_ESTATE_SCHOOL', curriculumId: 'real-estate-school' },
   // Arts & media
   { id: 'film-school', subject: 'arts', title: 'Film School', blurb: 'From story to screen, then make your own.', emoji: '🎬', accent: '#e23b6d', kind: 'curriculum', view: 'FILM_SCHOOL', curriculumId: 'film-school' },
@@ -186,6 +187,7 @@ const CURRICULUM_LOADERS: Record<string, () => Promise<Curriculum>> = {
   'chora-history': () => import('../data/choraCurriculum').then(m => m.CHORA_CURRICULUM),
   'history-sentences': () => import('../data/historySentencesCurriculum').then(m => m.HISTORY_SENTENCES),
   'young-entrepreneurs': () => import('../data/youngEntrepreneursCurriculum').then(m => m.YOUNG_ENTREPRENEURS),
+  'grant-school': () => import('../data/grantSchoolCurriculum').then(m => m.GRANT_SCHOOL),
   'art-masters': () => import('../data/practice/courses/art-masters').then(m => m.COURSE_MODULE.curriculum),
   'film-history': () => import('../data/practice/courses/film-history').then(m => m.COURSE_MODULE.curriculum),
   'hq-quest': () => import('../data/practice/courses/hq-quest').then(m => m.COURSE_MODULE.curriculum),

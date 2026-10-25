@@ -47,7 +47,7 @@ const ChurchEducation = lazy(() => import('../church/ChurchEducation'));
 const ChurchMusicDepartmentHub = lazy(() => import('./ChurchMusicDepartmentHub'));
 const ElevateMobilizeHub = lazy(() => import('./ElevateMobilizeHub'));
 const GrowthHub = lazy(() => import('../growth/GrowthHub'));
-const GrantMatcher = lazy(() => import('./GrantMatcher'));
+const GrantHub = lazy(() => import('./GrantHub'));
 import { EV, EvLabel, EvKpiStrip } from './vellum';
 import { opsPresetForOrg } from '../../services/opsPresets';
 import type { MailRecipient } from '../../services/marketing/handoff';
@@ -63,7 +63,7 @@ const SECTION_SUB: Partial<Record<SectionKey, string>> = {
   prayer: 'Moderate requests, mark answered, keep private ones private.',
   team: 'Staff, volunteers and roles — grant access to the tools each needs.',
   education: 'Sunday school, Bible study & discipleship on the education stack.',
-  grants: 'Federal grants that fit your mission, live from Grants.gov — plus who is already funded near you.',
+  grants: 'Find federal grants that fit, then let Aria fill in your applications — and learn the process in Grant School.',
 };
 const field = 'w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white outline-none focus:border-small-orange/50 transition-all placeholder:text-white/25';
 
@@ -405,7 +405,7 @@ const ElevateOps: React.FC<Props> = ({ org: initialOrg, isOwner, onClose, onOrgC
               )}
 
               {section === 'marketing' && growth('marketing')}
-              {section === 'grants' && <GrantMatcher org={org} />}
+              {section === 'grants' && <GrantHub org={org} />}
             </Suspense>
           </div>
         </div>

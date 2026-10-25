@@ -21,7 +21,8 @@ const API = 'https://api.grants.gov/v1/api';
 
 export type ApplicantKind =
   | 'church' | 'nonprofit' | 'charity' | 'cultural' | 'school-district' | 'college'
-  | 'small-business' | 'business' | 'city' | 'county' | 'state' | 'tribal' | 'housing-authority';
+  | 'small-business' | 'business' | 'city' | 'county' | 'state' | 'tribal' | 'housing-authority'
+  | 'public-school' | 'charter-school' | 'private-school' | 'homeschool-coop' | 'teacher';
 
 /** Grants.gov applicant-type codes (from the live facet list). */
 export const ELIGIBILITY_BY_KIND: Record<ApplicantKind, string[]> = {
@@ -38,6 +39,14 @@ export const ELIGIBILITY_BY_KIND: Record<ApplicantKind, string[]> = {
   state: ['00'],
   tribal: ['07', '11'],
   'housing-authority': ['08'],
+  // A single public school applies through its district (05). Charters vary by state: some are their own
+  // nonprofit (12), some are treated as district-like. Private schools and co-ops are nonprofits or "Other".
+  'public-school': ['05'],
+  'charter-school': ['12', '05'],
+  'private-school': ['12', '25'],
+  'homeschool-coop': ['12', '13'],
+  // Individuals (21): few federal notices are open to a teacher personally — see KIND_NOTES.
+  teacher: ['21'],
 };
 
 /** Mission topic → Grants.gov funding-category code + a search phrase. */
@@ -59,6 +68,18 @@ export const TOPICS: Record<string, { label: string; category: string; phrase: s
   energy: { label: 'Energy', category: 'EN', phrase: 'energy efficiency' },
   transportation: { label: 'Transportation', category: 'T', phrase: 'transportation' },
   opportunityZone: { label: 'Opportunity Zones', category: 'OZ', phrase: 'opportunity zone' },
+  science: { label: 'Science & research', category: 'ST', phrase: 'science technology research' },
+  agriculture: { label: 'Agriculture', category: 'AG', phrase: 'agriculture farm' },
+  rural: { label: 'Rural development', category: 'RD', phrase: 'rural' },
+  // Education sub-topics: the "Education" category alone is far too broad for a school.
+  stem: { label: 'STEM education', category: 'ED', phrase: 'STEM education' },
+  literacy: { label: 'Literacy & reading', category: 'ED', phrase: 'literacy reading' },
+  specialEd: { label: 'Special education', category: 'ED', phrase: 'disabilities special education' },
+  earlyChildhood: { label: 'Early childhood', category: 'ED', phrase: 'early childhood' },
+  cte: { label: 'Career & technical education', category: 'ED', phrase: 'career technical education' },
+  schoolMeals: { label: 'School meals & nutrition', category: 'FN', phrase: 'school meals nutrition' },
+  schoolSafety: { label: 'School safety & mental health', category: 'ED', phrase: 'school safety mental health' },
+  teacherDev: { label: 'Teacher training', category: 'ED', phrase: 'teacher professional development' },
 };
 
 /** Context the UI should show for a kind before the user applies. */
@@ -66,8 +87,20 @@ export const KIND_NOTES: Partial<Record<ApplicantKind, string>> = {
   church: 'Federal funds can generally support secular services a congregation provides (food, housing counseling, '
     + 'youth programs) but not worship or religious instruction. Check each notice, and use a separate legal entity '
     + 'or program account where the notice asks for one.',
-  'small-business': 'Most federal grants exclude for-profits; small-business money is mostly loans, SBIR/STTR and '
-    + 'contracts. Expect few grant matches.',
+  'small-business': 'Most federal grants exclude for-profits. Small-business money is mostly SBA loans, SBIR/STTR research '
+    + 'awards and government contracts, so expect few grant matches and use the financing and contracts guidance below.',
+  business: 'Most federal grants exclude for-profits. Check the notice: research (SBIR/STTR-style), rural and energy programs '
+    + 'are the ones that often accept businesses.',
+  'public-school': 'A single public school normally applies through its district. Big programs like Title I and IDEA are formula '
+    + 'funds that reach schools through the state, not competitive grants you apply for directly.',
+  'charter-school': 'Whether a charter applies as its own nonprofit or through a district depends on your state. Confirm which '
+    + 'entity holds your UEI and tax status before you apply.',
+  'private-school': 'Private schools can apply as nonprofits to many notices, but some education funds are limited to public '
+    + 'schools. The notice says; read its eligibility text.',
+  'homeschool-coop': 'Co-ops usually apply as a nonprofit. Individual homeschooling families are rarely eligible for federal grants.',
+  teacher: 'Very few federal grants go to individual teachers. The ones that do are mostly fellowships and summer institutes. '
+    + 'Most classroom money comes from your district, foundations and classroom-funding sites, so ask your school or district '
+    + 'office whether they can apply for you.',
 };
 
 // ─── Pure helpers (unit-tested) ──────────────────────────────────────────────
