@@ -15,6 +15,8 @@ export interface DesignReferenceStudy {
   artisticInterpretation: string;
   historicalContexts: Array<{ movement: string; relationship: string; confidence: 'HIGH' | 'MEDIUM' | 'LOW' }>;
   museumConnections: Array<{ collection: string; connection: string; searchTerms: string[] }>;
+  /** Real open-access objects resolved server-side from museumConnections searchTerms. */
+  museumObjects?: Array<{ id: string; title: string; culture: string; date: string; thumbUrl: string; sourceUrl: string; source: string }>;
   palette: DesignStudyColor[];
   designLanguage: {
     principles: string[];

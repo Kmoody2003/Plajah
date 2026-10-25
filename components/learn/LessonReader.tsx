@@ -17,6 +17,8 @@ import LessonFolio, { type Customization } from './lesson/LessonFolio';
 import LessonEditor, { SharedVersions } from './lesson/LessonEditor';
 import { applyOverlay, creditLine, adaptedLine, INTEGRITY_NOTE, type LessonOverlay } from './lesson/lessonOverlay';
 import { activeOverlay, classIdsFor } from '../../services/lessonOverlayService';
+import { MUSEUM_STUDY_RULES } from '../../data/museumStudyMap';
+const ObjectStudy = React.lazy(() => import('../museum/ObjectStudy'));
 
 /**
  * Reads one lesson: the teaching text, real photographs and recordings from the archives where they
@@ -88,6 +90,7 @@ const LessonReader: React.FC<{ developments?: Impact[]; lesson: ReaderLesson; sc
         {connections && <ConnectedIdeas courseId={lesson.courseId} lessonId={lesson.id} {...connections} />}
 
         <TraditionPanel courseId={lesson.courseId} lessonId={lesson.id} school={school} />
+        {MUSEUM_STUDY_RULES.some(r => r.match.test(`${lesson.title} ${lesson.courseTitle || ''} ${lesson.subject || ''}`)) && (<details className="my-4 rounded-xl border border-white/10 p-4"><summary className="cursor-pointer text-[13px] font-black">Study a real object from the world's museums</summary><React.Suspense fallback={null}><ObjectStudy topic={`${lesson.title} ${lesson.subject || ''}`} /></React.Suspense></details>)}
 
         <div className="flex flex-wrap gap-2 mt-6 pt-5 border-t border-white/10">
           <button type="button" onClick={() => { queueLessonNotes({ kind: 'lesson', courseId: lesson.courseId, lessonId: lesson.id, title: lesson.title, courseTitle: lesson.courseTitle, subject: lesson.subject || '', body: lesson.body }); onClose(); }} className="rounded-full px-5 py-2.5 text-[13px] font-black border border-white/20 hover:bg-white/10 inline-flex items-center gap-2"><NotebookPen size={14} /> Take notes</button>

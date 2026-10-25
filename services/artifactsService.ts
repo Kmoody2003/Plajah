@@ -14,15 +14,24 @@
  * can't hang the grid. Results cached in a Map for the session.
  */
 
-export type ArtifactSource = 'met' | 'artic' | 'cleveland' | 'opencontext' | 'smithsonian' | 'europeana';
+import { REGIONS, regionKeyword, type MuseumRegion } from './museum/regions';
+
+export type ArtifactSource = 'met' | 'artic' | 'cleveland' | 'opencontext' | 'smithsonian' | 'europeana' | 'commons' | 'loc' | 'harvard' | 'rijks' | 'nga' | 'dpla' | 'wellcome' | 'jps' | 'npm';
 
 // Free API keys. Both sources stay dormant (return []) until a key is set — the
 // browser already works on the four keyless sources above. Smithsonian needs a
 // REAL api.data.gov key (the shared DEMO_KEY 429s under its per-object fetches);
 // Europeana needs a free wskey. Set VITE_SMITHSONIAN_KEY / VITE_EUROPEANA_KEY in
 // the build env (see .env.example).
-const SMITHSONIAN_KEY = (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_SMITHSONIAN_KEY) || 'DEMO_KEY';
-const EUROPEANA_KEY = (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_EUROPEANA_KEY) || '';
+//
+// Keys also resolve server-side (SMITHSONIAN_API_KEY / EUROPEANA_API_KEY) so councils and the
+// /api/museum proxy can use them; in the browser, a build without VITE_ keys routes the keyed
+// sources through that proxy instead (see viaProxy below), so no key ships to the client.
+const viteEnv = (typeof import.meta !== 'undefined' && (import.meta as any).env) || {};
+const nodeEnv = (typeof process !== 'undefined' && (process as any).env) || {};
+const SMITHSONIAN_KEY = viteEnv.VITE_SMITHSONIAN_KEY || nodeEnv.SMITHSONIAN_API_KEY || nodeEnv.VITE_SMITHSONIAN_KEY || 'DEMO_KEY';
+const EUROPEANA_KEY = viteEnv.VITE_EUROPEANA_KEY || nodeEnv.EUROPEANA_API_KEY || nodeEnv.VITE_EUROPEANA_KEY || '';
+const IN_BROWSER = typeof window !== 'undefined' && typeof document !== 'undefined';
 
 export interface Artifact {
   id: string;                 // `${source}-${sourceId}`
@@ -63,7 +72,7 @@ const cache = new Map<string, Artifact[]>();
 async function searchMet(query: string, limit: number, departmentId?: number, signal?: AbortSignal): Promise<Artifact[]> {
   try {
     const dep = departmentId ? `&departmentId=${departmentId}` : '';
-    const url = `https://collectionapi.metmuseum.org/public/collection/v1/search?hasImages=true${dep}&q=${encodeURIComponent(query)}`;
+    const url = `https://collectionapi.metmuseum.org/public/collection/v1.1/search?hasImages=true&isPublicDomain=true&limit=${limit * 4}&offset=0${dep}&q=${encodeURIComponent(query)}`;
     const sRes = await fetch(url, { signal: signal ?? AbortSignal.timeout(9000) });
     if (!sRes.ok) return [];
     const sData = await sRes.json();
@@ -121,9 +130,9 @@ async function searchArtic(query: string, limit: number, signal?: AbortSignal): 
 }
 
 // ── Cleveland Museum of Art (Open Access, CC0) ────────────────────────────────
-async function searchCleveland(query: string, limit: number, signal?: AbortSignal): Promise<Artifact[]> {
+async function searchCleveland(query: string, limit: number, signal?: AbortSignal, department?: string): Promise<Artifact[]> {
   try {
-    const url = `https://openaccess-api.clevelandart.org/api/artworks/?q=${encodeURIComponent(query)}&cc0=1&has_image=1&limit=${limit}`;
+    const url = `https://openaccess-api.clevelandart.org/api/artworks/?q=${encodeURIComponent(query)}&cc0=1&has_image=1&limit=${limit}${department ? `&department=${encodeURIComponent(department)}` : ''}`;
     const res = await fetch(url, { signal: signal ?? AbortSignal.timeout(9000) });
     if (!res.ok) return [];
     const data = await res.json();
@@ -187,11 +196,11 @@ function smImage(m: any): { full?: string; thumb?: string } {
   return { full, thumb: m.thumbnail || full };
 }
 
-async function searchSmithsonian(query: string, limit: number, signal?: AbortSignal): Promise<Artifact[]> {
+async function searchSmithsonian(query: string, limit: number, signal?: AbortSignal, dataSources?: string[]): Promise<Artifact[]> {
   if (!smithsonianEnabled()) return [];
   try {
     const url = `https://api.si.edu/openaccess/api/v1.0/search?api_key=${SMITHSONIAN_KEY}` +
-      `&q=${encodeURIComponent(`${query} AND online_media_type:"Images"`)}&rows=${limit * 3}`;
+      `&q=${encodeURIComponent(`${query} AND online_visual_material:true${dataSources?.length ? ` AND (${dataSources.map(d => `data_source:"${d}"`).join(' OR ')})` : ''}`)}&rows=${limit * 3}`;
     const res = await fetch(url, { signal: signal ?? AbortSignal.timeout(9000) });
     if (!res.ok) return [];
     const data = await res.json();
@@ -288,6 +297,7 @@ export async function fetchArtifacts3D(query: string, opts: { limit?: number; si
   const settled = await Promise.allSettled([
     searchSmithsonian3D(query, per, opts.signal),
     searchEuropeana3D(query, per, opts.signal),
+    viaProxy(query, keyedViaProxy(), limit, opts.signal, true),
   ]);
   const lists = settled.map(s => (s.status === 'fulfilled' ? s.value : []));
   const merged = interleave(lists).slice(0, limit);
@@ -353,8 +363,31 @@ async function searchEuropeana3D(query: string, limit: number, signal?: AbortSig
   } catch { return []; }
 }
 
+// ── Server proxy for keyed sources ────────────────────────────────────────────
+// In the browser without a build-time key, ask the server (which holds the key) instead.
+async function viaProxy(query: string, sources: ArtifactSource[], limit: number, signal?: AbortSignal, only3d = false, region?: MuseumRegion): Promise<Artifact[]> {
+  if (!IN_BROWSER || !sources.length) return [];
+  try {
+    const url = `/api/museum/artifacts?q=${encodeURIComponent(query)}&sources=${sources.join(',')}&limit=${limit}${only3d ? '&only3d=1' : ''}${region ? `&region=${region}` : ''}`;
+    const res = await fetch(url, { signal: signal ?? AbortSignal.timeout(20000) });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data?.artifacts) ? data.artifacts : [];
+  } catch { return []; }
+}
+const keyedViaProxy = (): ArtifactSource[] => {
+  const out: ArtifactSource[] = [];
+  if (IN_BROWSER && !smithsonianEnabled()) out.push('smithsonian');
+  if (IN_BROWSER && !EUROPEANA_KEY) out.push('europeana');
+  if (IN_BROWSER) out.push('nga');
+  if (IN_BROWSER) out.push('dpla'); // key stays server-side
+  return out;
+};
+
 // ── Public API ────────────────────────────────────────────────────────────────
 export interface SearchArtifactsOpts {
+  /** Narrow to a world region (Asia, Middle East, Africa, Latin America, Indigenous Americas, Oceania). */
+  region?: MuseumRegion;
   limit?: number;
   sources?: ArtifactSource[];
   metDepartmentId?: number;
@@ -371,19 +404,40 @@ function interleave(lists: Artifact[][]): Artifact[] {
 /** Search artifacts across the keyless museum/archaeology sources. Never throws. */
 export async function searchArtifacts(query: string, opts: SearchArtifactsOpts = {}): Promise<Artifact[]> {
   const limit = opts.limit ?? 30;
-  const sources = opts.sources ?? ['met', 'artic', 'cleveland', 'smithsonian', 'europeana'];
-  const key = `${query.toLowerCase()}|${limit}|${sources.join(',')}|${opts.metDepartmentId ?? ''}`;
+  const R = opts.region ? REGIONS[opts.region] : undefined;
+  const sources = opts.sources ?? (R ? (R.sources as ArtifactSource[]) : ['met', 'artic', 'cleveland', 'smithsonian', 'europeana']);
+  const key = `${query.toLowerCase()}|${limit}|${sources.join(',')}|${opts.metDepartmentId ?? ''}|${opts.region ?? ''}`;
   const hit = cache.get(key);
   if (hit) return hit;
 
   const per = Math.max(8, Math.ceil(limit / sources.length));
   const tasks: Promise<Artifact[]>[] = [];
-  if (sources.includes('met')) tasks.push(searchMet(query, per, opts.metDepartmentId, opts.signal));
+  // Free-text sources can't filter by department, so a region adds a place/culture keyword.
+  const rq = (i: number) => (R ? `${query} ${regionKeyword(R, i)}` : query);
+  if (sources.includes('met')) tasks.push(searchMet(R?.met === 5 ? rq(0) : query, per, opts.metDepartmentId ?? R?.met, opts.signal)); // dept 5 spans Africa, Oceania & the Americas, so add the region keyword
   if (sources.includes('artic')) tasks.push(searchArtic(query, per, opts.signal));
-  if (sources.includes('cleveland')) tasks.push(searchCleveland(query, per, opts.signal));
+  if (sources.includes('cleveland')) {
+    const depts = R?.cleveland?.length ? R.cleveland : [undefined];
+    for (const d of depts) tasks.push(searchCleveland(query, Math.max(4, Math.ceil(per / depts.length)), opts.signal, d));
+  }
   if (sources.includes('opencontext')) tasks.push(searchOpenContext(query, per, opts.signal));
-  if (sources.includes('smithsonian')) tasks.push(searchSmithsonian(query, per, opts.signal));
-  if (sources.includes('europeana')) tasks.push(searchEuropeana(query, per, opts.signal));
+  if (sources.includes('smithsonian')) tasks.push(searchSmithsonian(query, per, opts.signal, R?.smithsonian));
+  if (sources.includes('europeana')) tasks.push(searchEuropeana(rq(0), per, opts.signal));
+  if (sources.includes('commons')) tasks.push(import('./museum/moreSources').then(m => m.searchCommons(rq(0), per, opts.signal)));
+  if (sources.includes('loc')) tasks.push(import('./museum/moreSources').then(m => m.searchLoc(rq(0), per, opts.signal)));
+  if (sources.includes('harvard')) tasks.push(import('./museum/moreSources').then(m => m.searchHarvard(query, per, opts.signal)));
+  if (sources.includes('dpla') && !IN_BROWSER) tasks.push(import('./museum/moreSources').then(m => m.searchDpla(rq(0), per, opts.signal)));
+  if (sources.includes('rijks')) tasks.push(import('./museum/moreSources').then(m => m.searchRijks(query, Math.min(per, 6), opts.signal)));
+  if (sources.includes('jps')) tasks.push(import('./museum/moreSources').then(m => m.searchJapanSearch(query, per, opts.signal)));
+  if (sources.includes('npm')) tasks.push(import('./museum/moreSources').then(m => m.searchNpm(query, per, opts.signal)));
+  if (sources.includes('wellcome')) tasks.push(import('./museum/moreSources').then(m => m.searchWellcome(rq(0), per, opts.signal)));
+  // NGA is a server-side dataset index (no search API): Node runs it directly, browsers use the proxy.
+  if (sources.includes('nga') && !IN_BROWSER) {
+    const ngaPath = './museum/ngaIndex';
+    tasks.push(import(/* @vite-ignore */ ngaPath).then(m => m.searchNga(query, per)).catch(() => []));
+  }
+  const proxied = keyedViaProxy().filter(x => sources.includes(x));
+  if (proxied.length) tasks.push(viaProxy(query, proxied, per * proxied.length, opts.signal, false, opts.region));
 
   const settled = await Promise.allSettled(tasks);
   const lists = settled.map(s => (s.status === 'fulfilled' ? s.value : []));

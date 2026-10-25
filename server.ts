@@ -69,6 +69,7 @@ import { createPodRouter, fulfillPodOrderFromStripe } from './routes/pod';
 import { createBookVaultRouter } from './routes/bookVault';
 import { createMusicDownloadRouter } from './routes/musicDownload';
 import { createFastVoteRouter } from './routes/fastVote';
+import { createMuseumRouter } from './routes/museum';
 import { createDataCommonsRouter } from './routes/dataCommons';
 import { createGrantsRouter } from './routes/grants';
 import { createAdminKeysRouter } from './routes/adminKeys';
@@ -13457,6 +13458,14 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
             toolCalls.push({ name: 'design_reference_study', label: 'Created design-language study', status: 'done' });
           }
         } catch { /* malformed studies stay visible as ordinary prose only */ }
+            // Resolve the study's museumConnections search terms to real open-access objects.
+            try {
+              const { searchMuseums } = await import('./services/museum');
+              const terms = (Array.isArray(candidate.museumConnections) ? candidate.museumConnections : [])
+                .flatMap((m: any) => (Array.isArray(m?.searchTerms) ? m.searchTerms.slice(0, 1) : [])).slice(0, 4);
+              const found = await Promise.all(terms.map((t: string) => searchMuseums(String(t), { limit: 3 }).catch(() => [])));
+              designStudy.museumObjects = found.flat().slice(0, 10);
+            } catch { /* grounding is best-effort */ }
       }
 
       // Strip raw build + action blocks from reply text for cleaner display
@@ -13695,6 +13704,7 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   app.use(createDataCommonsRouter({ limiter: apiLimiter }));
   app.use(createGrantsRouter({ limiter: apiLimiter }));
   // Admin countdown for API keys that expire on a schedule (SAM.gov: 90 days). Dates only, never the key.
+  app.use(createMuseumRouter({ limiter: apiLimiter }));
   app.use('/api/admin/key-rotation', createAdminKeysRouter({ authMiddleware, requireAdmin: requireVerifiedAdmin, limiter: apiLimiter }));
   app.use('/api/cora', express.json({ limit: '1mb' }), coraRouter);
 

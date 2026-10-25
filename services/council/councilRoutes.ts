@@ -15,6 +15,7 @@
 // Registered from server.ts with the same auth middleware and limiter the other AI routes use.
 import { COUNCIL_DIRECTORS, COUNCIL_LIST, emptyProfile } from './councilDirectors';
 import { COUNCIL_DIRECTOR_IDS, type CouncilBrief, type CouncilDirectorId, type Deliberation, type DeliberationDepth, type DirectorProfile, type DirectorProposal, type Dispute, type Influence, type Reflection } from './councilTypes';
+import { museumContextBlock } from '../museum';
 import { directorSystem, disputeUser, parseJson, proposalUser, readDispute, readProposal, readSynthesis, reflectionUser, researchUser, synthesisSystem, synthesisUser } from './councilPrompts';
 
 export interface CouncilDeps {
@@ -131,6 +132,9 @@ export function createCouncil(deps: CouncilDeps) {
     const d: Deliberation = { id: uid(), uid: userId, createdAt: Date.now(), depth, status: 'RUNNING', brief, directors: ids, proposals: [], disputes: [], reflections: [] };
     const path = `users/${userId}/council_sessions/${d.id}`;
     await store.set(path, d);
+    // Ground the room in real collection objects (Met, Smithsonian, Europeana…) matched to the ask.
+    const museumContext = await museumContextBlock([brief.ask, ...(brief.references || [])].map(t => String(t).slice(0, 120)), { perQuery: 3 }).catch(() => '');
+    if (museumContext) brief = { ...brief, museumContext };
     const profiles = Object.fromEntries(await Promise.all(ids.map(async i => [i, await profile(i)] as const))) as Record<CouncilDirectorId, DirectorProfile>;
     try {
       // 1. Propose — in parallel; each director knows who else is at the table.
@@ -191,7 +195,7 @@ export function createCouncil(deps: CouncilDeps) {
 
   /** A director goes and looks something up, and comes back changed. */
   async function research(id: CouncilDirectorId, topic: string) {
-    const raw = parseJson<{ influences: any[]; note: string }>(await look(researchUser(id, topic)));
+    const raw = parseJson<{ influences: any[]; note: string }>(await look(researchUser(id, topic, await museumContextBlock([topic], { perQuery: 5 }).catch(() => ''))));
     const influences: Influence[] = (raw?.influences || []).slice(0, 5).map((i: any) => ({
       at: Date.now(), topic: String(i.topic || topic).slice(0, 120), finding: String(i.finding || '').slice(0, 600),
       source: i.source?.title ? { title: String(i.source.title).slice(0, 160), url: typeof i.source.url === 'string' && /^https?:\/\//.test(i.source.url) ? i.source.url.slice(0, 400) : undefined } : undefined,

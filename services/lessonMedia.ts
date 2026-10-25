@@ -11,10 +11,11 @@
  *  - A conservative text filter keeps graphic or adult material out of lesson surfaces.
  */
 import { searchArtworks } from './artMuseumService';
+import { searchMuseums } from './museum';
 import { fetchVaultTracks, fetchLocAudio, type AudioKind } from './archiveContentService';
 
 export type MediaKind = 'image' | 'audio';
-export type MediaProvider = 'loc' | 'met' | 'artic' | 'vault' | 'teacher';
+export type MediaProvider = 'loc' | 'met' | 'artic' | 'cleveland' | 'smithsonian' | 'europeana' | 'vault' | 'teacher';
 export type MediaLicense = 'PD' | 'CC0' | 'CC-BY' | 'CC-BY-SA' | 'teacher-owned' | 'vault';
 
 export interface MediaAsset {
@@ -116,6 +117,20 @@ export async function searchMuseumArt(q: string, limit = 12): Promise<MediaAsset
       attribution: `${w.artist ? `${w.artist}, ` : ''}${w.title}${w.date ? `, ${w.date}` : ''}. ${w.source === 'met' ? 'The Metropolitan Museum of Art' : 'The Art Institute of Chicago'}, public domain (open access).`,
       sourceUrl: w.sourceUrl,
     }));
+    // Beyond the Met + Art Institute: Cleveland, Smithsonian and Europeana (education-safe filter applied).
+    if (out.length < limit) {
+      const extra = await searchMuseums(q, { limit: limit - out.length, sources: ['cleveland', 'smithsonian', 'europeana'], educationSafe: true }).catch(() => []);
+      const label: Record<string, string> = { cleveland: 'Cleveland Museum of Art', smithsonian: 'Smithsonian Institution', europeana: 'Europeana' };
+      for (const a of extra) {
+        if (!a.imageUrl || !safe(a.title, a.medium)) continue;
+        out.push({
+          id: `art:${a.id}`, kind: 'image', title: a.title, creator: a.culture, date: a.date, url: a.imageUrl, thumbUrl: a.thumbUrl || a.imageUrl,
+          provider: a.source as MediaProvider, license: 'CC0',
+          attribution: `${a.culture ? `${a.culture}, ` : ''}${a.title}${a.date ? `, ${a.date}` : ''}. ${label[a.source] ?? a.source}, open access.`,
+          sourceUrl: a.sourceUrl,
+        });
+      }
+    }
     cache.set(key, out); return out;
   } catch { return []; }
 }

@@ -110,8 +110,8 @@ async function searchArtic(query: string, limit: number, signal?: AbortSignal): 
 
 async function searchMet(query: string, limit: number, signal?: AbortSignal): Promise<ArtWork[]> {
   try {
-    const searchUrl = `https://collectionapi.metmuseum.org/public/collection/v1/search` +
-      `?hasImages=true&q=${encodeURIComponent(query)}`;
+    const searchUrl = `https://collectionapi.metmuseum.org/public/collection/v1.1/search` +
+      `?hasImages=true&isPublicDomain=true&limit=${limit * 4}&offset=0&q=${encodeURIComponent(query)}`;
     const sRes = await fetch(searchUrl, { signal: signal ?? AbortSignal.timeout(9000) });
     if (!sRes.ok) return [];
     const sData = await sRes.json();

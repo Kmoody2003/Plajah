@@ -63,6 +63,7 @@ export function briefText(b: CouncilBrief): string {
     b.audience ? `Audience: ${b.audience}` : '', b.feeling ? `Intended feeling: ${b.feeling}` : '',
     b.constraints?.length ? `Constraints: ${b.constraints.join('; ')}` : '',
     b.references?.length ? `References the user mentioned: ${b.references.join('; ')}` : '',
+    b.museumContext || '',
   ].filter(Boolean).join('\n');
 }
 
@@ -120,11 +121,11 @@ export function reflectionUser(self: CouncilDirectorId, deliberation: Deliberati
 In one or two sentences, first person, write the note you would add to your own style notes: what this brief moved in your thinking, or a rule you now hold that you did not before. Be specific to this work, not general. Return JSON: {"note":"…"}`;
 }
 
-export function researchUser(id: CouncilDirectorId, topic: string): string {
+export function researchUser(id: CouncilDirectorId, topic: string, museumContext = ''): string {
   const d = COUNCIL_DIRECTORS[id];
   return `Research "${topic}" through the lens of ${d.name} (${d.medium}). What they go looking for: ${d.researchBeats.join('; ')}.
 
-Find three to five SPECIFIC, ATTRIBUTABLE references — named designers, studios, works, movements, techniques, with dates where known — that this director would bring back to the team. Prefer primary or reputable sources. Do not invent names, dates or sources; if unsure, say so in the finding. Return JSON exactly:
+${museumContext ? `${museumContext}\n\nPrefer these verified collection objects where they fit; add others only if you are sure.\n\n` : ''}Find three to five SPECIFIC, ATTRIBUTABLE references — named designers, studios, works, movements, techniques, with dates where known — that this director would bring back to the team. Prefer primary or reputable sources. Do not invent names, dates or sources; if unsure, say so in the finding. Return JSON exactly:
 {"influences":[{"topic":"…","finding":"one or two sentences, specific","source":{"title":"…","url":"https://… if known"}}],"note":"two sentences to the team in ${d.name}'s voice about what this changes for them"}`;
 }
 

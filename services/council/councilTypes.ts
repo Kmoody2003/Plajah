@@ -52,6 +52,8 @@ export interface DirectorProfile {
 }
 
 export interface CouncilBrief {
+  /** Server-filled: live museum objects the directors may cite (services/museum). Not user input. */
+  museumContext?: string;
   ask: string;
   surface?: string;
   domain?: string;
