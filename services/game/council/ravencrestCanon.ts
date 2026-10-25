@@ -213,8 +213,7 @@ export function canonForSeat(seat: CanonSeat): CanonPrinciple[] {
 export function ravencrestCanonDigest(): string {
   const first = (r: string) => { const i = r.search(/[.;:] /); return i > 0 ? r.slice(0, i + 1) : r; };
   return ['Ravencrest Canon — standing lessons for every Plajah game and interactive experience (binding unless the creator overrides):',
-    ...RAVENCREST_CANON.map((p) => `- ${first(p.rule)}`)].join('
-');
+    ...RAVENCREST_CANON.map((p) => `- ${first(p.rule)}`)].join('\n');
 }
 
 /**
