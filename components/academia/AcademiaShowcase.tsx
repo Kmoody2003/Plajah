@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ArrowRight, Shuffle, Check, SlidersHorizontal } from 'lucide-react';
+import { openClassicInLorea } from '../../services/loreaOpen';
 import { MEDIA_TOOLS, loadHiddenTools, saveHiddenTools } from './MediaToolsRow';
 import {
   ACADEMIA_FACTS, ACADEMIA_EXHIBITS, ACADEMIA_SCHOOLS, LOREA_BANDS, STUDIO_COPY, goTo,
@@ -13,6 +14,13 @@ import {
  * curiosity. Every card opens a real Plajah destination.
  */
 type Nav = (view: string) => void;
+
+// Project Gutenberg ids for the shelf's classics, so a cover opens the book in the Lorea reader itself.
+const SHELF_GUTENBERG: Record<string, string> = {
+  'Alice in Wonderland': '11', 'The Adventures of Tom Sawyer': '74', 'The Odyssey': '1727', 'Little Women': '514',
+  'Sherlock Holmes': '1661', 'The Count of Monte Cristo': '1184', 'The Art of War': '132', 'Frankenstein': '84',
+  'Jane Eyre': '1260', 'Pride and Prejudice': '1342', 'Moby-Dick': '2701', 'Dracula': '345',
+};
 
 /**
  * Responsive rules shared by the three homes. Phones and tablets are handled by the fluid grids
@@ -180,7 +188,7 @@ export const LoreaShelf: React.FC<{ role: ShowcaseRole; onNavigate: Nav; initial
           </div>} />
         <div className="flex gap-4 overflow-x-auto pb-2">
           {b.books.map(bk => (
-            <button key={bk.title} type="button" onClick={() => onNavigate('BOOKS')} className="shrink-0 w-[150px] text-left group">
+            <button key={bk.title} type="button" onClick={() => { const gid = SHELF_GUTENBERG[bk.title]; if (!(gid && openClassicInLorea({ id: gid, title: bk.title, cover: bk.cover }))) onNavigate('BOOKS'); }} className="shrink-0 w-[150px] text-left group">
               <img src={bk.cover} alt={`${bk.title} cover`} loading="lazy" className="w-[150px] h-[224px] object-cover rounded-xl border border-white/15 shadow-[0_20px_40px_-18px_rgba(0,0,0,0.8)] transition-transform duration-300 group-hover:-translate-y-1.5 group-hover:-rotate-1" />
               <span className="block mt-2 font-bold text-[14px] leading-tight">{bk.title}</span>
               <span className="block text-[12px] text-white/65">{bk.note}</span>

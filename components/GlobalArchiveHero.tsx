@@ -26,6 +26,8 @@ import {
   archiveVideoToAlbum,
 } from '../services/archiveContentService';
 import { buildShareUrl } from '../services/deepLinkService';
+import { openClassicInLorea, openAlbumInLorea } from '../services/loreaOpen';
+import { freeEpubAlbum } from '../services/freeEpub';
 import ShareButton from './ShareButton';
 import { onThumbError } from '../src/lib/imageThumb';
 import { searchArtifacts, type Artifact } from '../services/artifactsService';
@@ -105,6 +107,14 @@ const paneHoverMedia = (p: Pane): { kind: 'video'; url: string; loop: boolean } 
 };
 
 /* ── one panorama column ─────────────────────────────────────────────────── */
+/** Open a classic straight in the Lorea reader (not the Books page). False when the source has no free EPUB. */
+const openArchiveBook = (b: ArchiveBook): boolean => {
+  const isGutenberg = b.source === 'GUTENBERG' || (!b.source && /^\d+$/.test(b.id));
+  if (isGutenberg) return openClassicInLorea({ id: b.id, title: b.title, authors: b.authors, cover: b.coverImage, desc: b.description });
+  const album = b.sourceUrl ? freeEpubAlbum({ id: b.id, title: b.title, authors: b.authors, desc: b.description, cover: b.coverImage, url: b.sourceUrl, free: true }) : null;
+  return album ? openAlbumInLorea(album) : false;
+};
+
 const PanoramaColumn: React.FC<{
   deck: Pane[];
   offsetMs: number;
@@ -167,7 +177,7 @@ const PanoramaColumn: React.FC<{
   const open = () => {
     switch (pane.kind) {
       case 'CAPABILITY': onNavigate(pane.view); break;
-      case 'CLASSIC': onNavigate('BOOKS'); break;
+      case 'CLASSIC': if (!openArchiveBook(pane.book)) onNavigate('BOOKS'); break;
       case 'LIVE': onNavigate('LIVE_HUB'); break;
       case 'FACTOID': onNavigate('CLASSROOMS'); break;
       case 'MUSEUM': onNavigate('CLASSROOMS'); break;
@@ -1094,7 +1104,7 @@ export const ArchiveRails: React.FC<{
               <button
                 key={book.id}
                 type="button"
-                onClick={onOpenBooks}
+                onClick={() => { if (!openArchiveBook(book)) onOpenBooks?.(); }}
                 className="group relative shrink-0 w-[118px] text-left outline-none focus-visible:ring-2 focus-visible:ring-small-orange rounded-xl"
               >
                 <div className="relative w-[118px] h-[168px] rounded-xl overflow-hidden border border-white/10 group-hover:border-white/25 transition-all group-hover:-translate-y-1 duration-300">
