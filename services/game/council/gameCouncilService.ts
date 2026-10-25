@@ -23,6 +23,7 @@
 import { ARIA_GAME_DIRECTOR_COUNCIL, type AriaGameDirectorLensId } from '../../aria/ariaCreativeRoles';
 import type { CouncilDirectorId } from '../../council/councilTypes';
 import type { MotionPersonaId } from '../../motion/council/motionCouncilTypes';
+import { RAVENCREST_CANON, canonForSeat, ravencrestCanonBrief, type CanonPrinciple } from './ravencrestCanon';
 
 export type GameCouncilMemberId = AriaGameDirectorLensId;
 
@@ -44,6 +45,8 @@ export interface GameCouncilSpecialist {
   voice: string;
   signatureMoves: string[];
   tensions: Partial<Record<GameCouncilMemberId, string>>;
+  /** The Ravencrest Canon principles this seat guards (filled from ravencrestCanon.ts below). */
+  canon?: CanonPrinciple[];
 }
 
 export const GAME_COUNCIL_SPECIALISTS: Record<GameCouncilMemberId, GameCouncilSpecialist> = {
@@ -144,6 +147,12 @@ export const GAME_COUNCIL_SPECIALISTS: Record<GameCouncilMemberId, GameCouncilSp
     },
   },
 };
+
+// Every seat carries the Ravencrest lessons it guards; the whole council is bound by all of them.
+for (const s of Object.values(GAME_COUNCIL_SPECIALISTS)) s.canon = canonForSeat(s.id);
+export const GAME_COUNCIL_CANON = RAVENCREST_CANON;
+/** Brief for one seat (its own principles with evidence, the rest by name) or the whole council. */
+export const gameCouncilCanonBrief = (seat?: GameCouncilMemberId) => ravencrestCanonBrief(seat);
 
 export const GAME_COUNCIL_LIST: GameCouncilSpecialist[] = [
   GAME_COUNCIL_SPECIALISTS.HARDWARE_PIONEER,

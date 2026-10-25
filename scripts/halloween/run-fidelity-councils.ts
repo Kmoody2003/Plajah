@@ -1,6 +1,6 @@
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { COUNCIL_DIRECTORS } from '../../services/council/councilDirectors';
-import { GAME_COUNCIL_SPECIALISTS } from '../../services/game/council/gameCouncilService';
+import { GAME_COUNCIL_SPECIALISTS, gameCouncilCanonBrief } from '../../services/game/council/gameCouncilService';
 import { MOTION_PERSONAS } from '../../services/motion/council/motionCouncilPersonas';
 import { MUSIC_PERSONAS } from '../../services/melos/council/musicCouncilPersonas';
 import { ensureLocalLane, localLane, localHealth, stopLocalLane } from '../council/localLane';
@@ -35,7 +35,7 @@ try {
       try {
         response = await localLane(
           `You are the ${name} production council. Use these actual project member roles: ${JSON.stringify(roles).slice(0, 2400)}. Return a concise actionable production review, not promotional copy. Admit missing evidence.`,
-          `${brief}\n\nRelevant source excerpt:\n${evidence.slice(0, 1600)}`,
+          `${name === 'interactive-game' ? `${gameCouncilCanonBrief()}\n\n` : ''}${brief}\n\nRelevant source excerpt:\n${evidence.slice(0, 1600)}`,
           600,
         );
         break;
