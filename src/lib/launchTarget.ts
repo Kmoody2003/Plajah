@@ -21,6 +21,13 @@ export const EXPERIENCE_VIEWS: Record<string, AppView> = {
   // Not launcher icons — hand-off targets from the local-media shell.
   photos: 'GLOBAL_PHOTOS',
   crossover: 'CROSSOVER',
+  // Shared landing-page links (services/deepLinkService 'app' → /share?type=app → /?view=<slug>).
+  lorea: 'BOOKS',
+  cinema: 'MOVIES_TV',
+  sports: 'PLAJAH_SPORTS',
+  social: 'FEED',
+  games: 'GAMES',
+  live: 'LIVE_HUB',
 };
 
 export function experienceView(slug: string | null | undefined): AppView | null {

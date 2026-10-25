@@ -690,6 +690,7 @@ const SmartGuide = retryLazy(() => import('./components/SmartGuide'));
 import AccountSwitcher, { HotSwitchOverlay, LinkedAccount } from './components/AccountSwitcher';
 import { loadRoster, upsertAccount } from './services/accountRoster';
 import { buildShareUrl } from './services/deepLinkService';
+import ServiceShareChip from './components/ServiceShareChip';
 import { isWindowsApp } from './services/windowsBridgeService';
 import StartRoomModal from './components/StartRoomModal';
 import WalkieStandby from './components/WalkieStandby';
@@ -4917,6 +4918,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               )}
             </aside>
           )}
+
+          {/* Share icon on every main landing page — shares that entry point (preview card names the service) */}
+          {!isPublicView && !getPlatformInfo().isTV && <ServiceShareChip view={view} compact={navLayout.isPhone || isMobile || theme === 'PHONE'} />}
 
           {/* Concept C — horizontal top bar for touch tablets / portrait (fixed chrome) */}
           {(!isPublicView && !getPlatformInfo().isTV && !navLayout.isPhone && navLayout.isBar) && (

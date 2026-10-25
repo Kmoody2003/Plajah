@@ -11,7 +11,7 @@ export type ShareAsset =
   | 'album' | 'track' | 'video' | 'reello' | 'post' | 'profile' | 'release'
   | 'room' | 'livestream' | 'callin' | 'listen' | 'talk' | 'party'
   | 'book' | 'article' | 'game' | 'club' | 'clubPost' | 'pitch' | 'event' | 'invite' | 'debate' | 'archive'
-  | 'videoPlaylist' | 'movie' | 'channel' | 'mix' | 'taleoCollection';
+  | 'videoPlaylist' | 'movie' | 'channel' | 'mix' | 'taleoCollection' | 'app';
 
 /** Canonical origin for share links — prefer the configured app domain over
  *  whatever host the user is on (e.g. localhost), so links work everywhere. */
@@ -41,6 +41,8 @@ export function buildShareUrl(asset: ShareAsset, id: string, extra?: Record<stri
     case 'track':      return `${base}/share?${qs({ type: 'album', id, track: extra?.track })}`;
     case 'video':      return `${base}/share?${qs({ type: 'video', id })}`;
     case 'reello':     return `${base}/share?${qs({ type: 'reello', id })}`;
+    // A main landing page (Lorea, Reello, Chora, Cinema, Elevate…): `id` is its slug (src/lib/serviceShare.ts).
+    case 'app':        return `${base}/share?${qs({ type: 'app', id })}`;
     case 'movie':      return `${base}/share?${qs({ type: 'movie', id })}`;
     case 'videoPlaylist': return `${base}/share?${qs({ type: 'videoPlaylist', id })}`;
     case 'post':       return `${base}/share?${qs({ type: 'feed', id })}`;

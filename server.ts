@@ -1071,6 +1071,48 @@ const injectMetaTags = async (html: string, query: any, host: string) => {
    if (!type || !id) return html;
 
    // Curated Taleo collections (e.g., /share?type=taleo&id=halloween)
+   // A main landing page (Lorea, Reello, Chora, Cinema, Elevate…) — mirrors src/lib/serviceShare.ts.
+   if (type === 'app') {
+     const SERVICES: Record<string, [string, string]> = {
+       home: ['Plajah', 'Music, video, film, books, live and community — one platform.'],
+       chora: ['Chora', 'Stream and release music, albums and mixes on Plajah.'],
+       reello: ['Reello', 'Watch creator videos, shorts and live on Plajah Reello.'],
+       cinema: ['Cinema', 'Films and series — classics, indies and originals on Plajah Cinema.'],
+       lorea: ['Lorea', 'Read free classics and creator books in the Lorea reader.'],
+       elevate: ['Plajah Elevate', 'The home for churches, nonprofits, charities and cultural institutions.'],
+       sports: ['Plajah Sports', 'Scores, standings, teams and live sports on Plajah.'],
+       social: ['Plajah Social', 'Posts, stories and conversations from the Plajah community.'],
+       games: ['Plajah Games', 'Play games on Plajah.'],
+       live: ['Plajah Live', 'Watch who is live on Plajah right now.'],
+       apps: ['Plajah Apps', 'Every Plajah app and studio in one place.'],
+       'chora-studio': ['Chora Studio', 'Music production, powered by Melos.'],
+       fabula: ['Fabula', 'The AI film editor on Plajah.'],
+       pixels: ['Plajah Pixels', 'Live visuals and VJ performance.'],
+       academia: ['Plajah Academia', 'Classes, assignments and learning on Plajah.'],
+       business: ['Plajah Business', 'Run your business on Plajah.'],
+     };
+     const svc = SERVICES[String(id).toLowerCase()];
+     if (!svc) return html;
+     const safeT = htmlEscape(svc[0] === 'Plajah' ? 'Plajah' : `${svc[0]} on Plajah`), safeD = htmlEscape(svc[1]);
+     const safeI = htmlEscape(`https://${host}/social-image?default=1`), safeH = htmlEscape(host), safeId = htmlEscape(String(id).toLowerCase());
+     const tags = html.replace(/[ 	]*<meta\s+(?:property|name)="(?:og:[^"]*|twitter:[^"]*)"[^>]*\/?>\s*/gi, '');
+     return tags.replace('</head>', `
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@plajah" />
+    <meta name="twitter:title" content="${safeT}" />
+    <meta name="twitter:description" content="${safeD}" />
+    <meta name="twitter:image" content="${safeI}" />
+    <meta property="og:site_name" content="Plajah" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="${safeT}" />
+    <meta property="og:description" content="${safeD}" />
+    <meta property="og:image" content="${safeI}" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:url" content="https://${safeH}/?view=${safeId}" />
+</head>`);
+   }
+
    if (type === 'taleo') {
      try {
        const rawId = String(id).toLowerCase();
@@ -10298,7 +10340,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     if (type && id) {
       // Preserve the full original query (ref/track/video/etc.) when bouncing to the app.
       const qsStr = req.originalUrl.includes('?') ? req.originalUrl.slice(req.originalUrl.indexOf('?') + 1) : '';
-      const canonical = `/?${qsStr}`;
+      const canonical = type === 'app' ? (String(id).toLowerCase() === 'home' ? '/' : `/?view=${encodeURIComponent(String(id).toLowerCase())}`) : `/?${qsStr}`;
       // Bounce real browsers to the canonical app URL; crawlers (no JS) keep the meta.
       const redirect = `<script>try{if(!/(bot|crawl|spider|facebookexternalhit|twitterbot|slackbot|discordbot|whatsapp|telegrambot|embedly|linkedinbot|pinterest|redditbot|googlebot|bingbot|applebot|skypeuripreview|vkshare|w3c_validator)/i.test(navigator.userAgent)){location.replace(${JSON.stringify(canonical)});}}catch(e){}</script>`;
       html = html.replace('</head>', `${redirect}\n</head>`);
