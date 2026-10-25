@@ -131,7 +131,11 @@ const PlajahEpgGuide: React.FC<Props> = ({ feeds, fastChannels, onTune, onClose,
       const s = slots[i % slots.length];
       const dur = slotDurationSec(s) * 1000;
       // FM blocks are real scheduled programming, so they get their own guide row like any show.
-      if (s.type === 'VIDEO' || s.type === 'PUBLIC_DOMAIN' || s.type === 'LIVE_INTERRUPT' || s.type === 'FM_BLOCK') {
+      const prev = out[out.length - 1];
+      if ((s.type === 'VIDEO' || s.type === 'PUBLIC_DOMAIN') && s.videoId && prev?.videoId === s.videoId && (s as any).videoStartSec > 0) {
+        prev.endMs += dur; // next segment of the same programme (after a mid-roll break)
+        prev.isNow = prev.startMs <= nowTick && nowTick < prev.endMs;
+      } else if (s.type === 'VIDEO' || s.type === 'PUBLIC_DOMAIN' || s.type === 'LIVE_INTERRUPT' || s.type === 'FM_BLOCK') {
         const m = resolveSlotMedia(s);
         out.push({ title: m.title, startMs: cursor, endMs: cursor + dur, isNow: cursor <= nowTick && nowTick < cursor + dur, videoId: s.videoId, thumbnail: m.thumbnail || (m.muxPlaybackId ? `https://image.mux.com/${m.muxPlaybackId}/thumbnail.jpg?width=480&time=5` : undefined), kind: s.type });
       } else if (out.length) {

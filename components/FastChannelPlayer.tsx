@@ -74,6 +74,7 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
   const hasLiveFeed = Boolean(profile.liveStreamConfig?.streamUrl && profile.liveStreamConfig?.isActive);
   const liveEmbedUrl = profile.liveStreamConfig?.streamUrl ? buildEmbedUrl(profile.liveStreamConfig.streamUrl) : '';
 
+  const [scheduleVersion, setScheduleVersion] = useState(0);
   useEffect(() => {
     const load = async () => {
       setIsLoading(true);
@@ -148,7 +149,19 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
       setIsLoading(false);
     };
     load();
-  }, [profile.uid]);
+  }, [profile.uid, scheduleVersion]);
+
+  // A channel with Fan Vote slots changes on its own (the winner is written when voting closes):
+  // re-check every few minutes and reload when the schedule changed, so an early tune-in airs it.
+  useEffect(() => {
+    if (!(channelSchedule as any)?.hasVoteSlots) return;
+    const seen = (channelSchedule as any).lastUpdated || 0;
+    const t = setInterval(async () => {
+      const fresh = await fetchFastChannelSchedule(profile.uid).catch(() => null);
+      if (fresh && ((fresh as any).lastUpdated || 0) !== seen) setScheduleVersion(v => v + 1);
+    }, 4 * 60_000);
+    return () => clearInterval(t);
+  }, [channelSchedule, profile.uid]);
 
   // Ad-hoc scheduled live interrupt (pendingLiveInterrupt) — separate from LIVE_INTERRUPT slots in
   // the schedule (those air inline as the loop reaches them). This is the "cut to live NOW" path.
@@ -552,10 +565,13 @@ const FastChannelPlayer: React.FC<FastChannelPlayerProps> = ({ profile, onClose 
           onLoadedMetadata={e => {
             const el = e.currentTarget;
             setDuration(el.duration);
-            if (joinOffsetRef.current > 0 && joinOffsetRef.current < el.duration - 2) {
-              try { el.currentTime = joinOffsetRef.current; } catch { /* */ }
+            // A segment (programme split by mid-roll breaks) starts partway into its file; the
+            // join offset is measured from the segment's start.
+            const seekTo = (media?.startSec || 0) + (joinOffsetRef.current || 0);
+            if (seekTo > 0 && seekTo < el.duration - 2) {
+              try { el.currentTime = seekTo; } catch { /* */ }
             }
-            joinOffsetRef.current = 0;   // only the initial join seeks; auto-advance starts at 0
+            joinOffsetRef.current = 0;   // only the initial join adds an offset; auto-advance starts at the segment
           }}
           onEnded={advance}
           onPlay={() => setIsPaused(false)}

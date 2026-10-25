@@ -1513,6 +1513,8 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
                   skewMs={livePolls.skewMs}
                   canVote={canChat}
                   onVote={livePolls.vote}
+                  onPledge={livePolls.pledge}
+                  notice={livePolls.pledgeNotice}
                 />
               </div>
             )}

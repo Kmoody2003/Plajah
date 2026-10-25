@@ -15,7 +15,8 @@ import { fetchChannelNumberRegistry, fetchFastChannelSchedule, fetchFastChannelV
 import { slotDurationSec, resolveSlotMedia, activeDaySlots, dayAnchoredPosition, linearPositionMidnight, backfillScheduleDurations, backfillScheduleDurationsByUrl, unresolvedDurationUrls, FM_FILL_THRESHOLD_SEC, hasPlayableProgramme, sanitizeScheduleForPlayout, nextPlayableSlotIndex, isPlayableProgrammeSlot } from '../services/fastChannelTimeline';
 import { exactDurationSec } from '../services/mediaTimebase';
 import { probeDurations } from '../services/mediaProbe';
-import { now as clockNow } from '../services/platformClock';
+import { now as clockNow, zonedDayIndex } from '../services/platformClock';
+import { ChannelVoteStrip, voteRoomFor } from './fast/ChannelVoteStrip';
 import AdBreakBumper from './tv/AdBreakBumper';
 import ComingUpNextBumper, { type UpNextItem } from './tv/ComingUpNextBumper';
 import { fadeVolume, playAudible, type FadeHandle } from '../utils/audioFade';
@@ -1165,7 +1166,8 @@ const LiveTvPlus: React.FC<{
         return;
       }
       setFastFiller(null);
-      setFastMedia({ url, offset: Math.max(0, pos.offsetSec || 0), key });
+      // A segment (programme split by mid-roll breaks) starts partway into its file.
+      setFastMedia({ url, offset: (m.startSec || 0) + Math.max(0, pos.offsetSec || 0), key });
     } catch (err) {
       console.warn('[LiveTvPlus] syncFast error caught:', err);
       setFastMedia(null); setFastAd(null); setFastFiller(null);
@@ -1236,7 +1238,21 @@ const LiveTvPlus: React.FC<{
         }
       }).catch(() => start(null));
     }
-    return () => { cancelled = true; clearFastTimer(); };
+    // Schedules that change on their own — a Fan Vote winner written at the cutoff, Plajah's own
+    // channels laid out by the server — are re-checked every few minutes; the channel re-tunes when
+    // the schedule changed or the station's day rolled over (so a 7 PM tune-in airs the 9 PM winner).
+    let lastKey = '';
+    const keyOf = (s: FastChannelSchedule) => `${(s as any).lastUpdated || 0}|${zonedDayIndex(clockNow(), (s as any).timezone)}`;
+    const refresh = setInterval(async () => {
+      const cur = schedCache.current.get(owner);
+      if (!cur || !((cur as any).hasVoteSlots || (cur as any).platformOwned)) return;
+      if (!lastKey) lastKey = keyOf(cur);
+      const fresh = await fetchFastChannelSchedule(owner).catch(() => null);
+      if (cancelled || !fresh || fastOwnerRef.current !== owner) return;
+      const k = keyOf(fresh);
+      if (k !== lastKey) { lastKey = k; schedCache.current.set(owner, fresh); start(fresh); }
+    }, 4 * 60_000);
+    return () => { cancelled = true; clearFastTimer(); clearInterval(refresh); };
   }, [playing?.scheduleOwner, playing?.kind, syncFast]);
 
   // Re-sync from the clock when the tab returns to the foreground (background timers get throttled on
@@ -1504,6 +1520,13 @@ const LiveTvPlus: React.FC<{
             })}
           </div>
         )}
+        {/* The tuned channel's Fan Vote ballot (vote + commercial-free pledges), when it has one. */}
+        {selected?.kind === 'fast' && (() => {
+          const room = voteRoomFor(selected);
+          const sched = selected.scheduleOwner ? schedCache.current.get(selected.scheduleOwner) : undefined;
+          const hasVotes = selected.plajahId === 'horror-classics' || !!(sched as any)?.hasVoteSlots;
+          return room && hasVotes ? <ChannelVoteStrip key={room} roomId={room} /> : null;
+        })()}
         <div className="flex items-center gap-2 mb-2">
           <span className="text-[9px] font-black uppercase tracking-[0.3em] text-white/40">Channels</span>
           <span className="text-[9px] font-bold text-white/30">{favOnly ? `${channels.filter(isFav).length} favorites` : `${channels.length} channels`}</span>

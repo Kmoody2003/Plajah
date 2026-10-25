@@ -94,6 +94,10 @@ export interface LivePoll {
   /** COMMUNITY polls may close too; SCHEDULE polls always do. */
   closesAtMs?: number;
   schedule?: ScheduleVoteInfo;
+  /** Commercial-free goal for this airing, when the slot offers one. */
+  funding?: SlotFunding;
+  /** Who receives funding (a creator's uid) — absent for Plajah's own channels. */
+  ownerUid?: string;
   winnerIdx?: number;
   /** How the winner was decided — shown to fans so a lock is never a mystery. */
   winnerReason?: 'MOST_VOTES' | 'TIE_FIRST_TO_REACH' | 'NO_VOTES_RANDOM';
@@ -106,7 +110,54 @@ export type VoteAwareSlot = FastChannelSlot & {
   /** True until the vote locks: the block is airing a provisional choice. */
   votePending?: boolean;
   commercialFree?: boolean;
+  /** A SEGMENT of a longer file: playback seeks here (plus the join offset). Mid-roll ad breaks sit
+   *  between a programme's segments. Absent = the slot plays its file from the start. */
+  videoStartSec?: number;
+  /** A creator's Fan Vote placeholder: the slot id of the VoteSlotConfig that decides it. */
+  voteSlotId?: string;
 };
+
+/** Ad layout for a channel: a break between programmes and, optionally, mid-roll breaks inside long
+ *  ones. A programme marked commercialFree (or a slot fans unlocked) gets no mid-rolls. */
+export interface AdPlan {
+  /** Seconds of each ad break (0 = commercial-free channel). */
+  breakSec: number;
+  /** A mid-roll every this many seconds of programme (0 = between programmes only). */
+  midrollEverySec: number;
+}
+
+export const NO_ADS: AdPlan = { breakSec: 0, midrollEverySec: 0 };
+
+/** Never leave a closing segment shorter than this after a mid-roll. */
+const MIN_TAIL_SEC = 300;
+
+/** Where a programme's segments start, in seconds into the file. */
+export function segmentStarts(durationSec: number, plan: AdPlan, adFree: boolean): number[] {
+  const starts = [0];
+  if (adFree || !plan.breakSec || !plan.midrollEverySec) return starts;
+  for (let t = plan.midrollEverySec; t < durationSec - MIN_TAIL_SEC; t += plan.midrollEverySec) starts.push(t);
+  return starts;
+}
+
+/** Grid time a programme occupies including its mid-roll breaks (not the break after it). */
+export function airedSec(p: VoteOption, plan: AdPlan, adFree = false): number {
+  const dur = Math.ceil(p.durationSec);
+  return dur + (segmentStarts(dur, plan, adFree || !!p.commercialFree).length - 1) * plan.breakSec;
+}
+
+/** Commercial-free funding for one airing of a vote slot (fans pledge; cards are only charged if
+ *  the goal is met by the time voting closes). */
+export interface SlotFunding {
+  goalCents: number;
+  pledgedCents: number;
+  pledgeCount: number;
+  /** Set at lock: the goal was met and the pledges were charged. */
+  unlocked?: boolean;
+  /** Set at lock when the goal was missed: every hold was released, nobody was charged. */
+  released?: boolean;
+  /** What was actually charged at lock (a hold can fail to capture). */
+  capturedCents?: number;
+}
 
 // ── Time on the station's clock ────────────────────────────────────────────────────────────────
 
@@ -214,8 +265,9 @@ export function pickBallot(pool: readonly VoteOption[], count: number, excludeId
 }
 
 /** Block length for a ballot: the longest choice, rounded up to the next 5 minutes. */
-export function reservedSecFor(options: readonly VoteOption[]): number {
-  const longest = Math.max(0, ...options.map(o => Math.ceil(o.durationSec)));
+export function reservedSecFor(options: readonly VoteOption[], plan: AdPlan = NO_ADS): number {
+  // Sized for the ad-supported cut — an unlocked commercial-free airing is shorter, never longer.
+  const longest = Math.max(0, ...options.map(o => airedSec(o, plan)));
   return Math.ceil(longest / 300) * 300;
 }
 
@@ -271,20 +323,35 @@ export interface DayLayoutOptions {
   /** Everything the channel can air. */
   pool: readonly VoteOption[];
   /** The vote block, if this day has one. */
-  vote?: { roundId: string; startSec: number; reservedSec: number; airing: VoteOption; pending: boolean };
-  /** Seconds of ad break placed between programmes (0 = commercial-free channel). */
-  adBreakSec: number;
+  vote?: { roundId: string; startSec: number; reservedSec: number; airing: VoteOption; pending: boolean; adFree?: boolean };
+  /** Ad breaks between programmes and mid-roll inside them. */
+  ads: AdPlan;
   /** Shortest programme allowed to fill a gap (keeps shorts out of prime time if desired). */
   minFillSec?: number;
 }
 
-function programmeSlot(p: VoteOption, id: string): VoteAwareSlot {
+function programmeSlot(p: VoteOption, id: string, startSec = 0, lenSec?: number): VoteAwareSlot {
   return {
     id, type: 'PUBLIC_DOMAIN', order: 0,
     videoId: p.videoId, videoUrl: p.videoUrl, videoTitle: p.title, videoThumbnail: p.thumbnail,
-    videoDurationSeconds: Math.ceil(p.durationSec), isPublicDomain: !p.commercialFree,
+    videoDurationSeconds: lenSec ?? Math.ceil(p.durationSec), isPublicDomain: !p.commercialFree,
+    ...(startSec > 0 ? { videoStartSec: startSec } : {}),
     ...(p.commercialFree ? { commercialFree: true } : {}),
   };
+}
+
+/** A programme as grid slots: its segments with mid-roll breaks between them. */
+function programmeSlots(p: VoteOption, id: string, plan: AdPlan, adFree = false): VoteAwareSlot[] {
+  const dur = Math.ceil(p.durationSec);
+  const starts = segmentStarts(dur, plan, adFree || !!p.commercialFree);
+  if (starts.length === 1) return [programmeSlot(p, id)];
+  const out: VoteAwareSlot[] = [];
+  starts.forEach((st, k) => {
+    const end = k + 1 < starts.length ? starts[k + 1] : dur;
+    if (k > 0) out.push(adSlot(`${id}_m${k}`, plan.breakSec));
+    out.push(programmeSlot(p, `${id}_s${k}`, st, end - st));
+  });
+  return out;
 }
 
 function adSlot(id: string, sec: number): VoteAwareSlot {
@@ -300,12 +367,13 @@ function intermissionSlot(id: string, sec: number): VoteAwareSlot {
  * then pad the remainder with intermission so the span is EXACTLY `lenSec` — the next fixed-time
  * block depends on it. Programmes rotate through `order` so a day doesn't repeat until it must.
  */
-function fillSpan(lenSec: number, order: VoteOption[], cursor: { i: number; used?: Map<string, number> }, adBreakSec: number, idPrefix: string, minFillSec: number): VoteAwareSlot[] {
+function fillSpan(lenSec: number, order: VoteOption[], cursor: { i: number; used?: Map<string, number> }, plan: AdPlan, idPrefix: string, minFillSec: number): VoteAwareSlot[] {
   const out: VoteAwareSlot[] = [];
   let left = lenSec;
   let n = 0;
   const used = (cursor.used ??= new Map());
-  const cost = (p: VoteOption) => Math.ceil(p.durationSec) + adBreakSec;
+  const adBreakSec = plan.breakSec;
+  const cost = (p: VoteOption) => airedSec(p, plan) + adBreakSec;
   // Among programmes that fit: the one shown least today, then the longest (smallest leftover).
   const bestFit = (cands: VoteOption[]) => cands.sort((a, b) => (used.get(a.videoId) || 0) - (used.get(b.videoId) || 0) || b.durationSec - a.durationSec)[0];
   while (left > 0 && order.length) {
@@ -319,7 +387,7 @@ function fillSpan(lenSec: number, order: VoteOption[], cursor: { i: number; used
     }
     if (!pick) break;
     used.set(pick.videoId, (used.get(pick.videoId) || 0) + 1);
-    out.push(programmeSlot(pick, `${idPrefix}_p${n}`));
+    out.push(...programmeSlots(pick, `${idPrefix}_p${n}`, plan));
     if (adBreakSec > 0) out.push(adSlot(`${idPrefix}_a${n}`, adBreakSec));
     left -= cost(pick);
     n++;
@@ -333,7 +401,7 @@ function fillSpan(lenSec: number, order: VoteOption[], cursor: { i: number; used
  * Deterministic for a given date, so rebuilding a day reproduces it.
  */
 export function layoutDay(opts: DayLayoutOptions): VoteAwareSlot[] {
-  const { dateKey, channelId, pool, vote, adBreakSec } = opts;
+  const { dateKey, channelId, pool, vote, ads } = opts;
   const minFill = opts.minFillSec ?? 0;
   const order = seededShuffle(pool, `${channelId}:${dateKey}`);
   const cursor = { i: 0 };
@@ -341,55 +409,61 @@ export function layoutDay(opts: DayLayoutOptions): VoteAwareSlot[] {
   if (vote) {
     const beforeLen = vote.startSec;
     const afterLen = DAY_SEC - vote.startSec - vote.reservedSec;
-    slots.push(...fillSpan(beforeLen, order, cursor, adBreakSec, `${dateKey}_am`, minFill));
-    slots.push(...voteBlockSlots(vote.roundId, vote.airing, vote.reservedSec, vote.pending, pool, adBreakSec));
-    if (afterLen > 0) slots.push(...fillSpan(afterLen, order, cursor, adBreakSec, `${dateKey}_pm`, minFill));
+    slots.push(...fillSpan(beforeLen, order, cursor, ads, `${dateKey}_am`, minFill));
+    slots.push(...voteBlockSlots(vote.roundId, vote.airing, vote.reservedSec, vote.pending, { fillPool: pool, ads, adFree: vote.adFree }));
+    if (afterLen > 0) slots.push(...fillSpan(afterLen, order, cursor, ads, `${dateKey}_pm`, minFill));
   } else {
-    slots.push(...fillSpan(DAY_SEC, order, cursor, adBreakSec, `${dateKey}_all`, minFill));
+    slots.push(...fillSpan(DAY_SEC, order, cursor, ads, `${dateKey}_all`, minFill));
   }
   return slots.map((s, i) => ({ ...s, order: i }));
 }
 
 /**
- * The vote block: the airing programme, then the rest of the reserved length — short programmes
- * from `fillPool` where they fit (a short winner shouldn't leave 45 minutes of radio), intermission
- * for whatever is left. Every slot carries the ballot id so a lock can replace the whole block.
+ * The vote block: the airing programme (with mid-rolls unless it's commercial-free or fans unlocked
+ * it), then the rest of the reserved length — short programmes from `fillPool` where they fit (a
+ * short winner shouldn't leave 45 minutes of radio), intermission for whatever is left. Every slot
+ * carries the ballot id so a lock can replace the whole block.
  */
 export function voteBlockSlots(
   roundId: string, airing: VoteOption, reservedSec: number, pending: boolean,
-  fillPool: readonly VoteOption[] = [], adBreakSec = 0,
+  opts: { fillPool?: readonly VoteOption[]; ads?: AdPlan; adFree?: boolean } = {},
 ): VoteAwareSlot[] {
-  const prog: VoteAwareSlot = {
-    ...programmeSlot(airing, `vote_${roundId}`),
-    voteRoundId: roundId,
-    votePending: pending,
-    bugLabel: pending ? undefined : 'FAN PICK',
-  };
-  // Until the lock the block holds a provisional choice (so playout never has nothing), but the
-  // guide says what it really is: undecided.
-  if (pending) prog.videoTitle = 'Fan Vote · Tonight’s Pick';
-  const left = reservedSec - Math.ceil(airing.durationSec);
-  const out: VoteAwareSlot[] = [prog];
+  const ads = opts.ads ?? NO_ADS;
+  const segs = programmeSlots(airing, `vote_${roundId}`, ads, !!opts.adFree).map(s => {
+    if (s.type === 'AD_BREAK') return { ...s, voteRoundId: roundId };
+    const seg: VoteAwareSlot = { ...s, voteRoundId: roundId, votePending: pending, bugLabel: pending ? undefined : 'FAN PICK' };
+    // Until the lock the block holds a provisional choice (so playout never has nothing), but the
+    // guide says what it really is: undecided.
+    if (pending) seg.videoTitle = 'Fan Vote · Tonight’s Pick';
+    if (opts.adFree && !airing.commercialFree) seg.bugLabel = 'COMMERCIAL-FREE · FAN SUPPORTED';
+    return seg;
+  });
+  const left = reservedSec - airedSec(airing, ads, !!opts.adFree);
+  const out: VoteAwareSlot[] = [...segs];
   if (left > 0) {
+    const fillPool = opts.fillPool ?? [];
     const others = fillPool.filter(p => p.videoId !== airing.videoId).slice().sort((a, b) => a.durationSec - b.durationSec);
+    // Fans paid for no commercials in this slot: the filler after the winner carries none either.
+    const fillAds = opts.adFree ? NO_ADS : ads;
     const rest = others.length
-      ? fillSpan(left, others, { i: 0 }, adBreakSec, `vote_${roundId}_x`, 0)
+      ? fillSpan(left, others, { i: 0 }, fillAds, `vote_${roundId}_x`, 0)
       : [intermissionSlot(`vote_${roundId}_fill`, left)];
     out.push(...rest.map(s => ({ ...s, voteRoundId: roundId })));
   }
   return out;
 }
 
-/** Swap a locked winner into a laid-out day without moving anything else. */
+/** Swap a locked winner into a laid-out day without moving anything else. The block's slots are
+ *  replaced (their count may change); its total length — and so every later start — does not. */
 export function applyWinnerToDay(
   day: VoteAwareSlot[], roundId: string, winner: VoteOption, reservedSec: number,
-  fillPool: readonly VoteOption[] = [], adBreakSec = 0,
+  opts: { fillPool?: readonly VoteOption[]; ads?: AdPlan; adFree?: boolean } = {},
 ): VoteAwareSlot[] {
   const first = day.findIndex(s => s.voteRoundId === roundId);
   if (first < 0) return day;
   let last = first;
   while (last + 1 < day.length && day[last + 1].voteRoundId === roundId) last++;
-  const block = voteBlockSlots(roundId, winner, reservedSec, false, fillPool, adBreakSec);
+  const block = voteBlockSlots(roundId, winner, reservedSec, false, opts);
   const next = [...day.slice(0, first), ...block, ...day.slice(last + 1)];
   return next.map((s, i) => ({ ...s, order: i }));
 }
@@ -402,4 +476,84 @@ export function daySeconds(day: readonly VoteAwareSlot[]): number {
 /** Firestore rejects `undefined`; strip it before a write. */
 export function dropUndefined<T>(slots: T[]): T[] {
   return slots.map(s => Object.fromEntries(Object.entries(s as any).filter(([, v]) => v !== undefined)) as T);
+}
+
+// ── Creator vote slots (a placeholder in the creator's own schedule) ───────────────────────────
+
+/** A creator-configured vote slot, stored on their schedule doc as `voteSlots[]`. */
+export interface CreatorVoteSlot extends VoteSlotConfig {
+  /** The 2–8 programmes fans choose between (from the creator's own library). */
+  choices: VoteOption[];
+  /** Commercial-free goal for each airing, in cents (absent/0 = not offered). */
+  commercialFreeGoalCents?: number;
+}
+
+/** Ad layout of a creator channel, from its schedule's ad settings. */
+export function adPlanFor(schedule: { commercialFree?: boolean; adDurationSeconds?: number; adFrequencyMinutes?: number } | null | undefined): AdPlan {
+  if (!schedule || schedule.commercialFree) return NO_ADS;
+  return { breakSec: Math.max(15, Number(schedule.adDurationSeconds) || 60), midrollEverySec: Math.max(5, Number(schedule.adFrequencyMinutes) || 20) * 60 };
+}
+
+function slotSec(s: VoteAwareSlot): number {
+  return Number(s.videoDurationSeconds ?? s.adDurationSeconds ?? s.bumperDurationSeconds ?? s.liveInterruptMaxDurationSeconds) || 0;
+}
+
+/** The contiguous run of slots that belongs to vote slot `voteSlotId` in a day, or null. */
+export function voteGroup(day: readonly VoteAwareSlot[], voteSlotId: string): { first: number; last: number; startSec: number; lengthSec: number } | null {
+  const first = day.findIndex(s => s.voteSlotId === voteSlotId);
+  if (first < 0) return null;
+  let last = first;
+  while (last + 1 < day.length && day[last + 1].voteSlotId === voteSlotId) last++;
+  const startSec = day.slice(0, first).reduce((a, s) => a + slotSec(s), 0);
+  const lengthSec = day.slice(first, last + 1).reduce((a, s) => a + slotSec(s), 0);
+  return { first, last, startSec, lengthSec };
+}
+
+/** Replace a vote slot's run of slots (tagging the replacement with the slot id so it can be found
+ *  again next airing). Lengths must match or every later start moves. */
+export function replaceVoteGroup(day: readonly VoteAwareSlot[], voteSlotId: string, block: VoteAwareSlot[]): VoteAwareSlot[] {
+  const g = voteGroup(day, voteSlotId);
+  if (!g) return day.slice();
+  const tagged = block.map(s => ({ ...s, voteSlotId }));
+  return [...day.slice(0, g.first), ...tagged, ...day.slice(g.last + 1)].map((s, i) => ({ ...s, order: i }));
+}
+
+/** Take a vote slot out of a day (its time is given back to whatever follows). */
+export function removeVoteGroup(day: readonly VoteAwareSlot[], voteSlotId: string): VoteAwareSlot[] {
+  return day.filter(s => s.voteSlotId !== voteSlotId && !(s as any).votePadFor?.includes?.(voteSlotId)).map((s, i) => ({ ...s, order: i }));
+}
+
+/**
+ * Put a vote slot's placeholder into a day so it starts EXACTLY at `startSec`: it goes in front of
+ * whatever is airing at that moment, with intermission to cover the gap, and everything after it
+ * moves later by the slot's length. (On a midnight-anchored channel anything pushed past midnight
+ * simply doesn't air that day.)
+ */
+export function insertVoteGroup(day: readonly VoteAwareSlot[], cfg: CreatorVoteSlot, reservedSec: number, plan: AdPlan): VoteAwareSlot[] {
+  const clean = removeVoteGroup(day, cfg.id);
+  const startSec = hhmmToSec(cfg.localTime);
+  let acc = 0, at = clean.length;
+  for (let i = 0; i < clean.length; i++) {
+    if (acc >= startSec) { at = i; break; }
+    acc += slotSec(clean[i]);
+  }
+  // `at` is the first slot starting at/after the vote slot's time; back up if one straddles it.
+  let before = clean.slice(0, at);
+  let beforeSec = before.reduce((a, s) => a + slotSec(s), 0);
+  while (before.length && beforeSec > startSec) {
+    const last = before[before.length - 1];
+    beforeSec -= slotSec(last);
+    before = before.slice(0, -1);
+  }
+  const after = clean.slice(before.length);
+  const gap = startSec - beforeSec;
+  const pad: VoteAwareSlot[] = gap > 0 ? [{ ...intermissionSlot(`vote_${cfg.id}_pad`, gap), votePadFor: [cfg.id] } as any] : [];
+  const placeholder = voteBlockSlots(`pending_${cfg.id}`, cfg.choices[0], reservedSec, true, { ads: plan }).map(s => ({ ...s, voteSlotId: cfg.id }));
+  return [...before, ...pad, ...placeholder, ...after].map((s, i) => ({ ...s, order: i }));
+}
+
+/** 'HH:MM' of a day offset in seconds. */
+export function secToHHMM(sec: number): string {
+  const h = Math.floor(sec / 3600) % 24, m = Math.floor((sec % 3600) / 60);
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
