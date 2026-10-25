@@ -134,6 +134,19 @@
     #touchUI .t-jump { right: 40px; bottom: 146px; width: 64px; height: 64px; }
     #touchUI .t-use { right: 128px; bottom: 112px; width: 54px; height: 54px; font-size: 18px; }
     #touchUI .t-fire { right: 186px; bottom: 96px; width: 46px; height: 46px; font-size: 18px; }
+    #touchUI .t-block { right: 214px; bottom: 26px; width: 64px; height: 64px; font-size: 24px; }
+    #touchUI .t-turn { right: 186px; bottom: 156px; width: 46px; height: 46px; font-size: 20px; }
+    #touchUI .t-pause { right: max(14px, env(safe-area-inset-right)); top: max(14px, env(safe-area-inset-top)); width: 44px; height: 44px; font-size: 16px; }
+    /* Small phones: tighter cluster so the buttons stay on screen and clear of the stick. */
+    @media (max-width: 420px) {
+      #touchUI .t-attack { right: 16px; bottom: 30px; width: 80px; height: 80px; }
+      #touchUI .t-roll { right: 106px; bottom: 22px; width: 56px; height: 56px; }
+      #touchUI .t-jump { right: 26px; bottom: 124px; width: 56px; height: 56px; }
+      #touchUI .t-use { right: 100px; bottom: 96px; width: 48px; height: 48px; }
+      #touchUI .t-fire { right: 154px; bottom: 80px; width: 42px; height: 42px; }
+      #touchUI .t-block { right: 172px; bottom: 18px; width: 54px; height: 54px; }
+      #touchUI .t-turn { right: 150px; bottom: 132px; width: 42px; height: 42px; }
+    }
     /* Start menu (main.ts) */
     #menu { position: fixed; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; background: radial-gradient(ellipse at 50% 42%, #05080e33 0%, #03050a99 55%, #000000ee 100%); color: #e8dcc8; font-family: 'Cinzel', Georgia, serif; transition: opacity .9s; overflow: hidden; }
     #menu::before { content: ''; position: absolute; inset: -20%; background: radial-gradient(ellipse at 30% 80%, #8a96a822, transparent 40%), radial-gradient(ellipse at 75% 85%, #8a96a81c, transparent 45%); animation: mnFog 26s ease-in-out infinite alternate; pointer-events: none; }
@@ -191,6 +204,30 @@
     #menu:not(.live) #menuStart::after { content: ''; display: inline-block; width: .9em; height: .9em; margin-left: .8em; vertical-align: -.1em; border: 2px solid #f1e2c866; border-top-color: #f1e2c8; border-radius: 50%; animation: mnSpin .9s linear infinite; }
     @keyframes mnSpin { to { transform: rotate(360deg); } }
     #menu .keys { margin-top: 18px; font-family: Georgia, serif; font-size: 12px; color: #7f7362; }
+    /* Phones and small windows: the whole menu fits (or scrolls), heroes side by side, a thumb-sized Enter. */
+    @media (max-width: 720px), (max-height: 560px) {
+      #menu { align-items: flex-start; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+      #menu .mn { width: 100%; padding: max(18px, env(safe-area-inset-top)) 16px max(22px, env(safe-area-inset-bottom)); box-sizing: border-box; }
+      #menu h1 { font-size: clamp(30px, 11vw, 54px); letter-spacing: .18em; }
+      #menu .sub { margin: 4px 0 14px; letter-spacing: .3em; font-size: 10px; }
+      #menu .brief { font-size: 13px; line-height: 1.45; margin-bottom: 14px; }
+      #menu .heroes { gap: 10px; flex-wrap: nowrap; margin-bottom: 16px; }
+      #menu .hero { width: calc(50% - 5px); max-width: 190px; padding-bottom: 8px; }
+      #menu .hero img { height: min(34vh, 220px); }
+      #menu .hero span { font-size: 12px; letter-spacing: .18em; margin-top: 6px; }
+      #menu .hero em { font-size: 9px; letter-spacing: .12em; }
+      #menu button { width: 100%; max-width: 380px; padding: 16px 10px; font-size: 14px; letter-spacing: .28em; }
+      #menu .awaken { font-size: 10px; letter-spacing: .3em; }
+      #pause .opts, #pause button { width: min(280px, 86vw); }
+    }
+    /* Landscape phones: brief out, heroes shorter, everything on one screen. */
+    @media (max-height: 480px) {
+      #menu .brief { display: none; }
+      #menu .hero img { height: 38vh; }
+      #menu h1 { font-size: 30px; }
+    }
+    /* Touch devices: the keyboard list means nothing; the on-screen controls are explained in play. */
+    @media (pointer: coarse) and (not (any-pointer: fine)) { #menu .keys { display: none; } }
   </style>
 </head>
 <body>

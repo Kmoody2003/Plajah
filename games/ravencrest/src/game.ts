@@ -115,6 +115,8 @@ export class Game {
   /** B held: guarding. `blockAt` is when it went up (a block within 0.3 s of the blow is perfect). */
   private blocking = false;
   private blockAt = 0;
+  /** Guard up/down (B key, the touch shield button). */
+  setBlock(on: boolean) { if (on && !this.blocking) this.blockAt = performance.now(); this.blocking = on; }
   private evadeCd = 0;
   private orbMendCall = 0;
   private molotovRegen = 0;
@@ -227,7 +229,8 @@ export class Game {
   /** Spawn the placed monsters (stand-ins until Meta Muse's models land). */
   populate(places: Placement[], staging: Staging) {
     this.staging = staging;
-    this.addOrb(0xffd8a0);
+    // Three guiding lights from the start (warm, moon-pale, violet); freed souls add more.
+    for (const c of [0xffd8a0, 0xbfe0ff, 0xd7b8ff]) this.addOrb(c);
     preloadMobs(['zombie', 'werewolf', 'ghost', 'vampire', 'wolf', 'unknown']).catch((e) => console.warn('[ravencrest] monsters failed to load', e))
       // Then, a little later and one at a time, everything the encounters stage, so nothing
       // loads, decodes or retargets mid-fight (that was the hitch when a card popped up).
@@ -578,8 +581,8 @@ export class Game {
     this.streakT = 6;
     this.defeatFx(m);
     this.powerCheck();
-    // Every fifth defeat, a freed soul joins as a helper orb (up to five).
-    if (this.kills % 5 === 0 && this.orbs.length < 5) {
+    // Every fifth defeat, a freed soul joins as a helper orb (up to six).
+    if (this.kills % 5 === 0 && this.orbs.length < 6) {
       this.addOrb(KINDS[m.kind].fx ?? 0xbfe8ff);
       this.reward('A freed soul joins you as a guiding light');
     }

@@ -11,7 +11,10 @@
 //   defeat  — "The Count claims Ravencrest": you rise and he comes again.
 //   victory — he burns to ash in a storm of bats; light and calm return.
 import * as THREE from 'three/webgpu';
-import { color, float, pow, dot, normalView, positionViewDirection } from 'three/tsl';
+import { color, float, pow, dot, normalView, positionViewDirection, uniform } from 'three/tsl';
+
+/** How hard the Count's cold rim light burns: strongest while he stalks in the dark. */
+const rimK = uniform(0.35);
 import { Mob } from './mobs';
 import type { Game, LevelName } from './game';
 import type { PlayerController } from './player';
@@ -40,6 +43,8 @@ export interface NightmareDeps {
   eject(): void;
   /** Just outside the hall's front door: where Jack lands and the Count swoops in. */
   frontDoor(): { pos: THREE.Vector3; yaw: number };
+  /** Supernatural darkness, 0…1: the hall's air thickens to near-black (main.ts hall fog). */
+  darkness?(k: number): void;
 }
 
 type Phase = 'wait' | 'toll' | 'stalk' | 'reveal' | 'boss' | 'blast' | 'flyout' | 'defeat' | 'victory' | 'done';
@@ -50,6 +55,7 @@ export class Nightmare {
   private t = 0;           // seconds in phase
   private idle = 0;        // seconds without choosing a film
   private dim = 0;
+  private dark = 0;
   private wait: number;
   private phantom: Mob | null = null;
   private boss: Mob | null = null;
@@ -129,12 +135,15 @@ export class Nightmare {
         nm.color.copy(src.color).multiplyScalar(0.85);   // Muse's Dracula is already painted night-dark
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const facing: any = dot(normalView, positionViewDirection).abs();
-        nm.emissiveNode = color(0x5a6a94).mul(pow(float(1).sub(facing), float(5))).mul(0.35);
+        nm.emissiveNode = color(0x5a6a94).mul(pow(float(1).sub(facing), float(5))).mul(rimK);
+        // Outside the fog: in the supernatural dark he reads as a black shape edged in cold light.
+        nm.fog = false;
         mesh.material = nm;
       });
       let head: THREE.Object3D | null = null;
       m.body.traverse((o) => { if (!head && o.name.replace(/_\d+$/, '') === 'Head') head = o; });
       const eyeMat = new THREE.MeshBasicNodeMaterial({ color: new THREE.Color(0xff1a0a).multiplyScalar(12) });
+      eyeMat.fog = false;   // the eyes burn through any darkness
       const host = head ?? m.body;
       const ws = host.getWorldScale(new THREE.Vector3()).x || 1;
       for (const sx of [-1, 1]) {
@@ -220,6 +229,14 @@ export class Nightmare {
     const wantDim = this.phase === 'victory' || this.phase === 'done' ? 0 : this.phase === 'toll' ? Math.min(1, this.t / PHASE.toll) : 1;
     this.dim += (wantDim - this.dim) * (1 - Math.exp(-dt * (this.phase === 'victory' ? 0.5 : 2)));
     this.applyDim(this.dim);
+    // Supernatural darkness: deepest while he hunts (only the orbs' light around the hero, his eyes
+    // and rim), easing to half for the fight itself so it stays playable.
+    const hunting = this.phase === 'toll' || this.phase === 'stalk' || this.phase === 'reveal';
+    const fighting = this.phase === 'boss' || this.phase === 'blast' || this.phase === 'flyout' || this.phase === 'defeat';
+    const wantDark = hunting ? 1 : fighting ? 0.45 : 0;
+    this.dark += (wantDark - this.dark) * (1 - Math.exp(-dt * (hunting ? 0.8 : 1.5)));
+    this.d.darkness?.(this.dark * this.dim);
+    rimK.value = 0.35 + 0.55 * this.dark;
 
     // Heartbeat while it hunts.
     if (this.phase === 'stalk' || this.phase === 'reveal') {
@@ -274,7 +291,7 @@ export class Nightmare {
     for (const e of D.envScenes) e.scene.environmentIntensity = e.base * (1 - 0.8 * d);
     D.renderer.toneMappingExposure = this.exposure0 * (1 - 0.32 * d);
     D.glow(1 - 0.85 * d);
-    D.game.orbBoost = 1 + 1.6 * d;
+    D.game.orbBoost = 1 + 1.6 * d + 1.2 * this.dark;   // the orbs light the hero's ground in the dark
   }
 
   private stalk(dt: number, p: THREE.Vector3) {

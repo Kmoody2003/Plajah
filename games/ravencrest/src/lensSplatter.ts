@@ -1,139 +1,141 @@
 // Blood and dirt on the lens: when a fight gets close (the hero hit, a monster cut down at arm's
 // length, a troll's fists or a kraken arm hammering the deck) it lands on the camera glass.
-// Painted like liquid, not ink: each impact is a dense core inside a thin translucent film with the
-// darker rim drying blood leaves, a wet highlight while fresh, satellite droplets and streaks flung
-// out from the hit. Heavy drops then run down the glass under gravity (stopping and starting,
-// leaving thinning trails, a bead at the tip). Everything lands on a persistent "film" layer that
-// slowly smears (soft blur, a slight downward creep), browns as it dries and wipes away.
-// A 2D canvas at half resolution, only redrawn while something is on the glass.
-interface Drip { x: number; y: number; w: number; v: number; stopT: number; left: number }
-interface Fresh { x: number; y: number; r: number; t: number }
+// Each drop is its own small body of liquid, not paint on a film: it lands near the edge of the
+// frame, sits while surface tension holds it, then (if it's heavy enough) slides down the glass in
+// stick-slip steps, leaving a thinning trail and losing volume until it beads and stops. Every drop
+// and trail fades on its own clock, and there is a hard cap on how many can be on the glass, so a
+// long fight can never paint over the view. Redrawn from scratch each frame while anything's left.
+// A 2D canvas at half resolution.
+interface Drop {
+  x: number; y: number;
+  vol: number;          // radius-equivalent volume (px at half res); shrinks as it leaves a trail
+  vy: number;           // current slide speed
+  hold: number;         // seconds surface tension still holds it in place
+  age: number; life: number;
+  blood: boolean;
+  tone: number;         // 0…1 colour jitter
+  last: { x: number; y: number } | null;   // where the trail last ended
+}
+interface Trail { x0: number; y0: number; x1: number; y1: number; w: number; age: number; life: number; blood: boolean }
+
+const MAX_DROPS = 26;
+const MAX_TRAILS = 220;
 
 export class LensSplatter {
   private cv = document.createElement('canvas');
   private g = this.cv.getContext('2d')!;
-  private film = document.createElement('canvas');
-  private f = this.film.getContext('2d')!;
-  private drips: Drip[] = [];
-  private fresh: Fresh[] = [];
-  private wet = 0;          // seconds of activity left (stops redrawing when the glass is clean)
-  private smearT = 0;
+  private drops: Drop[] = [];
+  private trails: Trail[] = [];
+  private dirty = false;
 
   constructor() {
     this.cv.id = 'lensSplatter';
     this.cv.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:9';
     document.body.appendChild(this.cv);
-    const fit = () => {
-      for (const c of [this.cv, this.film]) { c.width = Math.round(innerWidth * 0.5); c.height = Math.round(innerHeight * 0.5); }
-    };
+    const fit = () => { this.cv.width = Math.round(innerWidth * 0.5); this.cv.height = Math.round(innerHeight * 0.5); };
     addEventListener('resize', fit); fit();
   }
 
-  /** `amount` 0…1: how much lands (more drops, bigger). Blood favours the edges of the frame. */
+  /** `amount` 0…1: how much lands. Blood stays out of the middle of the frame. */
   hit(kind: 'blood' | 'dirt', amount = 0.5) {
-    const W = this.cv.width, H = this.cv.height, k = W / 960;
-    const n = Math.round(1 + amount * (kind === 'blood' ? 1.5 : 3));
+    const W = this.cv.width, H = this.cv.height, k = Math.min(W, H) / 540;
+    const blood = kind === 'blood';
+    const n = Math.round((blood ? 1 : 2) + amount * (blood ? 2 : 3));
     for (let i = 0; i < n; i++) {
-      // Never over the action: the outer fifth of the frame, mostly the sides.
-      const x = (Math.random() < 0.5 ? Math.random() * 0.2 : 1 - Math.random() * 0.2) * W;
-      const y = (0.05 + Math.random() * 0.8) * H;
-      const big = kind === 'blood' && Math.random() < 0.25;   // now and then a heavy one
-      const r = (kind === 'blood' ? (big ? 12 + Math.random() * 14 : 4 + Math.random() * 10) : 3 + Math.random() * 7) * (0.6 + amount) * k;
-      if (kind === 'blood') this.bloodImpact(x, y, r); else this.dirtImpact(x, y, r);
+      // A cluster around one impact point in the outer quarter of the frame, mostly the sides.
+      const side = Math.random();
+      const cx = side < 0.42 ? Math.random() * 0.22 * W : side < 0.84 ? (1 - Math.random() * 0.22) * W : (0.25 + Math.random() * 0.5) * W;
+      const cy = side < 0.84 ? (0.08 + Math.random() * 0.7) * H : (Math.random() < 0.5 ? 0.04 + Math.random() * 0.12 : 0.84 + Math.random() * 0.1) * H;
+      const heavy = blood && Math.random() < 0.22;
+      const vol = (heavy ? 5 + Math.random() * 4 : 1.6 + Math.random() * 3) * (0.7 + amount * 0.6) * k;
+      this.add(cx, cy, vol, blood);
+      // Fine satellite droplets flung from the impact.
+      const sats = blood ? 2 + Math.floor(Math.random() * 4) : 3 + Math.floor(Math.random() * 4);
+      for (let s = 0; s < sats; s++) {
+        const a = Math.random() * Math.PI * 2, d = vol * (2 + Math.random() * 3);
+        this.add(cx + Math.cos(a) * d, cy + Math.sin(a) * d, vol * (0.15 + Math.random() * 0.25), blood);
+      }
     }
-    this.wet = 6;
+    this.dirty = true;
   }
 
-  private bloodImpact(x: number, y: number, r: number) {
-    const f = this.f;
-    // Thin film around the drop: translucent, fading out.
-    let gr = f.createRadialGradient(x, y, r * 0.3, x, y, r * 1.35);
-    gr.addColorStop(0, 'rgba(120,4,6,0.55)'); gr.addColorStop(0.6, 'rgba(110,6,8,0.22)'); gr.addColorStop(1, 'rgba(90,0,0,0)');
-    f.fillStyle = gr; this.blob(f, x, y, r * 1.35, 0.18);
-    // Dense core, darkest where it's thickest.
-    gr = f.createRadialGradient(x - r * 0.2, y - r * 0.2, r * 0.1, x, y, r);
-    gr.addColorStop(0, 'rgba(70,0,2,0.95)'); gr.addColorStop(0.7, 'rgba(105,2,6,0.9)'); gr.addColorStop(1, 'rgba(120,8,10,0.65)');
-    f.fillStyle = gr; this.blob(f, x, y, r, 0.12);
-    // Drying rim.
-    f.strokeStyle = 'rgba(55,0,0,0.55)'; f.lineWidth = Math.max(0.8, r * 0.07); this.blob(f, x, y, r, 0.12, true);
-    // Spray: satellite drops and outward streaks.
-    const sprays = 4 + Math.floor(Math.random() * 7);
-    for (let s = 0; s < sprays; s++) {
-      const a = Math.random() * Math.PI * 2, d = r * (1.2 + Math.random() * 1.8), sr = Math.max(0.6, r * (0.04 + Math.random() * 0.14));
-      const sx = x + Math.cos(a) * d, sy = y + Math.sin(a) * d;
-      f.fillStyle = `rgba(${95 + Math.random() * 30},2,6,${0.6 + Math.random() * 0.35})`;
-      f.beginPath(); f.ellipse(sx, sy, sr * (1.6 + Math.random() * 2.2), sr, a, 0, Math.PI * 2); f.fill();
-    }
-    // Heavy drops run.
-    const runs = Math.random() < 0.85 ? 1 + Math.floor(Math.random() * 3) : 0;
-    for (let d = 0; d < runs; d++) this.drips.push({ x: x + (Math.random() - 0.5) * r * 1.1, y: y + r * 0.6, w: Math.max(1.2, r * (0.12 + Math.random() * 0.12)), v: 25 + Math.random() * 45, stopT: 0, left: r * (2.5 + Math.random() * 4.5) });
-    this.fresh.push({ x, y, r, t: 0 });
-  }
-
-  private dirtImpact(x: number, y: number, r: number) {
-    const f = this.f;
-    for (let s = 0; s < 10 + Math.random() * 14; s++) {
-      const a = Math.random() * Math.PI * 2, d = r * Math.random() * 2.2, sr = Math.max(0.6, r * (0.06 + Math.random() * 0.25));
-      f.fillStyle = `rgba(${60 + Math.random() * 25},${50 + Math.random() * 18},${38 + Math.random() * 12},${0.45 + Math.random() * 0.45})`;
-      f.beginPath(); f.ellipse(x + Math.cos(a) * d, y + Math.sin(a) * d, sr * 1.3, sr, a, 0, Math.PI * 2); f.fill();
-    }
-  }
-
-  /** An irregular, lobed liquid outline. */
-  private blob(g: CanvasRenderingContext2D, x: number, y: number, r: number, wobble: number, stroke = false) {
-    g.beginPath();
-    for (let k = 0; k <= 24; k++) {
-      const a = (k / 24) * Math.PI * 2, w = 1 + wobble * (Math.sin(a * 3 + x) + 0.6 * Math.sin(a * 5 + y) + 0.4 * Math.sin(a * 9 + x * 0.3));
-      const px = x + Math.cos(a) * r * w, py = y + Math.sin(a) * r * w;
-      if (k === 0) g.moveTo(px, py); else g.lineTo(px, py);
-    }
-    g.closePath();
-    if (stroke) g.stroke(); else g.fill();
+  private add(x: number, y: number, vol: number, blood: boolean) {
+    // Over the cap, the oldest drops make room (they were nearly faded anyway).
+    while (this.drops.length >= MAX_DROPS) this.drops.shift();
+    this.drops.push({
+      x, y, vol, vy: 0, blood,
+      hold: 0.15 + Math.random() * 0.5,
+      age: 0, life: (blood ? 3.2 : 2.4) + Math.random() * 2.8 + vol * 0.08,
+      tone: Math.random(), last: null,
+    });
   }
 
   update(dt: number) {
-    if (this.wet <= 0) return;
-    this.wet -= dt;
-    const { g, f } = this;
-    const W = this.cv.width, H = this.cv.height;
-    // Runnels: gravity with surface tension, stopping and starting, thinning as they lose blood.
-    for (let i = this.drips.length - 1; i >= 0; i--) {
-      const d = this.drips[i];
-      if (d.stopT > 0) { d.stopT -= dt; continue; }
-      const step = d.v * dt;
-      f.fillStyle = 'rgba(100,2,6,0.85)';
-      f.fillRect(d.x - d.w / 2, d.y, d.w, step + 0.5);
-      d.y += step; d.left -= step; d.w *= 1 - dt * 0.12; d.x += (Math.random() - 0.5) * 0.4;
-      if (Math.random() < dt * 0.8) { d.stopT = 0.15 + Math.random() * 0.5; d.v *= 0.75; }
-      if (d.left <= 0 || d.w < 0.7 || d.y > H) {
-        f.beginPath(); f.arc(d.x, d.y, d.w * 0.9, 0, Math.PI * 2); f.fill();       // the bead at the end
-        this.drips.splice(i, 1);
+    if (!this.dirty) return;
+    const { g } = this;
+    const W = this.cv.width, H = this.cv.height, k = Math.min(W, H) / 540;
+    // Physics: a drop only runs once it's heavy enough to beat surface tension; it slides in
+    // stick-slip steps (viscosity), spending volume on its trail, and stops as a bead when spent.
+    const RUN = 3.2 * k;
+    for (let i = this.drops.length - 1; i >= 0; i--) {
+      const d = this.drops[i];
+      d.age += dt;
+      if (d.age >= d.life || d.y > H + 10) { this.drops.splice(i, 1); continue; }
+      if (!d.blood || d.vol < RUN) continue;
+      if (d.hold > 0) { d.hold -= dt; d.vy = 0; continue; }
+      const target = 18 * k + (d.vol - RUN) * 9;            // heavier runs faster
+      d.vy += (target - d.vy) * Math.min(1, dt * 2.5);      // viscous: eases toward its speed
+      const step = d.vy * dt;
+      const x0 = d.x, y0 = d.y;
+      d.y += step;
+      d.x += Math.sin(d.y * 0.09 + d.tone * 6) * 0.08 * k;   // a slight meander down the glass
+      d.vol -= step * 0.045;                                 // the trail costs volume
+      if (Math.random() < dt * 1.1) { d.hold = 0.12 + Math.random() * 0.45; d.vy *= 0.3; }   // snags on the glass
+      if (this.trails.length < MAX_TRAILS && step > 0) {
+        this.trails.push({ x0, y0, x1: d.x, y1: d.y, w: Math.max(0.6, d.vol * 0.55), age: 0, life: 1.6 + Math.random() * 1.4, blood: true });
       }
     }
-    // The film smears and dries: a soft blur with a slight downward creep, browning, wiping away.
-    this.smearT += dt;
-    if (this.smearT > 0.12) {
-      this.smearT = 0;
-      f.save();
-      f.globalAlpha = 0.5; f.filter = 'blur(0.8px)';
-      f.drawImage(this.film, 0, 0.35);
-      f.restore();
-      f.save();
-      f.globalCompositeOperation = 'source-atop'; f.fillStyle = 'rgba(60,24,10,0.025)'; f.fillRect(0, 0, W, H);   // oxidising to brown
-      f.globalCompositeOperation = 'destination-out'; f.fillStyle = `rgba(0,0,0,${this.drips.length ? 0.03 : 0.06})`; f.fillRect(0, 0, W, H);
-      f.restore();
+    for (let i = this.trails.length - 1; i >= 0; i--) {
+      const t = this.trails[i];
+      t.age += dt;
+      if (t.age >= t.life) this.trails.splice(i, 1);
     }
-    // Compose: the film, plus a wet highlight on fresh drops.
+
     g.clearRect(0, 0, W, H);
-    g.drawImage(this.film, 0, 0);
-    for (let i = this.fresh.length - 1; i >= 0; i--) {
-      const s = this.fresh[i];
-      s.t += dt;
-      const a = Math.max(0, 1 - s.t / 1.2) * 0.35;
-      if (a <= 0) { this.fresh.splice(i, 1); continue; }
-      g.fillStyle = `rgba(255,225,225,${a})`;
-      g.beginPath(); g.ellipse(s.x - s.r * 0.3, s.y - s.r * 0.35, s.r * 0.26, s.r * 0.12, -0.6, 0, Math.PI * 2); g.fill();
+    g.lineCap = 'round';
+    // Trails first: thin translucent smears that thin and fade behind each runner.
+    for (const t of this.trails) {
+      const a = (1 - t.age / t.life) * 0.5;
+      g.strokeStyle = `rgba(92,4,8,${a})`;
+      g.lineWidth = t.w * (1 - 0.5 * t.age / t.life);
+      g.beginPath(); g.moveTo(t.x0, t.y0); g.lineTo(t.x1, t.y1); g.stroke();
     }
-    if (this.wet <= 0) { f.clearRect(0, 0, W, H); g.clearRect(0, 0, W, H); this.drips.length = 0; this.fresh.length = 0; }
+    for (const d of this.drops) {
+      // Fades out over the last 40% of its life; fresh drops are glossier.
+      const fade = Math.min(1, (d.life - d.age) / (d.life * 0.4));
+      const r = Math.max(0.5, d.vol);
+      const running = d.vy > 1;
+      const sx = running ? r * 0.85 : r, sy = running ? r * 1.25 : r;   // a runner stretches downward
+      if (d.blood) {
+        const gr = g.createRadialGradient(d.x - r * 0.25, d.y - r * 0.3, r * 0.1, d.x, d.y, Math.max(sx, sy));
+        const deep = 60 + d.tone * 25;
+        gr.addColorStop(0, `rgba(${deep},0,3,${0.92 * fade})`);
+        gr.addColorStop(0.75, `rgba(${deep + 45},4,8,${0.85 * fade})`);
+        gr.addColorStop(1, `rgba(${deep + 35},2,6,${0.35 * fade})`);
+        g.fillStyle = gr;
+      } else {
+        g.fillStyle = `rgba(${58 + d.tone * 22},${48 + d.tone * 14},${36 + d.tone * 10},${0.7 * fade})`;
+      }
+      g.beginPath(); g.ellipse(d.x, d.y, sx, sy, 0, 0, Math.PI * 2); g.fill();
+      // Wet highlight: the glass catches light on fresh blood.
+      if (d.blood && r > 1.4) {
+        const shine = Math.max(0, 1 - d.age / 1.5) * 0.4 * fade;
+        if (shine > 0.01) {
+          g.fillStyle = `rgba(255,220,220,${shine})`;
+          g.beginPath(); g.ellipse(d.x - sx * 0.3, d.y - sy * 0.35, sx * 0.28, sy * 0.14, -0.5, 0, Math.PI * 2); g.fill();
+        }
+      }
+    }
+    if (!this.drops.length && !this.trails.length) { g.clearRect(0, 0, W, H); this.dirty = false; }
   }
 }

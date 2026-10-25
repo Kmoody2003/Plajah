@@ -519,7 +519,14 @@ export class Mob {
     if (world) {
       const r = world.resolve(next.clone().setY(p.y + 0.05), 0.35, 1.7);
       next.x = r.pos.x; next.z = r.pos.z;
-      const g = world.groundAt(next.x, next.z, p.y + 0.8, 3);
+      let g = world.groundAt(next.x, next.z, p.y + 0.8, 3);
+      // The search only looks 0.8 m up, so a monster knocked into a ditch used to walk on at that depth
+      // under the road (invisible, still attacking). A floor overhead within 6 m pulls it back up.
+      // (Only probed when it's below its spawn height or lost the ground: one cast, not 30 a frame.)
+      if (g === null || p.y < this.home.y - 0.8) {
+        const over = world.groundAt(next.x, next.z, p.y + 6, 6.2);
+        if (over !== null && over > (g ?? -Infinity) + 0.3) g = over;
+      }
       next.y = k.ghostly ? (g ?? p.y) + 0.25 + Math.sin(this.st * 2) * 0.08 : g ?? p.y;
     }
     p.copy(next);

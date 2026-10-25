@@ -72,6 +72,8 @@ export class PlayerController {
   /** Shot width set by set-pieces (bridge battle): 0 medium behind, 1 wide behind and above. */
   wide = 0;
   private wideS = 0;
+  /** Cut straight to a shot width (a cutscene handing back mid-wide), then ease from there. */
+  setWideNow(v: number) { this.wide = v; this.wideS = v; }
   combatCount = 0;
   /**
    * Default ("action"): W/A/S/D go where you press on screen, Jack turns fast to face that way,

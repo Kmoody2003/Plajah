@@ -92,7 +92,10 @@ export class ExtraInput {
       <button class="t-btn t-roll" data-a="roll">⟲</button>
       <button class="t-btn t-jump" data-a="jump">⤒</button>
       <button class="t-btn t-use" data-a="use">E</button>
-      <button class="t-btn t-fire" data-a="molotov">🔥</button>`;
+      <button class="t-btn t-fire" data-a="molotov">🔥</button>
+      <button class="t-btn t-block" data-a="block">🛡</button>
+      <button class="t-btn t-turn" data-a="turn">↻</button>
+      <button class="t-btn t-pause" data-a="pause">⏸</button>`;
     document.body.appendChild(ui);
     this.touchUI = ui;
     if (!this.shown) ui.style.display = 'none';
@@ -144,7 +147,15 @@ export class ExtraInput {
       else if (a === 'jump') player.jump();
       else if (a === 'use') this.d.interact();
       else if (a === 'molotov') game.throwMolotov();
+      else if (a === 'block') { game.setBlock(true); b.classList.add('on'); }
+      else if (a === 'turn') player.faceThreat(player.yaw + Math.PI);
+      else if (a === 'pause') dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyP' }));
     }, { passive: false }));
+    // Block is held: the guard drops when the finger lifts.
+    const blockBtn = ui.querySelector<HTMLButtonElement>('.t-block')!;
+    const drop = (e: Event) => { e.preventDefault(); game.setBlock(false); blockBtn.classList.remove('on'); };
+    blockBtn.addEventListener('touchend', drop, { passive: false });
+    blockBtn.addEventListener('touchcancel', drop, { passive: false });
   }
 
   /** Hide the touch controls behind the title screen. */

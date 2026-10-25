@@ -1,5 +1,5 @@
 import * as THREE from 'three/webgpu';
-import { fog, densityFogFactor, exponentialHeightFogFactor, float, max, uniform } from 'three/tsl';
+import { fog, densityFogFactor, exponentialHeightFogFactor, float, max, mix, uniform } from 'three/tsl';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { ArtAnchor, ARRIVAL_SHOT } from './artAnchor';
 import { buildArrival } from './arrival';
@@ -261,7 +261,9 @@ setReflectEnabled(exteriorSSR);
 hallScene.add(hall.group);
 const showings: Showing[] = [...mile.showings, ...hangPaintings(hall.paintingSlots, films)];
 hallScene.backgroundNode = sky.node; // night sky through the open doors
-hallScene.fogNode = fog(uniform(new THREE.Color(0x1a1612)), densityFogFactor(float(0.01)));
+// hallDark (0…1, nightmare.ts): Dracula's supernatural darkness thickens the hall's air to near-black.
+const hallDark = uniform(0);
+hallScene.fogNode = fog(mix(uniform(new THREE.Color(0x1a1612)), uniform(new THREE.Color(0x010102)), hallDark), densityFogFactor(float(0.01).add(hallDark.mul(0.08))));
 {
   const pmrem = new THREE.PMREMGenerator(renderer);
   hallScene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
@@ -636,6 +638,7 @@ const nightmare = new Nightmare({
   ready: (): boolean => bridgeBattle.defeated && level === levels.hall,
   eject: () => travel(levels.outside, yard.hallDoor.exitPos, yard.hallDoor.exitYaw),
   frontDoor: () => ({ pos: yard.hallDoor.exitPos.clone(), yaw: yard.hallDoor.exitYaw }),
+  darkness: (k) => { hallDark.value = k; },
   glow: (k) => {
     for (const s of showings) {
       const m = s.face.material as THREE.MeshStandardNodeMaterial;
