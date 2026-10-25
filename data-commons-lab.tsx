@@ -7,7 +7,8 @@ import { configureGrantsClient } from './services/grants/client';
 import FederalContext from './components/terra/FederalContext';
 
 configureGrantsClient({ token: async () => 'lab' });
-const org: any = {
+const biz = new URLSearchParams(location.search).get('org') === 'biz';
+const org: any = biz ? { id: 'lab-biz', name: 'Riverside Catering', orgType: 'RESTAURANT', location: { address: '4200 Cass Ave', city: 'Detroit, MI' } } : {
   id: 'lab', name: 'Grace Chapel', orgType: 'CHURCH',
   location: { address: '1600 W Lafayette Blvd', city: 'Detroit, MI' },
 };

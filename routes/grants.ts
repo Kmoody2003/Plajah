@@ -8,6 +8,7 @@
 // GET  /api/grants/orgs/:orgId/workspace                  profile (platform + derived + saved), kind, applications
 // PUT  /api/grants/orgs/:orgId/profile    {key,value}      validate and save one answer
 // POST /api/grants/orgs/:orgId/readiness  {opportunityId}  what this application needs / what is missing / Aria's next question
+// POST /api/grants/orgs/:orgId/contracts  {naics?, keywords?, certs?, includeIneligible?}  federal contract opportunities near the business + contracting readiness
 // PUT  /api/grants/orgs/:orgId/applications/:oppId         notes, checklist, typed facts, draft sections
 // POST /api/grants/orgs/:orgId/draft      {opportunityId, section, facts?, instructions?}
 // POST /api/grants/orgs/:orgId/council    {opportunityId, draft?, sections?, facts?}
@@ -19,7 +20,8 @@ import { verifyIdToken, fsGet, fsSet } from '../services/firebaseAdminRest';
 import { geocodeAddress } from '../services/dataCommons/place';
 import { fetchOpportunity, type ApplicantKind } from '../services/dataCommons/grants';
 import { FIELD_BY_KEY, applicantKindForOrg, buildProfile, splitAddress, validateValue, type DerivedGeo, type OrgLike, type Profile, type StoredProfile } from '../services/grants/profile';
-import { buildReadiness, nextQuestion } from '../services/grants/readiness';
+import { buildContractReadiness, buildReadiness, nextQuestion } from '../services/grants/readiness';
+import { CERT_KEYS, parseNaicsList, searchContracts, type CertKey } from '../services/dataCommons/contracts';
 import { sf424CopySheet } from '../services/grants/forms';
 import { draftSection, reviewApplication, SECTIONS, type Facts, type ModelFn, type NoticeCtx } from '../services/grants/council';
 
@@ -32,6 +34,7 @@ export interface GrantsDeps {
   set?: (path: string, data: Record<string, unknown>) => Promise<boolean>;
   geocode?: typeof geocodeAddress;
   opportunity?: typeof fetchOpportunity;
+  contracts?: typeof searchContracts;
 }
 
 const CLAUDE_MODEL = 'claude-sonnet-4-6';
@@ -84,6 +87,7 @@ export function createGrantsRouter(deps: GrantsDeps = {}) {
   const set = deps.set ?? fsSet;
   const geocode = deps.geocode ?? geocodeAddress;
   const opportunity = deps.opportunity ?? fetchOpportunity;
+  const contracts = deps.contracts ?? searchContracts;
   const model = deps.model ?? claude;
   const json = express.json({ limit: '200kb' });
 
@@ -174,6 +178,22 @@ export function createGrantsRouter(deps: GrantsDeps = {}) {
       sf424: sf424CopySheet(profile, { agency: n.notice.agency, number: n.notice.number, title: n.notice.title }),
       application: ws.applications[oppId] || {},
     });
+  });
+
+  router.post('/api/grants/orgs/:orgId/contracts', limit, json, async (req, res) => {
+    const g = await guard(req, res); if (!g) return;
+    const ws = await loadWorkspace(g.orgId);
+    const profile = await profileFor(g.orgId, g.org, ws);
+    const b = req.body || {};
+    // Explicit request values win; otherwise fall back to what the business already told us.
+    const naics = Array.isArray(b.naics) ? b.naics.map((x: unknown) => String(x).replace(/\D/g, '')).filter((x: string) => x.length >= 2 && x.length <= 6).slice(0, 12) : parseNaicsList(profile.naics?.value || '');
+    const certs = (Array.isArray(b.certs) ? b.certs : String(profile.certifications?.value || 'small').split(/[\s,;]+/))
+      .map((c: unknown) => String(c).toLowerCase()).filter((c: string): c is CertKey => (CERT_KEYS as string[]).includes(c));
+    const keywords = (Array.isArray(b.keywords) ? b.keywords : []).map((k: unknown) => clean(k, 40)).filter(Boolean).slice(0, 5);
+    const state = String(b.state || profile.state?.value || '').toUpperCase();
+    const result = await contracts(state, { naics, keywords, certs: certs.length ? certs : ['small'], includeIneligible: !!b.includeIneligible });
+    const report = buildContractReadiness(profile);
+    res.set('Cache-Control', 'no-store').json({ ...result, usedNaics: naics, usedCerts: certs.length ? certs : ['small'], report, next: nextQuestion(report, Array.isArray(b.skipped) ? b.skipped.map(String).slice(0, 60) : []) });
   });
 
   router.put('/api/grants/orgs/:orgId/applications/:oppId', limit, json, async (req, res) => {

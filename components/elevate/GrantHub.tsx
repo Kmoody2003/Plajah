@@ -1,5 +1,6 @@
 // GrantHub — Elevate's grants workspace: Find → Apply (with Aria) → Profile → Learn.
 //
+// Contracts & loans  (businesses only) SBA financing + federal contract opportunities
 // Find     the federal matcher (live Grants.gov), with a "Start application" button on every match
 // Apply    Aria opens the application: pulls what we know, asks for what is missing, fills PDFs,
 //          drafts from your facts, and convenes the Grant Council
@@ -7,7 +8,7 @@
 // Learn    Grant School: a short course on the whole process, with practice
 
 import React, { Suspense, lazy, useCallback, useEffect, useState } from 'react';
-import { BookOpen, FileText, Search, UserCog } from 'lucide-react';
+import { BookOpen, Briefcase, FileText, Search, UserCog } from 'lucide-react';
 import type { Organization } from '../../types';
 import { grantsApi, type Workspace } from '../../services/grants/client';
 import GrantMatcher, { type GrantMatch } from './GrantMatcher';
@@ -15,12 +16,14 @@ import GrantProfile from './GrantProfile';
 import { EV } from './vellum';
 
 const GrantApply = lazy(() => import('./GrantApply'));
+const GrantContracts = lazy(() => import('./GrantContracts'));
 const SchoolView = lazy(() => import('../school/SchoolView'));
 
-type Tab = 'find' | 'apply' | 'profile' | 'learn';
+type Tab = 'find' | 'apply' | 'business' | 'profile' | 'learn';
 const TABS: { key: Tab; label: string; icon: React.ElementType }[] = [
   { key: 'find', label: 'Find grants', icon: Search },
   { key: 'apply', label: 'My applications', icon: FileText },
+  { key: 'business', label: 'Contracts & loans', icon: Briefcase },
   { key: 'profile', label: 'Profile', icon: UserCog },
   { key: 'learn', label: 'Grant School', icon: BookOpen },
 ];
@@ -44,12 +47,13 @@ export const GrantHub: React.FC<{ org: Organization }> = ({ org }) => {
   const start = (m: GrantMatch) => { setCurrent({ id: m.id, title: m.title }); setTab('apply'); };
   const saveAnswer = async (key: string, value: string) => { const r = await grantsApi.saveAnswer(org.id, key, value); setWs(w => (w ? { ...w, profile: r.profile } : w)); };
 
+  const isBusiness = !!ws && ['small-business', 'business'].includes(ws.kind);
   const inProgress = Object.entries(ws?.applications || {}).filter(([, a]) => a.title).sort((a, b) => (b[1].updatedAt || 0) - (a[1].updatedAt || 0));
 
   return (
     <div className="space-y-5">
       <div role="tablist" className="flex flex-wrap gap-2">
-        {TABS.map(t => (
+        {TABS.filter(t => t.key !== 'business' || isBusiness).map(t => (
           <button key={t.key} role="tab" aria-selected={tab === t.key} onClick={() => setTab(t.key)}
                   className="px-4 py-2 rounded-full text-[12px] font-bold inline-flex items-center gap-2"
                   style={{ background: tab === t.key ? EV.violet : EV.raised, color: tab === t.key ? '#fff' : EV.ink2, border: `1px solid ${tab === t.key ? EV.violet : EV.line}` }}>
@@ -90,6 +94,12 @@ export const GrantHub: React.FC<{ org: Organization }> = ({ org }) => {
             </>
           )}
         </div>
+      )}
+
+      {tab === 'business' && isBusiness && ws && (
+        <Suspense fallback={<p className="text-sm" style={{ color: EV.muted }}>Loading…</p>}>
+          <GrantContracts orgId={org.id} profile={ws.profile} onGoProfile={() => setTab('profile')} />
+        </Suspense>
       )}
 
       {tab === 'profile' && (ws ? <GrantProfile profile={ws.profile} onSave={saveAnswer} /> : !wsError && <p className="text-sm" style={{ color: EV.muted }}>Loading your profile…</p>)}

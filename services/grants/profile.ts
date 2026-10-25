@@ -107,6 +107,12 @@ export const FIELDS: FieldDef[] = [
   { key: 'contactEmail', label: 'Contact email', group: 'people', kind: 'text', sensitive: true, hint: '', match: [/e-?mail/] },
   { key: 'contactPhone', label: 'Contact phone', group: 'people', kind: 'text', sensitive: true, hint: '', match: [/phone/, /telephone/, /\btel\b/] },
   { key: 'mission', label: 'Mission statement', group: 'capacity', kind: 'longtext', hint: 'One or two sentences on what you do and for whom.', match: [/mission/, /organi[sz]ation.?(description|overview)/] },
+  { key: 'naics', label: 'NAICS code(s)', group: 'capacity', kind: 'text',
+    hint: 'Six-digit industry codes for what you sell (for example 722320 for caterers). Look yours up at census.gov/naics. Federal buyers search by NAICS, and your SAM.gov registration lists them.',
+    match: [/naics/] },
+  { key: 'certifications', label: 'Business certifications', group: 'capacity', kind: 'text',
+    hint: 'Any of: small, wosb, edwosb, sdvosb, vosb, hubzone, 8a — comma-separated. Only list a certification you actually hold and could document.',
+    match: [] },
   { key: 'foundedYear', label: 'Year founded', group: 'capacity', kind: 'number', hint: '', match: [/year.?(founded|established|incorporated)/] },
   { key: 'annualBudget', label: 'Annual operating budget (USD)', group: 'capacity', kind: 'money', sensitive: true,
     hint: 'Your most recent full-year total expenses. Reviewers read this as organizational capacity.', match: [/annual.?(operating)?.?budget/, /total.?(annual)?.?expenses/] },
@@ -240,6 +246,17 @@ export function validateValue(key: string, raw: string): { ok: true; value: stri
   if (key === 'state') return /^[A-Za-z]{2}$/.test(v) ? { ok: true, value: v.toUpperCase() } : { ok: false, error: 'Use the two-letter state code, like MI.' };
   if (key === 'zip') return /^\d{5}(-\d{4})?$/.test(v) ? { ok: true, value: v } : { ok: false, error: 'ZIP codes are 5 digits (or ZIP+4).' };
   if (/Email$/.test(key)) return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v) ? { ok: true, value: v } : { ok: false, error: 'That does not look like an email address.' };
+  if (key === 'naics') {
+    const codes = v.split(/[\s,;]+/).filter(Boolean);
+    return codes.length && codes.length <= 12 && codes.every(c => /^\d{2,6}$/.test(c))
+      ? { ok: true, value: codes.join(', ') } : { ok: false, error: 'Enter NAICS codes of 2 to 6 digits, separated by commas, like 722320, 722330.' };
+  }
+  if (key === 'certifications') {
+    const allowed = ['small', 'wosb', 'edwosb', 'sdvosb', 'vosb', 'hubzone', '8a'];
+    const items = v.toLowerCase().split(/[\s,;]+/).filter(Boolean);
+    return items.length && items.every(i => allowed.includes(i))
+      ? { ok: true, value: [...new Set(items)].join(', ') } : { ok: false, error: `Use only: ${allowed.join(', ')}.` };
+  }
   if (f.kind === 'money') {
     const n = parseMoney(v);
     return n == null ? { ok: false, error: 'Enter a dollar amount, like 250000 or $250k.' } : { ok: true, value: String(n) };

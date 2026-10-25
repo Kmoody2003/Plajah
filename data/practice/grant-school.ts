@@ -140,6 +140,11 @@ export const GRANT_BANK: QuestionBank = {
       ['Where does most classroom money come from?', 'The district, parent groups, local foundations and classroom-funding sites', ['Federal grants to individual teachers', 'Lottery tickets', 'Loans'], 'It is rarely federal and personal.', 'Individual teachers are rarely eligible for federal grants; most classroom money is local.', 1],
       ['Before accepting outside funds, a teacher should', 'Check district policy', ['Post student photos publicly', 'Use personal accounts', 'Ignore the principal'], 'Rules apply.', 'Districts have policies on outside funds and student privacy.', 1],
     ]),
+    ...build('gs-contracts', [
+      ['A notice is "full and open." What does that mean for a small business?', 'It competes against businesses of every size', ['It is reserved for small businesses', 'It is only for veteran-owned firms', 'It cannot be bid on'], 'Open means not reserved.', 'Full and open competition is not limited by size or certification.', 1],
+      ['Which notice type is the best time to introduce yourself to an agency?', 'Sources sought', ['Award notice', 'Closed solicitation', 'Surplus sale'], 'The agency is still shaping the buy.', 'A sources sought or request for information is the agency testing the market before it writes the solicitation.', 2],
+      ['What must you hold to be awarded a federal contract?', 'An active SAM.gov registration', ['A 501(c)(3) letter', 'A grant award', 'A college degree'], 'It also assigns your CAGE code.', 'Contract awards require an active SAM.gov registration, renewed every year.', 1],
+    ]),
     ...build('gs-business', [
       ['Which SBA program is a loan for general business needs?', '7(a)', ['SBIR', 'Title I', 'Pell'], 'It is a loan guarantee.', 'The 7(a) program is the SBA\'s main loan program.', 1],
       ['Where are federal contract opportunities posted?', 'SAM.gov', ['Grants.gov only', 'Facebook', 'The IRS website'], 'The same site you register on.', 'SAM.gov lists contracting opportunities, including small-business set-asides.', 1],

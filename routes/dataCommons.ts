@@ -8,11 +8,15 @@
 // POST /api/data/grants/match   { kind, topics[], keywords[], preferredAgencies?[] }
 // GET  /api/data/grants/:id
 // GET  /api/data/grants/peers?state=MI&county=163&keywords=housing,food
+// GET  /api/data/financing?purpose=equipment&amount=120000   SBA loan programs ranked for a stated need
+// GET  /api/data/contracts/options                            business types (NAICS) and certifications
 import express from 'express';
 import { searchCatalog } from '../services/dataCommons/catalog';
 import { getFederalPlaceProfile, geocodeAddress } from '../services/dataCommons/place';
 import { fetchOpportunity, matchGrants, peerAwards, TOPICS, ELIGIBILITY_BY_KIND, KIND_NOTES } from '../services/dataCommons/grants';
 import { isValidLatLng } from '../services/dataCommons/core';
+import { FINANCING_ASOF, FREE_HELP, PROGRAMS, recommendFinancing, type FinancePurpose } from '../services/dataCommons/financing';
+import { BUSINESS_TYPES, CERTS } from '../services/dataCommons/contracts';
 
 export function createDataCommonsRouter(opts: { limiter?: express.RequestHandler } = {}) {
   const router = express.Router();
@@ -77,6 +81,24 @@ export function createDataCommonsRouter(opts: { limiter?: express.RequestHandler
     } catch (err: any) {
       fail(res, /required/.test(String(err?.message)) ? 400 : 502, err);
     }
+  });
+
+  const PURPOSES: FinancePurpose[] = ['working-capital', 'equipment', 'real-estate', 'refinance', 'startup', 'ownership-change'];
+  router.get('/api/data/financing', limit, (req, res) => {
+    const purpose = String(req.query.purpose || '') as FinancePurpose;
+    if (!PURPOSES.includes(purpose)) return fail(res, 400, `purpose must be one of: ${PURPOSES.join(', ')}`);
+    const raw = req.query.amount === undefined || req.query.amount === '' ? undefined : Number(req.query.amount);
+    if (raw !== undefined && (!Number.isFinite(raw) || raw <= 0 || raw > 1e9)) return fail(res, 400, 'amount must be a positive number');
+    res.set('Cache-Control', 'public, max-age=3600').json({
+      asOf: FINANCING_ASOF, purpose, amount: raw, help: FREE_HELP,
+      recommendations: recommendFinancing({ purpose, amount: raw, disaster: req.query.disaster === '1' }),
+      programs: PROGRAMS.length,
+      disclaimer: 'Guidance only, not a credit decision. Programs, limits and lenders change; confirm each on sba.gov and with the lender.',
+    });
+  });
+
+  router.get('/api/data/contracts/options', limit, (_req, res) => {
+    res.set('Cache-Control', 'public, max-age=3600').json({ businessTypes: BUSINESS_TYPES, certifications: CERTS });
   });
 
   router.get('/api/data/grants/:id', limit, async (req, res) => {

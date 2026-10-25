@@ -153,6 +153,24 @@ const daysUntil = (iso?: string, now = Date.now()): number | null => {
   return Number.isFinite(t) ? Math.ceil((t - now) / 86_400_000) : null;
 };
 
+/** Turn needs into gaps against a profile. A SAM.gov status other than "active" is a blocker even with a value. */
+function gapsFrom(profile: Profile, needs: Need[]): Gap[] {
+  return needs.map(n => {
+    const f = FIELD_BY_KEY[n.key];
+    const v = profile[n.key];
+    const samBad = n.key === 'samStatus' && v && v.value !== 'active';
+    const status: GapStatus = !v || samBad ? 'missing' : v.confirmed ? 'have' : 'confirm';
+    return {
+      key: n.key, label: f?.label || n.key, status,
+      value: v ? displayValue(n.key, v.value) : undefined,
+      source: v?.source, why: n.why, hint: f?.hint || '', leadTimeDays: n.leadTimeDays, blocking: !!n.blocking,
+    };
+  });
+}
+
+const rankGap = (g: Gap) => (g.status === 'missing' ? 0 : g.status === 'confirm' ? 1 : 2);
+const orderGaps = (gaps: Gap[]) => gaps.sort((a, b) => rankGap(a) - rankGap(b) || (b.leadTimeDays || 0) - (a.leadTimeDays || 0) || Number(b.blocking) - Number(a.blocking));
+
 export function buildReadiness(
   profile: Profile,
   opts: { kind: ApplicantKind; closeDate?: string; detail?: Pick<OpportunityDetail, 'eligibilityText' | 'summary' | 'costSharing'>; now?: number },
@@ -161,22 +179,10 @@ export function buildReadiness(
   const needs = [...needsFor(opts.kind)];
   for (const n of noticeNeeds(opts.detail)) if (!needs.some(x => x.key === n.key)) needs.push(n);
 
-  const gaps: Gap[] = needs.map(n => {
-    const f = FIELD_BY_KEY[n.key];
-    const v = profile[n.key];
-    // A SAM status of anything but "active" is a blocker even though the field has a value.
-    const samBad = n.key === 'samStatus' && v && v.value !== 'active';
-    const status: GapStatus = !v || samBad ? 'missing' : v.confirmed ? 'have' : 'confirm';
-    return {
-      key: n.key, label: f?.label || n.key, status,
-      value: v && !samBad ? displayValue(n.key, v.value) : v ? displayValue(n.key, v.value) : undefined,
-      source: v?.source, why: n.why, hint: f?.hint || '', leadTimeDays: n.leadTimeDays, blocking: !!n.blocking,
-    };
-  });
+  const gaps: Gap[] = gapsFrom(profile, needs);
 
   // Longest lead time first, then blockers, so Aria raises the slow things on day one.
-  const rank = (g: Gap) => (g.status === 'missing' ? 0 : g.status === 'confirm' ? 1 : 2);
-  gaps.sort((a, b) => rank(a) - rank(b) || (b.leadTimeDays || 0) - (a.leadTimeDays || 0) || Number(b.blocking) - Number(a.blocking));
+  orderGaps(gaps);
 
   const done = gaps.filter(g => g.status !== 'missing').length;
   const blockingMissing = gaps.filter(g => g.blocking && g.status === 'missing').length;
@@ -221,4 +227,45 @@ export function nextQuestion(report: ReadinessReport, skipped: string[] = []): Q
   const lead = g.leadTimeDays ? ` This one takes about ${g.leadTimeDays >= 14 ? `${Math.round(g.leadTimeDays / 7)} weeks` : `${g.leadTimeDays} days`}, so it is worth starting now.` : '';
   return { key: g.key, choices: f?.kind === 'choice' ? f.choices : undefined,
     text: `${f?.label || g.label}? ${g.why}${lead}${g.hint ? ` ${g.hint}` : ''}` };
+}
+
+// ─── Contracts (selling to the government) ──────────────────────────────────
+
+const CONTRACT_NEEDS: Need[] = [
+  { key: 'legalName', why: 'Must match your SAM.gov registration exactly.', blocking: true },
+  { key: 'ein', why: 'SAM.gov registration asks for your tax ID.', blocking: true },
+  { key: 'uei', why: 'You cannot bid without a Unique Entity ID, issued when you register at SAM.gov (free).', leadTimeDays: 28, blocking: true },
+  { key: 'samStatus', why: 'Contract awards require an active SAM.gov registration, renewed every year. It also assigns your CAGE code.', leadTimeDays: 28, blocking: true },
+  { key: 'naics', why: 'Federal buyers search by NAICS code, and your registration lists the codes you serve.', blocking: true },
+  { key: 'certifications', why: 'Set-asides are reserved for certified businesses. Say which you hold so we only show ones you can bid on.' },
+  { key: 'street', why: 'Part of your registration and proposals.' },
+  { key: 'city', why: '' }, { key: 'state', why: 'We search for work near you.' }, { key: 'zip', why: '' },
+  { key: 'contactName', why: 'The person the contracting officer calls.' },
+  { key: 'contactEmail', why: 'Where bid notices and questions reach you.' },
+  { key: 'contactPhone', why: '' },
+  { key: 'mission', why: 'The first line of your capability statement.' },
+  { key: 'foundedYear', why: 'Buyers ask how long you have operated.' },
+  { key: 'staffCount', why: 'Size standards (small-business status) depend on employees and revenue.' },
+];
+
+export const CONTRACT_DOCUMENTS: Document[] = [
+  { id: 'capability', label: 'Capability statement', how: 'One page: what you do, NAICS codes, certifications, past performance and contact details. Contracting officers keep these on file.', weCanDraft: true },
+  { id: 'past', label: 'Past performance list', how: 'Three to five customers (public or private) with what you delivered, when, and a reference contact. New businesses can use commercial customers.' },
+  { id: 'sam', label: 'SAM.gov registration confirmation', how: 'Your active registration and CAGE code.' },
+  { id: 'certs', label: 'Certification proof (if you hold one)', how: 'SBA certifies WOSB, EDWOSB, HUBZone and 8(a) through its own portals; veteran status is verified through the VA. Keep the current letters.' },
+  { id: 'insurance', label: 'Insurance, licenses and bonding', how: 'Many solicitations require general liability coverage, trade licenses and, for construction, bonding. Ask your agent early.' },
+  { id: 'pricing', label: 'Price list or rate sheet', how: 'Know your labor rates and overhead before you quote; government pricing is scrutinized.' },
+];
+
+export function buildContractReadiness(profile: Profile): ReadinessReport {
+  const gaps = orderGaps(gapsFrom(profile, CONTRACT_NEEDS));
+  const done = gaps.filter(g => g.status !== 'missing').length;
+  const warnings: string[] = [];
+  if (profile.samStatus && profile.samStatus.value !== 'active') warnings.push('Your SAM.gov registration is not active. You cannot be awarded a federal contract without it.');
+  return {
+    gaps, documents: CONTRACT_DOCUMENTS,
+    percentReady: gaps.length ? Math.round((done / gaps.length) * 100) : 100,
+    blockingMissing: gaps.filter(g => g.blocking && g.status === 'missing').length,
+    daysLeft: null, warnings,
+  };
 }

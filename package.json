@@ -77,7 +77,7 @@
     "test:serviceNotes": "npx tsx --test tests/serviceNotes.test.ts",
     "test:civics": "npx tsx --test tests/comparativeCivics.test.ts",
     "test:terra": "npx tsx --test tests/terraCodec.test.ts",
-    "test:datacommons": "npx tsx --test tests/dataCommons.test.ts tests/grants.test.ts tests/grantsRouter.test.ts tests/grantSchool.test.ts",
+    "test:datacommons": "npx tsx --test tests/dataCommons.test.ts tests/grants.test.ts tests/grantsRouter.test.ts tests/grantSchool.test.ts tests/contracts.test.ts",
     "test:paper": "npx tsx --test --experimental-test-module-mocks tests/paperTrading.test.ts",
     "test:academia": "npx tsx --test tests/academiaIntegrity.test.ts",
     "test:taste": "npx tsx --test tests/videoTaste.test.ts",

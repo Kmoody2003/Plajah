@@ -11,12 +11,12 @@ const org = {
 };
 
 /** Run a request flow against the real router with fakes for auth, storage, geocoder, Grants.gov and the model. */
-async function withRouter(run: (base: string, db: Map<string, any>, calls: { model: string[] }) => Promise<void>) {
+async function withRouter(run: (base: string, db: Map<string, any>, calls: { model: string[]; contracts: { state: string; filter: any }[] }) => Promise<void>) {
   const db = new Map<string, any>([
     ['organizations/o1', { ...org, creatorId: 'owner', admins: ['admin1'] }],
     ['organizations/o2', { name: 'Other', creatorId: 'someone' }],
   ]);
-  const calls = { model: [] as string[] };
+  const calls = { model: [] as string[], contracts: [] as { state: string; filter: any }[] };
   const app = express();
   app.use(createGrantsRouter({
     verify: async t => (t === 'owner-token' ? 'owner' : t === 'stranger-token' ? 'stranger' : null),
@@ -29,6 +29,7 @@ async function withRouter(run: (base: string, db: Map<string, any>, calls: { mod
     opportunity: async id => id === '1'
       ? { id: '1', number: 'N-1', title: 'Community Food Grant', agency: 'USDA', summary: 'Feeds people.', eligibilityText: 'Nonprofits with 501(c)(3) status', closeDate: '2027-01-15', costSharing: false, link: 'x' }
       : null,
+    contracts: async (state, filter) => { calls.contracts.push({ state, filter }); return { status: 'ok', opportunities: [], hiddenIneligible: 2, pulled: 40, state, source: { agency: 'x', dataset: 'x', url: 'https://sam.gov', retrievedAt: 1, license: 'x' } }; },
     model: async (system, user) => {
       calls.model.push(`${system}\n${user}`);
       if (/chairing/.test(system)) return JSON.stringify({ readiness: 'revise', headline: 'h', topFixes: [], limits: '' });
@@ -103,5 +104,26 @@ test('router: application state saves and comes back; unknown section is refused
     assert.equal(w.applications['1'].notes, 'call USDA');
     assert.deepEqual(Object.keys(w.applications['1'].sections), ['need']);
     assert.equal((await post(base, '/api/grants/orgs/o1/draft', { opportunityId: '1', section: 'bogus' })).status, 400);
+  });
+});
+
+test('router: contracts search falls back to what the business already told us, and returns readiness', async () => {
+  await withRouter(async (base, _db, calls) => {
+    await post(base, '/api/grants/orgs/o1/profile', { key: 'naics', value: '722320, 722330' }, 'PUT');
+    await post(base, '/api/grants/orgs/o1/profile', { key: 'certifications', value: 'small, wosb' }, 'PUT');
+    const r: any = await (await post(base, '/api/grants/orgs/o1/contracts', {})).json();
+    assert.equal(r.status, 'ok');
+    assert.equal(r.hiddenIneligible, 2);
+    assert.deepEqual(calls.contracts[0].filter.naics, ['722320', '722330']);
+    assert.deepEqual(calls.contracts[0].filter.certs, ['small', 'wosb']);
+    assert.equal(calls.contracts[0].state, 'MI');                  // from the profile address
+    assert.ok(r.report.gaps.some((g: any) => g.key === 'uei'));
+    assert.ok(r.next && r.next.text);
+    // Explicit request values win, junk is dropped.
+    await post(base, '/api/grants/orgs/o1/contracts', { naics: ['561720', 'abc'], certs: ['hubzone', 'minority'], keywords: ['janitorial'], state: 'oh' });
+    assert.deepEqual(calls.contracts[1].filter.naics, ['561720']);
+    assert.deepEqual(calls.contracts[1].filter.certs, ['hubzone']);
+    assert.equal(calls.contracts[1].state, 'OH');
+    assert.equal((await fetch(`${base}/api/grants/orgs/o1/contracts`, { method: 'POST' })).status, 401);
   });
 });

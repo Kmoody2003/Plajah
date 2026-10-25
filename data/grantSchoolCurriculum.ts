@@ -547,6 +547,25 @@ Check your district's policy before you apply for or accept outside funds, and n
           assignment: { prompt: 'Write a three-sentence classroom project summary, with an itemized cost, and send it to your principal asking whether the school can apply or support it.', tool: 'NONE' },
         },
         {
+          id: 'gs-contracts', title: 'Selling to the government: contracts and set-asides', minutes: 9, asOf: ASM,
+          blurb: 'The government is the largest buyer in the country, and a lot of it is reserved for small businesses.',
+          body: `A contract is the government buying something: a service, a product or a build. Unlike a grant, you are paid for delivering exactly what the solicitation describes, and there is no "mission fit" to argue; you win by being qualified, responsive and competitively priced.
+
+Where to look. SAM.gov lists contract opportunities. Notices come in stages: a sources sought or request for information (the agency is testing the market, the best time to introduce yourself), a presolicitation, and the solicitation itself with the due date and instructions. Award notices show who won, which tells you who your competitors are.
+
+Set-asides. Some purchases are reserved for small businesses, and some for women-owned, veteran-owned, service-disabled veteran-owned, HUBZone or 8(a) firms. You may only bid on a set-aside you qualify for, and some certifications need proof from SBA or the VA. Notices that are "full and open" make you compete against every size of business.
+
+NAICS codes. Every notice carries a six-digit industry code, and the size standard that decides whether you count as small depends on it. Pick the codes that describe what you really sell, and list them in your SAM.gov registration.
+
+Registration comes first. You need an active SAM.gov registration to be awarded a contract. It also assigns your CAGE code.
+
+Your capability statement is a one-page summary of what you do, your codes, certifications, past performance and contact details. Contracting officers keep them. Aria can draft one from your facts and mark what is missing.
+
+Start small: sources sought notices, subcontracting to a larger prime, and local government bids are easier first wins than a large federal solicitation. Free help is available from Procurement Technical Assistance Centers and Small Business Development Centers.`,
+          resources: [SAM, SBA],
+          assignment: { prompt: 'In Contracts & loans, pick your type of work and certifications and run a search. Choose one opportunity and write what you would need to bid: registration, documents, pricing, and the date you would start.', tool: 'NONE' },
+        },
+        {
           id: 'gs-business', title: 'Small businesses', minutes: 9, asOf: ASM,
           blurb: 'Loans, contracts and research awards — plus the few grants that do accept businesses.',
           body: `Most federal grants exclude for-profit businesses, so small businesses should look broadly.

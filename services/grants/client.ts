@@ -5,6 +5,8 @@ import type { ReadinessReport, Question } from './readiness';
 import type { CopyRow } from './forms';
 import type { CouncilReview, NoticeCtx } from './council';
 import type { ApplicantKind } from '../dataCommons/grants';
+import type { ContractSearchResult, CertKey } from '../dataCommons/contracts';
+import type { FinancePurpose, Recommendation, FREE_HELP } from '../dataCommons/financing';
 
 export type { Profile, ReadinessReport, Question, CopyRow, CouncilReview, NoticeCtx, ApplicantKind };
 
@@ -55,4 +57,18 @@ export const grantsApi = {
     call<Draft>(`${base(orgId)}/draft`, { method: 'POST', body: JSON.stringify({ opportunityId, section, facts, instructions }) }),
   council: (orgId: string, opportunityId: string, sections: Record<string, string>, facts: string[], draft?: string) =>
     call<CouncilReview>(`${base(orgId)}/council`, { method: 'POST', body: JSON.stringify({ opportunityId, sections, facts, draft }) }),
+};
+
+export type ContractsResponse = ContractSearchResult & { usedNaics: string[]; usedCerts: CertKey[]; report: ReadinessReport; next: Question | null };
+export interface FinancingResponse {
+  asOf: string; purpose: FinancePurpose; amount?: number; recommendations: Recommendation[]; disclaimer: string;
+  help: typeof FREE_HELP;
+}
+
+export const businessApi = {
+  contracts: (orgId: string, body: { naics?: string[]; keywords?: string[]; certs?: CertKey[]; includeIneligible?: boolean; state?: string; skipped?: string[] }) =>
+    call<ContractsResponse>(`${base(orgId)}/contracts`, { method: 'POST', body: JSON.stringify(body) }),
+  options: () => call<{ businessTypes: { key: string; label: string; naics: string[] }[]; certifications: { key: CertKey; label: string; hint: string }[] }>('/api/data/contracts/options'),
+  financing: (purpose: FinancePurpose, amount?: number, disaster?: boolean) =>
+    call<FinancingResponse>(`/api/data/financing?purpose=${encodeURIComponent(purpose)}${amount ? `&amount=${amount}` : ''}${disaster ? '&disaster=1' : ''}`),
 };

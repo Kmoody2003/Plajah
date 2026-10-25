@@ -209,6 +209,7 @@ export const SECTIONS: Record<string, { title: string; guide: string }> = {
   capacity: { title: 'Organizational capacity', guide: 'Why this organization can deliver: history, staff, systems, experience, fiscal management. Facts only.' },
   sustainability: { title: 'Sustainability', guide: 'How the work continues after the grant: other funding, partnerships, earned income, institutional commitment.' },
   budgetJustification: { title: 'Budget justification', guide: 'For each budget line: what it buys, how the amount was calculated, and which activity it supports. Show the arithmetic.' },
+  capability: { title: 'Capability statement', guide: 'A one-page summary for a government buyer: what you do, your NAICS codes, certifications, past performance (named customers and what you delivered), key people, and how to contact you. Facts only; no claims you cannot document.' },
   title: { title: 'Project title', guide: 'A specific title under 12 words that says what happens and where.' },
 };
 
