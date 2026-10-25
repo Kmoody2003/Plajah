@@ -25,6 +25,7 @@ import {
 import MuseumStudy from './MuseumStudy';
 
 const SchoolView = lazy(() => import('../school/SchoolView'));
+const ObjectStudy = lazy(() => import('../museum/ObjectStudy'));
 export const AC_ACCENT = '#E5B94E';
 
 type Tab = 'PROGRAMS' | 'CATALOG' | 'LESSONS' | 'STUDIO' | 'CRITIQUE' | 'PORTFOLIO' | 'COLLECTIONS';
@@ -196,6 +197,13 @@ const StudioTab: React.FC<{ studio: StudioState; setStudio: (s: StudioState) => 
         {sub && <span className="ml-3 text-[11px] text-white/40">handed in {new Date(sub.at).toLocaleDateString()}</span>}
       </div>
       {unit.study?.length ? <MuseumStudy refs={unit.study} audience={audience} accent={AC_ACCENT} /> : null}
+      <div className={card}>
+        <p className={label} style={{ color: AC_ACCENT }}>Object study — look, describe, analyze, interpret, place it</p>
+        <Suspense fallback={null}>
+          <ObjectStudy key={key} topic={`${course.title} ${unit.title}`} educationSafe={audience !== 'adult'}
+            onSave={(o, answers) => setStudio({ ...studio, pieces: [{ id: `${Date.now()}`, title: `Study: ${o.title}`, unit: key, link: o.sourceUrl, statement: Object.values(answers).filter(Boolean).join(' · ').slice(0, 1200), at: Date.now() }, ...studio.pieces] })} />
+        </Suspense>
+      </div>
       {fmt && (
         <div className={card}>
           <p className={label} style={{ color: AC_ACCENT }}>Critique · {fmt.title}</p>
