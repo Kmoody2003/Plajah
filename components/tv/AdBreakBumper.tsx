@@ -7,6 +7,7 @@ import { fetchPlatformMedia } from '../../services/platformMediaService';
 import { getSatellitePosition } from '../../services/radioEngine';
 import ComingUpNextBumper, { type UpNextItem } from './ComingUpNextBumper';
 import DonationModal from '../DonationModal';
+import PollSpot from './PollSpot';
 
 /**
  * AdBreakBumper — the default "we'll be back shortly" filler for a FAST/TV ad break that has no user
@@ -32,9 +33,22 @@ interface Props {
   muted?: boolean;
   /** Fired once when the break's time is up — the player uses this to return to scheduled programming. */
   onComplete?: () => void;
+  /** Station logo reveals. One opens the break; a second airs at the end, leading into the programme. */
+  identUrls?: string[];
+  /** The channel's Fan Vote room: open polls are shown, and votable, for the whole break. */
+  pollRoom?: string;
+  /** The break before a Fan Vote slot: announce this (locked) ballot's result instead of the usual break. */
+  announcePollId?: string;
+  /** The channel's own fun vignettes, mixed into the break's video rotation. */
+  vignetteUrls?: string[];
+  /** Plajah's own promo spots for this break (see services/promos/platformPromos). */
+  promoSpots?: Array<{ url: string; title: string }>;
 }
 
-const AdBreakBumper: React.FC<Props> = ({ channelName, durationSec, upcoming = [], logoUrl, accent = ORANGE, muted = false, onComplete }) => {
+const AdBreakBumper: React.FC<Props> = ({ channelName, durationSec, upcoming = [], logoUrl, accent = ORANGE, muted = false, onComplete, identUrls = [], pollRoom, announcePollId, vignetteUrls = [], promoSpots = [] }) => {
+  const [identUrl, setIdentUrl] = useState<string | null>(identUrls[0] || null);
+  const identOnRef = useRef(false);
+  identOnRef.current = !!identUrl;
   const [track, setTrack] = useState<Track | null>(null);
   const [ads, setAds] = useState<AdConfig[]>([]);
   const [adIdx, setAdIdx] = useState(0);
@@ -104,7 +118,18 @@ const AdBreakBumper: React.FC<Props> = ({ channelName, durationSec, upcoming = [
       // break varies between them each time.
       const pool = [...platBumpers, ...platPromos, ...platAds].filter(a => a.url).map(a => ({ url: a.url, title: a.title }));
       for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
-      setPlatformVids(pool);
+      // The channel's own vignettes lead the rotation and then alternate with the platform spots,
+      // so every break has some and they never bunch up.
+      const vig = [...vignetteUrls].sort(() => Math.random() - 0.5).map((url, n) => ({ url, title: `Vignette ${n + 1}` }));
+      // Plajah's own promo spots join the same rotation (more of them on the heavy-rotation channels).
+      const promos = [...promoSpots].sort(() => Math.random() - 0.5);
+      const mixed: { url: string; title: string }[] = [];
+      for (let k = 0; k < Math.max(vig.length, pool.length, promos.length); k++) {
+        if (vig[k]) mixed.push(vig[k]);
+        if (promos[k]) mixed.push(promos[k]);
+        if (pool[k]) mixed.push(pool[k]);
+      }
+      setPlatformVids(mixed);
     })();
     return () => { alive = false; };
   }, []);
@@ -152,6 +177,7 @@ const AdBreakBumper: React.FC<Props> = ({ channelName, durationSec, upcoming = [
       else if (remaining < fadeSec) v = Math.max(0, remaining / Math.max(0.1, fadeSec));
       // Platform bumper videos on screen → fade FM to silence over ~1s, then pause it.
       if (duckRef.current) v = Math.min(v, Math.max(0, 1 - (Date.now() - duckStartRef.current) / 1000));
+      if (identOnRef.current) v = 0;
       const safeV = Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0;
       a.volume = muted ? 0 : safeV;
       if (duckRef.current && a.volume <= 0.01 && !a.paused) { try { a.pause(); } catch { /* */ } }
@@ -167,6 +193,14 @@ const AdBreakBumper: React.FC<Props> = ({ channelName, durationSec, upcoming = [
     const t = setTimeout(() => setPhase('ads'), adsStartSec * 1000);
     return () => clearTimeout(t);
   }, [canShowAds, adsStartSec, platformVids.length, ads.length]);
+
+  // Closing ident: leads into the programme. Only in a break long enough to carry both reveals.
+  useEffect(() => {
+    const closing = identUrls[1] || identUrls[0];
+    if (!closing || totalSec < 45) return;
+    const t = setTimeout(() => setIdentUrl(closing), Math.max(0, totalSec - 10) * 1000);
+    return () => clearTimeout(t);
+  }, [identUrls[0], identUrls[1], totalSec]);
 
   // Cycle the ad-rail IMAGES only when there are no platform bumper videos (those cycle on `ended`).
   useEffect(() => {
@@ -258,8 +292,24 @@ const AdBreakBumper: React.FC<Props> = ({ channelName, durationSec, upcoming = [
         </>
       )}
 
+      {identUrl && (
+        <video
+          key={identUrl}
+          src={identUrl}
+          className="absolute inset-0 z-20 w-full h-full object-contain bg-black"
+          autoPlay playsInline muted={muted}
+          onEnded={() => setIdentUrl(null)}
+          onError={() => setIdentUrl(null)}
+        />
+      )}
+
+      {/* Interactive platform spot: live, votable polls over the break; the results card before a Fan Vote slot. */}
+      {pollRoom && (
+        <PollSpot room={pollRoom} mode={announcePollId ? 'announce' : 'vote'} pollId={announcePollId} accent={accent} />
+      )}
+
       {/* Coming-up-next overlay for the first few seconds of the break */}
-      {showUpNext && upcoming.length > 0 && (
+      {showUpNext && upcoming.length > 0 && !announcePollId && (
         <div className="absolute inset-0 animate-in fade-in duration-500">
           <ComingUpNextBumper channelName={channelName} logoUrl={logoUrl} items={upcoming} accent={accent} />
         </div>

@@ -31,6 +31,7 @@
 import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { dbIdFor } from '../services/opsCollections';
+import { announceWinner } from '../services/fast/winnerAnnouncement';
 import {
   addDays, adPlanFor, airingTimes, applyWinnerToDay, clampCutoff, countsToArray, daySeconds, decideWinner,
   dropUndefined, hhmmToSec, layoutDay, pickBallot, replaceVoteGroup, reservedSecFor, scheduleRoundId, secToHHMM,
@@ -296,7 +297,15 @@ async function lockBallot(deps: FastVoteDeps, poll: LivePoll, now: number, log: 
   await settleFunding(deps, fresh, log);
   await deps.patch('livePolls', fresh.id, { status: 'LOCKED', winnerIdx, winnerReason: reason, lockedAt: now });
   log.push(`${fresh.id}: locked → ${fresh.options[winnerIdx]?.label} (${reason}, ${counts.join('/')})`);
-  return readPoll(deps, fresh.id);
+  const locked = await readPoll(deps, fresh.id);
+  // Tell people who won (Plajah post + connected social accounts). Never blocks scheduling.
+  if (locked) {
+    try {
+      const line = await announceWinner(deps, locked);
+      if (line) log.push(line);
+    } catch (e: any) { log.push(`${fresh.id}: winner announcement failed — ${String(e?.message || e).slice(0, 160)}`); }
+  }
+  return locked;
 }
 
 const previousWinnerId = (prev: LivePoll | null): string[] =>
@@ -353,6 +362,9 @@ async function horrorBallot(deps: FastVoteDeps, dateKey: string, features: VoteO
   }, now, log);
 }
 
+/** Bump when the day layout changes shape, so already-built days are re-laid. 2 = a break always separates two programmes; 3 = the break before the vote block announces its result. */
+const H_LAYOUT_VERSION = 3;
+
 function leadingOption(poll: LivePoll): VoteOption | undefined {
   const counts = countsToArray(poll.counts, poll.options.length);
   const top = Math.max(0, ...counts);
@@ -388,7 +400,9 @@ async function tickHorrorClassics(deps: FastVoteDeps, now: number, log: string[]
     const wd = String(weekdayOf(dateKey));
     const roundId = scheduleRoundId(H_CH, H_SLOT.id, dateKey);
     const poll = ballots[dateKey] ?? null;
-    const alreadyBuilt = builtFor[wd] === dateKey && Array.isArray(weeklySlots[wd]) && weeklySlots[wd].length > 0;
+    // Days laid out before a break was guaranteed between programmes are re-laid (except the one on air).
+    const layoutCurrent = i === 0 || existing?.layoutVersion === H_LAYOUT_VERSION;
+    const alreadyBuilt = layoutCurrent && builtFor[wd] === dateKey && Array.isArray(weeklySlots[wd]) && weeklySlots[wd].length > 0;
     const builtWithBallot = alreadyBuilt && weeklySlots[wd].some(s => s.voteRoundId === roundId && (s as any).ballotOpen);
 
     if (poll?.status === 'LOCKED' && poll.winnerIdx != null && alreadyBuilt) {
@@ -425,8 +439,9 @@ async function tickHorrorClassics(deps: FastVoteDeps, now: number, log: string[]
     adFrequencyMinutes: H_ADS.midrollEverySec / 60, adDurationSeconds: H_ADS.breakSec, commercialFree: false,
     slots: dropUndefined(weeklySlots[String(weekdayOf(today))] || []),
     weeklySlots: Object.fromEntries(Object.entries(weeklySlots).map(([k, v]) => [k, dropUndefined(v)])),
-    weeklyBuiltFor: builtFor, lastUpdated: now,
+    weeklyBuiltFor: builtFor, layoutVersion: H_LAYOUT_VERSION, lastUpdated: now,
   };
+  if (existing && existing.layoutVersion !== H_LAYOUT_VERSION && !dryRun) changed = true;
   if (changed && !dryRun) await deps.patch('fast_channel_schedules', H_CH, doc);
   return { changed, preview: dryRun ? doc : undefined };
 }

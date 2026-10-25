@@ -18,6 +18,8 @@ import { probeDurations } from '../services/mediaProbe';
 import { now as clockNow, zonedDayIndex } from '../services/platformClock';
 import { ChannelVoteStrip, voteRoomFor } from './fast/ChannelVoteStrip';
 import AdBreakBumper from './tv/AdBreakBumper';
+import { stationIdentsFor, stationVignettesFor } from '../services/fast/stationIdents';
+import { promoSpotsForBreak } from '../services/promos/platformPromos';
 import ComingUpNextBumper, { type UpNextItem } from './tv/ComingUpNextBumper';
 import { fadeVolume, playAudible, type FadeHandle } from '../utils/audioFade';
 
@@ -1088,7 +1090,7 @@ const LiveTvPlus: React.FC<{
   // loop: once its window elapses the clock resolves to the next programme no matter what the player
   // did (the old index pointer could re-enter the ad and never escape — that was the looping bug).
   const [fastMedia, setFastMedia] = useState<{ url: string; offset: number; key: string } | null>(null);
-  const [fastAd, setFastAd] = useState<{ key: string; durationSec: number; upcoming: UpNextItem[] } | null>(null);
+  const [fastAd, setFastAd] = useState<{ key: string; durationSec: number; upcoming: UpNextItem[]; announcePollId?: string } | null>(null);
   const [fastFiller, setFastFiller] = useState<{ key: string; upcoming: UpNextItem[] } | null>(null);
   const fastSlotsRef = useRef<FastChannelSlot[]>([]);
   const fastSchedRef = useRef<FastChannelSchedule | null>(null);
@@ -1150,7 +1152,7 @@ const LiveTvPlus: React.FC<{
       // surface (FM audio + cover art + platform bumpers) for the window.
       if (m.isAd || m.kind === 'FM') {
         setFastMedia(null); setFastFiller(null);
-        setFastAd({ key, durationSec: Math.max(3, Math.round(remaining)), upcoming: upNextFrom(slots, idx) });
+        setFastAd({ key, durationSec: Math.max(3, Math.round(remaining)), upcoming: upNextFrom(slots, idx), announcePollId: (s as any).announceRoundId });
         return;
       }
       setFastAd(null);
@@ -1395,7 +1397,7 @@ const LiveTvPlus: React.FC<{
         {/* Ad break with no user ad → the Plajah "back shortly" bumper (Plajah FM + coming-up-next).
             onComplete re-syncs from the clock; the boundary timer is the real guarantee it ends. */}
         {playing?.kind === 'fast' && fastAd && (
-          <AdBreakBumper key={fastAd.key} channelName={playing.name} durationSec={fastAd.durationSec} upcoming={fastAd.upcoming} accent={playing.accent} muted={muted} onComplete={() => syncRef.current()} />
+          <AdBreakBumper key={fastAd.key} channelName={playing.name} durationSec={fastAd.durationSec} upcoming={fastAd.upcoming} accent={playing.accent} muted={muted} onComplete={() => syncRef.current()} identUrls={stationIdentsFor(playing.plajahId, fastAd.key)} pollRoom={voteRoomFor(playing) || undefined} announcePollId={fastAd.announcePollId} vignetteUrls={stationVignettesFor(playing.plajahId)} promoSpots={promoSpotsForBreak(playing)} />
         )}
 
         {/* Filler: the scheduled programme ended early or can't play — hold the branded up-next card

@@ -556,15 +556,19 @@ const AdBillboardRenderer = retryLazy(() => import('./components/AdBillboardRend
 const RelloView = retryLazy(() => import('./components/RelloView'));
 
 import { useGlobalPlayer, useGlobalPlayerState, useGlobalPlayerProgress } from './contexts/GlobalPlayerContext';
+import PromoBillboard from './components/ads/PromoBillboard';
+import { panelPromos } from './services/promos/platformPromos';
 
 type AdSlot =
   | { kind: 'plus' }
   | { kind: 'profile'; profile: import('./types').UserProfile }
   | { kind: 'album'; album: import('./types').Album; profile: import('./types').UserProfile }
   | { kind: 'custom_ad'; ad: import('./types').UserAd; profile: import('./types').UserProfile }
-  | { kind: 'product'; product: import('./data/demoShowcase').DemoProduct };
+  | { kind: 'product'; product: import('./data/demoShowcase').DemoProduct }
+  | { kind: 'promo'; promo: import('./services/promos/platformPromos').PlajahPromo };
 
 const AD_DURATION: Record<AdSlot['kind'], number> = {
+  promo:     30000,
   plus:      25000,
   profile:   15000,
   album:     45000,
@@ -4314,7 +4318,18 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           if (album) slots.push({ kind: 'album', album, profile });
         }
       }
-      setAdSlots(slots);
+      // Plajah's own promo spots lead the rotation and come round again every few slots.
+      const promos = panelPromos();
+      if (promos.length) {
+        const withPromos: AdSlot[] = [];
+        let p = 0;
+        slots.forEach((s, i) => {
+          if (i % 3 === 1) withPromos.push({ kind: 'promo', promo: promos[p++ % promos.length] });
+          withPromos.push(s);
+        });
+        if (!withPromos.some(s => s.kind === 'promo')) withPromos.push({ kind: 'promo', promo: promos[0] });
+        setAdSlots(withPromos);
+      } else setAdSlots(slots);
     }).catch(() => {});
   }, []);
 
@@ -4653,7 +4668,17 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 /* ── Compute slot content, then crossfade-wrap ── */
                 let slotContent: React.ReactNode;
 
-                if (currentSlot.kind === 'custom_ad') {
+                if (currentSlot.kind === 'promo') {
+                  slotContent = (
+                    <PromoBillboard
+                      key={`promo-${adSlotIdx}`}
+                      promo={currentSlot.promo}
+                      dotCount={dotTotal}
+                      dotIdx={dotActive}
+                      onTune={ch => { setLiveChannelFocus({ plajahId: ch.plajahId, ownerId: ch.ownerId }); setView('LIVE_HUB' as AppView); }}
+                    />
+                  );
+                } else if (currentSlot.kind === 'custom_ad') {
                   slotContent = (
                     <Suspense fallback={null}>
                       <AdBillboardRenderer

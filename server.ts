@@ -130,6 +130,7 @@ import { buildFfmpegArgs } from './services/crossover/engine';
 import { extFor } from './services/crossover/formats';
 import type { Recipe as CxRecipe, MediaKind as CxKind, MediaProbe as CxProbe } from './services/crossover/types';
 import { ARIA_ART_COUNCIL_METHOD } from './services/aria/ariaCreativeRoles';
+import { ravencrestCanonDigest } from './services/game/council/ravencrestCanon';
 import { protectPlaylist } from './services/choraUploadQueue';
 import { createCouncil } from './services/council/councilRoutes';
 import { createEditorialCouncil } from './services/editorial/council/editorialRoutes';
@@ -13195,6 +13196,8 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
         const parts: string[] = [];
         parts.push(`SURFACE: ${surface.surface}${surface.domain ? ` (domain: ${surface.domain})` : ''}`);
         if (surface.creativeRole) parts.push(`EXPERT LENS: ${surface.creativeRole.label} — ${surface.creativeRole.promise}${Array.isArray(surface.creativeRole.disciplines) ? `\nCRAFT DEPTH: ${surface.creativeRole.disciplines.join(', ')}` : ''}`);
+        // Games and interactive worlds: the Ravencrest Canon rides along (server-side text, never client-supplied).
+        if (surface.creativeRole?.id === 'GAME_DIRECTOR') parts.push(ravencrestCanonDigest());
         if (surface.title)   parts.push(`WHAT THE USER IS DOING: ${surface.title}`);
         if (surface.summary) parts.push(`STATE: ${surface.summary}`);
         if (surface.selection) parts.push(`USER'S CURRENT SELECTION:\n"""\n${String(surface.selection).slice(0, 2000)}\n"""`);
@@ -13455,9 +13458,6 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
             : [];
           if (candidate?.title && candidate?.accurateDescription && candidate?.designLanguage && candidate?.template && colors.length >= 3) {
             designStudy = { ...candidate, palette: colors };
-            toolCalls.push({ name: 'design_reference_study', label: 'Created design-language study', status: 'done' });
-          }
-        } catch { /* malformed studies stay visible as ordinary prose only */ }
             // Resolve the study's museumConnections search terms to real open-access objects.
             try {
               const { searchMuseums } = await import('./services/museum');
@@ -13466,6 +13466,9 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
               const found = await Promise.all(terms.map((t: string) => searchMuseums(String(t), { limit: 3 }).catch(() => [])));
               designStudy.museumObjects = found.flat().slice(0, 10);
             } catch { /* grounding is best-effort */ }
+            toolCalls.push({ name: 'design_reference_study', label: 'Created design-language study', status: 'done' });
+          }
+        } catch { /* malformed studies stay visible as ordinary prose only */ }
       }
 
       // Strip raw build + action blocks from reply text for cleaner display
@@ -13701,10 +13704,10 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   });
   fastVotePledgeHook = fastVote.onPledgeCheckoutCompleted;
   app.use(fastVote.router);
+  app.use(createMuseumRouter({ limiter: apiLimiter }));
   app.use(createDataCommonsRouter({ limiter: apiLimiter }));
   app.use(createGrantsRouter({ limiter: apiLimiter }));
   // Admin countdown for API keys that expire on a schedule (SAM.gov: 90 days). Dates only, never the key.
-  app.use(createMuseumRouter({ limiter: apiLimiter }));
   app.use('/api/admin/key-rotation', createAdminKeysRouter({ authMiddleware, requireAdmin: requireVerifiedAdmin, limiter: apiLimiter }));
   app.use('/api/cora', express.json({ limit: '1mb' }), coraRouter);
 

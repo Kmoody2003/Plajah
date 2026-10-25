@@ -115,6 +115,8 @@ export type VoteAwareSlot = FastChannelSlot & {
   videoStartSec?: number;
   /** A creator's Fan Vote placeholder: the slot id of the VoteSlotConfig that decides it. */
   voteSlotId?: string;
+  /** The break right before a Fan Vote block: it announces this ballot's result instead of a normal break. */
+  announceRoundId?: string;
 };
 
 /** Ad layout for a channel: a break between programmes and, optionally, mid-roll breaks inside long
@@ -124,9 +126,22 @@ export interface AdPlan {
   breakSec: number;
   /** A mid-roll every this many seconds of programme (0 = between programmes only). */
   midrollEverySec: number;
+  /** Length of the short break that still separates two programmes when `breakSec` is 0 (e.g. the
+   *  filler after a fan-unlocked, commercial-free winner). Absent = no separator. */
+  separatorSec?: number;
 }
 
 export const NO_ADS: AdPlan = { breakSec: 0, midrollEverySec: 0 };
+
+/** Break between two programmes in a block that is otherwise commercial-free (station ident + Plajah FM). */
+export const SEPARATOR_SEC = 30;
+
+/** Seconds of break that must follow a programme so two never air back to back (0 on a channel
+ *  that is commercial-free by design). */
+export function separatorSecFor(plan: AdPlan, adFree = false): number {
+  if (!plan.breakSec) return plan.separatorSec || 0;
+  return adFree ? Math.min(plan.breakSec, SEPARATOR_SEC) : plan.breakSec;
+}
 
 /** Never leave a closing segment shorter than this after a mid-roll. */
 const MIN_TAIL_SEC = 300;
@@ -267,7 +282,8 @@ export function pickBallot(pool: readonly VoteOption[], count: number, excludeId
 /** Block length for a ballot: the longest choice, rounded up to the next 5 minutes. */
 export function reservedSecFor(options: readonly VoteOption[], plan: AdPlan = NO_ADS): number {
   // Sized for the ad-supported cut — an unlocked commercial-free airing is shorter, never longer.
-  const longest = Math.max(0, ...options.map(o => airedSec(o, plan)));
+  // Plus the break that closes the block, so the next programme never follows the winner directly.
+  const longest = Math.max(0, ...options.map(o => airedSec(o, plan))) + separatorSecFor(plan);
   return Math.ceil(longest / 300) * 300;
 }
 
@@ -372,7 +388,7 @@ function fillSpan(lenSec: number, order: VoteOption[], cursor: { i: number; used
   let left = lenSec;
   let n = 0;
   const used = (cursor.used ??= new Map());
-  const adBreakSec = plan.breakSec;
+  const adBreakSec = separatorSecFor(plan);
   const cost = (p: VoteOption) => airedSec(p, plan) + adBreakSec;
   // Among programmes that fit: the one shown least today, then the longest (smallest leftover).
   const bestFit = (cands: VoteOption[]) => cands.sort((a, b) => (used.get(a.videoId) || 0) - (used.get(b.videoId) || 0) || b.durationSec - a.durationSec)[0];
@@ -409,7 +425,12 @@ export function layoutDay(opts: DayLayoutOptions): VoteAwareSlot[] {
   if (vote) {
     const beforeLen = vote.startSec;
     const afterLen = DAY_SEC - vote.startSec - vote.reservedSec;
-    slots.push(...fillSpan(beforeLen, order, cursor, ads, `${dateKey}_am`, minFill));
+    const before = fillSpan(beforeLen, order, cursor, ads, `${dateKey}_am`, minFill);
+    // The last slot before the vote block is the results break: ballots lock an hour before air, so
+    // the winner is known by then. (It is only a break/intermission — never a programme.)
+    const lastBefore = before[before.length - 1];
+    if (lastBefore && lastBefore.type !== 'PUBLIC_DOMAIN') lastBefore.announceRoundId = vote.roundId;
+    slots.push(...before);
     slots.push(...voteBlockSlots(vote.roundId, vote.airing, vote.reservedSec, vote.pending, { fillPool: pool, ads, adFree: vote.adFree }));
     if (afterLen > 0) slots.push(...fillSpan(afterLen, order, cursor, ads, `${dateKey}_pm`, minFill));
   } else {
@@ -438,13 +459,21 @@ export function voteBlockSlots(
     if (opts.adFree && !airing.commercialFree) seg.bugLabel = 'COMMERCIAL-FREE · FAN SUPPORTED';
     return seg;
   });
-  const left = reservedSec - airedSec(airing, ads, !!opts.adFree);
+  let left = reservedSec - airedSec(airing, ads, !!opts.adFree);
   const out: VoteAwareSlot[] = [...segs];
+  // The winner is always followed by a break — never straight into the next programme. (A block
+  // reserved before this rule existed may have no room; it then ends in intermission as before.)
+  const sepSec = separatorSecFor(ads, !!opts.adFree);
+  if (sepSec > 0 && left >= sepSec) {
+    out.push({ ...adSlot(`vote_${roundId}_a`, sepSec), voteRoundId: roundId });
+    left -= sepSec;
+  }
   if (left > 0) {
     const fillPool = opts.fillPool ?? [];
     const others = fillPool.filter(p => p.videoId !== airing.videoId).slice().sort((a, b) => a.durationSec - b.durationSec);
-    // Fans paid for no commercials in this slot: the filler after the winner carries none either.
-    const fillAds = opts.adFree ? NO_ADS : ads;
+    // Fans paid for no commercials in this slot: the filler after the winner carries none either,
+    // only the short ident break between programmes.
+    const fillAds: AdPlan = opts.adFree ? { ...NO_ADS, separatorSec: sepSec } : ads;
     const rest = others.length
       ? fillSpan(left, others, { i: 0 }, fillAds, `vote_${roundId}_x`, 0)
       : [intermissionSlot(`vote_${roundId}_fill`, left)];
