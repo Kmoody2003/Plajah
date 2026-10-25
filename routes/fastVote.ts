@@ -6,31 +6,47 @@
 // vote per account, the closing time, and the tally.
 //
 // Storage (main DB):
-//   livePolls/{pollId}                 LivePoll (counts.{i} are atomic increments)
+//   livePolls/{pollId}                 LivePoll (counts.{i} and funding.pledgedCents are atomic increments)
 //   livePolls/{pollId}/votes/{uid}     { uid, choice, at }
+//   livePollPledges/{paymentIntentId}  { pollId, uid, amountCents, status: AUTHORIZED|CAPTURED|RELEASED|FAILED }
 //   livePollLocks/{pollId}             claim doc: whoever creates it locks the poll (exactly once)
 //   fastVoteState/tick_{minute}        claim doc: one scheduling tick per minute, however many callers
-//   fast_channel_schedules/{channelId} the channel's schedule (public read, existing collection)
+//   fast_channel_schedules/{id}        the channel's schedule (public read, existing collection)
+//
+// Two kinds of vote-to-schedule channel:
+//   • Plajah Horror Classics — platform-owned; the server lays out every day around the 9 PM ballot.
+//   • Creator channels — a creator puts Fan Vote slots into their own schedule (FastChannelManager →
+//     Fan Vote); the server only swaps each slot's placeholder for the winner. Their schedule doc
+//     carries `hasVoteSlots: true` and `voteSlots: CreatorVoteSlot[]`.
+//
+// Commercial-free funding: fans pledge toward a slot's goal through Stripe Checkout with MANUAL
+// capture — the card is only authorised. When voting closes the server captures every hold if the
+// goal was met (the airing then runs without ad breaks) and releases them all if it wasn't. Creator
+// slots pay the creator directly (Connect destination charge): Plajah's fee is 0% when the creator
+// has Plajah+, 5% otherwise. Plajah's own channels are collected by Plajah.
 //
 // The tick (POST /api/cron/fast-vote-tick, x-cron-key; also run opportunistically, throttled, when a
-// room is viewed) opens tomorrow's ballot, lays out the days, locks ballots whose voting has closed
-// and writes the winner into that day's schedule.
+// room is viewed in production) opens ballots, lays out / patches schedules, and locks ballots.
 
 import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { dbIdFor } from '../services/opsCollections';
 import {
-  addDays, airingTimes, applyWinnerToDay, countsToArray, daySeconds, decideWinner, dropUndefined,
-  hhmmToSec, layoutDay, pickBallot, reservedSecFor, scheduleRoundId, weekdayOf, zonedDateKey,
-  type LivePoll, type VoteAwareSlot, type VoteOption,
+  addDays, adPlanFor, airingTimes, applyWinnerToDay, clampCutoff, countsToArray, daySeconds, decideWinner,
+  dropUndefined, hhmmToSec, layoutDay, pickBallot, replaceVoteGroup, reservedSecFor, scheduleRoundId, secToHHMM,
+  voteBlockSlots, voteGroup, weekdayOf, zonedDateKey, zonedWallTimeToMs,
+  type AdPlan, type CreatorVoteSlot, type LivePoll, type VoteAwareSlot, type VoteOption,
 } from '../services/fast/voteSchedule';
 import {
-  HORROR_CLASSICS_AD_BREAK_SEC, HORROR_CLASSICS_CHANNEL_ID, HORROR_CLASSICS_NAME, HORROR_CLASSICS_NIGHTLY_SLOT,
-  HORROR_CLASSICS_PD_POOL, HORROR_CLASSICS_ROOM, HORROR_CLASSICS_TIMEZONE, MIN_FEATURE_SEC,
-  PUMPKIN_PATCH_ALBUM_ID, PUMPKIN_PATCH_BASE,
+  HORROR_CLASSICS_ADS, HORROR_CLASSICS_CHANNEL_ID, HORROR_CLASSICS_COMMERCIAL_FREE_GOAL_CENTS, HORROR_CLASSICS_NAME,
+  HORROR_CLASSICS_NIGHTLY_SLOT, HORROR_CLASSICS_PD_POOL, HORROR_CLASSICS_ROOM, HORROR_CLASSICS_TIMEZONE,
+  MIN_FEATURE_SEC, PUMPKIN_PATCH_ALBUM_ID, PUMPKIN_PATCH_BASE,
 } from '../data/horrorClassicsChannel';
 
 const PROJECT = 'gen-lang-client-0665118474';
+const MIN_PLEDGE_CENTS = 100;
+const MAX_PLEDGE_CENTS = 50_000;
+const PLATFORM_FEE_PCT_WITHOUT_PLUS = 0.05;
 
 export interface FastVoteDeps {
   authMiddleware: any;
@@ -44,6 +60,10 @@ export interface FastVoteDeps {
   createOnce: (collection: string, id: string, data: Record<string, any>) => Promise<'created' | 'exists' | 'error'>;
   query: (collection: string, filters: Array<{ field: string; op: string; value: any }>, limit?: number) => Promise<Array<{ id: string; data: Record<string, any> }>>;
   cronKeyOk: (req: any) => boolean;
+  getStripe: () => any;
+  trustedRequestOrigin: (req: any) => string;
+  /** Does this uid hold an active Plajah+ subscription? (fee waiver) */
+  hasPlajahPlus: (uid: string) => Promise<boolean>;
 }
 
 // ── Firestore REST bits the shared helpers don't cover (commit with transforms + preconditions) ──
@@ -62,6 +82,29 @@ function toFs(x: any): any {
   return { mapValue: { fields } };
 }
 
+async function commit(deps: FastVoteDeps, collection: string, writes: any[]): Promise<Response> {
+  return fetch(commitUrl(collection), {
+    method: 'POST',
+    headers: { ...(await deps.firestoreAuthHeaders()), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ writes }),
+  });
+}
+
+/** Patch ONE nested field (e.g. weeklySlots.`3`) without touching the rest of the doc — the
+ *  creator may be editing other days of their schedule at the same moment. */
+async function patchPath(deps: FastVoteDeps, collection: string, id: string, path: string[], value: any): Promise<boolean> {
+  let nested: any = value;
+  for (let i = path.length - 1; i >= 1; i--) nested = { [path[i]]: nested };
+  const res = await commit(deps, collection, [{
+    update: { name: docName(`${collection}/${id}`), fields: { [path[0]]: toFs(nested) } },
+    updateMask: { fieldPaths: [path.map(p => `\`${p}\``).join('.')] },
+  }]);
+  if (!res.ok) console.error(`[fast-vote] patch ${collection}/${id} ${path.join('.')}: HTTP ${res.status}`);
+  // Players re-check schedules with vote slots by lastUpdated — bump it with every change.
+  else await deps.patch(collection, id, { lastUpdated: Date.now() });
+  return res.ok;
+}
+
 /** Raw doc GET returning updateTime too (for the vote precondition). */
 async function getWithTime(deps: FastVoteDeps, path: string): Promise<{ data: Record<string, any>; updateTime: string } | null> {
   const res = await fetch(`https://firestore.googleapis.com/v1/${docName(path)}`, { headers: await deps.firestoreAuthHeaders() });
@@ -76,7 +119,7 @@ async function getWithTime(deps: FastVoteDeps, path: string): Promise<{ data: Re
 
 // ── Polls ───────────────────────────────────────────────────────────────────────────────────────
 
-/** The room's standing community polls. Created once; never reset. */
+/** The Halloween room's standing community polls. Created once; never reset. */
 const COMMUNITY_POLLS: Array<Pick<LivePoll, 'id' | 'question' | 'subtitle' | 'options'>> = [
   {
     id: 'halloween_pumpkin_mvp',
@@ -132,22 +175,19 @@ async function castVote(deps: FastVoteDeps, pollId: string, uid: string, choice:
     if (prevChoice === choice) return { ok: true };
     const transforms: any[] = [{ fieldPath: `counts.\`${choice}\``, increment: { integerValue: '1' } }];
     if (prevChoice !== null && Number.isInteger(prevChoice)) transforms.push({ fieldPath: `counts.\`${prevChoice}\``, increment: { integerValue: '-1' } });
-    const body = {
-      writes: [
-        {
-          update: { name: docName(votePath), fields: toFs({ uid, choice, at: now }).mapValue.fields },
-          currentDocument: prev ? { updateTime: prev.updateTime } : { exists: false },
-        },
-        {
-          // reachedAt.{i}: when this choice last gained a vote — the tie-break ("first to reach").
-          update: { name: docName(`livePolls/${pollId}`), fields: { reachedAt: toFs({ [String(choice)]: now }) } },
-          updateMask: { fieldPaths: [`reachedAt.\`${choice}\``] },
-          updateTransforms: transforms,
-          currentDocument: { exists: true },
-        },
-      ],
-    };
-    const res = await fetch(commitUrl('livePolls'), { method: 'POST', headers: { ...(await deps.firestoreAuthHeaders()), 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const res = await commit(deps, 'livePolls', [
+      {
+        update: { name: docName(votePath), fields: toFs({ uid, choice, at: now }).mapValue.fields },
+        currentDocument: prev ? { updateTime: prev.updateTime } : { exists: false },
+      },
+      {
+        // reachedAt.{i}: when this choice last gained a vote — the tie-break ("first to reach").
+        update: { name: docName(`livePolls/${pollId}`), fields: { reachedAt: toFs({ [String(choice)]: now }) } },
+        updateMask: { fieldPaths: [`reachedAt.\`${choice}\``] },
+        updateTransforms: transforms,
+        currentDocument: { exists: true },
+      },
+    ]);
     if (res.ok) return { ok: true };
     if (res.status !== 409 && res.status !== 400) return { ok: false, status: 502, error: 'Could not record your vote' };
     // Precondition failed: the same account voted in parallel. Re-read and retry.
@@ -155,7 +195,125 @@ async function castVote(deps: FastVoteDeps, pollId: string, uid: string, choice:
   return { ok: false, status: 409, error: 'Your vote changed elsewhere — try again' };
 }
 
-// ── The Horror Classics channel ─────────────────────────────────────────────────────────────────
+// ── Commercial-free funding ─────────────────────────────────────────────────────────────────────
+
+/** Record a completed Checkout for a slot pledge (webhook or the return-page confirm — idempotent).
+ *  A hold that lands after voting closed is released on the spot. */
+async function recordPledgeFromSession(deps: FastVoteDeps, session: any): Promise<{ ok: boolean; reason?: string }> {
+  const meta = session?.metadata || {};
+  if (meta.type !== 'fast_slot_pledge' || !meta.pollId || !session.payment_intent) return { ok: false, reason: 'not a slot pledge' };
+  const stripe = deps.getStripe();
+  const piId = typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent.id;
+  const pi = await stripe.paymentIntents.retrieve(piId);
+  if (pi.status !== 'requires_capture') return { ok: false, reason: `payment is ${pi.status}` };
+  const poll = await readPoll(deps, meta.pollId);
+  const closed = !poll || poll.status !== 'OPEN' || !poll.funding || (poll.closesAtMs && Date.now() >= poll.closesAtMs);
+  if (closed) {
+    await stripe.paymentIntents.cancel(piId).catch(() => {});
+    await deps.createOnce('livePollPledges', piId, { pollId: meta.pollId, uid: meta.uid || '', amountCents: pi.amount, status: 'RELEASED', reason: 'voting had closed', createdAt: Date.now() });
+    return { ok: false, reason: 'voting had closed — your card was not charged' };
+  }
+  const made = await deps.createOnce('livePollPledges', piId, {
+    pollId: meta.pollId, uid: meta.uid || '', amountCents: pi.amount, status: 'AUTHORIZED', createdAt: Date.now(),
+  });
+  if (made === 'created') {
+    await commit(deps, 'livePolls', [{
+      transform: {
+        document: docName(`livePolls/${meta.pollId}`),
+        fieldTransforms: [
+          { fieldPath: 'funding.pledgedCents', increment: { integerValue: String(pi.amount) } },
+          { fieldPath: 'funding.pledgeCount', increment: { integerValue: '1' } },
+        ],
+      },
+    }]);
+  }
+  return { ok: true };
+}
+
+/** At lock: goal met → capture every hold and air commercial-free; missed → release them all. */
+async function settleFunding(deps: FastVoteDeps, poll: LivePoll, log: string[]): Promise<boolean> {
+  const f = poll.funding;
+  if (!f || !f.goalCents) return false;
+  const holds = await deps.query('livePollPledges', [
+    { field: 'pollId', op: 'EQUAL', value: poll.id },
+    { field: 'status', op: 'EQUAL', value: 'AUTHORIZED' },
+  ], 500);
+  const pledged = holds.reduce((a, h) => a + (Number(h.data.amountCents) || 0), 0);
+  const met = pledged >= f.goalCents;
+  const stripe = holds.length ? deps.getStripe() : null;
+  let captured = 0;
+  for (const h of holds) {
+    try {
+      if (met) { await stripe.paymentIntents.capture(h.id); captured += Number(h.data.amountCents) || 0; }
+      else await stripe.paymentIntents.cancel(h.id);
+      await deps.patch('livePollPledges', h.id, { status: met ? 'CAPTURED' : 'RELEASED', settledAt: Date.now() });
+    } catch (e: any) {
+      await deps.patch('livePollPledges', h.id, { status: 'FAILED', error: String(e?.message || e).slice(0, 200), settledAt: Date.now() });
+    }
+  }
+  await deps.patch('livePolls', poll.id, { funding: { ...f, pledgedCents: pledged, pledgeCount: holds.length, unlocked: met, released: !met, capturedCents: captured } });
+  log.push(`${poll.id}: funding ${met ? 'met — charged' : 'missed — released'} (${pledged}/${f.goalCents}¢ from ${holds.length})`);
+  return met;
+}
+
+// ── Ballots + locking (shared by both channel kinds) ────────────────────────────────────────────
+
+interface BallotSpec {
+  id: string;
+  roomId: string;
+  question: string;
+  subtitle: string;
+  choices: VoteOption[];
+  times: { airAtMs: number; opensAtMs: number; closesAtMs: number };
+  schedule: { channelId: string; slotId: string; date: string; timezone: string; reservedSec: number };
+  goalCents?: number;
+  ownerUid?: string;
+}
+
+async function createBallot(deps: FastVoteDeps, b: BallotSpec, now: number, log: string[]): Promise<LivePoll | null> {
+  const poll: LivePoll = {
+    id: b.id, roomId: b.roomId, kind: 'SCHEDULE', question: b.question, subtitle: b.subtitle,
+    options: b.choices.map(c => ({ label: c.year ? `${c.title} (${c.year})` : c.title, programme: c })),
+    counts: {}, status: 'OPEN', active: true, createdAt: now, closesAtMs: b.times.closesAtMs,
+    schedule: { ...b.schedule, ...b.times },
+    ...(b.goalCents ? { funding: { goalCents: b.goalCents, pledgedCents: 0, pledgeCount: 0 } } : {}),
+    ...(b.ownerUid ? { ownerUid: b.ownerUid } : {}),
+  };
+  const made = await deps.createOnce('livePolls', b.id, JSON.parse(JSON.stringify(poll)));
+  if (made === 'error') { log.push(`${b.id}: ballot create failed`); return null; }
+  if (made === 'created') log.push(`${b.id}: ballot opened (${b.choices.map(c => c.title).join(' / ')})`);
+  return made === 'created' ? poll : readPoll(deps, b.id);
+}
+
+/** Lock a ballot whose voting has closed, exactly once: tally, settle funding, record the winner. */
+async function lockBallot(deps: FastVoteDeps, poll: LivePoll, now: number, log: string[]): Promise<LivePoll | null> {
+  const claim = await deps.createOnce('livePollLocks', poll.id, { at: now });
+  if (claim !== 'created') return readPoll(deps, poll.id);
+  const fresh = (await readPoll(deps, poll.id)) || poll;
+  const counts = countsToArray(fresh.counts, fresh.options.length);
+  const reached = fresh.options.map((_, i) => Number((fresh as any).reachedAt?.[String(i)]) || undefined);
+  const { winnerIdx, reason } = decideWinner(counts, reached, fresh.id);
+  await settleFunding(deps, fresh, log);
+  await deps.patch('livePolls', fresh.id, { status: 'LOCKED', winnerIdx, winnerReason: reason, lockedAt: now });
+  log.push(`${fresh.id}: locked → ${fresh.options[winnerIdx]?.label} (${reason}, ${counts.join('/')})`);
+  return readPoll(deps, fresh.id);
+}
+
+const previousWinnerId = (prev: LivePoll | null): string[] =>
+  prev?.status === 'LOCKED' && prev.winnerIdx != null ? [prev.options[prev.winnerIdx]?.programme?.videoId].filter(Boolean) as string[] : [];
+
+function dayLabel(dateKey: string): string {
+  const [y, m, d] = dateKey.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'UTC' });
+}
+
+function clockLabel(hhmm: string): string {
+  const [h, m] = hhmm.split(':').map(Number);
+  const ap = h >= 12 ? 'PM' : 'AM';
+  return `${((h + 11) % 12) + 1}${m ? `:${String(m).padStart(2, '0')}` : ''} ${ap}`;
+}
+
+// ── Plajah Horror Classics ──────────────────────────────────────────────────────────────────────
 
 /** Pumpkin Patch's stream + real running time from its album. Excluded (with a reason) when the
  *  album doesn't carry both — a guessed length would push every later programme off its time. */
@@ -171,90 +329,179 @@ async function resolvePumpkinPatch(deps: FastVoteDeps): Promise<{ option: VoteOp
   return { option: { ...PUMPKIN_PATCH_BASE, videoUrl: url, durationSec: dur } };
 }
 
-async function channelPool(deps: FastVoteDeps) {
-  const pp = await resolvePumpkinPatch(deps);
-  const pool = pp.option ? [...HORROR_CLASSICS_PD_POOL, pp.option] : [...HORROR_CLASSICS_PD_POOL];
-  const features = pool.filter(p => p.durationSec >= MIN_FEATURE_SEC);
-  return { pool, features, pumpkinPatch: pp };
-}
+const H_SLOT = HORROR_CLASSICS_NIGHTLY_SLOT;
+const H_TZ = HORROR_CLASSICS_TIMEZONE;
+const H_CH = HORROR_CLASSICS_CHANNEL_ID;
+const H_ADS = HORROR_CLASSICS_ADS;
 
-const SLOT = HORROR_CLASSICS_NIGHTLY_SLOT;
-const TZ = HORROR_CLASSICS_TIMEZONE;
-const CH = HORROR_CLASSICS_CHANNEL_ID;
-
-function nightlyQuestion(dateKey: string): string {
-  const [y, m, d] = dateKey.split('-').map(Number);
-  const day = new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'UTC' });
-  return `Pick the 9 PM movie for ${day}`;
-}
-
-function scheduleDoc(weeklySlots: Record<string, VoteAwareSlot[]>, builtFor: Record<string, string>, todayKey: string, now: number) {
-  return {
-    userId: CH,
-    channelName: HORROR_CLASSICS_NAME,
-    platformOwned: true,
-    timezone: TZ,
-    midnightAnchored: true,
-    stationKind: 'tv',
-    loopSchedule: false,
-    autoGenerated: true,
-    includePublicDomain: true,
-    adFrequencyMinutes: 0,
-    adDurationSeconds: HORROR_CLASSICS_AD_BREAK_SEC,
-    commercialFree: false,
-    slots: weeklySlots[String(weekdayOf(todayKey))] || [],
-    weeklySlots,
-    weeklyBuiltFor: builtFor,
-    lastUpdated: now,
-  };
-}
-
-/** Open a ballot for `dateKey` (if due and not open yet) and lay out that day around it. */
-async function ensureBallot(deps: FastVoteDeps, dateKey: string, features: VoteOption[], now: number, log: string[]): Promise<LivePoll | null> {
-  const id = scheduleRoundId(CH, SLOT.id, dateKey);
+async function horrorBallot(deps: FastVoteDeps, dateKey: string, features: VoteOption[], now: number, log: string[]): Promise<LivePoll | null> {
+  const id = scheduleRoundId(H_CH, H_SLOT.id, dateKey);
   const existing = await readPoll(deps, id);
   if (existing) return existing;
-  const times = airingTimes(SLOT, dateKey, TZ);
-  if (now < times.opensAtMs) return null;
-  if (now >= times.airAtMs) return null; // too late to ballot this airing; the provisional day airs as built
-
+  const times = airingTimes(H_SLOT, dateKey, H_TZ);
+  if (now < times.opensAtMs || now >= times.airAtMs) return null;
   // Never offer what won this slot last night — which means last night must be decided first.
-  const prev = await readPoll(deps, scheduleRoundId(CH, SLOT.id, addDays(dateKey, -1)));
-  if (prev && prev.status !== 'LOCKED' && now < (prev.schedule?.airAtMs ?? 0)) { log.push(`${dateKey}: waiting for ${addDays(dateKey, -1)} to lock`); return null; }
-  const exclude = SLOT.excludePreviousWinner && prev?.status === 'LOCKED' && prev.winnerIdx != null
-    ? [prev.options[prev.winnerIdx]?.programme?.videoId].filter(Boolean) as string[] : [];
-  const ballot = pickBallot(features, SLOT.optionCount, exclude, id);
-  const poll: LivePoll = {
-    id, roomId: HORROR_CLASSICS_ROOM, kind: 'SCHEDULE',
-    question: nightlyQuestion(dateKey),
+  const prev = await readPoll(deps, scheduleRoundId(H_CH, H_SLOT.id, addDays(dateKey, -1)));
+  if (prev && prev.status !== 'LOCKED' && now < (prev.schedule?.airAtMs ?? 0)) { log.push(`${dateKey}: waiting for last night to lock`); return null; }
+  const choices = pickBallot(features, H_SLOT.optionCount, H_SLOT.excludePreviousWinner ? previousWinnerId(prev) : [], id);
+  return createBallot(deps, {
+    id, roomId: HORROR_CLASSICS_ROOM,
+    question: `Pick the 9 PM movie for ${dayLabel(dateKey)}`,
     subtitle: `${HORROR_CLASSICS_NAME} · 8.2 on LiveHub TV+ · airs 9 PM ET`,
-    options: ballot.map(b => ({ label: b.year ? `${b.title} (${b.year})` : b.title, programme: b })),
-    counts: {}, status: 'OPEN', active: true, createdAt: now,
-    closesAtMs: times.closesAtMs,
-    schedule: { channelId: CH, slotId: SLOT.id, date: dateKey, timezone: TZ, ...times, reservedSec: reservedSecFor(ballot) },
-  };
-  const made = await deps.createOnce('livePolls', id, JSON.parse(JSON.stringify(poll)));
-  if (made === 'error') { log.push(`${dateKey}: ballot create failed`); return null; }
-  log.push(`${dateKey}: ballot opened (${ballot.map(b => b.title).join(' / ')})`);
-  return made === 'created' ? poll : readPoll(deps, id);
+    choices, times,
+    schedule: { channelId: H_CH, slotId: H_SLOT.id, date: dateKey, timezone: H_TZ, reservedSec: reservedSecFor(choices, H_ADS) },
+    goalCents: HORROR_CLASSICS_COMMERCIAL_FREE_GOAL_CENTS,
+  }, now, log);
 }
 
-/** Lock a ballot whose voting has closed, exactly once, and return the decided poll. */
-async function lockBallot(deps: FastVoteDeps, poll: LivePoll, now: number, log: string[]): Promise<LivePoll | null> {
-  const claim = await deps.createOnce('livePollLocks', poll.id, { at: now });
-  if (claim !== 'created') return readPoll(deps, poll.id);
-  const fresh = (await readPoll(deps, poll.id)) || poll;
-  const counts = countsToArray(fresh.counts, fresh.options.length);
-  const reached = fresh.options.map((_, i) => Number((fresh as any).reachedAt?.[String(i)]) || undefined);
-  const { winnerIdx, reason } = decideWinner(counts, reached, fresh.id);
-  await deps.patch('livePolls', fresh.id, { status: 'LOCKED', winnerIdx, winnerReason: reason, lockedAt: now });
-  log.push(`${fresh.schedule?.date}: locked → ${fresh.options[winnerIdx]?.label} (${reason}, ${counts.join('/')})`);
-  return { ...fresh, status: 'LOCKED', winnerIdx, winnerReason: reason, lockedAt: now };
+function leadingOption(poll: LivePoll): VoteOption | undefined {
+  const counts = countsToArray(poll.counts, poll.options.length);
+  const top = Math.max(0, ...counts);
+  return top ? poll.options[counts.indexOf(top)]?.programme : undefined;
+}
+
+async function tickHorrorClassics(deps: FastVoteDeps, now: number, log: string[], dryRun: boolean) {
+  const pp = await resolvePumpkinPatch(deps);
+  if (!pp.option) log.push(`Pumpkin Patch not in rotation: ${pp.reason}`);
+  const pool = pp.option ? [...HORROR_CLASSICS_PD_POOL, pp.option] : [...HORROR_CLASSICS_PD_POOL];
+  const features = pool.filter(p => p.durationSec >= MIN_FEATURE_SEC);
+  const today = zonedDateKey(now, H_TZ);
+  const existing = dryRun ? null : await deps.read('fast_channel_schedules', H_CH);
+  const weeklySlots: Record<string, VoteAwareSlot[]> = { ...((existing?.weeklySlots as any) || {}) };
+  const builtFor: Record<string, string> = { ...((existing?.weeklyBuiltFor as any) || {}) };
+  const startSec = hhmmToSec(H_SLOT.localTime);
+
+  const ballots: Record<string, LivePoll | null> = {};
+  if (!dryRun) {
+    for (const d of [today, addDays(today, 1)]) ballots[d] = await horrorBallot(deps, d, features, now, log);
+    for (const d of [addDays(today, -1), today]) {
+      const p = ballots[d] ?? await readPoll(deps, scheduleRoundId(H_CH, H_SLOT.id, d));
+      ballots[d] = p && p.status === 'OPEN' && p.closesAtMs && now >= p.closesAtMs ? await lockBallot(deps, p, now, log) : p;
+    }
+  }
+
+  // Lay out the coming week. A day with a ballot is built around it (provisional until it locks,
+  // the winner after); days further out get a provisional ballot from the same seed, so the guide
+  // always has a full week.
+  let changed = false;
+  for (let i = 0; i < 7; i++) {
+    const dateKey = addDays(today, i);
+    const wd = String(weekdayOf(dateKey));
+    const roundId = scheduleRoundId(H_CH, H_SLOT.id, dateKey);
+    const poll = ballots[dateKey] ?? null;
+    const alreadyBuilt = builtFor[wd] === dateKey && Array.isArray(weeklySlots[wd]) && weeklySlots[wd].length > 0;
+    const builtWithBallot = alreadyBuilt && weeklySlots[wd].some(s => s.voteRoundId === roundId && (s as any).ballotOpen);
+
+    if (poll?.status === 'LOCKED' && poll.winnerIdx != null && alreadyBuilt) {
+      const winner = poll.options[poll.winnerIdx]?.programme;
+      const prog = weeklySlots[wd].find(s => s.voteRoundId === roundId && s.type === 'PUBLIC_DOMAIN');
+      if (winner && prog && (prog.votePending || prog.videoId !== winner.videoId)) {
+        weeklySlots[wd] = applyWinnerToDay(weeklySlots[wd], roundId, winner, poll.schedule!.reservedSec, { fillPool: pool, ads: H_ADS, adFree: !!poll.funding?.unlocked });
+        changed = true;
+        log.push(`${dateKey}: winner written into the 9 PM block${poll.funding?.unlocked ? ' (commercial-free)' : ''}`);
+      }
+      continue;
+    }
+    if (alreadyBuilt && (!poll || builtWithBallot)) continue;
+    if (i === 0 && alreadyBuilt) continue; // never re-lay a day that is airing now
+
+    const choices = poll ? poll.options.map(o => o.programme!).filter(Boolean) : pickBallot(features, H_SLOT.optionCount, [], roundId);
+    const reservedSec = poll?.schedule?.reservedSec ?? reservedSecFor(choices, H_ADS);
+    const airing = (poll && leadingOption(poll)) || choices[0];
+    const day = layoutDay({
+      dateKey, channelId: H_CH, pool, ads: H_ADS, minFillSec: 0,
+      vote: { roundId, startSec, reservedSec, airing, pending: true },
+    }).map(s => (s.voteRoundId === roundId && poll ? { ...s, ballotOpen: true } as any : s));
+    const total = daySeconds(day);
+    if (total !== 86400) { log.push(`${dateKey}: layout came to ${total}s, not 86400 — skipped`); continue; }
+    weeklySlots[wd] = day;
+    builtFor[wd] = dateKey;
+    changed = true;
+    log.push(`${dateKey}: day laid out (${new Set(day.filter(s => s.type === 'PUBLIC_DOMAIN').map(s => s.videoId)).size} titles${poll ? ', ballot open' : ', provisional'})`);
+  }
+
+  const doc = {
+    userId: H_CH, channelName: HORROR_CLASSICS_NAME, platformOwned: true, timezone: H_TZ,
+    midnightAnchored: true, stationKind: 'tv', loopSchedule: false, autoGenerated: true, includePublicDomain: true,
+    adFrequencyMinutes: H_ADS.midrollEverySec / 60, adDurationSeconds: H_ADS.breakSec, commercialFree: false,
+    slots: dropUndefined(weeklySlots[String(weekdayOf(today))] || []),
+    weeklySlots: Object.fromEntries(Object.entries(weeklySlots).map(([k, v]) => [k, dropUndefined(v)])),
+    weeklyBuiltFor: builtFor, lastUpdated: now,
+  };
+  if (changed && !dryRun) await deps.patch('fast_channel_schedules', H_CH, doc);
+  return { changed, preview: dryRun ? doc : undefined };
+}
+
+// ── Creator channels ────────────────────────────────────────────────────────────────────────────
+
+/** Which array airs on a station date: that weekday's override if it has one, else the daily loop
+ *  (the same choice playout makes in activeDaySlots). */
+function dayArrayFor(sched: Record<string, any>, dateKey: string): { path: string[]; day: VoteAwareSlot[] } {
+  const wd = String(weekdayOf(dateKey));
+  const perDay = sched.weeklySlots?.[wd];
+  return Array.isArray(perDay) && perDay.length ? { path: ['weeklySlots', wd], day: perDay } : { path: ['slots'], day: sched.slots || [] };
+}
+
+async function tickCreatorChannel(deps: FastVoteDeps, ownerUid: string, sched: Record<string, any>, now: number, log: string[]) {
+  const tz: string = sched.timezone || 'America/New_York';
+  const slots: CreatorVoteSlot[] = Array.isArray(sched.voteSlots) ? sched.voteSlots : [];
+  if (!slots.length || !sched.midnightAnchored) return;
+  const plan: AdPlan = adPlanFor(sched as any);
+  const today = zonedDateKey(now, tz);
+  const room = `ch_${ownerUid}`;
+  const channelName = sched.channelName || 'this channel';
+
+  for (const cfg of slots) {
+    const choices = (cfg.choices || []).filter(c => c?.videoUrl && c.durationSec > 0).slice(0, 8);
+    if (choices.length < 2) continue;
+    for (const dateKey of [addDays(today, -1), today, addDays(today, 1)]) {
+      const { path, day } = dayArrayFor(sched, dateKey);
+      const g = voteGroup(day, cfg.id);
+      if (!g) continue; // this vote slot doesn't air that day
+      const hhmm = secToHHMM(g.startSec);
+      const airAtMs = zonedWallTimeToMs(dateKey, hhmm, tz) + (g.startSec % 60) * 1000;
+      const closesAtMs = airAtMs - clampCutoff(cfg.cutoffMinutes) * 60_000;
+      const opensAtMs = airAtMs - 23 * 3_600_000;
+      const id = scheduleRoundId(ownerUid, cfg.id, dateKey);
+      let poll = await readPoll(deps, id);
+
+      if (!poll && dateKey !== addDays(today, -1) && now >= opensAtMs && now < closesAtMs) {
+        const prev = await readPoll(deps, scheduleRoundId(ownerUid, cfg.id, addDays(dateKey, -1)));
+        if (prev && prev.status !== 'LOCKED' && now < (prev.schedule?.airAtMs ?? 0)) continue;
+        const ballot = pickBallot(choices, cfg.optionCount || choices.length, cfg.excludePreviousWinner ? previousWinnerId(prev) : [], id);
+        poll = await createBallot(deps, {
+          id, roomId: room,
+          question: `Pick what airs at ${clockLabel(hhmm)} on ${dayLabel(dateKey)}`,
+          subtitle: `${channelName} · ${cfg.label || 'Fan Vote'}`,
+          choices: ballot, times: { airAtMs, opensAtMs, closesAtMs },
+          schedule: { channelId: ownerUid, slotId: cfg.id, date: dateKey, timezone: tz, reservedSec: g.lengthSec },
+          goalCents: cfg.commercialFreeGoalCents && cfg.commercialFreeGoalCents >= MIN_PLEDGE_CENTS ? cfg.commercialFreeGoalCents : undefined,
+          ownerUid,
+        }, now, log);
+        // The placeholder now advertises an open vote (yesterday's airing of a daily slot is over).
+        if (poll && now < airAtMs) {
+          const pending = voteBlockSlots(id, ballot[0], g.lengthSec, true, { ads: plan });
+          await patchPath(deps, 'fast_channel_schedules', ownerUid, path, dropUndefined(replaceVoteGroup(day, cfg.id, pending)));
+          (sched as any)[path[0]] = path.length > 1 ? { ...(sched as any)[path[0]], [path[1]]: replaceVoteGroup(day, cfg.id, pending) } : replaceVoteGroup(day, cfg.id, pending);
+        }
+      }
+      if (poll && poll.status === 'OPEN' && poll.closesAtMs && now >= poll.closesAtMs) {
+        poll = await lockBallot(deps, poll, now, log);
+        const winner = poll?.winnerIdx != null ? poll.options[poll.winnerIdx]?.programme : undefined;
+        if (winner && now < airAtMs + g.lengthSec * 1000) {
+          const current = dayArrayFor(sched, dateKey);
+          const block = voteBlockSlots(id, winner, g.lengthSec, false, { ads: plan, adFree: !!poll!.funding?.unlocked });
+          await patchPath(deps, 'fast_channel_schedules', ownerUid, current.path, dropUndefined(replaceVoteGroup(current.day, cfg.id, block)));
+          log.push(`${ownerUid}/${cfg.id}/${dateKey}: winner written`);
+        }
+      }
+    }
+  }
 }
 
 /**
  * One scheduling pass. Idempotent and safe to run from several callers: every create is a claim,
- * and the schedule is rewritten only by the caller holding this minute's tick claim.
+ * and only the caller holding this minute's tick claim proceeds.
  */
 export async function runFastVoteTick(deps: FastVoteDeps, opts: { force?: boolean; dryRun?: boolean } = {}) {
   const now = Date.now();
@@ -264,93 +511,24 @@ export async function runFastVoteTick(deps: FastVoteDeps, opts: { force?: boolea
     if (claim !== 'created') return { ran: false, log: ['another tick holds this minute'] };
   }
   if (!opts.dryRun) await ensureCommunityPolls(deps, now);
+  const horror = await tickHorrorClassics(deps, now, log, !!opts.dryRun);
 
-  const { pool, features, pumpkinPatch } = await channelPool(deps);
-  if (!pumpkinPatch.option) log.push(`Pumpkin Patch not in rotation: ${pumpkinPatch.reason}`);
-  const today = zonedDateKey(now, TZ);
-  const existing = opts.dryRun ? null : await deps.read('fast_channel_schedules', CH);
-  const weeklySlots: Record<string, VoteAwareSlot[]> = { ...((existing?.weeklySlots as any) || {}) };
-  const builtFor: Record<string, string> = { ...((existing?.weeklyBuiltFor as any) || {}) };
-  const startSec = hhmmToSec(SLOT.localTime);
-
-  // Ballots: tonight's (if still before air) and tomorrow's (once tonight has locked).
-  const ballots: Record<string, LivePoll | null> = {};
-  for (const dateKey of [today, addDays(today, 1)]) {
-    ballots[dateKey] = opts.dryRun ? null : await ensureBallot(deps, dateKey, features, now, log);
-  }
-
-  // Lock anything whose voting has closed.
   if (!opts.dryRun) {
-    for (const dateKey of [addDays(today, -1), today]) {
-      const p = ballots[dateKey] ?? await readPoll(deps, scheduleRoundId(CH, SLOT.id, dateKey));
-      if (p && p.status === 'OPEN' && p.closesAtMs && now >= p.closesAtMs) ballots[dateKey] = await lockBallot(deps, p, now, log);
-      else if (p) ballots[dateKey] = p;
+    const chans = await deps.query('fast_channel_schedules', [{ field: 'hasVoteSlots', op: 'EQUAL', value: true }], 200);
+    for (const c of chans) {
+      if (c.id === H_CH) continue;
+      try { await tickCreatorChannel(deps, c.id, c.data, now, log); }
+      catch (e: any) { log.push(`${c.id}: ${String(e?.message || e).slice(0, 160)}`); }
     }
-  }
-
-  // Lay out the coming week. A day with a ballot is built around it (provisional leader until it
-  // locks, the winner after); days further out get a provisional ballot from the same seed, so the
-  // guide always has a full week.
-  let changed = false;
-  for (let i = 0; i < 7; i++) {
-    const dateKey = addDays(today, i);
-    const wd = String(weekdayOf(dateKey));
-    const roundId = scheduleRoundId(CH, SLOT.id, dateKey);
-    const poll = ballots[dateKey] ?? null;
-    const alreadyBuilt = builtFor[wd] === dateKey && Array.isArray(weeklySlots[wd]) && weeklySlots[wd].length > 0;
-    // Built around tonight's real ballot (vs. a provisional one from before the ballot opened).
-    const builtWithBallot = alreadyBuilt && weeklySlots[wd].some(s => s.voteRoundId === roundId && (s as any).ballotOpen);
-
-    if (poll?.status === 'LOCKED' && poll.winnerIdx != null && alreadyBuilt) {
-      const winner = poll.options[poll.winnerIdx]?.programme;
-      const block = weeklySlots[wd].find(s => s.voteRoundId === roundId && s.type !== 'FM_BLOCK');
-      if (winner && block && (block.votePending || block.videoId !== winner.videoId)) {
-        weeklySlots[wd] = applyWinnerToDay(weeklySlots[wd], roundId, winner, poll.schedule!.reservedSec, pool, HORROR_CLASSICS_AD_BREAK_SEC);
-        changed = true;
-        log.push(`${dateKey}: winner written into the 9 PM block`);
-      }
-      continue;
-    }
-    if (alreadyBuilt && (!poll || builtWithBallot)) continue;
-    if (i === 0 && alreadyBuilt) continue; // never re-lay a day that is airing now
-
-    const ballot = poll ? poll.options.map(o => o.programme!).filter(Boolean) : pickBallot(features, SLOT.optionCount, [], roundId);
-    const reservedSec = poll?.schedule?.reservedSec ?? reservedSecFor(ballot);
-    const leader = poll ? leadingOption(poll) ?? ballot[0] : ballot[0];
-    const day = layoutDay({
-      dateKey, channelId: CH, pool, adBreakSec: HORROR_CLASSICS_AD_BREAK_SEC, minFillSec: 0,
-      vote: { roundId, startSec, reservedSec, airing: leader, pending: true },
-    }).map(s => (s.voteRoundId === roundId && poll ? { ...s, ballotOpen: true } as any : s));
-    const total = daySeconds(day);
-    if (total !== 86400) { log.push(`${dateKey}: layout came to ${total}s, not 86400 — skipped`); continue; }
-    weeklySlots[wd] = day;
-    builtFor[wd] = dateKey;
-    changed = true;
-    log.push(`${dateKey}: day laid out (${day.filter(s => s.type === 'PUBLIC_DOMAIN').length} programmes${poll ? ', ballot open' : ', provisional'})`);
-  }
-
-  // Retire ballots older than last night so the room shows tonight's and last night's only.
-  if (!opts.dryRun) {
-    const old = await deps.query('livePolls', [{ field: 'roomId', op: 'EQUAL', value: HORROR_CLASSICS_ROOM }, { field: 'active', op: 'EQUAL', value: true }], 50);
-    for (const o of old) {
+    // Retire ballots older than last night so rooms show tonight's and last night's only.
+    const yesterday = addDays(zonedDateKey(now, H_TZ), -1);
+    const open = await deps.query('livePolls', [{ field: 'kind', op: 'EQUAL', value: 'SCHEDULE' }, { field: 'active', op: 'EQUAL', value: true }], 300);
+    for (const o of open) {
       const date = o.data?.schedule?.date as string | undefined;
-      if (date && date < addDays(today, -1)) await deps.patch('livePolls', o.id, { active: false });
+      if (date && date < yesterday) await deps.patch('livePolls', o.id, { active: false });
     }
   }
-
-  const doc = scheduleDoc(
-    Object.fromEntries(Object.entries(weeklySlots).map(([k, v]) => [k, dropUndefined(v)])),
-    builtFor, today, now,
-  );
-  if (changed && !opts.dryRun) await deps.patch('fast_channel_schedules', CH, doc);
-  return { ran: true, changed, log, today, ...(opts.dryRun ? { preview: doc } : {}) };
-}
-
-function leadingOption(poll: LivePoll): VoteOption | undefined {
-  const counts = countsToArray(poll.counts, poll.options.length);
-  const top = Math.max(0, ...counts);
-  if (!top) return undefined;
-  return poll.options[counts.indexOf(top)]?.programme;
+  return { ran: true, changed: horror.changed, log, ...(opts.dryRun ? { preview: horror.preview } : {}) };
 }
 
 // ── Router ─────────────────────────────────────────────────────────────────────────────────────
@@ -371,10 +549,10 @@ export function createFastVoteRouter(deps: FastVoteDeps) {
 
   router.get('/api/live-polls', async (req: any, res: any) => {
     const room = String(req.query.room || '');
-    if (!/^[a-z0-9_]{1,40}$/.test(room)) return res.status(400).json({ error: 'room required' });
-    // Keep the schedule moving even before Cloud Scheduler is set up (throttled, fire-and-forget).
+    if (!/^[A-Za-z0-9_]{1,80}$/.test(room)) return res.status(400).json({ error: 'room required' });
+    // Keep schedules moving even before Cloud Scheduler is set up (throttled, fire-and-forget).
     // Production only (or FAST_VOTE_TICK=1): a dev server talks to the production database, and
-    // merely opening the fan room locally must not create ballots or rewrite the channel.
+    // merely opening a room locally must not create ballots or rewrite a channel.
     const tickAllowed = process.env.NODE_ENV === 'production' || process.env.FAST_VOTE_TICK === '1';
     if (tickAllowed && Date.now() - lastOpportunisticTick > TICK_THROTTLE_MS) {
       lastOpportunisticTick = Date.now();
@@ -405,18 +583,91 @@ export function createFastVoteRouter(deps: FastVoteDeps) {
     res.json({ ok: true, poll, myVote: Number(req.body?.choice) });
   });
 
+  // Pledge toward a slot's commercial-free goal. The card is only AUTHORISED here; it is charged
+  // when voting closes if the goal was met, and released otherwise.
+  const pledgeLimiter = rateLimit({ windowMs: 60_000, max: 10, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many attempts, try again shortly' } });
+  router.post('/api/live-polls/:id/pledge', pledgeLimiter, deps.authMiddleware, deps.requireRegisteredUser, express.json(), async (req: any, res: any) => {
+    try {
+      const id = String(req.params.id || '');
+      if (!/^[A-Za-z0-9_\-]{1,200}$/.test(id)) return res.status(400).json({ error: 'bad poll id' });
+      const poll = await readPoll(deps, id);
+      if (!poll?.funding?.goalCents) return res.status(404).json({ error: 'This slot has no commercial-free goal' });
+      if (poll.status !== 'OPEN' || (poll.closesAtMs && Date.now() >= poll.closesAtMs)) return res.status(409).json({ error: 'Voting has closed for this slot' });
+      const remaining = poll.funding.goalCents - (poll.funding.pledgedCents || 0);
+      if (remaining <= 0) return res.status(409).json({ error: 'The goal is already met — this airing will be commercial-free' });
+      const want = Math.round(Number(req.body?.amountCents));
+      if (!(want >= MIN_PLEDGE_CENTS)) return res.status(400).json({ error: 'The smallest pledge is $1' });
+      const amount = Math.min(want, MAX_PLEDGE_CENTS, Math.max(MIN_PLEDGE_CENTS, remaining));
+
+      const stripe = deps.getStripe();
+      let destination: string | undefined;
+      let feeCents = 0;
+      if (poll.ownerUid) {
+        if (poll.ownerUid === req.uid) return res.status(400).json({ error: 'You can’t pledge to your own slot' });
+        const owner = await deps.read('users', poll.ownerUid);
+        destination = owner?.stripeConnectAccountId;
+        if (!destination) return res.status(400).json({ error: 'This creator hasn’t set up payouts yet, so pledges can’t reach them.' });
+        try {
+          const acct = await stripe.accounts.retrieve(destination);
+          if (!acct.payouts_enabled) return res.status(400).json({ error: 'This creator can’t receive payouts yet.' });
+        } catch { return res.status(400).json({ error: 'Could not verify the creator’s payout account.' }); }
+        feeCents = (await deps.hasPlajahPlus(poll.ownerUid)) ? 0 : Math.round(amount * PLATFORM_FEE_PCT_WITHOUT_PLUS);
+      }
+      const returnPath = typeof req.body?.returnPath === 'string' && /^\/[^/\\]/.test(req.body.returnPath) ? req.body.returnPath.slice(0, 300) : '/';
+      const origin = deps.trustedRequestOrigin(req);
+      const sep = returnPath.includes('?') ? '&' : '?';
+      const meta = { type: 'fast_slot_pledge', pollId: id, uid: req.uid, platformFeeCents: String(feeCents) };
+      const title = poll.options.length ? `Commercial-free ${poll.schedule ? 'airing' : 'slot'} — ${poll.subtitle?.split('·')[0]?.trim() || 'Plajah'}` : 'Commercial-free slot';
+      const session = await stripe.checkout.sessions.create({
+        mode: 'payment',
+        payment_method_types: ['card'],
+        line_items: [{ price_data: { currency: 'usd', product_data: { name: title, description: 'Charged only if the goal is met when voting closes. Otherwise your card is released.' }, unit_amount: amount }, quantity: 1 }],
+        payment_intent_data: {
+          capture_method: 'manual',
+          ...(destination ? { transfer_data: { destination } } : {}),
+          ...(destination && feeCents > 0 ? { application_fee_amount: feeCents } : {}),
+          metadata: meta,
+        },
+        success_url: `${origin}${returnPath}${sep}slot_pledge=${encodeURIComponent(id)}&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${origin}${returnPath}`,
+        metadata: meta,
+      });
+      res.json({ url: session.url, amountCents: amount, feeCents });
+    } catch (e: any) {
+      console.error('[fast-vote] pledge', e?.message || e);
+      res.status(500).json({ error: 'Could not start the pledge' });
+    }
+  });
+
+  // Return-page confirmation (works without the webhook; the webhook does the same, idempotently).
+  router.post('/api/live-polls/pledges/confirm', deps.authMiddleware, express.json(), async (req: any, res: any) => {
+    try {
+      const sessionId = String(req.body?.sessionId || '');
+      if (!/^cs_[A-Za-z0-9_]{10,200}$/.test(sessionId)) return res.status(400).json({ error: 'bad session' });
+      const session = await deps.getStripe().checkout.sessions.retrieve(sessionId);
+      if (session?.metadata?.uid !== req.uid) return res.status(403).json({ error: 'Not your pledge' });
+      res.json(await recordPledgeFromSession(deps, session));
+    } catch (e: any) {
+      res.status(500).json({ error: 'Could not confirm the pledge' });
+    }
+  });
+
   router.post('/api/cron/fast-vote-tick', express.json(), async (req: any, res: any) => {
     if (!deps.cronKeyOk(req)) return res.status(401).json({ error: 'Unauthorized' });
     try { res.json(await runFastVoteTick(deps, { force: req.query.force === '1' })); }
     catch (e: any) { console.error('[fast-vote] cron', e?.message || e); res.status(500).json({ error: String(e?.message || e).slice(0, 300) }); }
   });
 
-  // Read-only: what the next tick would lay out. Writes nothing. Keyless on a dev server.
+  // Read-only: what the next tick would lay out for Horror Classics. Writes nothing. Keyless on a dev server.
   router.get('/api/cron/fast-vote-preview', async (req: any, res: any) => {
     if (!deps.cronKeyOk(req) && process.env.NODE_ENV === 'production') return res.status(401).json({ error: 'Unauthorized' });
     try { res.json(await runFastVoteTick(deps, { dryRun: true })); }
     catch (e: any) { res.status(500).json({ error: String(e?.message || e).slice(0, 300) }); }
   });
 
-  return router;
+  return {
+    router,
+    /** Stripe webhook hook: checkout.session.completed with metadata.type 'fast_slot_pledge'. */
+    onPledgeCheckoutCompleted: (session: any) => recordPledgeFromSession(deps, session),
+  };
 }

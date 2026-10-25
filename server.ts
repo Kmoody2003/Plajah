@@ -2366,6 +2366,8 @@ const SKIP_TYPES = new Set(['payout', 'payout_cancel', 'payout_failure']);
 
 /** Set by createBilling() wiring: payment intent → Plajah Billing invoice (so payout reconciliation recognises invoice payments). */
 let billingInvoiceLookup: ((pi: string) => Promise<{ id: string; entityKey: string } | null>) | null = null;
+/** Set by the fast-vote wiring: records a completed commercial-free slot pledge (manual-capture hold). */
+let fastVotePledgeHook: ((session: any) => Promise<unknown>) | null = null;
 
 /** Upsert one payout (+ its lines, matched to gifts) and, once paid, post the payout/fee journals. */
 async function processPayout(orgId: string, acct: string, po: any, withLines: boolean): Promise<{ lines: number; matched: number; unmatched: number; reconciled: boolean }> {
@@ -3044,6 +3046,9 @@ async function startServer() {
           // Recorded as its own doc; the campaign's raised/backer totals are summed
           // from these client-side (firestoreWrite can't safely mutate the nested
           // campaign map without clobbering the sanctuary identity doc).
+          if (mode === 'payment' && meta.type === 'fast_slot_pledge') {
+            await fastVotePledgeHook?.(session);
+          }
           if (mode === 'payment' && meta.type === 'sanctuary_pledge') {
             await firestoreCreate('sanctuaryPledges', {
               sanctuaryId: meta.sanctuaryId || '',
@@ -13624,8 +13629,9 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
     isAdmin: async uid => !!await fetchFirebaseDoc('admins', uid),
   }));
   app.use('/api/admin/publish-as', apiLimiter, createAdminPublishAsRouter({ authenticate: authMiddleware, isAdmin: isPlatformAdminReq }));
-  // Live polls + vote-to-schedule FAST slots (Plajah Horror Classics' nightly 9 PM fan pick).
-  app.use(createFastVoteRouter({
+  // Live polls + vote-to-schedule FAST slots (Plajah Horror Classics' nightly 9 PM fan pick, creator
+  // Fan Vote slots) and commercial-free slot pledges.
+  const fastVote = createFastVoteRouter({
     authMiddleware, requireRegisteredUser,
     verifyToken: (t: string) => verifyFirebaseToken(t),
     firestoreAuthHeaders: () => firestoreAuthHeaders(),
@@ -13634,7 +13640,15 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
     createOnce: (c, id, d) => firestoreCreateOnce(c, id, d),
     query: (c, f, n) => fsQueryDocs(c, f, n),
     cronKeyOk: (req: any) => secretsEqual(req.headers['x-cron-key'], process.env.CRON_SECRET) || secretsEqual(req.headers['x-cron-key'], process.env.ADMIN_SEED_KEY),
-  }));
+    getStripe: () => getStripe(),
+    trustedRequestOrigin: (req: any) => trustedRequestOrigin(req),
+    hasPlajahPlus: async (uid: string) => {
+      const subs = await queryFirebase('plajahPlusSubscriptions', [{ field: 'subscriberId', value: uid }], 10);
+      return subs.some((s: any) => ['active', 'trialing', 'past_due'].includes(String(s.status)));
+    },
+  });
+  fastVotePledgeHook = fastVote.onPledgeCheckoutCompleted;
+  app.use(fastVote.router);
   app.use('/api/cora', express.json({ limit: '1mb' }), coraRouter);
 
   // ── Learner identity (child username/password → custom token; provision; claim) ──

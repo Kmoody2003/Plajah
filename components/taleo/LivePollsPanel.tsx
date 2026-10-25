@@ -3,7 +3,7 @@
 // and a schedule ballot shows when voting closes and, once locked, what airs and why it won.
 
 import React, { useEffect, useState } from 'react';
-import { BarChart3, Check, Clock, Lock, Trophy, Tv } from 'lucide-react';
+import { BarChart3, Check, Clock, HeartHandshake, Lock, Trophy, Tv } from 'lucide-react';
 import { countsToArray, percentages, type LivePoll } from '../../services/fast/voteSchedule';
 
 const WINNER_REASON: Record<string, string> = {
@@ -41,7 +41,12 @@ export const LivePollsPanel: React.FC<{
   skewMs: number;
   canVote: boolean;
   onVote: (pollId: string, choice: number) => Promise<string | null>;
-}> = ({ polls, myVotes, loading, error, skewMs, canVote, onVote }) => {
+  /** Pledge toward a slot's commercial-free goal (opens Checkout). Omit to hide pledging. */
+  onPledge?: (pollId: string, amountCents: number) => Promise<string | null>;
+  /** Shown once after returning from Checkout. */
+  notice?: string | null;
+}> = ({ polls, myVotes, loading, error, skewMs, canVote, onVote, onPledge, notice }) => {
+  const [pledging, setPledging] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now() + skewMs);
   const [voteError, setVoteError] = useState<string | null>(null);
   useEffect(() => {
@@ -60,6 +65,9 @@ export const LivePollsPanel: React.FC<{
 
   return (
     <div className="space-y-4">
+      {notice && (
+        <div role="status" className="px-3 py-2 rounded-xl bg-emerald-500/15 border border-emerald-400/30 text-[12px] text-emerald-100 font-semibold">{notice}</div>
+      )}
       {voteError && (
         <div role="alert" className="px-3 py-2 rounded-xl bg-rose-500/15 border border-rose-500/30 text-[12px] text-rose-200 font-semibold">{voteError}</div>
       )}
@@ -170,6 +178,74 @@ export const LivePollsPanel: React.FC<{
               {total ? `${total} ${total === 1 ? 'vote' : 'votes'}` : locked ? 'No votes' : 'No votes yet — be the first'}
               {!locked && mine != null && ' · tap another choice to change your vote'}
             </p>
+
+            {poll.funding && poll.funding.goalCents > 0 && (() => {
+              const f = poll.funding!;
+              const pledged = Math.min(f.pledgedCents || 0, f.goalCents);
+              const left = Math.max(0, f.goalCents - (f.pledgedCents || 0));
+              const pctFunded = Math.round((pledged / f.goalCents) * 100);
+              const usd = (c: number) => `$${(c / 100).toFixed(c % 100 ? 2 : 0)}`;
+              const closeAt = sched ? `${timeIn(tz, sched.closesAtMs)} ${tzAbbrev(tz!, sched.closesAtMs)}` : 'voting closes';
+              const go = async (cents: number) => {
+                if (!onPledge) return;
+                setVoteError(null); setPledging(poll.id);
+                const err = await onPledge(poll.id, cents);
+                if (err) { setVoteError(err); setPledging(null); }
+              };
+              return (
+                <div className="rounded-xl border border-emerald-400/25 bg-emerald-500/[0.06] p-3 space-y-2.5">
+                  <div className="flex items-start gap-2">
+                    <HeartHandshake size={16} className="text-emerald-300 shrink-0 mt-0.5" />
+                    <div className="min-w-0">
+                      <p className="text-[13px] font-black text-white leading-snug">
+                        {f.unlocked ? 'Commercial-free — fans covered it' : f.released ? 'Commercial-free goal not reached' : 'Make this airing commercial-free'}
+                      </p>
+                      <p className="text-[11px] text-white/60 leading-snug">
+                        {f.unlocked
+                          ? `${usd(f.capturedCents ?? f.pledgedCents)} from ${f.pledgeCount} ${f.pledgeCount === 1 ? 'fan' : 'fans'}. No ad breaks during this slot.`
+                          : f.released
+                            ? 'Nobody was charged — every pledge was released.'
+                            : `Pledges are held, not charged, until ${closeAt}. If the goal isn’t met, nobody pays.`}
+                      </p>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="h-2 rounded-full bg-white/10 overflow-hidden" role="progressbar" aria-valuemin={0} aria-valuemax={f.goalCents} aria-valuenow={pledged} aria-label="Commercial-free goal">
+                      <div className="h-full rounded-full bg-emerald-400 transition-all duration-500" style={{ width: `${pctFunded}%` }} />
+                    </div>
+                    <p className="mt-1 flex justify-between text-[11px] tabular-nums text-white/60">
+                      <span><span className="font-black text-white">{usd(f.pledgedCents || 0)}</span> of {usd(f.goalCents)}</span>
+                      <span>{f.pledgeCount || 0} {f.pledgeCount === 1 ? 'pledge' : 'pledges'}</span>
+                    </p>
+                  </div>
+                  {!locked && !f.unlocked && left > 0 && onPledge && (
+                    canVote ? (
+                      <div className="grid grid-cols-4 gap-1.5">
+                        {[300, 500, 1000].filter(c => c < left).map(c => (
+                          <button key={c} type="button" disabled={pledging === poll.id} onClick={() => go(c)}
+                            className="rounded-lg bg-white/[0.06] border border-white/15 hover:border-emerald-300/60 text-[12px] font-black text-white disabled:opacity-50">
+                            {usd(c)}
+                          </button>
+                        ))}
+                        <button type="button" disabled={pledging === poll.id} onClick={() => go(left)}
+                          className={`rounded-lg bg-emerald-400 hover:bg-emerald-300 text-black text-[11px] font-black leading-tight px-1 disabled:opacity-50 ${[300, 500, 1000].filter(c => c < left).length === 3 ? '' : 'col-span-4'}`}>
+                          Cover the rest · {usd(left)}
+                        </button>
+                      </div>
+                    ) : (
+                      <p className="text-[11px] text-white/55">Sign in to pledge.</p>
+                    )
+                  )}
+                  {!locked && !f.unlocked && (
+                    <p className="text-[10px] text-white/40 leading-snug">
+                      {poll.ownerUid
+                        ? 'Goes straight to the creator. Plajah takes nothing when the creator has Plajah+, 5% otherwise.'
+                        : 'Supports this Plajah channel.'}
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
           </section>
         );
       })}

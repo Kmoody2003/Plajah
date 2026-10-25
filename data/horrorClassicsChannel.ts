@@ -12,7 +12,7 @@
 // Nosferatu airs from archive.org's CC0 copy (Nosferatu1922), not the curation's YouTube embed.
 
 import { CURATED_HALLOWEEN_FILMS, PUMPKIN_PATCH_HERO_ALBUM } from '../services/archiveContentService';
-import type { VoteOption, VoteSlotConfig } from '../services/fast/voteSchedule';
+import type { AdPlan, VoteOption, VoteSlotConfig } from '../services/fast/voteSchedule';
 
 export const HORROR_CLASSICS_CHANNEL_ID = 'plajah_horror_classics';
 export const HORROR_CLASSICS_TIMEZONE = 'America/New_York';
@@ -82,5 +82,10 @@ export const HORROR_CLASSICS_NIGHTLY_SLOT: VoteSlotConfig = {
   opensHoursBefore: 23,
 };
 
-/** Ad break between programmes on this channel. */
-export const HORROR_CLASSICS_AD_BREAK_SEC = 120;
+/** Two-minute breaks between programmes and every 25 minutes inside them (never inside Pumpkin
+ *  Patch, and never inside a 9 PM airing fans have funded commercial-free). */
+export const HORROR_CLASSICS_ADS: AdPlan = { breakSec: 120, midrollEverySec: 25 * 60 };
+
+/** Fans can make the night's 9 PM movie commercial-free by pledging this much in total. Cards are
+ *  held when people pledge and only charged if the goal is met when voting closes. */
+export const HORROR_CLASSICS_COMMERCIAL_FREE_GOAL_CENTS = 2500;

@@ -86,5 +86,52 @@ export function useLivePolls(roomId: string, opts: { active: boolean; intervalMs
     }
   }, [state.myVotes, refresh]);
 
-  return { ...state, refresh, vote };
+  /** Pledge toward a slot's commercial-free goal: opens Stripe Checkout (card held, charged only if
+   *  the goal is met when voting closes). Returns an error message, or navigates away. */
+  const pledge = useCallback(async (pollId: string, amountCents: number): Promise<string | null> => {
+    try {
+      const res = await fetch(`/api/live-polls/${encodeURIComponent(pollId)}/pledge`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
+        body: JSON.stringify({ amountCents, returnPath: window.location.pathname + window.location.search }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.url) throw new Error(data.error || 'Could not start the pledge');
+      window.location.href = data.url;
+      return null;
+    } catch (e: any) {
+      return e?.message || 'Could not start the pledge';
+    }
+  }, []);
+
+  // Back from Checkout (?slot_pledge=…&session_id=…): record the hold, then tidy the URL.
+  const [pledgeNotice, setPledgeNotice] = useState<string | null>(null);
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
+    const sessionId = sp.get('session_id');
+    if (!sp.get('slot_pledge') || !sessionId) return;
+    let alive = true;
+    void (async () => {
+      try {
+        // Right after the redirect back, sign-in may still be restoring.
+        await (auth as any).authStateReady?.();
+        const res = await fetch('/api/live-polls/pledges/confirm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
+          body: JSON.stringify({ sessionId }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!alive) return;
+        setPledgeNotice(data.ok ? 'Thanks — your pledge is in. Your card is only charged if the goal is met.' : (data.reason || data.error || 'We couldn’t confirm that pledge.'));
+        void refresh();
+      } finally {
+        sp.delete('slot_pledge'); sp.delete('session_id');
+        const q = sp.toString();
+        window.history.replaceState(null, '', window.location.pathname + (q ? `?${q}` : '') + window.location.hash);
+      }
+    })();
+    return () => { alive = false; };
+  }, [refresh]);
+
+  return { ...state, refresh, vote, pledge, pledgeNotice };
 }

@@ -287,6 +287,9 @@ export interface SlotMedia {
   isAd: boolean;
   isBumper: boolean;
   isPublicDomain: boolean;
+  /** Seconds into the file where this slot's segment begins (a programme split by mid-roll ad
+   *  breaks). Players seek to startSec + the join offset. 0 for a whole-file slot. */
+  startSec?: number;
   /** GENERATIVE only — what the device needs to render the programme itself. There is no url
    *  and no playback id, because there is no file. */
   generative?: { formId: string; seed: number; arcSec: number; offsetSec: number };
@@ -358,6 +361,7 @@ export function resolveSlotMedia(s?: FastChannelSlot | null): SlotMedia {
     isAd: false,
     isBumper: false,
     isPublicDomain: s.type === 'PUBLIC_DOMAIN',
+    startSec: Math.max(0, Number((s as any).videoStartSec) || 0),
   };
 }
 

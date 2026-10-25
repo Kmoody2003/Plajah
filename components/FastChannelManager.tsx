@@ -4,8 +4,9 @@ import {
   Tv, Plus, Trash2, ArrowLeft, Settings, Radio, Clock, BarChart2, Globe,
   Upload, Play, GripVertical, ChevronDown, ChevronUp, Users, X, Check,
   Zap, Film, Music2, AlertCircle, Eye, Share2, Lock, DollarSign,
-  Shuffle, RefreshCw, CalendarClock, StopCircle
+  Shuffle, RefreshCw, CalendarClock, StopCircle, Vote
 } from 'lucide-react';
+import { FanVoteSlotsEditor } from './fast/FanVoteSlotsEditor';
 import { Video, UserProfile, FastChannelSchedule, FastChannelSlot, ChannelBumper, FastChannelAssetGrant, FastChannelLibraryEntry, FastChannel, FastChannelCategory, ChannelSource, ChannelSourceType, SavedFeed } from '../types';
 import {
   fetchFastChannelVideos,
@@ -55,7 +56,7 @@ interface FastChannelManagerProps {
   initialStation?: 'tv' | 'radio';
 }
 
-type Tab = 'CHANNEL' | 'SOURCES' | 'SCHEDULE' | 'BUMPERS' | 'ADS' | 'ASSETS' | 'LIBRARY';
+type Tab = 'CHANNEL' | 'SOURCES' | 'SCHEDULE' | 'FAN_VOTE' | 'BUMPERS' | 'ADS' | 'ASSETS' | 'LIBRARY';
 
 const FAST_CATEGORIES: FastChannelCategory[] = ['Film', 'TV', 'Music', 'News', 'Sports', 'Kids', 'Comedy', 'Documentary', 'Faith', 'Lifestyle', 'Gaming', 'Variety', 'Education'];
 const SOURCE_TYPE_LABEL: Record<ChannelSourceType, string> = { FAST: 'FAST Channel', EXTERNAL_LIVE: 'External 24/7 Live', REELLO_LIVE: 'Reello Live Show' };
@@ -578,6 +579,7 @@ const FastChannelManager: React.FC<FastChannelManagerProps> = ({ user, onBack, i
     { id: 'CHANNEL', label: 'Channel', icon: Tv },
     { id: 'SOURCES', label: 'Sources', icon: Radio },
     { id: 'SCHEDULE', label: 'Schedule', icon: CalendarClock },
+    { id: 'FAN_VOTE', label: 'Fan Vote', icon: Vote },
     { id: 'BUMPERS', label: 'Bumpers', icon: Film },
     { id: 'ADS', label: 'Ads & Breaks', icon: DollarSign },
     { id: 'ASSETS', label: 'Asset Sharing', icon: Share2 },
@@ -975,6 +977,14 @@ const FastChannelManager: React.FC<FastChannelManagerProps> = ({ user, onBack, i
             )}
 
             {/* ── BUMPERS TAB ───────────────────────────────────────────────── */}
+            {activeTab === 'FAN_VOTE' && (
+              <FanVoteSlotsEditor
+                schedule={schedule}
+                videos={myVideos}
+                onSave={async next => { await saveFastChannelSchedule(next); setSchedule(next); }}
+              />
+            )}
+
             {activeTab === 'BUMPERS' && (
               <div className="space-y-8">
                 <div>
