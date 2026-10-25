@@ -355,9 +355,21 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
   });
 
   const [activeRightTab, setActiveRightTab] = useState<'CHAT' | 'POLLS' | 'FACTIONS'>('CHAT');
+  // Phones show one half of the room at a time (lg+ shows both columns side by side).
+  const [phonePane, setPhonePane] = useState<'BOOTH' | 'CHAT'>('BOOTH');
   const [chatDraft, setChatDraft] = useState('');
   const [roomFxOverlay, setRoomFxOverlay] = useState<'BATS' | 'GHOST' | 'JACK' | null>(null);
   const [floatingWidgetOpen, setFloatingWidgetOpen] = useState<boolean>(false);
+  // While the room itself is on screen the floating pill only duplicates it (and covers it on phones).
+  const roomSectionRef = useRef<HTMLElement | null>(null);
+  const [roomInView, setRoomInView] = useState(false);
+  useEffect(() => {
+    const el = roomSectionRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return;
+    const io = new IntersectionObserver(([entry]) => setRoomInView(entry.isIntersecting), { threshold: 0.05 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const miniCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -928,7 +940,7 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
   return (
     <>
       {/* ── MAIN INLINE HALLOWEEN VAULT FAN ROOM & LIVE FILTER STUDIO ────────── */}
-      <section className="relative rounded-3xl overflow-hidden border-2 border-orange-500/35 bg-gradient-to-b from-[#170d08] via-[#0e0a0f] to-[#09080c] shadow-[0_25px_90px_rgba(249,115,22,0.18)] p-5 sm:p-8">
+      <section ref={roomSectionRef} className="relative rounded-3xl overflow-hidden [overflow:clip] border-2 border-orange-500/35 bg-gradient-to-b from-[#170d08] via-[#0e0a0f] to-[#09080c] shadow-[0_25px_90px_rgba(249,115,22,0.18)] p-4 sm:p-8">
         {/* Decorative Halloween Cobweb & Ember Backdrop */}
         <div className="pointer-events-none absolute -top-24 -left-24 w-96 h-96 rounded-full bg-orange-600/15 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-24 -right-24 w-96 h-96 rounded-full bg-emerald-500/10 blur-3xl" />
@@ -988,23 +1000,23 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
         </AnimatePresence>
 
         {/* Top Header Bar */}
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-6 border-b border-orange-500/20">
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 sm:pb-6 border-b border-orange-500/20">
           <div className="space-y-1.5">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="px-3 py-1 rounded-full bg-orange-500 text-black text-[9px] font-black uppercase tracking-[0.22em] flex items-center gap-1.5 shadow-lg shadow-orange-500/25">
-                <Radio size={11} className="animate-pulse" /> Live Persistent Vault Room
+                <Radio size={11} className="animate-pulse" /> Live<span className="hidden sm:inline"> Persistent</span> Vault Room
               </span>
-              <span className="px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/35 text-emerald-300 text-[9px] font-black uppercase tracking-widest">
+              <span className="hidden sm:inline px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/35 text-emerald-300 text-[9px] font-black uppercase tracking-widest">
                 🎃 Real-Time Face Filters + Found-Footage Dim-the-Lights
               </span>
               <span className="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-white/60 text-[9px] font-black uppercase tracking-widest flex items-center gap-1">
-                <Users size={11} className="text-orange-400" /> {24 + messages.length} Horror Fans Online
+                <Users size={11} className="text-orange-400" /> {24 + messages.length}<span className="hidden sm:inline"> Horror Fans</span> Online
               </span>
             </div>
-            <h2 className="text-2xl sm:text-4xl font-black uppercase tracking-tight text-white">
-              Halloween Curation <span className="text-orange-400">Fan Room</span> &amp; Live Filter Chat
+            <h2 className="text-[1.65rem] leading-[1.05] sm:text-4xl font-black uppercase tracking-tight text-white">
+              <span className="hidden sm:inline">Halloween Curation </span><span className="text-orange-400">Fan Room</span> &amp; Live Filter Chat
             </h2>
-            <p className="text-xs sm:text-sm text-white/65 max-w-3xl leading-relaxed">
+            <p className="text-[13px] sm:text-sm text-white/65 max-w-3xl leading-relaxed line-clamp-3 sm:line-clamp-none">
               Transform any talking head into a realistic <span className="text-orange-300 font-bold">Carved Jack-o’-Lantern</span>,{' '}
               <span className="text-slate-200 font-bold">Ghost Face</span>,{' '}
               <span className="text-lime-300 font-bold">Zombie</span>,{' '}
@@ -1014,12 +1026,12 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
             </p>
           </div>
 
-          <div className="flex items-center gap-2.5 flex-wrap shrink-0">
+          <div className="grid grid-cols-[1fr_auto] sm:flex items-center gap-2.5 sm:flex-wrap shrink-0">
             <button
               onClick={onOpenHauntedExhibition}
-              className="h-11 px-5 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-400 to-orange-400 hover:brightness-110 text-black font-black text-[10px] uppercase tracking-widest flex items-center gap-2 shadow-[0_0_25px_rgba(16,185,129,0.35)] transition-all cursor-pointer"
+              className="h-11 px-5 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-400 to-orange-400 hover:brightness-110 text-black font-black text-[10px] uppercase tracking-wider sm:tracking-widest flex items-center justify-center gap-2 shadow-[0_0_25px_rgba(16,185,129,0.35)] transition-all cursor-pointer"
             >
-              <Compass size={15} /> 🏰 Explore Ravencrest
+              <Compass size={15} className="hidden sm:block" /> 🏰 <span className="sm:hidden">Ravencrest</span><span className="hidden sm:inline">Explore Ravencrest</span>
             </button>
             <button
               onClick={() => {
@@ -1037,20 +1049,20 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
         </div>
 
         {/* Team / Faction Allegiance Strip */}
-        <div className="relative z-10 py-4 border-b border-white/10 flex items-center justify-between gap-3 flex-wrap">
+        <div className="relative z-10 py-3 sm:py-4 border-b border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 sm:flex-wrap">
           <div className="flex items-center gap-2">
             <span className="text-[9px] font-black uppercase tracking-[0.25em] text-orange-300">
               Your Halloween Team:
             </span>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap sm:overflow-visible">
             {HALLOWEEN_FACTIONS.map((fac) => {
               const active = fac.id === myFactionId;
               return (
                 <button
                   key={fac.id}
                   onClick={() => chooseTeam(fac.id)}
-                  className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 border transition-all cursor-pointer ${
+                  className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 border transition-all cursor-pointer ${
                     active
                       ? 'bg-orange-500/25 border-orange-400 text-white shadow-[0_0_15px_rgba(249,115,22,0.3)]'
                       : 'bg-white/[0.04] hover:bg-white/[0.08] border-white/10 text-white/65'
@@ -1065,7 +1077,7 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
             {teamRoomFor(myFactionId) && (
               <button
                 onClick={() => openClubRoom(PUMPKIN_PATCH_CLUB_ID, teamRoomFor(myFactionId)!.channelId)}
-                className="px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 bg-orange-500 hover:bg-orange-400 text-black cursor-pointer"
+                className="shrink-0 whitespace-nowrap px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 bg-orange-500 hover:bg-orange-400 text-black cursor-pointer"
                 title="Your team's room in the official Pumpkin Patch Club"
               >
                 <Users size={11} /> Team room
@@ -1075,15 +1087,32 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
         </div>
 
         {/* Main 2-Column Interactive Grid: Left = Live Camera & Halloween Face Filter Studio | Right = Persistent Chat & Fan Polls */}
-        <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-6 pt-6">
+        <div className="lg:hidden relative z-10 grid grid-cols-2 gap-1 p-1 mt-4 rounded-2xl bg-black/50 border border-white/10">
+          {([
+            ['BOOTH', '🎭 Filter Booth'],
+            ['CHAT', `💬 Chat & Polls (${messages.length})`],
+          ] as const).map(([id, label]) => (
+            <button
+              key={id}
+              onClick={() => setPhonePane(id)}
+              className={`rounded-xl text-[11px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                phonePane === id ? 'bg-orange-500 text-black' : 'text-white/60'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-6 pt-4 lg:pt-6">
           {/* ── LEFT COLUMN (7 cols): LIVE HALLOWEEN FILTER BOOTH & DIM-THE-LIGHTS CAM ── */}
-          <div className="lg:col-span-7 flex flex-col gap-4">
+          <div className={`lg:col-span-7 flex-col gap-4 ${phonePane === 'BOOTH' ? 'flex' : 'hidden lg:flex'}`}>
             {/* Live Filtered Video Canvas Viewport */}
-            <div className="relative rounded-2xl overflow-hidden border-2 border-orange-500/40 bg-black aspect-video shadow-2xl group">
+            <div className="relative rounded-2xl overflow-hidden border-2 border-orange-500/40 bg-black sm:aspect-video shadow-2xl group">
               <video ref={videoRef} playsInline muted className="hidden" />
               <canvas
                 ref={canvasRef}
-                className="w-full h-full object-cover block"
+                className="w-full aspect-video sm:aspect-auto sm:h-full object-cover block"
               />
 
               {/* Top-left Status Pills */}
@@ -1103,7 +1132,7 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
                 </span>
                 {dimLightsMode && (
                   <span className="px-2.5 py-1 rounded-lg bg-emerald-950/90 backdrop-blur-md border border-emerald-400/50 text-[9px] font-black uppercase tracking-widest text-emerald-300 flex items-center gap-1">
-                    <Flashlight size={11} /> Dim the Lights · Found-Footage Beam
+                    <Flashlight size={11} /> <span className="sm:hidden">Night Beam</span><span className="hidden sm:inline">Dim the Lights · Found-Footage Beam</span>
                   </span>
                 )}
                 {batSwarmOverlay && (
@@ -1114,43 +1143,44 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
               </div>
 
               {/* Bottom Controls Overlay */}
-              <div className="absolute bottom-3 inset-x-3 flex items-center justify-between gap-2 flex-wrap">
-                <div className="flex items-center gap-1.5 flex-wrap">
+              <div className="sm:absolute sm:bottom-3 sm:inset-x-3 p-2 sm:p-0 grid grid-cols-2 sm:flex items-center justify-between gap-2 sm:flex-wrap bg-black/70 sm:bg-transparent">
+                <div className="contents sm:flex items-center gap-1.5 sm:flex-wrap">
                   {cameraSource === 'SIMULATED' ? (
                     <button
                       onClick={startLiveWebcam}
-                      className="px-3.5 py-2 rounded-xl bg-orange-500 hover:bg-orange-400 text-black font-black text-[10px] uppercase tracking-widest flex items-center gap-1.5 shadow-lg cursor-pointer"
+                      className="px-3.5 py-2 rounded-xl bg-orange-500 hover:bg-orange-400 text-black font-black text-[10px] uppercase tracking-wider sm:tracking-widest flex items-center justify-center gap-1.5 shadow-lg cursor-pointer"
                     >
-                      <Video size={13} /> Use My Live Webcam
+                      <Video size={13} /> <span className="sm:hidden">Webcam</span><span className="hidden sm:inline">Use My Live Webcam</span>
                     </button>
                   ) : (
                     <button
                       onClick={stopLiveWebcam}
-                      className="px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-black text-[10px] uppercase tracking-widest flex items-center gap-1.5 shadow-lg cursor-pointer"
+                      className="px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-black text-[10px] uppercase tracking-wider sm:tracking-widest flex items-center justify-center gap-1.5 shadow-lg cursor-pointer"
                     >
-                      <VideoOff size={13} /> Switch to Simulated Talking Head
+                      <VideoOff size={13} /> <span className="sm:hidden">Stop Cam</span><span className="hidden sm:inline">Switch to Simulated Talking Head</span>
                     </button>
                   )}
 
                   {cameraSource === 'SIMULATED' && (
                     <button
                       onClick={() => setSimulatedTalkingBurst((v) => !v)}
-                      className={`px-3 py-2 rounded-xl border text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-all cursor-pointer ${
+                      className={`px-3 py-2 rounded-xl border text-[10px] font-black uppercase tracking-wider sm:tracking-widest flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                         simulatedTalkingBurst
                           ? 'bg-amber-500/25 border-amber-400 text-amber-200'
                           : 'bg-black/75 border-white/20 text-white/70'
                       }`}
                     >
                       <Mic size={12} />
-                      {simulatedTalkingBurst ? 'Talking Jaw: Active' : 'Talking Jaw: Paused'}
+                      <span className="sm:hidden">{simulatedTalkingBurst ? 'Jaw On' : 'Jaw Off'}</span>
+                      <span className="hidden sm:inline">{simulatedTalkingBurst ? 'Talking Jaw: Active' : 'Talking Jaw: Paused'}</span>
                     </button>
                   )}
                 </div>
 
-                <div className="flex items-center gap-1.5">
+                <div className="col-span-2 sm:col-span-1 flex items-center gap-1.5">
                   <button
                     onClick={handleSnapFilteredPhotoToChat}
-                    className="px-3.5 py-2 rounded-xl bg-white/15 hover:bg-orange-500 hover:text-black backdrop-blur-md border border-white/25 text-white font-black text-[10px] uppercase tracking-widest flex items-center gap-1.5 transition-all cursor-pointer"
+                    className="w-full sm:w-auto px-3.5 py-2 rounded-xl bg-white/15 hover:bg-orange-500 hover:text-black backdrop-blur-md border border-white/25 text-white font-black text-[10px] uppercase tracking-wider sm:tracking-widest flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                   >
                     <Camera size={13} /> Snap &amp; Post to Chat
                   </button>
@@ -1293,7 +1323,7 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                 {HALLOWEEN_FILTERS.map((f) => {
                   const active = !castCharacter && selectedFilter === f.id;
                   return (
@@ -1316,15 +1346,15 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
                         <span className="text-lg">{f.icon}</span>
                         {active && (
                           <span className="px-1.5 py-0.5 rounded bg-black/20 text-[8px] font-black uppercase">
-                            Active
+                            <span className="sm:hidden">✓</span><span className="hidden sm:inline">Active</span>
                           </span>
                         )}
                       </div>
-                      <p className="text-[11px] font-black uppercase tracking-tight mt-1 truncate">
+                      <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-tight mt-1 leading-tight line-clamp-2 sm:line-clamp-none sm:truncate">
                         {f.shortLabel}
                       </p>
                       <p
-                        className={`text-[9px] line-clamp-2 leading-tight mt-0.5 ${
+                        className={`hidden sm:block text-[9px] line-clamp-2 leading-tight mt-0.5 ${
                           active ? 'text-black/75 font-semibold' : 'text-white/45'
                         }`}
                       >
@@ -1357,11 +1387,11 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
                       {dimLightsMode ? 'ON' : 'OFF'}
                     </span>
                   </div>
-                  <p className="text-[11px] font-black uppercase tracking-tight mt-1 truncate">
-                    Dim the Lights
+                  <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-tight mt-1 leading-tight line-clamp-2 sm:line-clamp-none sm:truncate">
+                    <span className="sm:hidden">Dim Lights</span><span className="hidden sm:inline">Dim the Lights</span>
                   </p>
                   <p
-                    className={`text-[9px] line-clamp-2 leading-tight mt-0.5 ${
+                    className={`hidden sm:block text-[9px] line-clamp-2 leading-tight mt-0.5 ${
                       dimLightsMode ? 'text-black/75 font-semibold' : 'text-white/45'
                     }`}
                   >
@@ -1372,16 +1402,16 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
 
               {/* Room-Wide Chat FX Action Bar */}
               <div className="pt-2 border-t border-white/10 flex items-center justify-between gap-2 flex-wrap">
-                <div className="flex items-center gap-2 flex-wrap">
+                <div className="grid grid-cols-3 w-full sm:w-auto sm:flex items-center gap-2 sm:flex-wrap">
                   <button
                     onClick={() => setBatSwarmOverlay((v) => !v)}
-                    className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all cursor-pointer ${
+                    className={`px-2 sm:px-3 py-1.5 leading-tight text-center rounded-lg text-[9px] font-black uppercase tracking-wide sm:tracking-widest border transition-all cursor-pointer ${
                       batSwarmOverlay
                         ? 'bg-purple-500/25 border-purple-400 text-purple-200'
                         : 'bg-white/5 border-white/10 text-white/50'
                     }`}
                   >
-                    🦇 Bat Overlay: {batSwarmOverlay ? 'ON' : 'OFF'}
+                    🦇 <span className="sm:hidden">Bats {batSwarmOverlay ? 'On' : 'Off'}</span><span className="hidden sm:inline">Bat Overlay: {batSwarmOverlay ? 'ON' : 'OFF'}</span>
                   </button>
                   <button
                     onClick={() =>
@@ -1390,9 +1420,9 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
                         fxTrigger: 'BATS',
                       })
                     }
-                    className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-purple-500/20 border border-white/10 hover:border-purple-400/40 text-[9px] font-black uppercase tracking-widest text-purple-300 transition-all cursor-pointer"
+                    className="px-2 sm:px-3 py-1.5 leading-tight text-center rounded-lg bg-white/5 hover:bg-purple-500/20 border border-white/10 hover:border-purple-400/40 text-[9px] font-black uppercase tracking-wide sm:tracking-widest text-purple-300 transition-all cursor-pointer"
                   >
-                    🦇 Send Bat Swarm to Chat
+                    🦇 <span className="sm:hidden">Swarm Chat</span><span className="hidden sm:inline">Send Bat Swarm to Chat</span>
                   </button>
                   <button
                     onClick={() =>
@@ -1401,9 +1431,9 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
                         fxTrigger: 'JACK',
                       })
                     }
-                    className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-orange-500/20 border border-white/10 hover:border-orange-400/40 text-[9px] font-black uppercase tracking-widest text-orange-300 transition-all cursor-pointer"
+                    className="px-2 sm:px-3 py-1.5 leading-tight text-center rounded-lg bg-white/5 hover:bg-orange-500/20 border border-white/10 hover:border-orange-400/40 text-[9px] font-black uppercase tracking-wide sm:tracking-widest text-orange-300 transition-all cursor-pointer"
                   >
-                    🎃 Plasma Slash FX
+                    🎃 <span className="sm:hidden">Slash FX</span><span className="hidden sm:inline">Plasma Slash FX</span>
                   </button>
                 </div>
               </div>
@@ -1411,32 +1441,32 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
           </div>
 
           {/* ── RIGHT COLUMN (5 cols): PERSISTENT HALLOWEEN CHAT ROOM & FAN POLLS ── */}
-          <div className="lg:col-span-5 flex flex-col rounded-2xl bg-[#0c090d] border border-orange-500/25 overflow-hidden h-[560px]">
+          <div className={`lg:col-span-5 flex-col rounded-2xl bg-[#0c090d] border border-orange-500/25 overflow-hidden h-[68dvh] min-h-[440px] sm:h-[560px] ${phonePane === 'CHAT' ? 'flex' : 'hidden lg:flex'}`}>
             {/* Tab Bar */}
             <div className="flex border-b border-white/10 bg-black/40">
               <button
                 onClick={() => setActiveRightTab('CHAT')}
-                className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 border-b-2 transition-all cursor-pointer ${
+                className={`flex-1 py-3 text-[10px] font-black uppercase tracking-wider sm:tracking-widest whitespace-nowrap flex items-center justify-center gap-1.5 border-b-2 transition-all cursor-pointer ${
                   activeRightTab === 'CHAT'
                     ? 'border-orange-500 text-orange-400 bg-orange-500/10'
                     : 'border-transparent text-white/50 hover:text-white'
                 }`}
               >
-                <MessageSquare size={13} /> Vault Chat ({messages.length})
+                <MessageSquare size={13} /> <span className="hidden sm:inline">Vault </span>Chat ({messages.length})
               </button>
               <button
                 onClick={() => setActiveRightTab('POLLS')}
-                className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 border-b-2 transition-all cursor-pointer ${
+                className={`flex-1 py-3 text-[10px] font-black uppercase tracking-wider sm:tracking-widest whitespace-nowrap flex items-center justify-center gap-1.5 border-b-2 transition-all cursor-pointer ${
                   activeRightTab === 'POLLS'
                     ? 'border-orange-500 text-orange-400 bg-orange-500/10'
                     : 'border-transparent text-white/50 hover:text-white'
                 }`}
               >
-                <BarChart3 size={13} /> Fan Polls ({polls.length})
+                <BarChart3 size={13} /> <span className="hidden sm:inline">Fan </span>Polls ({polls.length})
               </button>
               <button
                 onClick={() => setActiveRightTab('FACTIONS')}
-                className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 border-b-2 transition-all cursor-pointer ${
+                className={`flex-1 py-3 text-[10px] font-black uppercase tracking-wider sm:tracking-widest whitespace-nowrap flex items-center justify-center gap-1.5 border-b-2 transition-all cursor-pointer ${
                   activeRightTab === 'FACTIONS'
                     ? 'border-orange-500 text-orange-400 bg-orange-500/10'
                     : 'border-transparent text-white/50 hover:text-white'
@@ -1548,13 +1578,13 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
                         if (e.key === 'Enter') void handleSendMessage();
                       }}
                       disabled={!canChat}
-                      placeholder={canChat ? `Chat as ${myFaction.emoji} ${myFaction.shortName} (${activeFilterMeta.icon} ${activeFilterMeta.shortLabel} active)…` : 'Sign in to chat'}
-                      className="flex-1 h-10 px-3.5 rounded-xl bg-white/5 border border-white/15 focus:border-orange-400 text-xs text-white placeholder-white/35 outline-none"
+                      placeholder={canChat ? `Chat as ${myFaction.emoji} ${myFaction.shortName}…` : 'Sign in to chat'}
+                      className="flex-1 min-w-0 h-11 sm:h-10 px-3.5 rounded-xl bg-white/5 border border-white/15 focus:border-orange-400 text-base sm:text-xs text-white placeholder-white/35 outline-none"
                     />
                     <button
                       onClick={() => void handleSendMessage()}
                       disabled={!canChat || !chatDraft.trim()}
-                      className="h-10 px-4 rounded-xl bg-orange-500 hover:bg-orange-400 disabled:opacity-40 text-black font-black text-xs uppercase tracking-widest flex items-center gap-1.5 cursor-pointer"
+                      className="shrink-0 h-11 sm:h-10 px-4 rounded-xl bg-orange-500 hover:bg-orange-400 disabled:opacity-40 text-black font-black text-xs uppercase tracking-widest flex items-center justify-center gap-1.5 cursor-pointer"
                     >
                       <Send size={13} /> Send
                     </button>
@@ -1701,7 +1731,7 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
       </section>
 
       {/* ── PERSISTENT FLOATING HALLOWEEN VAULT CHAT & FILTER MINI-DRAWER ── */}
-      <div className="fixed bottom-5 right-5 z-[65]">
+      <div className={`fixed bottom-[calc(env(safe-area-inset-bottom)+92px)] right-3 sm:bottom-5 sm:right-5 z-[65] ${roomInView && !floatingWidgetOpen ? 'hidden lg:block' : ''}`}>
         <AnimatePresence mode="wait">
           {!floatingWidgetOpen ? (
             <motion.button
@@ -1710,10 +1740,12 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 16 }}
               onClick={() => setFloatingWidgetOpen(true)}
-              className="px-4 py-3 rounded-2xl bg-[#160b06]/95 hover:bg-[#1f1008] border-2 border-orange-500/60 text-white shadow-[0_12px_40px_rgba(249,115,22,0.38)] backdrop-blur-xl flex items-center gap-2.5 cursor-pointer"
+              aria-label="Open Halloween vault chat"
+              className="px-3 sm:px-4 py-2 sm:py-3 rounded-2xl bg-[#160b06]/95 hover:bg-[#1f1008] border-2 border-orange-500/60 text-white shadow-[0_12px_40px_rgba(249,115,22,0.38)] backdrop-blur-xl flex items-center gap-2 sm:gap-2.5 cursor-pointer"
             >
               <span className="text-lg">{activeFilterMeta.icon}</span>
-              <div className="text-left">
+              <span className="sm:hidden text-xs font-black">💬 {messages.length}</span>
+              <div className="hidden sm:block text-left">
                 <p className="text-[9px] font-black uppercase tracking-widest text-orange-400 leading-none">
                   Persistent Vault Room
                 </p>
@@ -1721,7 +1753,7 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
                   Halloween Chat &amp; Filter Cam ({messages.length})
                 </p>
               </div>
-              <Maximize2 size={14} className="text-orange-300 ml-1" />
+              <Maximize2 size={14} className="hidden sm:block text-orange-300 ml-1" />
             </motion.button>
           ) : (
             <motion.div
@@ -1729,7 +1761,7 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
               initial={{ opacity: 0, scale: 0.92, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.92, y: 20 }}
-              className="w-80 sm:w-96 rounded-3xl bg-[#11090c]/95 border-2 border-orange-500/50 shadow-[0_25px_70px_rgba(0,0,0,0.85)] backdrop-blur-2xl overflow-hidden flex flex-col"
+              className="w-[calc(100vw-24px)] max-w-sm sm:w-96 sm:max-w-none rounded-3xl bg-[#11090c]/95 border-2 border-orange-500/50 shadow-[0_25px_70px_rgba(0,0,0,0.85)] backdrop-blur-2xl overflow-hidden flex flex-col"
             >
               <div className="px-4 py-3 bg-gradient-to-r from-orange-500/20 to-purple-500/15 border-b border-white/10 flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -1745,7 +1777,8 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
                 </div>
                 <button
                   onClick={() => setFloatingWidgetOpen(false)}
-                  className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white/70 hover:text-white cursor-pointer"
+                  aria-label="Minimize vault chat"
+                  className="w-11 h-11 sm:w-auto sm:h-auto sm:p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white/70 hover:text-white cursor-pointer flex items-center justify-center"
                 >
                   <Minimize2 size={13} />
                 </button>
@@ -1806,11 +1839,11 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
                   }}
                   disabled={!canChat}
                   placeholder={canChat ? 'Send message to Vault Room…' : 'Sign in to chat'}
-                  className="flex-1 h-8 px-2.5 rounded-lg bg-white/5 border border-white/10 text-[11px] text-white outline-none"
+                  className="flex-1 min-w-0 h-11 sm:h-8 px-2.5 rounded-lg bg-white/5 border border-white/10 text-base sm:text-[11px] text-white outline-none"
                 />
                 <button
                   onClick={() => void handleSendMessage()}
-                  className="h-8 px-3 rounded-lg bg-orange-500 text-black font-black text-[10px] uppercase cursor-pointer"
+                  className="shrink-0 h-11 sm:h-8 px-4 sm:px-3 rounded-lg bg-orange-500 text-black font-black text-[10px] uppercase cursor-pointer"
                 >
                   Send
                 </button>
