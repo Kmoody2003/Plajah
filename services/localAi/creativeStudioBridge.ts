@@ -1,4 +1,4 @@
-// creativeStudioBridge.ts Ã¢â‚¬â€ Unified bridge for Plajah's Native Creative Studio.
+// creativeStudioBridge.ts ââ‚¬” Unified bridge for Plajah's Native Creative Studio.
 // Orchestrates on-device execution for:
 //   1. Cinema Stills (FLUX.1 schnell/dev)
 //   2. Detail Enhancer & 4K Upscaler (Micro-texture hallucination)

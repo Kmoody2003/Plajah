@@ -1030,7 +1030,7 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab, currentUs
             </div>
           )}
 
-          {/* Today's Scoreboard â€" always rendered; shows skeleton while loading */}
+          {/* Today's Scoreboard — always rendered; shows skeleton while loading */}
           {selectedSportsTab !== 'NFL' && <div className="space-y-3">
             <div className="flex items-center gap-2">
               {leagueScores.some((e: any) => e.status?.type?.state === 'in') && (
@@ -1063,7 +1063,7 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab, currentUs
                     }`}>
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-[7px] font-black uppercase tracking-widest text-white/25 truncate">{event.status?.type?.shortDetail}</span>
-                        {isLive && <span className="text-[7px] font-black text-red-400 animate-pulse shrink-0">â— Live</span>}
+                        {isLive && <span className="text-[7px] font-black text-red-400 animate-pulse shrink-0">● Live</span>}
                         {isPre  && <span className="text-[7px] font-black text-white/20 shrink-0 uppercase">Upcoming</span>}
                         {isPost && <span className="text-[7px] font-black text-white/20 shrink-0 uppercase">Final</span>}
                       </div>
@@ -1080,7 +1080,7 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab, currentUs
                             </div>
                           </div>
                           <span className={`text-xs font-black ${team?.winner ? 'text-[#FF8C00]' : isPost ? 'text-white/40' : isPre ? 'text-white/15' : 'text-white/70'}`}>
-                            {scoreText(team?.score) || (isPre ? '' : 'â€"')}
+                            {scoreText(team?.score) || (isPre ? '' : '—')}
                           </span>
                         </button>
                       ))}
@@ -1114,7 +1114,7 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab, currentUs
             )}
           </div>}
 
-          {/* Standings â€" always rendered for team/league sports */}
+          {/* Standings — always rendered for team/league sports */}
           {!specialtyCfg && <div className="space-y-3">
             <h4 className="text-[9px] font-black uppercase tracking-[0.4em] text-white/40 flex items-center gap-2"><TrendingUp size={10} /> Standings</h4>
             {leagueLoading ? (
@@ -1194,7 +1194,7 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab, currentUs
                                     {gb    !== '' && <span className="w-5 text-right text-white/20">{gb}</span>}
                                   </div>
                                 )}
-                                <div className="sm:hidden text-[8px] font-bold text-white/35">{wins && losses ? `${wins}â€"${losses}` : ''}</div>
+                                <div className="sm:hidden text-[8px] font-bold text-white/35">{wins && losses ? `${wins}—${losses}` : ''}</div>
                               </button>
                             );
                           })}
@@ -1297,9 +1297,9 @@ export const SportsCenterView: React.FC<Props> = ({ selectedSportsTab, currentUs
           {!specialtyCfg && <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h4 className="text-[9px] font-black uppercase tracking-[0.4em] text-white/40">
-                {selectedSportsTab} Teams{teamSearch && filteredTeams.length < leagueTeams.length ? ` Â· ${filteredTeams.length} results` : ''}
+                {selectedSportsTab} Teams{teamSearch && filteredTeams.length < leagueTeams.length ? ` · ${filteredTeams.length} results` : ''}
               </h4>
-              {!teamSearch && leagueTeams.length > 0 && <span className="text-[7px] text-white/20 font-bold uppercase">Tap for team page Â· Pin to track</span>}
+              {!teamSearch && leagueTeams.length > 0 && <span className="text-[7px] text-white/20 font-bold uppercase">Tap for team page · Pin to track</span>}
             </div>
             {leagueLoading ? (
               <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">

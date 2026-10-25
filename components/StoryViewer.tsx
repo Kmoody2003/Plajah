@@ -72,7 +72,7 @@ const StoryViewer: React.FC<Props> = ({ group, currentUserId, onClose, onVisitUs
     return () => clearInterval(intervalRef.current!);
   }, [story?.id, paused, advance]);
 
-  // Video ended â†’ advance
+  // Video ended → advance
   const onVideoEnded = () => advance();
 
   if (!story) return null;

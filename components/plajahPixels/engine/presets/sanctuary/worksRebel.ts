@@ -1,5 +1,5 @@
-// Series VIII Ã‚Â· Sanctuary Light Ã¢â‚¬â€ the Rebellious Hand: texture, gesture, ink,
-// brush Ã¢â‚¬â€ the hand-made.
+// Series VIII · Sanctuary Light ââ‚¬” the Rebellious Hand: texture, gesture, ink,
+// brush ââ‚¬” the hand-made.
 import type { SanctuaryWorkDef } from './prelude';
 
 export const REBEL_WORKS: SanctuaryWorkDef[] = [
@@ -156,7 +156,7 @@ void mainImage(out vec4 o,in vec2 C){
   float corona=exp(-ld*2.6);
   vec3 lamp=vec3(1.,.60,.28);
   vec3 col=paper+lamp*glow*(.45+.65*fibre)*.85+lamp*corona*.10;
-  // charcoal gestures, breathing slowly â€” kept above and below the text band
+  // charcoal gestures, breathing slowly — kept above and below the text band
   vec2 g1=gesture(uv,.30+.015*sin(t),.08,2.,1.+t*.5,.085,-.98,.62,1.);
   vec2 g2=gesture(uv,-.38,.05,2.6,4.-t*.4,.06,-.35,1.0,5.);
   vec2 g3=gesture(uv,.40,.06,2.4,2.5+t*.35,.035,-.70,.25,9.);

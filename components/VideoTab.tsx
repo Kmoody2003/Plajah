@@ -192,7 +192,7 @@ const VideoCard: React.FC<{
         )}
         {/* Duration / views pill */}
         <div className="absolute bottom-2.5 right-2.5 px-2 py-1 bg-black/70 backdrop-blur-md rounded-md text-[8px] font-black tracking-widest text-white/80">
-          {(video as any).playsCount ? `${(video as any).playsCount}` : 'â€"'} views
+          {(video as any).playsCount ? `${(video as any).playsCount}` : '—'} views
         </div>
         {/* Change Thumbnail button (owner only, not on live streams) */}
         {isCardOwner && !isLive && (
@@ -228,7 +228,7 @@ const VideoCard: React.FC<{
           </p>
           <div className="flex items-center gap-2 mt-1 text-[8px] font-bold text-white/25 uppercase tracking-widest">
             <span>{timeAgo((video as any).timestamp || (video as any).createdAt || Date.now())}</span>
-            {(video as any).genre && <><span>Â·</span><span>{(video as any).genre}</span></>}
+            {(video as any).genre && <><span>·</span><span>{(video as any).genre}</span></>}
           </div>
         </div>
         {onAssignWorld && (
@@ -1359,7 +1359,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                           <img loading="lazy" decoding="async" src={thumbUrl(selectedMovie.coverImage, THUMB.card) || undefined} onError={onThumbError(selectedMovie.coverImage)} alt={selectedMovie.title} className="w-full h-full object-cover" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-[9px] font-black uppercase tracking-[0.4em] text-white/30 mb-2">{selectedMovie.subType?.replace('_', ' ')} Â· {selectedMovie.movieMetadata?.releaseYear}</p>
+                          <p className="text-[9px] font-black uppercase tracking-[0.4em] text-white/30 mb-2">{selectedMovie.subType?.replace('_', ' ')} · {selectedMovie.movieMetadata?.releaseYear}</p>
                           <h3 className="text-3xl font-display font-black tracking-tight uppercase mb-2 leading-tight">{selectedMovie.title}</h3>
                           <p className="text-sm text-white/50 leading-relaxed line-clamp-3">{cleanDescription(selectedMovie.description)}</p>
                           <button type="button" onClick={() => setSelectedMovie(null)} className="mt-4 text-[9px] font-black uppercase tracking-widest text-white/30 hover:text-white transition-colors">Dismiss</button>
@@ -1399,7 +1399,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                                 <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shrink-0 text-sm font-black text-blue-300">{m.actorName[0]}</div>
                                 <div className="min-w-0">
                                   <p className="text-sm font-black text-white truncate">{m.actorName}</p>
-                                  {m.characterName && <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">as {m.characterName}{m.role ? ` Â· ${m.role}` : ''}</p>}
+                                  {m.characterName && <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">as {m.characterName}{m.role ? ` · ${m.role}` : ''}</p>}
                                 </div>
                               </div>
                             ))}
@@ -1820,7 +1820,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                               </div>
                               <div className="text-center">
                                 <p className="text-sm font-black uppercase tracking-widest text-white/40">Drop your video here</p>
-                                <p className="text-[9px] font-bold text-white/20 uppercase tracking-widest mt-1">or click to browse â€" MP4, MOV, AVI, MKV supported</p>
+                                <p className="text-[9px] font-bold text-white/20 uppercase tracking-widest mt-1">or click to browse — MP4, MOV, AVI, MKV supported</p>
                               </div>
                             </div>
                           )}
@@ -2038,7 +2038,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                             }}
                             className="w-full py-3 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center gap-2 text-[9px] font-black uppercase tracking-widest hover:bg-white/10 transition-all disabled:opacity-30"
                           >
-                            <Camera size={14} /> {isCapturing ? 'Capturing frameâ€¦' : 'Auto-generate from video'}
+                            <Camera size={14} /> {isCapturing ? 'Capturing frame…' : 'Auto-generate from video'}
                           </button>
 
                           {/* World link */}
@@ -2118,7 +2118,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                           <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden">
                             <motion.div className="h-full bg-gradient-to-r from-purple-600 to-small-orange rounded-full" initial={{ width: 0 }} animate={{ width: `${uploadProgress}%` }} />
                           </div>
-                          <p className="text-center text-[9px] font-black uppercase tracking-[0.4em] text-small-orange animate-pulse">Uploadingâ€¦ {Math.round(uploadProgress)}%</p>
+                          <p className="text-center text-[9px] font-black uppercase tracking-[0.4em] text-small-orange animate-pulse">Uploading… {Math.round(uploadProgress)}%</p>
                           <button type="button" onClick={() => setShowUpload(false)} className="w-full py-3 bg-white/5 rounded-xl text-[9px] font-black uppercase tracking-widest text-white/30 hover:text-white transition-all">Run in Background</button>
                         </div>
                       ) : (
@@ -2153,7 +2153,7 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                       disabled={uploadStep === 1 && !newVideo.file && newVideo.subType !== 'TV_SERIES' && newVideo.subType !== 'MOVIE'}
                       className="px-8 py-3 bg-white text-black hover:bg-small-orange hover:text-white rounded-xl font-black text-[9px] uppercase tracking-widest transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                     >
-                      Continue â†’
+                      Continue →
                     </button>
                   )}
                 </div>

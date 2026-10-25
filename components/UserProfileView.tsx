@@ -1537,7 +1537,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-60 group-hover:opacity-80 transition-opacity" />
 
-                {/* H&S button â€” owner only, ALBUM/MUSIC releases only */}
+                {/* H&S button — owner only, ALBUM/MUSIC releases only */}
                 {isOwnProfile && release.releaseType === 'ALBUM' && (release as any).type === 'MUSIC' && (
                   <button
                     onClick={e => { e.stopPropagation(); setHnsAlbum(release as Album); }}
@@ -1801,7 +1801,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                     onDragOver={(e) => handleDragOver(e, idx)}
                     onDragEnd={handleDragEnd}
                   >
-                    {/* Left arrow â€” own profile only */}
+                    {/* Left arrow — own profile only */}
                     {isOwnProfile && (
                       <button
                         onClick={() => moveTab(idx, -1)}
@@ -1831,7 +1831,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                       {tab.label}
                     </button>
 
-                    {/* Right arrow â€” own profile only */}
+                    {/* Right arrow — own profile only */}
                     {isOwnProfile && (
                       <button
                         onClick={() => moveTab(idx, 1)}
@@ -2361,7 +2361,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                               </div>
                               <div>
                                 <h4 className="text-sm font-black uppercase tracking-widest mb-1">{album.title}</h4>
-                                <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest">{album.genre} â€¢ {album.type}</p>
+                                <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest">{album.genre} • {album.type}</p>
                               </div>
                             </div>
                             <div className="flex items-center gap-8">
@@ -2441,7 +2441,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                   <p className="text-white/30 text-sm mt-3 max-w-md">Everything you've been into, right where you left off.</p>
                 </div>
 
-                {/* Pick Up Where You Left Off â€” Shows & Movies */}
+                {/* Pick Up Where You Left Off — Shows & Movies */}
                 <section>
                   <div className="flex items-end justify-between mb-6">
                     <div>
@@ -2474,7 +2474,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                           </div>
                           <div className="absolute bottom-3 left-2 right-2">
                             <p className="text-white text-[9px] font-black uppercase tracking-tight truncate">{item.title}</p>
-                            <p className="text-white/40 text-[7px] uppercase tracking-widest mt-0.5">{item.progress}% Â· {item.type}</p>
+                            <p className="text-white/40 text-[7px] uppercase tracking-widest mt-0.5">{item.progress}% · {item.type}</p>
                           </div>
                         </div>
                       </div>
@@ -2517,7 +2517,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                             <div className="h-1 bg-white/5 rounded-full overflow-hidden">
                               <div className="h-full bg-secondary rounded-full" style={{ width: `${book.progress}%` }} />
                             </div>
-                            <button className="mt-2.5 text-[8px] font-black uppercase tracking-widest text-secondary hover:text-white transition-colors">Jump to Page {book.page} â†’</button>
+                            <button className="mt-2.5 text-[8px] font-black uppercase tracking-widest text-secondary hover:text-white transition-colors">Jump to Page {book.page} →</button>
                           </div>
                         </div>
                       </div>
@@ -2541,7 +2541,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                         className="flex items-center gap-3 p-3 bg-white/[0.03] border border-white/5 rounded-2xl group hover:bg-white/[0.06] transition-all cursor-pointer"
                         onClick={() => onSelectAlbum(album)}
                       >
-                        {/* Thumbnail â€” small fixed size */}
+                        {/* Thumbnail — small fixed size */}
                         <div className="w-12 h-12 rounded-xl bg-white/5 flex-shrink-0 overflow-hidden relative border border-white/10">
                           {album.coverImage
                             ? <img loading="lazy" decoding="async" src={album.coverImage} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt={album.title} />
@@ -2583,7 +2583,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                       <div className="flex-1 min-w-0">
                         <h4 className="font-black text-sm uppercase tracking-tight truncate">{profile.games[0].title}</h4>
                         <p className="text-[9px] text-white/30 uppercase tracking-widest mt-1">Last played recently</p>
-                        <button className="mt-3 text-[8px] font-black uppercase tracking-widest text-small-orange hover:text-white transition-colors">Resume â†’</button>
+                        <button className="mt-3 text-[8px] font-black uppercase tracking-widest text-small-orange hover:text-white transition-colors">Resume →</button>
                       </div>
                     </div>
                   ) : (
@@ -2673,7 +2673,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                     <button
                       onClick={() => setActiveTab('PHOTOS')}
                       className="text-white/20 hover:text-white/50 text-[8px] font-black uppercase tracking-widest transition-colors"
-                    >View Gallery â†’</button>
+                    >View Gallery →</button>
                   </div>
                   {profile?.photos && profile.photos.length > 0 ? (
                     <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-7 gap-2">

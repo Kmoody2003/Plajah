@@ -742,7 +742,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                           <div>
                             <p className="text-[10px] font-black uppercase tracking-tight">{event.title}</p>
                             <p className="text-[8px] font-bold text-white/40 uppercase tracking-widest">
-                              {new Date(event.startTime).toLocaleString()} â€¢ {event.type}
+                              {new Date(event.startTime).toLocaleString()} • {event.type}
                             </p>
                           </div>
                           <button 
@@ -1592,7 +1592,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                 <button className="p-4 bg-white/5 rounded-2xl text-white/40 hover:text-white transition-all"><Search size={20} /></button>
               </header>
 
-              {/* Upload CTA â€” always visible, type-select grid */}
+              {/* Upload CTA — always visible, type-select grid */}
               <section className="relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-gradient-to-br from-white/5 to-white/0 p-10">
                 {/* Decorative glow */}
                 <div className="pointer-events-none absolute -top-32 -right-32 w-96 h-96 rounded-full bg-[#FF8C00]/10 blur-3xl" />
@@ -1604,15 +1604,15 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                     Upload Your<br />Creative Work
                   </h2>
                   <p className="text-white/30 text-sm font-bold uppercase tracking-widest mb-10">
-                    Choose a format â€” we'll handle the rest
+                    Choose a format — we'll handle the rest
                   </p>
 
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {([
-                      { type: 'MUSIC', label: 'Music', sub: 'Albums Â· Singles Â· Podcasts', icon: Music, color: 'from-[#FF8C00]/20 to-[#FF8C00]/5', border: 'border-[#FF8C00]/20', accent: 'text-[#FF8C00]' },
-                      { type: 'VIDEO', label: 'Video', sub: 'Films Â· Series Â· Clips', icon: VideoIcon, color: 'from-[#3b82f6]/20 to-[#3b82f6]/5', border: 'border-[#3b82f6]/20', accent: 'text-[#3b82f6]' },
-                      { type: 'BOOK', label: 'Books', sub: 'Novels Â· PDFs Â· ePubs', icon: BookOpen, color: 'from-[#10b981]/20 to-[#10b981]/5', border: 'border-[#10b981]/20', accent: 'text-[#10b981]' },
-                      { type: 'PHOTO', label: 'Photos', sub: 'Gallery Â· Slideshow', icon: ImageIcon, color: 'from-[#a855f7]/20 to-[#a855f7]/5', border: 'border-[#a855f7]/20', accent: 'text-[#a855f7]' },
+                      { type: 'MUSIC', label: 'Music', sub: 'Albums · Singles · Podcasts', icon: Music, color: 'from-[#FF8C00]/20 to-[#FF8C00]/5', border: 'border-[#FF8C00]/20', accent: 'text-[#FF8C00]' },
+                      { type: 'VIDEO', label: 'Video', sub: 'Films · Series · Clips', icon: VideoIcon, color: 'from-[#3b82f6]/20 to-[#3b82f6]/5', border: 'border-[#3b82f6]/20', accent: 'text-[#3b82f6]' },
+                      { type: 'BOOK', label: 'Books', sub: 'Novels · PDFs · ePubs', icon: BookOpen, color: 'from-[#10b981]/20 to-[#10b981]/5', border: 'border-[#10b981]/20', accent: 'text-[#10b981]' },
+                      { type: 'PHOTO', label: 'Photos', sub: 'Gallery · Slideshow', icon: ImageIcon, color: 'from-[#a855f7]/20 to-[#a855f7]/5', border: 'border-[#a855f7]/20', accent: 'text-[#a855f7]' },
                     ] as const).map(({ type, label, sub, icon: Icon, color, border, accent }) => (
                       <motion.button
                         key={type}

@@ -233,7 +233,7 @@ export const TeamPageView: React.FC<Props> = ({
               onError={e => { (e.target as HTMLImageElement).src = logo; }} />
           </div>
           <div className="flex-1 pb-1">
-            <p className="text-[9px] font-black uppercase tracking-[0.45em] text-white/35 mb-1">{tab} Â· {staticData?.conference ?? ''}</p>
+            <p className="text-[9px] font-black uppercase tracking-[0.45em] text-white/35 mb-1">{tab} · {staticData?.conference ?? ''}</p>
             <h1 className="text-5xl font-black uppercase tracking-tighter leading-none text-white drop-shadow-2xl">
               {team.location}
             </h1>
@@ -348,7 +348,7 @@ export const TeamPageView: React.FC<Props> = ({
                                 <span className="text-[8px] font-bold text-white/35">{game.status?.type?.shortDetail || ''}</span>
                                 {done && (
                                   <>
-                                    <span className="text-[9px] font-black text-white">{scoreText(away?.score)} â€" {scoreText(home?.score)}</span>
+                                    <span className="text-[9px] font-black text-white">{scoreText(away?.score)} — {scoreText(home?.score)}</span>
                                     <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded-full ${won ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>{won ? 'W' : 'L'}</span>
                                   </>
                                 )}
@@ -726,7 +726,7 @@ export const TeamPageView: React.FC<Props> = ({
                           return state === 'post' ? (s === 'post' || !s) : s === state;
                         });
                         if (games.length === 0) return null;
-                        const label = state === 'pre' ? 'Upcoming' : state === 'in' ? 'â— Live Now' : 'Results';
+                        const label = state === 'pre' ? 'Upcoming' : state === 'in' ? '● Live Now' : 'Results';
                         return (
                           <div key={state} className="space-y-2">
                             <p className={`text-[8px] font-black uppercase tracking-[0.4em] ${state === 'in' ? 'text-red-400' : 'text-white/30'}`}>{label}</p>
@@ -748,7 +748,7 @@ export const TeamPageView: React.FC<Props> = ({
                                     <span className="text-[9px] font-black uppercase truncate">{opp?.team?.displayName || opp?.team?.abbreviation}</span>
                                   </div>
                                   <div className="flex items-center gap-3 shrink-0">
-                                    {done && <span className="text-[9px] font-black">{scoreText(mine?.score)} â€" {scoreText(opp?.score)}</span>}
+                                    {done && <span className="text-[9px] font-black">{scoreText(mine?.score)} — {scoreText(opp?.score)}</span>}
                                     {state === 'in' && <span className="text-[7px] font-black text-red-400 animate-pulse">{comps?.status?.type?.shortDetail}</span>}
                                     {state === 'pre' && comps?.date && <span className="text-[8px] font-bold text-white/30">{new Date(comps.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>}
                                   </div>
@@ -797,7 +797,7 @@ export const TeamPageView: React.FC<Props> = ({
                           <div className="p-3 space-y-1">
                             {player.description && <p className="text-[8px] text-white/40 leading-relaxed line-clamp-3">{player.description}</p>}
                             <p className="text-[7px] font-black uppercase tracking-widest text-white/20">
-                              {[player.nationality, player.birthDate ? new Date(player.birthDate).getFullYear().toString() : ''].filter(Boolean).join(' Â· ')}
+                              {[player.nationality, player.birthDate ? new Date(player.birthDate).getFullYear().toString() : ''].filter(Boolean).join(' · ')}
                             </p>
                           </div>
                         )}
@@ -836,7 +836,7 @@ export const TeamPageView: React.FC<Props> = ({
                               </div>
                               <div className="flex-1 min-w-0">
                                 <p className={`text-xs font-black uppercase tracking-tight ${isChamp ? 'text-yellow-400' : 'text-white/80'}`}>{c.champion}</p>
-                                {c.opponent && <p className="text-[8px] font-bold text-white/30 mt-0.5">vs {c.opponent} {c.series ? `Â· ${c.series}` : ''}</p>}
+                                {c.opponent && <p className="text-[8px] font-bold text-white/30 mt-0.5">vs {c.opponent} {c.series ? `· ${c.series}` : ''}</p>}
                                 {c.note && <p className="text-[7px] font-black uppercase tracking-widest text-white/20 mt-0.5">{c.note}</p>}
                               </div>
                               {isChamp && <Trophy size={14} className="text-yellow-400 shrink-0" />}
@@ -850,7 +850,7 @@ export const TeamPageView: React.FC<Props> = ({
                   {/* Archive news */}
                   <div className="space-y-3">
                     <h4 className="text-[8px] font-black uppercase tracking-[0.4em] text-white/30 flex items-center gap-2">
-                      <Clock size={10} /> Team Archives â€" Trades, Contracts, Moves
+                      <Clock size={10} /> Team Archives — Trades, Contracts, Moves
                     </h4>
                     {historyNews.slice(0, 30).map((article: any, i: number) => (
                       <NewsCard key={i} article={article} />
@@ -910,7 +910,7 @@ function NewsCard({ article }: { article: any }) {
         <p className="text-xs font-bold leading-snug line-clamp-2 group-hover:text-[#FF8C00] transition-colors">{article.headline || article.title}</p>
         <p className="text-[7px] font-black uppercase tracking-widest text-white/25 mt-1.5">
           {article.published ? new Date(article.published).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}
-          {article.byline ? ` Â· ${article.byline}` : ''}
+          {article.byline ? ` · ${article.byline}` : ''}
         </p>
       </div>
       <ExternalLink size={12} className="text-white/20 shrink-0 group-hover:text-white/60 transition-colors mt-0.5" />
