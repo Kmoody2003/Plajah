@@ -241,8 +241,8 @@ export class BridgeBattle {
     }
     if (p === 'kraken') {
       player.enabled = false; player.cinematic = true;
-      game.shield(21);
-      this.cutShake = 0; this.cutStage = -1;
+      game.shield(33);
+      this.cutShake = 0; this.cutStage = -1; this.cutSub = -1; this.cutHit = false; this.cutLine1 = false; this.cutLine2 = false;
       if (this.troll) { this.troll.scripted = true; this.troll.pose('attack'); }
       this.bar.classList.remove('on');
     }
@@ -416,8 +416,11 @@ export class BridgeBattle {
   //  3.2 – 5.2 low over the water: the first giant tentacle erupts at the lens, the others after it
   //  5.2 – 7.2 wide: all eight arms risen around the bridge
   //  7.2 – 9.6 pull back in to the hero getting up: "I could really use some backup."
-  //  9.6 – 12.4 Miriam's cackle; cut to her and the monkey squadron streaking in from the castle
-  //  12.4 – 14 back behind the hero: "The West Hallow Witch comes to your aid" — and the fight resumes
+  //  9.6 – 13 Miriam's cackle; cut to her and the monkey squadron streaking in from the castle
+  //  (real seconds from here) 17.5 – 29.5 the aerial battle: a slow wide orbit of the squadron diving
+  //  on the arms; low over the water as her witch-lightning hits an arm; riding behind her broom
+  //  29.5  "The West Hallow Witch" — control returns already on the wide shot of hero and troll, and
+  //        the camera eases in behind the hero over ~8 s while the witch's battle carries on behind
   private cutShake = 0;
   private cutStage = -1;
   private cutDown = 0;
@@ -426,7 +429,7 @@ export class BridgeBattle {
     const t = this.t, B = this.d.bridge, tr = this.troll;
     const p = player.object.position;
     const hero = player.character?.root;
-    const stage = t < 1.49 ? 0 : t < 4.32 ? 1 : t < 7.02 ? 2 : t < 9.72 ? 3 : t < 12.96 ? 4 : t < 16.74 ? 5 : 6;
+    const stage = t < 1.49 ? 0 : t < 4.32 ? 1 : t < 7.02 ? 2 : t < 9.72 ? 3 : t < 12.96 ? 4 : t < 17.5 ? 5 : 6;
     const enter = stage !== this.cutStage;
     this.cutStage = stage;
     const toTroll = tr ? tr.object.position.clone().sub(p).setY(0).normalize() : B.dir.clone();
@@ -510,23 +513,54 @@ export class BridgeBattle {
       if (this.witchLight) { this.witchLight.intensity = 9; this.witchLight.distance = 14; }
       shot(w.clone().addScaledVector(toBridge, 6).addScaledVector(B.right, 2.2).add(new THREE.Vector3(0, 1.0, 0)), w.clone().add(new THREE.Vector3(0, 0.6, 0)), 38);
     } else {
-      if (enter) {
-        this.showTitle('THE WEST HALLOW WITCH', 'Miriam and her flying monkeys come to your aid', 3.5);
-        game.call('Miriam is on your side — let her army work the kraken while you take the troll', 5, '#7ad08a');
+      // The aerial battle, three shots. Her bolts are helped along so each shot has a hit in it.
+      const c = this.centre();
+      const sub = t < 21.5 ? 0 : t < 25.5 ? 1 : 2;
+      if (sub !== this.cutSub) {
+        this.cutSub = sub;
+        const tg = this.targets();
+        const arm = tg.find((x) => x.arm) ?? tg[0];
+        if (arm) this.witchBolt(this.witch.pos.clone().addScaledVector(UP, 1.3), arm);
+        if (sub === 0) game.call('Miriam and her monkeys take on the kraken', 3, '#7ad08a');
       }
-      shot(p.clone().addScaledVector(toTroll, -3.4).addScaledVector(side, 0.9).setY(p.y + 1.8), p.clone().addScaledVector(toTroll, 4).setY(p.y + 1.4), 50);
-      if (t > 18.9) {
-        // Back to the fight, picking up where it was.
+      if (sub === 0) {
+        // Slow, high orbit round the crossing: squadron, arms and the bridge all in frame.
+        const a = (t - 17.5) * 0.16 + 0.6;
+        const pos = c.clone().addScaledVector(B.right, Math.cos(a) * 34).addScaledVector(B.dir, Math.sin(a) * 26).setY(B.deckY + 15);
+        shot(pos, c.clone().setY(B.deckY + 6), 54);
+      } else if (sub === 1) {
+        // Low over the water on one arm as the lightning lands.
+        const arm = this.arms.find((x) => x.up) ?? this.arms[0];
+        const base = arm ? arm.base.clone() : c.clone();
+        const out = base.clone().sub(c).setY(0).normalize();
+        const k = (t - 21.5) / 4;
+        shot(base.clone().addScaledVector(out, 9 - 2 * k).addScaledVector(new THREE.Vector3(out.z, 0, -out.x), 3.5).setY(B.waterY + 2.2 + k),
+          base.clone().setY(B.waterY + 6 + 2 * k), 48);
+        if (Math.random() < dt * 0.9) this.d.weather.strike(40, base);
+      } else {
+        // Riding behind the witch as she banks and blasts.
+        const w = this.witch.pos;
+        const fwd = w.clone().sub(this.witch.prev).setY(0);
+        if (fwd.lengthSq() < 1e-6) fwd.copy(B.dir); else fwd.normalize();
+        shot(w.clone().addScaledVector(fwd, -5).addScaledVector(UP, 1.6), w.clone().addScaledVector(fwd, 6).addScaledVector(UP, -1.5), 50);
+      }
+      if (t > 29.5) {
+        // Back to the fight, already on the wide shot; the fight cycle eases it in behind the hero.
         if (hero) { hero.rotation.x = 0; hero.position.y = 0; }
         player.enabled = true; player.cinematic = false;
+        player.setWideNow(1);
         if (tr?.alive) tr.scripted = false;
         this.bar.classList.add('on');
-        this.phase = 'fight'; this.t = 45;
+        this.showTitle('THE WEST HALLOW WITCH', 'Miriam and her flying monkeys fight at your side', 3.5);
+        game.call('Let her army work the kraken while you take the troll', 4, '#7ad08a');
+        this.phase = 'fight'; this.t = 45; this.settleT = 0;
         this.slamCd = 3; this.ripCd = 6; this.swatCd = 2; this.slapCd = 1.5;
       }
     }
   }
-  private cutHit = false; private cutLine1 = false; private cutLine2 = false;
+  private cutHit = false; private cutLine1 = false; private cutLine2 = false; private cutSub = -1;
+  /** Seconds since the cutscene handed back (the wide shot eases in behind the hero). */
+  private settleT = 99;
 
   /** The troll must never just stand there: if it hasn't swung for a while with the hero in range,
    *  it's pushed back into the hunt; if it's stuck (holes, wreckage, the balustrade), it leaps. */
@@ -602,7 +636,10 @@ export class BridgeBattle {
     // surface, then ~7 s medium / 5 s wide once the squadron is up. Never wide mid-slam.
     {
       const cyc = this.squad ? (this.t % 12) > 7 : this.surfaced && this.t < 9;
-      this.d.player.wide = cyc && this.slamWind < 0 ? 1 : 0;
+      this.settleT += dt;
+      // After the cutscene: hold wide 3 s, then a slow ~8 s push in behind the hero.
+      if (this.settleT < 11) this.d.player.wide = 1 - THREE.MathUtils.smoothstep(this.settleT, 3, 11);
+      else this.d.player.wide = cyc && this.slamWind < 0 ? 1 : 0;
     }
     tr.home.copy(p);
     // Escalation: as its life falls the troll hits harder and moves faster, and the slams (its own
