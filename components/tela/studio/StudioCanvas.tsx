@@ -21,7 +21,7 @@ import { penStart, penDown, penDrag, penUp, penFinish, penPath, penPreview, penC
 import { moveAnchors, dragHandle, toggleAnchor, pullHandles, addAnchorAt, deleteAnchorAt, cutAt, endAt, segmentAt, bendSegment, uOnSubpath, refKey, type AnchorRef } from '../../../services/tela/studio/direct';
 import { shapeBuilderStart, shapeBuilderPick, shapeBuilderCommit, type ShapeBuilderSession } from '../../../services/tela/studio/pathfinder';
 import { editLive, profilePoints, setWidthPoint, setLiveSource, sourcePathOf, paintOf, setPaint, defaultGradient, meshFor, bakeLive, liveShapePath } from '../../../services/tela/studio/appearance';
-import { makeTypeObject, newStory, migrateLegacyText, typeOnPath, threadHead, threadChain, editFrames, pointEditFrame } from '../../../services/tela/studio/typeTools';
+import { makeTypeObject, makeTypeLayer, restyleTypeObject, newStory, migrateLegacyText, typeOnPath, threadHead, threadChain, editFrames, pointEditFrame } from '../../../services/tela/studio/typeTools';
 import { studioId } from '../../../services/tela/studio/model';
 import { pathToObject } from '../../../services/tela/geometry/tela';
 import { toPathData } from '../../../services/tela/geometry/pathData';
@@ -236,6 +236,8 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({ onObjectContextMenu,
     if (id) { const o = byId.get(id); if (o && !o.locked && (!isoMembers || isoMembers.has(o.id))) return o; }
     for (let i = objects.length - 1; i >= 0; i--) {
       const o = objects[i]; if (o.hidden || o.locked || (isoMembers && !isoMembers.has(o.id))) continue;
+      // A text layer is a page-sized sheet: only its painted glyphs (the DOM hit above) pick it.
+      if (o.textRole === 'LAYER') continue;
       const b = boundsOf(o); const pad = Math.max(tol, (o.strokeWidth || 0) / 2 + tol);
       if (p.x < b.x - pad || p.x > b.x + b.w + pad || p.y < b.y - pad || p.y > b.y + b.h + pad) continue;
       const path = isPathish(o) ? pathOf(o) : null;
@@ -279,12 +281,15 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({ onObjectContextMenu,
 
   // Switching tools finishes an open pen path, ends text editing.
   useEffect(() => { if (tool !== 'pen' && pen.anchors.length) finishPen(pen); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [tool]);
+  useEffect(() => { if (tool !== 'type' && tool !== 'typePath' && api.editingText) api.setEditingText(null); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [tool]);
   useEffect(() => { setXformOrigin(null); }, [tool, selection]);
 
   // ── Keyboard owned by the canvas (pen, space-hand, modifier display) ───────────────
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       setMods(m => ({ ...m, shift: e.shiftKey, alt: e.altKey, ctrl: e.ctrlKey || e.metaKey }));
+      // Escape leaves type editing (the text surface's own textarea has focus, so check it first).
+      if (e.key === 'Escape' && api.editingText) { e.preventDefault(); e.stopImmediatePropagation(); api.setEditingText(null); return; }
       const t = e.target as HTMLElement | null; if (t?.closest('input,textarea,select,[contenteditable="true"]')) return;
       if (e.code === 'Space' && !mods.space && !api.editingText) { setMods(m => ({ ...m, space: true })); e.preventDefault(); }
       if (tool === 'pen' && pen.anchors.length) {
@@ -778,9 +783,16 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({ onObjectContextMenu,
         setDraft(null);
         if (g.tool === 'type') {
           const q = snapPt(p); const dragged = Math.hypot(q.x - g.start.x, q.y - g.start.y) * zoom > 6;
-          const story = newStory('', { fontFamily: 'Inter', fontSize: 24, color: api.paint.fill !== 'none' ? api.paint.fill : '#1B1523', align: 'left' });
+          // Click = a text layer (page-sized sheet, text inside the margins); drag = a text box layer.
+          // Both take the host's typography (the tool-options row) when it provides one.
+          const style = api.typeStyle;
           const r = rectOf(g.start, q);
-          const t = dragged ? makeTypeObject(story, 'area', { x: r.x, y: r.y, w: Math.max(20, r.w), h: Math.max(20, r.h) }) : makeTypeObject(story, 'point', { x: g.start.x, y: g.start.y - 24, w: 0, h: 30 });
+          const count = (role: 'LAYER' | 'BOX') => objs.filter(o => o.textRole === role).length + 1;
+          const story = newStory('', { fontFamily: 'Inter', fontSize: 24, color: api.paint.fill !== 'none' ? api.paint.fill : '#1B1523', align: 'left' });
+          const t = dragged
+            ? { ...(style ? restyleTypeObject(makeTypeObject(story, 'area', { x: r.x, y: r.y, w: Math.max(20, r.w), h: Math.max(20, r.h) }), style) : makeTypeObject(story, 'area', { x: r.x, y: r.y, w: Math.max(20, r.w), h: Math.max(20, r.h) })), textRole: 'BOX' as const, objectLabel: `Text Box Layer ${count('BOX')}` }
+            : style ? makeTypeLayer({ w: W, h: H }, style, '', count('LAYER'))
+            : makeTypeObject(story, 'point', { x: g.start.x, y: g.start.y - 24, w: 0, h: 30 });
           api.commit([...objs, ...placeInIsolation([t])], { label: 'Type', select: [t.id] });
           api.setEditingText(t.id);
           return;
@@ -1047,9 +1059,18 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({ onObjectContextMenu,
     };
     return <div data-studio-text style={{ position: 'absolute', left: (vx + PAD) * zoom, top: (vy + PAD) * zoom, width: vw * zoom, zIndex: 5, background: t.mode === 'path' ? 'rgba(255,255,255,.96)' : 'transparent', boxShadow: t.mode === 'path' ? '0 8px 30px rgba(0,0,0,.35)' : undefined, outline: `1px dashed ${SEL}` }}
       onPointerDown={e => e.stopPropagation()}>
-      <TextSurface system={textSys} story={t.story!} frames={frames} viewBox={[vx, vy, vw, vh]} onChange={onChange} />
+      <TextSurface system={textSys} story={t.story!} frames={frames} viewBox={[vx, vy, vw, vh]} onChange={onChange} caretAtEnd />
     </div>;
   })() : null;
+
+  // Leaving an empty text layer discards it (a click-and-abandon with the Type tool).
+  const lastEditing = useRef<string | null>(null);
+  useEffect(() => {
+    const prev = lastEditing.current; lastEditing.current = api.editingText;
+    if (!prev || prev === api.editingText || readOnly) return;
+    const objs = api.latest().objects; const left = objs.find(o => o.id === prev);
+    if (left?.textRole === 'LAYER' && left.studio?.type?.story && !storyText(left.studio.type.story).trim()) api.commit(objs.filter(o => o.id !== prev), { label: 'Discard empty text layer', select: [] });
+  }, [api.editingText]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!api.editingText || !isEngineEditing) return;

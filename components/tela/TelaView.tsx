@@ -16,7 +16,7 @@ import { createPortal } from 'react-dom';
 import {
   BarChart3, BookHeart, BookOpen, Brush, CheckCircle2, ChevronDown, ChevronLeft, Circle, CircleHelp, Clipboard, Copy, CopyPlus, Database, Eye, EyeOff, Feather, FileDown, FilePlus2, FileText, FileUp, FlipHorizontal, Folder, FormInput,
   Grid3X3, Hand, Hexagon, Image as ImageIcon, ImagePlus, Lasso, Layers, LayoutPanelTop, Link as LinkIcon, Link2, Loader2, Maximize2, Minimize2,
-  Minus, Monitor, MousePointer2, MousePointerClick, Music2, Paintbrush, Eraser, Palette, Pencil, PenLine, PenTool, Pipette, Plus, Redo2, Scan, Shapes, Sliders, Sparkles, Spline, Square, Star, TextQuote, Trash2, Type, Undo2, Wand2, X, ZoomIn, History as HistoryIcon, Printer, Box as BoxIcon } from 'lucide-react';
+  Minus, Monitor, MousePointer2, MousePointerClick, Music2, Paintbrush, Eraser, Palette, Pencil, PenLine, PenTool, Pipette, Plus, Redo2, Scan, Shapes, Sliders, Sparkles, Spline, Square, Star, TextQuote, Trash2, Type, Undo2, Wand2, X, ZoomIn, History as HistoryIcon, Printer, Box as BoxIcon, MoreHorizontal } from 'lucide-react';
 import { NON_PRINTING_LABEL, isNonPrinting, type SpotColor } from '../../services/print/types';
 import { defaultSpecFor } from '../../services/print/products';
 import { vehiclePlacements, type WrapJob } from '../../services/print/wrap';
@@ -53,7 +53,7 @@ import TelaForm from './TelaForm';
 import TelaVector, { TelaVectorObjectProps, objBounds, type VectorTool } from './TelaVector';
 import { StudioCanvas } from './studio/StudioCanvas';
 import { StudioCtx, type StudioApi, type StudioTool, type StudioPrefs, type PaintDefaults, type ShapeOpts } from './studio/studioContext';
-import { bakeType } from '../../services/tela/studio/typeTools';
+import { bakeType, makeTypeLayer, restyleTypeObject, appendText, type TypeStylePatch } from '../../services/tela/studio/typeTools';
 import type { AnchorRef } from '../../services/tela/studio/direct';
 import { getSharedTextSystem } from './TelaWriter';
 import type { TelaStudioDeviceExt } from '../../services/tela/studio/model';
@@ -78,6 +78,7 @@ import { instantiatePublicationPage, type TelaPublicationTemplate } from '../../
 import TelaTemplateGallery from './TelaTemplateGallery';
 import TelaPaiGalleryModal from './TelaPaiGalleryModal';
 import { TelaTypographyStudio } from './TelaTypographyStudio';
+import { TelaToolOptionsBar, DEFAULT_TYPE, type TelaTypeDefaults } from './TelaToolOptionsBar';
 import type { Selection, SelectionTool } from '../../services/tela/raster/selectionWorkflow';
 import {
   invertSelection,
@@ -354,6 +355,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
   const [activeFrameId, setActiveFrameId] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>('clean');
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [headerMoreOpen, setHeaderMoreOpen] = useState(false);
   const cloudSync = useCreativeSyncState(TELA_CLOUD_KIND, doc?.id);
   const [storageMode, setStorageMode] = useState<'opfs' | 'local'>('opfs');
   const [canvasList, setCanvasList] = useState<TelaDocMeta[] | null>(null);
@@ -442,6 +444,9 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
   const [writingStudioOpen, setWritingStudioOpen] = useState(false);
   const [writingStudioTab, setWritingStudioTab] = useState<'SCRIPT' | 'DESK'>('SCRIPT');
   const [typographyStudioOpen, setTypographyStudioOpen] = useState(false);
+  // Type tool: the typography the next text layer is born with, and caret hand-off to TelaVector.
+  const [typeDefaults, setTypeDefaults] = useState<TelaTypeDefaults>(DEFAULT_TYPE);
+  const [textEditRequest, setTextEditRequest] = useState<{ id: string; nonce: number } | null>(null);
   // Author-in-place flying menu (raised from a ✎ badge — the same menu the
   // reference-embed uses). Ref-based so edits resolve live against the doc.
   const [flying, setFlying] = useState<{ ref: FlyingRef; anchor: { x: number; y: number } } | null>(null);
@@ -844,7 +849,8 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
   // Keep Studio selection scoped to the active page in focus.
   const studioDevId = studioFocus?.device.id || null;
   useEffect(() => {
-    setStudioTool('select');
+    // The Type tool stays armed across pages: typing on the next page makes its own text layer.
+    setStudioTool(tool => (tool as string) === 'text' || tool === 'type' ? tool : 'select');
     setStudioGuides({ x: [], y: [] });
     const cur = docRef.current;
     const frame = cur?.frames.find(f => f.id === activeFrameId);
@@ -1356,20 +1362,27 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
 
     const vecDeviceId = ensureVectorOverlayForFrame(targetFrame);
     const latestVec = docRef.current?.devices[vecDeviceId] as TelaVectorDevice | undefined;
-    const textBoxNum = (latestVec?.objects.filter(o => o.kind === 'TEXT').length || 0) + 1;
+    const textBoxNum = (latestVec?.objects.filter(o => o.textRole === 'BOX').length || 0) + 1;
     const boxId = uid('obj');
     const newBox: TelaVectorObject = {
       id: boxId,
       kind: 'TEXT',
-      objectLabel: `Text Box ${textBoxNum}`,
+      textRole: 'BOX',
+      objectLabel: `Text Box Layer ${textBoxNum}`,
       x: Math.round(targetFrame.w * 0.08) + ((textBoxNum - 1) % 4) * 18,
       y: 120 + ((textBoxNum - 1) % 4) * 18,
       w: Math.min(380, Math.round(targetFrame.w * 0.84)),
       h: 170,
-      fill: '#1B1523',
-      fontSize: 16,
-      fontFamily: 'Inter, system-ui, sans-serif',
-      fontWeight: 400,
+      fill: typeDefaults.fill,
+      fontSize: typeDefaults.fontSize,
+      fontFamily: typeDefaults.fontFamily,
+      fontWeight: typeDefaults.fontWeight,
+      fontStyle: typeDefaults.fontStyle,
+      underline: typeDefaults.underline,
+      textAlign: typeDefaults.textAlign,
+      lineHeight: typeDefaults.lineHeight,
+      letterSpacing: typeDefaults.letterSpacing,
+      textTransform: typeDefaults.textTransform,
       wrap: true,
       backgroundColor: '#FFFFFF',
       padding: 16,
@@ -1393,6 +1406,110 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
     setStudioSel(boxId);
     setStudioRightTab('properties');
   };
+
+  // A text layer is a page-sized, transparent sheet of text lifted off the page — the Type
+  // tool makes one when you click a page or just start typing. Its text flows inside the page
+  // margins like a document page. (A text box layer is the framed box above.)
+  // The Pro Studio focus canvas composes type with the text engine (studio.type stories baked
+  // to glyphs), so its text layers are engine area type; everywhere else they are rich TEXT.
+  const proFocusVector = (frameId?: string | null): TelaVectorDevice | null => {
+    if (studioMode !== 'pro' || posture !== 'STUDIO' || studioDocView !== 'focus') return null;
+    const cur = docRef.current; const frame = cur?.frames.find(f => f.id === (frameId || activeFrameId)) || cur?.frames[0];
+    const primary = frame ? cur?.devices[frame.deviceIds[0]] : null;
+    return primary?.type === 'VECTOR' ? primary : null;
+  };
+  const rebakeTypeOn = (deviceId: string, headId: string, label?: string) => {
+    void getSharedTextSystem().then(async sys => {
+      const d = docRef.current?.devices[deviceId] as TelaVectorDevice | undefined;
+      const story = d?.objects.find(o => o.id === headId)?.studio?.type?.story;
+      if (!d || !story) return;
+      await sys.ensure(story);
+      const latest = docRef.current?.devices[deviceId] as TelaVectorDevice | undefined; if (!latest) return;
+      const bake = bakeType(sys, latest.objects, headId);
+      if (bake) dispatchOp({ type: 'EDIT_VECTOR_DEVICE', deviceId, objects: latest.objects.map(o => bake.patches[o.id] ? { ...o, ...bake.patches[o.id] } : o), label: label ?? 'Rebake Type', coalesce: `text:${headId}` });
+    });
+  };
+  const addEngineTextLayer = (vec: TelaVectorDevice, initialText = '') => {
+    const t = makeTypeLayer({ w: vec.width, h: vec.height }, typeDefaults, initialText, vec.objects.filter(o => o.textRole === 'LAYER').length + 1);
+    dispatchOp({ type: 'EDIT_VECTOR_DEVICE', deviceId: vec.id, objects: [...vec.objects, t], label: 'Text layer' });
+    setStudioSelection([t.id]);
+    if (initialText) rebakeTypeOn(vec.id, t.id, 'Typing');
+    setEditingText(t.id);
+  };
+  /** Whole-object typography from the options row; engine type is restyled and re-composed. */
+  const updateVectorObject = (deviceId: string, objectId: string, patch: Partial<TelaVectorObject>) => {
+    const d = docRef.current?.devices[deviceId] as TelaVectorDevice | undefined;
+    const o = d?.objects.find(x => x.id === objectId); if (!d || !o) return;
+    if (!o.studio?.type?.story) { dispatchOp({ type: 'UPDATE_VECTOR_OBJECT', deviceId, objectId, patch }); return; }
+    dispatchOp({ type: 'EDIT_VECTOR_DEVICE', deviceId, objects: d.objects.map(x => x.id === objectId ? restyleTypeObject(x, patch as TypeStylePatch) : x), label: 'Typography', coalesce: `type-style:${objectId}` });
+    rebakeTypeOn(deviceId, objectId, 'Typography');
+  };
+
+  const addTextLayerToFrame = (targetFrameId?: string | null, initialText = '') => {
+    const cur = docRef.current;
+    if (!cur) return;
+    const targetFrame = cur.frames.find(f => f.id === (targetFrameId || activeFrameId)) || cur.frames[0];
+    if (!targetFrame) return;
+    const engineVec = proFocusVector(targetFrame.id);
+    if (engineVec) { setActiveFrameId(targetFrame.id); addEngineTextLayer(engineVec, initialText); return; }
+    const vecDeviceId = ensureVectorOverlayForFrame(targetFrame);
+    const vec = docRef.current?.devices[vecDeviceId] as TelaVectorDevice | undefined;
+    const n = (vec?.objects.filter(o => o.textRole === 'LAYER').length || 0) + 1;
+    const w = vec?.width || targetFrame.w, h = vec?.height || targetFrame.h;
+    const id = uid('obj');
+    const t = typeDefaults;
+    dispatchOp({ type: 'ADD_VECTOR_OBJECT', deviceId: vecDeviceId, object: {
+      id, kind: 'TEXT', textRole: 'LAYER', objectLabel: `Text Layer ${n}`,
+      x: 0, y: 0, w, h, rotation: 0, opacity: 1,
+      fill: t.fill, stroke: 'none', strokeWidth: 0,
+      fontFamily: t.fontFamily, fontSize: t.fontSize, fontWeight: t.fontWeight, fontStyle: t.fontStyle, underline: t.underline,
+      textAlign: t.textAlign, lineHeight: t.lineHeight, letterSpacing: t.letterSpacing, textTransform: t.textTransform,
+      wrap: true, padding: Math.min(96, Math.round(w * 0.1)), // 1in margins on a Letter page
+      blocks: [{ id: uid('blk'), kind: 'p', text: initialText }],
+      text: initialText,
+    } });
+    setActiveFrameId(targetFrame.id);
+    setStudioSel(id);
+    setTextEditRequest({ id, nonce: Date.now() });
+  };
+
+  // Type tool + a printable key: continue the selected text, else start a new text layer.
+  const typeIntoText = (key: string) => {
+    const vec = activeVectorDevice();
+    const sel = vec && studioSel ? vec.objects.find(o => o.id === studioSel && o.kind === 'TEXT') : null;
+    if (vec && sel && !sel.locked && sel.studio?.type?.story) {
+      const story = appendText(sel.studio.type.story, key);
+      dispatchOp({ type: 'EDIT_VECTOR_DEVICE', deviceId: vec.id, objects: vec.objects.map(o => o.id === sel.id ? { ...o, text: (o.text || '') + key, studio: { ...o.studio!, type: { ...o.studio!.type!, story } } } : o), label: 'Typing', coalesce: `text:${sel.id}` });
+      rebakeTypeOn(vec.id, sel.id, 'Typing');
+      setEditingText(sel.id);
+      return;
+    }
+    if (vec && sel && !sel.locked) {
+      const blocks: TelaBlock[] = sel.blocks?.length ? sel.blocks : [{ id: uid('blk'), kind: 'p', text: sel.text || '' }];
+      const next = blocks.map((b, i) => i === blocks.length - 1 ? { ...b, text: (b.text || '') + key } : b);
+      dispatchOp({ type: 'UPDATE_VECTOR_OBJECT', deviceId: vec.id, objectId: sel.id, patch: { blocks: next, text: next.map(b => b.text).join('\n') } });
+      setTextEditRequest({ id: sel.id, nonce: Date.now() });
+      return;
+    }
+    if (key.trim()) addTextLayerToFrame(activeFrameId, key);
+  };
+  const isTypeTool = (studioTool as string) === 'text' || studioTool === 'type';
+  const typeKeyRef = useRef<(event: KeyboardEvent) => void>(() => {});
+  typeKeyRef.current = event => {
+    if (!isTypeTool || (posture !== 'STUDIO' && posture !== 'PAGE')) return;
+    if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey || event.key.length !== 1) return;
+    const target = event.target instanceof Element ? event.target : null;
+    if (target?.closest('input,textarea,select,[contenteditable="true"],[contenteditable=""]')) return;
+    // While the Pro Studio canvas is editing type, its own text surface owns the keys.
+    if (editingText && proFocusVector()) return;
+    event.preventDefault();
+    typeIntoText(event.key);
+  };
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => typeKeyRef.current(event);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   const addShapeToActiveFrame = (kind: 'RECT' | 'CIRCLE' | 'STAR' | 'CALLOUT' = 'RECT', targetFrameId?: string) => {
     const cur = docRef.current;
@@ -1897,7 +2014,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
         setStudioSelection(focus.type === 'VECTOR' ? focus.objects.map(object => object.id) : focus.layers.map(layer => layer.id));
         return;
       }
-      if (!mod && !event.altKey && focus.type === 'VECTOR') {
+      if (!mod && !event.altKey && focus.type === 'VECTOR' && (studioTool as string) !== 'text' && studioTool !== 'type') {
         const tools: Partial<Record<string, VectorTool>> = {
           v: 'select', a: 'direct', m: 'marquee', r: 'rect', e: 'ellipse', l: 'line', p: 'pen', t: 'text', b: 'ink',
         };
@@ -1942,7 +2059,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
     };
     window.addEventListener('keydown', onStudioKey);
     return () => window.removeEventListener('keydown', onStudioKey);
-  }, [posture, studioDevId, studioSel, studioSelIds, dispatchOp, setStudioSelection, setStudioSel]);
+  }, [posture, studioDevId, studioSel, studioSelIds, studioTool, dispatchOp, setStudioSelection, setStudioSel]);
 
   // Frame dragging by its chrome.
   const dragState = useRef<{ id: string; px: number; py: number; fx: number; fy: number } | null>(null);
@@ -2453,6 +2570,8 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
 
   // ── Device rendering — ONE shared code path (also used by TelaEmbed) ─────────
 
+  const addTextLayerRef = useRef(addTextLayerToFrame);
+  addTextLayerRef.current = addTextLayerToFrame;
   const renderCtx = useMemo<RenderDeviceCtx>(() => ({
     devices: doc?.devices || {},
     dispatchOp,
@@ -2464,7 +2583,9 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
     onWriterSelection: setWriterSelection,
     onWriterInteraction: handleWriterInteraction,
     chrome: false,
-    vectorTool: (['select', 'direct', 'marquee', 'rect', 'ellipse', 'line', 'pen', 'text', 'ink'].includes(studioTool as string) ? studioTool : 'select') as VectorTool,
+    vectorTool: (studioTool === 'type' ? 'text' : ['select', 'direct', 'marquee', 'rect', 'ellipse', 'line', 'pen', 'text', 'ink'].includes(studioTool as string) ? studioTool : 'select') as VectorTool,
+    onVectorTypeAt: deviceId => addTextLayerRef.current(docRef.current?.frames.find(f => f.deviceIds.includes(deviceId))?.id),
+    vectorEditRequest: textEditRequest,
     onVectorToolChange: t => setStudioTool(t as any),
     selectedVectorId: studioSel,
     selectedVectorIds: studioSelIds,
@@ -2472,7 +2593,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
     onSelectVectorIds: setStudioSelection,
     selectedImageLayerId: studioSel,
     onSelectImageLayer: setStudioSel,
-  }), [doc?.devices, dispatchOp, writerTexts, writerList, baseList, formulaContext, handleWriterInteraction, studioTool, studioSel, studioSelIds, setStudioSel, setStudioSelection]);
+  }), [doc?.devices, dispatchOp, writerTexts, writerList, baseList, formulaContext, handleWriterInteraction, studioTool, studioSel, studioSelIds, setStudioSel, setStudioSelection, textEditRequest]);
 
   const renderDevice = (device: TelaDevice, readOnly = false, overlay = false) => renderTelaDevice(device, renderCtx, readOnly, overlay);
 
@@ -2522,7 +2643,13 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
     : saveState === 'saved' ? (storageMode === 'opfs' ? 'Saved on this device' : 'Saved (browser storage)')
     : 'Saved';
 
-  const topBtn = 'inline-flex items-center gap-1.5 h-9 px-3 rounded-[10px] text-[.78rem] font-semibold text-white/80 hover:text-white bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.1] transition-colors';
+  const openEmbedDemo = () => { const cur = docRef.current; if (cur) void saveTelaDoc(cur); window.dispatchEvent(new CustomEvent('plajah:openTelaEmbedDemo', { detail: { docId: cur?.id } })); };
+  const topBtn = 'inline-flex items-center gap-1.5 h-9 px-3 rounded-[10px] text-[.78rem] font-semibold text-white/80 hover:text-white bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.1] transition-colors shrink-0';
+  // The header collapses with its own width (container queries) instead of overflowing the frame:
+  // secondary labels go icon-only, then the primary ones, then the extras fold into "More".
+  const hdrLabel = '@max-[1720px]:hidden';
+  const hdrLabel2 = '@max-[1240px]:hidden';
+  const hdrExtra = '@max-[1100px]:hidden';
 
   const menuStyle: React.CSSProperties = {
     position: 'absolute', top: '110%', left: 0, zIndex: 60, minWidth: 230,
@@ -2561,7 +2688,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
     <div className="flex-1 w-full h-full min-h-0 flex flex-col overflow-hidden select-none" style={{ background: 'var(--bg-color, #070609)' }}>
       {/* ── Top bar ─────────────────────────────────────────────────────────── */}
       <header
-        className="shrink-0 flex items-center gap-2 px-3 h-14 border-b"
+        className="@container shrink-0 flex items-center gap-2 px-3 h-14 border-b min-w-0"
         style={{ borderColor: 'var(--border-color, rgba(255,255,255,0.08))', background: 'linear-gradient(180deg,#140D20,#0E0A16)' }}
       >
         {onBack && (
@@ -2578,7 +2705,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
           value={doc.title}
           onChange={e => dispatchOp({ type: 'SET_TITLE', title: e.target.value })}
           placeholder="Untitled canvas"
-          className="bg-transparent border border-transparent hover:border-white/[0.12] focus:border-white/[0.25] rounded-[9px] outline-none text-white text-[.9rem] font-semibold px-2.5 h-9 w-[200px] transition-colors"
+          className="bg-transparent border border-transparent hover:border-white/[0.12] focus:border-white/[0.25] rounded-[9px] outline-none text-white text-[.9rem] font-semibold px-2.5 h-9 w-[200px] @max-[1720px]:w-[150px] @max-[1240px]:w-[110px] min-w-0 transition-colors"
         />
 
         {/* Posture switch — Unified Studio UI */}
@@ -2618,28 +2745,28 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
         {/* Local AI Studio */}
         <button
           onClick={() => setLocalStudioOpen(true)}
-          className="flex items-center gap-1.5 h-8 px-3 rounded-[9px] text-[.72rem] font-bold text-[#FF8C00] bg-[#D40055]/10 border border-[#D40055]/30 hover:bg-[#D40055]/20 transition-all shadow-sm"
+          className="shrink-0 flex items-center gap-1.5 h-8 px-3 rounded-[9px] text-[.72rem] font-bold text-[#FF8C00] bg-[#D40055]/10 border border-[#D40055]/30 hover:bg-[#D40055]/20 transition-all shadow-sm"
           title="Open Local Creative Studio (On-Device GPU)"
         >
           <Wand2 size={13} className="text-[#D40055]" />
-          <span>AI Studio</span>
-          <span className="text-[9px] font-extrabold text-emerald-400 uppercase tracking-wider px-1 py-0.5 rounded bg-emerald-500/15">Local</span>
+          <span className={hdrLabel}>AI Studio</span>
+          <span className="@max-[1720px]:hidden text-[9px] font-extrabold text-emerald-400 uppercase tracking-wider px-1 py-0.5 rounded bg-emerald-500/15">Local</span>
         </button>
 
         {/* PAI Generations Gallery */}
         <button
           onClick={() => setPaiGalleryOpen(true)}
-          className="flex items-center gap-1.5 h-8 px-3 rounded-[9px] text-[.72rem] font-bold text-sky-400 bg-sky-500/10 border border-sky-500/30 hover:bg-sky-500/20 transition-all shadow-sm"
+          className="@max-[1100px]:hidden shrink-0 flex items-center gap-1.5 h-8 px-3 rounded-[9px] text-[.72rem] font-bold text-sky-400 bg-sky-500/10 border border-sky-500/30 hover:bg-sky-500/20 transition-all shadow-sm"
           title="Open PAI Generations Gallery (Your Past AI Creations)"
         >
           <Sparkles size={13} className="text-sky-400" />
-          <span>PAI Gallery</span>
+          <span className={hdrLabel}>PAI Gallery</span>
         </button>
 
         {/* Comic Studio (Inline Variant 2 Page-Layout Mode) */}
         <button
           onClick={toggleInlineComicLayoutMode}
-          className="flex items-center gap-1.5 h-8 px-3 rounded-[9px] text-[.72rem] font-bold transition-all shadow-sm"
+          className="shrink-0 flex items-center gap-1.5 h-8 px-3 rounded-[9px] text-[.72rem] font-bold transition-all shadow-sm"
           style={
             comicLayoutMode
               ? {
@@ -2656,7 +2783,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
           title="Toggle Native Comic & Manga Page-Layout Mode (Variant 2)"
         >
           <BookOpen size={13} className={comicLayoutMode ? 'text-white' : 'text-purple-300'} />
-          <span>Comic Studio</span>
+          <span className={hdrLabel}>Comic Studio</span>
         </button>
 
         {/* Pro Vector Studio quick button */}
@@ -2667,14 +2794,14 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
             title="Switch to Pro Vector Studio (18 Precision Tools)"
           >
             <PenLine size={13} className="text-cyan-300" />
-            <span>Pro Studio</span>
+            <span className={hdrLabel}>Pro Studio</span>
           </button>
         )}
 
         {/* ＋ Device */}
         <div className="relative">
           <button className={topBtn} onClick={() => { setDeviceMenuOpen(o => !o); setPresetMenuOpen(false); setCanvasesOpen(false); }}>
-            <Plus size={15} /> Device <ChevronDown size={13} className="opacity-60" />
+            <Plus size={15} /> <span className={hdrLabel2}>Device</span> <ChevronDown size={13} className="opacity-60" />
           </button>
           {deviceMenuOpen && (
             <div style={menuStyle} onMouseLeave={() => setDeviceMenuOpen(false)}>
@@ -2723,7 +2850,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
 
         {/* Import — honest about coverage */}
         <button className={topBtn} onClick={() => fileRef.current?.click()} disabled={importBusy} title="Import docx · pdf · md · txt · fountain · csv · xlsx">
-          <FileUp size={15} /> {importBusy ? 'Importing…' : 'Import'}
+          <FileUp size={15} /> <span className={hdrLabel2}>{importBusy ? 'Importing…' : 'Import'}</span>
         </button>
         <input
           ref={fileRef}
@@ -2735,25 +2862,37 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
         <input ref={assetFileRef} type="file" accept={TELA_ASSET_ACCEPT} multiple className="hidden" onChange={e => { const files = [...(e.target.files || [])]; if (files.length) void insertAssetFiles(files); e.target.value = ''; }}/>
 
         <button className={topBtn} onClick={exportPdf} title="Print the active frame at exact page size — save as PDF in the print dialog">
-          <FileDown size={15} /> Export PDF
+          <FileDown size={15} /> <span className={hdrLabel2}>Export PDF</span>
         </button>
-        <button className={topBtn} onClick={() => doc && downloadTelaHtml(doc, activeFrameId || undefined)} title="Export the active Tela frame as a responsive standalone HTML page">
-          <Monitor size={15} /> Export HTML
+        <button className={`${topBtn} ${hdrExtra}`} onClick={() => doc && downloadTelaHtml(doc, activeFrameId || undefined)} title="Export the active Tela frame as a responsive standalone HTML page">
+          <Monitor size={15} /> <span className={hdrLabel}>Export HTML</span>
         </button>
 
         {/* Reference-embed demo — reference-not-export + lock→propagate, live */}
         <button
-          className={topBtn}
+          className={`${topBtn} ${hdrExtra}`}
           title="See this doc embedded three ways — live-editable, follow-latest, and pinned"
-          onClick={() => { const cur = docRef.current; if (cur) void saveTelaDoc(cur); window.dispatchEvent(new CustomEvent('plajah:openTelaEmbedDemo', { detail: { docId: cur?.id } })); }}
+          onClick={openEmbedDemo}
         >
-          <Link2 size={15} /> Embed demo
+          <Link2 size={15} /> <span className={hdrLabel}>Embed demo</span>
         </button>
+
+        {/* Narrow header: the extras fold into one menu */}
+        <div className="relative hidden @max-[1100px]:block shrink-0">
+          <button className={topBtn} title="More" aria-label="More" aria-expanded={headerMoreOpen} onClick={() => setHeaderMoreOpen(o => !o)}><MoreHorizontal size={15} /></button>
+          {headerMoreOpen && (
+            <div style={{ ...menuStyle, left: 'auto', right: 0 }} onMouseLeave={() => setHeaderMoreOpen(false)}>
+              <button className={menuItem} onClick={() => { setPaiGalleryOpen(true); setHeaderMoreOpen(false); }}><Sparkles size={15} className="text-sky-400" /> PAI Gallery</button>
+              <button className={menuItem} onClick={() => { if (doc) downloadTelaHtml(doc, activeFrameId || undefined); setHeaderMoreOpen(false); }}><Monitor size={15} /> Export HTML</button>
+              <button className={menuItem} onClick={() => { openEmbedDemo(); setHeaderMoreOpen(false); }}><Link2 size={15} /> Embed demo</button>
+            </div>
+          )}
+        </div>
 
         {/* Save state — click for version history */}
         <div className="relative">
           <button
-            className="text-[.68rem] font-semibold px-2.5 h-9 inline-flex items-center gap-1 rounded-[10px] border"
+            className="text-[.68rem] font-semibold px-2.5 h-9 inline-flex items-center gap-1 rounded-[10px] border shrink-0 whitespace-nowrap"
             style={{
               color: saveState === 'dirty' ? 'var(--pj-warning, #F59E0B)' : saveState === 'synced' || cloudSync === 'synced' ? 'var(--pj-success, #06D6A0)' : 'rgba(255,255,255,0.55)',
               borderColor: 'rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.04)',
@@ -2787,7 +2926,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
         {/* My Canvases */}
         <div className="relative">
           <button className={topBtn} onClick={() => { setCanvasesOpen(o => !o); if (!canvasesOpen) void refreshList(); setDeviceMenuOpen(false); setPresetMenuOpen(false); }}>
-            <Folder size={15} /> My Canvases <ChevronDown size={13} className="opacity-60" />
+            <Folder size={15} /> <span className={hdrLabel2}>My Canvases</span> <ChevronDown size={13} className="opacity-60" />
           </button>
           {canvasesOpen && (
             <div style={{ ...menuStyle, left: 'auto', right: 0, minWidth: 290 }}>
@@ -3142,6 +3281,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
           writerTexts,
           text: () => getSharedTextSystem(),
           rebakeType,
+          typeStyle: typeDefaults,
           editingText,
           setEditingText,
           paintTarget,
@@ -3189,7 +3329,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
               ) : isImg ? (
                 <>
                   <button title="Move / Transform Layer (V)" style={railBtn(imageSelectionTool === 'none' && studioTool === 'select')} onClick={() => { setImageSelectionTool('none'); setStudioTool('select'); }}><MousePointer2 size={17} /></button>
-                  <button title="Typography & Text Art Studio (T) — 3D text, materials, Firefly effects, shape arrays" style={railBtn(typographyStudioOpen)} onClick={() => setTypographyStudioOpen(open => !open)}><Type size={17} color="#D0BCFF" /></button>
+                  <button title="Type (T) — click a page or start typing to make a text layer" style={railBtn(isTypeTool)} onClick={() => { setImageSelectionTool('none'); setStudioTool('text' as StudioTool); }}><Type size={17} color="#D0BCFF" /></button>
                   <button title="Shapes and callouts (R) — Add shape layer to this page" style={railBtn(false)} onClick={() => addShapeToActiveFrame('RECT')}><Shapes size={17} color="#00DAF3" /></button>
                   <button title="Rectangular Marquee (M)" style={railBtn(imageSelectionTool === 'marquee_rect')} onClick={() => setImageSelectionTool(imageSelectionTool === 'marquee_rect' ? 'none' : 'marquee_rect')}><Square size={17} color="#00DAF3" /></button>
                   <button title="Elliptical Marquee (Shift+M)" style={railBtn(imageSelectionTool === 'marquee_ellipse')} onClick={() => setImageSelectionTool(imageSelectionTool === 'marquee_ellipse' ? 'none' : 'marquee_ellipse')}><Circle size={17} color="#00DAF3" /></button>
@@ -3212,7 +3352,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
               ) : (
                 <>
                   <button title="Select / move (V)" style={railBtn(studioTool === 'select')} onClick={() => setStudioTool('select')}><MousePointer2 size={17} /></button>
-                  <button title="Typography & Text Art Studio (T) — 3D text, materials, Firefly effects, shape arrays" style={railBtn(typographyStudioOpen)} onClick={() => setTypographyStudioOpen(open => !open)}><Type size={17} color="#D0BCFF" /></button>
+                  <button title="Type (T) — click a page or start typing to make a text layer" style={railBtn(isTypeTool)} onClick={() => { setImageSelectionTool('none'); setStudioTool('text' as StudioTool); }}><Type size={17} color="#D0BCFF" /></button>
                   <button title="Shapes and callouts (R) — Add shape layer to this page" style={railBtn(false)} onClick={() => addShapeToActiveFrame('RECT')}><Shapes size={17} color="#00DAF3" /></button>
                   <button title="Direct select / anchors (A)" style={railBtn(studioTool === 'direct')} onClick={() => setStudioTool('direct')}><MousePointerClick size={17} /></button>
                   <button title="Pen / vector spline (P)" style={railBtn(studioTool === 'pen')} onClick={() => { if (!isVec) addVectorArtboard(); setStudioTool('pen'); }}><PenLine size={17} color="#a78bfa" /></button>
@@ -3324,43 +3464,17 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
                   <Type size={12} className="text-[#FF8C00]" /> ＋ Text Box
                 </button>
 
-                <div className="relative">
-                  <button
-                    onClick={() => setTypographyStudioOpen(open => !open)}
-                    className={`h-7 px-2.5 rounded-[8px] text-[.64rem] font-bold text-white flex items-center gap-1.5 transition-colors shrink-0 shadow-sm ${
-                      typographyStudioOpen
-                        ? 'bg-[var(--pj-magenta,#D40055)] text-white shadow-[0_0_14px_rgba(212,0,85,0.45)]'
-                        : 'bg-[var(--pj-magenta,#D40055)]/25 hover:bg-[var(--pj-magenta,#D40055)]/40 border border-[var(--pj-magenta,#D40055)]/40'
-                    }`}
-                    title="Open Typography & Text Art Studio (3D, Materials, Firefly Effects, Shape Arrays, Letter Tools)"
-                  >
-                    <Type size={12} className="text-[#D0BCFF]" /> Typography <ChevronDown size={11} className={`opacity-70 transition-transform ${typographyStudioOpen ? 'rotate-180' : ''}`} />
-                  </button>
-
-                  {typographyStudioOpen && (
-                    <div
-                      className="absolute top-full left-0 mt-2 z-50 animate-in fade-in zoom-in-95 duration-100"
-                    >
-                      <TelaTypographyStudio
-                        selectedObject={activeSelectedTextObject}
-                        onUpdateObject={patch => {
-                          const vDev = activeVectorDevice();
-                          if (activeSelectedTextObject && vDev) {
-                            dispatchOp({ type: 'UPDATE_VECTOR_OBJECT', deviceId: vDev.id, objectId: activeSelectedTextObject.id, patch });
-                          }
-                        }}
-                        onCreateTypographyObject={(kind, patch) => {
-                          createTypographyObjectOnActiveFrame(kind, patch);
-                        }}
-                        onExplodeLetters={obj => {
-                          explodeTextIntoLetters(obj);
-                        }}
-                        onClose={() => setTypographyStudioOpen(false)}
-                        activeFrameLabel={activeFrame?.label}
-                      />
-                    </div>
-                  )}
-                </div>
+                <button
+                  onClick={() => { setImageSelectionTool('none'); setStudioTool((isVec && studioMode === 'pro' && !isContinuousMode ? 'type' : 'text') as StudioTool); }}
+                  className={`h-7 px-2.5 rounded-[8px] text-[.64rem] font-bold text-white flex items-center gap-1.5 transition-colors shrink-0 shadow-sm ${
+                    isTypeTool
+                      ? 'bg-[var(--pj-magenta,#D40055)] text-white shadow-[0_0_14px_rgba(212,0,85,0.45)]'
+                      : 'bg-[var(--pj-magenta,#D40055)]/25 hover:bg-[var(--pj-magenta,#D40055)]/40 border border-[var(--pj-magenta,#D40055)]/40'
+                  }`}
+                  title="Type tool (T) — click a page or just start typing to make a text layer; its typography bar opens below"
+                >
+                  <Type size={12} className="text-[#D0BCFF]" /> Typography
+                </button>
                 <button
                   onClick={() => addShapeToActiveFrame('RECT')}
                   className="h-7 px-2.5 rounded-[8px] text-[.64rem] font-bold text-white/80 hover:text-white bg-white/[0.06] hover:bg-white/15 border border-white/10 flex items-center gap-1.5 transition-colors shrink-0"
@@ -3381,6 +3495,41 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
                   </button>
                 </div>
               </div>
+
+              {/* Tool options — the secondary row for whichever tool is active (typography for Type) */}
+              <TelaToolOptionsBar
+                tool={studioTool as string}
+                proStudio={isVec && studioMode === 'pro' && !isContinuousMode}
+                selected={currentVecDev && studioSel && studioSelIds.length <= 1 ? currentVecDev.objects.find(o => o.id === studioSel) || null : null}
+                onUpdateSelected={patch => { const vDev = activeVectorDevice(); if (vDev && studioSel) updateVectorObject(vDev.id, studioSel, patch); }}
+                typeDefaults={typeDefaults}
+                onTypeDefaults={patch => setTypeDefaults(t => ({ ...t, ...patch }))}
+                onAddTextLayer={() => addTextLayerToFrame(activeFrame.id)}
+                onAddTextBox={() => addTextBoxToActiveFrame(activeFrame.id)}
+                textArtOpen={typographyStudioOpen}
+                onToggleTextArt={() => setTypographyStudioOpen(open => !open)}
+                popover={typographyStudioOpen && (
+                  <div className="absolute top-full left-3 mt-2 z-50 animate-in fade-in zoom-in-95 duration-100">
+                    <TelaTypographyStudio
+                      selectedObject={activeSelectedTextObject}
+                      onUpdateObject={patch => {
+                        const vDev = activeVectorDevice();
+                        if (activeSelectedTextObject && vDev) {
+                          dispatchOp({ type: 'UPDATE_VECTOR_OBJECT', deviceId: vDev.id, objectId: activeSelectedTextObject.id, patch });
+                        }
+                      }}
+                      onCreateTypographyObject={(kind, patch) => {
+                        createTypographyObjectOnActiveFrame(kind, patch);
+                      }}
+                      onExplodeLetters={obj => {
+                        explodeTextIntoLetters(obj);
+                      }}
+                      onClose={() => setTypographyStudioOpen(false)}
+                      activeFrameLabel={activeFrame?.label}
+                    />
+                  </div>
+                )}
+              />
 
               {/* Stage Scrollable Body — ONLY this area scrolls when viewing documents */}
               <div className="flex-1 min-h-0 h-full overflow-y-auto overflow-x-auto relative custom-scrollbar flex flex-col" style={{ overscrollBehavior: 'contain' }}>
@@ -3481,6 +3630,13 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
                               </div>
                             );
                           })}
+                          {isTypeTool && !frame.deviceIds.some(id => doc.devices[id]?.type === 'VECTOR') && (
+                            <div
+                              aria-label="Click to start a text layer"
+                              style={{ position: 'absolute', inset: 0, zIndex: 5, cursor: 'text' }}
+                              onPointerDown={event => { event.preventDefault(); event.stopPropagation(); addTextLayerToFrame(frame.id); }}
+                            />
+                          )}
                         </div>
                       </div>
                     );
@@ -3596,8 +3752,10 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
                                     device={{ ...dev, width: focusWidth, height: focusHeight }}
                                     chrome={false}
                                     overlay={true}
-                                    tool={(['select', 'direct', 'marquee', 'rect', 'ellipse', 'line', 'pen', 'text', 'ink'].includes(studioTool as string) ? studioTool : 'select') as VectorTool}
+                                    tool={(studioTool === 'type' ? 'text' : ['select', 'direct', 'marquee', 'rect', 'ellipse', 'line', 'pen', 'text', 'ink'].includes(studioTool as string) ? studioTool : 'select') as VectorTool}
                                     onToolChange={t => setStudioTool(t as any)}
+                                    onTypeAt={() => addTextLayerToFrame(activeFrame.id)}
+                                    editTextRequest={textEditRequest}
                                     selectedId={studioSel}
                                     selectedIds={studioSelIds}
                                     onSelectionChange={setStudioSelection}
