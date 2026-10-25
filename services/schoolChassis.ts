@@ -43,6 +43,11 @@ export interface Lesson {
   watchAlong?: WatchAlong;
   assignment?: LessonAssignment;
   resources?: { label: string; url: string }[];
+  /**
+   * "Study this object": museum collection searches the lesson sends the learner to, resolved live
+   * through the shared museum layer (services/museum). `figure` refs are adult-only.
+   */
+  museum?: { query: string; sources?: string[]; why?: string; figure?: boolean; threeD?: boolean }[];
   /** Education standards this lesson evidences, for the ledger. */
   standardIds?: string[];
   /**

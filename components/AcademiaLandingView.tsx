@@ -116,6 +116,18 @@ const SCHOOLS: School[] = [
     },
   },
   {
+    t: 'Art College', ic: '🎨', a: '#E5B94E', b: '#2a210a', badge: 'BFA · BA · Studio & Critique · LIVE NOW', live: true,
+    tags: ['10 programs · 53 courses', 'Live museum study'], ladder: ['Foundation', 'Studio', 'Design', 'History', 'Critique', 'Thesis'], nav: 'ART_COLLEGE',
+    d: {
+      prek: 'Draw, mix colour, make shapes — start in Art & Design and the Photography & Art School.',
+      el: 'Observational drawing and colour through the Photography & Art School and the museum halls.',
+      ms: 'Composition, art history and photography strands, with real museum objects to study.',
+      hs: 'Portfolio building: the Art College Foundation Certificate is open to advanced and dual-enrolled students.',
+      col: 'Four-year BFA in graphic design, painting, sculpture, illustration and fashion — and a BA in art history.',
+      pro: 'Portfolio reviews, thesis exhibition, and the business of making a living from art.',
+    },
+  },
+  {
     t: 'Music Conservatory', ic: '🎼', a: '#00DAF3', b: '#04324a', badge: 'Chora Conservatory · LIVE NOW', live: true,
     tags: ['6 curriculum tracks', 'Ear training'], ladder: ['Hall', 'History', 'Theory', 'Instruments', 'Repertoire', 'Produce'], nav: 'CHORA_CONSERVATORY',
     d: {

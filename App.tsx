@@ -275,6 +275,7 @@ const RealEstateSchoolView = retryLazy(() => import('./components/RealEstateScho
 const EconSchoolView = retryLazy(() => import('./components/EconSchoolView'));
 const PhilosophySchoolView = retryLazy(() => import('./components/PhilosophySchoolView'));
 const JournalismSchoolView = retryLazy(() => import('./components/JournalismSchoolView'));
+const ArtCollegeView = retryLazy(() => import('./components/artCollege/ArtCollegeView'));
 const PublicationStudio = retryLazy(() => import('./components/publication/PublicationStudio'));
 const IssueReader = retryLazy(() => import('./components/publication/IssueReader'));
 const PaperTradingView = retryLazy(() => import('./components/PaperTradingView'));
@@ -2895,6 +2896,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       setView('PHILOSOPHY_SCHOOL');
     } else if (target === 'JOURNALISM_SCHOOL') {
       setView('JOURNALISM_SCHOOL');
+    } else if (target === 'ART_COLLEGE') {
+      setView('ART_COLLEGE');
     } else if (target === 'PAPER_TRADING') {
       setView('PAPER_TRADING');
     } else if (target === 'PAPER_TRADING_CLASS') {
@@ -7749,6 +7752,16 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {view === 'ISSUE_READER' && openIssueId && (
               <Suspense fallback={null}>
                 <IssueReader issueId={openIssueId} onBack={() => goBack('BOOKS')} />
+              </Suspense>
+            )}
+            {view === 'ART_COLLEGE' && (
+              <Suspense fallback={null}>
+                <ArtCollegeView
+                  onBack={() => goBack('ACADEMIA_LANDING')}
+                  onNavigate={(v) => setView(v as AppView)}
+                  user={user}
+                  profile={userProfile}
+                />
               </Suspense>
             )}
             {view === 'JOURNALISM_SCHOOL' && (

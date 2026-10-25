@@ -4163,6 +4163,8 @@ export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW'
   | 'PHILOSOPHY_SCHOOL'
   // School of Journalism — PreK → J-School curriculum, Student Newsroom and Press Room
   | 'JOURNALISM_SCHOOL'
+  // Art College — four-year studio + scholarship curriculum with live museum study (data/artCollege)
+  | 'ART_COLLEGE'
   // Periodicals — Publication Studio (student / pro) and the Lorea issue reader (services/publication)
   | 'PUBLICATION_STUDIO'
   | 'ISSUE_READER'

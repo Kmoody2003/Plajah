@@ -17,6 +17,8 @@ import {
 import { auth } from '../../services/backendService';
 import { kitForLesson, PRESS_LESSONS } from '../../services/journalismSchool/storyKits';
 import { openJournalismSchool } from '../../services/journalismSchool/newsroomStore';
+import MuseumStudy from '../artCollege/MuseumStudy';
+import type { ArtAudience } from '../../services/artCollege/audience';
 
 const TOOL_EVENT: Record<string, string> = {
   FABULA: 'OPEN_FABULA', PHOTO: 'OPEN_MEDIA_CONVERTER', CHORA: 'NAVIGATE', LOREA: 'NAVIGATE', PIXELS: 'OPEN_PLAJAH_PIXELS',
@@ -34,8 +36,8 @@ const Bar: React.FC<{ pct: number; accent: string }> = ({ pct, accent }) => (
 // ── Lesson reader ─────────────────────────────────────────────────────────────
 const LessonReader: React.FC<{
   curriculum: Curriculum; track: Track; lesson: Lesson;
-  done: boolean; onToggleDone: () => void; onBack: () => void;
-}> = ({ curriculum, track, lesson, done, onToggleDone, onBack }) => {
+  done: boolean; onToggleDone: () => void; onBack: () => void; audience: ArtAudience;
+}> = ({ curriculum, track, lesson, done, onToggleDone, onBack, audience }) => {
   const accent = curriculum.accent;
   return (
     <div className="relative z-10 min-h-screen text-white pb-24">
@@ -66,6 +68,8 @@ const LessonReader: React.FC<{
             ))}
           </div>
         )}
+
+        {lesson.museum?.length ? <MuseumStudy refs={lesson.museum} audience={audience} accent={accent} /> : null}
 
         {lesson.watchAlong && (
           <div className="mt-7 rounded-2xl border border-white/10 bg-white/[0.04] p-5">
@@ -142,9 +146,9 @@ const LessonReader: React.FC<{
 };
 
 // ── Main ──────────────────────────────────────────────────────────────────────
-interface Props { curriculum: Curriculum; onBack?: () => void; embedded?: boolean }
+interface Props { curriculum: Curriculum; onBack?: () => void; embedded?: boolean; /** Art College gate; anything but 'adult' is fail-closed. */ audience?: ArtAudience }
 
-const SchoolView: React.FC<Props> = ({ curriculum, onBack, embedded }) => {
+const SchoolView: React.FC<Props> = ({ curriculum, onBack, embedded, audience = 'minor' }) => {
   const accent = curriculum.accent;
   const [completed, setCompleted] = useState<string[]>([]);
   const [openTrack, setOpenTrack] = useState<Track | null>(null);
@@ -169,6 +173,7 @@ const SchoolView: React.FC<Props> = ({ curriculum, onBack, embedded }) => {
         done={completed.includes(openLesson.id)}
         onToggleDone={() => toggleDone(openLesson)}
         onBack={() => setOpenLesson(null)}
+        audience={audience}
       />
     );
   }

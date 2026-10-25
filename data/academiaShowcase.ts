@@ -111,6 +111,7 @@ export const ACADEMIA_SCHOOLS: School[] = [
   { view: 'CIVICS_HALL', name: 'Civics Hall', tag: 'Citizenship', blurb: 'Founding documents with the Telescoping Text reader.', color: '#FF9EC4', img: '/dossier/founding/archival/a-declaration-trumbull.jpg', bg: '#33101f' },
   { view: 'ECON_SCHOOL', name: 'Econ School', tag: 'Economics', blurb: 'Markets, trade and scarcity, told through stories.', color: '#60A5FA', img: '/academia/archipelago.jpg', bg: '#0b1a33' },
   { view: 'PHILOSOPHY_SCHOOL', name: 'Philosophy School', tag: 'Thinking', blurb: 'Big questions, sized for every grade, with structured dialogue.', color: '#c4b5fd', img: '/academia/pillars.jpg', bg: '#1a1033' },
+  { view: 'ART_COLLEGE', name: 'Art College', tag: 'Studio & Art History', blurb: 'BFA and BA programs: drawing, painting, sculpture, design, fashion and art history — studied against real museum collections.', color: '#E5B94E', emoji: '🎨', bg: '#2a210a' },
   { view: 'JOURNALISM_SCHOOL', name: 'Journalism School', tag: 'Reporting', blurb: 'Notice, ask, verify, publish — PreK picture news to j-school investigations, with a real student newsroom.', color: '#FF8A73', emoji: '📰', bg: '#2e100a' },
   { view: 'FILM_SCHOOL', name: 'Film School', tag: 'Storytelling', blurb: 'Story, camera and editing under Cinema.', color: '#FF6FA8', img: '/academia/stargate.jpg', bg: '#33101f' },
   { view: 'CHORA_CONSERVATORY', name: 'Chora Conservatory', tag: 'Music', blurb: 'Music theory, ear training and composing.', color: '#00DAF3', img: '/academia/lounge.jpg', bg: '#062a31' },
