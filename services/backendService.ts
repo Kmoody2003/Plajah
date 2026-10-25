@@ -1568,7 +1568,7 @@ export const createPost = async (post: Partial<Post>, opts?: { postId?: string }
   // With no explicit audience, private accounts write to `private_posts` as before.
   let path: 'posts' | 'private_posts' | 'circle_posts';
   let audienceFields: Record<string, unknown> = {};
-  if (post.audienceSpec && post.orgAudience !== 'DEPARTMENT') {
+  if (post.audienceSpec && post.orgAudience !== 'DEPARTMENT' && post.orgAudience !== 'INTERNAL') {
     const r = await import('./audienceService').then(m => m.resolveForMe(post.audienceSpec!));
     path = r.collection;
     audienceFields = {
@@ -1603,7 +1603,8 @@ export const createPost = async (post: Partial<Post>, opts?: { postId?: string }
       commentsCount: 0,
       timestamp: Date.now(),
       // Elevate DEPARTMENT-thread posts are private to that department (rules grant read via orgInDepartment).
-      isPublic: post.orgAudience === 'DEPARTMENT' ? false : path === 'posts',
+      // INTERNAL (org members only) is private the same way: never on a public timeline, read via orgIsMember in rules.
+      isPublic: post.orgAudience === 'DEPARTMENT' || post.orgAudience === 'INTERNAL' ? false : path === 'posts',
       targetUserId: post.targetUserId || null,
       targetUserName: post.targetUserName || null
     });
@@ -2011,6 +2012,25 @@ export const listenToOrgThread = (
       .sort((a, b) => b.timestamp - a.timestamp);
     callback(items);
   }, (err) => { onError?.(err); handleFirestoreError(err, OperationType.LIST, 'posts'); });
+};
+
+/**
+ * The org's members-only posts (orgAudience 'INTERNAL'). Rules let only active members and org leaders read these,
+ * so only call it for a viewer who is one; anyone else gets a permission error (onError) and an empty list.
+ */
+export const listenToOrgInternal = (
+  orgId: string,
+  callback: (posts: Post[]) => void,
+  onError?: (e: any) => void,
+) => {
+  const q = query(collection(db, 'posts'), where('authorOrgId', '==', orgId), where('orgAudience', '==', 'INTERNAL'), limit(50));
+  return onSnapshot(q, snapshot => {
+    const items = snapshot.docs
+      .map(d => ({ id: d.id, ...d.data(), sourceCollection: 'posts', timestamp: safeToMillis(d.data().timestamp) } as Post))
+      .filter(p => p.timestamp > 0 && !p.orgDepartmentId)
+      .sort((a, b) => b.timestamp - a.timestamp);
+    callback(items);
+  }, (err) => { onError?.(err); });
 };
 
 /**

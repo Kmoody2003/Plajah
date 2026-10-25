@@ -77,7 +77,7 @@ export async function isMyAccountPrivate(): Promise<boolean> {
 
 /** Collection a new post by the signed-in user must be written to. */
 export async function resolvePostCollectionForMe(post?: { orgAudience?: string | null }): Promise<PostCollectionName> {
-  if (post?.orgAudience === 'DEPARTMENT') return 'posts';
+  if (post?.orgAudience === 'DEPARTMENT' || post?.orgAudience === 'INTERNAL') return 'posts';
   return routePostCollection({ isPrivate: await isMyAccountPrivate() }, post);
 }
 

@@ -41,11 +41,11 @@ const SACRED_BG: React.CSSProperties = {
 type View = { kind: 'home' } | { kind: 'read' } | { kind: 'hymns' } | { kind: 'texts' }
   | { kind: 'servicenotes' } | { kind: 'section'; id: string };
 
-const BibleExperience: React.FC<{ onBack: () => void; initialRefId?: string | null }> = ({ onBack, initialRefId }) => {
+const BibleExperience: React.FC<{ onBack: () => void; initialRefId?: string | null; followSessionId?: string | null; onPinVerse?: (pin: { ref: import('../services/scriptureRef').ScriptureRef; text: string }) => void; pinCount?: number }> = ({ onBack, initialRefId, followSessionId, onPinVerse, pinCount }) => {
   // A scripture chip elsewhere on the platform opens straight into the reader
   // at its passage, skipping the landing.
   const openAt = initialRefId ? parseRefId(initialRefId) : null;
-  const [view, setView] = useState<View>(openAt ? { kind: 'read' } : { kind: 'home' });
+  const [view, setView] = useState<View>(openAt || followSessionId ? { kind: 'read' } : { kind: 'home' });
   const [viewer, setViewer] = useState<{ url: string; title: string } | null>(null); // in-app manuscript embed
 
   // A later chip tap while the reader is already mounted re-points it.
@@ -54,7 +54,7 @@ const BibleExperience: React.FC<{ onBack: () => void; initialRefId?: string | nu
   }, [initialRefId]);
 
   const back = () => {
-    if (view.kind === 'home') onBack();
+    if (view.kind === 'home' || followSessionId || onPinVerse) onBack();
     else setView({ kind: 'home' });
   };
 
@@ -63,18 +63,20 @@ const BibleExperience: React.FC<{ onBack: () => void; initialRefId?: string | nu
       {/* Top bar */}
       <div className="sticky top-0 z-20 flex items-center justify-between px-5 sm:px-8 py-3 bg-[#08070c]/80 backdrop-blur-xl border-b border-[#d4af37]/15">
         <button onClick={back} className="flex items-center gap-2 text-white/50 hover:text-white transition-colors text-[10px] font-black uppercase tracking-widest">
-          <ChevronLeft size={15} /> {view.kind === 'home' ? 'Exit' : 'Sacred Library'}
+          <ChevronLeft size={15} /> {view.kind === 'home' ? 'Exit' : 'Back'}
         </button>
         <div className="flex items-center gap-2">
           <Cross size={13} className="text-[#d4af37]" />
-          <span className="text-[11px] font-black uppercase tracking-[0.3em] text-[#d4af37]">Sacred Library</span>
+          <span className="text-[11px] font-black uppercase tracking-[0.3em] text-[#d4af37] whitespace-nowrap">Sacred Library</span>
         </div>
-        <div className="w-16" />
+        {pinCount != null ? (
+          <span className="w-16 text-right text-[10px] font-black uppercase tracking-widest text-[#d4af37] whitespace-nowrap">{pinCount} pinned</span>
+        ) : <div className="w-16" />}
       </div>
 
       <AnimatePresence mode="wait">
         {view.kind === 'home' && <Home key="home" onOpen={setView} />}
-        {view.kind === 'read' && <LectioReader key="read" openAt={openAt} />}
+        {view.kind === 'read' && <LectioReader key="read" openAt={openAt} followSessionId={followSessionId} onPinVerse={onPinVerse} />}
         {view.kind === 'servicenotes' && <ServiceNotesView key="svcnotes" />}
         {view.kind === 'hymns' && <Hymns key="hymns" />}
         {view.kind === 'texts' && <Texts key="texts" />}

@@ -971,10 +971,15 @@ service cloud.firestore {
     match /posts/{postId} {
       allow read: if (!('isPublic' in resource.data) || resource.data.isPublic == true) || (isAuthenticated() && resource.data.authorId == request.auth.uid) || isAdmin() ||
                     // Elevate DEPARTMENT threads: private posts readable by that department (query must filter orgAudience=='DEPARTMENT').
-                    (resource.data.get('orgAudience', '') == 'DEPARTMENT' && orgInDepartment(resource.data.authorOrgId, resource.data.get('orgDepartmentId', '')));
+                    (resource.data.get('orgAudience', '') == 'DEPARTMENT' && orgInDepartment(resource.data.authorOrgId, resource.data.get('orgDepartmentId', ''))) ||
+                    // Elevate INTERNAL posts: the org's active members + leaders only (query must filter orgAudience=='INTERNAL').
+                    (resource.data.get('orgAudience', '') == 'INTERNAL' && orgIsMember(resource.data.authorOrgId));
       // Private accounts' posts go to `private_posts` (services/privatePostsService.ts); only org DEPARTMENT threads stay here.
       allow create: if isRegisteredUser() && isValidPost(request.resource.data) && request.resource.data.authorId == request.auth.uid
-                    && (request.resource.data.get('orgAudience', '') == 'DEPARTMENT' || !isPrivateAccount(request.auth.uid));
+                    && (request.resource.data.get('orgAudience', '') in ['DEPARTMENT', 'INTERNAL'] || !isPrivateAccount(request.auth.uid))
+                    // INTERNAL must be unlisted from every public feed and written by an actual member of that org.
+                    && (request.resource.data.get('orgAudience', '') != 'INTERNAL' ||
+                        (request.resource.data.get('isPublic', true) == false && orgIsMember(request.resource.data.get('authorOrgId', ''))));
       allow update: if (isAuthenticated() && resource.data.authorId == request.auth.uid && isValidPost(request.resource.data)) ||
                       // Atomic +1/-1 like toggles bound to the user's UID
                       (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likedBy', 'likesCount']) &&
@@ -3750,6 +3755,14 @@ service cloud.firestore {
         orgPastorOrAdmin(orgId)
       );
     }
+    // Active member (orgMemberIndex marker) or org leadership. Followers are NOT members.
+    function orgIsMember(orgId) {
+      return isAuthenticated() && orgId != '' && (
+        exists(/databases/$(database)/documents/orgMemberIndex/$(orgId + '_' + request.auth.uid)) ||
+        orgPastorOrAdmin(orgId) ||
+        request.auth.uid in orgDoc(orgId).get('leaderUids', [])
+      );
+    }
     function orgInDepartment(orgId, deptId) {
       return isAuthenticated() && (
         orgPastorOrAdmin(orgId) ||
@@ -3763,11 +3776,13 @@ service cloud.firestore {
       let p = get(/databases/$(database)/documents/posts/$(postId)).data;
       return p.get('orgAudience', 'PUBLIC') == 'PUBLIC' ||
         (p.get('orgAudience', 'PUBLIC') == 'MEMBERS' && orgIsMemberOrFollower(p.authorOrgId)) ||
+        (p.get('orgAudience', 'PUBLIC') == 'INTERNAL' && orgIsMember(p.authorOrgId)) ||
         (p.get('orgAudience', 'PUBLIC') == 'DEPARTMENT' && orgInDepartment(p.authorOrgId, p.get('orgDepartmentId', '')));
     }
     function orgThreadReadOk(postId) {
       let p = get(/databases/$(database)/documents/posts/$(postId)).data;
-      return p.get('orgAudience', 'PUBLIC') != 'DEPARTMENT' || orgInDepartment(p.authorOrgId, p.get('orgDepartmentId', ''));
+      return (p.get('orgAudience', 'PUBLIC') != 'DEPARTMENT' || orgInDepartment(p.authorOrgId, p.get('orgDepartmentId', ''))) &&
+        (p.get('orgAudience', 'PUBLIC') != 'INTERNAL' || orgIsMember(p.authorOrgId));
     }
 
     match /orgFollowers/{followId} {

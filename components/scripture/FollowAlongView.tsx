@@ -10,7 +10,7 @@
 
 import React, { useState } from 'react';
 import { ChevronLeft, Radio } from 'lucide-react';
-import FollowAlong from './FollowAlong';
+import BibleExperience from '../BibleExperience';
 
 interface Props {
   sessionId?: string | null;
@@ -22,6 +22,11 @@ const FollowAlongView: React.FC<Props> = ({ sessionId, onBack }) => {
   const [active, setActive] = useState<string | null>(sessionId ?? null);
 
   return (
+    active ? (
+      // The service opens in the full reader: same study tools, but it turns to
+      // each passage as the Stage operator puts it on screen.
+      <BibleExperience onBack={onBack ?? (() => setActive(null))} followSessionId={active} />
+    ) : (
     <div className="fixed inset-0 z-[120] bg-[#08070c] text-white flex flex-col">
       <div className="flex items-center gap-3 px-4 py-2.5 border-b border-white/10 shrink-0">
         {onBack && (
@@ -32,11 +37,7 @@ const FollowAlongView: React.FC<Props> = ({ sessionId, onBack }) => {
         <span className="text-[11px] font-black uppercase tracking-[0.22em] text-[#d4af37]">Follow along</span>
       </div>
 
-      {active ? (
-        <div className="flex-1 min-h-0 mx-auto w-full max-w-md">
-          <FollowAlong sessionId={active} mode="IN_ROOM" onClose={onBack} />
-        </div>
-      ) : (
+      {(
         <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
           <Radio size={26} className="text-[#d4af37]/60 mb-4" />
           <h2 className="text-lg font-black tracking-tight mb-1.5">Follow today’s service</h2>
@@ -64,6 +65,7 @@ const FollowAlongView: React.FC<Props> = ({ sessionId, onBack }) => {
         </div>
       )}
     </div>
+    )
   );
 };
 

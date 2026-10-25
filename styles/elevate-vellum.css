@@ -141,3 +141,25 @@
   .ev-reveal { opacity: 1; transform: none; transition: none; }
   .ev-lift, .ev-lift:hover, .ev-zoom img, .ev-zoom:hover img, .ev-btn:active { transition: none; transform: none; }
 }
+
+/* ── Phone pass ───────────────────────────────────────────────────────────────
+   Every Elevate surface (public page, member hub, staff ops, volunteer) is used
+   on a phone first: thumb-sized targets, no iOS input zoom, no sideways page,
+   and nothing hiding under the home indicator. Scoped to .ev-scope so the rest
+   of the platform is untouched. */
+@media (max-width: 767px) {
+  .ev-scope { -webkit-tap-highlight-color: transparent; overflow-x: clip; }
+  .ev-scope button, .ev-scope [role="button"], .ev-scope summary { touch-action: manipulation; }
+  /* 40px floor for plain buttons; absolutely/fixed positioned ones keep their own size. */
+  .ev-scope button:not([class*="absolute"]):not([class*="fixed"]):not(.ev-tab) { min-height: 40px; }
+  .ev-scope a[href]:not([class*="absolute"]) { min-height: 40px; display: inline-flex; align-items: center; }
+  .ev-scope a[href]:has(img), .ev-scope a[href]:has(svg:only-child) { display: inline-block; }
+  .ev-scope .ev-tab { min-width: 44px; padding-left: 4px; padding-right: 4px; }
+  /* 16px stops iOS zooming the page when a field is focused. */
+  .ev-scope input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), .ev-scope select, .ev-scope textarea { font-size: 16px; }
+  .ev-scope img, .ev-scope video, .ev-scope canvas { max-width: 100%; }
+  .ev-scope table { display: block; overflow-x: auto; }
+  .ev-scope pre, .ev-scope code { overflow-x: auto; max-width: 100%; }
+  /* Sticky/bottom bars clear the home indicator. */
+  .ev-scope [class*="bottom-0"][class*="fixed"], .ev-scope [class*="bottom-0"][class*="sticky"] { padding-bottom: max(env(safe-area-inset-bottom, 0px), 0px); }
+}

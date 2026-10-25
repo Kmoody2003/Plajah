@@ -2312,8 +2312,9 @@ export interface Post {
   /** The author's education role, denormalized for the school feed's badges/filtering. */
   eduRole?: 'SCHOOL' | 'TEACHER' | 'STUDENT' | 'PARENT';
   authorOrgId?: string;
-  /** Elevate: who may comment. PUBLIC = open to everyone; MEMBERS = org members + followers only (readable by all). */
-  orgAudience?: 'PUBLIC' | 'MEMBERS' | 'DEPARTMENT';
+  /** Elevate: who may see / comment. PUBLIC = open to everyone; MEMBERS = readable by all, org members + followers comment (legacy);
+   *  INTERNAL = org members only: unreadable to everyone else (isPublic:false, purple in the org feed); DEPARTMENT = one ministry. */
+  orgAudience?: 'PUBLIC' | 'MEMBERS' | 'INTERNAL' | 'DEPARTMENT';
   /** Elevate: department/ministry thread this post belongs to. */
   orgDepartmentId?: string;
   text: string;

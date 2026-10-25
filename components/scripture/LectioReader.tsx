@@ -9,10 +9,10 @@
 // a scholar taps once and gets a workbench.
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { motion } from 'motion/react';
+import { AnimatePresence, motion } from 'motion/react';
 import {
   ChevronLeft, ChevronRight, Search, Sparkles, StickyNote, Highlighter,
-  Link2, Copy, Download, X, Check, Columns2, Loader2,
+  Link2, Copy, Download, X, Check, Columns2, Loader2, Pin,
 } from 'lucide-react';
 import {
   BOOKS, translationsForBook,
@@ -41,7 +41,15 @@ import LectioLexicon from './LectioLexicon';
 import LectioOriginals from './LectioOriginals';
 import LectioComparativeSearch from './LectioComparativeSearch';
 import ResearchNotebook from '../faith/ResearchNotebook';
+import {
+  listenToSession, resolveCue, cueRef, isClear, type FollowMode, type ScriptureSession,
+} from '../../services/kairosService';
+import { recordServiceNote, pushSession, verseKeyOf } from '../../services/serviceNotes';
 import LectioCouncilPlatesModal from './LectioCouncilPlatesModal';
+import {
+  useIsMobile, HL_COLORS, MobileBottomBar, NavigatorSheet, DisplaySheet, VerseActionBar, BookmarkToggle,
+  type BookmarkEntry,
+} from './LectioMobile';
 
 // ── Reading surfaces ─────────────────────────────────────────────────────────
 // Only these four touch the page. Everything else is Plajah-dark.
@@ -56,6 +64,8 @@ const SKINS: Skin[] = [
 
 const SKIN_KEY = 'plajah_lectio_skin_v1';
 const HL_KEY = 'plajah_lectio_highlights_v1';
+const POS_KEY = 'plajah_lectio_position_v1';
+const MARKS_KEY = 'plajah_lectio_bookmarks_v1';
 // Verse notes live in the shared notebook (services/readerNotes → verseNotes).
 
 const SERIF = '"Palatino Linotype", "Iowan Old Style", Palatino, "Book Antiqua", Georgia, serif';
@@ -72,32 +82,58 @@ function saveMap(key: string, v: Record<string, string>) {
 const askAria = (prompt: string) =>
   window.dispatchEvent(new CustomEvent('OPEN_ARIA', { detail: { prompt } }));
 
-interface Props { openAt?: ScriptureRef | null; }
+interface Props {
+  openAt?: ScriptureRef | null;
+  /** A live service (Stage scripture session). The reader turns to each cue the
+   *  operator puts on screen, until the reader navigates away on their own. */
+  followSessionId?: string | null;
+  followMode?: FollowMode;
+  playheadSec?: number;
+  /** Sermon prep: a verse can be pinned from the reader into the open sermon. */
+  onPinVerse?: (pin: { ref: ScriptureRef; text: string }) => void;
+}
 
-const LectioReader: React.FC<Props> = ({ openAt }) => {
+const LectioReader: React.FC<Props> = ({ openAt, followSessionId, followMode = 'IN_ROOM', playheadSec, onPinVerse }) => {
   const initialCatholic = !!openAt && (openAt.book>66 || (openAt.book===17 && openAt.chapter>10) || (openAt.book===27 && openAt.chapter>12));
+  // No deep link: resume where this reader left off.
+  const saved = useMemo(() => {
+    if (openAt) return null;
+    try { return JSON.parse(localStorage.getItem(POS_KEY) || 'null') as { canon: BibleCanon; book: number; chapter: number } | null; } catch { return null; }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const startCanon: BibleCanon = initialCatholic ? 'catholic' : saved?.canon ?? 'protestant';
   const [book, setBook] = useState<BibleBook>(
-    (openAt && canonBooks(initialCatholic?'catholic':'protestant').find(b => b.num === openAt.book)) || BOOKS.find(b => b.name === 'John')!,
+    (openAt && canonBooks(initialCatholic?'catholic':'protestant').find(b => b.num === openAt.book))
+      || (saved && canonBooks(startCanon).find(b => b.num === saved.book))
+      || BOOKS.find(b => b.name === 'John')!,
   );
-  const [chapter, setChapter] = useState(openAt?.chapter ?? 1);
+  const [chapter, setChapter] = useState(openAt?.chapter ?? (saved && saved.chapter <= (canonBooks(startCanon).find(b => b.num === saved.book)?.chapters ?? 0) ? saved.chapter : 1));
   const [activeVerse, setActiveVerse] = useState<number | null>(openAt?.verse ?? null);
 
-  const [canon, setCanon] = useState<BibleCanon>(initialCatholic?'catholic':'protestant');
+  const [canon, setCanon] = useState<BibleCanon>(startCanon);
   const visibleBooks = useMemo(()=>canonBooks(canon),[canon]);
   const avail = useMemo(() => canon==='catholic' ? TRANSLATIONS.filter(t=>t.slug==='douayrheims') : canon==='orthodox' ? TRANSLATIONS.filter(t=>t.slug===(book.testament==='OT'?'lxx':'textusreceptus')) : translationsForBook(book.testament).filter(t=>t.slug!=='douayrheims'), [book,canon]);
-  const [active, setActive] = useState<string[]>([initialCatholic?'douayrheims':DEFAULT_TRANSLATION]);
+  const [active, setActive] = useState<string[]>([startCanon==='catholic'?'douayrheims':startCanon==='orthodox'?(book.testament==='OT'?'lxx':'textusreceptus'):DEFAULT_TRANSLATION]);
   const [data, setData] = useState<Record<string, BibleVerse[]>>({});
   const [loading, setLoading] = useState(true);
 
-  const [skinId, setSkinId] = useState(() => localStorage.getItem(SKIN_KEY) || 'vellum');
+  // Following a service starts on the darkest page: phones brightening in a quiet room is what churches distrust.
+  const [skinId, setSkinId] = useState(() => localStorage.getItem(SKIN_KEY) || (followSessionId ? 'night' : 'vellum'));
   const skin = SKINS.find(s => s.id === skinId) ?? SKINS[0];
-  const [size, setSize] = useState(17);
+  const [size, setSize] = useState(() => Number(localStorage.getItem('plajah_lectio_size_v1')) || 17);
 
   const [notes, setNotes] = useState<Record<string, string>>(() => verseNotes.read());
   const [highlights, setHighlights] = useState<Record<string, string>>(() => loadMap(HL_KEY));
   const [rail, setRail] = useState<RailTab>('refs');
   const [wordLookup, setWordLookup] = useState<string | undefined>();
+  const isMobile = useIsMobile();
   const [railOpen, setRailOpen] = useState(() => typeof window === 'undefined' || window.innerWidth >= 1024);
+  const [sheet, setSheet] = useState<null | 'nav' | 'display'>(null);
+  const [pinnedFlash, setPinnedFlash] = useState<number | null>(null);
+  const [barOpen, setBarOpen] = useState(false);   // verse action bar: only on a tap, never when a live cue lands
+  const [chromeHidden, setChromeHidden] = useState(false);
+  const [bookmarks, setBookmarks] = useState<BookmarkEntry[]>(() => { try { return JSON.parse(localStorage.getItem(MARKS_KEY) || '[]'); } catch { return []; } });
+  const lastScroll = useRef(0);
+  const touch = useRef<{ x: number; y: number } | null>(null);
 
   const [query, setQuery] = useState('');
   const [hits, setHits] = useState<SearchHit[]>([]);
@@ -108,6 +144,68 @@ const LectioReader: React.FC<Props> = ({ openAt }) => {
 
   const cancelRef = useRef<{ cancelled: boolean }>({ cancelled: false });
   const verseRefs = useRef<Record<number, HTMLDivElement | null>>({});
+
+  useEffect(() => { try { localStorage.setItem(POS_KEY, JSON.stringify({ canon, book: book.num, chapter })); } catch { /* private mode */ } }, [canon, book, chapter]);
+  useEffect(() => { try { localStorage.setItem('plajah_lectio_size_v1', String(size)); } catch { /* private mode */ } }, [size]);
+  // The rail is a desktop side panel; on a phone it is a sheet and starts closed.
+  useEffect(() => { if (isMobile) setRailOpen(false); }, [isMobile]);
+
+  // ── live service follow ────────────────────────────────────────────────────
+  // Same Kairos feed the Stage operator drives. One cue, N renderings: the
+  // reader shows it in the READER's translation, not the church's.
+  const [session, setSession] = useState<ScriptureSession | null>(null);
+  const [following, setFollowing] = useState(true);
+  const livePos = useRef({ b: book.num, c: chapter });   // where the reader last put the page itself
+  const lastCueSeq = useRef(-1);
+  useEffect(() => {
+    if (!followSessionId) { setSession(null); return; }
+    setFollowing(true);
+    return listenToSession(followSessionId, setSession);
+  }, [followSessionId]);
+  const liveCue = useMemo(() => resolveCue(session, followMode, playheadSec), [session, followMode, playheadSec]);
+  const liveRef = useMemo(() => (liveCue && !isClear(liveCue) ? cueRef(liveCue) : null), [liveCue]);
+  const behind = !!followSessionId && !following && !!liveRef;
+  const liveHas = (v: number) => !!liveRef && liveRef.book === book.num && liveRef.chapter === chapter
+    && liveRef.verse != null && v >= liveRef.verse && v <= (liveRef.endVerse ?? liveRef.verse);
+
+  const turnToLive = useCallback((ref: ScriptureRef) => {
+    const wantCanon: BibleCanon = ref.book > 66 || (ref.book === 17 && ref.chapter > 10) || (ref.book === 27 && ref.chapter > 12) ? 'catholic' : canon;
+    let list = canonBooks(wantCanon);
+    let target = list.find(b => b.num === ref.book);
+    let useCanon = wantCanon;
+    if (!target) { useCanon = 'protestant'; list = canonBooks('protestant'); target = list.find(b => b.num === ref.book); }
+    if (!target) return;
+    livePos.current = { b: target.num, c: ref.chapter };
+    if (useCanon !== canon) setCanon(useCanon);
+    setBook(target); setChapter(ref.chapter); setActiveVerse(ref.verse ?? null);
+    setSheet(null);
+  }, [canon]);
+
+  useEffect(() => {
+    if (!followSessionId || !following || !liveRef || !liveCue) return;
+    turnToLive(liveRef);
+    if (liveCue.seq === lastCueSeq.current) return;
+    lastCueSeq.current = liveCue.seq;
+    // A receipt that this passage was put in front of you, with the program
+    // time — the service-notes store, never your own notebook.
+    recordServiceNote({
+      verseKey: verseKeyOf(liveRef), refId: liveCue.refId,
+      label: liveCue.label || formatRef(liveRef, 'display'),
+      sessionId: followSessionId, serviceTitle: session?.title ?? 'Service', programTC: liveCue.programTC,
+    });
+    const uid = auth.currentUser?.uid;
+    if (uid) void pushSession(uid, followSessionId);
+  }, [liveCue?.seq, liveCue?.refId, following, followSessionId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Any move the reader did not make itself means they are reading on their
+  // own: stop following. The page never snaps back without a tap on Jump to live.
+  useEffect(() => {
+    if (!followSessionId) return;
+    if (livePos.current.b === book.num && livePos.current.c === chapter) return;
+    setFollowing(false);
+  }, [book, chapter]); // eslint-disable-line react-hooks/exhaustive-deps
+  const jumpToLive = () => { if (!liveRef) return; setFollowing(true); turnToLive(liveRef); };
+  const pauseFollow = () => { if (followSessionId && following) setFollowing(false); };
 
   // ── data ───────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -183,6 +281,56 @@ const LectioReader: React.FC<Props> = ({ openAt }) => {
       saveMap(HL_KEY, n);
       return n;
     });
+  };
+  const setHighlightColor = (v: number, color: string | null) => {
+    setHighlights(prev => {
+      const n = { ...prev };
+      if (color) n[keyFor(v)] = color; else delete n[keyFor(v)];
+      saveMap(HL_KEY, n);
+      return n;
+    });
+  };
+  const washFor = (id: string | undefined) => HL_COLORS.find(c => c.id === id)?.wash ?? skin.mark;
+
+  const isMarked = bookmarks.some(b => b.canon === canon && b.book === book.num && b.chapter === chapter);
+  const persistMarks = (n: BookmarkEntry[]) => { try { localStorage.setItem(MARKS_KEY, JSON.stringify(n)); } catch { /* private mode */ } return n; };
+  const toggleBookmark = () => setBookmarks(prev => persistMarks(isMarked
+    ? prev.filter(b => !(b.canon === canon && b.book === book.num && b.chapter === chapter))
+    : [{ book: book.num, bookName: book.name, chapter, canon, at: Date.now() }, ...prev]));
+  const removeBookmark = (m: BookmarkEntry) => setBookmarks(prev => persistMarks(prev.filter(b => !(b.canon === m.canon && b.book === m.book && b.chapter === m.chapter))));
+  const switchCanon = (c: BibleCanon) => {
+    const list = canonBooks(c);
+    setCanon(c); setBook(list.find(b => b.num === book.num) ?? list[0]); setChapter(1); setActiveVerse(null);
+    setActive([c === 'catholic' ? 'douayrheims' : c === 'orthodox' ? (book.testament === 'NT' ? 'textusreceptus' : 'lxx') : 'kjv']);
+  };
+  const openBookmark = (m: BookmarkEntry) => {
+    if (m.canon !== canon) setCanon(m.canon);
+    const target = canonBooks(m.canon).find(b => b.num === m.book);
+    if (target) { setBook(target); setChapter(m.chapter); setActiveVerse(null); }
+  };
+  const toggleTranslation = (slug: string) =>
+    setActive(prev => prev.includes(slug) ? (prev.length > 1 ? prev.filter(s => s !== slug) : prev) : [...prev, slug]);
+  const shareVerse = async (v: number) => {
+    const text = data[active[0]]?.find(x => x.verse === v)?.text ?? '';
+    const msg = `${formatRef(currentRef(v), 'display')} — ${text}`;
+    try { if (navigator.share) { await navigator.share({ text: msg }); return; } } catch { return; }
+    copyVerse(v);
+  };
+  const onUserScroll = () => pauseFollow();
+  const onPageScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (!isMobile) return;
+    const y = e.currentTarget.scrollTop;
+    if (Math.abs(y - lastScroll.current) < 12) return;
+    setChromeHidden(y > lastScroll.current && y > 80);
+    lastScroll.current = y;
+  };
+  // Horizontal swipe pages chapters; vertical drags are left to scrolling.
+  const onTouchStart = (e: React.TouchEvent) => { touch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    const t = touch.current; touch.current = null;
+    if (!t || !isMobile || active.length > 1) return;
+    const dx = e.changedTouches[0].clientX - t.x, dy = e.changedTouches[0].clientY - t.y;
+    if (Math.abs(dx) > 70 && Math.abs(dx) > Math.abs(dy) * 2) { if (dx < 0) nextCh(); else prevCh(); }
   };
 
   const goTo = (ref: ScriptureRef) => {
@@ -281,7 +429,7 @@ const LectioReader: React.FC<Props> = ({ openAt }) => {
   // ── render ─────────────────────────────────────────────────────────────────
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="relative flex h-[calc(100vh-49px)] overflow-hidden">
+      className="relative flex h-[calc(100dvh-49px)] overflow-hidden">
 
       {/* ── Canon rail ─────────────────────────────────────────────── */}
       <aside className="hidden md:flex w-[172px] shrink-0 flex-col border-r border-white/8 bg-black/25">
@@ -322,7 +470,7 @@ const LectioReader: React.FC<Props> = ({ openAt }) => {
       {/* ── Reading page ───────────────────────────────────────────── */}
       <main className="flex-1 min-w-0 flex flex-col">
         {/* chrome above the page — stays Plajah-dark */}
-        <div className="flex items-center gap-2 px-3 sm:px-5 py-2 border-b border-white/8 bg-black/25 flex-wrap">
+        <div className="hidden md:flex items-center gap-2 px-3 sm:px-5 py-2 border-b border-white/8 bg-black/25 flex-wrap">
           <CanonBookPicker canon={canon} book={book} onBook={b=>{setBook(b);setChapter(1);setActiveVerse(null);}} onGo={(b,ch,v)=>{setBook(b);setChapter(ch);setActiveVerse(v??null);}} onCanon={c=>{const list=canonBooks(c);setCanon(c);setBook(list.find(b=>b.num===book.num)??list[0]);setChapter(1);setActiveVerse(null);setActive([c==='catholic'?'douayrheims':c==='orthodox'?(book.testament==='NT'?'textusreceptus':'lxx'):'kjv']);}} />
           <select aria-label="Chapter" value={chapter} onChange={e=>{setChapter(Number(e.target.value));setActiveVerse(null);}} className="bg-[#17141f] text-xs rounded px-1 py-1">{Array.from({length:book.chapters},(_,i)=><option key={i+1} value={i+1}>{i+1}</option>)}</select>
           <button onClick={prevCh} aria-label="Previous chapter"
@@ -381,9 +529,41 @@ const LectioReader: React.FC<Props> = ({ openAt }) => {
           </div>
         </div>
 
+        {followSessionId && (
+          behind ? (
+            <button onClick={jumpToLive}
+              className="shrink-0 h-11 flex items-center justify-center gap-2 bg-[#d4af37] text-black text-[11px] font-black uppercase tracking-widest">
+              Jump to live · {liveCue?.label}
+            </button>
+          ) : (
+            <div className="shrink-0 h-8 flex items-center gap-2 px-3 border-b border-[#d4af37]/20 bg-[#d4af37]/[0.07]">
+              <span className={`h-2 w-2 rounded-full ${session?.isActive === false ? 'bg-white/30' : 'bg-[#d4af37] animate-pulse'}`} />
+              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#d4af37]">
+                {!session ? 'Waiting for the service' : session.isActive === false ? 'Service ended' : liveRef ? 'Following live' : 'Following · waiting for a passage'}
+              </span>
+              <span className="text-[10px] text-white/40 truncate">{session?.title}</span>
+              {session && session.translation && !active.includes(session.translation.toLowerCase()) && (
+                <span className="ml-auto text-[9px] text-white/30 whitespace-nowrap">Room: {session.translation}</span>
+              )}
+            </div>
+          )
+        )}
+
+        {isMobile && (
+          <div className={`shrink-0 flex items-center gap-1 px-2 border-b border-white/8 bg-black/30 overflow-hidden transition-all duration-200 ${chromeHidden ? 'h-0 border-b-0 opacity-0' : 'h-12'}`}>
+            <button onClick={() => setSheet('nav')} className="h-11 px-3 flex items-center gap-1.5 text-[15px] font-black tracking-tight active:bg-white/10 rounded-xl">
+              {book.name} <span className="text-[#d4af37]">{chapter}</span><ChevronRight size={13} className="rotate-90 text-white/40" />
+            </button>
+            <span className="ml-auto" />
+            <button onClick={() => { setRail('search'); setRailOpen(true); }} aria-label="Search" className="h-11 w-11 grid place-items-center text-white/70 active:bg-white/10 rounded-full"><Search size={19} /></button>
+            <BookmarkToggle on={isMarked} onToggle={toggleBookmark} color={isMarked ? '#d4af37' : 'rgba(255,255,255,0.7)'} />
+          </div>
+        )}
+
         {/* the page itself — the one skinnable surface */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar" style={{ background: skin.bg }}>
-          <div className="mx-auto px-6 sm:px-10 py-9" style={{ maxWidth: active.length > 1 ? 1000 : 680 }}>
+        <div className="flex-1 overflow-y-auto custom-scrollbar overscroll-contain" style={{ background: skin.bg, paddingBottom: isMobile && activeVerse != null && barOpen ? 150 : undefined }}
+          onScroll={onPageScroll} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} onTouchMove={onUserScroll} onWheel={onUserScroll}>
+          <div className="mx-auto px-5 sm:px-10 py-6 sm:py-9" style={{ maxWidth: active.length > 1 ? 1000 : 680 }}>
             <p className="text-[9px] font-black uppercase tracking-[0.22em] mb-6" style={{ color: skin.num }}>
               {book.name} {chapter} · {active.map(s => avail.find(t => t.slug === s)?.label).filter(Boolean).join(' · ')}
             </p>
@@ -404,9 +584,9 @@ const LectioReader: React.FC<Props> = ({ openAt }) => {
                   const note = notes[keyFor(v)];
                   return (
                     <div key={v} ref={el => { verseRefs.current[v] = el; }}
-                      onClick={() => setActiveVerse(isActive ? null : v)}
+                      onClick={() => { setActiveVerse(isActive ? null : v); setBarOpen(!isActive); }}
                       className="cursor-pointer rounded-lg -mx-2 px-2 py-0.5 transition-colors"
-                      style={isActive ? { background: skin.mark } : undefined}>
+                      style={isActive || (followSessionId && liveHas(v)) ? { background: skin.mark } : undefined}>
                       <div className={active.length > 1 ? 'grid sm:grid-cols-2 gap-x-7' : ''}>
                         {active.map(slug => {
                           const t = avail.find(x => x.slug === slug);
@@ -421,7 +601,7 @@ const LectioReader: React.FC<Props> = ({ openAt }) => {
                                 fontSize: isHebrew ? size + 3 : size,
                                 lineHeight: isHebrew ? 2 : 1.72,
                                 color: skin.ink,
-                                background: hl && !isActive ? skin.mark : undefined,
+                                background: hl && !isActive ? washFor(highlights[keyFor(v)]) : undefined,
                                 borderRadius: hl ? 3 : undefined,
                               }}>
                               {idx === 0 && slug === active[0] && (
@@ -440,7 +620,7 @@ const LectioReader: React.FC<Props> = ({ openAt }) => {
                         })}
                       </div>
 
-                      {isActive && (
+                      {isActive && !isMobile && (
                         <div className="flex items-center gap-1.5 flex-wrap pb-2 pt-0.5" onClick={e => e.stopPropagation()}>
                           {[
                             { icon: Highlighter, label: hl ? 'Unhighlight' : 'Highlight', act: () => toggleHighlight(v) },
@@ -448,6 +628,7 @@ const LectioReader: React.FC<Props> = ({ openAt }) => {
                             { icon: copied ? Check : Copy, label: copied ? 'Copied' : 'Copy', act: () => copyVerse(v) },
                             { icon: Link2, label: 'Cross-refs', act: () => { setRail('refs'); setRailOpen(true); } },
                             { icon: Sparkles, label: 'Ask Aria', act: () => askAria(`You are Aria, a learned and reverent Bible teacher. Explain ${formatRef(currentRef(v), 'display')}. Give the historical and cultural context, the meaning in the original language, how it was understood in the early Church, and how it connects to the rest of Scripture. Cite the passages you draw on.`) },
+                            ...(onPinVerse ? [{ icon: Pin, label: pinnedFlash === v ? 'Pinned' : 'Pin to sermon', act: () => { onPinVerse({ ref: currentRef(v), text: data[active[0]]?.find(x => x.verse === v)?.text ?? '' }); setPinnedFlash(v); } }] : []),
                           ].map(({ icon: Icon, label, act }) => (
                             <button key={label} onClick={act}
                               className="flex items-center gap-1 px-2 py-1 rounded-md text-[8.5px] font-black uppercase tracking-widest transition-opacity hover:opacity-100 opacity-70"
@@ -464,16 +645,28 @@ const LectioReader: React.FC<Props> = ({ openAt }) => {
             )}
           </div>
         </div>
+        {isMobile && (
+          <MobileBottomBar
+            passage={`${book.name} ${chapter}`}
+            versions={active.map(s => avail.find(t => t.slug === s)?.label).filter(Boolean).join(' · ')}
+            onPrev={prevCh} onNext={nextCh}
+            onNav={() => setSheet('nav')} onDisplay={() => setSheet('display')}
+            onStudy={() => setRailOpen(v => !v)} studyOpen={railOpen} />
+        )}
       </main>
 
       {/* ── Study rail ─────────────────────────────────────────────── */}
+      {railOpen && isMobile && <div className="absolute inset-0 z-30 bg-black/60" onClick={() => setRailOpen(false)} />}
       {railOpen && (
-        <aside aria-label="Verse study tools" className="absolute inset-y-0 right-0 z-20 flex w-[min(92vw,360px)] shrink-0 flex-col border-l border-white/10 bg-[#0d0a13] lg:static lg:w-[340px]">
-          <div className="flex justify-between border-b border-white/10 px-3 py-2"><span className="text-xs text-[#e3c57e]">Study workbench</span><button aria-label="Close study tools" onClick={() => setRailOpen(false)}><X size={15} /></button></div>
-          <div className="grid grid-cols-3 border-b border-white/8">
+        <aside aria-label="Verse study tools" className={isMobile
+          ? 'absolute inset-x-0 bottom-0 top-[10%] z-40 flex flex-col rounded-t-3xl border-t border-[#d4af37]/25 bg-[#0d0a13] shadow-[0_-20px_60px_rgba(0,0,0,0.6)]'
+          : 'absolute inset-y-0 right-0 z-20 flex w-[min(92vw,360px)] shrink-0 flex-col border-l border-white/10 bg-[#0d0a13] lg:static lg:w-[340px]'}
+          style={isMobile ? { paddingBottom: 'env(safe-area-inset-bottom, 0px)' } : undefined}>
+          <div className="flex items-center justify-between border-b border-white/10 px-4 py-1"><span className="text-[11px] font-black uppercase tracking-[0.2em] text-[#e3c57e]">Study workbench{isMobile && activeVerse != null ? ` · ${formatRef(currentRef(activeVerse), 'compact')}` : ''}</span><button aria-label="Close study tools" onClick={() => setRailOpen(false)} className="h-11 w-11 -mr-2 grid place-items-center"><X size={isMobile ? 18 : 15} /></button></div>
+          <div className={isMobile ? 'flex overflow-x-auto border-b border-white/8' : 'grid grid-cols-3 border-b border-white/8'}>
             {([['refs', 'Refs'], ['notes', 'Notes'], ['search', 'Search'], ['study', 'Concordance'], ['words', 'Word study'], ['originals', 'Originals'], ['history', 'History'], ['compare', 'Compare'], ['notebook', 'Notebook']] as const).map(([id, label]) => (
               <button key={id} onClick={() => setRail(id)}
-                className={`flex-1 py-2 text-[8.5px] font-black uppercase tracking-[0.14em] border-b-2 transition-colors ${
+                className={`${isMobile ? 'shrink-0 h-12 px-4 text-[11px]' : 'flex-1 py-2 text-[8.5px]'} font-black uppercase tracking-[0.14em] border-b-2 transition-colors ${
                   rail === id ? 'text-[#d4af37] border-[#d4af37]' : 'text-white/35 border-transparent hover:text-white/70'
                 }`}>
                 {label}
@@ -507,8 +700,8 @@ const LectioReader: React.FC<Props> = ({ openAt }) => {
                   </p>
                   {refsForActive.map(r => (
                     <button key={refId(r)} onClick={() => goTo(r)}
-                      className="w-full text-left px-2.5 py-2 rounded-lg border border-white/10 hover:border-[#d4af37]/40 hover:bg-[#d4af37]/[0.07] transition-colors">
-                      <span className="font-mono text-[9.5px] uppercase tracking-wider text-[#d4af37]">{formatRef(r, 'compact')}</span>
+                      className="w-full text-left px-3 py-3.5 md:px-2.5 md:py-2 rounded-lg border border-white/10 hover:border-[#d4af37]/40 hover:bg-[#d4af37]/[0.07] transition-colors">
+                      <span className="font-mono text-[13px] md:text-[9.5px] uppercase tracking-wider text-[#d4af37]">{formatRef(r, 'compact')}</span>
                     </button>
                   ))}
                 </div>
@@ -537,7 +730,7 @@ const LectioReader: React.FC<Props> = ({ openAt }) => {
                       value={notes[keyFor(activeVerse)] || ''}
                       onChange={e => setNote(activeVerse, e.target.value)}
                       placeholder="Your note…"
-                      className="w-full bg-black/40 border border-white/10 rounded-lg px-2.5 py-2 text-[11.5px] text-white/85 placeholder-white/20 outline-none focus:border-[#d4af37]/50 resize-none min-h-[86px]"
+                      className="w-full bg-black/40 border border-white/10 rounded-lg px-2.5 py-2 text-base md:text-[11.5px] text-white/85 placeholder-white/20 outline-none focus:border-[#d4af37]/50 resize-none min-h-[110px]"
                     />
                   </div>
                 )}
@@ -610,7 +803,7 @@ const LectioReader: React.FC<Props> = ({ openAt }) => {
                   <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-white/25" />
                   <input value={query} onChange={e => runSearch(e.target.value)}
                     placeholder="Search downloaded text…"
-                    className="w-full bg-black/40 border border-white/10 rounded-lg pl-7 pr-2.5 py-2 text-[11.5px] text-white/85 placeholder-white/20 outline-none focus:border-[#d4af37]/50" />
+                    className="w-full bg-black/40 border border-white/10 rounded-lg pl-7 pr-2.5 py-3 md:py-2 text-base md:text-[11.5px] text-white/85 placeholder-white/20 outline-none focus:border-[#d4af37]/50" />
                 </div>
 
                 {/* Coverage is stated, never implied. */}
@@ -664,6 +857,32 @@ const LectioReader: React.FC<Props> = ({ openAt }) => {
             )}
           </div>
         </aside>
+      )}
+      {isMobile && (
+        <>
+          <AnimatePresence>
+            {activeVerse != null && barOpen && !railOpen && !sheet && (
+              <VerseActionBar key="vab"
+                label={formatRef(currentRef(activeVerse), 'display')}
+                highlight={highlights[keyFor(activeVerse)]}
+                onColor={id => setHighlightColor(activeVerse, id)} onClear={() => setHighlightColor(activeVerse, null)}
+                onNote={() => { setRail('notes'); setRailOpen(true); }}
+                onCopy={() => copyVerse(activeVerse)} onShare={() => shareVerse(activeVerse)}
+                onRefs={() => { setRail('refs'); setRailOpen(true); }}
+                onAria={() => askAria(`You are Aria, a learned and reverent Bible teacher. Explain ${formatRef(currentRef(activeVerse), 'display')}. Give the historical and cultural context, the meaning in the original language, how it was understood in the early Church, and how it connects to the rest of Scripture. Cite the passages you draw on.`)}
+                onPin={onPinVerse ? () => { onPinVerse({ ref: currentRef(activeVerse), text: data[active[0]]?.find(x => x.verse === activeVerse)?.text ?? '' }); setPinnedFlash(activeVerse); } : undefined} pinned={pinnedFlash === activeVerse}
+                onClose={() => { setActiveVerse(null); setBarOpen(false); }} copied={copied} hasNote={!!notes[keyFor(activeVerse)]} />
+            )}
+          </AnimatePresence>
+          <NavigatorSheet open={sheet === 'nav'} onClose={() => setSheet(null)}
+            canon={canon} books={visibleBooks} book={book} chapter={chapter}
+            onGo={(b, ch, v) => { setBook(b); setChapter(ch); setActiveVerse(v ?? null); }}
+            bookmarks={bookmarks} onOpenBookmark={openBookmark} onRemoveBookmark={removeBookmark} />
+          <DisplaySheet open={sheet === 'display'} onClose={() => setSheet(null)}
+            skins={SKINS} skinId={skinId} onSkin={id => { setSkinId(id); localStorage.setItem(SKIN_KEY, id); }}
+            size={size} onSize={setSize} avail={avail} active={active} onToggle={toggleTranslation}
+            canon={canon} onCanon={switchCanon} onPlates={() => setCouncilModalOpen(true)} />
+        </>
       )}
       <LectioCouncilPlatesModal
         open={councilModalOpen}

@@ -115,14 +115,14 @@ const ChurchAdminDemoView: React.FC<{ onCreate: () => void }> = ({ onCreate }) =
         <button onClick={onCreate} className="ml-auto shrink-0 ev-btn ev-btn-primary" style={{ minHeight: 36, fontSize: 13 }}>Create your church <ArrowRight size={13} /></button>
       </div>
 
-      <div className="flex-1 min-h-0 flex">
-        {/* Sidebar */}
-        <nav aria-label="Staff" className="w-16 lg:w-56 shrink-0 border-r p-2 lg:p-4 overflow-y-auto scrollbar-hide" style={{ borderColor: EV.line }}>
+      <div className="flex-1 min-h-0 flex flex-col md:flex-row">
+        {/* Sidebar: a labelled tab strip on a phone, an icon rail from tablet up */}
+        <nav aria-label="Staff" className="shrink-0 flex md:block gap-1 md:gap-0 border-b md:border-b-0 md:border-r p-2 lg:p-4 md:w-16 lg:w-56 overflow-x-auto md:overflow-x-visible md:overflow-y-auto scrollbar-hide" style={{ borderColor: EV.line }}>
           {NAV.map(({ k, label, icon: Icon }) => (
             <button key={k} onClick={() => setSec(k)} aria-current={sec === k ? 'page' : undefined}
-              className={`w-full flex items-center gap-3 px-2.5 lg:px-3 py-2.5 rounded-xl text-sm transition-colors mb-0.5 ${sec === k ? 'text-white font-semibold' : 'text-[#A49CB2] hover:text-white hover:bg-white/[0.04]'}`}
+              className={`md:w-full shrink-0 whitespace-nowrap flex items-center gap-2 md:gap-3 px-3 md:px-2.5 lg:px-3 py-2.5 rounded-xl text-sm transition-colors md:mb-0.5 ${sec === k ? 'text-white font-semibold' : 'text-[#A49CB2] hover:text-white hover:bg-white/[0.04]'}`}
               style={sec === k ? { background: EV.raised } : undefined}>
-              <Icon size={16} className="shrink-0" /> <span className="hidden lg:inline">{label}</span>
+              <Icon size={16} className="shrink-0" /> <span className="md:hidden lg:inline">{label}</span>
             </button>
           ))}
         </nav>

@@ -8,7 +8,7 @@ import React, { Suspense, lazy, useCallback, useEffect, useMemo, useState } from
 import {
   ArrowLeft, LayoutDashboard, Users, Church, Link2, Gift, HandHeart, MonitorPlay, MessagesSquare, ShoppingBag,
   Briefcase, Megaphone, Check, Circle, Loader2, Trash2, Sparkles, Mail, HardDrive, UserCog, Mic2, Wallet, KeyRound, GraduationCap, Music, ShieldCheck,
-  Calendar, Radio, Upload, Send, DollarSign, TrendingUp,
+  Calendar, Radio, Upload, Send, DollarSign, TrendingUp, BookOpen,
 } from 'lucide-react';
 import { spendingPerms } from '../../services/acctSpending';
 import { CountBadge, useMoneyInbox } from './chms/finance/SpendingUi';
@@ -32,6 +32,7 @@ const MinistryManager = lazy(() => import('./MinistryManager'));
 const InvitesPanel = lazy(() => import('./InvitesPanel'));
 const AccountsPanel = lazy(() => import('./AccountsPanel'));
 const SermonStudio = lazy(() => import('../SermonStudio'));
+const SermonPrep = lazy(() => import('./SermonPrep'));
 const ChurchMasterControl = lazy(() => import('../ChurchMasterControl'));
 const ChurchConsole = lazy(() => import('../ChurchConsole'));
 const ContentHQ = lazy(() => import('../ContentHQ'));
@@ -65,7 +66,7 @@ const SECTION_SUB: Partial<Record<SectionKey, string>> = {
 const field = 'w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white outline-none focus:border-small-orange/50 transition-all placeholder:text-white/25';
 
 type SectionKey = 'overview' | 'mobilize' | 'messages' | 'events' | 'multisite' | 'people' | 'ministries' | 'education' | 'music' | 'invites' | 'accounts' | 'security' | 'giving' | 'money' | 'prayer' | 'media' | 'social' | 'store' | 'team' | 'marketing';
-type Tool = null | 'sermons' | 'master' | 'console' | 'hq' | 'employees' | 'hiring' | 'marketing';
+type Tool = null | 'sermons' | 'sermonprep' | 'master' | 'console' | 'hq' | 'employees' | 'hiring' | 'marketing';
 
 interface Props {
   /** Open a tool straight away (e.g. 'hq' from a Content HQ deep link). */
@@ -176,6 +177,7 @@ const ElevateOps: React.FC<Props> = ({ org: initialOrg, isOwner, onClose, onOrgC
     return (
       <Suspense fallback={<Fallback />}>
         {tool === 'sermons' && can('MANAGE_SERMONS') && <SermonStudio church={org} onClose={closeTool} />}
+        {tool === 'sermonprep' && can('MANAGE_SERMONS') && <SermonPrep church={org} onClose={closeTool} />}
         {tool === 'master' && can('MANAGE_MEDIA') && <ChurchMasterControl church={org} onClose={closeTool} />}
         {tool === 'console' && can('MANAGE_MEDIA') && <ChurchConsole church={org} onClose={closeTool} />}
         {tool === 'hq' && (can('MANAGE_CONTENT') || can('MANAGE_MEDIA') || myMembership?.status === 'ACTIVE') && (
@@ -221,13 +223,14 @@ const ElevateOps: React.FC<Props> = ({ org: initialOrg, isOwner, onClose, onOrgC
       {nav.length === 0 ? (
         <div className="m-6 ev-panel p-10 text-center text-sm text-[#A49CB2]">You don't have staff access for this organization yet.</div>
       ) : (
-        <div className="flex-1 min-h-0 flex">
-          <nav aria-label="Staff" className="w-16 lg:w-56 shrink-0 border-r p-2 lg:p-4 overflow-y-auto scrollbar-hide" style={{ borderColor: EV.line }}>
+        <div className="flex-1 min-h-0 flex flex-col md:flex-row">
+          {/* A labelled, swipeable tab strip on a phone; the icon rail from tablet up. */}
+          <nav aria-label="Staff" className="shrink-0 flex md:block gap-1 md:gap-0 border-b md:border-b-0 md:border-r p-2 lg:p-4 md:w-16 lg:w-56 overflow-x-auto md:overflow-x-visible md:overflow-y-auto scrollbar-hide" style={{ borderColor: EV.line }}>
             {nav.map(n => (
               <button key={n.key} onClick={() => setSection(n.key)} title={n.label} aria-current={section === n.key ? 'page' : undefined}
-                className={`w-full flex items-center gap-3 px-2.5 lg:px-3 py-2.5 rounded-xl text-sm transition-colors mb-0.5 ${section === n.key ? 'text-white font-semibold' : 'text-[#A49CB2] hover:text-white hover:bg-white/[0.04]'}`}
+                className={`md:w-full shrink-0 whitespace-nowrap flex items-center gap-2 md:gap-3 px-3 md:px-2.5 lg:px-3 py-2.5 rounded-xl text-sm transition-colors md:mb-0.5 ${section === n.key ? 'text-white font-semibold' : 'text-[#A49CB2] hover:text-white hover:bg-white/[0.04]'}`}
                 style={section === n.key ? { background: EV.raised } : undefined}>
-                <n.icon size={16} className="shrink-0" /> <span className="hidden lg:inline truncate">{n.label}</span><CountBadge n={n.badge || 0} />
+                <n.icon size={16} className="shrink-0" /> <span className="md:hidden lg:inline truncate">{n.label}</span><CountBadge n={n.badge || 0} />
               </button>
             ))}
           </nav>
@@ -369,6 +372,7 @@ const ElevateOps: React.FC<Props> = ({ org: initialOrg, isOwner, onClose, onOrgC
 
               {section === 'media' && (
                 <div className="ev-fade grid sm:grid-cols-2 gap-3">
+                  {toolBtn('sermonprep', 'Sermon Prep', BookOpen, can('MANAGE_SERMONS') && faith, 'Study, outline, write and preach: works from your phone')}
                   {toolBtn('sermons', 'Sermon Studio', Sparkles, can('MANAGE_SERMONS') && faith, 'Record, auto-transcribe → article / book')}
                   {toolBtn('master', 'Master Control', MonitorPlay, can('MANAGE_MEDIA') && faith, 'Livestream + service run-of-show')}
                   {toolBtn('console', 'Console', Mail, can('MANAGE_MEDIA') && faith, 'Messages & communications')}
