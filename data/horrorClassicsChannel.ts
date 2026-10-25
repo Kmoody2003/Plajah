@@ -8,9 +8,8 @@
 // lengths of those Mux streams (summed from their HLS playlists, measured 2026-10-24), not the
 // rounded "96 min" labels — a fixed-time grid drifts on every rounded minute.
 //
-// Not in rotation yet, pending a rights call: The Cabinet of Dr. Caligari and The Housemaid (1960)
-// are on Mux too, but the channel runs ads and the source/licence of those two uploads isn't
-// recorded. Add their ids to MUX_LENGTH_SEC once cleared.
+// The Cabinet of Dr. Caligari and The Housemaid (1960) air COMMERCIAL-FREE, like Pumpkin Patch: the
+// source/licence of those two uploads isn't recorded, so no ads ever run during them (Kenne's call).
 
 import { CURATED_HALLOWEEN_FILMS, PUMPKIN_PATCH_HERO_ALBUM } from '../services/archiveContentService';
 import { MUX_FILM_REGISTRY } from './muxFilmRegistry';
@@ -34,7 +33,12 @@ const MUX_LENGTH_SEC: Record<string, number> = {
   TheGhoul: 4127.33,
   FrankensteinfullMovie: 761.19,
   'europeana-nosferatu-1922': 5658.71,
+  'europeana-caligari-1920': 3061.48,
+  'kofa-the-housemaid-1960': 6664.49,
 };
+
+/** Films that never carry ad breaks during them on this channel. */
+const COMMERCIAL_FREE_IDS = new Set(['europeana-caligari-1920', 'kofa-the-housemaid-1960']);
 
 /** Pumpkin Patch is Brian James Gage's film, not public domain: it always airs commercial-free.
  *  Its stream URL lives on the album in Firestore, so the server resolves it at scheduling time. */
@@ -57,6 +61,7 @@ export const HORROR_CLASSICS_PD_POOL: VoteOption[] = CURATED_HALLOWEEN_FILMS
     durationSec: MUX_LENGTH_SEC[f.identifier],
     thumbnail: f.thumbnailUrl,
     year: f.year,
+    ...(COMMERCIAL_FREE_IDS.has(f.identifier) ? { commercialFree: true } : {}),
   }));
 
 /** Programmes long enough to be "tonight's movie" (the 1910 Frankenstein short fills gaps only). */
