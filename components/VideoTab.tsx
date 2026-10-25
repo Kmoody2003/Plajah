@@ -48,6 +48,7 @@ import { TrendingSection, WatchLaterSection } from './reello/ReelloDiscoverySect
 import { SoundChip, SoundRailSheet, UseThisSoundButton } from './reello/SoundsRail';
 // Live → Short (blueprint 1C.3) — "clip this" on a live or just-ended stream.
 import { LiveClipStudio, ClipThisButton, MyClipsSection } from './reello/LiveClipStudio';
+import ReelloHomeTop from './reello/ReelloHomeTop';
 import ChipRail from './ui/ChipRail';
 import { useShellNext } from '../hooks/useShellNext';
 
@@ -1206,8 +1207,34 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
                 </section>
               )}
 
-              {/* Prominent hero — random user video, hidden when searching */}
-              {!searchTerm && (() => {
+              {/* Reello home top — Watch / Shorts / Live as one service (Videos mode) */}
+              {!searchTerm && mode === 'VIDEOS' && (
+                <ReelloHomeTop
+                  videos={filteredVideos}
+                  liveFeeds={liveFeeds}
+                  followedIds={followedIds}
+                  onPlay={handlePlay}
+                  onOpenShort={(v) => {
+                    // Same ordering the Shorts view uses, so the tapped clip is the one that opens.
+                    const idx = [...videos].sort((a, b) => b.timestamp - a.timestamp).slice(0, 30).findIndex(s => s.id === v.id);
+                    setShortsIndex(idx >= 0 ? idx : 0);
+                    setActiveView('shorts');
+                  }}
+                  onOpenLive={(feed) => {
+                    if (feed.url?.startsWith('livestream:')) {
+                      setActiveLiveStream({ streamId: feed.url.replace('livestream:', ''), title: feed.title, ownerName: feed.ownerName || '' });
+                    } else {
+                      onSelectVideo?.(feed as any);
+                    }
+                  }}
+                  onSetFormat={(f) => setActiveView(f)}
+                  onVisitUser={onVisitUser}
+                  onGoLive={canGoLive() ? () => setShowGoLiveModal(true) : undefined}
+                />
+              )}
+
+              {/* Prominent hero — Movies & TV only (Reello uses the home top above), hidden when searching */}
+              {!searchTerm && mode !== 'VIDEOS' && (() => {
                 const heroItem = mode === 'MOVIES_TV'
                   ? ([...movies, ...tvSeries][Math.floor(Math.random() * (movies.length + tvSeries.length))] ?? heroVideo)
                   : heroVideo;
