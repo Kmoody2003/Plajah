@@ -10,6 +10,7 @@ import {
   MonitorPlay, Calendar, MessagesSquare, ShoppingBag, BookOpen, FileText, ShieldCheck, Megaphone,
   Palette, Receipt, Upload, ArrowRight, Plus, HandHeart, Radio, GraduationCap, CheckCircle2,
 } from 'lucide-react';
+import ElevateTypeArt, { typeSky } from './ElevateTypeArt';
 
 export type ElevateTabKey = 'overview' | 'church' | 'faith' | 'nonprofit' | 'charity' | 'cultural';
 
@@ -145,6 +146,8 @@ export const ELEVATE_TABS: ElevateTabDef[] = [
 export const tabDef = (key: ElevateTabKey) => ELEVATE_TABS.find(t => t.key === key) || ELEVATE_TABS[0];
 
 const OUTFIT: React.CSSProperties = { fontFamily: 'Outfit, sans-serif' };
+const CARD_ART_MASK = 'linear-gradient(to bottom, #000 70%, transparent)';
+const HERO_ART_MASK = 'linear-gradient(to left, #000 30%, transparent 95%), linear-gradient(to top, transparent 4%, #000 45%)';
 const BRAND_GRADIENT = 'linear-gradient(135deg,#6B0099,#D40055 55%,#FF8C00)';
 
 /** Sticky tab strip under the Elevate nav bar. */
@@ -210,6 +213,35 @@ const STEPS = [
   { n: '3', title: 'Open the doors', desc: 'Connect Stripe for giving, open volunteer shifts, go live, and share your page.' },
 ];
 
+/** Overview card for one organization type: its illustrated plate fading into a frosted panel. */
+const TypeCard: React.FC<{ tab: ElevateTabDef; wide: boolean; count: number; onOpen: () => void }> = ({ tab: t, wide, count, onOpen }) => (
+  <button
+    type="button"
+    onClick={onOpen}
+    className={`group relative shrink-0 snap-start w-[80%] sm:w-[46%] md:w-[31%] lg:w-auto ${wide ? 'lg:col-span-3' : 'lg:col-span-2'} text-left rounded-[26px] p-px transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[0_28px_60px_-26px_var(--glow)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white`}
+    style={{ background: `linear-gradient(165deg, ${t.accent}d9, rgba(255,255,255,0.07) 36%, rgba(212,0,85,0.4) 100%)`, ['--glow' as string]: t.accent } as React.CSSProperties}
+  >
+    <div className="relative h-full rounded-[25px] overflow-hidden flex flex-col" style={{ background: '#110a1b' }}>
+      <div className="relative h-[190px] lg:h-[210px] overflow-hidden" style={{ background: typeSky(t.accent), maskImage: CARD_ART_MASK, WebkitMaskImage: CARD_ART_MASK }}>
+        <ElevateTypeArt kind={t.key} accent={t.accent} className="absolute inset-0 w-full h-full origin-bottom transition-transform duration-700 ease-out group-hover:scale-[1.06]" />
+      </div>
+      <div className="absolute inset-x-0 top-0 flex items-start justify-between p-3">
+        <span className="w-10 h-10 rounded-2xl grid place-items-center bg-black/35 backdrop-blur-md border border-white/15" style={{ color: t.accent }}><t.icon size={18} /></span>
+        {count > 0 && (
+          <span className="px-2.5 py-1 rounded-full bg-black/35 backdrop-blur-md border border-white/15 text-[10.5px] font-semibold text-white/80">{count} on Elevate</span>
+        )}
+      </div>
+      <div className="relative flex-1 -mt-9 mx-2.5 mb-2.5 p-4 rounded-[20px] border border-white/10 bg-white/[0.06] backdrop-blur-xl flex flex-col gap-1.5" style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.09)' }}>
+        <span className="font-black text-[17px] text-white tracking-tight" style={OUTFIT}>{t.label}</span>
+        <span className="text-[12.5px] text-white/60 leading-snug">{t.examples}</span>
+        <span className="mt-auto pt-2 flex items-center justify-between text-[11px] font-black uppercase tracking-widest" style={{ color: t.accent }}>
+          Explore <ArrowRight size={14} className="transition-transform group-hover:translate-x-1" />
+        </span>
+      </div>
+    </div>
+  </button>
+);
+
 /** The Overview explainer: who Elevate is for, what every org gets, and how to start. */
 export const ElevateOverview: React.FC<{
   onPickTab: (k: ElevateTabKey) => void;
@@ -263,25 +295,10 @@ export const ElevateOverview: React.FC<{
         Pick your kind of organization.
       </h2>
       <p className="text-white/55 text-[14px] sm:text-[15px] mt-3 max-w-[60ch]">Each one launches with its own departments, leadership titles and wording. Open a tab to see what yours gets.</p>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mt-7">
-        {ELEVATE_TABS.filter(t => t.key !== 'overview').map(t => (
-          <button
-            key={t.key}
-            type="button"
-            onClick={() => onPickTab(t.key)}
-            className="group text-left p-5 rounded-[24px] border border-white/10 bg-white/[0.03] hover:bg-white/[0.06] hover:-translate-y-1 transition-all flex flex-col gap-3 min-h-[200px]"
-            style={{ borderTopColor: t.accent, borderTopWidth: 3 }}
-          >
-            <span className="w-10 h-10 rounded-2xl grid place-items-center" style={{ background: `${t.accent}22`, color: t.accent }}><t.icon size={19} /></span>
-            <span className="font-black text-[17px] text-white tracking-tight" style={OUTFIT}>{t.label}</span>
-            <span className="text-[12.5px] text-white/55 leading-snug">{t.examples}</span>
-            <span className="mt-auto flex items-center justify-between text-[11px] font-black uppercase tracking-widest" style={{ color: t.accent }}>
-              Explore <ArrowRight size={13} className="group-hover:translate-x-0.5 transition-transform" />
-            </span>
-            {t.directoryKey !== 'all' && counts[t.directoryKey] > 0 && t.key !== 'charity' && (
-              <span className="text-[10.5px] text-white/40 -mt-1.5">{counts[t.directoryKey]} on Elevate now</span>
-            )}
-          </button>
+      {/* Phone/tablet: a snap row that peeks the next card; desktop: three cards, then two wider ones. */}
+      <div className="flex lg:grid lg:grid-cols-6 gap-3.5 mt-7 overflow-x-auto lg:overflow-visible snap-x snap-mandatory no-scrollbar -mx-4 px-4 sm:-mx-6 sm:px-6 lg:mx-0 lg:px-0 pb-2">
+        {ELEVATE_TABS.filter(t => t.key !== 'overview').map((t, i) => (
+          <TypeCard key={t.key} tab={t} wide={i >= 3} count={t.key !== 'charity' && t.directoryKey !== 'all' ? counts[t.directoryKey] || 0 : 0} onOpen={() => onPickTab(t.key)} />
         ))}
       </div>
     </section>
@@ -350,6 +367,13 @@ export const ElevateTypePanel: React.FC<{
   <div>
     <header className="relative overflow-hidden border-b border-white/[0.08]">
       <div className="pointer-events-none absolute -top-24 right-0 w-[40rem] h-[40rem] rounded-full blur-3xl opacity-35" style={{ background: `radial-gradient(closest-side,${tab.accent}55,transparent)` }} />
+      <div
+        className="pointer-events-none absolute inset-y-0 right-0 w-full lg:w-[64%] opacity-25 lg:opacity-45"
+        style={{ maskImage: HERO_ART_MASK, WebkitMaskImage: HERO_ART_MASK, maskComposite: 'intersect', WebkitMaskComposite: 'source-in' } as React.CSSProperties}
+      >
+        <div className="absolute inset-0" style={{ background: typeSky(tab.accent) }} />
+        <ElevateTypeArt kind={tab.key} accent={tab.accent} className="absolute inset-0 w-full h-full" />
+      </div>
       <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-16 grid grid-cols-1 lg:grid-cols-[1.15fr_0.85fr] gap-8 lg:gap-12 items-center">
         <div>
           <Eyebrow color={tab.accent}>{tab.eyebrow}</Eyebrow>
