@@ -4957,8 +4957,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             </aside>
           )}
 
-          {/* Share icon on every main landing page — shares that entry point (preview card names the service) */}
-          {!isPublicView && !getPlatformInfo().isTV && <ServiceShareChip view={view} compact={navLayout.isPhone || isMobile || theme === 'PHONE'} />}
+          {/* Share icon on every main landing page — shares that entry point (preview card names the service). Not on the Live Hub: its viewer has its own channel share. */}
+          {!isPublicView && !getPlatformInfo().isTV && view !== 'LIVE_HUB' && <ServiceShareChip view={view} compact={navLayout.isPhone || isMobile || theme === 'PHONE'} />}
 
           {/* Concept C — horizontal top bar for touch tablets / portrait (fixed chrome) */}
           {(!isPublicView && !getPlatformInfo().isTV && !navLayout.isPhone && navLayout.isBar) && (

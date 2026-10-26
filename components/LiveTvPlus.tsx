@@ -8,7 +8,7 @@
 // channels into one numbered lineup.
 
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Radio, Volume2, VolumeX, ExternalLink, Play, Tv, ChevronUp, ChevronDown, LayoutGrid, Maximize2, Minimize2, Pencil, Check, X, Heart, ImagePlus, Settings2, Link2, Star } from 'lucide-react';
+import { ArrowLeft, Radio, Volume2, VolumeX, ExternalLink, Play, Tv, ChevronUp, ChevronDown, Aperture, Palette, Maximize2, Minimize2, Pencil, Check, X, Heart, ImagePlus, Settings2, Link2, Star } from 'lucide-react';
 import type { LiveFeed, UserProfile, FastChannelSchedule, FastChannelSlot } from '../types';
 import { ACTIVE_SCIENCE_STREAMS } from './scienceStreams';
 import { fetchChannelNumberRegistry, fetchFastChannelSchedule, fetchFastChannelVideos, setChannelSubName, setChannelSubLogo, uploadChannelLogo, fetchFastChannelMeta, type FastChannelListing } from '../services/backendService';
@@ -35,6 +35,9 @@ import { PLAJAH_CHANNELS, UNNUMBERED, guideSortKey, legacyMajors, plajahNumber, 
 import { findSharedChannel, canManageChannel } from '../services/fast/channelSharing';
 import { isChannelFeed } from '../services/fast/guideLineup';
 import ShareButton from './ShareButton';
+import { LensPicker, LensVideoOverlay } from './LensVideoOverlay';
+import type { LensId } from '../services/lenses/lensEngine';
+import { CINEMATIC_LUTS, lutToCssFilter, getLutById } from '../services/color/cinematicLutLibrary';
 import { buildShareUrl } from '../services/deepLinkService';
 import { createPost } from '../services/backendService';
 import ChannelLogo from './tv/ChannelLogo';
@@ -114,8 +117,10 @@ const isEmbeddableUrl = (u: string) =>
   /youtube\.com|youtu\.be|twitch\.tv|vimeo\.com|archive\.org|dailymotion/.test(u);
 
 // ── HLS/embed channel player ──────────────────────────────────────────────────
-const ChannelPlayer: React.FC<{ channel: TvChannel | null; muted: boolean; onWatchWebrtc: (feed: any) => void; onEnded?: () => void; onFail?: () => void }> = ({ channel, muted, onWatchWebrtc, onEnded, onFail }) => {
+const ChannelPlayer: React.FC<{ channel: TvChannel | null; muted: boolean; onWatchWebrtc: (feed: any) => void; onEnded?: () => void; onFail?: () => void; videoElRef?: React.MutableRefObject<HTMLVideoElement | null> }> = ({ channel, muted, onWatchWebrtc, onEnded, onFail, videoElRef }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
+  // Lenses read the on-air element: publish it to the viewer (it is recreated per channel/slot).
+  useEffect(() => { if (videoElRef) videoElRef.current = videoRef.current; });
   const hlsRef = useRef<any>(null);
   const startedRef = useRef(false);        // did THIS programme actually start playing?
   const watchdogRef = useRef<any>(null);
@@ -1092,6 +1097,12 @@ const LiveTvPlus: React.FC<{
   const [fastMedia, setFastMedia] = useState<{ url: string; offset: number; key: string } | null>(null);
   const [fastAd, setFastAd] = useState<{ key: string; durationSec: number; upcoming: UpNextItem[]; announcePollId?: string } | null>(null);
   const [fastFiller, setFastFiller] = useState<{ key: string; upcoming: UpNextItem[] } | null>(null);
+  // Viewer-side look: a lens (real-time canvas) and a LUT (colour grade). Local to this viewer only.
+  const [lensId, setLensId] = useState<LensId>('none');
+  const [lensStatus, setLensStatus] = useState('');
+  const [lutId, setLutId] = useState('');
+  const [lookPanel, setLookPanel] = useState<'lens' | 'lut' | null>(null);
+  const channelVideoRef = useRef<HTMLVideoElement | null>(null);
   const fastSlotsRef = useRef<FastChannelSlot[]>([]);
   const fastSchedRef = useRef<FastChannelSchedule | null>(null);
   const fastOwnerRef = useRef<string | undefined>(undefined);
@@ -1366,7 +1377,8 @@ const LiveTvPlus: React.FC<{
           )}
           <button onClick={() => setMuted(m => !m)} className="w-9 h-9 rounded-full bg-white/10 grid place-items-center hover:bg-white/15">{muted ? <VolumeX size={16} /> : <Volume2 size={16} />}</button>
           <button onClick={toggleFullscreen} title={isFs ? 'Exit full screen (Esc)' : 'Full screen (F)'} aria-label={isFs ? 'Exit full screen' : 'Full screen'} className="w-9 h-9 rounded-full bg-white/10 grid place-items-center hover:bg-white/15">{isFs ? <Minimize2 size={16} /> : <Maximize2 size={16} />}</button>
-          {onOpenClassic && <button onClick={onOpenClassic} title="All live" className="w-9 h-9 rounded-full bg-white/10 grid place-items-center hover:bg-white/15"><LayoutGrid size={16} /></button>}
+          <button onClick={() => setLookPanel(p => (p === 'lens' ? null : 'lens'))} title="Lenses" aria-label="Lenses" className={`w-9 h-9 rounded-full grid place-items-center hover:bg-white/15 ${lookPanel === 'lens' || lensId !== 'none' ? 'bg-orange-500 text-black' : 'bg-white/10'}`}><Aperture size={16} /></button>
+          <button onClick={() => setLookPanel(p => (p === 'lut' ? null : 'lut'))} title="LUTs" aria-label="LUTs" className={`w-9 h-9 rounded-full grid place-items-center hover:bg-white/15 ${lookPanel === 'lut' || lutId ? 'bg-orange-500 text-black' : 'bg-white/10'}`}><Palette size={16} /></button>
         </div>
       </div>
       )}
@@ -1390,9 +1402,47 @@ const LiveTvPlus: React.FC<{
         ) : (
         <>
         {/* Keyed per scheduled slot so a repeat of the same url still reloads the player. */}
-        <ChannelPlayer key={fastMedia?.key || resolvedPlaying?.id || 'none'} channel={resolvedPlaying} muted={muted} onWatchWebrtc={(f) => onWatchWebrtc?.(f)}
+        <div className="absolute inset-0" style={{ filter: lutId && getLutById(lutId) ? lutToCssFilter(getLutById(lutId)!) : undefined }}>
+        <ChannelPlayer key={fastMedia?.key || resolvedPlaying?.id || 'none'} channel={resolvedPlaying} muted={muted} onWatchWebrtc={(f) => onWatchWebrtc?.(f)} videoElRef={channelVideoRef}
           onEnded={playing?.kind === 'fast' ? onFastMediaEnded : undefined}
           onFail={playing?.kind === 'fast' ? onFastMediaEnded : undefined} />
+        {lensId !== 'none' && !fastAd && (
+          <LensVideoOverlay key={fastMedia?.key || resolvedPlaying?.id || 'none'} videoRef={channelVideoRef} lens={lensId} fit="contain" onStatus={setLensStatus} />
+        )}
+        </div>
+
+        {/* Lens / LUT picker. Scrolls on its own and swallows wheel + touch + clicks so the channel
+            dial, the swipe-to-change handler and double-click fullscreen never steal them. */}
+        {lookPanel && (
+          <div
+            className="absolute right-3 top-3 z-40 w-[min(92%,22rem)] max-h-[min(70vh,32rem)] overflow-y-auto overscroll-contain rounded-2xl p-3 bg-black/85 backdrop-blur-md border border-white/10 pointer-events-auto"
+            style={{ touchAction: 'pan-y', WebkitOverflowScrolling: 'touch' }}
+            onWheel={e => e.stopPropagation()}
+            onTouchStart={e => e.stopPropagation()}
+            onTouchEnd={e => e.stopPropagation()}
+            onDoubleClick={e => e.stopPropagation()}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white/60">{lookPanel === 'lens' ? 'Lenses' : 'LUTs'}</span>
+              <button onClick={() => setLookPanel(null)} className="w-7 h-7 rounded-full bg-white/10 grid place-items-center"><X size={14} /></button>
+            </div>
+            {lookPanel === 'lens' ? (
+              <LensPicker value={lensId} onChange={id => { setLensId(id); if (id === 'none') setLensStatus(''); }} status={lensStatus} />
+            ) : (
+              <div className="grid grid-cols-2 gap-1.5">
+                <button onClick={() => setLutId('')} className={`rounded-xl px-3 py-2.5 text-left text-[12px] font-black ${!lutId ? 'bg-orange-500 text-black' : 'bg-white/[0.06] text-white/85'}`}>None</button>
+                {CINEMATIC_LUTS.map(l => (
+                  <button key={l.id} onClick={() => setLutId(l.id)} title={l.description}
+                    className={`rounded-xl px-3 py-2.5 text-left transition-all ${lutId === l.id ? 'bg-orange-500 text-black' : 'bg-white/[0.06] text-white/85'}`}>
+                    <span className="block text-[12px] font-black leading-tight">{l.name}</span>
+                    <span className={`block text-[9px] mt-0.5 ${lutId === l.id ? 'text-black/60' : 'text-white/40'}`}>{l.categoryLabel}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Ad break with no user ad → the Plajah "back shortly" bumper (Plajah FM + coming-up-next).
             onComplete re-syncs from the clock; the boundary timer is the real guarantee it ends. */}
