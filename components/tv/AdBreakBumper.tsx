@@ -1,27 +1,31 @@
-import { thumb, heroImage, THUMB, onThumbError } from '../../src/lib/imageThumb';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { thumb, THUMB, onThumbError } from '../../src/lib/imageThumb';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Heart, Plus, HeartHandshake, Radio, Check } from 'lucide-react';
 import { Track, AdConfig } from '../../types';
-import { fetchRadioTracks, likeTrack, addToLibrary, fetchAdConfigs, auth } from '../../services/backendService';
+import { fetchRadioTracks, likeTrack, addToLibrary, fetchAdConfigs } from '../../services/backendService';
 import { fetchPlatformMedia } from '../../services/platformMediaService';
 import { getSatellitePosition } from '../../services/radioEngine';
+import { planBreak, segmentAt, fmGainAt, edgeDipAt, probeDuration, type BreakSeg, type BreakCandidate } from '../../services/fast/breakPlan';
 import ComingUpNextBumper, { type UpNextItem } from './ComingUpNextBumper';
 import DonationModal from '../DonationModal';
 import PollSpot from './PollSpot';
 
 /**
- * AdBreakBumper — the default "we'll be back shortly" filler for a FAST/TV ad break that has no user
- * ad. It fills the whole break (length set by the account's ad settings) like this:
- *   • Plajah FM (the global station) fades IN over 4s and plays under the card; the current song's
- *     cover art fills the screen with a mini now-playing panel + gift / like / add-to-library buttons.
- *   • For the first ~6s a "Coming Up Next" card is overlaid (the channel's next 3 programmes).
- *   • After 30s of cover art the break cycles the platform ad rail (same source as the left ad pillar)
- *     reworked for 16:9, until the break ends — Plajah FM fades OUT over the last 4s.
+ * AdBreakBumper — plays a FAST/TV ad break as ONE sequential timeline (see services/fast/breakPlan):
+ *   • every ident / spot / FM stretch is placed back to back from probed durations, so nothing ever
+ *     overlaps, no spot is cut short, and the last segment ends exactly when the break does;
+ *   • odd leftover seconds are Plajah FM (cover art + now-playing) and the Coming Up Next card, with
+ *     FM fading in and out under them and silent during spots;
+ *   • one clock drives segment changes, FM gain, the dip-to-black at every edge and the final hand-back
+ *     to programming, so the break stays tight against the wall-clock schedule.
  */
 
 const ORANGE = '#FF8C00';
 const PURPLE = '#6B0099';
 const MAGENTA = '#D40055';
+
+/** How long we will wait for media durations before laying the break out (a silent black slate meanwhile). */
+const PROBE_DEADLINE_MS = 1200;
 
 interface Props {
   channelName: string;
@@ -45,66 +49,58 @@ interface Props {
   promoSpots?: Array<{ url: string; title: string }>;
 }
 
+const shuffle = <T,>(a: T[]): T[] => {
+  const o = [...a];
+  for (let i = o.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [o[i], o[j]] = [o[j], o[i]]; }
+  return o;
+};
+
 const AdBreakBumper: React.FC<Props> = ({ channelName, durationSec, upcoming = [], logoUrl, accent = ORANGE, muted = false, onComplete, identUrls = [], pollRoom, announcePollId, vignetteUrls = [], promoSpots = [] }) => {
-  const [identUrl, setIdentUrl] = useState<string | null>(identUrls[0] || null);
-  const identOnRef = useRef(false);
-  identOnRef.current = !!identUrl;
   const [track, setTrack] = useState<Track | null>(null);
   const [ads, setAds] = useState<AdConfig[]>([]);
-  const [adIdx, setAdIdx] = useState(0);
-  const [platformVids, setPlatformVids] = useState<{ url: string; title: string }[]>([]);
-  const [pvIdx, setPvIdx] = useState(0);
-  const [phase, setPhase] = useState<'fm' | 'ads'>('fm');
-  const [showUpNext, setShowUpNext] = useState(upcoming.length > 0);
+  const [plan, setPlan] = useState<BreakSeg[] | null>(null);
+  const [idx, setIdx] = useState(0);
   const [gift, setGift] = useState(false);
   const [liked, setLiked] = useState(false);
   const [added, setAdded] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement>(null);
+  const dipRef = useRef<HTMLDivElement>(null);
   const seekRef = useRef(0);
-  const startRef = useRef(Date.now());
-  // Duck Plajah FM out the moment platform bumper/promo videos (which carry their own audio) take over.
-  const duckRef = useRef(false);
-  const duckStartRef = useRef(0);
+  const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
+  const startRef = useRef(performance.now());
+  const planRef = useRef<BreakSeg[] | null>(null);
+  const idxRef = useRef(-1);
   const completedRef = useRef(false);
+  const mutedRef = useRef(muted);
+  mutedRef.current = muted;
+  planRef.current = plan;
 
-  // Dynamic timing calculated from the exact duration of the break (guarded against NaN/0)
   const rawDur = Number(durationSec);
-  const totalSec = Number.isFinite(rawDur) && rawDur > 0 ? Math.max(3, Math.round(rawDur)) : 30;
-  const upNextSec = upcoming.length > 0
-    ? (totalSec <= 15 ? Math.min(5, Math.max(3, Math.floor(totalSec * 0.35))) : Math.min(8, Math.max(5, Math.floor(totalSec * 0.18))))
-    : 0;
-  const fadeSec = Math.min(3, Math.max(1, Math.floor(totalSec * 0.1)));
-  const canShowAds = totalSec >= 25;
-  const adsStartSec = canShowAds ? Math.max(upNextSec + 2, Math.floor(totalSec * 0.35)) : totalSec + 999;
+  const totalSec = Number.isFinite(rawDur) && rawDur > 0 ? Math.max(3, rawDur) : 30;
+  const hasUpNext = upcoming.length > 0 && !announcePollId;
 
   const finish = useCallback(() => {
     if (completedRef.current) return;
     completedRef.current = true;
     const a = audioRef.current;
-    if (a) {
-      try { a.pause(); a.src = ''; } catch { /* */ }
-    }
+    if (a) { try { a.pause(); a.src = ''; } catch { /* */ } }
+    Object.values(videoRefs.current).forEach(v => { try { v?.pause(); } catch { /* */ } });
     onComplete?.();
   }, [onComplete]);
 
-  // Arm the FM audio duck when the interstitial phase shows platform bumper VIDEOS.
-  useEffect(() => {
-    if (phase === 'ads' && platformVids.length > 0 && !duckRef.current) {
-      duckRef.current = true; duckStartRef.current = Date.now();
-    }
-  }, [phase, platformVids.length]);
-
-  // Load the Plajah FM current song (satellite position) + the ad-rail source.
+  // Load the Plajah FM song + every candidate spot, probe their real lengths, then lay the break out.
   useEffect(() => {
     let alive = true;
+    startRef.current = performance.now();
+    completedRef.current = false;
     (async () => {
       const [tracks, adConfigs, platBumpers, platPromos, platAds] = await Promise.all([
         fetchRadioTracks().catch(() => [] as Track[]),
         fetchAdConfigs().catch(() => [] as AdConfig[]),
-        fetchPlatformMedia('PLATFORM_BUMPER').catch(() => []),
-        fetchPlatformMedia('CHANNEL_PROMO').catch(() => []),
-        fetchPlatformMedia('PLATFORM_AD').catch(() => []),
+        totalSec >= 12 ? fetchPlatformMedia('PLATFORM_BUMPER').catch(() => []) : Promise.resolve([]),
+        totalSec >= 12 ? fetchPlatformMedia('CHANNEL_PROMO').catch(() => []) : Promise.resolve([]),
+        totalSec >= 12 ? fetchPlatformMedia('PLATFORM_AD').catch(() => []) : Promise.resolve([]),
       ]);
       if (!alive) return;
       if (tracks.length) {
@@ -112,102 +108,109 @@ const AdBreakBumper: React.FC<Props> = ({ channelName, durationSec, upcoming = [
         seekRef.current = pos.offsetSeconds;
         setTrack(tracks[pos.trackIndex] || tracks[0]);
       }
-      // Same source as the left ad pillar, repurposed for the 16:9 TV break.
-      setAds(adConfigs.filter(a => a.isActive && a.imageUrl));
-      // Plajah platform bumpers + promos + house-ads (VIDEOS) that fill the break — SHUFFLED so the
-      // break varies between them each time.
-      const pool = [...platBumpers, ...platPromos, ...platAds].filter(a => a.url).map(a => ({ url: a.url, title: a.title }));
-      for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
-      // The channel's own vignettes lead the rotation and then alternate with the platform spots,
-      // so every break has some and they never bunch up.
-      const vig = [...vignetteUrls].sort(() => Math.random() - 0.5).map((url, n) => ({ url, title: `Vignette ${n + 1}` }));
-      // Plajah's own promo spots join the same rotation (more of them on the heavy-rotation channels).
-      const promos = [...promoSpots].sort(() => Math.random() - 0.5);
+      const activeAds = adConfigs.filter(a => a.isActive && a.imageUrl);
+      setAds(activeAds);
+
+      // The channel's vignettes and Plajah's promos lead the rotation, alternating with platform media.
+      const pool = shuffle([...platBumpers, ...platPromos, ...platAds].filter(a => a.url).map(a => ({ url: a.url, title: a.title })));
+      const vig = shuffle(vignetteUrls).map((url, n) => ({ url, title: `Vignette ${n + 1}` }));
+      const promos = shuffle(promoSpots);
       const mixed: { url: string; title: string }[] = [];
       for (let k = 0; k < Math.max(vig.length, pool.length, promos.length); k++) {
         if (vig[k]) mixed.push(vig[k]);
         if (promos[k]) mixed.push(promos[k]);
         if (pool[k]) mixed.push(pool[k]);
       }
-      setPlatformVids(mixed);
+
+      // Probe unique files only; the heavy-rotation channels repeat the same promo three times.
+      const unique = [...new Set([...mixed.map(m => m.url), ...identUrls.slice(0, 2)])];
+      const lengths = new Map<string, number>();
+      if (totalSec >= 12 && unique.length) {
+        await Promise.race([
+          Promise.all(unique.map(async u => { lengths.set(u, await probeDuration(u, PROBE_DEADLINE_MS)); })),
+          new Promise(r => setTimeout(r, PROBE_DEADLINE_MS)),
+        ]);
+      }
+      if (!alive) return;
+      const cand = (m: { url: string; title: string }): BreakCandidate => ({ ...m, durSec: lengths.get(m.url) || 0 });
+      const spots = mixed.map(cand).filter(c => c.durSec > 0);
+      const idents = identUrls.slice(0, 2).map(u => cand({ url: u, title: 'Ident' })).filter(c => c.durSec > 0 && c.durSec <= 12);
+      const elapsed = (performance.now() - startRef.current) / 1000;
+      setPlan(planBreak({
+        totalSec,
+        startSec: Math.min(elapsed, Math.max(0, totalSec - 3)),
+        openIdent: idents[0] || null,
+        closeIdent: idents[1] || idents[0] || null,
+        spots,
+        images: activeAds.map(a => ({ url: a.imageUrl as string, title: a.title, durSec: 0 })),
+        hasUpNext,
+      }));
     })();
     return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Coming-up-next overlay for the initial portion of the break.
+  // The one clock. rAF keeps it smooth; the interval keeps it honest when the tab is throttled.
   useEffect(() => {
-    if (!upcoming.length || upNextSec <= 0) { setShowUpNext(false); return; }
-    setShowUpNext(true);
-    const t = setTimeout(() => setShowUpNext(false), upNextSec * 1000);
-    return () => clearTimeout(t);
-  }, [upcoming.length, upNextSec]);
-
-  // THE break end: fire finish once when the break's time is up, so the channel reliably returns
-  // to scheduled programming to the exact second.
-  useEffect(() => {
-    completedRef.current = false;
-    startRef.current = Date.now();
-    const ms = totalSec * 1000;
-    const t = setTimeout(finish, ms);
-    return () => clearTimeout(t);
+    const tick = () => {
+      if (completedRef.current) return;
+      const el = (performance.now() - startRef.current) / 1000;
+      if (el >= totalSec) { finish(); return; }
+      const p = planRef.current;
+      if (dipRef.current) dipRef.current.style.opacity = p ? String(edgeDipAt(p, el)) : '1';
+      const a = audioRef.current;
+      if (p) {
+        const hit = segmentAt(p, el);
+        const i = hit ? hit.index : -1;
+        if (i !== idxRef.current) { idxRef.current = i; setIdx(i); }
+        if (a) {
+          const g = fmGainAt(p, el);
+          a.volume = mutedRef.current || !Number.isFinite(g) ? 0 : Math.max(0, Math.min(1, g));
+          if (g > 0.001 && a.paused && a.src) a.play().catch(() => {});
+          else if (g <= 0 && !a.paused) { try { a.pause(); } catch { /* */ } }
+        }
+      } else if (a && !a.paused) { a.volume = 0; }
+    };
+    const raf = { id: 0 };
+    const loop = () => { tick(); raf.id = requestAnimationFrame(loop); };
+    raf.id = requestAnimationFrame(loop);
+    const iv = setInterval(tick, 100);
+    return () => { cancelAnimationFrame(raf.id); clearInterval(iv); };
   }, [totalSec, finish]);
 
-  // Audio: play Plajah FM, seek to live satellite offset, fade in over fadeSec + out over the last fadeSec.
+  // Plajah FM source: set once, jump to the live satellite offset; the clock owns play/pause/volume.
   useEffect(() => {
     const a = audioRef.current;
     if (!a || !track?.url) return;
     a.src = track.url;
     a.volume = 0;
-    a.play().catch(() => {});
     const onMeta = () => {
       const o = seekRef.current;
       const dur = a.duration;
-      if (Number.isFinite(o) && o > 1 && (!Number.isFinite(dur) || o < dur - 2)) {
-        try { a.currentTime = o; } catch { /* */ }
-      }
+      if (Number.isFinite(o) && o > 1 && (!Number.isFinite(dur) || o < dur - 2)) { try { a.currentTime = o; } catch { /* */ } }
     };
     a.addEventListener('loadedmetadata', onMeta, { once: true });
+    a.load();
+    return () => { a.removeEventListener('loadedmetadata', onMeta); try { a.pause(); } catch { /* */ } };
+  }, [track?.url]);
 
-    let raf = 0;
-    const tick = () => {
-      const el = (Date.now() - startRef.current) / 1000;
-      const remaining = totalSec - el;
-      let v = 1;
-      if (el < fadeSec) v = el / Math.max(0.1, fadeSec);
-      else if (remaining < fadeSec) v = Math.max(0, remaining / Math.max(0.1, fadeSec));
-      // Platform bumper videos on screen → fade FM to silence over ~1s, then pause it.
-      if (duckRef.current) v = Math.min(v, Math.max(0, 1 - (Date.now() - duckStartRef.current) / 1000));
-      if (identOnRef.current) v = 0;
-      const safeV = Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0;
-      a.volume = muted ? 0 : safeV;
-      if (duckRef.current && a.volume <= 0.01 && !a.paused) { try { a.pause(); } catch { /* */ } }
-      raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => { cancelAnimationFrame(raf); a.removeEventListener('loadedmetadata', onMeta); try { a.pause(); } catch { /* */ } };
-  }, [track?.url, totalSec, fadeSec, muted]);
-
-  // Switch to interstitial phase (platform bumpers/ads) if the break is long enough and assets exist.
+  // Start the on-air video exactly as its segment begins (the next one is already buffered, paused).
   useEffect(() => {
-    if (!canShowAds || (platformVids.length === 0 && ads.length === 0)) return;
-    const t = setTimeout(() => setPhase('ads'), adsStartSec * 1000);
-    return () => clearTimeout(t);
-  }, [canShowAds, adsStartSec, platformVids.length, ads.length]);
+    if (!plan || idx < 0) return;
+    const seg = plan[idx];
+    if (!seg || (seg.kind !== 'spot' && seg.kind !== 'ident')) return;
+    const v = videoRefs.current[seg.id];
+    if (!v) return;
+    try { v.currentTime = 0; } catch { /* */ }
+    v.muted = muted;
+    v.play().catch(() => {
+      // Autoplay refused with sound → still play the picture rather than a black hole.
+      v.muted = true; v.play().catch(() => {});
+    });
+  }, [plan, idx, muted]);
 
-  // Closing ident: leads into the programme. Only in a break long enough to carry both reveals.
-  useEffect(() => {
-    const closing = identUrls[1] || identUrls[0];
-    if (!closing || totalSec < 45) return;
-    const t = setTimeout(() => setIdentUrl(closing), Math.max(0, totalSec - 10) * 1000);
-    return () => clearTimeout(t);
-  }, [identUrls[0], identUrls[1], totalSec]);
-
-  // Cycle the ad-rail IMAGES only when there are no platform bumper videos (those cycle on `ended`).
-  useEffect(() => {
-    if (phase !== 'ads' || platformVids.length > 0 || ads.length === 0) return;
-    const t = setInterval(() => setAdIdx(i => (i + 1) % ads.length), 7000);
-    return () => clearInterval(t);
-  }, [phase, ads.length, platformVids.length]);
+  // A spot that fails to load becomes Plajah FM for its slot: the time is still filled, never silent.
+  const markFailed = (id: string) => setPlan(p => (p ? p.map(s => (s.id === id ? { ...s, kind: 'fm' } : s)) : p));
 
   const cover = (track as any)?.albumCover || (track as any)?.coverArt || (track as any)?.artworkUrl || (track as any)?.images?.[0] || '';
   const artist = track?.artist || 'Plajah FM';
@@ -216,43 +219,55 @@ const AdBreakBumper: React.FC<Props> = ({ channelName, durationSec, upcoming = [
   const onLike = async () => { if (!track || liked) return; setLiked(true); try { await likeTrack((track as any).albumId || 'radio_station', track.id); } catch { /* */ } };
   const onAdd = async () => { if (!track || added) return; setAdded(true); try { await addToLibrary(track.id); } catch { /* */ } };
 
-  const currentAd = ads[adIdx];
+  const active = plan && idx >= 0 ? plan[idx] : null;
+  const videoSegs = useMemo(
+    () => (plan || []).map((s, i) => ({ s, i })).filter(({ s, i }) => (s.kind === 'spot' || s.kind === 'ident') && s.url && i >= idx && i <= idx + 1),
+    [plan, idx],
+  );
+  const imageAd = active?.kind === 'image' ? ads.find(a => a.imageUrl === active.url) : undefined;
+  const showFm = !!active && (active.kind === 'fm' || active.kind === 'upnext' || (active.kind === 'image' && !imageAd));
 
   return (
     <div className="absolute inset-0 overflow-hidden select-none bg-black">
 
-      <audio ref={audioRef} playsInline />
+      <audio ref={audioRef} playsInline preload="auto" />
 
-      {phase === 'ads' && platformVids.length > 0 ? (
-        // ── Plajah platform bumpers (videos) auto-populated into the break, cycling on end ──
-        <div className="absolute inset-0 bg-black">
-          <video
-            key={pvIdx}
-            src={platformVids[pvIdx % platformVids.length].url}
-            className="absolute inset-0 w-full h-full object-contain bg-black"
-            autoPlay playsInline muted={muted}
-            onEnded={() => setPvIdx(i => (i + 1) % platformVids.length)}
-            onError={() => setPvIdx(i => (i + 1) % platformVids.length)}
-          />
-          <div className="absolute bottom-0 inset-x-0 h-1.5" style={{ background: `linear-gradient(90deg, ${ORANGE}, ${MAGENTA}, ${PURPLE})` }} />
-        </div>
-      ) : phase === 'ads' && currentAd ? (
-        // ── Ad rail, reworked for 16:9 ──
-        <a href={currentAd.linkUrl || undefined} target="_blank" rel="noopener noreferrer" className="absolute inset-0 block">
+      {/* Spots + idents: the on-air one and the next one (buffered, paused, hidden). */}
+      {videoSegs.map(({ s, i }) => (
+        <video
+          key={s.id}
+          ref={el => { videoRefs.current[s.id] = el; }}
+          src={s.url}
+          preload="auto"
+          playsInline
+          muted={muted}
+          className="absolute inset-0 w-full h-full object-contain bg-black"
+          style={{ visibility: i === idx ? 'visible' : 'hidden', zIndex: s.kind === 'ident' ? 20 : 10 }}
+          onError={() => markFailed(s.id)}
+        />
+      ))}
+      {active?.kind === 'spot' && (
+        <div className="absolute bottom-0 inset-x-0 h-1.5 z-[11]" style={{ background: `linear-gradient(90deg, ${ORANGE}, ${MAGENTA}, ${PURPLE})` }} />
+      )}
+
+      {imageAd && (
+        <a href={imageAd.linkUrl || undefined} target="_blank" rel="noopener noreferrer" className="absolute inset-0 block z-10">
           <div className="absolute inset-0" style={{ background: 'radial-gradient(120% 100% at 50% 0%, #14002b 0%, #04030a 70%)' }} />
-          <img key={currentAd.id} src={currentAd.imageUrl} className="absolute inset-0 w-full h-full object-contain" alt={currentAd.title} />
+          <img key={imageAd.id} src={imageAd.imageUrl} className="absolute inset-0 w-full h-full object-contain" alt={imageAd.title} />
           <div className="absolute top-4 left-4 flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/50 backdrop-blur border border-white/10">
             <Radio size={12} style={{ color: accent }} />
             <span className="text-[9px] font-black uppercase tracking-[0.4em] text-white/70">Advertisement</span>
           </div>
           <div className="absolute bottom-6 left-6 right-6">
-            <p className="text-lg md:text-2xl font-black uppercase tracking-tight text-white drop-shadow-lg">{currentAd.title}</p>
+            <p className="text-lg md:text-2xl font-black uppercase tracking-tight text-white drop-shadow-lg">{imageAd.title}</p>
           </div>
           <div className="absolute bottom-0 inset-x-0 h-1.5" style={{ background: `linear-gradient(90deg, ${ORANGE}, ${MAGENTA}, ${PURPLE})` }} />
         </a>
-      ) : (
-        // ── Plajah FM "back shortly" now-playing over full-screen cover art ──
-        <>
+      )}
+
+      {/* Plajah FM "back shortly" now-playing over full-screen cover art */}
+      {showFm && (
+        <div className="absolute inset-0 z-10">
           {cover && <img src={thumb(cover, THUMB.small)} decoding="async" className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-40" alt="" />}
           <div className="absolute inset-0" style={{ background: 'radial-gradient(120% 100% at 50% 0%, rgba(34,0,63,0.6) 0%, rgba(4,3,10,0.85) 70%)' }} />
 
@@ -289,31 +304,25 @@ const AdBreakBumper: React.FC<Props> = ({ channelName, durationSec, upcoming = [
           </div>
 
           <div className="absolute bottom-0 inset-x-0 h-1.5" style={{ background: `linear-gradient(90deg, ${ORANGE}, ${MAGENTA}, ${PURPLE})` }} />
-        </>
-      )}
-
-      {identUrl && (
-        <video
-          key={identUrl}
-          src={identUrl}
-          className="absolute inset-0 z-20 w-full h-full object-contain bg-black"
-          autoPlay playsInline muted={muted}
-          onEnded={() => setIdentUrl(null)}
-          onError={() => setIdentUrl(null)}
-        />
+        </div>
       )}
 
       {/* Interactive platform spot: live, votable polls over the break; the results card before a Fan Vote slot. */}
       {pollRoom && (
-        <PollSpot room={pollRoom} mode={announcePollId ? 'announce' : 'vote'} pollId={announcePollId} accent={accent} />
+        <div className="absolute inset-0 z-30 pointer-events-none [&>*]:pointer-events-auto">
+          <PollSpot room={pollRoom} mode={announcePollId ? 'announce' : 'vote'} pollId={announcePollId} accent={accent} />
+        </div>
       )}
 
-      {/* Coming-up-next overlay for the first few seconds of the break */}
-      {showUpNext && upcoming.length > 0 && !announcePollId && (
-        <div className="absolute inset-0 animate-in fade-in duration-500">
+      {/* Coming-up-next card: its own segment, with Plajah FM under it */}
+      {active?.kind === 'upnext' && upcoming.length > 0 && (
+        <div key={active.id} className="absolute inset-0 z-[15]">
           <ComingUpNextBumper channelName={channelName} logoUrl={logoUrl} items={upcoming} accent={accent} />
         </div>
       )}
+
+      {/* Dip-to-black at every segment edge (and while the break is still being laid out). */}
+      <div ref={dipRef} className="absolute inset-0 z-40 bg-black pointer-events-none" style={{ opacity: 1 }} />
 
       {track && (
         <DonationModal
