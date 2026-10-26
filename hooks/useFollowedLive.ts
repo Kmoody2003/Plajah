@@ -8,6 +8,7 @@ import { onSnapshot } from '../services/safeSnapshot';
 import { db } from '../services/backendService';
 import { useFollowing } from './useFollowing';
 import type { LiveFeed } from '../types';
+import { isFeedLive } from '../services/liveFeedLiveness';
 
 export function useFollowedLive(uid: string | null | undefined): LiveFeed[] {
   // ids from the follows collection (live, uncapped) — not the legacy UserProfile.following
@@ -23,6 +24,7 @@ export function useFollowedLive(uid: string | null | undefined): LiveFeed[] {
         const f = { id: d.id, ...(d.data() as any) } as LiveFeed;
         if (!f.ownerId || f.ownerId === uid) return;
         if ((f as any).isPublic === false) return;
+        if (!isFeedLive(f)) return;
         if (!followed.has(f.ownerId)) return;
         if (!byOwner.has(f.ownerId)) byOwner.set(f.ownerId, f);   // one pill per creator
       });

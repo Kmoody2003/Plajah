@@ -3,6 +3,7 @@ import {
   fetchAllLiveFeeds, fetchAllPublicAlbums, fetchAllPublicWorlds, fetchAllVideos, fetchDiscussionPosts,
   fetchGames, fetchGlobalApps, fetchGlobalPhotos, listenToGlobalArticles, listenToGlobalPosts, } from '../services/backendService';
 import { searchUsersSafe as searchUsers } from '../services/searchUsersSafe';
+import { isFeedLive } from '../services/liveFeedLiveness';
 import { semanticSearch, type AzureSearchResult } from '../services/microsoftAIService';
 import { diversifyPublicSearchResults, maxPublicSearchScore, normalizePublicSearchQuery } from '../services/platformSearchService';
 import type { Album, Post, UserProfile, Video } from '../types';
@@ -55,7 +56,7 @@ export function useUniversalPlatformSearch(query: string) {
     catalogs.worlds.forEach(world => add('WORLD', world, world.id, world.name, world.worldType, world.coverImage, [world.name, world.description]));
     catalogs.apps.forEach(app => add('APP', app, app.id, app.title, app.category, app.thumbnailUrl, [app.title, app.description, app.category]));
     catalogs.photos.forEach(photo => add('PHOTO', photo, photo.id, photo.title || 'Photo', 'Photo', photo.url, [photo.title, photo.description, ...(photo.tags || [])]));
-    catalogs.live.forEach(feed => add('LIVE', feed, feed.id, feed.title, feed.status === 'LIVE' ? 'Live now' : 'Stream', feed.thumbnailUrl, [feed.title, feed.genre, feed.subject, ...(feed.tags || [])]));
+    catalogs.live.forEach(feed => add('LIVE', feed, feed.id, feed.title, isFeedLive(feed as any) ? 'Live now' : 'Stream', feed.thumbnailUrl, [feed.title, feed.genre, feed.subject, ...(feed.tags || [])]));
     catalogs.discussions.forEach(post => add('DISCUSSION', post, post.id, post.title || 'Discussion post', post.displayName, undefined, [post.title, post.body, post.displayName]));
     catalogs.posts.forEach(post => { const mediaTitles = (post.media || []).map(media => media.title || media.linkPreview?.title || ''); add('POST', post, post.id, post.text.trim().slice(0, 90) || mediaTitles.find(Boolean) || 'Public post', post.authorName, post.contentLabels?.length ? undefined : post.media?.find(media => media.thumbnail)?.thumbnail || post.media?.find(media => media.type === 'PHOTO')?.url, [post.text, post.authorName, ...(post.tags || []), ...mediaTitles]); });
     semantic.forEach(item => { const type: UniversalResultType = item.type === 'BOOK' ? 'BOOK' : item.type === 'ALBUM' ? 'MUSIC' : item.type === 'VIDEO' ? 'VIDEO' : 'ARTICLE'; if (!rows.some(row => row.id === item.id && row.type === type)) rows.push({ id: item.id, title: item.title || item.id, subtitle: item.snippet, type, raw: item, _score: item.score || .5 }); });

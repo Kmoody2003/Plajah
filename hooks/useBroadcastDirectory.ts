@@ -8,6 +8,7 @@ import {
   fetchAllLiveFeeds, fetchAllFastChannels, fetchActiveLiveSources, fetchFollowedArtists,
 } from '../services/backendService';
 import { fetchTrending } from '../services/radioBrowser';
+import { isFeedLive } from '../services/liveFeedLiveness';
 import type { LiveFeed, ChannelSource } from '../types';
 import type { RadioStation } from '../services/radioBrowser';
 
@@ -36,7 +37,7 @@ export function useBroadcastDirectory(uid: string | null | undefined): Broadcast
   // Live streams — real-time (a broadcast starting/ending updates the guide instantly).
   useEffect(() => {
     const unsub = fetchAllLiveFeeds((feeds: LiveFeed[]) => {
-      setLiveStreams((feeds || []).filter(f => (f as any).status === 'LIVE' && (f as any).isPublic !== false));
+      setLiveStreams((feeds || []).filter(f => isFeedLive(f as any) && (f as any).isPublic !== false));
     });
     return () => { try { (unsub as any)?.(); } catch { /* */ } };
   }, []);

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { cleanDescription } from '../utils/description';
+import { isFeedLive } from '../services/liveFeedLiveness';
 import {
   Search, X, User, Music, Film, BookOpen, Play, Gamepad2,
   Globe, Newspaper, Tv, Camera, AppWindow, Mic, MessageCircle, Zap, Users,
@@ -306,7 +307,7 @@ const SidebarSearch: React.FC<SidebarSearchProps> = ({
       const s = maxPublicSearchScore([f.title, f.genre, f.subject, ...(f.tags || [])], q);
       if (s > 0) all.push({
         id: f.id, title: f.title,
-        subtitle: f.status === 'LIVE' ? 'Live Now' : 'Stream',
+        subtitle: isFeedLive(f as any) ? 'Live Now' : 'Stream',
         thumbnail: f.thumbnailUrl, type: 'LIVE', raw: f, _score: s,
       });
     });

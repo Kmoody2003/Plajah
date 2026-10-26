@@ -13,6 +13,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Play, Radio, Smartphone, Sparkles, Users, Eye, ChevronRight } from 'lucide-react';
 import { Video, LiveFeed } from '../../types';
 import { computeTrending } from '../../services/relloFeedService';
+import { isFeedLive } from '../../services/liveFeedLiveness';
 import { thumb as thumbUrl, onThumbError, THUMB } from '../../src/lib/imageThumb';
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -111,7 +112,7 @@ interface Props {
 }
 
 const ReelloHomeTop: React.FC<Props> = ({ videos, liveFeeds, followedIds, onPlay, onOpenShort, onOpenLive, onSetFormat, onVisitUser, onGoLive }) => {
-  const live = useMemo(() => liveFeeds.filter(f => f.status !== 'OFFLINE' && f.isPublic !== false), [liveFeeds]);
+  const live = useMemo(() => liveFeeds.filter(f => isFeedLive(f as any) && f.isPublic !== false), [liveFeeds]);
 
   // Long-form pool vs vertical pool. Until creators supply 9:16 masters the vertical pool is thin,
   // so the Shorts lane falls back to the newest videos (same as the Shorts view does).

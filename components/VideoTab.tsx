@@ -109,7 +109,9 @@ const VideoCard: React.FC<{
   const thumb = muxId
     ? `https://image.mux.com/${muxId}/thumbnail.png?width=640&time=5`
     : ((video as any).thumbnailUrl || (video as any).coverImage || `https://picsum.photos/seed/${video.id}/800/450`);
-  const isLive = (video as any).genre === 'Live';
+  // A Video is always a recording — never on air. Saved live replays carry genre 'Live'; they get a Replay tag, not the red LIVE bug.
+  const isLive = false;
+  const isReplay = (video as any).genre === 'Live' || !!(video as any).isLiveRecording;
   const isMV = (video as any).genre === 'Music Video' || (video as any).category === 'MUSIC_VIDEO';
   const isCardOwner = !!(currentUser?.uid && currentUser.uid === (video as any).ownerId);
 
@@ -182,7 +184,10 @@ const VideoCard: React.FC<{
             <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" /> Live
           </div>
         )}
-        {isMV && !isLive && (
+        {isReplay && (
+          <div className="absolute top-2.5 left-2.5 px-2.5 py-1 bg-black/70 backdrop-blur-md rounded-lg text-[8px] font-black uppercase tracking-widest shadow-xl">Replay</div>
+        )}
+        {isMV && !isReplay && (
           <div className="absolute top-2.5 left-2.5 px-2.5 py-1 bg-small-orange/90 backdrop-blur-md rounded-lg text-[8px] font-black uppercase tracking-widest shadow-xl">
             MV
           </div>

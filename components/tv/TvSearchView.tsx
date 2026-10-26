@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Search } from 'lucide-react';
 import type { Album, UserProfile, Video } from '../../types';
+import { isFeedLive } from '../../services/liveFeedLiveness';
 import { useTvGrid } from '../../hooks/useTvGrid';
 import { useUniversalPlatformSearch, type UniversalPlatformResult } from '../../hooks/useUniversalPlatformSearch';
 import { useGlobalPlayerState } from '../../contexts/GlobalPlayerContext';
@@ -267,7 +268,7 @@ const isSemanticStub = (r: UniversalPlatformResult) =>
 
 /** A live_feeds row the TV can actually play: live, free, and either a direct url or a Mux id. */
 const playableLive = (f: any) =>
-  !!f && f.status === 'LIVE' && f.isPublic !== false && !f.sanctuaryOnly && !(f.price > 0) &&
+  !!f && f.status === 'LIVE' && isFeedLive(f) && f.isPublic !== false && !f.sanctuaryOnly && !(f.price > 0) &&
   (!String(f.url || '').startsWith('livestream:') || !!f.muxPlaybackId);
 const liveAsVideo = (f: any): Video => ({
   ...f,

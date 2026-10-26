@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { isFeedLive } from '../../services/liveFeedLiveness';
 const PeriodicalShelf = React.lazy(() => import('../publication/PeriodicalShelf'));
 import { motion, AnimatePresence } from 'motion/react';
 import { Newspaper, Globe, Zap, Radio, TrendingUp, ExternalLink, RefreshCw, Mic, Pen, Search, Heart, Share2, X, Plus } from 'lucide-react';
@@ -355,7 +356,7 @@ export const NewstandView: React.FC<NewstandViewProps> = ({ onVisitUser, onSelec
                     className="w-full h-full object-cover"
                     allowFullScreen
                   />
-                  {feed.status === 'LIVE' && (
+                  {isFeedLive(feed as any) && (
                     <div className="absolute top-4 left-4 bg-red-600 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest animate-pulse pointer-events-none">
                       Live
                     </div>

@@ -28,6 +28,7 @@
  */
 
 import type { Album, Playlist, Video } from '../../types';
+import { isFeedLive } from '../../services/liveFeedLiveness';
 import {
   fetchSystemSettingsConfig, fetchPlaylistsByIds, fetchVideoPlaylistsByIds, fetchPlaylistVideos,
   fetchLiveFeedsOnce, fetchPersonalVideos, fetchFollowedArtists,
@@ -292,7 +293,7 @@ export const CHORA_TV_RAILS: TvRailDef<BaseData, TvItem>[] = [
 
 /** A live_feeds row that is live and free to watch, as a playable Video (VideoTab's Live Now). */
 function liveFeedVideo(f: any): Video | null {
-  if (f.status && f.status !== 'LIVE') return null;
+  if ((f.status && f.status !== 'LIVE') || !isFeedLive(f)) return null;
   if (f.isPublic === false || f.sanctuaryOnly || (f.price && f.price > 0)) return null;
   const url: string = f.url || '';
   // `livestream:` feeds open LiveViewer on the web; the TV can play them only via their Mux id.
