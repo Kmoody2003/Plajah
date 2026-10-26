@@ -256,7 +256,7 @@ export const FediverseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const connectBlueskyOAuth = useCallback(async (handle?: string) => {
     if (!uid) throw new Error('Not authenticated');
     // Open the popup inside the click, point it at Bluesky once the server has built the authorization URL.
-    const popup = window.open('about:blank', 'plajah-bsky-oauth', 'width=520,height=720');
+    const popup = window.open('about:blank', `plajah-bsky-oauth-${Date.now()}`, 'width=520,height=720');
     if (!popup) throw new Error('Allow pop-ups for Plajah to sign in with Bluesky.');
     let url: string;
     try {

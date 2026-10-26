@@ -71,7 +71,7 @@ blueskyOAuthRouter.get('/start', async (req: Request, res: Response) => {
     if (!(await fsSet(PENDING(nonce), { uid, createdAt: Date.now() }))) return res.status(503).json({ error: 'Could not start the connection. Try again.' });
 
     const client = await getBlueskyOAuthClient();
-    const url = await client.authorize(raw || ENTRYWAY, { scope: BSKY_OAUTH_SCOPE, state: nonce });
+    const url = await client.authorize(raw || ENTRYWAY, { scope: BSKY_OAUTH_SCOPE, state: nonce, prompt: 'login' }); // force a fresh sign-in so a stale session in the popup can't be reused
     res.json({ url: url.toString() });
   } catch (e: any) {
     console.error('[bsky-oauth] start failed:', e?.message || e);
