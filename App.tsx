@@ -4181,7 +4181,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
       case 'PROFILE_SETTINGS':
         // Relationship request/confirm → open my account settings (relationship section).
-        setDashboardInitialTab('ACCOUNT');
+        setDashboardInitialTab('PROFILE');
         setView('CREATOR');
         break;
 

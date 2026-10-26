@@ -1,0 +1,6 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": true, "skipLibCheck": true, "incremental": false },
+  "include": [],
+  "files": ["components/UserDashboard.tsx", "components/settings/SettingsNav.tsx"]
+}

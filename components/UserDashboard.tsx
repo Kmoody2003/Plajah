@@ -40,7 +40,8 @@ import {
   Film, BarChart2, FileText, Users, Activity, ChevronLeft, Fingerprint, KeyRound,
 } from 'lucide-react';
 import { useViewport } from '../hooks/useViewport';
-import MobileSettingsMenu, { SETTINGS_TAB_LABELS } from './MobileSettingsMenu';
+import { SettingsSidebar, SettingsPhoneMenu, SettingsPageTabs, SettingsPageHeader } from './settings/SettingsNav';
+import { SETTINGS_TAB_LABELS, SETTINGS_PAGES, groupOfPage, visiblePages } from './settings/settingsMap';
 import FediverseSettings from './FediverseSettings';
 import ConnectedServicesSettings from './ConnectedServicesSettings';
 import FediverseHub from './FediverseHub';
@@ -75,6 +76,7 @@ import OrganizationAccountModal from './elevate/OrganizationAccountModal';
 import { useFaithContentScope } from '../hooks/useFaithContentScope';
 // Content & Safety
 const LazyContentSafetySettings = React.lazy(() => import('./safety/ContentSafetySettings'));
+const LazyNotificationSettings = React.lazy(() => import('./NotificationSettings'));
 // Opt-in rights layer: the switch, plus every work that already has a record.
 const LazyRegistrySettings = React.lazy(() => import('./registry/RegistrySettings'));
 
@@ -112,13 +114,14 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
     'MUSIC_STUDIO' | 'ARTIST_RADIO' | 'PODCAST_HUB' | 'AUDIO_HEALTH' |
     'BOOKS_STUDIO' | 'SERIAL_SCHEDULER' | 'BOOK_CLUBS' |
     'CLASSROOM_ANALYTICS' | 'CERTIFICATES' | 'SAFETY' | 'FAMILY' | 'RIGHTS_REGISTRY' |
-    'NETWORK_DIAGNOSTICS'
+    'NETWORK_DIAGNOSTICS' | 'PROFILE' | 'APPEARANCE' | 'NOTIFICATIONS'
   >((initialTab as any) || 'ACCOUNT');
   // Phone-only settings shell: a touch-first drill-down replaces the sidebar. 'list' = the grouped
   // menu; 'detail' = one section full-screen with a back header. Deep-linked (initialTab) opens detail.
   const { breakpoint } = useViewport();
   const isPhone = breakpoint === 'phone';
   const [mobileNav, setMobileNav] = useState<'list' | 'detail'>(initialTab ? 'detail' : 'list');
+  const [phoneGroup, setPhoneGroup] = useState<string | null>(null);   // phone: open group screen
   const canUse = React.useCallback((cap?: string) => !cap || hasCapability(profile, cap as Capability), [profile]);
   const [showFilmWizard, setShowFilmWizard]   = useState(false);
   const [showBookWizard, setShowBookWizard]   = useState(false);
@@ -331,211 +334,41 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
 
   if (!profile) return null;
 
+  const whoAmI = {
+    displayName: profile?.displayName || (user as any)?.displayName,
+    handle: (profile as any)?.handle || (profile as any)?.username,
+    avatarUrl: (profile as any)?.avatarUrl || (profile as any)?.photoURL || (user as any)?.photoURL,
+  };
+  const navBadges = audioHealthAlertCount > 0 ? { AUDIO_HEALTH: audioHealthAlertCount } : {};
+  const goTo = (target: string) => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target } }));
+
   return (
     <div className="flex-1 flex flex-col lg:flex-row h-screen overflow-hidden bg-[#020202] relative">
-      {/* Phone: touch-first drill-down menu replaces the sidebar (covers the view in 'list' mode). */}
+      {/* Phone: touch-first drill-down (groups → pages) replaces the sidebar. */}
       {isPhone && mobileNav === 'list' && (
-        <MobileSettingsMenu
-          displayName={profile?.displayName || (user as any)?.displayName}
-          handle={(profile as any)?.handle || (profile as any)?.username}
-          avatarUrl={(profile as any)?.avatarUrl || (profile as any)?.photoURL || (user as any)?.photoURL}
-          visible={canUse}
+        <SettingsPhoneMenu
+          who={whoAmI}
+          can={canUse}
+          badges={navBadges}
+          groupId={phoneGroup}
+          onGroupChange={setPhoneGroup}
           onSelect={(id) => { setActiveTab(id as any); setMobileNav('detail'); }}
+          onNavigate={goTo}
           onExit={onBack}
         />
       )}
       {/* Sidebar (desktop/tablet only) */}
-      <aside className="hidden lg:flex w-full lg:w-80 border-r border-white/5 flex-col p-8 bg-black/40 backdrop-blur-3xl">
-        <div className="flex items-center gap-4 mb-12">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#6B0099] to-[#FF8C00] flex items-center justify-center shadow-xl">
-            <Settings size={24} className="text-white" />
-          </div>
-          <div>
-            <h2 className="text-lg font-black uppercase tracking-tight text-white">Backend</h2>
-            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-small-orange">Asset Manager</p>
-          </div>
-        </div>
-
-        <nav className="flex-1 space-y-2">
-          {([
-            { id: 'ACCOUNT', label: 'Account Settings', icon: User },
-            { id: 'FAMILY', label: 'Family', icon: Baby },
-            { id: 'SAFETY', label: 'Content & Safety', icon: Settings },
-            { id: 'ALIASES', label: 'Emails & Aliases', icon: Mail },
-            { id: 'INTERESTS', label: 'Interest Notebook', icon: Notebook },
-            { id: 'WORLDS', label: 'My Worlds', icon: Globe },
-            { id: 'ASSETS', label: 'My Assets', icon: Database },
-            { id: 'RIGHTS_REGISTRY', label: 'Rights & Identifiers', icon: Fingerprint },
-            { id: 'PHOTOS', label: 'Photo Gallery', icon: ImageIcon },
-            { id: 'BROADCAST', label: 'Master Control', icon: Tv, cap: 'LIVE_STREAM' as Capability },
-            { id: 'MAILING_LIST', label: 'Mailing List', icon: Mail },
-            { id: 'RADIO_MANAGER', label: 'Artist Radio Station', icon: Radio, cap: 'RUN_RADIO' as Capability },
-            { id: 'SIDEBAR', label: 'Sidebar Config', icon: LayoutGrid },
-            { id: 'THEMES', label: 'Theme Presets', icon: LayoutTemplate },
-            { id: 'NETWORKS', label: 'Social Networks', icon: Share2 },
-            { id: 'CONNECTED_SERVICES', label: 'Connected Services', icon: KeyRound },
-            { id: 'NETWORK_DIAGNOSTICS', label: 'Network Health', icon: Activity },
-          ] as { id: string; label: string; icon: any; cap?: Capability }[])
-            .filter(item => !item.cap || hasCapability(profile, item.cap))
-            .map(item => (
-            <button 
-              key={item.id}
-              onClick={() => setActiveTab(item.id as any)}
-              className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl transition-all ${activeTab === item.id ? 'bg-white text-black shadow-xl' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
-            >
-              <item.icon size={18} />
-              <span className="text-[10px] font-black uppercase tracking-widest">{item.label}</span>
-            </button>
-          ))}
-
-          {hasCapability(profile, 'SELL_MERCH') && (
-            <button
-              onClick={() => setActiveTab('STORE_MANAGEMENT')}
-              className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl transition-all ${activeTab === 'STORE_MANAGEMENT' ? 'bg-white text-black shadow-xl' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
-            >
-              <ShoppingBag size={18} />
-              <span className="text-[10px] font-black uppercase tracking-widest">Store Management</span>
-            </button>
-          )}
-
-          {/* ── Film Studio group ── */}
-          {hasCapability(profile, 'CREATE_VIDEO') && (
-            <>
-              <div className="px-4 pt-4 pb-1">
-                <span className="text-[8px] font-black uppercase tracking-[0.35em] text-[#FF8C00]/60">Film Studio</span>
-              </div>
-              {[
-                { id: 'FILM_STUDIO',    label: 'Distribution Hub',  icon: Film      },
-                { id: 'FILM_RIGHTS',    label: 'Rights & Docs',     icon: FileText  },
-                { id: 'FILM_ANALYTICS', label: 'Film Analytics',    icon: BarChart2 },
-              ].map(item => (
-                <button key={item.id} onClick={() => setActiveTab(item.id as any)}
-                  className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl transition-all ${activeTab === item.id ? 'bg-[#FF8C00] text-black shadow-xl' : 'text-white/40 hover:text-white hover:bg-white/5'}`}>
-                  <item.icon size={18} />
-                  <span className="text-[10px] font-black uppercase tracking-widest">{item.label}</span>
-                </button>
-              ))}
-            </>
-          )}
-
-          {/* ── Music Studio group ── */}
-          {hasCapability(profile, 'CREATE_MUSIC') && (
-            <>
-              <div className="px-4 pt-4 pb-1">
-                <span className="text-[8px] font-black uppercase tracking-[0.35em] text-purple-400/60">Music Studio</span>
-              </div>
-              {[
-                { id: 'MUSIC_STUDIO',  label: 'Music Hub',     icon: Music2    },
-                { id: 'ARTIST_RADIO',  label: 'Artist Radio',  icon: Radio     },
-                { id: 'PODCAST_HUB',   label: 'Podcast RSS',   icon: Tv        },
-                { id: 'AUDIO_HEALTH',  label: 'Audio Health',  icon: Activity  },
-              ].map(item => (
-                <button key={item.id} onClick={() => setActiveTab(item.id as any)}
-                  className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl transition-all ${activeTab === item.id ? 'bg-purple-500 text-white shadow-xl' : 'text-white/40 hover:text-white hover:bg-white/5'}`}>
-                  <item.icon size={18} />
-                  <span className="text-[10px] font-black uppercase tracking-widest">{item.label}</span>
-                  {item.id === 'AUDIO_HEALTH' && audioHealthAlertCount > 0 && (
-                    <span className="ml-auto text-[8px] font-black px-1.5 py-0.5 rounded-full bg-orange-500 text-black leading-none">
-                      {audioHealthAlertCount}
-                    </span>
-                  )}
-                </button>
-              ))}
-            </>
-          )}
-
-          {/* ── Books Studio group ── */}
-          {hasCapability(profile, 'CREATE_BOOK') && (
-            <>
-              <div className="px-4 pt-4 pb-1">
-                <span className="text-[8px] font-black uppercase tracking-[0.35em] text-amber-400/60">Books Studio</span>
-              </div>
-              {[
-                { id: 'BOOKS_STUDIO',     label: 'Books Hub',        icon: BookOpen  },
-                { id: 'SERIAL_SCHEDULER', label: 'Serial Scheduler', icon: BarChart2 },
-                { id: 'BOOK_CLUBS',       label: 'Book Clubs',       icon: Users     },
-              ].map(item => (
-                <button key={item.id} onClick={() => setActiveTab(item.id as any)}
-                  className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl transition-all ${activeTab === item.id ? 'bg-amber-500 text-black shadow-xl' : 'text-white/40 hover:text-white hover:bg-white/5'}`}>
-                  <item.icon size={18} />
-                  <span className="text-[10px] font-black uppercase tracking-widest">{item.label}</span>
-                </button>
-              ))}
-            </>
-          )}
-
-          {/* ── Classrooms group ── */}
-          {hasCapability(profile, 'TEACH') && (
-            <>
-              <div className="px-4 pt-4 pb-1">
-                <span className="text-[8px] font-black uppercase tracking-[0.35em] text-sky-400/60">Classrooms</span>
-              </div>
-              {[
-                { id: 'CLASSROOM_ANALYTICS', label: 'Analytics',     icon: BarChart2     },
-                { id: 'CERTIFICATES',        label: 'Certificates',  icon: CheckSquare   },
-              ].map(item => (
-                <button key={item.id} onClick={() => setActiveTab(item.id as any)}
-                  className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl transition-all ${activeTab === item.id ? 'bg-sky-500 text-white shadow-xl' : 'text-white/40 hover:text-white hover:bg-white/5'}`}>
-                  <item.icon size={18} />
-                  <span className="text-[10px] font-black uppercase tracking-widest">{item.label}</span>
-                </button>
-              ))}
-            </>
-          )}
-
-          {hasCapability(profile, 'MONETIZE') && (
-            <button
-              onClick={() => setActiveTab('REVENUE')}
-              className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl transition-all ${activeTab === 'REVENUE' ? 'bg-white text-black shadow-xl' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
-            >
-              <DollarSign size={18} />
-              <span className="text-[10px] font-black uppercase tracking-widest">Revenue & Money</span>
-            </button>
-          )}
-
-          {hasCapability(profile, 'MONETIZE') && (
-            <button
-              onClick={() => {
-                const event = new CustomEvent('NAVIGATE', { detail: { target: 'ORG_HUB' } });
-                window.dispatchEvent(event);
-              }}
-              className="w-full flex items-center gap-4 px-6 py-4 rounded-2xl transition-all text-white/40 hover:text-white hover:bg-white/5"
-            >
-              <Building2 size={18} />
-              <span className="text-[10px] font-black uppercase tracking-widest">Brands & Orgs</span>
-            </button>
-          )}
-
-          {hasCapability(profile, 'CREATE_VIDEO') && (
-            <button
-              onClick={() => {
-                const event = new CustomEvent('NAVIGATE', { detail: { target: 'VIDEO_MANAGER' } });
-                window.dispatchEvent(event);
-              }}
-              className="w-full flex items-center gap-4 px-6 py-4 rounded-2xl transition-all text-white/40 hover:text-white hover:bg-white/5"
-            >
-              <VideoIcon size={18} />
-              <span className="text-[10px] font-black uppercase tracking-widest">Video Manager</span>
-            </button>
-          )}
-        </nav>
-
-        <button onClick={onBack} className="mt-auto flex items-center gap-4 px-6 py-4 text-white/20 hover:text-white transition-all text-[10px] font-black uppercase tracking-widest">
-          <LogOut size={18} /> Exit Dashboard
-        </button>
-
-        {(profile?.role === 'admin' || profile?.role === 'staff') && (
-          <button 
-            onClick={() => {
-              const event = new CustomEvent('NAVIGATE', { detail: { target: 'ADMIN_DASHBOARD' } });
-              window.dispatchEvent(event);
-            }}
-            className="mt-4 flex items-center gap-4 px-6 py-4 bg-red-600/10 text-red-500 border border-red-500/20 rounded-2xl hover:bg-red-600/20 transition-all text-[10px] font-black uppercase tracking-widest"
-          >
-            <Shield size={18} /> System Admin
-          </button>
-        )}
-      </aside>
+      <SettingsSidebar
+        who={whoAmI}
+        can={canUse}
+        badges={navBadges}
+        activeTab={activeTab}
+        onSelect={(id) => setActiveTab(id as any)}
+        onNavigate={goTo}
+        onExit={onBack}
+        isStaff={profile?.role === 'admin' || profile?.role === 'staff'}
+        onAdmin={() => goTo('ADMIN_DASHBOARD')}
+      />
 
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto p-4 sm:p-8 lg:p-16">
@@ -543,13 +376,15 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
         {isPhone && (
           <div className="lg:hidden sticky top-0 z-30 -mx-4 -mt-4 mb-4 px-2 py-2 bg-[#020202]/90 backdrop-blur-xl border-b border-white/8 flex items-center gap-1"
             style={{ paddingTop: 'max(0.5rem, env(safe-area-inset-top))' }}>
-            <button onClick={() => setMobileNav('list')} className="h-10 pl-1 pr-2 rounded-full flex items-center gap-1 text-white active:bg-white/10" aria-label="Back to settings">
-              <ChevronLeft size={24} /><span className="text-sm font-semibold">Settings</span>
+            <button onClick={() => { const g = groupOfPage(activeTab); setPhoneGroup(g && visiblePages(g, canUse).length > 1 ? g.id : null); setMobileNav('list'); }} className="h-10 pl-1 pr-2 rounded-full flex items-center gap-1 text-white active:bg-white/10" aria-label="Back">
+              <ChevronLeft size={24} /><span className="text-sm font-semibold">{(() => { const g = groupOfPage(activeTab); return g && visiblePages(g, canUse).length > 1 ? g.title : 'Settings'; })()}</span>
             </button>
             <span className="ml-1 text-base font-bold text-white/90 truncate">{SETTINGS_TAB_LABELS[activeTab] || ''}</span>
           </div>
         )}
-        <div className="max-w-4xl mx-auto">
+        <div className="st-page max-w-4xl mx-auto">
+          <SettingsPageTabs activeTab={activeTab} can={canUse} badges={navBadges} onSelect={(id) => setActiveTab(id as any)} onNavigate={goTo} />
+          <SettingsPageHeader activeTab={activeTab} />
           {showCreator.active && createPortal(
             // Portal to <body>: the dashboard sits inside motion/animated ancestors whose `transform`
             // turns `position: fixed` into "fixed relative to that ancestor", which anchored the editor
@@ -906,36 +741,6 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                 <h1 className="text-5xl md:text-[8rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Content & Safety</h1>
                 <p className="text-white/40 text-sm font-bold uppercase tracking-widest mt-2">Control what you see — filters, mutes, and community guidelines</p>
               </header>
-              <React.Suspense fallback={<div className="w-8 h-8 border-2 border-white/10 border-t-white rounded-full animate-spin" />}>
-                <LazyContentSafetySettings />
-              </React.Suspense>
-            </motion.div>
-          )}
-
-          {activeTab === 'ACCOUNT' && (
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-12">
-              <header>
-                <h1 className="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Account Settings</h1>
-                <p className="text-white/40 text-sm font-bold uppercase tracking-widest">Manage your public identity and security</p>
-              </header>
-
-              {/* Launch a Business Page — business capability is OFF by default; this is the opt-in. */}
-              <button
-                type="button"
-                onClick={() => setShowBusinessLaunch(true)}
-                className="w-full flex items-center gap-4 p-5 rounded-3xl border border-white/10 hover:border-white/25 transition-all text-left group"
-                style={{ background: 'linear-gradient(135deg, rgba(0,112,255,0.12), rgba(255,212,0,0.10))' }}
-              >
-                <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg,#0070FF,#FFD400)' }}>
-                  <Building2 size={22} className="text-white" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-black uppercase tracking-widest text-white">Launch a Business Page</p>
-                  <p className="text-[11px] text-white/50 font-medium mt-0.5">Record label, film studio, publisher, real estate, restaurant, club — with built-in roles for your team.</p>
-                </div>
-                <ArrowRight size={18} className="text-white/40 group-hover:text-white group-hover:translate-x-1 transition-all shrink-0" />
-              </button>
-
               {/* Faith content: hymns & prayers tailored to the member's church, or from every tradition. Saves immediately. */}
               <section aria-labelledby="faith-scope-title" className="p-5 rounded-3xl border border-white/10 bg-white/[0.03] space-y-3">
                 <div>
@@ -960,8 +765,48 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                 </label>
                 <p className="text-[11px] text-white/40 m-0">{faithScope === 'ALL' ? 'On · saved to your profile' : 'Off · tailored to each church you belong to'}</p>
               </section>
+              <React.Suspense fallback={<div className="w-8 h-8 border-2 border-white/10 border-t-white rounded-full animate-spin" />}>
+                <LazyContentSafetySettings />
+              </React.Suspense>
+            </motion.div>
+          )}
+
+          {activeTab === 'NOTIFICATIONS' && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
+              <div className="rounded-[2rem] border border-white/5 bg-white/[0.02] overflow-hidden min-h-[70vh] flex flex-col">
+                <React.Suspense fallback={<div className="m-8 w-8 h-8 border-2 border-white/10 border-t-white rounded-full animate-spin" />}>
+                  <LazyNotificationSettings onClose={() => (isPhone ? setMobileNav('list') : setActiveTab('PROFILE'))} />
+                </React.Suspense>
+              </div>
+            </motion.div>
+          )}
+
+
+          {(activeTab === 'PROFILE' || activeTab === 'ACCOUNT' || activeTab === 'APPEARANCE') && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-12">
+
+              {activeTab === 'ACCOUNT' && (<>
+              {/* Launch a Business Page — business capability is OFF by default; this is the opt-in. */}
+              <button
+                type="button"
+                onClick={() => setShowBusinessLaunch(true)}
+                className="w-full flex items-center gap-4 p-5 rounded-3xl border border-white/10 hover:border-white/25 transition-all text-left group"
+                style={{ background: 'linear-gradient(135deg, rgba(0,112,255,0.12), rgba(255,212,0,0.10))' }}
+              >
+                <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg,#0070FF,#FFD400)' }}>
+                  <Building2 size={22} className="text-white" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-black uppercase tracking-widest text-white">Launch a Business Page</p>
+                  <p className="text-[11px] text-white/50 font-medium mt-0.5">Record label, film studio, publisher, real estate, restaurant, club — with built-in roles for your team.</p>
+                </div>
+                <ArrowRight size={18} className="text-white/40 group-hover:text-white group-hover:translate-x-1 transition-all shrink-0" />
+              </button>
+              </>)}
+
 
               <form onSubmit={handleUpdateProfile} className="space-y-8">
+                {activeTab === 'PROFILE' && (<>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div>
                       <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-3 ml-2">Display Name</label>
@@ -1143,7 +988,36 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                   <p className="mt-3 text-[9px] font-bold text-white/20 uppercase tracking-widest ml-2">This is the first tab visitors will see when they land on your profile.</p>
                 </div>
               </div>
+                {hasCapability(profile, 'MONETIZE') && (
+                <div className="p-8 bg-white/5 rounded-[2.5rem] border border-white/5">
+                    <div className="flex items-start justify-between gap-6 ">
+                      <div>
+                        <h3 className="text-xs font-black uppercase tracking-widest text-[#c084fc] mb-1">Artist Mode Landing Page</h3>
+                        <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest leading-relaxed">
+                          Visitors see a 30-second immersive showcase before your full profile loads.{' '}
+                          <span className="text-white/30">On by default — </span>
+                          <button
+                            type="button"
+                            onClick={() => setProfile({ ...profile, artistModeEnabled: false })}
+                            className="text-[#c084fc]/60 hover:text-[#c084fc] underline underline-offset-2 transition-colors"
+                          >
+                            click here to turn it off
+                          </button>
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setProfile({ ...profile, artistModeEnabled: profile.artistModeEnabled === false ? true : false })}
+                        className={`w-14 h-8 rounded-full transition-all relative shrink-0 mt-0.5 ${profile.artistModeEnabled !== false ? 'bg-[#6B0099]' : 'bg-white/10'}`}
+                      >
+                        <div className={`absolute top-1 w-6 h-6 rounded-full bg-white transition-all ${profile.artistModeEnabled !== false ? 'left-7' : 'left-1'}`} />
+                      </button>
+                    </div>
+                </div>
+                )}
+                </>)}
 
+                {activeTab === 'APPEARANCE' && (<>
                 {onSetTheme && (
                   <div className="p-8 bg-white/5 rounded-[2.5rem] border border-white/5">
                     <h3 className="text-xs font-black uppercase tracking-widest text-small-orange mb-6 flex items-center gap-2">
@@ -1321,33 +1195,10 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                     </button>
                   </div>
 
-                  {hasCapability(profile, 'MONETIZE') && (
-                    <div className="flex items-start justify-between gap-6 pt-6 border-t border-white/5">
-                      <div>
-                        <h3 className="text-xs font-black uppercase tracking-widest text-[#c084fc] mb-1">Artist Mode Landing Page</h3>
-                        <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest leading-relaxed">
-                          Visitors see a 30-second immersive showcase before your full profile loads.{' '}
-                          <span className="text-white/30">On by default — </span>
-                          <button
-                            type="button"
-                            onClick={() => setProfile({ ...profile, artistModeEnabled: false })}
-                            className="text-[#c084fc]/60 hover:text-[#c084fc] underline underline-offset-2 transition-colors"
-                          >
-                            click here to turn it off
-                          </button>
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setProfile({ ...profile, artistModeEnabled: profile.artistModeEnabled === false ? true : false })}
-                        className={`w-14 h-8 rounded-full transition-all relative shrink-0 mt-0.5 ${profile.artistModeEnabled !== false ? 'bg-[#6B0099]' : 'bg-white/10'}`}
-                      >
-                        <div className={`absolute top-1 w-6 h-6 rounded-full bg-white transition-all ${profile.artistModeEnabled !== false ? 'left-7' : 'left-1'}`} />
-                      </button>
-                    </div>
-                  )}
                 </div>
+                </>)}
 
+                {activeTab === 'ACCOUNT' && (<>
                 {/* Account Identity Section */}
                 {showOrgAccountModal && (
                   <OrganizationAccountModal
@@ -1464,6 +1315,15 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                     </div>
                   )}
                 </section>
+
+                <section className="p-6 lg:p-8 bg-white/[0.02] border border-white/5 rounded-[2.5rem] mb-8 flex flex-col sm:flex-row sm:items-center gap-4">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-xs font-black uppercase tracking-widest text-red-400 mb-1">Delete account</h3>
+                    <p className="text-[12px] text-white/50">Removes your profile and content. You will confirm on the next page before anything is deleted.</p>
+                  </div>
+                  <a href="/delete-account" className="px-6 py-3 rounded-full border border-red-500/35 text-red-400 text-[10px] font-black uppercase tracking-widest text-center hover:bg-red-500/10 transition-all">Delete account…</a>
+                </section>
+                </>)}
 
                 <button
                   type="submit"

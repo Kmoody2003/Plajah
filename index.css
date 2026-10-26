@@ -1767,3 +1767,7 @@ html.tv-nav body {
   text-shadow: 0 0 4px #07080B, 0 0 8px #07080B;
 }
 .leaflet-tooltip.terra-street-label::before { display: none; }
+
+/* Settings pages: the shared SettingsPageHeader replaces each panel's own oversized heading. */
+.st-page > div > header:first-child,
+.st-page > div > div > header:first-child { display: none; }
