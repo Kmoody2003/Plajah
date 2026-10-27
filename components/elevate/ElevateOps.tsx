@@ -27,6 +27,14 @@ import OrgStoreSection from './OrgStoreSection';
 import OrgSecurityShield, { OrgSecurityPanel } from './OrgSecurityShield';
 import IdentityEditor from './IdentityEditor';
 import DeleteOrgDialog from './DeleteOrgDialog';
+import {
+  LECTIO_COUNCIL_PLATES,
+  openCouncilPlateInLorea,
+  getActiveLectioCouncilPlateId,
+  setActiveLectioCouncilPlateId,
+  type ArtCouncilLens,
+} from '../../services/lectioNonScriptureCouncil';
+import { CouncilPlatePreviewCard } from '../scripture/LectioCouncilPlatesModal';
 
 // Sibling modules built in parallel — lazy so a missing/late file never breaks the page shell.
 const RosterManager = lazy(() => import('./RosterManager'));
@@ -52,6 +60,7 @@ const ElevateTelaOperationsSuite = lazy(() => import('./ElevateTelaOperationsSui
 const GrowthHub = lazy(() => import('../growth/GrowthHub'));
 const GrantHub = lazy(() => import('./GrantHub'));
 const OrgCentralCalendarHub = lazy(() => import('./OrgCentralCalendarHub'));
+const VolunteerMemberManageHub = lazy(() => import('./VolunteerMemberManageHub'));
 import { EV, EvKpiStrip } from './vellum';
 import { opsPresetForOrg } from '../../services/opsPresets';
 import type { MailRecipient } from '../../services/marketing/handoff';
@@ -69,11 +78,13 @@ const SECTION_SUB: Partial<Record<SectionKey, string>> = {
   tela_ops: 'Facilities & Room Floorplan Tela, Multi-Week Matrix & Blockouts, Child Ratios & Paging, Automated Workflows, Camp Logistics & Non-Cash IRS Receipts.',
   grants: 'Find federal grants that fit, then let Aria fill in your applications — and learn the process in Grant School.',
   calendar: 'Centralized Organization Calendar built on Postman — detects cross-department timing conflicts and ranks weighted substitutes.',
+  content_hq: 'Organization Asset Management — manage Christian Education assignments, Original Docs, Interactive Tela Documents, Answer Keys, and department uploads.',
 };
 const field = 'w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white outline-none focus:border-[#FF8C00]/60 transition-all placeholder:text-white/25';
 
 export type SectionKey =
   | 'overview'
+  | 'content_hq'
   | 'identity'
   | 'tela_ops'
   | 'mobilize'
@@ -95,8 +106,8 @@ export type SectionKey =
   | 'store'
   | 'team'
   | 'marketing'
-  | 'marketing'
   | 'calendar'
+  | 'my_settings'
   | 'grants';
 type Tool = null | 'sermons' | 'sermonprep' | 'master' | 'console' | 'hq' | 'employees' | 'hiring' | 'marketing';
 
@@ -155,9 +166,11 @@ const ElevateOps: React.FC<Props> = ({ org: initialOrg, isOwner, onClose, onOrgC
   const showMoney = !!myMembership && (sp.canSubmit || sp.canApprove || sp.canViewBooks);
   const moneyInbox = useMoneyInbox(org, myMembership, null, showMoney);
 
-  // Unified Manage & Studio navigation order: Overview → Page & Hero Identity → Ministries/Classes/Ops.
+  // Unified Manage & Studio navigation order: Overview → Content HQ → Page & Hero Identity → Ministries/Classes/Ops.
   const nav = useMemo(() => ([
     { key: 'overview' as const, label: 'Overview', icon: LayoutDashboard, show: !!myMembership },
+    { key: 'content_hq' as const, label: 'Content HQ · Assets', icon: HardDrive, show: !!myMembership || isOwner },
+    { key: 'my_settings' as const, label: 'My Settings, Giving & Uploads', icon: UserCog, show: !!myMembership || isOwner },
     { key: 'calendar' as const, label: 'Central Calendar & Sub AI', icon: Calendar, show: !!myMembership || isOwner },
     { key: 'identity' as const, label: 'Page & Hero Identity', icon: Palette, show: isOwner || can('MANAGE_CONTENT') || can('MANAGE_MEDIA') },
     { key: 'tela_ops' as const, label: 'Facilities, Matrix & Tela Ops', icon: Calendar, show: !!myMembership || isOwner },
@@ -388,6 +401,7 @@ const ElevateOps: React.FC<Props> = ({ org: initialOrg, isOwner, onClose, onOrgC
                     <div className="ev-panel p-6" style={{ flex: '1 1 300px', minWidth: 0 }}>
                       <h3 className="m-0 mb-4 ev-title text-[22px] text-white" style={{ fontFamily: 'Outfit, sans-serif' }}>Quick Actions</h3>
                       <div className="flex flex-wrap gap-2">
+                        {quick('Content HQ · Assets', HardDrive, 'content_hq')}
                         {quick('Page & Hero Identity', Palette, 'identity')}
                         {quick('Facilities, Matrix & Tela Ops', Calendar, 'tela_ops')}
                         {quick('Social & Feeds', MessagesSquare, 'social')}
@@ -404,6 +418,22 @@ const ElevateOps: React.FC<Props> = ({ org: initialOrg, isOwner, onClose, onOrgC
                       </div>
                     </div>
                   </div>
+                </div>
+              )}
+
+              {section === 'content_hq' && (
+                <div className="ev-fade h-[calc(100dvh-200px)] min-h-[640px] rounded-3xl border border-white/10 bg-[#0a0a0f] overflow-hidden shadow-2xl">
+                  <ContentHQ
+                    scope={{
+                      kind: 'org',
+                      id: org.id,
+                      ownerUid: org.creatorId,
+                      adminUids: org.admins,
+                      label: org.name,
+                    }}
+                    canEdit={isOwner || can('MANAGE_CONTENT') || can('MANAGE_MEDIA') || !!myMembership}
+                    mediaOwnerUid={org.creatorId}
+                  />
                 </div>
               )}
 
@@ -534,6 +564,14 @@ const ElevateOps: React.FC<Props> = ({ org: initialOrg, isOwner, onClose, onOrgC
 
               {section === 'marketing' && growth('marketing')}
               {section === 'calendar' && <OrgCentralCalendarHub org={org} myMembership={myMembership} />}
+              {section === 'my_settings' && (
+                <VolunteerMemberManageHub
+                  org={org}
+                  membership={myMembership}
+                  user={auth.currentUser}
+                  onMembershipUpdated={reload}
+                />
+              )}
               {section === 'grants' && <GrantHub org={org} />}
             </Suspense>
           </div>
@@ -569,6 +607,9 @@ const PageIdentityStudio: React.FC<{
   const [busy, setBusy] = useState(false);
   const [savedToast, setSavedToast] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [showSacredPlateTemplates, setShowSacredPlateTemplates] = useState(false);
+  const [plateLensFilter, setPlateLensFilter] = useState<'ALL' | ArtCouncilLens>('ALL');
+  const [activePlateId, setActivePlateId] = useState<string>(() => getActiveLectioCouncilPlateId());
 
   const saveAllIdentity = async () => {
     setBusy(true);
@@ -786,6 +827,77 @@ const PageIdentityStudio: React.FC<{
           {busy ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />}
           {busy ? 'Saving Identity...' : 'Save Page & Hero Identity'}
         </button>
+      </div>
+
+      {/* Sacred Text Plate Templates (Chosen in Manage & in Verse Bible Experience) */}
+      <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5 sm:p-6 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <span className="text-[10px] font-black uppercase tracking-[0.22em] text-[#E2C27E]">
+              Verse &amp; Lorea · Sacred Text Plate Templates
+            </span>
+            <h3 className="text-lg font-black text-white mt-0.5" style={{ fontFamily: 'Outfit, sans-serif' }}>
+              Sacred Text Plate Template Library
+            </h3>
+            <p className="text-xs text-white/60 mt-0.5">
+              Choose the active sacred text plate template used for prayers, creeds, and liturgical readings in Manage and in the Verse experience.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowSacredPlateTemplates(prev => !prev)}
+            className="px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-xs font-black text-[#E2C27E]"
+          >
+            {showSacredPlateTemplates ? 'Hide Template Picker' : 'Choose Sacred Text Plate Template'}
+          </button>
+        </div>
+
+        {showSacredPlateTemplates && (
+          <div className="space-y-4 pt-2 border-t border-white/10">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {(
+                [
+                  ['ALL', 'All 12 Templates'],
+                  ['CLASSICAL', 'Classical'],
+                  ['RADICAL_MINIMAL', 'Radical Minimal'],
+                  ['REBEL', 'Rebel'],
+                  ['WORLD_ECLECTIC', 'World Eclectic'],
+                  ['FUTURIST', 'Futurist'],
+                  ['BAROQUE', 'Baroque'],
+                ] as const
+              ).map(([id, lbl]) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setPlateLensFilter(id)}
+                  className={`px-3 py-1 rounded-full text-[10.5px] font-bold transition-all ${
+                    plateLensFilter === id
+                      ? 'bg-[#E2C27E] text-black'
+                      : 'bg-white/5 text-white/70 border border-white/10 hover:text-white'
+                  }`}
+                >
+                  {lbl}
+                </button>
+              ))}
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {LECTIO_COUNCIL_PLATES.filter(
+                p => plateLensFilter === 'ALL' || p.lens === plateLensFilter
+              ).map(plate => (
+                <CouncilPlatePreviewCard
+                  key={plate.id}
+                  plate={plate}
+                  isSelected={activePlateId === plate.id}
+                  onSelect={pl => {
+                    setActiveLectioCouncilPlateId(pl.id);
+                    setActivePlateId(pl.id);
+                  }}
+                  onOpenLorea={openCouncilPlateInLorea}
+                />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Danger Zone */}

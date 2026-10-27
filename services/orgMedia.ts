@@ -12,14 +12,64 @@ import { onSnapshot } from './safeSnapshot';
 import { db, auth } from './firebase';
 import { checkMembership } from './sanctuaryService';
 import { activeDaySlots, dayAnchoredPosition, hasPlayableProgramme, resolveSlotMedia, slotIsPlayable } from './fastChannelTimeline';
+import { isChannelFeed } from './fast/guideLineup';
+import { isFeedLive } from './liveFeedLiveness';
 import { updateOrganization } from './organizationService';
 import type { Album, ChannelSource, FastChannel, FastChannelSchedule, LiveFeed, Organization, Video } from '../types';
 
-// ── Owners ───────────────────────────────────────────────────────────────────────
-export const orgMediaUids = (org?: Pick<Organization, 'accountUid' | 'contentUids'> | null): string[] => {
+// ── Owners & Organization Identity Matching ──────────────────────────────────────
+export const orgMediaUids = (
+  org?: Pick<Organization, 'id' | 'accountUid' | 'creatorId' | 'contentUids' | 'admins'> | null
+): string[] => {
   if (!org) return [];
-  return Array.from(new Set([org.accountUid, ...(org.contentUids || [])].filter((u): u is string => !!u && typeof u === 'string')));
+  return Array.from(
+    new Set(
+      [
+        org.accountUid,
+        org.creatorId,
+        org.id,
+        ...(org.contentUids || []),
+        ...(org.admins || []),
+      ].filter((u): u is string => !!u && typeof u === 'string')
+    )
+  );
 };
+
+const normalizeName = (s?: string | null): string =>
+  String(s || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+
+const coreOrgName = (name?: string | null): string => {
+  const norm = normalizeName(name);
+  if (!norm) return '';
+  const stripped = norm
+    .replace(/\b(ministries|ministry|church|chapel|cathedral|temple|fellowship|international|inc|org)\b/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return stripped.length >= 4 ? stripped : norm;
+};
+
+/** True when a Live Hub feed or FAST channel name/ownerName matches this organization (e.g. "Great Faith" <-> "Great Faith Ministries"). */
+export function matchesOrgIdentity(
+  org?: Pick<Organization, 'id' | 'name' | 'slug'> | null,
+  ...candidates: Array<string | undefined | null>
+): boolean {
+  if (!org?.name) return false;
+  const full = normalizeName(org.name);
+  const core = coreOrgName(org.name);
+  const slug = normalizeName(org.slug);
+  if (!full && !core) return false;
+  for (const raw of candidates) {
+    const c = normalizeName(raw);
+    if (!c) continue;
+    if (full && (c === full || c.includes(full) || full.includes(c))) return true;
+    if (core && core.length >= 4 && (c === core || c.includes(core))) return true;
+    if (slug && slug.length >= 4 && c.replace(/\s+/g, '') === slug.replace(/\s+/g, '')) return true;
+  }
+  return false;
+}
 
 /** Stable key so effects only re-run when the owner set actually changes. */
 const uidsKey = (uids: string[]) => uids.slice().sort().join('|');
@@ -67,50 +117,87 @@ function useMemberGate(ownerUids: string[], needed: boolean, viewerIsOrgMember: 
   return (ownerId: string) => viewerIsOrgMember || !!allowed[ownerId];
 }
 
-// ── Live now ─────────────────────────────────────────────────────────────────────
-/** Realtime: LIVE streams (live_feeds mirror) by the org's media accounts. Public ones only; a
- *  Sanctuary-only stream shows just to members/owner. Up to 3, newest first. */
+// ── Live now (Org-scoped + LiveHub TV Plus discovery) ────────────────────────────
+/** Realtime: LIVE streams and permanent LiveHub TV+ feeds (live_feeds) by the org's media accounts
+ *  or matching the org's identity (e.g. Great Faith on Live TV Hub). Uses single-collection snapshot
+ *  (zero composite index required) so feeds never silently drop. */
 export function useOrgLive(org: Organization | null | undefined, viewerIsOrgMember = false): LiveFeed[] {
-  const uids = useMemo(() => orgMediaUids(org), [org?.accountUid, (org?.contentUids || []).join('|')]);
-  const key = uidsKey(uids);
+  const uids = useMemo(
+    () => orgMediaUids(org),
+    [org?.id, org?.accountUid, org?.creatorId, (org?.contentUids || []).join('|'), (org?.admins || []).join('|')]
+  );
+  const uidSet = useMemo(() => new Set(uids), [uids]);
   const [raw, setRaw] = useState<LiveFeed[]>([]);
 
   useEffect(() => {
-    if (!uids.length) { setRaw([]); return; }
-    const buckets: Record<number, LiveFeed[]> = {};
-    const flush = () => setRaw(Object.values(buckets).flat());
-    const unsubs = chunk(uids, 10).map((c, i) => {
-      try {
-        const q = query(collection(db, 'live_feeds'), where('ownerId', 'in', c), where('status', '==', 'LIVE'), limit(10));
-        return onSnapshot(q, snap => {
-          buckets[i] = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) } as LiveFeed));
-          flush();
-        }, () => { buckets[i] = []; flush(); });
-      } catch { return () => {}; }
+    if (!org) {
+      setRaw([]);
+      return;
+    }
+    try {
+      const q = query(collection(db, 'live_feeds'));
+      const unsub = onSnapshot(
+        q,
+        snap => {
+          const all = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) } as LiveFeed));
+          setRaw(all);
+        },
+        () => setRaw([])
+      );
+      return () => {
+        try {
+          unsub();
+        } catch {
+          /* */
+        }
+      };
+    } catch {
+      setRaw([]);
+      return () => {};
+    }
+  }, [org?.id]);
+
+  const orgFeeds = useMemo(() => {
+    if (!org) return [];
+    return raw.filter(f => {
+      const anyF = f as any;
+      if (anyF.status === 'ENDED' || anyF.status === 'OFFLINE') return false;
+      const active = isChannelFeed(f) || isFeedLive(f) || anyF.status === 'LIVE';
+      if (!active) return false;
+      const byUid = !!(f.ownerId && uidSet.has(f.ownerId));
+      const byOrgId = anyF.brandId === org.id || anyF.orgId === org.id;
+      const byName = matchesOrgIdentity(org, f.ownerName, f.title, anyF.channelName);
+      return byUid || byOrgId || byName;
     });
-    return () => unsubs.forEach(u => { try { u(); } catch { /* */ } });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key]);
+  }, [raw, org, uidSet]);
 
-  const needsGate = raw.some(f => f.sanctuaryOnly);
-  const gate = useMemberGate(uids, needsGate, viewerIsOrgMember);
+  const candidateOwnerUids = useMemo(
+    () => Array.from(new Set([...uids, ...orgFeeds.map(f => f.ownerId).filter(Boolean)])),
+    [uids, orgFeeds]
+  );
+  const needsGate = orgFeeds.some(f => f.sanctuaryOnly);
+  const gate = useMemberGate(candidateOwnerUids, needsGate, viewerIsOrgMember);
 
-  return useMemo(() => raw
-    .filter(f => f.ownerId && f.isPublic !== false)
-    .filter(f => !f.sanctuaryOnly || gate(f.ownerId))
-    .sort((a, b) => toMs(b.timestamp) - toMs(a.timestamp))
-    .slice(0, 3), [raw, gate]);
+  return useMemo(
+    () =>
+      orgFeeds
+        .filter(f => f.isPublic !== false)
+        .filter(f => !f.sanctuaryOnly || !f.ownerId || gate(f.ownerId))
+        .sort((a, b) => toMs(b.timestamp) - toMs(a.timestamp))
+        .slice(0, 12),
+    [orgFeeds, gate]
+  );
 }
 
 // ── On-air TV channels ───────────────────────────────────────────────────────────
 /** How an on-air item plays inline: HLS (Mux or other), a plain file at an offset (FAST), or an embed. */
 export interface OnAirPlayback { kind: 'hls' | 'file' | 'embed'; url: string; offsetSec?: number; poster?: string }
 
-const isEmbedUrl = (u: string) => /youtube\.com|youtu\.be|twitch\.tv/i.test(u);
+const isEmbedUrl = (u: string) => /youtube\.com|youtu\.be|twitch\.tv|vimeo\.com|archive\.org|dailymotion/i.test(u);
 export function playbackFor(url?: string, muxPlaybackId?: string, offsetSec?: number): OnAirPlayback | undefined {
   if (muxPlaybackId) return { kind: 'hls', url: `https://stream.mux.com/${muxPlaybackId}.m3u8`, offsetSec, poster: `https://image.mux.com/${muxPlaybackId}/thumbnail.jpg?time=0` };
   if (!url) return undefined;
-  if (/\.m3u8($|[?#])/i.test(url)) return { kind: 'hls', url, offsetSec };
+  if (/\.m3u8($|[?#])/i.test(url) || url.includes('stream.mux.com')) return { kind: 'hls', url, offsetSec };
   if (isEmbedUrl(url)) return { kind: 'embed', url, offsetSec };
   return { kind: 'file', url, offsetSec };
 }
@@ -127,18 +214,71 @@ export interface OrgChannel {
   membersOnly?: boolean;
   /** What is on air right now, for an inline (muted) player. */
   playback?: OnAirPlayback;
+  /** True when this channel belongs directly to the current organization. */
+  isOrgOwned?: boolean;
 }
 
 interface OwnerChannelData { meta: FastChannel | null; sources: ChannelSource[]; schedule: FastChannelSchedule | null }
 
 /** The org's published TV channels that are on air now: its FAST channel (published + a playable
- *  programme) and any active EXTERNAL_LIVE / REELLO_LIVE source. Members-only sources are dropped for
- *  viewers who are not members (org member, Sanctuary member, or the account owner). */
+ *  programme) and any active EXTERNAL_LIVE / REELLO_LIVE source. Also discovers FAST channels
+ *  matching the organization's identity (e.g. Great Faith in Live TV Hub+). */
 export function useOrgChannels(org: Organization | null | undefined, viewerIsOrgMember = false): OrgChannel[] {
-  const uids = useMemo(() => orgMediaUids(org), [org?.accountUid, (org?.contentUids || []).join('|')]);
+  const baseUids = useMemo(
+    () => orgMediaUids(org),
+    [org?.id, org?.accountUid, org?.creatorId, (org?.contentUids || []).join('|'), (org?.admins || []).join('|')]
+  );
+  const [discoveredUids, setDiscoveredUids] = useState<string[]>([]);
+  const uids = useMemo(() => Array.from(new Set([...baseUids, ...discoveredUids])), [baseUids, discoveredUids]);
   const key = uidsKey(uids);
   const [data, setData] = useState<Record<string, OwnerChannelData>>({});
   const [tick, setTick] = useState(0);
+
+  // Discover any fast_channels / live_feeds ownerIds whose channel name or ownerName matches this org (e.g. "Great Faith")
+  useEffect(() => {
+    if (!org?.name) {
+      setDiscoveredUids([]);
+      return;
+    }
+    let alive = true;
+    (async () => {
+      const found = new Set<string>();
+      try {
+        const [fastSnap, feedsSnap, srcSnap] = await Promise.all([
+          getDocs(query(collection(db, 'fast_channels'), limit(200))).catch(() => null),
+          getDocs(query(collection(db, 'live_feeds'), limit(200))).catch(() => null),
+          getDocs(query(collection(db, 'channel_sources'), limit(200))).catch(() => null),
+        ]);
+        fastSnap?.docs.forEach(d => {
+          const fc = d.data() as FastChannel;
+          const uid = fc.ownerId || d.id;
+          if (uid && matchesOrgIdentity(org, fc.name, fc.tagline)) {
+            found.add(uid);
+          }
+        });
+        feedsSnap?.docs.forEach(d => {
+          const f = d.data() as LiveFeed & { brandId?: string; orgId?: string; channelName?: string };
+          if (f.ownerId && (f.brandId === org.id || f.orgId === org.id || matchesOrgIdentity(org, f.ownerName, f.title, f.channelName))) {
+            found.add(f.ownerId);
+          }
+        });
+        srcSnap?.docs.forEach(d => {
+          const data = d.data() as { ownerId?: string; sources?: ChannelSource[] };
+          const uid = data?.ownerId || d.id;
+          const sources = Array.isArray(data?.sources) ? data.sources : [];
+          if (uid && sources.some(s => matchesOrgIdentity(org, s.name))) {
+            found.add(uid);
+          }
+        });
+      } catch {
+        /* ignore */
+      }
+      if (alive) setDiscoveredUids(Array.from(found));
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [org?.id, org?.name, org?.slug]);
 
   useEffect(() => {
     if (!uids.length) { setData({}); return; }
@@ -170,7 +310,7 @@ export function useOrgChannels(org: Organization | null | undefined, viewerIsOrg
     uids.forEach(uid => {
       const d = data[uid];
       if (!d) return;
-      if (d.meta?.isPublished && d.schedule) {
+      if (d.meta?.isPublished !== false && d.schedule) {
         const slots = activeDaySlots(d.schedule, now).filter(slotIsPlayable);
         if (slots.length && hasPlayableProgramme(slots)) {
           const { index, offsetSec } = dayAnchoredPosition(slots, now, (d.schedule as any).timezone);
@@ -182,19 +322,266 @@ export function useOrgChannels(org: Organization | null | undefined, viewerIsOrg
             if (media && !media.generative) playback = playbackFor(media.url, media.muxPlaybackId, offsetSec);
             if (playback && media?.thumbnail) playback.poster = media.thumbnail;
           } catch { /* */ }
-          out.push({ key: `fast:${uid}`, ownerId: uid, kind: 'FAST', name: d.meta.name || 'TV', number: d.meta.number, logoUrl: d.meta.logoUrl, nowPlaying, playback });
+          out.push({ key: `fast:${uid}`, ownerId: uid, kind: 'FAST', name: d.meta?.name || org?.name || 'TV', number: d.meta?.number, logoUrl: d.meta?.logoUrl, nowPlaying, playback, isOrgOwned: true });
         }
       }
       d.sources.forEach(s => {
         if (!s.isActive || (s.type !== 'EXTERNAL_LIVE' && s.type !== 'REELLO_LIVE')) return;
         if (!s.url && !s.muxPlaybackId) return;
         if (s.membersOnly && !gate(uid)) return;     // Sanctuary gate — non-members never see it
-        out.push({ key: `src:${uid}:${s.id}`, ownerId: uid, kind: s.type, name: s.name || d.meta?.name || 'Live', number: d.meta?.number, logoUrl: s.logoUrl || d.meta?.logoUrl, sourceId: s.id, membersOnly: s.membersOnly, playback: playbackFor(s.url, s.muxPlaybackId) });
+        out.push({ key: `src:${uid}:${s.id}`, ownerId: uid, kind: s.type, name: s.name || d.meta?.name || 'Live', number: d.meta?.number, logoUrl: s.logoUrl || d.meta?.logoUrl, sourceId: s.id, membersOnly: s.membersOnly, playback: playbackFor(s.url, s.muxPlaybackId), isOrgOwned: true });
       });
     });
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, tick, gate, key]);
+}
+
+/** LiveHub TV Plus feed/channel item for the inline source switcher inside RelloChurchViewer. */
+export interface LiveHubTvSourceItem {
+  id: string;
+  title: string;
+  channelName: string;
+  speaker: string;
+  number?: number;
+  badgeText: string;
+  isOrgOwned: boolean;
+  kind: 'LIVE_SANCTUARY' | 'MINISTRY_TV_CHANNEL';
+  playback: OnAirPlayback;
+  feed?: LiveFeed;
+  channel?: OrgChannel;
+  viewerCount?: number;
+}
+
+/**
+ * Discovers all active LiveHub TV Plus feeds (`live_feeds` + `fast_channels` + `channel_sources`)
+ * so the Reello player + Verse Mini-Bible on the main page can automatically tune to the
+ * organization's Live TV Hub broadcast AND let viewers switch between any LiveHub TV+ feed.
+ */
+export function useLiveHubTvPlusSources(
+  org: Organization | null | undefined,
+  orgLiveFeeds: LiveFeed[],
+  orgChannels: OrgChannel[]
+): LiveHubTvSourceItem[] {
+  const [globalFeeds, setGlobalFeeds] = useState<LiveFeed[]>([]);
+  const [globalFastChannels, setGlobalFastChannels] = useState<OrgChannel[]>([]);
+
+  useEffect(() => {
+    try {
+      const q = query(collection(db, 'live_feeds'));
+      const unsub = onSnapshot(
+        q,
+        snap => {
+          const rows = snap.docs
+            .map(d => ({ id: d.id, ...(d.data() as any) } as LiveFeed))
+            .filter(f => {
+              const anyF = f as any;
+              if (anyF.status === 'ENDED' || anyF.status === 'OFFLINE') return false;
+              if (f.isPublic === false || f.sanctuaryOnly) return false;
+              return isChannelFeed(f) || isFeedLive(f) || anyF.status === 'LIVE';
+            })
+            .sort((a, b) => toMs(b.timestamp) - toMs(a.timestamp));
+          setGlobalFeeds(rows);
+        },
+        () => setGlobalFeeds([])
+      );
+      return () => {
+        try {
+          unsub();
+        } catch {
+          /* */
+        }
+      };
+    } catch {
+      setGlobalFeeds([]);
+      return () => {};
+    }
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const [fastSnap, schedSnap, srcSnap] = await Promise.all([
+          getDocs(query(collection(db, 'fast_channels'), limit(100))).catch(() => null),
+          getDocs(query(collection(db, 'fast_channel_schedules'), limit(100))).catch(() => null),
+          getDocs(query(collection(db, 'channel_sources'), limit(120))).catch(() => null),
+        ]);
+        if (!alive) return;
+        const fastByUid = new Map<string, FastChannel>();
+        fastSnap?.docs.forEach(d => {
+          const fc = d.data() as FastChannel;
+          fastByUid.set(fc.ownerId || d.id, fc);
+        });
+        const schedByUid = new Map<string, FastChannelSchedule>();
+        schedSnap?.docs.forEach(d => schedByUid.set(d.id, d.data() as FastChannelSchedule));
+        const now = Date.now();
+        const resolved: OrgChannel[] = [];
+        fastSnap?.docs.forEach(d => {
+          const fc = d.data() as FastChannel;
+          const uid = fc.ownerId || d.id;
+          if (fc.isPublished === false) return;
+          const sched = schedByUid.get(uid);
+          if (!sched) return;
+          const slots = activeDaySlots(sched, now).filter(slotIsPlayable);
+          if (!slots.length || !hasPlayableProgramme(slots)) return;
+          const { index, offsetSec } = dayAnchoredPosition(slots, now, (sched as any).timezone);
+          try {
+            const media = resolveSlotMedia(slots[index]);
+            if (!media || media.generative) return;
+            const pb = playbackFor(media.url, media.muxPlaybackId, offsetSec);
+            if (!pb) return;
+            if (media.thumbnail) pb.poster = media.thumbnail;
+            resolved.push({
+              key: `fast:${uid}`,
+              ownerId: uid,
+              kind: 'FAST',
+              name: fc.name || 'Live TV+ Channel',
+              number: fc.number,
+              logoUrl: fc.logoUrl,
+              nowPlaying: media.title || undefined,
+              playback: pb,
+              isOrgOwned: !!(org && (uid === org.id || uid === org.accountUid || uid === org.creatorId || matchesOrgIdentity(org, fc.name))),
+            });
+          } catch {
+            /* */
+          }
+        });
+        srcSnap?.docs.forEach(d => {
+          const data = d.data() as { ownerId?: string; sources?: ChannelSource[] };
+          const uid = data?.ownerId || d.id;
+          const fc = fastByUid.get(uid);
+          const sources = Array.isArray(data?.sources) ? data.sources : [];
+          sources.forEach(s => {
+            if (!s.isActive || (s.type !== 'EXTERNAL_LIVE' && s.type !== 'REELLO_LIVE')) return;
+            if (s.membersOnly) return;
+            const pb = playbackFor(s.url, s.muxPlaybackId);
+            if (!pb) return;
+            resolved.push({
+              key: `src:${uid}:${s.id}`,
+              ownerId: uid,
+              kind: s.type,
+              name: s.name || fc?.name || 'Live TV+ Channel',
+              number: fc?.number,
+              logoUrl: s.logoUrl || fc?.logoUrl,
+              sourceId: s.id,
+              playback: pb,
+              isOrgOwned: !!(org && (uid === org.id || uid === org.accountUid || uid === org.creatorId || matchesOrgIdentity(org, s.name, fc?.name))),
+            });
+          });
+        });
+        resolved.sort((a, b) => (a.number ?? 9999) - (b.number ?? 9999));
+        if (alive) setGlobalFastChannels(resolved);
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [org?.id, org?.name]);
+
+  return useMemo(() => {
+    const out: LiveHubTvSourceItem[] = [];
+    const seenUrls = new Set<string>();
+    const seenIds = new Set<string>();
+
+    const pushItem = (item: LiveHubTvSourceItem) => {
+      const dedupeKey = `${item.id}|${item.playback.url}`;
+      if (seenIds.has(item.id) || seenUrls.has(dedupeKey)) return;
+      seenIds.add(item.id);
+      seenUrls.add(dedupeKey);
+      out.push(item);
+    };
+
+    // 1. Organization's own live feeds first
+    orgLiveFeeds.forEach((f, idx) => {
+      const anyF = f as any;
+      const pb = playbackFor(f.url || anyF.streamUrl || anyF.videoUrl, f.muxPlaybackId);
+      if (!pb) return;
+      pushItem({
+        id: `org-live-${f.id}`,
+        title: f.title || `${org?.name || 'Organization'} Live`,
+        channelName: anyF.channelName || f.ownerName || `${org?.name || 'Organization'} · Ch ${idx + 1}`,
+        speaker: anyF.hostName || f.ownerName || org?.name || 'Live Broadcast',
+        number: typeof anyF.channelNumber === 'number' ? anyF.channelNumber : undefined,
+        badgeText: orgLiveFeeds.length > 1 ? `ORG LIVE · FEED ${idx + 1}` : 'ORG LIVE NOW',
+        isOrgOwned: true,
+        kind: 'LIVE_SANCTUARY',
+        playback: pb,
+        feed: f,
+        viewerCount: typeof anyF.viewerCount === 'number' ? anyF.viewerCount : undefined,
+      });
+    });
+
+    // 2. Organization's own FAST / Live TV Hub channels (including sub-channels)
+    orgChannels.forEach((ch, idx) => {
+      if (!ch.playback) return;
+      pushItem({
+        id: `org-ch-${ch.key}`,
+        title: ch.nowPlaying ? `${ch.name} · ${ch.nowPlaying}` : ch.name,
+        channelName: typeof ch.number === 'number' ? `Ch ${ch.number} · ${ch.name}` : `${ch.name} · Live Hub TV+`,
+        speaker: org?.name || ch.name,
+        number: ch.number,
+        badgeText: typeof ch.number === 'number' ? `CH ${ch.number} · ORG TV+` : `ORG TV+ · CH ${idx + 1}`,
+        isOrgOwned: true,
+        kind: 'MINISTRY_TV_CHANNEL',
+        playback: ch.playback,
+        channel: ch,
+      });
+    });
+
+    // 3. Other LiveHub TV+ live feeds across the platform (for switching sources inside the viewer)
+    globalFeeds.forEach(f => {
+      const anyF = f as any;
+      const pb = playbackFor(f.url || anyF.streamUrl || anyF.videoUrl, f.muxPlaybackId);
+      if (!pb) return;
+      const isOrg = !!(
+        org &&
+        (f.ownerId === org.id ||
+          f.ownerId === org.accountUid ||
+          f.ownerId === org.creatorId ||
+          anyF.brandId === org.id ||
+          anyF.orgId === org.id ||
+          matchesOrgIdentity(org, f.ownerName, f.title, anyF.channelName))
+      );
+      if (seenIds.has(`org-live-${f.id}`)) return;
+      pushItem({
+        id: isOrg ? `org-live-${f.id}` : `livehub-feed-${f.id}`,
+        title: f.title || f.ownerName || 'LiveHub TV+ Stream',
+        channelName: f.ownerName ? `${f.ownerName} · LiveHub TV+` : 'LiveHub TV+ Feed',
+        speaker: f.ownerName || 'LiveHub TV+',
+        number: typeof anyF.channelNumber === 'number' ? anyF.channelNumber : undefined,
+        badgeText: isOrg ? 'ORG LIVE · TV+' : 'LIVEHUB TV+ FEED',
+        isOrgOwned: isOrg,
+        kind: isOrg ? 'LIVE_SANCTUARY' : 'MINISTRY_TV_CHANNEL',
+        playback: pb,
+        feed: f,
+        viewerCount: typeof anyF.viewerCount === 'number' ? anyF.viewerCount : undefined,
+      });
+    });
+
+    // 4. Other LiveHub TV+ FAST channels across the platform
+    globalFastChannels.forEach(ch => {
+      if (!ch.playback) return;
+      if (seenIds.has(`org-ch-${ch.key}`)) return;
+      pushItem({
+        id: ch.isOrgOwned ? `org-ch-${ch.key}` : `livehub-fast-${ch.key}`,
+        title: ch.nowPlaying ? `${ch.name} · ${ch.nowPlaying}` : ch.name,
+        channelName: typeof ch.number === 'number' ? `Ch ${ch.number} · ${ch.name}` : `${ch.name} · LiveHub TV+`,
+        speaker: ch.name,
+        number: ch.number,
+        badgeText: typeof ch.number === 'number' ? `CH ${ch.number} · LIVEHUB TV+` : 'LIVEHUB TV+ FAST',
+        isOrgOwned: !!ch.isOrgOwned,
+        kind: 'MINISTRY_TV_CHANNEL',
+        playback: ch.playback,
+        channel: ch,
+      });
+    });
+
+    // Sort so org-owned broadcasts are always first!
+    return out.sort((a, b) => (a.isOrgOwned === b.isOrgOwned ? 0 : a.isOrgOwned ? -1 : 1));
+  }, [org, orgLiveFeeds, orgChannels, globalFeeds, globalFastChannels]);
 }
 
 /** One thing on air for the org page's inline player: a live stream first, then its TV channels. */

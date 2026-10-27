@@ -32,6 +32,7 @@ import {
   Maximize2,
   X,
   Megaphone,
+  MessagesSquare,
 } from 'lucide-react';
 import type { Organization, OrgMembership, ChmsTaxStatementScope } from '../../types';
 import type { ScriptureRef } from '../../services/scriptureRef';
@@ -73,6 +74,7 @@ import VespersRecap from '../scripture/VespersRecap';
 import { sessionIdFor } from '../../services/kairosService';
 import ElevateMobilizeHub from './ElevateMobilizeHub';
 import MyOrgTasksAndDepartments from './MyOrgTasksAndDepartments';
+import ElevateCommunicationsHub from './ElevateCommunicationsHub';
 import { EV, EvLabel, EvLectioSheet } from './vellum';
 import { elevateCan } from '../../services/elevateRoles';
 import { useFaithContentScope } from '../../hooks/useFaithContentScope';
@@ -102,11 +104,10 @@ const prettyRole = (role?: string) =>
 type HubStudioSection =
   | 'SANCTUARY_STUDIO'
   | 'MOBILIZE_AND_SHIFTS'
+  | 'COMMUNICATIONS'
   | 'DEVOTIONAL_AND_BIBLE_365'
   | 'RECENT_LESSONS_AND_VESPERS'
-  | 'HYMNS_PRAYERS_AND_SCORES'
-  | 'COUNCIL_12_PLATES'
-  | 'FAMILY_CRM_AND_TAX_STATEMENTS';
+  | 'HYMNS_PRAYERS_AND_SCORES';
 
 interface ChurchMemberHubProps {
   org: Organization;
@@ -126,32 +127,29 @@ function getStudioNavItems(orgType: Organization['orgType'] | undefined, vocab: 
     return [
       { id: 'SANCTUARY_STUDIO', label: 'Institution Hub & Live TV', badge: 'LIVE', icon: Sparkles },
       { id: 'MOBILIZE_AND_SHIFTS', label: 'Docent Shifts, Spokes & Impact', badge: 'SHIFTS', icon: Calendar },
+      { id: 'COMMUNICATIONS', label: 'Communications · Chat & Discussions', badge: 'FORUM', icon: MessagesSquare },
       { id: 'DEVOTIONAL_AND_BIBLE_365', label: 'Daily Reflection & Reading 365', badge: 'DAY 289', icon: Flame },
       { id: 'RECENT_LESSONS_AND_VESPERS', label: 'Lectures & Exhibition Briefs', icon: GraduationCap },
       { id: 'HYMNS_PRAYERS_AND_SCORES', label: 'Repertoire, Scores & Archives', badge: 'LOREA', icon: Music },
-      { id: 'COUNCIL_12_PLATES', label: '12 Heritage Text Plates', badge: 'COUNCIL', icon: ScrollText },
-      { id: 'FAMILY_CRM_AND_TAX_STATEMENTS', label: 'Household & Tax Receipts', icon: Users },
     ];
   }
   if (orgType === 'NONPROFIT') {
     return [
       { id: 'SANCTUARY_STUDIO', label: 'Mission Hub & Live TV', badge: 'LIVE', icon: Sparkles },
       { id: 'MOBILIZE_AND_SHIFTS', label: 'Action, Shifts & Petitions', badge: 'ACTION', icon: Calendar },
+      { id: 'COMMUNICATIONS', label: 'Communications · Chat & Discussions', badge: 'FORUM', icon: MessagesSquare },
       { id: 'DEVOTIONAL_AND_BIBLE_365', label: 'Daily Mission & Reading 365', badge: 'DAY 289', icon: Flame },
       { id: 'RECENT_LESSONS_AND_VESPERS', label: 'Trainings & Field Briefs', icon: GraduationCap },
       { id: 'HYMNS_PRAYERS_AND_SCORES', label: 'Anthems, Media & Stories', badge: 'LOREA', icon: Music },
-      { id: 'COUNCIL_12_PLATES', label: '12 Charter & Wisdom Plates', badge: 'COUNCIL', icon: ScrollText },
-      { id: 'FAMILY_CRM_AND_TAX_STATEMENTS', label: 'Household & Tax Receipts', icon: Users },
     ];
   }
   return [
     { id: 'SANCTUARY_STUDIO', label: 'Home', icon: Sparkles },
     { id: 'MOBILIZE_AND_SHIFTS', label: 'Serve & shifts', icon: Calendar },
+    { id: 'COMMUNICATIONS', label: 'Communications', badge: 'CHAT & FORUM', icon: MessagesSquare },
     { id: 'DEVOTIONAL_AND_BIBLE_365', label: `${vocab.dailyDevotional} · Bible in a year`, icon: Flame },
     { id: 'RECENT_LESSONS_AND_VESPERS', label: `${vocab.serviceRecap}s & lessons`, icon: GraduationCap },
     { id: 'HYMNS_PRAYERS_AND_SCORES', label: vocab.prayersCollection, icon: Music },
-    { id: 'COUNCIL_12_PLATES', label: 'Sacred text plates', icon: ScrollText },
-    { id: 'FAMILY_CRM_AND_TAX_STATEMENTS', label: 'Household & giving statements', icon: Users },
   ];
 }
 
@@ -492,7 +490,7 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
           org={org}
           inSanctuaryAutoEngaged={inServiceNow}
           onOpenFullLectio={ref => setFullLectioRef(ref)}
-          defaultPlayerExpanded={false}
+          defaultPlayerExpanded={true}
           viewerIsOrgMember={membership?.status === 'ACTIVE'}
         />
 
@@ -694,12 +692,6 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
                     <Flame size={13} />
                     <span>{t('Open Devotional & 365-Day Plan', 'Open devotional & reading plan')}</span>
                   </button>
-                  <button
-                    onClick={() => setSection('COUNCIL_12_PLATES')}
-                    className="px-3 py-2 rounded-xl text-xs font-bold text-[#D8D2E2] bg-white/5 hover:bg-white/10 border border-white/15"
-                  >
-                    {t('12 Sacred Plates →', 'Sacred text plates →')}
-                  </button>
                 </div>
               </div>
             </div>
@@ -718,6 +710,19 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
             canManage={false}
             initialContext="member"
           />
+        )}
+
+        {/* ═══════════════════════════════════════════════════════════════════════
+            TAB 1C: COMMUNICATIONS — PLAJAH CHAT MINI-UI & PLAJAH DISCUSSIONS MINI-UI
+            ═══════════════════════════════════════════════════════════════════════ */}
+        {section === 'COMMUNICATIONS' && (
+          <div className="ev-fade">
+            <ElevateCommunicationsHub
+              org={org}
+              membership={membership}
+              user={user}
+            />
+          </div>
         )}
 
         {/* ═══════════════════════════════════════════════════════════════════════
@@ -1013,6 +1018,7 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
               </div>
               <ChurchEducation
                 church={org}
+                membership={membership}
                 canEdit={canEditContent || assignedMinistries.some(m => /christian\s*ed|education|sunday\s*school|discipleship/i.test(m.name))}
               />
             </div>
@@ -1169,338 +1175,6 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
               </div>
             </div>
             )}
-          </div>
-        )}
-
-        {/* ═══════════════════════════════════════════════════════════════════════
-            TAB 5: 12 ART COUNCIL NON-SCRIPTURE SACRED TEXT PLATES (LECTIO + LOREA)
-            ═══════════════════════════════════════════════════════════════════════ */}
-        {section === 'COUNCIL_12_PLATES' && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between gap-4 flex-wrap">
-              <div>
-                <div className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-[#E2C27E]">
-                  {t('Plajah Art Council · 6 Creative Lenses × 12 Distinct Architectural Geometries', 'Sacred text plates')}
-                </div>
-                <h3
-                  className="text-2xl font-bold text-white"
-                  style={{ fontFamily: 'var(--font-display, "Outfit", "Space Grotesk", "Inter", sans-serif)', letterSpacing: '-0.02em' }}
-                >
-                  {t(
-                    '12 Sacred Text Plates for Non-Scripture Religious Texts (Verse & Lorea)',
-                    'Page designs for prayers, creeds and other sacred texts'
-                  )}
-                </h3>
-              </div>
-
-              <div className="flex items-center gap-1.5 flex-wrap">
-                {(
-                  [
-                    ['ALL', 'All 12 Plates'],
-                    ['CLASSICAL', 'Classical'],
-                    ['RADICAL_MINIMAL', 'Radical Minimal'],
-                    ['REBEL', 'Rebel'],
-                    ['WORLD_ECLECTIC', 'World Eclectic'],
-                    ['FUTURIST', 'Futurist'],
-                    ['BAROQUE', 'Baroque'],
-                  ] as const
-                ).map(([id, lbl]) => (
-                  <button
-                    key={id}
-                    onClick={() => setLensFilter(id)}
-                    className={`px-3 py-1 rounded-full text-[10.5px] font-bold transition-all ${
-                      lensFilter === id
-                        ? 'bg-[#E2C27E] text-black'
-                        : 'bg-white/5 text-white/70 border border-white/10 hover:text-white'
-                    }`}
-                  >
-                    {lbl}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-              {LECTIO_COUNCIL_PLATES.filter(
-                p => lensFilter === 'ALL' || p.lens === lensFilter
-              ).map(plate => (
-                <CouncilPlatePreviewCard
-                  key={plate.id}
-                  plate={plate}
-                  isSelected={activePlateId === plate.id}
-                  onSelect={pl => {
-                    setActiveLectioCouncilPlateId(pl.id);
-                    setActivePlateId(pl.id);
-                  }}
-                  onOpenLorea={openCouncilPlateInLorea}
-                />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ═══════════════════════════════════════════════════════════════════════
-            TAB 6: SMART HOUSEHOLD & EXTENDED KINSHIP CRM + 4-SCOPE TAX STATEMENTS
-            ═══════════════════════════════════════════════════════════════════════ */}
-        {section === 'FAMILY_CRM_AND_TAX_STATEMENTS' && !demo && (
-          <div className="ev-panel p-6 text-[15px] text-[#A49CB2] space-y-4">
-            {user?.uid ? (
-              <Suspense fallback={<div>Loading your giving…</div>}>
-                <MyGivingPanel orgId={org.id} uid={user.uid} />
-              </Suspense>
-            ) : (
-              <div>Sign in to see your giving and download your statements.</div>
-            )}
-            {onOpenGive && (
-              <button onClick={onOpenGive} className="ev-btn ev-btn-ghost" style={{ minHeight: 36, fontSize: 13 }}>
-                <HeartHandshake size={14} /> Give
-              </button>
-            )}
-          </div>
-        )}
-        {section === 'FAMILY_CRM_AND_TAX_STATEMENTS' && demo && (
-          <div className="space-y-8">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              {/* Left 7 Cols: Nuclear Household (Head, Spouse, Children) + Extended Family Kinship Graph */}
-              <div
-                className="lg:col-span-7 rounded-3xl p-6 border space-y-6"
-                style={{
-                  background: 'rgba(24, 20, 31, 0.85)',
-                  borderColor: 'rgba(216, 210, 226, 0.22)',
-                }}
-              >
-                <div>
-                  <div className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-[#E2C27E]">
-                    Smart Church Kinship CRM · Nuclear Household & Extended Relatives
-                  </div>
-                  <h3
-                    className="text-2xl font-bold text-white"
-                    style={{ fontFamily: 'var(--font-display, "Outfit", "Space Grotesk", "Inter", sans-serif)', letterSpacing: '-0.02em' }}
-                  >
-                    {kinshipDemo.householdName} — Family & Kinship Graph
-                  </h3>
-                  <p className="text-xs text-[#D8D2E2]/70 mt-0.5">
-                    {kinshipDemo.filingStatus} · {kinshipDemo.address}
-                  </p>
-                </div>
-
-                {/* Nuclear Family Members (Head of Household, Spouse, Dependent Children) */}
-                <div className="space-y-2.5">
-                  <div className="text-xs font-extrabold uppercase tracking-wider text-[#E2C27E]">
-                    Nuclear Household Roles (Head of Household · Spouse · Dependent Children)
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {kinshipDemo.nuclearMembers.map(m => (
-                      <div
-                        key={m.id}
-                        className="p-3.5 rounded-2xl bg-white/[0.04] border border-white/10 space-y-1.5"
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-sm font-bold text-white">{m.name}</span>
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
-                              m.role === 'HEAD'
-                                ? 'bg-[#E2C27E] text-black'
-                                : m.role === 'SPOUSE'
-                                ? 'bg-[#D40055] text-white'
-                                : 'bg-[#7A1FC0] text-[#D8D2E2]'
-                            }`}
-                          >
-                            {m.roleLabel}
-                          </span>
-                        </div>
-                        <div className="text-[10.5px] text-white/65">{m.maritalStatus}</div>
-                        <div className="text-[10px] text-[#D8D2E2]/80">
-                          Departments: {m.departments.join(' · ')}
-                        </div>
-                        <div className="text-[10.5px] font-mono text-[#E2C27E] pt-1 border-t border-white/10 flex justify-between">
-                          <span>YTD Deductible Gifts ({m.giftCount}):</span>
-                          <b>{money(m.ytdGiving)}</b>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Extended Family Kinship Graph + Per-Member Privacy Opt-Out Control */}
-                <div className="p-4 rounded-2xl bg-black/40 border border-[#D8D2E2]/20 space-y-4">
-                  <div className="flex items-start justify-between gap-3 flex-wrap">
-                    <div>
-                      <div className="flex items-center gap-1.5 text-xs font-bold text-white">
-                        {allowExtendedKinship ? (
-                          <Unlock size={14} className="text-emerald-400" />
-                        ) : (
-                          <Lock size={14} className="text-amber-400" />
-                        )}
-                        <span>
-                          Extended Family Kinship (Brothers, Sisters, Aunts, Uncles, Grandparents)
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-white/65 mt-0.5 max-w-xl">
-                        Helps church leadership understand extended family ties across households for
-                        pastoral care, bereavement, and youth pickup—while letting any family member
-                        opt out of extended kinship visibility at any time.
-                      </p>
-                    </div>
-
-                    <button
-                      onClick={() => handleToggleExtendedPrivacy(!allowExtendedKinship)}
-                      className={`px-3 py-1.5 rounded-xl text-[10.5px] font-black flex items-center gap-1.5 border transition-all ${
-                        allowExtendedKinship
-                          ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400/40'
-                          : 'bg-amber-500/20 text-amber-300 border-amber-400/40'
-                      }`}
-                    >
-                      {allowExtendedKinship ? <Unlock size={12} /> : <Lock size={12} />}
-                      <span>
-                        {allowExtendedKinship
-                          ? 'Extended Kinship: Visible to Leadership'
-                          : 'Extended Kinship: Opted Out (Private)'}
-                      </span>
-                    </button>
-                  </div>
-
-                  {!allowExtendedKinship ? (
-                    <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-400/30 text-xs text-amber-200 flex items-center gap-2">
-                      <ShieldCheck size={16} className="shrink-0" />
-                      <span>
-                        You have opted out of sharing extended family relationships. Church leadership
-                        will only see your nuclear household (Head, Spouse, Children) and cannot see
-                        brothers, sisters, aunts, or uncles.
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                      {kinshipDemo.extendedRelatives.map(rel => (
-                        <div
-                          key={rel.id}
-                          className="p-3 rounded-xl bg-white/[0.04] border border-white/10 flex flex-col justify-between gap-1"
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="text-xs font-bold text-white">
-                              {rel.relativeOptedIn ? rel.name : 'Extended Relative (Opted Out)'}
-                            </span>
-                            <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase bg-[#7A1FC0]/50 text-[#E2C27E]">
-                              {rel.relationship}
-                            </span>
-                          </div>
-                          {rel.relativeOptedIn ? (
-                            <>
-                              <div className="text-[10.5px] text-white/70">
-                                {rel.relationshipLabel}
-                              </div>
-                              <div className="text-[9.5px] text-[#D8D2E2]/60 font-mono">
-                                {rel.householdName} · {rel.department}
-                              </div>
-                            </>
-                          ) : (
-                            <div className="text-[10px] text-amber-300/80 flex items-center gap-1">
-                              <Lock size={10} />
-                              <span>
-                                This family member chose not to allow extended relationship visibility.
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Right 5 Cols: 4-Scope Family & Individual Tax Statement Generator */}
-              <div
-                className="lg:col-span-5 rounded-3xl p-6 border flex flex-col justify-between gap-5"
-                style={{
-                  background: 'rgba(24, 20, 31, 0.85)',
-                  borderColor: 'rgba(226, 194, 126, 0.3)',
-                }}
-              >
-                <div className="space-y-4">
-                  <div>
-                    <div className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-[#E2C27E]">
-                      Church Finance Department · IRS 501(c)(3) Tax Receipts
-                    </div>
-                    <h3
-                      className="text-2xl font-bold text-white"
-                      style={{ fontFamily: 'var(--font-display, "Outfit", "Space Grotesk", "Inter", sans-serif)', letterSpacing: '-0.02em' }}
-                    >
-                      Family & Individual Giving Statement Generator
-                    </h3>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10.5px] font-bold uppercase tracking-wider text-[#D8D2E2]/80 block">
-                      Select Statement Scope (Family / Spousal / Individual)
-                    </label>
-                    {(
-                      [
-                        {
-                          id: 'JOINT_HOUSEHOLD',
-                          title: '1. Joint Family Household Statement',
-                          desc: 'Combines Head of Household (Marcus), Spouse (Elena), and Dependent Children (Micah & Noelle) with itemized sub-ledgers.',
-                          amount: 12880,
-                        },
-                        {
-                          id: 'HEAD_AND_SPOUSE',
-                          title: '2. Head & Spouse Joint Statement Only',
-                          desc: 'Combines Marcus & Elena Sterling ($12,650) on a joint married filing receipt; children receive separate youth receipts.',
-                          amount: 12650,
-                        },
-                        {
-                          id: 'INDIVIDUAL',
-                          title: '3. Individual Member Tax Statement',
-                          desc: 'Generates a separate individual IRS tax statement for each family member.',
-                          amount: 8450,
-                        },
-                        {
-                          id: 'FAMILY_PACKET',
-                          title: '4. Complete Family Tax Packet',
-                          desc: 'Prints the Household Cover Summary Sheet + all 4 individual member schedules in one packet.',
-                          amount: 12880,
-                        },
-                      ] as const
-                    ).map(opt => (
-                      <button
-                        key={opt.id}
-                        onClick={() => setTaxScope(opt.id)}
-                        className={`w-full text-left p-3.5 rounded-2xl border transition-all ${
-                          taxScope === opt.id
-                            ? 'bg-[#7A1FC0]/45 border-[#E2C27E] text-white'
-                            : 'bg-white/[0.03] border-white/10 text-white/70 hover:text-white'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-xs font-bold text-white">{opt.title}</span>
-                          <span className="text-xs font-mono font-black text-[#E2C27E]">
-                            {money(opt.amount)}
-                          </span>
-                        </div>
-                        <p className="text-[10.5px] text-white/65 mt-1 leading-snug">{opt.desc}</p>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-3 pt-3 border-t border-white/10">
-                  <div className="text-[10.5px] text-white/60 leading-snug">
-                    Includes official IRS 501(c)(3) acknowledgment (“No goods or services were
-                    provided in exchange for these contributions, other than intangible religious
-                    benefits”) and church EIN.
-                  </div>
-                  <button
-                    onClick={handlePrintSampleTaxStatement}
-                    className="w-full py-3 rounded-xl text-xs font-black text-black flex items-center justify-center gap-2 hover:brightness-110 transition-all"
-                    style={{ background: '#E2C27E' }}
-                  >
-                    <Printer size={14} />
-                    <span>
-                      Generate & Print {taxScope.replace(/_/g, ' ')} Tax Statement (PDF)
-                    </span>
-                  </button>
-                </div>
-              </div>
-            </div>
           </div>
         )}
       </div>

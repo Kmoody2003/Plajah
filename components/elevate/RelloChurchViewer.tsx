@@ -3,7 +3,8 @@
 // with Auto-Mounting Lectio Mini-Bible (synced to Ambo Production Team on Live Streams
 // or Playhead Timecode + Speech Detection on Replays) and Timestamped Stream Notes.
 
-import React, { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import Hls from 'hls.js';
 import {
   Radio,
   Tv,
@@ -23,8 +24,15 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import type { Organization } from '../../types';
-import { useOrgLive, useOrgChannels, onAirItems, type OnAirItem } from '../../services/orgMedia';
-import OrgOnAirPlayer from './OrgOnAirPlayer';
+import {
+  useOrgLive,
+  useOrgChannels,
+  useLiveHubTvPlusSources,
+  onAirItems,
+  type OnAirItem,
+  type OnAirPlayback,
+} from '../../services/orgMedia';
+import { hlsTuning, capLevelsToPanel } from '../../services/hlsTuning';
 import { isDemoOrg } from '../../services/elevateTruth';
 import {
   listenToSession,
@@ -53,6 +61,10 @@ export interface ChurchStreamItem {
   viewerCount?: number;
   badgeText: string;
   videoUrl?: string;
+  playback?: OnAirPlayback;
+  isOrgOwned?: boolean;
+  channelNumber?: number;
+  onAirItem?: OnAirItem;
   thumbnailGradient: string;
   durationSec: number;
   initialPlayheadSec: number;
@@ -64,6 +76,126 @@ export interface ChurchStreamItem {
     spokenExcerpt: string;
   }>;
 }
+
+const ytId = (u: string) =>
+  (u.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|live\/)|youtu\.be\/)([\w-]{11})/) || [])[1];
+const twitchChannel = (u: string) => (u.match(/twitch\.tv\/([\w]+)/) || [])[1];
+const vimeoId = (u: string) => (u.match(/vimeo\.com\/(?:video\/)?(\d+)/) || [])[1];
+
+const buildEmbedSrc = (u: string, muted: boolean, startSec = 0): string | null => {
+  const y = ytId(u);
+  if (y) {
+    return `https://www.youtube.com/embed/${y}?autoplay=1&mute=${muted ? 1 : 0}&playsinline=1&controls=1&modestbranding=1${
+      startSec ? `&start=${Math.floor(startSec)}` : ''
+    }`;
+  }
+  const t = twitchChannel(u);
+  if (t) {
+    return `https://player.twitch.tv/?channel=${t}&parent=${location.hostname}&muted=${muted}&autoplay=true`;
+  }
+  const vm = vimeoId(u);
+  if (vm) {
+    return `https://player.vimeo.com/video/${vm}?autoplay=1&muted=${muted ? 1 : 0}`;
+  }
+  if (/youtube\.com\/embed|player\.twitch\.tv|player\.vimeo\.com|archive\.org\/embed/i.test(u)) {
+    return u;
+  }
+  return null;
+};
+
+const ReelloStageMedia: React.FC<{
+  playback?: OnAirPlayback;
+  muted: boolean;
+  playing: boolean;
+  title: string;
+}> = ({ playback, muted, playing, title }) => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v || !playback || playback.kind === 'embed') return;
+    v.muted = muted;
+    const seek = () => {
+      if (playback.offsetSec && Number.isFinite(v.duration) && playback.offsetSec < v.duration) {
+        try {
+          v.currentTime = playback.offsetSec;
+        } catch {
+          /* ignore */
+        }
+      }
+    };
+    v.addEventListener('loadedmetadata', seek, { once: true });
+    let hls: Hls | null = null;
+    if (
+      playback.kind === 'hls' &&
+      Hls.isSupported()
+    ) {
+      hls = new Hls({ ...hlsTuning(), liveSyncDurationCount: 3 });
+      hls.loadSource(playback.url);
+      hls.attachMedia(v);
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        capLevelsToPanel(hls as any);
+        if (playing) v.play().catch(() => {});
+      });
+    } else {
+      v.src = playback.url;
+      if (playing) v.play().catch(() => {});
+    }
+    return () => {
+      v.removeEventListener('loadedmetadata', seek);
+      if (hls) {
+        try {
+          hls.destroy();
+        } catch {
+          /* ignore */
+        }
+      }
+      v.removeAttribute('src');
+      v.load();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playback?.kind, playback?.url, playback?.offsetSec]);
+
+  useEffect(() => {
+    if (videoRef.current) videoRef.current.muted = muted;
+  }, [muted]);
+
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v || !playback || playback.kind === 'embed') return;
+    if (playing) v.play().catch(() => {});
+    else v.pause();
+  }, [playing, playback]);
+
+  if (!playback) return null;
+
+  if (playback.kind === 'embed') {
+    const src = buildEmbedSrc(playback.url, muted, playback.offsetSec);
+    if (!src) return null;
+    return (
+      <iframe
+        key={src}
+        src={src}
+        title={title}
+        className="absolute inset-0 w-full h-full z-0"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowFullScreen
+      />
+    );
+  }
+
+  return (
+    <video
+      ref={videoRef}
+      className="absolute inset-0 w-full h-full object-cover z-0 bg-black"
+      poster={playback.poster}
+      muted={muted}
+      autoPlay
+      playsInline
+      loop={playback.kind === 'file'}
+    />
+  );
+};
 
 interface TimestampedMemberNote {
   id: string;
@@ -141,12 +273,13 @@ export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
   viewerIsOrgMember = false,
   onOpenOnAir,
 }) => {
-  // Only the demo church shows sample channels; a real org shows only what is genuinely on air.
+  // Only the demo church shows sample channels; a real org shows its Live TV Hub feeds + LiveHub TV+ switcher.
   const demo = isDemoOrg(org);
   const liveFeeds = useOrgLive(org, viewerIsOrgMember);
   const orgChannels = useOrgChannels(org, viewerIsOrgMember);
-  // Whatever the org has on air (a live stream, or its channel in TV Live Hub+) plays here, muted.
+  const liveHubSources = useLiveHubTvPlusSources(org, liveFeeds, orgChannels);
   const onAir = useMemo(() => onAirItems(liveFeeds, orgChannels), [liveFeeds, orgChannels]);
+  const [sourceFilter, setSourceFilter] = useState<'ALL' | 'ORG_ONLY' | 'LIVEHUB_TV'>('ALL');
 
   // Subscribe to live Ambo AutoScripture & Kairos session
   const autoScripture = useSyncExternalStore(subscribeAutoScripture, getAutoScriptureState);
@@ -290,42 +423,98 @@ export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
       },
     ];
 
-    // Prepend any live Firestore feeds or org channels if present
-    const dynamicFeeds: ChurchStreamItem[] = liveFeeds.map((f, idx) => ({
-      id: `live-feed-${f.id}`,
-      title: f.title,
-      ministryChannelName: (f as any).channelName || f.ownerName || `${org.name} Live`,
-      speaker: (f as any).hostName || f.ownerName,
-      kind: 'LIVE_SANCTUARY',
-      viewerCount: (f as any).viewerCount,
-      badgeText: 'LIVE NOW',
-      videoUrl: (f as any).videoUrl || (f as any).streamUrl,
-      thumbnailGradient: defaults[0].thumbnailGradient,
+    const gradients = [
+      defaults[0].thumbnailGradient,
+      defaults[1].thumbnailGradient,
+      defaults[2].thumbnailGradient,
+      defaults[3].thumbnailGradient,
+    ];
+
+    const dynamicItems: ChurchStreamItem[] = liveHubSources.map((src, idx) => ({
+      id: src.id,
+      title: src.title,
+      ministryChannelName: src.channelName,
+      speaker: src.speaker,
+      kind: src.kind,
+      viewerCount: src.viewerCount,
+      badgeText: src.badgeText,
+      videoUrl: src.playback.url,
+      playback: src.playback,
+      isOrgOwned: src.isOrgOwned,
+      channelNumber: src.number,
+      onAirItem: {
+        key: src.id,
+        title: src.title,
+        subtitle: src.channelName,
+        playback: src.playback,
+        feed: src.feed,
+        channel: src.channel,
+      },
+      thumbnailGradient: gradients[idx % gradients.length],
       durationSec: 3600,
-      initialPlayheadSec: 0,
-      scriptureCues: demo ? defaults[0].scriptureCues : [],
+      initialPlayheadSec: src.playback.offsetSec || 0,
+      scriptureCues: defaults[0].scriptureCues,
     }));
 
-    const dynamicChannels: ChurchStreamItem[] = orgChannels.map(ch => ({
-      id: `org-channel-${ch.key}`,
-      title: ch.name,
-      ministryChannelName: ch.nowPlaying || 'Ministry TV Channel',
-      speaker: org.name,
-      kind: 'MINISTRY_TV_CHANNEL',
-      viewerCount: undefined,
-      badgeText: 'LIVE TV CHANNEL',
-      thumbnailGradient: defaults[1].thumbnailGradient,
-      durationSec: 3600,
-      initialPlayheadSec: 0,
-      scriptureCues: demo ? defaults[1].scriptureCues : [],
-    }));
+    if (demo) {
+      return [...dynamicItems, ...defaults];
+    }
 
-    return demo ? [...dynamicFeeds, ...dynamicChannels, ...defaults] : [...dynamicFeeds, ...dynamicChannels];
-  }, [liveFeeds, orgChannels, org.name, demo]);
+    if (dynamicItems.length > 0) {
+      return dynamicItems;
+    }
+
+    // Fallback standby item for the organization so the Reello Player + Verse Mini-Bible is never blank while loading
+    return [
+      {
+        ...defaults[0],
+        id: `org-standby-${org.id}`,
+        title: `${org.name} · Live Sanctuary & LiveHub TV+ Broadcast`,
+        ministryChannelName: `${org.name} · Reello & LiveHub TV+`,
+        speaker: org.name,
+        badgeText: 'STANDBY · LIVEHUB TV+',
+        isOrgOwned: true,
+      },
+    ];
+  }, [liveHubSources, org.id, org.name, demo]);
+
+  const filteredCatalog = useMemo(() => {
+    if (sourceFilter === 'ORG_ONLY') {
+      const orgItems = streamCatalog.filter(s => s.isOrgOwned);
+      return orgItems.length > 0 ? orgItems : streamCatalog;
+    }
+    if (sourceFilter === 'LIVEHUB_TV') {
+      const hubItems = streamCatalog.filter(s => !!s.playback);
+      return hubItems.length > 0 ? hubItems : streamCatalog;
+    }
+    return streamCatalog;
+  }, [streamCatalog, sourceFilter]);
 
   const [selectedStreamId, setSelectedStreamId] = useState<string>(
     () => streamCatalog[0]?.id ?? 'stream-main-sanctuary-live'
   );
+  const userPickedStreamRef = useRef(false);
+
+  // Automatically switch to the organization's real live broadcast (or first LiveHub TV+ source) as soon as it arrives!
+  useEffect(() => {
+    if (userPickedStreamRef.current && streamCatalog.some(s => s.id === selectedStreamId && s.playback)) {
+      return;
+    }
+    const orgPlayable = streamCatalog.find(s => s.isOrgOwned && s.playback);
+    if (orgPlayable && selectedStreamId !== orgPlayable.id) {
+      setSelectedStreamId(orgPlayable.id);
+      return;
+    }
+    const anyPlayable = streamCatalog.find(s => s.playback);
+    if (anyPlayable && !streamCatalog.find(s => s.id === selectedStreamId)?.playback) {
+      setSelectedStreamId(anyPlayable.id);
+      return;
+    }
+    if (!streamCatalog.some(s => s.id === selectedStreamId) && streamCatalog[0]) {
+      setSelectedStreamId(streamCatalog[0].id);
+    }
+  }, [streamCatalog, selectedStreamId]);
+
   const activeStream = useMemo(
     () => streamCatalog.find(s => s.id === selectedStreamId) ?? streamCatalog[0] ?? NOTHING_ON_AIR,
     [streamCatalog, selectedStreamId]
@@ -527,34 +716,70 @@ export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
     setLectioMiniMounted(true);
   };
 
-  if (!demo && streamCatalog.length === 0) return null;
+  const selectStreamSource = (id: string) => {
+    userPickedStreamRef.current = true;
+    setSelectedStreamId(id);
+    setPlayerExpanded(true);
+    setPlaying(true);
+  };
+
+  const orgBroadcastCount = useMemo(
+    () => streamCatalog.filter(s => s.isOrgOwned && s.playback).length,
+    [streamCatalog]
+  );
+  const liveHubPlayableCount = useMemo(
+    () => streamCatalog.filter(s => !!s.playback).length,
+    [streamCatalog]
+  );
 
   return (
     <div className="space-y-5">
-      {/* ── 1. TOP LIVE STREAM & MINISTRY TV CHANNEL CAROUSEL ── */}
+      {/* ── 1. TOP LIVE STREAM & LIVEHUB TV+ CHANNEL CAROUSEL ── */}
       <div
         className="rounded-3xl p-5 border shadow-xl"
         style={{
-          background:
-            '#18141F',
+          background: '#18141F',
           borderColor: 'rgba(255,255,255,0.06)',
         }}
       >
-        {onAir.length > 0 && (
-          <div className="mb-5">
-            <OrgOnAirPlayer items={onAir} onOpen={onOpenOnAir} />
-          </div>
-        )}
         <div className="flex items-center justify-between gap-3 flex-wrap mb-3.5">
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 flex-wrap">
             <span className="inline-flex items-center gap-2 ev-title text-lg text-white">
               <span className="ev-live-dot" />
-              {org.orgType === 'CULTURAL' || org.orgType === 'NONPROFIT' ? 'Live & on demand' : 'Watch on Reello'}
+              {org.orgType === 'CULTURAL' || org.orgType === 'NONPROFIT'
+                ? 'Live & on demand'
+                : 'Watch on Reello · LiveHub TV+'}
             </span>
-            <span className="text-[13px] text-[#A49CB2] hidden sm:inline">Keeps playing while you move between tabs</span>
+            <span className="text-[13px] text-[#A49CB2] hidden sm:inline">
+              Switch between {org.name} broadcasts &amp; LiveHub TV+ feeds with Verse Mini-Bible on the side
+            </span>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
+            {/* Source Scope Switcher Pills */}
+            <div className="flex items-center gap-1 bg-black/40 p-1 rounded-full border border-white/10">
+              {(
+                [
+                  ['ALL', `All Sources (${streamCatalog.length})`],
+                  ['ORG_ONLY', `${org.name} (${orgBroadcastCount || streamCatalog.filter(s => s.isOrgOwned).length})`],
+                  ['LIVEHUB_TV', `LiveHub TV+ (${liveHubPlayableCount})`],
+                ] as const
+              ).map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setSourceFilter(key)}
+                  className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all ${
+                    sourceFilter === key
+                      ? 'bg-[#FF8C00] text-black shadow'
+                      : 'text-white/65 hover:text-white'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
             {inSanctuaryAutoEngaged && (
               <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-400/40 text-emerald-300 text-[10.5px] font-bold">
                 <Navigation size={11} />
@@ -586,16 +811,12 @@ export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-          {streamCatalog.slice(0, 4).map(item => {
+          {filteredCatalog.slice(0, 8).map(item => {
             const isSelected = item.id === activeStream.id;
             return (
               <button
                 key={item.id}
-                onClick={() => {
-                  setSelectedStreamId(item.id);
-                  setPlayerExpanded(true);
-                  setPlaying(true);
-                }}
+                onClick={() => selectStreamSource(item.id)}
                 className={`text-left rounded-2xl p-3.5 border transition-all flex flex-col justify-between relative overflow-hidden group ${
                   isSelected && playerExpanded
                     ? 'ring-2 ring-[#E2C27E] scale-[1.01]'
@@ -609,7 +830,7 @@ export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
                 <div className="flex items-center justify-between gap-2 mb-3">
                   <span
                     className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider flex items-center gap-1 ${
-                      item.kind === 'LIVE_SANCTUARY'
+                      item.isOrgOwned
                         ? 'bg-[#D40055] text-white'
                         : item.kind === 'MINISTRY_TV_CHANNEL'
                         ? 'bg-[#7A1FC0] text-[#D8D2E2] border border-[#D8D2E2]/30'
@@ -642,7 +863,7 @@ export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
                   <div className="text-[11px] text-white/70 mt-1 flex items-center justify-between">
                     <span className="truncate">{item.speaker}</span>
                     <span className="inline-flex items-center gap-0.5 text-[#E2C27E] font-bold text-[10px] group-hover:translate-x-0.5 transition-transform">
-                      {isSelected && playerExpanded ? 'Watching' : 'Hop In'} <ChevronRight size={12} />
+                      {isSelected && playerExpanded ? 'Watching' : 'Switch Source'} <ChevronRight size={12} />
                     </span>
                   </div>
                 </div>
@@ -661,18 +882,50 @@ export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
           borderColor: 'rgba(216, 210, 226, 0.22)',
         }}
       >
-        {/* Rello Church Viewer Top Status Bar */}
+        {/* Rello Church Viewer Top Status Bar + LiveHub TV+ Source Switcher */}
         <div className="px-5 py-3 border-b border-white/10 flex items-center justify-between gap-3 flex-wrap bg-black/40">
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 flex-wrap min-w-0">
             <span className="px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest bg-[#7A1FC0] text-white border border-[#D8D2E2]/30">
               Reello Live Player
             </span>
             <span className="text-sm font-bold text-white truncate max-w-md">
               {activeStream.title}
             </span>
+            {/* Inline Source Switcher Dropdown for LiveHub TV+ & Org Feeds */}
+            {streamCatalog.length > 1 && (
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] font-black uppercase tracking-wider text-[#E2C27E] hidden sm:inline">
+                  Source:
+                </span>
+                <select
+                  aria-label="Switch Reello / LiveHub TV+ Source"
+                  value={activeStream.id}
+                  onChange={e => selectStreamSource(e.target.value)}
+                  className="h-7 rounded-lg bg-white/10 border border-white/20 text-[11px] font-bold text-white px-2.5 outline-none focus:border-[#E2C27E] max-w-[260px]"
+                >
+                  {streamCatalog.map(s => (
+                    <option key={s.id} value={s.id} className="bg-[#18141F] text-white">
+                      {s.isOrgOwned ? `★ ${org.name}: ` : 'LiveHub TV+: '}
+                      {s.title} ({s.ministryChannelName})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
+            {onOpenOnAir && activeStream.onAirItem && (
+              <button
+                type="button"
+                onClick={() => onOpenOnAir(activeStream.onAirItem!)}
+                className="px-2.5 py-1 rounded-lg text-[10.5px] font-black uppercase tracking-wider bg-[#FF8C00]/20 border border-[#FF8C00]/50 text-[#FFB35C] hover:bg-[#FF8C00]/30 flex items-center gap-1.5 transition-all"
+              >
+                <Maximize2 size={11} />
+                <span>Open in Live TV+</span>
+              </button>
+            )}
+
             <span
               className="px-2.5 py-1 rounded-full text-[10px] font-bold flex items-center gap-1.5 border"
               style={{
@@ -720,38 +973,53 @@ export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
               lectioMiniMounted ? 'lg:col-span-7' : 'lg:col-span-12'
             } p-5 flex flex-col justify-between border-b lg:border-b-0 lg:border-r border-white/10 space-y-4`}
           >
-            {/* 16:9 Sanctuary Stream Canvas */}
+            {/* 16:9 Sanctuary Stream Canvas with Real Live Video Playback */}
             <div
-              className="relative rounded-2xl overflow-hidden border border-white/15 aspect-video flex flex-col justify-between p-5"
+              className="relative rounded-2xl overflow-hidden border border-white/15 aspect-video flex flex-col justify-between p-5 bg-black"
               style={{ background: activeStream.thumbnailGradient }}
             >
+              {/* Actual LiveHub TV+ / Organization HLS, MP4, or Embed Stream Player */}
+              <ReelloStageMedia
+                playback={activeStream.playback}
+                muted={muted}
+                playing={playing}
+                title={activeStream.title}
+              />
+
               {/* Top Overlay Badges */}
-              <div className="flex items-center justify-between gap-2 z-10">
-                <div className="flex items-center gap-2">
+              <div className="flex items-center justify-between gap-2 z-10 pointer-events-none">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className="px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider bg-black/70 text-white border border-white/15 flex items-center gap-1.5">
                     <span
                       className={`w-2 h-2 rounded-full ${
                         isLiveStream ? 'bg-[#D40055] animate-ping' : 'bg-[#E2C27E]'
                       }`}
                     />
-                    {isLiveStream ? 'LIVE STREAM' : 'ON-DEMAND REPLAY'} · {formatTC(playheadSec)}
+                    {activeStream.playback ? 'ON AIR · LIVEHUB TV+' : isLiveStream ? 'LIVE STREAM' : 'ON-DEMAND REPLAY'} · {formatTC(playheadSec)}
                   </span>
                   <span className="px-2.5 py-1 rounded-md text-[10px] font-mono bg-black/60 text-[#D8D2E2] border border-white/10">
                     {activeStream.speaker}
                   </span>
                 </div>
 
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 pointer-events-auto">
                   <button
                     onClick={() => setMuted(m => !m)}
-                    className="w-8 h-8 rounded-lg bg-black/65 hover:bg-black/85 border border-white/15 flex items-center justify-center text-white"
+                    className="px-2.5 h-8 rounded-lg bg-black/70 hover:bg-black/90 border border-white/20 flex items-center gap-1.5 text-white text-[11px] font-bold"
                     title={muted ? 'Unmute stream' : 'Mute stream'}
                   >
-                    {muted ? <VolumeX size={14} /> : <Volume2 size={14} />}
+                    {muted ? (
+                      <>
+                        <VolumeX size={14} />
+                        <span>Tap to unmute</span>
+                      </>
+                    ) : (
+                      <Volume2 size={14} />
+                    )}
                   </button>
                   <button
                     onClick={() => setPlaying(p => !p)}
-                    className="w-8 h-8 rounded-lg bg-black/65 hover:bg-black/85 border border-white/15 flex items-center justify-center text-white"
+                    className="w-8 h-8 rounded-lg bg-black/70 hover:bg-black/90 border border-white/20 flex items-center justify-center text-white"
                     title={playing ? 'Pause' : 'Play'}
                   >
                     {playing ? <Pause size={14} /> : <Play size={14} />}
@@ -759,16 +1027,18 @@ export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
                 </div>
               </div>
 
-              {/* Center Sanctuary Stage Caption / Ambo Detection Callout */}
-              <div className="my-auto text-center max-w-xl mx-auto px-4 z-10">
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/65 border border-[#E2C27E]/50 text-[#F0D9A6] text-[10px] font-extrabold uppercase tracking-widest mb-2">
-                  <Sparkles size={11} />
-                  <span>{resolvedCueInfo.sourceBadge} · Auto-Mounted in Verse</span>
+              {/* Center Sanctuary Stage Caption / Ambo Detection Callout (shown when no video stream is playing or when live speech/cue is active) */}
+              {(!activeStream.playback || liveReading || kairosSession) && (
+                <div className="my-auto text-center max-w-xl mx-auto px-4 z-10 pointer-events-none">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/65 border border-[#E2C27E]/50 text-[#F0D9A6] text-[10px] font-extrabold uppercase tracking-widest mb-2">
+                    <Sparkles size={11} />
+                    <span>{resolvedCueInfo.sourceBadge} · Auto-Mounted in Verse</span>
+                  </div>
+                  <p className="text-base sm:text-lg font-serif italic text-white drop-shadow">
+                    {resolvedCueInfo.spokenExcerpt}
+                  </p>
                 </div>
-                <p className="text-base sm:text-lg font-serif italic text-white drop-shadow">
-                  {resolvedCueInfo.spokenExcerpt}
-                </p>
-              </div>
+              )}
 
               {/* Lower-Third Scripture Banner inside Stream */}
               <div className="z-10 bg-black/75 backdrop-blur-md rounded-xl p-3 border border-[#E2C27E]/40 flex items-center justify-between gap-3">

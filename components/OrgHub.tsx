@@ -59,6 +59,7 @@ const ElevateOps = lazy(() => import('./elevate/ElevateOps'));
 const ElevateRosters = lazy(() => import('./elevate/ElevateRosters'));
 const ChurchMemberHub = lazy(() => import('./elevate/ChurchMemberHub'));
 const ElevateMobilizeHub = lazy(() => import('./elevate/ElevateMobilizeHub'));
+const VolunteerMemberManageHub = lazy(() => import('./elevate/VolunteerMemberManageHub'));
 
 const ORG_TYPES: { type: OrgType; label: string; blurb: string }[] = [
   { type: 'BRAND',        label: 'Brand',        blurb: 'A label, studio, or product brand with a roster + community.' },
@@ -424,7 +425,8 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
   const elevate = isElevateOrg(org.orgType);
   const faith = isFaithOrg(org.orgType);
   const can = (p: Parameters<typeof elevateCan>[2]) => isOwner || elevateCan(myMembership, org, p);
-  const hasOps = isOwner || (['MANAGE_ROSTER', 'MANAGE_MINISTRIES', 'MANAGE_INVITES', 'MANAGE_GIVING', 'VIEW_GIVING', 'VIEW_PRAYER', 'MANAGE_SERMONS', 'MANAGE_MEDIA', 'MODERATE_THREADS', 'MANAGE_STORE', 'MANAGE_EMPLOYEES', 'POST_AS_ORG'] as const).some(p => elevateCan(myMembership, org, p));
+  const hasStaffOps = isOwner || (['MANAGE_ROSTER', 'MANAGE_MINISTRIES', 'MANAGE_INVITES', 'MANAGE_GIVING', 'VIEW_GIVING', 'MANAGE_SERMONS', 'MANAGE_MEDIA', 'MANAGE_STORE', 'MANAGE_EMPLOYEES', 'ASSIGN_ROLES'] as const).some(p => elevateCan(myMembership, org, p));
+  const hasOps = hasStaffOps || !!myMembership || !!auth.currentUser;
   const toggleFollow = async () => {
     if (!auth.currentUser) { alert('Sign in to follow.'); return; }
     try { following ? await unfollowOrg(org.id) : await followOrg(org.id); } catch (e: any) { alert(e?.message || 'Could not update follow.'); }
@@ -457,7 +459,7 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
   const MODES = [
     { k: 'public', label: faith ? 'Public page' : `Public ${(org.orgKindLabel || 'page').toLowerCase()}` },
     { k: 'member', label: 'Member home' },
-    ...(hasOps ? [{ k: 'ops', label: 'Manage & Studio' }] : []),
+    ...(hasOps ? [{ k: 'ops', label: hasStaffOps ? 'Manage & Studio' : 'Manage' }] : []),
   ];
   const modeToggle = (
     <EvModeBar
@@ -494,7 +496,11 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
         {modeToggle}
         <Suspense fallback={<div className="flex justify-center py-20"><Loader2 className="animate-spin text-white/30" size={24} /></div>}>
           <div key="ops" className="ev-fade">
-          <ElevateOps org={org} isOwner={isOwner} onClose={() => { setManaging(false); setView('public'); }} onOrgChange={setOrg} onDeleted={onDeleted} onVisitUser={onVisitUser} initialTool={initialContentHq ? 'hq' : undefined} initialSection={managing ? 'identity' : undefined} />
+          {hasStaffOps ? (
+            <ElevateOps org={org} isOwner={isOwner} onClose={() => { setManaging(false); setView('public'); }} onOrgChange={setOrg} onDeleted={onDeleted} onVisitUser={onVisitUser} initialTool={initialContentHq ? 'hq' : undefined} initialSection={managing ? 'identity' : undefined} />
+          ) : (
+            <VolunteerMemberManageHub org={org} membership={myMembership} user={auth.currentUser} onOpenGive={() => setGiving(true)} onMembershipUpdated={reloadStaff} />
+          )}
           </div>
         </Suspense>
       </EvScope>
@@ -588,7 +594,7 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
         {/* Always-on window: a live stream or the org's TV Live Hub+ channel plays here, muted. */}
         <RelloChurchViewer
           org={org}
-          defaultPlayerExpanded={false}
+          defaultPlayerExpanded={true}
           viewerIsOrgMember={myMembership?.status === 'ACTIVE'}
           onOpenOnAir={item => {
             if (item.feed) {

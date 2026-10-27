@@ -160,7 +160,7 @@ const ChurchDemoView: React.FC<{ onBack?: () => void; onCreate: () => void; onVi
 
       <div className="max-w-[1240px] mx-auto px-4 sm:px-8 py-10 space-y-10">
         {/* Persistent Live Stream & Ministry TV Channel Thumbnail Carousel right under the tabs */}
-        <RelloChurchViewer org={c} defaultPlayerExpanded={false} />
+        <RelloChurchViewer org={c} defaultPlayerExpanded={true} />
 
         <div key={ministryId || tab} className="ev-fade space-y-10">
         {/* ── Ministry detail (drill-down) ── */}

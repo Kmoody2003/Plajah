@@ -8,9 +8,10 @@ import ContentAssetManager from './ContentAssetManager';
 import { Album } from '../types';
 import {
   listHqAssets, addHqAsset, deleteHqAsset, humanFileSize,
-  getOrgDepartmentFolders, GREAT_FAITH_MINISTRIES_NAME,
+  getOrgDepartmentFolders, GREAT_FAITH_MINISTRIES_NAME, GREAT_FAITH_MINISTRIES_DEFAULT_ID,
   type OrgAsset, type OwnerScope,
 } from '../services/orgAssets';
+import { ensureAllDetectedLinksOnboarded } from '../services/curriculumIngestionService';
 import { restoreHqAsset, trashHqAsset } from '../services/hqCollaboration';
 import HqReviewPanel from './HqReviewPanel';
 import { fetchMySubscription } from '../services/subscriptionService';
@@ -118,7 +119,12 @@ export const HqFilesTab: React.FC<{
 
   const load = async () => {
     setLoading(true);
-    try { setAssets(await listHqAssets(scope)); } catch { /* rules / offline */ }
+    try {
+      await ensureAllDetectedLinksOnboarded(
+        scope.kind === 'org' ? scope.id : GREAT_FAITH_MINISTRIES_DEFAULT_ID
+      ).catch(() => {});
+      setAssets(await listHqAssets(scope));
+    } catch { /* rules / offline */ }
     setLoading(false);
   };
   const loadTrash = async () => {
@@ -156,26 +162,21 @@ export const HqFilesTab: React.FC<{
     }).catch(() => setProEnabled(false));
   }, [scope.kind, scope.id]);
 
-  // Department folder scopes for organization accounts (Great Faith Ministries)
+  // Department folder scopes for organization accounts (Great Faith Ministries & Christian Education)
   const departmentFolders = useMemo(() => {
-    if (scope.kind !== 'org') return [];
     return getOrgDepartmentFolders();
-  }, [scope.kind]);
+  }, []);
 
   const folders = useMemo(() => {
     const set = new Set<string>();
-    if (scope.kind === 'org') {
-      departmentFolders.forEach((d) => set.add(d.folderName));
-    }
+    departmentFolders.forEach((d) => set.add(d.folderName));
     assets.forEach((a) => { if (a.folder) set.add(a.folder); });
-    const ordered = scope.kind === 'org'
-      ? [
-          ...departmentFolders.map((d) => d.folderName),
-          ...Array.from(set).filter((f) => !departmentFolders.some((d) => d.folderName === f)).sort(),
-        ]
-      : Array.from(set).sort();
+    const ordered = [
+      ...departmentFolders.map((d) => d.folderName),
+      ...Array.from(set).filter((f) => !departmentFolders.some((d) => d.folderName === f)).sort(),
+    ];
     return ['ALL', ...ordered];
-  }, [assets, scope.kind, departmentFolders]);
+  }, [assets, departmentFolders]);
 
   const folderCounts = useMemo(() => {
     const counts: Record<string, number> = { ALL: assets.length };
@@ -242,8 +243,8 @@ export const HqFilesTab: React.FC<{
 
   return (
     <div className="h-full min-h-0 flex flex-col">
-      {/* Department Folder Scope Bar for Organization Assets Management (Great Faith Ministries) */}
-      {scope.kind === 'org' && (
+      {/* Department Folder Scope Bar for Organization Assets Management (Great Faith Ministries & Christian Education) */}
+      {departmentFolders.length > 0 && (
         <div className="mb-3 p-3 rounded-2xl bg-white/[0.03] border border-white/10">
           <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
             <div className="flex items-center gap-2">
@@ -251,7 +252,7 @@ export const HqFilesTab: React.FC<{
                 {scope.label || GREAT_FAITH_MINISTRIES_NAME} · Department Folder Scopes
               </span>
               <span className="text-[10px] text-white/40">
-                Select a department folder scope to manage its Original &amp; Interactive Tela Documents
+                Select a department folder scope (e.g. Christian Education) to manage Original Source, Interactive Tela &amp; Answer Keys
               </span>
             </div>
             <div className="flex items-center gap-1">
@@ -309,7 +310,7 @@ export const HqFilesTab: React.FC<{
                       : 'bg-white/5 text-white/55 border-transparent hover:text-white hover:bg-white/10'
                   }`}
                 >
-                  <span>{dept.icon}</span>
+                  <span>{dept.iconEmoji}</span>
                   <span>{dept.folderName}</span>
                   {count > 0 && (
                     <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-black/30 text-white font-black">

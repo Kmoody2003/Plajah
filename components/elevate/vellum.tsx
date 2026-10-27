@@ -188,7 +188,7 @@ export const EvModeBar: React.FC<{
   </div>
 );
 
-/** Org hero: wordmark, display tagline, gatherings and actions, then a wide photograph. */
+/** Org hero: full-bleed top-of-page cover photograph that fades into the background at the bottom, with wordmark, display tagline, gatherings and actions overlaid. */
 export const EvHero: React.FC<{
   name: string;
   logoUrl?: string;
@@ -203,62 +203,116 @@ export const EvHero: React.FC<{
   uploadingCover?: boolean;
   uploadingLogo?: boolean;
 }> = ({ name, logoUrl, tagline, intro, meta, times, actions, coverUrl, onUploadCover, onUploadLogo, uploadingCover, uploadingLogo }) => (
-  <section className="max-w-[1240px] mx-auto px-4 sm:px-8 pt-10 sm:pt-14">
-    <div className="flex items-center gap-3 mb-8 ev-rise">
-      {onUploadLogo ? (
-        <label className="relative w-11 h-11 rounded-xl overflow-hidden cursor-pointer group shrink-0 border border-white/15" style={{ background: EV.panel }} title="Change organization logo">
-          {logoUrl
-            ? <img src={logoUrl} alt="" className="w-full h-full object-cover" />
-            : <span className="w-full h-full grid place-items-center ev-title text-lg" style={{ color: EV.gold }}>{name.slice(0, 1)}</span>}
-          <span className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-[10px] font-bold text-white transition-opacity">
-            {uploadingLogo ? '…' : 'Edit'}
-          </span>
-          <input type="file" accept="image/*" className="hidden" disabled={uploadingLogo} onChange={e => { const f = e.target.files?.[0]; if (f) onUploadLogo(f); e.target.value = ''; }} />
-        </label>
-      ) : logoUrl ? (
-        <img src={logoUrl} alt="" className="w-10 h-10 rounded-xl object-cover" />
+  <section className="relative w-full overflow-hidden min-h-[480px] sm:min-h-[600px] flex flex-col justify-end pt-20 sm:pt-28 pb-10 sm:pb-14">
+    {/* Full-bleed background cover image across the entire top of the page */}
+    <div className="absolute inset-0 z-0 pointer-events-none select-none">
+      {coverUrl ? (
+        <img
+          src={coverUrl}
+          alt=""
+          className="ev-hero-photo w-full h-full object-cover object-center"
+        />
       ) : (
-        <span className="w-10 h-10 rounded-xl grid place-items-center ev-title text-lg" style={{ background: EV.panel, color: EV.gold }}>{name.slice(0, 1)}</span>
+        <div
+          className="w-full h-full"
+          style={{
+            background:
+              'radial-gradient(ellipse 90% 70% at 50% 15%, rgba(107,0,153,0.38) 0%, rgba(212,0,85,0.20) 48%, rgba(14,12,19,1) 100%)',
+          }}
+        />
       )}
-      <span className="ev-title text-xl text-white" style={{ fontWeight: 700, letterSpacing: '-0.03em' }}>{name}</span>
-      {meta && <span className="text-sm text-[#A49CB2] hidden sm:inline">{meta}</span>}
+      {/* Cinematic readability scrim + seamless bottom fade into EV.chrome (#0E0C13) */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            'linear-gradient(180deg, rgba(14,12,19,0.28) 0%, rgba(14,12,19,0.46) 42%, rgba(14,12,19,0.86) 78%, #0E0C13 100%)',
+        }}
+      />
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            'linear-gradient(90deg, rgba(14,12,19,0.72) 0%, rgba(14,12,19,0.32) 55%, rgba(14,12,19,0.52) 100%)',
+        }}
+      />
     </div>
-    <div className="flex flex-wrap items-end gap-x-12 gap-y-8">
-      <h1 className="ev-display text-white m-0 ev-rise" style={{ flex: '999 1 560px', minWidth: 0, fontSize: 'clamp(3rem, 8vw, 7.5rem)', ['--ev-delay' as any]: '80ms' }}>{tagline}</h1>
-      <div className="flex flex-col gap-5 pb-2 ev-rise" style={{ flex: '1 1 300px', minWidth: 0, ['--ev-delay' as any]: '220ms' }}>
-        {intro && <p className="m-0 text-[17px] leading-relaxed text-[#D8D2E2]">{intro}</p>}
-        {times && times.length > 0 && (
-          <div className="grid gap-x-5 gap-y-2 items-baseline" style={{ gridTemplateColumns: 'auto minmax(0,1fr)' }}>
-            {times.map(t => (
-              <React.Fragment key={t.id}>
-                <span className="ev-num text-lg text-white">{t.day ? `${t.day} ${t.time}` : t.time}</span>
-                <span className="text-sm text-[#A49CB2]">{t.label}</span>
-              </React.Fragment>
-            ))}
-          </div>
-        )}
-        {actions && <div className="flex flex-wrap gap-2.5">{actions}</div>}
-      </div>
-    </div>
-    {(coverUrl || onUploadCover) && (
-      <div className="relative mt-12 rounded-[20px] overflow-hidden ev-zoom group" style={{ background: EV.panel }}>
-        {coverUrl ? (
-          <img src={coverUrl} alt="" className="ev-hero-photo w-full h-[260px] sm:h-[420px] object-cover" />
-        ) : (
-          <div className="w-full h-[220px] sm:h-[320px] flex flex-col items-center justify-center gap-2 text-center p-6" style={{ background: 'linear-gradient(135deg, rgba(107,0,153,0.22) 0%, rgba(212,0,85,0.14) 55%, rgba(24,20,31,0.95) 100%)' }}>
-            <span className="ev-title text-lg text-white">Add a hero cover image for {name}</span>
-            <span className="text-xs text-[#A49CB2]">Recommended wide landscape image (1600×680 or higher)</span>
-          </div>
-        )}
-        {onUploadCover && (
-          <label className="absolute top-4 right-4 z-10 cursor-pointer px-4 py-2 rounded-full text-xs font-bold text-white flex items-center gap-2 shadow-xl transition-all hover:brightness-110"
-            style={{ background: 'rgba(14,12,19,0.82)', border: '1px solid rgba(255,255,255,0.18)', backdropFilter: 'blur(12px)' }}>
-            <span>{uploadingCover ? 'Uploading cover…' : coverUrl ? '📷 Change Cover Image' : '📷 Upload Cover Image'}</span>
-            <input type="file" accept="image/*" className="hidden" disabled={uploadingCover} onChange={e => { const f = e.target.files?.[0]; if (f) onUploadCover(f); e.target.value = ''; }} />
-          </label>
-        )}
-      </div>
+
+    {/* Change / Upload Cover Image button anchored in top-right of the full-bleed hero */}
+    {onUploadCover && (
+      <label
+        className="absolute top-5 right-4 sm:top-6 sm:right-8 z-20 cursor-pointer px-4 py-2 rounded-full text-xs font-bold text-white flex items-center gap-2 shadow-xl transition-all hover:brightness-110"
+        style={{
+          background: 'rgba(14,12,19,0.78)',
+          border: '1px solid rgba(255,255,255,0.2)',
+          backdropFilter: 'blur(12px)',
+        }}
+      >
+        <span>{uploadingCover ? 'Uploading cover…' : coverUrl ? '📷 Change Cover Image' : '📷 Upload Cover Image'}</span>
+        <input
+          type="file"
+          accept="image/*"
+          className="hidden"
+          disabled={uploadingCover}
+          onChange={e => {
+            const f = e.target.files?.[0];
+            if (f) onUploadCover(f);
+            e.target.value = '';
+          }}
+        />
+      </label>
     )}
+
+    {/* Foreground Hero Content */}
+    <div className="relative z-10 w-full max-w-[1240px] mx-auto px-4 sm:px-8">
+      <div className="flex items-center gap-3 mb-6 sm:mb-8 ev-rise">
+        {onUploadLogo ? (
+          <label className="relative w-11 h-11 rounded-xl overflow-hidden cursor-pointer group shrink-0 border border-white/20 shadow-lg" style={{ background: EV.panel }} title="Change organization logo">
+            {logoUrl
+              ? <img src={logoUrl} alt="" className="w-full h-full object-cover" />
+              : <span className="w-full h-full grid place-items-center ev-title text-lg" style={{ color: EV.gold }}>{name.slice(0, 1)}</span>}
+            <span className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-[10px] font-bold text-white transition-opacity">
+              {uploadingLogo ? '…' : 'Edit'}
+            </span>
+            <input type="file" accept="image/*" className="hidden" disabled={uploadingLogo} onChange={e => { const f = e.target.files?.[0]; if (f) onUploadLogo(f); e.target.value = ''; }} />
+          </label>
+        ) : logoUrl ? (
+          <img src={logoUrl} alt="" className="w-10 h-10 rounded-xl object-cover shadow-lg" />
+        ) : (
+          <span className="w-10 h-10 rounded-xl grid place-items-center ev-title text-lg shadow-lg" style={{ background: EV.panel, color: EV.gold }}>{name.slice(0, 1)}</span>
+        )}
+        <span className="ev-title text-xl text-white drop-shadow" style={{ fontWeight: 700, letterSpacing: '-0.03em' }}>{name}</span>
+        {meta && <span className="text-sm text-[#D8D2E2]/85 hidden sm:inline drop-shadow">{meta}</span>}
+      </div>
+      <div className="flex flex-wrap items-end gap-x-12 gap-y-8">
+        <h1
+          className="ev-display text-white m-0 ev-rise"
+          style={{
+            flex: '999 1 560px',
+            minWidth: 0,
+            fontSize: 'clamp(3rem, 8vw, 7.5rem)',
+            textShadow: '0 10px 36px rgba(0,0,0,0.65)',
+            ['--ev-delay' as any]: '80ms',
+          }}
+        >
+          {tagline}
+        </h1>
+        <div className="flex flex-col gap-5 pb-2 ev-rise" style={{ flex: '1 1 300px', minWidth: 0, ['--ev-delay' as any]: '220ms' }}>
+          {intro && <p className="m-0 text-[17px] leading-relaxed text-[#F2EEF6] drop-shadow">{intro}</p>}
+          {times && times.length > 0 && (
+            <div className="grid gap-x-5 gap-y-2 items-baseline" style={{ gridTemplateColumns: 'auto minmax(0,1fr)' }}>
+              {times.map(t => (
+                <React.Fragment key={t.id}>
+                  <span className="ev-num text-lg text-white drop-shadow">{t.day ? `${t.day} ${t.time}` : t.time}</span>
+                  <span className="text-sm text-[#D8D2E2] drop-shadow">{t.label}</span>
+                </React.Fragment>
+              ))}
+            </div>
+          )}
+          {actions && <div className="flex flex-wrap gap-2.5">{actions}</div>}
+        </div>
+      </div>
+    </div>
   </section>
 );
 
@@ -269,7 +323,7 @@ export const EvTabs: React.FC<{
   onChange: (k: string) => void;
   top?: number;
 }> = ({ tabs, value, onChange, top = 0 }) => (
-  <div className="sticky z-30 border-b mt-10" style={{ top, background: 'rgba(14,12,19,0.92)', borderColor: EV.line, backdropFilter: 'blur(16px)' }}>
+  <div className="sticky z-30 border-b mt-0" style={{ top, background: 'rgba(14,12,19,0.92)', borderColor: EV.line, backdropFilter: 'blur(16px)' }}>
     <nav aria-label="Sections" className="max-w-[1240px] mx-auto px-4 sm:px-8 flex gap-6 overflow-x-auto scrollbar-hide">
       {tabs.map(t => (
         <button key={t.k} onClick={() => onChange(t.k)} className="ev-tab" aria-current={value === t.k ? 'page' : undefined}>{t.label}</button>

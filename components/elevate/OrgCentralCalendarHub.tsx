@@ -55,12 +55,15 @@ import {
 } from '../../services/postman/calendarTime';
 import {
   assignSubstituteToOrgEvent,
+  canViewerSeeOrgCalendarEvent,
   deleteOrgCalendarEvent,
   detectOrgCalendarConflicts,
+  isViewerDepartmentLeader,
   loadOrgCentralCalendarSnapshot,
   newOrgCalendarEventId,
   quickAddOrgCalendarEvent,
   rankSubstituteCandidates,
+  resolveOrgEventVisibility,
   saveOrgCalendarEvent,
   type ExpandedOrgEvent,
   type OrgCalendarConflict,
@@ -68,9 +71,10 @@ import {
   type OrgCalendarParticipant,
   type OrgCentralCalendarSnapshot,
   type OrgEventCategory,
+  type OrgEventVisibility,
   type SubstituteSuggestion,
 } from '../../services/orgCentralCalendarService';
-import { ELEVATE_ROLES, elevateCan, getElevateRole } from '../../services/elevateRoles';
+import { ELEVATE_ROLES, elevateCan, getElevateRole, memberDepartmentIds } from '../../services/elevateRoles';
 
 export interface OrgCentralCalendarHubProps {
   org: Organization;
@@ -152,6 +156,7 @@ export const OrgCentralCalendarHub: React.FC<OrgCentralCalendarHubProps> = ({
   const [deptFilter, setDeptFilter] = useState<string>(initialDepartmentId);
   const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
   const [personFilter, setPersonFilter] = useState<string>('ALL');
+  const [visibilityFilter, setVisibilityFilter] = useState<'ALL_ALLOWED' | 'PUBLIC' | 'DEPARTMENT_ONLY'>('ALL_ALLOWED');
 
   // Postman Natural-Language Quick-Add bar
   const [quickText, setQuickText] = useState('');
@@ -159,6 +164,7 @@ export const OrgCentralCalendarHub: React.FC<OrgCentralCalendarHubProps> = ({
     initialDepartmentId !== 'ALL' ? initialDepartmentId : org.ministries?.[0]?.id || '',
   );
   const [quickCategory, setQuickCategory] = useState<OrgEventCategory>('CHRISTIAN_ED_CLASS');
+  const [quickVisibility, setQuickVisibility] = useState<OrgEventVisibility>('DEPARTMENT_ONLY');
 
   // Structured Create / Edit Event Modal
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -167,6 +173,7 @@ export const OrgCentralCalendarHub: React.FC<OrgCentralCalendarHubProps> = ({
   const [draftStartTime, setDraftStartTime] = useState('10:00');
   const [draftEndTime, setDraftEndTime] = useState('11:30');
   const [draftCategory, setDraftCategory] = useState<OrgEventCategory>('CHRISTIAN_ED_CLASS');
+  const [draftVisibility, setDraftVisibility] = useState<OrgEventVisibility>('DEPARTMENT_ONLY');
   const [draftDeptId, setDraftDeptId] = useState<string>(
     initialDepartmentId !== 'ALL' ? initialDepartmentId : org.ministries?.[0]?.id || '',
   );
@@ -183,12 +190,24 @@ export const OrgCentralCalendarHub: React.FC<OrgCentralCalendarHubProps> = ({
   const [inspectedOccurrence, setInspectedOccurrence] = useState<ExpandedOrgEvent | null>(null);
   const [subTargetPersonKey, setSubTargetPersonKey] = useState<string | undefined>(undefined);
 
+  // Sub Radar is strictly for Department Leaders (Department Head, Department Admin, Ministry Lead) and Staff/Leadership — never publicly shown.
+  const isDepartmentLeader = useMemo(
+    () => isViewerDepartmentLeader(myMembership, org),
+    [myMembership, org],
+  );
+
+  // Departments this viewer belongs to (used to scope the Department filter for non-staff members)
+  const viewerDeptIds = useMemo(
+    () => new Set(memberDepartmentIds(myMembership, org)),
+    [myMembership, org],
+  );
+
   const canSchedule =
+    isDepartmentLeader ||
     elevateCan(myMembership, org, 'POST_AS_ORG') ||
     elevateCan(myMembership, org, 'MANAGE_CONTENT') ||
     elevateCan(myMembership, org, 'MANAGE_MINISTRIES') ||
-    elevateCan(myMembership, org, 'MANAGE_ROSTER') ||
-    Boolean(myMembership);
+    elevateCan(myMembership, org, 'MANAGE_ROSTER');
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -236,6 +255,12 @@ export const OrgCentralCalendarHub: React.FC<OrgCentralCalendarHubProps> = ({
 
   const filteredOccurrences = useMemo(() => {
     return engineResult.occurrences.filter(occ => {
+      // Strictly enforce public vs department-only schedule visibility!
+      if (!canViewerSeeOrgCalendarEvent(occ, myMembership, org)) return false;
+      const effVis = resolveOrgEventVisibility(occ);
+      if (visibilityFilter === 'PUBLIC' && effVis !== 'PUBLIC') return false;
+      if (visibilityFilter === 'DEPARTMENT_ONLY' && effVis !== 'DEPARTMENT_ONLY') return false;
+
       if (deptFilter !== 'ALL' && occ.ministryId !== deptFilter) return false;
       if (categoryFilter !== 'ALL' && occ.eventCategory !== categoryFilter) return false;
       if (
@@ -246,10 +271,17 @@ export const OrgCentralCalendarHub: React.FC<OrgCentralCalendarHubProps> = ({
       }
       return true;
     });
-  }, [engineResult.occurrences, deptFilter, categoryFilter, personFilter]);
+  }, [engineResult.occurrences, myMembership, org, visibilityFilter, deptFilter, categoryFilter, personFilter]);
 
   const filteredConflicts = useMemo(() => {
+    if (!isDepartmentLeader) return [];
     return engineResult.conflicts.filter(c => {
+      if (
+        !canViewerSeeOrgCalendarEvent(c.eventA, myMembership, org) &&
+        (!c.eventB || !canViewerSeeOrgCalendarEvent(c.eventB, myMembership, org))
+      ) {
+        return false;
+      }
       if (deptFilter !== 'ALL') {
         const matchA = c.eventA.ministryId === deptFilter;
         const matchB = c.eventB?.ministryId === deptFilter;
@@ -258,7 +290,7 @@ export const OrgCentralCalendarHub: React.FC<OrgCentralCalendarHubProps> = ({
       if (personFilter !== 'ALL' && c.personKey !== personFilter) return false;
       return true;
     });
-  }, [engineResult.conflicts, deptFilter, personFilter]);
+  }, [engineResult.conflicts, isDepartmentLeader, myMembership, org, deptFilter, personFilter]);
 
   // Quick-add live preview from Postman's `parseQuickAdd`
   const quickPreview = useMemo(() => {
@@ -275,11 +307,12 @@ export const OrgCentralCalendarHub: React.FC<OrgCentralCalendarHubProps> = ({
       const created = await quickAddOrgCalendarEvent(org, quickText.trim(), {
         ministryId: dept?.id,
         eventCategory: quickCategory,
+        visibility: quickVisibility,
         requiredRoleKey: quickCategory === 'CHRISTIAN_ED_CLASS' ? 'INSTRUCTOR' : 'DEPARTMENT_VOLUNTEER',
       });
       if (created) {
         setQuickText('');
-        setToast(`Added "${created.title}" to the Central Calendar.`);
+        setToast(`Added "${created.title}" (${created.visibility === 'PUBLIC' ? 'Public Event' : 'Department-Only Schedule'}) to the Central Calendar.`);
         await refresh();
       }
     } catch (err: any) {
@@ -337,6 +370,7 @@ export const OrgCentralCalendarHub: React.FC<OrgCentralCalendarHubProps> = ({
         kindLabel: `${dept?.name ? `${dept.name} · ` : ''}${CATEGORY_META[draftCategory].label}`,
         eventCategory: draftCategory,
         originSource: 'ORG_CENTRAL_CALENDAR',
+        visibility: draftVisibility,
         ministryId: dept?.id,
         ministryName: dept?.name,
         roomName: draftRoomName.trim() || undefined,
@@ -446,33 +480,46 @@ export const OrgCentralCalendarHub: React.FC<OrgCentralCalendarHubProps> = ({
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-amber-500/15 text-amber-300 border border-amber-400/30">
                 <CalendarIcon size={12} /> Postman Central Calendar Engine
               </span>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-emerald-500/15 text-emerald-300 border border-emerald-400/30">
-                <Sparkles size={12} /> Multi-Dept Conflict &amp; Sub AI
-              </span>
-              {filteredConflicts.length > 0 ? (
-                <button
-                  onClick={() => setViewMode('conflicts')}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-rose-500/20 text-rose-200 border border-rose-400/40 animate-pulse"
-                >
-                  <AlertTriangle size={12} /> {filteredConflicts.length} Active Timing{' '}
-                  {filteredConflicts.length === 1 ? 'Conflict' : 'Conflicts'}
-                </button>
-              ) : (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-white/5 text-white/60 border border-white/10">
-                  <CheckCircle2 size={12} className="text-emerald-400" /> Zero Schedule Clashes
-                </span>
+              {isDepartmentLeader && (
+                <>
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-emerald-500/15 text-emerald-300 border border-emerald-400/30">
+                    <Sparkles size={12} /> Dept Leader Sub Radar &amp; Conflict AI
+                  </span>
+                  {filteredConflicts.length > 0 ? (
+                    <button
+                      onClick={() => setViewMode('conflicts')}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-rose-500/20 text-rose-200 border border-rose-400/40 animate-pulse"
+                    >
+                      <AlertTriangle size={12} /> {filteredConflicts.length} Active Timing{' '}
+                      {filteredConflicts.length === 1 ? 'Conflict' : 'Conflicts'}
+                    </button>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-white/5 text-white/60 border border-white/10">
+                      <CheckCircle2 size={12} className="text-emerald-400" /> Zero Schedule Clashes
+                    </span>
+                  )}
+                </>
               )}
             </div>
             <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white">
               {org.name} — Central Organization Calendar
             </h2>
             <p className="text-xs text-white/60 max-w-3xl">
-              Single point of truth built on the Post Man calendar engine. Aggregates all Department
-              schedules, Christian Education classes (Non-Credentialed{' '}
-              <span className="text-emerald-300 font-semibold">Instructors</span> &amp;{' '}
-              <span className="text-sky-300 font-semibold">Department Volunteers</span>), ChMS
-              shifts, Mobilize drives, and Facility bookings — detecting cross-department person
-              overlaps and ranking weighted substitutes automatically.
+              {isDepartmentLeader ? (
+                <>
+                  Single point of truth built on the Post Man calendar engine. Aggregates Public Events and Department-Only schedules, Christian Education classes (Non-Credentialed{' '}
+                  <span className="text-emerald-300 font-semibold">Instructors</span> &amp;{' '}
+                  <span className="text-sky-300 font-semibold">Department Volunteers</span>), ChMS shifts, and Facility bookings — with Department Leader Sub Radar.
+                </>
+              ) : myMembership ? (
+                <>
+                  Showing Public Events for {org.name} and the Department Schedules for the departments and groups you belong to.
+                </>
+              ) : (
+                <>
+                  Showing Public Events and Gatherings for {org.name}.
+                </>
+              )}
             </p>
           </div>
 
@@ -554,6 +601,14 @@ export const OrgCentralCalendarHub: React.FC<OrgCentralCalendarHubProps> = ({
                   </option>
                 ))}
               </select>
+              <select
+                value={quickVisibility}
+                onChange={e => setQuickVisibility(e.target.value as OrgEventVisibility)}
+                className="bg-black/50 border border-white/15 rounded-xl px-3 py-2 text-xs text-white"
+              >
+                <option value="DEPARTMENT_ONLY">🔒 Dept-Only Schedule</option>
+                <option value="PUBLIC">🌐 Public Event</option>
+              </select>
               <button
                 type="submit"
                 disabled={!quickText.trim() || busyAction === 'quick-add'}
@@ -596,12 +651,14 @@ export const OrgCentralCalendarHub: React.FC<OrgCentralCalendarHubProps> = ({
               ['month', 'Month Grid'],
               ['week', 'Week View'],
               ['agenda', 'Unified Agenda'],
-              ['conflicts', `Conflict & Sub Radar (${filteredConflicts.length})`],
+              ...(isDepartmentLeader
+                ? ([['conflicts', `Sub Radar & Conflicts (${filteredConflicts.length})`]] as const)
+                : []),
             ] as const
           ).map(([mode, label]) => (
             <button
               key={mode}
-              onClick={() => setViewMode(mode)}
+              onClick={() => setViewMode(mode as ViewMode)}
               className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
                 viewMode === mode
                   ? mode === 'conflicts'
@@ -657,16 +714,36 @@ export const OrgCentralCalendarHub: React.FC<OrgCentralCalendarHubProps> = ({
         <div className="flex items-center gap-2 flex-wrap">
           <Filter size={13} className="text-white/40" />
           <select
+            value={visibilityFilter}
+            onChange={e => setVisibilityFilter(e.target.value as any)}
+            className="bg-black/50 border border-white/15 rounded-xl px-2.5 py-1.5 text-xs text-white"
+          >
+            <option value="ALL_ALLOWED">
+              {myMembership ? 'Public + My Dept Schedules' : 'Public Events Only'}
+            </option>
+            <option value="PUBLIC">🌐 Public Events Only</option>
+            {myMembership && (
+              <option value="DEPARTMENT_ONLY">🔒 My Department Schedules Only</option>
+            )}
+          </select>
+
+          <select
             value={deptFilter}
             onChange={e => setDeptFilter(e.target.value)}
             className="bg-black/50 border border-white/15 rounded-xl px-2.5 py-1.5 text-xs text-white"
           >
-            <option value="ALL">All Departments ({(org.ministries || []).length})</option>
-            {(org.ministries || []).map(m => (
-              <option key={m.id} value={m.id}>
-                {m.name}
-              </option>
-            ))}
+            <option value="ALL">
+              {isDepartmentLeader
+                ? `All Departments (${(org.ministries || []).length})`
+                : 'My Departments & Public'}
+            </option>
+            {(org.ministries || [])
+              .filter(m => isDepartmentLeader || viewerDeptIds.size === 0 || viewerDeptIds.has(m.id))
+              .map(m => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
+              ))}
           </select>
 
           <select
@@ -682,18 +759,20 @@ export const OrgCentralCalendarHub: React.FC<OrgCentralCalendarHubProps> = ({
             ))}
           </select>
 
-          <select
-            value={personFilter}
-            onChange={e => setPersonFilter(e.target.value)}
-            className="bg-black/50 border border-white/15 rounded-xl px-2.5 py-1.5 text-xs text-white max-w-[200px]"
-          >
-            <option value="ALL">All People ({snapshot?.directory.list.length || 0})</option>
-            {(snapshot?.directory.list || []).map(p => (
-              <option key={p.personKey} value={p.personKey}>
-                {p.name} ({p.roleLabels.join(', ')})
-              </option>
-            ))}
-          </select>
+          {isDepartmentLeader && (
+            <select
+              value={personFilter}
+              onChange={e => setPersonFilter(e.target.value)}
+              className="bg-black/50 border border-white/15 rounded-xl px-2.5 py-1.5 text-xs text-white max-w-[200px]"
+            >
+              <option value="ALL">All People ({snapshot?.directory.list.length || 0})</option>
+              {(snapshot?.directory.list || []).map(p => (
+                <option key={p.personKey} value={p.personKey}>
+                  {p.name} ({p.roleLabels.join(', ')})
+                </option>
+              ))}
+            </select>
+          )}
         </div>
       </div>
 
@@ -1155,7 +1234,7 @@ export const OrgCentralCalendarHub: React.FC<OrgCentralCalendarHubProps> = ({
                     }}
                     className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-amber-300"
                   >
-                    Inspect / Find Sub
+                    {isDepartmentLeader ? 'Inspect / Find Sub' : 'Event Details'}
                   </button>
                 </div>
               );
@@ -1170,16 +1249,23 @@ export const OrgCentralCalendarHub: React.FC<OrgCentralCalendarHubProps> = ({
           <div className="w-full max-w-2xl rounded-3xl border border-white/15 bg-[#12131a] p-6 space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <span
-                  className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${
-                    CATEGORY_META[inspectedOccurrence.eventCategory]?.badgeClass
-                  }`}
-                >
-                  {inspectedOccurrence.ministryName
-                    ? `${inspectedOccurrence.ministryName} · `
-                    : ''}
-                  {CATEGORY_META[inspectedOccurrence.eventCategory]?.label}
-                </span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span
+                    className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${
+                      CATEGORY_META[inspectedOccurrence.eventCategory]?.badgeClass
+                    }`}
+                  >
+                    {inspectedOccurrence.ministryName
+                      ? `${inspectedOccurrence.ministryName} · `
+                      : ''}
+                    {CATEGORY_META[inspectedOccurrence.eventCategory]?.label}
+                  </span>
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-white/10 text-white/80">
+                    {resolveOrgEventVisibility(inspectedOccurrence) === 'PUBLIC'
+                      ? '🌐 Public Event'
+                      : '🔒 Department-Only Schedule'}
+                  </span>
+                </div>
                 <h3 className="text-lg font-black text-white mt-1">
                   {inspectedOccurrence.title}
                 </h3>
@@ -1205,20 +1291,25 @@ export const OrgCentralCalendarHub: React.FC<OrgCentralCalendarHubProps> = ({
             {/* Current Assigned Team */}
             <div className="rounded-2xl border border-white/10 bg-black/40 p-3.5 space-y-2">
               <p className="text-[10px] font-black uppercase tracking-widest text-white/45">
-                Scheduled Team (Select a person to replace, or leave blank to add a sub)
+                {isDepartmentLeader
+                  ? 'Scheduled Team (Select a person to replace, or leave blank to add a sub)'
+                  : 'Scheduled Department Team'}
               </p>
               {inspectedOccurrence.participants.length === 0 ? (
                 <p className="text-xs text-white/45">No team members assigned yet.</p>
               ) : (
                 <div className="flex flex-wrap gap-1.5">
                   {inspectedOccurrence.participants.map(p => {
-                    const selected = subTargetPersonKey === p.personKey;
+                    const selected = isDepartmentLeader && subTargetPersonKey === p.personKey;
                     return (
                       <button
                         key={p.personKey}
-                        onClick={() =>
-                          setSubTargetPersonKey(selected ? undefined : p.personKey)
-                        }
+                        type="button"
+                        onClick={() => {
+                          if (isDepartmentLeader) {
+                            setSubTargetPersonKey(selected ? undefined : p.personKey);
+                          }
+                        }}
                         className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
                           selected
                             ? 'bg-amber-400 text-black border-amber-400'
@@ -1234,83 +1325,84 @@ export const OrgCentralCalendarHub: React.FC<OrgCentralCalendarHubProps> = ({
               )}
             </div>
 
-            {/* Weighted Substitute Candidates */}
-            <div className="space-y-2.5">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-black uppercase tracking-wider text-emerald-300 flex items-center gap-1.5">
-                  <Sparkles size={14} /> Weighted Substitute Candidates (Availability + Dept/Role +
-                  Experience)
-                </p>
-                <span className="text-[11px] text-white/45">
-                  Required Role:{' '}
-                  {getElevateRole(inspectedOccurrence.requiredRoleKey || 'INSTRUCTOR')?.label ||
-                    'Instructor / Volunteer'}
-                </span>
-              </div>
-
-              {inspectedSubCandidates.length === 0 ? (
-                <p className="text-xs text-white/45 py-4 text-center">
-                  No available substitute candidates found without a schedule conflict at this time.
-                </p>
-              ) : (
-                <div className="space-y-2">
-                  {inspectedSubCandidates.map(sub => {
-                    const actKey = `sub_${inspectedOccurrence.id}_${sub.personKey}`;
-                    return (
-                      <div
-                        key={sub.personKey}
-                        className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 flex items-center justify-between gap-3 flex-wrap"
-                      >
-                        <div className="space-y-1 flex-1 min-w-[220px]">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-sm font-bold text-white">{sub.name}</span>
-                            <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-[10px] font-black">
-                              {sub.totalScore}/100 Match
-                            </span>
-                            {sub.roleLabels.map(rl => (
-                              <span
-                                key={rl}
-                                className="px-2 py-0.5 rounded-md bg-white/10 text-white/80 text-[10px] font-semibold"
-                              >
-                                {rl}
-                              </span>
-                            ))}
-                          </div>
-                          <p className="text-[11px] text-white/55">{sub.reasons.join(' · ')}</p>
-                          <div className="flex flex-wrap gap-3 text-[10px] text-white/40 pt-0.5">
-                            <span>Availability: {sub.breakdown.availabilityScore}/35</span>
-                            <span>Dept &amp; Role: {sub.breakdown.roleDeptScore}/30</span>
-                            <span>Experience: {sub.breakdown.experienceSkillScore}/25</span>
-                            <span>Safety: {sub.breakdown.safetyScore}/10</span>
-                          </div>
-                        </div>
-
-                        {canSchedule && (
-                          <button
-                            onClick={() =>
-                              handleAssignSubstitute(
-                                inspectedOccurrence,
-                                subTargetPersonKey,
-                                sub,
-                              )
-                            }
-                            disabled={busyAction === actKey}
-                            className="px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs uppercase tracking-wider flex items-center gap-1.5"
-                          >
-                            {busyAction === actKey ? (
-                              <Loader2 size={13} className="animate-spin" />
-                            ) : (
-                              <UserCheck size={13} />
-                            )}
-                            {subTargetPersonKey ? 'Swap In Sub' : 'Add to Team'}
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
+            {/* Weighted Substitute Candidates — strictly gated to Department Leaders */}
+            {isDepartmentLeader && (
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-black uppercase tracking-wider text-emerald-300 flex items-center gap-1.5">
+                    <Sparkles size={14} /> Dept Leader Sub Radar · Weighted Candidates (Availability + Dept/Role + Experience)
+                  </p>
+                  <span className="text-[11px] text-white/45">
+                    Required Role:{' '}
+                    {getElevateRole(inspectedOccurrence.requiredRoleKey || 'INSTRUCTOR')?.label ||
+                      'Instructor / Volunteer'}
+                  </span>
                 </div>
-              )}
-            </div>
+
+                {inspectedSubCandidates.length === 0 ? (
+                  <p className="text-xs text-white/45 py-4 text-center">
+                    No available substitute candidates found without a schedule conflict at this time.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {inspectedSubCandidates.map(sub => {
+                      const actKey = `sub_${inspectedOccurrence.id}_${sub.personKey}`;
+                      return (
+                        <div
+                          key={sub.personKey}
+                          className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 flex items-center justify-between gap-3 flex-wrap"
+                        >
+                          <div className="space-y-1 flex-1 min-w-[220px]">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-sm font-bold text-white">{sub.name}</span>
+                              <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-[10px] font-black">
+                                {sub.totalScore}/100 Match
+                              </span>
+                              {sub.roleLabels.map(rl => (
+                                <span
+                                  key={rl}
+                                  className="px-2 py-0.5 rounded-md bg-white/10 text-white/80 text-[10px] font-semibold"
+                                >
+                                  {rl}
+                                </span>
+                              ))}
+                            </div>
+                            <p className="text-[11px] text-white/55">{sub.reasons.join(' · ')}</p>
+                            <div className="flex flex-wrap gap-3 text-[10px] text-white/40 pt-0.5">
+                              <span>Availability: {sub.breakdown.availabilityScore}/35</span>
+                              <span>Dept &amp; Role: {sub.breakdown.roleDeptScore}/30</span>
+                              <span>Experience: {sub.breakdown.experienceSkillScore}/25</span>
+                              <span>Safety: {sub.breakdown.safetyScore}/10</span>
+                            </div>
+                          </div>
+
+                          {canSchedule && (
+                            <button
+                              onClick={() =>
+                                handleAssignSubstitute(
+                                  inspectedOccurrence,
+                                  subTargetPersonKey,
+                                  sub,
+                                )
+                              }
+                              disabled={busyAction === actKey}
+                              className="px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs uppercase tracking-wider flex items-center gap-1.5"
+                            >
+                              {busyAction === actKey ? (
+                                <Loader2 size={13} className="animate-spin" />
+                              ) : (
+                                <UserCheck size={13} />
+                              )}
+                              {subTargetPersonKey ? 'Swap In Sub' : 'Add to Team'}
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
 
             {inspectedOccurrence.originSource === 'ORG_CENTRAL_CALENDAR' && canSchedule && (
               <div className="pt-3 border-t border-white/10 flex justify-between items-center">
@@ -1398,6 +1490,24 @@ export const OrgCentralCalendarHub: React.FC<OrgCentralCalendarHubProps> = ({
                       {v.label}
                     </option>
                   ))}
+                </select>
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-white/50">
+                  Audience &amp; Schedule Visibility
+                </label>
+                <select
+                  value={draftVisibility}
+                  onChange={e => setDraftVisibility(e.target.value as OrgEventVisibility)}
+                  className="mt-1 w-full bg-black/50 border border-white/15 rounded-xl px-3 py-2.5 text-xs text-white"
+                >
+                  <option value="DEPARTMENT_ONLY">
+                    🔒 Department-Only Schedule (Visible Only to Members of This Department / Group)
+                  </option>
+                  <option value="PUBLIC">
+                    🌐 Public Event (Visible to Everyone on the Public &amp; Member Calendar)
+                  </option>
                 </select>
               </div>
 

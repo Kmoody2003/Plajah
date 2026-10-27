@@ -80,6 +80,7 @@ export const ELEVATE_ROLES: ElevateRoleDef[] = [
 ];
 
 export const ELEVATE_ROLE_MAP: Record<string, ElevateRoleDef> = Object.fromEntries(ELEVATE_ROLES.map(r => [r.key, r]));
+export const ROLE_LABELS: Record<string, string> = Object.fromEntries(ELEVATE_ROLES.map(r => [r.key, r.label]));
 export const getElevateRole = (key?: string): ElevateRoleDef | undefined => (key ? ELEVATE_ROLE_MAP[key] : undefined);
 
 /** Department-scoped role keys that can be assigned per ministry/department (a person may hold several). */
@@ -105,6 +106,9 @@ export function memberRoleKeys(member: MemberLike | null | undefined): string[] 
   (member.ministryRoles || []).forEach(mr => { if (mr?.roleKey) keys.add(mr.roleKey); });
   return Array.from(keys);
 }
+
+/** Alias for `memberRoleKeys` used across member & communications surfaces. */
+export const getMemberEffectiveRoleKeys = memberRoleKeys;
 
 /** All distinct department/ministry IDs a member belongs to or leads. */
 export function memberDepartmentIds(

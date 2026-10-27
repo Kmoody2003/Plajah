@@ -432,6 +432,14 @@ export async function copyCurriculumPairToOrgAssets(params: {
     // Local mirror is already updated if Firestore ops rules or offline mode is active
   }
 
+  try {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('plajah:orgAssetsUpdated'));
+    }
+  } catch {
+    // ignore
+  }
+
   return {
     targetOrgId,
     targetOrgName,
@@ -442,21 +450,179 @@ export async function copyCurriculumPairToOrgAssets(params: {
   };
 }
 
-/** All Content HQ assets for a scope (client-sorted newest-first, merging Firestore + Great Faith Ministries local mirror). */
+/** All Content HQ assets for a scope (client-sorted newest-first, merging Firestore + Great Faith Ministries local mirror + Christian Education ingested units). */
 export async function listHqAssets(scope: OwnerScope, includeTrash = false): Promise<OrgAsset[]> {
   const byId = new Map<string, OrgAsset>();
 
-  // 1. Load local mirror for this scope (and Great Faith Ministries mirror if org scope)
+  // 1. Load local mirror for this scope and Great Faith Ministries mirror
   for (const item of readLocalMirrorAssets(scope.id)) {
     if (includeTrash || !item.deletedAt) byId.set(item.id, item);
   }
-  if (scope.kind === 'org' && (scope.label?.toLowerCase().includes('great faith') || scope.id === GREAT_FAITH_MINISTRIES_DEFAULT_ID)) {
-    for (const item of readLocalMirrorAssets(GREAT_FAITH_MINISTRIES_DEFAULT_ID)) {
-      if (includeTrash || !item.deletedAt) byId.set(item.id, { ...item, scopeId: scope.id });
+  for (const item of readLocalMirrorAssets(GREAT_FAITH_MINISTRIES_DEFAULT_ID)) {
+    if ((includeTrash || !item.deletedAt) && !byId.has(item.id)) {
+      byId.set(item.id, { ...item, scopeId: scope.id });
     }
   }
 
-  // 2. Load Firestore `orgAssets`
+  // 2. Materialize any ingested Christian Education curriculum units into Content HQ under "Christian Education"
+  const unitKeys = Array.from(
+    new Set([
+      `plajah_ingested_curriculum_units_v1_${scope.id}`,
+      `plajah_ingested_curriculum_units_v1_${GREAT_FAITH_MINISTRIES_DEFAULT_ID}`,
+    ])
+  );
+  for (const key of unitKeys) {
+    try {
+      const raw = localStorage.getItem(key);
+      const units: any[] = raw ? JSON.parse(raw) : [];
+      if (Array.isArray(units)) {
+        for (const u of units) {
+          if (!u || !u.telaDocId || !u.title) continue;
+          const deptFolder = u.departmentFolder || 'Christian Education';
+          const origId = u.originalAssetId || `hq_orig_${u.telaDocId}`;
+          const telaId = u.telaAssetId || `hq_tela_${u.telaDocId}`;
+          const keyId = u.answerKeyAssetId || `hq_key_${u.telaDocId}`;
+          const isPdf = u.sourceKind === 'PDF_DOCUMENT';
+          const ext = isPdf ? 'pdf' : 'doc';
+          const created = Number(u.createdAt) || Date.now();
+
+          if (!byId.has(origId)) {
+            byId.set(origId, {
+              id: origId,
+              scopeKind: 'org',
+              scopeId: scope.id,
+              uploadedByUid: 'great-faith-admin',
+              name: `${u.title} (Original Document).${ext}`,
+              kind: isPdf ? 'pdf' : 'doc',
+              mimeType: isPdf ? 'application/pdf' : 'text/markdown',
+              url: u.sourceUrl || `/api/hq/assets/${encodeURIComponent(origId)}/download`,
+              storagePath: `protected-hq/org/${scope.id}/${deptFolder}/${origId}/${u.id}_original.${ext}`,
+              sizeBytes: Math.max(1024, (u.rawCurriculumText || u.title).length),
+              folder: deptFolder,
+              departmentId: 'dept-christian-education',
+              departmentName: deptFolder,
+              assetVariant: 'ORIGINAL_SOURCE',
+              telaDocId: u.telaDocId,
+              pairedAssetId: telaId,
+              sourceUrl: u.sourceUrl,
+              rawContentText: u.rawCurriculumText,
+              tags: ['Christian Education', 'Original Source', u.sourceKind || 'DOCUMENT'],
+              status: 'APPROVED',
+              scanStatus: 'CLEAN',
+              versionCount: 1,
+              uploadedAt: created,
+            });
+          }
+
+          if (!byId.has(telaId)) {
+            byId.set(telaId, {
+              id: telaId,
+              scopeKind: 'org',
+              scopeId: scope.id,
+              uploadedByUid: 'great-faith-admin',
+              name: `${u.title} (Interactive Tela Document).tela`,
+              kind: 'doc',
+              mimeType: 'application/vnd.plajah.tela+json',
+              url: `/tela/${encodeURIComponent(u.telaDocId)}`,
+              storagePath: `protected-hq/org/${scope.id}/${deptFolder}/${telaId}/${u.id}.tela.json`,
+              sizeBytes: Math.max(2048, (u.rawCurriculumText || u.title).length * 2),
+              folder: deptFolder,
+              departmentId: 'dept-christian-education',
+              departmentName: deptFolder,
+              assetVariant: 'TELA_DOCUMENT',
+              telaDocId: u.telaDocId,
+              pairedAssetId: origId,
+              sourceUrl: u.sourceUrl,
+              rawContentText: u.rawCurriculumText,
+              tags: ['Christian Education', 'Interactive Tela Document', 'Mastery Enabled'],
+              status: 'APPROVED',
+              scanStatus: 'CLEAN',
+              versionCount: 1,
+              uploadedAt: created + 1,
+            });
+          }
+
+          if (u.rawAnswerKeyText && !byId.has(keyId)) {
+            byId.set(keyId, {
+              id: keyId,
+              scopeKind: 'org',
+              scopeId: scope.id,
+              uploadedByUid: 'great-faith-admin',
+              name: `${u.title} (Teacher Answer Key).doc`,
+              kind: 'doc',
+              mimeType: 'text/plain',
+              url: `/api/hq/assets/${encodeURIComponent(keyId)}/download`,
+              storagePath: `protected-hq/org/${scope.id}/${deptFolder}/${keyId}/${u.id}_answer_key.txt`,
+              sizeBytes: Math.max(512, String(u.rawAnswerKeyText).length),
+              folder: deptFolder,
+              departmentId: 'dept-christian-education',
+              departmentName: deptFolder,
+              assetVariant: 'ANSWER_KEY',
+              telaDocId: u.telaDocId,
+              pairedAssetId: telaId,
+              rawContentText: u.rawAnswerKeyText,
+              tags: ['Christian Education', 'Answer Key', 'Teacher Only'],
+              status: 'APPROVED',
+              scanStatus: 'CLEAN',
+              versionCount: 1,
+              uploadedAt: created + 2,
+            });
+          }
+        }
+      }
+    } catch {
+      // ignore parse errors
+    }
+  }
+
+  // 3. Materialize any volunteer/member department uploads into Content HQ under their department folder
+  const uploadKeys = Array.from(
+    new Set([
+      `plajah_vol_dept_uploads_v1_${scope.id}`,
+      `plajah_vol_dept_uploads_v1_${GREAT_FAITH_MINISTRIES_DEFAULT_ID}`,
+    ])
+  );
+  for (const uKey of uploadKeys) {
+    try {
+      const raw = localStorage.getItem(uKey);
+      const uploads: any[] = raw ? JSON.parse(raw) : [];
+      if (Array.isArray(uploads)) {
+        for (const up of uploads) {
+          if (!up || !up.id) continue;
+          const hqId = `hq_dept_up_${up.id}`;
+          if (!byId.has(hqId)) {
+            const deptName = up.departmentName || 'Christian Education';
+            byId.set(hqId, {
+              id: hqId,
+              scopeKind: 'org',
+              scopeId: scope.id,
+              uploadedByUid: up.uploadedByUid || 'member',
+              name: up.fileName || up.title || 'Department Upload',
+              kind: kindFromMime(up.mimeType || 'application/pdf', up.fileName || up.title || 'doc.pdf'),
+              mimeType: up.mimeType || 'application/pdf',
+              url: up.dataUrl || `/api/hq/assets/${encodeURIComponent(hqId)}/download`,
+              storagePath: `protected-hq/org/${scope.id}/${deptName}/${hqId}/${up.fileName || 'upload'}`,
+              sizeBytes: Number(up.sizeBytes) || 2048,
+              folder: deptName,
+              departmentId: up.departmentId || 'dept-christian-education',
+              departmentName: deptName,
+              assetVariant: 'ORIGINAL_SOURCE',
+              rawContentText: up.notes || up.title,
+              tags: [deptName, 'Department Upload'],
+              status: 'APPROVED',
+              scanStatus: 'CLEAN',
+              versionCount: 1,
+              uploadedAt: Number(up.createdAt) || Date.now(),
+            });
+          }
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  // 4. Load Firestore `orgAssets`
   try {
     const snap = await getDocs(query(collection(opsDb, COLLECTION), where('scopeId', '==', scope.id)));
     for (const d of snap.docs) {

@@ -45,6 +45,16 @@ import { takeTeacherWorksheetScan } from '../services/worksheetOpen';
 import CurriculumAndMasteryStudio from './church/CurriculumAndMasteryStudio';
 import SharedClassroomClubHub from './classroom/SharedClassroomClubHub';
 import { UniversalStudentDesk } from './desk/UniversalStudentDesk';
+import type { Organization } from '../types';
+import type { ChurchProgram } from '../services/churchEducationService';
+import {
+  loadOrgEducationScope,
+  getOrgScopedSubjectBands,
+  getOrgScopedCourses,
+  listOrgUploadedEducationResources,
+  type OrgEducationScopeConfig,
+} from '../services/orgEducationScopeService';
+import OrgEducationScopeGovernancePanel from './church/OrgEducationScopeGovernancePanel';
 
 export interface LessonPlan {
   id: string; title: string; subject: Subject; band: string; standardCode: string;
@@ -89,11 +99,18 @@ const Bar: React.FC<{ value: number; color: string }> = ({ value, color }) => (
 
 type Tab = 'grade' | 'plan' | 'planner' | 'checks' | 'assess' | 'reports' | 'connect' | 'context' | 'library' | 'worksheet' | 'templates' | 'integrity' | 'curriculum' | 'classroomClub' | 'studentDesk';
 
-const TeacherToolsView: React.FC<{ onBack?: () => void; user?: any }> = ({ onBack, user }) => {
+export interface TeacherToolsOrgContext {
+  org: Organization;
+  activeProgram?: ChurchProgram;
+  programs?: ChurchProgram[];
+  canManageScope?: boolean;
+}
+
+const TeacherToolsView: React.FC<{ onBack?: () => void; user?: any; orgContext?: TeacherToolsOrgContext }> = ({ onBack, user, orgContext }) => {
   // Hubs deep-link into a tab through sessionStorage (read once, then cleared) so "Build a lesson"
   // lands on Assignment Templates instead of whichever tab happens to be the default.
   const [tab, setTab] = useState<Tab>(() => {
-    try { const t = sessionStorage.getItem('plajah:teacherTab') as Tab | null; sessionStorage.removeItem('plajah:teacherTab'); if (t) return t; } catch { /* */ }
+    try { const t = sessionStorage.getItem('plajah:teacherTab') as Tab | null; sessionStorage.removeItem('plajah:teacherTab'); if (t === 'curriculum') { sessionStorage.setItem('plajah:openDocExtractor', '1'); return 'worksheet'; } if (t) return t; } catch { /* */ }
     return 'plan';
   });
   const [subject, setSubject] = useState<Subject>('ELA');
@@ -108,7 +125,34 @@ const TeacherToolsView: React.FC<{ onBack?: () => void; user?: any }> = ({ onBac
 
   const students = DEMO_CLASS.students;
   const grades = BAND_TO_GRADES[band] || [];
-  const standards = useMemo(() => STANDARDS.filter(s => s.subject === subject && grades.includes(s.grade)), [subject, band]);
+  const [orgScope, setOrgScope] = useState<OrgEducationScopeConfig | null>(() =>
+    orgContext ? loadOrgEducationScope(orgContext.org) : null
+  );
+  const orgSubjectBands = useMemo(
+    () => (orgScope ? getOrgScopedSubjectBands(orgScope) : []),
+    [orgScope]
+  );
+  const [orgBandId, setOrgBandId] = useState<string>('BIBLICAL_STUDIES');
+  const [orgAgeLevel, setOrgAgeLevel] = useState<string>('ALL');
+  const activeOrgSubjectBand = useMemo(
+    () => orgSubjectBands.find(b => b.id === orgBandId) || orgSubjectBands[0] || null,
+    [orgSubjectBands, orgBandId]
+  );
+
+  const standards: LearningStandard[] = useMemo(() => {
+    if (orgContext && activeOrgSubjectBand) {
+      return activeOrgSubjectBand.standards.map(st => ({
+        id: st.id,
+        code: st.code,
+        framework: 'CCSS_ELA' as const,
+        subject: 'ELA' as Subject,
+        grade: 'g3' as GradeId,
+        domain: activeOrgSubjectBand.label,
+        statement: `${st.title} — ${st.description}`,
+      }));
+    }
+    return STANDARDS.filter(s => s.subject === subject && grades.includes(s.grade));
+  }, [orgContext, activeOrgSubjectBand, subject, grades]);
 
   return (
     <div className="teacher-tools-view" style={{ minHeight: '100%', background: T.bg, color: T.ink, padding: '20px 16px calc(70px + env(safe-area-inset-bottom))', fontFamily: T.font }}>
@@ -118,21 +162,56 @@ const TeacherToolsView: React.FC<{ onBack?: () => void; user?: any }> = ({ onBac
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 12, flexWrap: 'wrap' }}>
           <div style={{ width: 42, height: 42, borderRadius: 12, background: 'linear-gradient(135deg,#FF8C00,#36c5f0)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><LayoutGrid size={20} /></div>
           <div style={{ flex: 1, minWidth: 200 }}>
-            <h1 style={{ margin: 0, fontSize: 21, fontWeight: 900 }}>Teacher Tools</h1>
-            <p style={{ margin: '2px 0 0', color: T.muted, fontSize: 12.5 }}>{DEMO_CLASS.name} · {DEMO_CLASS.teacherName} · standards-based, over the class's Learner Ledger</p>
+            <h1 style={{ margin: 0, fontSize: 21, fontWeight: 900 }}>{orgContext ? `${orgContext.org.name} · Instructor Tools` : 'Teacher Tools'}</h1>
+            <p style={{ margin: '2px 0 0', color: T.muted, fontSize: 12.5 }}>{orgContext ? `${orgContext.activeProgram?.name || 'Christian Education Classrooms'} · ${user?.displayName || 'Instructor'} · Scoped to ${orgContext.org.name} materials & topics` : `${DEMO_CLASS.name} · ${DEMO_CLASS.teacherName} · standards-based, over the class's Learner Ledger`}</p>
           </div>
         </div>
 
         {/* subject + band */}
         <div style={{ display: 'flex', gap: 16, marginTop: 16, flexWrap: 'wrap' }}>
-          <div><Eyebrow>Subject</Eyebrow><div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{SUBJECTS.map(s => <button key={s.id} onClick={() => setSubject(s.id)} style={chip(subject === s.id, s.color)}>{s.label}</button>)}</div></div>
-          <div><Eyebrow>Level</Eyebrow><div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{BANDS.map(b => <button key={b.id} onClick={() => setBand(b.id)} style={chip(band === b.id)}>{b.label}</button>)}</div></div>
+          {orgContext && (
+            <div style={{ width: '100%' }}>
+              <OrgEducationScopeGovernancePanel
+                org={orgContext.org}
+                canManageScope={!!orgContext.canManageScope}
+                currentUserName={user?.displayName}
+                onScopeChange={setOrgScope}
+                onOpenWorksheetExtractor={() => {
+                  try { sessionStorage.setItem('plajah:openDocExtractor', '1'); } catch {}
+                  setTab('worksheet');
+                }}
+              />
+            </div>
+          )}
+          <div><Eyebrow>{orgContext ? `${orgContext.org.name} Provisioned Tracks` : 'Subject'}</Eyebrow><div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{orgContext ? orgSubjectBands.map(b => <button key={b.id} onClick={() => setOrgBandId(b.id)} style={chip(activeOrgSubjectBand?.id === b.id, b.color)}>{b.label}</button>) : SUBJECTS.map(s => <button key={s.id} onClick={() => setSubject(s.id)} style={chip(subject === s.id, s.color)}>{s.label}</button>)}</div></div>
+          <div><Eyebrow>{orgContext ? 'Audience / Age Band' : 'Level'}</Eyebrow><div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{orgContext ? ([['ALL', 'All Ages'], ['YOUTH', 'Children & Youth'], ['ADULTS', 'Young Adults & Adults'], ['LEADERS', 'Instructors & Leaders']] as const).map(([id, label]) => <button key={id} onClick={() => setOrgAgeLevel(id)} style={chip(orgAgeLevel === id)}>{label}</button>) : BANDS.map(b => <button key={b.id} onClick={() => setBand(b.id)} style={chip(band === b.id)}>{b.label}</button>)}</div></div>
         </div>
 
         {/* tabs */}
         <div className="teacher-tools-tabs" style={{ display: 'flex', gap: 8, margin: '18px 0 20px', flexWrap: 'wrap' }}>
           <style>{`@media(max-width:720px){.teacher-tools-tabs{flex-wrap:nowrap!important;overflow-x:auto;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;margin-left:-16px!important;margin-right:-16px!important;padding:0 16px 4px}.teacher-tools-tabs>button{flex:0 0 auto;scroll-snap-align:start;min-height:44px}.teacher-tools-view input,.teacher-tools-view select,.teacher-tools-view textarea{font-size:16px!important}}`}</style>
-          {([['classroomClub', 'Classroom Club & Live Lecture', Users], ['studentDesk', '🪑 Universal Student Desk', BookOpen], ['worksheet', 'Scan Worksheet', ScanLine], ['curriculum', 'Google Forms/Docs & PDF → Tela', Sparkles], ['plan', 'Plan from Mastery', Wand2], ['library', 'Content Library', Library], ['planner', `Planner${plans.length ? ` (${plans.length})` : ''}`, CalendarDays], ['checks', `Checks${assignments.length ? ` (${assignments.length})` : ''}`, ListChecks], ['grade', 'Gradebook', LayoutGrid], ['assess', 'Assess Work', ClipboardCheck], ['reports', 'Reports', Printer], ['templates', 'Assignment Templates', BookOpen], ['integrity', 'Integrity Wall', ShieldCheck], ['connect', 'Integrations', Plug], ['context', 'Context', Globe]] as [Tab, string, any][]).map(([v, l, Icon]) => (
+          {(([
+            ['classroomClub', 'Classroom Club & Live Lecture', Users],
+            ['studentDesk', '🪑 Universal Student Desk', BookOpen],
+            ['worksheet', 'Worksheet & Doc Capture', ScanLine],
+            ['plan', 'Plan from Mastery', Wand2],
+            ['library', orgContext ? 'Org Resource Library' : 'Content Library', Library],
+            ['planner', `Planner${plans.length ? ` (${plans.length})` : ''}`, CalendarDays],
+            ['checks', `Checks${assignments.length ? ` (${assignments.length})` : ''}`, ListChecks],
+            ['grade', orgContext ? 'Class Mastery' : 'Gradebook', LayoutGrid],
+            ['assess', 'Assess Work', ClipboardCheck],
+            ['reports', 'Reports', Printer],
+            ['templates', 'Assignment Templates', BookOpen],
+            ...(!orgContext || orgScope?.enabledTracks.includes('CONTINUING_EDUCATION_AND_CERTIFICATES')
+              ? [['integrity', 'Integrity Wall', ShieldCheck]]
+              : []),
+            ...(!orgContext
+              ? [
+                  ['connect', 'Integrations', Plug],
+                  ['context', 'Context', Globe],
+                ]
+              : []),
+          ]) as [Tab, string, any][]).map(([v, l, Icon]) => (
             <button key={v} onClick={() => setTab(v)} style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 15px', borderRadius: 10, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 800, border: `1px solid ${tab === v ? T.orange : T.border}`, background: tab === v ? T.orange : 'transparent', color: tab === v ? '#1a1a1a' : T.muted }}>
               <Icon size={13} /> {l}
             </button>
@@ -140,7 +219,7 @@ const TeacherToolsView: React.FC<{ onBack?: () => void; user?: any }> = ({ onBac
         </div>
 
         {tab === 'worksheet' ? (
-          <ScanWorksheet user={user} />
+          <ScanWorksheet user={user} orgContext={orgContext} />
         ) : tab === 'studentDesk' ? (
           <UniversalStudentDesk
             studentUid={user?.uid || 'student_academia'}
@@ -191,7 +270,7 @@ const TeacherToolsView: React.FC<{ onBack?: () => void; user?: any }> = ({ onBac
         ) : tab === 'connect' ? (
           <Integrations />
         ) : tab === 'library' ? (
-          <ContentLibrary />
+          <ContentLibrary orgContext={orgContext} orgScope={orgScope} />
         ) : tab === 'context' ? (
           <ContextSettings />
         ) : tab === 'planner' ? (
@@ -223,13 +302,16 @@ const TeacherToolsView: React.FC<{ onBack?: () => void; user?: any }> = ({ onBac
 
 type ScanStage = 'capture' | 'digitizing' | 'ready' | 'error';
 
-const ScanWorksheet: React.FC<{ user?: any }> = ({ user }) => {
+const ScanWorksheet: React.FC<{ user?: any; orgContext?: TeacherToolsOrgContext }> = ({ user, orgContext }) => {
   const [stage, setStage] = useState<ScanStage>('capture');
   const [preview, setPreview] = useState<string>('');
   const [prepared, setPrepared] = useState<PreparedWorksheetImage | null>(null);
   const [sheet, setSheet] = useState<DigitalWorksheet | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [themed, setThemed] = useState(false);
+  const [showDocExtractor, setShowDocExtractor] = useState<boolean>(() => {
+    try { const v = sessionStorage.getItem('plajah:openDocExtractor'); sessionStorage.removeItem('plajah:openDocExtractor'); return v === '1'; } catch { return false; }
+  });
   const [published, setPublished] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [showTutor, setShowTutor] = useState(false);
@@ -445,6 +527,29 @@ const ScanWorksheet: React.FC<{ user?: any }> = ({ user }) => {
           <div style={{ marginTop: 14, fontSize: 11, color: T.faint, display: 'flex', alignItems: 'center', gap: 6 }}>
             <Sparkles size={12} /> Phase 1: math, science, and fact-based questions auto-grade. Open-response is captured for you to grade.
           </div>
+          <div style={{ marginTop: 14 }}>
+            <button onClick={() => setShowDocExtractor(prev => !prev)} style={{ width: '100%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '14px 16px', borderRadius: 12, border: `1px solid ${showDocExtractor ? T.violet : T.border}`, background: showDocExtractor ? `${T.violet}18` : T.cardAlt, color: T.ink }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 800 }}>
+                <Sparkles size={16} color={T.violet} />
+                {showDocExtractor ? 'Hide Document Extractor' : 'Extract Document (Google Doc / Form / Word / PDF → Interactive Tela)'}
+              </span>
+              <span style={{ fontSize: 11, color: T.muted }}>Worksheet Capture Workflow</span>
+            </button>
+          </div>
+          <div>{showDocExtractor && (
+            <div style={{ marginTop: 16, paddingTop: 16, borderTop: `1px solid ${T.border}` }}>
+              <CurriculumAndMasteryStudio
+                orgId={orgContext?.org.id || user?.uid || DEMO_CLASS.id}
+                orgName={orgContext?.org.name || DEMO_CLASS.name}
+                canEdit={true}
+                currentUserUid={user?.uid || 'teacher_demo'}
+                currentUserName={user?.displayName || DEMO_CLASS.teacherName}
+                programs={orgContext?.programs}
+                selectedProgramId={orgContext?.activeProgram?.id}
+              />
+            </div>
+          )}
+          </div>
         </div>
       )}
 
@@ -643,7 +748,7 @@ const KIND_META: Record<PickedResource['kind'], { icon: any; color: string; labe
   art: { icon: ImageIcon, color: T.violet, label: 'Art' },
 };
 
-const ContentLibrary: React.FC = () => {
+const ContentLibrary: React.FC<{ orgContext?: TeacherToolsOrgContext; orgScope?: OrgEducationScopeConfig | null }> = ({ orgContext, orgScope }) => {
   const [picking, setPicking] = useState(false);
   const [tray, setTray] = useState<PickedResource[]>([]);
   const [copied, setCopied] = useState(false);
@@ -661,6 +766,58 @@ const ContentLibrary: React.FC = () => {
 
   return (
     <div style={{ ...cardStyle, padding: 18 }}>
+      {orgContext && (
+        <div style={{ marginBottom: 18, paddingBottom: 18, borderBottom: `1px solid ${T.border}` }}>
+          <Eyebrow color={T.gold}>{orgContext.org.name} · Uploaded Body of Resources &amp; Provisioned Courses</Eyebrow>
+          <div style={{ fontSize: 13, color: T.muted, marginBottom: 12 }}>
+            Scoped strictly to <b style={{ color: T.ink }}>{orgContext.org.name}</b> materials and the tracks enabled by your Head of Christian Education.
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 10 }}>
+            {listOrgUploadedEducationResources(orgContext.org).map(res => (
+              <div key={res.id} style={{ ...cardStyle, padding: 12, background: T.cardAlt, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 8 }}>
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 800, color: T.green, textTransform: 'uppercase' }}>{res.kind === 'TELA_UNIT' ? 'Extracted Tela Unit' : 'Department Upload'}</div>
+                  <div style={{ fontSize: 13.5, fontWeight: 800, marginTop: 2 }}>{res.title}</div>
+                  <div style={{ fontSize: 11.5, color: T.muted, marginTop: 3 }}>{res.summary}</div>
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {res.telaDocId && (
+                    <button
+                      onClick={() => window.dispatchEvent(new CustomEvent('plajah:openTela', { detail: { docId: res.telaDocId } }))}
+                      style={{ cursor: 'pointer', padding: '5px 10px', borderRadius: 7, border: `1px solid ${T.green}`, background: `${T.green}22`, color: T.green, fontSize: 11, fontWeight: 800 }}
+                    >
+                      Open in Tela
+                    </button>
+                  )}
+                  <button
+                    onClick={() => add([{ kind: 'art', label: res.title, sub: `${orgContext.org.name} · ${res.departmentName}`, url: `#org-resource-${res.id}` }])}
+                    style={{ cursor: 'pointer', padding: '5px 10px', borderRadius: 7, border: `1px solid ${T.border}`, background: 'transparent', color: T.ink, fontSize: 11, fontWeight: 700 }}
+                  >
+                    + Add to Lesson Tray
+                  </button>
+                </div>
+              </div>
+            ))}
+            {getOrgScopedCourses(orgContext.org, orgScope || undefined).map(crs => (
+              <div key={crs.id} style={{ ...cardStyle, padding: 12, background: T.cardAlt, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 8 }}>
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 800, color: T.orange, textTransform: 'uppercase' }}>{crs.trackId.replace(/_/g, ' ')}</div>
+                  <div style={{ fontSize: 13.5, fontWeight: 800, marginTop: 2 }}>{crs.emoji} {crs.title}</div>
+                  <div style={{ fontSize: 11.5, color: T.muted, marginTop: 3 }}>{crs.summary}</div>
+                </div>
+                <div>
+                  <button
+                    onClick={() => add([{ kind: 'music', label: crs.title, sub: `${orgContext.org.name} Provisioned Course`, url: `#org-course-${crs.id}` }])}
+                    style={{ cursor: 'pointer', padding: '5px 10px', borderRadius: 7, border: `1px solid ${T.orange}`, background: `${T.orange}22`, color: T.orange, fontSize: 11, fontWeight: 800 }}
+                  >
+                    + Add Course to Lesson Tray
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       {picking && <LessonContentPicker onAdd={add} onClose={() => setPicking(false)} />}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
         <div style={{ maxWidth: 460 }}>

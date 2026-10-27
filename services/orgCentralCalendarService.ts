@@ -112,13 +112,19 @@ export interface OrgCalendarParticipant {
   status: 'CONFIRMED' | 'PENDING' | 'DECLINED' | 'SUB_REQUESTED';
 }
 
+export type OrgEventVisibility = 'PUBLIC' | 'DEPARTMENT_ONLY';
+
 export interface OrgCalendarEvent extends CalendarEvent {
   orgId: string;
   eventCategory: OrgEventCategory;
   originSource: OrgEventOriginSource;
   originId?: string;
+  /** Audience visibility: PUBLIC events are visible to everyone; DEPARTMENT_ONLY events are visible only to members of that department/group schedule. */
+  visibility?: OrgEventVisibility;
   ministryId?: string;
   ministryName?: string;
+  subGroupId?: string;
+  subGroupName?: string;
   roomId?: string;
   roomName?: string;
   setupMins?: number;
@@ -226,6 +232,123 @@ const clean = <T extends Record<string, any>>(o: T): Record<string, any> => {
 
 const normName = (s?: string) => (s || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 const normEmail = (s?: string) => (s || '').trim().toLowerCase();
+
+/**
+ * Resolve the effective visibility of an organization calendar event:
+ * - Worship Services, Special Events, and Christian Education classes default to PUBLIC unless marked DEPARTMENT_ONLY.
+ * - Department Meetings, Volunteer Shifts, Rehearsals, and Room Bookings default to DEPARTMENT_ONLY unless marked PUBLIC.
+ */
+export function resolveOrgEventVisibility(ev: Pick<OrgCalendarEvent, 'visibility' | 'eventCategory'>): OrgEventVisibility {
+  if (ev.visibility === 'PUBLIC' || ev.visibility === 'DEPARTMENT_ONLY') return ev.visibility;
+  if (
+    ev.eventCategory === 'WORSHIP_SERVICE' ||
+    ev.eventCategory === 'SPECIAL_EVENT' ||
+    ev.eventCategory === 'CHRISTIAN_ED_CLASS'
+  ) {
+    return 'PUBLIC';
+  }
+  return 'DEPARTMENT_ONLY';
+}
+
+/**
+ * Returns true ONLY if the viewer is a Department Leader (`DEPARTMENT_HEAD`, `DEPARTMENT_ADMIN`, `MINISTRY_LEAD`,
+ * or listed in `ministry.headUids`) or Organization Staff/Leadership (`OWNER`, `PASTOR`, `STAFF`, `ADMIN`).
+ * The Sub Radar & Conflict Engine is strictly gated to Department Leaders and Staff — never publicly shown.
+ */
+export function isViewerDepartmentLeader(
+  membership: OrgMembership | null | undefined,
+  org: Organization,
+): boolean {
+  const uid = membership?.userId || auth.currentUser?.uid;
+  if (uid && (org.creatorId === uid || (org.admins || []).includes(uid))) return true;
+  if (!membership || membership.status !== 'ACTIVE') return false;
+  const roles = memberRoleKeys(membership);
+  const leaderRoles = new Set([
+    'OWNER',
+    'ADMIN',
+    'PASTOR',
+    'STAFF',
+    'MINISTRY_LEAD',
+    'DEPARTMENT_HEAD',
+    'DEPARTMENT_ADMIN',
+  ]);
+  if (roles.some(r => leaderRoles.has(r))) return true;
+  if (uid && (org.ministries || []).some(m => (m.headUids || []).includes(uid))) return true;
+  return false;
+}
+
+/**
+ * Enforces strict Organization Calendar visibility:
+ * - Non-members of an org ONLY see `PUBLIC` events; they never see `DEPARTMENT_ONLY` events or internal schedules.
+ * - Members/Volunteers/Instructors of an org see `PUBLIC` events PLUS `DEPARTMENT_ONLY` events ONLY for the
+ *   departments (`ministryId`) and groups (`subGroupId`) they belong to (or where they are directly scheduled).
+ * - Organization Owners, Pastors, and Org-wide Admins can view all department schedules.
+ */
+export function canViewerSeeOrgCalendarEvent(
+  ev: OrgCalendarEvent,
+  membership: OrgMembership | null | undefined,
+  org: Organization,
+): boolean {
+  const vis = resolveOrgEventVisibility(ev);
+  if (vis === 'PUBLIC') return true;
+
+  const uid = membership?.userId || auth.currentUser?.uid;
+  if (uid && (org.creatorId === uid || (org.admins || []).includes(uid))) return true;
+
+  // Non-members of the organization NEVER see DEPARTMENT_ONLY events
+  if (!membership || membership.status !== 'ACTIVE') return false;
+
+  const roles = memberRoleKeys(membership);
+  // Org-wide executive/pastoral/staff roles can oversee all department calendars
+  if (roles.some(r => ['OWNER', 'ADMIN', 'PASTOR', 'STAFF'].includes(r))) return true;
+
+  // Direct participant on this event schedule
+  if (uid && (ev.participantUids || []).includes(uid)) return true;
+  const viewerEmail = normEmail(membership.email || auth.currentUser?.email || '');
+  if (
+    viewerEmail &&
+    (ev.participants || []).some(p => normEmail(p.email) === viewerEmail)
+  ) {
+    return true;
+  }
+
+  // Check if viewer belongs to the event's department
+  const myDeptIds = new Set(memberDepartmentIds(membership, org));
+  if (uid) {
+    for (const m of org.ministries || []) {
+      if ((m.headUids || []).includes(uid)) myDeptIds.add(m.id);
+    }
+  }
+
+  let inDepartment = false;
+  if (ev.ministryId && myDeptIds.has(ev.ministryId)) {
+    inDepartment = true;
+  } else if (ev.ministryName) {
+    const targetName = normName(ev.ministryName);
+    for (const m of org.ministries || []) {
+      if (myDeptIds.has(m.id) && normName(m.name) === targetName) {
+        inDepartment = true;
+        break;
+      }
+    }
+  }
+
+  if (!inDepartment) return false;
+
+  // If the event is further scoped to a specific sub-group within the department, verify group membership (unless department leader)
+  if (ev.subGroupId) {
+    const isDeptLead = roles.some(r =>
+      ['DEPARTMENT_HEAD', 'DEPARTMENT_ADMIN', 'MINISTRY_LEAD'].includes(r),
+    );
+    if (isDeptLead) return true;
+    const memberGroupIds: string[] = (membership as any).subGroupIds || [];
+    if (memberGroupIds.length > 0 && !memberGroupIds.includes(ev.subGroupId)) {
+      return false;
+    }
+  }
+
+  return true;
+}
 
 /** Parse "9:15 AM" / "18:30" into minutes after midnight. */
 export function parseClockMinutes(raw?: string): number | null {
@@ -514,6 +637,7 @@ export async function quickAddOrgCalendarEvent(
   opts?: {
     ministryId?: string;
     eventCategory?: OrgEventCategory;
+    visibility?: OrgEventVisibility;
     roomId?: string;
     roomName?: string;
     requiredRoleKey?: string;
@@ -538,6 +662,7 @@ export async function quickAddOrgCalendarEvent(
     source: 'platform',
     eventCategory: category,
     originSource: 'ORG_CENTRAL_CALENDAR',
+    visibility: opts?.visibility || resolveOrgEventVisibility({ eventCategory: category }),
     ministryId: ministry?.id,
     ministryName: ministry?.name,
     roomId: opts?.roomId,

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import CreateEventButton from '../events/CreateEventButton';
 import {
   PenTool, ScanLine, Library, Wand2, ClipboardCheck, BarChart3, Users, Plus, AlertTriangle, LayoutGrid, FileText,
-  FileBarChart, ShieldCheck, Plug, MessageCircle, Search, Notebook, Microscope, Star, CalendarCheck, Accessibility, CalendarRange, Landmark,
+  FileBarChart, ShieldCheck, Plug, MessageCircle, Search, Notebook, Microscope, Star, CalendarCheck, Accessibility, CalendarRange, Landmark, BookOpen,
 } from 'lucide-react';
 import TodayDueFirst from './TodayDueFirst';
 import EduFeedPanel from './EduFeedPanel';
@@ -17,6 +17,15 @@ import { loadTeacherMetrics, type TeacherMetrics } from '../../services/academia
 import { listMyTemplates, lessonLink, fetchTeacherReviewQueue, type ReviewItem } from '../../services/assignmentTemplateService';
 import { loadTeacherRoster, type RosterStudent } from '../../services/academiaDossier';
 import type { AssignmentTemplate } from '../../data/assignmentTemplates';
+import type { Organization } from '../../types';
+import type { ChurchProgram } from '../../services/churchEducationService';
+import {
+  loadOrgEducationScope,
+  getOrgScopedCourses,
+  listOrgUploadedEducationResources,
+  type OrgEducationScopeConfig,
+} from '../../services/orgEducationScopeService';
+import OrgEducationScopeGovernancePanel from '../church/OrgEducationScopeGovernancePanel';
 
 /**
  * Teacher hub (ACADEMIA_HOME for teachers), top to bottom:
@@ -26,8 +35,27 @@ import type { AssignmentTemplate } from '../../data/assignmentTemplates';
  *   4. Lesson hooks, Ora class weather, class performance
  *   5. Exhibitions, studios, Lorea and the flagship curriculums further down
  * Everything on this screen reads live data for the signed-in account; nothing is demo.
+ *
+ * When `orgContext` is passed (e.g., opened inside a Church's Christian Education wing),
+ * the studio scales down strictly to that organization's classrooms, uploaded body of resources,
+ * and the scope tracks provisioned by the Head of Christian Education (Religious & Biblical +
+ * Org Uploaded Resources by default, scalable up to Tutoring, Continuing Ed, Stewardship, etc.
+ * under that organization).
  */
-interface Props { user?: any; profile?: any; onNavigate: (view: string) => void; isAdminLens?: boolean }
+export interface TeacherHubOrgContext {
+  org: Organization;
+  programs?: ChurchProgram[];
+  canManageScope?: boolean;
+  onSelectOrgClass?: (programId: string) => void;
+}
+
+interface Props {
+  user?: any;
+  profile?: any;
+  onNavigate: (view: string) => void;
+  isAdminLens?: boolean;
+  orgContext?: TeacherHubOrgContext;
+}
 
 const go = (onNavigate: (v: string) => void, tab: string) => {
   try { sessionStorage.setItem('plajah:teacherTab', tab); } catch { /* private mode */ }
@@ -43,9 +71,9 @@ const initials = (n: string) => n.split(/\s+/).map(w => w[0]).join('').slice(0, 
 const ago = (t: number) => { const h = Math.round((Date.now() - t) / 3_600_000); return h < 1 ? 'just now' : h < 24 ? `${h}h ago` : `${Math.round(h / 24)}d ago`; };
 const lift = 'transition-all duration-300 hover:-translate-y-[3px] hover:shadow-[0_14px_40px_-12px_rgba(255,140,0,0.35)] hover:border-[#FF8C00]/45';
 
-const TeacherHub: React.FC<Props> = ({ user, profile, onNavigate, isAdminLens }) => {
+const TeacherHub: React.FC<Props> = ({ user, profile, onNavigate, isAdminLens, orgContext }) => {
   const uid: string | undefined = user?.uid || profile?.uid;
-  const first = (profile?.displayName || 'Teacher').split(' ')[0];
+  const first = (profile?.displayName || (orgContext ? 'Instructor' : 'Teacher')).split(' ')[0];
   const [classes, setClasses] = useState<any[] | null>(null);
   const [m, setM] = useState<TeacherMetrics | null>(null);
   const [templates, setTemplates] = useState<AssignmentTemplate[] | null>(null);
@@ -57,20 +85,40 @@ const TeacherHub: React.FC<Props> = ({ user, profile, onNavigate, isAdminLens })
   /** Open attendance sheet: undefined = closed, '' = default class, id = that class. */
   const [attFor, setAttFor] = useState<string | undefined>(undefined);
   const [attVersion, setAttVersion] = useState(0);
+  const [orgScope, setOrgScope] = useState<OrgEducationScopeConfig | null>(() =>
+    orgContext ? loadOrgEducationScope(orgContext.org) : null
+  );
   const searchRef = useRef<HTMLInputElement>(null);
   const dossierRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!orgContext) {
+      setOrgScope(null);
+      return;
+    }
+    const sync = () => setOrgScope(loadOrgEducationScope(orgContext.org));
+    sync();
+    window.addEventListener('plajah:orgEduScopeUpdated', sync);
+    return () => window.removeEventListener('plajah:orgEduScopeUpdated', sync);
+  }, [orgContext]);
 
   const load = async () => {
     if (!uid) { setClasses([]); setRoster([]); return; }
     const all: any[] = await fetchClassrooms().catch(() => []);
-    const mine = (all || []).filter(c => c?.ownerId === uid);
+    // When inside an organization, filter only classrooms belonging to this organization or its programs
+    const orgClassIds = new Set(
+      (orgContext?.programs || []).map(p => p.classroomId || `church_cls_${p.id}`)
+    );
+    const mine = orgContext
+      ? (all || []).filter(c => c?.orgId === orgContext.org.id || orgClassIds.has(c?.id))
+      : (all || []).filter(c => c?.ownerId === uid);
     setClasses(mine);
     loadTeacherMetrics(uid, mine).then(setM).catch(() => {});
     loadTeacherRoster(mine).then(setRoster).catch(() => setRoster([]));
     listMyTemplates(uid).then(t => setTemplates([...t].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)))).catch(() => setTemplates([]));
     fetchTeacherReviewQueue(uid, 20).then(setQueue).catch(() => {});
   };
-  useEffect(() => { void load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [uid]);
+  useEffect(() => { void load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [uid, orgContext?.org.id, orgContext?.programs?.length]);
 
   // "/" focuses search from anywhere on the page, like the rest of Plajah's search fields.
   useEffect(() => {
@@ -94,34 +142,155 @@ const TeacherHub: React.FC<Props> = ({ user, profile, onNavigate, isAdminLens })
   const pick = (s: RosterStudent) => { setSel(s); setTimeout(() => dossierRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60); };
 
   const t = m?.totals;
-  const tools: ToolDef[] = [
-    { label: 'Take attendance', meta: 'Today', icon: CalendarCheck, color: '#60A5FA', onClick: () => ((classes || []).length ? setAttFor(sel?.classIds[0] || '') : onNavigate('CLASSROOMS')) },
-    { label: 'Classroom Club & Live', meta: 'Feed · Photos · Lecture · Whiteboard', icon: Users, color: '#D40055', tab: 'classroomClub' },
-    { label: 'Docs & Forms → Tela', meta: 'Auto-extract + Answer Key', icon: Wand2, color: '#06D6A0', tab: 'curriculum' },
-    { label: 'Year curriculum', meta: '180 days · Math & ELA', icon: CalendarRange, color: '#F5B83D', view: 'ACADEMIA_YEAR' },
-    { label: 'Education Council', meta: 'Global educators', icon: Landmark, color: '#c4b5fd', view: 'EDUCATION_COUNCIL' },
-    { label: 'Build a lesson', meta: templates ? `${templates.length} saved` : undefined, icon: PenTool, color: '#FF8C00', tab: 'templates' },
-    { label: 'Scan worksheet', meta: 'Paper to graded assignment', icon: ScanLine, color: '#06D6A0', tab: 'worksheet' },
-    { label: 'Scan a flyer', meta: 'Dates to calendar', icon: CalendarRange, color: '#36c5f0', view: 'ACADEMIA_SCAN' },
-    { label: 'Plan from mastery', meta: 'Find the gaps', icon: Wand2, color: '#FF6FA8', tab: 'plan' },
-    { label: 'Gradebook', meta: t?.awaiting ? `${t.awaiting} to grade` : 'All caught up', icon: BarChart3, color: '#F5B83D', tab: 'grade' },
-    { label: 'Assess work', meta: 'Rubrics', icon: ClipboardCheck, color: '#c4b5fd', tab: 'assess' },
-    { label: 'Checks', meta: 'For understanding', icon: LayoutGrid, color: '#60A5FA', tab: 'checks' },
-    { label: 'Planner', meta: 'Lesson plans', icon: FileText, color: '#00DAF3', tab: 'planner' },
-    { label: 'Content library', meta: 'Rights-cleared', icon: Library, color: '#a78bfa', tab: 'library' },
-    { label: 'Reports', meta: 'Progress', icon: FileBarChart, color: '#06D6A0', tab: 'reports' },
-    { label: 'Integrity', meta: 'Original work', icon: ShieldCheck, color: '#60A5FA', tab: 'integrity' },
-    { label: 'Learning support', meta: 'IEP · 504 plans', icon: Accessibility, color: '#00DAF3', onClick: () => openSupportCenter(onNavigate, { tab: 'plan' }) },
-    { label: 'Integrations', meta: 'Google · Clever', icon: Plug, color: '#FFB266', tab: 'connect' },
-    { label: 'Investigate', meta: 'Inquiry studio', icon: Microscope, color: '#06D6A0', view: 'INQUIRY' },
-    { label: 'Class Points', meta: 'Celebrate', icon: Star, color: '#F5B83D', view: 'CLASS_POINTS' },
-    { label: 'My notebook', meta: 'Notes', icon: Notebook, color: '#c4b5fd', view: 'NOTES' },
-    { label: 'Message parents', meta: 'Inbox', icon: MessageCircle, color: '#FF6FA8', view: 'CHAT' },
-  ];
+
+  // Organization-scoped toolbox vs. full Academia school toolbox
+  const tools: ToolDef[] = useMemo(() => {
+    if (orgContext) {
+      const uploadedCount = listOrgUploadedEducationResources(orgContext.org).length;
+      const tutoringEnabled = orgScope?.enabledTracks.includes('TUTORING_AND_ACADEMIC_SUPPORT');
+      const continuingEdEnabled = orgScope?.enabledTracks.includes('CONTINUING_EDUCATION_AND_CERTIFICATES');
+      const orgTools: ToolDef[] = [
+        {
+          label: 'Take attendance',
+          meta: 'Org classes',
+          icon: CalendarCheck,
+          color: '#60A5FA',
+          onClick: () => ((classes || []).length ? setAttFor(sel?.classIds[0] || '') : onNavigate('CLASSROOMS')),
+        },
+        {
+          label: 'Classroom Club & Live',
+          meta: 'Feed · Photos · Lecture · Whiteboard',
+          icon: Users,
+          color: '#D40055',
+          tab: 'classroomClub',
+        },
+        {
+          label: 'Scan worksheet & docs',
+          meta: 'Paper, PDF or Doc → Tela',
+          icon: ScanLine,
+          color: '#06D6A0',
+          tab: 'worksheet',
+        },
+        {
+          label: 'Build a lesson',
+          meta: templates ? `${templates.length} saved` : 'Org templates',
+          icon: PenTool,
+          color: '#FF8C00',
+          tab: 'templates',
+        },
+        {
+          label: 'Org resource library',
+          meta: `${uploadedCount} uploaded + faith`,
+          icon: Library,
+          color: '#a78bfa',
+          tab: 'library',
+        },
+        {
+          label: 'Plan from mastery',
+          meta: 'Scoped to org tracks',
+          icon: Wand2,
+          color: '#FF6FA8',
+          tab: 'plan',
+        },
+        {
+          label: 'Class mastery',
+          meta: t?.awaiting ? `${t.awaiting} to review` : 'Progress',
+          icon: BarChart3,
+          color: '#F5B83D',
+          tab: 'grade',
+        },
+        {
+          label: 'Assess & feedback',
+          meta: 'Reflections & rubrics',
+          icon: ClipboardCheck,
+          color: '#c4b5fd',
+          tab: 'assess',
+        },
+        {
+          label: 'Checks & quizzes',
+          meta: 'Memory verse & study',
+          icon: LayoutGrid,
+          color: '#60A5FA',
+          tab: 'checks',
+        },
+        {
+          label: 'Lesson planner',
+          meta: 'Weekly syllabus',
+          icon: FileText,
+          color: '#00DAF3',
+          tab: 'planner',
+        },
+        {
+          label: 'Progress reports',
+          meta: 'Department summary',
+          icon: FileBarChart,
+          color: '#06D6A0',
+          tab: 'reports',
+        },
+        {
+          label: 'My notebook',
+          meta: 'Instructor notes',
+          icon: Notebook,
+          color: '#c4b5fd',
+          view: 'NOTES',
+        },
+      ];
+      if (tutoringEnabled) {
+        orgTools.push({
+          label: 'Tutoring Inquiry',
+          meta: 'Org Tutoring Track',
+          icon: Microscope,
+          color: '#06D6A0',
+          view: 'INQUIRY',
+        });
+      }
+      if (continuingEdEnabled) {
+        orgTools.push({
+          label: 'Integrity check',
+          meta: 'Certificate essays',
+          icon: ShieldCheck,
+          color: '#60A5FA',
+          tab: 'integrity',
+        });
+      }
+      return orgTools;
+    }
+
+    return [
+      { label: 'Take attendance', meta: 'Today', icon: CalendarCheck, color: '#60A5FA', onClick: () => ((classes || []).length ? setAttFor(sel?.classIds[0] || '') : onNavigate('CLASSROOMS')) },
+      { label: 'Classroom Club & Live', meta: 'Feed · Photos · Lecture · Whiteboard', icon: Users, color: '#D40055', tab: 'classroomClub' },
+      { label: 'Year curriculum', meta: '180 days · Math & ELA', icon: CalendarRange, color: '#F5B83D', view: 'ACADEMIA_YEAR' },
+      { label: 'Education Council', meta: 'Global educators', icon: Landmark, color: '#c4b5fd', view: 'EDUCATION_COUNCIL' },
+      { label: 'Build a lesson', meta: templates ? `${templates.length} saved` : undefined, icon: PenTool, color: '#FF8C00', tab: 'templates' },
+      { label: 'Scan worksheet', meta: 'Paper & Doc → Tela', icon: ScanLine, color: '#06D6A0', tab: 'worksheet' },
+      { label: 'Scan a flyer', meta: 'Dates to calendar', icon: CalendarRange, color: '#36c5f0', view: 'ACADEMIA_SCAN' },
+      { label: 'Plan from mastery', meta: 'Find the gaps', icon: Wand2, color: '#FF6FA8', tab: 'plan' },
+      { label: 'Gradebook', meta: t?.awaiting ? `${t.awaiting} to grade` : 'All caught up', icon: BarChart3, color: '#F5B83D', tab: 'grade' },
+      { label: 'Assess work', meta: 'Rubrics', icon: ClipboardCheck, color: '#c4b5fd', tab: 'assess' },
+      { label: 'Checks', meta: 'For understanding', icon: LayoutGrid, color: '#60A5FA', tab: 'checks' },
+      { label: 'Planner', meta: 'Lesson plans', icon: FileText, color: '#00DAF3', tab: 'planner' },
+      { label: 'Content library', meta: 'Rights-cleared', icon: Library, color: '#a78bfa', tab: 'library' },
+      { label: 'Reports', meta: 'Progress', icon: FileBarChart, color: '#06D6A0', tab: 'reports' },
+      { label: 'Integrity', meta: 'Original work', icon: ShieldCheck, color: '#60A5FA', tab: 'integrity' },
+      { label: 'Learning support', meta: 'IEP · 504 plans', icon: Accessibility, color: '#00DAF3', onClick: () => openSupportCenter(onNavigate, { tab: 'plan' }) },
+      { label: 'Integrations', meta: 'Google · Clever', icon: Plug, color: '#FFB266', tab: 'connect' },
+      { label: 'Investigate', meta: 'Inquiry studio', icon: Microscope, color: '#06D6A0', view: 'INQUIRY' },
+      { label: 'Class Points', meta: 'Celebrate', icon: Star, color: '#F5B83D', view: 'CLASS_POINTS' },
+      { label: 'My notebook', meta: 'Notes', icon: Notebook, color: '#c4b5fd', view: 'NOTES' },
+      { label: 'Message parents', meta: 'Inbox', icon: MessageCircle, color: '#FF6FA8', view: 'CHAT' },
+    ];
+  }, [orgContext, orgScope, classes, sel, templates, t, onNavigate]);
+
   const recent = [
     ...queue.slice(0, 2).map(r => ({ key: r.submissionId, kind: 'To grade', color: '#FF6FA8', title: r.title, meta: `${r.studentName} · ${ago(r.submittedAt)}`, img: '/academia/kingdoms.jpg', onClick: () => go(onNavigate, 'assess') })),
     ...(templates || []).slice(0, 4).map((tp, i) => ({ key: tp.id, kind: 'Lesson', color: '#00DAF3', title: tp.structure?.title || 'Untitled lesson', meta: `${tp.subject} · edited ${ago(tp.updatedAt || tp.createdAt)}`, img: ['/academia/archipelago.jpg', '/academia/ginkgo.jpg', '/academia/pillars.jpg', '/academia/baobab.jpg'][i % 4], onClick: () => go(onNavigate, 'templates') })),
   ].slice(0, 4);
+
+  const orgClassCount = orgContext?.programs ? orgContext.programs.length : classes?.length || 0;
+  const orgScopedCourses = useMemo(
+    () => (orgContext ? getOrgScopedCourses(orgContext.org, orgScope || undefined) : []),
+    [orgContext, orgScope]
+  );
 
   return (
     <div className="min-h-full bg-[#0a0a0f] text-white pb-24">
@@ -138,9 +307,17 @@ const TeacherHub: React.FC<Props> = ({ user, profile, onNavigate, isAdminLens })
                 ? <img src={profile.photoURL} alt="" className="w-16 h-16 sm:w-[76px] sm:h-[76px] shrink-0 rounded-[22px] object-cover shadow-[0_0_0_4px_rgba(255,140,0,0.25)]" />
                 : <div className="w-16 h-16 sm:w-[76px] sm:h-[76px] shrink-0 rounded-[22px] bg-[#FF8C00] text-[#0a0a0f] grid place-items-center text-[28px] font-black shadow-[0_0_0_4px_rgba(255,140,0,0.25),0_20px_50px_-10px_rgba(255,140,0,0.6)]" style={{ fontFamily: 'Outfit' }}>{initials(profile?.displayName || 'T')}</div>}
               <div className="min-w-0">
-                <p className="text-[11px] font-black uppercase tracking-[0.25em] text-[#FFB266]">Teacher Studio</p>
+                <p className="text-[11px] font-black uppercase tracking-[0.25em] text-[#FFB266]">
+                  {orgContext ? `${orgContext.org.name} · Instructor Studio` : 'Teacher Studio'}
+                </p>
                 <h1 className="text-[26px] sm:text-[42px] font-black leading-[1.05] mt-1" style={{ fontFamily: 'Outfit' }}>Good to see you, {first}</h1>
-                <p className="text-[14px] text-white/70 mt-1">{classes === null ? 'Loading your classes…' : `${classes.length} class${classes.length === 1 ? '' : 'es'}${t ? ` · ${t.students} students` : ''}`}</p>
+                <p className="text-[14px] text-white/70 mt-1">
+                  {orgContext
+                    ? `${orgClassCount} organization classroom${orgClassCount === 1 ? '' : 's'} · Scoped to ${orgContext.org.name} materials & topics`
+                    : classes === null
+                    ? 'Loading your classes…'
+                    : `${classes.length} class${classes.length === 1 ? '' : 'es'}${t ? ` · ${t.students} students` : ''}`}
+                </p>
               </div>
             </div>
             <div className="w-full sm:w-auto flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2.5">
@@ -153,14 +330,29 @@ const TeacherHub: React.FC<Props> = ({ user, profile, onNavigate, isAdminLens })
                 <div key={s.l} className="px-3 sm:px-4 py-3 rounded-2xl bg-[#0a0a0f]/70 border border-white/[0.12]"><div className="text-[24px] font-black" style={{ color: s.c, fontFamily: 'Outfit' }}>{s.v}</div><div className="text-[12px] text-white/65">{s.l}</div></div>
               ))}
               </div>
-              <CreateEventButton compact label="Plan a class event" host={{ kind: 'teacher', id: uid, label: first ? `${first}’s class` : 'My class' }} />
+              <CreateEventButton compact label="Plan a class event" host={{ kind: 'teacher', id: uid, label: orgContext ? `${orgContext.org.name} Class` : first ? `${first}’s class` : 'My class' }} />
             </div>
           </div>
         </section>
 
+        {/* Organization Scope & Uploaded Resource Governance Banner */}
+        {orgContext && (
+          <div className="mt-5">
+            <OrgEducationScopeGovernancePanel
+              org={orgContext.org}
+              canManageScope={!!orgContext.canManageScope}
+              currentUserName={profile?.displayName}
+              onScopeChange={setOrgScope}
+              onOpenWorksheetExtractor={() => go(onNavigate, 'worksheet')}
+            />
+          </div>
+        )}
+
         {/* Toolbox row */}
         <section className="mt-7" aria-labelledby="tools-h">
-          <Eyebrow id="tools-h">Your toolbox</Eyebrow>
+          <Eyebrow id="tools-h">
+            {orgContext ? `${orgContext.org.name} · Provisioned Instructor Toolbox` : 'Your toolbox'}
+          </Eyebrow>
           <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1">
             {tools.map(tl => (
               <button key={tl.label} type="button" onClick={() => (tl.onClick ? tl.onClick() : tl.tab ? go(onNavigate, tl.tab) : onNavigate(tl.view!))}
@@ -197,7 +389,9 @@ const TeacherHub: React.FC<Props> = ({ user, profile, onNavigate, isAdminLens })
 
         {/* Search, dead center */}
         <section className="mt-14 flex flex-col items-center text-center" aria-labelledby="find-h">
-          <h2 id="find-h" className="text-[26px] sm:text-[38px] font-black" style={{ fontFamily: 'Outfit' }}>Find any student or class</h2>
+          <h2 id="find-h" className="text-[26px] sm:text-[38px] font-black" style={{ fontFamily: 'Outfit' }}>
+            {orgContext ? `Find any member or class in ${orgContext.org.name}` : 'Find any student or class'}
+          </h2>
           <p className="text-[15px] text-white/65 mt-2 mb-5">Type a name. Their whole picture opens right here: grades, work, mastery and messages.</p>
           <label htmlFor="teacher-find" className="sr-only">Search students and classes</label>
           <div className="w-full max-w-[760px] flex items-center gap-3 px-4 sm:px-5 h-[60px] sm:h-[72px] rounded-full bg-[#14131b] border-2 border-white/[0.14] focus-within:border-[#FF8C00] focus-within:shadow-[0_0_0_6px_rgba(255,140,0,0.14),0_30px_80px_-30px_rgba(255,140,0,0.5)] transition-all">
@@ -232,59 +426,142 @@ const TeacherHub: React.FC<Props> = ({ user, profile, onNavigate, isAdminLens })
           {sel && uid && <StudentDossier key={sel.uid} teacherUid={uid} student={sel} onNavigate={onNavigate} onClose={() => setSel(null)} onTakeAttendance={() => setAttFor(sel.classIds[0] || '')} attendanceVersion={attVersion} />}
         </div>
 
-        <div className="mt-14 acad-fold-gap">
-          <DidYouKnow role="teacher" onNavigate={onNavigate} />
-          <WellbeingPanel role="teacher" user={user} profile={profile} classes={classes || []} onNavigate={onNavigate} />
-          <SupportHubCard role="teacher" uid={uid} onNavigate={onNavigate} />
-        </div>
+        {/* Standalone Academia teacher panels — hidden when scoped inside an Organization */}
+        {!orgContext && (
+          <div className="mt-14 acad-fold-gap">
+            <DidYouKnow role="teacher" onNavigate={onNavigate} />
+            <WellbeingPanel role="teacher" user={user} profile={profile} classes={classes || []} onNavigate={onNavigate} />
+            <SupportHubCard role="teacher" uid={uid} onNavigate={onNavigate} />
+          </div>
+        )}
 
         {/* Class performance */}
         <section className="mt-10 mb-12" aria-labelledby="classes-h">
-          <Eyebrow id="classes-h">Your classes</Eyebrow>
+          <Eyebrow id="classes-h">
+            {orgContext ? `${orgContext.org.name} · Christian Education Classrooms` : 'Your classes'}
+          </Eyebrow>
           <div className="rounded-[22px] bg-white/[0.03] border border-white/10 overflow-hidden">
-            {classes === null && <p className="p-4 text-sm text-white/50">Loading your classes…</p>}
-            {classes && classes.length === 0 && (
-              <div className="p-6 text-center">
-                <Users className="mx-auto mb-2 text-white/30" />
-                <p className="text-sm font-bold">No classes yet</p>
-                <p className="text-[12px] text-white/50 mb-3">Create one, add or provision your students, and the numbers above come alive.</p>
-                <button type="button" onClick={() => onNavigate('CLASSROOMS')} className="inline-flex items-center gap-1.5 rounded-full bg-[#FF8C00] text-black text-xs font-black px-4 py-2"><Plus size={14} /> Create a class</button>
-              </div>
-            )}
-            {(m?.classes || []).map(c => {
-              const enrolledSelf = !!(classes || []).find(k => k.id === c.classId)?.enrolledStudents?.includes(uid);
-              return (
-                <div key={c.classId} className="flex items-center gap-3 px-4 py-3.5 border-b border-white/5 last:border-0">
+            {orgContext && orgContext.programs && orgContext.programs.length > 0 ? (
+              orgContext.programs.map(prog => (
+                <div
+                  key={prog.id}
+                  className="flex flex-wrap items-center justify-between gap-3 px-4 py-3.5 border-b border-white/5 last:border-0"
+                >
                   <div className="min-w-0 flex-1">
-                    <p className="text-[15px] font-bold truncate">{c.title}</p>
-                    <p className="text-[12px] text-white/55">{c.enrolled} students · {c.submitted} submitted · {c.graded} graded{c.awaiting ? ` · ${c.awaiting} waiting` : ''}</p>
+                    <p className="text-[15px] font-bold truncate">{prog.name}</p>
+                    <p className="text-[12px] text-white/55">
+                      {prog.ageBand || 'All Ages'} · {prog.meetingSchedule || 'Weekly Schedule'} · {prog.weeks.length} syllabus week{prog.weeks.length === 1 ? '' : 's'}
+                      {prog.leadInstructor ? ` · Instructor: ${prog.leadInstructor}` : ''}
+                    </p>
                   </div>
-                  <div className="w-36 hidden sm:block">
-                    <div className="h-2 rounded-full bg-white/10 overflow-hidden"><div className="h-full bg-[#06D6A0]" style={{ width: `${c.avgMastery ?? 0}%` }} /></div>
-                    <p className="text-[11px] text-white/55 mt-1 text-right">{c.avgMastery == null ? 'nothing graded' : `${c.avgMastery}% mastery`}</p>
+                  <div className="flex items-center gap-2">
+                    {orgContext.onSelectOrgClass && (
+                      <button
+                        type="button"
+                        onClick={() => orgContext.onSelectOrgClass?.(prog.id)}
+                        className="min-h-[36px] px-3.5 rounded-full bg-amber-400 text-black text-[12px] font-black inline-flex items-center gap-1.5"
+                      >
+                        <BookOpen size={13} /> Open Class &amp; Syllabus
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => go(onNavigate, 'grade')}
+                      className="min-h-[36px] px-3 rounded-full border border-white/15 text-white/80 text-[12px] font-bold hover:bg-white/10"
+                    >
+                      Mastery
+                    </button>
                   </div>
-                  <button type="button" onClick={() => setAttFor(c.classId)} className="min-h-[36px] px-3 rounded-full border border-[#60A5FA]/40 text-[#93C5FD] text-[12px] font-bold inline-flex items-center gap-1.5 shrink-0"><CalendarCheck size={13} /> <span className="hidden sm:inline">Attendance</span></button>
-                  {c.atRisk > 0 && <span className="inline-flex items-center gap-1 text-[11px] font-black text-[#ff8aa3] bg-[#ff6b8a]/10 border border-[#ff6b8a]/30 rounded-full px-2 py-1"><AlertTriangle size={11} />{c.atRisk}</span>}
-                  {isAdminLens && !enrolledSelf && (
-                    <button type="button" onClick={() => joinOwn(c.classId)} className="text-[10px] font-black uppercase tracking-wider text-white/60 border border-white/15 rounded-full px-2.5 py-1 hover:bg-white/10" title="Enroll yourself so you can test the student side of this class">Test as student</button>
-                  )}
                 </div>
-              );
-            })}
+              ))
+            ) : (
+              <>
+                {classes === null && <p className="p-4 text-sm text-white/50">Loading your classes…</p>}
+                {classes && classes.length === 0 && (
+                  <div className="p-6 text-center">
+                    <Users className="mx-auto mb-2 text-white/30" />
+                    <p className="text-sm font-bold">No classes yet</p>
+                    <p className="text-[12px] text-white/50 mb-3">Create one, add or provision your students, and the numbers above come alive.</p>
+                    <button type="button" onClick={() => onNavigate('CLASSROOMS')} className="inline-flex items-center gap-1.5 rounded-full bg-[#FF8C00] text-black text-xs font-black px-4 py-2"><Plus size={14} /> Create a class</button>
+                  </div>
+                )}
+                {(m?.classes || []).map(c => {
+                  const enrolledSelf = !!(classes || []).find(k => k.id === c.classId)?.enrolledStudents?.includes(uid);
+                  return (
+                    <div key={c.classId} className="flex items-center gap-3 px-4 py-3.5 border-b border-white/5 last:border-0">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[15px] font-bold truncate">{c.title}</p>
+                        <p className="text-[12px] text-white/55">{c.enrolled} students · {c.submitted} submitted · {c.graded} graded{c.awaiting ? ` · ${c.awaiting} waiting` : ''}</p>
+                      </div>
+                      <div className="w-36 hidden sm:block">
+                        <div className="h-2 rounded-full bg-white/10 overflow-hidden"><div className="h-full bg-[#06D6A0]" style={{ width: `${c.avgMastery ?? 0}%` }} /></div>
+                        <p className="text-[11px] text-white/55 mt-1 text-right">{c.avgMastery == null ? 'nothing graded' : `${c.avgMastery}% mastery`}</p>
+                      </div>
+                      <button type="button" onClick={() => setAttFor(c.classId)} className="min-h-[36px] px-3 rounded-full border border-[#60A5FA]/40 text-[#93C5FD] text-[12px] font-bold inline-flex items-center gap-1.5 shrink-0"><CalendarCheck size={13} /> <span className="hidden sm:inline">Attendance</span></button>
+                      {c.atRisk > 0 && <span className="inline-flex items-center gap-1 text-[11px] font-black text-[#ff8aa3] bg-[#ff6b8a]/10 border border-[#ff6b8a]/30 rounded-full px-2 py-1"><AlertTriangle size={11} />{c.atRisk}</span>}
+                      {isAdminLens && !enrolledSelf && (
+                        <button type="button" onClick={() => joinOwn(c.classId)} className="text-[10px] font-black uppercase tracking-wider text-white/60 border border-white/15 rounded-full px-2.5 py-1 hover:bg-white/10" title="Enroll yourself so you can test the student side of this class">Test as student</button>
+                      )}
+                    </div>
+                  );
+                })}
+              </>
+            )}
           </div>
           {msg && <p role="status" className="text-[12px] text-[#06D6A0] mt-2">{msg}</p>}
-          <div className="flex flex-wrap gap-2 mt-4">
-            <button type="button" onClick={() => onNavigate('CLASSROOMS')} className="text-[12px] font-bold rounded-full border border-white/15 px-4 py-2 hover:bg-white/10">Manage classes &amp; roster</button>
-            <button type="button" onClick={() => onNavigate('LEARN')} className="text-[12px] font-bold rounded-full border border-white/15 px-4 py-2 hover:bg-white/10">Course library</button>
-          </div>
+          {!orgContext && (
+            <div className="flex flex-wrap gap-2 mt-4">
+              <button type="button" onClick={() => onNavigate('CLASSROOMS')} className="text-[12px] font-bold rounded-full border border-white/15 px-4 py-2 hover:bg-white/10">Manage classes &amp; roster</button>
+              <button type="button" onClick={() => onNavigate('LEARN')} className="text-[12px] font-bold rounded-full border border-white/15 px-4 py-2 hover:bg-white/10">Course library</button>
+            </div>
+          )}
         </section>
 
-        <ExhibitsRow role="teacher" onNavigate={onNavigate} />
-        <StudiosRow role="teacher" onNavigate={onNavigate} prefsUid={uid} />
-        <LoreaShelf role="teacher" onNavigate={onNavigate} />
-        <CurriculumShowcase role="teacher" onNavigate={onNavigate} />
+        {/* Organization-Provisioned Courses & Uploaded Resources vs. Full Academia Showcases */}
+        {orgContext ? (
+          <section className="mt-8 space-y-4">
+            <Eyebrow>
+              Provisioned Courses &amp; Curriculum Tracks Under {orgContext.org.name} ({orgScopedCourses.length})
+            </Eyebrow>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+              {orgScopedCourses.map(crs => (
+                <div
+                  key={crs.id}
+                  className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 flex flex-col justify-between gap-3"
+                >
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">{crs.emoji}</span>
+                      <h3 className="text-sm font-bold text-white">{crs.title}</h3>
+                    </div>
+                    <p className="text-xs text-white/60 mt-1.5 leading-relaxed">{crs.summary}</p>
+                  </div>
+                  <div className="flex items-center justify-between pt-2 border-t border-white/10">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-amber-300">
+                      {crs.trackId.replace(/_/g, ' ')}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => go(onNavigate, 'plan')}
+                      className="text-xs font-bold text-emerald-300 hover:underline"
+                    >
+                      Plan Lesson →
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : (
+          <>
+            <ExhibitsRow role="teacher" onNavigate={onNavigate} />
+            <StudiosRow role="teacher" onNavigate={onNavigate} prefsUid={uid} />
+            <LoreaShelf role="teacher" onNavigate={onNavigate} />
+            <CurriculumShowcase role="teacher" onNavigate={onNavigate} />
 
-        <EduFeedPanel currentUser={user} profile={profile} eduRole="TEACHER" onOpenFeed={() => onNavigate('EDU_SOCIAL')} />
+            <EduFeedPanel currentUser={user} profile={profile} eduRole="TEACHER" onOpenFeed={() => onNavigate('EDU_SOCIAL')} />
+          </>
+        )}
       </div>
       {attFor !== undefined && uid && (classes || []).length > 0 && (
         <AttendanceSheet teacherUid={uid} classes={classes || []} roster={roster || []} initialClassId={attFor || undefined}

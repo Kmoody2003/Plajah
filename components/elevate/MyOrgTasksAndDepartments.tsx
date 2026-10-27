@@ -26,7 +26,6 @@ import { extractOrgDepartmentsAndGroups } from './OrgAudienceToggle';
 import { listIngestedUnits, loadOrgMasterySummary } from '../../services/curriculumIngestionService';
 import { ensureDefaultTemplatedClassrooms, type ChurchProgram } from '../../services/churchEducationService';
 import { LEVEL_NAME, LEVEL_COLOR, type SkillLevel } from '../../services/mastery';
-import CurriculumAndMasteryStudio from '../church/CurriculumAndMasteryStudio';
 import { UniversalStudentDesk } from '../desk/UniversalStudentDesk';
 
 export interface OrgMemberTaskItem {
@@ -130,7 +129,6 @@ export const MyOrgTasksAndDepartments: React.FC<MyOrgTasksAndDepartmentsProps> =
   const [selectedOrgId, setSelectedOrgId] = useState<string>(propOrg?.id || GREAT_FAITH_MINISTRIES_ORG.id);
   const [members, setMembers] = useState<OrgMembership[]>([]);
   const [programs, setPrograms] = useState<ChurchProgram[]>([]);
-  const [showExtractorStudio, setShowExtractorStudio] = useState(false);
   const [showStudentDeskDrawer, setShowStudentDeskDrawer] = useState(false);
 
   useEffect(() => {
@@ -491,7 +489,7 @@ export const MyOrgTasksAndDepartments: React.FC<MyOrgTasksAndDepartmentsProps> =
           </div>
 
           <p className="text-[11px] text-white/65 leading-relaxed">
-            Academia-powered teacher &amp; student dashboard, Google Forms/Docs &amp; PDF → interactive Tela assignments, and course Mastery.
+            Academia-powered instructor &amp; student dashboard, interactive Tela assignments, and course Mastery.
           </p>
 
           {/* Ingested Tela Units or Active Classrooms */}
@@ -547,15 +545,6 @@ export const MyOrgTasksAndDepartments: React.FC<MyOrgTasksAndDepartmentsProps> =
             {showStudentDeskDrawer ? 'Hide My Universal Student Desk' : '🪑 Open My Universal Student Desk'}
           </button>
 
-          <button
-            type="button"
-            onClick={() => setShowExtractorStudio(prev => !prev)}
-            className="w-full py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-black text-xs font-black inline-flex items-center justify-center gap-1.5 shadow"
-          >
-            <Sparkles size={13} />
-            {showExtractorStudio ? 'Hide Google Doc / PDF Extractor' : 'Test Google Doc / PDF → Tela Extractor'}
-          </button>
-
           {onOpenEducation ? (
             <button
               type="button"
@@ -591,20 +580,6 @@ export const MyOrgTasksAndDepartments: React.FC<MyOrgTasksAndDepartmentsProps> =
             onOpenTelaStudio={(docId: string) => {
               window.dispatchEvent(new CustomEvent('plajah:openTela', { detail: { docId } }));
             }}
-          />
-        </div>
-      )}
-
-      {/* Inline Google Doc / PDF / Forms → Interactive Tela + Mastery Extractor Drawer */}
-      {showExtractorStudio && (
-        <div className="pt-4 border-t border-white/10">
-          <CurriculumAndMasteryStudio
-            orgId={activeOrg.id}
-            orgName={activeOrg.name}
-            canEdit={true}
-            currentUserUid={uid}
-            currentUserName={auth.currentUser?.displayName || 'Instructor'}
-            programs={programs}
           />
         </div>
       )}

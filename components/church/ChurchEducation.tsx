@@ -21,7 +21,7 @@ import {
   Award,
   Link2,
 } from 'lucide-react';
-import type { Organization } from '../../types';
+import type { Organization, OrgMembership } from '../../types';
 import { COURSES } from '../../services/courseCatalog';
 import { openScripture } from '../scripture/ScriptureRefChip';
 import { parseRef } from '../../services/scriptureRef';
@@ -47,6 +47,14 @@ import { auth } from '../../services/firebase';
 import CurriculumAndMasteryStudio from './CurriculumAndMasteryStudio';
 import SharedClassroomClubHub from '../classroom/SharedClassroomClubHub';
 import OrgCentralCalendarHub from '../elevate/OrgCentralCalendarHub';
+import ElevateCommunicationsHub from '../elevate/ElevateCommunicationsHub';
+import OrgEducationScopeGovernancePanel from './OrgEducationScopeGovernancePanel';
+import {
+  loadOrgEducationScope,
+  getOrgScopedCourses,
+  canViewerConfigureOrgEducationScope,
+  type OrgEducationScopeConfig,
+} from '../../services/orgEducationScopeService';
 import { UniversalStudentDesk } from '../desk/UniversalStudentDesk';
 import {
   listIngestedUnits,
@@ -85,8 +93,9 @@ type EducationPortalMode =
 const ChurchEducation: React.FC<{
   church: Organization;
   canEdit: boolean;
+  membership?: OrgMembership | null;
   onOpenChatRoom?: (roomId: string) => void;
-}> = ({ church, canEdit, onOpenChatRoom }) => {
+}> = ({ church, canEdit, membership, onOpenChatRoom }) => {
   const [portalMode, setPortalMode] = useState<EducationPortalMode>('CLASSROOMS');
   const [programs, setPrograms] = useState<ChurchProgram[] | null>(null);
   const [open, setOpen] = useState<ChurchProgram | null>(null);
@@ -164,13 +173,20 @@ const ChurchEducation: React.FC<{
 
   const start = (p: ChurchProgram) => persist(p);
 
-  const courseOptions = useMemo(
-    () =>
-      COURSES.filter(
-        c => c.kind === 'curriculum' && ['humanities', 'arts', 'economics', 'literacy'].includes(c.subject)
-      ),
-    []
+  const [orgScope, setOrgScope] = useState<OrgEducationScopeConfig>(() => loadOrgEducationScope(church));
+  const canConfigureScope = useMemo(
+    () => canEdit || canViewerConfigureOrgEducationScope(membership, church),
+    [canEdit, membership, church]
   );
+
+  useEffect(() => {
+    const syncScope = () => setOrgScope(loadOrgEducationScope(church));
+    syncScope();
+    window.addEventListener('plajah:orgEduScopeUpdated', syncScope);
+    return () => window.removeEventListener('plajah:orgEduScopeUpdated', syncScope);
+  }, [church]);
+
+  const courseOptions = useMemo(() => getOrgScopedCourses(church, orgScope), [church, orgScope]);
 
   const handleAttachIngestedUnitToProgram = async (programId: string, unit: IngestedCurriculumUnit) => {
     const target = (programs || []).find(p => p.id === programId);
@@ -310,18 +326,6 @@ const ChurchEducation: React.FC<{
 
         <button
           type="button"
-          onClick={() => setPortalMode('CURRICULUM_TELA_INGESTOR')}
-          className={`px-3.5 py-2 rounded-2xl text-xs font-black inline-flex items-center gap-1.5 transition ${
-            portalMode === 'CURRICULUM_TELA_INGESTOR'
-              ? 'bg-gradient-to-r from-[#6B0099] via-[#D40055] to-[#FF8C00] text-white shadow-lg'
-              : 'bg-white/5 text-white/70 hover:text-white hover:bg-white/10'
-          }`}
-        >
-          <Link2 size={13} /> Google Forms/Docs &amp; PDF → Tela + Mastery ({ingestedUnits.length})
-        </button>
-
-        <button
-          type="button"
           onClick={() => setPortalMode('TEACHER_DASHBOARD')}
           className={`px-3.5 py-2 rounded-2xl text-xs font-black inline-flex items-center gap-1.5 transition ${
             portalMode === 'TEACHER_DASHBOARD'
@@ -341,7 +345,7 @@ const ChurchEducation: React.FC<{
               : 'bg-white/5 text-white/70 hover:text-white hover:bg-white/10'
           }`}
         >
-          <Calendar size={13} /> Central Calendar &amp; Sub AI
+          <Calendar size={13} /> {canEdit ? 'Central Calendar & Sub Radar' : 'Central Calendar'}
         </button>
 
         <button
@@ -369,13 +373,9 @@ const ChurchEducation: React.FC<{
         </button>
       </div>
 
-      <button
-        type="button"
-        onClick={() => nav('LEARN')}
-        className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-[11px] font-bold inline-flex items-center gap-1.5"
-      >
-        <GraduationCap size={13} /> Full Academia Hub
-      </button>
+      <span className="px-3 py-1.5 rounded-xl bg-amber-400/15 border border-amber-400/35 text-amber-200 text-[11px] font-bold inline-flex items-center gap-1.5">
+        <GraduationCap size={13} /> Scoped to {church.name}
+      </span>
     </div>
   );
 
@@ -383,12 +383,35 @@ const ChurchEducation: React.FC<{
   if (portalMode === 'CENTRAL_CALENDAR') {
     const christianEdDeptId =
       (church.ministries || []).find(m => /christian\s*ed|education|sunday\s*school/i.test(m.name))?.id || 'ALL';
+    const effectiveMembership: OrgMembership | null =
+      membership ||
+      (canEdit
+        ? {
+            id: `${church.id}_${teacherProfile.uid}`,
+            orgId: church.id,
+            uid: teacherProfile.uid,
+            displayName: teacherProfile.displayName,
+            role: 'MINISTRY_LEAD',
+            ministryIds: christianEdDeptId !== 'ALL' ? [christianEdDeptId] : [],
+            departmentRoles:
+              christianEdDeptId !== 'ALL'
+                ? [
+                    {
+                      departmentId: christianEdDeptId,
+                      departmentName: 'Christian Education',
+                      roles: ['DEPARTMENT_HEAD', 'INSTRUCTOR'],
+                    },
+                  ]
+                : [],
+            joinedAt: Date.now(),
+          }
+        : null);
     return (
       <div className="space-y-5 text-white" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
         {modeBar}
         <OrgCentralCalendarHub
           org={church}
-          myMembership={null}
+          myMembership={effectiveMembership}
           initialDepartmentId={christianEdDeptId}
         />
       </div>
@@ -411,9 +434,23 @@ const ChurchEducation: React.FC<{
               user={currentUser || { uid: teacherProfile.uid, displayName: teacherProfile.displayName }}
               profile={teacherProfile}
               isAdminLens={canEdit}
+              orgContext={{
+                org: church,
+                programs: programs || [],
+                canManageScope: canConfigureScope,
+                onSelectOrgClass: programId => {
+                  const found = (programs || []).find(x => x.id === programId);
+                  if (found) {
+                    setOpen(found);
+                    setPortalMode('CLASSROOMS');
+                  }
+                },
+              }}
               onNavigate={targetView => {
                 if (targetView === 'TEACHER_TOOLS') {
                   setPortalMode('TEACHER_TOOLS');
+                } else if (targetView === 'CLASSROOMS') {
+                  setPortalMode('CLASSROOMS');
                 } else {
                   nav(targetView);
                 }
@@ -441,6 +478,12 @@ const ChurchEducation: React.FC<{
             <TeacherToolsView
               user={currentUser || { uid: teacherProfile.uid, displayName: teacherProfile.displayName }}
               onBack={() => setPortalMode('TEACHER_DASHBOARD')}
+              orgContext={{
+                org: church,
+                activeProgram: open || undefined,
+                programs: programs || [],
+                canManageScope: canConfigureScope,
+              }}
             />
           </Suspense>
         </div>
@@ -679,17 +722,6 @@ const ChurchEducation: React.FC<{
             </button>
             <button
               type="button"
-              onClick={() => setActiveTab('TELA_UNITS')}
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 transition ${
-                activeTab === 'TELA_UNITS'
-                  ? 'bg-gradient-to-r from-[#6B0099] via-[#D40055] to-[#FF8C00] text-white'
-                  : 'bg-white/5 text-white/70 hover:bg-white/10'
-              }`}
-            >
-              <Sparkles size={13} /> Google Forms/Docs &amp; PDF → Tela + Mastery
-            </button>
-            <button
-              type="button"
               onClick={() => setActiveTab('CLASS_CHAT')}
               className={`px-3.5 py-2 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 transition ${
                 activeTab === 'CLASS_CHAT'
@@ -697,7 +729,7 @@ const ChurchEducation: React.FC<{
                   : 'bg-white/5 text-white/70 hover:bg-white/10'
               }`}
             >
-              <MessageSquare size={13} /> Dedicated Classroom Chat ({(p.chatMessages || []).length})
+              <MessageSquare size={13} /> Plajah Classroom Chat &amp; Discussion Forum
             </button>
             <button
               type="button"
@@ -853,92 +885,15 @@ const ChurchEducation: React.FC<{
           </div>
         )}
 
-        {/* TAB 2: DEDICATED CLASSROOM CHAT */}
+        {/* TAB 2: PLAJAH CLASSROOM CHAT & REDDIT-STYLE CLASSROOM DISCUSSION FORUM */}
         {activeTab === 'CLASS_CHAT' && (
-          <div className="rounded-2xl border border-white/10 bg-black/40 p-4 space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-3">
-              <div>
-                <h3 className="text-sm font-black" style={{ fontFamily: "'Outfit', sans-serif" }}>
-                  {p.name} · Dedicated Classroom Chat
-                </h3>
-                <p className="text-[11px] text-white/55">
-                  Governed Organization Classroom Channel (<span className="font-mono">{p.chatRoomId}</span>)
-                </p>
-              </div>
-              {onOpenChatRoom && (
-                <button
-                  type="button"
-                  onClick={() => onOpenChatRoom(p.chatRoomId)}
-                  className="px-3 py-1.5 rounded-full bg-indigo-500/20 border border-indigo-400/40 text-indigo-200 text-[11px] font-bold inline-flex items-center gap-1.5"
-                >
-                  <ExternalLink size={12} /> Open Full Room in Plajah Chat
-                </button>
-              )}
-            </div>
-
-            <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
-              {(p.chatMessages || []).length === 0 && (
-                <p className="text-xs text-white/45">No messages yet.</p>
-              )}
-              {(p.chatMessages || []).map(m => (
-                <div
-                  key={m.id}
-                  className="rounded-xl border border-white/10 bg-white/[0.03] p-3 space-y-1"
-                >
-                  <div className="flex items-center justify-between text-[11px]">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-white">{m.senderName}</span>
-                      <span className="px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-200 text-[9px] font-bold uppercase">
-                        {m.senderRole}
-                      </span>
-                    </div>
-                    <span className="text-white/40 font-mono text-[10px]">
-                      {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
-                  <p className="text-xs text-white/80 leading-relaxed">{m.text}</p>
-                  {m.attachmentLabel && (
-                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-500/15 border border-indigo-400/30 text-indigo-200 text-[11px] mt-1">
-                      <FileText size={11} /> {m.attachmentLabel}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            <div className="flex flex-wrap sm:flex-nowrap gap-2 pt-2 border-t border-white/10">
-              <select
-                aria-label="Sender role"
-                value={chatSenderRole}
-                onChange={e => setChatSenderRole(e.target.value as any)}
-                className="bg-black/60 border border-white/15 rounded-xl px-2.5 py-2 text-xs text-white"
-              >
-                <option value="INSTRUCTOR">Instructor</option>
-                <option value="CATECHIST">Catechist</option>
-                <option value="PASTOR">Pastor</option>
-                <option value="STUDENT">Student / Parent</option>
-              </select>
-              <input
-                value={chatDraft}
-                onChange={e => setChatDraft(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleSendChatMessage();
-                  }
-                }}
-                placeholder={`Post a question, memory verse, or study note to ${p.name}...`}
-                className="flex-1 bg-black/50 border border-white/15 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-amber-400/60"
-              />
-              <button
-                type="button"
-                onClick={handleSendChatMessage}
-                className="px-4 py-2 rounded-xl bg-amber-400 text-black text-xs font-black inline-flex items-center gap-1.5"
-              >
-                <Send size={12} /> Post
-              </button>
-            </div>
-          </div>
+          <ElevateCommunicationsHub
+            org={church}
+            membership={membership}
+            user={currentUser || { uid: teacherProfile.uid, displayName: teacherProfile.displayName }}
+            programs={programs || [p]}
+            scopedClass={{ classId: p.id, className: p.name }}
+          />
         )}
 
         {/* TAB 3: ACADEMIA ED-TECH STACK (ROSTER, COURSES, WORKSHEET SCANNER, TELA) */}
@@ -1026,6 +981,19 @@ const ChurchEducation: React.FC<{
             </div>
 
             {/* Scanned Fillable Worksheet Preview */}
+            <div className="pt-2">
+              <CurriculumAndMasteryStudio
+                orgId={church.id}
+                orgName={church.name}
+                canEdit={canEdit}
+                currentUserUid={teacherProfile.uid}
+                currentUserName={teacherProfile.displayName}
+                programs={programs || [p]}
+                selectedProgramId={p.id}
+                onAttachWeeksToProgram={handleAttachIngestedUnitToProgram}
+              />
+            </div>
+
             {scannedWorksheet && (
               <div className="rounded-2xl border border-emerald-400/30 bg-emerald-500/[0.06] p-4 space-y-3">
                 <div className="flex items-center justify-between">
@@ -1063,10 +1031,10 @@ const ChurchEducation: React.FC<{
               </div>
             )}
 
-            {/* Linked Academia Curriculum Courses */}
+            {/* Linked Organization-Provisioned Courses */}
             <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 space-y-2.5">
               <p className="text-[11px] font-black uppercase tracking-widest text-white/55">
-                Attached Academia Curriculum Courses
+                Attached {church.name} Provisioned Courses (Scoped by Christian Education Head)
               </p>
               <div className="flex flex-wrap gap-1.5">
                 {(canEdit ? courseOptions : courseOptions.filter(c => p.courseIds.includes(c.id))).map(c => {
@@ -1138,16 +1106,30 @@ const ChurchEducation: React.FC<{
     <div className="space-y-5 text-white" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
       {modeBar}
 
+      <OrgEducationScopeGovernancePanel
+        org={church}
+        canManageScope={canConfigureScope}
+        currentUserName={teacherProfile.displayName}
+        onScopeChange={setOrgScope}
+        onOpenWorksheetExtractor={() => {
+          try {
+            sessionStorage.setItem('plajah:teacherTab', 'worksheet');
+            sessionStorage.setItem('plajah:openDocExtractor', '1');
+          } catch {}
+          setPortalMode('TEACHER_TOOLS');
+        }}
+      />
+
       <div className="rounded-2xl border border-amber-400/20 bg-gradient-to-r from-amber-500/10 via-indigo-500/10 to-transparent p-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-[10px] font-black uppercase tracking-widest text-amber-300">
-            Christian Education · Powered by Academia, Tela &amp; Verse
+            Christian Education · Scoped to {church.name}
           </p>
           <h3 className="text-lg font-black mt-0.5" style={{ fontFamily: "'Outfit', sans-serif" }}>
-            {church.name} — Classrooms, Teacher Studio &amp; Interactive Tela Curriculum
+            {church.name} — Classrooms, Instructor Studio &amp; Uploaded Resource Library
           </h3>
           <p className="text-xs text-white/65 mt-0.5">
-            Teachers and students get the full Academia workflow (Teacher Dashboard, Gradebook Heatmap, Plan from Mastery, Student Portal) plus one-click extraction of Google Forms, Google Docs, Word docs &amp; PDFs into auto-graded interactive Tela documents.
+            Instructors and class members get tools and content scaled to {church.name} (Religious &amp; Biblical Studies + your organization&apos;s uploaded resources by default, scalable by the Head of Christian Education).
           </p>
         </div>
         <div className="flex flex-wrap gap-2">

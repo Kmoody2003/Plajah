@@ -1959,12 +1959,12 @@ export interface PendingChoraLaunch {
   timestamp: number;
 }
 
-const PENDING_CHORA_LAUNCH_KEY = 'plajah_pending_chora_launch_v1';
+const PENDING_CHORA_LAUNCH_SLOT = 'plajah_pending_chora_launch_v1';
 
 export function launchChoraEnvironment(opts: Omit<PendingChoraLaunch, 'timestamp'>): void {
   const payload: PendingChoraLaunch = { ...opts, timestamp: Date.now() };
   try {
-    sessionStorage.setItem(PENDING_CHORA_LAUNCH_KEY, JSON.stringify(payload));
+    sessionStorage.setItem(PENDING_CHORA_LAUNCH_SLOT, JSON.stringify(payload));
   } catch {
     /* ignore */
   }
@@ -1980,11 +1980,11 @@ export function launchChoraEnvironment(opts: Omit<PendingChoraLaunch, 'timestamp
 
 export function peekPendingChoraLaunch(): PendingChoraLaunch | null {
   try {
-    const raw = sessionStorage.getItem(PENDING_CHORA_LAUNCH_KEY);
+    const raw = sessionStorage.getItem(PENDING_CHORA_LAUNCH_SLOT);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as PendingChoraLaunch;
     if (Date.now() - (parsed.timestamp || 0) > 5 * 60 * 1000) {
-      sessionStorage.removeItem(PENDING_CHORA_LAUNCH_KEY);
+      sessionStorage.removeItem(PENDING_CHORA_LAUNCH_SLOT);
       return null;
     }
     return parsed;
@@ -1996,7 +1996,7 @@ export function peekPendingChoraLaunch(): PendingChoraLaunch | null {
 export function consumePendingChoraLaunch(): PendingChoraLaunch | null {
   const p = peekPendingChoraLaunch();
   try {
-    sessionStorage.removeItem(PENDING_CHORA_LAUNCH_KEY);
+    sessionStorage.removeItem(PENDING_CHORA_LAUNCH_SLOT);
   } catch {
     /* ignore */
   }
