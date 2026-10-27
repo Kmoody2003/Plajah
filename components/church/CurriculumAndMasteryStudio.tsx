@@ -73,6 +73,9 @@ import { openScripture } from '../scripture/ScriptureRefChip';
 import { parseRef } from '../../services/scriptureRef';
 import type { ChurchProgram } from '../../services/churchEducationService';
 import {
+  getOrgEducationFolderName,
+  isStandaloneTeacherScopeId,
+  getStandaloneTeacherScopeId,
   GREAT_FAITH_MINISTRIES_DEFAULT_ID,
   GREAT_FAITH_MINISTRIES_NAME,
 } from '../../services/orgAssets';
@@ -85,6 +88,8 @@ import { UniversalStudentDesk } from '../desk/UniversalStudentDesk';
 interface CurriculumAndMasteryStudioProps {
   orgId: string;
   orgName: string;
+  /** 'user' when opened by a standalone teacher not in an organization; 'org' when opened inside an organization. */
+  scopeKind?: 'org' | 'user';
   canEdit: boolean;
   /** Strictly true ONLY for Course Teachers/Instructors, Department Heads, and Department Admins. Defaults to `canEdit`. */
   canViewAnswerKey?: boolean;
@@ -126,6 +131,7 @@ const SAMPLE_ANSWER_KEY_DOC = `1. B — Romans 8:1 explicitly declares "There is
 export const CurriculumAndMasteryStudio: React.FC<CurriculumAndMasteryStudioProps> = ({
   orgId: rawOrgId,
   orgName: rawOrgName,
+  scopeKind,
   canEdit,
   canViewAnswerKey,
   currentUserUid = 'student_great_faith',
@@ -135,15 +141,20 @@ export const CurriculumAndMasteryStudio: React.FC<CurriculumAndMasteryStudioProp
   onAttachWeeksToProgram,
 }) => {
   const allowAnswerKeys = canViewAnswerKey ?? canEdit;
-  // Strictly route to Great Faith Ministries (never demo-grace-chapel)
-  const orgId =
-    !rawOrgId || rawOrgId === 'demo-grace-chapel' || rawOrgId.startsWith('demo-')
+  const isStandaloneTeacher = scopeKind === 'user' || isStandaloneTeacherScopeId(rawOrgId);
+  const resolvedScopeKind: 'org' | 'user' = isStandaloneTeacher ? 'user' : 'org';
+
+  const orgId = isStandaloneTeacher
+    ? getStandaloneTeacherScopeId(rawOrgId)
+    : !rawOrgId || rawOrgId === 'demo-grace-chapel' || rawOrgId.startsWith('demo-')
       ? GREAT_FAITH_MINISTRIES_DEFAULT_ID
       : rawOrgId;
-  const orgName =
-    !rawOrgName || rawOrgName.toLowerCase().includes('grace chapel') || rawOrgName.toLowerCase().includes('demo')
+  const orgName = isStandaloneTeacher
+    ? rawOrgName || currentUserName || 'Teacher Content HQ'
+    : !rawOrgName || rawOrgName.toLowerCase().includes('grace chapel') || rawOrgName.toLowerCase().includes('demo')
       ? GREAT_FAITH_MINISTRIES_NAME
       : rawOrgName;
+  const orgEducationFolderName = getOrgEducationFolderName(orgName);
 
   const [sourceTab, setSourceTab] = useState<'HUB_CRAWLER' | 'LINKS' | 'FILES' | 'PASTE' | 'ORG_ASSETS'>('HUB_CRAWLER');
   const [unitTitle, setUnitTitle] = useState('');
@@ -413,7 +424,7 @@ export const CurriculumAndMasteryStudio: React.FC<CurriculumAndMasteryStudioProp
     setSourceTab(item.fallbackCurriculumText ? 'PASTE' : 'LINKS');
   };
 
-  // Preview any extracted link directly as an Interactive Multi-Frame Tela Document (and ensure Original + Tela versions are in Great Faith Ministries -> Christian Education)
+  // Preview any extracted link directly as an Interactive Multi-Frame Tela Document (and ensure Original + Tela versions are in Content HQ)
   const handlePreviewExtractedLinkAsTela = async (item: ExtractedCourseResourceLink) => {
     // Check if an ingested unit already exists for this link
     const existing = units.find(
@@ -429,7 +440,11 @@ export const CurriculumAndMasteryStudio: React.FC<CurriculumAndMasteryStudioProp
         originalText: existing.rawCurriculumText || item.fallbackCurriculumText,
         answerKeyText: existing.rawAnswerKeyText || item.fallbackAnswerKeyText,
         orgName,
-        departmentFolder: existing.departmentFolder || 'Christian Education',
+        departmentFolder: isStandaloneTeacher
+          ? (existing.departmentFolder && existing.departmentFolder !== 'Christian Education'
+              ? existing.departmentFolder
+              : 'Lessons & Course Resources')
+          : orgEducationFolderName,
         onOpenFullTelaStudio: handleOpenInTela,
       });
       return;
@@ -440,6 +455,8 @@ export const CurriculumAndMasteryStudio: React.FC<CurriculumAndMasteryStudioProp
     try {
       const { unit, telaDoc } = await ingestCurriculumToTela({
         orgId,
+        orgName,
+        scopeKind: resolvedScopeKind,
         programId: targetProgramId || undefined,
         title: item.label,
         unitKind:
@@ -460,7 +477,9 @@ export const CurriculumAndMasteryStudio: React.FC<CurriculumAndMasteryStudioProp
       setUnits(refreshed);
       setActiveUnit(unit);
       setSuccessBanner(
-        `Copied Original Document + Interactive Tela Document "${unit.title}" to ${orgName} → Org Assets → Christian Education!`
+        isStandaloneTeacher
+          ? `Copied Original Document + Interactive Tela Document "${unit.title}" to your personal Content HQ → "${unit.departmentFolder || 'Lessons & Course Resources'}"!`
+          : `Copied Original Document + Interactive Tela Document "${unit.title}" to ${orgName} → Org Assets → ${orgEducationFolderName}!`
       );
       setTelaPreviewModal({
         title: unit.title,
@@ -471,7 +490,7 @@ export const CurriculumAndMasteryStudio: React.FC<CurriculumAndMasteryStudioProp
         originalText: unit.rawCurriculumText || item.fallbackCurriculumText,
         answerKeyText: unit.rawAnswerKeyText || item.fallbackAnswerKeyText,
         orgName,
-        departmentFolder: unit.departmentFolder || 'Christian Education',
+        departmentFolder: unit.departmentFolder || orgEducationFolderName,
         onOpenFullTelaStudio: handleOpenInTela,
       });
     } catch (e: any) {
@@ -491,7 +510,11 @@ export const CurriculumAndMasteryStudio: React.FC<CurriculumAndMasteryStudioProp
       answerKeyText: allowAnswerKeys ? u.rawAnswerKeyText : undefined,
       canViewAnswerKey: allowAnswerKeys,
       orgName,
-      departmentFolder: u.departmentFolder || 'Christian Education',
+      departmentFolder: isStandaloneTeacher
+        ? (u.departmentFolder && u.departmentFolder !== 'Christian Education'
+            ? u.departmentFolder
+            : 'Lessons & Course Resources')
+        : orgEducationFolderName,
       onOpenFullTelaStudio: handleOpenInTela,
     });
   };
@@ -504,10 +527,16 @@ export const CurriculumAndMasteryStudio: React.FC<CurriculumAndMasteryStudioProp
     try {
       const builtList = await batchIngestExtractedLinksToTela({
         orgId,
+        orgName,
+        scopeKind: resolvedScopeKind,
         programId: targetProgramId || undefined,
         links: hubResult.links,
         onProgress: (curr, total, label) => {
-          setBatchProgress(`Building Tela Unit & Copying to ${orgName} / Christian Education (${curr}/${total}): ${label}...`);
+          setBatchProgress(
+            isStandaloneTeacher
+              ? `Building Tela Unit & Copying to My Content HQ by Doc Class (${curr}/${total}): ${label}...`
+              : `Building Tela Unit & Copying to ${orgName} / ${orgEducationFolderName} (${curr}/${total}): ${label}...`
+          );
         },
       });
       if (targetProgramId && onAttachWeeksToProgram) {
@@ -524,7 +553,9 @@ export const CurriculumAndMasteryStudio: React.FC<CurriculumAndMasteryStudioProp
       }
       setMasteryMap(loadOrgMasterySummary(orgId, targetProgramId || undefined));
       setSuccessBanner(
-        `Batch-built ${builtList.length} interactive Tela documents & copied BOTH Original + Tela Document versions into ${orgName} → Org Assets (Content HQ) → Christian Education folder!`
+        isStandaloneTeacher
+          ? `Batch-built ${builtList.length} interactive Tela documents & copied BOTH Original + Tela Document versions into your personal Content HQ organized into Document Class folders!`
+          : `Batch-built ${builtList.length} interactive Tela documents & copied BOTH Original + Tela Document versions into ${orgName} → Org Assets (Content HQ) → ${orgEducationFolderName} folder!`
       );
     } catch (e: any) {
       setError(e?.message || 'Batch Tela conversion failed.');
@@ -545,6 +576,8 @@ export const CurriculumAndMasteryStudio: React.FC<CurriculumAndMasteryStudioProp
     try {
       const { unit, telaDoc } = await ingestCurriculumToTela({
         orgId,
+        orgName,
+        scopeKind: resolvedScopeKind,
         programId: targetProgramId || undefined,
         title: unitTitle.trim() || undefined,
         unitKind,
@@ -569,7 +602,9 @@ export const CurriculumAndMasteryStudio: React.FC<CurriculumAndMasteryStudioProp
       setLessonFile(null);
       setAnswerKeyFile(null);
       setSuccessBanner(
-        `Created interactive Tela document "${telaDoc.title}" AND copied both the Original Document + Tela Document version to ${orgName} → Org Assets → Christian Education!`
+        isStandaloneTeacher
+          ? `Created interactive Tela document "${telaDoc.title}" AND copied both the Original Document + Tela Document version to your personal Content HQ → "${unit.departmentFolder || 'Lessons & Course Resources'}"!`
+          : `Created interactive Tela document "${telaDoc.title}" AND copied both the Original Document + Tela Document version to ${orgName} → Org Assets → ${orgEducationFolderName}!`
       );
       setTelaPreviewModal({
         title: unit.title,
@@ -580,7 +615,7 @@ export const CurriculumAndMasteryStudio: React.FC<CurriculumAndMasteryStudioProp
         originalText: unit.rawCurriculumText,
         answerKeyText: unit.rawAnswerKeyText,
         orgName,
-        departmentFolder: unit.departmentFolder || 'Christian Education',
+        departmentFolder: unit.departmentFolder || orgEducationFolderName,
         onOpenFullTelaStudio: handleOpenInTela,
       });
     } catch (e: any) {
@@ -617,14 +652,25 @@ export const CurriculumAndMasteryStudio: React.FC<CurriculumAndMasteryStudioProp
               <Sparkles size={12} /> Powered by Tela &amp; Plajah Mastery Graph
             </span>
             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/35 text-[10px] font-black text-emerald-200">
-              <FolderOpen size={11} /> Auto-Copies Original + Tela Doc → {orgName} · 🎓 Christian Education
+              <FolderOpen size={11} />{' '}
+              {isStandaloneTeacher
+                ? `Auto-Copies Original + Tela Doc → My Content HQ (5 Document Class Folders)`
+                : `Auto-Copies Original + Tela Doc → ${orgName} · 🎓 ${orgEducationFolderName}`}
             </span>
           </div>
           <h3 className="text-xl font-black text-white" style={{ fontFamily: "'Outfit', sans-serif" }}>
             Google Forms, Google Docs, Word &amp; PDF → Interactive Tela Extractor
           </h3>
           <p className="text-xs text-white/70 leading-relaxed">
-            Extract any lesson document, Google Form quiz, Word <code className="text-amber-200">.docx</code>, or PDF alongside its companion <strong>Answer Key Doc</strong>. Every document automatically copies <strong>both the Original Document and the Interactive Tela Document version</strong> into <strong>{orgName}</strong>&apos;s Organization Assets Management System (<code className="text-emerald-300">Content HQ → Christian Education</code> folder scope).
+            {isStandaloneTeacher ? (
+              <>
+                Extract any lesson document, Google Form quiz, Word <code className="text-amber-200">.docx</code>, or PDF alongside its companion <strong>Answer Key Doc</strong>. Every document automatically copies <strong>both the Original Document and the Interactive Tela Document version</strong> into your personal <strong>Content HQ</strong> with a dedicated folder for each class of documents (<code className="text-emerald-300">Lessons &amp; Course Resources</code>, <code className="text-emerald-300">Assignments &amp; Worksheets</code>, <code className="text-emerald-300">Quizzes &amp; Assessments</code>, <code className="text-emerald-300">Syllabi &amp; Master Source Docs</code>, and <code className="text-emerald-300">Answer Keys &amp; Rubrics</code>).
+              </>
+            ) : (
+              <>
+                Extract any lesson document, Google Form quiz, Word <code className="text-amber-200">.docx</code>, or PDF alongside its companion <strong>Answer Key Doc</strong>. Every document automatically copies <strong>both the Original Document and the Interactive Tela Document version</strong> into <strong>{orgName}</strong>&apos;s Organization Assets Management System (<code className="text-emerald-300">Content HQ → {orgEducationFolderName}</code> folder scope).
+              </>
+            )}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 shrink-0">
@@ -645,7 +691,10 @@ export const CurriculumAndMasteryStudio: React.FC<CurriculumAndMasteryStudioProp
             onClick={() => setSourceTab('ORG_ASSETS')}
             className="px-4 py-2.5 rounded-full bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/40 text-xs font-black text-emerald-200 inline-flex items-center gap-1.5"
           >
-            <HardDrive size={13} /> Open {orgName} · Christian Education Assets
+            <HardDrive size={13} />{' '}
+            {isStandaloneTeacher
+              ? `Open My Content HQ (By Doc Class)`
+              : `Open ${orgName} · ${orgEducationFolderName} Assets`}
           </button>
           {canEdit && (
             <button
@@ -733,7 +782,10 @@ export const CurriculumAndMasteryStudio: React.FC<CurriculumAndMasteryStudioProp
                     : 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-200 hover:bg-emerald-500/25'
                 }`}
               >
-                <FolderOpen size={13} /> 5. {orgName} · Org Assets (🎓 Christian Education)
+                <FolderOpen size={13} />{' '}
+                {isStandaloneTeacher
+                  ? `5. My Content HQ (5 Document Class Folders)`
+                  : `5. ${orgName} · Org Assets (🎓 ${orgEducationFolderName})`}
               </button>
             </div>
 
@@ -772,9 +824,9 @@ export const CurriculumAndMasteryStudio: React.FC<CurriculumAndMasteryStudioProp
           {sourceTab === 'ORG_ASSETS' ? (
             <div className="rounded-2xl border border-emerald-500/30 bg-black/45 p-4 h-[560px] flex flex-col">
               <HqFilesTab
-                scope={{ kind: 'org', id: orgId, label: orgName }}
+                scope={{ kind: resolvedScopeKind, id: orgId, label: orgName }}
                 canEdit={canEdit}
-                defaultFolder="Christian Education"
+                defaultFolder={isStandaloneTeacher ? 'ALL' : orgEducationFolderName}
               />
             </div>
           ) : (
@@ -800,7 +852,9 @@ export const CurriculumAndMasteryStudio: React.FC<CurriculumAndMasteryStudioProp
                           <Sparkles size={14} /> Master Syllabus / Course Connection Google Doc Crawler
                         </div>
                         <span className="text-[10px] font-bold text-white/50">
-                          Extracts all embedded PDF links, Google Doc links, Google Form links &amp; Answer Keys → Copies Original + Tela Doc to {orgName} / Christian Education
+                          {isStandaloneTeacher
+                            ? `Extracts all embedded PDF links, Google Doc links, Google Form links & Answer Keys → Copies Original + Tela Doc to My Content HQ by Document Class`
+                            : `Extracts all embedded PDF links, Google Doc links, Google Form links & Answer Keys → Copies Original + Tela Doc to ${orgName} / ${orgEducationFolderName}`}
                         </span>
                       </div>
 
@@ -878,7 +932,7 @@ export const CurriculumAndMasteryStudio: React.FC<CurriculumAndMasteryStudioProp
                         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-3">
                           <div>
                             <div className="text-[10px] font-black uppercase tracking-widest text-amber-300">
-                              Extracted Course Connection Links • {hubResult.links.length} Total • Target: {orgName} / Christian Education
+                              Extracted Course Connection Links • {hubResult.links.length} Total • Target: {orgName} / {isStandaloneTeacher ? 'My Content HQ (By Doc Class)' : orgEducationFolderName}
                             </div>
                             <h4 className="text-sm font-black text-white">{hubResult.hubTitle}</h4>
                             <div className="flex flex-wrap gap-2 mt-1 text-[10px] font-bold">
@@ -933,7 +987,7 @@ export const CurriculumAndMasteryStudio: React.FC<CurriculumAndMasteryStudioProp
                                   </span>
                                   <span className="text-xs font-bold text-white truncate">{item.label}</span>
                                   <span className="px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/25 text-[9px] font-bold text-emerald-300">
-                                    🎓 {orgName} · Christian Education
+                                    🎓 {orgName} · {isStandaloneTeacher ? 'My Content HQ' : orgEducationFolderName}
                                   </span>
                                 </div>
                                 <div className="text-[10px] text-white/45 truncate font-mono">{item.url}</div>
@@ -1101,7 +1155,7 @@ export const CurriculumAndMasteryStudio: React.FC<CurriculumAndMasteryStudioProp
 
               <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
                 <p className="text-[11px] text-white/50">
-                  Generates: <strong>Frame 1</strong> (Tela Lesson &amp; Scripture Reader) + <strong>Frame 2</strong> (Interactive Student Form &amp; Auto-Graded Base Table) + Copies <strong>Original &amp; Tela Doc</strong> to <strong>{orgName} → Christian Education</strong>.
+                  Generates: <strong>Frame 1</strong> (Tela Lesson &amp; Scripture Reader) + <strong>Frame 2</strong> (Interactive Student Form &amp; Auto-Graded Base Table) + Copies <strong>Original &amp; Tela Doc</strong> to <strong>{isStandaloneTeacher ? `${orgName} → My Content HQ (By Doc Class)` : `${orgName} → ${orgEducationFolderName}`}</strong>.
                 </p>
                 <button
                   type="button"
@@ -1114,7 +1168,7 @@ export const CurriculumAndMasteryStudio: React.FC<CurriculumAndMasteryStudioProp
                 >
                   {ingesting ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
                   {ingesting
-                    ? 'Extracting & Copying to Great Faith Ministries...'
+                    ? `Extracting & Copying to ${orgName}...`
                     : `Extract, Preview as Tela & Copy to ${orgName}`}
                 </button>
               </div>
@@ -1397,7 +1451,7 @@ export const CurriculumAndMasteryStudio: React.FC<CurriculumAndMasteryStudioProp
                             {supCount > 0 ? ` · ${supCount} Sacred Library Sources` : ''}
                           </p>
                           <p className="text-[10px] text-emerald-300/90 font-semibold mt-1">
-                            ✓ Original + Tela Doc in {orgName} / {u.departmentFolder || 'Christian Education'}
+                            ✓ Original + Tela Doc in {orgName} / {isStandaloneTeacher ? (u.departmentFolder && u.departmentFolder !== 'Christian Education' ? u.departmentFolder : 'Lessons & Course Resources') : orgEducationFolderName}
                           </p>
                         </div>
                         {canEdit && (
@@ -1522,7 +1576,7 @@ export const CurriculumAndMasteryStudio: React.FC<CurriculumAndMasteryStudioProp
                       {activeTemplate.badgeEmoji} {activeTemplate.name}
                     </span>
                     <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-200 text-[10px] font-black uppercase">
-                      🎓 {orgName} · {activeUnit.departmentFolder || 'Christian Education'}
+                      🎓 {orgName} · {isStandaloneTeacher ? (activeUnit.departmentFolder && activeUnit.departmentFolder !== 'Christian Education' ? activeUnit.departmentFolder : 'Lessons & Course Resources') : orgEducationFolderName}
                     </span>
                     {activeUnit.answerKeySourceLabel && (
                       <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/30 text-amber-200 text-[10px] font-black uppercase">

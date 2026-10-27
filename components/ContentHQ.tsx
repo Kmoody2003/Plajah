@@ -8,7 +8,9 @@ import ContentAssetManager from './ContentAssetManager';
 import { Album } from '../types';
 import {
   listHqAssets, addHqAsset, deleteHqAsset, humanFileSize,
-  getOrgDepartmentFolders, GREAT_FAITH_MINISTRIES_NAME, GREAT_FAITH_MINISTRIES_DEFAULT_ID,
+  getOrgDepartmentFolders, getOrgEducationFolderName, isOrgEducationFolderName,
+  TEACHER_DOCUMENT_CLASS_FOLDERS, resolveDocumentClassFolder, isStandaloneTeacherScopeId,
+  GREAT_FAITH_MINISTRIES_NAME, GREAT_FAITH_MINISTRIES_DEFAULT_ID,
   type OrgAsset, type OwnerScope,
 } from '../services/orgAssets';
 import { ensureAllDetectedLinksOnboarded } from '../services/curriculumIngestionService';
@@ -105,10 +107,23 @@ export const HqFilesTab: React.FC<{
   defaultFolder?: string;
 }> = ({ scope, canEdit, canViewAnswerKey, defaultFolder }) => {
   const allowAnswerKeyAccess = canViewAnswerKey ?? canEdit;
+  const isUserScope = scope.kind === 'user' || isStandaloneTeacherScopeId(scope.id);
+  const resolvedOrgName = scope.label || GREAT_FAITH_MINISTRIES_NAME;
+  const orgEducationFolderName = getOrgEducationFolderName(resolvedOrgName);
+
+  const normalizedInitialFolder = useMemo(() => {
+    if (!defaultFolder || defaultFolder === 'ALL') return 'ALL';
+    if (!isUserScope && isOrgEducationFolderName(defaultFolder, resolvedOrgName)) {
+      return orgEducationFolderName;
+    }
+    return defaultFolder;
+  }, [defaultFolder, isUserScope, resolvedOrgName, orgEducationFolderName]);
+
   const [assets, setAssets] = useState<OrgAsset[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [folder, setFolder] = useState<string>(defaultFolder || 'ALL');
+  const [folder, setFolder] = useState<string>(normalizedInitialFolder);
+  const [docClassFilter, setDocClassFilter] = useState<string>('ALL');
   const [variantFilter, setVariantFilter] = useState<'ALL' | 'ORIGINAL_SOURCE' | 'TELA_DOCUMENT' | 'ANSWER_KEY'>('ALL');
   const [uploading, setUploading] = useState<{ name: string; pct: number }[]>([]);
   const [detail, setDetail] = useState<OrgAsset | null>(null);
@@ -125,9 +140,13 @@ export const HqFilesTab: React.FC<{
   const load = async () => {
     setLoading(true);
     try {
-      await ensureAllDetectedLinksOnboarded(
-        scope.kind === 'org' ? scope.id : GREAT_FAITH_MINISTRIES_DEFAULT_ID
-      ).catch(() => {});
+      if (!isUserScope) {
+        await ensureAllDetectedLinksOnboarded(
+          scope.id || GREAT_FAITH_MINISTRIES_DEFAULT_ID,
+          undefined,
+          resolvedOrgName
+        ).catch(() => {});
+      }
       setAssets(await listHqAssets(scope));
     } catch { /* rules / offline */ }
     setLoading(false);
@@ -167,10 +186,22 @@ export const HqFilesTab: React.FC<{
     }).catch(() => setProEnabled(false));
   }, [scope.kind, scope.id]);
 
-  // Department folder scopes for organization accounts (Great Faith Ministries & Christian Education)
+  // Folder scopes:
+  // - For standalone teachers (`isUserScope`): the 5 Document Class Folders (`Lessons & Course Resources`, `Assignments & Worksheets`, `Quizzes & Assessments`, `Syllabi & Master Source Docs`, `Answer Keys & Rubrics`)
+  // - For organizations (`!isUserScope`): `<Organization Name> Education` + organization departments
   const departmentFolders = useMemo(() => {
-    return getOrgDepartmentFolders();
-  }, []);
+    if (isUserScope) {
+      return TEACHER_DOCUMENT_CLASS_FOLDERS
+        .filter((f) => allowAnswerKeyAccess || !f.isAnswerKeyFolder)
+        .map((f) => ({
+          id: f.id,
+          folderName: f.folderName,
+          iconEmoji: f.iconEmoji,
+          isChristianEd: true,
+        }));
+    }
+    return getOrgDepartmentFolders(undefined, resolvedOrgName);
+  }, [isUserScope, allowAnswerKeyAccess, resolvedOrgName]);
 
   const folders = useMemo(() => {
     const set = new Set<string>();
@@ -184,7 +215,7 @@ export const HqFilesTab: React.FC<{
   }, [assets, departmentFolders]);
 
   const visibleAssets = useMemo(
-    () => (allowAnswerKeyAccess ? assets : assets.filter((a) => a.assetVariant !== 'ANSWER_KEY')),
+    () => (allowAnswerKeyAccess ? assets : assets.filter((a) => a.assetVariant !== 'ANSWER_KEY' && a.folder !== 'Answer Keys & Rubrics')),
     [assets, allowAnswerKeyAccess]
   );
 
@@ -197,11 +228,38 @@ export const HqFilesTab: React.FC<{
     return counts;
   }, [visibleAssets]);
 
-  const shown = useMemo(() => visibleAssets.filter((a) =>
-    (folder === 'ALL' || a.folder === folder) &&
-    (variantFilter === 'ALL' || a.assetVariant === variantFilter) &&
-    (!search || a.name.toLowerCase().includes(search.toLowerCase()))
-  ), [visibleAssets, folder, variantFilter, search]);
+  const docClassCounts = useMemo(() => {
+    const counts: Record<string, number> = { ALL: 0 };
+    visibleAssets.forEach((a) => {
+      if (folder !== 'ALL' && a.folder !== folder) return;
+      counts.ALL += 1;
+      const dc =
+        a.documentClassFolder ||
+        resolveDocumentClassFolder({
+          unitTitle: a.name,
+          isAnswerKey: a.assetVariant === 'ANSWER_KEY',
+        });
+      counts[dc] = (counts[dc] || 0) + 1;
+    });
+    return counts;
+  }, [visibleAssets, folder]);
+
+  const shown = useMemo(() => visibleAssets.filter((a) => {
+    const matchesFolder = folder === 'ALL' || a.folder === folder;
+    if (!matchesFolder) return false;
+    if (!isUserScope && docClassFilter !== 'ALL') {
+      const dc =
+        a.documentClassFolder ||
+        resolveDocumentClassFolder({
+          unitTitle: a.name,
+          isAnswerKey: a.assetVariant === 'ANSWER_KEY',
+        });
+      if (dc !== docClassFilter) return false;
+    }
+    if (variantFilter !== 'ALL' && a.assetVariant !== variantFilter) return false;
+    if (search && !a.name.toLowerCase().includes(search.toLowerCase())) return false;
+    return true;
+  }), [visibleAssets, folder, isUserScope, docClassFilter, variantFilter, search]);
 
   // Resolve paired asset when previewing a curriculum item as a Tela Document
   const resolveTelaPreviewProps = (asset: OrgAsset) => {
@@ -216,12 +274,12 @@ export const HqFilesTab: React.FC<{
     return {
       title: asset.name.replace(/\s*\((Original Source|Original Document|Interactive Tela Document|Teacher Answer Key)\)\s*$/i, ''),
       telaDocId,
-      originalUrl: originalAsset?.sourceUrl || asset.sourceUrl || asset.downloadUrl,
+      originalUrl: originalAsset?.sourceUrl || asset.sourceUrl || (asset as any).downloadUrl,
       originalText: originalAsset?.rawContentText || asset.rawContentText,
       answerKeyText: allowAnswerKeyAccess ? answerKeyAsset?.rawContentText : undefined,
       canViewAnswerKey: allowAnswerKeyAccess,
-      orgName: scope.label || GREAT_FAITH_MINISTRIES_NAME,
-      departmentFolder: asset.folder || 'Christian Education',
+      orgName: resolvedOrgName,
+      departmentFolder: asset.folder || (isUserScope ? 'Lessons & Course Resources' : orgEducationFolderName),
     };
   };
 
@@ -236,9 +294,14 @@ export const HqFilesTab: React.FC<{
       return;
     }
     setNotice('');
-    const targetFolder = folder === 'ALL' ? undefined : folder;
     setUploading(files.map((f) => ({ name: f.name, pct: 0 })));
     for (const f of files) {
+      const targetFolder =
+        folder !== 'ALL'
+          ? folder
+          : isUserScope
+            ? resolveDocumentClassFolder({ unitTitle: f.name })
+            : orgEducationFolderName;
       try {
         await addHqAsset(scope, f, targetFolder, (pct) =>
           setUploading((prev) => prev.map((u) => (u.name === f.name ? { ...u, pct } : u))));
@@ -256,19 +319,25 @@ export const HqFilesTab: React.FC<{
 
   return (
     <div className="h-full min-h-0 flex flex-col">
-      {/* Department Folder Scope Bar for Organization Assets Management (Great Faith Ministries & Christian Education) */}
+      {/* Folder Scope Bar:
+          - Standalone Teachers (`isUserScope`): Folders for each Document Class (Lessons & Course Resources, Assignments & Worksheets, Quizzes & Assessments, Syllabi & Master Source Docs, Answer Keys & Rubrics)
+          - Organizations (`!isUserScope`): `<Organization Name> Education` + Organization Departments */}
       {departmentFolders.length > 0 && (
-        <div className="mb-3 p-3 rounded-2xl bg-white/[0.03] border border-white/10">
-          <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
-            <div className="flex items-center gap-2">
+        <div className="mb-3 p-3 rounded-2xl bg-white/[0.03] border border-white/10 space-y-2.5">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="text-[10px] font-black uppercase tracking-widest text-[#FF8C00]">
-                {scope.label || GREAT_FAITH_MINISTRIES_NAME} · Department Folder Scopes
+                {isUserScope
+                  ? `${resolvedOrgName} · Document Class Folders`
+                  : `${resolvedOrgName} · Department Folder Scopes`}
               </span>
               <span className="text-[10px] text-white/40">
-                Select a department folder scope (e.g. Christian Education) to manage Original Source, Interactive Tela &amp; Answer Keys
+                {isUserScope
+                  ? 'Every uploaded or extracted lesson, assignment, quiz, syllabus, or answer key is organized into its document class folder'
+                  : `Select a department folder scope (e.g. ${orgEducationFolderName}) to manage Original Source, Interactive Tela & Answer Keys`}
               </span>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 flex-wrap">
               {(
                 [
                   ['ALL', 'All Variants'],
@@ -293,14 +362,17 @@ export const HqFilesTab: React.FC<{
           </div>
           <div className="flex gap-1.5 overflow-x-auto pb-1">
             <button
-              onClick={() => setFolder('ALL')}
+              onClick={() => {
+                setFolder('ALL');
+                setDocClassFilter('ALL');
+              }}
               className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-colors ${
                 folder === 'ALL'
                   ? 'bg-white text-black'
                   : 'bg-white/5 text-white/60 hover:text-white hover:bg-white/10'
               }`}
             >
-              <span>All Departments</span>
+              <span>{isUserScope ? 'All Document Classes' : 'All Departments'}</span>
               <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-black/20">
                 {folderCounts.ALL || 0}
               </span>
@@ -308,32 +380,71 @@ export const HqFilesTab: React.FC<{
             {departmentFolders.map((dept) => {
               const count = folderCounts[dept.folderName] || 0;
               const active = folder === dept.folderName;
-              const isChristianEd = dept.folderName === 'Christian Education';
+              const isEducationFolder = dept.isChristianEd || dept.folderName === orgEducationFolderName;
               return (
                 <button
                   key={dept.id}
-                  onClick={() => setFolder(dept.folderName)}
+                  onClick={() => {
+                    setFolder(dept.folderName);
+                    setDocClassFilter('ALL');
+                  }}
                   className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-colors border ${
                     active
-                      ? isChristianEd
+                      ? isEducationFolder
                         ? 'bg-emerald-500/25 text-emerald-200 border-emerald-400/50'
                         : 'bg-white/20 text-white border-white/30'
-                      : isChristianEd
+                      : isEducationFolder
                       ? 'bg-emerald-500/10 text-emerald-300/90 border-emerald-500/25 hover:bg-emerald-500/20'
                       : 'bg-white/5 text-white/55 border-transparent hover:text-white hover:bg-white/10'
                   }`}
                 >
                   <span>{dept.iconEmoji}</span>
                   <span>{dept.folderName}</span>
-                  {count > 0 && (
-                    <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-black/30 text-white font-black">
-                      {count}
-                    </span>
-                  )}
+                  <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-black/30 text-white font-black">
+                    {count}
+                  </span>
                 </button>
               );
             })}
           </div>
+
+          {/* Document Class Sub-Folders inside `<Organization Name> Education` */}
+          {!isUserScope && (folder === 'ALL' || folder === orgEducationFolderName) && (
+            <div className="pt-2 border-t border-white/10 flex items-center gap-1.5 overflow-x-auto">
+              <span className="text-[10px] font-black uppercase tracking-wider text-emerald-300 shrink-0 mr-1">
+                {orgEducationFolderName} · Document Classes:
+              </span>
+              <button
+                type="button"
+                onClick={() => setDocClassFilter('ALL')}
+                className={`shrink-0 px-2.5 py-1 rounded-lg text-[10px] font-bold transition ${
+                  docClassFilter === 'ALL'
+                    ? 'bg-emerald-400 text-black'
+                    : 'bg-white/5 text-white/60 hover:text-white'
+                }`}
+              >
+                All Classes ({docClassCounts.ALL || 0})
+              </button>
+              {TEACHER_DOCUMENT_CLASS_FOLDERS.filter(
+                (f) => allowAnswerKeyAccess || !f.isAnswerKeyFolder
+              ).map((dc) => (
+                <button
+                  key={dc.id}
+                  type="button"
+                  onClick={() => setDocClassFilter(dc.folderName)}
+                  className={`shrink-0 px-2.5 py-1 rounded-lg text-[10px] font-bold inline-flex items-center gap-1 transition ${
+                    docClassFilter === dc.folderName
+                      ? 'bg-emerald-400 text-black'
+                      : 'bg-white/5 text-white/65 hover:text-white'
+                  }`}
+                >
+                  <span>{dc.iconEmoji}</span>
+                  <span>{dc.shortLabel}</span>
+                  <span className="opacity-75">({docClassCounts[dc.folderName] || 0})</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -341,21 +452,9 @@ export const HqFilesTab: React.FC<{
       <div className="flex items-center gap-3 mb-4 flex-wrap">
         <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10 flex-1 min-w-[180px]">
           <Search className="w-4 h-4 text-white/40" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={folder === 'ALL' ? 'Search files across all departments...' : `Search files in ${folder}...`}
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={folder === 'ALL' ? (isUserScope ? 'Search across all document class folders...' : 'Search files across all departments...') : `Search files in ${folder}...`}
             className="bg-transparent text-sm outline-none flex-1 text-white placeholder:text-white/30" />
         </div>
-        {scope.kind !== 'org' && (
-          <div className="flex gap-1.5 flex-wrap">
-            {folders.map((f) => (
-              <button key={f} onClick={() => setFolder(f)}
-                className={`px-3 py-2 rounded-xl text-xs font-bold transition-colors ${
-                  folder === f ? 'bg-white/15 text-white' : 'bg-white/5 text-white/50 hover:text-white'
-                }`}>
-                {f === 'ALL' ? 'All' : f}
-              </button>
-            ))}
-          </div>
-        )}
         {canEdit && (
           <button onClick={() => fileInput.current?.click()}
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#FF8C00] text-black text-xs font-black uppercase tracking-widest">
@@ -373,9 +472,9 @@ export const HqFilesTab: React.FC<{
       </div>
       <div className="flex items-center justify-between text-[10px] text-white/35 mb-3 px-1">
         <span>
-          {scope.kind === 'org'
-            ? `${scope.label || GREAT_FAITH_MINISTRIES_NAME} · Active Folder Scope: ${folder === 'ALL' ? 'All Departments' : folder}`
-            : `Unlimited projects · ${entitlements.plan === 'FREE' ? 'Basic' : 'Pro collaboration'}`}
+          {isUserScope
+            ? `${resolvedOrgName} · Active Document Class Folder: ${folder === 'ALL' ? 'All Document Classes' : folder}`
+            : `${resolvedOrgName} · Active Folder Scope: ${folder === 'ALL' ? 'All Departments' : folder}`}
         </span>
         <span>{humanFileSize(assets.reduce((n, a) => n + Number(a.sizeBytes || 0), 0))} / {entitlements.storageLimitGb} GB</span>
       </div>
@@ -434,7 +533,9 @@ export const HqFilesTab: React.FC<{
         ) : shown.length === 0 ? (
           <div className="grid place-items-center h-48 text-center text-white/30 text-sm px-8">
             {canEdit
-              ? `No files in ${folder === 'ALL' ? 'this organization' : folder} yet. Upload brand specs, documents, or ingest Christian Education curriculum to automatically populate both Original & Tela Document versions.`
+              ? isUserScope
+                ? `No files in ${folder === 'ALL' ? 'your Teacher Content HQ' : `"${folder}"`} yet. Upload or extract lessons, assignments, quizzes, syllabi, or answer keys from links/PDFs in Teacher Tools to automatically populate your Document Class folders.`
+                : `No files in ${folder === 'ALL' ? 'this organization' : folder} yet. Upload brand specs, documents, or ingest ${orgEducationFolderName} curriculum to automatically populate both Original & Tela Document versions.`
               : 'No files.'}
           </div>
         ) : (
@@ -444,7 +545,7 @@ export const HqFilesTab: React.FC<{
               const isOriginalVariant = a.assetVariant === 'ORIGINAL_SOURCE';
               const isAnswerKeyVariant = a.assetVariant === 'ANSWER_KEY';
               const canPreviewAsTela = Boolean(
-                a.telaDocId || a.assetVariant || a.rawContentText || a.folder === 'Christian Education'
+                a.telaDocId || a.assetVariant || a.rawContentText || isOrgEducationFolderName(a.folder, resolvedOrgName)
               );
               return (
                 <div key={a.id} onClick={() => setDetail(a)}
@@ -480,7 +581,14 @@ export const HqFilesTab: React.FC<{
                     <div className="flex items-center gap-1.5 flex-wrap mt-2">
                       {a.folder && (
                         <span className="px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-[10px] text-white/70 font-semibold">
-                          {a.folder === 'Christian Education' ? '🎓 Christian Education' : a.folder}
+                          {isOrgEducationFolderName(a.folder, resolvedOrgName)
+                            ? `🎓 ${orgEducationFolderName}`
+                            : a.folder}
+                        </span>
+                      )}
+                      {!isUserScope && a.documentClassFolder && (
+                        <span className="px-2 py-0.5 rounded-md bg-sky-500/10 border border-sky-500/20 text-[9px] text-sky-200 font-semibold">
+                          {a.documentClassFolder}
                         </span>
                       )}
                       {a.pairedAssetId && (

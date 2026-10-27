@@ -22,6 +22,11 @@ import { recordSet, loadMastery, type SkillLevel } from './mastery';
 import type { PlanWeek } from './churchEducationService';
 import {
   copyCurriculumPairToOrgAssets,
+  getOrgEducationFolderName,
+  isOrgEducationFolderName,
+  resolveDocumentClassFolder,
+  isStandaloneTeacherScopeId,
+  getStandaloneTeacherScopeId,
   GREAT_FAITH_MINISTRIES_DEFAULT_ID,
   GREAT_FAITH_MINISTRIES_NAME,
 } from './orgAssets';
@@ -102,6 +107,8 @@ export interface IngestedCurriculumUnit {
   worksheet: DigitalWorksheet;
   totalPoints: number;
   departmentFolder?: string;
+  documentClassFolder?: string;
+  scopeKind?: 'org' | 'user';
   originalAssetId?: string;
   telaAssetId?: string;
   answerKeyAssetId?: string;
@@ -129,6 +136,9 @@ export interface StudentUnitSubmission {
 }
 
 function normalizeToGreatFaithOrgId(orgId: string): string {
+  if (isStandaloneTeacherScopeId(orgId)) {
+    return getStandaloneTeacherScopeId(orgId);
+  }
   if (!orgId || orgId === 'demo-grace-chapel' || orgId.startsWith('demo-')) {
     return GREAT_FAITH_MINISTRIES_DEFAULT_ID;
   }
@@ -172,40 +182,72 @@ function readRawStoredUnitsForKey(key: string): IngestedCurriculumUnit[] {
 
 let isSeedingDefaultsSync = false;
 
-export function listIngestedUnits(orgId: string, programId?: string): IngestedCurriculumUnit[] {
+export function listIngestedUnits(
+  orgId: string,
+  programId?: string,
+  orgName?: string
+): IngestedCurriculumUnit[] {
   try {
+    const isStandaloneTeacher = isStandaloneTeacherScopeId(orgId);
     const safeOrgId = normalizeToGreatFaithOrgId(orgId);
+    const resolvedOrgName = orgName || GREAT_FAITH_MINISTRIES_NAME;
+    const orgEduFolder = getOrgEducationFolderName(resolvedOrgName);
+
     const primaryList = readRawStoredUnitsForKey(STORAGE_UNITS_KEY(safeOrgId));
-    const gfList =
-      safeOrgId !== GREAT_FAITH_MINISTRIES_DEFAULT_ID
+    const secondaryList = isStandaloneTeacher
+      ? safeOrgId !== 'teacher-personal-hq'
+        ? readRawStoredUnitsForKey(STORAGE_UNITS_KEY('teacher-personal-hq'))
+        : []
+      : safeOrgId !== GREAT_FAITH_MINISTRIES_DEFAULT_ID
         ? readRawStoredUnitsForKey(STORAGE_UNITS_KEY(GREAT_FAITH_MINISTRIES_DEFAULT_ID))
         : [];
 
     const byKey = new Map<string, IngestedCurriculumUnit>();
-    for (const u of [...primaryList, ...gfList]) {
+    for (const u of [...primaryList, ...secondaryList]) {
       if (!u || !u.title) continue;
       const dedupeKey = (u.sourceUrl || u.title).trim().toLowerCase();
       if (!byKey.has(dedupeKey)) {
         const isKeyOnly =
           Boolean(u.isAnswerKeyOnly) ||
           /\bmaster\s*teacher\s*answer\s*key\b/i.test(u.title);
+        const libCat = u.libraryCategory || inferLessonLibraryCategory(u.title, u.kind, isKeyOnly);
+        const docClass = resolveDocumentClassFolder({
+          unitTitle: u.title,
+          unitKind: u.kind,
+          libraryCategory: libCat,
+          isAnswerKey: isKeyOnly,
+        });
+        const resolvedFolder = isStandaloneTeacher
+          ? isKeyOnly
+            ? 'Answer Keys & Rubrics'
+            : docClass
+          : !u.departmentFolder || isOrgEducationFolderName(u.departmentFolder, resolvedOrgName)
+            ? orgEduFolder
+            : u.departmentFolder;
+
         byKey.set(dedupeKey, {
           ...u,
           isAnswerKeyOnly: isKeyOnly,
-          libraryCategory: u.libraryCategory || inferLessonLibraryCategory(u.title, u.kind, isKeyOnly),
+          libraryCategory: libCat,
+          departmentFolder: resolvedFolder,
+          documentClassFolder: docClass,
+          scopeKind: isStandaloneTeacher ? 'user' : 'org',
           extractedFromHubTitle:
             u.extractedFromHubTitle ||
-            'Revelation 2: Course Connection (Master Google Doc)',
+            (isStandaloneTeacher ? undefined : 'Revelation 2: Course Connection (Master Google Doc)'),
           extractedFromHubUrl:
             u.extractedFromHubUrl ||
-            'https://docs.google.com/document/d/1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE/edit?pli=1&tab=t.qo6bykb5zkh7',
+            (isStandaloneTeacher
+              ? undefined
+              : 'https://docs.google.com/document/d/1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE/edit?pli=1&tab=t.qo6bykb5zkh7'),
         });
       }
     }
 
-    // If the preset documents have not been seeded yet, seed them synchronously so the
-    // organization's Lesson Library & Christian Education view is never empty on mount!
+    // For organization scopes, seed the preset documents synchronously if not yet seeded so the
+    // organization's Lesson Library & `<Org Name> Education` folder is never empty on mount!
     if (
+      !isStandaloneTeacher &&
       !isSeedingDefaultsSync &&
       typeof REVELATION_2_COURSE_CONNECTION_PRESET !== 'undefined' &&
       byKey.size < REVELATION_2_COURSE_CONNECTION_PRESET.links.length
@@ -238,12 +280,20 @@ export function listIngestedUnits(orgId: string, programId?: string): IngestedCu
             answerKeySourceLabel: item.pairedAnswerKeyLabel,
             unitKind: resolvedKind,
           });
-          unit.departmentFolder = 'Christian Education';
+          const libCat = inferLessonLibraryCategory(item.label, resolvedKind, item.isAnswerKey);
+          unit.departmentFolder = orgEduFolder;
+          unit.documentClassFolder = resolveDocumentClassFolder({
+            unitTitle: item.label,
+            unitKind: resolvedKind,
+            libraryCategory: libCat,
+            isAnswerKey: item.isAnswerKey,
+          });
+          unit.scopeKind = 'org';
           unit.rawCurriculumText = item.fallbackCurriculumText || `# ${item.label}`;
           unit.rawAnswerKeyText = item.fallbackAnswerKeyText || '';
           unit.isAnswerKeyOnly = Boolean(item.isAnswerKey);
-          unit.libraryCategory = inferLessonLibraryCategory(item.label, resolvedKind, item.isAnswerKey);
-          unit.createdByName = 'Christian Education Dept';
+          unit.libraryCategory = libCat;
+          unit.createdByName = `${resolvedOrgName} Education`;
           unit.uploadedByRole = 'INSTRUCTOR';
           unit.extractedFromHubTitle = REVELATION_2_COURSE_CONNECTION_PRESET.hubTitle;
           unit.extractedFromHubUrl = REVELATION_2_COURSE_CONNECTION_PRESET.hubUrl;
@@ -273,22 +323,49 @@ export function listIngestedUnits(orgId: string, programId?: string): IngestedCu
 
 export function saveIngestedUnit(unit: IngestedCurriculumUnit): void {
   try {
+    const isStandaloneTeacher =
+      unit.scopeKind === 'user' || isStandaloneTeacherScopeId(unit.orgId);
     const safeOrgId = normalizeToGreatFaithOrgId(unit.orgId);
     const isKeyOnly =
       Boolean(unit.isAnswerKeyOnly) ||
       /\bmaster\s*teacher\s*answer\s*key\b/i.test(unit.title);
+    const libCat = unit.libraryCategory || inferLessonLibraryCategory(unit.title, unit.kind, isKeyOnly);
+    const docClass =
+      unit.documentClassFolder ||
+      resolveDocumentClassFolder({
+        unitTitle: unit.title,
+        unitKind: unit.kind,
+        libraryCategory: libCat,
+        isAnswerKey: isKeyOnly,
+      });
     const normalizedUnit: IngestedCurriculumUnit = {
       ...unit,
       orgId: safeOrgId,
+      scopeKind: isStandaloneTeacher ? 'user' : 'org',
       isAnswerKeyOnly: isKeyOnly,
-      libraryCategory: unit.libraryCategory || inferLessonLibraryCategory(unit.title, unit.kind, isKeyOnly),
+      libraryCategory: libCat,
+      documentClassFolder: docClass,
+      departmentFolder: isStandaloneTeacher
+        ? isKeyOnly
+          ? 'Answer Keys & Rubrics'
+          : docClass
+        : unit.departmentFolder || getOrgEducationFolderName(GREAT_FAITH_MINISTRIES_NAME),
     };
     const existing = readRawStoredUnitsForKey(STORAGE_UNITS_KEY(safeOrgId)).filter(
       u => u.id !== unit.id && u.title.toLowerCase() !== unit.title.toLowerCase()
     );
     localStorage.setItem(STORAGE_UNITS_KEY(safeOrgId), JSON.stringify([normalizedUnit, ...existing]));
-    // Also mirror under canonical Great Faith Ministries key so Great Faith Ministries always has all Christian Ed units
-    if (safeOrgId !== GREAT_FAITH_MINISTRIES_DEFAULT_ID) {
+    if (isStandaloneTeacher) {
+      if (safeOrgId !== 'teacher-personal-hq') {
+        const personalExisting = readRawStoredUnitsForKey(STORAGE_UNITS_KEY('teacher-personal-hq')).filter(
+          u => u.id !== unit.id && u.title.toLowerCase() !== unit.title.toLowerCase()
+        );
+        localStorage.setItem(
+          STORAGE_UNITS_KEY('teacher-personal-hq'),
+          JSON.stringify([{ ...normalizedUnit, orgId: 'teacher-personal-hq' }, ...personalExisting])
+        );
+      }
+    } else if (safeOrgId !== GREAT_FAITH_MINISTRIES_DEFAULT_ID) {
       const gfExisting = readRawStoredUnitsForKey(STORAGE_UNITS_KEY(GREAT_FAITH_MINISTRIES_DEFAULT_ID)).filter(
         u => u.id !== unit.id && u.title.toLowerCase() !== unit.title.toLowerCase()
       );
@@ -1693,6 +1770,8 @@ export function parseCurriculumAndBuildUnit(params: {
  */
 export async function ingestCurriculumToTela(params: {
   orgId: string;
+  orgName?: string;
+  scopeKind?: 'org' | 'user';
   programId?: string;
   title?: string;
   unitKind?: IngestedCurriculumUnit['kind'];
@@ -1702,6 +1781,7 @@ export async function ingestCurriculumToTela(params: {
   extractedFromHubTitle?: string;
   extractedFromHubUrl?: string;
   isAnswerKeyOnly?: boolean;
+  livingTemplateId?: string;
   lessonFile?: File | null;
   lessonUrl?: string;
   lessonText?: string;
@@ -1815,13 +1895,28 @@ export async function ingestCurriculumToTela(params: {
 
   await saveTelaDoc(telaDoc);
 
+  const resolvedLibraryCategory =
+    params.libraryCategory ||
+    inferLessonLibraryCategory(unit.title, unit.kind, params.isAnswerKeyOnly);
+  const isStandaloneTeacher =
+    params.scopeKind === 'user' || isStandaloneTeacherScopeId(params.orgId);
+
   // Automatically copy BOTH the Original Document Version AND the Interactive Tela Document Version
-  // into Great Faith Ministries' Org Assets Management System (Content HQ) under "Christian Education" folder scope!
+  // into Content HQ:
+  // - For standalone teachers (`scopeKind === 'user'`): into their own Content HQ under the Document Class Folder
+  //   (`Lessons & Course Resources`, `Assignments & Worksheets`, `Quizzes & Assessments`, `Syllabi & Master Source Docs`, `Answer Keys & Rubrics`).
+  // - For organizations (`scopeKind === 'org'`): into the organization's Content HQ under `<Organization Name> Education`.
   const assetCopy = await copyCurriculumPairToOrgAssets({
     orgId: safeOrgId,
-    orgName: GREAT_FAITH_MINISTRIES_NAME,
-    departmentFolder: 'Christian Education',
+    orgName: params.orgName || (isStandaloneTeacher ? 'Teacher Content HQ' : GREAT_FAITH_MINISTRIES_NAME),
+    scopeKind: isStandaloneTeacher ? 'user' : 'org',
+    departmentFolder: isStandaloneTeacher
+      ? undefined
+      : getOrgEducationFolderName(params.orgName || GREAT_FAITH_MINISTRIES_NAME),
     unitTitle: unit.title,
+    unitKind: unit.kind,
+    libraryCategory: resolvedLibraryCategory,
+    isAnswerKeyOnly: params.isAnswerKeyOnly,
     sourceKind: unit.sourceKind,
     sourceUrl: unit.sourceUrl,
     rawCurriculumText,
@@ -1830,20 +1925,23 @@ export async function ingestCurriculumToTela(params: {
   });
 
   unit.orgId = assetCopy.targetOrgId;
+  unit.scopeKind = isStandaloneTeacher ? 'user' : 'org';
   unit.departmentFolder = assetCopy.departmentFolder;
+  unit.documentClassFolder = assetCopy.documentClassFolder;
   unit.originalAssetId = assetCopy.originalAsset.id;
   unit.telaAssetId = assetCopy.telaAsset.id;
   unit.answerKeyAssetId = assetCopy.answerKeyAsset?.id;
   unit.rawCurriculumText = rawCurriculumText;
   unit.rawAnswerKeyText = rawAnswerKeyText;
-  unit.libraryCategory =
-    params.libraryCategory ||
-    inferLessonLibraryCategory(unit.title, unit.kind, params.isAnswerKeyOnly);
-  unit.uploadedByRole = params.uploadedByRole || 'INSTRUCTOR';
+  unit.libraryCategory = resolvedLibraryCategory;
+  unit.uploadedByRole = params.uploadedByRole || (isStandaloneTeacher ? 'TEACHER' : 'INSTRUCTOR');
   unit.createdByName = params.createdByName || 'Course Instructor';
   unit.extractedFromHubTitle = params.extractedFromHubTitle;
   unit.extractedFromHubUrl = params.extractedFromHubUrl;
   unit.isAnswerKeyOnly = Boolean(params.isAnswerKeyOnly);
+  if (params.livingTemplateId) {
+    unit.livingTemplateId = params.livingTemplateId;
+  }
 
   saveIngestedUnit(unit);
 
@@ -2058,6 +2156,8 @@ export async function extractLinksFromDocxFile(file: File): Promise<CourseHubLin
  */
 export async function batchIngestExtractedLinksToTela(params: {
   orgId: string;
+  orgName?: string;
+  scopeKind?: 'org' | 'user';
   programId?: string;
   links: ExtractedCourseResourceLink[];
   includeAnswerKeyDocs?: boolean;
@@ -2082,8 +2182,11 @@ export async function batchIngestExtractedLinksToTela(params: {
     try {
       const built = await ingestCurriculumToTela({
         orgId: params.orgId,
+        orgName: params.orgName,
+        scopeKind: params.scopeKind,
         programId: params.programId,
         title: item.label,
+        isAnswerKeyOnly: item.isAnswerKey,
         lessonUrl: item.url,
         lessonText: item.fallbackCurriculumText,
         answerKeyUrl: item.pairedAnswerKeyUrl,
@@ -2097,8 +2200,11 @@ export async function batchIngestExtractedLinksToTela(params: {
         `# ${item.label}\nSource Link: ${item.url}\n\n1. Key takeaway and biblical/course analysis from ${item.label}:\n2. Explain the primary Scripture passage and doctrine covered in ${item.label}:`;
       const built = await ingestCurriculumToTela({
         orgId: params.orgId,
+        orgName: params.orgName,
+        scopeKind: params.scopeKind,
         programId: params.programId,
         title: item.label,
+        isAnswerKeyOnly: item.isAnswerKey,
         lessonUrl: item.url,
         lessonText: fallbackText,
         answerKeyText: item.fallbackAnswerKeyText,
@@ -2113,15 +2219,19 @@ export async function batchIngestExtractedLinksToTela(params: {
 
 /**
  * Ensures every document detected in `REVELATION_2_COURSE_CONNECTION_PRESET` is onboarded into
- * Great Faith Ministries -> Christian Education (and repairs any earlier cached unit that had 0 questions
- * or was missing Sacred Library supplements).
+ * `<Org Name> Education` for organization accounts (and repairs any earlier cached unit that had 0 questions
+ * or was missing Sacred Library supplements). Standalone teachers outside an organization are not seeded with church presets.
  */
 export async function ensureAllDetectedLinksOnboarded(
   orgId: string,
-  programId?: string
+  programId?: string,
+  orgName?: string
 ): Promise<IngestedCurriculumUnit[]> {
+  if (isStandaloneTeacherScopeId(orgId)) {
+    return listIngestedUnits(orgId, programId, orgName);
+  }
   const safeOrgId = normalizeToGreatFaithOrgId(orgId);
-  const existing = listIngestedUnits(safeOrgId);
+  const existing = listIngestedUnits(safeOrgId, undefined, orgName);
 
   const missingLinks = REVELATION_2_COURSE_CONNECTION_PRESET.links.filter(link => {
     const match = existing.find(
@@ -2138,20 +2248,22 @@ export async function ensureAllDetectedLinksOnboarded(
   if (missingLinks.length > 0) {
     // Remove stale versions of those links first so we don't duplicate
     for (const link of missingLinks) {
-      const stale = listIngestedUnits(safeOrgId).find(
+      const stale = listIngestedUnits(safeOrgId, undefined, orgName).find(
         u => u.sourceUrl === link.url || u.title.toLowerCase() === link.label.toLowerCase()
       );
       if (stale) deleteIngestedUnit(safeOrgId, stale.id);
     }
     await batchIngestExtractedLinksToTela({
       orgId: safeOrgId,
+      orgName,
+      scopeKind: 'org',
       programId,
       links: missingLinks,
       includeAnswerKeyDocs: true,
     });
   }
 
-  return listIngestedUnits(safeOrgId);
+  return listIngestedUnits(safeOrgId, programId, orgName);
 }
 
 /**

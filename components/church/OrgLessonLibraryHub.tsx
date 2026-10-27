@@ -51,12 +51,19 @@ import {
   type LessonLibraryCategory,
 } from '../../services/curriculumIngestionService';
 import type { ChurchProgram } from '../../services/churchEducationService';
+import {
+  getOrgEducationFolderName,
+  isStandaloneTeacherScopeId,
+  TEACHER_DOCUMENT_CLASS_FOLDERS,
+} from '../../services/orgAssets';
 import { TelaDocumentPreviewModal } from './TelaDocumentPreviewModal';
 import { AssignToClassModal } from '../desk/AssignToClassModal';
 
 export interface OrgLessonLibraryHubProps {
   orgId: string;
   orgName: string;
+  /** 'user' for standalone teachers not in an organization; 'org' for organizations. */
+  scopeKind?: 'org' | 'user';
   programId?: string;
   programs?: ChurchProgram[];
   /** True when the viewer is a Course Teacher/Instructor, Dept Head, Dept Admin, or Pastor/Owner. */
@@ -115,6 +122,7 @@ const CATEGORY_META: Record<
 export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
   orgId,
   orgName,
+  scopeKind,
   programId,
   programs = [],
   canAccessAnswerKey,
@@ -125,7 +133,13 @@ export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
   onAttachWeeksToProgram,
   onOpenContentHQ,
 }) => {
-  const [units, setUnits] = useState<IngestedCurriculumUnit[]>(() => listIngestedUnits(orgId, programId));
+  const isStandaloneTeacher = scopeKind === 'user' || isStandaloneTeacherScopeId(orgId);
+  const resolvedScopeKind: 'org' | 'user' = isStandaloneTeacher ? 'user' : 'org';
+  const orgEducationFolderName = getOrgEducationFolderName(orgName);
+
+  const [units, setUnits] = useState<IngestedCurriculumUnit[]>(() =>
+    listIngestedUnits(orgId, programId, orgName)
+  );
   const [categoryFilter, setCategoryFilter] = useState<'ALL' | LessonLibraryCategory>('ALL');
   const [search, setSearch] = useState('');
   const [showUploadDrawer, setShowUploadDrawer] = useState(false);
@@ -152,13 +166,13 @@ export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
   const [errorMessage, setErrorMessage] = useState('');
 
   const refreshUnits = () => {
-    setUnits(listIngestedUnits(orgId, programId));
+    setUnits(listIngestedUnits(orgId, programId, orgName));
   };
 
   useEffect(() => {
     refreshUnits();
     let cancelled = false;
-    ensureAllDetectedLinksOnboarded(orgId, programId)
+    ensureAllDetectedLinksOnboarded(orgId, programId, orgName)
       .then((refreshed) => {
         if (!cancelled) setUnits(refreshed);
       })
@@ -166,7 +180,7 @@ export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [orgId, programId]);
+  }, [orgId, programId, orgName]);
 
   useEffect(() => {
     const onUpdated = () => refreshUnits();
@@ -251,11 +265,14 @@ export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
 
       const { unit } = await ingestCurriculumToTela({
         orgId,
+        orgName,
+        scopeKind: resolvedScopeKind,
         programId: targetProgramId || programId || undefined,
         title: uploadTitle.trim() || undefined,
         unitKind,
         libraryCategory: uploadCategory,
-        uploadedByRole: viewerRoleBadge || 'INSTRUCTOR',
+        isAnswerKeyOnly: uploadCategory === 'ANSWER_KEY',
+        uploadedByRole: viewerRoleBadge || (isStandaloneTeacher ? 'TEACHER' : 'INSTRUCTOR'),
         createdByName: currentUserName,
         lessonFile: uploadMode === 'FILE' ? lessonFile : null,
         lessonUrl: uploadMode === 'LINK' ? lessonUrl.trim() : undefined,
@@ -279,7 +296,9 @@ export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
       setAnswerKeyText('');
       setShowUploadDrawer(false);
       setStatusMessage(
-        `Added "${unit.title}" to the ${orgName} Lesson Library & Content HQ! Answer Key is strictly locked to Course Teachers, Department Heads, and Department Admins.`
+        isStandaloneTeacher
+          ? `Added "${unit.title}" to your Teacher Content HQ under the "${unit.departmentFolder || unit.documentClassFolder || 'Lessons & Course Resources'}" folder (plus Companion Answer Key in "Answer Keys & Rubrics")!`
+          : `Added "${unit.title}" to the ${orgName} Lesson Library & Content HQ (${orgEducationFolderName})! Answer Key is strictly locked to Course Teachers, Department Heads, and Department Admins.`
       );
     } catch (err: any) {
       setErrorMessage(err?.message || 'Could not upload or extract resource into the Lesson Library.');
@@ -296,7 +315,10 @@ export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
           <div className="space-y-1.5 max-w-3xl">
             <div className="flex flex-wrap items-center gap-2">
               <span className="px-2.5 py-0.5 rounded-full bg-amber-400/20 border border-amber-300/40 text-amber-200 text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-1.5">
-                <BookOpen size={11} /> {orgName} · Official Lesson &amp; Resource Library
+                <BookOpen size={11} />{' '}
+                {isStandaloneTeacher
+                  ? `${orgName} · Personal Teacher Lesson Library & Content HQ`
+                  : `${orgEducationFolderName} · Official Lesson & Resource Library`}
               </span>
               {canAccessAnswerKey ? (
                 <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 text-[10px] font-black uppercase tracking-wider inline-flex items-center gap-1">
@@ -309,10 +331,20 @@ export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
               )}
             </div>
             <h3 className="text-lg sm:text-xl font-black text-white">
-              Lesson Library — Extracted Source Documents, Syllabi, Assignments &amp; Course Resources
+              {isStandaloneTeacher
+                ? 'Teacher Lesson Library — Auto-Organized into Content HQ Document Class Folders'
+                : `Lesson Library (${orgEducationFolderName}) — Extracted Source Documents, Syllabi, Assignments & Course Resources`}
             </h3>
             <p className="text-xs text-white/70 leading-relaxed">
-              Every syllabus, assignment, reading packet, PDF, Word doc, and Google Doc/Form uploaded or extracted by Christian Education teachers, Department Admins, Department Heads, or course instructors is housed here with both its <strong>Original Source Document</strong> and its <strong>Interactive Tela Lesson</strong>.
+              {isStandaloneTeacher ? (
+                <>
+                  Every lesson, course resource, assignment, syllabus, quiz, or answer key you upload or extract from links goes directly into <strong>your own Content HQ</strong> with dedicated folders for each class of documents (<strong>Lessons &amp; Course Resources</strong>, <strong>Assignments &amp; Worksheets</strong>, <strong>Quizzes &amp; Assessments</strong>, <strong>Syllabi &amp; Master Source Docs</strong>, and <strong>Answer Keys &amp; Rubrics</strong>).
+                </>
+              ) : (
+                <>
+                  Every syllabus, assignment, reading packet, PDF, Word doc, and Google Doc/Form uploaded or extracted by education teachers, Department Admins, Department Heads, or course instructors is housed here and in <strong>Content HQ → {orgEducationFolderName}</strong> with both its <strong>Original Source Document</strong> and its <strong>Interactive Tela Lesson</strong>.
+                </>
+              )}
             </p>
           </div>
 
@@ -323,7 +355,10 @@ export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
                 onClick={onOpenContentHQ}
                 className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-xs font-bold text-white inline-flex items-center gap-1.5 transition"
               >
-                <FolderOpen size={13} className="text-amber-300" /> View in Org Content HQ
+                <FolderOpen size={13} className="text-amber-300" />{' '}
+                {isStandaloneTeacher
+                  ? 'Open My Teacher Content HQ'
+                  : `View in ${orgEducationFolderName} HQ`}
               </button>
             )}
             {canUploadToLibrary && (
@@ -341,45 +376,77 @@ export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
           </div>
         </div>
 
-        {/* Highlight Banner: Where the Master Document We Extracted From Lives in the Organization */}
-        <div className="rounded-2xl border border-sky-400/35 bg-sky-500/[0.08] p-4 flex flex-wrap items-center justify-between gap-3">
-          <div className="space-y-1 min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="px-2 py-0.5 rounded-md bg-sky-400/20 border border-sky-300/40 text-sky-200 text-[10px] font-black uppercase tracking-wider">
-                📄 Extracted Source Document Verified in {orgName}
-              </span>
-              <span className="text-[11px] text-white/60 font-mono truncate">
-                Google Doc ID: {REVELATION_2_COURSE_CONNECTION_PRESET.docId} (Tab: {REVELATION_2_COURSE_CONNECTION_PRESET.tabId})
-              </span>
+        {/* Highlight Banner: Standalone Teacher Document Class Folders vs. Organization Extracted Source Document */}
+        {isStandaloneTeacher ? (
+          <div className="rounded-2xl border border-emerald-400/35 bg-emerald-500/[0.08] p-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="space-y-1.5 min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="px-2 py-0.5 rounded-md bg-emerald-400/20 border border-emerald-300/40 text-emerald-200 text-[10px] font-black uppercase tracking-wider">
+                  🗂️ Your Personal Content HQ · Document Class Folders Active
+                </span>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                {TEACHER_DOCUMENT_CLASS_FOLDERS.map((f) => (
+                  <span
+                    key={f.id}
+                    className="px-2.5 py-1 rounded-lg bg-black/35 border border-white/10 text-[11px] font-bold text-white/90 inline-flex items-center gap-1"
+                  >
+                    <span>{f.iconEmoji}</span>
+                    <span>{f.folderName}</span>
+                  </span>
+                ))}
+              </div>
             </div>
-            <p className="text-xs sm:text-sm font-black text-white">
-              {REVELATION_2_COURSE_CONNECTION_PRESET.hubTitle}
-            </p>
-            <p className="text-[11px] text-white/70">
-              Stored in <strong>{orgName} → Christian Education → Lesson Library &amp; Content HQ</strong> along with all <strong>{accessibleUnits.length}</strong> extracted packets, Google Forms quizzes, Sacred Library dossier PDF, and teacher answer keys.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2 shrink-0">
-            {masterExtractedSourceUnit && (
+            {onOpenContentHQ && (
               <button
                 type="button"
-                onClick={() => setInspectSourceUnit(masterExtractedSourceUnit)}
-                className="px-3.5 py-2 rounded-xl bg-sky-400 text-black text-xs font-black inline-flex items-center gap-1.5 hover:bg-sky-300 transition shadow"
+                onClick={onOpenContentHQ}
+                className="px-3.5 py-2 rounded-xl bg-emerald-400 text-black text-xs font-black inline-flex items-center gap-1.5 hover:bg-emerald-300 transition shadow"
               >
-                <FileText size={13} /> Inspect Extracted Source Document
+                <FolderOpen size={13} /> Browse Folders in My Content HQ
               </button>
             )}
-            <a
-              href={REVELATION_2_COURSE_CONNECTION_PRESET.hubUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-xs font-bold text-sky-200 inline-flex items-center gap-1.5 transition"
-            >
-              <ExternalLink size={12} /> Open Source Google Doc
-            </a>
           </div>
-        </div>
+        ) : (
+          <div className="rounded-2xl border border-sky-400/35 bg-sky-500/[0.08] p-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="space-y-1 min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="px-2 py-0.5 rounded-md bg-sky-400/20 border border-sky-300/40 text-sky-200 text-[10px] font-black uppercase tracking-wider">
+                  📄 Extracted Source Document Verified in {orgName}
+                </span>
+                <span className="text-[11px] text-white/60 font-mono truncate">
+                  Google Doc ID: {REVELATION_2_COURSE_CONNECTION_PRESET.docId} (Tab: {REVELATION_2_COURSE_CONNECTION_PRESET.tabId})
+                </span>
+              </div>
+              <p className="text-xs sm:text-sm font-black text-white">
+                {REVELATION_2_COURSE_CONNECTION_PRESET.hubTitle}
+              </p>
+              <p className="text-[11px] text-white/70">
+                Stored in <strong>{orgName} → {orgEducationFolderName} → Lesson Library &amp; Content HQ</strong> along with all <strong>{accessibleUnits.length}</strong> extracted packets, Google Forms quizzes, Sacred Library dossier PDF, and teacher answer keys.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              {masterExtractedSourceUnit && (
+                <button
+                  type="button"
+                  onClick={() => setInspectSourceUnit(masterExtractedSourceUnit)}
+                  className="px-3.5 py-2 rounded-xl bg-sky-400 text-black text-xs font-black inline-flex items-center gap-1.5 hover:bg-sky-300 transition shadow"
+                >
+                  <FileText size={13} /> Inspect Extracted Source Document
+                </button>
+              )}
+              <a
+                href={REVELATION_2_COURSE_CONNECTION_PRESET.hubUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-xs font-bold text-sky-200 inline-flex items-center gap-1.5 transition"
+              >
+                <ExternalLink size={12} /> Open Source Google Doc
+              </a>
+            </div>
+          </div>
+        )}
       </div>
 
       {statusMessage && (
@@ -985,7 +1052,10 @@ export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
           answerKeyText={canAccessAnswerKey ? telaPreviewUnit.rawAnswerKeyText : undefined}
           canViewAnswerKey={canAccessAnswerKey}
           orgName={orgName}
-          departmentFolder={telaPreviewUnit.departmentFolder || 'Christian Education'}
+          departmentFolder={
+            telaPreviewUnit.departmentFolder ||
+            (isStandaloneTeacher ? 'Lessons & Course Resources' : orgEducationFolderName)
+          }
         />
       )}
 

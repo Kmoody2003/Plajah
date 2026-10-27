@@ -49,6 +49,7 @@ import {
   type SacredLibrarySupplement,
 } from '../../services/sacredLibraryCurriculumBridge';
 import { pinResearchSource } from '../../services/sacredResearch';
+import { getOrgEducationFolderName } from '../../services/orgAssets';
 
 export interface TelaDocumentPreviewProps {
   isOpen: boolean;
@@ -80,12 +81,16 @@ export const TelaDocumentPreviewModal: React.FC<TelaDocumentPreviewProps> = ({
   originalText,
   answerKeyText,
   orgName = 'Great Faith Ministries',
-  departmentFolder = 'Christian Education',
+  departmentFolder: rawDepartmentFolder,
   initialTemplateId,
   canViewAnswerKey = false,
   onOpenFullTelaStudio,
   onBuildYourOwnWithTemplate,
 }) => {
+  const departmentFolder =
+    !rawDepartmentFolder || rawDepartmentFolder === 'Christian Education'
+      ? getOrgEducationFolderName(orgName)
+      : rawDepartmentFolder;
   const [loadedDoc, setLoadedDoc] = useState<TelaDoc | null>(propTelaDoc || null);
   const [viewMode, setViewMode] = useState<'SPLIT' | 'TELA_ONLY' | 'ORIGINAL_ONLY'>('SPLIT');
   const [activeFrameIdx, setActiveFrameIdx] = useState<number>(0);

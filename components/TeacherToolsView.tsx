@@ -46,6 +46,14 @@ import CurriculumAndMasteryStudio from './church/CurriculumAndMasteryStudio';
 import OrgLessonLibraryHub from './church/OrgLessonLibraryHub';
 import SharedClassroomClubHub from './classroom/SharedClassroomClubHub';
 import { UniversalStudentDesk } from './desk/UniversalStudentDesk';
+import { HqFilesTab } from './ContentHQ';
+import { FolderOpen } from 'lucide-react';
+import {
+  getStandaloneTeacherScopeId,
+  getOrgEducationFolderName,
+  copyCurriculumPairToOrgAssets,
+  TEACHER_DOCUMENT_CLASS_FOLDERS,
+} from '../services/orgAssets';
 import type { Organization } from '../types';
 import type { ChurchProgram } from '../services/churchEducationService';
 import {
@@ -106,6 +114,53 @@ export interface TeacherToolsOrgContext {
   programs?: ChurchProgram[];
   canManageScope?: boolean;
 }
+
+const PublishedWorksheetHqCopyEffect: React.FC<{
+  published: boolean;
+  sheet: DigitalWorksheet | null;
+  telaDocId: string | null;
+  prepared: PreparedWorksheetImage | null;
+  orgContext?: TeacherToolsOrgContext;
+  user?: any;
+}> = ({ published, sheet, telaDocId, prepared, orgContext, user }) => {
+  const copiedRef = React.useRef<string | null>(null);
+  React.useEffect(() => {
+    if (!published || !sheet) return;
+    const key = `${sheet.title}_${telaDocId || ''}`;
+    if (copiedRef.current === key) return;
+    copiedRef.current = key;
+
+    const scopeKind = orgContext ? 'org' : 'user';
+    const targetOrgId = orgContext ? orgContext.org.id : getStandaloneTeacherScopeId(user?.uid);
+    const targetOrgName = orgContext ? orgContext.org.name : (user?.displayName || DEMO_CLASS.teacherName);
+    const answerKeyLines = sheet.fields
+      .filter(f => f.correctAnswer !== undefined && String(f.correctAnswer).trim() !== '')
+      .map((f, idx) => `${idx + 1}. ${f.label}: ${f.correctAnswer}`)
+      .join('\n');
+
+    void copyCurriculumPairToOrgAssets({
+      orgId: targetOrgId,
+      orgName: targetOrgName,
+      scopeKind,
+      departmentFolder: orgContext
+        ? getOrgEducationFolderName(orgContext.org.name)
+        : 'Assignments & Worksheets',
+      documentClassFolder: 'Assignments & Worksheets',
+      title: sheet.title || 'Scanned Worksheet',
+      unitId: sheet.id || `scan_${Date.now()}`,
+      telaDocId: telaDocId || sheet.telaDocId || `tela_scan_${Date.now()}`,
+      sourceKind: 'IMAGE_SCAN',
+      originalText: sheet.fields.map((f, idx) => `${idx + 1}. ${f.label}`).join('\n'),
+      originalFileName: prepared?.originalFile?.name || `${sheet.title || 'Worksheet'}.jpg`,
+      originalMimeType: prepared?.originalFile?.type || 'image/jpeg',
+      questionCount: sheet.fields.length,
+      totalPoints: sheet.fields.reduce((acc, f) => acc + (f.points || 1), 0),
+      answerKeyLabel: answerKeyLines ? `${sheet.title} — Auto-Extracted Answer Key` : undefined,
+      answerKeyText: answerKeyLines || undefined,
+    });
+  }, [published, sheet, telaDocId, prepared, orgContext, user]);
+  return null;
+};
 
 const TeacherToolsView: React.FC<{ onBack?: () => void; user?: any; orgContext?: TeacherToolsOrgContext }> = ({ onBack, user, orgContext }) => {
   // Hubs deep-link into a tab through sessionStorage (read once, then cleared) so "Build a lesson"
@@ -196,7 +251,8 @@ const TeacherToolsView: React.FC<{ onBack?: () => void; user?: any; orgContext?:
             ['studentDesk', '🪑 Universal Student Desk', BookOpen],
             ['worksheet', 'Worksheet & Doc Capture', ScanLine],
             ['plan', 'Plan from Mastery', Wand2],
-            ['library', orgContext ? 'Org Resource Library' : 'Content Library', Library],
+            ['library', orgContext ? `${orgContext.org.name} Education Library` : 'Lesson Library & Docs', Library],
+            ['contentHq', orgContext ? `🎓 ${getOrgEducationFolderName(orgContext.org.name)} HQ` : '📂 My Content HQ (By Doc Class)', FolderOpen],
             ['planner', `Planner${plans.length ? ` (${plans.length})` : ''}`, CalendarDays],
             ['checks', `Checks${assignments.length ? ` (${assignments.length})` : ''}`, ListChecks],
             ['grade', orgContext ? 'Class Mastery' : 'Gradebook', LayoutGrid],
@@ -212,7 +268,7 @@ const TeacherToolsView: React.FC<{ onBack?: () => void; user?: any; orgContext?:
                   ['context', 'Context', Globe],
                 ]
               : []),
-          ]) as [Tab, string, any][]).map(([v, l, Icon]) => (
+          ]) as [string, string, any][]).map(([v, l, Icon]) => (
             <button key={v} onClick={() => setTab(v)} style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 15px', borderRadius: 10, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 800, border: `1px solid ${tab === v ? T.orange : T.border}`, background: tab === v ? T.orange : 'transparent', color: tab === v ? '#1a1a1a' : T.muted }}>
               <Icon size={13} /> {l}
             </button>
@@ -243,10 +299,53 @@ const TeacherToolsView: React.FC<{ onBack?: () => void; user?: any; orgContext?:
             currentUserName={user?.displayName || DEMO_CLASS.teacherName}
             rosterStudents={DEMO_CLASS.students.map(s => ({ id: s.id, name: s.name }))}
           />
+        ) : (tab as string) === 'contentHq' ? (
+          <div style={{ ...cardStyle, padding: 18 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
+              <div>
+                <Eyebrow color={T.green}>
+                  {orgContext
+                    ? `${orgContext.org.name} · ${getOrgEducationFolderName(orgContext.org.name)} Asset Manager`
+                    : `${user?.displayName || DEMO_CLASS.teacherName} · Personal Teacher Content HQ`}
+                </Eyebrow>
+                <div style={{ fontSize: 16, fontWeight: 900 }}>
+                  {orgContext
+                    ? `${getOrgEducationFolderName(orgContext.org.name)} — Content HQ`
+                    : `My Content HQ — Organized by Document Class`}
+                </div>
+                <div style={{ fontSize: 12.5, color: T.muted, marginTop: 4, lineHeight: 1.5 }}>
+                  {orgContext
+                    ? `All lessons, assignments, quizzes, syllabi, and answer keys uploaded or extracted for ${orgContext.org.name} live in the "${getOrgEducationFolderName(orgContext.org.name)}" folder.`
+                    : `As an independent teacher not in an organization, everything you upload or extract from links (lessons, assignments, quizzes, syllabi, and answer keys) is saved in your own Content HQ with a dedicated folder for each class of documents: ${TEACHER_DOCUMENT_CLASS_FOLDERS.map(f => f.label).join(' · ')}.`}
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  try { sessionStorage.setItem('plajah:openDocExtractor', '1'); } catch {}
+                  setTab('worksheet');
+                }}
+                style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, padding: '9px 15px', borderRadius: 10, fontSize: 11.5, fontWeight: 800, border: 'none', background: T.orange, color: '#1a1a1a' }}
+              >
+                <Sparkles size={14} /> Extract or Upload Resource
+              </button>
+            </div>
+            <div style={{ height: 620, borderRadius: 12, overflow: 'hidden', border: `1px solid ${T.border}`, background: '#0c0c12', padding: 12, display: 'flex', flexDirection: 'column' }}>
+              <HqFilesTab
+                scope={{
+                  kind: orgContext ? 'org' : 'user',
+                  id: orgContext ? orgContext.org.id : getStandaloneTeacherScopeId(user?.uid),
+                  label: orgContext ? orgContext.org.name : (user?.displayName || DEMO_CLASS.teacherName),
+                }}
+                canEdit={true}
+                defaultFolder={orgContext ? getOrgEducationFolderName(orgContext.org.name) : 'ALL'}
+              />
+            </div>
+          </div>
         ) : tab === 'curriculum' ? (
           <CurriculumAndMasteryStudio
-            orgId={user?.uid || DEMO_CLASS.id}
-            orgName={DEMO_CLASS.name}
+            orgId={orgContext ? orgContext.org.id : getStandaloneTeacherScopeId(user?.uid)}
+            orgName={orgContext ? orgContext.org.name : (user?.displayName || DEMO_CLASS.teacherName)}
+            scopeKind={orgContext ? 'org' : 'user'}
             canEdit={true}
             currentUserUid={user?.uid || 'teacher_demo'}
             currentUserName={user?.displayName || DEMO_CLASS.teacherName}
@@ -313,6 +412,40 @@ const ScanWorksheet: React.FC<{ user?: any; orgContext?: TeacherToolsOrgContext 
   const [showDocExtractor, setShowDocExtractor] = useState<boolean>(() => {
     try { const v = sessionStorage.getItem('plajah:openDocExtractor'); sessionStorage.removeItem('plajah:openDocExtractor'); return v === '1'; } catch { return false; }
   });
+  const syncedScanKeyRef = React.useRef<string | null>(null);
+  React.useEffect(() => {
+    if (!sheet || stage !== 'ready') return;
+    const key = `${sheet.title}_${sheet.telaDocId || 'draft'}`;
+    if (syncedScanKeyRef.current === key) return;
+    syncedScanKeyRef.current = key;
+    const scopeKind = orgContext ? 'org' : 'user';
+    const targetOrgId = orgContext ? orgContext.org.id : getStandaloneTeacherScopeId(user?.uid);
+    const targetOrgName = orgContext ? orgContext.org.name : (user?.displayName || DEMO_CLASS.teacherName);
+    const answerKeyLines = sheet.fields
+      .filter(f => f.correctAnswer !== undefined && String(f.correctAnswer).trim() !== '')
+      .map((f, idx) => `${idx + 1}. ${f.label}: ${f.correctAnswer}`)
+      .join('\n');
+    void copyCurriculumPairToOrgAssets({
+      orgId: targetOrgId,
+      orgName: targetOrgName,
+      scopeKind,
+      departmentFolder: orgContext
+        ? getOrgEducationFolderName(orgContext.org.name)
+        : 'Assignments & Worksheets',
+      documentClassFolder: 'Assignments & Worksheets',
+      title: sheet.title || 'Scanned Worksheet',
+      unitId: sheet.id || `scan_${Date.now()}`,
+      telaDocId: sheet.telaDocId || `tela_scan_${Date.now()}`,
+      sourceKind: 'IMAGE_SCAN',
+      originalText: sheet.fields.map((f, idx) => `${idx + 1}. ${f.label}`).join('\n'),
+      originalFileName: prepared?.originalFile?.name || `${sheet.title || 'Worksheet'}.jpg`,
+      originalMimeType: prepared?.originalFile?.type || 'image/jpeg',
+      questionCount: sheet.fields.length,
+      totalPoints: sheet.fields.reduce((acc, f) => acc + (f.points || 1), 0),
+      answerKeyLabel: answerKeyLines ? `${sheet.title} — Auto-Extracted Answer Key` : undefined,
+      answerKeyText: answerKeyLines || undefined,
+    });
+  }, [sheet, stage, prepared, orgContext, user]);
   const [published, setPublished] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [showTutor, setShowTutor] = useState(false);
@@ -540,8 +673,9 @@ const ScanWorksheet: React.FC<{ user?: any; orgContext?: TeacherToolsOrgContext 
           <div>{showDocExtractor && (
             <div style={{ marginTop: 16, paddingTop: 16, borderTop: `1px solid ${T.border}` }}>
               <CurriculumAndMasteryStudio
-                orgId={orgContext?.org.id || user?.uid || DEMO_CLASS.id}
-                orgName={orgContext?.org.name || DEMO_CLASS.name}
+                orgId={orgContext ? orgContext.org.id : getStandaloneTeacherScopeId(user?.uid)}
+                orgName={orgContext ? orgContext.org.name : (user?.displayName || DEMO_CLASS.teacherName)}
+                scopeKind={orgContext ? 'org' : 'user'}
                 canEdit={true}
                 currentUserUid={user?.uid || 'teacher_demo'}
                 currentUserName={user?.displayName || DEMO_CLASS.teacherName}
@@ -769,8 +903,9 @@ const ContentLibrary: React.FC<{ orgContext?: TeacherToolsOrgContext; orgScope?:
     <div style={{ ...cardStyle, padding: 18 }}>
       <div style={{ marginBottom: 20, paddingBottom: 20, borderBottom: `1px solid ${T.border}` }}>
         <OrgLessonLibraryHub
-          orgId={orgContext?.org.id || 'org-great-faith-ministries'}
-          orgName={orgContext?.org.name || DEMO_CLASS.name}
+          orgId={orgContext ? orgContext.org.id : getStandaloneTeacherScopeId(user?.uid)}
+          orgName={orgContext ? orgContext.org.name : (user?.displayName || DEMO_CLASS.teacherName)}
+          scopeKind={orgContext ? 'org' : 'user'}
           programId={orgContext?.activeProgram?.id}
           programs={orgContext?.programs}
           canAccessAnswerKey={true}
