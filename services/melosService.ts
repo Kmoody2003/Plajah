@@ -29,6 +29,11 @@ import {
   onSnapshot, query, where,
 } from 'firebase/firestore';
 import { db } from './backendService';
+import {
+  PUBLIC_DOMAIN_HYMNS,
+  PUBLIC_DOMAIN_GOSPEL_SONGS,
+  type SacredHymnOrPrayer,
+} from '../data/sacredHymnsAndPrayers';
 
 // ═══ Song state — the two independent axes ═══════════════════════════════════
 // These are deliberately NOT one status. A song can be FINISHED and TENTATIVE
@@ -194,6 +199,72 @@ export interface SongCredit {
   instrument?: string;
 }
 
+export type MusicSubCategoryKey =
+  | 'ALL'
+  | 'music-worship-teams'
+  | 'music-band'
+  | 'music-choir'
+  | 'music-collective';
+
+export interface MusicSubDepartmentMeta {
+  key: Exclude<MusicSubCategoryKey, 'ALL'>;
+  name: string;
+  shortLabel: string;
+  emoji: string;
+  badgeColor: string;
+  leadTitle: string;
+  callTime: string;
+  focus: string;
+  rosterCount: number;
+}
+
+export const MUSIC_SUB_DEPARTMENTS: MusicSubDepartmentMeta[] = [
+  {
+    key: 'music-worship-teams',
+    name: 'Worship Teams',
+    shortLabel: 'Worship Teams',
+    emoji: '🎤',
+    badgeColor: '#F59E0B',
+    leadTitle: 'Praise & Worship Vocalists · Frontline Leaders',
+    callTime: 'Sundays 7:30 AM Vocal Warmup · Thursdays 6:30 PM',
+    focus: 'Congregational worship leading, three-part praise harmonies, prophetic transitions & altar ministry.',
+    rosterCount: 14,
+  },
+  {
+    key: 'music-band',
+    name: 'Band',
+    shortLabel: 'Band',
+    emoji: '🎸',
+    badgeColor: '#38BDF8',
+    leadTitle: 'Sanctuary Band · Keys, Hammond B3, Guitars, Bass, Drums & Horns',
+    callTime: 'Sundays 7:00 AM Soundcheck · Thursdays 7:00 PM Band Run-Through',
+    focus: 'Chord charts, Nashville number system, click/stems, organ accompaniment & dynamic transitions.',
+    rosterCount: 11,
+  },
+  {
+    key: 'music-choir',
+    name: 'Choir',
+    shortLabel: 'Choir',
+    emoji: '🎶',
+    badgeColor: '#A855F7',
+    leadTitle: 'Sanctuary SATB Choir & Gospel Mass Choir',
+    callTime: 'Sundays 8:00 AM Choir Loft · Thursdays 7:15 PM SATB Sectionals',
+    focus: 'Four-part SATB hymnal harmony, Gospel choir anthems, classical motets & liturgical responses.',
+    rosterCount: 38,
+  },
+  {
+    key: 'music-collective',
+    name: 'Collective Music Department',
+    shortLabel: 'Collective',
+    emoji: '🎼',
+    badgeColor: '#10B981',
+    leadTitle: 'Collective Music Department · Songwriters, Arrangers & Producers',
+    callTime: 'Tuesdays 7:00 PM Chora Scratchpad Lab & Melos Studio',
+    focus: 'Writing original sanctuary worship songs, re-arranging public-domain hymns, Melos stems & Tela songwriting.',
+    rosterCount: 19,
+  },
+];
+
 export interface MelosSong {
   id: string;
   title: string;
@@ -226,6 +297,14 @@ export interface MelosSong {
   images: string[];
   /** Optional engraved sheet music notes written directly in the Pad. */
   sheetNotes?: SongSheetNote[];
+  /** Optional organization / church music department metadata stored on the song in Chora. */
+  orgId?: string;
+  assignedSubDepts?: Array<Exclude<MusicSubCategoryKey, 'ALL'>>;
+  availableKeys?: string[];
+  chordProgression?: string[];
+  sacredCategory?: 'HYMN' | 'GOSPEL' | 'ORIGINAL_COLLECTIVE' | 'SCANNED_PAPER';
+  sacredSourceId?: string;
+  historyNote?: string;
   color?: string;
   tags: string[];
   order: number;
@@ -233,10 +312,22 @@ export interface MelosSong {
   updatedAt: number;
 }
 
-// ═══ Arrangement — album running order ═══════════════════════════════════════
-// NOTE ON THE WORD: "Arrange" in Melos is the ALBUM RUNNING ORDER. Per-song
-// structure is the LyricBlock order. The Beats room's FL-style pattern playlist
-// is called "Sequence" precisely so it doesn't collide with this.
+// ═══ Arrangement — album running order & live setlists ═══════════════════════
+// NOTE ON THE WORD: "Arrange" in Melos is the ALBUM RUNNING ORDER / LIVE SETLIST.
+// Per-song structure is the LyricBlock order. The Beats room's FL-style pattern
+// playlist is called "Sequence" precisely so it doesn't collide with this.
+
+export interface ArrangementSlotCue {
+  songId: string;
+  performanceKey?: string;
+  bpm?: number;
+  leadVocalistOrDirector?: string;
+  assignedSubDept?: Exclude<MusicSubCategoryKey, 'ALL'>;
+  momentInService?: string;
+  plannedSec?: number;
+  actualSec?: number;
+  notes?: string;
+}
 
 export interface MelosArrangement {
   id: string;
@@ -244,6 +335,10 @@ export interface MelosArrangement {
   songIds: string[];
   notes?: string;
   isPrimary?: boolean;
+  /** Optional live service / concert setlist metadata. */
+  serviceDate?: string;
+  liturgicalTheme?: string;
+  slotCues?: Record<string, ArrangementSlotCue>;
   createdAt: number;
   updatedAt: number;
 }
@@ -536,6 +631,9 @@ export interface MelosProduction {
   memberUids: string[];
   chatRoomId?: string;
   boardProjectId?: string;
+  /** Optional connected organization / church id & name when this Chora production powers an Org Music Department. */
+  orgId?: string;
+  orgName?: string;
   visibility: 'PRIVATE' | 'COLLABORATORS';
   createdAt: number;
   updatedAt: number;
@@ -1265,3 +1363,643 @@ export async function seedDemoProduction(ownerUid: string, artistName?: string):
   } catch { /* offline — caller still gets the in-memory seed */ }
   return seed;
 }
+
+// ═════════════════════════════════════════════════════════════════════════════
+// ═══ CHORA MUSIC STAND, NASHVILLE NUMBER SYSTEM & ORG MUSIC DEPARTMENT ENGINE
+// ═════════════════════════════════════════════════════════════════════════════
+
+export const CHORD_ROOTS_SHARP = [
+  'C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B',
+] as const;
+
+const ENHARMONIC_INDEX: Record<string, number> = {
+  C: 0, 'B#': 0,
+  'C#': 1, Db: 1,
+  D: 2,
+  'D#': 3, Eb: 3,
+  E: 4, Fb: 4,
+  F: 5, 'E#': 5,
+  'F#': 6, Gb: 6,
+  G: 7,
+  'G#': 8, Ab: 8,
+  A: 9,
+  'A#': 10, Bb: 10,
+  B: 11, Cb: 11,
+};
+
+const NASHVILLE_DEGREE_MAP: Record<number, string> = {
+  0: '1',
+  1: 'b2',
+  2: '2',
+  3: 'b3',
+  4: '3',
+  5: '4',
+  6: '#4',
+  7: '5',
+  8: 'b6',
+  9: '6',
+  10: 'b7',
+  11: '7',
+};
+
+/**
+ * Transposes a single chord token (e.g. `F#m7/E`, `Gmaj7`, `Bb`) by `semitones`
+ * or converts it into the Nashville Number System (`1 - 4 - 5 - 6m`) relative to `baseKeyRoot`.
+ */
+export function transposeChordToken(
+  token: string,
+  semitones: number,
+  baseKeyRoot = 'G',
+  toNashville = false,
+): string {
+  const parts = token.split('/');
+  const convertOne = (part: string, isBass = false): string => {
+    const m = /^([A-G][#b]?)(.*)$/.exec(part.trim());
+    if (!m) return part;
+    const [, rootStr, suffix] = m;
+    const baseIdx = ENHARMONIC_INDEX[rootStr];
+    if (baseIdx === undefined) return part;
+
+    const shiftedIdx = (((baseIdx + semitones) % 12) + 12) % 12;
+    if (!toNashville) {
+      return `${CHORD_ROOTS_SHARP[shiftedIdx]}${suffix}`;
+    }
+
+    const cleanKeyRoot = baseKeyRoot.split(' ')[0] || 'G';
+    const keyIdx = (((ENHARMONIC_INDEX[cleanKeyRoot] ?? 7) + semitones) % 12 + 12) % 12;
+    const relSemitones = (((shiftedIdx - keyIdx) % 12) + 12) % 12;
+    const deg = NASHVILLE_DEGREE_MAP[relSemitones] || '1';
+    if (isBass) return deg;
+    return `${deg}${suffix}`;
+  };
+
+  if (parts.length === 2) {
+    return `${convertOne(parts[0], false)}/${convertOne(parts[1], true)}`;
+  }
+  return convertOne(token, false);
+}
+
+/**
+ * Transposes inline `[Chord]` tokens inside ChordPro lyric lines.
+ */
+export function transposeChordProLines(
+  lines: string[],
+  semitones: number,
+  baseKeyRoot = 'G',
+  toNashville = false,
+): string[] {
+  return lines.map(line =>
+    line.replace(/\[([A-G][#b]?[^\]]*)\]/g, (_full, chordToken: string) => {
+      return `[${transposeChordToken(chordToken, semitones, baseKeyRoot, toNashville)}]`;
+    }),
+  );
+}
+
+/**
+ * Transposes a section chord progression string (e.g. `"G - C - Em7 - D"` or `"D | Bm7 | Gmaj7 | Asus4"`).
+ */
+export function transposeSectionChords(
+  chordsStr: string | undefined,
+  semitones: number,
+  baseKeyRoot = 'G',
+  toNashville = false,
+): string {
+  if (!chordsStr) return '';
+  return chordsStr.replace(/\b([A-G][#b]?(?:m|maj|min|dim|aug|sus|add)?\d*(?:\/[A-G][#b]?)?)\b/g, (token) =>
+    transposeChordToken(token, semitones, baseKeyRoot, toNashville),
+  );
+}
+
+/**
+ * Convert a public-domain hymn or gospel song from `sacredHymnsAndPrayers.ts` into a native Chora `MelosSong`.
+ */
+export function hymnToMelosSong(item: SacredHymnOrPrayer, order = 0, orgId?: string): MelosSong {
+  const isGospel = item.kind === 'PUBLIC_DOMAIN_GOSPEL';
+  const blocks: LyricBlock[] = [];
+  const prog = item.score?.chordProgression || ['G', 'C', 'D', 'G'];
+
+  item.stanzas.forEach((stanza, idx) => {
+    blocks.push({
+      id: `${item.id}_v_${idx + 1}`,
+      kind: 'VERSE',
+      label: `Verse ${idx + 1}`,
+      chords: prog.join(' - '),
+      lines: stanza.split('\n'),
+    });
+    if (idx === 0 && item.refrain) {
+      blocks.push({
+        id: `${item.id}_refrain`,
+        kind: 'REFRAIN',
+        label: 'Refrain / Chorus',
+        chords: prog.slice().reverse().join(' - '),
+        lines: item.refrain.split('\n'),
+      });
+    }
+  });
+
+  if (item.score?.chordProgression?.length) {
+    blocks.push({
+      id: `${item.id}_chords_note`,
+      kind: 'NOTE',
+      label: 'Arrangement & Cadence Notes',
+      lines: [
+        `Tune: ${item.score.tuneName} (${item.score.meter}) · ${item.score.tempoMarking}`,
+        `Cadence Chords: ${item.score.chordProgression.join('  |  ')}`,
+      ],
+    });
+  }
+
+  const bpmMatch = /(\d{2,3})/.exec(item.score?.tempoMarking || '84');
+  const bpm = bpmMatch ? parseInt(bpmMatch[1], 10) : 84;
+  const defaultKey = item.score?.defaultKey || 'D Major';
+
+  return newSong(order, {
+    id: item.id,
+    title: item.title,
+    workingTitle: `${item.author} (${item.year})`,
+    state: 'FINISHED',
+    commitment: 'VERIFIED',
+    love: 5,
+    confidence: 95,
+    lyrics: blocks,
+    notes: item.historyEssay,
+    tempo: bpm,
+    keySig: defaultKey.split(' ')[0] || 'D',
+    timeSig: item.score?.timeSignature || '4/4',
+    durationSec: 210,
+    feel: {
+      bpm,
+      keySig: defaultKey,
+      mode: defaultKey.toLowerCase().includes('minor') ? 'minor' : 'major',
+      energy: isGospel ? 0.68 : 0.48,
+      chordSummary: prog.join(' - '),
+    },
+    credits: [
+      {
+        id: `cred_${item.id}`,
+        name: `${item.author} (${item.year})`,
+        role: 'WRITER',
+      },
+    ],
+    orgId,
+    assignedSubDepts: isGospel
+      ? ['music-choir', 'music-worship-teams', 'music-band', 'music-collective']
+      : ['music-worship-teams', 'music-choir', 'music-band', 'music-collective'],
+    availableKeys: item.score?.availableKeys || ['C Major', 'D Major', 'F Major', 'G Major'],
+    chordProgression: prog,
+    sacredCategory: isGospel ? 'GOSPEL' : 'HYMN',
+    sacredSourceId: item.id,
+    historyNote: item.historyEssay,
+    tags: ['sacred', isGospel ? 'gospel' : 'hymn', 'public-domain'],
+  });
+}
+
+export const ORG_CHORA_PROD_ID = (orgId: string) => `melos_church_${orgId}`;
+const ORG_CHORA_STORAGE_KEY = (orgId: string) => `plajah_chora_org_bundle_v1_${orgId}`;
+
+/**
+ * Build the default Chora production, song catalog (Public-Domain Hymns, Gospel Anthems,
+ * and Collective Originals with inline ChordPro), and Worship / Ensemble Setlist Arrangements
+ * for an Organization's Music Department.
+ */
+export function buildOrgChoraSeed(
+  orgId: string,
+  orgName = 'Sanctuary Music Department',
+  ownerUid = 'elevate-music',
+  includeDemoOriginals = true,
+): SeededProduction {
+  const now = Date.now();
+  const prodId = ORG_CHORA_PROD_ID(orgId);
+
+  const production: MelosProduction = {
+    id: prodId,
+    ownerUid,
+    orgId,
+    orgName,
+    title: `${orgName} · Music Department`,
+    workingTitle: 'Worship Teams · Band · Choir · Collective',
+    intent:
+      'Unified Chora songwriting pad, public-domain hymnal & gospel catalog, Nashville Number System music stand, and live service/concert setlist arrangements.',
+    artistName: orgName,
+    status: 'TRACKING',
+    padSkin: DEFAULT_SKIN,
+    memberUids: [ownerUid],
+    visibility: 'COLLABORATORS',
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  const hymns = PUBLIC_DOMAIN_HYMNS.map((h, i) => hymnToMelosSong(h, i, orgId));
+  const gospel = PUBLIC_DOMAIN_GOSPEL_SONGS.map((g, i) => hymnToMelosSong(g, hymns.length + i, orgId));
+
+  const originals: MelosSong[] = includeDemoOriginals
+    ? [
+        newSong(hymns.length + gospel.length, {
+          id: 'collective-orig-sanctuary-fire',
+          title: 'Altar of Living Stones (Collective Original)',
+          workingTitle: 'Collective Music Department · Original Worship Anthem',
+          state: 'TRACKING',
+          commitment: 'VERIFIED',
+          love: 5,
+          confidence: 94,
+          tempo: 74,
+          keySig: 'Eb',
+          timeSig: '4/4',
+          durationSec: 300,
+          orgId,
+          sacredCategory: 'ORIGINAL_COLLECTIVE',
+          assignedSubDepts: ['music-collective', 'music-worship-teams', 'music-band', 'music-choir'],
+          availableKeys: ['C Major', 'D Major', 'Eb Major', 'F Major', 'G Major'],
+          chordProgression: ['Eb', 'Cm7', 'Abmaj7', 'Bb', 'Eb'],
+          historyNote:
+            'Written in Chora Writing Pad by the Collective Music Department. Features four-part choir swell on the bridge and Hammond B3 pad under the altar call.',
+          feel: {
+            bpm: 74,
+            keySig: 'Eb major',
+            mode: 'major',
+            energy: 0.72,
+            chordSummary: 'Eb - Cm7 - Abmaj7 - Bb',
+          },
+          lyrics: [
+            {
+              id: 'orig_1_intro',
+              kind: 'INTRO',
+              label: 'Intro (Band & Warm Pad)',
+              chords: 'Eb - Cm7 - Abmaj7 - Bb',
+              lines: [
+                '[Eb]Warm organ and [Cm7]cello swell in Eb — [Abmaj7]Band enters on bar 5 [Bb]with brushed snare',
+              ],
+            },
+            {
+              id: 'orig_1_v1',
+              kind: 'VERSE',
+              label: 'Verse 1 (Worship Leader)',
+              chords: 'Eb - Cm7 - Abmaj7 - Bb',
+              lines: [
+                '[Eb]We bring the wood, we [Cm7]bring the stone,',
+                '[Abmaj7]Every broken heart before Your [Bb]throne,',
+                '[Eb]Breathe on the embers [Cm7]in this place,',
+                '[Abmaj7]Crown our gathering with [Bb]sovereign [Eb]grace.',
+              ],
+            },
+            {
+              id: 'orig_1_chorus',
+              kind: 'CHORUS',
+              label: 'Chorus (Full Worship Team + SATB Choir)',
+              chords: 'Abmaj7 - Bb - Cm7 - Eb/G',
+              locked: true,
+              lines: [
+                '[Abmaj7]Build Your sanctuary [Bb]in our praise,',
+                '[Cm7]Ancient of Days, [Eb/G]Ancient of Days,',
+                '[Abmaj7]Living stones crying [Bb]out as one,',
+                '[Cm7]Kingdom of heaven, [Bb]let Your will be [Eb]done!',
+              ],
+            },
+            {
+              id: 'orig_1_bridge',
+              kind: 'BRIDGE',
+              label: 'Bridge (Choir Modulation Cue)',
+              chords: 'Fm7 - Eb/G - Abmaj7 - Bb',
+              lines: [
+                '[Fm7]Holy, [Eb/G]holy is the [Abmaj7]Lord God Al[Bb]mighty,',
+                '[Fm7]The whole earth is [Eb/G]filled with Your [Abmaj7]glo[Bb]ry!',
+              ],
+            },
+          ],
+          tags: ['church', 'original', 'collective'],
+        }),
+        newSong(hymns.length + gospel.length + 1, {
+          id: 'collective-orig-psalm-150',
+          title: 'Everything That Has Breath (Psalm 150 Groove)',
+          workingTitle: 'Sanctuary Band & Gospel Choir Up-Tempo Opener',
+          state: 'DEMO',
+          commitment: 'VERIFIED',
+          love: 5,
+          confidence: 92,
+          tempo: 112,
+          keySig: 'Ab',
+          timeSig: '4/4',
+          durationSec: 245,
+          orgId,
+          sacredCategory: 'ORIGINAL_COLLECTIVE',
+          assignedSubDepts: ['music-band', 'music-choir', 'music-worship-teams', 'music-collective'],
+          availableKeys: ['F Major', 'G Major', 'Ab Major', 'A Major', 'Bb Major'],
+          chordProgression: ['Ab7', 'Db9', 'Ab7', 'Eb9#5', 'Db9', 'Ab7'],
+          historyNote:
+            'Up-tempo Gospel shout opener arranged by the Collective and Sanctuary Band.',
+          feel: {
+            bpm: 112,
+            keySig: 'Ab major',
+            mode: 'major',
+            energy: 0.88,
+            chordSummary: 'Ab7 - Db9 - Eb9#5 - Ab7',
+          },
+          lyrics: [
+            {
+              id: 'orig_2_v1',
+              kind: 'VERSE',
+              label: 'Verse 1',
+              chords: 'Ab7 - Db9 - Ab7 - Eb9',
+              lines: [
+                '[Ab7]Praise Him with the trumpet sound, [Db9]praise Him with the lute and harp,',
+                '[Ab7]Praise Him with the timbrel and dance, [Eb9]every voice lift up the song!',
+              ],
+            },
+            {
+              id: 'orig_2_chorus',
+              kind: 'CHORUS',
+              label: 'Chorus (Call & Response)',
+              chords: 'Db9 - Ab7 - Eb9 - Ab7',
+              lines: [
+                '[Db9]Let everything that [Ab7]has breath praise the Lord!',
+                '[Eb9]From the rising of the sun unto the [Ab7]going down of the same!',
+              ],
+            },
+          ],
+          tags: ['church', 'gospel', 'band'],
+        }),
+      ]
+    : [];
+
+  const songs = [...originals, ...hymns, ...gospel];
+
+  const findId = (idOrPrefix: string) =>
+    songs.find(s => s.id === idOrPrefix)?.id || songs[0]?.id || '';
+
+  const s1 = findId('collective-orig-psalm-150');
+  const s2 = findId('pd-hymn-holy-holy-holy');
+  const s3 = findId('pd-gospel-pass-me-not');
+  const s4 = findId('collective-orig-sanctuary-fire');
+  const s5 = findId('pd-hymn-amazing-grace');
+
+  const arrangements: MelosArrangement[] = [
+    {
+      id: 'setlist-sunday-morning',
+      name: 'Sunday 9:00 AM · Sanctuary Liturgical & Choir Setlist',
+      serviceDate: 'This Sunday · 9:00 AM',
+      liturgicalTheme: 'Holiness, Grace & Sacred Gathering',
+      notes: 'Full Worship Team, Sanctuary Band & SATB Choir run-of-show sequence.',
+      isPrimary: true,
+      songIds: [s1, s2, s3, s4, s5].filter(Boolean),
+      slotCues: {
+        [s1]: {
+          songId: s1,
+          performanceKey: 'Ab Major',
+          bpm: 112,
+          leadVocalistOrDirector: 'Sanctuary Band & Praise Team',
+          assignedSubDept: 'music-band',
+          momentInService: 'Processional & Call to Worship',
+          plannedSec: 270,
+          actualSec: 262,
+          notes: 'Brass & Hammond B3 intro — 8-bar count-in.',
+        },
+        [s2]: {
+          songId: s2,
+          performanceKey: 'D Major',
+          bpm: 84,
+          leadVocalistOrDirector: 'Sister Clara Vance · Worship Lead',
+          assignedSubDept: 'music-worship-teams',
+          momentInService: 'Opening Congregational Hymn',
+          plannedSec: 240,
+          actualSec: 245,
+          notes: 'Organ + full band swell on Verse 4.',
+        },
+        [s3]: {
+          songId: s3,
+          performanceKey: 'G Major',
+          bpm: 72,
+          leadVocalistOrDirector: 'Dr. Evelyn Vance · Choir Director',
+          assignedSubDept: 'music-choir',
+          momentInService: 'Choir Ministry & Offertory',
+          plannedSec: 260,
+          actualSec: 0,
+          notes: 'SATB a cappella refrain on final stanza.',
+        },
+        [s4]: {
+          songId: s4,
+          performanceKey: 'Eb Major',
+          bpm: 74,
+          leadVocalistOrDirector: 'Collective Music Department',
+          assignedSubDept: 'music-collective',
+          momentInService: 'Sermon Response & Altar Call',
+          plannedSec: 330,
+          actualSec: 0,
+          notes: 'Soft keys pad under Pastor prayer transition.',
+        },
+        [s5]: {
+          songId: s5,
+          performanceKey: 'G Major',
+          bpm: 72,
+          leadVocalistOrDirector: 'Full Band, Worship Team & Choir',
+          assignedSubDept: 'music-worship-teams',
+          momentInService: 'Benediction & Sending',
+          plannedSec: 240,
+          actualSec: 0,
+          notes: 'Modulate G -> Ab on final refrain.',
+        },
+      },
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: 'setlist-sunday-celebration',
+      name: 'Sunday 11:15 AM · Gospel & Contemporary Worship Setlist',
+      serviceDate: 'This Sunday · 11:15 AM',
+      liturgicalTheme: 'Redemption, Joy & Living Stones',
+      notes: 'Second service running order with extended praise break.',
+      isPrimary: false,
+      songIds: [s1, s4, s5].filter(Boolean),
+      slotCues: {
+        [s1]: {
+          songId: s1,
+          performanceKey: 'Ab Major',
+          bpm: 114,
+          leadVocalistOrDirector: 'Sanctuary Band & Mass Choir',
+          assignedSubDept: 'music-band',
+          momentInService: 'Call to Worship',
+          plannedSec: 280,
+          actualSec: 0,
+        },
+        [s4]: {
+          songId: s4,
+          performanceKey: 'Eb Major',
+          bpm: 74,
+          leadVocalistOrDirector: 'Collective Music Department',
+          assignedSubDept: 'music-collective',
+          momentInService: 'Congregational Worship',
+          plannedSec: 320,
+          actualSec: 0,
+        },
+        [s5]: {
+          songId: s5,
+          performanceKey: 'G Major',
+          bpm: 72,
+          leadVocalistOrDirector: 'Frontline Vocalists',
+          assignedSubDept: 'music-worship-teams',
+          momentInService: 'Altar Response',
+          plannedSec: 240,
+          actualSec: 0,
+        },
+      },
+      createdAt: now,
+      updatedAt: now,
+    },
+  ];
+
+  const people: Collaborator[] = [
+    {
+      id: 'org_col_1',
+      name: 'Sister Clara Vance',
+      role: 'VOCALIST',
+      instrument: 'Worship Team Lead',
+      status: 'ACTIVE',
+      songIds: songs.map(s => s.id),
+      createdAt: now,
+    },
+    {
+      id: 'org_col_2',
+      name: 'Devon Brooks',
+      role: 'MUSICIAN',
+      instrument: 'Music Director · Keys & Hammond B3',
+      status: 'ACTIVE',
+      songIds: songs.map(s => s.id),
+      createdAt: now,
+    },
+    {
+      id: 'org_col_3',
+      name: 'Dr. Evelyn Vance',
+      role: 'PRODUCER',
+      instrument: 'SATB Choir Director',
+      status: 'ACTIVE',
+      songIds: songs.map(s => s.id),
+      createdAt: now,
+    },
+  ];
+
+  return {
+    production,
+    songs,
+    arrangements,
+    pins: [],
+    samples: [],
+    sessions: [],
+    people,
+  };
+}
+
+export function loadOrgChoraBundle(
+  orgId: string,
+  orgName = 'Sanctuary Music Department',
+  ownerUid = 'elevate-music',
+  includeDemoOriginals = true,
+): SeededProduction {
+  try {
+    const raw = localStorage.getItem(ORG_CHORA_STORAGE_KEY(orgId));
+    if (raw) {
+      const parsed = JSON.parse(raw) as SeededProduction;
+      if (parsed?.production?.id && Array.isArray(parsed.songs)) {
+        return parsed;
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+  const seeded = buildOrgChoraSeed(orgId, orgName, ownerUid, includeDemoOriginals);
+  saveOrgChoraBundle(orgId, seeded);
+  return seeded;
+}
+
+export function saveOrgChoraBundle(orgId: string, bundle: SeededProduction): void {
+  try {
+    localStorage.setItem(ORG_CHORA_STORAGE_KEY(orgId), JSON.stringify(bundle));
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * Ensures the Organization's Chora production (`melos_church_${orgId}`) is seeded in both
+ * local storage and Firestore (`melosProductions/{prodId}`).
+ */
+export async function ensureOrgChoraProduction(
+  orgId: string,
+  orgName: string,
+  ownerUid = 'elevate-music',
+  includeDemoOriginals = true,
+): Promise<SeededProduction> {
+  const bundle = loadOrgChoraBundle(orgId, orgName, ownerUid, includeDemoOriginals);
+  try {
+    await setDoc(prodRef(bundle.production.id), stripUndefined(bundle.production));
+    await Promise.all([
+      ...bundle.songs.slice(0, 12).map(s => put(bundle.production.id, 'songs', s)),
+      ...bundle.arrangements.map(a => put(bundle.production.id, 'arrangements', a)),
+      ...bundle.people.map(p => put(bundle.production.id, 'people', p)),
+    ]);
+  } catch {
+    /* offline — local bundle is authoritative fallback */
+  }
+  return bundle;
+}
+
+// ═══ Chora Environment Deep-Link Bridge ══════════════════════════════════════
+
+export type ChoraPadMode = 'lyrics' | 'score' | 'split' | 'stand';
+
+export interface PendingChoraLaunch {
+  productionId: string;
+  orgId?: string;
+  orgName?: string;
+  room?: 'pad' | 'tracklist' | 'arrange' | 'board' | 'beats' | 'master' | 'mixer';
+  padMode?: ChoraPadMode;
+  songId?: string;
+  arrangementId?: string;
+  subDept?: MusicSubCategoryKey;
+  openHymnalModal?: boolean;
+  openLiveCueTimer?: boolean;
+  timestamp: number;
+}
+
+const PENDING_CHORA_LAUNCH_KEY = 'plajah_pending_chora_launch_v1';
+
+export function launchChoraEnvironment(opts: Omit<PendingChoraLaunch, 'timestamp'>): void {
+  const payload: PendingChoraLaunch = { ...opts, timestamp: Date.now() };
+  try {
+    sessionStorage.setItem(PENDING_CHORA_LAUNCH_KEY, JSON.stringify(payload));
+  } catch {
+    /* ignore */
+  }
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('plajah:openChoraEnvironment', { detail: payload }));
+    window.dispatchEvent(
+      new CustomEvent('NAVIGATE', {
+        detail: { target: 'MELOS', params: { productionId: payload.productionId } },
+      }),
+    );
+  }
+}
+
+export function peekPendingChoraLaunch(): PendingChoraLaunch | null {
+  try {
+    const raw = sessionStorage.getItem(PENDING_CHORA_LAUNCH_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as PendingChoraLaunch;
+    if (Date.now() - (parsed.timestamp || 0) > 5 * 60 * 1000) {
+      sessionStorage.removeItem(PENDING_CHORA_LAUNCH_KEY);
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+export function consumePendingChoraLaunch(): PendingChoraLaunch | null {
+  const p = peekPendingChoraLaunch();
+  try {
+    sessionStorage.removeItem(PENDING_CHORA_LAUNCH_KEY);
+  } catch {
+    /* ignore */
+  }
+  return p;
+}
+

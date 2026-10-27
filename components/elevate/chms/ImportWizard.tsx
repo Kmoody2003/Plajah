@@ -15,7 +15,7 @@ import {
   buildPlan, commitPlan, buildIssuesCsv, adjustedCounts, fetchImports, rollbackImport,
   type ImportFile, type ImportPlan, type CommitProgress,
 } from '../../../services/chmsImport';
-import { downloadCsv } from '../../../services/chmsExport';
+import { downloadCsv, downloadCompleteOrgZeroLockInArchive } from '../../../services/chmsExport';
 
 export interface ImportWizardProps {
   org: Organization;
@@ -187,7 +187,17 @@ const ImportWizard: React.FC<ImportWizardProps> = ({ org, myMembership, onClose,
           <h2 className="text-lg font-black uppercase tracking-tight">Import your records</h2>
           <p className={`${lbl} text-white/40`}>Servant Keeper · Planning Center · Breeze · CCB · any CSV</p>
         </div>
-        <button onClick={onClose} aria-label="Close" className="p-2 rounded-full bg-white/5 hover:bg-white/10"><X size={16} /></button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => void downloadCompleteOrgZeroLockInArchive(org)}
+            className="px-3.5 py-2 rounded-full bg-emerald-400/20 hover:bg-emerald-400/30 border border-emerald-400/40 text-emerald-200 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5"
+            title="Exports People, Households, Giving, Pledges, Attendance, Groups, Departments/Ministries, Chora Songs & Setlists, and Full JSON Master Backup"
+          >
+            <Download size={12} /> Export Entire Org Database (Zero Lock-In)
+          </button>
+          <button onClick={onClose} aria-label="Close" className="p-2 rounded-full bg-white/5 hover:bg-white/10"><X size={16} /></button>
+        </div>
       </div>
 
       <div className="flex gap-1 p-1 bg-white/5 rounded-2xl w-fit">

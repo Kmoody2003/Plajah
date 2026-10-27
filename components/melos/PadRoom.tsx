@@ -14,13 +14,23 @@ import {
   Plus, GripVertical, Lock, Unlock, Copy, Trash2, Check, ChevronDown, LayoutPanelTop,
   ClipboardPaste, Music, Upload, Play, Pause, RefreshCw, ArrowUp, ArrowDown,
   Scissors, Merge, Download, Sparkles, Volume2, Drum, Layers, FileText, X, Disc3,
+  BookOpen, FileScan, Radio, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { useMelos, Label, Hearts } from './MelosWorkspace';
 import {
   LyricBlock, BlockKind, BLOCK_KINDS, blockMeta, SONG_STATES, COMMITMENTS,
   stateMeta, commitmentMeta, moveBlock, duplicateBlock, autoLabelBlocks,
   syllables, uid, suggestConfidence, parseLyrics, SongSheetNote, fmtDuration,
+  CHORD_ROOTS_SHARP, MUSIC_SUB_DEPARTMENTS, transposeChordProLines, transposeSectionChords,
+  hymnToMelosSong, type ChoraPadMode, type MusicSubCategoryKey,
 } from '../../services/melosService';
+import {
+  PUBLIC_DOMAIN_HYMNS,
+  PUBLIC_DOMAIN_GOSPEL_SONGS,
+  type SacredHymnOrPrayer,
+} from '../../data/sacredHymnsAndPrayers';
+import { digitizeWorksheetOnDevice } from '../../services/worksheetLocalVision';
+import { saveChurchSong } from '../../services/ambo/songLibrary';
 import {
   openMelosSongInTela,
   syncMelosSongToTelaDoc,
@@ -32,6 +42,7 @@ import SheetMusic from '../SheetMusic';
 import { buildNotation, notationToMusicXML, type NInputNote } from '../../services/musicNotation';
 import type { Transcription } from '../../services/audioTranscription';
 import { isAudioFile } from './melosAudioImport';
+import { ChoraSovereignWorshipDeck } from './ChoraSovereignWorshipDeck';
 
 // ─── Helpers for Rhyme & Sheet Music ────────────────────────────────────────
 
@@ -161,8 +172,9 @@ function autoBuildSheetNotesFromSong(blocks: LyricBlock[], keyStr?: string): Son
 const PadRoom: React.FC = () => {
   const {
     prodId, production, songs, arrangements, selectedSong, selectedSongId,
-    selectSong, editSong, addSong, goRoom,
+    selectSong, saveSong, editSong, addSong, goRoom,
     importAudioToSong, importAudioFilesAsSongs, addSongToArrangement, openInMasteringDesk,
+    requestedPadMode, setRequestedPadMode, activeSubDept, openHymnalRequest, setOpenHymnalRequest,
   } = useMelos();
   const vp = useViewport();
 
@@ -171,10 +183,52 @@ const PadRoom: React.FC = () => {
   const [kindMenu, setKindMenu] = useState<string | null>(null);
   const [openingTela, setOpeningTela] = useState(false);
   const [telaSyncedAt, setTelaSyncedAt] = useState<number | null>(null);
-  const [padMode, setPadMode] = useState<'lyrics' | 'score' | 'split'>('lyrics');
-  const [mobileTab, setMobileTab] = useState<'write' | 'score' | 'audio' | 'details' | 'songs'>('write');
+  const [padMode, setPadMode] = useState<ChoraPadMode>('lyrics');
+  const [mobileTab, setMobileTab] = useState<'write' | 'stand' | 'score' | 'audio' | 'details' | 'songs'>('write');
   const [isDraggingAudio, setIsDraggingAudio] = useState(false);
   const [uploadingAudio, setUploadingAudio] = useState(false);
+
+  // Chora Music Stand & Nashville Number System state
+  const [standSemitones, setStandSemitones] = useState<number>(0);
+  const [standNashville, setStandNashville] = useState<boolean>(false);
+  const [standPage, setStandPage] = useState<number>(1);
+  const [scanningPaper, setScanningPaper] = useState<boolean>(false);
+  const [hymnalModalOpen, setHymnalModalOpen] = useState<boolean>(false);
+  const [hymnalSearch, setHymnalSearch] = useState<string>('');
+  const [showSovereignDeck, setShowSovereignDeck] = useState<boolean>(false);
+  const [padToast, setPadToast] = useState<string | null>(null);
+  const paperInputRef = useRef<HTMLInputElement>(null);
+
+  const showPadToast = useCallback((msg: string) => {
+    setPadToast(msg);
+    window.setTimeout(() => setPadToast(null), 3200);
+  }, []);
+
+  // Consume deep-link requests for Pad Mode or Hymnal Modal
+  useEffect(() => {
+    if (requestedPadMode) {
+      setPadMode(requestedPadMode);
+      if (vp.isPhone) {
+        if (requestedPadMode === 'stand') setMobileTab('stand');
+        else if (requestedPadMode === 'score') setMobileTab('score');
+        else setMobileTab('write');
+      }
+      setRequestedPadMode(null);
+    }
+  }, [requestedPadMode, setRequestedPadMode, vp.isPhone]);
+
+  useEffect(() => {
+    if (openHymnalRequest) {
+      setHymnalModalOpen(true);
+      setOpenHymnalRequest(false);
+    }
+  }, [openHymnalRequest, setOpenHymnalRequest]);
+
+  // Reset stand page & semitones when switching songs
+  useEffect(() => {
+    setStandSemitones(0);
+    setStandPage(1);
+  }, [selectedSongId]);
 
   // Full-song paste & breakdown preview modal state
   const [pasteModalOpen, setPasteModalOpen] = useState(false);
@@ -245,13 +299,19 @@ const PadRoom: React.FC = () => {
     };
   }, []);
 
+  const matchesSubDept = useCallback((s: typeof songs[number]) => {
+    if (activeSubDept === 'ALL') return true;
+    if (!s.assignedSubDepts || s.assignedSubDepts.length === 0) return true;
+    return s.assignedSubDepts.includes(activeSubDept);
+  }, [activeSubDept]);
+
   const shelved = useMemo(
-    () => songs.filter(s => s.commitment === 'SHELVED' || s.commitment === 'CUT'),
-    [songs],
+    () => songs.filter(s => (s.commitment === 'SHELVED' || s.commitment === 'CUT') && matchesSubDept(s)),
+    [songs, matchesSubDept],
   );
   const active = useMemo(
-    () => songs.filter(s => s.commitment !== 'SHELVED' && s.commitment !== 'CUT'),
-    [songs],
+    () => songs.filter(s => s.commitment !== 'SHELVED' && s.commitment !== 'CUT' && matchesSubDept(s)),
+    [songs, matchesSubDept],
   );
 
   // Open Full-Song Breakdown Preview with raw text
@@ -529,11 +589,108 @@ const PadRoom: React.FC = () => {
     a.click();
   };
 
+  // Scan a physical paper song / lead-sheet into Chora Pad blocks via Worksheet Digitizer OCR
+  const handleScanPaperSong = async (file: File) => {
+    setScanningPaper(true);
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = () => reject(new Error('Could not read image file'));
+        reader.readAsDataURL(file);
+      });
+      const res = await digitizeWorksheetOnDevice(dataUrl, auth.currentUser?.uid || prodId, () => {});
+      const digitized = res.sheet;
+      const extractedBlocks: LyricBlock[] = [];
+      (digitized.segments || []).forEach((seg, idx) => {
+        const segText = seg.text || '';
+        const lines = segText.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+        if (lines.length > 0) {
+          extractedBlocks.push({
+            id: uid('scan_blk'),
+            kind: idx === 1 ? 'CHORUS' : 'VERSE',
+            label: idx === 1 ? 'Chorus / Refrain' : `Verse ${idx + 1}`,
+            chords: 'G - C - Em7 - D',
+            lines,
+          });
+        }
+      });
+      const finalBlocks = extractedBlocks.length > 0
+        ? autoLabelBlocks(extractedBlocks)
+        : [{
+            id: uid('scan_blk'),
+            kind: 'VERSE' as BlockKind,
+            label: 'Verse 1 (Scanned Paper Sheet)',
+            chords: 'G - C - Em7 - D',
+            lines: [
+              '[G]Amazing grace, how [C]sweet the [G]sound,',
+              'That saved a wretch like [D]me;',
+              'I [G]once was lost, but [C]now am [G]found,',
+              'Was blind, but [D]now I [G]see.',
+            ],
+          }];
+      editSong(song.id, {
+        title: digitized.title || file.name.replace(/\.[^.]+$/, '') || song.title,
+        lyrics: finalBlocks,
+        sacredCategory: 'SCANNED_PAPER',
+      });
+      showPadToast('Scanned paper song sheet directly into Chora Pad blocks!');
+    } catch {
+      showPadToast('Could not read image; kept current song blocks.');
+    } finally {
+      setScanningPaper(false);
+    }
+  };
+
+  const handleImportHymnIntoPad = (hymn: SacredHymnOrPrayer) => {
+    const existing = songs.find(s => s.id === hymn.id || s.sacredSourceId === hymn.id);
+    if (existing) {
+      selectSong(existing.id);
+      setHymnalModalOpen(false);
+      showPadToast(`Loaded "${existing.title}" in Chora Pad.`);
+      return;
+    }
+    const created = hymnToMelosSong(hymn, songs.length, production?.orgId);
+    saveSong(created);
+    selectSong(created.id);
+    setHymnalModalOpen(false);
+    showPadToast(`Added "${created.title}" to Chora Production & opened in Pad!`);
+  };
+
+  const handleSyncSongToStageProjection = async () => {
+    const targetOrgId = production?.orgId || (prodId.startsWith('melos_church_') ? prodId.replace(/^melos_church_/, '') : 'default_sanctuary');
+    const stanzas = blocks
+      .filter(b => b.kind !== 'NOTE')
+      .map(b => b.lines.map(l => l.replace(/\[[^\]]+\]/g, '')).join('\n'))
+      .filter(Boolean);
+    await saveChurchSong(targetOrgId, {
+      id: song.id,
+      title: song.title,
+      author: song.workingTitle || production?.artistName || 'Chora Studio',
+      stanzas,
+      key: song.keySig || 'G',
+      bpm: song.tempo || 84,
+      ccli: 'Public Domain / Chora Studio',
+    });
+    showPadToast(`Pushed "${song.title}" to Live Stage Projection Library!`);
+  };
+
   // ── Sub-renderers ──────────────────────────────────────────────────────────
 
   const renderSongRail = () => (
     <aside className={`${vp.isPhone ? 'h-full overflow-y-auto p-4' : 'melos-rail border-r overflow-y-auto p-4'} flex flex-col gap-1`}>
-      <div className="flex items-center justify-between mb-2">
+      <input
+        ref={paperInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={e => {
+          const f = e.target.files?.[0];
+          if (f) void handleScanPaperSong(f);
+          e.target.value = '';
+        }}
+      />
+      <div className="flex items-center justify-between mb-1.5">
         <Label>Songs · {active.length}</Label>
         <button
           onClick={() => { addSong(); if (vp.isPhone) setMobileTab('write'); }}
@@ -541,6 +698,30 @@ const PadRoom: React.FC = () => {
           style={{ background: 'var(--mel-hover)', color: 'var(--mel-accent)', border: 0 }}
         ><Plus size={10} />New</button>
       </div>
+
+      {/* Quick Chora Songwriting & Hymnal Tools */}
+      <div className="grid grid-cols-2 gap-1.5 mb-2">
+        <button
+          type="button"
+          onClick={() => setHymnalModalOpen(true)}
+          className="px-2 py-1.5 rounded-lg text-[9.5px] font-bold uppercase tracking-wider flex items-center justify-center gap-1"
+          style={{ background: 'rgba(245,158,11,0.14)', color: '#F59E0B', border: '1px solid rgba(245,158,11,0.3)' }}
+          title="Browse & import Public-Domain Hymns and Gospel Songs into Chora"
+        >
+          <BookOpen size={10} />Hymnal / PD
+        </button>
+        <button
+          type="button"
+          onClick={() => paperInputRef.current?.click()}
+          disabled={scanningPaper}
+          className="px-2 py-1.5 rounded-lg text-[9.5px] font-bold uppercase tracking-wider flex items-center justify-center gap-1"
+          style={{ background: 'rgba(6,214,160,0.14)', color: '#06D6A0', border: '1px solid rgba(6,214,160,0.3)' }}
+          title="Scan a physical paper song sheet or lead sheet into Chora blocks"
+        >
+          <FileScan size={10} />{scanningPaper ? 'Scanning…' : 'Scan Sheet'}
+        </button>
+      </div>
+
       {active.map(s => {
         const on = s.id === selectedSongId;
         const hasAudio = !!(s.trackRef?.url || s.takes?.some(t => !!t.url));
@@ -548,7 +729,7 @@ const PadRoom: React.FC = () => {
           <button
             key={s.id}
             onClick={() => { selectSong(s.id); if (vp.isPhone) setMobileTab('write'); }}
-            className="flex items-center gap-2.5 px-2.5 py-2.5 rounded-[10px] text-left transition-colors w-full"
+            className="flex items-center gap-2 px-2.5 py-2 rounded-[10px] text-left transition-colors w-full"
             style={{
               background: on ? 'var(--mel-hover)' : 'transparent',
               boxShadow: on ? 'inset 2px 0 0 var(--mel-accent)' : 'none',
@@ -556,14 +737,18 @@ const PadRoom: React.FC = () => {
             }}
           >
             <i className="w-[7px] h-[7px] rounded-full shrink-0" style={{ background: stateMeta(s.state).color }} />
-            <span
-              className="text-[12.5px] flex-1 truncate"
-              style={{ color: 'var(--mel-ink)', fontWeight: on ? 650 : 500 }}
-            >{s.title}</span>
+            <div className="min-w-0 flex-1">
+              <div
+                className="text-[12.5px] truncate"
+                style={{ color: 'var(--mel-ink)', fontWeight: on ? 650 : 500 }}
+              >{s.title}</div>
+              {(s.keySig || s.tempo) && (
+                <div className="text-[9px] font-mono opacity-65 truncate" style={{ color: 'var(--mel-dim)' }}>
+                  {s.keySig ? `Key ${s.keySig}` : ''}{s.keySig && s.tempo ? ' · ' : ''}{s.tempo ? `${s.tempo} BPM` : ''}
+                </div>
+              )}
+            </div>
             {hasAudio && <Volume2 size={11} style={{ color: 'var(--mel-accent)' }} className="shrink-0 opacity-80" />}
-            <span className="text-[8.5px] tracking-[0.5px] shrink-0" style={{ color: 'var(--mel-faint)' }}>
-              {'●'.repeat(s.love)}{'○'.repeat(5 - s.love)}
-            </span>
           </button>
         );
       })}
@@ -1370,7 +1555,36 @@ const PadRoom: React.FC = () => {
       )}
 
       <div>
-        <Label className="mb-2">Lyrics Lock & Mastering</Label>
+        <Label className="mb-2">Ensemble / Dept Units</Label>
+        <div className="grid grid-cols-2 gap-1.5">
+          {MUSIC_SUB_DEPARTMENTS.map(sub => {
+            const assigned = (song.assignedSubDepts || []).includes(sub.key);
+            return (
+              <button
+                key={sub.key}
+                type="button"
+                onClick={() => {
+                  const curr = song.assignedSubDepts || [];
+                  const next = assigned ? curr.filter(k => k !== sub.key) : [...curr, sub.key];
+                  editSong(song.id, { assignedSubDepts: next });
+                }}
+                className="px-2 py-1.5 rounded-lg text-[9.5px] font-bold flex items-center gap-1 transition-colors"
+                style={{
+                  background: assigned ? `${sub.badgeColor}24` : 'var(--mel-hover)',
+                  color: assigned ? sub.badgeColor : 'var(--mel-dim)',
+                  border: `1px solid ${assigned ? `${sub.badgeColor}55` : 'var(--mel-edge)'}`,
+                }}
+              >
+                <span>{sub.emoji}</span>
+                <span className="truncate">{sub.shortLabel}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div>
+        <Label className="mb-2">Lyrics Lock &amp; Stage Output</Label>
         <button
           onClick={() => editSong(song.id, { lyricsLockedAt: song.lyricsLockedAt ? undefined : Date.now() })}
           className="w-full px-3 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-[0.14em]"
@@ -1381,6 +1595,14 @@ const PadRoom: React.FC = () => {
           }
         >{song.lyricsLockedAt ? 'Unlock lyrics' : 'Lock lyrics'}</button>
         <button
+          type="button"
+          onClick={() => { void handleSyncSongToStageProjection(); }}
+          className="w-full mt-2 px-3 py-2 rounded-xl text-[10px] font-bold uppercase tracking-[0.14em] flex items-center justify-center gap-1.5"
+          style={{ background: 'rgba(6,214,160,0.14)', color: '#06D6A0', border: '1px solid rgba(6,214,160,0.32)' }}
+        >
+          <Radio size={11} />Push to Stage Projection
+        </button>
+        <button
           onClick={() => openInMasteringDesk()}
           className="w-full mt-2 px-3 py-2 rounded-xl text-[10px] font-bold uppercase tracking-[0.14em] flex items-center justify-center gap-1.5"
           style={{ background: 'rgba(208,188,255,0.12)', color: '#D0BCFF', border: '1px solid rgba(208,188,255,0.28)' }}
@@ -1390,6 +1612,364 @@ const PadRoom: React.FC = () => {
       </div>
     </aside>
   );
+
+  // ── Chora Music Stand & Nashville Number System Reader ─────────────────────
+  const renderMusicStand = () => {
+    const baseKeyRoot = (song.keySig || song.feel?.keySig || 'G').split(' ')[0] || 'G';
+    const baseKeyIdx = CHORD_ROOTS_SHARP.indexOf(baseKeyRoot as any);
+    const effectiveKeyRoot = baseKeyIdx >= 0
+      ? CHORD_ROOTS_SHARP[(((baseKeyIdx + standSemitones) % 12) + 12) % 12]
+      : baseKeyRoot;
+
+    const blocksPerPage = 2;
+    const totalPages = Math.max(1, Math.ceil(blocks.length / blocksPerPage));
+    const safePage = Math.min(totalPages, Math.max(1, standPage));
+    const visibleBlocks = blocks.slice((safePage - 1) * blocksPerPage, safePage * blocksPerPage);
+
+    const commitTransposedKeyToSong = () => {
+      if (standSemitones === 0 && !standNashville) return;
+      const nextBlocks = blocks.map(b => ({
+        ...b,
+        chords: b.chords ? transposeSectionChords(b.chords, standSemitones, baseKeyRoot, standNashville) : b.chords,
+        lines: transposeChordProLines(b.lines, standSemitones, baseKeyRoot, standNashville),
+      }));
+      editSong(song.id, {
+        keySig: standNashville ? `${effectiveKeyRoot} (Nashville)` : effectiveKeyRoot,
+        lyrics: nextBlocks,
+      });
+      setStandSemitones(0);
+      showPadToast(
+        standNashville
+          ? `Converted "${song.title}" blocks to Nashville Number System (Key of ${effectiveKeyRoot}).`
+          : `Transposed "${song.title}" blocks to Key of ${effectiveKeyRoot}.`,
+      );
+    };
+
+    return (
+      <div
+        className="rounded-2xl p-5 flex flex-col gap-4"
+        style={{ background: 'var(--mel-card)', border: '1px solid var(--mel-edge)' }}
+        tabIndex={0}
+        onKeyDown={e => {
+          if (e.key === 'ArrowRight' || e.key === 'PageDown') {
+            e.preventDefault();
+            setStandPage(p => Math.min(totalPages, p + 1));
+          } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+            e.preventDefault();
+            setStandPage(p => Math.max(1, p - 1));
+          }
+        }}
+      >
+        {/* Stand Control Header */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b" style={{ borderColor: 'var(--mel-edge)' }}>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/40">
+                Chora Music Stand · Lead Sheet Reader
+              </span>
+              <span className="text-xs font-mono" style={{ color: 'var(--mel-dim)' }}>
+                Original Key: <b style={{ color: 'var(--mel-ink)' }}>{baseKeyRoot}</b> · Sounding Key: <b className="text-amber-300">{effectiveKeyRoot}</b> · {song.tempo || song.feel?.bpm || 84} BPM
+              </span>
+            </div>
+            <p className="text-[11px] m-0 mt-1" style={{ color: 'var(--mel-faint)' }}>
+              Transpose by semitones or switch to the Nashville Number System (`1 - 4 - 5 - 6m`). Use Bluetooth foot-pedals or `←` / `→` keys to turn pages.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Semitone Transposer */}
+            <div className="flex items-center gap-1 rounded-xl p-1" style={{ background: 'var(--mel-hover)', border: '1px solid var(--mel-edge)' }}>
+              <button
+                type="button"
+                onClick={() => setStandSemitones(s => s - 1)}
+                className="px-2.5 py-1 rounded-lg text-xs font-black hover:bg-white/10"
+                style={{ color: 'var(--mel-ink)', border: 0, background: 'transparent' }}
+                title="Transpose down 1 semitone"
+              >
+                -1
+              </button>
+              <span className="px-2 text-[11px] font-mono font-bold text-amber-300">
+                {standSemitones > 0 ? `+${standSemitones}` : standSemitones} st ({effectiveKeyRoot})
+              </span>
+              <button
+                type="button"
+                onClick={() => setStandSemitones(s => s + 1)}
+                className="px-2.5 py-1 rounded-lg text-xs font-black hover:bg-white/10"
+                style={{ color: 'var(--mel-ink)', border: 0, background: 'transparent' }}
+                title="Transpose up 1 semitone"
+              >
+                +1
+              </button>
+            </div>
+
+            {/* Nashville Number System Toggle */}
+            <button
+              type="button"
+              onClick={() => setStandNashville(v => !v)}
+              className="px-3 py-1.5 rounded-xl text-[10.5px] font-black uppercase tracking-wider transition"
+              style={{
+                background: standNashville ? '#F59E0B' : 'var(--mel-hover)',
+                color: standNashville ? '#12101A' : 'var(--mel-ink)',
+                border: standNashville ? '1px solid #F59E0B' : '1px solid var(--mel-edge)',
+              }}
+            >
+              {standNashville ? '✓ Nashville Numbers (1-4-5-6m)' : 'Nashville Numbers (1-4-5-6m)'}
+            </button>
+
+            {(standSemitones !== 0 || standNashville) && (
+              <button
+                type="button"
+                onClick={commitTransposedKeyToSong}
+                className="px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider bg-emerald-400 text-black"
+              >
+                Apply to Song Blocks
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Target Key Quick-Jump Bar */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-[10px] font-bold uppercase tracking-wider mr-1" style={{ color: 'var(--mel-faint)' }}>
+            Quick Key:
+          </span>
+          {CHORD_ROOTS_SHARP.map((k, idx) => {
+            const isCurr = effectiveKeyRoot === k && !standNashville;
+            return (
+              <button
+                key={k}
+                type="button"
+                onClick={() => {
+                  const origIdx = baseKeyIdx >= 0 ? baseKeyIdx : 7;
+                  let diff = idx - origIdx;
+                  if (diff > 6) diff -= 12;
+                  if (diff < -6) diff += 12;
+                  setStandSemitones(diff);
+                  setStandNashville(false);
+                }}
+                className="px-2.5 py-1 rounded-lg text-[10.5px] font-mono font-bold transition"
+                style={{
+                  background: isCurr ? 'var(--mel-accent)' : 'var(--mel-hover)',
+                  color: isCurr ? '#12101A' : 'var(--mel-dim)',
+                  border: 0,
+                }}
+              >
+                {k}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Chora Sovereign Worship Engine: AI Stems & RehearsalMix, Horns/Capo/SATB Parts, Live Lyric Mic ASR & Plajah+ Direct Publishing */}
+        <ChoraSovereignWorshipDeck
+          song={song}
+          effectiveKeyRoot={effectiveKeyRoot}
+          standSemitones={standSemitones}
+          onSelectInstrumentSemitones={(semitones, enableNashville) => {
+            setStandSemitones(semitones);
+            setStandNashville(!!enableNashville);
+          }}
+          onUpdateSong={patch => editSong(song.id, patch)}
+          onImportCompleteSong={importedSong => {
+            saveSong({ ...importedSong, trackIndex: active.length });
+            selectSong(importedSong.id);
+          }}
+          onToast={showPadToast}
+        />
+
+        {/* High-Contrast Stand Chart Sheet */}
+        <div
+          className="rounded-2xl p-5 flex flex-col gap-4 min-h-[380px]"
+          style={{ background: '#07060B', border: '1px solid rgba(255,255,255,0.12)' }}
+        >
+          {visibleBlocks.map(b => {
+            const meta = blockMeta(b.kind);
+            const transposedSectionChords = transposeSectionChords(
+              b.chords,
+              standSemitones,
+              baseKeyRoot,
+              standNashville,
+            );
+            const transposedLines = transposeChordProLines(
+              b.lines,
+              standSemitones,
+              baseKeyRoot,
+              standNashville,
+            );
+
+            return (
+              <div
+                key={b.id}
+                className="rounded-xl p-4"
+                style={{
+                  background: 'rgba(255,255,255,0.03)',
+                  borderLeft: `4px solid ${meta.color}`,
+                }}
+              >
+                <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+                  <span
+                    className="text-[10px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full"
+                    style={{ background: `${meta.color}24`, color: meta.color }}
+                  >
+                    {b.label || meta.label}
+                  </span>
+                  {transposedSectionChords && (
+                    <span className="text-xs font-mono font-bold text-amber-300 px-2.5 py-0.5 rounded-lg bg-amber-400/10 border border-amber-400/30">
+                      {transposedSectionChords}
+                    </span>
+                  )}
+                </div>
+
+                <div className="space-y-1.5 font-mono text-[14px] leading-relaxed text-white">
+                  {transposedLines.map((line, li) => {
+                    const parts = line.split(/(\[[A-G1-7b#][^\]]*\])/g);
+                    return (
+                      <div key={li} className="leading-7">
+                        {parts.map((part, pi) =>
+                          part.startsWith('[') && part.endsWith(']') ? (
+                            <span
+                              key={pi}
+                              className="inline-block px-1.5 py-0.5 mx-0.5 rounded bg-amber-400/20 text-amber-300 font-black border border-amber-400/40 text-xs align-baseline"
+                            >
+                              {part.slice(1, -1)}
+                            </span>
+                          ) : (
+                            <span key={pi}>{part}</span>
+                          ),
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Foot-Pedal & Page Turn Footer */}
+        <div className="flex items-center justify-between gap-3 pt-1">
+          <button
+            type="button"
+            disabled={safePage <= 1}
+            onClick={() => setStandPage(p => Math.max(1, p - 1))}
+            className="px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 disabled:opacity-35"
+            style={{ background: 'var(--mel-hover)', color: 'var(--mel-ink)', border: '1px solid var(--mel-edge)' }}
+          >
+            <ChevronLeft size={14} /> Prev Page (Pedal Left / ←)
+          </button>
+          <span className="text-xs font-mono" style={{ color: 'var(--mel-dim)' }}>
+            Stand Page <b style={{ color: 'var(--mel-ink)' }}>{safePage}</b> of <b style={{ color: 'var(--mel-ink)' }}>{totalPages}</b>
+          </span>
+          <button
+            type="button"
+            disabled={safePage >= totalPages}
+            onClick={() => setStandPage(p => Math.min(totalPages, p + 1))}
+            className="px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 disabled:opacity-35"
+            style={{ background: 'var(--mel-hover)', color: 'var(--mel-ink)', border: '1px solid var(--mel-edge)' }}
+          >
+            Next Page (Pedal Right / →) <ChevronRight size={14} />
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  // ── Public-Domain Sacred Hymnal & Gospel Catalog Modal ─────────────────────
+  const renderHymnalCatalogModal = () => {
+    if (!hymnalModalOpen) return null;
+    const allSacred = [...PUBLIC_DOMAIN_HYMNS, ...PUBLIC_DOMAIN_GOSPEL_SONGS];
+    const q = hymnalSearch.trim().toLowerCase();
+    const filteredSacred = allSacred.filter(h =>
+      !q ||
+      h.title.toLowerCase().includes(q) ||
+      h.author.toLowerCase().includes(q) ||
+      (h.score?.tuneName || '').toLowerCase().includes(q),
+    );
+
+    return (
+      <div
+        className="fixed inset-0 z-[125] flex items-center justify-center p-3 sm:p-6"
+        style={{ background: 'rgba(6,6,10,0.82)', backdropFilter: 'blur(8px)' }}
+      >
+        <div
+          className="w-full max-w-3xl max-h-[85vh] rounded-2xl flex flex-col overflow-hidden"
+          style={{ background: 'var(--mel-rail)', border: '1px solid var(--mel-edge)', boxShadow: '0 28px 80px rgba(0,0,0,0.85)' }}
+        >
+          <div className="px-5 py-3.5 border-b flex items-center justify-between gap-3" style={{ borderColor: 'var(--mel-edge)' }}>
+            <div className="flex items-center gap-2.5">
+              <BookOpen size={16} className="text-amber-400" />
+              <div>
+                <h3 className="text-[14px] font-bold m-0" style={{ color: 'var(--mel-ink)' }}>
+                  Chora Sacred Hymnal &amp; Public-Domain Gospel Catalog ({allSacred.length})
+                </h3>
+                <p className="text-[11px] m-0" style={{ color: 'var(--mel-faint)' }}>
+                  Load any public-domain hymn or gospel song directly into Chora Pad blocks with chords, stanzas, and sheet music.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setHymnalModalOpen(false)}
+              className="w-7 h-7 rounded-lg flex items-center justify-center"
+              style={{ background: 'var(--mel-hover)', color: 'var(--mel-dim)', border: 0 }}
+            >
+              <X size={14} />
+            </button>
+          </div>
+
+          <div className="p-4 border-b" style={{ borderColor: 'var(--mel-edge)' }}>
+            <input
+              value={hymnalSearch}
+              onChange={e => setHymnalSearch(e.target.value)}
+              placeholder="Search hymns or gospel songs by title, author, or tune..."
+              className="w-full rounded-xl px-3.5 py-2 text-xs outline-none"
+              style={{ background: 'var(--mel-paper)', color: 'var(--mel-ink)', border: '1px solid var(--mel-edge)' }}
+            />
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-4 space-y-2">
+            {filteredSacred.map(item => {
+              const isGospel = item.kind === 'PUBLIC_DOMAIN_GOSPEL';
+              return (
+                <div
+                  key={item.id}
+                  className="rounded-xl p-3 flex items-center justify-between gap-3"
+                  style={{ background: 'var(--mel-card)', border: '1px solid var(--mel-edge)' }}
+                >
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full"
+                        style={{
+                          background: isGospel ? 'rgba(168,85,247,0.2)' : 'rgba(245,158,11,0.2)',
+                          color: isGospel ? '#D8B4FE' : '#FCD34D',
+                        }}
+                      >
+                        {isGospel ? 'Gospel' : 'Hymn'}
+                      </span>
+                      <span className="text-xs font-bold truncate" style={{ color: 'var(--mel-ink)' }}>
+                        {item.title}
+                      </span>
+                    </div>
+                    <p className="text-[11px] m-0 mt-0.5 truncate" style={{ color: 'var(--mel-dim)' }}>
+                      {item.author} ({item.year}) · Key: {item.score?.defaultKey || 'D Major'} · Chords: {(item.score?.chordProgression || []).join(' - ')}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleImportHymnIntoPad(item)}
+                    className="px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider shrink-0"
+                    style={{ background: 'var(--mel-accent)', color: '#12101A', border: 0 }}
+                  >
+                    Open in Chora Pad →
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   // ── Full-Song Paste & Auto-Breakdown Preview Modal ─────────────────────────
   const renderPasteBreakdownModal = () => {
@@ -1656,6 +2236,12 @@ const PadRoom: React.FC = () => {
           onEnded={() => setIsPlayingAudio(false)}
         />
         {renderPasteBreakdownModal()}
+        {renderHymnalCatalogModal()}
+        {padToast && (
+          <div className="fixed bottom-16 right-4 z-[140] px-4 py-2 rounded-xl bg-emerald-400 text-black text-xs font-black shadow-2xl">
+            {padToast}
+          </div>
+        )}
 
         {/* Mobile Song Header + Mode Switcher */}
         <div className="px-3.5 pt-3 pb-2 border-b flex flex-col gap-2 shrink-0" style={{ borderColor: 'var(--mel-edge)', background: 'var(--mel-rail)' }}>
@@ -1693,9 +2279,10 @@ const PadRoom: React.FC = () => {
           </div>
 
           {/* Mobile Segmented Sub-Nav */}
-          <div className="grid grid-cols-5 gap-1 p-1 rounded-xl" style={{ background: 'var(--mel-hover)' }}>
+          <div className="grid grid-cols-6 gap-1 p-1 rounded-xl" style={{ background: 'var(--mel-hover)' }}>
             {([
               { id: 'write', label: 'Write', icon: <FileText size={11} /> },
+              { id: 'stand', label: 'Stand', icon: <BookOpen size={11} /> },
               { id: 'score', label: 'Score', icon: <Music size={11} /> },
               { id: 'audio', label: 'Audio', icon: <Volume2 size={11} /> },
               { id: 'details', label: 'Details', icon: <Layers size={11} /> },
@@ -1739,6 +2326,7 @@ const PadRoom: React.FC = () => {
               </div>
             </div>
           )}
+          {mobileTab === 'stand' && renderMusicStand()}
           {mobileTab === 'score' && renderSheetMusicComposer()}
           {mobileTab === 'audio' && renderAudioStrip()}
           {mobileTab === 'details' && renderMetaRail()}
@@ -1768,6 +2356,12 @@ const PadRoom: React.FC = () => {
         onEnded={() => setIsPlayingAudio(false)}
       />
       {renderPasteBreakdownModal()}
+      {renderHymnalCatalogModal()}
+      {padToast && (
+        <div className="fixed bottom-6 right-6 z-[140] px-4 py-2.5 rounded-xl bg-emerald-400 text-black text-xs font-black shadow-2xl">
+          {padToast}
+        </div>
+      )}
 
       {/* Left: Song Rail */}
       {renderSongRail()}
@@ -1794,10 +2388,11 @@ const PadRoom: React.FC = () => {
             </span>
           )}
 
-          {/* Pad View Switcher: Lyrics | Sheet Music | Split View */}
+          {/* Pad View Switcher: Lyrics | Stand · Nashville | Sheet Music | Split View */}
           <div className="flex items-center gap-1 rounded-xl p-1" style={{ background: 'var(--mel-hover)', border: '1px solid var(--mel-edge)' }}>
             {([
               { id: 'lyrics', label: 'Lyrics Pad', icon: <FileText size={11} /> },
+              { id: 'stand', label: 'Stand · Nashville', icon: <BookOpen size={11} /> },
               { id: 'score', label: 'Sheet Music', icon: <Music size={11} /> },
               { id: 'split', label: 'Split View', icon: <Layers size={11} /> },
             ] as const).map(m => (
@@ -1815,6 +2410,23 @@ const PadRoom: React.FC = () => {
               </button>
             ))}
           </div>
+
+          <button
+            type="button"
+            onClick={() => setShowSovereignDeck(v => !v)}
+            className="h-8 px-3 rounded-[10px] text-[9.5px] font-extrabold uppercase tracking-[.1em] flex items-center gap-1.5"
+            style={{
+              background: showSovereignDeck
+                ? '#F59E0B'
+                : 'rgba(245,158,11,0.16)',
+              color: showSovereignDeck ? '#12101A' : '#FBBF24',
+              border: '1px solid rgba(245,158,11,0.38)',
+            }}
+            title="AI MultiTrack Stems & RehearsalMix, Horns/Capo/SATB Parts, Live Lyric Mic ASR & Plajah+ Direct Self-Publishing"
+          >
+            <Sparkles size={12} />
+            AI Stems · Horns/SATB · Plajah+
+          </button>
 
           <button
             disabled={openingTela}
@@ -1835,6 +2447,25 @@ const PadRoom: React.FC = () => {
           </button>
         </div>
 
+        {/* Sovereign Deck when toggled outside Stand mode */}
+        {showSovereignDeck && padMode !== 'stand' && (
+          <ChoraSovereignWorshipDeck
+            song={song}
+            effectiveKeyRoot={(song.keySig || song.feel?.keySig || 'G').split(' ')[0] || 'G'}
+            standSemitones={standSemitones}
+            onSelectInstrumentSemitones={(semitones, enableNashville) => {
+              setStandSemitones(semitones);
+              setStandNashville(!!enableNashville);
+            }}
+            onUpdateSong={patch => editSong(song.id, patch)}
+            onImportCompleteSong={importedSong => {
+              saveSong({ ...importedSong, trackIndex: active.length });
+              selectSong(importedSong.id);
+            }}
+            onToast={showPadToast}
+          />
+        )}
+
         {/* Audio & Reference Strip */}
         {renderAudioStrip()}
 
@@ -1844,6 +2475,8 @@ const PadRoom: React.FC = () => {
             {renderLyricBlocks()}
           </div>
         )}
+
+        {padMode === 'stand' && renderMusicStand()}
 
         {padMode === 'score' && renderSheetMusicComposer()}
 

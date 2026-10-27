@@ -29,6 +29,8 @@ import {
   MelosProduction, MelosSong, MelosArrangement, InspirationPin, SampleCandidate,
   StudioSession, Collaborator, PadSkin, SongTake,
   PAD_SKINS, DEFAULT_SKIN, PRODUCTION_STATUSES,
+  MUSIC_SUB_DEPARTMENTS, type MusicSubCategoryKey, type ChoraPadMode, type PendingChoraLaunch,
+  consumePendingChoraLaunch, loadOrgChoraBundle, saveOrgChoraBundle,
   subProductions, subSongs, subArrangements, subPins, subSamples, subSessions, subPeople,
   putSong, patchSong, removeSong, putArrangement, patchArrangement, removeArrangement,
   putPin, patchPin, removePin, updateProduction,
@@ -161,6 +163,18 @@ interface MelosCtx {
   openInMasteringDesk: (arrangementId?: string) => void;
   activeArrangementId: string | null;
   setActiveArrangementId: (id: string | null) => void;
+  /** Chora Pad Mode ('lyrics' | 'score' | 'split' | 'stand') controllable from any room or deep link. */
+  requestedPadMode: ChoraPadMode | null;
+  setRequestedPadMode: (m: ChoraPadMode | null) => void;
+  /** Active Music Department Sub-Unit filter ('ALL' | 'music-worship-teams' | 'music-band' | 'music-choir' | 'music-collective'). */
+  activeSubDept: MusicSubCategoryKey;
+  setActiveSubDept: (k: MusicSubCategoryKey) => void;
+  /** Whether the Hymnal / Gospel Catalog drawer was requested via deep link. */
+  openHymnalRequest: boolean;
+  setOpenHymnalRequest: (v: boolean) => void;
+  /** Whether the Live Run-of-Show Cue Timer in Arrange was requested via deep link. */
+  openLiveCueTimerRequest: boolean;
+  setOpenLiveCueTimerRequest: (v: boolean) => void;
 }
 
 const Ctx = createContext<MelosCtx | null>(null);
@@ -431,6 +445,10 @@ const MelosWorkspace: React.FC<Props> = ({ currentUser, initialProductionId, ini
   const [room, setRoom] = useState<MelosRoom>(initialRoom || 'pad');
   const [selectedSongId, setSelectedSongId] = useState<string | null>(null);
   const [activeArrangementId, setActiveArrangementId] = useState<string | null>(null);
+  const [requestedPadMode, setRequestedPadMode] = useState<ChoraPadMode | null>(null);
+  const [activeSubDept, setActiveSubDept] = useState<MusicSubCategoryKey>('ALL');
+  const [openHymnalRequest, setOpenHymnalRequest] = useState(false);
+  const [openLiveCueTimerRequest, setOpenLiveCueTimerRequest] = useState(false);
   const [loading, setLoading] = useState(true);
   const [seeding, setSeeding] = useState(false);
   const [demoOn, setDemoOn] = useState(() => isDemoMode());
@@ -446,22 +464,84 @@ const MelosWorkspace: React.FC<Props> = ({ currentUser, initialProductionId, ini
   const demoSeed = useMemo(() => buildDemoProduction(uid || 'demo_owner', currentUser?.displayName || 'You'), []); // eslint-disable-line react-hooks/exhaustive-deps
   const DEMO_ID = demoSeed.production.id;
 
+  // Apply a deep-link launch payload (from Org Music Department or external Chora button)
+  const applyChoraLaunch = useCallback((launch: PendingChoraLaunch) => {
+    if (launch.productionId) {
+      setProdId(launch.productionId);
+      if (launch.productionId.startsWith('melos_church_')) {
+        const orgId = launch.orgId || launch.productionId.replace(/^melos_church_/, '');
+        const bundle = loadOrgChoraBundle(orgId, launch.orgName || 'Sanctuary Music Department', uid || 'elevate-music', true);
+        setProductions(cur => (cur.some(p => p.id === bundle.production.id) ? cur : [bundle.production, ...cur]));
+        setSongs(bundle.songs);
+        setArrangements(bundle.arrangements);
+        setPeople(bundle.people);
+      }
+    }
+    if (launch.room) setRoom(launch.room);
+    if (launch.padMode) setRequestedPadMode(launch.padMode);
+    if (launch.songId) setSelectedSongId(launch.songId);
+    if (launch.arrangementId) setActiveArrangementId(launch.arrangementId);
+    if (launch.subDept) setActiveSubDept(launch.subDept);
+    if (launch.openHymnalModal) setOpenHymnalRequest(true);
+    if (launch.openLiveCueTimer) setOpenLiveCueTimerRequest(true);
+  }, [uid]);
+
+  useEffect(() => {
+    const pending = consumePendingChoraLaunch();
+    if (pending) {
+      applyChoraLaunch(pending);
+    } else if (initialProductionId?.startsWith('melos_church_')) {
+      const orgId = initialProductionId.replace(/^melos_church_/, '');
+      const bundle = loadOrgChoraBundle(orgId, 'Sanctuary Music Department', uid || 'elevate-music', true);
+      setProductions(cur => (cur.some(p => p.id === bundle.production.id) ? cur : [bundle.production, ...cur]));
+      setSongs(bundle.songs);
+      setArrangements(bundle.arrangements);
+      setPeople(bundle.people);
+    }
+
+    const onOpenChoraEnv = (e: Event) => {
+      const detail = (e as CustomEvent<PendingChoraLaunch>)?.detail;
+      if (detail) applyChoraLaunch(detail);
+    };
+    const onOpenMelosSong = (e: Event) => {
+      const detail = (e as CustomEvent<{ productionId?: string; songId?: string; room?: MelosRoom; padMode?: ChoraPadMode }>)?.detail;
+      if (!detail) return;
+      applyChoraLaunch({
+        productionId: detail.productionId || prodId,
+        songId: detail.songId,
+        room: (detail.room as any) || 'pad',
+        padMode: detail.padMode,
+        timestamp: Date.now(),
+      });
+    };
+    window.addEventListener('plajah:openChoraEnvironment', onOpenChoraEnv);
+    window.addEventListener('plajah:openMelosSong', onOpenMelosSong);
+    return () => {
+      window.removeEventListener('plajah:openChoraEnvironment', onOpenChoraEnv);
+      window.removeEventListener('plajah:openMelosSong', onOpenMelosSong);
+    };
+  }, [applyChoraLaunch, initialProductionId, prodId, uid]);
+
   // Productions list — falls back to the demo when the artist has none yet.
   useEffect(() => {
     if (!uid) {
-      setProductions(demoOn ? [demoSeed.production] : []);
+      setProductions(cur => {
+        const orgProds = cur.filter(p => p.id.startsWith('melos_church_'));
+        return [...orgProds, ...(demoOn ? [demoSeed.production] : [])];
+      });
       setProdId(cur => cur || (demoOn ? DEMO_ID : ''));
       setLoading(false);
       return;
     }
     const un = subProductions(uid, rows => {
-      if (rows.length === 0) {
-        setProductions(demoOn ? [demoSeed.production] : []);
-        setProdId(cur => cur || (demoOn ? DEMO_ID : ''));
-      } else {
-        setProductions(rows);
-        setProdId(cur => cur || rows[0]?.id || '');
-      }
+      setProductions(cur => {
+        const orgProds = cur.filter(p => p.id.startsWith('melos_church_') && !rows.some(r => r.id === p.id));
+        if (rows.length === 0 && orgProds.length === 0) {
+          return demoOn ? [demoSeed.production] : [];
+        }
+        return [...orgProds, ...rows];
+      });
+      setProdId(cur => cur || rows[0]?.id || (demoOn ? DEMO_ID : ''));
       setLoading(false);
     });
     return un;
@@ -473,6 +553,18 @@ const MelosWorkspace: React.FC<Props> = ({ currentUser, initialProductionId, ini
       setSongs(demoSeed.songs); setArrangements(demoSeed.arrangements);
       setPins(demoSeed.pins); setSamples(demoSeed.samples);
       setSessions(demoSeed.sessions); setPeople(demoSeed.people);
+      return;
+    }
+    if (prodId.startsWith('melos_church_')) {
+      const orgId = prodId.replace(/^melos_church_/, '');
+      const bundle = loadOrgChoraBundle(orgId, 'Sanctuary Music Department', uid || 'elevate-music', true);
+      setProductions(cur => (cur.some(p => p.id === bundle.production.id) ? cur : [bundle.production, ...cur]));
+      setSongs(bundle.songs);
+      setArrangements(bundle.arrangements);
+      setPins(bundle.pins);
+      setSamples(bundle.samples);
+      setSessions(bundle.sessions);
+      setPeople(bundle.people);
       return;
     }
     if (!prodId) {
@@ -488,12 +580,27 @@ const MelosWorkspace: React.FC<Props> = ({ currentUser, initialProductionId, ini
       subPeople(prodId, setPeople),
     ];
     return () => uns.forEach(u => { try { u(); } catch {} });
-  }, [prodId, DEMO_ID, demoSeed]);
+  }, [prodId, DEMO_ID, demoSeed, uid]);
 
   const production = useMemo(
     () => productions.find(p => p.id === prodId) || null,
     [productions, prodId],
   );
+
+  // Sync changes back to local Org Chora Bundle when working on an Organization Music Department production
+  useEffect(() => {
+    if (!prodId.startsWith('melos_church_') || !production) return;
+    const orgId = production.orgId || prodId.replace(/^melos_church_/, '');
+    saveOrgChoraBundle(orgId, {
+      production,
+      songs,
+      arrangements,
+      pins,
+      samples,
+      sessions,
+      people,
+    });
+  }, [prodId, production, songs, arrangements, pins, samples, sessions, people]);
 
   const skin: PadSkin = production?.padSkin || DEFAULT_SKIN;
 
@@ -694,6 +801,14 @@ const MelosWorkspace: React.FC<Props> = ({ currentUser, initialProductionId, ini
     openInMasteringDesk,
     activeArrangementId,
     setActiveArrangementId,
+    requestedPadMode,
+    setRequestedPadMode,
+    activeSubDept,
+    setActiveSubDept,
+    openHymnalRequest,
+    setOpenHymnalRequest,
+    openLiveCueTimerRequest,
+    setOpenLiveCueTimerRequest,
   };
 
   const startBlank = async () => {
@@ -991,6 +1106,90 @@ const MelosWorkspace: React.FC<Props> = ({ currentUser, initialProductionId, ini
               <Plus size={12} />New song
             </button>
           </nav>
+        )}
+
+        {/* ── Organization Music Department Connection & Sub-Unit Bar ─────── */}
+        {(prodId.startsWith('melos_church_') || !!production.orgId) && (
+          <div
+            className="flex flex-wrap items-center justify-between gap-2 px-4 sm:px-6 py-2 border-b shrink-0"
+            style={{
+              borderColor: 'rgba(245,158,11,0.25)',
+              background: 'linear-gradient(90deg, rgba(245,158,11,0.12), rgba(168,85,247,0.08))',
+            }}
+          >
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/40">
+                Connected Org · {production.orgName || production.artistName || 'Sanctuary Music Dept'}
+              </span>
+              <button
+                type="button"
+                onClick={() => setActiveSubDept('ALL')}
+                className={`text-[10px] font-bold px-2.5 py-1 rounded-lg border transition ${
+                  activeSubDept === 'ALL'
+                    ? 'bg-amber-400 text-black border-amber-400'
+                    : 'bg-white/5 text-white/75 border-white/10 hover:bg-white/10'
+                }`}
+              >
+                🎵 All 4 Units ({songs.length})
+              </button>
+              {MUSIC_SUB_DEPARTMENTS.map(sub => {
+                const active = activeSubDept === sub.key;
+                return (
+                  <button
+                    key={sub.key}
+                    type="button"
+                    onClick={() => setActiveSubDept(sub.key)}
+                    className={`text-[10px] font-bold px-2.5 py-1 rounded-lg border transition ${
+                      active
+                        ? 'bg-amber-400 text-black border-amber-400'
+                        : 'bg-white/5 text-white/75 border-white/10 hover:bg-white/10'
+                    }`}
+                  >
+                    {sub.emoji} {sub.shortLabel}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setRoom('pad');
+                  setRequestedPadMode('stand');
+                }}
+                className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg bg-amber-400/20 hover:bg-amber-400/30 text-amber-200 border border-amber-400/40 transition"
+              >
+                🎼 Music Stand &amp; Nashville Mode
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setRoom('arrange');
+                  setOpenLiveCueTimerRequest(true);
+                }}
+                className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg bg-emerald-400/20 hover:bg-emerald-400/30 text-emerald-200 border border-emerald-400/40 transition"
+              >
+                ⏱ Live Setlist Cue Timer
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  window.dispatchEvent(
+                    new CustomEvent('NAVIGATE', {
+                      detail: {
+                        target: 'SANCTUARY',
+                        params: { id: production.orgId || prodId.replace(/^melos_church_/, '') },
+                      },
+                    }),
+                  );
+                }}
+                className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white border border-white/15 transition"
+              >
+                ← Back to Org Music Dept
+              </button>
+            </div>
+          </div>
         )}
 
         {/* ── Room Surface ────────────────────────────────────────────────── */}

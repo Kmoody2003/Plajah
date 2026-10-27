@@ -26,12 +26,27 @@ import { doc, getDoc, getDocs, collection, query, where } from 'firebase/firesto
 import { db } from './firebase';
 import { passportIdFor, isPlaceholderPassport, stripUndefined } from './creatorPassport';
 
-export type ContentKind = 'film' | 'book' | 'album' | 'track';
+export type ContentKind = 'film' | 'book' | 'album' | 'track' | 'chora_song_pack' | 'plajah_plus_org';
 /** PURCHASE / PPV are owned forever; RENTAL expires. */
 /** GIFT = a sponsored/gifted copy claimed from a pool (routes/sponsorCopies.ts); owned like a purchase. */
 export type LicenseGrant = 'PURCHASE' | 'RENTAL' | 'PPV' | 'GIFT';
 /** How the buyer receives the work once owned. Films: FilmDistribution.delivery. */
 export type Delivery = 'DOWNLOAD_OPEN' | 'PLAJAH_ONLY';
+
+export interface ChoraLicenseRights {
+  licensedOrgId?: string;
+  licensedOrgName?: string;
+  coversStageProjection: boolean;
+  coversLivestream: boolean;
+  coversStemsAndScores: boolean;
+  coWriterSplits?: Array<{
+    writerName: string;
+    role: string;
+    plajahHandle?: string;
+    splitPercent: number;
+    payoutCents?: number;
+  }>;
+}
 
 export interface ContentLicense {
   id: string;                    // `${kind}_${contentId}`
@@ -52,6 +67,7 @@ export interface ContentLicense {
   editions?: number[];           // book editions covered (missing = edition 1) — services/bookEditions/policy.ts
   versionAtPurchase?: string;    // newest version at purchase: "the version you bought"
   revokedAt?: number | null;     // set when the purchase is refunded
+  choraRights?: ChoraLicenseRights; // Sanctuary projection, livestream & stem/score rights for Chora songs
   proof: null;                   // signature — null until OCME/Passport signing lands
   placeholder: boolean;          // true while DIDs are placeholders, not real
 }
@@ -88,6 +104,7 @@ export function buildContentLicense(input: {
   currency?: string;
   paymentRef?: string;
   rentalWindowHrs?: number;
+  choraRights?: ChoraLicenseRights;
   at?: number;
 }): ContentLicense {
   const at = input.at ?? Date.now();
@@ -121,6 +138,7 @@ export function buildContentLicense(input: {
     issuedAt: at,
     expiresAt,
     watermarkTag,
+    choraRights: input.choraRights,
     proof: null,
     placeholder: isPlaceholderPassport(issuerDid) || isPlaceholderPassport(subjectDid),
   });

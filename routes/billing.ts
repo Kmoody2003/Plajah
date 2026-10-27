@@ -1052,10 +1052,62 @@ export function createBilling(deps: BillingDeps) {
       } catch (e: any) { try { await s.products.update(product.id, { active: false }, opts(acct)); } catch { /* */ } throw e; }
       await deps.patch('billingPaymentLinks', id, clean({
         id, entityKey: ent.entityKey, entity: { kind: ent.kind, id: ent.id }, title, description, ...(amount !== undefined ? { amount: c2d(d2c(amount)) } : {}), allowCustomAmount: custom, currency,
+        ...(lk.choraSongId ? { choraSongId: str(lk.choraSongId, 120), choraLicenseKind: str(lk.choraLicenseKind || 'chora_song_pack', 60) } : {}),
         active: true, stripePaymentLinkId: link.id, stripePriceId: price.id, stripeProductId: product.id, url: link.url, paidCount: 0, paidTotal: 0, createdBy: req.uid, createdAt: Date.now(),
       }));
       const created = await deps.read('billingPaymentLinks', id);
       res.json({ paymentLink: created, link: created });
+    }));
+
+    // ---- Chora Sovereign Song & Stem License Immediate Verification ----
+    app.post('/api/billing/chora-license/verify', ...pre(), wrap(async (req, res) => {
+      const songId = str(req.body?.songId, 120);
+      const songTitle = str(req.body?.songTitle, 200) || 'Chora Worship Song';
+      const creatorUid = str(req.body?.creatorUid, 120) || req.uid;
+      const licensedOrgId = str(req.body?.licensedOrgId, 120);
+      const licensedOrgName = str(req.body?.licensedOrgName, 200);
+      const priceCents = Math.max(0, d2c(Number(req.body?.amountUsd || 0)));
+      const paymentLinkId = str(req.body?.paymentLinkId, 120);
+      if (!songId) fail(400, 'songId is required', 'BAD_SONG_ID');
+
+      let paymentRef = str(req.body?.paymentRef, 120) || `stripe_direct_${Date.now().toString(36)}`;
+      if (paymentLinkId) {
+        const pl = await deps.read('billingPaymentLinks', paymentLinkId);
+        if (pl?.stripePaymentLinkId) {
+          paymentRef = pl.stripePaymentLinkId;
+        }
+      }
+
+      const licId = `chora_song_pack_${safeId(songId)}`;
+      const issuedAt = Date.now();
+      const licenseDoc = clean({
+        id: licId,
+        kind: 'chora_song_pack',
+        contentId: songId,
+        title: songTitle,
+        buyerUid: req.uid,
+        issuerDid: `plajah:${creatorUid}`,
+        subjectDid: `plajah:${req.uid}`,
+        grant: 'PURCHASE',
+        delivery: 'DOWNLOAD_OPEN',
+        priceCents,
+        currency: 'USD',
+        paymentRef,
+        issuedAt,
+        watermarkTag: `PLJ-${nodeCrypto.createHash('sha1').update(`${req.uid}:${songId}`).digest('hex').slice(0, 7).toUpperCase()}`,
+        choraRights: {
+          licensedOrgId: licensedOrgId || undefined,
+          licensedOrgName: licensedOrgName || undefined,
+          coversStageProjection: true,
+          coversLivestream: true,
+          coversStemsAndScores: true,
+          coWriterSplits: Array.isArray(req.body?.coWriterSplits) ? req.body.coWriterSplits : [],
+        },
+        proof: null,
+        placeholder: true,
+      });
+
+      res.json({ ok: true, license: licenseDoc });
     }));
 
     app.post('/api/billing/payment-links/deactivate', ...pre(), wrap(async (req, res) => {

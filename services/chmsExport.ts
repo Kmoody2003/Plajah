@@ -3,9 +3,11 @@
 
 import { db } from './firebase';
 import { collection, getDocs, query, where } from 'firebase/firestore';
-import type { ChmsPerson, ChmsHousehold, ChmsContribution, ChmsPledge, ChmsAttendance, ChmsBatch, ChmsMemberStatus } from '../types';
+import type { Organization, ChmsPerson, ChmsHousehold, ChmsContribution, ChmsPledge, ChmsAttendance, ChmsBatch, ChmsMemberStatus } from '../types';
 import { toCsv } from './chmsFormats';
 import { CHMS_COLL } from './chmsImport';
+import { ensureOrgChoraProduction, MUSIC_SUB_DEPARTMENTS } from './melosService';
+import { loadCompoundBundle } from './elevateTelaCompoundService';
 
 const us = (iso?: string) => { const m = (iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/); return m ? `${m[2]}/${m[3]}/${m[1]}` : iso || ''; };
 const STATUS_OUT: Record<ChmsMemberStatus, string> = { VISITOR: 'Visitor', REGULAR: 'Regular Attender', MEMBER: 'Active Member', INACTIVE: 'Inactive', TRANSFERRED: 'Transferred', DECEASED: 'Deceased' };
@@ -135,4 +137,131 @@ export async function downloadFullBundle(orgId: string, orgName: string, kinds: 
   const names = Object.keys(files);
   for (const n of names) { downloadCsv(n, files[n]); await new Promise(r => setTimeout(r, 350)); }
   return names;
+}
+
+/**
+ * Exports all Organization Ministries / Departments + Chora Music Department Sub-Units as a CSV.
+ */
+export function exportDepartmentsCsv(org: Organization): string {
+  const rows: (string | number | undefined)[][] = [
+    ['Department ID', 'Name', 'Category / Kind', 'Lead / Director', 'Description', 'Sub-Department Units'],
+  ];
+  for (const m of org.ministries || []) {
+    rows.push([
+      m.id,
+      m.name,
+      m.category || 'MINISTRY',
+      m.leaderName || '',
+      m.description || '',
+      (m.name || '').toLowerCase().includes('music') || (m.name || '').toLowerCase().includes('worship')
+        ? MUSIC_SUB_DEPARTMENTS.map(s => s.label).join('; ')
+        : '',
+    ]);
+  }
+  for (const sub of MUSIC_SUB_DEPARTMENTS) {
+    rows.push([
+      sub.key,
+      `Music Dept · ${sub.label}`,
+      'CHORA_MUSIC_UNIT',
+      '',
+      sub.tagline,
+      sub.defaultPositions.join('; '),
+    ]);
+  }
+  return toCsv(rows);
+}
+
+/**
+ * Exports the Organization's entire Chora Song Library & Setlist Arrangements as a portable CSV.
+ */
+export function exportChoraSongsAndSetlistsCsv(org: Organization): string {
+  const bundle = ensureOrgChoraProduction(org.id, org.name);
+  const rows: (string | number | undefined)[][] = [
+    [
+      'Song ID',
+      'Title',
+      'Subtitle / Author',
+      'Key',
+      'BPM',
+      'Time Sig',
+      'Chord Progression',
+      'Ensemble Sub-Units',
+      'Lyrics & ChordPro Preview',
+    ],
+  ];
+  for (const s of bundle.songs) {
+    const firstLines = (s.lyrics || [])
+      .flatMap(b => b.lines)
+      .slice(0, 4)
+      .join(' / ');
+    rows.push([
+      s.id,
+      s.title,
+      s.subtitle || '',
+      s.keySig || 'G',
+      s.tempo || 76,
+      s.timeSig || '4/4',
+      s.chordProgression || '',
+      (s.assignedSubDepts || []).join('; '),
+      firstLines,
+    ]);
+  }
+  return toCsv(rows);
+}
+
+/**
+ * 1-Click Zero-Lock-In Complete Organization Archive Exporter:
+ * Exports People, Households, Contributions, Pledges, Attendance, Groups,
+ * Departments/Ministries, Chora Songs/Setlists, AND a full JSON Master Backup
+ * (including Facilities, Matrix Schedules, Check-In Ratios, Workflows, Retreats, and Non-Cash Gifts).
+ */
+export async function downloadCompleteOrgZeroLockInArchive(org: Organization): Promise<string[]> {
+  const slug = (org.name || 'organization').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'org';
+  const stamp = new Date().toISOString().slice(0, 10);
+
+  const chmsData = await fetchExportData(org.id);
+  const csvMap = buildExportFiles(
+    chmsData,
+    ['people', 'households', 'contributions', 'pledges', 'attendance', 'groups'],
+    org.name,
+  );
+
+  // Always include Departments & Chora Songs CSVs
+  csvMap[`${slug}-departments-and-ministries-${stamp}.csv`] = exportDepartmentsCsv(org);
+  csvMap[`${slug}-chora-songs-and-setlists-${stamp}.csv`] = exportChoraSongsAndSetlistsCsv(org);
+
+  const downloaded: string[] = [];
+  for (const [name, content] of Object.entries(csvMap)) {
+    downloadCsv(name, content);
+    downloaded.push(name);
+    await new Promise(r => setTimeout(r, 300));
+  }
+
+  // Also download the complete JSON Master Snapshot (including Tela Operations & Chora Production)
+  const compoundOps = loadCompoundBundle(org);
+  const choraBundle = ensureOrgChoraProduction(org.id, org.name);
+  const masterJson = JSON.stringify(
+    {
+      exportedAtISO: new Date().toISOString(),
+      organization: { id: org.id, name: org.name, orgType: org.orgType, ministries: org.ministries || [] },
+      chms: chmsData,
+      choraMusicAndSetlists: choraBundle,
+      telaCompoundOperations: compoundOps,
+    },
+    null,
+    2,
+  );
+  const blob = new Blob([masterJson], { type: 'application/json;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const jsonName = `${slug}-complete-zero-lockin-archive-${stamp}.json`;
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = jsonName;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2500);
+  downloaded.push(jsonName);
+
+  return downloaded;
 }

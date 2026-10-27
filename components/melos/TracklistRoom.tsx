@@ -13,14 +13,15 @@
 import React, { useMemo, useRef, useState } from 'react';
 import {
   Plus, Music4, Upload, AlertTriangle, Trash2, Check, LayoutPanelTop,
-  Play, Pause, PenLine, Drum, Layers, FileText, Disc3,
+  Play, Pause, PenLine, Drum, Layers, FileText, Disc3, BookOpen,
 } from 'lucide-react';
 import { useMelos, Label, Hearts } from './MelosWorkspace';
 import {
   MelosSong, Commitment, COMMITMENTS, SONG_STATES, stateMeta, commitmentMeta,
-  fmtDuration, songDuration, blockingSamples, IS_ON_RECORD,
+  fmtDuration, songDuration, blockingSamples, IS_ON_RECORD, MUSIC_SUB_DEPARTMENTS,
 } from '../../services/melosService';
 import { openMelosTracklistInTela } from '../../services/telaDomainAdapters';
+import { importBulkWorshipChartsAndStems } from '../../services/choraSovereignWorshipService';
 import { auth } from '../../services/firebase';
 import { useViewport } from '../../hooks/useViewport';
 
@@ -28,8 +29,9 @@ type Filter = 'ALL' | 'ON_RECORD' | 'AUDIO_FILES' | 'DAW_PROJECTS' | 'WRITTEN' |
 
 const TracklistRoom: React.FC = () => {
   const {
-    prodId, songs, arrangements, samples, editSong, dropSong, addSong, selectSong, goRoom,
+    prodId, songs, arrangements, samples, editSong, saveSong, dropSong, addSong, selectSong, goRoom,
     importAudioToSong, importAudioFilesAsSongs, addSongToArrangement, openInMasteringDesk,
+    setRequestedPadMode, activeSubDept, setOpenHymnalRequest,
   } = useMelos();
   const vp = useViewport();
 
@@ -53,27 +55,35 @@ const TracklistRoom: React.FC = () => {
   const hasWrittenLyrics = (s: MelosSong) =>
     (s.lyrics || []).some(b => b.lines.some(l => l.trim().length > 0)) || (s.sheetNotes?.length || 0) > 0;
   const hasDawProject = (s: MelosSong) => !!(s.grooveId || s.takes?.some(t => t.fromBeats));
+  const matchesSubDept = (s: MelosSong) =>
+    activeSubDept === 'ALL' || !s.assignedSubDepts?.length || s.assignedSubDepts.includes(activeSubDept);
+
+  const deptScopedSongs = useMemo(
+    () => songs.filter(matchesSubDept),
+    [songs, activeSubDept], // eslint-disable-line react-hooks/exhaustive-deps
+  );
 
   const counts = useMemo(() => ({
-    all: songs.length,
-    onRecord: songs.filter(s => IS_ON_RECORD.includes(s.commitment)).length,
-    audio: songs.filter(hasAudio).length,
-    daw: songs.filter(hasDawProject).length,
-    written: songs.filter(hasWrittenLyrics).length,
-  }), [songs]);
+    all: deptScopedSongs.length,
+    onRecord: deptScopedSongs.filter(s => IS_ON_RECORD.includes(s.commitment)).length,
+    audio: deptScopedSongs.filter(hasAudio).length,
+    daw: deptScopedSongs.filter(hasDawProject).length,
+    written: deptScopedSongs.filter(hasWrittenLyrics).length,
+  }), [deptScopedSongs]);
 
   const rows = useMemo(() => {
-    if (filter === 'ALL') return songs;
-    if (filter === 'ON_RECORD') return songs.filter(s => IS_ON_RECORD.includes(s.commitment));
-    if (filter === 'AUDIO_FILES') return songs.filter(hasAudio);
-    if (filter === 'DAW_PROJECTS') return songs.filter(hasDawProject);
-    if (filter === 'WRITTEN') return songs.filter(hasWrittenLyrics);
-    return songs.filter(s => s.commitment === filter);
-  }, [songs, filter]);
+    if (filter === 'ALL') return deptScopedSongs;
+    if (filter === 'ON_RECORD') return deptScopedSongs.filter(s => IS_ON_RECORD.includes(s.commitment));
+    if (filter === 'AUDIO_FILES') return deptScopedSongs.filter(hasAudio);
+    if (filter === 'DAW_PROJECTS') return deptScopedSongs.filter(hasDawProject);
+    if (filter === 'WRITTEN') return deptScopedSongs.filter(hasWrittenLyrics);
+    return deptScopedSongs.filter(s => s.commitment === filter);
+  }, [deptScopedSongs, filter]);
 
   const totalSec = rows.reduce((n, s) => n + songDuration(s), 0);
 
-  const openInPad = (s: MelosSong) => { selectSong(s.id); goRoom('pad'); };
+  const openInPad = (s: MelosSong) => { selectSong(s.id); setRequestedPadMode('lyrics'); goRoom('pad'); };
+  const openInStand = (s: MelosSong) => { selectSong(s.id); setRequestedPadMode('stand'); goRoom('pad'); };
   const openInStudio = (s: MelosSong) => { selectSong(s.id); goRoom('beats'); };
 
   const togglePlaySong = (s: MelosSong) => {
@@ -94,7 +104,15 @@ const TracklistRoom: React.FC = () => {
   const handleBatchFiles = async (files: FileList | File[]) => {
     setUploading(true);
     try {
-      await importAudioFilesAsSongs(files);
+      const arr = Array.from(files);
+      const hasChartFiles = arr.some(f => /\.(usr|cho|chordpro|pro|txt|xml)$/i.test(f.name));
+      if (hasChartFiles) {
+        const res = await importBulkWorshipChartsAndStems(arr, prodId, songs.length);
+        res.songs.forEach(s => saveSong(s));
+        if (res.songs[0]) selectSong(res.songs[0].id);
+      } else {
+        await importAudioFilesAsSongs(files);
+      }
     } finally {
       setUploading(false);
     }
@@ -116,6 +134,14 @@ const TracklistRoom: React.FC = () => {
     const lineCount = (s.lyrics || []).reduce((sum, b) => sum + b.lines.filter(l => l.trim()).length, 0);
     return (
       <div className="flex items-center gap-1.5 flex-wrap mt-1">
+        {(s.keySig || s.tempo) && (
+          <span
+            className="text-[8.5px] font-mono font-bold uppercase tracking-wider px-1.5 py-0.5 rounded"
+            style={{ background: 'rgba(245,158,11,0.16)', color: '#FCD34D' }}
+          >
+            {s.keySig ? `Key ${s.keySig}` : ''}{s.keySig && s.tempo ? ' · ' : ''}{s.tempo ? `${s.tempo} BPM` : ''}
+          </span>
+        )}
         {written && (
           <span
             className="text-[8.5px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded flex items-center gap-1"
@@ -140,6 +166,19 @@ const TracklistRoom: React.FC = () => {
             <Music4 size={8} />Audio ({s.takes?.length || 1})
           </span>
         )}
+        {(s.assignedSubDepts || []).map(deptKey => {
+          const meta = MUSIC_SUB_DEPARTMENTS.find(d => d.key === deptKey);
+          if (!meta) return null;
+          return (
+            <span
+              key={deptKey}
+              className="text-[8px] font-bold px-1.5 py-0.5 rounded"
+              style={{ background: `${meta.badgeColor}20`, color: meta.badgeColor }}
+            >
+              {meta.emoji} {meta.shortLabel}
+            </span>
+          );
+        })}
       </div>
     );
   };
@@ -162,7 +201,7 @@ const TracklistRoom: React.FC = () => {
       <input
         ref={batchInputRef}
         type="file"
-        accept="audio/*"
+        accept="audio/*,.usr,.cho,.chordpro,.pro,.txt,.xml"
         multiple
         className="hidden"
         onChange={e => {
@@ -200,9 +239,10 @@ const TracklistRoom: React.FC = () => {
             disabled={uploading}
             className="px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-[0.12em] flex items-center gap-1.5"
             style={{ background: 'var(--mel-accent)', color: '#12101A', border: 0 }}
+            title="Bulk import Audio Stems, SongSelect (.usr/.txt), ChordPro (.cho), or PraiseCharts files"
           >
             <Upload size={11} />
-            {uploading ? 'Importing…' : 'Import Audio Files'}
+            {uploading ? 'Importing…' : 'Bulk Import Audio / SongSelect (.USR/.CHO)'}
           </button>
 
           <button
@@ -211,6 +251,18 @@ const TracklistRoom: React.FC = () => {
             style={{ background: 'var(--mel-hover)', color: 'var(--mel-ink)', border: '1px solid var(--mel-edge)' }}
           >
             <Plus size={11} />New Song Project
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setOpenHymnalRequest(true);
+              goRoom('pad');
+            }}
+            className="px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-[0.12em] flex items-center gap-1.5"
+            style={{ background: 'rgba(245,158,11,0.16)', color: '#FCD34D', border: '1px solid rgba(245,158,11,0.35)' }}
+          >
+            <BookOpen size={11} />Hymnal &amp; Gospel Catalog
           </button>
 
           <button
@@ -551,6 +603,14 @@ const TracklistRoom: React.FC = () => {
                           title="Write lyrics & sheet music in Pad"
                         >
                           <PenLine size={10} />Pad
+                        </button>
+                        <button
+                          onClick={() => openInStand(s)}
+                          className="h-7 px-2 rounded-lg text-[10px] font-semibold flex items-center gap-1"
+                          style={{ background: 'rgba(245,158,11,0.16)', color: '#FCD34D', border: 0 }}
+                          title="Open in Chora Music Stand & Nashville Number System"
+                        >
+                          <BookOpen size={10} />Stand
                         </button>
                         <button
                           onClick={() => openInStudio(s)}

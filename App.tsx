@@ -202,7 +202,7 @@ const GlobalPhotosView = retryLazy(() => import('./components/GlobalPhotosView')
 const NativePhotoViewer = retryLazy(() => import('./components/photo/NativePhotoViewer'));
 import { onMediaFileActivated, isWindowsApp, type WindowsPickedFile } from './services/windowsBridgeService';
 import { onLaunchMedia, onLaunchExperience } from './services/launchService';
-import { experienceView, LAUNCHED_VIA_SHARE, rememberResumeView, readResumeView } from './src/lib/launchTarget';
+import { experienceView, LAUNCHED_VIA_SHARE, rememberResumeView, readResumeView, parseChannelShareParams } from './src/lib/launchTarget';
 import { MediaPlajahPlayer } from './components/player/MediaPlajahPlayer';
 
 // Pre-warm viewer chunks on Windows for near-instant boot and viewer opening
@@ -746,6 +746,7 @@ const App: React.FC = () => {
 
   // Check for ?view=pitch-music|pitch-film|pitch-writer|research and ?room=<id> on load
   const searchParamsOnLoad = new URLSearchParams(window.location.search);
+  const channelShareOnLoad = typeof window !== 'undefined' ? parseChannelShareParams(window.location.search, window.location.pathname) : null;
   const pitchParam = searchParamsOnLoad.get('view');
   const roomParam = searchParamsOnLoad.get('room');
   const callinParam = searchParamsOnLoad.get('callin');
@@ -763,6 +764,7 @@ const App: React.FC = () => {
     } catch {}
   }
   const pitchInitialView: AppView =
+    channelShareOnLoad            ? 'LIVE_HUB'           :
     callinParam                   ? 'PODCAST_CALLIN'     :
     listenParam                   ? 'PODCAST_LISTEN'     :
     roomParam                     ? 'ROOM'               :
@@ -794,14 +796,15 @@ const App: React.FC = () => {
   // Is the app being opened on a shared deep link? If so, a signed-out visitor must
   // NOT be bounced to LANDING — the deep-link handler owns the initial view.
   const hasDeepLink = (() => {
+    if (channelShareOnLoad) return true;
     const sp = new URLSearchParams(window.location.search);
-    if (['id', 'type', 'reello', 'video', 'v', 'org', 'elevate', 'debate', 'club', 'livestream', 'stream', 'room', 'callin', 'listen', 'invite', 'pitch', 'view', 'g', 'atlas', 'party', 'collection', 'film'].some(k => sp.get(k))) return true;
+    if (['id', 'type', 'reello', 'video', 'v', 'org', 'elevate', 'debate', 'club', 'livestream', 'stream', 'room', 'callin', 'listen', 'invite', 'pitch', 'view', 'g', 'atlas', 'party', 'collection', 'film', 'channel', 'ch', 'plajahId'].some(k => sp.get(k))) return true;
     if (/^#g\//.test(window.location.hash)) return true;
     // /link (TV sign-in approval) must not bounce a signed-out visitor to LANDING — they may
     // need to sign in on the phone first and then approve, and losing the ?c= code mid-flow
     // means walking back to the television for a new one.
     if (window.location.pathname.startsWith('/link')) return true;
-    return /^\/(profile|release|event|clubs|athlete|book|artist|reello|video|party)\//.test(window.location.pathname);
+    return /^\/(profile|release|event|clubs|athlete|book|artist|reello|video|party|share|channel|ch)(\/|$)/.test(window.location.pathname);
   })();
 
   // A browser reload resumes the screen the person was on (see launchTarget.readResumeView);
@@ -813,7 +816,7 @@ const App: React.FC = () => {
   const viewNowRef = useRef<AppView>(initialView);
   viewNowRef.current = view;
   // Shared links must never flash the globe launch page while the shared item is fetched.
-  const [shareResolving, setShareResolving] = useState<boolean>(hasDeepLink);
+  const [shareResolving, setShareResolving] = useState<boolean>(hasDeepLink && !channelShareOnLoad);
   const [telaRequestedDocId, setTelaRequestedDocId] = useState<string | null>(null);
   // Which role the Demos corridor opened the tour at, so it skips its own role picker.
   const [demoRole, setDemoRole] = useState<'teacher' | 'parent' | 'student' | undefined>(undefined);
@@ -1477,7 +1480,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     window.addEventListener('resize', publish);
     return () => { ro?.disconnect(); window.removeEventListener('resize', publish); root.style.removeProperty('--pj-mobile-nav-h'); };
   }, [mobileNavEl]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(() => !channelShareOnLoad);
   const [wcMobileBannerDismissed, setWcMobileBannerDismissed] = useState(() => !!localStorage.getItem('wc26_mobile_banner_dismissed'));
   const [isPublicView, setIsPublicView] = useState(false);
   const [showModeOpts, setShowModeOpts] = useState<{ mode: ShowMode; trackId?: string | null }>({ mode: 'DEFAULT' });
@@ -1572,12 +1575,15 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [showDesktopLauncher, setShowDesktopLauncher] = useState(() => {
     if (typeof window === 'undefined') return false;
     try {
+      if (channelShareOnLoad) return false;
       const sp = new URLSearchParams(window.location.search);
       const isDeepLink = !!(
         sp.get('id') || sp.get('type') || sp.get('reello') || sp.get('video') || sp.get('v') ||
         sp.get('party') || sp.get('club') || sp.get('course') || sp.get('debate') || sp.get('org') || sp.get('follow') ||
-        sp.get('livestream') || sp.get('recap') || sp.get('play') ||
+        sp.get('livestream') || sp.get('recap') || sp.get('play') || sp.get('channel') || sp.get('ch') || sp.get('plajahId') ||
         window.location.pathname.startsWith('/share') ||
+        window.location.pathname.startsWith('/channel') ||
+        window.location.pathname.startsWith('/ch/') ||
         window.location.pathname.startsWith('/reello') ||
         window.location.pathname.startsWith('/video') ||
         window.location.pathname.startsWith('/link')
@@ -1625,10 +1631,13 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     if (!autoLauncherShownRef.current && typeof window !== 'undefined') {
       const sp = new URLSearchParams(window.location.search);
       const isDeepLink = !!(
+        parseChannelShareParams(window.location.search, window.location.pathname) ||
         sp.get('id') || sp.get('type') || sp.get('reello') || sp.get('video') || sp.get('v') ||
         sp.get('party') || sp.get('club') || sp.get('course') || sp.get('debate') || sp.get('org') || sp.get('follow') ||
-        sp.get('livestream') || sp.get('recap') || sp.get('play') ||
+        sp.get('livestream') || sp.get('recap') || sp.get('play') || sp.get('channel') || sp.get('ch') || sp.get('plajahId') ||
         window.location.pathname.startsWith('/share') ||
+        window.location.pathname.startsWith('/channel') ||
+        window.location.pathname.startsWith('/ch/') ||
         window.location.pathname.startsWith('/reello') ||
         window.location.pathname.startsWith('/video') ||
         window.location.pathname.startsWith('/link')
@@ -1923,7 +1932,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [clubInitialId, setClubInitialId] = useState<string | undefined>(undefined);
   const [creatorCourseId, setCreatorCourseId] = useState<string | undefined>(undefined);
   // A shared live channel deep-link opens the Live guide focused on that channel.
-  const [liveChannelFocus, setLiveChannelFocus] = useState<{ ownerId?: string; plajahId?: string; number?: string; sourceId?: string } | null>(null);
+  const [liveChannelFocus, setLiveChannelFocus] = useState<{ ownerId?: string; plajahId?: string; number?: string; sourceId?: string } | null>(() => channelShareOnLoad);
   // Account Switcher
   const [showAccountSwitcher, setShowAccountSwitcher] = useState(false);
   const [linkedAccounts, setLinkedAccounts] = useState<LinkedAccount[]>([]);
@@ -2951,7 +2960,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       if (!user) { loginWithGoogle(); return; }
       setView('CAREER_IMPORT');
     } else if (target === 'MELOS') {
-      if (!user) { loginWithGoogle(); return; }
+      if (!user && !params?.productionId) { loginWithGoogle(); return; }
       if (params?.productionId) setMelosProductionId(params.productionId);
       setView('MELOS');
     } else if (target === 'CHORA_ARTIST') {
@@ -3285,9 +3294,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         });
       } else {
         setUserProfile(null);
-        // Don't clobber a shared deep-link view (profile/video/album/etc.) for
+        // Don't clobber a shared deep-link view (profile/video/album/live channel/etc.) for
         // signed-out visitors — that's how public share links reach the content.
-        if (!hasDeepLink) setViewInternal(isWindowsApp() ? 'DASHBOARD' : 'LANDING');
+        if (!hasDeepLink && viewNowRef.current !== 'LIVE_HUB') setViewInternal(isWindowsApp() ? 'DASHBOARD' : 'LANDING');
       }
     });
     return () => {
@@ -3462,24 +3471,14 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         return;
       }
 
-      // Deep-link: ?channel={number}, ?ch={number}, or ?type=channel — direct persistent channel tune-in
-      const directChannel = params.get('channel') || params.get('ch') || (shareType === 'channel' ? (params.get('n') || params.get('channel')) : null);
-      if (directChannel || shareType === 'channel') {
-        const raw = String(projectId || params.get('id') || '');
-        const number = directChannel || params.get('n') || (raw.startsWith('channel:') ? raw.slice('channel:'.length) : undefined);
-        const sourceId = params.get('source') || (raw.startsWith('source:') ? raw.slice(7) : undefined);
-        const ownerId = params.get('owner') || (raw.startsWith('owner:') ? raw.slice('owner:'.length) : undefined);
-        const plajahId = params.get('plajahId') || (raw.startsWith('plajah:') ? raw.slice('plajah:'.length) : (!sourceId && !ownerId && !number && raw ? raw : undefined));
-
-        setLiveChannelFocus({
-          number: number ? String(number).trim() : undefined,
-          ownerId,
-          sourceId,
-          plajahId,
-        });
+      // Deep-link: ?channel={number}, ?ch={number}, ?plajahId={id}, or ?type=channel — direct persistent channel tune-in
+      const channelFocus = parseChannelShareParams(window.location.search, window.location.pathname);
+      if (channelFocus) {
+        setLiveChannelFocus(channelFocus);
         setView('LIVE_HUB');
-        document.title = number ? `Channel ${number} | Plajah Live` : 'Plajah Live';
+        document.title = channelFocus.number ? `Channel ${channelFocus.number} | Plajah Live` : 'Plajah Live';
         setIsLoading(false);
+        setShareResolving(false);
         return;
       }
 
@@ -7074,7 +7073,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 <CareerImportStudio onBack={() => setView('ARTIST_MANAGER')} />
               </Suspense>
             )}
-            {view === 'MELOS' && user && userProfile && (
+            {view === 'MELOS' && (
               <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
                 <MelosWorkspace
                   currentUser={userProfile}
