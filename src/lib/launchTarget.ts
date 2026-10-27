@@ -49,6 +49,77 @@ export function handOffToFullApp(viewSlug?: string): void {
   window.dispatchEvent(new CustomEvent('plajah:mount-full-app'));
 }
 
+export interface ChannelFocusTarget {
+  number?: string;
+  ownerId?: string;
+  sourceId?: string;
+  plajahId?: string;
+}
+
+/**
+ * Synchronously parse TV channel share / QR parameters from a URL query string and pathname.
+ * Supports:
+ * - ?channel=<num>&owner=<uid>&source=<id>&plajahId=<id> (buildChannelQrUrl)
+ * - /share?type=channel&id=owner:<uid>|plajah:<id>|source:<id>&n=<num>&channel=<num>&source=<id> (buildShareUrl)
+ * - ?ch=<num> or /channel/<num> or /ch/<num>
+ */
+export function parseChannelShareParams(
+  search: string = typeof window !== 'undefined' ? window.location.search : '',
+  pathname: string = typeof window !== 'undefined' ? window.location.pathname : '',
+): ChannelFocusTarget | null {
+  try {
+    const params = new URLSearchParams(search);
+    const shareType = (params.get('type') || '').toLowerCase();
+    const rawId = String(params.get('id') || '').trim();
+    const pathMatch = /^\/(?:channel|ch)\/([A-Za-z0-9_.:-]+)\/?$/i.exec(pathname);
+    const pathChannel = pathMatch ? decodeURIComponent(pathMatch[1]) : null;
+
+    const directChannel =
+      params.get('channel') ||
+      params.get('ch') ||
+      pathChannel ||
+      (shareType === 'channel' ? (params.get('n') || params.get('channel')) : null);
+
+    const sourceParam =
+      params.get('source') ||
+      (rawId.startsWith('source:') ? rawId.slice('source:'.length) : undefined) ||
+      undefined;
+    const ownerParam =
+      params.get('owner') ||
+      (rawId.startsWith('owner:') ? rawId.slice('owner:'.length) : undefined) ||
+      undefined;
+    const plajahParam =
+      params.get('plajahId') ||
+      (rawId.startsWith('plajah:') ? rawId.slice('plajah:'.length) : undefined) ||
+      (shareType === 'channel' && !sourceParam && !ownerParam && !directChannel && rawId && !rawId.startsWith('channel:') ? rawId : undefined) ||
+      undefined;
+
+    const isChannelLink =
+      Boolean(directChannel) ||
+      shareType === 'channel' ||
+      Boolean(plajahParam) ||
+      Boolean(ownerParam && sourceParam) ||
+      (Boolean(sourceParam) && /^(fast_|live_|plajah_|sci_)/.test(sourceParam!));
+
+    if (!isChannelLink) return null;
+
+    const rawNum =
+      directChannel ||
+      params.get('n') ||
+      (rawId.startsWith('channel:') ? rawId.slice('channel:'.length) : undefined);
+    const cleanNum = rawNum && rawNum.trim() !== '—' && rawNum.trim() !== '-' ? rawNum.trim() : undefined;
+
+    return {
+      number: cleanNum,
+      ownerId: ownerParam,
+      sourceId: sourceParam,
+      plajahId: plajahParam,
+    };
+  } catch {
+    return null;
+  }
+}
+
 // ── Shared-link launches ─────────────────────────────────────────────────────────────────────
 // Captured at module load, i.e. BEFORE App's first navigation rewrites the URL (setView pushes the
 // bare pathname, dropping ?id=…&type=…). A person opening a shared link wants the shared thing —
@@ -56,12 +127,13 @@ export function handOffToFullApp(viewSlug?: string): void {
 function detectShareLaunch(): boolean {
   if (typeof window === 'undefined') return false;
   try {
+    if (parseChannelShareParams(window.location.search, window.location.pathname)) return true;
     const sp = new URLSearchParams(window.location.search);
     const keys = ['id', 'type', 'collection', 'reello', 'video', 'v', 'org', 'elevate', 'debate', 'club', 'livestream', 'stream',
-      'room', 'callin', 'listen', 'invite', 'g', 'party', 'follow', 'recap', 'play', 'atlas'];
+      'room', 'callin', 'listen', 'invite', 'g', 'party', 'follow', 'recap', 'play', 'atlas', 'channel', 'ch', 'plajahId'];
     if (keys.some(k => sp.get(k))) return true;
     if (/^#g\//.test(window.location.hash)) return true;
-    return /^\/(profile|release|event|clubs|athlete|book|artist|reello|video|share)\//.test(window.location.pathname);
+    return /^\/(profile|release|event|clubs|athlete|book|artist|reello|video|share|channel|ch)(\/|$)/.test(window.location.pathname);
   } catch { return false; }
 }
 export const LAUNCHED_VIA_SHARE: boolean = detectShareLaunch();

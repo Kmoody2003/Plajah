@@ -12,7 +12,7 @@ import { loadJack, prefetchHero, Character, type Hero } from './character';
 import { Difficulty } from './mobs';
 import { FxBudget } from './vfx';
 import { CollisionWorld } from './collision';
-import { setTextureTier, setReflectEnabled, rainAmount, preloadKtxSurfaces } from './materials';
+import { setTextureTier, setReflectEnabled, setWebGLMode, rainAmount, preloadKtxSurfaces } from './materials';
 import { PlayerController } from './player';
 import { LightPool } from './lights';
 import { mergeStatic } from './optimize';
@@ -111,8 +111,16 @@ const Q = {
 }[quality];
 console.info(`[ravencrest] GPU ${adapterInfo?.vendor ?? '?'} ${adapterInfo?.architecture ?? ''} · ${inDesktopApp ? 'desktop app' : 'browser'} → quality ${quality}`);
 setTextureTier(quality === 'high' || quality === 'ultra' ? '2k' : '1k');
+// Headsets (Meta Quest browser, PC VR / Quest Link, Android XR, Pico, Wolvic, WebVR):
+// WebXR runs on the renderer's WebGL backend and renders the scene directly without SSR MRT.
+const xrSupported = typeof navigator !== 'undefined' && (
+  !!(await (navigator as Navigator & { xr?: XRSystem }).xr?.isSessionSupported?.('immersive-vr').catch(() => false)) ||
+  'getVRDisplays' in navigator
+);
+const xrDevice = params.has('xr') || xrSupported || /OculusBrowser|Quest|Pico|Wolvic|Android XR|XR Browser/i.test(navigator.userAgent);
+setWebGLMode(xrDevice);
 // Exterior + courtyard materials only get SSR outputs when the exterior pass runs SSR.
-const exteriorSSR = (params.get('ssr') === '1' || Q.ssr) && params.get('ssr') !== '0';
+const exteriorSSR = !xrDevice && (params.get('ssr') === '1' || Q.ssr) && params.get('ssr') !== '0';
 setReflectEnabled(exteriorSSR);
 const view = document.getElementById('view')!;
 const refImg = document.getElementById('ref') as HTMLImageElement;
@@ -125,8 +133,6 @@ const prompt = document.getElementById('prompt')!;
 // Reversed float depth: near-uniform precision out to the far plane. With the old 0.1 m-6 km
 // 24-bit range, close layers (road over terrain, puddles, trim, banners and frames on walls)
 // z-fought and flickered at a distance.
-// Headsets (Meta Quest browser, Android XR, Pico, Wolvic): WebXR runs on the renderer's WebGL backend.
-const xrDevice = params.has('xr') || /OculusBrowser|Quest|Pico|Wolvic|Android XR|XR Browser/i.test(navigator.userAgent);
 const renderer = new THREE.WebGPURenderer({ antialias: false, powerPreference: 'high-performance', trackTimestamp: params.has('prof'), reversedDepthBuffer: params.get('rdepth') !== '0' && !xrDevice, forceWebGL: xrDevice });
 if (xrDevice) renderer.xr.enabled = true;
 await renderer.init();
@@ -207,8 +213,9 @@ const mile = buildBillboards(world.road, films);
 outside.add(mile.group);
 
 const moonRadiusDeg = THREE.MathUtils.radToDeg(Math.atan(38 / anchor.focal));
-// Cloud bake at ⅓ of the drawing buffer (≈ half the 720p internal res) on the iGPU tiers; ½ on high/ultra.
-const sky = moonSky(world.moonDir, moonRadiusDeg, camera, quality === 'high' || quality === 'ultra' ? 0.5 : 1 / 3);
+// Cloud bake at ⅓ of the drawing buffer (≈ half the 720p internal res) on the iGPU tiers; ½ on high/ultra;
+// 0 on XR devices so stereo eyes evaluate world-space clouds directly without a single-eye screen RTT.
+const sky = moonSky(world.moonDir, moonRadiusDeg, camera, xrDevice ? 0 : quality === 'high' || quality === 'ultra' ? 0.5 : 1 / 3);
 outside.backgroundNode = sky.node;
 const moon = new THREE.DirectionalLight(0x8fa8d4, 1.4);
 moon.position.copy(world.moonDir).multiplyScalar(300).add(world.gateCentre);
@@ -255,7 +262,7 @@ outside.fogNode = fog(fogColor, max(densityFogFactor(float(0.0013)), (exponentia
 
 // ── Level 2: the Grand Hall ──────────────────────────────────────────────────
 const hallScene = new THREE.Scene();
-setReflectEnabled(quality !== 'low' && params.get('ssr') !== '0');
+setReflectEnabled(!xrDevice && quality !== 'low' && params.get('ssr') !== '0');
 const hall = buildGrandHall();
 setReflectEnabled(exteriorSSR);
 hallScene.add(hall.group);
@@ -293,8 +300,8 @@ const mkLevel = (name: string, scene: THREE.Scene, a: ArtAnchor, torches: THREE.
 });
 const levels = {
   outside: mkLevel('outside', outside, anchor, [...world.torches, ...yard.torches, ...viaduct.torches], [...world.flames, ...yard.flames, ...viaduct.flames]),
-  // The hall's polished floor is a signature of the art: SSR on everywhere but 'low'.
-  hall: mkLevel('hall', hallScene, hall.anchor, hall.torches, hall.flames, { ...postOpts, ssr: quality !== 'low' && params.get('ssr') !== '0', ssrScale: quality === 'medium' ? 0.35 : postOpts.ssrScale }),
+  // The hall's polished floor is a signature of the art: SSR on everywhere but 'low' (and off on XR headsets).
+  hall: mkLevel('hall', hallScene, hall.anchor, hall.torches, hall.flames, { ...postOpts, ssr: !xrDevice && quality !== 'low' && params.get('ssr') !== '0', ssrScale: quality === 'medium' ? 0.35 : postOpts.ssrScale }),
 };
 levels.outside.collision.rebuild();
 levels.hall.collision.rebuild();
@@ -1019,8 +1026,10 @@ function tick(dt: number) {
   flock.update(dt);
   // Wreckage the tank hurled: once it all comes to rest off the road, the road's collision is rebuilt.
   if (obstacles.update(dt, (x, z, y) => levels.outside.collision.groundAt(x, z, y, 6))) levels.outside.collision.rebuild();
+  const activeCam = renderer.xr.isPresenting ? renderer.xr.getCamera() : camera;
+  const camWorldPos = activeCam.getWorldPosition(new THREE.Vector3());
   if (level === levels.outside) {
-    groundFog.update(dt, camera);
+    groundFog.update(dt, activeCam);
     // The burning wreck: firelight flickers; land in it and it burns.
     const pp = player.object.position;
     for (const f of obstacleFires) {
@@ -1034,7 +1043,7 @@ function tick(dt: number) {
   wind.update(dt);
   gustUniform.value = wind.gust;
   (moatUniforms.wind as unknown as { value: THREE.Vector3 }).value.copy(wind.dir).multiplyScalar(0.5 + wind.strength * 0.5);
-  (level === levels.hall ? pools.hall : pools.outside).update(dt, camera.position, wind.gust);
+  (level === levels.hall ? pools.hall : pools.outside).update(dt, camWorldPos, wind.gust);
   // Flames billboard in their vertex shader (fx.ts).
 
   if (mode !== 'ref') {
@@ -1213,7 +1222,11 @@ const frameLoop = () => {
   tick(Math.min(raw, 0.05));
   const tRender = performance.now();
 
-  if (renderer.xr.isPresenting) { renderer.render(level.scene, camera); return; }
+  if (renderer.xr.isPresenting || xrPlay.active) {
+    if (level === levels.outside) world.forest.unpack();
+    renderer.render(level.scene, camera);
+    return;
+  }
   if (level === levels.outside) world.forest.cull(camera);
   level.post.pipeline.render();
   looks.render();
@@ -1442,6 +1455,7 @@ const xrPlay = new XRPlay({
   renderer, camera, player, game, interact,
   scene: () => level.scene,
   startFromMenu: () => { if (menuOpen) document.getElementById('menuStart')?.click(); },
+  onXRChange: (active) => { if (active) world.forest.unpack(); },
 });
 void xrPlay.offerButton();
 

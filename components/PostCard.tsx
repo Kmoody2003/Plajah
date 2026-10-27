@@ -22,6 +22,7 @@ import MediaWaterfallView, { WaterfallMediaItem } from './MediaWaterfallView';
 import PostMediaCarousel from './PostMediaCarousel';
 import LearnChip from './LearnChip';
 import { buildShareUrl } from '../services/deepLinkService';
+import { parseChannelShareParams } from '../src/lib/launchTarget';
 import RoomBanner from './RoomBanner';
 import SignInPrompt from './SignInPrompt';
 import SocialEmbedCard from './SocialEmbedCard';
@@ -51,6 +52,11 @@ import { AudienceIcon } from './audience/AudienceIcon';
 import { describeAudience } from '../services/audienceCore';
 import { recordPostStat } from '../services/postAnalyticsService';
 import { LoreaExhibitEmbed } from './lorea/exhibits/LoreaNugget';
+import {
+  PlatformGroupSharePicker,
+  publishToShareDestinations,
+  type ShareDestinationOption,
+} from './PlatformGroupSharePicker';
 
 interface PostCardProps {
   post: Post;
@@ -148,18 +154,38 @@ const parseChoraSongUrl = (rawUrl: string): { albumId: string; trackId?: string 
   }
 };
 
+const parsePlajahChannelUrl = (rawUrl: string) => {
+  try {
+    const parsed = new URL(rawUrl, typeof window !== 'undefined' ? window.location.origin : 'https://plajah.com');
+    const isPlajahOrigin =
+      (typeof window !== 'undefined' && parsed.origin === window.location.origin) ||
+      parsed.hostname.endsWith('plajah.com') ||
+      parsed.hostname.endsWith('plajah.app');
+    if (!isPlajahOrigin) return null;
+    return parseChannelShareParams(parsed.search, parsed.pathname);
+  } catch {
+    return null;
+  }
+};
+
 const PostLinkBanner: React.FC<{ url: string }> = ({ url }) => {
   let domain = '';
   try { domain = new URL(url).hostname.replace(/^www\./, ''); } catch {}
   const choraTarget = parseChoraSongUrl(url);
+  const channelTarget = parsePlajahChannelUrl(url);
   return (
     <a
       href={url}
-      target={choraTarget ? undefined : '_blank'}
+      target={choraTarget || channelTarget ? undefined : '_blank'}
       rel="noopener noreferrer"
       onClick={e => {
         e.stopPropagation();
-        if (choraTarget) {
+        if (channelTarget) {
+          e.preventDefault();
+          window.dispatchEvent(new CustomEvent('NAVIGATE', {
+            detail: { target: 'LIVE_HUB', params: { focus: channelTarget } },
+          }));
+        } else if (choraTarget) {
           e.preventDefault();
           window.dispatchEvent(new CustomEvent('NAVIGATE', {
             detail: { target: 'PLAYER', albumId: choraTarget.albumId, trackId: choraTarget.trackId },
@@ -171,7 +197,7 @@ const PostLinkBanner: React.FC<{ url: string }> = ({ url }) => {
     >
       <LinkIcon size={11} className="text-small-orange/60 shrink-0" />
       <span className="text-[10px] font-black uppercase tracking-widest text-white/50 shrink-0 group-hover:text-white/80 transition-colors">
-        {choraTarget ? 'PLAJAH CHORA' : domain}
+        {channelTarget ? 'PLAJAH LIVE TV' : choraTarget ? 'PLAJAH CHORA' : domain}
       </span>
       <span className="text-[9px] text-white/20 truncate flex-1 min-w-0 font-mono group-hover:text-white/35 transition-colors">
         {url}
@@ -228,6 +254,9 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser: onVisitUserProp,
   const [loadingClubs, setLoadingClubs] = useState(false);
   const [sendingToClub, setSendingToClub] = useState('');
   const [sentToClub, setSentToClub] = useState('');
+  const [groupShareDestinations, setGroupShareDestinations] = useState<ShareDestinationOption[]>([]);
+  const [sendingToGroupDests, setSendingToGroupDests] = useState(false);
+  const [sentToGroupDests, setSentToGroupDests] = useState(false);
 
   const [showDebateModal, setShowDebateModal] = useState(false);
 
@@ -1006,6 +1035,20 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser: onVisitUserProp,
                   }
                 } catch {}
                 window.dispatchEvent(new CustomEvent('OPEN_TALEO_COLLECTION', { detail: { id: ae.id || 'halloween', shelf: ae.shelf } }));
+              } else if (ae.type === 'CHANNEL') {
+                e.preventDefault();
+                e.stopPropagation();
+                const parsedChannel = href ? parsePlajahChannelUrl(href) : null;
+                const rawId = String(ae.id || '');
+                const focus = parsedChannel || {
+                  number: ae.channelNumber || ae.subtitle?.match(/^CH ([0-9.]+)/)?.[1],
+                  ownerId: rawId.startsWith('owner:') ? rawId.slice('owner:'.length) : undefined,
+                  plajahId: rawId.startsWith('plajah:') ? rawId.slice('plajah:'.length) : undefined,
+                  sourceId: ae.sourceId || (rawId.startsWith('source:') ? rawId.slice('source:'.length) : undefined),
+                };
+                window.dispatchEvent(new CustomEvent('NAVIGATE', {
+                  detail: { target: 'LIVE_HUB', params: { focus } },
+                }));
               } else if (ae.type === 'TRACK' || ae.type === 'ALBUM') {
                 e.preventDefault();
                 e.stopPropagation();
@@ -1193,6 +1236,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser: onVisitUserProp,
                 authorName={post.authorName}
                 authorPhoto={post.authorPhoto}
                 imageUrl={post.media?.find(m => m.url)?.url}
+                defaultOrgId={post.authorOrgId}
                 ctaText={(post as any).poll?.question ? '⚡ CAST YOUR VOTE ON PLAJAH' : '💬 JOIN THE CONVERSATION ON PLAJAH'}
               />
             </div>
@@ -1332,14 +1376,14 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser: onVisitUserProp,
           >
             <div className="flex items-center justify-between mb-5">
               <div>
-                <h3 className="text-[11px] font-black uppercase tracking-widest">Send to Club</h3>
-                <p className="text-[9px] text-white/30 mt-0.5 uppercase tracking-widest">Share this post to a club timeline</p>
+                <h3 className="text-[11px] font-black uppercase tracking-widest">Send to Group, Department or Club</h3>
+                <p className="text-[9px] text-white/30 mt-0.5 uppercase tracking-widest">Share to any Org Feed, Department, Sub-Group, or Club</p>
               </div>
               <button onClick={() => setShowSendToClub(false)} className="p-1.5 text-white/30 hover:text-white transition-colors"><XIcon size={16} /></button>
             </div>
 
             {/* Post preview chip */}
-            <div className="flex items-start gap-3 bg-white/5 border border-white/8 rounded-2xl p-3 mb-5">
+            <div className="flex items-start gap-3 bg-white/5 border border-white/8 rounded-2xl p-3 mb-4">
               <UserAvatar uid={post.authorId} src={post.authorPhoto || ''} className="w-8 h-8 rounded-full shrink-0 object-cover border border-white/10" alt="" />
               <div className="flex-1 min-w-0">
                 <p className="text-[9px] font-black uppercase tracking-widest text-white/40 mb-0.5">{post.authorName}</p>
@@ -1352,6 +1396,50 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser: onVisitUserProp,
                   </div>
                 )}
               </div>
+            </div>
+
+            {/* Universal Org Feeds, Departments, Sub-Groups, Study Groups & Clubs Picker */}
+            <div className="mb-4 space-y-2">
+              <PlatformGroupSharePicker
+                userId={auth.currentUser?.uid}
+                defaultOrgId={post.authorOrgId}
+                selected={groupShareDestinations}
+                onChange={setGroupShareDestinations}
+              />
+              {groupShareDestinations.length > 0 && (
+                <button
+                  type="button"
+                  disabled={sendingToGroupDests}
+                  onClick={async () => {
+                    setSendingToGroupDests(true);
+                    try {
+                      await publishToShareDestinations(groupShareDestinations, {
+                        userId: auth.currentUser?.uid || 'guest',
+                        userName: auth.currentUser?.displayName || 'Plajah Member',
+                        userAvatar: auth.currentUser?.photoURL || '',
+                        text: post.text || '',
+                        media: post.media as any,
+                      });
+                      setSentToGroupDests(true);
+                      setTimeout(() => {
+                        setSentToGroupDests(false);
+                        setShowSendToClub(false);
+                      }, 1100);
+                    } finally {
+                      setSendingToGroupDests(false);
+                    }
+                  }}
+                  className="w-full py-2.5 rounded-2xl bg-small-orange text-black font-black text-[10px] uppercase tracking-widest hover:brightness-110 transition-all flex items-center justify-center gap-1.5"
+                >
+                  {sentToGroupDests ? (
+                    <><Check size={14} /> Shared to {groupShareDestinations.length} Destination{groupShareDestinations.length === 1 ? '' : 's'}!</>
+                  ) : sendingToGroupDests ? (
+                    'Sharing…'
+                  ) : (
+                    `Share to ${groupShareDestinations.length} Selected Group${groupShareDestinations.length === 1 ? '' : 's'}`
+                  )}
+                </button>
+              )}
             </div>
 
             {loadingClubs ? (

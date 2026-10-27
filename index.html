@@ -50,9 +50,9 @@
       // it works the same whether the shell came from the server or the service worker cache.
       // Mirror of parseSharePath in services/socialPerfCore.ts.
       (function () {
-        var m = /^\/(c|room|talk|party|live|join)\/([A-Za-z0-9_:-]{1,128})\/?$/.exec(window.location.pathname);
+        if (window.location.pathname === '/share' && window.location.search) { try { window.history.replaceState(null, '', '/' + window.location.search + window.location.hash); } catch (e) {} return; } var m = /^\/(c|room|talk|party|live|join|channel|ch)\/([A-Za-z0-9_.:-]{1,128})\/?$/.exec(window.location.pathname);
         if (!m) return;
-        var param = { c: 'club', room: 'room', talk: 'talk', party: 'party', live: 'livestream', join: 'join' }[m[1]];
+        var param = { c: 'club', room: 'room', talk: 'talk', party: 'party', live: 'livestream', join: 'join', channel: 'channel', ch: 'channel' }[m[1]];
         if (m[1] === 'join') { try { localStorage.setItem('plajah_invite_code', JSON.stringify({ code: m[2].toLowerCase(), at: Date.now() })); } catch (e) { /* private mode */ } }
         var q = new URLSearchParams(window.location.search);
         q.set(param, m[2]);

@@ -16,7 +16,7 @@ import DevelopmentsPanel from './DevelopmentsPanel';
 import LessonFolio, { type Customization } from './lesson/LessonFolio';
 import LessonEditor, { SharedVersions } from './lesson/LessonEditor';
 import { applyOverlay, creditLine, adaptedLine, INTEGRITY_NOTE, type LessonOverlay } from './lesson/lessonOverlay';
-import { activeOverlay, classIdsFor } from '../../services/lessonOverlayService';
+import { activeOverlay, classIdsFor } from '../../services/lessonOverlayService';
 import { MUSEUM_STUDY_RULES } from '../../data/museumStudyMap';
 const ObjectStudy = React.lazy(() => import('../museum/ObjectStudy'));
 

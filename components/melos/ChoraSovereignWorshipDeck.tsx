@@ -61,7 +61,7 @@ import {
   type MusicSubCategoryKey,
   type SongTake,
 } from '../../services/melosService';
-import { startLiveTranscriber, type TranscriberHandle } from '../../services/ambo/liveTranscriber';
+import { startLiveTranscription, type TranscriberHandle } from '../../services/ambo/liveTranscriber';
 import { auth } from '../../services/firebase';
 import type { BillingConnection, BillingEntityRef } from '../../types';
 
@@ -324,7 +324,7 @@ export const ChoraSovereignWorshipDeck: React.FC<ChoraSovereignWorshipDeckProps>
     }
   };
 
-  const toggleLiveMicTranscription = () => {
+  const toggleLiveMicTranscription = async () => {
     if (isLiveListening) {
       transcriberRef.current?.stop();
       transcriberRef.current = null;
@@ -335,7 +335,7 @@ export const ChoraSovereignWorshipDeck: React.FC<ChoraSovereignWorshipDeckProps>
     try {
       setIsLiveListening(true);
       setLiveStatus('Listening to microphone (sing or speak lyrics)...');
-      transcriberRef.current = startLiveTranscriber(
+      transcriberRef.current = await startLiveTranscription(
         { kind: 'mic' },
         {
           onWords: (text, isFinal) => {

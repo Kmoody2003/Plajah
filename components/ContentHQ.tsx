@@ -2,11 +2,13 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   FolderOpen, FileText, Image as ImageIcon, Film, Music, File as FileIcon, Upload,
   Trash2, RotateCcw, Search, Loader2, HardDrive, Library, ArrowLeft, Lock, ShieldAlert,
+  Sparkles, Eye, Layers, KeyRound, ExternalLink,
 } from 'lucide-react';
 import ContentAssetManager from './ContentAssetManager';
 import { Album } from '../types';
 import {
   listHqAssets, addHqAsset, deleteHqAsset, humanFileSize,
+  getOrgDepartmentFolders, GREAT_FAITH_MINISTRIES_NAME,
   type OrgAsset, type OwnerScope,
 } from '../services/orgAssets';
 import { restoreHqAsset, trashHqAsset } from '../services/hqCollaboration';
@@ -14,6 +16,7 @@ import HqReviewPanel from './HqReviewPanel';
 import { fetchMySubscription } from '../services/subscriptionService';
 import { resolveContentHqEntitlements } from '../services/contentHqEntitlements';
 import type { ContentHqEntitlements } from '../services/contentHqEntitlements';
+import { TelaDocumentPreviewModal } from './church/TelaDocumentPreviewModal';
 
 // ─────────────────────────────────────────────────────────────────────────
 // Content HQ — an admin surface for an org OR a single account: a private
@@ -66,7 +69,7 @@ const ContentHQ: React.FC<Props> = ({ scope, canEdit, mediaOwnerUid, onEditAlbum
         </div>
         <div>
           <div className="text-lg font-black tracking-tight leading-none">Content HQ</div>
-          <div className="text-[11px] text-white/40 mt-0.5">{scope.label || (scope.kind === 'org' ? 'Organization' : 'Account')} · private</div>
+          <div className="text-[11px] text-white/40 mt-0.5">{scope.label || (scope.kind === 'org' ? GREAT_FAITH_MINISTRIES_NAME : 'Account')} · private</div>
         </div>
         {!canEdit && <span className="ml-2 flex items-center gap-1 text-[10px] text-white/40"><Lock className="w-3 h-3" /> Read-only</span>}
         <div className="ml-auto flex gap-1.5">
@@ -91,13 +94,19 @@ const ContentHQ: React.FC<Props> = ({ scope, canEdit, mediaOwnerUid, onEditAlbum
 };
 
 // ── Files & Docs — the private DAM (exported so per-account dashboards can embed it) ──
-export const HqFilesTab: React.FC<{ scope: OwnerScope; canEdit: boolean }> = ({ scope, canEdit }) => {
+export const HqFilesTab: React.FC<{
+  scope: OwnerScope;
+  canEdit: boolean;
+  defaultFolder?: string;
+}> = ({ scope, canEdit, defaultFolder }) => {
   const [assets, setAssets] = useState<OrgAsset[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [folder, setFolder] = useState<string>('ALL');
+  const [folder, setFolder] = useState<string>(defaultFolder || 'ALL');
+  const [variantFilter, setVariantFilter] = useState<'ALL' | 'ORIGINAL_SOURCE' | 'TELA_DOCUMENT' | 'ANSWER_KEY'>('ALL');
   const [uploading, setUploading] = useState<{ name: string; pct: number }[]>([]);
   const [detail, setDetail] = useState<OrgAsset | null>(null);
+  const [telaPreviewAsset, setTelaPreviewAsset] = useState<OrgAsset | null>(null);
   const [showTrash, setShowTrash] = useState(false);
   const [trashed, setTrashed] = useState<OrgAsset[]>([]);
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -116,6 +125,13 @@ export const HqFilesTab: React.FC<{ scope: OwnerScope; canEdit: boolean }> = ({ 
     try { setTrashed((await listHqAssets(scope, true)).filter(a => a.deletedAt)); } catch { /* rules / offline */ }
   };
   useEffect(() => { load(); }, [scope.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Refresh when curriculum ingestion copies new Original + Tela Document pairs into orgAssets
+  useEffect(() => {
+    const onAssetsUpdated = () => { load(); };
+    window.addEventListener('plajah:orgAssetsUpdated', onAssetsUpdated);
+    return () => window.removeEventListener('plajah:orgAssetsUpdated', onAssetsUpdated);
+  }, [scope.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Deep-link: focus a specific asset's review panel once it is loaded into this scope.
   useEffect(() => {
@@ -140,16 +156,60 @@ export const HqFilesTab: React.FC<{ scope: OwnerScope; canEdit: boolean }> = ({ 
     }).catch(() => setProEnabled(false));
   }, [scope.kind, scope.id]);
 
+  // Department folder scopes for organization accounts (Great Faith Ministries)
+  const departmentFolders = useMemo(() => {
+    if (scope.kind !== 'org') return [];
+    return getOrgDepartmentFolders();
+  }, [scope.kind]);
+
   const folders = useMemo(() => {
     const set = new Set<string>();
+    if (scope.kind === 'org') {
+      departmentFolders.forEach((d) => set.add(d.folderName));
+    }
     assets.forEach((a) => { if (a.folder) set.add(a.folder); });
-    return ['ALL', ...Array.from(set).sort()];
+    const ordered = scope.kind === 'org'
+      ? [
+          ...departmentFolders.map((d) => d.folderName),
+          ...Array.from(set).filter((f) => !departmentFolders.some((d) => d.folderName === f)).sort(),
+        ]
+      : Array.from(set).sort();
+    return ['ALL', ...ordered];
+  }, [assets, scope.kind, departmentFolders]);
+
+  const folderCounts = useMemo(() => {
+    const counts: Record<string, number> = { ALL: assets.length };
+    assets.forEach((a) => {
+      const f = a.folder || 'Uncategorized';
+      counts[f] = (counts[f] || 0) + 1;
+    });
+    return counts;
   }, [assets]);
 
   const shown = useMemo(() => assets.filter((a) =>
     (folder === 'ALL' || a.folder === folder) &&
+    (variantFilter === 'ALL' || a.assetVariant === variantFilter) &&
     (!search || a.name.toLowerCase().includes(search.toLowerCase()))
-  ), [assets, folder, search]);
+  ), [assets, folder, variantFilter, search]);
+
+  // Resolve paired asset when previewing a curriculum item as a Tela Document
+  const resolveTelaPreviewProps = (asset: OrgAsset) => {
+    const paired = asset.pairedAssetId ? assets.find((x) => x.id === asset.pairedAssetId) : undefined;
+    const telaDocId = asset.telaDocId || paired?.telaDocId;
+    const originalAsset = asset.assetVariant === 'ORIGINAL_SOURCE' ? asset : (paired?.assetVariant === 'ORIGINAL_SOURCE' ? paired : asset);
+    const answerKeyAsset = assets.find(
+      (x) => x.assetVariant === 'ANSWER_KEY' && (x.telaDocId === telaDocId || x.pairedAssetId === asset.id)
+    );
+    return {
+      title: asset.name.replace(/\s*\((Original Source|Interactive Tela Document|Teacher Answer Key)\)\s*$/i, ''),
+      telaDocId,
+      originalUrl: originalAsset?.sourceUrl || asset.sourceUrl || asset.downloadUrl,
+      originalText: originalAsset?.rawContentText || asset.rawContentText,
+      answerKeyText: answerKeyAsset?.rawContentText,
+      orgName: scope.label || GREAT_FAITH_MINISTRIES_NAME,
+      departmentFolder: asset.folder || 'Christian Education',
+    };
+  };
 
   async function onFiles(list: FileList | null) {
     if (!list || !canEdit) return;
@@ -182,27 +242,110 @@ export const HqFilesTab: React.FC<{ scope: OwnerScope; canEdit: boolean }> = ({ 
 
   return (
     <div className="h-full min-h-0 flex flex-col">
+      {/* Department Folder Scope Bar for Organization Assets Management (Great Faith Ministries) */}
+      {scope.kind === 'org' && (
+        <div className="mb-3 p-3 rounded-2xl bg-white/[0.03] border border-white/10">
+          <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black uppercase tracking-widest text-[#FF8C00]">
+                {scope.label || GREAT_FAITH_MINISTRIES_NAME} · Department Folder Scopes
+              </span>
+              <span className="text-[10px] text-white/40">
+                Select a department folder scope to manage its Original &amp; Interactive Tela Documents
+              </span>
+            </div>
+            <div className="flex items-center gap-1">
+              {(
+                [
+                  ['ALL', 'All Variants'],
+                  ['ORIGINAL_SOURCE', 'Original Docs'],
+                  ['TELA_DOCUMENT', 'Tela Documents'],
+                  ['ANSWER_KEY', 'Answer Keys'],
+                ] as const
+              ).map(([vId, vLabel]) => (
+                <button
+                  key={vId}
+                  onClick={() => setVariantFilter(vId)}
+                  className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-colors ${
+                    variantFilter === vId
+                      ? 'bg-[#34e0d0]/20 text-[#34e0d0] border border-[#34e0d0]/40'
+                      : 'bg-white/5 text-white/50 hover:text-white'
+                  }`}
+                >
+                  {vLabel}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex gap-1.5 overflow-x-auto pb-1">
+            <button
+              onClick={() => setFolder('ALL')}
+              className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-colors ${
+                folder === 'ALL'
+                  ? 'bg-white text-black'
+                  : 'bg-white/5 text-white/60 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              <span>All Departments</span>
+              <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-black/20">
+                {folderCounts.ALL || 0}
+              </span>
+            </button>
+            {departmentFolders.map((dept) => {
+              const count = folderCounts[dept.folderName] || 0;
+              const active = folder === dept.folderName;
+              const isChristianEd = dept.folderName === 'Christian Education';
+              return (
+                <button
+                  key={dept.id}
+                  onClick={() => setFolder(dept.folderName)}
+                  className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-colors border ${
+                    active
+                      ? isChristianEd
+                        ? 'bg-emerald-500/25 text-emerald-200 border-emerald-400/50'
+                        : 'bg-white/20 text-white border-white/30'
+                      : isChristianEd
+                      ? 'bg-emerald-500/10 text-emerald-300/90 border-emerald-500/25 hover:bg-emerald-500/20'
+                      : 'bg-white/5 text-white/55 border-transparent hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  <span>{dept.icon}</span>
+                  <span>{dept.folderName}</span>
+                  {count > 0 && (
+                    <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-black/30 text-white font-black">
+                      {count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* toolbar */}
       <div className="flex items-center gap-3 mb-4 flex-wrap">
         <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10 flex-1 min-w-[180px]">
           <Search className="w-4 h-4 text-white/40" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search files"
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={folder === 'ALL' ? 'Search files across all departments...' : `Search files in ${folder}...`}
             className="bg-transparent text-sm outline-none flex-1 text-white placeholder:text-white/30" />
         </div>
-        <div className="flex gap-1.5 flex-wrap">
-          {folders.map((f) => (
-            <button key={f} onClick={() => setFolder(f)}
-              className={`px-3 py-2 rounded-xl text-xs font-bold transition-colors ${
-                folder === f ? 'bg-white/15 text-white' : 'bg-white/5 text-white/50 hover:text-white'
-              }`}>
-              {f === 'ALL' ? 'All' : f}
-            </button>
-          ))}
-        </div>
+        {scope.kind !== 'org' && (
+          <div className="flex gap-1.5 flex-wrap">
+            {folders.map((f) => (
+              <button key={f} onClick={() => setFolder(f)}
+                className={`px-3 py-2 rounded-xl text-xs font-bold transition-colors ${
+                  folder === f ? 'bg-white/15 text-white' : 'bg-white/5 text-white/50 hover:text-white'
+                }`}>
+                {f === 'ALL' ? 'All' : f}
+              </button>
+            ))}
+          </div>
+        )}
         {canEdit && (
           <button onClick={() => fileInput.current?.click()}
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#FF8C00] text-black text-xs font-black uppercase tracking-widest">
-            <Upload className="w-4 h-4" /> Upload
+            <Upload className="w-4 h-4" /> Upload{folder !== 'ALL' ? ` to ${folder}` : ''}
           </button>
         )}
         <button onClick={() => { const next = !showTrash; setShowTrash(next); if (next) loadTrash(); }}
@@ -215,7 +358,11 @@ export const HqFilesTab: React.FC<{ scope: OwnerScope; canEdit: boolean }> = ({ 
           onChange={(e) => { onFiles(e.target.files); e.currentTarget.value = ''; }} />
       </div>
       <div className="flex items-center justify-between text-[10px] text-white/35 mb-3 px-1">
-        <span>Unlimited projects · {entitlements.plan === 'FREE' ? 'Basic' : 'Pro collaboration'}</span>
+        <span>
+          {scope.kind === 'org'
+            ? `${scope.label || GREAT_FAITH_MINISTRIES_NAME} · Active Folder Scope: ${folder === 'ALL' ? 'All Departments' : folder}`
+            : `Unlimited projects · ${entitlements.plan === 'FREE' ? 'Basic' : 'Pro collaboration'}`}
+        </span>
         <span>{humanFileSize(assets.reduce((n, a) => n + Number(a.sizeBytes || 0), 0))} / {entitlements.storageLimitGb} GB</span>
       </div>
       {notice && <div className="mb-3 px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-200">{notice}</div>}
@@ -272,34 +419,101 @@ export const HqFilesTab: React.FC<{ scope: OwnerScope; canEdit: boolean }> = ({ 
           <div className="grid place-items-center h-40 text-white/40"><Loader2 className="w-6 h-6 animate-spin" /></div>
         ) : shown.length === 0 ? (
           <div className="grid place-items-center h-48 text-center text-white/30 text-sm px-8">
-            {canEdit ? 'No files yet. Upload brand specs, documents, images, and media — private to this account.' : 'No files.'}
+            {canEdit
+              ? `No files in ${folder === 'ALL' ? 'this organization' : folder} yet. Upload brand specs, documents, or ingest Christian Education curriculum to automatically populate both Original & Tela Document versions.`
+              : 'No files.'}
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-            {shown.map((a) => (
-              <div key={a.id} onClick={() => setDetail(a)}
-                className="relative text-left p-4 rounded-2xl bg-white/[0.03] border border-white/8 hover:bg-white/[0.06] transition-colors cursor-pointer">
-                {a.scanStatus === 'QUARANTINED' && (
-                  <span className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-500/15 text-red-300 text-[9px] font-black uppercase tracking-wider"><ShieldAlert className="w-3 h-3" /> Blocked</span>
-                )}
-                {a.scanStatus === 'PENDING' && (
-                  <span className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-200 text-[9px] font-black uppercase tracking-wider"><Loader2 className="w-3 h-3 animate-spin" /> Scanning</span>
-                )}
-                <div className="w-10 h-10 rounded-xl grid place-items-center mb-3" style={{ background: `${TEAL}18`, color: TEAL }}>
-                  {assetIcon(a.kind)}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            {shown.map((a) => {
+              const isTelaVariant = a.assetVariant === 'TELA_DOCUMENT';
+              const isOriginalVariant = a.assetVariant === 'ORIGINAL_SOURCE';
+              const isAnswerKeyVariant = a.assetVariant === 'ANSWER_KEY';
+              const canPreviewAsTela = Boolean(
+                a.telaDocId || a.assetVariant || a.rawContentText || a.folder === 'Christian Education'
+              );
+              return (
+                <div key={a.id} onClick={() => setDetail(a)}
+                  className="relative text-left p-4 rounded-2xl bg-white/[0.03] border border-white/8 hover:bg-white/[0.06] transition-colors cursor-pointer flex flex-col justify-between">
+                  <div>
+                    {a.scanStatus === 'QUARANTINED' && (
+                      <span className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-500/15 text-red-300 text-[9px] font-black uppercase tracking-wider"><ShieldAlert className="w-3 h-3" /> Blocked</span>
+                    )}
+                    {a.scanStatus === 'PENDING' && (
+                      <span className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-200 text-[9px] font-black uppercase tracking-wider"><Loader2 className="w-3 h-3 animate-spin" /> Scanning</span>
+                    )}
+                    <div className="flex items-start justify-between gap-2 mb-3">
+                      <div className="w-10 h-10 rounded-xl grid place-items-center shrink-0" style={{
+                        background: isTelaVariant ? 'rgba(16,185,129,0.16)' : isOriginalVariant ? 'rgba(56,189,248,0.16)' : `${TEAL}18`,
+                        color: isTelaVariant ? '#34d399' : isOriginalVariant ? '#38bdf8' : TEAL,
+                      }}>
+                        {isTelaVariant ? <Layers className="w-5 h-5" /> : isAnswerKeyVariant ? <KeyRound className="w-5 h-5" /> : assetIcon(a.kind)}
+                      </div>
+                      {a.assetVariant && (
+                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${
+                          isTelaVariant
+                            ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                            : isOriginalVariant
+                            ? 'bg-sky-500/15 text-sky-300 border-sky-500/30'
+                            : 'bg-purple-500/15 text-purple-300 border-purple-500/30'
+                        }`}>
+                          {isTelaVariant ? 'Interactive Tela Doc' : isOriginalVariant ? 'Original Document' : 'Answer Key'}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[13px] font-semibold line-clamp-2 leading-snug">{a.name}</div>
+                    <div className="text-[11px] text-white/40 mt-1">{a.kind} · {humanFileSize(a.sizeBytes)}</div>
+                    <div className="flex items-center gap-1.5 flex-wrap mt-2">
+                      {a.folder && (
+                        <span className="px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-[10px] text-white/70 font-semibold">
+                          {a.folder === 'Christian Education' ? '🎓 Christian Education' : a.folder}
+                        </span>
+                      )}
+                      {a.pairedAssetId && (
+                        <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-[9px] text-emerald-300 font-semibold">
+                          ↔ Paired Copy
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Action bar for Tela Document Preview + Source Link + Trash */}
+                  <div className="mt-3 pt-2.5 border-t border-white/10 flex items-center justify-between gap-1.5">
+                    {canPreviewAsTela ? (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setTelaPreviewAsset(a);
+                        }}
+                        className="flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-200 text-[10px] font-black uppercase tracking-wider transition-colors"
+                      >
+                        <Eye className="w-3.5 h-3.5" /> Preview as Tela Doc
+                      </button>
+                    ) : <span />}
+                    {a.sourceUrl && (
+                      <a
+                        href={a.sourceUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="p-1.5 rounded-lg bg-white/5 text-white/50 hover:text-white hover:bg-white/10 transition-colors"
+                        title="Open Original Source Link"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    )}
+                    {canEdit && (
+                      <button onClick={async (e) => { e.stopPropagation(); if (confirm('Move this file to Trash? It stays recoverable for 30 days, then is permanently deleted.')) { await trashHqAsset(a); await load(); } }}
+                        className="p-1.5 rounded-lg bg-white/5 text-white/40 hover:text-red-300 hover:bg-red-500/10 transition-colors"
+                        title="Move to Trash">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <div className="text-[13px] font-semibold truncate">{a.name}</div>
-                <div className="text-[11px] text-white/40 mt-0.5">{a.kind} · {humanFileSize(a.sizeBytes)}</div>
-                {a.folder && <div className="text-[10px] text-white/30 mt-1">{a.folder}</div>}
-                {canEdit && (
-                  <button onClick={async (e) => { e.stopPropagation(); if (confirm('Move this file to Trash? It stays recoverable for 30 days, then is permanently deleted.')) { await trashHqAsset(a); await load(); } }}
-                    className="absolute bottom-3 right-3 p-1.5 rounded-lg bg-white/5 text-white/40 hover:text-red-300 hover:bg-red-500/10 transition-colors"
-                    title="Move to Trash">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -307,6 +521,14 @@ export const HqFilesTab: React.FC<{ scope: OwnerScope; canEdit: boolean }> = ({ 
       {detail && (
         <HqReviewPanel asset={detail} canEdit={canEdit} proEnabled={proEnabled}
           onClose={() => setDetail(null)} onChanged={() => { load(); loadTrash(); }} />
+      )}
+
+      {telaPreviewAsset && (
+        <TelaDocumentPreviewModal
+          isOpen={Boolean(telaPreviewAsset)}
+          onClose={() => setTelaPreviewAsset(null)}
+          {...resolveTelaPreviewProps(telaPreviewAsset)}
+        />
       )}
     </div>
   );

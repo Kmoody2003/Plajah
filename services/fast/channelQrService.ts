@@ -51,6 +51,9 @@ export function buildChannelQrUrl(target: ChannelQrTarget): string {
   if (plajahId) {
     u.set('plajahId', plajahId);
   }
+  if (!num && !plajahId && (owner || source)) {
+    u.set('type', 'channel');
+  }
 
   const query = u.toString();
   return query ? `${base}/?${query}` : `${base}/`;

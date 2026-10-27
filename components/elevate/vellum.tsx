@@ -198,12 +198,28 @@ export const EvHero: React.FC<{
   times?: { id: string; label: string; day?: string; time: string }[];
   actions?: React.ReactNode;
   coverUrl?: string;
-}> = ({ name, logoUrl, tagline, intro, meta, times, actions, coverUrl }) => (
+  onUploadCover?: (file: File) => void;
+  onUploadLogo?: (file: File) => void;
+  uploadingCover?: boolean;
+  uploadingLogo?: boolean;
+}> = ({ name, logoUrl, tagline, intro, meta, times, actions, coverUrl, onUploadCover, onUploadLogo, uploadingCover, uploadingLogo }) => (
   <section className="max-w-[1240px] mx-auto px-4 sm:px-8 pt-10 sm:pt-14">
     <div className="flex items-center gap-3 mb-8 ev-rise">
-      {logoUrl
-        ? <img src={logoUrl} alt="" className="w-10 h-10 rounded-xl object-cover" />
-        : <span className="w-10 h-10 rounded-xl grid place-items-center ev-title text-lg" style={{ background: EV.panel, color: EV.gold }}>{name.slice(0, 1)}</span>}
+      {onUploadLogo ? (
+        <label className="relative w-11 h-11 rounded-xl overflow-hidden cursor-pointer group shrink-0 border border-white/15" style={{ background: EV.panel }} title="Change organization logo">
+          {logoUrl
+            ? <img src={logoUrl} alt="" className="w-full h-full object-cover" />
+            : <span className="w-full h-full grid place-items-center ev-title text-lg" style={{ color: EV.gold }}>{name.slice(0, 1)}</span>}
+          <span className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-[10px] font-bold text-white transition-opacity">
+            {uploadingLogo ? '…' : 'Edit'}
+          </span>
+          <input type="file" accept="image/*" className="hidden" disabled={uploadingLogo} onChange={e => { const f = e.target.files?.[0]; if (f) onUploadLogo(f); e.target.value = ''; }} />
+        </label>
+      ) : logoUrl ? (
+        <img src={logoUrl} alt="" className="w-10 h-10 rounded-xl object-cover" />
+      ) : (
+        <span className="w-10 h-10 rounded-xl grid place-items-center ev-title text-lg" style={{ background: EV.panel, color: EV.gold }}>{name.slice(0, 1)}</span>
+      )}
       <span className="ev-title text-xl text-white" style={{ fontWeight: 700, letterSpacing: '-0.03em' }}>{name}</span>
       {meta && <span className="text-sm text-[#A49CB2] hidden sm:inline">{meta}</span>}
     </div>
@@ -224,9 +240,23 @@ export const EvHero: React.FC<{
         {actions && <div className="flex flex-wrap gap-2.5">{actions}</div>}
       </div>
     </div>
-    {coverUrl && (
-      <div className="mt-12 rounded-[20px] overflow-hidden ev-zoom" style={{ background: EV.panel }}>
-        <img src={coverUrl} alt="" className="ev-hero-photo w-full h-[260px] sm:h-[420px] object-cover" />
+    {(coverUrl || onUploadCover) && (
+      <div className="relative mt-12 rounded-[20px] overflow-hidden ev-zoom group" style={{ background: EV.panel }}>
+        {coverUrl ? (
+          <img src={coverUrl} alt="" className="ev-hero-photo w-full h-[260px] sm:h-[420px] object-cover" />
+        ) : (
+          <div className="w-full h-[220px] sm:h-[320px] flex flex-col items-center justify-center gap-2 text-center p-6" style={{ background: 'linear-gradient(135deg, rgba(107,0,153,0.22) 0%, rgba(212,0,85,0.14) 55%, rgba(24,20,31,0.95) 100%)' }}>
+            <span className="ev-title text-lg text-white">Add a hero cover image for {name}</span>
+            <span className="text-xs text-[#A49CB2]">Recommended wide landscape image (1600×680 or higher)</span>
+          </div>
+        )}
+        {onUploadCover && (
+          <label className="absolute top-4 right-4 z-10 cursor-pointer px-4 py-2 rounded-full text-xs font-bold text-white flex items-center gap-2 shadow-xl transition-all hover:brightness-110"
+            style={{ background: 'rgba(14,12,19,0.82)', border: '1px solid rgba(255,255,255,0.18)', backdropFilter: 'blur(12px)' }}>
+            <span>{uploadingCover ? 'Uploading cover…' : coverUrl ? '📷 Change Cover Image' : '📷 Upload Cover Image'}</span>
+            <input type="file" accept="image/*" className="hidden" disabled={uploadingCover} onChange={e => { const f = e.target.files?.[0]; if (f) onUploadCover(f); e.target.value = ''; }} />
+          </label>
+        )}
       </div>
     )}
   </section>

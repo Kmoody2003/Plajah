@@ -3645,7 +3645,9 @@ service cloud.firestore {
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followerCount', 'memberCount', 'updatedAt']) ||
         // Elevate: pastors manage ministries/rosters + the derived role index (cannot touch money/admins/ownership).
         (request.auth.uid in resource.data.get('pastorUids', []) &&
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ministries', 'rosterIntro', 'setupState', 'pastorUids', 'financeUids', 'prayerUids', 'leaderUids', 'givingViewUids', 'accountingUids', 'accountingViewUids', 'staffUids', 'memberCount', 'updatedAt'])) ||
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['logoUrl', 'coverUrl', 'name', 'tagline', 'about', 'ministries', 'rosterIntro', 'setupState', 'pastorUids', 'financeUids', 'prayerUids', 'leaderUids', 'givingViewUids', 'accountingUids', 'accountingViewUids', 'staffUids', 'memberCount', 'updatedAt'])) ||
+        resource.data.get('accountUid', '') == request.auth.uid ||
+        resource.data.get('ownerId', '') == request.auth.uid ||
         // Elevate: finance roles own giving setup only.
         (request.auth.uid in resource.data.get('financeUids', []) &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['givingFunds', 'givingUrl', 'setupState', 'legalName', 'ein', 'statementFooter', 'financeSettings', 'updatedAt'])) ||
@@ -3835,6 +3837,12 @@ service cloud.firestore {
         // Roster staff may re-point an UNCLAIMED seat (role / title / departments) — never claim it or lift its base role.
         (resource.data.get('isProvisioned', false) == true && provisionedSeatOk(request.resource.data) &&
           request.resource.data.userId == resource.data.userId && chmsPeopleStaff(resource.data.orgId)) ||
+        (resource.data.get('isProvisioned', false) == true &&
+          request.resource.data.get('isProvisioned', true) == false &&
+          request.resource.data.userId == request.auth.uid &&
+          request.resource.data.orgId == resource.data.orgId &&
+          request.resource.data.role == resource.data.role &&
+          request.resource.data.get('roleKey', '') == resource.data.get('roleKey', '')) ||
         isAdmin()
       );
       allow delete: if isAuthenticated() && (
@@ -5812,6 +5820,19 @@ service cloud.firestore {
                 || (resource.data.remoteAllowed == true && request.resource.data.remoteCommand.byUid == request.auth.uid)))
       );
       allow delete: if isAuthenticated() && (resource.data.uploaderUid == request.auth.uid || stageOperatorOf(orgId));
+    }
+
+    // ── Centralized Organization Calendar (services/orgCentralCalendarService.ts) ──
+    match /org_calendar_events/{eventId} {
+      allow read: if isAuthenticated() && (
+        request.auth.uid in resource.data.get('participantUids', []) ||
+        stageMemberOf(resource.data.get('orgId', '_'))
+      );
+      allow create: if isAuthenticated() && stageOperatorOf(request.resource.data.get('orgId', '_'));
+      allow update, delete: if isAuthenticated() && (
+        stageOperatorOf(resource.data.get('orgId', '_')) ||
+        resource.data.get('createdByUid', '') == request.auth.uid
+      );
     }
   }
 }

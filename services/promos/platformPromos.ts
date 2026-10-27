@@ -29,6 +29,8 @@ export const PLAJAH_PROMOS: readonly PlajahPromo[] = [
     durationSec: 30,
     channel: { plajahId: 'horror-classics', name: 'Plajah Horror Classics' },
   },
+  { id: 'chora-30s', url: '/promos/plajah-chora-promo-30s-v3.mp4', title: 'Plajah Chora', durationSec: 30 },
+  { id: 'lorea-30s', url: '/promos/plajah-lorea-promo-30s-v4.mp4', title: 'Plajah Lorea', durationSec: 30 },
 ];
 
 /**

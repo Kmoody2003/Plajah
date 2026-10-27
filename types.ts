@@ -1499,7 +1499,7 @@ export type AccountType =
   | 'FAN' | 'ARTIST' | 'BRAND' | 'WRITER' | 'STUDENT' | 'TEACHER'
   | 'PARTNER' | 'ORGANIZATION' | 'ATHLETE' | 'PARENT' | 'CHILD' | 'CLERGY'
   // A managed, business-owned employee profile (no personal login of its own).
-  | 'EMPLOYEE';
+  | 'EMPLOYEE' | 'INSTRUCTOR';
 
 // Relationship status shown on a profile. Only the "partnered" statuses (everything
 // except SINGLE) can gate Nibbles, and only with a linked partner.
@@ -2317,6 +2317,16 @@ export interface Post {
   orgAudience?: 'PUBLIC' | 'MEMBERS' | 'INTERNAL' | 'DEPARTMENT';
   /** Elevate: department/ministry thread this post belongs to. */
   orgDepartmentId?: string;
+  /** Elevate: specific department IDs this non-public post is shared with. */
+  orgDepartmentIds?: string[];
+  /** Elevate: specific sub-group / ministry group / room / channel IDs this post is shared with. */
+  orgGroupIds?: string[];
+  /** Elevate: specific roster/role groups (PASTORAL, LEADERSHIP, STAFF, VOLUNTEER, MEMBER) this post is shared with. */
+  orgRosterGroups?: RosterGroup[];
+  /** Elevate: optional sub-room inside a department. */
+  orgRoomId?: string;
+  /** Elevate: display labels for the targeted feeds/departments/groups shown on post badges. */
+  orgTargetLabels?: string[];
   text: string;
   /** Creator-applied safety labels — viewer settings decide blur/consent gating */
   contentLabels?: ('GRAPHIC_VIOLENCE' | 'MATURE_18' | 'ARTISTIC_NUDITY' | 'SENSITIVE_OTHER')[];
@@ -3425,7 +3435,9 @@ export interface JobPosting {
   orgId: string;
   postingType: 'JOB' | 'VOLUNTEER';
   title: string;
-  roleKey?: string;              // maps to the org's template roleDefs (the role being filled)
+  roleKey?: string;
+  /** Additional org-wide role keys held simultaneously (e.g. ['MEMBER', 'INSTRUCTOR', 'DEPARTMENT_VOLUNTEER']). */
+  roleKeys?: string[];              // maps to the org's template roleDefs (the role being filled)
   productionId?: string;         // film staffing target; uses the same ATS without requiring an organization
   productionTitle?: string;
   productionDepartment?: string;
@@ -3485,6 +3497,8 @@ export interface OrgMembership {
   // ── Employee / delegated-role fields (business pages) ──────────────────────
   /** Template role key (services/businessTemplates.ts), e.g. "AR", "CHEF". Drives the badge. */
   roleKey?: string;
+  /** Additional org-wide role keys held simultaneously (e.g. ['MEMBER', 'INSTRUCTOR', 'DEPARTMENT_VOLUNTEER']). */
+  roleKeys?: string[];
   /** True when this membership represents an employee (renders as a work badge). */
   isEmployee?: boolean;
   /** For an owner-created managed employee: the uid of the Firestore-only EMPLOYEE profile. */
@@ -4830,6 +4844,16 @@ export interface ChatRoom {
   orgChannelKind?: 'ANNOUNCEMENTS' | 'GENERAL' | 'TEAM';
   /** Department (org.ministries[].id) this TEAM channel belongs to. */
   orgDepartmentId?: string;
+  /** Elevate: specific department IDs this non-public post is shared with. */
+  orgDepartmentIds?: string[];
+  /** Elevate: specific sub-group / ministry group / room / channel IDs this post is shared with. */
+  orgGroupIds?: string[];
+  /** Elevate: specific roster/role groups (PASTORAL, LEADERSHIP, STAFF, VOLUNTEER, MEMBER) this post is shared with. */
+  orgRosterGroups?: RosterGroup[];
+  /** Elevate: optional sub-room inside a department. */
+  orgRoomId?: string;
+  /** Elevate: display labels for the targeted feeds/departments/groups shown on post badges. */
+  orgTargetLabels?: string[];
   /** For a department ROOM (sub-chat): the orgChannelKey of the department's main channel. */
   orgParentChannelKey?: string;
   /** Room audience: DEPARTMENT members or LEADERS only (mirrors MinistryRoom.audience). */

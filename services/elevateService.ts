@@ -13,7 +13,7 @@ import {
 } from 'firebase/firestore';
 import { db, opsDb, dbFor, auth } from './firebase';
 import { createOrganization, updateOrganization, fetchOrganization, fetchOrgMembers, syncMemberIndex } from './organizationService';
-import { elevatePermissions, getElevateRole, canAssignRole } from './elevateRoles';
+import { elevatePermissions, getElevateRole, canAssignRole, memberRoleKeys, memberDepartmentIds } from './elevateRoles';
 import { defaultMinistries, leadTitleFor } from './elevateTemplates';
 import { isOrgOwner } from './orgPermissions';
 import { provisionOrgChat, resyncOrgChatIfProvisioned, withDefaultRooms } from './orgChatService';
@@ -190,26 +190,35 @@ export const newMinistry = (name: string, kind: Ministry['kind'] = 'MINISTRY', e
 
 // ── Roles + rosters ──────────────────────────────────────────────────────────
 
-/** Assign a catalog role to a membership. Throws if the acting member may not hand out that role. */
+/** Assign a catalog role to a membership (supports multi-department & multi-role assignments). */
 export async function assignRole(
   org: Organization, actor: OrgMembership | null, target: OrgMembership,
-  roleKey: string, opts?: { title?: string; ministryId?: string; rosterGroup?: RosterGroup },
+  roleKey: string, opts?: { title?: string; ministryId?: string; rosterGroup?: RosterGroup; keepExistingInMinistry?: boolean },
 ): Promise<void> {
   if (!canAssignRole(actor, org, roleKey)) throw new Error('You do not have permission to assign that role.');
   const def = getElevateRole(roleKey);
   if (!def) throw new Error('Unknown role.');
   const patch: Record<string, any> = {};
   if (opts?.ministryId) {
-    const rest = (target.ministryRoles || []).filter(r => r.ministryId !== opts.ministryId);
-    patch.ministryRoles = [...rest, { ministryId: opts.ministryId, roleKey, title: opts.title }];
-    if (roleKey === 'DEPARTMENT_HEAD') {
+    // Allow multiple roles across multiple departments (and even multiple roles in the same department when keepExistingInMinistry is set)
+    const rest = (target.ministryRoles || []).filter(r =>
+      opts.keepExistingInMinistry
+        ? !(r.ministryId === opts.ministryId && r.roleKey === roleKey)
+        : r.ministryId !== opts.ministryId,
+    );
+    const nextMinistryRoles = [...rest, { ministryId: opts.ministryId, roleKey, title: opts.title || def.label }];
+    patch.ministryRoles = nextMinistryRoles;
+    patch.ministryIds = Array.from(new Set([...(target.ministryIds || []), ...nextMinistryRoles.map(r => r.ministryId)]));
+    if (roleKey === 'DEPARTMENT_HEAD' || roleKey === 'DEPARTMENT_ADMIN') {
       const ms = (org.ministries || []).map(m => m.id === opts.ministryId
         ? { ...m, headUids: Array.from(new Set([...(m.headUids || []), target.userId])) } : m);
       await updateOrganization(org.id, { ministries: ms });
     }
   }
+  const nextRoleKeys = Array.from(new Set([...(target.roleKeys || []), ...(target.roleKey ? [target.roleKey] : []), roleKey]));
+  patch.roleKeys = nextRoleKeys;
   // Org-level role: never let ministry-scoped assignments overwrite a higher org role.
-  if (!opts?.ministryId || !target.roleKey || target.roleKey === 'MEMBER' || target.roleKey === 'VOLUNTEER') {
+  if (!opts?.ministryId || !target.roleKey || target.roleKey === 'MEMBER' || target.roleKey === 'VOLUNTEER' || target.roleKey === 'DEPARTMENT_VOLUNTEER') {
     patch.roleKey = roleKey;
     patch.role = def.baseRole === 'OWNER' ? 'ADMIN' : def.baseRole;
     patch.rosterGroup = opts?.rosterGroup || def.rosterGroup;
@@ -217,9 +226,77 @@ export async function assignRole(
     patch.isEmployee = def.rosterGroup === 'STAFF' || undefined;
   }
   await updateDoc(doc(db, 'orgMemberships', target.id), strip(patch));
+  if (target.provisionedPersonId && patch.ministryIds) {
+    await updateDoc(doc(opsDb, 'chmsPeople', target.provisionedPersonId), { ministryIds: patch.ministryIds, updatedAt: Date.now() }).catch(() => {});
+  }
   await recomputeOrgRoleIndex(org.id);
   await syncMemberIndex(org.id, target.userId);
   if (target.syncToProfile) await syncMembershipToProfile(org.id, target.userId).catch(() => {});
+}
+
+/** Add an additional department role (e.g. Department Head, Department Admin, Instructor, Department Volunteer) without removing existing roles. */
+export async function addDepartmentRole(
+  org: Organization,
+  actor: OrgMembership | null,
+  target: OrgMembership,
+  assignment: { ministryId: string; roleKey: string; title?: string },
+): Promise<void> {
+  return assignRole(org, actor, target, assignment.roleKey, {
+    ministryId: assignment.ministryId,
+    title: assignment.title,
+    keepExistingInMinistry: true,
+  });
+}
+
+/** Remove a specific department role from a membership while keeping their other departments/roles intact. */
+export async function removeDepartmentRole(
+  org: Organization,
+  actor: OrgMembership | null,
+  target: OrgMembership,
+  assignment: { ministryId: string; roleKey?: string },
+): Promise<void> {
+  const nextMinistryRoles = (target.ministryRoles || []).filter(r =>
+    assignment.roleKey
+      ? !(r.ministryId === assignment.ministryId && r.roleKey === assignment.roleKey)
+      : r.ministryId !== assignment.ministryId,
+  );
+  const stillInMinistry = nextMinistryRoles.some(r => r.ministryId === assignment.ministryId);
+  const nextMinistryIds = stillInMinistry
+    ? Array.from(new Set([...(target.ministryIds || []), ...nextMinistryRoles.map(r => r.ministryId)]))
+    : (target.ministryIds || []).filter(id => id !== assignment.ministryId);
+
+  await updateDoc(doc(db, 'orgMemberships', target.id), {
+    ministryRoles: nextMinistryRoles,
+    ministryIds: nextMinistryIds,
+  });
+  if (target.provisionedPersonId) {
+    await updateDoc(doc(opsDb, 'chmsPeople', target.provisionedPersonId), { ministryIds: nextMinistryIds, updatedAt: Date.now() }).catch(() => {});
+  }
+  await recomputeOrgRoleIndex(org.id);
+  await syncMemberIndex(org.id, target.userId);
+}
+
+/** Toggle an additional org-wide role key on a membership (multi-role support). */
+export async function toggleOrgRoleKey(
+  org: Organization,
+  actor: OrgMembership | null,
+  target: OrgMembership,
+  roleKey: string,
+): Promise<void> {
+  if (!canAssignRole(actor, org, roleKey)) throw new Error('You do not have permission to assign that role.');
+  const existing = new Set<string>([...(target.roleKeys || []), ...(target.roleKey ? [target.roleKey] : [])]);
+  if (existing.has(roleKey) && existing.size > 1) {
+    existing.delete(roleKey);
+  } else {
+    existing.add(roleKey);
+  }
+  const roleKeys = Array.from(existing);
+  const primaryKey = target.roleKey && existing.has(target.roleKey) ? target.roleKey : roleKeys[0] || 'MEMBER';
+  await updateDoc(doc(db, 'orgMemberships', target.id), {
+    roleKey: primaryKey,
+    roleKeys,
+  });
+  await recomputeOrgRoleIndex(org.id);
 }
 
 /** Edit roster presentation: group, order, org-specific about blurb, headshot, senior flag. */
@@ -232,7 +309,21 @@ export async function updateRosterEntry(
 
 export function rosterFor(members: OrgMembership[], group: RosterGroup): OrgMembership[] {
   return members
-    .filter(m => m.status === 'ACTIVE' && (m.rosterGroup || getElevateRole(m.roleKey)?.rosterGroup) === group)
+    .filter(m => {
+      if (m.status !== 'ACTIVE') return false;
+      const effectiveGroup = m.rosterGroup || getElevateRole(m.roleKey)?.rosterGroup;
+      if (effectiveGroup === group) return true;
+      // Multi-role support: if any of the member's org-wide or department roles belong to `group`, include them
+      const heldGroups = new Set<RosterGroup>();
+      for (const k of memberRoleKeys(m)) {
+        const rg = getElevateRole(k)?.rosterGroup;
+        if (rg) heldGroups.add(rg);
+      }
+      if (heldGroups.has(group)) return true;
+      // Volunteers / instructors who are also church members appear in the Members roster
+      if (group === 'MEMBER' && (m.role === 'MEMBER' || heldGroups.has('VOLUNTEER'))) return true;
+      return false;
+    })
     .sort((a, b) => Number(!!b.isSenior) - Number(!!a.isSenior) || (a.rosterOrder ?? 99) - (b.rosterOrder ?? 99) || a.displayName.localeCompare(b.displayName));
 }
 
@@ -243,13 +334,16 @@ export async function recomputeOrgRoleIndex(orgId: string): Promise<void> {
     const ids = (pred: (m: OrgMembership) => boolean) => Array.from(new Set(members.filter(pred).map(m => m.userId)));
     const has = (m: OrgMembership, p: any) => elevatePermissions(m).has(p);
     await updateDoc(doc(db, 'organizations', orgId), {
-      pastorUids: ids(m => !!getElevateRole(m.roleKey)?.isPastoral),
+      pastorUids: ids(m => memberRoleKeys(m).some(k => !!getElevateRole(k)?.isPastoral)),
       financeUids: ids(m => has(m, 'MANAGE_GIVING')),
       prayerUids: ids(m => has(m, 'VIEW_PRAYER')),
       givingViewUids: ids(m => has(m, 'VIEW_GIVING')),
       accountingUids: ids(m => has(m, 'MANAGE_ACCOUNTING')),
       accountingViewUids: ids(m => has(m, 'VIEW_ACCOUNTING') || has(m, 'MANAGE_ACCOUNTING')),
-      leaderUids: ids(m => m.roleKey === 'DEPARTMENT_HEAD' || !!m.ministryRoles?.length),
+      leaderUids: ids(m => {
+        const keys = memberRoleKeys(m);
+        return keys.includes('DEPARTMENT_HEAD') || keys.includes('DEPARTMENT_ADMIN') || keys.includes('INSTRUCTOR') || !!m.ministryRoles?.length;
+      }),
       staffUids: ids(m => has(m, 'MANAGE_CONTENT')),
       updatedAt: Date.now(),
     });

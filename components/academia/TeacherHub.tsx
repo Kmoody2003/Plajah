@@ -96,6 +96,8 @@ const TeacherHub: React.FC<Props> = ({ user, profile, onNavigate, isAdminLens })
   const t = m?.totals;
   const tools: ToolDef[] = [
     { label: 'Take attendance', meta: 'Today', icon: CalendarCheck, color: '#60A5FA', onClick: () => ((classes || []).length ? setAttFor(sel?.classIds[0] || '') : onNavigate('CLASSROOMS')) },
+    { label: 'Classroom Club & Live', meta: 'Feed · Photos · Lecture · Whiteboard', icon: Users, color: '#D40055', tab: 'classroomClub' },
+    { label: 'Docs & Forms → Tela', meta: 'Auto-extract + Answer Key', icon: Wand2, color: '#06D6A0', tab: 'curriculum' },
     { label: 'Year curriculum', meta: '180 days · Math & ELA', icon: CalendarRange, color: '#F5B83D', view: 'ACADEMIA_YEAR' },
     { label: 'Education Council', meta: 'Global educators', icon: Landmark, color: '#c4b5fd', view: 'EDUCATION_COUNCIL' },
     { label: 'Build a lesson', meta: templates ? `${templates.length} saved` : undefined, icon: PenTool, color: '#FF8C00', tab: 'templates' },

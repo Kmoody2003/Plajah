@@ -259,6 +259,7 @@ export async function fetchPlatformFeed(from: number, to: number, force = false)
 
   // Scanned/digitized worksheets: assigned to me (student), my child (guardian), or by me (teacher).
   const worksheetDuePromise = safe('worksheetDue', fetchWorksheetDue(uid), [] as WorksheetDueItem[]);
+  const orgCentralEventsPromise = safe('orgCentralEvents', getDocs(query(collection(db, 'org_calendar_events'), where('participantUids', 'array-contains', uid), limit(120))).then((s) => s.docs.map((d) => ({ id: d.id, ...(d.data() as Record<string, any>) }))), [] as Record<string, any>[]);
   // School flyers a family member scanned and shared with me.
   const familySharesPromise = safe('familyShares', getDocs(query(collection(db, 'family_calendar_shares'), where('recipientUids', 'array-contains', uid), limit(40)))
     .then((s) => s.docs.map((d) => ({ id: d.id, ...(d.data() as Record<string, any>) }))), [] as Record<string, any>[]);
@@ -498,6 +499,30 @@ export async function fetchPlatformFeed(from: number, to: number, force = false)
       id: `p:game:${g.id}`, sourceKey: `game:${g.id}`, title: String(g.event?.shortName || g.event?.name || 'Game'),
       start: t, end: t + 3 * HOUR, allDay: false, layer: 'sports', source: 'platform', readOnly: true,
       kindLabel: g.league, open: g.detailUrl ? { kind: 'url', href: g.detailUrl } : undefined,
+    });
+  }
+
+  for (const oce of await orgCentralEventsPromise) {
+    if (typeof oce?.start !== 'number') continue;
+    const cat = String(oce.category ?? 'EVENT');
+    const layer: CalLayer = cat === 'CLASS' ? 'learning' : cat === 'SERVICE' ? 'worship' : 'events';
+    push({
+      id: `p:orgcal:${oce.id}`,
+      sourceKey: `orgcal:${oce.id}`,
+      title: String(oce.title || 'Organization Event'),
+      start: oce.start,
+      end: typeof oce.end === 'number' ? oce.end : oce.start + HOUR,
+      allDay: Boolean(oce.allDay),
+      tz: oce.tz || undefined,
+      location: oce.roomName || oce.location || undefined,
+      notes: oce.notes || undefined,
+      recurrence: oce.recurrence || 'none',
+      until: oce.until || undefined,
+      exdates: Array.isArray(oce.exdates) ? oce.exdates : undefined,
+      layer,
+      source: 'platform',
+      readOnly: true,
+      kindLabel: [oce.departmentName, oce.kindLabel || 'Org Schedule'].filter(Boolean).join(' · '),
     });
   }
 

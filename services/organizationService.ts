@@ -244,7 +244,10 @@ export async function syncMemberIndex(orgId: string, uid: string): Promise<void>
     const active = snap.docs.map(d => d.data() as OrgMembership).filter(m => m.status === 'ACTIVE');
     const ref = doc(db, 'orgMemberIndex', `${orgId}_${uid}`);
     if (!active.length) { await deleteDoc(ref).catch(() => {}); return; }
-    const ministryIds = Array.from(new Set(active.flatMap(m => (m.ministryRoles || []).map(r => r.ministryId))));
+    const ministryIds = Array.from(new Set(active.flatMap(m => [
+      ...(m.ministryIds || []),
+      ...(m.ministryRoles || []).map(r => r.ministryId),
+    ]).filter(Boolean)));
     await setDoc(ref, { orgId, userId: uid, ministryIds, updatedAt: Date.now() });
   } catch { /* non-fatal: member falls back to following the org to comment */ }
 }

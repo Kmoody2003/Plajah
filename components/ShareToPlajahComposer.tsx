@@ -12,12 +12,17 @@ import UniversalPostComposer, { ComposerPostData } from './UniversalPostComposer
 import {
   academicPrefillText, academicPrefillAttachments, type AcademicAsset,
 } from '../services/academicSocial';
+import {
+  PlatformGroupSharePicker,
+  publishToShareDestinations,
+  type ShareDestinationOption,
+} from './PlatformGroupSharePicker';
 
 // Full-screen share flow for academic / Museion assets. Opens the Universal
 // Post Composer with the asset prepopulated (interactive 3D scan when available,
 // otherwise the image) and editable text, then lets the author choose where it
 // lands: the source discipline's feed or the Plajah social feed, plus a searchable
-// dropdown to cross-post to other disciplines and their clubs.
+// dropdown to cross-post to other disciplines, org departments, sub-groups, and clubs.
 
 // ── Discipline registry (mirrors services/labsApiService LabsDisciplineId) ──────
 const DISCIPLINES: { id: string; label: string }[] = [
@@ -32,8 +37,6 @@ const DISCIPLINES: { id: string; label: string }[] = [
   { id: 'architecture', label: 'Architecture' },
 ];
 
-// asset.discipline arrives as a human label ("Archaeology", "World History") — resolve
-// it back to a LabsDisciplineId so the post reaches that discipline's feed.
 function resolveDisciplineId(name?: string): string | null {
   if (!name) return null;
   const n = name.trim().toLowerCase();
@@ -71,6 +74,7 @@ const ShareToPlajahComposer: React.FC<Props> = ({ asset, accent = '#C9A55C', onC
   const disciplineId = resolveDisciplineId(asset.discipline);
   const [primary, setPrimary] = useState<'discipline' | 'social'>(disciplineId ? 'discipline' : 'social');
   const [extra, setExtra] = useState<ExtraTarget[]>([]);
+  const [groupDestinations, setGroupDestinations] = useState<ShareDestinationOption[]>([]);
   const [clubs, setClubs] = useState<Club[]>([]);
   const [sanctuaries, setSanctuaries] = useState<{ id: string; label: string }[]>([]);
   const [businesses, setBusinesses] = useState<{ id: string; label: string; photo?: string }[]>([]);
@@ -91,7 +95,6 @@ const ShareToPlajahComposer: React.FC<Props> = ({ asset, accent = '#C9A55C', onC
     fetchUserSanctuaries(uid)
       .then(list => setSanctuaries(list.map(s => ({ id: s.id, label: s.name }))))
       .catch(() => {});
-    // Businesses + orgs both post via authorOrgId, so they share the 'business' kind.
     Promise.all([
       fetchUserOrganizations(uid).then(os => os.map(o => ({ id: o.id, label: o.name, photo: o.logoUrl }))).catch(() => []),
       fetchMyBusinessPages().then(bs => bs.map(b => ({ id: b.id, label: b.businessName, photo: b.logoUrl }))).catch(() => []),
@@ -101,8 +104,6 @@ const ShareToPlajahComposer: React.FC<Props> = ({ asset, accent = '#C9A55C', onC
     });
   }, []);
 
-  // Combined, searchable destination list (disciplines + the user's clubs),
-  // excluding whatever is already the primary target or already selected.
   const options: ExtraTarget[] = useMemo(() => {
     const q = query.trim().toLowerCase();
     const chosen = new Set(extra.map(e => `${e.kind}:${e.id}`));
@@ -128,8 +129,6 @@ const ShareToPlajahComposer: React.FC<Props> = ({ asset, accent = '#C9A55C', onC
         : { type: a.type as any, url: a.url, title: a.title }
     );
 
-    // Discipline feeds match on the LabsDisciplineId in tags; the human label +
-    // kind ride along for general discovery without leaking into a feed.
     const disciplineIds = new Set<string>();
     if (primary === 'discipline' && disciplineId) disciplineIds.add(disciplineId);
     extra.filter(e => e.kind === 'discipline').forEach(e => disciplineIds.add(e.id));
@@ -147,7 +146,6 @@ const ShareToPlajahComposer: React.FC<Props> = ({ asset, accent = '#C9A55C', onC
       ...(media.length ? { media } : {}),
     } as any);
 
-    // Shared attachment shape for club / sanctuary feeds.
     const feedAttachments = (data.attachments || []).map(a => ({
       type: a.type,
       url: a.url,
@@ -156,24 +154,33 @@ const ShareToPlajahComposer: React.FC<Props> = ({ asset, accent = '#C9A55C', onC
     }));
     const attachments = feedAttachments.length ? feedAttachments : undefined;
 
-    // Cross-post to selected clubs (separate collection / feed).
     const clubTargets = extra.filter(e => e.kind === 'club');
     await Promise.all(clubTargets.map(c => createClubPost({
       clubId: c.id, content: data.text, type: 'POST', attachments,
     })));
 
-    // Post into selected sanctuaries. Academic shares default to a FREE teaser so
-    // they surface to everyone; the creator can re-gate from inside the sanctuary.
     const sanctuaryTargets = extra.filter(e => e.kind === 'sanctuary');
     await Promise.all(sanctuaryTargets.map(s => createSanctuaryPost({
       sanctuaryId: s.id, content: data.text, accessType: 'FREE', attachments,
     })));
 
-    // Post as selected businesses / organizations (their feed = posts by authorOrgId).
     const businessTargets = extra.filter(e => e.kind === 'business') as Extract<ExtraTarget, { kind: 'business' }>[];
     await Promise.all(businessTargets.map(b => createOrgPost(
       b.id, b.label, b.photo || '', { text: data.text, isPublic: true, ...(media.length ? { media } : {}) },
     )));
+
+    // Also publish to any selected Org Feeds (Public, Members, Internal), Org Departments, Sub-Groups, Study Groups & Community Groups
+    const nonPublicGroupDests = groupDestinations.filter(d => d.kind !== 'PUBLIC_FEED');
+    if (nonPublicGroupDests.length > 0) {
+      await publishToShareDestinations(nonPublicGroupDests, {
+        userId: auth.currentUser?.uid || 'guest',
+        userName: auth.currentUser?.displayName || 'Plajah Member',
+        userAvatar: auth.currentUser?.photoURL || '',
+        text: data.text,
+        media: media as any,
+        attachments: attachments as any,
+      });
+    }
 
     setDone(true);
     onPosted?.();
@@ -207,6 +214,18 @@ const ShareToPlajahComposer: React.FC<Props> = ({ asset, accent = '#C9A55C', onC
           </div>
           <p className="text-[9px] font-bold uppercase tracking-widest text-white/40 mt-1">Your main timeline</p>
         </button>
+      </div>
+
+      {/* Organization Feeds (Public / Members / Internal), Departments, Sub-Groups & Groups Dropdown */}
+      <div className="space-y-1.5">
+        <p className="text-[9px] font-black uppercase tracking-[0.22em] text-white/35">
+          Orgs, Member Feeds, Departments, Sub-Groups &amp; Groups
+        </p>
+        <PlatformGroupSharePicker
+          userId={auth.currentUser?.uid}
+          selected={groupDestinations}
+          onChange={setGroupDestinations}
+        />
       </div>
 
       {/* Also share to — searchable multi-destination */}

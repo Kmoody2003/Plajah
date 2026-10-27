@@ -41,7 +41,11 @@ import MiniMusicPlayer from './MiniMusicPlayer';
 import UniversalPostComposer from './UniversalPostComposer';
 import type { ComposerPostData } from './UniversalPostComposer';
 import { useActiveIdentity, IdentitySwitcher } from '../contexts/ActiveIdentityContext';
-import OrgAudienceToggle, { type OrgPostAudience } from './elevate/OrgAudienceToggle';
+import OrgAudienceToggle, {
+  type OrgPostAudience,
+  type OrgTargetSelection,
+  orgTargetToPostFields,
+} from './elevate/OrgAudienceToggle';
 import StoriesBar from './StoriesBar';
 import StoryCreator from './StoryCreator';
 import DualPanelTimeline from './DualPanelTimeline';
@@ -1448,6 +1452,7 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
   const [composeSignal, setComposeSignal] = useState(0);
   const { activeOrg } = useActiveIdentity();
   const [orgPostAudience, setOrgPostAudience] = useState<OrgPostAudience>('PUBLIC');
+  const [orgTargetSelection, setOrgTargetSelection] = useState<OrgTargetSelection>({ audience: 'PUBLIC' });
   // 'ALL' = For You (ranked global), 'FOLLOWING' = people you follow, 'LIKED'. null = not chosen yet -> the
   // viewer's saved default tab (feedPreferences.defaultTab), else For You. See `plajahFilter` below.
   const [plajahFilterChoice, setPlajahFilter] = useState<'ALL' | 'FOLLOWING' | 'LIKED' | null>(null);
@@ -1741,7 +1746,14 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
         ...(data.poll ? { poll: { ...data.poll, createdAt: Date.now() } } : {}),
         ...(data.dataViz ? { dataViz: data.dataViz } : {}),
         ...embedFields,
-        ...(activeOrg ? { authorName: activeOrg.name, authorPhoto: activeOrg.logoUrl || '', authorOrgId: activeOrg.id, orgAudience: orgPostAudience } : {}),
+        ...(activeOrg
+          ? {
+              authorName: activeOrg.name,
+              authorPhoto: activeOrg.logoUrl || '',
+              authorOrgId: activeOrg.id,
+              ...orgTargetToPostFields(orgTargetSelection),
+            }
+          : {}),
         ...(userProfile?.isPrivate ? { authorIsPrivate: true } : {}),
         // Facebook-style audience — personal posts only (org posts keep the org's own audience).
         ...(!activeOrg && data.audienceSpec && data.audienceSpec.preset !== 'PUBLIC' ? { audienceSpec: data.audienceSpec } : {}),
@@ -3522,7 +3534,16 @@ const toggleFavoriteTeam = async (team: string) => {
                 )}
               </AnimatePresence>
             </div>
-            {activeOrg && <OrgAudienceToggle value={orgPostAudience} onChange={setOrgPostAudience} className="px-1 pb-2" />}
+            {activeOrg && (
+              <OrgAudienceToggle
+                orgId={activeOrg.id}
+                value={orgPostAudience}
+                onChange={setOrgPostAudience}
+                targetSelection={orgTargetSelection}
+                onTargetChange={setOrgTargetSelection}
+                className="px-1 pb-2"
+              />
+            )}
             <UniversalPostComposer
               key={quoteTarget ? `quote-${quoteTarget.id}` : 'main'}
               currentUser={currentUser}

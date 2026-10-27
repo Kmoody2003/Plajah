@@ -17,6 +17,7 @@ import { loadLearnerStats, type LearnerStats, type AppStat } from '../../service
 import StudentScoreboard from '../academia/StudentScoreboard';
 import { DidYouKnow, ExhibitsRow, StudiosRow, LoreaShelf, CurriculumShowcase, AcademiaResponsiveStyles } from '../academia/AcademiaShowcase';
 import { bandForAge } from '../../data/academiaShowcase';
+import { UniversalStudentDesk } from '../desk/UniversalStudentDesk';
 
 /**
  * Homeroom — the student's home screen (view STUDENT_HOME). The Creator Hub, rebuilt around school:
@@ -160,6 +161,7 @@ const HomeroomView: React.FC<Props> = ({ user, profile, onNavigate }) => {
   const [clubs, setClubs] = useState<any[] | null>(null);
   const [classes, setClasses] = useState<any[] | null>(null);
   const [sheet, setSheet] = useState<null | 'chat' | 'club'>(null);
+  const [openStudentDesk, setOpenStudentDesk] = useState(false);
   const [toast, setToast] = useState('');
   const [stats, setStats] = useState<LearnerStats | null>(null);
   const { sp: schoolSp } = useSchoolProfile(profile, [classes?.[0]?.ownerId]);
@@ -222,6 +224,24 @@ const HomeroomView: React.FC<Props> = ({ user, profile, onNavigate }) => {
             <h2 className="h2">Your learning tools</h2>
             <span className="note">Your progress shows on every card</span>
           </div>
+          <button type="button" onClick={() => setOpenStudentDesk(v => !v)} aria-label="Open Universal Student Desk" style={{ width: '100%', minHeight: 72, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px', borderRadius: 18, border: '1px solid rgba(251,191,36,.55)', background: 'linear-gradient(135deg,rgba(107,0,153,.38),rgba(212,0,85,.28),rgba(255,140,0,.22))', color: '#fff', textAlign: 'left', cursor: 'pointer', font: 'inherit' }}>
+            <span aria-hidden="true" style={{ fontSize: 28 }}>🪑</span>
+            <span style={{ flex: 1, minWidth: 0 }}><b style={{ display: 'block', fontSize: '1.05rem', color: '#FDE68A' }}>My Universal Student Desk · Powered by Tela</b><span style={{ fontSize: '.85rem', color: '#e9d5ff' }}>Open your assigned digital worksheets, quizzes &amp; tests across Academia and Christian Education — fill them out with 10 Living Art-Council Desk Surfaces &amp; turn them in for instant Mastery credit.</span></span>
+            <span style={{ padding: '8px 16px', borderRadius: 99, background: '#FBBF24', color: '#111', fontWeight: 900, fontSize: '.78rem', whiteSpace: 'nowrap' }}>{openStudentDesk ? 'Close Desk' : 'Open My Desk →'}</span>
+          </button>
+          {openStudentDesk && (
+            <div style={{ marginBottom: 16 }}>
+              <UniversalStudentDesk
+                studentUid={uid || 'student_academia'}
+                studentName={profile?.displayName || 'Student Scholar'}
+                defaultDomain="ALL"
+                onBack={() => setOpenStudentDesk(false)}
+                onOpenTelaStudio={(docId: string) => {
+                  window.dispatchEvent(new CustomEvent('plajah:openTela', { detail: { docId } }));
+                }}
+              />
+            </div>
+          )}
           <button type="button" onClick={() => onNavigate('ACADEMIA_SCAN')} aria-label="Scan school paper" style={{ width: '100%', minHeight: 64, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderRadius: 16, border: '1px solid rgba(255,140,0,.45)', background: 'linear-gradient(135deg,rgba(255,140,0,.16),rgba(129,102,230,.12))', color: '#fff', textAlign: 'left', cursor: 'pointer', font: 'inherit' }}>
             <span aria-hidden="true" style={{ fontSize: 26 }}>📷</span>
             <span style={{ flex: 1, minWidth: 0 }}><b style={{ display: 'block', fontSize: '1rem' }}>Scan your paper</b><span style={{ fontSize: '.85rem', color: '#d6d0e4' }}>Finished a worksheet? Snap it to check and turn in. Got a flyer? It goes on your calendar.</span></span>

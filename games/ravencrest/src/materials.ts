@@ -71,10 +71,22 @@ export function pbr(id: string): PbrSet {
  * MRT, and a material writing to it fails to build (renders flat/untextured).
  */
 let reflectMRT = true;
+let webglMode = false;
+const reflectMats: { mat: THREE.NodeMaterial; node: THREE.Node }[] = [];
 export function setReflectEnabled(on: boolean) { reflectMRT = on; }
+export function setWebGLMode(on: boolean) { webglMode = on; }
+/** Strip or restore SSR MRT outputs when entering/leaving a direct-rendered WebXR session. */
+export function setXRReflectDisable(inXR: boolean) {
+  for (const r of reflectMats) {
+    r.mat.mrtNode = inXR ? null : (r.node as never);
+    r.mat.needsUpdate = true;
+  }
+}
 export function setReflect(mat: THREE.NodeMaterial, reflectivity: THREE.Node | number, rough: THREE.Node | number) {
   if (!reflectMRT) return;
-  mat.mrtNode = mrt({ metalrough: vec2(reflectivity as never, rough as never) });
+  const node = mrt({ metalrough: vec2(reflectivity as never, rough as never) });
+  mat.mrtNode = node;
+  reflectMats.push({ mat, node });
 }
 
 export interface StoneOpts { metresPerTile?: number; tint?: THREE.ColorRepresentation; roughnessScale?: number; wetBase?: number; bump?: number; desat?: number }
@@ -177,8 +189,19 @@ export function bakedMasks(frame: SurfaceFrame, pxPerMetre: number, build: (wp: 
   const size = (len: number) => Math.min(4096, Math.max(16, Math.round(len * pxPerMetre)));
   const t = rtt(build(wp) as never, size(fu.length()), size(fv.length()), { type: THREE.HalfFloatType });
   t.autoUpdate = false;
-  // Render targets are stored top-down under WebGPU: flip V back.
-  return t.sample(vec2(uv().x, float(1).sub(uv().y))) as unknown as THREE.Node<'vec4'>;
+  const origUpdate = t.updateBefore.bind(t);
+  t.updateBefore = (f) => {
+    const r = f.renderer;
+    if (!r) return origUpdate(f);
+    const prevXR = r.xr.enabled, prevTM = r.toneMapping;
+    r.xr.enabled = false;
+    r.toneMapping = THREE.NoToneMapping;
+    try { return origUpdate(f); }
+    finally { r.xr.enabled = prevXR; r.toneMapping = prevTM; }
+  };
+  // Render targets are stored top-down under WebGPU (flip V back), bottom-up under WebGL.
+  const sampleUv = webglMode ? uv() : vec2(uv().x, float(1).sub(uv().y));
+  return t.sample(sampleUv) as unknown as THREE.Node<'vec4'>;
 }
 
 export function wetAsphalt(repeat: [number, number], markings: THREE.Texture, frame: SurfaceFrame): THREE.MeshStandardNodeMaterial {

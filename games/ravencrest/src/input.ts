@@ -20,8 +20,21 @@ export interface InputDeps {
 const DEAD = 0.18;
 const dz = (v: number) => (Math.abs(v) < DEAD ? 0 : (v - Math.sign(v) * DEAD) / (1 - DEAD));
 
+function stickAxes(gp: Gamepad): [number, number] {
+  const x2 = gp.axes[2] ?? 0, y2 = gp.axes[3] ?? 0;
+  const x0 = gp.axes[0] ?? 0, y0 = gp.axes[1] ?? 0;
+  return Math.hypot(x2, y2) >= Math.hypot(x0, y0) ? [x2, y2] : [x0, y0];
+}
+
+function btnDown(gp: Gamepad, i: number): boolean {
+  const b = gp.buttons[i];
+  return !!b && (b.pressed || b.value > 0.5);
+}
+
 export class ExtraInput {
   private prev: boolean[] = [];
+  private prevHand: Record<string, boolean[]> = {};
+  private padBlocking = false;
   private touchUI: HTMLDivElement | null = null;
   private padStickActive = false;
   private touchMove = false;
@@ -44,37 +57,109 @@ export class ExtraInput {
 
   /** Poll the gamepad (call every frame). */
   update(dt: number) {
-    const pads = navigator.getGamepads?.() ?? [];
-    const gp = Array.from(pads).find((p) => p && p.connected && p.mapping === 'standard') ?? Array.from(pads).find((p) => p && p.connected);
-    if (!gp) { if (this.padStickActive) { this.d.player.stick.set(0, 0); this.d.player.stickRun = false; this.padStickActive = false; } return; }
-    const btn = (i: number) => !!gp.buttons[i]?.pressed;
-    const pressed = (i: number) => btn(i) && !this.prev[i];
     const { player, game } = this.d;
+    // In WebXR mode, XRPlay handles the headset's input sources directly.
+    if (player.xrMode) return;
+
+    const allPads = Array.from(navigator.getGamepads?.() ?? []).filter((p): p is Gamepad => !!p && p.connected);
+    const getHand = (p: Gamepad): 'left' | 'right' | '' => {
+      const h = (p as Gamepad & { hand?: string }).hand;
+      if (h === 'left' || h === 'right') return h;
+      const id = p.id.toLowerCase();
+      if (id.includes('left')) return 'left';
+      if (id.includes('right')) return 'right';
+      if (p.mapping === ('xr-standard' as GamepadMappingType)) return p.index === 0 ? 'left' : 'right';
+      return '';
+    };
+    const leftPad = allPads.find((p) => getHand(p) === 'left');
+    const rightPad = allPads.find((p) => getHand(p) === 'right');
+
+    // Meta Quest / split Touch controllers in non-XR or 2D browser mode.
+    if (leftPad || rightPad) {
+      let lx = 0, ly = 0, rx = 0, ry = 0, blockHeld = false;
+      for (const [hand, gp] of [['left', leftPad], ['right', rightPad]] as const) {
+        if (!gp) continue;
+        const prev = this.prevHand[hand] ?? [];
+        const btn = (i: number) => btnDown(gp, i);
+        const pressed = (i: number) => btn(i) && !prev[i];
+        const [ax, ay] = stickAxes(gp);
+        if (this.d.menuOpen()) {
+          if (dz(ax) < -0.6 && !prev[100]) this.d.menuPick(-1);
+          if (dz(ax) > 0.6 && !prev[101]) this.d.menuPick(1);
+          if (pressed(0) || pressed(4)) this.d.menuStart();
+        } else if (hand === 'left') {
+          lx = dz(ax); ly = dz(ay);
+          if (btn(1)) blockHeld = true;           // Left side trigger → block
+          if (pressed(0)) game.attack();          // Trigger → slash
+          if (pressed(4)) this.d.interact();      // X → interact
+          if (pressed(5)) game.throwMolotov();    // Y → molotov
+        } else {
+          rx = dz(ax); ry = dz(ay);
+          if (pressed(0)) game.attack();          // Trigger → slash
+          if (pressed(1)) game.roll();            // Right side trigger → roll
+          if (pressed(4)) player.jump();          // A → jump
+          if (pressed(5)) this.d.interact();      // B → interact
+          if (pressed(3)) player.recenter();      // R3 → recenter
+        }
+        const nextPrev = gp.buttons.map((_, i) => btn(i));
+        nextPrev[100] = dz(ax) < -0.6;
+        nextPrev[101] = dz(ax) > 0.6;
+        this.prevHand[hand] = nextPrev;
+      }
+      if (!this.d.menuOpen()) {
+        if (lx || ly || this.padStickActive) {
+          if (!this.touchMove) player.stick.set(lx, -ly);
+          this.padStickActive = !!(lx || ly);
+        }
+        player.stickRun = Math.hypot(lx, ly) > 0.88;
+        if (rx || ry) player.look(rx * 2.6 * dt, ry * 1.8 * dt, true);
+        if (blockHeld !== this.padBlocking) {
+          this.padBlocking = blockHeld;
+          game.setBlock(blockHeld);
+        }
+      }
+      return;
+    }
+
+    const gp = allPads.find((p) => p.mapping === 'standard') ?? allPads[0];
+    if (!gp) {
+      if (this.padStickActive) { player.stick.set(0, 0); player.stickRun = false; this.padStickActive = false; }
+      if (this.padBlocking) { game.setBlock(false); this.padBlocking = false; }
+      return;
+    }
+    const btn = (i: number) => btnDown(gp, i);
+    const pressed = (i: number) => btn(i) && !this.prev[i];
 
     if (this.d.menuOpen()) {
       if (pressed(14) || dz(gp.axes[0] ?? 0) < -0.6 && !this.prev[100]) this.d.menuPick(-1);
       if (pressed(15) || dz(gp.axes[0] ?? 0) > 0.6 && !this.prev[101]) this.d.menuPick(1);
-      if (pressed(0) || pressed(9)) this.d.menuStart();
+      if (pressed(0) || pressed(9) || pressed(7)) this.d.menuStart();
       this.prev[100] = dz(gp.axes[0] ?? 0) < -0.6; this.prev[101] = dz(gp.axes[0] ?? 0) > 0.6;
     } else {
-      // Move.
+      // Left thumbstick → move character.
       const lx = dz(gp.axes[0] ?? 0), ly = dz(gp.axes[1] ?? 0);
       if (lx || ly || this.padStickActive) {
         if (!this.touchMove) player.stick.set(lx, -ly);
         this.padStickActive = !!(lx || ly);
       }
-      player.stickRun = Math.hypot(lx, ly) > 0.92 || btn(6) || btn(10);
-      // Look.
+      player.stickRun = Math.hypot(lx, ly) > 0.88 || btn(10);
+      // Right thumbstick → camera orbit.
       const rx = dz(gp.axes[2] ?? 0), ry = dz(gp.axes[3] ?? 0);
-      if (rx || ry) player.look(rx * 2.6 * dt, ry * 1.8 * dt);
-      // Actions.
+      if (rx || ry) player.look(rx * 2.6 * dt, ry * 1.8 * dt, true);
+      // Left trigger / bumper (6 or 4) → hold block.
+      const blockHeld = btn(6) || btn(4);
+      if (blockHeld !== this.padBlocking) {
+        this.padBlocking = blockHeld;
+        game.setBlock(blockHeld);
+      }
+      // Actions: Trigger (RT 7 / X 2) → slash; Right bumper / B (5 or 1) → roll; A (0) → jump.
       if (pressed(0)) player.jump();
-      if (pressed(1)) game.roll();
+      if (pressed(1) || pressed(5)) game.roll();
       if (pressed(2) || pressed(7)) game.attack();
-      if (pressed(3)) game.throwMolotov();
-      if (pressed(5)) this.d.interact();
+      if (pressed(3)) this.d.interact();
+      if (pressed(8)) game.throwMolotov();
       if (pressed(12)) game.setStance('HIGH');
-      if (pressed(14) || pressed(4)) game.setStance('MID');
+      if (pressed(14)) game.setStance('MID');
       if (pressed(13)) game.setStance('LOW');
       if (pressed(11)) player.recenter();
     }

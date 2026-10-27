@@ -440,7 +440,7 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
   const effectiveGivingFunds = org.givingFunds?.length ? org.givingFunds : demo ? (DEMO_CHURCH.givingFunds || []) : [];
   const emptyNote = (text: string) => <div className="ev-panel p-6 text-[15px] text-[#A49CB2]">{text}</div>;
 
-  if (managing && isOwner) {
+  if (managing && isOwner && !hasOps) {
     return <OrgManage org={org} staff={staff} onClose={() => setManaging(false)} onSaved={setOrg} reloadStaff={reloadStaff} onDeleted={onDeleted} />;
   }
   if (elevateLive && isOwner) {
@@ -457,7 +457,7 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
   const MODES = [
     { k: 'public', label: faith ? 'Public page' : `Public ${(org.orgKindLabel || 'page').toLowerCase()}` },
     { k: 'member', label: 'Member home' },
-    ...(hasOps ? [{ k: 'ops', label: 'Staff' }] : []),
+    ...(hasOps ? [{ k: 'ops', label: 'Manage & Studio' }] : []),
   ];
   const modeToggle = (
     <EvModeBar
@@ -480,7 +480,7 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
           </button>
         )}
         {isOwner && (
-          <button onClick={() => setManaging(true)} className="ev-btn ev-btn-ghost" style={{ minHeight: 36, padding: '0 12px', fontSize: 13 }}>
+          <button onClick={() => { setManaging(true); setView('ops'); }} className="ev-btn ev-btn-ghost" style={{ minHeight: 36, padding: '0 12px', fontSize: 13 }}>
             <Pencil size={13} /> Manage
           </button>
         )}
@@ -494,7 +494,7 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
         {modeToggle}
         <Suspense fallback={<div className="flex justify-center py-20"><Loader2 className="animate-spin text-white/30" size={24} /></div>}>
           <div key="ops" className="ev-fade">
-          <ElevateOps org={org} isOwner={isOwner} onClose={() => setView('public')} onOrgChange={setOrg} onVisitUser={onVisitUser} initialTool={initialContentHq ? 'hq' : undefined} />
+          <ElevateOps org={org} isOwner={isOwner} onClose={() => { setManaging(false); setView('public'); }} onOrgChange={setOrg} onDeleted={onDeleted} onVisitUser={onVisitUser} initialTool={initialContentHq ? 'hq' : undefined} initialSection={managing ? 'identity' : undefined} />
           </div>
         </Suspense>
       </EvScope>
@@ -538,6 +538,18 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
         intro={org.tagline ? org.about : undefined}
         times={effectiveServiceTimes.map(s => ({ id: s.id, label: `${s.label}${s.isOnline ? ' · also online' : ''}`, day: s.day === 'Sunday' ? 'Sun' : s.day?.slice(0, 3), time: s.time }))}
         coverUrl={heroImage(org.coverUrl || (demo ? DEMO_CHURCH.coverUrl : undefined))}
+        onUploadCover={isOwner ? async (file) => {
+          const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+          const url = await uploadFile(`uploads/organizations/${org.id}/cover_${Date.now()}.${ext}`, file);
+          await updateOrganization(org.id, { coverUrl: url });
+          setOrg(prev => ({ ...prev, coverUrl: url }));
+        } : undefined}
+        onUploadLogo={isOwner ? async (file) => {
+          const ext = (file.name.split('.').pop() || 'png').toLowerCase().replace(/[^a-z0-9]/g, '') || 'png';
+          const url = await uploadFile(`uploads/organizations/${org.id}/logo_${Date.now()}.${ext}`, file);
+          await updateOrganization(org.id, { logoUrl: url });
+          setOrg(prev => ({ ...prev, logoUrl: url }));
+        } : undefined}
         actions={<>
           {myMembership?.status === 'ACTIVE' ? (
             <span className="ev-btn" style={{ ...pill, background: 'rgba(127,216,176,0.12)', color: EV.success }}>
@@ -607,7 +619,7 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
             {tab === 'HOME' && (
               <AdaptiveGrid phone={1} tablet={1} desktop={3} gap="1.5rem">
                 <div className="lg:col-span-2 space-y-5">
-                  <ChurchAnnouncements orgId={org.id} orgName={org.name} orgPhoto={org.logoUrl || ''} isOwner={isOwner} canPost={can('POST_AS_ORG')} />
+                  <ChurchAnnouncements orgId={org.id} orgName={org.name} orgPhoto={org.logoUrl || ''} org={org} isOwner={isOwner} canPost={can('POST_AS_ORG')} />
                   <OrgThread org={org} myMembership={myMembership} onVisitUser={onVisitUser} onOrgChange={setOrg} readOnly={!myMembership || myMembership.status !== 'ACTIVE'} />
                   {demo && <div className="space-y-3">
                     <p className={TYPE.labelSm} style={{ color: VIOLET_SOFT }}>Latest from {org.name}</p>

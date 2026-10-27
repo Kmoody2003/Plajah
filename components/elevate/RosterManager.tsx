@@ -1,10 +1,29 @@
 // RosterManager — operational roster: Pastoral / Leadership / Staff / Volunteers / Members + Pending approvals.
+// Supports multi-department memberships (`ministryIds`) and multi-role assignments (`roleKeys` + `ministryRoles`),
+// including `DEPARTMENT_HEAD`, `DEPARTMENT_ADMIN` (Department Administrator), `INSTRUCTOR` (Non-Credentialed
+// Church/Org Class Instructor, distinct from Academia `TEACHER`), and `DEPARTMENT_VOLUNTEER`.
 import { UserAvatar } from '../avatar/UserAvatar';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Search, ChevronUp, ChevronDown, Pencil, Check, X, Loader2, Camera, UserPlus, Star } from 'lucide-react';
+import { Search, ChevronUp, ChevronDown, Pencil, Check, X, Loader2, Camera, UserPlus, Star, Plus, Layers, GraduationCap } from 'lucide-react';
 import type { Organization, OrgMembership, OrgMembershipOnboarding, RosterGroup, UserProfile } from '../../types';
-import { ELEVATE_ROLES, canAssignRole, elevateCan, getElevateRole } from '../../services/elevateRoles';
-import { assignRole, updateRosterEntry, rosterFor, recomputeOrgRoleIndex } from '../../services/elevateService';
+import {
+  DEPARTMENT_SCOPED_ROLE_KEYS,
+  ELEVATE_ROLES,
+  canAssignRole,
+  elevateCan,
+  getElevateRole,
+  memberDepartmentIds,
+  memberRoleKeys,
+} from '../../services/elevateRoles';
+import {
+  addDepartmentRole,
+  assignRole,
+  recomputeOrgRoleIndex,
+  removeDepartmentRole,
+  rosterFor,
+  toggleOrgRoleKey,
+  updateRosterEntry,
+} from '../../services/elevateService';
 import { fetchOrgMembers, acceptOrgMember, declineOrgMember, addOrgMember, removeOrgMember, fetchOnboardingVault } from '../../services/organizationService';
 import { searchUserProfiles, uploadFile } from '../../services/backendService';
 import { provisionAccount } from '../../services/elevateAccounts';
@@ -20,7 +39,7 @@ export interface RosterManagerProps {
 type Tab = RosterGroup | 'PENDING';
 const TABS: { key: Tab; label: string }[] = [
   { key: 'PASTORAL', label: 'Pastoral' }, { key: 'LEADERSHIP', label: 'Leadership' }, { key: 'STAFF', label: 'Staff' },
-  { key: 'VOLUNTEER', label: 'Volunteers' }, { key: 'MEMBER', label: 'Members' }, { key: 'PENDING', label: 'Pending' },
+  { key: 'VOLUNTEER', label: 'Volunteers & Instructors' }, { key: 'MEMBER', label: 'Members' }, { key: 'PENDING', label: 'Pending' },
 ];
 const field = 'w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-2.5 text-sm text-white outline-none focus:border-small-orange/50 transition-all placeholder:text-white/25';
 const pill = 'px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all';
@@ -35,9 +54,13 @@ const RosterManager: React.FC<RosterManagerProps> = ({ org, myMembership, onClos
   const [err, setErr] = useState<string | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
   const [draft, setDraft] = useState<{ about: string; title: string; photo?: string }>({ about: '', title: '' });
+  const [deptRolePick, setDeptRolePick] = useState<{ ministryId: string; roleKey: string }>({
+    ministryId: org.ministries?.[0]?.id || '',
+    roleKey: 'INSTRUCTOR',
+  });
   const [q, setQ] = useState('');
   const [results, setResults] = useState<UserProfile[]>([]);
-  const [addRole, setAddRole] = useState('VOLUNTEER');
+  const [addRole, setAddRole] = useState('INSTRUCTOR');
   const [addMinistry, setAddMinistry] = useState('');
   // "Pre-provision": no Plajah user yet — create the congregation record + a claimable seat in one go.
   const [addMode, setAddMode] = useState<'search' | 'provision'>('search');
@@ -94,6 +117,21 @@ const RosterManager: React.FC<RosterManagerProps> = ({ org, myMembership, onClos
     if (roleKey === 'SENIOR_PASTOR') await updateRosterEntry(m.id, { isSenior: true });
   });
 
+  const handleToggleExtraRole = (m: OrgMembership, roleKey: string) => run(m.id, async () => {
+    await toggleOrgRoleKey(org, myMembership, m, roleKey);
+  });
+
+  const handleAddDeptRole = (m: OrgMembership) => {
+    if (!deptRolePick.ministryId || !deptRolePick.roleKey) return;
+    run(m.id, async () => {
+      await addDepartmentRole(org, myMembership, m, { ministryId: deptRolePick.ministryId, roleKey: deptRolePick.roleKey });
+    });
+  };
+
+  const handleRemoveDeptRole = (m: OrgMembership, ministryId: string, roleKey?: string) => run(m.id, async () => {
+    await removeDepartmentRole(org, myMembership, m, { ministryId, roleKey });
+  });
+
   const move = (m: OrgMembership, dir: -1 | 1) => {
     const i = list.findIndex(x => x.id === m.id), j = i + dir;
     if (j < 0 || j >= list.length) return;
@@ -101,7 +139,13 @@ const RosterManager: React.FC<RosterManagerProps> = ({ org, myMembership, onClos
     return run(m.id, async () => { await Promise.all(ids.map((id, idx) => updateRosterEntry(id, { rosterOrder: idx }))); });
   };
 
-  const startEdit = (m: OrgMembership) => { setEditId(m.id); setDraft({ about: m.aboutInOrg || '', title: m.title || '', photo: m.orgPhotoUrl }); };
+  const startEdit = (m: OrgMembership) => {
+    setEditId(m.id);
+    setDraft({ about: m.aboutInOrg || '', title: m.title || '', photo: m.orgPhotoUrl });
+    if (!deptRolePick.ministryId && ministries[0]?.id) {
+      setDeptRolePick(prev => ({ ...prev, ministryId: ministries[0].id }));
+    }
+  };
   const saveEdit = (m: OrgMembership) => run(m.id, async () => {
     await updateRosterEntry(m.id, { aboutInOrg: draft.about, title: draft.title || undefined, orgPhotoUrl: draft.photo });
     setEditId(null);
@@ -109,7 +153,7 @@ const RosterManager: React.FC<RosterManagerProps> = ({ org, myMembership, onClos
   const uploadPhoto = async (m: OrgMembership, f?: File | null) => {
     if (!f) return;
     setBusy(m.id);
-    try { const url = await uploadFile(`orgs/${org.id}/roster/${m.id}_${Date.now()}.${(f.name.split('.').pop() || 'jpg')}`, f); setDraft(d => ({ ...d, photo: url })); }
+    try { const url = await uploadFile(`uploads/organizations/${org.id}/roster/${m.id}_${Date.now()}.${(f.name.split('.').pop() || 'jpg')}`, f); setDraft(d => ({ ...d, photo: url })); }
     catch (e: any) { setErr(e?.message || 'Upload failed.'); }
     setBusy(null);
   };
@@ -129,7 +173,7 @@ const RosterManager: React.FC<RosterManagerProps> = ({ org, myMembership, onClos
       if (!created) throw new Error('Could not add that person.');
       target = created;
     }
-    await assignRole(org, myMembership, target, addRole, { ministryId: addMinistry || undefined, title: getElevateRole(addRole)?.label });
+    await assignRole(org, myMembership, target, addRole, { ministryId: addMinistry || undefined, title: getElevateRole(addRole)?.label, keepExistingInMinistry: true });
     if (addRole === 'SENIOR_PASTOR') await updateRosterEntry(target.id, { isSenior: true });
     setQ(''); setResults([]);
   });
@@ -137,7 +181,11 @@ const RosterManager: React.FC<RosterManagerProps> = ({ org, myMembership, onClos
   const preProvision = () => run('add', async () => {
     if (!pre.first.trim() || !pre.last.trim()) throw new Error('First and last name are required.');
     const person = await savePerson(org.id, { firstName: pre.first.trim(), lastName: pre.last.trim(), email: pre.email.trim() || undefined, memberNumber: pre.memberNumber.trim().toUpperCase() || undefined, status: 'MEMBER', ministryIds: addMinistry ? [addMinistry] : undefined });
-    const r = await provisionAccount(org, person, { roleKey: addRole, ministryIds: addMinistry ? [addMinistry] : undefined });
+    const r = await provisionAccount(org, person, {
+      roleKey: addRole,
+      roleKeys: addRole === 'INSTRUCTOR' ? ['INSTRUCTOR', 'DEPARTMENT_VOLUNTEER', 'MEMBER'] : [addRole, 'MEMBER'],
+      ministryIds: addMinistry ? [addMinistry] : undefined,
+    });
     setPreMsg(r ? `${person.firstName} ${person.lastName} is on the roster as ${getElevateRole(addRole)?.label}. Member ID ${r.membership.memberNumber} — they claim the account with it (+ last name) or by signing in with ${pre.email.trim() || 'their email'}.` : 'Already provisioned.');
     setPre({ first: '', last: '', email: '', memberNumber: '' });
   });
@@ -149,13 +197,24 @@ const RosterManager: React.FC<RosterManagerProps> = ({ org, myMembership, onClos
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
-          <h3 className="text-lg font-black text-white">Roster</h3>
-          <p className="text-xs text-white/40">Pastors, leaders, staff and volunteers. Pastoral, Leadership and Staff show on the public page.</p>
+          <h3 className="text-lg font-black text-white">Organization Roster &amp; Multi-Department Role Matrix</h3>
+          <p className="text-xs text-white/45">
+            Any person can belong to multiple departments and hold multiple roles simultaneously (Department Head, Department Administrator, non-credentialed Church Class Instructor, Department Volunteer, Member).
+          </p>
         </div>
         {onClose && <button onClick={onClose} className={`${pill} bg-white/5 border-white/10 text-white/60 hover:bg-white/10`}>Close</button>}
       </div>
+
+      {/* Role Distinction Callout: Church Class Instructor vs Credentialed Academia Teacher */}
+      <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/[0.06] px-4 py-2.5 text-xs text-emerald-200 flex items-center gap-2.5 flex-wrap">
+        <GraduationCap size={15} className="text-emerald-300 shrink-0" />
+        <span>
+          <strong>Role Distinction:</strong> <code className="text-emerald-300 font-bold">Instructor</code> is used for non-credentialed church &amp; Christian Education class teachers, whereas <code className="text-sky-300 font-bold">Teacher</code> is reserved strictly for credentialed educational &amp; Academia school educators.
+        </span>
+      </div>
+
       {err && <div className="text-xs text-red-300 bg-red-500/10 border border-red-500/20 rounded-2xl px-4 py-2">{err}</div>}
 
       <div className="flex gap-1.5 overflow-x-auto pb-1">
@@ -171,14 +230,18 @@ const RosterManager: React.FC<RosterManagerProps> = ({ org, myMembership, onClos
 
       {tab !== 'PENDING' && assignable.length > 0 && (
         <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-3 space-y-2">
-          <p className="text-[10px] font-black uppercase tracking-widest text-white/40 flex items-center gap-1.5"><UserPlus size={12} /> Add a person</p>
+          <p className="text-[10px] font-black uppercase tracking-widest text-white/40 flex items-center gap-1.5"><UserPlus size={12} /> Add or Assign a Person (Multi-Role / Multi-Department)</p>
           <div className="flex gap-2 flex-wrap">
-            <select className={field + ' !w-auto flex-1 min-w-[150px]'} value={addRole} onChange={e => setAddRole(e.target.value)}>
-              {assignable.map(r => <option key={r.key} value={r.key}>{r.label}</option>)}
+            <select className={field + ' !w-auto flex-1 min-w-[180px]'} value={addRole} onChange={e => setAddRole(e.target.value)}>
+              {assignable.map(r => (
+                <option key={r.key} value={r.key}>
+                  {r.label}{r.key === 'INSTRUCTOR' ? ' (Non-Credentialed Church Class)' : ''}
+                </option>
+              ))}
             </select>
             {ministries.length > 0 && (
-              <select className={field + ' !w-auto flex-1 min-w-[150px]'} value={addMinistry} onChange={e => setAddMinistry(e.target.value)}>
-                <option value="">Org-wide{addRole === 'DEPARTMENT_HEAD' ? ' (pick a ministry!)' : ''}</option>
+              <select className={field + ' !w-auto flex-1 min-w-[180px]'} value={addMinistry} onChange={e => setAddMinistry(e.target.value)}>
+                <option value="">Org-wide{(DEPARTMENT_SCOPED_ROLE_KEYS as readonly string[]).includes(addRole) ? ' (pick a department!)' : ''}</option>
                 {ministries.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
               </select>
             )}
@@ -196,7 +259,7 @@ const RosterManager: React.FC<RosterManagerProps> = ({ org, myMembership, onClos
                 <input className={field} type="email" placeholder="Email on file (lets them claim by signing in)" value={pre.email} onChange={e => setPre(p => ({ ...p, email: e.target.value }))} />
                 <input className={field} placeholder="Member ID (optional — generated if blank)" value={pre.memberNumber} onChange={e => setPre(p => ({ ...p, memberNumber: e.target.value }))} />
               </div>
-              <p className="text-[11px] text-white/40">Creates their Plajah account and seat now with the role and ministry above. They claim it from an invite, your join link or QR code.</p>
+              <p className="text-[11px] text-white/40">Creates their Plajah account and seat now with the role and department above. They claim it by signing in with their email or Member ID.</p>
               <button onClick={preProvision} disabled={busy === 'add'} className={`${pill} bg-small-orange text-black border-small-orange flex items-center gap-1.5`}>{busy === 'add' ? <Loader2 size={12} className="animate-spin" /> : <UserPlus size={12} />} Provision account</button>
               {preMsg && <p className="text-[11px] text-sky-300">{preMsg}</p>}
             </div>
@@ -209,7 +272,7 @@ const RosterManager: React.FC<RosterManagerProps> = ({ org, myMembership, onClos
             <button key={u.uid} onClick={() => addPerson(u)} disabled={busy === 'add'} className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left hover:bg-white/10">
               <span className="w-7 h-7 rounded-full overflow-hidden bg-white/10 shrink-0">{u.photoURL && <UserAvatar uid={u.uid} src={u.photoURL} alt="" className="w-full h-full object-cover" />}</span>
               <span className="text-sm text-white flex-1">{u.displayName}</span>
-              <span className="text-[10px] font-black uppercase tracking-widest text-small-orange">{busy === 'add' ? '…' : 'Add'}</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-small-orange">{busy === 'add' ? '…' : 'Assign Role'}</span>
             </button>
           ))}
         </div>
@@ -222,16 +285,18 @@ const RosterManager: React.FC<RosterManagerProps> = ({ org, myMembership, onClos
             {list.map((m, idx) => {
               const editing = editId === m.id;
               const def = getElevateRole(m.roleKey);
+              const allRoleKeys = memberRoleKeys(m);
+              const allDeptIds = memberDepartmentIds(m);
               const photo = m.orgPhotoUrl || m.photoUrl;
               const vault = pendingVaults[m.id];
-              const chosenPendingRole = pendingRoleOverride[m.id] || m.onboarding?.requestedRoleKey || m.roleKey || 'congregation_member';
+              const chosenPendingRole = pendingRoles[m.id] || m.onboarding?.requestedRoleKey || m.roleKey || 'MEMBER';
               return (
                 <div key={m.id} className="bg-white/[0.03] border border-white/10 rounded-2xl p-3">
                   <div className="flex items-center gap-3 flex-wrap sm:flex-nowrap">
                     <span className="w-10 h-10 rounded-full overflow-hidden bg-white/10 shrink-0 grid place-items-center text-sm font-black text-white/50">
                       {photo ? <UserAvatar uid={m.userId} src={photo} alt="" className="w-full h-full object-cover" /> : m.displayName.charAt(0)}
                     </span>
-                    <div className="min-w-0 flex-1">
+                    <div className="min-w-0 flex-1 space-y-1">
                       <p className="text-sm font-bold text-white truncate flex items-center gap-1.5 flex-wrap">
                         {m.displayName}
                         {m.isSenior && <Star size={12} className="text-amber-300" fill="currentColor" />}
@@ -252,12 +317,59 @@ const RosterManager: React.FC<RosterManagerProps> = ({ org, myMembership, onClos
                         )}
                       </p>
                       <p className="text-[11px] text-white/45 truncate">{m.title || def?.label || 'Member'}</p>
+
+                      {/* Multi-Role & Multi-Department Badges */}
+                      <div className="flex flex-wrap gap-1 pt-0.5">
+                        {allRoleKeys.map(rk => {
+                          const rDef = getElevateRole(rk);
+                          const isInstructor = rk === 'INSTRUCTOR';
+                          return (
+                            <span
+                              key={`rk_${rk}`}
+                              title={isInstructor ? 'Non-Credentialed Church/Org Class Instructor (distinct from Academia Teacher)' : rDef?.description}
+                              className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${
+                                isInstructor
+                                  ? 'bg-emerald-500/20 border-emerald-400/35 text-emerald-200'
+                                  : 'bg-white/[0.06] border-white/10 text-white/75'
+                              }`}
+                            >
+                              {rDef?.label || rk}
+                              {isInstructor ? ' · Non-Credentialed' : ''}
+                            </span>
+                          );
+                        })}
+                        {(m.ministryRoles || []).map((mr, i) => {
+                          const minName = ministries.find(min => min.id === mr.ministryId)?.name || mr.ministryId;
+                          const rLabel = getElevateRole(mr.roleKey)?.label || mr.roleKey;
+                          return (
+                            <span
+                              key={`mr_${mr.ministryId}_${mr.roleKey}_${i}`}
+                              className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-sky-500/15 border border-sky-400/30 text-sky-200"
+                            >
+                              {minName} · {rLabel}
+                            </span>
+                          );
+                        })}
+                        {allDeptIds
+                          .filter(dId => !(m.ministryRoles || []).some(mr => mr.ministryId === dId))
+                          .map(dId => {
+                            const minName = ministries.find(min => min.id === dId)?.name || dId;
+                            return (
+                              <span
+                                key={`dept_${dId}`}
+                                className="px-2 py-0.5 rounded-full text-[9px] font-semibold bg-indigo-500/15 border border-indigo-400/30 text-indigo-200"
+                              >
+                                Dept: {minName}
+                              </span>
+                            );
+                          })}
+                      </div>
                     </div>
                     {tab === 'PENDING' ? (
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <select
                           value={chosenPendingRole}
-                          onChange={e => setPendingRoleOverride(prev => ({ ...prev, [m.id]: e.target.value }))}
+                          onChange={e => setPendingRoles(prev => ({ ...prev, [m.id]: e.target.value }))}
                           className="bg-black/40 border border-white/15 rounded-full px-2.5 py-1 text-[10px] font-bold text-white"
                           title="Assign role upon approval"
                         >
@@ -324,9 +436,12 @@ const RosterManager: React.FC<RosterManagerProps> = ({ org, myMembership, onClos
                             <p>
                               Household / Family:{' '}
                               <span className="text-white/85">
-                                {(vault?.familyMembers || m.onboarding?.familyMembers || [])
-                                  .map(fm => `${fm.name} (${fm.relation})`)
-                                  .join(' · ')}
+                                {(() => {
+                                  const raw = (vault?.familyMembers || m.onboarding?.familyMembers) as unknown;
+                                  if (typeof raw === 'string') return raw;
+                                  if (Array.isArray(raw)) return raw.map((fm: any) => typeof fm === 'string' ? fm : `${fm.name} (${fm.relation})`).join(' · ');
+                                  return '';
+                                })()}
                               </span>
                             </p>
                           )}
@@ -357,21 +472,111 @@ const RosterManager: React.FC<RosterManagerProps> = ({ org, myMembership, onClos
                   )}
 
                   {editing && (
-                    <div className="mt-3 pt-3 border-t border-white/5 space-y-2.5">
-                      <div className="flex gap-2 flex-wrap">
-                        <select className={field + ' !w-auto flex-1 min-w-[150px]'} value={m.roleKey || ''} onChange={e => e.target.value && changeRole(m, e.target.value)}>
-                          <option value="">Role…</option>
+                    <div className="mt-3 pt-3 border-t border-white/5 space-y-3">
+                      {/* Primary Role */}
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-white/45">
+                          Primary Role
+                        </p>
+                        <select className={field} value={m.roleKey || ''} onChange={e => e.target.value && changeRole(m, e.target.value)}>
+                          <option value="">Select primary role…</option>
                           {assignable.map(r => <option key={r.key} value={r.key}>{r.label}</option>)}
                         </select>
-                        {ministries.length > 0 && assignable.some(r => r.key === 'DEPARTMENT_HEAD') && (
-                          <select className={field + ' !w-auto flex-1 min-w-[150px]'} value="" onChange={e => e.target.value && changeRole(m, 'DEPARTMENT_HEAD', e.target.value)}>
-                            <option value="">Make Department Head of…</option>
-                            {ministries.map(x => <option key={x.id} value={x.id}>{x.name}</option>)}
-                          </select>
-                        )}
                       </div>
+
+                      {/* Multi-Role Matrix (Toggle Additional Org Roles) */}
+                      <div className="space-y-1.5">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-white/45 flex items-center gap-1">
+                          <Layers size={11} /> Multi-Role Assignments (Click to toggle additional roles)
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {assignable.map(r => {
+                            const active = allRoleKeys.includes(r.key);
+                            return (
+                              <button
+                                key={r.key}
+                                type="button"
+                                onClick={() => handleToggleExtraRole(m, r.key)}
+                                className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all ${
+                                  active
+                                    ? 'bg-emerald-500/20 border-emerald-400/40 text-emerald-200'
+                                    : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10'
+                                }`}
+                              >
+                                {active ? '✓ ' : '+ '}{r.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Multi-Department Roles (Department Head, Department Admin, Instructor, Department Volunteer) */}
+                      {ministries.length > 0 && (
+                        <div className="rounded-xl border border-white/10 bg-black/30 p-3 space-y-2">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-sky-300">
+                            Department Memberships &amp; Department Roles
+                          </p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {(m.ministryRoles || []).map((mr, i) => {
+                              const minName = ministries.find(min => min.id === mr.ministryId)?.name || mr.ministryId;
+                              const rLabel = getElevateRole(mr.roleKey)?.label || mr.roleKey;
+                              return (
+                                <span
+                                  key={`${mr.ministryId}_${mr.roleKey}_${i}`}
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-sky-500/15 border border-sky-400/30 text-sky-200"
+                                >
+                                  {minName} · {rLabel}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveDeptRole(m, mr.ministryId, mr.roleKey)}
+                                    className="hover:text-red-300"
+                                    title="Remove this department role"
+                                  >
+                                    <X size={11} />
+                                  </button>
+                                </span>
+                              );
+                            })}
+                            {(m.ministryRoles || []).length === 0 && (
+                              <span className="text-[11px] text-white/40">No department-specific roles assigned yet.</span>
+                            )}
+                          </div>
+
+                          <div className="flex flex-wrap gap-2 pt-1">
+                            <select
+                              value={deptRolePick.ministryId}
+                              onChange={e => setDeptRolePick(p => ({ ...p, ministryId: e.target.value }))}
+                              className="bg-black/50 border border-white/15 rounded-xl px-3 py-1.5 text-xs text-white flex-1 min-w-[150px]"
+                            >
+                              <option value="">Select Department…</option>
+                              {ministries.map(min => (
+                                <option key={min.id} value={min.id}>{min.name}</option>
+                              ))}
+                            </select>
+                            <select
+                              value={deptRolePick.roleKey}
+                              onChange={e => setDeptRolePick(p => ({ ...p, roleKey: e.target.value }))}
+                              className="bg-black/50 border border-white/15 rounded-xl px-3 py-1.5 text-xs text-white flex-1 min-w-[180px]"
+                            >
+                              {DEPARTMENT_SCOPED_ROLE_KEYS.map(rk => (
+                                <option key={rk} value={rk}>
+                                  {getElevateRole(rk)?.label || rk}
+                                </option>
+                              ))}
+                            </select>
+                            <button
+                              type="button"
+                              onClick={() => handleAddDeptRole(m)}
+                              className="px-3 py-1.5 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 border border-sky-400/35 text-sky-200 text-xs font-black uppercase tracking-wider flex items-center gap-1"
+                            >
+                              <Plus size={12} /> Add Dept Role
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
                       <input className={field} placeholder="Title shown on the roster" value={draft.title} onChange={e => setDraft(d => ({ ...d, title: e.target.value }))} />
-                      <textarea rows={4} className={field + ' resize-none'} placeholder={`About ${m.displayName.split(' ')[0]} at ${org.name}…`} value={draft.about} onChange={e => setDraft(d => ({ ...d, about: e.target.value }))} />
+                      <textarea rows={3} className={field + ' resize-none'} placeholder={`About ${m.displayName.split(' ')[0]} at ${org.name}…`} value={draft.about} onChange={e => setDraft(d => ({ ...d, about: e.target.value }))} />
                       <div className="flex items-center gap-3 flex-wrap">
                         <label className={`${pill} bg-white/5 border-white/10 text-white/60 cursor-pointer flex items-center gap-1.5 hover:bg-white/10`}>
                           <Camera size={12} /> {draft.photo ? 'Change headshot' : 'Org headshot'}

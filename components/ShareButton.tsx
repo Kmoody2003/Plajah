@@ -4,6 +4,12 @@ import { motion, AnimatePresence } from 'motion/react';
 import Portal from './Portal';
 import EmbedShareGuide from './EmbedShareGuide';
 import { generateShareCard } from '../src/lib/shareCard';
+import {
+  PlatformGroupSharePicker,
+  publishToShareDestinations,
+  type ShareDestinationOption,
+} from './PlatformGroupSharePicker';
+import { auth } from '../services/firebase';
 
 // Show the "your link plays music" guide at most once per session.
 let _embedGuideShown = false;
@@ -40,12 +46,14 @@ interface ShareButtonProps {
   /** When provided, the menu offers "Share in Show Mode" — the same release opened first on a
    *  fullscreen visualizer stage (see ShowModeView). Toggling swaps the link everything below shares. */
   showModeUrl?: string;
+  /** Optional default organization ID when sharing from inside an org/church context. */
+  defaultOrgId?: string;
   children?: React.ReactNode;
 }
 
 const ShareButton: React.FC<ShareButtonProps> = ({
   title, text, url, imageUrl, artist, className, style, label, iconSize = 18,
-  onPostToPlajah, plajahLabel, contentType, pollData, postText, authorName, authorPhoto, ctaText, showModeUrl, children
+  onPostToPlajah, plajahLabel, contentType, pollData, postText, authorName, authorPhoto, ctaText, showModeUrl, defaultOrgId, children
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -53,6 +61,15 @@ const ShareButton: React.FC<ShareButtonProps> = ({
   const [posted, setPosted] = useState(false);
   const [card, setCard] = useState<{ dataUrl: string; blob: Blob | null } | null>(null);
   const [showGuide, setShowGuide] = useState(false);
+  const [selectedDestinations, setSelectedDestinations] = useState<ShareDestinationOption[]>([
+    {
+      id: 'public_feed',
+      kind: 'PUBLIC_FEED',
+      label: 'Public Plajah Feed',
+      sublabel: 'Visible to everyone on Plajah',
+      visibility: 'PUBLIC',
+    },
+  ]);
 
   const [showOn, setShowOn] = useState(false);
   const shareUrl = (showOn && showModeUrl) ? showModeUrl : (url || window.location.href);
@@ -90,18 +107,6 @@ const ShareButton: React.FC<ShareButtonProps> = ({
     a.click();
   };
 
-  const postToPlajah = async () => {
-    if (!onPostToPlajah || posting) return;
-    setPosting(true);
-    try { await onPostToPlajah(); setPosted(true); setTimeout(() => { setPosted(false); setIsOpen(false); }, 1400); }
-    catch { /* keep menu open on failure */ }
-    finally { setPosting(false); }
-  };
-
-  // With a Plajah action present, open the menu directly (so it's never skipped
-  // by the native share sheet); otherwise prefer the OS share sheet.
-  const handleButtonClick = () => { if (onPostToPlajah || showModeUrl) setIsOpen(true); else handleNativeShare(); };
-
   // Ensure share text never contains .com or duplicate URLs, so social preview scrapers only see the single deep link.
   const cleanText = (text || '')
     .replace(/https?:\/\/[^\s]+/gi, '')
@@ -114,43 +119,38 @@ const ShareButton: React.FC<ShareButtonProps> = ({
     .replace(/plajah\.com/gi, 'Plajah')
     .trim();
 
-  async function handleNativeShare() {
-    if (navigator.share) {
-      try {
-        const shareData: ShareData = { title: cleanTitle, text: cleanText, url: shareUrl };
-        // Prefer the gorgeous generated card; else the raw cover.
-        if (navigator.canShare) {
-          try {
-            const c = card || await generateShareCard({
-              coverUrl: imageUrl,
-              title: cleanTitle,
-              artist,
-              contentType,
-              pollData,
-              postText,
-              authorName,
-              authorPhoto,
-              ctaText,
-            });
-            let blob = c?.blob || null;
-            if (!blob && imageUrl) { blob = await (await fetch(imageUrl)).blob(); }
-            if (blob) {
-              const file = new File([blob], 'plajah-share.jpg', { type: blob.type || 'image/jpeg' });
-              const withFile = { ...shareData, files: [file] };
-              if (navigator.canShare(withFile)) { await navigator.share(withFile); return; }
-            }
-          } catch {
-            // fall through to share without file
-          }
+  const postToPlajah = async () => {
+    if (posting) return;
+    setPosting(true);
+    try {
+      const hasCustomGroupTargets = selectedDestinations.some(d => d.kind !== 'PUBLIC_FEED');
+      if (onPostToPlajah && !hasCustomGroupTargets) {
+        await onPostToPlajah();
+      } else {
+        const currentUser = auth?.currentUser;
+        await publishToShareDestinations(selectedDestinations, {
+          userId: currentUser?.uid || 'guest',
+          userName: currentUser?.displayName || authorName || 'Plajah Member',
+          userAvatar: currentUser?.photoURL || authorPhoto || '',
+          text: [cleanTitle, cleanText, shareUrl].filter(Boolean).join('\n\n'),
+          mediaUrl: imageUrl || card?.dataUrl,
+          mediaType: imageUrl ? 'image' : undefined,
+        });
+        if (onPostToPlajah && selectedDestinations.some(d => d.kind === 'PUBLIC_FEED')) {
+          await onPostToPlajah();
         }
-        await navigator.share(shareData);
-      } catch (err) {
-        setIsOpen(true);
       }
-    } else {
-      setIsOpen(true);
+      setPosted(true);
+      setTimeout(() => { setPosted(false); setIsOpen(false); }, 1400);
+    } catch {
+      /* keep menu open on failure */
+    } finally {
+      setPosting(false);
     }
   };
+
+  // Open the Plajah Share sheet so the user can always pick Public, Members, Departments, Sub-Groups, or external networks.
+  const handleButtonClick = () => { setIsOpen(true); };
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(shareUrl);
@@ -312,25 +312,40 @@ const ShareButton: React.FC<ShareButtonProps> = ({
                 </button>
               )}
 
-              {/* Post to Plajah's own feed */}
-              {onPostToPlajah && (
-                <>
-                  <button
-                    onClick={postToPlajah}
-                    disabled={posting || posted}
-                    className={`w-full mb-3 flex items-center justify-center gap-2 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 ${posted ? 'bg-green-500 text-white' : 'bg-small-orange text-black hover:brightness-110'}`}
-                  >
-                    {posted ? <><Check size={14} /> Shared to Plajah</>
-                      : posting ? <><Loader2 size={14} className="animate-spin" /> Posting…</>
-                      : <><Sparkles size={14} /> {plajahLabel || 'Post to Plajah feed'}</>}
-                  </button>
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="flex-1 h-px bg-white/10" />
-                    <span className="text-[7px] font-black uppercase tracking-[0.3em] text-white/25">Or share to</span>
-                    <div className="flex-1 h-px bg-white/10" />
-                  </div>
-                </>
-              )}
+              {/* Universal Feed, Org Member, Department, Sub-Group & Club Share Picker */}
+              <div className="mb-3 space-y-2">
+                <div className="text-[9px] font-black uppercase tracking-widest text-white/45">
+                  Choose Plajah Feeds, Org Departments &amp; Groups
+                </div>
+                <PlatformGroupSharePicker
+                  userId={auth?.currentUser?.uid}
+                  defaultOrgId={defaultOrgId}
+                  selected={selectedDestinations}
+                  onChange={setSelectedDestinations}
+                />
+                <button
+                  onClick={postToPlajah}
+                  disabled={posting || posted || selectedDestinations.length === 0}
+                  className={`w-full flex items-center justify-center gap-2 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 ${
+                    posted
+                      ? 'bg-green-500 text-white'
+                      : 'bg-small-orange text-black hover:brightness-110 disabled:opacity-45'
+                  }`}
+                >
+                  {posted ? (
+                    <><Check size={14} /> Shared to {selectedDestinations.length} Feed{selectedDestinations.length === 1 ? '' : 's'}</>
+                  ) : posting ? (
+                    <><Loader2 size={14} className="animate-spin" /> Sharing…</>
+                  ) : (
+                    <><Sparkles size={14} /> {plajahLabel || `Share to ${selectedDestinations.length} Plajah Feed${selectedDestinations.length === 1 ? '' : 's'}`}</>
+                  )}
+                </button>
+                <div className="flex items-center gap-2 pt-1">
+                  <div className="flex-1 h-px bg-white/10" />
+                  <span className="text-[7px] font-black uppercase tracking-[0.3em] text-white/25">Or share externally</span>
+                  <div className="flex-1 h-px bg-white/10" />
+                </div>
+              </div>
 
               {/* URL preview chip */}
               <div className="mb-4 px-4 py-2 bg-white/5 rounded-xl flex items-center gap-2 overflow-hidden">
@@ -354,7 +369,7 @@ const ShareButton: React.FC<ShareButtonProps> = ({
               </div>
 
               <p className="mt-4 text-[8px] font-bold text-white/20 text-center uppercase tracking-widest">
-                Link embeds with cover art on X, Facebook & WhatsApp
+                Link embeds with cover art on X, Facebook &amp; WhatsApp
               </p>
             </motion.div>
           </div>

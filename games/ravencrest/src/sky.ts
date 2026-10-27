@@ -22,13 +22,16 @@ export function moonSky(moonDir: THREE.Vector3, moonRadiusDeg: number, camera: T
   const speed = float(1).add(uStorm.mul(5));
   const drift = vec2(time.mul(0.004).mul(speed), time.mul(0.0015).mul(speed));
   const clouds = (dir: THREE.Node<"vec3">) => {
-    const p = dir.xz.div(dir.y.add(0.12)).mul(0.9);
+    const p = dir.xz.div(dir.y.max(-0.04).add(0.12)).mul(0.9);
     const c1 = mx_fractal_noise_float(vec3(p.add(drift), time.mul(0.003)), 4, 2.1, 0.52, 1);
     const c2 = mx_fractal_noise_float(vec3(p.mul(2.7).sub(drift.mul(1.6)), 3.1), 3, 2.0, 0.5, 1);
     return vec4(c1.mul(0.5).add(0.5), c2.mul(0.5).add(0.5), 0, 1);
   };
   // The bake quad has its own camera, so the main camera's matrices come in as uniforms (by
   // reference: they track the live camera, TAA jitter included). Quad uv (y up) → NDC → world ray.
+  // When cloudScale <= 0 (WebXR / stereo headsets), evaluate clouds directly along the 3D world ray
+  // instead of a single-eye screen-space RTT (which also clobbers XRManager's stereo camera state).
+  const useRtt = cloudScale > 0;
   const uProjInv = uniform(camera.projectionMatrixInverse), uCamWorld = uniform(camera.matrixWorld);
   const bakeDir = Fn(() => {
     const ndc = uv().mul(2).sub(1);
@@ -36,15 +39,18 @@ export function moonSky(moonDir: THREE.Vector3, moonRadiusDeg: number, camera: T
     const view = v.xyz.div(v.w).normalize();
     return uCamWorld.mul(vec4(view, 0)).xyz.normalize();
   })();
-  const cloudTex = rtt(clouds(bakeDir) as never, null, null, { type: THREE.HalfFloatType });
-  const bufSize = new THREE.Vector2();
-  const update = cloudTex.updateBefore.bind(cloudTex);
-  cloudTex.updateBefore = (frame) => {
-    frame.renderer!.getDrawingBufferSize(bufSize);
-    const w = Math.max(1, Math.round(bufSize.x * cloudScale)), h = Math.max(1, Math.round(bufSize.y * cloudScale));
-    if (cloudTex.width !== w || cloudTex.height !== h) cloudTex.setSize(w, h);
-    return update(frame);
-  };
+  const cloudTex = useRtt ? rtt(clouds(bakeDir) as never, null, null, { type: THREE.HalfFloatType }) : null;
+  if (cloudTex) {
+    const bufSize = new THREE.Vector2();
+    const update = cloudTex.updateBefore.bind(cloudTex);
+    cloudTex.updateBefore = (frame) => {
+      if (frame.renderer?.xr?.isPresenting) return;
+      frame.renderer!.getDrawingBufferSize(bufSize);
+      const w = Math.max(1, Math.round(bufSize.x * cloudScale)), h = Math.max(1, Math.round(bufSize.y * cloudScale));
+      if (cloudTex.width !== w || cloudTex.height !== h) cloudTex.setSize(w, h);
+      return update(frame);
+    };
+  }
 
   const node = Fn(() => {
     const dir = positionWorldDirection.normalize();
@@ -56,7 +62,7 @@ export function moonSky(moonDir: THREE.Vector3, moonRadiusDeg: number, camera: T
     const base = mix(vec3(0.03, 0.037, 0.05), vec3(0.008, 0.011, 0.016), smoothstep(float(0.0), float(0.6), up));
 
     // Render targets are stored top-down under WebGPU: flip V back to screen orientation.
-    const cc = cloudTex.sample(vec2(screenUV.x, float(1).sub(screenUV.y)));
+    const cc = cloudTex ? cloudTex.sample(vec2(screenUV.x, float(1).sub(screenUV.y))) : clouds(dir);
     const c1 = cc.r.mul(2).sub(1), c2 = cc.g.mul(2).sub(1);
     const density = smoothstep(float(-0.4).sub(uStorm.mul(0.6)), float(0.35).sub(uStorm.mul(0.3)), c1.add(c2.mul(0.45))).mul(smoothstep(float(-0.02), float(0.08), dir.y));
 

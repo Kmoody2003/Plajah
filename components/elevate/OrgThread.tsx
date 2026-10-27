@@ -1,21 +1,37 @@
 // OrgThread — the social thread for an org (org-wide) or one ministry/department.
 //
-// Behaviour (enforced here AND in firestore.rules):
-//   • PUBLIC thread   → posts go on the public timeline; anyone signed in may comment.
-//   • ORG thread      → readable by anyone; ONLY members + followers may comment (orgAudience 'MEMBERS').
-//   • DEPARTMENT      → readable + commentable by department members only (orgAudience 'DEPARTMENT').
-// Leaders (MODERATE_THREADS) switch the audience and remove posts.
+// Uses UniversalPostComposer (the same composer as CommentSection & FeedView) with OrgAudienceToggle
+// so organizations and authorized members can post to Public, Members, Members-Only (Internal),
+// specific Departments, and specific Sub-Groups, and share any post via ShareButton.
 
 import { UserAvatar } from '../avatar/UserAvatar';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Heart, MessageCircle, Trash2, Send, Lock, Globe, Users, Loader2, UserPlus } from 'lucide-react';
+import { Heart, MessageCircle, Trash2, Lock, Globe, Users, UserPlus, Layers } from 'lucide-react';
 import type { Organization, OrgMembership, Ministry, Post } from '../../types';
-import { listenToOrgThread, listenToOrgInternal, createOrgPost, togglePostLike, deletePost, subscribeToPostComments, auth } from '../../services/backendService';
+import {
+  listenToOrgThread,
+  listenToOrgInternal,
+  createOrgPost,
+  togglePostLike,
+  deletePost,
+  subscribeToPostComments,
+  postFieldsForAssetEmbed,
+  auth,
+} from '../../services/backendService';
 import { updateOrganization } from '../../services/organizationService';
 import { saveMinistries } from '../../services/elevateService';
 import { elevateCan } from '../../services/elevateRoles';
 import { listenFollowedState, followOrg } from '../../services/orgFollowService';
 import CommentSection from '../CommentSection';
+import UniversalPostComposer, { type ComposerSubmitData } from '../UniversalPostComposer';
+import { resolveComposerMedia } from '../FeedView';
+import OrgAudienceToggle, {
+  type OrgPostTarget,
+  orgTargetToPostFields,
+  canViewerSeeOrgPost,
+  extractOrgDepartmentsAndGroups,
+} from './OrgAudienceToggle';
+import ShareButton from '../ShareButton';
 
 type Audience = 'DEPARTMENT' | 'ORG' | 'PUBLIC';
 
@@ -69,32 +85,37 @@ const OrgThread: React.FC<Props> = ({ org, myMembership, ministry, onVisitUser, 
   const audience: Audience = ministry ? (ministry.threadAudience || 'ORG') : (org.threadAudience || 'ORG');
   const [posts, setPosts] = useState<Post[]>([]);
   const [denied, setDenied] = useState(false);
-  const [text, setText] = useState('');
-  const [postAud, setPostAud] = useState<'PUBLIC' | 'MEMBERS' | 'INTERNAL'>(audience === 'PUBLIC' ? 'PUBLIC' : 'MEMBERS');
   const [internalPosts, setInternalPosts] = useState<Post[]>([]);
   const [viewPref, setView] = useState<FeedView>(() => { try { return (localStorage.getItem(VIEW_KEY(org.id)) as FeedView) || 'BLEND'; } catch { return 'BLEND'; } });
-  const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [followed, setFollowed] = useState({ org: false, ministries: [] as string[] });
+  const [feedDeptFilter, setFeedDeptFilter] = useState<string>('ALL');
+
+  // Target selection for UniversalPostComposer
+  const [postTarget, setPostTarget] = useState<OrgPostTarget>(() =>
+    ministry
+      ? { scope: 'DEPARTMENTS', departmentIds: [ministry.id], subGroupIds: [], rosterGroups: [], targetLabels: [ministry.name] }
+      : { scope: audience === 'PUBLIC' ? 'PUBLIC' : 'MEMBERS', departmentIds: [], subGroupIds: [], rosterGroups: [], targetLabels: [] }
+  );
 
   useEffect(() => listenFollowedState(org.id, setFollowed), [org.id, uid]);
-  useEffect(() => { setPostAud(audience === 'PUBLIC' ? 'PUBLIC' : 'MEMBERS'); }, [audience]);
+  useEffect(() => {
+    if (ministry) {
+      setPostTarget({ scope: 'DEPARTMENTS', departmentIds: [ministry.id], subGroupIds: [], rosterGroups: [], targetLabels: [ministry.name] });
+    } else {
+      setPostTarget(prev => ({ ...prev, scope: audience === 'PUBLIC' ? 'PUBLIC' : 'MEMBERS' }));
+    }
+  }, [audience, ministry?.id]);
 
   const isMember = myMembership?.status === 'ACTIVE';
-  const orgFeed = !ministry;   // the blended Public / Members feed is the org-wide thread; a department thread keeps its own single audience
+  const orgFeed = !ministry;
   const inDept = ministry ? isDepartmentMember(myMembership, org, ministry) || elevateCan(myMembership, org, 'MODERATE_THREADS') : false;
   const canModerate = elevateCan(myMembership, org, 'MODERATE_THREADS', { ministryId: ministry?.id });
   const canPost = !readOnly && elevateCan(myMembership, org, 'POST_AS_ORG', { ministryId: ministry?.id });
 
   const canRead = audience !== 'DEPARTMENT' || inDept;
   const canSeeInternal = orgFeed && !!uid && (isMember || canModerate);
-  // A saved 'Members' choice means nothing to someone who can't see members-only posts (left the org, signed out): fall back to everything they can see.
   const view: FeedView = !canSeeInternal && viewPref === 'MEMBERS' ? 'BLEND' : viewPref;
-  const canComment = !!uid && (
-    audience === 'PUBLIC' ||
-    (audience === 'ORG' && (isMember || followed.org || canModerate)) ||
-    (audience === 'DEPARTMENT' && inDept)
-  );
 
   useEffect(() => {
     if (!canRead) { setPosts([]); return; }
@@ -102,34 +123,69 @@ const OrgThread: React.FC<Props> = ({ org, myMembership, ministry, onVisitUser, 
     return listenToOrgThread(org.id, { departmentId: ministry?.id, audience }, setPosts, () => setDenied(true));
   }, [org.id, ministry?.id, audience, canRead]);
 
-  // Members-only posts: a separate stream, only subscribed when the viewer is a member or leader (rules enforce the same).
   useEffect(() => {
     if (!canSeeInternal) { setInternalPosts([]); return; }
     return listenToOrgInternal(org.id, setInternalPosts, () => setInternalPosts([]));
   }, [org.id, canSeeInternal]);
-  useEffect(() => { setPostAud(a => (view === 'MEMBERS' && canSeeInternal ? 'INTERNAL' : a === 'INTERNAL' && view === 'PUBLIC' ? 'PUBLIC' : a)); }, [view, canSeeInternal]);
+
+  useEffect(() => {
+    if (!ministry) {
+      setPostTarget(prev => ({
+        ...prev,
+        scope: view === 'MEMBERS' && canSeeInternal ? 'INTERNAL' : prev.scope === 'INTERNAL' && view === 'PUBLIC' ? 'PUBLIC' : prev.scope,
+      }));
+    }
+  }, [view, canSeeInternal, ministry]);
+
   const chooseView = (v: FeedView) => { setView(v); try { localStorage.setItem(VIEW_KEY(org.id), v); } catch { /* private mode */ } };
+
+  const { departments } = useMemo(() => extractOrgDepartmentsAndGroups(org), [org]);
 
   const publicPosts = useMemo(() => posts.filter(p => p.orgAudience !== 'INTERNAL'), [posts]);
   const shown = useMemo(() => {
-    if (!orgFeed) return posts;
-    const pub = view === 'MEMBERS' ? [] : publicPosts;
-    const internal = view === 'PUBLIC' || !canSeeInternal ? [] : internalPosts;
-    return [...pub, ...internal].sort((a, b) => b.timestamp - a.timestamp);
-  }, [orgFeed, view, posts, publicPosts, internalPosts, canSeeInternal]);
+    const base = !orgFeed
+      ? posts
+      : [
+          ...(view === 'MEMBERS' ? [] : publicPosts),
+          ...(view === 'PUBLIC' || !canSeeInternal ? [] : internalPosts),
+        ];
 
-  const publish = async () => {
-    if (!text.trim() || busy) return;
-    setBusy(true);
-    try {
-      const orgAudience = audience === 'DEPARTMENT' ? 'DEPARTMENT' : orgFeed && postAud === 'MEMBERS' ? 'PUBLIC' : postAud;
-      await createOrgPost(org.id, org.name, org.logoUrl || '', {
-        text: text.trim(),
-        orgAudience,
-        ...(ministry ? { orgDepartmentId: ministry.id } : {}),
-      } as Partial<Post>);
-      setText('');
-    } finally { setBusy(false); }
+    const byId = new Map<string, Post>();
+    for (const p of base) byId.set(p.id, p);
+
+    return Array.from(byId.values())
+      .filter(p => canViewerSeeOrgPost(p, org, myMembership, canModerate))
+      .filter(p => {
+        if (feedDeptFilter === 'ALL') return true;
+        return (
+          p.orgDepartmentId === feedDeptFilter ||
+          (p.orgDepartmentIds || []).includes(feedDeptFilter) ||
+          (p.orgGroupIds || []).includes(feedDeptFilter)
+        );
+      })
+      .sort((a, b) => b.timestamp - a.timestamp);
+  }, [orgFeed, view, posts, publicPosts, internalPosts, canSeeInternal, org, myMembership, canModerate, feedDeptFilter]);
+
+  const handleUniversalPublish = async (data: ComposerSubmitData) => {
+    const resolvedMedia = await resolveComposerMedia(data.attachments || [], uid || org.creatorId || org.id);
+    const embedFields = await postFieldsForAssetEmbed(data.assetEmbed);
+    const targetFields = orgTargetToPostFields(
+      ministry && postTarget.scope !== 'DEPARTMENTS' && postTarget.scope !== 'SUBGROUPS'
+        ? { ...postTarget, departmentIds: [ministry.id], targetLabels: [ministry.name] }
+        : postTarget,
+      org
+    );
+
+    await createOrgPost(org.id, org.name, org.logoUrl || '', {
+      text: (data.text || '').trim(),
+      ...targetFields,
+      ...(ministry && !targetFields.orgDepartmentId ? { orgDepartmentId: ministry.id } : {}),
+      ...(resolvedMedia.length ? { media: resolvedMedia } : {}),
+      ...(data.poll ? { poll: data.poll } : {}),
+      ...(data.quotedPost ? { quotedPost: data.quotedPost } : {}),
+      ...(data.taggedUsers?.length ? { taggedUsers: data.taggedUsers } : {}),
+      ...embedFields,
+    } as Partial<Post>);
   };
 
   const setThreadAudience = async (a: Audience) => {
@@ -158,7 +214,7 @@ const OrgThread: React.FC<Props> = ({ org, myMembership, ministry, onVisitUser, 
     <div>
       {canModerate && (
         <div className="flex flex-wrap items-center gap-2 mb-3">
-          <span className="text-[9px] font-black uppercase tracking-widest text-white/40">Who can see & comment</span>
+          <span className="text-[9px] font-black uppercase tracking-widest text-white/40">Who can see &amp; comment</span>
           {available.map(a => (
             <button key={a.key} onClick={() => setThreadAudience(a.key)} title={a.hint}
               className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all ${audience === a.key ? 'bg-white text-black border-white' : 'bg-white/5 border-white/10 text-white/50 hover:text-white'}`}>
@@ -170,55 +226,85 @@ const OrgThread: React.FC<Props> = ({ org, myMembership, ministry, onVisitUser, 
       <p className="text-[9px] text-white/30 mb-3">{AUDIENCES.find(a => a.key === audience)?.hint}</p>
 
       {orgFeed && (
-        <div role="tablist" aria-label="Feed view" className="grid grid-cols-3 gap-1 p-1 mb-4 rounded-2xl bg-white/[0.05] border border-white/10">
-          {([
-            ['BLEND', 'Everything', canSeeInternal ? publicPosts.length + internalPosts.length : publicPosts.length],
-            ['PUBLIC', 'Public', publicPosts.length],
-            ['MEMBERS', 'Members', internalPosts.length],
-          ] as const).map(([k, l, n]) => {
-            const locked = k === 'MEMBERS' && !canSeeInternal;
-            const on = view === k;
-            return (
-              <button key={k} role="tab" aria-selected={on} disabled={locked} onClick={() => chooseView(k)}
-                title={locked ? 'Members-only posts are visible to members of this organization' : undefined}
-                className={`h-11 rounded-xl text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 transition-all disabled:opacity-35 ${on ? 'text-black' : 'text-white/55'}`}
-                style={on ? { background: k === 'MEMBERS' ? VIOLET : k === 'PUBLIC' ? '#E7E5EA' : '#fff' } : undefined}>
-                {k === 'MEMBERS' ? <Lock size={11} /> : k === 'PUBLIC' ? <Globe size={11} /> : null}
-                {l}<span className="tabular-nums opacity-60">{locked ? '' : n}</span>
+        <div className="space-y-2 mb-4">
+          <div role="tablist" aria-label="Feed view" className="grid grid-cols-3 gap-1 p-1 rounded-2xl bg-white/[0.05] border border-white/10">
+            {([
+              ['BLEND', 'Everything', canSeeInternal ? publicPosts.length + internalPosts.length : publicPosts.length],
+              ['PUBLIC', 'Public', publicPosts.length],
+              ['MEMBERS', 'Members & Depts', internalPosts.length],
+            ] as const).map(([k, l, n]) => {
+              const locked = k === 'MEMBERS' && !canSeeInternal;
+              const on = view === k;
+              return (
+                <button key={k} role="tab" aria-selected={on} disabled={locked} onClick={() => chooseView(k)}
+                  title={locked ? 'Members-only posts are visible to members of this organization' : undefined}
+                  className={`h-11 rounded-xl text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 transition-all disabled:opacity-35 ${on ? 'text-black' : 'text-white/55'}`}
+                  style={on ? { background: k === 'MEMBERS' ? VIOLET : k === 'PUBLIC' ? '#E7E5EA' : '#fff' } : undefined}>
+                  {k === 'MEMBERS' ? <Lock size={11} /> : k === 'PUBLIC' ? <Globe size={11} /> : null}
+                  {l}<span className="tabular-nums opacity-60">{locked ? '' : n}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Department / Sub-Group Feed Filter Bar */}
+          {departments.length > 0 && (
+            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide pb-1">
+              <button
+                type="button"
+                onClick={() => setFeedDeptFilter('ALL')}
+                className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider shrink-0 border transition ${
+                  feedDeptFilter === 'ALL'
+                    ? 'bg-white text-black border-white'
+                    : 'bg-white/5 border-white/10 text-white/55 hover:text-white'
+                }`}
+              >
+                All Feeds
               </button>
-            );
-          })}
+              {departments.map(d => (
+                <button
+                  key={d.id}
+                  type="button"
+                  onClick={() => setFeedDeptFilter(feedDeptFilter === d.id ? 'ALL' : d.id)}
+                  className={`px-3 py-1 rounded-full text-[10px] font-bold shrink-0 border transition ${
+                    feedDeptFilter === d.id
+                      ? 'bg-[#8B5CF6] text-white border-[#D0BCFF]'
+                      : 'bg-white/5 border-white/10 text-white/60 hover:text-white'
+                  }`}
+                >
+                  {d.emoji ? `${d.emoji} ` : ''}{d.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
+      {/* Universal Post Composer (Same as CommentSection.tsx & FeedView.tsx) with OrgAudienceToggle */}
       {canPost && (
-        <div className="rounded-2xl p-4 mb-4 border" style={orgFeed && postAud === 'INTERNAL' ? { background: TONE.internal.bg, borderColor: TONE.internal.border } : { background: TONE.public.bg, borderColor: TONE.public.border }}>
-          <textarea value={text} onChange={e => setText(e.target.value)} rows={2}
-            placeholder={orgFeed && postAud === 'INTERNAL' ? `Members-only post to ${org.name}…` : `Post to ${ministry?.name || org.name} as ${org.name}…`}
-            className="w-full bg-transparent text-base md:text-sm outline-none resize-none placeholder:text-white/25" />
-          <div className="flex items-center justify-between pt-2 border-t border-white/8 mt-2">
-            {audience === 'DEPARTMENT' ? (
-              <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-white/40"><Lock size={10} /> Department only</span>
-            ) : (
-              <div className="flex gap-1">
-                {(orgFeed ? (['PUBLIC', 'INTERNAL'] as const) : (['PUBLIC', 'MEMBERS'] as const)).map(a => {
-                  const on = postAud === a || (orgFeed && a === 'PUBLIC' && postAud === 'MEMBERS');
-                  const internal = a === 'INTERNAL';
-                  return (
-                    <button key={a} onClick={() => setPostAud(a)}
-                      className={`h-10 px-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${on ? 'text-white' : 'text-white/40 hover:text-white/70'}`}
-                      style={on ? { background: internal ? 'rgba(122,31,192,0.45)' : 'rgba(255,255,255,0.12)' } : undefined}>
-                      {internal ? <Lock size={10} /> : <Globe size={10} />}{a === 'PUBLIC' ? 'Public' : 'Members'}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-            <button onClick={publish} disabled={!text.trim() || busy}
-              className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-small-orange text-black text-[10px] font-black uppercase tracking-widest disabled:opacity-30">
-              {busy ? <Loader2 size={11} className="animate-spin" /> : <Send size={11} />} Post
-            </button>
-          </div>
+        <div className="mb-4">
+          <UniversalPostComposer
+            currentUser={auth.currentUser}
+            compact
+            avatarUrl={org.logoUrl || auth.currentUser?.photoURL || undefined}
+            placeholder={
+              postTarget.scope === 'INTERNAL'
+                ? `Members-only post to ${org.name}…`
+                : postTarget.scope === 'DEPARTMENTS' || postTarget.scope === 'SUBGROUPS'
+                ? `Post to ${postTarget.targetLabels?.join(', ') || ministry?.name || 'selected departments/groups'}…`
+                : `Post to ${ministry?.name || org.name} as ${org.name}…`
+            }
+            submitLabel="Publish"
+            destinationSlot={
+              <OrgAudienceToggle
+                org={org}
+                target={postTarget}
+                onTargetChange={setPostTarget}
+                compact
+              />
+            }
+            onPost={handleUniversalPublish}
+          />
         </div>
       )}
 
@@ -230,22 +316,27 @@ const OrgThread: React.FC<Props> = ({ org, myMembership, ministry, onVisitUser, 
         <div className="space-y-3">
           {shown.map(p => {
             const liked = !!uid && p.likedBy?.includes(uid);
-            const internal = p.orgAudience === 'INTERNAL';
+            const internal = p.orgAudience === 'INTERNAL' || p.orgAudience === 'DEPARTMENT';
             const memberOnly = p.orgAudience === 'MEMBERS';
             const tone = internal ? TONE.internal : TONE.public;
             const postCanComment = !!uid && (
               internal ? (isMember || canModerate) : !p.orgAudience || p.orgAudience === 'PUBLIC' ? true : memberOnly ? (isMember || followed.org || canModerate) : inDept);
             return (
               <div key={p.id} className="rounded-2xl p-4 border" data-audience={internal ? 'internal' : 'public'} style={{ background: tone.bg, borderColor: tone.border }}>
-                <div className="flex items-center gap-2 mb-2">
+                <div className="flex items-center gap-2 mb-2 flex-wrap">
                   <UserAvatar uid={p.authorId} src={p.authorPhoto || org.logoUrl || ''} className="w-8 h-8 rounded-full border border-white/10 object-cover" alt="" />
                   <p className="text-sm font-black text-white flex-1 min-w-0 truncate">{p.authorName || org.name}
                     <span className="text-white/30 font-bold text-[9px]"> · {new Date(p.timestamp).toLocaleDateString()}</span></p>
+                  {p.orgTargetLabels && p.orgTargetLabels.length > 0 && (
+                    <span className="text-[9px] font-black uppercase tracking-wider flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-purple-500/25 border border-purple-400/35 text-purple-200">
+                      <Layers size={9} /> {p.orgTargetLabels.join(' · ')}
+                    </span>
+                  )}
                   {orgFeed && (internal
-                    ? <span className="text-[9px] font-black uppercase tracking-widest flex items-center gap-1 px-2 py-1 rounded-full" style={{ color: VIOLET, background: 'rgba(122,31,192,0.28)' }}><Lock size={9} /> Members only</span>
+                    ? <span className="text-[9px] font-black uppercase tracking-widest flex items-center gap-1 px-2 py-1 rounded-full" style={{ color: VIOLET, background: 'rgba(122,31,192,0.28)' }}><Lock size={9} /> {p.orgAudience === 'DEPARTMENT' ? 'Department' : 'Members only'}</span>
                     : <span className="text-[9px] font-black uppercase tracking-widest flex items-center gap-1" style={{ color: TONE.public.ink }}><Globe size={9} /> Public</span>)}
                   {!orgFeed && memberOnly && <span className="text-[8px] font-black uppercase tracking-widest text-white/40 flex items-center gap-1"><Users size={9} /> Members</span>}
-                  {p.orgAudience === 'DEPARTMENT' && <span className="text-[8px] font-black uppercase tracking-widest text-white/40 flex items-center gap-1"><Lock size={9} /> Dept</span>}
+                  {p.orgAudience === 'DEPARTMENT' && !orgFeed && <span className="text-[8px] font-black uppercase tracking-widest text-white/40 flex items-center gap-1"><Lock size={9} /> Dept</span>}
                   {(canModerate || p.authorId === uid) && (
                     <button onClick={() => window.confirm('Remove this post?') && deletePost(p.id)} className="text-white/25 hover:text-rose-400"><Trash2 size={13} /></button>
                   )}
@@ -261,6 +352,14 @@ const OrgThread: React.FC<Props> = ({ org, myMembership, ministry, onVisitUser, 
                     className="h-10 -my-2 flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest hover:text-white" style={{ color: internal ? 'rgba(208,188,255,0.7)' : 'rgba(255,255,255,0.4)' }}>
                     <MessageCircle size={12} /> {p.commentsCount || 0}
                   </button>
+                  <ShareButton
+                    url={`${window.location.origin}/?org=${org.id}&post=${p.id}`}
+                    title={`${p.authorName || org.name} on Plajah Elevate`}
+                    description={p.text?.slice(0, 140)}
+                    contentId={p.id}
+                    contentType="post"
+                    compact
+                  />
                 </div>
                 {open[p.id] && (
                   <div className="mt-3 pt-3 border-t" style={{ borderColor: tone.divider }}>

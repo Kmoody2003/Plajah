@@ -39,6 +39,8 @@ export interface ChurchProgram {
   description: string;
   meetingSchedule?: string;
   leadInstructor?: string;
+  /** Multi-role Christian Education team: Non-Credentialed Instructors, Department Heads, Department Admins & Volunteers. */
+  assignedTeam?: Array<{ uid?: string; personId?: string; name: string; roleKey: 'INSTRUCTOR' | 'DEPARTMENT_HEAD' | 'DEPARTMENT_ADMIN' | 'DEPARTMENT_VOLUNTEER' }>;
   courseIds: string[];
   weeks: PlanWeek[];
   classroomId?: string;

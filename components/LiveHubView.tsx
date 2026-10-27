@@ -94,11 +94,11 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
   const [showGoLiveWizard, setShowGoLiveWizard] = useState(false);
   const [showMobileLive, setShowMobileLive] = useState(false);
   // When the guide tunes a FAST channel, jump to the TV+ surface focused on it.
-  const [tuneOwnerId, setTuneOwnerId] = useState<string | undefined>(undefined);
-  const [tunePlajahId, setTunePlajahId] = useState<string | undefined>(undefined);
-  const [tuneNumber, setTuneNumber] = useState<string | undefined>(undefined);
+  const [tuneOwnerId, setTuneOwnerId] = useState<string | undefined>(initialChannelFocus?.ownerId);
+  const [tunePlajahId, setTunePlajahId] = useState<string | undefined>(initialChannelFocus?.plajahId);
+  const [tuneNumber, setTuneNumber] = useState<string | undefined>(initialChannelFocus?.number);
 
-  const [tuneSourceId, setTuneSourceId] = useState<string | undefined>();
+  const [tuneSourceId, setTuneSourceId] = useState<string | undefined>(initialChannelFocus?.sourceId);
 
   // A shared-channel deep-link: land on TV+ tuned to the channel, then clear it so navigating away
   // and back does not re-tune.

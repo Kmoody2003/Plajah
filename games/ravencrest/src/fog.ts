@@ -56,13 +56,14 @@ export class GroundFog {
 
   update(dt: number, camera: THREE.Camera) {
     this.t += dt;
-    const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3(), Y = new THREE.Vector3(0, 1, 0);
+    const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3(), Y = new THREE.Vector3(0, 1, 0), camPos = new THREE.Vector3();
+    camera.getWorldPosition(camPos);
     const wind = new THREE.Vector3(0.8, 0, 0.35).normalize();
     this.puffs.forEach((f, i) => {
       // A slow wander around home (bounded, so the fog stays where it pools).
       const w = this.t * f.drift + f.phase;
       p.copy(f.home).addScaledVector(wind, Math.sin(w * 0.11) * 6).add(new THREE.Vector3(Math.sin(w * 0.07 + 1.3) * 2.5, 0, Math.cos(w * 0.09) * 2.5));
-      q.setFromAxisAngle(Y, Math.atan2(camera.position.x - p.x, camera.position.z - p.z));
+      q.setFromAxisAngle(Y, Math.atan2(camPos.x - p.x, camPos.z - p.z));
       m.compose(p.setY(f.home.y - 0.15), q, s.set(f.size, f.h, 1));
       this.mesh.setMatrixAt(i, m);
     });

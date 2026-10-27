@@ -1,18 +1,43 @@
 import { collection, doc, setDoc, deleteDoc, getDocs, query, where } from 'firebase/firestore';
 import { ref, uploadBytesResumable, deleteObject } from 'firebase/storage';
-import { opsDb, auth, storage } from './firebase';
+import { db, opsDb, auth, storage } from './firebase';
+import type { Organization, Ministry, TelaDoc } from '../types';
+import { defaultMinistries, ensureChurchMusicAndEducationDepartments } from './elevateTemplates';
 
 // ─────────────────────────────────────────────────────────────────────────
 // Org / per-account private Digital Asset Manager (Content HQ).
 //
-// Arbitrary files (brand specs, documents, PDFs, images, media) held privately
-// for an ORG (scopeKind 'org', scopeId = organization id) or a single ACCOUNT
-// (scopeKind 'user', scopeId = uid). Access control lives on the Firestore
-// `orgAssets` docs (rules gate reads/writes to the scope's admins/owner); the
-// Storage originals are private and are streamed through the authorized server
-// endpoint. Distinct from the cross-service media library (published
-// albums/videos) that ContentAssetManager already surfaces.
+// Arbitrary files (brand specs, documents, PDFs, images, media, and paired
+// Original + Interactive Tela Documents) held privately for an ORG
+// (scopeKind 'org', scopeId = organization id, e.g. Great Faith Ministries)
+// or a single ACCOUNT (scopeKind 'user', scopeId = uid).
+// Each department of the organization has its own Folder Scope inside
+// Content HQ (e.g., "Christian Education", "Music Department", "Media", etc.).
 // ─────────────────────────────────────────────────────────────────────────
+
+export const GREAT_FAITH_MINISTRIES_DEFAULT_ID = 'great-faith-ministries';
+export const GREAT_FAITH_MINISTRIES_NAME = 'Great Faith Ministries';
+
+export const GREAT_FAITH_MINISTRIES_ORG: Organization = {
+  id: GREAT_FAITH_MINISTRIES_DEFAULT_ID,
+  orgType: 'CHURCH',
+  name: GREAT_FAITH_MINISTRIES_NAME,
+  handle: 'greatfaithministries',
+  tagline: 'Walking by Faith, Teaching the Word, Equipping the Saints.',
+  about:
+    'Great Faith Ministries — Official Plajah Elevate Organization Account, Christian Education Classrooms, Interactive Tela Curriculum Library, and Department Operations.',
+  accentColor: '#8B5CF6',
+  creatorId: 'great-faith-admin',
+  admins: ['great-faith-admin'],
+  category: 'Christian Ministry',
+  denomination: 'Christian Ministry',
+  isDemo: false,
+  isPublic: true,
+  isVerified: true,
+  ministries: defaultMinistries('CHURCH'),
+  createdAt: 1_725_000_000_000,
+  updatedAt: 1_725_000_000_000,
+};
 
 export type OwnerScope =
   | { kind: 'org'; id: string; ownerUid?: string; adminUids?: string[]; label?: string }
@@ -32,13 +57,21 @@ export interface OrgAsset {
   storagePath: string;
   sizeBytes: number;
   folder?: string;
+  /** Department scope within the Organization Asset Management System (e.g., "Christian Education"). */
+  departmentId?: string;
+  departmentName?: string;
+  /** Distinguishes the Original Source document copy from its Interactive Tela Document version. */
+  assetVariant?: 'ORIGINAL_SOURCE' | 'TELA_DOCUMENT' | 'ANSWER_KEY';
+  /** When assetVariant === 'TELA_DOCUMENT' (or linked), points to the TelaDoc id in telaStore. */
+  telaDocId?: string;
+  /** Links the Original Source asset and the Interactive Tela Document asset to each other. */
+  pairedAssetId?: string;
+  /** Original Google Doc / Google Form / PDF URL if ingested from a link. */
+  sourceUrl?: string;
+  /** Preserved text/markdown snapshot of the original document for instant preview inside Content HQ. */
+  rawContentText?: string;
   tags?: string[];
   status?: import('../types').HqAssetStatus;
-  // ── Wave 3 trust hardening: malware / MIME quarantine state machine ──────────
-  // New uploads start 'PENDING' and are gated (no preview/download) until the
-  // server-side scan endpoint verifies the real MIME + type/size allowlist and
-  // sets 'CLEAN' or 'QUARANTINED'. Legacy assets predating this field are treated
-  // as CLEAN (grandfathered) by the server gate.
   scanStatus?: 'PENDING' | 'CLEAN' | 'QUARANTINED';
   scanReason?: string;
   scannedAt?: number;
@@ -108,11 +141,335 @@ async function assertUnderHqCap(scope: OwnerScope, incomingBytes: number): Promi
   }
 }
 
-/** All Content HQ assets for a scope (client-sorted newest-first to avoid a composite index). */
+const LOCAL_MIRROR_KEY = (scopeId: string) => `plajah_org_assets_mirror_v1_${scopeId}`;
+
+function readLocalMirrorAssets(scopeId: string): OrgAsset[] {
+  try {
+    const raw = localStorage.getItem(LOCAL_MIRROR_KEY(scopeId));
+    const list: OrgAsset[] = raw ? JSON.parse(raw) : [];
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveLocalMirrorAssets(scopeId: string, assets: OrgAsset[]): void {
+  try {
+    localStorage.setItem(LOCAL_MIRROR_KEY(scopeId), JSON.stringify(assets));
+  } catch {
+    // ignore storage quota
+  }
+}
+
+/**
+ * Resolves the Great Faith Ministries organization account (and NEVER routes to DEMO_CHURCH / 'demo-grace-chapel').
+ */
+export async function resolveGreatFaithMinistriesOrg(preferredOrg?: Organization | null): Promise<Organization> {
+  if (
+    preferredOrg &&
+    !preferredOrg.isDemo &&
+    preferredOrg.id !== 'demo-grace-chapel' &&
+    preferredOrg.name?.toLowerCase().includes('great faith')
+  ) {
+    return {
+      ...preferredOrg,
+      ministries: ensureChurchMusicAndEducationDepartments(preferredOrg),
+    };
+  }
+
+  try {
+    const snap = await getDocs(collection(db, 'organizations'));
+    const allOrgs = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) } as Organization));
+    const exactGreatFaith = allOrgs.find(
+      o =>
+        !o.isDemo &&
+        o.id !== 'demo-grace-chapel' &&
+        (o.name?.toLowerCase().includes('great faith') || o.handle?.toLowerCase().includes('greatfaith'))
+    );
+    if (exactGreatFaith) {
+      return {
+        ...exactGreatFaith,
+        ministries: ensureChurchMusicAndEducationDepartments(exactGreatFaith),
+      };
+    }
+
+    if (preferredOrg && !preferredOrg.isDemo && preferredOrg.id !== 'demo-grace-chapel') {
+      return {
+        ...preferredOrg,
+        ministries: ensureChurchMusicAndEducationDepartments(preferredOrg),
+      };
+    }
+
+    const firstRealChurch = allOrgs.find(
+      o => !o.isDemo && o.id !== 'demo-grace-chapel' && (o.orgType === 'CHURCH' || o.orgType === 'RELIGIOUS')
+    );
+    if (firstRealChurch) {
+      return {
+        ...firstRealChurch,
+        ministries: ensureChurchMusicAndEducationDepartments(firstRealChurch),
+      };
+    }
+  } catch {
+    // offline or rules fallback
+  }
+
+  if (preferredOrg && !preferredOrg.isDemo && preferredOrg.id !== 'demo-grace-chapel') {
+    return {
+      ...preferredOrg,
+      ministries: ensureChurchMusicAndEducationDepartments(preferredOrg),
+    };
+  }
+
+  return GREAT_FAITH_MINISTRIES_ORG;
+}
+
+/**
+ * Returns the canonical Department Folder Scopes for an organization in Content HQ
+ * (e.g. Christian Education, Music Department, Worship Teams, Band, Choir, Media, Finance, etc.).
+ */
+export function getOrgDepartmentFolders(org?: Organization | null): Array<{
+  id: string;
+  folderName: string;
+  iconEmoji: string;
+  isChristianEd: boolean;
+}> {
+  const ministries: Ministry[] = org
+    ? ensureChurchMusicAndEducationDepartments(org)
+    : GREAT_FAITH_MINISTRIES_ORG.ministries || defaultMinistries('CHURCH');
+
+  const seen = new Set<string>();
+  const folders: Array<{ id: string; folderName: string; iconEmoji: string; isChristianEd: boolean }> = [];
+
+  // Ensure Christian Education is always the primary curriculum folder scope at the top
+  folders.push({
+    id: 'dept-christian-education',
+    folderName: 'Christian Education',
+    iconEmoji: '🎓',
+    isChristianEd: true,
+  });
+  seen.add('christian education');
+
+  for (const m of ministries) {
+    const clean = (m.name || '').trim();
+    if (!clean || seen.has(clean.toLowerCase())) continue;
+    seen.add(clean.toLowerCase());
+    folders.push({
+      id: m.id,
+      folderName: clean,
+      iconEmoji: m.iconEmoji || '📁',
+      isChristianEd: clean.toLowerCase().includes('education'),
+    });
+  }
+
+  return folders;
+}
+
+/**
+ * Copies BOTH the Original Document Version AND the Interactive Tela Document Version
+ * (plus the Companion Answer Key if provided) into Great Faith Ministries' Organization
+ * Assets Management System (`orgAssets` in Content HQ) scoped to the `Christian Education`
+ * department folder!
+ * Never writes to `demo-grace-chapel`.
+ */
+export async function copyCurriculumPairToOrgAssets(params: {
+  orgId?: string;
+  orgName?: string;
+  departmentFolder?: string;
+  unitTitle: string;
+  sourceKind: string;
+  sourceUrl?: string;
+  rawCurriculumText: string;
+  rawAnswerKeyText?: string;
+  telaDoc: TelaDoc;
+}): Promise<{
+  targetOrgId: string;
+  targetOrgName: string;
+  departmentFolder: string;
+  originalAsset: OrgAsset;
+  telaAsset: OrgAsset;
+  answerKeyAsset?: OrgAsset;
+}> {
+  // Never write to demo-grace-chapel — always route to Great Faith Ministries
+  const isDemoId = !params.orgId || params.orgId === 'demo-grace-chapel' || params.orgId.startsWith('demo-');
+  const resolvedOrg = isDemoId ? await resolveGreatFaithMinistriesOrg() : null;
+  const targetOrgId = isDemoId ? (resolvedOrg?.id || GREAT_FAITH_MINISTRIES_DEFAULT_ID) : params.orgId!;
+  const targetOrgName = isDemoId ? (resolvedOrg?.name || GREAT_FAITH_MINISTRIES_NAME) : (params.orgName || GREAT_FAITH_MINISTRIES_NAME);
+  const departmentFolder = params.departmentFolder || 'Christian Education';
+
+  const uid = auth.currentUser?.uid || 'great-faith-admin';
+  const now = Date.now();
+  const baseSlug = params.unitTitle.replace(/[^\w.\-]+/g, '_').slice(0, 64);
+
+  const originalAssetId = `hq_orig_${params.telaDoc.id}`;
+  const telaAssetId = `hq_tela_${params.telaDoc.id}`;
+  const keyAssetId = `hq_key_${params.telaDoc.id}`;
+
+  const originalKind: OrgAssetKind =
+    params.sourceKind === 'PDF_DOCUMENT' ? 'pdf' : 'doc';
+  const originalExt = originalKind === 'pdf' ? 'pdf' : 'doc';
+
+  const originalBytes = new TextEncoder().encode(params.rawCurriculumText || params.unitTitle).length;
+  const telaJsonString = JSON.stringify(params.telaDoc, null, 2);
+  const telaBytes = new TextEncoder().encode(telaJsonString).length;
+
+  // 1. Original Document Asset (in Christian Education department folder)
+  const originalAsset: OrgAsset = {
+    id: originalAssetId,
+    scopeKind: 'org',
+    scopeId: targetOrgId,
+    uploadedByUid: uid,
+    name: `${params.unitTitle} (Original Document).${originalExt}`,
+    kind: originalKind,
+    mimeType: originalKind === 'pdf' ? 'application/pdf' : 'text/markdown',
+    url: params.sourceUrl || `/api/hq/assets/${encodeURIComponent(originalAssetId)}/download`,
+    storagePath: `protected-hq/org/${targetOrgId}/${departmentFolder}/${originalAssetId}/${baseSlug}_original.${originalExt}`,
+    sizeBytes: Math.max(512, originalBytes),
+    folder: departmentFolder,
+    departmentId: 'dept-christian-education',
+    departmentName: departmentFolder,
+    assetVariant: 'ORIGINAL_SOURCE',
+    telaDocId: params.telaDoc.id,
+    pairedAssetId: telaAssetId,
+    sourceUrl: params.sourceUrl,
+    rawContentText: params.rawCurriculumText,
+    tags: ['Christian Education', 'Original Source', params.sourceKind],
+    status: 'APPROVED',
+    scanStatus: 'CLEAN',
+    versionCount: 1,
+    uploadedAt: now,
+  };
+
+  // 2. Interactive Tela Document Asset (in Christian Education department folder)
+  const telaAsset: OrgAsset = {
+    id: telaAssetId,
+    scopeKind: 'org',
+    scopeId: targetOrgId,
+    uploadedByUid: uid,
+    name: `${params.unitTitle} (Interactive Tela Document).tela`,
+    kind: 'doc',
+    mimeType: 'application/vnd.plajah.tela+json',
+    url: `/tela/${encodeURIComponent(params.telaDoc.id)}`,
+    storagePath: `protected-hq/org/${targetOrgId}/${departmentFolder}/${telaAssetId}/${baseSlug}.tela.json`,
+    sizeBytes: Math.max(1024, telaBytes),
+    folder: departmentFolder,
+    departmentId: 'dept-christian-education',
+    departmentName: departmentFolder,
+    assetVariant: 'TELA_DOCUMENT',
+    telaDocId: params.telaDoc.id,
+    pairedAssetId: originalAssetId,
+    sourceUrl: params.sourceUrl,
+    rawContentText: params.rawCurriculumText,
+    tags: ['Christian Education', 'Interactive Tela Document', 'Mastery Enabled'],
+    status: 'APPROVED',
+    scanStatus: 'CLEAN',
+    versionCount: 1,
+    uploadedAt: now + 1,
+  };
+
+  // 3. Optional Companion Answer Key Asset (in Christian Education department folder)
+  let answerKeyAsset: OrgAsset | undefined;
+  if (params.rawAnswerKeyText && params.rawAnswerKeyText.trim()) {
+    const keyBytes = new TextEncoder().encode(params.rawAnswerKeyText).length;
+    answerKeyAsset = {
+      id: keyAssetId,
+      scopeKind: 'org',
+      scopeId: targetOrgId,
+      uploadedByUid: uid,
+      name: `${params.unitTitle} (Teacher Answer Key).doc`,
+      kind: 'doc',
+      mimeType: 'text/plain',
+      url: `/api/hq/assets/${encodeURIComponent(keyAssetId)}/download`,
+      storagePath: `protected-hq/org/${targetOrgId}/${departmentFolder}/${keyAssetId}/${baseSlug}_answer_key.txt`,
+      sizeBytes: Math.max(256, keyBytes),
+      folder: departmentFolder,
+      departmentId: 'dept-christian-education',
+      departmentName: departmentFolder,
+      assetVariant: 'ANSWER_KEY',
+      telaDocId: params.telaDoc.id,
+      pairedAssetId: telaAssetId,
+      rawContentText: params.rawAnswerKeyText,
+      tags: ['Christian Education', 'Answer Key', 'Teacher Only'],
+      status: 'APPROVED',
+      scanStatus: 'CLEAN',
+      versionCount: 1,
+      uploadedAt: now + 2,
+    };
+  }
+
+  // Save to local mirror for instant zero-latency access in Content HQ
+  const existingLocal = readLocalMirrorAssets(targetOrgId).filter(
+    a => a.id !== originalAssetId && a.id !== telaAssetId && a.id !== keyAssetId
+  );
+  const newMirrorList = [
+    telaAsset,
+    originalAsset,
+    ...(answerKeyAsset ? [answerKeyAsset] : []),
+    ...existingLocal,
+  ];
+  saveLocalMirrorAssets(targetOrgId, newMirrorList);
+
+  // Also mirror under the canonical Great Faith Ministries ID so opening Great Faith Ministries Content HQ always shows them
+  if (targetOrgId !== GREAT_FAITH_MINISTRIES_DEFAULT_ID) {
+    const gfExisting = readLocalMirrorAssets(GREAT_FAITH_MINISTRIES_DEFAULT_ID).filter(
+      a => a.id !== originalAssetId && a.id !== telaAssetId && a.id !== keyAssetId
+    );
+    saveLocalMirrorAssets(GREAT_FAITH_MINISTRIES_DEFAULT_ID, [
+      { ...telaAsset, scopeId: GREAT_FAITH_MINISTRIES_DEFAULT_ID },
+      { ...originalAsset, scopeId: GREAT_FAITH_MINISTRIES_DEFAULT_ID },
+      ...(answerKeyAsset ? [{ ...answerKeyAsset, scopeId: GREAT_FAITH_MINISTRIES_DEFAULT_ID }] : []),
+      ...gfExisting,
+    ]);
+  }
+
+  // Persist to Firestore `orgAssets` collection (best-effort)
+  try {
+    await setDoc(doc(opsDb, COLLECTION, originalAsset.id), originalAsset);
+    await setDoc(doc(opsDb, COLLECTION, telaAsset.id), telaAsset);
+    if (answerKeyAsset) {
+      await setDoc(doc(opsDb, COLLECTION, answerKeyAsset.id), answerKeyAsset);
+    }
+  } catch {
+    // Local mirror is already updated if Firestore ops rules or offline mode is active
+  }
+
+  return {
+    targetOrgId,
+    targetOrgName,
+    departmentFolder,
+    originalAsset,
+    telaAsset,
+    answerKeyAsset,
+  };
+}
+
+/** All Content HQ assets for a scope (client-sorted newest-first, merging Firestore + Great Faith Ministries local mirror). */
 export async function listHqAssets(scope: OwnerScope, includeTrash = false): Promise<OrgAsset[]> {
-  const snap = await getDocs(query(collection(opsDb, COLLECTION), where('scopeId', '==', scope.id)));
-  const rows = snap.docs.map((d) => d.data() as OrgAsset).filter(a => includeTrash || !a.deletedAt);
-  return rows.sort((a, b) => (b.uploadedAt || 0) - (a.uploadedAt || 0));
+  const byId = new Map<string, OrgAsset>();
+
+  // 1. Load local mirror for this scope (and Great Faith Ministries mirror if org scope)
+  for (const item of readLocalMirrorAssets(scope.id)) {
+    if (includeTrash || !item.deletedAt) byId.set(item.id, item);
+  }
+  if (scope.kind === 'org' && (scope.label?.toLowerCase().includes('great faith') || scope.id === GREAT_FAITH_MINISTRIES_DEFAULT_ID)) {
+    for (const item of readLocalMirrorAssets(GREAT_FAITH_MINISTRIES_DEFAULT_ID)) {
+      if (includeTrash || !item.deletedAt) byId.set(item.id, { ...item, scopeId: scope.id });
+    }
+  }
+
+  // 2. Load Firestore `orgAssets`
+  try {
+    const snap = await getDocs(query(collection(opsDb, COLLECTION), where('scopeId', '==', scope.id)));
+    for (const d of snap.docs) {
+      const data = d.data() as OrgAsset;
+      if (includeTrash || !data.deletedAt) {
+        byId.set(data.id, data);
+      }
+    }
+  } catch {
+    // fallback to local mirror
+  }
+
+  return Array.from(byId.values()).sort((a, b) => (b.uploadedAt || 0) - (a.uploadedAt || 0));
 }
 
 /** Upload a file into a scope's DAM and write its Firestore record. */

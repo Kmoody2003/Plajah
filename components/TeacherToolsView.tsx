@@ -42,6 +42,9 @@ import TurnInBriefView from './academia/TurnInBriefView';
 import WorksheetAssignSetup, { type AssignTarget } from './academia/scan/WorksheetAssignSetup';
 import { normalizeWorksheetPage, warmOcr } from '../services/worksheetLocalVision';
 import { takeTeacherWorksheetScan } from '../services/worksheetOpen';
+import CurriculumAndMasteryStudio from './church/CurriculumAndMasteryStudio';
+import SharedClassroomClubHub from './classroom/SharedClassroomClubHub';
+import { UniversalStudentDesk } from './desk/UniversalStudentDesk';
 
 export interface LessonPlan {
   id: string; title: string; subject: Subject; band: string; standardCode: string;
@@ -84,7 +87,7 @@ const Bar: React.FC<{ value: number; color: string }> = ({ value, color }) => (
   </div>
 );
 
-type Tab = 'grade' | 'plan' | 'planner' | 'checks' | 'assess' | 'reports' | 'connect' | 'context' | 'library' | 'worksheet' | 'templates' | 'integrity';
+type Tab = 'grade' | 'plan' | 'planner' | 'checks' | 'assess' | 'reports' | 'connect' | 'context' | 'library' | 'worksheet' | 'templates' | 'integrity' | 'curriculum' | 'classroomClub' | 'studentDesk';
 
 const TeacherToolsView: React.FC<{ onBack?: () => void; user?: any }> = ({ onBack, user }) => {
   // Hubs deep-link into a tab through sessionStorage (read once, then cleared) so "Build a lesson"
@@ -129,7 +132,7 @@ const TeacherToolsView: React.FC<{ onBack?: () => void; user?: any }> = ({ onBac
         {/* tabs */}
         <div className="teacher-tools-tabs" style={{ display: 'flex', gap: 8, margin: '18px 0 20px', flexWrap: 'wrap' }}>
           <style>{`@media(max-width:720px){.teacher-tools-tabs{flex-wrap:nowrap!important;overflow-x:auto;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;margin-left:-16px!important;margin-right:-16px!important;padding:0 16px 4px}.teacher-tools-tabs>button{flex:0 0 auto;scroll-snap-align:start;min-height:44px}.teacher-tools-view input,.teacher-tools-view select,.teacher-tools-view textarea{font-size:16px!important}}`}</style>
-          {([['worksheet', 'Scan Worksheet', ScanLine], ['plan', 'Plan from Mastery', Wand2], ['library', 'Content Library', Library], ['planner', `Planner${plans.length ? ` (${plans.length})` : ''}`, CalendarDays], ['checks', `Checks${assignments.length ? ` (${assignments.length})` : ''}`, ListChecks], ['grade', 'Gradebook', LayoutGrid], ['assess', 'Assess Work', ClipboardCheck], ['reports', 'Reports', Printer], ['templates', 'Assignment Templates', BookOpen], ['integrity', 'Integrity Wall', ShieldCheck], ['connect', 'Integrations', Plug], ['context', 'Context', Globe]] as [Tab, string, any][]).map(([v, l, Icon]) => (
+          {([['classroomClub', 'Classroom Club & Live Lecture', Users], ['studentDesk', '🪑 Universal Student Desk', BookOpen], ['worksheet', 'Scan Worksheet', ScanLine], ['curriculum', 'Google Forms/Docs & PDF → Tela', Sparkles], ['plan', 'Plan from Mastery', Wand2], ['library', 'Content Library', Library], ['planner', `Planner${plans.length ? ` (${plans.length})` : ''}`, CalendarDays], ['checks', `Checks${assignments.length ? ` (${assignments.length})` : ''}`, ListChecks], ['grade', 'Gradebook', LayoutGrid], ['assess', 'Assess Work', ClipboardCheck], ['reports', 'Reports', Printer], ['templates', 'Assignment Templates', BookOpen], ['integrity', 'Integrity Wall', ShieldCheck], ['connect', 'Integrations', Plug], ['context', 'Context', Globe]] as [Tab, string, any][]).map(([v, l, Icon]) => (
             <button key={v} onClick={() => setTab(v)} style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 15px', borderRadius: 10, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 800, border: `1px solid ${tab === v ? T.orange : T.border}`, background: tab === v ? T.orange : 'transparent', color: tab === v ? '#1a1a1a' : T.muted }}>
               <Icon size={13} /> {l}
             </button>
@@ -138,6 +141,36 @@ const TeacherToolsView: React.FC<{ onBack?: () => void; user?: any }> = ({ onBac
 
         {tab === 'worksheet' ? (
           <ScanWorksheet user={user} />
+        ) : tab === 'studentDesk' ? (
+          <UniversalStudentDesk
+            studentUid={user?.uid || 'student_academia'}
+            studentName={user?.displayName || 'Academia Scholar'}
+            defaultDomain="ALL"
+            onOpenTelaStudio={(docId: string) => {
+              window.dispatchEvent(new CustomEvent('plajah:openTela', { detail: { docId } }));
+            }}
+          />
+        ) : tab === 'classroomClub' ? (
+          <SharedClassroomClubHub
+            classId={DEMO_CLASS.id}
+            className={DEMO_CLASS.name}
+            classSubtitle={`${DEMO_CLASS.teacherName} · Teacher-Governed Classroom Club (Social Feed, Photos, Live Video/Audio Lecture, Raise Hand & Digital Whiteboard)`}
+            contextKind="ACADEMIA"
+            teacherUid={user?.uid || 'teacher_demo'}
+            teacherName={user?.displayName || DEMO_CLASS.teacherName}
+            isTeacher={true}
+            currentUserUid={user?.uid || 'teacher_demo'}
+            currentUserName={user?.displayName || DEMO_CLASS.teacherName}
+            rosterStudents={DEMO_CLASS.students.map(s => ({ id: s.id, name: s.name }))}
+          />
+        ) : tab === 'curriculum' ? (
+          <CurriculumAndMasteryStudio
+            orgId={user?.uid || DEMO_CLASS.id}
+            orgName={DEMO_CLASS.name}
+            canEdit={true}
+            currentUserUid={user?.uid || 'teacher_demo'}
+            currentUserName={user?.displayName || DEMO_CLASS.teacherName}
+          />
         ) : tab === 'templates' ? (
           // Deliberately above the standards-seeded guard below: the template library spans
           // 6–12, where the K-7 ledger standards graph has nothing seeded yet.

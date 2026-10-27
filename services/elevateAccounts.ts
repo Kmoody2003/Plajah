@@ -17,7 +17,7 @@
 //   lookupProvisionedSeat / claimProvisionedSeat — the member's side (server-backed)
 //   importRoleToKey                           — "Youth Pastor" → PASTOR, "Treasurer" → TREASURER …
 import QRCode from 'qrcode';
-import { collection, doc, getDocs, query, where, writeBatch, updateDoc, setDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, query, where, writeBatch, updateDoc, setDoc, deleteDoc } from 'firebase/firestore';
 import { db, opsDb, auth } from './firebase';
 import type { Organization, OrgMembership, ChmsPerson, Ministry, RosterGroup, UserProfile } from '../types';
 import { getElevateRole, elevateCan } from './elevateRoles';
@@ -84,7 +84,9 @@ const ROLE_PATTERNS: [RegExp, string][] = [
   [/minister|chaplain|evangelist/i, 'MINISTER'],
   [/elder/i, 'ELDER'],
   [/deacon/i, 'DEACON'],
-  [/department\s*head|director|coordinator|supervisor|manager|lead\b|leader|head\s*of/i, 'DEPARTMENT_HEAD'],
+  [/department\s*admin|ministry\s*admin|department\s*coordinator|ministry\s*coordinator/i, 'DEPARTMENT_ADMIN'],
+  [/department\s*head|director|supervisor|manager|lead\b|leader|head\s*of/i, 'DEPARTMENT_HEAD'],
+  [/instructor|catechist|sunday\s*school\s*teacher|bible\s*study\s*teacher|class\s*teacher|facilitator|teacher/i, 'INSTRUCTOR'],
   [/finance\s*director|cfo|controller/i, 'FINANCE_DIRECTOR'],
   [/treasurer/i, 'TREASURER'],
   [/bookkeep|payroll|accounts?\s*payable|accounts?\s*receivable/i, 'BOOKKEEPER'],
@@ -92,8 +94,9 @@ const ROLE_PATTERNS: [RegExp, string][] = [
   [/trustee/i, 'TRUSTEE'],
   [/media|audio|video|sound|livestream|graphic|tech|production|broadcast|a\/v/i, 'MEDIA_TEAM'],
   [/prayer/i, 'PRAYER_WARRIOR'],
+  [/department\s*volunteer|ministry\s*volunteer/i, 'DEPARTMENT_VOLUNTEER'],
   [/volunteer|usher|greeter|server/i, 'VOLUNTEER'],
-  [/staff|admin|secretary|assistant|clerk|receptionist|custodian|employee|intern|teacher|nurse|office/i, 'STAFF'],
+  [/staff|admin|secretary|assistant|clerk|receptionist|custodian|employee|intern|nurse|office|coordinator/i, 'STAFF'],
 ];
 /** Map a free-text role / job title / membership type to an Elevate role key (MEMBER when unsure). */
 export function importRoleToKey(text?: string): string {
@@ -118,8 +121,10 @@ export function matchMinistry(ministries: Ministry[] | undefined, text?: string)
 
 export interface ProvisionOptions {
   roleKey?: string;
+  roleKeys?: string[];
   title?: string;
   ministryIds?: string[];
+  ministryRoles?: Array<{ ministryId: string; roleKey: string; title?: string }>;
   /** Treat as paid staff (work badge) — default: roles whose roster group is STAFF/PASTORAL/LEADERSHIP. */
   isEmployee?: boolean;
 }
@@ -156,9 +161,9 @@ export function buildProvisionDocs(org: Organization, person: ChmsPerson, opts: 
     id: `mem_${uid}`, orgId: org.id, userId: uid,
     role: def.baseRole === 'OWNER' || def.baseRole === 'ADMIN' ? 'STAFF' : def.baseRole, status: 'ACTIVE',
     displayName, photoUrl: person.photoUrl || '', title: opts.title || def.label, joinedAt: now,
-    roleKey, rosterGroup, isEmployee: isEmployee || undefined, employeeProfileUid: uid,
+    roleKey, roleKeys: Array.from(new Set(['MEMBER', roleKey])), rosterGroup, isEmployee: isEmployee || undefined, employeeProfileUid: uid,
     source: 'OWNER_CREATED', invitedBy: u.uid, acceptedAt: now,
-    ministryRoles: ministryIds.length ? ministryIds.map(ministryId => ({ ministryId, roleKey: roleKey === 'DEPARTMENT_HEAD' ? 'DEPARTMENT_HEAD' : 'VOLUNTEER' })) : undefined,
+    ministryRoles: ministryIds.length ? ministryIds.map(ministryId => ({ ministryId, roleKey: ['DEPARTMENT_HEAD', 'DEPARTMENT_ADMIN', 'INSTRUCTOR', 'DEPARTMENT_VOLUNTEER', 'MEDIA_TEAM', 'PRAYER_WARRIOR'].includes(roleKey) ? roleKey : 'DEPARTMENT_VOLUNTEER', title: opts.title || def.label })) : undefined,
     isProvisioned: true, provisionedPersonId: person.id, memberNumber, employeeNumber,
     claimEmailLower: person.email ? person.email.trim().toLowerCase() : undefined,
     ministryIds: ministryIds.length ? ministryIds : undefined,
@@ -242,7 +247,7 @@ export async function updateProvisionedSeat(org: Organization, membership: OrgMe
   await updateDoc(doc(db, 'orgMemberships', membership.id), strip({
     roleKey: patch.roleKey, title: patch.title ?? def?.label, rosterGroup: def?.rosterGroup,
     role: def ? (def.baseRole === 'OWNER' || def.baseRole === 'ADMIN' ? 'STAFF' : def.baseRole) : undefined,
-    ministryIds, ministryRoles: ministryIds ? ministryIds.map(ministryId => ({ ministryId, roleKey: patch.roleKey === 'DEPARTMENT_HEAD' ? 'DEPARTMENT_HEAD' : 'VOLUNTEER' })) : undefined,
+    ministryIds, ministryRoles: ministryIds ? ministryIds.map(ministryId => ({ ministryId, roleKey: patch.roleKey && ['DEPARTMENT_HEAD', 'DEPARTMENT_ADMIN', 'INSTRUCTOR', 'DEPARTMENT_VOLUNTEER', 'MEDIA_TEAM', 'PRAYER_WARRIOR'].includes(patch.roleKey) ? patch.roleKey : (membership.roleKey || 'DEPARTMENT_VOLUNTEER') })) : undefined,
   }));
   if (membership.provisionedPersonId && ministryIds) await updateDoc(doc(opsDb, 'chmsPeople', membership.provisionedPersonId), { ministryIds, updatedAt: Date.now() }).catch(() => {});
   if (patch.roleKey && membership.userId.startsWith('prov_')) await updateDoc(doc(db, 'users', membership.userId), { provisionedRoleKey: patch.roleKey }).catch(() => {});
@@ -317,11 +322,13 @@ export interface ClaimInput {
   email?: string;
 }
 
-async function authed(path: string, body: unknown): Promise<Response> {
+async function authed(path: string, body: unknown, allowUnauthed = false): Promise<Response> {
   const u = auth.currentUser;
-  if (!u) throw new Error('Sign in first.');
-  const token = await u.getIdToken();
-  return fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(body) });
+  if (!u && !allowUnauthed) throw new Error('Sign in first.');
+  const token = u ? await u.getIdToken().catch(() => null) : null;
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  return fetch(path, { method: 'POST', headers, body: JSON.stringify(body) });
 }
 
 const maskWord = (s: string) => {
@@ -329,27 +336,71 @@ const maskWord = (s: string) => {
   return t ? t[0] + '•'.repeat(Math.max(2, Math.min(6, t.length - 1))) : '';
 };
 
-/** Find a pre-provisioned seat in Firestore directly when the server claim endpoint is unconfigured (local dev). */
-async function clientSideLookupSeat(input: ClaimInput): Promise<SeatLookup> {
-  const org = await resolveJoinTarget(input.org);
-  if (!org) return { found: false, reason: 'We could not find that organization.' };
-  const members = await fetchOrgMembers(org.id).catch(() => [] as OrgMembership[]);
+/** Locate a pre-provisioned seat + its Organization from email, ID code, or name. */
+async function findProvisionedSeatClientSide(input: ClaimInput): Promise<{ org: Organization | null; match: OrgMembership | null; alreadyClaimed?: boolean }> {
+  let org = input.org ? await resolveJoinTarget(input.org) : null;
   const idCode = normalizeMemberNumber(input.memberNumber || input.employeeNumber || '');
   const fName = (input.firstName || '').trim().toLowerCase();
   const lName = (input.lastName || '').trim().toLowerCase();
   const em = (input.email || auth.currentUser?.email || '').trim().toLowerCase();
 
-  const match = members.find(m => {
+  const matchesInput = (m: OrgMembership) => {
     if (!m.isProvisioned) return false;
+    if (em && m.claimEmailLower && m.claimEmailLower.toLowerCase() === em) return true;
     if (idCode && (normalizeMemberNumber(m.memberNumber || '') === idCode || normalizeMemberNumber(m.employeeNumber || '') === idCode)) {
       return !lName || m.displayName.toLowerCase().includes(lName);
     }
-    if (em && m.claimEmailLower && m.claimEmailLower === em) return true;
     if (fName && lName && m.displayName.trim().toLowerCase() === `${fName} ${lName}`.trim()) return true;
     if (!fName && lName && m.displayName.trim().toLowerCase().endsWith(` ${lName}`)) return true;
     return false;
-  });
+  };
 
+  if (org) {
+    const members = await fetchOrgMembers(org.id).catch(() => [] as OrgMembership[]);
+    const match = members.find(matchesInput) || null;
+    if (match) return { org, match };
+  }
+
+  // Fallback: query orgMemberships directly by claimEmailLower or memberNumber (handles missing org key or duplicate org shell)
+  if (em) {
+    const snap = await getDocs(query(collection(db, 'orgMemberships'), where('claimEmailLower', '==', em))).catch(() => null);
+    const docs = snap?.docs.map(d => ({ id: d.id, ...(d.data() as any) } as OrgMembership)) || [];
+    const provisioned = docs.find(d => d.isProvisioned) || docs[0];
+    if (provisioned) {
+      const resolvedOrg = (!org || org.id !== provisioned.orgId) ? await fetchOrganization(provisioned.orgId).catch(() => org) : org;
+      if (!provisioned.isProvisioned) return { org: resolvedOrg, match: null, alreadyClaimed: true };
+      return { org: resolvedOrg, match: provisioned };
+    }
+  }
+
+  if (idCode) {
+    const snapMem = await getDocs(query(collection(db, 'orgMemberships'), where('memberNumber', '==', idCode))).catch(() => null);
+    const snapEmp = snapMem?.docs.length ? null : await getDocs(query(collection(db, 'orgMemberships'), where('employeeNumber', '==', idCode))).catch(() => null);
+    const docs = [...(snapMem?.docs || []), ...(snapEmp?.docs || [])].map(d => ({ id: d.id, ...(d.data() as any) } as OrgMembership));
+    const provisioned = docs.find(d => d.isProvisioned && (!lName || d.displayName.toLowerCase().includes(lName)));
+    if (provisioned) {
+      const resolvedOrg = (!org || org.id !== provisioned.orgId) ? await fetchOrganization(provisioned.orgId).catch(() => org) : org;
+      return { org: resolvedOrg, match: provisioned };
+    }
+  }
+
+  return { org, match: null };
+}
+
+/** Find a pre-provisioned seat in Firestore directly when the server claim endpoint is unconfigured (local dev). */
+async function clientSideLookupSeat(input: ClaimInput): Promise<SeatLookup> {
+  const { org, match, alreadyClaimed } = await findProvisionedSeatClientSide(input);
+  if (!org) return { found: false, reason: 'Enter the email address or Member ID from your organization to locate your pre-provisioned account.' };
+  if (alreadyClaimed) {
+    return {
+      found: false,
+      orgId: org.id,
+      orgName: org.name,
+      orgLogoUrl: org.logoUrl,
+      alreadyClaimed: true,
+      reason: 'This account has already been claimed. Sign in with the account you used, or ask your organization admin to reset it.',
+    };
+  }
   if (!match) {
     return {
       found: false,
@@ -374,14 +425,113 @@ async function clientSideLookupSeat(input: ClaimInput): Promise<SeatLookup> {
   };
 }
 
+/** Redeem a pre-provisioned seat directly via Firestore client SDK when server REST endpoint is unavailable. */
+async function clientSideClaimSeat(input: ClaimInput): Promise<{ orgId: string; orgName: string; roleLabel: string; memberNumber?: string; employeeNumber?: string }> {
+  const u = auth.currentUser;
+  if (!u) throw new Error('Sign in first.');
+  const { org, match } = await findProvisionedSeatClientSide(input);
+  if (!org || !match) throw new Error('No pre-provisioned seat found for that email or Member ID.');
+  const now = Date.now();
+  const provUid = match.userId;
+  const assignedMemberNumber = match.memberNumber || memberNumberFor(org, { id: match.provisionedPersonId || u.uid });
+  const assignedEmployeeNumber = match.employeeNumber || employeeNumberFor(org, { id: match.provisionedPersonId || u.uid });
+  const submittedFullName = [input.firstName?.trim(), input.lastName?.trim()].filter(Boolean).join(' ').trim();
+  const userSnap = await getDoc(doc(db, 'users', u.uid)).catch(() => null);
+  const userData = userSnap?.data() as Record<string, any> | undefined;
+  const displayName = submittedFullName || userData?.displayName || u.displayName || match.displayName || 'Member';
+  const photoUrl = userData?.photoURL || u.photoURL || match.photoUrl || '';
+
+  const existingSnap = await getDocs(query(collection(db, 'orgMemberships'), where('orgId', '==', org.id), where('userId', '==', u.uid))).catch(() => null);
+  const existingMine = existingSnap?.docs.find(d => d.id !== match.id);
+
+  const claimedPatch: Record<string, any> = {
+    isProvisioned: false,
+    claimedAt: now,
+    userId: u.uid,
+    displayName,
+    photoUrl,
+    status: 'ACTIVE',
+    acceptedAt: now,
+    employeeProfileUid: null,
+    claimEmailLower: null,
+    memberNumber: assignedMemberNumber,
+    employeeNumber: assignedEmployeeNumber,
+  };
+
+  if (existingMine) {
+    await updateDoc(doc(db, 'orgMemberships', existingMine.id), strip({
+      ...claimedPatch,
+      role: match.role,
+      roleKey: match.roleKey,
+      title: match.title,
+      rosterGroup: match.rosterGroup,
+      isEmployee: match.isEmployee,
+      ministryIds: match.ministryIds || [],
+      ministryRoles: match.ministryRoles || [],
+      provisionedPersonId: match.provisionedPersonId,
+    }));
+    await deleteDoc(doc(db, 'orgMemberships', match.id)).catch(() => {});
+  } else {
+    await updateDoc(doc(db, 'orgMemberships', match.id), claimedPatch);
+  }
+
+  if (provUid && provUid.startsWith('prov_')) {
+    await updateDoc(doc(db, 'users', provUid), { claimedByUid: u.uid, claimedAt: now }).catch(() => {});
+  }
+
+  if (match.provisionedPersonId) {
+    await setDoc(doc(opsDb, 'chmsPeople', match.provisionedPersonId), strip({
+      linkedUid: u.uid,
+      provisionedUid: null,
+      memberNumber: assignedMemberNumber,
+      employeeNumber: assignedEmployeeNumber,
+      firstName: input.firstName?.trim() || undefined,
+      lastName: input.lastName?.trim() || undefined,
+      updatedAt: now,
+    }), { merge: true }).catch(() => {});
+  }
+
+  await syncMemberIndex(org.id, u.uid).catch(() => {});
+  await recomputeOrgRoleIndex(org.id).catch(() => {});
+  await syncOrgChatForUser(org, { ...match, userId: u.uid, isProvisioned: false }).catch(() => {});
+
+  const roleLabel = match.title || getElevateRole(match.roleKey)?.label || 'Member';
+  const curAffs = Array.isArray(userData?.orgAffiliations) ? userData!.orgAffiliations : [];
+  const nextAff = strip({
+    orgId: org.id,
+    orgName: org.name,
+    orgLogoUrl: org.logoUrl || undefined,
+    roleKey: match.roleKey || 'MEMBER',
+    title: roleLabel,
+    memberNumber: assignedMemberNumber,
+    employeeNumber: assignedEmployeeNumber,
+    since: now,
+  });
+  await setDoc(doc(db, 'users', u.uid), {
+    orgAffiliations: [...curAffs.filter((a: any) => a?.orgId !== org.id), nextAff],
+  }, { merge: true }).catch(() => {});
+
+  return {
+    orgId: org.id,
+    orgName: org.name,
+    roleLabel,
+    memberNumber: assignedMemberNumber,
+    employeeNumber: assignedEmployeeNumber,
+  };
+}
+
 /** Find the seat behind a name, email, or optional member/employee ID. */
 export async function lookupProvisionedSeat(input: ClaimInput): Promise<SeatLookup> {
   try {
-    const r = await authed('/api/elevate/claim/lookup', input);
-    if (r.status === 503 || r.status === 404) {
+    const r = await authed('/api/elevate/claim/lookup', input, true);
+    if (r.status === 503 || r.status === 404 || r.status === 401) {
       return await clientSideLookupSeat(input);
     }
     const j = await r.json().catch(() => ({})) as SeatLookup & { error?: string };
+    if (!r.ok || !j.found) {
+      const fallback = await clientSideLookupSeat(input);
+      if (fallback.found || fallback.alreadyClaimed) return fallback;
+    }
     if (!r.ok) return await clientSideLookupSeat(input);
     return j;
   } catch {
@@ -398,8 +548,10 @@ export async function claimProvisionedSeat(input: ClaimInput): Promise<{ orgId: 
       try { window.dispatchEvent(new CustomEvent('plajah:elevate-claimed', { detail: j })); } catch { /* */ }
       return j;
     }
-  } catch { /* fall through to client-side claim/onboarding */ }
-  throw new Error('Could not directly redeem seat — submitting for approval instead.');
+  } catch { /* fall through to client-side claim */ }
+  const claimed = await clientSideClaimSeat(input);
+  try { window.dispatchEvent(new CustomEvent('plajah:elevate-claimed', { detail: claimed })); } catch { /* */ }
+  return claimed;
 }
 
 /** Resolve the org behind a join link (id or @handle). */

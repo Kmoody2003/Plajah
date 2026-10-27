@@ -17,7 +17,8 @@ export type ShareAsset =
  *  whatever host the user is on (e.g. localhost), so links work everywhere. */
 export function shareOrigin(): string {
   const configured = (import.meta as any).env?.VITE_APP_URL as string | undefined;
-  return (configured && /^https?:\/\//.test(configured) ? configured : window.location.origin).replace(/\/$/, '');
+  const fallback = typeof window !== 'undefined' && window.location?.origin ? window.location.origin : 'https://plajah.com';
+  return (configured && /^https?:\/\//.test(configured) ? configured : fallback).replace(/\/$/, '');
 }
 
 /**

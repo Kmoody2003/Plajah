@@ -137,3 +137,21 @@ export async function recordSet(
 
 export const lessonKey = (curriculumId: string, lessonId: string) => `lesson:${curriculumId}:${lessonId}`;
 export const mathKey = (grade: number, topic: string) => `math:g${grade}:${topic}`;
+
+export type SkillLevel = 0 | 1 | 2 | 3 | 4;
+
+export const LEVEL_NAME: Record<SkillLevel, string> = {
+  0: 'Not Started',
+  1: 'Attempted',
+  2: 'Familiar',
+  3: 'Proficient',
+  4: 'Mastered',
+};
+
+export const LEVEL_COLOR: Record<SkillLevel, string> = {
+  0: '#64748b',
+  1: '#f59e0b',
+  2: '#fb923c',
+  3: '#3b82f6',
+  4: '#a855f7',
+};

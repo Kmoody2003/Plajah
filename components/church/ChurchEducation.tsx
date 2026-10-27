@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
 import {
   BookOpen,
   Plus,
@@ -16,6 +16,10 @@ import {
   Calendar,
   ExternalLink,
   FileText,
+  LayoutDashboard,
+  ClipboardCheck,
+  Award,
+  Link2,
 } from 'lucide-react';
 import type { Organization } from '../../types';
 import { COURSES } from '../../services/courseCatalog';
@@ -39,30 +43,54 @@ import { digitizeWorksheetOnDevice } from '../../services/worksheetLocalVision';
 import type { DigitalWorksheet } from '../../services/worksheetDigitizer';
 import type { TelaDoc, TelaWriterDevice } from '../../types';
 import { saveTelaDoc } from '../../services/telaStore';
+import { auth } from '../../services/firebase';
+import CurriculumAndMasteryStudio from './CurriculumAndMasteryStudio';
+import SharedClassroomClubHub from '../classroom/SharedClassroomClubHub';
+import OrgCentralCalendarHub from '../elevate/OrgCentralCalendarHub';
+import { UniversalStudentDesk } from '../desk/UniversalStudentDesk';
+import {
+  listIngestedUnits,
+  loadOrgMasterySummary,
+  type IngestedCurriculumUnit,
+} from '../../services/curriculumIngestionService';
+import { LEVEL_NAME, LEVEL_COLOR, type SkillLevel } from '../../services/mastery';
+
+const TeacherHub = lazy(() => import('../academia/TeacherHub'));
+const TeacherToolsView = lazy(() => import('../TeacherToolsView'));
+const TodayDueFirst = lazy(() => import('../academia/TodayDueFirst'));
 
 /**
- * Christian Education for a Church Organization:
- * - Pre-seeded with 7 Default Templated Classrooms (Sunday School, Junior Bible Explorers,
- *   Youth & Confirmation Catechism, Adult Foundations, Wednesday Inductive Scripture Lab,
- *   Baptismal Preparation, and Sacred Music & Liturgical Worship Formation).
- * - Each classroom has its own Dedicated Classroom Chat Room (`chatRoomId` via `orgChatService`)
- *   plus inline class discussion and one-click launch into full Plajah Chat.
- * - Reuses the Academia Classroom & Ed-Tech Stack: Class Roster/Gradebook (`createChurchClass`),
- *   Academia Curriculum Courses (`COURSES`), Paper Worksheet Digitizer (`digitizeWorksheetOnDevice`),
- *   and Tela Lesson / Assignment Builder (`saveTelaDoc` + `plajah:openTela`).
+ * Christian Education for a Church / Faith Organization:
+ * - Full workflow and toolset parity with Academia Teachers & Students:
+ *   1. Classrooms & Weekly Verse Syllabus (7 templated classrooms + custom classes + governed Classroom Chat)
+ *   2. Teacher Dashboard (Academia TeacherHub: KPI band, Toolbox row, Attendance, Student Dossier search, Recent Work)
+ *   3. Teacher Tools & Gradebook (Academia TeacherToolsView: Standards Gradebook Heatmap, Plan from Mastery, Assess Work, Scan Worksheet, Templates, Integrity)
+ *   4. Curriculum, Google Forms/Docs, Word & PDF → Interactive Tela + Mastery Studio (extracts lessons + companion answer key docs into multi-frame interactive Tela documents & Mastery skills)
+ *   5. Student Portal & My Mastery (Due-first assignments, interactive auto-graded Tela worksheets/tests, and Khan-style Mastery progress)
  */
 const field =
   'w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-amber-400/50 placeholder:text-white/25';
 const nav = (target: string) => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target } }));
+
+type EducationPortalMode =
+  | 'CLASSROOMS'
+  | 'TEACHER_DASHBOARD'
+  | 'TEACHER_TOOLS'
+  | 'CURRICULUM_TELA_INGESTOR'
+  | 'TEACHER_TOOLS'
+  | 'CURRICULUM_TELA_INGESTOR'
+  | 'CENTRAL_CALENDAR'
+  | 'STUDENT_PORTAL';
 
 const ChurchEducation: React.FC<{
   church: Organization;
   canEdit: boolean;
   onOpenChatRoom?: (roomId: string) => void;
 }> = ({ church, canEdit, onOpenChatRoom }) => {
+  const [portalMode, setPortalMode] = useState<EducationPortalMode>('CLASSROOMS');
   const [programs, setPrograms] = useState<ChurchProgram[] | null>(null);
   const [open, setOpen] = useState<ChurchProgram | null>(null);
-  const [activeTab, setActiveTab] = useState<'SYLLABUS' | 'CLASS_CHAT' | 'ACADEMIA_STACK'>('SYLLABUS');
+  const [activeTab, setActiveTab] = useState<'SYLLABUS' | 'CLASSROOM_CLUB' | 'CLASS_CHAT' | 'ACADEMIA_STACK' | 'TELA_UNITS'>('SYLLABUS');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [saved, setSaved] = useState(false);
@@ -79,10 +107,32 @@ const ChurchEducation: React.FC<{
   const [scannedWorksheet, setScannedWorksheet] = useState<DigitalWorksheet | null>(null);
   const [worksheetAnswers, setWorksheetAnswers] = useState<Record<string, string>>({});
 
+  // Ingested interactive Tela units & Mastery summary
+  const [ingestedUnits, setIngestedUnits] = useState<IngestedCurriculumUnit[]>(() =>
+    listIngestedUnits(church.id)
+  );
+  const [masterySummary, setMasterySummary] = useState(() => loadOrgMasterySummary(church.id));
+
+  const currentUser = auth.currentUser;
+  const teacherProfile = useMemo(
+    () => ({
+      uid: currentUser?.uid || church.creatorId || `teacher_${church.id}`,
+      displayName:
+        currentUser?.displayName ||
+        open?.leadInstructor ||
+        `${church.name} Christian Education Lead`,
+      email: currentUser?.email || '',
+      role: canEdit ? 'TEACHER' : 'STUDENT',
+    }),
+    [currentUser, church.creatorId, church.id, church.name, open?.leadInstructor, canEdit]
+  );
+
   const reload = async () => {
     try {
       const list = await ensureDefaultTemplatedClassrooms(church);
       setPrograms(list);
+      setIngestedUnits(listIngestedUnits(church.id));
+      setMasterySummary(loadOrgMasterySummary(church.id));
       if (open) {
         const refreshed = list.find(x => x.id === open.id);
         if (refreshed) setOpen(refreshed);
@@ -121,6 +171,29 @@ const ChurchEducation: React.FC<{
       ),
     []
   );
+
+  const handleAttachIngestedUnitToProgram = async (programId: string, unit: IngestedCurriculumUnit) => {
+    const target = (programs || []).find(p => p.id === programId);
+    if (!target) return;
+    const mergedWeeks = [
+      ...target.weeks,
+      ...unit.syllabusWeeks.map((w, idx) => ({
+        ...w,
+        id: `wk_ing_${Date.now().toString(36)}_${idx}`,
+      })),
+    ];
+    const updated = await postClassChatMessage(
+      { ...target, weeks: mergedWeeks },
+      {
+        senderName: target.leadInstructor || `${church.name} Catechist`,
+        senderRole: 'INSTRUCTOR',
+        text: `Published interactive Tela unit "${unit.title}" (${unit.questions.length} auto-graded questions, ${unit.masterySkills.length} Mastery skills) from ${unit.sourceLabel}.`,
+        attachmentLabel: `Interactive Tela: ${unit.title}`,
+      }
+    );
+    await saveProgram(updated);
+    await reload();
+  };
 
   const handleSendChatMessage = async () => {
     if (!open || !chatDraft.trim()) return;
@@ -219,6 +292,275 @@ const ChurchEducation: React.FC<{
     window.dispatchEvent(new CustomEvent('plajah:openTela', { detail: { docId: doc.id } }));
   };
 
+  // Top-level Christian Education & Academia Parity Mode Bar
+  const modeBar = (
+    <div className="rounded-3xl border border-white/10 bg-[#12091e]/90 p-3 flex flex-wrap items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <button
+          type="button"
+          onClick={() => setPortalMode('CLASSROOMS')}
+          className={`px-3.5 py-2 rounded-2xl text-xs font-black inline-flex items-center gap-1.5 transition ${
+            portalMode === 'CLASSROOMS'
+              ? 'bg-amber-400 text-black shadow'
+              : 'bg-white/5 text-white/70 hover:text-white hover:bg-white/10'
+          }`}
+        >
+          <BookOpen size={13} /> Classrooms &amp; Syllabus ({programs?.length ?? 0})
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setPortalMode('CURRICULUM_TELA_INGESTOR')}
+          className={`px-3.5 py-2 rounded-2xl text-xs font-black inline-flex items-center gap-1.5 transition ${
+            portalMode === 'CURRICULUM_TELA_INGESTOR'
+              ? 'bg-gradient-to-r from-[#6B0099] via-[#D40055] to-[#FF8C00] text-white shadow-lg'
+              : 'bg-white/5 text-white/70 hover:text-white hover:bg-white/10'
+          }`}
+        >
+          <Link2 size={13} /> Google Forms/Docs &amp; PDF → Tela + Mastery ({ingestedUnits.length})
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setPortalMode('TEACHER_DASHBOARD')}
+          className={`px-3.5 py-2 rounded-2xl text-xs font-black inline-flex items-center gap-1.5 transition ${
+            portalMode === 'TEACHER_DASHBOARD'
+              ? 'bg-amber-400 text-black shadow'
+              : 'bg-white/5 text-white/70 hover:text-white hover:bg-white/10'
+          }`}
+        >
+          <LayoutDashboard size={13} /> Instructor Dashboard (Non-Credentialed)
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setPortalMode('CENTRAL_CALENDAR')}
+          className={`px-3.5 py-2 rounded-2xl text-xs font-black inline-flex items-center gap-1.5 transition ${
+            portalMode === 'CENTRAL_CALENDAR'
+              ? 'bg-sky-400 text-black shadow'
+              : 'bg-white/5 text-white/70 hover:text-white hover:bg-white/10'
+          }`}
+        >
+          <Calendar size={13} /> Central Calendar &amp; Sub AI
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setPortalMode('TEACHER_TOOLS')}
+          className={`px-3.5 py-2 rounded-2xl text-xs font-black inline-flex items-center gap-1.5 transition ${
+            portalMode === 'TEACHER_TOOLS'
+              ? 'bg-amber-400 text-black shadow'
+              : 'bg-white/5 text-white/70 hover:text-white hover:bg-white/10'
+          }`}
+        >
+          <ClipboardCheck size={13} /> Instructor Tools &amp; Gradebook
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setPortalMode('STUDENT_PORTAL')}
+          className={`px-3.5 py-2 rounded-2xl text-xs font-black inline-flex items-center gap-1.5 transition ${
+            portalMode === 'STUDENT_PORTAL'
+              ? 'bg-emerald-400 text-black shadow'
+              : 'bg-white/5 text-white/70 hover:text-white hover:bg-white/10'
+          }`}
+        >
+          <Award size={13} /> 🪑 Student Desk &amp; My Mastery
+        </button>
+      </div>
+
+      <button
+        type="button"
+        onClick={() => nav('LEARN')}
+        className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-[11px] font-bold inline-flex items-center gap-1.5"
+      >
+        <GraduationCap size={13} /> Full Academia Hub
+      </button>
+    </div>
+  );
+
+  // MODE 2: INSTRUCTOR DASHBOARD (Non-Credentialed Church Class Instructor — distinct from Academia Teacher)
+  if (portalMode === 'CENTRAL_CALENDAR') {
+    const christianEdDeptId =
+      (church.ministries || []).find(m => /christian\s*ed|education|sunday\s*school/i.test(m.name))?.id || 'ALL';
+    return (
+      <div className="space-y-5 text-white" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
+        {modeBar}
+        <OrgCentralCalendarHub
+          org={church}
+          myMembership={null}
+          initialDepartmentId={christianEdDeptId}
+        />
+      </div>
+    );
+  }
+
+  if (portalMode === 'TEACHER_DASHBOARD') {
+    return (
+      <div className="space-y-5 text-white" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
+        {modeBar}
+        <div className="rounded-3xl border border-white/10 bg-[#0b0614] p-4 sm:p-6">
+          <Suspense
+            fallback={
+              <div className="flex justify-center py-16">
+                <Loader2 className="animate-spin text-white/40" size={24} />
+              </div>
+            }
+          >
+            <TeacherHub
+              user={currentUser || { uid: teacherProfile.uid, displayName: teacherProfile.displayName }}
+              profile={teacherProfile}
+              isAdminLens={canEdit}
+              onNavigate={targetView => {
+                if (targetView === 'TEACHER_TOOLS') {
+                  setPortalMode('TEACHER_TOOLS');
+                } else {
+                  nav(targetView);
+                }
+              }}
+            />
+          </Suspense>
+        </div>
+      </div>
+    );
+  }
+
+  // MODE 3: TEACHER TOOLS, GRADEBOOK HEATMAP, PLAN FROM MASTERY & ASSESS WORK
+  if (portalMode === 'TEACHER_TOOLS') {
+    return (
+      <div className="space-y-5 text-white" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
+        {modeBar}
+        <div className="rounded-3xl border border-white/10 bg-[#0a0a0f] overflow-hidden">
+          <Suspense
+            fallback={
+              <div className="flex justify-center py-16">
+                <Loader2 className="animate-spin text-white/40" size={24} />
+              </div>
+            }
+          >
+            <TeacherToolsView
+              user={currentUser || { uid: teacherProfile.uid, displayName: teacherProfile.displayName }}
+              onBack={() => setPortalMode('TEACHER_DASHBOARD')}
+            />
+          </Suspense>
+        </div>
+      </div>
+    );
+  }
+
+  // MODE 4: CURRICULUM, GOOGLE FORMS/DOCS, WORD & PDF → INTERACTIVE TELA + MASTERY INGESTOR
+  if (portalMode === 'CURRICULUM_TELA_INGESTOR') {
+    return (
+      <div className="space-y-5 text-white" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
+        {modeBar}
+        <CurriculumAndMasteryStudio
+          orgId={church.id}
+          orgName={church.name}
+          canEdit={canEdit}
+          currentUserUid={teacherProfile.uid}
+          currentUserName={teacherProfile.displayName}
+          programs={programs || []}
+          selectedProgramId={open?.id}
+          onAttachWeeksToProgram={handleAttachIngestedUnitToProgram}
+        />
+      </div>
+    );
+  }
+
+  // MODE 5: UNIVERSAL STUDENT DESK & MY MASTERY (Same workflow across Christian Education & Academia)
+  if (portalMode === 'STUDENT_PORTAL') {
+    const masteryEntries = Object.entries(masterySummary);
+    return (
+      <div className="space-y-5 text-white" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
+        {modeBar}
+
+        {/* Universal Platform-Wide Student Desk (Powered by Tela) */}
+        <UniversalStudentDesk
+          studentUid={teacherProfile.uid}
+          studentName={teacherProfile.displayName}
+          defaultDomain="CHRISTIAN_EDUCATION"
+          orgId={church.id}
+          orgName={church.name}
+          onOpenTelaStudio={(docId: string) => {
+            window.dispatchEvent(new CustomEvent('plajah:openTela', { detail: { docId } }));
+          }}
+        />
+
+        {/* Student Due-First Assignments Strip from Academia */}
+        <Suspense fallback={null}>
+          <TodayDueFirst
+            uid={teacherProfile.uid}
+            role="student"
+            onOpenTemplate={templateId => {
+              try {
+                sessionStorage.setItem('plajah:teacherTab', 'templates');
+                sessionStorage.setItem('plajah:openTemplateId', templateId);
+              } catch {}
+              setPortalMode('TEACHER_TOOLS');
+            }}
+          />
+        </Suspense>
+
+        {/* Student Mastery Summary Strip */}
+        <div className="rounded-3xl border border-emerald-400/25 bg-emerald-500/[0.05] p-5 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-emerald-300">
+                My Christian Education &amp; Coursework Mastery
+              </p>
+              <h3 className="text-lg font-black text-white" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                {church.name} · Student Mastery &amp; Interactive Tela Assignments
+              </h3>
+            </div>
+            <span className="px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 text-xs font-black">
+              {ingestedUnits.length} Interactive Tela Units Available
+            </span>
+          </div>
+
+          {masteryEntries.length > 0 && (
+            <div className="grid sm:grid-cols-3 gap-2.5 pt-1">
+              {masteryEntries.map(([skillId, rec]) => {
+                const lvl: SkillLevel = rec.level ?? 0;
+                return (
+                  <div key={skillId} className="rounded-2xl border border-white/10 bg-black/40 p-3 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-white truncate">{skillId}</span>
+                      <span
+                        className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase"
+                        style={{
+                          backgroundColor: `${LEVEL_COLOR[lvl]}22`,
+                          color: LEVEL_COLOR[lvl],
+                        }}
+                      >
+                        {LEVEL_NAME[lvl]}
+                      </span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
+                      <div
+                        className="h-full rounded-full"
+                        style={{ width: `${Math.max(10, (lvl / 4) * 100)}%`, background: LEVEL_COLOR[lvl] }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Interactive Tela Assignments & Auto-Graded Checks Runner for Students */}
+        <CurriculumAndMasteryStudio
+          orgId={church.id}
+          orgName={church.name}
+          canEdit={false}
+          currentUserUid={teacherProfile.uid}
+          currentUserName={teacherProfile.displayName}
+          programs={programs || []}
+        />
+      </div>
+    );
+  }
+
   if (open) {
     const p = open;
     const set = (patch: Partial<ChurchProgram>) => setOpen({ ...p, ...patch });
@@ -227,6 +569,8 @@ const ChurchEducation: React.FC<{
 
     return (
       <div className="space-y-4 text-white" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
+        {modeBar}
+
         <div className="flex flex-wrap items-center justify-between gap-2">
           <button
             type="button"
@@ -309,7 +653,7 @@ const ChurchEducation: React.FC<{
             p.description && <p className="text-sm text-white/75 leading-relaxed">{p.description}</p>
           )}
 
-          {/* 3-Tab Classroom Navigation */}
+          {/* 4-Tab Classroom Navigation */}
           <div className="flex flex-wrap gap-2 pt-2 border-t border-white/10">
             <button
               type="button"
@@ -321,6 +665,28 @@ const ChurchEducation: React.FC<{
               }`}
             >
               <BookOpen size={13} /> Weekly Verse Syllabus ({p.weeks.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('CLASSROOM_CLUB')}
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 transition ${
+                activeTab === 'CLASSROOM_CLUB'
+                  ? 'bg-rose-600 text-white shadow'
+                  : 'bg-white/5 text-white/70 hover:bg-white/10'
+              }`}
+            >
+              <Users size={13} /> Classroom Club, Live Lecture, Feed &amp; Photos
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('TELA_UNITS')}
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 transition ${
+                activeTab === 'TELA_UNITS'
+                  ? 'bg-gradient-to-r from-[#6B0099] via-[#D40055] to-[#FF8C00] text-white'
+                  : 'bg-white/5 text-white/70 hover:bg-white/10'
+              }`}
+            >
+              <Sparkles size={13} /> Google Forms/Docs &amp; PDF → Tela + Mastery
             </button>
             <button
               type="button"
@@ -342,10 +708,37 @@ const ChurchEducation: React.FC<{
                   : 'bg-white/5 text-white/70 hover:bg-white/10'
               }`}
             >
-              <GraduationCap size={13} /> Academia Ed-Tech & Worksheet Scanner
+              <GraduationCap size={13} /> Academia Ed-Tech &amp; Worksheet Scanner
             </button>
           </div>
         </div>
+
+        {/* TAB: GOOGLE FORMS/DOCS & PDF → INTERACTIVE TELA + MASTERY */}
+        {activeTab === 'CLASSROOM_CLUB' && (
+          <SharedClassroomClubHub
+            classId={p.classroomId || `church_cls_${p.id}`}
+            className={p.name}
+            classSubtitle={`${KIND_LABEL[p.kind]} · ${p.ageBand || 'All Ages'} · ${p.meetingSchedule || church.name}`}
+            contextKind="CHRISTIAN_EDUCATION"
+            teacherUid={teacherProfile.uid}
+            teacherName={p.leadInstructor || teacherProfile.displayName}
+            isTeacher={canEdit}
+            currentUserUid={teacherProfile.uid}
+            currentUserName={teacherProfile.displayName}
+          />
+        )}
+        {activeTab === 'TELA_UNITS' && (
+          <CurriculumAndMasteryStudio
+            orgId={church.id}
+            orgName={church.name}
+            canEdit={canEdit}
+            currentUserUid={teacherProfile.uid}
+            currentUserName={teacherProfile.displayName}
+            programs={programs || [p]}
+            selectedProgramId={p.id}
+            onAttachWeeksToProgram={handleAttachIngestedUnitToProgram}
+          />
+        )}
 
         {/* TAB 1: WEEKLY LECTIO SYLLABUS */}
         {activeTab === 'SYLLABUS' && (
@@ -576,10 +969,10 @@ const ChurchEducation: React.FC<{
                   </button>
                   <button
                     type="button"
-                    onClick={() => nav('LEARN')}
+                    onClick={() => setPortalMode('TEACHER_DASHBOARD')}
                     className="px-3 py-1.5 rounded-xl border border-white/20 text-white text-[11px] font-bold"
                   >
-                    Open in Academia
+                    Teacher Dashboard
                   </button>
                 </div>
               </div>
@@ -617,7 +1010,7 @@ const ChurchEducation: React.FC<{
               {/* Card 3: Tela Lesson & Assignment Builder */}
               <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 space-y-2.5">
                 <div className="flex items-center gap-2 text-indigo-300 text-xs font-bold uppercase tracking-wider">
-                  <Sparkles size={14} /> Tela Lesson & Study Guide
+                  <Sparkles size={14} /> Tela Lesson &amp; Study Guide
                 </div>
                 <p className="text-xs text-white/65 leading-relaxed">
                   Open this classroom&apos;s entire weekly syllabus and discussion prompts as an interactive Tela document.
@@ -743,25 +1136,36 @@ const ChurchEducation: React.FC<{
 
   return (
     <div className="space-y-5 text-white" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
+      {modeBar}
+
       <div className="rounded-2xl border border-amber-400/20 bg-gradient-to-r from-amber-500/10 via-indigo-500/10 to-transparent p-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-[10px] font-black uppercase tracking-widest text-amber-300">
-            Christian Education · Powered by Academia &amp; Verse
+            Christian Education · Powered by Academia, Tela &amp; Verse
           </p>
           <h3 className="text-lg font-black mt-0.5" style={{ fontFamily: "'Outfit', sans-serif" }}>
-            {church.name} — Templated Classrooms &amp; Catechism Hub
+            {church.name} — Classrooms, Teacher Studio &amp; Interactive Tela Curriculum
           </h3>
           <p className="text-xs text-white/65 mt-0.5">
-            Every classroom comes pre-configured with a weekly Verse Scripture syllabus, its own governed Classroom Chat room, and the Academia Ed-Tech stack (Roster, Paper Worksheet Scanner &amp; Tela Lesson Builder).
+            Teachers and students get the full Academia workflow (Teacher Dashboard, Gradebook Heatmap, Plan from Mastery, Student Portal) plus one-click extraction of Google Forms, Google Docs, Word docs &amp; PDFs into auto-graded interactive Tela documents.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => nav('LEARN')}
-          className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-xs font-bold inline-flex items-center gap-1.5"
-        >
-          <GraduationCap size={14} /> Open Academia Hub
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setPortalMode('CURRICULUM_TELA_INGESTOR')}
+            className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#6B0099] via-[#D40055] to-[#FF8C00] text-white text-xs font-black inline-flex items-center gap-1.5 shadow"
+          >
+            <Sparkles size={14} /> Import Google Form / Doc / PDF to Tela
+          </button>
+          <button
+            type="button"
+            onClick={() => setPortalMode('TEACHER_DASHBOARD')}
+            className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-xs font-bold inline-flex items-center gap-1.5"
+          >
+            <LayoutDashboard size={14} /> Teacher Dashboard
+          </button>
+        </div>
       </div>
 
       {programs === null && <p className="text-sm text-white/40">Loading classrooms...</p>}
@@ -773,7 +1177,7 @@ const ChurchEducation: React.FC<{
           </p>
           <p className="text-xs text-white/55 max-w-md mx-auto leading-relaxed">
             {canEdit
-              ? 'Start your first Sunday school, Bible study or discipleship class from a template below, or create a blank one.'
+              ? 'Start your first Sunday school, Bible study or discipleship class from a template below, or import a curriculum from Google Forms, Google Docs, Word or PDF.'
               : 'When your church opens Christian Education classes, they will be listed here.'}
           </p>
         </div>
@@ -820,22 +1224,32 @@ const ChurchEducation: React.FC<{
               <button
                 type="button"
                 onClick={() => {
+                  setActiveTab('CLASSROOM_CLUB');
+                  setOpen(p);
+                }}
+                className="px-3 py-1.5 rounded-xl bg-rose-600/20 border border-rose-400/40 text-rose-200 hover:bg-rose-600/35 text-[11px] font-black inline-flex items-center gap-1"
+              >
+                <Users size={12} /> Live Lecture &amp; Club
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('TELA_UNITS');
+                  setOpen(p);
+                }}
+                className="px-3 py-1.5 rounded-xl bg-purple-500/20 border border-purple-400/30 text-purple-200 hover:bg-purple-500/30 text-[11px] font-bold inline-flex items-center gap-1"
+              >
+                <Sparkles size={12} /> Tela &amp; Mastery
+              </button>
+              <button
+                type="button"
+                onClick={() => {
                   setActiveTab('CLASS_CHAT');
                   setOpen(p);
                 }}
                 className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-white text-[11px] font-bold inline-flex items-center gap-1"
               >
-                <MessageSquare size={12} /> Class Chat ({(p.chatMessages || []).length})
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveTab('ACADEMIA_STACK');
-                  setOpen(p);
-                }}
-                className="px-3 py-1.5 rounded-xl border border-white/15 text-white/75 hover:text-white text-[11px] font-bold inline-flex items-center gap-1"
-              >
-                <FileScan size={12} /> Ed-Tech &amp; Worksheets
+                <MessageSquare size={12} /> Chat ({(p.chatMessages || []).length})
               </button>
             </div>
           </div>
@@ -903,4 +1317,3 @@ const ChurchEducation: React.FC<{
 };
 
 export default ChurchEducation;
-

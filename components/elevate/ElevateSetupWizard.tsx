@@ -81,8 +81,8 @@ const ElevateSetupWizard: React.FC<Props> = ({ user, onCancel, onCreated, initia
       const stamp = Date.now();
       const tmp = `elevate_${user?.uid || 'u'}_${stamp}`;
       let logo = logoUrl; let cover = coverUrl;
-      if (logoFile) logo = await uploadFile(`organizations/${tmp}/logo_${stamp}.png`, logoFile);
-      if (coverFile) cover = await uploadFile(`organizations/${tmp}/cover_${stamp}.png`, coverFile);
+      if (logoFile) logo = await uploadFile(`uploads/organizations/${tmp}/logo_${stamp}.${(logoFile.name.split('.').pop() || 'jpg')}`, logoFile);
+      if (coverFile) cover = await uploadFile(`uploads/organizations/${tmp}/cover_${stamp}.${(coverFile.name.split('.').pop() || 'jpg')}`, coverFile);
       const org = await setupElevateOrg({
         orgType, name: name.trim(), tagline: tagline.trim() || undefined, about: about.trim(),
         denomination: orgType === 'CHURCH' || orgType === 'RELIGIOUS' ? (kindLabel.trim() || undefined) : undefined,

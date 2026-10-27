@@ -1626,7 +1626,7 @@ export const createPost = async (post: Partial<Post>, opts?: { postId?: string }
     void import('./safety/safetyScanClient').then(m => m.scanCreatedPost(path, docRef.id, post.media)).catch(() => {});
 
     // Department-private posts never mirror to the global feed or notify followers.
-    if (post.orgAudience === 'DEPARTMENT') return docRef.id;
+    if (post.orgAudience === 'DEPARTMENT' || post.orgAudience === 'INTERNAL' || postData.isPublic === false) return docRef.id;
     // List / custom posts: no feed mirror, no follower blast (only the chosen people can open them).
     if (path === 'circle_posts') return docRef.id;
     // Followers-only posts never mirror to the world-readable `feed` collection.
@@ -1984,7 +1984,7 @@ export const listenToOrgPosts = (orgId: string, callback: (posts: Post[]) => voi
   return onSnapshot(q, snapshot => {
     const items = snapshot.docs
       .map(d => ({ id: d.id, ...d.data(), sourceCollection: 'posts', timestamp: safeToMillis(d.data().timestamp) } as Post))
-      .filter(p => p.timestamp > 0 && !p.orgDepartmentId)
+      .filter(p => p.timestamp > 0)
       .sort((a, b) => b.timestamp - a.timestamp);
     callback(items);
   }, (err) => handleFirestoreError(err, OperationType.LIST, 'posts'));
@@ -2027,7 +2027,7 @@ export const listenToOrgInternal = (
   return onSnapshot(q, snapshot => {
     const items = snapshot.docs
       .map(d => ({ id: d.id, ...d.data(), sourceCollection: 'posts', timestamp: safeToMillis(d.data().timestamp) } as Post))
-      .filter(p => p.timestamp > 0 && !p.orgDepartmentId)
+      .filter(p => p.timestamp > 0)
       .sort((a, b) => b.timestamp - a.timestamp);
     callback(items);
   }, (err) => { onError?.(err); });
@@ -2517,7 +2517,9 @@ export const uploadFile = async (path: string, blobOrFile: Blob | File, onProgre
   const pathParts = path.split('/');
   const filename = pathParts.pop() || 'file';
   const sanitizedFilename = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
-  const sanitizedPath = [...pathParts, sanitizedFilename].join('/');
+  const rawJoinedPath = [...pathParts, sanitizedFilename].join('/');
+  // Route organization uploads through uploads/organizations/... so they match the live /uploads/{allPaths=**} Storage rule
+  const sanitizedPath = (rawJoinedPath.startsWith('organizations/') || rawJoinedPath.startsWith('orgs/')) ? `uploads/${rawJoinedPath}` : rawJoinedPath;
 
   // Determine content type
   let contentType = (blobOrFile as any).type;

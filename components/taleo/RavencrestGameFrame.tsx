@@ -17,7 +17,7 @@ const RAVENCREST_TRIGGERS: AchievementTriggerType[] = ['RAVENCREST_TROLL_SLAYER'
  * {type:'ravencrest:achievement', trigger}: saved on the player's Plajah profile and toasted.
  */
 export const RavencrestGameFrame: React.FC<{ classic: React.ReactNode; onBack: () => void; onWatch?: (filmId: string, timecode?: string) => void }> = ({ classic, onBack, onWatch }) => {
-  const hasWebGPU = typeof navigator !== 'undefined' && 'gpu' in navigator;
+  const hasWebGPU = typeof navigator !== 'undefined' && ('gpu' in navigator || 'xr' in navigator || 'getVRDisplays' in navigator);
   const [mode, setMode] = useState<'game' | 'classic'>(hasWebGPU ? 'game' : 'classic');
   const { registerAndUnlock } = useAchievements();
 

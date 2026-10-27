@@ -224,38 +224,45 @@ export class Forest {
    */
   async bake(renderer: THREE.WebGPURenderer) {
     if (!this.far.length) return;
+    const isWebGL = !!(renderer.backend as unknown as { isWebGLBackend?: boolean }).isWebGLBackend;
     const W = 256, H = 384;
     const views = new Map<Species, { a: THREE.Texture; b: THREE.Texture; width: number }>();
     const prevTarget = renderer.getRenderTarget();
     const prevClear = new THREE.Color(), prevAlpha = renderer.getClearAlpha();
+    const prevXR = renderer.xr.enabled;
+    renderer.xr.enabled = false;
     renderer.getClearColor(prevClear as never);
     // The bake has no prepass: leaves must write their own depth or back leaves cover front ones.
     leafMats.forEach((m) => { m.depthWrite = true; });
-    for (const sp of SPECIES) {
-      const v = this.variants.find((x) => x.species === sp);
-      if (!v) continue;
-      const sc = new THREE.Scene();
-      sc.add(new THREE.AmbientLight(0xffffff, 1.6));
-      const sun = new THREE.DirectionalLight(0xffffff, 0.6); sun.position.set(1, 2, 2); sc.add(sun);
-      sc.add(new THREE.Mesh(v.bark, barkMaterial(v.barkType)));
-      if (v.leaves && v.leafType) sc.add(new THREE.Mesh(v.leaves, leafMaterial(v.leafType)));
-      const half = v.width * 0.55;
-      const cam = new THREE.OrthographicCamera(-half, half, 1.02, -0.02, 0.01, 10);
-      const shots: THREE.Texture[] = [];
-      for (const [x, z] of [[0, 3], [3, 0]]) {
-        const rt = new THREE.RenderTarget(W, H, { colorSpace: THREE.SRGBColorSpace });
-        cam.position.set(x, 0.5, z); cam.lookAt(0, 0.5, 0);
-        renderer.setRenderTarget(rt);
-        renderer.setClearColor(0x000000, 0);
-        renderer.clear();
-        await renderer.renderAsync(sc, cam);
-        shots.push(rt.texture);
+    try {
+      for (const sp of SPECIES) {
+        const v = this.variants.find((x) => x.species === sp);
+        if (!v) continue;
+        const sc = new THREE.Scene();
+        sc.add(new THREE.AmbientLight(0xffffff, 1.6));
+        const sun = new THREE.DirectionalLight(0xffffff, 0.6); sun.position.set(1, 2, 2); sc.add(sun);
+        sc.add(new THREE.Mesh(v.bark, barkMaterial(v.barkType)));
+        if (v.leaves && v.leafType) sc.add(new THREE.Mesh(v.leaves, leafMaterial(v.leafType)));
+        const half = v.width * 0.55;
+        const cam = new THREE.OrthographicCamera(-half, half, 1.02, -0.02, 0.01, 10);
+        const shots: THREE.Texture[] = [];
+        for (const [x, z] of [[0, 3], [3, 0]]) {
+          const rt = new THREE.RenderTarget(W, H, { colorSpace: THREE.SRGBColorSpace });
+          cam.position.set(x, 0.5, z); cam.lookAt(0, 0.5, 0);
+          renderer.setRenderTarget(rt);
+          renderer.setClearColor(0x000000, 0);
+          renderer.clear();
+          await renderer.renderAsync(sc, cam);
+          shots.push(rt.texture);
+        }
+        views.set(sp, { a: shots[0], b: shots[1], width: v.width });
       }
-      views.set(sp, { a: shots[0], b: shots[1], width: v.width });
+    } finally {
+      renderer.xr.enabled = prevXR;
+      renderer.setRenderTarget(prevTarget);
+      renderer.setClearColor(prevClear, prevAlpha);
+      leafMats.forEach((m) => { m.depthWrite = false; });
     }
-    renderer.setRenderTarget(prevTarget);
-    renderer.setClearColor(prevClear, prevAlpha);
-    leafMats.forEach((m) => { m.depthWrite = false; });
 
     for (const { spots, species } of this.far) {
       const R = rng(spots.length);
@@ -290,8 +297,8 @@ export class Forest {
         };
         merge([qa, qb]);
         const mat = new THREE.MeshLambertNodeMaterial({ side: THREE.DoubleSide, alphaTest: 0.5 });
-        // Render targets are stored top-down under WebGPU: flip V or the trees hang upside-down.
-        const fuv = vec2(uv().x, float(1).sub(uv().y));
+        // Render targets are stored top-down under WebGPU (flip V), bottom-up under WebGL.
+        const fuv = isWebGL ? uv() : vec2(uv().x, float(1).sub(uv().y));
         const ta = texture(vw.a, fuv), tb = texture(vw.b, fuv);
         const sel = attribute<'float'>('view', 'float');
         const c = mix(ta, tb, sel);
@@ -328,7 +335,7 @@ export class Forest {
 
   private packed = false;
   /** Every instance back in its original slot (culling switched off at runtime). */
-  private unpack() {
+  unpack() {
     this.packed = false;
     for (const s of this.cullSets) {
       s.mats.forEach((m, i) => { for (const a of s.attrs) (a.array as Float32Array).set(m.elements, i * 16); });

@@ -15,7 +15,7 @@ import type { AccountType, UserProfile } from '../types';
 export type { AccountType };
 
 export const ACCOUNT_TYPES: AccountType[] = [
-  'FAN', 'ARTIST', 'BRAND', 'WRITER', 'STUDENT', 'TEACHER',
+  'FAN', 'ARTIST', 'BRAND', 'WRITER', 'STUDENT', 'TEACHER', 'INSTRUCTOR',
   'PARTNER', 'ORGANIZATION', 'CLERGY', 'ATHLETE', 'PARENT', 'CHILD',
   // EMPLOYEE is a managed, business-owned profile — provisioned by a business, never
   // self-selected in the account-type picker (intentionally omitted from the settings grid).
@@ -34,7 +34,8 @@ export const ACCOUNT_TYPE_META: Record<AccountType, AccountTypeMeta> = {
   BRAND:        { type: 'BRAND',        label: 'Brand',        blurb: 'A business page + community with staff and a roster.' },
   WRITER:       { type: 'WRITER',       label: 'Writer',       blurb: 'Write articles and self-publish books.' },
   STUDENT:      { type: 'STUDENT',      label: 'Student',      blurb: 'Enroll in classes and build a learning record.' },
-  TEACHER:      { type: 'TEACHER',      label: 'Teacher',      blurb: 'Create classrooms and provision learners.' },
+  TEACHER:      { type: 'TEACHER',      label: 'Teacher (Academia)', blurb: 'Credentialed educational & academic teacher — create school classrooms and provision learners.' },
+  INSTRUCTOR:   { type: 'INSTRUCTOR',   label: 'Instructor (Org & Church)', blurb: 'Non-credentialed class instructor for Christian Education, ministry classes, and community programs.' },
   PARTNER:      { type: 'PARTNER',      label: 'Partner',      blurb: 'Storage / service integrations.' },
   ORGANIZATION: { type: 'ORGANIZATION', label: 'Organization', blurb: 'An org page with sub-groups, staff, and giving.' },
   CLERGY:       { type: 'CLERGY',       label: 'Clergy',       blurb: 'A pastor, minister, imam, rabbi or faith leader — run ministries, sermons, prayer and giving.' },
@@ -65,6 +66,7 @@ export const CAPABILITIES_BY_TYPE: Record<AccountType, Capability[]> = {
   ORGANIZATION: [...CREATOR_CAPS, 'MANAGE_ORG'],
   CLERGY:       [...CREATOR_CAPS, 'MANAGE_ORG'],
   TEACHER:      ['TEACH', 'PROVISION_LEARNERS', 'CREATE_ARTICLE', 'CREATE_VIDEO', 'LIVE_STREAM'],
+  INSTRUCTOR:   ['TEACH', 'CREATE_ARTICLE', 'CREATE_VIDEO', 'LIVE_STREAM'],
   STUDENT:      ['ENROLL', 'CREATE_ARTICLE', 'CREATE_PHOTO'],
   PARENT:       ['MANAGE_FAMILY', 'CREATE_ARTICLE', 'CREATE_PHOTO'],
   CHILD:        ['ENROLL'],

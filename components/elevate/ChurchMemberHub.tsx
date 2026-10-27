@@ -72,6 +72,7 @@ import LectioReader from '../scripture/LectioReader';
 import VespersRecap from '../scripture/VespersRecap';
 import { sessionIdFor } from '../../services/kairosService';
 import ElevateMobilizeHub from './ElevateMobilizeHub';
+import MyOrgTasksAndDepartments from './MyOrgTasksAndDepartments';
 import { EV, EvLabel, EvLectioSheet } from './vellum';
 import { elevateCan } from '../../services/elevateRoles';
 import { useFaithContentScope } from '../../hooks/useFaithContentScope';
@@ -531,6 +532,12 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
             )}
 
             {/* Assigned Departments, Ministry Activities & Quick Actions Grid */}
+            <MyOrgTasksAndDepartments
+              org={org}
+              membership={membership}
+              onOpenDepartment={deptId => onOpenMinistry?.(deptId)}
+              onOpenEducation={() => setSection('RECENT_LESSONS_AND_VESPERS')}
+            />
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               {/* My Assigned Departments & Ministry Activities (7 cols) */}
               <div
@@ -1004,7 +1011,10 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
                   'Classes & Christian education'
                 )}
               </div>
-              <ChurchEducation church={org} canEdit={canEditContent} />
+              <ChurchEducation
+                church={org}
+                canEdit={canEditContent || assignedMinistries.some(m => /christian\s*ed|education|sunday\s*school|discipleship/i.test(m.name))}
+              />
             </div>
           </div>
         )}

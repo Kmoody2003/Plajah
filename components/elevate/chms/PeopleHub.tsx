@@ -3,7 +3,7 @@
 //   staff (MANAGE_ROSTER)  → everything; leaders → their ministries' people + attendance + groups;
 //   finance               → directory/households/reports only, never notes, minors redacted.
 import React, { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
-import { Loader2, Users, Home, CalendarCheck, MonitorSmartphone, Church, HandHeart, HeartHandshake, Mail, BarChart3, Upload } from 'lucide-react';
+import { Loader2, Users, Home, CalendarCheck, MonitorSmartphone, Church, HandHeart, HeartHandshake, Mail, BarChart3, Upload, Sparkles } from 'lucide-react';
 import type { Organization, OrgMembership, ChmsPerson, ChmsHousehold, ChmsAttendance } from '../../../types';
 import { fetchOrgMembers } from '../../../services/organizationService';
 import {
@@ -24,8 +24,9 @@ const CareHub = lazy(() => import('./CareHub'));
 const CommsHub = lazy(() => import('./CommsHub'));
 const PeopleReports = lazy(() => import('./PeopleReports'));
 const ImportWizard = lazy(() => import('./ImportWizard'));
+const ElevateTelaOperationsSuite = lazy(() => import('../ElevateTelaOperationsSuite'));
 
-type Tab = 'directory' | 'households' | 'attendance' | 'kiosk' | 'groups' | 'volunteers' | 'care' | 'comms' | 'reports' | 'import';
+type Tab = 'directory' | 'households' | 'attendance' | 'kiosk' | 'groups' | 'volunteers' | 'care' | 'tela_workflows' | 'comms' | 'reports' | 'import';
 interface Props { org: Organization; myMembership: OrgMembership | null; onClose: () => void }
 
 const Fallback = () => <div className="flex justify-center py-16"><Loader2 className="animate-spin text-white/30" size={22} /></div>;
@@ -73,6 +74,7 @@ const PeopleHub: React.FC<Props> = ({ org, myMembership, onClose }) => {
     { key: 'groups' as const, label: 'Groups', icon: Church, show: access.staff || !!access.ministryScope },
     { key: 'volunteers' as const, label: 'Volunteers', icon: HandHeart, show: access.staff },
     { key: 'care' as const, label: 'Care', icon: HeartHandshake, show: access.staff || access.pastoral },
+    { key: 'tela_workflows' as const, label: 'Workflows, Matrix & Safety (Tela)', icon: Sparkles, show: access.staff || access.pastoral },
     { key: 'comms' as const, label: 'Communications', icon: Mail, show: access.staff },
     { key: 'reports' as const, label: 'Reports', icon: BarChart3, show: access.staff || access.financeOnly },
     { key: 'import' as const, label: 'Import', icon: Upload, show: access.staff },
@@ -107,6 +109,7 @@ const PeopleHub: React.FC<Props> = ({ org, myMembership, onClose }) => {
             {tab === 'groups' && <PeopleGroups />}
             {tab === 'volunteers' && <PeopleVolunteers />}
             {tab === 'care' && <CareHub />}
+            {tab === 'tela_workflows' && <ElevateTelaOperationsSuite org={org} canManage={access.staff} initialTab="WORKFLOWS_FORMS" />}
             {tab === 'comms' && <CommsHub />}
             {tab === 'reports' && <PeopleReports />}
             {tab === 'import' && access.staff && <ImportWizard {...({ org, myMembership, onClose: () => { setTab('directory'); reload(); }, onDone: reload } as any)} />}

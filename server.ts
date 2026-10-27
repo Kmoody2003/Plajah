@@ -1074,7 +1074,11 @@ function publicHost(req: any): string {
 }
 
 const injectMetaTags = async (html: string, query: any, host: string) => {
-   const { type, id, track } = query;
+   let { type, id, track } = query;
+   if (!type && (query?.channel || query?.ch || query?.plajahId)) {
+     type = 'channel';
+     id = query.owner ? `owner:${query.owner}` : query.plajahId ? `plajah:${query.plajahId}` : `channel:${query.channel || query.ch}`;
+   }
    if (!type || !id) return html;
 
    // Curated Taleo collections (e.g., /share?type=taleo&id=halloween)
@@ -1277,7 +1281,7 @@ const injectMetaTags = async (html: string, query: any, host: string) => {
    if (type === 'channel') {
      try {
        const rawId = String(id);
-       const num = String((query as any).n || '').trim();
+       const num = String((query as any).n || (query as any).channel || (query as any).ch || '').trim();
        let name = 'A live channel';
        let desc = 'Live now on Plajah.';
        let image = `https://${host}/og-default.png`;
@@ -10332,8 +10336,9 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     let injected = false;
     try { const out = await injectMetaTags(html, req.query, host); if (out && out !== html) { html = out; injected = true; } } catch {}
 
-    const { type, id } = req.query as any;
-    if (type && id) {
+    const { type, id, channel, ch, plajahId } = req.query as any;
+    const isShareTarget = Boolean((type && id) || channel || ch || plajahId);
+    if (isShareTarget) {
       // Preserve the full original query (ref/track/video/etc.) when bouncing to the app.
       const qsStr = req.originalUrl.includes('?') ? req.originalUrl.slice(req.originalUrl.indexOf('?') + 1) : '';
       const canonical = type === 'app' ? (String(id).toLowerCase() === 'home' ? '/' : `/?view=${encodeURIComponent(String(id).toLowerCase())}`) : `/?${qsStr}`;
@@ -10343,7 +10348,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     }
     // Cache successful cards for 5 min; never cache a failed/generic fallback (so a retry
     // or re-scrape immediately gets the real card instead of a stuck broken one).
-    if (type && id && !injected) res.set('Cache-Control', 'no-store, max-age=0');
+    if (isShareTarget && !injected) res.set('Cache-Control', 'no-store, max-age=0');
     else res.set('Cache-Control', 'public, max-age=300');
     res.send(html);
   });
@@ -10381,7 +10386,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
       if (req.path === '/' || req.path === '') {
         try {
           const rawHtml = await fs.readFile(path.join(__dirname, 'index.html'), 'utf-8');
-          const finalHtml = req.query.type
+          const finalHtml = (req.query.type || req.query.channel || req.query.ch || req.query.plajahId)
             ? await injectMetaTags(rawHtml, req.query, req.get('host') || 'localhost')
             : rawHtml;
           const viteTransformed = await vite.transformIndexHtml(req.originalUrl, finalHtml);
@@ -10428,7 +10433,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
       if (req.path.startsWith('/api/') || req.path.startsWith('/t/') || req.path.startsWith('/i/')) return next();   // /t/* = public ticket page (ticketServer); /i/* = evite page (eviteServer)
       try {
         let html = await fs.readFile(path.join(__dirname, 'dist', 'index.html'), 'utf-8');
-        if (req.query.type) {
+        if (req.query.type || req.query.channel || req.query.ch || req.query.plajahId) {
            html = await injectMetaTags(html, req.query, req.get('host') || 'localhost');
         }
         // Event page social OG injection: /event/:eventId

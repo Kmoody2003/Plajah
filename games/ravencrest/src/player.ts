@@ -51,10 +51,12 @@ export class PlayerController {
   stickRun = false;
   /** Swing the camera in behind Jack now (pad R3). */
   recenter() { this.camHurry = 0.6; }
+  private lastOrbit = -10;
   /** Look (touch drag / right stick): radians this frame. Counts as mouse activity. */
-  look(dYaw: number, dPitch: number) {
+  look(dYaw: number, dPitch: number, orbitOnly = false) {
     if (!this.enabled) return;
-    if (this.followCam) this.yaw -= dYaw; else this.camYaw -= dYaw;
+    if (this.followCam && !orbitOnly && !this.xrMode) this.yaw -= dYaw; else this.camYaw -= dYaw;
+    if (orbitOnly) this.lastOrbit = this.time;
     this.camPitch = THREE.MathUtils.clamp(this.camPitch - dPitch, -1.1, 0.55);
     this.lastMouse = this.time;
   }
@@ -196,11 +198,13 @@ export class PlayerController {
   /** Current planar move direction from input (camera-relative), or zero. */
   inputDir(): THREE.Vector3 {
     const k = this.keys;
-    const ix = (k.has('KeyD') || k.has('ArrowRight') ? 1 : 0) - (k.has('KeyA') || k.has('ArrowLeft') ? 1 : 0);
-    const iz = (k.has('KeyW') || k.has('ArrowUp') ? 1 : 0) - (k.has('KeyS') || k.has('ArrowDown') ? 1 : 0);
+    let ix = (k.has('KeyD') || k.has('ArrowRight') ? 1 : 0) - (k.has('KeyA') || k.has('ArrowLeft') ? 1 : 0);
+    let iz = (k.has('KeyW') || k.has('ArrowUp') ? 1 : 0) - (k.has('KeyS') || k.has('ArrowDown') ? 1 : 0);
+    const usingStick = !ix && !iz && this.stick.lengthSq() > 0.02;
+    if (usingStick) { ix = this.stick.x; iz = this.stick.y; }
     if (!ix && !iz) return new THREE.Vector3();
-    // Follow camera: relative to Jack's facing (A/D = sideways, for a sidestep roll).
-    const ref = this.followCam ? this.yaw + Math.PI : this.camYaw;
+    // Follow camera: relative to Jack's facing (A/D = sideways, for a sidestep roll); stick/XR is camera-relative.
+    const ref = (this.followCam && !usingStick && !this.xrMode) ? this.yaw + Math.PI : this.camYaw;
     const fwd = new THREE.Vector3(-Math.sin(ref), 0, -Math.cos(ref));
     const right = new THREE.Vector3(-fwd.z, 0, fwd.x);
     return fwd.multiplyScalar(iz).addScaledVector(right, ix).normalize();
@@ -309,14 +313,16 @@ export class PlayerController {
     let iz = (k.has('KeyW') || k.has('ArrowUp') ? 1 : 0) - (k.has('KeyS') || k.has('ArrowDown') ? 1 : 0);
     // Analog stick when no keys are held: direction plus how far it's pushed.
     let mag = 1;
-    if (!ix && !iz && this.stick.lengthSq() > 0.02) { ix = this.stick.x; iz = this.stick.y; mag = Math.min(1, this.stick.length()); }
+    const usingStick = !ix && !iz && this.stick.lengthSq() > 0.02;
+    if (usingStick) { ix = this.stick.x; iz = this.stick.y; mag = Math.min(1, this.stick.length()); }
+    const stickCamera = usingStick || this.xrMode || (this.time - this.lastOrbit < 1.2);
     const running = k.has('ShiftLeft') || k.has('ShiftRight') || this.sprintLatch || this.stickRun;
     // The camera logic wants clean intent (straight / diagonal / sidestep), not stick noise.
     this.lastIx = Math.abs(ix) < 0.3 ? 0 : Math.sign(ix); this.lastIz = Math.abs(iz) < 0.3 ? 0 : Math.sign(iz);
 
     // Desired horizontal velocity, relative to where the camera looks.
     const want = new THREE.Vector3();
-    if (this.followCam && this.enabled) {
+    if (this.followCam && !stickCamera && this.enabled) {
       // A/D turn (the mouse steers too), W/S along the facing; S backs up slowly. Q turns about.
       if (ix) this.yaw -= ix * KEY_TURN * (iz ? 0.85 : 1.15) * dt;
       const fwd = new THREE.Vector3(Math.sin(this.yaw), 0, Math.cos(this.yaw));
@@ -345,7 +351,7 @@ export class PlayerController {
       this.yaw += THREE.MathUtils.clamp(d, -16 * dt, 16 * dt);
       if (Math.abs(d) < 0.05) this.threatYaw = null;
     }
-    if (speed > 0.15 && !this.followCam && !this.faceLock && (!this.burst || this.burst.turn)) {
+    if (speed > 0.15 && (!this.followCam || stickCamera) && !this.faceLock && (!this.burst || this.burst.turn)) {
       const target = Math.atan2(this.vel.x, this.vel.z);
       const diff = Math.atan2(Math.sin(target - this.yaw), Math.cos(target - this.yaw));
       turned = THREE.MathUtils.clamp(diff, -TURN * dt, TURN * dt);
@@ -376,7 +382,7 @@ export class PlayerController {
     this.character?.setLocomotion(speed, WALK, RUN);
 
     if (this.cinematic || this.xrMode) return;
-    if (this.followCam) {
+    if (this.followCam && !stickCamera) {
       // Centred behind Jack, a touch of lag so turns feel smooth, not rigid.
       const behind = this.yaw + Math.PI;
       const d = Math.atan2(Math.sin(behind - this.camYaw), Math.cos(behind - this.camYaw));
@@ -394,11 +400,11 @@ export class PlayerController {
     // behind him — fast running straight, gentler on diagonals (a soft arc, never a spin), also
     // standing or fighting. Only a pure sidestep or backing up toward the camera leaves it put.
     this.camHurry = Math.max(0, this.camHurry - dt);
-    if (!this.followCam && this.camHurry > 0) {
+    if ((!this.followCam || stickCamera) && this.camHurry > 0) {
       const behind = this.yaw + Math.PI;
       const d = Math.atan2(Math.sin(behind - this.camYaw), Math.cos(behind - this.camYaw));
       this.camYaw += d * Math.min(1, dt * 7);
-    } else if (!this.followCam && idle > 0.45) {
+    } else if ((!this.followCam || stickCamera) && idle > 0.45) {
       const moving = speed > 0.5;
       const sidestep = moving && this.lastIz === 0 && this.lastIx !== 0;
       const backing = moving && this.lastIz < 0;

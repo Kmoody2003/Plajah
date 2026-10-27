@@ -635,8 +635,10 @@ const LiveTvPlus: React.FC<{
 
   // Active channel identifier ref — pins user selection to the exact station across background lineup refreshes
   const activeChannelRef = useRef<{ id?: string; number?: string } | null>(null);
+  const userChangedChannelRef = useRef(false);
 
   const setIdx = useCallback((i: number) => {
+    userChangedChannelRef.current = true;
     setIndex(i);
     if (channels[i]) {
       activeChannelRef.current = { id: channels[i].id, number: channels[i].number };
@@ -652,7 +654,8 @@ const LiveTvPlus: React.FC<{
     // Tune ONCE per shared link. `channels` is rebuilt on every feed/registry update, and without
     // this the guide kept snapping back to the shared channel while the viewer was browsing.
     const key = [focusOwnerId, focusPlajahId, focusNumber, focusSourceId].join('|');
-    if (focusAppliedRef.current === key) return;
+    if (focusAppliedRef.current !== key) { focusAppliedRef.current = key; userChangedChannelRef.current = false; }
+    if (userChangedChannelRef.current) return;
     const i = findSharedChannel(channels, { ownerId: focusOwnerId, plajahId: focusPlajahId, number: focusNumber, sourceId: focusSourceId });
     if (i >= 0) {
       focusAppliedRef.current = key;
@@ -670,7 +673,8 @@ const LiveTvPlus: React.FC<{
     if (!channels.length) return;
     const target = activeChannelRef.current;
     if (!target) {
-      if (channels[index]) {
+      const hasPendingFocus = !!(focusOwnerId || focusPlajahId || focusNumber || focusSourceId) && !userChangedChannelRef.current;
+      if (!hasPendingFocus && channels[index]) {
         activeChannelRef.current = { id: channels[index].id, number: channels[index].number };
       }
       return;

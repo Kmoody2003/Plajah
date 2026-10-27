@@ -327,7 +327,7 @@ export class Game {
     mesh.position.copy(from).lerp(to, 0.5);
     // Plane's +Y along the beam; face it toward the camera around that axis.
     const dir = to.clone().sub(from).normalize();
-    const toCam = this.d.camera.position.clone().sub(mesh.position);
+    const toCam = this.d.camera.getWorldPosition(new THREE.Vector3()).sub(mesh.position);
     const side = new THREE.Vector3().crossVectors(dir, toCam).normalize();
     const normal = new THREE.Vector3().crossVectors(side, dir).normalize();
     mesh.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(side, dir, normal));
@@ -936,10 +936,12 @@ export class Game {
     // ~4 draws per mob is real CPU on the iGPU baseline.
     const cam = this.d.camera;
     cam.updateMatrixWorld();
+    const camWorldPos = cam.getWorldPosition(new THREE.Vector3());
+    const inXR = this.d.player.xrMode;
     // The renderer uses WebGPU clip space and a reversed depth buffer: the frustum must be built
     // the same way, or its near/far planes come out swapped and close monsters (the ones attacking
     // you) get culled as "out of view".
-    this.frustum.setFromProjectionMatrix(this.projView.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse), cam.coordinateSystem, cam.reversedDepth);
+    if (!inXR) this.frustum.setFromProjectionMatrix(this.projView.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse), cam.coordinateSystem, cam.reversedDepth);
     for (const m of this.mobs) {
       let vis = mode !== 'ref' && m.level === lvl && (m.alive || m.fading);
       if (vis) {
@@ -948,7 +950,7 @@ export class Game {
         const h = KINDS[m.kind].height;
         this.sphere.center.copy(m.object.position).setY(m.object.position.y + h * 0.5);
         this.sphere.radius = h * 0.75 + 1.5;
-        vis = this.sphere.center.distanceTo(cam.position) < tuning.cullDist + 10 && this.frustum.intersectsSphere(this.sphere);
+        vis = this.sphere.center.distanceTo(camWorldPos) < tuning.cullDist + 10 && (inXR || this.frustum.intersectsSphere(this.sphere));
       }
       m.object.visible = vis;
     }
@@ -1083,7 +1085,7 @@ export class Game {
     const me = { pos: p, alive: this.dead <= 0 };
     // Allies (Pumpkin Patch) keep to Jack's side — beside and a little ahead, never between the
     // camera and him — and step out of the camera's line of sight if they wander into it.
-    const camPos = this.d.camera.position;
+    const camPos = camWorldPos;
     const camFwd = p.clone().sub(camPos).setY(0).normalize();
     const camRight = new THREE.Vector3(-camFwd.z, 0, camFwd.x);
     const allySlot = p.clone().addScaledVector(camRight, 2.6).addScaledVector(camFwd, 1.2);
@@ -1440,7 +1442,8 @@ export class Game {
     const st = m.state;
     if (st === was && st !== 'chase' && st !== 'idle' && st !== 'wander') return;
     const cam = this.d.camera, right = new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld, 0);
-    const pan = Math.max(-0.9, Math.min(0.9, m.object.position.clone().sub(cam.position).normalize().dot(right)));
+    const camPos = cam.getWorldPosition(new THREE.Vector3());
+    const pan = Math.max(-0.9, Math.min(0.9, m.object.position.clone().sub(camPos).normalize().dot(right)));
     if (st !== was && st === 'attack') { if (Math.random() < 0.6) this.d.sfx.vocal(m.kind, 'attack', pan, dist); return; }
     if (st !== was && st === 'hurt') { if (Math.random() < 0.5) this.d.sfx.vocal(m.kind, 'hurt', pan, dist); return; }
     let t = (this.mobVoiceT.get(m) ?? 1 + Math.random() * 5) - dt;
