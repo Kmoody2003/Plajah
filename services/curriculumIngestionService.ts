@@ -64,6 +64,14 @@ export interface IngestedMasterySkill {
   targetQuestions: number;
 }
 
+export type LessonLibraryCategory =
+  | 'SYLLABUS'
+  | 'ASSIGNMENT'
+  | 'COURSE_RESOURCE'
+  | 'QUIZ_EXAM'
+  | 'MASTER_SOURCE_DOC'
+  | 'ANSWER_KEY';
+
 export interface IngestedCurriculumUnit {
   id: string;
   orgId: string;
@@ -75,6 +83,12 @@ export interface IngestedCurriculumUnit {
   sourceUrl?: string;
   answerKeySourceLabel?: string;
   kind: 'ASSIGNMENT' | 'QUIZ' | 'TEST' | 'INTERACTIVE_LESSON' | 'CURRICULUM_MODULE';
+  libraryCategory?: LessonLibraryCategory;
+  uploadedByRole?: string;
+  createdByName?: string;
+  extractedFromHubTitle?: string;
+  extractedFromHubUrl?: string;
+  isAnswerKeyOnly?: boolean;
   lessonBlocks: Array<{
     id: string;
     kind: 'h1' | 'h2' | 'p' | 'quote' | 'callout' | 'check';
@@ -126,12 +140,130 @@ const STORAGE_UNITS_KEY = (orgId: string) =>
 const STORAGE_SUBMISSIONS_KEY = (orgId: string) =>
   `plajah_ingested_curriculum_subs_v1_${normalizeToGreatFaithOrgId(orgId)}`;
 
+function inferLessonLibraryCategory(
+  title: string,
+  unitKind: IngestedCurriculumUnit['kind'],
+  isAnswerKeyOnly?: boolean
+): LessonLibraryCategory {
+  if (isAnswerKeyOnly || /\b(answer\s*key|rubric\s*compendium|master\s*key)\b/i.test(title)) {
+    return 'ANSWER_KEY';
+  }
+  if (/\b(course\s*connection|master\s*syllabus|syllabus|curriculum\s*overview)\b/i.test(title)) {
+    return 'SYLLABUS';
+  }
+  if (unitKind === 'QUIZ' || unitKind === 'TEST' || /\b(quiz|exam|examination|test|check)\b/i.test(title)) {
+    return 'QUIZ_EXAM';
+  }
+  if (/\b(dossier|sacred\s*library|atlas|resource|packet|study\s*guide|supplement)\b/i.test(title)) {
+    return 'COURSE_RESOURCE';
+  }
+  return 'ASSIGNMENT';
+}
+
+function readRawStoredUnitsForKey(key: string): IngestedCurriculumUnit[] {
+  try {
+    const raw = localStorage.getItem(key);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+let isSeedingDefaultsSync = false;
+
 export function listIngestedUnits(orgId: string, programId?: string): IngestedCurriculumUnit[] {
   try {
     const safeOrgId = normalizeToGreatFaithOrgId(orgId);
-    const raw = localStorage.getItem(STORAGE_UNITS_KEY(safeOrgId));
-    const list: IngestedCurriculumUnit[] = raw ? JSON.parse(raw) : [];
-    if (!Array.isArray(list)) return [];
+    const primaryList = readRawStoredUnitsForKey(STORAGE_UNITS_KEY(safeOrgId));
+    const gfList =
+      safeOrgId !== GREAT_FAITH_MINISTRIES_DEFAULT_ID
+        ? readRawStoredUnitsForKey(STORAGE_UNITS_KEY(GREAT_FAITH_MINISTRIES_DEFAULT_ID))
+        : [];
+
+    const byKey = new Map<string, IngestedCurriculumUnit>();
+    for (const u of [...primaryList, ...gfList]) {
+      if (!u || !u.title) continue;
+      const dedupeKey = (u.sourceUrl || u.title).trim().toLowerCase();
+      if (!byKey.has(dedupeKey)) {
+        const isKeyOnly =
+          Boolean(u.isAnswerKeyOnly) ||
+          /\bmaster\s*teacher\s*answer\s*key\b/i.test(u.title);
+        byKey.set(dedupeKey, {
+          ...u,
+          isAnswerKeyOnly: isKeyOnly,
+          libraryCategory: u.libraryCategory || inferLessonLibraryCategory(u.title, u.kind, isKeyOnly),
+          extractedFromHubTitle:
+            u.extractedFromHubTitle ||
+            'Revelation 2: Course Connection (Master Google Doc)',
+          extractedFromHubUrl:
+            u.extractedFromHubUrl ||
+            'https://docs.google.com/document/d/1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE/edit?pli=1&tab=t.qo6bykb5zkh7',
+        });
+      }
+    }
+
+    // If the preset documents have not been seeded yet, seed them synchronously so the
+    // organization's Lesson Library & Christian Education view is never empty on mount!
+    if (
+      !isSeedingDefaultsSync &&
+      typeof REVELATION_2_COURSE_CONNECTION_PRESET !== 'undefined' &&
+      byKey.size < REVELATION_2_COURSE_CONNECTION_PRESET.links.length
+    ) {
+      isSeedingDefaultsSync = true;
+      try {
+        for (const item of REVELATION_2_COURSE_CONNECTION_PRESET.links) {
+          const dedupeKey = (item.url || item.label).trim().toLowerCase();
+          if (byKey.has(dedupeKey)) continue;
+          const resolvedKind: IngestedCurriculumUnit['kind'] =
+            item.category === 'GOOGLE_FORM' || /\bquiz\b/i.test(item.label)
+              ? 'QUIZ'
+              : /\b(test|exam|examination|benchmark)\b/i.test(item.label)
+                ? 'TEST'
+                : /\b(syllabus|course\s*connection)\b/i.test(item.label)
+                  ? 'CURRICULUM_MODULE'
+                  : 'INTERACTIVE_LESSON';
+          const { unit, telaDoc } = parseCurriculumAndBuildUnit({
+            orgId: safeOrgId,
+            programId,
+            title: item.label,
+            rawCurriculumText: item.fallbackCurriculumText || `# ${item.label}`,
+            rawAnswerKeyText: item.fallbackAnswerKeyText || '',
+            sourceKind:
+              item.category === 'ANSWER_KEY'
+                ? 'GOOGLE_DOC'
+                : (item.category as CurriculumSourceKind),
+            sourceLabel: item.label,
+            sourceUrl: item.url,
+            answerKeySourceLabel: item.pairedAnswerKeyLabel,
+            unitKind: resolvedKind,
+          });
+          unit.departmentFolder = 'Christian Education';
+          unit.rawCurriculumText = item.fallbackCurriculumText || `# ${item.label}`;
+          unit.rawAnswerKeyText = item.fallbackAnswerKeyText || '';
+          unit.isAnswerKeyOnly = Boolean(item.isAnswerKey);
+          unit.libraryCategory = inferLessonLibraryCategory(item.label, resolvedKind, item.isAnswerKey);
+          unit.createdByName = 'Christian Education Dept';
+          unit.uploadedByRole = 'INSTRUCTOR';
+          unit.extractedFromHubTitle = REVELATION_2_COURSE_CONNECTION_PRESET.hubTitle;
+          unit.extractedFromHubUrl = REVELATION_2_COURSE_CONNECTION_PRESET.hubUrl;
+          void saveTelaDoc(telaDoc).catch(() => {});
+          byKey.set(dedupeKey, unit);
+        }
+        const seededArray = Array.from(byKey.values()).sort((a, b) => b.createdAt - a.createdAt);
+        localStorage.setItem(STORAGE_UNITS_KEY(safeOrgId), JSON.stringify(seededArray));
+        if (safeOrgId !== GREAT_FAITH_MINISTRIES_DEFAULT_ID) {
+          localStorage.setItem(
+            STORAGE_UNITS_KEY(GREAT_FAITH_MINISTRIES_DEFAULT_ID),
+            JSON.stringify(seededArray.map(u => ({ ...u, orgId: GREAT_FAITH_MINISTRIES_DEFAULT_ID })))
+          );
+        }
+      } finally {
+        isSeedingDefaultsSync = false;
+      }
+    }
+
+    const list = Array.from(byKey.values());
     const filtered = programId ? list.filter(u => !u.programId || u.programId === programId) : list;
     return filtered.sort((a, b) => b.createdAt - a.createdAt);
   } catch {
@@ -142,16 +274,31 @@ export function listIngestedUnits(orgId: string, programId?: string): IngestedCu
 export function saveIngestedUnit(unit: IngestedCurriculumUnit): void {
   try {
     const safeOrgId = normalizeToGreatFaithOrgId(unit.orgId);
-    const normalizedUnit = { ...unit, orgId: safeOrgId };
-    const existing = listIngestedUnits(safeOrgId).filter(u => u.id !== unit.id);
+    const isKeyOnly =
+      Boolean(unit.isAnswerKeyOnly) ||
+      /\bmaster\s*teacher\s*answer\s*key\b/i.test(unit.title);
+    const normalizedUnit: IngestedCurriculumUnit = {
+      ...unit,
+      orgId: safeOrgId,
+      isAnswerKeyOnly: isKeyOnly,
+      libraryCategory: unit.libraryCategory || inferLessonLibraryCategory(unit.title, unit.kind, isKeyOnly),
+    };
+    const existing = readRawStoredUnitsForKey(STORAGE_UNITS_KEY(safeOrgId)).filter(
+      u => u.id !== unit.id && u.title.toLowerCase() !== unit.title.toLowerCase()
+    );
     localStorage.setItem(STORAGE_UNITS_KEY(safeOrgId), JSON.stringify([normalizedUnit, ...existing]));
     // Also mirror under canonical Great Faith Ministries key so Great Faith Ministries always has all Christian Ed units
     if (safeOrgId !== GREAT_FAITH_MINISTRIES_DEFAULT_ID) {
-      const gfExisting = listIngestedUnits(GREAT_FAITH_MINISTRIES_DEFAULT_ID).filter(u => u.id !== unit.id);
+      const gfExisting = readRawStoredUnitsForKey(STORAGE_UNITS_KEY(GREAT_FAITH_MINISTRIES_DEFAULT_ID)).filter(
+        u => u.id !== unit.id && u.title.toLowerCase() !== unit.title.toLowerCase()
+      );
       localStorage.setItem(
         STORAGE_UNITS_KEY(GREAT_FAITH_MINISTRIES_DEFAULT_ID),
         JSON.stringify([{ ...normalizedUnit, orgId: GREAT_FAITH_MINISTRIES_DEFAULT_ID }, ...gfExisting])
       );
+    }
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('plajah:lessonLibraryUpdated', { detail: { orgId: safeOrgId } }));
     }
   } catch {
     // ignore storage quota
@@ -1549,6 +1696,12 @@ export async function ingestCurriculumToTela(params: {
   programId?: string;
   title?: string;
   unitKind?: IngestedCurriculumUnit['kind'];
+  libraryCategory?: LessonLibraryCategory;
+  uploadedByRole?: string;
+  createdByName?: string;
+  extractedFromHubTitle?: string;
+  extractedFromHubUrl?: string;
+  isAnswerKeyOnly?: boolean;
   lessonFile?: File | null;
   lessonUrl?: string;
   lessonText?: string;
@@ -1683,6 +1836,14 @@ export async function ingestCurriculumToTela(params: {
   unit.answerKeyAssetId = assetCopy.answerKeyAsset?.id;
   unit.rawCurriculumText = rawCurriculumText;
   unit.rawAnswerKeyText = rawAnswerKeyText;
+  unit.libraryCategory =
+    params.libraryCategory ||
+    inferLessonLibraryCategory(unit.title, unit.kind, params.isAnswerKeyOnly);
+  unit.uploadedByRole = params.uploadedByRole || 'INSTRUCTOR';
+  unit.createdByName = params.createdByName || 'Course Instructor';
+  unit.extractedFromHubTitle = params.extractedFromHubTitle;
+  unit.extractedFromHubUrl = params.extractedFromHubUrl;
+  unit.isAnswerKeyOnly = Boolean(params.isAnswerKeyOnly);
 
   saveIngestedUnit(unit);
 
@@ -2007,6 +2168,44 @@ export const REVELATION_2_COURSE_CONNECTION_PRESET: CourseHubLinkExtractionResul
   rawPlainTextSummary:
     'Revelation 2: Course Connection — Complete 9-Document Syllabus covering Ephesus (Rev 2:1–7), Smyrna (Rev 2:8–11), Pergamum (Rev 2:12–17), Thyatira (Rev 2:18–29), Sacred Library Manuscripts & Archaeology, Formative Google Form Quizzes, Summative Mastery Exam, and Teacher Answer Keys.',
   links: [
+    {
+      id: 'rev2_doc_0_master_hub_syllabus',
+      label: '0. Revelation 2: Course Connection — Master Syllabus & Extracted Source Document (Google Doc)',
+      url: 'https://docs.google.com/document/d/1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE/edit?pli=1&tab=t.qo6bykb5zkh7',
+      directDownloadUrl: 'https://docs.google.com/document/d/1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE/export?format=txt&tab=t.qo6bykb5zkh7',
+      category: 'GOOGLE_DOC',
+      docId: '1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE',
+      tabId: 't.qo6bykb5zkh7',
+      sectionHeading: 'Master Course Connection Source Document & Syllabus Hub',
+      isAnswerKey: false,
+      pairedAnswerKeyUrl: 'https://docs.google.com/document/d/1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE_master_key/edit',
+      pairedAnswerKeyLabel: 'Revelation 2 Master Teacher Answer Key & Rubric Compendium',
+      fallbackCurriculumText: `# Revelation 2: Course Connection — Master Syllabus & Source Hub Document
+## Source Document Extracted into Great Faith Ministries · Christian Education
+Original Google Doc Source: https://docs.google.com/document/d/1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE/edit?pli=1&tab=t.qo6bykb5zkh7 (Tab: t.qo6bykb5zkh7)
+
+## Module Overview & Extracted Course Resources
+1. Week 1 — Ephesus (Revelation 2:1–7): Returning to Our First Love & Tree of Life Reading Packet
+2. Week 2 — Smyrna (Revelation 2:8–11): Faithfulness Unto the Crown of Life Study Guide
+3. Week 3 — Pergamum (Revelation 2:12–17): Holding Fast Christ's Name & Hidden Manna Packet
+4. Week 4 — Thyatira (Revelation 2:18–29): Discernment, Service & the Morning Star Worksheet
+5. Sacred Library Supplemental Dossier: Codex Sinaiticus, Papyrus P47, St. Polycarp & Asia Minor Archaeology
+6. Formative Check Quizzes (Google Forms) & Summative Unit Mastery Examination
+
+1. Which four churches of Asia Minor are addressed in the Revelation 2 Course Connection syllabus (Revelation 2:1–29)? [2 pts]
+A) Ephesus, Smyrna, Pergamum, and Thyatira
+B) Sardis, Philadelphia, Laodicea, and Colosse
+C) Rome, Corinth, Galatia, and Philippi
+D) Jerusalem, Antioch, Alexandria, and Caesarea
+
+2. What recurring sevenfold pattern structures each of Christ's letters in Revelation 2? [2 pts]
+A) Address to the Angel/Church, Christological Title, Commendation ("I know your works"), Rebuke/Charge, Exhortation to Repent/Be Faithful, Call to Hear ("He who has an ear"), and Overcomer Promise
+B) Greeting, Genealogy, Parable, Miracle, Travel Log, Benediction, and Postscript
+C) Civil Census, Tax Decree, Military Roster, Temple Inventory, Feast Calendar, and Seal
+D) Only a single proverb without promises`,
+      fallbackAnswerKeyText: `1. A - Revelation 2 addresses Ephesus (2:1–7), Smyrna (2:8–11), Pergamum (2:12–17), and Thyatira (2:18–29). [2 pts]
+2. A - Each letter in Revelation 2 follows the covenantal prophetic structure: Address, Christological Title, "I know" Commendation, Charge/Warning, Exhortation, Spirit's Call to Hear, and Overcomer Promise. [2 pts]`,
+    },
     {
       id: 'rev2_doc_1_ephesus',
       label: '1. Revelation 2:1–7 — Ephesus: Returning to Our First Love (Reading Packet PDF)',

@@ -14,11 +14,13 @@
 //     Financial Stewardship / Life Skills, Sacred Music & Arts, or Literacy/ESL, the Head of
 //     Christian Education can enable those tracks — and they remain governed under the organization.
 
-import type { Organization, OrgMembership } from '../types';
+import type { Organization, OrgMembership, UserProfile } from '../types';
 import { COURSES, type Course } from './courseCatalog';
 import { listIngestedUnits, type IngestedCurriculumUnit } from './curriculumIngestionService';
 import { isViewerDepartmentLeader } from './orgCentralCalendarService';
-import { elevateCan } from './elevateRoles';
+import { elevateCan, memberRoleKeys, isCredentialedAcademiaTeacher } from './elevateRoles';
+import { isOrgOwner } from './orgPermissions';
+import type { ChurchProgram } from './churchEducationService';
 
 export type OrgEducationScopeTrackId =
   | 'RELIGIOUS_AND_BIBLICAL'
@@ -215,6 +217,101 @@ export function canViewerConfigureOrgEducationScope(
     return true;
   }
   return false;
+}
+
+/**
+ * Strict Role-Based Access Gate for Course Answer Keys (`ANSWER_KEY` documents,
+ * `rawAnswerKeyText`, and Answer Key preview toggles).
+ *
+ * Answer Keys are ONLY accessible to:
+ *   1. Course Teachers / Instructors (`INSTRUCTOR` role, credentialed `TEACHER`, or course `leadInstructor`)
+ *   2. Department Heads (`DEPARTMENT_HEAD` role or `ministry.headUids`)
+ *   3. Department Administrators (`DEPARTMENT_ADMIN` role)
+ *   4. Organization Owners / Pastors (`isOrgOwner`, `SENIOR_PASTOR`, `PASTOR`, `ADMIN`)
+ *
+ * Students, general congregation members (`MEMBER`), and regular volunteers (`VOLUNTEER` /
+ * `DEPARTMENT_VOLUNTEER` who are not instructors/heads/admins) are strictly denied access.
+ */
+export function canViewerAccessAnswerKey(params: {
+  membership?: OrgMembership | null;
+  org?: Organization | null;
+  user?: Pick<UserProfile, 'uid' | 'displayName' | 'email' | 'accountType'> | null;
+  program?: Pick<ChurchProgram, 'leadInstructor' | 'ministryId'> | null;
+  explicitCanEdit?: boolean;
+}): boolean {
+  const { membership, org, user, program, explicitCanEdit } = params;
+
+  // 1. Credentialed Academia Teacher account (`TEACHER`)
+  if (isCredentialedAcademiaTeacher(user)) {
+    return true;
+  }
+
+  // 2. Organization Owner / Admin
+  if (org && user?.uid && isOrgOwner(user.uid, org)) {
+    return true;
+  }
+  if (org && membership?.userId && isOrgOwner(membership.userId, org)) {
+    return true;
+  }
+
+  // 3. Check membership role keys (Course Teacher/Instructor, Department Head, Department Admin, Pastor)
+  if (membership && membership.status === 'ACTIVE') {
+    const keys = memberRoleKeys(membership);
+    const allowedRoleKeys = new Set([
+      'INSTRUCTOR',
+      'DEPARTMENT_HEAD',
+      'DEPARTMENT_ADMIN',
+      'SENIOR_PASTOR',
+      'PASTOR',
+    ]);
+    if (keys.some(k => allowedRoleKeys.has(k))) {
+      return true;
+    }
+    if (membership.role === 'ADMIN') {
+      return true;
+    }
+  }
+
+  // 4. Check if user is listed in `headUids` of any department/ministry on the organization
+  const viewerUid = user?.uid || membership?.userId;
+  if (viewerUid && org?.ministries?.some(m => m.headUids?.includes(viewerUid))) {
+    return true;
+  }
+
+  // 5. Check if user matches the active course's `leadInstructor`
+  if (program?.leadInstructor && user) {
+    const leadLower = program.leadInstructor.trim().toLowerCase();
+    const nameLower = (user.displayName || '').trim().toLowerCase();
+    const emailLower = (user.email || '').trim().toLowerCase();
+    if (
+      (nameLower && leadLower.includes(nameLower)) ||
+      (emailLower && leadLower === emailLower)
+    ) {
+      return true;
+    }
+  }
+
+  // 6. Fallback when opened in an explicit Teacher/Admin Studio context without a membership object
+  if (!membership && explicitCanEdit) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Checks whether the viewer can upload or extract Assignments, Syllabi, and Course Resources
+ * into the Lesson Library (Christian Education Teacher/Instructor, Department Admin,
+ * Department Head, Regular Teacher, or Pastor/Admin).
+ */
+export function canViewerUploadToLessonLibrary(params: {
+  membership?: OrgMembership | null;
+  org?: Organization | null;
+  user?: Pick<UserProfile, 'uid' | 'displayName' | 'email' | 'accountType'> | null;
+  program?: Pick<ChurchProgram, 'leadInstructor' | 'ministryId'> | null;
+  explicitCanEdit?: boolean;
+}): boolean {
+  return canViewerAccessAnswerKey(params);
 }
 
 /**

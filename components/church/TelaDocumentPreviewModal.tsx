@@ -28,6 +28,7 @@ import {
   ScrollText,
   BookmarkPlus,
   Wand2,
+  Lock,
 } from 'lucide-react';
 import type { TelaDoc, TelaWriterDevice, TelaBaseDevice, TelaVectorDevice } from '../../types';
 import { loadTelaDoc } from '../../services/telaStore';
@@ -62,6 +63,8 @@ export interface TelaDocumentPreviewProps {
   orgName?: string;
   departmentFolder?: string;
   initialTemplateId?: string;
+  /** Strictly true ONLY for Course Teachers/Instructors, Department Heads, and Department Admins. */
+  canViewAnswerKey?: boolean;
   onOpenFullTelaStudio?: (docId: string) => void;
   onBuildYourOwnWithTemplate?: (template: LivingDocumentTemplate) => void;
 }
@@ -79,13 +82,14 @@ export const TelaDocumentPreviewModal: React.FC<TelaDocumentPreviewProps> = ({
   orgName = 'Great Faith Ministries',
   departmentFolder = 'Christian Education',
   initialTemplateId,
+  canViewAnswerKey = false,
   onOpenFullTelaStudio,
   onBuildYourOwnWithTemplate,
 }) => {
   const [loadedDoc, setLoadedDoc] = useState<TelaDoc | null>(propTelaDoc || null);
   const [viewMode, setViewMode] = useState<'SPLIT' | 'TELA_ONLY' | 'ORIGINAL_ONLY'>('SPLIT');
   const [activeFrameIdx, setActiveFrameIdx] = useState<number>(0);
-  const [showExpectedAnswers, setShowExpectedAnswers] = useState<boolean>(true);
+  const [showExpectedAnswers, setShowExpectedAnswers] = useState<boolean>(canViewAnswerKey);
   const [showCouncilDrawer, setShowCouncilDrawer] = useState<boolean>(true);
   const [previewResponses, setPreviewResponses] = useState<Record<string, string>>({});
   const [focusedQuestionId, setFocusedQuestionId] = useState<string | null>(null);
@@ -339,17 +343,26 @@ export const TelaDocumentPreviewModal: React.FC<TelaDocumentPreviewProps> = ({
             <Palette size={12} /> 4-Council Notes
           </button>
 
-          <button
-            type="button"
-            onClick={() => setShowExpectedAnswers((v) => !v)}
-            className={`px-3 py-1.5 rounded-xl border text-[11px] font-bold inline-flex items-center gap-1.5 ${
-              showExpectedAnswers
-                ? 'bg-emerald-400/20 border-emerald-400/50 text-emerald-200'
-                : 'bg-white/5 border-white/15 text-white/70 hover:text-white'
-            }`}
-          >
-            <Eye size={12} /> {showExpectedAnswers ? 'Answer Key: ON' : 'Answer Key: OFF'}
-          </button>
+          {canViewAnswerKey ? (
+            <button
+              type="button"
+              onClick={() => setShowExpectedAnswers((v) => !v)}
+              className={`px-3 py-1.5 rounded-xl border text-[11px] font-bold inline-flex items-center gap-1.5 ${
+                showExpectedAnswers
+                  ? 'bg-emerald-400/20 border-emerald-400/50 text-emerald-200'
+                  : 'bg-white/5 border-white/15 text-white/70 hover:text-white'
+              }`}
+            >
+              <Eye size={12} /> {showExpectedAnswers ? 'Answer Key: ON' : 'Answer Key: OFF'}
+            </button>
+          ) : (
+            <span
+              className="px-3 py-1.5 rounded-xl border border-white/10 bg-white/[0.03] text-[10px] font-bold text-white/50 inline-flex items-center gap-1.5"
+              title="Answer keys are restricted to Course Teachers, Department Heads, and Department Admins."
+            >
+              <Lock size={11} className="text-amber-300" /> Answer Key: Teachers, Dept Heads &amp; Admins Only
+            </span>
+          )}
 
           {(loadedDoc?.id || telaDocId || unit?.telaDocId) && (
             <button
@@ -513,16 +526,23 @@ export const TelaDocumentPreviewModal: React.FC<TelaDocumentPreviewProps> = ({
                 {resolvedOriginalText || 'Original document text loaded.'}
               </div>
 
-              {resolvedAnswerKeyText && (
+              {canViewAnswerKey && resolvedAnswerKeyText ? (
                 <div className="rounded-2xl border border-emerald-400/30 bg-emerald-500/[0.05] p-4 space-y-2">
                   <div className="flex items-center gap-1.5 text-xs font-black text-emerald-300">
-                    <KeyRound size={13} /> Companion Answer Key Document (Copied to {departmentFolder})
+                    <KeyRound size={13} /> Companion Answer Key Document (Restricted: Course Teachers, Dept Heads &amp; Admins)
                   </div>
                   <div className="font-mono text-xs text-emerald-100/90 whitespace-pre-wrap leading-relaxed">
                     {resolvedAnswerKeyText}
                   </div>
                 </div>
-              )}
+              ) : resolvedAnswerKeyText ? (
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 flex items-center gap-2 text-xs text-white/55">
+                  <Lock size={14} className="text-amber-300 shrink-0" />
+                  <span>
+                    Companion Answer Key is strictly restricted to <strong>Course Teachers</strong>, <strong>Department Heads</strong>, and <strong>Department Admins</strong>.
+                  </span>
+                </div>
+              ) : null}
             </div>
           </div>
         )}
@@ -1040,7 +1060,7 @@ export const TelaDocumentPreviewModal: React.FC<TelaDocumentPreviewProps> = ({
                                   />
                                 )}
 
-                                {(showExpectedAnswers || checkedPreview) &&
+                                {((canViewAnswerKey && showExpectedAnswers) || checkedPreview) &&
                                   (q.correctAnswer || q.explanation) && (
                                     <div
                                       className="rounded-xl px-3 py-2 text-[11px] space-y-0.5 border"

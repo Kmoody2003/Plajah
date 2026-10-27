@@ -49,16 +49,20 @@ import SharedClassroomClubHub from '../classroom/SharedClassroomClubHub';
 import OrgCentralCalendarHub from '../elevate/OrgCentralCalendarHub';
 import ElevateCommunicationsHub from '../elevate/ElevateCommunicationsHub';
 import OrgEducationScopeGovernancePanel from './OrgEducationScopeGovernancePanel';
+import OrgLessonLibraryHub from './OrgLessonLibraryHub';
 import {
   loadOrgEducationScope,
   getOrgScopedCourses,
   canViewerConfigureOrgEducationScope,
+  canViewerAccessAnswerKey,
+  canViewerUploadToLessonLibrary,
   type OrgEducationScopeConfig,
 } from '../../services/orgEducationScopeService';
 import { UniversalStudentDesk } from '../desk/UniversalStudentDesk';
 import {
   listIngestedUnits,
   loadOrgMasterySummary,
+  ensureAllDetectedLinksOnboarded,
   type IngestedCurriculumUnit,
 } from '../../services/curriculumIngestionService';
 import { LEVEL_NAME, LEVEL_COLOR, type SkillLevel } from '../../services/mastery';
@@ -82,9 +86,8 @@ const nav = (target: string) => window.dispatchEvent(new CustomEvent('NAVIGATE',
 
 type EducationPortalMode =
   | 'CLASSROOMS'
+  | 'LESSON_LIBRARY'
   | 'TEACHER_DASHBOARD'
-  | 'TEACHER_TOOLS'
-  | 'CURRICULUM_TELA_INGESTOR'
   | 'TEACHER_TOOLS'
   | 'CURRICULUM_TELA_INGESTOR'
   | 'CENTRAL_CALENDAR'
@@ -99,7 +102,7 @@ const ChurchEducation: React.FC<{
   const [portalMode, setPortalMode] = useState<EducationPortalMode>('CLASSROOMS');
   const [programs, setPrograms] = useState<ChurchProgram[] | null>(null);
   const [open, setOpen] = useState<ChurchProgram | null>(null);
-  const [activeTab, setActiveTab] = useState<'SYLLABUS' | 'CLASSROOM_CLUB' | 'CLASS_CHAT' | 'ACADEMIA_STACK' | 'TELA_UNITS'>('SYLLABUS');
+  const [activeTab, setActiveTab] = useState<'SYLLABUS' | 'LESSON_LIBRARY' | 'CLASSROOM_CLUB' | 'CLASS_CHAT' | 'ACADEMIA_STACK' | 'TELA_UNITS'>('SYLLABUS');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [saved, setSaved] = useState(false);
@@ -136,6 +139,42 @@ const ChurchEducation: React.FC<{
     [currentUser, church.creatorId, church.id, church.name, open?.leadInstructor, canEdit]
   );
 
+  const canAccessAnswerKey = useMemo(
+    () =>
+      canViewerAccessAnswerKey({
+        membership,
+        org: church,
+        user: currentUser
+          ? {
+              uid: currentUser.uid,
+              displayName: currentUser.displayName || '',
+              email: currentUser.email || '',
+            }
+          : null,
+        program: open,
+        explicitCanEdit: canEdit,
+      }),
+    [membership, church, currentUser, open, canEdit]
+  );
+
+  const canUploadToLibrary = useMemo(
+    () =>
+      canViewerUploadToLessonLibrary({
+        membership,
+        org: church,
+        user: currentUser
+          ? {
+              uid: currentUser.uid,
+              displayName: currentUser.displayName || '',
+              email: currentUser.email || '',
+            }
+          : null,
+        program: open,
+        explicitCanEdit: canEdit,
+      }),
+    [membership, church, currentUser, open, canEdit]
+  );
+
   const reload = async () => {
     try {
       const list = await ensureDefaultTemplatedClassrooms(church);
@@ -146,6 +185,11 @@ const ChurchEducation: React.FC<{
         const refreshed = list.find(x => x.id === open.id);
         if (refreshed) setOpen(refreshed);
       }
+      ensureAllDetectedLinksOnboarded(church.id)
+        .then((refreshedUnits) => {
+          setIngestedUnits(refreshedUnits);
+        })
+        .catch(() => {});
     } catch {
       setPrograms([]);
       setErr('Could not load Christian Education classrooms.');
@@ -326,6 +370,22 @@ const ChurchEducation: React.FC<{
 
         <button
           type="button"
+          onClick={() => setPortalMode('LESSON_LIBRARY')}
+          className={`px-3.5 py-2 rounded-2xl text-xs font-black inline-flex items-center gap-1.5 transition ${
+            portalMode === 'LESSON_LIBRARY'
+              ? 'bg-amber-400 text-black shadow'
+              : 'bg-emerald-500/15 border border-emerald-400/35 text-emerald-200 hover:bg-emerald-500/25'
+          }`}
+        >
+          <Library size={13} /> Lesson Library &amp; Extracted Docs ({
+            canAccessAnswerKey
+              ? ingestedUnits.length
+              : ingestedUnits.filter(u => !u.isAnswerKeyOnly && u.libraryCategory !== 'ANSWER_KEY').length
+          })
+        </button>
+
+        <button
+          type="button"
           onClick={() => setPortalMode('TEACHER_DASHBOARD')}
           className={`px-3.5 py-2 rounded-2xl text-xs font-black inline-flex items-center gap-1.5 transition ${
             portalMode === 'TEACHER_DASHBOARD'
@@ -378,6 +438,25 @@ const ChurchEducation: React.FC<{
       </span>
     </div>
   );
+
+  if (portalMode === 'LESSON_LIBRARY') {
+    return (
+      <div className="space-y-5 text-white" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
+        {modeBar}
+        <OrgLessonLibraryHub
+          orgId={church.id}
+          orgName={church.name}
+          programs={programs || []}
+          canAccessAnswerKey={canAccessAnswerKey}
+          canUploadToLibrary={canUploadToLibrary}
+          viewerRoleBadge={canAccessAnswerKey ? 'Course Teacher / Dept Head / Admin' : 'Student / Member'}
+          currentUserUid={teacherProfile.uid}
+          currentUserName={teacherProfile.displayName}
+          onAttachWeeksToProgram={handleAttachIngestedUnitToProgram}
+        />
+      </div>
+    );
+  }
 
   // MODE 2: INSTRUCTOR DASHBOARD (Non-Credentialed Church Class Instructor — distinct from Academia Teacher)
   if (portalMode === 'CENTRAL_CALENDAR') {
@@ -696,7 +775,7 @@ const ChurchEducation: React.FC<{
             p.description && <p className="text-sm text-white/75 leading-relaxed">{p.description}</p>
           )}
 
-          {/* 4-Tab Classroom Navigation */}
+          {/* Classroom Navigation Tabs */}
           <div className="flex flex-wrap gap-2 pt-2 border-t border-white/10">
             <button
               type="button"
@@ -708,6 +787,21 @@ const ChurchEducation: React.FC<{
               }`}
             >
               <BookOpen size={13} /> Weekly Verse Syllabus ({p.weeks.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('LESSON_LIBRARY')}
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 transition ${
+                activeTab === 'LESSON_LIBRARY'
+                  ? 'bg-emerald-400 text-black shadow'
+                  : 'bg-emerald-500/15 border border-emerald-400/35 text-emerald-200 hover:bg-emerald-500/25'
+              }`}
+            >
+              <Library size={13} /> Lesson Library &amp; Extracted Source Docs ({
+                canAccessAnswerKey
+                  ? ingestedUnits.length
+                  : ingestedUnits.filter(u => !u.isAnswerKeyOnly && u.libraryCategory !== 'ANSWER_KEY').length
+              })
             </button>
             <button
               type="button"
@@ -745,6 +839,22 @@ const ChurchEducation: React.FC<{
           </div>
         </div>
 
+        {/* TAB: LESSON LIBRARY & EXTRACTED SOURCE DOCUMENTS */}
+        {activeTab === 'LESSON_LIBRARY' && (
+          <OrgLessonLibraryHub
+            orgId={church.id}
+            orgName={church.name}
+            programId={p.id}
+            programs={programs || [p]}
+            canAccessAnswerKey={canAccessAnswerKey}
+            canUploadToLibrary={canUploadToLibrary}
+            viewerRoleBadge={canAccessAnswerKey ? 'Course Teacher / Dept Head / Admin' : 'Student / Member'}
+            currentUserUid={teacherProfile.uid}
+            currentUserName={teacherProfile.displayName}
+            onAttachWeeksToProgram={handleAttachIngestedUnitToProgram}
+          />
+        )}
+
         {/* TAB: GOOGLE FORMS/DOCS & PDF → INTERACTIVE TELA + MASTERY */}
         {activeTab === 'CLASSROOM_CLUB' && (
           <SharedClassroomClubHub
@@ -764,6 +874,7 @@ const ChurchEducation: React.FC<{
             orgId={church.id}
             orgName={church.name}
             canEdit={canEdit}
+            canViewAnswerKey={canAccessAnswerKey}
             currentUserUid={teacherProfile.uid}
             currentUserName={teacherProfile.displayName}
             programs={programs || [p]}
@@ -1135,10 +1246,27 @@ const ChurchEducation: React.FC<{
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            onClick={() => setPortalMode('CURRICULUM_TELA_INGESTOR')}
+            onClick={() => setPortalMode('LESSON_LIBRARY')}
+            className="px-3.5 py-2 rounded-xl bg-emerald-400 hover:bg-emerald-300 text-black text-xs font-black inline-flex items-center gap-1.5 shadow"
+          >
+            <Library size={14} /> Open Lesson Library &amp; Extracted Source Docs ({
+              canAccessAnswerKey
+                ? ingestedUnits.length
+                : ingestedUnits.filter(u => !u.isAnswerKeyOnly && u.libraryCategory !== 'ANSWER_KEY').length
+            })
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              try {
+                sessionStorage.setItem('plajah:teacherTab', 'worksheet');
+                sessionStorage.setItem('plajah:openDocExtractor', '1');
+              } catch {}
+              setPortalMode('TEACHER_TOOLS');
+            }}
             className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#6B0099] via-[#D40055] to-[#FF8C00] text-white text-xs font-black inline-flex items-center gap-1.5 shadow"
           >
-            <Sparkles size={14} /> Import Google Form / Doc / PDF to Tela
+            <Sparkles size={14} /> Worksheet Capture &amp; Doc Extractor
           </button>
           <button
             type="button"
@@ -1149,6 +1277,41 @@ const ChurchEducation: React.FC<{
           </button>
         </div>
       </div>
+
+      {/* Quick Verification Strip: Extracted Source Document & Lesson Library Preview */}
+      {ingestedUnits.length > 0 && (
+        <div className="rounded-2xl border border-sky-400/30 bg-sky-500/[0.06] p-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="space-y-1 min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="px-2 py-0.5 rounded-full bg-sky-400/20 border border-sky-300/40 text-sky-200 text-[10px] font-black uppercase">
+                📄 Extracted Source Document in {church.name}
+              </span>
+              <span className="text-[11px] text-white/65">
+                {canAccessAnswerKey
+                  ? '🔑 Answer Keys Unlocked (Course Teacher / Dept Head / Dept Admin)'
+                  : '🔒 Answer Keys Restricted to Course Teachers, Dept Heads & Dept Admins'}
+              </span>
+            </div>
+            <p className="text-xs sm:text-sm font-black text-white truncate">
+              Revelation 2: Course Connection — Master Syllabus &amp; {
+                canAccessAnswerKey
+                  ? ingestedUnits.length
+                  : ingestedUnits.filter(u => !u.isAnswerKeyOnly && u.libraryCategory !== 'ANSWER_KEY').length
+              } Extracted Documents Ready in Lesson Library
+            </p>
+            <p className="text-[11px] text-white/65">
+              Includes the original Google Doc source (<code className="text-sky-200">1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE</code>), 4 Ephesus/Smyrna/Pergamum/Thyatira packets, Sacred Library dossier PDF, 2 Google Form quizzes, and Unit Mastery Exam.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setPortalMode('LESSON_LIBRARY')}
+            className="px-4 py-2 rounded-xl bg-sky-400 hover:bg-sky-300 text-black text-xs font-black inline-flex items-center gap-1.5 shrink-0 shadow"
+          >
+            <FileText size={13} /> View Extracted Document &amp; Lesson Library
+          </button>
+        </div>
+      )}
 
       {programs === null && <p className="text-sm text-white/40">Loading classrooms...</p>}
 
@@ -1202,6 +1365,16 @@ const ChurchEducation: React.FC<{
                 className="px-3 py-1.5 rounded-xl bg-amber-400 text-black text-[11px] font-black inline-flex items-center gap-1"
               >
                 <BookOpen size={12} /> Enter Classroom
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('LESSON_LIBRARY');
+                  setOpen(p);
+                }}
+                className="px-3 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 hover:bg-emerald-500/30 text-[11px] font-black inline-flex items-center gap-1"
+              >
+                <Library size={12} /> Lesson Library
               </button>
               <button
                 type="button"

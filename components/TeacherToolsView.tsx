@@ -43,6 +43,7 @@ import WorksheetAssignSetup, { type AssignTarget } from './academia/scan/Workshe
 import { normalizeWorksheetPage, warmOcr } from '../services/worksheetLocalVision';
 import { takeTeacherWorksheetScan } from '../services/worksheetOpen';
 import CurriculumAndMasteryStudio from './church/CurriculumAndMasteryStudio';
+import OrgLessonLibraryHub from './church/OrgLessonLibraryHub';
 import SharedClassroomClubHub from './classroom/SharedClassroomClubHub';
 import { UniversalStudentDesk } from './desk/UniversalStudentDesk';
 import type { Organization } from '../types';
@@ -270,7 +271,7 @@ const TeacherToolsView: React.FC<{ onBack?: () => void; user?: any; orgContext?:
         ) : tab === 'connect' ? (
           <Integrations />
         ) : tab === 'library' ? (
-          <ContentLibrary orgContext={orgContext} orgScope={orgScope} />
+          <ContentLibrary orgContext={orgContext} orgScope={orgScope} user={user} />
         ) : tab === 'context' ? (
           <ContextSettings />
         ) : tab === 'planner' ? (
@@ -748,7 +749,7 @@ const KIND_META: Record<PickedResource['kind'], { icon: any; color: string; labe
   art: { icon: ImageIcon, color: T.violet, label: 'Art' },
 };
 
-const ContentLibrary: React.FC<{ orgContext?: TeacherToolsOrgContext; orgScope?: OrgEducationScopeConfig | null }> = ({ orgContext, orgScope }) => {
+const ContentLibrary: React.FC<{ orgContext?: TeacherToolsOrgContext; orgScope?: OrgEducationScopeConfig | null; user?: any }> = ({ orgContext, orgScope, user }) => {
   const [picking, setPicking] = useState(false);
   const [tray, setTray] = useState<PickedResource[]>([]);
   const [copied, setCopied] = useState(false);
@@ -766,6 +767,19 @@ const ContentLibrary: React.FC<{ orgContext?: TeacherToolsOrgContext; orgScope?:
 
   return (
     <div style={{ ...cardStyle, padding: 18 }}>
+      <div style={{ marginBottom: 20, paddingBottom: 20, borderBottom: `1px solid ${T.border}` }}>
+        <OrgLessonLibraryHub
+          orgId={orgContext?.org.id || 'org-great-faith-ministries'}
+          orgName={orgContext?.org.name || DEMO_CLASS.name}
+          programId={orgContext?.activeProgram?.id}
+          programs={orgContext?.programs}
+          canAccessAnswerKey={true}
+          canUploadToLibrary={true}
+          viewerRoleBadge={orgContext ? 'Course Instructor / Dept Head / Admin' : 'Course Teacher'}
+          currentUserUid={user?.uid || 'teacher_demo'}
+          currentUserName={user?.displayName || DEMO_CLASS.teacherName}
+        />
+      </div>
       {orgContext && (
         <div style={{ marginBottom: 18, paddingBottom: 18, borderBottom: `1px solid ${T.border}` }}>
           <Eyebrow color={T.gold}>{orgContext.org.name} · Uploaded Body of Resources &amp; Provisioned Courses</Eyebrow>

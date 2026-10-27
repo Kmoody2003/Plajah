@@ -29,6 +29,8 @@ import { TelaDocumentPreviewModal } from './church/TelaDocumentPreviewModal';
 interface Props {
   scope: OwnerScope;
   canEdit: boolean;
+  /** Strictly true ONLY for Course Teachers/Instructors, Department Heads, and Department Admins. Defaults to `canEdit`. */
+  canViewAnswerKey?: boolean;
   /** uid whose published albums/videos populate the Media Library tab. */
   mediaOwnerUid: string;
   onEditAlbum?: (album: Album) => void;
@@ -56,8 +58,9 @@ function assetIcon(kind: OrgAsset['kind'], cls = 'w-5 h-5') {
   return <FileIcon className={cls} />;
 }
 
-const ContentHQ: React.FC<Props> = ({ scope, canEdit, mediaOwnerUid, onEditAlbum, onClose }) => {
+const ContentHQ: React.FC<Props> = ({ scope, canEdit, canViewAnswerKey, mediaOwnerUid, onEditAlbum, onClose }) => {
   const [tab, setTab] = useState<'FILES' | 'MEDIA'>('FILES');
+  const allowAnswerKeys = canViewAnswerKey ?? canEdit;
 
   return (
     <div className="flex flex-col h-full min-h-0 text-white">
@@ -87,7 +90,7 @@ const ContentHQ: React.FC<Props> = ({ scope, canEdit, mediaOwnerUid, onEditAlbum
 
       <div className="flex-1 min-h-0 overflow-hidden px-6 lg:px-8 pb-6">
         {tab === 'FILES'
-          ? <HqFilesTab scope={scope} canEdit={canEdit} />
+          ? <HqFilesTab scope={scope} canEdit={canEdit} canViewAnswerKey={allowAnswerKeys} />
           : <ContentAssetManager uid={mediaOwnerUid} onEditAlbum={onEditAlbum || (() => {})} />}
       </div>
     </div>
@@ -98,8 +101,10 @@ const ContentHQ: React.FC<Props> = ({ scope, canEdit, mediaOwnerUid, onEditAlbum
 export const HqFilesTab: React.FC<{
   scope: OwnerScope;
   canEdit: boolean;
+  canViewAnswerKey?: boolean;
   defaultFolder?: string;
-}> = ({ scope, canEdit, defaultFolder }) => {
+}> = ({ scope, canEdit, canViewAnswerKey, defaultFolder }) => {
+  const allowAnswerKeyAccess = canViewAnswerKey ?? canEdit;
   const [assets, setAssets] = useState<OrgAsset[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -178,35 +183,43 @@ export const HqFilesTab: React.FC<{
     return ['ALL', ...ordered];
   }, [assets, departmentFolders]);
 
+  const visibleAssets = useMemo(
+    () => (allowAnswerKeyAccess ? assets : assets.filter((a) => a.assetVariant !== 'ANSWER_KEY')),
+    [assets, allowAnswerKeyAccess]
+  );
+
   const folderCounts = useMemo(() => {
-    const counts: Record<string, number> = { ALL: assets.length };
-    assets.forEach((a) => {
+    const counts: Record<string, number> = { ALL: visibleAssets.length };
+    visibleAssets.forEach((a) => {
       const f = a.folder || 'Uncategorized';
       counts[f] = (counts[f] || 0) + 1;
     });
     return counts;
-  }, [assets]);
+  }, [visibleAssets]);
 
-  const shown = useMemo(() => assets.filter((a) =>
+  const shown = useMemo(() => visibleAssets.filter((a) =>
     (folder === 'ALL' || a.folder === folder) &&
     (variantFilter === 'ALL' || a.assetVariant === variantFilter) &&
     (!search || a.name.toLowerCase().includes(search.toLowerCase()))
-  ), [assets, folder, variantFilter, search]);
+  ), [visibleAssets, folder, variantFilter, search]);
 
   // Resolve paired asset when previewing a curriculum item as a Tela Document
   const resolveTelaPreviewProps = (asset: OrgAsset) => {
     const paired = asset.pairedAssetId ? assets.find((x) => x.id === asset.pairedAssetId) : undefined;
     const telaDocId = asset.telaDocId || paired?.telaDocId;
     const originalAsset = asset.assetVariant === 'ORIGINAL_SOURCE' ? asset : (paired?.assetVariant === 'ORIGINAL_SOURCE' ? paired : asset);
-    const answerKeyAsset = assets.find(
-      (x) => x.assetVariant === 'ANSWER_KEY' && (x.telaDocId === telaDocId || x.pairedAssetId === asset.id)
-    );
+    const answerKeyAsset = allowAnswerKeyAccess
+      ? assets.find(
+          (x) => x.assetVariant === 'ANSWER_KEY' && (x.telaDocId === telaDocId || x.pairedAssetId === asset.id)
+        )
+      : undefined;
     return {
-      title: asset.name.replace(/\s*\((Original Source|Interactive Tela Document|Teacher Answer Key)\)\s*$/i, ''),
+      title: asset.name.replace(/\s*\((Original Source|Original Document|Interactive Tela Document|Teacher Answer Key)\)\s*$/i, ''),
       telaDocId,
       originalUrl: originalAsset?.sourceUrl || asset.sourceUrl || asset.downloadUrl,
       originalText: originalAsset?.rawContentText || asset.rawContentText,
-      answerKeyText: answerKeyAsset?.rawContentText,
+      answerKeyText: allowAnswerKeyAccess ? answerKeyAsset?.rawContentText : undefined,
+      canViewAnswerKey: allowAnswerKeyAccess,
       orgName: scope.label || GREAT_FAITH_MINISTRIES_NAME,
       departmentFolder: asset.folder || 'Christian Education',
     };
@@ -261,7 +274,7 @@ export const HqFilesTab: React.FC<{
                   ['ALL', 'All Variants'],
                   ['ORIGINAL_SOURCE', 'Original Docs'],
                   ['TELA_DOCUMENT', 'Tela Documents'],
-                  ['ANSWER_KEY', 'Answer Keys'],
+                  ...(allowAnswerKeyAccess ? ([['ANSWER_KEY', 'Answer Keys (Teachers & Admins)']] as const) : []),
                 ] as const
               ).map(([vId, vLabel]) => (
                 <button

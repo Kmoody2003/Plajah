@@ -16,6 +16,7 @@ import { CountBadge, useMoneyInbox } from './chms/finance/SpendingUi';
 import type { Organization, OrgMembership, OrgPermission, OrgRole, UserProfile, GivingFund, ServiceTime, ChurchCampus } from '../../types';
 import { fetchOrgMembers, fetchOrganization, updateOrganization, fetchChurchDonations, sumDonationsByFund } from '../../services/organizationService';
 import { elevateCan } from '../../services/elevateRoles';
+import { canViewerAccessAnswerKey } from '../../services/orgEducationScopeService';
 import { useBillingNav, SoonPill } from '../BillingMounts';
 import { isFaithOrg, ensureChurchMusicAndEducationDepartments } from '../../services/elevateTemplates';
 import { setupChecklist } from '../../services/elevateService';
@@ -238,7 +239,9 @@ const ElevateOps: React.FC<Props> = ({ org: initialOrg, isOwner, onClose, onOrgC
         {tool === 'console' && can('MANAGE_MEDIA') && <ChurchConsole church={org} onClose={closeTool} />}
         {tool === 'hq' && (can('MANAGE_CONTENT') || can('MANAGE_MEDIA') || myMembership?.status === 'ACTIVE') && (
           <ContentHQ scope={{ kind: 'org', id: org.id, ownerUid: org.creatorId, adminUids: org.admins, label: org.name }}
-            canEdit={can('MANAGE_CONTENT') || can('MANAGE_MEDIA')} mediaOwnerUid={org.creatorId} onClose={closeTool} />
+            canEdit={can('MANAGE_CONTENT') || can('MANAGE_MEDIA')}
+            canViewAnswerKey={canViewerAccessAnswerKey({ membership: myMembership, org, user: auth.currentUser as any, explicitCanEdit: isOwner })}
+            mediaOwnerUid={org.creatorId} onClose={closeTool} />
         )}
         {tool === 'employees' && can('MANAGE_EMPLOYEES') && <EmployeeManager org={org} myMembership={myMembership} onClose={closeTool} />}
         {tool === 'hiring' && can('MANAGE_EMPLOYEES') && <HiringBoard org={org} myMembership={myMembership} onClose={closeTool} />}
@@ -432,6 +435,7 @@ const ElevateOps: React.FC<Props> = ({ org: initialOrg, isOwner, onClose, onOrgC
                       label: org.name,
                     }}
                     canEdit={isOwner || can('MANAGE_CONTENT') || can('MANAGE_MEDIA') || !!myMembership}
+                    canViewAnswerKey={canViewerAccessAnswerKey({ membership: myMembership, org, user: auth.currentUser as any, explicitCanEdit: isOwner })}
                     mediaOwnerUid={org.creatorId}
                   />
                 </div>
@@ -485,7 +489,7 @@ const ElevateOps: React.FC<Props> = ({ org: initialOrg, isOwner, onClose, onOrgC
                 </OrgSecurityShield>
               )}
               {section === 'ministries' && <MinistryManager org={org} myMembership={myMembership} onClose={() => setSection('overview')} onChanged={() => { fetchOrganization(org.id).then(o => { if (o) setOrg(o); }).catch(() => {}); reload(); }} />}
-              {section === 'education' && <ChurchEducation church={org} canEdit={can('MANAGE_MINISTRIES') || can('MANAGE_CONTENT') || isOwner} />}
+              {section === 'education' && <ChurchEducation church={org} canEdit={can('MANAGE_MINISTRIES') || can('MANAGE_CONTENT') || isOwner} membership={myMembership} />}
               {section === 'music' && <ChurchMusicDepartmentHub church={org} canEdit={can('MANAGE_MINISTRIES') || can('MANAGE_CONTENT') || isOwner} />}
               {section === 'invites' && <InvitesPanel org={org} myMembership={myMembership} />}
               {section === 'accounts' && <AccountsPanel org={org} myMembership={myMembership} onOrgChange={setOrg} />}

@@ -86,6 +86,8 @@ interface CurriculumAndMasteryStudioProps {
   orgId: string;
   orgName: string;
   canEdit: boolean;
+  /** Strictly true ONLY for Course Teachers/Instructors, Department Heads, and Department Admins. Defaults to `canEdit`. */
+  canViewAnswerKey?: boolean;
   currentUserUid?: string;
   currentUserName?: string;
   programs?: ChurchProgram[];
@@ -125,12 +127,14 @@ export const CurriculumAndMasteryStudio: React.FC<CurriculumAndMasteryStudioProp
   orgId: rawOrgId,
   orgName: rawOrgName,
   canEdit,
+  canViewAnswerKey,
   currentUserUid = 'student_great_faith',
   currentUserName = 'Class Member',
   programs = [],
   selectedProgramId,
   onAttachWeeksToProgram,
 }) => {
+  const allowAnswerKeys = canViewAnswerKey ?? canEdit;
   // Strictly route to Great Faith Ministries (never demo-grace-chapel)
   const orgId =
     !rawOrgId || rawOrgId === 'demo-grace-chapel' || rawOrgId.startsWith('demo-')
@@ -484,7 +488,8 @@ export const CurriculumAndMasteryStudio: React.FC<CurriculumAndMasteryStudioProp
       unit: u,
       originalUrl: u.sourceUrl,
       originalText: u.rawCurriculumText,
-      answerKeyText: u.rawAnswerKeyText,
+      answerKeyText: allowAnswerKeys ? u.rawAnswerKeyText : undefined,
+      canViewAnswerKey: allowAnswerKeys,
       orgName,
       departmentFolder: u.departmentFolder || 'Christian Education',
       onOpenFullTelaStudio: handleOpenInTela,
@@ -1772,6 +1777,7 @@ export const CurriculumAndMasteryStudio: React.FC<CurriculumAndMasteryStudioProp
         <TelaDocumentPreviewModal
           isOpen={Boolean(telaPreviewModal)}
           onClose={() => setTelaPreviewModal(null)}
+          canViewAnswerKey={allowAnswerKeys}
           {...telaPreviewModal}
         />
       )}
