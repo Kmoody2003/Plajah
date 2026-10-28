@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import {
   BookOpen,
   Plus,
@@ -11,7 +11,6 @@ import {
   Check,
   MessageSquare,
   Send,
-  FileScan,
   Sparkles,
   Calendar,
   ExternalLink,
@@ -39,12 +38,10 @@ import {
   type PlanWeek,
   type ProgramKind,
 } from '../../services/churchEducationService';
-import { digitizeWorksheetOnDevice } from '../../services/worksheetLocalVision';
-import type { DigitalWorksheet } from '../../services/worksheetDigitizer';
 import type { TelaDoc, TelaWriterDevice } from '../../types';
 import { saveTelaDoc } from '../../services/telaStore';
 import { auth } from '../../services/firebase';
-import CurriculumAndMasteryStudio from './CurriculumAndMasteryStudio';
+import ClassworkHandoff from './christianEd/ClassworkHandoff';
 import SharedClassroomClubHub from '../classroom/SharedClassroomClubHub';
 import OrgCentralCalendarHub from '../elevate/OrgCentralCalendarHub';
 import ElevateCommunicationsHub from '../elevate/ElevateCommunicationsHub';
@@ -91,9 +88,7 @@ type EducationPortalMode =
   | 'LESSON_LIBRARY'
   | 'TEACHER_DASHBOARD'
   | 'TEACHER_TOOLS'
-  | 'CURRICULUM_TELA_INGESTOR'
-  | 'CENTRAL_CALENDAR'
-  | 'STUDENT_PORTAL';
+  | 'CENTRAL_CALENDAR';
 
 const ChurchEducation: React.FC<{
   church: Organization;
@@ -124,12 +119,6 @@ const ChurchEducation: React.FC<{
   const [chatSenderRole, setChatSenderRole] = useState<'INSTRUCTOR' | 'STUDENT' | 'CATECHIST' | 'PASTOR'>(
     canEdit ? 'INSTRUCTOR' : 'STUDENT'
   );
-
-  // Academia Paper Worksheet Scanner state
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [scanningWorksheet, setScanningWorksheet] = useState(false);
-  const [scannedWorksheet, setScannedWorksheet] = useState<DigitalWorksheet | null>(null);
-  const [worksheetAnswers, setWorksheetAnswers] = useState<Record<string, string>>({});
 
   // Ingested interactive Tela units & Mastery summary
   const [ingestedUnits, setIngestedUnits] = useState<IngestedCurriculumUnit[]>(() =>
@@ -283,36 +272,6 @@ const ChurchEducation: React.FC<{
     setPrograms(prev => (prev ? prev.map(x => (x.id === updated.id ? updated : x)) : [updated]));
   };
 
-  const handleScanPaperWorksheet = async (file: File) => {
-    setScanningWorksheet(true);
-    setErr('');
-    try {
-      const dataUrl = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result || ''));
-        reader.onerror = () => reject(new Error('Could not read worksheet image file.'));
-        reader.readAsDataURL(file);
-      });
-      const result = await digitizeWorksheetOnDevice(dataUrl, church.creatorId || church.id, () => {});
-      const sheet = result.sheet;
-      setScannedWorksheet(sheet);
-      if (open) {
-        const segCount = (sheet.segments || []).length || sheet.fields.length;
-        const updated = await postClassChatMessage(open, {
-          senderName: open.leadInstructor || 'Academia Ed-Tech Scanner',
-          senderRole: 'INSTRUCTOR',
-          text: `Digitized paper worksheet "${sheet.title}" (${segCount} interactive items) for classroom completion.`,
-          attachmentLabel: `Fillable Worksheet: ${sheet.title}`,
-        });
-        setOpen(updated);
-      }
-    } catch (e: any) {
-      setErr(e?.message || 'Could not scan worksheet image.');
-    } finally {
-      setScanningWorksheet(false);
-    }
-  };
-
   const handleOpenLessonInTela = async (p: ChurchProgram) => {
     const writer: TelaWriterDevice = {
       id: `dev_${p.id}_writer`,
@@ -371,8 +330,6 @@ const ChurchEducation: React.FC<{
     TEACHER_DASHBOARD: 'Instructor dashboard',
     CENTRAL_CALENDAR: 'Calendar',
     TEACHER_TOOLS: 'Gradebook & teacher tools',
-    CURRICULUM_TELA_INGESTOR: 'Curriculum studio',
-    STUDENT_PORTAL: 'Student desk',
   };
   // Every tool page has one way home: back to the Christian Education hub.
   const modeBar = (
@@ -548,119 +505,6 @@ const ChurchEducation: React.FC<{
     );
   }
 
-  // MODE 4: CURRICULUM, GOOGLE FORMS/DOCS, WORD & PDF → INTERACTIVE TELA + MASTERY INGESTOR
-  if (portalMode === 'CURRICULUM_TELA_INGESTOR') {
-    return (
-      <div className="space-y-5 text-white" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
-        {modeBar}
-        <CurriculumAndMasteryStudio
-          orgId={church.id}
-          orgName={church.name}
-          canEdit={canEdit}
-          currentUserUid={teacherProfile.uid}
-          currentUserName={teacherProfile.displayName}
-          programs={programs || []}
-          selectedProgramId={open?.id}
-          onAttachWeeksToProgram={handleAttachIngestedUnitToProgram}
-        />
-      </div>
-    );
-  }
-
-  // MODE 5: UNIVERSAL STUDENT DESK & MY MASTERY (Same workflow across Christian Education & Academia)
-  if (portalMode === 'STUDENT_PORTAL') {
-    const masteryEntries = Object.entries(masterySummary);
-    return (
-      <div className="space-y-5 text-white" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
-        {modeBar}
-
-        {/* Universal Platform-Wide Student Desk (Powered by Tela) */}
-        <UniversalStudentDesk
-          studentUid={teacherProfile.uid}
-          studentName={teacherProfile.displayName}
-          defaultDomain="CHRISTIAN_EDUCATION"
-          orgId={church.id}
-          orgName={church.name}
-          onOpenTelaStudio={(docId: string) => {
-            window.dispatchEvent(new CustomEvent('plajah:openTela', { detail: { docId } }));
-          }}
-        />
-
-        {/* Student Due-First Assignments Strip from Academia */}
-        <Suspense fallback={null}>
-          <TodayDueFirst
-            uid={teacherProfile.uid}
-            role="student"
-            onOpenTemplate={templateId => {
-              try {
-                sessionStorage.setItem('plajah:teacherTab', 'templates');
-                sessionStorage.setItem('plajah:openTemplateId', templateId);
-              } catch {}
-              setPortalMode('TEACHER_TOOLS');
-            }}
-          />
-        </Suspense>
-
-        {/* Student Mastery Summary Strip */}
-        <div className="rounded-3xl border border-emerald-400/25 bg-emerald-500/[0.05] p-5 space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-emerald-300">
-                My Christian Education &amp; Coursework Mastery
-              </p>
-              <h3 className="text-lg font-black text-white" style={{ fontFamily: "'Outfit', sans-serif" }}>
-                {church.name} · Student Mastery &amp; Interactive Tela Assignments
-              </h3>
-            </div>
-            <span className="px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 text-xs font-black">
-              {ingestedUnits.length} Interactive Tela Units Available
-            </span>
-          </div>
-
-          {masteryEntries.length > 0 && (
-            <div className="grid sm:grid-cols-3 gap-2.5 pt-1">
-              {masteryEntries.map(([skillId, rec]) => {
-                const lvl: SkillLevel = rec.level ?? 0;
-                return (
-                  <div key={skillId} className="rounded-2xl border border-white/10 bg-black/40 p-3 space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-white truncate">{skillId}</span>
-                      <span
-                        className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase"
-                        style={{
-                          backgroundColor: `${LEVEL_COLOR[lvl]}22`,
-                          color: LEVEL_COLOR[lvl],
-                        }}
-                      >
-                        {LEVEL_NAME[lvl]}
-                      </span>
-                    </div>
-                    <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
-                      <div
-                        className="h-full rounded-full"
-                        style={{ width: `${Math.max(10, (lvl / 4) * 100)}%`, background: LEVEL_COLOR[lvl] }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* Interactive Tela Assignments & Auto-Graded Checks Runner for Students */}
-        <CurriculumAndMasteryStudio
-          orgId={church.id}
-          orgName={church.name}
-          canEdit={false}
-          currentUserUid={teacherProfile.uid}
-          currentUserName={teacherProfile.displayName}
-          programs={programs || []}
-        />
-      </div>
-    );
-  }
-
   if (open) {
     const p = open;
     const set = (patch: Partial<ChurchProgram>) => setOpen({ ...p, ...patch });
@@ -812,7 +656,7 @@ const ChurchEducation: React.FC<{
                   : 'bg-white/5 text-white/70 hover:bg-white/10'
               }`}
             >
-              <GraduationCap size={13} /> Academia Ed-Tech &amp; Worksheet Scanner
+              <GraduationCap size={13} /> Academia Ed-Tech &amp; Classwork
             </button>
           </div>
         </div>
@@ -848,17 +692,7 @@ const ChurchEducation: React.FC<{
           />
         )}
         {activeTab === 'TELA_UNITS' && (
-          <CurriculumAndMasteryStudio
-            orgId={church.id}
-            orgName={church.name}
-            canEdit={canEdit}
-            canViewAnswerKey={canAccessAnswerKey}
-            currentUserUid={teacherProfile.uid}
-            currentUserName={teacherProfile.displayName}
-            programs={programs || [p]}
-            selectedProgramId={p.id}
-            onAttachWeeksToProgram={handleAttachIngestedUnitToProgram}
-          />
+          <ClassworkHandoff orgId={church.id} orgName={church.name} programId={p.id} programName={p.name} canEdit={canEdit} />
         )}
 
         {/* TAB 1: WEEKLY LECTIO SYLLABUS */}
@@ -988,7 +822,7 @@ const ChurchEducation: React.FC<{
         {/* TAB 3: ACADEMIA ED-TECH STACK (ROSTER, COURSES, WORKSHEET SCANNER, TELA) */}
         {activeTab === 'ACADEMIA_STACK' && (
           <div className="space-y-4">
-            <div className="grid sm:grid-cols-3 gap-3">
+            <div className="grid sm:grid-cols-2 gap-3">
               {/* Card 1: Academia Classroom Roster & Gradebook */}
               <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 space-y-2.5">
                 <div className="flex items-center gap-2 text-amber-300 text-xs font-bold uppercase tracking-wider">
@@ -1021,36 +855,6 @@ const ChurchEducation: React.FC<{
                 </div>
               </div>
 
-              {/* Card 2: Paper Worksheet Digitizer */}
-              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 space-y-2.5">
-                <div className="flex items-center gap-2 text-emerald-300 text-xs font-bold uppercase tracking-wider">
-                  <FileScan size={14} /> Scan Paper Sunday School Sheet
-                </div>
-                <p className="text-xs text-white/65 leading-relaxed">
-                  Photograph or upload any paper Sunday School handout or Bible study worksheet to convert it into fillable digital prompts.
-                </p>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={e => {
-                    const f = e.target.files?.[0];
-                    if (f) handleScanPaperWorksheet(f);
-                    e.target.value = '';
-                  }}
-                />
-                <button
-                  type="button"
-                  disabled={scanningWorksheet}
-                  onClick={() => fileInputRef.current?.click()}
-                  className="px-3.5 py-1.5 rounded-xl bg-emerald-400 text-black text-[11px] font-black inline-flex items-center gap-1.5"
-                >
-                  {scanningWorksheet ? <Loader2 size={12} className="animate-spin" /> : <FileScan size={12} />}
-                  {scanningWorksheet ? 'Scanning Worksheet...' : 'Scan Paper Worksheet'}
-                </button>
-              </div>
-
               {/* Card 3: Tela Lesson & Assignment Builder */}
               <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 space-y-2.5">
                 <div className="flex items-center gap-2 text-indigo-300 text-xs font-bold uppercase tracking-wider">
@@ -1069,56 +873,10 @@ const ChurchEducation: React.FC<{
               </div>
             </div>
 
-            {/* Scanned Fillable Worksheet Preview */}
+            {/* Worksheets are built in Tela Classwork */}
             <div className="pt-2">
-              <CurriculumAndMasteryStudio
-                orgId={church.id}
-                orgName={church.name}
-                canEdit={canEdit}
-                currentUserUid={teacherProfile.uid}
-                currentUserName={teacherProfile.displayName}
-                programs={programs || [p]}
-                selectedProgramId={p.id}
-                onAttachWeeksToProgram={handleAttachIngestedUnitToProgram}
-              />
+              <ClassworkHandoff orgId={church.id} orgName={church.name} programId={p.id} programName={p.name} canEdit={canEdit} />
             </div>
-
-            {scannedWorksheet && (
-              <div className="rounded-2xl border border-emerald-400/30 bg-emerald-500/[0.06] p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-300">
-                      Academia Digitized Fillable Worksheet
-                    </p>
-                    <h4 className="text-sm font-black text-white">{scannedWorksheet.title}</h4>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setScannedWorksheet(null)}
-                    className="text-xs text-white/50 hover:text-white"
-                  >
-                    Close
-                  </button>
-                </div>
-                <div className="space-y-2">
-                  {(scannedWorksheet.segments || []).map(seg => (
-                    <div key={seg.id} className="rounded-xl bg-black/40 border border-white/10 p-3 space-y-1.5">
-                      <p className="text-xs font-semibold text-white/90">{seg.text}</p>
-                      {seg.kind === 'question' && (
-                        <input
-                          value={worksheetAnswers[seg.id] || ''}
-                          onChange={e =>
-                            setWorksheetAnswers(prev => ({ ...prev, [seg.id]: e.target.value }))
-                          }
-                          placeholder="Student response..."
-                          className="w-full bg-black/50 border border-white/15 rounded-lg px-2.5 py-1.5 text-xs text-white"
-                        />
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
 
             {/* Linked Organization-Provisioned Courses */}
             <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 space-y-2.5">
@@ -1372,7 +1130,7 @@ const ChurchEducation: React.FC<{
                 }}
                 className="px-3 py-1.5 rounded-xl bg-purple-500/20 border border-purple-400/30 text-purple-200 hover:bg-purple-500/30 text-[11px] font-bold inline-flex items-center gap-1"
               >
-                <Sparkles size={12} /> Tela &amp; Mastery
+                <Sparkles size={12} /> Tela Classwork
               </button>
               <button
                 type="button"

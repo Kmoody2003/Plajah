@@ -42,7 +42,8 @@ import TurnInBriefView from './academia/TurnInBriefView';
 import WorksheetAssignSetup, { type AssignTarget } from './academia/scan/WorksheetAssignSetup';
 import { normalizeWorksheetPage, warmOcr } from '../services/worksheetLocalVision';
 import { takeTeacherWorksheetScan } from '../services/worksheetOpen';
-import CurriculumAndMasteryStudio from './church/CurriculumAndMasteryStudio';
+import ClassworkHandoff from './church/christianEd/ClassworkHandoff';
+import { openTelaClasswork } from './church/christianEd/edWork';
 import OrgLessonLibraryHub from './church/OrgLessonLibraryHub';
 import SharedClassroomClubHub from './classroom/SharedClassroomClubHub';
 import { UniversalStudentDesk } from './desk/UniversalStudentDesk';
@@ -166,7 +167,7 @@ const TeacherToolsView: React.FC<{ onBack?: () => void; user?: any; orgContext?:
   // Hubs deep-link into a tab through sessionStorage (read once, then cleared) so "Build a lesson"
   // lands on Assignment Templates instead of whichever tab happens to be the default.
   const [tab, setTab] = useState<Tab>(() => {
-    try { const t = sessionStorage.getItem('plajah:teacherTab') as Tab | null; sessionStorage.removeItem('plajah:teacherTab'); if (t === 'curriculum') { sessionStorage.setItem('plajah:openDocExtractor', '1'); return 'worksheet'; } if (t) return t; } catch { /* */ }
+    try { const t = sessionStorage.getItem('plajah:teacherTab') as Tab | null; sessionStorage.removeItem('plajah:teacherTab'); if (t === 'curriculum') { setTimeout(() => openClasswork(user, orgContext), 0); return 'worksheet'; } if (t) return t; } catch { /* */ }
     return 'plan';
   });
   const [subject, setSubject] = useState<Subject>('ELA');
@@ -233,8 +234,7 @@ const TeacherToolsView: React.FC<{ onBack?: () => void; user?: any; orgContext?:
                 currentUserName={user?.displayName}
                 onScopeChange={setOrgScope}
                 onOpenWorksheetExtractor={() => {
-                  try { sessionStorage.setItem('plajah:openDocExtractor', '1'); } catch {}
-                  setTab('worksheet');
+                  openClasswork(user, orgContext);
                 }}
               />
             </div>
@@ -321,8 +321,7 @@ const TeacherToolsView: React.FC<{ onBack?: () => void; user?: any; orgContext?:
               </div>
               <button
                 onClick={() => {
-                  try { sessionStorage.setItem('plajah:openDocExtractor', '1'); } catch {}
-                  setTab('worksheet');
+                  openClasswork(user, orgContext);
                 }}
                 style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, padding: '9px 15px', borderRadius: 10, fontSize: 11.5, fontWeight: 800, border: 'none', background: T.orange, color: '#1a1a1a' }}
               >
@@ -342,14 +341,7 @@ const TeacherToolsView: React.FC<{ onBack?: () => void; user?: any; orgContext?:
             </div>
           </div>
         ) : tab === 'curriculum' ? (
-          <CurriculumAndMasteryStudio
-            orgId={orgContext ? orgContext.org.id : getStandaloneTeacherScopeId(user?.uid)}
-            orgName={orgContext ? orgContext.org.name : (user?.displayName || DEMO_CLASS.teacherName)}
-            scopeKind={orgContext ? 'org' : 'user'}
-            canEdit={true}
-            currentUserUid={user?.uid || 'teacher_demo'}
-            currentUserName={user?.displayName || DEMO_CLASS.teacherName}
-          />
+          <ClassworkHandoff {...classworkScope(user, orgContext)} />
         ) : tab === 'templates' ? (
           // Deliberately above the standards-seeded guard below: the template library spans
           // 6–12, where the K-7 ledger standards graph has nothing seeded yet.
@@ -402,6 +394,16 @@ const TeacherToolsView: React.FC<{ onBack?: () => void; user?: any; orgContext?:
 
 type ScanStage = 'capture' | 'digitizing' | 'ready' | 'error';
 
+// Document extraction (Word, PDF, Google Docs/Forms, link hubs) lives in Tela Classwork now.
+const classworkScope = (user?: any, orgContext?: TeacherToolsOrgContext) => ({
+  orgId: orgContext ? orgContext.org.id : '',
+  orgName: orgContext ? orgContext.org.name : (user?.displayName || 'My classes'),
+  programId: orgContext?.activeProgram?.id,
+  programName: orgContext?.activeProgram?.name,
+  domain: orgContext ? 'CHRISTIAN_EDUCATION' as const : 'ACADEMIA' as const,
+});
+const openClasswork = (user?: any, orgContext?: TeacherToolsOrgContext) => openTelaClasswork(classworkScope(user, orgContext));
+
 const ScanWorksheet: React.FC<{ user?: any; orgContext?: TeacherToolsOrgContext }> = ({ user, orgContext }) => {
   const [stage, setStage] = useState<ScanStage>('capture');
   const [preview, setPreview] = useState<string>('');
@@ -409,9 +411,6 @@ const ScanWorksheet: React.FC<{ user?: any; orgContext?: TeacherToolsOrgContext 
   const [sheet, setSheet] = useState<DigitalWorksheet | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [themed, setThemed] = useState(false);
-  const [showDocExtractor, setShowDocExtractor] = useState<boolean>(() => {
-    try { const v = sessionStorage.getItem('plajah:openDocExtractor'); sessionStorage.removeItem('plajah:openDocExtractor'); return v === '1'; } catch { return false; }
-  });
   const syncedScanKeyRef = React.useRef<string | null>(null);
   React.useEffect(() => {
     if (!sheet || stage !== 'ready') return;
@@ -662,28 +661,13 @@ const ScanWorksheet: React.FC<{ user?: any; orgContext?: TeacherToolsOrgContext 
             <Sparkles size={12} /> Phase 1: math, science, and fact-based questions auto-grade. Open-response is captured for you to grade.
           </div>
           <div style={{ marginTop: 14 }}>
-            <button onClick={() => setShowDocExtractor(prev => !prev)} style={{ width: '100%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '14px 16px', borderRadius: 12, border: `1px solid ${showDocExtractor ? T.violet : T.border}`, background: showDocExtractor ? `${T.violet}18` : T.cardAlt, color: T.ink }}>
+            <button onClick={() => openClasswork(user, orgContext)} style={{ width: '100%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '14px 16px', borderRadius: 12, border: `1px solid ${T.border}`, background: T.cardAlt, color: T.ink }}>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 800 }}>
                 <Sparkles size={16} color={T.violet} />
-                {showDocExtractor ? 'Hide Document Extractor' : 'Extract Document (Google Doc / Form / Word / PDF → Interactive Tela)'}
+                Word, PDF or Google Doc? Bring it in with Tela Classwork
               </span>
-              <span style={{ fontSize: 11, color: T.muted }}>Worksheet Capture Workflow</span>
+              <span style={{ fontSize: 11, color: T.muted }}>Opens Tela</span>
             </button>
-          </div>
-          <div>{showDocExtractor && (
-            <div style={{ marginTop: 16, paddingTop: 16, borderTop: `1px solid ${T.border}` }}>
-              <CurriculumAndMasteryStudio
-                orgId={orgContext ? orgContext.org.id : getStandaloneTeacherScopeId(user?.uid)}
-                orgName={orgContext ? orgContext.org.name : (user?.displayName || DEMO_CLASS.teacherName)}
-                scopeKind={orgContext ? 'org' : 'user'}
-                canEdit={true}
-                currentUserUid={user?.uid || 'teacher_demo'}
-                currentUserName={user?.displayName || DEMO_CLASS.teacherName}
-                programs={orgContext?.programs}
-                selectedProgramId={orgContext?.activeProgram?.id}
-              />
-            </div>
-          )}
           </div>
         </div>
       )}
