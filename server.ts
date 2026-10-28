@@ -54,7 +54,7 @@ import { learnerAuthRouter } from './routes/learnerAuth';
 import { schoolsRouter } from './routes/schools';
 import { elevateAccountsRouter } from './routes/elevateAccounts';
 import { templateShareRouter } from './routes/templateShare';
-import { worksheetGradingRouter } from './routes/worksheetGrading';
+import { worksheetGradingRouter, splitLegacyWorksheetKeys } from './routes/worksheetGrading';
 import { academiaClassRouter } from './routes/academiaClass';
 import { createBusinessStaffRouter } from './routes/businessStaff';
 import { registerPermsFor as bizRegisterPermsFor, normalizePerms as normalizeBizPerms, type BizPerm } from './services/businessStaffCore';
@@ -13745,6 +13745,8 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   // Checks are capped so a student can't brute-force a key by guessing every choice.
   app.use('/api/worksheets', rateLimit({ windowMs: 15 * 60 * 1000, max: 120, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many checks — take a breath and try again in a few minutes.' } }));
   app.use('/api/worksheets', express.json({ limit: '256kb' }), worksheetGradingRouter);
+  // Once per database: strip answer keys from worksheets published before keys were withheld (marker-guarded).
+  void splitLegacyWorksheetKeys().then(r => { if (!r.skipped) console.log(`[worksheets] legacy key split: ${r.split} of ${r.scanned} worksheets`); }).catch(e => console.warn('[worksheets] legacy key split failed', e));
   // Teacher Tools: a teacher's own class mastery + recorded assessments (ledger docs are student/guardian-only in rules).
   app.use('/api/academia/class', express.json({ limit: '32kb' }), academiaClassRouter);
   // Template library: sharing to the platform shelf is server-decided (org policy + real roles, stripping). Rate-limited.

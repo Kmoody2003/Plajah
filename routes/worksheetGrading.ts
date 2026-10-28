@@ -11,11 +11,11 @@
 // Mounted in server.ts as:  app.use('/api/worksheets', express.json({ limit: '256kb' }), worksheetGradingRouter)
 
 import { Router, Request, Response } from 'express';
-import { verifyIdTokenDetailed, fsGet, fsPatch } from '../services/firebaseAdminRest';
+import { verifyIdTokenDetailed, fsGet, fsPatch, fsSet, fsList } from '../services/firebaseAdminRest';
 import { autoGradeWorksheet, type DigitalWorksheet } from '../services/worksheetDigitizer';
 import { preAssessFromAnswers, preAssessWorksheet } from '../services/worksheetGrading';
 import { selfCheckWorksheet } from '../services/worksheetScanCore';
-import { withWorksheetKeys, withoutExpected, type WorksheetAnswerKeys } from '../services/worksheetKeys';
+import { hasEmbeddedKeys, splitWorksheetKeys, withWorksheetKeys, withoutExpected, type WorksheetAnswerKeys } from '../services/worksheetKeys';
 
 export interface WorksheetGradingDeps {
   verify: typeof verifyIdTokenDetailed;
@@ -91,3 +91,33 @@ export function createWorksheetGradingRouter({ verify, get, patch }: WorksheetGr
 }
 
 export const worksheetGradingRouter = createWorksheetGradingRouter();
+
+// ── One-time split of worksheets saved before keys were withheld ─────────────────────────────────
+// Worksheets published before services/worksheetKeys.ts carry correctAnswer on the copy students read.
+// The teacher's next open splits one client-side; this splits all of them server-side, once per
+// deploy-safe marker (serverMigrations has no client rule, so only the service account sees it).
+// Idempotent: a re-run skips worksheets with no embedded key and merges into any key doc already there.
+export interface LegacyKeySplitDeps {
+  get: typeof fsGet;
+  set: typeof fsSet;
+  patch: typeof fsPatch;
+  list: typeof fsList;
+}
+const MIGRATION = 'serverMigrations/worksheetKeySplit_v1';
+
+export async function splitLegacyWorksheetKeys(deps: LegacyKeySplitDeps = { get: fsGet, set: fsSet, patch: fsPatch, list: fsList }): Promise<{ scanned: number; split: number; skipped?: boolean }> {
+  if ((await deps.get(MIGRATION))?.done) return { scanned: 0, split: 0, skipped: true };
+  const all = await deps.list('digital_worksheets', { pageSize: 200, maxDocs: 20000 });
+  let split = 0;
+  for (const { id, data } of all) {
+    const sheet = { ...data, id, fields: Array.isArray(data.fields) ? data.fields : [] } as DigitalWorksheet;
+    if (!hasEmbeddedKeys(sheet)) continue;
+    const { publicSheet, keys } = splitWorksheetKeys(sheet);
+    const prior = await deps.get(`digital_worksheet_keys/${id}`);
+    const keyed = await deps.set(`digital_worksheet_keys/${id}`, { worksheetId: id, createdBy: String(data.createdBy || ''), keys: { ...((prior?.keys as WorksheetAnswerKeys) || {}), ...keys }, updatedAt: Date.now() });
+    // Only strip the student copy once its key is safely stored.
+    if (keyed && await deps.patch(`digital_worksheets/${id}`, { fields: JSON.parse(JSON.stringify(publicSheet.fields)), answerKeyWithheld: true })) split++;
+  }
+  await deps.set(MIGRATION, { done: true, scanned: all.length, split, at: Date.now() });
+  return { scanned: all.length, split };
+}

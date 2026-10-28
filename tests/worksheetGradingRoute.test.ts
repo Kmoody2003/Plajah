@@ -93,3 +93,38 @@ test('grade: needs a turned-in submission of your own', async () => {
   assert.equal((await call(opened.deps, 'grade', 'student', { worksheetId: 'w1' })).status, 409);
   assert.equal(opened.patches.length, 0);
 });
+
+test('legacy split: strips keys from old worksheets once, keeping each key teacher-side', async () => {
+  const { splitLegacyWorksheetKeys } = await import('../routes/worksheetGrading');
+  const docs = new Map<string, Doc>([
+    ['digital_worksheets/old1', { title: 'Old', createdBy: 'teacher', fields: [{ id: 'q1', type: 'numeric', correctAnswer: '13', points: 1 }] }],
+    ['digital_worksheets/new1', { title: 'New', createdBy: 'teacher', answerKeyWithheld: true, fields: [{ id: 'q1', type: 'numeric', points: 1 }] }],
+    ['digital_worksheet_keys/old1', { keys: { q0: 'kept' } }],
+  ]);
+  let patches = 0;
+  const deps = {
+    get: async (p: string) => docs.get(p) || null,
+    set: async (p: string, d: Doc) => { docs.set(p, d); return true; },
+    patch: async (p: string, d: Doc) => { patches++; docs.set(p, { ...(docs.get(p) || {}), ...d }); return true; },
+    list: async (c: string) => [...docs].filter(([k]) => k.startsWith(c + '/')).map(([k, data]) => ({ id: k.split('/')[1], data })),
+  };
+  const r = await splitLegacyWorksheetKeys(deps as never);
+  assert.deepEqual(r, { scanned: 2, split: 1 });
+  assert.ok(!JSON.stringify(docs.get('digital_worksheets/old1')).includes('13'));
+  assert.equal(docs.get('digital_worksheets/old1')!.answerKeyWithheld, true);
+  assert.deepEqual(docs.get('digital_worksheet_keys/old1')!.keys, { q0: 'kept', q1: '13' });
+  assert.equal(patches, 1, 'already-split worksheets are left alone');
+  assert.deepEqual(await splitLegacyWorksheetKeys(deps as never), { scanned: 0, split: 0, skipped: true });
+});
+
+test('legacy split: a worksheet stays keyed if its key could not be stored', async () => {
+  const { splitLegacyWorksheetKeys } = await import('../routes/worksheetGrading');
+  const docs = new Map<string, Doc>([['digital_worksheets/w', { createdBy: 't', fields: [{ id: 'q1', type: 'short-text', correctAnswer: 'Paris', points: 1 }] }]]);
+  const deps = {
+    get: async (p: string) => docs.get(p) || null,
+    set: async (p: string, d: Doc) => { if (p.startsWith('digital_worksheet_keys/')) return false; docs.set(p, d); return true; },
+    patch: async () => { throw new Error('must not strip without a stored key'); },
+    list: async () => [{ id: 'w', data: docs.get('digital_worksheets/w')! }],
+  };
+  assert.deepEqual(await splitLegacyWorksheetKeys(deps as never), { scanned: 1, split: 0 });
+});
