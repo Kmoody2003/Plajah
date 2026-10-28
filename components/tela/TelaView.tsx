@@ -34,6 +34,7 @@ import { CreativeStorageMeter, CreativeVersionHistory, useCreativeSyncState } fr
 import { useCoedit, type UseCoedit } from '../../hooks/useCoedit';
 import { CollabDock } from '../collab/CollabDock';
 import { forShare, telaLabeler, withPrivate } from './telaCoedit';
+import { TelaPresenceLayer } from './TelaPresence';
 import { coProjectId, listSharedWithMe } from '../../services/coedit/project';
 import { loadSharedDoc } from '../../services/coedit/session';
 import { merge3Json } from '../../services/coedit/crdt';
@@ -4582,7 +4583,13 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
           }}
           data-canvas-bg="1"
           onPointerDown={onCanvasPointerDown}
-          onPointerMove={onCanvasPointerMove}
+          onPointerMove={event => {
+            onCanvasPointerMove(event);
+            // Share your pointer (canvas space) with collaborators.
+            const s = co.session;
+            if (s) { const rect = event.currentTarget.getBoundingClientRect(); s.setCursor({ x: (event.clientX - rect.left - cam.x) / cam.z, y: (event.clientY - rect.top - cam.y) / cam.z, s: activeFrameId || undefined }); }
+          }}
+          onPointerLeave={() => co.session?.setCursor(null)}
           onPointerUp={onCanvasPointerUp}
           onDragEnter={event => { if (event.dataTransfer.types.includes('Files')) { event.preventDefault(); setAssetDropActive(true); } }}
           onDragOver={event => { if (event.dataTransfer.types.includes('Files')) { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; setAssetDropActive(true); } }}
@@ -4598,6 +4605,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
               transformOrigin: '0 0',
             }}
           >
+            {co.snap && <TelaPresenceLayer doc={doc} presence={co.snap.presence} z={cam.z} />}
             {/* Board wires — the binding graph, drawn between bound frames. */}
             {posture === 'BOARD' && boardEdges.length > 0 && (
               <svg style={{ position: 'absolute', left: 0, top: 0, overflow: 'visible', pointerEvents: 'none' }} width={1} height={1}>

@@ -3,7 +3,7 @@
 // one groove document; the engine is a singleton the views never own.
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { Plus, Sparkles, AlignStartVertical, FolderOpen, FilePlus2, Trash2, Download } from 'lucide-react';
+import { Plus, Sparkles, AlignStartVertical, FolderOpen, FilePlus2, Trash2, Download, Disc3 as Disc3Icon, Radio } from 'lucide-react';
 import { auth } from '../../../services/firebase';
 import { BeatsEngine } from '../../../services/melos/beats/engine/BeatsEngine';
 import { MeterMap } from '../../../services/melos/beats/tempoMap';
@@ -36,6 +36,12 @@ import type { MelosSampleRef } from './melosSamples';
 import { useBeatsDoc } from './useBeatsDoc';
 import { useChoraCoedit } from './useChoraCoedit';
 import { CollabDock } from '../../collab/CollabDock';
+import { useChoraJam } from './jam/useChoraJam';
+import { JamPanel } from './jam/JamPanel';
+import { VersionChip } from './jam/VersionChip';
+import { coProjectId, listSharedWithMe, type CoProject } from '../../../services/coedit/project';
+import { loadSharedDoc } from '../../../services/coedit/session';
+import type { SharedMasterRef } from './project/useMasterProject';
 import { useAutomationRecorder } from './useAutomationRecorder';
 import {
   forgetPattern, groupLetter, groupPatterns, ideasSet, newGroupPattern, padGroup, patternGroup, scenePatternIds, syncSongFromSections,
@@ -120,7 +126,7 @@ const AVAILABLE_VIEWS: BeatsViewId[] = ['machine', 'glass', 'timeline', 'mixer']
 const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, embedded, melosSamples, onRenderTake, takeTargetName, musicLabAdmin = false }) => {
   const {
     doc, rev, saveState, grooves, mutate, undo: localUndo, redo: localRedo, canUndo: localCanUndo, canRedo: localCanRedo,
-    replace, applyRemote, getDoc, saveNow, openGroove, newGroove, removeGroove,
+    replace, applyRemote, getDoc, openShared, setGuestOf, saveNow, openGroove, newGroove, removeGroove,
   } = useBeatsDoc(payload?.grooveId, production?.prodId || payload?.productionId);
   // Live collaboration on this groove (inert until the owner shares it). Remote merges fold into
   // the live doc via applyRemote; while shared, Ctrl+Z is the session's selective undo (only YOUR
@@ -132,6 +138,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
   const canUndo = sharedSession ? !!co.snap?.canUndo : localCanUndo;
   const canRedo = sharedSession ? !!co.snap?.canRedo : localCanRedo;
   const transportRowRef = React.useRef<HTMLDivElement>(null);
+  const phoneHeaderRef = React.useRef<HTMLDivElement>(null);
   // Under the Chora Studio shell the menu bar lives at the top of the workspace; standalone,
   // the transport bar keeps drawing its own.
   const shellMenuBar = useHasStudioMenuBar();
@@ -313,6 +320,77 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
   const musicXmlRef = React.useRef<HTMLInputElement>(null);
 
   const flash = useCallback((msg: string) => { setNotice(msg); setTimeout(() => setNotice(null), 3200); }, []);
+  // A non-owner member of the live project is a guest: their autosave stays on this device and in
+  // the session, never in a Melos production (useBeatsDoc.setGuestOf).
+  useEffect(() => {
+    const p = co.project;
+    const uid = auth.currentUser?.uid;
+    if (!p || !uid || p.localId !== doc.id) return;
+    setGuestOf(p.ownerId !== uid ? p.ownerId : null);
+  }, [co.project, doc.id, setGuestOf]);
+
+  // ── Shared with me: grooves + albums other people shared through live collaboration ──
+  const [sharedGrooves, setSharedGrooves] = useState<CoProject[]>([]);
+  const [sharedAlbums, setSharedAlbums] = useState<CoProject[]>([]);
+  const [sharedAlbum, setSharedAlbum] = useState<SharedMasterRef | null>(null);
+  const refreshShared = useCallback(async () => {
+    const [g, a] = await Promise.all([listSharedWithMe('beats'), listSharedWithMe('melos')]);
+    setSharedGrooves(g);
+    setSharedAlbums(a);
+  }, []);
+  const openSharedGroove = useCallback(async (p: CoProject) => {
+    const loaded = await loadSharedDoc<GrooveDoc>(coProjectId('beats', p.localId));
+    const g = loaded ? deserializeGroove(structuredClone(loaded)) : null;
+    if (!g) { flash('That shared groove has no saved version yet'); return; }
+    g.id = p.localId; // the live session keys on it
+    openShared(g, p.ownerId);
+    setShowGrooves(false);
+  }, [openShared, flash]);
+  const openSharedAlbum = useCallback((p: CoProject) => {
+    setSharedAlbum({ projectId: coProjectId('melos', p.localId), localId: p.localId, ownerId: p.ownerId, title: p.title });
+    setShowGrooves(false);
+    setView('project');
+  }, [setView]);
+  useEffect(() => { if (showGrooves) void refreshShared(); }, [showGrooves, refreshShared]);
+
+  // ── Live jam (shared grooves only): play, record and bring your rig together ──
+  const jam = useChoraJam({
+    co, rev, getDoc, mutate, melosSamples, songStartBeats, setSongStartBeats, running: snap.running, flash,
+  });
+  const jamApiRef = React.useRef(jam);
+  jamApiRef.current = jam;
+  const [showJam, setShowJam] = useState(false);
+  useEffect(() => { if (!co.isShared) setShowJam(false); }, [co.isShared]);
+  // A commit-mode MIDI pass becomes one tray take when recording stops.
+  const wasRecording = React.useRef(false);
+  useEffect(() => {
+    if (wasRecording.current && !recording) void jam.flushMidiTake();
+    wasRecording.current = recording;
+  }, [recording]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** The groove's collaboration dock — desktop puts it in the transport row, phone in its appbar.
+   *  zIndex clears the standalone room (z-100) and the phone shell (z-90). */
+  const grooveDock = (anchor: React.RefObject<HTMLElement | null>, pill: 'inline' | 'none') => (
+    <CollabDock<GrooveDoc>
+      co={co}
+      kind="beats"
+      title={doc.name || 'Groove'}
+      doc={doc}
+      localId={doc.id}
+      serialize={(d) => JSON.stringify(d)}
+      restoreSolo={(json) => {
+        const restored = deserializeGroove(JSON.parse(json));
+        if (!restored) return;
+        restored.id = doc.id; // a restore is a new version of THIS groove
+        restored.updatedAt = Date.now();
+        replace(restored);
+        void saveNow();
+      }}
+      anchor={anchor}
+      pill={pill}
+      zIndex={160}
+    />
+  );
 
   // MusicXML out: every instrument track as a part, with what its clips PLAY (slip/loop baked in).
   const handleExportMusicXml = useCallback(() => {
@@ -488,7 +566,9 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           // not routed" rather than leaving you guessing.
           const target = armed ?? autoArm();
           if (!target) break;
-          void engine.ensureInstrument(target).then(() => engine.instrumentNoteOn(target, action.note, action.velocity));
+          const playOn = () => void engine.ensureInstrument(target).then(() => engine.instrumentNoteOn(target, action.note, action.velocity));
+          // Jamming: the note goes to everyone and sounds here JAM_JITTER_MS later, together.
+          if (!jamApiRef.current?.sendNote(target.id, true, action.note, action.velocity, playOn)) playOn();
           midiSendNoteOn(action.note, action.velocity);
           // Hardware takes record through the SAME path as the QWERTY keyboard.
           if (recordingRef.current && engine.isRunning()) {
@@ -498,12 +578,19 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
         }
         case 'noteOff': {
           const target = armed ?? engine.armedTrack();
-          if (target) engine.instrumentNoteOff(target, action.note);
+          if (target) {
+            const playOff = () => engine.instrumentNoteOff(target, action.note);
+            if (!jamApiRef.current?.sendNote(target.id, false, action.note, 0, playOff)) playOff();
+          }
           midiSendNoteOff(action.note);
           const rec = midiRec.current.get(action.note);
           if (rec && target) {
             midiRec.current.delete(action.note);
-            if (recordingRef.current) commitRecordedNote(target.id, rec, engine.posBeats(), mutate);
+            // Jam Commit mode keeps the notes in the local Takes tray; otherwise (and in Live mode)
+            // they go straight into the clip and sync to everyone through the doc.
+            if (recordingRef.current && !jamApiRef.current?.captureMidiNote(target.id, rec, engine.posBeats())) {
+              commitRecordedNote(target.id, rec, engine.posBeats(), mutate);
+            }
           }
           break;
         }
@@ -968,6 +1055,8 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           onClose={onClose}
           hideClose={embedded}
           embedded={embedded}
+          headerRef={phoneHeaderRef}
+          headerSlot={grooveDock(phoneHeaderRef, 'inline')}
         />
         {showInstrumentPicker && (
           <InstrumentPicker
@@ -1159,24 +1248,15 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
       </div>
       {/* The album project has its own collaborators/dock (ProjectView); this one is the groove's. */}
       <div className="flex items-center px-2 h-14 border-b border-white/10 bg-white/[0.04] shrink-0">
-        <CollabDock<GrooveDoc>
-          co={co}
-          kind="beats"
-          title={doc.name || 'Groove'}
-          doc={doc}
-          localId={doc.id}
-          serialize={(d) => JSON.stringify(d)}
-          restoreSolo={(json) => {
-            const restored = deserializeGroove(JSON.parse(json));
-            if (!restored) return;
-            restored.id = doc.id; // a restore is a new version of THIS groove
-            restored.updatedAt = Date.now();
-            replace(restored);
-            void saveNow();
-          }}
-          anchor={transportRowRef}
-          pill={view === 'project' ? 'none' : 'inline'}
-        />
+        {co.isShared && view !== 'project' && <VersionChip co={co} flash={flash} />}
+        {co.isShared && (
+          <button onClick={() => setShowJam((v) => !v)} title="Live jam — play, record and bring your rig"
+            className={`mx-1.5 h-7 px-2.5 rounded-full border text-[11px] flex items-center gap-1.5 shrink-0 ${showJam || jam.joined ? 'border-[#FF4D8D]/50 text-[#FF4D8D] bg-[#FF4D8D]/10' : 'border-white/15 text-white/70 hover:bg-white/10'}`}>
+            <Radio size={12} /> {jam.joined ? `Jam · ${jam.peers.length + 1}` : 'Jam'}
+            {Object.keys(jam.ghosts).length > 0 && <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />}
+          </button>
+        )}
+        {grooveDock(transportRowRef, view === 'project' ? 'none' : 'inline')}
       </div>
       </div>
 
@@ -1272,6 +1352,25 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
                   <FolderOpen size={10} /> Open file
                 </button>
               </div>
+              {(sharedGrooves.length > 0 || sharedAlbums.length > 0) && (
+                <div className="mb-1 pb-1 border-b border-white/10">
+                  <p className="px-2 pt-1 pb-0.5 text-[9px] font-bold uppercase tracking-[0.16em] text-[#D0BCFF]/70">Shared with me</p>
+                  {sharedGrooves.map((p) => (
+                    <button key={p.id} onClick={() => { void openSharedGroove(p); }}
+                      className={`w-full text-left px-2 py-1.5 rounded-lg text-[11px] truncate ${p.localId === doc.id ? 'text-white bg-white/10' : 'text-white/60 hover:text-white hover:bg-white/5'}`}
+                      title={`Live groove shared by ${p.names?.[p.ownerId] || 'a collaborator'}`}>
+                      {p.title || 'Groove'} <span className="text-white/25 text-[9px] ml-1">{p.names?.[p.ownerId] || 'shared'}</span>
+                    </button>
+                  ))}
+                  {sharedAlbums.map((p) => (
+                    <button key={p.id} onClick={() => openSharedAlbum(p)}
+                      className={`w-full text-left px-2 py-1.5 rounded-lg text-[11px] truncate ${sharedAlbum?.localId === p.localId ? 'text-white bg-white/10' : 'text-white/60 hover:text-white hover:bg-white/5'}`}
+                      title={`Album project shared by ${p.names?.[p.ownerId] || 'a collaborator'} — opens on the Project page`}>
+                      <Disc3Icon size={10} className="inline -mt-0.5 mr-1 text-[#D0BCFF]" />{p.title || 'Album project'} <span className="text-white/25 text-[9px] ml-1">{p.names?.[p.ownerId] || 'shared'}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
               {grooves.length === 0 && <p className="px-2 py-3 text-[11px] text-white/35">No saved grooves yet — they autosave as you work.</p>}
               {grooves.map((g) => (
                 <div key={g.id} className="flex items-center gap-1 group">
@@ -1518,6 +1617,8 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           onMutate={mutate}
           productionId={production?.prodId || payload?.productionId}
           collabAnchor={transportRowRef}
+          sharedProject={sharedAlbum}
+          onLeaveShared={() => setSharedAlbum(null)}
         />
       )}
 
@@ -1563,6 +1664,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
       {showGeneration && musicEngines && <GenerationPanel key={doc.id} doc={doc} engines={musicEngines} startBeats={songStartBeats}
         initialDestination={view === 'machine' ? 'meka' : view === 'glass' ? 'glass' : 'timeline'} onClose={() => setShowGeneration(false)} onInsert={insertGeneration} />}
       {showLibrary && <MuseLibrary docked doc={doc} onMutate={mutate} onClose={() => setShowLibrary(false)} />}
+      {showJam && co.isShared && <JamPanel jam={jam} doc={doc} onClose={() => setShowJam(false)} />}
       {ulOpen && (
         <UniversalLibraryPanel accent="#FF8C00" side="right" defaultDock="docked" storageKey="melos.ullib.geo.v2" accepts={['groove', 'bassline']}
           onClose={() => setUlOpen(false)}

@@ -20,7 +20,7 @@ import {
   ensureScratchProduction, saveGroove, loadGroove, listGrooves, deleteGroove, type GrooveSummary,
 } from '../../../services/melos/beats/grooveStore';
 import { hydrateSample, requestPersistentStorage } from '../../../services/melos/beats/sampleStore';
-import { LOCAL_PROD, delLocal, getLocal, listLocal, markSynced, pickNewer, putLocal, type LocalEntry } from '../../../services/melos/beats/localDocCache';
+import { GUEST_PROD, LOCAL_PROD, delLocal, getLocal, listLocal, markSynced, pickNewer, putLocal, type LocalEntry } from '../../../services/melos/beats/localDocCache';
 import { reconcileInPlace } from '../../../services/melos/beats/reconcileInPlace';
 import { scheduleCreativeSync } from '../../../services/creativeCloud/cloudStore';
 
@@ -42,6 +42,11 @@ export interface BeatsDocApi {
   applyRemote: (doc: GrooveDoc) => void;
   /** Read the live doc (for snapshots taken outside render). */
   getDoc: () => GrooveDoc;
+  /** Open someone else's shared groove: local cache + live session only, never their Firestore path. */
+  openShared: (doc: GrooveDoc, ownerUid: string) => void;
+  /** Set from the live collab project: owner uid when we're a non-owner member, else null. */
+  setGuestOf: (ownerUid: string | null) => void;
+  isGuest: () => boolean;
   saveNow: () => Promise<void>;
   openGroove: (grooveId: string) => Promise<void>;
   newGroove: () => void;
@@ -140,10 +145,13 @@ export function useBeatsDoc(launchGrooveId?: string, launchProdId?: string): Bea
 
   // ── Local copy (IndexedDB) — written on every change, ahead of the Firestore save ──
   const localTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Owner uid while the open groove is someone else's shared project (we're a collaborator). */
+  const guestRef = useRef<string | null>(null);
   const persistLocalNow = useCallback(async () => {
     if (localTimer.current) { clearTimeout(localTimer.current); localTimer.current = null; }
     const d = docRef.current;
-    if (d) await putLocal('groove', prodIdRef.current, d);
+    // A collaborator's copy of someone else's groove is kept apart from their own grooves.
+    if (d) await putLocal('groove', guestRef.current ? GUEST_PROD : prodIdRef.current, d);
   }, []);
   const scheduleLocal = useCallback(() => {
     if (localTimer.current) clearTimeout(localTimer.current);
@@ -162,6 +170,9 @@ export function useBeatsDoc(launchGrooveId?: string, launchProdId?: string): Bea
     const d = docRef.current;
     if (!d) return;
     await persistLocalNow(); // the device copy first — it survives anything the network does
+    // Someone else's shared groove: the live session (coedit) is its only shared store. Never
+    // write it into a Melos production or the personal creative cloud — that's the owner's.
+    if (guestRef.current) { setSaveState('saved'); return; }
     const prodId = prodIdRef.current;
     if (!prodId) { setSaveState('local'); return; }
     const at = d.updatedAt;
@@ -179,7 +190,7 @@ export function useBeatsDoc(launchGrooveId?: string, launchProdId?: string): Bea
 
   const scheduleSave = useCallback(() => {
     scheduleLocal();
-    if (!prodIdRef.current) return;
+    if (!prodIdRef.current || guestRef.current) return;
     setSaveState('unsaved');
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => { void saveNow(); }, 2500);
@@ -210,6 +221,7 @@ export function useBeatsDoc(launchGrooveId?: string, launchProdId?: string): Bea
   const swapIn = useCallback((doc: GrooveDoc) => {
     if (localTimer.current) void persistLocalNow(); // don't drop the outgoing doc's last edits
     historyRef.current = { past: [], future: [] };
+    guestRef.current = null; // openShared re-marks it after the swap
     docRef.current = doc;
     BeatsEngine.get().loadDoc(doc);
     bump();
@@ -246,6 +258,21 @@ export function useBeatsDoc(launchGrooveId?: string, launchProdId?: string): Bea
   }, [scheduleSave]);
 
   const getDoc = useCallback(() => docRef.current!, []);
+
+  /** Open a groove someone shared with us (loaded from the coedit snapshot). The live session
+   *  attaches on the next render (useCoedit keys on doc.id = the project's localId). */
+  const openShared = useCallback((shared: GrooveDoc, ownerUid: string) => {
+    if (saveTimer.current) { clearTimeout(saveTimer.current); saveTimer.current = null; }
+    swapIn(shared);
+    guestRef.current = ownerUid;
+    setSaveState('saved');
+  }, [swapIn]);
+
+  /** Collab role from the live project: a non-owner member is a guest (no Firestore writes). */
+  const setGuestOf = useCallback((ownerUid: string | null) => {
+    guestRef.current = ownerUid;
+    if (ownerUid && saveTimer.current) { clearTimeout(saveTimer.current); saveTimer.current = null; setSaveState('saved'); }
+  }, []);
 
   const restoreHistory = useCallback((doc: GrooveDoc) => {
     gestureRef.current.snapped = false; // undo mid-drag: the rest of the drag is a fresh step
@@ -362,5 +389,5 @@ export function useBeatsDoc(launchGrooveId?: string, launchProdId?: string): Bea
     return () => { cancelled = true; unsub(); if (saveTimer.current) clearTimeout(saveTimer.current); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return { doc: docRef.current, rev, saveState, grooves, mutate, undo, redo, canUndo: historyRef.current.past.length > 0, canRedo: historyRef.current.future.length > 0, replace, applyRemote, getDoc, saveNow, openGroove, newGroove, removeGroove };
+  return { doc: docRef.current, rev, saveState, grooves, mutate, undo, redo, canUndo: historyRef.current.past.length > 0, canRedo: historyRef.current.future.length > 0, replace, applyRemote, getDoc, openShared, setGuestOf, isGuest: () => !!guestRef.current, saveNow, openGroove, newGroove, removeGroove };
 }

@@ -11,6 +11,7 @@ const base = () => ({
     { id: 'f1', name: 'Front cover page', w: 100 },
     { id: 'f2', name: 'Back', w: 100 },
   ],
+  pageDevices: ['scene', 'notes'],
   devices: {
     scene: {
       objects: [
@@ -222,6 +223,8 @@ function randomEdit(d: any) {
   else if (r < 0.4) objs.push({ id: `n${Math.random().toString(36).slice(2, 7)}`, kind: 'RECT', fill: '#fff', x: 1 });
   else if (r < 0.55 && objs.length > 1) objs.splice(Math.floor(Math.random() * objs.length), 1);
   else if (r < 0.7 && objs.length > 1) objs.push(objs.shift());
+  else if (r < 0.7) d.pageDevices.push(`dev${Math.random().toString(36).slice(2, 6)}`);
+  else if (r < 0.75 && d.pageDevices.length > 1) d.pageDevices.splice(Math.floor(Math.random() * d.pageDevices.length), 1);
   else if (r < 0.8) d.title = `T${Math.floor(Math.random() * 1000)}`;
   else {
     // prose typing at a random spot of a shared caption
@@ -284,4 +287,16 @@ test('merge3Json: two devices edited apart — both sets of changes land', () =>
   const clash = merge3Json(b, { ...b, title: 'Mine' }, { ...b, title: 'Theirs' });
   assert.equal(clash.merged.title, 'Mine');
   assert.equal(clash.conflicts.length, 1);
+});
+
+test('lists of unique ids (a page’s devices, tags) merge per entry: two people adding both land', () => {
+  const start = fromDoc(base());
+  const A = site('A', start);
+  const B = site('B', start);
+  const oa = A.edit((d) => (d.pageDevices.push('chart'), d));
+  const ob = B.edit((d) => ((d.pageDevices = ['img', ...d.pageDevices.filter((x: string) => x !== 'notes')]), d));
+  A.receive(ob);
+  B.receive(oa);
+  assert.deepEqual(A.doc, B.doc);
+  assert.deepEqual(A.doc.pageDevices, ['img', 'scene', 'chart']);
 });

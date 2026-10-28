@@ -46,6 +46,7 @@ import {
   diff,
   fromDoc,
   getIn,
+  idOf,
   opsToReach,
   overlay,
   pathKey,
@@ -107,7 +108,9 @@ export interface Activity {
 export interface VersionMeta {
   id: string;
   label?: string;
-  reason: 'checkpoint' | 'named' | 'personal' | 'before-restore' | 'before-publish' | 'import';
+  reason: 'checkpoint' | 'named' | 'personal' | 'before-restore' | 'before-publish' | 'import' | 'line';
+  /** For reason 'line': whose version of the project this is (their uid). */
+  line?: string;
   at: number;
   by: string;
   byName: string;
@@ -1065,6 +1068,73 @@ export class CoeditSession<T = unknown> {
     return { id: vid, ...v };
   }
 
+  // ── lines: the session version and each person's own version ──────────────
+  //
+  // The shared document is the "session" line. Anyone can save where they are (draft included) as
+  // their own line — "Ana's version" — which everyone on the project can see and open. From there:
+  // make it the session version for everyone, or go back to yours privately (as a draft on top of the
+  // live session, so the session keeps moving underneath and nothing is lost either way).
+
+  /** Saves what you see now as your line's newest version. */
+  async saveMyLine(label?: string): Promise<VersionMeta> {
+    this.flushPending();
+    const vid = `${Date.now().toString(36)}_${this.site.slice(-5)}`;
+    const { chunks, size } = await writeChunks(this.id, `ver_${vid}`, JSON.stringify(this.view));
+    const editor = canEdit(this.project, this.uid);
+    const v: Omit<VersionMeta, 'id'> = {
+      reason: 'line',
+      line: this.uid,
+      label: label?.trim() || `${this.name.split(' ')[0]}'s version`,
+      at: Date.now(),
+      by: this.uid,
+      byName: this.name,
+      chunks,
+      size,
+      private: !editor, // viewers/commenters keep theirs to themselves
+      pinned: true,
+    };
+    await setDoc(doc(opsDb, COEDIT, this.id, 'versions', vid), v);
+    return { id: vid, ...v };
+  }
+
+  /** The session line plus the newest saved version of each person's line. */
+  async listLines(): Promise<Array<{ id: string; label: string; byName?: string; at: number; version?: VersionMeta; mine: boolean }>> {
+    const versions = await this.listVersions();
+    const newest = new Map<string, VersionMeta>();
+    for (const v of versions) if (v.reason === 'line' && v.line && !newest.has(v.line)) newest.set(v.line, v);
+    return [
+      { id: 'session', label: 'Session version', at: this.lastSyncedAt ?? Date.now(), mine: false },
+      ...[...newest.entries()].map(([uid, v]) => ({ id: uid, label: v.label || `${v.byName}'s version`, byName: v.byName, at: v.at, version: v, mine: uid === this.uid })),
+    ];
+  }
+
+  /** Shows a saved version as your private draft over the live session ("go back to mine"). */
+  async openAsMine(v: VersionMeta) {
+    const mine = await this.loadVersion(v);
+    const ops = opsToReach(this.shared.doc, mine, this.shared.meta, () => tick(this.clock));
+    this.draft = coalesce(ops);
+    this.draftBase = ops[0]?.s;
+    this.mode = 'draft';
+    this.myPresence.mode = 'draft';
+    this.recomputeView();
+    this.schedulePersist();
+    this.scheduleDraftSave();
+    this.emitRemote();
+    this.changed();
+  }
+
+  /** Follow the session again: keep a copy of your line, then drop your private differences. */
+  async adoptSession() {
+    if (this.draft.length) await this.saveMyLine().catch(() => {});
+    this.discardDraft();
+    this.setMode('live');
+  }
+
+  /** Makes a line's version the session version for everyone (the session is saved first). */
+  async promoteLine(v: VersionMeta) {
+    await this.restore(v);
+  }
+
   async renameVersion(v: VersionMeta, label: string) {
     await setDoc(doc(opsDb, COEDIT, this.id, 'versions', v.id), { label: label.trim(), pinned: true }, { merge: true });
   }
@@ -1103,12 +1173,12 @@ export class CoeditSession<T = unknown> {
         if (last?.startsWith('#') && inCur === undefined && inOld !== undefined) {
           // bring a deleted element back where it was
           const listPath = t.slice(0, -1);
-          const oldList = (getIn(old, listPath) as Array<{ id: string }>) ?? [];
-          const idx = oldList.findIndex((e) => e.id === last.slice(1));
-          const curList = (getIn(this.shared.doc, listPath) as Array<{ id: string }>) ?? [];
+          const oldList = (getIn(old, listPath) as unknown[]) ?? [];
+          const idx = oldList.findIndex((e) => idOf(e) === last.slice(1));
+          const curList = (getIn(this.shared.doc, listPath) as unknown[]) ?? [];
           const merged = [...curList];
-          const after = idx > 0 ? oldList[idx - 1].id : null;
-          const at = after ? merged.findIndex((e) => e.id === after) + 1 : 0;
+          const after = idx > 0 ? idOf(oldList[idx - 1]) : null;
+          const at = after ? merged.findIndex((e) => idOf(e) === after) + 1 : 0;
           merged.splice(at, 0, oldList[idx]);
           ops.push(...diff(curList, merged, this.shared.meta, stamp, listPath));
         } else if (last?.startsWith('#') && inOld === undefined) {

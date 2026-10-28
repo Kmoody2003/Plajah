@@ -8,7 +8,7 @@
     "kith:build": "vite build --config kith-party.vite.config.mjs",
     "kith:local": "node scripts/kith-party/serve.mjs dist-kith-party",
     "test:kith": "tsx --test tests/kithParty.test.ts",
-    "test:coedit": "npx tsx --test tests/coeditCrdt.test.ts",
+    "test:coedit": "npx tsx --test tests/coeditCrdt.test.ts tests/coeditJam.test.ts",
     "typecheck:kith": "tsc -p tsconfig.kith-party.json --noEmit",
     "dev": "tsx server.ts",
     "start": "node server.ts",

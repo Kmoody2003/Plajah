@@ -53,6 +53,10 @@ export interface BeatsMobileProps {
   /** When embedded in the Melos workspace, fill the room container (absolute) instead of taking
       over the whole viewport (fixed) — so the workspace's own top room-nav stays reachable. */
   embedded?: boolean;
+  /** Extra appbar content at its right end (the live-collaboration pill). */
+  headerSlot?: React.ReactNode;
+  /** The appbar element — panels that open "below the header" anchor to it. */
+  headerRef?: React.Ref<HTMLDivElement>;
 }
 
 export const BeatsMobileShell: React.FC<BeatsMobileProps> = (p) => {
@@ -64,13 +68,14 @@ export const BeatsMobileShell: React.FC<BeatsMobileProps> = (p) => {
   return (
     <div className={`${p.embedded ? 'absolute inset-0' : 'fixed inset-0 z-[100]'} flex flex-col text-white`} style={{ background: `radial-gradient(700px 320px at 20% -10%, rgba(107,0,153,0.28), transparent 60%), ${WASH_BG}` }}>
       {/* appbar */}
-      <div className="flex items-center gap-2 px-3 h-12 border-b border-white/10 flex-none bg-white/[0.04] backdrop-blur-xl">
+      <div ref={p.headerRef} className="flex items-center gap-2 px-3 h-12 border-b border-white/10 flex-none bg-white/[0.04] backdrop-blur-xl">
         {!p.hideClose && (
           <button onClick={p.onClose} aria-label="Back" className="flex items-center gap-1 h-8 px-2 rounded-lg border border-white/10 text-white/55 text-[12px]"><ChevronLeft size={15} /> Plajah</button>
         )}
         <span className="font-black text-[12px] tracking-[0.06em] shrink-0 whitespace-nowrap"><span className="bg-gradient-to-br from-[#B84DFF] to-[#D40055] bg-clip-text text-transparent">CHORA</span><span className="text-white/80"> · STUDIO</span></span>
         <span className="flex-1" />
         <span className="text-[11px] text-white/45 truncate max-w-[38%]">{p.doc.name}</span>
+        {p.headerSlot}
       </div>
 
       {/* focused mode */}

@@ -43,13 +43,53 @@ function portableAsset(a: any): any {
   return out;
 }
 
+// 3D clips cache the model's URL on the clip (model3dUrl); a blob:/data: one is device-only.
+function portableClips(clips: any): any {
+  if (!Array.isArray(clips) || !clips.some((c) => isDeviceUrl(c?.model3dUrl))) return clips;
+  return clips.map((c) => {
+    if (!isDeviceUrl(c?.model3dUrl)) return c;
+    const { model3dUrl: _drop, ...rest } = c;
+    return rest;
+  });
+}
+function portableHost(h: any): any {
+  const cl = h?.timeline?.clips;
+  const p = portableClips(cl);
+  return p === cl ? h : { ...h, timeline: { ...h.timeline, clips: p } };
+}
+function mapKeep<A>(arr: A[] | undefined, fn: (a: A) => A): A[] | undefined {
+  if (!Array.isArray(arr)) return arr;
+  let changed = false;
+  const out = arr.map((a) => {
+    const b = fn(a);
+    if (b !== a) changed = true;
+    return b;
+  });
+  return changed ? out : arr;
+}
+
 /**
- * The production without anything that only means something on this device. Everything except the
- * media pool is shared by reference (cheap); the result is plain JSON-safe data.
+ * The production without anything that only means something on this device. Unchanged parts are
+ * shared by reference (cheap); the result is plain JSON-safe data.
  */
 export function portableProduction<T extends Prod>(prod: T): T {
-  if (!prod || !Array.isArray(prod.mediaPool)) return prod;
-  return { ...prod, mediaPool: prod.mediaPool.map(portableAsset) };
+  if (!prod || typeof prod !== 'object') return prod;
+  const out: any = { ...prod };
+  if (Array.isArray(prod.mediaPool)) out.mediaPool = prod.mediaPool.map(portableAsset);
+  out.edits = mapKeep(prod.edits, portableHost);
+  out.acts = mapKeep(prod.acts, (a: any) => {
+    const scenes = mapKeep(a?.scenes, portableHost);
+    return scenes === a?.scenes ? a : { ...a, scenes };
+  });
+  if (out.edits === undefined) delete out.edits;
+  if (out.acts === undefined) delete out.acts;
+  return out;
+}
+
+const isDeviceOnly = (a: any) => !!a && isDeviceUrl(a.url) && !a.cloudUrl;
+/** Media-pool assets that play only on this device (no cloud copy): what collaborators can't see. */
+export function deviceOnlyAssets(prod: Prod | null | undefined): any[] {
+  return (prod?.mediaPool ?? []).filter(isDeviceOnly);
 }
 
 export const portableJson = (prod: Prod) => JSON.stringify(portableProduction(prod));
@@ -79,6 +119,17 @@ export function overlayLocalMedia<T extends Prod>(incoming: T, current: Prod | n
       a.offline = true;
       missing.push(a.id);
     }
+  }
+  // Put back device-local 3D model URLs (stripped from the portable doc), else use the asset's.
+  const myClips = new Map<string, any>();
+  const hosts = (p: any) => [...(p?.edits ?? []), ...(p?.acts ?? []).flatMap((a: any) => a?.scenes ?? [])];
+  for (const h of hosts(current)) for (const c of h?.timeline?.clips ?? []) if (c?.id) myClips.set(c.id, c);
+  const poolUrl = new Map<string, string>((doc.mediaPool ?? []).filter((a: any) => a?.url).map((a: any) => [a.id, a.url]));
+  for (const h of hosts(doc)) for (const c of h?.timeline?.clips ?? []) {
+    if (!c || c.kind !== 'model3d' || c.model3dUrl) continue;
+    const mineUrl = myClips.get(c.id)?.model3dUrl;
+    const url = mineUrl || (c.assetId ? poolUrl.get(c.assetId) : undefined);
+    if (url) c.model3dUrl = url;
   }
   return { doc, missing };
 }

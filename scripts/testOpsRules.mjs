@@ -103,6 +103,18 @@ t('co-edit: presence for yourself', 'ALLOW', MEMBER, 'create', `${CO}/presence/$
 t('co-edit: no presence for others', 'DENY', MEMBER, 'create', `${CO}/presence/${OWNER}_tab1`, { data: { uid: OWNER, name: 'O' } });
 t('co-edit: drafts are private', 'DENY', OWNER, 'get', `${CO}/drafts/${MEMBER}`, { existing: { ops: '[]' } });
 t('co-edit: your own draft', 'ALLOW', MEMBER, 'get', `${CO}/drafts/${MEMBER}`, { existing: { ops: '[]' } });
+t('co-edit: editor contributes a take', 'ALLOW', MEMBER, 'create', `${CO}/assets/a1`, { data: { id: 'a1', owner: MEMBER, kind: 'take', status: 'local', tiers: {} } });
+t('co-edit: viewer cannot contribute media', 'DENY', BOOKS, 'create', `${CO}/assets/a1`, { data: { id: 'a1', owner: BOOKS, kind: 'take' } });
+t('co-edit: no contributing in someone else’s name', 'DENY', MEMBER, 'create', `${CO}/assets/a1`, { data: { id: 'a1', owner: OWNER, kind: 'take' } });
+t('co-edit: contributor upgrades proxy → master', 'ALLOW', MEMBER, 'update', `${CO}/assets/a1`, { existing: { id: 'a1', owner: MEMBER, status: 'proxy' }, data: { id: 'a1', owner: MEMBER, status: 'master' } });
+t('co-edit: others cannot rewrite your asset', 'DENY', OWNER, 'update', `${CO}/assets/a1`, { existing: { id: 'a1', owner: MEMBER, status: 'proxy' }, data: { id: 'a1', owner: MEMBER, status: 'master' } });
+t('co-edit: viewer reads the media ledger', 'ALLOW', BOOKS, 'get', `${CO}/assets/a1`, { existing: { id: 'a1', owner: MEMBER } });
+t('co-edit: publish your own rig', 'ALLOW', MEMBER, 'create', `${CO}/rigs/${MEMBER}_t1`, { data: { uid: MEMBER, shares: {} } });
+t('co-edit: no rig for others', 'DENY', MEMBER, 'create', `${CO}/rigs/${OWNER}_t1`, { data: { uid: OWNER } });
+t('co-edit: ask for a preset', 'ALLOW', MEMBER, 'create', `${CO}/requests/r1`, { data: { from: MEMBER, to: OWNER, status: 'pending' } });
+t('co-edit: only the person asked answers', 'DENY', MEMBER, 'update', `${CO}/requests/r1`, { existing: { from: MEMBER, to: OWNER, status: 'pending' }, data: { from: MEMBER, to: OWNER, status: 'fulfilled' } });
+t('co-edit: asked person fulfils', 'ALLOW', OWNER, 'update', `${CO}/requests/r1`, { existing: { from: MEMBER, to: OWNER, status: 'pending' }, data: { from: MEMBER, to: OWNER, status: 'fulfilled', assetId: 'a1' } });
+t('co-edit: outsiders cannot read requests', 'DENY', OTHER, 'get', `${CO}/requests/r1`, { existing: { from: MEMBER, to: OWNER } });
 
 const body = {
   source: { files: [{ name: 'firestore.rules', content: src }] },

@@ -15,7 +15,10 @@
     "components/tela/telaCoedit.ts",
     "services/telaStore.ts",
     "vite-env.d.ts",
-    "services/creativeCloud/*.ts"
+    "services/creativeCloud/*.ts",
+    "services/melos/jam/*.ts",
+    "components/tela/TelaPresence.tsx",
+    "tests/coeditJam.test.ts"
   ],
   "exclude": []
 }

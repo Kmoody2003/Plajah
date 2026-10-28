@@ -13,16 +13,25 @@ import { ensureScratchProduction } from '../../../../services/melos/beats/groove
 import {
   loadMasterProject, saveMasterProject, newMasterProject, type MasterProjectDoc,
 } from '../../../../services/melos/beats/masterProject';
-import { LOCAL_PROD, getLocal, markSynced, pickNewer, putLocal } from '../../../../services/melos/beats/localDocCache';
+import { GUEST_PROD, LOCAL_PROD, getLocal, markSynced, pickNewer, putLocal } from '../../../../services/melos/beats/localDocCache';
 import { reconcileInPlace } from '../../../../services/melos/beats/reconcileInPlace';
 import { scheduleCreativeSync } from '../../../../services/creativeCloud/cloudStore';
+import { loadSharedDoc } from '../../../../services/coedit/session';
+
+/** An album someone else shared with us (collaborator side). */
+export interface SharedMasterRef { projectId: string; localId: string; ownerId: string; title?: string }
 
 export type ProjectSaveState = 'local' | 'unsaved' | 'saving' | 'saved';
 
 /** One album per production — the collab / creative-cloud id has to carry the production. */
 export const masterProjectLocalId = (prodId: string | null, projectId: string) => `${prodId || LOCAL_PROD}__${projectId}`;
 
-export function useMasterProject(productionId?: string) {
+/**
+ * `shared`: open someone else's album from its live collab snapshot instead of our own. As a
+ * collaborator nothing is written to Firestore or the personal cloud (the session is the shared
+ * store); the device copy lives under GUEST_PROD.
+ */
+export function useMasterProject(productionId?: string, shared?: SharedMasterRef | null) {
   const [project, setProject] = useState<MasterProjectDoc>(() => newMasterProject(auth.currentUser?.uid || ''));
   const [saveState, setSaveState] = useState<ProjectSaveState>('local');
   const [rev, setRev] = useState(0);
@@ -31,6 +40,8 @@ export function useMasterProject(productionId?: string) {
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const projectRef = useRef(project);
   projectRef.current = project;
+  const sharedRef = useRef(shared ?? null);
+  sharedRef.current = shared ?? null;
 
   const [reloadKey, setReloadKey] = useState(0);
   /** Re-read the doc from Firestore — after an import writes it out from under us. */
@@ -40,7 +51,9 @@ export function useMasterProject(productionId?: string) {
   const localTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const persistLocalNow = useCallback(async () => {
     if (localTimer.current) { clearTimeout(localTimer.current); localTimer.current = null; }
-    await putLocal('master', prodIdRef.current, projectRef.current);
+    const sh = sharedRef.current;
+    if (sh) await putLocal('master', GUEST_PROD, { ...projectRef.current, id: sh.localId });
+    else await putLocal('master', prodIdRef.current, projectRef.current);
   }, []);
   const scheduleLocal = useCallback(() => {
     if (localTimer.current) clearTimeout(localTimer.current);
@@ -58,6 +71,7 @@ export function useMasterProject(productionId?: string) {
   const saveNow = useCallback(async () => {
     if (saveTimer.current) { clearTimeout(saveTimer.current); saveTimer.current = null; }
     await persistLocalNow(); // the device copy first — it survives anything the network does
+    if (sharedRef.current) { setSaveState('saved'); return; } // collaborator: coedit only
     const pid = prodIdRef.current || (await ensureScratchProduction());
     if (pid !== prodIdRef.current) { prodIdRef.current = pid; setProdId(pid); }
     if (!pid) { setSaveState('local'); return; }
@@ -78,6 +92,7 @@ export function useMasterProject(productionId?: string) {
 
   const scheduleSave = useCallback(() => {
     scheduleLocal();
+    if (sharedRef.current) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => { void saveNow(); }, 2500);
   }, [saveNow, scheduleLocal]);
@@ -86,6 +101,21 @@ export function useMasterProject(productionId?: string) {
   // newer of this device's copy and Firestore's.
   useEffect(() => {
     let cancelled = false;
+    if (shared) {
+      void (async () => {
+        const loaded = await loadSharedDoc<MasterProjectDoc>(shared.projectId);
+        if (cancelled) return;
+        if (loaded) {
+          const p = structuredClone(loaded);
+          if (!Array.isArray(p.tracks)) p.tracks = [];
+          if (!p.publishing) p.publishing = newMasterProject(p.ownerId || '').publishing;
+          projectRef.current = p;
+          setProject(p);
+        }
+        setSaveState('saved');
+      })();
+      return () => { cancelled = true; };
+    }
     void (async () => {
       const pid = productionId || (await ensureScratchProduction());
       if (cancelled) return;
@@ -109,7 +139,7 @@ export function useMasterProject(productionId?: string) {
       else setSaveState(pick ? 'saved' : 'unsaved');
     })();
     return () => { cancelled = true; };
-  }, [productionId, reloadKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [productionId, reloadKey, shared?.projectId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** Mutate the shared project object in place — the useBeatsDoc contract. */
   const mutateProject = useCallback((fn: (p: MasterProjectDoc) => void) => {
@@ -138,6 +168,7 @@ export function useMasterProject(productionId?: string) {
     project, mutateProject, saveState, saveNow, reload,
     rev, applyRemote, getProject,
     /** Stable id for collaboration + creative-cloud history (null until the production resolves). */
-    localId: prodId ? masterProjectLocalId(prodId, project.id) : null,
+    localId: shared ? shared.localId : prodId ? masterProjectLocalId(prodId, project.id) : null,
+    isShared: !!shared,
   };
 }

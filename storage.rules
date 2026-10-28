@@ -311,6 +311,17 @@ service firebase.storage {
       allow write: if false;
     }
 
+    // ── Shared project media (services/coedit/assets.ts) ───────────────────────
+    // coedit-assets/{projectId}/{uid}/{sha-id}/{proxy|master}.{ext}. Only the contributor writes their
+    // own folder; any signed-in reader who knows the content-addressed path may read (membership lives
+    // in the plajah-ops database, which Storage rules can't see — the ledger that lists these paths is
+    // members-only there).
+    match /coedit-assets/{projectId}/{uid}/{assetId}/{file} {
+      allow read: if isAuth();
+      allow create, update: if isAuth() && request.auth.uid == uid && request.resource.size < 2 * 1024 * 1024 * 1024;
+      allow delete: if isAuth() && request.auth.uid == uid;
+    }
+
     // ── Fallback: deny everything not explicitly matched ──────────────────────
     match /{allPaths=**} {
       allow read: if false;

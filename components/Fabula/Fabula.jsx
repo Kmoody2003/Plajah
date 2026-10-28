@@ -133,9 +133,9 @@ import ViewerFpsBadge from "./ViewerFpsBadge";
 import { useCoedit } from "../../hooks/useCoedit";
 import { CollabDock } from "../collab/CollabDock";
 import { scheduleCreativeSync } from "../../services/creativeCloud/cloudStore";
-import { coProjectId } from "../../services/coedit/project";
+import { coProjectId, listSharedWithMe } from "../../services/coedit/project";
 import { loadSharedDoc } from "../../services/coedit/session";
-import { portableProduction, portableJson, overlayLocalMedia, mergeThreeWay, reconcile as reconcileProd, markPending, clearPending, listPending, getBase, setBase, dropSyncState, withTimeout, fabulaLabeler } from "../../services/fabula/fabulaSync";
+import { portableProduction, portableJson, overlayLocalMedia, mergeThreeWay, reconcile as reconcileProd, markPending, clearPending, listPending, getBase, setBase, dropSyncState, withTimeout, fabulaLabeler, deviceOnlyAssets } from "../../services/fabula/fabulaSync";
 // Film Production (Development → Release pipeline) lives as a page inside the editor; lazy so the
 // editor boot doesn't pay for the production suite until the tab is opened.
 const FabulaStudio = lazy(() => import("./FabulaStudio"));
@@ -1091,7 +1091,11 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
   const cloudBusyRef = useRef(new Set()); // production ids with a cloud push in flight
   // Personal cloud copy is the OWNER's: collaborators on someone else's shared production rely on
   // the shared coedit project instead (fabula_projects/{id} is owner-only; writing would fail).
-  const ownsCloudCopy = () => !coRoleRef.current || coRoleRef.current === "owner";
+  const sharedInIdsRef = useRef(new Set()); // productions opened from "Shared with me" (someone else's)
+  const ownsCloudCopy = () => {
+    if (coRoleRef.current) return coRoleRef.current === "owner";
+    return !sharedInIdsRef.current.has(prodRef.current?.id); // role not known yet: trust how it was opened
+  };
   useEffect(() => {
     if (!prod) return;
     clearTimeout(saveTimer.current);
@@ -1317,13 +1321,104 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
   }, [collabOpen, page, prod?.id]);
-  // Once shared, media that lives only on this device shows as NO MEDIA for everyone else.
-  const localOnlyWarnedRef = useRef("");
+  // ── Shared-production media ────────────────────────────────────────────────────────────
+  // Media that lives only on this device (blob:, no cloudUrl) shows as NO MEDIA for everyone else.
+  // Once a production is shared, anyone who can edit is asked ONCE per production (choice kept on
+  // this device) whether to upload those files; "yes" queues them on the resumable uploader
+  // (IndexedDB queue, resumes across reloads) and keeps auto-queuing media imported later. The
+  // finished upload stamps cloudUrl on the asset, which syncs to collaborators through the doc.
+  const coCanEdit = co.role === "owner" || co.role === "editor";
+  const mediaChoiceKey = (id) => "fabula:shareMedia:" + id;
+  const readMediaChoice = (id) => { try { return localStorage.getItem(mediaChoiceKey(id)); } catch { return null; } };
+  const [mediaChoice, setMediaChoiceState] = useState(null); // 'yes' | 'no' | null for the open production
+  useEffect(() => { setMediaChoiceState(prod?.id ? readMediaChoice(prod.id) : null); }, [prod?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const setMediaChoice = (v) => { if (!prod?.id) return; try { localStorage.setItem(mediaChoiceKey(prod.id), v); } catch { /* */ } setMediaChoiceState(v); };
+  const deviceOnly = useMemo(() => (co.isShared ? deviceOnlyAssets(prod) : []), [co.isShared, prod?.mediaPool]); // eslint-disable-line react-hooks/exhaustive-deps
+  const fmtBytes = (n) => (n >= 1e9 ? (n / 1e9).toFixed(1) + " GB" : n >= 1e6 ? Math.round(n / 1e6) + " MB" : n > 0 ? Math.max(1, Math.round(n / 1e3)) + " KB" : "0 KB");
+  const deviceOnlyBytes = deviceOnly.reduce((n, a) => n + (a.size || 0), 0);
+  const deviceOnlyUnsized = deviceOnly.filter((a) => !a.size).length;
+  const [shareUp, setShareUp] = useState(null); // { files, sent, total } — uploads for this production's pool
+  // Queue device-only assets on the resumable uploader (bytes from the OPFS stash, the watch folder,
+  // or — last resort — the live blob: URL, stashed first so the upload survives a reload).
+  const queueDeviceOnly = async (assets) => {
+    const uidNow = auth.currentUser?.uid;
+    if (!uidNow || !assets.length) return 0;
+    let n = 0;
+    for (const a of assets) {
+      const blobKey = "studio:blob:" + a.id;
+      let blob = await stGet(blobKey);
+      if ((!blob || !blob.size) && !a.folderId && a.url) {
+        try { blob = await fetch(a.url).then((r) => (r.ok ? r.blob() : null)); if (blob && blob.size) await stSet(blobKey, blob); } catch { blob = null; }
+      }
+      if ((!blob || !blob.size) && !a.folderId) continue; // bytes gone (session-only import) — needs relink
+      enqueueUpload({ assetId: a.id, name: a.name || a.id, mime: blob?.type || "application/octet-stream", size: blob?.size || a.size || 0, blobKey, uid: uidNow, folderId: a.folderId, diskPath: a.folderId ? (a.diskPath || a.bin || "") : undefined, diskName: a.folderId ? (a.diskName || a.name) : undefined }).catch(() => {});
+      n++;
+    }
+    if (n && syncPaused) { setSyncPaused(false); await setUploadsPaused(false); }
+    return n;
+  };
+  const shareDeviceMedia = async () => {
+    setMediaChoice("yes");
+    const n = await queueDeviceOnly(deviceOnly);
+    const skipped = deviceOnly.length - n;
+    ping(n ? `Uploading ${n} file${n === 1 ? "" : "s"} for collaborators — resumes if you reload.${skipped ? ` ${skipped} couldn't be read (relink them).` : ""}` : "Those files can't be read on this device any more — relink them, then try again.");
+  };
+  // Remembered "yes": media imported later into the shared production is queued automatically.
+  const autoQueuedRef = useRef(new Set());
   useEffect(() => {
-    if (!co.isShared || !prod || localOnlyWarnedRef.current === prod.id) return;
-    const n = (prod.mediaPool || []).filter((a) => /^(blob|data):/.test(a.url || "") && !a.cloudUrl).length;
-    if (n) { localOnlyWarnedRef.current = prod.id; ping(`${n} media file${n === 1 ? " is" : "s are"} only on this device — collaborators see NO MEDIA until you sync media to the cloud.`); }
-  }, [co.isShared, prod?.id, prod?.mediaPool?.length]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!coCanEdit || mediaChoice !== "yes" || !deviceOnly.length) return;
+    const fresh = deviceOnly.filter((a) => !autoQueuedRef.current.has(a.id));
+    if (!fresh.length) return;
+    fresh.forEach((a) => autoQueuedRef.current.add(a.id));
+    let fired = false;
+    const t = setTimeout(() => { fired = true; queueDeviceOnly(fresh); }, 1500); // let a burst of imports settle
+    return () => { clearTimeout(t); if (!fired) fresh.forEach((a) => autoQueuedRef.current.delete(a.id)); };
+  }, [coCanEdit, mediaChoice, deviceOnly]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Who holds the bytes: lets collaborators see "Ask <name> to upload" instead of a bare NO MEDIA.
+  useEffect(() => {
+    if (!coCanEdit || !deviceOnly.length) return;
+    const me = auth.currentUser;
+    if (!me) return;
+    const unstamped = deviceOnly.filter((a) => !a.heldBy).map((a) => a.id);
+    if (!unstamped.length) return;
+    const by = { uid: me.uid, name: me.displayName || currentUser?.displayName || "a collaborator" };
+    updateProd((p) => { for (const a of p.mediaPool || []) if (unstamped.includes(a.id) && !a.heldBy) a.heldBy = by; });
+  }, [coCanEdit, deviceOnly]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Progress for this production's uploads + stamp cloudUrls that finished while it wasn't open.
+  useEffect(() => {
+    if (!prod?.id) { setShareUp(null); return; }
+    return onUploadProgress((q) => {
+      const pool = new Map((prodRef.current?.mediaPool || []).map((a) => [a.id, a]));
+      const mine = q.filter((e) => pool.has(e.assetId));
+      const active = mine.filter((e) => e.status !== "done");
+      setShareUp(active.length ? { files: active.length, sent: active.reduce((n, e) => n + (e.offset || 0), 0), total: active.reduce((n, e) => n + (e.size || 0), 0), errors: active.filter((e) => e.status === "error").length } : null);
+      const late = mine.filter((e) => e.status === "done" && e.cloudUrl && !pool.get(e.assetId)?.cloudUrl);
+      if (late.length) updateProd((p) => { for (const e of late) { const a = p.mediaPool?.find((x) => x.id === e.assetId); if (a && !a.cloudUrl) a.cloudUrl = e.cloudUrl; } });
+    });
+  }, [prod?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Productions other people shared with me (coedit membership), for the productions page.
+  const [sharedWithMe, setSharedWithMe] = useState([]);
+  useEffect(() => {
+    if (page !== "productions") return undefined;
+    let alive = true;
+    const load = () => listSharedWithMe("fabula").then((list) => { if (alive) setSharedWithMe(list); }).catch(() => {});
+    load();
+    const off = onAuthStateChanged(auth, (u) => { if (u) load(); else if (alive) setSharedWithMe([]); });
+    return () => { alive = false; off(); };
+  }, [page]);
+  const openSharedProduction = async (sp) => {
+    // Opens via openProduction: local copy if this device has one, else the live shared doc.
+    setIndex((cur) => (cur.some((x) => x.id === sp.localId) ? cur.map((x) => (x.id === sp.localId ? { ...x, sharedFrom: true } : x)) : cur));
+    await openProduction(sp.localId, { shared: true });
+  };
+  const showMediaAsk = !!prod && co.isShared && coCanEdit && !mediaChoice && deviceOnly.length > 0;
+  // Collaborators missing a file: point at the person who has it.
+  const ownerName = co.project ? (co.project.names?.[co.project.ownerId] || "the owner") : "the owner";
+  const missingMediaHint = (a) => {
+    if (!co.isShared || !a || a.cloudUrl || (a.url && !a.offline)) return null;
+    const who = a.heldBy?.uid && a.heldBy.uid === auth.currentUser?.uid ? null : (a.heldBy?.name || ownerName);
+    return who ? `Not on this device — ask ${who} to upload it (Share › upload media)` : null;
+  };
 
   /* playback (rate-aware for JKL shuttle) — WALL-CLOCK, FRAME-GATED transport.
      The clock accumulates measured elapsed time in a ref every rAF (so it can never drift from
@@ -1429,7 +1524,8 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
     pushProdToCloud(p).catch(() => {}); // durable platform copy, queued if offline (debounced save also covers edits)
     setProd(p); setNewTitle(""); setSceneSel(null); setProdTab("structure");
   };
-  const openProduction = async (id) => {
+  const openProduction = async (id, opts = {}) => {
+    if (opts.shared || index.find((x) => x.id === id)?.sharedFrom) sharedInIdsRef.current.add(id);
     // Local-first (instant), cloud-fallback if IndexedDB lost it or if a Story Intel project was upgraded in the cloud.
     let p = await stGet("studio:prod:" + id);
     const needsStoryIntelUpgrade =
@@ -1443,7 +1539,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
         p = cloudP;
         stSet("studio:prod:" + id, p).catch(() => {}); // re-seed the local cache
       }
-    } else if (auth.currentUser && navigator.onLine !== false && !index.find((x) => x.id === id)?.sharedFrom) {
+    } else if (auth.currentUser && navigator.onLine !== false && !opts.shared && !index.find((x) => x.id === id)?.sharedFrom) {
       // Local copy exists: check whether another device moved the cloud copy on. If it did and this
       // device also has unsynced edits, merge the two (three-way on the last-synced base) rather
       // than silently picking one. Bounded so a flaky connection never blocks opening.
@@ -1465,6 +1561,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
       try {
         const shared = await withTimeout(loadSharedDoc(coProjectId("fabula", id)), 8000, null);
         if (shared) {
+          sharedInIdsRef.current.add(id);
           p = overlayLocalMedia(shared, null).doc;
           stSet("studio:prod:" + id, p).catch(() => {});
           const sc = (p.acts || []).reduce((n, a) => n + (a.scenes || []).length, 0);
@@ -5610,7 +5707,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
                           const playable = a.url && (a.type === "video" || a.type === "audio");
                           return (
                             <div key={a.id} className={`ptcard ${previewAsset?.id === a.id ? "previewing" : ""} ${(!a.url || a.offline) ? "offline" : ""}`}
-                              title={(!a.url || a.offline) ? "Media not linked — relink or add its sync folder" : "Hover: play + scrub in the source monitor · Double-click: load & play · Right-click: menu"}
+                              title={(!a.url || a.offline) ? (missingMediaHint(a) || "Media not linked — relink or add its sync folder") : "Hover: play + scrub in the source monitor · Double-click: load & play · Right-click: menu"}
                               onMouseEnter={() => { if (a.url) openInViewer(a, !!playable); }}
                               onMouseMove={(e) => {
                                 if (!playable || previewAsset?.id !== a.id) return;
@@ -5640,7 +5737,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
                     )}
                     <div className="poollist" style={poolView === "thumbs" ? { display: "none" } : undefined}>
                       {poolShown.map((a) => (
-                        <div className={`poolitem ${previewAsset?.id === a.id ? "previewing" : ""} ${(!a.url || a.offline) ? "offline" : ""}`} key={a.id} onClick={() => openInViewer(a, false)} onDoubleClick={() => openInViewer(a, true)} title={(!a.url || a.offline) ? "Media not linked — locate it (relink) or add its sync folder" : "Click: load in source viewer · Double-click: load & play"}>
+                        <div className={`poolitem ${previewAsset?.id === a.id ? "previewing" : ""} ${(!a.url || a.offline) ? "offline" : ""}`} key={a.id} onClick={() => openInViewer(a, false)} onDoubleClick={() => openInViewer(a, true)} title={(!a.url || a.offline) ? (missingMediaHint(a) || "Media not linked — locate it (relink) or add its sync folder") : "Click: load in source viewer · Double-click: load & play"}>
                           {(a.type === "video" || a.type === "audio") && (
                             <input type="checkbox" className="mcchk" checked={mcSel.includes(a.id)} title="Select for multicam group"
                               onClick={(e) => e.stopPropagation()}
@@ -7078,7 +7175,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
                               return (
                                 <div key={c.id} data-cid={c.id}
                                   className={`clip ${c.kind} ${tr.type === "video" ? "vid" : ""} ${sel ? "sel" : ""} ${shot?.status === "ready" ? "rdy" : ""} ${noMedia ? "nomedia" : ""} ${localGlow ? "local" : ""}`}
-                                  title={cOrigin ? (cOrigin.local ? `Playing locally · ${cOrigin.origin === "proxy" ? "proxy" : cOrigin.origin === "folder" ? "reading from disk" : "on-device"}` : "Streaming from the cloud (not on this device)") : undefined}
+                                  title={noMedia && missingMediaHint(cAsset) ? missingMediaHint(cAsset) : cOrigin ? (cOrigin.local ? `Playing locally · ${cOrigin.origin === "proxy" ? "proxy" : cOrigin.origin === "folder" ? "reading from disk" : "on-device"}` : "Streaming from the cloud (not on this device)") : undefined}
                                   style={{ left: c.start * pxPerSec, width: Math.max(8, c.duration * pxPerSec), opacity: c.disabled ? 0.4 : 1, cursor: toolMode === "razor" ? "crosshair" : undefined }}
                                   onMouseDown={(e) => { if (toolMode === "razor") { e.stopPropagation(); razorAt(e, c.id); return; } onClipDown(e, c.id, "move"); }}
                                   onClick={(e) => { e.stopPropagation(); if (toolMode !== "razor") { setSelClipId(c.id); if(cAsset) { setPoolSel([cAsset.id]); openInViewer(cAsset,false); } } }}
@@ -7404,11 +7501,20 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
               </select>
             )}
             {(page === "slate" || page === "edit") && <button className="crumb" onClick={() => newEdit()} title="New standalone timeline">＋ EDIT</button>}
-            <button className="crumb" onClick={() => setCollabOpen((v) => !v)} aria-pressed={collabOpen}
-              title={co.isShared ? "Collaboration — people, chat, call, history" : "Share this production to edit it live with others"}
-              style={co.isShared ? { borderColor: "rgba(63,190,133,.55)", color: "#7ee2b0", background: "rgba(63,190,133,.12)" } : undefined}>
-              {co.isShared ? `● LIVE${co.snap?.presence?.length > 1 ? ` · ${co.snap.presence.length}` : ""}` : "⇪ SHARE"}
-            </button>
+            {/* live collaboration: inline presence pill here, panel portaled below the header */}
+            <CollabDock co={co} kind="fabula" title={prod.title || "Untitled"} doc={coDoc} localId={prod.id}
+              serialize={(d) => JSON.stringify(d)}
+              restoreSolo={(json) => {
+                try {
+                  const restored = JSON.parse(json);
+                  if (!restored || restored.id !== prodRef.current?.id) return;
+                  const { doc, missing } = overlayLocalMedia(restored, prodRef.current);
+                  doc.updatedAt = Date.now(); // a restore is a new edit — it saves + syncs like one
+                  takeRemoteProd(migrate(doc), missing);
+                  ping("Restored that version.");
+                } catch { ping("Couldn't restore that version."); }
+              }}
+              top={hdrBottom} pill="inline" open={collabOpen} onOpenChange={setCollabOpen} />
             {scene && <button className="crumb" onClick={sendSceneToComic} title="Send this scene's script + world cast to the Lorea comic composer">→ SCENE TO COMIC</button>}
             <button
               className="crumb"
@@ -7484,8 +7590,8 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
               </div>
             </div>
             {storageReady === null && <div className="dim">LOADING…</div>}
-            {index.map((p) => (
-              <div className="glass-card prodrow" key={p.id} onClick={() => openProduction(p.id)}>
+            {index.filter((p) => !(p.sharedFrom && sharedWithMe.some((sp) => sp.localId === p.id))).map((p) => (
+              <div className="glass-card prodrow" key={p.id} onClick={() => openProduction(p.id, { shared: !!p.sharedFrom })}>
                 <div className="prodicon">{p.type === "film" ? <Film size={18} /> : <Layers size={18} />}</div>
                 <div className="prodmain">
                   <div className="prodtitle" onDoubleClick={(e) => { e.stopPropagation(); renameProduction(p.id, p.title); }} title="Double-click to rename">{p.title}</div>
@@ -7495,7 +7601,19 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
                 <button className="ghost danger" onClick={(e) => { e.stopPropagation(); deleteProduction(p.id); }}><Trash2 size={13} /></button>
               </div>
             ))}
-            {storageReady && !index.length && <div className="dim center">No productions yet — everything starts here.</div>}
+            {storageReady && !index.length && !sharedWithMe.length && <div className="dim center">No productions yet — everything starts here.</div>}
+            {sharedWithMe.length > 0 && (<>
+              <div className="lbl" style={{ marginTop: 18, marginBottom: 6 }}>SHARED WITH ME</div>
+              {sharedWithMe.map((sp) => (
+                <div className="glass-card prodrow" key={sp.id} onClick={() => openSharedProduction(sp)} title="Open and edit together — changes sync live">
+                  <div className="prodicon"><Users size={18} /></div>
+                  <div className="prodmain">
+                    <div className="prodtitle">{sp.title || "Untitled"}</div>
+                    <div className="prodmeta">SHARED BY {(sp.names?.[sp.ownerId] || "SOMEONE").toUpperCase()} · {String(sp.members?.[auth.currentUser?.uid] || "viewer").toUpperCase()} · {sp.updatedAt ? new Date(sp.updatedAt).toLocaleDateString() : ""}</div>
+                  </div>
+                </div>
+              ))}
+            </>)}
             {storageReady && (
               <div className="center" style={{ marginTop: 12 }}>
                 <button className="minibtn" onClick={onRecover} title="Rescan this browser's storage for a project that fell off the list">↻ Recover projects from this browser</button>
@@ -7729,7 +7847,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
                               {a.url && a.type === "video" && <ScrubThumb url={a.url} className="poolthumb" />}
                               {a.url && (a.type === "image" || a.type === "graphic") && <img src={a.url} className="poolthumb" alt="" />}
                               {(a.type === "audio") && <Music size={20} className="dim" />}
-                              {(!a.url || a.offline) && <span className="chip blue" style={{ fontSize: 7 }}>OFFLINE</span>}
+                              {(!a.url || a.offline) && <span className="chip blue" style={{ fontSize: 7 }} title={missingMediaHint(a) || undefined}>{missingMediaHint(a) ? `ASK ${(a.heldBy?.name || ownerName).split(" ")[0].toUpperCase()}` : "OFFLINE"}</span>}
                               {a.note && <span className="manoteflag" title="Has notes">✎</span>}
                               <span className={`pooltype ${a.type}`}>{{ video: "VID", audio: "AUD", image: "IMG", graphic: "GFX", lottie: "LOT" }[a.type] || "FILE"}</span>
                             </div>
@@ -7763,7 +7881,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
                           {selAsset.url && selAsset.type === "video" && <video src={selAsset.url} controls playsInline className="mapvplayer" />}
                           {selAsset.url && (selAsset.type === "image" || selAsset.type === "graphic") && <img src={selAsset.url} alt="" className="mapvplayer" />}
                           {selAsset.url && selAsset.type === "audio" && <div className="mapvaudio"><Music size={26} className="dim" /><audio src={selAsset.url} controls className="mapvaudioel" /></div>}
-                          {(!selAsset.url || selAsset.offline) && <div className="mapvoffline">Media offline — relink or let the sync folder re-scan.</div>}
+                          {(!selAsset.url || selAsset.offline) && <div className="mapvoffline">{missingMediaHint(selAsset) || "Media offline — relink or let the sync folder re-scan."}</div>}
                         </div>
                         <div className="mapvmeta">
                           <div className="mapvname">{selAsset.name}</div>
@@ -9715,21 +9833,23 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
 
       {ltGallery && <LowerThirdGallery onChoose={addLowerThird} onClose={() => setLtGallery(null)} />}
 
-      {/* live collaboration panel (people / chat / call / history / activity) */}
-      {prod && (
-        <CollabDock co={co} kind="fabula" title={prod.title || "Untitled"} doc={coDoc} localId={prod.id}
-          serialize={(d) => JSON.stringify(d)}
-          restoreSolo={(json) => {
-            try {
-              const restored = JSON.parse(json);
-              if (!restored || restored.id !== prodRef.current?.id) return;
-              const { doc, missing } = overlayLocalMedia(restored, prodRef.current);
-              doc.updatedAt = Date.now(); // a restore is a new edit — it saves + syncs like one
-              takeRemoteProd(migrate(doc), missing);
-              ping("Restored that version.");
-            } catch { ping("Couldn't restore that version."); }
-          }}
-          top={hdrBottom} pill="none" open={collabOpen} onOpenChange={setCollabOpen} />
+      {/* shared production: ask once before uploading device-only media for collaborators */}
+      {showMediaAsk && (
+        <div role="dialog" aria-label="Share media with collaborators" style={{ position: "fixed", right: 14, bottom: 124, zIndex: 150, width: 320, padding: "12px 14px", borderRadius: 12, background: "rgba(16,14,22,0.97)", border: "1px solid rgba(255,255,255,0.12)", boxShadow: "0 12px 40px rgba(0,0,0,0.55)", color: "#fff" }}>
+          <div style={{ fontSize: 12, fontWeight: 800, marginBottom: 4 }}>Upload {deviceOnly.length} device-only file{deviceOnly.length === 1 ? "" : "s"} so collaborators can play them?</div>
+          <div style={{ fontSize: 11, opacity: 0.7, lineHeight: 1.45, marginBottom: 10 }}>
+            {fmtBytes(deviceOnlyBytes)}{deviceOnlyUnsized ? ` + ${deviceOnlyUnsized} of unknown size` : ""}. They only exist on this device, so everyone else sees NO MEDIA. Uploads run in the background and resume after a reload. Your choice is remembered for this production.
+          </div>
+          <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+            <button className="minibtn" onClick={() => setMediaChoice("no")}>Not for this production</button>
+            <button className="cta" onClick={shareDeviceMedia}>Upload {fmtBytes(deviceOnlyBytes)}</button>
+          </div>
+        </div>
+      )}
+      {prod && co.isShared && shareUp && (
+        <div style={{ position: "fixed", right: 14, bottom: 118, zIndex: 60, padding: "5px 11px", borderRadius: 999, background: "rgba(0,0,0,0.72)", border: "1px solid rgba(255,255,255,0.1)", fontSize: 9, fontWeight: 800, letterSpacing: 1, textTransform: "uppercase", color: shareUp.errors ? "#F98BA6" : "rgba(255,255,255,0.7)", pointerEvents: "none" }}>
+          ↑ Sharing media · {shareUp.files} file{shareUp.files === 1 ? "" : "s"} · {shareUp.total ? Math.floor((shareUp.sent / shareUp.total) * 100) : 0}%{shareUp.errors ? ` · ${shareUp.errors} retrying` : ""}
+        </div>
       )}
 
       {/* busy bar */}

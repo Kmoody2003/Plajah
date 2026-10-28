@@ -13,6 +13,8 @@ import { createStore, get, set, del, values, type UseStore } from 'idb-keyval';
 export type LocalScope = 'groove' | 'master';
 /** The production a doc belongs to, or this key while signed out. */
 export const LOCAL_PROD = '_local';
+/** Copies of docs other people shared with us (collaborator side) — never listed as our own. */
+export const GUEST_PROD = '_coedit';
 
 export interface LocalEntry<T> {
   scope: LocalScope;

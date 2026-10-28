@@ -56,6 +56,8 @@ import ArrangeRoom from './ArrangeRoom';
 import BoardRoom from './BoardRoom';
 // Beats & Mastering Desk load on demand.
 const BeatsRoom = React.lazy(() => import('./beats/BeatsRoom'));
+import { coProjectId, listSharedWithMe, type CoProject } from '../../services/coedit/project';
+import type { SharedMasterRef } from './beats/project/useMasterProject';
 const ProjectView = React.lazy(() =>
   import('./beats/project/ProjectView').then((m) => ({ default: m.ProjectView })),
 );
@@ -271,16 +273,38 @@ const MasteringDeskHost: React.FC = () => {
   const { prodId, selectedSong, songs, arrangements, activeArrangementId, goRoom } = useMelos();
   const { doc, mutate } = useBeatsDoc(selectedSong?.grooveId, prodId);
   const snap = useEngineBridge();
+  // The album's live-collaboration panel opens below this header (ProjectView mounts the dock).
+  const headerRef = React.useRef<HTMLDivElement>(null);
+  // Albums other people shared with me — open one in place of this production's own.
+  const [sharedAlbums, setSharedAlbums] = useState<CoProject[]>([]);
+  const [sharedAlbum, setSharedAlbum] = useState<SharedMasterRef | null>(null);
+  useEffect(() => { void listSharedWithMe('melos').then(setSharedAlbums); }, []);
 
   return (
     <div className="relative h-full flex flex-col" style={{ background: '#0A0A0D' }}>
-      <div className="flex flex-wrap items-center justify-between gap-2 px-4 sm:px-6 py-2 border-b border-white/[0.06] bg-[#0E0E13] shrink-0">
+      <div ref={headerRef} className="flex flex-wrap items-center justify-between gap-2 px-4 sm:px-6 py-2 border-b border-white/[0.06] bg-[#0E0E13] shrink-0">
         <div className="flex items-center gap-2 text-[11px] text-white/60">
           <Disc3 size={13} className="text-[#D0BCFF]" />
           <span className="font-bold uppercase tracking-wider text-white/85">Chora Mastering Desk</span>
           <span className="hidden sm:inline text-white/40">· Final arrangement mastering & distribution prep</span>
         </div>
         <div className="flex items-center gap-1.5 flex-wrap">
+          {sharedAlbums.length > 0 && (
+            <select
+              aria-label="Albums shared with me"
+              value={sharedAlbum?.localId ?? ''}
+              onChange={(e) => {
+                const p = sharedAlbums.find((a) => a.localId === e.target.value);
+                setSharedAlbum(p ? { projectId: coProjectId('melos', p.localId), localId: p.localId, ownerId: p.ownerId, title: p.title } : null);
+              }}
+              className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-lg bg-[#D0BCFF]/10 text-[#D0BCFF] border border-[#D0BCFF]/30"
+            >
+              <option value="">My album</option>
+              {sharedAlbums.map((a) => (
+                <option key={a.id} value={a.localId}>Shared · {a.title || 'Album'}{a.names?.[a.ownerId] ? ` (${a.names[a.ownerId]})` : ''}</option>
+              ))}
+            </select>
+          )}
           <button
             type="button"
             onClick={() => goRoom('releases')}
@@ -317,6 +341,9 @@ const MasteringDeskHost: React.FC = () => {
             melosSongs={songs}
             melosArrangements={arrangements}
             activeArrangementId={activeArrangementId}
+            collabAnchor={headerRef}
+            sharedProject={sharedAlbum}
+            onLeaveShared={() => setSharedAlbum(null)}
           />
         </Suspense>
       </div>

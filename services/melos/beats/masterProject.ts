@@ -263,7 +263,9 @@ export async function saveMasterProject(prodId: string, project: MasterProjectDo
   try {
     if (!project.ownerId) project.ownerId = user.uid;
     // JSON round-trip drops undefined — the Firestore rule (grooveDoc.ts:serializeGroove).
-    await setDoc(projectRef(prodId, project.id), JSON.parse(JSON.stringify({ ...project, updatedAt: Date.now() })), { merge: true });
+    // Full overwrite (not merge, which resurrected deleted map keys). Writers: useMasterProject
+    // and albumImport, both with the whole project; no server-managed fields.
+    await setDoc(projectRef(prodId, project.id), JSON.parse(JSON.stringify({ ...project, updatedAt: Date.now() })));
     return true;
   } catch (e) {
     console.warn('[beats] project save failed', e);

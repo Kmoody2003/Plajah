@@ -767,6 +767,29 @@ service cloud.firestore {
       match /drafts/{uid} {
         allow read, write: if coMember() && uid == request.auth.uid;
       }
+      // Everyone's media in the project, with provenance. Only the contributor writes their entry
+      // (status/tiers follow their uploads); the owner may remove anything.
+      match /assets/{assetId} {
+        allow read: if coMember();
+        allow create: if coEditor() && request.resource.data.owner == request.auth.uid && request.resource.data.id == assetId;
+        allow update: if coMember() && resource.data.owner == request.auth.uid && request.resource.data.owner == resource.data.owner &&
+          request.resource.data.id == resource.data.id;
+        allow delete: if coMember() && (resource.data.owner == request.auth.uid || coRole() == 'owner');
+      }
+      // What each person brings to a live session (only what they chose to share).
+      match /rigs/{key} {
+        allow read: if coMember();
+        allow create, update: if coMember() && request.resource.data.uid == request.auth.uid && key.matches('^' + request.auth.uid + '_.+$');
+        allow delete: if coMember() && key.matches('^' + request.auth.uid + '_.+$');
+      }
+      // "May I use your preset?" — asked by a member, answered by the person asked.
+      match /requests/{rid} {
+        allow read: if coMember() && (resource.data.from == request.auth.uid || resource.data.to == request.auth.uid);
+        allow create: if coMember() && request.resource.data.from == request.auth.uid && request.resource.data.status == 'pending';
+        allow update: if coMember() && resource.data.to == request.auth.uid &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'assetId']);
+        allow delete: if coMember() && (resource.data.from == request.auth.uid || resource.data.to == request.auth.uid);
+      }
     }
 
     match /contentRepurposeJobs/{jobId} {

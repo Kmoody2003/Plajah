@@ -71,13 +71,24 @@ const posKey = (list: Path, id: string) => `${pathKey(list)}\u0001${id}`;
 const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 const elId = (seg: string) => (seg.startsWith('#') ? seg.slice(1) : null);
 
-/** An array every element of which is an object with a unique string id. */
-export function isKeyedList(v: unknown): v is Array<{ id: string }> {
+type Keyed = { id: string } | string;
+
+/** A list element's identity: its `id`, or the string itself in a list of unique strings. */
+export const idOf = (e: unknown): string | undefined => (typeof e === 'string' ? e : isObj(e) && typeof e.id === 'string' ? e.id : undefined);
+
+/**
+ * A list that merges per element: objects with unique string ids (frames, layers, clips), or unique
+ * non-empty strings (id references like a page's device ids, tags). Concurrent adds both land.
+ */
+export function isKeyedList(v: unknown): v is Keyed[] {
   if (!Array.isArray(v) || v.length === 0) return false;
+  const strings = typeof v[0] === 'string';
   const seen = new Set<string>();
   for (const e of v) {
-    if (!isObj(e) || typeof e.id !== 'string' || !e.id || seen.has(e.id)) return false;
-    seen.add(e.id);
+    if (strings ? typeof e !== 'string' : !isObj(e)) return false;
+    const id = idOf(e);
+    if (!id || seen.has(id)) return false;
+    seen.add(id);
   }
   return true;
 }
@@ -148,9 +159,10 @@ function seedPositions(v: unknown, path: Path, meta: CrdtMeta) {
   if (isKeyedList(v)) {
     const keys = initialPositions(v.length);
     v.forEach((e, i) => {
-      const pk = posKey(path, e.id);
+      const id = idOf(e)!;
+      const pk = posKey(path, id);
       if (!meta.pos[pk]) meta.pos[pk] = keys[i];
-      seedPositions(e, [...path, `#${e.id}`], meta);
+      if (typeof e !== 'string') seedPositions(e, [...path, `#${id}`], meta);
     });
   } else if (isObj(v)) {
     for (const k of Object.keys(v)) seedPositions(v[k], [...path, k], meta);
@@ -189,52 +201,53 @@ export function diff(prev: unknown, next: unknown, meta: CrdtMeta, stamp: () => 
     }
     const aKeyed = isKeyedList(a) || (Array.isArray(a) && a.length === 0 && isKeyedList(b));
     const bKeyed = isKeyedList(b) || (Array.isArray(b) && b.length === 0 && isKeyedList(a));
-    if (aKeyed && bKeyed) return walkList(a as Array<{ id: string }>, b as Array<{ id: string }>, p);
+    const sameKind = !(Array.isArray(a) && Array.isArray(b) && a.length && b.length && typeof a[0] !== typeof b[0]);
+    if (aKeyed && bKeyed && sameKind) return walkList(a as Keyed[], b as Keyed[], p);
     if (!deepEqual(a, b)) ops.push({ k: 'set', p, v: b, s: stamp() });
   }
 
-  function walkList(a: Array<{ id: string }>, b: Array<{ id: string }>, p: Path) {
-    const aById = new Map(a.map((e) => [e.id, e]));
-    const bIds = new Set(b.map((e) => e.id));
-    for (const e of a) if (!bIds.has(e.id)) ops.push({ k: 'rm', p, id: e.id, s: stamp() });
+  function walkList(a: Keyed[], b: Keyed[], p: Path) {
+    const aById = new Map(a.map((e) => [idOf(e)!, e]));
+    const bIds = new Set(b.map((e) => idOf(e)!));
+    for (const e of a) if (!bIds.has(idOf(e)!)) ops.push({ k: 'rm', p, id: idOf(e)!, s: stamp() });
 
     // Elements kept in the same relative order (longest increasing subsequence) keep their key.
-    const aIndex = new Map(a.map((e, i) => [e.id, i]));
-    const common = b.filter((e) => aById.has(e.id));
-    const stable = lisIds(common.map((e) => aIndex.get(e.id)!), common);
+    const aIndex = new Map(a.map((e, i) => [idOf(e)!, i]));
+    const common = b.filter((e) => aById.has(idOf(e)!));
+    const stable = lisIds(common.map((e) => aIndex.get(idOf(e)!)!), common);
     const keyOf = (id: string) => localPos[posKey(p, id)] ?? meta.pos[posKey(p, id)] ?? null;
 
     let prevKey: string | null = null;
     for (let i = 0; i < b.length; i++) {
       const e = b[i];
-      if (stable.has(e.id) && keyOf(e.id)) {
-        prevKey = keyOf(e.id);
-        walk(aById.get(e.id), e, [...p, `#${e.id}`]);
+      if (stable.has(idOf(e)!) && keyOf(idOf(e)!)) {
+        prevKey = keyOf(idOf(e)!);
+        walk(aById.get(idOf(e)!), e, [...p, `#${idOf(e)!}`]);
         continue;
       }
       // Next stable neighbour bounds the new key from above.
       let nextKey: string | null = null;
       for (let j = i + 1; j < b.length; j++) {
-        if (stable.has(b[j].id) && keyOf(b[j].id)) {
-          nextKey = keyOf(b[j].id);
+        if (stable.has(idOf(b[j])!) && keyOf(idOf(b[j])!)) {
+          nextKey = keyOf(idOf(b[j])!);
           break;
         }
       }
       const pos = posBetween(prevKey, nextKey != null && prevKey != null && nextKey <= prevKey ? null : nextKey);
-      if (aById.has(e.id)) {
-        ops.push({ k: 'mv', p, id: e.id, pos, s: stamp() });
-        localPos[posKey(p, e.id)] = pos; // later keys in this pass sit after it
-        walk(aById.get(e.id), e, [...p, `#${e.id}`]);
+      if (aById.has(idOf(e)!)) {
+        ops.push({ k: 'mv', p, id: idOf(e)!, pos, s: stamp() });
+        localPos[posKey(p, idOf(e)!)] = pos; // later keys in this pass sit after it
+        walk(aById.get(idOf(e)!), e, [...p, `#${idOf(e)!}`]);
       } else {
-        ops.push({ k: 'ins', p, id: e.id, v: e, pos, s: stamp() });
-        localPos[posKey(p, e.id)] = pos;
+        ops.push({ k: 'ins', p, id: idOf(e)!, v: e, pos, s: stamp() });
+        localPos[posKey(p, idOf(e)!)] = pos;
       }
       prevKey = pos;
     }
   }
 }
 
-function lisIds(seq: number[], items: Array<{ id: string }>): Set<string> {
+function lisIds(seq: number[], items: Keyed[]): Set<string> {
   const tails: number[] = [];
   const prevIdx = new Array(seq.length).fill(-1);
   const tailIdx: number[] = [];
@@ -253,7 +266,7 @@ function lisIds(seq: number[], items: Array<{ id: string }>): Set<string> {
   const out = new Set<string>();
   let k = tailIdx[tails.length - 1] ?? -1;
   while (k >= 0) {
-    out.add(items[k].id);
+    out.add(idOf(items[k])!);
     k = prevIdx[k];
   }
   return out;
@@ -399,11 +412,11 @@ function applyOne(doc: unknown, meta: CrdtMeta, op: Op, events: ApplyEvent[], li
     case 'rm':
     case 'mv': {
       const list = getIn(doc, op.p);
-      const arr = Array.isArray(list) ? (list as Array<{ id: string }>) : [];
+      const arr = Array.isArray(list) ? (list as Keyed[]) : [];
       const elPath = [...op.p, `#${op.id}`];
       const ek = pathKey(elPath);
       const pk = posKey(op.p, op.id);
-      const exists = arr.some((e) => e && e.id === op.id);
+      const exists = arr.some((e) => idOf(e) === op.id);
       lists.set(pathKey(op.p), op.p);
       if (op.k === 'ins') {
         if (!newer(op.s, meta.stamps[ek])) {
@@ -426,7 +439,7 @@ function applyOne(doc: unknown, meta: CrdtMeta, op: Op, events: ApplyEvent[], li
         }
         delete meta.graves[ek];
         if (isObj(op.v)) seedPositions(op.v, elPath, meta);
-        const next = exists ? arr.map((e) => (e.id === op.id ? (op.v as { id: string }) : e)) : [...arr, op.v as { id: string }];
+        const next = exists ? arr.map((e) => (idOf(e) === op.id ? (op.v as Keyed) : e)) : [...arr, op.v as Keyed];
         return { doc: setIn(doc, op.p, next), changed: true };
       }
       if (op.k === 'rm') {
@@ -434,8 +447,8 @@ function applyOne(doc: unknown, meta: CrdtMeta, op: Op, events: ApplyEvent[], li
         meta.stamps[ek] = op.s;
         if (!exists) return { doc, changed: false };
         if (hasNewerDescendant(meta, elPath, op.s)) return { doc, changed: false };
-        meta.graves[ek] = { v: arr.find((e) => e.id === op.id), s: op.s, pos: meta.pos[pk] };
-        return { doc: setIn(doc, op.p, arr.filter((e) => e.id !== op.id)), changed: true };
+        meta.graves[ek] = { v: arr.find((e) => idOf(e) === op.id), s: op.s, pos: meta.pos[pk] };
+        return { doc: setIn(doc, op.p, arr.filter((e) => idOf(e) !== op.id)), changed: true };
       }
       // mv: position is its own register
       const mk = `${ek}@pos`;
@@ -488,11 +501,13 @@ function ensurePath(doc: unknown, p: Path, meta: CrdtMeta, s: string, events: Ap
 function sortList(doc: unknown, listPath: Path, meta: CrdtMeta): unknown {
   const list = getIn(doc, listPath);
   if (!Array.isArray(list) || list.length < 2) return doc;
-  const key = (e: { id: string }) => meta.pos[posKey(listPath, e.id)] ?? '';
-  const sorted = [...(list as Array<{ id: string }>)].sort((x, y) => {
+  const key = (e: Keyed) => meta.pos[posKey(listPath, idOf(e) ?? '')] ?? '';
+  const sorted = [...(list as Keyed[])].sort((x, y) => {
     const a = key(x);
     const b = key(y);
-    return a < b ? -1 : a > b ? 1 : x.id < y.id ? -1 : x.id > y.id ? 1 : 0;
+    const ix = idOf(x) ?? '';
+    const iy = idOf(y) ?? '';
+    return a < b ? -1 : a > b ? 1 : ix < iy ? -1 : ix > iy ? 1 : 0;
   });
   if (sorted.every((e, i) => e === list[i])) return doc;
   return setIn(doc, listPath, sorted);
@@ -502,7 +517,7 @@ function sortList(doc: unknown, listPath: Path, meta: CrdtMeta): unknown {
 
 function childOf(v: unknown, seg: string): unknown {
   const id = elId(seg);
-  if (id != null) return Array.isArray(v) ? v.find((e) => isObj(e) && e.id === id) : undefined;
+  if (id != null) return Array.isArray(v) ? v.find((e) => idOf(e) === id) : undefined;
   return isObj(v) ? v[seg] : undefined;
 }
 
@@ -521,7 +536,7 @@ function setIn(v: unknown, p: Path, value: unknown): unknown {
   const id = elId(seg);
   if (id != null) {
     const arr = Array.isArray(v) ? v : [];
-    return arr.map((e) => (isObj(e) && e.id === id ? setIn(e, rest, value) : e));
+    return arr.map((e) => (idOf(e) === id ? setIn(e, rest, value) : e));
   }
   const obj = isObj(v) ? v : {};
   return { ...obj, [seg]: setIn(obj[seg], rest, value) };
@@ -531,7 +546,7 @@ function removeIn(v: unknown, p: Path): unknown {
   if (p.length === 1) {
     const seg = p[0];
     const id = elId(seg);
-    if (id != null) return Array.isArray(v) ? v.filter((e) => !(isObj(e) && e.id === id)) : v;
+    if (id != null) return Array.isArray(v) ? v.filter((e) => idOf(e) !== id) : v;
     if (!isObj(v)) return v;
     const { [seg]: _gone, ...rest } = v;
     return rest;

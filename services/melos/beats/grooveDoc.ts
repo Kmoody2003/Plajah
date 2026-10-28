@@ -463,6 +463,9 @@ export interface ArrangeTrack {
   songGroup?: number;
   /** Optional generative model badge for hybrid AI + synth tracks (e.g. 'ace-step-2.5', 'yue2', 'qwen-score') */
   generativeEngine?: string;
+  /** Live jam (shared projects): the input this track monitors/records, `${uid}:${inputId}` — on
+   *  this device when uid is yours, else streamed from that collaborator (services/coedit/rig.ts). */
+  jamInput?: string;
 }
 
 import type { FxInstance } from './fx/devices';

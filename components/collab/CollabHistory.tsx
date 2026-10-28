@@ -22,6 +22,7 @@ const REASON: Record<VersionMeta['reason'], string> = {
   'before-restore': 'Before a restore',
   'before-publish': 'Before a draft was shared',
   import: 'Imported',
+  line: 'Personal version',
 };
 
 export const CollabHistory: React.FC<{ session: CoeditSession<any>; canEdit: boolean }> = ({ session, canEdit }) => {
@@ -60,6 +61,7 @@ export const CollabHistory: React.FC<{ session: CoeditSession<any>; canEdit: boo
 
   return (
     <div className="flex-1 min-h-0 flex flex-col">
+      <Lines session={session} canEdit={canEdit} onChanged={reload} />
       <div className="p-3 flex flex-col gap-2 border-b border-white/[0.06]">
         <input className={input} placeholder="Name this moment (e.g. “Sent to pastor”)" value={naming} onChange={(e) => setNaming(e.target.value)} />
         <div className="flex gap-1.5">
@@ -235,6 +237,59 @@ const VersionDetail: React.FC<{ session: CoeditSession<any>; version: VersionMet
           </p>
         </div>
       )}
+    </div>
+  );
+};
+
+/** The session version and everyone's own version, side by side (song variants). */
+const Lines: React.FC<{ session: CoeditSession<any>; canEdit: boolean; onChanged: () => void }> = ({ session, canEdit, onChanged }) => {
+  const [lines, setLines] = useState<Awaited<ReturnType<CoeditSession<any>['listLines']>> | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const load = useCallback(() => void session.listLines().then(setLines, () => setLines([])), [session]);
+  useEffect(load, [load]);
+  const act = async (id: string, fn: () => Promise<unknown>) => {
+    setBusy(id);
+    try {
+      await fn();
+      load();
+      onChanged();
+    } finally {
+      setBusy(null);
+    }
+  };
+  return (
+    <div className="p-3 border-b border-white/[0.06] flex flex-col gap-1.5">
+      <div className="flex items-center">
+        <div className={`${lbl} flex-1`}>Versions of this project</div>
+        <button className={btn} disabled={!!busy} onClick={() => void act('save', () => session.saveMyLine())} title="Save what you see now (your draft included) as your version">
+          {busy === 'save' ? <Loader2 size={11} className="animate-spin" /> : <Save size={11} />} Save mine
+        </button>
+      </div>
+      {(lines ?? []).map((l) => (
+        <div key={l.id} className={`${card} px-2 py-1.5 flex items-center gap-2`}>
+          {l.id === 'session' ? <span className="w-5 h-5 rounded-full bg-emerald-400/20 text-emerald-300 text-[.55rem] font-extrabold flex items-center justify-center">S</span> : <PersonDot uid={l.id} name={l.byName || l.label} size={20} />}
+          <div className="min-w-0 flex-1">
+            <div className="text-[.7rem] font-bold text-white truncate">{l.label}</div>
+            <div className="text-[.58rem] text-white/40">{l.id === 'session' ? 'Shared by everyone, live' : `Saved ${ago(l.at)}`}</div>
+          </div>
+          {l.id === 'session' ? (
+            <button className={btn} disabled={!!busy} onClick={() => void act('session', () => session.adoptSession())} title="Follow the session (your version is saved first)">
+              Use session
+            </button>
+          ) : l.version ? (
+            <>
+              <button className={btn} disabled={!!busy} onClick={() => void act(l.id, () => session.openAsMine(l.version!))} title="Work from this version privately; the session keeps going">
+                {l.mine ? 'Go back to mine' : 'Open'}
+              </button>
+              {canEdit && (
+                <button className={btn} disabled={!!busy} onClick={() => confirm(`Make “${l.label}” the session version for everyone? The session is saved to history first.`) && void act(`p${l.id}`, () => session.promoteLine(l.version!))} title="Make this the session version">
+                  Make main
+                </button>
+              )}
+            </>
+          ) : null}
+        </div>
+      ))}
     </div>
   );
 };

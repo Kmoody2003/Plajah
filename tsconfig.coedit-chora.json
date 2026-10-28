@@ -15,6 +15,15 @@
     "components/melos/beats/project/ProjectView.tsx",
     "services/melos/beats/grooveStore.ts",
     "services/melos/beats/localDocCache.ts",
-    "services/melos/beats/reconcileInPlace.ts"
+    "services/melos/beats/reconcileInPlace.ts",
+    "services/melos/beats/masterProject.ts",
+    "components/melos/beats/mobile/BeatsMobileShell.tsx",
+    "components/melos/MelosWorkspace.tsx",
+    "components/melos/beats/jam/*.ts",
+    "components/melos/beats/jam/*.tsx",
+    "services/melos/beats/jamLink.ts",
+    "services/melos/jam/*.ts",
+    "services/melos/beats/engine/BeatsEngine.ts",
+    "services/melos/beats/grooveDoc.ts"
   ]
 }

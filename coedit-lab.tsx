@@ -206,6 +206,15 @@ function useFakeCo(doc: LabDoc): UseCoedit<LabDoc> {
     renameVersion: async () => {},
     deleteVersion: async () => {},
     describe: () => 'Front',
+    listLines: async () => [
+      { id: 'session', label: 'Session version', at: Date.now(), mine: false },
+      { id: 'kenne', label: "Kenne's version", byName: 'Kenne', at: Date.now() - 600_000, mine: true, version: { ...versions[0], id: 'lk', reason: 'line', line: 'kenne' } },
+      { id: 'ana', label: "Ana's slow mix", byName: 'Ana Ruiz', at: Date.now() - 3_600_000, mine: false, version: { ...versions[0], id: 'la', reason: 'line', line: 'ana', by: 'ana', byName: 'Ana Ruiz' } },
+    ],
+    saveMyLine: async () => versions[0],
+    openAsMine: async () => setMode('draft'),
+    adoptSession: async () => setMode('live'),
+    promoteLine: async () => {},
   };
   return {
     projectId: 'lab__flyer',

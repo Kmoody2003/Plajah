@@ -323,6 +323,22 @@ export class BeatsEngine {
     if (this.ctx) { this.syncInstruments(); this.syncMixerFx(); }
   }
 
+  /**
+   * Live jam: monitor a MediaStream (a collaborator's streamed input, or this device's own input)
+   * through a track's channel strip — fader, pan, inserts, sends and meter all apply. Returns the
+   * disconnect, or null before the engine is up / for an unknown track.
+   * Desktop (WinUI native engine): capture + monitoring should move into the native engine there
+   * (ASIO/WASAPI input → native strip), with only the Opus collab copy crossing into WebRTC.
+   */
+  connectLiveInput(trackId: string, stream: MediaStream): (() => void) | null {
+    if (!this.ctx || !this.graph) return null;
+    const track = this.doc.arrangement.find((t) => t.id === trackId);
+    if (!track) return null;
+    const src = this.ctx.createMediaStreamSource(stream);
+    src.connect(this.graph.trackDestination(track));
+    return () => { try { src.disconnect(); } catch { /* already gone */ } };
+  }
+
   setSampleBuffer(key: string, buf: AudioBuffer): void { this.voices?.setBuffer(key, buf); }
   hasSampleBuffer(key: string): boolean { return !!this.voices?.hasBuffer(key); }
   getSampleEntries(): [string, AudioBuffer][] { return this.voices?.bufferEntries() ?? []; }

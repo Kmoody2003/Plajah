@@ -34,7 +34,10 @@ export async function saveGroove(prodId: string, docData: GrooveDoc): Promise<bo
   if (!user) return false;
   try {
     if (!docData.ownerId) docData.ownerId = user.uid;
-    await setDoc(grooveRef(prodId, docData.id), serializeGroove(docData), { merge: true });
+    // Full overwrite, not merge: merge deep-merges maps, so a step / note / field deleted in the
+    // editor survived in Firestore and came back on reload. Every writer sends the whole doc
+    // (useBeatsDoc, MelosWorkspace new songs, classic-book seeding) and no server code adds fields.
+    await setDoc(grooveRef(prodId, docData.id), serializeGroove(docData));
     return true;
   } catch (e) {
     console.warn('[beats] groove save failed', e);
