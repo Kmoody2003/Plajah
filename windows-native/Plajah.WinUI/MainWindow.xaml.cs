@@ -839,8 +839,9 @@ public sealed partial class MainWindow : Window
     {
         try
         {
-            using var document = JsonDocument.Parse(args.TryGetWebMessageAsString());
+            using var document = JsonDocument.Parse(ReadWebMessage(args));
             var root = document.RootElement;
+            if (root.ValueKind != JsonValueKind.Object) return;   // every message is { type, ... }
             var type = root.TryGetProperty("type", out var typeValue)
                 ? typeValue.GetString()
                 : null;
@@ -2317,6 +2318,19 @@ public sealed partial class MainWindow : Window
         {
             // Ignore malformed messages from the web surface.
         }
+        catch (Exception ex)
+        {
+            // Thrown inside the WebView2 callback, an escaping exception is a fail-fast that skips
+            // App's crash guards — one bad message used to close the app with nothing logged.
+            CrashLog.Write("WebMessage", ex);
+        }
+    }
+
+    /// The web layer posts JSON strings; postMessage(object) arrives as JSON too instead of throwing.
+    private static string ReadWebMessage(CoreWebView2WebMessageReceivedEventArgs args)
+    {
+        try { return args.TryGetWebMessageAsString(); }
+        catch (ArgumentException) { return args.WebMessageAsJson; }
     }
 
     private void Root_DragOver(object sender, DragEventArgs e)
