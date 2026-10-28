@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import type { ChurchProgram } from '../../../services/churchEducationService';
 import type { UniversalDeskAssignment } from '../../../services/universalStudentDeskService';
 import { returnSubmission, type EduSubmissionRecord } from '../../../services/christianEdSync';
+import { isAnswerCorrect, type IngestedQuestion } from '../../../services/curriculumIngestionService';
 import { announceWorkChanged, isWritten } from './edWork';
 import { initials } from './edStyles';
 
@@ -33,12 +34,19 @@ const EdReviewQueue: React.FC<{ items: ReviewItem[]; canSeeKey: boolean; onBack:
   const qs = cur?.assignment?.unitSnapshot.questions || [];
   const written = qs.filter(isWritten);
   const auto = qs.filter(q => !isWritten(q));
-  const autoRight = auto.filter(q => cur?.sub.questionScores[q.id]?.correct).length;
+  // Questions the student's desk couldn't grade (its copy had no key) are scored here, with the teacher's key.
+  const autoScore = (q: IngestedQuestion) => {
+    const prev = cur?.sub.questionScores[q.id];
+    if (prev && !prev.pending) return prev;
+    const correct = isAnswerCorrect(q, cur?.sub.answers[q.id] || '');
+    return { correct, earnedPoints: correct ? q.points || 1 : 0, maxPoints: q.points || 1 };
+  };
+  const autoRight = auto.filter(q => autoScore(q).correct).length;
 
   const score = useMemo(() => {
     if (!cur) return { earned: 0, pct: 0 };
     let earned = 0;
-    for (const q of auto) earned += cur.sub.questionScores[q.id]?.earnedPoints || 0;
+    for (const q of auto) earned += autoScore(q).earnedPoints;
     for (const q of written) {
       const v = verdicts[q.id];
       earned += v === 'CORRECT' ? q.points : v === 'PARTIAL' ? q.points / 2 : 0;
@@ -67,7 +75,16 @@ const EdReviewQueue: React.FC<{ items: ReviewItem[]; canSeeKey: boolean; onBack:
     setBusy(true);
     setErr('');
     try {
-      await returnSubmission(cur.sub, { verdicts, note, earnedPoints: score.earned, percentage: score.pct });
+      // Returned work carries the final per-question scores, and now the expected answers too, so the student can learn from them.
+      const questionScores: EduSubmissionRecord['questionScores'] = {};
+      for (const q of qs) {
+        const v = verdicts[q.id];
+        const base = isWritten(q)
+          ? { correct: v === 'CORRECT', earnedPoints: v === 'CORRECT' ? q.points : v === 'PARTIAL' ? q.points / 2 : 0, maxPoints: q.points }
+          : autoScore(q);
+        questionScores[q.id] = { correct: base.correct, earnedPoints: base.earnedPoints, maxPoints: base.maxPoints, ...(q.correctAnswer ? { expected: q.correctAnswer } : {}) };
+      }
+      await returnSubmission(cur.sub, { verdicts, note, earnedPoints: score.earned, percentage: score.pct, questionScores: cur.assignment ? questionScores : undefined });
       setReturned(prev => new Set(prev).add(cur.sub.id));
       setVerdicts({});
       setNote('');

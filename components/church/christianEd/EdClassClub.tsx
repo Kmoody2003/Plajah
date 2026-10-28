@@ -268,7 +268,9 @@ const EdClassClub: React.FC<Props> = props => {
             const pending = list.filter(s => needsReview(s, a)).length;
             const back = list.filter(s => s.status === 'RETURNED_WITH_FEEDBACK').length;
             const inCount = list.length;
-            const avg = list.length ? Math.round(list.reduce((s, x) => s + x.percentage, 0) / list.length) : null;
+            // Average only scores that are final: returned, or turned in with nothing left for the teacher to score.
+            const scored = list.filter(x => x.status === 'RETURNED_WITH_FEEDBACK' || !needsReview(x, a));
+            const avg = scored.length ? Math.round(scored.reduce((s, x) => s + x.percentage, 0) / scored.length) : null;
             return (
               <div className="card" key={a.id}>
                 <div className="row">

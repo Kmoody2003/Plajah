@@ -75,6 +75,9 @@ export interface UniversalStudentDeskProps {
   compactHeader?: boolean;
 }
 
+/** Some answers wait for the teacher's key (Christian Ed class copies carry none), so the score isn't final yet. */
+const awaitingTeacher = (sub: { questionScores?: Record<string, { pending?: boolean }> }) => Object.values(sub.questionScores || {}).some(q => q.pending);
+
 export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
   studentUid = 'student_great_faith',
   studentName = 'Student Scholar',
@@ -377,7 +380,7 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
         inProgressCount++;
       } else if (ws.status === 'TURNED_IN' || ws.status === 'RETURNED_WITH_FEEDBACK') {
         turnedInCount++;
-        if (ws.submission) {
+        if (ws.submission && !awaitingTeacher(ws.submission)) {
           totalScorePct += ws.submission.percentage;
           gradedItems++;
         }
@@ -641,7 +644,7 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
 
                     {turnedIn ? (
                       <span className="px-2 py-0.5 rounded-full bg-emerald-400 text-black text-[9px] font-black uppercase">
-                        ✓ Turned In {ws?.submission ? `· ${ws.submission.percentage}%` : ''}
+                        ✓ Turned In {ws?.submission && !awaitingTeacher(ws.submission) ? `· ${ws.submission.percentage}%` : ''}
                       </span>
                     ) : ansCount > 0 ? (
                       <span className="px-2 py-0.5 rounded-full bg-amber-400/25 border border-amber-300/40 text-amber-200 text-[9px] font-black uppercase">
@@ -777,7 +780,7 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
                           Official Plajah Desk Turn-In Receipt · Auto-Graded &amp; Recorded
                         </div>
                         <h4 className="text-sm font-black text-white">
-                          Score: {activeSubmission.earnedPoints} / {activeSubmission.totalPoints} Pts ({activeSubmission.percentage}%)
+                          {awaitingTeacher(activeSubmission) ? 'Score comes back after your teacher checks it' : <>Score: {activeSubmission.earnedPoints} / {activeSubmission.totalPoints} Pts ({activeSubmission.percentage}%)</>}
                         </h4>
                       </div>
                     </div>
@@ -1074,7 +1077,9 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
                                     qResult.correct ? 'text-emerald-300' : 'text-amber-300'
                                   }
                                 >
-                                  {qResult.correct
+                                  {qResult.pending
+                                    ? 'Waiting for your teacher to check this one'
+                                    : qResult.correct
                                     ? `✓ Correct (+${qResult.earnedPoints}/${qResult.maxPoints} pts)`
                                     : `✦ Reviewed (+${qResult.earnedPoints}/${qResult.maxPoints} pts)`}
                                 </span>
@@ -1082,9 +1087,9 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
                                   Answer Key &amp; Rubric
                                 </span>
                               </div>
-                              {q.correctAnswer && (
+                              {(q.correctAnswer || qResult?.expected) && (
                                 <p className="text-emerald-200/95">
-                                  <strong>Expected Answer:</strong> {q.correctAnswer}
+                                  <strong>Expected Answer:</strong> {q.correctAnswer || qResult?.expected}
                                 </p>
                               )}
                               {q.explanation && (

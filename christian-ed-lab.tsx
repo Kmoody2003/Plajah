@@ -116,10 +116,11 @@ const sub: EduSubmissionRecord = {
   studentName: student.name,
   status: 'TURNED_IN',
   answers: { q1: 'The younger son', q2: 'True', q3: 'Because his dad threw a party for his brother and not for him' },
-  earnedPoints: 2,
+  // Turned in from the student's key-free class copy: nothing could be scored on their device.
+  earnedPoints: 0,
   totalPoints: 4,
-  percentage: 50,
-  questionScores: { q1: { correct: true, earnedPoints: 1, maxPoints: 1 }, q2: { correct: true, earnedPoints: 1, maxPoints: 1 }, q3: { correct: false, earnedPoints: 0, maxPoints: 2 } },
+  percentage: 0,
+  questionScores: { q1: { correct: false, earnedPoints: 0, maxPoints: 1, pending: true }, q2: { correct: false, earnedPoints: 0, maxPoints: 1, pending: true }, q3: { correct: false, earnedPoints: 0, maxPoints: 2, pending: true } },
   turnedInAt: now - 3600_000,
   updatedAt: now - 3600_000,
 };

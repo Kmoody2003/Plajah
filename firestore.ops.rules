@@ -577,8 +577,13 @@ service cloud.firestore {
           && request.resource.data.programId == resource.data.programId
           && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['reviewVerdicts', 'teacherFeedbackNote', 'reviewedByUid', 'reviewedAt']))
         || (eduTeacher(resource.data.programId)
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'reviewVerdicts', 'teacherFeedbackNote', 'earnedPoints', 'percentage', 'reviewedByUid', 'reviewedAt', 'updatedAt']));
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'reviewVerdicts', 'teacherFeedbackNote', 'earnedPoints', 'percentage', 'questionScores', 'reviewedByUid', 'reviewedAt', 'updatedAt']));
       allow delete: if eduTeacher(resource.data.programId);
+    }
+    // Answer keys stay with the class's teachers; the class copy in churchEduAssignments carries none.
+    match /churchEduAnswerKeys/{aid} {
+      allow read, delete: if eduTeacher(resource.data.programId);
+      allow create, update: if eduTeacher(request.resource.data.programId) && request.resource.data.assignmentId == aid;
     }
     match /churchEduJoinRequests/{rid} {
       allow read: if isAuthenticated() && (resource.data.uid == request.auth.uid || eduTeacher(resource.data.programId));

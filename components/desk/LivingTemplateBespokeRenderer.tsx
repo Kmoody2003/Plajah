@@ -114,14 +114,16 @@ export const LivingTemplateBespokeRenderer: React.FC<LivingTemplateBespokeRender
       >
         {qResult && (
           <div className="font-black text-emerald-500">
-            {qResult.correct
+            {qResult.pending
+              ? 'Waiting for your teacher to check this one'
+              : qResult.correct
               ? `✓ Correct (+${qResult.earnedPoints}/${qResult.maxPoints} pts)`
               : `✦ Reviewed (+${qResult.earnedPoints}/${qResult.maxPoints} pts)`}
           </div>
         )}
-        {q.correctAnswer && (
+        {(q.correctAnswer || qResult?.expected) && (
           <div>
-            <strong>Answer Key:</strong> {q.correctAnswer}
+            <strong>Answer Key:</strong> {q.correctAnswer || qResult?.expected}
           </div>
         )}
         {q.explanation && (

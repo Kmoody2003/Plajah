@@ -698,7 +698,7 @@ export function applyReturnedSubmissions(studentUid: string, recs: EduSubmission
   let changed = false;
   for (const r of returned) {
     const prev = map[r.assignmentId];
-    if (prev?.status === 'RETURNED_WITH_FEEDBACK' && prev.teacherFeedbackNote === (r.teacherFeedbackNote || '')) continue;
+    if (prev?.status === 'RETURNED_WITH_FEEDBACK' && prev.teacherFeedbackNote === (r.teacherFeedbackNote || '') && prev.submission?.percentage === r.percentage) continue;
     map[r.assignmentId] = {
       ...(prev || {
         assignmentId: r.assignmentId,
@@ -713,6 +713,8 @@ export function applyReturnedSubmissions(studentUid: string, recs: EduSubmission
       status: 'RETURNED_WITH_FEEDBACK',
       teacherFeedbackNote: r.teacherFeedbackNote || '',
       turnedInAt: r.turnedInAt,
+      // The teacher's scores (and, now that it's returned, the expected answers) replace the desk's waiting ones.
+      ...(prev?.submission ? { submission: { ...prev.submission, questionScores: { ...prev.submission.questionScores, ...r.questionScores }, earnedPoints: r.earnedPoints, percentage: r.percentage } } : {}),
     };
     changed = true;
   }

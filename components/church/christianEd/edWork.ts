@@ -10,6 +10,9 @@ import {
 } from '../../../services/universalStudentDeskService';
 import {
   fetchProgramAssignments,
+  fetchProgramAnswerKeys,
+  mirrorAssignment,
+  withAnswerKeys,
   fetchProgramSubmissions,
   fetchMySubmissions,
   fetchJoinRequests,
@@ -31,7 +34,7 @@ export const isStudentOf = (p: ChurchProgram, uid: string) => !!uid && (p.studen
 export function needsReview(sub: EduSubmissionRecord, a?: UniversalDeskAssignment): boolean {
   if (sub.status !== 'TURNED_IN') return false;
   if (!a) return true;
-  return a.unitSnapshot.questions.some(isWritten);
+  return a.unitSnapshot.questions.some(isWritten) || Object.values(sub.questionScores || {}).some(s => s.pending);
 }
 
 export function currentWeekIndex(p: ChurchProgram): number {
@@ -89,15 +92,20 @@ export function useClassWork(programs: ChurchProgram[], opts: { asTeacher: boole
     setLoading(true);
     const entries = await Promise.all(
       programs.map(async p => {
-        const [remote, subs, reqs] = await Promise.all([
+        const [remoteRaw, keys, subs, reqs] = await Promise.all([
           fetchProgramAssignments(p.id),
+          opts.asTeacher ? fetchProgramAnswerKeys(p.id) : Promise.resolve({} as Awaited<ReturnType<typeof fetchProgramAnswerKeys>>),
           opts.asTeacher ? fetchProgramSubmissions(p.id) : Promise.resolve([] as EduSubmissionRecord[]),
           opts.asTeacher ? fetchJoinRequests(p.id) : Promise.resolve([] as EduJoinRequest[]),
         ]);
+        // Teachers get the keys back onto the class copy; students only ever hold the key-free one.
+        // A class copy mirrored before keys were withheld still carries them: rewrite it key-free.
+        if (opts.asTeacher) for (const a of remoteRaw) if (!a.unitSnapshot.answerKeyWithheld && a.unitSnapshot.questions?.some(q => q.correctAnswer)) void mirrorAssignment(a);
+        const remote = remoteRaw.map(a => withAnswerKeys(a, keys[a.id]));
         mergeRemoteDeskAssignments(remote);
         const local = listDeskAssignments({ classroomId: p.id });
         const byId = new Map<string, UniversalDeskAssignment>();
-        for (const a of [...local, ...remote]) byId.set(a.id, a);
+        for (const a of [...local, ...remote]) byId.set(a.id, withAnswerKeys(a, keys[a.id]));
         const assignments = Array.from(byId.values()).sort((a, b) => b.assignedAt - a.assignedAt);
         return [p.id, { assignments, submissions: subs, joinRequests: reqs }] as const;
       })

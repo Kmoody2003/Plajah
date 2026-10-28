@@ -78,6 +78,8 @@ export type LessonLibraryCategory =
   | 'ANSWER_KEY';
 
 export interface IngestedCurriculumUnit {
+  /** Set on a student's copy: the answer keys stayed with the teacher (services/christianEdSync), so key-graded questions wait for review. */
+  answerKeyWithheld?: boolean;
   id: string;
   orgId: string;
   programId?: string;
@@ -127,7 +129,8 @@ export interface StudentUnitSubmission {
   studentUid: string;
   studentName: string;
   answers: Record<string, string>;
-  questionScores: Record<string, { correct: boolean; earnedPoints: number; maxPoints: number; expected?: string }>;
+  /** `pending`: graded by the teacher with a key the student's device never had. */
+  questionScores: Record<string, { correct: boolean; earnedPoints: number; maxPoints: number; expected?: string; pending?: boolean }>;
   earnedPoints: number;
   totalPoints: number;
   percentage: number;
@@ -1976,6 +1979,38 @@ function normalizeAnswerToken(raw: string): string {
  * updates the Khan-style Mastery Graph (`services/mastery.ts`) for both the student and classroom course,
  * and saves the submission record for the Teacher Gradebook & Assess Work studio.
  */
+/** Does a student's answer match the key? Questions with no key get completion credit (two or more characters). */
+export function isAnswerCorrect(q: IngestedQuestion, answer: string): boolean {
+  const rawStudent = (answer || '').trim();
+  const rawExpected = (q.correctAnswer || '').trim();
+  let isCorrect = false;
+  if (!rawExpected) {
+    // Open reflection / completion credit when non-empty
+    isCorrect = rawStudent.length >= 2;
+  } else if (q.type === 'multiple-choice') {
+    const studentLetter = rawStudent.match(/^([A-F])\b/i)?.[1]?.toUpperCase();
+    const expectedLetter = rawExpected.match(/^([A-F])\b/i)?.[1]?.toUpperCase();
+    if (studentLetter && expectedLetter) {
+      isCorrect = studentLetter === expectedLetter;
+    } else {
+      isCorrect = normalizeAnswerToken(rawStudent) === normalizeAnswerToken(rawExpected);
+    }
+  } else if (q.type === 'true-false') {
+    isCorrect = rawStudent.toLowerCase().startsWith(rawExpected.toLowerCase()[0]);
+  } else if (q.type === 'numeric') {
+    const nStudent = Number(rawStudent.replace(/[^0-9.-]/g, ''));
+    const nExpected = Number(rawExpected.replace(/[^0-9.-]/g, ''));
+    isCorrect = Number.isFinite(nStudent) && Number.isFinite(nExpected) && Math.abs(nStudent - nExpected) <= 0.01;
+  } else {
+    const normS = normalizeAnswerToken(rawStudent);
+    const normE = normalizeAnswerToken(rawExpected);
+    isCorrect =
+      normS.length > 0 &&
+      (normS === normE || normS.includes(normE) || (normS.length >= 4 && normE.includes(normS)));
+  }
+  return isCorrect;
+}
+
 export function gradeAndRecordUnitSubmission(params: {
   unit: IngestedCurriculumUnit;
   studentUid: string;
@@ -1995,31 +2030,12 @@ export function gradeAndRecordUnitSubmission(params: {
     const rawStudent = (answers[q.id] || '').trim();
     const rawExpected = (q.correctAnswer || '').trim();
 
-    let isCorrect = false;
-    if (!rawExpected) {
-      // Open reflection / completion credit when non-empty
-      isCorrect = rawStudent.length >= 2;
-    } else if (q.type === 'multiple-choice') {
-      const studentLetter = rawStudent.match(/^([A-F])\b/i)?.[1]?.toUpperCase();
-      const expectedLetter = rawExpected.match(/^([A-F])\b/i)?.[1]?.toUpperCase();
-      if (studentLetter && expectedLetter) {
-        isCorrect = studentLetter === expectedLetter;
-      } else {
-        isCorrect = normalizeAnswerToken(rawStudent) === normalizeAnswerToken(rawExpected);
-      }
-    } else if (q.type === 'true-false') {
-      isCorrect = rawStudent.toLowerCase().startsWith(rawExpected.toLowerCase()[0]);
-    } else if (q.type === 'numeric') {
-      const nStudent = Number(rawStudent.replace(/[^0-9.-]/g, ''));
-      const nExpected = Number(rawExpected.replace(/[^0-9.-]/g, ''));
-      isCorrect = Number.isFinite(nStudent) && Number.isFinite(nExpected) && Math.abs(nStudent - nExpected) <= 0.01;
-    } else {
-      const normS = normalizeAnswerToken(rawStudent);
-      const normE = normalizeAnswerToken(rawExpected);
-      isCorrect =
-        normS.length > 0 &&
-        (normS === normE || normS.includes(normE) || (normS.length >= 4 && normE.includes(normS)));
+    if (!rawExpected && unit.answerKeyWithheld) {
+      questionScores[q.id] = { correct: false, earnedPoints: 0, maxPoints: maxPts, pending: true };
+      continue;
     }
+
+    const isCorrect = isAnswerCorrect(q, rawStudent);
 
     const pts = isCorrect ? maxPts : 0;
     earnedPoints += pts;

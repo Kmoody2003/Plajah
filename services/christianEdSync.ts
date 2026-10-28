@@ -25,7 +25,8 @@ export interface EduSubmissionRecord {
   earnedPoints: number;
   totalPoints: number;
   percentage: number;
-  questionScores: Record<string, { correct: boolean; earnedPoints: number; maxPoints: number }>;
+  /** `pending`: the key stayed with the teacher, so review scores it. `expected` is filled in when work is returned. */
+  questionScores: Record<string, { correct: boolean; earnedPoints: number; maxPoints: number; pending?: boolean; expected?: string }>;
   /** Teacher review: per-question verdicts on written answers and a note back to the student. */
   reviewVerdicts?: Record<string, 'CORRECT' | 'PARTIAL' | 'RETRY'>;
   teacherFeedbackNote?: string;
@@ -45,15 +46,46 @@ export interface EduJoinRequest {
   createdAt: number;
 }
 
-/** Drop the bulky raw source text before mirroring (keeps docs well under the 1 MB limit). */
-function slimAssignment(a: UniversalDeskAssignment, programId: string) {
+// Answer keys never go to students. The class copy of an assignment is key-free (students read it); the
+// keys sit in churchEduAnswerKeys/{assignmentId}, which only the class's teachers can read. A student's
+// desk marks key-graded questions as waiting, and the teacher's review scores them with the key.
+const KEY_FIELDS = new Set(['correctAnswer', 'explanation', 'expected', 'acceptedAnswers', 'answerKey', 'rawAnswerKeyText']);
+function withoutKeys<T>(v: T): T {
+  if (Array.isArray(v)) return v.map(withoutKeys) as unknown as T;
+  if (v && typeof v === 'object') {
+    const o: Record<string, unknown> = {};
+    for (const [k, x] of Object.entries(v)) if (!KEY_FIELDS.has(k)) o[k] = withoutKeys(x);
+    return o as T;
+  }
+  return v;
+}
+
+export type AnswerKeyMap = Record<string, { correctAnswer?: string; explanation?: string }>;
+
+function collectKeys(a: UniversalDeskAssignment): AnswerKeyMap {
+  const keys: AnswerKeyMap = {};
+  for (const q of a.unitSnapshot.questions || []) if (q.correctAnswer || q.explanation) keys[q.id] = { correctAnswer: q.correctAnswer, explanation: q.explanation };
+  return keys;
+}
+
+/** Put a class's answer keys back onto a key-free assignment (teacher side). */
+export function withAnswerKeys(a: UniversalDeskAssignment, keys?: AnswerKeyMap): UniversalDeskAssignment {
+  if (!keys || !a.unitSnapshot.answerKeyWithheld) return a;
+  return { ...a, unitSnapshot: { ...a.unitSnapshot, answerKeyWithheld: false, questions: a.unitSnapshot.questions.map(q => ({ ...q, ...(keys[q.id] || {}) })) } };
+}
+
+/** Drop the bulky raw source text and every answer key before mirroring the class copy. */
+export function slimAssignment(a: UniversalDeskAssignment, programId: string) {
   const { rawCurriculumText: _r, rawAnswerKeyText: _k, sacredLibrarySupplements: _s, ...unit } = a.unitSnapshot;
-  return strip({ ...a, unitSnapshot: unit, programId, mirroredAt: Date.now() });
+  const hasKeys = Object.keys(collectKeys(a)).length > 0;
+  return strip({ ...a, unitSnapshot: { ...withoutKeys(unit), answerKeyWithheld: hasKeys || undefined }, programId, mirroredAt: Date.now() });
 }
 
 export async function mirrorAssignment(a: UniversalDeskAssignment): Promise<void> {
   if (a.domain !== 'CHRISTIAN_EDUCATION' || !auth.currentUser) return;
   try {
+    const keys = collectKeys(a);
+    if (Object.keys(keys).length) await setDoc(doc(opsDb, 'churchEduAnswerKeys', a.id), strip({ assignmentId: a.id, programId: a.classroomId, orgId: a.orgId, keys, updatedAt: Date.now() }));
     await setDoc(doc(opsDb, 'churchEduAssignments', a.id), slimAssignment(a, a.classroomId));
   } catch {
     /* not a class teacher, offline, or demo org: the local desk still has it */
@@ -63,8 +95,19 @@ export async function mirrorAssignment(a: UniversalDeskAssignment): Promise<void
 export async function unmirrorAssignment(assignmentId: string): Promise<void> {
   try {
     await deleteDoc(doc(opsDb, 'churchEduAssignments', assignmentId));
+    await deleteDoc(doc(opsDb, 'churchEduAnswerKeys', assignmentId));
   } catch {
     /* ignore */
+  }
+}
+
+/** Teacher side: every answer key for a class, by assignment id. */
+export async function fetchProgramAnswerKeys(programId: string): Promise<Record<string, AnswerKeyMap>> {
+  try {
+    const snap = await getDocs(query(collection(opsDb, 'churchEduAnswerKeys'), where('programId', '==', programId)));
+    return Object.fromEntries(snap.docs.map(d => [d.id, (d.data().keys || {}) as AnswerKeyMap]));
+  } catch {
+    return {};
   }
 }
 
@@ -97,7 +140,7 @@ export async function mirrorTurnIn(a: UniversalDeskAssignment, ws: StudentDeskWo
     totalPoints: s.totalPoints,
     percentage: s.percentage,
     questionScores: Object.fromEntries(
-      Object.entries(s.questionScores).map(([k, v]) => [k, { correct: v.correct, earnedPoints: v.earnedPoints, maxPoints: v.maxPoints }])
+      Object.entries(s.questionScores).map(([k, v]) => [k, { correct: v.correct, earnedPoints: v.earnedPoints, maxPoints: v.maxPoints, ...(v.pending ? { pending: true } : {}) }])
     ),
     turnedInAt: ws.turnedInAt || Date.now(),
     updatedAt: Date.now(),
@@ -130,7 +173,7 @@ export async function fetchMySubmissions(uid: string): Promise<EduSubmissionReco
 /** Teacher returns reviewed work. Only review fields change; the student's answers stay as turned in. */
 export async function returnSubmission(
   rec: EduSubmissionRecord,
-  review: { verdicts: Record<string, 'CORRECT' | 'PARTIAL' | 'RETRY'>; note: string; earnedPoints: number; percentage: number }
+  review: { verdicts: Record<string, 'CORRECT' | 'PARTIAL' | 'RETRY'>; note: string; earnedPoints: number; percentage: number; questionScores?: EduSubmissionRecord['questionScores'] }
 ): Promise<EduSubmissionRecord> {
   const next: EduSubmissionRecord = {
     ...rec,
@@ -139,6 +182,7 @@ export async function returnSubmission(
     teacherFeedbackNote: review.note.trim() || undefined,
     earnedPoints: review.earnedPoints,
     percentage: review.percentage,
+    questionScores: review.questionScores || rec.questionScores,
     reviewedByUid: auth.currentUser?.uid,
     reviewedAt: Date.now(),
     updatedAt: Date.now(),
@@ -151,6 +195,7 @@ export async function returnSubmission(
       teacherFeedbackNote: next.teacherFeedbackNote ?? '',
       earnedPoints: next.earnedPoints,
       percentage: next.percentage,
+      questionScores: next.questionScores,
       reviewedByUid: next.reviewedByUid,
       reviewedAt: next.reviewedAt,
       updatedAt: next.updatedAt,
