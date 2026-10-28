@@ -56,6 +56,7 @@ import { elevateAccountsRouter } from './routes/elevateAccounts';
 import { templateShareRouter } from './routes/templateShare';
 import { worksheetGradingRouter, splitLegacyWorksheetKeys } from './routes/worksheetGrading';
 import { academiaClassRouter } from './routes/academiaClass';
+import { objectStoreRouter } from './routes/objectStore';
 import { createBusinessStaffRouter } from './routes/businessStaff';
 import { registerPermsFor as bizRegisterPermsFor, normalizePerms as normalizeBizPerms, type BizPerm } from './services/businessStaffCore';
 import { staffActorInfo as bizStaffActorInfo } from './services/businessStaffServerCore';
@@ -13749,6 +13750,9 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   void splitLegacyWorksheetKeys().then(r => { if (!r.skipped) console.log(`[worksheets] legacy key split: ${r.split} of ${r.scanned} worksheets`); }).catch(e => console.warn('[worksheets] legacy key split failed', e));
   // Teacher Tools: a teacher's own class mastery + recorded assessments (ledger docs are student/guardian-only in rules).
   app.use('/api/academia/class', express.json({ limit: '32kb' }), academiaClassRouter);
+  // Private bucket (Backblaze B2): short-lived signed links after a membership check (routes/objectStore.ts).
+  app.use('/api/object-store', rateLimit({ windowMs: 60 * 1000, max: 600, standardHeaders: true, legacyHeaders: false }));
+  app.use('/api/object-store', express.json({ limit: '8kb' }), objectStoreRouter);
   // Template library: sharing to the platform shelf is server-decided (org policy + real roles, stripping). Rate-limited.
   app.use('/api/templates/share', authLimiter);
   app.use('/api/templates/share', express.json({ limit: '1mb' }), templateShareRouter);

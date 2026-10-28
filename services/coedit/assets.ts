@@ -12,7 +12,10 @@
 // slow or metered link, master once it's there on a good one. The contributor always plays local.
 //
 //   coedit/{projectId}/assets/{assetId}              the ledger entry (ops database)
-//   coedit-assets/{projectId}/{uid}/{assetId}/{tier}  the bytes (Storage; only the contributor writes)
+//   collab/{projectId}/{uid}/{assetId}/{tier}         the bytes (private bucket, services/objectStore —
+//                                                     the server signs each link after checking membership)
+//   coedit-assets/{projectId}/{uid}/{assetId}/{tier}  older uploads, and the fallback when no bucket is
+//                                                     configured (Firebase Storage)
 //
 // Uploads are resumable and survive reloads: the bytes wait in IndexedDB until each tier lands.
 
@@ -20,6 +23,8 @@ import { collection, doc, getDoc, onSnapshot, setDoc, updateDoc } from 'firebase
 import { getBlob, ref, uploadBytesResumable } from 'firebase/storage';
 import { del as idbDel, get as idbGet, keys as idbKeys, set as idbSet } from 'idb-keyval';
 import { auth, opsDb, storage } from '../firebase';
+import { collabKey } from '../objectStore/objectKeys';
+import { getObject, ObjectStoreUnavailable, putObject } from '../objectStore/client';
 import { COEDIT } from './project';
 
 export type AssetKind = 'sample' | 'take' | 'preset' | 'instrument' | 'library' | 'media';
@@ -27,6 +32,7 @@ export type AssetTier = 'proxy' | 'master';
 export type AssetStatus = 'local' | 'proxy' | 'master';
 
 export interface AssetTierInfo {
+  /** collab/… lives in the private bucket; coedit-assets/… in Firebase Storage. */
   path: string;
   mime: string;
   size: number;
@@ -168,17 +174,19 @@ async function runUpload(job: PendingUpload): Promise<void> {
     return;
   }
   running.add(key);
-  const path = `coedit-assets/${job.projectId}/${job.uid}/${job.assetId}/${job.tier}.${ext(job.mime)}`;
+  const progress = (fraction: number) => report({ assetId: job.assetId, tier: job.tier, fraction, state: 'running' });
+  let path = collabKey(job.projectId, job.uid, job.assetId, job.tier, ext(job.mime));
   try {
-    await new Promise<void>((resolve, reject) => {
-      const task = uploadBytesResumable(ref(storage, path), blob, { contentType: job.mime, customMetadata: { projectId: job.projectId, assetId: job.assetId, tier: job.tier } });
-      task.on(
-        'state_changed',
-        (s) => report({ assetId: job.assetId, tier: job.tier, fraction: s.totalBytes ? s.bytesTransferred / s.totalBytes : 0, state: 'running' }),
-        reject,
-        () => resolve()
-      );
-    });
+    try {
+      await putObject(path, blob, job.mime, progress);
+    } catch (err) {
+      if (!(err instanceof ObjectStoreUnavailable)) throw err;
+      path = `coedit-assets/${job.projectId}/${job.uid}/${job.assetId}/${job.tier}.${ext(job.mime)}`;
+      await new Promise<void>((resolve, reject) => {
+        const task = uploadBytesResumable(ref(storage, path), blob, { contentType: job.mime, customMetadata: { projectId: job.projectId, assetId: job.assetId, tier: job.tier } });
+        task.on('state_changed', (s) => progress(s.totalBytes ? s.bytesTransferred / s.totalBytes : 0), reject, () => resolve());
+      });
+    }
     const info: AssetTierInfo = { path, mime: job.mime, size: blob.size, ...(job.info ?? {}) };
     const ledgerRef = doc(ledger(job.projectId), job.assetId);
     const cur = (await getDoc(ledgerRef)).data() as SharedAsset | undefined;
@@ -248,7 +256,7 @@ export async function resolveAsset(asset: SharedAsset, preferMaster?: boolean): 
     if (cachedProxy) return { blob: cachedProxy, tier: 'proxy' };
   }
   const info = asset.tiers[tier]!;
-  const blob = await getBlob(ref(storage, info.path));
+  const blob = info.path.startsWith('collab/') ? await getObject(info.path) : await getBlob(ref(storage, info.path));
   await idbSet(cacheKey(asset.id, tier), blob).catch(() => {});
   if (tier === 'master') await idbDel(cacheKey(asset.id, 'proxy')).catch(() => {});
   return { blob, tier };
