@@ -9,7 +9,7 @@
 // Demoable on the bundled DEMO class (Room 4B). Per-student × per-standard mastery is derived
 // deterministically for the demo; in production this reads learnerProficiency for each student.
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, LayoutGrid, Wand2, ClipboardCheck, Sparkles, Check, Plug, Globe, Download, CalendarDays, FileDown, Send, Trash2, Plus, ListChecks, Printer, Library, Copy, ExternalLink, Music, Film, Image as ImageIcon, Camera, UploadCloud, Loader2, Bell, Users, MessageSquare, Hand, Palette, ScanLine, KeyRound, RefreshCw, BookOpen, ShieldCheck, ZoomIn, ZoomOut, Maximize2, Minimize2 } from 'lucide-react';
 import LessonContentPicker, { type PickedResource } from './LessonContentPicker';
 import { DEMO_CLASS } from '../data/demoClassroom';
@@ -48,7 +48,7 @@ import OrgLessonLibraryHub from './church/OrgLessonLibraryHub';
 import SharedClassroomClubHub from './classroom/SharedClassroomClubHub';
 import { UniversalStudentDesk } from './desk/UniversalStudentDesk';
 import { HqFilesTab } from './ContentHQ';
-import { FolderOpen } from 'lucide-react';
+import { FolderOpen, Menu, X } from 'lucide-react';
 import {
   getStandaloneTeacherScopeId,
   getOrgEducationFolderName,
@@ -65,6 +65,8 @@ import {
   type OrgEducationScopeConfig,
 } from '../services/orgEducationScopeService';
 import OrgEducationScopeGovernancePanel from './church/OrgEducationScopeGovernancePanel';
+import { loadMyTeachingClasses, loadClassRoster, type TeachingClass } from '../services/teacherClasses';
+import { fetchClassMastery, recordClassAssessment, type ClassMasteryMap } from '../services/teacherClassMastery';
 
 export interface LessonPlan {
   id: string; title: string; subject: Subject; band: string; standardCode: string;
@@ -96,6 +98,25 @@ type BandId = 'prek' | 'g12' | 'g34' | 'g57';
 const hash = (s: string) => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
 const cellMastery = (studentId: string, standardId: string) => 38 + (hash(studentId + '|' + standardId) % 58); // 38..95
 
+// The class every tool works on. A teacher's real class (services/teacherClasses) reads its mastery from the
+// Learner Ledger through routes/academiaClass.ts; only the labelled sample class uses made-up numbers.
+// masteryOf returns null where a student has no evidence on a standard yet.
+interface ToolsClass {
+  id: string;
+  name: string;
+  teacherName: string;
+  students: { id: string; name: string; color: string }[];
+  isSample: boolean;
+  masteryOf: (studentId: string, standardId: string) => number | null;
+}
+const TOOL_GROUPS = ['Class', 'Assign & grade', 'Plan', 'Library', 'Settings'] as const;
+const STUDENT_COLORS =['#FF8C00', '#36c5f0', '#2eb67d', '#ecb22e', '#e01e5a', '#8166e6', '#ff6b9a', '#4fd1c5'];
+const sampleClass = (teacherName?: string): ToolsClass => ({
+  id: DEMO_CLASS.id, name: DEMO_CLASS.name, teacherName: teacherName || DEMO_CLASS.teacherName,
+  students: DEMO_CLASS.students, isSample: true, masteryOf: cellMastery,
+});
+const avgOf = (xs: Array<number | null>) => { const v = xs.filter((x): x is number => x !== null); return v.length ? Math.round(v.reduce((a, b) => a + b, 0) / v.length) : null; };
+
 const cardStyle: React.CSSProperties = { background: T.card, border: `1px solid ${T.border}`, borderRadius: 14 };
 const Eyebrow: React.FC<{ children: React.ReactNode; color?: string }> = ({ children, color }) => (
   <div style={{ fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 800, color: color || T.muted, marginBottom: 8 }}>{children}</div>
@@ -107,7 +128,7 @@ const Bar: React.FC<{ value: number; color: string }> = ({ value, color }) => (
   </div>
 );
 
-type Tab = 'grade' | 'plan' | 'planner' | 'checks' | 'assess' | 'reports' | 'connect' | 'context' | 'library' | 'worksheet' | 'templates' | 'integrity' | 'curriculum' | 'classroomClub' | 'studentDesk';
+type Tab = 'contentHq' | 'grade' | 'plan' | 'planner' | 'checks' | 'assess' | 'reports' | 'connect' | 'context' | 'library' | 'worksheet' | 'templates' | 'integrity' | 'curriculum' | 'classroomClub' | 'studentDesk';
 
 export interface TeacherToolsOrgContext {
   org: Organization;
@@ -180,8 +201,46 @@ const TeacherToolsView: React.FC<{ onBack?: () => void; user?: any; orgContext?:
     setTab('planner');
   };
 
-  const students = DEMO_CLASS.students;
+  // ── The class these tools work on ──
+  const [classes, setClasses] = useState<TeachingClass[] | null>(null);
+  const [classId, setClassId] = useState<string>(() => { try { return localStorage.getItem('plajah:teacherToolsClass') || ''; } catch { return ''; } });
+  const [roster, setRoster] = useState<Array<{ id: string; name: string }> | null>(null);
+  const [mastery, setMastery] = useState<ClassMasteryMap | null>(null);
+  useEffect(() => {
+    let live = true;
+    void loadMyTeachingClasses(user?.uid).then(list => {
+      if (!live) return;
+      setClasses(list);
+      setClassId(id => (list.some(c => c.id === id) ? id : list[0]?.id || ''));
+    });
+    return () => { live = false; };
+  }, [user?.uid]);
+  const realClass = classes?.find(c => c.id === classId) || null;
+  const refreshMastery = React.useCallback(() => {
+    if (!realClass) return;
+    void fetchClassMastery(realClass.id).then(setMastery);
+  }, [realClass?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    try { if (classId) localStorage.setItem('plajah:teacherToolsClass', classId); } catch { /* private mode */ }
+    setRoster(null); setMastery(null);
+    if (!realClass) return;
+    let live = true;
+    void loadClassRoster(realClass).then(r => { if (live) setRoster(r); });
+    void fetchClassMastery(realClass.id).then(m => { if (live) setMastery(m); });
+    return () => { live = false; };
+  }, [realClass?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const cls: ToolsClass = useMemo(() => {
+    if (!realClass) return sampleClass(user?.displayName);
+    return {
+      id: realClass.id, name: realClass.title, teacherName: user?.displayName || 'Teacher', isSample: false,
+      students: (roster || []).map((s, i) => ({ ...s, color: STUDENT_COLORS[i % STUDENT_COLORS.length] })),
+      masteryOf: (sid, std) => { const m = mastery?.[sid]?.[std]; return typeof m === 'number' ? m : null; },
+    };
+  }, [realClass, roster, mastery, user?.displayName]);
+  const students = cls.students;
   const grades = BAND_TO_GRADES[band] || [];
+
+
   const [orgScope, setOrgScope] = useState<OrgEducationScopeConfig | null>(() =>
     orgContext ? loadOrgEducationScope(orgContext.org) : null
   );
@@ -211,6 +270,28 @@ const TeacherToolsView: React.FC<{ onBack?: () => void; user?: any; orgContext?:
     return STANDARDS.filter(s => s.subject === subject && grades.includes(s.grade));
   }, [orgContext, activeOrgSubjectBand, subject, grades]);
 
+  const [menuOpen, setMenuOpen] = useState(false);
+  const tools: Array<{ id: Tab | 'contentHq'; label: string; icon: any; group: typeof TOOL_GROUPS[number] }> = [
+    { id: 'classroomClub', label: 'Classroom Club & Live Lecture', icon: Users, group: 'Class' },
+    { id: 'grade', label: orgContext ? 'Class Mastery' : 'Gradebook', icon: LayoutGrid, group: 'Class' },
+    { id: 'reports', label: 'Reports', icon: Printer, group: 'Class' },
+    { id: 'studentDesk', label: 'Student Desk', icon: BookOpen, group: 'Class' },
+    { id: 'worksheet', label: 'Worksheet & Doc Capture', icon: ScanLine, group: 'Assign & grade' },
+    { id: 'templates', label: 'Assignment Templates', icon: BookOpen, group: 'Assign & grade' },
+    { id: 'checks', label: `Checks${assignments.length ? ` (${assignments.length})` : ''}`, icon: ListChecks, group: 'Assign & grade' },
+    { id: 'assess', label: 'Assess Work', icon: ClipboardCheck, group: 'Assign & grade' },
+    { id: 'plan', label: 'Plan from Mastery', icon: Wand2, group: 'Plan' },
+    { id: 'planner', label: `Planner${plans.length ? ` (${plans.length})` : ''}`, icon: CalendarDays, group: 'Plan' },
+    { id: 'library', label: orgContext ? `${orgContext.org.name} Education Library` : 'Lesson Library & Docs', icon: Library, group: 'Library' },
+    { id: 'contentHq', label: orgContext ? `${getOrgEducationFolderName(orgContext.org.name)} HQ` : 'My Content HQ', icon: FolderOpen, group: 'Library' },
+    ...(!orgContext || orgScope?.enabledTracks.includes('CONTINUING_EDUCATION_AND_CERTIFICATES') ? [{ id: 'integrity' as Tab, label: 'Integrity Wall', icon: ShieldCheck, group: 'Settings' as const }] : []),
+    ...(!orgContext ? [
+      { id: 'connect' as Tab, label: 'Integrations', icon: Plug, group: 'Settings' as const },
+      { id: 'context' as Tab, label: 'Context', icon: Globe, group: 'Settings' as const },
+    ] : []),
+  ];
+  const currentTool = tools.find(t => t.id === tab);
+
   return (
     <div className="teacher-tools-view" style={{ minHeight: '100%', background: T.bg, color: T.ink, padding: '20px 16px calc(70px + env(safe-area-inset-bottom))', fontFamily: T.font }}>
       <div style={{ maxWidth: tab === 'worksheet' ? 1500 : 1000, margin: '0 auto' }}>
@@ -220,9 +301,27 @@ const TeacherToolsView: React.FC<{ onBack?: () => void; user?: any; orgContext?:
           <div style={{ width: 42, height: 42, borderRadius: 12, background: 'linear-gradient(135deg,#FF8C00,#36c5f0)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><LayoutGrid size={20} /></div>
           <div style={{ flex: 1, minWidth: 200 }}>
             <h1 style={{ margin: 0, fontSize: 21, fontWeight: 900 }}>{orgContext ? `${orgContext.org.name} · Instructor Tools` : 'Teacher Tools'}</h1>
-            <p style={{ margin: '2px 0 0', color: T.muted, fontSize: 12.5 }}>{orgContext ? `${orgContext.activeProgram?.name || 'Christian Education Classrooms'} · ${user?.displayName || 'Instructor'} · Scoped to ${orgContext.org.name} materials & topics` : `${DEMO_CLASS.name} · ${DEMO_CLASS.teacherName} · standards-based, over the class's Learner Ledger`}</p>
+            <p style={{ margin: '2px 0 0', color: T.muted, fontSize: 12.5 }}>{orgContext ? `${orgContext.activeProgram?.name || 'Christian Education Classrooms'} · ${user?.displayName || 'Instructor'} · Scoped to ${orgContext.org.name} materials & topics` : `${cls.name} · ${cls.teacherName}${cls.isSample ? '' : ` · ${cls.students.length} students`}`}</p>
           </div>
         </div>
+
+        {/* class */}
+        {!orgContext && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
+            {classes && classes.length > 0 ? (
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, flex: '1 1 240px', maxWidth: 420 }}>
+                <span style={{ fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 800, color: T.muted }}>Class</span>
+                <select value={classId} onChange={e => setClassId(e.target.value)} style={{ ...selStyle, minHeight: 44 }}>
+                  {classes.map(c => <option key={c.id} value={c.id}>{c.title} · {c.enrolledStudents.length} students</option>)}
+                </select>
+              </label>
+            ) : classes ? (
+              <span style={{ fontSize: 12.5, color: T.muted }}>
+                <b style={{ color: T.orange }}>Sample class</b> — the names and scores here are made up. Create a class in Classrooms and it shows up here with your real students.
+              </span>
+            ) : <span style={{ fontSize: 12.5, color: T.faint }}>Loading your classes…</span>}
+          </div>
+        )}
 
         {/* subject + band */}
         <div style={{ display: 'flex', gap: 16, marginTop: 16, flexWrap: 'wrap' }}>
@@ -243,40 +342,51 @@ const TeacherToolsView: React.FC<{ onBack?: () => void; user?: any; orgContext?:
           <div><Eyebrow>{orgContext ? 'Audience / Age Band' : 'Level'}</Eyebrow><div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{orgContext ? ([['ALL', 'All Ages'], ['YOUTH', 'Children & Youth'], ['ADULTS', 'Young Adults & Adults'], ['LEADERS', 'Instructors & Leaders']] as const).map(([id, label]) => <button key={id} onClick={() => setOrgAgeLevel(id)} style={chip(orgAgeLevel === id)}>{label}</button>) : BANDS.map(b => <button key={b.id} onClick={() => setBand(b.id)} style={chip(band === b.id)}>{b.label}</button>)}</div></div>
         </div>
 
-        {/* tabs */}
+        {/* tools: tabs on wide screens; on a phone one "current tool" button opens a slide-out list */}
+        <style>{`.tt-menubtn{display:none}.tt-drawer-back{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:60}.tt-drawer{position:fixed;top:0;bottom:0;left:0;width:min(86vw,340px);background:${T.card};border-right:1px solid ${T.border};z-index:61;overflow-y:auto;padding:calc(14px + env(safe-area-inset-top)) 12px calc(20px + env(safe-area-inset-bottom));animation:ttIn .18s ease-out}@keyframes ttIn{from{transform:translateX(-100%)}to{transform:none}}@media(prefers-reduced-motion:reduce){.tt-drawer{animation:none}}@media(max-width:720px){.teacher-tools-tabs{display:none!important}.tt-menubtn{display:flex}.teacher-tools-view input,.teacher-tools-view select,.teacher-tools-view textarea{font-size:16px!important}}`}</style>
         <div className="teacher-tools-tabs" style={{ display: 'flex', gap: 8, margin: '18px 0 20px', flexWrap: 'wrap' }}>
-          <style>{`@media(max-width:720px){.teacher-tools-tabs{flex-wrap:nowrap!important;overflow-x:auto;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;margin-left:-16px!important;margin-right:-16px!important;padding:0 16px 4px}.teacher-tools-tabs>button{flex:0 0 auto;scroll-snap-align:start;min-height:44px}.teacher-tools-view input,.teacher-tools-view select,.teacher-tools-view textarea{font-size:16px!important}}`}</style>
-          {(([
-            ['classroomClub', 'Classroom Club & Live Lecture', Users],
-            ['studentDesk', '🪑 Universal Student Desk', BookOpen],
-            ['worksheet', 'Worksheet & Doc Capture', ScanLine],
-            ['plan', 'Plan from Mastery', Wand2],
-            ['library', orgContext ? `${orgContext.org.name} Education Library` : 'Lesson Library & Docs', Library],
-            ['contentHq', orgContext ? `🎓 ${getOrgEducationFolderName(orgContext.org.name)} HQ` : '📂 My Content HQ (By Doc Class)', FolderOpen],
-            ['planner', `Planner${plans.length ? ` (${plans.length})` : ''}`, CalendarDays],
-            ['checks', `Checks${assignments.length ? ` (${assignments.length})` : ''}`, ListChecks],
-            ['grade', orgContext ? 'Class Mastery' : 'Gradebook', LayoutGrid],
-            ['assess', 'Assess Work', ClipboardCheck],
-            ['reports', 'Reports', Printer],
-            ['templates', 'Assignment Templates', BookOpen],
-            ...(!orgContext || orgScope?.enabledTracks.includes('CONTINUING_EDUCATION_AND_CERTIFICATES')
-              ? [['integrity', 'Integrity Wall', ShieldCheck]]
-              : []),
-            ...(!orgContext
-              ? [
-                  ['connect', 'Integrations', Plug],
-                  ['context', 'Context', Globe],
-                ]
-              : []),
-          ]) as [string, string, any][]).map(([v, l, Icon]) => (
-            <button key={v} onClick={() => setTab(v)} style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 15px', borderRadius: 10, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 800, border: `1px solid ${tab === v ? T.orange : T.border}`, background: tab === v ? T.orange : 'transparent', color: tab === v ? '#1a1a1a' : T.muted }}>
-              <Icon size={13} /> {l}
+          {tools.map(t => (
+            <button key={t.id} onClick={() => setTab(t.id)} style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 15px', borderRadius: 10, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 800, border: `1px solid ${tab === t.id ? T.orange : T.border}`, background: tab === t.id ? T.orange : 'transparent', color: tab === t.id ? '#1a1a1a' : T.muted }}>
+              <t.icon size={13} /> {t.label}
             </button>
           ))}
         </div>
+        <button type="button" className="tt-menubtn" onClick={() => setMenuOpen(true)} aria-haspopup="dialog" aria-expanded={menuOpen}
+          style={{ position: 'sticky', top: 0, zIndex: 20, width: '100%', alignItems: 'center', gap: 10, margin: '14px 0 16px', minHeight: 48, padding: '0 14px', borderRadius: 12, border: `1px solid ${T.border}`, background: T.card, color: T.ink, cursor: 'pointer', fontFamily: T.font }}>
+          <Menu size={18} />
+          {currentTool && <currentTool.icon size={16} color={T.orange} />}
+          <span style={{ fontSize: 15, fontWeight: 800, flex: 1, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentTool?.label || 'Tools'}</span>
+          <span style={{ fontSize: 12, color: T.muted }}>All tools</span>
+        </button>
+        {menuOpen && (
+          <>
+            <div className="tt-drawer-back" onClick={() => setMenuOpen(false)} />
+            <nav className="tt-drawer" role="dialog" aria-modal="true" aria-label="Teacher tools" onKeyDown={e => { if (e.key === 'Escape') setMenuOpen(false); }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                <span style={{ fontSize: 17, fontWeight: 900 }}>Teacher tools</span>
+                <button type="button" autoFocus onClick={() => setMenuOpen(false)} aria-label="Close" style={{ width: 44, height: 44, display: 'grid', placeItems: 'center', borderRadius: 10, border: 'none', background: 'transparent', color: T.ink, cursor: 'pointer' }}><X size={20} /></button>
+              </div>
+              {TOOL_GROUPS.map(g => {
+                const list = tools.filter(t => t.group === g);
+                if (!list.length) return null;
+                return (
+                  <div key={g} style={{ marginTop: 12 }}>
+                    <div style={{ fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 800, color: T.muted, padding: '0 10px 6px' }}>{g}</div>
+                    {list.map(t => (
+                      <button key={t.id} type="button" onClick={() => { setTab(t.id); setMenuOpen(false); window.scrollTo({ top: 0 }); }} aria-current={tab === t.id ? 'page' : undefined}
+                        style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, minHeight: 48, padding: '0 10px', borderRadius: 10, border: 'none', background: tab === t.id ? `${T.orange}22` : 'transparent', color: tab === t.id ? T.orange : T.ink, fontSize: 15, fontWeight: 700, textAlign: 'left', cursor: 'pointer', fontFamily: T.font }}>
+                        <t.icon size={18} /> {t.label}
+                      </button>
+                    ))}
+                  </div>
+                );
+              })}
+            </nav>
+          </>
+        )}
 
         {tab === 'worksheet' ? (
-          <ScanWorksheet user={user} orgContext={orgContext} />
+          <ScanWorksheet user={user} orgContext={orgContext} preferClassId={realClass?.id} />
         ) : tab === 'studentDesk' ? (
           <UniversalStudentDesk
             studentUid={user?.uid || 'student_academia'}
@@ -288,16 +398,16 @@ const TeacherToolsView: React.FC<{ onBack?: () => void; user?: any; orgContext?:
           />
         ) : tab === 'classroomClub' ? (
           <SharedClassroomClubHub
-            classId={DEMO_CLASS.id}
-            className={DEMO_CLASS.name}
-            classSubtitle={`${DEMO_CLASS.teacherName} · Teacher-Governed Classroom Club (Social Feed, Photos, Live Video/Audio Lecture, Raise Hand & Digital Whiteboard)`}
+            classId={cls.id}
+            className={cls.name}
+            classSubtitle={`${cls.teacherName} · Teacher-Governed Classroom Club (Social Feed, Photos, Live Video/Audio Lecture, Raise Hand & Digital Whiteboard)`}
             contextKind="ACADEMIA"
             teacherUid={user?.uid || 'teacher_demo'}
-            teacherName={user?.displayName || DEMO_CLASS.teacherName}
+            teacherName={cls.teacherName}
             isTeacher={true}
             currentUserUid={user?.uid || 'teacher_demo'}
-            currentUserName={user?.displayName || DEMO_CLASS.teacherName}
-            rosterStudents={DEMO_CLASS.students.map(s => ({ id: s.id, name: s.name }))}
+            currentUserName={cls.teacherName}
+            rosterStudents={cls.students.map(s => ({ id: s.id, name: s.name }))}
           />
         ) : (tab as string) === 'contentHq' ? (
           <div style={{ ...cardStyle, padding: 18 }}>
@@ -348,13 +458,13 @@ const TeacherToolsView: React.FC<{ onBack?: () => void; user?: any; orgContext?:
           <AssignmentTemplateStudio
             uid={user?.uid || 'demo'}
             classroom={{
-              classId: DEMO_CLASS.id,
-              className: DEMO_CLASS.name,
-              students: DEMO_CLASS.students.map(s => ({ id: s.id, name: s.name })),
-              teacher: { uid: user?.uid || 'demo', name: user?.displayName || DEMO_CLASS.teacherName, photo: user?.photoURL || '' },
-              // DEMO_CLASS students are placeholder ids, not real accounts — write the
+              classId: cls.id,
+              className: cls.name,
+              students: cls.students.map(s => ({ id: s.id, name: s.name })),
+              teacher: { uid: user?.uid || 'demo', name: cls.teacherName, photo: user?.photoURL || '' },
+              // Sample-class students are placeholder ids, not real accounts — write the
               // assignment record but never fan notifications out at uids that don't exist.
-              simulate: DEMO_CLASS.isDemo,
+              simulate: cls.isSample || !user?.uid,
             }}
           />
         ) : tab === 'integrity' ? (
@@ -368,17 +478,17 @@ const TeacherToolsView: React.FC<{ onBack?: () => void; user?: any; orgContext?:
         ) : tab === 'planner' ? (
           <Planner plans={plans} setPlans={setPlans} onCreateBlank={() => setTab('plan')} />
         ) : tab === 'checks' ? (
-          <ChecksBuilder subject={subject} band={band} standards={standards} assignments={assignments} setAssignments={setAssignments} />
+          <ChecksBuilder className={cls.name} subject={subject} band={band} standards={standards} assignments={assignments} setAssignments={setAssignments} />
         ) : tab === 'reports' ? (
-          <Reports />
+          <Reports cls={cls} />
         ) : standards.length === 0 ? (
           <div style={{ ...cardStyle, padding: 20, color: T.muted }}>No standards seeded for {subject} at this level yet. Try another subject/level.</div>
         ) : tab === 'plan' ? (
-          <PlanFromMastery students={students} standards={standards} subject={subject} band={band} onSave={addPlan} />
+          <PlanFromMastery cls={cls} standards={standards} subject={subject} band={band} onSave={addPlan} />
         ) : tab === 'grade' ? (
-          <Gradebook students={students} standards={standards} subject={subject} band={band} />
+          <Gradebook cls={cls} standards={standards} subject={subject} band={band} />
         ) : (
-          <AssessWork students={students} standards={standards} user={user} />
+          <AssessWork cls={cls} standards={standards} user={user} onRecorded={refreshMastery} />
         )}
       </div>
     </div>
@@ -404,7 +514,7 @@ const classworkScope = (user?: any, orgContext?: TeacherToolsOrgContext) => ({
 });
 const openClasswork = (user?: any, orgContext?: TeacherToolsOrgContext) => openTelaClasswork(classworkScope(user, orgContext));
 
-const ScanWorksheet: React.FC<{ user?: any; orgContext?: TeacherToolsOrgContext }> = ({ user, orgContext }) => {
+const ScanWorksheet: React.FC<{ user?: any; orgContext?: TeacherToolsOrgContext; preferClassId?: string }> = ({ user, orgContext, preferClassId }) => {
   const [stage, setStage] = useState<ScanStage>('capture');
   const [preview, setPreview] = useState<string>('');
   const [prepared, setPrepared] = useState<PreparedWorksheetImage | null>(null);
@@ -765,7 +875,7 @@ const ScanWorksheet: React.FC<{ user?: any; orgContext?: TeacherToolsOrgContext 
               <div style={{ marginTop: 8, fontSize: 10.5, color: T.faint, lineHeight: 1.5 }}>The Tela document is saved as the worksheet's editable source. Publishing syncs your authored questions &amp; answer key back into the graded version.</div>
             </div>
 
-            <WorksheetAssignSetup sheet={sheet} onSheet={setSheet} uid={user?.uid} locked={published} onTarget={setTarget} />
+            <WorksheetAssignSetup sheet={sheet} onSheet={setSheet} uid={user?.uid} locked={published} onTarget={setTarget} preferClassId={preferClassId} />
 
             <div style={{ ...cardStyle, padding: 16 }}>
               <Eyebrow>Auto-wired on publish</Eyebrow>
@@ -1006,41 +1116,47 @@ const ContentLibrary: React.FC<{ orgContext?: TeacherToolsOrgContext; orgScope?:
 };
 
 // ── 1. Gradebook ─────────────────────────────────────────────────────────────────
-const Gradebook: React.FC<{ students: { id: string; name: string; color: string }[]; standards: LearningStandard[]; subject: Subject; band: BandId }> = ({ students, standards, subject, band }) => {
+const NoEvidence: React.FC<{ cls: ToolsClass; what: string }> = ({ cls, what }) => (
+  <div style={{ ...cardStyle, padding: 20, color: T.muted, fontSize: 13, lineHeight: 1.55 }}>
+    {cls.students.length
+      ? <>No mastery evidence for {cls.name} yet, so there's no {what} to show. Assign a worksheet or record an assessment, and it fills in from your students' Learner Ledger.</>
+      : <>{cls.name} has no students yet. Share its join code from Classrooms, and {what} appears once they've turned in work.</>}
+  </div>
+);
+
+const Gradebook: React.FC<{ cls: ToolsClass; standards: LearningStandard[]; subject: Subject; band: BandId }> = ({ cls, standards, subject, band }) => {
+  const students = cls.students;
+  const rowsOf = students.map(st => { const cells = standards.map(s => cls.masteryOf(st.id, s.id)); return { st, cells, avg: avgOf(cells) }; });
   const exportCsv = () => {
     const headers = ['Student', ...standards.map(s => s.code), 'Average'];
-    const rows = students.map(st => {
-      const cells = standards.map(s => cellMastery(st.id, s.id));
-      const avg = Math.round(cells.reduce((a, b) => a + b, 0) / cells.length);
-      return [st.name, ...cells, avg];
-    });
-    downloadText(exportGradebookCSV(headers, rows), `plajah-gradebook-${subject}-${band}.csv`, 'text/csv');
+    downloadText(exportGradebookCSV(headers, rowsOf.map(r => [r.st.name, ...r.cells.map(c => (c === null ? '' : c)), r.avg === null ? '' : r.avg])), `plajah-gradebook-${subject}-${band}.csv`, 'text/csv');
   };
+  if (!rowsOf.some(r => r.avg !== null)) return <NoEvidence cls={cls} what="gradebook" />;
   return (
     <div style={{ ...cardStyle, padding: 16, overflowX: 'auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <Eyebrow>Standards-based gradebook · mastery heatmap</Eyebrow>
-        <button onClick={exportCsv} title="Export to CSV (import into any SIS/gradebook)" style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 11px', borderRadius: 8, border: `1px solid ${T.border}`, background: 'transparent', color: T.green, fontSize: 10, fontWeight: 800 }}><FileDown size={12} /> Export CSV</button>
+        <Eyebrow>Standards-based gradebook · mastery heatmap{cls.isSample ? ' · sample data' : ''}</Eyebrow>
+        <button onClick={exportCsv} title="Export to CSV (import into any SIS/gradebook)" style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 40, padding: '6px 11px', borderRadius: 8, border: `1px solid ${T.border}`, background: 'transparent', color: T.green, fontSize: 11, fontWeight: 800 }}><FileDown size={12} /> Export CSV</button>
       </div>
       <div style={{ minWidth: 120 + standards.length * 90 }}>
         <div style={{ display: 'grid', gridTemplateColumns: `160px repeat(${standards.length}, 1fr)`, gap: 6, alignItems: 'end', paddingBottom: 8 }}>
           <span />
           {standards.map(s => <div key={s.id} style={{ fontSize: 9, color: T.muted, fontWeight: 800, textAlign: 'center', lineHeight: 1.2 }}>{s.code}</div>)}
         </div>
-        {students.map(st => {
-          const cells = standards.map(s => cellMastery(st.id, s.id));
-          const avg = Math.round(cells.reduce((a, b) => a + b, 0) / cells.length);
-          return (
-            <div key={st.id} style={{ display: 'grid', gridTemplateColumns: `160px repeat(${standards.length}, 1fr)`, gap: 6, alignItems: 'center', marginBottom: 6 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ width: 22, height: 22, borderRadius: '50%', background: st.color, display: 'grid', placeItems: 'center', fontWeight: 900, fontSize: 11 }}>{st.name.charAt(0)}</span>
-                <span style={{ fontSize: 12.5, fontWeight: 700 }}>{st.name}</span>
-                <span style={{ fontSize: 10, color: bandFor(avg).color, fontWeight: 800 }}>{avg}%</span>
-              </div>
-              {cells.map((m, i) => { const b = bandFor(m); return <div key={i} title={`${standards[i].code}: ${m}%`} style={{ height: 30, borderRadius: 6, background: `${b.color}2e`, border: `1px solid ${b.color}`, display: 'grid', placeItems: 'center', fontSize: 10, fontWeight: 800, color: b.color }}>{m}</div>; })}
+        {rowsOf.map(({ st, cells, avg }) => (
+          <div key={st.id} style={{ display: 'grid', gridTemplateColumns: `160px repeat(${standards.length}, 1fr)`, gap: 6, alignItems: 'center', marginBottom: 6 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ width: 22, height: 22, borderRadius: '50%', background: st.color, display: 'grid', placeItems: 'center', fontWeight: 900, fontSize: 11 }}>{st.name.charAt(0)}</span>
+              <span style={{ fontSize: 12.5, fontWeight: 700 }}>{st.name}</span>
+              {avg !== null && <span style={{ fontSize: 10, color: bandFor(avg).color, fontWeight: 800 }}>{avg}%</span>}
             </div>
-          );
-        })}
+            {cells.map((m, i) => {
+              if (m === null) return <div key={i} title={`${standards[i].code}: no evidence yet`} style={{ height: 30, borderRadius: 6, border: `1px dashed ${T.border}`, display: 'grid', placeItems: 'center', fontSize: 10, color: T.faint }}>—</div>;
+              const b = bandFor(m);
+              return <div key={i} title={`${standards[i].code}: ${m}%`} style={{ height: 30, borderRadius: 6, background: `${b.color}2e`, border: `1px solid ${b.color}`, display: 'grid', placeItems: 'center', fontSize: 10, fontWeight: 800, color: b.color }}>{m}</div>;
+            })}
+          </div>
+        ))}
       </div>
       <div style={{ marginTop: 12, display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: 10, color: T.muted }}>
         {bandLegend()}
@@ -1054,14 +1170,21 @@ const bandLegend = () => ['emerging', 'developing', 'proficient', 'advanced', 't
 });
 
 // ── 2. Plan from Mastery (the headline) ──────────────────────────────────────────
-const PlanFromMastery: React.FC<{ students: { id: string; name: string }[]; standards: LearningStandard[]; subject: Subject; band: BandId; onSave: (p: Omit<LessonPlan, 'id' | 'createdAt'>) => void }> = ({ students, standards, subject, band, onSave }) => {
-  // Class-average mastery per standard → weakest first.
-  const ranked = useMemo(() => standards.map(s => {
-    const avg = Math.round(students.reduce((a, st) => a + cellMastery(st.id, s.id), 0) / students.length);
-    return { std: s, avg };
-  }).sort((a, b) => a.avg - b.avg), [standards, students]);
+const PlanFromMastery: React.FC<{ cls: ToolsClass; standards: LearningStandard[]; subject: Subject; band: BandId; onSave: (p: Omit<LessonPlan, 'id' | 'createdAt'>) => void }> = ({ cls, standards, subject, band, onSave }) => {
+  const students = cls.students;
+  // Class-average mastery per standard (only where there is evidence) → weakest first.
+  const ranked = useMemo(() => standards
+    .map(s => ({ std: s, avg: avgOf(students.map(st => cls.masteryOf(st.id, s.id))) }))
+    .filter((r): r is { std: LearningStandard; avg: number } => r.avg !== null)
+    .sort((a, b) => a.avg - b.avg), [standards, students, cls]);
 
   const target = ranked[0];
+  if (!target) return <NoEvidence cls={cls} what="plan" />;
+  return <PlanFromMasteryBody cls={cls} ranked={ranked} target={target} subject={subject} band={band} onSave={onSave} />;
+};
+
+const PlanFromMasteryBody: React.FC<{ cls: ToolsClass; ranked: Array<{ std: LearningStandard; avg: number }>; target: { std: LearningStandard; avg: number }; subject: Subject; band: BandId; onSave: (p: Omit<LessonPlan, 'id' | 'createdAt'>) => void }> = ({ cls, ranked, target, subject, band, onSave }) => {
+  const students = cls.students;
   const cartridge = SUBJECTS.find(s => s.id === subject)!.cartridge;
   const grade = (BAND_TO_GRADES[band] || ['g3'])[0] as GradeId;
   const turbo = turboTrackFor(subject, grade);
@@ -1073,9 +1196,10 @@ const PlanFromMastery: React.FC<{ students: { id: string; name: string }[]; stan
   // Differentiate the roster by their mastery on the target standard.
   const groups = useMemo(() => {
     const g = { support: [] as string[], onLevel: [] as string[], turbo: [] as string[] };
-    students.forEach(st => { const m = cellMastery(st.id, target.std.id); if (m >= 85) g.turbo.push(st.name); else if (m < 55) g.support.push(st.name); else g.onLevel.push(st.name); });
+    // Students with no evidence on this standard yet aren't guessed into a track.
+    students.forEach(st => { const m = cls.masteryOf(st.id, target.std.id); if (m === null) return; if (m >= 85) g.turbo.push(st.name); else if (m < 55) g.support.push(st.name); else g.onLevel.push(st.name); });
     return g;
-  }, [target, students]);
+  }, [target, students, cls]);
 
   const savePlan = () => onSave({ title: `${target.std.code} — gap-closer`, subject, band, standardCode: target.std.code, objective: target.std.statement, activities: [`Support — ${supportAct}`, `On-Level — ${onLevelAct}`, `Turbo — ${turboAct}`], notes: '' });
 
@@ -1119,30 +1243,42 @@ const PlanTrack: React.FC<{ color: string; title: string; who: string[]; activit
 );
 
 // ── 3. Assess Work (creativity-as-assessment) ────────────────────────────────────
-const AssessWork: React.FC<{ students: { id: string; name: string }[]; standards: LearningStandard[]; user?: any }> = ({ students, standards, user }) => {
-  const [studentId, setStudentId] = useState(students[0].id);
+const AssessWork: React.FC<{ cls: ToolsClass; standards: LearningStandard[]; user?: any; onRecorded?: () => void }> = ({ cls, standards, user, onRecorded }) => {
+  const students = cls.students;
+  const [studentId, setStudentId] = useState(students[0]?.id || '');
+  useEffect(() => { if (!students.some(s => s.id === studentId)) setStudentId(students[0]?.id || ''); }, [students, studentId]);
   const [standardId, setStandardId] = useState(standards[0].id);
   const [artifact, setArtifact] = useState('');
   const [score, setScore] = useState(3);
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveErr, setSaveErr] = useState('');
 
   const SCALE = [['1', 'Emerging', 30], ['2', 'Developing', 55], ['3', 'Proficient', 75], ['4', 'Advanced', 92]] as [string, string, number][];
   const masteryForScore = SCALE.find(s => s[0] === String(score))![2];
 
-  const save = () => {
-    if (user?.uid) {
-      // In production, studentId is the child's real uid; here we record under the teacher's view.
-      appendRecord({ studentId: String(studentId), standardId, framework: standardById(standardId)?.framework || 'CCSS_ELA', source: 'creative-artifact', masteryBefore: masteryForScore, masteryAfter: masteryForScore, byUid: user.uid, evidence: artifact || undefined }).catch(() => {});
+  // A real class records through the server (the ledger is student/guardian-only in rules); the sample
+  // class has no real students, so nothing is written.
+  const save = async () => {
+    if (!studentId || saving) return;
+    setSaveErr('');
+    if (!cls.isSample && user?.uid) {
+      setSaving(true);
+      const ok = await recordClassAssessment({ classId: cls.id, studentId, standardId, framework: standardById(standardId)?.framework || 'CCSS_ELA', mastery: masteryForScore, evidence: artifact || undefined });
+      setSaving(false);
+      if (!ok) { setSaveErr('Couldn’t record that — check your connection and try again.'); return; }
+      onRecorded?.();
     }
     setSaved(true); setTimeout(() => setSaved(false), 1800);
   };
+  if (!students.length) return <NoEvidence cls={cls} what="assessment" />;
 
   return (
     <div style={{ ...cardStyle, padding: 18 }}>
       <Eyebrow color={T.violet}>Creativity-as-assessment</Eyebrow>
       <div style={{ fontSize: 13, color: T.muted, lineHeight: 1.5, marginBottom: 14 }}>Score a student's creative work — a song, a film scene, a piece of writing — against a standard. The result becomes evidence in their Learner Ledger, not just a number.</div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: 12, marginBottom: 12 }}>
         <div><Eyebrow>Student</Eyebrow><select value={studentId} onChange={e => setStudentId(e.target.value)} style={selStyle}>{students.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></div>
         <div><Eyebrow>Standard</Eyebrow><select value={standardId} onChange={e => setStandardId(e.target.value)} style={selStyle}>{standards.map(s => <option key={s.id} value={s.id}>{s.code} — {s.statement.slice(0, 40)}…</option>)}</select></div>
       </div>
@@ -1151,10 +1287,11 @@ const AssessWork: React.FC<{ students: { id: string; name: string }[]; standards
         <Eyebrow>Rubric score</Eyebrow>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>{SCALE.map(([v, label, m]) => <button key={v} onClick={() => setScore(+v)} style={chip(score === +v, bandFor(m).color)}>{v} · {label}</button>)}</div>
       </div>
-      <button onClick={save} style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, padding: '11px 22px', borderRadius: 10, border: 'none', background: saved ? T.green : T.violet, color: '#fff', fontSize: 12, letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 800 }}>
-        {saved ? <><Check size={14} /> Recorded to ledger</> : <><Sparkles size={14} /> Record assessment</>}
+      <button onClick={() => void save()} disabled={saving} style={{ cursor: saving ? 'wait' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 44, padding: '11px 22px', borderRadius: 10, border: 'none', background: saved ? T.green : T.violet, color: '#fff', fontSize: 12, letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 800 }}>
+        {saving ? <><Loader2 size={14} /> Recording…</> : saved ? <><Check size={14} /> {cls.isSample ? 'Sample — not saved' : 'Recorded to ledger'}</> : <><Sparkles size={14} /> Record assessment</>}
       </button>
-      {!user?.uid && <div style={{ marginTop: 10, fontSize: 11, color: T.faint }}>Sign in as a teacher to write real ledger records.</div>}
+      {saveErr && <div role="alert" style={{ marginTop: 10, fontSize: 12, color: T.red }}>{saveErr}</div>}
+      {cls.isSample && <div style={{ marginTop: 10, fontSize: 11, color: T.faint }}>This is the sample class, so nothing is recorded. Pick one of your classes to write real ledger records.</div>}
     </div>
   );
 };
@@ -1211,7 +1348,7 @@ const Planner: React.FC<{ plans: LessonPlan[]; setPlans: React.Dispatch<React.Se
 const exportBtn = (color: string): React.CSSProperties => ({ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5, padding: '7px 11px', borderRadius: 8, border: `1px solid ${T.border}`, background: 'transparent', color, fontSize: 10.5, fontWeight: 800 });
 
 // ── Assignment / formative-check builder (QTI-native) ────────────────────────────
-const ChecksBuilder: React.FC<{ subject: Subject; band: BandId; standards: LearningStandard[]; assignments: AssignmentCheck[]; setAssignments: React.Dispatch<React.SetStateAction<AssignmentCheck[]>> }> = ({ subject, band, standards, assignments, setAssignments }) => {
+const ChecksBuilder: React.FC<{ className: string; subject: Subject; band: BandId; standards: LearningStandard[]; assignments: AssignmentCheck[]; setAssignments: React.Dispatch<React.SetStateAction<AssignmentCheck[]>> }> = ({ className, subject, band, standards, assignments, setAssignments }) => {
   const [title, setTitle] = useState('Exit ticket');
   const [standardId, setStandardId] = useState(standards[0]?.id || '');
   const [points, setPoints] = useState(10);
@@ -1264,7 +1401,7 @@ const ChecksBuilder: React.FC<{ subject: Subject; band: BandId; standards: Learn
         ))}
         <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
           <button onClick={() => setQuestions(qs => [...qs, { prompt: '', options: ['', '', ''], answer: 0 }])} style={{ ...exportBtn(T.muted), border: `1px dashed ${T.border}` }}><Plus size={12} /> Add question</button>
-          <button onClick={assign} disabled={!valid} style={{ cursor: valid ? 'pointer' : 'not-allowed', display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 18px', borderRadius: 10, border: 'none', background: T.orange, color: '#1a1a1a', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', opacity: valid ? 1 : 0.4 }}><ListChecks size={14} /> Assign to {DEMO_CLASS.name.split('—')[0].trim()}</button>
+          <button onClick={assign} disabled={!valid} style={{ cursor: valid ? 'pointer' : 'not-allowed', display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 18px', borderRadius: 10, border: 'none', background: T.orange, color: '#1a1a1a', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', opacity: valid ? 1 : 0.4 }}><ListChecks size={14} /> Assign to {className.split('—')[0].trim()}</button>
         </div>
       </div>
 
@@ -1300,31 +1437,45 @@ const ChecksBuilder: React.FC<{ subject: Subject; band: BandId; standards: Learn
 const SUBJ_LABEL: Partial<Record<Subject, { label: string; color: string }>> = {
   ELA: { label: 'Reading & Language', color: T.orange }, SCIENCE: { label: 'Science', color: T.violet }, MATH: { label: 'Mathematics', color: T.blue },
 };
-const buildReport = (studentId: string) => {
-  const student = DEMO_CLASS.students.find(s => s.id === studentId)!;
-  const items = STANDARDS.filter(s => SUBJ_LABEL[s.subject]).map(s => ({ std: s, m: cellMastery(studentId, s.id) }));
+const buildReport = (cls: ToolsClass, studentId: string) => {
+  const student = cls.students.find(s => s.id === studentId) || cls.students[0];
+  // Only standards with evidence go on a report a parent will read.
+  const items = STANDARDS.filter(s => SUBJ_LABEL[s.subject]).flatMap(s => { const m = cls.masteryOf(student.id, s.id); return m === null ? [] : [{ std: s, m }]; });
   const subjects: Record<string, { std: LearningStandard; m: number }[]> = {};
   items.forEach(it => { (subjects[it.std.subject] ||= []).push(it); });
   const overall = items.length ? Math.round(items.reduce((a, x) => a + x.m, 0) / items.length) : 0;
   const sorted = [...items].sort((a, b) => b.m - a.m);
-  return { student, subjects, overall, strengths: sorted.slice(0, 3), focus: sorted.slice(-3).reverse() };
+  return { student, subjects, overall, evidence: items.length, strengths: sorted.slice(0, 3), focus: sorted.slice(-3).reverse() };
 };
 
-const Reports: React.FC = () => {
-  const [studentId, setStudentId] = useState(DEMO_CLASS.students[0].id);
-  const r = buildReport(studentId);
+const Reports: React.FC<{ cls: ToolsClass }> = ({ cls }) => {
+  const [studentId, setStudentId] = useState(cls.students[0]?.id || '');
+  if (!cls.students.length) return <NoEvidence cls={cls} what="report" />;
+  return <ReportFor cls={cls} studentId={cls.students.some(s => s.id === studentId) ? studentId : cls.students[0].id} setStudentId={setStudentId} />;
+};
+
+const ReportFor: React.FC<{ cls: ToolsClass; studentId: string; setStudentId: (id: string) => void }> = ({ cls, studentId, setStudentId }) => {
+  const r = buildReport(cls, studentId);
   const band = bandFor(r.overall);
   const [comment, setComment] = useState('');
   const defComment = `${r.student.name} is working at a ${band.label.toLowerCase()} level overall. Strongest in ${r.strengths[0]?.std.domain}. With a little focus on ${r.focus[0]?.std.domain}, ${r.student.name.split(' ')[0]} will keep climbing.`;
   const note = comment || defComment;
+  const studentPicker = <select value={studentId} onChange={e => setStudentId(e.target.value)} style={{ ...selStyle, maxWidth: 260, minHeight: 44 }}>{cls.students.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select>;
+  if (!r.evidence) return (
+    <div style={{ ...cardStyle, padding: 18, display: 'grid', gap: 12 }}>
+      {studentPicker}
+      <div style={{ fontSize: 13, color: T.muted, lineHeight: 1.55 }}>No mastery evidence for {r.student.name} yet, so there's nothing to report. Their report fills in as they turn in work and you record assessments.</div>
+    </div>
+  );
 
+  const esc = (v: unknown) => String(v ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
   const reportHTML = () => {
     const subj = Object.entries(r.subjects).map(([s, list]) => {
       const avg = Math.round(list.reduce((a, x) => a + x.m, 0) / list.length);
       const rows = list.map(x => `<tr><td>${x.std.code}</td><td>${x.std.statement}</td><td style="text-align:right;font-weight:700">${x.m}%</td></tr>`).join('');
       return `<h3>${SUBJ_LABEL[s as Subject]?.label || s} — ${avg}% (${bandFor(avg).label})</h3><table>${rows}</table>`;
     }).join('');
-    return `<!doctype html><html><head><meta charset="utf-8"><title>${r.student.name} — Progress Report</title>
+    return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(r.student.name)} — Progress Report</title>
 <style>body{font-family:-apple-system,Segoe UI,sans-serif;max-width:720px;margin:32px auto;color:#111;padding:0 16px}
 h1{margin:0;font-size:24px}.sub{color:#666;font-size:13px;margin:2px 0 16px}
 .standing{background:#f5f3ef;border-radius:10px;padding:14px 16px;margin-bottom:18px}
@@ -1333,19 +1484,19 @@ td{border-bottom:1px solid #eee;padding:5px 6px;vertical-align:top}
 .cols{display:flex;gap:24px;margin:12px 0}.col{flex:1}.col b{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:#888}
 .comment{border-left:3px solid #FF8C00;padding:8px 12px;background:#fff8ef;margin-top:18px;font-size:13px}
 .foot{margin-top:24px;color:#999;font-size:11px;border-top:1px solid #eee;padding-top:10px}</style></head>
-<body><h1>${r.student.name}</h1><div class="sub">${DEMO_CLASS.name} · ${DEMO_CLASS.teacherName} · Progress Report</div>
+<body><h1>${esc(r.student.name)}</h1><div class="sub">${esc(cls.name)} · ${esc(cls.teacherName)} · Progress Report</div>
 <div class="standing"><b>Overall:</b> ${r.overall}% — ${band.label} · Global standing: PISA band ${masteryToPISABand(r.overall)}/6</div>
 <div class="cols"><div class="col"><b>Strengths</b><ul>${r.strengths.map(x => `<li>${x.std.domain} (${x.m}%)</li>`).join('')}</ul></div>
 <div class="col"><b>Focus areas</b><ul>${r.focus.map(x => `<li>${x.std.domain} (${x.m}%)</li>`).join('')}</ul></div></div>
-${subj}<div class="comment"><b>Teacher note:</b> ${note}</div>
-<div class="foot">Generated from ${r.student.name.split(' ')[0]}'s Plajah Learner Ledger. Standards-aligned, portable, verifiable.</div></body></html>`;
+${subj}<div class="comment"><b>Teacher note:</b> ${esc(note)}</div>
+<div class="foot">Generated from ${esc(r.student.name.split(' ')[0])}'s Plajah Learner Ledger. Standards-aligned, portable, verifiable.</div></body></html>`;
   };
 
   return (
     <div>
       <div style={{ ...cardStyle, padding: 14, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <Eyebrow>Student</Eyebrow>
-        <select value={studentId} onChange={e => setStudentId(e.target.value)} style={{ ...selStyle, maxWidth: 220 }}>{DEMO_CLASS.students.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
+        <select value={studentId} onChange={e => setStudentId(e.target.value)} style={{ ...selStyle, maxWidth: 220 }}>{cls.students.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
         <div style={{ flex: 1 }} />
         <button onClick={() => downloadText(reportHTML(), `progress-report-${r.student.name.replace(/\W/g, '')}.html`, 'text/html')} style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 10, border: 'none', background: T.orange, color: '#1a1a1a', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em' }}><Printer size={14} /> Download report (print-ready)</button>
         <button onClick={() => downloadText(JSON.stringify({ student: r.student.name, overall: r.overall, level: band.label, pisaBand: masteryToPISABand(r.overall), subjects: r.subjects, note }, null, 2), `progress-report-${r.student.name.replace(/\W/g, '')}.json`)} style={exportBtn(T.muted)}><FileDown size={12} /> JSON</button>
@@ -1354,7 +1505,7 @@ ${subj}<div class="comment"><b>Teacher note:</b> ${note}</div>
       {/* In-app preview of the parent-facing report */}
       <div style={{ ...cardStyle, padding: 20 }}>
         <div style={{ fontWeight: 900, fontSize: 22 }}>{r.student.name}</div>
-        <div style={{ fontSize: 12, color: T.muted, marginBottom: 14 }}>{DEMO_CLASS.name} · {DEMO_CLASS.teacherName} · Progress Report</div>
+        <div style={{ fontSize: 12, color: T.muted, marginBottom: 14 }}>{cls.name} · {cls.teacherName} · Progress Report{cls.isSample ? ' · sample data' : ''}</div>
         <div style={{ background: T.cardAlt, border: `1px solid ${T.border}`, borderRadius: 10, padding: '12px 14px', marginBottom: 16, display: 'flex', gap: 18, alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ fontSize: 28, fontWeight: 900, color: band.color }}>{r.overall}%</div>
           <div style={{ fontSize: 13, color: T.muted }}><b style={{ color: band.color }}>{band.label}</b> · Global standing <b style={{ color: T.ink }}>PISA band {masteryToPISABand(r.overall)}/6</b></div>
