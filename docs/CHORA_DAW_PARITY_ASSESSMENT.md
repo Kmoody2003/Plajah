@@ -199,11 +199,11 @@ Done (the parity list's items 4–6: sampling, chop/slice, pad sample editor):
 - **Sampling** button in the control area (MIDI-learnable as the Sampling nav button) opens `machine/SamplerPanel.tsx` on the selected pad.
 - **Record:** any audio input or MEKA's own output (resample), through an AudioWorklet tap (`sampler/inputCapture.ts`). Modes: Threshold (dB, pre-roll so the attack is kept), Now, Sync (starts with the transport, records N bars). Input meter, max length, silence trimmed, take history with audition and "to pad".
 - **Edit:** drag-select on the waveform; Truncate, Normalize, Reverse, Fade in/out, Silence, ±3 dB (reusing `audio/audioEdit.ts`); each edit stores a new content-addressed sample; Undo.
-- **Slice:** Detect (transients, sensitivity), Grid (1/4–1/32 at the song tempo or the loop's own 1-/2-bar tempo), Split (N parts), Manual (click to add/remove cuts). Slices → pads from the selected pad (to the end of the Group), with an optional pattern that replays the loop in its original timing.
+- **Slice:** Detect (transients, sensitivity), Grid (1/4–1/32 at the song tempo or the loop's own 1-/2-bar tempo), Split (N parts), Manual (click to add/remove cuts). Slices → pads from the selected pad (to the end of the Group), with an optional pattern that replays the loop in its original timing; or → one KERA instrument, a slice per key from C1, on the pad or a new track (`sampler/sliceInstrument.ts`).
 - Pure logic in `sampler/takeRecorder.ts` and `sampler/slices.ts`; tests `tests/melosSampler.test.ts`. Checked in the lab: resampled four hits, normalized, auto-sliced to four pads + a pattern at the right steps.
 
 Not done:
-- Slices → keygroup (one KERA instrument across the keys), time-stretch to tempo, loop points, and Maschine's per-zone mapping page.
+- Time-stretch to tempo, loop points, and Maschine's per-zone mapping page.
 - Recording from a real microphone/interface wasn't exercised in the lab (permission prompt); the input path is the same tap.
 
 ## MEKA Drum Synth (2026-10-28)
@@ -351,7 +351,7 @@ engine-side step probability, undo.
 2. **Scenes + Song/Sections → auto-populated timeline** (design below).
 3. **Live pad recording** with record-quantize, overdub/replace — pad hits are never written (BeatsRoom:372).
 4. **Sampling** — record from input with threshold, resample internal audio. *(done 2026-10-28, see MEKA Sampler)*
-5. **Chop/slice** (transient / grid / manual) → slice to pads / to keygroup. *(pads done 2026-10-28; keygroup not yet)*
+5. **Chop/slice** (transient / grid / manual) → slice to pads / to keygroup. *(done 2026-10-28)*
 6. **Pad sample editor** — start/end/loop/reverse/normalize/stretch (reuse `audioEdit.ts`, `timeStretch.ts`). *(edit ops done 2026-10-28; loop + stretch not yet)*
 7. **Kit / program save-load-browse** with user tags.
 8. **Note repeat** scheduled by the engine (today a `setInterval` UI timer), with rate, swing, arp, latch, recorded.

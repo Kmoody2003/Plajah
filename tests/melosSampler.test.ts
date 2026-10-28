@@ -82,3 +82,16 @@ test('slices land on pads from the selected one, and a pattern replays them', ()
   assert.deepEqual([pat.steps[4]?.[0]?.v, pat.steps[5]?.[4]?.v, pat.steps[6]?.[24]?.v], [100, 100, 100]);
   assert.equal(pat.length, 32, 'grew to fit the last slice');
 });
+
+test('slices → instrument: one zone per key from C1, each rooted on its key', async () => {
+  const { slicesToProgram } = await import('../services/melos/beats/sampler/sliceInstrument');
+  const ch = new Float32Array(1000).fill(0.5);
+  const prog = slicesToProgram({ channels: [ch, ch], sampleRate: 1000 }, [{ start: 0, end: 300 }, { start: 300, end: 1000 }], 'Break', 36);
+  assert.equal(prog.zones.length, 2);
+  assert.deepEqual(prog.zones.map((z) => [z.loKey, z.hiKey]), [[36, 36], [37, 37]]);
+  assert.deepEqual(prog.samples.map((s) => s.rootNote), [36, 37], 'each slice plays at its own pitch');
+  assert.equal(prog.samples[1].channels[0].length, 700);
+  assert.equal(prog.samples[0].channels[1].length, 300, 'stereo kept');
+  assert.equal(prog.samples[0].channels[0][299], 0, 'faded out at the cut');
+  assert.equal(prog.zones[1].sampleId, prog.samples[1].id);
+});

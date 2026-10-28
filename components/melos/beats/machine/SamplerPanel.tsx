@@ -3,11 +3,12 @@
 //            to the transport; a take history to audition and drop onto the pad.
 //   Edit   — select on the waveform; truncate, normalize, reverse, fades, silence, gain; undo.
 //   Slice  — cut by transients, the tempo grid, equal parts or by hand; slices → pads (Maschine
-//            order, from the selected pad), optionally with a pattern that replays the loop.
+//            order, from the selected pad), optionally with a pattern that replays the loop, or
+//            → an instrument (one slice per key from C1, on KERA) on the pad or a new track.
 // Every edit writes a NEW content-addressed sample (the old one stays for undo / other pads).
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Circle, Square, Play, Undo2, Scissors } from 'lucide-react';
+import { Circle, Square, Play, Undo2, Scissors, Piano } from 'lucide-react';
 import type { GrooveDoc, SampleRef } from '../../../../services/melos/beats/grooveDoc';
 import { BANK_LETTERS, PAD_BANK } from '../../../../services/melos/beats/grooveDoc';
 import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine';
@@ -16,6 +17,10 @@ import { bufferToWav, crop, fadeIn, fadeOut, gain, normalize, peaks, reverse, si
 import { gridSlices, loopBpm, normalizeCuts, regions, slicesToPads, slicesToPattern, splitSlices, transientSlices, type SliceMode } from '../../../../services/melos/beats/sampler/slices';
 import { trimSilence, type RecordMode, type Take } from '../../../../services/melos/beats/sampler/takeRecorder';
 import { listInputs, startCapture, type Capture } from '../../../../services/melos/beats/sampler/inputCapture';
+import { slicesToProgram } from '../../../../services/melos/beats/sampler/sliceInstrument';
+import { serializeKeraProgram, backupKeraSamples } from '../../../../services/melos/instruments/kera/persist';
+import { makeInstrumentTrack } from '../../../../services/melos/beats/instrumentFactory';
+import { instrumentOnPad, instrumentTrack } from '../../../../services/melos/beats/kits/applyInstrument';
 import { PLAYHEAD, SELECT } from '../theme';
 
 type Tab = 'record' | 'edit' | 'slice';
@@ -235,6 +240,35 @@ export const SamplerPanel: React.FC<Props> = ({ doc, selectedPad, color, pattern
     } finally { setBusy(false); }
   }, [buf, cuts, startLocal, pad, onMutate, bank, color, withPattern, patternId, bpm, onSelectPad]);
 
+  /** Slices → a KERA instrument: one slice per key from C1, on the selected pad or a new track. */
+  const doSliceInstrument = useCallback(async (target: 'pad' | 'track') => {
+    if (!buf || !cuts.length) return;
+    setBusy(true);
+    try {
+      const base = (pad?.name ?? 'Slices').replace(/\s+\d+$/, '');
+      const name = `${base} Slices`;
+      const channels = Array.from({ length: buf.numberOfChannels }, (_, c) => buf.getChannelData(c));
+      const program = slicesToProgram({ channels, sampleRate: buf.sampleRate }, regions(cuts, buf.length), name, 36);
+      setStatus(`Saving ${program.zones.length} slices…`);
+      const serialized = await serializeKeraProgram(program, null, { locker: false });
+      let trackId: string | null = null;
+      onMutate((d) => {
+        const track = makeInstrumentTrack('kera', d.arrangement.filter((t) => t.kind === 'instrument').length, undefined, name);
+        track.instrument!.kera = serialized as unknown as Record<string, unknown>;
+        trackId = target === 'pad' ? instrumentOnPad(d, selectedPad, track, name) : instrumentTrack(d, track, name);
+        // On a pad, the base note is C1 so Keys mode / the pitch roll start on slice 1.
+        if (target === 'pad') { const p = d.kit[selectedPad]; if (p) p.instrumentNote = 36; }
+      });
+      BeatsEngine.get().syncInstruments();
+      setStatus(`${program.zones.length} slices → ${target === 'pad' ? `pad ${(selectedPad % 16) + 1}` : 'new track'}, C1 upward — play them in Keys mode`);
+      const id = trackId as string | null;
+      if (id) void backupKeraSamples(serialized).then((sp) => onMutate((d) => {
+        const t = d.arrangement.find((x) => x.id === id);
+        if (t?.instrument) t.instrument.kera = sp as unknown as Record<string, unknown>;
+      }));
+    } finally { setBusy(false); }
+  }, [buf, cuts, pad, onMutate, selectedPad]);
+
   const btn = 'h-6 px-2 rounded-md text-[9.5px] border border-white/12 text-white/60 hover:text-white disabled:opacity-30';
   const chip = (on: boolean) => ({ className: 'h-6 px-2 rounded-md text-[9.5px] border', style: on ? { color: '#fff', borderColor: `${color}88`, background: `${color}22` } : { color: 'rgba(255,255,255,0.45)', borderColor: 'rgba(255,255,255,0.12)' } });
   const hasSample = !!buf;
@@ -372,6 +406,11 @@ export const SamplerPanel: React.FC<Props> = ({ doc, selectedPad, color, pattern
             <button disabled={busy || !cuts.length} onClick={() => void doSlice()} className="h-7 px-3 rounded-lg text-[10px] font-semibold border flex items-center gap-1.5 disabled:opacity-30" style={{ color: PLAYHEAD, borderColor: `${PLAYHEAD}66` }}>
               <Scissors size={11} /> Slice to pads {startLocal + 1}–{startLocal + fits}{cuts.length > fits ? ` (${fits} of ${cuts.length})` : ''}
             </button>
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5 justify-end">
+            <span className="text-[9px] text-white/35 mr-auto">or as one instrument — every slice on its own key from C1:</span>
+            <button disabled={busy || !cuts.length} onClick={() => void doSliceInstrument('pad')} className={btn} title="Replace this pad with a KERA instrument of the slices"><Piano size={9} className="inline -mt-px" /> Instrument on pad {(selectedPad % 16) + 1}</button>
+            <button disabled={busy || !cuts.length} onClick={() => void doSliceInstrument('track')} className={btn} title="A new KERA track on the Timeline, armed for your keyboard"><Piano size={9} className="inline -mt-px" /> New instrument track</button>
           </div>
         </div>
       )}
