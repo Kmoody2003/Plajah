@@ -26,6 +26,9 @@ import {
   type OrgEducationScopeConfig,
 } from '../../services/orgEducationScopeService';
 import OrgEducationScopeGovernancePanel from '../church/OrgEducationScopeGovernancePanel';
+import EduPhoneShell, { type EduPhoneTab } from '../edu/EduPhoneShell';
+import { useViewport } from '../../hooks/useViewport';
+import { Compass, Home as HomeIcon, Wrench } from 'lucide-react';
 
 /**
  * Teacher hub (ACADEMIA_HOME for teachers), top to bottom:
@@ -85,6 +88,10 @@ const TeacherHub: React.FC<Props> = ({ user, profile, onNavigate, isAdminLens, o
   /** Open attendance sheet: undefined = closed, '' = default class, id = that class. */
   const [attFor, setAttFor] = useState<string | undefined>(undefined);
   const [attVersion, setAttVersion] = useState(0);
+  // Phone: one section per bottom tab (EduPhoneShell); wider screens show the whole page.
+  const { isPhone } = useViewport();
+  const [phoneTab, setPhoneTab] = useState<'today' | 'classes' | 'tools' | 'discover'>('today');
+  const show = (sec: typeof phoneTab) => !isPhone || phoneTab === sec;
   const [orgScope, setOrgScope] = useState<OrgEducationScopeConfig | null>(() =>
     orgContext ? loadOrgEducationScope(orgContext.org) : null
   );
@@ -292,13 +299,21 @@ const TeacherHub: React.FC<Props> = ({ user, profile, onNavigate, isAdminLens, o
     [orgContext, orgScope]
   );
 
+  const phoneTabs: EduPhoneTab[] = [
+    { id: 'today', label: 'Today', icon: HomeIcon, badge: t?.awaiting || 0 },
+    { id: 'classes', label: 'Classes', icon: Users },
+    { id: 'tools', label: 'Tools', icon: Wrench },
+    { id: 'discover', label: 'Discover', icon: Compass },
+  ];
+
   return (
+    <EduPhoneShell tabs={phoneTabs} active={phoneTab} onSelect={id => { setPhoneTab(id as typeof phoneTab); window.scrollTo({ top: 0 }); }} label="Teacher">
     <div className="min-h-full bg-[#0a0a0f] text-white pb-24">
       <AcademiaResponsiveStyles />
       <div className="acad-tight max-w-[1360px] mx-auto px-4 sm:px-8 py-6">
 
         {/* Profile band */}
-        <section className="relative rounded-[28px] overflow-hidden border border-white/10">
+        {show('today') && <section className="relative rounded-[28px] overflow-hidden border border-white/10">
           <img src="/academia/archipelago.jpg" alt="" className="absolute inset-0 w-full h-full object-cover opacity-55" />
           <div className="absolute inset-0" style={{ background: 'linear-gradient(90deg, rgba(10,10,15,0.96) 0%, rgba(10,10,15,0.75) 45%, rgba(10,10,15,0.2) 100%)' }} />
           <div className="relative flex flex-wrap items-center justify-between gap-5 sm:gap-6 px-4 sm:px-10 py-6 sm:py-8">
@@ -333,10 +348,10 @@ const TeacherHub: React.FC<Props> = ({ user, profile, onNavigate, isAdminLens, o
               <CreateEventButton compact label="Plan a class event" host={{ kind: 'teacher', id: uid, label: orgContext ? `${orgContext.org.name} Class` : first ? `${first}’s class` : 'My class' }} />
             </div>
           </div>
-        </section>
+        </section>}
 
         {/* Organization Scope & Uploaded Resource Governance Banner */}
-        {orgContext && (
+        {orgContext && show('today') && (
           <div className="mt-5">
             <OrgEducationScopeGovernancePanel
               org={orgContext.org}
@@ -349,23 +364,23 @@ const TeacherHub: React.FC<Props> = ({ user, profile, onNavigate, isAdminLens, o
         )}
 
         {/* Toolbox row */}
-        <section className="mt-7" aria-labelledby="tools-h">
+        {show('tools') && <section className={isPhone ? 'mt-2' : 'mt-7'} aria-labelledby="tools-h">
           <Eyebrow id="tools-h">
             {orgContext ? `${orgContext.org.name} · Provisioned Instructor Toolbox` : 'Your toolbox'}
           </Eyebrow>
-          <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1">
+          <div className={isPhone ? 'grid grid-cols-3 gap-2.5' : 'flex gap-3 overflow-x-auto pb-2 -mx-1 px-1'}>
             {tools.map(tl => (
               <button key={tl.label} type="button" onClick={() => (tl.onClick ? tl.onClick() : tl.tab ? go(onNavigate, tl.tab) : onNavigate(tl.view!))}
-                className={`shrink-0 w-[132px] h-[132px] rounded-[20px] bg-white/[0.04] border border-white/10 p-3.5 text-left flex flex-col justify-between ${lift}`}>
+                className={`${isPhone ? 'min-h-[112px]' : 'shrink-0 w-[132px] h-[132px]'} rounded-[20px] bg-white/[0.04] border border-white/10 p-3.5 text-left flex flex-col justify-between ${lift}`}>
                 <span className="w-10 h-10 rounded-xl grid place-items-center" style={{ background: `${tl.color}24`, color: tl.color }}><tl.icon size={21} /></span>
                 <span><span className="block text-[14px] font-bold leading-tight">{tl.label}</span>{tl.meta && <span className="block text-[12px] mt-0.5" style={{ color: tl.color }}>{tl.meta}</span>}</span>
               </button>
             ))}
           </div>
-        </section>
+        </section>}
 
         {/* Recent work */}
-        <section className="mt-6" aria-labelledby="recent-h">
+        {show('today') && <section className="mt-6" aria-labelledby="recent-h">
           <Eyebrow id="recent-h">Recent work</Eyebrow>
           {recent.length === 0 && templates !== null && <p className="text-[13px] text-white/55">Lessons you build and work waiting to grade show up here.</p>}
           <div className="grid gap-3.5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))' }}>
@@ -385,10 +400,10 @@ const TeacherHub: React.FC<Props> = ({ user, profile, onNavigate, isAdminLens, o
               onOpenAssignment={(id) => { try { window.history.pushState({}, '', lessonLink(id)); } catch { /* non-fatal */ } onNavigate('STUDENT_LESSON'); }}
               onNavigate={(v) => (v === 'TEACHER_TOOLS' ? go(onNavigate, 'assess') : onNavigate(v))} />
           </div>
-        </section>
+        </section>}
 
         {/* Search, dead center */}
-        <section className="mt-14 flex flex-col items-center text-center" aria-labelledby="find-h">
+        {show('classes') && <section className={`${isPhone ? 'mt-2' : 'mt-14'} flex flex-col items-center text-center`} aria-labelledby="find-h">
           <h2 id="find-h" className="text-[26px] sm:text-[38px] font-black" style={{ fontFamily: 'Outfit' }}>
             {orgContext ? `Find any member or class in ${orgContext.org.name}` : 'Find any student or class'}
           </h2>
@@ -420,15 +435,15 @@ const TeacherHub: React.FC<Props> = ({ user, profile, onNavigate, isAdminLens, o
               <button key={c.classId} type="button" onClick={() => onNavigate('CLASSROOMS')} className="min-h-[44px] px-4 rounded-full text-[14px] font-semibold text-[#FFB266] bg-[#FF8C00]/[0.08] border border-[#FF8C00]/35">Class · {c.title}</button>
             ))}
           </div>
-        </section>
+        </section>}
 
         <div ref={dossierRef} className="scroll-mt-6">
-          {sel && uid && <StudentDossier key={sel.uid} teacherUid={uid} student={sel} onNavigate={onNavigate} onClose={() => setSel(null)} onTakeAttendance={() => setAttFor(sel.classIds[0] || '')} attendanceVersion={attVersion} />}
+          {sel && uid && show('classes') && <StudentDossier key={sel.uid} teacherUid={uid} student={sel} onNavigate={onNavigate} onClose={() => setSel(null)} onTakeAttendance={() => setAttFor(sel.classIds[0] || '')} attendanceVersion={attVersion} />}
         </div>
 
         {/* Standalone Academia teacher panels — hidden when scoped inside an Organization */}
-        {!orgContext && (
-          <div className="mt-14 acad-fold-gap">
+        {!orgContext && show('discover') && (
+          <div className={`${isPhone ? 'mt-2' : 'mt-14'} acad-fold-gap`}>
             <DidYouKnow role="teacher" onNavigate={onNavigate} />
             <WellbeingPanel role="teacher" user={user} profile={profile} classes={classes || []} onNavigate={onNavigate} />
             <SupportHubCard role="teacher" uid={uid} onNavigate={onNavigate} />
@@ -436,7 +451,7 @@ const TeacherHub: React.FC<Props> = ({ user, profile, onNavigate, isAdminLens, o
         )}
 
         {/* Class performance */}
-        <section className="mt-10 mb-12" aria-labelledby="classes-h">
+        {show('classes') && <section className="mt-10 mb-12" aria-labelledby="classes-h">
           <Eyebrow id="classes-h">
             {orgContext ? `${orgContext.org.name} · Christian Education Classrooms` : 'Your classes'}
           </Eyebrow>
@@ -482,7 +497,7 @@ const TeacherHub: React.FC<Props> = ({ user, profile, onNavigate, isAdminLens, o
                     <Users className="mx-auto mb-2 text-white/30" />
                     <p className="text-sm font-bold">No classes yet</p>
                     <p className="text-[12px] text-white/50 mb-3">Create one, add or provision your students, and the numbers above come alive.</p>
-                    <button type="button" onClick={() => onNavigate('CLASSROOMS')} className="inline-flex items-center gap-1.5 rounded-full bg-[#FF8C00] text-black text-xs font-black px-4 py-2"><Plus size={14} /> Create a class</button>
+                    <button type="button" onClick={() => onNavigate('CLASSROOMS')} className="inline-flex items-center gap-1.5 min-h-[44px] rounded-full bg-[#FF8C00] text-black text-xs font-black px-4 py-2"><Plus size={14} /> Create a class</button>
                   </div>
                 )}
                 {(m?.classes || []).map(c => {
@@ -511,14 +526,14 @@ const TeacherHub: React.FC<Props> = ({ user, profile, onNavigate, isAdminLens, o
           {msg && <p role="status" className="text-[12px] text-[#06D6A0] mt-2">{msg}</p>}
           {!orgContext && (
             <div className="flex flex-wrap gap-2 mt-4">
-              <button type="button" onClick={() => onNavigate('CLASSROOMS')} className="text-[12px] font-bold rounded-full border border-white/15 px-4 py-2 hover:bg-white/10">Manage classes &amp; roster</button>
-              <button type="button" onClick={() => onNavigate('LEARN')} className="text-[12px] font-bold rounded-full border border-white/15 px-4 py-2 hover:bg-white/10">Course library</button>
+              <button type="button" onClick={() => onNavigate('CLASSROOMS')} className="min-h-[44px] text-[12px] font-bold rounded-full border border-white/15 px-4 py-2 hover:bg-white/10">Manage classes &amp; roster</button>
+              <button type="button" onClick={() => onNavigate('LEARN')} className="min-h-[44px] text-[12px] font-bold rounded-full border border-white/15 px-4 py-2 hover:bg-white/10">Course library</button>
             </div>
           )}
-        </section>
+        </section>}
 
         {/* Organization-Provisioned Courses & Uploaded Resources vs. Full Academia Showcases */}
-        {orgContext ? (
+        {!show('discover') ? null : orgContext ? (
           <section className="mt-8 space-y-4">
             <Eyebrow>
               Provisioned Courses &amp; Curriculum Tracks Under {orgContext.org.name} ({orgScopedCourses.length})
@@ -568,6 +583,7 @@ const TeacherHub: React.FC<Props> = ({ user, profile, onNavigate, isAdminLens, o
           onClose={() => setAttFor(undefined)} onSaved={() => setAttVersion(v => v + 1)} />
       )}
     </div>
+    </EduPhoneShell>
   );
 };
 export default TeacherHub;

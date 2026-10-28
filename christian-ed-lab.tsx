@@ -1,6 +1,6 @@
 // Christian Ed lab: the new hub, class clubs, review queue and Tela Classwork with sample Grace Chapel data.
 //   npx vite --config christian-ed-lab.vite.config.mjs  ->  http://127.0.0.1:3181/christian-ed-lab.html
-//   ?as=teacher (default) | student | review | classwork | templates | hq-templates
+//   ?as=teacher (default) | student | review | classwork | templates | hq-templates | academia-teacher | homeroom
 // Firestore calls fail without sign-in and fall back to this device, the same way the app behaves offline.
 import React, { useState } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -12,6 +12,8 @@ import { ED_CSS } from './components/church/christianEd/edStyles';
 import TelaClassworkStudio from './components/tela/classwork/TelaClassworkStudio';
 import TemplateLibrary from './components/templates/TemplateLibrary';
 import HqTemplatesTab from './components/templates/HqTemplatesTab';
+import TeacherHub from './components/academia/TeacherHub';
+import HomeroomView from './components/homeroom/HomeroomView';
 import type { ChurchProgram } from './services/churchEducationService';
 import type { IngestedCurriculumUnit } from './services/curriculumIngestionService';
 import { assignUnitToClassroomDesk } from './services/universalStudentDeskService';
@@ -128,6 +130,10 @@ const sub: EduSubmissionRecord = {
 const Lab: React.FC = () => {
   const [programs, setPrograms] = useState<ChurchProgram[]>([kids, youth]);
   const save = async (p: ChurchProgram) => setPrograms(prev => (prev.some(x => x.id === p.id) ? prev.map(x => (x.id === p.id ? p : x)) : [...prev, p]));
+
+  // Academia hubs (signed out: their Firestore reads come back empty), for the phone layout.
+  if (as === 'academia-teacher') return <TeacherHub user={{ uid: teacher.uid, displayName: teacher.name }} profile={{ uid: teacher.uid, displayName: teacher.name, accountType: 'TEACHER' }} onNavigate={v => console.log('navigate', v)} />;
+  if (as === 'homeroom') return <HomeroomView user={{ uid: student.uid, displayName: student.name }} profile={{ uid: student.uid, displayName: student.name, accountType: 'STUDENT', age: 12 }} onNavigate={v => console.log('navigate', v)} />;
 
   if (as === 'classwork') {
     return (

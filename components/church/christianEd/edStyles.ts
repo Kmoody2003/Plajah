@@ -116,6 +116,28 @@ export const ED_CSS = `
 .ce .empty{border:1px dashed var(--bd2);border-radius:18px;padding:22px;text-align:center;display:grid;gap:8px;justify-items:center;color:var(--dim)}
 .ce .empty .t{font-family:var(--fd);font-weight:800;color:var(--ink)}
 @media(prefers-reduced-motion:reduce){.ce *{transition:none!important}}
+
+/* phone: thumb-size targets, 16px inputs (iOS zooms anything smaller), one column */
+@media(max-width:720px){
+  .ce{gap:14px}
+  .ce .btn{height:44px;padding:0 16px;font-size:.86rem}
+  .ce .btn.sm{height:40px;padding:0 14px;font-size:.8rem}
+  .ce .back{height:44px;padding:0 16px}
+  .ce .field,.ce select.field,.ce textarea.field{font-size:16px;min-height:44px}
+  .ce .chip{min-height:40px;padding:8px 14px;font-size:.8rem}
+  .ce .channels{width:100%}
+  .ce .channels button{height:40px;padding:0 14px;flex:1 0 auto;justify-content:center}
+  .ce .today{grid-template-columns:1fr 1fr}
+  .ce .stat{min-height:84px}
+  .ce .clubs{grid-template-columns:1fr}
+  .ce .club .art{height:72px}
+  .ce .hubhead h2{font-size:1.7rem}
+  .ce .cover{min-height:150px;border-radius:20px}
+  .ce .card{padding:13px 14px}
+  .ce .sheet{border-radius:18px}
+  .ce .wk{grid-template-columns:34px minmax(0,1fr);row-gap:8px}
+  .ce .wk>:last-child{grid-column:1/-1}
+}
 `;
 
 /** Cover art per class, picked from the class id so it stays stable. Plajah gradient family only. */

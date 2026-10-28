@@ -18,6 +18,9 @@ import StudentScoreboard from '../academia/StudentScoreboard';
 import { DidYouKnow, ExhibitsRow, StudiosRow, LoreaShelf, CurriculumShowcase, AcademiaResponsiveStyles } from '../academia/AcademiaShowcase';
 import { bandForAge } from '../../data/academiaShowcase';
 import { UniversalStudentDesk } from '../desk/UniversalStudentDesk';
+import EduPhoneShell, { type EduPhoneTab } from '../edu/EduPhoneShell';
+import { useViewport } from '../../hooks/useViewport';
+import { Home as HomeIcon, Sparkles as LearnIcon, Users as ClassesIcon, UserRound } from 'lucide-react';
 
 /**
  * Homeroom — the student's home screen (view STUDENT_HOME). The Creator Hub, rebuilt around school:
@@ -42,7 +45,8 @@ const CSS = `
   --fd:"Outfit","Space Grotesk",system-ui,sans-serif;--fb:"Inter",system-ui,sans-serif;--fm:"JetBrains Mono",ui-monospace,monospace;
   min-height:100%;background:var(--bg);color:var(--ink);font-family:var(--fb);padding:16px 16px 56px}
 .hr *{box-sizing:border-box}
-.hr button,.hr input,.hr textarea,.hr select{font:inherit;color:inherit}
+/* In @layer base so utility classes (text-black on the white "Calm corner" pill) win over this reset; unlayered CSS beats any layer. */
+@layer base{:where(.hr) :is(button,input,textarea,select){font:inherit;color:inherit}}
 .hr .wrap{max-width:1180px;margin:0 auto;display:grid;gap:16px}
 .hr .wrap>*{min-width:0}
 .hr .col>*{min-width:0}
@@ -166,6 +170,16 @@ const HomeroomView: React.FC<Props> = ({ user, profile, onNavigate }) => {
   const [stats, setStats] = useState<LearnerStats | null>(null);
   const { sp: schoolSp } = useSchoolProfile(profile, [classes?.[0]?.ownerId]);
   const coach = useRef<Mascot2DHandle>(null);
+  // Phone: one section per bottom tab (EduPhoneShell); wider screens show the whole homeroom.
+  const { isPhone } = useViewport();
+  const [phoneTab, setPhoneTab] = useState<'today' | 'learn' | 'classes' | 'me'>('today');
+  const show = (sec: typeof phoneTab) => !isPhone || phoneTab === sec;
+  const phoneTabs: EduPhoneTab[] = [
+    { id: 'today', label: 'Today', icon: HomeIcon },
+    { id: 'learn', label: 'Learn', icon: LearnIcon },
+    { id: 'classes', label: 'Classes', icon: ClassesIcon },
+    { id: 'me', label: 'Me', icon: UserRound },
+  ];
 
   useEffect(() => { const t = setTimeout(() => coach.current?.react('wave'), 500); return () => clearTimeout(t); }, []);
   useEffect(() => {
@@ -190,6 +204,7 @@ const HomeroomView: React.FC<Props> = ({ user, profile, onNavigate }) => {
   const flash = (m: string) => { setToast(m); setTimeout(() => setToast(''), 3500); };
 
   return (
+    <EduPhoneShell tabs={phoneTabs} active={phoneTab} onSelect={id => { setPhoneTab(id as typeof phoneTab); window.scrollTo({ top: 0 }); }} label="Homeroom">
     <div className="hr">
       <style>{CSS}</style>
       <AcademiaResponsiveStyles />
@@ -205,7 +220,7 @@ const HomeroomView: React.FC<Props> = ({ user, profile, onNavigate }) => {
           </div>
         </div>
 
-        <div className={`hello ${band === 'senior' ? 'senior' : ''}`}>
+        {show('today') && <div className={`hello ${band === 'senior' ? 'senior' : ''}`}>
           {band !== 'senior' && <div style={{ width: band === 'early' ? 150 : 120 }}><Mascot2D ref={coach} who="chora" mood="idle" size={band === 'early' ? 150 : 120} /></div>}
           <div>
             <span className="eyebrow">Homeroom</span>
@@ -216,17 +231,18 @@ const HomeroomView: React.FC<Props> = ({ user, profile, onNavigate }) => {
               <span className="chip">{sig.filter(s => s.earned).length} Sigils</span>
             </div>
           </div>
-        </div>
+        </div>}
 
 
-        <section aria-label="Your learning tools">
-          <div className="card-hd" style={{ marginBottom: 10 }}>
+        <section aria-label="Your learning tools" hidden={isPhone && phoneTab !== 'today' && phoneTab !== 'learn'}>
+          {show('learn') && <div className="card-hd" style={{ marginBottom: 10 }}>
             <h2 className="h2">Your learning tools</h2>
             <span className="note">Your progress shows on every card</span>
-          </div>
-          <button type="button" onClick={() => setOpenStudentDesk(v => !v)} aria-label="Open Universal Student Desk" style={{ width: '100%', minHeight: 72, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px', borderRadius: 18, border: '1px solid rgba(251,191,36,.55)', background: 'linear-gradient(135deg,rgba(107,0,153,.38),rgba(212,0,85,.28),rgba(255,140,0,.22))', color: '#fff', textAlign: 'left', cursor: 'pointer', font: 'inherit' }}>
+          </div>}
+          {show('today') && <>
+          <button type="button" onClick={() => setOpenStudentDesk(v => !v)} aria-label="Open Universal Student Desk" style={{ width: '100%', minHeight: 72, marginBottom: 12, display: 'flex', flexWrap: isPhone ? 'wrap' : undefined, alignItems: 'center', gap: 14, padding: '14px 18px', borderRadius: 18, border: '1px solid rgba(251,191,36,.55)', background: 'linear-gradient(135deg,rgba(107,0,153,.38),rgba(212,0,85,.28),rgba(255,140,0,.22))', color: '#fff', textAlign: 'left', cursor: 'pointer', font: 'inherit' }}>
             <span aria-hidden="true" style={{ fontSize: 28 }}>🪑</span>
-            <span style={{ flex: 1, minWidth: 0 }}><b style={{ display: 'block', fontSize: '1.05rem', color: '#FDE68A' }}>My Universal Student Desk · Powered by Tela</b><span style={{ fontSize: '.85rem', color: '#e9d5ff' }}>Open your assigned digital worksheets, quizzes &amp; tests across Academia and Christian Education — fill them out with 10 Living Art-Council Desk Surfaces &amp; turn them in for instant Mastery credit.</span></span>
+            <span style={{ flex: 1, minWidth: 0 }}><b style={{ display: 'block', fontSize: '1.05rem', color: '#FDE68A' }}>{isPhone ? 'My Desk' : 'My Universal Student Desk · Powered by Tela'}</b><span style={{ fontSize: '.85rem', color: '#e9d5ff' }}>{isPhone ? 'Your worksheets, quizzes and tests, ready to fill in and turn in.' : <>Open your assigned digital worksheets, quizzes &amp; tests across Academia and Christian Education — fill them out with 10 Living Art-Council Desk Surfaces &amp; turn them in for instant Mastery credit.</>}</span></span>
             <span style={{ padding: '8px 16px', borderRadius: 99, background: '#FBBF24', color: '#111', fontWeight: 900, fontSize: '.78rem', whiteSpace: 'nowrap' }}>{openStudentDesk ? 'Close Desk' : 'Open My Desk →'}</span>
           </button>
           {openStudentDesk && (
@@ -246,6 +262,8 @@ const HomeroomView: React.FC<Props> = ({ user, profile, onNavigate }) => {
             <span aria-hidden="true" style={{ fontSize: 26 }}>📷</span>
             <span style={{ flex: 1, minWidth: 0 }}><b style={{ display: 'block', fontSize: '1rem' }}>Scan your paper</b><span style={{ fontSize: '.85rem', color: '#d6d0e4' }}>Finished a worksheet? Snap it to check and turn in. Got a flyer? It goes on your calendar.</span></span>
           </button>
+          </>}
+          {show('learn') && <>
           <div className="heroes">
             <button type="button" className="hero" onClick={() => onNavigate('VOCA')} style={{ background: '#062a31', borderColor: 'rgba(0,218,243,.35)' }}>
               <svg className="art" width="240" height="120" viewBox="0 0 240 120" aria-hidden="true"><g fill="#00DAF3">{[20, 48, 80, 36, 100, 60, 28, 72, 44, 92, 52, 24, 64, 32, 16].map((h, i) => <rect key={i} x={i * 16} y={60 - h / 2} width="8" height={h} rx="4" />)}</g></svg>
@@ -276,19 +294,20 @@ const HomeroomView: React.FC<Props> = ({ user, profile, onNavigate }) => {
             <AppCard name="My Notebook" bg="linear-gradient(135deg,#6B0099,#1e1b4b)" fallback="Notes and drawings" sub="Write, draw and clip from lessons" cta="Open my notes →" onOpen={() => onNavigate('NOTES')} />
             <AppCard name="My Record" bg="linear-gradient(135deg,#0f766e,#1e293b)" stat={stats?.ledger} fallback="Learning record" sub="Your skills, owned by you" onOpen={() => onNavigate('LEARNER_LEDGER')} />
           </div>
+          </>}
         </section>
 
-        <WellbeingPanel role="student" user={user} profile={profile} classes={classes || []} onNavigate={onNavigate} />
-        <SupportHubCard role="student" onNavigate={onNavigate} />
+        {show('me') && <WellbeingPanel role="student" user={user} profile={profile} classes={classes || []} onNavigate={onNavigate} />}
+        {show('me') && <SupportHubCard role="student" onNavigate={onNavigate} />}
 
         <div className="grid acad-split">
           <div className="col">
-            <StudentScoreboard uid={uid} onNavigate={onNavigate} />
-            <TodayDueFirst uid={uid} role="student"
+            {show('today') && <StudentScoreboard uid={uid} onNavigate={onNavigate} />}
+            {show('today') && <TodayDueFirst uid={uid} role="student"
               onOpenAssignment={(id) => { try { window.history.pushState({}, '', lessonLink(id)); } catch { /* non-fatal */ } onNavigate('STUDENT_LESSON'); }}
-              onNavigate={onNavigate} />
+              onNavigate={onNavigate} />}
 
-            <div className="card">
+            {show('classes') && <div className="card">
               <div className="card-hd"><h2 className="h2">My classes</h2><button className="link" type="button" onClick={() => onNavigate('CLASSROOMS')}>All classes →</button></div>
               <div className="list">
                 {classes === null && <div className="empty">Loading your classes…</div>}
@@ -301,14 +320,14 @@ const HomeroomView: React.FC<Props> = ({ user, profile, onNavigate }) => {
                   </button>
                 ))}
               </div>
-            </div>
+            </div>}
           </div>
 
           <div className="col">
-            <div style={{ color: '#fff' }}>
+            {show('classes') && <div style={{ color: '#fff' }}>
               <EduFeedPanel currentUser={user || (uid ? { uid } : null)} profile={profile} eduRole="STUDENT" limit={4} onOpenFeed={() => onNavigate('EDU_SOCIAL')} />
-            </div>
-            <div className="card">
+            </div>}
+            {show('classes') && <div className="card">
               <div className="card-hd"><h2 className="h2">Class chat</h2><span className="tag ok">parent-visible</span></div>
               <div className="policy">
                 {textOn ? 'Voice notes and text chat with your classes. Your grown-ups can see your chats.' : 'Send voice notes to your classmates. Your grown-ups can see your chats.'}
@@ -328,9 +347,9 @@ const HomeroomView: React.FC<Props> = ({ user, profile, onNavigate }) => {
                   <span><b>My teachers</b><small>message your teacher</small></span><span className="tag">open</span>
                 </button>
               </div>
-            </div>
+            </div>}
 
-            <div className="card">
+            {show('classes') && <div className="card">
               <div className="card-hd"><h2 className="h2">My clubs</h2><button className="link" type="button" onClick={() => onNavigate('CLUBS')}>Browse →</button></div>
               <div className="list">
                 {clubs === null && <div className="empty">Loading…</div>}
@@ -345,9 +364,9 @@ const HomeroomView: React.FC<Props> = ({ user, profile, onNavigate }) => {
               {band !== 'early'
                 ? <button className="btn ghost" type="button" style={{ width: '100%', marginTop: 10, borderStyle: 'dashed' }} onClick={() => setSheet('club')}>+ Start a club</button>
                 : <div className="note" style={{ marginTop: 8 }}>Clubs for younger readers are started by a teacher or parent.</div>}
-            </div>
+            </div>}
 
-            <div className="card">
+            {show('me') && <div className="card">
               <div className="card-hd"><h2 className="h2">Sigil shelf</h2><span className="tag">{sig.filter(s => s.earned).length}/{sig.length}</span></div>
               <div className="shelf">
                 {sig.map(s => (
@@ -358,25 +377,26 @@ const HomeroomView: React.FC<Props> = ({ user, profile, onNavigate }) => {
                 ))}
               </div>
               <div className="note" style={{ marginTop: 10 }}>Earned by reading, trying hard words again, and showing up. Never by beating anyone.</div>
-            </div>
+            </div>}
 
           </div>
         </div>
       </div>
 
-      <div className="wrap" style={{ marginTop: 40, color: '#fff', display: 'block' }}>
+      {show('me') && <div className="wrap" style={{ marginTop: isPhone ? 8 : 40, color: '#fff', display: 'block' }}>
         <DidYouKnow role="student" onNavigate={onNavigate} />
         <LoreaShelf role="student" onNavigate={onNavigate} initialBand={bandForAge(band)} />
         <StudiosRow role="student" onNavigate={onNavigate} prefsUid={classes?.[0]?.ownerId || uid} />
         <ExhibitsRow role="student" onNavigate={onNavigate} />
         <div style={{ marginBottom: 48 }}><DailyScripture school={schoolSp} /></div>
         <CurriculumShowcase role="student" onNavigate={onNavigate} />
-      </div>
+      </div>}
 
       {sheet === 'chat' && <ChatRequestSheet uid={uid} guardianUid={profile?.guardianUid} onClose={() => setSheet(null)} onDone={ok => { setSheet(null); flash(ok ? 'Request sent to your grown-up.' : "Couldn't send that right now. Ask your grown-up in person."); }} />}
       {sheet === 'club' && <ClubSheet uid={uid} classes={classes || []} guardianUid={profile?.guardianUid} child={child} onClose={() => setSheet(null)} onDone={ok => { setSheet(null); flash(ok ? 'Club idea sent! It goes live when your sponsor says yes.' : "Couldn't send that right now. Try again in a bit."); }} />}
-      {toast && <div role="status" style={{ position: 'fixed', bottom: 90, left: '50%', transform: 'translateX(-50%)', background: '#fff', color: '#12091b', padding: '10px 18px', borderRadius: 99, fontFamily: 'var(--fd)', fontWeight: 800, zIndex: 70 }}>{toast}</div>}
+      {toast && <div role="status" style={{ position: 'fixed', bottom: isPhone ? 'calc(92px + env(safe-area-inset-bottom))' : 90, left: '50%', transform: 'translateX(-50%)', background: '#fff', color: '#12091b', padding: '10px 18px', borderRadius: 99, fontFamily: 'var(--fd)', fontWeight: 800, zIndex: 70 }}>{toast}</div>}
     </div>
+    </EduPhoneShell>
   );
 };
 export default HomeroomView;

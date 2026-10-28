@@ -61,6 +61,7 @@ import {
 } from '../../services/orgAssets';
 import { TelaDocumentPreviewModal, type TelaDocumentPreviewProps } from '../church/TelaDocumentPreviewModal';
 import { LivingTemplateBespokeRenderer } from './LivingTemplateBespokeRenderer';
+import { useViewport } from '../../hooks/useViewport';
 
 export interface UniversalStudentDeskProps {
   studentUid?: string;
@@ -110,6 +111,10 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
     getAllStudentDeskWorkspaces(studentUid)
   );
   const [activeAssignmentId, setActiveAssignmentId] = useState<string>(initialAssignmentId || '');
+  // Phone: the tray and the open worksheet are separate screens (list → work → back), not a stack.
+  const { isPhone } = useViewport();
+  const [phonePane, setPhonePane] = useState<'tray' | 'work'>(initialAssignmentId ? 'work' : 'tray');
+  const openOnDesk = (id: string) => { setActiveAssignmentId(id); if (isPhone) { setPhonePane('work'); window.scrollTo({ top: 0 }); } };
 
   // Active Desk workspace local state
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -405,9 +410,10 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
 
   return (
     <div
-      className="space-y-5 text-white"
+      className={`space-y-5 text-white ${isPhone ? 'usd-phone' : ''}`}
       style={{ fontFamily: "'Inter', system-ui, sans-serif" }}
     >
+      {isPhone && <style>{'.usd-phone input:not([type=checkbox]):not([type=radio]),.usd-phone textarea,.usd-phone select{font-size:16px!important}.usd-phone button{min-height:40px}'}</style>}
       {/* Top Universal Plajah Student Desk Command Banner */}
       <div
         className="rounded-3xl border border-purple-500/35 p-5 shadow-2xl relative overflow-hidden"
@@ -431,17 +437,21 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
                 <button
                   type="button"
                   onClick={onBack}
-                  className="px-3 py-1 rounded-full bg-white/10 hover:bg-white/15 border border-white/20 text-xs font-black text-white"
+                  className={`px-3 rounded-full bg-white/10 hover:bg-white/15 border border-white/20 text-xs font-black text-white ${isPhone ? 'min-h-[44px] px-4 text-sm' : 'py-1'}`}
                 >
                   ← Back
                 </button>
               )}
-              <span className="px-3 py-1 rounded-full bg-amber-400/20 border border-amber-300/45 text-amber-200 text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-1.5">
-                <Sparkles size={12} /> Universal Platform-Wide Student Desk · Powered by Tela
-              </span>
-              <span className="px-3 py-1 rounded-full bg-cyan-500/20 border border-cyan-400/40 text-cyan-200 text-[10px] font-black uppercase">
-                Academia × {orgName} · Christian Education
-              </span>
+              {!isPhone && (
+                <>
+                  <span className="px-3 py-1 rounded-full bg-amber-400/20 border border-amber-300/45 text-amber-200 text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-1.5">
+                    <Sparkles size={12} /> Universal Platform-Wide Student Desk · Powered by Tela
+                  </span>
+                  <span className="px-3 py-1 rounded-full bg-cyan-500/20 border border-cyan-400/40 text-cyan-200 text-[10px] font-black uppercase">
+                    Academia × {orgName} · Christian Education
+                  </span>
+                </>
+              )}
             </div>
 
             {!compactHeader && (
@@ -460,7 +470,7 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
           </div>
 
           {/* Desk KPI Pills */}
-          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+          <div className={isPhone ? 'grid gap-2 w-full' : 'flex flex-wrap items-center gap-2.5 shrink-0'} style={isPhone ? { gridTemplateColumns: `repeat(${deskKpis.avgMasteryPct !== null ? 4 : 3}, minmax(0, 1fr))` } : undefined}>
             <div className="rounded-2xl border border-amber-400/35 bg-black/45 px-3.5 py-2 text-center">
               <div className="text-base font-black text-amber-300">{deskKpis.todoCount}</div>
               <div className="text-[10px] font-bold uppercase tracking-wider text-white/60">
@@ -491,7 +501,34 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
         </div>
 
         {/* Desk Domain & Status Filter Bar */}
-        <div className="relative z-10 flex flex-wrap items-center justify-between gap-3 mt-4 pt-3.5 border-t border-white/15">
+        {isPhone && (
+          <div className="relative z-10 grid gap-2 mt-4 pt-3.5 border-t border-white/15">
+            <select
+              aria-label="Which classes"
+              value={domainFilter}
+              onChange={e => setDomainFilter(e.target.value as typeof domainFilter)}
+              className="w-full min-h-[44px] rounded-xl bg-black/50 border border-white/15 px-3 text-base text-white"
+            >
+              <option value="ALL">All my classes</option>
+              <option value="CHRISTIAN_EDUCATION">{orgName} · Christian Education</option>
+              <option value="ACADEMIA">Plajah Academia</option>
+            </select>
+            <div className="flex gap-1 p-1 rounded-2xl bg-black/40 border border-white/12" role="group" aria-label="Show">
+              {(['ALL', 'TODO', 'TURNED_IN'] as const).map(st => (
+                <button
+                  key={st}
+                  type="button"
+                  aria-pressed={statusFilter === st}
+                  onClick={() => setStatusFilter(st)}
+                  className={`flex-1 min-h-[40px] rounded-xl text-sm font-black ${statusFilter === st ? 'bg-amber-400 text-black' : 'text-white/70'}`}
+                >
+                  {st === 'ALL' ? 'All' : st === 'TODO' ? 'To do' : 'Turned in'}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        <div className={`relative z-10 flex flex-wrap items-center justify-between gap-3 mt-4 pt-3.5 border-t border-white/15 ${isPhone ? 'hidden' : ''}`}>
           <div className="flex flex-wrap items-center gap-1.5">
             {(
               [
@@ -590,7 +627,7 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
       {/* Main 3-Zone Universal Student Desk Layout */}
       <div className="grid lg:grid-cols-12 gap-5 items-start">
         {/* LEFT DESK TRAY (3 Cols): Assigned Worksheets, Quizzes & Tests Stack */}
-        <div className="lg:col-span-3 rounded-3xl border border-white/12 bg-white/[0.03] p-4 space-y-3">
+        <div className={`lg:col-span-3 rounded-3xl border border-white/12 bg-white/[0.03] p-4 space-y-3 ${isPhone && phonePane === 'work' && activeAssignment ? 'hidden' : ''}`}>
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-black uppercase tracking-widest text-amber-300 flex items-center gap-1.5">
               <Layers size={13} /> My Desk Tray ({filteredAssignments.length})
@@ -604,7 +641,7 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               placeholder="Filter worksheets or classes..."
-              className="w-full bg-black/50 border border-white/12 rounded-xl pl-8 pr-3 py-1.5 text-xs text-white outline-none focus:border-amber-400"
+              className={`w-full bg-black/50 border border-white/12 rounded-xl pl-8 pr-3 text-white outline-none focus:border-amber-400 ${isPhone ? 'min-h-[44px] text-base' : 'py-1.5 text-xs'}`}
             />
           </div>
 
@@ -624,7 +661,7 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
               return (
                 <div
                   key={item.id}
-                  onClick={() => setActiveAssignmentId(item.id)}
+                  onClick={() => openOnDesk(item.id)}
                   className={`rounded-2xl border p-3 cursor-pointer transition-all space-y-2 ${
                     isSelected
                       ? 'border-amber-400 bg-amber-500/15 shadow-lg'
@@ -689,8 +726,13 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
         </div>
 
         {/* CENTER DESK BLOTTER (6 Cols): The Living Tela Worksheet & Turn-In Surface */}
-        {activeAssignment && (
+        {activeAssignment && (!isPhone || phonePane === 'work') && (
           <div className="lg:col-span-6 space-y-4">
+            {isPhone && (
+              <button type="button" onClick={() => { setPhonePane('tray'); window.scrollTo({ top: 0 }); }} className="min-h-[44px] px-4 rounded-full bg-white/10 border border-white/20 text-sm font-black text-white">
+                ← All my work
+              </button>
+            )}
             <div
               className="rounded-3xl border-2 p-5 sm:p-6 space-y-5 relative overflow-hidden transition-all duration-500"
               style={{
@@ -1159,7 +1201,7 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
         )}
 
         {/* RIGHT DESK CADDY (3 Cols): Sacred Library Drawer, Scratchpad, Ask Teacher & Mastery */}
-        {activeAssignment && (
+        {activeAssignment && (!isPhone || phonePane === 'work') && (
           <div className="lg:col-span-3 space-y-4">
             <div className="rounded-3xl border border-white/12 bg-white/[0.03] p-4 space-y-3.5">
               <div className="flex items-center justify-between border-b border-white/10 pb-2.5">

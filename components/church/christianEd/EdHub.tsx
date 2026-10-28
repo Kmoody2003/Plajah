@@ -9,6 +9,9 @@ import EdClassClub, { type ClassChannel } from './EdClassClub';
 import EdReviewQueue, { type ReviewItem } from './EdReviewQueue';
 import { ED_CSS, coverFor } from './edStyles';
 import AnnouncementsPanel, { type AudienceOption } from '../../announcements/AnnouncementsPanel';
+import EduPhoneShell, { EduPhoneSheet, type EduPhoneTab } from '../../edu/EduPhoneShell';
+import { useViewport } from '../../../hooks/useViewport';
+import { BookOpen, ClipboardCheck, Home, Megaphone, MoreHorizontal, Users } from 'lucide-react';
 
 const TemplateLibrary = lazy(() => import('../../templates/TemplateLibrary'));
 import { currentWeekIndex, isStudentOf, isTeacherOf, needsReview, openTelaClasswork, syncMyReturnedWork, useClassWork } from './edWork';
@@ -50,6 +53,10 @@ const EdHub: React.FC<Props> = ({ church, canEdit, canSeeKey, viewer, programs, 
   const [moreOpen, setMoreOpen] = useState(false);
   const [libOpen, setLibOpen] = useState(false);
   const [deskTick, setDeskTick] = useState(0);
+  // Phone: one section at a time behind a bottom tab bar (EduPhoneShell); desktop shows everything.
+  const { isPhone } = useViewport();
+  const [phoneTab, setPhoneTab] = useState<'today' | 'classes' | 'desk' | 'news'>('today');
+  const [phoneMore, setPhoneMore] = useState(false);
 
   const all = programs || [];
   const teaching = useMemo(() => all.filter(p => isTeacherOf(p, viewer.uid, canEdit)), [all, viewer.uid, canEdit]);
@@ -111,6 +118,53 @@ const EdHub: React.FC<Props> = ({ church, canEdit, canSeeKey, viewer, programs, 
   });
   const joinCount = teaching.reduce((n, p) => n + (work[p.id]?.joinRequests.length || 0), 0);
   const noStudents = teaching.filter(p => (p.students || []).length === 0);
+
+  // ── Phone shell ──
+  const tabNow = !isTeacher && phoneTab === 'today' ? 'desk' : isTeacher && phoneTab === 'desk' ? 'today' : phoneTab;
+  const activeTab = view.kind === 'review' ? 'review' : view.kind === 'class' ? 'classes' : view.kind === 'desk' ? (isTeacher ? 'classes' : 'desk') : tabNow;
+  const phoneTabs: EduPhoneTab[] = isTeacher
+    ? [
+        { id: 'today', label: 'Today', icon: Home },
+        { id: 'classes', label: 'Classes', icon: Users },
+        { id: 'review', label: 'Review', icon: ClipboardCheck, badge: reviewItems.length },
+        { id: 'news', label: 'News', icon: Megaphone },
+        { id: 'more', label: 'More', icon: MoreHorizontal },
+      ]
+    : [
+        { id: 'desk', label: 'My Desk', icon: BookOpen, badge: due.length },
+        { id: 'classes', label: 'Classes', icon: Users },
+        { id: 'news', label: 'News', icon: Megaphone },
+        { id: 'more', label: 'More', icon: MoreHorizontal },
+      ];
+  const selectPhoneTab = (id: string) => {
+    if (id === 'more') { setPhoneMore(true); return; }
+    if (id === 'review') { setView({ kind: 'review' }); return; }
+    setPhoneTab(id as typeof phoneTab);
+    setView({ kind: 'hub' });
+    window.scrollTo({ top: 0 });
+  };
+  /** On a phone, show one hub section at a time; on wider screens, all of them. */
+  const showSection = (s: typeof phoneTab) => !isPhone || tabNow === s;
+  const moreRow = (label: string, run: () => void) => (
+    <button key={label} type="button" className="eps-row" onClick={() => { setPhoneMore(false); run(); }}>{label}</button>
+  );
+  const shell = (node: React.ReactNode) => (
+    <EduPhoneShell tabs={phoneTabs} active={activeTab} onSelect={selectPhoneTab} label="Christian Education">
+      {node}
+      {phoneMore && (
+        <EduPhoneSheet title="More" onClose={() => setPhoneMore(false)}>
+          {moreRow('Calendar', () => onOpenTool('CENTRAL_CALENDAR'))}
+          {isTeacher && moreRow('Add lessons in Tela Classwork', () => openTelaClasswork({ orgId: church.id, orgName: church.name, domain: 'CHRISTIAN_EDUCATION' }))}
+          {canEdit && moreRow('New class', () => { setPhoneTab('classes'); setView({ kind: 'hub' }); setNewClass({ name: '', kind: 'sunday-school', ageBand: '', schedule: '' }); })}
+          {isTeacher && moreRow('Lesson library', () => onOpenTool('LESSON_LIBRARY'))}
+          {isTeacher && moreRow('Templates & flyers', () => setLibOpen(true))}
+          {isTeacher && moreRow('Gradebook & teacher tools', () => onOpenTool('TEACHER_TOOLS'))}
+          {isTeacher && moreRow('Instructor dashboard', () => onOpenTool('TEACHER_DASHBOARD'))}
+          {!isTeacher && moreRow('Join a class', () => { setPhoneTab('classes'); setView({ kind: 'hub' }); setTimeout(() => document.getElementById('ed-join-code')?.focus(), 50); })}
+        </EduPhoneSheet>
+      )}
+    </EduPhoneShell>
+  );
 
   const createClass = async () => {
     if (!newClass?.name.trim()) return;
@@ -189,7 +243,7 @@ const EdHub: React.FC<Props> = ({ church, canEdit, canSeeKey, viewer, programs, 
   if (view.kind === 'class') {
     const p = all.find(x => x.id === view.id);
     if (!p) {
-      return (
+      return shell(
         <div className="ce">
           <style>{ED_CSS}</style>
           <button type="button" className="back" onClick={() => setView({ kind: 'hub' })}>
@@ -203,7 +257,7 @@ const EdHub: React.FC<Props> = ({ church, canEdit, canSeeKey, viewer, programs, 
       );
     }
     const asTeacher = teaching.includes(p);
-    return (
+    return shell(
       <div className="ce">
         <style>{ED_CSS}</style>
         <EdClassClub
@@ -230,7 +284,7 @@ const EdHub: React.FC<Props> = ({ church, canEdit, canSeeKey, viewer, programs, 
 
   if (view.kind === 'review') {
     const items = reviewItems.filter(x => (!view.programId || x.program.id === view.programId) && (!view.assignmentId || x.sub.assignmentId === view.assignmentId));
-    return (
+    return shell(
       <div className="ce">
         <style>{ED_CSS}</style>
         <EdReviewQueue items={items} canSeeKey={canSeeKey} onBack={() => { void refresh(); setView(view.from || { kind: 'hub' }); }} />
@@ -239,7 +293,7 @@ const EdHub: React.FC<Props> = ({ church, canEdit, canSeeKey, viewer, programs, 
   }
 
   if (view.kind === 'desk') {
-    return (
+    return shell(
       <div className="ce">
         <style>{ED_CSS}</style>
         <UniversalStudentDesk
@@ -306,11 +360,11 @@ const EdHub: React.FC<Props> = ({ church, canEdit, canSeeKey, viewer, programs, 
   const joinBox = (
     <div className="card" style={{ borderStyle: 'dashed' }}>
       <div className="row wrap">
-        <div className="grow">
+        <div className="grow" style={{ flexBasis: 200 }}>
           <div className="t">Join a class</div>
           <div className="u">Type the code your teacher gave you</div>
         </div>
-        <input id="ed-join-code" className="field" style={{ maxWidth: 170, fontFamily: 'var(--fm)', textTransform: 'uppercase' }} value={joinCode} onChange={e => setJoinCode(e.target.value)} placeholder="GRACE-K6Q" />
+        <input id="ed-join-code" className="field" style={{ flex: '1 1 150px', maxWidth: isPhone ? undefined : 170, fontFamily: 'var(--fm)', textTransform: 'uppercase' }} value={joinCode} onChange={e => setJoinCode(e.target.value)} placeholder="GRACE-K6Q" />
         <button type="button" className="btn sm" disabled={!joinCode.trim()} onClick={join}>
           Ask to join
         </button>
@@ -319,24 +373,24 @@ const EdHub: React.FC<Props> = ({ church, canEdit, canSeeKey, viewer, programs, 
     </div>
   );
 
-  return (
+  return shell(
     <div className="ce">
       <style>{ED_CSS}</style>
 
       <div className="hubhead">
         <div className="grow">
           <div className="eyebrow">{church.name}</div>
-          <h2>{isTeacher ? 'Christian Education' : 'My Desk'}</h2>
+          <h2>{isPhone ? ({ today: 'Today', classes: 'Classes', desk: 'My Desk', news: 'News' } as const)[tabNow] : isTeacher ? 'Christian Education' : 'My Desk'}</h2>
           <div className="small">
             {isTeacher
               ? `${teaching.length} class${teaching.length === 1 ? '' : 'es'} · ${teaching.reduce((n, p) => n + (p.students || []).length, 0)} students`
               : `${enrolled.length} class${enrolled.length === 1 ? '' : 'es'}`}
           </div>
         </div>
-        <button type="button" className="btn sm" onClick={() => onOpenTool('CENTRAL_CALENDAR')}>
+        {!isPhone && <button type="button" className="btn sm" onClick={() => onOpenTool('CENTRAL_CALENDAR')}>
           Calendar
-        </button>
-        {isTeacher && (
+        </button>}
+        {isTeacher && !isPhone && (
           <>
             <button type="button" className="btn sm" onClick={() => onOpenTool('LESSON_LIBRARY')}>
               Lesson library
@@ -375,7 +429,7 @@ const EdHub: React.FC<Props> = ({ church, canEdit, canSeeKey, viewer, programs, 
 
       {programs === null && <div className="small">Loading classes…</div>}
 
-      {isTeacher && (
+      {isTeacher && showSection('today') && (
         <div className="today">
           <button type="button" className={`stat ${reviewItems.length ? 'hot' : 'calm'}`} onClick={() => setView({ kind: 'review' })}>
             <span className="v">{reviewItems.length}</span>
@@ -409,6 +463,13 @@ const EdHub: React.FC<Props> = ({ church, canEdit, canSeeKey, viewer, programs, 
             <span className="l">Add lessons in Tela Classwork</span>
           </button>
         </div>
+      )}
+      {isTeacher && isPhone && showSection('today') && nextClass && (
+        <button type="button" className="card click" onClick={() => setView({ kind: 'class', id: nextClass.id })}>
+          <div className="u">Next on the schedule</div>
+          <div className="t">{nextClass.name}</div>
+          <div className="u">{nextClass.meetingSchedule}</div>
+        </button>
       )}
 
       {newClass && (
@@ -459,23 +520,25 @@ const EdHub: React.FC<Props> = ({ church, canEdit, canSeeKey, viewer, programs, 
 
       {!isTeacher && (
         <>
-          {enrolled.length === 0 ? (
+          {showSection('desk') && (enrolled.length === 0 ? (
             <div className="empty">
               <div className="t">You’re not in a class yet</div>
               <div>Ask your teacher for the class code, or for them to add you.</div>
             </div>
           ) : (
             myDeskSection
+          ))}
+          {showSection('classes') && (
+            <>
+              {!isPhone && <div className="eyebrow" style={{ marginTop: 6 }}>My classes</div>}
+              {enrolled.length > 0 && <div className="clubs">{enrolled.map(p => clubCard(p, false))}</div>}
+              {joinBox}
+            </>
           )}
-          <div className="eyebrow" style={{ marginTop: 6 }}>
-            My classes
-          </div>
-          {enrolled.length > 0 && <div className="clubs">{enrolled.map(p => clubCard(p, false))}</div>}
-          {joinBox}
         </>
       )}
 
-      {isTeacher && (
+      {isTeacher && showSection('classes') && (
         <>
           <div className="clubs">
             {teaching.map(p => clubCard(p, true))}
@@ -492,10 +555,10 @@ const EdHub: React.FC<Props> = ({ church, canEdit, canSeeKey, viewer, programs, 
               <div className="clubs">{enrolled.map(p => clubCard(p, false))}</div>
             </>
           )}
-          {nextClass && <div className="small">Next on the schedule: {nextClass.name} · {nextClass.meetingSchedule}</div>}
+          {nextClass && !isPhone && <div className="small">Next on the schedule: {nextClass.name} · {nextClass.meetingSchedule}</div>}
         </>
       )}
-      {(isTeacher || enrolled.length > 0 || canEdit) && (
+      {(isTeacher || enrolled.length > 0 || canEdit) && showSection('news') && (
         <AnnouncementsPanel
           orgId={church.id}
           orgName={church.name}

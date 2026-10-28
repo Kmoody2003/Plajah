@@ -6,6 +6,7 @@
     "incremental": false
   },
   "include": [
+    "components/edu/*.tsx",
     "components/church/ChurchEducation.tsx",
     "components/church/christianEd/*.tsx",
     "components/church/christianEd/*.ts",
