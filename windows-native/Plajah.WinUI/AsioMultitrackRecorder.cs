@@ -13,7 +13,8 @@ namespace Plajah.WinUI;
 // tracks peaks — no allocation, no I/O. A writer thread drains the rings to one 32-bit float WAV per
 // input, so every track of a take is sample-aligned (same driver buffers). Health is reported as
 // observed: dropped frames = ring overflow (the disk fell behind). ASIO resets/xruns aren't exposed
-// by the driver API, so they are not claimed.
+// by the driver API, so they are not claimed. Input latency is the driver's own report
+// (ASIOGetLatencies) — 0 when the driver gives none, and then nothing is claimed.
 //
 // One instance per process: ASIO allows a single open driver. Create it on a thread that pumps
 // messages (the WinUI UI thread) — some drivers post to the creating thread.
@@ -24,9 +25,11 @@ public sealed class AsioMultitrackRecorder : IDisposable
 
     public sealed record TakeFile(int Input, string Path, long Frames);
 
-    /// FirstBufferUnixMs/BufferFrames place sample 0 on the wall clock: ≈ first callback − one buffer.
+    /// FirstBufferUnixMs/BufferFrames place sample 0 on the wall clock: ≈ first callback − one buffer,
+    /// or − InputLatencyFrames when the driver reports it (ASIO's input latency includes the buffer).
     public sealed record TakeResult(string TakeId, int SampleRate, double DurationSec, TakeFile[] Files,
-        long DroppedFrames, int[] ClippedInputs, string? Error, long FirstBufferUnixMs = 0, int BufferFrames = 0);
+        long DroppedFrames, int[] ClippedInputs, string? Error, long FirstBufferUnixMs = 0, int BufferFrames = 0,
+        int InputLatencyFrames = 0);
 
     private static readonly int[] CandidateRates = { 44100, 48000, 88200, 96000, 176400, 192000 };
 
@@ -50,6 +53,20 @@ public sealed class AsioMultitrackRecorder : IDisposable
         {
             return new DriverProbe(driver, false, ex.Message, 0, 0, Array.Empty<string>(), Array.Empty<int>());
         }
+    }
+
+    // AsioOut keeps its driver private; the latencies are only valid once buffers exist (after Init).
+    private static int InputLatency(AsioOut asio)
+    {
+        try
+        {
+            var f = typeof(AsioOut).GetFields(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                .FirstOrDefault(x => x.FieldType == typeof(NAudio.Wave.Asio.AsioDriverExt));
+            if (f?.GetValue(asio) is not NAudio.Wave.Asio.AsioDriverExt ext) return 0;
+            ext.Driver.GetLatencies(out int input, out _);
+            return input > 0 ? input : 0;
+        }
+        catch { return 0; }
     }
 
     private static string SafeName(AsioOut asio, int i)
@@ -80,6 +97,7 @@ public sealed class AsioMultitrackRecorder : IDisposable
     public DateTime StartedAtUtc { get; private set; }
     public long FirstBufferTicks { get; private set; }
     private int _bufferFrames;
+    public int InputLatencyFrames { get; private set; }
 
     /// Starts capture of `inputs` (0-based driver inputs). `write` = false meters only.
     public void Start(string driver, int[] inputs, int sampleRate, string takeId, string outDir, bool write)
@@ -106,6 +124,7 @@ public sealed class AsioMultitrackRecorder : IDisposable
                 throw new ArgumentException($"{driver} can't run at {sampleRate} Hz");
             asio.InputChannelOffset = _offset;
             asio.InitRecordAndPlayback(null, _span, sampleRate);
+            InputLatencyFrames = InputLatency(asio);
         }
         catch { asio.Dispose(); throw; }
 
@@ -208,7 +227,7 @@ public sealed class AsioMultitrackRecorder : IDisposable
         var clipped = _inputs.Where((_, k) => _clipped[k]).ToArray();
         long firstMs = FirstBufferTicks == 0 ? 0 : new DateTimeOffset(FirstBufferTicks, TimeSpan.Zero).ToUnixTimeMilliseconds();
         return new TakeResult(_takeId, _sampleRate, frames / (double)_sampleRate, files.ToArray(),
-            Interlocked.Read(ref _dropped), clipped, error, firstMs, _bufferFrames);
+            Interlocked.Read(ref _dropped), clipped, error, firstMs, _bufferFrames, InputLatencyFrames);
     }
 
     public void Dispose()

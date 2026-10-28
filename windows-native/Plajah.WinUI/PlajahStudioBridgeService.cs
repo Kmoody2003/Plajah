@@ -1315,7 +1315,7 @@ public sealed class PlajahStudioBridgeService
     public record AvbClockStatus(
         string GrandmasterId,
         string PtpDomain,
-        string LockState, // "LOCKED" | "CALIBRATING" | "FREERUN"
+        string LockState, // "LOCKED" | "CALIBRATING" | "FREERUN" | "UNAVAILABLE"
         double OffsetNs,
         double JitterNs,
         bool MilanLocked
@@ -1323,153 +1323,40 @@ public sealed class PlajahStudioBridgeService
 
     private readonly Dictionary<string, AvbStreamConfig> _activeAvbStreams = new();
 
+    // AVB is not implemented yet: AVDECC discovery and AVTP audio need raw Layer-2 access (Npcap)
+    // plus gPTP, none of which this app has. Everything below reports only what it can observe —
+    // the PC's wired adapters, no entities, no clock — so the UI never shows invented hardware.
+    // Consoles record over USB/ASIO meanwhile (AsioMultitrackRecorder).
+    public const string AvbUnavailable = "AVB isn't available yet — record your console over USB (Chora → Inputs).";
+
     public List<AvbInterfaceInfo> EnumerateAvbInterfaces()
     {
         var interfaces = new List<AvbInterfaceInfo>();
-
         try
         {
-            var netInterfaces = System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces();
-            foreach (var ni in netInterfaces)
+            foreach (var ni in System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces())
             {
                 if (ni.OperationalStatus != System.Net.NetworkInformation.OperationalStatus.Up) continue;
-                if (ni.NetworkInterfaceType == System.Net.NetworkInformation.NetworkInterfaceType.Loopback) continue;
-
-                var desc = ni.Description.ToLowerInvariant();
-                var name = ni.Name.ToLowerInvariant();
-                bool isAvbCapable = desc.Contains("intel") || desc.Contains("i210") || desc.Contains("i225") ||
-                                    desc.Contains("i226") || desc.Contains("motu") || desc.Contains("presonus") ||
-                                    desc.Contains("avb") || desc.Contains("thunderbolt") || desc.Contains("ethernet");
-
-                string driver = "Standard NDIS Network Adapter";
-                if (desc.Contains("motu")) driver = "MOTU AVB Pro Driver (ASIO/WASAPI Bit-Perfect)";
-                else if (desc.Contains("presonus")) driver = "PreSonus AVB Network Driver";
-                else if (desc.Contains("i210") || desc.Contains("i225") || desc.Contains("i226")) driver = "Intel IEEE 802.1AS AVB/TSN Driver";
-
+                if (ni.NetworkInterfaceType != System.Net.NetworkInformation.NetworkInterfaceType.Ethernet) continue;
                 interfaces.Add(new AvbInterfaceInfo(
                     Id: ni.Id,
                     Name: ni.Name,
                     Description: ni.Description,
                     MacAddress: string.Join(":", ni.GetPhysicalAddress().GetAddressBytes().Select(b => b.ToString("X2"))),
-                    SupportsPtp: isAvbCapable,
-                    SupportsAvtp: isAvbCapable,
+                    SupportsPtp: false,
+                    SupportsAvtp: false,
                     LinkSpeedGbps: (int)(ni.Speed / 1_000_000_000),
-                    DriverName: driver,
-                    PtpStatus: isAvbCapable ? "gPTP (IEEE 802.1AS) Synchronized" : "Uncalibrated"
+                    DriverName: "",
+                    PtpStatus: "Not checked"
                 ));
             }
         }
         catch { }
-
-        // Ensure at least one primary virtual AVB interface is always available for routing
-        if (interfaces.Count == 0 || !interfaces.Exists(i => i.SupportsAvtp))
-        {
-            interfaces.Add(new AvbInterfaceInfo(
-                Id: "avb_virtual_primary",
-                Name: "Plajah Native AVB Virtual Audio Adapter",
-                Description: "Milan-Compliant IEEE 1722 / IEEE 802.1AS Virtual Audio Bridge",
-                MacAddress: "02:00:41:56:42:01",
-                SupportsPtp: true,
-                SupportsAvtp: true,
-                LinkSpeedGbps: 10,
-                DriverName: "Plajah Studio AVB Kernel Streamer",
-                PtpStatus: "gPTP Locked (0.35μs jitter)"
-            ));
-        }
-
         return interfaces;
     }
 
-    public async Task<List<AvbEntityInfo>> DiscoverAvbEntitiesAsync(int timeoutMs = 1200)
-    {
-        var entities = new List<AvbEntityInfo>();
-
-        try
-        {
-            // Probe local AVB network via IEEE 1722.1 ADP (AVDECC Discovery Protocol) multicast
-            using var cts = new CancellationTokenSource(timeoutMs);
-            // Simulated / discovered pro hardware endpoints known on network
-            entities.Add(new AvbEntityInfo(
-                EntityId: "00:01:f2:ff:fe:00:82:8e",
-                Name: "MOTU 828es / 1248 AVB Interface",
-                ModelName: "828es Thunderbolt/AVB",
-                Manufacturer: "Mark of the Unicorn (MOTU)",
-                TalkerStreams: 4,
-                ListenerStreams: 4,
-                SupportedSampleRates: [48000, 96000, 192000],
-                MilanCompliant: true,
-                IpAddress: "192.168.1.140",
-                Status: "Online (Milan Certified · 32 Ch I/O)"
-            ));
-
-            entities.Add(new AvbEntityInfo(
-                EntityId: "00:0a:92:ff:fe:16:32:00",
-                Name: "PreSonus StudioLive NSB 16.8 Stage Box",
-                ModelName: "NSB 16.8 AVB Stage Box",
-                Manufacturer: "PreSonus Audio Electronics",
-                TalkerStreams: 2,
-                ListenerStreams: 1,
-                SupportedSampleRates: [48000, 96000],
-                MilanCompliant: true,
-                IpAddress: "192.168.1.142",
-                Status: "Online (16 Mic Pre / 8 Return)"
-            ));
-
-            entities.Add(new AvbEntityInfo(
-                EntityId: "00:1d:a5:ff:fe:70:01:22",
-                Name: "Avid Pro Tools Carbon / S6L AVB",
-                ModelName: "Carbon DSP Hybrid Interface",
-                Manufacturer: "Avid Technology",
-                TalkerStreams: 4,
-                ListenerStreams: 4,
-                SupportedSampleRates: [48000, 96000, 192000],
-                MilanCompliant: true,
-                IpAddress: "192.168.1.145",
-                Status: "Online (Sub-Millisecond Monitoring)"
-            ));
-
-            await Task.Delay(Math.Min(100, timeoutMs), cts.Token);
-        }
-        catch { }
-
-        return entities;
-    }
-
-    public AvbStreamConfig ConfigureAvbTalkerStream(string streamId, string name, int channels = 16, int sampleRate = 48000)
-    {
-        var config = new AvbStreamConfig(
-            StreamId: streamId,
-            Name: name,
-            Direction: "Talker",
-            Channels: channels,
-            SampleRate: sampleRate,
-            BitDepth: 24,
-            Format: "AAF_PCM_24BIT",
-            EntityId: "00:00:00:ff:fe:00:00:01",
-            Active: true,
-            LatencyMs: 0.25
-        );
-        _activeAvbStreams[streamId] = config;
-        return config;
-    }
-
-    public AvbStreamConfig ConnectAvbListenerStream(string streamId, string entityId, int channels = 16, int sampleRate = 48000)
-    {
-        var config = new AvbStreamConfig(
-            StreamId: streamId,
-            Name: $"AVB In from {entityId}",
-            Direction: "Listener",
-            Channels: channels,
-            SampleRate: sampleRate,
-            BitDepth: 24,
-            Format: "AAF_PCM_24BIT",
-            EntityId: entityId,
-            Active: true,
-            LatencyMs: 0.25
-        );
-        _activeAvbStreams[streamId] = config;
-        return config;
-    }
+    public Task<List<AvbEntityInfo>> DiscoverAvbEntitiesAsync(int timeoutMs = 1200)
+        => Task.FromResult(new List<AvbEntityInfo>());
 
     public bool StopAvbStream(string streamId)
     {
@@ -1482,15 +1369,6 @@ public sealed class PlajahStudioBridgeService
     }
 
     public AvbClockStatus GetAvbClockStatus()
-    {
-        return new AvbClockStatus(
-            GrandmasterId: "00:01:f2:ff:fe:00:82:8e",
-            PtpDomain: "IEEE 802.1AS (Domain 0 · gPTP)",
-            LockState: "LOCKED",
-            OffsetNs: 14.2,
-            JitterNs: 2.8,
-            MilanLocked: true
-        );
-    }
+        => new(GrandmasterId: "", PtpDomain: "", LockState: "UNAVAILABLE", OffsetNs: 0, JitterNs: 0, MilanLocked: false);
 }
 

@@ -15,6 +15,7 @@ import {
 } from '../../services/audio/mackieControlService';
 import {
   avbService,
+  AVB_UNAVAILABLE,
   type AvbState,
   type AvbEntity,
   type AvbStreamRoute
@@ -473,10 +474,10 @@ export const ChoraStudioMixer: React.FC<Props> = ({ onClose, initialTracks, embe
             style={avbState.connected
               ? { background: 'rgba(208,188,255,0.12)', borderColor: 'rgba(208,188,255,0.35)', color: ACCENT_DEFAULT }
               : { background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)' }}
-            title="AVB / Milan IEEE 1722 Network Matrix"
+            title={avbState.available ? 'AVB / Milan network' : AVB_UNAVAILABLE}
           >
             <Network size={12} className={avbState.connected ? 'animate-pulse' : ''} style={{ color: avbState.connected ? ACCENT_DEFAULT : undefined }} />
-            <span>AVB {avbState.clock.lockState === 'LOCKED' ? 'PTP LOCK' : 'NET'}</span>
+            <span>AVB {avbState.clock.lockState === 'LOCKED' ? 'PTP LOCK' : avbState.available ? 'NET' : 'OFF'}</span>
           </button>
 
           {/* OMT LAN Broadcast Button */}
@@ -970,40 +971,36 @@ export const ChoraStudioMixer: React.FC<Props> = ({ onClose, initialTracks, embe
               {/* Drawer Content */}
               <div className="p-5 flex-1 flex flex-col gap-4 text-xs">
                 
-                {/* 1. AVB / Milan Matrix */}
+                {/* 1. AVB / Milan — not implemented yet; shows only what was observed */}
                 {drawerOpen === 'AVB_MATRIX' && (
                   <div className="flex flex-col gap-4">
                     <div className="p-3 rounded-xl border flex flex-col gap-2" style={{ background: SURFACE_RAISED, borderColor: 'rgba(255,255,255,0.09)' }}>
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-white">IEEE 802.1AS gPTP Grandmaster Clock</span>
-                        <span className="font-mono px-2 py-0.5 rounded text-[10px] font-bold" style={{ background: 'rgba(6,214,160,0.15)', color: '#06D6A0' }}>
-                          {avbState.clock.lockState}
-                        </span>
-                      </div>
-                      <div className="text-[10px] font-mono text-white/50 flex flex-col gap-1">
-                        <div>Grandmaster ID: <span className="text-white/80">{avbState.clock.grandmasterId}</span></div>
-                        <div>Phase Offset: <span className="text-white/80">{avbState.clock.offsetNanoseconds} ns</span> (Class A Media Sync)</div>
-                      </div>
+                      <span className="font-bold text-white">AVB isn't available yet</span>
+                      <p className="text-[11px] leading-relaxed text-white/60">
+                        Network audio (AVB / Milan) needs low-level network access the desktop app doesn't have yet.
+                        To record a StudioLive or any interface today, connect it over USB and open <span className="text-white/85">Chora → Inputs</span> —
+                        every channel records as its own track.
+                      </p>
                     </div>
 
-                    <h4 className="text-[10px] font-bold uppercase tracking-wider text-white/50 mt-2">Discovered AVB Entities</h4>
-                    <div className="flex flex-col gap-2">
-                      {avbState.discoveredEntities.map(ent => (
-                        <div key={ent.entityId} className="p-3 rounded-xl border flex items-center justify-between" style={{ background: SURFACE_CELL, borderColor: 'rgba(255,255,255,0.08)' }}>
-                          <div className="flex flex-col">
-                            <span className="font-bold text-white/90">{ent.name}</span>
-                            <span className="text-[10px] font-mono text-white/40">{ent.vendor} · {ent.macAddress}</span>
-                          </div>
-                          <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold" style={{ background: 'rgba(0,218,243,0.15)', color: PLAYHEAD }}>
-                            {ent.talkerStreams.length} Out / {ent.listenerStreams.length} In
-                          </span>
+                    {avbState.entities.length > 0 && (
+                      <>
+                        <h4 className="text-[10px] font-bold uppercase tracking-wider text-white/50 mt-2">Discovered AVB Entities</h4>
+                        <div className="flex flex-col gap-2">
+                          {avbState.entities.map((ent: AvbEntity) => (
+                            <div key={ent.entityId} className="p-3 rounded-xl border flex items-center justify-between" style={{ background: SURFACE_CELL, borderColor: 'rgba(255,255,255,0.08)' }}>
+                              <div className="flex flex-col">
+                                <span className="font-bold text-white/90">{ent.name}</span>
+                                <span className="text-[10px] font-mono text-white/40">{ent.manufacturer} · {ent.entityId}</span>
+                              </div>
+                              <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold" style={{ background: 'rgba(0,218,243,0.15)', color: PLAYHEAD }}>
+                                {ent.talkerStreams} Out / {ent.listenerStreams} In
+                              </span>
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-
-                    <div className="mt-4 p-3 rounded-xl border border-dashed text-white/60 text-[11px] leading-relaxed" style={{ borderColor: 'rgba(208,188,255,0.3)', background: 'rgba(208,188,255,0.03)' }}>
-                      Multi-channel AVB audio streams pass bit-perfect to/from connected hardware stage boxes and audio interfaces across Intel I210/I225 TSN NICs.
-                    </div>
+                      </>
+                    )}
                   </div>
                 )}
 

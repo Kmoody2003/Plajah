@@ -3,8 +3,8 @@
 // Capture starts on the record pass's rising edge (desktop app only) and stops on the falling
 // edge; the per-input files are then imported as clips at the beat where the take's first sample
 // sits (takeImport.ts). Every track of a take shares the driver's buffers, so tracks are
-// sample-aligned with each other; alignment to Chora's own playback is within a few ms (driver
-// input latency isn't reported by ASIO, so overdubs aren't latency-compensated yet).
+// sample-aligned with each other. Overdubs are placed against what the performer heard: the
+// driver's reported input latency and the browser's output latency are both taken out.
 
 import { useEffect, useRef } from 'react';
 import type { GrooveDoc } from '../../../services/melos/beats/grooveDoc';
@@ -19,6 +19,12 @@ import { isWindowsApp, startAsioCapture, stopAsioCapture, type AsioTakeResult } 
 /** Decoded takes live in memory like every other clip; past this the take stays on disk. */
 const IMPORT_BUDGET_BYTES = 1.5 * 1024 ** 3;
 
+/** How late Chora's playback reaches the speakers (what the performer plays along to). */
+function outputLatencySec(): number {
+  const c = BeatsEngine.get().getContext() as (AudioContext & { outputLatency?: number }) | null;
+  return Math.max(0, c?.outputLatency || c?.baseLatency || 0);
+}
+
 export const asioDriverOf = (endpointId: string) => endpointId.replace(/^asio:/, '');
 
 interface Pass {
@@ -27,6 +33,7 @@ interface Pass {
   deviceId: string;
   sampleRate: number;
   anchor: { wallMs: number; beats: number };
+  outputSec: number;
   tracks: Array<{ trackId: string; name: string; input: number; inputR?: number }>;
 }
 
@@ -61,6 +68,7 @@ export function useMultitrackCapture(opts: {
           pass.current = {
             takeId, driver: asioDriverOf(endpointId), deviceId: same[0].input!.deviceId, sampleRate,
             anchor: { wallMs: performance.timeOrigin + performance.now(), beats: BeatsEngine.get().posBeats() },
+            outputSec: outputLatencySec(),
             tracks: same.map((t) => ({ trackId: t.id, name: t.name, input: t.input!.input, inputR: t.input!.inputR })),
           };
         })
@@ -114,7 +122,9 @@ export function useMultitrackCapture(opts: {
     }
 
     const live = docRef.current;
-    const startBeats = r.firstBufferMs ? sampleZeroBeat(live, p.anchor, r.firstBufferMs, r.bufferFrames, r.sampleRate) : p.anchor.beats;
+    const startBeats = r.firstBufferMs
+      ? sampleZeroBeat(live, p.anchor, r.firstBufferMs, r.bufferFrames, r.sampleRate, { inputFrames: r.inputLatencyFrames, outputSec: p.outputSec })
+      : p.anchor.beats;
     const clippedIdx = new Set(r.clippedInputs);
     const take: MultitrackTake = {
       id: p.takeId, deviceId: p.deviceId, transport: 'usb-asio', sampleRate: r.sampleRate,

@@ -24,14 +24,20 @@ export function captureInputs(tracks: ArrangeTrack[]): number[] {
 }
 
 /**
- * The song beat where the take's first sample sits. `anchor` is any (wall clock ms, song beat) pair
- * read while the transport rolled; the driver's first callback arrives one buffer after its first
- * sample was captured. Driver input latency isn't reported by ASIO, so it's not compensated here.
+ * The song beat where the take's first sample sits, as the performer heard it. `anchor` is any
+ * (wall clock ms, song beat) pair read while the transport rolled. The driver's first callback
+ * arrives one input latency after its first sample hit the input — the driver's reported latency
+ * when it gives one (it includes the buffer), else one buffer. Chora's own playback reaches the
+ * performer `outputSec` after the engine clock, so they played to a beat that much earlier.
  */
-export function sampleZeroBeat(doc: GrooveDoc, anchor: { wallMs: number; beats: number }, firstBufferMs: number, bufferFrames: number, sampleRate: number): number {
+export function sampleZeroBeat(
+  doc: GrooveDoc, anchor: { wallMs: number; beats: number }, firstBufferMs: number, bufferFrames: number, sampleRate: number,
+  latency: { inputFrames?: number; outputSec?: number } = {},
+): number {
   const { tempo } = songTime(doc);
-  const sample0Ms = firstBufferMs - (bufferFrames / sampleRate) * 1000;
-  return tempo.secToBeat(tempo.beatToSec(anchor.beats) + (sample0Ms - anchor.wallMs) / 1000);
+  const inFrames = latency.inputFrames && latency.inputFrames > 0 ? latency.inputFrames : bufferFrames;
+  const sample0Ms = firstBufferMs - (inFrames / sampleRate) * 1000;
+  return tempo.secToBeat(tempo.beatToSec(anchor.beats) + (sample0Ms - anchor.wallMs) / 1000 - (latency.outputSec ?? 0));
 }
 
 export interface TakeClip { trackId: string; sampleKey: string; name: string; durationSec: number; peaks?: number[] }

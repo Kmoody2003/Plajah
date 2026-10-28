@@ -98,6 +98,15 @@ test('sample zero sits one buffer before the first callback', () => {
   assert.ok(Math.abs(sampleZeroBeat(doc, { wallMs: 10_000, beats: 8 }, 11_010, 480, 48000) - 10) < 1e-9);
 });
 
+test('sampleZeroBeat uses the driver input latency and what the performer heard', () => {
+  const doc = newGrooveDoc('u'); doc.bpm = 120; doc.tempoMap = [];
+  // 960 frames reported input latency (20 ms) replaces the 10 ms buffer; 40 ms output latency.
+  const b = sampleZeroBeat(doc, { wallMs: 10_000, beats: 8 }, 11_010, 480, 48000, { inputFrames: 960, outputSec: 0.04 });
+  assert.ok(Math.abs(b - 9.9) < 1e-9);
+  // A driver that reports nothing falls back to one buffer.
+  assert.ok(Math.abs(sampleZeroBeat(doc, { wallMs: 10_000, beats: 8 }, 11_010, 480, 48000, { inputFrames: 0 }) - 10) < 1e-9);
+});
+
 test('applyTake places clips; pre-roll audio becomes offset, not lost', () => {
   const doc = newGrooveDoc('u'); doc.bpm = 120; doc.tempoMap = [];
   doc.arrangement = [inputTrack('kick', 0, true)];

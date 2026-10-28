@@ -513,6 +513,8 @@ export interface AsioTakeResult {
   /** Wall clock (unix ms) of the first driver callback, and that buffer's size in frames. */
   firstBufferMs: number;
   bufferFrames: number;
+  /** The driver's reported input latency in frames (includes the buffer); 0 = not reported. */
+  inputLatencyFrames?: number;
 }
 
 export async function listAsioDrivers(): Promise<string[]> {

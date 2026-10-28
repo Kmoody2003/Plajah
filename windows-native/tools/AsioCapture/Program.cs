@@ -25,7 +25,7 @@ internal static class Program
                 Console.WriteLine("peaks " + string.Join(" ", rec.TakePeaks().Select(p => p.ToString("0.000"))));
             }
             var r = rec.Stop();
-            Console.WriteLine($"take {r.TakeId}: {r.DurationSec:0.000}s @ {r.SampleRate} dropped={r.DroppedFrames} clipped=[{string.Join(",", r.ClippedInputs)}] err={r.Error} firstBufferMs={r.FirstBufferUnixMs} bufferFrames={r.BufferFrames}");
+            Console.WriteLine($"take {r.TakeId}: {r.DurationSec:0.000}s @ {r.SampleRate} dropped={r.DroppedFrames} clipped=[{string.Join(",", r.ClippedInputs)}] err={r.Error} firstBufferMs={r.FirstBufferUnixMs} bufferFrames={r.BufferFrames} inputLatencyFrames={r.InputLatencyFrames}");
             int bad = 0;
             foreach (var f in r.Files)
             {

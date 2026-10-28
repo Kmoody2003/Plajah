@@ -1,19 +1,11 @@
-// services/audio/avbService.ts — Audio Video Bridging (AVB / IEEE 802.1BA / Milan / IEEE 1722 / IEEE 1733 / AVDECC)
+// services/audio/avbService.ts — Audio Video Bridging (AVB / Milan / IEEE 1722 / AVDECC)
 //
-// Full professional network audio service for Plajah.
-// Transmits and receives deterministic, uncompressed 24-bit / 32-bit float PCM audio
-// over AVB/TSN Ethernet networks to hardware audio interfaces, stage boxes, and consoles
-// (MOTU AVB, PreSonus StudioLive / NSB, Avid S3 / S6L / Carbon, Meyer Sound, L-Acoustics).
+// Not implemented yet: discovery (AVDECC) and audio (AVTP) need raw Layer-2 access and gPTP, which
+// the desktop app doesn't have. This service reports only what it observes — the PC's wired
+// adapters from the native app, no entities, no clock — and never fills in example hardware.
+// Consoles record into Chora over USB/ASIO meanwhile (Chora → Inputs).
 
-import {
-  listAvbInterfaces,
-  listAvbEntities,
-  configureAvbTalker,
-  connectAvbListener,
-  stopAvbStream,
-  getAvbClockStatus,
-  hasNativeEngine,
-} from '../mediaEngine/bridge';
+import { listAvbInterfaces, listAvbEntities, stopAvbStream, getAvbClockStatus } from '../mediaEngine/bridge';
 
 export interface AvbInterface {
   id: string;
@@ -56,13 +48,15 @@ export interface AvbStreamRoute {
 export interface AvbPtpClock {
   grandmasterId: string;
   ptpDomain: string;
-  lockState: 'LOCKED' | 'CALIBRATING' | 'FREERUN';
+  lockState: 'LOCKED' | 'CALIBRATING' | 'FREERUN' | 'UNAVAILABLE';
   offsetNs: number;
   jitterNs: number;
   milanLocked: boolean;
 }
 
 export interface AvbState {
+  /** False until AVB audio actually works — the UI says so instead of showing routes. */
+  available: boolean;
   enabled: boolean;
   connected: boolean;
   interfaces: AvbInterface[];
@@ -73,60 +67,25 @@ export interface AvbState {
   lastScannedAt: number;
 }
 
-const DEFAULT_CLOCK: AvbPtpClock = {
-  grandmasterId: '00:01:f2:ff:fe:00:82:8e',
-  ptpDomain: 'IEEE 802.1AS (Domain 0 · gPTP)',
-  lockState: 'LOCKED',
-  offsetNs: 12.4,
-  jitterNs: 1.8,
-  milanLocked: true,
-};
+export const AVB_UNAVAILABLE = "AVB isn't available yet — record your console over USB (Chora → Inputs).";
+
+const NO_CLOCK: AvbPtpClock = { grandmasterId: '', ptpDomain: '', lockState: 'UNAVAILABLE', offsetNs: 0, jitterNs: 0, milanLocked: false };
 
 class AvbAudioService {
   private static instance: AvbAudioService | null = null;
   private state: AvbState = {
-    enabled: true,
+    available: false,
+    enabled: false,
     connected: false,
     interfaces: [],
     entities: [],
-    streams: [
-      {
-        id: 'avb_master_out',
-        name: 'Chora Master Out (Talker 1-8)',
-        direction: 'TALKER',
-        channels: 8,
-        sampleRate: 48000,
-        bitDepth: 24,
-        active: true,
-        latencyMs: 0.25,
-        channelNames: ['L Master', 'R Master', 'Sub Out', 'Cue L', 'Cue R', 'Talkback', 'Stems Drum', 'Stems Music'],
-      },
-      {
-        id: 'avb_stage_in',
-        name: 'Stage Box Mics (Listener 1-16)',
-        direction: 'LISTENER',
-        channels: 16,
-        sampleRate: 48000,
-        bitDepth: 24,
-        entityId: '00:0a:92:ff:fe:16:32:00',
-        active: true,
-        latencyMs: 0.25,
-        channelNames: [
-          'Vocal 1 (Lead)', 'Vocal 2 (Bkg)', 'Kick In', 'Snare Top',
-          'Hi-Hat', 'Tom 1', 'Tom 2', 'Overhead L',
-          'Overhead R', 'Bass DI', 'Guitar Amp 1', 'Guitar Amp 2',
-          'Keys L', 'Keys R', 'Acoustic Gtr', 'Room Mic'
-        ],
-      }
-    ],
-    clock: DEFAULT_CLOCK,
+    streams: [],
+    clock: NO_CLOCK,
     selectedInterfaceId: null,
     lastScannedAt: 0,
   };
 
   private listeners = new Set<(state: AvbState) => void>();
-  private pollInterval: any = null;
-
   private constructor() {
     this.init();
   }
@@ -157,74 +116,15 @@ class AvbAudioService {
 
   public async init(): Promise<void> {
     await this.scanNetwork();
-    if (typeof window !== 'undefined' && !this.pollInterval) {
-      this.pollInterval = setInterval(() => this.pollClock(), 4000);
-    }
   }
 
   public async scanNetwork(): Promise<void> {
     try {
-      const ifaces = await listAvbInterfaces();
-      const entities = await listAvbEntities();
-      const clock = await getAvbClockStatus();
-
-      this.state.interfaces = ifaces.length > 0 ? ifaces : [
-        {
-          id: 'avb_nic_primary',
-          name: 'Intel Ethernet Controller I225-V (AVB/TSN)',
-          description: 'Hardware IEEE 802.1AS PTP & IEEE 1722 AVTP Audio Controller',
-          macAddress: '00:1B:21:9A:34:52',
-          supportsPtp: true,
-          supportsAvtp: true,
-          linkSpeedGbps: 2.5,
-          driverName: 'Intel Gigabit AVB NDIS Driver (ASIO/WASAPI)',
-          ptpStatus: 'gPTP (IEEE 802.1AS) Synchronized (0.32μs)',
-        }
-      ];
-
-      this.state.entities = entities.length > 0 ? entities : [
-        {
-          entityId: '00:01:f2:ff:fe:00:82:8e',
-          name: 'MOTU 828es / 1248 AVB Interface',
-          modelName: '828es Thunderbolt / AVB',
-          manufacturer: 'Mark of the Unicorn (MOTU)',
-          talkerStreams: 4,
-          listenerStreams: 4,
-          supportedSampleRates: [48000, 96000, 192000],
-          milanCompliant: true,
-          ipAddress: '192.168.1.140',
-          status: 'Online (Milan Certified · 32 Ch I/O)',
-        },
-        {
-          entityId: '00:0a:92:ff:fe:16:32:00',
-          name: 'PreSonus StudioLive NSB 16.8 Stage Box',
-          modelName: 'NSB 16.8 AVB Stage Box',
-          manufacturer: 'PreSonus Audio Electronics',
-          talkerStreams: 2,
-          listenerStreams: 1,
-          supportedSampleRates: [48000, 96000],
-          milanCompliant: true,
-          ipAddress: '192.168.1.142',
-          status: 'Online (16 Mic Pre / 8 Return)',
-        },
-        {
-          entityId: '00:1d:a5:ff:fe:70:01:22',
-          name: 'Avid Pro Tools Carbon / S6L AVB',
-          modelName: 'Carbon DSP Hybrid Interface',
-          manufacturer: 'Avid Technology',
-          talkerStreams: 4,
-          listenerStreams: 4,
-          supportedSampleRates: [48000, 96000, 192000],
-          milanCompliant: true,
-          ipAddress: '192.168.1.145',
-          status: 'Online (Sub-Millisecond Monitoring)',
-        },
-      ];
-
-      if (clock) {
-        this.state.clock = clock;
-      }
-      this.state.connected = this.state.entities.length > 0;
+      const [ifaces, entities, clock] = await Promise.all([listAvbInterfaces(), listAvbEntities(), getAvbClockStatus()]);
+      this.state.interfaces = ifaces;
+      this.state.entities = entities;
+      this.state.clock = clock && clock.lockState ? clock : NO_CLOCK;
+      this.state.connected = entities.length > 0;
       this.state.lastScannedAt = Date.now();
       this.notify();
     } catch (e) {
@@ -232,59 +132,13 @@ class AvbAudioService {
     }
   }
 
-  private async pollClock(): Promise<void> {
-    try {
-      const clock = await getAvbClockStatus();
-      if (clock) {
-        this.state.clock = clock;
-        this.notify();
-      }
-    } catch { /* ignore */ }
+  /** AVB audio isn't implemented: refuses rather than adding a route that carries nothing. */
+  public async addTalkerStream(_name: string, _channels = 16, _sampleRate = 48000): Promise<AvbStreamRoute> {
+    throw new Error(AVB_UNAVAILABLE);
   }
 
-  /** Configure an AVB Talker Stream (Chora mixer sending audio to network). */
-  public async addTalkerStream(name: string, channels = 16, sampleRate = 48000): Promise<AvbStreamRoute> {
-    const id = `avb_talker_${Date.now()}`;
-    await configureAvbTalker({ streamId: id, name, channels, sampleRate });
-
-    const newStream: AvbStreamRoute = {
-      id,
-      name,
-      direction: 'TALKER',
-      channels,
-      sampleRate,
-      bitDepth: 24,
-      active: true,
-      latencyMs: 0.25,
-      channelNames: Array.from({ length: channels }, (_, i) => `Ch ${i + 1} Out`),
-    };
-
-    this.state.streams.push(newStream);
-    this.notify();
-    return newStream;
-  }
-
-  /** Connect an AVB Listener Stream (receiving audio from a stage box / console). */
-  public async connectListenerStream(entityId: string, name: string, channels = 16, sampleRate = 48000): Promise<AvbStreamRoute> {
-    const id = `avb_listener_${Date.now()}`;
-    await connectAvbListener({ streamId: id, entityId, channels, sampleRate });
-
-    const newStream: AvbStreamRoute = {
-      id,
-      name,
-      direction: 'LISTENER',
-      channels,
-      sampleRate,
-      bitDepth: 24,
-      entityId,
-      active: true,
-      latencyMs: 0.25,
-      channelNames: Array.from({ length: channels }, (_, i) => `In ${i + 1}`),
-    };
-
-    this.state.streams.push(newStream);
-    this.notify();
-    return newStream;
+  public async connectListenerStream(_entityId: string, _name: string, _channels = 16, _sampleRate = 48000): Promise<AvbStreamRoute> {
+    throw new Error(AVB_UNAVAILABLE);
   }
 
   public async toggleStream(streamId: string): Promise<void> {

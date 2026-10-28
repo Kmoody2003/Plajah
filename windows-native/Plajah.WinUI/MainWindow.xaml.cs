@@ -1063,7 +1063,12 @@ public sealed partial class MainWindow : Window
                 var probe = _asioRec.IsRunning
                     ? new AsioMultitrackRecorder.DriverProbe(driver, false, "A capture is running", 0, 0, Array.Empty<string>(), Array.Empty<int>())
                     : AsioMultitrackRecorder.Probe(driver);
-                PostNativeMessage("ASIO_PROBE_RESULT", probe);
+                // camelCase like every other reply — the web side matches on `driver`.
+                PostNativeMessage("ASIO_PROBE_RESULT", new
+                {
+                    driver = probe.Driver, ok = probe.Ok, error = probe.Error, inputs = probe.Inputs, outputs = probe.Outputs,
+                    inputNames = probe.InputNames, sampleRates = probe.SampleRates,
+                });
             }
             else if (type == "ASIO_REC_START")
             {
@@ -1105,6 +1110,7 @@ public sealed partial class MainWindow : Window
                     error = r.Error,
                     firstBufferMs = r.FirstBufferUnixMs,
                     bufferFrames = r.BufferFrames,
+                    inputLatencyFrames = r.InputLatencyFrames,
                     files = r.Files.Select(f => new
                     {
                         input = f.Input,
@@ -1647,21 +1653,11 @@ public sealed partial class MainWindow : Window
                 }
                 else if (cmd == "avb_talker")
                 {
-                    string sId = argsObj.TryGetProperty("streamId", out var si) ? si.GetString() ?? "avb_master_out" : "avb_master_out";
-                    string sName = argsObj.TryGetProperty("name", out var sn) ? sn.GetString() ?? "Plajah Chora Master Output" : "Plajah Chora Master Output";
-                    int chs = argsObj.TryGetProperty("channels", out var cp) && cp.TryGetInt32(out var cv) ? cv : 16;
-                    int sr = argsObj.TryGetProperty("sampleRate", out var sp) && sp.TryGetInt32(out var sv) ? sv : 48000;
-                    var config = _studioBridge.ConfigureAvbTalkerStream(sId, sName, chs, sr);
-                    result = new { success = true, config };
+                    result = new { success = false, error = PlajahStudioBridgeService.AvbUnavailable };
                 }
                 else if (cmd == "avb_listener")
                 {
-                    string sId = argsObj.TryGetProperty("streamId", out var si) ? si.GetString() ?? "avb_stage_in" : "avb_stage_in";
-                    string entId = argsObj.TryGetProperty("entityId", out var ei) ? ei.GetString() ?? "" : "";
-                    int chs = argsObj.TryGetProperty("channels", out var cp) && cp.TryGetInt32(out var cv) ? cv : 16;
-                    int sr = argsObj.TryGetProperty("sampleRate", out var sp) && sp.TryGetInt32(out var sv) ? sv : 48000;
-                    var config = _studioBridge.ConnectAvbListenerStream(sId, entId, chs, sr);
-                    result = new { success = true, config };
+                    result = new { success = false, error = PlajahStudioBridgeService.AvbUnavailable };
                 }
                 else if (cmd == "avb_stop_stream")
                 {
