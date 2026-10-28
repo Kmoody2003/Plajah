@@ -34,7 +34,9 @@ export const isStudentOf = (p: ChurchProgram, uid: string) => !!uid && (p.studen
 export function needsReview(sub: EduSubmissionRecord, a?: UniversalDeskAssignment): boolean {
   if (sub.status !== 'TURNED_IN') return false;
   if (!a) return true;
-  return a.unitSnapshot.questions.some(isWritten) || Object.values(sub.questionScores || {}).some(s => s.pending);
+  // Students never hold the answer key, so a score their device sends for a keyed question can't be
+  // trusted: anything with written or keyed questions waits for the teacher, whatever the turn-in claims.
+  return a.unitSnapshot.questions.some(q => isWritten(q) || !!q.correctAnswer) || Object.values(sub.questionScores || {}).some(s => s.pending);
 }
 
 export function currentWeekIndex(p: ChurchProgram): number {

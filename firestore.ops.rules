@@ -566,13 +566,16 @@ service cloud.firestore {
     }
     match /churchEduSubmissions/{sid} {
       allow read: if isAuthenticated() && (resource.data.studentUid == request.auth.uid || eduTeacher(resource.data.programId));
-      // Students write their own turn-in (and may re-turn-in before review); review fields are teacher-only.
+      // Students write their own turn-in (and may re-turn-in before review); review fields and the
+      // RETURNED_WITH_FEEDBACK status are teacher-only.
       allow create: if isAuthenticated() && request.resource.data.studentUid == request.auth.uid
         && sid == request.resource.data.assignmentId + '__' + request.auth.uid
         && eduStudent(request.resource.data.programId)
+        && request.resource.data.get('status', '') != 'RETURNED_WITH_FEEDBACK'
         && !request.resource.data.keys().hasAny(['reviewVerdicts', 'teacherFeedbackNote', 'reviewedByUid', 'reviewedAt']);
       allow update: if (isAuthenticated() && resource.data.studentUid == request.auth.uid
           && resource.data.status != 'RETURNED_WITH_FEEDBACK'
+          && request.resource.data.get('status', '') != 'RETURNED_WITH_FEEDBACK'
           && request.resource.data.studentUid == resource.data.studentUid
           && request.resource.data.programId == resource.data.programId
           && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['reviewVerdicts', 'teacherFeedbackNote', 'reviewedByUid', 'reviewedAt']))
