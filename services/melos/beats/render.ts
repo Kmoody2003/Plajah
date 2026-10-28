@@ -17,6 +17,7 @@ import { StepScheduler, seededRng } from './engine/scheduler';
 import { startAudioClipSource } from './engine/clips';
 import { Instrument } from './engine/InstrumentHost';
 import { applyPatch, deserializePatch } from '../instruments/onda/patch';
+import { deserializeKeraProgram, type SerializedKeraProgram } from '../instruments/kera/persist';
 import { encodeWav } from '../../audio/wavEncode';
 import { uploadFile } from '../../backendService';
 import { auth } from '../../firebase';
@@ -128,6 +129,8 @@ export async function renderGroove(
   );
   const anySolo = doc.arrangement.some((t) => t.solo);
   const instByTrackId = new Map<string, Instrument>();
+  // KERA tracks play sampled voices — their notes go through keraScheduleNote, not the synth path.
+  const keraTrackIds = new Set<string>();
   let skippedInstruments = 0;
 
   for (const track of instrumentTracks) {
@@ -167,9 +170,19 @@ export async function renderGroove(
           if (patch) applyPatch(inst, patch);
         }
       }
+      if (track.instrument?.type === 'kera') {
+        // The program's PCM comes back from the owner's OPFS/locker, exactly as the live engine
+        // hydrates it; nothing to load = an empty sampler, counted rather than bounced as silence.
+        const sp = track.instrument.kera as unknown as SerializedKeraProgram | undefined;
+        const prog = sp ? await deserializeKeraProgram(sp) : null;
+        if (!prog) { inst.dispose(); skippedInstruments++; continue; }
+        inst.loadKeraProgram(prog);
+        keraTrackIds.add(track.id);
+      }
       inst.resetTransport(0);
       inst.clearSchedule();
       instByTrackId.set(track.id, inst);
+      const kera = keraTrackIds.has(track.id);
 
       const sustain = effectiveLanes(track).get('sustain');
       for (const clip of track.clips) {
@@ -181,6 +194,7 @@ export async function renderGroove(
           // anchor mirrors the drum scheduler's lead-in so both land on the same grid.
           const onFrame = Math.round((anchor + tempo.beatToSec(startBeats)) * SAMPLE_RATE);
           const offFrame = Math.round((anchor + tempo.beatToSec(end)) * SAMPLE_RATE);
+          if (kera) { inst.keraScheduleNote(occ.note.key, occ.note.vel, onFrame, offFrame); continue; }
           const voiceId = inst.scheduleNoteOn(occ.note.key, Math.max(0.05, occ.note.vel / 127), onFrame);
           inst.scheduleNoteOff(voiceId, offFrame);
         }
@@ -191,15 +205,6 @@ export async function renderGroove(
     }
   }
 
-  // KERA pads can't render offline yet — a KERA program is decoded audio loaded at runtime, not
-  // part of the serialized patch, so there's nothing to re-instantiate here. Count them honestly
-  // rather than bouncing silence that reads as "rendered".
-  const trackById = new Map(doc.arrangement.map((t) => [t.id, t]));
-  const keraPadTrackIds = new Set(
-    [...padInstrumentTrackIds].filter((id) => trackById.get(id)?.instrument?.type === 'kera'),
-  );
-  skippedInstruments += keraPadTrackIds.size;
-
   const scheduler = new StepScheduler({
     doc: () => doc,
     toTime: (beats) => anchor + tempo.beatToSec(beats),
@@ -209,14 +214,14 @@ export async function renderGroove(
       const pad = doc.kit[padIdx];
       if (pad?.empty || pad?.mute) return; // placeholder / muted pad prints nothing
       if (pad?.source === 'instrument' && pad.instrumentTrackId) {
-        // ONDA pad: pre-schedule at absolute frames, the same path clip notes use.
-        if (keraPadTrackIds.has(pad.instrumentTrackId)) return; // KERA offline: see above
+        // Instrument pad: pre-schedule at absolute frames, the same path clip notes use.
         const inst = instByTrackId.get(pad.instrumentTrackId);
         if (!inst) return;
         const note = Math.max(0, Math.min(127, (pad.instrumentNote ?? 60) + (pad.pitchSemis || 0) + (semiOffset || 0)));
         const onFrame = Math.round(when * SAMPLE_RATE);
         const gate = gateSec ?? 0.25; // one-shot instrument pads get a short articulating gate
         const offFrame = Math.round((when + gate) * SAMPLE_RATE);
+        if (keraTrackIds.has(pad.instrumentTrackId)) { inst.keraScheduleNote(note, vel, onFrame, offFrame); return; }
         const voiceId = inst.scheduleNoteOn(note, Math.max(0.05, vel / 127), onFrame);
         inst.scheduleNoteOff(voiceId, offFrame);
         return;

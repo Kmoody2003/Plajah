@@ -34,6 +34,10 @@ struct ScheduledEvent {
     note: f32,
     velocity: f32,
     voice_id: u32,
+    /// KERA: the sample slot to play (-1 = a synth note), its zone detune and play-start frame.
+    slot: i32,
+    detune_cents: f32,
+    start_frame: f64,
 }
 
 pub struct Engine {
@@ -327,7 +331,18 @@ impl Engine {
         if self.events.len() >= MAX_EVENTS || !frame.is_finite() {
             return;
         }
-        self.events.push(ScheduledEvent { frame: frame.max(0.0) as u64, on: true, note, velocity, voice_id });
+        self.events.push(ScheduledEvent { frame: frame.max(0.0) as u64, on: true, note, velocity, voice_id, slot: -1, detune_cents: 0.0, start_frame: 0.0 });
+        self.events_dirty = true;
+    }
+
+    /// The KERA twin of `schedule_note_on`: a sampled voice queued at an absolute frame, so a
+    /// sampler track bounces offline exactly as it plays live.
+    #[allow(clippy::too_many_arguments)]
+    pub fn schedule_note_on_sampled(&mut self, note: f32, velocity: f32, voice_id: u32, frame: f64, slot: i32, detune_cents: f32, start_frame: f64) {
+        if self.events.len() >= MAX_EVENTS || !frame.is_finite() {
+            return;
+        }
+        self.events.push(ScheduledEvent { frame: frame.max(0.0) as u64, on: true, note, velocity, voice_id, slot, detune_cents, start_frame });
         self.events_dirty = true;
     }
 
@@ -335,7 +350,7 @@ impl Engine {
         if self.events.len() >= MAX_EVENTS || !frame.is_finite() {
             return;
         }
-        self.events.push(ScheduledEvent { frame: frame.max(0.0) as u64, on: false, note: 0.0, velocity: 0.0, voice_id });
+        self.events.push(ScheduledEvent { frame: frame.max(0.0) as u64, on: false, note: 0.0, velocity: 0.0, voice_id, slot: -1, detune_cents: 0.0, start_frame: 0.0 });
         self.events_dirty = true;
     }
 
@@ -371,7 +386,9 @@ impl Engine {
             }
             // Anything already in the past fires immediately rather than being dropped.
             let offset = ev.frame.saturating_sub(start) as u32;
-            if ev.on {
+            if ev.on && ev.slot >= 0 {
+                self.note_on_sampled(ev.note, ev.velocity, ev.voice_id, offset, ev.slot, ev.detune_cents, ev.start_frame);
+            } else if ev.on {
                 self.note_on(ev.note, ev.velocity, ev.voice_id, offset);
             } else {
                 self.note_off(ev.voice_id);

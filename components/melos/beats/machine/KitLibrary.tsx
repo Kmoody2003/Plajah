@@ -6,9 +6,12 @@
 //            one replaces the 16 pads of the current Group (or a new one), like Maschine.
 //   Sounds — one-shots by type (Kick, Snare, Hat…), click to hear, load onto the selected pad.
 //   Mine   — Groups saved from MEKA ("Save Group").
+//   Keys   — melodic multisample instruments (SFZ, Decent Sampler, SoundFont, Bitwig .multisample,
+//            Logic EXS24, unencrypted Kontakt, folders named by note) played by KERA across the
+//            keys — onto the selected pad, or as a new Timeline track.
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { FolderPlus, RefreshCw, Plug, Play, X, Layers, Music2, Star, Trash2, Info } from 'lucide-react';
+import { FolderPlus, RefreshCw, Plug, Play, X, Layers, Music2, Star, Trash2, Info, Piano, Lock } from 'lucide-react';
 import type { GrooveDoc, SampleRef } from '../../../../services/melos/beats/grooveDoc';
 import { BANK_LETTERS, bankCount } from '../../../../services/melos/beats/grooveDoc';
 import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine';
@@ -19,10 +22,15 @@ import {
 } from '../../../../services/melos/beats/kits/kitLibrary';
 import { applyKitToGroup, applyUserKit, groupLabel, type UserKit } from '../../../../services/melos/beats/kits/applyKit';
 import { CATEGORY_COLOR, CATEGORY_LABEL } from '../../../../services/melos/beats/kits/drumClassify';
-import { KIT_FORMAT_LABEL, type KitFormat, type KitLibraryIndex, type KitSpec, type LibraryKit, type LibrarySample, type SampleCategory } from '../../../../services/melos/beats/kits/types';
+import { INSTRUMENT_FORMAT_LABEL, KIT_FORMAT_LABEL, type InstrumentFormat, type InstrumentSpec, type KitFormat, type KitLibraryIndex, type KitSpec, type LibraryInstrument, type LibraryKit, type LibrarySample, type SampleCategory } from '../../../../services/melos/beats/kits/types';
+import { buildInstrumentProgram, openInstrument } from '../../../../services/melos/beats/kits/instrumentLibrary';
+import { instrumentOnPad, instrumentTrack } from '../../../../services/melos/beats/kits/applyInstrument';
+import { KONTAKT_LOCKED_NOTE } from '../../../../services/melos/beats/kits/instruments';
+import { makeInstrumentTrack } from '../../../../services/melos/beats/instrumentFactory';
+import { backupKeraSamples, serializeKeraProgram } from '../../../../services/melos/instruments/kera/persist';
 import { PLAYHEAD, SELECT } from '../theme';
 
-type Tab = 'groups' | 'sounds' | 'mine';
+type Tab = 'groups' | 'sounds' | 'instruments' | 'mine';
 
 interface Props {
   doc: GrooveDoc;
@@ -50,6 +58,42 @@ async function playPreview(file: File | Blob): Promise<void> {
   } catch { /* undecodable preview */ }
 }
 
+const NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+/** C3 = 60 — the convention sample libraries are named in. */
+const noteName = (n: number) => `${NAMES[n % 12]}${Math.floor(n / 12) - 2}`;
+
+/** "264 samples · sampled A-1–C7 · 3 velocity layers · round robins" — what an instrument covers. */
+function zoneSummary(spec: InstrumentSpec): string {
+  const lo = Math.min(...spec.zones.map((z) => z.rootNote)), hi = Math.max(...spec.zones.map((z) => z.rootNote));
+  const samples = new Set(spec.zones.map((z) => (z.sample.kind === 'path' ? z.sample.path : `${z.sample.bytes.byteOffset}:${z.sample.bytes.byteLength}`))).size;
+  const layers = new Set(spec.zones.map((z) => `${z.loVel}-${z.hiVel}`)).size;
+  return `${samples} samples · sampled ${lo === hi ? noteName(lo) : `${noteName(lo)}–${noteName(hi)}`}${layers > 1 ? ` · ${layers} velocity layers` : ''}${spec.zones.some((z) => z.rrGroup) ? ' · round robins' : ''}`;
+}
+
+/** The keys an instrument covers: bar height = velocity layers on the key, dot = a sampled root. */
+const ZoneMap: React.FC<{ spec: InstrumentSpec }> = ({ spec }) => {
+  const roots = new Set(spec.zones.map((z) => z.rootNote));
+  // Zones usually stretch to 0/127 at the edges — frame the sampled range instead.
+  const lo = Math.max(0, Math.min(...roots) - 3), hi = Math.min(127, Math.max(...roots) + 3);
+  const keys = Array.from({ length: hi - lo + 1 }, (_, i) => lo + i);
+  const layersAt = (k: number) => new Set(spec.zones.filter((z) => k >= z.loKey && k <= z.hiKey).map((z) => `${z.loVel}-${z.hiVel}`)).size;
+  const maxLayers = Math.max(1, ...keys.map(layersAt));
+  return (
+    <div className="flex items-end h-8 gap-px rounded bg-black/30 px-0.5 pt-1" role="img" aria-label={`Zone map ${noteName(lo)} to ${noteName(hi)}`}>
+      {keys.map((k) => {
+        const n = layersAt(k);
+        const black = [1, 3, 6, 8, 10].includes(k % 12);
+        return (
+          <div key={k} className="flex-1 min-w-0 h-full relative" title={`${noteName(k)} · ${n} layer${n !== 1 ? 's' : ''}${roots.has(k) ? ' · sampled' : ''}`}>
+            <div className="absolute bottom-0 inset-x-0 rounded-[1px]" style={{ height: `${n ? 20 + (70 * n) / maxLayers : 6}%`, background: n ? (black ? '#00DAF380' : '#00DAF3') : 'rgba(255,255,255,0.08)' }} />
+            {roots.has(k) && <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-white" />}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 export const KitLibrary: React.FC<Props> = ({ doc, selectedPad, bank, onMutate, onLoadSampleFile, onSelectPad }) => {
   const [roots, setRoots] = useState<FsHandle[]>([]);
   const [granted, setGranted] = useState<boolean[]>([]);
@@ -65,6 +109,9 @@ export const KitLibrary: React.FC<Props> = ({ doc, selectedPad, bank, onMutate, 
   const [sel, setSel] = useState<LibraryKit | null>(null);
   const [spec, setSpec] = useState<KitSpec | null>(null);
   const [selSound, setSelSound] = useState<LibrarySample | null>(null);
+  const [selInst, setSelInst] = useState<LibraryInstrument | null>(null);
+  const [instSpec, setInstSpec] = useState<InstrumentSpec | null>(null);
+  const [instFormat, setInstFormat] = useState<InstrumentFormat | ''>('');
 
   useEffect(() => {
     void (async () => {
@@ -105,16 +152,20 @@ export const KitLibrary: React.FC<Props> = ({ doc, selectedPad, bank, onMutate, 
 
   const products = useMemo(() => {
     const set = new Set<string>();
-    for (const k of index?.kits ?? []) set.add(k.product);
+    for (const k of (tab === 'instruments' ? index?.instruments : index?.kits) ?? []) set.add(k.product);
     if (tab === 'sounds') for (const s of index?.samples ?? []) set.add(s.product);
     return [...set].sort((a, b) => a.localeCompare(b));
   }, [index, tab]);
   const formats = useMemo(() => [...new Set((index?.kits ?? []).map((k) => k.format))], [index]);
+  const instFormats = useMemo(() => [...new Set((index?.instruments ?? []).map((k) => k.format))], [index]);
 
   const q = query.trim().toLowerCase();
   const kits = useMemo(() => (index?.kits ?? []).filter((k) =>
     (!product || k.product === product) && (!format || k.format === format)
     && (!q || k.name.toLowerCase().includes(q) || k.product.toLowerCase().includes(q))).slice(0, LIST_CAP), [index, product, format, q]);
+  const instruments = useMemo(() => (index?.instruments ?? []).filter((k) =>
+    (!product || k.product === product) && (!instFormat || k.format === instFormat)
+    && (!q || k.name.toLowerCase().includes(q) || k.product.toLowerCase().includes(q))).slice(0, LIST_CAP), [index, product, instFormat, q]);
   const sounds = useMemo(() => (index?.samples ?? []).filter((s) =>
     (!product || s.product === product) && (!cat || s.category === cat)
     && (!q || s.name.toLowerCase().includes(q) || s.path.toLowerCase().includes(q))).slice(0, LIST_CAP), [index, product, cat, q]);
@@ -159,6 +210,53 @@ export const KitLibrary: React.FC<Props> = ({ doc, selectedPad, bank, onMutate, 
       for (const ref of refs.values()) void backupToLocker(ref);
     } finally { setBusy(null); }
   }, [index, lookup, roots, spec, sel, onMutate, onSelectPad]);
+
+  // ── Instruments ──
+  const pickInstrument = useCallback(async (k: LibraryInstrument, presetIndex?: number) => {
+    setSelInst(k); setInstSpec(null); setStatus(null);
+    if (!allGranted || !index) return;
+    try { setInstSpec(await openInstrument(roots, index, k, presetIndex)); } catch (e) { setStatus(`Couldn’t read this instrument (${(e as Error).message || 'error'}).`); }
+    if (presetIndex === undefined && k.previewPath) { const f = await fileAt(roots[k.root], k.previewPath); if (f) void playPreview(f); }
+  }, [allGranted, index, roots]);
+
+  /** Build the KERA program, store its samples (OPFS now, the private locker after), then put it
+   *  on the selected pad or a new Timeline track. */
+  const loadInstrument = useCallback(async (k: LibraryInstrument, target: 'pad' | 'track') => {
+    if (!index || !lookup) return;
+    setBusy(`Loading ${k.name}…`);
+    try {
+      const spec = instSpec && selInst?.id === k.id ? instSpec : await openInstrument(roots, index, k);
+      if (!spec) { setStatus('Couldn’t open this instrument.'); return; }
+      if (spec.locked || !spec.zones.length) { setStatus(spec.notes[0] || 'Nothing playable in this instrument.'); return; }
+      const engine = BeatsEngine.get();
+      await engine.init();
+      const ctx = engine.getContext();
+      if (!ctx) return;
+      const built = await buildInstrumentProgram(roots, lookup, k, spec, ctx, (n, total) => setBusy(`Loading ${k.name} — sample ${n}/${total}`));
+      if (!built) { setStatus('None of this instrument’s samples could be found — add the folder that holds them.'); return; }
+      setBusy(`Saving ${k.name}…`);
+      const serialized = await serializeKeraProgram(built.program, null, { locker: false });
+      const kera = serialized as unknown as Record<string, unknown>;
+      const name = built.program.name || k.name;
+      let trackId: string | null = null;
+      onMutate((d) => {
+        const track = makeInstrumentTrack('kera', d.arrangement.filter((t) => t.kind === 'instrument').length, undefined, name);
+        track.instrument!.kera = kera;
+        trackId = target === 'pad' ? instrumentOnPad(d, selectedPad, track, name) : instrumentTrack(d, track, name);
+      });
+      engine.syncInstruments(); // the new track's instrument hydrates its program; a replaced pad's drops
+      if (target === 'pad') onSelectPad(selectedPad);
+      const zones = built.program.zones.length;
+      const miss = built.missing.length ? ` · ${built.missing.length} sample${built.missing.length > 1 ? 's' : ''} not found` : '';
+      setStatus(`${name} → ${target === 'pad' ? `pad ${selectedPad + 1}` : 'new track'} · ${zones} zone${zones !== 1 ? 's' : ''}, ${built.program.samples.length} samples${miss}`);
+      // The durable copy in the owner's private locker uploads after, without holding the UI.
+      const id = trackId as string | null;
+      if (id) void backupKeraSamples(serialized).then((sp) => onMutate((d) => {
+        const t = d.arrangement.find((x) => x.id === id);
+        if (t?.instrument) t.instrument.kera = sp as unknown as Record<string, unknown>;
+      }));
+    } finally { setBusy(null); }
+  }, [index, lookup, roots, instSpec, selInst, selectedPad, onMutate, onSelectPad]);
 
   const loadSound = useCallback(async (s: LibrarySample) => {
     const f = await readLibrarySample(roots, s);
@@ -226,15 +324,15 @@ export const KitLibrary: React.FC<Props> = ({ doc, selectedPad, bank, onMutate, 
       {index && (
         <>
           <div className="flex gap-0.5 bg-white/[0.06] border border-white/10 rounded-lg p-0.5 flex-none">
-            {([['groups', Layers, `Groups ${index.kits.length}`], ['sounds', Music2, `Sounds ${index.samples.length}`], ['mine', Star, `Mine ${userKits.length}`]] as const).map(([t, Icon, label]) => (
-              <button key={t} onClick={() => { setTab(t); setProduct(''); }} className={`flex-1 h-6 rounded-md text-[9.5px] flex items-center justify-center gap-1 ${tab === t ? 'bg-white/15 text-white font-semibold' : 'text-white/40 hover:text-white'}`}>
+            {([['groups', Layers, `Groups ${index.kits.length}`], ['sounds', Music2, `Sounds ${index.samples.length}`], ['instruments', Piano, `Keys ${index.instruments?.length ?? 0}`], ['mine', Star, `Mine ${userKits.length}`]] as const).map(([t, Icon, label]) => (
+              <button key={t} onClick={() => { setTab(t); setProduct(''); }} title={t === 'instruments' ? 'Instruments — melodic multisample libraries played across the keys' : undefined} className={`flex-1 h-6 rounded-md text-[9.5px] flex items-center justify-center gap-1 ${tab === t ? 'bg-white/15 text-white font-semibold' : 'text-white/40 hover:text-white'}`}>
                 <Icon size={10} /> {label}
               </button>
             ))}
           </div>
           {tab !== 'mine' && (
             <div className="flex flex-col gap-1.5 flex-none">
-              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={tab === 'groups' ? 'Search kits' : 'Search sounds'}
+              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={tab === 'groups' ? 'Search kits' : tab === 'instruments' ? 'Search instruments' : 'Search sounds'}
                 className="h-7 rounded-lg bg-black/40 border border-white/10 px-2 text-[11px] text-white outline-none focus:border-white/30" aria-label="Search the library" />
               <div className="flex gap-1">
                 <select value={product} onChange={(e) => setProduct(e.target.value)} aria-label="Product"
@@ -247,6 +345,13 @@ export const KitLibrary: React.FC<Props> = ({ doc, selectedPad, bank, onMutate, 
                     className="flex-1 min-w-0 h-6 rounded-md bg-black/40 border border-white/10 text-[10px] text-white/70 px-1 outline-none">
                     <option value="">All formats</option>
                     {formats.map((f) => <option key={f} value={f}>{KIT_FORMAT_LABEL[f]}</option>)}
+                  </select>
+                )}
+                {tab === 'instruments' && (
+                  <select value={instFormat} onChange={(e) => setInstFormat(e.target.value as InstrumentFormat | '')} aria-label="Instrument format"
+                    className="flex-1 min-w-0 h-6 rounded-md bg-black/40 border border-white/10 text-[10px] text-white/70 px-1 outline-none">
+                    <option value="">All formats</option>
+                    {instFormats.map((f) => <option key={f} value={f}>{INSTRUMENT_FORMAT_LABEL[f]}</option>)}
                   </select>
                 )}
               </div>
@@ -285,6 +390,23 @@ export const KitLibrary: React.FC<Props> = ({ doc, selectedPad, bank, onMutate, 
                 <span className="truncate flex-1">{s.name}</span>
               </button>
             ))}
+            {tab === 'instruments' && instruments.map((k) => (
+              <button key={k.id} onClick={() => void pickInstrument(k)} onDoubleClick={() => void loadInstrument(k, 'pad')}
+                className="text-left px-2 py-1 rounded-lg" title={`Click to open · double-click to load onto pad ${selectedPad + 1}`}
+                style={selInst?.id === k.id ? { background: `${SELECT}26`, color: '#fff' } : { color: 'rgba(255,255,255,0.6)' }}>
+                <span className="flex items-center gap-1.5 text-[11px]">
+                  {k.previewPath && <Play size={8} className="flex-none" style={{ color: PLAYHEAD }} />}
+                  <span className="truncate flex-1">{k.name}</span>
+                  <span className="text-[8px] font-mono text-white/30 flex-none">{INSTRUMENT_FORMAT_LABEL[k.format]}</span>
+                </span>
+                <span className="block text-[9px] text-white/25 truncate">{k.product}</span>
+              </button>
+            ))}
+            {tab === 'instruments' && !instruments.length && (
+              <p className="text-[10px] text-white/25 px-2 py-3 leading-relaxed">
+                {index.instruments ? 'No instruments match.' : 'Rescan the library to find instruments.'}
+              </p>
+            )}
             {tab === 'mine' && userKits.map((k) => (
               <div key={k.id} className="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-white/5">
                 <span className="w-1.5 h-1.5 rounded-full flex-none" style={{ background: k.color || SELECT }} />
@@ -331,6 +453,41 @@ export const KitLibrary: React.FC<Props> = ({ doc, selectedPad, bank, onMutate, 
                 <button disabled={!allGranted || !!busy} onClick={() => void loadKit(sel, newBank)}
                   className="flex-1 h-7 rounded-lg border border-white/15 text-[10px] text-white/60 hover:text-white disabled:opacity-30">
                   New Group {BANK_LETTERS[newBank] ?? ''}
+                </button>
+              </div>
+            </div>
+          )}
+          {tab === 'instruments' && !selInst && (
+            <p className="flex-none text-[9px] text-white/25 leading-snug flex gap-1"><Lock size={9} className="flex-none mt-0.5" />Kontakt: unencrypted instruments with plain WAV/AIFF samples. {KONTAKT_LOCKED_NOTE}</p>
+          )}
+          {tab === 'instruments' && selInst && (
+            <div className="flex-none border-t border-white/10 pt-2 flex flex-col gap-1.5">
+              <p className="text-[11px] text-white font-medium truncate">{instSpec?.name || selInst.name}</p>
+              <p className="text-[9px] text-white/35 truncate">{INSTRUMENT_FORMAT_LABEL[selInst.format]} · {selInst.product}</p>
+              {!allGranted && <p className="text-[9px] text-[#FF8C00]">Reconnect the library to open instruments.</p>}
+              {instSpec?.presets && instSpec.presets.length > 1 && (
+                <select value={instSpec.presetIndex ?? 0} onChange={(e) => void pickInstrument(selInst, Number(e.target.value))} aria-label="SoundFont preset"
+                  className="h-6 rounded-md bg-black/40 border border-white/10 text-[10px] text-white/70 px-1 outline-none">
+                  {instSpec.presets.map((p) => <option key={p.index} value={p.index}>{p.name}{p.bank === 128 ? ' (drums)' : ''}</option>)}
+                </select>
+              )}
+              {instSpec && !instSpec.locked && instSpec.zones.length > 0 && (
+                <>
+                  <ZoneMap spec={instSpec} />
+                  <p className="text-[9px] text-white/30">{zoneSummary(instSpec)}</p>
+                </>
+              )}
+              {instSpec?.notes.map((n, i) => (
+                <p key={i} className="text-[9px] text-white/30 leading-snug flex gap-1">{instSpec.locked ? <Lock size={9} className="flex-none mt-0.5" /> : <Info size={9} className="flex-none mt-0.5" />}{n}</p>
+              ))}
+              <div className="flex gap-1">
+                <button disabled={!allGranted || !!busy || !instSpec || !!instSpec.locked || !instSpec.zones.length} onClick={() => void loadInstrument(selInst, 'pad')}
+                  className="flex-1 h-7 rounded-lg border text-[10px] disabled:opacity-30" style={{ borderColor: `${PLAYHEAD}66`, color: PLAYHEAD }}>
+                  Load onto pad {selectedPad + 1}
+                </button>
+                <button disabled={!allGranted || !!busy || !instSpec || !!instSpec.locked || !instSpec.zones.length} onClick={() => void loadInstrument(selInst, 'track')}
+                  className="flex-1 h-7 rounded-lg border border-white/15 text-[10px] text-white/60 hover:text-white disabled:opacity-30">
+                  New track
                 </button>
               </div>
             </div>

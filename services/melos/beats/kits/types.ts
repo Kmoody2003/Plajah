@@ -95,6 +95,8 @@ export interface LibrarySample {
 export interface KitLibraryIndex {
   roots: string[];       // folder names, in root order
   kits: LibraryKit[];
+  /** Melodic multisample instruments (absent in indexes scanned before instruments existed). */
+  instruments?: LibraryInstrument[];
   samples: LibrarySample[];
   scannedAt: number;
   skipped: number;
@@ -105,3 +107,81 @@ export const KITS_ROOTS_KEY = 'melos:kits:roots';
 export const USER_KITS_KEY = 'melos:kits:user';
 
 export const AUDIO_EXT = /\.(wav|wave|aif|aiff|flac|ogg|mp3|m4a)$/i;
+
+// ── Multisample instruments (keygroups) ──────────────────────────────────────
+// Melodic libraries — a piano, a string section, a choir — are many samples spread across keys
+// and velocities, played by KERA (the sampler instrument), not by one-shot pads. Every format
+// parses into one `InstrumentSpec`; instrumentLibrary.ts resolves its samples and builds a
+// KeraProgram from it. Parsers stay pure, like the kit parsers above.
+
+export type InstrumentFormat =
+  | 'sfz'                  // .sfz — full regions: key/velocity zones, round robins, loops
+  | 'decent'               // .dspreset — Decent Sampler
+  | 'soundfont'            // .sf2 — melodic presets, samples embedded
+  | 'bitwig-multisample'   // .multisample — zip: multisample.xml + the samples
+  | 'exs'                  // .exs — Logic EXS24 / Sampler
+  | 'kontakt'              // .nki — unencrypted Kontakt instruments with plain WAV/AIFF
+  | 'folder';              // a folder of samples named by note ("Piano C3 v2.wav")
+
+export const INSTRUMENT_FORMAT_LABEL: Record<InstrumentFormat, string> = {
+  sfz: 'SFZ',
+  decent: 'Decent Sampler',
+  soundfont: 'SoundFont',
+  'bitwig-multisample': 'Bitwig Multisample',
+  exs: 'Logic EXS24',
+  kontakt: 'Kontakt',
+  folder: 'Sample folder',
+};
+
+/** One zone: when a key in [loKey, hiKey] is played in [loVel, hiVel], sound this sample. */
+export interface ZoneSpec {
+  sample: KitSampleSource;
+  /** MIDI note the sample sounds at, untransposed. */
+  rootNote: number;
+  loKey: number;
+  hiKey: number;
+  loVel: number;
+  hiVel: number;
+  /** Round robin: zones sharing a non-zero group cycle in rrIndex order. */
+  rrGroup: number;
+  rrIndex: number;
+  tuneSemis: number;
+  tuneCents: number;
+  gainDb: number;
+  pan: number;          // -1..1
+  offGroup: number;
+  loopMode: 'off' | 'forward' | 'sustain';
+  /** Loop points in frames of the source file (as written by the format). */
+  loopStart: number;
+  loopEnd: number;
+  /** Play window in source frames; endFrame 0 = to the end. */
+  startFrame: number;
+  endFrame: number;
+  /** No loop/root from the format: use the WAV's own `smpl` chunk when it has one. */
+  useFileLoop?: boolean;
+}
+
+export interface InstrumentSpec {
+  name: string;
+  format: InstrumentFormat;
+  zones: ZoneSpec[];
+  amp?: { attack: number; hold: number; decay: number; sustain: number; release: number };
+  /** What the import couldn't carry over, in plain words. */
+  notes: string[];
+  /** SoundFonts: every preset in the file, and which one this spec is. */
+  presets?: { name: string; index: number; bank: number }[];
+  presetIndex?: number;
+  /** The file can't be read at all (encrypted Kontakt) — the notes say why. */
+  locked?: boolean;
+}
+
+/** One instrument file (or melodic sample folder) found in a library folder. */
+export interface LibraryInstrument {
+  id: string;
+  root: number;
+  path: string;          // file inside the root; for 'folder', the folder path ending in '/'
+  name: string;
+  format: InstrumentFormat;
+  product: string;
+  previewPath?: string;
+}

@@ -249,23 +249,48 @@ export class Instrument {
     ]);
   }
 
-  /** Play a note through the loaded KERA program — selects zones (velocity layers, round-robins)
-   *  and fires one sampled voice per matching zone. */
-  keraNoteOn(note: number, velocity127: number): void {
-    if (!this.keraProgram) return;
-    const zones = selectZones(this.keraProgram, note, velocity127, this.keraRr);
-    if (!zones.length) return;
+  /** The engine voices a note fires through the loaded KERA program: zones selected (velocity
+   *  layers, round-robins), each zone's tuning + its sample's fine-tune folded into detune cents
+   *  (the engine resamples from the sample's root itself), and the zone + program level folded
+   *  into the voice velocity (the engine scales amplitude by it; attenuation only, never > 1). */
+  private keraVoices(note: number, velocity127: number): { velocity: number; voices: Array<{ voiceId: number; slot: number; detune: number; startFrame: number }> } {
+    const prog = this.keraProgram;
+    if (!prog) return { velocity: 0, voices: [] };
+    const zones = selectZones(prog, note, velocity127, this.keraRr);
+    const sampleById = new Map(prog.samples.map((s) => [s.id, s]));
     const voices: Array<{ voiceId: number; slot: number; detune: number; startFrame: number }> = [];
+    let gainDb = -Infinity;
     for (const z of zones) {
       const slot = this.keraSlotOf.get(z.sampleId);
       if (slot === undefined) continue;
-      // Fold zone semis into detune cents so the engine's root-relative resample stays one path.
-      const detune = z.tuneSemis * 100 + z.tuneCents + this.keraProgram.transpose * 100;
+      const detune = z.tuneSemis * 100 + z.tuneCents + prog.transpose * 100 + (sampleById.get(z.sampleId)?.fineTune ?? 0);
       voices.push({ voiceId: this.nextVoiceId++, slot, detune, startFrame: 0 });
+      gainDb = Math.max(gainDb, z.gainDb);
     }
+    const level = Math.min(1, Math.pow(10, ((Number.isFinite(gainDb) ? gainDb : 0) + (prog.gainDb || 0)) / 20));
+    // voice.rs scales amplitude by (0.25 + 0.75·vel); solve for the vel that lands `level` lower.
+    const vel = Math.max(0.05, velocity127 / 127);
+    return { velocity: Math.max(0, ((0.25 + 0.75 * vel) * level - 0.25) / 0.75), voices };
+  }
+
+  /** Play a note through the loaded KERA program — one sampled voice per matching zone. */
+  keraNoteOn(note: number, velocity127: number): void {
+    const { velocity, voices } = this.keraVoices(note, velocity127);
     if (!voices.length) return;
     this.keraHeld.set(note, voices.map((v) => v.voiceId));
-    this.post({ type: 'noteOnSampled', note, velocity: Math.max(0.05, velocity127 / 127), frameOffset: 0, voices });
+    this.post({ type: 'noteOnSampled', note, velocity, frameOffset: 0, voices });
+  }
+
+  /** The offline twin of keraNoteOn: zones are chosen now (round-robins advance in note order),
+   *  voices fire at absolute frames on the engine's own clock. Returns the voice ids so the caller
+   *  can schedule their note-offs. */
+  keraScheduleNote(note: number, velocity127: number, onFrame: number, offFrame: number): number {
+    const { velocity, voices } = this.keraVoices(note, velocity127);
+    for (const v of voices) {
+      this.post({ type: 'scheduleOnSampled', note, velocity, voiceId: v.voiceId, frame: onFrame, slot: v.slot, detune: v.detune, startFrame: v.startFrame });
+      this.post({ type: 'scheduleOff', voiceId: v.voiceId, frame: offFrame });
+    }
+    return voices.length;
   }
 
   keraNoteOff(note: number): void {

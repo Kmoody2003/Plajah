@@ -346,6 +346,18 @@ pub unsafe extern "C" fn pa_schedule_note_on(p: *mut Engine, note: f32, velocity
     e.schedule_note_on(note, velocity, voice_id, frame);
 }
 
+/// A sampled (KERA) note queued at an ABSOLUTE sample position — the offline twin of
+/// `pa_note_on_sampled`.
+///
+/// # Safety
+/// `p` must be a live engine pointer.
+#[unsafe(no_mangle)]
+#[allow(clippy::too_many_arguments)]
+pub unsafe extern "C" fn pa_schedule_note_on_sampled(p: *mut Engine, note: f32, velocity: f32, voice_id: u32, frame: f64, slot: i32, detune_cents: f32, start_frame: f64) {
+    let e = eng!(p);
+    e.schedule_note_on_sampled(note, velocity, voice_id, frame, slot, detune_cents, start_frame);
+}
+
 /// # Safety
 /// `p` must be a live engine pointer.
 #[unsafe(no_mangle)]

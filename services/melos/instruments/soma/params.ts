@@ -2,7 +2,7 @@
 // rust/plajah-audio/src/params.rs, plus Master (0..9), Space/Echo (1600+), and Veil acoustic
 // hall/chamber reverb (1200+).
 //
-// Keep this file and params.rs in lockstep; DSP_ABI_VERSION (12) in InstrumentHost guards
+// Keep this file and params.rs in lockstep; DSP_ABI_VERSION (14) in InstrumentHost guards
 // against a stale .wasm, and SOMA_PARAM_META below drives the physical instrument UI.
 
 import { P as ONDA_P } from '../onda/params';

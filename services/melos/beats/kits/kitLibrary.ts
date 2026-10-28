@@ -9,8 +9,9 @@
 import { get as idbGet, set as idbSet } from 'idb-keyval';
 import {
   AUDIO_EXT, KITS_INDEX_KEY, KITS_ROOTS_KEY, USER_KITS_KEY,
-  type KitLibraryIndex, type KitSpec, type LibraryKit, type LibrarySample,
+  type KitLibraryIndex, type KitSpec, type LibraryInstrument, type LibraryKit, type LibrarySample,
 } from './types';
+import { instrumentFormatFor, looksLikeMultisample } from './instruments';
 import { classifySample, looksLikeKit } from './drumClassify';
 import { kitFormatFor, parseFolderKit, parseKitBytes, parseImpact } from './parsers';
 import { aiffToWav, zipEntries, zipRead } from './bytes';
@@ -82,6 +83,7 @@ export async function scanKitLibrary(
   limits = { samples: 150_000, kits: 30_000 },
 ): Promise<KitLibraryIndex> {
   const kits: LibraryKit[] = [];
+  const instruments: LibraryInstrument[] = [];
   const samples: LibrarySample[] = [];
   let skipped = 0;
   let tick = 0;
@@ -108,6 +110,14 @@ export async function scanKitLibrary(
           audioHere.push(path);
           if (samples.length < limits.samples) samples.push({ root: r, path, name: e.name.replace(/\.[^.]+$/, ''), category: classifySample(path), product });
           continue;
+        }
+        // Melodic instruments (keygroups) index alongside kits — an SFZ / SoundFont / Decent preset
+        // shows in both tabs, since the same file can be a kit or a playable instrument.
+        const instFormat = instrumentFormatFor(e.name);
+        if (instFormat) {
+          const ib = e.name.replace(/\.[^.]+$/, '');
+          const ipv = [`${e.name}.ogg`, `${ib}.ogg`].find((n) => previews.has(n));
+          instruments.push({ id: `${r}:${path}`, root: r, path, name: ib, format: instFormat, product, previewPath: ipv ? `${prefix}.previews/${ipv}` : undefined });
         }
         if (!KIT_FILE.test(path)) continue;
         if (/\.soundset$/i.test(e.name)) {
@@ -139,8 +149,12 @@ export async function scanKitLibrary(
         kits.push({ id: `${r}:${path}`, root: r, path, name: e.name === 'drumkit.xml' ? prefix.split('/').filter(Boolean).pop() || base : base, format, product, previewPath: preview ? `${prefix}.previews/${preview}` : undefined });
         say(`${kits.length} kits · ${samples.length} samples — ${e.name}`);
       }
-      // A folder of mixed one-shots (kick + snare + hats…) is a kit of its own.
-      if (looksLikeKit(audioHere)) {
+      // Samples named by key ("Piano C3 v2.wav") make a melodic instrument; mixed one-shots
+      // (kick + snare + hats…) a kit of its own.
+      if (looksLikeMultisample(audioHere)) {
+        const name = prefix.split('/').filter(Boolean).pop() || roots[r].name;
+        instruments.push({ id: `${r}:${prefix}`, root: r, path: prefix, name, format: 'folder', product });
+      } else if (looksLikeKit(audioHere)) {
         const name = prefix.split('/').filter(Boolean).pop() || roots[r].name;
         kits.push({ id: `${r}:${prefix}`, root: r, path: prefix, name, format: 'folder', product });
       }
@@ -148,7 +162,7 @@ export async function scanKitLibrary(
     };
     await walk(roots[r], '', 0);
   }
-  const index: KitLibraryIndex = { roots: roots.map((h) => h.name), kits, samples, scannedAt: Date.now(), skipped };
+  const index: KitLibraryIndex = { roots: roots.map((h) => h.name), kits, instruments, samples, scannedAt: Date.now(), skipped };
   try { await idbSet(KITS_INDEX_KEY, index); } catch { /* usable in memory */ }
   return index;
 }

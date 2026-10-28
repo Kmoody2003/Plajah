@@ -73,6 +73,9 @@ class InstrumentProcessor extends AudioWorkletProcessor {
       case 'scheduleOn':
         x.pa_schedule_note_on(this.eng, msg.note, msg.velocity, msg.voiceId, msg.frame);
         break;
+      case 'scheduleOnSampled':
+        x.pa_schedule_note_on_sampled(this.eng, msg.note, msg.velocity, msg.voiceId, msg.frame, msg.slot, msg.detune || 0, msg.startFrame || 0);
+        break;
       case 'scheduleOff':
         x.pa_schedule_note_off(this.eng, msg.voiceId, msg.frame);
         break;
