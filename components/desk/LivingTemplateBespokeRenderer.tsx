@@ -40,6 +40,14 @@ export const LivingTemplateBespokeRenderer: React.FC<LivingTemplateBespokeRender
   flaggedQuestionIds = [],
   onToggleFlagQuestion,
 }) => {
+  // Units carry passages on their questions and lesson blocks, not a top-level list; gather them once.
+  const scriptureRefs = Array.from(
+    new Set(
+      [...unit.questions.map(q => q.scripturePassage), ...unit.lessonBlocks.map(b => b.scripturePassage)].filter(
+        (r): r is string => !!r && r.trim().length > 0
+      )
+    )
+  );
   const [spotlightIdx, setSpotlightIdx] = useState(0);
   const [confidenceMap, setConfidenceMap] = useState<
     Record<string, 'unsure' | 'confident' | 'teach'>
@@ -1030,7 +1038,7 @@ export const LivingTemplateBespokeRenderer: React.FC<LivingTemplateBespokeRender
                 Unit Ref
               </span>
               <strong className="text-[#111827]">
-                {unit.scriptureReferences[0] || 'Core Seminar'}
+                {scriptureRefs[0] || 'Core Seminar'}
               </strong>
             </div>
             <div>
@@ -1050,13 +1058,13 @@ export const LivingTemplateBespokeRenderer: React.FC<LivingTemplateBespokeRender
             <div className="font-mono text-[11px] font-bold uppercase tracking-widest text-[#991B1B] border-b border-[#E2DFD7] pb-2">
               30% Cues, Key Terms &amp; Anchor Texts
             </div>
-            {unit.scriptureReferences.length > 0 && (
+            {scriptureRefs.length > 0 && (
               <div className="space-y-2">
                 <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                   Primary References
                 </div>
                 <div className="flex flex-wrap gap-1.5">
-                  {unit.scriptureReferences.map(ref => (
+                  {scriptureRefs.map(ref => (
                     <button
                       key={ref}
                       type="button"
@@ -1198,7 +1206,7 @@ export const LivingTemplateBespokeRenderer: React.FC<LivingTemplateBespokeRender
               className="text-base sm:text-lg italic text-[#1C1917] leading-snug"
               style={{ fontFamily: 'Georgia, serif' }}
             >
-              &ldquo;{unit.scriptureReferences.join(' · ') || 'Wisdom begins in quiet contemplation and deliberate inquiry.'}&rdquo;
+              &ldquo;{scriptureRefs.join(' · ') || 'Wisdom begins in quiet contemplation and deliberate inquiry.'}&rdquo;
             </blockquote>
             <div className="text-[11px] text-[#78716C]">
               Margin Folio · {questions.length} Reflections
@@ -1351,9 +1359,9 @@ export const LivingTemplateBespokeRenderer: React.FC<LivingTemplateBespokeRender
               </h3>
               <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">{leadParagraph}</p>
             </div>
-            {unit.scriptureReferences.length > 0 && (
+            {scriptureRefs.length > 0 && (
               <div className="flex flex-wrap gap-1.5 pt-4">
-                {unit.scriptureReferences.map(ref => (
+                {scriptureRefs.map(ref => (
                   <span
                     key={ref}
                     className="px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-semibold"

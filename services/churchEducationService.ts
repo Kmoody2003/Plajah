@@ -19,6 +19,8 @@ export interface PlanWeek {
   note: string;
   library?: string;
   worksheetPrompt?: string;
+  /** Lessons/worksheets (IngestedCurriculumUnit ids) added to this week from the class Lessons channel. */
+  unitIds?: string[];
 }
 
 export interface ClassChatMessage {
@@ -43,11 +45,32 @@ export interface ChurchProgram {
   assignedTeam?: Array<{ uid?: string; personId?: string; name: string; roleKey: 'INSTRUCTOR' | 'DEPARTMENT_HEAD' | 'DEPARTMENT_ADMIN' | 'DEPARTMENT_VOLUNTEER' }>;
   courseIds: string[];
   weeks: PlanWeek[];
+  /** Enrolled students. Kids without a Plajah account are listed by name (personId from ChMS) and do paper work. */
+  students?: ClassRosterStudent[];
+  /** Denormalised for security rules: uids that can see class work / that can teach this class. */
+  studentUids?: string[];
+  teacherUids?: string[];
+  /** Short code a student types to ask to join (teacher approves). */
+  joinCode?: string;
+  /** Week the class is on right now (index into weeks). */
+  currentWeek?: number;
+  coverHue?: string;
   classroomId?: string;
   chatRoomId: string;
   chatMessages?: ClassChatMessage[];
   createdBy: string;
   createdAt: number;
+}
+
+export interface ClassRosterStudent {
+  id: string;
+  uid?: string;
+  personId?: string;
+  name: string;
+  avatar?: string;
+  guardianName?: string;
+  guardianUid?: string;
+  addedAt: number;
 }
 
 export const KIND_LABEL: Record<ProgramKind, string> = {
@@ -327,6 +350,7 @@ export async function saveProgram(p: ChurchProgram): Promise<void> {
     if (r.refId) o.refId = r.refId;
     if (w.library) o.library = w.library;
     if (w.worksheetPrompt) o.worksheetPrompt = w.worksheetPrompt;
+    if (w.unitIds?.length) o.unitIds = w.unitIds;
     return o;
   });
   const normalized: ChurchProgram = {
@@ -335,6 +359,10 @@ export async function saveProgram(p: ChurchProgram): Promise<void> {
     weeks,
     courseIds: p.courseIds || [],
     chatMessages: p.chatMessages || [],
+    studentUids: Array.from(new Set((p.students || []).map(x => x.uid).filter((u): u is string => !!u))),
+    teacherUids: Array.from(
+      new Set([p.createdBy, ...(p.assignedTeam || []).map(t => t.uid)].filter((u): u is string => !!u))
+    ),
   };
 
   // Persist locally first so UI is immediate and resilient
@@ -342,7 +370,7 @@ export async function saveProgram(p: ChurchProgram): Promise<void> {
   writeLocalPrograms(p.orgId, [...current, normalized]);
 
   try {
-    await setDoc(doc(opsDb, 'churchPrograms', normalized.id), normalized);
+    await setDoc(doc(opsDb, 'churchPrograms', normalized.id), JSON.parse(JSON.stringify(normalized)));
   } catch {
     // Offline or demo org fallback already saved in localStorage
   }

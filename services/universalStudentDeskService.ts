@@ -19,6 +19,7 @@ import {
   GREAT_FAITH_MINISTRIES_NAME,
 } from './orgAssets';
 import { appendRecord } from './learningLedgerService';
+import { mirrorAssignment, mirrorTurnIn, type EduSubmissionRecord } from './christianEdSync';
 
 export type DeskContextDomain = 'CHRISTIAN_EDUCATION' | 'ACADEMIA' | 'ORG_TRAINING';
 
@@ -506,6 +507,7 @@ export function assignUnitToClassroomDesk(params: {
 
   const next = [assignment, ...all.filter(a => a.id !== assignment.id)];
   writeStoredAssignments(next);
+  void mirrorAssignment(assignment);
   return assignment;
 }
 
@@ -667,8 +669,54 @@ export function turnInStudentDeskAssignment(params: {
 
   map[params.assignment.id] = workspace;
   writeWorkspaceMap(params.studentUid, map);
+  void mirrorTurnIn(params.assignment, workspace);
 
   return { workspace, submission };
+}
+
+/** Merge assignments fetched from the Christian Ed mirror into this device's desk. */
+export function mergeRemoteDeskAssignments(remote: UniversalDeskAssignment[]): void {
+  if (remote.length === 0) return;
+  const all = readStoredAssignments();
+  const byId = new Map(all.map(a => [a.id, a]));
+  let changed = false;
+  for (const r of remote) {
+    const local = byId.get(r.id);
+    if (!local || local.assignedAt < r.assignedAt) {
+      byId.set(r.id, { ...local, ...r, unitSnapshot: { ...(local?.unitSnapshot || {}), ...r.unitSnapshot } });
+      changed = true;
+    }
+  }
+  if (changed) writeStoredAssignments(Array.from(byId.values()).sort((a, b) => b.assignedAt - a.assignedAt));
+}
+
+/** Bring teacher feedback from the mirror onto the student's local desk. */
+export function applyReturnedSubmissions(studentUid: string, recs: EduSubmissionRecord[]): void {
+  const returned = recs.filter(r => r.status === 'RETURNED_WITH_FEEDBACK');
+  if (returned.length === 0) return;
+  const map = readWorkspaceMap(studentUid);
+  let changed = false;
+  for (const r of returned) {
+    const prev = map[r.assignmentId];
+    if (prev?.status === 'RETURNED_WITH_FEEDBACK' && prev.teacherFeedbackNote === (r.teacherFeedbackNote || '')) continue;
+    map[r.assignmentId] = {
+      ...(prev || {
+        assignmentId: r.assignmentId,
+        studentUid,
+        studentName: r.studentName,
+        answers: r.answers,
+        scratchpadNotes: '',
+        flaggedQuestionIds: [],
+        selfCheckCount: 0,
+        lastSavedAt: Date.now(),
+      }),
+      status: 'RETURNED_WITH_FEEDBACK',
+      teacherFeedbackNote: r.teacherFeedbackNote || '',
+      turnedInAt: r.turnedInAt,
+    };
+    changed = true;
+  }
+  if (changed) writeWorkspaceMap(studentUid, map);
 }
 
 /**

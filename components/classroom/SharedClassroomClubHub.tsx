@@ -74,6 +74,9 @@ export interface SharedClassroomClubHubProps {
   currentUserAvatar?: string;
   rosterStudents?: Array<{ id: string; name: string; avatar?: string; roleLabel?: string }>;
   initialSection?: 'SOCIAL_FEED' | 'PHOTOS' | 'LIVE_LECTURE' | 'ROSTER';
+  /** Rendered inside a parent club (Christian Ed class): the parent owns the cover and channel pills,
+   *  so the banner and section tabs are hidden and `initialSection` drives the section. */
+  embedded?: boolean;
 }
 
 const WHITEBOARD_COLORS = ['#FFFFFF', '#FF8C00', '#00DAF3', '#06D6A0', '#D40055', '#FFD24A', '#A78BFA'];
@@ -91,6 +94,7 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
   currentUserAvatar,
   rosterStudents = [],
   initialSection = 'LIVE_LECTURE',
+  embedded = false,
 }) => {
   const viewerUid = currentUserUid || auth.currentUser?.uid || (isTeacher ? teacherUid : 'student_local');
   const viewerName =
@@ -99,6 +103,9 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
     (isTeacher ? teacherName : 'Class Student');
 
   const [section, setSection] = useState<'SOCIAL_FEED' | 'PHOTOS' | 'LIVE_LECTURE' | 'ROSTER'>(initialSection);
+  useEffect(() => {
+    if (embedded) setSection(initialSection);
+  }, [embedded, initialSection]);
 
   // ── 1. Classroom Social Feed State ──
   const [posts, setPosts] = useState<ClassroomSocialPost[]>(() =>
@@ -527,7 +534,7 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
   return (
     <div className="space-y-5 text-white" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
       {/* Club-Model Classroom Header Banner */}
-      <div className="rounded-3xl border border-white/12 bg-gradient-to-r from-[#17092b] via-[#120b24] to-[#0b0614] p-5 flex flex-wrap items-center justify-between gap-4 shadow-xl">
+      <div style={embedded ? { display: 'none' } : undefined} className="rounded-3xl border border-white/12 bg-gradient-to-r from-[#17092b] via-[#120b24] to-[#0b0614] p-5 flex flex-wrap items-center justify-between gap-4 shadow-xl">
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="px-2.5 py-0.5 rounded-full bg-amber-400/20 border border-amber-400/40 text-amber-200 text-[10px] font-black uppercase tracking-wider inline-flex items-center gap-1">

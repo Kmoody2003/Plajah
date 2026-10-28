@@ -546,8 +546,115 @@ service cloud.firestore {
       allow create, update: if isAuthenticated() && request.resource.data.createdBy == request.auth.uid
         && (request.auth.uid in get(/databases/$(database)/documents/organizations/$(request.resource.data.orgId)).data.admins
             || request.auth.uid == get(/databases/$(database)/documents/organizations/$(request.resource.data.orgId)).data.creatorId);
+      // A class's own teachers may update it (roster, weeks) but never move it or change ownership.
+      allow update: if isAuthenticated() && request.auth.uid in resource.data.get('teacherUids', [])
+        && request.resource.data.orgId == resource.data.orgId
+        && request.resource.data.createdBy == resource.data.createdBy;
       allow delete: if isAuthenticated() && (resource.data.createdBy == request.auth.uid
         || request.auth.uid in get(/databases/$(database)/documents/organizations/$(resource.data.orgId)).data.admins);
+    }
+    // ── Christian Ed desk mirror (services/christianEdSync.ts) ───────────────────
+    function eduProgram(pid) { return get(/databases/$(database)/documents/churchPrograms/$(pid)).data; }
+    function eduTeacher(pid) {
+      return isAuthenticated() && (request.auth.uid in eduProgram(pid).get('teacherUids', []) || orgAdminOf(eduProgram(pid).orgId));
+    }
+    function eduStudent(pid) { return isAuthenticated() && request.auth.uid in eduProgram(pid).get('studentUids', []); }
+    match /churchEduAssignments/{aid} {
+      allow read: if eduTeacher(resource.data.classroomId) || eduStudent(resource.data.classroomId);
+      allow create, update: if eduTeacher(request.resource.data.classroomId);
+      allow delete: if eduTeacher(resource.data.classroomId);
+    }
+    match /churchEduSubmissions/{sid} {
+      allow read: if isAuthenticated() && (resource.data.studentUid == request.auth.uid || eduTeacher(resource.data.programId));
+      // Students write their own turn-in (and may re-turn-in before review); review fields are teacher-only.
+      allow create: if isAuthenticated() && request.resource.data.studentUid == request.auth.uid
+        && sid == request.resource.data.assignmentId + '__' + request.auth.uid
+        && eduStudent(request.resource.data.programId)
+        && !request.resource.data.keys().hasAny(['reviewVerdicts', 'teacherFeedbackNote', 'reviewedByUid', 'reviewedAt']);
+      allow update: if (isAuthenticated() && resource.data.studentUid == request.auth.uid
+          && resource.data.status != 'RETURNED_WITH_FEEDBACK'
+          && request.resource.data.studentUid == resource.data.studentUid
+          && request.resource.data.programId == resource.data.programId
+          && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['reviewVerdicts', 'teacherFeedbackNote', 'reviewedByUid', 'reviewedAt']))
+        || (eduTeacher(resource.data.programId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'reviewVerdicts', 'teacherFeedbackNote', 'earnedPoints', 'percentage', 'reviewedByUid', 'reviewedAt', 'updatedAt']));
+      allow delete: if eduTeacher(resource.data.programId);
+    }
+    match /churchEduJoinRequests/{rid} {
+      allow read: if isAuthenticated() && (resource.data.uid == request.auth.uid || eduTeacher(resource.data.programId));
+      allow create: if isAuthenticated() && request.resource.data.uid == request.auth.uid
+        && rid == request.resource.data.programId + '__' + request.auth.uid
+        && request.resource.data.code == eduProgram(request.resource.data.programId).get('joinCode', '');
+      allow delete: if isAuthenticated() && (resource.data.uid == request.auth.uid || eduTeacher(resource.data.programId));
+    }
+    // ── Announcements: posts, flyers, polls, surveys (services/announcements/announcementService.ts) ──
+    // class → the class's teachers post, its teachers + students read. members → org people staff post,
+    // the uids denormalised into audienceUids read. public → org people staff post, anyone signed in reads.
+    function annCanRead(a) {
+      return isAuthenticated() && (a.audience == 'public' ||
+        (a.audience == 'class' && (eduTeacher(a.programId) || eduStudent(a.programId))) ||
+        (a.audience == 'members' && (request.auth.uid in a.get('audienceUids', []) || chmsPeopleStaff(a.orgId))) ||
+        isAdmin());
+    }
+    function annManager(a) {
+      return isAuthenticated() && ((a.audience == 'class' && eduTeacher(a.programId)) || (a.audience != 'class' && chmsPeopleStaff(a.orgId)));
+    }
+    function annDoc(id) { return get(/databases/$(database)/documents/orgAnnouncements/$(id)).data; }
+    match /orgAnnouncements/{id} {
+      allow read: if annCanRead(resource.data);
+      allow create: if annManager(request.resource.data) && request.resource.data.authorUid == request.auth.uid && request.resource.data.id == id
+        && request.resource.data.get('flyerJson', '').size() < 700000;
+      allow update: if annManager(resource.data) && (
+          (resource.data.authorUid == request.auth.uid && request.resource.data.authorUid == resource.data.authorUid
+            && request.resource.data.orgId == resource.data.orgId && request.resource.data.audience == resource.data.audience
+            && request.resource.data.get('programId', '') == resource.data.get('programId', ''))
+          || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pinned', 'updatedAt']));
+      allow delete: if (annManager(resource.data) && resource.data.authorUid == request.auth.uid)
+        || (resource.data.audience != 'class' && orgAdminOf(resource.data.orgId)) || isAdmin();
+    }
+    // One response per person. Poll tallies are readable by the audience only when the author chose to
+    // show results and nothing else (a survey) rides on it; survey answers stay with the author and managers.
+    match /announcementResponses/{rid} {
+      allow read: if isAuthenticated() && (resource.data.uid == request.auth.uid || annManager(annDoc(resource.data.annId)) ||
+        (annDoc(resource.data.annId).get('poll', {}).get('showResults', false) == true && annDoc(resource.data.annId).get('survey', null) == null
+          && annCanRead(annDoc(resource.data.annId))));
+      allow create, update: if isAuthenticated() && request.resource.data.uid == request.auth.uid
+        && rid == request.resource.data.annId + '__' + request.auth.uid
+        && annCanRead(annDoc(request.resource.data.annId));
+      allow delete: if isAuthenticated() && resource.data.uid == request.auth.uid;
+    }
+    // ── Template library (services/templates/docTemplateLibrary.ts) ───────────
+    // platform → everyone reads. org → the org's Content HQ people read/write. user → owner only.
+    // A platform template copied from an org document must carry fromOrgId + stripped and pass the org's
+    // policy. Rules can only verify admin and staff roles; teacher/volunteer/member roles are checked in
+    // the client (any of them on = anyone signed in may share a stripped copy).
+    function tplOrgStaff(orgId) { return canAccessHqScope({'scopeKind': 'org', 'scopeId': orgId}) || chmsPeopleStaff(orgId); }
+    function tplPolicy(orgId) { return get(/databases/$(database)/documents/orgTemplatePolicies/$(orgId)).data; }
+    function tplShareAllowed(orgId) {
+      return exists(/databases/$(database)/documents/orgTemplatePolicies/$(orgId)) && tplPolicy(orgId).allowPlatformSharing == true && (
+        (orgAdminOf(orgId) && tplPolicy(orgId).roles.admin == true) ||
+        (chmsPeopleStaff(orgId) && tplPolicy(orgId).roles.staff == true) ||
+        tplPolicy(orgId).roles.teacher == true || tplPolicy(orgId).roles.volunteer == true || tplPolicy(orgId).roles.member == true);
+    }
+    match /docTemplates/{id} {
+      allow read: if isAuthenticated() && (resource.data.tier == 'platform' || resource.data.ownerUid == request.auth.uid
+        || (resource.data.tier == 'org' && tplOrgStaff(resource.data.orgId)) || isAdmin());
+      allow create: if isAuthenticated() && request.resource.data.ownerUid == request.auth.uid && request.resource.data.id == id
+        && request.resource.data.bundleJson is string && request.resource.data.bundleJson.size() < 750000
+        && (request.resource.data.tier == 'user'
+          || (request.resource.data.tier == 'org' && tplOrgStaff(request.resource.data.orgId))
+          || (request.resource.data.tier == 'platform' && (!('fromOrgId' in request.resource.data)
+            || (request.resource.data.get('stripped', false) == true && tplShareAllowed(request.resource.data.fromOrgId)))));
+      allow update: if isAuthenticated() && (
+          (resource.data.ownerUid == request.auth.uid && request.resource.data.ownerUid == resource.data.ownerUid
+            && request.resource.data.tier == resource.data.tier && request.resource.data.get('fromOrgId', '') == resource.data.get('fromOrgId', ''))
+          || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['uses']) && request.resource.data.uses == resource.data.get('uses', 0) + 1));
+      allow delete: if isAuthenticated() && (resource.data.ownerUid == request.auth.uid
+        || (resource.data.tier == 'org' && orgAdminOf(resource.data.orgId)) || isAdmin());
+    }
+    match /orgTemplatePolicies/{orgId} {
+      allow read: if isAuthenticated();
+      allow write: if orgAdminOf(orgId) || isAdmin();
     }
     match /churchPrayers/{prayerId} {
       // Public wall prayers: any signed-in user. Private requests: author, pastors/ministers, prayer warriors, admins.

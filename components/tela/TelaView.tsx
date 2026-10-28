@@ -16,7 +16,7 @@ import { createPortal } from 'react-dom';
 import {
   BarChart3, BookHeart, BookOpen, Brush, CheckCircle2, ChevronDown, ChevronLeft, Circle, CircleHelp, Clipboard, Copy, CopyPlus, Database, Eye, EyeOff, Feather, FileDown, FilePlus2, FileText, FileUp, FlipHorizontal, Folder, FormInput,
   Grid3X3, Hand, Hexagon, Image as ImageIcon, ImagePlus, Lasso, Layers, LayoutPanelTop, Link as LinkIcon, Link2, Loader2, Maximize2, Minimize2,
-  Minus, Monitor, MousePointer2, MousePointerClick, Music2, Paintbrush, Eraser, Palette, Pencil, PenLine, PenTool, Pipette, Plus, Redo2, Scan, Shapes, Sliders, Sparkles, Spline, Square, Star, TextQuote, Trash2, Type, Undo2, Wand2, X, ZoomIn, History as HistoryIcon, Printer, Box as BoxIcon, MoreHorizontal } from 'lucide-react';
+  Minus, Monitor, MousePointer2, MousePointerClick, Music2, Paintbrush, Eraser, Palette, Pencil, PenLine, PenTool, Pipette, Plus, Redo2, Scan, Shapes, Sliders, Sparkles, Spline, Square, Star, TextQuote, Trash2, Type, Undo2, Wand2, X, ZoomIn, History as HistoryIcon, Printer, Box as BoxIcon, MoreHorizontal, GraduationCap, LayoutTemplate } from 'lucide-react';
 import { NON_PRINTING_LABEL, isNonPrinting, type SpotColor } from '../../services/print/types';
 import { defaultSpecFor } from '../../services/print/products';
 import { vehiclePlacements, type WrapJob } from '../../services/print/wrap';
@@ -31,7 +31,8 @@ import {
   publishTelaVersion,
 } from '../../services/telaStore';
 import { CreativeStorageMeter, CreativeVersionHistory, useCreativeSyncState } from '../creative/CreativeCloudPanels';
-import { auth } from '../../services/backendService';
+import { auth, fetchUserProfile } from '../../services/backendService';
+import type { TelaClassworkContext, TelaReturnTarget } from './classwork/classworkTypes';
 import { extractDocument, isSupportedImport, escapeHtml, SUPPORTED_IMPORT_ACCEPT } from '../../services/documentImport';
 import { uploadTelaAsset, uploadTelaImage } from '../../services/telaAssets';
 import { isVectorFile, rasterizeVector } from '../../services/fabula/vectorRaster';
@@ -111,6 +112,9 @@ const ComicDrawCanvas = React.lazy(() => import('../ComicDrawCanvas'));
 const ComposeWithCouncil = React.lazy(() => import('../living/ComposeWithCouncil'));   // Composer Council panel (services/living/composer)
 const TelaBehaviorsPanel = React.lazy(() => import('./TelaBehaviorsPanel'));   // Live authoring: behaviours, sounds, music (services/living)
 const TelaComicStudio = React.lazy(() => import('./TelaComicStudio').then(m => ({ default: m.TelaComicStudio })));
+const TelaClassworkStudio = React.lazy(() => import('./classwork/TelaClassworkStudio'));
+const SaveTemplateDialog = React.lazy(() => import('../templates/SaveTemplateDialog'));
+const TemplateLibrary = React.lazy(() => import('../templates/TemplateLibrary'));
 const MerchDesignerStudio = React.lazy(() => import('./merch/MerchDesignerStudio'));
 const PrepressPanel = React.lazy(() => import('./print/PrepressPanel'));
 const LocalCreativeStudio = React.lazy(() => import('../Fabula/LocalCreativeStudio').then(m => ({ default: m.LocalCreativeStudio })));
@@ -341,9 +345,13 @@ interface TelaViewProps {
   onBack?: () => void;
   /** Opens a domain-generated Tela file directly (Melos, Notes, journals). */
   initialDocId?: string | null;
+  /** Opened from a class / Education hub to bring in classwork: opens the Classwork tab scoped to it. */
+  classwork?: TelaClassworkContext | null;
+  /** Shows a "Back to …" button that returns to the screen that opened Tela. */
+  returnTo?: TelaReturnTarget | null;
 }
 
-const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentChange }) => {
+const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentChange, classwork = null, returnTo = null }) => {
   const [doc, setDoc] = useState<TelaDoc | null>(null);
   useEffect(() => { if (doc) onDocumentChange?.(doc); }, [doc, onDocumentChange]);
   const [showHome, setShowHome] = useState(!initialDocId);
@@ -426,6 +434,21 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
   const [autoFormatUndo, setAutoFormatUndo] = useState<TelaDoc | null>(null);
   const [autoFormatReport, setAutoFormatReport] = useState<TelaAutoFormatReport | null>(null);
   const [comicStudioOpen, setComicStudioOpen] = useState(false);
+  const [classworkOpen, setClassworkOpen] = useState(!!classwork);
+  const [isEducator, setIsEducator] = useState(false);
+  const [templateMenu, setTemplateMenu] = useState<null | 'menu' | 'save' | 'library'>(null);
+  useEffect(() => { if (classwork) setClassworkOpen(true); }, [classwork]);
+  useEffect(() => {
+    // Classwork is for teachers and education staff: anyone who opened Tela from a class, or a teacher account.
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    let alive = true;
+    fetchUserProfile(uid).then(p => {
+      const a = p as any;
+      if (alive) setIsEducator(!!a && (a.accountType === 'TEACHER' || a.isTeacher || a.isSchoolAdmin));
+    }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
   const [merchStudioOpen, setMerchStudioOpen] = useState(false);
   const [prepressOpen, setPrepressOpen] = useState(false);
   const [localStudioOpen, setLocalStudioOpen] = useState(false);
@@ -2691,7 +2714,15 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
         className="@container shrink-0 flex items-center gap-2 px-3 h-14 border-b min-w-0"
         style={{ borderColor: 'var(--border-color, rgba(255,255,255,0.08))', background: 'linear-gradient(180deg,#140D20,#0E0A16)' }}
       >
-        {onBack && (
+        {returnTo ? (
+          <button
+            className="shrink-0 flex items-center gap-1.5 h-8 px-3 rounded-full text-[.72rem] font-bold text-white bg-white/[0.07] border border-white/[0.14] hover:bg-white/[0.12]"
+            onClick={returnTo.onReturn}
+            title={`Back to ${returnTo.label}`}
+          >
+            <ChevronLeft size={14} /> <span className="max-w-[160px] truncate">Back to {returnTo.label}</span>
+          </button>
+        ) : onBack && (
           <button className={topBtn} onClick={onBack} title="Back"><ChevronLeft size={15} /></button>
         )}
         <button onClick={() => { void refreshList(); setShowHome(true); }} className="flex items-center gap-2 pr-1" title="Tela Home">
@@ -2785,6 +2816,40 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
           <BookOpen size={13} className={comicLayoutMode ? 'text-white' : 'text-purple-300'} />
           <span className={hdrLabel}>Comic Studio</span>
         </button>
+
+        {/* Classwork — bring in lessons, worksheets, quizzes and keys (teachers & education staff) */}
+        {(classwork || isEducator) && (
+          <button
+            onClick={() => setClassworkOpen(true)}
+            className="shrink-0 flex items-center gap-1.5 h-8 px-3 rounded-[9px] text-[.72rem] font-bold transition-all shadow-sm"
+            style={classworkOpen
+              ? { background: 'var(--pj-grad-brand, linear-gradient(135deg,#6B0099,#D40055))', color: '#fff' }
+              : { color: '#FFB15C', background: 'rgba(255,140,0,0.1)', border: '1px solid rgba(255,140,0,0.32)' }}
+            title="Classwork — turn lessons, worksheets, quizzes and answer keys into Tela docs and send them to a class"
+          >
+            <GraduationCap size={13} />
+            <span className={hdrLabel}>Classwork</span>
+          </button>
+        )}
+
+        {/* Templates — save this document as a template (me / the org / everyone) or start from the shared library */}
+        <div className="relative shrink-0">
+          <button
+            onClick={() => setTemplateMenu(m => (m === 'menu' ? null : 'menu'))}
+            aria-expanded={templateMenu === 'menu'}
+            className="flex items-center gap-1.5 h-8 px-3 rounded-[9px] text-[.72rem] font-bold text-violet-200 bg-violet-500/10 border border-violet-400/30 hover:bg-violet-500/20 transition-all shadow-sm"
+            title="Templates — save this document as a template, or start from the shared library"
+          >
+            <LayoutTemplate size={13} />
+            <span className={hdrLabel}>Templates</span>
+          </button>
+          {templateMenu === 'menu' && (
+            <div className="absolute right-0 top-9 z-[60] w-56 rounded-xl border border-white/15 bg-[#14111d] p-1.5 shadow-2xl">
+              <button disabled={!doc} onClick={() => setTemplateMenu('save')} className="w-full text-left px-3 py-2 rounded-lg text-[.75rem] text-white/85 hover:bg-white/10 disabled:opacity-40">Save as template…</button>
+              <button onClick={() => setTemplateMenu('library')} className="w-full text-left px-3 py-2 rounded-lg text-[.75rem] text-white/85 hover:bg-white/10">Template library</button>
+            </div>
+          )}
+        </div>
 
         {/* Pro Vector Studio quick button */}
         {posture !== 'STUDIO' && (
@@ -4635,6 +4700,45 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
             onClose={() => setPrepressOpen(false)}
           />
         </React.Suspense>
+      )}
+      {(templateMenu === 'save' || templateMenu === 'library') && createPortal(
+        <div style={{ position: 'relative', zIndex: 10000 }}><React.Suspense fallback={null}>
+          {templateMenu === 'save' && docRef.current ? (
+            <SaveTemplateDialog
+              doc={docRef.current}
+              viewer={{ uid: auth.currentUser?.uid || 'local', name: auth.currentUser?.displayName || 'You' }}
+              org={(() => {
+                const o = docRef.current?.orgOrigin || (classwork ? { orgId: classwork.orgId, orgName: classwork.orgName } : undefined);
+                return o ? { orgId: o.orgId, orgName: o.orgName, role: isEducator || classwork ? 'teacher' as const : 'member' as const, canSaveToOrg: !!(isEducator || classwork) } : undefined;
+              })()}
+              onClose={() => setTemplateMenu(null)}
+            />
+          ) : (
+            <TemplateLibrary
+              orgId={docRef.current?.orgOrigin?.orgId || classwork?.orgId}
+              orgName={docRef.current?.orgOrigin?.orgName || classwork?.orgName}
+              viewer={{ uid: auth.currentUser?.uid || 'local', name: auth.currentUser?.displayName || 'You' }}
+              orgRole={isEducator || classwork ? 'teacher' : 'member'}
+              onOpenDoc={id => { setTemplateMenu(null); void openCanvas(id); }}
+              onClose={() => setTemplateMenu(null)}
+            />
+          )}
+        </React.Suspense></div>,
+        document.body
+      )}
+      {classworkOpen && createPortal(
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999 }}>
+          <React.Suspense fallback={<div className="p-8 text-white">Opening Classwork…</div>}>
+            <TelaClassworkStudio
+              context={classwork}
+              onClose={() => setClassworkOpen(false)}
+              onOpenDoc={docId => { setClassworkOpen(false); void openCanvas(docId); }}
+              onReturn={returnTo?.onReturn}
+              returnLabel={returnTo?.label}
+            />
+          </React.Suspense>
+        </div>,
+        document.body
       )}
       {comicStudioOpen && createPortal(
         <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', backdropFilter: 'blur(6px)' }}>

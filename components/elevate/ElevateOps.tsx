@@ -133,7 +133,16 @@ const ElevateOps: React.FC<Props> = ({ org: initialOrg, isOwner, onClose, onOrgC
     ministries: ensureChurchMusicAndEducationDepartments(initialOrg),
   }));
   const [members, setMembers] = useState<OrgMembership[]>([]);
-  const [section, setSection] = useState<SectionKey>(initialSection ?? 'overview');
+  const [section, setSection] = useState<SectionKey>(() => {
+    if (initialSection) return initialSection;
+    // Coming back from Tela's "Back to class" button: reopen Christian Education.
+    try {
+      if (sessionStorage.getItem('plajah:eduReturnClass')) return 'education';
+    } catch {
+      /* storage blocked */
+    }
+    return 'overview';
+  });
   const [tool, setTool] = useState<Tool>(initialTool ?? null);
   const [financeOpen, setFinanceOpen] = useState(false);
   const [billingOpen, setBillingOpen] = useState(false);

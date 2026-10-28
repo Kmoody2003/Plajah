@@ -215,6 +215,7 @@ const GalleryView = retryLazy(() => import('./components/gallery/GalleryView'));
 const GalleryEditor = retryLazy(() => import('./components/gallery/GalleryEditor'));
 // Tela — the unified document canvas (P0: canvas + Writer + Grid devices)
 const TelaView = retryLazy(() => import('./components/tela/TelaView'));
+import type { TelaClassworkContext } from './components/tela/classwork/classworkTypes';
 // Machine Atlas — generic 3D mechanical models + simulations (pilot: brakes)
 const MachineAtlasView = retryLazy(() => import('./components/atlas/MachineAtlasView'));
 const CreatorHub = retryLazy(() => import('./components/CreatorHub'));
@@ -818,6 +819,9 @@ const App: React.FC = () => {
   // Shared links must never flash the globe launch page while the shared item is fetched.
   const [shareResolving, setShareResolving] = useState<boolean>(hasDeepLink && !channelShareOnLoad);
   const [telaRequestedDocId, setTelaRequestedDocId] = useState<string | null>(null);
+  /** Where Tela was opened from (a class, the Education hub, My Desk): drives Tela's "Back to …" button. */
+  const [telaReturnTo, setTelaReturnTo] = useState<{ label: string; programId?: string } | null>(null);
+  const [telaClasswork, setTelaClasswork] = useState<TelaClassworkContext | null>(null);
   // Which role the Demos corridor opened the tour at, so it skips its own role picker.
   const [demoRole, setDemoRole] = useState<'teacher' | 'parent' | 'student' | undefined>(undefined);
   // Academia Hub → open a Labs module directly (routes into ClassroomsView with the module preselected).
@@ -1023,7 +1027,17 @@ const App: React.FC = () => {
   // openGallery CustomEvent pattern above.
   useEffect(() => {
     const h = (event: Event) => {
-      setTelaRequestedDocId((event as CustomEvent)?.detail?.docId || null);
+      const detail = (event as CustomEvent)?.detail || {};
+      setTelaRequestedDocId(detail.docId || null);
+      const cw = detail.classwork as TelaClassworkContext | undefined;
+      setTelaClasswork(cw || null);
+      setTelaReturnTo(
+        detail.returnTo
+          ? { label: String(detail.returnTo.label || 'Back'), programId: detail.returnTo.programId }
+          : cw
+            ? { label: cw.programName || 'Christian Education', programId: cw.programId }
+            : null
+      );
       setView('TELA');
     };
     window.addEventListener('plajah:openTela', h as EventListener);
@@ -7960,7 +7974,20 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             )}
             {view === 'TELA' && (
               <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-sm">Opening Tela…</div>}>
-                <TelaView initialDocId={telaRequestedDocId} onBack={() => goBack('CREATOR_HUB')} />
+                <TelaView
+                  initialDocId={telaRequestedDocId}
+                  onBack={() => goBack('CREATOR_HUB')}
+                  classwork={telaClasswork}
+                  returnTo={telaReturnTo ? {
+                    label: telaReturnTo.label,
+                    onReturn: () => {
+                      try { if (telaReturnTo.programId) sessionStorage.setItem('plajah:eduReturnClass', telaReturnTo.programId); } catch { /* storage blocked */ }
+                      setTelaReturnTo(null);
+                      setTelaClasswork(null);
+                      goBack('CREATOR_HUB');
+                    },
+                  } : null}
+                />
               </Suspense>
             )}
             {view === 'MACHINE_ATLAS' && (

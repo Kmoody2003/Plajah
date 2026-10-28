@@ -2,8 +2,10 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   FolderOpen, FileText, Image as ImageIcon, Film, Music, File as FileIcon, Upload,
   Trash2, RotateCcw, Search, Loader2, HardDrive, Library, ArrowLeft, Lock, ShieldAlert,
-  Sparkles, Eye, Layers, KeyRound, ExternalLink,
+  Sparkles, Eye, Layers, KeyRound, ExternalLink, LayoutTemplate,
 } from 'lucide-react';
+import { auth } from '../services/firebase';
+import HqTemplatesTab from './templates/HqTemplatesTab';
 import ContentAssetManager from './ContentAssetManager';
 import { Album } from '../types';
 import {
@@ -61,7 +63,7 @@ function assetIcon(kind: OrgAsset['kind'], cls = 'w-5 h-5') {
 }
 
 const ContentHQ: React.FC<Props> = ({ scope, canEdit, canViewAnswerKey, mediaOwnerUid, onEditAlbum, onClose }) => {
-  const [tab, setTab] = useState<'FILES' | 'MEDIA'>('FILES');
+  const [tab, setTab] = useState<'FILES' | 'MEDIA' | 'TEMPLATES'>('FILES');
   const allowAnswerKeys = canViewAnswerKey ?? canEdit;
 
   return (
@@ -79,7 +81,7 @@ const ContentHQ: React.FC<Props> = ({ scope, canEdit, canViewAnswerKey, mediaOwn
         </div>
         {!canEdit && <span className="ml-2 flex items-center gap-1 text-[10px] text-white/40"><Lock className="w-3 h-3" /> Read-only</span>}
         <div className="ml-auto flex gap-1.5">
-          {([['FILES', 'Files & Docs', FolderOpen], ['MEDIA', 'Media Library', Library]] as const).map(([id, label, Icon]) => (
+          {([['FILES', 'Files & Docs', FolderOpen], ['MEDIA', 'Media Library', Library], ['TEMPLATES', 'Templates', LayoutTemplate]] as const).map(([id, label, Icon]) => (
             <button key={id} onClick={() => setTab(id)}
               className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest transition-colors ${
                 tab === id ? 'bg-white text-black' : 'bg-white/5 text-white/50 hover:text-white'
@@ -93,7 +95,9 @@ const ContentHQ: React.FC<Props> = ({ scope, canEdit, canViewAnswerKey, mediaOwn
       <div className="flex-1 min-h-0 overflow-hidden px-6 lg:px-8 pb-6">
         {tab === 'FILES'
           ? <HqFilesTab scope={scope} canEdit={canEdit} canViewAnswerKey={allowAnswerKeys} />
-          : <ContentAssetManager uid={mediaOwnerUid} onEditAlbum={onEditAlbum || (() => {})} />}
+          : tab === 'TEMPLATES'
+            ? <HqTemplatesTab scope={{ kind: scope.kind === 'org' && !isStandaloneTeacherScopeId(scope.id) ? 'org' : 'user', id: scope.id, label: scope.label }} canEdit={canEdit} viewer={{ uid: auth.currentUser?.uid || 'local', name: auth.currentUser?.displayName || 'You' }} />
+            : <ContentAssetManager uid={mediaOwnerUid} onEditAlbum={onEditAlbum || (() => {})} />}
       </div>
     </div>
   );

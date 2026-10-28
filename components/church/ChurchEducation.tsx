@@ -50,6 +50,7 @@ import OrgCentralCalendarHub from '../elevate/OrgCentralCalendarHub';
 import ElevateCommunicationsHub from '../elevate/ElevateCommunicationsHub';
 import OrgEducationScopeGovernancePanel from './OrgEducationScopeGovernancePanel';
 import OrgLessonLibraryHub from './OrgLessonLibraryHub';
+import EdHub, { type EdToolMode } from './christianEd/EdHub';
 import {
   loadOrgEducationScope,
   getOrgScopedCourses,
@@ -85,6 +86,7 @@ const field =
 const nav = (target: string) => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target } }));
 
 type EducationPortalMode =
+  | 'HUB'
   | 'CLASSROOMS'
   | 'LESSON_LIBRARY'
   | 'TEACHER_DASHBOARD'
@@ -99,7 +101,17 @@ const ChurchEducation: React.FC<{
   membership?: OrgMembership | null;
   onOpenChatRoom?: (roomId: string) => void;
 }> = ({ church, canEdit, membership, onOpenChatRoom }) => {
-  const [portalMode, setPortalMode] = useState<EducationPortalMode>('CLASSROOMS');
+  const [portalMode, setPortalMode] = useState<EducationPortalMode>('HUB');
+  // Set by Tela's "Back to …" button so the hub re-opens the class the teacher came from.
+  const [returnClassId] = useState<string | undefined>(() => {
+    try {
+      const v = sessionStorage.getItem('plajah:eduReturnClass');
+      if (v) sessionStorage.removeItem('plajah:eduReturnClass');
+      return v || undefined;
+    } catch {
+      return undefined;
+    }
+  });
   const [programs, setPrograms] = useState<ChurchProgram[] | null>(null);
   const [open, setOpen] = useState<ChurchProgram | null>(null);
   const [activeTab, setActiveTab] = useState<'SYLLABUS' | 'LESSON_LIBRARY' | 'CLASSROOM_CLUB' | 'CLASS_CHAT' | 'ACADEMIA_STACK' | 'TELA_UNITS'>('SYLLABUS');
@@ -353,91 +365,57 @@ const ChurchEducation: React.FC<{
   };
 
   // Top-level Christian Education & Academia Parity Mode Bar
+  const TOOL_TITLE: Partial<Record<EducationPortalMode, string>> = {
+    CLASSROOMS: 'Classic classroom view',
+    LESSON_LIBRARY: 'Lesson library',
+    TEACHER_DASHBOARD: 'Instructor dashboard',
+    CENTRAL_CALENDAR: 'Calendar',
+    TEACHER_TOOLS: 'Gradebook & teacher tools',
+    CURRICULUM_TELA_INGESTOR: 'Curriculum studio',
+    STUDENT_PORTAL: 'Student desk',
+  };
+  // Every tool page has one way home: back to the Christian Education hub.
   const modeBar = (
-    <div className="rounded-3xl border border-white/10 bg-[#12091e]/90 p-3 flex flex-wrap items-center justify-between gap-2">
-      <div className="flex flex-wrap items-center gap-1.5">
-        <button
-          type="button"
-          onClick={() => setPortalMode('CLASSROOMS')}
-          className={`px-3.5 py-2 rounded-2xl text-xs font-black inline-flex items-center gap-1.5 transition ${
-            portalMode === 'CLASSROOMS'
-              ? 'bg-amber-400 text-black shadow'
-              : 'bg-white/5 text-white/70 hover:text-white hover:bg-white/10'
-          }`}
-        >
-          <BookOpen size={13} /> Classrooms &amp; Syllabus ({programs?.length ?? 0})
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setPortalMode('LESSON_LIBRARY')}
-          className={`px-3.5 py-2 rounded-2xl text-xs font-black inline-flex items-center gap-1.5 transition ${
-            portalMode === 'LESSON_LIBRARY'
-              ? 'bg-amber-400 text-black shadow'
-              : 'bg-emerald-500/15 border border-emerald-400/35 text-emerald-200 hover:bg-emerald-500/25'
-          }`}
-        >
-          <Library size={13} /> Lesson Library &amp; Extracted Docs ({
-            canAccessAnswerKey
-              ? ingestedUnits.length
-              : ingestedUnits.filter(u => !u.isAnswerKeyOnly && u.libraryCategory !== 'ANSWER_KEY').length
-          })
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setPortalMode('TEACHER_DASHBOARD')}
-          className={`px-3.5 py-2 rounded-2xl text-xs font-black inline-flex items-center gap-1.5 transition ${
-            portalMode === 'TEACHER_DASHBOARD'
-              ? 'bg-amber-400 text-black shadow'
-              : 'bg-white/5 text-white/70 hover:text-white hover:bg-white/10'
-          }`}
-        >
-          <LayoutDashboard size={13} /> Instructor Dashboard (Non-Credentialed)
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setPortalMode('CENTRAL_CALENDAR')}
-          className={`px-3.5 py-2 rounded-2xl text-xs font-black inline-flex items-center gap-1.5 transition ${
-            portalMode === 'CENTRAL_CALENDAR'
-              ? 'bg-sky-400 text-black shadow'
-              : 'bg-white/5 text-white/70 hover:text-white hover:bg-white/10'
-          }`}
-        >
-          <Calendar size={13} /> {canEdit ? 'Central Calendar & Sub Radar' : 'Central Calendar'}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setPortalMode('TEACHER_TOOLS')}
-          className={`px-3.5 py-2 rounded-2xl text-xs font-black inline-flex items-center gap-1.5 transition ${
-            portalMode === 'TEACHER_TOOLS'
-              ? 'bg-amber-400 text-black shadow'
-              : 'bg-white/5 text-white/70 hover:text-white hover:bg-white/10'
-          }`}
-        >
-          <ClipboardCheck size={13} /> Instructor Tools &amp; Gradebook
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setPortalMode('STUDENT_PORTAL')}
-          className={`px-3.5 py-2 rounded-2xl text-xs font-black inline-flex items-center gap-1.5 transition ${
-            portalMode === 'STUDENT_PORTAL'
-              ? 'bg-emerald-400 text-black shadow'
-              : 'bg-white/5 text-white/70 hover:text-white hover:bg-white/10'
-          }`}
-        >
-          <Award size={13} /> 🪑 Student Desk &amp; My Mastery
-        </button>
-      </div>
-
-      <span className="px-3 py-1.5 rounded-xl bg-amber-400/15 border border-amber-400/35 text-amber-200 text-[11px] font-bold inline-flex items-center gap-1.5">
-        <GraduationCap size={13} /> Scoped to {church.name}
+    <div className="rounded-3xl border border-white/10 bg-[#12091e]/90 p-3 flex flex-wrap items-center gap-3">
+      <button
+        type="button"
+        onClick={() => {
+          setOpen(null);
+          setPortalMode('HUB');
+        }}
+        className="px-3.5 h-9 rounded-full text-xs font-bold inline-flex items-center gap-1.5 bg-white/5 border border-white/10 text-white/75 hover:text-white hover:bg-white/10"
+      >
+        <ChevronLeft size={14} /> Christian Education
+      </button>
+      <span className="text-sm font-black text-white" style={{ fontFamily: "'Outfit', sans-serif" }}>
+        {TOOL_TITLE[portalMode] || ''}
       </span>
     </div>
   );
+
+  if (portalMode === 'HUB') {
+    return (
+      <EdHub
+        church={church}
+        canEdit={canEdit}
+        canSeeKey={canAccessAnswerKey}
+        viewer={{
+          uid: currentUser?.uid || teacherProfile.uid,
+          name: currentUser?.displayName || membership?.displayName || teacherProfile.displayName,
+          photoUrl: currentUser?.photoURL || membership?.photoUrl,
+        }}
+        programs={programs}
+        units={ingestedUnits}
+        initialClassId={returnClassId}
+        onSaveProgram={async p => {
+          await saveProgram(p);
+          setPrograms(prev => (prev ? (prev.some(x => x.id === p.id) ? prev.map(x => (x.id === p.id ? p : x)) : [...prev, p]) : [p]));
+        }}
+        onReload={reload}
+        onOpenTool={(m: EdToolMode) => setPortalMode(m === 'CLASSIC' ? 'CLASSROOMS' : m)}
+      />
+    );
+  }
 
   if (portalMode === 'LESSON_LIBRARY') {
     return (

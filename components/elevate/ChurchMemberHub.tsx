@@ -172,7 +172,15 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
   /** Demo keeps its showcase copy; a real church gets plain member-facing wording. */
   const t = (demoText: string, realText: string) => (demo ? demoText : realText);
 
-  const [section, setSection] = useState<HubStudioSection>('SANCTUARY_STUDIO');
+  const [section, setSection] = useState<HubStudioSection>(() => {
+    // Coming back from Tela's "Back to class" button: reopen Christian Education.
+    try {
+      if (sessionStorage.getItem('plajah:eduReturnClass')) return 'RECENT_LESSONS_AND_VESPERS';
+    } catch {
+      /* storage blocked */
+    }
+    return 'SANCTUARY_STUDIO';
+  });
   const studioNavItems = useMemo(() => getStudioNavItems(org.orgType, vocab), [org.orgType, vocab]);
 
   // Tailored to the church's tradition by default; a member can choose to see every tradition (saved on their profile).

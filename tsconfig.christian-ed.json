@@ -1,0 +1,32 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "skipLibCheck": true,
+    "incremental": false
+  },
+  "include": [
+    "components/church/ChurchEducation.tsx",
+    "components/church/christianEd/*.tsx",
+    "components/church/christianEd/*.ts",
+    "services/christianEdSync.ts",
+    "services/universalStudentDeskService.ts",
+    "services/churchEducationService.ts",
+    "components/tela/classwork/*.ts",
+    "components/tela/classwork/*.tsx",
+    "components/tela/TelaView.tsx",
+    "components/church/OrgLessonLibraryHub.tsx",
+    "components/elevate/ElevateOps.tsx",
+    "components/elevate/ChurchMemberHub.tsx",
+    "services/curriculumIngestionService.ts",
+    "components/desk/LivingTemplateBespokeRenderer.tsx",
+    "christian-ed-lab.tsx",
+    "components/announcements/*.ts",
+    "components/announcements/*.tsx",
+    "components/templates/*.tsx",
+    "services/announcements/*.ts",
+    "services/templates/*.ts",
+    "components/ContentHQ.tsx",
+    "components/living/TelaLivePage.tsx"
+  ]
+}

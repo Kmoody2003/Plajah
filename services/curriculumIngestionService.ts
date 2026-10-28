@@ -1597,14 +1597,22 @@ export function parseCurriculumAndBuildUnit(params: {
       correctAnswer: q.correctAnswer,
       points: q.points,
       bbox: [0.06, Math.min(0.92, 0.12 + idx * 0.09), 0.94, Math.min(0.98, 0.19 + idx * 0.09)],
+      // Current WorksheetField shape (percent of page) — worksheetToTelaDoc and WorksheetFillable read these.
+      label: q.prompt,
+      ordinal: String(q.number),
+      choices: q.options,
+      box: { x: 6, y: Math.min(92, 12 + idx * 9), width: 88, height: 7 },
+      needsManualGrade: !q.correctAnswer,
     };
   });
 
   const wsSegments: WorksheetSegment[] = [
     ...lessonBlocks.slice(0, 8).map((b, idx) => ({
       id: `seg_lesson_${idx + 1}`,
-      kind: (b.kind === 'h1' || b.kind === 'h2' ? 'heading' : 'Passage') as WorksheetSegment['kind'],
+      kind: (b.kind === 'h1' || b.kind === 'h2' ? 'heading' : 'instructions') as WorksheetSegment['kind'],
       text: b.text,
+      box: { x: 6, y: Math.min(10, 2 + idx), width: 88, height: 1 },
+      confidence: 1,
     })),
     ...questions.map(q => ({
       id: `seg_${q.id}`,
@@ -1623,6 +1631,8 @@ export function parseCurriculumAndBuildUnit(params: {
       options: q.options,
       answerKey: q.correctAnswer,
       points: q.points,
+      box: { x: 6, y: Math.min(91, 11 + q.number * 9), width: 88, height: 2 },
+      confidence: 1,
     })),
   ];
 
@@ -1893,6 +1903,8 @@ export async function ingestCurriculumToTela(params: {
     preParsedQuestions,
   });
 
+  // An org's lesson stays tied to the org, so sharing it as a public template follows the org's policy.
+  if (params.scopeKind !== 'user' && !isStandaloneTeacherScopeId(params.orgId)) telaDoc.orgOrigin = { orgId: safeOrgId, orgName: params.orgName };
   await saveTelaDoc(telaDoc);
 
   const resolvedLibraryCategory =

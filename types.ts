@@ -8390,6 +8390,8 @@ export interface TelaDoc {
   print?: import('./services/print/types').DocPrintSpec;
   /** Periodical issue this doc lays out (services/publication). */
   issue?: { publicationId: string; issueId: string; volume?: number; number: number; date: string };
+  /** The organization this document was made for (announcements, Classwork, org templates). Gates sharing it as a public template (services/templates/docTemplateLibrary). */
+  orgOrigin?: { orgId: string; orgName?: string };
   createdAt: number;
   updatedAt: number;
   /** Last structural assignment formatting pass. Source content remains editable. */

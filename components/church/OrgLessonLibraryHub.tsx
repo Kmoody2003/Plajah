@@ -58,6 +58,7 @@ import {
 } from '../../services/orgAssets';
 import { TelaDocumentPreviewModal } from './TelaDocumentPreviewModal';
 import { AssignToClassModal } from '../desk/AssignToClassModal';
+import { openTelaClasswork } from './christianEd/edWork';
 
 export interface OrgLessonLibraryHubProps {
   orgId: string;
@@ -364,13 +365,19 @@ export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
             {canUploadToLibrary && (
               <button
                 type="button"
-                onClick={() => setShowUploadDrawer((v) => !v)}
+                onClick={() =>
+                  openTelaClasswork({
+                    orgId: isStandaloneTeacher ? '' : orgId,
+                    orgName,
+                    programId,
+                    programName: programs.find(p => p.id === programId)?.name,
+                    domain: isStandaloneTeacher ? 'ACADEMIA' : 'CHRISTIAN_EDUCATION',
+                  })
+                }
                 className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#6B0099] via-[#D40055] to-[#FF8C00] hover:opacity-95 text-white text-xs font-black inline-flex items-center gap-1.5 shadow-lg transition"
               >
                 <Plus size={14} />
-                {showUploadDrawer
-                  ? 'Close Upload / Extract Form'
-                  : 'Upload or Extract Assignment / Syllabus / Resource'}
+                Add lessons in Tela Classwork
               </button>
             )}
           </div>
