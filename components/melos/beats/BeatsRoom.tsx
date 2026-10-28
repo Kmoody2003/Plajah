@@ -3,7 +3,7 @@
 // one groove document; the engine is a singleton the views never own.
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { Plus, Sparkles, AlignStartVertical, FolderOpen, FilePlus2, Trash2, Download, Disc3 as Disc3Icon, Radio } from 'lucide-react';
+import { Plus, Sparkles, AlignStartVertical, FolderOpen, FilePlus2, Trash2, Download, Disc3 as Disc3Icon, Radio, Cable } from 'lucide-react';
 import { auth } from '../../../services/firebase';
 import { BeatsEngine } from '../../../services/melos/beats/engine/BeatsEngine';
 import { MeterMap } from '../../../services/melos/beats/tempoMap';
@@ -43,6 +43,8 @@ import { coProjectId, listSharedWithMe, type CoProject } from '../../../services
 import { loadSharedDoc } from '../../../services/coedit/session';
 import type { SharedMasterRef } from './project/useMasterProject';
 import { useAutomationRecorder } from './useAutomationRecorder';
+import { useMultitrackCapture } from './useMultitrackCapture';
+import { HardwareInputsPanel } from './inputs/HardwareInputsPanel';
 import {
   forgetPattern, groupLetter, groupPatterns, ideasSet, newGroupPattern, padGroup, patternGroup, scenePatternIds, syncSongFromSections,
 } from '../../../services/melos/beats/songSections';
@@ -283,6 +285,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
   const [showLibrary, setShowLibrary] = useState(false);
   const [showMidi, setShowMidi] = useState(false);
   const [showVoice, setShowVoice] = useState(false);
+  const [showInputs, setShowInputs] = useState(false);
   const [midiConnected, setMidiConnected] = useState(false);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -320,6 +323,8 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
   const musicXmlRef = React.useRef<HTMLInputElement>(null);
 
   const flash = useCallback((msg: string) => { setNotice(msg); setTimeout(() => setNotice(null), 3200); }, []);
+  // Armed hardware-input tracks record through the desktop app's ASIO engine during a record pass.
+  useMultitrackCapture({ doc, mutate, recording, running: snap.running, flash });
   // A non-owner member of the live project is a guest: their autosave stays on this device and in
   // the session, never in a Melos production (useBeatsDoc.setGuestOf).
   useEffect(() => {
@@ -529,7 +534,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
     mutate((d) => {
       const first = d.arrangement.find((t) => t.kind === 'instrument');
       if (!first) return;
-      for (const t of d.arrangement) t.armed = t.id === first.id;
+      for (const t of d.arrangement) if (t.kind === 'instrument') t.armed = t.id === first.id;
       picked = first;
     });
     return picked;
@@ -1256,6 +1261,10 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
             {Object.keys(jam.ghosts).length > 0 && <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />}
           </button>
         )}
+        <button onClick={() => setShowInputs((v) => !v)} title="Hardware inputs — record a console or interface, many tracks at once"
+          className={`mx-1.5 h-7 px-2.5 rounded-full border text-[11px] flex items-center gap-1.5 shrink-0 ${showInputs ? 'border-[#FF4D4D]/50 text-[#FF4D4D] bg-[#FF4D4D]/10' : 'border-white/15 text-white/70 hover:bg-white/10'}`}>
+          <Cable size={12} /> Inputs
+        </button>
         {grooveDock(transportRowRef, view === 'project' ? 'none' : 'inline')}
       </div>
       </div>
@@ -1680,6 +1689,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
       )}
 
       {showMidi && <MidiLearnPanel onClose={() => setShowMidi(false)} />}
+      {showInputs && <HardwareInputsPanel doc={doc} mutate={mutate} recording={recording} onClose={() => setShowInputs(false)} />}
       {showVoice && <VoicePanel doc={doc} mutate={mutate} isRecording={() => recordingRef.current} onClose={() => setShowVoice(false)} />}
 
       {/* Add an instrument from the pattern-editing views — the picker leads with the

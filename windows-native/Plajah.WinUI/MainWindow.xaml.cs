@@ -32,6 +32,9 @@ public sealed partial class MainWindow : Window
     private Microsoft.UI.Dispatching.DispatcherQueueTimer? _programOutTimer;
     private string _programOutLastStatus = "";
     private Microsoft.UI.Dispatching.DispatcherQueueTimer? _liveLevelTimer;
+    /// <summary>Chora multitrack capture from an ASIO interface/console (one open driver per process).</summary>
+    private readonly AsioMultitrackRecorder _asioRec = new();
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer? _asioLevelTimer;
     private DateTime _lastNavRecovery = DateTime.MinValue;
     private DateTime _lastRendererRecovery = DateTime.MinValue;
     private bool _localShellAvailable;
@@ -160,6 +163,8 @@ public sealed partial class MainWindow : Window
         // Network outputs announce themselves (NDI/OMT) and own ffmpeg children (SRT): close them cleanly.
         try { _programOutHub?.Dispose(); } catch (Exception ex) { CrashLog.Write("Close.ProgramOut", ex); }
         try { _ndiRecv.Dispose(); } catch (Exception ex) { CrashLog.Write("Close.LiveInputs", ex); }
+        // A take in progress: stopping finalizes the WAV headers so the audio isn't lost.
+        try { _asioRec.Dispose(); } catch (Exception ex) { CrashLog.Write("Close.AsioCapture", ex); }
     }
 
     private bool _ecoMode;
@@ -1045,6 +1050,69 @@ public sealed partial class MainWindow : Window
                 var deviceId = root.TryGetProperty("deviceId", out var did) ? did.GetString() ?? string.Empty : string.Empty;
                 var driverType = root.TryGetProperty("driverType", out var dt) ? dt.GetString() ?? "WASAPI_EXCLUSIVE" : "WASAPI_EXCLUSIVE";
                 PostNativeMessage("AUDIO_DEVICE_SELECT_RESULT", new { success = true, deviceId, driverType });
+            }
+            // ── Chora multitrack capture (ASIO) ─────────────────────────────
+            else if (type == "ASIO_DRIVERS")
+            {
+                PostNativeMessage("ASIO_DRIVERS_RESULT", new { drivers = AsioMultitrackRecorder.DriverNames() });
+            }
+            else if (type == "ASIO_PROBE")
+            {
+                var driver = root.TryGetProperty("driver", out var dv) ? dv.GetString() ?? "" : "";
+                // The open driver can't be probed again mid-capture; answer from the request instead.
+                var probe = _asioRec.IsRunning
+                    ? new AsioMultitrackRecorder.DriverProbe(driver, false, "A capture is running", 0, 0, Array.Empty<string>(), Array.Empty<int>())
+                    : AsioMultitrackRecorder.Probe(driver);
+                PostNativeMessage("ASIO_PROBE_RESULT", probe);
+            }
+            else if (type == "ASIO_REC_START")
+            {
+                var driver = root.TryGetProperty("driver", out var dv) ? dv.GetString() ?? "" : "";
+                var takeId = root.TryGetProperty("takeId", out var tk) ? tk.GetString() ?? "" : "";
+                int rate = root.TryGetProperty("sampleRate", out var sr) ? sr.GetInt32() : 48000;
+                bool write = !root.TryGetProperty("write", out var wr) || wr.GetBoolean();
+                int[] inputs = root.TryGetProperty("inputs", out var ins) ? ins.EnumerateArray().Select(x => x.GetInt32()).ToArray() : Array.Empty<int>();
+                try
+                {
+                    if (_asioRec.IsRunning) _asioRec.Stop();   // a meter-only session yields to a take
+                    var safeId = string.Concat(takeId.Where(char.IsLetterOrDigit));
+                    if (safeId.Length == 0) safeId = Guid.NewGuid().ToString("N")[..12];
+                    var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Plajah", "Recordings", safeId);
+                    _asioRec.Start(driver, inputs, rate, takeId, dir, write);
+                    EnsureAsioLevelTimer();
+                    PostNativeMessage("ASIO_REC_START_RESULT", new { ok = true, takeId, startedAtMs = new DateTimeOffset(_asioRec.StartedAtUtc).ToUnixTimeMilliseconds(), inputs = _asioRec.Inputs });
+                }
+                catch (Exception ex)
+                {
+                    PostNativeMessage("ASIO_REC_START_RESULT", new { ok = false, takeId, error = ex.Message });
+                }
+            }
+            else if (type == "ASIO_REC_STOP")
+            {
+                // A stop names its take, so a late meter-stop can never end someone's recording.
+                var want = root.TryGetProperty("takeId", out var wt) ? wt.GetString() : null;
+                var r = want != null && (!_asioRec.IsRunning || _asioRec.TakeId != want)
+                    ? new AsioMultitrackRecorder.TakeResult(want, 0, 0, Array.Empty<AsioMultitrackRecorder.TakeFile>(), 0, Array.Empty<int>(), "Not running")
+                    : _asioRec.Stop();
+                PostNativeMessage("ASIO_REC_STOP_RESULT", new
+                {
+                    ok = r.Error is null || r.Files.Length > 0,
+                    takeId = r.TakeId,
+                    sampleRate = r.SampleRate,
+                    durationSec = r.DurationSec,
+                    droppedFrames = r.DroppedFrames,
+                    clippedInputs = r.ClippedInputs,
+                    error = r.Error,
+                    firstBufferMs = r.FirstBufferUnixMs,
+                    bufferFrames = r.BufferFrames,
+                    files = r.Files.Select(f => new
+                    {
+                        input = f.Input,
+                        path = f.Path,
+                        frames = f.Frames,
+                        url = $"https://localmedia.plajah/{Uri.EscapeDataString(Path.GetFileName(f.Path))}?path={Uri.EscapeDataString(f.Path)}",
+                    }).ToArray(),
+                });
             }
             else if (type == "PICK_FOLDER")
             {
@@ -2463,6 +2531,20 @@ public sealed partial class MainWindow : Window
         if (!force && key == _programOutLastStatus) return;
         _programOutLastStatus = key;
         PostNativeMessage("PROGRAM_OUT_STATUS", status);
+    }
+
+    /// <summary>~15x a second while an ASIO capture runs: per-input peaks for Chora's input meters.</summary>
+    private void EnsureAsioLevelTimer()
+    {
+        if (_asioLevelTimer != null) return;
+        _asioLevelTimer = DispatcherQueue.CreateTimer();
+        _asioLevelTimer.Interval = TimeSpan.FromMilliseconds(66);
+        _asioLevelTimer.Tick += (_, _) =>
+        {
+            if (!_asioRec.IsRunning) return;
+            PostNativeMessage("ASIO_LEVELS", new { takeId = _asioRec.TakeId, inputs = _asioRec.Inputs, peaks = _asioRec.TakePeaks() });
+        };
+        _asioLevelTimer.Start();
     }
 
     /// <summary>~10x a second: every live input's audio levels + status, for the tiles' meters.</summary>

@@ -487,6 +487,69 @@ export async function selectWindowsAudioDevice(
   return result.success;
 }
 
+// ── Chora multitrack capture (native ASIO, AsioMultitrackRecorder.cs) ───────
+
+export interface AsioDriverProbe {
+  driver: string;
+  ok: boolean;
+  error?: string | null;
+  inputs: number;
+  outputs: number;
+  inputNames: string[];
+  sampleRates: number[];
+}
+
+export interface AsioTakeFile { input: number; path: string; url: string; frames: number }
+
+export interface AsioTakeResult {
+  ok: boolean;
+  takeId: string;
+  sampleRate: number;
+  durationSec: number;
+  droppedFrames: number;
+  clippedInputs: number[];
+  error?: string | null;
+  files: AsioTakeFile[];
+  /** Wall clock (unix ms) of the first driver callback, and that buffer's size in frames. */
+  firstBufferMs: number;
+  bufferFrames: number;
+}
+
+export async function listAsioDrivers(): Promise<string[]> {
+  if (!isWindowsApp()) return [];
+  const r = await requestNativeResponse<{ drivers: string[] }>('ASIO_DRIVERS', 'ASIO_DRIVERS_RESULT');
+  return r.drivers || [];
+}
+
+export async function probeAsioDriver(driver: string): Promise<AsioDriverProbe> {
+  return requestNativeResponse<AsioDriverProbe>('ASIO_PROBE', 'ASIO_PROBE_RESULT', { driver },
+    (m) => m.driver === driver, 15_000);
+}
+
+/** Opens the driver and starts capture of 0-based `inputs`. `write: false` = meters only. */
+export async function startAsioCapture(opts: { driver: string; inputs: number[]; sampleRate: number; takeId: string; write: boolean }):
+  Promise<{ ok: boolean; takeId: string; startedAtMs?: number; inputs?: number[]; error?: string }> {
+  return requestNativeResponse('ASIO_REC_START', 'ASIO_REC_START_RESULT', opts, (m) => m.takeId === opts.takeId, 15_000);
+}
+
+/** Stops the capture named `takeId` (a different running capture is left alone). */
+export async function stopAsioCapture(takeId: string): Promise<AsioTakeResult> {
+  return requestNativeResponse<AsioTakeResult>('ASIO_REC_STOP', 'ASIO_REC_STOP_RESULT', { takeId }, (m) => m.takeId === takeId, 15_000);
+}
+
+/** Per-input peaks (0..1) pushed ~15×/s while a capture runs. Returns an unsubscribe. */
+export function onAsioLevels(fn: (m: { takeId: string; inputs: number[]; peaks: number[] }) => void): () => void {
+  const webview = (window as any).chrome?.webview;
+  if (!webview) return () => {};
+  const h = (event: MessageEvent) => {
+    let m: any;
+    try { m = typeof event.data === 'string' ? JSON.parse(event.data) : event.data; } catch { return; }
+    if (m?.type === 'ASIO_LEVELS') fn(m);
+  };
+  webview.addEventListener('message', h);
+  return () => webview.removeEventListener('message', h);
+}
+
 export interface WindowsPickedFile {
   name: string;
   relativePath?: string;

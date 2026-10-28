@@ -482,7 +482,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
     if (track.kind === 'instrument' && !track.foreign) {
       items.push(
         { id: 'open', label: 'Open instrument', onSelect: () => requestOpen(trackId) },
-        { id: 'arm', label: 'Arm for play/record', checked: !!track.armed, onSelect: () => p.onMutate((d) => { const on = !track.armed; for (const t of d.arrangement) t.armed = false; const t = d.arrangement.find((x) => x.id === trackId); if (t) t.armed = on; }) },
+        { id: 'arm', label: 'Arm for play/record', checked: !!track.armed, onSelect: () => p.onMutate((d) => { const on = !track.armed; for (const t of d.arrangement) if (t.kind === 'instrument') t.armed = false; const t = d.arrangement.find((x) => x.id === trackId); if (t) t.armed = on; }) },
         { id: 'insertprog', label: 'Insert chord progression…', onSelect: () => setProgBrowserTrack(trackId) },
         { id: 'prompt', label: 'Describe a part (AI)…', onSelect: () => setPromptTrack(trackId) },
         { id: 'hum', label: 'Hum a melody…', onSelect: () => setHumTrack(trackId) },
@@ -1516,8 +1516,9 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
                           <button
                             onClick={() => p.onMutate((d) => {
                               const on = !track.armed;
-                              // Only one armed track: playing the keyboard has to be unambiguous.
-                              for (const t of d.arrangement) t.armed = false;
+                              // Only one armed instrument: playing the keyboard has to be unambiguous.
+                              // Hardware-input tracks arm independently (multitrack).
+                              for (const t of d.arrangement) if (t.kind === 'instrument') t.armed = false;
                               const t = d.arrangement.find((x) => x.id === track.id);
                               if (t) t.armed = on;
                             })}
@@ -1527,6 +1528,19 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
                               : { borderColor: 'rgba(255,255,255,0.16)', color: 'rgba(255,255,255,0.3)' }}
                             title={track.armed ? 'Armed — your keyboard plays this' : 'Arm for playing and recording'}
                             aria-label={`Arm ${track.name}`}
+                          ><Circle size={7} fill="currentColor" /></button>
+                        )}
+                        {track.kind === 'audio' && track.input && (
+                          <button
+                            onClick={() => p.onMutate((d) => { const t = d.arrangement.find((x) => x.id === track.id); if (t) t.armed = !t.armed; })}
+                            className="w-[17px] h-[17px] rounded-full border grid place-items-center flex-none"
+                            style={track.armed
+                              ? { background: 'rgba(255,77,77,0.22)', borderColor: '#FF4D4D', color: '#FF4D4D' }
+                              : { borderColor: 'rgba(255,255,255,0.16)', color: 'rgba(255,255,255,0.3)' }}
+                            title={track.armed
+                              ? `Armed — records input ${track.input.input + 1}${track.input.inputR != null ? `/${track.input.inputR + 1}` : ''}`
+                              : `Arm to record input ${track.input.input + 1}${track.input.inputR != null ? `/${track.input.inputR + 1}` : ''}`}
+                            aria-label={`Arm ${track.name} for recording`}
                           ><Circle size={7} fill="currentColor" /></button>
                         )}
                         {!track.isFolder && (

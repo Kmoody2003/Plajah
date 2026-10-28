@@ -463,12 +463,15 @@ export interface ArrangeTrack {
   songGroup?: number;
   /** Optional generative model badge for hybrid AI + synth tracks (e.g. 'ace-step-2.5', 'yue2', 'qwen-score') */
   generativeEngine?: string;
+  /** kind 'audio' — hardware input this track records from (mixerLink/types.ts). */
+  input?: TrackInput;
   /** Live jam (shared projects): the input this track monitors/records, `${uid}:${inputId}` — on
    *  this device when uid is yours, else streamed from that collaborator (services/coedit/rig.ts). */
   jamInput?: string;
 }
 
 import type { FxInstance } from './fx/devices';
+import type { MixerLinkSession, TrackInput } from './mixerLink/types';
 import type { MeterChange, TempoPoint } from './tempoMap';
 
 /** A MEKA scene: which pattern each Group plays (missing / null = the Group is silent). */
@@ -556,6 +559,8 @@ export interface GrooveDoc {
   patterns: Pattern[];
   arrangement: ArrangeTrack[];
   mixer: MixerState;
+  /** Hardware console linked to this session (channel names, snapshots, soundcheck state). */
+  mixerLink?: MixerLinkSession;
   /** Film cue section markers across the arrangement timeline (Overture, Theme A, Theme B, Development, Climax, Coda) */
   sectionMarkers?: FilmScoreSectionMarker[];
   /** The song's words, line by line, each on the (0-based) bar where it is sung. Read by the

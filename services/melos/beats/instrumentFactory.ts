@@ -199,7 +199,7 @@ export function addInstrument(
   presetPatch?: ReturnType<typeof serializePatch>,
   presetName?: string,
 ): string {
-  for (const t of doc.arrangement) t.armed = false;
+  for (const t of doc.arrangement) if (t.kind === 'instrument') t.armed = false;
   const count = doc.arrangement.filter((t) => t.kind === 'instrument').length;
   const track = makeInstrumentTrack(type, count, presetPatch, presetName);
   doc.arrangement.push(track);
