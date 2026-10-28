@@ -1,9 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { X, Play, Download, FileText, Cpu, Cloud, ListChecks, Send, Trash2, Search, Loader2, HardDrive } from 'lucide-react';
 import Portal from '../Portal';
 import { auth } from '../../services/backendService';
 import {
-  loadCaptions, fetchCloudRecording, availableRecapLanes, writeRecap, publishRecap, cloudRecapEstimate,
+  loadCaptions, openCloudPlayback, hasCloudCopy, availableRecapLanes, writeRecap, publishRecap, cloudRecapEstimate,
   deleteCloudCopy, localCopyStreamId, type RecapLane,
 } from '../../services/meetings/meetingRecording';
 import {
@@ -26,6 +26,8 @@ const MeetingRecordingView: React.FC<{ roomId: string; recording: MeetingRecordi
   const [lines, setLines] = useState<CaptionLine[] | null>(null);
   const [query, setQuery] = useState('');
   const [mediaUrl, setMediaUrl] = useState<string | null>(null);
+  const mediaRef = useRef<HTMLMediaElement | null>(null);
+  const stopStream = useRef<() => void>(() => {});
   const [loadingMedia, setLoadingMedia] = useState(false);
   const [localId, setLocalId] = useState<string | null>(null);
   const [lanes, setLanes] = useState<{ local: boolean; cloud: boolean; localModel?: string } | null>(null);
@@ -40,19 +42,27 @@ const MeetingRecordingView: React.FC<{ roomId: string; recording: MeetingRecordi
     const sid = localCopyStreamId(roomId, rec.id);
     listLocalRecordings().then(all => setLocalId(all.find(m => m.streamId === sid && m.bytes > 0)?.id || null)).catch(() => {});
   }, [roomId, rec.id]);
-  useEffect(() => () => { if (mediaUrl) URL.revokeObjectURL(mediaUrl); }, [mediaUrl]);
+  useEffect(() => () => { stopStream.current(); if (mediaUrl) URL.revokeObjectURL(mediaUrl); }, [mediaUrl]);
 
   const blocks = useMemo(() => mergeTranscript(lines || []), [lines]);
   const shownBlocks = query.trim() ? blocks.filter(b => `${b.name} ${b.text}`.toLowerCase().includes(query.trim().toLowerCase())) : blocks;
   const estimate = useMemo(() => cloudRecapEstimate(lines || []), [lines]);
-  const hasCloud = rec.mode === 'CLOUD' && !!rec.segmentUrls?.length;
+  const hasCloud = hasCloudCopy(rec);
 
   const loadMedia = async () => {
     setLoadingMedia(true); setError('');
     try {
-      const blob = localId ? await assembleLocalRecording(localId) : await fetchCloudRecording(rec);
-      if (!blob) throw new Error('This recording has no saved media yet.');
-      setMediaUrl(URL.createObjectURL(blob));
+      if (localId) {
+        const blob = await assembleLocalRecording(localId);
+        if (!blob) throw new Error('This recording has no saved media yet.');
+        setMediaUrl(URL.createObjectURL(blob));
+      } else {
+        // The cloud copy streams: it starts playing after the first segment arrives.
+        const play = await openCloudPlayback(rec, { media: () => mediaRef.current, onError: setError });
+        if (!play) throw new Error('This recording has no saved media yet.');
+        stopStream.current = play.stop;
+        setMediaUrl(play.url);
+      }
     } catch (e: any) { setError(e?.message || 'The recording could not be loaded.'); }
     finally { setLoadingMedia(false); }
   };
@@ -101,8 +111,8 @@ const MeetingRecordingView: React.FC<{ roomId: string; recording: MeetingRecordi
             <section className="flex flex-col gap-2">
               {mediaUrl ? (
                 rec.kind === 'AUDIO'
-                  ? <audio src={mediaUrl} controls className="w-full" />
-                  : <video src={mediaUrl} controls playsInline className="w-full max-h-[40vh] rounded-2xl bg-black" />
+                  ? <audio ref={(el) => { mediaRef.current = el; }} src={mediaUrl} controls autoPlay className="w-full" />
+                  : <video ref={(el) => { mediaRef.current = el; }} src={mediaUrl} controls autoPlay playsInline className="w-full max-h-[40vh] rounded-2xl bg-black" />
               ) : (localId || hasCloud) ? (
                 <button onClick={loadMedia} disabled={loadingMedia} className={`${btn} self-start bg-white text-black hover:bg-white/90`}>
                   {loadingMedia ? <Loader2 size={13} className="animate-spin" /> : <Play size={13} />} {loadingMedia ? 'Loading…' : 'Play recording'}

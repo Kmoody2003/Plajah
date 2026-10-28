@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
 import { presignUrl } from '../services/objectStore/sigv4';
-import { collabDecision, collabKey, parseObjectKey } from '../services/objectStore/objectKeys';
+import { collabDecision, collabKey, meetingDecision, meetingSegmentKey, parseObjectKey } from '../services/objectStore/objectKeys';
 import { createObjectStoreRouter, objectStoreConfigFromEnv } from '../routes/objectStore';
 
 test('presigned GET matches the AWS documentation example', () => {
@@ -47,6 +47,28 @@ test('who may get, put and delete project media', () => {
   assert.notEqual(collabDecision('delete', k, 'v', proj), null);
 });
 
+test('meeting segment keys and who may upload, play and delete them', () => {
+  const key = meetingSegmentKey('free', 'room1', 'rec1', 7);
+  assert.equal(key, 'meetings/free/room1/rec1/seg_00007.webm');
+  assert.deepEqual(parseObjectKey(key), { area: 'meetings', plan: 'free', roomId: 'room1', recId: 'rec1', seg: 7 });
+  for (const bad of ['meetings/gold/r/x/seg_00001.webm', 'meetings/free/r/x/seg_1.webm', 'meetings/free/r/../seg_00001.webm', 'meetings/r/x/seg_00001.webm'])
+    assert.equal(parseObjectKey(bad), null, bad);
+  const k = parseObjectKey(key) as any;
+  const plus = parseObjectKey(meetingSegmentKey('plus', 'room1', 'rec1', 0)) as any;
+  const room = { participants: ['host', 'mem'] };
+  const live = { hostUid: 'host', mode: 'CLOUD', status: 'RECORDING' };
+  assert.equal(meetingDecision('put', k, 'host', { room, recording: live, paid: false }), null);
+  assert.match(meetingDecision('put', plus, 'host', { room, recording: live, paid: false })!, /Plajah Plus/);
+  assert.equal(meetingDecision('put', plus, 'host', { room, recording: live, paid: true }), null);
+  assert.match(meetingDecision('put', k, 'mem', { room, recording: live, paid: true })!, /person who recorded/);
+  assert.match(meetingDecision('put', k, 'host', { room, recording: { ...live, status: 'ENDED' }, paid: false })!, /isn’t uploading/);
+  assert.match(meetingDecision('put', k, 'host', { room, recording: { ...live, mode: 'LOCAL' }, paid: false })!, /isn’t uploading/);
+  assert.equal(meetingDecision('get', k, 'mem', { room, recording: null, paid: false }), null);
+  assert.match(meetingDecision('get', k, 'outsider', { room, recording: null, paid: false })!, /Only people in this chat/);
+  assert.equal(meetingDecision('delete', k, 'host', { room, recording: { ...live, status: 'ENDED' }, paid: false }), null);
+  assert.notEqual(meetingDecision('delete', k, 'mem', { room, recording: live, paid: false }), null);
+});
+
 test('config from env reads the region from a B2 endpoint', () => {
   assert.equal(objectStoreConfigFromEnv({}), null);
   const c = objectStoreConfigFromEnv({ OBJECT_STORE_ENDPOINT: 's3.us-east-005.backblazeb2.com', OBJECT_STORE_BUCKET: 'b', OBJECT_STORE_KEY_ID: 'i', OBJECT_STORE_APP_KEY: 'k' });
@@ -60,7 +82,10 @@ test('sign route: checks the caller and the project before signing', async () =>
   let configured = true;
   app.use(express.json(), createObjectStoreRouter({
     verify: async (t: string) => (t === 'anon' ? { uid: 'g', isAnonymous: true } : t ? { uid: t, isAnonymous: false } : null) as any,
-    get: async (p: string) => (p === 'coedit/p' ? { members: { u1: 'editor', v: 'viewer' } } : null),
+    get: async (p: string) => (p === 'coedit/p' ? { members: { u1: 'editor', v: 'viewer' } }
+      : p === 'chat_rooms/r1' ? { participants: ['u1', 'v'] }
+      : p === 'chat_rooms/r1/recordings/x1' ? { hostUid: 'u1', mode: 'CLOUD', status: 'RECORDING' } : null),
+    isPaid: async () => false,
     config: () => (configured ? cfg : null),
   }));
   const server = app.listen(0);
@@ -78,6 +103,20 @@ test('sign route: checks the caller and the project before signing', async () =>
     assert.equal((await call('anon', { op: 'get', key })).status, 401);
     assert.equal((await call('u1', { op: 'put', key, size: 3 * 1024 ** 3, contentType: 'audio/wav' })).status, 400);
     assert.equal((await call('u1', { op: 'put', key: 'collab/../x', size: 1, contentType: 'audio/wav' })).status, 400);
+    // recordings: segment upload, a free host refused the 365-day folder, batch playback for members
+    const seg = meetingSegmentKey('free', 'r1', 'x1', 0);
+    assert.equal((await call('u1', { op: 'put', key: seg, size: 1000, contentType: 'video/webm' })).status, 200);
+    assert.equal((await call('u1', { op: 'put', key: meetingSegmentKey('plus', 'r1', 'x1', 0), size: 1000, contentType: 'video/webm' })).status, 403);
+    assert.equal((await call('u1', { op: 'put', key: seg, size: 200 * 1024 * 1024, contentType: 'video/webm' })).status, 400);
+    assert.equal((await call('v', { op: 'put', key: seg, size: 1000, contentType: 'video/webm' })).status, 403);
+    const batch = await call('v', { op: 'get', keys: [0, 1, 2].map((i) => meetingSegmentKey('free', 'r1', 'x1', i)) });
+    assert.equal(batch.status, 200);
+    assert.equal((await batch.json()).urls.length, 3);
+    assert.equal((await call('stranger', { op: 'get', keys: [seg] })).status, 403);
+    assert.equal((await call('v', { op: 'get', keys: [seg, meetingSegmentKey('free', 'r1', 'other', 0)] })).status, 400);
+    assert.equal((await call('u1', { op: 'get', keys: [key] })).status, 400); // collab keys don't batch
+    assert.equal((await call('v', { op: 'delete', keys: [seg] })).status, 403);
+    assert.equal((await call('u1', { op: 'put', keys: [seg] })).status, 400);
     configured = false;
     const off = await call('u1', { op: 'get', key });
     assert.equal(off.status, 503);

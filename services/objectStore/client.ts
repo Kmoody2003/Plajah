@@ -16,20 +16,25 @@ interface Signed {
   expiresAt: number;
 }
 
-async function sign(op: ObjectOp, key: string, extra: { size?: number; contentType?: string } = {}): Promise<Signed> {
+async function post<T>(body: object): Promise<T> {
   const token = await auth.currentUser?.getIdToken();
   if (!token) throw new Error('Sign in to open shared files.');
   const res = await fetch('/api/object-store/sign', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ op, key, ...extra }),
+    body: JSON.stringify(body),
   });
-  const body = await res.json().catch(() => ({}));
-  if (res.status === 503 && body.code === 'not_configured') throw new ObjectStoreUnavailable(body.error);
+  const out = await res.json().catch(() => ({}));
+  if (res.status === 503 && out.code === 'not_configured') throw new ObjectStoreUnavailable(out.error);
   if (res.status === 404) throw new ObjectStoreUnavailable('File storage route not found.');
-  if (!res.ok) throw new Error(body.error || `Couldn’t open that file (${res.status}).`);
-  return body as Signed;
+  if (!res.ok) throw new Error(out.error || `Couldn’t open that file (${res.status}).`);
+  return out as T;
 }
+
+const sign = (op: ObjectOp, key: string, extra: { size?: number; contentType?: string } = {}) => post<Signed>({ op, key, ...extra });
+
+/** Links for many keys of one recording at once (playback, deleting a cloud copy). */
+export const signMany = (op: 'get' | 'delete', keys: string[]) => post<{ urls: string[]; expiresAt: number }>({ op, keys });
 
 /** Uploads a blob to `key`, reporting progress 0–1. */
 export async function putObject(key: string, blob: Blob, contentType: string, onProgress?: (fraction: number) => void): Promise<void> {
