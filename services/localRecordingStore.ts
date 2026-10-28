@@ -133,9 +133,10 @@ export async function listLocalRecordings(): Promise<LocalRecordingMeta[]> {
   return metas.filter(Boolean) as LocalRecordingMeta[];
 }
 
-/** Recordings that still need saving: not uploaded, have real bytes, not just written to a file. */
+/** Live-stream recordings that still need saving: not uploaded, have real bytes. Meeting copies
+ *  (streamId 'meeting:…') are left out; they are found from the room's Recordings view instead. */
 export async function listPendingLocalRecordings(): Promise<LocalRecordingMeta[]> {
-  return (await listLocalRecordings()).filter(m => !m.uploaded && m.bytes > 0);
+  return (await listLocalRecordings()).filter(m => !m.uploaded && m.bytes > 0 && !m.streamId?.startsWith('meeting:'));
 }
 
 export async function deleteLocalRecording(id: string): Promise<void> {

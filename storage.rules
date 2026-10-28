@@ -169,6 +169,18 @@ service firebase.storage {
     }
 
     // Real-time live-stream recording segments (video only)
+    // Meeting cloud recordings: ~10 s segments uploaded by the host while recording
+    // (services/meetings/meetingRecording). Played back through the download URLs stored on the
+    // recording doc, which only room members can read; the bucket path itself is owner-only.
+    match /meetings/{roomId}/{recId}/{file} {
+      allow get: if (isAuth() && ownsExisting()) || isAdmin();
+      allow list: if isAdmin();
+      allow create: if canCreateStamped() && (isAudioType() || request.resource.contentType.matches('video/.*')) &&
+        request.resource.size < 200 * 1024 * 1024 && file.matches('seg_[0-9]{5}[.]webm');
+      allow delete: if canDeleteStamped();
+      allow write: if isAdmin();
+    }
+
     match /liveRecordings/{streamId}/{allPaths=**} {
       allow get: if true;
       allow list: if isAdmin();

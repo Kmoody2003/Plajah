@@ -1,5 +1,6 @@
 import type { AlbumMeta as ChoraAlbumMeta, TrackMeta as ChoraTrackMeta, AnimatedCover, TelaCoverLink, VisualsState as AlbumVisuals, ShowSetup } from './services/melos/beats/releaseDesk';
 import type { ChatAttachment } from './services/chat/chatCore';
+import type { MeetingRecapRef } from './services/meetings/meetingRecordingCore';
 
 
 export interface Story {
@@ -4673,6 +4674,8 @@ export interface ChatMessage {
   linkPreview?: { url: string; title: string; description?: string; image?: string; siteName: string };
   /** Display name of the original author when this was forwarded from another room. */
   forwardedFrom?: string;
+  /** Recap card for a recorded meeting (chat_rooms/{id}/recordings/{recordingId}). */
+  meetingRecap?: MeetingRecapRef;
   /** Storage object this message owns (removed on delete/burn). */
   storagePath?: string;
 }

@@ -779,6 +779,8 @@ service cloud.firestore {
                data.attachment.size is number && data.attachment.size < 52428800)) &&
              (!('linkPreview' in data) || (data.linkPreview is map && data.linkPreview.url is string)) &&
              (!('forwardedFrom' in data) || (data.forwardedFrom is string && data.forwardedFrom.size() <= 100)) &&
+             (!('meetingRecap' in data) || (data.meetingRecap is map && data.meetingRecap.recordingId is string &&
+               data.meetingRecap.recordingId.size() <= 64 && data.meetingRecap.title is string && data.meetingRecap.title.size() <= 200)) &&
              !('deletedAt' in data) && !('editedAt' in data) &&
              (!('productionEntity' in data) || (
                data.productionEntity is map &&
@@ -2637,9 +2639,9 @@ service cloud.firestore {
            request.resource.data.deletedAt is number &&
            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedAt', 'text', 'voiceUrl', 'imageUrl', 'gifUrl',
              'videoNoteUrl', 'mediaId', 'mediaType', 'telaDocument', 'attachment', 'linkPreview', 'reactions', 'isPinned',
-             'replyToText', 'storagePath', 'forwardedFrom']) &&
+             'replyToText', 'storagePath', 'forwardedFrom', 'meetingRecap']) &&
            !request.resource.data.keys().hasAny(['text', 'voiceUrl', 'imageUrl', 'gifUrl', 'videoNoteUrl', 'mediaId',
-             'telaDocument', 'attachment', 'linkPreview', 'storagePath']))
+             'telaDocument', 'attachment', 'linkPreview', 'storagePath', 'meetingRecap']))
         );
         allow delete: if isAdmin()
           || (isAuthenticated() && resource.data.senderId == request.auth.uid)
@@ -2648,6 +2650,41 @@ service cloud.firestore {
               && (resource.data.get('burnAfter', null) != null || resource.data.get('burnAfterSeen', false) == true || resource.data.get('giftMedia', false) == true)
               && exists(/databases/$(database)/documents/chat_rooms/$(roomId))
               && request.auth.uid in get(/databases/$(database)/documents/chat_rooms/$(roomId)).data.participants);
+      }
+
+      // Meeting recordings (services/meetings/meetingRecording). Room members read; only the host
+      // who started one writes it. Captions: each person adds the sentences they said.
+      match /recordings/{recId} {
+        function recRoomMember() {
+          return isAuthenticated() && exists(/databases/$(database)/documents/chat_rooms/$(roomId)) &&
+            request.auth.uid in get(/databases/$(database)/documents/chat_rooms/$(roomId)).data.participants;
+        }
+        function validRecording(d) {
+          return d.keys().hasOnly(['hostUid', 'hostName', 'title', 'mode', 'kind', 'status', 'startedAt', 'endedAt',
+              'durationSec', 'sizeBytes', 'mime', 'segmentUrls', 'segmentPaths', 'expiresAt', 'recap']) &&
+            d.hostName is string && d.hostName.size() <= 100 && d.title is string && d.title.size() <= 200 &&
+            d.mode in ['LOCAL', 'CLOUD'] && d.kind in ['AUDIO', 'VIDEO'] && d.status in ['RECORDING', 'ENDED'] &&
+            d.startedAt is number &&
+            (!('segmentUrls' in d) || (d.segmentUrls is list && d.segmentUrls.size() <= 3000)) &&
+            (!('segmentPaths' in d) || (d.segmentPaths is list && d.segmentPaths.size() <= 3000)) &&
+            (!('recap' in d) || (d.recap is map && d.recap.summary is string && d.recap.summary.size() <= 4000));
+        }
+        allow read: if recRoomMember();
+        allow create: if recRoomMember() && request.resource.data.hostUid == request.auth.uid &&
+          request.resource.data.status == 'RECORDING' && validRecording(request.resource.data);
+        allow update: if recRoomMember() && resource.data.hostUid == request.auth.uid &&
+          request.resource.data.hostUid == resource.data.hostUid &&
+          request.resource.data.startedAt == resource.data.startedAt && validRecording(request.resource.data);
+        allow delete: if isAuthenticated() && resource.data.hostUid == request.auth.uid;
+        match /captions/{lineId} {
+          allow read: if recRoomMember();
+          allow create: if recRoomMember() && request.resource.data.uid == request.auth.uid &&
+            request.resource.data.keys().hasOnly(['uid', 'name', 'text', 'at']) &&
+            request.resource.data.name is string && request.resource.data.name.size() <= 100 &&
+            request.resource.data.text is string && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 1500 &&
+            request.resource.data.at is number && request.resource.data.at >= 0;
+          allow delete: if isAuthenticated() && resource.data.uid == request.auth.uid;
+        }
       }
 
       // The Post Man letters — Tela documents exchanged by the room's participants

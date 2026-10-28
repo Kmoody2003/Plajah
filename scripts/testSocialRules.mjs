@@ -126,6 +126,29 @@ t('quiet hours', 'ALLOW', ME, 'create', `${DB}/users/${ME}/chat_settings/quiet_h
 t('quiet hours bad time', 'DENY', ME, 'create', `${DB}/users/${ME}/chat_settings/quiet_hours`, { data: { ...qh, start: '25:00' } });
 t('chat_settings other doc', 'DENY', ME, 'create', `${DB}/users/${ME}/chat_settings/anything`, { data: qh });
 
+// meeting recordings + captions + recap card
+const REC = `${DB}/chat_rooms/r1/recordings/rec1`;
+const rec = { hostUid: ME, hostName: 'Me', title: 'Team call', mode: 'CLOUD', kind: 'AUDIO', status: 'RECORDING', startedAt: now, expiresAt: null };
+t('start recording', 'ALLOW', ME, 'create', REC, { data: rec });
+t('start recording as someone else', 'DENY', ME, 'create', REC, { data: { ...rec, hostUid: AUTHOR } });
+t('start recording in a room I left', 'DENY', OTHER, 'create', REC, { data: { ...rec, hostUid: OTHER } });
+t('start already-ended recording', 'DENY', ME, 'create', REC, { data: { ...rec, status: 'ENDED' } });
+t('member reads recording', 'ALLOW', AUTHOR, 'get', REC, { existing: rec });
+t('outsider reads recording', 'DENY', OTHER, 'get', REC, { existing: rec });
+const ended = { ...rec, status: 'ENDED', endedAt: now + 60000, durationSec: 60, sizeBytes: 900000, segmentUrls: ['https://x/a'], segmentPaths: ['meetings/r1/rec1/seg_00000.webm'] };
+t('host ends recording', 'ALLOW', ME, 'update', REC, { existing: rec, data: ended });
+t('member edits host recording', 'DENY', AUTHOR, 'update', REC, { existing: rec, data: ended });
+t('host steals hostUid', 'DENY', ME, 'update', REC, { existing: rec, data: { ...ended, hostUid: AUTHOR } });
+t('host adds recap', 'ALLOW', ME, 'update', REC, { existing: ended, data: { ...ended, recap: { summary: 'We met.', actionItems: [], decisions: [], lane: 'rules', createdAt: now } } });
+t('recording extra field', 'DENY', ME, 'create', REC, { data: { ...rec, isAdmin: true } });
+const CAP = `${REC}/captions/c1`;
+t('member adds own caption', 'ALLOW', AUTHOR, 'create', CAP, { data: { uid: AUTHOR, name: 'A', text: 'Hello all', at: 1200 } });
+t('caption as someone else', 'DENY', AUTHOR, 'create', CAP, { data: { uid: ME, name: 'Me', text: 'I quit', at: 1200 } });
+t('outsider adds caption', 'DENY', OTHER, 'create', CAP, { data: { uid: OTHER, name: 'O', text: 'hi', at: 1 } });
+t('edit a caption', 'DENY', AUTHOR, 'update', CAP, { existing: { uid: AUTHOR, name: 'A', text: 'Hello', at: 1 }, data: { uid: AUTHOR, name: 'A', text: 'Changed', at: 1 } });
+t('post recap card', 'ALLOW', ME, 'create', `${DB}/chat_rooms/r1/messages/m3`, { data: { ...newMsg, type: 'ACTION', text: 'x', meetingRecap: { recordingId: 'rec1', title: 'Team call', durationSec: 60, mode: 'CLOUD', hostName: 'Me', speakers: ['Me'], actionCount: 0 } } });
+t('recap card without id', 'DENY', ME, 'create', `${DB}/chat_rooms/r1/messages/m3`, { data: { ...newMsg, type: 'ACTION', text: 'x', meetingRecap: { title: 'Team call' } } });
+
 // match fan room
 const mm = (o = {}) => ({ uid: ME, displayName: 'Me', photoURL: null, text: 'goal?', side: 'home', at: now, ...o });
 t('fan chat', 'ALLOW', ME, 'create', `${DB}/wcMatchRooms/x/chat/c1`, { data: mm() });

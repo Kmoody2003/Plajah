@@ -31,6 +31,11 @@ let messages: ChatMessage[] = [
   base('m6', ME, 'Kenne', 20, { text: 'Parking lot will be closed Saturday morning for the fall festival setup.', forwardedFrom: 'Pastor James' }),
   base('m7', 'lab-dana', 'Dana Reyes', 30, { attachment: { url: '#', name: 'Volunteer roster.xlsx', size: 31_500, mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', kind: 'sheet' } }),
   base('m8', ME, 'Kenne', 40, { text: 'Sounds good, see everyone at 6:30.' }),
+  base('m9', ME, 'Kenne', 55, {
+    type: 'ACTION',
+    text: 'Meeting recap: Worship Team · Oct 28\nRehearsal moves to 6:30 on Thursdays. Dana sends the new schedule by Friday; Sam brings the extra mic stands Saturday.',
+    meetingRecap: { recordingId: 'lab-rec', title: 'Worship Team · Oct 28', durationSec: 1742, mode: 'CLOUD', hostName: 'Kenne', speakers: ['Kenne', 'Dana Reyes', 'Sam Okafor'], actionCount: 2 },
+  }),
 ];
 const subs = new Set<(m: ChatMessage[]) => void>();
 const emit = () => subs.forEach(s => s([...messages]));

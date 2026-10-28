@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import {
   Video, Mic, MicOff, VideoOff, PhoneOff,
   Settings, UserPlus, LayoutGrid, Monitor, Wifi, WifiOff,
-  Maximize2, Minimize2, MessageSquare, ChevronUp, Send, X, MonitorSpeaker, Search, Heart, Hand, Clapperboard,
+  Maximize2, Minimize2, MessageSquare, ChevronUp, Send, X, MonitorSpeaker, Search, Heart, Hand, Clapperboard, Captions,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Circle } from 'lucide-react';
@@ -12,7 +12,11 @@ import { MeetingControl, meetingRoomFor, meetingPeerAllowed } from '../services/
 import { MeetingMessage, watchMeeting, watchMeetingMessages, sendMeetingMessage } from '../services/meetingService';
 import MeetingControls from './chat/MeetingControls';
 import { useRtcSession } from '../hooks/useRtcSession';
-import { saveSessionRecording } from '../services/liveStreamService';
+import { beginMeetingRecording, listenRecordings, type ActiveRecording } from '../services/meetings/meetingRecording';
+import type { MeetingRecording } from '../services/meetings/meetingRecordingCore';
+import { useMeetingCaptions } from '../hooks/useMeetingCaptions';
+import { MeetingRecordPanel, RecordingNotice, LiveCaptionsOverlay, type RecordChoice } from './meetings/MeetingRecordPanel';
+import MeetingRecordingView from './meetings/MeetingRecordingView';
 import RomanceFXOverlay from './RomanceFXOverlay';
 import { CallControlBar, ReactionBar, ReactionFloats } from './call/CallControls';
 import { ChatProduction } from '../services/chatProduction';
@@ -90,6 +94,20 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
 
   const rootRef = useRef<HTMLDivElement>(null);
 
+  // ── Recording (host's device; optional cloud segments) + per-person captions ──
+  const activeRec = useRef<ActiveRecording | null>(null);
+  const captionsRef = useRef<((peer: string, payload: any) => void) | null>(null);
+  const [recordings, setRecordings] = useState<MeetingRecording[]>([]);
+  const [showRecordPanel, setShowRecordPanel] = useState(false);
+  const [recBusy, setRecBusy] = useState(false);
+  const [recError, setRecError] = useState('');
+  const [captionOptOut, setCaptionOptOut] = useState(false);
+  const [finished, setFinished] = useState<MeetingRecording | null>(null);
+  const [openRecording, setOpenRecording] = useState<MeetingRecording | null>(null);
+  useEffect(() => listenRecordings(room.id, setRecordings), [room.id]);
+  // The recording in progress (anyone's): everyone sees the notice and contributes captions.
+  const liveRecording = recordings.find(r => r.status === 'RECORDING' && Date.now() - r.startedAt < 12 * 60 * 60 * 1000) || null;
+
   const addFloat = useCallback((emoji: string) => {
     const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     setFloats(prev => [...prev, { id, emoji, x: 10 + Math.random() * 80 }]);
@@ -106,11 +124,13 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
   } : null, {
     excludePeerIds: excludedMeetingPeers,
     allowedPeerIds: room.participants,
-    onRecordingStopped: blob => { saveSessionRecording({ blob, title: `${room.name || 'Call'} — recording` }); },
+    // The session ended mid-recording: close out the meeting recording (the device copy is already safe).
+    onRecordingStopped: () => { const rec = activeRec.current; activeRec.current = null; void rec?.finish().catch(() => {}); },
     // Data-channel reactions — instant, peer-to-peer (no Firestore round-trip).
     onData: (peer, msg) => {
       if (!room.participants.includes(peer) || !meetingPeerAllowed(meeting, selfId || '', peer)) return;
       if (msg.type === 'reaction' && msg.payload?.emoji) addFloat(msg.payload.emoji);
+      if (msg.type === 'caption') captionsRef.current?.(peer, msg.payload);
       if (msg.type === 'meeting:hand') setRaisedHands(prev => { const next = new Set(prev); if (msg.payload?.raised === true) next.add(peer); else next.delete(peer); return next; });
       if (msg.type === 'production:consent') setConsentingPeers(prev => { const next = new Set(prev); if (msg.payload?.allowed === true) next.add(peer); else next.delete(peer); return next; });
     },
@@ -148,6 +168,13 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
   }, [productionEnabled, isProducer, room.isIntimate, rtc.localStream, rtc.remoteStreams, rtc.participants, consentingPeers, productionConsent, room.ownerId, room.meetingModeratorIds, room.participants, selfId, meeting]);
 
   const react = (emoji: string) => { addFloat(emoji); rtc.sendData('reaction', { emoji }); };
+
+  const captions = useMeetingCaptions({
+    roomId: room.id, selfId, selfName: auth.currentUser?.displayName || 'Participant', localStream: rtc.localStream,
+    sendData: rtc.sendData, optOut: captionOptOut,
+    recording: liveRecording ? { id: liveRecording.id, startedAt: liveRecording.startedAt } : null,
+  });
+  captionsRef.current = (peer, payload) => captions.receive(peer, nameFor(peer), payload);
 
   // ── Local self preview (kept mounted so the stream stays attached) ──────────
   const localRef = useRef<HTMLVideoElement>(null);
@@ -198,13 +225,34 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
 
   const nameFor = (peerId: string) => rtc.participants.find(p => p.id === peerId)?.name || 'Participant';
 
+  const stopMeetingRecording = async () => {
+    const rec = activeRec.current;
+    if (!rec) return;
+    setRecBusy(true);
+    try {
+      await rtc.stopRecording();
+      activeRec.current = null;
+      setFinished(await rec.finish());
+    } catch (e: any) {
+      setRecError(e?.message || 'The recording could not be saved. Your device copy is kept.');
+    } finally { setRecBusy(false); }
+  };
+  const startMeetingRecording = async (choice: RecordChoice) => {
+    setRecBusy(true); setRecError('');
+    try {
+      const title = `${room.name || 'Call'} · ${new Date().toLocaleDateString([], { month: 'short', day: 'numeric' })}`;
+      const rec = await beginMeetingRecording({ roomId: room.id, title, ...choice });
+      const ok = rtc.startRecording({ audioOnly: choice.kind === 'AUDIO', onData: chunk => rec.write(chunk) });
+      if (!ok) { await rec.finish(); throw new Error('This device could not start recording.'); }
+      activeRec.current = rec;
+      setShowRecordPanel(false);
+    } catch (e: any) {
+      setRecError(e?.message || 'Recording could not start.');
+    } finally { setRecBusy(false); }
+  };
   const toggleRecord = async () => {
-    if (rtc.isRecording) {
-      const blob = await rtc.stopRecording();
-      if (blob) saveSessionRecording({ blob, title: `${room.name || 'Call'} — recording` });
-    } else {
-      rtc.startRecording();
-    }
+    if (activeRec.current) await stopMeetingRecording();
+    else setShowRecordPanel(v => !v);
   };
 
   const invite = (uid: string) => {
@@ -212,7 +260,10 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
     setInvited(prev => new Set(prev).add(uid));
   };
 
-  const end = () => { rtc.leave(); onClose(); };
+  const end = async () => {
+    if (activeRec.current) await stopMeetingRecording();
+    rtc.leave(); onClose();
+  };
 
   const inCallIds = new Set([selfId, ...rtc.participants.map(p => p.id)].filter(Boolean) as string[]);
   const addable = contacts
@@ -245,6 +296,10 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
             className={`p-2.5 sm:p-4 rounded-2xl transition-all ${showChat ? 'bg-small-orange/20 text-small-orange' : 'bg-white/5 hover:bg-white/10 text-white/40 hover:text-white'}`}>
             <MessageSquare size={20} />
           </button>
+          <button onClick={() => captions.setShowCaptions(v => !v)} aria-pressed={captions.showCaptions} title={captions.showCaptions ? 'Hide captions' : 'Show captions'}
+            className={`p-2.5 sm:p-4 rounded-2xl transition-all ${captions.showCaptions ? 'bg-amber-400/20 text-amber-300' : 'bg-white/5 hover:bg-white/10 text-white/40 hover:text-white'}`}>
+            <Captions size={20} />
+          </button>
           <button onClick={() => setHandRaised(v => !v)} aria-label={handRaised ? 'Lower hand' : 'Raise hand'} aria-pressed={handRaised} title={handRaised ? 'Lower hand' : 'Raise hand'} className={`p-2.5 rounded-2xl ${handRaised ? 'bg-amber-400/20 text-amber-300' : 'bg-white/5 text-white/50'}`}><Hand size={20} /></button>
           <button onClick={() => { setShowAdd(s => !s); setShowSettings(false); }} title="Add people"
             className={`p-2.5 sm:p-4 rounded-2xl transition-all ${showAdd ? 'bg-small-orange/20 text-small-orange' : 'bg-white/5 hover:bg-white/10 text-white/40 hover:text-white'}`}>
@@ -276,6 +331,21 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
       </div>
 
       {meetingError && <div role="status" className="px-4 py-2 text-sm text-amber-300 bg-amber-400/10">{meetingError}</div>}
+      {liveRecording && (
+        <div className="px-4 pt-2">
+          <RecordingNotice hostName={liveRecording.hostName} isHost={liveRecording.hostUid === selfId} mode={liveRecording.mode}
+            startedAt={liveRecording.startedAt} optOut={captionOptOut} onToggleOptOut={() => setCaptionOptOut(v => !v)}
+            onStop={activeRec.current ? () => void stopMeetingRecording() : undefined} stopping={recBusy} />
+        </div>
+      )}
+      {recError && <div role="status" className="px-4 py-2 text-sm text-red-300 bg-red-500/10">{recError}</div>}
+      {finished && (
+        <div role="status" className="mx-4 mt-2 flex flex-wrap items-center gap-2 px-3 py-2 rounded-2xl bg-white/[0.06] border border-white/10 text-[12px]">
+          <span className="text-white/80">Recording saved{finished.mode === 'CLOUD' ? ' to the cloud' : ' on this device'}. Captions are in the transcript.</span>
+          <button onClick={() => { setOpenRecording(finished); setFinished(null); }} className="ml-auto px-3 py-1 rounded-lg bg-white text-black font-bold">Open and make a recap</button>
+          <button onClick={() => setFinished(null)} aria-label="Dismiss" className="p-1 text-white/50 hover:text-white"><X size={14} /></button>
+        </div>
+      )}
       {meetingReady && !removed && selfId && !room.isIntimate && <MeetingControls room={room} state={meeting} uid={selfId} participants={room.participants.filter(id => id !== selfId).map(id => ({ id, name: rtc.participants.find(p => p.id === id)?.name || contacts.find(c => c.uid === id)?.displayName || 'Conversation member' }))} onError={setMeetingError} />}
       {/* Add-a-caller picker */}
       <AnimatePresence>
@@ -418,9 +488,21 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
       </div>
 
       {/* Floating reactions (data channel) + reaction bar + controls — shared call chrome */}
+      {(captions.showCaptions || captions.error) && (
+        <div className="absolute inset-x-0 bottom-36 z-30">
+          <LiveCaptionsOverlay lines={captions.lines} status={captions.showCaptions ? captions.status : ''} error={captions.error} />
+        </div>
+      )}
+      {showRecordPanel && !activeRec.current && (
+        <div className="absolute bottom-28 left-1/2 -translate-x-1/2 z-50">
+          <MeetingRecordPanel defaultKind={callType === 'AUDIO' ? 'AUDIO' : 'VIDEO'} busy={recBusy} error={recError}
+            onStart={c => void startMeetingRecording(c)} onClose={() => setShowRecordPanel(false)} />
+        </div>
+      )}
+      {openRecording && <MeetingRecordingView roomId={room.id} recording={openRecording} onClose={() => setOpenRecording(null)} />}
       <ReactionFloats floats={floats} />
       <ReactionBar onReact={react} />
-      <CallControlBar rtc={rtc} onEnd={end} record={{ active: rtc.isRecording, toggle: toggleRecord }} />
+      <CallControlBar rtc={rtc} onEnd={() => void end()} record={{ active: rtc.isRecording, toggle: () => void toggleRecord() }} />
       </div>
 
       {/* In-call chat side panel */}

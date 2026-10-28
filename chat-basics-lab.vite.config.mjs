@@ -8,8 +8,12 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { watchIgnored } from './vite.watch-ignore.mjs';
 
-const real = path.resolve('services/backendService.ts');
-const shim = path.resolve('labs/chat-basics/backendShim.ts');
+// Real module → lab shim. A shim's own import of its real module is left alone.
+const SHIMS = new Map([
+  [path.resolve('services/backendService.ts'), path.resolve('labs/chat-basics/backendShim.ts')],
+  [path.resolve('services/meetings/meetingRecording.ts'), path.resolve('labs/chat-basics/meetingShim.ts')],
+]);
+const shimFiles = new Set(SHIMS.values());
 
 export default defineConfig({
   cacheDir: 'node_modules/.vite-chat-basics-lab',
@@ -23,9 +27,9 @@ export default defineConfig({
       name: 'chat-basics-backend-shim',
       enforce: 'pre',
       async resolveId(source, importer, options) {
-        if (!importer || path.resolve(importer) === shim || !/backendService(\.ts)?$/.test(source)) return null;
+        if (!importer || shimFiles.has(path.resolve(importer)) || !/(backendService|meetingRecording)(\.ts)?$/.test(source)) return null;
         const resolved = await this.resolve(source, importer, { ...options, skipSelf: true });
-        return resolved && path.resolve(resolved.id) === real ? shim : null;
+        return (resolved && SHIMS.get(path.resolve(resolved.id))) || null;
       },
     },
     react(), tailwindcss(),

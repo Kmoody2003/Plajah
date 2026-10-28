@@ -23,6 +23,7 @@ import ReportDialog from './safety/ReportDialog';
 import ChatForwardPicker from './chat/ChatForwardPicker';
 import ChatNotifyPanel from './chat/ChatNotifyPanel';
 import { ChatAttachmentCard, ChatLinkPreviewCard } from './chat/ChatMessageExtras';
+import { MeetingRecapCard, MeetingRecordingsPanel } from './meetings/MeetingRecapCard';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChatMessage, ChatRoom, UserProfile, CollabProject, Album } from '../types';
 import {
@@ -280,6 +281,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const [forwardSource, setForwardSource] = useState<ExtendedMessage | null>(null);
   const [reportTarget, setReportTarget] = useState<ExtendedMessage | null>(null);
   const [showNotifyPanel, setShowNotifyPanel] = useState(false);
+  const [showRecordings, setShowRecordings] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const noticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const flash = (text: string) => {
@@ -1170,6 +1172,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                     { icon: Shield, label: protectedThread ? 'Protected ✓' : 'Protect thread', action: () => { void toggleProtected(); setShowMoreMenu(false); }, phoneOnly: false },
                     ...(protectedThread ? [{ icon: Timer, label: `Auto-delete: ${retentionDays ? `${retentionDays}d` : 'Off'}`, action: () => { void cycleRetention(); }, phoneOnly: false }] : []),
                     { icon: isRoomMuted(roomPrefs) ? BellOff : Bell, label: isRoomMuted(roomPrefs) ? 'Notifications: muted' : 'Notifications', action: () => setShowNotifyPanel(true), phoneOnly: false },
+                    { icon: Video, label: 'Recordings', action: () => setShowRecordings(true), phoneOnly: false },
                     { icon: Globe, label: 'Fediverse Broadcast', action: () => { setShowFediversePanel(p => !p); setShowMoreMenu(false); }, phoneOnly: false },
                     { icon: Globe, label: 'Members', action: () => { setShowMembersPanel(p => !p); setShowMoreMenu(false); }, phoneOnly: false },
                   ].map(({ icon: Icon, label, action, phoneOnly }) => (
@@ -1596,6 +1599,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                     </div>
                   ) : msg.mediaType === 'TELA' && msg.telaDocument ? (
                     <ChatTelaDocument message={msg} roomId={room.id} />
+                  ) : msg.meetingRecap ? (
+                    <MeetingRecapCard roomId={room.id} recap={msg.meetingRecap} summary={(msg.text || '').replace(/^Meeting recap: [^\n]*\n?/, '')} />
                   ) : msg.attachment ? (
                     <ChatAttachmentCard attachment={msg.attachment} />
                   ) : msg.type === 'MEDIA' ? (
@@ -1914,6 +1919,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           onForwarded={(name) => { setForwardSource(null); flash(`Forwarded to ${name}`); }}
         />
       )}
+      {showRecordings && <MeetingRecordingsPanel roomId={room.id} onClose={() => setShowRecordings(false)} />}
       {showNotifyPanel && (
         <ChatNotifyPanel roomId={room.id} roomName={roomName} prefs={roomPrefs} onClose={() => setShowNotifyPanel(false)} />
       )}

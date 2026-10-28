@@ -1,11 +1,30 @@
 {
   "extends": "./tsconfig.json",
-  "compilerOptions": { "allowJs": false, "noEmit": true },
+  "compilerOptions": {
+    "allowJs": false,
+    "noEmit": true
+  },
   "include": [
-    "components/ChatWindow.tsx", "components/PersistentChatDrawer.tsx", "components/ChatFlyout.tsx",
-    "components/chat/ChatForwardPicker.tsx", "components/chat/ChatNotifyPanel.tsx", "components/chat/ChatMessageExtras.tsx",
-    "components/safety/ReportDialog.tsx", "hooks/useChatRoomPrefs.ts",
-    "services/chat/chatCore.ts", "services/chat/chatActions.ts", "services/liveStreamService.ts",
-    "tests/chatBasics.test.ts"
+    "components/ChatWindow.tsx",
+    "components/PersistentChatDrawer.tsx",
+    "components/ChatFlyout.tsx",
+    "components/chat/ChatForwardPicker.tsx",
+    "components/chat/ChatNotifyPanel.tsx",
+    "components/chat/ChatMessageExtras.tsx",
+    "components/safety/ReportDialog.tsx",
+    "hooks/useChatRoomPrefs.ts",
+    "services/chat/chatCore.ts",
+    "services/chat/chatActions.ts",
+    "services/liveStreamService.ts",
+    "tests/chatBasics.test.ts",
+    "components/VideoChat.tsx",
+    "components/meetings/MeetingRecordPanel.tsx",
+    "components/meetings/MeetingRecordingView.tsx",
+    "components/meetings/MeetingRecapCard.tsx",
+    "hooks/useMeetingCaptions.ts",
+    "services/meetings/meetingRecording.ts",
+    "services/meetings/meetingRecordingCore.ts",
+    "tests/meetingRecording.test.ts",
+    "services/localRecordingStore.ts"
   ]
 }
