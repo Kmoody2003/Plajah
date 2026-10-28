@@ -110,7 +110,7 @@ function magAt(sig, freq, sr) {
 
 test('ABI version matches the host contract', async () => {
   const { x } = await boot();
-  assert.equal(x.pa_abi_version(), 12);
+  assert.equal(x.pa_abi_version(), 14);
 });
 
 /** Stage a mono sample into the upload buffer and load it into a slot. Returns the frame count. */
@@ -289,6 +289,23 @@ test('a note produces sound, and silence when idle', async () => {
   const peak = sound.reduce((m, v) => Math.max(m, Math.abs(v)), 0);
   assert.ok(peak > 0.05, `note should be audible, peak was ${peak}`);
   assert.ok(sound.every(Number.isFinite), 'output must contain no NaN/Inf');
+});
+
+test('idle skip: an engine silent long enough to stop rendering wakes on the next note', async () => {
+  const ctx = await boot();
+  const { x, eng } = ctx;
+  // A note that ends, then well over the half-second idle window of silence.
+  x.pa_note_on(eng, 60, 1.0, 1, 0);
+  renderMono(ctx, 4096);
+  x.pa_note_off(eng, 1);
+  renderMono(ctx, SR * 2);
+  const idle = renderMono(ctx, 2048);
+  assert.ok(idle.every((v) => v === 0), 'an idle engine outputs exact silence');
+  // Now a new note must sound straight away, and the tail must render after note-off.
+  x.pa_note_on(eng, 64, 1.0, 2, 0);
+  const sound = renderMono(ctx, 4096);
+  assert.ok(sound.reduce((m, v) => Math.max(m, Math.abs(v)), 0) > 0.05, 'the first note after idle is audible');
+  assert.ok(sound.slice(0, 256).some((v) => v !== 0), 'it starts in the first block, not a block late');
 });
 
 test('GATE: sawtooth is band-limited — no aliasing folded below the fundamental', async () => {

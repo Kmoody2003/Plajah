@@ -77,6 +77,8 @@ pub struct Engine {
     events: Vec<ScheduledEvent>,
     events_dirty: bool,
     frame_counter: u64,
+    /// Frames of continuous silence with no voice sounding (see `render`'s idle skip).
+    idle_frames: u64,
 
     pub layout: Layout,
     pub position: Position,
@@ -121,6 +123,7 @@ impl Engine {
             events: Vec::with_capacity(1024),
             events_dirty: false,
             frame_counter: 0,
+            idle_frames: 0,
             layout: Layout::Stereo,
             position: Position::default(),
             iamf_role: IamfRole::Object,
@@ -431,6 +434,17 @@ impl Engine {
             self.scratch[c][..frames].fill(0.0);
         }
 
+        // Idle skip. With no voice sounding and the output silent for half a second, every tail
+        // (Veil, delay, ensemble, tape) has died away — running the racks over silence is pure
+        // cost, and a song with a dozen pad instruments paid it for every one, every block. A
+        // frozen Veil keeps sounding, so it never goes quiet enough to be skipped. The next note
+        // wakes the engine (drain_events above activates its voice before this check).
+        let any_voice = self.voices.iter().any(|v| v.active);
+        if !any_voice && self.idle_frames >= (self.sr * 0.5) as u64 {
+            self.frame_counter += frames as u64;
+            return;
+        }
+
         // Global (non-per-voice) modulation sources, refreshed once per block.
         let dt = frames as f32 / self.sr;
         let mut globals = ModValues::default();
@@ -517,6 +531,13 @@ impl Engine {
                 scratch[c][s] = crate::filter::tanh_fast(x * 0.85);
             }
         }
+        let mut peak = 0.0f32;
+        for c in 0..nch {
+            for s in 0..frames {
+                peak = peak.max(scratch[c][s].abs());
+            }
+        }
+        if any_voice || peak > 1.0e-5 { self.idle_frames = 0; } else { self.idle_frames += frames as u64; }
         self.frame_counter += frames as u64;
         let _ = MAX_UNISON;
     }

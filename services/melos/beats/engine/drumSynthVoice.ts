@@ -3,7 +3,8 @@
 // engine and the offline bounce sound the same. The pad's outer AHDSR still shapes the hit;
 // these voices carry their own natural decay, the way a drum synth's amp envelope does.
 
-import { dsParam, type DrumSynthPatch } from '../drumSynth';
+import { drumSynthLength, dsParam, type DrumSynthPatch } from '../drumSynth';
+import { cachedHit, velBucket } from './hitCache';
 import type { SynthHit } from './synthVoices';
 
 const noiseCache = new WeakMap<BaseAudioContext, AudioBuffer>();
@@ -106,13 +107,19 @@ const TRIM: Record<string, number> = {
 /** Ratios of the 808 hat's six square oscillators (to the lowest one). */
 const METAL_RATIOS = [1, 1.4823, 1.8007, 2.5459, 2.6304, 3.8963];
 
+/**
+ * One hit, live. `vel` (0..1) shapes the TONE (a harder hit is brighter, clickier); `levelVel`
+ * shapes the LEVEL and defaults to `vel` — the pad voice passes 1 because its own gain stage
+ * already applies velocity.
+ */
 export function playDrumSynth(
-  ctx: BaseAudioContext, dest: AudioNode, patch: DrumSynthPatch, t: number, vel: number, pitchSemis = 0, srcSec = 1,
+  ctx: BaseAudioContext, dest: AudioNode, patch: DrumSynthPatch, t: number, vel: number, pitchSemis = 0, srcSec = 1, levelVel?: number,
 ): SynthHit {
   const P = (id: string) => dsParam(patch, id);
   const v = Math.max(0.05, Math.min(1, vel));
+  const lv = Math.max(0.05, Math.min(1, levelVel ?? vel));
   const tune = Math.pow(2, (pitchSemis || 0) / 12);
-  const level = Math.pow(10, P('level') / 20) * v * (TRIM[`${patch.engine}/${patch.model}`] ?? 1);
+  const level = Math.pow(10, P('level') / 20) * lv * (TRIM[`${patch.engine}/${patch.model}`] ?? 1);
   // Every voice ends in one bus: tone filter → drive → dest.
   const bus = ctx.createGain();
   let head: AudioNode = bus;
@@ -301,4 +308,25 @@ export function playDrumSynth(
     }
   }
   return { stopAt: end + 0.05 };
+}
+
+/** Engines whose sound is mostly noise — the hit cache alternates two takes of these. */
+const NOISY = new Set(['snare', 'hat', 'clap']);
+
+/**
+ * The pad voice's entry point: a cached render of the hit when there is one (see hitCache.ts),
+ * else the live graph. `toneVel` is the hit's velocity for timbre; level stays with the caller.
+ * A sustaining Sub held past its natural length plays live (the cache holds one-shot lengths).
+ */
+export function playDrumSynthHit(
+  ctx: BaseAudioContext, dest: AudioNode, patch: DrumSynthPatch, t: number, toneVel: number, pitchSemis = 0, srcSec = 1,
+): SynthHit {
+  const natural = drumSynthLength(patch) * (patch.engine === 'hat' ? 3.5 : 1.15);
+  if (patch.model === 'sub' && srcSec > natural) return playDrumSynth(ctx, dest, patch, t, toneVel, pitchSemis, srcSec, 1);
+  const tv = velBucket(toneVel);
+  const key = `ds|${patch.engine}|${patch.model}|${JSON.stringify(patch.params)}|${Math.round(pitchSemis * 100)}|v${tv}`;
+  const noisy = NOISY.has(patch.engine) || patch.model === 'shaker';
+  // The cache scales level from the nearest velocity level; here level is the caller's, so the
+  // tone velocity picks the take and the level passed in stays 1.
+  return cachedHit(ctx, dest, key, t, 1, natural, noisy, (c, d, at) => playDrumSynth(c, d, patch, at, tv, pitchSemis, srcSec, 1));
 }

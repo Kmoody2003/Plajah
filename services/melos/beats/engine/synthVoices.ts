@@ -4,6 +4,7 @@
 // input) at absolute time `t` — context-agnostic so live and offline renders sound identical.
 
 import type { SynthVoiceId } from '../grooveDoc';
+import { cachedHit } from './hitCache';
 
 export interface SynthHit { stopAt: number } // scheduler uses this to bound voice lifetime
 
@@ -99,4 +100,15 @@ export function playSynthVoice(
       return { stopAt: t + 0.2 };
     }
   }
+}
+
+/** The pad voice's entry point for the starter voices: cached like the Drum Synth (hitCache.ts).
+ *  They build fresh noise buffers per hit, so even these overran a busy pattern live. */
+export function playSynthVoiceHit(
+  ctx: BaseAudioContext, dest: AudioNode, voice: SynthVoiceId, t: number, pitchSemis = 0, srcSec = 1,
+): SynthHit {
+  if (voice === 'sub' && srcSec > 0.6) return playSynthVoice(ctx, dest, voice, t, 1, pitchSemis, srcSec);
+  const len = voice === 'hat-open' ? 0.5 : voice === 'sub' ? 0.6 : 0.35;
+  const noisy = voice !== 'kick' && voice !== 'sub';
+  return cachedHit(ctx, dest, `sv|${voice}|${Math.round(pitchSemis * 100)}`, t, 1, len, noisy, (c, d, at) => playSynthVoice(c, d, voice, at, 1, pitchSemis, srcSec));
 }
