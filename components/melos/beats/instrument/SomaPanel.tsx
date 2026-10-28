@@ -871,12 +871,13 @@ export const SomaPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
 
       {/* Category & Curated World/Orchestral Drum Selector */}
       <div className="px-4 py-2 border-b border-white/[0.07] bg-black/30 flex flex-col gap-1.5">
-        <div className="flex items-center gap-1 overflow-x-auto pb-0.5" style={{ scrollbarWidth: 'none' }}>
+        {/* Wraps rather than scrolling sideways, so every category name reads in full. */}
+        <div className="flex flex-wrap items-center gap-1 pb-0.5">
           {SOMA_CATEGORY_ORDER.map((cat) => (
             <button
               key={cat}
               onClick={() => setCategory(cat)}
-              className="h-6 px-2.5 rounded-full text-[10px] font-semibold whitespace-nowrap border transition"
+              className="h-6 px-2.5 rounded-full text-[10px] font-semibold whitespace-nowrap border transition shrink-0"
               style={
                 category === cat
                   ? {
@@ -1076,7 +1077,7 @@ export const SomaPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
                 <span className="text-[10px] font-bold uppercase tracking-wider text-white/60">
                   Physical Performance Macros
                 </span>
-                <span className="text-[10px] text-white/40 truncate max-w-[340px]">
+                <span className="text-[10px] text-white/40 truncate max-w-[60%]" title={patch.acoustics}>
                   {patch.acoustics}
                 </span>
               </div>

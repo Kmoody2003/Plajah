@@ -177,7 +177,7 @@ export const InstrumentWindow: React.FC<Props> = ({ doc, track, onMutate, onClos
           />
         ) : (
           <span
-            className="text-[11.5px] font-semibold text-white/85 truncate max-w-[180px]"
+            className="text-[11.5px] font-semibold text-white/85 truncate max-w-[260px]"
             onDoubleClick={() => { setNameText(track.name); setRenaming(true); }}
             title="Double-click to rename this track"
           >{track.name}</span>
@@ -192,7 +192,7 @@ export const InstrumentWindow: React.FC<Props> = ({ doc, track, onMutate, onClos
             <select
               value={currentIdx >= 0 ? presets[currentIdx].id : ''}
               onChange={(e) => { if (e.target.value) applyPreset(e.target.value); }}
-              className="h-6 max-w-[190px] bg-transparent text-[11px] text-white outline-none cursor-pointer"
+              className="h-6 max-w-[300px] bg-transparent text-[11px] text-white outline-none cursor-pointer"
               aria-label="Preset"
               title="Choose a preset"
             >

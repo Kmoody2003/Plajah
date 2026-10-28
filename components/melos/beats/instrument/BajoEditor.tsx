@@ -91,7 +91,7 @@ export const BajoEditor: React.FC<Props> = ({ track, onMutate, onClose }) => {
         </button>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col gap-3">
+      <div className="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col gap-3 [&>*]:shrink-0">
         {BAJO_EDITOR_GROUPS.map((group) => (
           <section key={group.key} className="rounded-[14px] border border-white/10 p-3" style={{ background: 'rgba(255,255,255,0.02)' }}>
             <div className="flex items-center gap-2 mb-2.5">

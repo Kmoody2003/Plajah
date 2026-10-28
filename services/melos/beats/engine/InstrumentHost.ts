@@ -177,9 +177,11 @@ export class Instrument {
    * Start a note. `when` is an absolute AudioContext time; it becomes a sample offset inside the
    * render block, so an asynchronous message still yields a sample-accurate onset.
    */
-  noteOn(note: number, velocity01: number, ctxTime: number, currentTime: number, sampleRate: number): number {
+  /** Times are optional: without them the note plays now (an audition key, not a scheduled note). */
+  noteOn(note: number, velocity01: number, ctxTime = 0, currentTime = 0, sampleRate = 48000): number {
     const voiceId = this.nextVoiceId++;
-    const frameOffset = Math.max(0, Math.round((ctxTime - currentTime) * sampleRate));
+    const off = Math.round((ctxTime - currentTime) * sampleRate);
+    const frameOffset = Number.isFinite(off) ? Math.max(0, off) : 0;
     this.lastNote = note;
     this.lastVelocity = velocity01;
     this.lastNoteOnPerf = typeof performance !== 'undefined' ? performance.now() : Date.now();

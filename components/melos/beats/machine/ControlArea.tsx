@@ -137,7 +137,7 @@ export const ControlArea: React.FC<Props> = ({ doc, selectedPad, groupTint, onMu
             {!pad.empty && (track || synth || pad.source === 'sample') && (
               <>
                 <button aria-label="Previous preset" title={track ? 'Previous preset' : synth ? 'Previous model' : 'Previous sound of this type in your Library'} onClick={() => void stepPreset(-1)} className="w-6 h-6 grid place-items-center rounded-md text-white/45 hover:text-white hover:bg-white/5"><ChevronLeft size={13} /></button>
-                <span className="text-[10.5px] text-white/80 max-w-[150px] truncate" title={synth?.from ?? patchName ?? pad.sample?.name ?? pad.name}>{synth ? `${ENGINE_LABEL[synth.engine]} · ${synthModel}` : patchName ?? pad.name}</span>
+                <span className="text-[10.5px] text-white/80 max-w-[230px] truncate" title={synth?.from ?? patchName ?? pad.sample?.name ?? pad.name}>{synth ? `${ENGINE_LABEL[synth.engine]} · ${synthModel}` : patchName ?? pad.name}</span>
                 <button aria-label="Next preset" title={track ? 'Next preset' : synth ? 'Next model' : 'Next sound of this type in your Library'} onClick={() => void stepPreset(1)} className="w-6 h-6 grid place-items-center rounded-md text-white/45 hover:text-white hover:bg-white/5"><ChevronRight size={13} /></button>
               </>
             )}
@@ -272,7 +272,7 @@ const SoundDisplay: React.FC<{ doc: GrooveDoc; selectedPad: number; tab: Control
       <div className={`${box} p-2 flex flex-col justify-end`} style={{ background: `radial-gradient(120% 90% at 20% 10%, ${color}55, transparent 60%), linear-gradient(160deg, ${color}22, #0b0b10 70%)` }}>
         <span className="absolute top-1.5 right-2 text-[8px] uppercase tracking-[0.2em] text-white/40">Plug-in</span>
         <span className="text-[15px] font-black tracking-[0.12em]" style={{ color }}>{instrumentLabel(insType)}</span>
-        <span className="text-[10px] text-white/75 truncate">{presetName || 'Init'}</span>
+        <span className="text-[10px] text-white/75 leading-tight line-clamp-2" title={presetName || 'Init'}>{presetName || 'Init'}</span>
       </div>
     );
   }

@@ -228,7 +228,7 @@ export const BajoPanel: React.FC<Props> = ({ track, onMutate, onClose, embedded 
         )}
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col gap-4">
+      <div className="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col gap-4 [&>*]:shrink-0">
         {/* The hero control: the actual rate lane, editable in place. */}
         <div className="flex flex-col gap-2">
           <div className="flex items-center gap-2">

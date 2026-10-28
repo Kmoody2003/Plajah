@@ -71,7 +71,7 @@ export const ScenesBar: React.FC<Props> = ({ doc, choice, onLaunchScene, onMutat
       {sceneMenu.node}
       {/* Scenes */}
       <div className="flex items-center gap-1.5 min-w-0">
-        <span className="text-[8px] uppercase tracking-[0.18em] text-white/25 font-semibold w-[42px] shrink-0">Scenes</span>
+        <span className="text-[8px] uppercase tracking-[0.18em] text-white/25 font-semibold w-[54px] shrink-0">Scenes</span>
         <div className="flex items-center gap-1 overflow-x-auto flex-1 min-w-0" style={{ scrollbarWidth: 'none' }}>
           {scenes.map((sc) => {
             const ids = scenePatternIds(doc, sc);
@@ -112,7 +112,7 @@ export const ScenesBar: React.FC<Props> = ({ doc, choice, onLaunchScene, onMutat
 
       {/* Song: scene sections in order — these build the Timeline's Group tracks. */}
       <div className="flex items-center gap-1.5 min-w-0">
-        <span className="text-[8px] uppercase tracking-[0.18em] text-white/25 font-semibold w-[42px] shrink-0">Song</span>
+        <span className="text-[8px] uppercase tracking-[0.18em] text-white/25 font-semibold w-[54px] shrink-0">Song</span>
         <div className="flex items-center gap-[3px] overflow-x-auto flex-1 min-w-0" style={{ scrollbarWidth: 'none' }}>
           {spans.length === 0 && (
             <span className="text-[9.5px] text-white/25 whitespace-nowrap">{scenes.length ? 'Pick a scene, then “Add” — sections fill the Timeline' : 'Capture a scene first'}</span>

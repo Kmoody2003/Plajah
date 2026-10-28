@@ -739,10 +739,10 @@ export const AuraPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
         <span className="text-white/25">·</span>
         <button
           onClick={() => { setGalleryOpen((v) => !v); setXfOpen(false); }}
-          className="flex items-center gap-2 text-left hover:opacity-90 truncate max-w-[42%]"
+          className="flex items-center gap-2 text-left hover:opacity-90 shrink-0 max-w-[60%] min-w-0"
           title="Browse all 56 classic 1960s & 1970s templates"
         >
-          <span className="text-[12.5px] font-semibold text-white truncate">{patch.name}</span>
+          <span className="text-[12.5px] font-semibold text-white truncate" title={patch.name}>{patch.name}</span>
           <span
             className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold tracking-wider flex-none"
             style={{ background: 'rgba(229,154,56,0.18)', color: '#FFD28A', border: '1px solid rgba(229,154,56,0.35)' }}
@@ -751,7 +751,7 @@ export const AuraPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
           </span>
         </button>
 
-        <span className="text-[10.5px] text-white/40 truncate hidden md:inline">
+        <span className="text-[10.5px] text-white/40 truncate hidden md:inline min-w-0" title={patch.inspiration}>
           {patch.inspiration}
         </span>
 
@@ -818,7 +818,7 @@ export const AuraPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
       </div>
 
       {/* ── Main Scrollable Faceplate Body ── */}
-      <div className="flex-1 min-h-0 overflow-y-auto p-3.5 flex flex-col gap-2.5">
+      <div className="flex-1 min-h-0 overflow-y-auto p-3.5 flex flex-col gap-2.5 [&>*]:shrink-0">
         {/* ── 56-Preset Vintage Template Browser (when open) ── */}
         {galleryOpen && (
           <div
@@ -865,7 +865,7 @@ export const AuraPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
             </div>
 
             {/* Preset Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-64 overflow-y-auto pr-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 auto-rows-max gap-2 max-h-80 overflow-y-auto pr-1">
               {filteredPresets.map((pr) => {
                 const active = pr.id === patch.presetId;
                 return (
@@ -879,7 +879,7 @@ export const AuraPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
                     }}
                   >
                     <div className="flex items-center justify-between gap-1.5">
-                      <span className="text-[12px] font-semibold text-white truncate">{pr.name}</span>
+                      <span className="text-[12px] font-semibold text-white leading-tight line-clamp-2" title={pr.name}>{pr.name}</span>
                       <span
                         className="px-1.5 py-0.5 rounded text-[8.5px] font-mono font-bold flex-none"
                         style={{ background: 'rgba(229,154,56,0.18)', color: '#FFD28A' }}
@@ -887,7 +887,7 @@ export const AuraPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
                         {pr.year}
                       </span>
                     </div>
-                    <div className="text-[9.5px] font-mono text-[#E59A38]/80 truncate">
+                    <div className="text-[9.5px] font-mono text-[#E59A38]/80 truncate" title={pr.inspiration}>
                       {pr.inspiration}
                     </div>
                     <div className="text-[10px] text-white/40 line-clamp-2 leading-snug">
@@ -1080,7 +1080,7 @@ export const AuraPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
 
             {/* Vintage Calibration Condition Strip & Historical Blurb */}
             <div className="flex flex-wrap items-center justify-between gap-2 pt-0.5">
-              <p className="text-[10.5px] text-white/45 truncate max-w-[60%]" title={patch.description}>
+              <p className="text-[10.5px] text-white/45 leading-snug line-clamp-2 max-w-[62%]" title={patch.description}>
                 {patch.description}
               </p>
               <div className="flex items-center gap-1">
