@@ -1,4 +1,5 @@
 import type { AlbumMeta as ChoraAlbumMeta, TrackMeta as ChoraTrackMeta, AnimatedCover, TelaCoverLink, VisualsState as AlbumVisuals, ShowSetup } from './services/melos/beats/releaseDesk';
+import type { ChatAttachment } from './services/chat/chatCore';
 
 
 export interface Story {
@@ -4662,6 +4663,18 @@ export interface ChatMessage {
   };
   threadRootId?: string;
   mentionUids?: string[];
+  /** Epoch ms of the sender's last edit; shows "edited". */
+  editedAt?: number;
+  /** Set when deleted for everyone: content cleared, the doc stays as a tombstone. */
+  deletedAt?: number;
+  /** A file shared in chat (Storage chat/{roomId}/files/…); see services/chat/chatCore. */
+  attachment?: ChatAttachment;
+  /** Card for the first link in `text`, captured at send time (never in protected threads). */
+  linkPreview?: { url: string; title: string; description?: string; image?: string; siteName: string };
+  /** Display name of the original author when this was forwarded from another room. */
+  forwardedFrom?: string;
+  /** Storage object this message owns (removed on delete/burn). */
+  storagePath?: string;
 }
 
 // ─── CONTENT HQ / CREATIVE REVIEW ──────────────────────────────────────────
@@ -4781,6 +4794,8 @@ export interface ChatRoom {
   id: string;
   participants: string[]; // UIDs
   lastMessage?: string;
+  /** Who posted lastMessage — unread = updatedAt past your read cursor and not you. */
+  lastSenderId?: string;
   updatedAt: number;
   type: 'PRIVATE' | 'GROUP' | 'PUBLIC_LIVE' | 'CLASSROOM';
   /** For CLASSROOM rooms: the class this group thread belongs to. */

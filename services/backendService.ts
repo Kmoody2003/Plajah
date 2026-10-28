@@ -118,6 +118,7 @@ import { sanitizeScheduleForPlayout } from './fastChannelTimeline';
 import { viewerTimeZone } from './platformClock';
 // Education-chat safety (Phase C): student DM policy backstop on the write path.
 import { canDM, isStudentAccount, classroomRoomId, classroomParticipants } from './educationChat';
+import { previewLine as chatPreviewLine } from './chat/chatCore';
 
 export const getPrivateBoards = async (uid: string): Promise<PrivateBoard[]> => {
   const q = query(collection(db, 'privateBoards'), where('ownerId', '==', uid));
@@ -5248,6 +5249,8 @@ interface PushMeta {
   link?: string; type?: string; targetId?: string;
   senderId?: string; senderName?: string; senderPhoto?: string;
   notificationId?: string;
+  /** Chat @mention: the server lets it through a muted room. */
+  mention?: boolean;
 }
 
 const sendPushToUser = async (uid: string, title: string, body: string, meta: PushMeta = {}): Promise<void> => {
@@ -5272,6 +5275,7 @@ const sendPushToUser = async (uid: string, title: string, body: string, meta: Pu
         // Lets the email worker skip messages you already read in-app.
         notificationId: meta.notificationId,
         threadId: meta.type === 'MESSAGE' ? meta.targetId : undefined,
+        mention: meta.mention === true || undefined,
       }),
     });
   } catch {
@@ -5388,7 +5392,8 @@ export const fetchNotifications = (uid: string, callback: (notifications: AppNot
   }, 'notifications');
 };
 
-export const createNotification = async (notif: Omit<AppNotification, 'id' | 'timestamp' | 'isRead'>) => {
+/** `opts.mention` lets a chat @mention through a muted room's push (see chatCore.shouldPushChatMessage). */
+export const createNotification = async (notif: Omit<AppNotification, 'id' | 'timestamp' | 'isRead'>, opts: { mention?: boolean } = {}) => {
   const path = 'notifications';
   try {
     const data = removeUndefined({
@@ -5402,6 +5407,7 @@ export const createNotification = async (notif: Omit<AppNotification, 'id' | 'ti
     sendPushToUser(notif.userId, notif.title, notif.message, {
       link: notif.link, type: notif.type, targetId: notif.targetId, notificationId: docRef.id,
       senderId: notif.senderId, senderName: notif.senderName, senderPhoto: notif.senderPhoto,
+      mention: opts.mention,
     }).catch(() => {});
     return docRef.id;
   } catch (e) {
@@ -7414,7 +7420,7 @@ export const sendMessage = async (roomId: string, message: Omit<ChatMessage, 'id
   if (!auth.currentUser || auth.currentUser.isAnonymous) throw new Error('Sign in to chat');
   // The message write itself must surface failure so the composer can restore the draft;
   // notifications and room metadata below are best-effort.
-  await addDoc(collection(db, 'chat_rooms', roomId, 'messages'), {
+  const messageRef = await addDoc(collection(db, 'chat_rooms', roomId, 'messages'), {
     ...message,
     timestamp: Date.now()
   });
@@ -7452,7 +7458,7 @@ export const sendMessage = async (roomId: string, message: Omit<ChatMessage, 'id
             : (message.text?.startsWith('enc:') ? 'New encrypted message' : `${auth.currentUser?.displayName}: ${(message.text ?? '').substring(0, 50)}${(message.text ?? '').length > 50 ? '...' : ''}`),
           link: 'MESSAGES',
           targetId: roomId
-        });
+        }, { mention: isMention });
       });
     }
     
@@ -7465,7 +7471,9 @@ export const sendMessage = async (roomId: string, message: Omit<ChatMessage, 'id
     await setDoc(doc(db, 'chat_rooms', roomId), {
       lastMessage: protectedRoom
         ? 'Protected message'
-        : (message.text || (message.type === 'VOICE' ? 'Voice Note' : message.type === 'MEDIA' ? 'Shared Media' : '')),
+        : chatPreviewLine(message as any).slice(0, 900),
+      // Read cursors (users/{uid}/chat_prefs) compare against this to decide unread.
+      lastSenderId: auth.currentUser?.uid,
       updatedAt: Date.now(),
       type: roomType,
       // Always add sender to participants so Firestore security rules never block reads
@@ -7482,6 +7490,7 @@ export const sendMessage = async (roomId: string, message: Omit<ChatMessage, 'id
   } catch (e) {
     handleFirestoreError(e, OperationType.CREATE, path);
   }
+  return messageRef.id;
 };
 
 /** Upsert a live_chat room document with song metadata so ChatSystem can show cover art. */

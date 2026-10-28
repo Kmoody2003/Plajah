@@ -97,6 +97,35 @@ t('pin in my room', 'ALLOW', ME, 'update', M, { existing: msg, data: { ...msg, i
 t('react in a room I left', 'DENY', OTHER, 'update', M, { existing: msg, data: { ...msg, reactions: { '🔥': [OTHER] } } });
 t('edit text via reaction path', 'DENY', ME, 'update', M, { existing: msg, data: { ...msg, text: 'changed' } });
 
+// chat basics: edit, delete-for-everyone tombstone, link card, attachments, prefs, quiet hours
+const mine = { senderId: ME, senderName: 'Me', text: 'hey', timestamp: now, type: 'TEXT', storagePath: 'chat/r1/files/a.pdf', attachment: { url: 'https://f/a.pdf', name: 'a.pdf', size: 10, mime: 'application/pdf', kind: 'pdf' } };
+t('edit my text', 'ALLOW', ME, 'update', M, { existing: mine, data: { ...mine, text: 'fixed', editedAt: now } });
+t('edit someone else', 'DENY', ME, 'update', M, { existing: msg, data: { ...msg, text: 'fixed', editedAt: now } });
+t('edit without editedAt', 'DENY', ME, 'update', M, { existing: mine, data: { ...mine, text: 'sneaky' } });
+t('edit also swaps sender name', 'DENY', ME, 'update', M, { existing: mine, data: { ...mine, text: 'x', editedAt: now, senderName: 'Pastor' } });
+t('edit a voice note', 'DENY', ME, 'update', M, { existing: { ...mine, type: 'VOICE' }, data: { ...mine, type: 'VOICE', text: 'x', editedAt: now } });
+const { text: _t, attachment: _a, storagePath: _s, ...bare } = mine;
+t('tombstone my message', 'ALLOW', ME, 'update', M, { existing: mine, data: { ...bare, deletedAt: now } });
+t('tombstone keeps text', 'DENY', ME, 'update', M, { existing: mine, data: { ...mine, deletedAt: now, attachment: undefined, storagePath: undefined } });
+t('tombstone someone else', 'DENY', ME, 'update', M, { existing: msg, data: { senderId: AUTHOR, senderName: 'A', timestamp: now, type: 'TEXT', deletedAt: now } });
+t('edit a tombstone', 'DENY', ME, 'update', M, { existing: { ...bare, deletedAt: now }, data: { ...bare, deletedAt: now, text: 'back', editedAt: now } });
+t('add link card once', 'ALLOW', ME, 'update', M, { existing: mine, data: { ...mine, linkPreview: { url: 'https://x.org', title: 'X', siteName: 'x.org' } } });
+t('link card on someone else', 'DENY', ME, 'update', M, { existing: msg, data: { ...msg, linkPreview: { url: 'https://x.org', title: 'X', siteName: 'x.org' } } });
+const newMsg = { senderId: ME, senderName: 'Me', senderPhoto: '', timestamp: now, type: 'TEXT' };
+t('send a file', 'ALLOW', ME, 'create', `${DB}/chat_rooms/r1/messages/m2`, { data: { ...newMsg, attachment: mine.attachment } });
+t('send a 60 MB file', 'DENY', ME, 'create', `${DB}/chat_rooms/r1/messages/m2`, { data: { ...newMsg, attachment: { ...mine.attachment, size: 60 * 1024 * 1024 } } });
+t('send pre-deleted', 'DENY', ME, 'create', `${DB}/chat_rooms/r1/messages/m2`, { data: { ...newMsg, text: 'x', deletedAt: now } });
+t('send forwarded', 'ALLOW', ME, 'create', `${DB}/chat_rooms/r1/messages/m2`, { data: { ...newMsg, text: 'x', forwardedFrom: 'Author' } });
+t('mute my room', 'ALLOW', ME, 'update', `${DB}/users/${ME}/chat_prefs/r1`, { existing: { lastReadAt: 1 }, data: { lastReadAt: 1, mutedUntil: -1, updatedAt: now } });
+t('read cursor', 'ALLOW', ME, 'create', `${DB}/users/${ME}/chat_prefs/r1`, { data: { lastReadAt: now, updatedAt: now } });
+t('mute for someone else', 'DENY', ME, 'create', `${DB}/users/${OTHER}/chat_prefs/r1`, { data: { mutedUntil: -1, updatedAt: now } });
+t('read someone else prefs', 'DENY', ME, 'get', `${DB}/users/${OTHER}/chat_prefs/r1`, {});
+t('prefs extra field', 'DENY', ME, 'create', `${DB}/users/${ME}/chat_prefs/r1`, { data: { lastReadAt: now, isAdmin: true } });
+const qh = { enabled: true, start: '22:00', end: '07:00', tz: 'America/New_York', updatedAt: now };
+t('quiet hours', 'ALLOW', ME, 'create', `${DB}/users/${ME}/chat_settings/quiet_hours`, { data: qh });
+t('quiet hours bad time', 'DENY', ME, 'create', `${DB}/users/${ME}/chat_settings/quiet_hours`, { data: { ...qh, start: '25:00' } });
+t('chat_settings other doc', 'DENY', ME, 'create', `${DB}/users/${ME}/chat_settings/anything`, { data: qh });
+
 // match fan room
 const mm = (o = {}) => ({ uid: ME, displayName: 'Me', photoURL: null, text: 'goal?', side: 'home', at: now, ...o });
 t('fan chat', 'ALLOW', ME, 'create', `${DB}/wcMatchRooms/x/chat/c1`, { data: mm() });

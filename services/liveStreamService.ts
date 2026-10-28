@@ -99,7 +99,9 @@ export async function saveSessionRecording(input: SaveRecordingInput): Promise<{
       title,
       description: input.description || `Recorded ${new Date().toLocaleDateString()}`,
       isLiveRecording: true,
-      isPrivate: input.isPrivate ?? false,
+      // Calls and meetings are private conversations: recordings land private unless the
+      // caller explicitly publishes. Publish from Reello once the host is happy with it.
+      isPrivate: input.isPrivate ?? true,
       duration: input.durationSec,
       genre: audioOnly ? 'Podcast' : 'Live',
     } as any);

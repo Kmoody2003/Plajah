@@ -21,6 +21,7 @@ import { buildProgramGuide, buildXmltv, buildMrss, nowAndNext, type EpgSlot, typ
 import { slotDurationSec } from './services/fastChannelTimeline';
 import { resolveLine as resolveInventoryLine, planDecrement as planDecrementInventory, variantStockSeed as variantStockSeedInventory, isTracked as isTrackedInventory, isSafeVariantId as isSafeVariantIdInventory } from './services/inventoryCore';
 import { computeTax, parseTaxSettings, normalizeTaxClass, type TaxSettings } from './services/taxCore';
+import { shouldPushChatMessage } from './services/chat/chatCore';
 import { validateTenders, sanitizeTip, parseTenders, tenderLabel, isStoredValueTender, type Tender } from './services/tenderCore';
 import { refundNeedsManager, restockMoveId, REFUND_REASONS, commitRefund, planFromOrderDoc, refundLogOf, orderLinesFromDoc, clawbackPoints, applyClawback, type RefundMethod, type RefundReason } from './services/refundCore';
 import { casUpdate, type CasStore } from './services/casCore';
@@ -8259,7 +8260,7 @@ async function startServer() {
   });
   const PUSH_CATEGORIES = new Set(['messages', 'social', 'content', 'system']);
   app.post('/api/push', express.json(), authMiddleware, pushLimiter, async (req: any, res) => {
-    const { toUid, self, title, body, link, icon, channelId, targetId, type, senderName, senderPhoto, notificationId, threadId } = req.body || {};
+    const { toUid, self, title, body, link, icon, channelId, targetId, type, senderName, senderPhoto, notificationId, threadId, mention } = req.body || {};
     const recipient = self === true ? req.uid : (typeof toUid === 'string' ? toUid : '');
     if (!recipient || !/^[A-Za-z0-9_-]{6,128}$/.test(recipient)) return res.status(400).json({ error: 'toUid required' });
     if (req.isAnonymous && recipient !== req.uid) return res.status(403).json({ error: 'A registered account is required', code: 'ANONYMOUS_NOT_ALLOWED' });
@@ -8283,6 +8284,17 @@ async function startServer() {
       }
       const prefs = (user.notificationPrefs || {}) as Record<string, boolean>;
       if (prefs.push === false || prefs[category] === false) return res.json({ sent: 0, total: 0, muted: true });
+      // Chat: a muted room stays silent (an @mention still gets through) and quiet hours silence
+      // every chat push. The in-app inbox entry was already written by the client.
+      if (type === 'MESSAGE' && typeof targetId === 'string' && /^[A-Za-z0-9_-]{1,200}$/.test(targetId)) {
+        const [roomPrefs, quietHours] = await Promise.all([
+          firestoreGetDeep(`users/${recipient}/chat_prefs`, targetId),
+          firestoreGetDeep(`users/${recipient}/chat_settings`, 'quiet_hours'),
+        ]);
+        if (!shouldPushChatMessage({ prefs: roomPrefs as any, quietHours: quietHours as any, mention: mention === true })) {
+          return res.json({ sent: 0, total: 0, muted: true });
+        }
+      }
     }
     const targets = Array.from(new Set<string>(
       [...(Array.isArray(user.fcmTokens) ? user.fcmTokens : []), user.fcmToken].filter((t: any) => typeof t === 'string' && t)

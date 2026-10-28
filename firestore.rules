@@ -774,6 +774,12 @@ service cloud.firestore {
              (!('seenBy' in data) || (data.seenBy is list && data.seenBy.size() <= 1000)) &&
              (!('threadRootId' in data) || (data.threadRootId is string && data.threadRootId.size() > 0 && data.threadRootId.size() < 200)) &&
              (!('mentionUids' in data) || (data.mentionUids is list && data.mentionUids.size() <= 100)) &&
+             (!('attachment' in data) || (data.attachment is map && data.attachment.url is string &&
+               data.attachment.name is string && data.attachment.name.size() <= 200 &&
+               data.attachment.size is number && data.attachment.size < 52428800)) &&
+             (!('linkPreview' in data) || (data.linkPreview is map && data.linkPreview.url is string)) &&
+             (!('forwardedFrom' in data) || (data.forwardedFrom is string && data.forwardedFrom.size() <= 100)) &&
+             !('deletedAt' in data) && !('editedAt' in data) &&
              (!('productionEntity' in data) || (
                data.productionEntity is map &&
                data.productionEntity.productionId is string && data.productionEntity.productionId.size() > 0 &&
@@ -1933,6 +1939,26 @@ service cloud.firestore {
       allow read, write: if isOwner(userId);
     }
 
+    // Per-room read cursor + mute (services/chat/chatActions). Private to the owner; the
+    // server reads it with the service account to gate chat push.
+    match /users/{userId}/chat_prefs/{roomId} {
+      allow read, delete: if isOwner(userId);
+      allow create, update: if isOwner(userId) &&
+        request.resource.data.keys().hasOnly(['lastReadAt', 'mutedUntil', 'updatedAt']) &&
+        request.resource.data.get('lastReadAt', 0) is number &&
+        (request.resource.data.get('mutedUntil', null) == null || request.resource.data.mutedUntil is number);
+    }
+    // Chat quiet hours (users/{uid}/chat_settings/quiet_hours).
+    match /users/{userId}/chat_settings/{docId} {
+      allow read, delete: if isOwner(userId);
+      allow create, update: if isOwner(userId) && docId == 'quiet_hours' &&
+        request.resource.data.keys().hasOnly(['enabled', 'start', 'end', 'tz', 'updatedAt']) &&
+        request.resource.data.enabled is bool &&
+        request.resource.data.start is string && request.resource.data.start.matches('^([01][0-9]|2[0-3]):[0-5][0-9]$') &&
+        request.resource.data.end is string && request.resource.data.end.matches('^([01][0-9]|2[0-3]):[0-5][0-9]$') &&
+        request.resource.data.tz is string && request.resource.data.tz.size() <= 64;
+    }
+
     // Reello Live channel emotes — a creator's own uploads; public so every viewer can render them.
     match /users/{userId}/channelEmotes/{code} {
       allow read: if true;
@@ -2596,7 +2622,24 @@ service cloud.firestore {
            request.resource.data.get('isPinned', false) is bool &&
            (roomId.matches('^live_chat_.*') ||
             (exists(/databases/$(database)/documents/chat_rooms/$(roomId)) &&
-             request.auth.uid in get(/databases/$(database)/documents/chat_rooms/$(roomId)).data.participants)))
+             request.auth.uid in get(/databases/$(database)/documents/chat_rooms/$(roomId)).data.participants))) ||
+          // Edit your own text message (services/chat/chatActions.editMessage).
+          (resource.data.senderId == request.auth.uid && resource.data.type == 'TEXT' && !('deletedAt' in resource.data) &&
+           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'editedAt', 'linkPreview']) &&
+           request.resource.data.text is string && request.resource.data.text.size() > 0 && request.resource.data.text.size() < 5000 &&
+           request.resource.data.editedAt is number) ||
+          // Sender attaches the link card once, right after sending.
+          (resource.data.senderId == request.auth.uid && !('linkPreview' in resource.data) && !('deletedAt' in resource.data) &&
+           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['linkPreview']) &&
+           request.resource.data.linkPreview is map && request.resource.data.linkPreview.url is string) ||
+          // Delete for everyone: the sender clears the content and leaves a tombstone.
+          (resource.data.senderId == request.auth.uid && !('deletedAt' in resource.data) &&
+           request.resource.data.deletedAt is number &&
+           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedAt', 'text', 'voiceUrl', 'imageUrl', 'gifUrl',
+             'videoNoteUrl', 'mediaId', 'mediaType', 'telaDocument', 'attachment', 'linkPreview', 'reactions', 'isPinned',
+             'replyToText', 'storagePath', 'forwardedFrom']) &&
+           !request.resource.data.keys().hasAny(['text', 'voiceUrl', 'imageUrl', 'gifUrl', 'videoNoteUrl', 'mediaId',
+             'telaDocument', 'attachment', 'linkPreview', 'storagePath']))
         );
         allow delete: if isAdmin()
           || (isAuthenticated() && resource.data.senderId == request.auth.uid)

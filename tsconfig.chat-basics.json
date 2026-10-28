@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "allowJs": false, "noEmit": true },
+  "include": [
+    "components/ChatWindow.tsx", "components/PersistentChatDrawer.tsx", "components/ChatFlyout.tsx",
+    "components/chat/ChatForwardPicker.tsx", "components/chat/ChatNotifyPanel.tsx", "components/chat/ChatMessageExtras.tsx",
+    "components/safety/ReportDialog.tsx", "hooks/useChatRoomPrefs.ts",
+    "services/chat/chatCore.ts", "services/chat/chatActions.ts", "services/liveStreamService.ts",
+    "tests/chatBasics.test.ts"
+  ]
+}

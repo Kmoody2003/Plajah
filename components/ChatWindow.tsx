@@ -8,7 +8,21 @@ import {
   Forward, Search, Globe, Smile, Hash, Copy, Trash2, Star,
   Bold, Italic, Link, AtSign, BarChart2, AlertCircle, Volume2,
   Flame, Timer, Camera, Radio, Heart, Palette, Gift, EyeOff, ShieldCheck, ClipboardList, Database, MessagesSquare,
+  Paperclip, Pencil, Flag, Ban, BellOff, Bell, FileText, ExternalLink,
 } from 'lucide-react';
+import {
+  editMessage, deleteMessageForEveryone, uploadChatBlob, uploadChatAttachment, previewForMessage,
+  listenMyRoomPrefs, markRoomRead,
+} from '../services/chat/chatActions';
+import {
+  canEditMessage, canForwardMessage, isTombstone, isRoomMuted, muteLabel, formatBytes,
+  ATTACHMENT_ACCEPT, MAX_ATTACHMENT_BYTES, type RoomPrefs, type ChatAttachment,
+} from '../services/chat/chatCore';
+import { blockUser } from '../services/socialSafetyService';
+import ReportDialog from './safety/ReportDialog';
+import ChatForwardPicker from './chat/ChatForwardPicker';
+import ChatNotifyPanel from './chat/ChatNotifyPanel';
+import { ChatAttachmentCard, ChatLinkPreviewCard } from './chat/ChatMessageExtras';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChatMessage, ChatRoom, UserProfile, CollabProject, Album } from '../types';
 import {
@@ -114,6 +128,8 @@ interface ChatWindowProps {
 }
 
 const QUICK_REACTIONS = ['❤️', '😂', '😮', '😢', '🔥', '👏', '💯', '🎯'];
+// Stable default: a fresh {} per render re-ran the profile-merge effect forever (CollabDock passes no profiles).
+const NO_PROFILES: Record<string, UserProfile> = {};
 
 // ── Voice player ──────────────────────────────────────────────────────────────
 const VoicePlayer: React.FC<{ src: string }> = ({ src }) => {
@@ -205,7 +221,7 @@ const ReactionBadge: React.FC<{
 
 // ── Main Component ─────────────────────────────────────────────────────────────
 const ChatWindow: React.FC<ChatWindowProps> = ({
-  room, profiles: externalProfiles = {}, currentUserProfile, onBack, onOpenCollab, onStartVideo, onStartAudio, readOnly = false,
+  room, profiles: externalProfiles = NO_PROFILES, currentUserProfile, onBack, onOpenCollab, onStartVideo, onStartAudio, readOnly = false,
 }) => {
   const [messages, setMessages] = useState<ExtendedMessage[]>([]);
   // Paging: the listener only holds the newest page; "Load earlier" pulls older pages on demand.
@@ -245,13 +261,35 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       { id: 'react', label: 'React', icon: <Smile size={14} />, onSelect: (mm) => setShowEmojiPicker(mm.id) },
       { id: 'copy', label: 'Copy', icon: <Copy size={14} />, onSelect: (mm) => handleCopyText(mm.text) },
       { id: 'pin', label: m.isPinned ? 'Unpin' : 'Pin', icon: <Pin size={14} />, onSelect: (mm) => handlePinMessage(mm.id, !!mm.isPinned) },
-      { id: 'forward', label: 'Forward', icon: <Forward size={14} />, onSelect: (mm) => handleForwardMessage(mm) },
     ];
+    if (canForwardMessage(m)) items.push({ id: 'forward', label: 'Forward', icon: <Forward size={14} />, onSelect: (mm) => setForwardSource(mm) });
+    if (canEditMessage(m, uid)) items.push({ id: 'edit', label: 'Edit', icon: <Pencil size={14} />, onSelect: (mm) => startEdit(mm) });
     if (m.senderId === uid) {
-      items.push({ kind: 'separator' }, { id: 'delete', label: 'Delete', danger: true, icon: <Trash2 size={14} />, onSelect: (mm) => handleDeleteMessage(mm.id) });
+      items.push({ kind: 'separator' }, { id: 'delete', label: 'Delete for everyone', danger: true, icon: <Trash2 size={14} />, onSelect: (mm) => handleDeleteMessage(mm) });
+    } else if (uid && m.type !== 'SYSTEM') {
+      items.push(
+        { kind: 'separator' },
+        { id: 'report', label: 'Report message', danger: true, icon: <Flag size={14} />, onSelect: (mm) => setReportTarget(mm) },
+        { id: 'block', label: `Block ${m.senderName || 'sender'}`, danger: true, icon: <Ban size={14} />, onSelect: (mm) => handleBlockSender(mm) },
+      );
     }
     return items;
   });
+  // Edit-in-place: the composer switches to "Editing" and Send saves the change.
+  const [editing, setEditing] = useState<ExtendedMessage | null>(null);
+  const [forwardSource, setForwardSource] = useState<ExtendedMessage | null>(null);
+  const [reportTarget, setReportTarget] = useState<ExtendedMessage | null>(null);
+  const [showNotifyPanel, setShowNotifyPanel] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const noticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const flash = (text: string) => {
+    setNotice(text);
+    if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
+    noticeTimerRef.current = setTimeout(() => setNotice(null), 3200);
+  };
+  const [roomPrefs, setRoomPrefs] = useState<RoomPrefs | null>(null);
+  const attachInputRef = useRef<HTMLInputElement | null>(null);
+  const [attachProgress, setAttachProgress] = useState<number | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState<string | null>(null); // messageId
   const [showFediversePanel, setShowFediversePanel] = useState(false);
   const [fediverseText, setFediverseText] = useState('');
@@ -386,6 +424,18 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     };
   }, [room.id]);
 
+  // Per-room mute + read cursor (users/{uid}/chat_prefs/{roomId}).
+  useEffect(() => listenMyRoomPrefs((all) => setRoomPrefs(all[room.id] || null)), [room.id]);
+  // Reading the room moves your cursor — only while the window is actually visible.
+  useEffect(() => {
+    const mark = () => { if (!document.hidden) void markRoomRead(room.id, room.updatedAt); };
+    mark();
+    document.addEventListener('visibilitychange', mark);
+    return () => document.removeEventListener('visibilitychange', mark);
+  }, [room.id, room.updatedAt, messages.length]);
+  // Leaving edit mode when switching rooms.
+  useEffect(() => { setEditing(null); setForwardSource(null); setReportTarget(null); }, [room.id]);
+
   // "Load earlier": one older page, keeping the reader's scroll position anchored.
   const loadEarlier = useCallback(async () => {
     const cursor = earlierCursorRef.current || windowCursorRef.current;
@@ -432,6 +482,13 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   // Enter behaviour: on a desktop (fine pointer) Enter sends, Shift+Enter adds a newline.
   // On touch phones Enter inserts a newline (like WhatsApp) and you tap Send.
   const handleInputKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Escape' && editing) { e.preventDefault(); cancelEdit(); return; }
+    // Up arrow in an empty box edits your last message (Slack habit).
+    if (e.key === 'ArrowUp' && !inputText && !editing) {
+      const mine = [...decryptedMessages].reverse().find(m => canEditMessage(m, uid));
+      if (mine) { e.preventDefault(); startEdit(mine); }
+      return;
+    }
     if (e.key !== 'Enter' || e.shiftKey) return;
     const coarse = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches;
     if (!coarse) { e.preventDefault(); handleSend(); }
@@ -444,9 +501,27 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const handleSend = async (e?: React.FormEvent) => {
     e?.preventDefault();
     const text = inputText.trim();
+    if (!text && editing) { flash('A message cannot be empty. Delete it instead.'); return; }
     if (!text || sendingRef.current) return;
     sendingRef.current = true;
     if (isTyping) { setIsTyping(false); updateTypingStatus(room.id, false); clearTimeout(typingTimeoutRef.current!); }
+
+    if (editing) {
+      const target = editing;
+      setEditing(null);
+      setInputText('');
+      if (inputRef.current) inputRef.current.style.height = 'auto';
+      try {
+        if (text !== (target.text || '').trim()) await editMessage(room.id, target.id, text, target.linkPreview?.url);
+      } catch (err: any) {
+        setEditing(target);
+        setInputText(text);
+        flash(err?.message || 'Could not save your edit. Try again.');
+      } finally {
+        sendingRef.current = false;
+      }
+      return;
+    }
 
     // Clear the composer immediately so a second submit finds it empty (and the UI feels instant).
     const savedReply = replyTo;
@@ -480,8 +555,14 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       if (burnMode) {
         msgData.burnAfterSeen = true; // countdown starts when recipient sees it, not now
       }
-      await sendMessage(room.id, msgData);
+      const messageId = await sendMessage(room.id, msgData);
       if (isIntimate) playSendChime();
+      // Link card after the send so the message never waits on someone else's website.
+      if (messageId && !wasBurn && !isIntimate && /https?:\/\//.test(text)) {
+        void previewForMessage(room.id, text).then((linkPreview) => {
+          if (linkPreview) return updateDoc(doc(db, 'chat_rooms', room.id, 'messages', messageId), { linkPreview });
+        }).catch(() => { /* a missing card is fine */ });
+      }
     } catch {
       // Restore the text so the user can retry a failed send.
       setInputText(text);
@@ -527,19 +608,22 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     recorder.ondataavailable = e => { if (e.data.size > 0) videoChunksRef.current.push(e.data); };
     recorder.onstop = async () => {
       const blob = new Blob(videoChunksRef.current, { type: 'video/webm' });
-      const reader = new FileReader();
-      reader.readAsDataURL(blob);
-      reader.onloadend = async () => {
+      closeVideoNote();
+      try {
+        // Notes live in Storage (not inside the message doc): no 1 MB cap, and a burn deletes the file too.
+        const { url, path } = await uploadChatBlob(room.id, 'video', blob, 'video-note.webm');
         await sendMessage(room.id, {
           senderId: auth.currentUser?.uid || '',
           senderName: auth.currentUser?.displayName || 'Anonymous',
           senderPhoto: auth.currentUser?.photoURL || '',
-          videoNoteUrl: reader.result as string,
+          videoNoteUrl: url,
+          storagePath: path,
           type: 'VIDEO_NOTE',
           ...(burnMode ? { burnAfterSeen: true } : {}),
         });
-        closeVideoNote();
-      };
+      } catch (err: any) {
+        flash(err?.message || 'Your video note did not send. Try again.');
+      }
     };
     recorder.start();
     videoRecorderRef.current = recorder;
@@ -676,25 +760,59 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   }, [decryptedMessages, room.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSendVoice = async (blob: Blob) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(blob);
-    reader.onloadend = async () => {
+    setShowVoiceRecorder(false);
+    try {
+      const ext = (blob.type || '').includes('mp4') ? 'm4a' : (blob.type || '').includes('ogg') ? 'ogg' : 'webm';
+      const { url, path } = await uploadChatBlob(room.id, 'voice', blob, `voice-note.${ext}`);
       await sendMessage(room.id, {
         senderId: auth.currentUser?.uid || '',
         senderName: auth.currentUser?.displayName || 'Anonymous',
         senderPhoto: auth.currentUser?.photoURL || '',
-        voiceUrl: reader.result as string,
+        voiceUrl: url,
+        storagePath: path,
         type: 'VOICE',
       });
-      setShowVoiceRecorder(false);
-    };
+    } catch (err: any) {
+      flash(err?.message || 'Your voice note did not send. Try again.');
+    }
+  };
+
+  // Any file: images take the photo path (EXIF strip, inline preview); everything else is a file card.
+  const handleAttachFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.currentTarget.value = '';
+    if (!file) return;
+    if (file.size >= MAX_ATTACHMENT_BYTES) { flash(`That file is ${formatBytes(file.size)}. Files can be up to 50 MB.`); return; }
+    if (file.type.startsWith('image/')) { await sendImageFile(file, file.name, false); return; }
+    setAttachProgress(0);
+    try {
+      const attachment = await uploadChatAttachment(room.id, file, (p) => setAttachProgress(p));
+      await sendMessage(room.id, {
+        senderId: auth.currentUser?.uid || '',
+        senderName: auth.currentUser?.displayName || 'Anonymous',
+        senderPhoto: auth.currentUser?.photoURL || '',
+        attachment,
+        type: 'TEXT',
+        ...(replyTo ? { replyToId: replyTo.id, replyToText: replyTo.text?.slice(0, 80), replyToSender: replyTo.senderName } : {}),
+      } as any);
+      setReplyTo(null);
+    } catch (err: any) {
+      flash(err?.message || 'That file did not send. Try again.');
+    } finally {
+      setAttachProgress(null);
+    }
   };
 
   const handleImageFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    let file: Blob | undefined = e.target.files?.[0];
+    const picked: Blob | undefined = e.target.files?.[0];
     const originalName = e.target.files?.[0]?.name || 'photo.jpg';
     const isGift = giftNextRef.current; giftNextRef.current = false;
-    if (!file) return;
+    if (!picked) return;
+    await sendImageFile(picked, originalName, isGift);
+  };
+
+  const sendImageFile = async (picked: Blob, originalName: string, isGift: boolean) => {
+    let file: Blob = picked;
     setUploadingImage(true);
     try {
       // In a protected thread, strip EXIF/GPS before the bytes ever leave the device —
@@ -719,7 +837,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           imageUrl: url,
           type: 'IMAGE',
           // Gift media (intimate): wrapped until opened, then vanishes 60s after opening.
-          ...(isGift ? { giftMedia: true, storagePath: path } : {}),
+          // storagePath lets delete-for-everyone remove the photo itself, not just the message.
+          storagePath: path,
+          ...(isGift ? { giftMedia: true } : {}),
         } as any);
       }
     } finally {
@@ -774,18 +894,41 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     await updateDoc(msgRef, { isPinned: !currentPinned });
   };
 
-  const handleDeleteMessage = async (msgId: string) => {
-    if (!window.confirm('Delete this message?')) return;
-    await deleteDoc(doc(db, 'chat_rooms', room.id, 'messages', msgId));
+  const handleDeleteMessage = async (msg: ExtendedMessage) => {
+    if (!window.confirm('Delete this message for everyone?')) return;
+    if (editing?.id === msg.id) { setEditing(null); setInputText(''); }
+    try {
+      await deleteMessageForEveryone(room.id, msg);
+    } catch {
+      flash('That message could not be deleted. Try again.');
+    }
+  };
+
+  const startEdit = (msg: ExtendedMessage) => {
+    setReplyTo(null);
+    setEditing(msg);
+    setInputText(msg.text || '');
+    requestAnimationFrame(() => { autosize(inputRef.current); inputRef.current?.focus(); });
+  };
+  const cancelEdit = () => {
+    setEditing(null);
+    setInputText('');
+    if (inputRef.current) inputRef.current.style.height = 'auto';
+  };
+
+  const handleBlockSender = async (msg: ExtendedMessage) => {
+    const name = profiles[msg.senderId]?.displayName || msg.senderName || 'this person';
+    if (!window.confirm(`Block ${name}? They won't be able to message you, and you won't see their posts.`)) return;
+    try {
+      await blockUser(msg.senderId);
+      flash(`${name} is blocked. You can unblock them from Blocked accounts in Settings.`);
+    } catch {
+      flash(`Could not block ${name}. Try again.`);
+    }
   };
 
   const handleCopyText = (text?: string) => {
     if (text) navigator.clipboard.writeText(text);
-  };
-
-  const handleForwardMessage = (msg: ExtendedMessage) => {
-    setInputText(`↪ ${msg.text || '[media]'}`);
-    inputRef.current?.focus();
   };
 
   const handleBroadcastToFediverse = async () => {
@@ -867,6 +1010,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     <div className="relative isolate flex flex-col h-full overflow-hidden bg-black/10">
       {!isIntimate && uid && <ConversationBackground key={`${uid}:${room.id}`} roomId={room.id} userId={uid} />}
       <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageFile} />
+      <input ref={attachInputRef} type="file" accept={ATTACHMENT_ACCEPT} className="hidden" onChange={handleAttachFile} />
+      {notice && (
+        <div role="status" className="absolute left-1/2 -translate-x-1/2 top-16 z-[80] max-w-[90%] px-4 py-2 rounded-full bg-black/90 border border-white/15 text-[11px] text-white shadow-2xl text-center">
+          {notice}
+        </div>
+      )}
       <input ref={intimateBgInputRef} type="file" accept="image/*" className="hidden" onChange={handleIntimateBgFile} />
 
       {/* ── Capture guard — blacks out the intimate conversation when unfocused/backgrounded ── */}
@@ -933,6 +1082,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                   <span className="text-[9px] font-bold text-white/25">
                     {isProductionRoom ? `${room.productionTitle} · ${room.participants.length} crew` : room.type === 'PRIVATE' ? 'Direct Message' : `${room.participants.length} members`}
                   </span>
+                )}
+                {isRoomMuted(roomPrefs) && (
+                  <button onClick={() => setShowNotifyPanel(true)} title={muteLabel(roomPrefs) || 'Muted'}
+                    className="flex items-center gap-1 text-[9px] font-bold text-white/35 hover:text-white transition-colors">
+                    <BellOff size={9} /> Muted
+                  </button>
                 )}
                 {pinnedMessages.length > 0 && (
                   <button onClick={() => setShowPinnedPanel(p => !p)} className="flex items-center gap-1 text-[9px] font-bold text-amber-400 hover:text-amber-300 transition-colors">
@@ -1014,6 +1169,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                     { icon: Pin, label: `${showPinnedPanel ? 'Hide' : 'Show'} Pinned`, action: () => setShowPinnedPanel(p => !p), phoneOnly: false },
                     { icon: Shield, label: protectedThread ? 'Protected ✓' : 'Protect thread', action: () => { void toggleProtected(); setShowMoreMenu(false); }, phoneOnly: false },
                     ...(protectedThread ? [{ icon: Timer, label: `Auto-delete: ${retentionDays ? `${retentionDays}d` : 'Off'}`, action: () => { void cycleRetention(); }, phoneOnly: false }] : []),
+                    { icon: isRoomMuted(roomPrefs) ? BellOff : Bell, label: isRoomMuted(roomPrefs) ? 'Notifications: muted' : 'Notifications', action: () => setShowNotifyPanel(true), phoneOnly: false },
                     { icon: Globe, label: 'Fediverse Broadcast', action: () => { setShowFediversePanel(p => !p); setShowMoreMenu(false); }, phoneOnly: false },
                     { icon: Globe, label: 'Members', action: () => { setShowMembersPanel(p => !p); setShowMoreMenu(false); }, phoneOnly: false },
                   ].map(({ icon: Icon, label, action, phoneOnly }) => (
@@ -1319,6 +1475,16 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             );
           }
 
+          if (isTombstone(msg)) {
+            return (
+              <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} px-9`}>
+                <span className="flex items-center gap-1.5 text-[11px] italic text-white/30 px-3 py-1.5 rounded-2xl border border-dashed border-white/10">
+                  <Trash2 size={11} /> {isMe ? 'You deleted this message' : `${senderProfile?.displayName || msg.senderName} deleted this message`}
+                </span>
+              </div>
+            );
+          }
+
           return (
             <motion.div
               key={msg.id}
@@ -1337,6 +1503,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               <div className={`${msg.productionEntity ? 'max-w-[92%] sm:max-w-[82%]' : 'max-w-[72%] sm:max-w-[62%]'} flex flex-col gap-1 ${isMe ? 'items-end' : 'items-start'}`}>
                 {showName && <span className="text-[8px] font-black uppercase tracking-widest text-white/30 px-1">{senderProfile?.displayName || msg.senderName}</span>}
                 {uid && msg.mentionUids?.includes(uid) && <span className="type-label-sm text-brand-orange px-1">Mentioned you</span>}
+                {msg.forwardedFrom && (
+                  <span className="flex items-center gap-1 px-1 text-[10px] italic text-white/35"><Forward size={10} /> Forwarded from {msg.forwardedFrom}</span>
+                )}
 
                 {/* Reply-to preview */}
                 {msg.replyToId && (
@@ -1352,7 +1521,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                     msg.productionEntity ? '' : isMe
                       ? 'bg-small-orange text-white rounded-br-sm'
                       : 'bg-white/[0.08] backdrop-blur-md text-white rounded-bl-sm border border-white/[0.06]'
-                  } ${msg.isPinned ? 'ring-1 ring-amber-400/30' : ''}`}
+                  } ${msg.isPinned ? 'ring-1 ring-amber-400/30' : ''} ${editing?.id === msg.id ? 'ring-2 ring-white/60' : ''}`}
                   style={isIntimate ? { backgroundColor: isMe ? intimateTheme.ownBubble : intimateTheme.otherBubble } : undefined}
                   {...(readOnly ? {} : msgMenu.bind(msg))}
                   onDoubleClick={() => { if (!readOnly) setReplyTo(msg); }}
@@ -1427,6 +1596,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                     </div>
                   ) : msg.mediaType === 'TELA' && msg.telaDocument ? (
                     <ChatTelaDocument message={msg} roomId={room.id} />
+                  ) : msg.attachment ? (
+                    <ChatAttachmentCard attachment={msg.attachment} />
                   ) : msg.type === 'MEDIA' ? (
                     <div className="flex items-center gap-3 min-w-[180px]">
                       <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center shrink-0">
@@ -1445,6 +1616,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                       <RichText text={msg.text || ''} clean={false} scripturePreview={false} />
                     </p>
                   )}
+                  {msg.linkPreview && !msg.attachment && <ChatLinkPreviewCard preview={msg.linkPreview} />}
                 </div>
 
                 {!readOnly && (threadReplies.length > 0 || !!room.workspaceType) && (
@@ -1501,6 +1673,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                   <span className="text-[8px] font-bold text-white/20">
                     {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </span>
+                  {msg.editedAt && (
+                    <span className="text-[8px] font-bold text-white/25" title={`Edited ${new Date(msg.editedAt).toLocaleString()}`}>edited</span>
+                  )}
                   {isMe && (isSeen ? <CheckCheck size={10} className="text-blue-400" /> : <Check size={10} className="text-white/20" />)}
                   <button
                     onClick={() => setShowEmojiPicker(showEmojiPicker === msg.id ? null : msg.id)}
@@ -1563,6 +1738,29 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         ) : !canPostToRoom ? (
           <div className="px-4 py-4 flex items-center gap-3"><ShieldCheck size={18} className="text-brand-orange shrink-0" /><div><p className="type-label-lg">Production announcements are read-only</p><p className="type-body-sm text-[var(--text-secondary)]">Producer and AD leadership publish the authoritative update here. Reply in General or Schedule & Calls.</p></div></div>
         ) : <>
+        {/* Edit banner */}
+        {editing && (
+          <div className="px-4 pt-2">
+            <div className="flex items-center gap-2 px-3 py-2 bg-white/[0.06] border border-white/15 rounded-xl">
+              <Pencil size={12} className="text-white/70 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <span className="text-[9px] font-black text-white/80">Editing message</span>
+                <p className="text-[9px] text-white/40 truncate">Enter saves · Esc cancels</p>
+              </div>
+              <button type="button" onClick={cancelEdit} aria-label="Cancel editing" className="p-1 hover:bg-white/10 rounded-lg shrink-0">
+                <X size={12} className="text-white/50" />
+              </button>
+            </div>
+          </div>
+        )}
+        {attachProgress !== null && (
+          <div className="px-4 pt-2">
+            <div className="flex items-center gap-2 text-[10px] text-white/50">
+              <Paperclip size={11} /> Uploading file… {Math.round(attachProgress)}%
+              <div className="flex-1 h-1 rounded-full bg-white/10 overflow-hidden"><div className="h-full bg-small-orange" style={{ width: `${Math.min(100, attachProgress)}%` }} /></div>
+            </div>
+          </div>
+        )}
         {/* Reply preview */}
         <AnimatePresence>
           {replyTo && (
@@ -1641,15 +1839,15 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                   onChange={handleInputChange}
                   onKeyDown={handleInputKeyDown}
                   rows={1}
-                  placeholder={burnMode ? '🔥 Burns 30s after read…' : replyTo ? `Reply to ${replyTo.senderName}…` : 'Message…'}
+                  placeholder={editing ? 'Edit your message…' : burnMode ? '🔥 Burns 30s after read…' : replyTo ? `Reply to ${replyTo.senderName}…` : 'Message…'}
                   className={`flex-1 resize-none bg-white/[0.06] border rounded-3xl px-4 py-3 text-[15px] leading-snug text-white placeholder-white/25 focus:bg-white/[0.08] transition-colors outline-none min-w-0 max-h-[140px] overflow-y-auto no-scrollbar ${
                     burnMode ? 'border-orange-400/30 focus:border-orange-400/60' : 'border-white/[0.08] focus:border-small-orange/40'
                   }`}
                 />
-                {inputText.trim() ? (
-                  <button type="submit"
+                {inputText.trim() || editing ? (
+                  <button type="submit" title={editing ? 'Save edit' : 'Send'}
                     className="w-11 h-11 grid place-items-center bg-small-orange text-white rounded-full hover:bg-small-orange/80 active:scale-95 transition-all shrink-0">
-                    <Send size={19} />
+                    {editing ? <Check size={19} /> : <Send size={19} />}
                   </button>
                 ) : (
                   <button type="button" onClick={() => setShowVoiceRecorder(true)} title="Voice message"
@@ -1666,6 +1864,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                   <Music size={19} />
                 </button>
                 {isProductionRoom && <button type="button" onClick={() => setShowProductionPicker(value => !value)} title="Share live production data" className={`p-2 rounded-xl transition-all shrink-0 ${showProductionPicker ? 'text-brand-orange bg-white/10' : 'text-white/35 hover:text-brand-orange hover:bg-white/5'}`}><Database size={19} /></button>}
+                <button type="button" onClick={() => attachInputRef.current?.click()} disabled={attachProgress !== null} title="Attach a file"
+                  className="p-2 text-white/35 hover:text-small-orange hover:bg-white/5 rounded-xl transition-all disabled:opacity-30 shrink-0">
+                  <Paperclip size={19} />
+                </button>
                 <button type="button" onClick={() => imageInputRef.current?.click()} disabled={uploadingImage} title="Photo"
                   className="p-2 text-white/35 hover:text-small-orange hover:bg-white/5 rounded-xl transition-all disabled:opacity-30 shrink-0">
                   {uploadingImage
@@ -1703,6 +1905,28 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       </div>
 
       {threadRoot && <ChatThreadPanel room={room} root={threadRoot} replies={decryptedMessages.filter(message => message.threadRootId === threadRoot.id)} profiles={profiles} canPost={canPostToRoom} onClose={() => setThreadRoot(null)} />}
+
+      {forwardSource && (
+        <ChatForwardPicker
+          message={forwardSource}
+          currentRoomId={room.id}
+          onClose={() => setForwardSource(null)}
+          onForwarded={(name) => { setForwardSource(null); flash(`Forwarded to ${name}`); }}
+        />
+      )}
+      {showNotifyPanel && (
+        <ChatNotifyPanel roomId={room.id} roomName={roomName} prefs={roomPrefs} onClose={() => setShowNotifyPanel(false)} />
+      )}
+      <ReportDialog
+        open={!!reportTarget}
+        onClose={() => setReportTarget(null)}
+        targetType="message"
+        targetId={reportTarget ? `${room.id}:${reportTarget.id}` : ''}
+        targetUid={reportTarget?.senderId}
+        parentId={room.id}
+        snapshot={reportTarget?.text || reportTarget?.attachment?.name || ''}
+        targetName={reportTarget?.senderName}
+      />
 
       {/* ── VIDEO NOTE MODAL ────────────────────────────────────────── */}
       <AnimatePresence>

@@ -327,7 +327,7 @@ export type ReportReason =
  */
 export async function reportContent(input: {
   contentId: string;
-  contentType: 'post' | 'comment' | 'video' | 'image' | 'profile' | 'note' | 'live';
+  contentType: 'post' | 'comment' | 'video' | 'image' | 'profile' | 'note' | 'live' | 'message';
   reason: ReportReason;
   details?: string;
   authorId?: string;

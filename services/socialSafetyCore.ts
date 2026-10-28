@@ -53,7 +53,7 @@ export const REPORT_REASONS = [
 ] as const;
 export type SocialReportReason = typeof REPORT_REASONS[number]['id'];
 
-export type ReportTargetType = 'post' | 'comment' | 'profile' | 'live';
+export type ReportTargetType = 'post' | 'comment' | 'profile' | 'live' | 'message';
 
 /** Deterministic doc id so one reporter can only report one target once (rules deny the overwrite). */
 export const reportDocId = (reporterUid: string, targetType: string, targetId: string) =>
