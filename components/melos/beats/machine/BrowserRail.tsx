@@ -3,7 +3,8 @@
 
 import React, { useRef, useState } from 'react';
 import { Upload, Piano, SlidersHorizontal } from 'lucide-react';
-import type { GrooveDoc, SynthVoiceId, InstrumentType } from '../../../../services/melos/beats/grooveDoc';
+import type { GrooveDoc, InstrumentType } from '../../../../services/melos/beats/grooveDoc';
+import { ENGINE_LABEL, drumSynthFromLegacy, newDrumSynth, setPadDrumSynth, type DrumEngine } from '../../../../services/melos/beats/drumSynth';
 import { instrumentLabel } from '../../../../services/melos/beats/instrumentFactory';
 import { useContextMenu, type MenuNode } from '../../../ui/ContextMenu';
 import { NksBrowser } from './NksBrowser';
@@ -16,10 +17,8 @@ const noteLabel = (n: number) => `${NOTE_NAMES[((n % 12) + 12) % 12]}${Math.floo
 
 type RailTab = 'kit' | 'library' | 'samples' | 'nks';
 
-const SYNTH_VOICES: { id: SynthVoiceId; label: string }[] = [
-  { id: 'kick', label: 'Kick' }, { id: 'sub', label: 'Sub' }, { id: 'snare', label: 'Snare' },
-  { id: 'clap', label: 'Clap' }, { id: 'hat-closed', label: 'Cl Hat' }, { id: 'hat-open', label: 'Op Hat' },
-];
+// The Drum Synth engines (drumSynth.ts) — pick one, shape it on the control area's Synth page.
+const SYNTH_ENGINES: DrumEngine[] = ['kick', 'snare', 'hat', 'tom', 'perc', 'clap'];
 
 interface BrowserRailProps {
   doc: GrooveDoc;
@@ -176,20 +175,24 @@ export const BrowserRail: React.FC<BrowserRailProps> = ({ doc, selectedPad, onSe
                   className="w-6 h-6 rounded-md border border-white/12 text-white/60 hover:text-white">+</button>
               </div>
               <button
-                onClick={() => onMutate((d) => { const p = d.kit[selectedPad]; if (p) { p.source = 'synth'; p.synthVoice = p.synthVoice || 'kick'; p.instrumentTrackId = undefined; } })}
+                onClick={() => onMutate((d) => { const p = d.kit[selectedPad]; if (p) { setPadDrumSynth(p, p.drumSynth ?? drumSynthFromLegacy(p.synthVoice)); p.instrumentTrackId = undefined; } })}
                 className="text-[9px] text-white/30 hover:text-white/60 underline decoration-dotted"
               >Replace with a one-shot sound</button>
             </div>
           ) : (
             <>
               <div className="grid grid-cols-3 gap-1 mb-2">
-                {SYNTH_VOICES.map((v) => (
-                  <button
-                    key={v.id}
-                    onClick={() => onMutate((d) => { const p = d.kit[selectedPad]; if (p) { p.source = 'synth'; p.synthVoice = v.id; p.empty = false; } })}
-                    className={`h-6 rounded-lg text-[10px] border ${pad.source === 'synth' && pad.synthVoice === v.id ? 'bg-white/15 border-white/25 text-white font-semibold' : 'border-white/10 text-white/40 hover:text-white'}`}
-                  >{v.label}</button>
-                ))}
+                {SYNTH_ENGINES.map((eng) => {
+                  const on = pad.source === 'synth' && (pad.drumSynth ?? drumSynthFromLegacy(pad.synthVoice)).engine === eng;
+                  return (
+                    <button
+                      key={eng}
+                      title={`Drum Synth: ${ENGINE_LABEL[eng]} — shape it on the Synth page above the pads`}
+                      onClick={() => onMutate((d) => { const p = d.kit[selectedPad]; if (p) setPadDrumSynth(p, newDrumSynth(eng)); })}
+                      className={`h-6 rounded-lg text-[10px] border ${on ? 'bg-white/15 border-white/25 text-white font-semibold' : 'border-white/10 text-white/40 hover:text-white'}`}
+                    >{eng === 'perc' ? 'Perc' : ENGINE_LABEL[eng]}</button>
+                  );
+                })}
               </div>
               <button
                 onClick={() => fileRef.current?.click()}

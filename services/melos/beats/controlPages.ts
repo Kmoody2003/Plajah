@@ -3,7 +3,8 @@
 // slots of the focused page, so turning knob 3 on a Maschine moves knob 3 on screen, whatever
 // the page is. Pure: pages read and write the doc; the caller pushes instrument patches.
 //
-//   SOUND  sample/synth pad: Pitch/Gain · Amp Envelope · Filter · Sends
+//   SOUND  sample pad:       Pitch/Gain · Amp Envelope · Filter · Sends
+//          drum synth pad:   Synth (engine, model, its parameters) · Synth 2 · then as a sample pad
 //          instrument pad:   Instrument (its macros) · Pitch/Gain · Sends
 //   GROUP  the 16 pads of the Group: relative Tune / Level / Decay / Cutoff, absolute Swing
 //   MASTER Master (volume, tempo, swing, limiter) · Buses (A–D levels, FX returns)
@@ -15,6 +16,9 @@ import { BAJO_MACRO_LABELS, BAJO_MACRO_ORDER } from '../instruments/bajo/patch';
 import { SOMA_MACRO_LABELS, SOMA_MACRO_ORDER } from '../instruments/soma/patch';
 import { LYRA_MACRO_LABELS, LYRA_MACRO_ORDER } from '../instruments/lyra/patch';
 import { SUITE, SUITE_ORDER, type SuiteInstrument } from '../instruments/vela/suite';
+import {
+  ENGINE_LABEL, MODELS, PARAMS, drumSynthFromLegacy, dsParam, newDrumSynth, setPadDrumSynth, type DrumEngine, type DrumParamDef, type DrumSynthPatch,
+} from './drumSynth';
 
 export type ControlTab = 'master' | 'group' | 'sound';
 
@@ -171,6 +175,7 @@ export function soundPages(doc: GrooveDoc, i: number): ControlPage[] {
     }
     pages.push(pitchGainPage(doc, i));
   } else {
+    if (pad.source === 'synth') pages.push(...drumSynthPages(doc, i));
     pages.push(pitchGainPage(doc, i));
     pages.push({
       id: 'amp', label: 'Amp Envelope',
@@ -192,6 +197,55 @@ export function soundPages(doc: GrooveDoc, i: number): ControlPage[] {
     });
   }
   pages.push({ id: 'sends', label: 'Sends', params: pad8(sendParams(doc, i)) });
+  return pages;
+}
+
+// ── Drum Synth pages ────────────────────────────────────────────────────────
+
+const ENGINES: DrumEngine[] = ['kick', 'snare', 'hat', 'tom', 'perc', 'clap'];
+
+/** The pad's patch, made real from its legacy starter voice the first time it's edited. */
+function editPatch(p: PadConfig): DrumSynthPatch {
+  if (!p.drumSynth) setPadDrumSynth(p, drumSynthFromLegacy(p.synthVoice));
+  return p.drumSynth!;
+}
+const fmtDrum = (d: DrumParamDef) => (v: number): string => {
+  switch (d.unit) {
+    case 'Hz': return hz(v);
+    case 's': return ms(v * 1000);
+    case 'st': return d.min < 0 ? `${v >= 0 ? '+' : ''}${Math.round(v)}st` : `${Math.round(v)}st`;
+    case 'dB': return db(v);
+    case 'x': return d.id === 'bursts' ? `${Math.round(v)}` : `×${v.toFixed(2)}`;
+    default: return pct(v);
+  }
+};
+
+function drumSynthPages(doc: GrooveDoc, i: number): ControlPage[] {
+  const pad = doc.kit[i];
+  const patch = pad.drumSynth ?? drumSynthFromLegacy(pad.synthVoice);
+  const models = MODELS[patch.engine];
+  const engine: ControlParam = padParam(i, {
+    id: 'ds_engine', label: 'Engine', min: 0, max: ENGINES.length - 1, options: ENGINES.map((e) => ENGINE_LABEL[e]),
+    format: (v) => ENGINE_LABEL[ENGINES[Math.round(v)]] ?? '',
+    get: (p) => Math.max(0, ENGINES.indexOf((p.drumSynth ?? drumSynthFromLegacy(p.synthVoice)).engine)),
+    set: (p, v) => { const e = ENGINES[Math.round(v)]; if (e && e !== (p.drumSynth ?? drumSynthFromLegacy(p.synthVoice)).engine) setPadDrumSynth(p, newDrumSynth(e)); },
+  });
+  const model: ControlParam = padParam(i, {
+    id: 'ds_model', label: 'Model', min: 0, max: Math.max(1, models.length - 1), options: models.map((m) => m.label),
+    format: (v) => models[Math.round(v)]?.label ?? '',
+    get: (p) => Math.max(0, models.findIndex((m) => m.id === (p.drumSynth ?? drumSynthFromLegacy(p.synthVoice)).model)),
+    set: (p, v) => { const m = models[Math.round(v)]; const cur = editPatch(p); if (m && m.id !== cur.model) setPadDrumSynth(p, { ...cur, model: m.id }); },
+  });
+  const knob = (d: DrumParamDef): ControlParam => padParam(i, {
+    id: `ds_${d.id}`, label: d.label, min: d.min, max: d.max, defaultValue: d.def, log: d.log, format: fmtDrum(d),
+    get: (p) => dsParam(p.drumSynth ?? drumSynthFromLegacy(p.synthVoice), d.id),
+    // A decay change re-opens the pad envelope so the longer tail isn't cut off.
+    set: (p, v) => { const cur = editPatch(p); const next = { ...cur, params: { ...cur.params, [d.id]: v } }; if (d.id === 'decay' || d.id === 'noiseDecay') setPadDrumSynth(p, next); else p.drumSynth = next; },
+  });
+  const defs = PARAMS[patch.engine];
+  const label = `${ENGINE_LABEL[patch.engine]} · ${models.find((m) => m.id === patch.model)?.label ?? patch.model}`;
+  const pages: ControlPage[] = [{ id: 'synth', label, params: pad8([engine, model, ...defs.slice(0, 6).map(knob)]) }];
+  if (defs.length > 6) pages.push({ id: 'synth2', label: 'Synth 2', params: pad8(defs.slice(6).map(knob)) });
   return pages;
 }
 

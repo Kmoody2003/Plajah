@@ -193,6 +193,8 @@ export const MachineView: React.FC<MachineViewProps> = (p) => {
           onPickInstrumentForPad={p.onPickInstrumentForPad}
           onEditPadInstrument={p.onEditPadInstrument}
           renderInstrument={p.renderInstrument}
+          patternId={p.pattern.id}
+          onSelectPad={p.onSelectPad}
         />
         {/* Group selector — Maschine banks of 16. Adding an instrument fills the next empty pad
             and spawns a new Group when one fills up. */}

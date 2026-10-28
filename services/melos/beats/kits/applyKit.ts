@@ -7,6 +7,7 @@ import { addPadBank, PAD_BANK, BANK_LETTERS, type GrooveDoc, type GroupMeta, typ
 import { clearPad, detachPadInstrument } from '../channelOps';
 import { CATEGORY_COLOR, classifySample } from './drumClassify';
 import { KIT_FORMAT_LABEL, type KitPadSpec, type KitSpec } from './types';
+import { setPadDrumSynth, type DrumSynthPatch } from '../drumSynth';
 
 /** A sample pad's envelope: hold the whole sample at full level (one-shot), short tail. */
 export function oneShotEnv(durationSec: number): PadConfig['env'] {
@@ -41,6 +42,24 @@ export function applyPadSpec(pad: PadConfig, spec: KitPadSpec, ref: SampleRef): 
   pad.melos = undefined;
 }
 
+/** A translated drum-synth pad: the patch, plus the pad-level settings the kit carried. */
+export function applySynthSpec(pad: PadConfig, spec: KitPadSpec, patch: DrumSynthPatch): void {
+  setPadDrumSynth(pad, { ...patch, params: { ...patch.params } });
+  pad.sample = null;
+  pad.mute = false;
+  pad.name = spec.name.slice(0, 18);
+  pad.color = spec.color || CATEGORY_COLOR[classifySample(spec.name)];
+  pad.pitchSemis = Math.max(-24, Math.min(24, spec.tuneSemis ?? 0));
+  pad.gainDb = Math.max(-48, Math.min(12, spec.gainDb ?? 0));
+  pad.pan = Math.max(-1, Math.min(1, spec.pan ?? 0));
+  pad.choke = Math.max(0, Math.min(8, spec.choke ?? 0));
+  pad.startSec = 0;
+  pad.filter = { type: 'off', cutoff: 8000, q: 0.8 };
+  pad.velCurve = 'linear';
+  pad.nks = undefined;
+  pad.melos = undefined;
+}
+
 export interface ApplyResult { banks: number[]; filled: number; missing: string[] }
 
 /**
@@ -63,6 +82,13 @@ export function applyKitToGroup(doc: GrooveDoc, bank: number, kit: KitSpec, refs
     if (spec && ref) {
       detachPadInstrument(doc, idx);
       applyPadSpec(pad, spec, ref);
+      filled++;
+      continue;
+    }
+    if (spec?.drumSynth) {
+      // A drum synth on the source pad → MEKA's Drum Synth; no sample to find.
+      detachPadInstrument(doc, idx);
+      applySynthSpec(pad, spec, spec.drumSynth);
       filled++;
       continue;
     }

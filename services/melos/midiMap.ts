@@ -27,10 +27,10 @@ export type MelosMidiAction =
 
 /** Maschine's navigation buttons: Page ◀ ▶, Group ◀ ▶ and the MASTER / GROUP / SOUND tabs of the
  *  control area. No NI MIDI-mode template sends a fixed CC for these, so they are MIDI-learned. */
-export type NavAction = 'pagePrev' | 'pageNext' | 'groupPrev' | 'groupNext' | 'tabMaster' | 'tabGroup' | 'tabSound';
+export type NavAction = 'pagePrev' | 'pageNext' | 'groupPrev' | 'groupNext' | 'tabMaster' | 'tabGroup' | 'tabSound' | 'sampling';
 export const NAV_LABELS: Record<NavAction, string> = {
   pagePrev: 'Page ◀', pageNext: 'Page ▶', groupPrev: 'Group ◀', groupNext: 'Group ▶',
-  tabMaster: 'Master tab', tabGroup: 'Group tab', tabSound: 'Sound tab',
+  tabMaster: 'Master tab', tabGroup: 'Group tab', tabSound: 'Sound tab', sampling: 'Sampling',
 };
 
 /** The eight knobs. NI controllers in MIDI mode default to CC 14–21 for the top row; that is the

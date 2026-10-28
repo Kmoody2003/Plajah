@@ -6,6 +6,7 @@
 import type { GrooveDoc, PadConfig } from '../grooveDoc';
 import type { BeatsGraph } from './graph';
 import { playSynthVoice } from './synthVoices';
+import { playDrumSynth } from './drumSynthVoice';
 import { cutoffHz, tailMul, type StepMods } from './stepMods';
 
 export type { StepMods } from './stepMods';
@@ -142,7 +143,8 @@ export class VoiceBank {
 
     if (pad.source === 'synth' || !pad.sample) {
       const srcSec = Math.min(audibleEnd - t + 0.1, MAX_HOLD_SEC);
-      playSynthVoice(ctx, vGain, pad.synthVoice || 'kick', t, 1, semis, srcSec);
+      if (pad.drumSynth) playDrumSynth(ctx, vGain, pad.drumSynth, t, 1, semis, srcSec);
+      else playSynthVoice(ctx, vGain, pad.synthVoice || 'kick', t, 1, semis, srcSec);
       if (this.countForPad(padIdx) >= MAX_VOICES_PER_PAD) this.stealOldest(padIdx, t);
       this.live.push({ padIdx, choke: pad.choke, gain: vGain, src: null, releaseMs: env.releaseMs || 80, held: heldLive, endsAt: audibleEnd });
       return;

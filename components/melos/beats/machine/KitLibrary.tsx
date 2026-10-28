@@ -312,12 +312,12 @@ export const KitLibrary: React.FC<Props> = ({ doc, selectedPad, bank, onMutate, 
                       const p = spec.pads.find((x) => x.slot === slot);
                       return (
                         <div key={cell} className="h-7 rounded px-1 text-[7.5px] leading-tight text-white/70 overflow-hidden border"
-                          style={{ borderColor: p ? `${p.color || '#ffffff'}55` : 'rgba(255,255,255,0.06)', background: p ? `${p.color || '#ffffff'}14` : 'transparent', opacity: p?.sample ? 1 : 0.4 }}
-                          title={p ? p.name : `Pad ${slot + 1} empty`}>{p?.name}</div>
+                          style={{ borderColor: p ? `${p.color || '#ffffff'}55` : 'rgba(255,255,255,0.06)', background: p ? `${p.color || '#ffffff'}14` : 'transparent', opacity: p?.sample || p?.drumSynth ? 1 : 0.4 }}
+                          title={p ? (p.drumSynth ? `${p.name} — Drum Synth${p.drumSynth.from ? ` (from ${p.drumSynth.from})` : ''}` : p.name) : `Pad ${slot + 1} empty`}>{p?.drumSynth && '◆ '}{p?.name}</div>
                       );
                     })}
                   </div>
-                  <p className="text-[9px] text-white/30">{spec.pads.filter((p) => p.sample).length} sounds{spec.pads.some((p) => p.slot > 15) ? ` · fills ${Math.floor(Math.max(...spec.pads.map((p) => p.slot)) / 16) + 1} Groups` : ''}</p>
+                  <p className="text-[9px] text-white/30">{spec.pads.filter((p) => p.sample || p.drumSynth).length} sounds{spec.pads.some((p) => p.drumSynth) ? ` (${spec.pads.filter((p) => p.drumSynth).length} drum synth)` : ''}{spec.pads.some((p) => p.slot > 15) ? ` · fills ${Math.floor(Math.max(...spec.pads.map((p) => p.slot)) / 16) + 1} Groups` : ''}</p>
                   {spec.notes.map((n, i) => (
                     <p key={i} className="text-[9px] text-white/30 leading-snug flex gap-1"><Info size={9} className="flex-none mt-0.5" />{n}</p>
                   ))}

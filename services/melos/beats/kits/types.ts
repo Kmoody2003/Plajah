@@ -4,6 +4,8 @@
 // function (applyKit.ts) writes a KitSpec onto a MEKA Group. Parsers never touch the file system
 // or the engine, so they stay pure and testable.
 
+import type { DrumSynthPatch } from '../drumSynth';
+
 export type KitFormat =
   | 'maschine-group'   // .mxgrp — a Maschine Group (16 Sounds)
   | 'maschine-sound'   // .mxsnd — one Maschine Sound (one pad)
@@ -52,6 +54,9 @@ export interface KitPadSpec {
   /** Sample start as a fraction of the file (0..1) — resolved to seconds after decode. */
   startFrac?: number;
   startSec?: number;
+  /** The source pad is a drum synth (Maschine Drum Synth, Bitwig E-Kick, Live DS Kick…),
+   *  translated onto MEKA's Drum Synth — loads with no sample. */
+  drumSynth?: DrumSynthPatch;
 }
 
 export interface KitSpec {

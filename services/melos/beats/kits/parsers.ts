@@ -9,7 +9,8 @@
 
 import { all, childText, kid, kids, parseXml, walk, type XmlEl } from './miniXml';
 import { AUDIO_EXT, type KitFormat, type KitPadSpec, type KitSpec } from './types';
-import { inflate, isGzip, isZip, scanAudioStrings, scanAudioStringsDeep, tarEntries, utf8, zipEntries, zipRead } from './bytes';
+import { inflate, isGzip, isZip, scanAudioStrings, scanAudioStringsDeep, tarEntries, utf8, zipEntries, zipRead, zlibSections } from './bytes';
+import { ENGINE_LABEL, bitwigDrumsAt, fromLiveDs, maschineSynthsIn, type DrumSynthPatch } from '../drumSynth';
 import { layoutFolderKit, classifySample, CATEGORY_COLOR } from './drumClassify';
 
 const baseName = (p: string) => p.replace(/\\/g, '/').split('/').pop()!.replace(/\.[^.]+$/, '');
@@ -75,15 +76,49 @@ export function parseFolderKit(name: string, paths: string[]): KitSpec {
 
 export async function parseNiBinary(format: KitFormat, bytes: Uint8Array, name: string): Promise<KitSpec> {
   const paths = await scanAudioStringsDeep(bytes);
+  // Maschine Drum Synths carry no sample — they show up as their engine + model names.
+  const synths = format === 'battery' ? [] : await niDrumSynths(bytes);
   const list = format === 'maschine-sound' ? paths.slice(0, 1) : paths;
   const notes = format === 'battery'
     ? ['Battery cell settings (tune, envelopes, effects) stay in Battery — samples and order come across.']
     : ['Maschine plug-in sounds (Massive, Kontakt…) and effects can’t come across — the samples and their pad order do.'];
-  if (!paths.length) notes.unshift('No sample references found in this file — it may hold only plug-in sounds.');
-  return {
-    name, format, notes,
-    pads: list.map((p, i) => ({ slot: i, name: padName('', p), sample: { kind: 'path', path: p }, color: CATEGORY_COLOR[classifySample(p)] })),
-  };
+  const pads: KitPadSpec[] = list.map((p, i) => ({ slot: i, name: padName('', p), sample: { kind: 'path', path: p }, color: CATEGORY_COLOR[classifySample(p)] }));
+  const synthList = format === 'maschine-sound' ? (list.length ? [] : synths.slice(0, 1)) : synths;
+  for (const d of synthList) pads.push(synthPad(pads.length, d));
+  if (synthList.length) {
+    notes.push(`${synthList.length} Maschine Drum Synth sound${synthList.length > 1 ? 's' : ''} → MEKA Drum Synth (engine and model carried over; knob settings start from the model’s defaults).`);
+    if (list.length) notes.push('Drum Synth sounds are placed after the sample pads — the original pad order between them isn’t known.');
+  }
+  if (!paths.length && !synthList.length) notes.unshift('No sample references found in this file — it may hold only plug-in sounds.');
+  return { name, format, notes, pads };
+}
+
+/** A pad spec for a translated drum synth. */
+function synthPad(slot: number, d: DrumSynthPatch): KitPadSpec {
+  const eng = ENGINE_LABEL[d.engine];
+  return { slot, name: eng, sample: null, drumSynth: d, color: CATEGORY_COLOR[classifySample(eng)] };
+}
+
+/** Printable UTF-16LE runs in a binary (NI files store their names that way). */
+export function utf16Strings(b: Uint8Array, min = 3): string[] {
+  const out: string[] = [];
+  let cur = '';
+  for (let i = 0; i + 1 < b.length; i += 2) {
+    const c = b[i] | (b[i + 1] << 8);
+    if (c >= 0x20 && c < 0x7f) { cur += String.fromCharCode(c); continue; }
+    if (cur.length >= min) out.push(cur);
+    cur = '';
+  }
+  if (cur.length >= min) out.push(cur);
+  return out;
+}
+
+async function niDrumSynths(b: Uint8Array): Promise<DrumSynthPatch[]> {
+  // Both byte alignments: a UTF-16 string may start on an odd offset.
+  const scan = (x: Uint8Array) => [...utf16Strings(x), ...utf16Strings(x.subarray(1))];
+  let found = maschineSynthsIn(scan(b));
+  if (!found.length) for (const inner of await zlibSections(b)) { found = maschineSynthsIn(scan(inner)); if (found.length) break; }
+  return found;
 }
 
 // ── Bitwig .bwpreset ─────────────────────────────────────────────────────────
@@ -102,13 +137,36 @@ export function bitwigStrings(b: Uint8Array): string[] {
   return out;
 }
 
+/** Typed sample-path strings with their byte offsets (first occurrence of each path). */
+function bitwigPathsAt(b: Uint8Array): { at: number; path: string }[] {
+  const out: { at: number; path: string }[] = [];
+  const seen = new Set<string>();
+  const v = new DataView(b.buffer, b.byteOffset, b.byteLength);
+  for (let i = 0; i + 5 < b.length; i++) {
+    if (b[i] !== 0x08) continue;
+    const len = v.getUint32(i + 1);
+    if (len < 5 || len > 2048 || i + 5 + len > b.length) continue;
+    const s = utf8(b.subarray(i + 5, i + 5 + len));
+    if (AUDIO_EXT.test(s) && !/[\0�]/.test(s)) { if (!seen.has(s)) { seen.add(s); out.push({ at: i, path: s }); } i += 4 + len; }
+  }
+  return out;
+}
+
 export function parseBitwig(bytes: Uint8Array, name: string): KitSpec {
-  const typed = bitwigStrings(bytes);
-  const paths = [...new Set(typed.length ? typed : scanAudioStrings(bytes))];
+  const typed = bitwigPathsAt(bytes);
+  const drums = bitwigDrumsAt(bytes);
+  // Chains are stored in pad order, so sample chains and E-drum chains interleave by position.
+  const events: ({ at: number; path: string } | { at: number; patch: DrumSynthPatch })[] = typed.length
+    ? [...typed, ...drums].sort((a, b) => a.at - b.at)
+    : [...[...new Set(scanAudioStrings(bytes))].map((path) => ({ at: 0, path })), ...drums];
   const notes = ['Bitwig device settings inside the kit (Sampler envelopes, FX) stay in Bitwig — samples come across in pad order from C1.'];
+  if (drums.length) notes.push(`${drums.length} Bitwig E-drum${drums.length > 1 ? 's' : ''} (E-Kick, E-Snare…) → MEKA Drum Synth with tuning and decays.`);
   if (utf8(bytes.subarray(0, 4)) !== 'BtWg') notes.unshift('Not a Bitwig preset file.');
-  if (!paths.length) notes.unshift('No samples referenced — packaged factory kits keep theirs inside Bitwig’s package store; add that folder to the library.');
-  return { name, format: 'bitwig', notes, pads: paths.map((p, i) => ({ slot: i, name: padName('', p), sample: { kind: 'path', path: p } })) };
+  if (!events.length) notes.unshift('No samples referenced — packaged factory kits keep theirs inside Bitwig’s package store; add that folder to the library.');
+  return {
+    name, format: 'bitwig', notes,
+    pads: events.map((e, i) => ('patch' in e ? synthPad(i, e.patch) : { slot: i, name: padName('', e.path), sample: { kind: 'path', path: e.path } })),
+  };
 }
 
 // ── MPC .xpm ─────────────────────────────────────────────────────────────────
@@ -165,6 +223,11 @@ export function parseXpm(xml: string, fallbackName: string): KitSpec {
 const val = (el: XmlEl | undefined) => el?.attrs.Value ?? '';
 
 function abletonSamplePath(branch: XmlEl): string {
+  const p = abletonFileRef(branch);
+  // Only audio counts — a device's own file (a Max device, an instrument preset) isn't a sample.
+  return AUDIO_EXT.test(p) ? p : '';
+}
+function abletonFileRef(branch: XmlEl): string {
   const ref = all(branch, 'SampleRef')[0];
   const file = ref ? kid(ref, 'FileRef') : all(branch, 'FileRef')[0];
   if (!file) return '';
@@ -197,13 +260,33 @@ export function parseAdg(xml: string, fallbackName: string): KitSpec {
     used.add(slot);
     const transpose = num(val(kid(all(br, 'TransposeKey')[0], 'Manual')));
     const fine = num(val(kid(all(br, 'TransposeFine')[0], 'Manual')));
+    const ds = path ? null : liveDrumSynth(br);
     pads.push({
-      slot, name: padName(name, path), sample: path ? { kind: 'path', path } : null,
+      slot, name: padName(name, path) || (ds ? ENGINE_LABEL[ds.engine] : ''), sample: path ? { kind: 'path', path } : null,
       tuneSemis: clamp(transpose + fine / 100, -24, 24), choke: chokeOf(num(val(kid(zone, 'ChokeGroup')))),
+      ...(ds ? { drumSynth: ds, color: CATEGORY_COLOR[classifySample(ENGINE_LABEL[ds.engine])] } : {}),
     });
   }
-  if (pads.some((p) => !p.sample)) notes.push('Pads holding instruments or effect racks (not samples) are left empty.');
+  const dsCount = pads.filter((p) => p.drumSynth).length;
+  if (dsCount) notes.push(`${dsCount} Live DS drum${dsCount > 1 ? 's' : ''} (DS Kick, DS Snare…) → MEKA Drum Synth.`);
+  if (pads.some((p) => !p.sample && !p.drumSynth)) notes.push('Pads holding instruments or effect racks (not samples) are left empty.');
   return { name: fallbackName, format: 'ableton', notes, pads: pads.sort((a, b) => a.slot - b.slot) };
+}
+
+/** A Live DS device (Max for Live "DS Kick.amxd"…) in a Drum Rack branch, with its named knobs. */
+function liveDrumSynth(br: XmlEl): DrumSynthPatch | null {
+  let device = '';
+  const params: Record<string, number> = {};
+  walk(br, (e) => {
+    const v = e.attrs.Value;
+    if (!device && v && /(^|[\\/])DS [A-Za-z0-9 ]+(\.amxd)?$/i.test(v)) device = v.split(/[\\/]/).pop()!;
+    if (/Parameter$/.test(e.name)) {
+      const pn = val(kid(e, 'Name'));
+      const manual = all(e, 'Manual')[0];
+      if (pn && manual) params[pn] = num(val(manual));
+    }
+  });
+  return device ? fromLiveDs(device, params) : null;
 }
 
 // ── Studio One Impact / Impact XT .preset ────────────────────────────────────

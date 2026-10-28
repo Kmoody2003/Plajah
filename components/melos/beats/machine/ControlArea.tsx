@@ -8,7 +8,7 @@
 // instrument's own panel inline under the strip, the way Maschine swaps in a plug-in's GUI.
 
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { ChevronLeft, ChevronRight, ExternalLink, LayoutPanelTop, Plus } from 'lucide-react';
+import { AudioWaveform, ChevronLeft, ChevronRight, ExternalLink, LayoutPanelTop, Plus } from 'lucide-react';
 import type { GrooveDoc, InstrumentType } from '../../../../services/melos/beats/grooveDoc';
 import { BANK_LETTERS } from '../../../../services/melos/beats/grooveDoc';
 import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine';
@@ -20,7 +20,9 @@ import { instrumentColor, instrumentLabel } from '../../../../services/melos/bea
 import { groupLabel } from '../../../../services/melos/beats/kits/applyKit';
 import { classifySample, CATEGORY_LABEL } from '../../../../services/melos/beats/kits/drumClassify';
 import { loadKitIndex, loadRoots, readLibrarySample } from '../../../../services/melos/beats/kits/kitLibrary';
+import { ENGINE_LABEL, MODELS, drumSynthFromLegacy, setPadDrumSynth, type DrumSynthPatch } from '../../../../services/melos/beats/drumSynth';
 import { Knob } from '../shared/Knob';
+import { SamplerPanel } from './SamplerPanel';
 import { SURFACE_RAISED } from '../theme';
 
 interface Props {
@@ -33,13 +35,16 @@ interface Props {
   onEditPadInstrument?: (padIdx: number) => void;
   /** The instrument's own panel body (the same one its window shows), for the inline plug-in view. */
   renderInstrument?: (trackId: string) => React.ReactNode;
+  /** The pattern being edited (the Sampler's "slices + pattern" writes into it). */
+  patternId?: string;
+  onSelectPad: (i: number) => void;
 }
 
 const TABS: { id: ControlTab; label: string }[] = [
   { id: 'master', label: 'Master' }, { id: 'group', label: 'Group' }, { id: 'sound', label: 'Sound' },
 ];
 
-export const ControlArea: React.FC<Props> = ({ doc, selectedPad, groupTint, onMutate, onLoadSampleFile, onPickInstrumentForPad, onEditPadInstrument, renderInstrument }) => {
+export const ControlArea: React.FC<Props> = ({ doc, selectedPad, groupTint, onMutate, onLoadSampleFile, onPickInstrumentForPad, onEditPadInstrument, renderInstrument, patternId, onSelectPad }) => {
   const focus = useSyncExternalStore(subscribeControlFocus, getControlFocus);
   const { pages, index, page } = focusedPage(doc, selectedPad);
   const pad = doc.kit[selectedPad];
@@ -49,6 +54,13 @@ export const ControlArea: React.FC<Props> = ({ doc, selectedPad, groupTint, onMu
   // presetName is set when a preset is picked; a fresh instrument carries its patch's own name.
   const patchName = track ? (track.instrument?.presetName || (track.instrument?.patch?.name as string | undefined) || 'Init') : undefined;
   const [pluginOpen, setPluginOpen] = useState(false);
+  const [samplerOpen, setSamplerOpen] = useState(false);
+  // Maschine's SAMPLING button (MIDI-learnable as a nav action) toggles the Sampler.
+  useEffect(() => {
+    const t = () => setSamplerOpen((v) => !v);
+    window.addEventListener('meka:sampler', t);
+    return () => window.removeEventListener('meka:sampler', t);
+  }, []);
   const [note, setNote] = useState('');
   useEffect(() => { setNote(''); }, [selectedPad]);
 
@@ -73,6 +85,15 @@ export const ControlArea: React.FC<Props> = ({ doc, selectedPad, groupTint, onMu
       pushTrackPatch(track.id);
       return;
     }
+    if (pad?.source === 'synth') {
+      // Drum Synth: ◀ ▶ steps through the engine's models, keeping the knob settings.
+      const cur = pad.drumSynth ?? drumSynthFromLegacy(pad.synthVoice);
+      const ms = MODELS[cur.engine];
+      const next = ms[(ms.findIndex((m) => m.id === cur.model) + dir + ms.length) % ms.length];
+      onMutate((d) => { const p = d.kit[selectedPad]; if (p) setPadDrumSynth(p, { ...cur, model: next.id }); });
+      setNote(next.blurb);
+      return;
+    }
     if (!pad || pad.source !== 'sample') return;
     const [index, roots] = await Promise.all([loadKitIndex(), loadRoots()]);
     if (!index?.samples.length || !roots.length) { setNote('Add a Library folder to browse sounds'); return; }
@@ -88,7 +109,9 @@ export const ControlArea: React.FC<Props> = ({ doc, selectedPad, groupTint, onMu
     setNote(`${CATEGORY_LABEL[cat]} · ${(at + dir + same.length) % same.length + 1}/${same.length}`);
   };
 
-  const slotName = !pad || pad.empty ? 'Empty' : track ? instrumentLabel(insType ?? 'onda') : pad.source === 'synth' ? 'Drum Synth' : 'Sampler';
+  const synth: DrumSynthPatch | undefined = pad && !pad.empty && pad.source === 'synth' ? pad.drumSynth ?? drumSynthFromLegacy(pad.synthVoice) : undefined;
+  const synthModel = synth ? MODELS[synth.engine].find((m) => m.id === synth.model)?.label ?? synth.model : undefined;
+  const slotName = !pad || pad.empty ? 'Empty' : track ? instrumentLabel(insType ?? 'onda') : synth ? 'Drum Synth' : 'Sampler';
   const slotColor = insType ? instrumentColor(insType) : groupTint;
   const where = focus.tab === 'master' ? 'Master' : focus.tab === 'group' ? `${BANK_LETTERS[bank]} · ${groupLabel(doc, bank)}` : `${BANK_LETTERS[bank]}${(selectedPad % 16) + 1} · ${pad?.name ?? ''}`;
 
@@ -110,12 +133,11 @@ export const ControlArea: React.FC<Props> = ({ doc, selectedPad, groupTint, onMu
             <span className="h-6 px-2 rounded-md text-[10px] font-semibold flex items-center gap-1.5 border" style={{ color: slotColor, borderColor: `${slotColor}55`, background: `${slotColor}14` }}>
               <span className="w-1.5 h-1.5 rounded-full" style={{ background: slotColor }} />{slotName}
             </span>
-            {!pad.empty && !track && pad.source !== 'sample' && <span className="text-[10.5px] text-white/80 max-w-[150px] truncate">{pad.name}</span>}
-            {!pad.empty && (track || pad.source === 'sample') && (
+            {!pad.empty && (track || synth || pad.source === 'sample') && (
               <>
-                <button aria-label="Previous preset" title={track ? 'Previous preset' : 'Previous sound of this type in your Library'} onClick={() => void stepPreset(-1)} className="w-6 h-6 grid place-items-center rounded-md text-white/45 hover:text-white hover:bg-white/5"><ChevronLeft size={13} /></button>
-                <span className="text-[10.5px] text-white/80 max-w-[150px] truncate" title={patchName ?? pad.sample?.name ?? pad.name}>{patchName ?? pad.name}</span>
-                <button aria-label="Next preset" title={track ? 'Next preset' : 'Next sound of this type in your Library'} onClick={() => void stepPreset(1)} className="w-6 h-6 grid place-items-center rounded-md text-white/45 hover:text-white hover:bg-white/5"><ChevronRight size={13} /></button>
+                <button aria-label="Previous preset" title={track ? 'Previous preset' : synth ? 'Previous model' : 'Previous sound of this type in your Library'} onClick={() => void stepPreset(-1)} className="w-6 h-6 grid place-items-center rounded-md text-white/45 hover:text-white hover:bg-white/5"><ChevronLeft size={13} /></button>
+                <span className="text-[10.5px] text-white/80 max-w-[150px] truncate" title={synth?.from ?? patchName ?? pad.sample?.name ?? pad.name}>{synth ? `${ENGINE_LABEL[synth.engine]} · ${synthModel}` : patchName ?? pad.name}</span>
+                <button aria-label="Next preset" title={track ? 'Next preset' : synth ? 'Next model' : 'Next sound of this type in your Library'} onClick={() => void stepPreset(1)} className="w-6 h-6 grid place-items-center rounded-md text-white/45 hover:text-white hover:bg-white/5"><ChevronRight size={13} /></button>
               </>
             )}
             {track && renderInstrument && (
@@ -123,6 +145,12 @@ export const ControlArea: React.FC<Props> = ({ doc, selectedPad, groupTint, onMu
                 className="h-6 px-1.5 rounded-md text-[9px] uppercase tracking-wide border flex items-center gap-1"
                 style={pluginOpen ? { color: '#fff', borderColor: `${slotColor}88`, background: `${slotColor}22` } : { color: 'rgba(255,255,255,0.45)', borderColor: 'rgba(255,255,255,0.12)' }}
               ><LayoutPanelTop size={11} /> Plug-in</button>
+            )}
+            {!track && (
+              <button onClick={() => setSamplerOpen((v) => !v)} title="Sampler — record, edit and slice this pad’s sample"
+                className="h-6 px-1.5 rounded-md text-[9px] uppercase tracking-wide border flex items-center gap-1"
+                style={samplerOpen ? { color: '#fff', borderColor: `${slotColor}88`, background: `${slotColor}22` } : { color: 'rgba(255,255,255,0.45)', borderColor: 'rgba(255,255,255,0.12)' }}
+              ><AudioWaveform size={11} /> Sampling</button>
             )}
             {track && onEditPadInstrument && (
               <button aria-label="Open instrument window" title="Open in its own window" onClick={() => onEditPadInstrument(selectedPad)} className="w-6 h-6 grid place-items-center rounded-md text-white/45 hover:text-white hover:bg-white/5"><ExternalLink size={12} /></button>
@@ -152,7 +180,7 @@ export const ControlArea: React.FC<Props> = ({ doc, selectedPad, groupTint, onMu
 
       {/* Display + eight knobs */}
       <div className="flex items-stretch gap-2.5 px-2.5 py-2.5">
-        <SoundDisplay doc={doc} selectedPad={selectedPad} tab={focus.tab} color={slotColor} insType={insType} presetName={patchName} />
+        <SoundDisplay doc={doc} selectedPad={selectedPad} tab={focus.tab} color={slotColor} insType={insType} presetName={patchName} synth={synth} synthModel={synthModel} />
         <div className="grid grid-cols-8 gap-1 flex-1 min-w-0">
           {(page?.params ?? Array(8).fill(null)).map((prm, k) => (
             <div key={prm?.id ?? `e${k}`} className="flex flex-col items-center justify-start rounded-lg py-1" style={{ background: prm ? 'rgba(255,255,255,0.025)' : 'transparent' }}>
@@ -174,6 +202,9 @@ export const ControlArea: React.FC<Props> = ({ doc, selectedPad, groupTint, onMu
       </div>
       {note && <p className="px-3 pb-2 -mt-1 text-[9.5px] text-white/40">{note}</p>}
 
+      {samplerOpen && !track && (
+        <SamplerPanel doc={doc} selectedPad={selectedPad} color={slotColor} patternId={patternId} onMutate={onMutate} onSelectPad={onSelectPad} />
+      )}
       {pluginOpen && track && renderInstrument && (
         <div className="border-t border-white/[0.07] max-h-[560px] overflow-auto bg-black/20">{renderInstrument(track.id)}</div>
       )}
@@ -182,7 +213,7 @@ export const ControlArea: React.FC<Props> = ({ doc, selectedPad, groupTint, onMu
 };
 
 /** The display tile — what the sound IS: waveform for a sample, the instrument's face for a plug-in. */
-const SoundDisplay: React.FC<{ doc: GrooveDoc; selectedPad: number; tab: ControlTab; color: string; insType?: InstrumentType; presetName?: string }> = ({ doc, selectedPad, tab, color, insType, presetName }) => {
+const SoundDisplay: React.FC<{ doc: GrooveDoc; selectedPad: number; tab: ControlTab; color: string; insType?: InstrumentType; presetName?: string; synth?: DrumSynthPatch; synthModel?: string }> = ({ doc, selectedPad, tab, color, insType, presetName, synth, synthModel }) => {
   const pad = doc.kit[selectedPad];
   const canvas = useRef<HTMLCanvasElement>(null);
   const key = pad?.source === 'sample' ? pad.sample?.key : undefined;
@@ -222,6 +253,16 @@ const SoundDisplay: React.FC<{ doc: GrooveDoc; selectedPad: number; tab: Control
         {tab === 'group'
           ? [12, 13, 14, 15, 8, 9, 10, 11, 4, 5, 6, 7, 0, 1, 2, 3].map((i) => <span key={i} className="h-[18px] rounded-[4px]" style={{ background: filled[i] && !filled[i].empty ? `${filled[i].color}aa` : 'rgba(255,255,255,0.05)' }} />)
           : <span className="col-span-4 text-center text-[10px] text-white/50 leading-tight">{doc.bpm.toFixed(1)} BPM<br />{doc.kit.filter((p) => !p.empty).length} sounds · {Math.ceil(doc.kit.length / 16)} groups</span>}
+      </div>
+    );
+  }
+  if (synth) {
+    return (
+      <div className={`${box} p-2 flex flex-col justify-end`} style={{ background: `radial-gradient(120% 90% at 80% 10%, ${color}44, transparent 60%), linear-gradient(200deg, ${color}1c, #0b0b10 70%)` }}>
+        <span className="absolute top-1.5 right-2 text-[8px] uppercase tracking-[0.2em] text-white/40">Drum Synth</span>
+        <span className="text-[14px] font-black tracking-[0.1em] uppercase" style={{ color }}>{ENGINE_LABEL[synth.engine]}</span>
+        <span className="text-[10px] text-white/75 truncate">{synthModel}</span>
+        {synth.from && <span className="text-[8.5px] text-white/40 truncate" title={synth.from}>from {synth.from}</span>}
       </div>
     );
   }

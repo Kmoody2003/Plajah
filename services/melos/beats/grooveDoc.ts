@@ -23,6 +23,9 @@ export interface PadConfig {
   source: 'sample' | 'synth' | 'instrument';
   sample: SampleRef | null;
   synthVoice?: SynthVoiceId;
+  /** source 'synth' — a parametric Drum Synth patch (drumSynth.ts). Absent = the legacy
+   *  `synthVoice` starter voice, which becomes a patch the first time it's edited. */
+  drumSynth?: DrumSynthPatch;
   // source 'instrument' — the pad plays a full ONDA/KERA instrument instead of a one-shot. It
   // references a `padOwned` ArrangeTrack (so every instrument surface — the editor panels, the
   // arp, patch persistence, offline render — is reused verbatim rather than forked onto the pad).
@@ -470,6 +473,7 @@ export interface ArrangeTrack {
   jamInput?: string;
 }
 
+import type { DrumSynthPatch } from './drumSynth';
 import type { FxInstance } from './fx/devices';
 import type { MixerLinkSession, TrackInput } from './mixerLink/types';
 import type { MeterChange, TempoPoint } from './tempoMap';

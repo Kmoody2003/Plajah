@@ -28,6 +28,7 @@ test('sample pad: Pitch/Gain, Amp Envelope, Filter, Sends — eight slots each',
 test('log travel round-trips and steps snap', () => {
   const d = newGrooveDoc('u');
   d.kit[0].empty = false;
+  d.kit[0].source = 'sample';
   const cutoff = soundPages(d, 0).find((p) => p.id === 'filter')!.params[1]!;
   assert.ok(Math.abs(fromUnit(cutoff, 0.5) - Math.sqrt(60 * 18000)) < 1, 'halfway is the geometric middle');
   assert.ok(Math.abs(toUnit(cutoff, fromUnit(cutoff, 0.3)) - 0.3) < 1e-9);
@@ -73,6 +74,7 @@ test('master page and focus stepping (hardware Page buttons)', () => {
   vol.set(d, -6);
   assert.equal(d.mixer.master.gainDb, -6);
   d.kit[0].empty = false;
+  d.kit[0].source = 'sample'; // sample pages; drum synth pads lead with their Synth pages
   setControlFocus({ tab: 'sound', page: 0 });
   stepControlPage(d, 0, 1);
   assert.equal(focusedPage(d, 0).page?.id, 'amp');

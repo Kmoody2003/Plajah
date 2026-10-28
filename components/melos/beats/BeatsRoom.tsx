@@ -647,6 +647,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           else if (a === 'tabMaster') setControlFocus({ tab: 'master' });
           else if (a === 'tabGroup') setControlFocus({ tab: 'group' });
           else if (a === 'tabSound') setControlFocus({ tab: 'sound' });
+          else if (a === 'sampling') window.dispatchEvent(new Event('meka:sampler'));
           else {
             const banks = Math.max(1, Math.ceil(docRefForChoice.current.kit.length / 16));
             const b = (Math.floor(pad / 16) + (a === 'groupNext' ? 1 : -1) + banks) % banks;
