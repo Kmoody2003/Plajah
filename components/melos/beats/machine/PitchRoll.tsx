@@ -1,5 +1,5 @@
 // The pitch roll — Maschine keyboard mode meets FL's per-channel piano roll, living in the
-// space above the pads. Draw notes for the SELECTED pad on the same 16-step grid: click to
+// space under the step sequencer. Draw notes for the SELECTED pad on the same 16-step grid: click to
 // add (auditions), click a note to remove, drag a note's right edge to stretch it — length
 // gates the pad's AHDSR envelope, so subs hold and release exactly as drawn.
 

@@ -7,13 +7,14 @@ import type { GrooveDoc, SynthVoiceId, InstrumentType } from '../../../../servic
 import { instrumentLabel } from '../../../../services/melos/beats/instrumentFactory';
 import { useContextMenu, type MenuNode } from '../../../ui/ContextMenu';
 import { NksBrowser } from './NksBrowser';
+import { KitLibrary } from './KitLibrary';
 import type { MelosSampleRef } from '../melosSamples';
 import { PLAYHEAD, SELECT, SURFACE_RAISED } from '../theme';
 
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 const noteLabel = (n: number) => `${NOTE_NAMES[((n % 12) + 12) % 12]}${Math.floor(n / 12) - 1}`;
 
-type RailTab = 'kit' | 'samples' | 'nks';
+type RailTab = 'kit' | 'library' | 'samples' | 'nks';
 
 const SYNTH_VOICES: { id: SynthVoiceId; label: string }[] = [
   { id: 'kick', label: 'Kick' }, { id: 'sub', label: 'Sub' }, { id: 'snare', label: 'Snare' },
@@ -32,11 +33,16 @@ interface BrowserRailProps {
   onPickInstrumentForPad?: (padIdx: number) => void;
   /** Open the editor panel for the instrument already on this pad. */
   onEditPadInstrument?: (padIdx: number) => void;
+  /** The Group showing in the pad grid — the Library loads kits into it. */
+  bank?: number;
+  /** The rail widens while the Library is open (Maschine's browser takes the room it needs). */
+  onWideChange?: (wide: boolean) => void;
 }
 
-export const BrowserRail: React.FC<BrowserRailProps> = ({ doc, selectedPad, onSelectPad, onMutate, onLoadSampleFile, melosSamples, onLoadMelosSample, onPickInstrumentForPad, onEditPadInstrument }) => {
+export const BrowserRail: React.FC<BrowserRailProps> = ({ doc, selectedPad, onSelectPad, onMutate, onLoadSampleFile, melosSamples, onLoadMelosSample, onPickInstrumentForPad, onEditPadInstrument, bank = 0, onWideChange }) => {
   const fileRef = useRef<HTMLInputElement>(null);
-  const [tab, setTab] = useState<RailTab>('kit');
+  const [tab, setTabState] = useState<RailTab>('kit');
+  const setTab = (t: RailTab) => { setTabState(t); onWideChange?.(t === 'library'); };
   const pad = doc.kit[selectedPad];
   const padInstTrack = pad?.source === 'instrument' && pad.instrumentTrackId
     ? doc.arrangement.find((t) => t.id === pad.instrumentTrackId)
@@ -62,12 +68,12 @@ export const BrowserRail: React.FC<BrowserRailProps> = ({ doc, selectedPad, onSe
   return (
     <div className="flex flex-col gap-3 h-full min-h-0">
       <div className="flex gap-0.5 bg-white/[0.06] border border-white/10 rounded-lg p-0.5 flex-none">
-        {(melosSamples ? (['kit', 'samples', 'nks'] as RailTab[]) : (['kit', 'nks'] as RailTab[])).map((t) => (
+        {(melosSamples ? (['kit', 'library', 'samples', 'nks'] as RailTab[]) : (['kit', 'library', 'nks'] as RailTab[])).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
             className={`flex-1 h-6 rounded-md text-[10px] uppercase tracking-wide ${tab === t ? 'bg-white/15 text-white font-semibold' : 'text-white/40 hover:text-white'}`}
-          >{t === 'kit' ? 'Kit' : t === 'samples' ? 'Samples' : 'NKS'}</button>
+          >{t === 'kit' ? 'Kit' : t === 'library' ? 'Library' : t === 'samples' ? 'Samples' : 'NKS'}</button>
         ))}
       </div>
 
@@ -99,6 +105,12 @@ export const BrowserRail: React.FC<BrowserRailProps> = ({ doc, selectedPad, onSe
               </p>
             )}
           </div>
+        </div>
+      )}
+
+      {tab === 'library' && (
+        <div className="flex-1 min-h-0 flex flex-col">
+          <KitLibrary doc={doc} selectedPad={selectedPad} bank={bank} onMutate={onMutate} onLoadSampleFile={onLoadSampleFile} onSelectPad={onSelectPad} />
         </div>
       )}
 

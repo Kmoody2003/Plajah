@@ -86,6 +86,8 @@ import { getMusicEngines, unavailableMusicEngines, type EngineStatus } from '../
 import { insertGeneratedAudio, insertGeneratedNotes } from '../../../services/melos/generation/insert';
 import GenerationPanel, { type GenerationInsertion } from './composer/GenerationPanel';
 import { encodeWav } from '../../../services/audio/wavEncode';
+import { pushTrackPatch } from '../../../services/melos/beats/presetHub';
+import { focusedPage, fromUnit, setControlFocus, stepControlPage, writeInstrumentMacro } from '../../../services/melos/beats/controlPages';
 import { halloweenAudio } from '../../../services/halloween/halloweenAudioSfx';
 import { stopRealtimeSympPlayback } from '../../../services/melos/melosRealtimeSympPlayer';
 import {
@@ -616,52 +618,41 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           }
           break;
         }
-        case 'macro':
-          // The eight knobs drive the armed instrument's macros, else the selected pad's first
-          // eight parameters (so a Maschine is useful whether you're on drums or a synth).
+        case 'macro': {
+          // The eight knobs drive the armed instrument's macros, else whatever page MEKA's control
+          // area is on (Sound / Group / Master) — screen knob N and hardware knob N are one slot.
           if (armed) {
-            engine.getInstrument(armed.id)?.setMacro(action.index, action.value);
-            mutate((d) => {
-              const t = d.arrangement.find((x) => x.id === armed.id);
-              const rawPatch = t?.instrument?.patch as Record<string, unknown> | undefined;
-              if (!rawPatch) return;
-              if (t?.instrument?.type === 'aura' && rawPatch.macros && !Array.isArray(rawPatch.macros)) {
-                const auraMacroKeys = ['warmth', 'cutoff', 'resonance', 'aura', 'ensemble', 'space'] as const;
-                const key = auraMacroKeys[action.index];
-                if (key) {
-                  (rawPatch.macros as Record<string, number>)[key] = action.value;
-                  void engine.reloadPatch(t);
-                }
-              } else if (t?.instrument?.type === 'soma' && rawPatch.macros && !Array.isArray(rawPatch.macros)) {
-                const somaMacroKeys = ['strikePos', 'malletHardness', 'tension', 'chamberDepth', 'shellWood', 'roomSpace'] as const;
-                const key = somaMacroKeys[action.index];
-                if (key) {
-                  (rawPatch.macros as Record<string, number>)[key] = action.value;
-                  void engine.reloadPatch(t);
-                }
-              } else if (Array.isArray(rawPatch.macros)) {
-                const macros = rawPatch.macros as { value: number }[];
-                if (macros[action.index]) macros[action.index].value = action.value;
-              }
-            });
-          } else {
-            mutate((d) => {
-              const p = d.kit[selectedPadRef.current];
-              if (!p) return;
-              const v = action.value;
-              switch (action.index) {
-                case 0: p.pitchSemis = Math.round(-24 + v * 48); break;
-                case 1: p.env.attackMs = Math.round(v * 200); break;
-                case 2: p.env.decayMs = Math.round(20 + v * 1980); break;
-                case 3: p.env.holdMs = Math.round(v * 500); break;
-                case 4: p.env.sustain = v; break;
-                case 5: p.env.releaseMs = Math.round(5 + v * 1995); break;
-                case 6: p.filter.cutoff = Math.round(60 + v * 17940); break;
-                case 7: p.filter.q = 0.3 + v * 11.7; break;
-              }
-            });
+            let how: 'live' | 'reload' | null = null;
+            mutate((d) => { how = writeInstrumentMacro(d, armed.id, action.index, action.value); });
+            if (how === 'live') engine.getInstrument(armed.id)?.setMacro(action.index, action.value);
+            else if (how === 'reload') pushTrackPatch(armed.id);
+            break;
+          }
+          const { page } = focusedPage(docRefForChoice.current, selectedPadRef.current);
+          const param = page?.params[action.index];
+          if (!page || !param) break;
+          mutate((d) => param.set(d, fromUnit(param, action.value)));
+          if (page.instrumentTrackId) {
+            const tid = page.instrumentTrackId;
+            if (Array.isArray(docRefForChoice.current.arrangement.find((t) => t.id === tid)?.instrument?.patch?.macros)) engine.getInstrument(tid)?.setMacro(action.index, action.value);
+            else pushTrackPatch(tid);
           }
           break;
+        }
+        case 'nav': {
+          const pad = selectedPadRef.current;
+          const a = action.action;
+          if (a === 'pagePrev' || a === 'pageNext') stepControlPage(docRefForChoice.current, pad, a === 'pagePrev' ? -1 : 1);
+          else if (a === 'tabMaster') setControlFocus({ tab: 'master' });
+          else if (a === 'tabGroup') setControlFocus({ tab: 'group' });
+          else if (a === 'tabSound') setControlFocus({ tab: 'sound' });
+          else {
+            const banks = Math.max(1, Math.ceil(docRefForChoice.current.kit.length / 16));
+            const b = (Math.floor(pad / 16) + (a === 'groupNext' ? 1 : -1) + banks) % banks;
+            setSelectedPad(b * 16 + (pad % 16));
+          }
+          break;
+        }
         case 'transport':
           if (action.action === 'play') handlePlay();
           else if (action.action === 'stop') handleStop();
@@ -871,7 +862,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
       const engine = BeatsEngine.get();
       if (!pass) pass = `pad-rec:${Date.now()}`;
       const playing = engine.playingPatternIds();
-      mutate((d) => { recordPadHit(d, { padIdx: hit.padIdx, vel: hit.vel, beat: hit.beat!, mode: hit.mode }, playing, recQuantRef.current || hit.repeat); }, { coalesce: pass });
+      mutate((d) => { recordPadHit(d, { padIdx: hit.padIdx, vel: hit.vel, beat: hit.beat!, mode: hit.mode, semi: hit.semi }, playing, recQuantRef.current || hit.repeat); }, { coalesce: pass });
     });
   }, [mutate]);
 
@@ -1667,6 +1658,18 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           onLaunchScene={launchScene}
           recQuantize={recQuantize}
           onToggleRecQuantize={() => setRecQuantize((v) => { const n = !v; try { localStorage.setItem('melos:padrec:quantize', n ? '1' : '0'); } catch { /* */ } return n; })}
+          renderInstrument={(trackId) => {
+            // The same panel body the instrument window shows, inline in MEKA's control area.
+            const t = doc.arrangement.find((x) => x.id === trackId && x.kind === 'instrument');
+            if (!t) return null;
+            const close = () => setOpenInstrumentId(null);
+            return t.instrument?.type === 'kera' ? <KeraPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />
+              : t.instrument?.type === 'bajo' ? <BajoPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />
+              : t.instrument?.type === 'aura' ? <AuraPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />
+              : t.instrument?.type === 'soma' ? <SomaPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />
+              : isSuite(t.instrument?.type as InstrumentType) ? <VelaPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />
+              : <InstrumentPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />;
+          }}
         />
       )}
       </div>

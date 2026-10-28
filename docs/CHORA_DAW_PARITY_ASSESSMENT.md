@@ -168,6 +168,31 @@ Not done:
 - Audio-clip channels in the rack.
 - Release velocity as its own lane (the tail lane covers note length).
 
+## MEKA kit import + Maschine pad modes (2026-10-28)
+
+Done:
+- **Library** tab in MEKA's rail (`machine/KitLibrary.tsx`, `services/melos/beats/kits/`): add folders, index kits + one-shots (IndexedDB cache), Groups / Sounds / Mine tabs, product + format filters, sound-type chips, NKS `.previews` audition, 4×4 preview of a kit before loading.
+- Loading a kit replaces the 16 pads of a Group (or a new one), like Maschine; kits over 16 pads spill into the next Groups. One-shot envelope = the whole sample. Missing samples keep their pad name and are counted in the status line.
+- Readers (`parsers.ts`): MPC `.xpm` (pad note map, tune, pan, volume, mute groups), Ableton `.adg` (receiving note, choke, transpose, Live 10 + 11 paths), Studio One Impact `.preset` (zip + XML) and Impact kits inside `.soundset` zips, Bitwig `.bwpreset` (typed strings), Maschine `.mxgrp` / `.mxsnd` and Battery `.nbkt` (embedded UTF-16 sample paths, zlib sections), SFZ, Hydrogen (`drumkit.xml`, `.h2drumkit`), Decent Sampler, SoundFont `.sf2` (percussion bank, samples cut out as WAV), mixed one-shot folders (laid out kick → hats by name). AIFF converts to WAV.
+- Paths written on another machine resolve by kit-relative path → longest path tail → file name.
+- Pad modes: Pads / Keys (scale-locked to the song key or chromatic, octave) / Chords (diatonic triads or 7ths, labelled I ii iii…) / 16 Vel; Fixed Velocity; Mute and Solo tap modes. Keys and Chords record into the pitch roll.
+- Group slots: name, colour, Save Group to Library ("Mine"), Clear Group, source shown in the menu. Scenes can be moved left/right.
+- Tests: `tests/melosKits.test.ts`, `tests/melosKitsLibrary.test.ts`, `tests/melosControlPages.test.ts` (in `npm run test:melostime`).
+- **Control area above the pads** (`machine/ControlArea.tsx`, `services/melos/beats/controlPages.ts`), Maschine-style:
+  - MASTER / GROUP / SOUND tabs, pages of eight knobs, Page ◀ ▶. Sound pages: Pitch/Gain, Amp Envelope, Filter, Sends; an instrument pad leads with its macro page. Group knobs are relative (Tune / Level / Decay / Cutoff move every pad in the Group by the change), plus Group Swing. Master: Volume, Tempo, Swing, Limiter; Buses: A–D and FX returns.
+  - Plug-in slot: Sampler / Drum Synth / instrument name, preset ◀ ▶ (instrument presets, or same-type sounds from the Library for sample pads), Plug-in toggle that shows the instrument's own panel inline, and open-in-window.
+  - Display tile: sample waveform with start/hold markers, the instrument's face + preset, the Group's pad map, or a Master summary.
+  - Hardware: knobs 1–8 (CC 14–21, or learned) drive the focused page when no instrument track is armed. Page ◀ ▶, Group ◀ ▶ and the three tabs are MIDI-learnable (no NI MIDI-mode template sends fixed CCs for them).
+  - The right macro rail is gone (the control area replaces it). The piano roll moved under the step sequencer; scenes are at the top.
+  - Fixes the hardware-knob path for AURA and SOMA, which wrote macro names that don't exist.
+
+Not verified / not done:
+- No real Maschine, Battery, MPC or Ableton kit files were on the dev machine; those readers are tested against fixtures built to each layout. The real Studio One and Bitwig default kits parse.
+- Maschine/Battery/Bitwig per-sound settings (tune, envelopes, FX) and plug-in sounds aren't decoded; velocity layers / round robins use the first layer.
+- Kit import not checked in the browser with real kit files. The control area was checked in the browser lab (:3187): tabs, pages, Group Tune, AURA macros, preset ◀ ▶ and the inline plug-in view.
+- Sample-pad preset ◀ ▶ needs a granted Library folder; not exercised in the browser. Hardware knobs and learned nav buttons are untested on a real Maschine.
+- Kontakt `.nki` and melodic multisample libraries need a multisample instrument (pads are one-shots).
+
 ## Phase 3 status (2026-10-21)
 
 Done:

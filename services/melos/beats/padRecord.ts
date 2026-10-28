@@ -10,7 +10,11 @@
 import type { GrooveDoc, Pattern } from './grooveDoc';
 import { padGroup, patternGroup } from './songSections';
 
-export interface PadHitIn { padIdx: number; vel: number; beat: number; mode: 'pattern' | 'song' }
+export interface PadHitIn {
+  padIdx: number; vel: number; beat: number; mode: 'pattern' | 'song';
+  /** A pitched hit (Keyboard / Chords pad mode) → a pitch-roll note at this offset. */
+  semi?: number;
+}
 
 export interface RecordTarget { patternId: string; posBeats: number; lenSteps: number }
 
@@ -63,6 +67,16 @@ export function recordPadHit(
   const nearest = Math.round(exact);
   const step = ((nearest % t.lenSteps) + t.lenSteps) % t.lenSteps;
   const micro = quantize ? 0 : Math.max(-0.5, Math.min(0.5, exact - nearest));
+  if (hit.semi !== undefined) {
+    // Pitch-roll lane: chords stack on one step; the same pitch again overdubs its velocity.
+    const semi = Math.max(-24, Math.min(24, Math.round(hit.semi)));
+    const lane = ((pat.melo ??= {})[hit.padIdx] ??= {});
+    const notes = (lane[step] ??= []);
+    const v = Math.max(1, Math.min(127, Math.round(hit.vel)));
+    const same = notes.find((n) => n.semi === semi);
+    if (same) same.v = v; else notes.push({ semi, v, len: 1 });
+    return { patternId: pat.id, step };
+  }
   const row = (pat.steps[hit.padIdx] ??= {});
   const prev = row[step];
   row[step] = { ...(prev ?? {}), v: Math.max(1, Math.min(127, Math.round(hit.vel))) };

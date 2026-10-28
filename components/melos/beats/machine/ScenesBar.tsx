@@ -48,6 +48,13 @@ export const ScenesBar: React.FC<Props> = ({ doc, choice, onLaunchScene, onMutat
         syncSongFromSections(d);
       }) },
       { id: 'rename', label: 'Rename', onSelect: () => { setNameText(sc.name); setRenaming(id); } },
+      // Reorder the scene strip (song order lives in the sections, so this is layout only).
+      ...(['left', 'right'] as const).map((dir) => {
+        const i = scenes.findIndex((s) => s.id === id);
+        const j = dir === 'left' ? i - 1 : i + 1;
+        return { id: `move-${dir}`, label: dir === 'left' ? 'Move left' : 'Move right', disabled: j < 0 || j >= scenes.length,
+          onSelect: () => onMutate((d) => { const list = d.scenes ?? []; const a = list.findIndex((s) => s.id === id); const b = dir === 'left' ? a - 1 : a + 1; if (a >= 0 && b >= 0 && b < list.length) [list[a], list[b]] = [list[b], list[a]]; }) };
+      }),
       { kind: 'separator' },
       { id: 'del', label: 'Delete scene (and its song sections)', danger: true, onSelect: () => onMutate((d) => deleteScene(d, id)) },
     ];

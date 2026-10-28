@@ -22,7 +22,16 @@ export type MelosMidiAction =
   | { kind: 'pitchBend'; value: number }               // -1..1 (0xE0 14-bit Pitch Wheel)
   | { kind: 'sustain'; on: boolean }                   // CC #64 Hold Pedal
   | { kind: 'transport'; action: 'play' | 'stop' | 'record' }
+  | { kind: 'nav'; action: NavAction }
   | null;
+
+/** Maschine's navigation buttons: Page ◀ ▶, Group ◀ ▶ and the MASTER / GROUP / SOUND tabs of the
+ *  control area. No NI MIDI-mode template sends a fixed CC for these, so they are MIDI-learned. */
+export type NavAction = 'pagePrev' | 'pageNext' | 'groupPrev' | 'groupNext' | 'tabMaster' | 'tabGroup' | 'tabSound';
+export const NAV_LABELS: Record<NavAction, string> = {
+  pagePrev: 'Page ◀', pageNext: 'Page ▶', groupPrev: 'Group ◀', groupNext: 'Group ▶',
+  tabMaster: 'Master tab', tabGroup: 'Group tab', tabSound: 'Sound tab',
+};
 
 /** The eight knobs. NI controllers in MIDI mode default to CC 14–21 for the top row; that is the
  *  Melos macro range, matching the instrument's eight front-panel knobs one-to-one. */

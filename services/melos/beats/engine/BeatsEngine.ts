@@ -53,7 +53,11 @@ const isSuiteType = (t?: string): boolean =>
 
 /** A live pad hit, as the recorder sees it: `beat` is the transport beat heard at that moment
  *  (null when stopped); `repeat` marks note-repeat retriggers (already grid-exact). */
-export interface PadHit { padIdx: number; vel: number; time: number; beat: number | null; mode: PlayMode; repeat: boolean }
+export interface PadHit {
+  padIdx: number; vel: number; time: number; beat: number | null; mode: PlayMode; repeat: boolean;
+  /** Keyboard / chord pad modes: the note played, in semitones from the pad's tuning. */
+  semi?: number;
+}
 
 export class BeatsEngine {
   private static _inst: BeatsEngine | null = null;
@@ -497,6 +501,7 @@ export class BeatsEngine {
     // and voice hits arrive already stamped with their true time.
     const lat = repeat || exact ? 0 : Math.max(0, ((this.ctx as unknown as { outputLatency?: number })?.outputLatency || this.ctx?.baseLatency || 0));
     const hit: PadHit = { padIdx, vel, time, beat: this.running ? this.beatAt(time - lat) : null, mode: this.mode, repeat };
+    if (this.pitchedHit !== undefined) hit.semi = this.pitchedHit;
     for (const fn of this.padHitListeners) fn(hit);
   }
 
@@ -529,6 +534,17 @@ export class BeatsEngine {
     if (!this.repeat.on) for (const pad of [...this.repeatHeld.keys()]) this.noteRepeatRelease(pad);
   }
   noteRepeatState(): { on: boolean; rateBeats: number; swing: number } { return { ...this.repeat }; }
+
+  // Keyboard / Chords pad modes (Maschine): the grid plays ONE pad at different pitches. The hit
+  // is reported with its pitch so the recorder writes a pitch-roll note, not a plain drum hit.
+  private pitchedHit: number | undefined;
+  /** A live hit at a pitch. `chord` = one of several notes struck together (no mono retrigger). */
+  padDownPitched(padIdx: number, vel127: number, semi: number, chord = false): void {
+    if (!this.ctx) return;
+    this.pitchedHit = semi;
+    try { this.trigger(padIdx, vel127, undefined, undefined, semi, undefined, undefined, chord); }
+    finally { this.pitchedHit = undefined; }
+  }
 
   /** Live pad press: a plain hit, or — with Note Repeat on — a hit that keeps repeating. */
   padDown(padIdx: number, vel127: number): void {

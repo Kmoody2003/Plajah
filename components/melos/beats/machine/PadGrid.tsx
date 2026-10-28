@@ -30,11 +30,18 @@ interface PadGridProps {
   /** Maschine 16 Velocities: every pad plays the SELECTED pad, velocity rising with the pad
    *  number — a whole grid of dynamics for one sound. */
   velocity16?: boolean;
+  /** Keyboard / Chords mode: the grid plays the SELECTED pad at these semitone offsets per cell
+   *  (0 = bottom-left), labelled per cell. A chord cell returns several notes. */
+  pitched?: { notes: (cell: number) => number[]; label: (cell: number) => string } | null;
+  /** Fixed Velocity: every hit at this velocity (Maschine FIXED VEL), else position/pressure. */
+  fixedVel?: number | null;
+  /** Maschine MUTE / SOLO held: tapping a pad toggles its mute or solo instead of playing it. */
+  tapMode?: 'mute' | 'solo' | null;
 }
 
 const HIT_GLOW_MS = 160;
 
-export const PadGrid: React.FC<PadGridProps> = ({ doc, selectedPad, onSelectPad, onDropSample, melosSamples, bank = 0, onAddToPad, onEditPadInstrument, onMutate, velocity16 }) => {
+export const PadGrid: React.FC<PadGridProps> = ({ doc, selectedPad, onSelectPad, onDropSample, melosSamples, bank = 0, onAddToPad, onEditPadInstrument, onMutate, velocity16, pitched, fixedVel, tapMode }) => {
   const engine = BeatsEngine.get();
   const base = bank * 16;
 
@@ -78,7 +85,12 @@ export const PadGrid: React.FC<PadGridProps> = ({ doc, selectedPad, onSelectPad,
   const hit = useCallback((padIdx: number, e: React.PointerEvent) => {
     if (e.button === 2) return; // right-click opens the menu, never a hit
     const pad = doc.kit[padIdx];
-    if (pad?.empty && !velocity16) { onAddToPad?.(padIdx); onSelectPad(padIdx); return; } // empty pad → add an instrument
+    if (tapMode) {
+      // Mute / Solo: the pads become switches (Maschine — hold MUTE, tap the sounds).
+      if (!pad?.empty) onMutate?.((d) => { const x = d.kit[padIdx]; if (x) { if (tapMode === 'mute') x.mute = !x.mute; else x.solo = !x.solo; } });
+      return;
+    }
+    if (pad?.empty && !velocity16 && !pitched) { onAddToPad?.(padIdx); onSelectPad(padIdx); return; } // empty pad → add an instrument
     const el = e.currentTarget as HTMLElement;
     const rect = el.getBoundingClientRect();
     const yRel = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
@@ -88,11 +100,19 @@ export const PadGrid: React.FC<PadGridProps> = ({ doc, selectedPad, onSelectPad,
     const vel = velocity16
       ? Math.max(8, Math.round(((padIdx - base + 1) / 16) * 127))
       : pressure ? Math.round(30 + pressure * 97) : Math.round(127 - yRel * 82);
+    const v = fixedVel ?? vel;
+    if (pitched && !velocity16) {
+      // Keyboard / Chords: the selected pad, at the cell's pitch(es). Recorded as pitch-roll notes.
+      const notes = pitched.notes(padIdx - base);
+      held.current.set(padIdx, selectedPad);
+      void engine.init().then(() => { for (const semi of notes) engine.padDownPitched(selectedPad, v, semi, notes.length > 1); });
+      return;
+    }
     // padDown = a hit, or a hit that repeats on the grid while held (engine Note Repeat).
     held.current.set(padIdx, target);
-    void engine.init().then(() => engine.padDown(target, vel));
+    void engine.init().then(() => engine.padDown(target, v));
     if (!velocity16) onSelectPad(padIdx);
-  }, [engine, onSelectPad, doc.kit, onAddToPad, velocity16, selectedPad, base]);
+  }, [engine, onSelectPad, doc.kit, onAddToPad, velocity16, selectedPad, base, pitched, fixedVel, tapMode, onMutate]);
 
   // Note-off: sustaining pads (env.sustain > 0) hold while pressed and release here; a held
   // Note Repeat stops with the finger.
@@ -122,7 +142,11 @@ export const PadGrid: React.FC<PadGridProps> = ({ doc, selectedPad, onSelectPad,
         const padIdx = base + (3 - rowFromTop) * 4 + col;
         const pad = doc.kit[padIdx];
         if (!pad) return <div key={cell} />;
-        const empty = !!pad.empty;
+        const cellIdx = padIdx - base;
+        // In Keyboard / Chords mode every cell is the selected pad at a pitch.
+        const pitchLabel = pitched && !velocity16 ? pitched.label(cellIdx) : null;
+        const empty = !!pad.empty && !pitchLabel;
+        const off = !!pad.mute || (doc.kit.some((k) => k.solo) && !pad.solo);
         const lit = now - engine.lastHit[padIdx] < HIT_GLOW_MS;
         const selected = padIdx === selectedPad;
         return (
@@ -147,16 +171,21 @@ export const PadGrid: React.FC<PadGridProps> = ({ doc, selectedPad, onSelectPad,
               borderColor: empty ? (selected ? 'rgba(212,0,85,0.5)' : 'rgba(255,255,255,0.07)') : lit ? 'rgba(255,140,0,0.6)' : selected ? SELECT : 'rgba(255,255,255,0.09)',
               borderStyle: empty ? 'dashed' : 'solid',
               boxShadow: lit ? `0 0 22px ${ARMED}59` : selected && !empty ? `0 0 0 1px ${SELECT}` : 'none',
-              opacity: empty ? 0.5 : 1,
+              opacity: empty ? 0.5 : off && !pitchLabel ? 0.35 : 1,
               touchAction: 'none',
             }}
             aria-label={empty ? `Empty pad ${padIdx + 1} — add an instrument` : `Pad ${padIdx + 1}: ${pad.name}`}
           >
-            {empty ? (
+            {pitchLabel ? (
+              <span className="absolute inset-0 grid place-items-center text-[13px] font-semibold" style={{ color: lit ? ARMED : cellIdx % 12 === 0 || /^[IVX]+$|^root$/.test(pitchLabel) ? '#fff' : 'rgba(255,255,255,0.55)' }}>{pitchLabel}</span>
+            ) : empty ? (
               <span className="absolute inset-0 grid place-items-center text-[16px] font-light text-white/25">+</span>
             ) : (
               <>
                 <span className="absolute top-1.5 right-2 text-[8px] font-mono text-white/25">{GROUP_NAMES[pad.group]}{pad.choke ? `·c${pad.choke}` : ''}</span>
+                {(pad.mute || pad.solo) && (
+                  <span className="absolute top-1.5 left-2 text-[8px] font-bold" style={{ color: pad.solo ? '#FFD166' : '#FF4D6D' }}>{pad.solo ? 'S' : 'M'}</span>
+                )}
                 <span
                   className="absolute bottom-1.5 left-2 right-2 text-[11px] truncate font-medium"
                   style={{ color: lit ? ARMED : selected ? '#fff' : 'rgba(255,255,255,0.55)' }}

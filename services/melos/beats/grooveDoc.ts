@@ -536,6 +536,16 @@ export function defaultSendBuses(): SendBusConfig[] {
   return [{ name: 'FX 1', gainDb: 0 }, { name: 'FX 2', gainDb: 0 }];
 }
 
+/** A Maschine Group slot's label. Absent fields fall back to "Group A" and the bank's default tint. */
+export interface GroupMeta {
+  name?: string;
+  color?: string;
+  /** The kit file this Group was loaded from (Maschine group, MPC program, Drum Rack…). */
+  source?: { format: string; kit: string };
+  /** Group macro knobs (controlPages.ts) — relative offsets already applied to the Group's pads. */
+  offsets?: { tune?: number; level?: number; decay?: number; cutoff?: number };
+}
+
 export interface GrooveDoc {
   id: string;
   name: string;
@@ -552,6 +562,8 @@ export interface GrooveDoc {
   scenes?: Scene[];
   /** The song as scene sections in order (Maschine Song view). They write the Group tracks. */
   sections?: SongSection[];
+  /** MEKA Group slots (index = bank of 16): name, color and where an imported kit came from. */
+  groupMeta?: GroupMeta[];
   // Song-mode loop/cycle region (beats). Optional for back-compat with docs saved before it
   // existed — consumers default it off. Pattern mode loops the pattern itself, independently.
   loop?: { on: boolean; startBeats: number; endBeats: number };
