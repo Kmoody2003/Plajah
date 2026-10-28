@@ -25,6 +25,14 @@
     "services/meetings/meetingRecording.ts",
     "services/meetings/meetingRecordingCore.ts",
     "tests/meetingRecording.test.ts",
-    "services/localRecordingStore.ts"
+    "services/localRecordingStore.ts",
+    "contexts/CallContext.tsx",
+    "components/meetings/Huddle.tsx",
+    "components/meetings/ScheduleMeeting.tsx",
+    "components/meetings/MeetingJoinPage.tsx",
+    "services/meetings/scheduleCore.ts",
+    "services/meetings/meetingSchedule.ts",
+    "tests/meetingSchedule.test.ts",
+    "App.tsx"
   ]
 }

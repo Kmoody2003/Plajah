@@ -8,7 +8,7 @@ import {
   Forward, Search, Globe, Smile, Hash, Copy, Trash2, Star,
   Bold, Italic, Link, AtSign, BarChart2, AlertCircle, Volume2,
   Flame, Timer, Camera, Radio, Heart, Palette, Gift, EyeOff, ShieldCheck, ClipboardList, Database, MessagesSquare,
-  Paperclip, Pencil, Flag, Ban, BellOff, Bell, FileText, ExternalLink,
+  Paperclip, Pencil, Flag, Ban, BellOff, Bell, FileText, ExternalLink, Headphones, CalendarPlus,
 } from 'lucide-react';
 import {
   editMessage, deleteMessageForEveryone, uploadChatBlob, uploadChatAttachment, previewForMessage,
@@ -24,6 +24,9 @@ import ChatForwardPicker from './chat/ChatForwardPicker';
 import ChatNotifyPanel from './chat/ChatNotifyPanel';
 import { ChatAttachmentCard, ChatLinkPreviewCard } from './chat/ChatMessageExtras';
 import { MeetingRecapCard, MeetingRecordingsPanel } from './meetings/MeetingRecapCard';
+import { HuddleBanner } from './meetings/Huddle';
+import { ScheduleMeetingDialog, MeetingInviteCard } from './meetings/ScheduleMeeting';
+import { useCallOptional } from '../contexts/CallContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChatMessage, ChatRoom, UserProfile, CollabProject, Album } from '../types';
 import {
@@ -282,6 +285,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const [reportTarget, setReportTarget] = useState<ExtendedMessage | null>(null);
   const [showNotifyPanel, setShowNotifyPanel] = useState(false);
   const [showRecordings, setShowRecordings] = useState(false);
+  const [showSchedule, setShowSchedule] = useState(false);
+  const call = useCallOptional();
+  const canMeet = !!call && !readOnly && room.type !== 'PUBLIC_LIVE';
+  const startHuddle = () => { try { call?.startHuddle(room); } catch (e: any) { flash(e?.message || 'The huddle could not start.'); } };
   const [notice, setNotice] = useState<string | null>(null);
   const noticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const flash = (text: string) => {
@@ -1124,6 +1131,13 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           <button onClick={() => { setSearchMode(p => !p); }} className={`p-2 rounded-xl transition-all ${searchMode ? 'bg-small-orange/20 text-small-orange' : 'text-white/30 hover:text-white hover:bg-white/5'}`}>
             <Search size={17} />
           </button>
+          {canMeet && (
+            <button onClick={startHuddle} title={call?.huddleRoomId === room.id ? 'You are in this huddle' : 'Start a huddle (audio, no ringing)'}
+              aria-pressed={call?.huddleRoomId === room.id}
+              className={`p-2 rounded-xl transition-all ${call?.huddleRoomId === room.id ? 'bg-emerald-400/20 text-emerald-300' : 'text-white/30 hover:text-white hover:bg-white/5'}`}>
+              <Headphones size={17} />
+            </button>
+          )}
           <button onClick={onStartAudio} className="p-2 text-white/30 hover:text-white hover:bg-white/5 rounded-xl transition-all" title="Voice call">
             <Phone size={17} />
           </button>
@@ -1172,6 +1186,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                     { icon: Shield, label: protectedThread ? 'Protected ✓' : 'Protect thread', action: () => { void toggleProtected(); setShowMoreMenu(false); }, phoneOnly: false },
                     ...(protectedThread ? [{ icon: Timer, label: `Auto-delete: ${retentionDays ? `${retentionDays}d` : 'Off'}`, action: () => { void cycleRetention(); }, phoneOnly: false }] : []),
                     { icon: isRoomMuted(roomPrefs) ? BellOff : Bell, label: isRoomMuted(roomPrefs) ? 'Notifications: muted' : 'Notifications', action: () => setShowNotifyPanel(true), phoneOnly: false },
+                    ...(canMeet ? [{ icon: CalendarPlus, label: 'Schedule meeting', action: () => setShowSchedule(true), phoneOnly: false }] : []),
                     { icon: Video, label: 'Recordings', action: () => setShowRecordings(true), phoneOnly: false },
                     { icon: Globe, label: 'Fediverse Broadcast', action: () => { setShowFediversePanel(p => !p); setShowMoreMenu(false); }, phoneOnly: false },
                     { icon: Globe, label: 'Members', action: () => { setShowMembersPanel(p => !p); setShowMoreMenu(false); }, phoneOnly: false },
@@ -1191,6 +1206,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           </div>
         </div>
       </div>
+
+      {canMeet && <HuddleBanner roomId={room.id} selfId={uid} inThisHuddle={call?.huddleRoomId === room.id} onJoin={startHuddle} />}
 
       {/* ── INTIMATE SETTINGS PANEL ─────────────────────────────────── */}
       <AnimatePresence>
@@ -1599,6 +1616,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                     </div>
                   ) : msg.mediaType === 'TELA' && msg.telaDocument ? (
                     <ChatTelaDocument message={msg} roomId={room.id} />
+                  ) : msg.meetingInvite ? (
+                    <MeetingInviteCard roomId={room.id} invite={msg.meetingInvite}
+                      onJoin={call ? (m) => { try { call.joinScheduledMeeting(room, m); } catch (e: any) { flash(e?.message || 'Could not join.'); } } : undefined} />
                   ) : msg.meetingRecap ? (
                     <MeetingRecapCard roomId={room.id} recap={msg.meetingRecap} summary={(msg.text || '').replace(/^Meeting recap: [^\n]*\n?/, '')} />
                   ) : msg.attachment ? (
@@ -1920,6 +1940,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         />
       )}
       {showRecordings && <MeetingRecordingsPanel roomId={room.id} onClose={() => setShowRecordings(false)} />}
+      {showSchedule && <ScheduleMeetingDialog roomId={room.id} roomName={roomName} onClose={() => setShowSchedule(false)} onScheduled={() => flash('Meeting scheduled and pinned in this chat.')} />}
       {showNotifyPanel && (
         <ChatNotifyPanel roomId={room.id} roomName={roomName} prefs={roomPrefs} onClose={() => setShowNotifyPanel(false)} />
       )}

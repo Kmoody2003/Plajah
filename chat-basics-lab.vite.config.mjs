@@ -12,6 +12,7 @@ import { watchIgnored } from './vite.watch-ignore.mjs';
 const SHIMS = new Map([
   [path.resolve('services/backendService.ts'), path.resolve('labs/chat-basics/backendShim.ts')],
   [path.resolve('services/meetings/meetingRecording.ts'), path.resolve('labs/chat-basics/meetingShim.ts')],
+  [path.resolve('services/meetings/meetingSchedule.ts'), path.resolve('labs/chat-basics/scheduleShim.ts')],
 ]);
 const shimFiles = new Set(SHIMS.values());
 
@@ -27,7 +28,7 @@ export default defineConfig({
       name: 'chat-basics-backend-shim',
       enforce: 'pre',
       async resolveId(source, importer, options) {
-        if (!importer || shimFiles.has(path.resolve(importer)) || !/(backendService|meetingRecording)(\.ts)?$/.test(source)) return null;
+        if (!importer || shimFiles.has(path.resolve(importer)) || !/(backendService|meetingRecording|meetingSchedule)(\.ts)?$/.test(source)) return null;
         const resolved = await this.resolve(source, importer, { ...options, skipSelf: true });
         return (resolved && SHIMS.get(path.resolve(resolved.id))) || null;
       },

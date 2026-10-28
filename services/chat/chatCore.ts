@@ -128,7 +128,7 @@ export function roomUnreadCount(
 /** Content fields a delete clears; the doc stays as a "Message deleted" tombstone. */
 export const TOMBSTONE_CLEAR_KEYS = [
   'text', 'voiceUrl', 'imageUrl', 'gifUrl', 'videoNoteUrl', 'mediaId', 'mediaType', 'telaDocument',
-  'attachment', 'linkPreview', 'reactions', 'isPinned', 'replyToText', 'storagePath', 'forwardedFrom', 'meetingRecap',
+  'attachment', 'linkPreview', 'reactions', 'isPinned', 'replyToText', 'storagePath', 'forwardedFrom', 'meetingRecap', 'meetingInvite',
 ] as const;
 
 export const isTombstone = (m: { deletedAt?: number | null }) => typeof m.deletedAt === 'number';

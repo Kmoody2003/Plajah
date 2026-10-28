@@ -17,6 +17,8 @@ import type { MeetingRecording } from '../services/meetings/meetingRecordingCore
 import { useMeetingCaptions } from '../hooks/useMeetingCaptions';
 import { MeetingRecordPanel, RecordingNotice, LiveCaptionsOverlay, type RecordChoice } from './meetings/MeetingRecordPanel';
 import MeetingRecordingView from './meetings/MeetingRecordingView';
+import { listenLobby, decideEntry } from '../services/meetings/meetingSchedule';
+import type { LobbyEntry } from '../services/meetings/scheduleCore';
 import RomanceFXOverlay from './RomanceFXOverlay';
 import { CallControlBar, ReactionBar, ReactionFloats } from './call/CallControls';
 import { ChatProduction } from '../services/chatProduction';
@@ -24,7 +26,18 @@ import { queueCallShow } from '../services/ambo/liveCallShows';
 
 export interface CallContact { uid: string; displayName: string; photoURL?: string }
 
+/** A scheduled meeting that admits guests: its own shared call session instead of the room's. */
+export interface MeetingSession {
+  collectionName: string;
+  meetingId: string;
+  title: string;
+  /** member = in the chat (sees the waiting room); guest = joined from the link. */
+  role: 'member' | 'guest';
+}
+
 interface VideoChatProps {
+  /** Run on a scheduled meeting's shared session (guests possible) instead of the room's call. */
+  session?: MeetingSession;
   room: ChatRoom;
   onClose: () => void;
   user: any;
@@ -63,7 +76,15 @@ const StreamTile: React.FC<{ stream: MediaStream; label: string; muted?: boolean
  * audio), add-a-caller, and a local self + screen preview.
  */
 
-const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = 'VIDEO', ringingName, onInvite, contacts = [] }) => {
+const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = 'VIDEO', ringingName, onInvite, contacts = [], session }) => {
+  const isGuest = session?.role === 'guest';
+  // Waiting room (members of a guest-enabled meeting): who is knocking, and who is already in.
+  const [lobby, setLobby] = useState<LobbyEntry[]>([]);
+  useEffect(() => (session?.role === 'member' ? listenLobby(session.meetingId, setLobby) : undefined), [session?.role, session?.meetingId]);
+  const admittedGuests = useMemo(() => lobby.filter(e => e.status === 'ADMITTED').map(e => e.uid), [lobby]);
+  const waiting = lobby.filter(e => e.status === 'WAITING');
+  // Who may appear in this call: chat members (plus admitted guests); a guest sees everyone the session lets in.
+  const peerOk = useCallback((id: string) => isGuest || room.participants.includes(id) || admittedGuests.includes(id), [isGuest, room.participants, admittedGuests]);
   const selfId = auth.currentUser?.uid;
   const [floats, setFloats] = useState<{ id: string; emoji: string; x: number }[]>([]);
   const [showSettings, setShowSettings] = useState(false);
@@ -89,6 +110,7 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
   const excludedMeetingPeers = useMemo(() => room.participants.filter(id => !meetingPeerAllowed(meeting, selfId || '', id)), [room.participants, meeting, selfId]);
   useEffect(() => {
     setMeetingReady(false); setMeeting(null); setMeetingError('');
+    if (session) { setMeetingReady(true); return; } // breakouts/moderation belong to the room's own call
     return watchMeeting(room.id, state => { setMeeting(state); setMeetingReady(true); }, error => { setMeetingError(error.message); setMeetingReady(false); });
   }, [room.id]);
 
@@ -106,7 +128,10 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
   const [openRecording, setOpenRecording] = useState<MeetingRecording | null>(null);
   useEffect(() => listenRecordings(room.id, setRecordings), [room.id]);
   // The recording in progress (anyone's): everyone sees the notice and contributes captions.
-  const liveRecording = recordings.find(r => r.status === 'RECORDING' && Date.now() - r.startedAt < 12 * 60 * 60 * 1000) || null;
+  const roomRecording = recordings.find(r => r.status === 'RECORDING' && Date.now() - r.startedAt < 12 * 60 * 60 * 1000) || null;
+  // Guests can't read the room's recordings, so the host also announces one over the call itself.
+  const [announcedRecording, setAnnouncedRecording] = useState<MeetingRecording | null>(null);
+  const liveRecording = roomRecording || announcedRecording;
 
   const addFloat = useCallback((emoji: string) => {
     const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -115,22 +140,30 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
   }, []);
 
   const rtc = useRtcSession(meetingReady && !removed ? {
-    collectionName: `chat_rooms/${room.id}/meeting_rtc`,
-    sessionId: meetingRoom,
+    collectionName: session?.collectionName || `chat_rooms/${room.id}/meeting_rtc`,
+    sessionId: session ? 'main' : meetingRoom,
+    // Heartbeats let chats show who is in the call (huddle banner) and drop crashed peers.
+    liveness: true,
     topology: 'mesh',
     role: 'participant',
     media: { audio: true, video: callType !== 'AUDIO' },
     displayName: auth.currentUser?.displayName || 'You',
   } : null, {
     excludePeerIds: excludedMeetingPeers,
-    allowedPeerIds: room.participants,
+    allowedPeerIds: isGuest ? undefined : [...room.participants, ...admittedGuests],
     // The session ended mid-recording: close out the meeting recording (the device copy is already safe).
     onRecordingStopped: () => { const rec = activeRec.current; activeRec.current = null; void rec?.finish().catch(() => {}); },
     // Data-channel reactions — instant, peer-to-peer (no Firestore round-trip).
     onData: (peer, msg) => {
-      if (!room.participants.includes(peer) || !meetingPeerAllowed(meeting, selfId || '', peer)) return;
+      if (!peerOk(peer) || !meetingPeerAllowed(meeting, selfId || '', peer)) return;
       if (msg.type === 'reaction' && msg.payload?.emoji) addFloat(msg.payload.emoji);
       if (msg.type === 'caption') captionsRef.current?.(peer, msg.payload);
+      if (msg.type === 'meeting:recording') {
+        const p = msg.payload;
+        setAnnouncedRecording(p?.active && typeof p.id === 'string'
+          ? { id: p.id, hostUid: peer, hostName: String(p.hostName || 'The host').slice(0, 100), title: '', mode: p.mode === 'CLOUD' ? 'CLOUD' : 'LOCAL', kind: 'VIDEO', status: 'RECORDING', startedAt: Number(p.startedAt) || Date.now() }
+          : null);
+      }
       if (msg.type === 'meeting:hand') setRaisedHands(prev => { const next = new Set(prev); if (msg.payload?.raised === true) next.add(peer); else next.delete(peer); return next; });
       if (msg.type === 'production:consent') setConsentingPeers(prev => { const next = new Set(prev); if (msg.payload?.allowed === true) next.add(peer); else next.delete(peer); return next; });
     },
@@ -144,6 +177,13 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
   useEffect(() => { setRaisedHands(new Set()); setConsentingPeers(new Set()); setProductionConsent(false); setHandRaised(false); }, [meetingRoom]);
   useEffect(() => { if (removed) { setProductionEnabled(false); setMeetingError('You were removed from this meeting.'); } }, [removed]);
 
+  // Tell everyone (guests included) when this device is recording; re-sent as people join.
+  const myRecording = roomRecording && roomRecording.hostUid === selfId ? roomRecording : null;
+  useEffect(() => {
+    rtc.sendData('meeting:recording', myRecording
+      ? { active: true, id: myRecording.id, hostName: myRecording.hostName, mode: myRecording.mode, startedAt: myRecording.startedAt }
+      : { active: false });
+  }, [rtc.participants, rtc.peerStates, myRecording?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     rtc.sendData('meeting:hand', { raised: handRaised });
     rtc.sendData('production:consent', { allowed: productionConsent });
@@ -163,7 +203,7 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
     const moderators = new Set([room.ownerId, meeting?.hostId, ...(room.meetingModeratorIds || []), ...(meeting?.moderatorIds || [])]);
     producer.current?.update([
       ...(rtc.localStream && selfId ? [{ id: selfId, name: 'You', stream: rtc.localStream, moderator: moderators.has(selfId), allowed: productionConsent }] : []),
-      ...[...rtc.remoteStreams].filter(([id]) => room.participants.includes(id) && meetingPeerAllowed(meeting, selfId || '', id)).map(([id, stream]) => ({ id, name: rtc.participants.find(p => p.id === id)?.name || 'Participant', stream, moderator: moderators.has(id), allowed: consentingPeers.has(id) })),
+      ...[...rtc.remoteStreams].filter(([id]) => peerOk(id) && meetingPeerAllowed(meeting, selfId || '', id)).map(([id, stream]) => ({ id, name: rtc.participants.find(p => p.id === id)?.name || 'Participant', stream, moderator: moderators.has(id), allowed: consentingPeers.has(id) })),
     ]);
   }, [productionEnabled, isProducer, room.isIntimate, rtc.localStream, rtc.remoteStreams, rtc.participants, consentingPeers, productionConsent, room.ownerId, room.meetingModeratorIds, room.participants, selfId, meeting]);
 
@@ -201,7 +241,7 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
   const msgEndRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     setMessages([]); setDraft('');
-    if (!meetingReady || removed) return;
+    if (!meetingReady || removed || session) return;
     return watchMeetingMessages(room.id, meetingRoom, setMessages, error => setMeetingError(error.message));
   }, [room.id, meetingRoom, meetingReady, removed]);
   useEffect(() => { if (showChat) msgEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, showChat]);
@@ -214,7 +254,7 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
     finally { setSendingChat(false); }
   };
 
-  const remotes = [...rtc.remoteStreams.entries()].filter(([id]) => room.participants.includes(id) && meetingPeerAllowed(meeting, selfId || '', id));
+  const remotes = [...rtc.remoteStreams.entries()].filter(([id]) => peerOk(id) && meetingPeerAllowed(meeting, selfId || '', id));
   const hasScreen = !!rtc.screenStream;
   const total = remotes.length + 1;
   const tiles = total + (hasScreen ? 1 : 0);
@@ -281,7 +321,7 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
         <div className="flex items-center gap-2 sm:gap-4 min-w-0">
           <div className="p-2 sm:p-3 bg-red-500/20 rounded-2xl shrink-0"><Video className="text-red-500 w-5 h-5 sm:w-6 sm:h-6" /></div>
           <div className="min-w-0">
-            <h2 className="text-base sm:text-xl font-black uppercase tracking-tightest leading-none truncate">{room.name || 'Call'}</h2>
+            <h2 className="text-base sm:text-xl font-black uppercase tracking-tightest leading-none truncate">{session?.title || room.name || 'Call'}</h2>
             <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mt-1 truncate">{callType === 'AUDIO' ? 'Voice' : 'Live Video'} Session • {total} in call</p>
           </div>
         </div>
@@ -292,10 +332,10 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
               <Heart size={20} fill={romanceFx ? 'currentColor' : 'none'} />
             </button>
           )}
-          <button onClick={() => setShowChat(s => !s)} title="Chat"
+          {!session && <button onClick={() => setShowChat(s => !s)} title="Chat"
             className={`p-2.5 sm:p-4 rounded-2xl transition-all ${showChat ? 'bg-small-orange/20 text-small-orange' : 'bg-white/5 hover:bg-white/10 text-white/40 hover:text-white'}`}>
             <MessageSquare size={20} />
-          </button>
+          </button>}
           <button onClick={() => captions.setShowCaptions(v => !v)} aria-pressed={captions.showCaptions} title={captions.showCaptions ? 'Hide captions' : 'Show captions'}
             className={`p-2.5 sm:p-4 rounded-2xl transition-all ${captions.showCaptions ? 'bg-amber-400/20 text-amber-300' : 'bg-white/5 hover:bg-white/10 text-white/40 hover:text-white'}`}>
             <Captions size={20} />
@@ -346,7 +386,19 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
           <button onClick={() => setFinished(null)} aria-label="Dismiss" className="p-1 text-white/50 hover:text-white"><X size={14} /></button>
         </div>
       )}
-      {meetingReady && !removed && selfId && !room.isIntimate && <MeetingControls room={room} state={meeting} uid={selfId} participants={room.participants.filter(id => id !== selfId).map(id => ({ id, name: rtc.participants.find(p => p.id === id)?.name || contacts.find(c => c.uid === id)?.displayName || 'Conversation member' }))} onError={setMeetingError} />}
+      {session?.role === 'member' && waiting.length > 0 && (
+        <div role="region" aria-label="Waiting room" className="mx-4 mt-2 flex flex-col gap-1.5 px-3 py-2.5 rounded-2xl bg-sky-500/10 border border-sky-400/25">
+          <p className="text-[11px] font-black uppercase tracking-widest text-sky-200">Waiting room · {waiting.length}</p>
+          {waiting.map(g => (
+            <div key={g.uid} className="flex items-center gap-2 text-[12px] text-white">
+              <span className="flex-1 min-w-0 truncate"><b>{g.name}</b> <span className="text-white/50">(guest) wants to join</span></span>
+              <button onClick={() => decideEntry(session.meetingId, g.uid, 'ADMITTED').catch(e => setMeetingError(e.message))} className="px-3 py-1 rounded-lg bg-sky-400 text-black font-bold">Let in</button>
+              <button onClick={() => decideEntry(session.meetingId, g.uid, 'DENIED').catch(e => setMeetingError(e.message))} className="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20">Deny</button>
+            </div>
+          ))}
+        </div>
+      )}
+      {!session && meetingReady && !removed && selfId && !room.isIntimate && <MeetingControls room={room} state={meeting} uid={selfId} participants={room.participants.filter(id => id !== selfId).map(id => ({ id, name: rtc.participants.find(p => p.id === id)?.name || contacts.find(c => c.uid === id)?.displayName || 'Conversation member' }))} onError={setMeetingError} />}
       {/* Add-a-caller picker */}
       <AnimatePresence>
         {showAdd && (
@@ -502,7 +554,7 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
       {openRecording && <MeetingRecordingView roomId={room.id} recording={openRecording} onClose={() => setOpenRecording(null)} />}
       <ReactionFloats floats={floats} />
       <ReactionBar onReact={react} />
-      <CallControlBar rtc={rtc} onEnd={() => void end()} record={{ active: rtc.isRecording, toggle: () => void toggleRecord() }} />
+      <CallControlBar rtc={rtc} onEnd={() => void end()} record={isGuest ? undefined : { active: rtc.isRecording, toggle: () => void toggleRecord() }} />
       </div>
 
       {/* In-call chat side panel */}

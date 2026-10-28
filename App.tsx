@@ -495,6 +495,7 @@ const SacredLibraryHub = retryLazy(() => import('./components/SacredLibraryHub')
 const AmboPresenter = retryLazy(() => import('./components/scripture/AmboPresenter'));
 const AmboProPresenter = retryLazy(() => import('./components/scripture/AmboProPresenter'));
 const FollowAlongView = retryLazy(() => import('./components/scripture/FollowAlongView'));
+const MeetingJoinPage = retryLazy(() => import('./components/meetings/MeetingJoinPage'));
 const AmboOutputWindow = retryLazy(() => import('./components/scripture/AmboOutputWindow'));
 const AmboOperatorWindow = retryLazy(() => import('./components/scripture/AmboOperatorWindow'));
 const TelehealthJoinPage = retryLazy(() => import('./components/clinic/TelehealthJoinPage'));
@@ -912,6 +913,7 @@ const App: React.FC = () => {
   const [bibleRefId, setBibleRefId] = useState<string | null>(null);
   // Kairos session a congregant is following (?follow=<id>, or the Elevate card).
   const [followSessionId, setFollowSessionId] = useState<string | null>(null);
+  const [meetingJoinId, setMeetingJoinId] = useState<string | null>(null);
   // Vespers briefing being read (?recap=<id>, a push tap, or Ambo's "Service filed").
   const [vespersRecapId, setVespersRecapId] = useState<string | null>(null);
   // Plajah Gallery — the shareable photo experience currently open, plus its resolved photos
@@ -3453,6 +3455,17 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
       // Deep-link: ?recap={id} — a member opening their Vespers briefing, which
       // is where the push notification and the church's link both land.
+      // Deep-link: ?meet={meetingId} — a scheduled meeting's link. No auth gate: guests (no account)
+      // knock from a waiting room; members of the chat go straight in.
+      const meetParam = params.get('meet');
+      if (meetParam && /^[A-Za-z0-9]{20,40}$/.test(meetParam)) {
+        setMeetingJoinId(meetParam);
+        setView('MEETING_JOIN' as AppView);
+        document.title = 'Meeting | Plajah';
+        setIsLoading(false);
+        return;
+      }
+
       const recapParam = params.get('recap');
       if (recapParam) {
         setVespersRecapId(recapParam);
@@ -7761,6 +7774,13 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {/* Old "Ambo Presenter" retired — the AMBO view now redirects to the new presenter. */}
             {(view === 'AMBO' || view === 'AMBO_PRO') && <AmboProPresenter onBack={() => setView('APPS')} />}
             {view === 'FOLLOW_ALONG' && <FollowAlongView sessionId={followSessionId} onBack={() => setView('APPS')} />}
+            {view === 'MEETING_JOIN' && meetingJoinId && (
+              <MeetingJoinPage meetingId={meetingJoinId} onExit={() => {
+                setMeetingJoinId(null);
+                try { window.history.replaceState({}, '', '/'); } catch { /* sandboxed */ }
+                setView((user ? 'FEED' : 'DASHBOARD') as AppView);
+              }} />
+            )}
             {view === 'VESPERS' && vespersRecapId && <VespersRecap recapId={vespersRecapId} onBack={() => setView('APPS')} />}
             {(view === 'CLASSROOMS' || view === 'ACADEMIA_LANDING') && (
               <Suspense fallback={null}>

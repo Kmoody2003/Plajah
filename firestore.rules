@@ -779,6 +779,8 @@ service cloud.firestore {
                data.attachment.size is number && data.attachment.size < 52428800)) &&
              (!('linkPreview' in data) || (data.linkPreview is map && data.linkPreview.url is string)) &&
              (!('forwardedFrom' in data) || (data.forwardedFrom is string && data.forwardedFrom.size() <= 100)) &&
+             (!('meetingInvite' in data) || (data.meetingInvite is map && data.meetingInvite.meetingId is string &&
+               data.meetingInvite.meetingId.size() <= 64 && data.meetingInvite.title is string && data.meetingInvite.title.size() <= 200)) &&
              (!('meetingRecap' in data) || (data.meetingRecap is map && data.meetingRecap.recordingId is string &&
                data.meetingRecap.recordingId.size() <= 64 && data.meetingRecap.title is string && data.meetingRecap.title.size() <= 200)) &&
              !('deletedAt' in data) && !('editedAt' in data) &&
@@ -1937,6 +1939,73 @@ service cloud.firestore {
     }
 
     // users/{uid}/mutes/{target} — private to the owner.
+    // Meeting links (?meet=<id>): the id is the secret. Anyone signed in (guests sign in anonymously)
+    // reads the stub; guests knock in /lobby and wait; members of the chat let them in; members and
+    // admitted guests meet on /rtc.
+    match /public_meetings/{meetingId} {
+      function pmRoomId() { return get(/databases/$(database)/documents/public_meetings/$(meetingId)).data.roomId; }
+      function roomMemberUid(uid) {
+        return exists(/databases/$(database)/documents/chat_rooms/$(pmRoomId())) &&
+          uid in get(/databases/$(database)/documents/chat_rooms/$(pmRoomId())).data.participants;
+      }
+      function admittedUid(uid) {
+        return exists(/databases/$(database)/documents/public_meetings/$(meetingId)/lobby/$(uid)) &&
+          get(/databases/$(database)/documents/public_meetings/$(meetingId)/lobby/$(uid)).data.status == 'ADMITTED';
+      }
+      function inMeeting(uid) { return isAuthenticated() && (roomMemberUid(uid) || admittedUid(uid)); }
+      allow read: if isAuthenticated();
+      allow create: if isRegisteredUser() &&
+        request.resource.data.keys().hasOnly(['roomId', 'title', 'startsAt', 'durationMin', 'hostUid', 'hostName', 'guestsAllowed']) &&
+        request.resource.data.hostUid == request.auth.uid && request.resource.data.roomId is string &&
+        exists(/databases/$(database)/documents/chat_rooms/$(request.resource.data.roomId)) &&
+        request.auth.uid in get(/databases/$(database)/documents/chat_rooms/$(request.resource.data.roomId)).data.participants &&
+        request.resource.data.title is string && request.resource.data.title.size() <= 120 &&
+        request.resource.data.startsAt is number && request.resource.data.durationMin is int &&
+        request.resource.data.hostName is string && request.resource.data.hostName.size() <= 100 &&
+        request.resource.data.guestsAllowed is bool;
+      allow update: if isRegisteredUser() && resource.data.hostUid == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['canceledAt', 'title', 'startsAt', 'durationMin', 'guestsAllowed']);
+      match /lobby/{uid} {
+        allow read: if isAuthenticated() && (uid == request.auth.uid || roomMemberUid(request.auth.uid));
+        allow create: if isAuthenticated() && uid == request.auth.uid &&
+          get(/databases/$(database)/documents/public_meetings/$(meetingId)).data.guestsAllowed == true &&
+          !('canceledAt' in get(/databases/$(database)/documents/public_meetings/$(meetingId)).data) &&
+          request.resource.data.keys().hasOnly(['name', 'status', 'requestedAt']) && request.resource.data.status == 'WAITING' &&
+          request.resource.data.name is string && request.resource.data.name.size() >= 2 && request.resource.data.name.size() <= 60 &&
+          request.resource.data.requestedAt is number;
+        allow update: if isRegisteredUser() && roomMemberUid(request.auth.uid) &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'decidedBy', 'decidedAt']) &&
+          request.resource.data.status in ['ADMITTED', 'DENIED'] && request.resource.data.decidedBy == request.auth.uid;
+        allow delete: if isAuthenticated() && (uid == request.auth.uid || roomMemberUid(request.auth.uid));
+      }
+      // The shared call session guests can join (members + admitted guests only).
+      match /rtc/{scope} {
+        allow read: if inMeeting(request.auth.uid);
+        match /participants/{uid} {
+          allow read: if inMeeting(request.auth.uid);
+          allow create, update: if uid == request.auth.uid && scope == 'main' && inMeeting(uid) &&
+            request.resource.data.keys().hasOnly(['role', 'name', 'joinedAt', 'nonce', 'lastSeen']) &&
+            request.resource.data.role == 'participant' && request.resource.data.name is string && request.resource.data.name.size() <= 200;
+          allow delete: if isAuthenticated() && uid == request.auth.uid;
+        }
+        match /signals/{edge} {
+          function pmEdge() {
+            let peers = edge.split('__');
+            return peers.size() == 2 && request.auth.uid in peers && inMeeting(peers[0]) && inMeeting(peers[1]);
+          }
+          function pmSender() { return edge.split('__')[0] == request.auth.uid; }
+          allow read: if pmEdge();
+          allow create, update: if pmEdge() && pmSender() &&
+            request.resource.data.keys().hasOnly(['description']) && request.resource.data.description is map;
+          allow delete: if pmEdge() && pmSender();
+          match /candidates/{candidateId} {
+            allow read: if pmEdge();
+            allow create: if pmEdge() && pmSender() && request.resource.data.keys().hasOnly(['candidate', 'sdpMid', 'sdpMLineIndex', 'usernameFragment']);
+          }
+        }
+      }
+    }
+
     match /users/{userId}/mutes/{targetId} {
       allow read, write: if isOwner(userId);
     }
@@ -2509,7 +2578,7 @@ service cloud.firestore {
         match /participants/{uid} {
           allow read: if meetingMember() && meetingScope(request.auth.uid, scope);
           allow create, update: if meetingMember() && uid == request.auth.uid && meetingScope(uid, scope) &&
-            request.resource.data.keys().hasOnly(['role', 'name', 'joinedAt']) && request.resource.data.role == 'participant' &&
+            request.resource.data.keys().hasOnly(['role', 'name', 'joinedAt', 'nonce', 'lastSeen']) && request.resource.data.role == 'participant' &&
             request.resource.data.name is string && request.resource.data.name.size() <= 200;
           // Removed or reassigned users may delete their own stale presence.
           allow delete: if isAuthenticated() && uid == request.auth.uid;
@@ -2639,9 +2708,9 @@ service cloud.firestore {
            request.resource.data.deletedAt is number &&
            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedAt', 'text', 'voiceUrl', 'imageUrl', 'gifUrl',
              'videoNoteUrl', 'mediaId', 'mediaType', 'telaDocument', 'attachment', 'linkPreview', 'reactions', 'isPinned',
-             'replyToText', 'storagePath', 'forwardedFrom', 'meetingRecap']) &&
+             'replyToText', 'storagePath', 'forwardedFrom', 'meetingRecap', 'meetingInvite']) &&
            !request.resource.data.keys().hasAny(['text', 'voiceUrl', 'imageUrl', 'gifUrl', 'videoNoteUrl', 'mediaId',
-             'telaDocument', 'attachment', 'linkPreview', 'storagePath', 'meetingRecap']))
+             'telaDocument', 'attachment', 'linkPreview', 'storagePath', 'meetingRecap', 'meetingInvite']))
         );
         allow delete: if isAdmin()
           || (isAuthenticated() && resource.data.senderId == request.auth.uid)
@@ -2650,6 +2719,30 @@ service cloud.firestore {
               && (resource.data.get('burnAfter', null) != null || resource.data.get('burnAfterSeen', false) == true || resource.data.get('giftMedia', false) == true)
               && exists(/databases/$(database)/documents/chat_rooms/$(roomId))
               && request.auth.uid in get(/databases/$(database)/documents/chat_rooms/$(roomId)).data.participants);
+      }
+
+      // Scheduled meetings (services/meetings/meetingSchedule). Members read; a registered member
+      // schedules; only whoever scheduled it changes or cancels it.
+      match /scheduled_meetings/{meetingId} {
+        function schedMember() {
+          return isAuthenticated() && exists(/databases/$(database)/documents/chat_rooms/$(roomId)) &&
+            request.auth.uid in get(/databases/$(database)/documents/chat_rooms/$(roomId)).data.participants;
+        }
+        function validSched(d) {
+          return d.keys().hasOnly(['roomId', 'title', 'startsAt', 'durationMin', 'agenda', 'recurrence', 'guestsAllowed',
+              'createdBy', 'createdByName', 'createdAt', 'canceledAt']) &&
+            d.roomId == roomId && d.title is string && d.title.size() > 0 && d.title.size() <= 120 &&
+            d.startsAt is number && d.durationMin is int && d.durationMin > 0 && d.durationMin <= 480 &&
+            (!('agenda' in d) || (d.agenda is string && d.agenda.size() <= 2000)) &&
+            (!('recurrence' in d) || d.recurrence in ['daily', 'weekdays', 'weekly', 'monthly', 'yearly']) &&
+            d.guestsAllowed is bool && d.createdByName is string && d.createdByName.size() <= 100;
+        }
+        allow read: if schedMember();
+        allow create: if schedMember() && isRegisteredUser() && request.resource.data.createdBy == request.auth.uid &&
+          !('canceledAt' in request.resource.data) && validSched(request.resource.data);
+        allow update: if schedMember() && resource.data.createdBy == request.auth.uid &&
+          request.resource.data.createdBy == resource.data.createdBy && validSched(request.resource.data);
+        allow delete: if isAuthenticated() && resource.data.createdBy == request.auth.uid;
       }
 
       // Meeting recordings (services/meetings/meetingRecording). Room members read; only the host

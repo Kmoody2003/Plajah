@@ -1,10 +1,16 @@
-// Chat basics lab — see chat-basics-lab.vite.config.mjs.  ?view=call shows the in-call recording controls.
-import React from 'react';
+// Chat basics lab — see chat-basics-lab.vite.config.mjs.
+//   ?view=call   in-call recording controls
+//   ?view=meet   schedule dialog + meeting invite card
+//   ?view=join   a meeting link as a guest (&as=member to see the member view)
+import React, { useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import '/index.css';
 import ChatWindow from './components/ChatWindow';
 import { MeetingRecordPanel, RecordingNotice, LiveCaptionsOverlay } from './components/meetings/MeetingRecordPanel';
+import { ScheduleMeetingDialog, MeetingInviteCard } from './components/meetings/ScheduleMeeting';
+import MeetingJoinPage from './components/meetings/MeetingJoinPage';
 import { LAB_ROOM } from './labs/chat-basics/backendShim';
+import { LAB_MEETING } from './labs/chat-basics/scheduleShim';
 
 const view = new URLSearchParams(location.search).get('view');
 
@@ -22,10 +28,27 @@ const CallControlsLab: React.FC = () => (
   </div>
 );
 
-createRoot(document.getElementById('root')!).render(
-  view === 'call' ? <CallControlsLab /> : (
-    <div style={{ height: '100vh', maxWidth: 760, margin: '0 auto' }}>
-      <ChatWindow room={LAB_ROOM} onOpenCollab={() => {}} />
+const MeetLab: React.FC = () => {
+  const [dialog, setDialog] = useState(true);
+  return (
+    <div style={{ minHeight: '100vh', background: '#050505', padding: 16, display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'flex-start' }}>
+      <div className="px-4 py-3 rounded-2xl bg-white/[0.08] border border-white/[0.06] text-white">
+        <MeetingInviteCard roomId={LAB_ROOM.id} onJoin={m => alert(`Join ${m.title}`)}
+          invite={{ meetingId: LAB_MEETING.id, title: LAB_MEETING.title, startsAt: LAB_MEETING.startsAt, durationMin: LAB_MEETING.durationMin, recurrence: LAB_MEETING.recurrence, guestsAllowed: true }} />
+      </div>
+      <button className="text-white underline" onClick={() => setDialog(true)}>Open schedule dialog</button>
+      {dialog && <ScheduleMeetingDialog roomId={LAB_ROOM.id} roomName="Worship Team" onClose={() => setDialog(false)} />}
     </div>
-  ),
+  );
+};
+
+createRoot(document.getElementById('root')!).render(
+  view === 'call' ? <CallControlsLab />
+    : view === 'meet' ? <MeetLab />
+    : view === 'join' ? <MeetingJoinPage meetingId={LAB_MEETING.id} onExit={() => {}} />
+    : (
+      <div style={{ height: '100vh', maxWidth: 760, margin: '0 auto' }}>
+        <ChatWindow room={LAB_ROOM} onOpenCollab={() => {}} />
+      </div>
+    ),
 );

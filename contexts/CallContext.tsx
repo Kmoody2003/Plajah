@@ -22,6 +22,9 @@ import VoiceRecorder from '../components/VoiceRecorder';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { watchClassroomMeeting } from '../services/classroomMeetings';
+import { HuddleDock } from '../components/meetings/Huddle';
+import type { MeetingSession } from '../components/VideoChat';
+import { meetingRtcCollection } from '../services/meetings/meetingSchedule';
 
 interface CallPeer { uid?: string; name?: string; photo?: string }
 
@@ -34,6 +37,8 @@ interface ActiveCall {
   callIds: string[];
   /** 'AUDIO' or 'VIDEO' — so the call UI opens in the right mode. */
   type?: CallSession['type'];
+  /** A scheduled meeting that admits guests runs on its own shared session. */
+  session?: MeetingSession;
 }
 
 /** A call the caller placed that went unanswered — offer to leave a voice message. */
@@ -47,6 +52,12 @@ interface CallContextType {
   placeCall: (room: ChatRoom, type?: CallSession['type']) => Promise<void>;
   /** Join a shared scheduled meeting without ringing the entire roster. */
   joinMeeting: (room: ChatRoom) => void;
+  /** Join a scheduled meeting from its invite card (guest-enabled ones use their own session). */
+  joinScheduledMeeting: (room: ChatRoom, meeting: { id: string; title: string; guestsAllowed: boolean }) => void;
+  /** Drop into the room's call audio-only, as a small floating bar that follows you around the app. */
+  startHuddle: (room: ChatRoom) => void;
+  /** Room id of the huddle you're in, if any. */
+  huddleRoomId: string | null;
   inCall: boolean;
 }
 
@@ -204,6 +215,30 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setActive({ room, isCaller: false, callIds: [], type: 'VIDEO' });
   }, [active]);
 
+  const [huddle, setHuddle] = useState<ChatRoom | null>(null);
+  const startHuddle = useCallback((room: ChatRoom) => {
+    if (!auth.currentUser || !room.participants.includes(auth.currentUser.uid)) throw new Error('Only members of this chat can join its huddle.');
+    if (active) throw new Error('Leave your current call first.');
+    setHuddle(room);
+  }, [active]);
+  const expandHuddle = useCallback(() => {
+    setHuddle(current => {
+      if (current) { hungUpRef.current = false; setActive({ room: current, isCaller: false, callIds: [], type: 'AUDIO' }); }
+      return null;
+    });
+  }, []);
+  const joinScheduledMeeting = useCallback((room: ChatRoom, meeting: { id: string; title: string; guestsAllowed: boolean }) => {
+    if (!auth.currentUser || !room.participants.includes(auth.currentUser.uid)) throw new Error('You are not a member of this meeting.');
+    if (active) throw new Error('Leave your current call before joining another meeting.');
+    setHuddle(null);
+    hungUpRef.current = false;
+    setMissed(null);
+    setActive({
+      room, isCaller: false, callIds: [], type: 'VIDEO',
+      ...(meeting.guestsAllowed ? { session: { collectionName: meetingRtcCollection(meeting, room.id), meetingId: meeting.id, title: meeting.title, role: 'member' as const } } : {}),
+    });
+  }, [active]);
+
   // Global incoming-call listener — rings anywhere in the app.
   useEffect(() => {
     if (!uid) return;
@@ -236,6 +271,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [uid]);
 
   const placeCall = useCallback(async (room: ChatRoom, type: CallSession['type'] = 'VIDEO') => {
+    setHuddle(null); // a full call replaces any huddle
     const me = auth.currentUser?.uid;
     const receivers = (room.participants || []).filter(p => p && p !== me);
     const meta = {
@@ -291,6 +327,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const acceptIncoming = useCallback(async () => {
     if (!incoming) return;
     await updateCallStatus(incoming.id, 'CONNECTED');
+    setHuddle(null);
     const room: ChatRoom = {
       id: incoming.roomId || `call_${incoming.id}`,
       name: incoming.roomName || incoming.callerName || 'Call',
@@ -341,7 +378,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [missed]);
 
   return (
-    <CallContext.Provider value={{ placeCall, joinMeeting, inCall: !!active }}>
+    <CallContext.Provider value={{ placeCall, joinMeeting, joinScheduledMeeting, startHuddle, huddleRoomId: huddle?.id ?? null, inCall: !!active }}>
       {children}
       <AnimatePresence>
         {incoming && !active && (
@@ -353,6 +390,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
           <MissedCallCard missed={missed} onSend={sendMissedVoice} onDismiss={() => setMissed(null)} />
         )}
       </AnimatePresence>
+      {huddle && !active && <HuddleDock key={huddle.id} room={huddle} onLeave={() => setHuddle(null)} onExpand={expandHuddle} />}
       <AnimatePresence>
         {active && (
           <Suspense key={active.room.id} fallback={null}>
@@ -361,6 +399,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
             room={active.room}
             user={auth.currentUser}
             callType={active.type || 'VIDEO'}
+            session={active.session}
             ringingName={active.isCaller ? active.ringingName : undefined}
             contacts={contacts}
             onInvite={(userId) => inviteToCall(active.room, userId)}
@@ -372,6 +411,11 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     </CallContext.Provider>
   );
 };
+
+/** Same as useCall, but null outside a CallProvider (labs, embeds). */
+export function useCallOptional(): CallContextType | null {
+  return useContext(CallContext) ?? null;
+}
 
 export function useCall(): CallContextType {
   const ctx = useContext(CallContext);
