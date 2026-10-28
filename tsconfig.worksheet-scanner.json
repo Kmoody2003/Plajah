@@ -3,6 +3,9 @@
   "compilerOptions": { "noEmit": true, "skipLibCheck": true, "incremental": false },
   "include": [
     "services/worksheetScanCore.ts",
+    "services/worksheetKeys.ts",
+    "routes/worksheetGrading.ts",
+    "tests/worksheetGradingRoute.test.ts",
     "services/worksheetDigitizer.ts",
     "services/worksheetLocalVision.ts",
     "services/worksheetAssignmentService.ts",

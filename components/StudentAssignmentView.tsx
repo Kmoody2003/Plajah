@@ -21,12 +21,12 @@ import WorksheetTutorPanel from './WorksheetTutorPanel';
 import { TimeAttackMode, generateProblem, type MathProblem, type TimeAttackSessionResult } from './MathClassroom';
 import { completionPercent, readCompletedWorksheet, type DigitalWorksheet } from '../services/worksheetDigitizer';
 import { prepareWorksheetImage, type PreparedWorksheetImage } from '../services/worksheetImagePipeline';
-import { turnInWorksheet, fetchWorksheet, markWorksheetOpened } from '../services/worksheetAssignmentService';
+import { turnInWorksheet, fetchWorksheet, markWorksheetOpened, checkWorksheetWork } from '../services/worksheetAssignmentService';
 import { installAssignmentQualityTelemetry, recordAssignmentQualityEvent, submitAssignmentQualityFeedback } from '../services/assignmentQualityService';
 import { recordTimeAttackResult } from '../services/mathChallengeService';
 import { appendRecord } from '../services/learningLedgerService';
 import { mathStandardForGrade } from '../data/educationStandards';
-import { selfCheckWorksheet, type SelfCheckResult } from '../services/worksheetScanCore';
+import type { SelfCheckResult } from '../services/worksheetScanCore';
 import { takeWorksheetOpenIntent } from '../services/worksheetOpen';
 import { warmOcr } from '../services/worksheetLocalVision';
 import { useViewport } from '../hooks/useViewport';
@@ -99,9 +99,10 @@ const StudentAssignmentView: React.FC<Props> = ({ user, onBack, worksheet, works
   // A scan that arrives pre-filled gets checked straight away.
   useEffect(() => {
     if (!intent?.prefill || loading) return;
-    const result = selfCheckWorksheet(sheet, answers, readConfidence);
-    setCheck(result);
-    if (result.ready) setConfirmOpen(true);
+    void checkWorksheetWork(sheet, worksheetId || sheet.id, answers, readConfidence).then(result => {
+      setCheck(result);
+      if (result.ready) setConfirmOpen(true);
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading]);
 
@@ -137,8 +138,9 @@ const StudentAssignmentView: React.FC<Props> = ({ user, onBack, worksheet, works
     });
   };
 
-  const runCheck = () => {
-    const result = selfCheckWorksheet(sheet, answers, readConfidence);
+  // The student copy has no answer key, so checks go to the server (checkWorksheetWork).
+  const runCheck = async () => {
+    const result = await checkWorksheetWork(sheet, worksheetId || sheet.id, answers, readConfidence);
     setCheck(result); setChecks(n => n + 1);
     const first = sheet.fields.find(f => ['try-again', 'blank', 'check-read'].includes(result.perField[f.id]?.status));
     if (first) document.getElementById(`ws-field-${first.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -184,7 +186,7 @@ const StudentAssignmentView: React.FC<Props> = ({ user, onBack, worksheet, works
       const nextAnswers = { ...answers, ...read };
       const nextConf = { ...readConfidence, ...Object.fromEntries(Object.keys(read).map(id => [id, recognized.confidence[id] ?? .5])) };
       setAnswers(nextAnswers); setReadConfidence(nextConf);
-      const result = selfCheckWorksheet(sheet, nextAnswers, nextConf);
+      const result = await checkWorksheetWork(sheet, worksheetId || sheet.id, nextAnswers, nextConf);
       setCheck(result); setChecks(n => n + 1);
       const placed = recognized.registration && recognized.registration.matched < 2 && sheet.fields.length >= 2
         ? ' The photo didn\'t line up well — retake it flat and straight, or type your answers.' : '';
@@ -218,7 +220,7 @@ const StudentAssignmentView: React.FC<Props> = ({ user, onBack, worksheet, works
   );
 
   const counts = check?.counts;
-  const openTurnIn = () => { runCheck(); setConfirmOpen(true); };
+  const openTurnIn = () => { void runCheck(); setConfirmOpen(true); };
 
   return (
     <div style={{ minHeight: '100%', background: T.bg, color: T.ink, padding: isPhone ? '14px 12px calc(110px + env(safe-area-inset-bottom))' : '20px 16px 70px', fontFamily: T.font }}>

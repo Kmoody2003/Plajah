@@ -53,6 +53,7 @@ import { learnerAuthRouter } from './routes/learnerAuth';
 import { schoolsRouter } from './routes/schools';
 import { elevateAccountsRouter } from './routes/elevateAccounts';
 import { templateShareRouter } from './routes/templateShare';
+import { worksheetGradingRouter } from './routes/worksheetGrading';
 import { createBusinessStaffRouter } from './routes/businessStaff';
 import { registerPermsFor as bizRegisterPermsFor, normalizePerms as normalizeBizPerms, type BizPerm } from './services/businessStaffCore';
 import { staffActorInfo as bizStaffActorInfo } from './services/businessStaffServerCore';
@@ -13727,6 +13728,10 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   // Elevate: claim a pre-provisioned member / staff account (member ID + last name, or own email). Rate-limited.
   app.use('/api/elevate/claim', authLimiter);
   app.use('/api/elevate/claim', express.json({ limit: '8kb' }), elevateAccountsRouter);
+  // Academia worksheets: Check my work + turn-in grading run here, where the answer key lives (routes/worksheetGrading.ts).
+  // Checks are capped so a student can't brute-force a key by guessing every choice.
+  app.use('/api/worksheets', rateLimit({ windowMs: 15 * 60 * 1000, max: 120, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many checks — take a breath and try again in a few minutes.' } }));
+  app.use('/api/worksheets', express.json({ limit: '256kb' }), worksheetGradingRouter);
   // Template library: sharing to the platform shelf is server-decided (org policy + real roles, stripping). Rate-limited.
   app.use('/api/templates/share', authLimiter);
   app.use('/api/templates/share', express.json({ limit: '1mb' }), templateShareRouter);

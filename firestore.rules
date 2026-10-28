@@ -5334,6 +5334,20 @@ service cloud.firestore {
       allow delete: if isAuthenticated() && (resource.data.createdBy == request.auth.uid || isAdmin());
     }
 
+    // The answer key split off a published worksheet (services/worksheetKeys.ts): its teacher only.
+    // Students check and turn in through routes/worksheetGrading.ts, which reads this server-side.
+    match /digital_worksheet_keys/{worksheetId} {
+      allow read, delete: if isAuthenticated() && (resource.data.createdBy == request.auth.uid || isAdmin());
+      allow create: if worksheetKeyWrite(worksheetId);
+      allow update: if worksheetKeyWrite(worksheetId) && resource.data.createdBy == request.auth.uid;
+    }
+    function worksheetKeyWrite(worksheetId) {
+      return isAuthenticated() && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.worksheetId == worksheetId
+        && exists(/databases/$(database)/documents/digital_worksheets/$(worksheetId))
+        && get(/databases/$(database)/documents/digital_worksheets/$(worksheetId)).data.createdBy == request.auth.uid;
+    }
+
     // A family member's scanned school flyer, shared onto the linked family's calendars. The owner
     // writes once; recipients only read (the calendar's Plajah layer). Recipients are capped so a
     // share can never become a broadcast.
@@ -5369,7 +5383,11 @@ service cloud.firestore {
     }
 
     // Students own their response content; the linked teacher owns assignment/grade review.
-    // Identity and assignment pointers cannot be swapped during an update.
+    // Identity and assignment pointers cannot be swapped during an update. Grades come only from
+    // the server grader (routes/worksheetGrading.ts) or the teacher, never the student's device.
+    function worksheetGradeFields() {
+      return ['score', 'maxScore', 'percent', 'needsManualReview', 'gradedAt', 'preAssessment', 'teacherOverrides', 'teacherReviewedAt'];
+    }
     match /worksheet_submissions/{submissionId} {
       allow read: if isAuthenticated() && (
         resource.data.studentId == request.auth.uid ||
@@ -5379,7 +5397,7 @@ service cloud.firestore {
         isAdmin()
       );
       allow create: if isAuthenticated() && request.resource.data.assignmentId is string && (
-        request.resource.data.studentId == request.auth.uid ||
+        (request.resource.data.studentId == request.auth.uid && !request.resource.data.keys().hasAny(worksheetGradeFields())) ||
         worksheetAssignment(request.resource.data.assignmentId).teacherUid == request.auth.uid ||
         isAdmin()
       );
@@ -5387,9 +5405,10 @@ service cloud.firestore {
         request.resource.data.studentId == resource.data.studentId &&
         request.resource.data.worksheetId == resource.data.worksheetId &&
         request.resource.data.assignmentId == resource.data.assignmentId && (
-          resource.data.studentId == request.auth.uid ||
           worksheetAssignment(resource.data.assignmentId).teacherUid == request.auth.uid ||
-          isAdmin()
+          isAdmin() ||
+          (resource.data.studentId == request.auth.uid
+            && !request.resource.data.diff(resource.data).affectedKeys().hasAny(worksheetGradeFields()))
         );
       allow delete: if isAuthenticated() && (
         worksheetAssignment(resource.data.assignmentId).teacherUid == request.auth.uid || isAdmin()
