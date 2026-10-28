@@ -702,6 +702,73 @@ service cloud.firestore {
       allow update: if orgAdminOf(resource.data.orgId) || isAdmin();
       allow delete: if isAdmin();
     }
+    // ── Live co-editing of creative projects (services/coedit) ───────────────────────────────
+    // coedit/{projectId} holds membership (owner, members {uid: role}, memberIds). Only the owner
+    // manages who's in; editors may rename; anyone but the owner may leave. Subcollections carry
+    // the live op log, compacted snapshots (chunks), shared + private history, presence and each
+    // member's held draft. Self-contained: nothing here reads plajah-prod.
+    match /coedit/{pid} {
+      function co() { return get(/databases/$(database)/documents/coedit/$(pid)).data; }
+      function coRole() { return co().members.get(request.auth.uid, ''); }
+      function coMember() { return isAuthenticated() && coRole() != ''; }
+      function coEditor() { return isAuthenticated() && coRole() in ['owner', 'editor']; }
+      function coShape(d) {
+        return d.ownerId is string && d.kind is string && d.title is string && d.title.size() <= 300 &&
+          d.members is map && d.memberIds is list && d.memberIds.size() <= 200 &&
+          d.members.get(d.ownerId, '') == 'owner' && d.ownerId in d.memberIds;
+      }
+      allow read: if isAuthenticated() && request.auth.uid in resource.data.memberIds;
+      allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid &&
+        request.resource.data.memberIds == [request.auth.uid] && coShape(request.resource.data) &&
+        pid.matches('^' + request.resource.data.kind + '__.+$');
+      allow update: if isAuthenticated() && coShape(request.resource.data) &&
+        request.resource.data.ownerId == resource.data.ownerId && request.resource.data.kind == resource.data.kind && (
+          resource.data.ownerId == request.auth.uid ||
+          (resource.data.members.get(request.auth.uid, '') == 'editor' &&
+           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'updatedAt', 'chatRoomId'])) ||
+          (request.auth.uid in resource.data.memberIds && !(request.auth.uid in request.resource.data.memberIds) &&
+           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members', 'memberIds', 'names', 'photos', 'updatedAt']) &&
+           request.resource.data.members.diff(resource.data.members).affectedKeys().hasOnly([request.auth.uid]) &&
+           request.resource.data.memberIds.size() == resource.data.memberIds.size() - 1)
+        );
+      allow delete: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
+
+      match /ops/{batchId} {
+        allow read: if coMember();
+        allow create, update: if coEditor() && request.resource.data.u == request.auth.uid &&
+          request.resource.data.ops is string && request.resource.data.ops.size() < 1048000 &&
+          request.resource.data.at == request.time &&
+          (resource == null || resource.data.u == request.auth.uid);
+        allow delete: if coEditor();
+      }
+      match /snap/{key} {
+        allow read: if coMember();
+        allow write: if coEditor();
+      }
+      match /chunks/{key} {
+        allow read: if coMember();
+        allow create, update: if coMember() && request.resource.data.d is string && request.resource.data.d.size() < 1000000;
+        allow delete: if coMember();
+      }
+      match /versions/{vid} {
+        allow read: if coMember() && (resource.data.private == false || resource.data.by == request.auth.uid);
+        allow create: if coMember() && request.resource.data.by == request.auth.uid &&
+          request.resource.data.private is bool && (coEditor() || request.resource.data.private == true);
+        allow update: if coMember() && (resource.data.by == request.auth.uid || coEditor()) &&
+          request.resource.data.by == resource.data.by && request.resource.data.private == resource.data.private;
+        allow delete: if coMember() && (resource.data.by == request.auth.uid || coRole() == 'owner' ||
+          (coEditor() && resource.data.reason == 'checkpoint'));
+      }
+      match /presence/{key} {
+        allow read: if coMember();
+        allow create, update: if coMember() && request.resource.data.uid == request.auth.uid && key.matches('^' + request.auth.uid + '_.+$');
+        allow delete: if coMember() && (key.matches('^' + request.auth.uid + '_.+$') || coEditor());
+      }
+      match /drafts/{uid} {
+        allow read, write: if coMember() && uid == request.auth.uid;
+      }
+    }
+
     match /contentRepurposeJobs/{jobId} {
       allow read: if orgAdminOf(resource.data.orgId) || isAdmin();
       allow create: if orgAdminOf(request.resource.data.orgId) || isAdmin();

@@ -22,8 +22,9 @@ import {
   decodeCtx, renderAlbum, renderAlbumContinuous, seedAlbumCreator, exportAlbumZip, projectUid,
   albumLayout, setCrossfade, crossfadeAt, DISC_FORMATS, discFormatById, checkFormatFit, effectiveDur, moveTrack,
   exportPhysicalPackage,
-  type ProjectTrack,
+  type ProjectTrack, type MasterProjectDoc,
 } from '../../../../services/melos/beats/masterProject';
+import { reconcileInPlace } from '../../../../services/melos/beats/reconcileInPlace';
 import { deskOf, presetById } from '../../../../services/melos/beats/releaseDesk';
 import type { FxInstance } from '../../../../services/melos/beats/fx/devices';
 import { ingestSample, backupToLocker, hydrateSample } from '../../../../services/melos/beats/sampleStore';
@@ -32,6 +33,8 @@ import { encodeWav } from '../../../../services/audio/wavEncode';
 import type { MelosSong, MelosArrangement } from '../../../../services/melosService';
 import type { EngineSnapshot } from '../useEngineBridge';
 import { useMasterProject } from './useMasterProject';
+import { useChoraCoedit } from '../useChoraCoedit';
+import { CollabDock } from '../../../collab/CollabDock';
 import { useMelosSongs } from './useMelosSongs';
 import { FxRack } from './FxRack';
 import { TrackAssets } from './TrackAssets';
@@ -120,6 +123,8 @@ interface ProjectViewProps {
   melosArrangements?: MelosArrangement[];
   /** Optional arrangement pre-selected from ArrangeRoom ("Send to Chora Mastering Desk"). */
   activeArrangementId?: string | null;
+  /** The host's header row — the collaboration panel opens just below it. */
+  collabAnchor?: React.RefObject<HTMLElement | null>;
 }
 
 const readState = (doc: GrooveDoc): MasteringState => {
@@ -170,13 +175,23 @@ export const ProjectView: React.FC<ProjectViewProps> = ({
   melosSongs,
   melosArrangements,
   activeArrangementId,
+  collabAnchor,
 }) => {
   const state = readState(doc);
   const era = eraById(state.eraId);
   const loud = snap.loudness;
   /** The album's pressing, or null when it's switched off — what a track inherits. */
   const albumPressing = state.on ? state : null;
-  const { project, mutateProject, saveState, saveNow, reload: reloadProject } = useMasterProject(productionId);
+  const {
+    project, mutateProject, saveState, saveNow, reload: reloadProject,
+    rev: projectRev, applyRemote: applyRemoteProject, getProject, localId: projectLocalId,
+  } = useMasterProject(productionId);
+  // Live collaboration on the album project (inert until shared). The master FX rack follows
+  // remote edits through the masterFx effect below (reconcileInPlace hands it a new array).
+  const projectTitle = project.publishing?.title || 'Album project';
+  const co = useChoraCoedit<MasterProjectDoc>({
+    kind: 'melos', localId: projectLocalId, title: projectTitle, rev: projectRev, getDoc: getProject, applyRemote: applyRemoteProject,
+  });
   const [bay, setBay] = useState<BayId>('pressing');
   const [deckTrackId, setDeckTrackId] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -824,6 +839,23 @@ export const ProjectView: React.FC<ProjectViewProps> = ({
   return (
     <div className="flex-1 min-h-0 flex flex-col">
       <StudioMenuPublisher owner="mastering" menus={menus} save={{ state: saveState, onSave: () => { void saveNow(); }, what: 'mastering project' }} />
+      <CollabDock<MasterProjectDoc>
+        co={co}
+        kind="melos"
+        title={projectTitle}
+        doc={project}
+        localId={projectLocalId}
+        serialize={(p) => JSON.stringify(p)}
+        restoreSolo={(json) => {
+          const restored = JSON.parse(json) as MasterProjectDoc;
+          if (!restored || !Array.isArray(restored.tracks)) return;
+          mutateProject((p) => { reconcileInPlace(p, { ...restored, id: p.id }); });
+          void saveNow();
+        }}
+        anchor={collabAnchor}
+        top={collabAnchor ? undefined : 56}
+        pill="bottom-right"
+      />
       <div className="flex-1 min-h-0 overflow-auto p-4">
       <div className={`${slabPanel} p-5`}>
 

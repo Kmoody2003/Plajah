@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": true, "skipLibCheck": true, "incremental": false },
+  "include": [
+    "components/plajahPixels/pixelsProjectDoc.ts",
+    "components/plajahPixels/usePixelsProject.ts",
+    "components/plajahPixels/PlajahPixelsStudio.tsx",
+    "components/PlajahPixelsView.tsx",
+    "hooks/useCoedit.ts",
+    "components/collab/*.tsx",
+    "vite-env.d.ts"
+  ],
+  "exclude": []
+}

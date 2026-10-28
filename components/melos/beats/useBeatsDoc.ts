@@ -3,15 +3,26 @@
 // React re-renders via a revision counter. Persistence: autosaved to the user's Melos scratch
 // production (melosProductions/scratch_{uid}/grooves), samples hydrated from OPFS → locker.
 // Signed-out sessions run fully in-memory ('local') and upgrade when auth appears.
+//
+// Offline-first: every edit is written to IndexedDB (localDocCache) before the Firestore save, so
+// signed-out / offline work survives a reload; opening a groove compares the local copy with
+// Firestore's by updatedAt and takes the newer. Each save also queues a personal creative-cloud
+// copy (kind 'beats') for version history. Live collaboration merges arrive through
+// `applyRemote`, which folds the merged doc into the SAME object (reconcileInPlace) — the engine
+// keeps its reference, playback keeps running, samples only hydrate when new ones appear, and
+// the local undo stack is left alone.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { auth } from '../../../services/firebase';
 import { BeatsEngine } from '../../../services/melos/beats/engine/BeatsEngine';
-import { newGrooveDoc, type GrooveDoc } from '../../../services/melos/beats/grooveDoc';
+import { newGrooveDoc, deserializeGroove, type GrooveDoc } from '../../../services/melos/beats/grooveDoc';
 import {
   ensureScratchProduction, saveGroove, loadGroove, listGrooves, deleteGroove, type GrooveSummary,
 } from '../../../services/melos/beats/grooveStore';
 import { hydrateSample, requestPersistentStorage } from '../../../services/melos/beats/sampleStore';
+import { LOCAL_PROD, delLocal, getLocal, listLocal, markSynced, pickNewer, putLocal, type LocalEntry } from '../../../services/melos/beats/localDocCache';
+import { reconcileInPlace } from '../../../services/melos/beats/reconcileInPlace';
+import { scheduleCreativeSync } from '../../../services/creativeCloud/cloudStore';
 
 export type SaveState = 'local' | 'unsaved' | 'saving' | 'saved';
 
@@ -27,10 +38,52 @@ export interface BeatsDocApi {
   canUndo: boolean;
   canRedo: boolean;
   replace: (doc: GrooveDoc) => void;
+  /** Fold a collaborator's merged doc into the live one — keeps undo, engine, samples. */
+  applyRemote: (doc: GrooveDoc) => void;
+  /** Read the live doc (for snapshots taken outside render). */
+  getDoc: () => GrooveDoc;
   saveNow: () => Promise<void>;
   openGroove: (grooveId: string) => Promise<void>;
   newGroove: () => void;
   removeGroove: (grooveId: string) => Promise<void>;
+}
+
+function sampleKeys(doc: GrooveDoc): string {
+  const keys: string[] = [];
+  for (const p of doc.kit) if (p.sample) keys.push(p.sample.key);
+  for (const t of doc.arrangement) for (const c of t.clips) if (c.audio) keys.push(c.audio.sampleKey);
+  return keys.sort().join('|');
+}
+
+/** Firestore's groove list plus anything only this device has (signed-out / offline edits). */
+async function listMerged(prodId: string | null): Promise<GrooveSummary[]> {
+  const [remote, local] = await Promise.all([
+    prodId ? listGrooves(prodId) : Promise.resolve([] as GrooveSummary[]),
+    listLocal('groove', [prodId, LOCAL_PROD]),
+  ]);
+  const byId = new Map(remote.map((g) => [g.id, g]));
+  for (const l of local) {
+    const r = byId.get(l.id);
+    if (!r || (!l.synced && l.updatedAt > r.updatedAt)) {
+      byId.set(l.id, { id: l.id, name: l.name || 'Groove', bpm: l.bpm || 120, updatedAt: l.updatedAt, unsynced: !l.synced });
+    }
+  }
+  return [...byId.values()].sort((a, b) => b.updatedAt - a.updatedAt);
+}
+
+/** The newest copy of a groove: this device's (under the production or signed-out) vs Firestore's. */
+async function loadBest(prodId: string | null, grooveId: string): Promise<{ doc: GrooveDoc; unsynced: boolean } | null> {
+  const [inProd, anon, remote] = await Promise.all([
+    prodId ? getLocal<GrooveDoc>('groove', prodId, grooveId) : Promise.resolve(null),
+    getLocal<GrooveDoc>('groove', LOCAL_PROD, grooveId),
+    prodId ? loadGroove(prodId, grooveId) : Promise.resolve(null),
+  ]);
+  let local: LocalEntry<GrooveDoc> | null = inProd;
+  if (anon && (!local || anon.updatedAt > local.updatedAt)) local = anon;
+  const pick = pickNewer(local, remote);
+  if (!pick) return null;
+  const doc = pick.fromLocal ? deserializeGroove(pick.doc) : pick.doc;
+  return doc ? { doc, unsynced: pick.unsynced } : null;
 }
 
 async function hydrateDocSamples(doc: GrooveDoc): Promise<void> {
@@ -85,21 +138,52 @@ export function useBeatsDoc(launchGrooveId?: string, launchProdId?: string): Bea
   const cloneDoc = (doc: GrooveDoc): GrooveDoc => JSON.parse(JSON.stringify(doc));
   const bump = () => setRev((r) => r + 1);
 
-  const saveNow = useCallback(async () => {
-    const prodId = prodIdRef.current;
-    if (!prodId || !docRef.current) return;
-    setSaveState('saving');
-    const ok = await saveGroove(prodId, docRef.current);
-    setSaveState(ok ? 'saved' : 'unsaved');
-    if (ok) setGrooves(await listGrooves(prodId));
+  // ── Local copy (IndexedDB) — written on every change, ahead of the Firestore save ──
+  const localTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const persistLocalNow = useCallback(async () => {
+    if (localTimer.current) { clearTimeout(localTimer.current); localTimer.current = null; }
+    const d = docRef.current;
+    if (d) await putLocal('groove', prodIdRef.current, d);
   }, []);
+  const scheduleLocal = useCallback(() => {
+    if (localTimer.current) clearTimeout(localTimer.current);
+    localTimer.current = setTimeout(() => { localTimer.current = null; void persistLocalNow(); }, 300);
+  }, [persistLocalNow]);
+  useEffect(() => {
+    const flush = () => { if (localTimer.current) void persistLocalNow(); };
+    const onVis = () => { if (document.visibilityState === 'hidden') flush(); };
+    window.addEventListener('pagehide', flush);
+    document.addEventListener('visibilitychange', onVis);
+    return () => { window.removeEventListener('pagehide', flush); document.removeEventListener('visibilitychange', onVis); flush(); };
+  }, [persistLocalNow]);
+
+  const saveNow = useCallback(async () => {
+    if (saveTimer.current) { clearTimeout(saveTimer.current); saveTimer.current = null; }
+    const d = docRef.current;
+    if (!d) return;
+    await persistLocalNow(); // the device copy first — it survives anything the network does
+    const prodId = prodIdRef.current;
+    if (!prodId) { setSaveState('local'); return; }
+    const at = d.updatedAt;
+    setSaveState('saving');
+    const ok = await saveGroove(prodId, d);
+    setSaveState(ok ? 'saved' : 'unsaved');
+    // Personal cloud copy + version history (the creative cloud coalesces bursts into one upload).
+    scheduleCreativeSync({ kind: 'beats', localId: d.id, title: d.name || 'Groove', json: JSON.stringify(d) });
+    if (ok) {
+      void markSynced('groove', prodId, d.id, at);
+      void delLocal('groove', LOCAL_PROD, d.id); // a signed-out copy now lives in the production
+      setGrooves(await listMerged(prodId));
+    }
+  }, [persistLocalNow]);
 
   const scheduleSave = useCallback(() => {
+    scheduleLocal();
     if (!prodIdRef.current) return;
     setSaveState('unsaved');
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => { void saveNow(); }, 2500);
-  }, [saveNow]);
+  }, [saveNow, scheduleLocal]);
 
   const lastCoalesce = useRef<string | null>(null);
   const mutate = useCallback((fn: (d: GrooveDoc) => void, opts?: { coalesce?: string }) => {
@@ -122,13 +206,46 @@ export function useBeatsDoc(launchGrooveId?: string, launchProdId?: string): Bea
     scheduleSave();
   }, [scheduleSave]);
 
-  const replace = useCallback((doc: GrooveDoc) => {
+  // Swap in a different document (open, new, import) — a fresh undo history and engine load.
+  const swapIn = useCallback((doc: GrooveDoc) => {
+    if (localTimer.current) void persistLocalNow(); // don't drop the outgoing doc's last edits
     historyRef.current = { past: [], future: [] };
     docRef.current = doc;
     BeatsEngine.get().loadDoc(doc);
     bump();
     void hydrateDocSamples(doc).then(bump);
-  }, []);
+  }, [persistLocalNow]);
+
+  /** Public replace (imports, templates, save-a-copy): also kept on this device right away. */
+  const replace = useCallback((doc: GrooveDoc) => {
+    swapIn(doc);
+    scheduleLocal();
+  }, [swapIn, scheduleLocal]);
+
+  // A collaborator's edit, a shared restore or a session undo: the merged doc is folded INTO the
+  // live object, so the engine's reference, in-flight gestures and the undo stack all survive.
+  // No loadDoc — applyDocPatch re-applies params/tempo/automation without stopping playback.
+  const applyRemote = useCallback((merged: GrooveDoc) => {
+    const d = docRef.current;
+    if (!d || merged.id !== d.id) return; // a late merge for a groove we've since left
+    const keysBefore = sampleKeys(d);
+    const eqBefore = JSON.stringify(d.mixer?.master?.eq ?? null);
+    const masteringBefore = JSON.stringify(d.mixer?.master?.mastering ?? null);
+    if (!reconcileInPlace(d, merged)) return;
+    lastCoalesce.current = null;
+    gestureRef.current.snapped = false;
+    const engine = BeatsEngine.get();
+    engine.applyDocPatch({});
+    const eq = d.mixer?.master?.eq;
+    if (eq && JSON.stringify(eq) !== eqBefore) engine.updateMasterEq(eq as never);
+    const mastering = d.mixer?.master?.mastering;
+    if (mastering && JSON.stringify(mastering) !== masteringBefore) engine.updateMastering(mastering as never);
+    bump();
+    scheduleSave();
+    if (sampleKeys(d) !== keysBefore) void hydrateDocSamples(d).then(bump);
+  }, [scheduleSave]);
+
+  const getDoc = useCallback(() => docRef.current!, []);
 
   const restoreHistory = useCallback((doc: GrooveDoc) => {
     gestureRef.current.snapped = false; // undo mid-drag: the rest of the drag is a fresh step
@@ -158,57 +275,92 @@ export function useBeatsDoc(launchGrooveId?: string, launchProdId?: string): Bea
 
   const openGroove = useCallback(async (grooveId: string) => {
     const prodId = prodIdRef.current;
-    if (!prodId) return;
-    const loaded = await loadGroove(prodId, grooveId);
-    if (loaded) { replace(loaded); setSaveState('saved'); }
-  }, [replace]);
+    const best = await loadBest(prodId, grooveId);
+    if (!best) return;
+    swapIn(best.doc);
+    if (!prodId) { setSaveState('local'); return; }
+    if (best.unsynced) scheduleSave(); // offline / signed-out edits newer than Firestore — push them up
+    else setSaveState('saved');
+  }, [swapIn, scheduleSave]);
 
   const newGroove = useCallback(() => {
-    replace(newGrooveDoc(auth.currentUser?.uid || ''));
+    swapIn(newGrooveDoc(auth.currentUser?.uid || ''));
     setSaveState(prodIdRef.current ? 'unsaved' : 'local');
     scheduleSave();
-  }, [replace, scheduleSave]);
+  }, [swapIn, scheduleSave]);
 
   const removeGroove = useCallback(async (grooveId: string) => {
     const prodId = prodIdRef.current;
-    if (!prodId) return;
-    await deleteGroove(prodId, grooveId);
-    setGrooves(await listGrooves(prodId));
+    if (prodId) await deleteGroove(prodId, grooveId);
+    await delLocal('groove', prodId, grooveId);
+    await delLocal('groove', LOCAL_PROD, grooveId);
+    setGrooves(await listMerged(prodId));
     if (docRef.current?.id === grooveId) newGroove();
   }, [newGroove]);
+
+  // Open the launch groove from the best copy available. Runs signed out (this device only) and
+  // again once auth attaches (device vs Firestore).
+  const openLaunch = async (isCancelled: () => boolean) => {
+    if (!launchGrooveId) return;
+    const prodId = prodIdRef.current;
+    const best = await loadBest(prodId, launchGrooveId);
+    // Cancelled, or auth attached meanwhile (its own pass, with Firestore, decides instead).
+    if (isCancelled() || prodIdRef.current !== prodId) return;
+    const cur = docRef.current!;
+    if (best) {
+      if (cur.id === best.doc.id && (cur.updatedAt || 0) >= (best.doc.updatedAt || 0)) {
+        // Already showing this version (or newer edits made before sign-in) — keep it, push it up.
+        if (prodId) scheduleSave();
+        return;
+      }
+      swapIn(best.doc);
+      if (!prodId) setSaveState('local');
+      else if (best.unsynced) scheduleSave();
+      else setSaveState('saved');
+      return;
+    }
+    if (cur.id === launchGrooveId) { setSaveState(prodId ? 'unsaved' : 'local'); return; }
+    // A brand-new song's project may not have finished its first save yet. Start blank but
+    // UNDER the linked id, so the very first edit autosaves back to the song's project.
+    // updatedAt 0: an untouched blank must never outrank a real copy found later.
+    const blank = newGrooveDoc(auth.currentUser?.uid || '', 'Untitled');
+    blank.id = launchGrooveId;
+    blank.updatedAt = 0;
+    swapIn(blank); setSaveState(prodId ? 'unsaved' : 'local');
+  };
 
   // Attach persistence when auth is available (immediately, or on later sign-in).
   useEffect(() => {
     requestPersistentStorage();
     let cancelled = false;
+    const isCancelled = () => cancelled;
     const attach = async () => {
       if (prodIdRef.current === null) {
         const prodId = launchProdId || (await ensureScratchProduction());
         if (cancelled || !prodId) return;
         prodIdRef.current = prodId;
       }
-      const list = await listGrooves(prodIdRef.current);
+      const list = await listMerged(prodIdRef.current);
       if (cancelled) return;
       setGrooves(list);
       // Only open a groove the caller explicitly asked for. A fresh Studio session (or a New
       // Song) must be a BLANK timeline — do NOT auto-resume list[0], which showed the user a
       // previous session's clips. Saved grooves are still one click away in the groove list.
-      if (launchGrooveId) {
-        const loaded = await loadGroove(prodIdRef.current, launchGrooveId);
-        if (cancelled) return;
-        if (loaded) { replace(loaded); setSaveState('saved'); return; }
-        // A brand-new song's project may not have finished its first save yet. Start blank but
-        // UNDER the linked id, so the very first edit autosaves back to the song's project.
-        const blank = newGrooveDoc(auth.currentUser?.uid || '', 'Untitled');
-        blank.id = launchGrooveId;
-        replace(blank); setSaveState('unsaved'); return;
-      }
+      if (launchGrooveId) { await openLaunch(isCancelled); return; }
       setSaveState('unsaved'); // fresh blank doc, autosaves on first edit
     };
     if (auth.currentUser) void attach();
+    else {
+      // Signed out: this device's copy is the only one — open it and list local grooves.
+      void (async () => {
+        await openLaunch(isCancelled);
+        const list = await listMerged(null);
+        if (!cancelled && !prodIdRef.current) setGrooves(list);
+      })();
+    }
     const unsub = auth.onAuthStateChanged((u) => { if (u && !prodIdRef.current) void attach(); });
     return () => { cancelled = true; unsub(); if (saveTimer.current) clearTimeout(saveTimer.current); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return { doc: docRef.current, rev, saveState, grooves, mutate, undo, redo, canUndo: historyRef.current.past.length > 0, canRedo: historyRef.current.future.length > 0, replace, saveNow, openGroove, newGroove, removeGroove };
+  return { doc: docRef.current, rev, saveState, grooves, mutate, undo, redo, canUndo: historyRef.current.past.length > 0, canRedo: historyRef.current.future.length > 0, replace, applyRemote, getDoc, saveNow, openGroove, newGroove, removeGroove };
 }

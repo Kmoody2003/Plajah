@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "skipLibCheck": true,
+    "incremental": false
+  },
+  "include": [
+    "services/fabula/fabulaSync.ts",
+    "hooks/useCoedit.ts",
+    "components/collab/**/*.tsx",
+    "components/collab/**/*.ts",
+    "vite-env.d.ts"
+  ],
+  "exclude": []
+}

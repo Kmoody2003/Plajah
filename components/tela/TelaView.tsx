@@ -31,6 +31,13 @@ import {
   publishTelaVersion,
 } from '../../services/telaStore';
 import { CreativeStorageMeter, CreativeVersionHistory, useCreativeSyncState } from '../creative/CreativeCloudPanels';
+import { useCoedit, type UseCoedit } from '../../hooks/useCoedit';
+import { CollabDock } from '../collab/CollabDock';
+import { forShare, telaLabeler, withPrivate } from './telaCoedit';
+import { coProjectId, listSharedWithMe } from '../../services/coedit/project';
+import { loadSharedDoc } from '../../services/coedit/session';
+import { merge3Json } from '../../services/coedit/crdt';
+import { CREATIVE_SYNC_EVENT, type CreativeSyncDetail } from '../../services/creativeCloud/cloudStore';
 import { auth, fetchUserProfile } from '../../services/backendService';
 import type { TelaClassworkContext, TelaReturnTarget } from './classwork/classworkTypes';
 import { extractDocument, isSupportedImport, escapeHtml, SUPPORTED_IMPORT_ACCEPT } from '../../services/documentImport';
@@ -667,9 +674,17 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
       if (device.type === 'NOTES' && prev.type === 'NOTES') syncTelaNotesToDomain(prev, device);
     }
   };
+  // Set once the live-collaboration hook below is up; undo in a shared doc only reverts YOUR edits.
+  const coRef = useRef<UseCoedit<TelaDoc> | null>(null);
   const stepHistory = useCallback((dir: 'undo' | 'redo') => {
     const current = docRef.current;
     if (!current || current.locked) return;
+    const co = coRef.current;
+    if (co?.session && co.isShared) {
+      if (dir === 'undo') co.session.undo();
+      else co.session.redo();
+      return;
+    }
     const result = dir === 'undo' ? historyUndo(historyRef.current, current) : historyRedo(historyRef.current, current);
     if (!result) return;
     resyncDomains(current, result.doc);
@@ -719,6 +734,57 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
     const cur = docRef.current;
     if (cur) void saveTelaDoc(cur);
   }, []);
+
+  // ── Live collaboration (services/coedit) ──────────────────────────────────
+  // Solo docs behave exactly as before. Once shared, edits stream to everyone on the project,
+  // offline edits queue on this device, and remote merges land here (private Notes stay local).
+  const sharedDoc = useMemo(() => (doc ? forShare(doc) : null), [doc]);
+  const applyRemoteDoc = useCallback((remote: TelaDoc) => {
+    const current = docRef.current;
+    const role = coRef.current?.role;
+    const merged = withPrivate(remote, current);
+    const next = role && role !== 'owner' && role !== 'editor' ? { ...merged, locked: true } : merged;
+    if (current) resyncDomains(current, next);
+    docRef.current = next;
+    setDoc(next);
+    if (!next.frames.some(frame => frame.id === activeFrameIdRef.current)) setActiveFrameId(next.frames[0]?.id || null);
+    scheduleSave();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scheduleSave]);
+  const co = useCoedit<TelaDoc>({
+    kind: TELA_CLOUD_KIND,
+    localId: doc?.id,
+    title: doc?.title || 'Untitled canvas',
+    doc: sharedDoc,
+    applyRemote: applyRemoteDoc,
+    labeler: telaLabeler,
+    orgId: doc?.orgOrigin?.orgId,
+  });
+  coRef.current = co;
+  // Solo docs edited on two devices while apart: the cloud sync merges both, then this editor takes
+  // the merged copy, rebasing anything typed since the sync started (shared docs merge live instead).
+  useEffect(() => {
+    const on = (e: Event) => {
+      const d = (e as CustomEvent<CreativeSyncDetail>).detail;
+      if (!d?.mergedJson || !d.preMergeJson || d.kind !== TELA_CLOUD_KIND || d.localId !== docRef.current?.id || coRef.current?.isShared) return;
+      void (async () => {
+        const [base, theirs] = await Promise.all([telaDocFromStoredJson(d.preMergeJson!), telaDocFromStoredJson(d.mergedJson!)]);
+        const mine = docRef.current;
+        if (!mine || mine.id !== theirs.id) return;
+        applyRemoteDoc(merge3Json(base, mine, theirs).merged);
+      })();
+    };
+    window.addEventListener(CREATIVE_SYNC_EVENT, on);
+    return () => window.removeEventListener(CREATIVE_SYNC_EVENT, on);
+  }, [applyRemoteDoc]);
+  const collabAnchorRef = useRef<HTMLElement | null>(null);
+  const [collabOpen, setCollabOpen] = useState(false);
+  // Tell collaborators what you have selected and which page you're on.
+  useEffect(() => {
+    const s = co.session;
+    if (!s) return;
+    s.setSelection(studioSelIds, activeFrameId ? s.describe(['frames', `#${activeFrameId}`]) : undefined);
+  }, [co.session, studioSelIds, activeFrameId]);
 
   // ── The binding graph ──────────────────────────────────────────────────────
 
@@ -2105,7 +2171,13 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
 
   // ── My Canvases ────────────────────────────────────────────────────────────
 
-  const refreshList = async () => setCanvasList(await listTelaDocs());
+  const refreshList = async () => {
+    const [mine, shared] = await Promise.all([listTelaDocs(), listSharedWithMe(TELA_CLOUD_KIND)]);
+    const have = new Set(mine.map(m => m.id));
+    // Canvases other people shared with you open on any device, even before this one has a copy.
+    const fromOthers: TelaDocMeta[] = shared.filter(p => !have.has(p.localId)).map(p => ({ id: p.localId, ownerId: p.ownerId, title: `${p.title} · shared by ${p.names?.[p.ownerId] || 'a collaborator'}`, createdAt: p.createdAt, updatedAt: p.updatedAt }));
+    setCanvasList([...mine, ...fromOthers].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)));
+  };
 
   const createCanvas = async () => {
     const cur = docRef.current;
@@ -2119,7 +2191,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
   const openCanvas = async (id: string) => {
     const cur = docRef.current;
     if (cur && cur.id !== id) await saveTelaDoc(cur);
-    const d = await loadTelaDocFreshest(id);
+    const d = (await loadTelaDocFreshest(id)) ?? (await loadSharedDoc<TelaDoc>(coProjectId(TELA_CLOUD_KIND, id)));
     if (d) { const hydrated = await hydrateTelaDomainDoc(d); openDoc(hydrated); if (hydrated !== d) void saveTelaDoc(hydrated); }
     setShowHome(false);
     setCanvasesOpen(false);
@@ -2711,6 +2783,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
     <div className="flex-1 w-full h-full min-h-0 flex flex-col overflow-hidden select-none" style={{ background: 'var(--bg-color, #070609)' }}>
       {/* ── Top bar ─────────────────────────────────────────────────────────── */}
       <header
+        ref={collabAnchorRef}
         className="@container shrink-0 flex items-center gap-2 px-3 h-14 border-b min-w-0"
         style={{ borderColor: 'var(--border-color, rgba(255,255,255,0.08))', background: 'linear-gradient(180deg,#140D20,#0E0A16)' }}
       >
@@ -2954,6 +3027,26 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
           )}
         </div>
 
+        {/* People, team chat + call, shared history (components/collab) */}
+        <CollabDock
+          co={co}
+          kind={TELA_CLOUD_KIND}
+          title={doc.title || 'Untitled canvas'}
+          doc={doc}
+          localId={doc.id}
+          serialize={(d) => serializeTelaDocForStore(d)}
+          restoreSolo={async (json) => {
+            const restored = await telaDocFromStoredJson(json);
+            const next = { ...restored, id: doc.id, updatedAt: Date.now() };
+            openDoc(next);
+            const { ok, synced } = await saveTelaDoc(next);
+            setSaveState(ok ? (synced ? 'synced' : 'saved') : 'dirty');
+          }}
+          anchor={collabAnchorRef}
+          pill="inline"
+          open={collabOpen}
+          onOpenChange={setCollabOpen}
+        />
         {/* Save state — click for version history */}
         <div className="relative">
           <button

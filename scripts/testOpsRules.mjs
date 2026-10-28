@@ -76,6 +76,34 @@ t('mirror: org owner cannot rewrite the ops copy (would self-grant)', 'DENY', OW
 t('mirror: no one can mint a platform admin', 'DENY', OTHER, 'create', `${DB}/admins/${OTHER}`, { data: {} });
 t('mirror: business owner cannot rewrite the ops copy of a page', 'DENY', SHOP, 'update', `${DB}/businessPages/b1`, { existing: PAGE, data: { ownerId: OTHER } });
 
+// Live co-editing (services/coedit): membership on coedit/{pid}; viewers read only; owner manages people.
+const CO = `${DB}/coedit/p1`;
+const coProject = { ownerId: OWNER, kind: 'tela', title: 'Flyer', members: { [OWNER]: 'owner', [MEMBER]: 'editor', [BOOKS]: 'viewer' }, memberIds: [OWNER, MEMBER, BOOKS], names: {}, createdAt: 1, updatedAt: 1 };
+mocks.push({ function: 'get', args: [{ exactValue: CO }], result: { value: { data: coProject } } });
+t('co-edit: editor reads the project', 'ALLOW', MEMBER, 'get', CO, { existing: coProject });
+t('co-edit: outsider cannot read the project', 'DENY', OTHER, 'get', CO, { existing: coProject });
+t('co-edit: owner shares a doc they own', 'ALLOW', OWNER, 'create', `${DB}/coedit/tela__abc`, { data: { ...coProject, members: { [OWNER]: 'owner' }, memberIds: [OWNER] } });
+t('co-edit: cannot create a project in someone else\'s name', 'DENY', OTHER, 'create', `${DB}/coedit/tela__abc`, { data: { ...coProject, members: { [OWNER]: 'owner' }, memberIds: [OWNER] } });
+t('co-edit: owner invites someone', 'ALLOW', OWNER, 'update', CO, { existing: coProject, data: { ...coProject, members: { ...coProject.members, [PASTOR]: 'editor' }, memberIds: [...coProject.memberIds, PASTOR] } });
+t('co-edit: editor cannot invite', 'DENY', MEMBER, 'update', CO, { existing: coProject, data: { ...coProject, members: { ...coProject.members, [OTHER]: 'editor' }, memberIds: [...coProject.memberIds, OTHER] } });
+t('co-edit: editor cannot make themselves owner', 'DENY', MEMBER, 'update', CO, { existing: coProject, data: { ...coProject, members: { ...coProject.members, [MEMBER]: 'owner' } } });
+t('co-edit: editor renames', 'ALLOW', MEMBER, 'update', CO, { existing: coProject, data: { ...coProject, title: 'Flyer v2', updatedAt: 2 } });
+t('co-edit: viewer leaves', 'ALLOW', BOOKS, 'update', CO, { existing: coProject, data: { ...coProject, members: { [OWNER]: 'owner', [MEMBER]: 'editor' }, memberIds: [OWNER, MEMBER], updatedAt: 2 } });
+t('co-edit: viewer cannot remove someone else', 'DENY', BOOKS, 'update', CO, { existing: coProject, data: { ...coProject, members: { [OWNER]: 'owner', [BOOKS]: 'viewer' }, memberIds: [OWNER, BOOKS] } });
+t('co-edit: editor writes a snapshot', 'ALLOW', MEMBER, 'update', `${CO}/snap/head`, { existing: { gen: 'a' }, data: { gen: 'b', chunks: 1 } });
+t('co-edit: viewer cannot write a snapshot', 'DENY', BOOKS, 'update', `${CO}/snap/head`, { existing: { gen: 'a' }, data: { gen: 'b', chunks: 1 } });
+t('co-edit: viewer cannot send edits', 'DENY', BOOKS, 'create', `${CO}/ops/b1`, { data: { u: BOOKS, ops: '[]', n: 0 } });
+t('co-edit: editor cannot send edits as someone else', 'DENY', MEMBER, 'create', `${CO}/ops/b1`, { data: { u: OWNER, ops: '[]', n: 0 } });
+t('co-edit: viewer reads the live log', 'ALLOW', BOOKS, 'get', `${CO}/ops/b1`, { existing: { u: MEMBER, ops: '[]' } });
+t('co-edit: shared version readable by members', 'ALLOW', BOOKS, 'get', `${CO}/versions/v1`, { existing: { by: MEMBER, private: false } });
+t('co-edit: someone else\'s private copy is hidden', 'DENY', BOOKS, 'get', `${CO}/versions/v2`, { existing: { by: MEMBER, private: true } });
+t('co-edit: viewer saves a private copy', 'ALLOW', BOOKS, 'create', `${CO}/versions/v3`, { data: { by: BOOKS, private: true, reason: 'personal' } });
+t('co-edit: viewer cannot save a shared version', 'DENY', BOOKS, 'create', `${CO}/versions/v3`, { data: { by: BOOKS, private: false, reason: 'named' } });
+t('co-edit: presence for yourself', 'ALLOW', MEMBER, 'create', `${CO}/presence/${MEMBER}_tab1`, { data: { uid: MEMBER, name: 'M' } });
+t('co-edit: no presence for others', 'DENY', MEMBER, 'create', `${CO}/presence/${OWNER}_tab1`, { data: { uid: OWNER, name: 'O' } });
+t('co-edit: drafts are private', 'DENY', OWNER, 'get', `${CO}/drafts/${MEMBER}`, { existing: { ops: '[]' } });
+t('co-edit: your own draft', 'ALLOW', MEMBER, 'get', `${CO}/drafts/${MEMBER}`, { existing: { ops: '[]' } });
+
 const body = {
   source: { files: [{ name: 'firestore.rules', content: src }] },
   testSuite: {

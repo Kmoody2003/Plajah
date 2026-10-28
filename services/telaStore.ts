@@ -164,11 +164,15 @@ export async function saveTelaDoc(doc: TelaDoc): Promise<{ ok: boolean; synced: 
     try { localStorage.setItem(LS_PREFIX + doc.id, json); ok = true; }
     catch (e) { console.error('[telaStore] saveTelaDoc failed (no storage available)', e); }
   }
-  const synced = ok ? await upsertManifest(doc) : false;
+  // A doc someone shared with you syncs through its live co-editing session (services/coedit);
+  // your manifest and personal cloud copy are for docs you own.
+  const uid = auth.currentUser?.uid;
+  const sharedFromOthers = !!uid && !!doc.ownerId && doc.ownerId !== 'local' && doc.ownerId !== uid;
+  const synced = ok && !sharedFromOthers ? await upsertManifest(doc) : false;
   if (ok) {
     emitDocChanged({ docId: doc.id, versionId: doc.currentVersionId, kind: 'save' });
     // Cloud copy + version history (throttled; sensitive Notes are already encrypted in `json`).
-    scheduleCreativeSync({ kind: TELA_CLOUD_KIND, localId: doc.id, title: doc.title || 'Untitled canvas', json });
+    if (!sharedFromOthers) scheduleCreativeSync({ kind: TELA_CLOUD_KIND, localId: doc.id, title: doc.title || 'Untitled canvas', json });
   }
   return { ok, synced };
 }

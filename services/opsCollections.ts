@@ -37,6 +37,9 @@ export const OPS_COLLECTIONS: ReadonlySet<string> = new Set([
   // Laundry
   'laundryAccounts', 'laundryCounters', 'laundryInvoiced', 'laundryInvoices', 'laundryReminders',
   'laundrySettings',
+  // Live co-editing of creative projects (services/coedit): ops log, snapshots, shared history,
+  // presence and drafts. Self-contained rules (membership lives on the project doc).
+  'coedit',
 ]);
 
 /** plajah-prod collections copied read-only into plajah-ops, because ops rules authorize against them

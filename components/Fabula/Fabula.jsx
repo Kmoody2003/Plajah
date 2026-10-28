@@ -129,6 +129,13 @@ import { motionTemplateName, motionTemplateDurations } from "../../services/tela
 import { findLowerThird } from "../../services/fabula/lowerThirdRegistry";
 import { openLowerThirdInTela } from "../../services/fabula/lowerThirdToTela";
 import ViewerFpsBadge from "./ViewerFpsBadge";
+// Live collaboration + offline-first sync (platform-wide layer, see hooks/useCoedit.ts).
+import { useCoedit } from "../../hooks/useCoedit";
+import { CollabDock } from "../collab/CollabDock";
+import { scheduleCreativeSync } from "../../services/creativeCloud/cloudStore";
+import { coProjectId } from "../../services/coedit/project";
+import { loadSharedDoc } from "../../services/coedit/session";
+import { portableProduction, portableJson, overlayLocalMedia, mergeThreeWay, reconcile as reconcileProd, markPending, clearPending, listPending, getBase, setBase, dropSyncState, withTimeout, fabulaLabeler } from "../../services/fabula/fabulaSync";
 // Film Production (Development → Release pipeline) lives as a page inside the editor; lazy so the
 // editor boot doesn't pay for the production suite until the tab is opened.
 const FabulaStudio = lazy(() => import("./FabulaStudio"));
@@ -955,13 +962,16 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
     try {
       const cloud = await listProjectsCloud();
       if (cloud.length || localList.length) {
+        // Productions with unsynced local edits keep their local copy — openProduction / the
+        // pending flush reconciles them with the cloud (three-way merge) instead of dropping them.
+        const pendingIds = new Set(await listPending());
         const byId = new Map();
         for (const e of localList) byId.set(e.id, e);
         for (const e of cloud) {
           const ex = byId.get(e.id);
           if (!ex || (e.updated || 0) > (ex.updated || 0)) {
             byId.set(e.id, e);
-            if (ex && (e.updated || 0) > (ex.updated || 0)) {
+            if (ex && (e.updated || 0) > (ex.updated || 0) && !pendingIds.has(e.id)) {
               stDel("studio:prod:" + e.id).catch(() => {});
             }
           }
@@ -971,7 +981,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
         stSet("studio:index", { list: merged });
         // Back up local-only projects to the cloud (best-effort) — rescues the current project.
         const cloudIds = new Set(cloud.map((e) => e.id));
-        for (const e of localList) if (!cloudIds.has(e.id)) {
+        for (const e of localList) if (!cloudIds.has(e.id) && !e.sharedFrom) { // sharedFrom: someone else's shared production
           const full = await stGet("studio:prod:" + e.id);
           if (full) saveProjectCloud(full).catch(() => {});
         }
@@ -1069,7 +1079,19 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
   useEffect(() => { const t = setTimeout(() => recoverProjects(), 400); return () => clearTimeout(t); }, []);
   const onRecover = async () => { const n = await recoverProjects(); ping(n ? `Recovered ${n} project${n > 1 ? "s" : ""}.` : "No additional projects found in storage."); };
 
-  /* ----- persistence (debounced full-production save) ----- */
+  /* ----- persistence (debounced full-production save) -----
+     Local-first: IndexedDB always gets the production first (survives offline + reload). The cloud
+     save is queued in IndexedDB (fabulaSync pending list) before it's attempted, and cleared only
+     once it lands — so a save made offline is retried on 'online' / next boot (flushPendingCloud).
+     A production whose previous cloud save didn't land goes through reconcile (three-way merge on
+     the last-synced base) instead of a blind overwrite, in case another device saved meanwhile. */
+  const prodRef = useRef(null);
+  prodRef.current = prod;
+  const coRoleRef = useRef(null); // collab role on the open production (null = solo / not shared)
+  const cloudBusyRef = useRef(new Set()); // production ids with a cloud push in flight
+  // Personal cloud copy is the OWNER's: collaborators on someone else's shared production rely on
+  // the shared coedit project instead (fabula_projects/{id} is owner-only; writing would fail).
+  const ownsCloudCopy = () => !coRoleRef.current || coRoleRef.current === "owner";
   useEffect(() => {
     if (!prod) return;
     clearTimeout(saveTimer.current);
@@ -1077,19 +1099,97 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
     saveTimer.current = setTimeout(async () => {
       await stSet("studio:prod:" + prod.id, prod);
       const sceneCount = prod.acts.reduce((n, a) => n + a.scenes.length, 0);
-      const entry = { id: prod.id, title: prod.title, type: prod.type, updated: Date.now(), sceneCount };
+      const entry = { id: prod.id, title: prod.title, type: prod.type, updated: Date.now(), sceneCount, ...(ownsCloudCopy() ? {} : { sharedFrom: true }) };
       setIndex((cur) => {
-        const next = cur.some((x) => x.id === prod.id) ? cur.map((x) => (x.id === prod.id ? entry : x)) : [entry, ...cur];
+        const next = cur.some((x) => x.id === prod.id) ? cur.map((x) => (x.id === prod.id ? { ...entry, sharedFrom: entry.sharedFrom || x.sharedFrom } : x)) : [entry, ...cur];
         stSet("studio:index", { list: next });
         return next;
       });
+      if (!ownsCloudCopy()) { setSaveState("saved"); return; } // shared project: the coedit session is the durable copy
+      // Personal version history (creative cloud) — portable JSON only (no blob:/object URLs).
+      try { scheduleCreativeSync({ kind: "fabula", localId: prod.id, title: prod.title || "Untitled", json: portableJson(prod) }); } catch { /* guest / quota — local copy still holds */ }
       // Durable cloud save. saveState reflects the CLOUD result so a failure to persist
       // to the platform is visible (local IndexedDB still holds a backup either way).
-      const res = await saveProjectCloud(prod);
-      setSaveState(res.ok ? "saved" : "error");
+      const res = await pushProdToCloud(prod);
+      setSaveState(res.ok ? "saved" : res.offline ? "offline" : "error");
     }, 700);
     return () => clearTimeout(saveTimer.current);
-  }, [prod]);
+  }, [prod]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Push one production to the platform. Marked pending first so a failure (offline, auth, network)
+  // is retried later; a production that was already pending reconciles against the cloud first.
+  async function pushProdToCloud(p, opts = {}) {
+    if (!p?.id) return { ok: false };
+    if (cloudBusyRef.current.has(p.id)) { await markPending(p.id); return { ok: false, busy: true }; }
+    cloudBusyRef.current.add(p.id);
+    try {
+      const wasPending = opts.reconcile || (await listPending()).includes(p.id);
+      await markPending(p.id);
+      if (typeof navigator !== "undefined" && navigator.onLine === false) return { ok: false, offline: true };
+      if (!auth.currentUser) return { ok: false, offline: true };
+      let toSave = p;
+      if (wasPending) {
+        const [cloudP, base] = await Promise.all([withTimeout(loadProjectCloud(p.id), 8000, null), getBase(p.id)]);
+        const r = reconcileProd(p, cloudP, base, true);
+        if (r.how !== "local") {
+          toSave = await adoptReconciled(p, r);
+          if (!toSave) return { ok: false }; // edited again meanwhile — the next save retries
+        }
+      }
+      const res = await saveProjectCloud(toSave);
+      if (res.ok) { await setBase(toSave); await clearPending(p.id); }
+      return res;
+    } catch (e) {
+      return { ok: false, error: String(e?.message || e) };
+    } finally {
+      cloudBusyRef.current.delete(p.id);
+    }
+  }
+
+  // Bring a reconcile result into this device: overlay local media, persist locally, and if it's the
+  // open production (and the user hasn't edited since `local` was read) swap it into the editor.
+  // Returns the production to upload, or null when the open production moved on underneath.
+  async function adoptReconciled(local, r) {
+    if (r.how === "conflict-copy" && r.other) {
+      const copyId = uid();
+      const copy = { ...overlayLocalMedia(r.other, local).doc, id: copyId, title: `${r.other.title || "Untitled"} (other copy)`, updatedAt: Date.now() };
+      await stSet("studio:prod:" + copyId, copy);
+      saveProjectCloud(copy).catch(() => {});
+      const sc = (copy.acts || []).reduce((n, a) => n + (a.scenes || []).length, 0);
+      setIndex((cur) => { const next = [{ id: copyId, title: copy.title, type: copy.type, updated: Date.now(), sceneCount: sc }, ...cur]; stSet("studio:index", { list: next }); return next; });
+      ping(`“${local.title || "Untitled"}” changed on another device too — kept both (see “${copy.title}”).`);
+    } else if (r.how === "merged") {
+      ping("Merged your offline edits with changes made on another device.");
+    }
+    const { doc, missing } = overlayLocalMedia(r.doc, local);
+    const next = migrate(doc);
+    await stSet("studio:prod:" + next.id, next);
+    if (prodRef.current?.id === next.id) {
+      if (prodRef.current !== local && prodRef.current.updatedAt !== local.updatedAt) return null;
+      takeRemoteProd(next, missing);
+    }
+    return next;
+  }
+
+  // Retry queued cloud saves: on boot (once signed in) and whenever the browser comes back online.
+  useEffect(() => {
+    let alive = true;
+    const flush = async () => {
+      if (!auth.currentUser || (typeof navigator !== "undefined" && navigator.onLine === false)) return;
+      for (const id of await listPending()) {
+        if (!alive) return;
+        const local = prodRef.current?.id === id ? prodRef.current : await stGet("studio:prod:" + id);
+        if (!local) { await clearPending(id); continue; }
+        if (prodRef.current?.id === id && !ownsCloudCopy()) { await clearPending(id); continue; }
+        const res = await pushProdToCloud(local, { reconcile: true });
+        if (alive && prodRef.current?.id === id && res.ok) setSaveState("saved");
+      }
+    };
+    const t = setTimeout(flush, 2500);
+    const offAuth = onAuthStateChanged(auth, (u) => { if (u) flush(); });
+    window.addEventListener("online", flush);
+    return () => { alive = false; clearTimeout(t); offAuth(); window.removeEventListener("online", flush); };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ----- derived ----- */
   const scene = useMemo(() => {
@@ -1137,6 +1237,93 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
     clipsSaveTimer.current = setTimeout(() => commitClips(clips), 450);
     return () => clearTimeout(clipsSaveTimer.current);
   }, [clips]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* ----- live collaboration (useCoedit + CollabDock) -----
+     The shared document is the PORTABLE production (fabulaSync.portableProduction: no blob:/data:
+     URLs or session/offline flags), so this device's local media handles never leak to others.
+     Remote merges come back through takeRemoteProd: local media URLs are re-overlaid, the `clips`
+     working copy is refreshed for the open scene/edit (three-way merged with any not-yet-committed
+     local timeline edits), and assets this device has no bytes for degrade to the NO MEDIA state. */
+  const clipsRef = useRef(clips);
+  clipsRef.current = clips;
+  const editSelRef = useRef(editSel);
+  editSelRef.current = editSel;
+  const sceneSelRef = useRef(sceneSel);
+  sceneSelRef.current = sceneSel;
+  const timelineClipsOf = (p, eSel, sSel) => {
+    if (!p) return undefined;
+    if (eSel) return p.edits?.find((e) => e.id === eSel)?.timeline?.clips;
+    if (!sSel) return undefined;
+    return p.acts?.find((a) => a.id === sSel.actId)?.scenes?.find((s) => s.id === sSel.sceneId)?.timeline?.clips;
+  };
+  const setTimelineClipsOf = (p, eSel, sSel, v) => {
+    const host = eSel ? p.edits?.find((e) => e.id === eSel) : sSel ? p.acts?.find((a) => a.id === sSel.actId)?.scenes?.find((s) => s.id === sSel.sceneId) : null;
+    if (host) host.timeline = { ...(host.timeline || {}), clips: v };
+  };
+  // Look for local bytes (sync folder / OPFS) for assets that arrived without a playable source.
+  async function resolveMissingMedia(ids) {
+    const p = prodRef.current;
+    if (!p || !ids?.length) return;
+    const want = new Set(ids);
+    const tmp = (p.mediaPool || []).filter((a) => want.has(a.id)).map((a) => ({ ...a }));
+    if (!tmp.length) return;
+    try { await rehydrateBlobs({ mediaPool: tmp }); } catch { return; }
+    const found = new Map(tmp.filter((a) => a.url && !a.offline).map((a) => [a.id, a]));
+    if (!found.size) return;
+    // Plain setProd (no updatedAt bump): playable URLs are device-local and never shared.
+    setProd((cur) => (cur && cur.id === p.id ? { ...cur, mediaPool: (cur.mediaPool || []).map((a) => {
+      const f = found.get(a.id);
+      return f && (!a.url || a.offline) ? { ...a, url: f.url, offline: false, session: !!f.session } : a;
+    }) } : cur));
+  }
+  // Swap a production that came from elsewhere (collaborator, merge, cloud) into the editor.
+  function takeRemoteProd(next, missing = []) {
+    const cur = prodRef.current;
+    const eSel = editSelRef.current, sSel = sceneSelRef.current;
+    const working = clipsRef.current || [];
+    const committed = timelineClipsOf(cur, eSel, sSel) || [];
+    const remoteClips = timelineClipsOf(next, eSel, sSel);
+    let want = remoteClips || [];
+    // Timeline edits still in the 450 ms autosave debounce aren't in `prod` yet: fold them onto
+    // the remote timeline (per clip) so neither side's work is lost, and commit them with it.
+    if (remoteClips && JSON.stringify(working) !== JSON.stringify(committed)) {
+      want = mergeThreeWay({ clips: committed }, { clips: working }, { clips: remoteClips }).clips || [];
+      setTimelineClipsOf(next, eSel, sSel, want);
+      clearTimeout(clipsSaveTimer.current);
+    }
+    setProd(next);
+    if (JSON.stringify(want) !== JSON.stringify(working)) {
+      skipClipsSaveRef.current = true; // a LOAD of merged state, not a local edit — don't echo it back
+      setClips(JSON.parse(JSON.stringify(want)));
+    }
+    setSelClipId((id) => (id && !want.some((c) => c.id === id) ? null : id));
+    if (missing.length) resolveMissingMedia(missing);
+  }
+  const applyRemoteProd = (remote) => {
+    const cur = prodRef.current;
+    if (!remote || !cur || remote.id !== cur.id) return; // a late update for a production we left
+    const { doc, missing } = overlayLocalMedia(remote, cur);
+    takeRemoteProd(migrate(doc), missing);
+  };
+  const coDoc = useMemo(() => (prod ? portableProduction(prod) : null), [prod]);
+  const co = useCoedit({ kind: "fabula", localId: prod?.id, title: prod?.title || "Untitled", doc: coDoc, applyRemote: applyRemoteProd, labeler: fabulaLabeler });
+  coRoleRef.current = co.role;
+  const [collabOpen, setCollabOpen] = useState(false);
+  const hdrRef = useRef(null);
+  const [hdrBottom, setHdrBottom] = useState(56);
+  useEffect(() => {
+    const measure = () => { const r = hdrRef.current?.getBoundingClientRect(); if (r) setHdrBottom(Math.max(0, Math.round(r.bottom))); };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [collabOpen, page, prod?.id]);
+  // Once shared, media that lives only on this device shows as NO MEDIA for everyone else.
+  const localOnlyWarnedRef = useRef("");
+  useEffect(() => {
+    if (!co.isShared || !prod || localOnlyWarnedRef.current === prod.id) return;
+    const n = (prod.mediaPool || []).filter((a) => /^(blob|data):/.test(a.url || "") && !a.cloudUrl).length;
+    if (n) { localOnlyWarnedRef.current = prod.id; ping(`${n} media file${n === 1 ? " is" : "s are"} only on this device — collaborators see NO MEDIA until you sync media to the cloud.`); }
+  }, [co.isShared, prod?.id, prod?.mediaPool?.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* playback (rate-aware for JKL shuttle) — WALL-CLOCK, FRAME-GATED transport.
      The clock accumulates measured elapsed time in a ref every rAF (so it can never drift from
@@ -1239,7 +1426,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
       createdAt: Date.now(), updatedAt: Date.now(),
     });
     await stSet("studio:prod:" + p.id, p);
-    saveProjectCloud(p).catch(() => {}); // durable platform copy (debounced save also covers edits)
+    pushProdToCloud(p).catch(() => {}); // durable platform copy, queued if offline (debounced save also covers edits)
     setProd(p); setNewTitle(""); setSceneSel(null); setProdTab("structure");
   };
   const openProduction = async (id) => {
@@ -1256,6 +1443,34 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
         p = cloudP;
         stSet("studio:prod:" + id, p).catch(() => {}); // re-seed the local cache
       }
+    } else if (auth.currentUser && navigator.onLine !== false && !index.find((x) => x.id === id)?.sharedFrom) {
+      // Local copy exists: check whether another device moved the cloud copy on. If it did and this
+      // device also has unsynced edits, merge the two (three-way on the last-synced base) rather
+      // than silently picking one. Bounded so a flaky connection never blocks opening.
+      const [cloudP, base, pending] = await Promise.all([withTimeout(loadProjectCloud(id), 4000, null), getBase(id), listPending()]);
+      const r = reconcileProd(p, cloudP, base, pending.includes(id));
+      if (r.how !== "local") {
+        const adopted = await adoptReconciled(p, r);
+        if (adopted) {
+          p = adopted;
+          if (r.how !== "cloud") pushProdToCloud(adopted).catch(() => {});
+          else { setBase(adopted).catch(() => {}); clearPending(id).catch(() => {}); }
+        }
+      } else if (!base && cloudP && cloudP.updatedAt === p.updatedAt) {
+        setBase(p).catch(() => {}); // first open since sync tracking existed: record the agreed base
+      }
+    }
+    if (!p) {
+      // Someone else's shared production (opened via link / ?fabulaProd=): read the live shared doc.
+      try {
+        const shared = await withTimeout(loadSharedDoc(coProjectId("fabula", id)), 8000, null);
+        if (shared) {
+          p = overlayLocalMedia(shared, null).doc;
+          stSet("studio:prod:" + id, p).catch(() => {});
+          const sc = (p.acts || []).reduce((n, a) => n + (a.scenes || []).length, 0);
+          setIndex((cur) => { const e = { id, title: p.title, type: p.type, updated: Date.now(), sceneCount: sc, sharedFrom: true }; const next = cur.some((x) => x.id === id) ? cur.map((x) => (x.id === id ? e : x)) : [e, ...cur]; stSet("studio:index", { list: next }); return next; });
+        }
+      } catch { /* not shared with me / offline */ }
     }
     if ((id === "prod_chora_promo_30s" || id === "chora-promo-v3-20261018") && (!p || p.buildVersion !== "v7-mascots-parallax-logo-reveal")) {
       try {
@@ -1321,6 +1536,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
     if (!window.confirm("Delete this production and everything inside it?")) return;
     await stDel("studio:prod:" + id);
     deleteProjectCloud(id).catch(() => {}); // remove the cloud copy too
+    dropSyncState(id).catch(() => {});      // and its queued save / last-synced base
     setIndex((cur) => { const n = cur.filter((x) => x.id !== id); stSet("studio:index", { list: n }); return n; });
     if (prod?.id === id) { setProd(null); setSceneSel(null); }
   };
@@ -7155,7 +7371,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
       <div className="blob b1" /><div className="blob b2" /><div className="b3" />
 
       {/* ───── header ───── */}
-      <header className="hdr glass">
+      <header className="hdr glass" ref={hdrRef}>
         <div className="brand">
           <svg viewBox="0 0 96 96" className="brandmark" fill="none" aria-label="Fabula mark">
             <path d="M 65 42 A 25 25 0 1 0 40 67" stroke="#f97316" strokeWidth="13" strokeLinecap="round" />
@@ -7188,6 +7404,11 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
               </select>
             )}
             {(page === "slate" || page === "edit") && <button className="crumb" onClick={() => newEdit()} title="New standalone timeline">＋ EDIT</button>}
+            <button className="crumb" onClick={() => setCollabOpen((v) => !v)} aria-pressed={collabOpen}
+              title={co.isShared ? "Collaboration — people, chat, call, history" : "Share this production to edit it live with others"}
+              style={co.isShared ? { borderColor: "rgba(63,190,133,.55)", color: "#7ee2b0", background: "rgba(63,190,133,.12)" } : undefined}>
+              {co.isShared ? `● LIVE${co.snap?.presence?.length > 1 ? ` · ${co.snap.presence.length}` : ""}` : "⇪ SHARE"}
+            </button>
             {scene && <button className="crumb" onClick={sendSceneToComic} title="Send this scene's script + world cast to the Lorea comic composer">→ SCENE TO COMIC</button>}
             <button
               className="crumb"
@@ -9494,6 +9715,23 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
 
       {ltGallery && <LowerThirdGallery onChoose={addLowerThird} onClose={() => setLtGallery(null)} />}
 
+      {/* live collaboration panel (people / chat / call / history / activity) */}
+      {prod && (
+        <CollabDock co={co} kind="fabula" title={prod.title || "Untitled"} doc={coDoc} localId={prod.id}
+          serialize={(d) => JSON.stringify(d)}
+          restoreSolo={(json) => {
+            try {
+              const restored = JSON.parse(json);
+              if (!restored || restored.id !== prodRef.current?.id) return;
+              const { doc, missing } = overlayLocalMedia(restored, prodRef.current);
+              doc.updatedAt = Date.now(); // a restore is a new edit — it saves + syncs like one
+              takeRemoteProd(migrate(doc), missing);
+              ping("Restored that version.");
+            } catch { ping("Couldn't restore that version."); }
+          }}
+          top={hdrBottom} pill="none" open={collabOpen} onOpenChange={setCollabOpen} />
+      )}
+
       {/* busy bar */}
       {busy && <div className="busybar"><span className="blink" />{busyMsg}</div>}
       {notice && <div className="toast">{notice}</div>}
@@ -9501,8 +9739,8 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
       {/* autosave indicator — every edit persists as you go */}
       {prod && saveState !== "idle" && (
         <div style={{ position: "fixed", bottom: 84, right: 14, zIndex: 60, display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 999, background: "rgba(0,0,0,0.72)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.1)", pointerEvents: "none" }}>
-          <span className={saveState === "saving" ? "blink" : ""} style={{ width: 7, height: 7, borderRadius: 999, background: saveState === "saving" ? "#FF8C00" : saveState === "error" ? "#F04770" : "#3FBE85" }} />
-          <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: 1.2, textTransform: "uppercase", color: saveState === "error" ? "#F98BA6" : "rgba(255,255,255,0.6)" }}>{saveState === "saving" ? "Saving" : saveState === "error" ? "Cloud save failed — backed up locally" : "Saved to platform"}</span>
+          <span className={saveState === "saving" ? "blink" : ""} style={{ width: 7, height: 7, borderRadius: 999, background: saveState === "saving" ? "#FF8C00" : saveState === "error" ? "#F04770" : saveState === "offline" ? "#8AA0B8" : "#3FBE85" }} />
+          <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: 1.2, textTransform: "uppercase", color: saveState === "error" ? "#F98BA6" : "rgba(255,255,255,0.6)" }}>{saveState === "saving" ? "Saving" : saveState === "error" ? "Cloud save failed — backed up locally, will retry" : saveState === "offline" ? "Offline — saved on this device, syncs when online" : "Saved to platform"}</span>
         </div>
       )}
       {spatialFor && (

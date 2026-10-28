@@ -11,7 +11,11 @@ import { serializeGroove, deserializeGroove, type GrooveDoc } from './grooveDoc'
 
 const grooveRef = (prodId: string, grooveId: string) => doc(db, 'melosProductions', prodId, 'grooves', grooveId);
 
-export interface GrooveSummary { id: string; name: string; bpm: number; updatedAt: number }
+export interface GrooveSummary {
+  id: string; name: string; bpm: number; updatedAt: number;
+  /** Only on this device so far (signed-out / offline edits not yet in Firestore). */
+  unsynced?: boolean;
+}
 
 /** The signed-in user's scratch production id, creating the production doc on first use. */
 export async function ensureScratchProduction(): Promise<string | null> {

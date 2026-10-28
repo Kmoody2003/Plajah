@@ -12,7 +12,7 @@ import { downloadMusicXml, exportMusicXml, importMusicXml, musicXmlText } from '
 import { flattenClipNotes } from '../../../services/melos/beats/clipEdit';
 import { songTime } from '../../../services/melos/beats/tempoMap';
 import { docKey } from '../../../services/melos/beats/songKey';
-import { defaultPattern, grooveUid, type GrooveDoc, type InstrumentType, type ArrangeTrack } from '../../../services/melos/beats/grooveDoc';
+import { defaultPattern, deserializeGroove, grooveUid, type GrooveDoc, type InstrumentType, type ArrangeTrack } from '../../../services/melos/beats/grooveDoc';
 import { useContextMenu, type MenuNode } from '../../ui/ContextMenu';
 import { autoFill, quantizePattern } from '../../../services/melos/beats/grooveTools';
 import { GENRE_PRESETS, applyGenrePreset, type GenrePreset } from '../../../services/melos/beats/genrePresets';
@@ -34,6 +34,8 @@ import { importDawproject } from '../../../services/melos/beats/dawproject/impor
 import { transcribeToPattern, addTranscribedPattern } from '../../../services/melos/beats/transcribeImport';
 import type { MelosSampleRef } from './melosSamples';
 import { useBeatsDoc } from './useBeatsDoc';
+import { useChoraCoedit } from './useChoraCoedit';
+import { CollabDock } from '../../collab/CollabDock';
 import { useAutomationRecorder } from './useAutomationRecorder';
 import {
   forgetPattern, groupLetter, groupPatterns, ideasSet, newGroupPattern, padGroup, patternGroup, scenePatternIds, syncSongFromSections,
@@ -116,8 +118,20 @@ interface BeatsRoomProps {
 const AVAILABLE_VIEWS: BeatsViewId[] = ['machine', 'glass', 'timeline', 'mixer'];
 
 const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, embedded, melosSamples, onRenderTake, takeTargetName, musicLabAdmin = false }) => {
-  const { doc, saveState, grooves, mutate, undo, redo, canUndo, canRedo, replace, saveNow, openGroove, newGroove, removeGroove } =
-    useBeatsDoc(payload?.grooveId, production?.prodId || payload?.productionId);
+  const {
+    doc, rev, saveState, grooves, mutate, undo: localUndo, redo: localRedo, canUndo: localCanUndo, canRedo: localCanRedo,
+    replace, applyRemote, getDoc, saveNow, openGroove, newGroove, removeGroove,
+  } = useBeatsDoc(payload?.grooveId, production?.prodId || payload?.productionId);
+  // Live collaboration on this groove (inert until the owner shares it). Remote merges fold into
+  // the live doc via applyRemote; while shared, Ctrl+Z is the session's selective undo (only YOUR
+  // edits) instead of the whole-doc snapshot stack, which would also revert collaborators' work.
+  const co = useChoraCoedit<GrooveDoc>({ kind: 'beats', localId: doc.id, title: doc.name || 'Groove', rev, getDoc, applyRemote });
+  const sharedSession = co.isShared ? co.session : null;
+  const undo = useCallback(() => { if (sharedSession) sharedSession.undo(); else localUndo(); }, [sharedSession, localUndo]);
+  const redo = useCallback(() => { if (sharedSession) sharedSession.redo(); else localRedo(); }, [sharedSession, localRedo]);
+  const canUndo = sharedSession ? !!co.snap?.canUndo : localCanUndo;
+  const canRedo = sharedSession ? !!co.snap?.canRedo : localCanRedo;
+  const transportRowRef = React.useRef<HTMLDivElement>(null);
   // Under the Chora Studio shell the menu bar lives at the top of the workspace; standalone,
   // the transport bar keeps drawing its own.
   const shellMenuBar = useHasStudioMenuBar();
@@ -1096,6 +1110,10 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
       {shellMenuBar && (
         <StudioMenuPublisher owner="beats" menus={menus} save={{ state: saveState, onSave: () => { void saveNow(); }, what: 'groove' }} />
       )}
+      {/* Transport row + the collaboration pill at its right end. The row is the panel's anchor,
+          so the collab panel opens just below the header (shell menu bar or not). */}
+      <div ref={transportRowRef} className="flex items-stretch flex-none min-w-0">
+      <div className="flex-1 min-w-0">
       <TransportBar
         doc={doc}
         running={snap.running}
@@ -1138,6 +1156,29 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
         hideClose={embedded}
         onClose={onClose}
       />
+      </div>
+      {/* The album project has its own collaborators/dock (ProjectView); this one is the groove's. */}
+      <div className="flex items-center px-2 h-14 border-b border-white/10 bg-white/[0.04] shrink-0">
+        <CollabDock<GrooveDoc>
+          co={co}
+          kind="beats"
+          title={doc.name || 'Groove'}
+          doc={doc}
+          localId={doc.id}
+          serialize={(d) => JSON.stringify(d)}
+          restoreSolo={(json) => {
+            const restored = deserializeGroove(JSON.parse(json));
+            if (!restored) return;
+            restored.id = doc.id; // a restore is a new version of THIS groove
+            restored.updatedAt = Date.now();
+            replace(restored);
+            void saveNow();
+          }}
+          anchor={transportRowRef}
+          pill={view === 'project' ? 'none' : 'inline'}
+        />
+      </div>
+      </div>
 
       <input
         ref={dawFileRef}
@@ -1476,6 +1517,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           snap={snap}
           onMutate={mutate}
           productionId={production?.prodId || payload?.productionId}
+          collabAnchor={transportRowRef}
         />
       )}
 

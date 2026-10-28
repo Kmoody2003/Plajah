@@ -1,0 +1,21 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "skipLibCheck": true,
+    "incremental": false
+  },
+  "include": [
+    "services/coedit/**/*.ts",
+    "hooks/useCoedit.ts",
+    "tests/coeditCrdt.test.ts",
+    "components/collab/**/*.tsx",
+    "components/collab/**/*.ts",
+    "components/tela/TelaView.tsx",
+    "components/tela/telaCoedit.ts",
+    "services/telaStore.ts",
+    "vite-env.d.ts",
+    "services/creativeCloud/*.ts"
+  ],
+  "exclude": []
+}
