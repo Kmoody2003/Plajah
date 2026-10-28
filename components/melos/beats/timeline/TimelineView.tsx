@@ -6,7 +6,7 @@
 // right-edge grip = trim (beat snap) · click = select · Delete = remove · drop audio = clip.
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ChevronDown, ChevronUp, Plus, Music2, AudioWaveform, Piano, Circle, MousePointer2, Pencil, Scissors, Combine, Eraser, Scan, LocateFixed, FolderPlus, Sparkles, Layers, Loader2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, Music2, AudioWaveform, Piano, Circle, MousePointer2, Pencil, Scissors, Combine, Eraser, Scan, LocateFixed, FolderPlus, Sparkles, Layers, Loader2, Users } from 'lucide-react';
 import { unzipSync } from 'fflate';
 import type { GrooveDoc, Pattern, TimelineClip, InstrumentType } from '../../../../services/melos/beats/grooveDoc';
 import { grooveUid } from '../../../../services/melos/beats/grooveDoc';
@@ -39,6 +39,7 @@ import { TempoLane, TimelineGrid } from './TempoLane';
 import { TrackAutomation } from './TrackAutomation';
 import { ArrangerLane } from './ArrangerLane';
 import { CouncilComposerPanel } from '../council/CouncilComposerPanel';
+import { SessionBandConsole } from '../band/SessionBandConsole';
 import { syncSongFromSections } from '../../../../services/melos/beats/songSections';
 import { downloadMidi, exportClipMidi, exportTrackMidi } from '../../../../services/melos/beats/midiExport';
 
@@ -825,6 +826,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
   const loop = p.doc.loop ?? { on: false, startBeats: 0, endBeats: meter.barToBeat(4) };
   const [regionGenMode, setRegionGenMode] = useState<'council' | 'stems' | 'holistic' | 'idea' | 'full_song'>('council');
   const [councilOpen, setCouncilOpen] = useState(false);
+  const [bandOpen, setBandOpen] = useState(false);
   const [regionPrompt, setRegionPrompt] = useState('');
   const [partInstrument, setPartInstrument] = useState<InstrumentType>('onda');
   const [regionGenerating, setRegionGenerating] = useState(false);
@@ -1229,6 +1231,14 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
               );
             })}
           </div>
+          <button
+            onClick={() => setBandOpen((o) => !o)}
+            aria-pressed={bandOpen}
+            title="Session Band — thirteen session players who play your song live, take direction, and teach"
+            className={`h-7 px-2.5 rounded-lg border text-[10.5px] font-bold flex items-center gap-1.5 shrink-0 ${bandOpen ? 'bg-[#8B5CFF] border-[#8B5CFF] text-white' : 'border-white/15 bg-black/30 text-white/70 hover:text-white'}`}
+          >
+            <Users size={12} /> Session Band
+          </button>
           <div className="flex flex-wrap rounded-lg border border-white/15 bg-black/30 p-0.5 max-w-full" role="group" aria-label="Timeline generation mode">
             {([
               ['council', 'Council · Notation'],
@@ -1285,6 +1295,17 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
               endBeats={Math.max(barFloorOf(p.doc, loop.startBeats) + barsSpan(p.doc, barFloorOf(p.doc, loop.startBeats), 1), loop.endBeats)}
               initialDescription={regionPrompt}
               onClose={() => setCouncilOpen(false)}
+            />
+          )}
+          {bandOpen && (
+            <SessionBandConsole
+              doc={p.doc}
+              onMutate={p.onMutate}
+              running={p.running && p.playMode === 'song'}
+              onPlayFrom={p.onPlayFrom}
+              startBeats={barFloorOf(p.doc, loop.startBeats)}
+              endBeats={Math.max(barFloorOf(p.doc, loop.startBeats) + barsSpan(p.doc, barFloorOf(p.doc, loop.startBeats), 4), loop.endBeats)}
+              onClose={() => setBandOpen(false)}
             />
           )}
         </div>

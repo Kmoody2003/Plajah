@@ -75,6 +75,7 @@ import { VelaPanel } from './instrument/VelaPanel';
 import { BajoPanel } from './instrument/BajoPanel';
 import { AuraPanel } from './instrument/AuraPanel';
 import { SomaPanel } from './instrument/SomaPanel';
+import { LyraPanel } from './instrument/LyraPanel';
 import { isSuite, instrumentLabel, instrumentColor, addPadInstrument, addInstrumentToNextPad, detachPadInstrument, addInstrument } from '../../../services/melos/beats/instrumentFactory';
 import { SpectraPanel } from './mixer/SpectraPanel';
 import { MuseLibrary } from './muse/MuseLibrary';
@@ -1110,6 +1111,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           if (t.instrument?.type === 'bajo') return <BajoPanel doc={doc} track={t} onMutate={mutate} onClose={close} />;
           if (t.instrument?.type === 'aura') return <AuraPanel doc={doc} track={t} onMutate={mutate} onClose={close} />;
           if (t.instrument?.type === 'soma') return <SomaPanel doc={doc} track={t} onMutate={mutate} onClose={close} />;
+          if (t.instrument?.type === 'lyra') return <LyraPanel doc={doc} track={t} onMutate={mutate} onClose={close} />;
           if (isSuite(t.instrument?.type as InstrumentType)) return <VelaPanel doc={doc} track={t} onMutate={mutate} onClose={close} />;
           return <InstrumentPanel doc={doc} track={t} onMutate={mutate} onClose={close} />;
         })()}
@@ -1667,6 +1669,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
               : t.instrument?.type === 'bajo' ? <BajoPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />
               : t.instrument?.type === 'aura' ? <AuraPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />
               : t.instrument?.type === 'soma' ? <SomaPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />
+              : t.instrument?.type === 'lyra' ? <LyraPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />
               : isSuite(t.instrument?.type as InstrumentType) ? <VelaPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />
               : <InstrumentPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />;
           }}
@@ -1771,6 +1774,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           : t.instrument?.type === 'bajo' ? <BajoPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />
           : t.instrument?.type === 'aura' ? <AuraPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />
           : t.instrument?.type === 'soma' ? <SomaPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />
+              : t.instrument?.type === 'lyra' ? <LyraPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />
           : isSuite(t.instrument?.type as InstrumentType) ? <VelaPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />
           : <InstrumentPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />;
         return (

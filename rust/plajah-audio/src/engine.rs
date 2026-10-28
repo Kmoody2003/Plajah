@@ -3,6 +3,7 @@
 use crate::aura::AuraRack;
 use crate::diffuser::{Diffuser, VeilSpec};
 use crate::bajo::BajoRack;
+use crate::lyra::LyraRack;
 use crate::lfo::Lfo;
 use crate::modmatrix::{ModMatrix, ModSource, ModValues, Route};
 use crate::osc::Rng;
@@ -66,6 +67,9 @@ pub struct Engine {
     /// 15 IPS magnetic tape saturation & head bump → 60Hz mains hum & oxide crackle.
     aura: AuraRack,
 
+    /// LYRA's amp stages: electric guitar amp + cab, tine piano preamp + stereo tremolo.
+    lyra: LyraRack,
+
     events: Vec<ScheduledEvent>,
     events_dirty: bool,
     frame_counter: u64,
@@ -101,6 +105,7 @@ impl Engine {
             veil: Diffuser::new(sr_real),
             bajo: BajoRack::new(sr_real),
             aura: AuraRack::new(sr_real),
+            lyra: LyraRack::new(sr_real),
             voices,
             lfos: [Lfo::default(); NUM_LFO],
             tables,
@@ -424,13 +429,17 @@ impl Engine {
         // Split the borrow: voices render into scratch while reading shared state immutably.
         // `veil`, `bajo` and `aura` come out in the same destructure because all three need
         // `scratch` and a second `let Engine { .. } = self` would be a double mutable borrow.
-        let Engine { voices, scratch, params, matrix, tables, samples, sr, layout, position, veil, bajo, aura, .. } = self;
+        let Engine { voices, scratch, params, matrix, tables, samples, sr, layout, position, veil, bajo, aura, lyra, .. } = self;
         let mut active_cnt = 0u32;
         for v in voices.iter_mut() {
             if v.active {
                 active_cnt += 1;
                 v.render(scratch, frames, params, matrix, &globals, tables, samples, *sr, *layout, *position, &wf);
             }
+        }
+
+        if LyraRack::active(params) {
+            lyra.process(scratch, frames, nch, params);
         }
 
         // AURA's vintage rack (VCA/LPG Gate → Phaser → BBD String Ensemble → 15 IPS Tape & Mains Floor).

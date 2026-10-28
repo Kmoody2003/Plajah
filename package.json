@@ -9,6 +9,8 @@
     "kith:local": "node scripts/kith-party/serve.mjs dist-kith-party",
     "test:kith": "tsx --test tests/kithParty.test.ts",
     "test:coedit": "npx tsx --test tests/coeditCrdt.test.ts tests/coeditJam.test.ts",
+    "test:band": "npx tsx --test tests/sessionBand.test.ts",
+    "test:lyra": "npx tsx --test tests/lyraInstrument.test.ts && cargo test --release --manifest-path rust/plajah-audio/Cargo.toml lyra",
     "typecheck:kith": "tsc -p tsconfig.kith-party.json --noEmit",
     "dev": "tsx server.ts",
     "start": "node server.ts",

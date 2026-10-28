@@ -653,6 +653,11 @@ export class BeatsEngine {
           await import('../../instruments/soma/patch');
         const patch = deserializeSomaPatch(track.instrument.patch);
         if (patch) applySomaPatch(inst, patch);
+      } else if (track.instrument?.type === 'lyra' && track.instrument?.patch) {
+        const { deserializeLyraPatch, applyLyraPatch } =
+          await import('../../instruments/lyra/patch');
+        const patch = deserializeLyraPatch(track.instrument.patch);
+        if (patch) applyLyraPatch(inst, patch);
       } else if (track.instrument?.patch) {
         const [{ deserializePatch, applyPatch }] = await Promise.all([
           import('../../instruments/onda/patch'),
@@ -891,6 +896,12 @@ export class BeatsEngine {
       if (patch) applySomaPatch(inst, patch);
       return;
     }
+    if (track.instrument.type === 'lyra') {
+      const { deserializeLyraPatch, applyLyraPatch } = await import('../../instruments/lyra/patch');
+      const patch = deserializeLyraPatch(track.instrument.patch);
+      if (patch) applyLyraPatch(inst, patch);
+      return;
+    }
     if (track.instrument.type === 'kera') {
       if (track.instrument.kera) {
         const prog = await deserializeKeraProgram(track.instrument.kera as unknown as SerializedKeraProgram);
@@ -1068,6 +1079,26 @@ export class BeatsEngine {
     const inst = this.instruments.get(track.id);
     if (inst) { inst.setPitchBend(value); return; }
     void this.ensureInstrument(track).then((i) => i?.setPitchBend(value));
+  }
+
+  // ── Session band (band/session.ts): players that schedule their own notes on the song clock ──
+  /** Audio time of a song beat; `previous` reads the segment before a pending loop wrap. */
+  timeAtBeat(beat: number, previous = false): number {
+    if (previous && this.prevAnchor) return this.prevAnchor.time + this.tempo.secBetween(this.prevAnchor.beats, beat);
+    return this.toTime(beat);
+  }
+  /** A loop wrap that is scheduled but not reached yet: the clock jumps from `from` back to `to`. */
+  pendingWrap(): { from: number; to: number } | null {
+    if (!this.ctx || !this.running || !this.prevAnchor || this.ctx.currentTime >= this.anchorTime) return null;
+    const from = this.tempo.secToBeat(this.tempo.beatToSec(this.prevAnchor.beats) + (this.anchorTime - this.prevAnchor.time));
+    return { from, to: this.anchorBeats };
+  }
+  audioNow(): number { return this.ctx?.currentTime ?? 0; }
+  /** Play a note on an instrument track at an audio time, through the clip-note path (articulation, MPE). */
+  playTrackNote(track: ATrack, note: NoteEvent, when: number, durSec: number): void {
+    if (!this.ctx || !this.running) return;
+    if (!this.instruments.has(track.id)) { void this.ensureInstrument(track); return; }
+    this.startInstrumentNote(track, note, Math.max(when, this.ctx.currentTime), durSec);
   }
 
   private startInstrumentNote(track: ATrack, note: NoteEvent, when: number, durSec: number): void {

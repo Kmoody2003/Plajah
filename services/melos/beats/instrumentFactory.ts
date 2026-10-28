@@ -8,6 +8,7 @@ import { newVelaPatch, serializeVelaPatch } from '../instruments/vela/patch';
 import { newBajoPatch, serializeBajoPatch } from '../instruments/bajo/patch';
 import { newAuraPatch, serializeAuraPatch } from '../instruments/aura/patch';
 import { newSomaPatch, serializeSomaPatch } from '../instruments/soma/patch';
+import { newLyraPatch, serializeLyraPatch } from '../instruments/lyra/patch';
 import { SUITE, SUITE_ORDER, presetsFor } from '../instruments/vela/suite';
 
 /** True for any member of the meditation suite — they share a patch shape and an editor. */
@@ -31,6 +32,7 @@ export const INSTRUMENTS: InstrumentDef[] = [
   { type: 'onda', name: 'ONDA', blurb: 'Wavetable synth. Basses, leads, pads — anything you can shape.', color: '#B84DFF', ready: true },
   { type: 'aura', name: 'AURA', blurb: "Vintage '60s & '70s voltage-controlled analogue synth. 56 classic hardware templates, BBD string ensemble, and tape warmth.", color: '#E59A38', ready: true },
   { type: 'soma', name: 'SOMA', blurb: 'Real-time physical-modeling acoustic percussion & chamber simulator. Timpani, West African Djembe & Talking Drum, Congas, Taiko & Frame drums.', color: '#E86A33', ready: true },
+  { type: 'lyra', name: 'LYRA', blurb: 'Physical-model guitar, piano, violin, sax, trumpet and tine electric piano — real strings, bows, reeds and lips, no samples.', color: '#D9B36C', ready: true },
   { type: 'kera', name: 'KERA', blurb: 'Sampler. Play SoundFonts, SFZ and your own recordings across the keys.', color: '#00DAF3', ready: true },
   // The meditation suite. Four entries because they are four instruments, even though they
   // share an engine — what makes an instrument an instrument is what you reach for it FOR.
@@ -50,6 +52,7 @@ export function instrumentLabel(type: InstrumentType): string {
   if (type === 'bajo') return 'BAJO';
   if (type === 'aura') return 'AURA';
   if (type === 'soma') return 'SOMA';
+  if (type === 'lyra') return 'LYRA';
   if (isSuite(type)) return SUITE[type].name;
   return 'ONDA';
 }
@@ -61,6 +64,7 @@ export function instrumentColor(type: InstrumentType): string {
   if (type === 'bajo') return '#FF4B1C';
   if (type === 'aura') return '#E59A38';
   if (type === 'soma') return '#E86A33';
+  if (type === 'lyra') return '#D9B36C';
   if (isSuite(type)) return SUITE[type].accent;
   return '#B84DFF';
 }
@@ -93,6 +97,8 @@ export function makeInstrumentTrack(type: InstrumentType, count: number, presetP
             ? (serializeAuraPatch(newAuraPatch()) as ReturnType<typeof serializePatch>)
             : type === 'soma'
               ? (serializeSomaPatch(newSomaPatch()) as ReturnType<typeof serializePatch>)
+            : type === 'lyra'
+              ? (serializeLyraPatch(newLyraPatch()) as ReturnType<typeof serializePatch>)
             : serializePatch(newPatch(label))),
       presetName,
     },

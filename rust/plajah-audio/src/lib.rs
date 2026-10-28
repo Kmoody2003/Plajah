@@ -14,6 +14,9 @@ mod env;
 mod exciter;
 mod filter;
 mod lfo;
+mod lyra;
+#[cfg(test)]
+mod lyra_demos;
 mod modal;
 mod modmatrix;
 mod osc;
@@ -50,7 +53,11 @@ use spatial::{IamfRole, Layout, Position};
 /// v12 adds SOMA (param block 1800+): real-time physical-modeling acoustic percussion & chamber
 /// simulator (Hunt-Crossley striker/hand contact, 16-mode 2D Bessel circular membrane, nonlinear
 /// tension deflection, live pedal/talking-drum tension modulation, coupled air cavity & shell).
-pub const ABI_VERSION: u32 = 12;
+/// v13 adds `pa_schedule_note_on_sampled` — KERA notes queued at absolute frames, so sampler
+/// tracks and pads render in the offline bounce.
+/// v14 adds LYRA (param block 1900+): physical models of guitar, piano, violin, sax, trumpet and
+/// a tine electric piano; MAX_PARAM_ID grows to 2000.
+pub const ABI_VERSION: u32 = 14;
 
 #[unsafe(no_mangle)]
 pub extern "C" fn pa_abi_version() -> u32 {

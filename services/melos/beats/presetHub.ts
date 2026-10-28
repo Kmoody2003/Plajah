@@ -18,6 +18,9 @@ import {
 import { presetsFor } from '../instruments/vela/suite';
 import { AURA_PRESETS, AURA_CATEGORY_LABELS } from '../instruments/aura/presets';
 import { SOMA_PRESETS, SOMA_CATEGORY_LABELS } from '../instruments/soma/presets';
+import { LYRA_PRESETS } from '../instruments/lyra/presets';
+import { LYRA_MODEL_LABELS } from '../instruments/lyra/params';
+import { newLyraPatch, deserializeLyraPatch, applyLyraPreset, serializeLyraPatch } from '../instruments/lyra/patch';
 import {
   newSomaPatch, deserializeSomaPatch, applySomaPreset, serializeSomaPatch,
 } from '../instruments/soma/patch';
@@ -103,6 +106,9 @@ export function listPresets(type: InstrumentType): PresetEntry[] {
       description: `${p.origin} · ${p.acoustics} — ${p.description}`,
     }));
   }
+  else if (type === 'lyra') {
+    factory = LYRA_PRESETS.map((p) => ({ id: `f_${p.id}`, name: p.name, category: LYRA_MODEL_LABELS[p.model], description: p.description }));
+  }
   else if (type === 'aura') {
     factory = AURA_PRESETS.map((p) => ({
       id: `f_${p.id}`,
@@ -172,6 +178,14 @@ export function applyPresetToDoc(d: GrooveDoc, trackId: string, presetId: string
     const current = deserializeSomaPatch(t.instrument.patch);
     const next = current ? applySomaPreset(current, preset) : newSomaPatch(preset);
     t.instrument.patch = serializeSomaPatch(next) as Record<string, unknown>;
+    t.instrument.presetName = preset.name;
+    t.name = preset.name;
+  } else if (type === 'lyra') {
+    const preset = LYRA_PRESETS.find((p) => p.id === fid);
+    if (!preset) return false;
+    const current = deserializeLyraPatch(t.instrument.patch);
+    const next = current ? applyLyraPreset(current, preset) : newLyraPatch(preset);
+    t.instrument.patch = serializeLyraPatch(next) as Record<string, unknown>;
     t.instrument.presetName = preset.name;
     t.name = preset.name;
   } else if (isSuite(type)) {

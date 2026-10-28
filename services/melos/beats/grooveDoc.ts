@@ -408,7 +408,7 @@ export interface TimelineClip {
 /** The meditation suite (vela/cantus/ison/pneuma) shares one engine and one editor; they are
  *  separate types because they are separate instruments — different purpose, different preset
  *  bank, different thing you reach for. See instruments/vela/suite.ts. */
-export type InstrumentType = 'onda' | 'kera' | 'vela' | 'cantus' | 'ison' | 'pneuma' | 'bajo' | 'aura' | 'soma';
+export type InstrumentType = 'onda' | 'kera' | 'vela' | 'cantus' | 'ison' | 'pneuma' | 'bajo' | 'aura' | 'soma' | 'lyra';
 
 export interface TrackInstrument {
   type: InstrumentType;
@@ -573,6 +573,8 @@ export interface GrooveDoc {
   mixer: MixerState;
   /** Hardware console linked to this session (channel names, snapshots, soundcheck state). */
   mixerLink?: MixerLinkSession;
+  /** Session band (band/): the genre it last played, the chart, and each player's seat track. */
+  band?: { genre: string; chart?: string; seats: Record<string, string>; takes?: number };
   /** Film cue section markers across the arrangement timeline (Overture, Theme A, Theme B, Development, Climax, Coda) */
   sectionMarkers?: FilmScoreSectionMarker[];
   /** The song's words, line by line, each on the (0-based) bar where it is sung. Read by the

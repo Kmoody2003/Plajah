@@ -127,7 +127,7 @@ export async function delTrayTake(id: string): Promise<void> {
 
 // ── what Chora brings to a session ──────────────────────────────────────────
 
-const PRESET_TYPES: InstrumentType[] = ['onda', 'kera', 'vela', 'cantus', 'ison', 'pneuma', 'bajo', 'aura', 'soma'];
+const PRESET_TYPES: InstrumentType[] = ['onda', 'kera', 'vela', 'cantus', 'ison', 'pneuma', 'bajo', 'aura', 'soma', 'lyra'];
 
 /** This device's shareable items: user presets (+ KERA programs as instruments) and Melos samples. */
 export function chorasRigItems(samples: Array<{ id: string; title: string; url: string }> = []): { instruments: RigItem[]; presets: RigItem[]; library: RigItem[] } {

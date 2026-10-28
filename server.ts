@@ -80,6 +80,7 @@ import { createGrantsRouter } from './routes/grants';
 import { createAdminKeysRouter } from './routes/adminKeys';
 import { createGeminiLane, geminiConfigured, geminiGenerate, laneModel } from './services/ai/geminiLane';
 import { systemText, toAnthropicResponse, toGeminiContents } from './services/ai/anthropicCompat';
+import { teacherPlayer, teacherSystem, teacherTurns } from './services/melos/beats/band/teacherPrompt';
 import { PLATFORM_CUT_PCT as BOOK_PLATFORM_CUT_PCT } from './services/bookmeta/pricing';
 import { readRegistry as readEditionRegistry, licenceActive, entitledEditions, editionOf, type BookVersionStamp } from './services/bookEditions/policy';
 import { createLedgerRouter, appendLedger } from './routes/ledger';
@@ -6664,6 +6665,36 @@ async function startServer() {
     } catch (err: any) {
       console.error('/api/character/chat', err?.message || err);
       res.status(502).json({ error: 'Character chat failed' });
+    }
+  });
+
+  // ── Session Band teachers (Conservatory faculty / Chora band) — cloud lane ─────
+  // The desktop app answers on the PC first (services/melos/beats/band/bandMind.ts); this is the cloud
+  // fallback, only with the person's consent. The teacher brief is built HERE from the roster so its
+  // rules (fictional AI, accuracy, age-appropriate) can't be stripped by the client. Model:
+  // BAND_TEACHER_MODEL, else the default lane model.
+  app.post('/api/band/teach', authMiddleware, aiLimiter, requireRegisteredUser, express.json({ limit: '64kb' }), async (req: any, res) => {
+    if (req.body?.cloudConsent !== true) return res.status(428).json({ error: 'Cloud answers need your OK first.' });
+    if (!geminiConfigured()) return res.status(503).json({ error: 'AI not configured' });
+    const player = teacherPlayer(req.body?.playerId);
+    if (!player) return res.status(400).json({ error: 'Unknown player' });
+    const turns = teacherTurns(Array.isArray(req.body?.messages) ? req.body.messages : []);
+    const question = [...turns].reverse().find(t => t.role === 'user')?.content || '';
+    if (!question) return res.status(400).json({ error: 'No question' });
+    const c = req.body?.context || {};
+    const ctx = {
+      personaId: typeof c.personaId === 'string' ? c.personaId : undefined,
+      level: ['new', 'beginner', 'intermediate', 'advanced'].includes(c.level) ? c.level : undefined,
+      lesson: typeof c.lesson === 'string' ? c.lesson.slice(0, 400) : undefined,
+      justPlayed: typeof c.justPlayed === 'string' ? c.justPlayed.slice(0, 400) : undefined,
+    };
+    try {
+      const model = laneModel('BAND_TEACHER_MODEL');
+      const { text } = await geminiGenerate({ model, system: teacherSystem(player, ctx, question), contents: toGeminiContents(turns), maxTokens: 500, temperature: 0.6 });
+      res.json({ reply: text, model });
+    } catch (err: any) {
+      console.error('/api/band/teach', err?.message || err);
+      res.status(502).json({ error: 'The teacher could not answer right now.' });
     }
   });
 
