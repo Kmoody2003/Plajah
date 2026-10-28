@@ -138,14 +138,14 @@ t('personal template: someone else cannot read', 'DENY', OTHER, 'get', T('t3'), 
 t('save a personal template', 'ALLOW', MEMBER, 'create', T('t3'), { data: tpl('t3', { tier: 'user', ownerUid: MEMBER }) });
 t('staff saves an org template', 'ALLOW', STAFF, 'create', T('t2'), { data: tpl('t2', { tier: 'org', orgId: 'o1', ownerUid: STAFF }) });
 t('member cannot save an org template', 'DENY', MEMBER, 'create', T('t2'), { data: tpl('t2', { tier: 'org', orgId: 'o1', ownerUid: MEMBER }) });
+// Platform templates are server-written only (routes/templateShare.ts decides policy + roles and strips).
 const share = who => tpl('t4', { tier: 'platform', ownerUid: who, fromOrgId: 'o1', stripped: true });
-t('share org doc: no policy set → refused', 'DENY', OWNER, 'create', T('t4'), { data: share(OWNER), policy: null });
-t('share org doc: sharing off → refused', 'DENY', OWNER, 'create', T('t4'), { data: share(OWNER), policy: POLICY.off });
-t('share org doc: on for admins, owner shares', 'ALLOW', OWNER, 'create', T('t4'), { data: share(OWNER), policy: POLICY.adminOnly });
-t('share org doc: on for admins only, staff refused', 'DENY', STAFF, 'create', T('t4'), { data: share(STAFF), policy: POLICY.adminOnly });
-t('share org doc: on for staff, staff shares', 'ALLOW', STAFF, 'create', T('t4'), { data: share(STAFF), policy: POLICY.staff });
-t('share org doc: on for staff, member refused', 'DENY', MEMBER, 'create', T('t4'), { data: share(MEMBER), policy: POLICY.staff });
-t('share org doc: unstripped copy refused', 'DENY', OWNER, 'create', T('t4'), { data: { ...share(OWNER), stripped: false }, policy: POLICY.adminOnly });
+t('client cannot write a shared org doc, even with sharing on', 'DENY', OWNER, 'create', T('t4'), { data: share(OWNER), policy: POLICY.staff });
+t('client cannot write a platform template without an org tag', 'DENY', MEMBER, 'create', T('t5'), { data: tpl('t5', { tier: 'platform', ownerUid: MEMBER }) });
+t('owner retitles their platform template', 'ALLOW', STAFF, 'update', T('t1'), { existing: tpl('t1', { tier: 'platform', ownerUid: STAFF }), data: tpl('t1', { tier: 'platform', ownerUid: STAFF, name: 'Harvest flyer (warm)', updatedAt: 9 }) });
+t('owner cannot swap the document under a platform template', 'DENY', STAFF, 'update', T('t1'), { existing: tpl('t1', { tier: 'platform', ownerUid: STAFF, stripped: true, fromOrgId: 'o1' }), data: tpl('t1', { tier: 'platform', ownerUid: STAFF, stripped: true, fromOrgId: 'o1', bundleJson: '{"unstripped":true}' }) });
+t('owner cannot clear the stripped flag', 'DENY', STAFF, 'update', T('t1'), { existing: tpl('t1', { tier: 'platform', ownerUid: STAFF, stripped: true, fromOrgId: 'o1' }), data: tpl('t1', { tier: 'platform', ownerUid: STAFF, stripped: false, fromOrgId: 'o1' }) });
+t('owner still edits their personal template freely', 'ALLOW', MEMBER, 'update', T('t3'), { existing: tpl('t3', { tier: 'user', ownerUid: MEMBER }), data: tpl('t3', { tier: 'user', ownerUid: MEMBER, bundleJson: '{"v":2}' }) });
 t('using a template counts +1', 'ALLOW', OTHER, 'update', T('t1'), { existing: tpl('t1', { tier: 'platform', ownerUid: STAFF }), data: tpl('t1', { tier: 'platform', ownerUid: STAFF, uses: 1 }) });
 t('cannot bump uses by more than 1', 'DENY', OTHER, 'update', T('t1'), { existing: tpl('t1', { tier: 'platform', ownerUid: STAFF }), data: tpl('t1', { tier: 'platform', ownerUid: STAFF, uses: 50 }) });
 t('cannot rename someone else\'s template', 'DENY', OTHER, 'update', T('t1'), { existing: tpl('t1', { tier: 'platform', ownerUid: STAFF }), data: tpl('t1', { tier: 'platform', ownerUid: STAFF, name: 'Mine now' }) });

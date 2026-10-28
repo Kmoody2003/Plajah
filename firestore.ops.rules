@@ -633,29 +633,22 @@ service cloud.firestore {
     }
     // ── Template library (services/templates/docTemplateLibrary.ts) ───────────
     // platform → everyone reads. org → the org's Content HQ people read/write. user → owner only.
-    // A platform template copied from an org document must carry fromOrgId + stripped and pass the org's
-    // policy. Rules can only verify admin and staff roles; teacher/volunteer/member roles are checked in
-    // the client (any of them on = anyone signed in may share a stripped copy).
+    // Platform templates are written ONLY by the server (routes/templateShare.ts): it resolves the
+    // sharer's real roles in every org the document came from, applies each org's policy and strips the
+    // org's content itself. Afterwards the owner may retitle it but never swap the document underneath.
     function tplOrgStaff(orgId) { return canAccessHqScope({'scopeKind': 'org', 'scopeId': orgId}) || chmsPeopleStaff(orgId); }
-    function tplPolicy(orgId) { return get(/databases/$(database)/documents/orgTemplatePolicies/$(orgId)).data; }
-    function tplShareAllowed(orgId) {
-      return exists(/databases/$(database)/documents/orgTemplatePolicies/$(orgId)) && tplPolicy(orgId).allowPlatformSharing == true && (
-        (orgAdminOf(orgId) && tplPolicy(orgId).roles.admin == true) ||
-        (chmsPeopleStaff(orgId) && tplPolicy(orgId).roles.staff == true) ||
-        tplPolicy(orgId).roles.teacher == true || tplPolicy(orgId).roles.volunteer == true || tplPolicy(orgId).roles.member == true);
-    }
     match /docTemplates/{id} {
       allow read: if isAuthenticated() && (resource.data.tier == 'platform' || resource.data.ownerUid == request.auth.uid
         || (resource.data.tier == 'org' && tplOrgStaff(resource.data.orgId)) || isAdmin());
       allow create: if isAuthenticated() && request.resource.data.ownerUid == request.auth.uid && request.resource.data.id == id
         && request.resource.data.bundleJson is string && request.resource.data.bundleJson.size() < 750000
         && (request.resource.data.tier == 'user'
-          || (request.resource.data.tier == 'org' && tplOrgStaff(request.resource.data.orgId))
-          || (request.resource.data.tier == 'platform' && (!('fromOrgId' in request.resource.data)
-            || (request.resource.data.get('stripped', false) == true && tplShareAllowed(request.resource.data.fromOrgId)))));
+          || (request.resource.data.tier == 'org' && tplOrgStaff(request.resource.data.orgId)));
       allow update: if isAuthenticated() && (
           (resource.data.ownerUid == request.auth.uid && request.resource.data.ownerUid == resource.data.ownerUid
-            && request.resource.data.tier == resource.data.tier && request.resource.data.get('fromOrgId', '') == resource.data.get('fromOrgId', ''))
+            && request.resource.data.tier == resource.data.tier && request.resource.data.get('fromOrgId', '') == resource.data.get('fromOrgId', '')
+            && (resource.data.tier != 'platform'
+              || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'description', 'tags', 'updatedAt'])))
           || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['uses']) && request.resource.data.uses == resource.data.get('uses', 0) + 1));
       allow delete: if isAuthenticated() && (resource.data.ownerUid == request.auth.uid
         || (resource.data.tier == 'org' && orgAdminOf(resource.data.orgId)) || isAdmin());

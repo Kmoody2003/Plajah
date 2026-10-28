@@ -52,6 +52,7 @@ import { createAdminPublishAsRouter } from './routes/adminPublishAs';
 import { learnerAuthRouter } from './routes/learnerAuth';
 import { schoolsRouter } from './routes/schools';
 import { elevateAccountsRouter } from './routes/elevateAccounts';
+import { templateShareRouter } from './routes/templateShare';
 import { createBusinessStaffRouter } from './routes/businessStaff';
 import { registerPermsFor as bizRegisterPermsFor, normalizePerms as normalizeBizPerms, type BizPerm } from './services/businessStaffCore';
 import { staffActorInfo as bizStaffActorInfo } from './services/businessStaffServerCore';
@@ -13726,6 +13727,9 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   // Elevate: claim a pre-provisioned member / staff account (member ID + last name, or own email). Rate-limited.
   app.use('/api/elevate/claim', authLimiter);
   app.use('/api/elevate/claim', express.json({ limit: '8kb' }), elevateAccountsRouter);
+  // Template library: sharing to the platform shelf is server-decided (org policy + real roles, stripping). Rate-limited.
+  app.use('/api/templates/share', authLimiter);
+  app.use('/api/templates/share', express.json({ limit: '1mb' }), templateShareRouter);
   // Business staff seats: invite → lookup → redeem on the member's own account (routes/businessStaff.ts).
   app.use('/api/business/staff/lookup', authLimiter);
   app.use('/api/business/staff/redeem', authLimiter);

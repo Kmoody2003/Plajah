@@ -13,11 +13,13 @@
 // slots, and lesson/answer data, links and narration are removed — only the design travels.
 import { collection, deleteDoc, doc, getDoc, getDocs, increment, query, setDoc, updateDoc, where } from 'firebase/firestore';
 import { opsDb, auth } from '../firebase';
-import type { TelaDoc, TelaDevice, TelaFrame, TelaVectorObject } from '../../types';
-import type { Action } from '../living/contracts';
+import type { TelaDoc, TelaDevice, TelaFrame } from '../../types';
 import { TELA_TEMPLATE_GALLERY, type TelaDesignTemplate } from '../tela/telaTemplateRegistry';
 import { FLYER_PRESETS, flyerToTelaDoc, type FlyerPreset } from '../announcements/flyerPresets';
 import { newTelaId } from '../telaStore';
+import { stripOrgContent } from './stripOrgContent';
+import { defaultPolicy, sharingBlockedReason, type OrgShareRole, type OrgTemplatePolicy } from './templateSharePolicy';
+export { ORG_SHARE_ROLES, defaultPolicy, sharingBlockedReason, type OrgShareRole, type OrgTemplatePolicy } from './templateSharePolicy';
 
 export type TemplateShelf = 'platform' | 'org' | 'mine';
 export type DocTemplateCategory = 'LESSON' | 'WORKSHEET' | 'QUIZ' | 'FLYER' | 'POSTER' | 'NEWSLETTER' | 'ANNOUNCEMENT' | 'DOCUMENT' | 'PRESENTATION' | 'SOCIAL' | 'PUBLICATION' | 'OTHER';
@@ -68,22 +70,6 @@ export interface LibraryTemplate {
   flyer?: FlyerPreset;
   record?: DocTemplateRecord;
 }
-
-export type OrgShareRole = 'admin' | 'staff' | 'teacher' | 'volunteer' | 'member';
-export const ORG_SHARE_ROLES: Array<{ id: OrgShareRole; label: string }> = [
-  { id: 'admin', label: 'Admins' }, { id: 'staff', label: 'Staff & leaders' }, { id: 'teacher', label: 'Teachers' },
-  { id: 'volunteer', label: 'Volunteers' }, { id: 'member', label: 'Members' },
-];
-
-export interface OrgTemplatePolicy {
-  orgId: string;
-  /** Off by default: nothing leaves the org until an admin allows it. */
-  allowPlatformSharing: boolean;
-  roles: Record<OrgShareRole, boolean>;
-  updatedBy?: string;
-  updatedAt?: number;
-}
-export const defaultPolicy = (orgId: string): OrgTemplatePolicy => ({ orgId, allowPlatformSharing: false, roles: { admin: true, staff: true, teacher: true, volunteer: false, member: false } });
 
 const COL = 'docTemplates';
 const POL = 'orgTemplatePolicies';
@@ -205,13 +191,31 @@ export async function shareDocToPlatform(d: TelaDoc, o: { name: string; category
     if (why) throw new Error(why);
     bundle = stripOrgContent(d, { title: o.name });
   }
-  const me = auth.currentUser?.uid || 'local';
+  // Signed in, the server makes the real decision: it resolves the person's roles in every org the
+  // document comes from (its tag, or an org name in its text), checks each org's policy, strips it
+  // itself and writes the platform record. Clients can't write platform templates directly.
+  const u = auth.currentUser;
+  if (u) {
+    const token = await u.getIdToken();
+    const res = await fetch('/api/templates/share', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ bundleJson: JSON.stringify(d), name: o.name, category: o.category, description: o.description, ownerName: o.ownerName, fromOrgId: o.fromOrg?.orgId }),
+    });
+    const out = await res.json().catch(() => ({})) as { record?: DocTemplateRecord; error?: string };
+    if (!res.ok || !out.record) throw new Error(out.error || 'Couldn’t share this template right now.');
+    writeLocal(LOCAL, [...readLocal<DocTemplateRecord[]>(LOCAL, []).filter(x => x.id !== out.record!.id), out.record].slice(-120));
+    changed();
+    return { record: out.record, synced: true };
+  }
+  // Signed out (labs): kept on this device only.
   const now = Date.now();
   const record: DocTemplateRecord = strip({
-    id: uid('tpl'), tier: 'platform', ownerUid: me, ownerName: o.ownerName, fromOrgId: o.fromOrg?.orgId, stripped: !!o.fromOrg,
+    id: uid('tpl'), tier: 'platform', ownerUid: 'local', ownerName: o.ownerName, fromOrgId: o.fromOrg?.orgId, stripped: !!o.fromOrg,
     name: o.name.trim() || bundle.title, description: o.description?.trim() || undefined, category: o.category, ...measure(bundle), bundleJson: encodeBundle(bundle), uses: 0, createdAt: now, updatedAt: now,
   });
-  return { record, synced: await put(record) };
+  writeLocal(LOCAL, [...readLocal<DocTemplateRecord[]>(LOCAL, []).filter(x => x.id !== record.id), record].slice(-120));
+  changed();
+  return { record, synced: false };
 }
 
 async function put(r: DocTemplateRecord): Promise<boolean> {
@@ -244,79 +248,4 @@ export async function setOrgTemplatePolicy(p: OrgTemplatePolicy): Promise<{ sync
   return { synced };
 }
 
-export function sharingBlockedReason(p: OrgTemplatePolicy, role: OrgShareRole): string | null {
-  if (!p.allowPlatformSharing) return 'This organization doesn’t allow its documents to be shared as public templates. An admin can turn it on in Content HQ › Template sharing.';
-  if (!p.roles[role]) return `This organization doesn’t let ${ORG_SHARE_ROLES.find(r => r.id === role)?.label.toLowerCase() || 'your role'} share its documents as public templates.`;
-  return null;
-}
-
-// ── stripping ─────────────────────────────────────────────────────────────────
-const LOREM = 'lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua ut enim ad minim veniam quis nostrud exercitation ullamco laboris nisi aliquip ex ea commodo consequat duis aute irure in reprehenderit voluptate velit esse cillum fugiat nulla pariatur excepteur sint occaecat cupidatat non proident sunt culpa qui officia deserunt mollit anim id est laborum'.split(' ');
-
-/** Placeholder Latin shaped like the original: same lines, about the same length, same capitalisation. */
-export function loremLike(src: string, seed = 0): string {
-  let w = seed % LOREM.length;
-  return src.split('\n').map(line => {
-    const t = line.trim(); if (!t) return line;
-    const words: string[] = []; let len = 0;
-    while (len < Math.max(3, t.length - 2)) { const x = LOREM[w++ % LOREM.length]; words.push(x); len += x.length + 1; }
-    let out = words.join(' ');
-    if (t === t.toUpperCase() && /[A-Z]/.test(t)) out = out.toUpperCase();
-    else out = out.charAt(0).toUpperCase() + out.slice(1);
-    if (/[.!?]$/.test(t)) out += '.';
-    return out;
-  }).join('\n');
-}
-
-const CONTENT_KEYS = new Set(['text', 'title', 'subtitle', 'prompt', 'question', 'answer', 'correctAnswer', 'caption', 'alt', 'description', 'body', 'content', 'hint', 'summary', 'instructions', 'placeholder', 'credit', 'note', 'notes', 'label', 'value', 'explanation', 'rubric', 'feedback', 'name', 'expected', 'acceptedAnswers', 'teacherNote']);
-const DROP_KEYS = new Set(['src', 'url', 'sourceUrl', 'sourceImageSrc', 'storagePath', 'href', 'link', 'ctaUrl', 'textMaskUrl', 'posterSrc', 'story', 'document', 'raster', 'rasterPreview', 'domainBinding', 'assignment', 'answerKey', 'words']);
-
-function scrub(v: any, seed: { n: number }, key?: string): any {
-  if (typeof v === 'string') return key && CONTENT_KEYS.has(key) && v.trim() ? loremLike(v, seed.n++) : v;
-  if (Array.isArray(v)) return key === 'options' || key === 'choices' ? v.map(x => (typeof x === 'string' ? loremLike(x, seed.n++) : scrub(x, seed))) : v.map(x => scrub(x, seed));
-  if (v && typeof v === 'object') {
-    const o: any = {};
-    for (const [k, x] of Object.entries(v)) {
-      if (DROP_KEYS.has(k)) continue;
-      if (k === 'values' && x && typeof x === 'object' && !Array.isArray(x)) { o[k] = Object.fromEntries(Object.entries(x as Record<string, unknown>).map(([c, s]) => [c, typeof s === 'string' && s ? loremLike(s, seed.n++) : s])); continue; }
-      if (k === 'cells' && x && typeof x === 'object') { o[k] = Object.fromEntries(Object.entries(x as Record<string, string>).map(([c, s]) => [c, typeof s === 'string' && s && !s.startsWith('=') ? loremLike(s, seed.n++).split(' ')[0] : s])); continue; }
-      o[k] = scrub(x, seed, k);
-    }
-    return o;
-  }
-  return v;
-}
-
-function scrubVector(o: TelaVectorObject, seed: { n: number }): TelaVectorObject {
-  if (o.kind === 'IMAGE') {
-    const { sourceImageSrc: _s, sourceCrop: _c, ...rest } = o as any;
-    return { ...rest, kind: 'RECT', fill: '#d9d5e2', opacity: .7, stroke: '#b8b2c6', strokeWidth: 1, objectLabel: 'Image slot', templateRole: 'IMAGE_SLOT', semanticRole: undefined } as TelaVectorObject;
-  }
-  const keepLabel = o.objectLabel; const keepRole = o.templateRole;
-  const out = scrub(o, seed) as TelaVectorObject;
-  out.objectLabel = keepLabel; out.templateRole = keepRole; // labels drive behaviours and editing, not content
-  return out;
-}
-
-/** The design without the org: lorem text, empty image slots, no lesson data, links, media or narration. */
-export function stripOrgContent(d: TelaDoc, o: { title: string }): TelaDoc {
-  const seed = { n: 0 };
-  const devices: Record<string, TelaDevice> = {};
-  for (const [id, dev] of Object.entries(d.devices)) {
-    if (dev.type === 'VECTOR') devices[id] = { ...dev, name: dev.name ? loremLike(dev.name, seed.n++) : dev.name, objects: dev.objects.map(x => scrubVector(x, seed)) };
-    else if (dev.type === 'IMAGE') devices[id] = { ...dev, layers: [], raster: undefined, rasterPreview: undefined, rasterRev: undefined } as TelaDevice;
-    else if (dev.type === 'MEDIA') devices[id] = { ...dev, src: '', name: 'Media slot', storagePath: undefined, size: 0 };
-    else if (dev.type === 'FIGURE') continue;
-    else devices[id] = scrub(dev, seed) as TelaDevice;
-  }
-  const frames = d.frames.map(f => ({ ...f, label: f.label ? loremLike(f.label, seed.n++) : f.label, deviceIds: f.deviceIds.filter(id => devices[id]) }));
-  // Behaviours keep their motion; anything carrying words or links (emit payloads, set text) is cleared, nested branches included.
-  const cleanActions = (as?: Action[]): Action[] | undefined => as?.map(a =>
-    a.do === 'emit' ? { ...a, payload: undefined }
-      : a.do === 'set' && a.props.text !== undefined ? { ...a, props: { ...a.props, text: loremLike(a.props.text, seed.n++) } }
-        : a.do === 'if' ? { ...a, then: cleanActions(a.then)!, else: cleanActions(a.else) }
-          : a);
-  const living = d.living ? { ...d.living, authorNotes: undefined, pages: d.living.pages.map(p => ({ ...p, narration: undefined, a11y: undefined, behaviors: p.behaviors.map(b => ({ ...b, label: undefined, hint: b.hint ? 'Try it' : undefined, do: cleanActions(b.do)!, reduced: cleanActions(b.reduced) })) })) } : undefined;
-  const { lesson: _l, publication: _p, issue: _i, assignmentFormat: _a, orgOrigin: _o, ...rest } = d;
-  return strip({ ...rest, title: o.title, devices, frames, living, bindings: (d.bindings || []).filter(b => devices[b.sourceDeviceId] && devices[b.targetDeviceId]) });
-}
+export { loremLike, stripOrgContent } from './stripOrgContent';

@@ -17,6 +17,8 @@
     "components/tela/TelaView.tsx",
     "components/church/OrgLessonLibraryHub.tsx",
     "components/TeacherToolsView.tsx",
+    "routes/templateShare.ts",
+    "tests/templateShare.test.ts",
     "components/elevate/ElevateOps.tsx",
     "components/elevate/ChurchMemberHub.tsx",
     "services/curriculumIngestionService.ts",
