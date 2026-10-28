@@ -235,14 +235,18 @@ export const InstrumentWindow: React.FC<Props> = ({ doc, track, onMutate, onClos
           >Mine</button>
         )}
 
-        <button
+        {track.padOwned ? (
+          <span className="h-7 px-2 rounded-lg border border-white/12 flex items-center text-[10px] text-white/50"
+            title="This instrument belongs to a MEKA pad — play it from the pad (Keys mode, or select the pad and play your keyboard)"
+          >On pad {(track.padIndex ?? 0) + 1}</span>
+        ) : <button
           onClick={toggleArm}
           className="h-7 px-2 rounded-lg border flex items-center gap-1 text-[10px]"
           style={track.armed
             ? { borderColor: ARMED, color: ARMED, background: 'rgba(255,140,0,0.12)' }
             : { borderColor: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.45)' }}
           title={track.armed ? 'Armed — your keyboard and MIDI play this' : 'Arm for playing and recording'}
-        ><Circle size={7} fill="currentColor" /> {track.armed ? 'Armed' : 'Arm'}</button>
+        ><Circle size={7} fill="currentColor" /> {track.armed ? 'Armed' : 'Arm'}</button>}
 
         <button onClick={onClose} aria-label="Close instrument" className="w-7 h-7 grid place-items-center rounded-lg border border-white/10 text-white/45 hover:text-white hover:bg-white/10">
           <X size={13} />

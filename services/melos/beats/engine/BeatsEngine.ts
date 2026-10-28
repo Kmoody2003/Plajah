@@ -83,7 +83,9 @@ export class BeatsEngine {
   /** Notes started live from the keyboard/MIDI, so a key-up can find its voice. */
   private liveNotes = new Map<string, number>();
   /** Live-held instrument-pad notes (padIdx → the voice sounding), so a pad release finds it. */
-  private padLiveNotes = new Map<number, { trackId: string; note: number; voiceId: number; kera: boolean }>();
+  // Live notes an instrument pad is holding — several when it's played as a keyboard (Keys /
+  // Chords mode, a MIDI keyboard), so a chord on a pad holds every note, not just the last one.
+  private padLiveNotes = new Map<number, { trackId: string; note: number; voiceId: number; kera: boolean }[]>();
   /** Keys feeding each track's arp: `keys` is the held set, `order` preserves press order. */
   private heldKeys = new Map<string, { keys: number[]; order: number[] }>();
   private arpPrevFired = new Map<string, boolean>();
@@ -466,25 +468,43 @@ export class BeatsEngine {
       return;
     }
 
-    // Live hit — retrigger cleanly by releasing whatever this pad was holding first.
-    this.releasePadInstrument(padIdx);
+    // Live hit. A plain pad hit retriggers cleanly (release whatever the pad held); a pitched hit
+    // (the pad played as a keyboard) only retriggers the same key and leaves the others ringing.
+    if (this.pitchedHit === undefined) this.releasePadInstrument(padIdx);
+    else this.releasePadInstrument(padIdx, note);
+    const held = this.padLiveNotes.get(padIdx) ?? [];
     if (kera) {
       inst.keraNoteOn(note, vel127);
-      this.padLiveNotes.set(padIdx, { trackId: track.id, note, voiceId: -1, kera: true });
+      held.push({ trackId: track.id, note, voiceId: -1, kera: true });
     } else {
       const voiceId = inst.noteOn(note, vel01, t, this.ctx.currentTime, this.ctx.sampleRate);
-      this.padLiveNotes.set(padIdx, { trackId: track.id, note, voiceId, kera: false });
+      held.push({ trackId: track.id, note, voiceId, kera: false });
     }
+    this.padLiveNotes.set(padIdx, held);
   }
 
-  private releasePadInstrument(padIdx: number): void {
-    const live = this.padLiveNotes.get(padIdx);
-    if (!live) return;
-    this.padLiveNotes.delete(padIdx);
-    const inst = this.instruments.get(live.trackId);
-    if (!inst) return;
-    if (live.kera) inst.keraNoteOff(live.note);
-    else inst.noteOff(live.voiceId, true);
+  /** Release an instrument pad's live notes — all of them, or just `note`. */
+  private releasePadInstrument(padIdx: number, note?: number): void {
+    const held = this.padLiveNotes.get(padIdx);
+    if (!held?.length) return;
+    const keep = note === undefined ? [] : held.filter((n) => n.note !== note);
+    for (const live of held) {
+      if (note !== undefined && live.note !== note) continue;
+      const inst = this.instruments.get(live.trackId);
+      if (!inst) continue;
+      if (live.kera) inst.keraNoteOff(live.note);
+      else inst.noteOff(live.voiceId, true);
+    }
+    if (keep.length) this.padLiveNotes.set(padIdx, keep); else this.padLiveNotes.delete(padIdx);
+  }
+
+  /** Key-up for ONE pitched note on a pad (a keyboard key or a Keys-mode cell), leaving the
+   *  pad's other held notes sounding. One-shot pads have nothing to hold — a no-op. */
+  padNoteUp(padIdx: number, semi: number): void {
+    const pad = this.doc.kit[padIdx];
+    if (pad?.source !== 'instrument') return;
+    const note = Math.max(0, Math.min(127, (pad.instrumentNote ?? 60) + (pad.pitchSemis || 0) + semi));
+    this.releasePadInstrument(padIdx, note);
   }
 
   // ── Live pad performance: hit feed (recording) + engine-scheduled Note Repeat ──────────
@@ -862,8 +882,10 @@ export class BeatsEngine {
   }
 
   /** The track your keyboard plays. Exactly one, or none. */
+  /** The armed Timeline instrument. A pad's own (hidden) track never counts, even if an older
+   *  doc has it flagged — a pad instrument is played through its pad. */
   armedTrack(): ATrack | null {
-    return this.doc.arrangement.find((t) => t.kind === 'instrument' && t.armed) ?? null;
+    return this.doc.arrangement.find((t) => t.kind === 'instrument' && t.armed && !t.padOwned) ?? null;
   }
 
   /** Reload a track's patch into its live instrument (preset change, macro edit).

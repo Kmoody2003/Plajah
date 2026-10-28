@@ -307,7 +307,8 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
 
   // The armed instrument track owns the QWERTY keyboard (the pads stand down while it does),
   // and receives anything played or recorded.
-  const armedTrack = doc.arrangement.find((t) => t.kind === 'instrument' && t.armed) || null;
+  // Never a pad's own track: a pad instrument is played by its pad, not the armed keyboard.
+  const armedTrack = doc.arrangement.find((t) => t.kind === 'instrument' && t.armed && !t.padOwned) || null;
   useInstrumentKeyboard({
     doc,
     armedTrack,
@@ -535,7 +536,10 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
     // `mutate` runs its callback synchronously against the live doc, so the track is in hand
     // before this returns — the note that triggered it still sounds on the same event.
     mutate((d) => {
-      const first = d.arrangement.find((t) => t.kind === 'instrument');
+      // Only a Timeline instrument track is ever armed. A pad's own (hidden) instrument track is
+      // played by its pad — arming one sent every keyboard note, knob turn and Maschine pad to that
+      // one pad's sound, whichever pad you had selected.
+      const first = d.arrangement.find((t) => t.kind === 'instrument' && !t.padOwned);
       if (!first) return;
       for (const t of d.arrangement) if (t.kind === 'instrument') t.armed = t.id === first.id;
       picked = first;
@@ -544,15 +548,26 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
   }, [mutate]);
 
   const midiRec = React.useRef(new Map<number, RecordedNote>());
+  // Keyboard notes that are playing an instrument pad (MEKA focus): MIDI note → pad index.
+  const midiPadNotes = React.useRef(new Map<number, { pad: number; semi: number }>());
   useEffect(() => {
     ensureMidi(); // request access now so the device readout populates before you play
     return subscribeMidi((e) => {
       const engine = BeatsEngine.get();
-      const armed = engine.armedTrack();
+      const doc0 = docRefForChoice.current;
+      const armed = engine.armedTrack(); // never a pad's own track (see armedTrack)
+      // MEKA follows Maschine's focus: the keys, wheels and knobs play the SELECTED sound. When that
+      // is an instrument pad, keyboard notes are pitched hits on it (recorded into its pitch roll).
+      const inMeka = viewRef.current === 'machine';
+      const selIdx = selectedPadRef.current;
+      const selPad = doc0.kit[selIdx];
+      const padTrack = inMeka && selPad?.source === 'instrument' && selPad.instrumentTrackId
+        ? doc0.arrangement.find((t) => t.id === selPad.instrumentTrackId && t.kind === 'instrument') ?? null
+        : null;
       // Learned user bindings win over the premap; 'captured' means learn mode ate this event.
       const learned = learnedAction(e);
       if (learned === 'captured') return;
-      const action = learned ?? mapMidiEvent(e, !!armed);
+      const action = learned ?? mapMidiEvent(e, !!(padTrack ?? armed), !inMeka);
       if (!action) return;
       // MIDI plays in every view EXCEPT Project — that page assembles releases, it doesn't
       // perform. Transport controls still pass so hardware play/stop always works.
@@ -567,6 +582,13 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           engine.padUp(action.pad);
           break;
         case 'note': {
+          if (padTrack) {
+            const semi = action.note - ((selPad.instrumentNote ?? 60) + (selPad.pitchSemis || 0));
+            midiPadNotes.current.set(action.note, { pad: selIdx, semi });
+            void engine.init().then(() => engine.padDownPitched(selIdx, action.velocity, semi, true));
+            midiSendNoteOn(action.note, action.velocity);
+            break;
+          }
           // Auto-route. `mapMidiEvent` deliberately returns a note for a generic keyboard so it is
           // "never dead" — and this used to drop it on the floor whenever no track happened to be
           // armed, which is a device that connects, lights up, and makes no sound. Arm the first
@@ -585,7 +607,15 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           break;
         }
         case 'noteOff': {
-          const target = armed ?? engine.armedTrack();
+          // A note that started on an instrument pad ends there, even if the selection moved.
+          const onPad = midiPadNotes.current.get(action.note);
+          if (onPad) {
+            midiPadNotes.current.delete(action.note);
+            engine.padNoteUp(onPad.pad, onPad.semi);
+            midiSendNoteOff(action.note);
+            break;
+          }
+          const target = armed;
           if (target) {
             const playOff = () => engine.instrumentNoteOff(target, action.note);
             if (!jamApiRef.current?.sendNote(target.id, false, action.note, 0, playOff)) playOff();
@@ -603,17 +633,17 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           break;
         }
         case 'modWheel': {
-          const target = armed ?? autoArm();
+          const target = padTrack ?? armed ?? autoArm();
           if (target) engine.setInstrumentModWheel(target, action.value);
           break;
         }
         case 'pitchBend': {
-          const target = armed ?? autoArm();
+          const target = padTrack ?? armed ?? autoArm();
           if (target) engine.setInstrumentPitchBend(target, action.value);
           break;
         }
         case 'sustain': {
-          const target = armed ?? engine.armedTrack();
+          const target = padTrack ?? armed;
           if (target && !action.on) {
             engine.getInstrument(target.id)?.allNotesOff(false);
           }
@@ -622,7 +652,8 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
         case 'macro': {
           // The eight knobs drive the armed instrument's macros, else whatever page MEKA's control
           // area is on (Sound / Group / Master) — screen knob N and hardware knob N are one slot.
-          if (armed) {
+          // In MEKA the knobs follow the screen (the selected pad's page); elsewhere, the armed synth.
+          if (armed && !inMeka) {
             let how: 'live' | 'reload' | null = null;
             mutate((d) => { how = writeInstrumentMacro(d, armed.id, action.index, action.value); });
             if (how === 'live') engine.getInstrument(armed.id)?.setMacro(action.index, action.value);

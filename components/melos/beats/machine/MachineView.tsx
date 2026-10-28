@@ -157,7 +157,11 @@ export const MachineView: React.FC<MachineViewProps> = (p) => {
     // Key-up = note-off, so sustaining pads hold under a finger like real keys.
     const onKeyUp = (e: KeyboardEvent) => {
       const local = padForKey(e.key.toLowerCase());
-      if (local >= 0) BeatsEngine.get().padUp(pitchedRef.current ? selectedRef.current : bankRef.current * 16 + local);
+      if (local < 0) return;
+      const pm = pitchedRef.current;
+      // Keys/Chords: release only this key's notes, so a held chord across keys keeps sounding.
+      if (pm) { for (const semi of pm.notes(local)) BeatsEngine.get().padNoteUp(selectedRef.current, semi); return; }
+      BeatsEngine.get().padUp(bankRef.current * 16 + local);
     };
     window.addEventListener('keydown', onKey);
     window.addEventListener('keyup', onKeyUp);

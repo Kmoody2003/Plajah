@@ -20,7 +20,8 @@ import { instrumentColor, instrumentLabel } from '../../../../services/melos/bea
 import { groupLabel } from '../../../../services/melos/beats/kits/applyKit';
 import { classifySample, CATEGORY_LABEL } from '../../../../services/melos/beats/kits/drumClassify';
 import { loadKitIndex, loadRoots, readLibrarySample } from '../../../../services/melos/beats/kits/kitLibrary';
-import { ENGINE_LABEL, MODELS, drumSynthFromLegacy, setPadDrumSynth, type DrumSynthPatch } from '../../../../services/melos/beats/drumSynth';
+import { ENGINE_LABEL, MODELS, drumSynthFromLegacy, drumSynthLength, setPadDrumSynth, type DrumSynthPatch } from '../../../../services/melos/beats/drumSynth';
+import { playDrumSynth } from '../../../../services/melos/beats/engine/drumSynthVoice';
 import { Knob } from '../shared/Knob';
 import { SamplerPanel } from './SamplerPanel';
 import { SURFACE_RAISED } from '../theme';
@@ -244,7 +245,8 @@ const SoundDisplay: React.FC<{ doc: GrooveDoc; selectedPad: number; tab: Control
     if (pad.env.holdMs > 0) { const hx = Math.min(W, sx + (pad.env.holdMs / 1000 / total) * W); g.fillStyle = 'rgba(255,255,255,0.35)'; g.fillRect(hx, 0, 1, H); }
   }, [key, tab, color, pad?.startSec, pad?.env.holdMs, dur, selectedPad]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const box = 'w-[132px] shrink-0 rounded-xl border border-white/[0.08] overflow-hidden relative';
+  // Wider for a drum synth: its waveform is the thing you're shaping.
+  const box = `${synth && tab === 'sound' ? 'w-[208px]' : 'w-[132px]'} shrink-0 rounded-xl border border-white/[0.08] overflow-hidden relative`;
   if (tab === 'master' || tab === 'group') {
     const bank = Math.floor(selectedPad / 16);
     const filled = doc.kit.slice(bank * 16, bank * 16 + 16);
@@ -256,13 +258,12 @@ const SoundDisplay: React.FC<{ doc: GrooveDoc; selectedPad: number; tab: Control
       </div>
     );
   }
-  if (synth) {
+  if (synth && pad) {
     return (
-      <div className={`${box} p-2 flex flex-col justify-end`} style={{ background: `radial-gradient(120% 90% at 80% 10%, ${color}44, transparent 60%), linear-gradient(200deg, ${color}1c, #0b0b10 70%)` }}>
-        <span className="absolute top-1.5 right-2 text-[8px] uppercase tracking-[0.2em] text-white/40">Drum Synth</span>
-        <span className="text-[14px] font-black tracking-[0.1em] uppercase" style={{ color }}>{ENGINE_LABEL[synth.engine]}</span>
-        <span className="text-[10px] text-white/75 truncate">{synthModel}</span>
-        {synth.from && <span className="text-[8.5px] text-white/40 truncate" title={synth.from}>from {synth.from}</span>}
+      <div className={box} style={{ background: 'rgba(0,0,0,0.35)' }} title={synth.from ? `from ${synth.from}` : undefined}>
+        <SynthScope patch={synth} semis={pad.pitchSemis || 0} env={pad.env} color={color} />
+        <span className="absolute top-1 left-1.5 text-[8.5px] font-bold uppercase tracking-[0.12em]" style={{ color }}>{ENGINE_LABEL[synth.engine]}</span>
+        <span className="absolute top-1 right-1.5 text-[8.5px] text-white/50">{synthModel}</span>
       </div>
     );
   }
@@ -282,5 +283,56 @@ const SoundDisplay: React.FC<{ doc: GrooveDoc; selectedPad: number; tab: Control
       )}
       {key && dur > 0 && <span className="absolute bottom-1 right-1.5 text-[8.5px] font-mono text-white/45">{dur.toFixed(2)}s</span>}
     </div>
+  );
+};
+
+/** The drum synth's actual hit, rendered offline the same way the engine plays it (with the pad's
+ *  tuning and amp envelope) and redrawn shortly after every knob move — so you SEE what Decay,
+ *  Pitch, Click or Drive did to the waveform. */
+const SynthScope: React.FC<{ patch: DrumSynthPatch; semis: number; env: { attackMs: number; holdMs: number; decayMs: number; sustain: number }; color: string }> = ({ patch, semis, env, color }) => {
+  const canvas = useRef<HTMLCanvasElement>(null);
+  const [len, setLen] = useState(0);
+  const key = JSON.stringify(patch) + semis + JSON.stringify(env);
+  useEffect(() => {
+    let live = true;
+    const timer = setTimeout(async () => {
+      const sr = 22050;
+      const sec = Math.min(2.5, Math.max(0.08, drumSynthLength(patch) * (patch.engine === 'hat' ? 3.5 : 1.15) + 0.05));
+      const ctx = new OfflineAudioContext(1, Math.ceil(sr * sec), sr);
+      try { playDrumSynth(ctx, ctx.destination, patch, 0, 1, semis, 1); } catch { return; }
+      const d = (await ctx.startRendering()).getChannelData(0);
+      // The pad's outer envelope (one-shot: attack, hold, then decay) shapes the hit too.
+      const a = env.attackMs / 1000, h = env.holdMs / 1000, dc = Math.max(0.005, env.decayMs / 1000);
+      for (let i = 0; i < d.length; i++) {
+        const t = i / sr;
+        const g = t < a ? t / a : t < a + h ? 1 : env.sustain > 0 ? Math.max(env.sustain, Math.exp(-(t - a - h) / (dc / 4.6))) : Math.exp(-(t - a - h) / (dc / 4.6));
+        d[i] *= g;
+      }
+      const c = canvas.current;
+      const g = c?.getContext('2d');
+      if (!live || !c || !g) return;
+      const W = c.width, H = c.height, mid = H / 2 + 5;
+      let peak = 1e-6; for (const v of d) peak = Math.max(peak, Math.abs(v));
+      const scale = (H / 2 - 9) / Math.max(0.25, peak);
+      g.clearRect(0, 0, W, H);
+      g.fillStyle = 'rgba(255,255,255,0.06)'; g.fillRect(0, mid, W, 1);
+      g.fillStyle = color;
+      const per = d.length / W;
+      for (let x = 0; x < W; x++) {
+        let lo = 0, hi = 0;
+        for (let i = Math.floor(x * per), e = Math.min(d.length, Math.floor((x + 1) * per) + 1); i < e; i++) { if (d[i] < lo) lo = d[i]; if (d[i] > hi) hi = d[i]; }
+        g.fillRect(x, mid - hi * scale, 1, Math.max(1, (hi - lo) * scale));
+      }
+      // Find where the hit dies away (−50 dB) for the length readout.
+      let last = 0; for (let i = 0; i < d.length; i++) if (Math.abs(d[i]) > peak * 0.003) last = i;
+      setLen(last / sr);
+    }, 60);
+    return () => { live = false; clearTimeout(timer); };
+  }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <>
+      <canvas ref={canvas} width={416} height={128} className="w-full h-full block" aria-label="Drum synth waveform" />
+      {len > 0 && <span className="absolute bottom-1 right-1.5 text-[8.5px] font-mono text-white/45">{len >= 1 ? `${len.toFixed(2)}s` : `${Math.round(len * 1000)}ms`}</span>}
+    </>
   );
 };

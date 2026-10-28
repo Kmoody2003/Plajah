@@ -48,6 +48,7 @@ export const PadGrid: React.FC<PadGridProps> = ({ doc, selectedPad, onSelectPad,
   // The sound each PHYSICAL pad is holding (16-vel mode plays the selected pad from every cell),
   // so the lift releases the right voice / note repeat.
   const held = useRef(new Map<number, number>());
+  const heldNotes = useRef(new Map<number, number[]>()); // pitched cells: the semitones each one is holding
   useEffect(() => () => { for (const target of held.current.values()) engine.padUp(target); }, [engine]);
 
   // Right-click "Replace with sample…" → a hidden file input targeting one pad.
@@ -105,6 +106,7 @@ export const PadGrid: React.FC<PadGridProps> = ({ doc, selectedPad, onSelectPad,
       // Keyboard / Chords: the selected pad, at the cell's pitch(es). Recorded as pitch-roll notes.
       const notes = pitched.notes(padIdx - base);
       held.current.set(padIdx, selectedPad);
+      heldNotes.current.set(padIdx, notes);
       void engine.init().then(() => { for (const semi of notes) engine.padDownPitched(selectedPad, v, semi, notes.length > 1); });
       return;
     }
@@ -120,6 +122,10 @@ export const PadGrid: React.FC<PadGridProps> = ({ doc, selectedPad, onSelectPad,
     const target = held.current.get(padIdx);
     if (target === undefined) return; // already lifted (pointerleave after pointerup)
     held.current.delete(padIdx);
+    // A Keys/Chords cell releases only its own notes, so other held cells keep sounding.
+    const notes = heldNotes.current.get(padIdx);
+    heldNotes.current.delete(padIdx);
+    if (notes) { for (const semi of notes) engine.padNoteUp(target, semi); return; }
     engine.padUp(target);
   }, [engine]);
 

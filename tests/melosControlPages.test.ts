@@ -83,3 +83,11 @@ test('master page and focus stepping (hardware Page buttons)', () => {
   setControlFocus({ tab: 'master' });
   assert.equal(focusedPage(d, 0).page?.id, 'master');
 });
+
+test('MEKA focus: Maschine pads stay pads even with a synth armed; keyboards play the target', async () => {
+  const { mapMidiEvent } = await import('../services/melos/midiMap');
+  const kk = { kind: 'noteon' as const, channel: 0, note: 64, velocity: 100, deviceName: 'KK', deviceType: 'komplete_kontrol' as const };
+  assert.equal(mapMidiEvent(kk, true, false)?.kind, 'note', 'a keyboard plays the selected instrument');
+  const gen = { ...kk, note: 40, deviceType: 'generic' as const };
+  assert.equal(mapMidiEvent(gen, false, false)?.kind, 'pad', 'no target: the drum octave hits pads');
+});
