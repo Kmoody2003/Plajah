@@ -155,6 +155,30 @@ fn render_demos() {
     let n = line(&[(67.0, 0.9), (70.0, 0.45), (72.0, 0.45), (74.0, 1.5), (72.0, 0.6), (70.0, 1.8)], 0.6, -0.03);
     play("trumpet_harmon_ballad", &[(LY_MODEL, 4.0), (LY_VARIANT, 2.0), (LY_VIB_DEPTH, 0.12)], &n);
 
+    // Legato (notes overlap → slurs) vs tongued, and the woodwinds.
+    let blues = [(63.0, 0.3), (65.0, 0.3), (66.0, 0.15), (67.0, 0.75), (70.0, 0.45), (67.0, 0.3), (65.0, 0.3), (63.0, 1.2)];
+    play("sax_alto_slurred", &[(LY_MODEL, 3.0), (LY_VARIANT, 0.0), (LY_VIB_DEPTH, 0.3)], &line(&blues, 0.8, 0.05));
+    let swell: Vec<Note> = (0..6).map(|i| (i as f32 * 0.9, 62.0, 0.15 + i as f32 * 0.17, 0.8)).collect();
+    play("sax_alto_pp_to_ff", &[(LY_MODEL, 3.0), (LY_VARIANT, 0.0)], &swell);
+    play("trumpet_pp_to_ff", &[(LY_MODEL, 4.0), (LY_VARIANT, 0.0)], &swell.iter().map(|x| (x.0, 67.0, x.2, x.3)).collect::<Vec<_>>());
+    let lyr = [(74.0, 0.45), (76.0, 0.45), (79.0, 0.9), (81.0, 0.45), (79.0, 0.45), (76.0, 0.9), (74.0, 1.6)];
+    play("flute_concert", &[(LY_MODEL, 6.0), (LY_VARIANT, 0.0), (LY_VIB_DEPTH, 0.35)], &line(&lyr, 0.7, 0.04));
+    let jig = [(74.0, 0.2), (76.0, 0.2), (78.0, 0.2), (79.0, 0.4), (78.0, 0.2), (76.0, 0.2), (74.0, 0.4), (71.0, 0.2), (74.0, 0.6)];
+    play("tin_whistle_jig", &[(LY_MODEL, 6.0), (LY_VARIANT, 3.0), (LY_VIB_DEPTH, 0.08), (LY_NOISE, 0.6)], &line(&jig, 0.8, -0.03));
+    let low = [(52.0, 0.6), (55.0, 0.6), (59.0, 0.6), (57.0, 0.9), (55.0, 0.6), (52.0, 1.5)];
+    play("clarinet_chalumeau", &[(LY_MODEL, 7.0), (LY_VARIANT, 0.0)], &line(&low, 0.6, 0.04));
+    let kl = [(67.0, 0.3), (68.0, 0.3), (71.0, 0.6), (72.0, 0.3), (71.0, 0.3), (68.0, 0.3), (67.0, 1.2)];
+    play("clarinet_klezmer", &[(LY_MODEL, 7.0), (LY_VARIANT, 0.0), (LY_VIB_DEPTH, 0.4), (LY_VIB_RATE, 0.7), (LY_EXCITE_HARD, 0.75)], &line(&kl, 0.85, 0.03));
+    let ob = [(69.0, 0.9), (72.0, 0.45), (71.0, 0.45), (69.0, 0.9), (67.0, 0.45), (69.0, 1.6)];
+    play("oboe", &[(LY_MODEL, 8.0), (LY_VARIANT, 0.0), (LY_VIB_DEPTH, 0.3)], &line(&ob, 0.7, 0.04));
+    play("bassoon", &[(LY_MODEL, 8.0), (LY_VARIANT, 2.0), (LY_VIB_DEPTH, 0.18)], &line(&ob.iter().map(|x| (x.0 - 24.0, x.1)).collect::<Vec<_>>(), 0.75, 0.04));
+    // A woodwind section chord (notes together stay voices).
+    let mut n = Vec::new();
+    for (i, ch) in [[72.0, 76.0, 79.0], [72.0, 77.0, 81.0], [71.0, 74.0, 79.0], [72.0, 76.0, 79.0]].iter().enumerate() {
+        for &m in ch { n.push((i as f32 * 1.0, m, 0.6, 0.97)); }
+    }
+    play("reed_choir_clarinets", &[(LY_MODEL, 7.0), (LY_VARIANT, 0.0)], &n);
+
     // Tine piano: Fmaj7 – Em7 – Dm7 – Cmaj7, through the suitcase, then voiced for bark.
     let mut n = Vec::new();
     for (i, ch) in [[53.0, 57.0, 60.0, 64.0], [52.0, 55.0, 59.0, 62.0], [50.0, 53.0, 57.0, 60.0], [48.0, 52.0, 55.0, 59.0]].iter().enumerate() {

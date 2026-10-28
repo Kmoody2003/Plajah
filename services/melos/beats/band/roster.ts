@@ -510,7 +510,7 @@ export const BAND: BandPlayer[] = [
     bio: 'A doubler: flute, piccolo, clarinet, oboe and tin whistle. Pit orchestras, klezmer weddings, Irish sessions and film dates. Never travels without five cases and a reed knife.',
     influences: ['Jean-Pierre Rampal', 'Benny Goodman', 'Naftule Brandwein', 'Matt Molloy', 'Hubert Laws', 'Herbie Mann'],
     genres: ['classical', 'cinematic', 'bossa', 'country', 'jazz', 'ballad'], color: '#7BD389',
-    seat: { kind: 'instrument', type: 'aura', preset: 'aura-mellotron-flute', byGenre: { cinematic: 'pneuma-shakuhachi' } },
+    seat: { kind: 'instrument', type: 'lyra', preset: 'lyra-concert-flute', byGenre: { cinematic: 'lyra-alto-flute', ballad: 'lyra-alto-flute', classical: 'lyra-oboe', jazz: 'lyra-clarinet', blues: 'lyra-clarinet', country: 'lyra-tin-whistle', reggae: 'lyra-tin-whistle', neosoul: 'lyra-alto-flute' } },
     range: [58, 96],
     personas: [
       { id: 'pastoral', name: 'Pastoral', tagline: 'Flute birdsong: trills and high answers', mode: 'pastoral',
@@ -532,7 +532,7 @@ export const BAND: BandPlayer[] = [
       { topic: 'history', keys: ['klezmer', 'brandwein', 'tarras', 'freygish'], text: 'Klezmer is the dance music of Eastern European Jewish celebrations; clarinettists like Naftule Brandwein and Dave Tarras recorded it in 1920s New York. Its signature mode, freygish, is a scale with a flattened 2nd and a raised 3rd.' },
       { topic: 'instrument', keys: ['oboe', 'double reed', 'bassoon', 'tune', 'a440'], text: 'The oboe and bassoon are double reeds — two blades of cane vibrating against each other. The oboe\'s focused sound is why the orchestra tunes to its A. Flutes have no reed at all: you split an air stream across the embouchure hole.' },
       { topic: 'technique', keys: ['breath', 'tonguing', 'trill', 'vibrato', 'flutter'], text: 'Woodwind articulation is tonguing: single (ta), double (ta-ka) and flutter tongue (rolled r). Vibrato comes from the breath and diaphragm on flute, much less on clarinet in the classical tradition.' },
-      { topic: 'chora', keys: ['chora', 'pneuma', 'flute sound', 'mellotron'], text: 'In Chora I play AURA\'s \'67 Mellotron flute and PNEUMA — the breath engine: ney, shakuhachi, temple flutes with real air noise and portamento. My trills and grace notes are written as notes; breath and vibrato live in the note expression.' },
+      { topic: 'chora', keys: ['chora', 'lyra', 'pneuma', 'flute sound', 'clarinet sound', 'oboe sound', 'bassoon'], text: 'In Chora I play LYRA, the physical-model engine: concert flute, piccolo, alto flute and tin whistle (an air jet driving the tube), clarinet and bass clarinet (a single reed on a closed cylinder, so the low notes are all odd harmonics), and the double reeds, oboe, English horn and bassoon. Notes I play into a held note slur, with no new attack, and how hard you play opens the bell. For ney and shakuhachi I go to PNEUMA, the breath engine.' },
     ],
     lessons: [
       { id: 'section', title: 'Writing for a woodwind section', summary: 'Three voices that blend.', steps: [

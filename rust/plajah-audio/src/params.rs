@@ -390,12 +390,13 @@ pub const SM_SHELL_WARMTH: u32 = 26;     // 0..1 high-SPL chamber air compressio
 pub const SM_MIC_PERSPECTIVE: u32 = 27;  // 0..1 top batter skin vs. bottom air port & shell radiation mix
 pub const SM_ROOM_EARLY: u32 = 28;       // 0..1 early studio/stage boundary reflections
 
-// ── LYRA (instrument 07): physical models — guitar, piano, violin, sax, trumpet, tine piano ───
+// ── LYRA (instrument 07): physical models — guitar, piano, violin, sax, trumpet, tine piano,
+// flute, clarinet, double reeds ───
 // Block 1900 upward (lyra.rs). Defaults to LY_ENABLE = 0 (bypass) so existing patches are
 // bit-identical. Every control is 0..1 except MODEL and VARIANT, which are indices.
 pub const LYRA_BASE: u32 = 1900;
 pub const LY_ENABLE: u32 = 0;
-pub const LY_MODEL: u32 = 1;        // 0 guitar, 1 piano, 2 violin, 3 sax, 4 trumpet, 5 tine piano
+pub const LY_MODEL: u32 = 1;        // 0 guitar, 1 piano, 2 violin, 3 sax, 4 trumpet, 5 tine piano, 6 flute, 7 clarinet, 8 double reed
 pub const LY_VARIANT: u32 = 2;      // guitar: 0 steel, 1 nylon, 2 electric · piano: 0 grand, 1 upright · sax: 0 alto, 1 tenor · trumpet: 0 open, 1 cup, 2 harmon, 3 straight
 pub const LY_BRIGHTNESS: u32 = 3;   // loop damping / bell / tine bell
 pub const LY_DECAY: u32 = 4;        // ring time (struck/plucked) · release (bowed/blown)
@@ -417,6 +418,7 @@ pub const LY_WIDTH: u32 = 19;       // stereo spread across the keyboard
 pub const LY_ATTACK: u32 = 20;      // bow / breath onset
 pub const LY_DAMP: u32 = 21;        // guitar palm mute
 pub const LY_TONE: u32 = 22;        // amp tone · electric pickup position
+pub const LY_LEGATO: u32 = 23;      // bowed/blown: >0.5 = a note into a held one slurs (chords stay chords)
 
 pub const MAX_PARAM_ID: usize = 2000;
 
@@ -709,6 +711,7 @@ impl Params {
         self.set(LYRA_BASE + LY_ATTACK, 0.25);
         self.set(LYRA_BASE + LY_DAMP, 0.0);
         self.set(LYRA_BASE + LY_TONE, 0.5);
+        self.set(LYRA_BASE + LY_LEGATO, 1.0);
     }
 }
 

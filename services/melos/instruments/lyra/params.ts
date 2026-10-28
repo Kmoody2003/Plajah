@@ -32,14 +32,17 @@ export const LY = {
   ATTACK: 1920,
   DAMP: 1921,
   TONE: 1922,
+  LEGATO: 1923,
 } as const;
 
-export type LyraModel = 'guitar' | 'piano' | 'violin' | 'sax' | 'trumpet' | 'tine';
-export const LYRA_MODELS: LyraModel[] = ['guitar', 'piano', 'violin', 'sax', 'trumpet', 'tine'];
+export type LyraModel = 'guitar' | 'piano' | 'violin' | 'sax' | 'trumpet' | 'tine' | 'flute' | 'clarinet' | 'reed';
+/** Index = LY_MODEL in params.rs. */
+export const LYRA_MODELS: LyraModel[] = ['guitar', 'piano', 'violin', 'sax', 'trumpet', 'tine', 'flute', 'clarinet', 'reed'];
 export const modelIndex = (m: LyraModel) => LYRA_MODELS.indexOf(m);
 
 export const LYRA_MODEL_LABELS: Record<LyraModel, string> = {
   guitar: 'Guitar', piano: 'Piano', violin: 'Violin', sax: 'Saxophone', trumpet: 'Trumpet', tine: 'Tine Electric Piano',
+  flute: 'Flute', clarinet: 'Clarinet', reed: 'Double Reeds',
 };
 
 /** What VARIANT means for each model. */
@@ -50,6 +53,9 @@ export const LYRA_VARIANTS: Record<LyraModel, string[]> = {
   sax: ['Alto', 'Tenor'],
   trumpet: ['Open', 'Cup mute', 'Harmon mute', 'Straight mute'],
   tine: ['Stage tine piano'],
+  flute: ['Concert flute', 'Piccolo', 'Alto flute', 'Tin whistle'],
+  clarinet: ['B♭ clarinet', 'Bass clarinet'],
+  reed: ['Oboe', 'English horn', 'Bassoon'],
 };
 
 /** The model a control actually does something on (undefined = every model). */
@@ -61,7 +67,7 @@ export const LYRA_PARAM_META: LyraParamMeta[] = [
   { id: LY.EXCITE_POS, label: 'Position', hint: 'Where the pick, hammer or bow meets the string (near the bridge is brighter); the reed point; the tine\'s pickup voicing (bark).', group: 'touch' },
   { id: LY.EXCITE_HARD, label: 'Hardness / Pressure', hint: 'Pick or hammer hardness, bow pressure, reed stiffness, lip tension.', group: 'touch' },
   { id: LY.VEL_SENS, label: 'Velocity response', hint: 'How much how hard you play changes the sound.', group: 'touch' },
-  { id: LY.ATTACK, label: 'Onset', hint: 'How quickly the bow or breath gets the note speaking.', models: ['violin', 'sax', 'trumpet'], group: 'touch' },
+  { id: LY.ATTACK, label: 'Onset', hint: 'How quickly the bow or breath gets the note speaking.', models: ['violin', 'sax', 'trumpet', 'flute', 'clarinet', 'reed'], group: 'touch' },
   { id: LY.NOISE, label: 'Air / Hair / Knock', hint: 'Bow-hair noise, breath, the piano hammer and soundboard knock.', group: 'touch' },
   { id: LY.DAMP, label: 'Palm mute', hint: 'Rest the edge of the hand on the strings at the bridge.', models: ['guitar'], group: 'touch' },
   { id: LY.BODY, label: 'Body', hint: 'How much of the wooden body, soundboard, bell formants or speaker cabinet you hear.', group: 'body' },
@@ -69,11 +75,12 @@ export const LYRA_PARAM_META: LyraParamMeta[] = [
   { id: LY.DETUNE, label: 'Unison detune', hint: 'Piano strings in a unison are a hair apart — the beating gives the two-stage decay.', models: ['piano'], group: 'body' },
   { id: LY.WIDTH, label: 'Stereo width', hint: 'Spread notes across the stereo field like sitting at the keyboard.', models: ['piano', 'tine'], group: 'body' },
   { id: LY.PEDAL, label: 'Sustain pedal', hint: 'Dampers up: notes keep ringing after you let go.', models: ['piano', 'tine'], group: 'expression' },
-  { id: LY.VIB_DEPTH, label: 'Vibrato', hint: 'Depth of the player\'s vibrato (the mod wheel adds more).', models: ['violin', 'sax', 'trumpet'], group: 'expression' },
-  { id: LY.VIB_RATE, label: 'Vibrato rate', hint: '3 to 8 wobbles a second.', models: ['violin', 'sax', 'trumpet'], group: 'expression' },
-  { id: LY.VIB_DELAY, label: 'Vibrato delay', hint: 'Players start a long note straight and let vibrato bloom.', models: ['violin', 'sax', 'trumpet'], group: 'expression' },
-  { id: LY.DRIVE, label: 'Drive / Growl', hint: 'Amp drive on electric guitar and tine piano; growl on sax.', models: ['guitar', 'sax', 'tine'], group: 'amp' },
+  { id: LY.VIB_DEPTH, label: 'Vibrato', hint: 'Depth of the player\'s vibrato (the mod wheel adds more).', models: ['violin', 'sax', 'trumpet', 'flute', 'clarinet', 'reed'], group: 'expression' },
+  { id: LY.VIB_RATE, label: 'Vibrato rate', hint: '3 to 8 wobbles a second.', models: ['violin', 'sax', 'trumpet', 'flute', 'clarinet', 'reed'], group: 'expression' },
+  { id: LY.VIB_DELAY, label: 'Vibrato delay', hint: 'Players start a long note straight and let vibrato bloom.', models: ['violin', 'sax', 'trumpet', 'flute', 'clarinet', 'reed'], group: 'expression' },
+  { id: LY.DRIVE, label: 'Drive / Growl', hint: 'Amp drive on electric guitar and tine piano; growl on sax.', models: ['guitar', 'sax', 'reed', 'tine'], group: 'amp' },
   { id: LY.TONE, label: 'Amp tone', hint: 'The amp\'s treble, and on electric guitar where the pickup sits.', models: ['guitar', 'tine'], group: 'amp' },
+  { id: LY.LEGATO, label: 'Legato', hint: 'A note played into a held one slurs to it, with no new attack. Notes played together stay a chord.', models: ['violin', 'sax', 'trumpet', 'flute', 'clarinet', 'reed'], group: 'expression' },
   { id: LY.TREM_DEPTH, label: 'Tremolo', hint: 'The suitcase amp\'s stereo tremolo.', models: ['tine'], group: 'amp' },
   { id: LY.TREM_RATE, label: 'Tremolo rate', hint: '1.5 to 9 Hz.', models: ['tine'], group: 'amp' },
 ];
@@ -105,6 +112,7 @@ export const LYRA_DEFAULTS: Readonly<Record<number, number>> = Object.freeze({
   [LY.ATTACK]: 0.25,
   [LY.DAMP]: 0,
   [LY.TONE]: 0.5,
+  [LY.LEGATO]: 1,
   [RV.MIX]: 0.12,
   [RV.SIZE]: 0.5,
   [RV.DECAY]: 0.45,

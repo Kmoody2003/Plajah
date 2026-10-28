@@ -48,8 +48,8 @@ test('patches round-trip and macros stay in range', () => {
   assert.equal(deserializeLyraPatch(undefined), null);
 });
 
-test('the band sits at real LYRA presets — no stand-ins left for guitar, piano, violin, horns', () => {
-  for (const id of ['rosa', 'theo', 'priya', 'corny', 'lena']) {
+test('the band sits at real LYRA presets — no stand-ins left for guitar, piano, violin, horns, woodwinds', () => {
+  for (const id of ['rosa', 'theo', 'priya', 'corny', 'lena', 'felix']) {
     const p = BAND.find((x) => x.id === id)!;
     assert.equal(p.seat.kind, 'instrument');
     if (p.seat.kind !== 'instrument') continue;

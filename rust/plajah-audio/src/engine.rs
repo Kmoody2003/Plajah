@@ -247,6 +247,7 @@ impl Engine {
                     v.note = note;
                     v.velocity = vel.clamp(0.0, 1.0);
                     v.voice_id = voice_id;
+                    v.lyra_slur(note, vel, &self.params);
                     return;
                 }
                 let sr = self.sr;
@@ -254,6 +255,23 @@ impl Engine {
                 v.note_on(note, vel, voice_id, p, Some(from), frame_offset, sr);
                 v.age = self.age_counter;
                 return;
+            }
+        }
+
+        // LYRA's own legato for bowed/blown models in poly mode: a note that arrives while exactly
+        // one note has been sounding for a while is a slur into it; notes that start together
+        // (a chord, a double stop, a section pad) stay separate voices.
+        if self.params.get(LYRA_BASE + LY_ENABLE) > 0.5 && self.params.get(LYRA_BASE + LY_LEGATO) > 0.5 {
+            let min_age = (self.sr * 0.06) as u32;
+            let mut held = self.voices.iter_mut().filter_map(|v| v.lyra_held().map(|t| (t, v)));
+            if let (Some((t, v)), None) = (held.next(), held.next()) {
+                if t > min_age {
+                    v.note = note;
+                    v.velocity = vel.clamp(0.0, 1.0);
+                    v.voice_id = voice_id;
+                    v.lyra_slur(note, vel, &self.params);
+                    return;
+                }
             }
         }
 

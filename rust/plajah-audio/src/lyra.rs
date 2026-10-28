@@ -28,6 +28,17 @@ pub const MODEL_VIOLIN: u32 = 2;
 pub const MODEL_SAX: u32 = 3;
 pub const MODEL_TRUMPET: u32 = 4;
 pub const MODEL_TINE: u32 = 5;
+pub const MODEL_FLUTE: u32 = 6;
+pub const MODEL_CLARINET: u32 = 7;
+const REED_FORCE: f32 = 0.6;
+const KICK: f32 = 0.25;
+pub const MODEL_REED: u32 = 8; // double reeds: oboe, English horn, bassoon
+
+/// Bowed and blown models: they sustain while held and can slur (legato) between notes.
+#[inline]
+pub fn sustained(model: u32) -> bool {
+    matches!(model, MODEL_VIOLIN | MODEL_SAX | MODEL_TRUMPET | MODEL_FLUTE | MODEL_CLARINET | MODEL_REED)
+}
 
 // ── building blocks ────────────────────────────────────────────────────────────────────────────
 
@@ -321,6 +332,33 @@ pub struct LyraVoice {
 
     growl: f32,
     growl_lp: f32,
+
+    // the player's breath and the slur
+    base_target: f32,
+    glide_k: f32,
+    tongue: u32,
+    tongue_len: u32,
+    tongue_amp: f32,
+    overshoot: f32,
+    wander: f32,
+    wander_target: f32,
+    dyn_lp: f32,
+    dyn_lo: f32,
+    dyn_hi: f32,
+    rad_amt: f32,
+    rad_x1: f32,
+    steep: f32,
+    jet_ratio: f32,
+    /// The note's dynamic (0 pp … 1 ff): loudness and how open the bell is.
+    dynv: f32,
+    edge_lp: f32,
+    dyn_lp2: f32,
+    /// Two-pole bell (brass): a steeper soft-note roll-off.
+    bell2: bool,
+    edge_amt: f32,
+    kick_phase: f32,
+    /// Reed stiffness 0..1 (the raw control, for the forced swing).
+    slope_n: f32,
     level: f32,
     pan: f32,
     gain: f32,
@@ -388,6 +426,28 @@ impl LyraVoice {
             pedal: false,
             growl: 0.0,
             growl_lp: 0.0,
+            base_target: 100.0,
+            glide_k: 1.0,
+            tongue: 0,
+            tongue_len: 1,
+            tongue_amp: 0.0,
+            overshoot: 0.0,
+            wander: 0.0,
+            wander_target: 0.0,
+            dyn_lp: 0.0,
+            dyn_lo: 2000.0,
+            dyn_hi: 9000.0,
+            rad_amt: 0.0,
+            rad_x1: 0.0,
+            steep: 0.0,
+            jet_ratio: 0.32,
+            dynv: 0.7,
+            edge_lp: 0.0,
+            dyn_lp2: 0.0,
+            bell2: false,
+            edge_amt: 1.2,
+            kick_phase: 0.0,
+            slope_n: 0.5,
             level: 0.0,
             pan: 0.0,
             gain: 1.0,
@@ -441,7 +501,22 @@ impl LyraVoice {
         self.pk_lp = 0.0;
         self.hp_x1 = 0.0;
         self.hp_y1 = 0.0;
+        self.dyn_lp = 0.0;
+        self.dyn_lp2 = 0.0;
+        self.edge_lp = 0.0;
+        self.bell2 = false;
+        self.edge_amt = 1.2;
+        self.rad_x1 = 0.0;
+        self.wander = 0.0;
+        self.tongue = 0;
         self.released = true;
+    }
+
+    pub fn is_sustained(&self) -> bool {
+        sustained(self.model)
+    }
+    pub fn samples(&self) -> u32 {
+        self.t
     }
 
     /// Settled and silent (or released and faded) — the voice can be freed.
@@ -479,13 +554,14 @@ impl LyraVoice {
         self.f0 = note_hz.clamp(20.0, self.sr * 0.25);
         self.note = 69.0 + 12.0 * (self.f0 / 440.0).log2();
         self.vel = velocity.clamp(0.0, 1.0);
-        self.model = (p.get(LYRA_BASE + LY_MODEL).round() as i32).clamp(0, 5) as u32;
+        self.model = (p.get(LYRA_BASE + LY_MODEL).round() as i32).clamp(0, 8) as u32;
         self.variant = p.get(LYRA_BASE + LY_VARIANT).round().max(0.0) as u32;
         self.pedal = p01(p, LY_PEDAL) > 0.5;
 
         let vs = p01(p, LY_VEL_SENS);
         let v = lerp(0.7, self.vel, vs); // velocity response
         self.vel = v;
+        self.dynv = v;
         self.vib_depth = p01(p, LY_VIB_DEPTH);
         self.vib_inc = TAU * lerp(3.0, 8.0, p01(p, LY_VIB_RATE)) / self.sr;
         self.vib_phase = 0.0;
@@ -501,8 +577,92 @@ impl LyraVoice {
             MODEL_VIOLIN => self.trigger_violin(p),
             MODEL_SAX => self.trigger_sax(p),
             MODEL_TRUMPET => self.trigger_trumpet(p),
+            MODEL_FLUTE => self.trigger_flute(p),
+            MODEL_CLARINET => self.trigger_clarinet(p),
+            MODEL_REED => self.trigger_reed(p),
             _ => self.trigger_tine(p),
         }
+        if sustained(self.model) {
+            self.base = self.bore_len(self.f0);
+            self.base_target = self.base;
+            self.player(p, rng);
+        }
+    }
+
+    /// The delay a bowed/blown model needs for a pitch (each model's own empirical offset).
+    fn bore_len(&self, f0: f32) -> f32 {
+        let sr = self.sr;
+        match self.model {
+            MODEL_VIOLIN => sr / f0 - 3.78,
+            MODEL_SAX | MODEL_REED => sr / f0 - 2.5,
+            MODEL_TRUMPET => sr / f0 - 1.0,
+            // The jet delay sits in the loop too, so the bore is the rest of the period.
+            // with the bore's lowpass and the one-sample feedback measured out exactly.
+            MODEL_FLUTE => (sr / f0 - 1.0 - onepole_pd(self.pole, TAU * f0 / sr)) / (1.0 + self.jet_ratio),
+            MODEL_CLARINET => sr / f0 * 0.5 - 1.5,
+            _ => sr / f0,
+        }
+        .max(2.0)
+    }
+
+    /// What the player brings to every bowed/blown note: a tongued attack with a little pressure
+    /// overshoot, the slow drift of a real breath, and the slur time.
+    fn player(&mut self, p: &Params, rng: &mut Rng) {
+        let sr = self.sr;
+        let noise = p01(p, LY_NOISE);
+        self.tongue_len = ((lerp(0.006, 0.02, noise) * sr) as u32).max(1);
+        self.tongue = self.tongue_len;
+        self.tongue_amp = match self.model {
+            MODEL_VIOLIN => 0.0,
+            MODEL_FLUTE => 0.6 + 0.6 * noise,
+            _ => 0.35 + 0.4 * noise,
+        } * self.vel;
+        self.overshoot = if self.model == MODEL_VIOLIN { 0.0 } else { 0.18 + 0.25 * self.vel };
+        self.wander = rng.bipolar() * 0.5;
+        self.wander_target = rng.bipolar();
+        self.set_glide(p);
+    }
+
+    fn set_glide(&mut self, p: &Params) {
+        let glide_s = (p.get(P_GLIDE) * 2.0).clamp(0.0, 1.0) * 0.6 + 0.012;
+        self.glide_k = 1.0 - (-1.0 / (glide_s * self.sr * 0.35)).exp();
+    }
+
+    /// Legato: the next note while this one still sounds. Bowed/blown models glide the bore or
+    /// string to the new length without a new attack; struck and plucked ones replay.
+    pub fn slur(&mut self, note_hz: f32, velocity: f32, p: &Params, rng: &mut Rng) {
+        if !sustained(self.model) || self.released {
+            self.trigger(note_hz, velocity, p, rng);
+            return;
+        }
+        self.f0 = note_hz.clamp(20.0, self.sr * 0.25);
+        self.note = 69.0 + 12.0 * (self.f0 / 440.0).log2();
+        let v = lerp(0.7, velocity.clamp(0.0, 1.0), p01(p, LY_VEL_SENS));
+        self.vel = v;
+        self.dynv = v;
+        self.base_target = self.bore_len(self.f0);
+        self.set_glide(p);
+        self.max_drive = match self.model {
+            MODEL_VIOLIN => 0.03 + 0.2 * v,
+            MODEL_FLUTE => 1.1 + 0.2 * v,
+            MODEL_TRUMPET => 0.55 + 0.45 * v,
+            _ => self.blow(p, v),
+        };
+    }
+
+    /// Breath pressure for a reed model: the middle of the window where that reed speaks
+    /// (measured — below it the reed won't start, above it the reed is held shut), which
+    /// narrows and drops as the reed gets stiffer. Dynamics come from the player layer
+    /// (loudness, bell, edge), not from pushing the reed out of its window.
+    fn blow(&self, p: &Params, v: f32) -> f32 {
+        let hard = p01(p, LY_EXCITE_HARD);
+        let centre = match self.model {
+            MODEL_SAX => lerp(0.8, 0.66, hard),
+            MODEL_REED => lerp(1.12, 0.9, hard),
+            MODEL_CLARINET => lerp(0.88, 0.63, hard),
+            _ => 0.75,
+        };
+        centre * (0.96 + 0.08 * v)
     }
 
     fn trigger_guitar(&mut self, p: &Params, rng: &mut Rng) {
@@ -667,60 +827,165 @@ impl LyraVoice {
         // Violin body: the air mode A0, the main wood modes B1−/B1+, and the "bridge hill".
         self.set_body(&[(275.0, 12.0, 1.0), (460.0, 10.0, 0.9), (540.0, 15.0, 0.8), (700.0, 8.0, 0.5), (2500.0, 1.5, 0.75), (3500.0, 2.0, 0.4)], size, p01(p, LY_BODY));
         self.direct = 0.25;
-        self.gain = 2.2;
+        self.gain = 3.4;
     }
 
     fn trigger_sax(&mut self, p: &Params) {
-        // STK Saxofony: a conical bore approximated by two delays either side of the reed point.
+        // STK Saxofony: a conical bore approximated by two delays either side of the reed point,
+        // with the player layer (tongue, breath drift, slur) and a bell that opens with dynamics.
         let sr = self.sr;
-        self.base = (sr / self.f0 - 3.0).max(4.0);
         self.beta = lerp(0.1, 0.4, p01(p, LY_EXCITE_POS));
         self.slope = lerp(0.2, 0.42, p01(p, LY_EXCITE_HARD));
-        self.max_drive = 0.55 + 0.3 * self.vel;
+        self.slope_n = p01(p, LY_EXCITE_HARD);
+        self.lp = 0.0;
+        self.max_drive = self.blow(p, self.vel);
         self.env_up = 1.0 / (lerp(0.01, 0.35, p01(p, LY_ATTACK)) * sr);
         self.env_down = 1.0 / (lerp(0.03, 0.8, p01(p, LY_DECAY)) * sr);
-        self.noise_gain = p01(p, LY_NOISE) * 0.35;
+        self.noise_gain = p01(p, LY_NOISE) * 0.3;
         self.growl = p01(p, LY_DRIVE);
+        let bright = p01(p, LY_BRIGHTNESS);
         let tenor = self.variant == 1;
         let size = lerp(1.15, 0.85, p01(p, LY_BODY_SIZE));
         if tenor {
             self.set_body(&[(480.0, 2.5, 0.6), (1350.0, 2.5, 0.45), (2700.0, 2.0, 0.2)], size, p01(p, LY_BODY));
+            self.dyn_lo = lerp(900.0, 1800.0, bright);
+            self.dyn_hi = lerp(4500.0, 9000.0, bright);
         } else {
             self.set_body(&[(700.0, 2.5, 0.6), (1800.0, 2.5, 0.45), (3300.0, 2.0, 0.2)], size, p01(p, LY_BODY));
+            self.dyn_lo = lerp(1200.0, 2400.0, bright);
+            self.dyn_hi = lerp(5500.0, 11000.0, bright);
         }
+        self.rad_amt = 0.55;
         self.direct = 0.7;
-        self.gain = 1.5;
+        self.gain = if tenor { 2.2 } else { 1.9 };
     }
 
     fn trigger_trumpet(&mut self, p: &Params) {
         // Lip-reed after STK Brass, with the lips driven at the played pitch (a forced valve)
         // instead of left to find a slot — the free-running valve hops partials. The bore is one
         // period long so its resonances sit on the harmonics; it shapes and feeds back the tone.
+        // Loud playing steepens the wave as it travels the tube (pressure-dependent delay) — the
+        // brassy blare — and the lips close more sharply, so ff is brighter, not just louder.
         let sr = self.sr;
-        self.base = (sr / self.f0 - 1.0).max(2.0);
         self.vib_phase = 0.0;
-        let tension = p01(p, LY_EXCITE_HARD);
-        self.slope = lerp(1.2, 3.6, tension); // how sharply the lips snap shut each cycle
+        self.slope = p01(p, LY_EXCITE_HARD); // lip tension; the snap is scaled by dynamics per sample
         self.lp = 0.0; // lip phase
         self.max_drive = 0.55 + 0.45 * self.vel;
         self.env_up = 1.0 / (lerp(0.008, 0.25, p01(p, LY_ATTACK)) * sr);
         self.env_down = 1.0 / (lerp(0.02, 0.6, p01(p, LY_DECAY)) * sr);
         self.noise_gain = p01(p, LY_NOISE) * 0.04;
-        // Bell: the flare radiates the highs. Mutes reshape it: cup (round), harmon (Miles's
-        // buzzing core), straight (nasal).
+        self.steep = lerp(1.0, 3.5, p01(p, LY_DRIVE).max(0.3)) * (sr / 48000.0);
         let bright = p01(p, LY_BRIGHTNESS);
         self.nmute = 2;
         match self.variant {
-            1 => { self.mute = [Biquad::lowpass(1800.0, 0.8, sr), Biquad::highpass(220.0, 0.7, sr)]; }
-            2 => { self.mute = [Biquad::highpass(950.0, 1.2, sr), Biquad::lowpass(lerp(3000.0, 5000.0, bright), 3.0, sr)]; }
-            3 => { self.mute = [Biquad::highpass(520.0, 1.0, sr), Biquad::lowpass(lerp(3500.0, 6500.0, bright), 1.8, sr)]; }
-            _ => { self.mute = [Biquad::highpass(120.0, 0.7, sr), Biquad::lowpass(lerp(4500.0, 11000.0, bright), 0.7, sr)]; }
+            1 => self.mute = [Biquad::lowpass(1800.0, 0.8, sr), Biquad::highpass(220.0, 0.7, sr)],
+            2 => self.mute = [Biquad::highpass(950.0, 1.2, sr), Biquad::lowpass(lerp(3000.0, 5000.0, bright), 3.0, sr)],
+            3 => self.mute = [Biquad::highpass(520.0, 1.0, sr), Biquad::lowpass(lerp(3500.0, 6500.0, bright), 1.8, sr)],
+            _ => self.mute = [Biquad::highpass(120.0, 0.7, sr), Biquad::lowpass(lerp(6000.0, 14000.0, bright), 0.7, sr)],
         }
-        self.set_body(&[(1200.0, 1.5, 0.35), (2600.0, 1.6, 0.25)], 1.0, p01(p, LY_BODY));
+        // Soft brass is nearly a pure tone; loud brass throws harmonics past 10 kHz. The bell's
+        // soft-note corner tracks the note (about the 2nd harmonic), opening fully at ff.
+        self.dyn_lo = (self.f0 * lerp(1.6, 2.6, bright)).max(350.0);
+        self.dyn_hi = lerp(9000.0, 16000.0, bright);
+        self.bell2 = true;
+        self.edge_amt = 2.2;
+        self.rad_amt = 0.45;
+        // The trumpet's formant region sits around 1.2–1.5 kHz, with presence near 2.5 kHz.
+        self.set_body(&[(1250.0, 1.4, 0.45), (2500.0, 1.8, 0.3)], 1.0, p01(p, LY_BODY));
         self.direct = 1.0;
         // Mutes cut the lows, so high notes come through hotter — level them across the range.
         let reg = (392.0 / self.f0).powf(0.6).clamp(0.4, 2.5);
-        self.gain = match self.variant { 1 => 0.9, 2 => 0.75 * reg, 3 => 0.75 * reg, _ => 0.8 };
+        self.gain = match self.variant { 1 => 2.4, 2 => 4.0 * reg, 3 => 2.2 * reg, _ => 2.2 };
+    }
+
+    fn trigger_flute(&mut self, p: &Params) {
+        // STK Flute: an air jet (its own short delay + the jet's cubic nonlinearity) driving the
+        // bore. Variants: concert flute, piccolo, alto flute, tin whistle.
+        let sr = self.sr;
+        self.jet_ratio = lerp(0.22, 0.42, p01(p, LY_EXCITE_POS));
+        self.pole = 0.7 - 0.1 * 22050.0 / sr;
+        self.max_drive = 1.1 + 0.2 * self.vel;
+        self.env_up = 1.0 / (lerp(0.012, 0.3, p01(p, LY_ATTACK)) * sr);
+        self.env_down = 1.0 / (lerp(0.03, 0.6, p01(p, LY_DECAY)) * sr);
+        let noise = p01(p, LY_NOISE);
+        let bright = p01(p, LY_BRIGHTNESS);
+        let (nz, lo, hi, gain) = match self.variant {
+            1 => (0.06, 2600.0, 12000.0, 1.6), // piccolo
+            2 => (0.08, 1100.0, 5500.0, 2.2),  // alto flute
+            3 => (0.18, 2200.0, 12000.0, 1.6), // tin whistle
+            _ => (0.05, 1800.0, 9000.0, 1.8),  // concert flute
+        };
+        self.noise_gain = nz + noise * 0.14;
+        self.dyn_lo = lo * lerp(0.7, 1.3, bright);
+        self.dyn_hi = hi * lerp(0.7, 1.3, bright);
+        self.rad_amt = 0.25;
+        self.set_body(&[(1000.0, 1.2, 0.2), (2600.0, 1.5, 0.15)], 1.0, p01(p, LY_BODY));
+        self.direct = 1.0;
+        self.gain = gain;
+    }
+
+    fn trigger_clarinet(&mut self, p: &Params) {
+        // STK Clarinet: a cylinder closed at the reed — a half-period bore, odd harmonics in the
+        // low (chalumeau) register — and a pressure-controlled reed table.
+        let sr = self.sr;
+        self.slope = lerp(0.2, 0.45, p01(p, LY_EXCITE_HARD));
+        self.slope_n = p01(p, LY_EXCITE_HARD);
+        self.lp = 0.0;
+        self.max_drive = self.blow(p, self.vel);
+        self.env_up = 1.0 / (lerp(0.01, 0.3, p01(p, LY_ATTACK)) * sr);
+        self.env_down = 1.0 / (lerp(0.03, 0.6, p01(p, LY_DECAY)) * sr);
+        self.noise_gain = p01(p, LY_NOISE) * 0.25;
+        let bright = p01(p, LY_BRIGHTNESS);
+        let bass = self.variant == 1;
+        if bass {
+            self.set_body(&[(400.0, 2.0, 0.35), (1100.0, 2.0, 0.25)], 1.0, p01(p, LY_BODY));
+            self.dyn_lo = lerp(700.0, 1300.0, bright);
+            self.dyn_hi = lerp(3500.0, 7000.0, bright);
+        } else {
+            // The tone-hole lattice cuts off around 1.5 kHz: below it odd harmonics, above it all.
+            self.set_body(&[(1500.0, 1.5, 0.35), (3000.0, 2.0, 0.2)], 1.0, p01(p, LY_BODY));
+            self.dyn_lo = lerp(1300.0, 2400.0, bright);
+            self.dyn_hi = lerp(6000.0, 12000.0, bright);
+        }
+        self.rad_amt = 0.5;
+        self.direct = 0.85;
+        self.gain = if bass { 4.0 } else { 3.5 };
+    }
+
+    fn trigger_reed(&mut self, p: &Params) {
+        // Double reeds: the Saxofony structure with a narrower, stiffer reed and the strong formants
+        // that make an oboe nasal and a bassoon woody. Variants: oboe, English horn, bassoon.
+        let sr = self.sr;
+        self.beta = lerp(0.18, 0.32, p01(p, LY_EXCITE_POS));
+        self.slope = lerp(0.14, 0.3, p01(p, LY_EXCITE_HARD));
+        self.slope_n = p01(p, LY_EXCITE_HARD);
+        self.lp = 0.0;
+        self.max_drive = self.blow(p, self.vel);
+        self.env_up = 1.0 / (lerp(0.01, 0.3, p01(p, LY_ATTACK)) * sr);
+        self.env_down = 1.0 / (lerp(0.03, 0.6, p01(p, LY_DECAY)) * sr);
+        self.noise_gain = p01(p, LY_NOISE) * 0.18;
+        self.growl = p01(p, LY_DRIVE) * 0.4;
+        let bright = p01(p, LY_BRIGHTNESS);
+        let size = lerp(1.15, 0.85, p01(p, LY_BODY_SIZE));
+        let amt = p01(p, LY_BODY);
+        match self.variant {
+            1 => {
+                self.set_body(&[(750.0, 3.0, 0.7), (2200.0, 3.0, 0.4), (3400.0, 2.5, 0.2)], size, amt);
+                self.gain = 2.8;
+            }
+            2 => {
+                self.set_body(&[(440.0, 3.0, 0.75), (1150.0, 3.0, 0.45), (2600.0, 2.5, 0.2)], size, amt);
+                self.gain = 3.0;
+            }
+            _ => {
+                self.set_body(&[(1100.0, 3.5, 0.8), (2800.0, 3.0, 0.45), (3800.0, 2.5, 0.25)], size, amt);
+                self.gain = 2.5;
+            }
+        }
+        self.dyn_lo = lerp(1500.0, 2600.0, bright);
+        self.dyn_hi = lerp(6000.0, 11000.0, bright);
+        self.rad_amt = 0.5;
+        self.direct = 0.45;
     }
 
     fn trigger_tine(&mut self, p: &Params) {
@@ -821,6 +1086,74 @@ impl LyraVoice {
         }
     }
 
+    /// The player's breath (or bow) this sample: the envelope with a tongued attack and a little
+    /// pressure overshoot, plus a slow wander. Returns (pressure, pitch drift ratio).
+    #[inline]
+    fn breath(&mut self, rng: &mut Rng) -> (f32, f32) {
+        self.envelope();
+        // Slow drift: a new random target every ~85 ms, slewed — no held note is perfectly still.
+        if self.t % 4096 == 0 {
+            self.wander_target = rng.bipolar();
+        }
+        self.wander += (self.wander_target - self.wander) * (4.0 / self.sr);
+        let attack_t = self.t as f32 / self.sr;
+        let over = 1.0 + self.overshoot * (-attack_t / 0.04).exp();
+        let mut p = self.env * self.max_drive * over * (1.0 + 0.035 * self.wander);
+        p += p * self.noise_gain * rng.bipolar();
+        // The tongue releases the reed in time with the note: a push at the fundamental for the
+        // first few periods sets the reed swinging in the right register (a bare noise burst can
+        // just as easily start the octave — the crack).
+        let periods = attack_t * self.f0;
+        if periods < 6.0 && self.model != MODEL_VIOLIN {
+            self.kick_phase += self.f0 / self.sr;
+            if self.kick_phase >= 1.0 {
+                self.kick_phase -= 1.0;
+            }
+            p += KICK * self.max_drive * (1.0 - periods / 6.0) * (TAU * self.kick_phase).sin();
+        }
+        if self.tongue > 0 {
+            // The tongue leaving the reed (or the lips, or the flute's edge): a short burst of air.
+            let k = self.tongue as f32 / self.tongue_len as f32;
+            p += self.tongue_amp * k * k * rng.bipolar() * self.max_drive;
+            self.tongue -= 1;
+        }
+        (p, 1.0 + 0.0017 * self.wander)
+    }
+
+    /// pp → ff is about 18 dB: the physics saturates, so the player's dynamic sets the level.
+    #[inline]
+    fn loudness(d: f32) -> f32 {
+        0.12 + 0.88 * d.clamp(0.0, 1.0).powf(1.6)
+    }
+
+    /// Slur toward the target bore length.
+    #[inline]
+    fn glide(&mut self) -> f32 {
+        self.base += (self.base_target - self.base) * self.glide_k;
+        self.base
+    }
+
+    /// The bell: radiation favours the highs, and a soft note is darker than a loud one.
+    #[inline]
+    fn bell(&mut self, x: f32, dynamic: f32) -> f32 {
+        let fc = lerp(self.dyn_lo, self.dyn_hi, dynamic.clamp(0.0, 1.0));
+        let c = (TAU * fc / self.sr).min(0.95);
+        self.dyn_lp += c * (x - self.dyn_lp);
+        let y = if self.bell2 {
+            self.dyn_lp2 += c * (self.dyn_lp - self.dyn_lp2);
+            self.dyn_lp2
+        } else {
+            self.dyn_lp
+        };
+        // Forte edge: the upper harmonics a hard-blown horn throws out (above ~1.8 kHz).
+        self.edge_lp += (TAU * 1800.0 / self.sr).min(0.95) * (y - self.edge_lp);
+        let d = dynamic.clamp(0.0, 1.0);
+        let y = y + self.edge_amt * d * d * (y - self.edge_lp);
+        let r = y - self.rad_amt * self.rad_x1;
+        self.rad_x1 = y;
+        r
+    }
+
     /// One stereo sample.
     #[inline]
     pub fn render_sample(&mut self, bend_ratio: f32, mod_wheel: f32, rng: &mut Rng) -> (f32, f32) {
@@ -856,9 +1189,9 @@ impl LyraVoice {
                 self.body_tick(s) + knock
             }
             MODEL_VIOLIN => {
-                self.envelope();
+                let (_, drift) = self.breath(rng);
                 let vib = self.vibrato(mod_wheel);
-                let base = self.base / bend;
+                let base = self.glide() / bend * drift;
                 let neck_len = (base * (1.0 - self.beta) * (1.0 + 0.008 * vib)).max(1.0);
                 let bridge_len = (base * self.beta).max(1.0);
                 let bow = self.env * self.max_drive * (1.0 + self.noise_gain * rng.bipolar());
@@ -870,21 +1203,32 @@ impl LyraVoice {
                 let new_vel = if self.env > 0.0 { dv * ((dv * self.slope + 0.001).abs() + 0.75).powi(-4).min(1.0) } else { 0.0 };
                 self.last1 = self.d1.process(bridge_refl + new_vel, neck_len);
                 self.last2 = self.d2.process(nut_refl + new_vel, bridge_len);
-                self.body_tick(self.last2)
+                self.body_tick(self.last2) * Self::loudness(self.dynv).sqrt()
             }
-            MODEL_SAX => {
-                self.envelope();
+            MODEL_SAX | MODEL_REED => {
+                let (mut breath, drift) = self.breath(rng);
                 let vib = self.vibrato(mod_wheel);
-                let base = (self.base / bend) * (1.0 + 0.002 * vib);
-                let mut breath = self.env * self.max_drive;
-                breath += breath * self.noise_gain * rng.bipolar();
+                let base = (self.glide() / bend) * drift * (1.0 + 0.002 * vib);
                 breath += breath * 0.08 * vib;
                 let oz = 0.5 * (self.last1 + self.oz_x1);
                 self.oz_x1 = self.last1;
                 let temp = -0.95 * oz;
                 let out = temp - self.last2;
                 let pd = breath - out;
-                let reed = (0.7 + self.slope * pd).clamp(-1.0, 1.0);
+                // The reed beats at the note (partly forced, like the trumpet's lips), which locks
+                // the register; the reed curve keeps its give-and-take with the bore. Soft, the reed
+                // never shuts — round tone. Loud, it slams shut every cycle — the bright, buzzy
+                // beating-reed sound.
+                self.lp += self.f0 * bend * (1.0 + 0.002 * vib) / (self.sr * drift);
+                if self.lp >= 1.0 {
+                    self.lp -= 1.0;
+                }
+                let d = self.dynv * self.env;
+                let swing = lerp(0.55, 1.7, d) * lerp(0.8, 1.2, self.slope_n);
+                let h = 1.0 + swing * (TAU * self.lp).sin();
+                let open = (h.max(0.0) / (1.0 + swing)).powf(0.8);
+                let table = (0.7 + self.slope * pd).clamp(-1.0, 1.0);
+                let reed = lerp(table, 1.0 - open, REED_FORCE);
                 self.last2 = self.d2.process(temp, (self.beta * base).max(1.0));
                 self.last1 = self.d1.process(breath - pd * reed - temp, ((1.0 - self.beta) * base).max(1.0));
                 let mut y = out * 0.3;
@@ -894,33 +1238,80 @@ impl LyraVoice {
                     y *= 1.0 + self.growl * 2.5 * self.growl_lp;
                     y = (y * (1.0 + self.growl * 3.0)).tanh() / (1.0 + self.growl * 1.5);
                 }
+                let d = self.dynv * self.env;
+                let y = self.bell(y, d) * Self::loudness(d);
                 self.body_tick(y)
             }
             MODEL_TRUMPET => {
-                self.envelope();
+                let (breath, drift) = self.breath(rng);
                 let vib = self.vibrato(mod_wheel);
                 // The lips settle onto the note: a quick scoop up from ~35 cents flat.
                 let scoop = 1.0 - 0.02 * (-(self.t as f32) / (self.sr * 0.035)).exp();
-                self.lp += self.f0 * bend * scoop * (1.0 + 0.004 * vib) / self.sr;
+                self.lp += self.f0 * bend * scoop * (1.0 + 0.004 * vib) / (self.sr * drift);
                 if self.lp >= 1.0 {
                     self.lp -= 1.0;
                 }
-                let breath = self.max_drive * self.env * (1.0 + self.noise_gain * rng.bipolar());
-                let open = (TAU * self.lp).sin().max(0.0).powf(self.slope);
+                let _ = breath;
+                let dynamic = self.dynv * self.env;
+                // Soft: round, nearly sinusoidal lip motion. Loud and tense: a short, sharp opening.
+                let k = lerp(1.0, 5.0, (dynamic * 0.65 + self.slope * 0.35).clamp(0.0, 1.0));
+                let open = (TAU * self.lp).sin().max(0.0).powf(k);
                 let mouth = 0.3 * breath;
                 let bore = 0.85 * self.last1;
                 let y = open * mouth + (1.0 - open) * bore;
                 let dc = y - self.dc_x1 + 0.995 * self.dc_y1;
                 self.dc_x1 = y;
                 self.dc_y1 = dc;
-                self.last1 = self.d1.process(dc, (self.base / bend).max(1.0));
-                // Brassiness: loud playing steepens the wave in the tube — brighter, not just louder.
-                let drive = 1.0 + 5.0 * breath;
-                let mut o = (self.last1 * drive).tanh() / drive.sqrt();
+                // Wave steepening: high pressure travels faster down the tube.
+                let steep = self.steep * dynamic * dynamic * self.last1.clamp(-1.0, 1.0);
+                let len = (self.glide() / bend * drift - steep).max(1.0);
+                self.last1 = self.d1.process(dc, len);
+                let mut o = (self.last1 * 1.6).tanh() / 1.6;
                 for i in 0..self.nmute {
                     o = self.mute[i].tick(o);
                 }
+                let o = self.bell(o, dynamic) * Self::loudness(dynamic);
                 self.body_tick(o)
+            }
+            MODEL_FLUTE => {
+                let (breath, drift) = self.breath(rng);
+                let vib = self.vibrato(mod_wheel);
+                let base = self.glide() / bend * drift * (1.0 + 0.002 * vib);
+                let breath = breath * (1.0 + 0.05 * vib);
+                self.lp = (1.0 - self.pole) * self.last1 + self.pole * self.lp;
+                let refl = -self.lp;
+                let dc = refl - self.dc_x1 + 0.995 * self.dc_y1;
+                self.dc_x1 = refl;
+                self.dc_y1 = dc;
+                let pd = breath - 0.5 * dc;
+                let jet = self.d2.process(pd, (base * self.jet_ratio).max(1.0));
+                let jt = (jet * (jet * jet - 1.0)).clamp(-1.0, 1.0);
+                self.last1 = self.d1.process(jt + 0.5 * dc, base.max(1.0));
+                let d = self.dynv * self.env;
+                let y = self.bell(0.3 * self.last1, d) * Self::loudness(d);
+                self.body_tick(y)
+            }
+            MODEL_CLARINET => {
+                let (mut breath, drift) = self.breath(rng);
+                let vib = self.vibrato(mod_wheel);
+                let base = self.glide() / bend * drift * (1.0 + 0.002 * vib);
+                breath += breath * 0.06 * vib;
+                let oz = 0.5 * (self.last1 + self.oz_x1);
+                self.oz_x1 = self.last1;
+                let pd = -0.95 * oz - breath;
+                // Partly forced at the note, as for the sax: no squeaks into the twelfth up high.
+                self.lp += self.f0 * bend * (1.0 + 0.002 * vib) / (self.sr * drift);
+                if self.lp >= 1.0 {
+                    self.lp -= 1.0;
+                }
+                let d = self.dynv * self.env;
+                let swing = lerp(0.55, 1.6, d) * lerp(0.8, 1.2, self.slope_n);
+                let open = ((1.0 + swing * (TAU * self.lp).sin()).max(0.0) / (1.0 + swing)).powf(0.8);
+                let reed = lerp((0.7 - self.slope * pd).clamp(-1.0, 1.0), 1.0 - open, REED_FORCE);
+                self.last1 = self.d1.process(breath + pd * reed, base.max(1.0));
+                let d = self.dynv * self.env;
+                let y = self.bell(self.last1 * 0.5, d) * Self::loudness(d);
+                self.body_tick(y)
             }
             _ => {
                 let mut x = 0.0;
@@ -1106,7 +1497,7 @@ mod tests {
 
     #[test]
     fn every_model_is_stable_and_audible() {
-        for (m, vars) in [(0u32, 3u32), (1, 2), (2, 1), (3, 2), (4, 4), (5, 1)] {
+        for (m, vars) in [(0u32, 3u32), (1, 2), (2, 1), (3, 2), (4, 4), (5, 1), (6, 4), (7, 2), (8, 3)] {
             for var in 0..vars {
                 for midi in [40.0, 55.0, 64.0, 72.0, 84.0] {
                     let x = render(m, var, midi, 0.85, 1.2, 0.8);
@@ -1136,7 +1527,7 @@ mod tests {
     #[test]
     fn bowed_and_blown_models_speak_on_pitch() {
         let sr = 48000.0;
-        for (m, notes) in [(2u32, [55.0, 62.0, 69.0, 76.0]), (3, [49.0, 56.0, 61.0, 68.0]), (4, [55.0, 60.0, 65.0, 70.0])] {
+        for (m, notes) in [(2u32, [55.0, 62.0, 69.0, 76.0]), (3, [49.0, 56.0, 61.0, 68.0]), (4, [55.0, 60.0, 65.0, 70.0]), (6, [62.0, 69.0, 76.0, 81.0]), (7, [52.0, 58.0, 64.0, 70.0]), (8, [60.0, 65.0, 70.0, 74.0])] {
             for midi in notes {
                 let x = render(m, 0, midi, 0.8, 1.0, 1.0);
                 let target = 440.0 * 2f32.powf((midi - 69.0) / 12.0);
@@ -1151,7 +1542,7 @@ mod tests {
     #[test]
     fn sustained_models_stop_after_release_and_struck_models_ring_out() {
         let sr = 48000.0;
-        for m in [2u32, 3, 4] {
+        for m in [2u32, 3, 4, 6, 7, 8] {
             let x = render(m, 0, 62.0, 0.8, 2.6, 0.6);
             let tail = peak(&x[(2.3 * sr) as usize..]);
             assert!(tail < 0.002, "model {m} still sounding after release ({tail})");
@@ -1176,6 +1567,146 @@ mod tests {
             let hard = render(m, 0, 60.0, 1.0, 0.4, 0.4);
             let (s, h) = (bright(&soft[..(0.2 * sr) as usize]), bright(&hard[..(0.2 * sr) as usize]));
             assert!(h > s * 1.15, "model {m}: hard {h} not brighter than soft {s}");
+        }
+    }
+
+    /// Amplitude of harmonic h by Goertzel over the steady part.
+    fn harmonic(x: &[f32], sr: f32, f: f32) -> f32 {
+        let w = TAU * f / sr;
+        let c = 2.0 * w.cos();
+        let (mut s1, mut s2) = (0.0f32, 0.0f32);
+        for (i, &v) in x.iter().enumerate() {
+            let win = 0.5 - 0.5 * (TAU * i as f32 / x.len() as f32).cos();
+            let s0 = v * win + c * s1 - s2;
+            s2 = s1;
+            s1 = s0;
+        }
+        (s1 * s1 + s2 * s2 - c * s1 * s2).sqrt()
+    }
+
+    #[test]
+    #[ignore]
+    fn probe_brightness() {
+        let sr = 48000.0;
+        for m in [3u32, 8, 4, 6, 7] {
+            let midi = 62.0;
+            let f = 440.0 * 2f32.powf((midi - 69.0) / 12.0);
+            let mut line = format!("model {m}:");
+            for v in [0.1f32, 0.3, 0.5, 0.7, 0.9, 1.0] {
+                let x = render(m, 0, midi, v, 1.0, 1.0);
+                let seg = &x[(0.45 * sr) as usize..(0.9 * sr) as usize];
+                let (mut num, mut den) = (0.0, 0.0);
+                for h in 1..12 { let a = harmonic(seg, sr, f * h as f32); num += a * h as f32; den += a; }
+                line += &format!(" v{v}:{:.2}/{:.3}", num / den, peak(seg));
+            }
+            eprintln!("{line}");
+        }
+    }
+
+    #[test]
+    #[ignore]
+    fn probe_regimes() {
+        let sr = 48000.0;
+        for m in [3u32, 8, 7] {
+            for midi in [64.0f32, 69.0, 72.0, 76.0, 79.0] {
+                let f = 440.0 * 2f32.powf((midi - 69.0) / 12.0);
+                let mut line = format!("model {m} midi {midi}:");
+                let mut bad = 0;
+                for vel in [0.15f32, 0.5, 1.0] {
+                    for seed in [1u32, 7, 12345, 99, 3, 4242] {
+                        let p = params(m, 0);
+                        let mut v = LyraVoice::new(sr);
+                        let mut rng = Rng(seed);
+                        v.trigger(f, vel, &p, &mut rng);
+                        let x: Vec<f32> = (0..(sr as usize)).map(|_| v.render_sample(1.0, 0.0, &mut rng).0).collect();
+                        let seg = &x[(0.45 * sr) as usize..(0.9 * sr) as usize];
+                        let fp = pitch(seg, sr, f * 0.45, f * 2.2);
+                        let c = 1200.0 * (fp / f).log2();
+                        if c.abs() > 30.0 { bad += 1; line += &format!(" {vel}/{seed}:{c:+.0}"); }
+                    }
+                }
+                eprintln!("{line} → {bad}/18 off");
+            }
+        }
+    }
+
+    #[test]
+    fn clarinet_low_register_favours_odd_harmonics() {
+        let sr = 48000.0;
+        let midi = 52.0;
+        let f = 440.0 * 2f32.powf((midi - 69.0) / 12.0);
+        let x = render(7, 0, midi, 0.7, 1.0, 1.0);
+        let seg = &x[(0.4 * sr) as usize..(0.9 * sr) as usize];
+        let (h1, h2, h3, h4) = (harmonic(seg, sr, f), harmonic(seg, sr, 2.0 * f), harmonic(seg, sr, 3.0 * f), harmonic(seg, sr, 4.0 * f));
+        eprintln!("clarinet h1 {h1:.1} h2 {h2:.1} h3 {h3:.1} h4 {h4:.1}");
+        assert!(h2 < h1 * 0.5 && h2 < h3, "even harmonic 2 should be weak: {h1} {h2} {h3}");
+        assert!(h4 < h3, "even harmonic 4 should sit under 3: {h3} {h4}");
+    }
+
+    #[test]
+    fn winds_get_brighter_as_they_get_louder() {
+        let sr = 48000.0;
+        let centroid = |x: &[f32], f: f32| {
+            let (mut num, mut den) = (0.0, 0.0);
+            for h in 1..12 {
+                let a = harmonic(x, sr, f * h as f32);
+                num += a * h as f32;
+                den += a;
+            }
+            num / den
+        };
+        for m in [3u32, 4, 6, 7, 8] {
+            let midi = 62.0;
+            let f = 440.0 * 2f32.powf((midi - 69.0) / 12.0);
+            let soft = render(m, 0, midi, 0.2, 1.0, 1.0);
+            let loud = render(m, 0, midi, 1.0, 1.0, 1.0);
+            let seg = |x: &Vec<f32>| x[(0.45 * sr) as usize..(0.9 * sr) as usize].to_vec();
+            let (cs, cl) = (centroid(&seg(&soft), f), centroid(&seg(&loud), f));
+            eprintln!("model {m}: centroid pp {cs:.2} ff {cl:.2}");
+            assert!(cl > cs * 1.05, "model {m}: ff ({cl}) not brighter than pp ({cs})");
+        }
+    }
+
+    #[test]
+    fn legato_slurs_into_one_voice_and_lands_on_the_new_note() {
+        use crate::engine::Engine;
+        let sr = 48000.0;
+        for m in [2u32, 3, 4, 6, 7, 8] {
+            let mut e = Engine::new(sr);
+            e.params.set(LYRA_BASE + LY_ENABLE, 1.0);
+            e.params.set(LYRA_BASE + LY_MODEL, m as f32);
+            e.params.set(P_GLIDE, 0.02); // poly mode: LYRA's own legato decides
+            let mut out = Vec::new();
+            e.note_on(62.0, 0.8, 1, 0);
+            for b in 0..(1.6 * sr / 128.0) as usize {
+                if b == (0.6 * sr / 128.0) as usize {
+                    e.note_on(67.0, 0.8, 2, 0);
+                }
+                if b == (0.62 * sr / 128.0) as usize {
+                    e.note_off(1);
+                    assert_eq!(e.active_voices(), 1, "model {m}: the slur must stay one voice");
+                }
+                e.render(128);
+                let pl = e.scratch_ptr(0);
+                for i in 0..128 {
+                    // SAFETY: scratch holds MAX_BLOCK ≥ 128 frames.
+                    out.push(unsafe { *pl.add(i) });
+                }
+            }
+            // A chord (notes together) stays a chord.
+            let mut c = Engine::new(sr);
+            c.params.set(LYRA_BASE + LY_ENABLE, 1.0);
+            c.params.set(LYRA_BASE + LY_MODEL, m as f32);
+            for (i, n) in [60.0f32, 64.0, 67.0].iter().enumerate() {
+                c.note_on(*n, 0.7, 10 + i as u32, i as u32 * 200);
+            }
+            c.render(128);
+            assert_eq!(c.active_voices(), 3, "model {m}: a chord must keep its voices");
+            let target = 440.0 * 2f32.powf((67.0 - 69.0) / 12.0);
+            let f = pitch(&out[(1.1 * sr) as usize..(1.5 * sr) as usize], sr, target * 0.7, target * 1.4);
+            let c = cents(f, target);
+            eprintln!("model {m} slur → {f:.1} Hz ({c:+.1} c)");
+            assert!(c.abs() < 25.0, "model {m}: slur landed {c:.1} cents off");
         }
     }
 }

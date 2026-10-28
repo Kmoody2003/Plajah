@@ -46,6 +46,19 @@ export const LYRA_PRESETS: LyraPreset[] = [
   preset('lyra-trumpet-harmon', 'Harmon Mute', 'trumpet', 2, 'The intimate, buzzing cool-jazz sound.', 67, { [LY.BRIGHTNESS]: 0.5, [LY.EXCITE_HARD]: 0.4, [LY.VIB_DEPTH]: 0.08, [LY.ATTACK]: 0.25, [RV.MIX]: 0.16 }),
   preset('lyra-trumpet-cup', 'Cup Mute', 'trumpet', 1, 'Round and soft — big-band section color.', 65, { [LY.EXCITE_HARD]: 0.45, [LY.VIB_DEPTH]: 0.15 }),
   preset('lyra-trumpet-straight', 'Straight Mute', 'trumpet', 3, 'Nasal and cutting.', 67, { [LY.EXCITE_HARD]: 0.6, [LY.BRIGHTNESS]: 0.6 }),
+  // ── Flute ─────────────────────────────────────────────────────────────────────────────────
+  preset('lyra-concert-flute', 'Concert Flute', 'flute', 0, 'Silver flute: breathy chiff on the attack, vibrato blooming on long notes.', 74, { [LY.VIB_DEPTH]: 0.35, [LY.VIB_DELAY]: 0.25, [LY.NOISE]: 0.35, [LY.ATTACK]: 0.15, [RV.MIX]: 0.2 }),
+  preset('lyra-piccolo', 'Piccolo', 'flute', 1, 'An octave up and brilliant — marches and sparkle on top of the band.', 86, { [LY.VIB_DEPTH]: 0.2, [LY.NOISE]: 0.2, [LY.BRIGHTNESS]: 0.65 }),
+  preset('lyra-alto-flute', 'Alto Flute', 'flute', 2, 'Dark, hushed and airy — film scores and late-night jazz.', 67, { [LY.VIB_DEPTH]: 0.3, [LY.NOISE]: 0.55, [LY.ATTACK]: 0.3, [LY.BRIGHTNESS]: 0.4, [RV.MIX]: 0.25 }),
+  preset('lyra-tin-whistle', 'Tin Whistle', 'flute', 3, 'Irish session whistle: bright, a little rough, quick ornaments, little vibrato.', 79, { [LY.VIB_DEPTH]: 0.08, [LY.NOISE]: 0.6, [LY.ATTACK]: 0.05, [LY.BRIGHTNESS]: 0.7 }),
+  // ── Clarinet ──────────────────────────────────────────────────────────────────────────────
+  preset('lyra-clarinet', 'Clarinet', 'clarinet', 0, 'B♭ clarinet: the hollow chalumeau down low (odd harmonics), clear clarion up high.', 62, { [LY.VIB_DEPTH]: 0.05, [LY.EXCITE_HARD]: 0.5, [LY.NOISE]: 0.25 }),
+  preset('lyra-klezmer-clarinet', 'Klezmer Clarinet', 'clarinet', 0, 'Bright and crying, with a quick vibrato and hard reed.', 67, { [LY.VIB_DEPTH]: 0.4, [LY.VIB_RATE]: 0.7, [LY.VIB_DELAY]: 0.1, [LY.EXCITE_HARD]: 0.75, [LY.BRIGHTNESS]: 0.7 }),
+  preset('lyra-bass-clarinet', 'Bass Clarinet', 'clarinet', 1, 'Woody and deep — the low reed of the section.', 46, { [LY.VIB_DEPTH]: 0.05, [LY.EXCITE_HARD]: 0.45, [LY.NOISE]: 0.3, [LY.BRIGHTNESS]: 0.45 }),
+  // ── Double reeds ──────────────────────────────────────────────────────────────────────────
+  preset('lyra-oboe', 'Oboe', 'reed', 0, 'Nasal, singing, cutting — the orchestra tunes to it.', 69, { [LY.VIB_DEPTH]: 0.3, [LY.VIB_DELAY]: 0.2, [LY.EXCITE_HARD]: 0.5, [RV.MIX]: 0.2 }),
+  preset('lyra-english-horn', 'English Horn', 'reed', 1, 'The oboe\'s darker, sadder alto.', 62, { [LY.VIB_DEPTH]: 0.28, [LY.EXCITE_HARD]: 0.45, [RV.MIX]: 0.22 }),
+  preset('lyra-bassoon', 'Bassoon', 'reed', 2, 'Woody and warm, comic or noble — the bass of the woodwinds.', 48, { [LY.VIB_DEPTH]: 0.18, [LY.EXCITE_HARD]: 0.45, [LY.BRIGHTNESS]: 0.45 }),
   // ── Tine electric piano ───────────────────────────────────────────────────────────────────
   preset('lyra-tine-stage', 'Tine Stage Piano', 'tine', 0, 'Our physical tine piano: neoprene hammers, tine and tonebar, magnetic pickup. Bell on top, bark when you dig in.', 60, { [LY.EXCITE_POS]: 0.45, [LY.EXCITE_HARD]: 0.5, [LY.DRIVE]: 0.15, [LY.TONE]: 0.55, [LY.BRIGHTNESS]: 0.55 }),
   preset('lyra-tine-suitcase', 'Tine Suitcase Tremolo', 'tine', 0, 'Through the suitcase amp with stereo tremolo.', 60, { [LY.EXCITE_POS]: 0.4, [LY.DRIVE]: 0.2, [LY.TREM_DEPTH]: 0.55, [LY.TREM_RATE]: 0.45, [LY.WIDTH]: 0.8 }),

@@ -394,6 +394,21 @@ impl Voice {
         }
     }
 
+    /// Legato into a LYRA voice: a bowed/blown model glides to the new note without a new
+    /// attack. Returns false when this isn't a LYRA voice (the caller keeps its own behaviour).
+    pub fn lyra_slur(&mut self, note: f32, vel: f32, p: &Params) -> bool {
+        if !self.lyra_active {
+            return false;
+        }
+        self.lyra.slur(midi_to_hz(note), vel.clamp(0.0, 1.0), p, &mut self.lyra_rng);
+        true
+    }
+
+    /// A held, sounding bowed/blown LYRA voice and how long it has sounded (samples).
+    pub fn lyra_held(&self) -> Option<u32> {
+        (self.active && !self.released && self.lyra_active && self.lyra.is_sustained()).then(|| self.lyra.samples())
+    }
+
     /// The LYRA render path: like SOMA, the model's own physics is the envelope.
     fn render_lyra(
         &mut self,
