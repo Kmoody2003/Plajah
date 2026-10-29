@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { LY, LYRA_MODELS, LYRA_VARIANTS } from '../services/melos/instruments/lyra/params';
+import { LY, LYRA_INDEX_PARAMS, LYRA_MODELS, LYRA_VARIANTS } from '../services/melos/instruments/lyra/params';
 import { LYRA_PRESETS, lyraPresetById } from '../services/melos/instruments/lyra/presets';
 import { deserializeLyraPatch, expandLyraMacros, newLyraPatch, serializeLyraPatch } from '../services/melos/instruments/lyra/patch';
 import { BAND } from '../services/melos/beats/band/roster';
@@ -15,8 +15,8 @@ test('param ids mirror rust/plajah-audio/src/params.rs', () => {
   for (const m of rs.matchAll(/pub const LY_([A-Z_]+): u32 = (\d+);/g)) rust[m[1]] = base + Number(m[2]);
   assert.deepEqual(Object.keys(rust).sort(), Object.keys(LY).sort());
   for (const [k, v] of Object.entries(LY)) assert.equal(v, rust[k], k);
-  assert.match(fs.readFileSync('services/melos/beats/engine/InstrumentHost.ts', 'utf8'), /DSP_ABI_VERSION = 14/);
-  assert.match(fs.readFileSync('rust/plajah-audio/src/lib.rs', 'utf8'), /ABI_VERSION: u32 = 14/);
+  assert.match(fs.readFileSync('services/melos/beats/engine/InstrumentHost.ts', 'utf8'), /DSP_ABI_VERSION = 15/);
+  assert.match(fs.readFileSync('rust/plajah-audio/src/lib.rs', 'utf8'), /ABI_VERSION: u32 = 15/);
 });
 
 test('presets: every model has some, ids unique, values in range, variant valid', () => {
@@ -28,7 +28,7 @@ test('presets: every model has some, ids unique, values in range, variant valid'
     assert.equal(p.params[LY.MODEL], LYRA_MODELS.indexOf(p.model));
     assert.ok(p.params[LY.VARIANT] < LYRA_VARIANTS[p.model].length, `${p.id} variant`);
     for (const [k, v] of Object.entries(p.params)) {
-      if (Number(k) === LY.MODEL || Number(k) === LY.VARIANT) continue;
+      if (LYRA_INDEX_PARAMS.includes(Number(k))) continue;
       assert.ok(v >= 0 && v <= 1, `${p.id} ${k}=${v}`);
     }
   }
@@ -43,9 +43,26 @@ test('patches round-trip and macros stay in range', () => {
     assert.equal(back.presetId, p.id);
     assert.equal(back.macros.tone, 1);
     const flat = expandLyraMacros(back.params, back.macros);
-    for (const [k, v] of Object.entries(flat)) if (Number(k) !== LY.MODEL && Number(k) !== LY.VARIANT) assert.ok(v >= 0 && v <= 1, `${p.id} ${k}`);
+    for (const [k, v] of Object.entries(flat)) if (!LYRA_INDEX_PARAMS.includes(Number(k))) assert.ok(v >= 0 && v <= 1, `${p.id} ${k}`);
   }
   assert.equal(deserializeLyraPatch(undefined), null);
+});
+
+test('the amp and cab selectors point at real amps and cabs', () => {
+  for (const p of LYRA_PRESETS) {
+    assert.ok(Number.isInteger(p.params[LY.AMP]) && p.params[LY.AMP] >= 0 && p.params[LY.AMP] < 4, p.id);
+    assert.ok(Number.isInteger(p.params[LY.CAB]) && p.params[LY.CAB] >= 0 && p.params[LY.CAB] < 4, p.id);
+  }
+});
+
+test('the strings and the rest of the horn section have presets, and the band reaches for them', () => {
+  for (const v of [1, 2, 3, 4]) assert.ok(LYRA_PRESETS.some((p) => p.model === 'violin' && p.params[LY.VARIANT] === v), `violin variant ${v}`);
+  for (const v of [0, 1, 2, 3, 4]) {
+    assert.ok(LYRA_PRESETS.some((p) => p.model === 'brass' && p.params[LY.VARIANT] === v), `brass variant ${v}`);
+    assert.ok(LYRA_PRESETS.some((p) => p.model === 'pluck' && p.params[LY.VARIANT] === v), `pluck variant ${v}`);
+  }
+  const elena = BAND.find((x) => x.id === 'elena')!;
+  assert.ok(elena.seat.kind === 'instrument' && Object.values(elena.seat.byGenre ?? {}).every((id) => !id.startsWith('lyra-') || lyraPresetById(id)));
 });
 
 test('the band sits at real LYRA presets — no stand-ins left for guitar, piano, violin, horns, woodwinds', () => {

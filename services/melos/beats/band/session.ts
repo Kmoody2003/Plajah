@@ -12,7 +12,7 @@ import type { GrooveDoc } from '../grooveDoc';
 import { songTime } from '../tempoMap';
 import { docKeyOrDefault } from '../songKey';
 import { scalePitchClasses } from '../../theory';
-import { BAND, playerById, type BandPlayer, type Persona } from './roster';
+import { BAND, playerById, playerRange, type BandPlayer, type Persona } from './roster';
 import { applyDirection, energyAt, newBandDirection, settleBuild, type BandDirection, type DirectionOutcome } from './direction';
 import { genreById, type DrumVoice } from './styles';
 import { hashSeed, playBar, rng, type BandHit, type BandNote, type BandShared, type BarFrame, type PlayedBar, type PlayerMemory } from './performer';
@@ -202,7 +202,9 @@ export class BandSession {
     const shared: BandShared = { kicks: [], soloist, padding: false };
     const played: Record<string, PlayedBar> = {};
     for (const p of BAND) {
-      const out = playBar({ player: p, persona: this.activePersona(p), dir: this.dir.players[p.id], cue: this.dir.cues[p.id], mem: this.mem[p.id] }, f, shared);
+      const range = playerRange(p, f.genre.id);
+      const player = range === p.range ? p : { ...p, range };
+      const out = playBar({ player, persona: this.activePersona(p), dir: this.dir.players[p.id], cue: this.dir.cues[p.id], mem: this.mem[p.id] }, f, shared);
       played[p.id] = out;
       if (this.dir.players[p.id].in) this.lastTrace[p.id] = out.trace;
     }

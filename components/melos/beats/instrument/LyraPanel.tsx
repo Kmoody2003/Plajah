@@ -7,7 +7,7 @@ import { X } from 'lucide-react';
 import type { ArrangeTrack, GrooveDoc } from '../../../../services/melos/beats/grooveDoc';
 import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine';
 import { syncPadWithTrack } from '../../../../services/melos/beats/instrumentFactory';
-import { LY, LYRA_MODELS, LYRA_MODEL_LABELS, LYRA_PARAM_META, LYRA_VARIANTS, RV, type LyraModel } from '../../../../services/melos/instruments/lyra/params';
+import { LY, LYRA_INDEX_PARAMS, LYRA_MODELS, LYRA_MODEL_LABELS, LYRA_PARAM_META, LYRA_PICKUPS_HUMBUCKER, LYRA_VARIANTS, RV, isElectric, type LyraModel } from '../../../../services/melos/instruments/lyra/params';
 import { LYRA_PRESETS } from '../../../../services/melos/instruments/lyra/presets';
 import {
   LYRA_MACRO_LABELS, LYRA_MACRO_ORDER, applyLyraPatch, applyLyraPreset, deserializeLyraPatch, newLyraPatch, serializeLyraPatch,
@@ -26,14 +26,16 @@ const ACCENT = '#D9B36C';
 
 /** How each model makes its sound — shown under the model picker. */
 const HOW: Record<LyraModel, string> = {
-  guitar: 'A plucked string: a burst at the pick point travels down a tuned delay loop that loses highs each trip; the body (or, on electric, a pickup and amp) colours it.',
+  guitar: 'A plucked string: a burst at the pick point travels down a tuned delay loop that loses highs each trip; the body colours it. The electric is a whole rig: pickups that hear the string at their place on it, pedals, a tube preamp, the amp\'s real tone-stack circuit, power tubes that sag, and a miked cabinet.',
   piano: 'A felt hammer and the soundboard\'s knock excite one to three strings per note, slightly detuned — their beating is the piano\'s two-stage decay. Stiff strings bend the overtones sharp.',
-  violin: 'A bowed string: the rosined bow grips and slips (stick-slip friction) at the bow point, and a violin body with its air and wood modes radiates it.',
+  violin: 'A bowed string: the rosined bow grips and slips (stick-slip friction) at the bow point, and the body — violin, viola, cello or double bass, each with its own air and wood modes — radiates it. The quartet hands each note to the instrument that plays that register.',
   sax: 'A reed beating against the mouthpiece drives a conical bore; breath noise, vibrato and growl come from the player.',
   trumpet: 'Buzzing lips drive the brass bore and the bell radiates the highs; mutes reshape the bell. Louder playing steepens the wave — brighter, not just louder.',
   flute: 'An air jet across the embouchure hole flips in and out of the tube and the bore locks it to a pitch. Blow harder and the bell opens up; the chiff is the jet finding the note.',
   clarinet: 'A single reed on a cylinder closed at the mouthpiece: in the low register only odd harmonics sound, which is the hollow chalumeau. Louder playing beats the reed shut each cycle and brightens it.',
   reed: 'Two blades of cane beating against each other on a conical bore, with the strong formants that make an oboe nasal and a bassoon woody.',
+  brass: 'The trumpet\'s buzzing-lip model rescaled for the rest of the section. The bore and bell set each one apart: the flugelhorn\'s wide cone is mellow, the French horn\'s bell faces away with a hand in it, the trombone\'s long cylinder steepens the wave into a blaze at ff, and the tuba is huge and dark.',
+  pluck: 'Plucked strings on the same string loop as the guitar, with their own strings, plucks and bodies: the harp\'s soundboard, the mandolin\'s paired courses, the banjo\'s drum head, the ukulele\'s little box, pizzicato on a violin-family body.',
   tine: 'Our tine electric piano: a neoprene hammer strikes a tine and its tonebar; a magnetic pickup reads the tine\'s motion through a nonlinear flux curve — the bark — into a preamp and stereo tremolo.',
 };
 
@@ -85,9 +87,10 @@ export const LyraPanel: React.FC<Props> = ({ track, onMutate, onClose, embedded 
   };
   useEffect(() => () => { for (const n of [...held.current.keys()]) noteOff(n); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const controls = LYRA_PARAM_META.filter((m) => !m.models || m.models.includes(model));
+  const electric = isElectric(model, variant);
+  const controls = LYRA_PARAM_META.filter((m) => (!m.models || m.models.includes(model)) && (!m.electric || electric));
   const groups: { id: (typeof controls)[number]['group']; label: string }[] = [
-    { id: 'tone', label: 'Tone' }, { id: 'touch', label: 'Touch' }, { id: 'body', label: 'Body' }, { id: 'expression', label: 'Expression' }, { id: 'amp', label: 'Amp' },
+    { id: 'tone', label: 'Tone' }, { id: 'touch', label: 'Touch' }, { id: 'body', label: 'Body' }, { id: 'expression', label: 'Expression' }, { id: 'amp', label: 'Amp' }, { id: 'pedals', label: 'Pedals' },
   ];
 
   const body = (
@@ -147,6 +150,19 @@ export const LyraPanel: React.FC<Props> = ({ track, onMutate, onClose, embedded 
               {items.map((c) => {
                 const v = patch.params[c.id] ?? 0;
                 const toggle = c.id === LY.PEDAL || c.id === LY.LEGATO;
+                if (c.options) {
+                  const indexed = LYRA_INDEX_PARAMS.includes(c.id);
+                  const opts = c.id === LY.PICKUP && variant >= 3 ? LYRA_PICKUPS_HUMBUCKER : c.options;
+                  const at = indexed ? Math.round(v) : Math.round(v * (opts.length - 1));
+                  return (
+                    <label key={c.id} className="flex flex-col gap-0.5 text-[11px] text-white/70" title={c.hint}>{c.label}
+                      <select value={at} onChange={(e) => { const i = Number(e.target.value); setParam(c.id, indexed ? i : i / (opts.length - 1)); }}
+                        className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-[12px] text-white">
+                        {opts.map((o, i) => <option key={i} value={i} className="bg-black">{o}</option>)}
+                      </select>
+                    </label>
+                  );
+                }
                 return (
                   <label key={c.id} className="flex flex-col gap-0.5" title={c.hint}>
                     <span className="flex justify-between text-[11px] text-white/70"><span>{c.label}</span><span className="text-white/35">{toggle ? (v > 0.5 ? 'On' : 'Off') : `${Math.round(v * 100)}%`}</span></span>

@@ -57,7 +57,9 @@ use spatial::{IamfRole, Layout, Position};
 /// tracks and pads render in the offline bounce.
 /// v14 adds LYRA (param block 1900+): physical models of guitar, piano, violin, sax, trumpet and
 /// a tine electric piano; MAX_PARAM_ID grows to 2000.
-pub const ABI_VERSION: u32 = 14;
+/// v15 adds the rest of LYRA: brass (block 1900 model 9), plucked strings (10), the violin family
+/// and the electric guitar rig (LY_PICKUP..LY_ECHO_TIME, 1924–1935).
+pub const ABI_VERSION: u32 = 15;
 
 #[unsafe(no_mangle)]
 pub extern "C" fn pa_abi_version() -> u32 {

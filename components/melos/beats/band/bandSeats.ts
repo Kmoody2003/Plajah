@@ -26,6 +26,10 @@ export function seatSound(player: BandPlayer, genre: string): SeatSoundChoice | 
     const p = presetsFor('pneuma').find((x) => x.id === id);
     return { type: 'pneuma', presetId: id, patch: p ? serializeVelaPatch(newVelaPatch(p)) : undefined, presetName: p?.name };
   }
+  if (id.startsWith('lyra-') && player.seat.type !== 'lyra') {
+    const p = lyraPresetById(id);
+    return { type: 'lyra', presetId: id, patch: p ? serializeLyraPatch(newLyraPatch(p)) : undefined, presetName: p?.name };
+  }
   switch (player.seat.type) {
     case 'aura': { const p = AURA_PRESETS.find((x) => x.id === id); return { type: 'aura', presetId: id, patch: p ? serializeAuraPatch(newAuraPatch(p)) : undefined, presetName: p?.name }; }
     case 'bajo': { const p = BAJO_PRESETS.find((x) => x.id === id); return { type: 'bajo', presetId: id, patch: p ? serializeBajoPatch(newBajoPatch(p)) : undefined, presetName: p?.name }; }

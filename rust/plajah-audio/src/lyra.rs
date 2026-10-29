@@ -33,11 +33,13 @@ pub const MODEL_CLARINET: u32 = 7;
 const REED_FORCE: f32 = 0.6;
 const KICK: f32 = 0.25;
 pub const MODEL_REED: u32 = 8; // double reeds: oboe, English horn, bassoon
+pub const MODEL_BRASS: u32 = 9; // the rest of the horn section: flugelhorn, French horn, trombones, tuba
+pub const MODEL_PLUCK: u32 = 10; // harp, mandolin, banjo, ukulele, pizzicato strings
 
 /// Bowed and blown models: they sustain while held and can slur (legato) between notes.
 #[inline]
 pub fn sustained(model: u32) -> bool {
-    matches!(model, MODEL_VIOLIN | MODEL_SAX | MODEL_TRUMPET | MODEL_FLUTE | MODEL_CLARINET | MODEL_REED)
+    matches!(model, MODEL_VIOLIN | MODEL_SAX | MODEL_TRUMPET | MODEL_FLUTE | MODEL_CLARINET | MODEL_REED | MODEL_BRASS)
 }
 
 // ── building blocks ────────────────────────────────────────────────────────────────────────────
@@ -146,6 +148,33 @@ impl Biquad {
         let c = w.cos();
         let a0 = 1.0 + alpha;
         Biquad { b0: (1.0 + c) * 0.5 / a0, b1: -(1.0 + c) / a0, b2: (1.0 + c) * 0.5 / a0, a1: -2.0 * c / a0, a2: (1.0 - alpha) / a0, z1: 0.0, z2: 0.0 }
+    }
+    /// Peaking EQ (RBJ): `db` at `f`.
+    fn peak(f: f32, q: f32, db: f32, sr: f32) -> Self {
+        let w = TAU * f.clamp(10.0, sr * 0.45) / sr;
+        let a = 10f32.powf(db / 40.0);
+        let alpha = w.sin() / (2.0 * q.max(0.1));
+        let c = w.cos();
+        let a0 = 1.0 + alpha / a;
+        Biquad { b0: (1.0 + alpha * a) / a0, b1: -2.0 * c / a0, b2: (1.0 - alpha * a) / a0, a1: -2.0 * c / a0, a2: (1.0 - alpha / a) / a0, z1: 0.0, z2: 0.0 }
+    }
+    /// High shelf (RBJ, slope 1): `db` above `f`.
+    fn highshelf(f: f32, db: f32, sr: f32) -> Self {
+        let w = TAU * f.clamp(10.0, sr * 0.45) / sr;
+        let a = 10f32.powf(db / 40.0);
+        let (c, sn) = (w.cos(), w.sin());
+        let alpha = sn / 2.0 * std::f32::consts::SQRT_2;
+        let sa = 2.0 * a.sqrt() * alpha;
+        let a0 = (a + 1.0) - (a - 1.0) * c + sa;
+        Biquad {
+            b0: a * ((a + 1.0) + (a - 1.0) * c + sa) / a0,
+            b1: -2.0 * a * ((a - 1.0) + (a + 1.0) * c) / a0,
+            b2: a * ((a + 1.0) + (a - 1.0) * c - sa) / a0,
+            a1: 2.0 * ((a - 1.0) - (a + 1.0) * c) / a0,
+            a2: ((a + 1.0) - (a - 1.0) * c - sa) / a0,
+            z1: 0.0,
+            z2: 0.0,
+        }
     }
     #[inline]
     fn tick(&mut self, x: f32) -> f32 {
@@ -262,6 +291,77 @@ fn p01(p: &Params, id: u32) -> f32 {
 const EXC_MAX: usize = 4096;
 const MAX_BODY: usize = 6;
 
+/// Violin, viola, cello, double bass: body modes (Hz, Q, gain) and output gain.
+static STRING_BODIES: [(&[(f32, f32, f32)], f32); 4] = [
+    (&[(275.0, 12.0, 1.0), (460.0, 10.0, 0.9), (540.0, 15.0, 0.8), (700.0, 8.0, 0.5), (2500.0, 1.5, 0.75), (3500.0, 2.0, 0.4)], 3.4),
+    (&[(230.0, 12.0, 1.0), (390.0, 10.0, 0.9), (470.0, 14.0, 0.8), (620.0, 8.0, 0.5), (2000.0, 1.5, 0.7), (3000.0, 2.0, 0.35)], 3.4),
+    (&[(102.0, 12.0, 1.0), (175.0, 10.0, 0.9), (205.0, 14.0, 0.8), (320.0, 8.0, 0.55), (1500.0, 1.5, 0.6), (2400.0, 2.0, 0.3)], 3.2),
+    (&[(62.0, 10.0, 1.0), (105.0, 9.0, 0.9), (130.0, 12.0, 0.8), (220.0, 8.0, 0.5), (800.0, 1.4, 0.45), (1600.0, 2.0, 0.25)], 3.4),
+];
+
+/// Which violin-family instrument plays a register in the quartet: cello, viola, violin.
+fn string_kind_for(note: f32) -> u32 {
+    if note < 48.0 {
+        2
+    } else if note < 60.0 {
+        1
+    } else {
+        0
+    }
+}
+
+/// One brass instrument's bore and bell.
+struct BrassBell {
+    /// Soft-note bell corner as a multiple of f0 (dark … bright), and its floor in Hz.
+    lo_k: (f32, f32),
+    lo_min: f32,
+    /// The bell's ff corner (dark … bright).
+    hi: (f32, f32),
+    edge: f32,
+    /// How far the wave can steepen (fraction of a period) across the Drive control.
+    shock: (f32, f32),
+    formants: [(f32, f32, f32); 2],
+    cut: f32,
+    air: f32,
+    gain: f32,
+}
+
+/// Flugelhorn, French horn, tenor trombone, bass trombone, tuba.
+static BRASS: [BrassBell; 5] = [
+    BrassBell { lo_k: (1.3, 2.0), lo_min: 300.0, hi: (5000.0, 9000.0), edge: 1.2, shock: (0.03, 0.08), formants: [(900.0, 1.2, 0.4), (1800.0, 1.6, 0.2)], cut: 100.0, air: 9000.0, gain: 2.4 },
+    BrassBell { lo_k: (1.2, 1.8), lo_min: 160.0, hi: (3500.0, 6500.0), edge: 1.6, shock: (0.05, 0.15), formants: [(450.0, 1.3, 0.5), (1100.0, 1.8, 0.25)], cut: 50.0, air: 5500.0, gain: 2.8 },
+    BrassBell { lo_k: (1.6, 2.6), lo_min: 220.0, hi: (7000.0, 13000.0), edge: 2.4, shock: (0.08, 0.22), formants: [(520.0, 1.3, 0.5), (1200.0, 1.6, 0.3)], cut: 60.0, air: 12000.0, gain: 2.3 },
+    BrassBell { lo_k: (1.5, 2.4), lo_min: 160.0, hi: (5000.0, 10000.0), edge: 2.2, shock: (0.08, 0.2), formants: [(380.0, 1.3, 0.55), (950.0, 1.6, 0.3)], cut: 40.0, air: 9000.0, gain: 2.4 },
+    BrassBell { lo_k: (1.4, 2.2), lo_min: 110.0, hi: (2500.0, 5000.0), edge: 1.2, shock: (0.04, 0.12), formants: [(230.0, 1.2, 0.6), (600.0, 1.6, 0.25)], cut: 25.0, air: 5000.0, gain: 2.8 },
+];
+
+/// One plucked instrument: string, pluck and body.
+struct Pluck {
+    /// Ring time (s) at 82 Hz; extra loop damping (gut/nylon); pluck point (fraction of the string).
+    ring: f32,
+    soft: f32,
+    at: f32,
+    /// Pick (1) … fleshy finger (low): how much of the pluck's top end survives.
+    finger: f32,
+    courses: usize,
+    /// Detune between a paired course (cents).
+    spread: f32,
+    stiff: f32,
+    body: &'static [(f32, f32, f32)],
+    direct: f32,
+    gain: f32,
+}
+
+/// Harp, mandolin, banjo, ukulele, pizzicato (body chosen by register).
+static PLUCKS: [Pluck; 5] = [
+    Pluck { ring: 7.0, soft: 0.1, at: 0.4, finger: 0.45, courses: 1, spread: 0.0, stiff: 0.0, body: &[(160.0, 6.0, 0.7), (330.0, 8.0, 0.5), (700.0, 5.0, 0.35), (1500.0, 2.0, 0.2)], direct: 0.6, gain: 0.5 },
+    Pluck { ring: 1.8, soft: 0.0, at: 0.12, finger: 1.0, courses: 2, spread: 3.0, stiff: -0.08, body: &[(290.0, 9.0, 0.9), (520.0, 10.0, 0.6), (1100.0, 6.0, 0.4), (2600.0, 1.5, 0.3)], direct: 0.5, gain: 0.45 },
+    // The drum head: a bright, short-lived set of membrane modes — the banjo's twang.
+    Pluck { ring: 1.4, soft: 0.0, at: 0.1, finger: 0.95, courses: 1, spread: 0.0, stiff: -0.08, body: &[(320.0, 4.0, 1.0), (700.0, 3.0, 0.6), (1450.0, 3.0, 0.5), (2900.0, 2.0, 0.4)], direct: 0.35, gain: 0.5 },
+    Pluck { ring: 1.5, soft: 0.14, at: 0.25, finger: 0.6, courses: 1, spread: 0.0, stiff: 0.0, body: &[(220.0, 8.0, 0.9), (420.0, 10.0, 0.7), (800.0, 6.0, 0.4), (2000.0, 1.5, 0.2)], direct: 0.5, gain: 0.55 },
+    Pluck { ring: 0.9, soft: 0.12, at: 0.33, finger: 0.4, courses: 1, spread: 0.0, stiff: 0.0, body: &[], direct: 0.3, gain: 0.8 },
+];
+
 // ── the voice ──────────────────────────────────────────────────────────────────────────────────
 
 pub struct LyraVoice {
@@ -289,7 +389,10 @@ pub struct LyraVoice {
     nbody: usize,
     direct: f32,
     hist: Delay,
-    pickup: f32,
+    /// Electric pickups: where each coil hears the string (delay, samples) and its share.
+    pk_taps: [f32; 4],
+    pk_w: [f32; 4],
+    npk: usize,
 
     // bowed / blown
     d1: Delay,
@@ -348,6 +451,10 @@ pub struct LyraVoice {
     rad_amt: f32,
     rad_x1: f32,
     steep: f32,
+    /// Shock: how far (fraction of a period) the bore's wave can steepen at ff, and its state.
+    shock: f32,
+    shock_d: f32,
+    shock_lvl: f32,
     jet_ratio: f32,
     /// The note's dynamic (0 pp … 1 ff): loudness and how open the bell is.
     dynv: f32,
@@ -388,7 +495,9 @@ impl LyraVoice {
             nbody: 0,
             direct: 1.0,
             hist: Delay::new(16),
-            pickup: 0.0,
+            pk_taps: [1.0; 4],
+            pk_w: [0.0; 4],
+            npk: 0,
             d1: Delay::new(16),
             d2: Delay::new(16),
             last1: 0.0,
@@ -440,6 +549,9 @@ impl LyraVoice {
             rad_amt: 0.0,
             rad_x1: 0.0,
             steep: 0.0,
+            shock: 0.0,
+            shock_d: 0.0,
+            shock_lvl: 1e-3,
             jet_ratio: 0.32,
             dynv: 0.7,
             edge_lp: 0.0,
@@ -508,6 +620,8 @@ impl LyraVoice {
         self.edge_amt = 1.2;
         self.rad_x1 = 0.0;
         self.wander = 0.0;
+        self.shock_d = 0.0;
+        self.shock_lvl = 1e-3;
         self.tongue = 0;
         self.released = true;
     }
@@ -521,7 +635,7 @@ impl LyraVoice {
 
     /// Settled and silent (or released and faded) — the voice can be freed.
     pub fn is_quiet(&self) -> bool {
-        let struck = matches!(self.model, MODEL_GUITAR | MODEL_PIANO | MODEL_TINE);
+        let struck = matches!(self.model, MODEL_GUITAR | MODEL_PIANO | MODEL_TINE | MODEL_PLUCK);
         let past_attack = self.t as f32 > self.sr * 0.05;
         if struck {
             return past_attack && self.level < 2.0e-5;
@@ -554,7 +668,7 @@ impl LyraVoice {
         self.f0 = note_hz.clamp(20.0, self.sr * 0.25);
         self.note = 69.0 + 12.0 * (self.f0 / 440.0).log2();
         self.vel = velocity.clamp(0.0, 1.0);
-        self.model = (p.get(LYRA_BASE + LY_MODEL).round() as i32).clamp(0, 8) as u32;
+        self.model = (p.get(LYRA_BASE + LY_MODEL).round() as i32).clamp(0, 10) as u32;
         self.variant = p.get(LYRA_BASE + LY_VARIANT).round().max(0.0) as u32;
         self.pedal = p01(p, LY_PEDAL) > 0.5;
 
@@ -577,6 +691,8 @@ impl LyraVoice {
             MODEL_VIOLIN => self.trigger_violin(p),
             MODEL_SAX => self.trigger_sax(p),
             MODEL_TRUMPET => self.trigger_trumpet(p),
+            MODEL_BRASS => self.trigger_brass(p),
+            MODEL_PLUCK => self.trigger_pluck(p, rng),
             MODEL_FLUTE => self.trigger_flute(p),
             MODEL_CLARINET => self.trigger_clarinet(p),
             MODEL_REED => self.trigger_reed(p),
@@ -595,7 +711,7 @@ impl LyraVoice {
         match self.model {
             MODEL_VIOLIN => sr / f0 - 3.78,
             MODEL_SAX | MODEL_REED => sr / f0 - 2.5,
-            MODEL_TRUMPET => sr / f0 - 1.0,
+            MODEL_TRUMPET | MODEL_BRASS => sr / f0 - 1.0,
             // The jet delay sits in the loop too, so the bore is the rest of the period.
             // with the bore's lowpass and the one-sample feedback measured out exactly.
             MODEL_FLUTE => (sr / f0 - 1.0 - onepole_pd(self.pole, TAU * f0 / sr)) / (1.0 + self.jet_ratio),
@@ -645,7 +761,7 @@ impl LyraVoice {
         self.max_drive = match self.model {
             MODEL_VIOLIN => 0.03 + 0.2 * v,
             MODEL_FLUTE => 1.1 + 0.2 * v,
-            MODEL_TRUMPET => 0.55 + 0.45 * v,
+            MODEL_TRUMPET | MODEL_BRASS => 0.55 + 0.45 * v,
             _ => self.blow(p, v),
         };
     }
@@ -669,7 +785,7 @@ impl LyraVoice {
         let sr = self.sr;
         let f0 = self.f0;
         let nylon = self.variant == 1;
-        let electric = self.variant >= 2;
+        let electric = self.variant >= 2; // 2 single coils, 3 humbuckers
         let bright = p01(p, LY_BRIGHTNESS);
         let decay = p01(p, LY_DECAY);
         let hard = p01(p, LY_EXCITE_HARD);
@@ -723,7 +839,7 @@ impl LyraVoice {
         let size = lerp(1.2, 0.82, p01(p, LY_BODY_SIZE));
         let amt = p01(p, LY_BODY);
         if electric {
-            self.pickup = lerp(0.06, 0.24, 1.0 - p01(p, LY_TONE)) * period;
+            self.set_pickups(p, period, self.variant >= 3);
             self.direct = 1.0;
             self.gain = 0.2;
         } else if nylon {
@@ -735,7 +851,42 @@ impl LyraVoice {
             self.direct = 0.55;
             self.gain = 0.5;
         }
-        self.pickup = if electric { self.pickup } else { 0.0 };
+        if !electric {
+            self.npk = 0;
+        }
+    }
+
+    /// The pickup selector. Each coil hears the string at its distance from the bridge; as a
+    /// fraction of the vibrating length that point moves as the note is fretted higher, so the
+    /// harmonics it misses (and the comb it puts on the tone) change up the neck. Two pickups
+    /// on together sum in parallel — the hollow, quacky in-between sounds. A humbucker is two
+    /// coils side by side: smoother and thicker, with fewer highs.
+    fn set_pickups(&mut self, p: &Params, period: f32, humbucker: bool) {
+        let sel = (p01(p, LY_PICKUP) * 4.0).round() as usize;
+        // (mm from the bridge on a 648 mm scale, share)
+        let coils: &[(f32, f32)] = if humbucker {
+            match sel {
+                0 | 1 => &[(140.0, 0.5), (158.0, 0.5)],
+                2 => &[(140.0, 0.25), (158.0, 0.25), (38.0, 0.25), (56.0, 0.25)],
+                _ => &[(38.0, 0.5), (56.0, 0.5)],
+            }
+        } else {
+            match sel {
+                0 => &[(160.0, 1.0)],
+                1 => &[(160.0, 0.5), (100.0, 0.5)],
+                2 => &[(100.0, 1.0)],
+                3 => &[(100.0, 0.5), (41.0, 0.5)],
+                _ => &[(41.0, 1.0)],
+            }
+        };
+        // Fretted in the lowest position: on the highest open string at or below the note.
+        let open = [64.0, 59.0, 55.0, 50.0, 45.0, 40.0].into_iter().find(|&o| self.note >= o - 0.01).unwrap_or(40.0);
+        let len = 648.0 * 2f32.powf(-(self.note - open).max(0.0) / 12.0);
+        self.npk = coils.len();
+        for (i, &(d, w)) in coils.iter().enumerate() {
+            self.pk_taps[i] = (d / len * period).max(1.0);
+            self.pk_w[i] = w;
+        }
     }
 
     fn trigger_piano(&mut self, p: &Params, rng: &mut Rng) {
@@ -824,10 +975,118 @@ impl LyraVoice {
         self.env_down = 1.0 / (lerp(0.04, 1.2, p01(p, LY_DECAY)) * sr);
         self.noise_gain = p01(p, LY_NOISE) * 0.12;
         let size = lerp(1.15, 0.85, p01(p, LY_BODY_SIZE));
-        // Violin body: the air mode A0, the main wood modes B1−/B1+, and the "bridge hill".
-        self.set_body(&[(275.0, 12.0, 1.0), (460.0, 10.0, 0.9), (540.0, 15.0, 0.8), (700.0, 8.0, 0.5), (2500.0, 1.5, 0.75), (3500.0, 2.0, 0.4)], size, p01(p, LY_BODY));
+        let kind = self.string_kind();
+        // Each body: the air mode A0, the main wood modes B1−/B1+, and the "bridge hill" — all
+        // lower and broader as the instrument grows (Jansson; Bissinger's violin-octet data).
+        let (body, gain) = STRING_BODIES[kind as usize];
+        self.set_body(body, size, p01(p, LY_BODY));
+        // Heavier strings need more bow weight and a slower bow to speak; the bass most of all.
+        if kind >= 2 {
+            self.max_drive *= if kind == 3 { 1.25 } else { 1.1 };
+            self.env_up *= if kind == 3 { 0.6 } else { 0.8 };
+        }
         self.direct = 0.25;
-        self.gain = 3.4;
+        self.gain = gain;
+    }
+
+    /// Violin, viola, cello or double bass — or, for the quartet, whichever one plays that register.
+    fn string_kind(&self) -> u32 {
+        match self.variant {
+            4 => string_kind_for(self.note),
+            v => v.min(3),
+        }
+    }
+
+    fn trigger_brass(&mut self, p: &Params) {
+        // The trumpet's forced lip valve and bore, rescaled for the rest of the section. What sets
+        // them apart is the bore and bell: the flugelhorn's wide conical bore is mellow and barely
+        // blares; the French horn's narrow bore ends in a bell facing away, with the player's hand
+        // in it, so it's dark and veiled until ff, where it goes brassy (cuivré); the trombone's
+        // long cylindrical bore steepens the wave most of all — the brassiest of the family; the
+        // tuba is huge and dark.
+        self.trigger_trumpet(p);
+        let sr = self.sr;
+        let bright = p01(p, LY_BRIGHTNESS);
+        let drive = p01(p, LY_DRIVE).max(0.3);
+        let b = &BRASS[self.variant.min(4) as usize];
+        self.dyn_lo = (self.f0 * lerp(b.lo_k.0, b.lo_k.1, bright)).max(b.lo_min);
+        self.dyn_hi = lerp(b.hi.0, b.hi.1, bright);
+        self.edge_amt = b.edge;
+        self.shock = lerp(b.shock.0, b.shock.1, drive);
+        self.nmute = 2;
+        self.mute = [Biquad::highpass(b.cut, 0.7, sr), Biquad::lowpass(b.air, 0.7, sr)];
+        self.set_body(&b.formants, 1.0, p01(p, LY_BODY));
+        self.direct = 1.0;
+        self.gain = b.gain;
+    }
+
+    fn trigger_pluck(&mut self, p: &Params, rng: &mut Rng) {
+        // Plucked strings on the guitar's string loop: what changes is the string (gut/nylon or
+        // steel, single or paired courses), where and with what it's plucked, and the body —
+        // a harp's soundboard, a mandolin's bowl, a banjo's drum head, a ukulele's little box,
+        // a violin-family body under a pizzicato finger.
+        let sr = self.sr;
+        let f0 = self.f0;
+        let period = sr / f0;
+        let bright = p01(p, LY_BRIGHTNESS);
+        let decay = p01(p, LY_DECAY);
+        let hard = p01(p, LY_EXCITE_HARD);
+        let pos = p01(p, LY_EXCITE_POS);
+        let mutep = p01(p, LY_DAMP);
+        let kind = self.variant.min(4);
+        let k = &PLUCKS[kind as usize];
+        let mut t60 = (k.ring * (82.4 / f0).powf(0.45)).clamp(0.15, 14.0) * lerp(0.3, 1.8, decay);
+        t60 *= 1.0 - 0.92 * mutep;
+        self.t60 = t60;
+        let pitch_k = (196.0 / f0).sqrt().clamp(0.45, 1.6);
+        let b = ((0.04 + (1.0 - bright) * 0.42) * pitch_k + k.soft + 0.3 * mutep).clamp(0.0, 0.9);
+        let courses = k.courses;
+        self.nstr = courses;
+        for i in 0..courses {
+            self.detune[i] = if courses == 1 { 0.0 } else { k.spread * (i as f32 - 0.5) * 2.0 + rng.bipolar() * 0.5 };
+            let fi = f0 * 2f32.powf(self.detune[i] / 1200.0);
+            let s = &mut self.strings[i];
+            s.b = b;
+            s.nap = if k.stiff != 0.0 { 1 } else { 0 };
+            s.ap[0].a = k.stiff;
+            s.set_t60(t60, fi);
+            s.tune(sr / fi);
+        }
+        let len = (period.round() as usize).clamp(4, EXC_MAX);
+        for i in 0..len {
+            self.exc[i] = rng.bipolar();
+        }
+        let at = ((k.at * lerp(0.6, 1.4, pos) * period).round() as usize).clamp(1, len - 1);
+        for i in (at..len).rev() {
+            self.exc[i] -= self.exc[i - at];
+        }
+        let c = ((0.18 + 0.78 * (hard * 0.6 + self.vel * 0.4)) * k.finger).clamp(0.05, 0.98);
+        let mut y = 0.0;
+        let mut rms = 0.0;
+        for i in 0..len {
+            y += c * (self.exc[i] - y);
+            self.exc[i] = y;
+            rms += y * y;
+        }
+        let norm = self.vel * 0.9 / (rms / len as f32).sqrt().max(1e-6) / courses as f32;
+        for i in 0..len {
+            self.exc[i] *= norm;
+        }
+        self.exc_len = len;
+        self.exc_pos = 0;
+        let size = lerp(1.2, 0.82, p01(p, LY_BODY_SIZE));
+        let (body, direct, gain) = if kind == 4 {
+            // Pizzicato: the violin-family body that plays this register, with the bow off.
+            (STRING_BODIES[string_kind_for(self.note) as usize].0, 0.3, 0.8)
+        } else {
+            (k.body, k.direct, k.gain)
+        };
+        self.set_body(body, size, p01(p, LY_BODY));
+        self.direct = direct;
+        self.gain = gain;
+        if kind == 0 {
+            self.pan = ((self.note - 64.0) / 44.0).clamp(-1.0, 1.0) * 0.4 * p01(p, LY_WIDTH);
+        }
     }
 
     fn trigger_sax(&mut self, p: &Params) {
@@ -875,6 +1134,7 @@ impl LyraVoice {
         self.env_down = 1.0 / (lerp(0.02, 0.6, p01(p, LY_DECAY)) * sr);
         self.noise_gain = p01(p, LY_NOISE) * 0.04;
         self.steep = lerp(1.0, 3.5, p01(p, LY_DRIVE).max(0.3)) * (sr / 48000.0);
+        self.shock = lerp(0.06, 0.18, p01(p, LY_DRIVE).max(0.3));
         let bright = p01(p, LY_BRIGHTNESS);
         self.nmute = 2;
         match self.variant {
@@ -1041,6 +1301,14 @@ impl LyraVoice {
                 let t = lerp(0.07, 0.6, decay);
                 self.strings[0].set_t60(t, self.f0);
             }
+            MODEL_PLUCK => {
+                // A harpist lets the string ring and damps it by hand later; the others stop it.
+                let t = if self.variant == 0 { lerp(0.5, 3.0, decay) } else { lerp(0.07, 0.6, decay) };
+                for i in 0..self.nstr {
+                    let fi = self.f0 * 2f32.powf(self.detune[i] / 1200.0);
+                    self.strings[i].set_t60(t, fi);
+                }
+            }
             MODEL_PIANO => {
                 // The damper lands — unless the pedal is down or it's the undamped top octave+.
                 if !self.pedal && self.note < 89.0 {
@@ -1133,6 +1401,24 @@ impl LyraVoice {
         self.base
     }
 
+    /// Nonlinear propagation down a long brass bore: the high-pressure crest travels faster than
+    /// the trough, so each cycle's rising edge steepens toward a shock — the blare of ff brass
+    /// (Hirschberg et al. 1996). A read point that moves with the pressure, never allowed to run
+    /// backwards (the wave can't overturn).
+    #[inline]
+    fn shock_wave(&mut self, x: f32, dynamic: f32) -> f32 {
+        let a = x.abs();
+        self.shock_lvl = if a > self.shock_lvl { a } else { (self.shock_lvl * 0.9995).max(1e-3) };
+        let period = self.sr / self.f0;
+        let reach = self.shock * period * dynamic * dynamic;
+        let d0 = reach + 2.0;
+        let target = d0 - reach * (x / self.shock_lvl).clamp(-1.0, 1.0);
+        let d = if self.t == 0 { target } else { target.min(self.shock_d + 0.95) };
+        self.shock_d = d;
+        self.hist.write(x);
+        self.hist.read(d.max(1.0))
+    }
+
     /// The bell: radiation favours the highs, and a soft note is darker than a loud one.
     #[inline]
     fn bell(&mut self, x: f32, dynamic: f32) -> f32 {
@@ -1159,7 +1445,7 @@ impl LyraVoice {
     pub fn render_sample(&mut self, bend_ratio: f32, mod_wheel: f32, rng: &mut Rng) -> (f32, f32) {
         let bend = bend_ratio.clamp(0.25, 4.0);
         let y = match self.model {
-            MODEL_GUITAR | MODEL_PIANO => {
+            MODEL_GUITAR | MODEL_PIANO | MODEL_PLUCK => {
                 if (bend - self.bend).abs() > 1e-4 {
                     self.bend = bend;
                     for i in 0..self.nstr {
@@ -1178,10 +1464,14 @@ impl LyraVoice {
                 for i in 0..self.nstr {
                     s += self.strings[i].tick(x);
                 }
-                let s = if self.pickup > 0.0 {
-                    // Electric: the pickup hears the string at one point — a comb on the output.
+                let s = if self.npk > 0 {
+                    // Electric: each pickup hears the string at one point — a comb on the output.
                     self.hist.write(s);
-                    s - 0.85 * self.hist.read(self.pickup.max(1.0))
+                    let mut c = 0.0;
+                    for i in 0..self.npk {
+                        c += self.pk_w[i] * self.hist.read(self.pk_taps[i]);
+                    }
+                    s - 0.85 * c
                 } else {
                     s
                 };
@@ -1242,7 +1532,7 @@ impl LyraVoice {
                 let y = self.bell(y, d) * Self::loudness(d);
                 self.body_tick(y)
             }
-            MODEL_TRUMPET => {
+            MODEL_TRUMPET | MODEL_BRASS => {
                 let (breath, drift) = self.breath(rng);
                 let vib = self.vibrato(mod_wheel);
                 // The lips settle onto the note: a quick scoop up from ~35 cents flat.
@@ -1254,8 +1544,12 @@ impl LyraVoice {
                 let _ = breath;
                 let dynamic = self.dynv * self.env;
                 // Soft: round, nearly sinusoidal lip motion. Loud and tense: a short, sharp opening.
-                let k = lerp(1.0, 5.0, (dynamic * 0.65 + self.slope * 0.35).clamp(0.0, 1.0));
-                let open = (TAU * self.lp).sin().max(0.0).powf(k);
+                // Soft, the lips never quite close — a round, nearly sinusoidal buzz. Loud, they slap
+                // shut every cycle and open in a short, sharp puff.
+                let swing = lerp(0.45, 2.6, dynamic * dynamic) * lerp(0.85, 1.15, self.slope);
+                let h = (1.0 + swing * (TAU * self.lp).sin()).max(0.0) / (1.0 + swing);
+                let k = lerp(1.0, 8.0, (dynamic * dynamic * 0.7 + self.slope * 0.3).clamp(0.0, 1.0));
+                let open = h.powf(k);
                 let mouth = 0.3 * breath;
                 let bore = 0.85 * self.last1;
                 let y = open * mouth + (1.0 - open) * bore;
@@ -1267,6 +1561,9 @@ impl LyraVoice {
                 let len = (self.glide() / bend * drift - steep).max(1.0);
                 self.last1 = self.d1.process(dc, len);
                 let mut o = (self.last1 * 1.6).tanh() / 1.6;
+                if self.shock > 0.0 {
+                    o = self.shock_wave(o, dynamic);
+                }
                 for i in 0..self.nmute {
                     o = self.mute[i].tick(o);
                 }
@@ -1344,9 +1641,142 @@ impl LyraVoice {
 
 // ── the rack: the amp stages that belong after the voices ──────────────────────────────────────
 
-/// An electric guitar's amp + cab, or the tine piano's preamp + stereo tremolo (the suitcase's
-/// tremolo is in the amp, so it pans the whole chord together — which is why it's here and not
-/// per voice).
+/// One amp's circuit. The tone-stack parts are the real component values of the passive
+/// bass/mid/treble network those amps share (Yeh & Smith, "Discretization of the '59 Fender
+/// Bassman tone stack", DAFx 2006) — so the knobs interact the way an amp's do.
+struct AmpModel {
+    stages: usize,
+    /// First-stage gain at Drive 0 and 1 (geometric in between).
+    gain: (f32, f32),
+    /// Gain into each later stage.
+    stage_gain: f32,
+    /// Coupling-cap high-pass and Miller low-pass corners per stage (Hz).
+    hp: [f32; 4],
+    lp: [f32; 4],
+    /// C1, C2, C3 (F); R1 treble, R2 bass, R3 mid, R4 slope (Ω).
+    stack: [f64; 7],
+    /// Bright cap: a treble lift (dB) that fades as Drive comes up, like one across a volume pot.
+    bright: f32,
+    sag: f32,
+    /// Power-stage asymmetry (class A / cathode bias: even harmonics).
+    asym: f32,
+    level: f32,
+}
+
+/// American clean (blackface/tweed), British crunch (plexi/JCM), chime (top-boost class A),
+/// modern high gain (cascaded, tight).
+static AMPS: [AmpModel; 4] = [
+    AmpModel { stages: 2, gain: (1.0, 14.0), stage_gain: 1.6, hp: [20.0, 30.0, 0.0, 0.0], lp: [14000.0, 10000.0, 0.0, 0.0], stack: [250e-12, 20e-9, 20e-9, 250e3, 1e6, 25e3, 56e3], bright: 5.0, sag: 0.15, asym: 0.0, level: 1.0 },
+    AmpModel { stages: 3, gain: (2.0, 45.0), stage_gain: 3.0, hp: [30.0, 70.0, 110.0, 0.0], lp: [11000.0, 8500.0, 7000.0, 0.0], stack: [470e-12, 22e-9, 22e-9, 220e3, 1e6, 25e3, 33e3], bright: 3.0, sag: 0.3, asym: 0.05, level: 0.8 },
+    AmpModel { stages: 2, gain: (1.6, 28.0), stage_gain: 2.5, hp: [25.0, 55.0, 0.0, 0.0], lp: [15000.0, 11000.0, 0.0, 0.0], stack: [470e-12, 47e-9, 22e-9, 1e6, 1e6, 10e3, 100e3], bright: 2.0, sag: 0.55, asym: 0.18, level: 0.9 },
+    AmpModel { stages: 4, gain: (5.0, 120.0), stage_gain: 5.0, hp: [40.0, 160.0, 180.0, 60.0], lp: [9000.0, 7000.0, 6500.0, 7000.0], stack: [470e-12, 22e-9, 22e-9, 220e3, 1e6, 25e3, 33e3], bright: 0.0, sag: 0.2, asym: 0.03, level: 0.7 },
+];
+
+/// Speaker cabinets as filter cascades (0 high-pass, 1 low-pass, 2 peak): cone resonance, the
+/// box, cone break-up peaks and dips, and the 12" speaker's steep fall above ~5 kHz.
+/// 1×12 open back, 2×12 alnico open back, 4×12 closed back, 1×10 small combo.
+static CABS: [[(u8, f32, f32, f32); 7]; 4] = [
+    [(0, 70.0, 0.7, 0.0), (2, 110.0, 1.5, 4.0), (2, 2300.0, 1.2, 3.0), (2, 4200.0, 2.0, -6.0), (1, 5200.0, 0.9, 0.0), (1, 7000.0, 0.6, 0.0), (2, 600.0, 1.0, -1.5)],
+    [(0, 80.0, 0.7, 0.0), (2, 120.0, 1.4, 3.0), (2, 1100.0, 1.0, 2.0), (2, 2600.0, 1.6, 5.0), (2, 3800.0, 2.5, -5.0), (1, 5500.0, 1.0, 0.0), (1, 7500.0, 0.7, 0.0)],
+    [(0, 55.0, 0.9, 0.0), (2, 95.0, 1.3, 6.0), (2, 400.0, 1.0, -3.0), (2, 1900.0, 1.3, 4.0), (2, 3400.0, 2.0, 2.0), (1, 4800.0, 1.1, 0.0), (1, 6500.0, 0.7, 0.0)],
+    [(0, 110.0, 0.8, 0.0), (2, 160.0, 1.4, 3.0), (2, 700.0, 1.0, 3.0), (2, 2800.0, 1.3, 4.0), (1, 5500.0, 1.0, 0.0), (1, 7500.0, 0.7, 0.0), (2, 1400.0, 1.5, -2.0)],
+];
+
+const OS: usize = 4;
+
+/// The passive 3-knob tone stack as a third-order filter (bilinear, run in f64: its poles sit
+/// close to z = 1 at the oversampled rate).
+#[derive(Clone, Copy, Default)]
+struct ToneStack {
+    b: [f64; 4],
+    a: [f64; 4],
+    z: [f64; 3],
+}
+impl ToneStack {
+    fn design(c: &[f64; 7], treble: f64, mid: f64, bass: f64, fs: f64) -> Self {
+        let (c1, c2, c3, r1, r2, r3, r4) = (c[0], c[1], c[2], c[3], c[4], c[5], c[6]);
+        let (t, m, l) = (treble, mid, bass);
+        let b1 = t * c1 * r1 + m * c3 * r3 + l * (c1 * r2 + c2 * r2) + (c1 * r3 + c2 * r3);
+        let b2 = t * (c1 * c2 * r1 * r4 + c1 * c3 * r1 * r4) - m * m * (c1 * c3 * r3 * r3 + c2 * c3 * r3 * r3)
+            + m * (c1 * c3 * r1 * r3 + c1 * c3 * r3 * r3 + c2 * c3 * r3 * r3)
+            + l * (c1 * c2 * r1 * r2 + c1 * c2 * r2 * r4 + c1 * c3 * r2 * r4)
+            + l * m * (c1 * c3 * r2 * r3 + c2 * c3 * r2 * r3)
+            + (c1 * c2 * r1 * r3 + c1 * c2 * r3 * r4 + c1 * c3 * r3 * r4);
+        let b3 = l * m * (c1 * c2 * c3 * r1 * r2 * r3 + c1 * c2 * c3 * r2 * r3 * r4) - m * m * (c1 * c2 * c3 * r1 * r3 * r3 + c1 * c2 * c3 * r3 * r3 * r4)
+            + m * (c1 * c2 * c3 * r1 * r3 * r3 + c1 * c2 * c3 * r3 * r3 * r4)
+            + t * c1 * c2 * c3 * r1 * r3 * r4
+            - t * m * c1 * c2 * c3 * r1 * r3 * r4
+            + t * l * c1 * c2 * c3 * r1 * r2 * r4;
+        let a0 = 1.0;
+        let a1 = (c1 * r1 + c1 * r3 + c2 * r3 + c2 * r4 + c3 * r4) + m * c3 * r3 + l * (c1 * r2 + c2 * r2);
+        let a2 = m * (c1 * c3 * r1 * r3 - c2 * c3 * r3 * r4 + c1 * c3 * r3 * r3 + c2 * c3 * r3 * r3)
+            + l * m * (c1 * c3 * r2 * r3 + c2 * c3 * r2 * r3)
+            - m * m * (c1 * c3 * r3 * r3 + c2 * c3 * r3 * r3)
+            + l * (c1 * c2 * r2 * r4 + c1 * c2 * r1 * r2 + c1 * c3 * r2 * r4 + c2 * c3 * r2 * r4)
+            + (c1 * c2 * r1 * r4 + c1 * c3 * r1 * r4 + c1 * c2 * r3 * r4 + c1 * c2 * r1 * r3 + c1 * c3 * r3 * r4 + c2 * c3 * r3 * r4);
+        let a3 = l * m * (c1 * c2 * c3 * r1 * r2 * r3 + c1 * c2 * c3 * r2 * r3 * r4) - m * m * (c1 * c2 * c3 * r1 * r3 * r3 + c1 * c2 * c3 * r3 * r3 * r4)
+            + m * (c1 * c2 * c3 * r3 * r3 * r4 + c1 * c2 * c3 * r1 * r3 * r3 - c1 * c2 * c3 * r1 * r3 * r4)
+            + l * c1 * c2 * c3 * r1 * r2 * r4
+            + c1 * c2 * c3 * r1 * r3 * r4;
+        let k = 2.0 * fs;
+        let (k2, k3) = (k * k, k * k * k);
+        let bb = [-b1 * k - b2 * k2 - b3 * k3, -b1 * k + b2 * k2 + 3.0 * b3 * k3, b1 * k + b2 * k2 - 3.0 * b3 * k3, b1 * k - b2 * k2 + b3 * k3];
+        let aa = [-a0 - a1 * k - a2 * k2 - a3 * k3, -3.0 * a0 - a1 * k + a2 * k2 + 3.0 * a3 * k3, -3.0 * a0 + a1 * k + a2 * k2 - 3.0 * a3 * k3, -a0 + a1 * k - a2 * k2 + a3 * k3];
+        let n = aa[0];
+        ToneStack { b: [bb[0] / n, bb[1] / n, bb[2] / n, bb[3] / n], a: [1.0, aa[1] / n, aa[2] / n, aa[3] / n], z: [0.0; 3] }
+    }
+    #[inline]
+    fn tick(&mut self, x: f32) -> f32 {
+        let x = x as f64;
+        let y = self.b[0] * x + self.z[0];
+        self.z[0] = self.b[1] * x - self.a[1] * y + self.z[1];
+        self.z[1] = self.b[2] * x - self.a[2] * y + self.z[2];
+        self.z[2] = self.b[3] * x - self.a[3] * y;
+        y as f32
+    }
+    /// |H| at f Hz (sample rate fs).
+    fn mag(&self, f: f64, fs: f64) -> f64 {
+        let w = std::f64::consts::TAU * f / fs;
+        let (mut nr, mut ni, mut dr, mut di) = (0.0, 0.0, 0.0, 0.0);
+        for k in 0..4 {
+            let (c, s) = ((w * k as f64).cos(), -(w * k as f64).sin());
+            nr += self.b[k] * c;
+            ni += self.b[k] * s;
+            dr += self.a[k] * c;
+            di += self.a[k] * s;
+        }
+        ((nr * nr + ni * ni) / (dr * dr + di * di)).sqrt()
+    }
+}
+
+/// A triode gain stage: soft on the way up, a long, softer slope into cutoff the other way —
+/// the asymmetry that makes tube overdrive sing in even harmonics.
+#[inline]
+fn triode(x: f32) -> f32 {
+    if x >= 0.0 {
+        x.tanh()
+    } else {
+        (x * 0.6).tanh() / 0.6
+    }
+}
+
+/// Linear-interpolated read `d` samples back from write index `w` in a power-of-two buffer.
+#[inline]
+fn tap(buf: &[f32], w: usize, d: f32) -> f32 {
+    let mask = buf.len() - 1;
+    let d = d.clamp(1.0, (mask - 2) as f32);
+    let i = d.floor();
+    let fr = d - i;
+    let i = i as usize;
+    let a = buf[(w + 2 * (mask + 1) - i) & mask];
+    let b = buf[(w + 2 * (mask + 1) - i - 1) & mask];
+    a + (b - a) * fr
+}
+
+/// An electric guitar's rig (pickup → compressor → overdrive → preamp → tone stack → power amp
+/// with sag → cab and mic → tremolo → chorus → tape echo), or the tine piano's preamp + stereo
+/// tremolo (the suitcase's tremolo is in the amp, so it pans the whole chord together — which
+/// is why it's here and not per voice).
 pub struct LyraRack {
     sr: f32,
     trem: f32,
@@ -1354,12 +1784,68 @@ pub struct LyraRack {
     tone: [Biquad; 2],
     cab_lo: [Biquad; 2],
     cab_hi: [Biquad; 2],
-    built_for: u64,
+    built_for: [u16; 11],
+    // guitar
+    pickup_res: Biquad,
+    pickup_gain: f32,
+    comp_env: f32,
+    up: [Biquad; 2],
+    down: [Biquad; 2],
+    od_hp: Biquad,
+    od_lp: f32,
+    bright: Biquad,
+    st_hp: [Biquad; 4],
+    st_lp: [Biquad; 4],
+    stack: ToneStack,
+    stack_norm: f32,
+    sag_env: f32,
+    cab: [Biquad; 8],
+    chorus: Vec<f32>,
+    ch_w: usize,
+    ch_phase: f32,
+    echo: Vec<f32>,
+    ec_w: usize,
+    ec_time: f32,
+    ec_lp: f32,
+    ec_hp: Biquad,
+    ec_phase: f32,
 }
 
 impl LyraRack {
+    /// Engine construction only — this allocates the chorus and echo lines.
     pub fn new(sr: f32) -> Self {
-        LyraRack { sr, trem: 0.0, hp: [Biquad::default(); 2], tone: [Biquad::default(); 2], cab_lo: [Biquad::default(); 2], cab_hi: [Biquad::default(); 2], built_for: u64::MAX }
+        LyraRack {
+            sr,
+            trem: 0.0,
+            hp: [Biquad::default(); 2],
+            tone: [Biquad::default(); 2],
+            cab_lo: [Biquad::default(); 2],
+            cab_hi: [Biquad::default(); 2],
+            built_for: [u16::MAX; 11],
+            pickup_res: Biquad::default(),
+            pickup_gain: 1.0,
+            comp_env: 0.0,
+            up: [Biquad::default(); 2],
+            down: [Biquad::default(); 2],
+            od_hp: Biquad::default(),
+            od_lp: 0.0,
+            bright: Biquad::default(),
+            st_hp: [Biquad::default(); 4],
+            st_lp: [Biquad::default(); 4],
+            stack: ToneStack::default(),
+            stack_norm: 1.0,
+            sag_env: 0.0,
+            cab: [Biquad::default(); 8],
+            chorus: vec![0.0; ((sr * 0.03) as usize).next_power_of_two().max(1024)],
+            ch_w: 0,
+            ch_phase: 0.0,
+            echo: vec![0.0; ((sr * 1.3) as usize).next_power_of_two().max(4096)],
+            ec_w: 0,
+            ec_time: sr * 0.3,
+            ec_lp: 0.0,
+            ec_hp: Biquad::default(),
+            ec_phase: 0.0,
+        }
     }
 
     pub fn active(p: &Params) -> bool {
@@ -1370,38 +1856,106 @@ impl LyraRack {
         (m == MODEL_GUITAR && p.get(LYRA_BASE + LY_VARIANT).round() as u32 >= 2) || m == MODEL_TINE
     }
 
+    fn amp_index(p: &Params) -> usize {
+        (p.get(LYRA_BASE + LY_AMP).round().max(0.0) as usize).min(AMPS.len() - 1)
+    }
+    fn cab_index(p: &Params) -> usize {
+        (p.get(LYRA_BASE + LY_CAB).round().max(0.0) as usize).min(CABS.len() - 1)
+    }
+
     fn build(&mut self, p: &Params, tine: bool) {
-        let key = ((p01(p, LY_TONE) * 1000.0) as u64) | ((tine as u64) << 20);
+        let q = |id: u32| (p01(p, id) * 1000.0) as u16;
+        let key = [
+            tine as u16,
+            p.get(LYRA_BASE + LY_VARIANT).round().max(0.0) as u16,
+            q(LY_TONE),
+            Self::amp_index(p) as u16,
+            q(LY_BASS),
+            q(LY_MID),
+            q(LY_TREBLE),
+            Self::cab_index(p) as u16,
+            q(LY_BODY),
+            q(LY_DRIVE),
+            q(LY_PICKUP),
+        ];
         if key == self.built_for {
             return;
         }
+        let fresh = self.built_for[0] != key[0] || self.built_for[3] != key[3];
         self.built_for = key;
         let sr = self.sr;
         let tone = p01(p, LY_TONE);
-        for c in 0..2 {
-            if tine {
+        if tine {
+            for c in 0..2 {
                 self.hp[c] = Biquad::highpass(45.0, 0.7, sr);
                 self.tone[c] = Biquad::lowpass(lerp(2500.0, 9000.0, tone), 0.7, sr);
                 self.cab_lo[c] = Biquad::bandpass(180.0, 0.9, sr);
                 self.cab_hi[c] = Biquad::bandpass(1600.0, 1.0, sr);
-            } else {
-                self.hp[c] = Biquad::highpass(85.0, 0.7, sr);
-                self.tone[c] = Biquad::lowpass(lerp(2800.0, 7500.0, tone), 0.9, sr);
-                self.cab_lo[c] = Biquad::bandpass(110.0, 1.2, sr);
-                self.cab_hi[c] = Biquad::bandpass(2300.0, 1.4, sr);
             }
+            return;
         }
+        // The pickup's coil and the guitar's tone pot: a resonant low-pass. Single coils peak
+        // high and sharp (~5 kHz); humbuckers lower and broader. Turning the tone knob down
+        // pulls the peak down and flattens it.
+        let humbucker = p.get(LYRA_BASE + LY_VARIANT).round() as u32 >= 3;
+        let tk = tone.powf(1.2);
+        let res = if humbucker { Biquad::lowpass(lerp(1100.0, 3100.0, tk), lerp(0.7, 1.9, tone), sr) } else { Biquad::lowpass(lerp(1500.0, 5000.0, tk), lerp(0.7, 2.4, tone), sr) };
+        self.pickup_res = Biquad { z1: self.pickup_res.z1, z2: self.pickup_res.z2, ..res };
+        // A pickup puts out a few hundred millivolts: a clean amp stays clean until it is pushed.
+        self.pickup_gain = if humbucker { 0.55 } else { 0.35 };
+        let fs = sr * OS as f32;
+        let amp = &AMPS[Self::amp_index(p)];
+        let keep = |old: Biquad, new: Biquad| if fresh { new } else { Biquad { z1: old.z1, z2: old.z2, ..new } };
+        self.up = [keep(self.up[0], Biquad::lowpass(sr * 0.42, 0.541, fs)), keep(self.up[1], Biquad::lowpass(sr * 0.42, 1.307, fs))];
+        self.down = [keep(self.down[0], Biquad::lowpass(sr * 0.42, 0.541, fs)), keep(self.down[1], Biquad::lowpass(sr * 0.42, 1.307, fs))];
+        self.od_hp = keep(self.od_hp, Biquad::highpass(720.0, 0.7, fs));
+        let drive = p01(p, LY_DRIVE);
+        self.bright = keep(self.bright, Biquad::highshelf(1800.0, amp.bright * (1.0 - drive), fs));
+        for s in 0..amp.stages {
+            self.st_hp[s] = keep(self.st_hp[s], Biquad::highpass(amp.hp[s], 0.7, fs));
+            self.st_lp[s] = keep(self.st_lp[s], Biquad::lowpass(amp.lp[s], 0.6, fs));
+        }
+        // Pot tapers: bass and treble are audio-taper, mid is linear.
+        let taper = |x: f32| (((x * 3.4).exp() - 1.0) / (3.4f32.exp() - 1.0)) as f64;
+        let mut st = ToneStack::design(&amp.stack, taper(p01(p, LY_TREBLE)), p01(p, LY_MID) as f64, taper(p01(p, LY_BASS)), fs as f64);
+        if !fresh {
+            st.z = self.stack.z;
+        }
+        self.stack = st;
+        // Level the stack at its own noon settings, so the knobs still cut and boost around it.
+        let noon = ToneStack::design(&amp.stack, taper(0.5), 0.5, taper(0.5), fs as f64);
+        self.stack_norm = (1.0 / noon.mag(800.0, fs as f64).max(1e-3)) as f32;
+        let cab = &CABS[Self::cab_index(p)];
+        for (i, &(kind, f, qq, db)) in cab.iter().enumerate() {
+            let b = match kind {
+                0 => Biquad::highpass(f, qq, sr),
+                1 => Biquad::lowpass(f, qq, sr),
+                _ => Biquad::peak(f, qq, db, sr),
+            };
+            self.cab[i] = keep(self.cab[i], b);
+        }
+        // The mic: on the cone's centre is bright and present; toward the edge it darkens.
+        self.cab[7] = keep(self.cab[7], Biquad::highshelf(2500.0, lerp(-7.0, 3.0, p01(p, LY_BODY)), sr));
+        self.ec_hp = keep(self.ec_hp, Biquad::highpass(180.0, 0.7, sr));
     }
 
     pub fn process(&mut self, out: &mut [[f32; crate::engine::MAX_BLOCK]; crate::spatial::MAX_CHANNELS], frames: usize, nch: usize, p: &Params) {
         let tine = p.get(LYRA_BASE + LY_MODEL).round() as u32 == MODEL_TINE;
         self.build(p, tine);
+        if tine {
+            self.process_tine(out, frames, nch, p);
+        } else {
+            self.process_guitar(out, frames, nch, p);
+        }
+    }
+
+    fn process_tine(&mut self, out: &mut [[f32; crate::engine::MAX_BLOCK]; crate::spatial::MAX_CHANNELS], frames: usize, nch: usize, p: &Params) {
         let drive = p01(p, LY_DRIVE);
-        let depth = if tine { p01(p, LY_TREM_DEPTH) } else { 0.0 };
+        let depth = p01(p, LY_TREM_DEPTH);
         let rate = lerp(1.5, 9.0, p01(p, LY_TREM_RATE));
         let inc = TAU * rate / self.sr;
-        let pre = if tine { 1.0 + drive * 5.0 } else { 1.0 + drive * 40.0 };
-        let makeup = if tine { 1.0 / (1.0 + drive * 1.8) } else { 1.0 / (1.0 + drive * 6.0).sqrt() };
+        let pre = 1.0 + drive * 5.0;
+        let makeup = 1.0 / (1.0 + drive * 1.8);
         let cab = p01(p, LY_BODY);
         let chans = nch.min(2);
         for f in 0..frames {
@@ -1418,6 +1972,134 @@ impl LyraRack {
                 // Stereo tremolo: the two sides swap, like the suitcase's two power amps.
                 let g = if chans == 2 { 1.0 - depth * 0.5 * (1.0 + if c == 0 { s } else { -s }) } else { 1.0 - depth * 0.5 * (1.0 + s) };
                 out[c][f] = y * g;
+            }
+        }
+    }
+
+    fn process_guitar(&mut self, out: &mut [[f32; crate::engine::MAX_BLOCK]; crate::spatial::MAX_CHANNELS], frames: usize, nch: usize, p: &Params) {
+        let sr = self.sr;
+        let fs = sr * OS as f32;
+        let amp = &AMPS[Self::amp_index(p)];
+        let drive = p01(p, LY_DRIVE);
+        let g_in = amp.gain.0 * (amp.gain.1 / amp.gain.0).powf(drive);
+        let master = p01(p, LY_MASTER);
+        let power_g = lerp(0.4, 5.0, master * master);
+        let power_makeup = 1.0 / (power_g * 0.8).tanh();
+        let sag_att = 1.0 - (-1.0 / (0.004 * fs)).exp();
+        let sag_rel = 1.0 - (-1.0 / (0.15 * fs)).exp();
+        // Compressor: a pedal that evens the picking out and stretches the sustain.
+        let comp = p01(p, LY_COMP);
+        let thr = lerp(0.25, 0.03, comp);
+        let ratio = lerp(2.0, 10.0, comp);
+        let comp_makeup = (0.25 / thr).powf(1.0 - 1.0 / ratio) * 0.8;
+        let c_att = 1.0 - (-1.0 / (0.003 * sr)).exp();
+        let c_rel = 1.0 - (-1.0 / (0.18 * sr)).exp();
+        // Overdrive pedal: the mids clip through diodes, the lows bypass them, a tone control after.
+        let od = p01(p, LY_OD);
+        let od_g = lerp(2.0, 120.0, od * od);
+        let od_c = 1.0 - (-TAU * lerp(2200.0, 4500.0, p01(p, LY_TONE)) / fs).exp();
+        let depth = p01(p, LY_TREM_DEPTH);
+        let trem_inc = TAU * lerp(1.5, 9.0, p01(p, LY_TREM_RATE)) / sr;
+        let ch = p01(p, LY_CHORUS);
+        let ch_inc = TAU * lerp(0.35, 1.2, ch) / sr;
+        let echo = p01(p, LY_ECHO);
+        let ec_target = lerp(0.08, 0.9, p01(p, LY_ECHO_TIME)) * sr;
+        let ec_fb = 0.15 + 0.5 * echo;
+        let ec_c = 1.0 - (-TAU * 2800.0 / sr).exp();
+        let chans = nch.min(2);
+        for f in 0..frames {
+            let x_in = if chans == 2 { 0.5 * (out[0][f] + out[1][f]) } else { out[0][f] };
+            let mut x = self.pickup_res.tick(x_in) * self.pickup_gain;
+            if comp > 0.0 {
+                let a = x.abs();
+                self.comp_env += (if a > self.comp_env { c_att } else { c_rel }) * (a - self.comp_env);
+                let e = self.comp_env.max(1e-6);
+                let g = if e > thr { (e / thr).powf(1.0 / ratio - 1.0) } else { 1.0 };
+                x = lerp(x, x * g * comp_makeup, comp.sqrt());
+            }
+            let mut y = 0.0;
+            for k in 0..OS {
+                let u = if k == 0 { x * OS as f32 } else { 0.0 };
+                let u = self.up[0].tick(u);
+                let mut v = self.up[1].tick(u);
+                if od > 0.0 {
+                    let hp = self.od_hp.tick(v);
+                    v += 0.6 * (od_g * hp / 0.6).tanh();
+                    self.od_lp += od_c * (v - self.od_lp);
+                    v = self.od_lp * lerp(1.0, 0.7, od);
+                }
+                v = self.bright.tick(v) * g_in;
+                for s in 0..amp.stages {
+                    v = self.st_hp[s].tick(v);
+                    if s > 0 {
+                        v *= amp.stage_gain;
+                    }
+                    v = self.st_lp[s].tick(triode(v));
+                }
+                v = self.stack.tick(v) * self.stack_norm;
+                // Power amp: push-pull output tubes; the supply sags under a hard chord, which
+                // squeezes the headroom — the bloom and give of a tube amp turned up.
+                let vs = 1.0 - amp.sag * self.sag_env.min(1.0) * 0.6;
+                let pv = v * power_g;
+                let o = vs * ((pv + amp.asym) / vs).tanh() - vs * (amp.asym / vs).tanh();
+                let a = o.abs();
+                self.sag_env += (if a > self.sag_env { sag_att } else { sag_rel }) * (a - self.sag_env);
+                let d = self.down[0].tick(o * power_makeup);
+                let d = self.down[1].tick(d);
+                if k == OS - 1 {
+                    y = d;
+                }
+            }
+            y *= amp.level * 0.5;
+            for b in self.cab.iter_mut() {
+                y = b.tick(y);
+            }
+            if depth > 0.0 {
+                self.trem += trem_inc;
+                if self.trem > TAU {
+                    self.trem -= TAU;
+                }
+                // The amp's tremolo: a little squarer than a sine, as an optical/bias tremolo is.
+                let s = (self.trem.sin() * 1.6).tanh() / 1.6f32.tanh();
+                y *= 1.0 - depth * 0.5 * (1.0 + s);
+            }
+            let (mut l, mut r) = (y, y);
+            if ch > 0.0 {
+                self.chorus[self.ch_w] = y;
+                self.ch_phase += ch_inc;
+                if self.ch_phase > TAU {
+                    self.ch_phase -= TAU;
+                }
+                let (base, dep) = (0.007 * sr, lerp(0.0015, 0.0035, ch) * sr);
+                let tl = tap(&self.chorus, self.ch_w, base + dep * self.ch_phase.sin());
+                let tr = tap(&self.chorus, self.ch_w, base + dep * self.ch_phase.cos());
+                self.ch_w = (self.ch_w + 1) & (self.chorus.len() - 1);
+                let g = 1.0 / (1.0 + 0.45 * ch);
+                l = (y + 0.8 * ch * tl) * g;
+                r = (y + 0.8 * ch * tr) * g;
+            }
+            if echo > 0.0 {
+                // Tape echo: the delay time eases to a new setting (the pitch bends, as a tape
+                // machine's does), the repeats darken and thin, and the tape wobbles a little.
+                self.ec_time += 0.0004 * (ec_target - self.ec_time);
+                self.ec_phase += TAU * 0.4 / sr;
+                if self.ec_phase > TAU {
+                    self.ec_phase -= TAU;
+                }
+                let e = tap(&self.echo, self.ec_w, self.ec_time * (1.0 + 0.0015 * self.ec_phase.sin()));
+                self.ec_lp += ec_c * (e - self.ec_lp);
+                let fb = self.ec_hp.tick(self.ec_lp);
+                let w = self.ec_w;
+                self.echo[w] = (0.5 * (l + r) + ec_fb * fb).tanh();
+                self.ec_w = (w + 1) & (self.echo.len() - 1);
+                l += 0.45 * echo * self.ec_lp;
+                r += 0.45 * echo * self.ec_lp;
+            }
+            if chans == 2 {
+                out[0][f] = l;
+                out[1][f] = r;
+            } else {
+                out[0][f] = 0.5 * (l + r);
             }
         }
     }
@@ -1539,6 +2221,171 @@ mod tests {
         }
     }
 
+    /// Each section instrument across its own register: (model, variant, notes).
+    const SECTION: [(u32, u32, [f32; 4]); 17] = [
+        (2, 0, [55.0, 64.0, 76.0, 88.0]), // violin
+        (2, 1, [48.0, 57.0, 69.0, 81.0]), // viola
+        (2, 2, [36.0, 45.0, 57.0, 69.0]), // cello
+        (2, 3, [28.0, 36.0, 45.0, 55.0]), // double bass
+        (2, 4, [40.0, 52.0, 64.0, 76.0]), // quartet
+        (9, 0, [58.0, 65.0, 72.0, 79.0]), // flugelhorn
+        (9, 1, [41.0, 50.0, 60.0, 72.0]), // French horn
+        (9, 2, [40.0, 48.0, 58.0, 67.0]), // trombone
+        (9, 3, [31.0, 38.0, 48.0, 58.0]), // bass trombone
+        (9, 4, [28.0, 34.0, 41.0, 50.0]), // tuba
+        (10, 0, [24.0, 43.0, 67.0, 91.0]), // harp
+        (10, 1, [55.0, 67.0, 79.0, 88.0]), // mandolin
+        (10, 2, [50.0, 62.0, 74.0, 81.0]), // banjo
+        (10, 3, [60.0, 67.0, 76.0, 81.0]), // ukulele
+        (10, 4, [36.0, 50.0, 64.0, 79.0]), // pizzicato
+        (8, 2, [34.0, 41.0, 50.0, 62.0]), // bassoon
+        (7, 1, [38.0, 46.0, 55.0, 65.0]), // bass clarinet
+    ];
+
+    #[test]
+    fn section_instruments_speak_on_pitch_at_a_sane_level() {
+        let sr = 48000.0;
+        for (m, var, notes) in SECTION {
+            for midi in notes {
+                let x = render(m, var, midi, 0.8, 1.0, 1.0);
+                assert!(x.iter().all(|v| v.is_finite()), "{m}/{var} @{midi} not finite");
+                let target = 440.0 * 2f32.powf((midi - 69.0) / 12.0);
+                let (a, b) = if sustained(m) { (0.45, 0.85) } else { (0.12, 0.5) };
+                let f = pitch(&x[(a * sr) as usize..(b * sr) as usize], sr, target * 0.7, target * 1.4);
+                let c = cents(f, target);
+                let pk = peak(&x);
+                eprintln!("{m}/{var} midi {midi}: {f:.2} Hz ({c:+.1} c), peak {pk:.3}");
+                assert!(c.abs() < 25.0, "{m}/{var} midi {midi}: {f:.2} Hz is {c:.1} cents off");
+                assert!(pk > 0.05 && pk < 1.6, "{m}/{var} @{midi} level {pk}");
+            }
+        }
+    }
+
+    #[test]
+    fn brass_section_gets_brassier_as_it_gets_louder() {
+        let sr = 48000.0;
+        for (var, midi) in [(0u32, 65.0f32), (1, 53.0), (2, 53.0), (3, 41.0), (4, 34.0)] {
+            let f = 440.0 * 2f32.powf((midi - 69.0) / 12.0);
+            let c = |v: f32| {
+                let x = render(9, var, midi, v, 1.0, 1.0);
+                let seg = &x[(0.45 * sr) as usize..(0.9 * sr) as usize];
+                let (mut num, mut den) = (0.0, 0.0);
+                for h in 1..12 {
+                    let a = harmonic(seg, sr, f * h as f32);
+                    num += a * h as f32;
+                    den += a;
+                }
+                num / den
+            };
+            let (soft, loud) = (c(0.15), c(1.0));
+            eprintln!("brass {var}: centroid {soft:.2} -> {loud:.2}");
+            assert!(loud > soft * 1.4, "brass {var} should open up at ff: {soft} -> {loud}");
+        }
+    }
+
+    /// An E5 power chord, picked twice, through the electric guitar's voices and the rig.
+    fn rig(set: &[(u32, f32)]) -> (Vec<f32>, f32) {
+        use crate::engine::MAX_BLOCK;
+        use crate::spatial::MAX_CHANNELS;
+        let sr = 48000.0;
+        let mut p = params(MODEL_GUITAR, 2);
+        for &(id, v) in set {
+            p.set(LYRA_BASE + id, v);
+        }
+        let mut rng = Rng(7);
+        let mut voices: Vec<LyraVoice> = (0..3).map(|_| LyraVoice::new(sr)).collect();
+        let mut rack = LyraRack::new(sr);
+        let mut out = Box::new([[0.0f32; MAX_BLOCK]; MAX_CHANNELS]);
+        let mut y = Vec::new();
+        let mut in_peak = 0.0f32;
+        let n = (1.6 * sr) as usize;
+        let mut pos = 0;
+        while pos < n {
+            for (k, at) in [0usize, (0.8 * sr) as usize].iter().enumerate() {
+                if *at >= pos && *at < pos + 128 {
+                    for (i, m) in [40.0f32, 47.0, 52.0].iter().enumerate() {
+                        voices[i].trigger(440.0 * 2f32.powf((m - 69.0) / 12.0), 0.9 - 0.1 * k as f32, &p, &mut rng);
+                    }
+                }
+            }
+            for c in 0..2 {
+                out[c][..128].fill(0.0);
+            }
+            for f in 0..128 {
+                let mut s = 0.0;
+                for v in voices.iter_mut() {
+                    s += v.render_sample(1.0, 0.0, &mut rng).0;
+                }
+                in_peak = in_peak.max(s.abs());
+                out[0][f] = s;
+                out[1][f] = s;
+            }
+            rack.process(&mut out, 128, 2, &p);
+            y.extend_from_slice(&out[0][..128]);
+            pos += 128;
+        }
+        (y, in_peak)
+    }
+
+    fn rms(x: &[f32]) -> f32 {
+        (x.iter().map(|v| v * v).sum::<f32>() / x.len() as f32).sqrt()
+    }
+
+    #[test]
+    fn tone_stack_is_passive_and_its_knobs_work() {
+        let fs = 192000.0;
+        for amp in AMPS.iter() {
+            let d = |t: f64, m: f64, b: f64| ToneStack::design(&amp.stack, t, m, b, fs);
+            for &(t, m, b) in &[(0.0, 0.0, 0.0), (1.0, 1.0, 1.0), (0.5, 0.5, 0.5), (1.0, 0.0, 1.0), (0.0, 1.0, 0.0)] {
+                for f in [30.0, 100.0, 400.0, 1000.0, 3000.0, 8000.0] {
+                    assert!(d(t, m, b).mag(f, fs) < 1.05, "passive network can't gain: {t}/{m}/{b} @{f}");
+                }
+            }
+            let db = |a: f64, b: f64| 20.0 * (a / b).log10();
+            let bass = db(d(0.5, 0.5, 1.0).mag(70.0, fs), d(0.5, 0.5, 0.0).mag(70.0, fs));
+            let mid = db(d(0.5, 1.0, 0.5).mag(500.0, fs), d(0.5, 0.0, 0.5).mag(500.0, fs));
+            let treble = db(d(1.0, 0.5, 0.5).mag(5000.0, fs), d(0.0, 0.5, 0.5).mag(5000.0, fs));
+            eprintln!("stack: bass {bass:.1} dB, mid {mid:.1} dB, treble {treble:.1} dB");
+            assert!(bass > 6.0 && mid > 1.0 && treble > 6.0, "knob range {bass} {mid} {treble}");
+        }
+    }
+
+    #[test]
+    fn every_amp_is_stable_level_matched_and_distorts_with_drive() {
+        let mut levels = Vec::new();
+        for amp in 0..4 {
+            let mut prev = 0.0;
+            for drive in [0.0f32, 0.5, 1.0] {
+                let (y, inp) = rig(&[(LY_AMP, amp as f32), (LY_CAB, [0.0, 1.0, 2.0, 2.0][amp]), (LY_DRIVE, drive)]);
+                assert!(y.iter().all(|v| v.is_finite()), "amp {amp} drive {drive}: not finite");
+                let seg = &y[(0.1 * 48000.0) as usize..(0.75 * 48000.0) as usize];
+                // Crest factor falls as the amp clips: a distorted chord is denser, flatter.
+                let crest = peak(seg) / rms(seg).max(1e-9);
+                eprintln!("amp {amp} drive {drive}: in peak {inp:.3}, out rms {:.3} peak {:.3} crest {crest:.2}", rms(seg), peak(seg));
+                assert!(peak(&y) < 1.5, "amp {amp} drive {drive} too hot");
+                if drive > 0.0 {
+                    assert!(crest < prev + 0.2, "amp {amp}: drive should compress ({prev} -> {crest})");
+                }
+                prev = crest;
+                if drive == 0.5 {
+                    levels.push(rms(seg));
+                }
+            }
+        }
+        let (lo, hi) = (levels.iter().cloned().fold(9.0, f32::min), levels.iter().cloned().fold(0.0, f32::max));
+        assert!(20.0 * (hi / lo).log10() < 8.0, "amps should sit within 8 dB of each other: {levels:?}");
+        // Pedals, cabs and pickups: all stable.
+        for set in [
+            vec![(LY_OD, 0.8), (LY_AMP, 1.0)],
+            vec![(LY_COMP, 0.9), (LY_CHORUS, 0.7), (LY_ECHO, 0.8), (LY_ECHO_TIME, 0.3)],
+            vec![(LY_CAB, 3.0), (LY_BODY, 0.0), (LY_TREM_DEPTH, 0.8)],
+            vec![(LY_VARIANT, 3.0), (LY_PICKUP, 0.5), (LY_AMP, 3.0), (LY_DRIVE, 1.0), (LY_MASTER, 1.0)],
+        ] {
+            let (y, _) = rig(&set);
+            assert!(y.iter().all(|v| v.is_finite()) && peak(&y) < 1.5 && peak(&y) > 0.01, "{set:?}: peak {}", peak(&y));
+        }
+    }
+
     #[test]
     fn sustained_models_stop_after_release_and_struck_models_ring_out() {
         let sr = 48000.0;
@@ -1588,7 +2435,7 @@ mod tests {
     #[ignore]
     fn probe_brightness() {
         let sr = 48000.0;
-        for m in [3u32, 8, 4, 6, 7] {
+        for m in [4u32, 9, 3, 8, 6, 7] {
             let midi = 62.0;
             let f = 440.0 * 2f32.powf((midi - 69.0) / 12.0);
             let mut line = format!("model {m}:");
@@ -1598,6 +2445,7 @@ mod tests {
                 let (mut num, mut den) = (0.0, 0.0);
                 for h in 1..12 { let a = harmonic(seg, sr, f * h as f32); num += a * h as f32; den += a; }
                 line += &format!(" v{v}:{:.2}/{:.3}", num / den, peak(seg));
+                if v == 1.0 || v == 0.1 { let hs: Vec<String> = (1..12).map(|h| format!("{:.0}", harmonic(seg, sr, f * h as f32))).collect(); eprintln!("  v{v} h: {}", hs.join(" ")); }
             }
             eprintln!("{line}");
         }

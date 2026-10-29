@@ -66,7 +66,9 @@ export interface Lesson { id: string; title: string; summary: string; steps: Les
 
 export type SeatSound =
   | { kind: 'kit' }
-  | { kind: 'instrument'; type: InstrumentType; preset: string; byGenre?: Record<string, string>; standIn?: string };
+  | { kind: 'instrument'; type: InstrumentType; preset: string; byGenre?: Record<string, string>; standIn?: string;
+      /** A doubler's range on the instrument a genre puts in their hands (bassoon goes far lower than flute). */
+      rangeByGenre?: Record<string, [number, number]> };
 
 export interface BandPlayer {
   id: string;
@@ -437,7 +439,7 @@ export const BAND: BandPlayer[] = [
     bio: 'Marched in second-line brass bands before he could drive, toured with a big band, a mariachi and a funk horn section. Can play it pretty, hot or cold — and loves a high note at the end.',
     influences: ['Louis Armstrong', 'Dizzy Gillespie', 'Miles Davis', 'Clifford Brown', 'Lee Morgan', 'Freddie Hubbard', 'Wynton Marsalis'],
     genres: ['jazz', 'funk', 'salsa', 'soul', 'blues', 'cinematic'], color: '#F5B700',
-    seat: { kind: 'instrument', type: 'lyra', preset: 'lyra-trumpet-open', byGenre: { jazz: 'lyra-trumpet-harmon', ballad: 'lyra-trumpet-harmon', neosoul: 'lyra-trumpet-harmon', bossa: 'lyra-trumpet-cup' } },
+    seat: { kind: 'instrument', type: 'lyra', preset: 'lyra-trumpet-open', byGenre: { jazz: 'lyra-trumpet-harmon', ballad: 'lyra-flugelhorn', neosoul: 'lyra-flugelhorn', bossa: 'lyra-trumpet-cup' } },
     range: [54, 84],
     personas: [
       { id: 'bourbon', name: 'Bourbon Street', tagline: 'New Orleans: hot lines, shakes and falls', mode: 'bourbon',
@@ -460,7 +462,7 @@ export const BAND: BandPlayer[] = [
       { topic: 'instrument', keys: ['b flat', 'transposing', 'written', 'concert pitch'], text: 'The trumpet is usually in B♭: it sounds a whole step lower than written, so a written C comes out as concert B♭. Three valves add lengths of tubing to lower the pitch by 2, 1 and 3 semitones.' },
       { topic: 'technique', keys: ['embouchure', 'buzz', 'fall', 'shake', 'growl'], text: 'The sound starts with the lips buzzing into the mouthpiece (the embouchure). Jazz effects: a fall drops the pitch off the end of a note, a shake is a wide lip trill, a scoop slides up into a note.' },
       { topic: 'genre', keys: ['horn section', 'stabs', 'earth wind', 'funk horns', 'mariachi'], text: 'Funk and soul horn sections (the JB Horns, Earth, Wind & Fire\'s Phenix Horns, Tower of Power) play short, tight stabs as a rhythm instrument. Mariachi trumpets play bright, wide-vibrato thirds in pairs.' },
-      { topic: 'chora', keys: ['chora', 'lyra', 'brass sound', 'mute', 'harmon'], text: 'In Chora I play the LYRA trumpet: buzzing lips into a brass bore, with open, cup, Harmon and straight mutes. Lip tension, onset and vibrato are on my panel, and it gets brighter as it gets louder, like a real horn.' },
+      { topic: 'chora', keys: ['chora', 'lyra', 'brass sound', 'mute', 'harmon'], text: 'In Chora I play the LYRA trumpet: buzzing lips into a brass bore, with open, cup, Harmon and straight mutes, and I pick up the flugelhorn for ballads. Lip tension, onset and vibrato are on my panel. Play soft and the lips never quite close, so it is round; play loud and the wave steepens down the tube into that brassy blare. The rest of the section is in LYRA too: French horn, trombone, bass trombone and tuba.' },
     ],
     lessons: [
       { id: 'space', title: 'Playing with space', summary: 'Why Miles played fewer notes.', steps: [
@@ -510,7 +512,8 @@ export const BAND: BandPlayer[] = [
     bio: 'A doubler: flute, piccolo, clarinet, oboe and tin whistle. Pit orchestras, klezmer weddings, Irish sessions and film dates. Never travels without five cases and a reed knife.',
     influences: ['Jean-Pierre Rampal', 'Benny Goodman', 'Naftule Brandwein', 'Matt Molloy', 'Hubert Laws', 'Herbie Mann'],
     genres: ['classical', 'cinematic', 'bossa', 'country', 'jazz', 'ballad'], color: '#7BD389',
-    seat: { kind: 'instrument', type: 'lyra', preset: 'lyra-concert-flute', byGenre: { cinematic: 'lyra-alto-flute', ballad: 'lyra-alto-flute', classical: 'lyra-oboe', jazz: 'lyra-clarinet', blues: 'lyra-clarinet', country: 'lyra-tin-whistle', reggae: 'lyra-tin-whistle', neosoul: 'lyra-alto-flute' } },
+    seat: { kind: 'instrument', type: 'lyra', preset: 'lyra-concert-flute', byGenre: { cinematic: 'lyra-alto-flute', ballad: 'lyra-alto-flute', classical: 'lyra-oboe', jazz: 'lyra-clarinet', blues: 'lyra-clarinet', country: 'lyra-tin-whistle', reggae: 'lyra-tin-whistle', neosoul: 'lyra-alto-flute', hiphop: 'lyra-bass-clarinet', trap: 'lyra-bassoon' },
+      rangeByGenre: { cinematic: [55, 86], ballad: [55, 86], neosoul: [55, 86], classical: [58, 91], jazz: [50, 91], blues: [50, 91], country: [62, 86], reggae: [62, 86], hiphop: [38, 77], trap: [34, 72] } },
     range: [58, 96],
     personas: [
       { id: 'pastoral', name: 'Pastoral', tagline: 'Flute birdsong: trills and high answers', mode: 'pastoral',
@@ -545,7 +548,7 @@ export const BAND: BandPlayer[] = [
     bio: 'Conducts the Meridian Section — strings, brass and winds — for film, games and records. Orchestrator first: knows which instrument should play each note and why.',
     influences: ['Ludwig van Beethoven', 'Maurice Ravel', 'Bernard Herrmann', 'John Williams', 'Silvestre Revueltas', 'Hans Zimmer', 'Hildur Guðnadóttir'],
     genres: ['cinematic', 'classical', 'ballad', 'pop', 'soul', 'gospel'], color: '#FFD166',
-    seat: { kind: 'instrument', type: 'aura', preset: 'aura-solina-74', byGenre: { cinematic: 'aura-oxygene-phaser', classical: 'aura-mellotron-violins' }, standIn: 'The section plays AURA string ensembles; load an orchestral SoundFont in KERA on its track for a real orchestra.' },
+    seat: { kind: 'instrument', type: 'aura', preset: 'aura-solina-74', byGenre: { cinematic: 'lyra-string-quartet', classical: 'lyra-string-quartet', ballad: 'lyra-string-quartet' }, standIn: 'For pop, soul and gospel the section plays the AURA Solina string ensemble; classical, film and ballads get the LYRA bowed quartet. A full orchestra (many players per part) is still a SoundFont in KERA.' },
     range: [36, 96],
     personas: [
       { id: 'golden', name: 'Golden Age', tagline: 'Lush film score: big pads and soaring top lines', mode: 'golden',
@@ -567,7 +570,7 @@ export const BAND: BandPlayer[] = [
       { topic: 'history', keys: ['ravel', 'bolero', 'orchestration', 'revueltas'], text: 'Ravel\'s "Boléro" (1928) is an orchestration lesson: one melody passed through instrument after instrument over a snare ostinato, getting louder for fifteen minutes. Silvestre Revueltas brought Mexican street-band colour to the concert orchestra.' },
       { topic: 'instrument', keys: ['sections', 'seating', 'strings', 'brass', 'winds', 'percussion'], text: 'Four families: strings (first and second violins, violas, cellos, basses), woodwinds, brass (horns, trumpets, trombones, tuba) and percussion. Strings are the body of the sound; brass is power; winds are colour.' },
       { topic: 'theory', keys: ['orchestration', 'doubling', 'divisi', 'voicing', 'spacing'], text: 'Orchestration rules of thumb: space chords wide at the bottom and close at the top (like the harmonic series), double important lines at the octave, and split (divisi) a section when you need more voices without more players.' },
-      { topic: 'chora', keys: ['chora', 'aura', 'solina', 'articulation', 'orchestra sound'], text: 'In Chora the section plays AURA\'s string ensembles — the \'74 Solina, the Oxygène phaser strings for film, Mellotron violins for classical. Every note carries an articulation (legato, spiccato, tremolo, marcato) and swell expression; use the piano roll\'s articulation lane or flip to the Score view to read it as notation.' },
+      { topic: 'chora', keys: ['chora', 'aura', 'solina', 'articulation', 'orchestra sound'], text: 'In Chora the section plays the LYRA string quartet for classical, film and ballads — real bowed models of violin, viola, cello and double bass, each note handed to the instrument that plays that register — and AURA\'s \'74 Solina ensemble for pop, soul and gospel. Every note carries an articulation (legato, spiccato, tremolo, marcato) and swell expression; use the piano roll\'s articulation lane or flip to the Score view to read it as notation.' },
     ],
     lessons: [
       { id: 'ostinato', title: 'Ostinato and tension', summary: 'How film music builds.', steps: [
@@ -580,6 +583,11 @@ export const BAND: BandPlayer[] = [
 
 // The physics of each instrument (science.ts) joins what each player knows.
 for (const p of BAND) p.knowledge.push(...(SCIENCE[p.id] ?? []));
+
+/** The player's range for a genre — the instrument they're holding, not just their main one. */
+export function playerRange(p: BandPlayer, genre: string): [number, number] {
+  return (p.seat.kind === 'instrument' && p.seat.rangeByGenre?.[genre]) || p.range;
+}
 
 export const playerById = (id: string): BandPlayer | undefined => BAND.find((p) => p.id === id);
 export const playerForRole = (role: BandRole): BandPlayer => BAND.find((p) => p.role === role)!;
