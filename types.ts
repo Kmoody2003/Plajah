@@ -2330,6 +2330,8 @@ export interface Post {
   orgRoomId?: string;
   /** Elevate: display labels for the targeted feeds/departments/groups shown on post badges. */
   orgTargetLabels?: string[];
+  /** Elevate: shared by the per-department copies of one post aimed at several departments (shown once). */
+  orgPostGroupId?: string;
   text: string;
   /** Creator-applied safety labels — viewer settings decide blur/consent gating */
   contentLabels?: ('GRAPHIC_VIOLENCE' | 'MATURE_18' | 'ARTISTIC_NUDITY' | 'SENSITIVE_OTHER')[];
@@ -3778,7 +3780,10 @@ export interface Submission {
   grade?: number;
   feedback?: string;
   timestamp: number;
-  /** Lets the course owner query a gradebook (assignments are embedded in the classroom doc). */
+  /**
+   * The class this submission belongs to. Required on create by the rules (the student must be in
+   * that class's enrolledStudents); also lets the owner query a gradebook.
+   */
   classroomId?: string;
 }
 
@@ -3791,8 +3796,18 @@ export interface Classroom {
   thumbnailUrl: string;
   price: number; // 0 for free
   syllabus: string;
+  /**
+   * Always [] on the public doc — the real coursework lives in
+   * `classrooms/{id}/private/coursework` (owner + enrolled only; services/classroomCoursework).
+   * Pre-split classes may still embed it here until the owner opens them. In-memory copies loaded
+   * through the coursework service carry the real arrays.
+   */
   lessons: Lesson[];
   assignments: Assignment[];
+  /** Catalog-safe preview of the private coursework: lesson ids + titles only. */
+  lessonOutline?: { id: string; title: string }[];
+  /** Catalog-safe count of the private assignments. */
+  assignmentCount?: number;
   enrolledStudents: string[]; // UIDs
   liveSessionUrl?: string;
   category: string;
@@ -4182,6 +4197,8 @@ export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW'
   | 'JOURNALISM_SCHOOL'
   // Art College — four-year studio + scholarship curriculum with live museum study (data/artCollege)
   | 'ART_COLLEGE'
+  // Music Law Library — statutes, landmark cases, live feed and the law-music course (components/academia/MusicLawLibrary)
+  | 'MUSIC_LAW'
   // Periodicals — Publication Studio (student / pro) and the Lorea issue reader (services/publication)
   | 'PUBLICATION_STUDIO'
   | 'ISSUE_READER'

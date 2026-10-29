@@ -27,6 +27,7 @@ import CourseCommand from './CourseCommand';
 import MotionSwitch from './MotionSwitch';
 import { useMotion } from './useMotion';
 import { ClassroomDetail } from '../../ClassroomsView';
+import { assignmentCountOf } from '../../../services/classroomCoursework';
 
 interface Props {
   profile: UserProfile | null;
@@ -385,7 +386,7 @@ function CoursePage({ id, seed, user, onBack, onManage, onSignIn }: { id: string
           <div className="flex flex-wrap items-center gap-x-5 gap-y-2 mt-5 text-sm text-white/85">
             <span>by <b className="text-white">{c.ownerName}</b></span>
             <span className="flex items-center gap-1.5"><PlayCircle size={14} /> {c.lessons.length} lessons</span>
-            {c.assignments.length > 0 && <span className="flex items-center gap-1.5"><Award size={14} /> {c.assignments.length} assignments</span>}
+            {assignmentCountOf(c) > 0 && <span className="flex items-center gap-1.5"><Award size={14} /> {assignmentCountOf(c)} assignments</span>}
             <span className="flex items-center gap-1.5"><Layers size={14} /> {FORMATS.find(f => f.id === (c.format || 'SELF_PACED'))?.label}</span>
             {stats.learners > 0 && <span className="flex items-center gap-1.5"><Users size={14} /> {stats.learners} enrolled</span>}
           </div>

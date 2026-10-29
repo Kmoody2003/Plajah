@@ -43,9 +43,12 @@ import type { ComposerPostData } from './UniversalPostComposer';
 import { useActiveIdentity, IdentitySwitcher } from '../contexts/ActiveIdentityContext';
 import OrgAudienceToggle, {
   type OrgPostAudience,
-  type OrgTargetSelection,
-  orgTargetToPostFields,
+  type OrgPostTarget,
+  defaultOrgPostTarget,
+  orgTargetToPostFieldsList,
 } from './elevate/OrgAudienceToggle';
+import { fetchOrganization } from '../services/organizationService';
+import type { Organization } from '../types';
 import StoriesBar from './StoriesBar';
 import StoryCreator from './StoryCreator';
 import DualPanelTimeline from './DualPanelTimeline';
@@ -1452,7 +1455,16 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
   const [composeSignal, setComposeSignal] = useState(0);
   const { activeOrg } = useActiveIdentity();
   const [orgPostAudience, setOrgPostAudience] = useState<OrgPostAudience>('PUBLIC');
-  const [orgTargetSelection, setOrgTargetSelection] = useState<OrgTargetSelection>({ audience: 'PUBLIC' });
+  const [orgTarget, setOrgTarget] = useState<OrgPostTarget>(() => defaultOrgPostTarget('PUBLIC'));
+  // The full org (departments / ministry groups) — department targets fan out into one post per department.
+  const [activeOrgDoc, setActiveOrgDoc] = useState<Organization | null>(null);
+  useEffect(() => {
+    setActiveOrgDoc(null);
+    if (!activeOrg?.id) return;
+    let alive = true;
+    fetchOrganization(activeOrg.id).then(o => { if (alive) setActiveOrgDoc(o || null); }).catch(() => {});
+    return () => { alive = false; };
+  }, [activeOrg?.id]);
   // 'ALL' = For You (ranked global), 'FOLLOWING' = people you follow, 'LIKED'. null = not chosen yet -> the
   // viewer's saved default tab (feedPreferences.defaultTab), else For You. See `plajahFilter` below.
   const [plajahFilterChoice, setPlajahFilter] = useState<'ALL' | 'FOLLOWING' | 'LIKED' | null>(null);
@@ -1735,7 +1747,12 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
     const resolved = withAltText(await resolveComposerMedia(data.attachments, currentUser.uid), data.attachments);
     const media = data.linkPreview ? [...resolved, linkPreviewMedia(data.linkPreview)] : resolved;
     const embedFields = await postFieldsForAssetEmbed(data.assetEmbed);
-    const newPostId = await publishComposerPost(
+    // A post aimed at several departments is one document per department (rules check one each); the
+    // first is the one cross-posted, and only when it is public.
+    const orgFieldsList = activeOrg ? orgTargetToPostFieldsList(orgTarget, activeOrgDoc) : [{}];
+    let newPostId: string | undefined;
+    for (const [i, orgFields] of orgFieldsList.entries()) {
+    const postedId = await publishComposerPost(
       { text: data.text, quoteOf: data.quoteOf, replyAudience: data.replyAudience },
       {
         isPublic: true,
@@ -1751,7 +1768,7 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
               authorName: activeOrg.name,
               authorPhoto: activeOrg.logoUrl || '',
               authorOrgId: activeOrg.id,
-              ...orgTargetToPostFields(orgTargetSelection),
+              ...orgFields,
             }
           : {}),
         ...(userProfile?.isPrivate ? { authorIsPrivate: true } : {}),
@@ -1760,6 +1777,8 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
         ...todayFields(),
       } as any,
     );
+    if (i === 0) newPostId = (orgFields as any).isPublic === false ? undefined : postedId;
+    }
     sessionPostTexts.current = [data.text, ...sessionPostTexts.current].slice(0, 10);
     setPostToToday(false);
 
@@ -3539,8 +3558,8 @@ const toggleFavoriteTeam = async (team: string) => {
                 orgId={activeOrg.id}
                 value={orgPostAudience}
                 onChange={setOrgPostAudience}
-                targetSelection={orgTargetSelection}
-                onTargetChange={setOrgTargetSelection}
+                target={orgTarget}
+                onTargetChange={setOrgTarget}
                 className="px-1 pb-2"
               />
             )}

@@ -240,3 +240,31 @@ elevateAccountsRouter.post('/redeem', async (req: Request, res: Response) => {
   await fsCreate(`organizations/${org.id}/audit`, { orgId: org.id, action: 'ELEVATE_ACCOUNT_CLAIMED', actorUid: uid, actorName: displayName, targetId: d.provisionedPersonId || seat.id, targetName: d.displayName, timestamp: now, meta: { memberNumber: assignedMemberNumber, employeeNumber: assignedEmployeeNumber, via: req.body?.memberNumber ? 'memberNumber' : (req.body?.email ? 'email' : 'name') } });
   return res.json({ orgId: org.id, orgName: org.data.name, roleLabel: d.title || ROLE_LABELS[d.roleKey] || 'Member', membershipId, memberNumber: assignedMemberNumber, employeeNumber: assignedEmployeeNumber });
 });
+
+// POST /sync-index { orgId, uid? } — rebuild orgMemberIndex/{orgId_uid} from the real orgMemberships.
+// Clients may not write the marker themselves (it is what members-only and department feeds trust), so every
+// membership change asks the server to re-derive it. The result is fully determined by the membership docs, so
+// any signed-in caller may request a resync for anyone; nothing they send can widen it.
+elevateAccountsRouter.post('/sync-index', async (req: Request, res: Response) => {
+  const t = await caller(req);
+  if (!t) return res.status(401).json({ error: 'Sign in first.' });
+  const orgId = String(req.body?.orgId || '').trim();
+  const uid = String(req.body?.uid || t.uid).trim();
+  if (!orgId || orgId.length > 120 || !uid || uid.length > 128 || /[\/]/.test(orgId + uid)) return res.status(400).json({ error: 'Bad request.' });
+  const org = await fsGet(`organizations/${orgId}`);
+  if (!org) return res.status(404).json({ error: 'Organization not found.' });
+  const rows = await fsQuery('orgMemberships', [{ field: 'orgId', value: orgId }, { field: 'userId', value: uid }], 20);
+  const active = rows.map(r => r.data).filter(m => m.status === 'ACTIVE');
+  if (!active.length) {
+    await fsDelete(`orgMemberIndex/${orgId}_${uid}`).catch(() => false);
+    return res.json({ active: false, ministryIds: [] });
+  }
+  // Department heads count as members of the department they lead.
+  const headed = ((org.ministries || []) as any[]).filter(m => Array.isArray(m?.headUids) && m.headUids.includes(uid)).map(m => m.id);
+  const ministryIds: string[] = Array.from(new Set([
+    ...active.flatMap(m => [...(m.ministryIds || []), ...((m.ministryRoles || []) as any[]).map(x => x?.ministryId)]),
+    ...headed,
+  ].filter((x): x is string => typeof x === 'string' && !!x)));
+  await fsSet(`orgMemberIndex/${orgId}_${uid}`, { orgId, userId: uid, ministryIds, updatedAt: Date.now() });
+  return res.json({ active: true, ministryIds });
+});

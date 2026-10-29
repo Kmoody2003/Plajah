@@ -350,29 +350,42 @@ export function buildPromoKit(c: Pick<Classroom, 'title' | 'tagline' | 'descript
 /** Strip undefined (Firestore throws on it) from a patch. */
 const clean = <T extends Record<string, any>>(o: T): T => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined)) as T;
 
+// Lessons/assignments live in classrooms/{id}/private/coursework (owner + enrolled only); the
+// public doc carries a titles-only outline. See services/classroomCoursework.
+
+/** The owner's courses, each with its private coursework merged in (legacy classes migrate here). */
 export async function fetchMyCourses(ownerId: string): Promise<Classroom[]> {
-  const [{ db }, fs] = await Promise.all([import('./firebase'), import('firebase/firestore')]);
+  const [{ db }, fs, cw] = await Promise.all([import('./firebase'), import('firebase/firestore'), import('./classroomCoursework')]);
   const snap = await fs.getDocs(fs.query(fs.collection(db, 'classrooms'), fs.where('ownerId', '==', ownerId)));
-  return snap.docs.map(d => d.data() as Classroom).filter(c => (c.track || 'CREATOR') === 'CREATOR')
-    .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  const mine = snap.docs.map(d => d.data() as Classroom).filter(c => (c.track || 'CREATOR') === 'CREATOR');
+  const full = await Promise.all(mine.map(c => cw.withCoursework(c, ownerId)));
+  return full.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 }
 
-/** The public directory: published creator courses only. */
+/**
+ * The public directory: published creator courses only. Lessons are the display-only outline stubs
+ * (titles), never real coursework.
+ */
 export async function fetchPublicCourses(): Promise<Classroom[]> {
-  const { fetchClassrooms } = await import('./backendService');
+  const [{ fetchClassrooms }, cw] = await Promise.all([import('./backendService'), import('./classroomCoursework')]);
   const all = await fetchClassrooms();
-  return (all || []).filter(c => (c.track || 'CREATOR') === 'CREATOR' && c.status !== 'DRAFT' && c.id !== 'demo_music_production_101');
+  return (all || []).filter(c => (c.track || 'CREATOR') === 'CREATOR' && c.status !== 'DRAFT' && c.id !== 'demo_music_production_101')
+    .map(cw.withOutline);
 }
 
+/** One course: real coursework for its owner / enrolled learners, the titles-only outline otherwise. */
 export async function fetchCourse(id: string): Promise<Classroom | null> {
-  const [{ db }, fs] = await Promise.all([import('./firebase'), import('firebase/firestore')]);
+  const [{ db, auth }, fs, cw] = await Promise.all([import('./firebase'), import('firebase/firestore'), import('./classroomCoursework')]);
   const snap = await fs.getDoc(fs.doc(db, 'classrooms', id));
-  return snap.exists() ? (snap.data() as Classroom) : null;
+  return snap.exists() ? cw.withCoursework(snap.data() as Classroom, auth.currentUser?.uid) : null;
 }
 
+/** Owner update. Lessons/assignments in the patch go to the private doc, the rest to the public one. */
 export async function updateCourse(id: string, patch: Partial<Classroom>): Promise<void> {
-  const [{ db }, fs] = await Promise.all([import('./firebase'), import('firebase/firestore')]);
-  await fs.updateDoc(fs.doc(db, 'classrooms', id), clean(patch as any));
+  const [{ db }, fs, cw] = await Promise.all([import('./firebase'), import('firebase/firestore'), import('./classroomCoursework')]);
+  const { lessons, assignments, lessonOutline: _o, assignmentCount: _n, ...rest } = patch;
+  if (lessons || assignments) await cw.saveClassroomCoursework(id, { lessons, assignments });
+  if (Object.keys(clean(rest as any)).length) await fs.updateDoc(fs.doc(db, 'classrooms', id), clean(rest as any));
 }
 
 export async function publishCourse(id: string): Promise<void> {

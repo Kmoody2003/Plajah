@@ -162,6 +162,7 @@ export const COURSES: Course[] = [
   { id: 'film-museum', subject: 'museums', title: 'Film Museum', blurb: 'Public-domain cinema and film history.', emoji: '🎞️', accent: '#e23b6d', kind: 'link', view: 'MOVIES_TV' },
   // Law and Medicine ladders (data/lawMedicineRoster.ts)
   ...ROSTER_COURSES,
+  { id: 'music-law-library', subject: 'law', title: 'Music Law Library', blurb: 'Statutes, landmark music cases in plain language, and a live feed of new suits and Copyright Office rules. Open to every creator.', emoji: '🎼', accent: LAW_ACCENT, kind: 'link', view: 'MUSIC_LAW', stage: 'pro', group: 'Law school: upper level', notice: LAW_NOTICE },
   // Machines & Trades (Machine Atlas): brakes pilot, three stages of one topic
   { id: 'atlas-brakes-g68', subject: 'machines', title: 'How Brakes Work', blurb: 'Friction, pressure, the pedal-to-wheel path, disc and drum brakes, ABS, safe habits and warning signs.', emoji: '🛞', accent: '#FF8C00', kind: 'curriculum', view: 'MACHINE_ATLAS', curriculumId: 'atlas-brakes-g68', stage: 'g68', notice: MACHINES_NOTICE, status: 'UNDER_REVIEW' },
   { id: 'atlas-brakes-hs', subject: 'machines', title: 'Auto Tech: Brakes', blurb: 'Hydraulics, boosters, calipers and drums, fluid, ABS basics, inspection, diagnosis, estimating and customer communication.', emoji: '🔧', accent: '#FF8C00', kind: 'curriculum', view: 'MACHINE_ATLAS', curriculumId: 'atlas-brakes-hs', stage: 'g912', notice: MACHINES_NOTICE, status: 'UNDER_REVIEW' },
@@ -267,6 +268,7 @@ CURRICULUM_LOADERS['law-admin'] = () => import('../data/practice/courses/law-adm
 CURRICULUM_LOADERS['law-business-orgs'] = () => import('../data/practice/courses/law-business-orgs').then(m => m.COURSE_MODULE.curriculum);
 CURRICULUM_LOADERS['law-profresp'] = () => import('../data/practice/courses/law-profresp').then(m => m.COURSE_MODULE.curriculum);
 CURRICULUM_LOADERS['law-jurisprudence'] = () => import('../data/practice/courses/law-jurisprudence').then(m => m.COURSE_MODULE.curriculum);
+CURRICULUM_LOADERS['law-music'] = () => import('../data/practice/courses/law-music').then(m => m.COURSE_MODULE.curriculum);
 CURRICULUM_LOADERS['law-intl-public'] = () => import('../data/practice/courses/law-intl-public').then(m => m.COURSE_MODULE.curriculum);
 CURRICULUM_LOADERS['law-intl-human-rights'] = () => import('../data/practice/courses/law-intl-human-rights').then(m => m.COURSE_MODULE.curriculum);
 CURRICULUM_LOADERS['law-intl-humanitarian-criminal'] = () => import('../data/practice/courses/law-intl-humanitarian-criminal').then(m => m.COURSE_MODULE.curriculum);

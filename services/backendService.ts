@@ -119,6 +119,8 @@ import { viewerTimeZone } from './platformClock';
 // Education-chat safety (Phase C): student DM policy backstop on the write path.
 import { canDM, isStudentAccount, classroomRoomId, classroomParticipants } from './educationChat';
 import { previewLine as chatPreviewLine } from './chat/chatCore';
+// Classroom coursework lives in a private subdoc; the public classroom doc carries only a preview.
+import { saveClassroomCoursework, courseworkPreview } from './classroomCoursework';
 
 export const getPrivateBoards = async (uid: string): Promise<PrivateBoard[]> => {
   const q = query(collection(db, 'privateBoards'), where('ownerId', '==', uid));
@@ -2009,7 +2011,8 @@ export const listenToOrgThread = (
   return onSnapshot(q, snapshot => {
     const items = snapshot.docs
       .map(d => ({ id: d.id, ...d.data(), sourceCollection: 'posts', timestamp: safeToMillis(d.data().timestamp) } as Post))
-      .filter(p => p.timestamp > 0 && (opts.departmentId ? true : !p.orgDepartmentId))
+      // The org-wide feed includes its departments' public posts (filterable by department in OrgThread).
+      .filter(p => p.timestamp > 0)
       .sort((a, b) => b.timestamp - a.timestamp);
     callback(items);
   }, (err) => { onError?.(err); handleFirestoreError(err, OperationType.LIST, 'posts'); });
@@ -2025,6 +2028,26 @@ export const listenToOrgInternal = (
   onError?: (e: any) => void,
 ) => {
   const q = query(collection(db, 'posts'), where('authorOrgId', '==', orgId), where('orgAudience', '==', 'INTERNAL'), limit(50));
+  return onSnapshot(q, snapshot => {
+    const items = snapshot.docs
+      .map(d => ({ id: d.id, ...d.data(), sourceCollection: 'posts', timestamp: safeToMillis(d.data().timestamp) } as Post))
+      .filter(p => p.timestamp > 0)
+      .sort((a, b) => b.timestamp - a.timestamp);
+    callback(items);
+  }, (err) => { onError?.(err); });
+};
+
+/**
+ * One department's members-only posts (orgAudience 'DEPARTMENT'). Rules let only that department's members and
+ * org leaders read these; anyone else gets a permission error (onError) — call it only for a department member.
+ */
+export const listenToOrgDepartmentInternal = (
+  orgId: string,
+  departmentId: string,
+  callback: (posts: Post[]) => void,
+  onError?: (e: any) => void,
+) => {
+  const q = query(collection(db, 'posts'), where('authorOrgId', '==', orgId), where('orgAudience', '==', 'DEPARTMENT'), where('orgDepartmentId', '==', departmentId), limit(50));
   return onSnapshot(q, snapshot => {
     const items = snapshot.docs
       .map(d => ({ id: d.id, ...d.data(), sourceCollection: 'posts', timestamp: safeToMillis(d.data().timestamp) } as Post))
@@ -2231,8 +2254,11 @@ export const createClassroom = async (classroom: Partial<Classroom>) => {
     thumbnailUrl: classroom.thumbnailUrl || 'https://picsum.photos/seed/class/800/450',
     price: classroom.price || 0,
     syllabus: classroom.syllabus || '',
-    lessons: classroom.lessons || [],
-    assignments: classroom.assignments || [],
+    // The public doc is world-readable: coursework goes to classrooms/{id}/private/coursework
+    // below, and only the titles-only outline + assignment count are published here.
+    lessons: [],
+    assignments: [],
+    ...courseworkPreview(classroom.lessons || [], classroom.assignments || []),
     enrolledStudents: [],
     category: classroom.category || 'Music',
     // Persist the track (it was silently dropped, so every academic class read back as CREATOR)
@@ -2246,14 +2272,17 @@ export const createClassroom = async (classroom: Partial<Classroom>) => {
     ),
   };
   try {
+    // Public doc first: the private doc's rules resolve ownership through its parent.
     await setDoc(doc(db, 'classrooms', id), newClass);
-    
+    await saveClassroomCoursework(id, { lessons: classroom.lessons || [], assignments: classroom.assignments || [] });
+
     // Notify followers — a draft is not announced until it is published.
     if (newClass.status !== 'DRAFT') {
       notifyFollowers(auth.currentUser.uid, 'CONTENT', 'New Class', `${auth.currentUser.displayName} opened a new classroom: ${newClass.title}`, 'CONTENT', id);
     }
     
-    return newClass;
+    // Hand the creator back the full class (in memory only) so the UI can show what they just built.
+    return { ...newClass, lessons: classroom.lessons || [], assignments: classroom.assignments || [] };
   } catch (e) {
     handleFirestoreError(e, OperationType.CREATE, path);
   }
@@ -2297,6 +2326,8 @@ export const enrollInClassroom = async (classId: string) => {
 
 export const submitAssignment = async (submission: Partial<Submission>) => {
   if (!auth.currentUser) return;
+  // The rules only accept a submission tied to a class the student is enrolled in.
+  if (!submission.classroomId) throw new Error('A submission must name its classroom.');
   const id = `sub_${Date.now()}`;
   const path = `submissions/${id}`;
   const newSub: Submission = {
@@ -2304,10 +2335,11 @@ export const submitAssignment = async (submission: Partial<Submission>) => {
     assignmentId: submission.assignmentId!,
     studentId: auth.currentUser.uid,
     studentName: auth.currentUser.displayName || 'Student',
-    textContent: submission.textContent,
-    contentUrl: submission.contentUrl,
     timestamp: Date.now(),
-    ...(submission.classroomId ? { classroomId: submission.classroomId } : {}),
+    classroomId: submission.classroomId,
+    // Firestore throws on undefined, so only send the parts the student filled in.
+    ...(submission.textContent !== undefined ? { textContent: submission.textContent } : {}),
+    ...(submission.contentUrl !== undefined ? { contentUrl: submission.contentUrl } : {}),
   };
   try {
     await setDoc(doc(db, 'submissions', id), newSub);

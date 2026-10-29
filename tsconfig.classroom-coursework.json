@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "skipLibCheck": true,
+    "incremental": false
+  },
+  "include": [
+    "types.ts",
+    "services/classroomCoursework.ts",
+    "services/backendService.ts",
+    "services/creatorCourses.ts",
+    "services/platformPulseBrief.ts",
+    "components/ClassroomsView.tsx"
+  ]
+}

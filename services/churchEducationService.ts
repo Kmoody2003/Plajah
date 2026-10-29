@@ -328,10 +328,25 @@ function writeLocalPrograms(orgId: string, list: ChurchProgram[]): void {
 const col = () => collection(opsDb, 'churchPrograms');
 
 export async function listPrograms(orgId: string): Promise<ChurchProgram[]> {
-  const local = readLocalPrograms(orgId);
+  let local = readLocalPrograms(orgId);
   try {
-    const snap = await getDocs(query(col(), where('orgId', '==', orgId)));
-    const remote = snap.docs.map(d => d.data() as ChurchProgram);
+    let remote: ChurchProgram[];
+    try {
+      // Church people staff may list every class.
+      const snap = await getDocs(query(col(), where('orgId', '==', orgId)));
+      remote = snap.docs.map(d => d.data() as ChurchProgram);
+    } catch {
+      // Everyone else sees only the classes they teach or are enrolled in (rules refuse the rest).
+      const uid = auth.currentUser?.uid;
+      if (!uid) throw new Error('signed out');
+      const [taught, enrolled] = await Promise.all(['teacherUids', 'studentUids'].map(f =>
+        getDocs(query(col(), where('orgId', '==', orgId), where(f, 'array-contains', uid))).catch(() => null)));
+      if (!taught && !enrolled) throw new Error('no access');
+      remote = [...(taught?.docs || []), ...(enrolled?.docs || [])].map(d => d.data() as ChurchProgram);
+      // Drop classes an earlier session cached on this device that this person is not part of.
+      const mine = (p: ChurchProgram) => !!(p.teacherUids?.includes(uid) || p.studentUids?.includes(uid) || p.createdBy === uid);
+      local = local.filter(mine);
+    }
     const byId = new Map<string, ChurchProgram>();
     for (const p of local) byId.set(p.id, p);
     for (const p of remote) byId.set(p.id, p);

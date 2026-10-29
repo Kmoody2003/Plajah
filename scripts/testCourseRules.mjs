@@ -3,7 +3,7 @@
 // Same approach as scripts/testExperiencesRules.mjs. Usage: node scripts/testCourseRules.mjs
 // Needs a live firebase-tools login (npx firebase-tools projects:list refreshes the token).
 //
-// Covers: self-enrollment (free only, exactly yourself, published, within seats), paid-course lockout,
+// Covers: private coursework (owner + enrolled only), enrolled-only turn-in, self-enrollment (free only, exactly yourself, published, within seats), paid-course lockout,
 // server-only courseEnrollments, owner gradebook reads via classroomId, and the studentGrades rule.
 import fs from 'node:fs';
 import os from 'node:os';
@@ -36,7 +36,7 @@ const src = [
 
 const DB = '/databases/(default)/documents';
 const ADM = 'adm', OWNER = 'teach', LRN = 'learner', OTHER = 'other';
-const classDoc = { ownerId: OWNER, price: 0 };
+const classDoc = { ownerId: OWNER, price: 0, enrolledStudents: [OWNER, LRN] };
 const mocks = [
   ...[ADM, OWNER, LRN, OTHER].map(u => ({ function: 'exists', args: [{ exactValue: `${DB}/admins/${u}` }], result: { value: u === ADM } })),
   { function: 'get', args: [{ exactValue: `${DB}/classrooms/c1` }], result: { value: { data: classDoc } } },
@@ -81,6 +81,19 @@ t('course owner reads a submission via classroomId', 'ALLOW', OWNER, 'get', S, {
 t('stranger cannot read a submission', 'DENY', OTHER, 'get', S, { existing: sub });
 t('learner can submit work with classroomId', 'ALLOW', LRN, 'create', S, { data: sub });
 t('learner cannot submit as someone else', 'DENY', LRN, 'create', S, { data: { ...sub, studentId: OTHER } });
+t('non-enrolled user cannot turn work in', 'DENY', OTHER, 'create', S, { data: { ...sub, studentId: OTHER } });
+const { classroomId: _cid, ...subNoClass } = sub;
+t('submission without classroomId is refused', 'DENY', LRN, 'create', S, { data: subNoClass });
+
+// coursework (classrooms/{id}/private/coursework) — the classroom doc itself is the public catalog card
+const W = `${C}/private/coursework`;
+const cw = { lessons: [{ id: 'l1', title: 'Intro', videoUrl: 'https://v' }], assignments: [{ id: 'a1', title: 'A1' }], updatedAt: 1 };
+t('enrolled learner reads coursework', 'ALLOW', LRN, 'get', W, { existing: cw });
+t('course owner reads coursework', 'ALLOW', OWNER, 'get', W, { existing: cw });
+t('stranger cannot read coursework', 'DENY', OTHER, 'get', W, { existing: cw });
+t('signed-out visitor cannot read coursework', 'DENY', null, 'get', W, { existing: cw });
+t('course owner writes coursework', 'ALLOW', OWNER, 'create', W, { data: cw });
+t('enrolled learner cannot write coursework', 'DENY', LRN, 'update', W, { existing: cw, data: { ...cw, assignments: [] } });
 t('course owner grades a submission', 'ALLOW', OWNER, 'update', S, { existing: sub, data: { ...sub, grade: 90, feedback: 'nice' } });
 t('course owner cannot rewrite the submission body while grading', 'DENY', OWNER, 'update', S, { existing: sub, data: { ...sub, grade: 90, studentId: OTHER } });
 t('learner cannot grade themselves', 'DENY', LRN, 'update', S, { existing: sub, data: { ...sub, grade: 100 } });

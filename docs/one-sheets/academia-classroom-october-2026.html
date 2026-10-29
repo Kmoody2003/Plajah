@@ -1,0 +1,136 @@
+<title>Academia Classroom Updates</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@500;700;800&family=Source+Sans+3:wght@400;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: one sheet organised like a teacher's day — a bell-schedule rail (before / during / after class / all year) with the updates that help at each point */
+:root {
+  --ground: #E4ECE7;
+  --sheet: #FCFDFB;
+  --ink: #15241D;
+  --muted: #56675E;
+  --rule: #D6E2DA;
+  --green: #1E8A63;
+  --green-soft: #E2F3EB;
+  --band: #10382A;
+  --band-ink: #EAF6F0;
+  --f-display: "Schibsted Grotesk", "Segoe UI", system-ui, sans-serif;
+  --f-body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --ground: #070D0A; --sheet: #111A15; --ink: #E7F1EB; --muted: #9DB0A5; --rule: #23332A;
+  --green: #4FCB9C; --green-soft: #173327; --band: #0B2A1F; --band-ink: #EAF6F0;
+  color-scheme: dark } }
+:root[data-theme="dark"] {
+  --ground: #070D0A; --sheet: #111A15; --ink: #E7F1EB; --muted: #9DB0A5; --rule: #23332A;
+  --green: #4FCB9C; --green-soft: #173327; --band: #0B2A1F; --band-ink: #EAF6F0;
+  color-scheme: dark }
+
+* { box-sizing: border-box }
+body { background: var(--ground); color: var(--ink); font: 400 15px/1.5 var(--f-body);
+  padding-block: 32px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.sheet { max-width: 880px; margin: 0 auto; background: var(--sheet); border-radius: 6px; overflow: hidden;
+  box-shadow: 0 1px 2px rgba(0,0,0,.05), 0 12px 40px rgba(10,40,28,.10); }
+
+.mast { background: var(--band); color: var(--band-ink); padding: 32px 40px 28px; }
+.mast .kicker { font: 600 12px/1 var(--f-body); letter-spacing: .08em; text-transform: uppercase; color: #8FE3C0; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap }
+.mast h1 { font: 800 42px/1.04 var(--f-display); margin: 14px 0 0; letter-spacing: -.015em; max-width: 18ch; text-wrap: balance }
+.mast p { margin: 12px 0 0; max-width: 64ch; color: #C9E3D7; font-size: 16px }
+
+.day { display: grid; grid-template-columns: 132px minmax(0, 1fr); }
+.period { display: contents }
+.bell { padding: 22px 0 22px 40px; border-bottom: 1px solid var(--rule); }
+.bell .time { font: 500 12px/1 var(--f-mono); color: var(--green); letter-spacing: .02em }
+.bell h2 { font: 700 18px/1.15 var(--f-display); margin: 6px 0 0 }
+.items { padding: 22px 40px 22px 24px; border-bottom: 1px solid var(--rule); border-left: 2px solid var(--green-soft);
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 28px; min-width: 0 }
+.item h3 { font: 700 15px/1.25 var(--f-display); margin: 0 0 3px }
+.item p { margin: 0; font-size: 14px; color: var(--muted); line-height: 1.45 }
+.tag { display: inline-block; font: 600 11px/1 var(--f-body); padding: 3px 6px; border-radius: 4px; margin-left: 4px; vertical-align: 2px;
+  background: var(--green-soft); color: var(--green); white-space: nowrap }
+
+.promise { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-bottom: 1px solid var(--rule) }
+.promise div { padding: 20px 24px; border-right: 1px solid var(--rule); min-width: 0 }
+.promise div:first-child { padding-left: 40px }
+.promise div:last-child { border-right: 0; padding-right: 40px }
+.promise b { display: block; font: 700 15px/1.2 var(--f-display); margin-bottom: 4px }
+.promise span { font-size: 13.5px; color: var(--muted) }
+
+.foot { padding: 16px 40px 20px; display: flex; flex-wrap: wrap; gap: 6px 20px; font-size: 12.5px; color: var(--muted) }
+.foot b { color: var(--ink); font-weight: 600 }
+
+@media (max-width: 720px) {
+  .day { grid-template-columns: minmax(0, 1fr) }
+  .bell { padding: 20px 20px 0; border-bottom: 0 }
+  .items { grid-template-columns: minmax(0, 1fr); padding: 12px 20px 20px; border-left: 0 }
+  .promise { grid-template-columns: minmax(0, 1fr) }
+  .promise div, .promise div:first-child, .promise div:last-child { padding: 16px 20px; border-right: 0; border-bottom: 1px solid var(--rule) }
+  .promise div:last-child { border-bottom: 0 }
+  .mast { padding: 24px 20px }
+  .mast h1 { font-size: 32px }
+  .foot { padding: 16px 20px }
+}
+@media (max-width: 520px) { body { padding-block: 16px } }
+</style>
+
+<article class="sheet">
+  <header class="mast">
+    <div class="kicker"><span>Plajah Academia · Classroom release</span><span>October 2026</span></div>
+    <h1>Less time running the class. More time teaching it.</h1>
+    <p>This release focuses on the daily work of operating a classroom: planning the week, handing out and collecting work, grading fairly, supporting every learner and keeping families informed. It works from a teacher's phone as well as a desk.</p>
+  </header>
+
+  <section class="day">
+    <div class="period">
+      <div class="bell"><div class="time">BEFORE CLASS</div><h2>Plan and prepare</h2></div>
+      <div class="items">
+        <div class="item"><h3>A full year, already laid out</h3><p>K–8 Math and ELA in 180 days, aligned to Common Core with international crosswalks. Each day becomes a printable or digital worksheet with its own teacher key.</p></div>
+        <div class="item"><h3>Worksheets that adapt</h3><p>Generate easier or harder versions of the same skill for different groups, with 108 original reading passages.</p></div>
+        <div class="item"><h3>Bring in what you already use</h3><p>Drop files, links or photos of paper into Tela Classwork. Each one becomes an assignment, and its answer key is paired automatically.</p></div>
+        <div class="item"><h3>Templates you can share</h3><p>Save lessons and flyers to a template library. Sharing across the school is off by default, and student and school details are stripped first.</p></div>
+      </div>
+    </div>
+
+    <div class="period">
+      <div class="bell"><div class="time">DURING CLASS</div><h2>Teach and assign</h2></div>
+      <div class="items">
+        <div class="item"><h3>Teacher Tools on your real classes</h3><p>Pick a class and its real roster loads, with gradebook, planning, reports and assessment on one screen.</p></div>
+        <div class="item"><h3>Run it from your phone</h3><p>Teacher and student hubs switch to tabs on a phone, such as Today, Classes, Review and Tools. A slide-out menu opens every tool, and buttons are sized for thumbs.</p></div>
+        <div class="item"><h3>Paper scanner</h3><p>Photograph a blank worksheet and the key is built for you and matched to the class in use. Students scan their finished paper to check it and turn it in.</p></div>
+        <div class="item"><h3>Supports that follow the learner</h3><p>IEP and 504 plans, or supports with no diagnosis needed. Read-aloud, a reading ruler and break timers switch on in every lesson.</p></div>
+      </div>
+    </div>
+
+    <div class="period">
+      <div class="bell"><div class="time">AFTER CLASS</div><h2>Review and grade</h2></div>
+      <div class="items">
+        <div class="item"><h3>One review queue</h3><p>Turned-in work lands in a single queue. Approve it with a grade or send it back with notes.</p></div>
+        <div class="item"><h3>Grading that can be trusted</h3><p>Answer keys never reach student devices. Work is checked and scored on the server, and students can't change their own scores. <span class="tag">Rolling out</span></p></div>
+        <div class="item"><h3>No made-up numbers</h3><p>A student with no evidence yet shows a dash, not an invented score. Sample data appears only on the labelled sample class.</p></div>
+        <div class="item"><h3>Assessments that save</h3><p>Recording a student's mastery now saves reliably for the teacher. Before this release, those saves could fail without warning.</p></div>
+      </div>
+    </div>
+
+    <div class="period">
+      <div class="bell"><div class="time">ALL WEEK</div><h2>Keep everyone in the loop</h2></div>
+      <div class="items">
+        <div class="item"><h3>Announcements with living flyers</h3><p>Post to a class, all members or the public, with polls and surveys built in.</p></div>
+        <div class="item"><h3>School papers onto the calendar</h3><p>Scan a flyer or permission slip and its dates go onto student and family calendars, along with worksheet due dates. <span class="tag">Rolling out</span></p></div>
+        <div class="item"><h3>Meetings for conferences and staff</h3><p>Schedule a meeting with a guest link for families, then record it with captions and a recap. <span class="tag">Rolling out</span></p></div>
+        <div class="item"><h3>Quiet hours</h3><p>Mute a class chat or set quiet hours so messages wait until morning. Mentions still get through. <span class="tag">Rolling out</span></p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="promise">
+    <div><b>Private by default</b><span>Support plans stay off feeds and profiles. The learner's own voice leads the plan.</span></div>
+    <div><b>Safe for minors</b><span>Student journalists publish through teacher approval, print and class newsletters. Children never post publicly.</span></div>
+    <div><b>Real data only</b><span>Real classes show real rosters and real evidence. Nothing is filled in to look busy.</span></div>
+  </section>
+
+  <footer class="foot">
+    <span><b>Also in Academia:</b> the School of Journalism with a student newsroom, the Conservatory's Ear Gym and Music Math, and an Art College with 53 courses and museum study.</span>
+    <span><b>Rolling out</b> means the feature is built and live in the app, and its final permission update is still being deployed.</span>
+  </footer>
+</article>

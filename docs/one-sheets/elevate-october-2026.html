@@ -1,0 +1,162 @@
+<title>Elevate October Updates</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Inter:wght@400;500;600&family=Newsreader:ital,opsz@1,6..72&display=swap">
+<style>
+/* Layout: one letter-shaped sheet — dark Vellum masthead, six function blocks in a 3×2 grid, a status strip at the foot */
+:root {
+  --ground: #E9E4DA;
+  --sheet: #FBF8F2;
+  --ink: #221C14;
+  --muted: #6A5F52;
+  --rule: #DDD3C2;
+  --violet: #6D3FD6;
+  --violet-soft: #EEE7FB;
+  --gold: #7A5C22;
+  --chrome: #0E0C13;
+  --chrome-ink: #F4EEE2;
+  --ember: #C2611E;
+  --f-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body: "Inter", "Segoe UI", system-ui, sans-serif;
+  --f-word: "Newsreader", Georgia, serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --ground: #08070B; --sheet: #18141F; --ink: #F1ECF6; --muted: #A79DB4; --rule: #2E2738;
+  --violet: #A98BF5; --violet-soft: #2A2140; --gold: #E2C27E; --chrome: #0E0C13; --chrome-ink: #F4EEE2; --ember: #FF8C3A;
+  color-scheme: dark } }
+:root[data-theme="dark"] {
+  --ground: #08070B; --sheet: #18141F; --ink: #F1ECF6; --muted: #A79DB4; --rule: #2E2738;
+  --violet: #A98BF5; --violet-soft: #2A2140; --gold: #E2C27E; --chrome: #0E0C13; --chrome-ink: #F4EEE2; --ember: #FF8C3A;
+  color-scheme: dark }
+
+* { box-sizing: border-box }
+body { background: var(--ground); color: var(--ink); font: 400 14px/1.5 var(--f-body);
+  padding-block: 32px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.sheet { max-width: 880px; margin: 0 auto; background: var(--sheet); border-radius: 6px; overflow: hidden;
+  box-shadow: 0 1px 2px rgba(0,0,0,.06), 0 12px 40px rgba(20,12,30,.10); }
+
+.mast { background: var(--chrome); color: var(--chrome-ink); padding: 32px 40px 28px; display: grid; grid-template-columns: 1fr auto; gap: 8px 24px; align-items: end; }
+.mast .kicker { grid-column: 1 / -1; font: 600 12px/1 var(--f-body); letter-spacing: .08em; text-transform: uppercase; color: #B9A6F2; }
+.mast h1 { font: 700 44px/1.02 var(--f-display); margin: 0; letter-spacing: -.01em; text-wrap: balance }
+.mast h1 em { font-style: normal; color: #B9A6F2 }
+.mast .date { font: 500 13px/1.4 var(--f-body); color: #CFC6DA; text-align: right; white-space: nowrap }
+.mast p { grid-column: 1 / -1; margin: 10px 0 0; max-width: 62ch; color: #DCD4E6; font-size: 15px }
+
+.grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.block { padding: 24px 28px 26px; border-right: 1px solid var(--rule); border-bottom: 1px solid var(--rule); min-width: 0 }
+.block:nth-child(3n) { border-right: 0 }
+.block h2 { font: 700 19px/1.15 var(--f-display); margin: 0 0 4px; }
+.block .who { font: 600 12px/1.3 var(--f-body); color: var(--violet); margin: 0 0 12px; letter-spacing: .02em }
+.block ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px }
+.block li { padding-left: 14px; position: relative; font-size: 13.5px; line-height: 1.45 }
+.block li::before { content: ""; position: absolute; left: 0; top: .62em; width: 5px; height: 5px; border-radius: 50%; background: var(--violet) }
+.block li b { font-weight: 600 }
+.tag { display: inline-block; font: 600 11px/1 var(--f-body); padding: 3px 6px 3px; border-radius: 4px; margin-left: 4px; vertical-align: 1px;
+  background: var(--violet-soft); color: var(--violet); white-space: nowrap }
+
+.principle { padding: 22px 40px; display: grid; grid-template-columns: auto 1fr; gap: 20px; align-items: center; border-bottom: 1px solid var(--rule) }
+.principle .quote { font: italic 22px/1.25 var(--f-word); color: var(--gold); max-width: 20ch }
+.principle p { margin: 0; color: var(--muted); font-size: 13.5px; max-width: 60ch }
+
+.foot { padding: 16px 40px 20px; display: flex; flex-wrap: wrap; gap: 6px 20px; font-size: 12px; color: var(--muted); }
+.foot b { color: var(--ink); font-weight: 600 }
+
+@media (max-width: 760px) {
+  .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) }
+  .block:nth-child(3n) { border-right: 1px solid var(--rule) }
+  .block:nth-child(2n) { border-right: 0 }
+}
+@media (max-width: 520px) {
+  body { padding-block: 16px }
+  .mast { padding: 24px 20px; grid-template-columns: 1fr }
+  .mast h1 { font-size: 34px }
+  .mast .date { text-align: left }
+  .grid { grid-template-columns: minmax(0, 1fr) }
+  .block, .block:nth-child(3n) { border-right: 0; padding: 20px }
+  .principle { grid-template-columns: 1fr; padding: 20px; gap: 8px }
+  .foot { padding: 16px 20px }
+}
+</style>
+
+<article class="sheet">
+  <header class="mast">
+    <div class="kicker">Plajah Elevate · Release highlights</div>
+    <h1>Run the whole organization <em>from one place.</em></h1>
+    <div class="date">October 2026</div>
+    <p>Elevate now covers the work an organization does every week: bringing people in, keeping teams talking, leading worship, handling money, finding funding and teaching. It's built for churches, faith communities, nonprofits, charities and cultural institutions.</p>
+  </header>
+
+  <section class="grid">
+    <div class="block">
+      <h2>Onboard everyone at once</h2>
+      <div class="who">For admins and office staff</div>
+      <ul>
+        <li><b>Seats ready before people arrive.</b> Import a member or staff list and every person gets a reserved account.</li>
+        <li><b>Self-claim.</b> Members claim their seat with a member ID and last name, or their own email. The server checks the match.</li>
+        <li><b>Join link and QR code</b> for bulletins, screens and signs.</li>
+        <li><b>Staff from payroll.</b> Import from a file export, Paychex Flex, or any provider through Finch. Pay data is never copied.</li>
+      </ul>
+    </div>
+    <div class="block">
+      <h2>Keep teams talking</h2>
+      <div class="who">For staff, departments and volunteers</div>
+      <ul>
+        <li><b>A chat channel for every department</b>, plus its rooms, created automatically and kept in step with who serves where.</li>
+        <li><b>Public and Members feeds.</b> One switch on the org page; members-only posts are tinted violet and locked. <span class="tag">Rolling out</span></li>
+        <li><b>Huddles and scheduled meetings</b> with calendar invites and browser guest links that wait in a lobby.</li>
+        <li><b>Recordings, captions and recaps</b> for meetings, kept on the device by default. <span class="tag">Rolling out</span></li>
+      </ul>
+    </div>
+    <div class="block">
+      <h2>Lead worship</h2>
+      <div class="who">For pastors and worship teams</div>
+      <ul>
+        <li><b>Sermon Prep.</b> Text, study, outline, script, then a large-type Preach mode with a timer that keeps the screen awake.</li>
+        <li><b>Phone Bible that follows the service.</b> The reader turns to each Scripture cue live, in the member's own translation.</li>
+        <li><b>Clean screens.</b> Profanity is left out of on-screen transcription and lyrics. Operators still see the raw feed.</li>
+        <li><b>Wording that fits the tradition.</b> Service and prayer labels follow the church's denomination.</li>
+      </ul>
+    </div>
+    <div class="block">
+      <h2>Handle the money</h2>
+      <div class="who">For treasurers and finance teams</div>
+      <ul>
+        <li><b>Giving statements as PDFs</b>, emailed in batches to the right household.</li>
+        <li><b>Gift receipts</b> sent automatically after online gifts.</li>
+        <li><b>My Giving</b> lets members download their own statements.</li>
+        <li><b>Restricted-fund guardrail.</b> Spending can't exceed a restricted fund's balance, and releases post as journal entries.</li>
+        <li><b>Payout account locked.</b> Only a platform admin can change where online gifts are paid out. <span class="tag">Rolling out</span></li>
+      </ul>
+    </div>
+    <div class="block">
+      <h2>Find funding</h2>
+      <div class="who">For directors and grant writers</div>
+      <ul>
+        <li><b>Grant Matcher</b> searches Grants.gov and federal open data and ranks results by relevance to your mission.</li>
+        <li><b>Grant workspace with Aria.</b> A readiness interview, then drafts and PDF prefill from your saved profile.</li>
+        <li><b>A five-seat review council</b> scores each draft before you submit it.</li>
+        <li><b>Grant School</b>, a 30-lesson course for first-time applicants.</li>
+      </ul>
+    </div>
+    <div class="block">
+      <h2>Teach and form</h2>
+      <div class="who">For Christian Ed and program leaders</div>
+      <ul>
+        <li><b>Class clubs.</b> Each class has a feed, lessons, work, a live room and a people list, joined with a code.</li>
+        <li><b>Classwork in Tela.</b> Files, links and scanned pages become assignments, and answer keys are paired automatically.</li>
+        <li><b>Announcements with living flyers</b>, polls and surveys.</li>
+        <li><b>A shared template library.</b> Sharing is off by default, and org details are stripped from anything shared.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="principle">
+    <div class="quote">Real organizations see only their own real data.</div>
+    <p>A new org page starts honestly empty. It shows no sample people, schedules or viewer counts. Grant drafts never invent a fact and never fill a signature or certification. Sample content lives only on the Grace Chapel demo.</p>
+  </section>
+
+  <footer class="foot">
+    <span><b>Also new:</b> a calmer Vellum look across org, member, staff and volunteer screens, a phone pass with larger tap targets, and a landing page with a tab for each kind of organization.</span>
+    <span><b>Rolling out</b> means the feature is built and live in the app, and its final permission update is still being deployed.</span>
+  </footer>
+</article>

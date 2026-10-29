@@ -540,9 +540,12 @@ service cloud.firestore {
     match /hqAuditLog/{entryId} {
       allow read, write: if false;
     }
-    // Church education programs (Sunday school / Bible study plans). Anyone signed in can read; only the church's admins write.
+    // Church education programs (Sunday school / Bible study plans). A class carries its roster, weekly plan and
+    // class chat, so only its teachers, its enrolled students and the church's people staff read it — a student
+    // lists theirs with where('studentUids', 'array-contains', uid). Only the church's admins write.
     match /churchPrograms/{programId} {
-      allow read: if isAuthenticated();
+      allow read: if isAuthenticated() && (request.auth.uid in resource.data.get('teacherUids', []) ||
+        request.auth.uid in resource.data.get('studentUids', []) || chmsPeopleStaff(resource.data.orgId) || isAdmin());
       allow create, update: if isAuthenticated() && request.resource.data.createdBy == request.auth.uid
         && (request.auth.uid in get(/databases/$(database)/documents/organizations/$(request.resource.data.orgId)).data.admins
             || request.auth.uid == get(/databases/$(database)/documents/organizations/$(request.resource.data.orgId)).data.creatorId);

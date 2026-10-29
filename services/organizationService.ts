@@ -237,8 +237,22 @@ export async function recomputeOrgStaffUids(orgId: string): Promise<void> {
  * memberships by random id, so thread-comment rules key on this marker (ACTIVE members only, plus
  * the ministry ids they belong to for DEPARTMENT threads). Derived from orgMemberships — best-effort.
  * Call after ANY membership create/accept/remove/role-or-ministry change (exported for elevateService).
+ * The server rebuilds it (routes/elevateAccounts.ts /sync-index) — rules refuse a member writing their own
+ * marker, since that would let anyone grant themselves members-only and department access. The client write
+ * below is the fallback for org admins/pastors when the API is unreachable.
  */
 export async function syncMemberIndex(orgId: string, uid: string): Promise<void> {
+  try {
+    const token = await auth.currentUser?.getIdToken().catch(() => null);
+    if (token) {
+      const r = await fetch('/api/elevate/claim/sync-index', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ orgId, uid }),
+      });
+      if (r.ok) return;
+    }
+  } catch { /* API unreachable — try the direct write */ }
   try {
     const snap = await getDocs(query(collection(db, 'orgMemberships'), where('orgId', '==', orgId), where('userId', '==', uid)));
     const active = snap.docs.map(d => d.data() as OrgMembership).filter(m => m.status === 'ACTIVE');

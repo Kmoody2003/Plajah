@@ -53,6 +53,15 @@ const policyMocks = p => p
 const cases = [];
 const t = (name, expect, who, method, path, { data, existing, policy } = {}) => cases.push({ name, expect, who, method, path, data, existing, policy });
 
+// ── Classes: roster, weekly plan and class chat — the class's own people + church staff only ──
+const CP = `${DB}/churchPrograms/c1`;
+const prog = { ...PROGRAM, id: 'c1', name: 'Youth Bible Study', createdBy: OWNER, chatMessages: [{ text: 'hi' }] };
+t('enrolled student reads their class', 'ALLOW', STUDENT, 'get', CP, { existing: prog });
+t('class teacher reads their class', 'ALLOW', TEACHER, 'get', CP, { existing: prog });
+t('church staff reads any class', 'ALLOW', STAFF, 'get', CP, { existing: prog });
+t('congregant not in the class cannot read it', 'DENY', MEMBER, 'get', CP, { existing: prog });
+t('stranger cannot read a class', 'DENY', OTHER, 'get', CP, { existing: prog });
+
 // ── Answer keys: teachers only ─────────────────────────────────────────────
 const K = `${DB}/churchEduAnswerKeys/as1`;
 const key = { assignmentId: 'as1', programId: 'c1', orgId: 'o1', keys: { q1: { correctAnswer: 'B' } } };

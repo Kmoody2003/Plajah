@@ -50,6 +50,9 @@ async function signerEmail(): Promise<string | null> {
 // ── OAuth access token (cloud-platform scope) — SA key, else ADC metadata ─────────
 let _token: { token: string; exp: number } | null = null;
 export async function getAccessToken(): Promise<string | null> {
+  // Local maintenance scripts may run as the operator's own Firebase CLI login instead of a key
+  // (scripts/migrateClassroomCoursework.ts --firebase-login). Never set on the server.
+  if (process.env.ADMIN_REST_ACCESS_TOKEN) return process.env.ADMIN_REST_ACCESS_TOKEN;
   if (_token && Date.now() < _token.exp - 120_000) return _token.token;
   const sa = serviceAccount();
   if (sa) {
@@ -231,6 +234,16 @@ export async function fsGet(path: string): Promise<Record<string, any> | null> {
     const data = await res.json() as any;
     return data.fields ? fromFields(data.fields) : {};
   } catch { return null; }
+}
+
+/** Like fsGet, but only a real 404 reads as "missing" — any other failure THROWS. For migrations, where
+ *  mistaking a failed read for an absent doc would overwrite data. */
+export async function fsGetStrict(path: string): Promise<Record<string, any> | null> {
+  const res = await fetch(`${baseFor(path)}/${path}`, { headers: await authHeaders() });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`GET ${path} failed: HTTP ${res.status} ${(await res.text()).slice(0, 200)}`);
+  const data = await res.json() as any;
+  return data.fields ? fromFields(data.fields) : {};
 }
 
 /** Create-or-replace a document at a known id. Returns success. */

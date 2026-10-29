@@ -77,6 +77,7 @@ config/film_vault_config.json
 
 # Undo files written by scripts/clearFillerDescriptions.ts — keep them locally, never commit
 filler-descriptions-backup-*.json
+classroom-coursework-backup-*.json
 
 # Rust OFX shell build output
 rust/fabula-ofx/target/
