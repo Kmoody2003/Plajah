@@ -30,6 +30,17 @@ const DEFAULT_SIZE: Record<string, { w: number; h: number }> = {
   pneuma: { w: 720, h: 620 },
 };
 
+/** Fit a window inside the screen: no taller or wider than it, top edge moved up so the bottom shows. */
+function fitToScreen(g: Geometry): Geometry {
+  const w = Math.max(420, Math.min(g.w, window.innerWidth - 16));
+  const h = Math.max(320, Math.min(g.h, window.innerHeight - 16));
+  return {
+    w, h,
+    x: Math.max(8, Math.min(g.x, window.innerWidth - w - 8)),
+    y: Math.max(8, Math.min(g.y, window.innerHeight - h - 8)),
+  };
+}
+
 function loadGeo(type: InstrumentType): Geometry | null {
   try {
     const all = JSON.parse(localStorage.getItem(GEO_KEY) || '{}') as Record<string, Geometry>;
@@ -60,7 +71,8 @@ export const InstrumentWindow: React.FC<Props> = ({ doc, track, onMutate, onClos
 
   const [geo, setGeo] = useState<Geometry>(() => {
     const saved = loadGeo(type);
-    if (saved) return saved;
+    // A size saved on a bigger screen (or before the window was resized) mustn't hang off this one.
+    if (saved) return fitToScreen(saved);
     const d = DEFAULT_SIZE[type] ?? { w: 900, h: 660 };
     const w = Math.min(d.w, window.innerWidth - 48);
     const h = Math.min(d.h, window.innerHeight - 96);
@@ -72,10 +84,17 @@ export const InstrumentWindow: React.FC<Props> = ({ doc, track, onMutate, onClos
 
   const clamp = (g: Geometry): Geometry => ({
     w: Math.max(420, Math.min(g.w, window.innerWidth - 16)),
-    h: Math.max(320, Math.min(g.h, window.innerHeight - 24)),
+    // Never taller than the room below its top edge, so its scrolling body always reaches the bottom.
+    h: Math.max(320, Math.min(g.h, window.innerHeight - Math.max(0, g.y) - 8)),
     x: Math.max(-g.w + 120, Math.min(g.x, window.innerWidth - 120)),
     y: Math.max(0, Math.min(g.y, window.innerHeight - 48)),
   });
+  // The browser window shrinking (or the app resizing) refits it.
+  useEffect(() => {
+    const onResize = () => setGeo((g) => fitToScreen(g));
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   const startDrag = (mode: 'move' | 'resize') => (e: React.PointerEvent) => {
     // Buttons/inputs in the title bar keep their own gestures.
@@ -270,7 +289,7 @@ export const InstrumentWindow: React.FC<Props> = ({ doc, track, onMutate, onClos
 
       {/* panel body — the instrument's own play surface. `relative` so deep editors that
           position absolute inset-0 fill the window, not the page. */}
-      <div className="relative flex-1 min-h-0 flex flex-col">
+      <div className="relative flex-1 min-h-0 flex flex-col overflow-y-auto overflow-x-hidden custom-scrollbar">
         {children}
       </div>
 
