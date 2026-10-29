@@ -8,6 +8,7 @@
 //   npx tsx scripts/band/designBandVoices.ts amara theo      # just these
 //   npx tsx scripts/band/designBandVoices.ts amara --pick 2  # re-save amara from preview 2 (previews kept)
 //   npx tsx scripts/band/designBandVoices.ts --force         # redo everyone
+//   npx tsx scripts/band/designBandVoices.ts corny --new     # fresh previews only (pick one in voicePicker)
 //
 // Key: ELEVENLABS_API_KEY (environment or .env.local). Never printed.
 
@@ -56,6 +57,7 @@ async function saveVoice(name: string, description: string, generatedId: string)
 async function main() {
   const args = process.argv.slice(2);
   const force = args.includes('--force');
+  const fresh = args.includes('--new');
   const pickAt = args.indexOf('--pick');
   const pick = pickAt >= 0 ? Number(args[pickAt + 1]) : 0;
   const ids = args.filter((a, i) => !a.startsWith('--') && !(pickAt >= 0 && i === pickAt + 1));
@@ -64,6 +66,14 @@ async function main() {
 
   for (const b of VOICE_BRIEFS) {
     if (ids.length && !ids.includes(b.id)) continue;
+    if (fresh) {
+      if (!ids.includes(b.id)) continue;
+      const list = await previews(b.prompt, b.preview);
+      list.forEach((pv, n) => fs.writeFileSync(path.join(PREVIEWS, `${b.id}-${n}.mp3`), Buffer.from(pv.audio, 'base64')));
+      fs.writeFileSync(path.join(PREVIEWS, `${b.id}.json`), JSON.stringify(list.map((pv) => ({ id: pv.id })), null, 1));
+      console.log(`${b.id}: ${list.length} new previews — pick one in the voice picker`);
+      continue;
+    }
     if (done[b.id] && !force && !(ids.includes(b.id) && pickAt >= 0)) { console.log(`${b.id}: already designed (${done[b.id].name})`); continue; }
     const p = playerById(b.id);
     const name = `Plajah Band · ${p?.name ?? b.id}`;

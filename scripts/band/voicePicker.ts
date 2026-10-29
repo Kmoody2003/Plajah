@@ -20,14 +20,17 @@ const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&l
 
 async function page(): Promise<string> {
   const { VOICE_BRIEFS } = await import('../../services/melos/beats/band/character/voiceDesign');
-  const saved: Record<string, { preview: number; name: string }> = fs.existsSync(JSON_PATH) ? JSON.parse(fs.readFileSync(JSON_PATH, 'utf8')) : {};
+  const saved: Record<string, { preview: number; name: string; designedAt?: string }> = fs.existsSync(JSON_PATH) ? JSON.parse(fs.readFileSync(JSON_PATH, 'utf8')) : {};
   let h = `<!doctype html><meta charset=utf-8><title>Band voice picker</title><style>
 body{font:14px system-ui;background:#111;color:#eee;padding:16px 20px;max-width:960px;margin:auto}h3{margin:20px 0 4px}p{color:#aaa;margin:2px 0 8px;font-size:12px}
 .who{display:flex;gap:14px;align-items:flex-start;margin-top:22px}.who img{width:132px;height:132px;border-radius:14px;object-fit:cover;flex:none;border:2px solid #333}.who h3{margin:0 0 4px}.row{display:flex;gap:10px;flex-wrap:wrap}.c{padding:8px;border:1px solid #333;border-radius:10px;display:flex;flex-direction:column;gap:6px}.c.s{border-color:#E86A33;background:#E86A3314}
 button{background:#E86A33;color:#000;border:0;border-radius:6px;padding:5px 10px;font-weight:700;cursor:pointer}button:disabled{opacity:.4;cursor:default}.msg{color:#7DD3FC;font-size:12px;min-height:1em}</style>
 <h2>Session Band voice picker</h2><p>Listen, then press <b>Use this voice</b> on the one you like — it becomes that character's voice in ElevenLabs. The outlined one is the current voice.</p>`;
   for (const b of VOICE_BRIEFS) {
-    const cur = saved[b.id]?.preview;
+    // Previews made after the voice was saved (designBandVoices --new) are a new set: none is current yet.
+    const idsFile = path.join(DIR, `${b.id}.json`);
+    const fresh = saved[b.id] && fs.existsSync(idsFile) && fs.statSync(idsFile).mtimeMs > Date.parse(saved[b.id].designedAt ?? '') + 1000;
+    const cur = fresh ? undefined : saved[b.id]?.preview;
     h += `<div class="who"><img src="/portrait/${b.id}.webp" alt="${esc(saved[b.id]?.name ?? b.id)}"><div><h3>${esc(saved[b.id]?.name ?? b.id)}</h3><p>${esc(b.prompt)}</p><div class="row">`;
     for (let n = 0; n < 3; n++) {
       if (!fs.existsSync(path.join(DIR, `${b.id}-${n}.mp3`))) continue;
