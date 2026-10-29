@@ -213,6 +213,12 @@ service firebase.storage {
       allow write: if isAdmin();
     }
 
+    // ── Public-domain sheet music copies (scripts/scores/mirrorScores.mts) ────
+    match /scores/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     // ── Two-way (walkie-talkie) transmissions ─────────────────────────────────
     // Short audio PTT clips, evicted by the rolling 5-buffer. Audio only, ≤10 MB.
     // pairId = the two participants' uids sorted and joined with '__' (walkieService.pairId),

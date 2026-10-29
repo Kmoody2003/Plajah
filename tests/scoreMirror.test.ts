@@ -1,8 +1,7 @@
-// Score mirror: the public file route must only follow the two upstream hosts, only accept
-// catalogue-shaped keys, and the catalogue must fall back to the source for unmirrored files.
+// Score mirror: mirrored files resolve to Firebase Storage under scores/, and the catalogue
+// falls back to the source for unmirrored files.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { allowedSource, validScoreKey } from '../routes/scoreFiles';
 import { mirrorKey, scoreFileUrl, type ScoreEntry } from '../services/scoreCatalog';
 import { creditsText, estimatePackBytes } from '../services/scorePack';
 
@@ -16,33 +15,13 @@ const mutopia: ScoreEntry = {
   mirrored: ['pdf'],
 };
 
-test('only the catalogue upstreams are followed', () => {
-  assert.ok(allowedSource('https://www.mutopiaproject.org/ftp/BachJS/x.pdf'));
-  assert.ok(allowedSource('https://raw.githubusercontent.com/OpenScore/Lieder/main/scores/a.mxl'));
-  assert.equal(allowedSource('https://raw.githubusercontent.com/evil/repo/main/a.mxl'), null);
-  assert.equal(allowedSource('https://evil.example/ftp/a.pdf'), null);
-  assert.equal(allowedSource('http://www.mutopiaproject.org/ftp/a.pdf'), null);
-  assert.equal(allowedSource('javascript:alert(1)'), null);
-  assert.equal(allowedSource(undefined), null);
-});
-
-test('keys must look like catalogue keys', () => {
-  assert.ok(validScoreKey(mirrorKey(mutopia, 'pdf')));
-  assert.ok(validScoreKey('scores/v1/openscore_lieder/osl-lc6583477.mxl'));
-  assert.equal(validScoreKey('meetings/plus/room/rec/seg_00001.webm'), false);
-  assert.equal(validScoreKey('scores/v1/mutopia/../../collab/x.pdf'), false);
-  assert.equal(validScoreKey('scores/v1/mutopia/x.exe'), false);
-});
-
-test('mirrored files go through our route with the source as fallback; others stay upstream', () => {
-  const cat = { mirror: { base: '/api/scores/file', bucket: 'plajah-dev', at: '' } };
-  const pdf = scoreFileUrl(cat, mutopia, 'pdf')!;
-  assert.match(pdf, /^\/api\/scores\/file\/scores\/v1\/mutopia\/mu-ComeauO-ellens-song\.pdf\?src=/);
-  assert.equal(decodeURIComponent(pdf.split('?src=')[1]), mutopia.pdfUrl);
+test('mirrored files come from Firebase Storage; others stay upstream', () => {
+  const cat = { mirror: { bucket: 'bkt.firebasestorage.app', at: '' } };
+  assert.equal(mirrorKey(mutopia, 'pdf'), 'scores/v1/mutopia/mu-ComeauO-ellens-song.pdf');
+  assert.equal(scoreFileUrl(cat, mutopia, 'pdf'),
+    'https://firebasestorage.googleapis.com/v0/b/bkt.firebasestorage.app/o/scores%2Fv1%2Fmutopia%2Fmu-ComeauO-ellens-song.pdf?alt=media');
   assert.equal(scoreFileUrl(cat, mutopia, 'midi'), mutopia.midiUrl); // not mirrored
   assert.equal(scoreFileUrl(null, mutopia, 'pdf'), mutopia.pdfUrl); // no mirror yet
-  assert.equal(scoreFileUrl({ mirror: { base: 'https://scores.plajah.com', bucket: 'plajah-public', at: '' } }, mutopia, 'pdf'),
-    'https://scores.plajah.com/scores/v1/mutopia/mu-ComeauO-ellens-song.pdf');
 });
 
 test('pack credits name the engraver and licence', () => {

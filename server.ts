@@ -57,7 +57,6 @@ import { templateShareRouter } from './routes/templateShare';
 import { worksheetGradingRouter, splitLegacyWorksheetKeys } from './routes/worksheetGrading';
 import { academiaClassRouter } from './routes/academiaClass';
 import { objectStoreRouter } from './routes/objectStore';
-import { scoreFilesRouter } from './routes/scoreFiles';
 import { createBusinessStaffRouter } from './routes/businessStaff';
 import { registerPermsFor as bizRegisterPermsFor, normalizePerms as normalizeBizPerms, type BizPerm } from './services/businessStaffCore';
 import { staffActorInfo as bizStaffActorInfo } from './services/businessStaffServerCore';
@@ -13785,9 +13784,6 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   // Private bucket (Backblaze B2): short-lived signed links after a membership check (routes/objectStore.ts).
   app.use('/api/object-store', rateLimit({ windowMs: 60 * 1000, max: 600, standardHeaders: true, legacyHeaders: false }));
   app.use('/api/object-store', express.json({ limit: '8kb' }), objectStoreRouter);
-  // Public sheet music: 302 to our mirrored copy in the bucket, or to the original source (routes/scoreFiles.ts).
-  app.use('/api/scores', rateLimit({ windowMs: 60 * 1000, max: 1200, standardHeaders: true, legacyHeaders: false }));
-  app.use('/api/scores', scoreFilesRouter);
   // Template library: sharing to the platform shelf is server-decided (org policy + real roles, stripping). Rate-limited.
   app.use('/api/templates/share', authLimiter);
   app.use('/api/templates/share', express.json({ limit: '1mb' }), templateShareRouter);

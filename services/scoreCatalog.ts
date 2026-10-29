@@ -60,8 +60,8 @@ export interface ScoreCatalog {
   builtAt: string;
   stats: { total: number; bySource: Record<ScoreSource, number>; traditional: number; noDeathYear: number };
   entries: ScoreEntry[];
-  /** Where mirrored files are publicly readable. Absent until the mirror has run. */
-  mirror?: { base: string; bucket: string; at: string };
+  /** Firebase Storage bucket holding Plajah's copies (public read under scores/). Absent until the mirror has run. */
+  mirror?: { bucket: string; at: string };
 }
 
 const KIND_EXT: Record<ScoreFileKind, string> = { pdf: '.pdf', pdfZip: '-parts.zip', mxl: '.mxl', midi: '.mid' };
@@ -73,17 +73,12 @@ const KIND_FIELD: Record<ScoreFileKind, 'pdfUrl' | 'pdfZipUrl' | 'mxlUrl' | 'mid
 export const mirrorKey = (e: Pick<ScoreEntry, 'id' | 'source'>, kind: ScoreFileKind): string =>
   `scores/v1/${e.source.toLowerCase()}/${e.id}${KIND_EXT[kind]}`;
 
-/**
- * Plajah's copy when there is one, otherwise the original source. A mirror base on our own
- * API (/api/scores/file, routes/scoreFiles.ts) carries the source along as `src`, so the
- * server can fall back to it if our bucket doesn't have the file.
- */
+/** Plajah's copy in Firebase Storage when there is one, otherwise the original source. */
 export function scoreFileUrl(catalog: Pick<ScoreCatalog, 'mirror'> | null, e: ScoreEntry, kind: ScoreFileKind): string | undefined {
   const source = e[KIND_FIELD[kind]];
   if (!source) return undefined;
   if (catalog?.mirror && e.mirrored?.includes(kind)) {
-    const url = `${catalog.mirror.base}/${mirrorKey(e, kind)}`;
-    return catalog.mirror.base.startsWith('/') ? `${url}?src=${encodeURIComponent(source)}` : url;
+    return `https://firebasestorage.googleapis.com/v0/b/${catalog.mirror.bucket}/o/${encodeURIComponent(mirrorKey(e, kind))}?alt=media`;
   }
   return source;
 }

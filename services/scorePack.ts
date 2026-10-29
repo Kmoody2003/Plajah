@@ -9,7 +9,7 @@
 //   • Anywhere else → one .zip download built in the browser (fflate, stored not
 //     re-compressed — PDFs and .mxl are already compressed).
 //
-// Files come from Plajah's mirror first (CORS-open), then the original source. Mutopia's own
+// Files come from Plajah's copy in Firebase Storage first (CORS-open), then the original source. Mutopia's own
 // site sends no CORS headers, so its files can only be packed once they are mirrored.
 //
 // Every pack carries CREDITS.txt: CC BY / BY-SA editions require crediting the engraver,
