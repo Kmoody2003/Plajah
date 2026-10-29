@@ -53,6 +53,7 @@ import OrgStoreSection from './elevate/OrgStoreSection';
 import HostEventsPublic from './events/HostEventsPublic';
 import OrgThread from './elevate/OrgThread';
 import OrgMediaShelves from './elevate/OrgMediaShelves';
+import RelloChurchViewer from './elevate/RelloChurchViewer';
 // Operations side + public rosters + Church Member Hub (lazy so the public page never blocks on them).
 const ElevateOps = lazy(() => import('./elevate/ElevateOps'));
 const ElevateRosters = lazy(() => import('./elevate/ElevateRosters'));
@@ -589,6 +590,22 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
       <EvTabs tabs={orgTabs.map(t => ({ k: t.k, label: t.label }))} value={ministryOpen ? null : tab} onChange={k => { setTab(k as ElevateOrgTab); setOpenMinistry(null); }} top={52} />
 
       <div className="max-w-[1240px] mx-auto px-4 sm:px-8 py-10 space-y-8">
+        {/* Reello player: full on Home, a floating mini player on every other tab so playback carries on.
+            Org-owned sources only (see services/orgMedia). */}
+        <RelloChurchViewer
+          org={org}
+          defaultPlayerExpanded={true}
+          viewerIsOrgMember={myMembership?.status === 'ACTIVE'}
+          compact={tab !== 'HOME' || !!ministryOpen}
+          onExpand={() => { setOpenMinistry(null); setTab('HOME'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+          onOpenOnAir={item => {
+            if (item.feed) {
+              if (onOpenLive) onOpenLive(item.feed);
+              else window.dispatchEvent(new CustomEvent('PLAY_LIVE_FEED', { detail: { feed: item.feed } }));
+            } else if (item.channel) onOpenChannel?.(item.channel.ownerId, item.channel.sourceId);
+          }}
+        />
+
         {applyFor && <ApplyModal posting={applyFor} orgName={org.name} onClose={() => setApplyFor(null)} />}
 
         <div key={openMinistry || tab} className="ev-fade space-y-8">
