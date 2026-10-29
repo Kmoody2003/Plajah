@@ -40,6 +40,12 @@ fn soft_clip(x: f32) -> f32 {
 
 pub const NUM_MEMBRANE_MODES: usize = 16;
 pub const NUM_SHELL_MODES: usize = 4;
+/// Noise bands standing in for the hundreds of skin modes above the 16 explicit ones. A real head
+/// is a dense, overlapping cloud of partials up there — modelling it as a few sharp sines is what
+/// made hide drums sound like struck metal bars.
+pub const NUM_CLOUD_BANDS: usize = 8;
+const CLOUD_SPACING: f32 = 1.42;
+const CLOUD_K: f32 = 0.62; // 1/Q — wide bands, so the cloud reads as texture, not pitches
 const AIR_WAVEGUIDE_LEN: usize = 128;
 const RIM_WAVEGUIDE_LEN: usize = 256;
 
@@ -218,6 +224,15 @@ pub struct SomaVoice {
     /// Degenerate orthogonal doublet states for (1,1), (2,1), (3,1) natural skin anisotropy beating
     doublet_w: [f32; 3],
     doublet_v: [f32; 3],
+    /// Upper skin-mode cloud: per-band TPT state-variable bandpass on noise, and its envelope.
+    cloud_ic1: [f32; NUM_CLOUD_BANDS],
+    cloud_ic2: [f32; NUM_CLOUD_BANDS],
+    cloud_a: [[f32; 3]; NUM_CLOUD_BANDS],
+    cloud_env: [f32; NUM_CLOUD_BANDS],
+    cloud_damp: [f32; NUM_CLOUD_BANDS],
+    cloud_ratio: [f32; NUM_CLOUD_BANDS],
+    /// How much of the strike reaches each band (striker spectrum × strike position), set at trigger.
+    cloud_tilt: [f32; NUM_CLOUD_BANDS],
     /// Macroscopic impact tension envelope + instantaneous Von Kármán strain energy
     impact_tension_env: f32,
     impact_tension_decay: f32,
@@ -304,6 +319,13 @@ impl SomaVoice {
             mode_v: [0.0; NUM_MEMBRANE_MODES],
             doublet_w: [0.0; 3],
             doublet_v: [0.0; 3],
+            cloud_ic1: [0.0; NUM_CLOUD_BANDS],
+            cloud_ic2: [0.0; NUM_CLOUD_BANDS],
+            cloud_a: [[0.0; 3]; NUM_CLOUD_BANDS],
+            cloud_env: [0.0; NUM_CLOUD_BANDS],
+            cloud_damp: [0.0; NUM_CLOUD_BANDS],
+            cloud_ratio: [8.0; NUM_CLOUD_BANDS],
+            cloud_tilt: [0.0; NUM_CLOUD_BANDS],
             impact_tension_env: 0.0,
             impact_tension_decay: 0.999,
             radiation_burst_env: 0.0,
@@ -357,6 +379,9 @@ impl SomaVoice {
         self.mode_v = [0.0; NUM_MEMBRANE_MODES];
         self.doublet_w = [0.0; 3];
         self.doublet_v = [0.0; 3];
+        self.cloud_ic1 = [0.0; NUM_CLOUD_BANDS];
+        self.cloud_ic2 = [0.0; NUM_CLOUD_BANDS];
+        self.cloud_env = [0.0; NUM_CLOUD_BANDS];
         self.impact_tension_env = 0.0;
         self.radiation_burst_env = 0.0;
         self.deflection_energy = 0.0;
@@ -382,6 +407,9 @@ impl SomaVoice {
             + self.res_head_v * self.res_head_v;
         for k in 0..NUM_MEMBRANE_MODES {
             e += self.mode_w[k] * self.mode_w[k] + self.mode_v[k] * self.mode_v[k];
+        }
+        for b in 0..NUM_CLOUD_BANDS {
+            e += self.cloud_env[b] * self.cloud_env[b];
         }
         e < 1e-9
     }
@@ -554,6 +582,33 @@ impl SomaVoice {
         self.pedal_ratio_smooth = (2.0f32).powf(pedal_semis / 12.0);
 
         self.recompute_modal_structure(params);
+
+        // Striker spectrum: the shorter the contact, the higher the skin modes it reaches. A felt
+        // mallet's few-ms contact barely touches the cloud; a bachi or fingertip lights it up.
+        let contact_fc = match striker_type {
+            0 => 350.0 + 2600.0 * eff_hardness * eff_hardness,
+            1 | 3 => 900.0 + 3400.0 * eff_hardness,
+            2 => 2200.0 + 5200.0 * eff_hardness,
+            _ => 2600.0 + 6500.0 * eff_hardness,
+        };
+        // Near the rim the high modes have their antinodes; the centre mostly drives the low ones.
+        let pos_gain = 0.35 + 1.1 * rho;
+        let base = self.base_freq_hz * self.pedal_ratio_smooth;
+        let top = self.sample_rate * 0.42;
+        for b in 0..NUM_CLOUD_BANDS {
+            let f = base * self.cloud_ratio[b];
+            if f >= top {
+                self.cloud_tilt[b] = 0.0;
+                self.cloud_a[b] = [0.0; 3];
+                continue;
+            }
+            let x = f / contact_fc;
+            self.cloud_tilt[b] = pos_gain / (1.0 + x * x);
+            let g = (core::f32::consts::PI * f * self.inv_sr).tan();
+            let a1 = 1.0 / (1.0 + g * (g + CLOUD_K));
+            let a2 = g * a1;
+            self.cloud_a[b] = [a1, a2, g * a2];
+        }
     }
 
     /// Updates modal frequency ratios and two-stage physical damping (Radiation + f^2 Viscoelastic Hide Loss).
@@ -600,6 +655,13 @@ impl SomaVoice {
         // At decay_norm = 0.72 (Timpani): base_t60 ~ 1.45s (-60 dB in 1.45s -> -25 dB at 500 ms, -42 dB at 1.0s)
         let base_t60 = (0.08 + 1.85 * decay_norm.powf(1.8)) * mat_t60_scale * chamber_t60_scale;
 
+        let hf_law = (0.55 + 1.6 * damp_hf) * mat_visc_f2;
+        let visc = |ratio: f32, radial_n: u8| -> f32 {
+            let excess = (ratio - 1.55).max(0.0);
+            1.0 + hf_law * (0.55 * excess.powf(1.25) + 0.9 * (radial_n.saturating_sub(1) as f32))
+        };
+        let slap_clamp_upper = match self.striker_type { 2 => 1.8, 3 => 5.2, _ => 1.0 };
+
         let ref_k = if cavity_type == 0 { 1usize } else { 0usize };
         let ref_stiff = (1.0 + mat_stiff_disp * (ref_k as f32) * (ref_k as f32)).sqrt();
 
@@ -628,10 +690,7 @@ impl SomaVoice {
             // QUADRATIC frequency-dependent viscoelastic loss above the (1,1) principal tone:
             // Modes (0,1) and (1,1) are the primary musical foundation of the drum (Doum/Bass & Open Tone);
             // modes above (1,1) experience Kelvin-Voigt collagen damping proportional to (ratio - 1.55)^2.
-            let overtone_excess = (ratio - 1.55).max(0.0);
-            let radial_n_penalty = ((MODE_N[k].saturating_sub(1)) as f32) * 1.35;
-            let visc_factor = 1.0
-                + (0.65 + 2.8 * damp_hf) * mat_visc_f2 * (overtone_excess * overtone_excess * 0.85 + radial_n_penalty);
+            let visc_factor = visc(ratio, MODE_N[k]);
 
             // Sealed kettle baffles the (0,1) monopole mode because there is no bottom vent hole
             let kettle_monopole_baffle = if cavity_type == 0 && k == 0 { 2.6 } else { 1.0 };
@@ -658,6 +717,24 @@ impl SomaVoice {
             let rad_eff = MODE_RAD_EFFICIENCY[k];
             let rad_rate = (3.0 + 5.5 * air_load) * rad_eff;
             self.mode_rad_loss[k] = (rad_rate * self.inv_sr).min(0.0006);
+        }
+
+        // The cloud starts just above the highest explicit mode and climbs in wide steps.
+        let mut top_ratio = 1.0f32;
+        for k in 0..NUM_MEMBRANE_MODES {
+            top_ratio = top_ratio.max(self.mode_ratio[k]);
+        }
+        for b in 0..NUM_CLOUD_BANDS {
+            let r = top_ratio * 1.08 * CLOUD_SPACING.powi(b as i32);
+            self.cloud_ratio[b] = r;
+            // High skin modes radiate and lose to the air fast on any drum — even a timpani's
+            // calfskin, whose low modes sing for seconds, has its top partials gone in ~100 ms.
+            let f_band = (self.base_freq_hz * r).max(100.0);
+            let air_cap = 0.09 * (1000.0 / f_band).sqrt();
+            let t60 = (base_t60 / ((1.0 + 0.5 * (visc(r, 1) - 1.0)) * slap_clamp_upper))
+                .min(air_cap)
+                .max(0.004);
+            self.cloud_damp[b] = (-(6.907_755 / t60) * self.inv_sr).exp();
         }
     }
 
@@ -883,6 +960,34 @@ impl SomaVoice {
             let pan = -self.mode_pan[k];
             top_skin_l += rad * (0.5 * (1.0 - pan)).sqrt();
             top_skin_r += rad * (0.5 * (1.0 + pan)).sqrt();
+        }
+
+        // Upper skin-mode cloud. Energy arrives with the strike's force transient (sharper contact →
+        // more), each band decays at the skin's own rate for its frequency, and the band itself is
+        // filtered noise — dense and pitchless, the way hundreds of overlapping partials sound.
+        let cloud_in = force_deriv.abs() * 0.55 + contact_force * 0.012 + transient_force.abs() * 0.35;
+        for b in 0..NUM_CLOUD_BANDS {
+            let tilt = self.cloud_tilt[b];
+            if tilt <= 0.0 && self.cloud_env[b] < 1e-7 {
+                continue;
+            }
+            let env = flush_denormal(self.cloud_env[b] * self.cloud_damp[b] + cloud_in * tilt * 0.3);
+            self.cloud_env[b] = env;
+            let [a1, a2, a3] = self.cloud_a[b];
+            let x = rng.bipolar();
+            let v3 = x - self.cloud_ic2[b];
+            let v1 = a1 * self.cloud_ic1[b] + a2 * v3;
+            let v2 = self.cloud_ic2[b] + a2 * self.cloud_ic1[b] + a3 * v3;
+            self.cloud_ic1[b] = flush_denormal(2.0 * v1 - self.cloud_ic1[b]);
+            self.cloud_ic2[b] = flush_denormal(2.0 * v2 - self.cloud_ic2[b]);
+            let out = CLOUD_K * v1 * env;
+            if b % 2 == 0 {
+                top_skin_l += out * 0.62;
+                top_skin_r += out * 0.38;
+            } else {
+                top_skin_l += out * 0.38;
+                top_skin_r += out * 0.62;
+            }
         }
 
         let e_coeff = if weighted_strain_energy > self.deflection_energy { 0.12 } else { 0.0025 };
