@@ -71,7 +71,21 @@ function prefOff(): boolean {
 
 /** Whether deep strikes can be produced here at all (WebGPU present, not switched off). */
 export function somaDeepSupported(): boolean {
-  return !prefOff() && !!(globalThis.navigator as Navigator & { gpu?: unknown })?.gpu;
+  return !prefOff() && somaDeepAvailable();
+}
+
+/** Whether this browser has WebGPU at all (the switch can't turn on without it). */
+export function somaDeepAvailable(): boolean {
+  return !!(globalThis.navigator as Navigator & { gpu?: unknown })?.gpu;
+}
+
+/** The user's switch (on unless turned off). Off: every strike plays on the CPU cloud. */
+export function somaDeepEnabled(): boolean {
+  return !prefOff();
+}
+
+export function setSomaDeepEnabled(on: boolean): void {
+  try { globalThis.localStorage?.setItem('chora.somaDeep', on ? 'on' : 'off'); } catch { /* private mode: stays on */ }
 }
 
 export function lookupDeep(paramsKey: string, note: number, velocity: number, variant: number, sr: number): DeepHit | undefined {

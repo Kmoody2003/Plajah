@@ -6,6 +6,9 @@ import { SOMA_PRESETS, type SomaPreset } from '../../services/melos/instruments/
 import { applySomaPatch, newSomaPatch, somaEngineParams } from '../../services/melos/instruments/soma/patch';
 import { requestDeep, somaDeepStats, somaParamsKey } from '../../services/melos/instruments/soma/deep/somaDeep';
 import { besselZeros } from '../../services/melos/instruments/soma/deep/deepModes';
+import { createElement } from 'react';
+import { createRoot } from 'react-dom/client';
+import { SomaDeepToggle } from '../../components/melos/beats/instrument/SomaDeepToggle';
 
 const SR = 48000;
 const $ = (id: string) => document.getElementById(id)!;
@@ -181,6 +184,7 @@ async function liveCheck(preset: SomaPreset) {
 }
 
 async function main() {
+  createRoot(document.getElementById('toggle')!).render(createElement(SomaDeepToggle));
   const q = new URLSearchParams(location.search);
   const ids = (q.get('presets') ?? '').split(',').filter(Boolean);
   const picks = ids.length ? SOMA_PRESETS.filter((p) => ids.includes(p.id)) : [SOMA_PRESETS[0], SOMA_PRESETS[6], SOMA_PRESETS[12], SOMA_PRESETS[25], SOMA_PRESETS[30]].filter(Boolean) as SomaPreset[];
