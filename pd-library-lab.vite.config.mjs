@@ -25,6 +25,7 @@ export default defineConfig({
     react(), tailwindcss(),
   ],
   optimizeDeps: { entries: ['pd-library-lab.html'] },
-  build: { rollupOptions: { input: 'pd-library-lab.html' } },
+  // copyPublicDir off: public/ is ~4 GB of models and media this lab never uses.
+  build: { rollupOptions: { input: 'pd-library-lab.html' }, copyPublicDir: false },
   server: { host: '127.0.0.1', port: 3190, strictPort: true, hmr: false, watch: { ignored: [watchIgnored, '**/dist*/**', '**/docs/**', '**/public/**', '**/.claude/**', '**/tests/**', '**/scripts/**'] } },
 });

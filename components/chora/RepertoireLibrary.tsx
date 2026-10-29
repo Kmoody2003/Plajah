@@ -26,6 +26,7 @@ import {
   NATIVE_SCORE_COUNT, AUDIO_COUNT,
   type RepertoireMedia,
 } from '../../data/repertoireScores';
+import { repertoireRights } from '../../data/composerLifespans';
 
 const VerovioScore = lazy(() => import('../VerovioScore'));
 
@@ -365,6 +366,21 @@ const WorkCard: React.FC<{ work: RepertoireWork; index: number; onOpen: () => vo
       <div className="flex items-center gap-3 mt-2.5 flex-wrap text-[10px] text-white/35 font-bold uppercase tracking-widest">
         {work.year && <span className="flex items-center gap-1.5"><CalendarDays size={11} /> {work.year}</span>}
         {work.forces && <span className="flex items-center gap-1.5"><Users2 size={11} /> {work.forces}</span>}
+      </div>
+
+      <div className="flex items-center gap-1.5 flex-wrap mt-2.5">
+        {repertoireRights(work).map(v => (
+          <span
+            key={v.jurisdiction}
+            title={v.reason}
+            className="px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest border"
+            style={v.status === 'PUBLIC_DOMAIN'
+              ? { borderColor: `${ACCENT}3a`, color: ACCENT }
+              : { borderColor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.35)' }}
+          >
+            {v.jurisdiction} {v.status === 'PUBLIC_DOMAIN' ? 'free' : v.status === 'PROTECTED' ? `from ${v.freeFrom}` : '?'}
+          </span>
+        ))}
       </div>
 
       {(score > 0 || audio > 0) && (
