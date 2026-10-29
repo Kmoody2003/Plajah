@@ -16,7 +16,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   PenLine, ListMusic, Layers, LayoutGrid, Disc3, Plus, ChevronLeft,
   Sparkles, Loader2, Drum, Sliders, Briefcase, Music2, Megaphone,
-  Mic, MapPin, Truck, Users, FileText, Receipt, CheckSquare, Download,
+  Mic, MapPin, Truck, Users, FileText, Receipt, CheckSquare, Download, Scale,
 } from 'lucide-react';
 import { UserProfile } from '../../types';
 import {
@@ -62,6 +62,8 @@ const ProjectView = React.lazy(() =>
   import('./beats/project/ProjectView').then((m) => ({ default: m.ProjectView })),
 );
 const ChoraStudioMixer = React.lazy(() => import('../chora/ChoraStudioMixer'));
+// The Academia Music Law Library, shown in Chora so artists can check rights before release.
+const MusicLawLibrary = React.lazy(() => import('../academia/MusicLawLibrary'));
 
 // ─── Rooms ("Concept to Concert" Pipeline) ──────────────────────────────────
 
@@ -85,6 +87,7 @@ export type MelosRoom =
   | 'board'
   | 'beats'
   | 'master'
+  | 'law'
   | 'mixer'
   | ArtistManagerRoom;
 
@@ -110,6 +113,7 @@ const ROOMS: RoomMeta[] = [
   // 2. Studio, Mastering & Live Mix (Instrument Tier)
   { id: 'beats',     label: 'Chora Studio',         shortLabel: 'Studio',    icon: <Drum size={13} />,        tier: 'instrument', stage: 'studio' },
   { id: 'master',    label: 'Chora Mastering Desk', shortLabel: 'Mastering', icon: <Disc3 size={13} />,       tier: 'instrument', stage: 'studio' },
+  { id: 'law',       label: 'Music Law',            shortLabel: 'Law',       icon: <Scale size={13} />,       tier: 'instrument', stage: 'studio' },
   { id: 'mixer',     label: 'Chora Mixer',          shortLabel: 'Mixer',     icon: <Sliders size={13} />,     tier: 'instrument', stage: 'studio' },
   // 3. Release, Promotion, Touring & Operations — "Concept to Concert" (Artist Manager Tools)
   { id: 'overview',  label: 'Artist Manager',       shortLabel: 'Manager',   icon: <Briefcase size={13} />,   tier: 'instrument', stage: 'concert', accent: '#FF8C00' },
@@ -1236,6 +1240,11 @@ const MelosWorkspace: React.FC<Props> = ({ currentUser, initialProductionId, ini
               {room === 'board'     && <BoardRoom />}
               {room === 'beats'     && <BeatsHost musicLabAdmin={currentUser?.role === 'admin' || currentUser?.email?.toLowerCase() === 'kmoody2003@gmail.com'} />}
               {room === 'master'    && <MasteringDeskHost />}
+              {room === 'law'       && (
+                <div className="h-full overflow-y-auto bg-[#0E0C13]">
+                  <Suspense fallback={null}><MusicLawLibrary /></Suspense>
+                </div>
+              )}
               {room === 'mixer'     && (
                 <Suspense fallback={<div className="h-full grid place-items-center bg-[#090A0F]"><div className="w-8 h-8 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" /></div>}>
                   <ChoraStudioMixer onClose={() => setRoom('beats')} embedded={true} />

@@ -214,6 +214,17 @@ export async function gcsDelete(objectPath: string): Promise<boolean> {
   } catch { return false; }
 }
 
+/** Put a saved download token back (undoes gcsRevokeToken: the old ?token= URLs work again). */
+export async function gcsSetToken(objectPath: string, token: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${GCS}/b/${STORAGE_BUCKET}/o/${encodeURIComponent(objectPath)}`, {
+      method: 'PATCH', headers: await authHeaders(),
+      body: JSON.stringify({ metadata: { firebaseStorageDownloadTokens: token } }),
+    });
+    return res.ok;
+  } catch { return false; }
+}
+
 /** Remove only the download token (soft-remove: the object stays, public URLs stop working). */
 export async function gcsRevokeToken(objectPath: string): Promise<boolean> {
   try {

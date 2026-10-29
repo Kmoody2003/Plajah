@@ -22,7 +22,8 @@ import {
 import { hydrateSample, requestPersistentStorage } from '../../../services/melos/beats/sampleStore';
 import { GUEST_PROD, LOCAL_PROD, delLocal, getLocal, listLocal, markSynced, pickNewer, putLocal, type LocalEntry } from '../../../services/melos/beats/localDocCache';
 import { reconcileInPlace } from '../../../services/melos/beats/reconcileInPlace';
-import { scheduleCreativeSync } from '../../../services/creativeCloud/cloudStore';
+import { cloudProjectId, scheduleCreativeSync } from '../../../services/creativeCloud/cloudStore';
+import { ContribTracker } from '../../../services/chora/contrib/client';
 
 export type SaveState = 'local' | 'unsaved' | 'saving' | 'saved';
 
@@ -196,9 +197,22 @@ export function useBeatsDoc(launchGrooveId?: string, launchProdId?: string): Bea
     saveTimer.current = setTimeout(() => { void saveNow(); }, 2500);
   }, [saveNow, scheduleLocal]);
 
+  // Contribution ledger (services/chora/contrib): one tracker per open groove, signed-in only, so
+  // nothing done signed-out is later credited to whoever signs in on this device.
+  const contribRef = useRef<ContribTracker | null>(null);
+  const contribFor = useCallback((d: GrooveDoc): ContribTracker | null => {
+    const pid = cloudProjectId('beats', d.id);
+    if (contribRef.current?.projectId === pid) return contribRef.current;
+    contribRef.current?.dispose();
+    contribRef.current = auth.currentUser ? new ContribTracker(pid, () => (docRef.current?.id === d.id ? docRef.current : null)) : null;
+    return contribRef.current;
+  }, []);
+  useEffect(() => () => { contribRef.current?.dispose(); contribRef.current = null; }, []);
+
   const lastCoalesce = useRef<string | null>(null);
   const mutate = useCallback((fn: (d: GrooveDoc) => void, opts?: { coalesce?: string }) => {
     const d = docRef.current!;
+    const contrib = contribFor(d); // baseline taken before this edit when the tracker is new
     const g = gestureRef.current;
     const key = opts?.coalesce ?? null;
     const continuing = key !== null && key === lastCoalesce.current;
@@ -213,15 +227,17 @@ export function useBeatsDoc(launchGrooveId?: string, launchProdId?: string): Bea
     fn(d);
     d.updatedAt = Date.now();
     BeatsEngine.get().applyDocPatch({}); // re-apply node params (gains, routing, mutes)
+    contrib?.touched();
     bump();
     scheduleSave();
-  }, [scheduleSave]);
+  }, [scheduleSave, contribFor]);
 
   // Swap in a different document (open, new, import) — a fresh undo history and engine load.
   const swapIn = useCallback((doc: GrooveDoc) => {
     if (localTimer.current) void persistLocalNow(); // don't drop the outgoing doc's last edits
     historyRef.current = { past: [], future: [] };
     guestRef.current = null; // openShared re-marks it after the swap
+    contribRef.current?.dispose(); contribRef.current = null; // the next edit starts this doc's tracker
     docRef.current = doc;
     BeatsEngine.get().loadDoc(doc);
     bump();
@@ -243,7 +259,9 @@ export function useBeatsDoc(launchGrooveId?: string, launchProdId?: string): Bea
     const keysBefore = sampleKeys(d);
     const eqBefore = JSON.stringify(d.mixer?.master?.eq ?? null);
     const masteringBefore = JSON.stringify(d.mixer?.master?.mastering ?? null);
+    contribRef.current?.beforeRemote();
     if (!reconcileInPlace(d, merged)) return;
+    contribRef.current?.afterRemote();
     lastCoalesce.current = null;
     gestureRef.current.snapped = false;
     const engine = BeatsEngine.get();

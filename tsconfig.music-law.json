@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "allowJs": false, "noEmit": true },
+  "include": [
+    "services/rightsDao/*.ts", "services/musicLaw/*.ts", "routes/musicLaw.ts", "data/musicLaw/*.ts",
+    "data/practice/courses/law-music.ts", "data/practice/courses/law-music/*.ts",
+    "components/academia/MusicLawLibrary.tsx", "components/melos/MelosWorkspace.tsx", "music-law-lab.tsx", "tests/musicLaw.test.ts"
+  ]
+}

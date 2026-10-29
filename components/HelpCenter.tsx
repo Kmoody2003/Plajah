@@ -11,6 +11,8 @@ import {
   Sliders, Lightbulb, Layers, HeartPulse, Building2, MonitorPlay,
 } from 'lucide-react';
 import { FeatureTutorialModal } from './tutorial/FeatureTutorialModal';
+import { LEGAL_LAUNCHED } from '../services/legal/terms';
+const DMCARequestForm = React.lazy(() => import('./DMCARequestForm'));
 import { getTutorialForFeature, TUTORIAL_REGISTRY, FeatureTutorial } from '../services/tutorial/tutorialRegistry';
 
 interface HelpSection {
@@ -565,7 +567,7 @@ const helpSections: HelpSection[] = [
       },
       {
         name: 'One-Tap Export to Fabula NLE',
-        description: 'Send finished beats, stems, or grooves directly into active Fabula video timelines with the "→ Fabula" button. Complete sample clearance licensing is attached automatically.',
+        description: 'Send finished beats, stems, or grooves directly into active Fabula video timelines with the "→ Fabula" button. Clearing any samples you used is still up to you.',
         tutorial: 'melos-synth-sampler'
       }
     ]
@@ -731,6 +733,7 @@ const HelpCenter: React.FC<HelpCenterProps> = ({ onBack, onDeleteAccount, onOpen
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [quickPolicy, setQuickPolicy] = useState<string | null>(null);
+  const [showCopyrightForm, setShowCopyrightForm] = useState(() => typeof window !== 'undefined' && window.location.hash === '#copyright-notice');
   const [selectedTutorial, setSelectedTutorial] = useState<FeatureTutorial | null>(null);
 
   const filteredSections = helpSections.filter(s => 
@@ -981,9 +984,15 @@ const HelpCenter: React.FC<HelpCenterProps> = ({ onBack, onDeleteAccount, onOpen
                 <div className="mt-4 flex gap-2">
                   <button onClick={() => setQuickPolicy('dmca')} className="px-3 py-2 bg-white/10 hover:bg-white/20 rounded-full text-[10px] font-black uppercase tracking-widest">Quick</button>
                   <a href="/policies/dmca.html" target="_blank" rel="noreferrer" className="px-3 py-2 bg-white/5 hover:bg-white/10 rounded-full text-[10px] font-black uppercase tracking-widest">Full</a>
+                  {LEGAL_LAUNCHED && <button onClick={() => setShowCopyrightForm((v) => !v)} className="px-3 py-2 bg-small-orange text-black rounded-full text-[10px] font-black uppercase tracking-widest">{showCopyrightForm ? 'Close' : 'File a notice'}</button>}
                 </div>
               </div>
             </div>
+            {LEGAL_LAUNCHED && showCopyrightForm && (
+              <div id="copyright-notice" className="mt-4">
+                <React.Suspense fallback={null}><DMCARequestForm /></React.Suspense>
+              </div>
+            )}
           </div>
           <div className="flex flex-col gap-3">
             <h4 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/20">Policies</h4>

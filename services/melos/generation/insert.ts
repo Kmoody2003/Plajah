@@ -70,7 +70,7 @@ export function insertGeneratedAudio(doc: GrooveDoc, sample: SampleRef, target: 
   const track = existing || { id: grooveUid(), kind: 'audio' as const, name: target.name, color: '#D0BCFF', mute: false, solo: false, gainDb: 0, pan: 0, clips: [] };
   if (!existing) doc.arrangement.push(track);
   const clip = { id: grooveUid(), startBeats: target.startBeats, lengthBeats: sample.durationSec * doc.bpm / 60,
-    audio: { sampleKey: sample.key, name: sample.name, offsetSec: 0, gainDb: 0, durationSec: sample.durationSec } };
+    audio: { sampleKey: sample.key, name: sample.name, offsetSec: 0, gainDb: 0, durationSec: sample.durationSec, origin: { how: 'generated' as const, at: Date.now() } } };
   track.clips.push(clip);
   return { trackId: track.id, clipId: clip.id };
 }

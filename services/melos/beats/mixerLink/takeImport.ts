@@ -40,6 +40,13 @@ export function sampleZeroBeat(
   return tempo.secToBeat(tempo.beatToSec(anchor.beats) + (sample0Ms - anchor.wallMs) / 1000 - (latency.outputSec ?? 0));
 }
 
+/** "StudioLive 32SX · in 7" — what the contribution ledger names as the take's source. */
+function takeInputLabel(take: MultitrackTake, trackId: string, model?: string): string {
+  const t = take.tracks.find((x) => x.trackId === trackId);
+  const ch = t ? ` · in ${t.input + 1}${t.inputR != null ? `/${t.inputR + 1}` : ''}` : '';
+  return `${model || take.deviceId}${ch}`.slice(0, 120);
+}
+
 export interface TakeClip { trackId: string; sampleKey: string; name: string; durationSec: number; peaks?: number[] }
 
 /** Writes the take's clips onto their tracks and records the take on doc.mixerLink. Mutates `doc`. */
@@ -55,7 +62,10 @@ export function applyTake(doc: GrooveDoc, take: MultitrackTake, clips: TakeClip[
     track.clips.push({
       id: newId(), startBeats: start,
       lengthBeats: Math.max(1 / 16, audioLengthBeats(doc, start, playable)),
-      audio: { sampleKey: c.sampleKey, name: c.name, offsetSec: lead, gainDb: 0, durationSec: c.durationSec, ...(c.peaks ? { peaks: c.peaks } : {}) },
+      audio: {
+        sampleKey: c.sampleKey, name: c.name, offsetSec: lead, gainDb: 0, durationSec: c.durationSec, ...(c.peaks ? { peaks: c.peaks } : {}),
+        origin: { how: 'recorded', input: takeInputLabel(take, c.trackId, linkDefaults?.model ?? doc.mixerLink?.model), at: take.startedAt },
+      },
     });
   }
   const link = doc.mixerLink ??= {

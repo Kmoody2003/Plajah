@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
+import { CreatorAgreementCheck, recordCreatorAgreement } from './legal/CreatorAgreementCheck';
 import ReleaseAnnouncementField from './release/ReleaseAnnouncementField';
 import { motion, AnimatePresence } from 'motion/react';
 import { Album, Track, Video, VideoPlaylist, BookChapter, MovieMetadata, TVSeason, CastMember, ProductionCredit, FilmDistribution, FilmVersion, Character } from '../types';
@@ -942,6 +943,10 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
         if (!linerNotes && metadata.linerNotes) setLinerNotes(metadata.linerNotes);
       }
       const albumId = projectIdRef.current;
+      // The Creator Agreement, recorded against this release and the exact files it covers.
+      if (!initialAlbum && rightsConfirmed && albumId) {
+        void recordCreatorAgreement(albumId, String(type).toLowerCase(), tracks.map((t) => t.file).filter((f): f is File => !!f));
+      }
 
       // ── World & character creation ─────────────────────────────────────────
       let finalWorldId = worldId;
@@ -4043,20 +4048,7 @@ const AlbumCreator: React.FC<AlbumCreatorProps> = ({ onCreated, onCancel, onMini
                   );
                   return null;
                 })()}
-                {!initialAlbum && (
-                  <label className="flex items-start gap-3 cursor-pointer group">
-                    <button
-                      type="button"
-                      onClick={() => setRightsConfirmed(v => !v)}
-                      className={`mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-all ${rightsConfirmed ? 'bg-small-orange border-small-orange' : 'border-white/30 group-hover:border-white/60'}`}
-                    >
-                      {rightsConfirmed && <Check size={12} className="text-white" />}
-                    </button>
-                    <span className="text-[9px] font-bold text-white/50 uppercase tracking-widest leading-relaxed">
-                      I confirm I own or have full legal rights to distribute all files, images, and content uploaded here, including copyright. Uploading content you do not own violates our Terms of Service and may result in takedown and account suspension.
-                    </span>
-                  </label>
-                )}
+                {!initialAlbum && <CreatorAgreementCheck checked={rightsConfirmed} onChange={setRightsConfirmed} />}
                 {isFilm && (
                   <p className="text-center text-[9px] font-bold uppercase tracking-widest text-white/30 mb-3">Only a name &amp; creator are required — everything else is optional and editable anytime, before or after you publish.</p>
                 )}

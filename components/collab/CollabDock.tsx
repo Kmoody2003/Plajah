@@ -44,7 +44,7 @@ import { CollabHistory } from './CollabHistory';
 import { CollabCall } from './CollabCall';
 import { ago, btn, btnPrimary, card, lbl } from './collabUi';
 
-type Tab = 'people' | 'chat' | 'call' | 'history' | 'activity';
+type Tab = 'people' | 'chat' | 'call' | 'history' | 'activity' | 'extra';
 
 export interface CollabDockProps<T> {
   co: UseCoedit<T>;
@@ -66,6 +66,8 @@ export interface CollabDockProps<T> {
   onOpenChange?: (open: boolean) => void;
   /** Stacking order for the panel (above full-screen editors like standalone Chora). */
   zIndex?: number;
+  /** One app-specific tab after Activity (Chora: the contribution ledger / credits). */
+  extraTab?: { label: string; icon: React.ComponentType<{ size?: number }>; render: () => React.ReactNode };
 }
 
 export function CollabDock<T>(props: CollabDockProps<T>) {
@@ -160,7 +162,8 @@ export function CollabDock<T>(props: CollabDockProps<T>) {
               ['call', Video, 'Call'],
               ['history', History, 'History'],
               ['activity', ActivityIcon, 'Activity'],
-            ] as const
+              ...(props.extraTab ? [['extra', props.extraTab.icon, props.extraTab.label] as const] : []),
+            ] as ReadonlyArray<readonly [Tab, React.ComponentType<{ size?: number }>, string]>
           ).map(([id, Icon, label]) => (
             <button
               key={id}
@@ -238,6 +241,7 @@ export function CollabDock<T>(props: CollabDockProps<T>) {
             <NotShared what="History" onShare={() => setTab('people')} />
           ))}
         {tab === 'activity' && <ActivityPanel snap={snap} session={session} />}
+        {tab === 'extra' && props.extraTab?.render()}
       </div>
 
       {reviewing && session && <PublishReview conflicts={session.draftConflicts()} count={snap?.draftCount ?? 0} onCancel={() => setReviewing(false)} onPublish={async (keep, label) => (await session.publishDraft(keep, label), setReviewing(false))} />}

@@ -16,7 +16,7 @@ import { COEDIT, coProjectId } from '../../coedit/project';
 import type { ContributeInput, SharedAsset } from '../../coedit/assets';
 import type { RigItem } from '../../coedit/rig';
 import type { VersionMeta } from '../../coedit/session';
-import { grooveUid, type GrooveDoc, type InstrumentType, type TimelineClip } from './grooveDoc';
+import { grooveUid, type AudioOrigin, type GrooveDoc, type InstrumentType, type TimelineClip } from './grooveDoc';
 import { userPresets } from './presetHub';
 import { addInstrument } from './instrumentFactory';
 /** Same shape as instrument/useInstrumentKeyboard RecordedNote. */
@@ -55,7 +55,7 @@ export function audioPeaks(buffer: AudioBuffer, count = 320): number[] {
 export function placeLedgerClip(
   d: GrooveDoc,
   trackId: string,
-  take: { assetId: string; name: string; startBeat: number; durationSec: number; peaks?: number[] },
+  take: { assetId: string; name: string; startBeat: number; durationSec: number; peaks?: number[]; origin?: AudioOrigin },
 ): string | null {
   const t = d.arrangement.find((x) => x.id === trackId);
   if (!t) return null;
@@ -74,6 +74,7 @@ export function placeLedgerClip(
     audio: {
       sampleKey: ledgerKey(take.assetId), name: take.name, offsetSec: 0, gainDb: 0, durationSec: take.durationSec,
       ...(take.peaks ? { peaks: take.peaks } : {}),
+      ...(take.origin ? { origin: take.origin } : {}),
     },
   };
   t.clips.push(clip);

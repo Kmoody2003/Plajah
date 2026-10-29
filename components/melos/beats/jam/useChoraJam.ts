@@ -504,7 +504,11 @@ export function useChoraJam(input: {
         peaks = audioPeaks(buf);
       } catch { /* the hydrator retries */ }
     }
-    mutate((d) => { placeLedgerClip(d, t.trackId, { assetId: asset.id, name: t.name, startBeat: t.startBeat, durationSec: t.durationSec, peaks }); });
+    // Whose input it was: a collaborator's streamed input makes them the performer, you the recordist.
+    const lane = getDoc().arrangement.find((x) => x.id === t.trackId);
+    const ref = lane?.jamInput ? parseInputRef(lane.jamInput) : null;
+    const origin = { how: 'recorded' as const, at: Date.now(), input: ref ? `jam input ${ref.inputId}` : 'this device', ...(ref && ref.uid !== me ? { byUid: ref.uid } : {}) };
+    mutate((d) => { placeLedgerClip(d, t.trackId, { assetId: asset.id, name: t.name, startBeat: t.startBeat, durationSec: t.durationSec, peaks, origin }); });
   }, [projectId, mutate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   startLocalTakeRef.current = async (a) => {

@@ -369,6 +369,19 @@ export function evaluateNoteMpeAtProgress(
   };
 }
 
+/** How an audio clip entered the project, and from what. Written once, when the clip is made. */
+export interface AudioOrigin {
+  how: 'recorded' | 'imported' | 'generated' | 'bounced';
+  /** Account that brought it in. */
+  byUid?: string;
+  /** Input it was captured from ("StudioLive 32SX · in 7", a mic label). */
+  input?: string;
+  /** Original file name, for imports. */
+  file?: string;
+  engine?: string;
+  at?: number;
+}
+
 export interface TimelineClip {
   id: string;
   startBeats: number;
@@ -406,7 +419,9 @@ export interface TimelineClip {
             peaks?: number[]; detectedBpm?: number;
             /** Optional generative model provenance for ACE-Step 2.5 / YuE2 / HeartMuLa stems */
             generativeEngine?: string;
-            stemPrompt?: string };
+            stemPrompt?: string;
+            /** Where this audio came from — read by the contribution ledger (services/chora/contrib). */
+            origin?: AudioOrigin };
 }
 
 

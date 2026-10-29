@@ -77,6 +77,7 @@ import { createMusicDownloadRouter } from './routes/musicDownload';
 import { createFastVoteRouter } from './routes/fastVote';
 import { createMuseumRouter } from './routes/museum';
 import { createDataCommonsRouter } from './routes/dataCommons';
+import { createMusicLawRouter } from './routes/musicLaw';
 import { createGrantsRouter } from './routes/grants';
 import { createAdminKeysRouter } from './routes/adminKeys';
 import { createGeminiLane, geminiConfigured, geminiGenerate, laneModel } from './services/ai/geminiLane';
@@ -85,6 +86,9 @@ import { teacherPlayer, teacherSystem, teacherTurns } from './services/melos/bea
 import { PLATFORM_CUT_PCT as BOOK_PLATFORM_CUT_PCT } from './services/bookmeta/pricing';
 import { readRegistry as readEditionRegistry, licenceActive, entitledEditions, editionOf, type BookVersionStamp } from './services/bookEditions/policy';
 import { createLedgerRouter, appendLedger } from './routes/ledger';
+import { createChoraContribRouter } from './routes/choraContrib';
+import { createLegalAcceptanceRouter } from './routes/legalAcceptance';
+import { createCopyrightRouter } from './routes/copyright';
 import { createSponsorCopiesRouter, activateCopyPool } from './routes/sponsorCopies';
 import { createCreativeStorageRouter } from './routes/creativeStorage';
 import { academiaIntegrityRouter } from './routes/academiaIntegrity';
@@ -13767,6 +13771,7 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   app.use(fastVote.router);
   app.use(createMuseumRouter({ limiter: apiLimiter }));
   app.use(createDataCommonsRouter({ limiter: apiLimiter }));
+  app.use(createMusicLawRouter({ limiter: apiLimiter }));
   app.use(createGrantsRouter({ limiter: apiLimiter }));
   // Admin countdown for API keys that expire on a schedule (SAM.gov: 90 days). Dates only, never the key.
   app.use('/api/admin/key-rotation', createAdminKeysRouter({ authMiddleware, requireAdmin: requireVerifiedAdmin, limiter: apiLimiter }));
@@ -13823,6 +13828,9 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   app.use('/api/music', express.json({ limit: '4kb' }), createMusicDownloadRouter({ authMiddleware }));
   // Licence + rights ledger (hash-chained, server-written): my licence history, and an author's audit view.
   app.use('/api/ledger', createLedgerRouter({ authMiddleware, isAdmin: isPlatformAdminReq }));
+  app.use('/api/chora/contrib', createChoraContribRouter({ authMiddleware }));
+  app.use('/api/legal', createLegalAcceptanceRouter({ authMiddleware }));
+  app.use('/api/copyright', createCopyrightRouter({ authMiddleware, requireVerifiedAdmin }));
   // Sponsored + gift copies of books: fans/named people/org bulk codes; each claim mints a licence + ledger entry.
   app.use('/api/copies', createSponsorCopiesRouter({
     authMiddleware, requireRegisteredUser, getStripe: () => getStripe(), trustedRequestOrigin: (req: any) => trustedRequestOrigin(req),

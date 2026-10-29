@@ -181,6 +181,7 @@ import { isSpeakerPickerSupported } from './services/speakerGroupsBridge';
 import TooltipSuppressor from './components/TooltipSuppressor';
 import ResumeUploadPrompt from './components/ResumeUploadPrompt';
 import StandingBanner from './components/enforcement/StandingBanner';
+import { TermsUpdateBar } from './components/legal/TermsUpdateBar';
 // Off the boot path (TV first paint parses everything eager): desktop/rare-only surfaces load on demand.
 const StoreDemoView = retryLazy(() => import('./components/StoreDemoView'));
 import { DEMO_SANCTUARY_ID, DEMO_STORE_ID, DEMO_STORE_PRODUCTS } from './data/demoShowcase';
@@ -277,6 +278,7 @@ const EconSchoolView = retryLazy(() => import('./components/EconSchoolView'));
 const PhilosophySchoolView = retryLazy(() => import('./components/PhilosophySchoolView'));
 const JournalismSchoolView = retryLazy(() => import('./components/JournalismSchoolView'));
 const ArtCollegeView = retryLazy(() => import('./components/artCollege/ArtCollegeView'));
+const MusicLawLibrary = retryLazy(() => import('./components/academia/MusicLawLibrary'));
 const PublicationStudio = retryLazy(() => import('./components/publication/PublicationStudio'));
 const IssueReader = retryLazy(() => import('./components/publication/IssueReader'));
 const PaperTradingView = retryLazy(() => import('./components/PaperTradingView'));
@@ -2933,6 +2935,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       setView('JOURNALISM_SCHOOL');
     } else if (target === 'ART_COLLEGE') {
       setView('ART_COLLEGE');
+    } else if (target === 'MUSIC_LAW') {
+      setView('MUSIC_LAW');
     } else if (target === 'PAPER_TRADING') {
       setView('PAPER_TRADING');
     } else if (target === 'PAPER_TRADING_CLASS') {
@@ -4435,6 +4439,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         <ResumeUploadPrompt />
         {/* Fair Process: calm account-standing banner + Appeal Center (renders nothing in good standing). */}
         <StandingBanner />
+        <TermsUpdateBar />
         {/* Plajah TV-app opening ident — a random bumper from the platform library, once per launch. */}
         {!tvIntroDone && <PlatformBumperPlayer kind="TV_OPEN_BUMPER" onDone={() => setTvIntroDone(true)} />}
         <Suspense fallback={
@@ -7837,6 +7842,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   user={user}
                   profile={userProfile}
                 />
+              </Suspense>
+            )}
+            {view === 'MUSIC_LAW' && (
+              <Suspense fallback={null}>
+                <MusicLawLibrary onBack={() => goBack('LEARN')} onNavigate={(v) => setView(v as AppView)} />
               </Suspense>
             )}
             {view === 'JOURNALISM_SCHOOL' && (

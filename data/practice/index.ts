@@ -94,6 +94,7 @@ LOADERS['law-admin'] = () => import('./courses/law-admin').then(m => m.COURSE_MO
 LOADERS['law-business-orgs'] = () => import('./courses/law-business-orgs').then(m => m.COURSE_MODULE.bank);
 LOADERS['law-profresp'] = () => import('./courses/law-profresp').then(m => m.COURSE_MODULE.bank);
 LOADERS['law-jurisprudence'] = () => import('./courses/law-jurisprudence').then(m => m.COURSE_MODULE.bank);
+LOADERS['law-music'] = () => import('./courses/law-music').then(m => m.COURSE_MODULE.bank);
 LOADERS['law-intl-public'] = () => import('./courses/law-intl-public').then(m => m.COURSE_MODULE.bank);
 LOADERS['law-intl-human-rights'] = () => import('./courses/law-intl-human-rights').then(m => m.COURSE_MODULE.bank);
 LOADERS['law-intl-humanitarian-criminal'] = () => import('./courses/law-intl-humanitarian-criminal').then(m => m.COURSE_MODULE.bank);

@@ -44,6 +44,8 @@ import { CollabDock } from '../../collab/CollabDock';
 import { useChoraJam } from './jam/useChoraJam';
 import { JamPanel } from './jam/JamPanel';
 import { VersionChip } from './jam/VersionChip';
+import { ContribLedgerPanel } from './contrib/ContribLedgerPanel';
+import { Fingerprint as LedgerIcon } from 'lucide-react';
 import { coProjectId, listSharedWithMe, type CoProject } from '../../../services/coedit/project';
 import { loadSharedDoc } from '../../../services/coedit/session';
 import type { SharedMasterRef } from './project/useMasterProject';
@@ -403,6 +405,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
       anchor={anchor}
       pill={pill}
       zIndex={160}
+      extraTab={{ label: 'Credits', icon: LedgerIcon, render: () => <ContribLedgerPanel doc={doc} signedIn={co.signedIn} /> }}
     />
   );
 

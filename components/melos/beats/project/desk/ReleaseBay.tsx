@@ -32,7 +32,7 @@ export const ReleaseBay: React.FC<BayProps> = ({ project, mutate }) => {
           </div>
           <Toggle on={!!r.draft} onChange={(v) => set((o) => { o.draft = v; })} label="Save as a draft" hint="Uploads everything but doesn't release it." />
           <Toggle on={r.allowComments !== false} onChange={(v) => set((o) => { o.allowComments = v; })} label="Allow comments" />
-          <Toggle on={!!r.rightsConfirmed} onChange={(v) => set((o) => { o.rightsConfirmed = v; })} label="I own or control the rights to everything on this release" hint="The Creator asks for this before it publishes." />
+          <Toggle on={!!r.rightsConfirmed} onChange={(v) => set((o) => { o.rightsConfirmed = v; })} label="I own or have permission for everything on this release" hint="Including co-writers, featured performers, samples and covers. The Creator asks you to accept the Creator Agreement before it publishes." />
         </Panel>
 
         <Panel title="Price" hint="Music is free by default. Only you decide to charge for your own work.">

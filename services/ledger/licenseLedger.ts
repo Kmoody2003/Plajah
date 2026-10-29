@@ -29,6 +29,8 @@ export interface LedgerBody {
   priceCents?: number;
   currency?: string;
   note?: string;
+  /** RIGHTS_DECLARED: sha-256 of each file the declaration covers (absent on older entries, so their hashes are unchanged). */
+  fileHashes?: string[];
 }
 
 export interface LedgerEntry extends LedgerBody {
@@ -51,7 +53,7 @@ export function canonical(value: unknown): string {
   return `{${Object.keys(o).filter(k => o[k] !== undefined).sort().map(k => `${JSON.stringify(k)}:${canonical(o[k])}`).join(',')}}`;
 }
 
-const HASHED: ReadonlyArray<keyof LedgerEntry> = ['event', 'workKind', 'workId', 'at', 'subjectUid', 'actorUid', 'licenseId', 'edition', 'editions', 'versionId', 'paymentRef', 'priceCents', 'currency', 'note', 'workKey', 'seq', 'prevHash'];
+const HASHED: ReadonlyArray<keyof LedgerEntry> = ['event', 'workKind', 'workId', 'at', 'subjectUid', 'actorUid', 'licenseId', 'edition', 'editions', 'versionId', 'paymentRef', 'priceCents', 'currency', 'note', 'fileHashes', 'workKey', 'seq', 'prevHash'];
 
 export function hashEntry(e: Omit<LedgerEntry, 'hash'>): string {
   const picked: Record<string, unknown> = {};

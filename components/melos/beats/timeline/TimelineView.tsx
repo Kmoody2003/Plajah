@@ -714,7 +714,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
         id: grooveUid(),
         startBeats,
         lengthBeats: Math.max(1 / 16, audioLengthBeats(d, startBeats, result.buffer.duration)),
-        audio: { sampleKey: result.ref.key, name, offsetSec: 0, gainDb: 0, durationSec: result.buffer.duration },
+        audio: { sampleKey: result.ref.key, name, offsetSec: 0, gainDb: 0, durationSec: result.buffer.duration, origin: { how: 'imported', file: file.name.slice(0, 160), at: Date.now() } },
       });
     });
     void backupToLocker(result.ref).then((lockerUrl) => {
@@ -736,14 +736,14 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
     const ctx = engine.getContext();
     if (!ctx) return;
     const startBar = barFloorOf(p.doc, atBeats);
-    const made: { name: string; key: string; dur: number; peaks: number[]; bpm: number | null }[] = [];
+    const made: { name: string; file: string; key: string; dur: number; peaks: number[]; bpm: number | null }[] = [];
     for (let fileIdx = 0; fileIdx < audio.length; fileIdx++) {
       const file = audio[fileIdx]; setIngest({ done: fileIdx, total: audio.length, name: file.name });
       const name = file.name.replace(/\.[^.]+$/, '').slice(0, 40) || 'Audio';
       const result = await ingestSample(file, name, ctx);
       if (!result) continue;
       engine.setSampleBuffer(result.ref.key, result.buffer);
-      made.push({ name, key: result.ref.key, dur: result.buffer.duration, peaks: audioPeaks(result.buffer), bpm: detectTempo(result.buffer) });
+      made.push({ name, file: file.name.slice(0, 160), key: result.ref.key, dur: result.buffer.duration, peaks: audioPeaks(result.buffer), bpm: detectTempo(result.buffer) });
       setIngest({ done: fileIdx + 1, total: audio.length, name: file.name });
     }
     if (!made.length) return;
@@ -755,7 +755,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
           clips: [{
             id: grooveUid(), startBeats: startBar,
             lengthBeats: Math.max(1 / 16, audioLengthBeats(d, startBar, m.dur)),
-            audio: { sampleKey: m.key, name: m.name, offsetSec: 0, gainDb: 0, durationSec: m.dur, peaks: m.peaks, detectedBpm: m.bpm ?? undefined },
+            audio: { sampleKey: m.key, name: m.name, offsetSec: 0, gainDb: 0, durationSec: m.dur, peaks: m.peaks, detectedBpm: m.bpm ?? undefined, origin: { how: 'imported', file: m.file, at: Date.now() } },
           }],
         });
       });
