@@ -34,6 +34,9 @@ import { TelaDocumentPreviewModal } from './TelaDocumentPreviewModal';
 import { openTelaClasswork } from './christianEd/edWork';
 import { ED_CSS } from './christianEd/edStyles';
 import TelaPage, { KIND_META, TELA_PAGE_CSS, kindOf } from './library/TelaPage';
+import DeskView from '../desk/DeskView';
+import { LivingTemplateBespokeRenderer } from '../desk/LivingTemplateBespokeRenderer';
+import { getDefaultLivingTemplateForUnit } from '../../services/council/livingDocumentTemplates';
 import AssignScheduleSheet, { type ScheduledResult } from './library/AssignScheduleSheet';
 import CourseCalendar from './library/CourseCalendar';
 import { useCourseSource } from './library/courseSource';
@@ -75,6 +78,7 @@ const FILTERS: Array<[Filter, string]> = [
   ['SYLLABUS', 'Syllabi'],
   ['ANSWER_KEY', 'Answer keys'],
 ];
+const teacherListSynced = new Set<string>();
 const groupOf = (c: LessonLibraryCategory): Filter => (c === 'MASTER_SOURCE_DOC' ? 'SYLLABUS' : c);
 const isKeyOnly = (u: IngestedCurriculumUnit) => Boolean(u.isAnswerKeyOnly) || u.libraryCategory === 'ANSWER_KEY';
 const hasKey = (u: IngestedCurriculumUnit) => Boolean(u.rawAnswerKeyText || u.answerKeySourceLabel || u.questions.some(q => q.correctAnswer));
@@ -206,6 +210,7 @@ export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [panelTab, setPanelTab] = useState<'page' | 'original' | 'key' | 'deeper'>('page');
   const [fullPreview, setFullPreview] = useState<IngestedCurriculumUnit | null>(null);
+  const [deskView, setDeskView] = useState<IngestedCurriculumUnit | null>(null);
   const [scheduling, setScheduling] = useState<string[] | null>(null);
   // Inside an org: its Christian Ed courses. A teacher with no org: their own Academia classes.
   const teacherRef = useMemo(() => ({ uid: currentUserUid, name: currentUserName }), [currentUserUid, currentUserName]);
@@ -229,6 +234,14 @@ export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
     const reduce = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     rootRef.current?.scrollIntoView({ block: 'start', behavior: reduce ? 'auto' : 'smooth' });
   }, []);
+
+  // An admin opening the org's library refreshes who its teachers are (organizations.eduTeacherUids), which
+  // is what lets teachers read the lessons admins provision. Once per org per session.
+  useEffect(() => {
+    if (tier !== 'org' || !viewerIsAdmin || !currentUserUid || teacherListSynced.has(orgId)) return;
+    teacherListSynced.add(orgId);
+    void import('../../services/organizationService').then(m => m.recomputeOrgStaffUids(orgId)).catch(() => {});
+  }, [tier, viewerIsAdmin, currentUserUid, orgId]);
 
   useEffect(() => {
     if (tier !== 'platform') setLibraryActor(orgId, viewer.isAdmin);
@@ -509,7 +522,7 @@ export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
               </div>
             )}
             <div className="lib-pt" role="tablist">
-              <button type="button" role="tab" aria-selected={panelTab === 'page'} onClick={() => setPanelTab('page')}>Tela page</button>
+              <button type="button" role="tab" aria-selected={panelTab === 'page'} onClick={() => setPanelTab('page')}>Desk view</button>
               {hasOriginal(preview) && <button type="button" role="tab" aria-selected={panelTab === 'original'} onClick={() => setPanelTab('original')}>Original</button>}
               {!!preview.sacredLibrarySupplements?.length && <button type="button" role="tab" aria-selected={panelTab === 'deeper'} onClick={() => setPanelTab('deeper')}>Dig deeper</button>}
               {hasKey(preview) && (canAccessAnswerKey
@@ -517,12 +530,23 @@ export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
                 : <span className="small" style={{ alignSelf: 'center', marginLeft: 'auto' }}><Lock size={11} /> Answer key: teachers only</span>)}
             </div>
             <div className="lib-pb">
-              {panelTab === 'page' && <TelaPage unit={preview} size="full" />}
+              {/* How it opens: the lesson's own template, read only, as students will get it. */}
+              {panelTab === 'page' && (
+                <LivingTemplateBespokeRenderer
+                  templateId={preview.livingTemplateId || getDefaultLivingTemplateForUnit(preview).id}
+                  unit={preview}
+                  answers={{}}
+                  onUpdateAnswer={() => {}}
+                  supplements={[]}
+                  readOnly
+                />
+              )}
               {panelTab === 'original' && (
                 <div className="stack">
                   <div className="small">
                     {preview.sourceLabel || 'Original file'}
                     {preview.extractedFromHubTitle ? ` · from ${preview.extractedFromHubTitle}` : ''}
+                    {preview.readByOcr ? ' · a scan, read from its page images: check it against the original' : ''}
                   </div>
                   {preview.sourceUrl && (
                     <a className="btn sm" style={{ justifySelf: 'start', textDecoration: 'none' }} href={preview.sourceUrl} target="_blank" rel="noreferrer"><ExternalLink size={13} /> Open the original</a>
@@ -579,7 +603,8 @@ export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
               {tier === 'user' && canChange(preview) && (
                 <button type="button" className="btn sm" disabled={busy === preview.id} onClick={() => shareToPlatform(preview)}><Globe2 size={14} /> Share to platform</button>
               )}
-              <button type="button" className="btn sm" onClick={() => { setFullPreview(preview); setPreviewId(null); }}>Side-by-side view</button>
+              <button type="button" className="btn sm" onClick={() => { setDeskView(preview); setPreviewId(null); }}>Full desk view</button>
+              <button type="button" className="btn sm" onClick={() => { setFullPreview(preview); setPreviewId(null); }}>Side-by-side</button>
               <span className="grow" />
               {canChange(preview) && (confirmRemove ? (
                 <button type="button" className="btn sm" style={{ background: 'rgba(255,84,112,.2)', borderColor: 'rgba(255,84,112,.5)' }}
@@ -607,6 +632,15 @@ export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
             />
           </div>
         </>
+      )}
+
+      {deskView && (
+        <DeskView
+          unit={deskView}
+          canViewAnswerKey={canAccessAnswerKey}
+          onClose={() => setDeskView(null)}
+          onEdit={canChange(deskView) && tier !== 'platform' ? () => { const u = deskView; setDeskView(null); void editInTela(u); } : undefined}
+        />
       )}
 
       {fullPreview && (

@@ -48,6 +48,9 @@
     "components/library/*.tsx",
     "services/lessonLibraryStore.ts",
     "services/lessonLibraryNav.ts",
-    "services/organizationService.ts"
+    "services/organizationService.ts",
+    "components/desk/DeskView.tsx",
+    "components/WorksheetFillable.tsx",
+    "services/documentImport.ts"
   ]
 }

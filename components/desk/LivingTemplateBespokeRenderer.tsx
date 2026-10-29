@@ -5,7 +5,7 @@
 // 0px Swiss Müller-Brockmann blueprint grid, Gothic stained-glass triptych, single-card wax-seal spotlight,
 // Mission-Control SVG radar HUD, and Zenith dawn-alabaster breathing sanctuary).
 
-import React, { useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { BookOpen, Hand, CheckCircle2 } from 'lucide-react';
 import type {
   IngestedCurriculumUnit,
@@ -14,6 +14,76 @@ import type {
 import type { SacredLibrarySupplementItem } from '../../services/sacredLibraryCurriculumBridge';
 import { openScripture } from '../scripture/ScriptureRefChip';
 import { parseRef } from '../../services/scriptureRef';
+
+const ANSWER_CSS = `
+.la-ans{display:block;width:100%;min-height:46px;position:relative;cursor:text;white-space:pre-wrap;text-align:left}
+.la-ans .la-txt{display:block;max-height:3.2em;overflow:hidden}
+.la-ans.has .la-txt{-webkit-mask-image:linear-gradient(#000 50%,transparent);mask-image:linear-gradient(#000 50%,transparent)}
+.la-ans .la-blank{opacity:.55;font-style:italic}
+.la-ans.ro{cursor:default;background-image:repeating-linear-gradient(transparent 0 1.55em,currentColor 1.55em calc(1.55em + 1px));opacity:.5}
+.la-ans:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+textarea.la-edit{display:block;width:100%;resize:none;overflow:hidden;min-height:88px;transition:height .22s ease}
+@media(prefers-reduced-motion:reduce){textarea.la-edit{transition:none}}
+`;
+
+/**
+ * An open answer. At rest it is a short preview of what was written (or the blank); double-click it
+ * (tap on a touch screen, or Enter) to write, and it grows to hold the whole response. Moving on to the
+ * next question collapses it again. Every keystroke is saved through `onChange`.
+ */
+export function AnswerArea({ value, onChange, disabled, readOnly, className }: {
+  value: string;
+  onChange: (v: string) => void;
+  disabled?: boolean;
+  readOnly?: boolean;
+  className?: string;
+}) {
+  const [editing, setEditing] = useState(false);
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    if (typeof document === 'undefined' || document.getElementById('la-answer-css')) return;
+    const tag = document.createElement('style');
+    tag.id = 'la-answer-css';
+    tag.textContent = ANSWER_CSS;
+    document.head.appendChild(tag);
+  }, []);
+  const fit = () => { const el = ref.current; if (el) { el.style.height = 'auto'; el.style.height = `${el.scrollHeight + 2}px`; } };
+  useLayoutEffect(() => { if (editing) fit(); }, [editing, value]);
+  useEffect(() => {
+    if (!editing) return;
+    const el = ref.current;
+    el?.focus();
+    if (el) el.setSelectionRange(el.value.length, el.value.length);
+  }, [editing]);
+  const locked = disabled || readOnly;
+  const start = () => { if (!locked) setEditing(true); };
+  if (editing && !locked) {
+    return (
+      <textarea
+        ref={ref}
+        className={`${className || ''} la-edit`}
+        value={value}
+        onChange={e => { onChange(e.target.value); fit(); }}
+        onBlur={() => setEditing(false)}
+        onKeyDown={e => { if (e.key === 'Escape') (e.target as HTMLTextAreaElement).blur(); }}
+        aria-label="Your answer"
+      />
+    );
+  }
+  return (
+    <div
+      role={locked ? undefined : 'button'}
+      tabIndex={locked ? -1 : 0}
+      aria-label={locked ? undefined : value ? 'Edit your answer' : 'Write your answer'}
+      className={`${className || ''} la-ans${value ? ' has' : ''}${readOnly ? ' ro' : ''}`}
+      onDoubleClick={start}
+      onPointerUp={e => { if (e.pointerType === 'touch') start(); }}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); start(); } }}
+    >
+      <span className="la-txt">{value || (readOnly ? '\u00a0' : <span className="la-blank">Double-click to write your answer</span>)}</span>
+    </div>
+  );
+}
 
 /** A part's prompt, with its question's own text ("Fill in the Blanks:") above the first part, as on the paper. */
 export function promptWithStem(q: { id: string; prompt: string; group?: string }, all: Array<{ id: string; group?: string }>): React.ReactNode {
@@ -36,6 +106,8 @@ export interface LivingTemplateBespokeRendererProps {
   showAnswerKey?: boolean;
   flaggedQuestionIds?: string[];
   onToggleFlagQuestion?: (questionId: string) => void;
+  /** Read mode (a teacher viewing the lesson): the page as students get it, nothing to fill in. */
+  readOnly?: boolean;
 }
 
 export const LivingTemplateBespokeRenderer: React.FC<LivingTemplateBespokeRendererProps> = ({
@@ -49,6 +121,7 @@ export const LivingTemplateBespokeRenderer: React.FC<LivingTemplateBespokeRender
   showAnswerKey = false,
   flaggedQuestionIds = [],
   onToggleFlagQuestion,
+  readOnly = false,
 }) => {
   // Units carry passages on their questions and lesson blocks, not a top-level list; gather them once.
   const scriptureRefs = Array.from(
@@ -65,10 +138,17 @@ export const LivingTemplateBespokeRenderer: React.FC<LivingTemplateBespokeRender
 
   const questions = unit.questions || [];
   const answeredCount = questions.filter(q => (answers[q.id] || '').trim().length > 0).length;
-  const leadParagraph =
-    unit.lessonBlocks.find(b => b.kind === 'p')?.text ||
-    unit.subtitle ||
-    'Examine the primary text and respond to each prompt below.';
+  // Only the original's own words: no generated subtitle or stock instruction stands in for it.
+  const leadParagraph = unit.lessonBlocks.find(b => b.kind === 'p')?.text || '';
+  /** The original's header fields (NAME, COUNSELOR, DATE …) as lines to write on, never as questions. */
+  const detailRow = (cls: string) =>
+    unit.detailFields?.length ? (
+      <div className="flex flex-wrap gap-x-6 gap-y-3 text-[11px] uppercase tracking-[0.14em]">
+        {unit.detailFields.map(f => (
+          <span key={f} className={`flex-1 min-w-[140px] border-b pb-1 ${cls}`}>{f}</span>
+        ))}
+      </div>
+    ) : null;
 
   const renderInputControl = (
     q: IngestedCurriculumUnit['questions'][number],
@@ -76,16 +156,18 @@ export const LivingTemplateBespokeRenderer: React.FC<LivingTemplateBespokeRender
     inputClass: string
   ) => {
     const val = answers[q.id] || '';
-    if (q.options && q.options.length > 0) {
+    const choices = q.options && q.options.length > 0 ? q.options : q.type === 'true-false' ? ['True', 'False'] : null;
+    if (choices) {
       return (
         <div className="grid sm:grid-cols-2 gap-2">
-          {q.options.map(opt => {
+          {choices.map(opt => {
             const selected = val === opt || val === opt.match(/^([A-F])\)/i)?.[1];
             return (
               <button
                 key={opt}
                 type="button"
-                disabled={isTurnedIn}
+                disabled={isTurnedIn || readOnly}
+                aria-pressed={Boolean(selected)}
                 onClick={() => onUpdateAnswer(q.id, opt)}
                 className={btnClass(Boolean(selected))}
               >
@@ -96,16 +178,7 @@ export const LivingTemplateBespokeRenderer: React.FC<LivingTemplateBespokeRender
         </div>
       );
     }
-    return (
-      <textarea
-        rows={2}
-        disabled={isTurnedIn}
-        value={val}
-        onChange={e => onUpdateAnswer(q.id, e.target.value)}
-        placeholder="Write your response or Scripture reflection..."
-        className={inputClass}
-      />
-    );
+    return <AnswerArea value={val} onChange={v => onUpdateAnswer(q.id, v)} disabled={isTurnedIn} readOnly={readOnly} className={inputClass} />;
   };
 
   const renderFeedback = (
@@ -1185,45 +1258,20 @@ export const LivingTemplateBespokeRenderer: React.FC<LivingTemplateBespokeRender
   if (templateId === 'std-ws-kinfolk-editorial') {
     return (
       <div className="rounded-lg border border-[#E6E1D6] bg-[#FAF8F5] text-[#1C1917] p-6 sm:p-10 shadow-xl space-y-7">
-        {/* Editorial Issue Header */}
-        <div className="flex flex-wrap items-center justify-between border-b border-[#1C1917] pb-3 font-mono text-[11px] uppercase tracking-[0.2em] text-[#78716C]">
-          <span>ISSUE NO. 12 · KINFOLK &amp; MONOCLE EDITORIAL SPREAD</span>
-          <span>CURATED MONOGRAPH · {answeredCount}/{questions.length} COMPLETED</span>
-        </div>
-
-        {/* Asymmetric Editorial Masthead + Pull-Quote Gutter */}
-        <div className="grid lg:grid-cols-12 gap-8 items-start border-b border-[#E5E0D8] pb-7">
-          <div className="lg:col-span-7 space-y-3">
-            <span className="inline-block text-[11px] font-bold uppercase tracking-[0.18em] text-[#9A3412]">
-              Editorial Feature Essay &amp; Reflection
-            </span>
-            <h3
-              className="text-2xl sm:text-4xl font-normal tracking-tight text-[#1C1917] leading-tight"
-              style={{ fontFamily: 'Georgia, serif' }}
-            >
-              {unit.title}
-            </h3>
-            <p
-              className="text-sm text-[#44403C] leading-relaxed first-letter:text-4xl first-letter:font-serif first-letter:float-left first-letter:mr-3 first-letter:text-[#9A3412]"
-              style={{ fontFamily: 'Georgia, serif' }}
-            >
+        {/* The original's own heading: its title, its header fields, its instructions. Nothing added. */}
+        <div className="space-y-4 border-b border-[#E5E0D8] pb-7">
+          <h3
+            className="text-2xl sm:text-4xl font-normal tracking-tight text-[#1C1917] leading-tight"
+            style={{ fontFamily: 'Georgia, serif' }}
+          >
+            {unit.title}
+          </h3>
+          {detailRow('border-[#1C1917] text-[#78716C]')}
+          {leadParagraph && (
+            <p className="text-sm text-[#44403C] leading-relaxed" style={{ fontFamily: 'Georgia, serif' }}>
               {leadParagraph}
             </p>
-          </div>
-          <div className="lg:col-span-5 border-l-2 border-[#9A3412] pl-6 py-2 space-y-2 bg-[#F3EFE6]/70 rounded-r-lg p-5">
-            <div className="font-mono text-[10px] uppercase tracking-widest text-[#9A3412] font-bold">
-              Editorial Pull-Quote &amp; Anchor
-            </div>
-            <blockquote
-              className="text-base sm:text-lg italic text-[#1C1917] leading-snug"
-              style={{ fontFamily: 'Georgia, serif' }}
-            >
-              &ldquo;{scriptureRefs.join(' · ') || 'Wisdom begins in quiet contemplation and deliberate inquiry.'}&rdquo;
-            </blockquote>
-            <div className="text-[11px] text-[#78716C]">
-              Margin Folio · {questions.length} Reflections
-            </div>
-          </div>
+          )}
         </div>
 
         {/* 2-Column Editorial Spread of Prompts */}
@@ -1238,7 +1286,7 @@ export const LivingTemplateBespokeRenderer: React.FC<LivingTemplateBespokeRender
                   className="text-lg italic text-[#9A3412]"
                   style={{ fontFamily: 'Georgia, serif' }}
                 >
-                  Folio {qLabel(q, true)}
+                  {qLabel(q)}.
                 </span>
                 <span className="font-mono text-[11px] text-[#78716C]">{q.points} pts</span>
               </div>

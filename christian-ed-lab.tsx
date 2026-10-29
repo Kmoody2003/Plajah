@@ -5,6 +5,7 @@
 import React, { useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import LessonLibraryOverlay from './components/library/LessonLibraryOverlay';
+import { LivingTemplateBespokeRenderer } from './components/desk/LivingTemplateBespokeRenderer';
 import '/index.css';
 import { FediverseProvider } from './contexts/FediverseContext';
 import EdHub from './components/church/christianEd/EdHub';
@@ -131,6 +132,19 @@ const sub: EduSubmissionRecord = {
   updatedAt: now - 3600_000,
 };
 
+// A student filling in Great Faith's Exam 1 in its template (lab: import it first with ?as=library-greatfaith).
+const DeskTry: React.FC = () => {
+  const units: IngestedCurriculumUnit[] = JSON.parse(localStorage.getItem('plajah_ingested_curriculum_units_v1_great-faith-ministries') || '[]');
+  const u = units.find(x => /Exam 1$/.test(x.title)) || units[0];
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  if (!u) return <p style={{ padding: 30 }}>Open ?as=library-greatfaith first so the course imports.</p>;
+  return (
+    <div style={{ maxWidth: 1100, margin: '0 auto', padding: 20 }}>
+      <LivingTemplateBespokeRenderer templateId={u.livingTemplateId || 'std-ws-kinfolk-editorial'} unit={u} answers={answers} onUpdateAnswer={(id, v) => setAnswers(a => ({ ...a, [id]: v }))} supplements={[]} />
+    </div>
+  );
+};
+
 const Lab: React.FC = () => {
   const [programs, setPrograms] = useState<ChurchProgram[]>([kids, youth]);
   const save = async (p: ChurchProgram) => setPrograms(prev => (prev.some(x => x.id === p.id) ? prev.map(x => (x.id === p.id ? p : x)) : [...prev, p]));
@@ -153,6 +167,7 @@ const Lab: React.FC = () => {
     ];
     return <><TelaHome recent={recent} viewerUid={teacher.uid} memberOrgIds={[church.id]} onOpen={id => alert(`open ${id}`)} onCreate={() => {}} onChooseStyle={() => {}} onChoosePublication={() => {}} onChooseTemplate={() => {}} onImport={() => {}} /><LessonLibraryOverlay /></>;
   }
+  if (as === 'desk-try') return <DeskTry />;
   if (as === 'library-greatfaith') {
     // Great Faith's Revelation 2 course, imported for real from its Google links (via the lab's stand-in server).
     return (

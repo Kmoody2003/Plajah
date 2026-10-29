@@ -189,7 +189,7 @@ const WorksheetFillable: React.FC<WorksheetFillableProps> = ({ sheet, preview, a
           const inputStyle: React.CSSProperties = { width: '100%', minHeight: 46, borderRadius: 11, border: `${ring ? 2.5 : 1.5}px solid ${bd}`, background: '#FBFAFD', color: '#1B1523', padding: '0 12px', fontWeight: 650, fontSize: 16 };
           const choiceStyle = (on: boolean): React.CSSProperties => ({ minHeight: 44, borderRadius: 999, padding: '0 16px', fontSize: 15, border: `1.5px solid ${on ? bd : '#D9D1E0'}`, background: on ? `${bd}22` : '#FAF8FC', color: '#1B1523', fontWeight: 700, cursor: readOnly ? 'default' : 'pointer' });
           return <div key={f.id} id={`ws-field-${f.id}`} style={{ display: 'block', scrollMarginTop: 80 }}>
-            <label htmlFor={`ws-input-${f.id}`} style={{ display: 'block', fontSize: 15, lineHeight: 1.45, fontWeight: 720, marginBottom: 8 }}><span style={{ color: accent, marginRight: 7 }}>{f.ordinal || `${index + 1}.`}</span>{f.label.replace(/^\s*\(?\d{1,3}[.)]\s*/, '')}</label>
+            <label htmlFor={`ws-input-${f.id}`} style={{ display: 'block', fontSize: 15, lineHeight: 1.45, fontWeight: 720, marginBottom: 8, whiteSpace: 'pre-line' }}><span style={{ color: accent, marginRight: 7 }}>{f.ordinal || `${index + 1}.`}</span>{f.label.replace(/^\s*\(?\d{1,3}[.)]\s*/, '')}</label>
             {f.type === 'multiple-choice' && f.choices?.length
               ? <div role="radiogroup" aria-label={f.label} style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>{f.choices.map(c => <button type="button" role="radio" aria-checked={answers[f.id] === c} key={c} disabled={readOnly} onClick={() => set(f.id, c)} style={choiceStyle(answers[f.id] === c)}>{c}</button>)}</div>
               : f.type === 'true-false'

@@ -1,11 +1,11 @@
 import React, { useMemo, useState } from 'react';
 import type { ChurchProgram, PlanWeek } from '../../../services/churchEducationService';
 import { KIND_LABEL } from '../../../services/churchEducationService';
-import type { IngestedCurriculumUnit } from '../../../services/curriculumIngestionService';
+import { openUnitInTela, type IngestedCurriculumUnit } from '../../../services/curriculumIngestionService';
 import { getAllStudentDeskWorkspaces, type UniversalDeskAssignment } from '../../../services/universalStudentDeskService';
 import { unmirrorAssignment, type EduSubmissionRecord } from '../../../services/christianEdSync';
 import SharedClassroomClubHub from '../../classroom/SharedClassroomClubHub';
-import TelaDocumentPreviewModal from '../TelaDocumentPreviewModal';
+import DeskView from '../../desk/DeskView';
 import EdAssignSheet from './EdAssignSheet';
 import EdPeople from './EdPeople';
 import AnnouncementsPanel from '../../announcements/AnnouncementsPanel';
@@ -561,20 +561,13 @@ const EdClassClub: React.FC<Props> = props => {
         {renderRail()}
       </div>
 
+      {/* A lesson opens in desk view (its template, read only); the full Tela document is for editing. */}
       {preview && (
-        <TelaDocumentPreviewModal
-          isOpen
-          onClose={() => setPreview(null)}
-          title={preview.title}
+        <DeskView
           unit={preview}
-          telaDocId={preview.telaDocId}
-          originalUrl={preview.sourceUrl}
-          originalText={preview.rawCurriculumText}
-          answerKeyText={canSeeKey ? preview.rawAnswerKeyText : undefined}
-          orgName={orgName}
-          departmentFolder={preview.departmentFolder}
           canViewAnswerKey={canSeeKey}
-          onOpenFullTelaStudio={docId => window.dispatchEvent(new CustomEvent('plajah:openTela', { detail: { docId, returnTo: { label: p.name, target: 'ELEVATE_EDU', programId: p.id } } }))}
+          onClose={() => setPreview(null)}
+          onEdit={isTeacher ? () => { const u = preview; setPreview(null); void openUnitInTela(u); } : undefined}
         />
       )}
     </div>

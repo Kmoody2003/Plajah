@@ -432,3 +432,43 @@ function pushRest(block: string[], els: ScriptElement[]) {
   const rest = block.slice(1).filter(l => l.trim());
   if (rest.length) els.push(makeEl('ACTION', rest.join('\n')));
 }
+
+/**
+ * Reads a scanned PDF (no text layer) with on-device OCR: each page is drawn at ~200 dpi and read by the
+ * shared Tesseract worker (services/worksheetLocalVision). Returns '' when nothing could be read.
+ */
+export async function ocrPdfFile(file: File, opts: { maxPages?: number; onProgress?: (page: number, of: number) => void } = {}): Promise<string> {
+  const pdfjs: any = await import('pdfjs-dist');
+  try {
+    pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString();
+  } catch { /* worker already configured by the bundler */ }
+  const { withOcrWorker } = await import('./worksheetLocalVision');
+  const pdf = await pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+  const pages: string[] = [];
+  try {
+    const n = Math.min(pdf.numPages, opts.maxPages ?? 20);
+    for (let p = 1; p <= n; p++) {
+      opts.onProgress?.(p, n);
+      const page = await pdf.getPage(p);
+      const viewport = page.getViewport({ scale: 200 / 72 });
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.ceil(viewport.width);
+      canvas.height = Math.ceil(viewport.height);
+      const ctx = canvas.getContext('2d');
+      if (!ctx) continue;
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      // 'print' renders without waiting on animation frames, which stop in a background tab.
+      await page.render({ canvasContext: ctx, viewport, intent: 'print' }).promise;
+      const text = await withOcrWorker(async worker => {
+        const r: any = await worker.recognize(canvas.toDataURL('image/png'));
+        return String(r?.data?.text || '');
+      });
+      pages.push(text.replace(/[ \t]+\n/g, '\n').trim());
+      canvas.width = canvas.height = 0;
+    }
+  } finally {
+    try { await pdf.destroy(); } catch { /* already closed */ }
+  }
+  return pages.filter(Boolean).join('\n\n');
+}

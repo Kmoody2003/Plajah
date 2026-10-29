@@ -131,6 +131,8 @@ export interface IngestedCurriculumUnit {
   livingTemplateId?: string;
   /** Header lines the student fills in (Name, Date, Counselor …). Not questions: never graded or counted. */
   detailFields?: string[];
+  /** The original is a scan; its text was read from the page images on the importing device. */
+  readByOcr?: boolean;
   /** Bumped when the importer's reading of a source changes, so older imports are read again. */
   importVersion?: number;
   /** Who put it in the library (services/lessonLibraryStore): 'admin' lessons are locked for teachers. */
@@ -778,7 +780,18 @@ export async function extractGoogleForm(urlOrHtml: string): Promise<{
  * Extracts text from a Google Doc link (`/document/d/{ID}/...`, including specific `?tab=t.xxx` tabs)
  * or Google Drive file link (`/file/d/{ID}/...`) or published Google Doc URL.
  */
-export async function extractGoogleDocText(url: string): Promise<{ title: string; text: string }> {
+/** A scanned PDF (no text layer) read with on-device OCR, or '' when it still has no readable text. */
+async function ocrScannedPdf(file: File): Promise<string> {
+  try {
+    const { ocrPdfFile } = await import('./documentImport');
+    const text = await ocrPdfFile(file);
+    return text.replace(/\s/g, '').length >= 20 ? text : '';
+  } catch {
+    return '';
+  }
+}
+
+export async function extractGoogleDocText(url: string): Promise<{ title: string; text: string; ocr?: boolean }> {
   const docId = extractGoogleDocId(url);
   const tabId = extractGoogleDocTabId(url);
   if (docId) {
@@ -804,8 +817,12 @@ export async function extractGoogleDocText(url: string): Promise<{ title: string
         const buf = await resp.arrayBuffer();
         const pdfFile = new File([buf], `drive_${driveFileId}.pdf`, { type: 'application/pdf' });
         const pdfText = await extractTextFromPdfFile(pdfFile);
-        // A scanned PDF has no text layer: say so instead of importing an empty lesson.
-        if (pdfText.replace(/\s/g, '').length < 20) throw new Error('SCANNED_PDF: This PDF is a scan with no readable text. Open the original, or upload a text PDF / Word copy.');
+        // A scanned PDF has no text layer: read the page images on this device, and say so if even that fails.
+        if (pdfText.replace(/\s/g, '').length < 20) {
+          const ocrText = await ocrScannedPdf(pdfFile);
+          if (!ocrText) throw new Error('SCANNED_PDF: This PDF is a scan and its pages couldn’t be read. Open the original, or upload a text PDF / Word copy.');
+          return { title: `Google Drive PDF (${driveFileId.slice(0, 8)})`, text: ocrText, ocr: true };
+        }
         return {
           title: `Google Drive PDF (${driveFileId.slice(0, 8)})`,
           text: pdfText,
@@ -1693,12 +1710,15 @@ export function parseCurriculumAndBuildUnit(params: {
       id: q.id,
       type: fieldType,
       prompt: `${q.label || q.number}. ${q.prompt}`,
+      // Worksheets show one label per field: the first part of a question carries the question's own
+      // text above it ("7. Fill in the Blanks:" then "a. …"), as the paper does.
       options: q.options,
       correctAnswer: q.correctAnswer,
       points: q.points,
       bbox: [0.06, Math.min(0.92, 0.12 + idx * 0.09), 0.94, Math.min(0.98, 0.19 + idx * 0.09)],
       // Current WorksheetField shape (percent of page) — worksheetToTelaDoc and WorksheetFillable read these.
-      label: q.prompt,
+      label: q.group && questions[idx - 1]?.group !== q.group ? `${q.number}. ${q.group}
+${q.prompt}` : q.prompt,
       ordinal: q.label || String(q.number),
       choices: q.options,
       box: { x: 6, y: Math.min(92, 12 + idx * 9), width: 88, height: 7 },
@@ -1878,6 +1898,7 @@ export async function ingestCurriculumToTela(params: {
   let sourceLabel = params.title?.trim() || 'Interactive Lesson';
   let preParsedQuestions: StructuredQuestion[] = [];
   let formTitle: string | undefined;
+  let readByOcr = false;
   let readingText: string | undefined;
   let detailFields: string[] = [];
 
@@ -1889,7 +1910,11 @@ export async function ingestCurriculumToTela(params: {
     if (lower.endsWith('.pdf')) {
       sourceKind = 'PDF_DOCUMENT';
       rawCurriculumText = await extractTextFromPdfFile(f);
-      if (!rawCurriculumText.trim()) throw new Error(`SCANNED_PDF: “${f.name}” is a scan with no readable text. Upload a text PDF or Word copy, or a photo of each page.`);
+      if (!rawCurriculumText.trim()) {
+        rawCurriculumText = await ocrScannedPdf(f);
+        readByOcr = !!rawCurriculumText;
+      }
+      if (!rawCurriculumText.trim()) throw new Error(`SCANNED_PDF: “${f.name}” is a scan and its pages couldn’t be read. Upload a text PDF or Word copy, or a photo of each page.`);
     } else if (lower.endsWith('.docx') || lower.endsWith('.doc')) {
       sourceKind = 'WORD_DOCX';
       rawCurriculumText = await extractTextFromDocxFile(f);
@@ -1929,6 +1954,7 @@ export async function ingestCurriculumToTela(params: {
         if (formRes.title && formRes.structuredQuestions.length) formTitle = formRes.title;
       } else {
         const docRes = await extractGoogleDocText(url);
+        readByOcr = !!docRes.ocr;
         if (!params.title && docRes.title) sourceLabel = docRes.title;
         rawCurriculumText = [rawCurriculumText, docRes.text].filter(Boolean).join('\n\n');
       }
@@ -1983,6 +2009,7 @@ export async function ingestCurriculumToTela(params: {
 
   // An org's lesson stays tied to the org, so sharing it as a public template follows the org's policy.
   if (params.scopeKind !== 'user' && !isStandaloneTeacherScopeId(params.orgId)) telaDoc.orgOrigin = { orgId: safeOrgId, orgName: params.orgName };
+  if (readByOcr) unit.readByOcr = true;
   await saveTelaDoc(telaDoc);
 
   const resolvedLibraryCategory =

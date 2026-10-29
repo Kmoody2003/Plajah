@@ -60,7 +60,7 @@ import {
   GREAT_FAITH_MINISTRIES_NAME,
 } from '../../services/orgAssets';
 import { TelaDocumentPreviewModal, type TelaDocumentPreviewProps } from '../church/TelaDocumentPreviewModal';
-import { LivingTemplateBespokeRenderer, promptWithStem } from './LivingTemplateBespokeRenderer';
+import { AnswerArea, LivingTemplateBespokeRenderer, promptWithStem } from './LivingTemplateBespokeRenderer';
 import { useViewport } from '../../hooks/useViewport';
 
 export interface UniversalStudentDeskProps {
@@ -930,7 +930,8 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
                     unit={activeAssignment.unitSnapshot}
                     answers={answers}
                     onUpdateAnswer={handleUpdateAnswer}
-                    supplements={activeSupplements}
+                    // Background stays in the Sources panel beside the work, never in the assignment itself.
+                    supplements={[]}
                     isTurnedIn={isTurnedIn}
                     submission={activeSubmission}
                     showAnswerKey={isTurnedIn}
@@ -1101,13 +1102,11 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
                               })}
                             </div>
                           ) : (
-                            <textarea
-                              rows={3}
-                              disabled={isTurnedIn}
+                            <AnswerArea
                               value={val}
-                              onChange={e => handleUpdateAnswer(q.id, e.target.value)}
-                              placeholder="Write your response, textual evidence, or Scripture reflection on your Desk..."
-                              className="w-full bg-black/55 border border-white/15 rounded-xl p-3 text-xs text-white leading-relaxed outline-none focus:border-amber-400 disabled:opacity-75"
+                              disabled={isTurnedIn}
+                              onChange={v => handleUpdateAnswer(q.id, v)}
+                              className="w-full bg-black/55 border border-white/15 rounded-xl p-3 text-xs text-white leading-relaxed outline-none focus:border-amber-400"
                             />
                           )}
 
