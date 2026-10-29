@@ -176,6 +176,16 @@ export function besselJ(m: number, x: number): number {
 }
 
 const pct = (v: number) => `${Math.round(v * 100)}%`;
+
+/**
+ * SOMA's Hall Decay is a real room: 0.4 s (dry studio) to 4 s (stone temple). The engine reverb it
+ * drives is the Veil — the pad reverb, whose own decay spans 0.5..60 s (rt60 = 0.5 + d² · 59.5).
+ * Sent through untranslated, a 0.64 "temple" setting was a 25-second tail, and every drum hit
+ * piled onto a drone that never died away.
+ */
+export const hallDecaySec = (v: number): number => 0.4 + 3.6 * Math.max(0, Math.min(1, v));
+export const veilDecayForHall = (v: number): number => Math.sqrt(Math.max(0, hallDecaySec(v) - 0.5) / 59.5);
+const hallSec = (v: number) => `${hallDecaySec(v).toFixed(1)} s`;
 const headInches = (v: number) => {
   const inches = 6 + v * 30;
   const cm = Math.round(inches * 2.54);
@@ -385,7 +395,7 @@ export const SOMA_PARAM_META: Record<number, SomaParamMeta> = {
     pct,
   ),
   [RV.SIZE]: meta(RV.SIZE, 'Hall Size', 'Acoustic concert hall / recording room dimensions.', pct),
-  [RV.DECAY]: meta(RV.DECAY, 'Hall Decay', 'Concert hall reverberation tail.', pct),
+  [RV.DECAY]: meta(RV.DECAY, 'Hall Decay', 'Concert hall reverberation tail (RT60).', hallSec),
   [RV.DIFFUSION]: meta(RV.DIFFUSION, 'Wall Diffusion', 'Acoustic dispersion of the hall surfaces.', pct),
   [RV.MIX]: meta(RV.MIX, 'Hall Ambience', 'Wet balance of the acoustic hall.', pct),
 

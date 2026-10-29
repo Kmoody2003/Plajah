@@ -62,6 +62,16 @@ export function seededRng(seed: number): () => number {
   };
 }
 
+/**
+ * Whether a pad's step hit needs a gate. A sustaining sample pad does; so does every instrument
+ * pad — without a gate an instrument hit is a held key (the live-hit path), released only by the
+ * pad's next hit, so a sustaining patch rang on through the rests.
+ */
+function padHolds(doc: GrooveDoc, padIdx: number): boolean {
+  const pad = doc.kit[padIdx];
+  return pad?.source === 'instrument' || (pad?.env.sustain || 0) > 0.001;
+}
+
 export class StepScheduler {
   private mode: PlayMode = 'pattern';
   // Pattern mode plays a SET of patterns — one per MEKA Group (Maschine "Ideas"); a legacy
@@ -196,7 +206,7 @@ export class StepScheduler {
       if (step.p !== undefined && step.p < 1 && d.rng() > step.p) continue;
       if (soloOut(doc, padIdx)) continue;
       const when = this.eventTime(beat, localStep, doc, step.micro, padIdx);
-      const sustaining = (doc.kit[padIdx]?.env.sustain || 0) > 0.001;
+      const sustaining = padHolds(doc, padIdx);
       d.trigger(padIdx, step.v, when, sustaining ? this.legatoGateSec(doc, pattern, padIdx, localStep, beat, len) : undefined, (step.pitch ?? 0) + (step.fine ?? 0) / 100, step.pan, step.fx, false, stepMods(step));
     }
     if (pattern.melo) {
@@ -222,7 +232,7 @@ export class StepScheduler {
       if (step.p !== undefined && step.p < 1 && d.rng() > step.p) continue;
       if (soloOut(doc, padIdx)) continue;
       const when = this.eventTime(beat, localStep, doc, step.micro, padIdx);
-      const sustaining = (doc.kit[padIdx]?.env.sustain || 0) > 0.001;
+      const sustaining = padHolds(doc, padIdx);
       // Per-step pitch + pan (Glass graph editor) + Step-FX slot ride the trigger.
       d.trigger(padIdx, step.v, when, sustaining ? this.legatoGateSec(doc, pattern, padIdx, localStep, beat) : undefined, (step.pitch ?? 0) + (step.fine ?? 0) / 100, step.pan, step.fx, false, stepMods(step));
     }

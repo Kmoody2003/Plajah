@@ -44,6 +44,7 @@ import {
   serializeSomaPatch,
   applySomaPreset,
   applySomaPatch,
+  somaEngineValue,
   crossformSomaPatch,
   polarToDrumPad,
   drumPadToPolar,
@@ -363,7 +364,7 @@ export const SomaPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
     const inst = BeatsEngine.get().getInstrument(track.id);
     if (inst) {
       const expanded = expandSomaMacros(nextParams, patch.macros);
-      inst.setParam(id, expanded[id] ?? value);
+      inst.setParam(id, somaEngineValue(id, expanded[id] ?? value));
     }
   };
 

@@ -9,6 +9,7 @@ import {
   SM,
   SP,
   RV,
+  veilDecayForHall,
   SOMA_DISCRETE_IDS,
   somaDefault,
 } from './params';
@@ -232,13 +233,18 @@ export function deserializeSomaPatch(raw: Record<string, unknown> | undefined): 
   };
 }
 
+/** A SOMA value as the engine wants it. Only the hall decay differs: see `veilDecayForHall`. */
+export function somaEngineValue(id: number, v: number): number {
+  return id === RV.DECAY ? veilDecayForHall(v) : v;
+}
+
 export function somaEngineParams(patch: SomaPatch): Array<[number, number]> {
   const expanded = expandSomaMacros(patch.params, patch.macros);
   const out: Array<[number, number]> = [];
   for (const [k, v] of Object.entries(expanded)) {
     const id = Number(k);
     if (Number.isFinite(id) && Number.isFinite(v)) {
-      out.push([id, v]);
+      out.push([id, somaEngineValue(id, v)]);
     }
   }
   return out;
