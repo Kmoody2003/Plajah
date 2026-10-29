@@ -6,6 +6,7 @@
 
 import { BAND, STUDIO_KNOWLEDGE, playerById, type BandPlayer, type KnowledgeEntry, type Lesson } from './roster';
 import { genreById } from './styles';
+import { LORE_GENERIC_KEYS } from './lore';
 
 /** What a trace tag means, said like a player would say it. */
 const MOVES: [RegExp, string][] = [
@@ -103,6 +104,9 @@ function score(entry: KnowledgeEntry, q: string, qw: string[]): number {
   if (/\bhistory|invent|first|origin|who\b/.test(q) && entry.topic === 'history') s += 1;
   if (/\bchora|plajah|how do i|where|button|panel\b/.test(q) && entry.topic === 'chora') s += 1;
   if (/\b(science|physics|acoustic|frequency|hz|how does (it|a|the)|why does|vibrat)/.test(q) && entry.topic === 'science') s += 1.5;
+  // Lore is broad reference: matched only on general question words, the player's own facts win a
+  // near-tie; matched on a name (an instrument, a drum, a relative from another culture) it stands.
+  if (entry.lore && s > 0 && !entry.keys.some((k) => !LORE_GENERIC_KEYS.has(k) && q.includes(k))) s -= 2;
   return s;
 }
 

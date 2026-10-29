@@ -9,6 +9,7 @@ import { LiveDirector, type Chattiness, type DirectorDeps, type LiveSnapshot } f
 import type { Lens, Observation } from '../../../../../services/melos/beats/band/live/observations';
 import type { CharacterSheet, Demo } from '../../../../../services/melos/beats/band/character/schema';
 import { askPlayer } from '../../../../../services/melos/beats/band/bandMind';
+import { loreFact } from '../../../../../services/melos/beats/band/lore';
 import { ariaVoice } from '../../../../../services/voice/aria/ariaVoice';
 import type { VoiceProfile } from '../../../../../services/voice/aria/types';
 import { createRecognizer, listeningAvailable, type Recognizer, type RecState } from '../../../../../services/voca/vocaSpeech';
@@ -19,6 +20,8 @@ export interface LiveHost {
   playStep?: (stroke: string, velocity: number, note?: number) => void;
   enrich?: (o: Observation) => Record<string, string | number>;
   screen?: () => string;
+  /** A fact about what's on this host (e.g. the current drum); defaults to the player's instrument lore. */
+  trivia?: () => string | undefined;
 }
 
 const prefKey = (id: string) => `plajah.band.live.${id}`;
@@ -84,6 +87,7 @@ export function useLiveCharacter(sheet: CharacterSheet, host: LiveHost) {
       },
       enrich: (o) => hostRef.current.enrich?.(o) ?? {},
       screen: () => hostRef.current.screen?.() ?? '',
+      trivia: () => hostRef.current.trivia?.() ?? loreFact(sheet.id),
     };
     return new LiveDirector(deps);
     // The lens and sheet are the identity of this character on this host.

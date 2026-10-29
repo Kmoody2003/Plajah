@@ -3,7 +3,7 @@
 // voice, fake mind — tsx --test.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { BAND } from '../services/melos/beats/band/roster';
+import { BAND, playerById } from '../services/melos/beats/band/roster';
 import { CHARACTER_SHEETS, sheetById } from '../services/melos/beats/band/character/sheets';
 import { validateSheet } from '../services/melos/beats/band/character/schema';
 import { SomaLens, somaZone } from '../services/melos/beats/band/live/observations';
@@ -134,4 +134,35 @@ test('director: their own demo hits are not counted as the learner playing', asy
   assert.equal(lens.observe(10_000).length, 0);
   release(); await p;
   assert.equal(d.snapshot.state, 'idle');
+});
+
+test('lore: every player knows their instrument across cultures, with sources', async () => {
+  const { INSTRUMENT_LORE } = await import('../services/melos/beats/band/lore');
+  const { answer } = await import('../services/melos/beats/band/teach');
+  for (const p of BAND) {
+    const mine = INSTRUMENT_LORE.filter((l) => l.players.includes(p.id));
+    assert.ok(mine.length >= 1, `lore for ${p.id}`);
+    for (const l of mine) {
+      assert.ok(l.physics.length && l.materials.length && l.tuning.length && l.variants.length >= 4 && l.sources.length >= 2, l.id);
+      assert.ok(p.knowledge.some((k) => k.lore && k.text.includes(l.variants[0].name)), `${p.id} knows ${l.variants[0].name}`);
+    }
+  }
+  assert.match(answer('Tell me about the erhu from China', 'priya').text, /erhu/i);
+  assert.match(answer('what is a shakuhachi?', 'felix').text, /shakuhachi/i);
+  assert.ok(playerById('amara')!.knowledge.filter((k) => k.lore).length > 100, 'Amara knows every SOMA drum');
+});
+
+test('director: in a lull they share something real about the instrument', async () => {
+  let clock = 0;
+  const said: string[] = [];
+  const d = new LiveDirector({
+    sheet: sheetById('theo')!, lens: new SomaLens(), clock: () => clock, random: () => 0,
+    speak: async (t) => { said.push(t); }, ask: async () => ({ text: '', lane: 'built-in' }),
+    trivia: () => 'Cristofori built the first piano around 1700.',
+  });
+  d.chattiness = 2;
+  clock = 80_000; d.tick(); await settle();
+  assert.match(said[0] ?? '', /Cristofori/);
+  clock = 90_000; d.tick(); await settle();
+  assert.equal(said.length, 1, 'not again right away');
 });

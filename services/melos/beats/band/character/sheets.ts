@@ -20,6 +20,7 @@ const BASE: Record<string, { priority: number; cooldownS: number; chattiness: 1 
   'groove.dragging':      { priority: 6, cooldownS: 60, chattiness: 2, gesture: 'count-in' },
   'param.tweaking':       { priority: 2, cooldownS: 180, chattiness: 3, gesture: 'lean-in' },
   'idle.long':            { priority: 1, cooldownS: 240, chattiness: 3, gesture: 'smile' },
+  'session.lull':         { priority: 1, cooldownS: 150, chattiness: 2, gesture: 'lean-in' },
 };
 
 type Lines = Partial<Record<keyof typeof BASE, string[]>>;
@@ -37,6 +38,7 @@ const COMMON: Required<Lines> = {
   'groove.dragging': ['You\'re slowing down a little. Lean forward into the beat.'],
   'param.tweaking': ['Shaping the sound — good. Change one thing at a time and play between each so you can hear what it did.'],
   'idle.long': ['Want me to show you something? Ask, or hit the demo button.'],
+  'session.lull': ['Here\'s something I love about this instrument: {fact}', 'Did you know? {fact}'],
 };
 
 function reactions(lines: Lines, extra: Reaction[] = []): Reaction[] {
@@ -113,6 +115,7 @@ export const CHARACTER_SHEETS: CharacterSheet[] = [
       'groove.dragging': ['You\'re falling behind the beat a little. Lift your hands sooner.'],
       'param.tweaking': ['You\'re changing the drum itself — skin, shell, air. Play a few strokes after each change so your ears learn it.'],
       'idle.long': ['Want to learn a tumbao? Ask me, or press "Basic tumbao" under Show me.'],
+      'session.lull': ['Something about this drum: {fact}', 'While your hands rest — {fact}'],
     }, [
       { on: 'strike.zone.stuck', say: [], demo: 'three-voices', priority: 4, cooldownS: 180, chattiness: 2 },
       { on: 'strike.velocity.flat', say: [], demo: 'dynamics', priority: 4, cooldownS: 180, chattiness: 2 },

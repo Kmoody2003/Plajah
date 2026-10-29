@@ -7,6 +7,7 @@
 
 import type { InstrumentType, OrchestralArticulation } from '../grooveDoc';
 import { SCIENCE } from './science';
+import { loreKnowledge } from './lore';
 
 export type BandRole =
   | 'drums' | 'percussion' | 'bass' | 'guitar' | 'piano' | 'cello' | 'violin'
@@ -55,6 +56,8 @@ export interface KnowledgeEntry {
   topic: 'history' | 'instrument' | 'science' | 'technique' | 'theory' | 'genre' | 'chora';
   keys: string[];
   text: string;
+  /** Reference lore (lore.ts) rather than the player's own hand-written knowledge — ranks just below it on a near-tie. */
+  lore?: boolean;
 }
 
 export interface LessonStep {
@@ -583,6 +586,9 @@ export const BAND: BandPlayer[] = [
 
 // The physics of each instrument (science.ts) joins what each player knows.
 for (const p of BAND) p.knowledge.push(...(SCIENCE[p.id] ?? []));
+// So does their instrument lore (lore.ts): materials, making, tuning, relatives across cultures,
+// the music and traditions — and, for the percussionist, every drum SOMA models.
+for (const p of BAND) p.knowledge.push(...loreKnowledge(p.id));
 
 /** The player's range for a genre — the instrument they're holding, not just their main one. */
 export function playerRange(p: BandPlayer, genre: string): [number, number] {

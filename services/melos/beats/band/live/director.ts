@@ -48,6 +48,8 @@ export interface DirectorDeps {
   enrich?: (o: Observation) => Record<string, string | number>;
   /** One line describing what's on screen, for the mind. */
   screen?: () => string;
+  /** A real fact about their instrument to share in a quiet moment (instrument lore). */
+  trivia?: () => string | undefined;
   clock: () => number;
   random?: () => number;
 }
@@ -56,6 +58,8 @@ export interface DirectorDeps {
 const GAP_MS: Record<Chattiness, number> = { 1: 30_000, 2: 12_000, 3: 6_000 };
 /** How long after your last hit counts as a pause they can talk in. */
 const PAUSE_MS = 1_300;
+/** Silence (from them) before they might share a fact about their instrument. */
+const LULL_MS = 75_000;
 
 export class LiveDirector {
   private snap: LiveSnapshot = { state: 'idle', caption: '', spokenWords: 0, from: 'character', gesture: null, gestureAt: 0, beat: 0, lane: null, note: null, history: [] };
@@ -77,6 +81,7 @@ export class LiveDirector {
   /** Start listening to the studio. `tickMs` 0 = no timer (tests call tick() themselves). */
   start(tickMs = 600): void {
     this.off = liveBus.on((e) => this.feed(e));
+    this.lastRemark = this.deps.clock();
     if (tickMs > 0) this.timer = setInterval(() => this.tick(), tickMs);
   }
   stop(): void {
@@ -117,6 +122,12 @@ export class LiveDirector {
     if (st === 'watching' && t - this.lastHit > PAUSE_MS * 3) this.set({ state: 'idle' });
 
     const obs = this.deps.lens.observe(t);
+    // A lull — nobody's said anything for a while and they aren't mid-phrase: a chance to share
+    // something real about the instrument.
+    if (t - this.lastRemark > LULL_MS && t - this.lastHit > PAUSE_MS * 4) {
+      const fact = this.deps.trivia?.();
+      if (fact) obs.push({ id: 'session.lull', data: { fact }, fact: 'A quiet moment.' });
+    }
     const pick = this.choose(obs, t);
     if (!pick) return;
     void this.act(pick.reaction, pick.obs, t);

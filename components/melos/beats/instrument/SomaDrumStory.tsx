@@ -106,6 +106,11 @@ export const SomaDrumStory: React.FC<{ presetId?: string; presetName?: string; t
       strike(defaultNote + (note ?? 0), velocity, z.pos, undefined, z.striker);
     } : undefined,
     enrich: (o: Observation) => ({ intro: drum?.intro ?? '', drum: drum?.name ?? 'drum', preset: presetName ?? String(o.data.preset ?? '') }),
+    trivia: () => {
+      if (!drum) return undefined;
+      const pool = [...drum.origins, drum.build.shell, drum.build.head, drum.build.tuning, ...drum.traditions];
+      return pool[Math.floor(Math.random() * pool.length)];
+    },
     screen: () => (drum
       ? `The learner has SOMA (physical-model percussion) open on the preset "${presetName ?? presetId}", which models the ${drum.name} (${drum.region}).`
       : 'The learner has SOMA open.'),
