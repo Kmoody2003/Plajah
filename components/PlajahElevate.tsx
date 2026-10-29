@@ -17,7 +17,6 @@ import { Button } from './ui';
 import AriaMark from './aria/AriaMark';
 import { ElevateTabBar, ElevateOverview, ElevateTypePanel, ElevateTabCta, ElevateTabKey, ELEVATE_TABS, tabDef } from './elevate/ElevateTypeTabs';
 import PlajahPlusBanner from './PlajahPlusBanner';
-import MyOrgTasksAndDepartments from './elevate/MyOrgTasksAndDepartments';
 import {
   PageVisualConfig,
   EditableCarouselItem,
@@ -539,11 +538,6 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, onNa
       {/* Signed-in members: one tap to their own org hub (member home / staff ops). */}
       {isSignedIn && (
         <div className="max-w-6xl mx-auto px-3.5 sm:px-6 pt-3 sm:pt-4 space-y-4">
-          <MyOrgTasksAndDepartments
-            onOpenOrg={orgId => onOpenOrg(orgId)}
-            onOpenDepartment={() => triggerNavigate('ELEVATE_HUB')}
-            onOpenEducation={() => triggerNavigate('ELEVATE_HUB')}
-          />
           <button
             type="button"
             onClick={() => triggerNavigate('ELEVATE_HUB')}
