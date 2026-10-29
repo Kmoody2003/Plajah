@@ -1,0 +1,8 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "allowJs": false, "noEmit": true },
+  "include": [
+    "services/reello/*.ts", "services/reello/intel/*.ts", "routes/reelloIntel.ts",
+    "components/reello/upload/*.tsx", "reello-upload-lab.tsx", "tests/reelloIntel.test.ts"
+  ]
+}

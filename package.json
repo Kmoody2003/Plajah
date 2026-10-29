@@ -35,6 +35,7 @@
     "typecheck:composer": "tsc -p tsconfig.livingcomposer.json --noEmit",
     "test:lyrics": "npx tsx --test tests/lyricSyncWorker.test.ts",
     "test:musicintel": "npx tsx --test tests/musicIntel.test.ts",
+    "test:reellointel": "npx tsx --test tests/reelloIntel.test.ts",
     "test:cora": "npx tsx --test tests/coraAnalysis.test.ts",
     "test:notebook": "npx tsx --test tests/sharedNotebook.test.ts tests/notes.test.ts tests/notesScripture.test.ts tests/serviceNotes.test.ts",
     "test:posting": "npx tsx --test tests/posting.test.ts",

@@ -191,11 +191,13 @@ const RelloView: React.FC<RelloViewProps> = ({ onBack, currentUser, initialVideo
     // landscape original — it needs no cropping and is already framed for this feed.
     const vertical = verticalUrlOf(current);
     const pid = vertical ? undefined : ((current as any).muxPlaybackId as string | undefined);
+    // A Story Intelligence quote clip is a Mux instant clip: an HLS url over the source asset's range.
+    const clipStream = !vertical && (current as any).muxClip && /\.m3u8/.test(current.url || '') ? current.url : '';
     const direct = vertical || current.url;
     (async () => {
       try {
-        if (pid) {
-          const streamUrl = `https://stream.mux.com/${pid}.m3u8`;
+        if (pid || clipStream) {
+          const streamUrl = clipStream || `https://stream.mux.com/${pid}.m3u8`;
           if (v.canPlayType('application/vnd.apple.mpegurl')) {
             v.src = streamUrl;
             v.play?.().catch(() => {

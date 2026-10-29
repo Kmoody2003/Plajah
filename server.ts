@@ -102,6 +102,7 @@ import { dispatchEmailNotification, createServerNotification, listAllUserIds, se
 import { veoRouter } from './routes/veo';
 import { taleoRouter, enqueueIfReady as taleoEnqueueIfReady } from './routes/taleo';
 import { createMusicIntelRouter } from './routes/musicIntel';
+import { createReelloIntelRouter, sweepWaiting as reelloIntelSweep } from './routes/reelloIntel';
 import { authMethodsRouter } from './routes/authMethods';
 // Anti-bot layer (docs/ANTI_BOT_PLAYBOOK.md): App Check monitor, signup-check, shared limits.
 import { antiAbuseRouter } from './routes/antiAbuse';
@@ -9761,6 +9762,11 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     }
   });
 
+  // ── Reello Story Intelligence + upload templates ─────────────────────────────
+  // Watches a creator's Reello upload (speech + on-screen graphics) and drafts the follow-on content:
+  // an article that teases the video, quote clips, store listings for what's offered (routes/reelloIntel.ts).
+  app.use('/api/reello', apiLimiter, express.json({ limit: '64kb' }), createReelloIntelRouter());
+
   // ── Chora Music Intelligence ─────────────────────────────────────────────────
   // The music sibling of Taleo Story Intelligence (routes/musicIntel.ts). Every song is heard
   // with synced lyrics, so the analysis drives the SAME lyric claim/record path as above.
@@ -10720,6 +10726,8 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
               if (aid) taleoEnqueueIfReady(aid).catch(() => {});
             }
           } catch (e: any) { console.warn('[MUX webhook] story-intel enqueue sweep failed:', e?.message); }
+          // Reello Story Intelligence: uploads waiting on this transcode pick up where they stopped.
+          reelloIntelSweep().catch(() => {});
         }
       }
 

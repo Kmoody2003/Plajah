@@ -676,6 +676,7 @@ import { isFeedLive } from './services/liveFeedLiveness';
 import MediaRepairApprovals from './components/MediaRepairApprovals';
 import AchievementListView from './components/AchievementListView';
 import UploadManager from './components/UploadManager';
+import ReelloUploadDock from './components/reello/upload/ReelloUploadDock';
 import { PublishQueueProvider } from './contexts/PublishQueueContext';
 import PublishTray from './components/PublishTray';
 import { CallProvider } from './contexts/CallContext';
@@ -8621,6 +8622,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         isMinimizedCreator={isCreatorMinimized}
         onRestoreCreator={() => setIsCreatorMinimized(false)}
       />
+      <ReelloUploadDock />
       <PublishTray />
       <ProjectTray
         isOpen={isProjectTrayOpen}
