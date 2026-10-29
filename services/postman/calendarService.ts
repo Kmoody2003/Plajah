@@ -542,7 +542,8 @@ async function fetchWorksheetDue(uid: string): Promise<WorksheetDueItem[]> {
     getDocs(query(collection(db, 'worksheet_assignments'), where('teacherUid', '==', uid), limit(60))).catch(() => null),
   ]);
   const out: WorksheetDueItem[] = [];
-  mine?.docs.forEach(d => { const a: any = d.data(); if (a.dueDate) out.push({ key: `s:${d.id}`, worksheetId: a.worksheetId, assignmentId: d.id, title: String(a.title || 'Worksheet'), className: String(a.className || 'Class'), dueDate: Number(a.dueDate), role: 'student' }); });
+  // Scheduled-ahead homework (Lesson Library) shows on a student's calendar once it opens; guardians and teachers see it all along.
+  mine?.docs.forEach(d => { const a: any = d.data(); if (a.dueDate && (!a.opensAt || a.opensAt <= Date.now())) out.push({ key: `s:${d.id}`, worksheetId: a.worksheetId, assignmentId: d.id, title: String(a.title || 'Worksheet'), className: String(a.className || 'Class'), dueDate: Number(a.dueDate), role: 'student' }); });
   kids?.docs.forEach(d => { const s: any = d.data(); if (s.dueDate) out.push({ key: `g:${d.id}`, worksheetId: s.worksheetId, assignmentId: s.assignmentId, title: String(s.title || 'Homework'), className: String(s.className || 'Class'), dueDate: Number(s.dueDate), role: 'guardian', who: String(s.studentName || '').split(' ')[0] || undefined, done: s.status === 'turned-in' }); });
   taught?.docs.forEach(d => { const a: any = d.data(); if (a.dueDate) out.push({ key: `t:${d.id}`, worksheetId: a.worksheetId, assignmentId: d.id, title: String(a.title || 'Worksheet'), className: String(a.className || 'Class'), dueDate: Number(a.dueDate), role: 'teacher' }); });
   return out;

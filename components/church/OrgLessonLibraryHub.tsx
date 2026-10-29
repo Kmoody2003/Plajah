@@ -19,18 +19,20 @@ import {
   listIngestedUnits,
   ensureAllDetectedLinksOnboarded,
   deleteIngestedUnit,
+  getCourseImportReport,
+  type CourseImportReport,
   type IngestedCurriculumUnit,
   type LessonLibraryCategory,
 } from '../../services/curriculumIngestionService';
 import type { ChurchProgram } from '../../services/churchEducationService';
 import { isStandaloneTeacherScopeId } from '../../services/orgAssets';
 import { TelaDocumentPreviewModal } from './TelaDocumentPreviewModal';
-import { AssignToClassModal } from '../desk/AssignToClassModal';
 import { openTelaClasswork } from './christianEd/edWork';
 import { ED_CSS } from './christianEd/edStyles';
 import TelaPage, { KIND_META, TELA_PAGE_CSS, kindOf } from './library/TelaPage';
 import AssignScheduleSheet, { type ScheduledResult } from './library/AssignScheduleSheet';
 import CourseCalendar from './library/CourseCalendar';
+import { useCourseSource } from './library/courseSource';
 import { fmtDay } from './christianEd/edWork';
 
 export interface OrgLessonLibraryHubProps {
@@ -185,13 +187,20 @@ export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
   const [panelTab, setPanelTab] = useState<'page' | 'original' | 'key'>('page');
   const [fullPreview, setFullPreview] = useState<IngestedCurriculumUnit | null>(null);
   const [scheduling, setScheduling] = useState<string[] | null>(null);
-  const [legacyAssign, setLegacyAssign] = useState<IngestedCurriculumUnit | null>(null);
+  // Inside an org: its Christian Ed courses. A teacher with no org: their own Academia classes.
+  const teacherRef = useMemo(() => ({ uid: currentUserUid, name: currentUserName }), [currentUserUid, currentUserName]);
+  const source = useCourseSource({ programs, orgId, orgName, teacher: teacherRef, academia: isStandaloneTeacher && canUploadToLibrary && !!currentUserUid });
+  const courses = source.courses;
   const [calProgram, setCalProgram] = useState(programId || programs[0]?.id || '');
   const [calFocus, setCalFocus] = useState<Date | null>(null);
+  useEffect(() => { if (!calProgram && courses[0]) setCalProgram(courses[0].id); }, [calProgram, courses]);
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [status, setStatus] = useState('');
+  // Great Faith's Revelation 2 course is imported link by link; this is what was read and what wasn't.
+  const [report, setReport] = useState<CourseImportReport | null>(() => getCourseImportReport(orgId));
+  const [reportOpen, setReportOpen] = useState(false);
 
-  const refreshUnits = () => setUnits(listIngestedUnits(orgId, programId, orgName));
+  const refreshUnits = () => { setUnits(listIngestedUnits(orgId, programId, orgName)); setReport(getCourseImportReport(orgId)); };
 
   // Open where the viewer is: the library replaces whatever they were looking at, so bring its top into view.
   useEffect(() => {
@@ -242,11 +251,6 @@ export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
   const startAssign = (ids: string[]) => {
     const ok = ids.filter(id => { const u = visible.find(x => x.id === id); return u && assignable(u); });
     if (!ok.length) return;
-    if (programs.length === 0) {
-      // Standalone Academia teachers have no Christian Ed courses: the one-at-a-time class picker covers them.
-      setLegacyAssign(visible.find(u => u.id === ok[0]) || null);
-      return;
-    }
     setPreviewId(null);
     setScheduling(ok);
   };
@@ -281,7 +285,7 @@ export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
             {canAssign ? ' · select pages to assign & schedule them for a course' : ''}
           </div>
         </div>
-        {canAssign && programs.length > 0 && (
+        {canAssign && courses.length > 0 && (
           <div className="lib-tabs" role="group" aria-label="View">
             <button type="button" aria-pressed={view === 'library'} onClick={() => setView('library')}>Library</button>
             <button type="button" aria-pressed={view === 'calendar'} onClick={() => setView('calendar')}><CalendarDays size={14} /> Course calendar</button>
@@ -298,14 +302,36 @@ export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
       {status && (
         <div className="okmsg row">
           <span className="grow">{status}</span>
-          {view !== 'calendar' && programs.length > 0 && <button type="button" className="btn sm" onClick={() => { setView('calendar'); setStatus(''); }}>See calendar</button>}
+          {view !== 'calendar' && courses.length > 0 && <button type="button" className="btn sm" onClick={() => { setView('calendar'); setStatus(''); }}>See calendar</button>}
           <button type="button" className="btn sm" aria-label="Dismiss" onClick={() => setStatus('')}><X size={13} /></button>
+        </div>
+      )}
+
+      {report && canUploadToLibrary && (
+        <div className={report.failed.length ? 'err' : 'okmsg'} style={{ display: 'grid', gap: 6 }}>
+          <div className="row">
+            <span className="grow">
+              <strong>{report.hubTitle}</strong>: {report.imported.length} of {report.total} links read into their own Tela documents
+              {report.failed.length ? ` · ${report.failed.length} couldn’t be read` : ''}
+            </span>
+            <button type="button" className="btn sm" aria-expanded={reportOpen} onClick={() => setReportOpen(o => !o)}>{reportOpen ? 'Hide' : 'Check each one'}</button>
+          </div>
+          {reportOpen && (
+            <ol style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 3, fontSize: '.8rem' }}>
+              {report.imported.map(r => (
+                <li key={r.url}><a href={r.url} target="_blank" rel="noreferrer" style={{ color: 'inherit' }}>{r.label}</a> → “{r.title}” · {r.questions ? `${r.questions} questions` : `${r.words} words`}</li>
+              ))}
+              {report.failed.map(r => (
+                <li key={r.url}><a href={r.url} target="_blank" rel="noreferrer" style={{ color: 'inherit' }}>{r.label}</a> — not imported: {r.reason}</li>
+              ))}
+            </ol>
+          )}
         </div>
       )}
 
       {view === 'calendar' ? (
         <CourseCalendar
-          programs={programs}
+          source={source}
           programId={calProgram}
           focus={calFocus}
           onProgram={setCalProgram}
@@ -379,10 +405,10 @@ export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
           {canAssign && selected.length > 0 && (
             <div className="lib-actionbar" role="region" aria-label="Selection">
               <strong style={{ fontFamily: 'var(--fd)' }}>{selected.length} selected</strong>
-              <span className="small grow">{programs.length ? 'Pick a course and lay them out on its calendar.' : ''}</span>
+              <span className="small grow">{source.kind === 'ACADEMIA' ? 'Pick a class and lay them out on its calendar.' : 'Pick a course and lay them out on its calendar.'}</span>
               <button type="button" className="btn sm" onClick={() => setSelected([])}>Clear</button>
               <button type="button" className="btn p" onClick={() => startAssign(selected)}>
-                <CalendarDays size={15} /> {programs.length ? 'Assign & schedule' : 'Assign'}
+                <CalendarDays size={15} /> Assign &amp; schedule
               </button>
             </div>
           )}
@@ -442,7 +468,7 @@ export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
             <div className="lib-pf">
               {canAssign && assignable(preview) && (
                 <button type="button" className="btn p" onClick={() => startAssign([preview.id])}>
-                  <CalendarDays size={15} /> {programs.length ? 'Assign & schedule' : 'Assign'}
+                  <CalendarDays size={15} /> Assign &amp; schedule
                 </button>
               )}
               {canAssign && assignable(preview) && (
@@ -469,11 +495,7 @@ export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
           <div className="ce" style={{ display: 'contents' }}>
             <AssignScheduleSheet
               units={scheduling.map(id => visible.find(u => u.id === id)).filter((u): u is IngestedCurriculumUnit => !!u)}
-              programs={programs}
-              orgId={orgId}
-              orgName={orgName}
-              domain={isStandaloneTeacher ? 'ACADEMIA' : 'CHRISTIAN_EDUCATION'}
-              teacher={{ uid: currentUserUid, name: currentUserName }}
+              source={source}
               onClose={() => setScheduling(null)}
               onDone={scheduled}
               onSaveProgram={onSaveProgram}
@@ -498,24 +520,6 @@ export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
         />
       )}
 
-      {legacyAssign && (
-        <AssignToClassModal
-          isOpen
-          onClose={() => setLegacyAssign(null)}
-          unit={legacyAssign}
-          defaultDomain={isStandaloneTeacher ? 'ACADEMIA' : 'CHRISTIAN_EDUCATION'}
-          orgId={orgId}
-          orgName={orgName}
-          teacherUid={currentUserUid}
-          teacherName={currentUserName}
-          programs={programs}
-          onAssigned={created => {
-            setLegacyAssign(null);
-            setSelected([]);
-            setStatus(`Assigned “${created.title}” to ${created.classroomName}.`);
-          }}
-        />
-      )}
     </div>
   );
 };

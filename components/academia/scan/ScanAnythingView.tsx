@@ -71,7 +71,8 @@ const ScanAnythingView: React.FC<{ user?: any; profile?: any; onBack?: () => voi
   const loadMyAssignments = async (): Promise<Array<{ id: string; sheet: DigitalWorksheet; dueDate?: number | null; assignedAt?: number }>> => {
     if (!user?.uid) return [];
     const snap = await getDocs(query(collection(db, 'worksheet_assignments'), where('studentIds', 'array-contains', user.uid), limit(40))).catch(() => null);
-    const rows = (snap?.docs || []).map(d => ({ id: d.id, ...(d.data() as any) })).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 25);
+    // Homework scheduled ahead from the Lesson Library stays off the list until it opens.
+    const rows = (snap?.docs || []).map(d => ({ id: d.id, ...(d.data() as any) })).filter(r => !r.opensAt || r.opensAt <= Date.now()).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 25);
     const sheets = await Promise.all(rows.map(r => fetchWorksheet(r.worksheetId).catch(() => null)));
     return rows.map((r, i) => sheets[i] ? { id: r.id, sheet: { ...sheets[i]!, id: r.worksheetId }, dueDate: r.dueDate, assignedAt: r.createdAt } : null).filter(Boolean) as any;
   };

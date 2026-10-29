@@ -144,9 +144,10 @@ export const HqFilesTab: React.FC<{
   const load = async () => {
     setLoading(true);
     try {
-      if (!isUserScope) {
+      // Only an org's own id: a missing scope must not fall back to another org's library.
+      if (!isUserScope && scope.id) {
         await ensureAllDetectedLinksOnboarded(
-          scope.id || GREAT_FAITH_MINISTRIES_DEFAULT_ID,
+          scope.id,
           undefined,
           resolvedOrgName
         ).catch(() => {});

@@ -1,6 +1,6 @@
 // Christian Ed lab: the new hub, class clubs, review queue and Tela Classwork with sample Grace Chapel data.
 //   npx vite --config christian-ed-lab.vite.config.mjs  ->  http://127.0.0.1:3181/christian-ed-lab.html
-//   ?as=teacher (default) | student | review | classwork | templates | hq-templates | academia-teacher | homeroom | library | library-student | tela-home
+//   ?as=teacher (default) | student | review | classwork | templates | hq-templates | academia-teacher | homeroom | library | library-student | library-academia | library-greatfaith | tela-home
 // Firestore calls fail without sign-in and fall back to this device, the same way the app behaves offline.
 import React, { useState } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -152,11 +152,21 @@ const Lab: React.FC = () => {
     ];
     return <TelaHome recent={recent} viewerUid={teacher.uid} memberOrgIds={[church.id]} onOpen={id => alert(`open ${id}`)} onCreate={() => {}} onChooseStyle={() => {}} onChoosePublication={() => {}} onChooseTemplate={() => {}} onImport={() => {}} />;
   }
-  if (as === 'library' || as === 'library-student') {
+  if (as === 'library-greatfaith') {
+    // Great Faith's Revelation 2 course, imported for real from its Google links (via the lab's stand-in server).
+    return (
+      <div style={{ maxWidth: 1240, margin: '0 auto', padding: '24px 20px 60px' }}>
+        <OrgLessonLibraryHub orgId="great-faith-ministries" orgName="Great Faith Ministries" programs={[]} canAccessAnswerKey canUploadToLibrary currentUserUid={teacher.uid} currentUserName={teacher.name} />
+      </div>
+    );
+  }
+  if (as === 'library' || as === 'library-student' || as === 'library-academia') {
     // Sample Grace Chapel items (lab only): a quiz, two assignments, a reading and a syllabus.
     const mk = (id: string, title: string, subtitle: string, cat: IngestedCurriculumUnit['libraryCategory'], qs = unit.questions, blocks = unit.lessonBlocks): IngestedCurriculumUnit =>
       ({ ...unit, id, title, subtitle, libraryCategory: cat, kind: cat === 'QUIZ_EXAM' ? 'QUIZ' : 'ASSIGNMENT', questions: qs, totalPoints: qs.reduce((n, q) => n + q.points, 0), lessonBlocks: blocks, sourceUrl: undefined, createdAt: now - Math.random() * 1e8 });
     const reading = [{ id: 'r1', kind: 'h2' as const, text: 'Before you read' }, { id: 'r2', kind: 'p' as const, text: 'Jesus told this story to people who grumbled that he welcomed sinners. Read it slowly and notice how each son responds to the father.' }, { id: 'r3', kind: 'quote' as const, text: 'This son of mine was dead and is alive again; he was lost and is found.', scripturePassage: 'Luke 15:24' }];
+    // library-academia: a teacher with no org — no Christian Ed courses, so the sheet offers their own Academia classes.
+    const academia = as === 'library-academia';
     for (const u of [
       unit,
       mk('lab-unit-good-sam', 'The Good Samaritan worksheet', 'Luke 10:25–37', 'ASSIGNMENT', unit.questions.slice(0, 2), reading),
@@ -164,11 +174,11 @@ const Lab: React.FC = () => {
       mk('lab-unit-reading', 'Parables reading packet', 'Read before week 7', 'COURSE_RESOURCE', [], reading),
       mk('lab-unit-midterm', 'Parables unit exam', 'Weeks 1–6', 'QUIZ_EXAM'),
       mk('lab-unit-syllabus', 'Kids Sunday School · Fall syllabus', 'September – December', 'SYLLABUS', [], reading),
-    ]) saveIngestedUnit({ ...u, orgId: church.id });
-    const teach = as === 'library';
+    ]) saveIngestedUnit(academia ? { ...u, orgId: 'teacher-personal-hq', scopeKind: 'user' } : { ...u, orgId: church.id });
+    const teach = as !== 'library-student';
     return (
       <div style={{ maxWidth: 1240, margin: '0 auto', padding: '24px 20px 60px' }}>
-        <OrgLessonLibraryHub orgId={church.id} orgName={church.name} programs={programs} canAccessAnswerKey={teach} canUploadToLibrary={teach}
+        <OrgLessonLibraryHub orgId={academia ? 'teacher-personal-hq' : church.id} orgName={academia ? teacher.name : church.name} scopeKind={academia ? 'user' : 'org'} programs={academia ? [] : programs} canAccessAnswerKey={teach} canUploadToLibrary={teach}
           currentUserUid={teach ? teacher.uid : student.uid} currentUserName={teach ? teacher.name : student.name} onSaveProgram={save} />
       </div>
     );

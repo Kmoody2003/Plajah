@@ -6,10 +6,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import type { ChurchProgram } from '../../../services/churchEducationService';
 import type { IngestedCurriculumUnit } from '../../../services/curriculumIngestionService';
-import { assignUnitToClassroomDesk, listDeskAssignments, type DeskAssignmentToolsConfig } from '../../../services/universalStudentDeskService';
+import type { DeskAssignmentToolsConfig } from '../../../services/universalStudentDeskService';
 import { CADENCE_LABEL, addMonths, fromIsoDay, isoDay, monthGrid, opensBefore, spreadDates, type Cadence } from '../../../services/edu/courseSchedule';
 import { announceWorkChanged, fmtDay } from '../christianEd/edWork';
 import { KIND_META, kindOf } from './TelaPage';
+import type { CourseSource } from './courseSource';
 
 const TOOLS: Array<[keyof DeskAssignmentToolsConfig, string]> = [
   ['allowSelfCheckBeforeTurnIn', 'Check my work'],
@@ -28,22 +29,22 @@ export interface ScheduledResult {
   last: Date;
 }
 
-export default function AssignScheduleSheet({ units, programs, orgId, orgName, domain, teacher, onClose, onDone, onSaveProgram }: {
+export default function AssignScheduleSheet({ units, source, onClose, onDone, onSaveProgram }: {
   units: IngestedCurriculumUnit[];
-  programs: ChurchProgram[];
-  orgId: string;
-  orgName: string;
-  domain: 'CHRISTIAN_EDUCATION' | 'ACADEMIA';
-  teacher: { uid: string; name: string };
+  /** Christian Ed courses or the teacher's own Academia classes (courseSource). */
+  source: CourseSource;
   onClose: () => void;
   onDone: (r: ScheduledResult) => void;
   /** When given, "Add to the course plan" files each item under the class's weeks too. */
   onSaveProgram?: (p: ChurchProgram) => Promise<void>;
 }) {
-  const [programId, setProgramId] = useState(programs.length === 1 ? programs[0].id : '');
-  const program = programs.find(p => p.id === programId) || null;
+  const courses = source.courses;
+  const [programId, setProgramId] = useState(courses.length === 1 ? courses[0].id : '');
+  const program = courses.find(p => p.id === programId) || null;
   const [start, setStart] = useState(isoDay(new Date()));
   const [cadence, setCadence] = useState<Cadence>('meetings');
+  // No meeting days known (Academia classes): one a week is the closest default.
+  useEffect(() => { if (program && !program.meetingSchedule && cadence === 'meetings') setCadence('weekly'); }, [program, cadence]);
   const [order, setOrder] = useState(() => units.map(u => u.id));
   const [overrides, setOverrides] = useState<Record<string, string>>({});
   const [lead, setLead] = useState(3);
@@ -65,18 +66,22 @@ export default function AssignScheduleSheet({ units, programs, orgId, orgName, d
   // Show the month the first item lands in whenever the spread changes.
   const firstDue = auto[0]?.getTime();
   useEffect(() => { if (firstDue) setMonth(new Date(firstDue)); }, [firstDue]);
-  const already = useMemo(() => {
-    if (!program) return new Set<string>();
-    const ids = new Set(listDeskAssignments({ classroomId: program.id }).map(a => a.unitId));
-    return new Set(order.filter(id => ids.has(id)));
-  }, [program, order]);
+  // Items already on this course (re-scheduling a desk item moves it; Academia sends a new copy).
+  const [already, setAlready] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    if (!program) { setAlready(new Set()); return; }
+    let live = true;
+    source.list(program).then(items => { if (live) setAlready(new Set(items.map(i => i.unitId).filter((x): x is string => !!x))); }).catch(() => {});
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [program?.id]);
   const cells = useMemo(() => monthGrid(month, program?.meetingSchedule), [month, program?.meetingSchedule]);
   const onDay = useMemo(() => {
     const m: Record<string, string[]> = {};
     for (const id of order) (m[isoDay(dates[id])] ||= []).push(id);
     return m;
   }, [order, dates]);
-  const withAccounts = (program?.students || []).filter(s => s.uid).length;
+  const withAccounts = program?.reach ?? 0;
 
   const move = (id: string, by: number) => setOrder(o => {
     const i = o.indexOf(id), j = i + by;
@@ -97,36 +102,24 @@ export default function AssignScheduleSheet({ units, programs, orgId, orgName, d
         const unit = byId.get(id);
         if (!unit) continue;
         const due = dates[id];
-        assignUnitToClassroomDesk({
-          unit,
-          domain,
-          orgId,
-          orgName,
-          classroomId: program.id,
-          classroomName: program.name,
-          dueAt: due.getTime(),
-          dueLabel: `Due ${fmtDay(due)}`,
-          opensAt: opensBefore(due, lead)?.getTime(),
-          assignedByUid: teacher.uid,
-          assignedByName: teacher.name,
-          toolsConfig: tools,
-        });
+        await source.deliver(program, unit, { dueAt: due.getTime(), opensAt: opensBefore(due, lead)?.getTime(), tools });
       }
-      if (addToPlan && onSaveProgram && program.weeks.length) {
+      const plan = program.program;
+      if (addToPlan && onSaveProgram && plan && plan.weeks.length) {
         // One item per week from the week the class is on now; the rest go on the last week.
-        const cur = Math.min(Math.max(program.currentWeek ?? 0, 0), program.weeks.length - 1);
-        const weeks = program.weeks.map(w => ({ ...w, unitIds: [...(w.unitIds || [])] }));
+        const cur = Math.min(Math.max(plan.currentWeek ?? 0, 0), plan.weeks.length - 1);
+        const weeks = plan.weeks.map(w => ({ ...w, unitIds: [...(w.unitIds || [])] }));
         order.forEach((id, i) => {
           const w = weeks[Math.min(cur + i, weeks.length - 1)];
           if (!w.unitIds.includes(id)) w.unitIds.push(id);
         });
-        await onSaveProgram({ ...program, weeks });
+        await onSaveProgram({ ...plan, weeks });
       }
       announceWorkChanged();
       const sorted = order.map(id => dates[id]).sort((a, b) => a.getTime() - b.getTime());
       onDone({ programId: program.id, programName: program.name, count: order.length, first: sorted[0], last: sorted[sorted.length - 1] });
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Couldn’t schedule these. Try again.');
+      setErr(e instanceof Error ? e.message : 'Couldn’t schedule all of these. Check the course calendar for what went out, then try the rest.');
     } finally {
       setBusy(false);
     }
@@ -147,20 +140,22 @@ export default function AssignScheduleSheet({ units, programs, orgId, orgName, d
           <div className="lib-step-n">1</div>
           <div className="stack grow">
             <div className="lib-step-t">Course</div>
-            {programs.length === 0 ? (
-              <div className="err">No courses yet. Make a class in Christian Education first, then schedule work for it here.</div>
+            {source.loading ? (
+              <div className="small">Loading your classes…</div>
+            ) : courses.length === 0 ? (
+              <div className="err">{source.empty}</div>
             ) : (
               <div className="chips">
-                {programs.map(p => (
+                {courses.map(p => (
                   <button key={p.id} type="button" className="chip" aria-pressed={p.id === programId} onClick={() => setProgramId(p.id)}>
                     {p.name}
-                    <span className="lib-chip-sub">{(p.students || []).length} students{p.meetingSchedule ? ` · ${p.meetingSchedule}` : ''}</span>
+                    <span className="lib-chip-sub">{p.sub}</span>
                   </button>
                 ))}
               </div>
             )}
             {program && withAccounts === 0 && (
-              <div className="err">Nobody in {program.name} has a Plajah account yet, so no desk will get these. Add students in People first.</div>
+              <div className="err">{source.kind === 'ACADEMIA' ? `${program.name} has no students yet, so nobody will get these. Add students in Classrooms first.` : `Nobody in ${program.name} has a Plajah account yet, so no desk will get these. Add students in People first.`}</div>
             )}
           </div>
         </section>
@@ -175,7 +170,7 @@ export default function AssignScheduleSheet({ units, programs, orgId, orgName, d
                 <input type="date" className="field" value={start} onChange={e => { if (e.target.value) { setStart(e.target.value); respread(); } }} style={{ maxWidth: 190 }} />
               </label>
               <div className="chips" role="group" aria-label="How to space them">
-                {(Object.keys(CADENCE_LABEL) as Cadence[]).map(c => (
+                {(Object.keys(CADENCE_LABEL) as Cadence[]).filter(c => c !== 'meetings' || !program || program.meetingSchedule).map(c => (
                   <button key={c} type="button" className="chip" aria-pressed={cadence === c} onClick={() => { setCadence(c); respread(); }}>
                     {c === 'meetings' && program?.meetingSchedule ? `Each class (${program.meetingSchedule.split(/[·,]/)[0].trim()})` : CADENCE_LABEL[c]}
                   </button>
@@ -227,7 +222,7 @@ export default function AssignScheduleSheet({ units, programs, orgId, orgName, d
                     <span className="lib-dot" style={{ background: KIND_META[kindOf(u)].color }} />
                     <button type="button" className="lib-order-t" onClick={() => setPicked(p => (p === id ? null : id))}>
                       {u.title}
-                      {already.has(id) && <span className="tag soon">Already on {program?.name} — this moves it</span>}
+                      {already.has(id) && <span className="tag soon">Already on {program?.name} — {source.kind === 'ACADEMIA' ? 'this sends it again' : 'this moves it'}</span>}
                     </button>
                     <input type="date" className="field lib-order-d" aria-label={`Due date for ${u.title}`} value={isoDay(dates[id])} onChange={e => e.target.value && setDay(id, e.target.value)} />
                     <span className="lib-order-mv">
@@ -251,16 +246,22 @@ export default function AssignScheduleSheet({ units, programs, orgId, orgName, d
                 <button key={d} type="button" className="chip" aria-pressed={lead === d} onClick={() => setLead(d)}>{l}{d ? ' it’s due' : ''}</button>
               ))}
             </div>
-            <div className="small">Desk tools</div>
-            <div className="chips">
-              {TOOLS.map(([k, label]) => (
-                <button key={k} type="button" className="chip" aria-pressed={tools[k]} onClick={() => setTools(t => ({ ...t, [k]: !t[k] }))}>{label}</button>
-              ))}
-            </div>
-            {onSaveProgram && program && program.weeks.length > 0 && (
+            {source.deskTools ? (
+              <>
+                <div className="small">Desk tools</div>
+                <div className="chips">
+                  {TOOLS.map(([k, label]) => (
+                    <button key={k} type="button" className="chip" aria-pressed={tools[k]} onClick={() => setTools(t => ({ ...t, [k]: !t[k] }))}>{label}</button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="small">Students get each one as homework with the Plajah tutor and Check my work; it’s graded on the server when they turn it in, and guardians are told.</div>
+            )}
+            {onSaveProgram && program?.program && program.program.weeks.length > 0 && (
               <label className="lib-check">
                 <input type="checkbox" checked={addToPlan} onChange={e => setAddToPlan(e.target.checked)} />
-                Also add them to the course plan, one per week from week {Math.min((program.currentWeek ?? 0) + 1, program.weeks.length)}
+                Also add them to the course plan, one per week from week {Math.min((program.program.currentWeek ?? 0) + 1, program.program.weeks.length)}
               </label>
             )}
           </div>

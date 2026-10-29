@@ -54,6 +54,7 @@ import { learnerAuthRouter } from './routes/learnerAuth';
 import { schoolsRouter } from './routes/schools';
 import { elevateAccountsRouter } from './routes/elevateAccounts';
 import { templateShareRouter } from './routes/templateShare';
+import { curriculumFetchRouter } from './routes/curriculumFetch';
 import { worksheetGradingRouter, splitLegacyWorksheetKeys } from './routes/worksheetGrading';
 import { academiaClassRouter } from './routes/academiaClass';
 import { objectStoreRouter } from './routes/objectStore';
@@ -13795,6 +13796,9 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   // Template library: sharing to the platform shelf is server-decided (org policy + real roles, stripping). Rate-limited.
   app.use('/api/templates/share', authLimiter);
   app.use('/api/templates/share', express.json({ limit: '1mb' }), templateShareRouter);
+  // Lesson Library importer: read Google Drive/Docs/Forms links server-side instead of via public CORS proxies.
+  app.use('/api/curriculum/fetch', rateLimit({ windowMs: 15 * 60 * 1000, max: 200, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many imports at once — try again in a few minutes.' } }));
+  app.use('/api/curriculum/fetch', express.json({ limit: '8kb' }), curriculumFetchRouter);
   // Business staff seats: invite → lookup → redeem on the member's own account (routes/businessStaff.ts).
   app.use('/api/business/staff/lookup', authLimiter);
   app.use('/api/business/staff/redeem', authLimiter);

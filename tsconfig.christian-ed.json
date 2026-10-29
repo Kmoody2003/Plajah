@@ -37,6 +37,13 @@
     "services/tela/recentScope.ts",
     "components/tela/TelaHome.tsx",
     "components/desk/UniversalStudentDesk.tsx",
-    "tests/courseSchedule.test.ts"
+    "tests/courseSchedule.test.ts",
+    "components/church/library/*.ts",
+    "services/academiaLibrarySchedule.ts",
+    "services/worksheetAssignmentService.ts",
+    "components/academia/scan/ScanAnythingView.tsx",
+    "services/postman/calendarService.ts",
+    "routes/curriculumFetch.ts",
+    "tests/curriculumFetch.test.ts"
   ]
 }

@@ -1,16 +1,17 @@
 // Course calendar: what's scheduled for one course, by due date. Tap an item to preview it or move it
-// to another day. Reads the class's desk assignments (this device + the class mirror, via useClassWork).
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import type { ChurchProgram } from '../../../services/churchEducationService';
-import { rescheduleDeskAssignment, type UniversalDeskAssignment } from '../../../services/universalStudentDeskService';
+// to another day. Works for Christian Ed courses and a teacher's own Academia classes (courseSource).
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { addMonths, fromIsoDay, isoDay, monthGrid } from '../../../services/edu/courseSchedule';
-import { announceWorkChanged, fmtDay, useClassWork } from '../christianEd/edWork';
-import { KIND_META, kindOf } from './TelaPage';
+import { announceWorkChanged, fmtDay } from '../christianEd/edWork';
+import { KIND_META } from './TelaPage';
+import type { CourseItem, CourseSource } from './courseSource';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const colorOf = (kind?: string) =>
+  (KIND_META as Record<string, { color: string }>)[kind || '']?.color || (kind === 'QUIZ' || kind === 'TEST' ? KIND_META.QUIZ_EXAM.color : KIND_META.ASSIGNMENT.color);
 
-export default function CourseCalendar({ programs, programId, focus, onProgram, onPreview, onSchedule }: {
-  programs: ChurchProgram[];
+export default function CourseCalendar({ source, programId, focus, onProgram, onPreview, onSchedule }: {
+  source: CourseSource;
   programId: string;
   /** Month to open on (e.g. the first item just scheduled); defaults to this month. */
   focus?: Date | null;
@@ -19,12 +20,19 @@ export default function CourseCalendar({ programs, programId, focus, onProgram, 
   /** Opens the library to pick items to schedule. */
   onSchedule: () => void;
 }) {
+  const programs = source.courses;
   const program = programs.find(p => p.id === programId) || programs[0] || null;
-  const one = useMemo(() => (program ? [program] : []), [program]);
-  const { work, loading } = useClassWork(one, { asTeacher: true });
-  const items = useMemo(() => (program ? work[program.id]?.assignments || [] : []), [work, program]);
+  const [items, setItems] = useState<CourseItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const refresh = useCallback(async () => {
+    if (!program) { setItems([]); return; }
+    setLoading(true);
+    try { setItems(await source.list(program)); } catch { setItems([]); } finally { setLoading(false); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [program?.id, source.kind]);
+  useEffect(() => { void refresh(); }, [refresh]);
   const [month, setMonth] = useState(() => focus || new Date());
-  const [sel, setSel] = useState<UniversalDeskAssignment | null>(null);
+  const [sel, setSel] = useState<CourseItem | null>(null);
   const [moved, setMoved] = useState('');
   // The selected item's bar sits under the month: bring it into view when an item is tapped.
   const selRef = useRef<HTMLDivElement>(null);
@@ -33,7 +41,7 @@ export default function CourseCalendar({ programs, programId, focus, onProgram, 
 
   const cells = useMemo(() => monthGrid(month, program?.meetingSchedule), [month, program?.meetingSchedule]);
   const byDay = useMemo(() => {
-    const m: Record<string, UniversalDeskAssignment[]> = {};
+    const m: Record<string, CourseItem[]> = {};
     for (const a of items) (m[isoDay(new Date(a.dueAt))] ||= []).push(a);
     return m;
   }, [items]);
@@ -42,19 +50,23 @@ export default function CourseCalendar({ programs, programId, focus, onProgram, 
     [items, month],
   );
 
-  const moveTo = (a: UniversalDeskAssignment, iso: string) => {
+  const moveTo = async (a: CourseItem, iso: string) => {
+    if (!program) return;
     const due = fromIsoDay(iso);
     const lead = a.opensAt ? Math.round((a.dueAt - a.opensAt) / 86_400_000) : 0;
-    const next = rescheduleDeskAssignment(a.id, { dueAt: due.getTime(), dueLabel: `Due ${fmtDay(due)}`, opensAt: lead ? due.getTime() - lead * 86_400_000 : null });
+    const next = await source.move(program, a, { dueAt: due.getTime(), opensAt: lead ? due.getTime() - lead * 86_400_000 : null });
     if (next) {
       setSel(next);
+      setItems(list => list.map(x => (x.id === next.id ? next : x)));
       setMoved(`Moved to ${fmtDay(due)}.`);
       announceWorkChanged();
+    } else {
+      setMoved('Couldn’t move it. Try again.');
     }
   };
 
   if (!program) {
-    return <div className="lib-empty"><h3>No courses yet</h3><p className="dim">Make a class in Christian Education, then schedule library work for it.</p></div>;
+    return <div className="lib-empty"><h3>{source.loading ? 'Loading your classes…' : 'No courses yet'}</h3>{!source.loading && <p className="dim">{source.empty}</p>}</div>;
   }
 
   return (
@@ -81,7 +93,7 @@ export default function CourseCalendar({ programs, programId, focus, onProgram, 
           <div key={c.iso} role="gridcell" className={`lib-cal-d${c.inMonth ? '' : ' out'}${c.isToday ? ' today' : ''}${c.isMeeting ? ' meet' : ''}`}>
             <span className="lib-cal-n">{c.date.getDate()}</span>
             {(byDay[c.iso] || []).map(a => (
-              <button key={a.id} type="button" className={`lib-pill${sel?.id === a.id ? ' on' : ''}`} style={{ ['--k' as string]: KIND_META[kindOf(a.unitSnapshot)].color }} title={a.title} onClick={() => setSel(a)}>
+              <button key={a.id} type="button" className={`lib-pill${sel?.id === a.id ? ' on' : ''}`} style={{ ['--k' as string]: colorOf(a.kind) }} title={a.title} onClick={() => setSel(a)}>
                 {a.title}
               </button>
             ))}
@@ -91,7 +103,7 @@ export default function CourseCalendar({ programs, programId, focus, onProgram, 
 
       {sel && (
         <div ref={selRef} className="lib-calsel" role="region" aria-label="Selected item">
-          <span className="lib-dot" style={{ background: KIND_META[kindOf(sel.unitSnapshot)].color }} />
+          <span className="lib-dot" style={{ background: colorOf(sel.kind) }} />
           <div className="grow" style={{ minWidth: 0 }}>
             <div className="t">{sel.title}</div>
             <div className="small">
@@ -102,9 +114,9 @@ export default function CourseCalendar({ programs, programId, focus, onProgram, 
           </div>
           <label className="lbl" style={{ minWidth: 150 }}>
             Move to
-            <input type="date" className="field" value={isoDay(new Date(sel.dueAt))} onChange={e => e.target.value && moveTo(sel, e.target.value)} />
+            <input type="date" className="field" value={isoDay(new Date(sel.dueAt))} onChange={e => { if (e.target.value) void moveTo(sel, e.target.value); }} />
           </label>
-          <button type="button" className="btn sm" onClick={() => onPreview(sel.unitId)}>Preview</button>
+          {sel.unitId && <button type="button" className="btn sm" onClick={() => onPreview(sel.unitId!)}>Preview</button>}
           <button type="button" className="btn sm" aria-label="Close" onClick={() => { setSel(null); setMoved(''); }}>✕</button>
         </div>
       )}
@@ -114,7 +126,7 @@ export default function CourseCalendar({ programs, programId, focus, onProgram, 
         {inMonth.map(a => (
           <button key={a.id} type="button" className="lib-agenda-r" onClick={() => setSel(a)}>
             <span className="lib-agenda-d">{new Date(a.dueAt).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' })}</span>
-            <span className="lib-dot" style={{ background: KIND_META[kindOf(a.unitSnapshot)].color }} />
+            <span className="lib-dot" style={{ background: colorOf(a.kind) }} />
             <span className="grow" style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.title}</span>
             {a.opensAt && a.opensAt > Date.now() && <span className="tag soon">Opens {new Date(a.opensAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>}
           </button>

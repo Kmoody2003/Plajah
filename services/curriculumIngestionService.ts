@@ -142,10 +142,9 @@ function normalizeToGreatFaithOrgId(orgId: string): string {
   if (isStandaloneTeacherScopeId(orgId)) {
     return getStandaloneTeacherScopeId(orgId);
   }
-  if (!orgId || orgId === 'demo-grace-chapel' || orgId.startsWith('demo-')) {
-    return GREAT_FAITH_MINISTRIES_DEFAULT_ID;
-  }
-  return orgId;
+  // Every org keeps its own library. A demo org or a missing id never shares Great Faith's storage
+  // (it used to, which put Great Faith's real course in the Grace Chapel demo).
+  return orgId || 'unscoped';
 }
 
 const STORAGE_UNITS_KEY = (orgId: string) =>
@@ -183,7 +182,6 @@ function readRawStoredUnitsForKey(key: string): IngestedCurriculumUnit[] {
   }
 }
 
-let isSeedingDefaultsSync = false;
 
 export function listIngestedUnits(
   orgId: string,
@@ -196,7 +194,10 @@ export function listIngestedUnits(
     const resolvedOrgName = orgName || GREAT_FAITH_MINISTRIES_NAME;
     const orgEduFolder = getOrgEducationFolderName(resolvedOrgName);
 
-    const primaryList = readRawStoredUnitsForKey(STORAGE_UNITS_KEY(safeOrgId));
+    const ownList = readRawStoredUnitsForKey(STORAGE_UNITS_KEY(safeOrgId));
+    // Older builds copied every org's lessons into Great Faith's library; those copies also sit in their
+    // own org's storage on this device, so leave them out of Great Faith's.
+    const primaryList = safeOrgId === GREAT_FAITH_MINISTRIES_DEFAULT_ID ? withoutOtherOrgsCopies(ownList) : ownList;
     const secondaryList = isStandaloneTeacher
       ? safeOrgId !== 'teacher-personal-hq'
         ? readRawStoredUnitsForKey(STORAGE_UNITS_KEY('teacher-personal-hq'))
@@ -205,10 +206,11 @@ export function listIngestedUnits(
 
     // The Revelation 2 sample course is demo content. Older builds seeded it into every org's library;
     // a real org shows only what its own people added.
-    const demoOrg = !isStandaloneTeacher && safeOrgId === GREAT_FAITH_MINISTRIES_DEFAULT_ID;
+    const demoOrg = !isStandaloneTeacher && isRevelationCourseOrg(safeOrgId);
     const byKey = new Map<string, IngestedCurriculumUnit>();
     for (const u of [...primaryList, ...secondaryList]) {
       if (!u || !u.title) continue;
+      if (isFabricatedSampleUnit(u)) continue;
       if (!demoOrg && isSampleCourseUnit(u)) continue;
       const dedupeKey = (u.sourceUrl || u.title).trim().toLowerCase();
       if (!byKey.has(dedupeKey)) {
@@ -248,74 +250,8 @@ export function listIngestedUnits(
       }
     }
 
-    // For organization scopes, seed the preset documents synchronously if not yet seeded so the
-    // organization's Lesson Library & `<Org Name> Education` folder is never empty on mount!
-    if (
-      demoOrg &&
-      !isSeedingDefaultsSync &&
-      typeof REVELATION_2_COURSE_CONNECTION_PRESET !== 'undefined' &&
-      byKey.size < REVELATION_2_COURSE_CONNECTION_PRESET.links.length
-    ) {
-      isSeedingDefaultsSync = true;
-      try {
-        for (const item of REVELATION_2_COURSE_CONNECTION_PRESET.links) {
-          const dedupeKey = (item.url || item.label).trim().toLowerCase();
-          if (byKey.has(dedupeKey)) continue;
-          const resolvedKind: IngestedCurriculumUnit['kind'] =
-            item.category === 'GOOGLE_FORM' || /\bquiz\b/i.test(item.label)
-              ? 'QUIZ'
-              : /\b(test|exam|examination|benchmark)\b/i.test(item.label)
-                ? 'TEST'
-                : /\b(syllabus|course\s*connection)\b/i.test(item.label)
-                  ? 'CURRICULUM_MODULE'
-                  : 'INTERACTIVE_LESSON';
-          const { unit, telaDoc } = parseCurriculumAndBuildUnit({
-            orgId: safeOrgId,
-            programId,
-            title: item.label,
-            rawCurriculumText: item.fallbackCurriculumText || `# ${item.label}`,
-            rawAnswerKeyText: item.fallbackAnswerKeyText || '',
-            sourceKind:
-              item.category === 'ANSWER_KEY'
-                ? 'GOOGLE_DOC'
-                : (item.category as CurriculumSourceKind),
-            sourceLabel: item.label,
-            sourceUrl: item.url,
-            answerKeySourceLabel: item.pairedAnswerKeyLabel,
-            unitKind: resolvedKind,
-          });
-          const libCat = inferLessonLibraryCategory(item.label, resolvedKind, item.isAnswerKey);
-          unit.departmentFolder = orgEduFolder;
-          unit.documentClassFolder = resolveDocumentClassFolder({
-            unitTitle: item.label,
-            unitKind: resolvedKind,
-            libraryCategory: libCat,
-            isAnswerKey: item.isAnswerKey,
-          });
-          unit.scopeKind = 'org';
-          unit.rawCurriculumText = item.fallbackCurriculumText || `# ${item.label}`;
-          unit.rawAnswerKeyText = item.fallbackAnswerKeyText || '';
-          unit.isAnswerKeyOnly = Boolean(item.isAnswerKey);
-          unit.libraryCategory = libCat;
-          unit.createdByName = `${resolvedOrgName} Education`;
-          unit.uploadedByRole = 'INSTRUCTOR';
-          unit.extractedFromHubTitle = REVELATION_2_COURSE_CONNECTION_PRESET.hubTitle;
-          unit.extractedFromHubUrl = REVELATION_2_COURSE_CONNECTION_PRESET.hubUrl;
-          void saveTelaDoc(telaDoc).catch(() => {});
-          byKey.set(dedupeKey, unit);
-        }
-        const seededArray = Array.from(byKey.values()).sort((a, b) => b.createdAt - a.createdAt);
-        localStorage.setItem(STORAGE_UNITS_KEY(safeOrgId), JSON.stringify(seededArray));
-        if (safeOrgId !== GREAT_FAITH_MINISTRIES_DEFAULT_ID) {
-          localStorage.setItem(
-            STORAGE_UNITS_KEY(GREAT_FAITH_MINISTRIES_DEFAULT_ID),
-            JSON.stringify(seededArray.map(u => ({ ...u, orgId: GREAT_FAITH_MINISTRIES_DEFAULT_ID })))
-          );
-        }
-      } finally {
-        isSeedingDefaultsSync = false;
-      }
-    }
+    // The Revelation 2 course is imported for real by ensureAllDetectedLinksOnboarded (each link downloaded
+    // and read); nothing is seeded here from built-in text.
 
     const list = Array.from(byKey.values());
     const filtered = programId ? list.filter(u => !u.programId || u.programId === programId) : list;
@@ -325,7 +261,44 @@ export function listIngestedUnits(
   }
 }
 
-/** A unit seeded from the Revelation 2 sample course preset (demo content). */
+function withoutOtherOrgsCopies(list: IngestedCurriculumUnit[]): IngestedCurriculumUnit[] {
+  const elsewhere = new Set<string>();
+  try {
+    const gfKey = STORAGE_UNITS_KEY(GREAT_FAITH_MINISTRIES_DEFAULT_ID);
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key || key === gfKey || !key.startsWith('plajah_ingested_curriculum_units_v1_')) continue;
+      for (const u of readRawStoredUnitsForKey(key)) if (u?.id) elsewhere.add(u.id);
+    }
+  } catch {
+    return list;
+  }
+  return list.filter(u => !elsewhere.has(u.id));
+}
+
+/**
+ * The orgs the Revelation 2 course belongs to, by exact org id. It is Great Faith Ministries' own
+ * curriculum and no other org gets it, whatever it's called:
+ *   • ssmj9GnjxGnE7lJoPmWH — "Great Faith Ministries International" (@greatfaithministries), the live org;
+ *   • 'great-faith-ministries' — the same org's pre-Firestore local scope (services/orgAssets).
+ * (A second, near-empty "Great Faith Ministries Int'L" org, n7FDgEg1m3JDAsYuY19o, is deliberately not listed.)
+ */
+export const REVELATION_2_COURSE_ORG_IDS: ReadonlySet<string> = new Set(['ssmj9GnjxGnE7lJoPmWH', GREAT_FAITH_MINISTRIES_DEFAULT_ID]);
+function isRevelationCourseOrg(safeOrgId: string): boolean {
+  return REVELATION_2_COURSE_ORG_IDS.has(safeOrgId);
+}
+
+/**
+ * Items older builds made up for the Revelation 2 course: built-in text under invented links (the course
+ * doc's id with suffixes like `_ephesus_pdf`, and form ids such as `…ScRev2EphesusSmyrnaQuiz`). Hidden
+ * everywhere; the real course is re-imported from its actual links.
+ */
+function isFabricatedSampleUnit(u: IngestedCurriculumUnit): boolean {
+  const src = u.sourceUrl || '';
+  return src.includes('1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE') || /1FAIpQLScRev2/.test(src);
+}
+
+/** A unit imported from the Revelation 2 course links (Great Faith's own course). */
 function isSampleCourseUnit(u: IngestedCurriculumUnit): boolean {
   const p = REVELATION_2_COURSE_CONNECTION_PRESET;
   // By its own source link only: older builds also stamped the hub onto real items' provenance.
@@ -376,15 +349,8 @@ export function saveIngestedUnit(unit: IngestedCurriculumUnit): void {
           JSON.stringify([{ ...normalizedUnit, orgId: 'teacher-personal-hq' }, ...personalExisting])
         );
       }
-    } else if (safeOrgId !== GREAT_FAITH_MINISTRIES_DEFAULT_ID) {
-      const gfExisting = readRawStoredUnitsForKey(STORAGE_UNITS_KEY(GREAT_FAITH_MINISTRIES_DEFAULT_ID)).filter(
-        u => u.id !== unit.id && u.title.toLowerCase() !== unit.title.toLowerCase()
-      );
-      localStorage.setItem(
-        STORAGE_UNITS_KEY(GREAT_FAITH_MINISTRIES_DEFAULT_ID),
-        JSON.stringify([{ ...normalizedUnit, orgId: GREAT_FAITH_MINISTRIES_DEFAULT_ID }, ...gfExisting])
-      );
     }
+    // An org's lessons stay in that org's library only (older builds also copied every one into Great Faith's).
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('plajah:lessonLibraryUpdated', { detail: { orgId: safeOrgId } }));
     }
@@ -489,12 +455,38 @@ function isGoogleLoginWallHtml(text: string): boolean {
   );
 }
 
+/**
+ * Reads a Google Drive / Docs / Forms link through our own server (routes/curriculumFetch.ts) — browsers
+ * can't read those hosts directly, and org documents must not be relayed through public CORS proxies.
+ * Returns null when the server refuses or can't be reached; throws PRIVATE_LINK for files that
+ * aren't shared by link.
+ */
+export async function fetchCurriculumLink(url: string): Promise<Response | null> {
+  const { auth } = await import('./firebase');
+  const user = auth.currentUser;
+  try {
+    // Signed out, the server answers 401 and the caller falls back (the dev lab's stand-in server answers).
+    const resp = await fetch('/api/curriculum/fetch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(user ? { Authorization: `Bearer ${await user.getIdToken()}` } : {}) },
+      body: JSON.stringify({ url }),
+    });
+    if (resp.status === 403) throw new Error('PRIVATE_LINK: That file is private. Share it as “Anyone with the link → Viewer”, then import again.');
+    return resp.ok ? resp : null;
+  } catch (e) {
+    if (e instanceof Error && e.message.startsWith('PRIVATE_LINK')) throw e;
+    return null;
+  }
+}
+
 async function fetchTextWithCorsFallback(targetUrl: string): Promise<string> {
-  const attempts = [
-    targetUrl,
-    `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
-    `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
-  ];
+  const viaServer = await fetchCurriculumLink(targetUrl);
+  if (viaServer) {
+    const text = await viaServer.text();
+    if (text && text.trim().length > 15 && !isGoogleLoginWallHtml(text)) return text;
+  }
+  // Signed out / offline: a direct read only works for hosts that allow it. No third-party relays.
+  const attempts = [targetUrl];
   let sawAuthWall = false;
   for (const candidate of attempts) {
     try {
@@ -678,18 +670,21 @@ export async function extractGoogleDocText(url: string): Promise<{ title: string
   if (driveFileId) {
     const downloadUrl = `https://drive.google.com/uc?export=download&id=${driveFileId}`;
     try {
-      const resp = await fetch(downloadUrl);
+      const resp = (await fetchCurriculumLink(downloadUrl)) || (await fetch(downloadUrl));
       if (resp.ok) {
         const buf = await resp.arrayBuffer();
         const pdfFile = new File([buf], `drive_${driveFileId}.pdf`, { type: 'application/pdf' });
         const pdfText = await extractTextFromPdfFile(pdfFile);
+        // A scanned PDF has no text layer: say so instead of importing an empty lesson.
+        if (pdfText.replace(/\s/g, '').length < 20) throw new Error('SCANNED_PDF: This PDF is a scan with no readable text. Open the original, or upload a text PDF / Word copy.');
         return {
           title: `Google Drive PDF (${driveFileId.slice(0, 8)})`,
           text: pdfText,
         };
       }
-    } catch {
-      // fall through to text fetch
+    } catch (e) {
+      if (e instanceof Error && /^(SCANNED_PDF|PRIVATE_LINK)/.test(e.message)) throw e;
+      // otherwise fall through to a text fetch
     }
   }
 
@@ -1050,6 +1045,15 @@ export async function extractTextFromDocxFile(file: File): Promise<string> {
  * Supports embedded PDF text streams, DecompressionStream FlateDecode streams, and scanned PDF fallback.
  */
 export async function extractTextFromPdfFile(file: File): Promise<string> {
+  // pdf.js reads real-world PDFs (Google/Word exports, embedded CID fonts); the quick parser below is the
+  // fallback for environments without it.
+  try {
+    const { extractDocument } = await import('./documentImport');
+    const doc = await extractDocument(file);
+    if (doc.plainText.replace(/\s/g, '').length >= 20) return doc.plainText;
+  } catch {
+    /* pdf.js unavailable: try the quick parser */
+  }
   const buf = await file.arrayBuffer();
   const bytes = new Uint8Array(buf);
   const rawLatin = new TextDecoder('latin1').decode(bytes);
@@ -1121,25 +1125,9 @@ export async function extractTextFromPdfFile(file: File): Promise<string> {
     return combined;
   }
 
-  // Fallback if PDF is a scanned image PDF or custom-encoded font: generate structured template from filename
-  const cleanName = file.name.replace(/\.pdf$/i, '').replace(/[_-]+/g, ' ');
-  return [
-    `# ${cleanName}`,
-    `Interactive PDF Worksheet & Study Guide imported from ${file.name}.`,
-    ``,
-    `1. What is the central theme, thesis, or key Scripture passage in ${cleanName}?`,
-    `Answer: Core theme and primary textual evidence`,
-    ``,
-    `2. Summarize the three main takeaways or observations from this document.`,
-    `Answer: Observation, interpretation, and application`,
-    ``,
-    `3. Multiple Choice: Which statement best reflects the conclusion of ${cleanName}?`,
-    `A) The primary argument is supported by historical and textual context`,
-    `B) The passage has no practical application`,
-    `C) The context is unrelated to the unit syllabus`,
-    `D) None of the above`,
-    `Answer: A`,
-  ].join('\n');
+  // Nothing readable (a scan, or fonts the quick parser can't decode). Return nothing rather than
+  // inventing questions from the file name: callers treat empty text as "couldn't read this".
+  return '';
 }
 
 // ── 3. Answer-Key Parser & Merger ─────────────────────────────────────────────
@@ -1209,6 +1197,8 @@ export function parseAnswerKeyText(rawKeyText: string): ParsedAnswerKey {
 
 // ── 4. Curriculum Body Parser (Lessons, Syllabus Weeks, Questions & Skills) ───
 
+/** Openers that make a numbered line a prompt to answer rather than a list item. */
+const QUESTION_PROMPT = /^(who|what|when|where|why|how|which|whom|whose|explain|describe|discuss|list|name|identify|define|compare|contrast|summari[sz]e|write|give|state|tell|fill|complete|circle|match|choose|select|read\s+.+\s+and|true\s+or\s+false|t\s*\/\s*f)\b/i;
 const SCRIPTURE_REGEX =
   /\b((?:[1-3]\s+)?(?:Genesis|Exodus|Leviticus|Numbers|Deuteronomy|Joshua|Judges|Ruth|Samuel|Kings|Chronicles|Ezra|Nehemiah|Esther|Job|Psalms?|Proverbs|Ecclesiastes|Song of Songs|Isaiah|Jeremiah|Lamentations|Ezekiel|Daniel|Hosea|Joel|Amos|Obadiah|Jonah|Micah|Nahum|Habakkuk|Zephaniah|Haggai|Zechariah|Malachi|Matthew|Mark|Luke|John|Acts|Romans|Corinthians|Galatians|Ephesians|Philippians|Colossians|Thessalonians|Timothy|Titus|Philemon|Hebrews|James|Peter|Jude|Revelation)\s+\d+(?::\d+(?:-\d+)?)?)\b/i;
 
@@ -1420,6 +1410,21 @@ export function parseCurriculumAndBuildUnit(params: {
         break;
       }
 
+      // A numbered line is a question only when it reads like one. Numbered class rules, memory verses
+      // and outlines stay reading text (they were being turned into "questions" before).
+      const questionLike =
+        /\?\s*$/.test(prompt) ||
+        QUESTION_PROMPT.test(prompt) ||
+        options.length >= 2 ||
+        Boolean(inlineAnswer) ||
+        Boolean(ptMatch) ||
+        /_{3,}|\(\s*\)/.test(prompt);
+      if (!questionLike) {
+        lessonBlocks.push({ id: `lblk_${lessonBlocks.length + 1}`, kind: 'p', text: line, scripturePassage: prompt.match(SCRIPTURE_REGEX)?.[1] });
+        i++;
+        continue;
+      }
+
       const scMatch = prompt.match(SCRIPTURE_REGEX);
       const passage = scMatch ? scMatch[1] : undefined;
       const skill = ensureSkill(currentSkillId, currentSkillTitle, passage);
@@ -1494,59 +1499,8 @@ export function parseCurriculumAndBuildUnit(params: {
     });
   }
 
-  // If no explicit numbered questions were found in a prose lesson doc, synthesize interactive checks from lesson blocks
-  if (questions.length === 0) {
-    const skill = ensureSkill(currentSkillId, detectedTitle || 'Lesson Comprehension & Mastery');
-    const scBlocks = lessonBlocks.filter(b => b.scripturePassage);
-    const firstPassage = scBlocks[0]?.scripturePassage;
-
-    const synth: Array<Omit<IngestedQuestion, 'id' | 'number' | 'skillId' | 'skillTitle'>> = [
-      {
-        prompt: firstPassage
-          ? `According to ${firstPassage} in this lesson, what is the primary truth or teaching revealed in the passage?`
-          : `What is the central thesis and key takeaway of "${detectedTitle || sourceLabel}"?`,
-        type: firstPassage ? 'scripture-reflection' : 'short-answer',
-        correctAnswer: firstPassage || 'Central lesson takeaway',
-        explanation: 'Synthesized from the primary lesson reading.',
-        points: 2,
-        scripturePassage: firstPassage,
-      },
-      {
-        prompt: `Which statement best summarizes the core objective of "${detectedTitle || sourceLabel}"?`,
-        type: 'multiple-choice',
-        options: [
-          'A) Applying the primary textual and conceptual principles in daily practice',
-          'B) Ignoring the historical and textual context of the lesson',
-          'C) Skipping the mastery reflection prompts',
-          'D) None of the above',
-        ],
-        correctAnswer: 'A',
-        explanation: 'Option A aligns with the curriculum objective.',
-        points: 1,
-      },
-      {
-        prompt: 'True or False: I have read the lesson passage and completed the key observation notes.',
-        type: 'true-false',
-        options: ['True', 'False'],
-        correctAnswer: 'True',
-        points: 1,
-      },
-    ];
-
-    synth.forEach((sq, idx) => {
-      const qNum = idx + 1;
-      const qId = `q_${qNum}`;
-      skill.questionIds.push(qId);
-      skill.targetQuestions = skill.questionIds.length;
-      questions.push({
-        ...sq,
-        id: qId,
-        number: qNum,
-        skillId: skill.id,
-        skillTitle: skill.title,
-      });
-    });
-  }
+  // A document with no questions in it (a handout, syllabus, reading) stays a reading: no questions are
+  // invented for it. Teachers add their own in Tela Classwork.
 
   // Merge embedded Answer Key + separate Answer Key doc into questions
   const embeddedKey = parseAnswerKeyText(embeddedKeyLines.join('\n'));
@@ -1763,7 +1717,7 @@ export function parseCurriculumAndBuildUnit(params: {
     orgId,
     programId,
     title: finalTitle,
-    subtitle: `${sourceKind.replace('_', ' ')} · ${questions.length} Interactive Questions · ${sacredLibrarySupplements.length} Sacred Library Supplements`,
+    subtitle: `${sourceKind.replace('_', ' ')} · ${questions.length ? `${questions.length} questions` : 'Reading'}${sacredLibrarySupplements.length ? ` · ${sacredLibrarySupplements.length} Sacred Library supplements` : ''}`,
     sourceKind,
     sourceLabel,
     sourceUrl,
@@ -1830,6 +1784,7 @@ export async function ingestCurriculumToTela(params: {
     if (lower.endsWith('.pdf')) {
       sourceKind = 'PDF_DOCUMENT';
       rawCurriculumText = await extractTextFromPdfFile(f);
+      if (!rawCurriculumText.trim()) throw new Error(`SCANNED_PDF: “${f.name}” is a scan with no readable text. Upload a text PDF or Word copy, or a photo of each page.`);
     } else if (lower.endsWith('.docx') || lower.endsWith('.doc')) {
       sourceKind = 'WORD_DOCX';
       rawCurriculumText = await extractTextFromDocxFile(f);
@@ -2198,6 +2153,8 @@ export async function batchIngestExtractedLinksToTela(params: {
   links: ExtractedCourseResourceLink[];
   includeAnswerKeyDocs?: boolean;
   onProgress?: (current: number, total: number, label: string) => void;
+  /** A link that couldn't be read (private, scanned, offline). It is skipped, not filled in. */
+  onFailed?: (link: ExtractedCourseResourceLink, reason: string) => void;
 }): Promise<Array<{ unit: IngestedCurriculumUnit; telaDoc: TelaDoc }>> {
   const results: Array<{ unit: IngestedCurriculumUnit; telaDoc: TelaDoc }> = [];
   const actionable = params.includeAnswerKeyDocs
@@ -2230,23 +2187,9 @@ export async function batchIngestExtractedLinksToTela(params: {
         unitKind: resolvedKind,
       });
       results.push(built);
-    } catch {
-      const fallbackText =
-        item.fallbackCurriculumText ||
-        `# ${item.label}\nSource Link: ${item.url}\n\n1. Key takeaway and biblical/course analysis from ${item.label}:\n2. Explain the primary Scripture passage and doctrine covered in ${item.label}:`;
-      const built = await ingestCurriculumToTela({
-        orgId: params.orgId,
-        orgName: params.orgName,
-        scopeKind: params.scopeKind,
-        programId: params.programId,
-        title: item.label,
-        isAnswerKeyOnly: item.isAnswerKey,
-        lessonUrl: item.url,
-        lessonText: fallbackText,
-        answerKeyText: item.fallbackAnswerKeyText,
-        unitKind: resolvedKind,
-      });
-      results.push(built);
+    } catch (e) {
+      // Nothing is invented for a link we couldn't read: report it and move on.
+      params.onFailed?.(item, e instanceof Error ? e.message.replace(/^[A-Z_]+:\s*/, '') : 'Couldn’t read this link.');
     }
   }
 
@@ -2258,6 +2201,31 @@ export async function batchIngestExtractedLinksToTela(params: {
  * `<Org Name> Education` for organization accounts (and repairs any earlier cached unit that had 0 questions
  * or was missing Sacred Library supplements). Standalone teachers outside an organization are not seeded with church presets.
  */
+export interface CourseImportReport {
+  hubTitle: string;
+  at: number;
+  total: number;
+  imported: Array<{ label: string; url: string; title: string; questions: number; words: number }>;
+  failed: Array<{ label: string; url: string; reason: string }>;
+}
+const IMPORT_REPORT_KEY = (orgId: string) => `plajah_course_import_report_v1_${orgId}`;
+let importing: Promise<IngestedCurriculumUnit[]> | null = null;
+
+/** What the last Revelation 2 import read, and what it couldn't (shown in the Lesson Library). */
+export function getCourseImportReport(orgId: string): CourseImportReport | null {
+  try {
+    const raw = localStorage.getItem(IMPORT_REPORT_KEY(normalizeToGreatFaithOrgId(orgId)));
+    return raw ? (JSON.parse(raw) as CourseImportReport) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Great Faith's Revelation 2 course: downloads and reads every link in the course doc that isn't in the
+ * library yet, one separate item (and Tela document) per link. Links that fail are reported and retried
+ * on a later visit; nothing is filled in for them. Other orgs: just lists their library.
+ */
 export async function ensureAllDetectedLinksOnboarded(
   orgId: string,
   programId?: string,
@@ -2267,423 +2235,75 @@ export async function ensureAllDetectedLinksOnboarded(
     return listIngestedUnits(orgId, programId, orgName);
   }
   const safeOrgId = normalizeToGreatFaithOrgId(orgId);
-  // The Revelation 2 sample course is demo content: only the demo org gets it.
-  if (safeOrgId !== GREAT_FAITH_MINISTRIES_DEFAULT_ID) return listIngestedUnits(orgId, programId, orgName);
-  const existing = listIngestedUnits(safeOrgId, undefined, orgName);
-
-  const missingLinks = REVELATION_2_COURSE_CONNECTION_PRESET.links.filter(link => {
-    const match = existing.find(
-      u => u.sourceUrl === link.url || u.title.toLowerCase() === link.label.toLowerCase()
-    );
-    if (!match) return true;
-    // Upgrade if an older cached unit had 0 questions or lacked Sacred Library supplements
-    if (!match.questions || match.questions.length === 0 || !match.sacredLibrarySupplements) {
-      return true;
+  if (!isRevelationCourseOrg(safeOrgId)) return listIngestedUnits(orgId, programId, orgName);
+  if (importing) return importing;
+  importing = (async () => {
+    // Drop the made-up items older builds stored, so only real imports remain.
+    for (const u of readRawStoredUnitsForKey(STORAGE_UNITS_KEY(safeOrgId))) if (u && isFabricatedSampleUnit(u)) deleteIngestedUnit(safeOrgId, u.id);
+    const existing = listIngestedUnits(safeOrgId, undefined, orgName);
+    const missing = REVELATION_2_COURSE_CONNECTION_PRESET.links.filter(link => !existing.some(u => u.sourceUrl === link.url));
+    if (missing.length) {
+      const failed: CourseImportReport['failed'] = [];
+      const built = await batchIngestExtractedLinksToTela({
+        orgId: safeOrgId,
+        orgName,
+        scopeKind: 'org',
+        programId,
+        links: missing,
+        includeAnswerKeyDocs: true,
+        onFailed: (link, reason) => failed.push({ label: link.label, url: link.url, reason }),
+      });
+      const prior = getCourseImportReport(safeOrgId);
+      const imported = [
+        ...(prior?.imported || []).filter(x => existing.some(u => u.sourceUrl === x.url)),
+        ...built.map(b => ({ label: b.unit.sourceLabel, url: b.unit.sourceUrl || '', title: b.unit.title, questions: b.unit.questions.length, words: (b.unit.rawCurriculumText || '').split(/\s+/).filter(Boolean).length })),
+      ];
+      const report: CourseImportReport = { hubTitle: REVELATION_2_COURSE_CONNECTION_PRESET.hubTitle, at: Date.now(), total: REVELATION_2_COURSE_CONNECTION_PRESET.links.length, imported, failed };
+      try { localStorage.setItem(IMPORT_REPORT_KEY(safeOrgId), JSON.stringify(report)); } catch { /* storage full */ }
+      try { window.dispatchEvent(new CustomEvent('plajah:lessonLibraryUpdated')); } catch { /* not a browser */ }
     }
-    return false;
-  });
-
-  if (missingLinks.length > 0) {
-    // Remove stale versions of those links first so we don't duplicate
-    for (const link of missingLinks) {
-      const stale = listIngestedUnits(safeOrgId, undefined, orgName).find(
-        u => u.sourceUrl === link.url || u.title.toLowerCase() === link.label.toLowerCase()
-      );
-      if (stale) deleteIngestedUnit(safeOrgId, stale.id);
-    }
-    await batchIngestExtractedLinksToTela({
-      orgId: safeOrgId,
-      orgName,
-      scopeKind: 'org',
-      programId,
-      links: missingLinks,
-      includeAnswerKeyDocs: true,
-    });
-  }
-
-  return listIngestedUnits(safeOrgId, programId, orgName);
+    return listIngestedUnits(safeOrgId, programId, orgName);
+  })().finally(() => { importing = null; });
+  return importing;
 }
 
 /**
- * Preset for `Revelation 2: Course Connection` (`1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE`, tab `t.qo6bykb5zkh7`)
- * Contains all 9 detected documents from the Course Connection hub (4 Church Study Packets/Docs +
- * 1 Sacred Library & Archaeological Dossier PDF + 2 Google Form Quizzes + 1 Comprehensive Mastery Exam +
- * 1 Master Teacher Answer Key & Rubric Compendium).
+ * Great Faith Ministries' Revelation 2 course, as listed in its "Revelation 2: Course Connection" Google Doc
+ * (read from the doc's Word export, 2026-10-29): 9 course handouts on Google Drive (PDF) and 8 exams as
+ * Google Forms. The doc's "Tests Responses" sheets hold students' answers and are deliberately left out.
+ * Nothing here carries text: each link is downloaded and read by the importer (routes/curriculumFetch.ts),
+ * and a link that can't be read is reported, never filled in.
  */
+const REVELATION_2_LINKS: ExtractedCourseResourceLink[] = [
+  { id: 'rev2_requirements', label: 'Revelation 2 Course Requirements', url: 'https://drive.google.com/file/d/11EYZuvQ74v_NMPNsdxcP0VWv0zHnTFjv/view?usp=sharing', category: 'PDF_DOCUMENT', sectionHeading: 'Links', isAnswerKey: false },
+  { id: 'rev2_syllabus', label: 'Syllabus 2026/27', url: 'https://drive.google.com/file/d/1_QA5CWUNP8vIMK5v1yyLq9NLlDxBGwlP/view?usp=sharing', category: 'PDF_DOCUMENT', sectionHeading: 'Links', isAnswerKey: false },
+  { id: 'rev2_exam_schedule', label: 'Revelation 2 Exam Schedule', url: 'https://drive.google.com/file/d/1KTFlIlthhdyw6isgxfJZAKHjxJ0BxdlZ/view?usp=sharing', category: 'PDF_DOCUMENT', sectionHeading: 'Links', isAnswerKey: false },
+  { id: 'rev2_grading_scale', label: 'Inductive Bible Study Grading Scale', url: 'https://drive.google.com/file/d/1q-d8CHjcHAKx8rEAdUlrcOHnrW6OOv03/view?usp=sharing', category: 'PDF_DOCUMENT', sectionHeading: 'Links', isAnswerKey: false },
+  { id: 'rev2_what_we_believe', label: 'What We Believe', url: 'https://drive.google.com/file/d/13Ns05pTgVBQjVPPKA8zV7YsPyqbBx5NH/view?usp=sharing', category: 'PDF_DOCUMENT', sectionHeading: 'Links', isAnswerKey: false },
+  { id: 'rev2_memory_work', label: 'Memory Work', url: 'https://drive.google.com/file/d/1mNxmj8RJBWauOU6ZyZGiV2oRw2y_WgX6/view?usp=sharing', category: 'PDF_DOCUMENT', sectionHeading: 'Links', isAnswerKey: false },
+  { id: 'rev2_study_outline', label: 'Bible Study Outline', url: 'https://drive.google.com/file/d/1QCE0muikXb9MGRllC8VBRX_Bvzu-Vuqt/view?usp=sharing', category: 'PDF_DOCUMENT', sectionHeading: 'Links', isAnswerKey: false },
+  { id: 'rev2_reference_books', label: 'How To Study Bible Reference Books', url: 'https://drive.google.com/file/d/1PO3w5PxSqdWR9PpM4mEYrXNPTPPkPBxm/view?usp=sharing', category: 'PDF_DOCUMENT', sectionHeading: 'Links', isAnswerKey: false },
+  { id: 'rev2_essay_format', label: 'Essay Paper Format', url: 'https://drive.google.com/file/d/1WHWBFLqcEJ0sCsrRrJ-XahkUIHCHbIzw/view?usp=sharing', category: 'PDF_DOCUMENT', sectionHeading: 'Links', isAnswerKey: false },
+  { id: 'rev2_exam_1', label: 'Revelation 2 · Exam 1', url: 'https://docs.google.com/forms/d/e/1FAIpQLScAs2Gkj1Vv_rDmvGp0TQm-s10PZkaqPsBoEW3ClDgLHdDSMA/viewform', category: 'GOOGLE_FORM', sectionHeading: 'Tests', isAnswerKey: false },
+  { id: 'rev2_exam_2', label: 'Revelation 2 · Exam 2', url: 'https://docs.google.com/forms/d/e/1FAIpQLScWcqUZi-bGBFpC3VgbOAhHVcJWQYjzE7TFIZ6qd9Re0Npeng/viewform', category: 'GOOGLE_FORM', sectionHeading: 'Tests', isAnswerKey: false },
+  { id: 'rev2_exam_3', label: 'Revelation 2 · Exam 3', url: 'https://docs.google.com/forms/d/e/1FAIpQLSdHiaKnZrl05dDzgjeHt5fwcSY4y132w4xAXz3E8Ah5mHrH5Q/viewform', category: 'GOOGLE_FORM', sectionHeading: 'Tests', isAnswerKey: false },
+  { id: 'rev2_exam_4', label: 'Revelation 2 · Exam 4', url: 'https://docs.google.com/forms/d/e/1FAIpQLSdECArsYanmhXUDLZEE6PdrDVb9xxaj0qS_fbCHZTYZtK5crA/viewform', category: 'GOOGLE_FORM', sectionHeading: 'Tests', isAnswerKey: false },
+  { id: 'rev2_exam_5', label: 'Revelation 2 · Exam 5', url: 'https://docs.google.com/forms/d/e/1FAIpQLSe9KRP9kP3e710gh3yxkMeRkIhw5ibhzxCkE8C5lna4Jtn81g/viewform', category: 'GOOGLE_FORM', sectionHeading: 'Tests', isAnswerKey: false },
+  { id: 'rev2_exam_6', label: 'Revelation 2 · Exam 6', url: 'https://docs.google.com/forms/d/e/1FAIpQLSe03FMQBb-icsX-FqrVQH41duVUHYgba15qizUZKdpY_b6EMg/viewform', category: 'GOOGLE_FORM', sectionHeading: 'Tests', isAnswerKey: false },
+  { id: 'rev2_exam_7', label: 'Revelation 2 · Exam 7', url: 'https://docs.google.com/forms/d/e/1FAIpQLSdTYzE6J--UIzhTtVjCOB22pxebCT4vrvUDb5YNAxkyYW-p8A/viewform', category: 'GOOGLE_FORM', sectionHeading: 'Tests', isAnswerKey: false },
+  { id: 'rev2_final_exam', label: 'Revelation 2 · Final Exam', url: 'https://docs.google.com/forms/d/e/1FAIpQLScvHHBTa4DE6yfq1mdM-cd6Gwst7ejhTD5EC4djhbT_B-jaDg/viewform', category: 'GOOGLE_FORM', sectionHeading: 'Tests', isAnswerKey: false },
+];
+
 export const REVELATION_2_COURSE_CONNECTION_PRESET: CourseHubLinkExtractionResult = {
-  hubTitle: 'Revelation 2: Course Connection (Letters to Ephesus, Smyrna, Pergamum & Thyatira + Sacred Library Dossier)',
+  hubTitle: 'Revelation 2: Course Connection',
   hubUrl: 'https://docs.google.com/document/d/1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE/edit?pli=1&tab=t.qo6bykb5zkh7',
   docId: '1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE',
   tabId: 't.qo6bykb5zkh7',
-  rawPlainTextSummary:
-    'Revelation 2: Course Connection — Complete 9-Document Syllabus covering Ephesus (Rev 2:1–7), Smyrna (Rev 2:8–11), Pergamum (Rev 2:12–17), Thyatira (Rev 2:18–29), Sacred Library Manuscripts & Archaeology, Formative Google Form Quizzes, Summative Mastery Exam, and Teacher Answer Keys.',
-  links: [
-    {
-      id: 'rev2_doc_0_master_hub_syllabus',
-      label: '0. Revelation 2: Course Connection — Master Syllabus & Extracted Source Document (Google Doc)',
-      url: 'https://docs.google.com/document/d/1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE/edit?pli=1&tab=t.qo6bykb5zkh7',
-      directDownloadUrl: 'https://docs.google.com/document/d/1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE/export?format=txt&tab=t.qo6bykb5zkh7',
-      category: 'GOOGLE_DOC',
-      docId: '1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE',
-      tabId: 't.qo6bykb5zkh7',
-      sectionHeading: 'Master Course Connection Source Document & Syllabus Hub',
-      isAnswerKey: false,
-      pairedAnswerKeyUrl: 'https://docs.google.com/document/d/1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE_master_key/edit',
-      pairedAnswerKeyLabel: 'Revelation 2 Master Teacher Answer Key & Rubric Compendium',
-      fallbackCurriculumText: `# Revelation 2: Course Connection — Master Syllabus & Source Hub Document
-## Source Document Extracted into Great Faith Ministries · Christian Education
-Original Google Doc Source: https://docs.google.com/document/d/1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE/edit?pli=1&tab=t.qo6bykb5zkh7 (Tab: t.qo6bykb5zkh7)
-
-## Module Overview & Extracted Course Resources
-1. Week 1 — Ephesus (Revelation 2:1–7): Returning to Our First Love & Tree of Life Reading Packet
-2. Week 2 — Smyrna (Revelation 2:8–11): Faithfulness Unto the Crown of Life Study Guide
-3. Week 3 — Pergamum (Revelation 2:12–17): Holding Fast Christ's Name & Hidden Manna Packet
-4. Week 4 — Thyatira (Revelation 2:18–29): Discernment, Service & the Morning Star Worksheet
-5. Sacred Library Supplemental Dossier: Codex Sinaiticus, Papyrus P47, St. Polycarp & Asia Minor Archaeology
-6. Formative Check Quizzes (Google Forms) & Summative Unit Mastery Examination
-
-1. Which four churches of Asia Minor are addressed in the Revelation 2 Course Connection syllabus (Revelation 2:1–29)? [2 pts]
-A) Ephesus, Smyrna, Pergamum, and Thyatira
-B) Sardis, Philadelphia, Laodicea, and Colosse
-C) Rome, Corinth, Galatia, and Philippi
-D) Jerusalem, Antioch, Alexandria, and Caesarea
-
-2. What recurring sevenfold pattern structures each of Christ's letters in Revelation 2? [2 pts]
-A) Address to the Angel/Church, Christological Title, Commendation ("I know your works"), Rebuke/Charge, Exhortation to Repent/Be Faithful, Call to Hear ("He who has an ear"), and Overcomer Promise
-B) Greeting, Genealogy, Parable, Miracle, Travel Log, Benediction, and Postscript
-C) Civil Census, Tax Decree, Military Roster, Temple Inventory, Feast Calendar, and Seal
-D) Only a single proverb without promises`,
-      fallbackAnswerKeyText: `1. A - Revelation 2 addresses Ephesus (2:1–7), Smyrna (2:8–11), Pergamum (2:12–17), and Thyatira (2:18–29). [2 pts]
-2. A - Each letter in Revelation 2 follows the covenantal prophetic structure: Address, Christological Title, "I know" Commendation, Charge/Warning, Exhortation, Spirit's Call to Hear, and Overcomer Promise. [2 pts]`,
-    },
-    {
-      id: 'rev2_doc_1_ephesus',
-      label: '1. Revelation 2:1–7 — Ephesus: Returning to Our First Love (Reading Packet PDF)',
-      url: 'https://drive.google.com/file/d/1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE_ephesus_pdf/view',
-      directDownloadUrl: 'https://drive.google.com/uc?export=download&id=1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE_ephesus_pdf',
-      category: 'PDF_DOCUMENT',
-      sectionHeading: 'Module 1: The Church at Ephesus (Revelation 2:1–7)',
-      isAnswerKey: false,
-      pairedAnswerKeyUrl: 'https://docs.google.com/document/d/1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE_master_key/edit#ephesus',
-      pairedAnswerKeyLabel: 'Ephesus Teacher Answer Key (Rev 2:1–7)',
-      fallbackCurriculumText: `# Revelation 2:1–7 — The Church at Ephesus: Returning to Our First Love
-## Section 1: Christ Among the Seven Golden Lampstands (Revelation 2:1–3)
-To the angel of the church in Ephesus, Christ introduces Himself as "Him who holds the seven stars in His right hand, who walks among the seven golden lampstands" (Revelation 2:1). He commends their works, toil, patient endurance, and discernment in testing those who falsely claim to be apostles (Revelation 2:2–3).
-
-## Section 2: Remembering, Repenting & Doing the First Works (Revelation 2:4–7)
-Yet Christ brings a solemn heart-charge: "You have abandoned the love you had at first" (Revelation 2:4). He calls Ephesus to a three-step restoration—Remember, Repent, and Do the works they did at first—promising the overcomer permission to eat of the tree of life in the paradise of God (Revelation 2:7).
-
-1. According to Revelation 2:1, how does Christ describe Himself to the church in Ephesus? [2 pts]
-A) The First and the Last who died and came to life
-B) Him who holds the seven stars in His right hand and walks among the seven golden lampstands
-C) The Son of God who has eyes like a flame of fire
-D) He who has the sharp two-edged sword
-
-2. What primary indictment does Christ bring against the church at Ephesus in Revelation 2:4 despite their doctrinal discernment? [2 pts]
-A) They tolerated the teaching of Balaam
-B) They had abandoned the love they had at first
-C) They denied His name during persecution
-D) They grew lukewarm in their material wealth
-
-3. In Revelation 2:5, what three-part command does Christ give Ephesus to restore their first love? [2 pts]
-A) Fast, mourn, and rebuild the city walls
-B) Remember from where you have fallen, repent, and do the works you did at first
-C) Sell all possessions, leave the province, and wait in the desert
-D) Appoint new elders, write a creed, and close the gates
-
-4. What promise is given to the one who conquers in the letter to Ephesus (Revelation 2:7)? [2 pts]
-A) Authority over the nations
-B) Hidden manna and a white stone
-C) Permission to eat of the tree of life, which is in the paradise of God
-D) The morning star`,
-      fallbackAnswerKeyText: `1. B - Revelation 2:1 describes Christ holding the seven stars in His right hand and walking among the seven golden lampstands. [2 pts]
-2. B - Revelation 2:4 states: "But I have this against you, that you have abandoned the love you had at first." [2 pts]
-3. B - Revelation 2:5 commands: "Remember therefore from where you have fallen; repent, and do the works you did at first." [2 pts]
-4. C - Revelation 2:7 promises the overcomer permission to eat of the tree of life in the paradise of God. [2 pts]`,
-    },
-    {
-      id: 'rev2_doc_2_smyrna',
-      label: '2. Revelation 2:8–11 — Smyrna: Faithfulness Unto the Crown of Life (Study Guide Google Doc)',
-      url: 'https://docs.google.com/document/d/1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE/edit?tab=t.qo6bykb5zkh7#smyrna',
-      directDownloadUrl: 'https://docs.google.com/document/d/1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE/export?format=txt&tab=t.qo6bykb5zkh7',
-      category: 'GOOGLE_DOC',
-      docId: '1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE',
-      tabId: 't.qo6bykb5zkh7',
-      sectionHeading: 'Module 2: The Church at Smyrna (Revelation 2:8–11)',
-      isAnswerKey: false,
-      pairedAnswerKeyUrl: 'https://docs.google.com/document/d/1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE_master_key/edit#smyrna',
-      pairedAnswerKeyLabel: 'Smyrna Teacher Answer Key (Rev 2:8–11)',
-      fallbackCurriculumText: `# Revelation 2:8–11 — The Church at Smyrna: Faithfulness Unto the Crown of Life
-## Section 1: The First and the Last Who Came to Life (Revelation 2:8–9)
-Addressing the suffering congregation in Smyrna as "the First and the Last, who died and came to life" (Revelation 2:8), Christ comforts them: "I know your tribulation and your poverty (but you are rich)" (Revelation 2:9). Smyrna is one of only two churches in Revelation that receives no rebuke.
-
-## Section 2: Fear Not & The Crown of Life (Revelation 2:10–11)
-Christ prepares the believers in Smyrna for a season of testing ("ten days") and exhorts them: "Be faithful unto death, and I will give you the crown of life" (Revelation 2:10). The one who conquers will not be hurt by the second death (Revelation 2:11).
-
-1. Why is Christ's title in Revelation 2:8 ("the first and the last, who died and came to life") uniquely suited to comfort the church in Smyrna? [2 pts]
-A) Because Smyrna was wealthy and needed no endurance
-B) Because Smyrna faced persecution unto death, and Christ Himself triumphed over death
-C) Because Smyrna had forgotten the doctrine of creation
-D) Because Smyrna was debating the calendar of feasts
-
-2. In Revelation 2:9, what paradox does Christ declare about the believers' condition in Smyrna? [2 pts]
-A) They are outwardly rich, but spiritually poor and blind
-B) They experience tribulation and material poverty, "(but you are rich)" spiritually
-C) They have a reputation for being alive, but are dead
-D) They have great political power, but little faith
-
-3. What two promises are given to the faithful believers in Smyrna in Revelation 2:10–11? [2 pts]
-A) The crown of life and immunity from the second death
-B) Hidden manna and a bronze pillar
-C) The morning star and a rod of iron
-D) The keys of David and a new temple`,
-      fallbackAnswerKeyText: `1. B - Christ's resurrection victory over death directly comforts believers called to remain faithful even unto martyrdom (Revelation 2:8, 10). [2 pts]
-2. B - In Revelation 2:9, Christ tells Smyrna: "I know your tribulation and your poverty (but you are rich)"—contrasting earthly deprivation with heavenly wealth. [2 pts]
-3. A - Revelation 2:10-11 promises the "crown of life" and that the overcomer "will not be hurt by the second death." [2 pts]`,
-    },
-    {
-      id: 'rev2_doc_3_pergamum',
-      label: '3. Revelation 2:12–17 — Pergamum: Holding Fast Christ’s Name & Hidden Manna (PDF Packet)',
-      url: 'https://drive.google.com/file/d/1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE_pergamum_pdf/view',
-      directDownloadUrl: 'https://drive.google.com/uc?export=download&id=1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE_pergamum_pdf',
-      category: 'PDF_DOCUMENT',
-      sectionHeading: 'Module 3: The Church at Pergamum (Revelation 2:12–17)',
-      isAnswerKey: false,
-      pairedAnswerKeyUrl: 'https://docs.google.com/document/d/1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE_master_key/edit#pergamum',
-      pairedAnswerKeyLabel: 'Pergamum Teacher Answer Key (Rev 2:12–17)',
-      fallbackCurriculumText: `# Revelation 2:12–17 — The Church at Pergamum: Holding Fast the Name of Christ
-## Section 1: Faithful Witness Where Satan's Throne Is (Revelation 2:12–13)
-Christ addresses Pergamum as "He who has the sharp two-edged sword" (Revelation 2:12). Though Pergamum was the seat of imperial cult temples ("where Satan's throne is"), the church held fast to Christ's name and did not deny His faith even in the days of Antipas, Christ's faithful witness (Revelation 2:13).
-
-## Section 2: Refusing Compromise & Receiving the Hidden Manna (Revelation 2:14–17)
-Christ warns Pergamum against those who hold the teaching of Balaam and the Nicolaitans—accommodating idol feasts and immorality (Revelation 2:14–15). To the one who conquers, Christ promises "some of the hidden manna" and "a white stone, with a new name written on the stone" (Revelation 2:17).
-
-1. Who is honored by name in Revelation 2:13 as Christ's "faithful witness, who was killed among you" in Pergamum? [2 pts]
-A) Polycarp
-B) Antipas
-C) Ignatius
-D) Stephanas
-
-2. What error of Balaam and the Nicolaitans did some in Pergamum tolerate (Revelation 2:14–15)? [2 pts]
-A) Refusing to read the Old Testament prophets
-B) Compromising with pagan idol feasts and sexual immorality
-C) Practicing extreme asceticism in the wilderness
-D) Denying the physical humanity of Christ
-
-3. Which two gifts are promised to the overcomer in Pergamum in Revelation 2:17? [2 pts]
-A) The tree of life and the crown of life
-B) Some of the hidden manna and a white stone with a new name written on it
-C) Authority over the nations and the morning star
-D) White garments and the book of life`,
-      fallbackAnswerKeyText: `1. B - Antipas is named in Revelation 2:13 as "my faithful witness, who was killed among you, where Satan dwells." [2 pts]
-2. B - Revelation 2:14-15 rebukes the accommodation of eating food sacrificed to idols and practicing sexual immorality. [2 pts]
-3. B - Revelation 2:17 promises the overcomer "some of the hidden manna" and "a white stone, with a new name written on the stone." [2 pts]`,
-    },
-    {
-      id: 'rev2_doc_4_thyatira',
-      label: '4. Revelation 2:18–29 — Thyatira: Discernment, Service & the Morning Star (Worksheet Google Doc)',
-      url: 'https://docs.google.com/document/d/1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE/edit?tab=t.qo6bykb5zkh7#thyatira',
-      directDownloadUrl: 'https://docs.google.com/document/d/1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE/export?format=txt&tab=t.qo6bykb5zkh7',
-      category: 'GOOGLE_DOC',
-      docId: '1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE',
-      tabId: 't.qo6bykb5zkh7',
-      sectionHeading: 'Module 4: The Church at Thyatira (Revelation 2:18–29)',
-      isAnswerKey: false,
-      pairedAnswerKeyUrl: 'https://docs.google.com/document/d/1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE_master_key/edit#thyatira',
-      pairedAnswerKeyLabel: 'Thyatira Teacher Answer Key (Rev 2:18–29)',
-      fallbackCurriculumText: `# Revelation 2:18–29 — The Church at Thyatira: Service, Discernment & the Morning Star
-## Section 1: The Son of God Who Searches Mind and Heart (Revelation 2:18–23)
-Revelation 2:18 introduces Christ with the explicit title "the Son of God, who has eyes like a flame of fire, and whose feet are like burnished bronze." He commends Thyatira's love, faith, service, and patient endurance, noting that "your latter works exceed the first" (Revelation 2:19), while calling them to reject the false teaching of Jezebel (Revelation 2:20–23).
-
-## Section 2: Holding Fast Until He Comes & The Morning Star (Revelation 2:24–29)
-To the faithful remnant who hold fast until He comes, Christ promises authority over the nations (citing Psalm 2:8–9) and declares: "And I will give him the morning star" (Revelation 2:28).
-
-1. How does Revelation 2:19 commend the spiritual trajectory of the believers in Thyatira? [2 pts]
-A) Their latter works exceed the first
-B) They were the wealthiest congregation in Asia
-C) They faced zero opposition from the trade guilds
-D) They built seven synagogues
-
-2. According to Revelation 2:23, what does the Son of God search so that all the churches will know Him? [2 pts]
-A) Only outward ritual observance
-B) Mind and heart ("I am he who searches mind and heart")
-C) Roman provincial tax rolls
-D) Genealogical records alone
-
-3. What two promises are given in Revelation 2:26–28 to the one in Thyatira who conquers and keeps Christ's works until the end? [2 pts]
-A) Authority over the nations and the morning star
-B) The tree of life and the crown of life
-C) Hidden manna and a white stone
-D) A pillar in the temple and a new scroll`,
-      fallbackAnswerKeyText: `1. A - Revelation 2:19 commends Thyatira's love, faith, service, and endurance, declaring "your latter works exceed the first." [2 pts]
-2. B - Revelation 2:23 proclaims: "And all the churches will know that I am he who searches mind and heart." [2 pts]
-3. A - Revelation 2:26-28 promises authority over the nations (Psalm 2) and "I will give him the morning star." [2 pts]`,
-    },
-    {
-      id: 'rev2_doc_5_sacred_library_atlas',
-      label: '5. Sacred Library Supplemental Dossier (PDF) — Manuscripts, Patristic Witnesses & Asia Minor Archaeology',
-      url: 'https://drive.google.com/file/d/1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE_sacred_library_dossier/view',
-      directDownloadUrl: 'https://drive.google.com/uc?export=download&id=1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE_sacred_library_dossier',
-      category: 'PDF_DOCUMENT',
-      sectionHeading: 'Module 5: Lorea Sacred Library Supplemental Primary Sources',
-      isAnswerKey: false,
-      pairedAnswerKeyLabel: 'Sacred Library Dossier Answer Key',
-      fallbackCurriculumText: `# Revelation 2 Sacred Library Supplemental Dossier: Manuscripts, Fathers & Archaeology
-## Primary Source 1: Codex Sinaiticus (4th c. AD) & Chester Beatty Papyrus P47 (3rd c. AD)
-The Book of Revelation is preserved in ancient Greek witnesses housed in the Lorea Sacred Library, including Papyrus 47 (c. 250 AD), Codex Sinaiticus (c. 330–360 AD), and Codex Alexandrinus (5th c. AD).
-
-## Primary Source 2: The Apostolic Fathers — St. Ignatius to the Ephesians & St. Polycarp of Smyrna
-Within a generation of the Apostle John, Ignatius of Antioch wrote to the church at Ephesus commending their order and love, while Polycarp—personally taught by John—served as Bishop of Smyrna and fulfilled Revelation 2:10 ("Be faithful unto death") in his martyrdom.
-
-## Primary Source 3: Sacred Artifacts — The Seven-Branched Lampstand (Menorah) & The Ark's Hidden Manna
-The golden lampstands of Revelation 2:1 and the "hidden manna" of Revelation 2:17 draw directly upon the sanctuary furnishings of the Tabernacle and Temple.
-
-1. Which early Christian bishop of Smyrna, personally discipled by the Apostle John, exemplified Revelation 2:10 ("Be faithful unto death") in his martyrdom? [2 pts]
-A) St. Polycarp of Smyrna
-B) Tertullian of Carthage
-C) Eusebius of Caesarea
-D) Venantius Fortunatus
-
-2. Which 4th-century Greek manuscript in the Sacred Library is the oldest complete surviving New Testament containing the Book of Revelation? [2 pts]
-A) The Mesha Stele
-B) Codex Sinaiticus
-C) The Cyrus Cylinder
-D) The Taylor Prism
-
-3. In Sacred Library sanctuary typology, where was the golden jar of manna ("hidden manna", Revelation 2:17) kept? [2 pts]
-A) On the porch of Herod's palace
-B) Inside the Ark of the Covenant in the Most Holy Place (Exodus 16:33; Hebrews 9:4)
-C) In the Roman forum at Pergamum
-D) Inside the city gates of Thyatira`,
-      fallbackAnswerKeyText: `1. A - St. Polycarp of Smyrna (c. 69–155 AD), disciple of the Apostle John and Bishop of Smyrna, embodied Revelation 2:10. [2 pts]
-2. B - Codex Sinaiticus (c. 330–360 AD) preserves the oldest complete Greek New Testament including the Apocalypse. [2 pts]
-3. B - The golden urn of manna was placed inside the Ark of the Covenant in the Most Holy Place (Exodus 16:33; Hebrews 9:4), illuminating Revelation 2:17. [2 pts]`,
-    },
-    {
-      id: 'rev2_form_6_quiz_ephesus_smyrna',
-      label: '6. Revelation 2:1–11 Formative Check Quiz — Ephesus & Smyrna (Google Form)',
-      url: 'https://docs.google.com/forms/d/e/1FAIpQLScRev2EphesusSmyrnaQuiz/viewform',
-      category: 'GOOGLE_FORM',
-      sectionHeading: 'Assessments & Interactive Quizzes',
-      isAnswerKey: false,
-      pairedAnswerKeyLabel: 'Auto-Graded Google Form Key (Ephesus & Smyrna)',
-      fallbackCurriculumText: `# Revelation 2:1–11 Formative Check Quiz — Ephesus & Smyrna (Google Form)
-## Rapid Retrieval & Scripture Mastery Check (Revelation 2:1–11)
-Test your mastery of the letters to Ephesus and Smyrna.
-
-1. Which group's works did both Christ and the church at Ephesus hate (Revelation 2:6)? [2 pts]
-A) The Nicolaitans
-B) The Essenes
-C) The Bereans
-D) The Rechabites
-
-2. Which church in Revelation 2 receives NO rebuke or correction from Christ, only commendation and comfort? [2 pts]
-A) Ephesus
-B) Smyrna
-C) Pergamum
-D) Thyatira
-
-3. True or False: In Revelation 2:11, Christ promises that the one who conquers in Smyrna will not be hurt by the second death. [1 pt]`,
-      fallbackAnswerKeyText: `1. A - Revelation 2:6 commends Ephesus: "Yet this you have: you hate the works of the Nicolaitans, which I also hate." [2 pts]
-2. B - Smyrna (Revelation 2:8–11) receives no rebuke from Christ, only comfort and encouragement to remain faithful. [2 pts]
-3. True - Revelation 2:11 states: "The one who conquers will not be hurt by the second death." [1 pt]`,
-    },
-    {
-      id: 'rev2_form_7_quiz_pergamum_thyatira',
-      label: '7. Revelation 2:12–29 Formative Check Quiz — Pergamum & Thyatira (Google Form)',
-      url: 'https://docs.google.com/forms/d/e/1FAIpQLScRev2PergamumThyatiraQuiz/viewform',
-      category: 'GOOGLE_FORM',
-      sectionHeading: 'Assessments & Interactive Quizzes',
-      isAnswerKey: false,
-      pairedAnswerKeyLabel: 'Auto-Graded Google Form Key (Pergamum & Thyatira)',
-      fallbackCurriculumText: `# Revelation 2:12–29 Formative Check Quiz — Pergamum & Thyatira (Google Form)
-## Rapid Retrieval & Scripture Mastery Check (Revelation 2:12–29)
-Test your mastery of the letters to Pergamum and Thyatira.
-
-1. Match the Christological title "The words of him who has the sharp two-edged sword" (Revelation 2:12) to its recipient church: [2 pts]
-A) Ephesus
-B) Smyrna
-C) Pergamum
-D) Thyatira
-
-2. In which verse of Revelation 2 does the exact title "the Son of God" appear? [2 pts]
-A) Revelation 2:1 (Ephesus)
-B) Revelation 2:8 (Smyrna)
-C) Revelation 2:12 (Pergamum)
-D) Revelation 2:18 (Thyatira)
-
-3. True or False: Every letter in Revelation 2 concludes with the Spirit's call, "He who has an ear, let him hear what the Spirit says to the churches." [1 pt]`,
-      fallbackAnswerKeyText: `1. C - Revelation 2:12 addresses Pergamum with "The words of him who has the sharp two-edged sword." [2 pts]
-2. D - Revelation 2:18 (to Thyatira) is the sole occurrence of the exact title "the Son of God" in Revelation. [2 pts]
-3. True - Revelation 2:7, 2:11, 2:17, and 2:29 all sound the Spirit's call to hear. [1 pt]`,
-    },
-    {
-      id: 'rev2_doc_8_mastery_exam',
-      label: '8. Revelation 2: Course Connection — Comprehensive Unit Mastery Examination (Summative Test Doc)',
-      url: 'https://docs.google.com/document/d/1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE_unit_exam/edit',
-      category: 'GOOGLE_DOC',
-      sectionHeading: 'Summative Mastery Examination',
-      isAnswerKey: false,
-      pairedAnswerKeyUrl: 'https://docs.google.com/document/d/1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE_master_key/edit',
-      pairedAnswerKeyLabel: 'Revelation 2 Master Teacher Answer Key & Rubric',
-      fallbackCurriculumText: `# Revelation 2: Course Connection — Comprehensive Unit Mastery Examination
-## Summative Synthesis Across Ephesus, Smyrna, Pergamum & Thyatira (Revelation 2:1–29)
-Complete all items below to certify unit mastery in Great Faith Ministries · Christian Education.
-
-1. Across the four churches of Revelation 2, how do the temptations of Ephesus (doctrinal vigilance without first love) and Thyatira (growing love and service while tolerating false teaching) serve as mirror warnings to the Church today? [3 pts]
-A) Both show that Christ calls His Church to unite truth and love—holding fast sound doctrine while abounding in fervent love and holiness
-B) Both show that doctrine does not matter so long as a church is active
-C) Both show that love is unnecessary if a church tests false apostles
-D) Both apply only to 1st-century civic guilds
-
-2. Which overcomer promise in Revelation 2 reaches back to Genesis 2–3 and forward to Revelation 22:2? [2 pts]
-A) The tree of life in the paradise of God (promised to Ephesus in Revelation 2:7)
-B) The ten days of tribulation (Revelation 2:10)
-C) The throne of Pergamum (Revelation 2:13)
-D) The bronze guild of Thyatira (Revelation 2:18)
-
-3. Which Old Testament royal psalm is quoted in Christ's promise to the overcomer at Thyatira in Revelation 2:26–27 ("he will rule them with a rod of iron")? [2 pts]
-A) Psalm 2:8–9
-B) Psalm 23:1–2
-C) Psalm 51:10
-D) Psalm 119:105
-
-4. Short Synthesis Reflection: Choose one of the four churches in Revelation 2 (Ephesus, Smyrna, Pergamum, or Thyatira) and explain how Christ's self-description at the opening of that letter directly answers the crisis that congregation faced. [3 pts]`,
-      fallbackAnswerKeyText: `1. A - Ephesus had doctrinal discernment without first love (2:2–4), while Thyatira had growing love and service but lacked doctrinal/moral discernment against Jezebel (2:19–20); Christ calls His Church to unite truth and love. [3 pts]
-2. A - The "tree of life, which is in the paradise of God" (Revelation 2:7) forms a canonical arc from Eden (Genesis 2–3) to the New Jerusalem (Revelation 22:2). [2 pts]
-3. A - Revelation 2:26–27 quotes Psalm 2:8–9, sharing Messianic authority with the faithful overcomer. [2 pts]
-4. Faithfulness / Christological synthesis — e.g. To Smyrna facing death, Christ is the one who died and came to life (2:8); to Pergamum compromising with idols, Christ wields the sharp two-edged sword of truth (2:12). [3 pts]`,
-    },
-    {
-      id: 'rev2_doc_9_master_answer_key',
-      label: '9. Revelation 2: Course Connection — Master Teacher Answer Key & Rubric Compendium (Google Doc)',
-      url: 'https://docs.google.com/document/d/1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE_master_key/edit',
-      category: 'ANSWER_KEY',
-      sectionHeading: 'Teacher Answer Keys & Grading Rubrics',
-      isAnswerKey: true,
-      pairedAnswerKeyLabel: 'Master Answer Key & Rubric Verified',
-      fallbackCurriculumText: `# Revelation 2: Course Connection — Master Teacher Answer Key & Grading Rubric Compendium
-## Complete Instructor Reference for Modules 1–8 (Great Faith Ministries · Christian Education)
-This Master Teacher Answer Key & Rubric document pairs with all Ephesus, Smyrna, Pergamum, Thyatira, and Sacred Library worksheets and assessments.
-
-1. Instructor Rubric Verification — In Revelation 2:1–7 (Ephesus), what are the three restoration steps required for full rubric credit on Question 3? [2 pts]
-A) Remember from where you have fallen, Repent, and Do the works you did at first (Revelation 2:5)
-B) Fast, tithe, and travel to Jerusalem
-C) Debate, write, and archive
-D) Silence, solitude, and retreat
-
-2. Instructor Rubric Verification — Which four overcomer promises correspond to Ephesus (2:7), Smyrna (2:10–11), Pergamum (2:17), and Thyatira (2:26–28)? [2 pts]
-A) Tree of Life (Ephesus) · Crown of Life / No Second Death (Smyrna) · Hidden Manna & White Stone (Pergamum) · Authority over Nations & Morning Star (Thyatira)
-B) Seven seals · Seven trumpets · Seven bowls · Seven thunders
-C) Gold, frankincense, myrrh, and alabaster
-D) Only earthly prosperity`,
-      fallbackAnswerKeyText: `1. A - Full credit requires naming Remember, Repent, and Do the first works (Revelation 2:5). [2 pts]
-2. A - Ephesus: Tree of Life (2:7); Smyrna: Crown of Life / Second Death (2:10–11); Pergamum: Hidden Manna & White Stone (2:17); Thyatira: Authority over Nations & Morning Star (2:26–28). [2 pts]`,
-    },
-  ],
-  pdfLinks: [],
+  rawPlainTextSummary: 'Revelation 2 course: requirements, 2026/27 syllabus, exam schedule, grading scale, statement of belief, memory work, study outline, reference-book guide, essay format, Exams 1–7 and the Final Exam.',
+  links: REVELATION_2_LINKS,
+  pdfLinks: REVELATION_2_LINKS.filter(l => l.category === 'PDF_DOCUMENT'),
   googleDocLinks: [],
-  googleFormLinks: [],
+  googleFormLinks: REVELATION_2_LINKS.filter(l => l.category === 'GOOGLE_FORM'),
   answerKeyLinks: [],
 };
 REVELATION_2_COURSE_CONNECTION_PRESET.pdfLinks = REVELATION_2_COURSE_CONNECTION_PRESET.links.filter(l => l.category === 'PDF_DOCUMENT');

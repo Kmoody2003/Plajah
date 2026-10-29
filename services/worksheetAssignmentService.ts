@@ -45,6 +45,8 @@ export interface PublishInput {
   dueDate?: number;
   /** Scheduled ahead (Lesson Library calendar): students' lists hide it until then. A display gate, not access control. */
   opensAt?: number;
+  /** Set when it came from the Lesson Library, so the course calendar can link back to the item. */
+  librarySource?: { unitId: string; kind: string };
   /** true ⇒ compute counts but write no notifications (demo / preview). */
   simulate?: boolean;
   /** Untouched camera/file original. Stored beside the digitized Tela form for audit/re-edit. */
@@ -178,6 +180,7 @@ export async function publishWorksheet(input: PublishInput): Promise<WireResult>
         studentIds: students.map(s => s.id),
         dueDate: dueDate || null,
         opensAt,
+        ...(input.librarySource ? { librarySource: input.librarySource } : {}),
         tutorEnabled: true,     // attaches the in-worksheet Plajah tutor
         autoGrade: true,        // arms auto-grade on turn-in
         createdAt: assignedAt,
