@@ -100,6 +100,8 @@ export interface MeloNote {
   semi: number;   // -24..24 relative to the pad's base pitch
   v: number;      // 1–127
   len: number;    // in 16th steps, >= 1
+  /** -0.5..0.5 of a step — where a played note sits against the grid (human feel, flams, triplets). */
+  micro?: number;
 }
 
 export interface Pattern {

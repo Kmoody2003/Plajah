@@ -16,6 +16,9 @@ import { defaultPattern, deserializeGroove, grooveUid, type GrooveDoc, type Inst
 import { useContextMenu, type MenuNode } from '../../ui/ContextMenu';
 import { autoFill, quantizePattern } from '../../../services/melos/beats/grooveTools';
 import { GENRE_PRESETS, applyGenrePreset, type GenrePreset } from '../../../services/melos/beats/genrePresets';
+import { applyHandPattern, type HandPatternResult } from '../../../services/melos/beats/patterns/applyHandPattern';
+import { HandDrumLibrary, type HandDrumChoice } from './machine/HandDrumLibrary';
+import { playerById } from '../../../services/melos/beats/band/roster';
 import { BASSLINES, applyBassline, type BasslinePreset } from '../../../services/melos/beats/bassLines';
 import { DrumPatternThumb, BasslineThumb, cachedPattern } from './PatternThumb';
 import { UniversalLibraryPanel } from '../../shared/UniversalLibrary/UniversalLibraryPanel';
@@ -905,9 +908,30 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
   const applyGenre = useCallback((preset: GenrePreset) => {
     let id = '';
     mutate((d: GrooveDoc) => { id = applyGenrePreset(d, preset); });
+    // Genre patterns play the default kit (Group A): go there and onto the kick, so the new pattern
+    // shows in the pads, the step sequencer and the piano roll rather than landing out of sight.
+    if (padGroup(selectedPad) !== 0) setSelectedPad(0);
     if (id) setActivePatternId(id);
     setShowGenres(false);
-  }, [mutate]);
+  }, [mutate, selectedPad]);
+
+  // Hand-drum library — Amara performs a rhythm into the SOMA pad's piano roll.
+  const [showHands, setShowHands] = useState(false);
+  const applyHands = useCallback((c: HandDrumChoice) => {
+    const persona = playerById('amara')?.personas.find((p) => p.id === c.personaId) ?? playerById('amara')!.personas[0];
+    let res: HandPatternResult | null = null;
+    mutate((d: GrooveDoc) => {
+      res = applyHandPattern(d, selectedPad, {
+        rhythm: c.rhythm, persona: persona.traits, mood: c.mood, role: c.role, bars: c.bars, seed: c.seed, setTempo: c.setTempo,
+        name: `${c.rhythm.name} · ${c.mood} ${c.role}`,
+      }, (dd) => addInstrumentToNextPad(dd, 'soma', undefined, 'SOMA').padIdx);
+    });
+    const r = res as HandPatternResult | null;
+    if (!r) return;
+    setSelectedPad(r.padIdx);
+    setActivePatternId(r.patternId);
+    void BeatsEngine.get().init().then(() => BeatsEngine.get().syncInstruments());
+  }, [mutate, selectedPad]);
 
   // Genre MIDI basslines — spawn a BAJO on the next pad and write the line into the active pattern.
   const [showBass, setShowBass] = useState(false);
@@ -1470,6 +1494,18 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
                     </button>
                   ))}
                 </div>
+              </>
+            )}
+          </div>
+          <div className="relative shrink-0">
+            <button onClick={() => setShowHands(v => !v)} title="Hand-drum patterns for SOMA, played by Amara"
+              className="h-6 px-2.5 rounded-lg text-[10px] border border-[#E86A33]/40 text-[#E86A33] hover:bg-[#E86A33]/10 flex items-center gap-1 shrink-0 whitespace-nowrap">
+              <Sparkles size={10} /> Hand drums
+            </button>
+            {showHands && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowHands(false)} />
+                <HandDrumLibrary onApply={applyHands} onClose={() => setShowHands(false)} />
               </>
             )}
           </div>

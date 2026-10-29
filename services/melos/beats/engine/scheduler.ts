@@ -217,8 +217,7 @@ export class StepScheduler {
         const notes = pattern.melo[padIdx]?.[localStep];
         if (!notes?.length) continue;
         if (soloOut(doc, padIdx)) continue;
-        const when = this.eventTime(beat, localStep, doc, undefined, padIdx);
-        for (const n of notes) d.trigger(padIdx, n.v, when, d.secBetween(beat, beat + Math.max(1, n.len) * STEP_BEATS), n.semi, undefined, undefined, true);
+        for (const n of notes) d.trigger(padIdx, n.v, this.eventTime(beat, localStep, doc, n.micro, padIdx), d.secBetween(beat, beat + Math.max(1, n.len) * STEP_BEATS), n.semi, undefined, undefined, true);
       }
     }
   }
@@ -243,9 +242,9 @@ export class StepScheduler {
         const notes = pattern.melo[padIdx]?.[localStep];
         if (!notes?.length) continue;
         if (soloOut(doc, padIdx)) continue;
-        const when = this.eventTime(beat, localStep, doc, undefined, padIdx);
         // Pitched notes are polyphonic — skip the choke group so a chord/overlap doesn't self-cut.
-        for (const n of notes) d.trigger(padIdx, n.v, when, d.secBetween(beat, beat + Math.max(1, n.len) * STEP_BEATS), n.semi, undefined, undefined, true);
+        // Each note keeps its own micro-timing (a played part's feel, flams, triplets on the 16th grid).
+        for (const n of notes) d.trigger(padIdx, n.v, this.eventTime(beat, localStep, doc, n.micro, padIdx), d.secBetween(beat, beat + Math.max(1, n.len) * STEP_BEATS), n.semi, undefined, undefined, true);
       }
     }
   }

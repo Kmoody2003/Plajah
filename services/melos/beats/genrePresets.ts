@@ -9,6 +9,8 @@
 
 import type { GrooveDoc, Pattern } from './grooveDoc';
 import { grooveUid } from './grooveDoc';
+import { playerById } from './band/roster';
+import { humanizeDrumPattern, personaForGenre } from './patterns/humanizeDrums';
 
 const PAD = {
   kick: 0, kick2: 1, sub: 2, snare: 4, clap: 5, snare2: 6, rim: 7,
@@ -163,8 +165,12 @@ export const GENRE_PRESETS: GenrePreset[] = [
  * Push a genre preset's pattern into the doc and set its tempo/swing. Call inside mutate();
  * returns the new pattern id so the caller can select it.
  */
-export function applyGenrePreset(doc: GrooveDoc, preset: GenrePreset): string {
-  const pat = preset.make();
+export function applyGenrePreset(doc: GrooveDoc, preset: GenrePreset, seed = Date.now()): string {
+  // Played, not pasted: the band's drummer plays it as a four-bar phrase in the side of him that
+  // suits the genre (pocket, accents, ghost notes, a fill into the next phrase).
+  const drummer = playerById('marcus');
+  const written = preset.make();
+  const pat = drummer ? humanizeDrumPattern(written, personaForGenre(drummer.personas, preset.genre).traits, seed) : written;
   doc.patterns.push(pat);
   doc.bpm = preset.bpm;
   doc.swing = preset.swing;

@@ -88,6 +88,14 @@ export function somaHandStrike(note: number, velocity: number, mod: number, cfg:
   };
 }
 
+/** The key (pitch class 0–11) that plays a stroke with a hand on the keys layout; a one-handed stroke falls back to the hand it has. */
+export function strokeKey(stroke: SomaStroke, hand: 'R' | 'L'): number {
+  const i = KEY_LAYOUT.findIndex(([s, h]) => s === stroke && h === hand);
+  if (i >= 0) return i;
+  const j = KEY_LAYOUT.findIndex(([s]) => s === stroke);
+  return j >= 0 ? j : KEY_LAYOUT.findIndex(([s]) => s === 'tip');
+}
+
 /** Labels for the on-screen map. */
 export function handLegend(layout: SomaHandLayout): { slot: string; stroke: SomaStroke; hand: 'R' | 'L' }[] {
   if (layout === 'pads') return PAD_LAYOUT.map(([stroke, hand], i) => ({ slot: `Pad ${i + 1}`, stroke, hand }));
