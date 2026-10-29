@@ -167,12 +167,13 @@ function shared<T>(key: string, start: Starter<T>, cb: Listener<T>, onError?: (e
   };
 }
 
-/** Run an onSnapshot registration after lazily loading Firebase; the returned stop works before/after load. */
+/** Run an onSnapshot registration after lazily loading Firebase; the returned stop works before/after load.
+ *  Every channel here reads store/business back-office collections, which live in plajah-ops. */
 function lazySnapshot(register: (fs: typeof import('firebase/firestore'), db: any, onSnapshot: typeof import('./safeSnapshot').onSnapshot) => () => void, fail: (e: unknown) => void): () => void {
   let unsub: (() => void) | null = null;
   let stopped = false;
   Promise.all([import('firebase/firestore'), import('./firebase'), import('./safeSnapshot')])
-    .then(([fs, fb, ss]) => { if (!stopped) unsub = register(fs, fb.db, ss.onSnapshot); })
+    .then(([fs, fb, ss]) => { if (!stopped) unsub = register(fs, fb.opsDb, ss.onSnapshot); })
     .catch(fail);
   return () => { stopped = true; if (unsub) { try { unsub(); } catch { /* */ } } };
 }

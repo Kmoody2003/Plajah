@@ -2282,7 +2282,7 @@ export const enrollInClassroom = async (classId: string) => {
     // Create initial progress report
     const reportId = `${auth.currentUser.uid}_${classId}`;
     const reportPath = `progress_reports/${reportId}`;
-    await setDoc(doc(db, 'progress_reports', reportId), {
+    await setDoc(doc(opsDb, 'progress_reports', reportId), {
       id: reportId,
       classId,
       studentId: auth.currentUser.uid,
@@ -8694,7 +8694,7 @@ export const searchLiveEvents = async (searchTerm: string): Promise<LiveFeed[]> 
 export const fetchAllAdCampaigns = async (): Promise<AdCampaign[]> => {
   const path = 'ad_campaigns';
   try {
-    const q = query(collection(db, path), orderBy('timestamp', 'desc'));
+    const q = query(collection(opsDb, path), orderBy('timestamp', 'desc'));
     const snap = await getDocs(q);
     return snap.docs.map(d => ({ id: d.id, ...d.data() } as AdCampaign));
   } catch (e) {
@@ -8714,7 +8714,7 @@ export const createAdCampaign = async (campaign: Partial<AdCampaign>) => {
       isActive: campaign.isActive ?? true,
       status: 'ACTIVE'
     });
-    const docRef = await addDoc(collection(db, path), data);
+    const docRef = await addDoc(collection(opsDb, path), data);
     return docRef.id;
   } catch (e) {
     handleFirestoreError(e, OperationType.CREATE, path);
@@ -8724,7 +8724,7 @@ export const createAdCampaign = async (campaign: Partial<AdCampaign>) => {
 export const deleteAdCampaign = async (id: string) => {
   const path = `ad_campaigns/${id}`;
   try {
-    await deleteDoc(doc(db, 'ad_campaigns', id));
+    await deleteDoc(doc(opsDb, 'ad_campaigns', id));
   } catch (e) {
     handleFirestoreError(e, OperationType.DELETE, path);
   }

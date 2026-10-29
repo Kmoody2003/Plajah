@@ -216,7 +216,7 @@ export async function addRewardPoints(
 export async function fetchSignageSlides(businessId: string): Promise<DigitalSignageSlide[]> {
   // Equality-only + client sort: where(businessId)+orderBy(order) needs a composite index, and a missing
   // index made this read fail (a blank signage TV). Live displays use commerceBus.subscribeSignage.
-  const q = query(collection(db, 'signageSlides'), where('businessId', '==', businessId));
+  const q = query(collection(opsDb, 'signageSlides'), where('businessId', '==', businessId));
   const snap = await getDocs(q);
   return snap.docs
     .map(d => ({ id: d.id, ...d.data() } as DigitalSignageSlide))
@@ -226,7 +226,7 @@ export async function fetchSignageSlides(businessId: string): Promise<DigitalSig
 export async function saveSignageSlide(slide: Partial<DigitalSignageSlide>): Promise<DigitalSignageSlide> {
   const now = Date.now();
   if (slide.id) {
-    const ref = doc(db, 'signageSlides', slide.id);
+    const ref = doc(opsDb, 'signageSlides', slide.id);
     // Firestore rejects undefined values: a field cleared in the editor (undefined) is deleted instead.
     const patch: Record<string, any> = { updatedAt: now };
     for (const [k, v] of Object.entries(slide)) {
@@ -236,7 +236,7 @@ export async function saveSignageSlide(slide: Partial<DigitalSignageSlide>): Pro
     await updateDoc(ref, patch);
     return slide as DigitalSignageSlide;
   }
-  const ref = doc(collection(db, 'signageSlides'));
+  const ref = doc(collection(opsDb, 'signageSlides'));
   const { id: _drop, ...rest } = slide;
   const newSlide: DigitalSignageSlide = JSON.parse(JSON.stringify({
     type: 'TEXT',
@@ -254,7 +254,7 @@ export async function saveSignageSlide(slide: Partial<DigitalSignageSlide>): Pro
 }
 
 export async function deleteSignageSlide(id: string): Promise<void> {
-  await deleteDoc(doc(db, 'signageSlides', id));
+  await deleteDoc(doc(opsDb, 'signageSlides', id));
 }
 
 // ── SeedRaiser Campaigns ──────────────────────────────────────────────────────

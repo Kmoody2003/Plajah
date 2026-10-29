@@ -28,7 +28,7 @@ import {
   collection, deleteDoc, doc, getDoc, getDocs, limit, query, setDoc, where,
 } from 'firebase/firestore';
 import { onSnapshot } from '../safeSnapshot';
-import { auth, db } from '../firebase';
+import { auth, db, opsDb } from '../firebase';
 import { fetchFollowingIds, fetchMyTickets, fetchPublicEvents } from '../backendService';
 import { releaseMs } from '../releases/visibility';
 import { DAY, HOUR, MIN, addDays, localZone, startOfDay, type Recurrence } from './calendarTime';
@@ -537,9 +537,9 @@ interface WorksheetDueItem { key: string; worksheetId: string; assignmentId?: st
 /** Worksheet homework with a due date, from the three vantage points rules allow each person to read. */
 async function fetchWorksheetDue(uid: string): Promise<WorksheetDueItem[]> {
   const [mine, kids, taught] = await Promise.all([
-    getDocs(query(collection(db, 'worksheet_assignments'), where('studentIds', 'array-contains', uid), limit(60))).catch(() => null),
-    getDocs(query(collection(db, 'worksheet_submissions'), where('guardianUids', 'array-contains', uid), limit(80))).catch(() => null),
-    getDocs(query(collection(db, 'worksheet_assignments'), where('teacherUid', '==', uid), limit(60))).catch(() => null),
+    getDocs(query(collection(opsDb, 'worksheet_assignments'), where('studentIds', 'array-contains', uid), limit(60))).catch(() => null),
+    getDocs(query(collection(opsDb, 'worksheet_submissions'), where('guardianUids', 'array-contains', uid), limit(80))).catch(() => null),
+    getDocs(query(collection(opsDb, 'worksheet_assignments'), where('teacherUid', '==', uid), limit(60))).catch(() => null),
   ]);
   const out: WorksheetDueItem[] = [];
   mine?.docs.forEach(d => { const a: any = d.data(); if (a.dueDate) out.push({ key: `s:${d.id}`, worksheetId: a.worksheetId, assignmentId: d.id, title: String(a.title || 'Worksheet'), className: String(a.className || 'Class'), dueDate: Number(a.dueDate), role: 'student' }); });

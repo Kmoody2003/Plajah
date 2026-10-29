@@ -798,5 +798,635 @@ service cloud.firestore {
       allow update: if orgAdminOf(resource.data.orgId) || isAdmin();
       allow delete: if isAdmin();
     }
+    // ===============================================================
+    // Moved from plajah-prod 2026-10-29 (ruleset over the 256,000-byte cap): education staff tools,
+    // business back office, press/rights admin and other self-contained blocks. Text unchanged.
+    // ===============================================================
+    function tplReadable(d) {
+      return d.visibility == 'public'
+        || (isAuthenticated() && (d.ownerUid == request.auth.uid || request.auth.uid in d.get('sharedWith', [])))
+        || isAdmin();
+    }
+    function tplValid(d) {
+      return d.ownerUid == request.auth.uid
+        && d.kind in ['ambo-slide', 'scripture-look', 'tela-motion']
+        && d.visibility in ['private', 'shared', 'public']
+        && d.name is string && d.name.size() > 0 && d.name.size() <= 120
+        && d.get('sharedWith', []) is list && d.get('sharedWith', []).size() <= 200
+        && d.get('thumb', '') is string && d.get('thumb', '').size() <= 200000;
+    }
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    function canAccessWorksheetById(worksheetId) {
+      return exists(/databases/$(database)/documents/digital_worksheets/$(worksheetId)) &&
+        canAccessDigitalWorksheet(get(/databases/$(database)/documents/digital_worksheets/$(worksheetId)).data);
+    }
+    function canAccessDigitalWorksheet(data) {
+      return isAuthenticated() && (
+        data.createdBy == request.auth.uid ||
+        request.auth.uid in data.get('accessUids', []) ||
+        isAdmin()
+      );
+    }
+    function worksheetAssignment(assignmentId) {
+      return get(/databases/$(database)/documents/worksheet_assignments/$(assignmentId)).data;
+    }
+    function worksheetGradeFields() {
+      return ['score', 'maxScore', 'percent', 'needsManualReview', 'gradedAt', 'preAssessment', 'teacherOverrides', 'teacherReviewedAt'];
+    }
+    function canAccessWorksheetAssignment(data) {
+      return isAuthenticated() && (
+        data.teacherUid == request.auth.uid ||
+        request.auth.uid in data.get('studentIds', []) ||
+        isAdmin()
+      );
+    }
+    function worksheetKeyWrite(worksheetId) {
+      return isAuthenticated() && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.worksheetId == worksheetId
+        && exists(/databases/$(database)/documents/digital_worksheets/$(worksheetId))
+        && get(/databases/$(database)/documents/digital_worksheets/$(worksheetId)).data.createdBy == request.auth.uid;
+    }
+    function isValidAdCampaign(data) {
+      return hasRequiredFields(['id', 'ownerId', 'title', 'type', 'targetType', 'imageUrl', 'budget', 'frequency', 'probability', 'isActive', 'timestamp']) &&
+             data.id is string && data.ownerId is string && data.title is string &&
+             data.type in ['USER_PROMOTION', 'PARTNER', 'THIRD_PARTY'] &&
+             data.targetType in ['POST', 'ALBUM', 'PROFILE', 'EXTERNAL'] &&
+             data.imageUrl is string && data.budget is number && data.frequency is number &&
+             data.probability is number && data.isActive is bool && data.timestamp is number;
+    }
+    function nrOwner(d) { return isAuthenticated() && d.get('ownerId', '') == request.auth.uid; }
+    function piAdviserOk(d) { return d.get('tier', 'pro') != 'student' || (d.get('adviserApproval', null) != null && d.adviserApproval.uid == d.get('adviserUid', '')); }
+    function piStaff(d) { return isAuthenticated() && (d.ownerId == request.auth.uid || request.auth.uid in d.get('staffUids', [])); }
+    function nrOrgStaff(d) {
+      return isAuthenticated() && d.get('orgId', '') != '' && request.auth.uid in orgDoc(d.orgId).get('staffUids', []);
+    }
+    function nrCreate(d) {
+      return nrOwner(d) && (d.get('orgId', '') == '' || request.auth.uid in orgDoc(d.orgId).get('staffUids', []) || orgAdminOf(d.orgId));
+    }
+    function isValidProgressReport(data) {
+      return hasRequiredFields(['id', 'classId', 'studentId', 'overallGrade', 'completedLessons', 'lastAccessed']) &&
+             data.classId is string &&
+             data.studentId is string &&
+             data.overallGrade is number &&
+             data.completedLessons is list &&
+             data.lastAccessed is number;
+    }
+    function ownerStaffCan(ownerUid, perm) {
+      return isAuthenticated() && ownerUid is string
+        && perm in get(/databases/$(database)/documents/businessStaffIndex/$(ownerUid)).data.get('staffPerms', {}).get(request.auth.uid, []);
+    }
+    // experienceFilms/{exhibitId}: the minimal playback doc the Dossier hall reads so ANY visitor (signed in or not)
+    // can watch an exhibit film from Mux. Public read; only a platform admin can write, and only this exact shape:
+    // a public Mux playback id plus display fields. The film is SOURCED FROM a public Reello video: reelloVideoId names
+    // it and muxPlaybackId is copied from it (so visitors never need to read videos/). The admin tools only write this
+    // doc while that Reello video is public, and remove it when the video goes private or is deleted.
+    // Deleting it sends the hall back to the live canvas film.
+    match /experienceFilms/{exhibitId} {
+      allow read: if true;
+      allow create, update: if isAdmin()
+        && request.resource.data.keys().hasOnly(['exhibitId', 'experienceId', 'reelloVideoId', 'title', 'muxPlaybackId', 'playbackPolicy', 'durationSec', 'width', 'height', 'captionsUrl', 'updatedAt'])
+        && request.resource.data.keys().hasAll(['exhibitId', 'experienceId', 'reelloVideoId', 'title', 'muxPlaybackId', 'playbackPolicy', 'durationSec', 'updatedAt'])
+        && request.resource.data.exhibitId == exhibitId
+        && request.resource.data.reelloVideoId is string
+        && request.resource.data.reelloVideoId.size() > 0 && request.resource.data.reelloVideoId.size() < 200
+        && request.resource.data.playbackPolicy == 'public'
+        && request.resource.data.muxPlaybackId is string
+        && request.resource.data.muxPlaybackId.size() >= 8 && request.resource.data.muxPlaybackId.size() <= 200
+        && request.resource.data.title is string && request.resource.data.title.size() < 200
+        && request.resource.data.durationSec is number && request.resource.data.durationSec > 0
+        && (!('captionsUrl' in request.resource.data) || (request.resource.data.captionsUrl is string && request.resource.data.captionsUrl.size() < 1000));
+      allow delete: if isAdmin();
+    }
+    // Learning support (IEP / 504 / neurodiversity) plans — sensitive. Readable only by the learner, their guardian and
+    // the team the family chose (teamUids). The learner and guardian write; a child learner cannot change the team.
+    // Team members may only log goal progress and edit the shared notes. Never listable by anyone else.
+    // Education Commons (services/educationCouncil/commons.ts): members self-register unverified; proposals are
+    // public to signed-in users; a member may only write their own ballot.
+    match /educationCouncilMembers/{uid} {
+      allow read: if isAuthenticated();
+      allow create: if isOwner(uid) && request.resource.data.uid == uid && request.resource.data.verified == false;
+      allow update: if isOwner(uid) && request.resource.data.verified == resource.data.verified && request.resource.data.uid == uid;
+    }
+    match /educationCommons/{proposalId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.authorUid == request.auth.uid
+                    && exists(/databases/$(database)/documents/educationCouncilMembers/$(request.auth.uid))
+                    && request.resource.data.ballots.size() == 0 && request.resource.data.status == 'open';
+      allow update: if isAuthenticated()
+                    && exists(/databases/$(database)/documents/educationCouncilMembers/$(request.auth.uid))
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ballots', 'status', 'updatedAt'])
+                    && request.resource.data.ballots.diff(resource.data.ballots).affectedKeys().hasOnly([request.auth.uid]);
+    }
+    // Canonical store catalog (consolidated store system). Seller-owned; buyers may only
+    // touch stock/soldCount/reviewCount (checkout + reviews).
+    match /storeProducts/{productId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && (request.resource.data.sellerId == request.auth.uid
+                    || ownerStaffCan(request.resource.data.sellerId, 'INVENTORY'));
+      // Stock and soldCount are written by the SELLER (dashboard) or the server order spine (admin
+      // credentials) — never by shoppers. (A previous rule let ANY signed-in user rewrite any product's
+      // stock.) Shoppers may only bump review aggregates.
+      allow update: if isAdmin()
+                    || (isAuthenticated() && resource.data.sellerId == request.auth.uid)
+                    || (request.resource.data.sellerId == resource.data.sellerId && ownerStaffCan(resource.data.sellerId, 'INVENTORY'))
+                    || (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reviewCount', 'rating', 'updatedAt']));
+      allow delete: if isAuthenticated() && (resource.data.sellerId == request.auth.uid || isAdmin() || ownerStaffCan(resource.data.sellerId, 'INVENTORY'));
+
+      // Back-in-stock waitlist: a shopper adds/removes themselves; the seller reads it to notify.
+      match /waitlist/{shopperUid} {
+        allow create: if isAuthenticated() && request.auth.uid == shopperUid;
+        allow read, delete: if isAuthenticated() && (request.auth.uid == shopperUid
+                    || get(/databases/$(database)/documents/storeProducts/$(productId)).data.sellerId == request.auth.uid);
+        allow update: if false;
+      }
+    }
+    // Stock ledger — every receive/sale/adjust/damage, so "where did my inventory go" has an answer.
+    // The seller reads + appends their own entries; the server writes sale entries; nobody edits history.
+    match /stockMoves/{moveId} {
+      allow read: if isAuthenticated() && (resource.data.sellerId == request.auth.uid || isAdmin() || ownerStaffCan(resource.data.sellerId, 'INVENTORY'));
+      allow create: if isAuthenticated() && (request.resource.data.sellerId == request.auth.uid || ownerStaffCan(request.resource.data.sellerId, 'INVENTORY'));
+      allow update, delete: if false;
+    }
+    // Orders are created ONLY by the server order spine (Stripe-paid / POS), which prices + stock-checks
+    // every line. The seller may advance status / add tracking; the buyer reads.
+    match /storeOrders/{orderId} {
+      allow read: if isAuthenticated() && (resource.data.buyerId == request.auth.uid || resource.data.sellerId == request.auth.uid || isAdmin() || ownerStaffCan(resource.data.sellerId, 'ORDERS'));
+      allow create: if false;
+      allow update: if isAuthenticated() && (resource.data.sellerId == request.auth.uid || isAdmin() || ownerStaffCan(resource.data.sellerId, 'ORDERS'))
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt', 'trackingNumber', 'trackingCarrier', 'shippedAt', 'oversold', 'sellerNote']);
+    }
+    // POS refunds: written ONLY by the server (/api/store/pos-refund: validates qty/amount, restocks through the
+    // ledger, idempotent by id). The seller reads them for reports and the returns picker.
+    match /storeRefunds/{refundId} {
+      allow read: if isAuthenticated() && (resource.data.sellerId == request.auth.uid || isAdmin() || ownerStaffCan(resource.data.sellerId, 'REPORTS'));
+      allow write: if false;
+    }
+    // Artist↔business cross-promo bookings: the business creates; both parties read; the creator
+    // (or business) updates status (accept/decline). Queried by creatorUid / businessUid.
+    match /promoBookings/{bookingId} {
+      allow read: if isAuthenticated() && (resource.data.businessUid == request.auth.uid || resource.data.creatorUid == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && request.resource.data.businessUid == request.auth.uid;
+      allow update: if isAuthenticated() && (resource.data.creatorUid == request.auth.uid || resource.data.businessUid == request.auth.uid);
+    }
+    // Owner-level staff index: the owner and the listed staff may read it; only the server writes it.
+    match /businessStaffIndex/{ownerUid} {
+      allow read: if isAuthenticated() && (request.auth.uid == ownerUid || request.auth.uid in resource.data.get('staffUids', []));
+      allow write: if false;
+    }
+    // Digital signage slides, keyed by businessId = the businessPages doc id. Public read: in-store
+    // screens are often unauthenticated TVs. Writes only by that page's owner (or an admin); an update
+    // must stay owned by the same page owner on both sides (no moving a slide onto someone else's page).
+    match /signageSlides/{id} {
+      function signageOwner(bizId) {
+        return get(/databases/$(database)/documents/businessPages/$(bizId)).data.ownerId == request.auth.uid;
+      }
+      allow read: if true;
+      allow create: if isAuthenticated() && (signageOwner(request.resource.data.businessId) || isAdmin()
+                    || pageStaffCan(request.resource.data.businessId, 'SIGNAGE'));
+      allow update: if isAuthenticated() && ((signageOwner(resource.data.businessId) && signageOwner(request.resource.data.businessId)) || isAdmin()
+                    || (pageStaffCan(resource.data.businessId, 'SIGNAGE') && pageStaffCan(request.resource.data.businessId, 'SIGNAGE')));
+      allow delete: if isAuthenticated() && (signageOwner(resource.data.businessId) || isAdmin()
+                    || pageStaffCan(resource.data.businessId, 'SIGNAGE'));
+    }
+    // Business-ops namespace: businesses/{ownerUid} holds a business's subcollections (the doc id IS
+    // the owner's uid). Separate from the businessPages collection. Covers messaging opt-in/broadcasts
+    // and the Team/HR module (staff, shifts, time-off). (Without this, those writes were denied.)
+    match /businesses/{businessUid} {
+      allow read: if true;
+      allow write: if isAuthenticated() && request.auth.uid == businessUid;
+
+      // A customer opts into a business's updates (writes their own doc); the business reads its list.
+      match /subscribers/{customerUid} {
+        allow read: if isAuthenticated() && (request.auth.uid == businessUid || request.auth.uid == customerUid || ownerStaffCan(businessUid, 'CRM'));
+        allow write: if isAuthenticated() && (request.auth.uid == customerUid || request.auth.uid == businessUid);
+      }
+      // Owner-managed: broadcast log + the Team/HR module.
+      match /broadcasts/{id} { allow read, write: if isAuthenticated() && (request.auth.uid == businessUid || ownerStaffCan(businessUid, 'MARKETING')); }
+      // Staff roster. PINs are NEVER client-readable/writable: the only PIN material is a salted hash in
+      // staffSecrets (below), written by the server. Writes that carry pin/pinHash/pinSalt are rejected.
+      match /staff/{id} {
+        allow read, delete: if isAuthenticated() && request.auth.uid == businessUid;   // owner only: staff docs hold payRate
+        allow create, update: if isAuthenticated() && request.auth.uid == businessUid
+                              && !request.resource.data.keys().hasAny(['pin', 'pinHash', 'pinSalt']);
+      }
+      // Server-only: salted PIN hashes, open-shift markers, drawer pointer. No client access at all.
+      match /staffSecrets/{id} { allow read, write: if false; }
+      match /shiftOpen/{id}    { allow read, write: if false; }
+      match /drawerState/{id}  { allow read, write: if false; }
+      // Shifts are written by the server (PIN-verified clock in/out); the owner may read and correct them.
+      match /shifts/{id}     { allow read, write: if isAuthenticated() && request.auth.uid == businessUid; allow read: if ownerStaffCan(businessUid, 'TEAM'); }   // owner may seed/correct; PIN clock events are server-written
+      match /timeOff/{id}    { allow read, write: if isAuthenticated() && request.auth.uid == businessUid; allow read: if ownerStaffCan(businessUid, 'TEAM'); }
+      // Cash drawer sessions + Z reports: server-written (staff sign in by PIN, not Firestore); the owner reads.
+      match /drawerSessions/{id} { allow read: if isAuthenticated() && (request.auth.uid == businessUid || ownerStaffCan(businessUid, 'REPORTS')); allow write: if false; }
+      // Stored value (gift cards / store credit / wallets): SERVER-WRITE-ONLY. Owner reads; a customer reads only their own
+      // customer-tied card (wallet / credit) and its ledger. The code-hash index (storedValueIndex) has NO client rule at all.
+      match /storedValue/{cardId} { allow read: if isAuthenticated() && (request.auth.uid == businessUid || resource.data.get('customerUid', '') == request.auth.uid); allow write: if false; }
+      match /storedValueLedger/{entryId} { allow read: if isAuthenticated() && (request.auth.uid == businessUid || resource.data.get('customerUid', '') == request.auth.uid); allow write: if false; }
+      // Loyalty balances are written server-side (POS sale); the business and the customer can read.
+      match /loyalty/{customerUid} { allow read: if isAuthenticated() && (request.auth.uid == businessUid || request.auth.uid == customerUid); }
+      // In-store deals: the business writes, anyone may read (register + storefront evaluate them).
+      match /offers/{id} { allow read: if true; allow write: if isAuthenticated() && (request.auth.uid == businessUid || ownerStaffCan(businessUid, 'INVENTORY')); }
+      // Now Playing — the business publishes the current in-store track; checked-in customers read it.
+      match /nowPlaying/{id} { allow read: if true; allow write: if isAuthenticated() && (request.auth.uid == businessUid || ownerStaffCan(businessUid, 'SIGNAGE')); }
+      // Presence — a customer checks in (writes their own doc); the business sees who's in-store.
+      match /presence/{customerUid} {
+        allow read: if isAuthenticated() && (request.auth.uid == businessUid || request.auth.uid == customerUid || ownerStaffCan(businessUid, 'CRM'));
+        allow write: if isAuthenticated() && (request.auth.uid == customerUid || request.auth.uid == businessUid);
+      }
+    }
+    // Service tickets (repair orders, wash-and-fold). SERVER-ONLY writes (Admin/REST via /api/tickets/*, CAS-guarded).
+    // The business owner may read their own tickets; staff (PIN sessions) read through the server. Customers never
+    // read this collection: they use the HMAC link page (/t/:token), which strips internal notes, costs and audit.
+    // Counters are server-only. There are no token docs: link tokens are HMACs, nothing is stored to leak.
+    match /tickets/{ticketId} {
+      allow read: if isAuthenticated() && (resource.data.businessUid == request.auth.uid || ownerStaffCan(resource.data.businessUid, 'ORDERS'));
+      allow write: if false;
+    }
+    // Auto repair layer (services/autoServer.ts). Every write is SERVER-ONLY (Admin/REST, CAS-guarded).
+    // vehicles / inspections: the owning business may read its own; staff PIN sessions read through the server.
+    match /vehicles/{id} { allow read: if isAuthenticated() && (resource.data.businessUid == request.auth.uid || ownerStaffCan(resource.data.businessUid, 'ORDERS')); allow write: if false; }
+    match /inspections/{id} { allow read: if isAuthenticated() && (resource.data.businessUid == request.auth.uid || ownerStaffCan(resource.data.businessUid, 'ORDERS')); allow write: if false; }
+    // eBay-lite auctions. Public read; sellers own; bidders may only push bid fields;
+    // a Buy-It-Now buyer may settle (status/winner/finalPrice) and route fundraiser proceeds.
+    match /garageSale/{itemId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.sellerId == request.auth.uid;
+      allow update: if isAdmin()
+                    || (isAuthenticated() && resource.data.sellerId == request.auth.uid)
+                    || (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['currentBid', 'currentBidderId', 'currentBidderName', 'bidCount']))
+                    || (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'winnerId', 'winnerName', 'finalPrice', 'sanctuaryFundraiserLink']) && request.resource.data.winnerId == request.auth.uid)
+                    || (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['sanctuaryFundraiserLink']));
+      allow delete: if isAuthenticated() && (resource.data.sellerId == request.auth.uid || isAdmin());
+
+      match /bids/{bidId} {
+        allow read: if true;
+        allow create: if isAuthenticated() && request.resource.data.bidderId == request.auth.uid;
+        allow update, delete: if isAdmin();
+      }
+    }
+    match /progress_reports/{reportId} {
+      allow read: if isAuthenticated() && (resource.data.studentId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && isValidProgressReport(request.resource.data) && request.resource.data.studentId == request.auth.uid;
+      allow update: if isAuthenticated() && (resource.data.studentId == request.auth.uid && isValidProgressReport(request.resource.data));
+    }
+    // ── Post Man bulletins — a business's letters to its followers ──────────
+    // Pull model: readers query bulletins by the authors they follow, so there is no
+    // recipient list to leak or sell. Public to signed-in readers; only the author writes.
+    match /bulletins/{bulletinId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.authorId == request.auth.uid &&
+        request.resource.data.title is string && request.resource.data.title.size() <= 200 &&
+        request.resource.data.doc is string && request.resource.data.doc.size() <= 700000 &&
+        request.resource.data.createdAt is number;
+      allow update: if false;
+      allow delete: if isAdmin() || (isAuthenticated() && resource.data.authorId == request.auth.uid);
+    }
+    match /newsroom_stories/{id} {
+      allow read: if nrOwner(resource.data) || nrOrgStaff(resource.data);
+      allow create: if nrCreate(request.resource.data);
+      allow update: if (nrOwner(resource.data) || nrOrgStaff(resource.data)) && request.resource.data.ownerId == resource.data.ownerId;
+      allow delete: if nrOwner(resource.data) || nrOrgStaff(resource.data);
+    }
+    match /newsroom_pitches/{id} {
+      allow read: if nrOwner(resource.data) || nrOrgStaff(resource.data);
+      allow create: if nrCreate(request.resource.data);
+      allow update: if (nrOwner(resource.data) || nrOrgStaff(resource.data)) && request.resource.data.ownerId == resource.data.ownerId;
+      allow delete: if nrOwner(resource.data) || nrOrgStaff(resource.data);
+    }
+    match /newsroom_claims/{id} {
+      allow read, delete: if nrOwner(resource.data) || nrOrgStaff(resource.data);
+      allow create: if nrCreate(request.resource.data);
+      allow update: if (nrOwner(resource.data) || nrOrgStaff(resource.data)) && request.resource.data.ownerId == resource.data.ownerId;
+    }
+    match /periodicalIssues/{id} {
+      allow read: if (resource.data.status == 'published' && resource.data.get('isPublic', false) == true)
+        || piStaff(resource.data)
+        || (isAuthenticated() && resource.data.get('adviserUid', '') == request.auth.uid);
+      allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.get('adviserApproval', null) == null
+        && request.resource.data.status != 'published';
+      allow update: if (
+          piStaff(resource.data)
+          && request.resource.data.ownerId == resource.data.ownerId
+          && request.resource.data.get('adviserApproval', null) == resource.data.get('adviserApproval', null)
+          && request.resource.data.get('adviserUid', '') == resource.data.get('adviserUid', '')
+          && request.resource.data.get('tier', 'pro') == resource.data.get('tier', 'pro')
+          && (request.resource.data.status != 'published' || piAdviserOk(resource.data))
+        ) || (
+          isAuthenticated() && resource.data.get('adviserUid', '') == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['adviserApproval', 'updatedAt'])
+          && (request.resource.data.adviserApproval == null || request.resource.data.adviserApproval.uid == request.auth.uid)
+        );
+      allow delete: if isAuthenticated() && resource.data.ownerId == request.auth.uid && resource.data.status != 'published';
+    }
+    // Press credentials: the owner submits them SELF_ASSERTED; only platform staff may approve or reject.
+    match /press_credentials/{id} {
+      allow read: if nrOwner(resource.data) || isAdmin();
+      allow create: if nrOwner(request.resource.data) && request.resource.data.reviewStatus == 'SELF_ASSERTED';
+      allow update: if isAdmin() || (nrOwner(resource.data) && request.resource.data.reviewStatus == resource.data.reviewStatus && request.resource.data.ownerId == resource.data.ownerId);
+      allow delete: if nrOwner(resource.data) || isAdmin();
+    }
+    // Melos productions — album workspaces + the Beats room's grooves. Owner or roster member
+    // only; every subcollection (songs, arrangements, pins, samples, grooves…) inherits access
+    // through the parent production lookup. PRIVATE by default; collaborator sharing = the
+    // memberUids roster maintained by melosService.
+    match /melosProductions/{prodId} {
+      function isMelosMember() {
+        return isAuthenticated()
+          && (resource.data.ownerUid == request.auth.uid
+              || request.auth.uid in resource.data.get('memberUids', []));
+      }
+      allow read, update, delete: if isMelosMember() || isAdmin();
+      allow create: if isAuthenticated() && request.resource.data.ownerUid == request.auth.uid;
+      match /{document=**} {
+        function isParentMember() {
+          let p = get(/databases/$(database)/documents/melosProductions/$(prodId)).data;
+          return isAuthenticated()
+            && (p.ownerUid == request.auth.uid || request.auth.uid in p.get('memberUids', []));
+        }
+        allow read, write: if isParentMember() || isAdmin();
+      }
+    }
+    // Sync-license requests: a filmmaker asks a track owner to license an un-priced
+    // track. Requester creates & reads their own; owner reads & responds (status/price).
+    match /licenseRequests/{reqId} {
+      allow read: if isAuthenticated() &&
+                     (resource.data.requesterUid == request.auth.uid || resource.data.ownerUid == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() &&
+                       request.resource.data.requesterUid == request.auth.uid &&
+                       request.resource.data.status == 'PENDING';
+      allow update: if isAuthenticated() && resource.data.ownerUid == request.auth.uid
+                       && request.resource.data.ownerUid == resource.data.ownerUid
+                       && request.resource.data.requesterUid == resource.data.requesterUid;
+      allow delete: if isAdmin();
+    }
+    match /ad_campaigns/{campaignId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && isValidAdCampaign(request.resource.data) && request.resource.data.ownerId == request.auth.uid;
+      allow update: if (isAuthenticated() && resource.data.ownerId == request.auth.uid && isValidAdCampaign(request.resource.data)) || isAdmin();
+      allow delete: if (isAuthenticated() && resource.data.ownerId == request.auth.uid) || isAdmin();
+    }
+    // "I need a hand": the student writes it for chosen grown-ups; only those grown-ups (and the student) can read it.
+    match /wellbeingRequests/{rid} {
+      allow create: if isAuthenticated() && request.resource.data.studentUid == request.auth.uid;
+      allow read: if isAuthenticated() && (resource.data.studentUid == request.auth.uid || request.auth.uid in resource.data.toUids);
+      allow update: if isAuthenticated() && request.auth.uid in resource.data.toUids && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seenBy']);
+    }
+    // ── Sacred Library: per-user Bible notes (doc id = {uid}__{ref}) ─────────────
+    // Lectio service notes — the record of which passages a member was shown,
+    // and when. One doc per user per service (id = {uid}__{sessionId}).
+    // OWNER-ONLY IN BOTH DIRECTIONS: what someone was shown, and when they were
+    // in a service, is a fact about their spiritual life. The church must never
+    // be able to read this — it is the member's copy, and it leaves with them.
+    match /lectioServiceNotes/{noteId} {
+      allow read:   if isAuthenticated() && resource.data.uid == request.auth.uid;
+      allow create, update: if isAuthenticated()
+                    && request.resource.data.uid == request.auth.uid
+                    && noteId == request.auth.uid + '__' + request.resource.data.sessionId
+                    && request.resource.data.notes is list
+                    && request.resource.data.notes.size() <= 200;
+      allow delete: if isAuthenticated() && resource.data.uid == request.auth.uid;
+    }
+    // ── Identifier registry (opt-in rights layer) ─────────────────────────────
+    // Works, editions, releases and the subject→triple index. Public read: a rights
+    // record is meant to be citable and checkable by anyone (that is the whole point of
+    // a registry). Writes are owner-only, and ownerUid is immutable once set so a record
+    // cannot be reassigned to another account.
+    match /registryWorks/{docId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.ownerUid == request.auth.uid;
+      allow update: if (isAuthenticated() && resource.data.ownerUid == request.auth.uid
+                        && request.resource.data.ownerUid == resource.data.ownerUid) || isAdmin();
+      allow delete: if isAdmin();
+    }
+    match /registryManifestations/{docId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.ownerUid == request.auth.uid;
+      allow update: if (isAuthenticated() && resource.data.ownerUid == request.auth.uid
+                        && request.resource.data.ownerUid == resource.data.ownerUid) || isAdmin();
+      allow delete: if isAdmin();
+    }
+    match /registryProducts/{docId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.ownerUid == request.auth.uid;
+      allow update: if (isAuthenticated() && resource.data.ownerUid == request.auth.uid
+                        && request.resource.data.ownerUid == resource.data.ownerUid) || isAdmin();
+      allow delete: if isAdmin();
+    }
+    // subjectKey (e.g. BOOK_abc123) → { workId, manifestationId, productId }. Never
+    // deletable by a client: losing the index would orphan a work's whole rights record.
+    match /registryRefs/{subjectKey} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.ownerUid == request.auth.uid;
+      allow update: if (isAuthenticated() && resource.data.ownerUid == request.auth.uid
+                        && request.resource.data.ownerUid == resource.data.ownerUid) || isAdmin();
+      allow delete: if isAdmin();
+    }
+    // Published scan reconstructions. Artwork vectors, editable OCR text and interaction fields
+    // remain one document, but only its teacher and assigned family accounts may retrieve it.
+    match /digital_worksheets/{worksheetId} {
+      allow read: if canAccessDigitalWorksheet(resource.data);
+      allow create: if isAuthenticated() && request.resource.data.createdBy == request.auth.uid;
+      allow update: if isAuthenticated() &&
+        (resource.data.createdBy == request.auth.uid || isAdmin()) &&
+        request.resource.data.createdBy == resource.data.createdBy;
+      allow delete: if isAuthenticated() && (resource.data.createdBy == request.auth.uid || isAdmin());
+    }
+    // The answer key split off a published worksheet (services/worksheetKeys.ts): its teacher only.
+    // Students check and turn in through routes/worksheetGrading.ts, which reads this server-side.
+    match /digital_worksheet_keys/{worksheetId} {
+      allow read, delete: if isAuthenticated() && (resource.data.createdBy == request.auth.uid || isAdmin());
+      allow create: if worksheetKeyWrite(worksheetId);
+      allow update: if worksheetKeyWrite(worksheetId) && resource.data.createdBy == request.auth.uid;
+    }
+    match /worksheet_assignments/{assignmentId} {
+      allow read: if canAccessWorksheetAssignment(resource.data);
+      allow create: if isAuthenticated() &&
+        request.resource.data.teacherUid == request.auth.uid &&
+        canAccessWorksheetById(request.resource.data.worksheetId);
+      allow update: if isAuthenticated() &&
+        (resource.data.teacherUid == request.auth.uid || isAdmin()) &&
+        request.resource.data.teacherUid == resource.data.teacherUid &&
+        request.resource.data.worksheetId == resource.data.worksheetId;
+      allow delete: if isAuthenticated() && (resource.data.teacherUid == request.auth.uid || isAdmin());
+    }
+    match /worksheet_submissions/{submissionId} {
+      allow read: if isAuthenticated() && (
+        resource.data.studentId == request.auth.uid ||
+        request.auth.uid in resource.data.get('guardianUids', []) ||
+        (resource.data.assignmentId is string &&
+          worksheetAssignment(resource.data.assignmentId).teacherUid == request.auth.uid) ||
+        isAdmin()
+      );
+      allow create: if isAuthenticated() && request.resource.data.assignmentId is string && (
+        (request.resource.data.studentId == request.auth.uid && !request.resource.data.keys().hasAny(worksheetGradeFields())) ||
+        worksheetAssignment(request.resource.data.assignmentId).teacherUid == request.auth.uid ||
+        isAdmin()
+      );
+      allow update: if isAuthenticated() &&
+        request.resource.data.studentId == resource.data.studentId &&
+        request.resource.data.worksheetId == resource.data.worksheetId &&
+        request.resource.data.assignmentId == resource.data.assignmentId && (
+          worksheetAssignment(resource.data.assignmentId).teacherUid == request.auth.uid ||
+          isAdmin() ||
+          (resource.data.studentId == request.auth.uid
+            && !request.resource.data.diff(resource.data).affectedKeys().hasAny(worksheetGradeFields()))
+        );
+      allow delete: if isAuthenticated() && (
+        worksheetAssignment(resource.data.assignmentId).teacherUid == request.auth.uid || isAdmin()
+      );
+    }
+    // Runtime failures and user ratings are append-only evidence. Actors may write only as
+    // themselves and only for worksheets already inside their access boundary.
+    match /assignment_quality_events/{eventId} {
+      allow create: if isAuthenticated() &&
+        request.resource.data.actorId == request.auth.uid &&
+        canAccessWorksheetById(request.resource.data.worksheetId);
+      allow read: if isAuthenticated() && (
+        get(/databases/$(database)/documents/digital_worksheets/$(resource.data.worksheetId)).data.createdBy == request.auth.uid ||
+        isAdmin()
+      );
+      allow update, delete: if false;
+    }
+    match /assignment_quality_feedback/{feedbackId} {
+      allow create: if isAuthenticated() &&
+        request.resource.data.actorId == request.auth.uid &&
+        request.resource.data.rating is int &&
+        request.resource.data.rating >= 1 && request.resource.data.rating <= 5 &&
+        canAccessWorksheetById(request.resource.data.worksheetId);
+      allow read: if isAuthenticated() && (
+        get(/databases/$(database)/documents/digital_worksheets/$(resource.data.worksheetId)).data.createdBy == request.auth.uid ||
+        isAdmin()
+      );
+      allow update, delete: if false;
+    }
+    match /assignment_quality/{qualityId} {
+      allow read: if canAccessWorksheetById(resource.data.worksheetId);
+      allow create: if isAuthenticated() &&
+        get(/databases/$(database)/documents/digital_worksheets/$(request.resource.data.worksheetId)).data.createdBy == request.auth.uid;
+      allow update: if isAuthenticated() &&
+        request.resource.data.worksheetId == resource.data.worksheetId &&
+        get(/databases/$(database)/documents/digital_worksheets/$(resource.data.worksheetId)).data.createdBy == request.auth.uid;
+      allow delete: if false;
+    }
+    // The teacher's own integrity configuration: personas + Silent Mode settings.
+    // Silent Mode may never be switched off while a verified district persona is active —
+    // enforced here rather than only in the UI, because the UI is the part an attacker skips.
+    match /teacherIntegrity/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow create: if isOwner(uid);
+      // Traversed with .get() defaults throughout: a teacher who hasn't linked a district has
+      // no personas.district map at all, and a bare `resource.data.personas.district.active`
+      // raises on the missing key — which denies the write. That would lock every teacher
+      // WITHOUT a district out of their own settings, the exact opposite of the intent.
+      allow update: if isOwner(uid) &&
+        !(resource.data.get('personas', {}).get('district', {}).get('active', false) == true &&
+          request.resource.data.get('integritySettings', {}).get('campusSilentMode', 'auto') == 'off');
+      allow delete: if false;
+    }
+    // District-persona rosters. SALTED HASHES ONLY — raw student identity never reaches
+    // Plajah. Readable by the owning teacher and their district admin; by no one else, and by
+    // no creator-context path at all. Deletable by the teacher so leaving a district actually
+    // removes the data.
+    match /districtPersona/{uid}/rosters/{termId} {
+      allow read: if isOwner(uid) ||
+        (isAuthenticated() && request.auth.token.districtAdmin == resource.data.districtId);
+      allow create, update: if isOwner(uid) ||
+        (isAuthenticated() && request.auth.token.districtAdmin == request.resource.data.districtId);
+      allow delete: if isOwner(uid);
+    }
+    // Assignment templates. The licence wall: a template may only claim commercialUse if the
+    // server has already validated its materials. licenseValidated is server-set (Admin REST),
+    // so a client cannot forge its way past the gate — it can only ever write the flag false.
+    match /assignmentTemplates/{templateId} {
+      allow read: if resource.data.visibility == 'public' || isOwner(resource.data.ownerUid);
+
+      // A new template is always unvalidated and non-commercial. Validation is something the
+      // server grants afterwards; it is never a property a document can be born with.
+      allow create: if isAuthenticated() &&
+        request.resource.data.ownerUid == request.auth.uid &&
+        request.resource.data.licenseValidated == false &&
+        request.resource.data.commercialUse == false;
+
+      // The client may LOWER licenseValidated (editing materials invalidates prior approval)
+      // but never raise it — writing `true` is the one transition reserved for the server's
+      // Admin REST path, which bypasses these rules. Without this clause a client could simply
+      // set the flag itself and walk straight through the commercial gate.
+      allow update: if isAuthenticated() &&
+        resource.data.ownerUid == request.auth.uid &&
+        request.resource.data.ownerUid == resource.data.ownerUid &&
+        (request.resource.data.licenseValidated == false ||
+         request.resource.data.licenseValidated == resource.data.licenseValidated) &&
+        (request.resource.data.commercialUse == false ||
+         request.resource.data.licenseValidated == true);
+
+      allow delete: if isAuthenticated() && resource.data.ownerUid == request.auth.uid;
+    }
+    // A template handed to a class. Readable by the assigning teacher and by the students it
+    // was assigned to — students need it to actually do the work, but must never be able to
+    // edit the rubric they're about to be graded against.
+    match /templateAssignments/{assignmentId} {
+      allow read: if isAuthenticated() && (
+        resource.data.teacherUid == request.auth.uid ||
+        request.auth.uid in resource.data.studentIds ||
+        request.auth.uid in resource.data.get('guardianUids', [])
+      );
+      allow create: if isAuthenticated() && request.resource.data.teacherUid == request.auth.uid;
+      allow update, delete: if isAuthenticated() && resource.data.teacherUid == request.auth.uid;
+    }
+    // A student's turned-in work. The student owns the submission; the teacher owns the grade.
+    match /templateSubmissions/{submissionId} {
+      allow read: if isAuthenticated() && (
+        resource.data.studentId == request.auth.uid ||
+        resource.data.teacherUid == request.auth.uid ||
+        request.auth.uid in resource.data.get('guardianUids', [])
+      );
+      // Turning in must arrive ungraded — otherwise a student could submit with a grade
+      // already attached and the ledger would credit mastery nobody assessed.
+      allow create: if isAuthenticated() &&
+        request.resource.data.studentId == request.auth.uid &&
+        request.resource.data.status == 'submitted' &&
+        request.resource.data.grade == null &&
+        // A Student Newsroom story's editorial decision (`review`) is the teacher's alone:
+        // it is what lets a young reporter's story leave the classroom.
+        request.resource.data.get('review', null) == null;
+      // Only the teacher grades. A student may still edit their own work, but may never
+      // touch the grade or review fields — hence the two separate, non-overlapping update paths.
+      allow update: if isAuthenticated() && (
+        (resource.data.teacherUid == request.auth.uid) ||
+        (resource.data.studentId == request.auth.uid &&
+         resource.data.status != 'graded' &&
+         request.resource.data.grade == resource.data.grade &&
+         request.resource.data.get('review', null) == resource.data.get('review', null) &&
+         request.resource.data.status == resource.data.status)
+      );
+      allow delete: if isAuthenticated() && resource.data.teacherUid == request.auth.uid;
+    }
+    match /templateLibrary/{templateId} {
+      allow read: if tplReadable(resource.data);
+      allow create: if isAuthenticated() && tplValid(request.resource.data);
+      allow update: if isAuthenticated() && (
+        (resource.data.ownerUid == request.auth.uid && tplValid(request.resource.data))
+        || (tplReadable(resource.data)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['uses'])
+            && request.resource.data.uses == resource.data.get('uses', 0) + 1)
+      );
+      allow delete: if isAuthenticated() && (resource.data.ownerUid == request.auth.uid || isAdmin());
+    }
+    // Scheduled posts: only the author reads/creates/cancels. The payload is published by the
+    // author's client (or a future server job using the Admin SDK, which bypasses rules).
+    // Reply audience / canReply is UI-level only: comment rules are intentionally unchanged.
+    match /scheduled_posts/{id} {
+      allow read: if isAuthenticated() && resource.data.authorId == request.auth.uid;
+      allow create: if isRegisteredUser() && request.resource.data.authorId == request.auth.uid
+                    && request.resource.data.post is map
+                    && request.resource.data.publishAt is number
+                    && request.resource.data.status == 'PENDING';
+      allow update: if isAuthenticated() && resource.data.authorId == request.auth.uid
+                    && request.resource.data.authorId == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.authorId == request.auth.uid;
+    }
   }
 }

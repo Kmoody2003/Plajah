@@ -9,7 +9,7 @@
 // published without it.
 
 import { collection, deleteDoc, doc, getDoc, getDocs, limit, query, setDoc, updateDoc, where } from 'firebase/firestore';
-import { db, auth } from '../firebase';
+import { db, opsDb, auth } from '../firebase';
 import { listOwned, saveItem } from '../journalist/newsroomStore';
 import type { TelaDoc } from '../../types';
 import type { IssueStory, Periodical, PeriodicalIssue } from './types';
@@ -41,8 +41,8 @@ export async function getPeriodical(id: string): Promise<Periodical | null> {
 export async function listIssuesForStaff(): Promise<PeriodicalIssue[]> {
   const uid = me(); if (!uid) return [];
   const [staff, advised] = await Promise.all([
-    getDocs(query(collection(db, ISSUES), where('staffUids', 'array-contains', uid), limit(200))).catch(() => null),
-    getDocs(query(collection(db, ISSUES), where('adviserUid', '==', uid), limit(200))).catch(() => null),
+    getDocs(query(collection(opsDb, ISSUES), where('staffUids', 'array-contains', uid), limit(200))).catch(() => null),
+    getDocs(query(collection(opsDb, ISSUES), where('adviserUid', '==', uid), limit(200))).catch(() => null),
   ]);
   const all = new Map<string, PeriodicalIssue>();
   for (const snap of [staff, advised]) snap?.docs.forEach(d => all.set(d.id, { ...(d.data() as PeriodicalIssue), id: d.id }));
@@ -52,22 +52,22 @@ export async function listIssuesForStaff(): Promise<PeriodicalIssue[]> {
 export async function saveIssue(issue: PeriodicalIssue): Promise<void> {
   const { ...data } = issue as PeriodicalIssue & { bundleJson?: string };
   delete (data as any).bundleJson;
-  await setDoc(doc(db, ISSUES, issue.id), clean({ ...data, updatedAt: Date.now() }), { merge: true });
+  await setDoc(doc(opsDb, ISSUES, issue.id), clean({ ...data, updatedAt: Date.now() }), { merge: true });
 }
 
-export const deleteIssue = (id: string) => deleteDoc(doc(db, ISSUES, id));
+export const deleteIssue = (id: string) => deleteDoc(doc(opsDb, ISSUES, id));
 
 /** A reporter files an approved story into an issue (staff may update the issue). */
 export async function fileStoryToIssue(issue: PeriodicalIssue, story: IssueStory): Promise<void> {
   const stories = [...issue.stories.filter(s => s.id !== story.id), story];
-  await updateDoc(doc(db, ISSUES, issue.id), clean({ stories, updatedAt: Date.now() }));
+  await updateDoc(doc(opsDb, ISSUES, issue.id), clean({ stories, updatedAt: Date.now() }));
 }
 
 /** The adviser's own account approves (or withdraws approval of) a student issue. */
 export async function setAdviserApproval(issueId: string, approve: boolean, note?: string): Promise<boolean> {
   const u = auth.currentUser; if (!u) return false;
   try {
-    await updateDoc(doc(db, ISSUES, issueId), { adviserApproval: approve ? clean({ uid: u.uid, name: u.displayName || 'Adviser', at: Date.now(), ...(note ? { note } : {}) }) : null, updatedAt: Date.now() });
+    await updateDoc(doc(opsDb, ISSUES, issueId), { adviserApproval: approve ? clean({ uid: u.uid, name: u.displayName || 'Adviser', at: Date.now(), ...(note ? { note } : {}) }) : null, updatedAt: Date.now() });
     return true;
   } catch { return false; }
 }
@@ -83,7 +83,7 @@ export async function publishIssueEdition(issue: PeriodicalIssue, telaDoc: TelaD
   const bundleJson = JSON.stringify(version.bundle);
   if (bundleJson.length > MAX_ISSUE_BUNDLE_BYTES) return { ok: false, error: 'This issue is too large to publish in one piece (pasted images?). Use uploaded image links, or split the issue.' };
   try {
-    await updateDoc(doc(db, ISSUES, issue.id), clean({
+    await updateDoc(doc(opsDb, ISSUES, issue.id), clean({
       status: 'published', bundleJson, updatedAt: Date.now(),
       published: { versionId: version.versionId, at: Date.now(), pageCount: telaDoc.frames.length, ...(flatPdfUrl ? { flatPdfUrl } : {}) },
     }));
@@ -95,7 +95,7 @@ export async function publishIssueEdition(issue: PeriodicalIssue, telaDoc: TelaD
 }
 
 export async function loadPublishedIssue(id: string): Promise<{ issue: PeriodicalIssue; doc: TelaDoc | null } | null> {
-  const s = await getDoc(doc(db, ISSUES, id)).catch(() => null);
+  const s = await getDoc(doc(opsDb, ISSUES, id)).catch(() => null);
   if (!s?.exists()) return null;
   const data = s.data() as PeriodicalIssue & { bundleJson?: string };
   let telaDoc: TelaDoc | null = null;
@@ -106,7 +106,7 @@ export async function loadPublishedIssue(id: string): Promise<{ issue: Periodica
 
 /** Newest published issues for the shelf (single-field query; sorted here). */
 export async function listPublishedIssues(max = 40): Promise<PeriodicalIssue[]> {
-  const snap = await getDocs(query(collection(db, ISSUES), where('status', '==', 'published'), limit(200))).catch(() => null);
+  const snap = await getDocs(query(collection(opsDb, ISSUES), where('status', '==', 'published'), limit(200))).catch(() => null);
   return (snap?.docs || [])
     .map(d => { const v = d.data() as PeriodicalIssue & { bundleJson?: string }; delete v.bundleJson; return { ...v, id: d.id }; })
     .filter(i => i.isPublic)

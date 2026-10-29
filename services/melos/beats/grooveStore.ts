@@ -4,12 +4,12 @@
 // Beats from the Melos workspace later just passes a real prodId instead. Firestore gotchas
 // honored: undefined fields stripped before write, no where+orderBy composite (sort in JS).
 
-import { db, auth } from '../../firebase';
+import { opsDb, auth } from '../../firebase';
 import { doc, setDoc, getDoc, getDocs, collection, deleteDoc } from 'firebase/firestore';
 import { createProduction, fetchProduction } from '../../melosService';
 import { serializeGroove, deserializeGroove, type GrooveDoc } from './grooveDoc';
 
-const grooveRef = (prodId: string, grooveId: string) => doc(db, 'melosProductions', prodId, 'grooves', grooveId);
+const grooveRef = (prodId: string, grooveId: string) => doc(opsDb, 'melosProductions', prodId, 'grooves', grooveId);
 
 export interface GrooveSummary {
   id: string; name: string; bpm: number; updatedAt: number;
@@ -54,7 +54,7 @@ export async function loadGroove(prodId: string, grooveId: string): Promise<Groo
 
 export async function listGrooves(prodId: string): Promise<GrooveSummary[]> {
   try {
-    const snap = await getDocs(collection(db, 'melosProductions', prodId, 'grooves'));
+    const snap = await getDocs(collection(opsDb, 'melosProductions', prodId, 'grooves'));
     return snap.docs
       .map((d) => {
         const g = d.data() as GrooveDoc;

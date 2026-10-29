@@ -11,7 +11,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Camera, UploadCloud, Loader2, FileText, CalendarDays, ClipboardCheck, Check, Users, Bell, NotebookPen, RefreshCw, MapPin } from 'lucide-react';
 import { collection, getDocs, limit, query, where } from 'firebase/firestore';
-import { db } from '../../../services/firebase';
+import { opsDb } from '../../../services/firebase';
 import { prepareWorksheetImage } from '../../../services/worksheetImagePipeline';
 import { readPageOnDevice, warmOcr, type PageRead } from '../../../services/worksheetLocalVision';
 import { readCompletedWorksheet, type DigitalWorksheet } from '../../../services/worksheetDigitizer';
@@ -70,7 +70,7 @@ const ScanAnythingView: React.FC<{ user?: any; profile?: any; onBack?: () => voi
 
   const loadMyAssignments = async (): Promise<Array<{ id: string; sheet: DigitalWorksheet; dueDate?: number | null; assignedAt?: number }>> => {
     if (!user?.uid) return [];
-    const snap = await getDocs(query(collection(db, 'worksheet_assignments'), where('studentIds', 'array-contains', user.uid), limit(40))).catch(() => null);
+    const snap = await getDocs(query(collection(opsDb, 'worksheet_assignments'), where('studentIds', 'array-contains', user.uid), limit(40))).catch(() => null);
     const rows = (snap?.docs || []).map(d => ({ id: d.id, ...(d.data() as any) })).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 25);
     const sheets = await Promise.all(rows.map(r => fetchWorksheet(r.worksheetId).catch(() => null)));
     return rows.map((r, i) => sheets[i] ? { id: r.id, sheet: { ...sheets[i]!, id: r.worksheetId }, dueDate: r.dueDate, assignedAt: r.createdAt } : null).filter(Boolean) as any;

@@ -22,7 +22,7 @@
 // ordering only, per [[plajah-firestore-gotchas]].
 
 import { doc, getDoc, setDoc, collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
-import { db, auth } from './firebase';
+import { db, opsDb, auth } from './firebase';
 
 // ── Model ─────────────────────────────────────────────────────────────────────
 
@@ -114,9 +114,9 @@ export const DEFAULT_INTEGRITY_SETTINGS: IntegritySettings = {
 
 // ── Paths ─────────────────────────────────────────────────────────────────────
 
-const INTEGRITY_DOC = (uid: string) => doc(db, 'teacherIntegrity', uid);
+const INTEGRITY_DOC = (uid: string) => doc(opsDb, 'teacherIntegrity', uid);
 const LOG_COL = (uid: string) => collection(db, 'integrityLog', uid, 'events');
-const ROSTER_DOC = (uid: string, termId: string) => doc(db, 'districtPersona', uid, 'rosters', termId);
+const ROSTER_DOC = (uid: string, termId: string) => doc(opsDb, 'districtPersona', uid, 'rosters', termId);
 
 // ── Settings ──────────────────────────────────────────────────────────────────
 
@@ -320,7 +320,7 @@ export interface RosterSummary {
 /** District-persona read. Deliberately NOT exported through any creator/checkout surface. */
 export async function loadRosterSummaries(uid: string): Promise<RosterSummary[]> {
   try {
-    const snap = await getDocs(collection(db, 'districtPersona', uid, 'rosters'));
+    const snap = await getDocs(collection(opsDb, 'districtPersona', uid, 'rosters'));
     const now = Date.now();
     return snap.docs.map(d => {
       const data = d.data() as any;

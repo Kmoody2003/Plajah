@@ -66,14 +66,14 @@ async function fb() {
 
 export async function loadMember(): Promise<CommonsMember | null> {
   const f = await fb();
-  if (f) { try { const s = await getDoc(doc(f.db, 'educationCouncilMembers', f.auth.currentUser!.uid)); if (s.exists()) return s.data() as CommonsMember; } catch { /* fall through */ } }
+  if (f) { try { const s = await getDoc(doc(f.opsDb, 'educationCouncilMembers', f.auth.currentUser!.uid)); if (s.exists()) return s.data() as CommonsMember; } catch { /* fall through */ } }
   return lsGet<CommonsMember | null>(LS_M, null);
 }
 
 export async function joinCommons(m: Omit<CommonsMember, 'uid' | 'joinedAt' | 'verified'>): Promise<CommonsMember> {
   const f = await fb();
   const member: CommonsMember = { ...m, uid: f?.auth.currentUser?.uid || 'local', joinedAt: Date.now(), verified: false };
-  if (f) { try { await setDoc(doc(f.db, 'educationCouncilMembers', member.uid), member); } catch { /* keep local */ } }
+  if (f) { try { await setDoc(doc(f.opsDb, 'educationCouncilMembers', member.uid), member); } catch { /* keep local */ } }
   lsSet(LS_M, member);
   return member;
 }
@@ -82,7 +82,7 @@ export async function listProposals(max = 60): Promise<Proposal[]> {
   const f = await fb();
   if (f) {
     try {
-      const snap = await getDocs(query(collection(f.db, 'educationCommons'), orderBy('updatedAt', 'desc'), limit(max)));
+      const snap = await getDocs(query(collection(f.opsDb, 'educationCommons'), orderBy('updatedAt', 'desc'), limit(max)));
       return snap.docs.map(d => d.data() as Proposal);
     } catch { /* fall through */ }
   }
@@ -99,7 +99,7 @@ export async function propose(member: CommonsMember, input: Pick<Proposal, 'kind
     ...(session ? { council: { summary: session.synthesis.summary, decisions: session.synthesis.decisions, approve: session.synthesis.approve, revise: session.synthesis.revise, lanes: [...new Set(session.reviews.map(r => r.lane))] } } : {}),
   };
   const f = await fb();
-  if (f) { try { await setDoc(doc(f.db, 'educationCommons', p.id), p); } catch { /* keep local */ } }
+  if (f) { try { await setDoc(doc(f.opsDb, 'educationCommons', p.id), p); } catch { /* keep local */ } }
   lsSet(LS_P, [p, ...lsGet<Proposal[]>(LS_P, []).filter(x => x.id !== p.id)]);
   return p;
 }
@@ -110,7 +110,7 @@ export async function castVote(member: CommonsMember, p: Proposal, vote: Vote, r
   next.status = tally(next).status;
   const f = await fb();
   if (f) {
-    try { await updateDoc(doc(f.db, 'educationCommons', p.id), { [`ballots.${member.uid}`]: ballot, status: next.status, updatedAt: next.updatedAt }); }
+    try { await updateDoc(doc(f.opsDb, 'educationCommons', p.id), { [`ballots.${member.uid}`]: ballot, status: next.status, updatedAt: next.updatedAt }); }
     catch { /* keep local */ }
   }
   lsSet(LS_P, lsGet<Proposal[]>(LS_P, []).map(x => (x.id === p.id ? next : x)));

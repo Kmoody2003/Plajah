@@ -21,7 +21,7 @@ import {
   collection, doc, addDoc, query, where, getDocs, runTransaction, updateDoc, deleteDoc,
 } from 'firebase/firestore';
 import { onSnapshot } from './safeSnapshot';
-import { db } from './firebase';
+import { opsDb } from './firebase';
 import { createPost } from './backendService';
 import type { Post } from '../types';
 import {
@@ -54,7 +54,7 @@ export async function schedulePost(uid: string, post: Partial<Post>, publishAt: 
   if (!v.ok) throw new Error(v.reason);
   if (!isSchedulable(post)) throw new Error('Scheduling supports text and media that is already uploaded.');
   const payload = stripUndefined({ ...post, hashtags: post.hashtags ?? extractHashtags(post.text || '') });
-  const ref = await addDoc(collection(db, COL), stripUndefined({
+  const ref = await addDoc(collection(opsDb, COL), stripUndefined({
     authorId: uid, publishAt, status: 'PENDING', attempts: 0, createdAt: now, post: payload,
   }));
   return ref.id;
@@ -62,25 +62,25 @@ export async function schedulePost(uid: string, post: Partial<Post>, publishAt: 
 
 export function listenToScheduled(uid: string, cb: (items: ScheduledPost[]) => void) {
   // Single equality filter: no composite index; sorted client-side.
-  return onSnapshot(query(collection(db, COL), where('authorId', '==', uid)), snap => {
+  return onSnapshot(query(collection(opsDb, COL), where('authorId', '==', uid)), snap => {
     cb(snap.docs.map(d => ({ id: d.id, ...(d.data() as any) } as ScheduledPost))
       .filter(p => p.status === 'PENDING' || p.status === 'PUBLISHING' || p.status === 'FAILED')
       .sort((a, b) => a.publishAt - b.publishAt));
   }, () => cb([]));
 }
 
-export const cancelScheduled = (id: string) => updateDoc(doc(db, COL, id), { status: 'CANCELLED' });
-export const deleteScheduled = (id: string) => deleteDoc(doc(db, COL, id));
+export const cancelScheduled = (id: string) => updateDoc(doc(opsDb, COL, id), { status: 'CANCELLED' });
+export const deleteScheduled = (id: string) => deleteDoc(doc(opsDb, COL, id));
 export const rescheduleScheduled = (id: string, publishAt: number) => {
   const v = validateSchedule(publishAt, Date.now());
   if (!v.ok) return Promise.reject(new Error(v.reason));
-  return updateDoc(doc(db, COL, id), { publishAt, status: 'PENDING', attempts: 0 });
+  return updateDoc(doc(opsDb, COL, id), { publishAt, status: 'PENDING', attempts: 0 });
 };
 
 /** Claim a doc for publishing. Returns the claimed doc or null if someone else got it / it's not due. */
 async function claim(id: string, now: number): Promise<ScheduledPost | null> {
-  const ref = doc(db, COL, id);
-  return runTransaction(db, async tx => {
+  const ref = doc(opsDb, COL, id);
+  return runTransaction(opsDb, async tx => {
     const s = await tx.get(ref);
     if (!s.exists()) return null;
     const d = { id, ...(s.data() as any) } as ScheduledPost;
@@ -98,7 +98,7 @@ async function claim(id: string, now: number): Promise<ScheduledPost | null> {
 export async function publishDueScheduledPosts(uid: string, now = Date.now()): Promise<string[]> {
   const published: string[] = [];
   try {
-    const snap = await getDocs(query(collection(db, COL), where('authorId', '==', uid)));
+    const snap = await getDocs(query(collection(opsDb, COL), where('authorId', '==', uid)));
     const all = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) } as ScheduledPost));
     const stale = all.filter(p => p.status === 'PUBLISHING' && now - (p.claimedAt || 0) > STALE_CLAIM_MS)
       .map(p => ({ ...p, status: 'PENDING' as const }));
@@ -111,12 +111,12 @@ export async function publishDueScheduledPosts(uid: string, now = Date.now()): P
         // paths claim the doc first AND write `sched_<id>`, so a double publish is impossible.
         const postId = await createPost({ ...claimed.post, timestamp: undefined } as Partial<Post>, { postId: scheduledPostId(p.id) });
         if (!postId) throw new Error('createPost returned no id');
-        await updateDoc(doc(db, COL, p.id), { status: 'PUBLISHED', publishedPostId: postId });
+        await updateDoc(doc(opsDb, COL, p.id), { status: 'PUBLISHED', publishedPostId: postId });
         if (claimed.post.hashtags?.length) recordHashtags(claimed.post.hashtags);
         published.push(postId);
       } catch {
         const attempts = (claimed.attempts || 0) + 1;
-        await updateDoc(doc(db, COL, p.id), { status: attempts >= MAX_PUBLISH_ATTEMPTS ? 'FAILED' : 'PENDING' }).catch(() => {});
+        await updateDoc(doc(opsDb, COL, p.id), { status: attempts >= MAX_PUBLISH_ATTEMPTS ? 'FAILED' : 'PENDING' }).catch(() => {});
       }
     }
   } catch { /* offline / rules: try again next open */ }

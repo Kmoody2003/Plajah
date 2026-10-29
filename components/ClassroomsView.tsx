@@ -37,7 +37,7 @@ import { fetchClassrooms, enrollInClassroom, createClassroom, auth, fetchClassro
 import { collection, addDoc, getDocs, getDoc, query, where, orderBy, updateDoc, doc, setDoc, onSnapshot } from 'firebase/firestore';
 import { scheduleClassroomMeeting, joinClassroomMeeting, endClassroomMeeting } from '../services/classroomMeetings';
 import { useCall } from '../contexts/CallContext';
-import { db } from '../services/firebase';
+import { db, opsDb } from '../services/firebase';
 import SolarSystemModule from './SolarSystemModule';
 import PlantBiologyModule from './PlantBiologyModule';
 import HumanBodyExperience from './HumanBodyExperience';
@@ -1336,7 +1336,7 @@ export const ClassroomDetail: React.FC<{ classroom: Classroom; onBack: () => voi
   useEffect(() => {
     if (!user?.uid || isOwner || !isEnrolled) return;
     let alive = true;
-    getDoc(doc(db, 'progress_reports', progressId)).then(snap => {
+    getDoc(doc(opsDb, 'progress_reports', progressId)).then(snap => {
       if (!alive || !snap.exists()) return;
       const d: any = snap.data();
       setDoneLessons(Array.isArray(d.completedLessons) ? d.completedLessons : []);
@@ -1354,7 +1354,7 @@ export const ClassroomDetail: React.FC<{ classroom: Classroom; onBack: () => voi
     setSavingProgress(true);
     try {
       const at = nowDone ? (completedAt || Date.now()) : 0;
-      await setDoc(doc(db, 'progress_reports', progressId), {
+      await setDoc(doc(opsDb, 'progress_reports', progressId), {
         id: progressId, classId: classroom.id, studentId: user.uid,
         overallGrade: 0, completedLessons: next, lastAccessed: Date.now(),
         ...(at ? { completedAt: at } : {}),

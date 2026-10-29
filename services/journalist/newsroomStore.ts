@@ -11,6 +11,7 @@
 
 import { collection, deleteDoc, doc as fsDoc, getDoc, getDocs, query, setDoc, where } from 'firebase/firestore';
 import { auth, db } from '../backendService';
+import { dbFor } from '../firebase';
 import type {
   Claim, InterviewRecord, NewsroomStory, Pitch, PressCredential, Publication, SourceContact, SourceLogEntry, StoryStage,
 } from './types';
@@ -33,29 +34,29 @@ const uid = () => auth.currentUser?.uid || '';
 
 export async function listOwned<T extends { id: string }>(col: NewsroomCollection, ownerId = uid()): Promise<T[]> {
   if (!ownerId) return [];
-  const snap = await getDocs(query(collection(db, col), where('ownerId', '==', ownerId)));
+  const snap = await getDocs(query(collection(dbFor(col), col), where('ownerId', '==', ownerId)));
   return snap.docs.map(d => ({ ...(d.data() as any), id: d.id }) as T);
 }
 
 export async function listForOrg<T extends { id: string }>(col: Exclude<NewsroomCollection, 'newsroom_sources' | 'newsroom_source_log' | 'newsroom_interviews'>, orgId: string): Promise<T[]> {
-  const snap = await getDocs(query(collection(db, col), where('orgId', '==', orgId)));
+  const snap = await getDocs(query(collection(dbFor(col), col), where('orgId', '==', orgId)));
   return snap.docs.map(d => ({ ...(d.data() as any), id: d.id }) as T);
 }
 
 export async function listWhere<T extends { id: string }>(col: NewsroomCollection, field: string, value: string): Promise<T[]> {
-  const snap = await getDocs(query(collection(db, col), where(field, '==', value), where('ownerId', '==', uid())));
+  const snap = await getDocs(query(collection(dbFor(col), col), where(field, '==', value), where('ownerId', '==', uid())));
   return snap.docs.map(d => ({ ...(d.data() as any), id: d.id }) as T);
 }
 
 export async function saveItem<T extends { id: string }>(col: NewsroomCollection, item: T): Promise<T> {
   if (!uid()) throw new Error('Sign in first.');
   const next = clean({ ...item, ownerId: (item as any).ownerId || uid(), updatedAt: Date.now() } as any) as T;
-  await setDoc(fsDoc(db, col, item.id), next, { merge: false });
+  await setDoc(fsDoc(dbFor(col), col, item.id), next, { merge: false });
   return next;
 }
 
 export async function removeItem(col: NewsroomCollection, id: string): Promise<void> {
-  await deleteDoc(fsDoc(db, col, id));
+  await deleteDoc(fsDoc(dbFor(col), col, id));
 }
 
 // ── typed helpers ─────────────────────────────────────────────────────────────

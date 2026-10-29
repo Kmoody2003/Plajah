@@ -12,7 +12,7 @@
 // or zips the WAVs + a release manifest for delivery elsewhere.
 
 import { zipSync, strToU8 } from 'fflate';
-import { db, auth } from '../../firebase';
+import { opsDb, auth } from '../../firebase';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import type { SampleRef } from './grooveDoc';
 import { dbToGain, softClipCurve } from './engine/graph';
@@ -255,7 +255,7 @@ export function moveTrack(project: MasterProjectDoc, from: number, to: number): 
 
 // ── Persistence ───────────────────────────────────────────────────────────────
 
-const projectRef = (prodId: string, id: string) => doc(db, 'melosProductions', prodId, 'projects', id);
+const projectRef = (prodId: string, id: string) => doc(opsDb, 'melosProductions', prodId, 'projects', id);
 
 export async function saveMasterProject(prodId: string, project: MasterProjectDoc): Promise<boolean> {
   const user = auth.currentUser;
