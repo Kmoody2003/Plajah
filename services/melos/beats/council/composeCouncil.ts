@@ -8,6 +8,8 @@
 
 import type { ArrangeTrack, GrooveDoc, NoteEvent, TimelineClip } from '../grooveDoc';
 import { songTime } from '../tempoMap';
+import { guessPartRole, isOnGrid, performClipNotes, personaFor, playerForPart } from '../patterns/performNotes';
+import { seedOf } from '../patterns/handDrumPerformer';
 import {
   COUNCIL_INSTRUMENTS, PART_ROLES, syllables,
   type ComposeContext, type ComposeRequest, type CouncilInstrument, type CtxNote, type PartRole,
@@ -235,7 +237,11 @@ export function applyComposition(doc: GrooveDoc, ctx: ComposeContext, comp: Comp
     } else {
       track = opts.createTrack(doc, part.instrument, `${part.name} · ${opts.takeLabel}`);
     }
-    const notes: NoteEvent[] = part.notes.map((n) => ({ id: opts.uid(), startBeats: n.start, lengthBeats: n.length, key: n.pitch, vel: n.velocity }));
+    const raw: NoteEvent[] = part.notes.map((n) => ({ id: opts.uid(), startBeats: n.start, lengthBeats: n.length, key: n.pitch, vel: n.velocity }));
+    // A composed part comes out on the grid; the band member who plays that instrument plays it.
+    const who = `${part.name} ${part.instrument}`;
+    const role = guessPartRole(raw, who);
+    const notes = isOnGrid(raw) ? performClipNotes(raw, { role, traits: personaFor(playerForPart(who, role)).traits, seed: seedOf(`${part.name}${start}`) }) : raw;
     const clip: TimelineClip = { id: opts.uid(), startBeats: start, lengthBeats: len, name: `Council ${opts.takeLabel} · ${part.name}`, notes, generativeEngine: opts.engineTag ?? 'local-council' };
     track.clips.push(clip);
     written.push(track.id);

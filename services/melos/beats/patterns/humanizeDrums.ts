@@ -23,7 +23,8 @@ export function personaForGenre(personas: Persona[], genre: string): Persona {
   return personas.find((p) => p.affinity.genres?.some((x) => g.includes(x) || x.includes(g))) ?? personas[0];
 }
 
-export function humanizeDrumPattern(src: Pattern, t: PersonaTraits, seed: number, bars = 4): Pattern {
+/** `bars` — how long a phrase to play it as; `fills: false` keeps the written ending (feel only). */
+export function humanizeDrumPattern(src: Pattern, t: PersonaTraits, seed: number, bars = 4, fills = true): Pattern {
   const rand = rng(seed);
   const gauss = () => (rand() + rand() + rand() - 1.5) / 1.5;
   const barLen = src.length;
@@ -36,7 +37,7 @@ export function humanizeDrumPattern(src: Pattern, t: PersonaTraits, seed: number
   const fillBar = length / barLen - 1;
 
   for (let bar = 0; bar * barLen < length; bar++) {
-    const fill = bar === fillBar && rand() < 0.35 + t.fills * 0.65;
+    const fill = fills && bar === fillBar && rand() < 0.35 + t.fills * 0.65;
     for (const [padKey, row] of Object.entries(src.steps)) {
       const pad = Number(padKey);
       for (const [stepKey, st] of Object.entries(row)) {
@@ -49,7 +50,8 @@ export function humanizeDrumPattern(src: Pattern, t: PersonaTraits, seed: number
       }
     }
     // Ghost notes: soft snare strokes in the gaps, for players who talk under the groove.
-    const ghostP = clamp((t.complexity - 0.4) * 0.5 + t.density * 0.15, 0, 0.35);
+    // (Feel-only passes add nothing: pad 4 is the snare only in the default kit.)
+    const ghostP = fills ? clamp((t.complexity - 0.4) * 0.5 + t.density * 0.15, 0, 0.35) : 0;
     for (let pos = 0; pos < barLen; pos++) {
       if (pos % 2 === 0 || src.steps[SNARE]?.[pos] || rand() > ghostP) continue;
       if (fill && pos >= barLen - 4) continue;

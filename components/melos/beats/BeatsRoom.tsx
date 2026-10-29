@@ -17,6 +17,8 @@ import { useContextMenu, type MenuNode } from '../../ui/ContextMenu';
 import { autoFill, quantizePattern } from '../../../services/melos/beats/grooveTools';
 import { GENRE_PRESETS, applyGenrePreset, type GenrePreset } from '../../../services/melos/beats/genrePresets';
 import { applyHandPattern, type HandPatternResult } from '../../../services/melos/beats/patterns/applyHandPattern';
+import { performDoc } from '../../../services/melos/beats/patterns/performNotes';
+import { seedOf } from '../../../services/melos/beats/patterns/handDrumPerformer';
 import { HandDrumLibrary, type HandDrumChoice } from './machine/HandDrumLibrary';
 import { playerById } from '../../../services/melos/beats/band/roster';
 import { BASSLINES, applyBassline, type BasslinePreset } from '../../../services/melos/beats/bassLines';
@@ -948,6 +950,8 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
   const loadClassicBookTemplate = useCallback((themeId: string, trackIdx = 0, mode: 'full-film-score' | 'light-background' = showcaseScoreMode) => {
     const master = getMasterBookScore(themeId);
     const nextDoc = buildClassicBookGrooveDoc(themeId, auth.currentUser?.uid || 'lorea-classic-showcase', trackIdx, mode);
+    // The score is written on the grid; the band plays it in (same performance every time you open it).
+    performDoc(nextDoc, seedOf(themeId));
     replace(nextDoc);
     setActivePatternId(nextDoc.patterns[trackIdx]?.id || nextDoc.patterns[0]?.id || '');
     setPlayMode('song');

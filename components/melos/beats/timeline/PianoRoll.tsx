@@ -37,6 +37,8 @@ import {
   copyNotes, fitNotesToScale, lockPitch, notesInRect, pasteNotes, quantizeNotes, transposeNotes, type NoteClipboard,
 } from '../../../../services/melos/beats/noteEdit';
 import { useContextMenu } from '../../../ui/ContextMenu';
+import { guessPartRole, performClipNotes, personaFor, playerForPart } from '../../../../services/melos/beats/patterns/performNotes';
+import { BAND } from '../../../../services/melos/beats/band/roster';
 import { AutomationLaneEditor } from './AutomationLaneEditor';
 import { ScoreView, scoreHeight, type ScoreHit } from './ScoreView';
 import { buildScore, keyAlters, midiFromStep, spell, TPB } from '../../../../services/melos/beats/notation/scoreModel';
@@ -482,6 +484,32 @@ export const PianoRoll: React.FC<PianoRollProps> = ({ doc, trackId, clip, beats,
     { id: 'ends', label: 'Quantize note ends', checked: q.ends, onSelect: () => setQuant({ ...q, ends: !q.ends }) },
   ]);
 
+  // Play it in: the selection (or all notes) performed by a band member — pocket, rolled and voiced
+  // chords, phrased leads, articulated bass — instead of sitting stiffly on the grid.
+  const playIn = useCallback((playerId?: string, personaId?: string) => {
+    editNotes((list) => {
+      const targets = targetsOf(list);
+      if (!targets.length) return;
+      const who = `${track?.name ?? ''} ${track?.instrument?.presetName ?? ''} ${track?.instrument?.type ?? ''}`;
+      const role = guessPartRole(targets, who);
+      const player = playerId ?? playerForPart(who, role);
+      const persona = BAND.find((b) => b.id === player)?.personas.find((x) => x.id === personaId) ?? personaFor(player, doc.band?.genre);
+      const played = new Map(performClipNotes(targets, { role, traits: persona.traits, seed: (Date.now() & 0x7fffffff) }).map((n) => [n.id, n]));
+      for (let i = 0; i < list.length; i++) { const n = played.get(list[i].id); if (n) list[i] = n; }
+    });
+  }, [editNotes, selSet, track, doc.band?.genre]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const playMenu = useContextMenu<void>(() => {
+    const who = `${track?.name ?? ''} ${track?.instrument?.presetName ?? ''} ${track?.instrument?.type ?? ''}`;
+    const auto = BAND.find((b) => b.id === playerForPart(who, guessPartRole(targetsOf(notes), who)));
+    return [
+      { kind: 'header', label: `Play it in · ${selSet.size ? `${selSet.size} selected` : 'all notes'}` },
+      { id: 'auto', label: `${auto?.name ?? 'The band'} (this track's player)`, onSelect: () => playIn() },
+      { kind: 'separator' },
+      ...BAND.map((b) => ({ id: b.id, label: `${b.name} · ${b.instrument}`, submenu: b.personas.map((x) => ({ id: `${b.id}-${x.id}`, label: `${x.name} — ${x.tagline}`, onSelect: () => playIn(b.id, x.id) })) })),
+    ];
+  });
+
   const playheadContent = running && playMode === 'song' ? contentPosAt(clip, beats) : null;
 
   // ── step grid: the same notes on a 16th grid, one row per pitch actually in use ──
@@ -681,6 +709,7 @@ export const PianoRoll: React.FC<PianoRollProps> = ({ doc, trackId, clip, beats,
           </select>
         </label>
         <button onClick={(e) => quantMenu.openFrom(e.currentTarget, undefined)} title="Quantize the selection (or all notes) to the snap grid — strength, swing, ends" className="h-6 px-2 rounded-md border border-white/10 text-white/60 hover:text-white text-[10px] whitespace-nowrap">Quantize ▾</button>
+        <button onClick={(e) => playMenu.openFrom(e.currentTarget, undefined)} title="Play the selection (or all notes) in like a musician — choose which band member and which side of them" className="h-6 px-2 rounded-md border border-[#E86A33]/35 text-[#F4A27A] hover:text-white text-[10px] whitespace-nowrap">Play it ▾</button>
         <div className="flex items-center rounded-md border border-white/10 overflow-hidden" title="Transpose the selection (or all notes) — ↑↓ keys, Shift = octave">
           {[-12, -1, 1, 12].map((s) => (
             <button key={s} onClick={() => transpose(s)} className="h-6 px-1.5 text-[10px] font-mono text-white/55 hover:text-white hover:bg-white/10">{s > 0 ? `+${s}` : s}</button>
@@ -780,6 +809,7 @@ export const PianoRoll: React.FC<PianoRollProps> = ({ doc, trackId, clip, beats,
         <button onClick={onClose} className="h-6 px-2.5 rounded-lg border border-white/15 text-white/50 hover:text-white text-[10px]">Close</button>
       </div>
       {quantMenu.node}
+      {playMenu.node}
 
       {mode === 'roll' || mode === 'split' ? (
         <div ref={scrollRef} className="flex-1 min-h-0 overflow-auto flex flex-col">

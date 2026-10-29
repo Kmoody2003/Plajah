@@ -9,6 +9,7 @@ import type { GrooveDoc, MeloNote, Pattern } from '../../../../services/melos/be
 import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine';
 import { CHORDS, chordById } from '../../../../services/melos/theory';
 import { PLAYHEAD, SELECT, SURFACE_CELL } from '../theme';
+import { guessPartRole, performMeloLane, personaFor, playerForPart } from '../../../../services/melos/beats/patterns/performNotes';
 
 // The chord palette in the roll: single-note plus the everyday chords. Painting one cell drops the
 // whole chord (root + intervals), and because a step holds several notes at once, a painted chord
@@ -68,6 +69,25 @@ export const PitchRoll: React.FC<PitchRollProps> = ({ doc, pattern, selectedPad,
       fn(l);
     });
   }, [onMutate, pattern.id, selectedPad]);
+
+  // Play it in: this pad's notes performed by the band member who plays its instrument (pocket,
+  // rolled chords, phrasing) — re-played from the grid each time. SOMA hand drums have their own
+  // performer (the Hand drums library), so they don't get this.
+  const padTrack = pad?.source === 'instrument' ? doc.arrangement.find((t) => t.id === pad.instrumentTrackId) : undefined;
+  const canPlayIn = Object.keys(lane).length > 0 && padTrack?.instrument?.type !== 'soma';
+  const playIn = useCallback(() => {
+    onMutate((d) => {
+      const pat = d.patterns.find((p) => p.id === pattern.id);
+      const l = pat?.melo?.[selectedPad];
+      if (!pat || !l) return;
+      const grid: Record<number, MeloNote[]> = {};
+      for (const [s, ch] of Object.entries(l)) grid[Number(s)] = ch.map(({ micro: _m, ...m }) => m);
+      const who = `${pad?.name ?? ''} ${padTrack?.instrument?.presetName ?? ''} ${padTrack?.instrument?.type ?? ''}`;
+      const flat = Object.entries(grid).flatMap(([s, ch]) => ch.map((m) => ({ id: '', startBeats: Number(s) / 4, lengthBeats: m.len / 4, key: (pad?.instrumentNote ?? 60) + m.semi, vel: m.v })));
+      const role = guessPartRole(flat, who);
+      pat.melo![selectedPad] = performMeloLane(grid, { role, traits: personaFor(playerForPart(who, role), d.band?.genre).traits, seed: Date.now() & 0x7fffffff });
+    });
+  }, [onMutate, pattern.id, selectedPad, pad, padTrack]);
 
   // Toggle the drum STEP for this pad — the base row IS the step sequencer's row.
   const toggleStep = useCallback((step: number, audition = true) => {
@@ -132,6 +152,10 @@ export const PitchRoll: React.FC<PitchRollProps> = ({ doc, pattern, selectedPad,
               </button>
             );
           })}
+          {canPlayIn && (
+            <button onClick={playIn} title="Play these notes in like the band member who plays this instrument — feel, rolled chords, phrasing (a new take each time)"
+              className="ml-auto h-5 px-2 rounded-md text-[9px] font-mono border border-[#E86A33]/40 text-[#F4A27A] hover:text-white">Play it in</button>
+          )}
         </div>
       )}
       {open && (

@@ -232,7 +232,10 @@ test('apply: a rewrite of a busy track lands on a take track under it; new parts
   const take = doc.arrangement[1].clips[0];
   assert.equal(take.startBeats, 0);
   assert.equal(take.lengthBeats, 8);
-  assert.deepEqual(take.notes!.map((x) => [x.startBeats, x.lengthBeats, x.key, x.vel]), [[0, 4, 60, 70]]);
+  // The part as written, played in by the band (feel moves timing and dynamics a little, never the notes).
+  assert.deepEqual(take.notes!.map((x) => x.key), [60]);
+  assert.ok(Math.abs(take.notes![0].startBeats) < 0.05 && Math.abs(take.notes![0].lengthBeats - 4) < 0.05);
+  assert.ok(Math.abs(take.notes![0].vel - 70) <= 20);
   assert.equal(ids.length, 2);
 });
 

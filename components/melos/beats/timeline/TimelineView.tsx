@@ -1059,7 +1059,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
           onClose={() => setProgBrowserTrack(null)}
           onInsert={(progId, rootPc, seventh) => {
             const startBeats = barFloorOf(p.doc, p.beats || 0);
-            const clip = progressionToClip(progId, rootPc, { seventh, startBeats });
+            const clip = progressionToClip(progId, rootPc, { seventh, startBeats, feel: { seed: Date.now() & 0x7fffffff } });
             if (!clip) return;
             p.onMutate((d) => {
               const t = d.arrangement.find((x) => x.id === progBrowserTrack);

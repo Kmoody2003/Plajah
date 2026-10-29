@@ -11,6 +11,7 @@
 
 import type { GrooveDoc, MeloNote } from './grooveDoc';
 import { addInstrumentToNextPad } from './instrumentFactory';
+import { performMeloLane, personaFor } from './patterns/performNotes';
 
 interface BassNote { step: number; semi: number; len: number; v?: number }
 
@@ -117,7 +118,8 @@ export function applyBassline(doc: GrooveDoc, patternId: string, preset: Basslin
   for (const n of preset.notes) {
     (lane[n.step] || (lane[n.step] = [])).push({ semi: n.semi + OCTAVE_DOWN, v: n.v ?? 112, len: Math.max(1, n.len) });
   }
-  pat.melo[padIdx] = lane;
+  // Played by the band's bassist, in the side of him that suits the genre: pocket, articulation, accents.
+  pat.melo[padIdx] = performMeloLane(lane, { role: 'bass', traits: personaFor('dwayne', preset.genre).traits, seed: Date.now() & 0x7fffffff });
   if (preset.bpm) doc.bpm = preset.bpm;
   return padIdx;
 }

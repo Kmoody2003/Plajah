@@ -96,6 +96,7 @@ export class ChoraGenerativeMusicEngine {
       baseMidi,
       barBeats: 4,
       velocity: isBass ? 105 : 90,
+      feel: { seed: Date.now() & 0x7fffffff, player: isBass ? 'dwayne' : spec.instrumentPreset === 'synth_pad' ? 'nova' : 'theo', role: isBass ? 'bass' : spec.instrumentPreset === 'synth_pad' ? 'pad' : 'chords' },
     });
 
     const totalBeats = clip ? clip.lengthBeats : 16;
