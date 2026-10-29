@@ -54,6 +54,7 @@ import {
   type SomaPatch,
 } from '../../../../services/melos/instruments/soma/patch';
 import { Knob } from '../shared/Knob';
+import { SomaDrumStory } from './SomaDrumStory';
 
 interface Props {
   doc: GrooveDoc;
@@ -926,6 +927,9 @@ export const SomaPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
           })}
         </div>
       </div>
+
+      {/* The real drum behind the preset — photo, Amara's intro, history / build / technique */}
+      <SomaDrumStory presetId={patch.presetId} />
 
       {mode === 'play' ? (
         <div className="p-4 grid grid-cols-1 lg:grid-cols-12 gap-4">
