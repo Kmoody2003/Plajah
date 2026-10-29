@@ -13,6 +13,8 @@ import {
   LYRA_MACRO_LABELS, LYRA_MACRO_ORDER, applyLyraPatch, applyLyraPreset, deserializeLyraPatch, newLyraPatch, serializeLyraPatch,
   type LyraMacro, type LyraPatch,
 } from '../../../../services/melos/instruments/lyra/patch';
+import { liveBus, now as liveNow } from '../../../../services/melos/beats/band/live/events';
+import { LyraBandSeat } from './LyraBandSeat';
 
 interface Props {
   doc: GrooveDoc;
@@ -66,12 +68,21 @@ export const LyraPanel: React.FC<Props> = ({ track, onMutate, onClose, embedded 
 
   const pickModel = (m: LyraModel) => {
     const first = LYRA_PRESETS.find((p) => p.model === m);
-    if (first) { commit(applyLyraPreset(patch, first), first.name); setOctave(Math.floor(first.defaultNote / 12) - 1); }
+    if (first) { pickPreset(first); setOctave(Math.floor(first.defaultNote / 12) - 1); }
   };
-  const setParam = (id: number, v: number) => commit({ ...patch, params: { ...patch.params, [id]: v } });
+  const setParam = (id: number, v: number) => {
+    liveBus.emit({ kind: 'param', instrument: 'lyra', trackId: track.id, at: liveNow(), paramId: id });
+    commit({ ...patch, params: { ...patch.params, [id]: v } });
+  };
+  const pickPreset = (p: (typeof LYRA_PRESETS)[number]) => {
+    liveBus.emit({ kind: 'preset', instrument: 'lyra', trackId: track.id, at: liveNow(), presetId: p.id, presetName: p.name });
+    commit(applyLyraPreset(patch, p), p.name);
+  };
   const setMacro = (k: LyraMacro, v: number) => commit({ ...patch, macros: { ...patch.macros, [k]: v } });
 
   const noteOn = (n: number) => {
+    // The on-screen keys are live playing too (a controller arrives through BeatsEngine).
+    if (!held.current.has(n)) liveBus.emit({ kind: 'note', instrument: 'lyra', trackId: track.id, at: liveNow(), key: n, velocity: 0.8, on: true });
     const eng = BeatsEngine.get();
     void eng.init().then(async () => {
       const inst = await eng.ensureInstrument(track);
@@ -80,6 +91,7 @@ export const LyraPanel: React.FC<Props> = ({ track, onMutate, onClose, embedded 
     });
   };
   const noteOff = (n: number) => {
+    liveBus.emit({ kind: 'note', instrument: 'lyra', trackId: track.id, at: liveNow(), key: n, velocity: 0, on: false });
     const vid = held.current.get(n);
     held.current.delete(n);
     if (vid === undefined) return;
@@ -113,9 +125,12 @@ export const LyraPanel: React.FC<Props> = ({ track, onMutate, onClose, embedded 
       </div>
       <p className="text-[11px] text-white/50 leading-relaxed">{HOW[model]}</p>
 
+      {/* The band member who plays this instrument, live — and its lore */}
+      <LyraBandSeat track={track} model={model} variant={variant} presetName={patch.name} accent={ACCENT} />
+
       <div className="grid sm:grid-cols-2 gap-3">
         <label className="flex flex-col gap-1 text-[10px] uppercase tracking-widest text-white/40">Preset
-          <select value={patch.presetId ?? ''} onChange={(e) => { const p = LYRA_PRESETS.find((x) => x.id === e.target.value); if (p) commit(applyLyraPreset(patch, p), p.name); }}
+          <select value={patch.presetId ?? ''} onChange={(e) => { const p = LYRA_PRESETS.find((x) => x.id === e.target.value); if (p) pickPreset(p); }}
             className="bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-[12px] normal-case tracking-normal text-white">
             {LYRA_PRESETS.filter((p) => p.model === model).map((p) => <option key={p.id} value={p.id} className="bg-black">{p.name}</option>)}
           </select>

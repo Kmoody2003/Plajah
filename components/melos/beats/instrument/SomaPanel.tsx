@@ -510,7 +510,8 @@ export const SomaPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
             }
 
             // Propagating wave from exact strike point
-            const rippleR = Math.min(R, elapsedSec * 340);
+            // (A hit stamped just after this frame began has a hair of negative elapsed time.)
+            const rippleR = Math.max(0, Math.min(R, elapsedSec * 340));
             ctx.beginPath();
             ctx.arc(strikeX, strikeY, rippleR, 0, Math.PI * 2);
             ctx.strokeStyle = `rgba(245, 158, 11, ${(env * 0.75).toFixed(3)})`;

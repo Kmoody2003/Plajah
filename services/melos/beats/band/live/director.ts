@@ -93,9 +93,10 @@ export class LiveDirector {
 
   feed(e: LiveEvent): void {
     // Their own demo hits come back through the studio too — those aren't the learner's playing.
-    if (this.snap.state === 'playing' && e.kind === 'strike') { this.set({ beat: this.snap.beat + 1 }); return; }
+    const hit = e.kind === 'strike' || (e.kind === 'note' && e.on);
+    if (this.snap.state === 'playing' && (hit || e.kind === 'note')) { if (hit) this.set({ beat: this.snap.beat + 1 }); return; }
     this.deps.lens.feed(e);
-    if (e.kind === 'strike') {
+    if (hit) {
       this.lastHit = e.at;
       this.set({ beat: this.snap.beat + 1, ...(this.snap.state === 'idle' ? { state: 'watching' as const } : {}) });
     }

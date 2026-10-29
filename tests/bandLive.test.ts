@@ -166,3 +166,37 @@ test('director: in a lull they share something real about the instrument', async
   clock = 90_000; d.tick(); await settle();
   assert.equal(said.length, 1, 'not again right away');
 });
+
+test('keys lens: names chords in any inversion, hears the bark and the mud', async () => {
+  const { KeysLens, nameChord } = await import('../services/melos/beats/band/live/keysLens');
+  assert.equal(nameChord([62, 65, 69, 72])?.symbol, 'Dm7');
+  assert.equal(nameChord([64, 67, 72])?.symbol, 'C', 'first inversion of C major');
+  assert.equal(nameChord([60, 62]), null);
+  const lens = new KeysLens('lyra', true);
+  const on = (at: number, key: number, velocity = 0.6) => lens.feed({ kind: 'note', instrument: 'lyra', trackId: 't', at, key, velocity, on: true });
+  [50, 53, 57, 60].forEach((k) => on(1000, k));
+  assert.ok(!lens.observe(1500).some((o) => o.id === 'keys.chord'), 'not while it is still landing');
+  const held = lens.observe(2600);
+  assert.equal(held.find((o) => o.id === 'keys.chord')?.data.symbol, 'Dm7');
+  for (let i = 0; i < 10; i++) on(3000 + i * 300, 60 + (i % 5), 0.95);
+  assert.ok(lens.observe(6200).some((o) => o.id === 'keys.bark'));
+  const low = new KeysLens('lyra');
+  [40, 43, 47].forEach((k) => low.feed({ kind: 'note', instrument: 'lyra', trackId: 't', at: 0, key: k, velocity: 0.6, on: true }));
+  assert.ok(low.observe(2000).some((o) => o.id === 'keys.mud'));
+});
+
+test('Theo hears the chord you hold on the tine piano and talks about it in the pause', async () => {
+  const { KeysLens } = await import('../services/melos/beats/band/live/keysLens');
+  let clock = 0;
+  const said: string[] = [];
+  const theo = sheetById('theo')!;
+  assert.deepEqual(validateSheet(theo), []);
+  assert.ok(theo.demos.some((d) => d.id === 'ii-v-i'));
+  const d = new LiveDirector({ sheet: theo, lens: new KeysLens('lyra', true), clock: () => clock, random: () => 0,
+    speak: async (t) => { said.push(t); }, ask: async () => ({ text: '', lane: 'built-in' }) });
+  [50, 53, 57, 60].forEach((k) => d.feed({ kind: 'note', instrument: 'lyra', trackId: 't', at: 20_000, key: k, velocity: 0.6, on: true }));
+  clock = 21_000; d.tick(); await settle();
+  assert.equal(said.length, 0, 'waits while the chord is landing');
+  clock = 21_600; d.tick(); await settle();
+  assert.match(said[0] ?? '', /D minor 7/);
+});

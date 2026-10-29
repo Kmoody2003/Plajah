@@ -4,6 +4,7 @@
 // resumed on every gesture + visibilitychange (recipe: services/fabula/audioGraph.ts:40-104).
 
 import clockUrl from './clockProcessor.worklet.js?url';
+import { liveBus, now as liveNow } from '../band/live/events';
 import { platformAudio } from '../../../mediaEngine/audioRuntime';
 import loudnessUrl from './loudnessProcessor.worklet.js?url';
 import type { ArrangeTrack, GrooveDoc, PadConfig, TimelineClip } from '../grooveDoc';
@@ -952,6 +953,8 @@ export class BeatsEngine {
 
   /** Live keyboard/MIDI note on an instrument track. Returns the voice id for the matching off. */
   instrumentNoteOn(track: ATrack, key: number, vel127: number): void {
+    // Live playing is what the band's players listen to (band/live).
+    liveBus.emit({ kind: 'note', instrument: track.instrument?.type ?? 'instrument', trackId: track.id, at: liveNow(), key, velocity: vel127 / 127, on: true });
     // With the Arp armed the keyboard FEEDS it rather than sounding directly — holding a chord
     // is the gesture, and the arp turns it into a performance on the transport grid.
     const arp = this.arpFor(track);
@@ -986,6 +989,7 @@ export class BeatsEngine {
   }
 
   instrumentNoteOff(track: ATrack, key: number): void {
+    liveBus.emit({ kind: 'note', instrument: track.instrument?.type ?? 'instrument', trackId: track.id, at: liveNow(), key, velocity: 0, on: false });
     const arp = this.arpFor(track);
     if (arp?.enabled) {
       const held = this.heldKeys.get(track.id);

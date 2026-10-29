@@ -21,6 +21,11 @@ const BASE: Record<string, { priority: number; cooldownS: number; chattiness: 1 
   'param.tweaking':       { priority: 2, cooldownS: 180, chattiness: 3, gesture: 'lean-in' },
   'idle.long':            { priority: 1, cooldownS: 240, chattiness: 3, gesture: 'smile' },
   'session.lull':         { priority: 1, cooldownS: 150, chattiness: 2, gesture: 'lean-in' },
+  // Keyboard lens (keysLens.ts)
+  'keys.chord':           { priority: 4, cooldownS: 25, chattiness: 2, gesture: 'nod' },
+  'keys.bark':            { priority: 5, cooldownS: 90, chattiness: 2, gesture: 'smile' },
+  'keys.mud':             { priority: 5, cooldownS: 120, chattiness: 2, gesture: 'wince' },
+  'keys.single-line':     { priority: 3, cooldownS: 150, chattiness: 3, gesture: 'lean-in' },
 };
 
 type Lines = Partial<Record<keyof typeof BASE, string[]>>;
@@ -39,6 +44,10 @@ const COMMON: Required<Lines> = {
   'param.tweaking': ['Shaping the sound — good. Change one thing at a time and play between each so you can hear what it did.'],
   'idle.long': ['Want me to show you something? Ask, or hit the demo button.'],
   'session.lull': ['Here\'s something I love about this instrument: {fact}', 'Did you know? {fact}'],
+  'keys.chord': ['That\'s {chord}.'],
+  'keys.bark': ['Hear that growl when you dig in? That\'s the instrument barking.'],
+  'keys.mud': ['That {chord} is crowded down low — spread it out or move it up and it\'ll clear.'],
+  'keys.single-line': ['Nice line. Try putting a chord under it now and then.'],
 };
 
 function reactions(lines: Lines, extra: Reaction[] = []): Reaction[] {
@@ -75,6 +84,21 @@ const AMARA_DEMOS: Demo[] = [
     { at: 3, stroke: 'tone', velocity: 0.8 }, { at: 3.5, stroke: 'tone', velocity: 0.8 },
   ] },
   { id: 'steady-pulse', label: 'Steady pulse', bpm: 90, steps: Array.from({ length: 8 }, (_, i) => ({ at: i, stroke: i % 4 === 0 ? 'bass' : 'tone', velocity: i % 4 === 0 ? 0.85 : 0.6 })) },
+];
+
+/** Theo's keyboard demos (notes from middle C). Rootless voicings leave the root to the bass. */
+const chord = (at: number, keys: number[], velocity: number, len: number) => keys.map((note) => ({ at, stroke: 'note', note, velocity, len }));
+const THEO_DEMOS: Demo[] = [
+  // Dm9 (F A C E) · G13 (F A B E) · Cmaj9 (E G B D) — rootless left-hand voicings, two beats each.
+  { id: 'ii-v-i', label: 'ii–V–I voicings', bpm: 84, steps: [
+    ...chord(0, [-7, -3, 0, 4], 0.62, 1.9), ...chord(2, [-7, -3, -1, 4], 0.66, 1.9), ...chord(4, [-8, -5, -1, 2], 0.6, 3.6),
+  ] },
+  // The same Cmaj7, softly then hard: bell, then bark.
+  { id: 'bell-bark', label: 'Soft bell, hard bark', bpm: 72, steps: [...chord(0, [0, 4, 7, 11], 0.32, 1.8), ...chord(2, [0, 4, 7, 11], 0.96, 1.8)] },
+  // C · Am · F · G with smooth voice leading: the notes move as little as they can.
+  { id: 'voice-leading', label: 'Smooth voice leading', bpm: 88, steps: [
+    ...chord(0, [0, 4, 7], 0.6, 0.95), ...chord(1, [0, 4, 9], 0.58, 0.95), ...chord(2, [0, 5, 9], 0.6, 0.95), ...chord(3, [-1, 2, 7], 0.64, 0.95),
+  ] },
 ];
 
 export const CHARACTER_SHEETS: CharacterSheet[] = [
@@ -153,8 +177,21 @@ export const CHARACTER_SHEETS: CharacterSheet[] = [
       style: { sentences: 'medium', warmth: 0.8, humor: 0.5, directness: 0.5 }, phrases: ['Hear the voice leading?'] },
     personality: { core: ['thoughtful', 'harmonic', 'gentle'], teaching: 'Explains why a chord works before how to play it.',
       feedback: { leadWith: 'question', tipsPerMinute: 1, neverSays: [] }, quirks: ['turns every question into a chord'] },
-    expertise: { instruments: ['lyra'], topics: ['harmony', 'voicings', 'stride', 'jazz piano', 'gospel piano'] },
-    demos: [], reactions: reactions({ 'session.hello': ['Theo, on keys. Play a chord — any chord — and let\'s talk about where it wants to go.'] }),
+    expertise: { instruments: ['lyra'], topics: ['harmony', 'voicings', 'stride', 'jazz piano', 'gospel piano', 'tine electric piano', 'Rhodes'] },
+    demos: THEO_DEMOS,
+    reactions: reactions({
+      'session.hello': ['Theo, on keys. {intro} Play a chord — any chord — and let\'s talk about where it wants to go.'],
+      'keys.chord': ['That\'s {chord}. Hear how it wants to move?', '{chord} — nice. Try leaving the root to the bass player and it opens right up.', 'Mm, {chord}. Now hold the top note and move the others a step.'],
+      'keys.bark': ['Hear that growl when you dig in? That\'s the pickup working hard. Play softer for the bell, dig in for the bark — the tone is in your touch.'],
+      'keys.mud': ['That {chord} is crowded down low. Spread it — root and fifth in the left hand, the colour notes up top — and it clears.'],
+      'keys.single-line': ['Pretty line. Now put a chord under the long notes — that\'s where the harmony speaks.'],
+      'strike.velocity.flat': ['Every note at the same weight. On electric piano, touch is the tone — lean on the top note of each chord and let the inner voices whisper.'],
+      'groove.steady': ['Steady at about {bpm}. Good — now you can start to play with it.'],
+      'groove.rushing': ['You\'re pushing ahead. Leave a little air before the chords — the pulse will come back to you.'],
+      'param.tweaking': ['Shaping the tone — good. Play the same chord soft and hard after each change; the touch tells you more than the knob does.'],
+      'idle.long': ['Want to hear a ii–V–I the way I\'d voice it on this? Press it under Show me.'],
+      'session.lull': ['Here\'s something about this instrument: {fact}', 'Did you know? {fact}'],
+    }),
   }),
   sheet({
     id: 'hez', pronouns: 'he/him', age: 'sixties',

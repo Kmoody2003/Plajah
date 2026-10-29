@@ -16,8 +16,8 @@ import { createRecognizer, listeningAvailable, type Recognizer, type RecState } 
 
 export interface LiveHost {
   lens: Lens;
-  /** Play one demo step on the instrument (stroke name from the sheet's demo, 0–1 velocity). */
-  playStep?: (stroke: string, velocity: number, note?: number) => void;
+  /** Play one demo step on the instrument (stroke name from the sheet's demo, 0–1 velocity, hold in ms). */
+  playStep?: (stroke: string, velocity: number, note?: number, holdMs?: number) => void;
   enrich?: (o: Observation) => Record<string, string | number>;
   screen?: () => string;
   /** A fact about what's on this host (e.g. the current drum); defaults to the player's instrument lore. */
@@ -81,7 +81,7 @@ export function useLiveCharacter(sheet: CharacterSheet, host: LiveHost) {
           const wait = t0 + s.at * beatMs - performance.now();
           if (wait > 0) await sleep(wait, signal);
           if (signal.aborted) return;
-          play(s.stroke, s.velocity, s.note);
+          play(s.stroke, s.velocity, s.note, (s.len ?? 0.5) * beatMs);
         }
         await sleep(beatMs, signal);
       },

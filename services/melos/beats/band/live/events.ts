@@ -9,7 +9,9 @@ export type LiveEvent =
   | { kind: 'preset'; instrument: string; trackId: string; at: number; presetId: string; presetName: string }
   | { kind: 'param'; instrument: string; trackId: string; at: number; paramId: number }
   | { kind: 'open'; instrument: string; trackId: string; at: number; presetId?: string }
-  | { kind: 'close'; instrument: string; trackId: string; at: number };
+  | { kind: 'close'; instrument: string; trackId: string; at: number }
+  /** A key played live on a pitched instrument (keyboard, controller, QWERTY). */
+  | { kind: 'note'; instrument: string; trackId: string; at: number; key: number; velocity: number; on: boolean };
 
 type Listener = (e: LiveEvent) => void;
 const listeners = new Set<Listener>();

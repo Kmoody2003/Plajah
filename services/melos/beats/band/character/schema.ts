@@ -30,8 +30,10 @@ export interface DemoStep {
   stroke: string;
   /** 0–1. */
   velocity: number;
-  /** Optional semitone offset from the host's default note. */
+  /** Optional semitone offset from the host's default note (keys: from middle C). */
   note?: number;
+  /** How long to hold it, in beats (pitched instruments; drums ignore it). */
+  len?: number;
 }
 export interface Demo { id: string; label: string; bpm: number; steps: DemoStep[] }
 
