@@ -12,7 +12,7 @@ import {
   Church, Clock, Gift, Trash2, Sparkles, MonitorPlay, Mail, HardDrive, Briefcase, Megaphone,
   KeyRound, UserCheck, Home, Image as ImageIcon, Calendar, Play, HandHeart, BookOpen,
   Heart, MessageSquare, Ticket, ExternalLink, Radio, NotebookPen, ArrowRight, ChevronLeft,
-  ShoppingBag,
+  ShoppingBag, GraduationCap,
 } from 'lucide-react';
 import type { Organization, OrgMembership, OrgType, OrgRole, UserProfile } from '../types';
 import { AdaptiveGrid, TYPE } from '../src/lib/designSystem';
@@ -53,7 +53,6 @@ import OrgStoreSection from './elevate/OrgStoreSection';
 import HostEventsPublic from './events/HostEventsPublic';
 import OrgThread from './elevate/OrgThread';
 import OrgMediaShelves from './elevate/OrgMediaShelves';
-import RelloChurchViewer from './elevate/RelloChurchViewer';
 // Operations side + public rosters + Church Member Hub (lazy so the public page never blocks on them).
 const ElevateOps = lazy(() => import('./elevate/ElevateOps'));
 const ElevateRosters = lazy(() => import('./elevate/ElevateRosters'));
@@ -324,7 +323,7 @@ const ImagePick: React.FC<{ label: string; file: File | null; onPick: (f: File) 
   </label>
 );
 
-type ElevateOrgTab = 'HOME' | 'MINISTRIES' | 'MOBILIZE' | 'PHOTOS' | 'EVENTS' | 'WATCH' | 'PRAYER' | 'LIBRARY' | 'STAFF' | 'GIVE' | 'SHOP';
+type ElevateOrgTab = 'HOME' | 'MINISTRIES' | 'CHRISTIAN_ED' | 'MOBILIZE' | 'PHOTOS' | 'EVENTS' | 'WATCH' | 'PRAYER' | 'LIBRARY' | 'STAFF' | 'GIVE' | 'SHOP';
 
 function getElevateOrgTabs(orgType?: OrgType): { k: ElevateOrgTab; label: string; icon: React.ComponentType<{ size?: number; className?: string }> }[] {
   const faith = isFaithOrg(orgType);
@@ -332,6 +331,7 @@ function getElevateOrgTabs(orgType?: OrgType): { k: ElevateOrgTab; label: string
     return [
       { k: 'HOME',       label: 'Home',             icon: Home },
       { k: 'MINISTRIES', label: 'Ministries',       icon: Users },
+      { k: 'CHRISTIAN_ED', label: 'Christian Education', icon: GraduationCap },
       { k: 'MOBILIZE',   label: 'Serve & Action',   icon: Sparkles },
       { k: 'PHOTOS',     label: 'Photos',           icon: ImageIcon },
       { k: 'EVENTS',     label: 'Events',           icon: Calendar },
@@ -588,22 +588,7 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
       {/* ── Sticky section tabs (names tailored to org type) ── */}
       <EvTabs tabs={orgTabs.map(t => ({ k: t.k, label: t.label }))} value={ministryOpen ? null : tab} onChange={k => { setTab(k as ElevateOrgTab); setOpenMinistry(null); }} top={52} />
 
-      {/* ── Main Content Container with Persistent Live Stream Carousel Under the Tabs ── */}
       <div className="max-w-[1240px] mx-auto px-4 sm:px-8 py-10 space-y-8">
-        {/* PERSISTENT LIVE STREAM THUMBNAIL CAROUSEL (Always mounted under the tabs so users can hop in and watch from anywhere on the org page without interrupting playback) */}
-        {/* Always-on window: a live stream or the org's TV Live Hub+ channel plays here, muted. */}
-        <RelloChurchViewer
-          org={org}
-          defaultPlayerExpanded={true}
-          viewerIsOrgMember={myMembership?.status === 'ACTIVE'}
-          onOpenOnAir={item => {
-            if (item.feed) {
-              if (onOpenLive) onOpenLive(item.feed);
-              else window.dispatchEvent(new CustomEvent('PLAY_LIVE_FEED', { detail: { feed: item.feed } }));
-            } else if (item.channel) onOpenChannel?.(item.channel.ownerId, item.channel.sourceId);
-          }}
-        />
-
         {applyFor && <ApplyModal posting={applyFor} orgName={org.name} onClose={() => setApplyFor(null)} />}
 
         <div key={openMinistry || tab} className="ev-fade space-y-8">
@@ -831,6 +816,11 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
               </div>
             )}
 
+            {/* ── CHRISTIAN EDUCATION (faith orgs) ── */}
+            {tab === 'CHRISTIAN_ED' && faith && (
+              <ChurchEducation church={org} membership={myMembership} canEdit={can('MANAGE_CONTENT')} />
+            )}
+
             {/* ── TAB 7: LIBRARY / RESOURCES ── */}
             {tab === 'LIBRARY' && (
               <div className="space-y-8">
@@ -855,13 +845,6 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
                       </button>
                     ))}
                   </div>
-                )}
-
-                {faith && (
-                  <section aria-label="Classes and studies">
-                    <h2 className="text-[11px] font-black uppercase tracking-[0.25em] text-white/50 mb-3">Classes and studies</h2>
-                    <ChurchEducation church={org} canEdit={can('MANAGE_CONTENT')} />
-                  </section>
                 )}
 
                 {demo && <div>
