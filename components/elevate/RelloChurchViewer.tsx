@@ -18,6 +18,8 @@ import {
   Volume2,
   VolumeX,
   Maximize2,
+  Minimize2,
+  X,
   CheckCircle2,
   Navigation,
   MessageSquarePlus,
@@ -258,6 +260,10 @@ interface RelloChurchViewerProps {
   viewerIsOrgMember?: boolean;
   /** Full-screen hand-off for the always-on window (Live TV+ / the live player). */
   onOpenOnAir?: (item: OnAirItem) => void;
+  /** Off the main public page: shrink to a floating mini player (minimizable) so playback carries on. */
+  compact?: boolean;
+  /** Mini player's expand button — take the viewer back to the main page's full player. */
+  onExpand?: () => void;
 }
 
 const NOTHING_ON_AIR: ChurchStreamItem = {
@@ -272,6 +278,8 @@ export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
   defaultPlayerExpanded = true,
   viewerIsOrgMember = false,
   onOpenOnAir,
+  compact = false,
+  onExpand,
 }) => {
   // Only the demo church shows sample channels; a real org shows its Live TV Hub feeds + LiveHub TV+ switcher.
   const demo = isDemoOrg(org);
@@ -524,6 +532,14 @@ export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
   const [playing, setPlaying] = useState<boolean>(true);
   const [muted, setMuted] = useState<boolean>(true);
   const [playheadSec, setPlayheadSec] = useState<number>(activeStream.initialPlayheadSec);
+  const [miniState, setMiniState] = useState<'open' | 'minimized' | 'closed'>('open');
+  // Back on the main page the full player is always there again (and resumes if the mini was closed).
+  useEffect(() => {
+    if (compact) return;
+    if (miniState === 'closed') setPlaying(true);
+    setMiniState('open');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [compact]);
   const [lectioMiniMounted, setLectioMiniMounted] = useState<boolean>(true);
   const [skinId, setSkinId] = useState<string>('lamplight');
   const [translation, setTranslation] = useState<string>(DEFAULT_TRANSLATION);
@@ -731,6 +747,74 @@ export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
     () => streamCatalog.filter(s => !!s.playback).length,
     [streamCatalog]
   );
+
+  // ── Mini player (any page but the main one). Nothing on air → nothing floats. ──
+  if (compact) {
+    if (!activeStream.playback || miniState === 'closed') return null;
+    const dock: React.CSSProperties = {
+      position: 'fixed',
+      right: 16,
+      bottom: 'calc(env(safe-area-inset-bottom, 0px) + 88px)',
+      zIndex: 60,
+    };
+    if (miniState === 'minimized') {
+      return (
+        <button
+          type="button"
+          onClick={() => setMiniState('open')}
+          style={dock}
+          className="flex items-center gap-2 pl-3 pr-4 h-10 rounded-full border shadow-2xl bg-[#18141F] border-white/15 text-white text-[12px] font-bold max-w-[260px]"
+          title="Show the live player"
+        >
+          <span className="ev-live-dot shrink-0" />
+          <span className="truncate">{activeStream.title}</span>
+        </button>
+      );
+    }
+    return (
+      <div
+        style={{ ...dock, width: 'min(340px, max(220px, 62vw))' }}
+        className="rounded-2xl overflow-hidden border shadow-2xl bg-[#18141F] border-white/15"
+        role="region"
+        aria-label={`${org.name} live player`}
+      >
+        <div className="relative aspect-video bg-black" style={{ background: activeStream.thumbnailGradient }}>
+          <ReelloStageMedia playback={activeStream.playback} muted={muted} playing={playing} title={activeStream.title} />
+          <div className="absolute inset-x-0 bottom-0 z-10 p-2 flex items-center gap-1.5 bg-gradient-to-t from-black/80 to-transparent">
+            <button
+              onClick={() => setMuted(m => !m)}
+              className="h-7 px-2 rounded-md bg-black/70 border border-white/20 flex items-center gap-1 text-white text-[10.5px] font-bold"
+              title={muted ? 'Unmute stream' : 'Mute stream'}
+            >
+              {muted ? <><VolumeX size={13} /><span>Unmute</span></> : <Volume2 size={13} />}
+            </button>
+            <button
+              onClick={() => setPlaying(p => !p)}
+              className="w-7 h-7 rounded-md bg-black/70 border border-white/20 flex items-center justify-center text-white"
+              title={playing ? 'Pause' : 'Play'}
+            >
+              {playing ? <Pause size={13} /> : <Play size={13} />}
+            </button>
+          </div>
+        </div>
+        <div className="flex items-center gap-1 px-3 py-2">
+          <span className="ev-live-dot shrink-0" />
+          <span className="flex-1 min-w-0 ml-1 text-[12px] font-bold text-white truncate">{activeStream.title}</span>
+          {onExpand && (
+            <button onClick={onExpand} className="w-7 h-7 rounded-md hover:bg-white/10 flex items-center justify-center text-white/75" title="Expand player">
+              <Maximize2 size={13} />
+            </button>
+          )}
+          <button onClick={() => setMiniState('minimized')} className="w-7 h-7 rounded-md hover:bg-white/10 flex items-center justify-center text-white/75" title="Minimize">
+            <Minimize2 size={13} />
+          </button>
+          <button onClick={() => { setMiniState('closed'); setPlaying(false); }} className="w-7 h-7 rounded-md hover:bg-white/10 flex items-center justify-center text-white/75" title="Close player">
+            <X size={13} />
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">
