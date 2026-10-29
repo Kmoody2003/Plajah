@@ -183,6 +183,14 @@ export async function renderGroove(
       inst.clearSchedule();
       instByTrackId.set(track.id, inst);
       const kera = keraTrackIds.has(track.id);
+      if (track.instrument?.type === 'soma') {
+        // SOMA deep skin: render the GPU layers for every note this bounce strikes first, so the
+        // print gets them on the first hit (scheduleNoteOn falls back to the CPU cloud per note).
+        const notes: number[] = [];
+        for (const clip of track.clips) for (const n of clip.notes ?? []) notes.push(n.key);
+        for (const pad of doc.kit) if (pad?.source === 'instrument' && pad.instrumentTrackId === track.id) notes.push(Math.max(0, Math.min(127, (pad.instrumentNote ?? 60) + (pad.pitchSemis || 0))));
+        await inst.warmSomaDeep(notes);
+      }
 
       const sustain = effectiveLanes(track).get('sustain');
       for (const clip of track.clips) {

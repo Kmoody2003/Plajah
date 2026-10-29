@@ -275,6 +275,16 @@ pub struct SomaVoice {
     dc_y1_l: f32,
     dc_x1_r: f32,
     dc_y1_r: f32,
+
+    // ── Deep skin (GPU) ──
+    /// This sample of the GPU-rendered upper skin (L, R), set by the voice before each
+    /// `render_sample`; it joins the top-skin radiation exactly where the cloud does.
+    pub deep_in: [f32; 2],
+    /// The force that drove the membrane modes on the last sample. Recorded so the GPU layer's
+    /// thousands of modes are driven by this voice's own strike (see `Engine::soma_excitation`).
+    pub last_exciter_force: f32,
+    /// The noise cloud's output on the last sample (mono) — the level the deep skin is matched to.
+    pub last_cloud: f32,
 }
 
 impl SomaVoice {
@@ -357,6 +367,9 @@ impl SomaVoice {
             dc_y1_l: 0.0,
             dc_x1_r: 0.0,
             dc_y1_r: 0.0,
+            deep_in: [0.0; 2],
+            last_exciter_force: 0.0,
+            last_cloud: 0.0,
         }
     }
 
@@ -394,6 +407,17 @@ impl SomaVoice {
         self.res_head_v = 0.0;
         self.shell_w = [0.0; NUM_SHELL_MODES];
         self.shell_v = [0.0; NUM_SHELL_MODES];
+        self.deep_in = [0.0; 2];
+    }
+
+    /// A GPU-rendered deep skin carries the real modes up to `top_ratio` (× base pitch) for this
+    /// strike, so the noise bands standing in for them go quiet. Call after `trigger`.
+    pub fn gate_cloud_below(&mut self, top_ratio: f32) {
+        for b in 0..NUM_CLOUD_BANDS {
+            if self.cloud_ratio[b] < top_ratio {
+                self.cloud_tilt[b] = 0.0;
+            }
+        }
     }
 
     #[inline]
@@ -858,6 +882,7 @@ impl SomaVoice {
         // Calibrated modal force scale so mode_v stays in linear acoustic range (~0.15..0.35) and NEVER
         // brickwall-clips against the engine's output tanh limiter!
         let total_exciter_force = contact_force * 0.095 + transient_force * 0.45 + self.rim_lp_state * 0.18;
+        self.last_exciter_force = total_exciter_force;
 
         // 5. Physical Nonlinear Tension Pitch Glide (Macroscopic Indentation Stretch + Von Kármán Strain)
         let nonlin_amt = params.get(SOMA_BASE + SM_TENSION_NONLIN).clamp(0.0, 1.0);
@@ -966,6 +991,7 @@ impl SomaVoice {
         // more), each band decays at the skin's own rate for its frequency, and the band itself is
         // filtered noise — dense and pitchless, the way hundreds of overlapping partials sound.
         let cloud_in = force_deriv.abs() * 0.55 + contact_force * 0.012 + transient_force.abs() * 0.35;
+        let mut cloud_sum = 0.0f32;
         for b in 0..NUM_CLOUD_BANDS {
             let tilt = self.cloud_tilt[b];
             if tilt <= 0.0 && self.cloud_env[b] < 1e-7 {
@@ -981,6 +1007,7 @@ impl SomaVoice {
             self.cloud_ic1[b] = flush_denormal(2.0 * v1 - self.cloud_ic1[b]);
             self.cloud_ic2[b] = flush_denormal(2.0 * v2 - self.cloud_ic2[b]);
             let out = CLOUD_K * v1 * env;
+            cloud_sum += out;
             if b % 2 == 0 {
                 top_skin_l += out * 0.62;
                 top_skin_r += out * 0.38;
@@ -989,6 +1016,12 @@ impl SomaVoice {
                 top_skin_r += out * 0.62;
             }
         }
+
+        self.last_cloud = cloud_sum;
+
+        // Deep skin from the GPU: the real modes the cloud above approximates (gated per strike).
+        top_skin_l += self.deep_in[0];
+        top_skin_r += self.deep_in[1];
 
         let e_coeff = if weighted_strain_energy > self.deflection_energy { 0.12 } else { 0.0025 };
         self.deflection_energy = flush_denormal(

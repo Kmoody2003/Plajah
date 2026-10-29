@@ -63,6 +63,13 @@ class InstrumentProcessor extends AudioWorkletProcessor {
         // frameOffset makes an async message land on an exact sample.
         x.pa_note_on(this.eng, msg.note, msg.velocity, msg.voiceId, msg.frameOffset | 0);
         break;
+      // SOMA deep skin (ABI 16): the strike plus its GPU-rendered upper membrane from a slot.
+      case 'noteOnDeep':
+        x.pa_note_on_deep(this.eng, msg.note, msg.velocity, msg.voiceId, msg.frameOffset | 0, msg.slot, msg.gain, msg.top);
+        break;
+      case 'scheduleOnDeep':
+        x.pa_schedule_note_on_deep(this.eng, msg.note, msg.velocity, msg.voiceId, msg.frame, msg.slot, msg.gain, msg.top);
+        break;
       case 'noteOff':
         x.pa_note_off(this.eng, msg.voiceId);
         break;

@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SOMA Deep Lab</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; padding: 16px; background: #0B0710; color: #eee; font: 14px/1.45 system-ui, sans-serif; }
+  h1 { font-size: 18px; margin: 0 0 4px; } h3 { font-size: 14px; margin: 12px 0 6px; color: #f0a070; }
+  .sub { color: #aaa; margin-bottom: 12px; }
+  .row canvas { width: 100%; max-width: 480px; height: 160px; image-rendering: pixelated; margin: 0 8px 6px 0; border: 1px solid #2a2233; }
+  .row audio { display: block; margin-bottom: 8px; }
+  pre { color: #9fd; white-space: pre-wrap; font-size: 12px; }
+</style></head>
+<body>
+  <h1>SOMA deep skin — CPU cloud vs GPU modes</h1>
+  <div class="sub">Same strike through the real engine. Spectrograms are dry (Veil muted), 0–0.5 s, 40 Hz–16 kHz log. <code>?presets=id,id</code> · <code>?bench=0</code></div>
+  <div id="ab"></div>
+  <pre id="log"></pre>
+  <script type="module" src="/labs/soma-deep/somaDeepLab.ts"></script>
+</body></html>

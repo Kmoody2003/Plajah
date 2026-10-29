@@ -38,6 +38,9 @@ struct ScheduledEvent {
     slot: i32,
     detune_cents: f32,
     start_frame: f64,
+    /// SOMA deep skin (`note_on_deep`): layer level and the cloud's new floor; 0 top = not deep.
+    deep_gain: f32,
+    deep_top: f32,
 }
 
 pub struct Engine {
@@ -76,6 +79,8 @@ pub struct Engine {
 
     events: Vec<ScheduledEvent>,
     events_dirty: bool,
+    /// `soma_excitation` output.
+    excite: Vec<f32>,
     frame_counter: u64,
     /// Frames of continuous silence with no voice sounding (see `render`'s idle skip).
     idle_frames: u64,
@@ -122,6 +127,7 @@ impl Engine {
             upload: vec![0.0; 64 * 2048],
             events: Vec::with_capacity(1024),
             events_dirty: false,
+            excite: Vec::new(),
             frame_counter: 0,
             idle_frames: 0,
             layout: Layout::Stereo,
@@ -195,6 +201,34 @@ impl Engine {
         if let Some(v) = self.voices.iter_mut().filter(|v| v.active && v.voice_id == voice_id).max_by_key(|v| v.age) {
             v.set_sample(slot, start_frame, detune_cents);
         }
+    }
+
+    /// SOMA deep skin: a SOMA strike plus its GPU-rendered upper membrane from `slot` at `gain`;
+    /// the voice's noise cloud stops below `top_ratio` (× base pitch), where the real modes are.
+    pub fn note_on_deep(&mut self, note: f32, vel: f32, voice_id: u32, frame_offset: u32, slot: i32, gain: f32, top_ratio: f32) {
+        self.note_on(note, vel, voice_id, frame_offset);
+        if let Some(v) = self.voices.iter_mut().filter(|v| v.active && v.voice_id == voice_id).max_by_key(|v| v.age) {
+            v.set_soma_deep(slot, gain, top_ratio);
+        }
+    }
+
+    /// A SOMA strike on this engine's parameters, as the GPU deep skin needs it: the force the
+    /// voice feeds its membrane modes (`frames` samples — what drives the thousands of GPU modes, so
+    /// they hear the same contact, slap and rim wave as the 16 the CPU steps), then the noise
+    /// cloud's output for the same strike (`frames` more — the level the deep skin is matched to).
+    /// Main-thread use only: it allocates.
+    pub fn soma_excitation(&mut self, note: f32, vel: f32, seed: u32, frames: usize) -> &[f32] {
+        let mut voice = crate::soma::SomaVoice::new(self.sr);
+        let mut rng = Rng(seed | 1);
+        voice.trigger(crate::voice::midi_to_hz(note), vel.clamp(0.0, 1.0), &self.params, &mut rng);
+        self.excite.clear();
+        self.excite.resize(frames * 2, 0.0);
+        for i in 0..frames {
+            voice.render_sample(&self.params, 1.0, 0.0, &mut rng);
+            self.excite[i] = voice.last_exciter_force;
+            self.excite[frames + i] = voice.last_cloud;
+        }
+        &self.excite
     }
 
     pub fn set_route(&mut self, index: usize, source: u32, dest: u32, depth: f32, via: u32) {
@@ -352,7 +386,7 @@ impl Engine {
         if self.events.len() >= MAX_EVENTS || !frame.is_finite() {
             return;
         }
-        self.events.push(ScheduledEvent { frame: frame.max(0.0) as u64, on: true, note, velocity, voice_id, slot: -1, detune_cents: 0.0, start_frame: 0.0 });
+        self.events.push(ScheduledEvent { frame: frame.max(0.0) as u64, on: true, note, velocity, voice_id, slot: -1, detune_cents: 0.0, start_frame: 0.0, deep_gain: 0.0, deep_top: 0.0 });
         self.events_dirty = true;
     }
 
@@ -363,7 +397,17 @@ impl Engine {
         if self.events.len() >= MAX_EVENTS || !frame.is_finite() {
             return;
         }
-        self.events.push(ScheduledEvent { frame: frame.max(0.0) as u64, on: true, note, velocity, voice_id, slot, detune_cents, start_frame });
+        self.events.push(ScheduledEvent { frame: frame.max(0.0) as u64, on: true, note, velocity, voice_id, slot, detune_cents, start_frame, deep_gain: 0.0, deep_top: 0.0 });
+        self.events_dirty = true;
+    }
+
+    /// The SOMA deep twin of `schedule_note_on` (offline bounces).
+    #[allow(clippy::too_many_arguments)]
+    pub fn schedule_note_on_deep(&mut self, note: f32, velocity: f32, voice_id: u32, frame: f64, slot: i32, gain: f32, top_ratio: f32) {
+        if self.events.len() >= MAX_EVENTS || !frame.is_finite() {
+            return;
+        }
+        self.events.push(ScheduledEvent { frame: frame.max(0.0) as u64, on: true, note, velocity, voice_id, slot, detune_cents: 0.0, start_frame: 0.0, deep_gain: gain, deep_top: top_ratio.max(1e-3) });
         self.events_dirty = true;
     }
 
@@ -371,7 +415,7 @@ impl Engine {
         if self.events.len() >= MAX_EVENTS || !frame.is_finite() {
             return;
         }
-        self.events.push(ScheduledEvent { frame: frame.max(0.0) as u64, on: false, note: 0.0, velocity: 0.0, voice_id, slot: -1, detune_cents: 0.0, start_frame: 0.0 });
+        self.events.push(ScheduledEvent { frame: frame.max(0.0) as u64, on: false, note: 0.0, velocity: 0.0, voice_id, slot: -1, detune_cents: 0.0, start_frame: 0.0, deep_gain: 0.0, deep_top: 0.0 });
         self.events_dirty = true;
     }
 
@@ -407,7 +451,9 @@ impl Engine {
             }
             // Anything already in the past fires immediately rather than being dropped.
             let offset = ev.frame.saturating_sub(start) as u32;
-            if ev.on && ev.slot >= 0 {
+            if ev.on && ev.slot >= 0 && ev.deep_top > 0.0 {
+                self.note_on_deep(ev.note, ev.velocity, ev.voice_id, offset, ev.slot, ev.deep_gain, ev.deep_top);
+            } else if ev.on && ev.slot >= 0 {
                 self.note_on_sampled(ev.note, ev.velocity, ev.voice_id, offset, ev.slot, ev.detune_cents, ev.start_frame);
             } else if ev.on {
                 self.note_on(ev.note, ev.velocity, ev.voice_id, offset);

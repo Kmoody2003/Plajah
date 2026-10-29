@@ -193,17 +193,90 @@ than the WASM engine, so the lab's "speed-up" column is not a fair comparison.
 (`?power=low-power` asks for the integrated GPU where the browser honours it). Results are on
 `window.gpuDspLab`. Launch config: `gpu-dsp-lab`.
 
-### Next
+### Next (as of milestone 1)
 
-1. **Phase 1 native engine** (unchanged): the GPU only helps once sequenced tracks render ahead
-   in big blocks, and that needs the native host. Wire `Convolver` / `ModalBank` in behind it.
+Item 3 is done: see milestone 2 below. Still open:
+
+1. **Phase 1 native engine** (unchanged): native render-ahead in big blocks needs the native host.
+   Wire `Convolver` / `ModalBank` in behind it.
 2. Browser path: render-ahead convolution for web/Mac users from a worker, with results posted
-   into the AudioWorklet's ring buffer (never on the audio thread itself).
-3. A VELA/SOMA "deep modal" voice model (hundreds of modes per voice) built to feed `ModalBank`.
-   Per-block parameter changes (strike position, damping) are just a coefficient upload.
-4. Non-uniform partitioning (a small head partition on the CPU, the big tail on the GPU), so
+   into the AudioWorklet's ring buffer (never on the audio thread itself). Note that Chrome's
+   own `ConvolverNode` already runs long tails on a background thread, so this is lower priority.
+3. Non-uniform partitioning (a small head partition on the CPU, the big tail on the GPU), so
    reverbs can use the GPU even on the live/armed track.
-5. Test on AMD, Qualcomm Adreno (ARM64 Windows: the arm64 DXC DLLs already ship) and Apple Silicon
+4. Test on AMD, Qualcomm Adreno (ARM64 Windows: the arm64 DXC DLLs already ship) and Apple Silicon
    (Metal), in f32 throughout, as on the Intel GPU.
-6. Warm up pipelines off the audio path; add time-varying modal coefficients. Leave `soma.rs`
-   alone until the SOMA rework lands.
+
+## Milestone 2 — SOMA deep skin, wired into the live engine (2026-10-28)
+
+The first GPU work Chora actually plays. SOMA steps 16 membrane modes against its striker on the
+CPU and, since the realism pass (83a03fcb), stands in for everything above them with an 8-band
+noise cloud. Now, when WebGPU is available, **every strike also gets a GPU-rendered "deep skin":
+the real circular-membrane modes above the explicit 16**. That means every (m, n) Bessel mode up
+to 18 kHz, up to 2,048 per strike, each m ≥ 1 mode as two detuned orientations (a real head's
+uneven tension makes them beat). The voice plays the deep skin inside its own top-skin radiation,
+and the noise bands it replaces go quiet.
+
+How it fits together:
+
+- **Physics (TS, `services/melos/instruments/soma/deep/deepModes.ts`)**: SOMA's own laws for each
+  preset (base pitch, skin material, chamber decay, viscoelastic overtone law, air-radiation cap,
+  strike position, articulation, radiation efficiency, mode pan), continued past mode 16.
+  Bessel zeros come from Miller's recurrence (checked against reference values). Two deliberate
+  departures:
+  - **Footprint:** SOMA's Gaussian striker footprint is replaced by a disc law (2·J1(x)/x
+    envelope). The Gaussian erases everything past j ≈ 20.
+  - **Calibration:** each strike's deep layer is matched, per half-octave band, to the *level and
+    decay* of the cloud for that same strike. Open-loop modes alone came out ~35 dB short above
+    2 kHz: a smooth contact force has little HF, and the cloud's level is what the realism pass
+    measured and approved. So the cloud sets how much energy each band gets and how fast it fades,
+    and the real modes decide how it is distributed.
+- **Drive**: `pa_soma_excitation` (ABI 16) runs a SOMA voice on the instrument's exact
+  parameters and records the force it feeds its membrane (contact + slap/whip noise + rim wave)
+  plus the cloud's output. The GPU modes are driven by that force, open-loop. High modes barely
+  move the striker, so that is the right physics.
+- **GPU**: the same `modal.wgsl` as `rust/plajah-gpu-dsp`, through browser WebGPU
+  (`gpuModal.ts`). That covers the WebView2 desktop app, Chrome/Edge and Safari, on any vendor.
+  Everything runs in a Web Worker (`deepWorker.ts`), so neither the audio thread nor the UI
+  thread does any of it.
+- **Playback**: `somaDeep.ts` caches layers per preset × note × 8 velocity levels × 2 variants
+  (64 MB LRU). `Instrument.noteOn` sends `noteOnDeep` when the layer is cached: it uploads it to
+  an engine sample slot, and the voice adds it into `top_skin`, so mic perspective, shell, early
+  room and the Veil all apply. Otherwise it sends a normal note-on and requests the layer. Offline
+  bounces (`render.ts`) warm every SOMA note first, so the print is deep from the first hit.
+- **Fallback**: no WebGPU, a lost device, a GPU error, or a batch slower than 6 s → strikes play
+  exactly as before (cloud), with a doubling cooldown before the GPU is tried again.
+  `localStorage['chora.somaDeep'] = 'off'` switches it off by hand.
+
+Measured in the lab (`soma-deep-lab.html`, real engine via the worklet, dry):
+
+| Preset | HF (2–16 kHz) energy, cloud → deep, at 5 / 20 / 50 / 100 ms (dB) | HF crest @30 ms |
+|---|---|---|
+| 29" Dresden Timpani | 28.0→30.1 · 18.4→19.7 · −0.3→−0.7 · −28.2→−31.4 | 16.2 → 18.5 |
+| Lenke Djembe (open) | 24.2→26.9 · 10.1→12.9 · −19.5→−17.2 · −66.6→−66.5 | 15.1 → 19.2 |
+| Havana Conga (open) | 16.3→18.5 · −5.4→−2.7 · −49.5→−48.0 · −112→−112 | 15.9 → 15.1 |
+| Istanbul Darbuka (tek) | 34.5→36.1 · 19.6→20.7 · −9.8→−10.8 · −55.9→−55.4 | 17.2 → 23.5 |
+| Kerry Bodhrán | 21.7→27.9 · 9.4→15.5 · −13.5→−10.0 · −51.0→−51.7 | 14.1 → 18.5 |
+
+- **Envelope:** the deep skin keeps the approved envelope to ±3 dB (the bodhrán starts ~6 dB
+  hotter).
+- **Structure:** its spectrum is a few dB peakier than noise, because these are real, beating
+  partials and not filtered noise. Whether that reads as more "real" is for the ear: the WAV
+  pairs are in `artifacts/soma-deep/` (local, gitignored).
+- **Mode counts:** every one of the 36 presets builds a set; most strikes get 600–2,048 modes.
+  Centre-struck bass presets (Gun Bass, Tumba, Udu) excite almost only the axisymmetric modes,
+  which is the physics of a centre hit.
+- **Timing:** the first deep strike of a new note arrives ~1.1 s after the first press, which
+  plays on the cloud. Warming all 36 presets × 16 strikes (592 strikes) took 23 s in the
+  worker: ~43 ms of GPU per 16-strike batch, and the rest is worker CPU (strike recording +
+  calibration, ~50 ms per strike).
+- **Live path verified:** first press = `noteOn` (cloud), next press = `noteOnDeep`, audible.
+  Engine test added to `dsp.test.mjs` (49 pass).
+
+### Next for the deep skin
+
+1. A toggle and status chip in the SOMA panel (left alone here: another session has it open).
+2. Speed up warm-up: share calibration between the two variants, and a small worker pool.
+3. Tension glide on the deep modes (the explicit 16 glide on hard strikes; the deep ones are
+   fixed per strike). The kernel would need per-block frequency scaling.
+4. The same treatment for VELA (bowls, bells, gongs), where thousands of modes matter most.

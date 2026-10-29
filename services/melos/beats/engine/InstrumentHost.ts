@@ -8,6 +8,7 @@
 import wasmUrl from './dsp/plajah_audio.wasm?url';
 import workletUrl from './instrumentProcessor.worklet.js?url';
 import { selectZones, type KeraProgram } from '../../instruments/kera/zones';
+import { DEEP_VARIANTS, deepVelBucket, lookupDeep, requestDeep, somaDeepSupported, somaParamsKey, type DeepHit } from '../../instruments/soma/deep/somaDeep';
 
 /** Envelope seconds → the engine's normalised 0..1 (inverse of env_time in params.rs: 0.001 + 12·n³). */
 function secToNorm(sec: number): number {
@@ -17,7 +18,7 @@ function secToNorm(sec: number): number {
 
 /** 11 adds AURA (param block 1700+): 1960s & 1970s analogue synthesis circuitry. Bumping this
  *  is what stops a stale committed .wasm from loading against a host that expects the new parameters. */
-export const DSP_ABI_VERSION = 15; // 15: LYRA brass, strings, plucked, guitar rig; 14: LYRA physical models (block 1900+); 13: scheduled KERA notes
+export const DSP_ABI_VERSION = 16; // 16: SOMA deep skin (GPU modes, note_on_deep); 15: LYRA brass, strings, plucked, guitar rig; 14: LYRA physical models (block 1900+); 13: scheduled KERA notes
 
 /** Output layouts — must mirror `spatial::Layout` in the Rust crate. */
 export enum SpatialLayout {
@@ -43,7 +44,8 @@ export interface SpatialState {
 let modulePromise: Promise<WebAssembly.Module> | null = null;
 const workletLoaded = new WeakSet<BaseAudioContext>();
 
-async function getModule(): Promise<WebAssembly.Module> {
+/** The compiled DSP core, shared (also used on the main thread for SOMA deep-skin excitation). */
+export async function getModule(): Promise<WebAssembly.Module> {
   if (!modulePromise) {
     const bustUrl = `${wasmUrl}${wasmUrl.includes('?') ? '&' : '?'}abi=${DSP_ABI_VERSION}`;
     modulePromise = fetch(bustUrl, { cache: 'no-cache' })
@@ -185,9 +187,77 @@ export class Instrument {
     this.lastNote = note;
     this.lastVelocity = velocity01;
     this.lastNoteOnPerf = typeof performance !== 'undefined' ? performance.now() : Date.now();
-    this.post({ type: 'noteOn', note, velocity: velocity01, voiceId, frameOffset });
+    const deep = this.somaDeep(note, velocity01);
+    if (deep) this.post({ type: 'noteOnDeep', note, velocity: velocity01, voiceId, frameOffset, ...deep });
+    else this.post({ type: 'noteOn', note, velocity: velocity01, voiceId, frameOffset });
     this.heldVoices.set(note, voiceId);
     return voiceId;
+  }
+
+  // ── SOMA deep skin (ABI 16) ──────────────────────────────────────────────────
+  // A SOMA strike whose GPU-rendered upper membrane is cached plays it inside the voice
+  // (somaDeep.ts); otherwise it plays as before and the layer is rendered for next time.
+
+  private params = new Map<number, number>();
+  private paramsKeyMemo: string | null = null;
+  private deepSlots = new Map<DeepHit, number>(); // LRU: insertion order = age
+  private deepTick = 0;
+
+  private isSoma(): boolean {
+    return (this.params.get(1800) ?? 0) > 0.5 && !this.keraProgram;
+  }
+
+  private somaKey(): string {
+    return (this.paramsKeyMemo ??= somaParamsKey(this.params));
+  }
+
+  private get sampleRate(): number {
+    return this.node.context.sampleRate;
+  }
+
+  /** Slot, level and cloud floor for a deep strike, or null to play it on the CPU cloud. */
+  private somaDeep(note: number, velocity01: number): { slot: number; gain: number; top: number } | null {
+    if (!this.isSoma() || !somaDeepSupported()) return null;
+    const key = this.somaKey();
+    const variant = this.deepTick++ % DEEP_VARIANTS;
+    let hit: DeepHit | undefined;
+    for (let i = 0; i < DEEP_VARIANTS && !hit; i++) hit = lookupDeep(key, note, velocity01, (variant + i) % DEEP_VARIANTS, this.sampleRate);
+    if (!hit) {
+      void requestDeep(this.params, key, note, this.sampleRate, getModule);
+      return null;
+    }
+    const v = Math.max(0.02, Math.min(1, velocity01));
+    return { slot: this.deepSlot(hit), gain: v / deepVelBucket(v), top: hit.topRatio };
+  }
+
+  /** The engine sample slot holding `hit`, uploading it (and evicting the oldest) if needed. */
+  private deepSlot(hit: DeepHit): number {
+    const have = this.deepSlots.get(hit);
+    if (have !== undefined) {
+      this.deepSlots.delete(hit);
+      this.deepSlots.set(hit, have);
+      return have;
+    }
+    let slot = this.deepSlots.size;
+    if (slot >= 128) {
+      const [oldHit, oldSlot] = this.deepSlots.entries().next().value as [DeepHit, number];
+      this.deepSlots.delete(oldHit);
+      slot = oldSlot;
+    }
+    this.deepSlots.set(hit, slot);
+    const data = hit.data.slice();
+    this.node.port.postMessage({
+      type: 'loadSample', slot, data, frames: hit.frames, channels: 2,
+      sampleRate: this.sampleRate, rootNote: 60, loopStart: 0, loopEnd: 0, loopMode: 0,
+    }, [data.buffer]);
+    return slot;
+  }
+
+  /** Render the deep layers for these notes now (an offline bounce awaits this before scheduling). */
+  async warmSomaDeep(notes: number[]): Promise<void> {
+    if (!this.isSoma() || !somaDeepSupported()) return;
+    const key = this.somaKey();
+    await Promise.all([...new Set(notes)].map((n) => requestDeep(this.params, key, n, this.sampleRate, getModule)));
   }
 
   noteOff(noteOrVoiceId: number, byVoiceId = false): void {
@@ -314,7 +384,9 @@ export class Instrument {
    */
   scheduleNoteOn(note: number, velocity01: number, frame: number): number {
     const voiceId = this.nextVoiceId++;
-    this.post({ type: 'scheduleOn', note, velocity: velocity01, voiceId, frame });
+    const deep = this.somaDeep(note, velocity01);
+    if (deep) this.post({ type: 'scheduleOnDeep', note, velocity: velocity01, voiceId, frame, ...deep });
+    else this.post({ type: 'scheduleOn', note, velocity: velocity01, voiceId, frame });
     return voiceId;
   }
 
@@ -337,12 +409,16 @@ export class Instrument {
   }
 
   setParam(id: number, value: number): void {
+    this.params.set(id, value);
+    this.paramsKeyMemo = null;
     this.post({ type: 'param', id, value });
   }
 
   /** Bulk apply — one message instead of hundreds when loading a preset. */
   setParams(entries: Array<[number, number]>): void {
     if (!entries.length) return;
+    for (const [id, v] of entries) this.params.set(id, v);
+    this.paramsKeyMemo = null;
     this.post({
       type: 'params',
       ids: Int32Array.from(entries.map((e) => e[0])),

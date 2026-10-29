@@ -59,7 +59,7 @@ use spatial::{IamfRole, Layout, Position};
 /// a tine electric piano; MAX_PARAM_ID grows to 2000.
 /// v15 adds the rest of LYRA: brass (block 1900 model 9), plucked strings (10), the violin family
 /// and the electric guitar rig (LY_PICKUP..LY_ECHO_TIME, 1924–1935).
-pub const ABI_VERSION: u32 = 15;
+pub const ABI_VERSION: u32 = 16; // 16: SOMA deep skin (note_on_deep, soma_excitation)
 
 #[unsafe(no_mangle)]
 pub extern "C" fn pa_abi_version() -> u32 {
@@ -358,6 +358,38 @@ pub unsafe extern "C" fn pa_schedule_note_on(p: *mut Engine, note: f32, velocity
 pub unsafe extern "C" fn pa_schedule_note_on_sampled(p: *mut Engine, note: f32, velocity: f32, voice_id: u32, frame: f64, slot: i32, detune_cents: f32, start_frame: f64) {
     let e = eng!(p);
     e.schedule_note_on_sampled(note, velocity, voice_id, frame, slot, detune_cents, start_frame);
+}
+
+/// SOMA deep skin: a SOMA note that also plays the GPU-rendered upper membrane in `slot`.
+///
+/// # Safety
+/// `p` must be a live engine pointer.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pa_note_on_deep(p: *mut Engine, note: f32, velocity: f32, voice_id: u32, frame_offset: u32, slot: i32, gain: f32, top_ratio: f32) {
+    let e = eng!(p);
+    e.note_on_deep(note, velocity, voice_id, frame_offset, slot, gain, top_ratio);
+}
+
+/// The offline twin of `pa_note_on_deep`.
+///
+/// # Safety
+/// `p` must be a live engine pointer.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pa_schedule_note_on_deep(p: *mut Engine, note: f32, velocity: f32, voice_id: u32, frame: f64, slot: i32, gain: f32, top_ratio: f32) {
+    let e = eng!(p);
+    e.schedule_note_on_deep(note, velocity, voice_id, frame, slot, gain, top_ratio);
+}
+
+/// Record a SOMA strike on this engine's parameters: the force fed to the membrane (`frames`
+/// samples) then the noise cloud's output (`frames` more). Returns a pointer to `2·frames` f32s,
+/// valid until the next call.
+///
+/// # Safety
+/// `p` must be a live engine pointer.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn pa_soma_excitation(p: *mut Engine, note: f32, velocity: f32, seed: u32, frames: u32) -> *const f32 {
+    let e = eng!(p, core::ptr::null());
+    e.soma_excitation(note, velocity, seed, frames.min(1 << 17) as usize).as_ptr()
 }
 
 /// # Safety
