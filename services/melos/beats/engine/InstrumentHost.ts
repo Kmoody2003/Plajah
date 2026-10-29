@@ -64,6 +64,10 @@ async function ensureWorklet(ctx: BaseAudioContext): Promise<void> {
   workletLoaded.add(ctx);
 }
 
+/** Rewrites a key before it sounds: the engine note, velocity and parameters for this one note. */
+export type NoteMapper = (key: number, velocity01: number, modWheel: number, live: boolean) =>
+  { note: number; velocity: number; params: Array<[number, number]> } | null;
+
 export interface InstrumentOptions {
   channels?: number;
   onError?: (message: string) => void;
@@ -180,18 +184,39 @@ export class Instrument {
    * render block, so an asynchronous message still yields a sample-accurate onset.
    */
   /** Times are optional: without them the note plays now (an audition key, not a scheduled note). */
-  noteOn(note: number, velocity01: number, ctxTime = 0, currentTime = 0, sampleRate = 48000): number {
+  /** `raw` skips the note mapper (a strike that already set exactly where it lands, e.g. a click on SOMA's drumhead). */
+  noteOn(key: number, velocity: number, ctxTime = 0, currentTime = 0, sampleRate = 48000, raw = false): number {
     const voiceId = this.nextVoiceId++;
     const off = Math.round((ctxTime - currentTime) * sampleRate);
     const frameOffset = Number.isFinite(off) ? Math.max(0, off) : 0;
+    const { note, velocity01 } = raw ? { note: key, velocity01: velocity } : this.mapNote(key, velocity, ctxTime > 0 ? Math.round(ctxTime * sampleRate) : 0, ctxTime === 0);
     this.lastNote = note;
     this.lastVelocity = velocity01;
     this.lastNoteOnPerf = typeof performance !== 'undefined' ? performance.now() : Date.now();
     const deep = this.somaDeep(note, velocity01);
     if (deep) this.post({ type: 'noteOnDeep', note, velocity: velocity01, voiceId, frameOffset, ...deep });
     else this.post({ type: 'noteOn', note, velocity: velocity01, voiceId, frameOffset });
-    this.heldVoices.set(note, voiceId);
+    this.heldVoices.set(key, voiceId);
     return voiceId;
+  }
+
+  // ── Note mapping ──────────────────────────────────────────────────────────────
+  // An instrument can rewrite each key before it sounds — SOMA's hand map turns a key or pad into a
+  // stroke at a place on the drum. The mapper's per-note parameters ride a frame-timed message, so
+  // they land on exactly this note whether it's live, scheduled ahead or in an offline bounce.
+
+  private noteMapper: NoteMapper | null = null;
+  setNoteMapper(m: NoteMapper | null): void { this.noteMapper = m; }
+
+  private mapNote(key: number, velocity: number, frame: number, live: boolean): { note: number; velocity01: number } {
+    const m = this.noteMapper?.(key, velocity, this.modWheelValue, live);
+    if (!m) return { note: key, velocity01: velocity };
+    if (m.params.length) {
+      for (const [id, v] of m.params) this.params.set(id, v);
+      this.paramsKeyMemo = null;
+      this.post({ type: 'paramsAt', frame, ids: Int32Array.from(m.params.map((e) => e[0])), values: Float32Array.from(m.params.map((e) => e[1])) });
+    }
+    return { note: m.note, velocity01: m.velocity };
   }
 
   // ── SOMA deep skin (ABI 16) ──────────────────────────────────────────────────
@@ -382,8 +407,9 @@ export class Instrument {
    * posted before `startRendering()` and fired by the engine's own frame counter.
    * Returns the voice id so the caller can schedule the matching note-off.
    */
-  scheduleNoteOn(note: number, velocity01: number, frame: number): number {
+  scheduleNoteOn(key: number, velocity: number, frame: number): number {
     const voiceId = this.nextVoiceId++;
+    const { note, velocity01 } = this.mapNote(key, velocity, frame, false);
     const deep = this.somaDeep(note, velocity01);
     if (deep) this.post({ type: 'scheduleOnDeep', note, velocity: velocity01, voiceId, frame, ...deep });
     else this.post({ type: 'scheduleOn', note, velocity: velocity01, voiceId, frame });

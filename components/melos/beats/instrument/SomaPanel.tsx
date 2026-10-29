@@ -44,6 +44,7 @@ import {
   serializeSomaPatch,
   applySomaPreset,
   applySomaPatch,
+  somaHandConfig,
   somaEngineValue,
   crossformSomaPatch,
   polarToDrumPad,
@@ -57,6 +58,7 @@ import {
 import { Knob } from '../shared/Knob';
 import { SomaDrumStory } from './SomaDrumStory';
 import { SomaDeepToggle } from './SomaDeepToggle';
+import { SomaHandMapCard } from './SomaHandMapCard';
 import { liveBus, now as liveNow } from '../../../../services/melos/beats/band/live/events';
 
 interface Props {
@@ -185,10 +187,16 @@ export const SomaPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
       void engine.init().then(async () => {
         const inst = await engine.ensureInstrument(track);
         if (!inst) return;
-        if (overridePos !== undefined) inst.setParam(SM.STRIKE_POS, overridePos);
-        if (overrideAngle !== undefined) inst.setParam(SM.STRIKE_ANGLE, overrideAngle);
-        if (overrideStriker !== undefined) inst.setParam(SM.STRIKER_TYPE, overrideStriker);
-        const vid = inst.noteOn(note, velocity);
+        // The whole strike, every time: a hand-map key played before may have left its own hand
+        // settings in the engine. Raw: this strike says exactly where it lands (no hand map).
+        inst.setParams([
+          [SM.STRIKE_POS, rho], [SM.STRIKE_ANGLE, ang],
+          [SM.STRIKER_TYPE, overrideStriker ?? resolvedParams[SM.STRIKER_TYPE] ?? 1],
+          [SM.STRIKER_HARDNESS, resolvedParams[SM.STRIKER_HARDNESS] ?? 0.5],
+          [SM.STRIKER_MASS, resolvedParams[SM.STRIKER_MASS] ?? 0.5],
+          [SM.HAND_BRUSH, resolvedParams[SM.HAND_BRUSH] ?? 0.2],
+        ]);
+        const vid = inst.noteOn(note, velocity, 0, 0, 48000, true);
         setTimeout(() => {
           inst.noteOff(vid, true);
         }, 180);
@@ -751,7 +759,6 @@ export const SomaPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
 
   const handleNoteOn = useCallback(
     (note: number, vel = 0.88) => {
-      liveBus.emit({ kind: 'strike', instrument: 'soma', trackId: track.id, at: liveNow(), note, velocity: vel, pos: strikeAnimRef.current.rho });
       setHeldNotes((prev) => new Set(prev).add(note));
       const engine = BeatsEngine.get();
       void engine.init().then(async () => {
@@ -996,6 +1003,8 @@ export const SomaPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
                 ))}
               </div>
             </div>
+
+            <SomaHandMapCard track={track} hand={somaHandConfig(patch)} explicit={!!patch.hand} onChange={(hand) => commitPatch({ ...patch, hand })} />
           </div>
 
           {/* Right 7 cols: Coupled Air Chamber Cross-Section + Live Tension Pedal + 6 Physical Macros */}
