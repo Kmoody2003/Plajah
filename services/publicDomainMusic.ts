@@ -23,9 +23,16 @@
 //      says. Only when the metadata is silent do we fall back to the recording's
 //      date, and we label that as the (dated, jurisdictional) inference it is.
 //
+// The date rule itself lives in services/publicDomainRights — this file only asks it.
+//
 // Single-purpose: no Firestore, no auth, no writes. Failure is always an empty
 // result, never a throw — a dead archive item must not take a Chora tab down.
 // ─────────────────────────────────────────────────────────────────────────────
+
+import {
+  assessRecording, isUsRecordingPublicDomain, parseYear, summarizeVerdicts, usRecordingFreeFrom,
+  type PDVerdict,
+} from './publicDomainRights';
 
 const SEARCH_ENDPOINT = 'https://archive.org/advancedsearch.php';
 const METADATA_ENDPOINT = 'https://archive.org/metadata';
@@ -52,6 +59,11 @@ export interface PDRights {
   licenseUrl?: string;
   /** Longer explanation shown under the item. */
   detail: string;
+  /** True when we can stand behind serving it: a declared open licence, or a
+   *  recording date that is public domain in the US today. Shelves drop the rest. */
+  servable: boolean;
+  /** Per-jurisdiction verdicts for the recording, when it has a date. */
+  verdicts?: PDVerdict[];
 }
 
 export interface PDTrack {
@@ -145,13 +157,18 @@ export const buildCoverUrl = (identifier: string): string => `${COVER_ENDPOINT}/
  * We never upgrade a silence into a public-domain claim without labelling it as
  * an inference — the item's own metadata always wins.
  */
-export function describeRights(meta: Record<string, any>): PDRights {
+export function describeRights(meta: Record<string, any>, now: Date = new Date()): PDRights {
+  const year = parseYear(meta.year) ?? parseYear(meta.date);
+  const verdicts = year !== undefined ? assessRecording({ publishedYear: year }, undefined, now) : undefined;
+  const usFree = year !== undefined && isUsRecordingPublicDomain(year, now);
+
   const licenseUrl: string | undefined = typeof meta.licenseurl === 'string' ? meta.licenseurl : undefined;
   if (licenseUrl) {
     const u = licenseUrl.toLowerCase();
     const label = u.includes('publicdomain/zero') ? 'CC0 1.0 — Public Domain Dedication'
       : u.includes('publicdomain/mark') ? 'Public Domain Mark 1.0'
       : u.includes('/by-sa/') ? 'Creative Commons BY-SA'
+      : u.includes('/by-nc-nd') ? 'Creative Commons BY-NC-ND'
       : u.includes('/by-nc') ? 'Creative Commons BY-NC'
       : u.includes('/by/') ? 'Creative Commons BY'
       : 'Creative Commons / open licence';
@@ -159,7 +176,10 @@ export function describeRights(meta: Record<string, any>): PDRights {
       label,
       basis: 'ITEM_LICENCE',
       licenseUrl,
-      detail: 'The Internet Archive item declares this licence in its own metadata.',
+      detail: 'The Internet Archive item declares this licence in its own metadata.' +
+        (usFree ? ` The recording itself (${year}) is also public domain in the US by date.` : ''),
+      servable: true,
+      verdicts,
     };
   }
 
@@ -168,21 +188,37 @@ export function describeRights(meta: Record<string, any>): PDRights {
     return {
       label: stated.trim().slice(0, 160),
       basis: 'ITEM_RIGHTS_FIELD',
-      detail: 'Rights statement taken verbatim from the Internet Archive item metadata.',
+      detail: 'Rights statement taken verbatim from the Internet Archive item metadata.' +
+        (year !== undefined && !usFree ? ` Recorded ${year}, which is not yet public domain in the US by date.` : ''),
+      // A free-text statement is not a licence: we only serve it when the date also holds.
+      servable: usFree,
+      verdicts,
     };
   }
 
   // Metadata is silent. Fall back to the recording date — and say so plainly.
-  const rawYear = String(meta.year || meta.date || '');
-  const year = Number(rawYear.slice(0, 4));
-  if (isFinite(year) && year > 0 && year < 1929) {
+  if (year !== undefined && usFree) {
     return {
-      label: `Recorded ${year} — pre-1929, public domain in the US`,
+      label: `Recorded ${year} — public domain in the US`,
       basis: 'DATE_INFERENCE',
       detail:
         `This item states no licence. The inference is based only on its recording date (${year}): ` +
-        'under the US Music Modernization Act, sound recordings first published before 1929 are in ' +
-        'the public domain. Rights may differ in other jurisdictions.',
+        `under the US Music Modernization Act a recording from ${year} became free on 1 January ` +
+        `${usRecordingFreeFrom(year)}. ${summarizeVerdicts(verdicts ?? [])}.`,
+      servable: true,
+      verdicts,
+    };
+  }
+
+  if (year !== undefined) {
+    return {
+      label: `Recorded ${year} — free in the US from ${usRecordingFreeFrom(year)}`,
+      basis: 'UNSTATED',
+      detail:
+        `This item states no licence, and a recording from ${year} is still protected in the US until ` +
+        `1 January ${usRecordingFreeFrom(year)}. ${summarizeVerdicts(verdicts ?? [])}.`,
+      servable: false,
+      verdicts,
     };
   }
 
@@ -190,8 +226,9 @@ export function describeRights(meta: Record<string, any>): PDRights {
     label: 'Rights not stated by the Internet Archive',
     basis: 'UNSTATED',
     detail:
-      'This item declares no licence and no rights statement, and its date does not establish public ' +
+      'This item declares no licence and no rights statement, and has no date to establish public ' +
       'domain status. Check the source item before reusing it.',
+    servable: false,
   };
 }
 
@@ -245,8 +282,9 @@ export async function searchItems(query: string, opts: SearchOptions = {}): Prom
 
 /**
  * Resolve an identifier to a playable item. Returns `null` when the identifier is
- * dead, is not audio, or carries no individually-streamable file (the ZIP-only
- * case). Cached, including negative results, so a bad id is probed once.
+ * dead, is not audio, carries no individually-streamable file (the ZIP-only
+ * case), or is not yet free to serve. Cached, including negative results, so a
+ * bad id is probed once.
  */
 export async function resolveItem(identifier: string): Promise<PDItem | null> {
   if (!identifier) return null;
@@ -289,6 +327,11 @@ export async function resolveItem(identifier: string): Promise<PDItem | null> {
       : typeof meta.date === 'string' ? meta.date.slice(0, 4)
       : undefined;
 
+    // Playable is not the same as free. A 1927 side streams perfectly and is still
+    // protected in the US until 2028, so it resolves to nothing until its year comes.
+    const rights = describeRights(meta);
+    if (!rights.servable) return null;
+
     const item: PDItem = {
       identifier,
       title: typeof meta.title === 'string' ? meta.title : identifier,
@@ -300,7 +343,7 @@ export async function resolveItem(identifier: string): Promise<PDItem | null> {
       description: asArray(meta.description).join(' ').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim(),
       subjects: asArray(meta.subject),
       publisher: asArray(meta.publisher)[0],
-      rights: describeRights(meta),
+      rights,
       tracks,
     };
     return item;

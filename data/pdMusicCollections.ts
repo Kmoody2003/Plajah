@@ -32,11 +32,24 @@
 //      domain dedication in its own IA metadata.
 //   2. Date of recording. The Great 78 Project items (`collection:georgeblood`)
 //      declare no licence field at all, so every query below is CONSTRAINED to
-//      year <= 1928. Under the US Music Modernization Act, sound recordings first
-//      published before 1929 are in the public domain. That is an inference from
-//      the item's date, not a claim the Archive makes, and the service labels it
-//      as such rather than laundering it into a licence.
+//      the US recording cutoff from services/publicDomainRights (1925 in 2026,
+//      moving forward one year every 1 January). The Music Modernization Act runs
+//      recordings for 100 years — "pre-1929" is the rule for COMPOSITIONS, and an
+//      earlier version of this file wrongly applied it to records. That is an
+//      inference from the item's date, not a claim the Archive makes, and the
+//      service labels it as such rather than laundering it into a licence.
+//
+// Featured lists may hold sides that are not free YET (the 1926–1928 Casals,
+// Morton, Beiderbecke and Hines sides). resolveItem refuses them until their
+// year arrives, so each appears on its own on the right 1 January.
+//
+// WORLD shelves draw on all of `collection:78rpm` (Great 78 plus the Library of
+// Congress National Jukebox transfers and smaller donor collections) under the
+// same date ceiling. Every world query was sampled on 2026-10-29: 14 of 14 hits
+// resolved playable and dated within the cutoff on every shelf.
 // ─────────────────────────────────────────────────────────────────────────────
+
+import { usRecordingCutoffYear } from '../services/publicDomainRights';
 
 export type PDShelfId =
   | 'BAROQUE'
@@ -45,10 +58,25 @@ export type PDShelfId =
   | 'GREAT_VOICES'
   | 'EARLY_JAZZ'
   | 'RAGTIME'
-  | 'EARLY_BLUES';
+  | 'EARLY_BLUES'
+  | 'GREEK_SMYRNA'
+  | 'ARABIC_ARMENIAN'
+  | 'YIDDISH_CANTORIAL'
+  | 'MEXICO'
+  | 'LUSO_LATIN'
+  | 'NEAPOLITAN'
+  | 'IRISH_CELTIC'
+  | 'HAWAIIAN'
+  | 'SLAVIC_EASTERN'
+  | 'NORDIC'
+  | 'EAST_ASIA';
+
+/** ERA shelves walk the Western repertoire; WORLD shelves walk the map. */
+export type PDShelfGroup = 'ERA' | 'WORLD';
 
 export interface PDShelf {
   id: PDShelfId;
+  group?: PDShelfGroup;
   label: string;
   /** Micro-label for the uppercase eyebrow. */
   eyebrow: string;
@@ -61,17 +89,26 @@ export interface PDShelf {
   query?: string;
 }
 
-/** The date ceiling every Great 78 query is held to (US pre-1929 rule). */
-const PD_YEAR_RANGE = 'year:[1900 TO 1928]';
+/** The date ceiling every 78 query is held to — the US recording cutoff, recomputed each year. */
+const US_REC_CUTOFF = usRecordingCutoffYear();
+const PD_YEAR_RANGE = `year:[1890 TO ${US_REC_CUTOFF}]`;
 const G78 = `collection:georgeblood AND ${PD_YEAR_RANGE}`;
+const WORLD78 = `collection:78rpm AND ${PD_YEAR_RANGE}`;
 
 const MMA_NOTE =
-  'Great 78 Project transfers, held to recordings published before 1929 — public domain in the US ' +
-  'under the Music Modernization Act. These items declare no licence of their own; the basis is their date.';
+  `Great 78 Project transfers, held to recordings published in ${US_REC_CUTOFF} or earlier — public domain in the US ` +
+  'under the Music Modernization Act, which runs recordings for 100 years. These items declare no licence of ' +
+  'their own; the basis is their date.';
+
+const WORLD_NOTE =
+  '78rpm transfers from the Great 78 Project and the Library of Congress National Jukebox, held to recordings ' +
+  `published in ${US_REC_CUTOFF} or earlier — public domain in the US by date. Many were made for immigrant ` +
+  'communities in America: treat them as those communities\' living heritage, credited by name, not just as free audio.';
 
 export const PD_SHELVES: PDShelf[] = [
   {
     id: 'BAROQUE',
+    group: 'ERA',
     label: 'Baroque',
     eyebrow: 'Bach · Purcell · Handel',
     blurb:
@@ -89,6 +126,7 @@ export const PD_SHELVES: PDShelf[] = [
   },
   {
     id: 'CLASSICAL_ERA',
+    group: 'ERA',
     label: 'Classical Era',
     eyebrow: 'Mozart · Haydn · Beethoven',
     blurb:
@@ -106,6 +144,7 @@ export const PD_SHELVES: PDShelf[] = [
   },
   {
     id: 'ROMANTIC',
+    group: 'ERA',
     label: 'Romantic',
     eyebrow: 'Chopin · Wagner · Brahms',
     blurb:
@@ -113,7 +152,7 @@ export const PD_SHELVES: PDShelf[] = [
       'public domain outright — then the great acoustic-era Wagner, Brahms and Liszt sides.',
     rightsNote:
       'The Musopen Chopin collection carries an explicit CC0 1.0 public domain dedication in its own metadata. ' +
-      'The 78rpm sides alongside it rest on the pre-1929 date basis.',
+      `The 78rpm sides alongside it rest on the US recording date basis (${US_REC_CUTOFF} or earlier).`,
     featured: [
       'musopen-chopin',
       '78_etude-in-c-moll-revolutions-etude_ignace-jan-paderewski-chopin_gbia0123357a',
@@ -129,6 +168,7 @@ export const PD_SHELVES: PDShelf[] = [
   },
   {
     id: 'GREAT_VOICES',
+    group: 'ERA',
     label: 'Great Voices',
     eyebrow: 'Caruso · Galli-Curci · Chaliapin',
     blurb:
@@ -149,6 +189,7 @@ export const PD_SHELVES: PDShelf[] = [
   },
   {
     id: 'EARLY_JAZZ',
+    group: 'ERA',
     label: 'Early Jazz',
     eyebrow: 'Morton · Beiderbecke · Hines',
     blurb:
@@ -168,6 +209,7 @@ export const PD_SHELVES: PDShelf[] = [
   },
   {
     id: 'RAGTIME',
+    group: 'ERA',
     label: 'Ragtime',
     eyebrow: 'Confrey · Lodge · Novelty Piano',
     blurb:
@@ -187,6 +229,7 @@ export const PD_SHELVES: PDShelf[] = [
   },
   {
     id: 'EARLY_BLUES',
+    group: 'ERA',
     label: 'Early Blues',
     eyebrow: 'Handy · Hegamin · Classic Blues',
     blurb:
@@ -201,9 +244,209 @@ export const PD_SHELVES: PDShelf[] = [
     ],
     query: `${G78} AND subject:Blues`,
   },
+
+  // ── WORLD ─────────────────────────────────────────────────────────────────
+  {
+    id: 'GREEK_SMYRNA',
+    group: 'WORLD',
+    label: 'Greek & Smyrna',
+    eyebrow: 'Marika Papagika · Smyrna song · Cretan dances',
+    blurb:
+      'The Greek café and village music that crossed to New York: Marika Papagika, Smyrna-style songs and island ' +
+      'dances, years before rebetiko had its name.',
+    rightsNote: WORLD_NOTE,
+    featured: [
+      'loc-jukebox-38318-laphina',
+      'loc-jukebox-63242-n-tavelis',
+      'loc-jukebox-29006-imitation-of-bagpipe-in-creta',
+      'loc-jukebox-189542-e-apachides-ton-athenon',
+      'loc-jukebox-72888-tou-kitsou-i-mana',
+    ],
+    query: `${WORLD78} AND (language:Greek OR language:gre OR subject:Greek)`,
+  },
+  {
+    id: 'ARABIC_ARMENIAN',
+    group: 'WORLD',
+    label: 'Arabic, Armenian & Caucasus',
+    eyebrow: 'Cairo · Arab New York · Caucasus',
+    blurb:
+      'A Cairo sheikh cut to disc in 1909, Arabic songs recorded in New York, Armenian songs and a Caucasus ' +
+      'lezginka: the eastern Mediterranean on shellac.',
+    rightsNote: WORLD_NOTE,
+    featured: [
+      '78_sahil-guefoun-i_cheikh-youssef-el-menialawi-caire_gbia0299355a',
+      'loc-jukebox-25850-ana-el-garam',
+      'loc-jukebox-36636-gnatz-ashoon-yegav-garounne',
+      'amour-18353-lezginka',
+      'loc-jukebox-42339-ya-lailo-elsabo',
+    ],
+    query: `${WORLD78} AND (language:Arabic OR language:ara OR language:Turkish OR language:tur OR language:Armenian OR language:arm)`,
+  },
+  {
+    id: 'YIDDISH_CANTORIAL',
+    group: 'WORLD',
+    label: 'Yiddish & Cantorial',
+    eyebrow: 'Rosenblatt · Yiddish theatre · Klezmer',
+    blurb:
+      'Yossele Rosenblatt\'s cantorial singing, Yiddish theatre songs from Second Avenue and the dance bands that ' +
+      'carried klezmer to America.',
+    rightsNote: WORLD_NOTE,
+    featured: [
+      'loc-jukebox-38255-achenu-kol-beth-israel',
+      'loc-jukebox-30183-hatikva',
+      'loc-jukebox-43206-wen-mir-welen-weren-reich',
+      'loc-jukebox-18341-schwartzer-kuter',
+      'loc-jukebox-132846-dus-shaifele',
+    ],
+    query: `${WORLD78} AND (language:Yiddish OR language:yid OR language:Hebrew OR subject:Jewish OR subject:Klezmer)`,
+  },
+  {
+    id: 'MEXICO',
+    group: 'WORLD',
+    label: 'Mexico',
+    eyebrow: 'Cuarteto Coculense · Banda de Artillería · canción',
+    blurb:
+      'The earliest mariachi on record, the Cuarteto Coculense in 1908, with the Mexican artillery band and the ' +
+      'canciones the whole country sang, Estrellita among them.',
+    rightsNote: WORLD_NOTE,
+    featured: [
+      'loc-jukebox-258006-el-cuervo',
+      'loc-jukebox-257162-aires-nacionales-mexicanos',
+      'loc-jukebox-35362-estrellita',
+      'loc-jukebox-35229-valent-n-mancera',
+      'loc-jukebox-258014-la-p-rfida',
+    ],
+    query: `${WORLD78} AND (subject:Mexico OR subject:Mexican)`,
+  },
+  {
+    id: 'LUSO_LATIN',
+    group: 'WORLD',
+    label: 'Fado, Cuba & Tango',
+    eyebrow: 'Fado · Danzón · Tango · Maxixe',
+    blurb:
+      'Portuguese fado sung in America, Cuban and Spanish songs and waltzes, and the tango and Brazilian maxixe ' +
+      'that filled dance floors before 1926.',
+    rightsNote: WORLD_NOTE,
+    featured: [
+      'loc-jukebox-29986-fado-do-palhas',
+      'loc-jukebox-30735-minha-m-e-pobrezinha',
+      'loc-jukebox-243788-un-esp-ritu-de-amor',
+      'loc-jukebox-243836-los-mosqueteros-grises-vals',
+      'loc-jukebox-300264-larilol',
+    ],
+    query: `${WORLD78} AND (subject:Cuba OR subject:Cuban OR subject:Danzon OR subject:Brazil OR language:Portuguese OR subject:Tango)`,
+  },
+  {
+    id: 'NEAPOLITAN',
+    group: 'WORLD',
+    label: 'Neapolitan Song',
+    eyebrow: 'Caruso · Coppia Voccia · canzone napoletana',
+    blurb:
+      'Caruso singing the songs of his own city, beside the comic duets and street songs of Naples recorded for ' +
+      'Italian America.',
+    rightsNote: WORLD_NOTE,
+    featured: [
+      '78_core-ngrato_enrico-caruso-victor-orchestra-cordiferro-carolli_gbia0554651a',
+      '78_mamma-mia-che-vo-sap_enrico-caruso-nutile_gbia0567918a',
+      'loc-jukebox-42384-o-bicchiere-e-vino',
+      'loc-jukebox-40035-sangenella-e-salierno',
+      'loc-jukebox-327667-sciore-e-luntananza',
+    ],
+    query: `${WORLD78} AND (subject:Neapolitan OR (language:Italian AND subject:Folk))`,
+  },
+  {
+    id: 'IRISH_CELTIC',
+    group: 'WORLD',
+    label: 'Irish & Celtic',
+    eyebrow: 'Tom Ennis · James Morrison · Danny Boy',
+    blurb:
+      'Uilleann pipes and fiddle from the great New York sessions, Tom Ennis and James Morrison playing jigs and ' +
+      'hornpipes, beside the Irish ballads every parlour knew.',
+    rightsNote: WORLD_NOTE,
+    featured: [
+      'TomEnnisAndJamesMorrisonLondonderryHornpipe',
+      'TomEnnisSarsfieldsJigTheRakesofClonmel',
+      'TomEnnisBlackberryBlossomLimestoneRockBucksofOranmore',
+      'TomMorrisonMaggieintheWoods',
+      '78_danny-boy_hughes-macklin-f-e-weatherly_gbia3014312b',
+    ],
+    query: `${WORLD78} AND (subject:Irish OR subject:Ireland OR subject:Scottish)`,
+  },
+  {
+    id: 'HAWAIIAN',
+    group: 'WORLD',
+    label: 'Hawaiian',
+    eyebrow: 'Kealakai · Louise & Ferera · steel guitar',
+    blurb:
+      'The steel guitar that Hawaiian players carried to the mainland in the 1910s, and the Hawaiian-language ' +
+      'songs that came with it.',
+    rightsNote: WORLD_NOTE,
+    featured: [
+      '78_waialae-hawaiian-waltz-song_kealakae_gbia0179270b',
+      '78_missouri-waltz-hush-a-bye-ma-baby_louise-and-ferera-waikiki-orchestra-eppel-logan_gbia0337313a',
+      '78_my-waikiki-mermaid_waikiki-hawaiian-orchestra_gbia0173666a',
+      '78_my-hawaiian-melody_waikiki-hawaiian-orchestra-ringle-coots_gbia0083615a',
+    ],
+    query: `${WORLD78} AND (subject:Hawaiian OR language:Hawaiian OR language:haw)`,
+  },
+  {
+    id: 'SLAVIC_EASTERN',
+    group: 'WORLD',
+    label: 'Slavic & Eastern Europe',
+    eyebrow: 'Russian opera · Czech kapela · Polish song',
+    blurb:
+      'Russian imperial opera singers on the earliest discs, a Prague village band and Polish songs: central and ' +
+      'eastern Europe before the borders moved.',
+    rightsNote: WORLD_NOTE,
+    featured: [
+      '78_mesicek_kapela-pana-hermana-praha_gbia0031782b',
+      '78_niechc-ci-kasiunio_wadysaw-ochrymowicz-sowa-t-wandycz_gbia0288681b',
+      '78_ahyouyounggirlsmillersaria_282_09',
+      '78_ohmydearcharmingone_176_03',
+      '78_ontheship_240_01',
+    ],
+    query: `${WORLD78} AND (language:Polish OR language:Czech OR language:Ukrainian OR language:Russian OR language:Lithuanian OR language:Hungarian OR language:Slovak)`,
+  },
+  {
+    id: 'NORDIC',
+    group: 'WORLD',
+    label: 'Nordic',
+    eyebrow: 'Swedish · Norwegian · Danish · Finnish',
+    blurb:
+      'Hymns, waltzes and folk songs of the Scandinavian and Finnish communities of the upper Midwest, from ' +
+      '"Deilig er jorden" to "Necken".',
+    rightsNote: WORLD_NOTE,
+    featured: [
+      'loc-jukebox-24608-deilig-er-jorden',
+      'loc-jukebox-21447-necken',
+      'loc-jukebox-19618-rida-ranka',
+      'loc-jukebox-36591-saa-danser-jeg-dig-im-de',
+      'loc-jukebox-21894-eg-elskar-dei-voggande-tonar',
+    ],
+    query: `${WORLD78} AND (language:Swedish OR language:Norwegian OR language:Danish OR language:Finnish)`,
+  },
+  {
+    id: 'EAST_ASIA',
+    group: 'WORLD',
+    label: 'Peking Opera & Japan',
+    eyebrow: 'Sun Juxian · Yu Shuyan · Yoshie Fujiwara',
+    blurb:
+      'Two great Peking opera singers, Sun Juxian and Yu Shuyan, beside the tenor Yoshie Fujiwara singing ' +
+      '"Kōjō no Tsuki". A small shelf: little East Asian music from before 1926 has been freely digitised yet.',
+    rightsNote: WORLD_NOTE,
+    featured: [
+      'SunJuxianzhongchenbupasis1905VictorRecordC54719B10inch',
+      'SUNJUXIANSANNIANGJIAOZIZ1908Victor48088BG',
+      'teb-131',
+      '78_koj-no-tsuki-moon-on-ruined-castles_yoshie-fujiwara_gbia0187330b',
+      '78_oki-no-kamome-fishermans-song_yoshie-fujiwara_gbia0260394a',
+    ],
+    query: `${WORLD78} AND (language:Japanese OR language:Chinese OR language:jpn OR language:chi OR subject:Japanese OR subject:Chinese)`,
+  },
 ];
 
-/** Search scope used by the library's own search box — held to the same PD ceiling. */
-export const PD_SEARCH_SCOPE = G78;
+/** Search scope used by the library's own search box — held to the same PD ceiling.
+ *  resolveItem re-checks each hit's own date, so a mis-dated search hit still cannot play. */
+export const PD_SEARCH_SCOPE = WORLD78;
 
 export const getShelf = (id: PDShelfId): PDShelf | undefined => PD_SHELVES.find(s => s.id === id);

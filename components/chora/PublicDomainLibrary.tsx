@@ -284,6 +284,11 @@ const BOOK_SOUNDTRACK_SHELF: PDShelf = {
 
 const ALL_SHELVES: PDShelf[] = [BOOK_SOUNDTRACK_SHELF, ...PD_SHELVES];
 
+const SHELF_ROWS: { label: string; shelves: PDShelf[] }[] = [
+  { label: 'Through the eras', shelves: [BOOK_SOUNDTRACK_SHELF, ...PD_SHELVES.filter(s => s.group !== 'WORLD')] },
+  { label: 'Around the world', shelves: PD_SHELVES.filter(s => s.group === 'WORLD') },
+];
+
 function buildClassicBookPdItems(): PDItem[] {
   const orderedAlbums: ClassicBookSoundtrackAlbum[] = [
     CLASSIC_BOOK_SOUNDTRACKS['pride-and-prejudice'],
@@ -310,6 +315,7 @@ function buildClassicBookPdItems(): PDItem[] {
         basis: 'ITEM_LICENCE',
         label: 'Chora Original Literary Score · 6 Movements',
         detail: `Composed & seeded in Melos Studio for ${album.bookTitle} (${album.author}).`,
+        servable: true,
       },
       tracks: album.tracks.map(tr => ({
         id: `chora_book_${album.bookThemeId}_${tr.trackNumber}`,
@@ -370,7 +376,7 @@ const PublicDomainLibrary: React.FC = () => {
     const req = ++reqRef.current;
     setSearching(true);
     setOpen(null);
-    // Scope the free-text search to the same pre-1929 window the shelves use, so a
+    // Scope the free-text search to the same US recording cutoff the shelves use, so a
     // search can't surface material whose public domain status we can't stand behind.
     const res = await searchPlayableItems(`${PD_SEARCH_SCOPE} AND (${q})`, 18);
     if (reqRef.current === req) { setSearchResults(res); setSearching(false); }
@@ -441,24 +447,31 @@ const PublicDomainLibrary: React.FC = () => {
         </div>
       </div>
 
-      {/* Shelf switch */}
+      {/* Shelf switch — the Western eras, then the world map */}
       {!searchResults && (
-        <div className="flex gap-2 flex-wrap">
-          {ALL_SHELVES.map(s => {
-            const active = s.id === shelfId;
-            return (
-              <button
-                key={s.id}
-                onClick={() => setShelfId(s.id)}
-                className="px-4 py-2.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border"
-                style={active
-                  ? { background: ACCENT, color: '#000', borderColor: 'transparent' }
-                  : { background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.5)' }}
-              >
-                {s.label}
-              </button>
-            );
-          })}
+        <div className="space-y-3">
+          {SHELF_ROWS.map(row => (
+            <div key={row.label}>
+              <p className="text-[8px] font-black uppercase tracking-[0.35em] text-white/30 mb-2">{row.label}</p>
+              <div className="flex gap-2 flex-wrap">
+                {row.shelves.map(s => {
+                  const active = s.id === shelfId;
+                  return (
+                    <button
+                      key={s.id}
+                      onClick={() => setShelfId(s.id)}
+                      className="px-4 py-2.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border"
+                      style={active
+                        ? { background: ACCENT, color: '#000', borderColor: 'transparent' }
+                        : { background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.5)' }}
+                    >
+                      {s.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
