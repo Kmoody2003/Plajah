@@ -75,7 +75,7 @@ async function loadLocalOrCloudVoca(uid: string) {
 
 // ── Teacher: real class performance ───────────────────────────────────────────────────────────
 import { getDocs, collection, query, where, limit } from 'firebase/firestore';
-import { db } from './firebase';
+import { opsDb } from './firebase';
 import type { TemplateSubmission } from './assignmentTemplateService';
 
 export interface ClassMetric {
@@ -97,7 +97,7 @@ export interface TeacherMetrics {
 export async function loadTeacherMetrics(teacherUid: string, classes: Array<{ id: string; title?: string; enrolledStudents?: string[] }>): Promise<TeacherMetrics> {
   let subs: TemplateSubmission[] = [];
   try {
-    const snap = await getDocs(query(collection(db, 'templateSubmissions'), where('teacherUid', '==', teacherUid), limit(500)));
+    const snap = await getDocs(query(collection(opsDb, 'templateSubmissions'), where('teacherUid', '==', teacherUid), limit(500)));
     subs = snap.docs.map(d => ({ ...(d.data() as any), id: d.id } as TemplateSubmission));
   } catch { /* no submissions yet, or rules */ }
 

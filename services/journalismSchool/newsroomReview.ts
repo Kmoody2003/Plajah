@@ -12,7 +12,7 @@
 // (studentDesk.applyTeacherReview). Firestore rules let only the teacher write `review`.
 
 import { addDoc, collection, doc, getDocs, limit, query, updateDoc, where } from 'firebase/firestore';
-import { db } from '../firebase';
+import { opsDb } from '../firebase';
 import { onSnapshot } from '../safeSnapshot';
 import { createNotification } from '../backendService';
 import {
@@ -27,7 +27,7 @@ export type { NewsroomReview, NewsroomSnapshot };
 export async function listMyNewsroomAssignments(studentId: string): Promise<TemplateAssignment[]> {
   if (!studentId) return [];
   try {
-    const snap = await getDocs(query(collection(db, 'templateAssignments'), where('studentIds', 'array-contains', studentId), limit(100)));
+    const snap = await getDocs(query(collection(opsDb, 'templateAssignments'), where('studentIds', 'array-contains', studentId), limit(100)));
     return snap.docs
       .map(d => ({ ...(d.data() as Omit<TemplateAssignment, 'id'>), id: d.id }))
       .filter(a => !!a.newsroomKitId)
@@ -42,7 +42,7 @@ export async function listMyNewsroomAssignments(studentId: string): Promise<Temp
 export async function turnInStory(input: { story: StudentStory; assignment: TemplateAssignment; studentId: string; studentName: string }): Promise<string | null> {
   const { story, assignment, studentId, studentName } = input;
   try {
-    const ref = await addDoc(collection(db, 'templateSubmissions'), {
+    const ref = await addDoc(collection(opsDb, 'templateSubmissions'), {
       assignmentId: assignment.id,
       templateId: assignment.templateId,
       studentId,
@@ -78,7 +78,7 @@ export async function requestStoryChanges(input: { submission: TemplateSubmissio
   const { submission, note, teacher } = input;
   const review: NewsroomReview = { decision: 'changes', note: note.trim(), byUid: teacher.uid, byName: teacher.name, at: Date.now() };
   try {
-    await updateDoc(doc(db, 'templateSubmissions', submission.id), { status: 'returned', review });
+    await updateDoc(doc(opsDb, 'templateSubmissions', submission.id), { status: 'returned', review });
     await createNotification({
       userId: submission.studentId, senderId: teacher.uid, senderName: teacher.name, senderPhoto: '', type: 'CONTENT',
       title: 'Your editor sent your story back', message: review.note || 'Revise it in the Student Newsroom and turn it in again.',
@@ -99,7 +99,7 @@ export async function approveStory(input: {
   const out = await gradeSubmission({ submission, template, scores, feedback, gradedBy: teacher.uid });
   if (!out.ok) return out;
   const review: NewsroomReview = { decision: 'approved', note: feedback.trim(), byUid: teacher.uid, byName: teacher.name, at: Date.now() };
-  try { await updateDoc(doc(db, 'templateSubmissions', submission.id), { review }); }
+  try { await updateDoc(doc(opsDb, 'templateSubmissions', submission.id), { review }); }
   catch (e) { console.warn('[newsroom] approval record failed:', (e as Error)?.message); return { ...out, ok: false }; }
   return out;
 }
@@ -108,7 +108,7 @@ export async function approveStory(input: {
 export function watchMyNewsroomSubmissions(studentId: string, cb: (subs: TemplateSubmission[]) => void): () => void {
   if (!studentId) return () => {};
   return onSnapshot(
-    query(collection(db, 'templateSubmissions'), where('studentId', '==', studentId), limit(200)),
+    query(collection(opsDb, 'templateSubmissions'), where('studentId', '==', studentId), limit(200)),
     snap => cb(snap.docs.map(d => ({ ...(d.data() as Omit<TemplateSubmission, 'id'>), id: d.id })).filter(s => !!s.newsroom)),
     () => cb([]),
   );

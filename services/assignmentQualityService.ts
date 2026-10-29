@@ -1,5 +1,5 @@
 import { addDoc, collection, doc, increment, setDoc } from 'firebase/firestore';
-import { auth, db } from './firebase';
+import { auth, opsDb } from './firebase';
 
 export type AssignmentQualityEventKind = 'CRASH' | 'RENDER_FAILURE' | 'SCAN_FAILURE' | 'FORMAT_FAILURE' | 'SUBMISSION_FAILURE' | 'USER_REPORT';
 export type AssignmentQualitySeverity = 'INFO' | 'WARNING' | 'ERROR' | 'FATAL';
@@ -53,7 +53,7 @@ export async function recordAssignmentQualityEvent(input: AssignmentQualityEvent
   };
   if (input.simulate) { recordLocal('event', event); return true; }
   try {
-    await addDoc(collection(db, 'assignment_quality_events'), event);
+    await addDoc(collection(opsDb, 'assignment_quality_events'), event);
     const summary = {
       worksheetId: input.worksheetId, assignmentId: input.assignmentId || null, title: event.title,
       totalEvents: increment(1), failureEvents: increment(input.severity === 'ERROR' || input.severity === 'FATAL' ? 1 : 0),
@@ -62,8 +62,8 @@ export async function recordAssignmentQualityEvent(input: AssignmentQualityEvent
     // Only the worksheet owner may mutate aggregates. Student/parent events remain safely stored;
     // a trusted aggregator can roll them up later without granting clients cross-role write access.
     if (input.actorRole === 'TEACHER' || input.actorRole === 'AUTHOR') {
-      await setDoc(doc(db, 'assignment_quality', qualityKey(input)), summary, { merge: true });
-      if (input.assignmentId) await setDoc(doc(db, 'worksheet_assignments', input.assignmentId), { qualitySummary: summary }, { merge: true });
+      await setDoc(doc(opsDb, 'assignment_quality', qualityKey(input)), summary, { merge: true });
+      if (input.assignmentId) await setDoc(doc(opsDb, 'worksheet_assignments', input.assignmentId), { qualitySummary: summary }, { merge: true });
     }
     return true;
   } catch (error) {
@@ -84,14 +84,14 @@ export async function submitAssignmentQualityFeedback(input: AssignmentQualityFe
   };
   if (input.simulate) { recordLocal('feedback', feedback); return true; }
   try {
-    await addDoc(collection(db, 'assignment_quality_feedback'), feedback);
+    await addDoc(collection(opsDb, 'assignment_quality_feedback'), feedback);
     const summary = {
       worksheetId: input.worksheetId, assignmentId: input.assignmentId || null, title: feedback.title,
       totalFeedback: increment(1), ratingTotal: increment(rating), lastFeedbackAt: at, updatedAt: at,
     };
     if (input.actorRole === 'TEACHER' || input.actorRole === 'AUTHOR') {
-      await setDoc(doc(db, 'assignment_quality', qualityKey(input)), summary, { merge: true });
-      if (input.assignmentId) await setDoc(doc(db, 'worksheet_assignments', input.assignmentId), { qualitySummary: summary }, { merge: true });
+      await setDoc(doc(opsDb, 'assignment_quality', qualityKey(input)), summary, { merge: true });
+      if (input.assignmentId) await setDoc(doc(opsDb, 'worksheet_assignments', input.assignmentId), { qualitySummary: summary }, { merge: true });
     }
     return true;
   } catch (error) {

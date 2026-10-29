@@ -1,6 +1,6 @@
-// Academia worksheet answer keys + grades in firestore.rules, evaluated with the Firebase Rules REST `:test`
+// Academia worksheet answer keys + grades in firestore.ops.rules (plajah-ops since 2026-10-29), evaluated with the Firebase Rules REST `:test`
 // API. Read-only: DEPLOYS NOTHING. Runs against the compacted deploy artifact so what's tested is what ships:
-//   node scripts/minifyRules.mjs firestore.rules <tmp>/rules.min && node scripts/testWorksheetRules.mjs <tmp>/rules.min
+//   node scripts/minifyRules.mjs firestore.ops.rules <tmp>/ops.min && node scripts/testWorksheetRules.mjs <tmp>/ops.min
 // Auth: RULES_ACCESS_TOKEN (`gcloud auth print-access-token`), else a fresh firebase-tools login.
 import fs from 'node:fs';
 import os from 'node:os';

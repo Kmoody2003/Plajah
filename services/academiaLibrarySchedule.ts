@@ -2,7 +2,7 @@
 // Delivery goes through the normal Academia homework path (publishWorksheet: answer keys stay server-side,
 // students and guardians are notified); this module only lists and moves what the library scheduled.
 import { collection, doc, getDoc, getDocs, query, updateDoc, where } from 'firebase/firestore';
-import { db } from './firebase';
+import { opsDb } from './firebase';
 import { publishWorksheet } from './worksheetAssignmentService';
 import { loadClassRoster, type TeachingClass } from './teacherClasses';
 import type { IngestedCurriculumUnit } from './curriculumIngestionService';
@@ -40,7 +40,7 @@ export async function publishLibraryUnitToClass(cls: TeachingClass, unit: Ingest
 
 /** Homework this teacher has assigned to one class, newest due last. */
 export async function listClassHomework(teacherUid: string, classId: string): Promise<ScheduledHomework[]> {
-  const snap = await getDocs(query(collection(db, 'worksheet_assignments'), where('teacherUid', '==', teacherUid), where('classId', '==', classId))).catch(() => null);
+  const snap = await getDocs(query(collection(opsDb, 'worksheet_assignments'), where('teacherUid', '==', teacherUid), where('classId', '==', classId))).catch(() => null);
   return (snap?.docs || [])
     .map(d => {
       const a = d.data() as Record<string, any>;
@@ -54,11 +54,11 @@ export async function listClassHomework(teacherUid: string, classId: string): Pr
 export async function rescheduleClassHomework(assignmentId: string, at: { dueAt: number; opensAt?: number | null }): Promise<boolean> {
   const patch = { dueDate: at.dueAt, opensAt: at.opensAt && at.opensAt > Date.now() ? at.opensAt : null };
   try {
-    const ref = doc(db, 'worksheet_assignments', assignmentId);
+    const ref = doc(opsDb, 'worksheet_assignments', assignmentId);
     const a = (await getDoc(ref)).data() as { worksheetId?: string; studentIds?: string[] } | undefined;
     await updateDoc(ref, patch);
     // Each student's copy is worksheet_submissions/{worksheetId}_{studentId} (publishWorksheet).
-    if (a?.worksheetId) await Promise.all((a.studentIds || []).map(sid => updateDoc(doc(db, 'worksheet_submissions', `${a.worksheetId}_${sid}`), patch).catch(() => null)));
+    if (a?.worksheetId) await Promise.all((a.studentIds || []).map(sid => updateDoc(doc(opsDb, 'worksheet_submissions', `${a.worksheetId}_${sid}`), patch).catch(() => null)));
     return true;
   } catch {
     return false;

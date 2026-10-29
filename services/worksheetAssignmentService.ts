@@ -22,7 +22,7 @@
 
 import { collection, doc, addDoc, arrayUnion, setDoc, getDoc, updateDoc, query, where, getDocs } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, storage, auth } from './firebase';
+import { opsDb, storage, auth } from './firebase';
 import { createNotification, fetchUserProfiles } from './backendService';
 import { unlockAchievementByTrigger } from './achievementService';
 import { appendRecord } from './learningLedgerService';
@@ -74,14 +74,14 @@ export const assignmentLink = (worksheetId: string) => `?view=assignment&id=${wo
 /** Load a persisted DigitalWorksheet by id (for the assignment deep-link). Null if missing/failed. */
 export async function fetchWorksheet(id: string): Promise<DigitalWorksheet | null> {
   try {
-    const snap = await getDoc(doc(db, 'digital_worksheets', id));
+    const snap = await getDoc(doc(opsDb, 'digital_worksheets', id));
     if (!snap.exists()) return null;
     const sheet: DigitalWorksheet = { id: snap.id, ...(snap.data() as Omit<DigitalWorksheet, 'id'>) };
     const uid = auth.currentUser?.uid;
     if (uid && sheet.createdBy === uid) {
       // The teacher: merge the key back in. A worksheet saved before keys were split gets split now.
       if (hasEmbeddedKeys(sheet)) { await writeSplitWorksheet(id, sheet).catch(e => console.warn('[worksheetAssignment] key split failed', e)); return sheet; }
-      const key = await getDoc(doc(db, 'digital_worksheet_keys', id)).catch(() => null);
+      const key = await getDoc(doc(opsDb, 'digital_worksheet_keys', id)).catch(() => null);
       return withWorksheetKeys(sheet, key?.exists() ? (key.data().keys as WorksheetAnswerKeys) : null);
     }
     // Everyone else gets the student copy, even from an old document that still carries its key.
@@ -95,9 +95,9 @@ export async function fetchWorksheet(id: string): Promise<DigitalWorksheet | nul
 /** Store the student copy on digital_worksheets/{id} and the key on teacher-only digital_worksheet_keys/{id}. */
 async function writeSplitWorksheet(id: string, sheet: DigitalWorksheet): Promise<void> {
   const { publicSheet, keys } = splitWorksheetKeys(sheet);
-  await setDoc(doc(db, 'digital_worksheet_keys', id), { worksheetId: id, createdBy: sheet.createdBy, keys, updatedAt: Date.now() });
+  await setDoc(doc(opsDb, 'digital_worksheet_keys', id), { worksheetId: id, createdBy: sheet.createdBy, keys, updatedAt: Date.now() });
   const { id: _drop, ...rest } = publicSheet;
-  await setDoc(doc(db, 'digital_worksheets', id), JSON.parse(JSON.stringify(rest)));
+  await setDoc(doc(opsDb, 'digital_worksheets', id), JSON.parse(JSON.stringify(rest)));
 }
 
 /** Save a DigitalWorksheet to Firestore. Returns the new id, or null on failure (non-fatal). */
@@ -106,7 +106,7 @@ export async function saveWorksheet(sheet: DigitalWorksheet, originalFile?: File
     const { id: _drop, ...full } = sheet;
     const { publicSheet: rest, keys } = splitWorksheetKeys(full as DigitalWorksheet);
     const signedInUid = auth.currentUser?.uid;
-    const worksheetRef = await addDoc(collection(db, 'digital_worksheets'), {
+    const worksheetRef = await addDoc(collection(opsDb, 'digital_worksheets'), {
       ...rest,
       // Rules bind authorship to the signed-in teacher. Existing callers still provide createdBy,
       // but a stale demo identity must never become the owner of a production document.
@@ -115,7 +115,7 @@ export async function saveWorksheet(sheet: DigitalWorksheet, originalFile?: File
       savedAt: Date.now(),
     });
     if (Object.keys(keys).length) {
-      await setDoc(doc(db, 'digital_worksheet_keys', worksheetRef.id), { worksheetId: worksheetRef.id, createdBy: signedInUid || rest.createdBy, keys, updatedAt: Date.now() });
+      await setDoc(doc(opsDb, 'digital_worksheet_keys', worksheetRef.id), { worksheetId: worksheetRef.id, createdBy: signedInUid || rest.createdBy, keys, updatedAt: Date.now() });
     }
     if (originalFile && auth.currentUser) {
       try {
@@ -172,7 +172,7 @@ export async function publishWorksheet(input: PublishInput): Promise<WireResult>
   if (worksheetId) {
     try {
       const assignedAt = Date.now();
-      const ref = await addDoc(collection(db, 'worksheet_assignments'), {
+      const ref = await addDoc(collection(opsDb, 'worksheet_assignments'), {
         worksheetId, classId, className,
         teacherUid: teacher.uid,
         title: sheet.title, subject: sheet.subject, objective: sheet.objective,
@@ -188,7 +188,7 @@ export async function publishWorksheet(input: PublishInput): Promise<WireResult>
       });
       result.assignmentId = ref.id;
       if (!simulate) {
-        await Promise.all(students.map(student => setDoc(doc(db, 'worksheet_submissions', `${worksheetId}_${student.id}`), {
+        await Promise.all(students.map(student => setDoc(doc(opsDb, 'worksheet_submissions', `${worksheetId}_${student.id}`), {
           worksheetId, assignmentId: ref.id, studentId: student.id, studentName: student.name,
           // Title + due ride on each submission so a guardian's calendar can show it without
           // reading the class-wide assignment (which they are never given).
@@ -229,7 +229,7 @@ export async function publishWorksheet(input: PublishInput): Promise<WireResult>
     // The assignment was already created so students could be notified immediately. Extend the
     // same access boundary to guardians before sending their deep links.
     if (guardianUids.length && worksheetId) {
-      await updateDoc(doc(db, 'digital_worksheets', worksheetId), {
+      await updateDoc(doc(opsDb, 'digital_worksheets', worksheetId), {
         accessUids: arrayUnion(...guardianUids),
       }).catch(error => console.warn('[worksheetAssignment] guardian worksheet access update failed', error));
       // A guardian may see only their own child's submission, never the whole class roster.
@@ -238,7 +238,7 @@ export async function publishWorksheet(input: PublishInput): Promise<WireResult>
           .filter(pair => pair.studentId === student.id)
           .map(pair => pair.guardianUid);
         if (studentGuardianUids.length) {
-          await updateDoc(doc(db, 'worksheet_submissions', `${worksheetId}_${student.id}`), {
+          await updateDoc(doc(opsDb, 'worksheet_submissions', `${worksheetId}_${student.id}`), {
             guardianUids: arrayUnion(...studentGuardianUids),
           }).catch(error => console.warn('[worksheetAssignment] guardian submission access update failed', error));
         }
@@ -325,7 +325,7 @@ export async function fetchAssignmentBrief(
 ): Promise<TurnInBrief> {
   const assessments: WorksheetPreAssessment[] = [];
   try {
-    const snap = await getDocs(query(collection(db, 'worksheet_submissions'), where('worksheetId', '==', worksheetId)));
+    const snap = await getDocs(query(collection(opsDb, 'worksheet_submissions'), where('worksheetId', '==', worksheetId)));
     snap.forEach(docSnap => {
       const data: any = docSnap.data();
       if (data.status !== 'turned-in') return;
@@ -352,7 +352,7 @@ export async function confirmSubmissionField(
   teacher?: TeacherRef,
 ): Promise<boolean> {
   try {
-    const submissionRef = doc(db, 'worksheet_submissions', `${worksheetId}_${studentId}`);
+    const submissionRef = doc(opsDb, 'worksheet_submissions', `${worksheetId}_${studentId}`);
     await updateDoc(submissionRef, {
       [`teacherOverrides.${fieldId}`]: { correct, at: Date.now(), by: teacher?.uid || null },
       teacherReviewedAt: Date.now(),
@@ -371,7 +371,7 @@ export async function markWorksheetOpened(input: {
 }): Promise<number> {
   const openedAt = Date.now();
   if (input.simulate) return openedAt;
-  const submissionRef = doc(db, 'worksheet_submissions', `${input.worksheetId}_${input.studentId}`);
+  const submissionRef = doc(opsDb, 'worksheet_submissions', `${input.worksheetId}_${input.studentId}`);
   try {
     const existing = await getDoc(submissionRef);
     const previous = existing.exists() ? existing.data() : {};
@@ -425,7 +425,7 @@ export async function turnInWorksheet(input: TurnInInput): Promise<TurnInResult>
   if (!simulate) {
     // 1. Persist the submission (one doc per student per worksheet).
     try {
-      const submissionRef = doc(db, 'worksheet_submissions', `${worksheetId}_${studentId}`);
+      const submissionRef = doc(opsDb, 'worksheet_submissions', `${worksheetId}_${studentId}`);
       const previous = await getDoc(submissionRef).catch(() => null);
       const previousData = previous?.exists() ? previous.data() : {};
       openedAt = typeof previousData.openedAt === 'number' ? previousData.openedAt : submittedAt;

@@ -8,14 +8,15 @@
 // membersOnly offers apply only when a recognized Plajah customer is attached to the ticket.
 
 import { collection, doc, getDocs, setDoc, deleteDoc } from 'firebase/firestore';
-import { db, auth } from './backendService';
+import { auth } from './backendService';
+import { opsDb } from './firebase';
 
 import type { BusinessOffer } from './offersCore';
 export type { OfferKind, BusinessOffer } from './offersCore';
 
 export async function fetchOffers(businessUid: string): Promise<BusinessOffer[]> {
   try {
-    const snap = await getDocs(collection(db, 'businesses', businessUid, 'offers'));
+    const snap = await getDocs(collection(opsDb, 'businesses', businessUid, 'offers'));
     return snap.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as BusinessOffer[];
   } catch { return []; }
 }
@@ -23,12 +24,12 @@ export async function fetchOffers(businessUid: string): Promise<BusinessOffer[]>
 export async function saveOffer(businessUid: string, offer: Omit<BusinessOffer, 'id'> & { id?: string }): Promise<string> {
   const id = offer.id || `offer_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const { id: _drop, ...rest } = offer as any;
-  await setDoc(doc(db, 'businesses', businessUid, 'offers', id), rest, { merge: true });
+  await setDoc(doc(opsDb, 'businesses', businessUid, 'offers', id), rest, { merge: true });
   return id;
 }
 
 export async function deleteOffer(businessUid: string, id: string): Promise<void> {
-  await deleteDoc(doc(db, 'businesses', businessUid, 'offers', id));
+  await deleteDoc(doc(opsDb, 'businesses', businessUid, 'offers', id));
 }
 
 export { offerDiscountCents, bestOffer } from './offersCore';

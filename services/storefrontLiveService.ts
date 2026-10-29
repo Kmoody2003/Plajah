@@ -10,7 +10,7 @@
 
 import { collection, doc, setDoc, deleteDoc, getDoc, getDocs, addDoc } from 'firebase/firestore';
 import { onSnapshot } from './safeSnapshot';
-import { db, auth } from './firebase';
+import { db, opsDb, auth } from './firebase';
 
 export interface NowPlayingTrack {
   trackId?: string;
@@ -60,20 +60,20 @@ export function getCurrentPosition(): Promise<{ lat: number; lng: number }> {
 
 // ── Now Playing ────────────────────────────────────────────────────────────────
 export async function publishNowPlaying(businessUid: string, track: NowPlayingTrack): Promise<void> {
-  await setDoc(doc(db, 'businesses', businessUid, 'nowPlaying', NOW_DOC), {
+  await setDoc(doc(opsDb, 'businesses', businessUid, 'nowPlaying', NOW_DOC), {
     ...track, startedAt: track.startedAt || Date.now(),
   });
 }
 export async function clearNowPlaying(businessUid: string): Promise<void> {
-  await deleteDoc(doc(db, 'businesses', businessUid, 'nowPlaying', NOW_DOC)).catch(() => {});
+  await deleteDoc(doc(opsDb, 'businesses', businessUid, 'nowPlaying', NOW_DOC)).catch(() => {});
 }
 export async function fetchNowPlaying(businessUid: string): Promise<NowPlayingTrack | null> {
-  const snap = await getDoc(doc(db, 'businesses', businessUid, 'nowPlaying', NOW_DOC));
+  const snap = await getDoc(doc(opsDb, 'businesses', businessUid, 'nowPlaying', NOW_DOC));
   return snap.exists() ? (snap.data() as NowPlayingTrack) : null;
 }
 /** Live subscription to the business's current track (null when nothing is playing). */
 export function subscribeNowPlaying(businessUid: string, cb: (t: NowPlayingTrack | null) => void): () => void {
-  return onSnapshot(doc(db, 'businesses', businessUid, 'nowPlaying', NOW_DOC),
+  return onSnapshot(doc(opsDb, 'businesses', businessUid, 'nowPlaying', NOW_DOC),
     (snap: any) => cb(snap.exists() ? (snap.data() as NowPlayingTrack) : null),
     () => cb(null));
 }
@@ -82,24 +82,24 @@ export function subscribeNowPlaying(businessUid: string, cb: (t: NowPlayingTrack
 export async function checkIn(businessUid: string, name?: string, photoURL?: string): Promise<void> {
   const uid = auth.currentUser?.uid;
   if (!uid) throw new Error('Sign in to check in.');
-  await setDoc(doc(db, 'businesses', businessUid, 'presence', uid), {
+  await setDoc(doc(opsDb, 'businesses', businessUid, 'presence', uid), {
     uid, name: name || auth.currentUser?.displayName || 'Guest', photoURL: photoURL || auth.currentUser?.photoURL || '', checkedInAt: Date.now(),
   });
 }
 export async function checkOut(businessUid: string): Promise<void> {
   const uid = auth.currentUser?.uid;
   if (!uid) return;
-  await deleteDoc(doc(db, 'businesses', businessUid, 'presence', uid)).catch(() => {});
+  await deleteDoc(doc(opsDb, 'businesses', businessUid, 'presence', uid)).catch(() => {});
 }
 export async function isCheckedIn(businessUid: string): Promise<boolean> {
   const uid = auth.currentUser?.uid;
   if (!uid) return false;
-  const snap = await getDoc(doc(db, 'businesses', businessUid, 'presence', uid));
+  const snap = await getDoc(doc(opsDb, 'businesses', businessUid, 'presence', uid));
   return snap.exists();
 }
 /** Business view — live list of checked-in customers. */
 export function subscribePresence(businessUid: string, cb: (list: PresenceEntry[]) => void): () => void {
-  return onSnapshot(collection(db, 'businesses', businessUid, 'presence'),
+  return onSnapshot(collection(opsDb, 'businesses', businessUid, 'presence'),
     (snap: any) => cb(snap.docs.map((d: any) => d.data() as PresenceEntry).sort((a: PresenceEntry, b: PresenceEntry) => b.checkedInAt - a.checkedInAt)),
     () => cb([]));
 }

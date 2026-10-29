@@ -6,7 +6,7 @@
  * Every loader is failure-tolerant — a rules denial or a missing doc is just "nothing yet".
  */
 import { getDocs, collection, query, where, limit, orderBy } from 'firebase/firestore';
-import { db } from './firebase';
+import { db, opsDb } from './firebase';
 import { fetchUserProfiles, fetchChatRooms } from './backendService';
 import { loadProficiency, loadRecords, globalBenchmark, type LearningRecord } from './learningLedgerService';
 import { loadLearnerStats, type LearnerStats } from './academiaStats';
@@ -79,9 +79,9 @@ const mean = (xs: number[]) => (xs.length ? Math.round(xs.reduce((a, b) => a + b
 
 export async function loadStudentDossier(teacherUid: string, student: RosterStudent, me?: string): Promise<StudentDossier> {
   const [subsAll, asgAll, prof, records, apps, rooms] = await Promise.all([
-    getDocs(query(collection(db, 'templateSubmissions'), where('teacherUid', '==', teacherUid), limit(500)))
+    getDocs(query(collection(opsDb, 'templateSubmissions'), where('teacherUid', '==', teacherUid), limit(500)))
       .then(s => s.docs.map(d => ({ ...(d.data() as any), id: d.id } as TemplateSubmission))).catch(() => [] as TemplateSubmission[]),
-    getDocs(query(collection(db, 'templateAssignments'), where('teacherUid', '==', teacherUid), limit(300)))
+    getDocs(query(collection(opsDb, 'templateAssignments'), where('teacherUid', '==', teacherUid), limit(300)))
       .then(s => s.docs.map(d => ({ ...(d.data() as any), id: d.id } as TemplateAssignment))).catch(() => [] as TemplateAssignment[]),
     loadProficiency(student.uid).catch(() => null),
     loadRecords(student.uid, 12).catch(() => [] as LearningRecord[]),
@@ -158,7 +158,7 @@ export interface StudentScoreboard { gradePct: number | null; turnedIn: number; 
 export async function loadStudentScoreboard(uid: string): Promise<StudentScoreboard> {
   const [due, subs] = await Promise.all([
     fetchStudentDueWork(uid, 20).catch(() => [] as DueItem[]),
-    getDocs(query(collection(db, 'templateSubmissions'), where('studentId', '==', uid), limit(60)))
+    getDocs(query(collection(opsDb, 'templateSubmissions'), where('studentId', '==', uid), limit(60)))
       .then(s => s.docs.map(d => ({ ...(d.data() as any), id: d.id } as TemplateSubmission))).catch(() => [] as TemplateSubmission[]),
   ]);
   const recent = [...subs].sort((a, b) => b.submittedAt - a.submittedAt).slice(0, 8);

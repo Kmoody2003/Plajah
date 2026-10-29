@@ -28,7 +28,7 @@ import {
   collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc,
   onSnapshot, query, where,
 } from 'firebase/firestore';
-import { db } from './backendService';
+import { opsDb } from './firebase';
 import {
   PUBLIC_DOMAIN_HYMNS,
   PUBLIC_DOMAIN_GOSPEL_SONGS,
@@ -963,8 +963,8 @@ const COL = 'melosProductions';
 const stripUndefined = <T extends object>(o: T): T =>
   JSON.parse(JSON.stringify(o, (_k, v) => (v === undefined ? undefined : v)));
 
-const prodRef = (prodId: string) => doc(db, COL, prodId);
-const sub = (prodId: string, name: string) => collection(db, COL, prodId, name);
+const prodRef = (prodId: string) => doc(opsDb, COL, prodId);
+const sub = (prodId: string, name: string) => collection(opsDb, COL, prodId, name);
 
 export async function fetchProduction(prodId: string): Promise<MelosProduction | null> {
   try {
@@ -1002,7 +1002,7 @@ export async function deleteProduction(prodId: string) {
 /** Every production the user owns or collaborates on. */
 export async function fetchMyProductions(uidStr: string): Promise<MelosProduction[]> {
   try {
-    const q = query(collection(db, COL), where('memberUids', 'array-contains', uidStr));
+    const q = query(collection(opsDb, COL), where('memberUids', 'array-contains', uidStr));
     const snap = await getDocs(q);
     return snap.docs.map(d => d.data() as MelosProduction).sort((a, b) => b.updatedAt - a.updatedAt);
   } catch (e: any) {
@@ -1015,7 +1015,7 @@ export async function fetchMyProductions(uidStr: string): Promise<MelosProductio
 
 export function subProductions(uidStr: string, cb: (rows: MelosProduction[]) => void): () => void {
   try {
-    const q = query(collection(db, COL), where('memberUids', 'array-contains', uidStr));
+    const q = query(collection(opsDb, COL), where('memberUids', 'array-contains', uidStr));
     return onSnapshot(q,
       s => cb(s.docs.map(d => d.data() as MelosProduction).sort((a, b) => b.updatedAt - a.updatedAt)),
       e => console.warn('[melos] productions sub failed:', (e as Error)?.message?.slice(0, 160)));
@@ -1031,13 +1031,13 @@ function subscribe<T>(prodId: string, name: string, cb: (rows: T[]) => void): ()
   } catch { return () => {}; }
 }
 async function put<T extends { id: string }>(prodId: string, name: string, row: T) {
-  try { await setDoc(doc(db, COL, prodId, name, row.id), stripUndefined(row)); } catch {}
+  try { await setDoc(doc(opsDb, COL, prodId, name, row.id), stripUndefined(row)); } catch {}
 }
 async function patchRow(prodId: string, name: string, id: string, p: object) {
-  try { await updateDoc(doc(db, COL, prodId, name, id), stripUndefined({ ...p, updatedAt: Date.now() })); } catch {}
+  try { await updateDoc(doc(opsDb, COL, prodId, name, id), stripUndefined({ ...p, updatedAt: Date.now() })); } catch {}
 }
 async function remove(prodId: string, name: string, id: string) {
-  try { await deleteDoc(doc(db, COL, prodId, name, id)); } catch {}
+  try { await deleteDoc(doc(opsDb, COL, prodId, name, id)); } catch {}
 }
 async function fetchAll<T>(prodId: string, name: string): Promise<T[]> {
   try {

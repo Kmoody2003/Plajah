@@ -40,6 +40,20 @@ export const OPS_COLLECTIONS: ReadonlySet<string> = new Set([
   // Live co-editing of creative projects (services/coedit): ops log, snapshots, shared history,
   // presence and drafts. Self-contained rules (membership lives on the project doc).
   'coedit',
+  // Moved 2026-10-29 when plajah-prod's ruleset went over the 256,000-byte cap again (265,327).
+  // Education staff tools: worksheets + keys, template assignments, integrity, periodicals, council.
+  'digital_worksheets', 'digital_worksheet_keys', 'worksheet_assignments', 'worksheet_submissions',
+  'assignment_quality', 'assignment_quality_feedback', 'assignment_quality_events', 'teacherIntegrity',
+  'assignmentTemplates', 'templateSubmissions', 'templateLibrary', 'templateAssignments', 'districtPersona',
+  'periodicalIssues', 'educationCommons', 'educationCouncilMembers', 'progress_reports',
+  // Business back office: POS, inventory, staff, auto/laundry tickets, signage, garage sale.
+  'businesses', 'businessStaffIndex', 'storeProducts', 'storeOrders', 'stockMoves', 'storeRefunds',
+  'tickets', 'vehicles', 'inspections', 'signageSlides', 'garageSale',
+  // Press + rights admin.
+  'newsroom_stories', 'newsroom_pitches', 'newsroom_claims', 'press_credentials', 'licenseRequests',
+  'registryWorks', 'registryRefs', 'registryProducts', 'registryManifestations', 'ad_campaigns', 'promoBookings',
+  // Other self-contained blocks.
+  'bulletins', 'lectioServiceNotes', 'wellbeingRequests', 'scheduled_posts', 'experienceFilms', 'melosProductions',
 ]);
 
 /** plajah-prod collections copied read-only into plajah-ops, because ops rules authorize against them

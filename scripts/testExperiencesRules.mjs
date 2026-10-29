@@ -1,4 +1,4 @@
-// Evaluates the `experiences` + `experienceFilms` rules in firestore.rules with the Firebase Rules REST `:test` API.
+// Evaluates the `experiences` (firestore.rules) + `experienceFilms` (firestore.ops.rules) rules with the Firebase Rules REST `:test` API.
 // Read-only: it sends the rules text and test cases to Google for evaluation and DEPLOYS NOTHING.
 // Same approach as scripts/testPhiRules.mjs. Usage: node scripts/testExperiencesRules.mjs
 // Needs a live firebase-tools login (npx firebase-tools projects:list refreshes the token).
@@ -6,15 +6,19 @@ import fs from 'node:fs';
 import os from 'node:os';
 const PROJECT = 'gen-lang-client-0665118474';
 const cfgPath = os.homedir() + '/.config/configstore/firebase-tools.json';
-const tok = JSON.parse(fs.readFileSync(cfgPath, 'utf8')).tokens;
+const tok = process.env.RULES_ACCESS_TOKEN
+  ? { access_token: process.env.RULES_ACCESS_TOKEN, expires_at: Date.now() + 3600000 }
+  : JSON.parse(fs.readFileSync(cfgPath, 'utf8')).tokens;
 if (!tok?.access_token || tok.expires_at < Date.now() + 60000) { console.error('Token expired — run `npx firebase-tools projects:list` once, then retry.'); process.exit(2); }
 // The test API cannot express timestamps, and the whole 4000-line file is not accepted by it. So: take the REAL
 // helper functions and the REAL `experiences` / `experienceFilms` blocks out of firestore.rules (nothing retyped here)
 // and evaluate them in a minimal ruleset.
-const full = fs.readFileSync(new URL('../firestore.rules', import.meta.url), 'utf8');
-const grab = (startRe) => {
+// experienceFilms moved to plajah-ops on 2026-10-29, so its block comes from firestore.ops.rules.
+const prod = fs.readFileSync(new URL('../firestore.rules', import.meta.url), 'utf8');
+const ops = fs.readFileSync(new URL('../firestore.ops.rules', import.meta.url), 'utf8');
+const grab = (startRe, full = prod) => {
   const i = full.search(startRe);
-  if (i < 0) throw new Error('not found in firestore.rules: ' + startRe);
+  if (i < 0) throw new Error('rule not found: ' + startRe);
   let depth = 0;
   const open = full.slice(i).search(/\{\r?\n/);   // the body's brace (skips path wildcards like {expId}); the file is CRLF
   for (let k = i + open; k < full.length; k++) {
@@ -26,7 +30,7 @@ const grab = (startRe) => {
 const src = [
   "rules_version = '2';", 'service cloud.firestore {', '  match /databases/{database}/documents {',
   grab(/function isAuthenticated\(\)/), grab(/function isAdmin\(\)/),
-  grab(/match \/experiences\/\{expId\}/), grab(/match \/experienceFilms\/\{exhibitId\}/),
+  grab(/match \/experiences\/\{expId\}/), grab(/match \/experienceFilms\/\{exhibitId\}/, ops),
   '  }', '}', '',
 ].join('\n');
 

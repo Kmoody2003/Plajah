@@ -5,7 +5,9 @@
 import fs from 'node:fs';
 import os from 'node:os';
 const PROJECT = 'gen-lang-client-0665118474';
-const tok = JSON.parse(fs.readFileSync(os.homedir() + '/.config/configstore/firebase-tools.json', 'utf8')).tokens;
+const tok = process.env.RULES_ACCESS_TOKEN
+  ? { access_token: process.env.RULES_ACCESS_TOKEN, expires_at: Date.now() + 3600000 }
+  : JSON.parse(fs.readFileSync(os.homedir() + '/.config/configstore/firebase-tools.json', 'utf8')).tokens;
 if (!tok?.access_token || tok.expires_at < Date.now() + 60000) { console.error('Token expired — run `npx firebase-tools projects:list` once, then retry.'); process.exit(2); }
 const file = process.argv[2] || new URL('../firestore.rules.min', import.meta.url);
 const src = fs.readFileSync(file, 'utf8');

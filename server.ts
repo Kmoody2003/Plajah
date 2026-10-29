@@ -10999,7 +10999,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
   // ── Register actors: owner (own Plajah auth) OR a PIN-session staff member ──────────────────────
   // List a doc's subcollection (service-account runQuery scoped to the parent doc).
   const fsListSub = async (parentPath: string, collectionId: string, limitN = 200): Promise<Array<{ id: string; data: Record<string, any> }>> => {
-    const url = `https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/plajah-prod/documents/${parentPath}:runQuery`;
+    const url = `https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/${dbIdFor(parentPath)}/documents/${parentPath}:runQuery`;
     try {
       const r = await fetch(url, { method: 'POST', headers: { ...(await firestoreAuthHeaders()), 'Content-Type': 'application/json' }, body: JSON.stringify({ structuredQuery: { from: [{ collectionId }], limit: limitN } }) });
       if (!r.ok) return [];

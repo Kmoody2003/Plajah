@@ -5,7 +5,8 @@
 import { collection, query, where, getDocs, doc, updateDoc, getDoc } from 'firebase/firestore';
 import type { StoreProduct } from '../types';
 import { createProduct, updateProduct, fetchProductsBySeller } from './storeService';
-import { db, auth } from './backendService';
+import { auth } from './backendService';
+import { opsDb } from './firebase';
 
 // Orders created by the server order spine (/api/store/create-order) live in `storeOrders` keyed by
 // customerUid/businessUid with items as a JSON string (the server's Firestore writer can't store
@@ -54,7 +55,7 @@ export async function fetchMyStoreOrders(): Promise<StoreOrderRecord[]> {
   const uid = auth.currentUser?.uid;
   if (!uid) return [];
   try {
-    const snap = await getDocs(query(collection(db, 'storeOrders'), where('buyerId', '==', uid)));
+    const snap = await getDocs(query(collection(opsDb, 'storeOrders'), where('buyerId', '==', uid)));
     return snap.docs.map(d => mapOrder(d.id, d.data())).sort((a, b) => b.createdAt - a.createdAt);
   } catch { return []; }
 }
@@ -62,7 +63,7 @@ export async function fetchMyStoreOrders(): Promise<StoreOrderRecord[]> {
 /** A business's incoming store orders (newest first). */
 export async function fetchBusinessStoreOrders(businessUid: string): Promise<StoreOrderRecord[]> {
   try {
-    const snap = await getDocs(query(collection(db, 'storeOrders'), where('sellerId', '==', businessUid)));
+    const snap = await getDocs(query(collection(opsDb, 'storeOrders'), where('sellerId', '==', businessUid)));
     return snap.docs.map(d => mapOrder(d.id, d.data())).sort((a, b) => b.createdAt - a.createdAt);
   } catch { return []; }
 }
@@ -74,7 +75,7 @@ export async function advanceStoreOrder(orderId: string, status: string, extra: 
   if (extra.trackingCarrier) patch.trackingCarrier = extra.trackingCarrier;
   if (extra.oversold !== undefined) patch.oversold = extra.oversold;
   if (status === 'OUT_FOR_DELIVERY') patch.shippedAt = Date.now();
-  await updateDoc(doc(db, 'storeOrders', orderId), patch);
+  await updateDoc(doc(opsDb, 'storeOrders', orderId), patch);
 }
 
 // ── POS + loyalty ──────────────────────────────────────────────────────────────
@@ -102,7 +103,7 @@ export async function posSale(input: {
 /** A customer's loyalty point balance at a business. */
 export async function fetchLoyaltyPoints(businessUid: string, customerUid: string): Promise<number> {
   try {
-    const snap = await getDoc(doc(db, 'businesses', businessUid, 'loyalty', customerUid));
+    const snap = await getDoc(doc(opsDb, 'businesses', businessUid, 'loyalty', customerUid));
     return snap.exists() ? (snap.data() as any).points || 0 : 0;
   } catch { return 0; }
 }

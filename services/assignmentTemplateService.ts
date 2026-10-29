@@ -11,7 +11,7 @@
 // Firestore: assignmentTemplates/{templateId} — flat collection, ownerUid-scoped.
 
 import { doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, collection, getDocs, query, where, limit } from 'firebase/firestore';
-import { db, auth } from './firebase';
+import { db, opsDb, auth } from './firebase';
 import { createNotification, fetchUserProfiles } from './backendService';
 import { appendRecord, loadProficiency } from './learningLedgerService';
 import { gateForCommercialUse, mostRestrictive, type GateResult, type License } from './oerLicenseGate';
@@ -21,7 +21,7 @@ import { SEED_KIT } from './journalismSchool/storyKits';
 import type { NewsroomReview, NewsroomSnapshot } from './journalismSchool/newsroomReview';
 
 const TEMPLATES = 'assignmentTemplates';
-const templateDoc = (id: string) => doc(db, TEMPLATES, id);
+const templateDoc = (id: string) => doc(opsDb, TEMPLATES, id);
 
 // ── Licence evaluation (client-side face of the gate) ─────────────────────────
 
@@ -101,7 +101,7 @@ export async function loadTemplate(id: string): Promise<AssignmentTemplate | nul
 export async function listMyTemplates(uid: string, max = 100): Promise<AssignmentTemplate[]> {
   try {
     // Single-field where, no orderBy — avoids a composite index ([[plajah-firestore-gotchas]]).
-    const snap = await getDocs(query(collection(db, TEMPLATES), where('ownerUid', '==', uid), limit(max)));
+    const snap = await getDocs(query(collection(opsDb, TEMPLATES), where('ownerUid', '==', uid), limit(max)));
     return snap.docs
       .map(d => ({ ...(d.data() as AssignmentTemplate), id: d.id }))
       .sort((a, b) => b.updatedAt - a.updatedAt);
@@ -188,7 +188,7 @@ export async function assignTemplate(input: AssignInput): Promise<AssignResult> 
   }
 
   try {
-    const ref = await addDoc(collection(db, 'templateAssignments'), {
+    const ref = await addDoc(collection(opsDb, 'templateAssignments'), {
       templateId: template.id,
       classId,
       className,
@@ -314,7 +314,7 @@ export interface TemplateAssignment {
 
 export async function fetchAssignment(id: string): Promise<TemplateAssignment | null> {
   try {
-    const snap = await getDoc(doc(db, 'templateAssignments', id));
+    const snap = await getDoc(doc(opsDb, 'templateAssignments', id));
     if (!snap.exists()) return null;
     return { ...(snap.data() as Omit<TemplateAssignment, 'id'>), id: snap.id };
   } catch (e) {
@@ -378,7 +378,7 @@ export async function submitLesson(input: {
   selfScores: RubricScores;
 }): Promise<string | null> {
   try {
-    const ref = await addDoc(collection(db, 'templateSubmissions'), {
+    const ref = await addDoc(collection(opsDb, 'templateSubmissions'), {
       assignmentId: input.assignment.id,
       templateId: input.assignment.templateId,
       studentId: input.studentId,
@@ -415,7 +415,7 @@ export async function submitLesson(input: {
 export async function listSubmissions(assignmentId: string): Promise<TemplateSubmission[]> {
   try {
     const snap = await getDocs(query(
-      collection(db, 'templateSubmissions'),
+      collection(opsDb, 'templateSubmissions'),
       where('assignmentId', '==', assignmentId),
       limit(200),
     ));
@@ -453,8 +453,8 @@ export async function fetchStudentDueWork(studentId: string, max = 20): Promise<
   if (!studentId) return [];
   try {
     const [assignedSnap, mineSnap] = await Promise.all([
-      getDocs(query(collection(db, 'templateAssignments'), where('studentIds', 'array-contains', studentId), limit(100))),
-      getDocs(query(collection(db, 'templateSubmissions'), where('studentId', '==', studentId), limit(200))),
+      getDocs(query(collection(opsDb, 'templateAssignments'), where('studentIds', 'array-contains', studentId), limit(100))),
+      getDocs(query(collection(opsDb, 'templateSubmissions'), where('studentId', '==', studentId), limit(200))),
     ]);
 
     // Work sent back for changes is still owed.
@@ -495,7 +495,7 @@ export async function fetchTeacherReviewQueue(teacherUid: string, max = 50): Pro
   if (!teacherUid) return [];
   try {
     const snap = await getDocs(query(
-      collection(db, 'templateSubmissions'),
+      collection(opsDb, 'templateSubmissions'),
       where('teacherUid', '==', teacherUid),
       limit(200),
     ));
@@ -523,7 +523,7 @@ export async function fetchMySubmission(assignmentId: string, studentId: string)
     // Single-field where + client filter: a two-field where needs a composite index
     // ([[plajah-firestore-gotchas]]), and a class-sized result set is cheap to filter here.
     const snap = await getDocs(query(
-      collection(db, 'templateSubmissions'),
+      collection(opsDb, 'templateSubmissions'),
       where('assignmentId', '==', assignmentId),
       limit(200),
     ));
@@ -549,7 +549,7 @@ export async function gradeSubmission(input: {
 }): Promise<{ ok: boolean; masteryPercent: number; standardsWritten: number }> {
   const { total, max, masteryPercent } = scoresToMastery(input.scores, input.template.structure.rubric);
   try {
-    await updateDoc(doc(db, 'templateSubmissions', input.submission.id), {
+    await updateDoc(doc(opsDb, 'templateSubmissions', input.submission.id), {
       status: 'graded',
       grade: {
         scores: input.scores,
@@ -671,8 +671,8 @@ export async function fetchChildWork(guardianUid: string, childUid: string): Pro
   if (!guardianUid || !childUid) return out;
   try {
     const [aSnap, sSnap] = await Promise.all([
-      getDocs(query(collection(db, 'templateAssignments'), where('guardianUids', 'array-contains', guardianUid), limit(200))),
-      getDocs(query(collection(db, 'templateSubmissions'), where('guardianUids', 'array-contains', guardianUid), limit(200))),
+      getDocs(query(collection(opsDb, 'templateAssignments'), where('guardianUids', 'array-contains', guardianUid), limit(200))),
+      getDocs(query(collection(opsDb, 'templateSubmissions'), where('guardianUids', 'array-contains', guardianUid), limit(200))),
     ]);
     const assignments = aSnap.docs.map(d => ({ ...(d.data() as TemplateAssignment), id: d.id })).filter(a => (a.studentIds || []).includes(childUid));
     const subs = sSnap.docs.map(d => ({ ...(d.data() as TemplateSubmission), id: d.id })).filter(s => s.studentId === childUid);
