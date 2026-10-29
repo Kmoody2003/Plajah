@@ -4,7 +4,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { BookOpen, ChevronDown, ExternalLink, Square, Volume2 } from 'lucide-react';
-import { drumForPreset, drumPhotoUrl, type DrumKnowledge } from '../../../../services/melos/instruments/soma/drumKnowledge';
+import { drumForPreset, drumPhotoLocalUrl, drumPhotoUrl, type DrumKnowledge } from '../../../../services/melos/instruments/soma/drumKnowledge';
 import { playerById } from '../../../../services/melos/beats/band/roster';
 import { BandAvatar } from '../band/BandAvatar';
 import { ariaVoice } from '../../../../services/voice/aria/ariaVoice';
@@ -81,7 +81,8 @@ export const SomaDrumStory: React.FC<{ presetId?: string }> = ({ presetId }) => 
   const amara = playerById('amara');
   const [open, setOpen] = useState<Section | null>(null);
   const [speaking, setSpeaking] = useState<Section | 'intro' | null>(null);
-  const [photoOk, setPhotoOk] = useState(true);
+  // 0 = bundled copy, 1 = Commons, 2 = neither loaded.
+  const [photoTry, setPhotoTry] = useState(0);
   const speakRun = useRef(0);
   const talking = useRef(false);
   const prevProfile = useRef<VoiceProfile | null>(null);
@@ -96,7 +97,7 @@ export const SomaDrumStory: React.FC<{ presetId?: string }> = ({ presetId }) => 
     setSpeaking(null);
   };
   // A new drum (or leaving the panel) stops Amara mid-sentence.
-  useEffect(() => { setPhotoOk(true); stop(); }, [drum?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setPhotoTry(0); stop(); }, [drum?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => { if (talking.current) stop(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!drum) return null;
@@ -124,8 +125,15 @@ export const SomaDrumStory: React.FC<{ presetId?: string }> = ({ presetId }) => 
     <div className="px-4 py-3 border-b border-white/[0.07] grid grid-cols-1 md:grid-cols-[200px_1fr] gap-3" style={{ background: 'rgba(232,106,51,0.04)' }}>
       <figure className="m-0 flex flex-col gap-1">
         <a href={ph.sourceUrl} target="_blank" rel="noreferrer" className="block rounded-xl overflow-hidden border border-white/10 bg-black/50" style={{ aspectRatio: '4 / 3' }}>
-          {photoOk ? (
-            <img src={drumPhotoUrl(ph, 480)} alt={ph.caption} loading="lazy" onError={() => setPhotoOk(false)} className="w-full h-full object-contain" />
+          {photoTry < 2 ? (
+            <img
+              key={photoTry}
+              src={photoTry === 0 ? drumPhotoLocalUrl(drum.id) : drumPhotoUrl(ph, 480)}
+              alt={ph.caption}
+              loading="lazy"
+              onError={() => setPhotoTry((t) => t + 1)}
+              className="w-full h-full object-contain"
+            />
           ) : (
             <span className="w-full h-full grid place-items-center text-[10px] text-white/40 px-3 text-center">Photo unavailable offline — opens on Wikimedia Commons</span>
           )}

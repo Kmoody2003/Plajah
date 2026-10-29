@@ -47,6 +47,9 @@ export interface DrumKnowledge {
 export const drumPhotoUrl = (p: DrumPhoto, width = 640): string =>
   `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(p.file)}?width=${width}`;
 
+/** The same photo bundled with the app (a ~960px Commons copy), so it shows offline. */
+export const drumPhotoLocalUrl = (id: DrumId): string => `/soma/drums/${id}.jpg`;
+
 const CC = (v: string) => `https://creativecommons.org/licenses/${v}/`;
 const COMMONS = (file: string) => `https://commons.wikimedia.org/wiki/File:${encodeURIComponent(file.replace(/ /g, '_'))}`;
 const photo = (file: string, author: string, license: string, licenseUrl: string, caption: string): DrumPhoto =>
