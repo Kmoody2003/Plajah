@@ -1,58 +1,37 @@
 // components/church/OrgLessonLibraryHub.tsx
-// Unified Lesson Library for Christian Education & Academia Teacher Studio.
+// The Lesson Library for Christian Education and Academia teachers: every lesson, assignment, quiz/exam,
+// resource and syllabus an org (or a standalone teacher) has, shown as the Tela page students work on.
 //
-// Core Rules Enforced:
-// 1. Whenever a Christian Education Teacher (INSTRUCTOR), Department Admin (DEPARTMENT_ADMIN),
-//    Department Head (DEPARTMENT_HEAD), or regular Teacher (TEACHER) uploads assignments,
-//    syllabi, or course resources — OR extracts them from links (Google Docs, Google Forms)
-//    and PDFs/Word docs — they automatically go into this Lesson Library (and mirror into
-//    Content HQ under the organization's Christian Education folder).
-// 2. Every item in the Lesson Library clearly surfaces the ORIGINAL SOURCE DOCUMENT that it
-//    was extracted from (with full text inspection + direct source link) alongside the
-//    Interactive Tela Lesson/Assignment.
-// 3. Answer Keys (`ANSWER_KEY` documents and companion answer keys) are STRICTLY gated to:
-//      - Course Teachers / Instructors (`INSTRUCTOR` or `TEACHER` or course `leadInstructor`)
-//      - Department Heads (`DEPARTMENT_HEAD` or `ministry.headUids`)
-//      - Department Administrators (`DEPARTMENT_ADMIN`)
-//      - Organization Owners / Pastors (`SENIOR_PASTOR`, `PASTOR`, `ADMIN`)
-//    Students, regular congregation members, and general volunteers never see Answer Keys.
+// Built around three jobs:
+//   • Find & preview — filter by kind, search, tap a page to read it in the side panel (Tela page first,
+//     the original file it came from second, the answer key third and only for those allowed).
+//   • Assign & schedule — select several items, pick a course, lay their due dates out on its calendar
+//     (AssignScheduleSheet). Students see each one from the day you choose.
+//   • Course calendar — what's scheduled for each course; tap an item to preview or move it (CourseCalendar).
+//
+// Answer keys (ANSWER_KEY items and each item's key) only reach viewers with canAccessAnswerKey: course
+// teachers, department heads/admins, pastors/owners. Students and members never see them.
+// Opening the library brings it into view where the viewer is, rather than leaving it above the fold.
 
-import React, { useEffect, useMemo, useState } from 'react';
-import {
-  BookOpen,
-  FileText,
-  KeyRound,
-  Lock,
-  ShieldCheck,
-  ExternalLink,
-  Layers,
-  CheckCircle2,
-  Search,
-  FolderOpen,
-  GraduationCap,
-  Plus,
-  X,
-  Trash2,
-  Columns,
-  ScrollText,
-} from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { CalendarDays, Check, ExternalLink, FolderOpen, KeyRound, Lock, Plus, Search, Trash2, X } from 'lucide-react';
 import {
   listIngestedUnits,
   ensureAllDetectedLinksOnboarded,
   deleteIngestedUnit,
-  REVELATION_2_COURSE_CONNECTION_PRESET,
   type IngestedCurriculumUnit,
   type LessonLibraryCategory,
 } from '../../services/curriculumIngestionService';
 import type { ChurchProgram } from '../../services/churchEducationService';
-import {
-  getOrgEducationFolderName,
-  isStandaloneTeacherScopeId,
-  TEACHER_DOCUMENT_CLASS_FOLDERS,
-} from '../../services/orgAssets';
+import { isStandaloneTeacherScopeId } from '../../services/orgAssets';
 import { TelaDocumentPreviewModal } from './TelaDocumentPreviewModal';
 import { AssignToClassModal } from '../desk/AssignToClassModal';
 import { openTelaClasswork } from './christianEd/edWork';
+import { ED_CSS } from './christianEd/edStyles';
+import TelaPage, { KIND_META, TELA_PAGE_CSS, kindOf } from './library/TelaPage';
+import AssignScheduleSheet, { type ScheduledResult } from './library/AssignScheduleSheet';
+import CourseCalendar from './library/CourseCalendar';
+import { fmtDay } from './christianEd/edWork';
 
 export interface OrgLessonLibraryHubProps {
   orgId: string;
@@ -63,56 +42,123 @@ export interface OrgLessonLibraryHubProps {
   programs?: ChurchProgram[];
   /** True when the viewer is a Course Teacher/Instructor, Dept Head, Dept Admin, or Pastor/Owner. */
   canAccessAnswerKey: boolean;
-  /** True when the viewer can upload or extract new assignments, syllabi, and course resources. */
+  /** True when the viewer can add to the library and assign from it. */
   canUploadToLibrary: boolean;
   viewerRoleBadge?: string;
   currentUserUid?: string;
   currentUserName?: string;
   onAttachWeeksToProgram?: (programId: string, unit: IngestedCurriculumUnit) => Promise<void>;
+  /** Saves a course (used by "add to the course plan" when scheduling). */
+  onSaveProgram?: (p: ChurchProgram) => Promise<void>;
   onOpenContentHQ?: () => void;
 }
 
-const CATEGORY_META: Record<
-  LessonLibraryCategory,
-  { label: string; shortLabel: string; badgeClass: string; iconEmoji: string }
-> = {
-  SYLLABUS: {
-    label: 'Syllabus & Master Source Docs',
-    shortLabel: 'Syllabus / Source Doc',
-    badgeClass: 'bg-amber-500/20 text-amber-200 border-amber-400/40',
-    iconEmoji: '📜',
-  },
-  ASSIGNMENT: {
-    label: 'Assignments & Worksheets',
-    shortLabel: 'Assignment',
-    badgeClass: 'bg-emerald-500/20 text-emerald-200 border-emerald-400/40',
-    iconEmoji: '📝',
-  },
-  COURSE_RESOURCE: {
-    label: 'Course Resources & Reading Packets',
-    shortLabel: 'Course Resource',
-    badgeClass: 'bg-sky-500/20 text-sky-200 border-sky-400/40',
-    iconEmoji: '📚',
-  },
-  QUIZ_EXAM: {
-    label: 'Quizzes & Mastery Exams',
-    shortLabel: 'Quiz / Exam',
-    badgeClass: 'bg-purple-500/20 text-purple-200 border-purple-400/40',
-    iconEmoji: '🎯',
-  },
-  MASTER_SOURCE_DOC: {
-    label: 'Extracted Source Document',
-    shortLabel: 'Original Source Doc',
-    badgeClass: 'bg-amber-500/20 text-amber-200 border-amber-400/40',
-    iconEmoji: '📄',
-  },
-  ANSWER_KEY: {
-    label: 'Teacher Answer Keys & Rubrics',
-    shortLabel: 'Teacher Answer Key',
-    badgeClass: 'bg-rose-500/20 text-rose-200 border-rose-400/40',
-    iconEmoji: '🔑',
-  },
-};
+type Filter = 'ALL' | 'ASSIGNMENT' | 'QUIZ_EXAM' | 'COURSE_RESOURCE' | 'SYLLABUS' | 'ANSWER_KEY';
+const FILTERS: Array<[Filter, string]> = [
+  ['ALL', 'Everything'],
+  ['ASSIGNMENT', 'Assignments'],
+  ['QUIZ_EXAM', 'Quizzes & exams'],
+  ['COURSE_RESOURCE', 'Resources'],
+  ['SYLLABUS', 'Syllabi'],
+  ['ANSWER_KEY', 'Answer keys'],
+];
+const groupOf = (c: LessonLibraryCategory): Filter => (c === 'MASTER_SOURCE_DOC' ? 'SYLLABUS' : c);
+const isKeyOnly = (u: IngestedCurriculumUnit) => Boolean(u.isAnswerKeyOnly) || u.libraryCategory === 'ANSWER_KEY';
+const hasKey = (u: IngestedCurriculumUnit) => Boolean(u.rawAnswerKeyText || u.answerKeySourceLabel || u.questions.some(q => q.correctAnswer));
+const hasOriginal = (u: IngestedCurriculumUnit) => Boolean(u.sourceUrl || u.rawCurriculumText);
+
+const LIB_CSS = `
+.lib{display:grid;gap:16px}
+.lib .lib-head{display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap}
+.lib .lib-head h2{font-size:1.5rem;font-weight:900;letter-spacing:-.01em}
+.lib .lib-tabs{display:inline-flex;padding:3px;border-radius:99px;background:var(--g1);border:1px solid var(--bd)}
+.lib .lib-tabs button{appearance:none;border:0;background:transparent;color:var(--dim);font:700 .78rem/1 var(--fd);height:32px;padding:0 14px;border-radius:99px;cursor:pointer;display:inline-flex;gap:6px;align-items:center}
+.lib .lib-tabs button[aria-pressed="true"]{background:#fff;color:#14101c}
+.lib .lib-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.lib .lib-search{display:flex;align-items:center;gap:8px;flex:1 1 220px;min-width:0;max-width:360px;height:38px;padding:0 12px;border-radius:99px;background:rgba(0,0,0,.3);border:1px solid var(--bd)}
+.lib .lib-search input{flex:1;min-width:0;background:transparent;border:0;outline:none;color:var(--ink);font-size:.86rem}
+.lib .lib-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:18px}
+.lib .lib-card{position:relative;display:grid;gap:9px;align-content:start;min-width:0}
+.lib .lib-card .lib-open{appearance:none;border:0;background:transparent;padding:0;cursor:pointer;text-align:left;color:inherit;display:grid;gap:9px;border-radius:10px}
+.lib .lib-card .lib-open:hover .tp-thumb{transform:translateY(-3px);box-shadow:0 14px 34px rgba(0,0,0,.45)}
+.lib .lib-card .tp-thumb{transition:transform .18s ease,box-shadow .18s ease;border-radius:6px}
+.lib .lib-card.sel .tp-thumb{outline:3px solid var(--magenta);outline-offset:3px}
+.lib .lib-card .lib-t{font:800 .9rem/1.3 var(--fd);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.lib .lib-card .lib-u{font-size:.74rem;color:var(--faint);display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.lib .lib-sel{position:absolute;top:8px;left:8px;z-index:2;width:34px;height:34px;border-radius:10px;display:grid;place-items:center;cursor:pointer;border:1.5px solid rgba(34,28,43,.35);background:rgba(255,255,255,.92);color:#fff}
+.lib .lib-sel[aria-checked="true"]{background:var(--magenta);border-color:var(--magenta)}
+.lib .lib-kind{position:absolute;top:10px;right:10px;z-index:2;font:800 .58rem/1 var(--fd);letter-spacing:.06em;text-transform:uppercase;padding:5px 8px;border-radius:99px;color:#14101c}
+.lib .tag{display:inline-flex;gap:3px;align-items:center}
+.lib .lib-filter-select{display:none}
+.lib .lib-dot{width:9px;height:9px;border-radius:99px;flex-shrink:0;display:inline-block}
+.lib .lib-empty{border:1px dashed var(--bd2);border-radius:20px;padding:34px 20px;text-align:center;display:grid;gap:8px;justify-items:center}
+.lib .lib-actionbar{position:sticky;bottom:calc(var(--pj-mobile-nav-h,0px) + 14px);z-index:40;display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:10px 12px 10px 16px;border-radius:18px;background:rgba(20,16,32,.96);border:1px solid var(--bd2);box-shadow:0 16px 40px rgba(0,0,0,.5);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
+.lib-scrim{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:210}
+.lib-panel{position:fixed;z-index:211;top:0;right:0;bottom:0;width:min(620px,100vw);background:#100d19;border-left:1px solid rgba(255,255,255,.12);display:flex;flex-direction:column;box-shadow:-20px 0 60px rgba(0,0,0,.5);animation:libIn .2s ease-out}
+@keyframes libIn{from{transform:translateX(40px);opacity:0}to{transform:none;opacity:1}}
+.lib-panel .lib-ph{padding:14px 16px;display:flex;gap:10px;align-items:flex-start;border-bottom:1px solid var(--bd);padding-top:max(14px,env(safe-area-inset-top))}
+.lib-panel .lib-ph h3{font-size:1.05rem;font-weight:900}
+.lib-panel .lib-pt{display:flex;gap:4px;padding:10px 16px 0}
+.lib-panel .lib-pt button{appearance:none;border:0;border-bottom:2px solid transparent;background:transparent;color:var(--dim);font:700 .8rem/1 var(--fd);padding:10px 8px;cursor:pointer;display:inline-flex;gap:6px;align-items:center}
+.lib-panel .lib-pt button[aria-selected="true"]{color:#fff;border-bottom-color:var(--magenta)}
+.lib-panel .lib-pb{flex:1;overflow-y:auto;padding:18px 16px;background:radial-gradient(ellipse at top,#1b1528,#0d0b14 70%)}
+.lib-panel .lib-pf{padding:12px 16px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--bd);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.lib-panel .lib-src{font:500 .8rem/1.6 var(--fm);white-space:pre-wrap;color:var(--dim);background:rgba(0,0,0,.35);border:1px solid var(--bd);border-radius:14px;padding:14px}
+.lib-panel .lib-keyq{border:1px solid var(--bd);border-radius:14px;padding:10px 12px;display:grid;gap:4px;font-size:.84rem;background:var(--g1)}
+.lib-sheet{position:fixed;z-index:211;left:50%;top:50%;transform:translate(-50%,-50%);width:min(760px,calc(100vw - 24px));max-height:calc(100dvh - 32px);display:flex;flex-direction:column;background:#100d19;border:1px solid rgba(255,255,255,.14);border-radius:24px;box-shadow:0 30px 80px rgba(0,0,0,.6);overflow:hidden}
+.lib-sheet .lib-sheet-h{display:flex;gap:10px;align-items:flex-start;padding:16px 18px;border-bottom:1px solid var(--bd)}
+.lib-sheet .lib-sheet-h h3{font-size:1.1rem;font-weight:900}
+.lib-sheet .lib-sheet-b{flex:1;overflow-y:auto;padding:16px 18px;display:grid;gap:18px}
+.lib-sheet .lib-sheet-f{display:flex;gap:10px;align-items:center;padding:12px 18px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--bd)}
+.lib-step{display:flex;gap:12px;align-items:flex-start}
+.lib-step[aria-disabled="true"]{opacity:.55}
+.lib-step-n{width:26px;height:26px;border-radius:99px;flex-shrink:0;display:grid;place-items:center;font:900 .74rem/1 var(--fd);background:var(--brand);color:#fff}
+.lib-step-t{font:800 .9rem/1.2 var(--fd)}
+.lib-chip-sub{display:block;font-size:.64rem;color:var(--faint);font-weight:500}
+.lib-month{font:800 .9rem/1 var(--fd);min-width:120px;text-align:center}
+.lib-cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.lib-cal-wd{font:700 .62rem/1 var(--fd);color:var(--faint);text-align:center;padding:4px 0;text-transform:uppercase;letter-spacing:.06em}
+.lib-cal-d{appearance:none;min-height:62px;border-radius:10px;border:1px solid var(--bd);background:var(--g1);color:var(--ink);padding:4px;display:flex;flex-direction:column;gap:3px;align-items:stretch;text-align:left;min-width:0;font:inherit}
+.lib-cal.big .lib-cal-d{min-height:92px}
+.lib-cal-d.out{opacity:.38}
+.lib-cal-d.meet{border-color:rgba(255,140,0,.55);background:rgba(255,140,0,.06)}
+.lib-cal-d.today .lib-cal-n{background:var(--magenta);color:#fff}
+.lib-cal-d.target{cursor:pointer}
+.lib-cal-d.target:hover{border-color:var(--cyan)}
+.lib-cal-n{font:700 .7rem/1 var(--fd);width:20px;height:20px;border-radius:99px;display:grid;place-items:center;color:var(--dim)}
+.ce .lib-pill{appearance:none;border:0;display:block;width:100%;font:600 .64rem/1.25 var(--fb);color:#fff;background:color-mix(in srgb,var(--k) 30%,transparent);border-left:3px solid var(--k);border-radius:5px;padding:3px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;text-align:left}
+.ce .lib-pill.on{outline:2px solid #fff}
+.lib-order{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.lib-order li{display:flex;gap:8px;align-items:center;padding:6px 8px;border-radius:12px;border:1px solid var(--bd);background:var(--g1);flex-wrap:wrap}
+.lib-order li.on{border-color:var(--cyan)}
+.ce .lib-order-t{appearance:none;border:0;background:transparent;color:var(--ink);font:600 .82rem/1.3 var(--fb);text-align:left;cursor:pointer;flex:1 1 180px;min-width:0;display:grid;gap:3px;justify-items:start;padding:4px 0}
+.lib-order-d{width:auto!important;max-width:170px;padding:6px 10px!important}
+.lib-order-mv{display:flex;gap:4px}
+.lib-check{display:flex;gap:8px;align-items:center;font-size:.82rem;color:var(--dim);cursor:pointer}
+.lib-check input{width:18px;height:18px;accent-color:#D40055}
+.lib-calview{display:grid;gap:12px}
+.lib-calsel{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:12px 14px;border-radius:16px;border:1px solid var(--cyan);background:rgba(0,218,243,.06)}
+.lib-calsel .t{font:800 .9rem/1.3 var(--fd)}
+.lib-agenda{display:grid;gap:6px}
+.ce .lib-agenda-r{appearance:none;display:flex;gap:10px;align-items:center;min-height:44px;padding:0 12px;border-radius:12px;border:1px solid var(--bd);background:var(--g1);color:var(--ink);font:600 .84rem/1.2 var(--fb);cursor:pointer;text-align:left;min-width:0}
+.lib-agenda-d{font:700 .72rem/1 var(--fm);color:var(--faint);width:52px;flex-shrink:0}
+@media(max-width:720px){
+  .lib .lib-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+  .lib .lib-head h2{font-size:1.25rem}
+  .lib .lib-head>.grow{flex-basis:100%}
+  .lib .lib-head .btn.p{flex:1;justify-content:center}
+  .lib .lib-bar>.chips{display:none}
+  .lib .lib-filter-select{display:block;flex:1 1 150px;width:auto}
+  .lib .lib-search{max-width:none;flex-basis:100%}
+  .lib-sheet{left:0;right:0;top:auto;bottom:0;transform:none;width:100%;max-height:92dvh;border-radius:22px 22px 0 0}
+  .lib-panel{width:100vw;border-left:0}
+  .lib-cal-d{min-height:44px}
+  .lib-cal.big .lib-cal-d{min-height:52px}
+  .ce .lib-cal-d .lib-pill{font-size:0;height:6px;padding:0;border-left:0;background:var(--k)}
+  .lib-order-d{max-width:none;flex:1 1 140px}
+}
+@media(prefers-reduced-motion:reduce){.lib-panel{animation:none}.lib .lib-card .tp-thumb{transition:none}}
+`;
 
 export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
   orgId,
@@ -122,43 +168,45 @@ export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
   programs = [],
   canAccessAnswerKey,
   canUploadToLibrary,
-  viewerRoleBadge,
-  currentUserUid = 'instructor_great_faith',
-  currentUserName = 'Course Instructor',
+  currentUserUid = '',
+  currentUserName = 'Teacher',
+  onSaveProgram,
   onOpenContentHQ,
 }) => {
   const isStandaloneTeacher = scopeKind === 'user' || isStandaloneTeacherScopeId(orgId);
-  const orgEducationFolderName = getOrgEducationFolderName(orgName);
+  const rootRef = useRef<HTMLDivElement>(null);
 
-  const [units, setUnits] = useState<IngestedCurriculumUnit[]>(() =>
-    listIngestedUnits(orgId, programId, orgName)
-  );
-  const [categoryFilter, setCategoryFilter] = useState<'ALL' | LessonLibraryCategory>('ALL');
+  const [units, setUnits] = useState<IngestedCurriculumUnit[]>(() => listIngestedUnits(orgId, programId, orgName));
+  const [view, setView] = useState<'library' | 'calendar'>('library');
+  const [filter, setFilter] = useState<Filter>('ALL');
   const [search, setSearch] = useState('');
+  const [selected, setSelected] = useState<string[]>([]);
+  const [previewId, setPreviewId] = useState<string | null>(null);
+  const [panelTab, setPanelTab] = useState<'page' | 'original' | 'key'>('page');
+  const [fullPreview, setFullPreview] = useState<IngestedCurriculumUnit | null>(null);
+  const [scheduling, setScheduling] = useState<string[] | null>(null);
+  const [legacyAssign, setLegacyAssign] = useState<IngestedCurriculumUnit | null>(null);
+  const [calProgram, setCalProgram] = useState(programId || programs[0]?.id || '');
+  const [calFocus, setCalFocus] = useState<Date | null>(null);
+  const [confirmRemove, setConfirmRemove] = useState(false);
+  const [status, setStatus] = useState('');
 
-  // Modal / Drawer states for inspecting Original Source Document, Interactive Tela Preview, and Answer Key
-  const [inspectSourceUnit, setInspectSourceUnit] = useState<IngestedCurriculumUnit | null>(null);
-  const [inspectAnswerKeyUnit, setInspectAnswerKeyUnit] = useState<IngestedCurriculumUnit | null>(null);
-  const [telaPreviewUnit, setTelaPreviewUnit] = useState<IngestedCurriculumUnit | null>(null);
-  const [assignModalUnit, setAssignModalUnit] = useState<IngestedCurriculumUnit | null>(null);
+  const refreshUnits = () => setUnits(listIngestedUnits(orgId, programId, orgName));
 
-  const [statusMessage, setStatusMessage] = useState('');
-
-  const refreshUnits = () => {
-    setUnits(listIngestedUnits(orgId, programId, orgName));
-  };
+  // Open where the viewer is: the library replaces whatever they were looking at, so bring its top into view.
+  useEffect(() => {
+    const reduce = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    rootRef.current?.scrollIntoView({ block: 'start', behavior: reduce ? 'auto' : 'smooth' });
+  }, []);
 
   useEffect(() => {
     refreshUnits();
     let cancelled = false;
     ensureAllDetectedLinksOnboarded(orgId, programId, orgName)
-      .then((refreshed) => {
-        if (!cancelled) setUnits(refreshed);
-      })
+      .then(refreshed => { if (!cancelled) setUnits(refreshed); })
       .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orgId, programId, orgName]);
 
   useEffect(() => {
@@ -169,615 +217,305 @@ export const OrgLessonLibraryHub: React.FC<OrgLessonLibraryHubProps> = ({
       window.removeEventListener('plajah:lessonLibraryUpdated', onUpdated);
       window.removeEventListener('plajah:orgAssetsUpdated', onUpdated);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orgId, programId]);
 
-  // Gate standalone Answer Key units if viewer does NOT have `canAccessAnswerKey`
-  const accessibleUnits = useMemo(() => {
-    return units.filter((u) => {
-      const isStandaloneKey = Boolean(u.isAnswerKeyOnly) || u.libraryCategory === 'ANSWER_KEY';
-      if (isStandaloneKey && !canAccessAnswerKey) return false;
-      return true;
-    });
-  }, [units, canAccessAnswerKey]);
+  const visible = useMemo(() => units.filter(u => canAccessAnswerKey || !isKeyOnly(u)), [units, canAccessAnswerKey]);
+  const counts = useMemo(() => {
+    const c: Record<string, number> = { ALL: visible.length };
+    for (const u of visible) c[groupOf(kindOf(u))] = (c[groupOf(kindOf(u))] || 0) + 1;
+    return c;
+  }, [visible]);
+  const shown = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return visible
+      .filter(u => filter === 'ALL' || groupOf(kindOf(u)) === filter)
+      .filter(u => !q || `${u.title} ${u.subtitle} ${u.sourceLabel} ${u.rawCurriculumText || ''}`.toLowerCase().includes(q))
+      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  }, [visible, filter, search]);
+  const preview = previewId ? visible.find(u => u.id === previewId) || null : null;
+  const canAssign = canUploadToLibrary;
+  const assignable = (u: IngestedCurriculumUnit) => !isKeyOnly(u);
 
-  // Locate the Master Source Document we extracted from (`rev2_doc_0_master_hub_syllabus` or Revelation 2 hub)
-  const masterExtractedSourceUnit = useMemo(() => {
-    return (
-      accessibleUnits.find(
-        (u) =>
-          u.sourceUrl?.includes('1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE') &&
-          (u.libraryCategory === 'SYLLABUS' || u.title.toLowerCase().includes('master syllabus'))
-      ) || accessibleUnits[0]
-    );
-  }, [accessibleUnits]);
-
-  const categoryCounts = useMemo(() => {
-    const counts: Record<string, number> = { ALL: accessibleUnits.length };
-    for (const u of accessibleUnits) {
-      const cat = u.libraryCategory || 'ASSIGNMENT';
-      counts[cat] = (counts[cat] || 0) + 1;
+  const toggle = (id: string) => setSelected(s => (s.includes(id) ? s.filter(x => x !== id) : [...s, id]));
+  const openPreview = (id: string) => { setPreviewId(id); setPanelTab('page'); setConfirmRemove(false); };
+  const startAssign = (ids: string[]) => {
+    const ok = ids.filter(id => { const u = visible.find(x => x.id === id); return u && assignable(u); });
+    if (!ok.length) return;
+    if (programs.length === 0) {
+      // Standalone Academia teachers have no Christian Ed courses: the one-at-a-time class picker covers them.
+      setLegacyAssign(visible.find(u => u.id === ok[0]) || null);
+      return;
     }
-    return counts;
-  }, [accessibleUnits]);
-
-  const filteredUnits = useMemo(() => {
-    return accessibleUnits.filter((u) => {
-      const cat = u.libraryCategory || 'ASSIGNMENT';
-      if (categoryFilter !== 'ALL' && cat !== categoryFilter) return false;
-      if (search.trim()) {
-        const q = search.trim().toLowerCase();
-        const hay = `${u.title} ${u.subtitle} ${u.sourceLabel} ${u.rawCurriculumText || ''}`.toLowerCase();
-        if (!hay.includes(q)) return false;
-      }
-      return true;
+    setPreviewId(null);
+    setScheduling(ok);
+  };
+  const scheduled = (r: ScheduledResult) => {
+    setScheduling(null);
+    setSelected([]);
+    setCalProgram(r.programId);
+    setCalFocus(r.first);
+    setStatus(`Scheduled ${r.count} for ${r.programName}: ${fmtDay(r.first)}${r.count > 1 ? ` → ${fmtDay(r.last)}` : ''}.`);
+  };
+  const newInTela = () =>
+    openTelaClasswork({
+      orgId: isStandaloneTeacher ? '' : orgId,
+      orgName,
+      programId,
+      programName: programs.find(p => p.id === programId)?.name,
+      domain: isStandaloneTeacher ? 'ACADEMIA' : 'CHRISTIAN_EDUCATION',
     });
-  }, [accessibleUnits, categoryFilter, search]);
 
+  const filters = FILTERS.filter(([f]) => f === 'ALL' || (f === 'ANSWER_KEY' ? canAccessAnswerKey && counts[f] : counts[f]));
 
   return (
-    <div className="space-y-5 text-white">
-      {/* Top Header & Role-Based Answer Key Access Banner */}
-      <div className="rounded-3xl border border-amber-400/30 bg-gradient-to-br from-[#171326] via-[#111722] to-[#14111C] p-5 shadow-xl space-y-4">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="space-y-1.5 max-w-3xl">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded-full bg-amber-400/20 border border-amber-300/40 text-amber-200 text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-1.5">
-                <BookOpen size={11} />{' '}
-                {isStandaloneTeacher
-                  ? `${orgName} · Personal Teacher Lesson Library & Content HQ`
-                  : `${orgEducationFolderName} · Official Lesson & Resource Library`}
-              </span>
-              {canAccessAnswerKey ? (
-                <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 text-[10px] font-black uppercase tracking-wider inline-flex items-center gap-1">
-                  <ShieldCheck size={11} /> Answer Keys Unlocked ({viewerRoleBadge || 'Course Teacher / Dept Head / Admin'})
-                </span>
-              ) : (
-                <span className="px-2.5 py-0.5 rounded-full bg-white/10 border border-white/15 text-white/70 text-[10px] font-bold inline-flex items-center gap-1">
-                  <Lock size={11} className="text-amber-300" /> Answer Keys Restricted to Course Teachers, Dept Heads &amp; Dept Admins
-                </span>
-              )}
-            </div>
-            <h3 className="text-lg sm:text-xl font-black text-white">
-              {isStandaloneTeacher
-                ? 'Teacher Lesson Library — Auto-Organized into Content HQ Document Class Folders'
-                : `Lesson Library (${orgEducationFolderName}) — Extracted Source Documents, Syllabi, Assignments & Course Resources`}
-            </h3>
-            <p className="text-xs text-white/70 leading-relaxed">
-              {isStandaloneTeacher ? (
-                <>
-                  Every lesson, course resource, assignment, syllabus, quiz, or answer key you upload or extract from links goes directly into <strong>your own Content HQ</strong> with dedicated folders for each class of documents (<strong>Lessons &amp; Course Resources</strong>, <strong>Assignments &amp; Worksheets</strong>, <strong>Quizzes &amp; Assessments</strong>, <strong>Syllabi &amp; Master Source Docs</strong>, and <strong>Answer Keys &amp; Rubrics</strong>).
-                </>
-              ) : (
-                <>
-                  Every syllabus, assignment, reading packet, PDF, Word doc, and Google Doc/Form uploaded or extracted by education teachers, Department Admins, Department Heads, or course instructors is housed here and in <strong>Content HQ → {orgEducationFolderName}</strong> with both its <strong>Original Source Document</strong> and its <strong>Interactive Tela Lesson</strong>.
-                </>
-              )}
-            </p>
-          </div>
+    <div ref={rootRef} className="ce lib" style={{ scrollMarginTop: 12 }}>
+      <style>{ED_CSS + LIB_CSS + TELA_PAGE_CSS}</style>
 
-          <div className="flex flex-wrap items-center gap-2 shrink-0">
-            {onOpenContentHQ && (
-              <button
-                type="button"
-                onClick={onOpenContentHQ}
-                className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-xs font-bold text-white inline-flex items-center gap-1.5 transition"
-              >
-                <FolderOpen size={13} className="text-amber-300" />{' '}
-                {isStandaloneTeacher
-                  ? 'Open My Teacher Content HQ'
-                  : `View in ${orgEducationFolderName} HQ`}
-              </button>
-            )}
-            {canUploadToLibrary && (
-              <button
-                type="button"
-                onClick={() =>
-                  openTelaClasswork({
-                    orgId: isStandaloneTeacher ? '' : orgId,
-                    orgName,
-                    programId,
-                    programName: programs.find(p => p.id === programId)?.name,
-                    domain: isStandaloneTeacher ? 'ACADEMIA' : 'CHRISTIAN_EDUCATION',
-                  })
-                }
-                className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#6B0099] via-[#D40055] to-[#FF8C00] hover:opacity-95 text-white text-xs font-black inline-flex items-center gap-1.5 shadow-lg transition"
-              >
-                <Plus size={14} />
-                Add lessons in Tela Classwork
-              </button>
-            )}
+      <div className="lib-head">
+        <div className="grow">
+          <div className="eyebrow">{isStandaloneTeacher ? 'My classroom' : orgName}</div>
+          <h2>Lesson Library</h2>
+          <div className="small">
+            {visible.length} item{visible.length === 1 ? '' : 's'}
+            {canAssign ? ' · select pages to assign & schedule them for a course' : ''}
           </div>
         </div>
-
-        {/* Highlight Banner: Standalone Teacher Document Class Folders vs. Organization Extracted Source Document */}
-        {isStandaloneTeacher ? (
-          <div className="rounded-2xl border border-emerald-400/35 bg-emerald-500/[0.08] p-4 flex flex-wrap items-center justify-between gap-3">
-            <div className="space-y-1.5 min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="px-2 py-0.5 rounded-md bg-emerald-400/20 border border-emerald-300/40 text-emerald-200 text-[10px] font-black uppercase tracking-wider">
-                  🗂️ Your Personal Content HQ · Document Class Folders Active
-                </span>
-              </div>
-              <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                {TEACHER_DOCUMENT_CLASS_FOLDERS.map((f) => (
-                  <span
-                    key={f.id}
-                    className="px-2.5 py-1 rounded-lg bg-black/35 border border-white/10 text-[11px] font-bold text-white/90 inline-flex items-center gap-1"
-                  >
-                    <span>{f.iconEmoji}</span>
-                    <span>{f.folderName}</span>
-                  </span>
-                ))}
-              </div>
-            </div>
-            {onOpenContentHQ && (
-              <button
-                type="button"
-                onClick={onOpenContentHQ}
-                className="px-3.5 py-2 rounded-xl bg-emerald-400 text-black text-xs font-black inline-flex items-center gap-1.5 hover:bg-emerald-300 transition shadow"
-              >
-                <FolderOpen size={13} /> Browse Folders in My Content HQ
-              </button>
-            )}
+        {canAssign && programs.length > 0 && (
+          <div className="lib-tabs" role="group" aria-label="View">
+            <button type="button" aria-pressed={view === 'library'} onClick={() => setView('library')}>Library</button>
+            <button type="button" aria-pressed={view === 'calendar'} onClick={() => setView('calendar')}><CalendarDays size={14} /> Course calendar</button>
           </div>
-        ) : (
-          <div className="rounded-2xl border border-sky-400/35 bg-sky-500/[0.08] p-4 flex flex-wrap items-center justify-between gap-3">
-            <div className="space-y-1 min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="px-2 py-0.5 rounded-md bg-sky-400/20 border border-sky-300/40 text-sky-200 text-[10px] font-black uppercase tracking-wider">
-                  📄 Extracted Source Document Verified in {orgName}
-                </span>
-                <span className="text-[11px] text-white/60 font-mono truncate">
-                  Google Doc ID: {REVELATION_2_COURSE_CONNECTION_PRESET.docId} (Tab: {REVELATION_2_COURSE_CONNECTION_PRESET.tabId})
-                </span>
-              </div>
-              <p className="text-xs sm:text-sm font-black text-white">
-                {REVELATION_2_COURSE_CONNECTION_PRESET.hubTitle}
-              </p>
-              <p className="text-[11px] text-white/70">
-                Stored in <strong>{orgName} → {orgEducationFolderName} → Lesson Library &amp; Content HQ</strong> along with all <strong>{accessibleUnits.length}</strong> extracted packets, Google Forms quizzes, Sacred Library dossier PDF, and teacher answer keys.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2 shrink-0">
-              {masterExtractedSourceUnit && (
-                <button
-                  type="button"
-                  onClick={() => setInspectSourceUnit(masterExtractedSourceUnit)}
-                  className="px-3.5 py-2 rounded-xl bg-sky-400 text-black text-xs font-black inline-flex items-center gap-1.5 hover:bg-sky-300 transition shadow"
-                >
-                  <FileText size={13} /> Inspect Extracted Source Document
-                </button>
-              )}
-              <a
-                href={REVELATION_2_COURSE_CONNECTION_PRESET.hubUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-xs font-bold text-sky-200 inline-flex items-center gap-1.5 transition"
-              >
-                <ExternalLink size={12} /> Open Source Google Doc
-              </a>
-            </div>
-          </div>
+        )}
+        {onOpenContentHQ && (
+          <button type="button" className="btn sm" onClick={onOpenContentHQ}><FolderOpen size={14} /> Content HQ</button>
+        )}
+        {canUploadToLibrary && (
+          <button type="button" className="btn p" onClick={newInTela}><Plus size={15} /> New in Tela Classwork</button>
         )}
       </div>
 
-      {statusMessage && (
-        <div className="rounded-2xl border border-emerald-400/40 bg-emerald-500/10 px-4 py-3 text-xs text-emerald-200 flex items-center justify-between gap-2">
-          <span className="inline-flex items-center gap-2 font-semibold">
-            <CheckCircle2 size={15} className="shrink-0 text-emerald-300" />
-            {statusMessage}
-          </span>
-          <button
-            type="button"
-            onClick={() => setStatusMessage('')}
-            className="text-white/50 hover:text-white"
-          >
-            <X size={14} />
-          </button>
+      {status && (
+        <div className="okmsg row">
+          <span className="grow">{status}</span>
+          {view !== 'calendar' && programs.length > 0 && <button type="button" className="btn sm" onClick={() => { setView('calendar'); setStatus(''); }}>See calendar</button>}
+          <button type="button" className="btn sm" aria-label="Dismiss" onClick={() => setStatus('')}><X size={13} /></button>
         </div>
       )}
 
-      {/* Filter Bar & Search */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => setCategoryFilter('ALL')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-black transition ${
-              categoryFilter === 'ALL'
-                ? 'bg-white text-black shadow'
-                : 'bg-white/5 text-white/65 hover:text-white border border-white/10'
-            }`}
-          >
-            All Library Items ({categoryCounts.ALL || 0})
-          </button>
-          {(
-            [
-              'SYLLABUS',
-              'ASSIGNMENT',
-              'COURSE_RESOURCE',
-              'QUIZ_EXAM',
-              ...(canAccessAnswerKey ? (['ANSWER_KEY'] as const) : []),
-            ] as LessonLibraryCategory[]
-          ).map((cat) => {
-            const meta = CATEGORY_META[cat];
-            const count = categoryCounts[cat] || 0;
-            const active = categoryFilter === cat;
-            return (
-              <button
-                key={cat}
-                type="button"
-                onClick={() => setCategoryFilter(cat)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 border transition ${
-                  active
-                    ? 'bg-amber-400 text-black border-amber-300 font-black shadow'
-                    : 'bg-white/5 text-white/65 border-white/10 hover:text-white'
-                }`}
-              >
-                <span>{meta.iconEmoji}</span>
-                <span>{meta.shortLabel}</span>
-                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-black/25">{count}</span>
+      {view === 'calendar' ? (
+        <CourseCalendar
+          programs={programs}
+          programId={calProgram}
+          focus={calFocus}
+          onProgram={setCalProgram}
+          onPreview={id => openPreview(id)}
+          onSchedule={() => setView('library')}
+        />
+      ) : (
+        <>
+          <div className="lib-bar">
+            <div className="chips" role="group" aria-label="Show">
+              {filters.map(([f, label]) => (
+                <button key={f} type="button" className="chip" aria-pressed={filter === f} onClick={() => setFilter(f)}>
+                  {f !== 'ALL' && <span className="lib-dot" style={{ background: KIND_META[f === 'SYLLABUS' ? 'SYLLABUS' : f].color, marginRight: 6 }} />}
+                  {label} <span style={{ opacity: 0.6 }}>{counts[f] || 0}</span>
+                </button>
+              ))}
+            </div>
+            <select className="field lib-filter-select" aria-label="Show" value={filter} onChange={e => setFilter(e.target.value as Filter)}>
+              {filters.map(([f, label]) => <option key={f} value={f}>{label} ({counts[f] || 0})</option>)}
+            </select>
+            <label className="lib-search">
+              <Search size={15} style={{ opacity: 0.5 }} />
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search the library" aria-label="Search the library" />
+              {search && <button type="button" className="btn link sm" onClick={() => setSearch('')} aria-label="Clear search"><X size={13} /></button>}
+            </label>
+            {canAssign && shown.some(assignable) && (
+              <button type="button" className="btn sm" onClick={() => setSelected(s => (shown.filter(assignable).every(u => s.includes(u.id)) ? [] : shown.filter(assignable).map(u => u.id)))}>
+                {shown.filter(assignable).every(u => selected.includes(u.id)) && selected.length ? 'Clear selection' : 'Select all'}
               </button>
-            );
-          })}
-        </div>
+            )}
+          </div>
 
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 min-w-[230px]">
-          <Search size={13} className="text-white/40" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search syllabi, assignments, source docs..."
-            className="bg-transparent text-xs text-white outline-none flex-1 placeholder:text-white/35"
-          />
-        </div>
-      </div>
-
-      {/* Lesson Library Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {filteredUnits.map((unit) => {
-          const cat: LessonLibraryCategory = unit.libraryCategory || 'ASSIGNMENT';
-          const meta = CATEGORY_META[cat] || CATEGORY_META.ASSIGNMENT;
-          const hasAnswerKey = Boolean(
-            unit.rawAnswerKeyText ||
-              unit.answerKeySourceLabel ||
-              unit.questions.some((q) => q.correctAnswer)
-          );
-          const supCount = unit.sacredLibrarySupplements?.length || 0;
-
-          return (
-            <div
-              key={unit.id}
-              className="rounded-3xl border border-white/12 bg-white/[0.03] hover:bg-white/[0.05] transition p-5 flex flex-col justify-between gap-4 shadow-lg"
-            >
-              <div className="space-y-3">
-                {/* Badges Row */}
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <span
-                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${meta.badgeClass}`}
-                    >
-                      {meta.iconEmoji} {meta.shortLabel}
-                    </span>
-                    <span className="px-2 py-0.5 rounded-full bg-white/10 text-white/75 text-[10px] font-bold uppercase">
-                      {unit.sourceKind.replace('_', ' ')}
-                    </span>
-                    {supCount > 0 && (
-                      <span className="px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-400/30 text-amber-200 text-[10px] font-bold inline-flex items-center gap-1">
-                        <ScrollText size={10} /> {supCount} Sacred Sources
+          {shown.length === 0 ? (
+            <div className="lib-empty">
+              <h3>{visible.length ? 'Nothing matches' : 'Your library is empty'}</h3>
+              <p className="dim" style={{ maxWidth: 420 }}>
+                {visible.length
+                  ? 'Try another filter or search.'
+                  : 'Make a lesson, assignment or quiz in Tela Classwork — or bring in a PDF, Word doc or Google Doc — and it lands here, ready to assign.'}
+              </p>
+              {!visible.length && canUploadToLibrary && <button type="button" className="btn p" onClick={newInTela}><Plus size={15} /> New in Tela Classwork</button>}
+            </div>
+          ) : (
+            <div className="lib-grid">
+              {shown.map(u => {
+                const k = kindOf(u);
+                const on = selected.includes(u.id);
+                return (
+                  <div key={u.id} className={`lib-card${on ? ' sel' : ''}`}>
+                    {canAssign && assignable(u) && (
+                      <span role="checkbox" tabIndex={0} aria-checked={on} aria-label={`Select ${u.title}`} className="lib-sel"
+                        onClick={() => toggle(u.id)} onKeyDown={e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); toggle(u.id); } }}>
+                        {on && <Check size={18} strokeWidth={3} />}
                       </span>
                     )}
-                  </div>
-
-                  {canUploadToLibrary && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        deleteIngestedUnit(orgId, unit.id);
-                        refreshUnits();
-                      }}
-                      className="text-white/30 hover:text-rose-400 p-1"
-                      title="Remove from Lesson Library"
-                    >
-                      <Trash2 size={13} />
+                    <span className="lib-kind" style={{ background: KIND_META[k].color }}>{KIND_META[k].label}</span>
+                    <button type="button" className="lib-open" onClick={() => openPreview(u.id)} aria-label={`Preview ${u.title}`}>
+                      <TelaPage unit={u} size="thumb" />
+                      <span className="lib-t">{u.title}</span>
                     </button>
-                  )}
-                </div>
-
-                {/* Title & Subtitle */}
-                <div>
-                  <h4 className="text-sm sm:text-base font-black text-white leading-snug">
-                    {unit.title}
-                  </h4>
-                  <p className="text-xs text-white/55 mt-1">
-                    {unit.questions.length} Interactive Questions · {unit.totalPoints} pts ·{' '}
-                    {unit.masterySkills.length} Mastery Skills
-                  </p>
-                </div>
-
-                {/* Provenance Box: Shows the Exact Document We Extracted From */}
-                <div className="rounded-2xl border border-sky-400/25 bg-sky-500/[0.05] p-3 space-y-1.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-sky-300 flex items-center gap-1">
-                      <FileText size={11} /> Original Source Document in {orgName}
+                    <span className="lib-u">
+                      {u.questions.length > 0 ? `${u.questions.length} questions · ${u.totalPoints} pts` : 'Reading'}
+                      {canAccessAnswerKey && hasKey(u) && !isKeyOnly(u) && <span className="tag key"><KeyRound size={10} /> Key</span>}
                     </span>
-                    {unit.sourceUrl && (
-                      <a
-                        href={unit.sourceUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-[10px] font-bold text-sky-300 hover:underline inline-flex items-center gap-1"
-                      >
-                        <ExternalLink size={10} /> Open Source Link
-                      </a>
-                    )}
                   </div>
-                  <p className="text-[11px] text-white/75 truncate">
-                    Source: <strong>{unit.sourceLabel || unit.title}</strong>
-                  </p>
-                  {unit.extractedFromHubTitle && (
-                    <p className="text-[10px] text-white/55 truncate">
-                      Extracted from Hub: {unit.extractedFromHubTitle}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Action Buttons Row: 1) Original Source Doc, 2) Interactive Tela Lesson, 3) Gated Answer Key */}
-              <div className="pt-3 border-t border-white/10 space-y-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setInspectSourceUnit(unit)}
-                    className="flex-1 px-3 py-2 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 border border-sky-400/35 text-sky-200 text-[11px] font-black inline-flex items-center justify-center gap-1.5 transition"
-                  >
-                    <FileText size={12} /> View Original Extracted Doc
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setTelaPreviewUnit(unit)}
-                    className="flex-1 px-3 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/40 text-emerald-200 text-[11px] font-black inline-flex items-center justify-center gap-1.5 transition"
-                  >
-                    <Columns size={12} /> Open Interactive Tela Lesson
-                  </button>
-                </div>
-
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  {/* STRICT ANSWER KEY GATE: Only Course Teachers, Dept Heads, and Dept Admins */}
-                  {hasAnswerKey && canAccessAnswerKey ? (
-                    <button
-                      type="button"
-                      onClick={() => setInspectAnswerKeyUnit(unit)}
-                      className="flex-1 px-3 py-1.5 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 border border-purple-400/40 text-purple-200 text-[11px] font-black inline-flex items-center justify-center gap-1.5 transition"
-                    >
-                      <KeyRound size={12} /> View Teacher Answer Key &amp; Rubric
-                    </button>
-                  ) : hasAnswerKey ? (
-                    <div
-                      className="flex-1 px-3 py-1.5 rounded-xl bg-white/[0.03] border border-white/10 text-white/45 text-[10px] font-semibold inline-flex items-center justify-center gap-1.5"
-                      title="Answer keys are only available to Course Teachers, Department Heads, and Department Admins."
-                    >
-                      <Lock size={11} className="text-amber-300/80" /> Answer Key: Course Teachers, Dept Heads &amp; Admins Only
-                    </div>
-                  ) : null}
-
-                  {canUploadToLibrary && (
-                    <button
-                      type="button"
-                      onClick={() => setAssignModalUnit(unit)}
-                      className="px-3 py-1.5 rounded-xl bg-amber-400/20 hover:bg-amber-400/30 border border-amber-300/40 text-amber-200 text-[11px] font-black inline-flex items-center gap-1 transition"
-                    >
-                      <GraduationCap size={12} /> Assign to Class
-                    </button>
-                  )}
-                </div>
-              </div>
+                );
+              })}
             </div>
-          );
-        })}
-      </div>
+          )}
 
-      {/* Modal 1: Original Extracted Source Document Inspector */}
-      {inspectSourceUnit && (
-        <div className="fixed inset-0 z-[130] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-3xl max-h-[85vh] rounded-3xl border border-sky-400/40 bg-[#0e0d16] text-white flex flex-col overflow-hidden shadow-2xl">
-            <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between gap-3 bg-sky-500/10">
-              <div className="min-w-0">
-                <div className="text-[10px] font-black uppercase tracking-widest text-sky-300 flex items-center gap-1.5">
-                  <FileText size={12} /> Original Extracted Source Document · {orgName}
-                </div>
-                <h3 className="text-sm sm:text-base font-black text-white truncate">
-                  {inspectSourceUnit.title}
-                </h3>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                {inspectSourceUnit.sourceUrl && (
-                  <a
-                    href={inspectSourceUnit.sourceUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="px-3 py-1.5 rounded-xl bg-sky-400 text-black text-xs font-black inline-flex items-center gap-1"
-                  >
-                    <ExternalLink size={12} /> Open Source Link
-                  </a>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setInspectSourceUnit(null)}
-                  className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-            </div>
-
-            <div className="p-5 overflow-y-auto space-y-4 flex-1">
-              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3.5 text-xs space-y-1">
-                <div>
-                  <strong className="text-white/70">Organization Location:</strong> {orgName} →{' '}
-                  {inspectSourceUnit.departmentFolder || 'Christian Education'} → Lesson Library &amp; Content HQ
-                </div>
-                {inspectSourceUnit.sourceUrl && (
-                  <div className="truncate">
-                    <strong className="text-white/70">Original Document URL:</strong>{' '}
-                    <a
-                      href={inspectSourceUnit.sourceUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-sky-300 hover:underline"
-                    >
-                      {inspectSourceUnit.sourceUrl}
-                    </a>
-                  </div>
-                )}
-                {inspectSourceUnit.extractedFromHubUrl && (
-                  <div className="truncate">
-                    <strong className="text-white/70">Extracted From Course Hub:</strong>{' '}
-                    <a
-                      href={inspectSourceUnit.extractedFromHubUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-amber-300 hover:underline"
-                    >
-                      {inspectSourceUnit.extractedFromHubTitle || inspectSourceUnit.extractedFromHubUrl}
-                    </a>
-                  </div>
-                )}
-              </div>
-
-              <div className="rounded-2xl border border-white/12 bg-black/60 p-5 font-mono text-xs text-white/90 whitespace-pre-wrap leading-relaxed">
-                {inspectSourceUnit.rawCurriculumText ||
-                  [
-                    `# ${inspectSourceUnit.title}`,
-                    inspectSourceUnit.subtitle,
-                    '',
-                    ...inspectSourceUnit.lessonBlocks.map((b) => b.text),
-                    '',
-                    ...inspectSourceUnit.questions.map(
-                      (q) =>
-                        `${q.number}. ${q.prompt} [${q.points} pts]${
-                          q.options?.length ? '\n   ' + q.options.join('\n   ') : ''
-                        }`
-                    ),
-                  ].join('\n')}
-              </div>
-            </div>
-
-            <div className="px-5 py-3 border-t border-white/10 bg-black/40 flex items-center justify-between">
-              <span className="text-[11px] text-white/55">
-                Both this Original Source Document and the Interactive Tela Document are saved in {orgName}.
-              </span>
-              <button
-                type="button"
-                onClick={() => {
-                  const u = inspectSourceUnit;
-                  setInspectSourceUnit(null);
-                  setTelaPreviewUnit(u);
-                }}
-                className="px-4 py-2 rounded-xl bg-emerald-400 text-black text-xs font-black inline-flex items-center gap-1.5"
-              >
-                <Layers size={13} /> Open Split View (Original + Interactive Tela)
+          {canAssign && selected.length > 0 && (
+            <div className="lib-actionbar" role="region" aria-label="Selection">
+              <strong style={{ fontFamily: 'var(--fd)' }}>{selected.length} selected</strong>
+              <span className="small grow">{programs.length ? 'Pick a course and lay them out on its calendar.' : ''}</span>
+              <button type="button" className="btn sm" onClick={() => setSelected([])}>Clear</button>
+              <button type="button" className="btn p" onClick={() => startAssign(selected)}>
+                <CalendarDays size={15} /> {programs.length ? 'Assign & schedule' : 'Assign'}
               </button>
             </div>
-          </div>
-        </div>
+          )}
+        </>
       )}
 
-      {/* Modal 2: Teacher Answer Key & Rubric Inspector (Strictly Gated to `canAccessAnswerKey`) */}
-      {inspectAnswerKeyUnit && canAccessAnswerKey && (
-        <div className="fixed inset-0 z-[130] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-2xl max-h-[85vh] rounded-3xl border border-emerald-400/40 bg-[#0e0d16] text-white flex flex-col overflow-hidden shadow-2xl">
-            <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between gap-3 bg-emerald-500/10">
-              <div className="min-w-0">
-                <div className="text-[10px] font-black uppercase tracking-widest text-emerald-300 flex items-center gap-1.5">
-                  <KeyRound size={12} /> Restricted Teacher Answer Key · Course Teachers, Dept Heads &amp; Admins Only
+      {/* Preview panel: the Tela page first, then the original it came from, then the (gated) answer key. */}
+      {preview && (
+        <>
+          <div className="lib-scrim" onClick={() => setPreviewId(null)} />
+          <aside className="ce lib-panel" role="dialog" aria-modal="true" aria-label={preview.title} onKeyDown={e => { if (e.key === 'Escape') setPreviewId(null); }}>
+            <div className="lib-ph">
+              <div className="grow" style={{ minWidth: 0 }}>
+                <div className="eyebrow" style={{ color: KIND_META[kindOf(preview)].color }}>{KIND_META[kindOf(preview)].label}</div>
+                <h3>{preview.title}</h3>
+                <div className="small">
+                  {preview.questions.length ? `${preview.questions.length} questions · ${preview.totalPoints} pts` : 'Reading'}
+                  {preview.createdByName ? ` · by ${preview.createdByName}` : ''}
                 </div>
-                <h3 className="text-sm sm:text-base font-black text-white truncate">
-                  {inspectAnswerKeyUnit.title} — Answer Key &amp; Rubric
-                </h3>
               </div>
-              <button
-                type="button"
-                onClick={() => setInspectAnswerKeyUnit(null)}
-                className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white"
-              >
-                <X size={16} />
-              </button>
+              <button type="button" className="btn sm" autoFocus onClick={() => setPreviewId(null)} aria-label="Close preview"><X size={15} /></button>
             </div>
-
-            <div className="p-5 overflow-y-auto space-y-4 flex-1">
-              {inspectAnswerKeyUnit.rawAnswerKeyText && (
-                <div className="rounded-2xl border border-emerald-400/30 bg-emerald-500/[0.06] p-4 font-mono text-xs text-emerald-100 whitespace-pre-wrap leading-relaxed">
-                  {inspectAnswerKeyUnit.rawAnswerKeyText}
+            <div className="lib-pt" role="tablist">
+              <button type="button" role="tab" aria-selected={panelTab === 'page'} onClick={() => setPanelTab('page')}>Tela page</button>
+              {hasOriginal(preview) && <button type="button" role="tab" aria-selected={panelTab === 'original'} onClick={() => setPanelTab('original')}>Original</button>}
+              {hasKey(preview) && (canAccessAnswerKey
+                ? <button type="button" role="tab" aria-selected={panelTab === 'key'} onClick={() => setPanelTab('key')}><KeyRound size={13} /> Answer key</button>
+                : <span className="small" style={{ alignSelf: 'center', marginLeft: 'auto' }}><Lock size={11} /> Answer key: teachers only</span>)}
+            </div>
+            <div className="lib-pb">
+              {panelTab === 'page' && <TelaPage unit={preview} size="full" />}
+              {panelTab === 'original' && (
+                <div className="stack">
+                  <div className="small">
+                    {preview.sourceLabel || 'Original file'}
+                    {preview.extractedFromHubTitle ? ` · from ${preview.extractedFromHubTitle}` : ''}
+                  </div>
+                  {preview.sourceUrl && (
+                    <a className="btn sm" style={{ justifySelf: 'start', textDecoration: 'none' }} href={preview.sourceUrl} target="_blank" rel="noreferrer"><ExternalLink size={13} /> Open the original</a>
+                  )}
+                  {preview.rawCurriculumText && <div className="lib-src">{preview.rawCurriculumText}</div>}
                 </div>
               )}
-
-              <div className="space-y-2.5">
-                <div className="text-xs font-black uppercase tracking-wider text-white/70">
-                  Question-by-Question Validated Key ({inspectAnswerKeyUnit.questions.length} Items)
+              {panelTab === 'key' && canAccessAnswerKey && (
+                <div className="stack">
+                  {preview.rawAnswerKeyText && <div className="lib-src">{preview.rawAnswerKeyText}</div>}
+                  {preview.questions.map(q => (
+                    <div key={q.id} className="lib-keyq">
+                      <strong>{q.number}. {q.prompt}</strong>
+                      <span style={{ color: 'var(--ok)' }}>✓ {q.correctAnswer || 'Teacher-graded (written answer)'}</span>
+                      {q.explanation && <span className="small">{q.explanation}</span>}
+                    </div>
+                  ))}
                 </div>
-                {inspectAnswerKeyUnit.questions.map((q) => (
-                  <div
-                    key={q.id}
-                    className="rounded-2xl border border-white/10 bg-white/[0.03] p-3.5 space-y-1.5 text-xs"
-                  >
-                    <div className="font-bold text-white">
-                      Q{q.number}. {q.prompt}{' '}
-                      <span className="text-amber-300 font-mono">[{q.points} pts]</span>
-                    </div>
-                    <div className="text-emerald-300 font-semibold">
-                      ✓ Correct Answer: {q.correctAnswer || 'Open reflection / rubric graded'}
-                    </div>
-                    {q.explanation && (
-                      <div className="text-white/65 text-[11px]">Rubric / Explanation: {q.explanation}</div>
-                    )}
-                  </div>
-                ))}
-              </div>
+              )}
             </div>
-          </div>
-        </div>
+            <div className="lib-pf">
+              {canAssign && assignable(preview) && (
+                <button type="button" className="btn p" onClick={() => startAssign([preview.id])}>
+                  <CalendarDays size={15} /> {programs.length ? 'Assign & schedule' : 'Assign'}
+                </button>
+              )}
+              {canAssign && assignable(preview) && (
+                <button type="button" className="btn sm" onClick={() => toggle(preview.id)}>{selected.includes(preview.id) ? 'Selected ✓' : 'Add to selection'}</button>
+              )}
+              <button type="button" className="btn sm" onClick={() => { setFullPreview(preview); setPreviewId(null); }}>Side-by-side view</button>
+              <span className="grow" />
+              {canUploadToLibrary && (confirmRemove ? (
+                <button type="button" className="btn sm" style={{ background: 'rgba(255,84,112,.2)', borderColor: 'rgba(255,84,112,.5)' }}
+                  onClick={() => { deleteIngestedUnit(orgId, preview.id); setPreviewId(null); setSelected(s => s.filter(x => x !== preview.id)); refreshUnits(); }}>
+                  Remove from library?
+                </button>
+              ) : (
+                <button type="button" className="btn sm" aria-label="Remove from library" onClick={() => setConfirmRemove(true)}><Trash2 size={14} /></button>
+              ))}
+            </div>
+          </aside>
+        </>
       )}
 
-      {/* Modal 3: Interactive Tela Document Preview Modal (with `canViewAnswerKey` strictly passed) */}
-      {telaPreviewUnit && (
+      {scheduling && (
+        <>
+          <div className="lib-scrim" onClick={() => setScheduling(null)} />
+          <div className="ce" style={{ display: 'contents' }}>
+            <AssignScheduleSheet
+              units={scheduling.map(id => visible.find(u => u.id === id)).filter((u): u is IngestedCurriculumUnit => !!u)}
+              programs={programs}
+              orgId={orgId}
+              orgName={orgName}
+              domain={isStandaloneTeacher ? 'ACADEMIA' : 'CHRISTIAN_EDUCATION'}
+              teacher={{ uid: currentUserUid, name: currentUserName }}
+              onClose={() => setScheduling(null)}
+              onDone={scheduled}
+              onSaveProgram={onSaveProgram}
+            />
+          </div>
+        </>
+      )}
+
+      {fullPreview && (
         <TelaDocumentPreviewModal
-          isOpen={Boolean(telaPreviewUnit)}
-          onClose={() => setTelaPreviewUnit(null)}
-          title={telaPreviewUnit.title}
-          telaDocId={telaPreviewUnit.telaDocId}
-          unit={telaPreviewUnit}
-          originalUrl={telaPreviewUnit.sourceUrl}
-          originalText={telaPreviewUnit.rawCurriculumText}
-          answerKeyText={canAccessAnswerKey ? telaPreviewUnit.rawAnswerKeyText : undefined}
+          isOpen
+          onClose={() => setFullPreview(null)}
+          title={fullPreview.title}
+          telaDocId={fullPreview.telaDocId}
+          unit={fullPreview}
+          originalUrl={fullPreview.sourceUrl}
+          originalText={fullPreview.rawCurriculumText}
+          answerKeyText={canAccessAnswerKey ? fullPreview.rawAnswerKeyText : undefined}
           canViewAnswerKey={canAccessAnswerKey}
           orgName={orgName}
-          departmentFolder={
-            telaPreviewUnit.departmentFolder ||
-            (isStandaloneTeacher ? 'Lessons & Course Resources' : orgEducationFolderName)
-          }
+          departmentFolder={fullPreview.departmentFolder || (isStandaloneTeacher ? 'Lessons & Course Resources' : 'Christian Education')}
         />
       )}
 
-      {/* Modal 4: Assign to Classroom / Student Desk */}
-      <AssignToClassModal
-        isOpen={Boolean(assignModalUnit)}
-        onClose={() => setAssignModalUnit(null)}
-        unit={assignModalUnit}
-        defaultDomain="CHRISTIAN_EDUCATION"
-        orgId={orgId}
-        orgName={orgName}
-        teacherUid={currentUserUid}
-        teacherName={currentUserName}
-        programs={programs}
-        defaultProgramId={programId}
-        onAssigned={(created) => {
-          setAssignModalUnit(null);
-          setStatusMessage(`Assigned "${created.title}" to ${created.classroomName}!`);
-        }}
-      />
+      {legacyAssign && (
+        <AssignToClassModal
+          isOpen
+          onClose={() => setLegacyAssign(null)}
+          unit={legacyAssign}
+          defaultDomain={isStandaloneTeacher ? 'ACADEMIA' : 'CHRISTIAN_EDUCATION'}
+          orgId={orgId}
+          orgName={orgName}
+          teacherUid={currentUserUid}
+          teacherName={currentUserName}
+          programs={programs}
+          onAssigned={created => {
+            setLegacyAssign(null);
+            setSelected([]);
+            setStatus(`Assigned “${created.title}” to ${created.classroomName}.`);
+          }}
+        />
+      )}
     </div>
   );
 };

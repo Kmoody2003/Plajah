@@ -57,6 +57,10 @@ export interface UniversalDeskAssignment {
   assignedAt: number;
   dueAt: number;
   dueLabel: string;
+  /** Scheduled ahead: students see it from this time (the class's teachers always do). Absent = straight away. */
+  opensAt?: number;
+  /** Last time its dates were moved; the newer of this and assignedAt wins when copies disagree. */
+  rescheduledAt?: number;
   totalPoints: number;
   questionCount: number;
   toolsConfig: DeskAssignmentToolsConfig;
@@ -426,9 +430,14 @@ export function listDeskAssignments(filter?: {
   domain?: DeskContextDomain | 'ALL';
   orgId?: string;
   classroomId?: string;
+  /** A student's view: hides work scheduled to open later (unless they assigned it). */
+  studentUid?: string;
 }): UniversalDeskAssignment[] {
   const all = readStoredAssignments();
   return all.filter(item => {
+    if (filter?.studentUid && !isOpenFor(item, filter.studentUid)) {
+      return false;
+    }
     if (filter?.domain && filter.domain !== 'ALL' && item.domain !== filter.domain) {
       return false;
     }
@@ -454,6 +463,7 @@ export function assignUnitToClassroomDesk(params: {
   classroomName: string;
   dueLabel: string;
   dueAt?: number;
+  opensAt?: number;
   instructions?: string;
   livingTemplateId?: string;
   assignedByUid?: string;
@@ -493,6 +503,7 @@ export function assignUnitToClassroomDesk(params: {
     assignedAt: Date.now(),
     dueAt: params.dueAt || Date.now() + 2 * 86400_000,
     dueLabel: params.dueLabel || 'Due This Week',
+    ...(params.opensAt && params.opensAt > Date.now() ? { opensAt: params.opensAt } : {}),
     totalPoints: params.unit.totalPoints,
     questionCount: params.unit.questions.length,
     toolsConfig: {
@@ -509,6 +520,26 @@ export function assignUnitToClassroomDesk(params: {
   writeStoredAssignments(next);
   void mirrorAssignment(assignment);
   return assignment;
+}
+
+/** Which copy of an assignment is newest (assigned, or later moved on the calendar). */
+export const deskStamp = (a: Pick<UniversalDeskAssignment, 'assignedAt' | 'rescheduledAt'>) => Math.max(a.assignedAt || 0, a.rescheduledAt || 0);
+
+/** Students see scheduled work from its open time; whoever assigned it always sees it. */
+export function isOpenFor(a: Pick<UniversalDeskAssignment, 'opensAt' | 'assignedByUid'>, uid: string, now = Date.now()): boolean {
+  return !a.opensAt || a.opensAt <= now || a.assignedByUid === uid;
+}
+
+/** Moves an assigned item to new dates (calendar drag or edit). Returns the updated assignment, or null if it isn't on this device. */
+export function rescheduleDeskAssignment(id: string, at: { dueAt: number; dueLabel: string; opensAt?: number | null }): UniversalDeskAssignment | null {
+  const all = readStoredAssignments();
+  const cur = all.find(a => a.id === id);
+  if (!cur) return null;
+  const { opensAt: _old, ...rest } = cur;
+  const next: UniversalDeskAssignment = { ...rest, dueAt: at.dueAt, dueLabel: at.dueLabel, rescheduledAt: Date.now(), ...(at.opensAt && at.opensAt > Date.now() ? { opensAt: at.opensAt } : {}) };
+  writeStoredAssignments(all.map(a => (a.id === id ? next : a)));
+  void mirrorAssignment(next);
+  return next;
 }
 
 /**
@@ -682,7 +713,7 @@ export function mergeRemoteDeskAssignments(remote: UniversalDeskAssignment[]): v
   let changed = false;
   for (const r of remote) {
     const local = byId.get(r.id);
-    if (!local || local.assignedAt < r.assignedAt) {
+    if (!local || deskStamp(local) < deskStamp(r)) {
       byId.set(r.id, { ...local, ...r, unitSnapshot: { ...(local?.unitSnapshot || {}), ...r.unitSnapshot } });
       changed = true;
     }

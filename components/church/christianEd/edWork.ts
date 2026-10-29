@@ -6,8 +6,11 @@ import {
   listDeskAssignments,
   mergeRemoteDeskAssignments,
   applyReturnedSubmissions,
+  isOpenFor,
+  deskStamp,
   type UniversalDeskAssignment,
 } from '../../../services/universalStudentDeskService';
+import { auth } from '../../../services/firebase';
 import {
   fetchProgramAssignments,
   fetchProgramAnswerKeys,
@@ -44,30 +47,8 @@ export function currentWeekIndex(p: ChurchProgram): number {
   return Math.min(Math.max(p.currentWeek ?? 0, 0), p.weeks.length - 1);
 }
 
-const DAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
-/** First weekday named in the schedule text ("Sundays · 9:15 AM"), or -1. */
-export function scheduleWeekday(schedule?: string): number {
-  const s = (schedule || '').toLowerCase();
-  let best = -1;
-  let at = Infinity;
-  DAYS.forEach((d, i) => {
-    const k = s.indexOf(d);
-    if (k >= 0 && k < at) {
-      at = k;
-      best = i;
-    }
-  });
-  return best;
-}
-
-/** Next occurrence (today counts) of a weekday at 9:00 local. */
-export function nextWeekday(day: number, from = new Date()): Date {
-  const d = new Date(from);
-  d.setHours(9, 0, 0, 0);
-  const diff = (day - d.getDay() + 7) % 7;
-  d.setDate(d.getDate() + diff);
-  return d;
-}
+// Class meeting days live with the course calendar helpers; re-exported for the hub's existing imports.
+export { scheduleWeekday, nextWeekday } from '../../../services/edu/courseSchedule';
 
 export const fmtDay = (d: Date) => d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
 
@@ -107,8 +88,13 @@ export function useClassWork(programs: ChurchProgram[], opts: { asTeacher: boole
         mergeRemoteDeskAssignments(remote);
         const local = listDeskAssignments({ classroomId: p.id });
         const byId = new Map<string, UniversalDeskAssignment>();
-        for (const a of [...local, ...remote]) byId.set(a.id, withAnswerKeys(a, keys[a.id]));
-        const assignments = Array.from(byId.values()).sort((a, b) => b.assignedAt - a.assignedAt);
+        for (const a of [...local, ...remote]) {
+          const had = byId.get(a.id);
+          if (!had || deskStamp(had) <= deskStamp(a)) byId.set(a.id, withAnswerKeys(a, keys[a.id]));
+        }
+        const me = auth.currentUser?.uid || '';
+        // Students don't see work scheduled to open later.
+        const assignments = Array.from(byId.values()).filter(a => opts.asTeacher || isOpenFor(a, me)).sort((a, b) => b.assignedAt - a.assignedAt);
         return [p.id, { assignments, submissions: subs, joinRequests: reqs }] as const;
       })
     );

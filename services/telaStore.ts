@@ -281,6 +281,8 @@ function toMeta(d: TelaDoc): TelaDocMeta {
     title: d.title || 'Untitled canvas',
     createdAt: d.createdAt || 0,
     updatedAt: d.updatedAt || 0,
+    ...(d.orgOrigin?.orgId ? { orgId: d.orgOrigin.orgId, orgName: d.orgOrigin.orgName } : {}),
+    ...(d.editedBy?.length ? { editedBy: d.editedBy } : {}),
   };
 }
 

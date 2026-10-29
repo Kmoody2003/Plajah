@@ -8413,6 +8413,8 @@ export interface TelaDoc {
   issue?: { publicationId: string; issueId: string; volume?: number; number: number; date: string };
   /** The organization this document was made for (announcements, Classwork, org templates). Gates sharing it as a public template (services/templates/docTemplateLibrary). */
   orgOrigin?: { orgId: string; orgName?: string };
+  /** Accounts that have edited this doc, so the Tela home page can list "Mine" as made or worked on by you (services/tela/recentScope). */
+  editedBy?: string[];
   createdAt: number;
   updatedAt: number;
   /** Last structural assignment formatting pass. Source content remains editable. */
@@ -8449,6 +8451,13 @@ export interface TelaDocMeta {
   updatedAt: number;
   /** Newest published version (P2b) — mirrors TelaDoc.currentVersionId. */
   latestVersionId?: string;
+  /** The organization the doc was made for (TelaDoc.orgOrigin, or the shared project's orgId). */
+  orgId?: string;
+  orgName?: string;
+  /** Accounts that have edited it (TelaDoc.editedBy). */
+  editedBy?: string[];
+  /** Display name of the person who shared it with you; set only on docs other people shared. */
+  sharedBy?: string;
 }
 
 // ── Versions — immutable published snapshots (P2b) ───────────────────────────

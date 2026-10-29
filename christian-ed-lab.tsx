@@ -1,6 +1,6 @@
 // Christian Ed lab: the new hub, class clubs, review queue and Tela Classwork with sample Grace Chapel data.
 //   npx vite --config christian-ed-lab.vite.config.mjs  ->  http://127.0.0.1:3181/christian-ed-lab.html
-//   ?as=teacher (default) | student | review | classwork | templates | hq-templates | academia-teacher | homeroom
+//   ?as=teacher (default) | student | review | classwork | templates | hq-templates | academia-teacher | homeroom | library | library-student | tela-home
 // Firestore calls fail without sign-in and fall back to this device, the same way the app behaves offline.
 import React, { useState } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -14,6 +14,9 @@ import TemplateLibrary from './components/templates/TemplateLibrary';
 import HqTemplatesTab from './components/templates/HqTemplatesTab';
 import TeacherHub from './components/academia/TeacherHub';
 import HomeroomView from './components/homeroom/HomeroomView';
+import OrgLessonLibraryHub from './components/church/OrgLessonLibraryHub';
+import TelaHome from './components/tela/TelaHome';
+import { saveIngestedUnit } from './services/curriculumIngestionService';
 import type { ChurchProgram } from './services/churchEducationService';
 import type { IngestedCurriculumUnit } from './services/curriculumIngestionService';
 import { assignUnitToClassroomDesk } from './services/universalStudentDeskService';
@@ -135,6 +138,41 @@ const Lab: React.FC = () => {
   if (as === 'academia-teacher') return <TeacherHub user={{ uid: teacher.uid, displayName: teacher.name }} profile={{ uid: teacher.uid, displayName: teacher.name, accountType: 'TEACHER' }} onNavigate={v => console.log('navigate', v)} />;
   if (as === 'homeroom') return <HomeroomView user={{ uid: student.uid, displayName: student.name }} profile={{ uid: student.uid, displayName: student.name, accountType: 'STUDENT', age: 12 }} onNavigate={v => console.log('navigate', v)} />;
 
+  if (as === 'tela-home') {
+    // Tela home Recents filter: this browser also holds another account's docs and a demo seed doc; Mine hides them.
+    const d = (id: string, title: string, ownerId: string, extra: object = {}) => ({ id, title, ownerId, createdAt: now - 9e7, updatedAt: now - Math.random() * 9e7, ...extra });
+    const recent = [
+      d('t1', 'Fall newsletter', teacher.uid),
+      d('t2', 'Kids Sunday School · week 7 worksheet', teacher.uid, { orgId: church.id, orgName: church.name }),
+      d('t3', 'Christmas pageant flyer', 'lab-pastor', { orgId: church.id, sharedBy: 'Pastor James' }),
+      d('t4', 'Youth retreat packing list', 'lab-pastor', { orgId: church.id, editedBy: [teacher.uid] }),
+      d('t5', 'Someone else’s resume', 'lab-other-account'),
+      d('t6', 'Revelation 2 master syllabus', 'local-seed'),
+      d('t7', 'Book club picks', 'lab-friend', { sharedBy: 'Dana' }),
+    ];
+    return <TelaHome recent={recent} viewerUid={teacher.uid} memberOrgIds={[church.id]} onOpen={id => alert(`open ${id}`)} onCreate={() => {}} onChooseStyle={() => {}} onChoosePublication={() => {}} onChooseTemplate={() => {}} onImport={() => {}} />;
+  }
+  if (as === 'library' || as === 'library-student') {
+    // Sample Grace Chapel items (lab only): a quiz, two assignments, a reading and a syllabus.
+    const mk = (id: string, title: string, subtitle: string, cat: IngestedCurriculumUnit['libraryCategory'], qs = unit.questions, blocks = unit.lessonBlocks): IngestedCurriculumUnit =>
+      ({ ...unit, id, title, subtitle, libraryCategory: cat, kind: cat === 'QUIZ_EXAM' ? 'QUIZ' : 'ASSIGNMENT', questions: qs, totalPoints: qs.reduce((n, q) => n + q.points, 0), lessonBlocks: blocks, sourceUrl: undefined, createdAt: now - Math.random() * 1e8 });
+    const reading = [{ id: 'r1', kind: 'h2' as const, text: 'Before you read' }, { id: 'r2', kind: 'p' as const, text: 'Jesus told this story to people who grumbled that he welcomed sinners. Read it slowly and notice how each son responds to the father.' }, { id: 'r3', kind: 'quote' as const, text: 'This son of mine was dead and is alive again; he was lost and is found.', scripturePassage: 'Luke 15:24' }];
+    for (const u of [
+      unit,
+      mk('lab-unit-good-sam', 'The Good Samaritan worksheet', 'Luke 10:25–37', 'ASSIGNMENT', unit.questions.slice(0, 2), reading),
+      mk('lab-unit-mustard', 'Mustard Seed reflection', 'Matthew 13:31–32', 'ASSIGNMENT', [unit.questions[2]], reading),
+      mk('lab-unit-reading', 'Parables reading packet', 'Read before week 7', 'COURSE_RESOURCE', [], reading),
+      mk('lab-unit-midterm', 'Parables unit exam', 'Weeks 1–6', 'QUIZ_EXAM'),
+      mk('lab-unit-syllabus', 'Kids Sunday School · Fall syllabus', 'September – December', 'SYLLABUS', [], reading),
+    ]) saveIngestedUnit({ ...u, orgId: church.id });
+    const teach = as === 'library';
+    return (
+      <div style={{ maxWidth: 1240, margin: '0 auto', padding: '24px 20px 60px' }}>
+        <OrgLessonLibraryHub orgId={church.id} orgName={church.name} programs={programs} canAccessAnswerKey={teach} canUploadToLibrary={teach}
+          currentUserUid={teach ? teacher.uid : student.uid} currentUserName={teach ? teacher.name : student.name} onSaveProgram={save} />
+      </div>
+    );
+  }
   if (as === 'classwork') {
     return (
       <div style={{ height: '100vh' }}>

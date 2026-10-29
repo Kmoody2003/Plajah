@@ -388,6 +388,10 @@ const ChurchEducation: React.FC<{
           currentUserUid={teacherProfile.uid}
           currentUserName={teacherProfile.displayName}
           onAttachWeeksToProgram={handleAttachIngestedUnitToProgram}
+          onSaveProgram={async prog => {
+            await saveProgram(prog);
+            setPrograms(prev => (prev ? prev.map(x => (x.id === prog.id ? prog : x)) : [prog]));
+          }}
         />
       </div>
     );
@@ -674,6 +678,10 @@ const ChurchEducation: React.FC<{
             currentUserUid={teacherProfile.uid}
             currentUserName={teacherProfile.displayName}
             onAttachWeeksToProgram={handleAttachIngestedUnitToProgram}
+            onSaveProgram={async prog => {
+              await saveProgram(prog);
+              setPrograms(prev => (prev ? prev.map(x => (x.id === prog.id ? prog : x)) : [prog]));
+            }}
           />
         )}
 

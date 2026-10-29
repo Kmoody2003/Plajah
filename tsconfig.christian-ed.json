@@ -31,6 +31,12 @@
     "services/announcements/*.ts",
     "services/templates/*.ts",
     "components/ContentHQ.tsx",
-    "components/living/TelaLivePage.tsx"
+    "components/living/TelaLivePage.tsx",
+    "components/church/library/*.tsx",
+    "services/edu/*.ts",
+    "services/tela/recentScope.ts",
+    "components/tela/TelaHome.tsx",
+    "components/desk/UniversalStudentDesk.tsx",
+    "tests/courseSchedule.test.ts"
   ]
 }

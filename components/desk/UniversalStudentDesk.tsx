@@ -105,7 +105,7 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
 
   const [assignments, setAssignments] = useState<UniversalDeskAssignment[]>(() =>
-    listDeskAssignments({ domain: defaultDomain, classroomId })
+    listDeskAssignments({ domain: defaultDomain, classroomId, studentUid })
   );
   const [workspaces, setWorkspaces] = useState<Record<string, StudentDeskWorkspaceState>>(() =>
     getAllStudentDeskWorkspaces(studentUid)
@@ -145,6 +145,7 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
     const list = listDeskAssignments({
       domain: domainFilter,
       classroomId,
+      studentUid,
     });
     setAssignments(list);
     const wsMap = getAllStudentDeskWorkspaces(studentUid);

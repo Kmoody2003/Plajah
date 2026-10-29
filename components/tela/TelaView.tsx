@@ -36,6 +36,8 @@ import { CollabDock } from '../collab/CollabDock';
 import { forShare, telaLabeler, withPrivate } from './telaCoedit';
 import { TelaPresenceLayer } from './TelaPresence';
 import { coProjectId, listSharedWithMe } from '../../services/coedit/project';
+import { isMine, isSharedWithMe, stampEditor } from '../../services/tela/recentScope';
+import { fetchOrganization, fetchUserMemberships } from '../../services/organizationService';
 import { loadSharedDoc } from '../../services/coedit/session';
 import { merge3Json } from '../../services/coedit/crdt';
 import { CREATIVE_SYNC_EVENT, type CreativeSyncDetail } from '../../services/creativeCloud/cloudStore';
@@ -375,6 +377,9 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
   const cloudSync = useCreativeSyncState(TELA_CLOUD_KIND, doc?.id);
   const [storageMode, setStorageMode] = useState<'opfs' | 'local'>('opfs');
   const [canvasList, setCanvasList] = useState<TelaDocMeta[] | null>(null);
+  // Orgs this account belongs to, for the home page's org filter (services/tela/recentScope).
+  const [memberOrgIds, setMemberOrgIds] = useState<string[]>([]);
+  const [orgNames, setOrgNames] = useState<Record<string, string>>({});
   const [canvasesOpen, setCanvasesOpen] = useState(false);
   const [deviceMenuOpen, setDeviceMenuOpen] = useState(false);
   const [appMenuOpen, setAppMenuOpen] = useState<'FILE' | 'INSERT' | 'DOCUMENT' | 'EDIT' | 'EXPORT' | 'ASSIGNMENT' | null>(null);
@@ -510,6 +515,25 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
   const currentDevice = activeFrame ? activeFrame.deviceIds.map(id => doc?.devices[id]).find(Boolean) || null : null;
   const isCurrentImage = currentDevice?.type === 'IMAGE';
 
+  // ── Org filter on the home page: which orgs you're in, and names for shared org docs ───────────
+  useEffect(() => {
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    let alive = true;
+    fetchUserMemberships(uid)
+      .then(ms => { if (alive) setMemberOrgIds(ms.filter(m => m.status === 'ACTIVE').map(m => m.orgId)); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
+  useEffect(() => {
+    const missing = [...new Set((canvasList || []).filter(m => m.orgId && !m.orgName && !orgNames[m.orgId]).map(m => m.orgId!))].slice(0, 12);
+    if (!missing.length) return;
+    let alive = true;
+    void Promise.all(missing.map(id => fetchOrganization(id).then(o => [id, o?.name || ''] as const).catch(() => [id, ''] as const)))
+      .then(rows => { if (alive) setOrgNames(n => ({ ...n, ...Object.fromEntries(rows) })); });
+    return () => { alive = false; };
+  }, [canvasList, orgNames]);
+
   // ── Boot: open the most recent canvas, or start a fresh one ────────────────
   useEffect(() => {
     let alive = true;
@@ -518,6 +542,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
       const metas = await listTelaDocs();
       if (!alive) return;
       setCanvasList(metas);
+      void refreshList();
       const requestedId = initialDocId || metas[0]?.id;
       if (initialDocId) setShowHome(false);
       if (requestedId) {
@@ -716,7 +741,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
     if (current) {
       // Apply synchronously so two ops in one tick both see the latest doc
       // (and history records the true "before" of each).
-      const next = applyTelaOp(current, op);
+      const next = stampEditor(applyTelaOp(current, op), auth.currentUser?.uid);
       if (next !== current) setHistory(recordOp(historyRef.current, current, op));
       if (op.type === 'WRITER_EDIT') {
         const before = current.devices[op.deviceId], after = next.devices[op.deviceId];
@@ -743,7 +768,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
   const applyRemoteDoc = useCallback((remote: TelaDoc) => {
     const current = docRef.current;
     const role = coRef.current?.role;
-    const merged = withPrivate(remote, current);
+    const merged = { ...withPrivate(remote, current), editedBy: [...new Set([...(remote.editedBy || []), ...(current?.editedBy || [])])] };
     const next = role && role !== 'owner' && role !== 'editor' ? { ...merged, locked: true } : merged;
     if (current) resyncDomains(current, next);
     docRef.current = next;
@@ -2176,7 +2201,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
     const [mine, shared] = await Promise.all([listTelaDocs(), listSharedWithMe(TELA_CLOUD_KIND)]);
     const have = new Set(mine.map(m => m.id));
     // Canvases other people shared with you open on any device, even before this one has a copy.
-    const fromOthers: TelaDocMeta[] = shared.filter(p => !have.has(p.localId)).map(p => ({ id: p.localId, ownerId: p.ownerId, title: `${p.title} · shared by ${p.names?.[p.ownerId] || 'a collaborator'}`, createdAt: p.createdAt, updatedAt: p.updatedAt }));
+    const fromOthers: TelaDocMeta[] = shared.filter(p => !have.has(p.localId)).map(p => ({ id: p.localId, ownerId: p.ownerId, title: p.title, sharedBy: p.names?.[p.ownerId] || 'a collaborator', ...(p.orgId ? { orgId: p.orgId } : {}), createdAt: p.createdAt, updatedAt: p.updatedAt }));
     setCanvasList([...mine, ...fromOthers].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)));
   };
 
@@ -2776,7 +2801,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
   if (showHome) {
     return <>
       <input ref={fileRef} type="file" accept={`${SUPPORTED_IMPORT_ACCEPT},.csv,.xlsx,.tela`} className="hidden" onChange={e => { const file=e.target.files?.[0]; if(file)void handleImportFile(file); e.target.value=''; }}/>
-      <TelaHome recent={canvasList || []} onOpen={id => void openCanvas(id)} onCreate={kind => void createHomeDocument(kind)} onChooseStyle={entry => void createStyleDocument(entry)} onChoosePublication={template => void createPublicationDocument(template)} onChooseTemplate={template => void createTemplateDocument(template)} onImport={() => fileRef.current?.click()} onOpenMerch={() => setMerchStudioOpen(true)} onBack={onBack}/>
+      <TelaHome recent={canvasList || []} viewerUid={auth.currentUser?.uid || null} memberOrgIds={memberOrgIds} orgNames={orgNames} onOpen={id => void openCanvas(id)} onCreate={kind => void createHomeDocument(kind)} onChooseStyle={entry => void createStyleDocument(entry)} onChoosePublication={template => void createPublicationDocument(template)} onChooseTemplate={template => void createTemplateDocument(template)} onImport={() => fileRef.current?.click()} onOpenMerch={() => setMerchStudioOpen(true)} onBack={onBack}/>
     </>;
   }
 
@@ -3094,14 +3119,14 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
               </button>
               <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', margin: '5px 4px' }} />
               <div className="max-h-[320px] overflow-y-auto custom-scrollbar">
-                {(canvasList || []).map(m => (
+                {(canvasList || []).filter(m => isMine(m, auth.currentUser?.uid) || isSharedWithMe(m, auth.currentUser?.uid)).map(m => (
                   <div key={m.id} className="flex items-center gap-1">
                     <button
                       className={`${menuItem} flex-1 min-w-0`}
                       onClick={() => void openCanvas(m.id)}
                       style={m.id === doc.id ? { color: 'var(--pj-cyan, #00DAF3)' } : undefined}
                     >
-                      <span className="truncate">{m.title || 'Untitled canvas'}</span>
+                      <span className="truncate">{m.title || 'Untitled canvas'}{m.sharedBy ? ` · shared by ${m.sharedBy}` : ''}</span>
                       <span className="ml-auto shrink-0 text-[.6rem] text-white/35">{new Date(m.updatedAt).toLocaleDateString()}</span>
                     </button>
                     {confirmDeleteId === m.id ? (

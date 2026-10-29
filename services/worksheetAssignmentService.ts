@@ -43,6 +43,8 @@ export interface PublishInput {
   students: RosterStudent[];
   teacher: TeacherRef;
   dueDate?: number;
+  /** Scheduled ahead (Lesson Library calendar): students' lists hide it until then. A display gate, not access control. */
+  opensAt?: number;
   /** true ⇒ compute counts but write no notifications (demo / preview). */
   simulate?: boolean;
   /** Untouched camera/file original. Stored beside the digitized Tela form for audit/re-edit. */
@@ -149,6 +151,7 @@ export async function saveWorksheet(sheet: DigitalWorksheet, originalFile?: File
  */
 export async function publishWorksheet(input: PublishInput): Promise<WireResult> {
   const { sheet, classId, className, students, teacher, dueDate, simulate, originalFile, pageImageDataUrl } = input;
+  const opensAt = input.opensAt && input.opensAt > Date.now() ? input.opensAt : null;
   const result: WireResult = {
     ok: false, worksheetId: null, assignmentId: null,
     studentsNotified: 0, parentsNotified: 0,
@@ -174,6 +177,7 @@ export async function publishWorksheet(input: PublishInput): Promise<WireResult>
         standardIds: sheet.standardIds,
         studentIds: students.map(s => s.id),
         dueDate: dueDate || null,
+        opensAt,
         tutorEnabled: true,     // attaches the in-worksheet Plajah tutor
         autoGrade: true,        // arms auto-grade on turn-in
         createdAt: assignedAt,
@@ -185,7 +189,7 @@ export async function publishWorksheet(input: PublishInput): Promise<WireResult>
           worksheetId, assignmentId: ref.id, studentId: student.id, studentName: student.name,
           // Title + due ride on each submission so a guardian's calendar can show it without
           // reading the class-wide assignment (which they are never given).
-          title: sheet.title, subject: sheet.subject, className, teacherUid: teacher.uid, dueDate: dueDate || null,
+          title: sheet.title, subject: sheet.subject, className, teacherUid: teacher.uid, dueDate: dueDate || null, opensAt,
           status: 'assigned', assignedAt,
           timeline: arrayUnion({ status: 'ASSIGNED', at: assignedAt, actorId: teacher.uid, actorName: teacher.name }),
         }, { merge: true })));
@@ -207,7 +211,7 @@ export async function publishWorksheet(input: PublishInput): Promise<WireResult>
       senderId: teacher.uid, senderName: teacher.name, senderPhoto: teacher.photo || '',
       type: 'CONTENT',
       title: `New homework: ${sheet.title}`,
-      message: `${sheet.subject}${dueDate ? ` · due ${new Date(dueDate).toLocaleDateString()}` : ''} — tap to start. Plajah can help.`,
+      message: `${sheet.subject}${opensAt ? ` · opens ${new Date(opensAt).toLocaleDateString()}` : ''}${dueDate ? ` · due ${new Date(dueDate).toLocaleDateString()}` : ''} — ${opensAt ? 'it’ll be on your desk then' : 'tap to start'}. Plajah can help.`,
       link, targetId: worksheetId || classId,
     }).catch(() => null)));
     result.studentsNotified = sent.filter(Boolean).length;

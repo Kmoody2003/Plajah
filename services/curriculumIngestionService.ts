@@ -201,13 +201,15 @@ export function listIngestedUnits(
       ? safeOrgId !== 'teacher-personal-hq'
         ? readRawStoredUnitsForKey(STORAGE_UNITS_KEY('teacher-personal-hq'))
         : []
-      : safeOrgId !== GREAT_FAITH_MINISTRIES_DEFAULT_ID
-        ? readRawStoredUnitsForKey(STORAGE_UNITS_KEY(GREAT_FAITH_MINISTRIES_DEFAULT_ID))
-        : [];
+      : []; // A real org's library holds only its own lessons; the sample course lives on the demo org.
 
+    // The Revelation 2 sample course is demo content. Older builds seeded it into every org's library;
+    // a real org shows only what its own people added.
+    const demoOrg = !isStandaloneTeacher && safeOrgId === GREAT_FAITH_MINISTRIES_DEFAULT_ID;
     const byKey = new Map<string, IngestedCurriculumUnit>();
     for (const u of [...primaryList, ...secondaryList]) {
       if (!u || !u.title) continue;
+      if (!demoOrg && isSampleCourseUnit(u)) continue;
       const dedupeKey = (u.sourceUrl || u.title).trim().toLowerCase();
       if (!byKey.has(dedupeKey)) {
         const isKeyOnly =
@@ -235,14 +237,13 @@ export function listIngestedUnits(
           departmentFolder: resolvedFolder,
           documentClassFolder: docClass,
           scopeKind: isStandaloneTeacher ? 'user' : 'org',
+          // Only the demo org's items came from the sample course hub; real items keep their own source.
           extractedFromHubTitle:
             u.extractedFromHubTitle ||
-            (isStandaloneTeacher ? undefined : 'Revelation 2: Course Connection (Master Google Doc)'),
+            (demoOrg ? 'Revelation 2: Course Connection (Master Google Doc)' : undefined),
           extractedFromHubUrl:
             u.extractedFromHubUrl ||
-            (isStandaloneTeacher
-              ? undefined
-              : 'https://docs.google.com/document/d/1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE/edit?pli=1&tab=t.qo6bykb5zkh7'),
+            (demoOrg ? REVELATION_2_COURSE_CONNECTION_PRESET.hubUrl : undefined),
         });
       }
     }
@@ -250,7 +251,7 @@ export function listIngestedUnits(
     // For organization scopes, seed the preset documents synchronously if not yet seeded so the
     // organization's Lesson Library & `<Org Name> Education` folder is never empty on mount!
     if (
-      !isStandaloneTeacher &&
+      demoOrg &&
       !isSeedingDefaultsSync &&
       typeof REVELATION_2_COURSE_CONNECTION_PRESET !== 'undefined' &&
       byKey.size < REVELATION_2_COURSE_CONNECTION_PRESET.links.length
@@ -322,6 +323,13 @@ export function listIngestedUnits(
   } catch {
     return [];
   }
+}
+
+/** A unit seeded from the Revelation 2 sample course preset (demo content). */
+function isSampleCourseUnit(u: IngestedCurriculumUnit): boolean {
+  const p = REVELATION_2_COURSE_CONNECTION_PRESET;
+  // By its own source link only: older builds also stamped the hub onto real items' provenance.
+  return !!u.sourceUrl && (u.sourceUrl === p.hubUrl || p.links.some(l => l.url === u.sourceUrl || l.pairedAnswerKeyUrl === u.sourceUrl));
 }
 
 export function saveIngestedUnit(unit: IngestedCurriculumUnit): void {
@@ -2259,6 +2267,8 @@ export async function ensureAllDetectedLinksOnboarded(
     return listIngestedUnits(orgId, programId, orgName);
   }
   const safeOrgId = normalizeToGreatFaithOrgId(orgId);
+  // The Revelation 2 sample course is demo content: only the demo org gets it.
+  if (safeOrgId !== GREAT_FAITH_MINISTRIES_DEFAULT_ID) return listIngestedUnits(orgId, programId, orgName);
   const existing = listIngestedUnits(safeOrgId, undefined, orgName);
 
   const missingLinks = REVELATION_2_COURSE_CONNECTION_PRESET.links.filter(link => {

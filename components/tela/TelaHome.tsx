@@ -9,6 +9,7 @@ import {
   RotateCcw, Sliders, Waves, Eye, Mic, Shirt,
 } from 'lucide-react';
 import type { TelaDocMeta, TelaVectorObject } from '../../types';
+import { filterRecents, isSharedWithMe, orgChoices, type RecentScope } from '../../services/tela/recentScope';
 import type { TelaStyleEra } from '../../services/telaStyleEraLibrary';
 import type { TelaPublicationTemplate } from '../../services/telaPublicationTemplates';
 import TelaTemplateGallery from './TelaTemplateGallery';
@@ -250,8 +251,16 @@ export default function TelaHome({
   onImport,
   onOpenMerch,
   onBack,
+  viewerUid = null,
+  memberOrgIds = [],
+  orgNames = {},
 }: {
   recent: TelaDocMeta[];
+  /** Signed-in account; Recents shows only its own docs (made or edited) unless an org or Shared filter is picked. */
+  viewerUid?: string | null;
+  /** Orgs the viewer is an active member of — the org filters list only these. */
+  memberOrgIds?: string[];
+  orgNames?: Record<string, string>;
   onOpen: (id: string) => void;
   onCreate: (kind: TelaHomeDocumentKind) => void;
   onChooseStyle: (style: TelaStyleEra) => void;
@@ -263,6 +272,10 @@ export default function TelaHome({
   onBack?: () => void;
 }) {
   const [promptText, setPromptText] = useState('');
+  const [recentScope, setRecentScope] = useState<RecentScope>({ kind: 'mine' });
+  const orgs = useMemo(() => orgChoices(recent, viewerUid, memberOrgIds, orgNames), [recent, viewerUid, memberOrgIds, orgNames]);
+  const sharedCount = useMemo(() => recent.filter(d => isSharedWithMe(d, viewerUid)).length, [recent, viewerUid]);
+  const shown = useMemo(() => filterRecents(recent, recentScope, viewerUid, memberOrgIds), [recent, recentScope, viewerUid, memberOrgIds]);
   // Put the living dial carousel prominently near the top by default!
   const [templateView, setTemplateView] = useState<'dial' | 'shelves' | 'grid'>('dial');
 
@@ -944,7 +957,7 @@ export default function TelaHome({
                       Recent Documents & Activity
                     </h2>
                     <span className="px-2 py-0.5 rounded text-[8px] font-mono font-extrabold uppercase tracking-wider bg-white/[0.08] text-white/70 border border-white/10">
-                      {recent.length} {recent.length === 1 ? 'FILE' : 'FILES'}
+                      {shown.length} {shown.length === 1 ? 'FILE' : 'FILES'}
                     </span>
                   </div>
                 </div>
@@ -962,9 +975,27 @@ export default function TelaHome({
               </div>
             </div>
 
-            {recent.length ? (
+            {(orgs.length > 0 || sharedCount > 0) && (
+              <div className="flex flex-wrap items-center gap-2 mb-4" role="group" aria-label="Show documents">
+                {([
+                  { scope: { kind: 'mine' } as RecentScope, label: 'Mine', key: 'mine' },
+                  ...orgs.map(o => ({ scope: { kind: 'org', orgId: o.orgId } as RecentScope, label: `${o.orgName} · ${o.count}`, key: `org:${o.orgId}` })),
+                  ...(sharedCount ? [{ scope: { kind: 'shared' } as RecentScope, label: `Shared with me · ${sharedCount}`, key: 'shared' }] : []),
+                ]).map(c => {
+                  const on = c.key === (recentScope.kind === 'org' ? `org:${recentScope.orgId}` : recentScope.kind);
+                  return (
+                    <button key={c.key} type="button" aria-pressed={on} onClick={() => setRecentScope(c.scope)}
+                      className={`min-h-[36px] px-3.5 rounded-full text-[.74rem] font-bold border transition-colors ${on ? 'bg-white text-[#14101c] border-white' : 'bg-white/[0.04] text-white/70 border-white/12 hover:text-white hover:bg-white/[0.08]'}`}>
+                      {c.label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {shown.length ? (
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5">
-                {recent.slice(0, 8).map((doc, index) => (
+                {shown.slice(0, 8).map((doc, index) => (
                   <button
                     key={doc.id}
                     onClick={() => onOpen(doc.id)}
@@ -1000,6 +1031,7 @@ export default function TelaHome({
                           day: 'numeric',
                           year: doc.updatedAt < Date.now() - 31_536_000_000 ? 'numeric' : undefined
                         })}
+                        {doc.sharedBy ? <span className="truncate">· {doc.sharedBy}</span> : recentScope.kind === 'mine' && doc.orgName ? <span className="truncate">· {doc.orgName}</span> : null}
                       </span>
                     </span>
 
@@ -1018,7 +1050,7 @@ export default function TelaHome({
                     <FilePlus2 size={18} />
                   </div>
                   <div>
-                    <h4 className="text-[.86rem] font-bold text-white font-sans">No recent canvas files yet</h4>
+                    <h4 className="text-[.86rem] font-bold text-white font-sans">{recentScope.kind === 'mine' ? 'No recent canvas files yet' : 'Nothing here yet'}</h4>
                     <p className="text-[.74rem] text-white/50 font-sans">
                       Start your first document below from 9 canonical archetypes or launch the 3D channel dial.
                     </p>
