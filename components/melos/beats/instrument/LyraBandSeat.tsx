@@ -14,6 +14,7 @@ import { KeysLens } from '../../../../services/melos/beats/band/live/keysLens';
 import { liveBus, now } from '../../../../services/melos/beats/band/live/events';
 import type { LiveDirector } from '../../../../services/melos/beats/band/live/director';
 import { LiveAvatar } from '../band/live/LiveAvatar';
+import { LYRA_SEAT_INTROS } from '../../../../services/melos/beats/band/live/lineAudio';
 import { LoreCard } from '../band/live/LoreCard';
 import type { LiveHost } from '../band/live/useLiveCharacter';
 
@@ -32,11 +33,8 @@ function seatFor(model: LyraModel, variant: number): { player: string; lore: str
   }
 }
 
-/** A sentence to open with, true to the model as built (lyra/params HOW text) and its lore. */
-const INTRO: Partial<Record<LyraModel, string>> = {
-  tine: 'This is our tine electric piano, modelled on the pianos Harold Rhodes built: a hammer strikes a thin steel tine bolted to a tone bar, and a pickup turns its motion into sound.',
-  piano: 'This is LYRA\'s piano — felt hammers on one to three strings a note, and a soundboard, all modelled.',
-};
+/** A sentence to open with, true to the model as built — shared with the line renderer. */
+const INTRO: Partial<Record<LyraModel, string>> = LYRA_SEAT_INTROS;
 
 export const LyraBandSeat: React.FC<{ track: ArrangeTrack; model: LyraModel; variant: number; presetName: string; accent: string }> = ({ track, model, variant, presetName, accent }) => {
   const seat = seatFor(model, variant);

@@ -10,6 +10,7 @@ import type { Lens, Observation } from '../../../../../services/melos/beats/band
 import type { CharacterSheet, Demo } from '../../../../../services/melos/beats/band/character/schema';
 import { askPlayer } from '../../../../../services/melos/beats/band/bandMind';
 import { loreFact } from '../../../../../services/melos/beats/band/lore';
+import { lineKey, lineManifestUrl, normalizeLine, type LineManifest } from '../../../../../services/melos/beats/band/live/lineAudio';
 import { ariaVoice } from '../../../../../services/voice/aria/ariaVoice';
 import type { VoiceProfile } from '../../../../../services/voice/aria/types';
 import { createRecognizer, listeningAvailable, type Recognizer, type RecState } from '../../../../../services/voca/vocaSpeech';
@@ -35,6 +36,46 @@ const profileFor = (s: CharacterSheet): VoiceProfile => ({
   id: `band-${s.id}`, name: s.displayName, persona: 'narrator', rate: s.voice.rate, pitch: s.voice.pitch, onDeviceOnly: true,
   providerPrefs: { kokoro: { voice: s.voice.kokoro }, webSpeech: {} }, fallbackOrder: ['kokoro', 'webSpeech'],
 });
+
+const manifests = new Map<string, Promise<LineManifest | null>>();
+function manifestFor(id: string): Promise<LineManifest | null> {
+  if (!manifests.has(id)) manifests.set(id, fetch(lineManifestUrl(id)).then((r) => (r.ok ? r.json() : null)).catch(() => null));
+  return manifests.get(id)!;
+}
+
+/**
+ * Play a pre-rendered line (public/band/voice/<id>/) with its word timings driving the captions.
+ * Resolves true when it played (or was stopped), false when there's no clip or it can't play — then
+ * the caller speaks it on-device. Shares the voice with Aria: other speech starting stops it.
+ */
+async function playClip(id: string, text: string, onWord: (i: number) => void, signal: AbortSignal): Promise<boolean> {
+  const m = await manifestFor(id);
+  const clip = m?.lines[lineKey(m.voiceId, normalizeLine(text))];
+  if (!clip || signal.aborted) return false;
+  ariaVoice.cancel();
+  const audio = new Audio(`/band/voice/${id}/${clip.file}`);
+  const n = text.split(/\s+/).length;
+  const starts = clip.words.length === n ? clip.words : Array.from({ length: n }, (_, i) => (i * clip.durationMs) / n);
+  const timers: ReturnType<typeof setTimeout>[] = [];
+  let stop = () => {};
+  const done = new Promise<void>((res) => {
+    stop = () => { audio.pause(); timers.forEach(clearTimeout); res(); };
+    audio.onended = () => { timers.forEach(clearTimeout); onWord(n - 1); res(); };
+    audio.onerror = () => { timers.forEach(clearTimeout); res(); };
+  });
+  signal.addEventListener('abort', stop, { once: true });
+  const unregister = ariaVoice.registerExternalCanceller(stop);
+  try {
+    await audio.play();
+  } catch {
+    unregister(); signal.removeEventListener('abort', stop);
+    return false; // autoplay blocked or unsupported — speak it instead
+  }
+  starts.forEach((ms, i) => timers.push(setTimeout(() => onWord(i), ms)));
+  await done;
+  unregister(); signal.removeEventListener('abort', stop);
+  return true;
+}
 
 const sleep = (ms: number, signal: AbortSignal) => new Promise<void>((res) => {
   const t = setTimeout(res, ms);
@@ -63,6 +104,8 @@ export function useLiveCharacter(sheet: CharacterSheet, host: LiveHost) {
             for (let i = 0; i < words.length && !signal.aborted; i++) { onWord(i); await sleep(Math.max(180, words[i].length * 55), signal); }
             return;
           }
+          // A line recorded in their designed voice plays from its clip; anything else is spoken on-device.
+          if (await playClip(sheet.id, text, onWord, signal)) return;
           const prev = ariaVoice.getProfile();
           ariaVoice.setProfile(profileFor(sheet));
           const stop = () => ariaVoice.cancel();

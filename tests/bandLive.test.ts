@@ -200,3 +200,23 @@ test('Theo hears the chord you hold on the tine piano and talks about it in the 
   clock = 21_600; d.tick(); await settle();
   assert.match(said[0] ?? '', /D minor 7/);
 });
+
+test('pre-rendered lines: what the director says is exactly what was recorded', async () => {
+  const { fixedLines } = await import('../services/melos/beats/band/live/fixedLines');
+  const { lineKey } = await import('../services/melos/beats/band/live/lineAudio');
+  const { DRUMS } = await import('../services/melos/instruments/soma/drumKnowledge');
+  let clock = 0;
+  const said: string[] = [];
+  const lens = new SomaLens();
+  const d = new LiveDirector({ sheet: sheetById('amara')!, lens, clock: () => clock, random: () => 0,
+    speak: async (t) => { said.push(t); }, ask: async () => ({ text: '', lane: 'built-in' }),
+    enrich: () => ({ intro: DRUMS.djembe.intro, drum: 'Djembe' }) });
+  d.feed({ kind: 'open', instrument: 'soma', trackId: 't', at: 0 }); d.tick(); await settle();
+  for (let i = 0; i < 12; i++) d.feed(strike(20_000 + i * 400, 0.7, 0.08));
+  clock = 26_000; d.tick(); await settle();
+  const lines = new Set(fixedLines('amara'));
+  assert.equal(said.length, 2);
+  for (const s of said) assert.ok(lines.has(s), `recorded: ${s.slice(0, 60)}`);
+  assert.equal(lineKey('v', 'a b'), lineKey('v', 'a b'));
+  assert.notEqual(lineKey('v', 'a b'), lineKey('w', 'a b'));
+});
