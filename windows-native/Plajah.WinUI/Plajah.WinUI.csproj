@@ -39,6 +39,10 @@
     <PackageReference Include="LLamaSharp.Backend.Cpu" Version="0.30.0" />
     <!-- ASIO driver host for Chora multitrack capture (AsioMultitrackRecorder). MIT. -->
     <PackageReference Include="NAudio.Asio" Version="2.2.1" />
+    <!-- DirectX Shader Compiler for Chora's GPU audio DSP (rust/plajah-gpu-dsp) on D3D12: wgpu's
+         default FXC compiler never finishes its kernels. Official Microsoft build; only the two DLLs
+         for this platform are copied next to Plajah.WinUI.exe, where gpu::dxc_dir() finds them. -->
+    <PackageReference Include="Microsoft.Direct3D.DXC" Version="1.9.2609.5" GeneratePathProperty="true" ExcludeAssets="all" />
   </ItemGroup>
 
   <ItemGroup>
@@ -58,6 +62,25 @@
     </Reference>
     <Content Include="..\third_party\omt\win-x64\libvmx.dll">
       <Link>libvmx.dll</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <!-- DXC for the D3D12 GPU audio path: dxcompiler.dll + dxil.dll for this build's platform, next to
+       the exe, plus the package's licence texts (dxil.dll is Microsoft distributable code). -->
+  <PropertyGroup>
+    <DxcArch Condition="'$(RuntimeIdentifier)' == 'win-arm64'">arm64</DxcArch>
+    <DxcArch Condition="'$(RuntimeIdentifier)' == 'win-x86'">x86</DxcArch>
+    <DxcArch Condition="'$(DxcArch)' == ''">x64</DxcArch>
+    <DxcBin>$(PkgMicrosoft_Direct3D_DXC)\build\native\bin\$(DxcArch)</DxcBin>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(PkgMicrosoft_Direct3D_DXC)' != ''">
+    <Content Include="$(DxcBin)\dxcompiler.dll;$(DxcBin)\dxil.dll">
+      <Link>%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="$(PkgMicrosoft_Direct3D_DXC)\LICENSE-MS.txt;$(PkgMicrosoft_Direct3D_DXC)\LICENSE-LLVM.txt;$(PkgMicrosoft_Direct3D_DXC)\LICENCE-MIT.txt">
+      <Link>licenses\dxc\%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>

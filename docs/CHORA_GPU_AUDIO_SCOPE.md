@@ -119,9 +119,11 @@ It has its own `[workspace]`, so the WASM build and the shared `rust/Cargo.lock`
   time-domain history so either side can rebuild its delay line at a hand-over.
 - **D3D12 needs DXC.** wgpu's default FXC compiler never finished the modal kernel (> 5 min).
   `gpu::dxc_dir()` loads `dxcompiler.dll` + `dxil.dll` from `PLAJAH_DXC_DIR`, from next to the
-  exe, or from the Windows SDK. **The desktop app must ship those two DLLs**
-  (Microsoft-redistributable, x64 and ARM64). Even with DXC, the first D3D12 pipeline build takes
-  4–6 s (Vulkan: ~50 ms), so build pipelines off-thread at startup.
+  exe, or from the Windows SDK. **The desktop app ships them**: `Plajah.WinUI.csproj` pulls
+  Microsoft's `Microsoft.Direct3D.DXC` NuGet package (1.9.2609.5) and copies the build platform's
+  pair (x64 / ARM64 / x86) next to `Plajah.WinUI.exe`, with the licence texts in
+  `licenses\dxc\`. The tests pass on D3D12 with that copy. Even with DXC, the first D3D12
+  pipeline build takes 4–6 s (Vulkan: ~50 ms), so build pipelines off-thread at startup.
 
 ### Correctness (`cargo test --release`, 6 tests, all pass)
 
@@ -201,7 +203,7 @@ than the WASM engine, so the lab's "speed-up" column is not a fair comparison.
    Per-block parameter changes (strike position, damping) are just a coefficient upload.
 4. Non-uniform partitioning (a small head partition on the CPU, the big tail on the GPU), so
    reverbs can use the GPU even on the live/armed track.
-5. Test on AMD, Qualcomm Adreno (ARM64 Windows: ship the arm64 DXC DLLs) and Apple Silicon
+5. Test on AMD, Qualcomm Adreno (ARM64 Windows: the arm64 DXC DLLs already ship) and Apple Silicon
    (Metal), in f32 throughout, as on the Intel GPU.
 6. Warm up pipelines off the audio path; add time-varying modal coefficients. Leave `soma.rs`
    alone until the SOMA rework lands.
