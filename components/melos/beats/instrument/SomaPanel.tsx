@@ -56,6 +56,7 @@ import {
 } from '../../../../services/melos/instruments/soma/patch';
 import { Knob } from '../shared/Knob';
 import { SomaDrumStory } from './SomaDrumStory';
+import { liveBus, now as liveNow } from '../../../../services/melos/beats/band/live/events';
 
 interface Props {
   doc: GrooveDoc;
@@ -168,6 +169,7 @@ export const SomaPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
     ) => {
       const rho = overridePos ?? resolvedParams[SM.STRIKE_POS] ?? 0.62;
       const ang = overrideAngle ?? resolvedParams[SM.STRIKE_ANGLE] ?? 0.5;
+      liveBus.emit({ kind: 'strike', instrument: 'soma', trackId: track.id, at: liveNow(), note, velocity, pos: rho, striker: overrideStriker ?? resolvedParams[SM.STRIKER_TYPE] ?? 0 });
       const weights = BESSEL_MODES.map((m) => besselJ(m.m, m.besselRoot * rho));
       strikeAnimRef.current = {
         time: performance.now(),
@@ -338,6 +340,7 @@ export const SomaPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
 
   const handleSelectPreset = (preset: SomaPreset) => {
     const next = applySomaPreset(patch, preset);
+    liveBus.emit({ kind: 'preset', instrument: 'soma', trackId: track.id, at: liveNow(), presetId: preset.id, presetName: preset.name });
     setMorphAmt(0);
     commitPatch(next, preset.name);
     setTimeout(() => {
@@ -352,6 +355,7 @@ export const SomaPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
   };
 
   const setParamValue = (id: number, value: number) => {
+    liveBus.emit({ kind: 'param', instrument: 'soma', trackId: track.id, at: liveNow(), paramId: id });
     const nextParams = { ...patch.params, [id]: value };
     let nextPad = patch.strikePad;
     if (id === SM.STRIKE_POS || id === SM.STRIKE_ANGLE) {
@@ -746,6 +750,7 @@ export const SomaPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
 
   const handleNoteOn = useCallback(
     (note: number, vel = 0.88) => {
+      liveBus.emit({ kind: 'strike', instrument: 'soma', trackId: track.id, at: liveNow(), note, velocity: vel, pos: strikeAnimRef.current.rho });
       setHeldNotes((prev) => new Set(prev).add(note));
       const engine = BeatsEngine.get();
       void engine.init().then(async () => {
@@ -930,7 +935,7 @@ export const SomaPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
       </div>
 
       {/* The real drum behind the preset — photo, Amara's intro, history / build / technique */}
-      <SomaDrumStory presetId={patch.presetId} />
+      <SomaDrumStory presetId={patch.presetId} presetName={patch.name} trackId={track.id} defaultNote={patch.defaultNote || 48} strike={triggerPhysicalStrike} />
 
       {mode === 'play' ? (
         <div className="p-4 grid grid-cols-1 lg:grid-cols-12 gap-4">

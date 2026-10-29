@@ -1,22 +1,29 @@
-// SOMA — the drum behind the preset: a credited photo of the real instrument, the Session Band's
-// percussionist (Amara) introducing it, and the history / build / technique / traditions she can open
-// up, with the sources. Content lives in services/melos/instruments/soma/drumKnowledge.ts.
+// SOMA — the drum behind the preset, with the Session Band's percussionist live beside it. A credited
+// photo of the real instrument; Amara Okafor as a real-time character (band/live) who introduces each
+// drum, watches and listens to you play SOMA, gives feedback in a pause, plays demos on this SOMA and
+// talks back; and the history / build / technique / traditions she can read out, with the sources.
+// Content lives in services/melos/instruments/soma/drumKnowledge.ts. SOMA is the first live host:
+// SomaPanel reports hits, presets and knob moves on the band live bus.
 
-import React, { useEffect, useRef, useState } from 'react';
-import { BookOpen, ChevronDown, ExternalLink, Square, Volume2 } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { BookOpen, ChevronDown, ExternalLink, Volume2 } from 'lucide-react';
 import { drumForPreset, drumPhotoLocalUrl, drumPhotoUrl, type DrumKnowledge } from '../../../../services/melos/instruments/soma/drumKnowledge';
-import { playerById } from '../../../../services/melos/beats/band/roster';
-import { BandAvatar } from '../band/BandAvatar';
-import { ariaVoice } from '../../../../services/voice/aria/ariaVoice';
-import type { VoiceProfile } from '../../../../services/voice/aria/types';
+import { sheetById } from '../../../../services/melos/beats/band/character/sheets';
+import { SomaLens, type Observation } from '../../../../services/melos/beats/band/live/observations';
+import { liveBus, now } from '../../../../services/melos/beats/band/live/events';
+import type { LiveDirector } from '../../../../services/melos/beats/band/live/director';
+import { LiveAvatar } from '../band/live/LiveAvatar';
+import type { LiveHost } from '../band/live/useLiveCharacter';
 
 const ACCENT = '#E86A33';
 
-// Amara's voice: on-device only (Kokoro, else the system voice) — talking about a drum never calls a cloud TTS.
-const AMARA_VOICE: VoiceProfile = {
-  id: 'band-amara', name: 'Amara', persona: 'narrator', rate: 0.98, pitch: 1.0, onDeviceOnly: true,
-  providerPrefs: { kokoro: { voice: 'af_kore' }, webSpeech: {} }, fallbackOrder: ['kokoro', 'webSpeech'],
+/** SOMA's playing zones for a demo stroke — the same spots as the panel's audition buttons. */
+const STROKES: Record<string, { pos: number; striker: number }> = {
+  bass: { pos: 0.08, striker: 1 }, tone: { pos: 0.6, striker: 1 }, slap: { pos: 0.78, striker: 2 },
+  muted: { pos: 0.48, striker: 3 }, stick: { pos: 0.65, striker: 0 },
 };
+
+export type SomaStrike = (note?: number, velocity?: number, pos?: number, angle?: number, striker?: number) => void;
 
 type Section = 'origins' | 'build' | 'playing' | 'traditions' | 'sources';
 const SECTIONS: { id: Section; label: string }[] = [
@@ -76,49 +83,35 @@ const SectionBody: React.FC<{ d: DrumKnowledge; s: Section }> = ({ d, s }) => {
   );
 };
 
-export const SomaDrumStory: React.FC<{ presetId?: string }> = ({ presetId }) => {
+export const SomaDrumStory: React.FC<{ presetId?: string; presetName?: string; trackId?: string; defaultNote?: number; strike?: SomaStrike }> = ({ presetId, presetName, trackId = '', defaultNote = 48, strike }) => {
   const drum = drumForPreset(presetId);
-  const amara = playerById('amara');
+  const amara = sheetById('amara');
   const [open, setOpen] = useState<Section | null>(null);
-  const [speaking, setSpeaking] = useState<Section | 'intro' | null>(null);
   // 0 = bundled copy, 1 = Commons, 2 = neither loaded.
   const [photoTry, setPhotoTry] = useState(0);
-  const speakRun = useRef(0);
-  const talking = useRef(false);
-  const prevProfile = useRef<VoiceProfile | null>(null);
+  const [director, setDirector] = useState<LiveDirector | null>(null);
 
-  const stop = () => {
-    speakRun.current++;
-    if (talking.current) {
-      ariaVoice.cancel();
-      if (prevProfile.current) ariaVoice.setProfile(prevProfile.current);
-    }
-    talking.current = false;
-    setSpeaking(null);
+  const lens = useMemo(() => new SomaLens(), []);
+  // Opening the panel is the character's cue to say hello.
+  useEffect(() => {
+    liveBus.emit({ kind: 'open', instrument: 'soma', trackId, at: now(), presetId });
+    return () => liveBus.emit({ kind: 'close', instrument: 'soma', trackId, at: now() });
+  }, [trackId]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setPhotoTry(0); }, [drum?.id]);
+
+  const host: LiveHost = {
+    lens,
+    playStep: strike ? (stroke, velocity, note) => {
+      const z = STROKES[stroke] ?? STROKES.tone;
+      strike(defaultNote + (note ?? 0), velocity, z.pos, undefined, z.striker);
+    } : undefined,
+    enrich: (o: Observation) => ({ intro: drum?.intro ?? '', drum: drum?.name ?? 'drum', preset: presetName ?? String(o.data.preset ?? '') }),
+    screen: () => (drum
+      ? `The learner has SOMA (physical-model percussion) open on the preset "${presetName ?? presetId}", which models the ${drum.name} (${drum.region}).`
+      : 'The learner has SOMA open.'),
   };
-  // A new drum (or leaving the panel) stops Amara mid-sentence.
-  useEffect(() => { setPhotoTry(0); stop(); }, [drum?.id]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => () => { if (talking.current) stop(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!drum) return null;
-
-  const speak = async (s: Section | 'intro') => {
-    if (speaking === s) { stop(); return; }
-    const run = ++speakRun.current;
-    // Borrow the shared voice for Amara and hand it back as it was — only the latest run restores it.
-    if (ariaVoice.getProfile().id !== AMARA_VOICE.id) prevProfile.current = ariaVoice.getProfile();
-    ariaVoice.setProfile(AMARA_VOICE);
-    setSpeaking(s);
-    talking.current = true;
-    try { await ariaVoice.speak(spokenText(drum, s)); }
-    finally {
-      if (run === speakRun.current) {
-        if (prevProfile.current) ariaVoice.setProfile(prevProfile.current);
-        talking.current = false;
-        setSpeaking(null);
-      }
-    }
-  };
 
   const ph = drum.photo;
   return (
@@ -154,24 +147,7 @@ export const SomaDrumStory: React.FC<{ presetId?: string }> = ({ presetId }) => 
           <span className="text-[10px] text-white/35">· {drum.region}</span>
         </div>
 
-        <div className="flex gap-2.5 items-start">
-          {amara && <BandAvatar player={amara} size={36} lit={speaking !== null} />}
-          <div className="min-w-0 flex-1 rounded-xl rounded-tl-sm border border-white/10 bg-black/35 px-3 py-2">
-            <div className="flex items-center justify-between gap-2 mb-0.5">
-              <span className="text-[10px] font-semibold" style={{ color: amara?.color ?? ACCENT }}>
-                {amara ? `${amara.name} · Session Band percussion` : 'Session Band percussion'}
-              </span>
-              <button
-                onClick={() => speak('intro')}
-                className="h-5 px-1.5 rounded-md text-[9.5px] flex items-center gap-1 border border-white/10 text-white/60 hover:text-white hover:bg-white/10"
-                title={speaking === 'intro' ? 'Stop' : 'Hear Amara say it (on-device voice)'}
-              >
-                {speaking === 'intro' ? <Square size={9} /> : <Volume2 size={10} />} {speaking === 'intro' ? 'Stop' : 'Listen'}
-              </button>
-            </div>
-            <p className="text-[11.5px] leading-relaxed text-white/85 m-0">{drum.intro}</p>
-          </div>
-        </div>
+        {amara && <LiveAvatar sheet={amara} host={host} fallbackLine={drum.intro} role="Session Band percussion · live" onDirector={setDirector} />}
 
         <div className="flex flex-wrap gap-1">
           {SECTIONS.map(({ id, label }) => (
@@ -192,13 +168,13 @@ export const SomaDrumStory: React.FC<{ presetId?: string }> = ({ presetId }) => 
 
         {open && (
           <div className="rounded-xl border border-white/10 bg-black/30 px-3 py-2.5">
-            {open !== 'sources' && (
+            {open !== 'sources' && director && (
               <div className="flex justify-end -mt-0.5 mb-1">
                 <button
-                  onClick={() => speak(open)}
+                  onClick={() => void director.say(spokenText(drum, open))}
                   className="h-5 px-1.5 rounded-md text-[9.5px] flex items-center gap-1 border border-white/10 text-white/55 hover:text-white hover:bg-white/10"
                 >
-                  {speaking === open ? <Square size={9} /> : <Volume2 size={10} />} {speaking === open ? 'Stop' : 'Amara reads this'}
+                  <Volume2 size={10} /> Amara reads this
                 </button>
               </div>
             )}
