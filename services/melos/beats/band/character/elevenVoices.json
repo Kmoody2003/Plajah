@@ -1,0 +1,80 @@
+{
+  "amara": {
+    "voiceId": "SAUvO9ipxVaMZmqH7atC",
+    "preview": 0,
+    "name": "Plajah Band · Amara Okafor",
+    "designedAt": "2026-10-29T03:59:55.676Z"
+  },
+  "marcus": {
+    "voiceId": "gmDW11ocQ8eP460TKkpL",
+    "preview": 0,
+    "name": "Plajah Band · Marcus Bell",
+    "designedAt": "2026-10-29T04:00:18.485Z"
+  },
+  "dwayne": {
+    "voiceId": "XTjgOpDMZGqUd2hfgZj4",
+    "preview": 0,
+    "name": "Plajah Band · Dwayne Carter",
+    "designedAt": "2026-10-29T04:00:27.052Z"
+  },
+  "rosa": {
+    "voiceId": "YOjLgwqfbhVthkGEHnLZ",
+    "preview": 0,
+    "name": "Plajah Band · Rosa Alvarado",
+    "designedAt": "2026-10-29T04:00:35.277Z"
+  },
+  "theo": {
+    "voiceId": "b0vnppxpmpzPP8Up0DDf",
+    "preview": 0,
+    "name": "Plajah Band · Theo Laurent",
+    "designedAt": "2026-10-29T04:00:47.673Z"
+  },
+  "hez": {
+    "voiceId": "s1JqmoylcnsM1xeciVrA",
+    "preview": 0,
+    "name": "Plajah Band · Hezekiah Banks",
+    "designedAt": "2026-10-29T04:00:55.665Z"
+  },
+  "nova": {
+    "voiceId": "Exb0oF1zcyWGsjtqFaeA",
+    "preview": 0,
+    "name": "Plajah Band · Nova Kim",
+    "designedAt": "2026-10-29T04:01:03.475Z"
+  },
+  "ingrid": {
+    "voiceId": "wU7kUWrlYU2sf8F54H7Q",
+    "preview": 0,
+    "name": "Plajah Band · Ingrid Solberg",
+    "designedAt": "2026-10-29T04:01:11.775Z"
+  },
+  "priya": {
+    "voiceId": "YgLYzrg1pDjNW3rGNlj0",
+    "preview": 0,
+    "name": "Plajah Band · Priya Nair",
+    "designedAt": "2026-10-29T04:01:20.601Z"
+  },
+  "corny": {
+    "voiceId": "ujWLtyD1KhbC1ZIYk9F4",
+    "preview": 0,
+    "name": "Plajah Band · Cornelius Price",
+    "designedAt": "2026-10-29T04:01:28.789Z"
+  },
+  "lena": {
+    "voiceId": "xeQNTYxX49smE6XGDpCD",
+    "preview": 0,
+    "name": "Plajah Band · Lena Moretti",
+    "designedAt": "2026-10-29T04:01:37.088Z"
+  },
+  "felix": {
+    "voiceId": "qI89ZB38grorlPKOe5ET",
+    "preview": 0,
+    "name": "Plajah Band · Felix Hart",
+    "designedAt": "2026-10-29T04:01:44.706Z"
+  },
+  "elena": {
+    "voiceId": "scbYAzHGipptkFQYdnve",
+    "preview": 0,
+    "name": "Plajah Band · Elena Vasquez",
+    "designedAt": "2026-10-29T04:01:52.499Z"
+  }
+}
