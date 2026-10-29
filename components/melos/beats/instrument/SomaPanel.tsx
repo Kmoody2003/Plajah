@@ -56,6 +56,7 @@ import {
 } from '../../../../services/melos/instruments/soma/patch';
 import { Knob } from '../shared/Knob';
 import { SomaDrumStory } from './SomaDrumStory';
+import { SomaDeepToggle } from './SomaDeepToggle';
 import { liveBus, now as liveNow } from '../../../../services/melos/beats/band/live/events';
 
 interface Props {
@@ -825,6 +826,7 @@ export const SomaPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
         </div>
 
         <div className="flex items-center gap-1.5">
+          <SomaDeepToggle />
           <button
             onClick={() => triggerPhysicalStrike(patch.defaultNote || 48, 0.92)}
             className="h-7 px-3 rounded-lg text-[11px] font-bold flex items-center gap-1.5 border transition"
