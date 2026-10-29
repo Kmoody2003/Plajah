@@ -50,7 +50,7 @@ import {
   matchSacredLibrarySupplementsForLesson,
   type SacredLibrarySupplementItem,
 } from '../../services/sacredLibraryCurriculumBridge';
-import { loadOrgMasterySummary } from '../../services/curriculumIngestionService';
+import { countQuestions, loadOrgMasterySummary } from '../../services/curriculumIngestionService';
 import { LEVEL_NAME, LEVEL_COLOR, type SkillLevel } from '../../services/mastery';
 import { openScripture } from '../scripture/ScriptureRefChip';
 import { parseRef } from '../../services/scriptureRef';
@@ -60,7 +60,7 @@ import {
   GREAT_FAITH_MINISTRIES_NAME,
 } from '../../services/orgAssets';
 import { TelaDocumentPreviewModal, type TelaDocumentPreviewProps } from '../church/TelaDocumentPreviewModal';
-import { LivingTemplateBespokeRenderer } from './LivingTemplateBespokeRenderer';
+import { LivingTemplateBespokeRenderer, promptWithStem } from './LivingTemplateBespokeRenderer';
 import { useViewport } from '../../hooks/useViewport';
 
 export interface UniversalStudentDeskProps {
@@ -1004,7 +1004,7 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
                   >
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-black uppercase tracking-wider text-purple-200 flex items-center gap-1.5">
-                        <GraduationCap size={14} /> Frame 2 · Fillable Tela Worksheet ({activeAssignment.unitSnapshot.questions.length} Prompts · {activeAssignment.totalPoints} Pts)
+                        <GraduationCap size={14} /> Your answers ({countQuestions(activeAssignment.unitSnapshot.questions)} questions · {activeAssignment.totalPoints} pts)
                       </span>
                     </div>
 
@@ -1032,8 +1032,8 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
                               className="text-xs sm:text-sm font-bold text-white leading-relaxed flex-1"
                               style={{ fontFamily: activeTemplate.bodyFont }}
                             >
-                              <span className="text-amber-300 font-black mr-1.5">Q{q.number}.</span>
-                              {q.prompt}
+                              <span className="text-amber-300 font-black mr-1.5">{q.label || q.number}.</span>
+                              {promptWithStem(q, activeAssignment.unitSnapshot.questions)}
                             </p>
                             <div className="flex items-center gap-1.5 shrink-0">
                               {parsedPassage && (

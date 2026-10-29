@@ -4,6 +4,7 @@
 // Firestore calls fail without sign-in and fall back to this device, the same way the app behaves offline.
 import React, { useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import LessonLibraryOverlay from './components/library/LessonLibraryOverlay';
 import '/index.css';
 import { FediverseProvider } from './contexts/FediverseContext';
 import EdHub from './components/church/christianEd/EdHub';
@@ -150,13 +151,14 @@ const Lab: React.FC = () => {
       d('t6', 'Revelation 2 master syllabus', 'local-seed'),
       d('t7', 'Book club picks', 'lab-friend', { sharedBy: 'Dana' }),
     ];
-    return <TelaHome recent={recent} viewerUid={teacher.uid} memberOrgIds={[church.id]} onOpen={id => alert(`open ${id}`)} onCreate={() => {}} onChooseStyle={() => {}} onChoosePublication={() => {}} onChooseTemplate={() => {}} onImport={() => {}} />;
+    return <><TelaHome recent={recent} viewerUid={teacher.uid} memberOrgIds={[church.id]} onOpen={id => alert(`open ${id}`)} onCreate={() => {}} onChooseStyle={() => {}} onChoosePublication={() => {}} onChooseTemplate={() => {}} onImport={() => {}} /><LessonLibraryOverlay /></>;
   }
   if (as === 'library-greatfaith') {
     // Great Faith's Revelation 2 course, imported for real from its Google links (via the lab's stand-in server).
     return (
       <div style={{ maxWidth: 1240, margin: '0 auto', padding: '24px 20px 60px' }}>
-        <OrgLessonLibraryHub orgId="great-faith-ministries" orgName="Great Faith Ministries" programs={[]} canAccessAnswerKey canUploadToLibrary currentUserUid={teacher.uid} currentUserName={teacher.name} />
+        {/* ?teacher=1: a teacher's view, where the org's lessons are locked and can only be copied. */}
+        <OrgLessonLibraryHub orgId="great-faith-ministries" orgName="Great Faith Ministries" programs={[]} canAccessAnswerKey canUploadToLibrary viewerIsAdmin={!new URLSearchParams(location.search).has('teacher')} currentUserUid={teacher.uid} currentUserName={teacher.name} />
       </div>
     );
   }

@@ -10,7 +10,8 @@ import EdAssignSheet from './EdAssignSheet';
 import EdPeople from './EdPeople';
 import AnnouncementsPanel from '../../announcements/AnnouncementsPanel';
 import { coverFor, initials } from './edStyles';
-import { announceWorkChanged, currentWeekIndex, needsReview, openTelaClasswork, type ClassWork } from './edWork';
+import { announceWorkChanged, currentWeekIndex, needsReview, type ClassWork } from './edWork';
+import { openLessonLibrary } from '../../../services/lessonLibraryNav';
 
 export type ClassChannel = 'feed' | 'lessons' | 'work' | 'live' | 'people';
 
@@ -89,8 +90,8 @@ const EdClassClub: React.FC<Props> = props => {
 
   const setWeek = (id: string, patch: Partial<PlanWeek>) => save({ ...p, weeks: p.weeks.map(w => (w.id === id ? { ...w, ...patch } : w)) });
 
-  const addLesson = (weekId?: string) =>
-    openTelaClasswork({ orgId, orgName, programId: p.id, programName: p.name, weekId, domain: 'CHRISTIAN_EDUCATION' });
+  // Pick from the org's library (or start a new lesson from there), scheduled for this class.
+  const addLesson = (weekId?: string) => openLessonLibrary({ orgId, orgName, programId: p.id, weekId });
 
   const removeAssignment = async (a: UniversalDeskAssignment) => {
     await unmirrorAssignment(a.id);

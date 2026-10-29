@@ -81,25 +81,23 @@ export default function TelaPage({ unit, size = 'full', maxQuestions }: {
       {/* Thumbnails leave ~46 card-pixels clear at the top for the select box and kind badge. */}
       <div className="tp-in" style={thumb ? { paddingTop: Math.round(46 / scale) } : undefined}>
         <h1>{unit.title}</h1>
-        {unit.subtitle && <div className="tp-sub">{unit.subtitle}</div>}
-        <div className="tp-meta">
-          <span>{KIND_META[kindOf(unit)]?.label}</span>
-          {unit.questions.length > 0 && <span>{unit.questions.length} questions</span>}
-          {unit.totalPoints > 0 && <span>{unit.totalPoints} pts</span>}
-        </div>
-        {unit.questions.length > 0 && (
-          <div className="tp-name"><span>Name</span><span>Date</span></div>
+        {!!unit.detailFields?.length && (
+          <div className="tp-name">{unit.detailFields.map(f => <span key={f}>{f}</span>)}</div>
         )}
         {blocks.map(b =>
           b.kind === 'h2' ? <h2 key={b.id}>{b.text}</h2>
           : b.kind === 'quote' ? <blockquote key={b.id}>{b.text}{b.scripturePassage ? ` — ${b.scripturePassage}` : ''}</blockquote>
-          : b.kind === 'callout' || b.kind === 'check' ? <div key={b.id} className="tp-call">{b.text}</div>
+          : b.kind === 'callout' ? <div key={b.id} className="tp-call">{b.text}</div>
+          : b.kind === 'check' ? null
           : <p key={b.id}>{b.text}</p>
         )}
-        {qs.map(q => (
+        {qs.map((q, i) => (
           <div key={q.id} className="tp-q">
-            <div className="tp-qh">
-              <span className="tp-qn" style={{ background: color }}>{q.number}</span>
+            {q.group && qs[i - 1]?.group !== q.group && (
+              <div className="tp-qh"><span className="tp-qn" style={{ background: color }}>{q.number}</span><span style={{ whiteSpace: 'pre-wrap' }}>{q.group}</span></div>
+            )}
+            <div className="tp-qh" style={q.label ? { paddingLeft: 18 } : undefined}>
+              <span className="tp-qn" style={{ background: q.label ? 'transparent' : color, color: q.label ? color : undefined }}>{q.label ? `${q.label.slice(String(q.number).length).replace(/^\./, '')}.` : q.number}</span>
               <span>{q.prompt}</span>
               {q.points > 0 && <span className="tp-pts">{q.points} pt{q.points === 1 ? '' : 's'}</span>}
             </div>
@@ -112,7 +110,7 @@ export default function TelaPage({ unit, size = 'full', maxQuestions }: {
             )}
           </div>
         ))}
-        {!thumb && unit.questions.length > qs.length && <div className="tp-more">+ {unit.questions.length - qs.length} more questions</div>}
+        {!thumb && unit.questions.length > qs.length && <div className="tp-more">+ {unit.questions.length - qs.length} more</div>}
         {!blocks.length && !qs.length && <p style={{ color: '#8a8194' }}>This item has no page content yet. Open the original to see the file.</p>}
       </div>
     </div>

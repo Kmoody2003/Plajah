@@ -8,6 +8,7 @@ import {
   Tv, Mail, Film, Printer, Store, Share2, Receipt, QrCode, MonitorPlay,
   RotateCcw, Sliders, Waves, Eye, Mic, Shirt,
 } from 'lucide-react';
+import { openLessonLibrary } from '../../services/lessonLibraryNav';
 import type { TelaDocMeta, TelaVectorObject } from '../../types';
 import { filterRecents, isSharedWithMe, orgChoices, type RecentScope } from '../../services/tela/recentScope';
 import type { TelaStyleEra } from '../../services/telaStyleEraLibrary';
@@ -746,6 +747,16 @@ export default function TelaHome({
           >
             <Import size={13} />
             <span className="hidden sm:inline">Import Document</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => openLessonLibrary()}
+            className="h-9 px-3.5 flex items-center gap-2 rounded-[10px] text-[.72rem] font-bold text-white/85 bg-white/[.05] border border-[#34e0d0]/40 hover:bg-[#34e0d0]/15 hover:text-white transition-all font-sans"
+            title="Lessons, assignments and exams: your organization's library, your own, and the platform's"
+          >
+            <BookOpen size={13} className="text-[#34e0d0]" />
+            <span className="hidden sm:inline">Lesson Library</span>
           </button>
 
           <button 

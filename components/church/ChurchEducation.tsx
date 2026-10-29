@@ -47,6 +47,7 @@ import OrgCentralCalendarHub from '../elevate/OrgCentralCalendarHub';
 import ElevateCommunicationsHub from '../elevate/ElevateCommunicationsHub';
 import OrgEducationScopeGovernancePanel from './OrgEducationScopeGovernancePanel';
 import OrgLessonLibraryHub from './OrgLessonLibraryHub';
+import { isLibraryAdmin } from '../../services/lessonLibraryStore';
 import EdHub, { type EdToolMode } from './christianEd/EdHub';
 import {
   loadOrgEducationScope,
@@ -384,6 +385,7 @@ const ChurchEducation: React.FC<{
           programs={programs || []}
           canAccessAnswerKey={canAccessAnswerKey}
           canUploadToLibrary={canUploadToLibrary}
+          viewerIsAdmin={isLibraryAdmin(church as any, currentUser?.uid)}
           viewerRoleBadge={canAccessAnswerKey ? 'Course Teacher / Dept Head / Admin' : 'Student / Member'}
           currentUserUid={teacherProfile.uid}
           currentUserName={teacherProfile.displayName}
@@ -674,6 +676,7 @@ const ChurchEducation: React.FC<{
             programs={programs || [p]}
             canAccessAnswerKey={canAccessAnswerKey}
             canUploadToLibrary={canUploadToLibrary}
+            viewerIsAdmin={isLibraryAdmin(church as any, currentUser?.uid)}
             viewerRoleBadge={canAccessAnswerKey ? 'Course Teacher / Dept Head / Admin' : 'Student / Member'}
             currentUserUid={teacherProfile.uid}
             currentUserName={teacherProfile.displayName}

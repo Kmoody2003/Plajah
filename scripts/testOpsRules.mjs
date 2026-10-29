@@ -116,6 +116,29 @@ t('co-edit: only the person asked answers', 'DENY', MEMBER, 'update', `${CO}/req
 t('co-edit: asked person fulfils', 'ALLOW', OWNER, 'update', `${CO}/requests/r1`, { existing: { from: MEMBER, to: OWNER, status: 'pending' }, data: { from: MEMBER, to: OWNER, status: 'fulfilled', assetId: 'a1' } });
 t('co-edit: outsiders cannot read requests', 'DENY', OTHER, 'get', `${CO}/requests/r1`, { existing: { from: MEMBER, to: OWNER } });
 
+// Lesson Library (services/lessonLibraryStore): admin lessons are locked for teachers; teachers copy them.
+const TEACH = 'teach';
+ORG.eduTeacherUids = [TEACH];
+const LL = `${DB}/lessonLibrary/u1`;
+const lesson = (o) => ({ id: 'u1', tier: 'org', scopeId: 'o1', orgId: 'o1', ownerUid: OWNER, ownerName: 'O', provisioned: 'admin', copiedFromId: '', title: 'Exam 1', unitJson: '{}', createdAt: 1, updatedAt: 1, ...o });
+t('library: org teacher reads an admin lesson', 'ALLOW', TEACH, 'get', LL, { existing: lesson() });
+t('library: org member who is not a teacher cannot read', 'DENY', MEMBER, 'get', LL, { existing: lesson() });
+t('library: admin provisions a lesson', 'ALLOW', OWNER, 'create', LL, { data: lesson() });
+t('library: teacher cannot provision an admin lesson', 'DENY', TEACH, 'create', LL, { data: lesson({ ownerUid: TEACH }) });
+t('library: teacher cannot edit an admin lesson', 'DENY', TEACH, 'update', LL, { existing: lesson(), data: lesson({ title: 'Mine now' }) });
+t('library: teacher cannot delete an admin lesson', 'DENY', TEACH, 'delete', LL, { existing: lesson() });
+t('library: teacher cannot unlock an admin lesson', 'DENY', TEACH, 'update', LL, { existing: lesson(), data: lesson({ provisioned: 'teacher', ownerUid: TEACH }) });
+t('library: teacher saves their own copy', 'ALLOW', TEACH, 'create', LL, { data: lesson({ provisioned: 'teacher', ownerUid: TEACH, copiedFromId: 'u0' }) });
+t('library: teacher edits their own copy', 'ALLOW', TEACH, 'update', LL, { existing: lesson({ provisioned: 'teacher', ownerUid: TEACH }), data: lesson({ provisioned: 'teacher', ownerUid: TEACH, title: 'v2' }) });
+t('library: teacher deletes their own copy', 'ALLOW', TEACH, 'delete', LL, { existing: lesson({ provisioned: 'teacher', ownerUid: TEACH }) });
+t('library: teacher cannot save a copy in someone else’s name', 'DENY', TEACH, 'create', LL, { data: lesson({ provisioned: 'teacher', ownerUid: OTHER }) });
+t('library: stranger cannot add to an org library', 'DENY', OTHER, 'create', LL, { data: lesson({ provisioned: 'teacher', ownerUid: OTHER }) });
+t('library: pastor edits an admin lesson', 'ALLOW', PASTOR, 'update', LL, { existing: lesson(), data: lesson({ title: 'Exam 1 (rev)' }) });
+t('library: own lessons stay private', 'DENY', OTHER, 'get', LL, { existing: lesson({ tier: 'user', scopeId: TEACH, orgId: '', ownerUid: TEACH, provisioned: 'teacher' }) });
+t('library: a teacher with no org saves their own', 'ALLOW', OTHER, 'create', LL, { data: lesson({ tier: 'user', scopeId: OTHER, orgId: '', ownerUid: OTHER, provisioned: 'teacher' }) });
+t('library: anyone signed in reads a platform lesson', 'ALLOW', OTHER, 'get', LL, { existing: lesson({ tier: 'platform', scopeId: 'platform', orgId: '', ownerUid: TEACH, provisioned: 'teacher' }) });
+t('library: cannot share to the platform as someone else', 'DENY', OTHER, 'create', LL, { data: lesson({ tier: 'platform', scopeId: 'platform', orgId: '', ownerUid: TEACH, provisioned: 'teacher' }) });
+
 const body = {
   source: { files: [{ name: 'firestore.rules', content: src }] },
   testSuite: {

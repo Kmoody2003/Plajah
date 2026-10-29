@@ -656,6 +656,32 @@ service cloud.firestore {
       allow delete: if isAuthenticated() && (resource.data.ownerUid == request.auth.uid
         || (resource.data.tier == 'org' && orgAdminOf(resource.data.orgId)) || isAdmin());
     }
+    // ── Lesson Library (services/lessonLibraryStore.ts) ───────────────────────
+    // org: admins (owner/admins, pastors, Content HQ staff) provision lessons teachers can't change; the org's
+    // teachers (eduTeacherUids) read them and add their own. user: the owner only. platform: anyone signed in reads.
+    function libAdmin(orgId) { return isAuthenticated() && (orgAdminOf(orgId) || request.auth.uid in orgDoc(orgId).get('pastorUids', []) || request.auth.uid in orgDoc(orgId).get('staffUids', [])); }
+    function libTeacher(orgId) { return libAdmin(orgId) || (isAuthenticated() && (request.auth.uid in orgDoc(orgId).get('eduTeacherUids', []) || request.auth.uid in orgDoc(orgId).get('leaderUids', []))); }
+    function libValid(d) {
+      return d.tier in ['org', 'user', 'platform'] && d.provisioned in ['admin', 'teacher']
+        && d.unitJson is string && d.unitJson.size() < 950000 && d.title is string && d.title.size() <= 300
+        && (d.tier == 'org' ? d.orgId == d.scopeId : (d.provisioned == 'teacher' && d.orgId == ''))
+        && (d.tier != 'user' || d.scopeId == d.ownerUid) && (d.tier != 'platform' || d.scopeId == 'platform');
+    }
+    function libCanChange(d) {
+      return isAuthenticated() && (
+        (d.tier == 'org' && (libAdmin(d.orgId) || (d.provisioned == 'teacher' && d.ownerUid == request.auth.uid && libTeacher(d.orgId))))
+        || (d.tier != 'org' && d.ownerUid == request.auth.uid) || isAdmin());
+    }
+    match /lessonLibrary/{id} {
+      allow read: if isAuthenticated() && (resource.data.tier == 'platform' || resource.data.ownerUid == request.auth.uid
+        || (resource.data.tier == 'org' && libTeacher(resource.data.orgId)) || isAdmin());
+      allow create: if libValid(request.resource.data) && libCanChange(request.resource.data)
+        && (request.resource.data.provisioned == 'teacher' ? request.resource.data.ownerUid == request.auth.uid : true);
+      allow update: if libValid(request.resource.data) && libCanChange(resource.data) && libCanChange(request.resource.data)
+        && request.resource.data.tier == resource.data.tier && request.resource.data.scopeId == resource.data.scopeId
+        && (request.resource.data.provisioned == resource.data.provisioned || (resource.data.tier == 'org' && libAdmin(resource.data.orgId)));
+      allow delete: if libCanChange(resource.data);
+    }
     match /orgTemplatePolicies/{orgId} {
       allow read: if isAuthenticated();
       allow write: if orgAdminOf(orgId) || isAdmin();

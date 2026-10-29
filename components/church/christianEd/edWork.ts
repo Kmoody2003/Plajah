@@ -5,6 +5,7 @@ import type { IngestedQuestion } from '../../../services/curriculumIngestionServ
 import {
   listDeskAssignments,
   mergeRemoteDeskAssignments,
+  applyMyDrafts,
   applyReturnedSubmissions,
   isOpenFor,
   deskStamp,
@@ -120,6 +121,7 @@ export function useClassWork(programs: ChurchProgram[], opts: { asTeacher: boole
 export async function syncMyReturnedWork(uid: string): Promise<EduSubmissionRecord[]> {
   if (!uid) return [];
   const mine = await fetchMySubmissions(uid);
+  applyMyDrafts(uid, mine);
   applyReturnedSubmissions(uid, mine);
   return mine;
 }

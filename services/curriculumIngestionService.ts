@@ -15,7 +15,7 @@ import type {
   WorksheetFieldType,
 } from './worksheetDigitizer';
 import { worksheetToTelaDoc } from './worksheetTelaAdapter';
-import { saveTelaDoc } from './telaStore';
+import { saveTelaDoc, loadTelaDoc } from './telaStore';
 import { digitizeWorksheetOnDevice } from './worksheetLocalVision';
 import { parseRef, formatRef, refId } from './scriptureRef';
 import { recordSet, loadMastery, type SkillLevel } from './mastery';
@@ -35,6 +35,7 @@ import {
   type SacredLibrarySupplement,
 } from './sacredLibraryCurriculumBridge';
 import { getDefaultLivingTemplateForUnit } from './council/livingDocumentTemplates';
+import { pushLibraryUnit, removeLibraryUnit, libraryActorIsAdmin, libraryActorUid } from './lessonLibraryStore';
 
 export type CurriculumSourceKind =
   | 'GOOGLE_FORM'
@@ -47,7 +48,12 @@ export type CurriculumSourceKind =
 
 export interface IngestedQuestion {
   id: string;
+  /** The question's printed number. Parts (7a, 7b …) share their question's number. */
   number: number;
+  /** As printed when it isn't just the number: '7a', '9c'. */
+  label?: string;
+  /** For a part: its question's own text ("Fill in the Blanks:"), shown once above the parts. */
+  group?: string;
   prompt: string;
   type: 'multiple-choice' | 'true-false' | 'numeric' | 'short-answer' | 'essay' | 'scripture-reflection';
   options?: string[];
@@ -57,6 +63,11 @@ export interface IngestedQuestion {
   skillId: string;
   skillTitle: string;
   scripturePassage?: string;
+}
+
+/** Questions as the paper numbers them: 7a–7f count as question 7. */
+export function countQuestions(qs: Array<Pick<IngestedQuestion, 'number'>>): number {
+  return new Set(qs.map(q => q.number)).size;
 }
 
 export interface IngestedMasterySkill {
@@ -118,6 +129,18 @@ export interface IngestedCurriculumUnit {
   rawAnswerKeyText?: string;
   sacredLibrarySupplements?: SacredLibrarySupplement[];
   livingTemplateId?: string;
+  /** Header lines the student fills in (Name, Date, Counselor …). Not questions: never graded or counted. */
+  detailFields?: string[];
+  /** Bumped when the importer's reading of a source changes, so older imports are read again. */
+  importVersion?: number;
+  /** Who put it in the library (services/lessonLibraryStore): 'admin' lessons are locked for teachers. */
+  provisioned?: 'admin' | 'teacher';
+  ownerUid?: string;
+  /** Set on a teacher's copy of another lesson. */
+  copiedFromId?: string;
+  /** Set on lessons read from the shared library ('platform' = shared with everyone). */
+  tier?: 'org' | 'user' | 'platform';
+  remoteUpdatedAt?: number;
   createdAt: number;
 }
 
@@ -335,10 +358,18 @@ export function saveIngestedUnit(unit: IngestedCurriculumUnit): void {
           : docClass
         : unit.departmentFolder || getOrgEducationFolderName(GREAT_FAITH_MINISTRIES_NAME),
     };
+    // The org's own course imports are the org's (admin) lessons, whoever's browser read them in.
+    if (!normalizedUnit.provisioned) normalizedUnit.provisioned = isStandaloneTeacher ? 'teacher' : isSampleCourseUnit(unit) || libraryActorIsAdmin(safeOrgId) ? 'admin' : 'teacher';
+    if (!normalizedUnit.ownerUid) normalizedUnit.ownerUid = libraryActorUid() || undefined;
     const existing = readRawStoredUnitsForKey(STORAGE_UNITS_KEY(safeOrgId)).filter(
       u => u.id !== unit.id && u.title.toLowerCase() !== unit.title.toLowerCase()
     );
     localStorage.setItem(STORAGE_UNITS_KEY(safeOrgId), JSON.stringify([normalizedUnit, ...existing]));
+    // …and in the shared library, so the org's teachers (or the teacher's other devices) have it too.
+    if (normalizedUnit.tier !== 'platform') {
+      const uid = libraryActorUid();
+      if (uid) void pushLibraryUnit(normalizedUnit, isStandaloneTeacher ? 'user' : 'org', isStandaloneTeacher ? uid : safeOrgId);
+    }
     if (isStandaloneTeacher) {
       if (safeOrgId !== 'teacher-personal-hq') {
         const personalExisting = readRawStoredUnitsForKey(STORAGE_UNITS_KEY('teacher-personal-hq')).filter(
@@ -359,12 +390,35 @@ export function saveIngestedUnit(unit: IngestedCurriculumUnit): void {
   }
 }
 
-export function deleteIngestedUnit(orgId: string, unitId: string): void {
+export function deleteIngestedUnit(orgId: string, unitId: string, opts: { shared?: boolean } = {}): void {
   try {
-    const existing = listIngestedUnits(orgId).filter(u => u.id !== unitId);
+    const existing = readRawStoredUnitsForKey(STORAGE_UNITS_KEY(orgId)).filter(u => u.id !== unitId);
     localStorage.setItem(STORAGE_UNITS_KEY(orgId), JSON.stringify(existing));
+    if (opts.shared) void removeLibraryUnit(unitId);
   } catch {
     // ignore
+  }
+}
+
+/**
+ * Brings lessons from the shared library into this device's copy of a scope's library. A shared lesson
+ * replaces the local one with the same id; lessons only on this device stay (they upload on next save).
+ */
+export function mergeSharedUnits(orgId: string, shared: IngestedCurriculumUnit[]): void {
+  if (!shared.length) return;
+  try {
+    const key = STORAGE_UNITS_KEY(orgId);
+    const byId = new Map(readRawStoredUnitsForKey(key).map(u => [u.id, u] as const));
+    for (const u of shared) {
+      if (isSampleCourseUnit(u) && (u.importVersion || 1) < IMPORT_VERSION) continue; // read again by the importer
+      const mine = byId.get(u.id);
+      // Same lesson imported on two devices (different ids, same link): keep the shared one.
+      if (!mine && u.sourceUrl) for (const [id, x] of byId) if (x.sourceUrl === u.sourceUrl && !x.remoteUpdatedAt) byId.delete(id);
+      byId.set(u.id, { ...mine, ...u });
+    }
+    localStorage.setItem(key, JSON.stringify(Array.from(byId.values())));
+  } catch {
+    /* storage full: the shared copy is still read next time */
   }
 }
 
@@ -521,18 +575,37 @@ async function fetchTextWithCorsFallback(targetUrl: string): Promise<string> {
  * Extracts structured questions, options, descriptions, and quiz points from a Google Form URL or HTML source.
  * Parses Google Forms' embedded `FB_PUBLIC_LOAD_DATA_` schema when available, plus HTML/text fallback.
  */
+/** A question read from a structured source (a Google Form), numbered as the source prints it. */
+export interface StructuredQuestion {
+  prompt: string;
+  type: IngestedQuestion['type'];
+  options?: string[];
+  points?: number;
+  correctAnswer?: string;
+  explanation?: string;
+  number?: number;
+  label?: string;
+  group?: string;
+}
+
+/** Version of the importer's reading of sources; units imported by an older one are read again. */
+export const IMPORT_VERSION = 5;
+
+/** Header fields on a test or worksheet — who and when, not questions. */
+const DETAIL_FIELD = /^(?:student'?s?\s+)?(?:full\s+)?(name|first\s+name|last\s+name|counsel(?:l)?or|teacher|instructor|date|class|course|section|period|grade|email|e-mail|phone|id|student\s+id|church|campus|mentor|group|cohort|semester|term)\s*[:#.\-]?\s*_*\s*$/i;
+export const isDetailField = (label: string) => DETAIL_FIELD.test(label.trim());
+
+const NUMBERED = /^\s*(?:Q(?:uestion)?\s*#?\s*)?(\d{1,3})\s*[.):]\s*(.*)$/is;
+const LETTERED = /^\s*\(?([a-z])\s*[.)]\s+(.*)$/is;
+
 export async function extractGoogleForm(urlOrHtml: string): Promise<{
   title: string;
   description: string;
   rawText: string;
-  structuredQuestions: Array<{
-    prompt: string;
-    type: IngestedQuestion['type'];
-    options?: string[];
-    points?: number;
-    correctAnswer?: string;
-    explanation?: string;
-  }>;
+  /** Only the form's own reading text (description, section text), without its questions. */
+  readingText: string;
+  detailFields: string[];
+  structuredQuestions: StructuredQuestion[];
 }> {
   let html = urlOrHtml.trim();
   if (/^https?:\/\//i.test(html)) {
@@ -549,73 +622,127 @@ export async function extractGoogleForm(urlOrHtml: string): Promise<{
       const formDesc = String(formMeta?.[0] || '').trim();
       const items: any[] = Array.isArray(formMeta?.[1]) ? formMeta[1] : [];
 
-      const structuredQuestions: Array<{
-        prompt: string;
-        type: IngestedQuestion['type'];
-        options?: string[];
-        points?: number;
-        correctAnswer?: string;
-        explanation?: string;
-      }> = [];
+      // The form is read the way it is printed: its own numbers ("1." … "9."), lettered parts ("a." …)
+      // under the numbered question before them, a grid's rows as parts of its question, and the
+      // who/when header (NAME, DATE, COUNSELOR) as detail fields rather than questions.
+      const structuredQuestions: StructuredQuestion[] = [];
+      const detailFields: string[] = [];
       const textLines: string[] = [`# ${formTitle}`];
-      if (formDesc) textLines.push(formDesc, '');
+      // The title is the page's heading already; the reading is only the form's own description and sections.
+      const readingLines: string[] = [];
+      if (formDesc) { textLines.push(formDesc, ''); readingLines.push(formDesc, ''); }
+      // `stem`: a numbered heading whose parts follow as their own items ("5. Fill in the blanks" then
+      // "1." … "10."); `sub`: the last part number seen under it, while its own list counts up.
+      let current: { number: number; text: string; parts: number; stem?: boolean; sub?: number } | null = null;
+      let unnumbered = 0;
+      const letter = (n: number) => String.fromCharCode(97 + (n % 26));
+      const typeFor = (code: number, options: string[]): IngestedQuestion['type'] =>
+        code === 2 || code === 3 || code === 4 || code === 7 || options.length >= 2
+          ? options.length === 2 && options.every(o => /^(true|false|yes|no)$/i.test(o.trim())) ? 'true-false' : 'multiple-choice'
+          : code === 1 ? 'essay' : 'short-answer';
+      const addPart = (prompt: string, type: IngestedQuestion['type'], options: string[], printed?: string) => {
+        if (!current) return false;
+        const l = printed || letter(current.parts);
+        current.parts++;
+        // Lettered parts print as 7a; a numbered list inside a question as 5.1, 5.2 …
+        const label = /^\d+$/.test(l) ? `${current.number}.${l}` : `${current.number}${l}`;
+        structuredQuestions.push({ prompt, type, options: options.length ? options : undefined, points: 1, number: current.number, label, group: current.text || undefined });
+        textLines.push(`   ${l}. ${prompt}`);
+        options.forEach((o, k) => textLines.push(`      ${String.fromCharCode(65 + k)}) ${o}`));
+        return true;
+      };
 
       for (const item of items) {
         const itemTitle = String(item?.[1] || '').trim();
         const itemDesc = String(item?.[2] || '').trim();
         const itemType = Number(item?.[3]);
-        const questionData = item?.[4]?.[0];
+        const rows: any[] = Array.isArray(item?.[4]) ? item[4] : [];
+        const questionData = rows[0];
 
-        // Section header / lesson reading block (type 8)
-        if (!questionData || itemType === 8 || itemType === 6) {
-          if (itemTitle) textLines.push(`## ${itemTitle}`);
-          if (itemDesc) textLines.push(itemDesc, '');
+        // Section header / text block / image / video (8, 6, 11, 12): reading text, unless it is a numbered
+        // question's stem ("7. Fill in the Blanks:"), whose parts follow as their own items.
+        if (!questionData || itemType === 8 || itemType === 6 || itemType === 11 || itemType === 12) {
+          const n = itemTitle.match(NUMBERED);
+          if (n) {
+            // The stem's own text (e.g. the A–I definitions a matching question uses) stays with it.
+            current = { number: Number(n[1]), text: itemDesc ? `${n[2].trim()}\n\n${itemDesc}` : n[2].trim(), parts: 0, stem: true };
+            textLines.push(`${n[1]}. ${n[2].trim()}`);
+            if (itemDesc) textLines.push(itemDesc);
+          } else {
+            if (itemTitle) { textLines.push(`## ${itemTitle}`); readingLines.push(`## ${itemTitle}`); }
+            if (itemDesc) { textLines.push(itemDesc, ''); readingLines.push(itemDesc, ''); }
+          }
           continue;
         }
 
-        const rawChoices: any[] = Array.isArray(questionData?.[1]) ? questionData[1] : [];
-        const options = rawChoices
-          .map(c => String(c?.[0] || '').trim())
-          .filter(Boolean);
-
-        // Determine question type from Google Form type code
-        // 0 = Short answer, 1 = Paragraph, 2 = Multiple choice, 3 = Dropdown, 4 = Checkboxes, 5 = Scale
-        let qType: IngestedQuestion['type'] = 'short-answer';
-        if (itemType === 2 || itemType === 3 || itemType === 4 || options.length >= 2) {
-          if (
-            options.length === 2 &&
-            options.every(o => /^(true|false|yes|no)$/i.test(o.trim()))
-          ) {
-            qType = 'true-false';
-          } else {
-            qType = 'multiple-choice';
-          }
-        } else if (itemType === 1) {
-          qType = 'essay';
+        // Date / time pickers and who-is-this fields are the header, not questions.
+        if (itemType === 9 || itemType === 10 || isDetailField(itemTitle)) {
+          detailFields.push(itemTitle.replace(/[:\s_]+$/, ''));
+          textLines.push(`${itemTitle} ____`);
+          continue;
         }
 
-        const qNum = structuredQuestions.length + 1;
-        const promptText = itemDesc ? `${itemTitle} (${itemDesc})` : itemTitle;
-        textLines.push(`${qNum}. ${promptText}`);
-        options.forEach((opt, idx) => {
-          const letter = String.fromCharCode(65 + idx);
-          textLines.push(`   ${letter}) ${opt}`);
-        });
-        textLines.push('');
+        const options = (Array.isArray(questionData?.[1]) ? questionData[1] : []).map((c: any) => String(c?.[0] || '').trim()).filter(Boolean);
+        const qType = typeFor(itemType, options);
+        const promptOf = (t: string) => (itemDesc ? `${t} (${itemDesc})` : t);
+        const numbered = itemTitle.match(NUMBERED);
+        const lettered = itemTitle.match(LETTERED);
 
-        structuredQuestions.push({
-          prompt: promptText,
-          type: qType,
-          options: options.length > 0 ? options : undefined,
-          points: 1,
-        });
+        const gridRows = () => {
+          for (const row of rows) {
+            const rowText = String(row?.[3]?.[0] || '').trim();
+            const rowOpts = (Array.isArray(row?.[1]) ? row[1] : []).map((c: any) => String(c?.[0] || '').trim()).filter(Boolean);
+            // A row keeps its own printed mark: "a. …" → 7a, "1) …" → 1.1; unmarked rows are lettered.
+            const lm = rowText.match(LETTERED);
+            const nm = lm ? null : rowText.match(NUMBERED);
+            addPart(lm ? lm[2].trim() : nm ? nm[2].trim() : rowText || itemTitle, typeFor(7, rowOpts), rowOpts.length ? rowOpts : options, lm ? lm[1].toLowerCase() : nm ? nm[1] : undefined);
+          }
+        };
+
+        // A numbered list inside a stem ("5. Fill in the blanks" → "1." … "10."): parts 5.1 … 5.10,
+        // for as long as the list counts up from 1.
+        if (numbered && current?.stem && (current.sub === undefined ? Number(numbered[1]) === 1 && current.parts === 0 : Number(numbered[1]) === current.sub + 1)) {
+          current.sub = Number(numbered[1]);
+          if (itemType === 7 && rows.length > 1) gridRows();
+          else addPart(promptOf(numbered[2].trim()), qType, options, numbered[1]);
+          continue;
+        }
+        // An unnumbered item straight under a stem ("1. Choose the definition…" → "Match the gift…") is that question's part.
+        if (!numbered && !lettered && current?.stem && current.sub === undefined) {
+          if (itemType === 7 && rows.length > 1) gridRows();
+          else addPart(promptOf(itemTitle), qType, options);
+          continue;
+        }
+
+        if (numbered) {
+          const number = Number(numbered[1]);
+          const text = numbered[2].trim();
+          current = { number, text, parts: 0 };
+          textLines.push(`${number}. ${promptOf(text)}`);
+          // A grid (multiple-choice / checkbox grid, code 7): each row is its own part of the question.
+          if (itemType === 7 && rows.length > 1) { gridRows(); continue; }
+          structuredQuestions.push({ prompt: promptOf(text), type: qType, options: options.length ? options : undefined, points: 1, number });
+          options.forEach((o, k) => textLines.push(`   ${String.fromCharCode(65 + k)}) ${o}`));
+          continue;
+        }
+        if (lettered && current && addPart(promptOf(lettered[2].trim()), qType, options, lettered[1].toLowerCase())) continue;
+
+        // An unnumbered question (some forms don't number theirs): number it after the last one.
+        unnumbered++;
+        const number = (current?.number || structuredQuestions.reduce((m, q) => Math.max(m, q.number || 0), 0)) + 1;
+        current = { number, text: itemTitle, parts: 0 };
+        textLines.push(`${number}. ${promptOf(itemTitle)}`);
+        structuredQuestions.push({ prompt: promptOf(itemTitle), type: qType, options: options.length ? options : undefined, points: 1, number });
       }
+      void unnumbered;
 
       if (structuredQuestions.length > 0) {
         return {
           title: formTitle,
           description: formDesc,
           rawText: textLines.join('\n'),
+          readingText: readingLines.join('\n'),
+          detailFields,
           structuredQuestions,
         };
       }
@@ -641,6 +768,8 @@ export async function extractGoogleForm(urlOrHtml: string): Promise<{
     title: 'Google Form Interactive Lesson',
     description: 'Extracted from Google Forms into Tela',
     rawText: stripped,
+    readingText: stripped,
+    detailFields: [],
     structuredQuestions: [],
   };
 }
@@ -1213,14 +1342,10 @@ export function parseCurriculumAndBuildUnit(params: {
   sourceUrl?: string;
   answerKeySourceLabel?: string;
   unitKind?: IngestedCurriculumUnit['kind'];
-  preParsedQuestions?: Array<{
-    prompt: string;
-    type: IngestedQuestion['type'];
-    options?: string[];
-    points?: number;
-    correctAnswer?: string;
-    explanation?: string;
-  }>;
+  preParsedQuestions?: StructuredQuestion[];
+  /** The text to read the lesson from when it differs from the original (a form: its text without its questions). */
+  readingText?: string;
+  detailFields?: string[];
 }): { unit: IngestedCurriculumUnit; telaDoc: TelaDoc } {
   const {
     orgId,
@@ -1236,7 +1361,8 @@ export function parseCurriculumAndBuildUnit(params: {
   } = params;
 
   const parsedKey = parseAnswerKeyText(rawAnswerKeyText || '');
-  const lines = rawCurriculumText
+  const detailFields: string[] = [...(params.detailFields || [])];
+  const lines = (params.readingText ?? rawCurriculumText)
     .split(/\r?\n/)
     .map(l => l.trim());
 
@@ -1244,6 +1370,11 @@ export function parseCurriculumAndBuildUnit(params: {
   const lessonBlocks: IngestedCurriculumUnit['lessonBlocks'] = [];
   const syllabusWeeks: PlanWeek[] = [];
   const questions: IngestedQuestion[] = [];
+
+  // A test numbers its questions once through (1, 2, 3 …). Lists that start over at 1 in each section
+  // (a study-method guide, an outline, class rules) are the document's text, so they stay reading.
+  const printedNumbers = lines.map(l => l.match(/^(?:Q(?:uestion)?\s*#?)?(\d{1,3})\s*[.):]\s+/i)?.[1]).filter(Boolean).map(Number);
+  const numberedAreQuestions = printedNumbers.every((n, k) => k === 0 || n > printedNumbers[k - 1]);
 
   let currentSkillTitle = 'Core Concept & Textual Mastery';
   let currentSkillId = 'skill_1';
@@ -1359,8 +1490,8 @@ export function parseCurriculumAndBuildUnit(params: {
 
     // 4. Check for Numbered Question (`1. ...`, `Q1: ...`, `Question 1: ...`)
     const qMatch = line.match(/^(?:Q(?:uestion)?\s*#?)?(\d{1,3})\s*[.):]\s+(.+)$/i);
-    if (qMatch && preParsedQuestions.length === 0) {
-      const qNum = questions.length + 1;
+    if (qMatch && preParsedQuestions.length === 0 && numberedAreQuestions) {
+      const qNum = Number(qMatch[1]) || questions.length + 1;
       let prompt = qMatch[2].trim();
       let points = 1;
       const ptMatch = prompt.match(/\[(\d+)\s*(?:pts?|points?)\]/i) || prompt.match(/\((\d+)\s*(?:pts?|points?)\)/i);
@@ -1467,7 +1598,8 @@ export function parseCurriculumAndBuildUnit(params: {
     const scMatch = line.match(SCRIPTURE_REGEX);
     lessonBlocks.push({
       id: `lblk_${lessonBlocks.length + 1}`,
-      kind: scMatch ? 'callout' : 'p',
+      // As written: a line that cites scripture stays a paragraph (the reference is kept as data).
+      kind: 'p',
       text: line,
       scripturePassage: scMatch ? scMatch[1] : undefined,
     });
@@ -1478,14 +1610,17 @@ export function parseCurriculumAndBuildUnit(params: {
   if (preParsedQuestions.length > 0 && questions.length === 0) {
     const skill = ensureSkill(currentSkillId, currentSkillTitle);
     preParsedQuestions.forEach((pq, idx) => {
-      const qNum = idx + 1;
-      const qId = `q_${qNum}`;
+      // The source's own numbering; parts keep their question's number and a letter.
+      const qNum = pq.number ?? idx + 1;
+      const qId = `q_${pq.label || qNum}${preParsedQuestions.some((o, k) => k < idx && (o.label || o.number) === (pq.label || pq.number)) ? `_${idx}` : ''}`;
       skill.questionIds.push(qId);
       skill.targetQuestions = skill.questionIds.length;
       const scMatch = pq.prompt.match(SCRIPTURE_REGEX);
       questions.push({
         id: qId,
         number: qNum,
+        ...(pq.label ? { label: pq.label } : {}),
+        ...(pq.group ? { group: pq.group } : {}),
         prompt: pq.prompt,
         type: pq.type,
         options: pq.options,
@@ -1505,8 +1640,8 @@ export function parseCurriculumAndBuildUnit(params: {
   // Merge embedded Answer Key + separate Answer Key doc into questions
   const embeddedKey = parseAnswerKeyText(embeddedKeyLines.join('\n'));
   for (const q of questions) {
-    const fromSeparate = parsedKey.byNumber[q.number];
-    const fromEmbedded = embeddedKey.byNumber[q.number];
+    const fromSeparate = q.label ? undefined : parsedKey.byNumber[q.number];
+    const fromEmbedded = q.label ? undefined : embeddedKey.byNumber[q.number];
     const matched = fromSeparate || fromEmbedded;
     if (matched) {
       q.correctAnswer = matched.answer;
@@ -1535,7 +1670,7 @@ export function parseCurriculumAndBuildUnit(params: {
       passage: parsedRef ? formatRef(parsedRef) : firstPassage,
       ...(parsedRef ? { refId: refId(parsedRef) } : {}),
       note: lessonBlocks.find(b => b.kind === 'p')?.text || `Interactive Tela unit imported from ${sourceLabel}.`,
-      worksheetPrompt: `Complete the ${questions.length}-question interactive Tela check.`,
+      worksheetPrompt: `Complete the ${countQuestions(questions)}-question interactive Tela check.`,
     });
   }
 
@@ -1557,14 +1692,14 @@ export function parseCurriculumAndBuildUnit(params: {
     return {
       id: q.id,
       type: fieldType,
-      prompt: `${q.number}. ${q.prompt}`,
+      prompt: `${q.label || q.number}. ${q.prompt}`,
       options: q.options,
       correctAnswer: q.correctAnswer,
       points: q.points,
       bbox: [0.06, Math.min(0.92, 0.12 + idx * 0.09), 0.94, Math.min(0.98, 0.19 + idx * 0.09)],
       // Current WorksheetField shape (percent of page) — worksheetToTelaDoc and WorksheetFillable read these.
       label: q.prompt,
-      ordinal: String(q.number),
+      ordinal: q.label || String(q.number),
       choices: q.options,
       box: { x: 6, y: Math.min(92, 12 + idx * 9), width: 88, height: 7 },
       needsManualGrade: !q.correctAnswer,
@@ -1582,7 +1717,7 @@ export function parseCurriculumAndBuildUnit(params: {
     ...questions.map(q => ({
       id: `seg_${q.id}`,
       kind: 'question' as const,
-      questionNumber: String(q.number),
+      questionNumber: q.label || String(q.number),
       text: q.prompt,
       fieldType: (
         q.type === 'multiple-choice'
@@ -1608,7 +1743,7 @@ export function parseCurriculumAndBuildUnit(params: {
     title: finalTitle,
     subject: 'Curriculum & Mastery',
     gradeBand: 'All Ages',
-    instructions: `Complete the lesson reading and answer all ${questions.length} interactive items. Powered by Tela.`,
+    instructions: '',
     sourceImageUrl: '',
     fields: wsFields,
     segments: wsSegments,
@@ -1639,44 +1774,18 @@ export function parseCurriculumAndBuildUnit(params: {
   // Enhance TelaDoc with a dedicated Frame 1 Interactive Lesson Reader (`TelaWriterDevice`)
   // alongside the Interactive Student Response Form & Auto-Grading Base Table
   const lessonWriterId = `dev_lesson_writer_${unitId}`;
+  // The reading page reproduces the original's own text and nothing else: no source/point summaries, no
+  // added study material (Sacred Library supplements stay on the unit and show beside it as "Dig deeper"),
+  // no repeat of the questions (they live on the worksheet pages) and never the answer key.
   const writerBlocks: TelaWriterBlock[] = [
     { id: `${lessonWriterId}_h1`, kind: 'h1', text: finalTitle },
-    {
-      id: `${lessonWriterId}_meta`,
-      kind: 'callout',
-      text: `Source: ${sourceLabel}${answerKeySourceLabel ? ` · Answer Key: ${answerKeySourceLabel}` : ''} · Living Design: ${livingTemplate.name} · ${questions.length} Interactive Items · ${questions.reduce((s, q) => s + q.points, 0)} Total Points`,
-    },
-    ...lessonBlocks.map((b, idx) => ({
+    ...lessonBlocks.filter(b => !(b.kind === 'h1' && b.text.trim() === finalTitle.trim())).map((b, idx) => ({
       id: `${lessonWriterId}_b_${idx}`,
       kind: (b.kind === 'h1' || b.kind === 'h2' || b.kind === 'quote' || b.kind === 'callout' ? b.kind : 'p') as TelaWriterBlock['kind'],
-      text: b.scripturePassage ? `${b.text} [${b.scripturePassage}]` : b.text,
-    })),
-    ...(sacredLibrarySupplements.length > 0
-      ? [
-          {
-            id: `${lessonWriterId}_sacred_hdr`,
-            kind: 'h2' as const,
-            text: `Lorea Sacred Library · Supplemental Primary Sources & Artifacts (${sacredLibrarySupplements.length})`,
-          },
-          ...sacredLibrarySupplements.map((sup, sIdx) => ({
-            id: `${lessonWriterId}_sacred_${sIdx}`,
-            kind: 'callout' as const,
-            text: `[${sup.categoryBadge} · ${sup.era}] ${sup.title} — ${sup.summary} | Lesson Connection: ${sup.connectionToLesson}${sup.primaryExcerpt ? ` | Excerpt: ${sup.primaryExcerpt}` : ''}`,
-          })),
-        ]
-      : []),
-    {
-      id: `${lessonWriterId}_q_hdr`,
-      kind: 'h2',
-      text: 'Interactive Assessment & Answer Key Check',
-    },
-    ...questions.map(q => ({
-      id: `${lessonWriterId}_q_${q.id}`,
-      kind: 'check' as const,
-      text: `${q.number}. ${q.prompt}${q.options ? ` (${q.options.join(' / ')})` : ''}${q.correctAnswer ? ` [Key: ${q.correctAnswer}]` : ''}`,
-      checked: false,
+      text: b.text,
     })),
   ];
+  const hasReading = writerBlocks.length > 1;
 
   const lessonWriterDevice: TelaWriterDevice = {
     id: lessonWriterId,
@@ -1695,18 +1804,16 @@ export function parseCurriculumAndBuildUnit(params: {
     w: 816,
     h: 1056,
     deviceIds: [lessonWriterId],
-    label: `${finalTitle} · Lesson & Answer Guide`,
+    label: finalTitle,
   };
 
   const telaDoc: TelaDoc = {
     ...baseTelaDoc,
     id: `tela_${unitId}`,
-    title: `${finalTitle} (Interactive Tela)`,
-    frames: [lessonFrame, ...baseTelaDoc.frames],
-    devices: {
-      ...baseTelaDoc.devices,
-      [lessonWriterId]: lessonWriterDevice,
-    },
+    title: finalTitle,
+    // A reading page only when the original has reading text of its own (a form/test is just its questions).
+    frames: hasReading || questions.length === 0 ? [lessonFrame, ...baseTelaDoc.frames] : baseTelaDoc.frames,
+    devices: hasReading || questions.length === 0 ? { ...baseTelaDoc.devices, [lessonWriterId]: lessonWriterDevice } : baseTelaDoc.devices,
   };
 
   const masterySkills = Array.from(skillsMap.values());
@@ -1717,7 +1824,7 @@ export function parseCurriculumAndBuildUnit(params: {
     orgId,
     programId,
     title: finalTitle,
-    subtitle: `${sourceKind.replace('_', ' ')} · ${questions.length ? `${questions.length} questions` : 'Reading'}${sacredLibrarySupplements.length ? ` · ${sacredLibrarySupplements.length} Sacred Library supplements` : ''}`,
+    subtitle: `${sourceKind.replace('_', ' ')} · ${questions.length ? `${countQuestions(questions)} questions` : 'Reading'}${sacredLibrarySupplements.length ? ` · ${sacredLibrarySupplements.length} Sacred Library supplements` : ''}`,
     sourceKind,
     sourceLabel,
     sourceUrl,
@@ -1732,6 +1839,8 @@ export function parseCurriculumAndBuildUnit(params: {
     totalPoints,
     sacredLibrarySupplements,
     livingTemplateId: livingTemplate.id,
+    ...(detailFields.length ? { detailFields } : {}),
+    importVersion: IMPORT_VERSION,
     createdAt: now,
   };
 
@@ -1767,14 +1876,10 @@ export async function ingestCurriculumToTela(params: {
   let rawCurriculumText = params.lessonText?.trim() || '';
   let sourceKind: CurriculumSourceKind = 'TEXT_MARKDOWN';
   let sourceLabel = params.title?.trim() || 'Interactive Lesson';
-  let preParsedQuestions: Array<{
-    prompt: string;
-    type: IngestedQuestion['type'];
-    options?: string[];
-    points?: number;
-    correctAnswer?: string;
-    explanation?: string;
-  }> = [];
+  let preParsedQuestions: StructuredQuestion[] = [];
+  let formTitle: string | undefined;
+  let readingText: string | undefined;
+  let detailFields: string[] = [];
 
   // 1. Extract Lesson Source
   if (params.lessonFile) {
@@ -1817,6 +1922,11 @@ export async function ingestCurriculumToTela(params: {
         if (!params.title && formRes.title) sourceLabel = formRes.title;
         rawCurriculumText = [rawCurriculumText, formRes.rawText].filter(Boolean).join('\n\n');
         preParsedQuestions = formRes.structuredQuestions;
+        // The form's questions become the page's questions; only its own text is reading.
+        if (preParsedQuestions.length) readingText = formRes.readingText;
+        detailFields = formRes.detailFields;
+        // The form's own title, as its students see it.
+        if (formRes.title && formRes.structuredQuestions.length) formTitle = formRes.title;
       } else {
         const docRes = await extractGoogleDocText(url);
         if (!params.title && docRes.title) sourceLabel = docRes.title;
@@ -1858,7 +1968,7 @@ export async function ingestCurriculumToTela(params: {
   const { unit, telaDoc } = parseCurriculumAndBuildUnit({
     orgId: safeOrgId,
     programId: params.programId,
-    title: params.title,
+    title: formTitle || params.title,
     rawCurriculumText,
     rawAnswerKeyText,
     sourceKind,
@@ -1867,6 +1977,8 @@ export async function ingestCurriculumToTela(params: {
     answerKeySourceLabel,
     unitKind: params.unitKind,
     preParsedQuestions,
+    readingText,
+    detailFields,
   });
 
   // An org's lesson stays tied to the org, so sharing it as a public template follows the org's policy.
@@ -2240,6 +2352,12 @@ export async function ensureAllDetectedLinksOnboarded(
   importing = (async () => {
     // Drop the made-up items older builds stored, so only real imports remain.
     for (const u of readRawStoredUnitsForKey(STORAGE_UNITS_KEY(safeOrgId))) if (u && isFabricatedSampleUnit(u)) deleteIngestedUnit(safeOrgId, u.id);
+    // Units read by an older importer (forms counted NAME/DATE and every lettered part as its own question,
+    // and doubled every question into the reading) are read again from their links.
+    const isAdmin = libraryActorIsAdmin(safeOrgId);
+    for (const u of listIngestedUnits(safeOrgId, undefined, orgName)) {
+      if (u.sourceUrl && isSampleCourseUnit(u) && (u.importVersion || 1) < IMPORT_VERSION) deleteIngestedUnit(safeOrgId, u.id, { shared: isAdmin });
+    }
     const existing = listIngestedUnits(safeOrgId, undefined, orgName);
     const missing = REVELATION_2_COURSE_CONNECTION_PRESET.links.filter(link => !existing.some(u => u.sourceUrl === link.url));
     if (missing.length) {
@@ -2256,7 +2374,7 @@ export async function ensureAllDetectedLinksOnboarded(
       const prior = getCourseImportReport(safeOrgId);
       const imported = [
         ...(prior?.imported || []).filter(x => existing.some(u => u.sourceUrl === x.url)),
-        ...built.map(b => ({ label: b.unit.sourceLabel, url: b.unit.sourceUrl || '', title: b.unit.title, questions: b.unit.questions.length, words: (b.unit.rawCurriculumText || '').split(/\s+/).filter(Boolean).length })),
+        ...built.map(b => ({ label: b.unit.sourceLabel, url: b.unit.sourceUrl || '', title: b.unit.title, questions: countQuestions(b.unit.questions), words: (b.unit.rawCurriculumText || '').split(/\s+/).filter(Boolean).length })),
       ];
       const report: CourseImportReport = { hubTitle: REVELATION_2_COURSE_CONNECTION_PRESET.hubTitle, at: Date.now(), total: REVELATION_2_COURSE_CONNECTION_PRESET.links.length, imported, failed };
       try { localStorage.setItem(IMPORT_REPORT_KEY(safeOrgId), JSON.stringify(report)); } catch { /* storage full */ }
@@ -2312,3 +2430,19 @@ REVELATION_2_COURSE_CONNECTION_PRESET.googleFormLinks = REVELATION_2_COURSE_CONN
 REVELATION_2_COURSE_CONNECTION_PRESET.answerKeyLinks = REVELATION_2_COURSE_CONNECTION_PRESET.links.filter(l => l.isAnswerKey);
 
 
+
+/**
+ * Makes sure this device has the lesson's Tela document (a lesson shared from another device arrives
+ * without one), then opens it in Tela. `fromTelaDocId` seeds a copy from the original's page.
+ */
+export async function openUnitInTela(unit: IngestedCurriculumUnit, opts: { fromTelaDocId?: string; ownerUid?: string } = {}): Promise<void> {
+  let have: TelaDoc | null = null;
+  try { have = await loadTelaDoc(unit.telaDocId); } catch { have = null; }
+  if (!have) {
+    let base: TelaDoc | null = null;
+    if (opts.fromTelaDocId) { try { base = await loadTelaDoc(opts.fromTelaDocId); } catch { base = null; } }
+    const doc = base || worksheetToTelaDoc(unit.worksheet, opts.ownerUid || unit.ownerUid || '');
+    await saveTelaDoc({ ...doc, id: unit.telaDocId, title: `${unit.title} (Interactive Tela)`, ownerId: opts.ownerUid || doc.ownerId, editedBy: undefined });
+  }
+  window.dispatchEvent(new CustomEvent('plajah:openTela', { detail: { docId: unit.telaDocId, returnTo: { label: 'Lesson Library' } } }));
+}

@@ -19,7 +19,7 @@ import {
   GREAT_FAITH_MINISTRIES_NAME,
 } from './orgAssets';
 import { appendRecord } from './learningLedgerService';
-import { mirrorAssignment, mirrorTurnIn, type EduSubmissionRecord } from './christianEdSync';
+import { mirrorAssignment, mirrorDraft, mirrorTurnIn, type EduSubmissionRecord } from './christianEdSync';
 
 export type DeskContextDomain = 'CHRISTIAN_EDUCATION' | 'ACADEMIA' | 'ORG_TRAINING';
 
@@ -476,8 +476,10 @@ export function assignUnitToClassroomDesk(params: {
     params.unit.livingTemplateId ||
     getDefaultLivingTemplateForUnit(params.unit.kind, params.unit.title).id;
 
+  // The class gets its own copy of the lesson as it is now: editing (or deleting) the library original later
+  // never changes work already handed out.
   const updatedUnit: IngestedCurriculumUnit = {
-    ...params.unit,
+    ...(JSON.parse(JSON.stringify(params.unit)) as IngestedCurriculumUnit),
     livingTemplateId: tplId,
   };
 
@@ -493,9 +495,8 @@ export function assignUnitToClassroomDesk(params: {
     departmentFolder: params.unit.departmentFolder || 'Christian Education',
     title: params.unit.title,
     subtitle: params.unit.subtitle,
-    instructions:
-      params.instructions?.trim() ||
-      'Read the lesson materials and Sacred Library primary sources, fill out each prompt on your Tela Student Desk, and click Turn In when finished.',
+    // Only what the teacher wrote; the assignment itself is the original's content.
+    instructions: params.instructions?.trim() || '',
     unitKind: params.unit.kind,
     livingTemplateId: tplId,
     assignedByUid: params.assignedByUid || 'instructor_great_faith',
@@ -629,7 +630,35 @@ export function saveStudentDeskDraft(params: {
 
   map[params.assignment.id] = updated;
   writeWorkspaceMap(params.studentUid, map);
+  mirrorDraft(params.assignment, updated);
   return updated;
+}
+
+/**
+ * The student's own saved work from their account onto this device: drafts saved on another device
+ * (newer than this one's) and work already turned in there.
+ */
+export function applyMyDrafts(studentUid: string, recs: EduSubmissionRecord[]): void {
+  const map = readWorkspaceMap(studentUid);
+  let changed = false;
+  for (const r of recs) {
+    if (r.studentUid !== studentUid || r.status === 'RETURNED_WITH_FEEDBACK') continue;
+    const prev = map[r.assignmentId];
+    if (prev && (prev.lastSavedAt || 0) >= (r.updatedAt || 0)) continue;
+    if (prev?.status === 'TURNED_IN' || prev?.status === 'RETURNED_WITH_FEEDBACK') continue;
+    map[r.assignmentId] = {
+      ...(prev || { scratchpadNotes: '', flaggedQuestionIds: [], selfCheckCount: 0 }),
+      assignmentId: r.assignmentId,
+      studentUid,
+      studentName: r.studentName,
+      status: r.status,
+      answers: { ...r.answers },
+      lastSavedAt: r.updatedAt || Date.now(),
+      ...(r.turnedInAt ? { turnedInAt: r.turnedInAt } : {}),
+    } as StudentDeskWorkspaceState;
+    changed = true;
+  }
+  if (changed) writeWorkspaceMap(studentUid, map);
 }
 
 /**

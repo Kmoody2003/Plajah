@@ -152,10 +152,33 @@ export async function mirrorTurnIn(a: UniversalDeskAssignment, ws: StudentDeskWo
   }
 }
 
+// A student's work in progress is saved to their own record (same id they turn in on), so it follows
+// them to any device and is never shared with classmates. Teachers see it only once it's turned in.
+const draftTimers = new Map<string, ReturnType<typeof setTimeout>>();
+export function mirrorDraft(a: UniversalDeskAssignment, ws: StudentDeskWorkspaceState): void {
+  const uid = auth.currentUser?.uid;
+  if (a.domain !== 'CHRISTIAN_EDUCATION' || !uid || uid !== ws.studentUid) return;
+  if (ws.status === 'TURNED_IN' || ws.status === 'RETURNED_WITH_FEEDBACK') return;
+  const id = submissionId(a.id, uid);
+  clearTimeout(draftTimers.get(id));
+  draftTimers.set(id, setTimeout(() => {
+    draftTimers.delete(id);
+    const rec: EduSubmissionRecord = {
+      id, orgId: a.orgId, programId: a.classroomId, assignmentId: a.id, assignmentTitle: a.title,
+      studentUid: uid, studentName: ws.studentName, status: ws.status, answers: ws.answers,
+      earnedPoints: 0, totalPoints: a.totalPoints || 0, percentage: 0, questionScores: {},
+      turnedInAt: 0, updatedAt: Date.now(),
+    };
+    setDoc(doc(opsDb, 'churchEduSubmissions', id), strip(rec)).catch(() => { /* offline: the device copy stays */ });
+  }, 1500));
+}
+
+const SUBMITTED: ReadonlySet<string> = new Set(['TURNED_IN', 'RETURNED_WITH_FEEDBACK']);
+
 export async function fetchProgramSubmissions(programId: string): Promise<EduSubmissionRecord[]> {
   try {
     const snap = await getDocs(query(collection(opsDb, 'churchEduSubmissions'), where('programId', '==', programId)));
-    return snap.docs.map(d => d.data() as EduSubmissionRecord);
+    return snap.docs.map(d => d.data() as EduSubmissionRecord).filter(r => SUBMITTED.has(r.status));
   } catch {
     return [];
   }

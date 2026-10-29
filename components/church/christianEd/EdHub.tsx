@@ -14,7 +14,8 @@ import { useViewport } from '../../../hooks/useViewport';
 import { BookOpen, ClipboardCheck, Home, Megaphone, MoreHorizontal, Users } from 'lucide-react';
 
 const TemplateLibrary = lazy(() => import('../../templates/TemplateLibrary'));
-import { currentWeekIndex, isStudentOf, isTeacherOf, needsReview, openTelaClasswork, syncMyReturnedWork, useClassWork } from './edWork';
+import { currentWeekIndex, isStudentOf, isTeacherOf, needsReview, syncMyReturnedWork, useClassWork } from './edWork';
+import { openLessonLibrary } from '../../../services/lessonLibraryNav';
 
 export type EdToolMode = 'LESSON_LIBRARY' | 'CENTRAL_CALENDAR' | 'TEACHER_TOOLS' | 'TEACHER_DASHBOARD' | 'CLASSIC';
 
@@ -154,9 +155,9 @@ const EdHub: React.FC<Props> = ({ church, canEdit, canSeeKey, viewer, programs, 
       {phoneMore && (
         <EduPhoneSheet title="More" onClose={() => setPhoneMore(false)}>
           {moreRow('Calendar', () => onOpenTool('CENTRAL_CALENDAR'))}
-          {isTeacher && moreRow('Add lessons in Tela Classwork', () => openTelaClasswork({ orgId: church.id, orgName: church.name, domain: 'CHRISTIAN_EDUCATION' }))}
+          {isTeacher && moreRow('Add lessons', () => openLessonLibrary({ orgId: church.id, orgName: church.name }))}
           {canEdit && moreRow('New class', () => { setPhoneTab('classes'); setView({ kind: 'hub' }); setNewClass({ name: '', kind: 'sunday-school', ageBand: '', schedule: '' }); })}
-          {isTeacher && moreRow('Lesson library', () => onOpenTool('LESSON_LIBRARY'))}
+          {isTeacher && moreRow('Lesson library', () => openLessonLibrary({ orgId: church.id, orgName: church.name }))}
           {isTeacher && moreRow('Templates & flyers', () => setLibOpen(true))}
           {isTeacher && moreRow('Gradebook & teacher tools', () => onOpenTool('TEACHER_TOOLS'))}
           {isTeacher && moreRow('Instructor dashboard', () => onOpenTool('TEACHER_DASHBOARD'))}
@@ -392,7 +393,7 @@ const EdHub: React.FC<Props> = ({ church, canEdit, canSeeKey, viewer, programs, 
         </button>}
         {isTeacher && !isPhone && (
           <>
-            <button type="button" className="btn sm" onClick={() => onOpenTool('LESSON_LIBRARY')}>
+            <button type="button" className="btn sm" onClick={() => openLessonLibrary({ orgId: church.id, orgName: church.name })}>
               Lesson library
             </button>
             <div style={{ position: 'relative' }}>
@@ -457,10 +458,10 @@ const EdHub: React.FC<Props> = ({ church, canEdit, canSeeKey, viewer, programs, 
           <button
             type="button"
             className="stat"
-            onClick={() => openTelaClasswork({ orgId: church.id, orgName: church.name, domain: 'CHRISTIAN_EDUCATION' })}
+            onClick={() => openLessonLibrary({ orgId: church.id, orgName: church.name })}
           >
             <span className="v">+</span>
-            <span className="l">Add lessons in Tela Classwork</span>
+            <span className="l">Add lessons</span>
           </button>
         </div>
       )}

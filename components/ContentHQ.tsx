@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   FolderOpen, FileText, Image as ImageIcon, Film, Music, File as FileIcon, Upload,
   Trash2, RotateCcw, Search, Loader2, HardDrive, Library, ArrowLeft, Lock, ShieldAlert,
-  Sparkles, Eye, Layers, KeyRound, ExternalLink, LayoutTemplate,
+  Sparkles, Eye, Layers, KeyRound, ExternalLink, LayoutTemplate, BookOpen,
 } from 'lucide-react';
 import { auth } from '../services/firebase';
 import HqTemplatesTab from './templates/HqTemplatesTab';
@@ -22,6 +22,7 @@ import { fetchMySubscription } from '../services/subscriptionService';
 import { resolveContentHqEntitlements } from '../services/contentHqEntitlements';
 import type { ContentHqEntitlements } from '../services/contentHqEntitlements';
 import { TelaDocumentPreviewModal } from './church/TelaDocumentPreviewModal';
+import { openLessonLibrary } from '../services/lessonLibraryNav';
 
 // ─────────────────────────────────────────────────────────────────────────
 // Content HQ — an admin surface for an org OR a single account: a private
@@ -80,7 +81,15 @@ const ContentHQ: React.FC<Props> = ({ scope, canEdit, canViewAnswerKey, mediaOwn
           <div className="text-[11px] text-white/40 mt-0.5">{scope.label || (scope.kind === 'org' ? GREAT_FAITH_MINISTRIES_NAME : 'Account')} · private</div>
         </div>
         {!canEdit && <span className="ml-2 flex items-center gap-1 text-[10px] text-white/40"><Lock className="w-3 h-3" /> Read-only</span>}
-        <div className="ml-auto flex gap-1.5">
+        <div className="ml-auto flex gap-1.5 flex-wrap justify-end">
+          <button
+            type="button"
+            onClick={() => openLessonLibrary(scope.kind === 'org' && !isStandaloneTeacherScopeId(scope.id) ? { orgId: scope.id, orgName: scope.label } : { mine: true })}
+            className="flex items-center gap-2 px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest bg-[#34e0d0]/15 text-[#34e0d0] border border-[#34e0d0]/40 hover:bg-[#34e0d0]/25"
+            title="Lessons, assignments and exams as Tela pages: preview, copy, assign and schedule"
+          >
+            <BookOpen className="w-3.5 h-3.5" /> Lesson Library
+          </button>
           {([['FILES', 'Files & Docs', FolderOpen], ['MEDIA', 'Media Library', Library], ['TEMPLATES', 'Templates', LayoutTemplate]] as const).map(([id, label, Icon]) => (
             <button key={id} onClick={() => setTab(id)}
               className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest transition-colors ${

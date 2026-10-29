@@ -3501,7 +3501,7 @@ service cloud.firestore {
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followerCount', 'memberCount', 'updatedAt']) ||
         // Elevate: pastors manage ministries/rosters + the derived role index (cannot touch money/admins/ownership).
         (request.auth.uid in resource.data.get('pastorUids', []) &&
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['logoUrl', 'coverUrl', 'name', 'tagline', 'about', 'ministries', 'rosterIntro', 'setupState', 'pastorUids', 'financeUids', 'prayerUids', 'leaderUids', 'givingViewUids', 'accountingUids', 'accountingViewUids', 'staffUids', 'memberCount', 'updatedAt'])) ||
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['logoUrl', 'coverUrl', 'name', 'tagline', 'about', 'ministries', 'rosterIntro', 'setupState', 'pastorUids', 'financeUids', 'prayerUids', 'leaderUids', 'givingViewUids', 'accountingUids', 'accountingViewUids', 'staffUids', 'eduTeacherUids', 'memberCount', 'updatedAt'])) ||
         resource.data.get('accountUid', '') == request.auth.uid ||
         resource.data.get('ownerId', '') == request.auth.uid ||
         // Elevate: finance roles own giving setup only.

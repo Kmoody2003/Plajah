@@ -13,6 +13,7 @@ import {
 import { onSnapshot } from './safeSnapshot';
 import { db, opsDb, auth } from './firebase';
 import { permissionsForMember } from './orgPermissions';
+import { memberRoleKeys } from './elevateRoles';
 import type { ChurchPrayer, UserProfile } from '../types';
 import type { Organization, OrgMembership, OrgMembershipOnboarding, OrgRole, OrgType, Ministry, ServiceTime, GivingFund, RosterGroup } from '../types';
 
@@ -227,7 +228,19 @@ export async function recomputeOrgStaffUids(orgId: string): Promise<void> {
     const staffUids = Array.from(new Set(
       members.filter(m => m.status === 'ACTIVE' && permissionsForMember(m).has('MANAGE_CONTENT')).map(m => m.userId),
     ));
-    await updateDoc(doc(db, 'organizations', orgId), { staffUids, updatedAt: Date.now() });
+    // Teachers the Lesson Library rules let in (services/lessonLibraryStore): instructors, department
+    // heads/admins and pastors by role, plus every class's listed teachers.
+    const TEACHING = new Set(['INSTRUCTOR', 'DEPARTMENT_HEAD', 'DEPARTMENT_ADMIN', 'SENIOR_PASTOR', 'PASTOR']);
+    let classTeachers: string[] = [];
+    try {
+      const progs = await getDocs(query(collection(opsDb, 'churchPrograms'), where('orgId', '==', orgId)));
+      classTeachers = progs.docs.flatMap(d => (d.data().teacherUids as string[] | undefined) || []);
+    } catch { /* classes unreadable: role-based teachers only */ }
+    const eduTeacherUids = Array.from(new Set([
+      ...members.filter(m => m.status === 'ACTIVE' && (m.role === 'ADMIN' || memberRoleKeys(m).some(k => TEACHING.has(k)))).map(m => m.userId),
+      ...classTeachers,
+    ].filter(Boolean)));
+    await updateDoc(doc(db, 'organizations', orgId), { staffUids, eduTeacherUids, updatedAt: Date.now() });
     await refreshOpsMirror(orgId);
   } catch { /* non-fatal: HQ access falls back to owners/admins until the next staff change */ }
 }

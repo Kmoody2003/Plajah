@@ -679,6 +679,7 @@ import MediaRepairApprovals from './components/MediaRepairApprovals';
 import AchievementListView from './components/AchievementListView';
 import UploadManager from './components/UploadManager';
 import ReelloUploadDock from './components/reello/upload/ReelloUploadDock';
+import LessonLibraryOverlay from './components/library/LessonLibraryOverlay';
 import { PublishQueueProvider } from './contexts/PublishQueueContext';
 import PublishTray from './components/PublishTray';
 import { CallProvider } from './contexts/CallContext';
@@ -8633,6 +8634,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         onRestoreCreator={() => setIsCreatorMinimized(false)}
       />
       <ReelloUploadDock />
+      <LessonLibraryOverlay />
       <PublishTray />
       <ProjectTray
         isOpen={isProjectTrayOpen}

@@ -44,6 +44,10 @@
     "components/academia/scan/ScanAnythingView.tsx",
     "services/postman/calendarService.ts",
     "routes/curriculumFetch.ts",
-    "tests/curriculumFetch.test.ts"
+    "tests/curriculumFetch.test.ts",
+    "components/library/*.tsx",
+    "services/lessonLibraryStore.ts",
+    "services/lessonLibraryNav.ts",
+    "services/organizationService.ts"
   ]
 }
