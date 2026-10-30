@@ -1,0 +1,7 @@
+[target.wasm32-unknown-unknown]
+rustflags = [
+  # One wasm instance per insert device, so keep each small. The allocator grows memory itself
+  # during aw_init (Galactic's ~1 MB of delay lines); nothing allocates after that, so the
+  # worklet's buffer views — taken after init — stay valid. Pre-sizing would only waste RAM.
+  "-C", "link-arg=-zstack-size=131072",
+]

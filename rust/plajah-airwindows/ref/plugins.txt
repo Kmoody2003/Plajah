@@ -1,0 +1,17 @@
+# One Airwindows plugin name per line — the curated MEKA set. Keep in step with src/plugins/mod.rs.
+Density
+PurestDrive
+Mojo
+Tube2
+ToTape6
+IronOxide5
+DrumSlam
+ButterComp2
+Pressure4
+Console7Channel
+Console7Buss
+Baxandall2
+DeEss
+Galactic
+Wider
+DeRez2

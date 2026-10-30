@@ -14,8 +14,9 @@
 import { AMP_MODELS, CAB_MODELS, MIC_MODELS, PEDAL_MODELS, ampModelAt, cabModelAt, micModelAt, pedalModelAt } from './ampModels';
 import { designHilbertFir } from './firEq';
 import { IR_LIBRARY, irByIndex, getCachedIr, loadIr } from './irLibrary';
+import { AIRWINDOWS, AirwindowsNode, airwindowsType, type AirwindowsGroup } from './airwindows';
 
-export type FxCategory = 'eq' | 'dynamics' | 'saturation' | 'stereo' | 'space' | 'mod' | 'dj' | 'repair' | 'utility' | 'amp';
+export type FxCategory = 'eq' | 'dynamics' | 'saturation' | 'stereo' | 'space' | 'mod' | 'dj' | 'repair' | 'utility' | 'amp' | 'airwindows';
 
 export interface FxParamSpec {
   key: string;
@@ -53,6 +54,9 @@ export interface FxNode {
   gr?(): number;
   /** Tempo-synced devices (Gater, Beatmasher, synced LFOs) take the transport BPM here. */
   setTempo?(bpm: number): void;
+  /** Devices that come up asynchronously (worklet-hosted, e.g. Airwindows) resolve this once they
+   *  are really in the signal path. An offline render awaits it before startRendering. */
+  ready?(): Promise<void>;
   dispose(): void;
 }
 
@@ -2631,7 +2635,10 @@ class BoostDevice extends FxBase {
 }
 
 // ── the registry ─────────────────────────────────────────────────────────────
-const C = { eq: '#00DAF3', dynamics: '#FF8C00', saturation: '#D40055', stereo: '#D0BCFF', space: '#06D6A0', mod: '#B84DFF', dj: '#FF4B1C', repair: '#F59E0B', utility: '#8899aa', amp: '#E8A33D' };
+const AW_GROUP_LABEL: Record<AirwindowsGroup, string> = {
+  saturation: 'Saturation', tape: 'Tape', console: 'Console', dynamics: 'Dynamics', eq: 'Tone', space: 'Space', lofi: 'Lo-Fi',
+};
+const C = { eq: '#00DAF3', dynamics: '#FF8C00', saturation: '#D40055', stereo: '#D0BCFF', space: '#06D6A0', mod: '#B84DFF', dj: '#FF4B1C', repair: '#F59E0B', utility: '#8899aa', amp: '#E8A33D', airwindows: '#7FD1AE' };
 
 export const DEVICES: FxDescriptor[] = [
   {
@@ -3191,6 +3198,13 @@ export const DEVICES: FxDescriptor[] = [
     ],
     create: (ctx) => new BoostDevice(ctx),
   },
+  // Airwindows (Chris Johnson, MIT) — Rust ports in their own worklet; see fx/airwindows.ts.
+  ...AIRWINDOWS.map((e): FxDescriptor => ({
+    type: airwindowsType(e), label: e.name, category: 'airwindows', color: C.airwindows,
+    blurb: `${AW_GROUP_LABEL[e.group]} · ${e.blurb}`,
+    params: e.params,
+    create: (ctx) => new AirwindowsNode(ctx, e),
+  })),
 ];
 
 export const deviceByType = (type: string): FxDescriptor | undefined => DEVICES.find((d) => d.type === type);
@@ -3320,6 +3334,11 @@ export class FxChainHost {
     for (const { node: dev } of this.live.values()) {
       if (dev.post) { try { dev.output.connect(dev.post); } catch { /* */ } }
     }
+  }
+
+  /** Resolves once every async device in the chain (Airwindows worklets) is in the path. */
+  ready(): Promise<void> {
+    return Promise.all([...this.live.values()].map(({ node }) => node.ready?.())).then(() => undefined);
   }
 
   /** The live device node for an instance id — the rack reads pre/post analysers off it. */

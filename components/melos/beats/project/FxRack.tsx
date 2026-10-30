@@ -17,9 +17,9 @@ import { Knob } from '../shared/Knob';
 import { presetsForFx } from '../../../../services/melos/beats/fx/presets';
 
 const CAT_LABEL: Record<FxCategory, string> = {
-  eq: 'EQ', dynamics: 'Dynamics', saturation: 'Saturation', stereo: 'Stereo', space: 'Space', mod: 'Modulation', dj: 'DJ / Performance', repair: 'Repair', utility: 'Utility', amp: 'Amps & Rigs',
+  eq: 'EQ', dynamics: 'Dynamics', saturation: 'Saturation', stereo: 'Stereo', space: 'Space', mod: 'Modulation', dj: 'DJ / Performance', repair: 'Repair', utility: 'Utility', amp: 'Amps & Rigs', airwindows: 'Airwindows',
 };
-const CAT_ORDER: FxCategory[] = ['amp', 'eq', 'dynamics', 'saturation', 'stereo', 'space', 'mod', 'dj', 'repair', 'utility'];
+const CAT_ORDER: FxCategory[] = ['amp', 'eq', 'dynamics', 'saturation', 'stereo', 'space', 'mod', 'dj', 'repair', 'utility', 'airwindows'];
 
 interface FxRackProps {
   instances: FxInstance[];

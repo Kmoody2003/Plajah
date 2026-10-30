@@ -12,6 +12,7 @@ import { AutomationPlayer, applyMessage } from './engine/automationPlayer';
 import { buildGraph } from './engine/graph';
 import { MasteringChain, type MasteringState } from './fx/mastering';
 import { FxChainHost } from './fx/devices';
+import { airwindowsSettled } from './fx/airwindows';
 import { VoiceBank } from './engine/voices';
 import { StepScheduler, seededRng } from './engine/scheduler';
 import { startAudioClipSource } from './engine/clips';
@@ -296,6 +297,8 @@ export async function renderGroove(
   }
 
   await Promise.all([...instByTrackId.values()].map((i) => i.flush()));
+  // Worklet-hosted inserts (Airwindows) join the path asynchronously — wait, or they print dry.
+  await airwindowsSettled(offline);
 
   const rendered = await offline.startRendering();
   return { blob: encodeWav(rendered, opts.bitDepth ?? 24), buffer: rendered, seconds, skippedInstruments };

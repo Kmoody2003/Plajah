@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": true, "skipLibCheck": true, "incremental": false },
+  "include": [
+    "services/melos/beats/engine/vite-url.d.ts",
+    "services/melos/beats/fx/airwindows.ts",
+    "services/melos/beats/fx/devices.ts",
+    "services/melos/beats/render.ts",
+    "services/melos/beats/masterProject.ts",
+    "components/melos/beats/project/FxRack.tsx",
+    "labs/airwindows/main.tsx"
+  ]
+}

@@ -19,6 +19,7 @@ import { dbToGain, softClipCurve } from './engine/graph';
 import { hydrateSample } from './sampleStore';
 import { MasteringChain, type MasteringState } from './fx/mastering';
 import { FxChainHost, type FxInstance } from './fx/devices';
+import { airwindowsSettled } from './fx/airwindows';
 import { encodeWav } from '../../audio/wavEncode';
 import {
   presetById, planSides, buildCueSheet, buildPqLog, ditherTpdf, toFrame, allCredits, creditsToText,
@@ -404,6 +405,7 @@ export async function renderProjectTrack(
   const suite = buildMasterFx(offline, opts.masterFx);
   const bus = albumLimiter(offline);
   if (suite) { voice.connect(suite.input); suite.output.connect(bus); } else voice.connect(bus);
+  await airwindowsSettled(offline); // async inserts must be in the path before the bounce
   const rendered = await offline.startRendering();
   return { blob: encodeWav(rendered, opts.bitDepth ?? 24), seconds };
 }
@@ -459,6 +461,7 @@ export async function renderAlbumContinuous(
     if (voice) { voice.connect(busIn); placed++; }
   }
   if (!placed) return null;
+  await airwindowsSettled(offline); // async inserts must be in the path before the bounce
   const rendered = await offline.startRendering();
   if (opts.dither && (opts.bitDepth ?? 24) === 16) ditherTpdf(rendered, 16);
   return { blob: encodeWav(rendered, opts.bitDepth ?? 24), buffer: rendered, seconds };

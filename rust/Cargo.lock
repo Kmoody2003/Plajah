@@ -282,6 +282,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "plajah-airwindows"
+version = "0.1.0"
+
+[[package]]
 name = "plajah-audio"
 version = "0.1.0"
 
