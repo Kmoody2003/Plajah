@@ -5,6 +5,9 @@ edition.workspace = true
 license.workspace = true
 description = "Native multi-core render pool for plajah-audio: one engine per track, rendered in parallel and mixed. Phase 1 of docs/CHORA_GPU_AUDIO_SCOPE.md: WASAPI output and render-ahead, not yet connected to the app."
 
+[lib]
+crate-type = ["cdylib", "rlib"]
+
 [dependencies]
 plajah-audio = { path = "../plajah-audio" }
 

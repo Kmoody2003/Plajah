@@ -850,6 +850,12 @@ public sealed partial class MainWindow : Window
             if (type == "PROGRAM_OUT_FRAME") { _programOutHub?.OnFrame(root); return; }
             if (type == "PROGRAM_OUT_AUDIO") { _programOutHub?.OnAudio(root); return; }
 
+            if (type == "NATIVE_AUDIO_OPEN")
+            {
+                PostNativeMessage("NATIVE_AUDIO_OPEN_RESULT", NativeAudioBridge.Open());
+                return;
+            }
+
             if (type is "SPEECH_START" or "SPEECH_STOP" or "SPEECH_SUSPEND" or "SPEECH_RESUME")
             {
                 await HandleSpeechMessageAsync(type, root);   // Voca read-aloud
