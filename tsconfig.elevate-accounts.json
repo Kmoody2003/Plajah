@@ -9,6 +9,6 @@
     "components/elevate/ElevateSetupWizard.tsx", "components/elevate/chms/PersonAccountCard.tsx", "components/elevate/chms/PeopleProfile.tsx",
     "components/elevate/chms/PeopleDirectory.tsx", "components/elevate/chms/ImportWizard.tsx", "components/chat/ChatSpaces.tsx",
     "components/LandingPage.tsx", "routes/elevateAccounts.ts", "routes/payrollConnect.ts", "services/firebaseAdminRest.ts",
-    "routes/elevateInvites.ts", "services/elevateInviteCore.ts", "routes/campaigns.ts", "services/notify/emailNotifyServer.ts", "tests/elevateInvites.test.ts"
+    "routes/elevateInvites.ts", "services/notify/resendWebhookCore.ts", "tests/resendWebhook.test.ts", "services/elevateInviteCore.ts", "routes/campaigns.ts", "services/notify/emailNotifyServer.ts", "tests/elevateInvites.test.ts"
   ]
 }

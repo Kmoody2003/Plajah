@@ -3628,7 +3628,7 @@ async function startServer() {
     '/api/elevate/statements/email']);
   // Signed webhooks registered further down verify an HMAC over the exact bytes, so their
   // own express.raw must see the untouched body — parsing it here broke every signature.
-  const RAW_BODY_ROUTES = new Set(['/api/merch/stripe-webhook', '/api/mux/webhook']);
+  const RAW_BODY_ROUTES = new Set(['/api/merch/stripe-webhook', '/api/mux/webhook', '/api/campaigns/webhook/resend']);
   app.use((req, res, next) => {
     if (LARGE_BODY_ROUTES.has(req.path) || RAW_BODY_ROUTES.has(req.path)) return next();
     return tightJson(req, res, next);
@@ -13943,6 +13943,8 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
 
   // Campaigns — built-in email marketing. Compliance (postal address, one-click
   // unsubscribe, suppression) is enforced inside the router, not by its callers.
+  // Resend signs the exact bytes; express.raw marks the body parsed, so the JSON parser below leaves it alone.
+  app.post('/api/campaigns/webhook/resend', express.raw({ type: () => true, limit: '256kb' }));
   app.use('/api/campaigns', express.json({ limit: '2mb' }), campaignsRouter);
 
   // Print-on-demand for authors (Lulu direct connect + export packs). Router owns its body parsers
