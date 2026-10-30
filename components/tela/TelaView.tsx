@@ -2810,7 +2810,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
       {/* ── Top bar ─────────────────────────────────────────────────────────── */}
       <header
         ref={collabAnchorRef}
-        className="@container shrink-0 flex items-center gap-2 px-3 h-14 border-b min-w-0"
+        className="@container shrink-0 flex items-center gap-2 px-3 h-14 border-b min-w-0 relative z-[95]"
         style={{ borderColor: 'var(--border-color, rgba(255,255,255,0.08))', background: 'linear-gradient(180deg,#140D20,#0E0A16)' }}
       >
         {returnTo ? (
@@ -3161,7 +3161,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
       <nav className="shrink-0 flex items-center gap-0.5 px-3 h-9 relative z-[90]" style={{ background: '#0b0810', borderBottom: '1px solid rgba(255,255,255,.075)' }}>
         {(['FILE','EDIT','SELECT','INSERT','DOCUMENT','EXPORT','ASSIGNMENT'] as const).map(menu => <div key={menu} className="relative">
           <button onClick={() => setAppMenuOpen(open => open === menu ? null : menu)} className={menuBarButton} style={{ color: appMenuOpen === menu ? '#fff' : 'rgba(255,255,255,.58)', background: appMenuOpen === menu ? 'rgba(255,255,255,.09)' : 'transparent' }}>{menu[0] + menu.slice(1).toLowerCase()}</button>
-          {appMenuOpen === menu && <div className="absolute left-0 top-[31px] min-w-[255px] p-1.5 rounded-[11px]" style={{ background: 'rgba(20,13,30,.985)', border: '1px solid rgba(255,255,255,.13)', boxShadow: '0 18px 55px rgba(0,0,0,.55)' }} onMouseLeave={() => setAppMenuOpen(null)}>
+          {appMenuOpen === menu && <div className="absolute left-0 top-[31px] min-w-[255px] max-h-[calc(100vh-100px)] overflow-y-auto custom-scrollbar p-1.5 rounded-[11px]" style={{ background: 'rgba(20,13,30,.985)', border: '1px solid rgba(255,255,255,.13)', boxShadow: '0 18px 55px rgba(0,0,0,.55)' }} onMouseLeave={() => setAppMenuOpen(null)}>
             {menu === 'FILE' && <>
               <div className="px-3 py-1.5 text-[9px] font-extrabold uppercase tracking-[.12em] text-white/28">Tela board · {doc.frames.length} pages</div>
               <button className={menuBarItem} onClick={() => void createCanvas()}><FilePlus2 size={14}/>New Tela board<span className="ml-auto text-[9px] text-white/25">whole file</span></button>
@@ -3716,7 +3716,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
               />
 
               {/* Stage Scrollable Body — ONLY this area scrolls when viewing documents */}
-              <div className="flex-1 min-h-0 h-full overflow-y-auto overflow-x-auto relative custom-scrollbar flex flex-col" style={{ overscrollBehavior: 'contain' }}>
+              <div className="flex-1 min-h-0 h-full overflow-y-auto overflow-x-auto relative isolate custom-scrollbar flex flex-col" style={{ overscrollBehavior: 'contain' }}>
                 {comicLayoutMode ? (
                   <TelaComicPageStreamCanvas ctrl={comicVariant2Ctrl} zoom={studioZoom} />
                 ) : isContinuousMode ? (
