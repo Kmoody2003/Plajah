@@ -1,0 +1,9 @@
+[package]
+name = "plajah-audio-host"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Native multi-core render pool for plajah-audio: one engine per track, rendered in parallel and mixed. Phase 1 of docs/CHORA_GPU_AUDIO_SCOPE.md; no device output yet."
+
+[dependencies]
+plajah-audio = { path = "../plajah-audio" }

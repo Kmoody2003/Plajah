@@ -290,6 +290,13 @@ name = "plajah-audio"
 version = "0.1.0"
 
 [[package]]
+name = "plajah-audio-host"
+version = "0.1.0"
+dependencies = [
+ "plajah-audio",
+]
+
+[[package]]
 name = "plajah-color"
 version = "0.1.0"
 dependencies = [

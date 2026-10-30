@@ -280,3 +280,25 @@ Measured in the lab (`soma-deep-lab.html`, real engine via the worklet, dry):
 3. Tension glide on the deep modes (the explicit 16 glide on hard strikes; the deep ones are
    fixed per strike). The kernel would need per-block frequency scaling.
 4. The same treatment for VELA (bowls, bells, gongs), where thousands of modes matter most.
+
+## Milestone 3 — native multi-core render pool (2026-10-30)
+
+`rust/plajah-audio-host`: one `plajah-audio` engine per track, rendered across cores by `RenderPool`
+and mixed in track order. Workers register as Windows "Pro Audio". No device output or app wiring yet,
+so **nothing in Chora plays through it**. Test: `cargo test --release -p plajah-audio-host` (the mix is
+bit-identical to serial at 2–32 threads). Bench: `cargo run --release -p plajah-audio-host --example bench [tracks] [voices] [seconds]`.
+
+Paced 128-frame blocks (2.67 ms) on the Core Ultra 9 185H, with other work on the machine at ~27%:
+
+| Workload | 1 thread: load, late blocks | 12 threads: load, late blocks |
+|---|---|---|
+| 8 AURA tracks × 8 voices | 120%, 419 of 1125 | 46%, 50 of 1125 |
+| 32 AURA tracks × 8 voices | 461%, 1125 of 1125 | 90%, 316 of 1125 |
+
+- Throughput tops out at about 5× around 12 threads, with no gain beyond that. The cause isn't isolated
+  (E-cores, shared memory bandwidth and other load are all candidates).
+- **It would still drop out at 128 frames.** Spikes hit a fixed-cost loop as hard as the engine (p50 414 µs,
+  p99 3 ms), so they come from scheduling, not DSP. Flush-to-zero made no real difference. Pro Audio
+  priority helped a little. Render-ahead for sequenced tracks and larger device buffers are the next test.
+
+Next: WASAPI output on this pool, render-ahead, then the web-message bridge from the app.
