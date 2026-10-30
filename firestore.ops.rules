@@ -690,6 +690,15 @@ service cloud.firestore {
         allow delete: if eduTeacher(forumThread(tid).programId) || (isAuthenticated() && resource.data.authorUid == request.auth.uid);
       }
     }
+    // ── Class Media Gallery (services/classMedia.ts): teachers add and remove; the class reads ──
+    match /classMedia/{mid} {
+      allow read: if forumMember(resource.data.programId);
+      allow create: if eduTeacher(request.resource.data.programId) && request.resource.data.authorUid == request.auth.uid
+        && request.resource.data.id == mid && request.resource.data.url is string && request.resource.data.url.matches('https://.*');
+      allow update: if eduTeacher(resource.data.programId) && request.resource.data.programId == resource.data.programId
+        && request.resource.data.authorUid == resource.data.authorUid && request.resource.data.url == resource.data.url;
+      allow delete: if eduTeacher(resource.data.programId);
+    }
     // ── Lesson Library (services/lessonLibraryStore.ts) ───────────────────────
     // org: admins (owner/admins, pastors, Content HQ staff) provision lessons teachers can't change; the org's
     // teachers (eduTeacherUids) read them and add their own. user: the owner only. platform: anyone signed in reads.

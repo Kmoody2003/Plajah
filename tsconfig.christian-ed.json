@@ -55,6 +55,7 @@
     "services/classForum.ts",
     "services/documentLayout.ts",
     "components/church/TelaDocumentPreviewModal.tsx",
-    "components/desk/LayoutPages.tsx"
+    "components/desk/LayoutPages.tsx",
+    "services/classMedia.ts"
   ]
 }

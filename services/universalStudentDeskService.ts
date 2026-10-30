@@ -523,6 +523,18 @@ export function assignUnitToClassroomDesk(params: {
   return assignment;
 }
 
+/** Takes an assignment off this device's desk (the teacher unassigned it). */
+export function removeDeskAssignment(id: string): void {
+  writeStoredAssignments(readStoredAssignments().filter(a => a.id !== id));
+}
+
+/** A class's work on this device, trimmed to what the class still has (unassigned work disappears). */
+export function pruneClassAssignments(classroomId: string, keepIds: Set<string>): void {
+  const all = readStoredAssignments();
+  const next = all.filter(a => a.classroomId !== classroomId || keepIds.has(a.id));
+  if (next.length !== all.length) writeStoredAssignments(next);
+}
+
 /** Which copy of an assignment is newest (assigned, or later moved on the calendar). */
 export const deskStamp = (a: Pick<UniversalDeskAssignment, 'assignedAt' | 'rescheduledAt'>) => Math.max(a.assignedAt || 0, a.rescheduledAt || 0);
 

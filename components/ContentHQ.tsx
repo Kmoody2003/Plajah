@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   FolderOpen, FileText, Image as ImageIcon, Film, Music, File as FileIcon, Upload,
   Trash2, RotateCcw, Search, Loader2, HardDrive, Library, ArrowLeft, Lock, ShieldAlert,
-  Sparkles, Eye, Layers, KeyRound, ExternalLink, LayoutTemplate, BookOpen,
+  Sparkles, Eye, Layers, KeyRound, ExternalLink, LayoutTemplate, BookOpen, Send,
 } from 'lucide-react';
 import { auth } from '../services/firebase';
 import HqTemplatesTab from './templates/HqTemplatesTab';
@@ -23,6 +23,8 @@ import { resolveContentHqEntitlements } from '../services/contentHqEntitlements'
 import type { ContentHqEntitlements } from '../services/contentHqEntitlements';
 import { TelaDocumentPreviewModal } from './church/TelaDocumentPreviewModal';
 import { openLessonLibrary } from '../services/lessonLibraryNav';
+import SendToClassSheet, { type SendItem } from './church/library/SendToClassSheet';
+import { ED_CSS } from './church/christianEd/edStyles';
 
 // ─────────────────────────────────────────────────────────────────────────
 // Content HQ — an admin surface for an org OR a single account: a private
@@ -280,6 +282,14 @@ export const HqFilesTab: React.FC<{
   const lessonFor = (a: OrgAsset): IngestedCurriculumUnit | undefined => {
     if (a.assetVariant === 'ANSWER_KEY') return undefined;
     return lessonUnits.find(u => u.originalAssetId === a.id || u.telaAssetId === a.id || (!!a.telaDocId && u.telaDocId === a.telaDocId));
+  };
+
+  const [sendItems, setSendItems] = useState<SendItem[] | null>(null);
+  const sendItemFor = (a: OrgAsset): SendItem => {
+    const u = lessonFor(a);
+    if (u) return { title: u.title, unit: u };
+    const kind = a.kind === 'image' ? 'photo' : a.kind === 'video' ? 'video' : a.kind === 'audio' ? 'audio' : 'document';
+    return { title: a.name.replace(/\.[a-z0-9]+$/i, ''), url: a.url, kind };
   };
 
   // Resolve paired asset when previewing a curriculum item as a Tela Document
@@ -622,7 +632,7 @@ export const HqFilesTab: React.FC<{
 
                   {/* Action bar for Tela Document Preview + Source Link + Trash */}
                   <div className="mt-3 pt-2.5 border-t border-white/10 flex items-center justify-between gap-1.5">
-                    {canEdit && lessonFor(a) && (
+                    {canEdit && lessonFor(a) && (lessonFor(a)!.questions.length > 0 || isUserScope) && (
                       <button
                         type="button"
                         onClick={(e) => {
@@ -634,6 +644,20 @@ export const HqFilesTab: React.FC<{
                         title="Assign this lesson to a class and schedule it"
                       >
                         <BookOpen className="w-3.5 h-3.5" /> Assign to class
+                      </button>
+                    )}
+                    {/* Anything else — a syllabus, handout, photo, video, file — goes to a class without becoming a lesson. */}
+                    {canEdit && !isUserScope && !(lessonFor(a) && lessonFor(a)!.questions.length > 0) && a.assetVariant !== 'ANSWER_KEY' && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSendItems([sendItemFor(a)]);
+                        }}
+                        className="flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#34e0d0]/15 hover:bg-[#34e0d0]/25 border border-[#34e0d0]/35 text-[#34e0d0] text-[10px] font-black uppercase tracking-wider transition-colors"
+                        title="Post it in a class's Discussion or Media Gallery"
+                      >
+                        <Send className="w-3.5 h-3.5" /> Send to class
                       </button>
                     )}
                     {canPreviewAsTela ? (
@@ -680,6 +704,12 @@ export const HqFilesTab: React.FC<{
           onClose={() => setDetail(null)} onChanged={() => { load(); loadTrash(); }} />
       )}
 
+      {sendItems && (
+        <div className="ce" style={{ display: 'contents' }}>
+          <style>{ED_CSS}</style>
+          <SendToClassSheet items={sendItems} orgId={scope.id} onClose={() => setSendItems(null)} onDone={msg => { setSendItems(null); setNotice(msg); }} />
+        </div>
+      )}
       {telaPreviewAsset && (
         <TelaDocumentPreviewModal
           isOpen={Boolean(telaPreviewAsset)}

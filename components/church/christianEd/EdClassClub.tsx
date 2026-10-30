@@ -2,19 +2,22 @@ import React, { useMemo, useState } from 'react';
 import type { ChurchProgram, PlanWeek } from '../../../services/churchEducationService';
 import { KIND_LABEL } from '../../../services/churchEducationService';
 import { openUnitInTela, type IngestedCurriculumUnit } from '../../../services/curriculumIngestionService';
-import { getAllStudentDeskWorkspaces, type UniversalDeskAssignment } from '../../../services/universalStudentDeskService';
+import { getAllStudentDeskWorkspaces, removeDeskAssignment, type UniversalDeskAssignment } from '../../../services/universalStudentDeskService';
 import { unmirrorAssignment, type EduSubmissionRecord } from '../../../services/christianEdSync';
 import SharedClassroomClubHub from '../../classroom/SharedClassroomClubHub';
 import DeskView from '../../desk/DeskView';
 import EdAssignSheet from './EdAssignSheet';
 import EdPeople from './EdPeople';
 import EdForum from './EdForum';
+import EdMedia from './EdMedia';
+import ClassSearch from './ClassSearch';
+import { createThread, lessonAttachment } from '../../../services/classForum';
 import AnnouncementsPanel from '../../announcements/AnnouncementsPanel';
 import { coverFor, initials } from './edStyles';
 import { announceWorkChanged, currentWeekIndex, needsReview, type ClassWork } from './edWork';
 import { openLessonLibrary } from '../../../services/lessonLibraryNav';
 
-export type ClassChannel = 'feed' | 'lessons' | 'work' | 'live' | 'people' | 'forum';
+export type ClassChannel = 'feed' | 'lessons' | 'work' | 'live' | 'media' | 'people' | 'forum';
 
 interface Props {
   orgId: string;
@@ -75,6 +78,30 @@ const EdClassClub: React.FC<Props> = props => {
   const wi = currentWeekIndex(p);
   const thisWeek = wi >= 0 ? p.weeks[wi] : null;
   const classUnits = units.filter(u => u.programId === p.id || p.weeks.some(w => w.unitIds?.includes(u.id)));
+  // A lesson is work students answer; a syllabus, handout or reading is a resource (it lives in Discussion).
+  const isLesson = (u: IngestedCurriculumUnit) => u.questions.length > 0 && !u.isAnswerKeyOnly;
+  // The class's lessons, for filing media and searching: its plan's and its assignments'.
+  const classLessons = useMemo(() => {
+    const seen = new Map<string, { id: string; title: string }>();
+    for (const w of p.weeks) for (const id of w.unitIds || []) { const u = units.find(x => x.id === id); if (u) seen.set(u.id, { id: u.id, title: u.title }); }
+    for (const a of assignments) if (!seen.has(a.unitId)) seen.set(a.unitId, { id: a.unitId, title: a.title });
+    return Array.from(seen.values());
+  }, [p.weeks, units, assignments]);
+  const [status, setStatus] = useState('');
+  const postAsResource = async (u: IngestedCurriculumUnit) => {
+    const att = lessonAttachment(u);
+    const t = await createThread({ orgId, programId: p.id, kind: 'resource', title: u.title, body: '', attachments: att ? [att] : [] });
+    return !!t;
+  };
+  const moveToResources = async (u: IngestedCurriculumUnit, from?: { assignment?: UniversalDeskAssignment; weekId?: string }) => {
+    setErr('');
+    if (!(await postAsResource(u))) { setErr('Couldn’t post it to the Discussion. Check you’re signed in.'); return; }
+    if (from?.assignment) await removeAssignment(from.assignment);
+    if (from?.weekId) await save({ ...p, weeks: p.weeks.map(w => (w.id === from.weekId ? { ...w, unitIds: (w.unitIds || []).filter(x => x !== u.id) } : w)) });
+    setStatus(`“${u.title}” is now a resource in Discussion.`);
+  };
+  const removeFromWeek = (u: IngestedCurriculumUnit, weekId: string) =>
+    save({ ...p, weeks: p.weeks.map(w => (w.id === weekId ? { ...w, unitIds: (w.unitIds || []).filter(x => x !== u.id) } : w)) });
   const visibleUnits = classUnits.filter(u => canSeeKey || (!u.isAnswerKeyOnly && u.libraryCategory !== 'ANSWER_KEY'));
   const unitById = new Map(units.map(u => [u.id, u]));
   // Students don't have the teacher's library on their device; their lessons come from assignments.
@@ -95,6 +122,7 @@ const EdClassClub: React.FC<Props> = props => {
   const addLesson = (weekId?: string) => openLessonLibrary({ orgId, orgName, programId: p.id, weekId });
 
   const removeAssignment = async (a: UniversalDeskAssignment) => {
+    removeDeskAssignment(a.id);
     await unmirrorAssignment(a.id);
     announceWorkChanged();
     onRefresh();
@@ -105,6 +133,7 @@ const EdClassClub: React.FC<Props> = props => {
     ['lessons', 'Lessons'],
     ['work', 'Work', isTeacher ? toReview || undefined : myDue.length || undefined],
     ['live', 'Live'],
+    ['media', 'Media'],
     ...(isTeacher ? ([['people', 'People', work?.joinRequests.length || undefined]] as Array<[ClassChannel, string, number?]>) : []),
     ['forum', 'Discussion'],
   ];
@@ -134,6 +163,16 @@ const EdClassClub: React.FC<Props> = props => {
           {isTeacher && u.questions.length > 0 && !u.isAnswerKeyOnly && (
             <button type="button" className="btn sm p" onClick={() => setAssignUnit(u)}>
               Assign
+            </button>
+          )}
+          {isTeacher && (
+            <button type="button" className="btn sm" onClick={() => moveToResources(u, { weekId: opts?.weekId })} title="Post it in Discussion as a resource instead">
+              Move to resources
+            </button>
+          )}
+          {isTeacher && opts?.weekId && (
+            <button type="button" className="btn sm" onClick={() => removeFromWeek(u, opts.weekId!)}>
+              Remove from week
             </button>
           )}
         </div>
@@ -228,10 +267,10 @@ const EdClassClub: React.FC<Props> = props => {
           + Add a week
         </button>
       )}
-      {(isTeacher ? visibleUnits.filter(u => !p.weeks.some(w => w.unitIds?.includes(u.id))) : studentUnits).length > 0 && (
+      {(isTeacher ? visibleUnits.filter(u => isLesson(u) && !p.weeks.some(w => w.unitIds?.includes(u.id))) : studentUnits.filter(isLesson)).length > 0 && (
         <>
           <div className="small">{isTeacher ? 'Other lessons for this class' : 'Lessons from your assignments'}</div>
-          {(isTeacher ? visibleUnits.filter(u => !p.weeks.some(w => w.unitIds?.includes(u.id))) : studentUnits).map(u => lessonCard(u))}
+          {(isTeacher ? visibleUnits.filter(u => isLesson(u) && !p.weeks.some(w => w.unitIds?.includes(u.id))) : studentUnits.filter(isLesson)).map(u => lessonCard(u))}
         </>
       )}
     </div>
@@ -302,6 +341,9 @@ const EdClassClub: React.FC<Props> = props => {
                   </button>
                   <button type="button" className="btn sm" onClick={() => removeAssignment(a)}>
                     Unassign
+                  </button>
+                  <button type="button" className="btn sm" onClick={() => moveToResources(a.unitSnapshot, { assignment: a })} title="Take it off students' desks and post it in Discussion as a resource">
+                    Move to resources
                   </button>
                 </div>
               </div>
@@ -382,7 +424,8 @@ const EdClassClub: React.FC<Props> = props => {
       );
     }
     if (chan === 'lessons') return renderLessons();
-    if (chan === 'forum') return <EdForum orgId={orgId} program={p} viewer={viewer} isTeacher={isTeacher} canSeeKey={canSeeKey} units={units} />;
+    if (chan === 'forum') return <EdForum orgId={orgId} program={p} viewer={viewer} isTeacher={isTeacher} canSeeKey={canSeeKey} units={units} onAssign={isTeacher ? u => setAssignUnit(u) : undefined} />;
+    if (chan === 'media') return <EdMedia orgId={orgId} program={p} isTeacher={isTeacher} lessons={classLessons} />;
     if (chan === 'people') return <EdPeople orgId={orgId} program={p} joinRequests={work?.joinRequests || []} onSave={onSave} onChanged={onRefresh} />;
     return renderWork();
   };
@@ -509,7 +552,10 @@ const EdClassClub: React.FC<Props> = props => {
         ))}
       </div>
 
+      <ClassSearch program={p} isTeacher={isTeacher} canSeeKey={canSeeKey} lessons={[...visibleUnits, ...studentUnits]} assignments={assignments} onOpenLesson={u => setPreview(u)} onGo={c => setChan(c)} />
+
       {err && <div className="err">{err}</div>}
+      {status && <div className="okmsg row"><span className="grow">{status}</span><button type="button" className="btn sm" onClick={() => setStatus('')}>OK</button></div>}
 
       {editingClass && (
         <div className="sheet" role="dialog" aria-label="Edit class">

@@ -4,6 +4,7 @@ import type { ChurchProgram } from '../../../services/churchEducationService';
 import type { IngestedQuestion } from '../../../services/curriculumIngestionService';
 import {
   listDeskAssignments,
+  pruneClassAssignments,
   mergeRemoteDeskAssignments,
   applyMyDrafts,
   applyReturnedSubmissions,
@@ -13,7 +14,7 @@ import {
 } from '../../../services/universalStudentDeskService';
 import { auth } from '../../../services/firebase';
 import {
-  fetchProgramAssignments,
+  fetchProgramAssignmentsOrNull,
   fetchProgramAnswerKeys,
   mirrorAssignment,
   withAnswerKeys,
@@ -76,12 +77,15 @@ export function useClassWork(programs: ChurchProgram[], opts: { asTeacher: boole
     setLoading(true);
     const entries = await Promise.all(
       programs.map(async p => {
-        const [remoteRaw, keys, subs, reqs] = await Promise.all([
-          fetchProgramAssignments(p.id),
+        const [remoteOrNull, keys, subs, reqs] = await Promise.all([
+          fetchProgramAssignmentsOrNull(p.id),
           opts.asTeacher ? fetchProgramAnswerKeys(p.id) : Promise.resolve({} as Awaited<ReturnType<typeof fetchProgramAnswerKeys>>),
           opts.asTeacher ? fetchProgramSubmissions(p.id) : Promise.resolve([] as EduSubmissionRecord[]),
           opts.asTeacher ? fetchJoinRequests(p.id) : Promise.resolve([] as EduJoinRequest[]),
         ]);
+        const remoteRaw = remoteOrNull || [];
+        // A student's device keeps only the work the class still has: anything unassigned goes away.
+        if (!opts.asTeacher && remoteOrNull) pruneClassAssignments(p.id, new Set(remoteOrNull.map(a => a.id)));
         // Teachers get the keys back onto the class copy; students only ever hold the key-free one.
         // A class copy mirrored before keys were withheld still carries them: rewrite it key-free.
         if (opts.asTeacher) for (const a of remoteRaw) if (!a.unitSnapshot.answerKeyWithheld && a.unitSnapshot.questions?.some(q => q.correctAnswer)) void mirrorAssignment(a);
