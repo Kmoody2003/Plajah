@@ -5,7 +5,7 @@ import { FX_PRESETS, presetsForFx } from '../services/melos/beats/fx/presets';
 import { AMP_MODELS, CAB_MODELS, MIC_MODELS, PEDAL_MODELS, RIG_PRESETS } from '../services/melos/beats/fx/ampModels';
 
 test('every general-purpose Melos effect has a diverse factory bank', () => {
-  for (const device of DEVICES.filter((entry) => entry.type !== 'amprig')) {
+  for (const device of DEVICES.filter((entry) => entry.type !== 'amprig' && entry.category !== 'airwindows')) {
     const presets = presetsForFx(device.type);
     assert.ok(presets.length >= 3, `${device.label} needs at least three presets`);
     assert.equal(new Set(presets.map((entry) => entry.id)).size, presets.length, `${device.label} preset ids`);

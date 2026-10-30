@@ -14,6 +14,13 @@
 #undef private
 
 double g_refSampleRate = 48000.0;
+// Some plugins leave members unset; wasm memory starts zeroed, so match it instead of heap garbage.
+void* operator new(size_t n) { return calloc(1, n ? n : 1); }
+void operator delete(void* p) noexcept { free(p); }
+void operator delete(void* p, size_t) noexcept { free(p); }
+// Not every plugin has fpdL/fpdR (the oldest ones predate them).
+template <class T> static auto seedOf(T* fx, uint32_t l, uint32_t r, int) -> decltype(fx->fpdL = l, fx->fpdR = r, void()) { fx->fpdL = l; fx->fpdR = r; }
+template <class T> static void seedOf(T*, uint32_t, uint32_t, long) {}
 AudioEffect* createEffectInstance(audioMasterCallback audioMaster);
 
 // Deterministic, deliberately nasty: sines, a pitched kick, LCG noise bursts, a level ramp past
@@ -48,8 +55,9 @@ int main(int argc, char** argv) {
   const char* outPath = argv[3];
   const uint32_t seedL = (uint32_t)strtoul(argv[4], 0, 10), seedR = (uint32_t)strtoul(argv[5], 0, 10);
 
+  awRandState() = seedL;
   PLUGIN* fx = (PLUGIN*)createEffectInstance(0);
-  fx->fpdL = seedL; fx->fpdR = seedR;
+  seedOf(fx, seedL, seedR, 0);
   for (int p = 6; p < argc; p++) fx->setParameter(p - 6, (float)atof(argv[p]));
 
   std::vector<float> inL(frames), inR(frames), outL(frames), outR(frames);

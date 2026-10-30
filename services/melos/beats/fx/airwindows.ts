@@ -1,28 +1,37 @@
-// Airwindows in the insert rack — Chris Johnson's effects (MIT), ported to Rust in
-// rust/plajah-airwindows and run one-per-AudioWorklet. Each port is checked sample-for-sample
-// against the original C++ (rust/plajah-airwindows/tests/reference.rs).
+// Airwindows in the insert rack — Chris Johnson's effects (MIT), run one-per-AudioWorklet. Sixteen
+// are Rust ports (rust/plajah-airwindows, one shared wasm); the rest are the original C++ compiled
+// to one small wasm each in public/airwindows, fetched only when first used. Both are checked
+// sample-for-sample against native builds of the original C++ and share one flat ABI.
 //
 // Parameters stay in Airwindows' own 0..1 VST scale — that is what the DSP reads and what a
 // saved project stores — and `format` prints the value the original plug-in displays, so a
 // setting copied from an Airwindows video or forum post means the same thing here.
 //
-// Kind ids are the wasm ABI (rust/plajah-airwindows/src/plugins/mod.rs KINDS): append only.
+// Rust kind ids are the wasm ABI (rust/plajah-airwindows/src/plugins/mod.rs KINDS): append only.
 
-import wasmUrl from '../engine/dsp/plajah_airwindows.wasm?url';
-import workletUrl from '../engine/airwindows.worklet.js?url';
 import type { FxNode, FxParamSpec } from './devices';
+import { AW_CATALOG } from './airwindowsCatalog.generated';
 
 export const AIRWINDOWS_ABI_VERSION = 1;
 
 export type AirwindowsGroup = 'saturation' | 'tape' | 'console' | 'dynamics' | 'eq' | 'space' | 'lofi';
 
 export interface AirwindowsEffect {
+  /** Rust kind id, or -1 for a compiled effect that lives in its own public/airwindows wasm. */
   kind: number;
   /** The plug-in's own name — also the device label. */
   name: string;
   group: AirwindowsGroup;
   blurb: string;
   params: FxParamSpec[];
+}
+
+/** One compiled effect, built from the generated catalog. */
+export interface AirwindowsCompiled extends Omit<AirwindowsEffect, 'group'> {
+  group: string;
+  recommended: boolean;
+  /** Measured % of one core at 48 kHz on the build laptop. */
+  cpu: number;
 }
 
 const n2 = (v: number) => v.toFixed(2);
@@ -69,26 +78,68 @@ export const AIRWINDOWS: AirwindowsEffect[] = [
     params: [P('A', 'Rate', 1), P('B', 'Rez', 1), P('C', 'Hard', 1), P('D', 'Dry/Wet', 1, pct)] },
 ];
 
-/** Device `type` in an FxInstance: stable string per kind. */
-export const airwindowsType = (e: AirwindowsEffect) => `aw.${e.name.toLowerCase()}`;
+// Knob readouts come from the plug-in itself, not a table: a small main-thread instance of the same
+// wasm answers "what would you display at this value?". Until it's loaded, the raw 0..1 value shows.
+const readouts = new Map<string, { x: any }>();
+const READOUT_CACHE = 32;
+function keepReadout(name: string, module: WebAssembly.Module): void {
+  if (readouts.has(name)) return;
+  const x: any = new WebAssembly.Instance(module, {}).exports;
+  x._initialize();
+  x.aw_init(0, 48000, 1, 1);
+  readouts.set(name, { x });
+  if (readouts.size > READOUT_CACHE) readouts.delete(readouts.keys().next().value as string);
+}
+const cString = (x: any, p: number): string => {
+  const b = new Uint8Array(x.memory.buffer);
+  let e = p; while (b[e]) e++;
+  return String.fromCharCode(...b.subarray(p, e)).trim();
+};
+const readout = (name: string, index: number) => (v: number): string => {
+  const r = readouts.get(name);
+  if (!r) return v.toFixed(2);
+  r.x.aw_set_param(index, v);
+  const shown = cString(r.x, r.x.aw_param_display(index));
+  const unit = cString(r.x, r.x.aw_param_label(index));
+  return unit ? `${shown} ${unit}` : shown;
+};
+const keyOf = (i: number) => (i < 26 ? String.fromCharCode(65 + i) : `P${i}`);
 
-let modulePromise: Promise<WebAssembly.Module> | null = null;
+export const AIRWINDOWS_COMPILED: AirwindowsCompiled[] = AW_CATALOG.map((e) => ({
+  kind: -1,
+  name: e.name,
+  group: e.group,
+  blurb: e.blurb,
+  recommended: e.rec,
+  cpu: e.cpu,
+  params: e.params.map(([label, def], i) => P(keyOf(i), label, def, readout(e.name, i))),
+}));
+
+/** Device `type` in an FxInstance: stable string per effect. */
+export const airwindowsType = (e: Pick<AirwindowsEffect, 'name'>) => `aw.${e.name.toLowerCase()}`;
+
+const modules = new Map<string, Promise<WebAssembly.Module>>();
 const workletLoaded = new WeakMap<BaseAudioContext, Promise<void>>();
 
-function getModule(): Promise<WebAssembly.Module> {
-  if (!modulePromise) {
-    const url = `${wasmUrl}${wasmUrl.includes('?') ? '&' : '?'}abi=${AIRWINDOWS_ABI_VERSION}`;
-    modulePromise = fetch(url, { cache: 'no-cache' })
+function getModule(effect: Pick<AirwindowsEffect, 'kind' | 'name'>): Promise<WebAssembly.Module> {
+  const key = effect.kind >= 0 ? '' : effect.name;
+  let p = modules.get(key);
+  if (!p) {
+    const url = effect.kind >= 0
+      ? new URL('../engine/dsp/plajah_airwindows.wasm', import.meta.url).href
+      : `/airwindows/${effect.name}.wasm`;
+    p = fetch(`${url}?abi=${AIRWINDOWS_ABI_VERSION}`, { cache: 'no-cache' })
       .then((r) => { if (!r.ok) throw new Error(`Airwindows fetch failed: ${r.status}`); return r.arrayBuffer(); })
       .then((bytes) => WebAssembly.compile(bytes));
-    modulePromise.catch(() => { modulePromise = null; });
+    modules.set(key, p);
+    p.catch(() => { modules.delete(key); });
   }
-  return modulePromise;
+  return p;
 }
 
 function ensureWorklet(ctx: BaseAudioContext): Promise<void> {
   let p = workletLoaded.get(ctx);
-  if (!p) { p = ctx.audioWorklet.addModule(workletUrl); workletLoaded.set(ctx, p); }
+  if (!p) { p = ctx.audioWorklet.addModule(new URL('../engine/airwindows.worklet.js', import.meta.url).href); workletLoaded.set(ctx, p); }
   return p;
 }
 
@@ -122,7 +173,7 @@ export class AirwindowsNode implements FxNode {
   private readonly readyPromise: Promise<void>;
 
   /** `seeds` pins the dither/flutter xorshift (labs compare against the bare wasm); omit in the app. */
-  constructor(ctx: BaseAudioContext, private readonly effect: AirwindowsEffect, private readonly seeds?: { l: number; r: number }) {
+  constructor(ctx: BaseAudioContext, private readonly effect: Pick<AirwindowsEffect, 'kind' | 'name' | 'params'>, private readonly seeds?: { l: number; r: number }) {
     this.input = ctx.createGain();
     this.output = ctx.createGain();
     this.pre = ctx.createAnalyser(); this.pre.fftSize = 2048; this.pre.smoothingTimeConstant = 0.7;
@@ -142,8 +193,9 @@ export class AirwindowsNode implements FxNode {
   }
 
   private async start(ctx: BaseAudioContext): Promise<void> {
-    const [module] = await Promise.all([getModule(), ensureWorklet(ctx)]);
+    const [module] = await Promise.all([getModule(this.effect), ensureWorklet(ctx)]);
     if (this.disposed) return;
+    if (this.effect.kind < 0) keepReadout(this.effect.name, module);
     const node = new AudioWorkletNode(ctx, 'plajah-airwindows', {
       numberOfInputs: 1,
       numberOfOutputs: 1,

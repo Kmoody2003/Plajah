@@ -1,0 +1,3 @@
+// wasm-only stand-in for <string>, see ./set.
+#pragma once
+namespace std { struct string {}; }

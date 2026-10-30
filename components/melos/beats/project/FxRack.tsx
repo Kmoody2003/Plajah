@@ -8,7 +8,7 @@
 
 import React, { useState } from 'react';
 import { ChevronDown, ChevronUp, Power, Trash2, Plus, X } from 'lucide-react';
-import { DEVICES, deviceByType, newInstance, type FxInstance, type FxCategory, type FxNode } from '../../../../services/melos/beats/fx/devices';
+import { DEVICES, deviceByType, newInstance, type FxInstance, type FxCategory, type FxDescriptor, type FxNode } from '../../../../services/melos/beats/fx/devices';
 import { FxScope } from './FxScope';
 import { AmpRigEditor } from './AmpRigEditor';
 import { StutterGrid } from './StutterGrid';
@@ -20,6 +20,18 @@ const CAT_LABEL: Record<FxCategory, string> = {
   eq: 'EQ', dynamics: 'Dynamics', saturation: 'Saturation', stereo: 'Stereo', space: 'Space', mod: 'Modulation', dj: 'DJ / Performance', repair: 'Repair', utility: 'Utility', amp: 'Amps & Rigs', airwindows: 'Airwindows',
 };
 const CAT_ORDER: FxCategory[] = ['amp', 'eq', 'dynamics', 'saturation', 'stereo', 'space', 'mod', 'dj', 'repair', 'utility', 'airwindows'];
+
+/** 500-odd Airwindows effects: their own categories as folds, Recommended first. */
+const awFolds = (devs: FxDescriptor[]): [string, FxDescriptor[]][] => {
+  const folds = new Map<string, FxDescriptor[]>();
+  const rec = devs.filter((d) => d.recommended);
+  if (rec.length) folds.set('Recommended', rec);
+  for (const d of [...devs].sort((a, b) => (a.subgroup ?? 'Other').localeCompare(b.subgroup ?? 'Other'))) {
+    const g = d.subgroup ?? 'Other';
+    folds.set(g, [...(folds.get(g) ?? []), d]);
+  }
+  return [...folds];
+};
 
 interface FxRackProps {
   instances: FxInstance[];
@@ -40,6 +52,7 @@ export const FxRack: React.FC<FxRackProps> = ({ instances, onChange, accent = '#
   const [adding, setAdding] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
+  const [awFold, setAwFold] = useState<string | null>(null);
   const q = query.trim().toLowerCase();
 
   const add = (type: string) => {
@@ -88,12 +101,22 @@ export const FxRack: React.FC<FxRackProps> = ({ instances, onChange, accent = '#
                 className="w-full h-7 mb-1.5 px-2 rounded-lg bg-white/[0.06] border border-white/10 text-[11px] text-white placeholder:text-white/30 outline-none focus:border-white/30"
               />
               {CAT_ORDER.map((cat) => {
-                const devs = DEVICES.filter((d) => d.category === cat && (!q || d.label.toLowerCase().includes(q) || d.blurb.toLowerCase().includes(q)));
+                const devs = DEVICES.filter((d) => d.category === cat && (!q || d.label.toLowerCase().includes(q) || d.blurb.toLowerCase().includes(q) || !!d.subgroup?.toLowerCase().includes(q)));
                 if (!devs.length) return null;
                 return (
                   <div key={cat} className="mb-1">
                     <div className="px-1.5 py-0.5 text-[8px] font-extrabold uppercase tracking-[0.16em]" style={{ color: devs[0].color }}>{CAT_LABEL[cat]}</div>
-                    {devs.map((d) => (
+                    {cat === 'airwindows' && !q && awFolds(devs).map(([name, members]) => (
+                      <button
+                        key={name}
+                        onClick={() => setAwFold(awFold === name ? null : name)}
+                        aria-expanded={awFold === name}
+                        className="w-full text-left px-2 py-1 rounded-lg hover:bg-white/[0.07] flex items-center justify-between text-[10.5px] font-semibold text-white/75"
+                      >
+                        {name}<span className="text-[9px] text-white/35">{members.length}</span>
+                      </button>
+                    ))}
+                    {(cat === 'airwindows' && !q ? awFolds(devs).find(([name]) => name === awFold)?.[1] ?? [] : devs).map((d) => (
                       <button
                         key={d.type}
                         onClick={() => add(d.type)}

@@ -14,7 +14,8 @@
 import { AMP_MODELS, CAB_MODELS, MIC_MODELS, PEDAL_MODELS, ampModelAt, cabModelAt, micModelAt, pedalModelAt } from './ampModels';
 import { designHilbertFir } from './firEq';
 import { IR_LIBRARY, irByIndex, getCachedIr, loadIr } from './irLibrary';
-import { AIRWINDOWS, AirwindowsNode, airwindowsType, type AirwindowsGroup } from './airwindows';
+import { AIRWINDOWS, AIRWINDOWS_COMPILED, AirwindowsNode, airwindowsType, type AirwindowsGroup } from './airwindows';
+import { AW_RUST_GROUPS } from './airwindowsCatalog.generated';
 
 export type FxCategory = 'eq' | 'dynamics' | 'saturation' | 'stereo' | 'space' | 'mod' | 'dj' | 'repair' | 'utility' | 'amp' | 'airwindows';
 
@@ -36,6 +37,8 @@ export interface FxDescriptor {
   label: string;
   category: FxCategory;
   blurb: string;               // one line the UI shows under the name
+  subgroup?: string;           // Airwindows' own category, a fold inside the Add FX list
+  recommended?: boolean;       // on Airwindows' own recommended list
   color: string;               // accent for the device header
   params: FxParamSpec[];
   create(ctx: BaseAudioContext): FxNode;
@@ -3198,10 +3201,19 @@ export const DEVICES: FxDescriptor[] = [
     ],
     create: (ctx) => new BoostDevice(ctx),
   },
-  // Airwindows (Chris Johnson, MIT) — Rust ports in their own worklet; see fx/airwindows.ts.
+  // Airwindows (Chris Johnson, MIT) — in their own worklet; see fx/airwindows.ts.
   ...AIRWINDOWS.map((e): FxDescriptor => ({
     type: airwindowsType(e), label: e.name, category: 'airwindows', color: C.airwindows,
     blurb: `${AW_GROUP_LABEL[e.group]} · ${e.blurb}`,
+    subgroup: AW_RUST_GROUPS[e.name],
+    params: e.params,
+    create: (ctx) => new AirwindowsNode(ctx, e),
+  })),
+  ...AIRWINDOWS_COMPILED.map((e): FxDescriptor => ({
+    type: airwindowsType(e), label: e.name, category: 'airwindows', color: C.airwindows,
+    blurb: e.cpu >= 100 ? `${e.blurb} (over one CPU core, will drop out live)` : e.cpu >= 25 ? `${e.blurb} (heavy: about ${e.cpu}% of a core)` : e.blurb,
+    subgroup: e.group,
+    recommended: e.recommended,
     params: e.params,
     create: (ctx) => new AirwindowsNode(ctx, e),
   })),

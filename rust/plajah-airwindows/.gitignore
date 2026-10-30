@@ -1,2 +1,4 @@
 ref/bin/
 ref/obj/
+ref/report.json
+ref/wasm/

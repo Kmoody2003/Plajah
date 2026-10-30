@@ -13,12 +13,14 @@ class AirwindowsProcessor extends AudioWorkletProcessor {
     try {
       const instance = new WebAssembly.Instance(opts.module, {});
       this.x = instance.exports;
+      if (this.x._initialize) this.x._initialize(); // the compiled-C++ effects have constructors to run
       if (this.x.aw_abi_version() !== (opts.abi || 1)) {
         this.port.postMessage({ type: 'error', message: 'Airwindows ABI mismatch — run npm run airwindows:build' });
         return;
       }
       const n = this.x.aw_init(opts.kind | 0, sampleRate, opts.seedL >>> 0, opts.seedR >>> 0);
-      if (!n) {
+      // kind < 0 is a single-effect wasm, where 0 just means no knobs (ClipOnly).
+      if (!n && opts.kind >= 0) {
         this.port.postMessage({ type: 'error', message: `Airwindows: unknown kind ${opts.kind}` });
         return;
       }
@@ -68,8 +70,14 @@ class AirwindowsProcessor extends AudioWorkletProcessor {
     // No input connected still runs the effect on silence, so reverb tails ring out.
     if (iL) { this.l.set(iL); this.r.set(iR); } else { this.l.fill(0, 0, frames); this.r.fill(0, 0, frames); }
     this.x.aw_process(frames);
-    oL.set(this.l.subarray(0, frames));
-    if (oR !== oL) oR.set(this.r.subarray(0, frames));
+    // Some originals run away at extreme settings (FathomFive hits 1e14). Hold them at +30 dB so
+    // one knob can't send that down the mix bus; ordinary output never comes near this.
+    const l = this.l, r = this.r;
+    for (let i = 0; i < frames; i++) {
+      const a = l[i], b = r[i];
+      oL[i] = a > 32 ? 32 : a < -32 ? -32 : a;
+      if (oR !== oL) oR[i] = b > 32 ? 32 : b < -32 ? -32 : b;
+    }
     return true;
   }
 }
