@@ -26,6 +26,11 @@ export interface ScheduleCourse {
   /** Students who will actually get it (have accounts). */
   reach: number;
   program?: ChurchProgram;
+  /** How this class gets work: onto Christian Ed desks, or as Academia homework. */
+  kind: 'CHRISTIAN_EDUCATION' | 'ACADEMIA';
+  /** The org a Christian Ed class belongs to (classes can come from several orgs). */
+  orgId?: string;
+  orgName?: string;
 }
 
 export interface CourseItem {
@@ -57,8 +62,10 @@ export function useCourseSource(opts: {
   teacher: { uid: string; name: string };
   /** No org: schedule onto the teacher's own Academia classes. */
   academia: boolean;
+  /** Classes in other orgs this teacher teaches (the library opened on My lessons or the Platform library). */
+  otherPrograms?: Array<{ program: ChurchProgram; orgName: string }>;
 }): CourseSource {
-  const { programs, orgId, orgName, teacher, academia } = opts;
+  const { programs, orgId, orgName, teacher, academia, otherPrograms = [] } = opts;
   const [classes, setClasses] = useState<TeachingClass[] | null>(academia ? null : []);
 
   useEffect(() => {
@@ -69,48 +76,51 @@ export function useCourseSource(opts: {
   }, [academia, teacher.uid]);
 
   return useMemo<CourseSource>(() => {
-    if (academia) {
-      const byId = new Map((classes || []).map(c => [c.id, c]));
-      return {
-        kind: 'ACADEMIA',
-        loading: classes === null,
-        deskTools: false,
-        empty: 'You have no classes yet. Make one in Classrooms, add students, then schedule library work for it here.',
-        courses: (classes || []).map(c => ({
-          id: c.id,
-          name: c.title,
-          sub: `${c.enrolledStudents.length} student${c.enrolledStudents.length === 1 ? '' : 's'}${c.gradeBand ? ` · ${c.gradeBand}` : ''}`,
-          reach: c.enrolledStudents.length,
-        })),
-        deliver: async (course, unit, when) => {
+    const byId = new Map((classes || []).map(c => [c.id, c]));
+    const ceCourses: ScheduleCourse[] = [
+      ...programs.map(p => ({ program: p, orgId, orgName })),
+      ...otherPrograms.filter(o => !programs.some(p => p.id === o.program.id)).map(o => ({ program: o.program, orgId: o.program.orgId, orgName: o.orgName })),
+    ].map(({ program: p, orgId: oid, orgName: oname }) => ({
+      id: p.id,
+      name: p.name,
+      meetingSchedule: p.meetingSchedule,
+      sub: `${otherPrograms.length && oname ? `${oname} · ` : ''}${(p.students || []).length} students${p.meetingSchedule ? ` · ${p.meetingSchedule}` : ''}`,
+      reach: (p.students || []).filter(s => s.uid).length,
+      program: p,
+      kind: 'CHRISTIAN_EDUCATION' as const,
+      orgId: oid,
+      orgName: oname,
+    }));
+    const acCourses: ScheduleCourse[] = (classes || []).map(c => ({
+      id: c.id,
+      name: c.title,
+      sub: `${c.enrolledStudents.length} student${c.enrolledStudents.length === 1 ? '' : 's'}${c.gradeBand ? ` · ${c.gradeBand}` : ''}`,
+      reach: c.enrolledStudents.length,
+      kind: 'ACADEMIA' as const,
+    }));
+    const courses = [...ceCourses, ...acCourses];
+    return {
+      // The wording for a single kind of class; mixed lists word each class by its own kind.
+      kind: academia && !ceCourses.length ? 'ACADEMIA' : 'CHRISTIAN_EDUCATION',
+      loading: academia && classes === null,
+      deskTools: ceCourses.length > 0,
+      empty: academia
+        ? 'You have no classes yet. Make one in Classrooms (or a Christian Ed class in your organization), add students, then schedule library work for it here.'
+        : 'No courses yet. Make a class in Christian Education first, then schedule work for it here.',
+      courses,
+      deliver: async (course, unit, when) => {
+        if (course.kind === 'ACADEMIA') {
           const cls = byId.get(course.id);
           if (!cls) throw new Error('That class isn’t available.');
           await publishLibraryUnitToClass(cls, unit, teacher, when);
-        },
-        list: course => listClassHomework(teacher.uid, course.id),
-        move: async (_course, item, at) => ((await rescheduleClassHomework(item.id, at)) ? { ...item, dueAt: at.dueAt, opensAt: at.opensAt && at.opensAt > Date.now() ? at.opensAt : undefined } : null),
-      };
-    }
-    return {
-      kind: 'CHRISTIAN_EDUCATION',
-      loading: false,
-      deskTools: true,
-      empty: 'No courses yet. Make a class in Christian Education first, then schedule work for it here.',
-      courses: programs.map(p => ({
-        id: p.id,
-        name: p.name,
-        meetingSchedule: p.meetingSchedule,
-        sub: `${(p.students || []).length} students${p.meetingSchedule ? ` · ${p.meetingSchedule}` : ''}`,
-        reach: (p.students || []).filter(s => s.uid).length,
-        program: p,
-      })),
-      deliver: async (course, unit, when) => {
+          return;
+        }
         const due = new Date(when.dueAt);
         assignUnitToClassroomDesk({
           unit,
           domain: 'CHRISTIAN_EDUCATION',
-          orgId,
-          orgName,
+          orgId: course.orgId || orgId,
+          orgName: course.orgName || orgName,
           classroomId: course.id,
           classroomName: course.name,
           dueAt: when.dueAt,
@@ -122,6 +132,7 @@ export function useCourseSource(opts: {
         });
       },
       list: async course => {
+        if (course.kind === 'ACADEMIA') return listClassHomework(teacher.uid, course.id);
         // The class mirror (other teachers / devices) merged into this device's desk copy.
         mergeRemoteDeskAssignments(await fetchProgramAssignments(course.id));
         return listDeskAssignments({ classroomId: course.id }).map(a => ({
@@ -133,10 +144,11 @@ export function useCourseSource(opts: {
           opensAt: a.opensAt,
         }));
       },
-      move: async (_course, item, at) => {
+      move: async (course, item, at) => {
+        if (course.kind === 'ACADEMIA') return (await rescheduleClassHomework(item.id, at)) ? { ...item, dueAt: at.dueAt, opensAt: at.opensAt && at.opensAt > Date.now() ? at.opensAt : undefined } : null;
         const next = rescheduleDeskAssignment(item.id, { dueAt: at.dueAt, dueLabel: `Due ${fmtDay(new Date(at.dueAt))}`, opensAt: at.opensAt });
         return next ? { ...item, dueAt: next.dueAt, opensAt: next.opensAt } : null;
       },
     };
-  }, [academia, classes, programs, orgId, orgName, teacher]);
+  }, [academia, classes, programs, otherPrograms, orgId, orgName, teacher]);
 }

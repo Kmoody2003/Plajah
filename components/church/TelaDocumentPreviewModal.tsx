@@ -50,6 +50,7 @@ import {
 } from '../../services/sacredLibraryCurriculumBridge';
 import { pinResearchSource } from '../../services/sacredResearch';
 import { getOrgEducationFolderName } from '../../services/orgAssets';
+import DeskView from '../desk/DeskView';
 
 export interface TelaDocumentPreviewProps {
   isOpen: boolean;
@@ -100,6 +101,7 @@ export const TelaDocumentPreviewModal: React.FC<TelaDocumentPreviewProps> = ({
   const [focusedQuestionId, setFocusedQuestionId] = useState<string | null>(null);
   const [checkedPreview, setCheckedPreview] = useState<boolean>(false);
   const [pinnedSupplementIds, setPinnedSupplementIds] = useState<Record<string, boolean>>({});
+  const [fullReader, setFullReader] = useState(false);
 
   // Resolve initial Living Document Template (from prop, or default #12 Kinfolk Editorial Spread)
   const [activeTemplateId, setActiveTemplateId] = useState<string>(() => {
@@ -252,6 +254,10 @@ export const TelaDocumentPreviewModal: React.FC<TelaDocumentPreviewProps> = ({
     }
   };
 
+  if (fullReader && unit) {
+    return <DeskView unit={unit} canViewAnswerKey={canViewAnswerKey} onClose={() => setFullReader(false)} />;
+  }
+
   return (
     <div className="fixed inset-0 z-[120] bg-black/85 backdrop-blur-md flex flex-col overflow-hidden text-white">
       {/* Subtle Keyframe Animations for Non-Static Living Paper & Volumetric Sheen */}
@@ -306,6 +312,16 @@ export const TelaDocumentPreviewModal: React.FC<TelaDocumentPreviewProps> = ({
 
         {/* View Mode Switcher */}
         <div className="flex flex-wrap items-center gap-2">
+          {unit && (
+            <button
+              type="button"
+              onClick={() => setFullReader(true)}
+              className="px-3.5 py-1.5 rounded-xl bg-white text-black text-[11px] font-black inline-flex items-center gap-1.5"
+              title="Read the whole document in its template"
+            >
+              <BookOpen size={12} /> Open full reader
+            </button>
+          )}
           <div className="inline-flex rounded-xl bg-white/5 border border-white/10 p-1">
             <button
               type="button"
@@ -499,7 +515,7 @@ export const TelaDocumentPreviewModal: React.FC<TelaDocumentPreviewProps> = ({
       )}
 
       {/* Main Content Split / Single Stage */}
-      <div className="flex-1 min-h-0 overflow-hidden grid grid-cols-1 lg:grid-cols-12">
+      <div className="flex-1 min-h-0 overflow-y-auto lg:overflow-hidden grid grid-cols-1 lg:grid-cols-12 lg:grid-rows-[minmax(0,1fr)]">
         {/* LEFT PANE: Original Document Version */}
         {(viewMode === 'SPLIT' || viewMode === 'ORIGINAL_ONLY') && (
           <div

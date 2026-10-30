@@ -54,6 +54,11 @@ export interface IngestedQuestion {
   label?: string;
   /** For a part: its question's own text ("Fill in the Blanks:"), shown once above the parts. */
   group?: string;
+  /** A row of a choice grid (a Google Forms grid, a table of answer columns): every row of the grid shares
+   *  the id and columns, and is answered by picking one column. */
+  grid?: { id: string; columns: string[] };
+  /** The part's letter was given by the importer, not printed on the original (shown only where needed). */
+  labelGenerated?: boolean;
   prompt: string;
   type: 'multiple-choice' | 'true-false' | 'numeric' | 'short-answer' | 'essay' | 'scripture-reflection';
   options?: string[];
@@ -131,6 +136,10 @@ export interface IngestedCurriculumUnit {
   livingTemplateId?: string;
   /** Header lines the student fills in (Name, Date, Counselor …). Not questions: never graded or counted. */
   detailFields?: string[];
+  /** The original gives points (or marks). Points only show when it does; otherwise they're a grading setting. */
+  pointsAssigned?: boolean;
+  /** A PDF's pages as the original lays them out (services/documentLayout), so a reading shows as it was printed. */
+  layoutPages?: import('./documentLayout').LayoutPage[];
   /** The original is a scan; its text was read from the page images on the importing device. */
   readByOcr?: boolean;
   /** Bumped when the importer's reading of a source changes, so older imports are read again. */
@@ -588,10 +597,12 @@ export interface StructuredQuestion {
   number?: number;
   label?: string;
   group?: string;
+  grid?: { id: string; columns: string[] };
+  labelGenerated?: boolean;
 }
 
 /** Version of the importer's reading of sources; units imported by an older one are read again. */
-export const IMPORT_VERSION = 5;
+export const IMPORT_VERSION = 8;
 
 /** Header fields on a test or worksheet — who and when, not questions. */
 const DETAIL_FIELD = /^(?:student'?s?\s+)?(?:full\s+)?(name|first\s+name|last\s+name|counsel(?:l)?or|teacher|instructor|date|class|course|section|period|grade|email|e-mail|phone|id|student\s+id|church|campus|mentor|group|cohort|semester|term)\s*[:#.\-]?\s*_*\s*$/i;
@@ -642,13 +653,13 @@ export async function extractGoogleForm(urlOrHtml: string): Promise<{
         code === 2 || code === 3 || code === 4 || code === 7 || options.length >= 2
           ? options.length === 2 && options.every(o => /^(true|false|yes|no)$/i.test(o.trim())) ? 'true-false' : 'multiple-choice'
           : code === 1 ? 'essay' : 'short-answer';
-      const addPart = (prompt: string, type: IngestedQuestion['type'], options: string[], printed?: string) => {
+      const addPart = (prompt: string, type: IngestedQuestion['type'], options: string[], printed?: string, grid?: StructuredQuestion['grid']) => {
         if (!current) return false;
         const l = printed || letter(current.parts);
         current.parts++;
         // Lettered parts print as 7a; a numbered list inside a question as 5.1, 5.2 …
         const label = /^\d+$/.test(l) ? `${current.number}.${l}` : `${current.number}${l}`;
-        structuredQuestions.push({ prompt, type, options: options.length ? options : undefined, points: 1, number: current.number, label, group: current.text || undefined });
+        structuredQuestions.push({ prompt, type, options: options.length ? options : undefined, points: 1, number: current.number, label, group: current.text || undefined, ...(grid ? { grid } : {}), ...(printed ? {} : { labelGenerated: true }) });
         textLines.push(`   ${l}. ${prompt}`);
         options.forEach((o, k) => textLines.push(`      ${String.fromCharCode(65 + k)}) ${o}`));
         return true;
@@ -691,13 +702,16 @@ export async function extractGoogleForm(urlOrHtml: string): Promise<{
         const lettered = itemTitle.match(LETTERED);
 
         const gridRows = () => {
+          // One grid: the rows share its columns (Google lists them on every row; the first row's are the grid's).
+          const columns = (Array.isArray(rows[0]?.[1]) ? rows[0][1] : []).map((c: any) => String(c?.[0] || '').trim()).filter(Boolean);
+          const grid = columns.length ? { id: `g${item?.[0] ?? structuredQuestions.length}`, columns } : undefined;
           for (const row of rows) {
             const rowText = String(row?.[3]?.[0] || '').trim();
             const rowOpts = (Array.isArray(row?.[1]) ? row[1] : []).map((c: any) => String(c?.[0] || '').trim()).filter(Boolean);
             // A row keeps its own printed mark: "a. …" → 7a, "1) …" → 1.1; unmarked rows are lettered.
             const lm = rowText.match(LETTERED);
             const nm = lm ? null : rowText.match(NUMBERED);
-            addPart(lm ? lm[2].trim() : nm ? nm[2].trim() : rowText || itemTitle, typeFor(7, rowOpts), rowOpts.length ? rowOpts : options, lm ? lm[1].toLowerCase() : nm ? nm[1] : undefined);
+            addPart(lm ? lm[2].trim() : nm ? nm[2].trim() : rowText || itemTitle, typeFor(7, rowOpts), rowOpts.length ? rowOpts : options, lm ? lm[1].toLowerCase() : nm ? nm[1] : undefined, grid);
           }
         };
 
@@ -705,13 +719,13 @@ export async function extractGoogleForm(urlOrHtml: string): Promise<{
         // for as long as the list counts up from 1.
         if (numbered && current?.stem && (current.sub === undefined ? Number(numbered[1]) === 1 && current.parts === 0 : Number(numbered[1]) === current.sub + 1)) {
           current.sub = Number(numbered[1]);
-          if (itemType === 7 && rows.length > 1) gridRows();
+          if (itemType === 7) gridRows();
           else addPart(promptOf(numbered[2].trim()), qType, options, numbered[1]);
           continue;
         }
         // An unnumbered item straight under a stem ("1. Choose the definition…" → "Match the gift…") is that question's part.
         if (!numbered && !lettered && current?.stem && current.sub === undefined) {
-          if (itemType === 7 && rows.length > 1) gridRows();
+          if (itemType === 7) gridRows();
           else addPart(promptOf(itemTitle), qType, options);
           continue;
         }
@@ -722,7 +736,7 @@ export async function extractGoogleForm(urlOrHtml: string): Promise<{
           current = { number, text, parts: 0 };
           textLines.push(`${number}. ${promptOf(text)}`);
           // A grid (multiple-choice / checkbox grid, code 7): each row is its own part of the question.
-          if (itemType === 7 && rows.length > 1) { gridRows(); continue; }
+          if (itemType === 7) { gridRows(); continue; }
           structuredQuestions.push({ prompt: promptOf(text), type: qType, options: options.length ? options : undefined, points: 1, number });
           options.forEach((o, k) => textLines.push(`   ${String.fromCharCode(65 + k)}) ${o}`));
           continue;
@@ -791,13 +805,23 @@ async function ocrScannedPdf(file: File): Promise<string> {
   }
 }
 
-export async function extractGoogleDocText(url: string): Promise<{ title: string; text: string; ocr?: boolean }> {
+export async function extractGoogleDocText(url: string): Promise<{ title: string; text: string; ocr?: boolean; pages?: import('./documentLayout').LayoutPage[] }> {
   const docId = extractGoogleDocId(url);
   const tabId = extractGoogleDocTabId(url);
   if (docId) {
     const tabParam = tabId ? `&tab=${encodeURIComponent(tabId)}` : '';
     const exportTxtUrl = `https://docs.google.com/document/d/${docId}/export?format=txt${tabParam}`;
-    const text = await fetchTextWithCorsFallback(exportTxtUrl);
+    // The Doc's layout: its HTML keeps tables, so an answer table becomes a grid question. Plain text otherwise.
+    let text = '';
+    try {
+      const html = await fetchTextWithCorsFallback(`https://docs.google.com/document/d/${docId}/export?format=html${tabParam}`);
+      const { docsHtmlToLayoutText } = await import('./documentLayout');
+      const laid = docsHtmlToLayoutText(html);
+      if (laid.includes('@@GRID')) text = laid;
+    } catch {
+      /* HTML export unavailable: plain text */
+    }
+    if (!text) text = await fetchTextWithCorsFallback(exportTxtUrl);
     const firstNonEmpty = text
       .split(/\r?\n/)
       .map(l => l.trim())
@@ -816,7 +840,7 @@ export async function extractGoogleDocText(url: string): Promise<{ title: string
       if (resp.ok) {
         const buf = await resp.arrayBuffer();
         const pdfFile = new File([buf], `drive_${driveFileId}.pdf`, { type: 'application/pdf' });
-        const pdfText = await extractTextFromPdfFile(pdfFile);
+        const { text: pdfText, pages } = await extractPdfWithLayout(pdfFile);
         // A scanned PDF has no text layer: read the page images on this device, and say so if even that fails.
         if (pdfText.replace(/\s/g, '').length < 20) {
           const ocrText = await ocrScannedPdf(pdfFile);
@@ -826,6 +850,7 @@ export async function extractGoogleDocText(url: string): Promise<{ title: string
         return {
           title: `Google Drive PDF (${driveFileId.slice(0, 8)})`,
           text: pdfText,
+          pages,
         };
       }
     } catch (e) {
@@ -1190,9 +1215,33 @@ export async function extractTextFromDocxFile(file: File): Promise<string> {
  * Extracts text & questions from a PDF file (.pdf).
  * Supports embedded PDF text streams, DecompressionStream FlateDecode streams, and scanned PDF fallback.
  */
+/** A PDF's text for the importer plus its pages as laid out (empty pages for a scan or when pdf.js can't read it). */
+export async function extractPdfWithLayout(file: File): Promise<{ text: string; pages: import('./documentLayout').LayoutPage[] }> {
+  let pages: import('./documentLayout').LayoutPage[] = [];
+  let laidText = '';
+  try {
+    const { pdfLayout } = await import('./documentLayout');
+    const r = await pdfLayout(file);
+    pages = r.pages;
+    laidText = r.text;
+  } catch {
+    /* layout unreadable */
+  }
+  const text = laidText.includes('@@GRID') ? laidText : await extractTextFromPdfFile(file);
+  return { text, pages };
+}
+
 export async function extractTextFromPdfFile(file: File): Promise<string> {
   // pdf.js reads real-world PDFs (Google/Word exports, embedded CID fonts); the quick parser below is the
   // fallback for environments without it.
+  try {
+    // The page layout first: a table of answer columns (True / False, A–D) becomes a grid question.
+    const { pdfLayoutText } = await import('./documentLayout');
+    const laid = await pdfLayoutText(file);
+    if (laid.includes('@@GRID')) return laid;
+  } catch {
+    /* layout unreadable: plain text below */
+  }
   try {
     const { extractDocument } = await import('./documentImport');
     const doc = await extractDocument(file);
@@ -1363,6 +1412,7 @@ export function parseCurriculumAndBuildUnit(params: {
   /** The text to read the lesson from when it differs from the original (a form: its text without its questions). */
   readingText?: string;
   detailFields?: string[];
+  pointsAssigned?: boolean;
 }): { unit: IngestedCurriculumUnit; telaDoc: TelaDoc } {
   const {
     orgId,
@@ -1379,6 +1429,8 @@ export function parseCurriculumAndBuildUnit(params: {
 
   const parsedKey = parseAnswerKeyText(rawAnswerKeyText || '');
   const detailFields: string[] = [...(params.detailFields || [])];
+  // Points show only when the original gives them ("[5 pts]", "(2 points)", a quiz form's point values).
+  let pointsAssigned = !!params.pointsAssigned;
   const lines = (params.readingText ?? rawCurriculumText)
     .split(/\r?\n/)
     .map(l => l.trim());
@@ -1390,7 +1442,10 @@ export function parseCurriculumAndBuildUnit(params: {
 
   // A test numbers its questions once through (1, 2, 3 …). Lists that start over at 1 in each section
   // (a study-method guide, an outline, class rules) are the document's text, so they stay reading.
-  const printedNumbers = lines.map(l => l.match(/^(?:Q(?:uestion)?\s*#?)?(\d{1,3})\s*[.):]\s+/i)?.[1]).filter(Boolean).map(Number);
+  let inGridBlock = false;
+  const printedNumbers = lines
+    .filter(l => { if (l.startsWith('@@GRID')) inGridBlock = true; else if (l === '@@END') { inGridBlock = false; return false; } return !inGridBlock; })
+    .map(l => l.match(/^(?:Q(?:uestion)?\s*#?)?(\d{1,3})\s*[.):]\s+/i)?.[1]).filter(Boolean).map(Number);
   const numberedAreQuestions = printedNumbers.every((n, k) => k === 0 || n > printedNumbers[k - 1]);
 
   let currentSkillTitle = 'Core Concept & Textual Mastery';
@@ -1421,6 +1476,8 @@ export function parseCurriculumAndBuildUnit(params: {
   // Detect embedded "Answer Key" section at the bottom of the same document
   let inEmbeddedAnswerKey = false;
   const embeddedKeyLines: string[] = [];
+  // Where the last numbered question was pushed, so a grid that follows straight after can claim it as its question.
+  let lastQuestionMark: { index: number; blocks: number } | null = null;
 
   let i = 0;
   while (i < lines.length) {
@@ -1439,6 +1496,54 @@ export function parseCurriculumAndBuildUnit(params: {
     if (inEmbeddedAnswerKey) {
       embeddedKeyLines.push(line);
       i++;
+      continue;
+    }
+
+    // A choice grid read from the original's layout (services/documentLayout): `@@GRID A | B | C`, then one
+    // row per line, then `@@END`. Each row is answered by picking one column, like a Google Forms grid.
+    if (line.startsWith('@@GRID')) {
+      const columns = line.slice(6).split('|').map(c => c.trim()).filter(Boolean);
+      const rowLines: string[] = [];
+      let j = i + 1;
+      while (j < lines.length && lines[j] !== '@@END') { if (lines[j]) rowLines.push(lines[j]); j++; }
+      i = j + 1;
+      if (columns.length < 2 || rowLines.length === 0) continue;
+      // The grid's question is the numbered line right before the table, when that line had no answers of its own.
+      const prev = questions[questions.length - 1];
+      const stem = prev && lastQuestionMark && lastQuestionMark.blocks === lessonBlocks.length && lastQuestionMark.index === questions.length - 1 && !prev.options?.length && !prev.label ? prev : null;
+      if (stem) {
+        questions.pop();
+        skillsMap.forEach(sk => { sk.questionIds = sk.questionIds.filter(x => x !== stem.id); sk.targetQuestions = sk.questionIds.length; });
+      }
+      // …or a numbered heading read as text ("6. TRUE/FALSE" isn't phrased as a question).
+      const headLine = !stem ? lessonBlocks[lessonBlocks.length - 1]?.text.match(/^(\d{1,3})\s*[.):]\s+(.+)$/) : null;
+      const headIsLast = headLine && (!lastQuestionMark || lastQuestionMark.blocks < lessonBlocks.length);
+      if (headIsLast) lessonBlocks.pop();
+      const stemText = stem?.prompt || (headIsLast ? headLine![2].trim() : undefined);
+      const number = stem ? stem.number : headIsLast ? Number(headLine![1]) : questions.reduce((m, q) => Math.max(m, q.number), 0) + 1;
+      const grid = { id: `g${number}_${i}`, columns };
+      const skill = ensureSkill(currentSkillId, currentSkillTitle);
+      const tf = columns.length === 2 && columns.every(c => /^(true|false|t|f|yes|no)$/i.test(c));
+      rowLines.forEach((row, k) => {
+        const lm = row.match(/^\s*\(?([a-z])\s*[.)]\s+(.*)$/is);
+        const nm = lm ? null : row.match(/^\s*(\d{1,2})\s*[.)]\s+(.*)$/s);
+        const mark = lm ? lm[1].toLowerCase() : nm ? nm[1] : String.fromCharCode(97 + (k % 26));
+        const label = nm ? `${number}.${mark}` : `${number}${mark}`;
+        const id = `q_${label}`;
+        skill.questionIds.push(id);
+        questions.push({
+          id, number, label, group: stemText, grid,
+          ...(lm || nm ? {} : { labelGenerated: true }),
+          prompt: (lm ? lm[2] : nm ? nm[2] : row).trim(),
+          type: tf ? 'true-false' : 'multiple-choice',
+          options: columns,
+          points: 1,
+          skillId: skill.id,
+          skillTitle: skill.title,
+        });
+      });
+      skill.targetQuestions = skill.questionIds.length;
+      lastQuestionMark = null;
       continue;
     }
 
@@ -1512,6 +1617,7 @@ export function parseCurriculumAndBuildUnit(params: {
       let prompt = qMatch[2].trim();
       let points = 1;
       const ptMatch = prompt.match(/\[(\d+)\s*(?:pts?|points?)\]/i) || prompt.match(/\((\d+)\s*(?:pts?|points?)\)/i);
+      if (ptMatch) pointsAssigned = true;
       if (ptMatch) {
         points = Number(ptMatch[1]);
         prompt = prompt.replace(ptMatch[0], '').trim();
@@ -1580,9 +1686,8 @@ export function parseCurriculumAndBuildUnit(params: {
       let qType: IngestedQuestion['type'] = 'short-answer';
       if (options.length >= 2) {
         qType = 'multiple-choice';
-      } else if (/^(true\s+or\s+false|t\s*\/\s*f)\b/i.test(prompt) || /\b(true\s+or\s+false)\b/i.test(prompt)) {
-        qType = 'true-false';
-        options.push('True', 'False');
+      // Choices come only from the original (its printed options, or a True / False column it lays out);
+      // the importer never adds a True / False field a document doesn't have.
       } else if (passage) {
         qType = 'scripture-reflection';
       } else if (/^(calculate|solve|evaluate|find\s+the\s+value|how\s+many)\b/i.test(prompt)) {
@@ -1606,6 +1711,7 @@ export function parseCurriculumAndBuildUnit(params: {
         skillTitle: skill.title,
         scripturePassage: passage,
       });
+      lastQuestionMark = { index: questions.length - 1, blocks: lessonBlocks.length };
 
       i = j;
       continue;
@@ -1638,6 +1744,8 @@ export function parseCurriculumAndBuildUnit(params: {
         number: qNum,
         ...(pq.label ? { label: pq.label } : {}),
         ...(pq.group ? { group: pq.group } : {}),
+        ...(pq.grid ? { grid: pq.grid } : {}),
+        ...(pq.labelGenerated ? { labelGenerated: true } : {}),
         prompt: pq.prompt,
         type: pq.type,
         options: pq.options,
@@ -1860,6 +1968,7 @@ ${q.prompt}` : q.prompt,
     sacredLibrarySupplements,
     livingTemplateId: livingTemplate.id,
     ...(detailFields.length ? { detailFields } : {}),
+    ...(pointsAssigned ? { pointsAssigned: true } : {}),
     importVersion: IMPORT_VERSION,
     createdAt: now,
   };
@@ -1899,6 +2008,7 @@ export async function ingestCurriculumToTela(params: {
   let preParsedQuestions: StructuredQuestion[] = [];
   let formTitle: string | undefined;
   let readByOcr = false;
+  let layoutPages: import('./documentLayout').LayoutPage[] = [];
   let readingText: string | undefined;
   let detailFields: string[] = [];
 
@@ -1909,7 +2019,9 @@ export async function ingestCurriculumToTela(params: {
     const lower = f.name.toLowerCase();
     if (lower.endsWith('.pdf')) {
       sourceKind = 'PDF_DOCUMENT';
-      rawCurriculumText = await extractTextFromPdfFile(f);
+      const laid = await extractPdfWithLayout(f);
+      rawCurriculumText = laid.text;
+      layoutPages = laid.pages;
       if (!rawCurriculumText.trim()) {
         rawCurriculumText = await ocrScannedPdf(f);
         readByOcr = !!rawCurriculumText;
@@ -1955,6 +2067,7 @@ export async function ingestCurriculumToTela(params: {
       } else {
         const docRes = await extractGoogleDocText(url);
         readByOcr = !!docRes.ocr;
+        layoutPages = docRes.pages || [];
         if (!params.title && docRes.title) sourceLabel = docRes.title;
         rawCurriculumText = [rawCurriculumText, docRes.text].filter(Boolean).join('\n\n');
       }
@@ -2010,6 +2123,7 @@ export async function ingestCurriculumToTela(params: {
   // An org's lesson stays tied to the org, so sharing it as a public template follows the org's policy.
   if (params.scopeKind !== 'user' && !isStandaloneTeacherScopeId(params.orgId)) telaDoc.orgOrigin = { orgId: safeOrgId, orgName: params.orgName };
   if (readByOcr) unit.readByOcr = true;
+  if (layoutPages.length) unit.layoutPages = layoutPages;
   await saveTelaDoc(telaDoc);
 
   const resolvedLibraryCategory =

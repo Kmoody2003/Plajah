@@ -155,7 +155,7 @@ export default function AssignScheduleSheet({ units, source, onClose, onDone, on
               </div>
             )}
             {program && withAccounts === 0 && (
-              <div className="err">{source.kind === 'ACADEMIA' ? `${program.name} has no students yet, so nobody will get these. Add students in Classrooms first.` : `Nobody in ${program.name} has a Plajah account yet, so no desk will get these. Add students in People first.`}</div>
+              <div className="err">{program.kind === 'ACADEMIA' ? `${program.name} has no students yet, so nobody will get these. Add students in Classrooms first.` : `Nobody in ${program.name} has a Plajah account yet, so no desk will get these. Add students in People first.`}</div>
             )}
           </div>
         </section>
@@ -222,7 +222,7 @@ export default function AssignScheduleSheet({ units, source, onClose, onDone, on
                     <span className="lib-dot" style={{ background: KIND_META[kindOf(u)].color }} />
                     <button type="button" className="lib-order-t" onClick={() => setPicked(p => (p === id ? null : id))}>
                       {u.title}
-                      {already.has(id) && <span className="tag soon">Already on {program?.name} — {source.kind === 'ACADEMIA' ? 'this sends it again' : 'this moves it'}</span>}
+                      {already.has(id) && <span className="tag soon">Already on {program?.name} — {program?.kind === 'ACADEMIA' ? 'this sends it again' : 'this moves it'}</span>}
                     </button>
                     <input type="date" className="field lib-order-d" aria-label={`Due date for ${u.title}`} value={isoDay(dates[id])} onChange={e => e.target.value && setDay(id, e.target.value)} />
                     <span className="lib-order-mv">
@@ -246,7 +246,7 @@ export default function AssignScheduleSheet({ units, source, onClose, onDone, on
                 <button key={d} type="button" className="chip" aria-pressed={lead === d} onClick={() => setLead(d)}>{l}{d ? ' it’s due' : ''}</button>
               ))}
             </div>
-            {source.deskTools ? (
+            {source.deskTools && program?.kind !== 'ACADEMIA' ? (
               <>
                 <div className="small">Desk tools</div>
                 <div className="chips">

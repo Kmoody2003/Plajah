@@ -11,6 +11,8 @@ export interface LessonLibraryRequest {
   /** The class the lessons are for (Christian Ed course / program id), so scheduling starts there. */
   programId?: string;
   weekId?: string;
+  /** Open the "Assign to class" sheet for these lessons (Content HQ's Assign to class). */
+  assignUnitIds?: string[];
 }
 
 export const OPEN_LESSON_LIBRARY = 'plajah:openLessonLibrary';

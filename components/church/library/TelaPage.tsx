@@ -35,6 +35,12 @@ export const TELA_PAGE_CSS = `
 .tp .tp-qn{flex-shrink:0;width:22px;height:22px;border-radius:99px;display:grid;place-items:center;font:800 11px/1 "Outfit",system-ui,sans-serif;color:#fff}
 .tp .tp-pts{margin-left:auto;flex-shrink:0;font:600 10.5px/22px "JetBrains Mono",ui-monospace,monospace;color:#8a8194}
 .tp .tp-opts{display:grid;gap:4px;margin:6px 0 0 30px}
+.tp .tp-grid{width:calc(100% - 30px);margin:6px 0 0 30px;border-collapse:separate;border-spacing:0 3px;font-size:11px}
+.tp .tp-grid th{font-weight:600;color:#5b5368;padding:0 4px 3px;text-align:center;vertical-align:bottom}
+.tp .tp-grid td{background:#f5f2ee;padding:5px 6px;text-align:center}
+.tp .tp-grid td:first-child{text-align:left;border-radius:6px 0 0 6px;width:42%}
+.tp .tp-grid td:last-child{border-radius:0 6px 6px 0}
+.tp .tp-grid td i{display:inline-block;width:11px;height:11px;border-radius:99px;border:1.3px solid #8a8194}
 .tp .tp-opt{display:flex;gap:8px;align-items:center;font-size:12.5px;color:#3a3245}
 .tp .tp-opt i{width:12px;height:12px;border:1.5px solid #a99fb5;border-radius:99px;flex-shrink:0}
 .tp .tp-lines{margin:8px 0 0 30px;display:grid;gap:14px}
@@ -91,7 +97,22 @@ export default function TelaPage({ unit, size = 'full', maxQuestions }: {
           : b.kind === 'check' ? null
           : <p key={b.id}>{b.text}</p>
         )}
-        {qs.map((q, i) => (
+        {qs.map((q, i) => q.grid ? (
+          // A choice grid, drawn as on the original: rows down the side, choices across.
+          qs[i - 1]?.grid?.id === q.grid.id ? null : (
+            <div key={q.id} className="tp-q">
+              <div className="tp-qh"><span className="tp-qn" style={{ background: color }}>{q.number}</span><span style={{ whiteSpace: 'pre-wrap' }}>{q.group || ''}</span></div>
+              <table className="tp-grid">
+                <thead><tr><th />{q.grid.columns.map(c => <th key={c}>{c}</th>)}</tr></thead>
+                <tbody>
+                  {qs.filter(r => r.grid?.id === q.grid!.id).map(r => (
+                    <tr key={r.id}><td>{r.prompt}</td>{q.grid!.columns.map(c => <td key={c}><i /></td>)}</tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )
+        ) : (
           <div key={q.id} className="tp-q">
             {q.group && qs[i - 1]?.group !== q.group && (
               <div className="tp-qh"><span className="tp-qn" style={{ background: color }}>{q.number}</span><span style={{ whiteSpace: 'pre-wrap' }}>{q.group}</span></div>
@@ -99,7 +120,7 @@ export default function TelaPage({ unit, size = 'full', maxQuestions }: {
             <div className="tp-qh" style={q.label ? { paddingLeft: 18 } : undefined}>
               <span className="tp-qn" style={{ background: q.label ? 'transparent' : color, color: q.label ? color : undefined }}>{q.label ? `${q.label.slice(String(q.number).length).replace(/^\./, '')}.` : q.number}</span>
               <span>{q.prompt}</span>
-              {q.points > 0 && <span className="tp-pts">{q.points} pt{q.points === 1 ? '' : 's'}</span>}
+              {unit.pointsAssigned && q.points > 0 && <span className="tp-pts">{q.points} pt{q.points === 1 ? '' : 's'}</span>}
             </div>
             {q.options?.length ? (
               <div className="tp-opts">{q.options.map((o, i) => <div key={i} className="tp-opt"><i />{o}</div>)}</div>

@@ -139,6 +139,30 @@ t('library: a teacher with no org saves their own', 'ALLOW', OTHER, 'create', LL
 t('library: anyone signed in reads a platform lesson', 'ALLOW', OTHER, 'get', LL, { existing: lesson({ tier: 'platform', scopeId: 'platform', orgId: '', ownerUid: TEACH, provisioned: 'teacher' }) });
 t('library: cannot share to the platform as someone else', 'DENY', OTHER, 'create', LL, { data: lesson({ tier: 'platform', scopeId: 'platform', orgId: '', ownerUid: TEACH, provisioned: 'teacher' }) });
 
+// Class discussion board (services/classForum): class members only; your own vote; teachers moderate.
+const PROG = { orgId: 'o1', teacherUids: [TEACH], studentUids: [MEMBER] };
+mocks.push({ function: 'get', args: [{ exactValue: `${DB}/churchPrograms/c1` }], result: { value: { data: PROG } } });
+const TH = `${DB}/classThreads/t1`;
+const thread = (o) => ({ id: 't1', orgId: 'o1', programId: 'c1', kind: 'discussion', title: 'Q', body: 'b', authorUid: MEMBER, authorName: 'M', attachments: [], upvoterUids: [], replyCount: 0, createdAt: 1, lastActivityAt: 1, ...o });
+mocks.push({ function: 'get', args: [{ exactValue: TH }], result: { value: { data: thread() } } });
+t('forum: student reads a class thread', 'ALLOW', MEMBER, 'get', TH, { existing: thread() });
+t('forum: outsider cannot read', 'DENY', OTHER, 'get', TH, { existing: thread() });
+t('forum: student starts a discussion', 'ALLOW', MEMBER, 'create', TH, { data: thread() });
+t('forum: student cannot open a lesson thread', 'DENY', MEMBER, 'create', TH, { data: thread({ kind: 'lesson' }) });
+t('forum: teacher opens a lesson thread', 'ALLOW', TEACH, 'create', TH, { data: thread({ kind: 'lesson', authorUid: TEACH }) });
+t('forum: cannot post as someone else', 'DENY', MEMBER, 'create', TH, { data: thread({ authorUid: TEACH }) });
+t('forum: student votes', 'ALLOW', MEMBER, 'update', TH, { existing: thread({ authorUid: TEACH }), data: thread({ authorUid: TEACH, upvoterUids: [MEMBER] }) });
+t('forum: cannot vote for someone else', 'DENY', MEMBER, 'update', TH, { existing: thread({ authorUid: TEACH }), data: thread({ authorUid: TEACH, upvoterUids: [OTHER] }) });
+t('forum: student cannot edit the teacher’s post', 'DENY', MEMBER, 'update', TH, { existing: thread({ authorUid: TEACH }), data: thread({ authorUid: TEACH, title: 'mine' }) });
+t('forum: student cannot pin', 'DENY', MEMBER, 'update', TH, { existing: thread(), data: thread({ pinned: true }) });
+t('forum: teacher pins', 'ALLOW', TEACH, 'update', TH, { existing: thread(), data: thread({ pinned: true }) });
+t('forum: teacher removes a post', 'ALLOW', TEACH, 'delete', TH, { existing: thread() });
+const RP = `${TH}/replies/r1`;
+const reply = (o) => ({ id: 'r1', threadId: 't1', programId: 'c1', body: 'hi', authorUid: MEMBER, authorName: 'M', upvoterUids: [], createdAt: 1, ...o });
+t('forum: student replies', 'ALLOW', MEMBER, 'create', RP, { data: reply() });
+t('forum: outsider cannot reply', 'DENY', OTHER, 'create', RP, { data: reply({ authorUid: OTHER }) });
+t('forum: cannot edit someone else’s reply', 'DENY', TEACH, 'update', RP, { existing: reply(), data: reply({ body: 'changed' }) });
+
 const body = {
   source: { files: [{ name: 'firestore.rules', content: src }] },
   testSuite: {
