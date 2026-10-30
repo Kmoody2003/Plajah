@@ -8,7 +8,7 @@ import { ArrowBigUp, BookOpen, ExternalLink, Link2, Lock, MessageSquare, Pin, Pl
 import type { ChurchProgram } from '../../../services/churchEducationService';
 import type { IngestedCurriculumUnit } from '../../../services/curriculumIngestionService';
 import {
-  addReply, attachedUnit, createThread, deleteReply, deleteThread, lessonAttachment, listReplies, listThreads,
+  addReply, attachedUnit, createThread, deleteReply, deleteThread, fetchThreads, lessonAttachment, listReplies,
   toggleReplyVote, toggleThreadVote, updateThread,
   type ClassThread, type ThreadAttachment, type ThreadKind, type ThreadReply,
 } from '../../../services/classForum';
@@ -55,7 +55,8 @@ export default function EdForum({ orgId, program: p, viewer, isTeacher, canSeeKe
   const [viewUnit, setViewUnit] = useState<IngestedCurriculumUnit | null>(null);
   const [err, setErr] = useState('');
 
-  const load = () => listThreads(p.id).then(setThreads);
+  const [unreadable, setUnreadable] = useState(false);
+  const load = () => fetchThreads(p.id).then(list => { setUnreadable(false); setThreads(list); }).catch(() => { setUnreadable(true); setThreads([]); });
   useEffect(() => { void load(); }, [p.id]);
 
   const shown = useMemo(() => {
@@ -117,6 +118,11 @@ export default function EdForum({ orgId, program: p, viewer, isTeacher, canSeeKe
 
           {threads === null ? (
             <div className="small">Loading the discussion…</div>
+          ) : unreadable ? (
+            <div className="empty">
+              <div className="t">You don’t have access to this discussion</div>
+              <div>Posts here are for this class’s teachers and enrolled students. Ask an org admin to add you to the class.</div>
+            </div>
           ) : shown.length === 0 ? (
             <div className="empty">
               <div className="t">No posts yet</div>

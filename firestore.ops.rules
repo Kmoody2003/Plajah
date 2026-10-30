@@ -710,7 +710,10 @@ service cloud.firestore {
     // ── Class discussion board (services/classForum.ts) ───────────────────────
     // The class's teachers and students read and post; authors edit their own; teachers pin, lock and remove.
     // A vote changes only the voter's own uid; a lesson thread is opened by a teacher.
-    function forumMember(pid) { return eduTeacher(pid) || eduStudent(pid); }
+    // Class leads: the class's teachers, org admins and the org's designated teachers (eduTeacherUids). Grades and
+    // answer keys stay with eduTeacher: this reaches the board and gallery only.
+    function classLead(pid) { return eduTeacher(pid) || (isAuthenticated() && request.auth.uid in orgDoc(eduProgram(pid).orgId).get('eduTeacherUids', [])); }
+    function forumMember(pid) { return classLead(pid) || eduStudent(pid); }
     function ownVoteOnly(after, before) {
       return after.diff(before).affectedKeys().hasOnly(['upvoterUids'])
         && after.upvoterUids.toSet().difference(before.upvoterUids.toSet()).union(before.upvoterUids.toSet().difference(after.upvoterUids.toSet())).hasOnly([request.auth.uid]);
@@ -721,15 +724,15 @@ service cloud.firestore {
       allow create: if forumMember(request.resource.data.programId) && request.resource.data.authorUid == request.auth.uid
         && request.resource.data.id == tid && request.resource.data.replyCount == 0 && request.resource.data.upvoterUids.size() == 0
         && request.resource.data.get('pinned', false) == false
-        && (request.resource.data.kind != 'lesson' || eduTeacher(request.resource.data.programId));
+        && (request.resource.data.kind != 'lesson' || classLead(request.resource.data.programId));
       allow update: if forumMember(resource.data.programId) && request.resource.data.programId == resource.data.programId
         && request.resource.data.authorUid == resource.data.authorUid && (
-          eduTeacher(resource.data.programId)
+          classLead(resource.data.programId)
           || (resource.data.authorUid == request.auth.uid && resource.data.get('locked', false) == false
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'body', 'attachments']))
           || ownVoteOnly(request.resource.data, resource.data)
           || (resource.data.get('locked', false) == false && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['replyCount', 'lastActivityAt'])));
-      allow delete: if eduTeacher(resource.data.programId) || (isAuthenticated() && resource.data.authorUid == request.auth.uid);
+      allow delete: if classLead(resource.data.programId) || (isAuthenticated() && resource.data.authorUid == request.auth.uid);
       match /replies/{rid} {
         allow read: if forumMember(forumThread(tid).programId);
         allow create: if forumMember(forumThread(tid).programId) && forumThread(tid).get('locked', false) == false
@@ -738,17 +741,17 @@ service cloud.firestore {
         allow update: if forumMember(forumThread(tid).programId) && (
           (resource.data.authorUid == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['body', 'editedAt']))
           || ownVoteOnly(request.resource.data, resource.data));
-        allow delete: if eduTeacher(forumThread(tid).programId) || (isAuthenticated() && resource.data.authorUid == request.auth.uid);
+        allow delete: if classLead(forumThread(tid).programId) || (isAuthenticated() && resource.data.authorUid == request.auth.uid);
       }
     }
     // ── Class Media Gallery (services/classMedia.ts): teachers add and remove; the class reads ──
     match /classMedia/{mid} {
       allow read: if forumMember(resource.data.programId);
-      allow create: if eduTeacher(request.resource.data.programId) && request.resource.data.authorUid == request.auth.uid
+      allow create: if classLead(request.resource.data.programId) && request.resource.data.authorUid == request.auth.uid
         && request.resource.data.id == mid && request.resource.data.url is string && request.resource.data.url.matches('https://.*');
-      allow update: if eduTeacher(resource.data.programId) && request.resource.data.programId == resource.data.programId
+      allow update: if classLead(resource.data.programId) && request.resource.data.programId == resource.data.programId
         && request.resource.data.authorUid == resource.data.authorUid && request.resource.data.url == resource.data.url;
-      allow delete: if eduTeacher(resource.data.programId);
+      allow delete: if classLead(resource.data.programId);
     }
     // ── Tela documents on live streams (services/liveDocSource.ts) ──────────────
     // public: any viewer of a public stream. signedIn: anyone signed in. members: the host and memberUids.

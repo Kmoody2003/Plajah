@@ -72,13 +72,14 @@ export function attachedUnit(a: ThreadAttachment): IngestedCurriculumUnit | null
   try { return JSON.parse(a.unitJson) as IngestedCurriculumUnit; } catch { return null; }
 }
 
+/** Throws when the board can't be read, so a refusal isn't mistaken for an empty board. */
+export async function fetchThreads(programId: string): Promise<ClassThread[]> {
+  const snap = await getDocs(query(collection(opsDb, COL), where('programId', '==', programId)));
+  return snap.docs.map(d => d.data() as ClassThread);
+}
+
 export async function listThreads(programId: string): Promise<ClassThread[]> {
-  try {
-    const snap = await getDocs(query(collection(opsDb, COL), where('programId', '==', programId)));
-    return snap.docs.map(d => d.data() as ClassThread);
-  } catch {
-    return [];
-  }
+  return fetchThreads(programId).catch(() => []);
 }
 
 export async function createThread(t: { orgId: string; programId: string; kind: ThreadKind; title: string; body: string; attachments: ThreadAttachment[]; id?: string; assignmentId?: string }): Promise<ClassThread | null> {

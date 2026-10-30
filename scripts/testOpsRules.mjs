@@ -157,6 +157,13 @@ t('forum: student cannot edit the teacher’s post', 'DENY', MEMBER, 'update', T
 t('forum: student cannot pin', 'DENY', MEMBER, 'update', TH, { existing: thread(), data: thread({ pinned: true }) });
 t('forum: teacher pins', 'ALLOW', TEACH, 'update', TH, { existing: thread(), data: thread({ pinned: true }) });
 t('forum: teacher removes a post', 'ALLOW', TEACH, 'delete', TH, { existing: thread() });
+const ORGT = 'orgteach'; ORG.eduTeacherUids = [TEACH, ORGT];
+t('forum: an org teacher outside the class reads its board', 'ALLOW', ORGT, 'get', TH, { existing: thread() });
+t('forum: an org teacher posts a resource', 'ALLOW', ORGT, 'create', TH, { data: thread({ kind: 'resource', authorUid: ORGT }) });
+t('forum: an org teacher moderates', 'ALLOW', ORGT, 'update', TH, { existing: thread(), data: thread({ pinned: true }) });
+t('forum: an ordinary org member still cannot read', 'DENY', BOOKS, 'get', TH, { existing: thread() });
+t('class: an org teacher outside the class cannot read answer keys', 'DENY', ORGT, 'get', `${DB}/churchEduAnswerKeys/a1`, { existing: { programId: 'c1', assignmentId: 'a1' } });
+t('class: an org teacher outside the class cannot read a turn-in', 'DENY', ORGT, 'get', `${DB}/churchEduSubmissions/s1`, { existing: { programId: 'c1', studentUid: MEMBER } });
 const RP = `${TH}/replies/r1`;
 const reply = (o) => ({ id: 'r1', threadId: 't1', programId: 'c1', body: 'hi', authorUid: MEMBER, authorName: 'M', upvoterUids: [], createdAt: 1, ...o });
 t('forum: student replies', 'ALLOW', MEMBER, 'create', RP, { data: reply() });
@@ -171,6 +178,8 @@ t('media: teacher adds a photo', 'ALLOW', TEACH, 'create', MD, { data: media() }
 t('media: student cannot add', 'DENY', MEMBER, 'create', MD, { data: media({ authorUid: MEMBER }) });
 t('media: teacher files it under a lesson', 'ALLOW', TEACH, 'update', MD, { existing: media(), data: media({ lessonId: 'u1', lessonTitle: 'Exam 1' }) });
 t('media: no swapping the file', 'DENY', TEACH, 'update', MD, { existing: media(), data: media({ url: 'https://evil/z.jpg' }) });
+
+t('media: an org teacher outside the class adds a photo', 'ALLOW', ORGT, 'create', MD, { data: media({ authorUid: ORGT }) });
 
 const LS = `${DB}/liveSources/s1`;
 const live = (o) => ({ id: 's1', hostUid: TEACH, hostName: 'T', title: 'Doc', docId: 'd1', active: true, mode: 'FOLLOW', audience: 'members', memberUids: [MEMBER], rev: 1, chunks: 1, updatedAt: 1, invitedUids: [], ...o });
