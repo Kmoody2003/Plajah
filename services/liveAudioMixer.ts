@@ -46,6 +46,7 @@ export class LiveAudioMixer {
   private duckTimer = 0;
   private mediaEl: HTMLMediaElement | null = null;
   private monitorNode: GainNode | null = null;
+  private taps = new Map<MixSourceId | 'program', AnalyserNode>();
   ducking = true;
   onChange?: () => void;
 
@@ -137,10 +138,26 @@ export class LiveAudioMixer {
   }
   get monitoring() { return !!this.monitorNode; }
 
+  /** Post-fader level tap for one source, or 'program' = the mixed track being published.
+   *  Null while that source isn't in the mix. For meters (components/live/LevelMeter). */
+  analyser(id: MixSourceId | 'program'): AnalyserNode | null {
+    const at = id === 'program' ? this.master : this.nodes.get(id)?.gain;
+    if (!at) return null;
+    let an = this.taps.get(id);
+    if (!an) {
+      an = this.ctx.createAnalyser();
+      an.fftSize = 1024; an.smoothingTimeConstant = 0;
+      at.connect(an);
+      this.taps.set(id, an);
+    }
+    return an;
+  }
+
   remove(id: MixSourceId) {
     const n = this.nodes.get(id);
     if (!n) return;
     try { n.src.disconnect(); n.gain.disconnect(); } catch { /* */ }
+    this.taps.delete(id);
     try { n.stop?.(); } catch { /* */ }
     this.nodes.delete(id);
     if (id === 'mic') this.micAnalyser = null;
@@ -170,6 +187,8 @@ export class LiveAudioMixer {
     try { m.gain.disconnect(); } catch { /* */ }
     m.gain.connect(this.master);
     if (this.monitorNode) m.gain.connect(this.monitorNode);
+    const tap = this.taps.get('media');
+    if (tap) m.gain.connect(tap);
   }
 
   private buf = new Float32Array(512);

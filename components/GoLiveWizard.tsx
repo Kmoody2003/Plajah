@@ -16,6 +16,7 @@ import LiveBroadcastControlPanel from './LiveBroadcastControlPanel';
 import SportsProducerPanel from './SportsProducerPanel';
 import MobileLiveStreamer from './MobileLiveStreamer';
 import { StandingGate } from './enforcement/StandingGateNotice';
+import { LevelMeter } from './live/LevelMeter';
 
 interface GoLiveWizardProps {
   onClose: () => void;
@@ -46,40 +47,6 @@ interface ChatMessage {
   displayName: string;
   text: string;
   timestamp: number;
-}
-
-function AudioMeter({ stream }: { stream: MediaStream | null }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animRef = useRef<number>(0);
-
-  useEffect(() => {
-    if (!stream) return;
-    const audioCtx = new AudioContext();
-    const analyser = audioCtx.createAnalyser();
-    analyser.fftSize = 64;
-    const src = audioCtx.createMediaStreamSource(stream);
-    src.connect(analyser);
-    const data = new Uint8Array(analyser.frequencyBinCount);
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx2d = canvas.getContext('2d')!;
-    const draw = () => {
-      analyser.getByteFrequencyData(data);
-      ctx2d.clearRect(0, 0, canvas.width, canvas.height);
-      const barW = canvas.width / data.length;
-      data.forEach((v, i) => {
-        const h = (v / 255) * canvas.height;
-        const pct = v / 255;
-        ctx2d.fillStyle = pct > 0.8 ? '#ef4444' : pct > 0.5 ? '#f59e0b' : '#22c55e';
-        ctx2d.fillRect(i * barW, canvas.height - h, barW - 1, h);
-      });
-      animRef.current = requestAnimationFrame(draw);
-    };
-    draw();
-    return () => { cancelAnimationFrame(animRef.current); audioCtx.close(); };
-  }, [stream]);
-
-  return <canvas ref={canvasRef} width={200} height={48} className="w-full rounded-lg bg-black/60" />;
 }
 
 function LiveTimer({ startTime }: { startTime: number }) {
@@ -459,7 +426,8 @@ const GoLiveWizardInner: React.FC<GoLiveWizardProps> = ({ onClose, currentUser }
   // screen. (Rendering it alongside the wizard left it stuck behind the wizard's
   // z-[900] backdrop, so "Continue" looked like it did nothing.)
   if (quickLaunch) {
-    return <MobileLiveStreamer mode="streamer" onClose={onClose} />;
+    return <MobileLiveStreamer mode="streamer" onClose={onClose}
+      liveOverlay={streamType === 'SPORTS' ? (id => <SportsProducerPanel feedId={id} />) : undefined} />;
   }
 
   return (
@@ -709,7 +677,7 @@ const GoLiveWizardInner: React.FC<GoLiveWizardProps> = ({ onClose, currentUser }
                       </div>
                       <div>
                         <p className="text-white/40 text-[10px] font-black uppercase tracking-widest mb-2">Audio Level</p>
-                        <AudioMeter stream={localStream} />
+                        <LevelMeter source={localStream} label="Mic" muted={!audioEnabled} />
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         {[
@@ -826,7 +794,7 @@ const GoLiveWizardInner: React.FC<GoLiveWizardProps> = ({ onClose, currentUser }
             <ChevronLeft size={16} /> Back
           </button>
           {step !== 'GOLIVE' ? (
-            <button onClick={() => { if (step === 'TYPE' && (streamType === 'QUICK' || streamType === 'STUDIO')) { setQuickLaunch(true); } else { setStep(steps[stepIndex + 1]); } }}
+            <button onClick={() => { if (step === 'TYPE' && (streamType === 'QUICK' || streamType === 'STUDIO' || streamType === 'SPORTS')) { setQuickLaunch(true); } else { setStep(steps[stepIndex + 1]); } }}
               disabled={(step === 'DETAILS' && !title.trim()) || (step === 'TYPE' && streamType === 'EXTERNAL' && !externalUrl.trim())}
               className="flex items-center gap-2 px-6 py-3 bg-white text-black rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-white/90 disabled:opacity-30 disabled:pointer-events-none transition-all">
               Continue <ChevronRight size={16} />

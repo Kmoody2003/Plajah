@@ -43,6 +43,8 @@ import { LiveAudioMixer, type MixSourceState } from '../services/liveAudioMixer'
 import { startMuxRelay, type MuxRelayHandle, type MuxRelayStatus } from '../services/liveMuxRelay';
 import { attachLiveHls } from '../services/liveHlsPlayback';
 import { LiveSoundSheet } from './live/LiveSoundSheet';
+import { LevelMeter } from './live/LevelMeter';
+import { CINEMATIC_LUTS, generate3dCubeText } from '../services/color/cinematicLutLibrary';
 import { usePresence } from '../hooks/usePresence';
 import { CallControlBar } from './call/CallControls';
 import { unlockAchievementByTrigger } from '../services/achievementService';
@@ -104,6 +106,8 @@ export interface MobileLiveStreamerProps {
   clubId?: string;
   /** Private (club-only) stream: skips the public timeline post + follower ping. */
   isPrivate?: boolean;
+  /** Extra producer UI drawn over the live screen (e.g. the sports scorebug panel), keyed to the stream id. */
+  liveOverlay?: (streamId: string) => React.ReactNode;
   onClose: () => void;
 }
 
@@ -388,6 +392,22 @@ const PRO_CAPS: { key: string; label: string; mode?: string }[] = [
   { key: 'saturation', label: 'Saturation' },
   { key: 'sharpness', label: 'Sharpness' },
 ];
+/** The platform's cinematic LUT library (services/color/cinematicLutLibrary), baked into the
+ *  composer grade — i.e. into the published + recorded frame, not just the preview. */
+const LutStrip: React.FC<{ lookId: string; onPick: (id: string) => void }> = ({ lookId, onPick }) => (
+  <div className="pt-2">
+    <p className="text-[9px] font-black uppercase tracking-widest text-white/40 px-1 pb-1.5">Cinematic LUTs</p>
+    <div className="flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      {CINEMATIC_LUTS.map(l => (
+        <button key={l.id} onClick={() => onPick(l.id)} title={`${l.categoryLabel} — ${l.description}`}
+          className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all ${lookId === `lut:${l.id}` ? 'bg-orange-500 text-black' : 'bg-white/[0.06] text-white/80'}`}>
+          <span className="w-2 h-2 rounded-full shrink-0" style={{ background: l.accentColor }} />{l.name}
+        </button>
+      ))}
+    </div>
+  </div>
+);
+
 const CameraProControls: React.FC<{ track: MediaStreamTrack | null }> = ({ track }) => {
   const [caps, setCaps] = useState<any>(null);
   const [vals, setVals] = useState<Record<string, number>>({});
@@ -510,7 +530,7 @@ const PeerTile: React.FC<{ stream: MediaStream; name?: string; onRemove?: () => 
 };
 
 const MobileLiveStreamer: React.FC<MobileLiveStreamerProps> = ({
-  mode, streamId: initStreamId, title: initTitle, ownerName, clubId, isPrivate, onClose,
+  mode, streamId: initStreamId, title: initTitle, ownerName, clubId, isPrivate, liveOverlay, onClose,
 }) => {
   // Portal to <body>: rendered in place, an ancestor with a CSS transform makes
   // position:fixed anchor to that ancestor (the overlay appears at the page TOP
@@ -519,7 +539,7 @@ const MobileLiveStreamer: React.FC<MobileLiveStreamerProps> = ({
     <LiveErrorBoundary onClose={onClose}>
       {mode === 'viewer' && initStreamId
         ? <MobileViewer streamId={initStreamId} title={initTitle} ownerName={ownerName} onClose={onClose} />
-        : <MobileStreamer clubId={clubId} isPrivate={isPrivate} onClose={onClose} />}
+        : <MobileStreamer clubId={clubId} isPrivate={isPrivate} liveOverlay={liveOverlay} onClose={onClose} />}
     </LiveErrorBoundary>,
     document.body,
   );
@@ -550,7 +570,7 @@ export const LiveViewer: React.FC<{
 //  STREAMER SIDE
 // ─────────────────────────────────────────────────────────────────────────────
 
-function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; clubId?: string; isPrivate?: boolean }) {
+function MobileStreamer({ onClose, clubId, isPrivate, liveOverlay }: { onClose: () => void; clubId?: string; isPrivate?: boolean; liveOverlay?: (streamId: string) => React.ReactNode }) {
   const [step, setStep] = useState<'setup' | 'live' | 'ended'>('setup');
   const [title, setTitle] = useState('');
   const [micOn, setMicOn] = useState(true);
@@ -652,6 +672,7 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
 
   // Device pickers — tap the camera / mic control to choose a specific input.
   const [deviceMenu, setDeviceMenu] = useState<'none' | 'camera' | 'mic'>('none');
+  const [micDeviceId, setMicDeviceId] = useState<string | null>(null); // set when we switched the mic around the session (FX/mixer chain)
   const openDeviceMenu = (which: 'camera' | 'mic') => { setDeviceMenu(m => m === which ? 'none' : which); rtc.refreshDevices(); };
   // The live camera track (composer source when composing, else the raw RTC camera) so
   // the pro controls apply to the real hardware in every mode.
@@ -775,6 +796,30 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
     return m;
   };
   useEffect(() => () => { mixerRef.current?.dispose(); mixerRef.current = null; }, []);
+  // Choosing a mic. Plain path: the session swaps the published track. With voice FX or the mixer
+  // engaged the published track is THEIR output — the session's swap would stop it (a mixer's
+  // destination track can't restart) and send the raw mic instead — so open the new mic ourselves
+  // and feed it into the chain.
+  const pickMicDevice = async (deviceId: string) => {
+    setDeviceMenu('none');
+    if (!mixerRef.current && !voiceFxRef.current) { rtc.switchAudioDevice(deviceId); return; }
+    try {
+      const st = await navigator.mediaDevices.getUserMedia({ audio: { ...HQ_AUDIO, deviceId: { exact: deviceId } }, video: false });
+      const t = st.getAudioTracks()[0];
+      if (!t) return;
+      const old = rawMicRef.current;
+      rawMicRef.current = t;
+      if (voiceFxRef.current) {
+        voiceFxRef.current.dispose();
+        voiceFxRef.current = new VoiceFX(new MediaStream([t]));
+        voiceFxRef.current.setEffect(voiceId);
+      }
+      if (mixerRef.current) t.enabled = micOnRef.current;
+      await republishAudio();
+      if (old && old !== t) old.stop();
+      setMicDeviceId(deviceId);
+    } catch (e: any) { setFxError(e?.message || "Couldn't open that microphone."); }
+  };
   // Screen-share modes bring the shared tab/system sound with them → lay it under the mic.
   useEffect(() => {
     const screenish = camMode === 'screen-pip' || camMode === 'screen-mask';
@@ -793,7 +838,8 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
 
   // Color grade / LUTs — grading lives in the composer, so picking a look first ensures
   // the composer is publishing (entering plain front mode if it wasn't).
-  const [lookId, setLookId] = useState<LookId | 'custom'>('none');
+  // 'custom' = an uploaded .cube; 'lut:<id>' = one of the platform's cinematic LUTs (services/color).
+  const [lookId, setLookId] = useState<LookId | 'custom' | `lut:${string}`>('none');
   const [nightOn, setNightOn] = useState(false);
   const cubeInputRef = useRef<HTMLInputElement>(null);
   // Applying an effect ADOPTS the camera that's already live (mode 'front' = "draw the adopted
@@ -809,6 +855,7 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
   const [lensId, setLensId] = useState<LensId>('none');
   const [lensBusy, setLensBusy] = useState(false);
   const [lensStatus, setLensStatus] = useState('');
+  const [setupFxOpen, setSetupFxOpen] = useState(false);
   const pickLens = async (id: LensId) => {
     if (lensBusy) return;
     setLensBusy(true);
@@ -838,6 +885,13 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
     if (!isLive || !streamId) return;
     updateDoc(doc(db, 'streams', streamId), { auraOn: lensId === 'aura' }).catch(() => {});
   }, [lensId, isLive, streamId]);
+  const applyPlatformLut = async (id: string) => {
+    const lut = CINEMATIC_LUTS.find(l => l.id === id);
+    if (!lut) return;
+    if (!composerPublishedRef.current) await applyMode('front');
+    if (composerRef.current?.setCubeLut(generate3dCubeText(lut, 17))) setLookId(`lut:${id}`);
+    else setFxError("LUTs need WebGL on this device.");
+  };
   const uploadCube = async (file?: File | null) => {
     if (!file) return;
     if (!composerPublishedRef.current) await applyMode('front');
@@ -1395,6 +1449,8 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
 
   return (
     <div className="fixed inset-0 bg-black z-[200] flex flex-col select-none overflow-hidden" style={{ height: '100dvh' }}>
+      <input ref={cubeInputRef} type="file" accept=".cube" className="hidden"
+        onChange={e => { uploadCube(e.target.files?.[0]); e.currentTarget.value = ''; }} />
       {/* Camera preview — shrinks to sit above the chat + dock stack when chat is open */}
       <video
         ref={videoRef}
@@ -1426,6 +1482,17 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
           style={{ marginTop: 'env(safe-area-inset-top)' }}>
           <FlipHorizontal2 size={20} className="text-white" />
         </button>
+      )}
+      {step === 'live' && (
+        <div className="absolute right-4 z-[6] flex flex-col gap-2" style={{ top: 'calc(env(safe-area-inset-top) + 68px)' }}>
+          {([[2, '👀', 'Lenses', lensId !== 'none'], [1, '🎨', 'Looks & LUTs', lookId !== 'none']] as const).map(([tab, icon, label, on]) => (
+            <button key={label} title={label} aria-label={label}
+              onClick={() => { setShowChat(false); setModeMenuOpen(true); setModeTab(tab); window.setTimeout(() => scrollToTab(tab), 60); }}
+              className={`w-11 h-11 rounded-full backdrop-blur flex items-center justify-center text-[18px] active:scale-90 transition-transform ${on ? 'bg-orange-500/85' : 'bg-black/50'}`}>
+              {icon}
+            </button>
+          ))}
+        </div>
       )}
 
       {/* Dim overlay when cam off */}
@@ -1459,8 +1526,8 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
             </div>
           </div>
 
-          {/* Setup form */}
-          <div className="px-5 pb-safe space-y-4">
+          {/* Setup form — scrolls when the cards outgrow a short phone screen */}
+          <div className="px-5 pb-safe pt-2 space-y-4 overflow-y-auto" style={{ maxHeight: 'calc(100dvh - 72px)' }}>
             <div>
               <p className="text-[10px] font-black uppercase tracking-widest text-white/50 mb-2">Stream title</p>
               <input
@@ -1471,6 +1538,51 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
                 className="w-full bg-black/50 backdrop-blur border border-white/20 rounded-2xl px-4 py-3 text-white placeholder-white/30 text-sm focus:outline-none focus:border-orange-400/60"
               />
             </div>
+            {/* Mic — the meter reads the track that will be published */}
+            <div className="rounded-2xl bg-black/50 backdrop-blur border border-white/15 px-4 py-3 space-y-2">
+              <div className="flex items-center gap-2">
+                <Mic size={14} className="text-white/60 shrink-0" />
+                <select aria-label="Microphone" value={(micDeviceId ?? rtc.activeDevices.micId) || ''}
+                  onFocus={() => rtc.refreshDevices()} onChange={e => pickMicDevice(e.target.value)}
+                  className="flex-1 min-w-0 bg-transparent text-[12px] font-bold text-white focus:outline-none [&>option]:bg-zinc-900">
+                  {rtc.devices.mics.length === 0 && <option value="">Default microphone</option>}
+                  {rtc.devices.mics.map((d, i) => <option key={d.deviceId || i} value={d.deviceId}>{d.label || `Microphone ${i + 1}`}</option>)}
+                </select>
+              </div>
+              <LevelMeter source={rtc.localAudioTrack} label="Level" muted={!micOn} />
+            </div>
+
+            {/* Lenses + looks — pick before you go live; they're baked into the outgoing video */}
+            <div className="rounded-2xl bg-black/50 backdrop-blur border border-white/15 overflow-hidden">
+              <button onClick={() => setSetupFxOpen(o => !o)} className="w-full flex items-center gap-3 px-4 py-3 text-left">
+                <div className={`w-9 h-9 rounded-xl grid place-items-center shrink-0 ${lensId !== 'none' || lookId !== 'none' ? 'bg-orange-500/20 text-orange-400' : 'bg-white/8 text-white/40'}`}><Sparkles size={17} /></div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[13px] font-bold text-white leading-tight">Lenses &amp; looks</p>
+                  <p className="text-[10px] text-white/45 leading-tight mt-0.5 truncate">
+                    {lensId === 'none' && lookId === 'none' ? 'Film, tape, pixel, ASCII lenses · LUTs' : [lensId !== 'none' && `Lens: ${lensId}`, lookId !== 'none' && `Look: ${lookId.replace('lut:', '')}`].filter(Boolean).join(' · ')}
+                  </p>
+                </div>
+                <ChevronDown size={16} className={`text-white/50 transition-transform ${setupFxOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {setupFxOpen && (
+                <div className="px-3 pb-3 space-y-2">
+                  <div className="overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                    <LensPicker compact value={lensId} onChange={pickLens} status={lensStatus} busy={lensBusy} />
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {LOOKS.map(l => (
+                      <button key={l.id} onClick={() => applyLook(l.id)}
+                        className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all ${lookId === l.id ? 'bg-orange-500 text-black' : 'bg-white/[0.06] text-white/80'}`}>{l.label}</button>
+                    ))}
+                    <button onClick={() => cubeInputRef.current?.click()}
+                      className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all ${lookId === 'custom' ? 'bg-orange-500 text-black' : 'bg-white/[0.06] text-white/80'}`}>+ .cube LUT</button>
+                  </div>
+                  <LutStrip lookId={lookId} onPick={applyPlatformLut} />
+                  {fxError && <p className="text-[10px] font-bold text-red-400">{fxError}</p>}
+                </div>
+              )}
+            </div>
+
             {/* Local recording — save a copy on this device AS you stream, so a failed
                 upload never loses the video. */}
             <div className="rounded-2xl bg-black/50 backdrop-blur border border-white/15 overflow-hidden">
@@ -1555,6 +1667,7 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
       )}
 
       {/* Live UI */}
+      {step === 'live' && liveOverlay?.(streamId)}
       {step === 'live' && (
         <>
           {/* FX engine status + error — always visible so on-device failures are diagnosable
@@ -1633,7 +1746,7 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
           )}
 
           {soundOpen && (
-            <LiveSoundSheet mixer={mixerRef.current} state={mixState} ensureMixer={ensureMixer} onClose={() => setSoundOpen(false)} />
+            <LiveSoundSheet mixer={mixerRef.current} state={mixState} ensureMixer={ensureMixer} onClose={() => setSoundOpen(false)} directMic={rtc.localAudioTrack} />
           )}
 
           {/* Guest management panel — approve requests, remove guests */}
@@ -1824,6 +1937,7 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
                           + .cube LUT
                         </button>
                       </div>
+                      <LutStrip lookId={lookId} onPick={applyPlatformLut} />
                     </div>
                     {/* Slide 3 · Lenses */}
                     <div className="w-full shrink-0 snap-center overflow-y-auto px-2 py-1">
@@ -1986,10 +2100,12 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
               </button>
             </div>
 
+            {/* What the audience hears — the published audio track */}
+            <LevelMeter source={rtc.localAudioTrack} size="sm" muted={!micOn && !mixerRef.current}
+              label={mixerRef.current || voiceFxRef.current ? 'Stream' : 'Mic'} className="w-full max-w-md mx-auto px-1" />
+
             {/* Controls */}
             <div className="relative flex items-center justify-between w-full max-w-md mx-auto">
-              <input ref={cubeInputRef} type="file" accept=".cube" className="hidden"
-                onChange={e => { uploadCube(e.target.files?.[0]); e.currentTarget.value = ''; }} />
               <input ref={sheetInputRef} type="file" accept="image/*" className="hidden"
                 onChange={e => { buildAvatar(e.target.files?.[0]); e.currentTarget.value = ''; }} />
               <input ref={vrmInputRef} type="file" accept=".vrm,model/gltf-binary" className="hidden"
@@ -2001,11 +2117,17 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
                   <div className="fixed inset-0 z-10" onClick={() => setDeviceMenu('none')} />
                   <div className="absolute bottom-full mb-4 left-1/2 -translate-x-1/2 z-20 w-[290px] rounded-2xl bg-[#141019]/35 backdrop-blur-2xl border border-white/12 p-2 shadow-2xl max-h-[48vh] overflow-y-auto">
                     <p className="text-[9px] font-black uppercase tracking-widest text-white/40 px-2 pt-1 pb-2">{deviceMenu === 'camera' ? 'Choose camera' : 'Choose microphone'}</p>
+                    {deviceMenu === 'mic' && (
+                      <div className="px-2 pb-2 space-y-1.5">
+                        {(mixerRef.current || voiceFxRef.current) && <LevelMeter source={rawMicRef.current} label="Mic" muted={!micOn} />}
+                        <LevelMeter source={rtc.localAudioTrack} label={mixerRef.current || voiceFxRef.current ? 'Stream' : 'Mic'} muted={!micOn && !mixerRef.current} />
+                      </div>
+                    )}
                     {(deviceMenu === 'camera' ? rtc.devices.cameras : rtc.devices.mics).map((d, i) => {
-                      const active = deviceMenu === 'camera' ? rtc.activeDevices.cameraId === d.deviceId : rtc.activeDevices.micId === d.deviceId;
+                      const active = deviceMenu === 'camera' ? rtc.activeDevices.cameraId === d.deviceId : (micDeviceId ?? rtc.activeDevices.micId) === d.deviceId;
                       return (
                         <button key={d.deviceId || i}
-                          onClick={() => { if (deviceMenu === 'camera') pickCameraDevice(d.deviceId); else { rtc.switchAudioDevice(d.deviceId); setDeviceMenu('none'); } }}
+                          onClick={() => { if (deviceMenu === 'camera') pickCameraDevice(d.deviceId); else pickMicDevice(d.deviceId); }}
                           className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all ${active ? 'bg-orange-500/20' : 'hover:bg-white/[0.06]'}`}>
                           <span className={active ? 'text-orange-400' : 'text-white/70'}>{deviceMenu === 'camera' ? <Camera size={16} /> : <Mic size={16} />}</span>
                           <span className="flex-1 text-[13px] font-bold text-white truncate">{d.label || (deviceMenu === 'camera' ? `Camera ${i + 1}` : `Microphone ${i + 1}`)}</span>
@@ -2078,7 +2200,7 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
                 <div className={`w-12 h-12 rounded-full backdrop-blur border flex items-center justify-center ${micOn ? 'bg-black/60 border-white/15' : 'bg-red-500 border-red-500'}`}>
                   {micOn ? <Mic size={22} className="text-white" /> : <MicOff size={22} className="text-white" />}
                 </div>
-                <span className="text-[9px] text-white/50">{micOn ? 'Mute' : 'Unmuted'}</span>
+                <span className="text-[9px] text-white/50">{micOn ? 'Mute' : 'Muted'}</span>
               </button>
 
               {/* Camera toggle */}

@@ -32,6 +32,7 @@ import {
   coalesceReactions, formatElapsed, toMillis, canSetRole, sanitizeChat,
 } from '../services/liveTalk/liveTalkCore';
 import * as svc from '../services/liveTalk/liveTalkService';
+import { LevelMeter } from './live/LevelMeter';
 import type { LiveTalkDoc, Me } from '../services/liveTalk/liveTalkService';
 
 const avatarFor = (uid: string, photo?: string) => photo || `https://api.dicebear.com/7.x/avataaars/svg?seed=${uid}`;
@@ -161,10 +162,7 @@ const LiveTalkView: React.FC<LiveTalkViewProps> = ({ onBrowse, initialShowSetup,
   const [isTestingMic, setIsTestingMic] = useState(false);
   const [signalConfirmed, setSignalConfirmed] = useState(false);
   const micTestStreamRef = useRef<MediaStream | null>(null);
-  const audioCtxRef = useRef<AudioContext | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const animationFrameRef = useRef<number | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [micTestStream, setMicTestStream] = useState<MediaStream | null>(null);
 
   const loadDevices = useCallback(async () => {
     try {
@@ -188,43 +186,17 @@ const LiveTalkView: React.FC<LiveTalkViewProps> = ({ onBrowse, initialShowSetup,
 
   const stopMicTest = useCallback(() => {
     setIsTestingMic(false);
-    if (animationFrameRef.current) { cancelAnimationFrame(animationFrameRef.current); animationFrameRef.current = null; }
     micTestStreamRef.current?.getTracks().forEach(t => t.stop()); micTestStreamRef.current = null;
-    if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') audioCtxRef.current.close().catch(() => {});
-    audioCtxRef.current = null; analyserRef.current = null;
+    setMicTestStream(null);
   }, []);
   const startMicTest = async (deviceId: string) => {
     try {
       stopMicTest();
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: deviceId ? { deviceId: { exact: deviceId } } : true });
+      // Same constraints the room publishes with, so the test reads what listeners will hear.
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, ...(deviceId ? { deviceId: { exact: deviceId } } : {}) } });
       micTestStreamRef.current = stream;
-      const AC = window.AudioContext || (window as any).webkitAudioContext;
-      const ctx = new AC(); audioCtxRef.current = ctx;
-      const analyser = ctx.createAnalyser(); analyser.fftSize = 256; analyserRef.current = analyser;
-      ctx.createMediaStreamSource(stream).connect(analyser);
+      setMicTestStream(stream);
       setIsTestingMic(true); setSignalConfirmed(false);
-      const data = new Uint8Array(analyser.frequencyBinCount);
-      const draw = () => {
-        const canvas = canvasRef.current; const an = analyserRef.current;
-        if (!canvas || !an) return;
-        const c = canvas.getContext('2d'); if (!c) return;
-        an.getByteFrequencyData(data);
-        c.clearRect(0, 0, canvas.width, canvas.height);
-        const bars = 30, w = canvas.width / bars; let total = 0;
-        for (let i = 0; i < bars; i++) {
-          const v = data[Math.floor((i / bars) * data.length)]; total += v;
-          const h = (v / 255) * canvas.height * 0.95;
-          const g = c.createLinearGradient(0, canvas.height, 0, canvas.height - h);
-          g.addColorStop(0, '#6B0099'); g.addColorStop(0.5, '#D40055'); g.addColorStop(1, '#00DAF3');
-          c.fillStyle = g;
-          c.beginPath();
-          if ((c as any).roundRect) (c as any).roundRect(i * w + 2, canvas.height - h - 2, w - 4, h, 4); else c.rect(i * w + 2, canvas.height - h - 2, w - 4, h);
-          c.fill();
-        }
-        if (total / bars / 255 > 0.08) setSignalConfirmed(true);
-        animationFrameRef.current = requestAnimationFrame(draw);
-      };
-      animationFrameRef.current = requestAnimationFrame(draw);
     } catch { flash('Microphone unavailable — check browser permissions.'); }
   };
   useEffect(() => () => stopMicTest(), [stopMicTest]);
@@ -583,9 +555,10 @@ const LiveTalkView: React.FC<LiveTalkViewProps> = ({ onBrowse, initialShowSetup,
                     {isTestingMic ? 'Stop Test' : 'Test Mic'}
                   </button>
                 </div>
-                <div className="relative h-16 w-full bg-black/40 rounded-2xl border border-white/5 overflow-hidden flex items-center justify-center">
-                  <canvas ref={canvasRef} width={400} height={64} className={`absolute inset-0 w-full h-full transition-opacity ${isTestingMic ? 'opacity-100' : 'opacity-0'}`} />
-                  {!isTestingMic && <span className="text-[9px] font-black uppercase tracking-widest text-white/20">Tap Test Mic to see your level</span>}
+                <div className="w-full bg-black/40 rounded-2xl border border-white/5 px-3 py-3 min-h-[52px] flex items-center justify-center">
+                  {isTestingMic
+                    ? <LevelMeter source={micTestStream} label="Mic" onSignal={() => setSignalConfirmed(true)} className="w-full" />
+                    : <span className="text-[9px] font-black uppercase tracking-widest text-white/20">Tap Test Mic to see your level</span>}
                 </div>
                 {signalConfirmed && (
                   <div className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest"
@@ -825,6 +798,9 @@ const LiveTalkView: React.FC<LiveTalkViewProps> = ({ onBrowse, initialShowSetup,
 
               {/* Controls */}
               <div className="p-4 bg-black/40 border-t border-white/5 space-y-3">
+                {amOnStage && (
+                  <LevelMeter source={rtc.localAudioTrack} label="Your mic" muted={selfMuted || mutedByHost} />
+                )}
                 <div className="flex items-center gap-2 overflow-x-auto">
                   {amOnStage ? (
                     <button onClick={toggleMyMic} disabled={mutedByHost}
